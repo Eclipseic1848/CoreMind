@@ -1,0 +1,43 @@
+import { type Static, Type } from "@sinclair/typebox";
+import { AgentConfigSchema, SessionConfigSchema } from "./agent.js";
+import {
+  type CustomProviderSchema,
+  ModelOptionsSchema,
+  type ProviderRefSchema,
+  ProviderSchema,
+} from "./provider.js";
+import { type ScriptToolSchema, ToolConfigSchema, type ToolRefSchema } from "./tools.js";
+import { WorkflowStepSchema } from "./workflow.js";
+
+/**
+ * CoreMind 配置文件顶层 schema（coremind.yaml / coremind.json）
+ * 顶层只保留少量字段，全部可选字段有合理默认值，对新手友好。
+ */
+export const CoreMindConfigSchema = Type.Object({
+  version: Type.Optional(
+    Type.Number({ default: 1, minimum: 1, maximum: 1, description: "配置格式版本，一期固定为 1" }),
+  ),
+  name: Type.String({ minLength: 1, description: "智能体名称（必填）" }),
+  description: Type.Optional(Type.String()),
+  provider: Type.Optional(ProviderSchema),
+  tools: Type.Optional(Type.Array(ToolConfigSchema, { default: [], description: "全局默认工具" })),
+  options: Type.Optional(ModelOptionsSchema),
+  agents: Type.Record(Type.String({ minLength: 1 }), AgentConfigSchema, {
+    description: "多 agent 按名字定义",
+  }),
+  defaultAgent: Type.Optional(Type.String({ description: "缺省 agent 名，缺省为第一个" })),
+  workflow: Type.Optional(Type.Array(WorkflowStepSchema)),
+  session: Type.Optional(SessionConfigSchema),
+});
+
+export type CoreMindConfig = Static<typeof CoreMindConfigSchema>;
+export type AgentConfig = Static<typeof AgentConfigSchema>;
+export type ProviderConfig = Static<typeof ProviderSchema>;
+export type ProviderRefConfig = Static<typeof ProviderRefSchema>;
+export type CustomProviderConfig = Static<typeof CustomProviderSchema>;
+export type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;
+export type ToolConfig = Static<typeof ToolConfigSchema>;
+export type ToolRefConfig = Static<typeof ToolRefSchema>;
+export type ScriptToolConfig = Static<typeof ScriptToolSchema>;
+export type WorkflowStep = Static<typeof WorkflowStepSchema>;
+export type SessionConfig = Static<typeof SessionConfigSchema>;

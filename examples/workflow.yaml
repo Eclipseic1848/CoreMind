@@ -1,0 +1,64 @@
+# 工作流示例：并行 + 条件分支 + 变量传递
+# 运行：coremind run examples/workflow.yaml --prompt "当前目录的文件"
+version: 1
+name: workflow-demo
+description: 简化编排引擎全特性示例（parallel + if + 变量）
+
+provider:
+  id: deepseek
+
+agents:
+  explorer:
+    description: 文件系统探查员
+    systemPrompt: |
+      你是文件系统探查员。使用工具查看目录和文件，输出简洁的事实列表。
+    tools:
+      - id: ls
+      - id: find
+      - id: read
+  summarizer:
+    description: 总结专家
+    systemPrompt: |
+      你是总结专家。根据输入输出简洁的中文总结（3-5 行）。
+    tools: []
+
+workflow:
+  - id: explore
+    type: prompt
+    agent: explorer
+    input: |
+      请探查：{{prompt}}（工作目录：当前目录）
+    saveAs: files
+  - id: check-empty
+    type: if
+    condition: "{{files.text}} contains 没有文件"
+    then:
+      - id: empty-summary
+        type: prompt
+        agent: summarizer
+        input: 目录为空，请说明并给出创建新文件的建议。
+        saveAs: final
+    else:
+      - id: parallel-check
+        type: parallel
+        steps:
+          - id: count-files
+            type: prompt
+            agent: explorer
+            input: 统计一下文件数量，输出一行结论。
+            saveAs: count
+          - id: largest-file
+            type: prompt
+            agent: explorer
+            input: 找出最大的文件，输出文件名和大小。
+            saveAs: largest
+        saveAs: checks
+      - id: final-summary
+        type: call
+        agent: summarizer
+        input: |
+          综合以下信息输出总结：
+          【文件清单】{{files.text}}
+          【数量】{{count.text}}
+          【最大文件】{{largest.text}}
+        saveAs: final

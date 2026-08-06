@@ -1,0 +1,28 @@
+{
+  "name": "coremind-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoreMind 配置层：coremind.yaml 的 schema、解析与校验",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0",
+    "yaml": "^2.6.0"
+  }
+}

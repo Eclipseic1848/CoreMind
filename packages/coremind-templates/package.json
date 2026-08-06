@@ -1,0 +1,27 @@
+{
+  "name": "coremind-templates",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoreMind 模板库：场景模板与元数据索引",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "templates"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "coremind-config": "*"
+  }
+}

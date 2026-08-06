@@ -1,0 +1,77 @@
+version: 1
+name: weekly-report
+description: 扫描本周代码变更并生成中英文周报（parallel + if + 多 agent）
+provider:
+  id: deepseek
+
+agents:
+  collector:
+    description: 收集 git 历史与项目信息，输出结构化事实
+    systemPrompt: |
+      你是代码仓库信息收集员。只输出事实，不评价、不润色。
+      使用工具获取信息；如果工具失败，明确说明失败原因。
+    tools:
+      - id: bash
+      - id: grep
+      - id: read
+      - id: find
+  writer:
+    description: 周报撰写专家
+    systemPrompt: |
+      你是资深技术周报撰写人。根据输入的事实清单撰写周报，
+      分【本周完成】【风险与阻塞】【下周计划】三节，用 markdown 格式。
+    tools:
+      - id: write
+      - id: bash
+
+workflow:
+  - id: collect
+    type: prompt
+    agent: collector
+    input: |
+      请执行 `git log --oneline --since="7 days ago"` 查看本周提交，
+      并列出最近修改的文件（用 ls/find）。输出：提交清单 + 文件清单。
+    saveAs: changes
+
+  - id: check-empty
+    type: if
+    condition: "{{changes.text}} contains 无"
+    then:
+      - id: fallback
+        type: prompt
+        agent: writer
+        input: 本周没有新的代码变更，请生成一封说明性的简短周报。
+        saveAs: report
+    else:
+      - id: collect-checks
+        type: parallel
+        steps:
+          - id: build-check
+            type: prompt
+            agent: collector
+            input: 运行 `npm run build` 并记录是否成功，输出一行结论。
+            saveAs: build
+          - id: test-check
+            type: prompt
+            agent: collector
+            input: 运行 `npm test`（限制 60 秒），记录通过/失败数。
+            saveAs: tests
+        saveAs: checks
+      - id: write
+        type: call
+        agent: writer
+        input: |
+          基于以下材料撰写本周周报：
+          【代码变更】{{changes.text}}
+          【构建/测试】{{checks.text}}
+          输出 markdown。
+        saveAs: report
+
+  - id: emit
+    type: prompt
+    agent: writer
+    input: |
+      把上面生成的周报写入文件 docs/weekly-report.md。
+      如果 docs 目录不存在，先创建。
+      周报内容：
+      {{report.text}}

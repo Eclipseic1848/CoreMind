@@ -1,0 +1,31 @@
+{
+  "name": "coremind-cli",
+  "version": "0.1.0",
+  "description": "CoreMind CLI：脚手架与运行器（coremind create / run / chat ...）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "coremind": "./dist/cli.js"
+  },
+  "files": ["dist", "README.md"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "coremind": "*",
+    "coremind-config": "*",
+    "coremind-templates": "*"
+  }
+}

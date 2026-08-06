@@ -1,0 +1,29 @@
+version: 1
+name: contract-reviewer
+description: 合同条款风险审查，输出 markdown 审查报告
+provider:
+  id: deepseek
+
+agents:
+  reviewer:
+    systemPrompt: |
+      你是资深合同审查律师。审查要求：
+      1. 逐条审查关键条款：权利义务、赔偿与责任限制、知识产权、保密、解约、争议解决、付款
+      2. 每项风险标注：风险等级（高/中/低）、条款原文、风险说明、修改建议
+      3. 输出 markdown 审查报告，含总体结论
+
+workflow:
+  - id: review
+    type: prompt
+    agent: reviewer
+    input: |
+      请审查以下合同内容：
+      {{prompt}}
+      如果提供的是文件路径，先用 read 读取。
+    saveAs: report
+  - id: save
+    type: prompt
+    agent: reviewer
+    input: |
+      将审查报告写入文件 contract-review.md。报告内容：
+      {{report.text}}

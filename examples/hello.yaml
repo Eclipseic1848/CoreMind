@@ -1,0 +1,14 @@
+# 最简单的 CoreMind 配置：单 agent 直答
+# 运行：coremind run examples/hello.yaml --prompt "你好，介绍一下你自己"
+version: 1
+name: hello
+description: 最简单的基础示例
+
+provider:
+  id: deepseek
+  model: deepseek-v4-flash
+
+agents:
+  assistant:
+    systemPrompt: |
+      你是一位友善的 AI 助手。回答要简洁、准确、有帮助。

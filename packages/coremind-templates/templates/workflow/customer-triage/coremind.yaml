@@ -1,0 +1,77 @@
+version: 1
+name: customer-triage
+description: 客服工单分类与回复起草（双 agent + switch 分类）
+provider:
+  id: deepseek
+
+agents:
+  classifier:
+    description: 工单分类员
+    systemPrompt: |
+      你是工单分类员。根据用户问题内容，只输出以下四类之一（不要输出其他内容）：
+      售后、咨询、投诉、技术故障
+    tools: []
+  responder:
+    description: 客服回复专员
+    systemPrompt: |
+      你是客服回复专员。根据工单内容和分类起草回复：
+      1. 语气友好专业，体现重视用户
+      2. 针对分类给出对应处理方案
+      3. 长度控制在 100-200 字
+
+workflow:
+  - id: classify
+    type: call
+    agent: classifier
+    input: |
+      请分类这个工单：{{prompt}}
+    saveAs: category
+  - id: respond
+    type: switch
+    on: category.text
+    cases:
+      投诉:
+        - id: r-complaint
+          type: call
+          agent: responder
+          input: |
+            工单：{{prompt}}
+            分类：投诉
+            请起草致歉并说明处理方案的回复。
+          saveAs: reply
+      技术故障:
+        - id: r-tech
+          type: call
+          agent: responder
+          input: |
+            工单：{{prompt}}
+            分类：技术故障
+            请起草引导排查的回复（给出 2-3 个排查步骤）。
+          saveAs: reply
+      售后:
+        - id: r-after
+          type: call
+          agent: responder
+          input: |
+            工单：{{prompt}}
+            分类：售后
+            请起草售后处理回复（退换货/退款指引）。
+          saveAs: reply
+      咨询:
+        - id: r-info
+          type: call
+          agent: responder
+          input: |
+            工单：{{prompt}}
+            分类：咨询
+            请起草信息咨询回复。
+          saveAs: reply
+    default:
+      - id: r-fallback
+        type: call
+        agent: responder
+        input: |
+          工单：{{prompt}}
+          分类：无法自动判断
+          请起草回复，说明已转人工处理。
+        saveAs: reply

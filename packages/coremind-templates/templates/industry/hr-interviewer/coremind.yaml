@@ -1,0 +1,51 @@
+version: 1
+name: hr-interviewer
+description: 岗位面试官，按候选人表现分路追问（switch 分支）
+provider:
+  id: deepseek
+
+agents:
+  interviewer:
+    systemPrompt: |
+      你是一位专业面试官。行为准则：
+      1. 一次只问一个问题，等待回答后再继续
+      2. 根据候选人回答质量深入追问
+      3. 最终输出评估结论（优点、短板、推荐程度）
+      4. 语气专业、友善，不给候选人压力
+
+workflow:
+  - id: intro
+    type: prompt
+    agent: interviewer
+    input: |
+      请开始面试（岗位：{{prompt}}）：
+      首先请候选人做自我介绍，然后提出第一个专业问题。
+    saveAs: stage1
+  - id: classify
+    type: switch
+    on: stage1.text
+    cases:
+      经验丰富:
+        - id: hard-q
+          type: prompt
+          agent: interviewer
+          input: 候选人表现优异，继续追问一个高难度的实战场景题。
+          saveAs: conclusion
+      经验一般:
+        - id: deep-dive
+          type: prompt
+          agent: interviewer
+          input: 候选人表现中规中矩，追问一个考察深度的基础题。
+          saveAs: conclusion
+      需要培养:
+        - id: friendly-q
+          type: prompt
+          agent: interviewer
+          input: 候选人基础较弱，问一个考察学习能力的开放题。
+          saveAs: conclusion
+    default:
+      - id: normal-q
+        type: prompt
+        agent: interviewer
+        input: 按常规流程继续提问并完成面试，输出评估结论。
+        saveAs: conclusion

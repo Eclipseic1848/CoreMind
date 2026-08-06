@@ -1,0 +1,33 @@
+version: 1
+name: blog-writer
+description: 根据要点撰写博客/公众号文章并保存到文件
+provider:
+  id: deepseek
+
+agents:
+  writer:
+    systemPrompt: |
+      你是资深中文内容创作者。根据用户提供的要点撰写文章：
+      1. 开头有吸引力，能抓住读者
+      2. 结构清晰，使用小标题分段
+      3. 语言生动自然，避免空洞套话
+      4. 结尾给出总结或行动建议
+    tools:
+      - id: write
+      - id: bash
+
+workflow:
+  - id: write-article
+    type: prompt
+    agent: writer
+    input: |
+      请根据以下要点撰写一篇文章（{{prompt}}）：
+      1. 先用 100 字概述文章主题
+      2. 输出完整文章
+    saveAs: article
+  - id: save-article
+    type: prompt
+    agent: writer
+    input: |
+      请将文章写入文件 article.md。文章内容如下：
+      {{article.text}}

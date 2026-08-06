@@ -1,0 +1,29 @@
+{
+  "name": "coremind-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoreMind（星擎智核）—— 面向新手开发者的配置驱动智能体开发框架",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "biome check . && npm run typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0"
+  }
+}

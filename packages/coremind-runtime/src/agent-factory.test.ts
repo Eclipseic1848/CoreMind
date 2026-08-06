@@ -1,0 +1,84 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createModels } from "@earendil-works/pi-ai";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+} from "@earendil-works/pi-ai/providers/faux";
+import { createReadTool } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it } from "vitest";
+import { buildAgent } from "./agent-factory.js";
+import type { CoreMindEvent } from "./events.js";
+
+function makeFauxContext() {
+  const models = createModels();
+  const faux = fauxProvider();
+  models.setProvider(faux.provider);
+  return { models, model: faux.getModel(), faux };
+}
+
+describe("buildAgent（离线 faux 端到端）", () => {
+  it("配置 → Agent 跑通，工具执行并返回最终文本", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-"));
+    writeFileSync(path.join(dir, "notes.txt"), "这是测试内容", "utf8");
+    const { models, model, faux } = makeFauxContext();
+    // 两步响应：先触发工具调用，再输出文本
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("read", { path: "notes.txt" })]),
+      fauxAssistantMessage("完成，已读取"),
+    ]);
+
+    const events: CoreMindEvent[] = [];
+    const agent = buildAgent(
+      {
+        systemPrompt: "测试助手",
+        tools: [{ id: "read" }],
+      },
+      {
+        models,
+        model,
+        tools: [createReadTool(dir)],
+        agentName: "tester",
+        onEvent: (e) => events.push(e),
+      },
+    );
+
+    await agent.prompt("请读取 package.json");
+    await agent.waitForIdle();
+
+    // 事件序列：agent_start → tool_call → tool_result → text_delta → agent_end
+    const types = events.map((e) => e.type);
+    expect(types).toContain("agent_start");
+    expect(types).toContain("agent_end");
+    expect(types).toContain("tool_call");
+    expect(types).toContain("tool_result");
+    expect(types).toContain("text_delta");
+
+    // 事件都带 agent 名
+    for (const e of events) {
+      if (e.type === "agent_start" || e.type === "agent_end") expect(e.agent).toBe("tester");
+    }
+
+    // 工具事件细节
+    const toolCall = events.find((e) => e.type === "tool_call");
+    if (toolCall && toolCall.type === "tool_call") {
+      expect(toolCall.tool).toBe("read");
+      expect(toolCall.args).toMatchObject({ path: "notes.txt" });
+    }
+    const toolResult = events.find((e) => e.type === "tool_result");
+    if (toolResult && toolResult.type === "tool_result") {
+      expect(toolResult.isError).toBe(false);
+    }
+
+    // 最终文本（从消息提取）
+    const text = agent.state.messages
+      .filter((m) => m.role === "assistant")
+      .flatMap((m) => m.content ?? [])
+      .filter((c) => c.type === "text")
+      .map((c) => c.text)
+      .join("");
+    expect(text).toContain("完成");
+  });
+});

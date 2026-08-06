@@ -1,0 +1,30 @@
+{
+  "name": "coremind-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoreMind 运行时：provider 注册、Agent 构建、简化编排引擎、会话管理",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.83.0",
+    "@earendil-works/pi-ai": "^0.83.0",
+    "coremind-config": "*",
+    "coremind-tools": "*"
+  }
+}

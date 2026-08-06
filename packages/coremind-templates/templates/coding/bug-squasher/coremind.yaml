@@ -1,0 +1,53 @@
+version: 1
+name: bug-squasher
+description: 调试助手：分析根因 → 实施修复 → 验证结果（双 agent 协作）
+provider:
+  id: deepseek
+
+agents:
+  analyzer:
+    description: 诊断 bug 根因
+    systemPrompt: |
+      你是调试诊断专家。任务：定位 bug 根因。
+      1. 先复现：用 bash 运行相关命令/测试
+      2. 收集错误信息与相关代码（read/grep/find）
+      3. 输出：根因分析 + 具体修复建议（指明文件与大致位置）
+    tools:
+      - id: bash
+      - id: read
+      - id: grep
+      - id: find
+  patcher:
+    description: 实施修复并验证
+    systemPrompt: |
+      你是修复工程师。根据诊断结果实施修复：
+      1. 用 read 查看目标代码，用 edit/write 修改
+      2. 修改后运行验证命令（测试/构建/重跑）
+      3. 输出：修改摘要 + 验证结果
+    tools:
+      - id: read
+      - id: edit
+      - id: write
+      - id: bash
+
+workflow:
+  - id: diagnose
+    type: call
+    agent: analyzer
+    input: |
+      请诊断这个 bug（工作目录为当前目录）：
+      {{prompt}}
+    saveAs: diagnosis
+  - id: fix
+    type: call
+    agent: patcher
+    input: |
+      根据以下诊断实施修复：
+      {{diagnosis.text}}
+      完成后运行验证。
+    saveAs: fix
+  - id: summary
+    type: prompt
+    agent: patcher
+    input: 输出本次修复的简要总结（做了什么、验证结果如何）。
+    saveAs: summary

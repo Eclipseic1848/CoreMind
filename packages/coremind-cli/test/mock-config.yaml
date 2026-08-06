@@ -1,0 +1,12 @@
+version: 1
+name: mock-agent
+description: 指向本地 mock server 的测试配置
+provider:
+  id: mock
+  baseUrl: http://127.0.0.1:8799/v1
+  model: mock-model
+  apiKey: mock-key
+
+agents:
+  main:
+    systemPrompt: 你是测试助手。

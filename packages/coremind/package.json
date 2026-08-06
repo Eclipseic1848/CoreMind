@@ -1,0 +1,28 @@
+{
+  "name": "coremind",
+  "version": "0.1.0",
+  "description": "CoreMind（星擎智核）—— 配置驱动智能体开发框架（统一入口）",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "coremind-config": "*",
+    "coremind-runtime": "*",
+    "coremind-tools": "*"
+  }
+}

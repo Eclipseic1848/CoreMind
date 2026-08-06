@@ -1,0 +1,28 @@
+{
+  "name": "coremind-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CoreMind 工具层：内置工具注册表与自定义脚本工具加载",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.83.0",
+    "@earendil-works/pi-coding-agent": "^0.83.0"
+  }
+}

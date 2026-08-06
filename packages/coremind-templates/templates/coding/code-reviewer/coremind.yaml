@@ -1,0 +1,44 @@
+version: 1
+name: code-reviewer
+description: 对指定文件进行代码审查，标记风险等级
+provider:
+  id: deepseek
+
+agents:
+  reviewer:
+    systemPrompt: |
+      你是资深代码审查专家。审查要求：
+      1. 关注：bug 风险、安全问题、可读性、性能
+      2. 每个问题标注严重程度（高/中/低）并给出具体修改建议
+      3. 用工具读取代码文件，不要凭空猜测
+      4. 若存在高风险问题，在结论行输出：风险等级：高
+    tools:
+      - id: read
+      - id: grep
+      - id: find
+      - id: ls
+
+workflow:
+  - id: review
+    type: prompt
+    agent: reviewer
+    input: |
+      请审查文件：{{prompt}}
+      如果文件不存在，先用 find 查找相关文件再审查。
+    saveAs: review
+  - id: check-risk
+    type: if
+    condition: "{{review.text}} contains 风险等级：高"
+    then:
+      - id: warn
+        type: prompt
+        agent: reviewer
+        input: |
+          检测到高风险问题。请输出一行"必须立即修复"的建议清单。
+        saveAs: action
+    else:
+      - id: summary
+        type: prompt
+        agent: reviewer
+        input: 输出一句话总结审查结论。
+        saveAs: summary

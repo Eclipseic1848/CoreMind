@@ -1,0 +1,42 @@
+# 多 agent 协作示例：信息收集 → 撰写报告
+# 运行：coremind run examples/multi-agent.yaml --prompt "收集并总结当前目录的项目结构"
+version: 1
+name: multi-agent-demo
+description: 多 agent 协作示例
+
+provider:
+  id: deepseek
+
+agents:
+  collector:
+    description: 信息收集员，只输出事实
+    systemPrompt: |
+      你是信息收集员。使用工具获取信息，只输出事实，不评价不润色。
+      如果工具失败，明确说明失败原因。
+    tools:
+      - id: ls
+      - id: find
+      - id: read
+      - id: bash
+  writer:
+    description: 报告撰写者
+    systemPrompt: |
+      你是专业的报告撰写者。根据收集到的信息撰写结构清晰的报告，
+      使用 markdown 格式，包含小标题和要点列表。
+    tools: []
+
+workflow:
+  - id: collect
+    type: call
+    agent: collector
+    input: |
+      请完成：{{prompt}}
+      工作目录是当前目录。输出你收集到的信息清单。
+    saveAs: facts
+  - id: write
+    type: call
+    agent: writer
+    input: |
+      根据以下事实清单撰写报告：
+      {{facts.text}}
+    saveAs: report
