@@ -43,4 +43,10 @@ packages/
 
 ## 发布
 
-内部包（config/tools/runtime/templates）不单独发布；对外仅发布 `coremind` 与 `coremind-cli` 两个 npm 包，版本同步递增。
+六个包统一版本同步发布（相互依赖使用精确版本锁定），按依赖顺序：
+
+```
+coremind-config → coremind-tools → coremind-runtime → coremind-templates → coremind-ai → coremind-cli
+```
+
+`coremind-ai` 为库入口，`coremind-cli` 提供 `coremind` 命令（npm 上 `coremind` 包名已被占用，故库包使用 `coremind-ai`）。

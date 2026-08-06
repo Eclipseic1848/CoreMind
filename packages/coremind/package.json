@@ -1,6 +1,6 @@
 {
-  "name": "coremind",
-  "version": "0.1.0",
+  "name": "coremind-ai",
+  "version": "0.1.0-alpha.0",
   "description": "CoreMind（星擎智核）—— 配置驱动智能体开发框架（统一入口）",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "engines": {
     "node": ">=22.19.0"
   },
@@ -21,8 +24,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-config": "*",
-    "coremind-runtime": "*",
-    "coremind-tools": "*"
+    "coremind-config": "0.1.0-alpha.0",
+    "coremind-runtime": "0.1.0-alpha.0",
+    "coremind-tools": "0.1.0-alpha.0"
   }
 }

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { CoreMindRuntime } from "coremind";
+import { CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, stepLine, toolLine, toolResultLine, yellow } from "../render.js";

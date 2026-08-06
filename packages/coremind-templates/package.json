@@ -1,7 +1,6 @@
 {
   "name": "coremind-templates",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.0-alpha.0",
   "description": "CoreMind 模板库：场景模板与元数据索引",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +11,10 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "templates"],
+  "files": [
+    "dist",
+    "templates"
+  ],
   "engines": {
     "node": ">=22.19.0"
   },
@@ -22,6 +24,6 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "coremind-config": "*"
+    "coremind-config": "0.1.0-alpha.0"
   }
 }

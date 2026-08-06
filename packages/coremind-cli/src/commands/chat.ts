@@ -1,7 +1,7 @@
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { CoreMindRuntime } from "coremind";
+import { CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
 import { flagBool, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, yellow } from "../render.js";

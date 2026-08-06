@@ -1,7 +1,6 @@
 {
   "name": "coremind-tools",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.0-alpha.0",
   "description": "CoreMind 工具层：内置工具注册表与自定义脚本工具加载",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22.19.0"
   },

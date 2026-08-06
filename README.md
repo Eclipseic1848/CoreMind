@@ -139,7 +139,7 @@ coremind doctor [file]       环境自检
 ## 作为库使用
 
 ```ts
-import { loadConfigFile, parseAndValidate, CoreMindRuntime } from "coremind";
+import { loadConfigFile, parseAndValidate, CoreMindRuntime } from "coremind-ai";
 
 const data = await loadConfigFile("coremind.yaml");
 const { config } = parseAndValidate(data);
@@ -160,6 +160,13 @@ console.log(result.transcript);
 **支持本地模型吗？** 支持。自定义 provider 指向任意 OpenAI 兼容端点（如 Ollama：`http://localhost:11434/v1`）。
 
 **免费吗？** CoreMind 本身 MIT 开源免费；模型费用由各提供商收取。
+
+## 安装与包
+
+```bash
+npm install coremind-ai     # 库（嵌入你的应用）
+npm install -g coremind-cli # 命令行工具（提供 coremind 命令）
+```
 
 ## 开源协议
 
