@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "coremind-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "CoreMind（星擎智核）—— 面向新手开发者的配置驱动智能体开发框架",
+  "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
   "workspaces": [
     "packages/*",

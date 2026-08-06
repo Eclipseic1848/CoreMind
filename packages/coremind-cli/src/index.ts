@@ -1,4 +1,4 @@
-import { type ParsedArgs, parseArgs } from "./args.js";
+﻿import { type ParsedArgs, parseArgs } from "./args.js";
 import { cmdChat } from "./commands/chat.js";
 import { cmdCreate } from "./commands/create.js";
 import { cmdDoctor } from "./commands/doctor.js";
@@ -36,7 +36,7 @@ export async function main(argv: string[]): Promise<number> {
 
 function printHelp(): void {
   console.log(`
-${cyan("CoreMind（星擎智核）")} — 配置驱动智能体开发框架 ${dim("v0.1.0")}
+${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${dim("v0.1.0")}
 
 用法：coremind <命令> [参数]
 

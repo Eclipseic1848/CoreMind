@@ -1,4 +1,4 @@
-// CoreMind（星擎智核）统一入口 —— 聚合门面，只 re-export，不写业务逻辑
+﻿// CoreMind（星枢智核）统一入口 —— 聚合门面，只 re-export，不写业务逻辑
 
 export {
   type AgentConfig,

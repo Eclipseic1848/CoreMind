@@ -1,4 +1,4 @@
-# CoreMind（星擎智核）
+﻿# CoreMind（星枢智核）
 
 面向普通/初级开发者、新手小白的**配置驱动智能体开发框架**：写一份 `coremind.yaml` 即可构建自己的智能体。核心设计文档见 [PLAN.md](PLAN.md)。
 

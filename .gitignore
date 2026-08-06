@@ -21,3 +21,6 @@ sessions/
 # 编辑器/系统
 .DS_Store
 Thumbs.db
+
+# 内部计划文档（不推送到 GitHub）
+PLAN.md

@@ -1,6 +1,6 @@
-<div align="center">
+﻿<div align="center">
 
-# CoreMind 星擎智核
+# CoreMind 星枢智核
 
 **面向新手开发者的配置驱动智能体开发框架**
 
