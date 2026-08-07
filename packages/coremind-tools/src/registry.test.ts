@@ -73,6 +73,27 @@ describe("buildTools", () => {
     expect(result.content[0]).toMatchObject({ type: "text", text: "2026-01-01" });
   });
 
+  it("工具数量超过建议上限时告警", async () => {
+    const configDir = makeConfigDir();
+    const { tools, warnings } = await buildTools(
+      Array.from({ length: 21 }, () => ({ id: "read" })),
+      { cwd: configDir, configDir },
+    );
+    expect(tools.length).toBe(21);
+    expect(warnings.some((w) => w.includes("超过建议上限"))).toBe(true);
+  });
+
+  it("内置工具全量（含 web-search）在建议上限内不告警", async () => {
+    const configDir = makeConfigDir();
+    const { warnings } = await buildTools(
+      ["read", "ls", "find", "grep", "bash", "edit", "write", "web-fetch", "web-search"].map(
+        (id) => ({ id }),
+      ),
+      { cwd: configDir, configDir, env: { TAVILY_API_KEY: "test-key" } },
+    );
+    expect(warnings.some((w) => w.includes("超过建议上限"))).toBe(false);
+  });
+
   it("加载损坏的脚本工具时给出告警而非抛错", async () => {
     const configDir = makeConfigDir();
     writeFileSync(path.join(configDir, "bad.mjs"), "export default { name: 'x' };", "utf8");

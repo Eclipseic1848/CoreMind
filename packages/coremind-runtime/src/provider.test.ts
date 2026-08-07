@@ -97,4 +97,24 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     });
     expect(runtime.model.provider).toBe("gateway");
   });
+
+  it("contextWindow/maxTokens 可配置覆盖，缺省保守兜底", async () => {
+    const big = await buildProviderRuntime({
+      id: "big",
+      baseUrl: "http://127.0.0.1:8080/v1",
+      model: "m1",
+      contextWindow: 131072,
+      maxTokens: 8192,
+    });
+    expect(big.model.contextWindow).toBe(131072);
+    expect(big.model.maxTokens).toBe(8192);
+
+    const fallback = await buildProviderRuntime({
+      id: "default",
+      baseUrl: "http://127.0.0.1:8080/v1",
+      model: "m1",
+    });
+    expect(fallback.model.contextWindow).toBe(32768);
+    expect(fallback.model.maxTokens).toBe(4096);
+  });
 });

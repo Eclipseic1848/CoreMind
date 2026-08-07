@@ -28,6 +28,9 @@ const BUILTIN_FACTORIES: Record<
   "web-search": (_, env) => createWebSearchToolIfAvailable(env),
 };
 
+/** 单个 agent 工具数量建议上限（工具过多会降低模型工具选择准确率，参考主流生产经验 0-20） */
+export const MAX_TOOLS_PER_AGENT = 20;
+
 export interface BuildToolsOptions {
   /** 工作目录（传给文件类工具） */
   cwd: string;
@@ -78,6 +81,13 @@ export async function buildTools(
       continue;
     }
     tools.push(tool);
+  }
+
+  // 规模护栏：工具过多会退化模型选择准确率（Shopify 生产经验：0-20 清晰、50+ 难推理）
+  if (tools.length > MAX_TOOLS_PER_AGENT) {
+    warnings.push(
+      `工具数量 ${tools.length} 超过建议上限 ${MAX_TOOLS_PER_AGENT}（工具过多会降低模型工具选择准确率），请精简`,
+    );
   }
 
   return { tools, warnings };

@@ -29,6 +29,18 @@ export const CustomProviderSchema = Type.Object({
   apiKey: Type.Optional(Type.String({ description: "直接写 API key（不建议，优先用 apiKeyEnv）" })),
   apiKeyEnv: Type.Optional(Type.String({ description: "API key 环境变量名" })),
   headers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "附加请求头" })),
+  contextWindow: Type.Optional(
+    Type.Integer({
+      minimum: 1024,
+      description: "模型上下文窗口（token），缺省按 32768 兜底",
+    }),
+  ),
+  maxTokens: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      description: "模型最大输出 token 数，缺省按 4096 兜底",
+    }),
+  ),
 });
 
 /**
