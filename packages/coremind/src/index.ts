@@ -20,6 +20,5 @@ export {
   type RunResult,
   type StepOutput,
 } from "coremind-runtime";
-
-export { type BuildToolsOptions, buildTools } from "coremind-tools";
 export { findSkill, resolveSkills, SKILLS, type SkillMeta } from "coremind-templates";
+export { type BuildToolsOptions, buildTools } from "coremind-tools";

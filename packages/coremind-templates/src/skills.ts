@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { type Dirent, readFileSync } from "node:fs";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,7 +60,7 @@ export function resolveSkills(ids: string[]): { contents: string[]; missing: str
  */
 export async function loadDirectorySkills(dir: string): Promise<Map<string, string>> {
   const result = new Map<string, string>();
-  let entries;
+  let entries: Dirent[];
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {
