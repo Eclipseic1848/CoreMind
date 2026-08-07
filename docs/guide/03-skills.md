@@ -42,6 +42,28 @@ agents:
 
 部分模板已预配技能（如 code-reviewer 自带 code-review 技能），开箱即用。
 
-## 技能从哪来
+## 自定义技能
 
-当前内置 3 个技能（随框架分发）。自定义技能与技能生态（可发布、可贡献的技能库）正在规划中——届时技能将支持用户自定义与共享。
+内置技能之外，可以在**配置文件所在目录**的 `skills/` 下放自己的技能——每个含 `README.md` 的子目录就是一个技能，目录名即技能 id：
+
+```
+my-agent/
+├── coremind.yaml
+└── skills/
+    └── legal-review/          # 技能 id：legal-review
+        └── README.md          # 技能内容（SOP 文本）
+```
+
+```yaml
+# coremind.yaml
+agents:
+  reviewer:
+    skills:
+      - legal-review           # 引用自定义技能
+```
+
+自定义技能与内置技能使用方式完全一致（配置引用 + 运行时注入），同 id 时内置优先。写错 id 会告警并提示两种来源。
+
+## 技能生态
+
+技能是**可复用的内容资产**：把 `skills/<id>/README.md` 分享给任何人，对方放进自己项目的 `skills/` 即可使用——这是技能生态（可发布、可贡献）的基础约定。发布为 npm 技能包、技能市场等形态在后续规划中。

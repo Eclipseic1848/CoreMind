@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,4 +52,26 @@ export function resolveSkills(ids: string[]): { contents: string[]; missing: str
     else missing.push(id);
   }
   return { contents, missing };
+}
+
+/**
+ * 扫描目录下的自定义技能（生态机制）：每个含 README.md 的子目录即一个技能，
+ * 目录名 = 技能 id。目录不存在或为空时返回空 Map。
+ */
+export async function loadDirectorySkills(dir: string): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return result; // 目录不存在（未使用自定义技能）→ 空
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const content = await readFile(path.join(dir, entry.name, "README.md"), "utf8").catch(
+      () => null,
+    );
+    if (content) result.set(entry.name, content);
+  }
+  return result;
 }

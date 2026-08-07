@@ -1,6 +1,7 @@
+import path from "node:path";
 import type { Agent, AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
 import type { AgentConfig, CoreMindConfig } from "coremind-config";
-import { resolveSkills, SKILLS } from "coremind-templates";
+import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import { buildTools } from "coremind-tools";
 import { buildAgent } from "./agent-factory.js";
 import { CoreMindError } from "./errors.js";
@@ -94,6 +95,8 @@ export class CoreMindRuntime {
     const agentConfigs = new Map<string, AgentConfig>();
     const toolsByAgent = new Map<string, AgentTool[]>();
     const skillsByAgent = new Map<string, string[]>();
+    // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
+    const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
       const { tools, warnings } = await buildTools(toolConfigs ?? [], { cwd, configDir, env });
@@ -103,16 +106,22 @@ export class CoreMindRuntime {
       agentConfigs.set(name, agentCfg);
       toolsByAgent.set(name, tools);
 
-      // 技能：解析注入内容，未命中 id 告警（不阻断）
+      // 技能：内置优先，未命中的查自定义目录，仍缺失才告警（不阻断）
       const { contents, missing } = resolveSkills(agentCfg.skills ?? []);
+      const allContents = [...contents];
       for (const id of missing) {
-        emit({
-          type: "error",
-          message: `技能 ${id} 不存在，已忽略（可用：${SKILLS.map((s) => s.id).join("、")}）`,
-          fatal: false,
-        });
+        const custom = customSkills.get(id);
+        if (custom) {
+          allContents.push(custom);
+        } else {
+          emit({
+            type: "error",
+            message: `技能 ${id} 不存在（内置：${SKILLS.map((s) => s.id).join("、")}；自定义：放配置目录的 skills/${id}/README.md），已忽略`,
+            fatal: false,
+          });
+        }
       }
-      skillsByAgent.set(name, contents);
+      skillsByAgent.set(name, allContents);
     }
 
     // 会话恢复：--session 且 session.enabled 时，打开已有会话注入历史视图（非破坏）
