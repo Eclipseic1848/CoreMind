@@ -22,3 +22,4 @@ export {
 } from "coremind-runtime";
 
 export { type BuildToolsOptions, buildTools } from "coremind-tools";
+export { findSkill, resolveSkills, SKILLS, type SkillMeta } from "coremind-templates";

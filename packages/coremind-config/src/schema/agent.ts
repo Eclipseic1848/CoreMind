@@ -16,6 +16,12 @@ export const AgentConfigSchema = Type.Object({
   ),
   options: Type.Optional(ModelOptionsSchema),
   description: Type.Optional(Type.String({ description: "给其他 agent 看的‘名片’描述" })),
+  skills: Type.Optional(
+    Type.Array(Type.String({ minLength: 1 }), {
+      description:
+        "注入的专业技能 id（如 code-review / weekly-report / translation），内容附加到系统提示词",
+    }),
+  ),
 });
 
 /** 会话配置（持久化开关） */

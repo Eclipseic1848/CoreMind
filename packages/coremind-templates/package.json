@@ -13,7 +13,8 @@
   },
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "skills"
   ],
   "engines": {
     "node": ">=22.19.0"

@@ -96,3 +96,5 @@ export const TEMPLATES: TemplateMeta[] = [
 export function findTemplate(id: string): TemplateMeta | undefined {
   return TEMPLATES.find((t) => t.id === id);
 }
+
+export { findSkill, resolveSkills, SKILLS, type SkillMeta } from "./skills.js";

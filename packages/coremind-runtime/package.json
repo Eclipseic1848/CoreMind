@@ -26,6 +26,7 @@
     "@earendil-works/pi-agent-core": "^0.83.0",
     "@earendil-works/pi-ai": "^0.83.0",
     "coremind-config": "0.1.0-alpha.0",
+    "coremind-templates": "0.1.0-alpha.0",
     "coremind-tools": "0.1.0-alpha.0"
   }
 }

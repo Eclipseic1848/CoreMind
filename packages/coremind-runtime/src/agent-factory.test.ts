@@ -144,4 +144,32 @@ describe("buildAgent（options 与 apiKey 注入）", () => {
       expect(o.maxTokens).toBeUndefined();
     }
   });
+
+  it("skills 内容注入系统提示词", async () => {
+    const { models, model } = makeFauxContext();
+    const agent = buildAgent(
+      { systemPrompt: "基础提示" },
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "t",
+        onEvent: () => {},
+        skillsContent: ["技能内容A", "技能内容B"],
+      },
+    );
+    expect(agent.state.systemPrompt).toContain("基础提示");
+    expect(agent.state.systemPrompt).toContain("# 专业技能");
+    expect(agent.state.systemPrompt).toContain("技能内容A");
+    expect(agent.state.systemPrompt).toContain("技能内容B");
+  });
+
+  it("无 skills 时不追加技能段", async () => {
+    const { models, model } = makeFauxContext();
+    const agent = buildAgent(
+      { systemPrompt: "基础提示" },
+      { models, model, tools: [], agentName: "t", onEvent: () => {} },
+    );
+    expect(agent.state.systemPrompt).toBe("基础提示");
+  });
 });

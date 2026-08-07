@@ -1,5 +1,6 @@
 import type { Agent, AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
 import type { AgentConfig, CoreMindConfig } from "coremind-config";
+import { resolveSkills, SKILLS } from "coremind-templates";
 import { buildTools } from "coremind-tools";
 import { buildAgent } from "./agent-factory.js";
 import { CoreMindError } from "./errors.js";
@@ -57,6 +58,8 @@ export class CoreMindRuntime {
   private readonly mainAgentName: string;
   /** 恢复视图（作为主 agent 初始消息） */
   private readonly sessionMessages?: AgentMessage[];
+  /** agent 名 → 注入的技能内容 */
+  private readonly skillsByAgent: Map<string, string[]>;
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -66,10 +69,12 @@ export class CoreMindRuntime {
     private readonly options: CoreMindRuntimeOptions,
     sessionMessages: AgentMessage[] | undefined,
     resumedContextLength: number,
+    skillsByAgent: Map<string, string[]>,
   ) {
     this.sessionMessages = sessionMessages;
     this.resumedContextLength = resumedContextLength;
     this.mainAgentName = config.defaultAgent ?? firstKey(config.agents) ?? "";
+    this.skillsByAgent = skillsByAgent;
   }
 
   /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
@@ -85,9 +90,10 @@ export class CoreMindRuntime {
       emit({ type: "error", message: warning, fatal: false });
     }
 
-    // 2. 每个 agent：构建工具（Agent 实例按需创建，避免并发冲突）
+    // 2. 每个 agent：构建工具与技能（Agent 实例按需创建，避免并发冲突）
     const agentConfigs = new Map<string, AgentConfig>();
     const toolsByAgent = new Map<string, AgentTool[]>();
+    const skillsByAgent = new Map<string, string[]>();
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
       const { tools, warnings } = await buildTools(toolConfigs ?? [], { cwd, configDir, env });
@@ -96,6 +102,17 @@ export class CoreMindRuntime {
       }
       agentConfigs.set(name, agentCfg);
       toolsByAgent.set(name, tools);
+
+      // 技能：解析注入内容，未命中 id 告警（不阻断）
+      const { contents, missing } = resolveSkills(agentCfg.skills ?? []);
+      for (const id of missing) {
+        emit({
+          type: "error",
+          message: `技能 ${id} 不存在，已忽略（可用：${SKILLS.map((s) => s.id).join("、")}）`,
+          fatal: false,
+        });
+      }
+      skillsByAgent.set(name, contents);
     }
 
     // 会话恢复：--session 且 session.enabled 时，打开已有会话注入历史视图（非破坏）
@@ -124,6 +141,7 @@ export class CoreMindRuntime {
       options,
       sessionMessages,
       resumedContextLength,
+      skillsByAgent,
     );
   }
 
@@ -140,6 +158,7 @@ export class CoreMindRuntime {
       apiKeyOverride: this.providerRuntime.apiKeyOverride,
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
+      skillsContent: this.skillsByAgent.get(name),
     });
     this.lastAgents.set(name, agent);
     return agent;

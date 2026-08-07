@@ -20,6 +20,8 @@ agents:
     systemPrompt: |
       你是资深技术周报撰写人。根据输入的事实清单撰写周报，
       分【本周完成】【风险与阻塞】【下周计划】三节，用 markdown 格式。
+    skills:
+      - weekly-report
     tools:
       - id: write
       - id: bash

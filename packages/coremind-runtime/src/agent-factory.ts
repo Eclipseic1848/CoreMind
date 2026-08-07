@@ -16,6 +16,8 @@ export interface AgentBuildContext {
   sessionMessages?: AgentMessage[];
   /** 配置 apiKeyEnv 时的 key 覆盖（内置 provider） */
   apiKeyOverride?: string;
+  /** 注入的专业技能内容（skills/<id>/README.md，附加到系统提示词） */
+  skillsContent?: string[];
 }
 
 /**
@@ -24,9 +26,14 @@ export interface AgentBuildContext {
  */
 export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent {
   const { temperature, maxTokens } = agentCfg.options ?? {};
+  // 技能注入：专业技能段附加到系统提示词（技能提上限）
+  const skillsBlock =
+    ctx.skillsContent && ctx.skillsContent.length > 0
+      ? `\n\n# 专业技能\n${ctx.skillsContent.join("\n\n---\n\n")}`
+      : "";
   const agent = new Agent({
     initialState: {
-      systemPrompt: agentCfg.systemPrompt,
+      systemPrompt: `${agentCfg.systemPrompt}${skillsBlock}`,
       model: ctx.model,
       tools: ctx.tools,
       messages: ctx.sessionMessages ?? [],
