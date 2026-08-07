@@ -7,7 +7,7 @@
 需要 Node.js ≥ 22.19。
 
 ```bash
-npm install -g coremind-cli     # 提供 coremind 命令
+npm install -g coremind-cli@alpha   # 提供 coremind 命令（@alpha：当前以 alpha 版本发布）
 coremind --help                 # 查看帮助
 ```
 

@@ -181,8 +181,8 @@ console.log(result.transcript);
 ## 安装与包
 
 ```bash
-npm install coremind-ai     # 库（嵌入你的应用）
-npm install -g coremind-cli # 命令行工具（提供 coremind 命令）
+npm install coremind-ai@alpha     # 库（嵌入你的应用）
+npm install -g coremind-cli@alpha # 命令行工具（提供 coremind 命令；当前以 alpha 版本发布）
 ```
 
 ## 开源协议
