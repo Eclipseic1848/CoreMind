@@ -1,6 +1,6 @@
 {
   "name": "coremind-runtime",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.2",
   "description": "CoreMind 运行时：provider 注册、Agent 构建、简化编排引擎、会话管理",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,8 +25,8 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.83.0",
     "@earendil-works/pi-ai": "^0.83.0",
-    "coremind-config": "0.1.0-alpha.0",
-    "coremind-templates": "0.1.0-alpha.0",
-    "coremind-tools": "0.1.0-alpha.0"
+    "coremind-config": "0.1.0-alpha.2",
+    "coremind-templates": "0.1.0-alpha.2",
+    "coremind-tools": "0.1.0-alpha.2"
   }
 }

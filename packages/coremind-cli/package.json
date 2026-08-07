@@ -1,6 +1,6 @@
 {
   "name": "coremind-cli",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "CoreMind CLI：脚手架与运行器（coremind create / run / chat ...）",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,8 +27,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-config": "0.1.0-alpha.0",
-    "coremind-templates": "0.1.0-alpha.0",
-    "coremind-ai": "0.1.0-alpha.0"
+    "coremind-config": "0.1.0-alpha.2",
+    "coremind-templates": "0.1.0-alpha.2",
+    "coremind-ai": "0.1.0-alpha.2"
   }
 }

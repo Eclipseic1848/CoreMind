@@ -1,6 +1,6 @@
 {
   "name": "coremind-config",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.2",
   "description": "CoreMind 配置层：coremind.yaml 的 schema、解析与校验",
   "type": "module",
   "main": "./dist/index.js",
