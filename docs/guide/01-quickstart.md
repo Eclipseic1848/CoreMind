@@ -47,7 +47,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 |---|---|
 | `coremind create <name>` | 从模板创建项目（`--template <id>` 非交互） |
 | `coremind run <file>` | 运行一次（`--prompt` 首条输入 / `--print` 只输出结果 / `--session <id>` 保存会话） |
-| `coremind chat <file>` | 交互式多轮对话 |
+| `coremind chat <file>` | 交互式多轮对话（`/help` `/exit` `/abort` 命令，工具调用实时展示） |
 | `coremind list-templates` | 查看全部 8 个模板 |
 | `coremind doctor` | 环境自检（Node 版本 / 配置 / API key 是否存在） |
 

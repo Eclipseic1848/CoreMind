@@ -1,14 +1,21 @@
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { CoreMindRuntime } from "coremind-ai";
+import { ChatSession, type CoreMindEvent, CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
-import { cyan, dim, errorLine, yellow } from "../render.js";
+import { cyan, dim, errorLine, toolLine, toolResultLine, yellow } from "../render.js";
+
+function printChatHelp(): void {
+  console.log(dim("命令："));
+  console.log(dim("  /help            显示本帮助"));
+  console.log(dim("  /exit            退出对话"));
+  console.log(dim("  /abort           中止当前回答（可继续提问）"));
+}
 
 /**
- * coremind chat <file>：交互式对话（复用同一 agent 实例，保持多轮上下文）。
- * 输入 !exit 退出、!abort 中止当前轮。
+ * coremind chat <file>：交互式对话（复用同一 agent 实例，多轮上下文）。
+ * 支持 /help /exit /abort 命令与工具调用实时展示；退出时保存会话。
  */
 export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promise<number> {
   const file = positionals[0];
@@ -41,24 +48,28 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     configDir,
     cwd: process.cwd(),
     sessionId,
+    // 非对话事件（配置告警等）由 runtime 回调处理；对话事件走 ChatSession
     events: (event) => {
-      if (event.type === "text_delta") process.stdout.write(event.delta);
-      else if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
+      if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
     },
   });
+
+  const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
+  let session: ChatSession;
+  try {
+    session = new ChatSession(runtime, agentName ?? "");
+  } catch (error) {
+    console.error(errorLine(error instanceof Error ? error.message : String(error)));
+    return 1;
+  }
+  // 对话事件渲染：流式文本 + 工具调用实时展示
+  session.onEvent(renderChatEvent);
   if (runtime.resumedContextLength > 0) {
     console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
   }
 
-  const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
-  const agent = runtime.createAgent(agentName ?? "");
-  if (!agent) {
-    console.error(errorLine("配置中没有可用的 agent"));
-    return 1;
-  }
-
   const quiet = flagBool(parsed, "quiet");
-  if (!quiet) console.log(dim(`开始对话（Ctrl+C 退出，输入 !exit 退出）—— ${config.name}`));
+  if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
 
   const rl = createInterface({ input, output });
   try {
@@ -66,20 +77,43 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
       const line = await rl.question(cyan("\n你 > "));
       const text = line.trim();
       if (text === "") continue;
-      if (text === "!exit") break;
-      if (text === "!abort") {
-        agent.abort();
+      if (text === "/exit" || text === "!exit") break;
+      if (text === "/abort" || text === "!abort") {
+        session.abort();
+        console.log(dim("已中止，可继续提问"));
+        continue;
+      }
+      if (text === "/help") {
+        printChatHelp();
         continue;
       }
       process.stdout.write(`${dim("[assistant] ")}`);
-      await agent.prompt(text);
-      await agent.waitForIdle();
+      await session.chat(text);
       process.stdout.write("\n");
     }
+  } catch (error) {
+    console.error(errorLine(error instanceof Error ? error.message : String(error)));
   } finally {
     rl.close();
   }
-  const sessionFile = await runtime.persistSession();
+  const sessionFile = await session.persist();
   if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
   return 0;
+}
+
+/** 对话事件渲染（工具调用可视化 + 流式文本） */
+function renderChatEvent(event: CoreMindEvent): void {
+  switch (event.type) {
+    case "text_delta":
+      process.stdout.write(event.delta);
+      break;
+    case "tool_call":
+      process.stdout.write(`\n${toolLine(event.tool, event.args)}`);
+      break;
+    case "tool_result":
+      process.stdout.write(` ${toolResultLine(event.isError)}`);
+      break;
+    default:
+      break;
+  }
 }

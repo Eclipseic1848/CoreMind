@@ -22,7 +22,7 @@ const MOCK_PORT = 8799;
 
 function runCli(
   args: string[],
-  options: { cwd?: string; env?: Record<string, string> } = {},
+  options: { cwd?: string; env?: Record<string, string>; input?: string } = {},
 ): {
   stdout: string;
   stderr: string;
@@ -32,6 +32,7 @@ function runCli(
     encoding: "utf8",
     cwd: options.cwd,
     env: { ...process.env, ...options.env },
+    input: options.input,
     timeout: 60_000,
   });
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? -1 };
@@ -175,6 +176,25 @@ describe("coremind CLI 端到端", () => {
     });
     expect(second.code).toBe(0);
     expect(second.stdout).toContain("已恢复会话 s1");
+  });
+
+  it("chat 交互：对话回复 + /exit 命令退出", () => {
+    // 注：管道 stdin 下 Node readline 在 EOF 后不可靠，多轮交互由真实使用验证
+    const { stdout, code } = runCli(["chat", mockConfigPath, "--quiet"], {
+      env: { MOCK_PORT: String(MOCK_PORT) },
+      input: "第一轮\n/exit\n",
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain("mock回复：第一轮");
+  });
+
+  it("chat 交互：/help 显示命令", () => {
+    const { stdout, code } = runCli(["chat", mockConfigPath, "--quiet"], {
+      env: { MOCK_PORT: String(MOCK_PORT) },
+      input: "/help\n/exit\n",
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain("/exit");
   });
 
   it("run --max-steps 超出上限退出码 1", () => {

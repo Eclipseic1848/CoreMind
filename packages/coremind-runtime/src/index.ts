@@ -1,6 +1,7 @@
 // CoreMind 运行时：provider 注册、Agent 构建、编排、会话、门面
 
 export { type AgentBuildContext, buildAgent } from "./agent-factory.js";
+export { ChatSession, type ChatTurnResult } from "./chat-session.js";
 export { CoreMindError } from "./errors.js";
 export {
   type CoreMindEvent,

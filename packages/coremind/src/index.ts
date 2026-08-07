@@ -11,6 +11,8 @@ export {
 } from "coremind-config";
 export {
   buildAgentFromConfig,
+  ChatSession,
+  type ChatTurnResult,
   CoreMindError,
   type CoreMindEvent,
   CoreMindRuntime,
