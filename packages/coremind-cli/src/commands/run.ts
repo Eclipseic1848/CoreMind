@@ -1,5 +1,5 @@
 import path from "node:path";
-import { CoreMindRuntime } from "coremind-ai";
+import { CoreMindRuntime, formatQuality } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
 import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, stepLine, toolLine, toolResultLine, yellow } from "../render.js";
@@ -76,6 +76,10 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     }
     if (result.sessionFile) {
       console.log(dim(`会话已保存：${result.sessionFile}`));
+    }
+    // 质量摘要（管道/机器模式不打印，保持 --print/--json-events 纯净）
+    if (!printOnly && !jsonEvents) {
+      console.log(dim(`✓ 运行完成：${formatQuality(result.quality)}`));
     }
     return 0;
   } catch (error) {

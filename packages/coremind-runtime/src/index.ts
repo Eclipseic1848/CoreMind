@@ -17,6 +17,7 @@ export {
   buildProviderRuntime,
   type ProviderRuntime,
 } from "./provider.js";
+export { analyzeRun, formatQuality, type RunQuality } from "./quality.js";
 export {
   buildAgentFromConfig,
   CoreMindRuntime,

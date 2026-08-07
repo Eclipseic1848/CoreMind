@@ -109,6 +109,15 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("mock回复：你好世界测试");
   });
 
+  it("run 默认模式输出质量摘要", () => {
+    const { stdout, code } = runCli(["run", mockConfigPath, "--prompt", "质量测试"], {
+      env: { MOCK_PORT: String(MOCK_PORT) },
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain("运行完成");
+    expect(stdout).toContain("耗时");
+  });
+
   it("run 不存在的配置文件退出码 1", () => {
     const { code } = runCli(["run", "no-such-file.yaml"]);
     expect(code).toBe(1);

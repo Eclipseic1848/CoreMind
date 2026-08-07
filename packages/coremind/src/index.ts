@@ -15,6 +15,8 @@ export {
   type CoreMindEvent,
   CoreMindRuntime,
   type CoreMindRuntimeOptions,
+  formatQuality,
+  type RunQuality,
   type RunResult,
   type StepOutput,
 } from "coremind-runtime";

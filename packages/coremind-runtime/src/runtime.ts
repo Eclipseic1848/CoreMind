@@ -6,6 +6,7 @@ import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractText } from "./events.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
+import { analyzeRun, type RunQuality } from "./quality.js";
 import { CoreMindSession } from "./session.js";
 
 export interface CoreMindRuntimeOptions {
@@ -39,6 +40,8 @@ export interface RunResult {
   transcript: string;
   /** 会话文件路径（已落盘时） */
   sessionFile?: string;
+  /** 质量摘要（步骤/工具/耗时/token）——跑完知道好不好 */
+  quality: RunQuality;
 }
 
 /**
@@ -142,11 +145,19 @@ export class CoreMindRuntime {
     return agent;
   }
 
-  /** 执行：有 workflow 走编排，否则单 agent 直答 */
+  /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
-    const emit = this.options.events ?? (() => {});
+    const started = performance.now();
+    const collected: CoreMindEvent[] = [];
+    const userEvents = this.options.events ?? (() => {});
+    const emit = (event: CoreMindEvent) => {
+      collected.push(event);
+      userEvents(event);
+    };
     const workflow = this.config.workflow;
 
+    let outputs: Map<string, StepOutput>;
+    let transcript: string;
     if (workflow && workflow.length > 0) {
       const orchestrator = new Orchestrator(workflow, {
         createAgent: (name) => this.createAgent(name),
@@ -156,32 +167,39 @@ export class CoreMindRuntime {
         maxSteps: this.options.maxSteps,
         stepTimeoutMs: this.options.stepTimeoutMs,
       });
-      const outputs = await orchestrator.run();
-      const transcript = lastOutputText(outputs);
-      const sessionFile = await this.persistSession();
-      return { outputs, messages: this.collectMessages(), transcript, sessionFile };
+      outputs = await orchestrator.run();
+      transcript = lastOutputText(outputs);
+    } else {
+      // 单 agent 模式
+      const name = this.config.defaultAgent ?? firstKey(this.config.agents);
+      if (!name) {
+        throw new CoreMindError("no_agent", "配置中没有定义任何 agent，请至少定义一个 agents 条目");
+      }
+      if (this.options.initialPrompt === undefined) {
+        throw new CoreMindError(
+          "no_prompt",
+          "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
+        );
+      }
+      const agent = this.createAgent(name);
+      if (!agent) {
+        throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
+      }
+      await agent.prompt(this.options.initialPrompt);
+      await agent.waitForIdle();
+      transcript = extractText(agent.state.messages);
+      outputs = new Map();
     }
 
-    // 单 agent 模式
-    const name = this.config.defaultAgent ?? firstKey(this.config.agents);
-    if (!name) {
-      throw new CoreMindError("no_agent", "配置中没有定义任何 agent，请至少定义一个 agents 条目");
-    }
-    if (this.options.initialPrompt === undefined) {
-      throw new CoreMindError(
-        "no_prompt",
-        "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
-      );
-    }
-    const agent = this.createAgent(name);
-    if (!agent) {
-      throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
-    }
-    await agent.prompt(this.options.initialPrompt);
-    await agent.waitForIdle();
-    const transcript = extractText(agent.state.messages);
     const sessionFile = await this.persistSession();
-    return { outputs: new Map(), messages: this.collectMessages(), transcript, sessionFile };
+    const allMessages = [...this.collectMessages().values()].flat();
+    const quality = analyzeRun(
+      collected,
+      allMessages,
+      performance.now() - started,
+      transcript.length,
+    );
+    return { outputs, messages: this.collectMessages(), transcript, sessionFile, quality };
   }
 
   private collectMessages(): Map<string, AgentMessage[]> {
