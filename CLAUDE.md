@@ -2,11 +2,13 @@
 
 面向普通/初级开发者、新手小白的**配置驱动智能体开发框架**：写一份 `coremind.yaml` 即可构建自己的智能体。核心设计文档见 [PLAN.md](PLAN.md)（本地，不上 GitHub）。
 
-## 项目当前状态（2026-08-06）
+## 项目当前状态（2026-08-07）
 
-- **一期完成并发布**：6 个 npm 包 `0.1.0-alpha.x`（config/tools/runtime/templates/**coremind-ai**/coremind-cli）；79 测试全绿
-- 新会话请**先读 [handoff.md](handoff.md)**（交接文档：状态/下一步/16 条踩坑记录）
+- **已发布 `0.1.0-alpha.2`**（latest 已更新）：6 个 npm 包（config/tools/templates/runtime/**coremind-ai**/coremind-cli）；115 测试全绿
+- 能力全景：质量报告（步骤/token/耗时）、skills 技能系统（3 内置 + 自定义目录技能）、编排护栏（超时/重试/步骤上限）、会话树（断点续聊/自动压缩）、ChatSession 交互库 API、**chat 全屏 TUI**（ink）、引导文档 `docs/guide/`
+- 新会话请**先读 [handoff.md](handoff.md)**（交接文档：状态/下一步/20 条踩坑记录）
 - PLAN.md、handoff.md 在 .gitignore，**禁止推送**
+- 注意：凭据已轮换（2026-08-07），真实 LLM 测试需用户自行设置新 key 环境变量，**key 不进对话**
 
 ## 技术栈
 

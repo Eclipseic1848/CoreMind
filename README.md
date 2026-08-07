@@ -139,7 +139,7 @@ CoreMind 的编排刻意保持简单——五种步骤，可嵌套，无 DAG：
 ```
 coremind create <name>       从模板创建项目（--template <id>）
 coremind run <file>          运行配置（--prompt/--print/--json-events/--session）
-coremind chat <file>         交互式对话
+coremind chat <file>         交互式对话（全屏 TUI：/help /exit /abort，工具实时可视化）
 coremind list-templates      列出模板
 coremind doctor [file]       环境自检
 ```

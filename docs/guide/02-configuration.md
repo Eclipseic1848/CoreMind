@@ -44,6 +44,8 @@ provider:
 
 API key 来源：`apiKeyEnv` 指定的环境变量 → 缺省按提供商推断（`DEEPSEEK_API_KEY` 等）。
 
+> ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。使用时会告警并引导改用 `apiKeyEnv`。
+
 ## agents：智能体定义
 
 ```yaml
@@ -127,6 +129,8 @@ session:
 coremind run coremind.yaml --prompt "第一轮" --session my-session
 coremind run coremind.yaml --prompt "第二轮" --session my-session   # 已恢复会话 my-session（2 条历史消息）
 ```
+
+> 会话 id 只能包含**字母、数字、连字符与下划线**（`[a-zA-Z0-9_-]`）——其他字符会报错（防路径穿越）。
 
 ## 完整示例
 
