@@ -23,4 +23,4 @@ export {
   type CoreMindRuntimeOptions,
   type RunResult,
 } from "./runtime.js";
-export { SessionStore } from "./session.js";
+export { CoreMindSession } from "./session.js";

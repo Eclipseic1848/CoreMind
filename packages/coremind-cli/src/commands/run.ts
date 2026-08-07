@@ -62,6 +62,9 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       renderEvent(event);
     },
   });
+  if (runtime.resumedContextLength > 0) {
+    console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+  }
 
   // 3. 执行
   try {

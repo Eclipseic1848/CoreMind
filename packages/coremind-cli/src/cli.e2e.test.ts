@@ -129,6 +129,45 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("用法");
   });
 
+  it("run --session 保存并在二次运行恢复（断点续聊）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
+    const yaml = path.join(dir, "session.yaml");
+    writeFileSync(
+      yaml,
+      [
+        "version: 1",
+        "name: session-test",
+        "provider:",
+        "  id: mock",
+        "  baseUrl: http://127.0.0.1:8799/v1",
+        "  model: mock-model",
+        "  apiKey: mock-key",
+        "agents:",
+        "  main:",
+        "    systemPrompt: 测试助手",
+        "session:",
+        "  enabled: true",
+        "  dir: ./sessions",
+      ].join("\n"),
+      "utf8",
+    );
+    const env = { MOCK_PORT: String(MOCK_PORT) };
+    const first = runCli(["run", yaml, "--prompt", "第一轮", "--session", "s1", "--print"], {
+      cwd: dir,
+      env,
+    });
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain("会话已保存");
+    expect(existsSync(path.join(dir, "sessions", "s1.jsonl"))).toBe(true);
+
+    const second = runCli(["run", yaml, "--prompt", "第二轮", "--session", "s1", "--print"], {
+      cwd: dir,
+      env,
+    });
+    expect(second.code).toBe(0);
+    expect(second.stdout).toContain("已恢复会话 s1");
+  });
+
   it("run --max-steps 超出上限退出码 1", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const yaml = path.join(dir, "maxsteps.yaml");

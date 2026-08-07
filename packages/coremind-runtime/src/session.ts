@@ -1,54 +1,111 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import {
+  type AgentMessage,
+  buildSessionContext,
+  compact,
+  DEFAULT_COMPACTION_SETTINGS,
+  estimateContextTokens,
+  JsonlSessionStorage,
+  prepareCompaction,
+  Session,
+  type SessionContext,
+  shouldCompact,
+} from "@earendil-works/pi-agent-core";
+import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
+import type { Model, Models } from "@earendil-works/pi-ai";
+
+export interface CoreMindSessionOptions {
+  /** 会话存储目录 */
+  dir: string;
+  /** 会话文件名标识（--session <id>） */
+  sessionId: string;
+  /** 工作目录（存储元数据用） */
+  cwd: string;
+}
 
 /**
- * 会话存储（一期最小实现）：把一轮运行的完整消息落盘为 JSONL。
- * 每行一条 AgentMessage。断点续聊（把消息作为初始 messages 恢复）与
- * 会话树/压缩留待二期接入上游会话存储实现。
+ * 会话（二期）：基于上游 pi-agent-core 的会话树存储。
+ * - 落盘：每条消息一个树条目（Session.appendMessage）
+ * - 恢复：buildContext() 生成"视图"——压缩条目自动替换旧历史，存储不变（非破坏）
+ * - 压缩：P2b（shouldCompact + compact + appendCompaction）
  */
-export class SessionStore {
-  constructor(
-    private readonly dir: string,
-    private readonly sessionName: string,
-  ) {}
+export class CoreMindSession {
+  readonly isNew: boolean;
+  readonly filePath: string;
 
-  get filePath(): string {
-    return path.join(this.dir, `${this.sessionName}.jsonl`);
+  private constructor(
+    private readonly session: Session,
+    isNew: boolean,
+    filePath: string,
+  ) {
+    this.isNew = isNew;
+    this.filePath = filePath;
   }
 
-  /** 落盘全部消息（覆盖写，保持幂等） */
-  async save(messages: AgentMessage[]): Promise<void> {
-    await mkdir(this.dir, { recursive: true });
-    const lines = messages
-      .map((m) => {
-        try {
-          return JSON.stringify(m);
-        } catch {
-          return null;
-        }
-      })
-      .filter((l): l is string => l !== null);
-    await writeFile(this.filePath, lines.join("\n"), "utf8");
+  /** 打开或创建会话（已存在 → 恢复语义；不存在 → 新建） */
+  static async open(opts: CoreMindSessionOptions): Promise<CoreMindSession> {
+    const env = new NodeExecutionEnv({ cwd: opts.cwd });
+    const filePath = path.join(opts.dir, `${opts.sessionId}.jsonl`);
+    // 注意：env.exists 返回 Result（{ok:false,error} 也是 truthy），必须解包
+    const existsResult = await env.exists(filePath);
+    const exists = existsResult.ok ? existsResult.value : false;
+    const storage = exists
+      ? await JsonlSessionStorage.open(env, filePath)
+      : await JsonlSessionStorage.create(env, filePath, {
+          cwd: opts.cwd,
+          sessionId: opts.sessionId,
+        });
+    return new CoreMindSession(new Session(storage), !exists, filePath);
   }
 
-  /** 读取历史消息（用于恢复会话） */
-  async load(): Promise<AgentMessage[]> {
-    let raw: string;
-    try {
-      raw = await readFile(this.filePath, "utf8");
-    } catch {
-      return [];
+  /** 会话文件是否存在（恢复前判断用） */
+  static async exists(dir: string, sessionId: string, cwd: string): Promise<boolean> {
+    const env = new NodeExecutionEnv({ cwd });
+    const result = await env.exists(path.join(dir, `${sessionId}.jsonl`));
+    return result.ok ? result.value : false;
+  }
+
+  /** 追加消息（每条一个树条目） */
+  async appendMessages(messages: AgentMessage[]): Promise<void> {
+    for (const message of messages) {
+      await this.session.appendMessage(message);
     }
-    const messages: AgentMessage[] = [];
-    for (const line of raw.split("\n")) {
-      if (line.trim().length === 0) continue;
-      try {
-        messages.push(JSON.parse(line) as AgentMessage);
-      } catch {
-        // 跳过损坏行
-      }
-    }
-    return messages;
+  }
+
+  /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
+  async buildContext(): Promise<SessionContext> {
+    return this.session.buildContext();
+  }
+
+  /**
+   * 自动压缩：上下文超预算时生成 LLM 摘要并追加压缩条目（存储不变——非破坏）。
+   * 返回是否执行了压缩。
+   */
+  async maybeCompact(
+    models: Models,
+    model: Model<any>,
+    contextWindow: number,
+    settings: Partial<{
+      enabled: boolean;
+      reserveTokens: number;
+      keepRecentTokens: number;
+    }> = {},
+  ): Promise<boolean> {
+    const merged = { ...DEFAULT_COMPACTION_SETTINGS, ...settings };
+    if (!merged.enabled) return false;
+    const entries = await this.session.getEntries();
+    const tokens = estimateContextTokens(buildSessionContext(entries).messages).tokens;
+    // 预算公式（上游实现）：tokens > contextWindow − reserveTokens 时触发
+    if (!shouldCompact(tokens, contextWindow, merged)) return false;
+    const prep = prepareCompaction(entries, merged);
+    if (!prep.ok || !prep.value) return false;
+    const result = await compact(prep.value, models, model);
+    if (!result.ok) return false;
+    await this.session.appendCompaction(
+      result.value.summary,
+      result.value.firstKeptEntryId,
+      result.value.tokensBefore,
+    );
+    return true;
   }
 }

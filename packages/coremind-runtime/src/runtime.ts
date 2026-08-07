@@ -6,7 +6,7 @@ import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractText } from "./events.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
-import { SessionStore } from "./session.js";
+import { CoreMindSession } from "./session.js";
 
 export interface CoreMindRuntimeOptions {
   /** 已校验的配置 */
@@ -46,6 +46,12 @@ export interface RunResult {
 export class CoreMindRuntime {
   /** 最近创建的每个 agent 实例（收集最终消息/落盘用） */
   private readonly lastAgents = new Map<string, Agent>();
+  /** 恢复的会话上下文消息数（0 = 未恢复） */
+  readonly resumedContextLength: number;
+  /** 主 agent 名（会话归属） */
+  private readonly mainAgentName: string;
+  /** 恢复视图（作为主 agent 初始消息） */
+  private readonly sessionMessages?: AgentMessage[];
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -53,7 +59,13 @@ export class CoreMindRuntime {
     private readonly toolsByAgent: Map<string, AgentTool[]>,
     private readonly providerRuntime: ProviderRuntime,
     private readonly options: CoreMindRuntimeOptions,
-  ) {}
+    sessionMessages: AgentMessage[] | undefined,
+    resumedContextLength: number,
+  ) {
+    this.sessionMessages = sessionMessages;
+    this.resumedContextLength = resumedContextLength;
+    this.mainAgentName = config.defaultAgent ?? firstKey(config.agents) ?? "";
+  }
 
   /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
   static async create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime> {
@@ -80,7 +92,34 @@ export class CoreMindRuntime {
       agentConfigs.set(name, agentCfg);
       toolsByAgent.set(name, tools);
     }
-    return new CoreMindRuntime(config, agentConfigs, toolsByAgent, providerRuntime, options);
+
+    // 会话恢复：--session 且 session.enabled 时，打开已有会话注入历史视图（非破坏）
+    let sessionMessages: AgentMessage[] | undefined;
+    let resumedContextLength = 0;
+    if (options.sessionId && config.session?.enabled) {
+      const dir = sessionDir(config, configDir);
+      try {
+        if (await CoreMindSession.exists(dir, options.sessionId, cwd)) {
+          const cm = await CoreMindSession.open({ dir, sessionId: options.sessionId, cwd });
+          const ctx = await cm.buildContext();
+          if (ctx.messages.length > 0) {
+            sessionMessages = ctx.messages;
+            resumedContextLength = ctx.messages.length;
+          }
+        }
+      } catch {
+        // 会话损坏时降级为新会话（不阻断运行）
+      }
+    }
+    return new CoreMindRuntime(
+      config,
+      agentConfigs,
+      toolsByAgent,
+      providerRuntime,
+      options,
+      sessionMessages,
+      resumedContextLength,
+    );
   }
 
   /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
@@ -94,6 +133,8 @@ export class CoreMindRuntime {
       agentName: name,
       onEvent: this.options.events ?? (() => {}),
       apiKeyOverride: this.providerRuntime.apiKeyOverride,
+      // 恢复视图只注入主 agent（会话归属者）
+      sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
     });
     this.lastAgents.set(name, agent);
     return agent;
@@ -146,20 +187,29 @@ export class CoreMindRuntime {
     return messages;
   }
 
-  /** 会话配置开启时，把主 agent 的消息落盘 */
-  private async persistSession(): Promise<string | undefined> {
+  /** 会话配置开启时，把主 agent 本轮新增消息追加落盘（返回会话文件路径） */
+  async persistSession(): Promise<string | undefined> {
     const sessionId = this.options.sessionId;
     const session = this.config.session;
     if (!sessionId || !session?.enabled) return undefined;
-    const mainName = this.config.defaultAgent ?? firstKey(this.config.agents) ?? "";
-    const main = this.lastAgents.get(mainName);
+    const main = this.lastAgents.get(this.mainAgentName);
     if (!main) return undefined;
-    const store = new SessionStore(
-      sessionDir(this.config, this.options.configDir),
-      `${this.config.name}-${sessionId}`,
-    );
-    await store.save(main.state.messages);
-    return store.filePath;
+    const cm = await CoreMindSession.open({
+      dir: sessionDir(this.config, this.options.configDir),
+      sessionId,
+      cwd: this.options.cwd ?? process.cwd(),
+    });
+    // 只追加本轮新增（恢复时注入的历史已在会话文件中，避免重复）
+    await cm.appendMessages(main.state.messages.slice(this.resumedContextLength));
+    // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
+    if (session.compact) {
+      await cm.maybeCompact(
+        this.providerRuntime.models,
+        this.providerRuntime.model,
+        this.providerRuntime.model.contextWindow,
+      );
+    }
+    return cm.filePath;
   }
 }
 

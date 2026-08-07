@@ -3,7 +3,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
-import { flagBool, type ParsedArgs } from "../args.js";
+import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, yellow } from "../render.js";
 
 /**
@@ -35,15 +35,20 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   }
 
   const configDir = path.dirname(path.resolve(file));
+  const sessionId = flagString(parsed, "session");
   const runtime = await CoreMindRuntime.create({
     config,
     configDir,
     cwd: process.cwd(),
+    sessionId,
     events: (event) => {
       if (event.type === "text_delta") process.stdout.write(event.delta);
       else if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
     },
   });
+  if (runtime.resumedContextLength > 0) {
+    console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+  }
 
   const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
   const agent = runtime.createAgent(agentName ?? "");
@@ -74,5 +79,7 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   } finally {
     rl.close();
   }
+  const sessionFile = await runtime.persistSession();
+  if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
   return 0;
 }

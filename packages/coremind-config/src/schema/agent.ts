@@ -22,4 +22,10 @@ export const AgentConfigSchema = Type.Object({
 export const SessionConfigSchema = Type.Object({
   enabled: Type.Boolean({ default: false, description: "是否持久化会话到本地 JSONL" }),
   dir: Type.Optional(Type.String({ description: "会话存储目录，缺省为 ./sessions" })),
+  compact: Type.Optional(
+    Type.Boolean({
+      default: false,
+      description: "上下文超预算时自动压缩（LLM 摘要，消耗 token；显式开启）",
+    }),
+  ),
 });
