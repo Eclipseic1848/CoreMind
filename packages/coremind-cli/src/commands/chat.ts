@@ -5,6 +5,7 @@ import { ChatSession, type CoreMindEvent, CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, toolLine, toolResultLine, yellow } from "../render.js";
+import { runChatTUI } from "../tui.js";
 
 function printChatHelp(): void {
   console.log(dim("命令："));
@@ -73,8 +74,20 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   }
 
   const quiet = flagBool(parsed, "quiet");
-  if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
+  // 交互终端（TTY）默认全屏 TUI；非 TTY（管道/脚本）或 --no-tui 回退 readline
+  if (process.stdin.isTTY === true && !flagBool(parsed, "no-tui")) {
+    await runChatTUI(session, config.name);
+  } else {
+    if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
+    await runReadlineChat(session);
+  }
+  const sessionFile = await session.persist();
+  if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
+  return 0;
+}
 
+/** readline 模式（非交互终端回退）：单行输入 + 流式输出 + 工具行 */
+async function runReadlineChat(session: ChatSession): Promise<void> {
   const rl = createInterface({ input, output });
   try {
     while (true) {
@@ -100,9 +113,6 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   } finally {
     rl.close();
   }
-  const sessionFile = await session.persist();
-  if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
-  return 0;
 }
 
 /** 对话事件渲染（工具调用可视化 + 流式文本） */

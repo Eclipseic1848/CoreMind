@@ -27,8 +27,13 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "coremind-ai": "0.1.0-alpha.2",
     "coremind-config": "0.1.0-alpha.2",
     "coremind-templates": "0.1.0-alpha.2",
-    "coremind-ai": "0.1.0-alpha.2"
+    "ink": "^7.1.1",
+    "react": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18"
   }
 }
