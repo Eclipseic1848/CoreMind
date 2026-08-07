@@ -103,6 +103,11 @@ async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRu
   const models = createModels();
   const id = cfg.id ?? "custom";
   const model = buildCustomModel(cfg, id);
+  // apiKey 直填告警：密钥会随配置文件进入版本库/分享链路，引导用 apiKeyEnv
+  const warnings: string[] = [];
+  if (cfg.apiKey) {
+    warnings.push("配置了 apiKey 直填：密钥会随配置文件进入版本库/分享链路，建议改用 apiKeyEnv 环境变量");
+  }
   models.setProvider(
     createProvider({
       id,
@@ -118,7 +123,7 @@ async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRu
       api: openAICompletionsApi(),
     }),
   );
-  return { models, model, warnings: [] };
+  return { models, model, warnings };
 }
 
 /** 手工构造 OpenAI 兼容 Model 对象。cost 必须给全 0（计费计算缺字段出 NaN） */

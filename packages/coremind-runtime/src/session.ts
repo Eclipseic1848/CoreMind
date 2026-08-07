@@ -13,6 +13,19 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, Models } from "@earendil-works/pi-ai";
+import { CoreMindError } from "./errors.js";
+
+/** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
+
+function assertValidSessionId(sessionId: string): void {
+  if (!SESSION_ID_RE.test(sessionId)) {
+    throw new CoreMindError(
+      "invalid_session_id",
+      `会话 id 只能包含字母、数字、连字符与下划线（当前：${sessionId}）`,
+    );
+  }
+}
 
 export interface CoreMindSessionOptions {
   /** 会话存储目录 */
@@ -44,6 +57,7 @@ export class CoreMindSession {
 
   /** 打开或创建会话（已存在 → 恢复语义；不存在 → 新建） */
   static async open(opts: CoreMindSessionOptions): Promise<CoreMindSession> {
+    assertValidSessionId(opts.sessionId);
     const env = new NodeExecutionEnv({ cwd: opts.cwd });
     const filePath = path.join(opts.dir, `${opts.sessionId}.jsonl`);
     // 注意：env.exists 返回 Result（{ok:false,error} 也是 truthy），必须解包
@@ -60,6 +74,7 @@ export class CoreMindSession {
 
   /** 会话文件是否存在（恢复前判断用） */
   static async exists(dir: string, sessionId: string, cwd: string): Promise<boolean> {
+    assertValidSessionId(sessionId);
     const env = new NodeExecutionEnv({ cwd });
     const result = await env.exists(path.join(dir, `${sessionId}.jsonl`));
     return result.ok ? result.value : false;

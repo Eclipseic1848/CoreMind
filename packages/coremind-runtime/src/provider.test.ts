@@ -88,7 +88,7 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     expect(runtime.model.provider).toBe("custom");
   });
 
-  it("apiKey 直填可用（静态鉴权，无 env 依赖）", async () => {
+  it("apiKey 直填可用（静态鉴权，无 env 依赖），但告警引导 apiKeyEnv", async () => {
     const runtime = await buildProviderRuntime({
       id: "gateway",
       baseUrl: "http://127.0.0.1:8080/v1",
@@ -96,6 +96,7 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
       apiKey: "sk-test",
     });
     expect(runtime.model.provider).toBe("gateway");
+    expect(runtime.warnings[0]).toContain("apiKeyEnv");
   });
 
   it("contextWindow/maxTokens 可配置覆盖，缺省保守兜底", async () => {

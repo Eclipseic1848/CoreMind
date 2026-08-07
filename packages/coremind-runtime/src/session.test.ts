@@ -42,6 +42,14 @@ describe("CoreMindSession（二期会话树存储）", () => {
     expect(ctx2.messages).toHaveLength(3);
   });
 
+  it("非法 sessionId（路径穿越防护）抛 CoreMindError", async () => {
+    const dir = makeDir();
+    await expect(CoreMindSession.open({ dir, sessionId: "../../evil", cwd })).rejects.toThrow(
+      "会话 id",
+    );
+    await expect(CoreMindSession.exists(dir, "../../evil", cwd)).rejects.toThrow("会话 id");
+  });
+
   it("不存在的会话 open 时新建，文件路径符合约定", async () => {
     const dir = makeDir();
     const cm = await CoreMindSession.open({ dir, sessionId: "s2", cwd });

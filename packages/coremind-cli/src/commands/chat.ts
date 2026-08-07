@@ -43,6 +43,10 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
 
   const configDir = path.dirname(path.resolve(file));
   const sessionId = flagString(parsed, "session");
+  if (sessionId && !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
+    console.error(errorLine(`会话 id 只能包含字母、数字、连字符与下划线：${sessionId}`));
+    return 1;
+  }
   const runtime = await CoreMindRuntime.create({
     config,
     configDir,

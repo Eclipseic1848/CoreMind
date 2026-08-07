@@ -119,6 +119,14 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("耗时");
   });
 
+  it("run 非法 --session id（路径穿越防护）退出码 1", () => {
+    const { code, stderr } = runCli(["run", mockConfigPath, "--session", "../../evil"], {
+      env: { MOCK_PORT: String(MOCK_PORT) },
+    });
+    expect(code).toBe(1);
+    expect(stderr).toContain("会话 id");
+  });
+
   it("run 不存在的配置文件退出码 1", () => {
     const { code } = runCli(["run", "no-such-file.yaml"]);
     expect(code).toBe(1);
