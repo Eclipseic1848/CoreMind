@@ -6,7 +6,7 @@
 
 写一份 YAML，构建你自己的 AI 智能体。
 
-[快速开始](#快速开始) · [配置参考](#配置参考) · [工作流](#工作流) · [模板](#场景模板) · [CLI](#cli) · [FAQ](#faq)
+[快速开始](#快速开始) · [配置参考](#配置参考) · [工作流](#工作流) · [技能](#技能) · [质量与护栏](#质量与护栏) · [模板](#场景模板) · [CLI](#cli) · [FAQ](#faq)
 
 </div>
 
@@ -113,7 +113,15 @@ CoreMind 的编排刻意保持简单——五种步骤，可嵌套，无 DAG：
 - **if**：条件分支（支持 `contains`、`==`、`!=` 与真值判定）
 - **switch**：按变量值包含匹配多路选择
 
-变量：`{{prompt}}` 是首条用户输入；`{{<saveAs>.text}}` 是步骤输出。安全护栏：嵌套深度 ≤ 8、总步骤 ≤ 100。
+变量：`{{prompt}}` 是首条用户输入；`{{<saveAs>.text}}` 是步骤输出。安全护栏：嵌套深度 ≤ 8、总步骤 ≤ 100、单步超时 5 分钟；步骤支持 `retry` 质量把关（输出不达标自动重试）。
+
+## 技能
+
+让智能体按专业 SOP 干活——`agents.reviewer.skills: [code-review]` 注入代码审查规范，输出更稳定。内置 `code-review` / `weekly-report` / `translation` 三个技能，详见[技能指南](docs/guide/03-skills.md)。
+
+## 质量与护栏
+
+每次运行输出质量摘要（步骤成败 / 工具失败 / 耗时 / token）；支持断点续聊（`--session`）与自动压缩（`session.compact`）。详见[质量与调优](docs/guide/04-quality.md)。
 
 ## 场景模板
 
@@ -152,6 +160,15 @@ const runtime = await CoreMindRuntime.create({
 const result = await runtime.run();
 console.log(result.transcript);
 ```
+
+## 使用指南
+
+面向初学者的分步文档（[docs/guide/](docs/guide/)）：
+
+- [01 快速上手](docs/guide/01-quickstart.md) — 5 分钟跑通
+- [02 配置指南](docs/guide/02-configuration.md) — 写 coremind.yaml 的完整参考
+- [03 技能指南](docs/guide/03-skills.md) — 让 agent 更专业
+- [04 质量与调优](docs/guide/04-quality.md) — 判断好坏、改进输出
 
 ## FAQ
 
