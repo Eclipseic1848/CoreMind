@@ -106,7 +106,9 @@ async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRu
   // apiKey 直填告警：密钥会随配置文件进入版本库/分享链路，引导用 apiKeyEnv
   const warnings: string[] = [];
   if (cfg.apiKey) {
-    warnings.push("配置了 apiKey 直填：密钥会随配置文件进入版本库/分享链路，建议改用 apiKeyEnv 环境变量");
+    warnings.push(
+      "配置了 apiKey 直填：密钥会随配置文件进入版本库/分享链路，建议改用 apiKeyEnv 环境变量",
+    );
   }
   models.setProvider(
     createProvider({
