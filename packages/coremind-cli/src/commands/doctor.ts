@@ -48,7 +48,7 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
         checks.push({
           name: `提供商 ${providerId}`,
           ok: true,
-          detail: "注册成功",
+          detail: "注册成功（未发送真实请求）",
         });
       } catch (error) {
         checks.push({
@@ -74,8 +74,8 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
     ok: missing.length < envKeys.length,
     detail:
       missing.length === 0
-        ? "常见提供商 key 均已配置"
-        : `未配置：${missing.join("、")}（用不到的可以忽略）`,
+        ? "常见提供商 key 均已配置（仅检查存在性，未验证有效性）"
+        : `未配置：${missing.join("、")}（用不到的可以忽略；仅检查存在性）`,
   });
 
   // 输出

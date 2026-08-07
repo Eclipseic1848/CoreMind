@@ -66,11 +66,13 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
   // 复制模板内容
   await cp(template.dir, target, { recursive: true, force: false });
 
-  // 替换 coremind.yaml 中的 name 字段
+  // 替换 coremind.yaml 中的 name / description 字段
   const yamlPath = path.join(target, "coremind.yaml");
   try {
     const yaml = await readFile(yamlPath, "utf8");
-    const updated = yaml.replace(/^name:\s*.+$/m, `name: ${name}`);
+    const updated = yaml
+      .replace(/^name:\s*.+$/m, `name: ${name}`)
+      .replace(/^description:\s*.+$/m, `description: ${name}（基于 ${template.id} 模板创建）`);
     await writeFile(yamlPath, updated, "utf8");
   } catch (error) {
     console.warn(

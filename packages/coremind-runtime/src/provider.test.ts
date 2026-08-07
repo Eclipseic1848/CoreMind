@@ -38,6 +38,28 @@ describe("buildProviderRuntime（内置提供商）", () => {
       expect(runtime.model.id).toBeTruthy();
     }
   });
+
+  it("apiKeyEnv 配置时解析为 apiKeyOverride", async () => {
+    const runtime = await buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
+      MY_DS_KEY: "sk-test",
+    } as NodeJS.ProcessEnv);
+    expect(runtime.apiKeyOverride).toBe("sk-test");
+    expect(runtime.warnings).toEqual([]);
+  });
+
+  it("apiKeyEnv 配置但 env 缺失时回退默认并告警", async () => {
+    const runtime = await buildProviderRuntime(
+      { id: "deepseek", apiKeyEnv: "NO_SUCH_KEY" },
+      {} as NodeJS.ProcessEnv,
+    );
+    expect(runtime.apiKeyOverride).toBeUndefined();
+    expect(runtime.warnings[0]).toContain("NO_SUCH_KEY");
+  });
+
+  it("未配置 apiKeyEnv 时无 override", async () => {
+    const runtime = await buildProviderRuntime({ id: "deepseek" });
+    expect(runtime.apiKeyOverride).toBeUndefined();
+  });
 });
 
 describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {

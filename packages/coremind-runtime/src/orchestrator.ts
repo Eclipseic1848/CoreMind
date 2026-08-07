@@ -188,7 +188,7 @@ export class Orchestrator {
         `工作流嵌套过深（超过 ${this.maxDepth} 层），已中止：${step.id}`,
       );
     }
-    if (this.stepCount > this.maxSteps) {
+    if (this.stepCount >= this.maxSteps) {
       throw new CoreMindError("step_limit", `工作流步骤数超过上限（${this.maxSteps} 步），已中止`);
     }
   }

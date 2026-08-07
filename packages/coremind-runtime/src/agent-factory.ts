@@ -14,6 +14,8 @@ export interface AgentBuildContext {
   onEvent: (event: CoreMindEvent) => void;
   /** 会话历史（断点续聊恢复用） */
   sessionMessages?: AgentMessage[];
+  /** 配置 apiKeyEnv 时的 key 覆盖（内置 provider） */
+  apiKeyOverride?: string;
 }
 
 /**
@@ -21,6 +23,7 @@ export interface AgentBuildContext {
  * 关键点：显式绑定 models.streamSimple 为 streamFn，自定义 baseUrl/headers 才能生效。
  */
 export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent {
+  const { temperature, maxTokens } = agentCfg.options ?? {};
   const agent = new Agent({
     initialState: {
       systemPrompt: agentCfg.systemPrompt,
@@ -29,7 +32,14 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       messages: ctx.sessionMessages ?? [],
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
-    streamFn: (m, c, o) => ctx.models.streamSimple(m, c, o),
+    // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
+    streamFn: (m, c, o) =>
+      ctx.models.streamSimple(m, c, {
+        ...o,
+        ...(ctx.apiKeyOverride ? { apiKey: ctx.apiKeyOverride } : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(maxTokens !== undefined ? { maxTokens } : {}),
+      }),
     toolExecution: "parallel",
   });
 

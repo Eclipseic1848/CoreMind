@@ -1,4 +1,9 @@
-﻿import { type ParsedArgs, parseArgs } from "./args.js";
+﻿import { createRequire } from "node:module";
+import { type ParsedArgs, parseArgs } from "./args.js";
+
+// 版本单一来源：cli 包 package.json（构建后 dist/ 与 package.json 同级）
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 import { cmdChat } from "./commands/chat.js";
 import { cmdCreate } from "./commands/create.js";
 import { cmdDoctor } from "./commands/doctor.js";
@@ -36,7 +41,7 @@ export async function main(argv: string[]): Promise<number> {
 
 function printHelp(): void {
   console.log(`
-${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${dim("v0.1.0")}
+${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${dim(`v${version}`)}
 
 用法：coremind <命令> [参数]
 
@@ -46,7 +51,8 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
       --prompt "..."    首条输入（单 agent 模式必填；workflow 注册为 {{prompt}}）
       --print           只输出最终文本（适合管道/脚本）
       --json-events     输出 JSONL 事件流（供外部集成/Web 面板）
-      --session <id>    恢复会话并落盘
+      --session <id>    保存会话（断点续聊恢复二期提供）
+      --max-steps <n>   工作流总步骤上限（默认 100）
   ${cyan("chat <file>")}            交互式对话（多轮上下文）
   ${cyan("list-templates")}         列出场景模板
   ${cyan("doctor [file]")}          环境自检

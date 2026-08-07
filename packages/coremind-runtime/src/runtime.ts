@@ -22,8 +22,10 @@ export interface CoreMindRuntimeOptions {
   /** 事件回调（CLI 渲染 / Web 面板共用） */
   events?: (event: CoreMindEvent) => void;
   signal?: AbortSignal;
-  /** 会话 id：恢复历史消息并在结束时落盘 */
+  /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
   sessionId?: string;
+  /** 工作流总步骤上限（护栏，默认 100） */
+  maxSteps?: number;
 }
 
 export interface RunResult {
@@ -61,7 +63,7 @@ export class CoreMindRuntime {
     const emit = options.events ?? (() => {});
 
     // 1. provider（解析模型，警告转发）
-    const providerRuntime = await buildProviderRuntime(config.provider);
+    const providerRuntime = await buildProviderRuntime(config.provider, env);
     for (const warning of providerRuntime.warnings) {
       emit({ type: "error", message: warning, fatal: false });
     }
@@ -91,6 +93,7 @@ export class CoreMindRuntime {
       tools: this.toolsByAgent.get(name) ?? [],
       agentName: name,
       onEvent: this.options.events ?? (() => {}),
+      apiKeyOverride: this.providerRuntime.apiKeyOverride,
     });
     this.lastAgents.set(name, agent);
     return agent;
@@ -107,6 +110,7 @@ export class CoreMindRuntime {
         events: emit,
         initialPrompt: this.options.initialPrompt,
         signal: this.options.signal,
+        maxSteps: this.options.maxSteps,
       });
       const outputs = await orchestrator.run();
       const transcript = lastOutputText(outputs);

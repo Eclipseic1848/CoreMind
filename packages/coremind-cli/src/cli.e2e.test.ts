@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,6 +73,7 @@ describe("coremind CLI 端到端", () => {
     expect(code).toBe(0);
     const yaml = readFileSync(path.join(dir, "my-agent", "coremind.yaml"), "utf8");
     expect(yaml).toContain("name: my-agent");
+    expect(yaml).toContain("description: my-agent");
     expect(existsSync(path.join(dir, "my-agent", ".env.example"))).toBe(true);
   });
 
@@ -126,5 +127,42 @@ describe("coremind CLI 端到端", () => {
     const { code, stdout } = runCli(["frobnicate"]);
     expect(code).toBe(1);
     expect(stdout).toContain("用法");
+  });
+
+  it("run --max-steps 超出上限退出码 1", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
+    const yaml = path.join(dir, "maxsteps.yaml");
+    writeFileSync(
+      yaml,
+      [
+        "version: 1",
+        "name: max-steps",
+        "provider:",
+        "  id: mock",
+        "  baseUrl: http://127.0.0.1:8799/v1",
+        "  model: mock-model",
+        "  apiKey: mock-key",
+        "agents:",
+        "  a:",
+        "    systemPrompt: 助手A",
+        "  b:",
+        "    systemPrompt: 助手B",
+        "workflow:",
+        "  - id: s1",
+        "    type: call",
+        "    agent: a",
+        "    input: 第一步",
+        "  - id: s2",
+        "    type: call",
+        "    agent: b",
+        "    input: 第二步",
+      ].join("\n"),
+      "utf8",
+    );
+    const { code, stderr } = runCli(["run", yaml, "--max-steps", "1"], {
+      env: { MOCK_PORT: String(MOCK_PORT) },
+    });
+    expect(code).toBe(1);
+    expect(stderr).toContain("步骤数超过上限");
   });
 });

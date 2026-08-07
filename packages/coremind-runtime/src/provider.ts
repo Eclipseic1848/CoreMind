@@ -36,21 +36,29 @@ export interface ProviderRuntime {
   model: Model<any>;
   /** 解析警告（如配置的模型不在目录中） */
   warnings: string[];
+  /** 配置 apiKeyEnv 时从该环境变量解析出的 key（覆盖内置 provider 默认环境变量） */
+  apiKeyOverride?: string;
 }
 
 const DEFAULT_PROVIDER = "deepseek";
 
 /** 构建运行时：注册 provider 并解析模型 */
-export async function buildProviderRuntime(providerCfg?: ProviderConfig): Promise<ProviderRuntime> {
+export async function buildProviderRuntime(
+  providerCfg?: ProviderConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ProviderRuntime> {
   const cfg = providerCfg ?? { id: DEFAULT_PROVIDER };
   if ("baseUrl" in cfg) {
     return buildCustomRuntime(cfg);
   }
-  return buildBuiltinRuntime(cfg);
+  return buildBuiltinRuntime(cfg, env);
 }
 
 /** 内置提供商：注册工厂，从目录解析模型（model 未命中时回退默认并告警） */
-async function buildBuiltinRuntime(cfg: { id: string; model?: string }): Promise<ProviderRuntime> {
+async function buildBuiltinRuntime(
+  cfg: { id: string; model?: string; apiKeyEnv?: string },
+  env: NodeJS.ProcessEnv,
+): Promise<ProviderRuntime> {
   const factory = BUILTIN_PROVIDERS[cfg.id];
   if (!factory) {
     throw new CoreMindError(
@@ -80,7 +88,14 @@ async function buildBuiltinRuntime(cfg: { id: string; model?: string }): Promise
       );
     }
   }
-  return { models, model, warnings };
+  // apiKeyEnv 覆盖：配置了指定 env 变量时，把它的值作为每次请求的 apiKey（替代默认变量）
+  const apiKeyOverride = cfg.apiKeyEnv ? env[cfg.apiKeyEnv] : undefined;
+  if (cfg.apiKeyEnv && !apiKeyOverride) {
+    warnings.push(
+      `配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在环境中找到，将回退使用 ${cfg.id} 的默认环境变量`,
+    );
+  }
+  return { models, model, warnings, apiKeyOverride };
 }
 
 /** 自定义 OpenAI 兼容端点（Ollama / 本地模型 / 网关） */

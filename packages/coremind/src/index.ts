@@ -20,5 +20,3 @@ export {
 } from "coremind-runtime";
 
 export { type BuildToolsOptions, buildTools } from "coremind-tools";
-
-export const coremindVersion = "0.1.0";

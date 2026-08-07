@@ -1,12 +1,12 @@
 import path from "node:path";
 import { CoreMindRuntime } from "coremind-ai";
 import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
-import { flagBool, flagString, type ParsedArgs } from "../args.js";
+import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, stepLine, toolLine, toolResultLine, yellow } from "../render.js";
 
 /**
  * coremind run <file>：校验配置 → 构建运行时 → 执行。
- * 支持 --prompt / --print / --json-events / --session / --max-steps。
+ * 支持 --prompt / --print / --json-events / --session（保存会话） / --max-steps。
  */
 export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise<number> {
   const file = positionals[0];
@@ -37,6 +37,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
   const jsonEvents = flagBool(parsed, "json-events");
   const initialPrompt = flagString(parsed, "prompt") ?? flagString(parsed, "p");
   const sessionId = flagString(parsed, "session");
+  const maxSteps = flagNumber(parsed, "max-steps");
   const configDir = path.dirname(path.resolve(file));
 
   // 2. 构建运行时（事件回调：JSONL 或渲染）
@@ -50,6 +51,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     cwd: process.cwd(),
     initialPrompt,
     sessionId,
+    maxSteps,
     signal: controller.signal,
     events: (event) => {
       if (jsonEvents) {

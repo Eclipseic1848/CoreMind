@@ -44,6 +44,7 @@ function run(
   steps: WorkflowStep[],
   defs: Record<string, FauxResponseStep[]>,
   initialPrompt?: string,
+  maxSteps?: number,
 ) {
   const counters = new Map<string, number>();
   return new Orchestrator(steps, {
@@ -56,6 +57,7 @@ function run(
     },
     events: track,
     initialPrompt,
+    ...(maxSteps !== undefined ? { maxSteps } : {}),
   }).run();
 }
 
@@ -223,5 +225,17 @@ describe("Orchestrator", () => {
       steps = [{ id: `s${i}`, type: "parallel", steps }];
     }
     await expect(run(steps, { a: [fauxAssistantMessage("x")] })).rejects.toThrow(CoreMindError);
+  });
+
+  it("maxSteps 精确边界：恰好 maxSteps 步通过、超过抛 step_limit", async () => {
+    const steps: WorkflowStep[] = [
+      { id: "s1", type: "prompt", agent: "a", input: "x" },
+      { id: "s2", type: "prompt", agent: "a", input: "y" },
+    ];
+    const defs = { a: [fauxAssistantMessage("1"), fauxAssistantMessage("2")] };
+    // 恰好 2 步（maxSteps=2）通过
+    await expect(run(steps, defs, undefined, 2)).resolves.toBeDefined();
+    // 第 2 步超限（maxSteps=1）抛 step_limit
+    await expect(run(steps, defs, undefined, 1)).rejects.toThrow(CoreMindError);
   });
 });

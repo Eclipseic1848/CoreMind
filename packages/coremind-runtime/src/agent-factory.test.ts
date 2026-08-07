@@ -82,3 +82,66 @@ describe("buildAgent（离线 faux 端到端）", () => {
     expect(text).toContain("完成");
   });
 });
+
+describe("buildAgent（options 与 apiKey 注入）", () => {
+  /** 包装 streamSimple 捕获每次请求的 options */
+  function captureStreamOptions() {
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([fauxAssistantMessage("ok")]);
+    const calls: Array<Record<string, unknown>> = [];
+    const real = models.streamSimple.bind(models);
+    models.streamSimple = ((m, c, o) => {
+      calls.push(o ?? {});
+      return real(m, c, o);
+    }) as typeof models.streamSimple;
+    return { models, model, calls };
+  }
+
+  it("options 的 temperature/maxTokens 注入每次流式请求", async () => {
+    const { models, model, calls } = captureStreamOptions();
+    const agent = buildAgent(
+      { systemPrompt: "t", options: { temperature: 0.3, maxTokens: 64 } },
+      { models, model, tools: [], agentName: "t", onEvent: () => {} },
+    );
+    await agent.prompt("hi");
+    await agent.waitForIdle();
+    expect(calls.length).toBeGreaterThan(0);
+    for (const o of calls) {
+      expect(o.temperature).toBe(0.3);
+      expect(o.maxTokens).toBe(64);
+    }
+  });
+
+  it("apiKeyOverride 注入请求 apiKey", async () => {
+    const { models, model, calls } = captureStreamOptions();
+    const agent = buildAgent(
+      { systemPrompt: "t" },
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "t",
+        onEvent: () => {},
+        apiKeyOverride: "sk-custom",
+      },
+    );
+    await agent.prompt("hi");
+    await agent.waitForIdle();
+    expect(calls.length).toBeGreaterThan(0);
+    for (const o of calls) expect(o.apiKey).toBe("sk-custom");
+  });
+
+  it("未配置 options 时不注入 temperature/maxTokens", async () => {
+    const { models, model, calls } = captureStreamOptions();
+    const agent = buildAgent(
+      { systemPrompt: "t" },
+      { models, model, tools: [], agentName: "t", onEvent: () => {} },
+    );
+    await agent.prompt("hi");
+    await agent.waitForIdle();
+    for (const o of calls) {
+      expect(o.temperature).toBeUndefined();
+      expect(o.maxTokens).toBeUndefined();
+    }
+  });
+});

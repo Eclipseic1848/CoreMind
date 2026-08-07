@@ -22,5 +22,6 @@ sessions/
 .DS_Store
 Thumbs.db
 
-# 内部计划文档（不推送到 GitHub）
+# 内部文档（不推送到 GitHub）
 PLAN.md
+handoff.md
