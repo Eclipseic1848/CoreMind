@@ -227,6 +227,64 @@ describe("Orchestrator", () => {
     await expect(run(steps, { a: [fauxAssistantMessage("x")] })).rejects.toThrow(CoreMindError);
   });
 
+  it("步骤超时抛 step_timeout（abort 中止挂起的 agent）", async () => {
+    const hanging = new Agent({
+      initialState: { systemPrompt: "h", messages: [] },
+      streamFn: async function* () {
+        await new Promise(() => {});
+      },
+    });
+    const orchestrator = new Orchestrator([{ id: "s1", type: "prompt", agent: "a", input: "x" }], {
+      createAgent: () => hanging,
+      events: track,
+      stepTimeoutMs: 50,
+    });
+    try {
+      await orchestrator.run();
+      expect.unreachable("步骤应超时");
+    } catch (e) {
+      expect((e as CoreMindError).code).toBe("step_timeout");
+    }
+  });
+
+  it("retry：输出不达标自动重试，达标后通过", async () => {
+    const steps: WorkflowStep[] = [
+      {
+        id: "s1",
+        type: "prompt",
+        agent: "a",
+        input: "x",
+        saveAs: "s1",
+        retry: { max: 2, if: "{{text}} contains 坏" },
+      },
+    ];
+    const defs = {
+      a: [
+        fauxAssistantMessage("坏结果1"),
+        fauxAssistantMessage("坏结果2"),
+        fauxAssistantMessage("好结果"),
+      ],
+    };
+    const outputs = await run(steps, defs);
+    expect(outputs.get("s1")?.text).toContain("好结果");
+  });
+
+  it("retry：耗尽后接受最后输出（非 fatal 告警）", async () => {
+    const steps: WorkflowStep[] = [
+      {
+        id: "s1",
+        type: "prompt",
+        agent: "a",
+        input: "x",
+        saveAs: "s1",
+        retry: { max: 1, if: "{{text}} contains 坏" },
+      },
+    ];
+    const defs = { a: [fauxAssistantMessage("坏1"), fauxAssistantMessage("坏2")] };
+    const outputs = await run(steps, defs);
+    expect(outputs.get("s1")?.text).toContain("坏2");
+  });
+
   it("maxSteps 精确边界：恰好 maxSteps 步通过、超过抛 step_limit", async () => {
     const steps: WorkflowStep[] = [
       { id: "s1", type: "prompt", agent: "a", input: "x" },

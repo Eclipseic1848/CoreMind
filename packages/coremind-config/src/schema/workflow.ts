@@ -1,6 +1,19 @@
 import { Type } from "@sinclair/typebox";
 
 /**
+ * 质量把关：输出不达标时自动重试（if 为真 = 需要重试）。
+ * {{text}} 可引用本步骤输出文本；条件语法与 if 步骤一致（==、!=、contains 与真值判定）。
+ */
+const RetrySchema = Type.Object({
+  max: Type.Optional(
+    Type.Integer({ minimum: 0, default: 1, description: "最大重试次数（默认 1）" }),
+  ),
+  if: Type.Optional(
+    Type.String({ description: "重试条件（真值 = 需要重试），可用 {{text}} 引用本步骤输出" }),
+  ),
+});
+
+/**
  * 工作流步骤（简化编排，不做 DAG/循环）：
  * - prompt  / call   ：派发任务给某 agent（call 语义为委托，输入进其会话）
  * - parallel          ：并行执行子步骤
@@ -15,6 +28,7 @@ export const WorkflowStepSchema = Type.Recursive((Self) =>
       agent: Type.String({ minLength: 1, description: "引用 agents 下定义的 agent 名字" }),
       input: Type.String({ description: "任务输入，支持 {{变量}} 插值" }),
       saveAs: Type.Optional(Type.String({ description: "步骤输出保存到 outputs 的键名" })),
+      retry: Type.Optional(RetrySchema),
     }),
     Type.Object({
       id: Type.String({ minLength: 1 }),
@@ -22,6 +36,7 @@ export const WorkflowStepSchema = Type.Recursive((Self) =>
       agent: Type.String({ minLength: 1 }),
       input: Type.String({ description: "委托输入，支持 {{变量}} 插值" }),
       saveAs: Type.Optional(Type.String()),
+      retry: Type.Optional(RetrySchema),
     }),
     Type.Object({
       id: Type.String({ minLength: 1 }),

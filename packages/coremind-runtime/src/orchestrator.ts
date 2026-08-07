@@ -25,6 +25,8 @@ export interface OrchestratorOptions {
   maxDepth?: number;
   /** 总步骤数护栏（默认 100） */
   maxSteps?: number;
+  /** 单步骤超时毫秒（默认 300000 = 5 分钟；0 = 不超时） */
+  stepTimeoutMs?: number;
 }
 
 const INTERPOLATE_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
@@ -42,6 +44,7 @@ export class Orchestrator {
   private readonly signal?: AbortSignal;
   private readonly maxDepth: number;
   private readonly maxSteps: number;
+  private readonly stepTimeoutMs: number;
   private stepCount = 0;
 
   /** outputs：saveAs → 输出（并行步骤共享） */
@@ -59,6 +62,7 @@ export class Orchestrator {
     this.signal = opts.signal;
     this.maxDepth = opts.maxDepth ?? 8;
     this.maxSteps = opts.maxSteps ?? 100;
+    this.stepTimeoutMs = opts.stepTimeoutMs ?? 300_000;
     if (opts.initialPrompt !== undefined) {
       this.variables.set("prompt", opts.initialPrompt);
     }
@@ -97,33 +101,102 @@ export class Orchestrator {
     }
   }
 
-  /** 派发任务给某 agent（唯一执行 Agent 的地方；每步独立实例） */
+  /**
+   * 派发任务给某 agent（唯一执行 Agent 的地方；每步独立实例）。
+   * 支持：单步超时护栏（stepTimeoutMs）、质量把关重试（retry.if 为真则重试）。
+   */
   private async runAgentStep(
     step: Extract<WorkflowStep, { type: "prompt" | "call" }>,
     _depth: number,
   ): Promise<StepOutput> {
-    const agent = this.createAgent(step.agent);
-    if (!agent) {
-      throw new CoreMindError(
-        "unknown_agent",
-        `workflow 引用了未定义的 agent：${step.agent}（第 ${step.id} 步）`,
-      );
-    }
-    const input = this.interpolate(step.input);
+    const retryCfg = step.retry;
+    const maxAttempts = 1 + (retryCfg?.max ?? 1);
     this.events({ type: "step_start", stepId: step.id, kind: step.type });
 
-    try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const agent = this.createAgent(step.agent);
+      if (!agent) {
+        throw new CoreMindError(
+          "unknown_agent",
+          `workflow 引用了未定义的 agent：${step.agent}（第 ${step.id} 步）`,
+        );
+      }
+      try {
+        const input = this.interpolate(step.input);
+        const text = await this.promptWithTimeout(agent, input, step.id);
+        const output: StepOutput = { text, metadata: { agent: step.agent, stepId: step.id } };
+
+        const retryNeeded =
+          retryCfg?.if !== undefined &&
+          evalCondition(this.interpolateWithStepText(retryCfg.if, text));
+        if (retryNeeded && attempt < maxAttempts) {
+          this.events({
+            type: "error",
+            message: `步骤 ${step.id} 输出未通过质量检查，第 ${attempt} 次重试中`,
+            fatal: false,
+          });
+          continue;
+        }
+        if (retryNeeded) {
+          this.events({
+            type: "error",
+            message: `步骤 ${step.id} 重试 ${maxAttempts - 1} 次后仍未通过质量检查，接受当前输出`,
+            fatal: false,
+          });
+        }
+        if (step.saveAs) this.saveOutput(step.saveAs, output);
+        this.events({ type: "step_end", stepId: step.id, ok: true });
+        return output;
+      } catch (error) {
+        this.events({ type: "step_end", stepId: step.id, ok: false });
+        throw error;
+      }
+    }
+    throw new CoreMindError("step_limit", `步骤 ${step.id} 重试次数异常`);
+  }
+
+  /** 单步执行 + 超时护栏：超时中止 agent 并抛 step_timeout */
+  private async promptWithTimeout(agent: Agent, input: string, stepId: string): Promise<string> {
+    const timeoutMs = this.stepTimeoutMs;
+    if (timeoutMs <= 0) {
       await agent.prompt(input);
       await agent.waitForIdle();
-      const text = extractText(agent.state.messages);
-      const output: StepOutput = { text, metadata: { agent: step.agent, stepId: step.id } };
-      if (step.saveAs) this.saveOutput(step.saveAs, output);
-      this.events({ type: "step_end", stepId: step.id, ok: true });
-      return output;
-    } catch (error) {
-      this.events({ type: "step_end", stepId: step.id, ok: false });
-      throw error;
+      return extractText(agent.state.messages);
     }
+    let timer: NodeJS.Timeout | undefined;
+    const run = (async () => {
+      await agent.prompt(input);
+      await agent.waitForIdle();
+    })().catch(() => {
+      // 超时后 abort 引发的拒绝在此吞掉（Promise.race 已决出结果）
+    });
+    try {
+      await Promise.race([
+        run,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            agent.abort();
+            reject(
+              new CoreMindError(
+                "step_timeout",
+                `步骤 ${stepId} 执行超时（${timeoutMs}ms），已中止`,
+              ),
+            );
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    return extractText(agent.state.messages);
+  }
+
+  /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */
+  private interpolateWithStepText(expr: string, text: string): string {
+    return expr.replace(INTERPOLATE_RE, (_m, name: string) => {
+      if (name === "text") return text;
+      return this.variables.get(name) ?? _m;
+    });
   }
 
   /** 并行执行子步骤：共享 outputs/variables，事件按声明顺序聚合文本 */

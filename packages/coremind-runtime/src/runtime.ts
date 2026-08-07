@@ -26,6 +26,8 @@ export interface CoreMindRuntimeOptions {
   sessionId?: string;
   /** 工作流总步骤上限（护栏，默认 100） */
   maxSteps?: number;
+  /** 单步骤超时毫秒（护栏，默认 300000 = 5 分钟；0 = 不超时） */
+  stepTimeoutMs?: number;
 }
 
 export interface RunResult {
@@ -152,6 +154,7 @@ export class CoreMindRuntime {
         initialPrompt: this.options.initialPrompt,
         signal: this.options.signal,
         maxSteps: this.options.maxSteps,
+        stepTimeoutMs: this.options.stepTimeoutMs,
       });
       const outputs = await orchestrator.run();
       const transcript = lastOutputText(outputs);
