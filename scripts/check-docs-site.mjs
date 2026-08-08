@@ -10,7 +10,8 @@ const pairs = [
   ["docs/release/README.zh-CN.md", "docs/release/README.en.md"],
   ["CONTRIBUTING.md", "CONTRIBUTING.en.md"],
   ["SECURITY.md", "SECURITY.en.md"],
-  ["CODE_OF_CONDUCT.md", "CODE_OF_CONDUCT.en.md"],
+  ["CODE_OF_CONDUCT.md", "docs/en/community-code-of-conduct.md"],
+  ["CHANGELOG.md", "CHANGELOG.en.md"],
   ...["01-quickstart", "02-configuration", "03-skills", "04-quality", "05-cli-usage"].map(
     (name) => [`docs/guide/${name}.md`, `docs/en/guide/${name}.md`],
   ),

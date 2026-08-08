@@ -2,7 +2,7 @@
 
 Thank you for helping CoreMind become safer and easier to learn. Code, tests, documentation, templates, provider evidence, and minimal bug reproductions are welcome. First-time open-source contributors are welcome too.
 
-[简体中文](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.en.md) · [Security](SECURITY.en.md) · [Documentation](docs/en/index.md)
+[简体中文](CONTRIBUTING.md) · [Code of Conduct](docs/en/community-code-of-conduct.md) · [Security](SECURITY.en.md) · [Documentation](docs/en/index.md)
 
 ## Agree on scope first
 
@@ -54,4 +54,4 @@ Provider certification requires all live checks and redacted evidence in the [ce
 
 Keep each pull request focused. Explain the user problem, non-goals, verification evidence, configuration or protocol impact, security or permission changes, compatibility impact, and any migration work.
 
-By contributing, you agree to the [Code of Conduct](CODE_OF_CONDUCT.en.md) and license your contribution under the project's MIT License.
+By contributing, you agree to the [Code of Conduct](docs/en/community-code-of-conduct.md) and license your contribution under the project's MIT License.

@@ -2,3 +2,6 @@
 
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Python SDK 随包分发的编译产物，不计入 GitHub 源码语言比例
+python/src/coremind/_worker/coremind-worker.mjs linguist-generated=true

@@ -20,7 +20,7 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 > The current public version is `0.2.0-beta.1`. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are complete. You are welcome to try it and contribute to the community.
 
-[Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](CODE_OF_CONDUCT.en.md)
+[Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current version supports
 
@@ -136,4 +136,4 @@ CI targets Windows and Linux and exercises the Node packages, Python SDK, real w
 
 ## License
 
-[MIT](LICENSE) · [Contributing](CONTRIBUTING.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](CODE_OF_CONDUCT.en.md) · See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency notices.
+[MIT](LICENSE) · [Contributing](CONTRIBUTING.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md) · See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency notices.
