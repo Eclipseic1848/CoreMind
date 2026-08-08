@@ -45,14 +45,15 @@ describe("Linux bash sandbox", () => {
     mkdirSync(cwd);
     const tool = createLinuxSandboxedBashTool({ cwd, env: { PATH: process.env.PATH } });
 
-    const result = await tool.execute(
-      "sandbox-test",
-      { command: `printf blocked > ${JSON.stringify(outside)}` },
-      undefined,
-    );
+    await expect(
+      tool.execute(
+        "sandbox-test",
+        { command: `printf blocked > ${JSON.stringify(outside)}` },
+        undefined,
+      ),
+    ).rejects.toThrow(/Read-only file system|Command exited with code/);
 
     expect(existsSync(outside)).toBe(false);
-    expect(result.content.some((item) => item.type === "text")).toBe(true);
   });
 
   it.skipIf(process.platform !== "linux")("在 Linux 上阻止 bash 联网", async () => {
