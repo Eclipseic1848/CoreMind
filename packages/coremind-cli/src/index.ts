@@ -1,4 +1,7 @@
-﻿import { createRequire } from "node:module";
+﻿// 启动时自动加载 cwd 下的 .env（dotenv 默认不覆盖已有环境变量）：
+// 新手流程「copy .env.example .env 并填入 key」由此生效
+import "dotenv/config";
+import { createRequire } from "node:module";
 import { type ParsedArgs, parseArgs } from "./args.js";
 
 // 版本单一来源：cli 包 package.json（构建后 dist/ 与 package.json 同级）
@@ -15,6 +18,11 @@ import { cyan, dim, red } from "./render.js";
 export async function main(argv: string[]): Promise<number> {
   const parsed = parseArgs(argv);
   const [command, ...rest] = parsed.positionals;
+
+  if (parsed.flags.has("version") || parsed.flags.has("v")) {
+    console.log(`coremind v${version}`);
+    return 0;
+  }
 
   if (command === undefined || command === "help" || command === "--help" || command === "-h") {
     printHelp();

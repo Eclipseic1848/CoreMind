@@ -8,6 +8,7 @@
 
 ```bash
 npm install -g coremind-cli@alpha   # 提供 coremind 命令（@alpha：当前以 alpha 版本发布）
+coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
 
@@ -27,6 +28,8 @@ copy .env.example .env          # Windows；macOS/Linux 用 cp
 # 编辑 .env，填入 DEEPSEEK_API_KEY=<你的 key>
 ```
 
+`.env` 会被**自动加载**（前提：在你运行命令的目录下，见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)）。
+
 缺省使用 DeepSeek 模型；其他提供商见[配置指南](02-configuration.md#provider)。
 
 ## 4. 运行
@@ -43,6 +46,8 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 
 ## 5. 五个命令
 
+命令怎么装、在哪敲、key 怎么管理、常见坑——详见[CLI 使用指南](05-cli-usage.md)。
+
 | 命令 | 用途 |
 |---|---|
 | `coremind create <name>` | 从模板创建项目（`--template <id>` 非交互） |
@@ -53,6 +58,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 
 ## 下一步
 
+- 命令怎么装、在哪敲、key 怎么管理？→ [CLI 使用指南](05-cli-usage.md)
 - 想改人设、换模型、加工具？→ [配置指南](02-configuration.md)
 - 想让 agent 更专业（按 SOP 干活）？→ [技能指南](03-skills.md)
 - 跑完不知道好不好？→ [质量与调优](04-quality.md)

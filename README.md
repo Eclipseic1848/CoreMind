@@ -31,7 +31,7 @@ npx coremind create my-agent --template translator
 
 # 2. 配置 API key（默认使用 DeepSeek，也可用其他提供商）
 cd my-agent
-copy .env.example .env    # Windows 用 copy，macOS/Linux 用 cp
+copy .env.example .env    # Windows 用 copy，macOS/Linux 用 cp（会自动加载）
 
 # 3. 运行
 coremind run coremind.yaml --prompt "翻译：你好，世界"
@@ -138,7 +138,7 @@ CoreMind 的编排刻意保持简单——五种步骤，可嵌套，无 DAG：
 
 ```
 coremind create <name>       从模板创建项目（--template <id>）
-coremind run <file>          运行配置（--prompt/--print/--json-events/--session）
+coremind run <file>          运行配置（--prompt/--print/--json-events/--session/--max-steps）
 coremind chat <file>         交互式对话（全屏 TUI：/help /exit /abort，工具实时可视化）
 coremind list-templates      列出模板
 coremind doctor [file]       环境自检
@@ -169,6 +169,7 @@ console.log(result.transcript);
 - [02 配置指南](docs/guide/02-configuration.md) — 写 coremind.yaml 的完整参考
 - [03 技能指南](docs/guide/03-skills.md) — 让 agent 更专业
 - [04 质量与调优](docs/guide/04-quality.md) — 判断好坏、改进输出
+- [05 CLI 使用指南](docs/guide/05-cli-usage.md) — 安装/目录规则/key 管理/排查，新手必读
 
 ## FAQ
 

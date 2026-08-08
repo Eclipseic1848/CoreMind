@@ -51,6 +51,12 @@ afterAll(() => {
 });
 
 describe("coremind CLI 端到端", () => {
+  it("--version 输出版本号（验证安装）", () => {
+    const { stdout, code } = runCli(["--version"]);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/coremind v\d+\.\d+\.\d+/);
+  });
+
   it("list-templates 输出 8 个模板", () => {
     const { stdout, code } = runCli(["list-templates"]);
     expect(code).toBe(0);
@@ -97,6 +103,15 @@ describe("coremind CLI 端到端", () => {
     const { code, stdout } = runCli(["doctor"], { env: { DEEPSEEK_API_KEY: "test-key" } });
     expect(code).toBe(0);
     expect(stdout).toContain("全部正常");
+  });
+
+  it("doctor 自动加载 cwd 下的 .env（copy .env.example .env 流程）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
+    writeFileSync(path.join(dir, ".env"), "DEEPSEEK_API_KEY=from-dotenv\n", "utf8");
+    const { code, stdout } = runCli(["doctor"], { cwd: dir });
+    expect(code).toBe(0);
+    // .env 已加载：DEEPSEEK_API_KEY 不应出现在"未配置"清单里
+    expect(stdout).not.toContain("未配置：DEEPSEEK_API_KEY");
   });
 
   it("run 连接 mock server 输出最终文本（--print）", () => {
