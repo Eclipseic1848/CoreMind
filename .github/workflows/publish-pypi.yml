@@ -1,0 +1,58 @@
+name: Publish Python Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 构建并检查 wheel
+        run: |
+          npm ci
+          npm run build:python-worker
+          python -m pip install --disable-pip-version-check build twine
+          python -m build --wheel python
+          python -m twine check python/dist/*
+          python -X utf8 scripts/check-python-wheel.py "$(find python/dist -name '*.whl' -print -quit)"
+
+      - name: 保存发布物
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: python/dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/coremind-ai
+    permissions:
+      id-token: write
+    steps:
+      - name: 下载已验证发布物
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package
+          path: dist
+
+      - name: 使用可信发布上传 PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

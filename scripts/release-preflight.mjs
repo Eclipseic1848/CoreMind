@@ -17,6 +17,7 @@ const REQUIRED_FILES = [
   "CHANGELOG.md",
   "THIRD_PARTY_NOTICES.md",
   ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/workflows/publish-pypi.yml",
   ".github/ISSUE_TEMPLATE/bug_report.yml",
   ".github/ISSUE_TEMPLATE/feature_request.yml",
   "docs/index.md",
