@@ -457201,7 +457201,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     const allMessages = [...this.collectMessages().values()].flat();
     const metrics = analyzeRunMetrics(collected, allMessages, performance.now() - started, transcript.length);
-    const outcome = { status: "succeeded", finishReason: "completed" };
+    const allToolRequestsDenied = collected.some((event) => event.type === "policy_denied") && !collected.some((event) => event.type === "tool_result" && !event.isError);
+    const outcome = allToolRequestsDenied ? { status: "paused", finishReason: "tool_approval_denied" } : { status: "succeeded", finishReason: "completed" };
     const evaluation = createEvaluationReport(this.config.quality, metrics);
     for (const checkpoint of checkpointManager.records) {
       if (!checkpoint.reversible) {

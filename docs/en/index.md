@@ -33,4 +33,4 @@ features:
 
 ## Project status
 
-CoreMind's current public version is `0.2.0-beta.1`. It is suitable for evaluation and community development, not yet a production-stable release. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+CoreMind's current public version is `0.2.0-beta.2` and is intended for evaluation, review, and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.

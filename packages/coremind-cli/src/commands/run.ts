@@ -62,6 +62,10 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     console.error(errorLine(`会话 id 只能包含字母、数字、连字符与下划线：${sessionId}`));
     return 1;
   }
+  if (sessionId && config.session?.enabled !== true) {
+    console.error(errorLine("使用 --session 前请在 coremind.yaml 中设置 session.enabled: true"));
+    return 1;
+  }
   const resumeRunId = flagString(parsed, "resume");
   if (resumeRunId && !/^[a-zA-Z0-9_-]+$/.test(resumeRunId)) {
     console.error(errorLine(`runId 只能包含字母、数字、连字符与下划线：${resumeRunId}`));

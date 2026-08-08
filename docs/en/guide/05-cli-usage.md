@@ -47,6 +47,20 @@ Executes a single request and exits with a structured result. Use `--dry-run` to
 
 Starts the terminal interface with streaming output, approval requests, session controls, and trace visibility. Use `ask` mode while learning or reviewing a new repository.
 
+Use `/abort` to stop the active response. To persist a named session, enable it in `coremind.yaml` before passing `--session`:
+
+```yaml
+session:
+  enabled: true
+  dir: ./sessions
+```
+
+```bash
+coremind chat coremind.yaml --session work-1
+```
+
+Both `chat` and `run` fail with a configuration hint if `--session` is provided without `session.enabled: true`; the session identifier is never silently ignored.
+
 ## `eval`
 
 Runs declared evaluation cases and reports gate results. Keep evaluation datasets free of secrets and record provider/model versions for reproducibility.

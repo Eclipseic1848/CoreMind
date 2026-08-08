@@ -4,6 +4,14 @@ This file records user-facing changes. Versions follow Semantic Versioning; beta
 
 [简体中文](CHANGELOG.md)
 
+## 0.2.0-beta.2 — 2026-08-08
+
+### Fixed
+
+- Full-screen TUI now recognizes `/abort` during generation instead of silently ignoring it while busy.
+- A run where every tool request is denied and no tool succeeds now returns `paused` instead of incorrectly reporting success.
+- `run` and `chat` now fail clearly with guidance when `--session` is used without `session.enabled: true`.
+
 ## 0.2.0-beta.1 — 2026-08-08
 
 ### Added

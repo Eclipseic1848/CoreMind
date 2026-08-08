@@ -519,7 +519,12 @@ export class CoreMindRuntime {
       performance.now() - started,
       transcript.length,
     );
-    const outcome: RunOutcome = { status: "succeeded", finishReason: "completed" };
+    const allToolRequestsDenied =
+      collected.some((event) => event.type === "policy_denied") &&
+      !collected.some((event) => event.type === "tool_result" && !event.isError);
+    const outcome: RunOutcome = allToolRequestsDenied
+      ? { status: "paused", finishReason: "tool_approval_denied" }
+      : { status: "succeeded", finishReason: "completed" };
     const evaluation = createEvaluationReport(this.config.quality, metrics);
     for (const checkpoint of checkpointManager.records) {
       if (!checkpoint.reversible) {

@@ -93,14 +93,15 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
 
   const handleSubmit = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
-    if (trimmed === "/exit") {
-      onExit();
-      return;
-    }
+    if (!trimmed) return;
     if (trimmed === "/abort") {
       session.abort();
       setBusy(false);
+      return;
+    }
+    if (busy) return;
+    if (trimmed === "/exit") {
+      onExit();
       return;
     }
     if (trimmed === "/help") {

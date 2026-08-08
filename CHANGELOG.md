@@ -4,6 +4,14 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.2.0-beta.2 — 2026-08-08
+
+### 修复
+
+- 全屏 TUI 在生成过程中能够识别 `/abort`，不再被忙碌状态静默忽略。
+- 所有工具请求均被拒绝且没有成功工具结果时，运行返回 `paused`，不再错误显示为成功。
+- `run` 或 `chat` 使用 `--session` 但配置未启用 Session 时明确失败，并提示设置 `session.enabled: true`。
+
 ## 0.2.0-beta.1 — 2026-08-08
 
 ### 新增

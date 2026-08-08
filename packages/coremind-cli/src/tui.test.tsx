@@ -63,6 +63,28 @@ describe("Windows TUI 交互验收", () => {
     await expect(decision).resolves.toBe("allow");
     app.unmount();
   });
+
+  it("忙碌生成期间输入 /abort 会中止当前回答", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockImplementation(() => new Promise(() => {}));
+    const app = render(
+      <ChatTUI
+        title="中止验收"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+
+    await typeCommand(app.stdin.write, "生成长回答");
+    await settle();
+    expect(session.chat).toHaveBeenCalledOnce();
+
+    await typeCommand(app.stdin.write, "/abort");
+    await settle();
+    expect(session.abort).toHaveBeenCalledOnce();
+    app.unmount();
+  });
 });
 
 async function settle(): Promise<void> {

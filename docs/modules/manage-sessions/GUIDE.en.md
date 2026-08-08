@@ -13,6 +13,8 @@ session:
   compact: false
 ```
 
+The CLI accepts `--session <id>` only after sessions are enabled. Otherwise it fails clearly with configuration guidance.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

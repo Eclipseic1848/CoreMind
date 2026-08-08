@@ -68,6 +68,10 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     console.error(errorLine(`会话 id 只能包含字母、数字、连字符与下划线：${sessionId}`));
     return 1;
   }
+  if (sessionId && config.session?.enabled !== true) {
+    console.error(errorLine("使用 --session 前请在 coremind.yaml 中设置 session.enabled: true"));
+    return 1;
+  }
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
   const runtime = await CoreMindRuntime.create({
     config,
