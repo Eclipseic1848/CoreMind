@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: evaluate-agents
+name:
+  zh-CN: "测试、评测与质量门禁"
+  en: "Testing, Evaluation, and Quality Gates"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/evaluation.ts"
+  - "packages/coremind-runtime/src/project-check.ts"
+  - "packages/coremind-runtime/src/result.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/evaluate-agents/README.zh-CN.md
+    en: docs/modules/evaluate-agents/README.en.md
+  sop:
+    zh-CN: docs/modules/evaluate-agents/SOP.zh-CN.md
+    en: docs/modules/evaluate-agents/SOP.en.md
+  guide:
+    zh-CN: docs/modules/evaluate-agents/GUIDE.zh-CN.md
+    en: docs/modules/evaluate-agents/GUIDE.en.md
+  changelog: docs/modules/evaluate-agents/CHANGELOG.md
+skillPath: skills/evaluate-agents/SKILL.md
+examplePaths:
+  - examples/modules/evaluate-agents/README.zh-CN.md
+  - examples/modules/evaluate-agents/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/evaluation.test.ts"
+  - "packages/coremind-runtime/src/project-check.test.ts"
+  - "packages/coremind-runtime/src/quality.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "inspect-agent-traces"
+  - "enforce-agent-permissions"
+maturity: implemented-alpha

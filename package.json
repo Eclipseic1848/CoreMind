@@ -1,6 +1,6 @@
-﻿{
+{
   "name": "coremind-monorepo",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "private": true,
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
@@ -12,18 +12,29 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace coremind-config && npm run build --workspace coremind-protocol && npm run build --workspace coremind-tools && npm run build --workspace coremind-templates && npm run build --workspace coremind-runtime && npm run build --workspace coremind-ai && npm run build --workspace coremind-worker && npm run build --workspace coremind-cli",
+    "build:python-worker": "npm run build && node scripts/build-python-worker.mjs",
+    "check:modules": "node scripts/check-module-contract.mjs",
+    "check:docs": "node scripts/check-docs-site.mjs",
+    "docs:build": "vitepress build docs",
+    "providers:matrix": "node scripts/generate-provider-matrix.mjs",
+    "providers:certify": "node scripts/certify-provider.mjs",
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "release:check-wheel": "python -X utf8 scripts/check-python-wheel.py",
+    "security:audit": "node scripts/check-security-audit.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "check": "biome check . && npm run typecheck",
+    "check": "biome check . && npm run typecheck && npm run check:modules && npm run check:docs",
     "lint": "biome check .",
     "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
     "@types/node": "^22.10.0",
+    "esbuild": "0.28.1",
     "typescript": "^5.9.0",
+    "vitepress": "1.6.4",
     "vitest": "^4.1.0"
   }
 }

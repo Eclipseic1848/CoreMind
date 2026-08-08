@@ -1,6 +1,6 @@
 # 工作流示例：并行 + 条件分支 + 变量传递
 # 运行：coremind run examples/workflow.yaml --prompt "当前目录的文件"
-version: 1
+schemaVersion: 2
 name: workflow-demo
 description: 简化编排引擎全特性示例（parallel + if + 变量）
 
@@ -62,3 +62,12 @@ workflow:
           【数量】{{count.text}}
           【最大文件】{{largest.text}}
         saveAs: final
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

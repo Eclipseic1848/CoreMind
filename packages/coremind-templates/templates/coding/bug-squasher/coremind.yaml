@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: bug-squasher
 description: 调试助手：分析根因 → 实施修复 → 验证结果（双 agent 协作）
 provider:
@@ -51,3 +51,12 @@ workflow:
     agent: patcher
     input: 输出本次修复的简要总结（做了什么、验证结果如何）。
     saveAs: summary
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

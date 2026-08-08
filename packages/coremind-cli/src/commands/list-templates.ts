@@ -1,4 +1,4 @@
-import { TEMPLATES } from "coremind-templates";
+import { TEMPLATES } from "coremind-ai";
 import { cyan, dim } from "../render.js";
 
 const CATEGORY_NAMES: Record<string, string> = {

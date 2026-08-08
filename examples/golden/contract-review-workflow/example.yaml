@@ -1,0 +1,19 @@
+schemaVersion: 1
+id: contract-review-workflow
+language: typescript
+offline: true
+configPath: coremind.yaml
+scenarioPath: evals/scenarios.yaml
+implementationPaths:
+  - src
+testPath: ../golden-examples.test.ts
+documents:
+  zh-CN: README.zh-CN.md
+  en: README.en.md
+  sopZh: SOP.zh-CN.md
+  sopEn: SOP.en.md
+  failuresZh: FAILURES.zh-CN.md
+  failuresEn: FAILURES.en.md
+skillPath: skills/review-contracts-safely/SKILL.md
+qualityProfile: standard
+minimumPassRate: 1

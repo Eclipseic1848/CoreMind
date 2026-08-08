@@ -1,0 +1,4 @@
+interface:
+  display_name: "Contribute to CoreMind"
+  short_description: "Build test and review CoreMind source changes"
+  default_prompt: "Use $contribute-coremind to complete this CoreMind task with its required checks."

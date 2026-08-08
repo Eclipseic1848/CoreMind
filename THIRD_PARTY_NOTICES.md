@@ -16,8 +16,11 @@ CoreMind 的运行时底座直接依赖以下 npm 包（MIT 协议，Copyright 2
 
 | 包 | 用途 | 许可 |
 |---|---|---|
+| @anthropic-ai/sandbox-runtime | Linux 内置 shell 的 OS 级隔离适配 | Apache-2.0 |
 | typebox | 配置 schema 校验 | MIT |
 | yaml | YAML 配置解析 | ISC |
+
+Linux CI 与目标系统还需要 Bubblewrap 作为系统级沙箱依赖（GNU Library General Public License 2.0）。它不随 npm 包复制发布，由操作系统包管理器安装。
 
 ## 内容借鉴
 

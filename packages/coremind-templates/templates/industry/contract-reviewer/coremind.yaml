@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: contract-reviewer
 description: 合同条款风险审查，输出 markdown 审查报告
 provider:
@@ -27,3 +27,12 @@ workflow:
     input: |
       将审查报告写入文件 contract-review.md。报告内容：
       {{report.text}}
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

@@ -6,11 +6,79 @@ import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
  */
 export type CoreMindEvent =
   | { type: "agent_start"; agent: string; stepId?: string }
+  | {
+      type: "turn_end";
+      agent: string;
+      stepId?: string;
+      tokens?: number;
+      costUsd?: number;
+      requestsAnotherTurn?: boolean;
+    }
   | { type: "text_delta"; agent: string; delta: string; stepId?: string }
-  | { type: "tool_call"; agent: string; tool: string; args: unknown; stepId?: string }
-  | { type: "tool_result"; agent: string; tool: string; isError: boolean; stepId?: string }
+  | {
+      type: "tool_call";
+      agent: string;
+      tool: string;
+      args: unknown;
+      callId?: string;
+      idempotencyKey?: string;
+      stepId?: string;
+    }
+  | {
+      type: "tool_result";
+      agent: string;
+      tool: string;
+      isError: boolean;
+      callId?: string;
+      stepId?: string;
+    }
   | { type: "step_start"; stepId: string; kind: string }
+  | {
+      type: "step_output";
+      stepId: string;
+      agent: string;
+      text: string;
+      saveAs?: string;
+    }
+  | { type: "step_resumed"; stepId: string }
   | { type: "step_end"; stepId: string; ok: boolean }
+  | { type: "retry"; scope: "provider" | "workflow"; attempt: number; stepId?: string }
+  | {
+      type: "approval_required";
+      approvalId: string;
+      runId: string;
+      agent: string;
+      tool: string;
+      args: unknown;
+      risk: "low" | "high";
+    }
+  | {
+      type: "approval_resolved";
+      approvalId: string;
+      runId: string;
+      decision: "allow" | "deny";
+    }
+  | { type: "policy_denied"; agent: string; tool: string; reason: string }
+  | {
+      type: "budget_exceeded";
+      dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
+      limit: number;
+      actual: number;
+      message: string;
+    }
+  | {
+      type: "context_compacted";
+      beforeTokens: number;
+      afterTokens: number;
+      removedMessages: number;
+    }
+  | {
+      type: "checkpoint_created";
+      checkpointId: string;
+      tool: string;
+      targetPath?: string;
+      reversible: boolean;
+    }
   | { type: "agent_end"; agent: string; stepId?: string }
   | { type: "error"; message: string; fatal: boolean };
 
@@ -24,6 +92,17 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
       return { type: "agent_start", agent: "" };
     case "agent_end":
       return { type: "agent_end", agent: "" };
+    case "turn_end": {
+      const message = event.message;
+      const usage = message.role === "assistant" ? message.usage : undefined;
+      return {
+        type: "turn_end",
+        agent: "",
+        ...(usage ? { tokens: usage.totalTokens, costUsd: usage.cost.total } : {}),
+        requestsAnotherTurn:
+          message.role === "assistant" && message.content.some((item) => item.type === "toolCall"),
+      };
+    }
     case "message_update": {
       const streamEvent = event.assistantMessageEvent;
       if (streamEvent?.type === "text_delta" && streamEvent.delta.length > 0) {
@@ -32,9 +111,21 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
       return null;
     }
     case "tool_execution_start":
-      return { type: "tool_call", agent: "", tool: event.toolName, args: event.args };
+      return {
+        type: "tool_call",
+        agent: "",
+        tool: event.toolName,
+        args: event.args,
+        callId: event.toolCallId,
+      };
     case "tool_execution_end":
-      return { type: "tool_result", agent: "", tool: event.toolName, isError: event.isError };
+      return {
+        type: "tool_result",
+        agent: "",
+        tool: event.toolName,
+        isError: event.isError,
+        callId: event.toolCallId,
+      };
     default:
       return null;
   }
@@ -48,4 +139,16 @@ export function extractText(messages: AgentMessage[]): string {
     .filter((c): c is Extract<typeof c, { type: "text" }> => c.type === "text")
     .map((c) => c.text)
     .join("");
+}
+
+/** 提取最后一条 assistant 消息的执行错误；正常结束时返回 undefined。 */
+export function extractAgentError(messages: AgentMessage[]): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message?.role !== "assistant") continue;
+    return message.stopReason === "error"
+      ? (message.errorMessage ?? "模型执行失败，但未提供错误详情")
+      : undefined;
+  }
+  return undefined;
 }

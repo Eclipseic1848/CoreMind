@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: code-reviewer
 description: 对指定文件进行代码审查，标记风险等级
 provider:
@@ -44,3 +44,12 @@ workflow:
         agent: reviewer
         input: 输出一句话总结审查结论。
         saveAs: summary
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

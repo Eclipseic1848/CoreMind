@@ -1,0 +1,4 @@
+interface:
+  display_name: "Embed CoreMind in Python"
+  short_description: "Use the Python SDK and callable tool bridge"
+  default_prompt: "Use $embed-coremind-python to complete this CoreMind task with its required checks."

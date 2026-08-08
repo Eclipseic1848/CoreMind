@@ -1,0 +1,44 @@
+schemaVersion: 2
+name: contract-review-workflow
+description: 确定性合同审核 Workflow 黄金示例
+provider:
+  id: golden-contract
+  baseUrl: http://127.0.0.1:8812/v1
+  model: golden-mock
+  apiKeyEnv: GOLDEN_MOCK_API_KEY
+agents:
+  extractor:
+    systemPrompt: 你负责条款提取，只输出 JSON。
+  reviewer:
+    systemPrompt: 你负责风险审核，必须给出证据，只输出 JSON。
+  formatter:
+    systemPrompt: 你负责结构化输出，保留人工复核标记，只输出 JSON。
+workflow:
+  - id: extract
+    type: call
+    agent: extractor
+    input: "提取合同条款：{{prompt}}"
+    saveAs: clauses
+  - id: review
+    type: call
+    agent: reviewer
+    input: "审核风险：{{clauses.text}}"
+    saveAs: risks
+  - id: format
+    type: call
+    agent: formatter
+    input: "输出最终报告：{{risks.text}}"
+    saveAs: report
+runtime:
+  maxSteps: 3
+  maxTurns: 6
+  maxRetries: 1
+  runTimeoutMs: 30000
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+quality:
+  profile: standard
+  minScenarioPassRate: 1
+  allowOverride: true

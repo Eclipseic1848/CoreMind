@@ -1,0 +1,30 @@
+schemaVersion: 2
+name: faq-order-assistant
+description: 离线 FAQ 与订单查询黄金示例
+provider:
+  id: golden-order
+  baseUrl: http://127.0.0.1:8811/v1
+  model: golden-mock
+  apiKeyEnv: GOLDEN_MOCK_API_KEY
+tools:
+  - path: ./src/order-tool.ts
+    name: lookup_order
+agents:
+  main:
+    systemPrompt: |
+      你是订单客服助手。必须先调用 lookup_order，再根据工具结果回答。
+      不得编造订单；未找到时请用户核对编号。
+runtime:
+  maxTurns: 4
+  maxToolCalls: 2
+  maxToolFailures: 1
+  maxRetries: 1
+  runTimeoutMs: 30000
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+quality:
+  profile: standard
+  minScenarioPassRate: 1
+  allowOverride: true

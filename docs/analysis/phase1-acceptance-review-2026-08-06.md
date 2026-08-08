@@ -88,7 +88,7 @@
 
 | 候选 | 形态 | 匹配度 | 评估结论 |
 |---|---|---|---|
-| **Mastra**（TS，Apache-2.0，26.8k★，30 万+/周 npm，v1.0） | Agents/Tools/Workflows + memory/observability/Studio | 高 | **最匹配的成熟 TS 一体化候选**。但迁移成本：替换 @earendil-works 栈、失去 YAML 配置驱动形态、CLI 重建——**不建议整体替换**，作对照学习对象 |
+| **Mastra**（TS，Apache-2.0，26.8k★，30 万+/周 npm，v1.0） | Agents/Tools/Workflows + memory/observability/Studio | 高 | **最匹配的成熟 TS 一体化候选**。但迁移成本：替换现有底层运行栈、失去 YAML 配置驱动形态、CLI 重建——**不建议整体替换**，作对照学习对象 |
 | **LlamaIndex Workflows**（Python） | 事件驱动 FSM 编排 | 中（范式） | 借鉴其事件路由/终止模式；TS 对应看 Mastra Workflows |
 | **OpenAI Agents SDK** | Python/TS，会话/工具护栏成熟 | 中 | Session/压缩/护栏实现是会话模块的参考蓝本 |
 | **Dify / Flowise / Langflow** | 可视化低代码平台 | 形态不同 | 同细分市场参考（新手友好 UX、生产就绪认证），非技术替代 |
@@ -115,7 +115,7 @@
 |---|---|---|---|
 | P1（二期前） | **token 预算层**：provider.ts 硬编码 32768/4096 → 按模型目录 `contextWindow/maxTokens` 计算，预留 safety margin | 优化 | ✅ 本地代码 + 调研发现 4 |
 | P1（二期前） | **工具规模护栏**：单 agent 工具数上限或分组路由（防止提示词退化） | 优化 | ✅ 调研发现 9（Shopify/Anthropic 研究） |
-| P1（二期前） | **MCP 接入评估**：上游 pi-ai 是否支持 / 引入 MCP SDK 的成本 | 评估 | ✅ 调研发现 10（主流标配） |
+| P1（二期前） | **MCP 接入评估**：上游运行时是否支持 / 引入 MCP SDK 的成本 | 评估 | ✅ 调研发现 10（主流标配） |
 | P2（二期） | **压缩架构**：视图/存储分离 + 摘要注入恢复 + tool 配对原子性 | 功能 | ✅ 调研发现 4/6/7 |
 | P2（二期） | **断点续聊恢复 UX**：恢复提示 + 摘要注入（不回放历史） | 功能 | ✅ 调研发现 5/6 |
 | P2（二期） | **编排增强**：每步超时终止、输出质量判定钩子 | 优化 | 🔶 调研发现 8（FSM 范式） |

@@ -1,0 +1,3 @@
+recursive-include src/coremind/_worker *.mjs
+recursive-include src/coremind/skills README.md
+include src/coremind/py.typed

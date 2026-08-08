@@ -1,0 +1,34 @@
+schemaVersion: 1
+id: design-workflows
+name:
+  zh-CN: "Workflow 与受控 Loop"
+  en: "Workflows and Bounded Loops"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/orchestrator.ts"
+  - "packages/coremind-config/src/schema/workflow.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/design-workflows/README.zh-CN.md
+    en: docs/modules/design-workflows/README.en.md
+  sop:
+    zh-CN: docs/modules/design-workflows/SOP.zh-CN.md
+    en: docs/modules/design-workflows/SOP.en.md
+  guide:
+    zh-CN: docs/modules/design-workflows/GUIDE.zh-CN.md
+    en: docs/modules/design-workflows/GUIDE.en.md
+  changelog: docs/modules/design-workflows/CHANGELOG.md
+skillPath: skills/design-workflows/SKILL.md
+examplePaths:
+  - examples/modules/design-workflows/README.zh-CN.md
+  - examples/modules/design-workflows/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/orchestrator.test.ts"
+  - "packages/coremind-runtime/src/budget.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "design-agents"
+  - "inspect-agent-traces"
+maturity: implemented-alpha

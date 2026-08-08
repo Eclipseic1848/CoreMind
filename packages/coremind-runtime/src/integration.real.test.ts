@@ -10,7 +10,7 @@ const enabled = process.env.REAL_LLM_TEST === "1" && Boolean(process.env.DEEPSEE
 describe.skipIf(!enabled)("真实 LLM 集成测试（REAL_LLM_TEST）", () => {
   it("单 agent 直答返回非空文本", async () => {
     const { config } = parseAndValidate({
-      version: 1,
+      schemaVersion: 2,
       name: "integration-single",
       provider: { id: "deepseek", model: "deepseek-v4-flash" },
       agents: { assistant: { systemPrompt: "你是简洁的助手，回答不超过 30 个字。" } },
@@ -27,7 +27,7 @@ describe.skipIf(!enabled)("真实 LLM 集成测试（REAL_LLM_TEST）", () => {
 
   it("双 agent workflow 变量传递", async () => {
     const { config } = parseAndValidate({
-      version: 1,
+      schemaVersion: 2,
       name: "integration-workflow",
       provider: { id: "deepseek", model: "deepseek-v4-flash" },
       agents: {

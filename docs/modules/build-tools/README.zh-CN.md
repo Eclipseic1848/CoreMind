@@ -1,0 +1,34 @@
+# 工具与业务能力
+
+状态：implemented-alpha；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+
+## 目的
+
+通过内置工具、脚本工具或稳定 defineTool 契约连接确定性的业务动作。
+
+## 公共接口
+
+- `buildTools`
+- `defineTool`
+- `adaptCoreMindTool`
+
+## 错误与边界
+
+- 工具加载失败会告警并跳过
+- 工具异常会进入 tool_result 与失败预算
+- 越权路径或 deny 规则会阻止执行
+- Linux bash 沙箱初始化失败时关闭执行，不回退到宿主 shell
+
+CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
+
+## 源码、测试与示例
+
+- [packages/coremind-tools/src](../../../packages/coremind-tools/src)
+- [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
+- [packages/coremind-runtime/src/public-tool.ts](../../../packages/coremind-runtime/src/public-tool.ts)
+- [packages/coremind-tools/src/registry.test.ts](../../../packages/coremind-tools/src/registry.test.ts)
+- [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
+- [packages/coremind-runtime/src/public-tool.test.ts](../../../packages/coremind-runtime/src/public-tool.test.ts)
+- [模块示例](../../../examples/modules/build-tools/README.zh-CN.md)
+- [Module example](../../../examples/modules/build-tools/README.en.md)
+- [Agent Skill](../../../skills/build-tools/SKILL.md)

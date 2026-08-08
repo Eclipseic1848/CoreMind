@@ -1,0 +1,15 @@
+schemaVersion: 1
+scenarios:
+  - id: paid-order
+    input: 查询订单 A-100
+    expected:
+      contains:
+        - 已支付
+        - "299"
+  - id: missing-order
+    input: 查询订单 A-999
+    expected:
+      contains:
+        - 未找到
+      notContains:
+        - 已支付

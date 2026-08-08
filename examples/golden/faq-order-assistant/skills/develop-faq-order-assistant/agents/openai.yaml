@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop FAQ Order Assistant"
+  short_description: "Build and evaluate the offline order assistant"
+  default_prompt: "Use $develop-faq-order-assistant to run and adapt this CoreMind golden example."

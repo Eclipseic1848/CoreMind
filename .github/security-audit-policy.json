@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-08",
+  "expiresAt": "2026-09-30",
+  "allowedDevelopmentOnlyPackages": {
+    "vite": {
+      "maximumSeverity": "high",
+      "reason": "仅由静态文档构建工具使用；仓库不提供或启动开发服务器命令。"
+    },
+    "vitepress": {
+      "maximumSeverity": "moderate",
+      "reason": "稳定版本暂无修复版；仅在 CI 和本地执行静态构建。"
+    },
+    "esbuild": {
+      "maximumSeverity": "moderate",
+      "reason": "仅是文档工具的传递开发依赖，不启动其开发服务器。"
+    }
+  }
+}

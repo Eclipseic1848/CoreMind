@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design CoreMind Agents"
+  short_description: "Design focused CoreMind agents with clear boundaries"
+  default_prompt: "Use $design-agents to complete this CoreMind task with its required checks."

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞 / Security vulnerability
+    url: https://github.com/Eclipseic1848/CoreMind/security
+    about: 请通过私密安全报告入口提交，不要公开漏洞细节。

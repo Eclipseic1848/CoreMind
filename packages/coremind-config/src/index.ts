@@ -19,6 +19,14 @@ export {
   type ToolRefConfig,
   type WorkflowStep,
 } from "./schema/config.js";
+export {
+  type PermissionsConfig,
+  PermissionsConfigSchema,
+  type QualityConfig,
+  QualityConfigSchema,
+  type RuntimeLimitsConfig,
+  RuntimeLimitsSchema,
+} from "./schema/harness.js";
 export { ModelOptionsSchema } from "./schema/provider.js";
 export {
   BUILTIN_TOOL_IDS,

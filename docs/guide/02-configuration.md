@@ -5,7 +5,7 @@
 ## 顶层字段
 
 ```yaml
-version: 1              # 配置格式版本（当前固定 1）
+schemaVersion: 2        # 配置格式版本（当前固定 2）
 name: my-agent          # 必填：智能体名称
 description: 一句话说明
 provider: {...}         # 模型提供商（缺省 deepseek）
@@ -15,6 +15,9 @@ agents: {...}           # 必填：至少一个智能体
 defaultAgent: 名称       # 缺省取第一个
 workflow: [...]         # 可选：编排步骤（缺省时单 agent 直答）
 session: {...}          # 可选：会话持久化
+runtime: {...}          # 可选：turn/step/工具/重试/token/费用/超时预算
+permissions: {...}      # 可选：ask / assisted / full 与路径/网络策略
+quality: {...}          # 可选：development / standard / strict
 ```
 
 未知字段会告警但**不会报错**——写错字段也能跑，只是会提示。
@@ -28,7 +31,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：`deepseek` / `moonshotai-cn`（Kimi）/ `zai`（智谱）/ `minimax-cn` / `openai` / `anthropic` / `google`。
+**内置提供商**：动态继承锁定运行时依赖的全部 Provider（当前本地清单为 37 个，包括国内外主流提供商）。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看准确清单。继承支持不等于真实认证；没有真实密钥和证据时只能称为可选 Provider。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 
@@ -44,7 +47,7 @@ provider:
 
 API key 来源：`apiKeyEnv` 指定的环境变量 → 缺省按提供商推断（`DEEPSEEK_API_KEY` 等）。
 
-> ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。使用时会告警并引导改用 `apiKeyEnv`。
+> ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。`coremind check` 会把它作为不可覆盖的安全错误。
 
 ## agents：智能体定义
 
@@ -74,7 +77,7 @@ tools:
   - id: read
   - id: bash
   - id: web-search          # 未配 key 时会跳过并告警
-  - path: ./my-tool.mjs     # 自定义脚本工具（一个 JS 文件，导出工具对象）
+  - path: ./my-tool.ts      # 自定义脚本工具（JS/TS，default 导出工具对象）
 ```
 
 注意：单个 agent 工具超过 20 个会告警（工具过多会降低模型选择准确率）。
@@ -116,12 +119,55 @@ workflow:
 
 **护栏**（保证智能体不失控）：嵌套深度 ≤ 8、总步骤 ≤ 100、单步骤超时 5 分钟（超时自动中止）。可用 `--max-steps <n>` 收紧步骤上限。
 
+## runtime：多维预算
+
+```yaml
+runtime:
+  maxTurns: 20
+  maxSteps: 100
+  stepTimeoutMs: 300000
+  runTimeoutMs: 900000
+  maxToolCalls: 50
+  maxToolFailures: 3
+  maxRetries: 3
+  maxTokens: 100000       # Provider 有 usage 时生效
+  maxCostUsd: 2           # Provider 有费用数据时生效
+```
+
+超限会产生结构化 `budget_exceeded` 事件并明确结束，不能伪装成成功。
+
+## permissions：三档权限
+
+```yaml
+permissions:
+  mode: ask               # ask / assisted / full
+  workspaceOnly: true
+  network: ask            # ask / allow / deny
+  allow:
+    - lookup_order
+  deny:
+    - bash
+```
+
+显式 `deny` 和工作区路径保护始终优先，包括 full 模式。full 只代表不逐项询问，不关闭 Trace、审计、checkpoint 或回退。`bash` 与任意自定义工具可能产生不可逆副作用，运行结果会如实标记。
+
+## quality：质量档
+
+```yaml
+quality:
+  profile: standard       # development / standard / strict
+  minScenarioPassRate: 1
+  allowOverride: true
+```
+
+strict 会让每个评测场景至少运行 3 次。安全门禁不可覆盖；其他门禁只有在明确填写覆盖原因后才会留痕放行。详见[质量、Harness 与评测](04-quality.md)。
+
 ## session：会话持久化
 
 ```yaml
 session:
   enabled: true             # 开启会话落盘
-  dir: ./sessions           # 可选：存储目录（缺省 ./sessions）
+  dir: ./sessions           # 可选：存储目录（缺省为配置目录下 sessions）
   compact: true             # 可选：上下文超预算时自动压缩（LLM 摘要，消耗 token）
 ```
 
@@ -139,11 +185,18 @@ coremind run coremind.yaml --prompt "第二轮" --session my-session   # 已恢�
 最简配置（单 agent 直答）：
 
 ```yaml
-version: 1
+schemaVersion: 2
 name: hello
 provider:
   id: deepseek
 agents:
   assistant:
     systemPrompt: 你是一位友善的 AI 助手。
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
 ```

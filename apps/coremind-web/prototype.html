@@ -153,8 +153,6 @@ const STEPS = [
 const AGENTS = ["collector", "writer", "summarizer", "reporter"];
 const AVATAR = { collector:"收", writer:"写", summarizer:"总", reporter:"报" };
 const COLOR  = { collector:"#2563eb", writer:"#7c3aed", summarizer:"#0891b2", reporter:"#16a34a" };
-const STEP_IDX = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
-
 // ============ 状态 ============
 let played = 0, timer = null;
 const playedEvents = () => EVENTS.slice(0, played);

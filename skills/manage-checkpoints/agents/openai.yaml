@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage CoreMind Checkpoints"
+  short_description: "Inspect diffs and restore reversible changes"
+  default_prompt: "Use $manage-checkpoints to complete this CoreMind task with its required checks."

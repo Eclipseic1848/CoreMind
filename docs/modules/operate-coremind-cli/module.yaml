@@ -1,0 +1,35 @@
+schemaVersion: 1
+id: operate-coremind-cli
+name:
+  zh-CN: "CLI 与 TUI"
+  en: "CLI and TUI"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-cli/src"
+documents:
+  readme:
+    zh-CN: docs/modules/operate-coremind-cli/README.zh-CN.md
+    en: docs/modules/operate-coremind-cli/README.en.md
+  sop:
+    zh-CN: docs/modules/operate-coremind-cli/SOP.zh-CN.md
+    en: docs/modules/operate-coremind-cli/SOP.en.md
+  guide:
+    zh-CN: docs/modules/operate-coremind-cli/GUIDE.zh-CN.md
+    en: docs/modules/operate-coremind-cli/GUIDE.en.md
+  changelog: docs/modules/operate-coremind-cli/CHANGELOG.md
+skillPath: skills/operate-coremind-cli/SKILL.md
+examplePaths:
+  - examples/modules/operate-coremind-cli/README.zh-CN.md
+  - examples/modules/operate-coremind-cli/README.en.md
+testPaths:
+  - "packages/coremind-cli/src/cli.e2e.test.ts"
+  - "packages/coremind-cli/src/approval.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "evaluate-agents"
+  - "enforce-agent-permissions"
+  - "manage-checkpoints"
+maturity: implemented-alpha

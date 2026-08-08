@@ -1,12 +1,17 @@
 import type { Agent } from "@earendil-works/pi-agent-core";
 import type { WorkflowStep } from "coremind-config";
 import { CoreMindError } from "./errors.js";
-import { type CoreMindEvent, extractText } from "./events.js";
+import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 
 /** 单个步骤的输出 */
 export interface StepOutput {
   text: string;
   metadata: { agent: string; stepId: string };
+}
+
+export interface CompletedWorkflowStep {
+  output: StepOutput;
+  saveAs?: string;
 }
 
 export interface OrchestratorOptions {
@@ -15,7 +20,7 @@ export interface OrchestratorOptions {
    * 每个步骤使用独立实例执行——步骤之间通过 {{变量}} 传递结果，
    * 避免并发冲突，同时天然防止共享消息状态的竞态。
    */
-  createAgent: (name: string) => Agent | undefined;
+  createAgent: (name: string, stepId?: string) => Agent | undefined;
   /** 事件转发 */
   events: (event: CoreMindEvent) => void;
   /** 首条用户输入，注册为 {{prompt}} 变量 */
@@ -27,6 +32,12 @@ export interface OrchestratorOptions {
   maxSteps?: number;
   /** 单步骤超时毫秒（默认 300000 = 5 分钟；0 = 不超时） */
   stepTimeoutMs?: number;
+  /** 工作流全局重试次数上限（默认 3） */
+  maxRetries?: number;
+  /** 恢复前已消耗的工作流重试次数。 */
+  initialRetryCount?: number;
+  /** 从 RunState 恢复出的稳定步骤；这些步骤不会重复执行。 */
+  completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
 }
 
 const INTERPOLATE_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
@@ -38,7 +49,7 @@ const INTERPOLATE_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
  * - 护栏：嵌套深度与总步骤数硬上限，防止多 agent 互相调用死循环
  */
 export class Orchestrator {
-  private readonly createAgent: (name: string) => Agent | undefined;
+  private readonly createAgent: (name: string, stepId?: string) => Agent | undefined;
   private readonly events: (event: CoreMindEvent) => void;
   private readonly initialPrompt?: string;
   private readonly signal?: AbortSignal;
@@ -46,6 +57,9 @@ export class Orchestrator {
   private readonly maxSteps: number;
   private readonly stepTimeoutMs: number;
   private stepCount = 0;
+  private readonly maxRetries: number;
+  private retryCount = 0;
+  private readonly completedSteps: ReadonlyMap<string, CompletedWorkflowStep>;
 
   /** outputs：saveAs → 输出（并行步骤共享） */
   readonly outputs = new Map<string, StepOutput>();
@@ -63,8 +77,15 @@ export class Orchestrator {
     this.maxDepth = opts.maxDepth ?? 8;
     this.maxSteps = opts.maxSteps ?? 100;
     this.stepTimeoutMs = opts.stepTimeoutMs ?? 300_000;
+    this.maxRetries = opts.maxRetries ?? 3;
+    this.retryCount = opts.initialRetryCount ?? 0;
+    this.completedSteps = opts.completedSteps ?? new Map();
+    this.stepCount = this.completedSteps.size;
     if (opts.initialPrompt !== undefined) {
       this.variables.set("prompt", opts.initialPrompt);
+    }
+    for (const completed of this.completedSteps.values()) {
+      if (completed.saveAs) this.saveOutput(completed.saveAs, completed.output);
     }
   }
 
@@ -76,7 +97,6 @@ export class Orchestrator {
 
   private async runSteps(steps: WorkflowStep[], depth: number): Promise<void> {
     for (const step of steps) {
-      this.checkGuard(step, depth);
       await this.runStep(step, depth);
     }
   }
@@ -84,6 +104,11 @@ export class Orchestrator {
   private async runStep(step: WorkflowStep, depth: number): Promise<StepOutput> {
     if (this.signal?.aborted) {
       throw new CoreMindError("aborted", "执行已中止");
+    }
+    const completed = this.completedSteps.get(step.id);
+    if (completed) {
+      this.events({ type: "step_resumed", stepId: step.id });
+      return completed.output;
     }
     this.checkGuard(step, depth);
     this.stepCount += 1;
@@ -114,7 +139,7 @@ export class Orchestrator {
     this.events({ type: "step_start", stepId: step.id, kind: step.type });
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const agent = this.createAgent(step.agent);
+      const agent = this.createAgent(step.agent, step.id);
       if (!agent) {
         throw new CoreMindError(
           "unknown_agent",
@@ -130,6 +155,19 @@ export class Orchestrator {
           retryCfg?.if !== undefined &&
           evalCondition(this.interpolateWithStepText(retryCfg.if, text));
         if (retryNeeded && attempt < maxAttempts) {
+          if (this.retryCount >= this.maxRetries) {
+            throw new CoreMindError(
+              "retry_limit",
+              `工作流重试次数达到上限（${this.maxRetries} 次），已中止：${step.id}`,
+            );
+          }
+          this.retryCount += 1;
+          this.events({
+            type: "retry",
+            scope: "workflow",
+            attempt: this.retryCount,
+            stepId: step.id,
+          });
           this.events({
             type: "error",
             message: `步骤 ${step.id} 输出未通过质量检查，第 ${attempt} 次重试中`,
@@ -145,6 +183,13 @@ export class Orchestrator {
           });
         }
         if (step.saveAs) this.saveOutput(step.saveAs, output);
+        this.events({
+          type: "step_output",
+          stepId: step.id,
+          agent: step.agent,
+          text: output.text,
+          ...(step.saveAs ? { saveAs: step.saveAs } : {}),
+        });
         this.events({ type: "step_end", stepId: step.id, ok: true });
         return output;
       } catch (error) {
@@ -161,15 +206,13 @@ export class Orchestrator {
     if (timeoutMs <= 0) {
       await agent.prompt(input);
       await agent.waitForIdle();
-      return extractText(agent.state.messages);
+      return extractSuccessfulText(agent, stepId);
     }
     let timer: NodeJS.Timeout | undefined;
     const run = (async () => {
       await agent.prompt(input);
       await agent.waitForIdle();
-    })().catch(() => {
-      // 超时后 abort 引发的拒绝在此吞掉（Promise.race 已决出结果）
-    });
+    })();
     try {
       await Promise.race([
         run,
@@ -188,7 +231,7 @@ export class Orchestrator {
     } finally {
       if (timer) clearTimeout(timer);
     }
-    return extractText(agent.state.messages);
+    return extractSuccessfulText(agent, stepId);
   }
 
   /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */
@@ -212,6 +255,13 @@ export class Orchestrator {
       .join("\n");
     const output: StepOutput = { text, metadata: { agent: "", stepId: step.id } };
     if (step.saveAs) this.saveOutput(step.saveAs, output);
+    this.events({
+      type: "step_output",
+      stepId: step.id,
+      agent: "",
+      text,
+      ...(step.saveAs ? { saveAs: step.saveAs } : {}),
+    });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return output;
   }
@@ -223,6 +273,7 @@ export class Orchestrator {
     this.events({ type: "step_start", stepId: step.id, kind: "if" });
     const branch = evalCondition(this.interpolate(step.condition)) ? step.then : step.else;
     if (branch) await this.runSteps(branch, depth + 1);
+    this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);
   }
@@ -237,6 +288,7 @@ export class Orchestrator {
     const hit = Object.keys(step.cases).find((key) => value.includes(key));
     const branch = hit ? step.cases[hit] : step.default;
     if (branch) await this.runSteps(branch, depth + 1);
+    this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);
   }
@@ -269,6 +321,14 @@ export class Orchestrator {
 
 function emptyOutput(stepId: string): StepOutput {
   return { text: "", metadata: { agent: "", stepId } };
+}
+
+function extractSuccessfulText(agent: Agent, stepId: string): string {
+  const agentError = extractAgentError(agent.state.messages);
+  if (agentError) {
+    throw new CoreMindError("agent_failed", `步骤 ${stepId} 的 Agent 执行失败：${agentError}`);
+  }
+  return extractText(agent.state.messages);
 }
 
 /**

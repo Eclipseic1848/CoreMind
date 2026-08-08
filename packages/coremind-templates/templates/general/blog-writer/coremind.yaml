@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: blog-writer
 description: 根据要点撰写博客/公众号文章并保存到文件
 provider:
@@ -31,3 +31,12 @@ workflow:
     input: |
       请将文章写入文件 article.md。文章内容如下：
       {{article.text}}
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

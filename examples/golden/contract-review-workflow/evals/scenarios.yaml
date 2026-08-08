@@ -1,0 +1,8 @@
+schemaVersion: 1
+scenarios:
+  - id: missing-liability-cap
+    input: 服务费用应在验收后 30 天内支付。双方未约定违约责任上限。
+    expected:
+      contains:
+        - '"riskLevel":"high"'
+        - '"requiresHumanReview":true'

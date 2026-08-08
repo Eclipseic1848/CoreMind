@@ -1,0 +1,4 @@
+interface:
+  display_name: "Embed CoreMind in TypeScript"
+  short_description: "Embed the stable CoreMind SDK in Node applications"
+  default_prompt: "Use $embed-coremind-typescript to complete this CoreMind task with its required checks."

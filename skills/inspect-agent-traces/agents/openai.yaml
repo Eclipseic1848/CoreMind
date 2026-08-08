@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inspect Agent Traces"
+  short_description: "Diagnose agent runs from structured trace evidence"
+  default_prompt: "Use $inspect-agent-traces to complete this CoreMind task with its required checks."

@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-08",
+  "summary": {
+    "supported": 38,
+    "certified": 1,
+    "unverified": 37
+  },
+  "providers": [
+    {
+      "id": "alibaba-model-studio",
+      "defaultModel": "qwen-plus",
+      "modelCount": 1,
+      "status": "certified",
+      "testedAt": "2026-08-08T14:31:34.507Z",
+      "testedModel": "qwen-plus",
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-08.json"
+    },
+    {
+      "id": "amazon-bedrock",
+      "defaultModel": "amazon.nova-2-lite-v1:0",
+      "modelCount": 114,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "ant-ling",
+      "defaultModel": "Ling-2.6-1T",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "anthropic",
+      "defaultModel": "claude-fable-5",
+      "modelCount": 15,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "azure-openai-responses",
+      "defaultModel": "gpt-4",
+      "modelCount": 38,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "cerebras",
+      "defaultModel": "gemma-4-31b",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "cloudflare-ai-gateway",
+      "defaultModel": "claude-3-5-haiku",
+      "modelCount": 43,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "cloudflare-workers-ai",
+      "defaultModel": "@cf/google/gemma-4-26b-a4b-it",
+      "modelCount": 13,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "deepseek",
+      "defaultModel": "deepseek-v4-flash",
+      "modelCount": 2,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "fireworks",
+      "defaultModel": "accounts/fireworks/models/deepseek-v4-flash",
+      "modelCount": 16,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "github-copilot",
+      "defaultModel": "claude-haiku-4.5",
+      "modelCount": 29,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "google",
+      "defaultModel": "deep-research-max-preview-04-2026",
+      "modelCount": 24,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "google-vertex",
+      "defaultModel": "gemini-2.5-flash",
+      "modelCount": 12,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "groq",
+      "defaultModel": "llama-3.1-8b-instant",
+      "modelCount": 7,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "huggingface",
+      "defaultModel": "MiniMaxAI/MiniMax-M2",
+      "modelCount": 51,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "kimi-coding",
+      "defaultModel": "k3",
+      "modelCount": 4,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "minimax",
+      "defaultModel": "MiniMax-M2.7",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "minimax-cn",
+      "defaultModel": "MiniMax-M2.7",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "mistral",
+      "defaultModel": "codestral-latest",
+      "modelCount": 30,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "moonshotai",
+      "defaultModel": "kimi-k2-0711-preview",
+      "modelCount": 10,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "moonshotai-cn",
+      "defaultModel": "kimi-k2-0711-preview",
+      "modelCount": 10,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "nvidia",
+      "defaultModel": "google/gemma-3-12b-it",
+      "modelCount": 30,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "openai",
+      "defaultModel": "gpt-4",
+      "modelCount": 38,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "openai-codex",
+      "defaultModel": "gpt-5.3-codex-spark",
+      "modelCount": 7,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "opencode",
+      "defaultModel": "claude-fable-5",
+      "modelCount": 59,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "opencode-go",
+      "defaultModel": "minimax-m3",
+      "modelCount": 16,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "openrouter",
+      "defaultModel": "ai21/jamba-large-1.7",
+      "modelCount": 303,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "qwen-token-plan",
+      "defaultModel": "MiniMax-M2.5",
+      "modelCount": 15,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "qwen-token-plan-cn",
+      "defaultModel": "MiniMax-M2.5",
+      "modelCount": 15,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "together",
+      "defaultModel": "MiniMaxAI/MiniMax-M2.7",
+      "modelCount": 17,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "defaultModel": "alibaba/qwen-3-14b",
+      "modelCount": 193,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "xai",
+      "defaultModel": "grok-4.3",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "xiaomi",
+      "defaultModel": "mimo-v2-flash",
+      "modelCount": 6,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "xiaomi-token-plan-ams",
+      "defaultModel": "mimo-v2-pro",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "xiaomi-token-plan-cn",
+      "defaultModel": "mimo-v2-pro",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "xiaomi-token-plan-sgp",
+      "defaultModel": "mimo-v2-pro",
+      "modelCount": 3,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "zai",
+      "defaultModel": "glm-4.5-air",
+      "modelCount": 6,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "zai-coding-cn",
+      "defaultModel": "glm-4.5-air",
+      "modelCount": 6,
+      "status": "inherited-unverified"
+    }
+  ]
+}

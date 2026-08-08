@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: mock-agent
 description: 指向本地 mock server 的测试配置
 provider:

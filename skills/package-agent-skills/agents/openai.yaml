@@ -1,0 +1,4 @@
+interface:
+  display_name: "Package Agent Skills"
+  short_description: "Package reusable guidance as concise agent skills"
+  default_prompt: "Use $package-agent-skills to complete this CoreMind task with its required checks."

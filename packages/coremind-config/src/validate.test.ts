@@ -7,7 +7,7 @@ import {
 } from "./validate.js";
 
 const validYaml = {
-  version: 1,
+  schemaVersion: 2 as const,
   name: "demo",
   provider: { id: "deepseek" },
   agents: {
@@ -16,6 +16,11 @@ const validYaml = {
 };
 
 describe("validateConfig", () => {
+  it("旧版 version 配置给出明确的 v2 迁移提示", () => {
+    const { schemaVersion: _schemaVersion, ...oldConfig } = validYaml;
+    expect(() => validateConfig({ ...oldConfig, version: 1 })).toThrow("schemaVersion: 2");
+  });
+
   it("合法配置通过校验并填充默认值", () => {
     const config = validateConfig(validYaml);
     expect(config.name).toBe("demo");
@@ -26,10 +31,35 @@ describe("validateConfig", () => {
     expect(config.agents.main?.tools).toEqual([{ id: "bash" }]);
   });
 
+  it("v2 Harness、权限和质量配置填充安全默认值", () => {
+    const config = validateConfig({
+      ...validYaml,
+      runtime: {},
+      permissions: {},
+      quality: {},
+    });
+
+    expect(config.runtime).toMatchObject({
+      maxTurns: 20,
+      maxSteps: 100,
+      stepTimeoutMs: 300_000,
+      runTimeoutMs: 900_000,
+      maxToolCalls: 50,
+      maxToolFailures: 3,
+      maxRetries: 3,
+    });
+    expect(config.permissions).toMatchObject({
+      mode: "ask",
+      workspaceOnly: true,
+      network: "ask",
+    });
+    expect(config.quality).toMatchObject({ profile: "standard", allowOverride: true });
+  });
+
   it("缺少必填 name 时报中文可读错误", () => {
-    expect(() => validateConfig({ version: 1, agents: {} })).toThrow(ConfigValidationError);
+    expect(() => validateConfig({ schemaVersion: 2, agents: {} })).toThrow(ConfigValidationError);
     try {
-      validateConfig({ version: 1, agents: {} });
+      validateConfig({ schemaVersion: 2, agents: {} });
     } catch (e) {
       const err = e as ConfigValidationError;
       expect(err.message).toContain("配置校验失败");
@@ -40,7 +70,7 @@ describe("validateConfig", () => {
   it("agents 内非法字段给出带路径的错误", () => {
     try {
       validateConfig({
-        version: 1,
+        schemaVersion: 2,
         name: "demo",
         agents: { main: { systemPrompt: 123 } },
       });
@@ -53,7 +83,7 @@ describe("validateConfig", () => {
 
   it("workflow 递归嵌套（if 内含 parallel）通过校验", () => {
     const config = validateConfig({
-      version: 1,
+      schemaVersion: 2,
       name: "wf",
       agents: { a: { systemPrompt: "x" }, b: { systemPrompt: "y" } },
       workflow: [
@@ -82,9 +112,28 @@ describe("validateConfig", () => {
     expect(config.workflow).toHaveLength(2);
   });
 
+  it("拒绝重复的 workflow 步骤 id，保证恢复边界唯一", () => {
+    expect(() =>
+      validateConfig({
+        schemaVersion: 2,
+        name: "duplicate-workflow-id",
+        agents: { main: { systemPrompt: "x" } },
+        workflow: [
+          { id: "same", type: "prompt", agent: "main", input: "a" },
+          {
+            id: "branch",
+            type: "if",
+            condition: "true",
+            then: [{ id: "same", type: "call", agent: "main", input: "b" }],
+          },
+        ],
+      }),
+    ).toThrow("workflow 步骤 id 重复：same");
+  });
+
   it("自定义 provider（OpenAI 兼容端点）通过校验", () => {
     const config = validateConfig({
-      version: 1,
+      schemaVersion: 2,
       name: "local",
       provider: { id: "ollama", baseUrl: "http://localhost:11434/v1", model: "qwen2.5:7b" },
       agents: { main: {} },

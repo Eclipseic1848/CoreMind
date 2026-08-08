@@ -1,0 +1,33 @@
+schemaVersion: 1
+id: manage-checkpoints
+name:
+  zh-CN: "Checkpoint、Diff 与恢复"
+  en: "Checkpoints, Diffs, and Restore"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/checkpoint.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-checkpoints/README.zh-CN.md
+    en: docs/modules/manage-checkpoints/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-checkpoints/SOP.zh-CN.md
+    en: docs/modules/manage-checkpoints/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-checkpoints/GUIDE.zh-CN.md
+    en: docs/modules/manage-checkpoints/GUIDE.en.md
+  changelog: docs/modules/manage-checkpoints/CHANGELOG.md
+skillPath: skills/manage-checkpoints/SKILL.md
+examplePaths:
+  - examples/modules/manage-checkpoints/README.zh-CN.md
+  - examples/modules/manage-checkpoints/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/checkpoint.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "enforce-agent-permissions"
+  - "inspect-agent-traces"
+maturity: implemented-alpha

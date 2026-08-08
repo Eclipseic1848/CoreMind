@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scaffold CoreMind Projects"
+  short_description: "Generate project guidance without overwriting files"
+  default_prompt: "Use $scaffold-coremind-projects to complete this CoreMind task with its required checks."

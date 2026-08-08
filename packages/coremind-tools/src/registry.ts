@@ -9,6 +9,7 @@ import {
   createWriteTool,
 } from "@earendil-works/pi-coding-agent";
 import type { BuiltinToolId, ToolConfig } from "coremind-config";
+import { createLinuxSandboxedBashTool } from "./linux-sandbox.js";
 import { loadScriptTool } from "./script-tool.js";
 import { createWebFetchTool, createWebSearchToolIfAvailable } from "./web-tools.js";
 
@@ -17,16 +18,24 @@ const BUILTIN_FACTORIES: Record<
   BuiltinToolId,
   (cwd: string, env: NodeJS.ProcessEnv) => AgentTool | null
 > = {
-  read: (cwd) => createReadTool(cwd),
-  ls: (cwd) => createLsTool(cwd),
-  find: (cwd) => createFindTool(cwd),
-  grep: (cwd) => createGrepTool(cwd),
-  bash: (cwd) => createBashTool(cwd),
-  edit: (cwd) => createEditTool(cwd),
-  write: (cwd) => createWriteTool(cwd),
+  read: (cwd) => bridgeCodingTool(createReadTool(cwd)),
+  ls: (cwd) => bridgeCodingTool(createLsTool(cwd)),
+  find: (cwd) => bridgeCodingTool(createFindTool(cwd)),
+  grep: (cwd) => bridgeCodingTool(createGrepTool(cwd)),
+  bash: (cwd, env) =>
+    process.platform === "linux"
+      ? createLinuxSandboxedBashTool({ cwd, env })
+      : bridgeCodingTool(createBashTool(cwd)),
+  edit: (cwd) => bridgeCodingTool(createEditTool(cwd)),
+  write: (cwd) => bridgeCodingTool(createWriteTool(cwd)),
   "web-fetch": () => createWebFetchTool(),
   "web-search": (_, env) => createWebSearchToolIfAvailable(env),
 };
+
+/** 隔离命令工具包的类型版本差异；运行时工具协议仍由集成测试验证。 */
+function bridgeCodingTool(tool: unknown): AgentTool {
+  return tool as AgentTool;
+}
 
 /** 单个 agent 工具数量建议上限（工具过多会降低模型工具选择准确率，参考主流生产经验 0-20） */
 export const MAX_TOOLS_PER_AGENT = 20;

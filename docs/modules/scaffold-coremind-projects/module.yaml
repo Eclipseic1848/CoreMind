@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: scaffold-coremind-projects
+name:
+  zh-CN: "模板与项目文档"
+  en: "Templates and Project Guidance"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-templates/src/project-scaffold.ts"
+  - "packages/coremind-templates/templates"
+documents:
+  readme:
+    zh-CN: docs/modules/scaffold-coremind-projects/README.zh-CN.md
+    en: docs/modules/scaffold-coremind-projects/README.en.md
+  sop:
+    zh-CN: docs/modules/scaffold-coremind-projects/SOP.zh-CN.md
+    en: docs/modules/scaffold-coremind-projects/SOP.en.md
+  guide:
+    zh-CN: docs/modules/scaffold-coremind-projects/GUIDE.zh-CN.md
+    en: docs/modules/scaffold-coremind-projects/GUIDE.en.md
+  changelog: docs/modules/scaffold-coremind-projects/CHANGELOG.md
+skillPath: skills/scaffold-coremind-projects/SKILL.md
+examplePaths:
+  - examples/modules/scaffold-coremind-projects/README.zh-CN.md
+  - examples/modules/scaffold-coremind-projects/README.en.md
+testPaths:
+  - "packages/coremind-templates/src/project-scaffold.test.ts"
+  - "packages/coremind-templates/src/templates.test.ts"
+  - "packages/coremind-cli/src/cli.e2e.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "package-agent-skills"
+  - "evaluate-agents"
+maturity: implemented-alpha

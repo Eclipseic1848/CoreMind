@@ -1,0 +1,49 @@
+schemaVersion: 1
+id: contribute-coremind
+name:
+  zh-CN: "源码与社区贡献"
+  en: "Source and Community Contribution"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "package.json"
+  - "vitest.config.ts"
+  - ".github/workflows/ci.yml"
+  - "CONTRIBUTING.md"
+  - "SECURITY.md"
+  - "docs/.vitepress/config.mts"
+  - "docs/providers/certifications.json"
+  - "docs/release/README.zh-CN.md"
+  - "scripts/check-module-contract.mjs"
+  - "scripts/check-docs-site.mjs"
+  - "scripts/clean-package-dist.mjs"
+  - "scripts/generate-provider-matrix.mjs"
+  - "scripts/release-preflight.mjs"
+documents:
+  readme:
+    zh-CN: docs/modules/contribute-coremind/README.zh-CN.md
+    en: docs/modules/contribute-coremind/README.en.md
+  sop:
+    zh-CN: docs/modules/contribute-coremind/SOP.zh-CN.md
+    en: docs/modules/contribute-coremind/SOP.en.md
+  guide:
+    zh-CN: docs/modules/contribute-coremind/GUIDE.zh-CN.md
+    en: docs/modules/contribute-coremind/GUIDE.en.md
+  changelog: docs/modules/contribute-coremind/CHANGELOG.md
+skillPath: skills/contribute-coremind/SKILL.md
+examplePaths:
+  - examples/modules/contribute-coremind/README.zh-CN.md
+  - examples/modules/contribute-coremind/README.en.md
+testPaths:
+  - "scripts/check-module-contract.mjs"
+  - "scripts/docs-link-policy.test.ts"
+  - "scripts/provider-matrix.test.ts"
+  - "scripts/release-preflight.test.ts"
+  - "packages/coremind/src/index.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "evaluate-agents"
+  - "scaffold-coremind-projects"
+maturity: implemented-alpha

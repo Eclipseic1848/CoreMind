@@ -1,0 +1,34 @@
+schemaVersion: 1
+id: inspect-agent-traces
+name:
+  zh-CN: "Trace、RunState 与调试"
+  en: "Trace, RunState, and Debugging"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/trace.ts"
+  - "packages/coremind-runtime/src/run-state.ts"
+  - "packages/coremind-runtime/src/events.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/inspect-agent-traces/README.zh-CN.md
+    en: docs/modules/inspect-agent-traces/README.en.md
+  sop:
+    zh-CN: docs/modules/inspect-agent-traces/SOP.zh-CN.md
+    en: docs/modules/inspect-agent-traces/SOP.en.md
+  guide:
+    zh-CN: docs/modules/inspect-agent-traces/GUIDE.zh-CN.md
+    en: docs/modules/inspect-agent-traces/GUIDE.en.md
+  changelog: docs/modules/inspect-agent-traces/CHANGELOG.md
+skillPath: skills/inspect-agent-traces/SKILL.md
+examplePaths:
+  - examples/modules/inspect-agent-traces/README.zh-CN.md
+  - examples/modules/inspect-agent-traces/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/run-state.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+maturity: implemented-alpha

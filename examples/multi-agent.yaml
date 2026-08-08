@@ -1,6 +1,6 @@
 # 多 agent 协作示例：信息收集 → 撰写报告
 # 运行：coremind run examples/multi-agent.yaml --prompt "收集并总结当前目录的项目结构"
-version: 1
+schemaVersion: 2
 name: multi-agent-demo
 description: 多 agent 协作示例
 
@@ -40,3 +40,12 @@ workflow:
       根据以下事实清单撰写报告：
       {{facts.text}}
     saveAs: report
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

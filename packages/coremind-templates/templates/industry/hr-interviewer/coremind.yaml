@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: hr-interviewer
 description: 岗位面试官，按候选人表现分路追问（switch 分支）
 provider:
@@ -49,3 +49,12 @@ workflow:
         agent: interviewer
         input: 按常规流程继续提问并完成面试，输出评估结论。
         saveAs: conclusion
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

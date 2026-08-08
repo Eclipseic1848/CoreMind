@@ -1,12 +1,25 @@
 import path from "node:path";
-import { CoreMindRuntime, formatQuality } from "coremind-ai";
-import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
+import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
+import {
+  type CoreMindConfig,
+  CoreMindRuntime,
+  formatMetrics,
+  loadConfigFile,
+  parseAndValidate,
+} from "coremind-ai";
+import {
+  ApprovalQueue,
+  applyPermissionMode,
+  bindReadlineApprovals,
+  parsePermissionMode,
+} from "../approval.js";
 import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, stepLine, toolLine, toolResultLine, yellow } from "../render.js";
 
 /**
  * coremind run <file>：校验配置 → 构建运行时 → 执行。
- * 支持 --prompt / --print / --json-events / --session（保存会话） / --max-steps。
+ * 支持 --prompt / --print / --json-events / --session / --resume / --max-steps。
  */
 export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise<number> {
   const file = positionals[0];
@@ -23,6 +36,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
   }
+
   let config: CoreMindConfig;
   try {
     const result = parseAndValidate(data);
@@ -32,6 +46,13 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
   }
+  const permissionValue = flagString(parsed, "permission");
+  const permissionMode = parsePermissionMode(permissionValue);
+  if (permissionValue && !permissionMode) {
+    console.error(errorLine("--permission 只能是 ask、assisted 或 full"));
+    return 1;
+  }
+  if (permissionMode) config = applyPermissionMode(config, permissionMode);
 
   const printOnly = flagBool(parsed, "print");
   const jsonEvents = flagBool(parsed, "json-events");
@@ -41,37 +62,50 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     console.error(errorLine(`会话 id 只能包含字母、数字、连字符与下划线：${sessionId}`));
     return 1;
   }
+  const resumeRunId = flagString(parsed, "resume");
+  if (resumeRunId && !/^[a-zA-Z0-9_-]+$/.test(resumeRunId)) {
+    console.error(errorLine(`runId 只能包含字母、数字、连字符与下划线：${resumeRunId}`));
+    return 1;
+  }
   const maxSteps = flagNumber(parsed, "max-steps");
   const configDir = path.dirname(path.resolve(file));
 
   // 2. 构建运行时（事件回调：JSONL 或渲染）
   const controller = new AbortController();
+  const approvals = new ApprovalQueue(process.stdin.isTTY === true);
+  const approvalReadline =
+    process.stdin.isTTY === true ? createInterface({ input, output }) : undefined;
+  const unbindApprovals = approvalReadline
+    ? bindReadlineApprovals(approvals, approvalReadline)
+    : undefined;
   const onSigint = () => controller.abort();
   process.once("SIGINT", onSigint);
 
-  const runtime = await CoreMindRuntime.create({
-    config,
-    configDir,
-    cwd: process.cwd(),
-    initialPrompt,
-    sessionId,
-    maxSteps,
-    signal: controller.signal,
-    events: (event) => {
-      if (jsonEvents) {
-        process.stdout.write(`${JSON.stringify(event)}\n`);
-        return;
-      }
-      if (printOnly && event.type === "text_delta") return;
-      renderEvent(event);
-    },
-  });
-  if (runtime.resumedContextLength > 0) {
-    console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
-  }
-
-  // 3. 执行
   try {
+    const runtime = await CoreMindRuntime.create({
+      config,
+      configDir,
+      cwd: process.cwd(),
+      initialPrompt,
+      sessionId,
+      resumeRunId,
+      maxSteps,
+      signal: controller.signal,
+      approveTool: (request) => approvals.request(request),
+      events: (event) => {
+        if (jsonEvents) {
+          process.stdout.write(`${JSON.stringify(event)}\n`);
+          return;
+        }
+        if (printOnly && event.type === "text_delta") return;
+        renderEvent(event);
+      },
+    });
+    if (runtime.resumedContextLength > 0) {
+      console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+    }
+
+    // 3. 执行
     const result = await runtime.run();
     if (printOnly && result.transcript.length > 0) {
       process.stdout.write(
@@ -83,7 +117,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     }
     // 质量摘要（管道/机器模式不打印，保持 --print/--json-events 纯净）
     if (!printOnly && !jsonEvents) {
-      console.log(dim(`✓ 运行完成：${formatQuality(result.quality)}`));
+      console.log(dim(`✓ 运行完成：${formatMetrics(result.metrics)}`));
     }
     return 0;
   } catch (error) {
@@ -91,6 +125,9 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     return 1;
   } finally {
     process.off("SIGINT", onSigint);
+    unbindApprovals?.();
+    approvals.close();
+    approvalReadline?.close();
   }
 }
 
@@ -104,6 +141,9 @@ function renderEvent(
       break;
     case "step_start":
       process.stdout.write(`\n${stepLine(event.stepId, event.kind)}\n`);
+      break;
+    case "step_resumed":
+      process.stdout.write(`\n${dim(`↻ 复用稳定步骤：${event.stepId}`)}\n`);
       break;
     case "tool_call":
       process.stdout.write(`\n${toolLine(event.tool, event.args)}`);

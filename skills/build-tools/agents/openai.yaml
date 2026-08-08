@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build CoreMind Tools"
+  short_description: "Build and secure CoreMind business tools"
+  default_prompt: "Use $build-tools to complete this CoreMind task with its required checks."

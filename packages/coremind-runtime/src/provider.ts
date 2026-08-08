@@ -5,29 +5,11 @@ import {
   envApiKeyAuth,
   type Model,
   type Models,
-  type Provider,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
-import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
-import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
-import { googleProvider } from "@earendil-works/pi-ai/providers/google";
-import { minimaxCnProvider } from "@earendil-works/pi-ai/providers/minimax-cn";
-import { moonshotaiCnProvider } from "@earendil-works/pi-ai/providers/moonshotai-cn";
-import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
-import { zaiProvider } from "@earendil-works/pi-ai/providers/zai";
+import { builtinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { CustomProviderConfig, ProviderConfig } from "coremind-config";
 import { CoreMindError } from "./errors.js";
-
-/** 内置提供商白名单（id → 工厂） */
-const BUILTIN_PROVIDERS: Record<string, () => Provider> = {
-  deepseek: deepseekProvider,
-  "moonshotai-cn": moonshotaiCnProvider,
-  zai: zaiProvider,
-  "minimax-cn": minimaxCnProvider,
-  openai: openaiProvider,
-  anthropic: anthropicProvider,
-  google: googleProvider,
-};
 
 export interface ProviderRuntime {
   /** 模型集合（含鉴权、流式调用） */
@@ -41,6 +23,17 @@ export interface ProviderRuntime {
 }
 
 const DEFAULT_PROVIDER = "deepseek";
+const CORE_MIND_PROVIDER_IDS = ["alibaba-model-studio"] as const;
+
+/** 锁定 pi-ai 版本提供的完整静态 Provider 清单。 */
+export function listInheritedProviders(): string[] {
+  return [...getBuiltinProviders()];
+}
+
+/** CoreMind 可直接配置的完整 Provider 清单，包括继承入口与原生认证入口。 */
+export function listSupportedProviders(): string[] {
+  return [...listInheritedProviders(), ...CORE_MIND_PROVIDER_IDS];
+}
 
 /** 构建运行时：注册 provider 并解析模型 */
 export async function buildProviderRuntime(
@@ -51,7 +44,31 @@ export async function buildProviderRuntime(
   if ("baseUrl" in cfg) {
     return buildCustomRuntime(cfg);
   }
+  if (cfg.id === "alibaba-model-studio") {
+    return buildAlibabaModelStudioRuntime(cfg, env);
+  }
   return buildBuiltinRuntime(cfg, env);
+}
+
+/** 阿里云模型服务的中国区试用域名；任意同区域工作区密钥均可调用。 */
+async function buildAlibabaModelStudioRuntime(
+  cfg: { id: string; model?: string; apiKeyEnv?: string },
+  env: NodeJS.ProcessEnv,
+): Promise<ProviderRuntime> {
+  const modelId = cfg.model ?? "qwen-plus";
+  const apiKeyEnv = cfg.apiKeyEnv ?? "DASHSCOPE_API_KEY";
+  const runtime = await buildCustomRuntime({
+    id: cfg.id,
+    name: "Alibaba Cloud Model Studio",
+    baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    model: modelId,
+    apiKeyEnv,
+    contextWindow: 131072,
+    maxTokens: 8192,
+  });
+  const apiKeyOverride = env[apiKeyEnv];
+  if (!apiKeyOverride) runtime.warnings.push(`环境变量 ${apiKeyEnv} 未配置`);
+  return { ...runtime, apiKeyOverride };
 }
 
 /** 内置提供商：注册工厂，从目录解析模型（model 未命中时回退默认并告警） */
@@ -59,18 +76,16 @@ async function buildBuiltinRuntime(
   cfg: { id: string; model?: string; apiKeyEnv?: string },
   env: NodeJS.ProcessEnv,
 ): Promise<ProviderRuntime> {
-  const factory = BUILTIN_PROVIDERS[cfg.id];
-  if (!factory) {
+  const models = builtinModels();
+  const provider = models.getProvider(cfg.id);
+  if (!provider) {
     throw new CoreMindError(
       "unknown_provider",
-      `不支持的内置提供商：${cfg.id}。支持：${Object.keys(BUILTIN_PROVIDERS).join("、")}。如需其他模型服务，请使用自定义 provider（baseUrl 方式）。`,
+      `不支持的内置提供商：${cfg.id}。锁定版本继承：${listInheritedProviders().join("、")}。如需其他模型服务，请使用自定义 provider（baseUrl 方式）。`,
     );
   }
-  const provider = factory();
-  const models = createModels();
-  models.setProvider(provider);
 
-  const catalog = provider.getModels();
+  const catalog = models.getModels(cfg.id);
   const fallback = catalog[0];
   if (!fallback) {
     throw new CoreMindError("no_models", `提供商 ${cfg.id} 没有可用的模型目录`);

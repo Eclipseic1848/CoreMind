@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enforce Agent Permissions"
+  short_description: "Configure approvals and least-privilege policies"
+  default_prompt: "Use $enforce-agent-permissions to complete this CoreMind task with its required checks."

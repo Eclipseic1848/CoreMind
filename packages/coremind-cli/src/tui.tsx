@@ -1,6 +1,7 @@
-import type { ChatSession, CoreMindEvent } from "coremind-ai";
+import type { ChatSession, CoreMindEvent, RunResult } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ApprovalQueue, PendingApproval } from "./approval.js";
 
 /** 消息视图（会话渲染用） */
 interface MessageView {
@@ -13,6 +14,7 @@ interface MessageView {
 export interface ChatTUIProps {
   title: string;
   session: ChatSession;
+  approvals: ApprovalQueue;
   /** 退出回调（外部负责 unmount 与收尾） */
   onExit: () => void;
 }
@@ -24,15 +26,22 @@ const MAX_VISIBLE = 30;
  * 全屏交互终端（ink）：顶部标题栏 + 消息流（流式文本/工具调用可视化）+ 底部输入框。
  * 与 readline 模式共用同一 ChatSession 与事件流。
  */
-export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
+export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   const [messages, setMessages] = useState<MessageView[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval>();
+  const [lastRun, setLastRun] = useState<RunResult>();
   const idRef = useRef(0);
 
   // 键盘输入（受控输入框：字符累积 / 退格 / 回车发送）
   useInput((inputStr, key) => {
+    if (pendingApproval) {
+      if (inputStr.toLowerCase() === "y") approvals.resolve("allow");
+      if (inputStr.toLowerCase() === "n" || key.return || key.escape) approvals.resolve("deny");
+      return;
+    }
     if (key.return) {
       void handleSubmit(input);
       setInput("");
@@ -42,6 +51,8 @@ export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
       setInput((v) => v + inputStr);
     }
   });
+
+  useEffect(() => approvals.subscribe(setPendingApproval), [approvals]);
 
   // 订阅会话事件：流式文本增量 + 工具调用实时状态
   useEffect(() => {
@@ -96,6 +107,59 @@ export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
       setShowHelp((v) => !v);
       return;
     }
+    if (trimmed === "/status") {
+      const text = lastRun ? formatRunStatus(lastRun) : "尚未完成任何运行。";
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
+    if (trimmed === "/checkpoints") {
+      const checkpoints = session.listCheckpoints();
+      const text =
+        checkpoints.length === 0
+          ? "当前没有 checkpoint。"
+          : checkpoints
+              .map(
+                (item) =>
+                  `${item.checkpointId} · ${item.tool} · ${item.reversible ? "可恢复" : "不可自动恢复"}`,
+              )
+              .join("\n");
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
+    if (trimmed.startsWith("/diff ")) {
+      const checkpointId = trimmed.slice("/diff ".length).trim();
+      try {
+        const diff = await session.diffCheckpoint(checkpointId);
+        const text = diff.reversible
+          ? `changed=${diff.changed}\n--- before\n${diff.beforeText ?? "(文件不存在)"}\n+++ after\n${diff.afterText ?? "(文件不存在)"}`
+          : `不可自动比较：${diff.reason ?? "未知原因"}`;
+        setMessages((prev) => [
+          ...prev,
+          { id: idRef.current++, role: "assistant", text, tools: [] },
+        ]);
+      } catch (error) {
+        appendCommandError(error);
+      }
+      return;
+    }
+    if (trimmed.startsWith("/restore ")) {
+      const checkpointId = trimmed.slice("/restore ".length).trim();
+      try {
+        await session.restoreCheckpoint(checkpointId);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: idRef.current++,
+            role: "assistant",
+            text: `已恢复 checkpoint ${checkpointId}`,
+            tools: [],
+          },
+        ]);
+      } catch (error) {
+        appendCommandError(error);
+      }
+      return;
+    }
     setInput("");
     setMessages((prev) => [
       ...prev,
@@ -103,10 +167,33 @@ export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
     ]);
     setBusy(true);
     try {
-      await session.chat(trimmed);
+      const result = await session.chat(trimmed);
+      setLastRun(result.run);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: idRef.current++,
+          role: "assistant",
+          text: `运行失败：${error instanceof Error ? error.message : String(error)}`,
+          tools: [],
+        },
+      ]);
     } finally {
       setBusy(false);
     }
+  };
+
+  const appendCommandError = (error: unknown) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: idRef.current++,
+        role: "assistant",
+        text: `命令失败：${error instanceof Error ? error.message : String(error)}`,
+        tools: [],
+      },
+    ]);
   };
 
   const visible = messages.slice(-MAX_VISIBLE);
@@ -122,7 +209,9 @@ export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
         {showHelp && (
           <Box marginY={1}>
-            <Text color="yellow">/help 帮助 · /exit 退出 · /abort 中止当前回答（可继续提问）</Text>
+            <Text color="yellow">
+              /status 状态 · /checkpoints 列表 · /diff ID · /restore ID · /exit · /abort
+            </Text>
           </Box>
         )}
         {visible.map((msg) => (
@@ -130,6 +219,20 @@ export function ChatTUI({ title, session, onExit }: ChatTUIProps) {
         ))}
         {busy && <Text dimColor>…</Text>}
       </Box>
+      {pendingApproval && (
+        <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
+          <Text color="yellow" bold>
+            权限审批：{pendingApproval.request.tool}（{pendingApproval.request.risk}）
+          </Text>
+          <Text>{JSON.stringify(pendingApproval.request.args).slice(0, 200)}</Text>
+          <Text>[y] 允许 · [n/Enter] 拒绝</Text>
+        </Box>
+      )}
+      {lastRun && (
+        <Box paddingX={1}>
+          <Text dimColor>{formatRunStatus(lastRun)}</Text>
+        </Box>
+      )}
       <Box borderStyle="round" paddingX={1}>
         <Text color="green">你 &gt; </Text>
         <Text>{input}</Text>
@@ -170,12 +273,17 @@ function MessageRow({ msg }: { msg: MessageView }) {
 }
 
 /** 运行全屏 TUI（渲染并等待退出） */
-export function runChatTUI(session: ChatSession, title: string): Promise<void> {
+export function runChatTUI(
+  session: ChatSession,
+  title: string,
+  approvals: ApprovalQueue,
+): Promise<void> {
   return new Promise((resolve) => {
     const app = render(
       <ChatTUI
         title={title}
         session={session}
+        approvals={approvals}
         onExit={() => {
           app.unmount();
           resolve();
@@ -183,4 +291,10 @@ export function runChatTUI(session: ChatSession, title: string): Promise<void> {
       />,
     );
   });
+}
+
+function formatRunStatus(run: RunResult): string {
+  const metrics = run.metrics;
+  const tokens = metrics.tokens === undefined ? "token 未提供" : `${metrics.tokens} tokens`;
+  return `${run.outcome.status} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · 评测场景 ${run.evaluation.scenarioResults.length}`;
 }

@@ -1,5 +1,6 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { AgentConfigSchema, SessionConfigSchema } from "./agent.js";
+import { PermissionsConfigSchema, QualityConfigSchema, RuntimeLimitsSchema } from "./harness.js";
 import {
   type CustomProviderSchema,
   ModelOptionsSchema,
@@ -14,9 +15,7 @@ import { WorkflowStepSchema } from "./workflow.js";
  * 顶层只保留少量字段，全部可选字段有合理默认值，对新手友好。
  */
 export const CoreMindConfigSchema = Type.Object({
-  version: Type.Optional(
-    Type.Number({ default: 1, minimum: 1, maximum: 1, description: "配置格式版本，一期固定为 1" }),
-  ),
+  schemaVersion: Type.Literal(2, { description: "CoreMind 配置格式版本" }),
   name: Type.String({ minLength: 1, description: "智能体名称（必填）" }),
   description: Type.Optional(Type.String()),
   provider: Type.Optional(ProviderSchema),
@@ -28,6 +27,9 @@ export const CoreMindConfigSchema = Type.Object({
   defaultAgent: Type.Optional(Type.String({ description: "缺省 agent 名，缺省为第一个" })),
   workflow: Type.Optional(Type.Array(WorkflowStepSchema)),
   session: Type.Optional(SessionConfigSchema),
+  runtime: Type.Optional(RuntimeLimitsSchema),
+  permissions: Type.Optional(PermissionsConfigSchema),
+  quality: Type.Optional(QualityConfigSchema),
 });
 
 export type CoreMindConfig = Static<typeof CoreMindConfigSchema>;

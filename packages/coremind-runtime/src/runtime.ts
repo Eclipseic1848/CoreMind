@@ -1,15 +1,49 @@
+import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type { Agent, AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
+import type {
+  AfterToolCallContext,
+  Agent,
+  AgentMessage,
+  AgentTool,
+  BeforeToolCallContext,
+} from "@earendil-works/pi-agent-core";
 import type { AgentConfig, CoreMindConfig } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import { buildTools } from "coremind-tools";
-import { buildAgent } from "./agent-factory.js";
+import { type AgentBuildContext, buildAgent } from "./agent-factory.js";
+import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
+import {
+  type CheckpointDiff,
+  CheckpointManager,
+  type CheckpointRecord,
+  inspectCheckpoint as inspectStoredCheckpoint,
+  restoreCheckpoint as restoreStoredCheckpoint,
+} from "./checkpoint.js";
+import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
-import { type CoreMindEvent, extractText } from "./events.js";
+import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
-import { analyzeRun, type RunQuality } from "./quality.js";
+import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
+import {
+  analyzeRunMetrics,
+  assessReleaseReadiness,
+  createEvaluationReport,
+  type EvaluationReport,
+  type ReleaseReadiness,
+  type RunMetrics,
+  type RunOutcome,
+} from "./result.js";
+import {
+  FileRunStore,
+  fingerprintRunConfig,
+  prepareRunResume,
+  RunStateJournal,
+  type RunStore,
+} from "./run-state.js";
 import { CoreMindSession } from "./session.js";
+import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
+import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 
 export interface CoreMindRuntimeOptions {
   /** 已校验的配置 */
@@ -24,6 +58,16 @@ export interface CoreMindRuntimeOptions {
   initialPrompt?: string;
   /** 事件回调（CLI 渲染 / Web 面板共用） */
   events?: (event: CoreMindEvent) => void;
+  /** 带运行标识、顺序和时间戳的结构化轨迹回调。 */
+  trace?: (entry: CoreMindTraceEvent) => void;
+  /** ask/assisted 模式下由宿主实现的人类审批回调。 */
+  approveTool?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
+  /** 自定义 RunStore；缺省写入配置目录下 .coremind/runs。 */
+  runStore?: RunStore;
+  /** 继续一个没有 finish 记录的意外中断运行。 */
+  resumeRunId?: string;
+  /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
+  toolDefinitions?: CoreMindToolDefinition[];
   signal?: AbortSignal;
   /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
   sessionId?: string;
@@ -34,6 +78,14 @@ export interface CoreMindRuntimeOptions {
 }
 
 export interface RunResult {
+  runId: string;
+  outcome: RunOutcome;
+  metrics: RunMetrics;
+  evaluation: EvaluationReport;
+  releaseReadiness: ReleaseReadiness;
+  trace: CoreMindTraceEvent[];
+  runStateFile?: string;
+  checkpoints: CheckpointRecord[];
   /** workflow 步骤输出（saveAs → 输出） */
   outputs: Map<string, StepOutput>;
   /** agent 名 → 最终消息 */
@@ -42,8 +94,6 @@ export interface RunResult {
   transcript: string;
   /** 会话文件路径（已落盘时） */
   sessionFile?: string;
-  /** 质量摘要（步骤/工具/耗时/token）——跑完知道好不好 */
-  quality: RunQuality;
 }
 
 /**
@@ -61,6 +111,7 @@ export class CoreMindRuntime {
   private readonly sessionMessages?: AgentMessage[];
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
+  private activeHarnessFactory?: (agentName: string) => AgentBuildContext["harness"];
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -95,6 +146,7 @@ export class CoreMindRuntime {
     const agentConfigs = new Map<string, AgentConfig>();
     const toolsByAgent = new Map<string, AgentTool[]>();
     const skillsByAgent = new Map<string, string[]>();
+    const externalTools = (options.toolDefinitions ?? []).map(adaptCoreMindTool);
     // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
@@ -104,7 +156,7 @@ export class CoreMindRuntime {
         emit({ type: "error", message: warning, fatal: false });
       }
       agentConfigs.set(name, agentCfg);
-      toolsByAgent.set(name, tools);
+      toolsByAgent.set(name, [...tools, ...externalTools]);
 
       // 技能：内置优先，未命中的查自定义目录，仍缺失才告警（不阻断）
       const { contents, missing } = resolveSkills(agentCfg.skills ?? []);
@@ -138,8 +190,12 @@ export class CoreMindRuntime {
             resumedContextLength = ctx.messages.length;
           }
         }
-      } catch {
-        // 会话损坏时降级为新会话（不阻断运行）
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new CoreMindError(
+          "session_restore_failed",
+          `会话 ${options.sessionId} 恢复失败：${detail}`,
+        );
       }
     }
     return new CoreMindRuntime(
@@ -155,7 +211,10 @@ export class CoreMindRuntime {
   }
 
   /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
-  createAgent(name: string): Agent | undefined {
+  createAgent(
+    name: string,
+    onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
+  ): Agent | undefined {
     const agentCfg = this.agentConfigs.get(name);
     if (!agentCfg) return undefined;
     const agent = buildAgent(agentCfg, {
@@ -163,71 +222,361 @@ export class CoreMindRuntime {
       model: this.providerRuntime.model,
       tools: this.toolsByAgent.get(name) ?? [],
       agentName: name,
-      onEvent: this.options.events ?? (() => {}),
+      onEvent,
       apiKeyOverride: this.providerRuntime.apiKeyOverride,
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       skillsContent: this.skillsByAgent.get(name),
+      harness: this.activeHarnessFactory?.(name),
     });
     this.lastAgents.set(name, agent);
     return agent;
   }
 
+  /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
+  hasAgent(name: string): boolean {
+    return this.agentConfigs.has(name);
+  }
+
+  /** 返回交互会话应继承的恢复消息副本。 */
+  initialMessagesFor(name: string): AgentMessage[] {
+    return name === this.mainAgentName ? [...(this.sessionMessages ?? [])] : [];
+  }
+
+  /**
+   * 把一轮交互对话作为完整 Run 执行。
+   * 因此 chat/TUI 与无头 run 共用预算、权限、checkpoint、Trace 和失败语义。
+   */
+  async runAgentTurn(
+    agentName: string,
+    message: string,
+    history: AgentMessage[],
+    events: (event: CoreMindEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<RunResult> {
+    if (!this.agentConfigs.has(agentName)) {
+      throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
+    }
+    const turnConfig: CoreMindConfig = { ...this.config, defaultAgent: agentName };
+    delete turnConfig.workflow;
+    const turnRuntime = new CoreMindRuntime(
+      turnConfig,
+      this.agentConfigs,
+      this.toolsByAgent,
+      this.providerRuntime,
+      {
+        ...this.options,
+        config: turnConfig,
+        initialPrompt: message,
+        events,
+        signal,
+      },
+      history,
+      history.length,
+      this.skillsByAgent,
+    );
+    return turnRuntime.run();
+  }
+
+  inspectCheckpoint(record: CheckpointRecord): Promise<CheckpointDiff> {
+    return inspectStoredCheckpoint(record, this.options.cwd ?? process.cwd());
+  }
+
+  restoreCheckpoint(record: CheckpointRecord): Promise<void> {
+    return restoreStoredCheckpoint(record, this.options.cwd ?? process.cwd());
+  }
+
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
     const started = performance.now();
-    const collected: CoreMindEvent[] = [];
+    const runStore =
+      this.options.runStore ??
+      new FileRunStore(path.join(this.options.configDir, ".coremind", "runs"));
+    const configFingerprint = fingerprintRunConfig(this.config);
+    const resumePlan = this.options.resumeRunId
+      ? prepareRunResume(
+          await runStore.read(this.options.resumeRunId),
+          configFingerprint,
+          this.options.initialPrompt,
+        )
+      : undefined;
+    const runId = resumePlan?.runId ?? randomUUID();
+    const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
+    const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
+    if (resumePlan) {
+      journal.resume({
+        completedStepIds: [...resumePlan.completedSteps.keys()],
+        resumedAt: new Date().toISOString(),
+      });
+      await journal.flush();
+    } else {
+      await journal.start({
+        configName: this.config.name,
+        schemaVersion: this.config.schemaVersion,
+        configFingerprint,
+        initialPrompt: this.options.initialPrompt,
+        sessionId: this.options.sessionId,
+      });
+    }
+    const trace = new TraceRecorder(
+      runId,
+      (entry) => {
+        journal.event(entry);
+        this.options.trace?.(entry);
+      },
+      resumePlan?.previousTrace,
+    );
+    const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const userEvents = this.options.events ?? (() => {});
     const emit = (event: CoreMindEvent) => {
-      collected.push(event);
-      userEvents(event);
+      const enriched =
+        event.type === "tool_call" && event.callId && !event.idempotencyKey
+          ? { ...event, idempotencyKey: `${runId}:${event.callId}` }
+          : event;
+      collected.push(enriched);
+      trace.record(enriched);
+      userEvents(enriched);
     };
     const workflow = this.config.workflow;
+    const limits = resolveRuntimeLimits(this.config.runtime, {
+      maxSteps: this.options.maxSteps,
+      stepTimeoutMs: this.options.stepTimeoutMs,
+    });
+    const budget = new RunBudgetController(limits, emit);
+    for (const event of collected) budget.restore(event);
+    const checkpointManager = new CheckpointManager({
+      cwd: this.options.cwd ?? process.cwd(),
+      rootDir: path.join(this.options.configDir, ".coremind", "checkpoints"),
+      runId: trace.runId,
+    });
+    let checkpointFailure: CoreMindError | undefined;
+    const contextWindow = this.providerRuntime.model.contextWindow;
+    const contextProtector = new ContextProtector(
+      {
+        contextWindow,
+        reserveTokens: Math.min(16_384, Math.max(1_024, Math.floor(contextWindow * 0.15))),
+        keepRecentTokens: Math.min(20_000, Math.max(2_048, Math.floor(contextWindow * 0.25))),
+      },
+      (result) =>
+        emit({
+          type: "context_compacted",
+          beforeTokens: result.beforeTokens,
+          afterTokens: result.afterTokens,
+          removedMessages: result.removedMessages,
+        }),
+    );
+    const policy = new ToolPolicy({
+      permissions: this.config.permissions,
+      cwd: this.options.cwd ?? process.cwd(),
+      runId: trace.runId,
+      approve: this.options.approveTool,
+      createApprovalId: randomUUID,
+      onApprovalRequired: (request) =>
+        emit({
+          type: "approval_required",
+          approvalId: request.approvalId,
+          runId: request.runId,
+          agent: request.agent,
+          tool: request.tool,
+          args: request.args,
+          risk: request.risk,
+        }),
+      onApprovalResolved: (request, decision) =>
+        emit({
+          type: "approval_resolved",
+          approvalId: request.approvalId,
+          runId: request.runId,
+          decision,
+        }),
+    });
+    this.activeHarnessFactory = (agentName) => ({
+      maxRetries: limits.maxRetries,
+      transformContext: async (messages) => contextProtector.transform(messages),
+      beforeToolCall: async (context: BeforeToolCallContext) => {
+        const blockedByBudget = budget.beforeToolCall();
+        if (blockedByBudget) return blockedByBudget;
+        const decision = await policy.authorize(agentName, context.toolCall.name, context.args);
+        if (!decision.allowed) {
+          emit({
+            type: "policy_denied",
+            agent: agentName,
+            tool: context.toolCall.name,
+            reason: decision.reason,
+          });
+          return { block: true, reason: decision.reason };
+        }
+        try {
+          const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args);
+          if (checkpoint) {
+            journal.checkpoint(checkpoint);
+            emit({
+              type: "checkpoint_created",
+              checkpointId: checkpoint.checkpointId,
+              tool: checkpoint.tool,
+              targetPath: checkpoint.targetPath,
+              reversible: checkpoint.reversible,
+            });
+          }
+        } catch (error) {
+          checkpointFailure =
+            error instanceof CoreMindError
+              ? error
+              : new CoreMindError(
+                  "checkpoint_failed",
+                  error instanceof Error ? error.message : String(error),
+                );
+          emit({ type: "error", message: checkpointFailure.message, fatal: true });
+          return { block: true, reason: checkpointFailure.message };
+        }
+        return undefined;
+      },
+      afterToolCall: async (context: AfterToolCallContext) => budget.afterToolCall(context.isError),
+      onAgentEvent: (event, agent) => {
+        if (budget.observeAgentEvent(event)) agent.abort();
+      },
+    });
 
     let outputs: Map<string, StepOutput>;
     let transcript: string;
-    if (workflow && workflow.length > 0) {
-      const orchestrator = new Orchestrator(workflow, {
-        createAgent: (name) => this.createAgent(name),
-        events: emit,
-        initialPrompt: this.options.initialPrompt,
-        signal: this.options.signal,
-        maxSteps: this.options.maxSteps,
-        stepTimeoutMs: this.options.stepTimeoutMs,
-      });
-      outputs = await orchestrator.run();
-      transcript = lastOutputText(outputs);
-    } else {
-      // 单 agent 模式
-      const name = this.config.defaultAgent ?? firstKey(this.config.agents);
-      if (!name) {
-        throw new CoreMindError("no_agent", "配置中没有定义任何 agent，请至少定义一个 agents 条目");
+    try {
+      ({ outputs, transcript } = await this.runWithGuard(limits.runTimeoutMs, async () => {
+        if (workflow && workflow.length > 0) {
+          const orchestrator = new Orchestrator(workflow, {
+            createAgent: (name, stepId) =>
+              this.createAgent(name, (event) =>
+                emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
+              ),
+            events: emit,
+            initialPrompt: effectiveInitialPrompt,
+            signal: this.options.signal,
+            maxSteps: limits.maxSteps,
+            stepTimeoutMs: limits.stepTimeoutMs,
+            maxRetries: limits.maxRetries,
+            initialRetryCount:
+              resumePlan?.previousTrace.filter((entry) => entry.event.type === "retry").length ?? 0,
+            completedSteps: resumePlan?.completedSteps,
+          });
+          const workflowOutputs = await orchestrator.run();
+          return { outputs: workflowOutputs, transcript: lastOutputText(workflowOutputs) };
+        }
+        // 单 agent 模式
+        const name = this.config.defaultAgent ?? firstKey(this.config.agents);
+        if (!name) {
+          throw new CoreMindError(
+            "no_agent",
+            "配置中没有定义任何 agent，请至少定义一个 agents 条目",
+          );
+        }
+        if (effectiveInitialPrompt === undefined) {
+          throw new CoreMindError(
+            "no_prompt",
+            "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
+          );
+        }
+        const agent = this.createAgent(name, emit);
+        if (!agent) {
+          throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
+        }
+        const messageCursor = agent.state.messages.length;
+        await agent.prompt(effectiveInitialPrompt);
+        await agent.waitForIdle();
+        const agentError = extractAgentError(agent.state.messages);
+        if (agentError) {
+          throw new CoreMindError("agent_failed", `Agent ${name} 执行失败：${agentError}`);
+        }
+        transcript = extractText(agent.state.messages.slice(messageCursor));
+        return { outputs: new Map<string, StepOutput>(), transcript };
+      }));
+      if (checkpointFailure) throw checkpointFailure;
+      budget.throwIfExceeded();
+    } catch (error) {
+      let runError = error;
+      if (checkpointFailure) runError = checkpointFailure;
+      try {
+        if (!checkpointFailure) budget.throwIfExceeded();
+      } catch (budgetError) {
+        runError = budgetError;
       }
-      if (this.options.initialPrompt === undefined) {
-        throw new CoreMindError(
-          "no_prompt",
-          "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
-        );
-      }
-      const agent = this.createAgent(name);
-      if (!agent) {
-        throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
-      }
-      await agent.prompt(this.options.initialPrompt);
-      await agent.waitForIdle();
-      transcript = extractText(agent.state.messages);
-      outputs = new Map();
+      journal.finish(failedRunPayload(runError));
+      await journal.flush();
+      throw runError;
+    } finally {
+      this.activeHarnessFactory = undefined;
     }
 
-    const sessionFile = await this.persistSession();
+    let sessionFile: string | undefined;
+    try {
+      sessionFile = await this.persistSession();
+    } catch (error) {
+      journal.finish(failedRunPayload(error));
+      await journal.flush();
+      throw error;
+    }
     const allMessages = [...this.collectMessages().values()].flat();
-    const quality = analyzeRun(
+    const metrics = analyzeRunMetrics(
       collected,
       allMessages,
       performance.now() - started,
       transcript.length,
     );
-    return { outputs, messages: this.collectMessages(), transcript, sessionFile, quality };
+    const outcome: RunOutcome = { status: "succeeded", finishReason: "completed" };
+    const evaluation = createEvaluationReport(this.config.quality, metrics);
+    for (const checkpoint of checkpointManager.records) {
+      if (!checkpoint.reversible) {
+        evaluation.securityFindings.push(`工具 ${checkpoint.tool} 的副作用不可自动回退`);
+      }
+    }
+    const releaseReadiness = assessReleaseReadiness(outcome, evaluation);
+    journal.finish({ outcome, metrics, evaluation, releaseReadiness });
+    await journal.flush();
+    return {
+      runId: trace.runId,
+      outcome,
+      metrics,
+      evaluation,
+      releaseReadiness,
+      trace: trace.entries,
+      runStateFile: runStore.pathFor?.(runId),
+      checkpoints: checkpointManager.records,
+      outputs,
+      messages: this.collectMessages(),
+      transcript,
+      sessionFile,
+    };
+  }
+
+  private async runWithGuard<T>(timeoutMs: number, operation: () => Promise<T>): Promise<T> {
+    const signal = this.options.signal;
+    if (signal?.aborted) throw new CoreMindError("aborted", "执行已中止");
+    let timer: NodeJS.Timeout | undefined;
+    let rejectAbort: ((reason: CoreMindError) => void) | undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAbort = reject;
+    });
+    const onAbort = () => {
+      this.abortAll();
+      rejectAbort?.(new CoreMindError("aborted", "执行已中止"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    const timedOut =
+      timeoutMs > 0
+        ? new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              this.abortAll();
+              reject(new CoreMindError("run_timeout", `运行超时（${timeoutMs}ms），已中止`));
+            }, timeoutMs);
+          })
+        : new Promise<never>(() => {});
+    try {
+      return await Promise.race([operation(), aborted, timedOut]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    }
+  }
+
+  private abortAll(): void {
+    for (const agent of this.lastAgents.values()) agent.abort();
   }
 
   private collectMessages(): Map<string, AgentMessage[]> {
@@ -270,7 +619,8 @@ export async function buildAgentFromConfig(
 }
 
 function sessionDir(config: CoreMindConfig, configDir: string): string {
-  return config.session?.dir ?? configDir;
+  const configured = config.session?.dir;
+  return configured ? path.resolve(configDir, configured) : path.join(configDir, "sessions");
 }
 
 function lastOutputText(outputs: Map<string, StepOutput>): string {
@@ -281,4 +631,16 @@ function lastOutputText(outputs: Map<string, StepOutput>): string {
 
 function firstKey(record: Record<string, unknown>): string | undefined {
   return Object.keys(record)[0];
+}
+
+function failedRunPayload(error: unknown): { outcome: RunOutcome } {
+  const code = error instanceof CoreMindError ? error.code : "unknown";
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    outcome: {
+      status: code === "aborted" || code === "run_timeout" ? "aborted" : "failed",
+      finishReason: code,
+      error: { code, message },
+    },
+  };
 }

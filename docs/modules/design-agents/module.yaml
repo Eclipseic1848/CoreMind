@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: design-agents
+name:
+  zh-CN: "Agent 构建"
+  en: "Agent Construction"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/agent-factory.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/design-agents/README.zh-CN.md
+    en: docs/modules/design-agents/README.en.md
+  sop:
+    zh-CN: docs/modules/design-agents/SOP.zh-CN.md
+    en: docs/modules/design-agents/SOP.en.md
+  guide:
+    zh-CN: docs/modules/design-agents/GUIDE.zh-CN.md
+    en: docs/modules/design-agents/GUIDE.en.md
+  changelog: docs/modules/design-agents/CHANGELOG.md
+skillPath: skills/design-agents/SKILL.md
+examplePaths:
+  - examples/modules/design-agents/README.zh-CN.md
+  - examples/modules/design-agents/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/agent-factory.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "manage-providers"
+  - "build-tools"
+  - "package-agent-skills"
+maturity: implemented-alpha

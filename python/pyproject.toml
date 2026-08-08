@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coremind-ai"
+version = "0.2.0b1"
+description = "CoreMind Python SDK：通过本地协议调用统一 Node Runtime"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "CoreMind Contributors" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://github.com/Eclipseic1848/CoreMind"
+Documentation = "https://github.com/Eclipseic1848/CoreMind/tree/main/docs"
+Repository = "https://github.com/Eclipseic1848/CoreMind"
+Issues = "https://github.com/Eclipseic1848/CoreMind/issues"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+coremind = ["py.typed", "_worker/*.mjs", "skills/*/README.md"]

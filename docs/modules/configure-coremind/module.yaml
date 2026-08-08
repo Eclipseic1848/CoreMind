@@ -1,0 +1,32 @@
+schemaVersion: 1
+id: configure-coremind
+name:
+  zh-CN: "配置与 Schema"
+  en: "Configuration and Schema"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-config/src"
+documents:
+  readme:
+    zh-CN: docs/modules/configure-coremind/README.zh-CN.md
+    en: docs/modules/configure-coremind/README.en.md
+  sop:
+    zh-CN: docs/modules/configure-coremind/SOP.zh-CN.md
+    en: docs/modules/configure-coremind/SOP.en.md
+  guide:
+    zh-CN: docs/modules/configure-coremind/GUIDE.zh-CN.md
+    en: docs/modules/configure-coremind/GUIDE.en.md
+  changelog: docs/modules/configure-coremind/CHANGELOG.md
+skillPath: skills/configure-coremind/SKILL.md
+examplePaths:
+  - examples/modules/configure-coremind/README.zh-CN.md
+  - examples/modules/configure-coremind/README.en.md
+testPaths:
+  - "packages/coremind-config/src/parse.test.ts"
+  - "packages/coremind-config/src/validate.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  []
+maturity: implemented-alpha

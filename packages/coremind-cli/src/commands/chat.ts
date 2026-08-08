@@ -1,8 +1,20 @@
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
-import { ChatSession, type CoreMindEvent, CoreMindRuntime } from "coremind-ai";
-import { type CoreMindConfig, loadConfigFile, parseAndValidate } from "coremind-config";
+import {
+  ChatSession,
+  type CoreMindConfig,
+  type CoreMindEvent,
+  CoreMindRuntime,
+  loadConfigFile,
+  parseAndValidate,
+} from "coremind-ai";
+import {
+  ApprovalQueue,
+  applyPermissionMode,
+  bindReadlineApprovals,
+  parsePermissionMode,
+} from "../approval.js";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { cyan, dim, errorLine, toolLine, toolResultLine, yellow } from "../render.js";
 import { runChatTUI } from "../tui.js";
@@ -15,7 +27,7 @@ function printChatHelp(): void {
 }
 
 /**
- * coremind chat <file>：交互式对话（复用同一 agent 实例，多轮上下文）。
+ * coremind chat <file>：交互式对话（复用同一会话上下文，每轮进入完整 Harness）。
  * 支持 /help /exit /abort 命令与工具调用实时展示；退出时保存会话。
  */
 export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promise<number> {
@@ -32,6 +44,7 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
   }
+
   let config: CoreMindConfig;
   try {
     const result = parseAndValidate(data);
@@ -41,6 +54,13 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
   }
+  const permissionValue = flagString(parsed, "permission");
+  const permissionMode = parsePermissionMode(permissionValue);
+  if (permissionValue && !permissionMode) {
+    console.error(errorLine("--permission 只能是 ask、assisted 或 full"));
+    return 1;
+  }
+  if (permissionMode) config = applyPermissionMode(config, permissionMode);
 
   const configDir = path.dirname(path.resolve(file));
   const sessionId = flagString(parsed, "session");
@@ -48,11 +68,13 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     console.error(errorLine(`会话 id 只能包含字母、数字、连字符与下划线：${sessionId}`));
     return 1;
   }
+  const approvals = new ApprovalQueue(process.stdin.isTTY === true);
   const runtime = await CoreMindRuntime.create({
     config,
     configDir,
     cwd: process.cwd(),
     sessionId,
+    approveTool: (request) => approvals.request(request),
     // 非对话事件（配置告警等）由 runtime 回调处理；对话事件走 ChatSession
     events: (event) => {
       if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
@@ -67,8 +89,6 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
   }
-  // 对话事件渲染：流式文本 + 工具调用实时展示
-  session.onEvent(renderChatEvent);
   if (runtime.resumedContextLength > 0) {
     console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
   }
@@ -76,19 +96,26 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   const quiet = flagBool(parsed, "quiet");
   // 交互终端（TTY）默认全屏 TUI；非 TTY（管道/脚本）或 --no-tui 回退 readline
   if (process.stdin.isTTY === true && !flagBool(parsed, "no-tui")) {
-    await runChatTUI(session, config.name);
+    await runChatTUI(session, config.name, approvals);
   } else {
     if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
-    await runReadlineChat(session);
+    const unsubscribe = session.onEvent(renderChatEvent);
+    try {
+      await runReadlineChat(session, approvals);
+    } finally {
+      unsubscribe();
+    }
   }
   const sessionFile = await session.persist();
   if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
+  approvals.close();
   return 0;
 }
 
 /** readline 模式（非交互终端回退）：单行输入 + 流式输出 + 工具行 */
-async function runReadlineChat(session: ChatSession): Promise<void> {
+async function runReadlineChat(session: ChatSession, approvals: ApprovalQueue): Promise<void> {
   const rl = createInterface({ input, output });
+  const unbindApprovals = bindReadlineApprovals(approvals, rl);
   try {
     while (true) {
       const line = await rl.question(cyan("\n你 > "));
@@ -111,6 +138,7 @@ async function runReadlineChat(session: ChatSession): Promise<void> {
   } catch (error) {
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
   } finally {
+    unbindApprovals();
     rl.close();
   }
 }

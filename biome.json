@@ -1,7 +1,17 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules", "!**/*.json"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!docs/.vitepress/.temp",
+      "!docs/.vitepress/cache",
+      "!docs/.vitepress/dist",
+      "!**/*.json",
+      "!python/build",
+      "!python/src/coremind/_worker/*.mjs"
+    ]
   },
   "formatter": {
     "enabled": true,

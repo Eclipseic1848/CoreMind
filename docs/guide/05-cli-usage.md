@@ -52,14 +52,16 @@ npx -y coremind-cli@alpha doctor
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
 
-## 2. 五个命令速查
+## 2. 七个命令速查
 
 | 命令 | 用途 | 常用参数 | 例子 |
 |---|---|---|---|
-| `coremind create <name>` | 从模板**创建新项目** | `--template <id>` 跳过交互选择 | `coremind create my-agent --template translator` |
-| `coremind run <file>` | 运行一次智能体（跑完退出） | `--prompt "..."` 首条输入<br>`--print` 只输出最终文本<br>`--session <id>` 保存会话<br>`--max-steps <n>` 收紧步骤上限 | `coremind run coremind.yaml --prompt "翻译：你好"` |
-| `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>` 恢复历史对话 | `coremind chat coremind.yaml` |
-| `coremind list-templates` | 查看全部 8 个场景模板 | — | `coremind list-templates` |
+| `coremind create <name>` | 创建或接入项目 | `--template <id>`、`--language <lang>` | `coremind create . --template translator` |
+| `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
+| `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
+| `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
+| `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
+| `coremind templates` | 查看全部 8 个场景模板 | — | `coremind templates` |
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 
 记不住？随时 `coremind help`（或 `coremind --help`）查看全部命令和参数。
@@ -202,6 +204,10 @@ coremind chat coremind.yaml
 | 发送消息 | 输入内容后按**回车** |
 | 删除字符 | **退格键** |
 | 查看命令帮助 | 输入 `/help`（再输一次关闭） |
+| 查看本轮预算/质量 | 输入 `/status` |
+| 查看检查点 | 输入 `/checkpoints` |
+| 查看变更 | 输入 `/diff <checkpointId>` |
+| 显式恢复文件 | 输入 `/restore <checkpointId>` |
 | 中止当前回答 | 输入 `/abort`（停止生成，可继续提问） |
 | 退出对话 | 输入 `/exit`（**退出时自动保存会话**，下次可恢复） |
 
@@ -213,7 +219,7 @@ coremind chat "D:\projects\my-agent\coremind.yaml"
 
 ### 非交互终端环境（管道/脚本）
 
-当标准输入不是终端（比如在脚本里、管道传入）时，全屏界面不可用，会自动回退到普通单行输入模式——命令一样（`/exit`、`/abort`、`/help`）。想强制用单行模式：`coremind chat coremind.yaml --no-tui`。
+当标准输入不是终端（比如在脚本里、管道传入）时，全屏界面不可用，会自动回退到普通单行输入模式。需要审批的工具在非 TTY 环境默认拒绝；可信 CI 应显式配置 allow，或明确传入 `--permission full`，且 full 仍保留 deny、工作区保护、审计和 checkpoint。想强制用单行模式：`coremind chat coremind.yaml --no-tui`。
 
 ### 断点续聊：这次聊完，下次接着聊
 
@@ -224,7 +230,19 @@ coremind chat coremind.yaml --session work-1     # 第二次：自动恢复历�
 
 `run` 命令同样支持 `--session <id>`，跨命令共享会话历史。
 
-## 6. 多项目工作流
+## 6. run 意外中断恢复
+
+如果进程被断电、崩溃或强制结束，`.coremind/runs/<runId>.jsonl` 中没有结束记录，可以尝试：
+
+```powershell
+coremind run coremind.yaml --resume <runId>
+```
+
+通常不要再次传 `--prompt`，Runtime 会使用原始输入；如果传入，内容必须与原输入完全一致。恢复会延续原 runId、Trace sequence、预算和重试计数，并直接复用已经完整持久化的 Workflow 步骤输出。
+
+以下情况是有意拒绝，不是命令故障：运行已经结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤调用过可能产生副作用的工具。CoreMind 只支持稳定步骤边界恢复，不宣称恢复任意调用栈，也不自动重放不确定副作用。
+
+## 7. 多项目工作流
 
 每个人可以在同一台机器上维护多个项目，互不干扰。推荐目录结构：
 
@@ -250,7 +268,7 @@ cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什
 
 每个项目独立的：配置文件、.env、技能、会话记录，全部互不污染。
 
-## 7. 常见问题排查
+## 8. 常见问题排查
 
 | 现象 | 原因与解决 |
 |---|---|
@@ -262,7 +280,7 @@ cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什
 | 怎么知道 key 配好没有 | `coremind doctor`——所有环境类问题先跑它 |
 | 上次对话丢了 | chat 退出时会自动保存；`--session <id>` 再运行可恢复；没给 id 的临时会话不会保留 |
 
-## 8. 效率技巧
+## 9. 效率技巧
 
 ### 固定常用目录（PowerShell）
 

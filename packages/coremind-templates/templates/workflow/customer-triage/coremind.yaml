@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: customer-triage
 description: 客服工单分类与回复起草（双 agent + switch 分类）
 provider:
@@ -75,3 +75,12 @@ workflow:
           分类：无法自动判断
           请起草回复，说明已转人工处理。
         saveAs: reply
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

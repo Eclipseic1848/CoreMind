@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design CoreMind Workflows"
+  short_description: "Design bounded workflows and agent loops"
+  default_prompt: "Use $design-workflows to complete this CoreMind task with its required checks."

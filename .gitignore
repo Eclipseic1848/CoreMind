@@ -1,9 +1,21 @@
 # 依赖
 node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/.temp/
 
 # 构建产物
 dist/
 *.tsbuildinfo
+python/build/
+python/dist/
+python/src/*.egg-info/
+**/__pycache__/
+*.pyc
+/packages/coremind-cli/test/.coremind/
+examples/golden/*/.coremind/runs/
+examples/golden/*/.coremind/checkpoints/*
+!examples/golden/*/.coremind/checkpoints/.gitkeep
 
 # 日志
 *.log

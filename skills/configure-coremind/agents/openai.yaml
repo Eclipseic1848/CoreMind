@@ -1,0 +1,4 @@
+interface:
+  display_name: "Configure CoreMind"
+  short_description: "Configure and validate CoreMind agent projects"
+  default_prompt: "Use $configure-coremind to complete this CoreMind task with its required checks."

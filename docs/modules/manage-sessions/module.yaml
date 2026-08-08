@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: manage-sessions
+name:
+  zh-CN: "Session 与 Context"
+  en: "Sessions and Context"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/session.ts"
+  - "packages/coremind-runtime/src/chat-session.ts"
+  - "packages/coremind-runtime/src/context.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-sessions/README.zh-CN.md
+    en: docs/modules/manage-sessions/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-sessions/SOP.zh-CN.md
+    en: docs/modules/manage-sessions/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-sessions/GUIDE.zh-CN.md
+    en: docs/modules/manage-sessions/GUIDE.en.md
+  changelog: docs/modules/manage-sessions/CHANGELOG.md
+skillPath: skills/manage-sessions/SKILL.md
+examplePaths:
+  - examples/modules/manage-sessions/README.zh-CN.md
+  - examples/modules/manage-sessions/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/session.test.ts"
+  - "packages/coremind-runtime/src/chat-session.test.ts"
+  - "packages/coremind-runtime/src/context.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "design-agents"
+  - "inspect-agent-traces"
+maturity: implemented-alpha

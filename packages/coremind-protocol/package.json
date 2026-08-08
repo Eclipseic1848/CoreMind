@@ -1,0 +1,33 @@
+{
+  "name": "coremind-protocol",
+  "version": "0.2.0-beta.1",
+  "description": "CoreMind 跨语言 JSON-RPC 协议与校验",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-protocol" },
+  "homepage": "https://github.com/Eclipseic1848/CoreMind#readme",
+  "bugs": { "url": "https://github.com/Eclipseic1848/CoreMind/issues" },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.0"
+  }
+}

@@ -1,0 +1,48 @@
+schemaVersion: 2
+name: bounded-research-agent
+description: 带预算、Trace 和人工审批的调查黄金示例
+provider:
+  id: golden-research
+  baseUrl: http://127.0.0.1:8814/v1
+  model: golden-mock
+  apiKeyEnv: GOLDEN_MOCK_API_KEY
+  contextWindow: 2048
+  maxTokens: 512
+tools:
+  - path: ./src/search-tool.ts
+    name: search_knowledge
+agents:
+  researcher:
+    systemPrompt: 调查问题时必须调用 search_knowledge；证据充分时输出 EVIDENCE_COMPLETE。
+  reviewer:
+    systemPrompt: 你负责证据审查，列出结论、证据编号、分歧和置信度，不得补造来源。
+workflow:
+  - id: research
+    type: call
+    agent: researcher
+    input: "调查：{{prompt}}"
+    saveAs: evidence
+    retry:
+      max: 1
+      if: "{{text}} contains INCOMPLETE"
+  - id: review
+    type: call
+    agent: reviewer
+    input: "审查证据：{{evidence.text}}"
+    saveAs: report
+runtime:
+  maxTurns: 5
+  maxSteps: 3
+  maxToolCalls: 2
+  maxToolFailures: 1
+  maxRetries: 1
+  maxTokens: 4096
+  runTimeoutMs: 30000
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+quality:
+  profile: standard
+  minScenarioPassRate: 1
+  allowOverride: true

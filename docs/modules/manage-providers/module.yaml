@@ -1,0 +1,32 @@
+schemaVersion: 1
+id: manage-providers
+name:
+  zh-CN: "Provider 与模型"
+  en: "Providers and Models"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/provider.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-providers/README.zh-CN.md
+    en: docs/modules/manage-providers/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-providers/SOP.zh-CN.md
+    en: docs/modules/manage-providers/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-providers/GUIDE.zh-CN.md
+    en: docs/modules/manage-providers/GUIDE.en.md
+  changelog: docs/modules/manage-providers/CHANGELOG.md
+skillPath: skills/manage-providers/SKILL.md
+examplePaths:
+  - examples/modules/manage-providers/README.zh-CN.md
+  - examples/modules/manage-providers/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/provider.test.ts"
+  - "packages/coremind-runtime/src/integration.real.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+maturity: implemented-alpha

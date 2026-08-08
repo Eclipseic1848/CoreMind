@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-08",
+  "criteria": [
+    "streaming",
+    "tool-call",
+    "structured-result",
+    "multi-turn",
+    "error"
+  ],
+  "certifications": [
+    {
+      "id": "alibaba-model-studio",
+      "model": "qwen-plus",
+      "testedAt": "2026-08-08T14:31:34.507Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "error"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-08.json"
+    }
+  ]
+}

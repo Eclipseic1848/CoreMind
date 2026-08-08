@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: enforce-agent-permissions
+name:
+  zh-CN: "权限与安全"
+  en: "Permissions and Security"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-runtime/src/tool-policy.ts"
+  - "packages/coremind-cli/src/approval.ts"
+  - "packages/coremind-tools/src/linux-sandbox.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/enforce-agent-permissions/README.zh-CN.md
+    en: docs/modules/enforce-agent-permissions/README.en.md
+  sop:
+    zh-CN: docs/modules/enforce-agent-permissions/SOP.zh-CN.md
+    en: docs/modules/enforce-agent-permissions/SOP.en.md
+  guide:
+    zh-CN: docs/modules/enforce-agent-permissions/GUIDE.zh-CN.md
+    en: docs/modules/enforce-agent-permissions/GUIDE.en.md
+  changelog: docs/modules/enforce-agent-permissions/CHANGELOG.md
+skillPath: skills/enforce-agent-permissions/SKILL.md
+examplePaths:
+  - examples/modules/enforce-agent-permissions/README.zh-CN.md
+  - examples/modules/enforce-agent-permissions/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/tool-policy.test.ts"
+  - "packages/coremind-cli/src/approval.test.ts"
+  - "packages/coremind-tools/src/linux-sandbox.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "inspect-agent-traces"
+maturity: implemented-alpha

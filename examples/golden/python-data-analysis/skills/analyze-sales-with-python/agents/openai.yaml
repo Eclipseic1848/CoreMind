@@ -1,0 +1,4 @@
+interface:
+  display_name: "Analyze Sales with Python"
+  short_description: "Run the Python callable data analysis example"
+  default_prompt: "Use $analyze-sales-with-python to run and adapt this CoreMind golden example."

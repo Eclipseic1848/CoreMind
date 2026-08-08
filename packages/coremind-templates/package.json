@@ -1,7 +1,11 @@
 {
   "name": "coremind-templates",
-  "version": "0.1.0-alpha.2",
+  "version": "0.2.0-beta.1",
   "description": "CoreMind 模板库：场景模板与元数据索引",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-templates" },
+  "homepage": "https://github.com/Eclipseic1848/CoreMind#readme",
+  "bugs": { "url": "https://github.com/Eclipseic1848/CoreMind/issues" },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,17 +18,18 @@
   "files": [
     "dist",
     "templates",
-    "skills"
+    "skills",
+    "README.md"
   ],
   "engines": {
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "devDependencies": {
-    "coremind-config": "0.1.0-alpha.2"
+    "coremind-config": "0.2.0-beta.1"
   }
 }

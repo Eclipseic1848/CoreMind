@@ -1,0 +1,4 @@
+interface:
+  display_name: "Investigate with Bounded Research"
+  short_description: "Build evidence-based research with strict budgets"
+  default_prompt: "Use $investigate-with-bounded-research to run and adapt this CoreMind golden example."

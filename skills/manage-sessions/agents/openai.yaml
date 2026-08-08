@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage CoreMind Sessions"
+  short_description: "Manage conversation context and safe recovery"
+  default_prompt: "Use $manage-sessions to complete this CoreMind task with its required checks."

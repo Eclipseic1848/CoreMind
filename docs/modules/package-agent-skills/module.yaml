@@ -1,0 +1,32 @@
+schemaVersion: 1
+id: package-agent-skills
+name:
+  zh-CN: "Skill 与 SOP 装载"
+  en: "Skill and SOP Loading"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-templates/src/skills.ts"
+  - "packages/coremind-templates/skills"
+documents:
+  readme:
+    zh-CN: docs/modules/package-agent-skills/README.zh-CN.md
+    en: docs/modules/package-agent-skills/README.en.md
+  sop:
+    zh-CN: docs/modules/package-agent-skills/SOP.zh-CN.md
+    en: docs/modules/package-agent-skills/SOP.en.md
+  guide:
+    zh-CN: docs/modules/package-agent-skills/GUIDE.zh-CN.md
+    en: docs/modules/package-agent-skills/GUIDE.en.md
+  changelog: docs/modules/package-agent-skills/CHANGELOG.md
+skillPath: skills/package-agent-skills/SKILL.md
+examplePaths:
+  - examples/modules/package-agent-skills/README.zh-CN.md
+  - examples/modules/package-agent-skills/README.en.md
+testPaths:
+  - "packages/coremind-templates/src/skills.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+maturity: implemented-alpha

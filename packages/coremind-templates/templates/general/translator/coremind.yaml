@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: translator
 description: 中英互译助手，保持术语一致性
 provider:
@@ -12,3 +12,12 @@ agents:
       2. 专业术语前后一致（同一概念全文使用同一译法）
       3. 保留原文格式（markdown、代码块、列表）
       4. 只输出译文，不附加解释
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

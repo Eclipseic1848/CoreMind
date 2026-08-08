@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Contracts Safely"
+  short_description: "Build a deterministic contract review workflow"
+  default_prompt: "Use $review-contracts-safely to run and adapt this CoreMind golden example."

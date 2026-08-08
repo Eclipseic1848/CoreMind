@@ -1,7 +1,8 @@
-import type { Agent } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { CheckpointDiff, CheckpointRecord } from "./checkpoint.js";
 import { CoreMindError } from "./errors.js";
-import { type CoreMindEvent, extractText, normalizeEvent } from "./events.js";
-import type { CoreMindRuntime } from "./runtime.js";
+import type { CoreMindEvent } from "./events.js";
+import type { CoreMindRuntime, RunResult } from "./runtime.js";
 
 /** 一轮对话的结果 */
 export interface ChatTurnResult {
@@ -9,6 +10,8 @@ export interface ChatTurnResult {
   text: string;
   /** 本轮产生的归一化事件（含工具调用，UI 可实时渲染） */
   events: CoreMindEvent[];
+  /** 本轮完整 Harness 结果，可用于预算、Trace、checkpoint 和质量 UI。 */
+  run: RunResult;
 }
 
 /**
@@ -19,27 +22,21 @@ export interface ChatTurnResult {
  */
 export class ChatSession {
   readonly agentName: string;
-  private readonly agent: Agent;
   private readonly listeners = new Set<(event: CoreMindEvent) => void>();
+  private messages: AgentMessage[];
+  private activeController?: AbortController;
+  private latestSessionFile?: string;
+  private latestRun?: RunResult;
 
   constructor(
     private readonly runtime: CoreMindRuntime,
     agentName: string,
   ) {
     this.agentName = agentName;
-    const agent = runtime.createAgent(agentName);
-    if (!agent) {
+    if (!runtime.hasAgent(agentName)) {
       throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
     }
-    this.agent = agent;
-    // 订阅本 agent 的归一化事件（与 agent-factory 的转发独立，UI 直接消费）
-    this.agent.subscribe((event) => {
-      const core = normalizeEvent(event);
-      if (!core) return;
-      // 与 agent-factory 相同：注入 agent 名（联合类型展开需断言）
-      const ce = { ...core, agent: agentName } as CoreMindEvent;
-      for (const listener of this.listeners) listener(ce);
-    });
+    this.messages = runtime.initialMessagesFor(agentName);
   }
 
   /** 订阅会话事件（返回取消函数） */
@@ -53,24 +50,58 @@ export class ChatSession {
   /** 发送一轮消息：返回最终文本与本轮事件 */
   async chat(message: string): Promise<ChatTurnResult> {
     const events: CoreMindEvent[] = [];
-    const collect = (e: CoreMindEvent) => events.push(e);
-    this.listeners.add(collect);
+    const controller = new AbortController();
+    this.activeController = controller;
     try {
-      await this.agent.prompt(message);
-      await this.agent.waitForIdle();
-      return { text: extractText(this.agent.state.messages), events };
+      const run = await this.runtime.runAgentTurn(
+        this.agentName,
+        message,
+        this.messages,
+        (event) => {
+          events.push(event);
+          for (const listener of this.listeners) listener(event);
+        },
+        controller.signal,
+      );
+      const nextMessages = run.messages.get(this.agentName);
+      if (nextMessages) {
+        this.messages = [...nextMessages];
+      }
+      this.latestSessionFile = run.sessionFile;
+      this.latestRun = run;
+      return { text: run.transcript, events, run };
     } finally {
-      this.listeners.delete(collect);
+      if (this.activeController === controller) this.activeController = undefined;
     }
   }
 
   /** 中止当前轮 */
   abort(): void {
-    this.agent.abort();
+    this.activeController?.abort();
   }
 
   /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */
-  persist(): Promise<string | undefined> {
-    return this.runtime.persistSession();
+  async persist(): Promise<string | undefined> {
+    return this.latestSessionFile;
+  }
+
+  listCheckpoints(): CheckpointRecord[] {
+    return [...(this.latestRun?.checkpoints ?? [])];
+  }
+
+  async diffCheckpoint(checkpointId: string): Promise<CheckpointDiff> {
+    return this.runtime.inspectCheckpoint(this.findCheckpoint(checkpointId));
+  }
+
+  async restoreCheckpoint(checkpointId: string): Promise<void> {
+    return this.runtime.restoreCheckpoint(this.findCheckpoint(checkpointId));
+  }
+
+  private findCheckpoint(checkpointId: string): CheckpointRecord {
+    const record = this.latestRun?.checkpoints.find((item) => item.checkpointId === checkpointId);
+    if (!record) {
+      throw new CoreMindError("checkpoint_not_found", `当前运行没有检查点：${checkpointId}`);
+    }
+    return record;
   }
 }

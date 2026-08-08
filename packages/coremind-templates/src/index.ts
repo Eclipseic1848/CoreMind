@@ -98,6 +98,12 @@ export function findTemplate(id: string): TemplateMeta | undefined {
 }
 
 export {
+  detectProjectLanguage,
+  type ProjectGuidanceOptions,
+  type ProjectLanguage,
+  scaffoldProjectGuidance,
+} from "./project-scaffold.js";
+export {
   findSkill,
   loadDirectorySkills,
   resolveSkills,

@@ -1,0 +1,8 @@
+schemaVersion: 1
+scenarios:
+  - id: summarize-sales
+    input: 分析 data/sales.csv
+    expected:
+      contains:
+        - '"rows":3'
+        - '"total":300'

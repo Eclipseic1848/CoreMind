@@ -39,6 +39,29 @@ describe("buildProviderRuntime（内置提供商）", () => {
     }
   });
 
+  it("完整继承锁定 pi-agent 版本的 37 个静态 Provider", async () => {
+    const { listInheritedProviders } = await import("./provider.js");
+    const providers = listInheritedProviders();
+    expect(providers).toHaveLength(37);
+    expect(providers).toContain("xiaomi");
+    expect((await buildProviderRuntime({ id: "xiaomi" })).model.provider).toBe("xiaomi");
+  });
+
+  it("提供可认证的阿里云模型服务原生入口", async () => {
+    const { listSupportedProviders } = await import("./provider.js");
+    expect(listSupportedProviders()).toContain("alibaba-model-studio");
+    const runtime = await buildProviderRuntime(
+      { id: "alibaba-model-studio", model: "qwen-plus" },
+      { DASHSCOPE_API_KEY: "test-key" },
+    );
+    expect(runtime.model).toMatchObject({
+      provider: "alibaba-model-studio",
+      id: "qwen-plus",
+      baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    });
+    expect(runtime.apiKeyOverride).toBe("test-key");
+  });
+
   it("apiKeyEnv 配置时解析为 apiKeyOverride", async () => {
     const runtime = await buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
       MY_DS_KEY: "sk-test",

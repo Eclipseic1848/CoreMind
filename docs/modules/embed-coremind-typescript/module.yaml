@@ -1,0 +1,35 @@
+schemaVersion: 1
+id: embed-coremind-typescript
+name:
+  zh-CN: "TypeScript SDK"
+  en: "TypeScript SDK"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind/src/index.ts"
+  - "packages/coremind-runtime/src/public-tool.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/embed-coremind-typescript/README.zh-CN.md
+    en: docs/modules/embed-coremind-typescript/README.en.md
+  sop:
+    zh-CN: docs/modules/embed-coremind-typescript/SOP.zh-CN.md
+    en: docs/modules/embed-coremind-typescript/SOP.en.md
+  guide:
+    zh-CN: docs/modules/embed-coremind-typescript/GUIDE.zh-CN.md
+    en: docs/modules/embed-coremind-typescript/GUIDE.en.md
+  changelog: docs/modules/embed-coremind-typescript/CHANGELOG.md
+skillPath: skills/embed-coremind-typescript/SKILL.md
+examplePaths:
+  - examples/modules/embed-coremind-typescript/README.zh-CN.md
+  - examples/modules/embed-coremind-typescript/README.en.md
+testPaths:
+  - "packages/coremind/src/index.test.ts"
+  - "packages/coremind-runtime/src/public-tool.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "design-agents"
+  - "build-tools"
+maturity: implemented-alpha

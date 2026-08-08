@@ -45,6 +45,7 @@ function run(
   defs: Record<string, FauxResponseStep[]>,
   initialPrompt?: string,
   maxSteps?: number,
+  maxRetries?: number,
 ) {
   const counters = new Map<string, number>();
   return new Orchestrator(steps, {
@@ -58,6 +59,7 @@ function run(
     events: track,
     initialPrompt,
     ...(maxSteps !== undefined ? { maxSteps } : {}),
+    ...(maxRetries !== undefined ? { maxRetries } : {}),
   }).run();
 }
 
@@ -82,6 +84,28 @@ describe("evalCondition", () => {
 });
 
 describe("Orchestrator", () => {
+  it("步骤执行异常向调用方抛出并标记失败", async () => {
+    const recorded: Array<{ type: string; ok?: boolean }> = [];
+    const failingAgent = {
+      prompt: async () => {
+        throw new Error("boom");
+      },
+      waitForIdle: async () => {},
+      abort: () => {},
+      state: { messages: [] },
+    } as unknown as Agent;
+    const orchestrator = new Orchestrator(
+      [{ id: "s1", type: "prompt", agent: "a", input: "触发失败" }],
+      {
+        createAgent: () => failingAgent,
+        events: (event) => recorded.push(event),
+      },
+    );
+
+    await expect(orchestrator.run()).rejects.toThrow("boom");
+    expect(recorded).toContainEqual({ type: "step_end", stepId: "s1", ok: false });
+  });
+
   it("顺序执行并保存输出、变量插值", async () => {
     const outputs = await run(
       [
@@ -104,6 +128,46 @@ describe("Orchestrator", () => {
     // 事件序列包含步骤边界
     expect(events).toContain("step_start");
     expect(events).toContain("step_end");
+  });
+
+  it("恢复时复用稳定步骤输出，只执行未完成步骤", async () => {
+    const created: string[] = [];
+    const recorded: string[] = [];
+    const orchestrator = new Orchestrator(
+      [
+        { id: "s1", type: "prompt", agent: "a", input: "第一步", saveAs: "first" },
+        {
+          id: "s2",
+          type: "prompt",
+          agent: "b",
+          input: "继续 {{first.text}}",
+          saveAs: "second",
+        },
+      ],
+      {
+        createAgent: (name) => {
+          created.push(name);
+          return makeAgent(name, [fauxAssistantMessage("第二步完成")]);
+        },
+        events: (event) => recorded.push(event.type),
+        completedSteps: new Map([
+          [
+            "s1",
+            {
+              saveAs: "first",
+              output: { text: "第一步已落盘", metadata: { agent: "a", stepId: "s1" } },
+            },
+          ],
+        ]),
+      },
+    );
+
+    const outputs = await orchestrator.run();
+
+    expect(created).toEqual(["b"]);
+    expect(outputs.get("first")?.text).toBe("第一步已落盘");
+    expect(outputs.get("second")?.text).toContain("第二步完成");
+    expect(recorded).toContain("step_resumed");
   });
 
   it("if 分支：condition 命中 then", async () => {
@@ -283,6 +347,23 @@ describe("Orchestrator", () => {
     const defs = { a: [fauxAssistantMessage("坏1"), fauxAssistantMessage("坏2")] };
     const outputs = await run(steps, defs);
     expect(outputs.get("s1")?.text).toContain("坏2");
+  });
+
+  it("全局重试预算优先于步骤自身 retry.max", async () => {
+    const steps: WorkflowStep[] = [
+      {
+        id: "s1",
+        type: "prompt",
+        agent: "a",
+        input: "x",
+        retry: { max: 2, if: "{{text}} contains 坏" },
+      },
+    ];
+    const defs = { a: [fauxAssistantMessage("坏1"), fauxAssistantMessage("坏2")] };
+
+    await expect(run(steps, defs, undefined, undefined, 0)).rejects.toMatchObject({
+      code: "retry_limit",
+    });
   });
 
   it("maxSteps 精确边界：恰好 maxSteps 步通过、超过抛 step_limit", async () => {

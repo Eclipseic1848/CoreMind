@@ -1,6 +1,6 @@
 import type { TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { type CoreMindConfig, CoreMindConfigSchema } from "./schema/config.js";
+import { type CoreMindConfig, CoreMindConfigSchema, type WorkflowStep } from "./schema/config.js";
 
 /** 配置校验失败（含可读的中文字段路径） */
 export class ConfigValidationError extends Error {
@@ -20,6 +20,12 @@ export function validateConfig(data: unknown): CoreMindConfig {
     throw new ConfigValidationError("配置内容必须是对象（YAML 映射或 JSON 对象）", []);
   }
 
+  const record = data as Record<string, unknown>;
+  if ("version" in record && !("schemaVersion" in record)) {
+    const details = ["旧字段 version 已停用，请删除 version 并添加 schemaVersion: 2"];
+    throw new ConfigValidationError(`配置格式已升级：${details[0]}`, details);
+  }
+
   if (!Value.Check(CoreMindConfigSchema, data)) {
     const details: string[] = [];
     for (const error of Value.Errors(CoreMindConfigSchema, data)) {
@@ -32,7 +38,32 @@ export function validateConfig(data: unknown): CoreMindConfig {
     );
   }
 
-  return Value.Parse(CoreMindConfigSchema, data) as CoreMindConfig;
+  const config = Value.Parse(CoreMindConfigSchema, data) as CoreMindConfig;
+  validateWorkflowStepIds(config.workflow ?? []);
+  return config;
+}
+
+function validateWorkflowStepIds(steps: WorkflowStep[]): void {
+  const ids = new Set<string>();
+  const visit = (items: WorkflowStep[]) => {
+    for (const step of items) {
+      if (ids.has(step.id)) {
+        const detail = `workflow 步骤 id 重复：${step.id}`;
+        throw new ConfigValidationError(detail, [detail]);
+      }
+      ids.add(step.id);
+      if (step.type === "parallel") visit(step.steps);
+      if (step.type === "if") {
+        visit(step.then);
+        visit(step.else ?? []);
+      }
+      if (step.type === "switch") {
+        for (const branch of Object.values(step.cases)) visit(branch);
+        visit(step.default ?? []);
+      }
+    }
+  };
+  visit(steps);
 }
 
 /**

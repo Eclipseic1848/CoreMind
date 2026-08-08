@@ -1,0 +1,25 @@
+schemaVersion: 2
+name: python-data-analysis
+description: Python SDK 与 callable 工具黄金示例
+provider:
+  id: golden-data
+  baseUrl: http://127.0.0.1:8813/v1
+  model: golden-mock
+  apiKeyEnv: GOLDEN_MOCK_API_KEY
+agents:
+  main:
+    systemPrompt: 必须调用 analyze_sales 分析 CSV，并返回工具产生的 JSON 结果。
+runtime:
+  maxTurns: 4
+  maxToolCalls: 1
+  maxToolFailures: 0
+  maxRetries: 1
+  runTimeoutMs: 30000
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+quality:
+  profile: standard
+  minScenarioPassRate: 1
+  allowOverride: true

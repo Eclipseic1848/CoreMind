@@ -1,0 +1,25 @@
+name: 功能建议
+description: 提议一个有明确用户价值的新能力
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: 用户问题, description: "谁在什么场景下遇到什么困难？" }
+    validations: { required: true }
+  - type: textarea
+    id: outcome
+    attributes: { label: 期望结果与验收标准 }
+    validations: { required: true }
+  - type: textarea
+    id: alternatives
+    attributes: { label: 已考虑的替代方案 }
+  - type: textarea
+    id: non_goals
+    attributes: { label: 非目标, description: "明确这次不解决什么。" }
+  - type: dropdown
+    id: entry
+    attributes:
+      label: 主要入口
+      options: ["CLI/TUI", "TypeScript SDK", "Python SDK", "源码扩展", "文档或社区"]
+    validations: { required: true }

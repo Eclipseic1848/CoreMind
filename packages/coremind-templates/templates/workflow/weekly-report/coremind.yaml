@@ -1,4 +1,4 @@
-version: 1
+schemaVersion: 2
 name: weekly-report
 description: 扫描本周代码变更并生成中英文周报（parallel + if + 多 agent）
 provider:
@@ -77,3 +77,12 @@ workflow:
       如果 docs 目录不存在，先创建。
       周报内容：
       {{report.text}}
+
+runtime: {}
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+quality:
+  profile: standard
+  allowOverride: true

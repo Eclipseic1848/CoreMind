@@ -1,0 +1,4 @@
+interface:
+  display_name: "Operate CoreMind CLI"
+  short_description: "Create run chat check and evaluate from the CLI"
+  default_prompt: "Use $operate-coremind-cli to complete this CoreMind task with its required checks."

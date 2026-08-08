@@ -1,0 +1,10 @@
+schemaVersion: 1
+scenarios:
+  - id: bounded-recommendation
+    input: 是否应该直接把 Agent 用于高影响业务决策
+    expected:
+      contains:
+        - 小规模试点
+        - S1
+        - S2
+        - 置信度

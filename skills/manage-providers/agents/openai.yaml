@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage CoreMind Providers"
+  short_description: "Select and verify CoreMind model providers safely"
+  default_prompt: "Use $manage-providers to complete this CoreMind task with its required checks."

@@ -1,0 +1,886 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+const version = "0.1.0-alpha.2";
+
+const modules = [
+  moduleOf({
+    id: "configure-coremind",
+    zh: "配置与 Schema",
+    en: "Configuration and Schema",
+    purposeZh: "用一份可校验的 coremind.yaml 描述 Agent、工具、工作流、预算、权限和质量档。",
+    purposeEn:
+      "Describe agents, tools, workflows, budgets, permissions, and quality profiles in one validated coremind.yaml file.",
+    source: ["packages/coremind-config/src"],
+    tests: [
+      "packages/coremind-config/src/parse.test.ts",
+      "packages/coremind-config/src/validate.test.ts",
+    ],
+    dependencies: [],
+    interfaces: ["loadConfigFile", "parseConfigText", "parseAndValidate", "validateConfig"],
+    errorsZh: [
+      "ConfigParseError：文件或 YAML/JSON 语法无效",
+      "ConfigValidationError：配置不符合 v2 Schema",
+    ],
+    errorsEn: [
+      "ConfigParseError: unreadable file or invalid YAML/JSON",
+      "ConfigValidationError: configuration does not satisfy the v2 schema",
+    ],
+    stepsZh: [
+      "先写 schemaVersion、name 和 agents",
+      "显式选择 runtime、permissions 和 quality",
+      "运行 coremind check，再处理全部错误与告警",
+      "业务字段不明确时停止并询问负责人",
+    ],
+    stepsEn: [
+      "Define schemaVersion, name, and agents first",
+      "Select runtime, permissions, and quality explicitly",
+      "Run coremind check and resolve every error and warning",
+      "Stop and ask the owner when business fields are unknown",
+    ],
+    example:
+      "schemaVersion: 2\nname: support-agent\nagents:\n  main:\n    systemPrompt: 你是客服助手\npermissions:\n  mode: ask\n  workspaceOnly: true\n  network: ask\nruntime:\n  maxTurns: 12\nquality:\n  profile: standard",
+  }),
+  moduleOf({
+    id: "manage-providers",
+    zh: "Provider 与模型",
+    en: "Providers and Models",
+    purposeZh: "继承锁定运行时依赖的 Provider 清单，并把“可选”与“经过真实认证”严格分开。",
+    purposeEn:
+      "Inherit the provider catalog from the locked runtime dependency while keeping availability separate from real certification.",
+    source: ["packages/coremind-runtime/src/provider.ts"],
+    tests: [
+      "packages/coremind-runtime/src/provider.test.ts",
+      "packages/coremind-runtime/src/integration.real.test.ts",
+    ],
+    dependencies: ["configure-coremind"],
+    interfaces: ["buildProviderRuntime", "listInheritedProviders"],
+    errorsZh: ["未知 Provider 或模型会拒绝启动", "缺少 apiKeyEnv 时会给出明确鉴权错误"],
+    errorsEn: [
+      "Unknown providers or models prevent startup",
+      "A missing apiKeyEnv produces an explicit authentication error",
+    ],
+    stepsZh: [
+      "先列出当前锁定版本继承的 Provider",
+      "优先使用 apiKeyEnv，不把密钥写入 YAML",
+      "用离线 mock 验证契约",
+      "仅在真实流式、工具、多轮和错误测试通过后标记认证",
+    ],
+    stepsEn: [
+      "List providers inherited from the locked version",
+      "Use apiKeyEnv and never store secrets in YAML",
+      "Verify contracts with an offline mock",
+      "Mark certification only after real streaming, tool, multi-turn, and error tests pass",
+    ],
+    example: "provider:\n  id: deepseek\n  model: deepseek-chat\n  apiKeyEnv: DEEPSEEK_API_KEY",
+  }),
+  moduleOf({
+    id: "design-agents",
+    zh: "Agent 构建",
+    en: "Agent Construction",
+    purposeZh: "把聚焦的系统提示、模型选项、工具和技能构造成独立 Agent 实例。",
+    purposeEn:
+      "Build isolated agent instances from a focused system prompt, model options, tools, and skills.",
+    source: [
+      "packages/coremind-runtime/src/agent-factory.ts",
+      "packages/coremind-runtime/src/runtime.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/agent-factory.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
+    ],
+    dependencies: ["configure-coremind", "manage-providers", "build-tools", "package-agent-skills"],
+    interfaces: ["buildAgent", "CoreMindRuntime.create", "buildAgentFromConfig"],
+    errorsZh: [
+      "unknown_agent：指定 Agent 不存在",
+      "agent_failed：上游 stopReason:error 或模型失败",
+    ],
+    errorsEn: [
+      "unknown_agent: the selected agent does not exist",
+      "agent_failed: upstream stopReason:error or model failure",
+    ],
+    stepsZh: [
+      "为 Agent 写单一职责和非目标",
+      "只挂载完成职责所需的工具",
+      "先用单 Agent 通过场景测试",
+      "只有职责确实分离时再增加 Agent",
+    ],
+    stepsEn: [
+      "Write one responsibility and explicit non-goals",
+      "Attach only tools required for that responsibility",
+      "Pass scenarios with one agent first",
+      "Add agents only when responsibilities are genuinely separate",
+    ],
+    example:
+      "agents:\n  main:\n    systemPrompt: |\n      只根据订单工具返回的数据回答；缺失信息时明确说明。\n    tools:\n      - id: read",
+  }),
+  moduleOf({
+    id: "build-tools",
+    zh: "工具与业务能力",
+    en: "Tools and Business Capabilities",
+    purposeZh: "通过内置工具、脚本工具或稳定 defineTool 契约连接确定性的业务动作。",
+    purposeEn:
+      "Connect deterministic business actions through built-in tools, script tools, or the stable defineTool contract.",
+    source: [
+      "packages/coremind-tools/src",
+      "packages/coremind-tools/src/linux-sandbox.ts",
+      "packages/coremind-runtime/src/public-tool.ts",
+    ],
+    tests: [
+      "packages/coremind-tools/src/registry.test.ts",
+      "packages/coremind-tools/src/linux-sandbox.test.ts",
+      "packages/coremind-runtime/src/public-tool.test.ts",
+    ],
+    dependencies: ["configure-coremind", "enforce-agent-permissions", "manage-checkpoints"],
+    interfaces: ["buildTools", "defineTool", "adaptCoreMindTool"],
+    errorsZh: [
+      "工具加载失败会告警并跳过",
+      "工具异常会进入 tool_result 与失败预算",
+      "越权路径或 deny 规则会阻止执行",
+      "Linux bash 沙箱初始化失败时关闭执行，不回退到宿主 shell",
+    ],
+    errorsEn: [
+      "Tool loading failures are warned and skipped",
+      "Tool exceptions enter tool_result and failure budgets",
+      "Escaped paths or deny rules block execution",
+      "Linux bash fails closed when sandbox initialization fails and never falls back to the host shell",
+    ],
+    stepsZh: [
+      "先定义输入 JSON Schema、副作用和幂等策略",
+      "用确定性代码实现，不把业务规则藏进提示词",
+      "覆盖成功、非法参数、依赖失败和重复调用",
+      "为写操作确认权限与恢复能力",
+      "在 Linux CI 中验证 bash 不能越界写入或联网",
+      "保持 Linux bash 串行执行，避免共享沙箱清理器并发互扰",
+    ],
+    stepsEn: [
+      "Define the input JSON Schema, side effects, and idempotency strategy",
+      "Implement deterministic code instead of hiding rules in prompts",
+      "Cover success, invalid input, dependency failure, and repeated calls",
+      "Confirm permission and recovery behavior for writes",
+      "Verify in Linux CI that bash cannot write outside the workspace or access the network",
+      "Keep Linux bash execution sequential so shared sandbox cleanup cannot race",
+    ],
+    example:
+      "const lookupOrder = defineTool({\n  name: 'lookup_order',\n  description: '按编号查询模拟订单',\n  parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },\n  execute: async ({ id }) => ({ id, status: 'paid' }),\n});",
+  }),
+  moduleOf({
+    id: "package-agent-skills",
+    zh: "Skill 与 SOP 装载",
+    en: "Skill and SOP Loading",
+    purposeZh: "把可复用的专业流程写成精简 Skill，并按 Agent 配置注入，业务事实仍由项目文档提供。",
+    purposeEn:
+      "Package reusable procedures as concise skills and inject them per agent while keeping business facts in project documentation.",
+    source: ["packages/coremind-templates/src/skills.ts", "packages/coremind-templates/skills"],
+    tests: ["packages/coremind-templates/src/skills.test.ts"],
+    dependencies: ["configure-coremind"],
+    interfaces: ["resolveSkills", "loadDirectorySkills", "SKILLS"],
+    errorsZh: ["缺失 Skill 会告警并继续，不会伪装成已加载", "同名时内置 Skill 优先"],
+    errorsEn: [
+      "Missing skills warn and continue without pretending to load",
+      "Built-in skills take precedence on name collisions",
+    ],
+    stepsZh: [
+      "在 frontmatter 写清触发场景",
+      "正文只保留不可凭常识推断的步骤",
+      "把详细参考放到一层 references",
+      "运行格式验证并用真实任务复核",
+    ],
+    stepsEn: [
+      "Describe trigger contexts in frontmatter",
+      "Keep only non-obvious procedure in the body",
+      "Move detailed material into one-level references",
+      "Validate the format and exercise it on a real task",
+    ],
+    example:
+      "agents:\n  reviewer:\n    systemPrompt: 你是代码审查助手\n    skills:\n      - code-review",
+  }),
+  moduleOf({
+    id: "design-workflows",
+    zh: "Workflow 与受控 Loop",
+    en: "Workflows and Bounded Loops",
+    purposeZh:
+      "用顺序、并行、条件和有限重试组合 Agent，以全局预算阻止无边界循环，并从已持久化的稳定步骤边界安全恢复。",
+    purposeEn:
+      "Compose agents with sequence, parallelism, conditions, and bounded retries, enforce a global loop budget, and resume safely from persisted stable step boundaries.",
+    source: [
+      "packages/coremind-runtime/src/orchestrator.ts",
+      "packages/coremind-config/src/schema/workflow.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/orchestrator.test.ts",
+      "packages/coremind-runtime/src/budget.test.ts",
+    ],
+    dependencies: ["design-agents", "inspect-agent-traces"],
+    interfaces: [
+      "Orchestrator",
+      "evalCondition",
+      "RunBudgetController",
+      "prepareRunResume",
+      "fingerprintRunConfig",
+    ],
+    errorsZh: [
+      "步骤超时、未知 Agent、重试耗尽和总步骤超限均明确失败",
+      "并发步骤使用独立 Agent 实例",
+      "未完成步骤调用过非重放安全工具时以 unsafe_resume 拒绝自动恢复",
+    ],
+    errorsEn: [
+      "Step timeout, unknown agent, exhausted retries, and step-budget overflow fail explicitly",
+      "Parallel steps use isolated agent instances",
+      "Automatic resume fails with unsafe_resume when an incomplete step called a non-replay-safe tool",
+    ],
+    stepsZh: [
+      "先画清输入输出依赖",
+      "确定性操作留在工具或普通代码",
+      "为每个重试写可验证条件",
+      "设置 maxSteps、maxRetries 和超时",
+      "注入失败并确认不会伪成功",
+      "只从完整 step_output 边界恢复，绝不宣称任意调用栈恢复",
+    ],
+    stepsEn: [
+      "Map input and output dependencies",
+      "Keep deterministic operations in tools or normal code",
+      "Give every retry a verifiable condition",
+      "Set maxSteps, maxRetries, and timeouts",
+      "Inject failures and confirm they never masquerade as success",
+      "Resume only from complete step_output boundaries and never claim arbitrary call-stack recovery",
+    ],
+    example:
+      "workflow:\n  - id: draft\n    type: call\n    agent: writer\n    input: '{{prompt}}'\n    saveAs: draft\n  - id: review\n    type: call\n    agent: reviewer\n    input: '{{draft.text}}'",
+  }),
+  moduleOf({
+    id: "manage-sessions",
+    zh: "Session 与 Context",
+    en: "Sessions and Context",
+    purposeZh: "保存多轮消息、严格恢复损坏错误，并在 Provider 调用前进行确定性的上下文保护。",
+    purposeEn:
+      "Persist multi-turn messages, fail clearly on corrupt recovery, and protect context deterministically before provider calls.",
+    source: [
+      "packages/coremind-runtime/src/session.ts",
+      "packages/coremind-runtime/src/chat-session.ts",
+      "packages/coremind-runtime/src/context.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/session.test.ts",
+      "packages/coremind-runtime/src/chat-session.test.ts",
+      "packages/coremind-runtime/src/context.test.ts",
+    ],
+    dependencies: ["design-agents", "inspect-agent-traces"],
+    interfaces: ["CoreMindSession", "ChatSession", "ContextProtector"],
+    errorsZh: [
+      "session_restore_failed：会话损坏时停止，不静默新建",
+      "上下文压缩保留最近完整轮次并产生事件",
+    ],
+    errorsEn: [
+      "session_restore_failed: stop on corruption instead of silently starting over",
+      "Context compaction preserves recent complete turns and emits an event",
+    ],
+    stepsZh: [
+      "只为需要续聊的场景开启 Session",
+      "使用安全 sessionId",
+      "验证恢复后只追加新消息",
+      "观察 context_compacted 事件",
+      "对损坏文件做失败注入",
+    ],
+    stepsEn: [
+      "Enable sessions only when continuity is required",
+      "Use a safe sessionId",
+      "Verify restored sessions append only new messages",
+      "Observe context_compacted events",
+      "Inject a corrupt-file failure",
+    ],
+    example: "session:\n  enabled: true\n  dir: ./.coremind/sessions\n  compact: false",
+  }),
+  moduleOf({
+    id: "enforce-agent-permissions",
+    zh: "权限与安全",
+    en: "Permissions and Security",
+    purposeZh:
+      "统一执行 ask、assisted、full 三档审批，并明确区分路径感知文件工具、Linux bash OS 沙箱和 Windows shell 风险边界。",
+    purposeEn:
+      "Enforce ask, assisted, and full approval modes while distinguishing path-aware file tools, the Linux bash OS sandbox, and Windows shell risk boundaries.",
+    source: [
+      "packages/coremind-runtime/src/tool-policy.ts",
+      "packages/coremind-cli/src/approval.ts",
+      "packages/coremind-tools/src/linux-sandbox.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/tool-policy.test.ts",
+      "packages/coremind-cli/src/approval.test.ts",
+      "packages/coremind-tools/src/linux-sandbox.test.ts",
+    ],
+    dependencies: ["configure-coremind", "inspect-agent-traces"],
+    interfaces: [
+      "ToolPolicy",
+      "ApprovalQueue",
+      "ToolApprovalRequest",
+      "createLinuxSandboxedBashTool",
+    ],
+    errorsZh: [
+      "没有审批处理器时安全拒绝",
+      "显式 deny 与路径感知文件工具的越界路径在 full 下也不会放行",
+      "任意 shell 副作用不承诺自动回退",
+      "Linux bash 当前默认拒绝网络，沙箱不可用时关闭执行",
+    ],
+    errorsEn: [
+      "Missing approval handlers deny safely",
+      "Explicit deny and escaped paths for path-aware file tools remain blocked in full mode",
+      "Arbitrary shell side effects are never claimed as automatically reversible",
+      "Linux bash currently denies network access and fails closed when the sandbox is unavailable",
+    ],
+    stepsZh: [
+      "默认从 ask 开始",
+      "列出允许与禁止的工具",
+      "对网络单独选择 ask、allow 或 deny；注意当前 Linux bash 仍固定断网",
+      "用真实工具验证三档模式",
+      "不得把 full 解释为关闭审计或 checkpoint",
+      "Windows shell 没有 OS 沙箱，按不可逆高风险操作处理",
+    ],
+    stepsEn: [
+      "Start with ask by default",
+      "List allowed and denied tools",
+      "Choose ask, allow, or deny for network tools while noting that Linux bash remains offline",
+      "Verify all three modes with real tools",
+      "Never interpret full as disabling audit or checkpoints",
+      "Treat Windows shell execution as a non-reversible high-risk operation because it has no OS sandbox",
+    ],
+    example:
+      "permissions:\n  mode: assisted\n  workspaceOnly: true\n  network: deny\n  deny:\n    - bash",
+  }),
+  moduleOf({
+    id: "manage-checkpoints",
+    zh: "Checkpoint、Diff 与恢复",
+    en: "Checkpoints, Diffs, and Restore",
+    purposeZh:
+      "在 edit/write 前保存文件快照，提供 diff 和显式恢复；无法保证的副作用明确标记不可逆。",
+    purposeEn:
+      "Snapshot files before edit/write, expose diff and explicit restore, and mark unguaranteed side effects as non-reversible.",
+    source: ["packages/coremind-runtime/src/checkpoint.ts"],
+    tests: [
+      "packages/coremind-runtime/src/checkpoint.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
+    ],
+    dependencies: ["enforce-agent-permissions", "inspect-agent-traces"],
+    interfaces: ["CheckpointManager", "inspectCheckpoint", "restoreCheckpoint"],
+    errorsZh: [
+      "checkpoint_too_large：超出快照上限时阻止修改",
+      "checkpoint_not_reversible：拒绝伪恢复",
+      "checkpoint_corrupt：记录无效",
+    ],
+    errorsEn: [
+      "checkpoint_too_large: block a write that exceeds the snapshot limit",
+      "checkpoint_not_reversible: refuse fake recovery",
+      "checkpoint_corrupt: invalid record",
+    ],
+    stepsZh: [
+      "执行写工具前确认 checkpoint_created",
+      "用 diff 检查实际变化",
+      "仅在用户明确要求时恢复",
+      "对 bash 和自定义工具按不可逆副作用处理",
+    ],
+    stepsEn: [
+      "Confirm checkpoint_created before a write",
+      "Inspect the actual change with diff",
+      "Restore only after an explicit user request",
+      "Treat bash and custom tools as non-reversible side effects",
+    ],
+    example: "/checkpoints\n/diff CHECKPOINT_ID\n/restore CHECKPOINT_ID",
+  }),
+  moduleOf({
+    id: "inspect-agent-traces",
+    zh: "Trace、RunState 与调试",
+    en: "Trace, RunState, and Debugging",
+    purposeZh:
+      "用带 runId、eventId、sequence 和 timestamp 的事件及 append-only RunState 保存可复核证据，并生成安全恢复计划。",
+    purposeEn:
+      "Preserve reviewable evidence through events carrying runId, eventId, sequence, and timestamp plus append-only RunState, and derive safe resume plans.",
+    source: [
+      "packages/coremind-runtime/src/trace.ts",
+      "packages/coremind-runtime/src/run-state.ts",
+      "packages/coremind-runtime/src/events.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/run-state.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
+    ],
+    dependencies: ["configure-coremind"],
+    interfaces: [
+      "TraceRecorder",
+      "RunStateJournal",
+      "FileRunStore",
+      "CoreMindEvent",
+      "prepareRunResume",
+    ],
+    errorsZh: [
+      "损坏或断序 JSONL 会报告 run_state_corrupt",
+      "已结束运行不可重复恢复",
+      "配置指纹、输入或非重放安全副作用不匹配时拒绝恢复",
+      "事件严格递增，审批、预算和 checkpoint 进入同一 Trace",
+    ],
+    errorsEn: [
+      "Corrupt or discontinuous JSONL reports run_state_corrupt",
+      "Finished runs cannot be resumed again",
+      "Resume is rejected for mismatched config fingerprints, input, or non-replay-safe side effects",
+      "Events increase monotonically and include approvals, budgets, and checkpoints in one trace",
+    ],
+    stepsZh: [
+      "先按 runId 定位运行",
+      "按 sequence 重建时间线",
+      "从第一个 fatal error 或 policy_denied 向前检查",
+      "确认 step_output 是完整稳定边界后再恢复",
+      "用事件证据复现后再修改",
+      "保留修复前后 Trace",
+    ],
+    stepsEn: [
+      "Locate the run by runId",
+      "Rebuild the timeline by sequence",
+      "Inspect backward from the first fatal error or policy_denied",
+      "Resume only after confirming a complete step_output boundary",
+      "Reproduce from evidence before changing code",
+      "Keep before-and-after traces",
+    ],
+    example:
+      "runtime = await CoreMindRuntime.create({\n  config,\n  configDir,\n  trace: (entry) => console.log(entry.sequence, entry.event.type),\n});",
+  }),
+  moduleOf({
+    id: "evaluate-agents",
+    zh: "测试、评测与质量门禁",
+    en: "Testing, Evaluation, and Quality Gates",
+    purposeZh: "分离运行成功、指标、业务评测和发布判断，并用可重复场景阻止失败伪装成通过。",
+    purposeEn:
+      "Separate runtime outcome, metrics, business evaluation, and release readiness while preventing failures from masquerading as passes.",
+    source: [
+      "packages/coremind-runtime/src/evaluation.ts",
+      "packages/coremind-runtime/src/project-check.ts",
+      "packages/coremind-runtime/src/result.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/evaluation.test.ts",
+      "packages/coremind-runtime/src/project-check.test.ts",
+      "packages/coremind-runtime/src/quality.test.ts",
+    ],
+    dependencies: ["inspect-agent-traces", "enforce-agent-permissions"],
+    interfaces: [
+      "checkProject",
+      "runEvaluationSuite",
+      "RunOutcome",
+      "EvaluationReport",
+      "ReleaseReadiness",
+    ],
+    errorsZh: [
+      "安全门禁不可覆盖",
+      "非安全门禁只有在 allowOverride 和明确原因同时存在时才能覆盖，并追加写入 .coremind/quality-overrides.jsonl",
+      "审计写入失败时拒绝覆盖",
+      "strict 场景至少重复三次",
+    ],
+    errorsEn: [
+      "Security gates cannot be overridden",
+      "Non-security gates require allowOverride plus an explicit reason and append a record to .coremind/quality-overrides.jsonl",
+      "An audit-write failure rejects the override",
+      "Strict scenarios run at least three times",
+    ],
+    stepsZh: [
+      "先定义业务成功条件",
+      "为正常、边界、失败和拒绝建立场景",
+      "运行 coremind check",
+      "运行 coremind eval",
+      "只根据 ReleaseReadiness 决定是否进入发布",
+    ],
+    stepsEn: [
+      "Define business success first",
+      "Create happy, boundary, failure, and denial scenarios",
+      "Run coremind check",
+      "Run coremind eval",
+      "Use ReleaseReadiness—not a fluent answer—to decide release",
+    ],
+    example:
+      "schemaVersion: 1\nscenarios:\n  - id: paid-order\n    input: 查询订单 A-100\n    expected:\n      contains:\n        - 已支付\n      notContains:\n        - TODO",
+  }),
+  moduleOf({
+    id: "operate-coremind-cli",
+    zh: "CLI 与 TUI",
+    en: "CLI and TUI",
+    purposeZh:
+      "通过 create、run、chat、check、eval、doctor 和 templates 完成新手端到端开发路径，并用 run --resume 从安全边界恢复未完成运行。",
+    purposeEn:
+      "Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, with run --resume for unfinished runs that have a safe recovery boundary.",
+    source: ["packages/coremind-cli/src"],
+    tests: [
+      "packages/coremind-cli/src/cli.e2e.test.ts",
+      "packages/coremind-cli/src/approval.test.ts",
+    ],
+    dependencies: [
+      "configure-coremind",
+      "evaluate-agents",
+      "enforce-agent-permissions",
+      "manage-checkpoints",
+    ],
+    interfaces: [
+      "coremind create",
+      "coremind run --resume",
+      "coremind chat",
+      "coremind check",
+      "coremind eval",
+      "coremind doctor",
+      "coremind templates",
+    ],
+    errorsZh: [
+      "命令失败返回非零退出码",
+      "非 TTY 审批安全拒绝",
+      "TUI 与 readline 使用同一 ChatSession Harness",
+      "不安全或已结束的 runId 恢复会明确失败",
+    ],
+    errorsEn: [
+      "Failed commands return a non-zero exit code",
+      "Non-TTY approvals deny safely",
+      "TUI and readline share the same ChatSession harness",
+      "Unsafe or already-finished run IDs fail resume explicitly",
+    ],
+    stepsZh: [
+      "用 create 生成或接入项目",
+      "用 doctor 检查本地环境",
+      "用 run 或 chat 开发",
+      "用 check 与 eval 验收",
+      "在脚本中使用 --print、--json-events 或 --json",
+    ],
+    stepsEn: [
+      "Create or adopt a project",
+      "Check the local environment with doctor",
+      "Develop with run or chat",
+      "Accept with check and eval",
+      "Use --print, --json-events, or --json in automation",
+    ],
+    example:
+      "coremind create my-agent --template translator --language typescript\ncoremind check my-agent/coremind.yaml\ncoremind eval my-agent/coremind.yaml",
+  }),
+  moduleOf({
+    id: "embed-coremind-typescript",
+    zh: "TypeScript SDK",
+    en: "TypeScript SDK",
+    purposeZh: "通过 coremind-ai 单一门面在 Node 工程中嵌入 Runtime、工具、会话、评测和事件。",
+    purposeEn:
+      "Embed runtime, tools, sessions, evaluation, and events in Node applications through the single coremind-ai facade.",
+    source: ["packages/coremind/src/index.ts", "packages/coremind-runtime/src/public-tool.ts"],
+    tests: [
+      "packages/coremind/src/index.test.ts",
+      "packages/coremind-runtime/src/public-tool.test.ts",
+    ],
+    dependencies: ["configure-coremind", "design-agents", "build-tools"],
+    interfaces: [
+      "CoreMindRuntime",
+      "ChatSession",
+      "defineTool",
+      "checkProject",
+      "runEvaluationSuite",
+    ],
+    errorsZh: ["公共错误使用 CoreMindError.code", "库门面只 re-export，不复制业务逻辑"],
+    errorsEn: [
+      "Public failures use CoreMindError.code",
+      "The facade only re-exports and never duplicates business logic",
+    ],
+    stepsZh: [
+      "只从 coremind-ai 导入公共接口",
+      "用 parseAndValidate 校验外部配置",
+      "注入 defineTool 工具和审批处理器",
+      "消费 RunOutcome 与结构化事件",
+      "不要依赖 packages 内部路径",
+    ],
+    stepsEn: [
+      "Import public APIs only from coremind-ai",
+      "Validate external configuration with parseAndValidate",
+      "Inject defineTool tools and an approval handler",
+      "Consume RunOutcome and structured events",
+      "Do not depend on package-internal paths",
+    ],
+    example:
+      "const runtime = await CoreMindRuntime.create({\n  config,\n  configDir: process.cwd(),\n  initialPrompt: '执行任务',\n  toolDefinitions: [lookupOrder],\n});\nconst result = await runtime.run();",
+  }),
+  moduleOf({
+    id: "embed-coremind-python",
+    zh: "Python SDK 与工具桥",
+    en: "Python SDK and Tool Bridge",
+    purposeZh:
+      "用 Python 客户端通过 stdio JSON-RPC 驱动同一 Node Runtime，并把 Python callable 注册为 Agent 工具。",
+    purposeEn:
+      "Drive the same Node runtime over stdio JSON-RPC from Python and register Python callables as agent tools.",
+    source: [
+      "python/src/coremind",
+      "packages/coremind-worker/src",
+      "packages/coremind-protocol/src",
+    ],
+    tests: [
+      "python/tests/test_client.py",
+      "python/tests/test_node_parity.py",
+      "packages/coremind-worker/src/server.test.ts",
+      "packages/coremind-protocol/src/protocol.test.ts",
+    ],
+    dependencies: ["configure-coremind", "build-tools", "inspect-agent-traces"],
+    interfaces: [
+      "CoreMindClient",
+      "AsyncCoreMindClient",
+      "@client.tool",
+      "resume_run",
+      "inspect_run",
+      "checkpoint_diff",
+      "checkpoint_restore",
+      "CoreMind Protocol v1",
+    ],
+    errorsZh: [
+      "协议错误映射为类型化 Python 异常",
+      "worker 常驻复用，不为每次请求创建进程",
+      "工具结果跨语言保持 JSON 可序列化",
+      "resume_run 复用 Node Runtime 的同一安全恢复判定",
+    ],
+    errorsEn: [
+      "Protocol errors map to typed Python exceptions",
+      "The worker stays alive instead of spawning per request",
+      "Tool results remain JSON-serializable across languages",
+      "resume_run reuses the same safe-resume decision in the Node runtime",
+    ],
+    stepsZh: [
+      "创建并复用一个客户端",
+      "先 initialize，再注册 Python 工具",
+      "为 callable 注解参数类型",
+      "订阅事件和处理审批",
+      "仅用 resume_run 恢复未完成且安全的运行",
+      "在 finally 或上下文管理器中关闭 worker",
+    ],
+    stepsEn: [
+      "Create and reuse one client",
+      "Initialize before registering Python tools",
+      "Annotate callable parameters",
+      "Subscribe to events and handle approvals",
+      "Use resume_run only for unfinished runs deemed safe",
+      "Close the worker in a context manager or finally block",
+    ],
+    example:
+      "with CoreMindClient(config_path='coremind.yaml') as client:\n    @client.tool(description='查询模拟订单')\n    def lookup_order(order_id: str) -> dict[str, str]:\n        return {'id': order_id, 'status': 'paid'}\n    result = client.run('查询 A-100')",
+  }),
+  moduleOf({
+    id: "scaffold-coremind-projects",
+    zh: "模板与项目文档",
+    en: "Templates and Project Guidance",
+    purposeZh:
+      "根据新建或已有工程生成语言匹配的代码骨架、测试、评测、双语文档、SOP 和项目 Skill，且不覆盖原文件。",
+    purposeEn:
+      "Generate language-aware code skeletons, tests, evaluations, bilingual documentation, SOPs, and a project skill without overwriting existing files.",
+    source: [
+      "packages/coremind-templates/src/project-scaffold.ts",
+      "packages/coremind-templates/templates",
+    ],
+    tests: [
+      "packages/coremind-templates/src/project-scaffold.test.ts",
+      "packages/coremind-templates/src/templates.test.ts",
+      "packages/coremind-cli/src/cli.e2e.test.ts",
+    ],
+    dependencies: ["configure-coremind", "package-agent-skills", "evaluate-agents"],
+    interfaces: ["detectProjectLanguage", "scaffoldProjectGuidance", "coremind create"],
+    errorsZh: [
+      "混合或空工程不猜语言",
+      "使用 wx 写入，已有文件不会覆盖",
+      "业务规则保留为需负责人确认的明确项",
+    ],
+    errorsEn: [
+      "Mixed or empty projects do not guess a language",
+      "wx writes preserve existing files",
+      "Unknown business rules remain explicit owner-confirmation items",
+    ],
+    stepsZh: [
+      "检查已有工程语言证据",
+      "无法唯一判断时询问 TypeScript、JavaScript 或 Python",
+      "选择最接近的模板",
+      "生成后逐项确认业务 TODO",
+      "运行 check 和 eval",
+    ],
+    stepsEn: [
+      "Inspect language evidence in the existing project",
+      "Ask for TypeScript, JavaScript, or Python when detection is ambiguous",
+      "Choose the nearest template",
+      "Confirm each business placeholder after generation",
+      "Run check and eval",
+    ],
+    example:
+      "coremind create . --template customer-triage\n# 混合或空工程：\ncoremind create . --template customer-triage --language python",
+  }),
+  moduleOf({
+    id: "contribute-coremind",
+    zh: "源码与社区贡献",
+    en: "Source and Community Contribution",
+    purposeZh: "在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码。",
+    purposeEn:
+      "Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary.",
+    source: [
+      "package.json",
+      "vitest.config.ts",
+      ".github/workflows/ci.yml",
+      "CONTRIBUTING.md",
+      "SECURITY.md",
+      "docs/.vitepress/config.mts",
+      "docs/providers/certifications.json",
+      "docs/release/README.zh-CN.md",
+      "scripts/check-module-contract.mjs",
+      "scripts/check-docs-site.mjs",
+      "scripts/clean-package-dist.mjs",
+      "scripts/generate-provider-matrix.mjs",
+      "scripts/release-preflight.mjs",
+    ],
+    tests: [
+      "scripts/check-module-contract.mjs",
+      "scripts/docs-link-policy.test.ts",
+      "scripts/provider-matrix.test.ts",
+      "scripts/release-preflight.test.ts",
+      "packages/coremind/src/index.test.ts",
+    ],
+    dependencies: ["configure-coremind", "evaluate-agents", "scaffold-coremind-projects"],
+    interfaces: [
+      "npm run build",
+      "npm test",
+      "npm run check",
+      "npm run check:modules",
+      "npm run docs:build",
+      "npm run providers:matrix",
+      "npm run release:preflight",
+    ],
+    errorsZh: [
+      "依赖方向必须保持 config → tools → templates → runtime → facade/CLI/worker",
+      "不得未经授权 push、tag 或发布",
+      "不相关用户修改必须保留",
+      "供应商可发现不等于已认证，正式发布必须有真实证据",
+    ],
+    errorsEn: [
+      "Dependencies must remain config to tools to templates to runtime to facade/CLI/worker",
+      "Never push, tag, or publish without authorization",
+      "Preserve unrelated user changes",
+      "Provider discovery is not certification; releases require live evidence",
+    ],
+    stepsZh: [
+      "先读 handoff 和权威方案",
+      "写失败测试再做最小实现",
+      "同步模块合同与双语文档",
+      "生成供应商矩阵并构建双语文档站",
+      "按依赖顺序构建并跑代码、文档和发布预检",
+      "展示 diff，等待明确发布授权",
+    ],
+    stepsEn: [
+      "Read the handoff and authoritative plan first",
+      "Write a failing test before the smallest implementation",
+      "Synchronize module contracts and bilingual docs",
+      "Generate the provider matrix and build the bilingual documentation site",
+      "Build in dependency order and run code, documentation, and release gates",
+      "Show the diff and wait for explicit release authorization",
+    ],
+    example:
+      "npm run build\nnpm run check\nnpm test\nnpm run docs:build\nnpm run release:preflight -- --allow-dirty",
+  }),
+];
+
+for (const item of modules) {
+  const docsDir = path.join("docs", "modules", item.id);
+  const examplesDir = path.join("examples", "modules", item.id);
+  await mkdir(docsDir, { recursive: true });
+  await mkdir(examplesDir, { recursive: true });
+  await write("skills", item.id, "SKILL.md", skill(item));
+  await write(docsDir, "README.zh-CN.md", readmeZh(item));
+  await write(docsDir, "README.en.md", readmeEn(item));
+  await write(docsDir, "SOP.zh-CN.md", sopZh(item));
+  await write(docsDir, "SOP.en.md", sopEn(item));
+  await write(docsDir, "GUIDE.zh-CN.md", guideZh(item));
+  await write(docsDir, "GUIDE.en.md", guideEn(item));
+  await write(docsDir, "CHANGELOG.md", changelog(item));
+  await write(docsDir, "module.yaml", manifest(item));
+  await write(examplesDir, "README.zh-CN.md", exampleZh(item));
+  await write(examplesDir, "README.en.md", exampleEn(item));
+}
+
+await mkdir(path.join("docs", "modules"), { recursive: true });
+await write("docs", "modules", "README.zh-CN.md", moduleIndex("zh"));
+await write("docs", "modules", "README.en.md", moduleIndex("en"));
+
+console.log(`已生成 ${modules.length} 个模块合同。`);
+
+function moduleOf(value) {
+  return {
+    ...value,
+    maturity: "implemented-alpha",
+    platforms: ["windows", "linux"],
+  };
+}
+
+async function write(...parts) {
+  const content = parts.pop();
+  const file = path.join(...parts);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, content.replaceAll("\r\n", "\n"), "utf8");
+}
+
+function links(item) {
+  return [
+    ...item.source.map((file) => `- [${file}](../../../${file.replaceAll("\\", "/")})`),
+    ...item.tests.map((file) => `- [${file}](../../../${file.replaceAll("\\", "/")})`),
+    `- [模块示例](../../../examples/modules/${item.id}/README.zh-CN.md)`,
+    `- [Module example](../../../examples/modules/${item.id}/README.en.md)`,
+    `- [Agent Skill](../../../skills/${item.id}/SKILL.md)`,
+  ].join("\n");
+}
+
+function readmeZh(item) {
+  return `# ${item.zh}\n\n状态：${item.maturity}；支持平台：Windows、Linux。macOS 尚未列为正式支持。\n\n## 目的\n\n${item.purposeZh}\n\n## 公共接口\n\n${item.interfaces.map((value) => `- \`${value}\``).join("\n")}\n\n## 错误与边界\n\n${item.errorsZh.map((value) => `- ${value}`).join("\n")}\n\nCoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。\n\n## 源码、测试与示例\n\n${links(item)}\n`;
+}
+
+function readmeEn(item) {
+  return `# ${item.en}\n\nStatus: ${item.maturity}. Supported platforms: Windows and Linux. macOS is not yet officially supported.\n\n## Purpose\n\n${item.purposeEn}\n\n## Public interfaces\n\n${item.interfaces.map((value) => `- \`${value}\``).join("\n")}\n\n## Errors and boundaries\n\n${item.errorsEn.map((value) => `- ${value}`).join("\n")}\n\nCoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.\n\n## Source, tests, and examples\n\n${links(item)}\n`;
+}
+
+function sopZh(item) {
+  return `# ${item.zh}开发 SOP\n\n## 前置条件\n\n先阅读 [模块说明](README.zh-CN.md)，确认业务负责人、输入输出、失败条件和权限边界。\n\n## 执行步骤\n\n${item.stepsZh.map((value, index) => `${index + 1}. ${value}。`).join("\n")}\n${item.stepsZh.length + 1}. 运行模块列出的测试，并执行 \`npm run check:modules\`。\n${item.stepsZh.length + 2}. 保存 Trace、评测和人工确认记录；未经明确授权不发布。\n\n## 停止条件\n\n遇到未确认业务规则、不可逆副作用、工作区外访问、真实密钥缺失或安全门禁失败时停止，向负责人请求决定。不要自行扩大业务范围。\n`;
+}
+
+function sopEn(item) {
+  return `# ${item.en} Development SOP\n\n## Prerequisites\n\nRead the [module overview](README.en.md), then confirm the business owner, inputs, outputs, failure conditions, and permission boundary.\n\n## Procedure\n\n${item.stepsEn.map((value, index) => `${index + 1}. ${value}.`).join("\n")}\n${item.stepsEn.length + 1}. Run the listed module tests and \`npm run check:modules\`.\n${item.stepsEn.length + 2}. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.\n\n## Stop conditions\n\nStop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.\n`;
+}
+
+function guideZh(item) {
+  return `# ${item.zh}上手指南\n\n## 什么时候使用\n\n${item.purposeZh}\n\n## 最小示例\n\n\`\`\`text\n${item.example}\n\`\`\`\n\n## 验证\n\n1. 按 [SOP](SOP.zh-CN.md) 执行。\n2. 运行 [模块示例](../../../examples/modules/${item.id}/README.zh-CN.md)。\n3. 运行 \`coremind check\`；涉及业务输出时再运行 \`coremind eval\`。\n4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。\n\n## 常见误区\n\n- 不要让模型替业务负责人发明规则。\n- 不要把一次成功运行当成稳定性证明。\n- 不要通过 full 模式绕过 deny、工作区保护、审计或恢复。\n- 不要把继承 Provider 误称为已通过真实认证。\n`;
+}
+
+function guideEn(item) {
+  return `# ${item.en} Guide\n\n## When to use it\n\n${item.purposeEn}\n\n## Minimal example\n\n\`\`\`text\n${item.example}\n\`\`\`\n\n## Verification\n\n1. Follow the [SOP](SOP.en.md).\n2. Run the [module example](../../../examples/modules/${item.id}/README.en.md).\n3. Run \`coremind check\`; also run \`coremind eval\` for business outputs.\n4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.\n\n## Common mistakes\n\n- Do not let the model invent business rules for the owner.\n- Do not treat one successful run as stability evidence.\n- Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.\n- Do not describe inherited providers as genuinely certified.\n`;
+}
+
+function skill(item) {
+  const description = `${item.purposeEn} Use when creating, changing, reviewing, or diagnosing the ${item.en.toLowerCase()} capability in a CoreMind project.`;
+  return `---\nname: ${item.id}\ndescription: ${JSON.stringify(description)}\n---\n\n# ${item.en}\n\n1. Read [the module contract](../../docs/modules/${item.id}/README.en.md) and the language-matched guide only when implementation details are needed.\n2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.\n3. Follow [the SOP](../../docs/modules/${item.id}/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.\n4. Add or update a failing test before implementation, then make the smallest change that passes it.\n5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.\n6. Run the tests listed in [module.yaml](../../docs/modules/${item.id}/module.yaml) and \`npm run check:modules\`.\n7. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.\n\n中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。\n`;
+}
+
+function exampleZh(item) {
+  return `# ${item.zh}示例\n\n该示例展示模块的最小用法；复制前先由业务负责人确认字段与规则。\n\n\`\`\`text\n${item.example}\n\`\`\`\n\n## 验证步骤\n\n1. 从仓库根目录运行模块清单中的测试。\n2. 配置类示例运行 \`coremind check\`。\n3. 业务输出类示例补充场景后运行 \`coremind eval\`。\n4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。\n\n返回 [中文指南](../../../docs/modules/${item.id}/GUIDE.zh-CN.md)。\n`;
+}
+
+function exampleEn(item) {
+  return `# ${item.en} Example\n\nThis is the smallest module example. Ask the business owner to confirm fields and rules before copying it.\n\n\`\`\`text\n${item.example}\n\`\`\`\n\n## Verification\n\n1. Run the tests listed in the module manifest from the repository root.\n2. Run \`coremind check\` for configuration examples.\n3. Add scenarios and run \`coremind eval\` for business outputs.\n4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.\n\nReturn to the [English guide](../../../docs/modules/${item.id}/GUIDE.en.md).\n`;
+}
+
+function changelog(item) {
+  return `# Changelog\n\n## ${version} - 2026-08-08\n\n- Established the implementation, tests, bilingual documentation, SOP, guide, reusable Skill, examples, and module manifest for ${item.en}.\n`;
+}
+
+function manifest(item) {
+  const list = (values) => values.map((value) => `  - ${JSON.stringify(value)}`).join("\n");
+  return `schemaVersion: 1\nid: ${item.id}\nname:\n  zh-CN: ${JSON.stringify(item.zh)}\n  en: ${JSON.stringify(item.en)}\nversion: ${version}\nsourcePaths:\n${list(item.source)}\ndocuments:\n  readme:\n    zh-CN: docs/modules/${item.id}/README.zh-CN.md\n    en: docs/modules/${item.id}/README.en.md\n  sop:\n    zh-CN: docs/modules/${item.id}/SOP.zh-CN.md\n    en: docs/modules/${item.id}/SOP.en.md\n  guide:\n    zh-CN: docs/modules/${item.id}/GUIDE.zh-CN.md\n    en: docs/modules/${item.id}/GUIDE.en.md\n  changelog: docs/modules/${item.id}/CHANGELOG.md\nskillPath: skills/${item.id}/SKILL.md\nexamplePaths:\n  - examples/modules/${item.id}/README.zh-CN.md\n  - examples/modules/${item.id}/README.en.md\ntestPaths:\n${list(item.tests)}\nsupportedPlatforms:\n${list(item.platforms)}\ndependencies:\n${item.dependencies.length > 0 ? list(item.dependencies) : "  []"}\nmaturity: ${item.maturity}\n`;
+}
+
+function moduleIndex(language) {
+  const title = language === "zh" ? "# CoreMind 能力模块" : "# CoreMind Capability Modules";
+  const intro =
+    language === "zh"
+      ? "每个模块均包含实现路径、测试、双语 README/SOP/指南、通用 Skill、示例和机器可检查清单。"
+      : "Every module includes implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and a machine-checkable manifest.";
+  const rows = modules
+    .map((item) => {
+      const label = language === "zh" ? item.zh : item.en;
+      const file = language === "zh" ? "README.zh-CN.md" : "README.en.md";
+      return `- [${label}](${item.id}/${file})`;
+    })
+    .join("\n");
+  return `${title}\n\n${intro}\n\n${rows}\n`;
+}

@@ -56,6 +56,12 @@ const server = createServer((req, res) => {
       choices: [{ index: 0, delta: { content: replyText }, finish_reason: null }],
     };
     res.write(`data: ${JSON.stringify(chunk2)}\n\n`);
+    const chunk3 = {
+      id: "mock-3",
+      object: "chat.completion.chunk",
+      choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    };
+    res.write(`data: ${JSON.stringify(chunk3)}\n\n`);
     res.write("data: [DONE]\n\n");
     res.end();
   });

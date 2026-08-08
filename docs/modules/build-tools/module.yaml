@@ -1,0 +1,37 @@
+schemaVersion: 1
+id: build-tools
+name:
+  zh-CN: "工具与业务能力"
+  en: "Tools and Business Capabilities"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-tools/src"
+  - "packages/coremind-tools/src/linux-sandbox.ts"
+  - "packages/coremind-runtime/src/public-tool.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/build-tools/README.zh-CN.md
+    en: docs/modules/build-tools/README.en.md
+  sop:
+    zh-CN: docs/modules/build-tools/SOP.zh-CN.md
+    en: docs/modules/build-tools/SOP.en.md
+  guide:
+    zh-CN: docs/modules/build-tools/GUIDE.zh-CN.md
+    en: docs/modules/build-tools/GUIDE.en.md
+  changelog: docs/modules/build-tools/CHANGELOG.md
+skillPath: skills/build-tools/SKILL.md
+examplePaths:
+  - examples/modules/build-tools/README.zh-CN.md
+  - examples/modules/build-tools/README.en.md
+testPaths:
+  - "packages/coremind-tools/src/registry.test.ts"
+  - "packages/coremind-tools/src/linux-sandbox.test.ts"
+  - "packages/coremind-runtime/src/public-tool.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "enforce-agent-permissions"
+  - "manage-checkpoints"
+maturity: implemented-alpha

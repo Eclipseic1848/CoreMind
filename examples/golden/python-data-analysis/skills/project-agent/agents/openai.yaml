@@ -1,0 +1,4 @@
+interface:
+  display_name: "Golden Example Project Agent"
+  short_description: "Develop and verify this CoreMind golden example"
+  default_prompt: "Use $project-agent to adapt and verify this golden example."

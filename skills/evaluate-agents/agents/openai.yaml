@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evaluate CoreMind Agents"
+  short_description: "Build repeatable scenarios and quality gates"
+  default_prompt: "Use $evaluate-agents to complete this CoreMind task with its required checks."

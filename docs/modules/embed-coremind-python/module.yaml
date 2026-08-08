@@ -1,0 +1,38 @@
+schemaVersion: 1
+id: embed-coremind-python
+name:
+  zh-CN: "Python SDK 与工具桥"
+  en: "Python SDK and Tool Bridge"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "python/src/coremind"
+  - "packages/coremind-worker/src"
+  - "packages/coremind-protocol/src"
+documents:
+  readme:
+    zh-CN: docs/modules/embed-coremind-python/README.zh-CN.md
+    en: docs/modules/embed-coremind-python/README.en.md
+  sop:
+    zh-CN: docs/modules/embed-coremind-python/SOP.zh-CN.md
+    en: docs/modules/embed-coremind-python/SOP.en.md
+  guide:
+    zh-CN: docs/modules/embed-coremind-python/GUIDE.zh-CN.md
+    en: docs/modules/embed-coremind-python/GUIDE.en.md
+  changelog: docs/modules/embed-coremind-python/CHANGELOG.md
+skillPath: skills/embed-coremind-python/SKILL.md
+examplePaths:
+  - examples/modules/embed-coremind-python/README.zh-CN.md
+  - examples/modules/embed-coremind-python/README.en.md
+testPaths:
+  - "python/tests/test_client.py"
+  - "python/tests/test_node_parity.py"
+  - "packages/coremind-worker/src/server.test.ts"
+  - "packages/coremind-protocol/src/protocol.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "build-tools"
+  - "inspect-agent-traces"
+maturity: implemented-alpha

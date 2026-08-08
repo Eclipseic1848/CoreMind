@@ -1,15 +1,18 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         node: [22.x]
     steps:
       - uses: actions/checkout@v4
@@ -20,28 +23,74 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: 安装依赖
         run: npm ci
+
+      - name: 安装 Linux sandbox 依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       - name: 代码风格检查
         run: npx biome check .
 
+      - name: 生产依赖与开发工具风险门禁
+        run: npm run security:audit
+
       - name: 构建
         run: npm run build
+
+      - name: 模块交付合同
+        run: npm run check:modules
+
+      - name: 双语文档与文档站
+        run: |
+          npm run check:docs
+          npm run docs:build
+
+      - name: 供应商矩阵一致性
+        shell: bash
+        run: |
+          npm run providers:matrix
+          git diff --exit-code -- docs/providers
 
       - name: 测试（离线）
         run: npm test
 
+      - name: 构建 Python worker
+        run: npm run build:python-worker
+
+      - name: 安装并测试 Python SDK（离线）
+        run: |
+          python -m pip install --disable-pip-version-check ./python
+          python -W error::ResourceWarning -m unittest discover -s python/tests -p "test_*.py" -v
+          python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
+
+      - name: 构建 PyPI wheel
+        run: |
+          python -m pip install --disable-pip-version-check build twine
+          python -m build --wheel python
+          python -m twine check python/dist/*
+
+      - name: 检查 Python wheel 内容
+        shell: bash
+        run: python -X utf8 scripts/check-python-wheel.py "$(find python/dist -name '*.whl' -print -quit)"
+
       - name: 示例配置冒烟（离线）
         run: |
-          node -e "
-            const { readFileSync } = require('node:fs');
-            const { parseConfigText, validateConfig } = await import('coremind-config');
-            for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) {
-              validateConfig(parseConfigText(readFileSync(f, 'utf8'), f));
-              console.log('ok:', f);
-            }
-          "
+          node -e "const { readFileSync } = require('node:fs'); const { parseConfigText, validateConfig } = await import('coremind-config'); for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
 
-      - name: 发布预检
-        run: npm publish --dry-run --workspace coremind --workspace coremind-cli
+      - name: 发布元数据预检
+        run: npm run release:preflight -- --allow-dirty
+
+      - name: npm 包内容预检
+        run: npm publish --dry-run --workspaces --if-present --json

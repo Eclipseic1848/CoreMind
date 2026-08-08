@@ -1,4 +1,13 @@
-import { Agent, type AgentMessage, type AgentTool } from "@earendil-works/pi-agent-core";
+import {
+  type AfterToolCallContext,
+  type AfterToolCallResult,
+  Agent,
+  type AgentEvent,
+  type AgentMessage,
+  type AgentTool,
+  type BeforeToolCallContext,
+  type BeforeToolCallResult,
+} from "@earendil-works/pi-agent-core";
 import type { Model, Models } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
@@ -18,6 +27,20 @@ export interface AgentBuildContext {
   apiKeyOverride?: string;
   /** 注入的专业技能内容（skills/<id>/README.md，附加到系统提示词） */
   skillsContent?: string[];
+  /** CoreMind Harness 钩子；由每次 Run 注入，不写入用户配置。 */
+  harness?: {
+    maxRetries?: number;
+    transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
+    beforeToolCall?: (
+      context: BeforeToolCallContext,
+      signal?: AbortSignal,
+    ) => Promise<BeforeToolCallResult | undefined>;
+    afterToolCall?: (
+      context: AfterToolCallContext,
+      signal?: AbortSignal,
+    ) => Promise<AfterToolCallResult | undefined>;
+    onAgentEvent?: (event: AgentEvent, agent: Agent) => void;
+  };
 }
 
 /**
@@ -43,15 +66,20 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     streamFn: (m, c, o) =>
       ctx.models.streamSimple(m, c, {
         ...o,
+        ...(ctx.harness?.maxRetries !== undefined ? { maxRetries: ctx.harness.maxRetries } : {}),
         ...(ctx.apiKeyOverride ? { apiKey: ctx.apiKeyOverride } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
       }),
     toolExecution: "parallel",
+    transformContext: ctx.harness?.transformContext,
+    beforeToolCall: ctx.harness?.beforeToolCall,
+    afterToolCall: ctx.harness?.afterToolCall,
   });
 
   // 事件归一化转发（agent 名由上下文注入，stepId 由编排层补充）
   agent.subscribe((event) => {
+    ctx.harness?.onAgentEvent?.(event, agent);
     const coreEvent = normalizeEvent(event);
     if (coreEvent) ctx.onEvent({ ...coreEvent, agent: ctx.agentName } as CoreMindEvent);
   });

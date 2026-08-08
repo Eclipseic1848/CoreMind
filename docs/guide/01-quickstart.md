@@ -15,11 +15,11 @@ coremind --help                 # 查看帮助
 ## 2. 从模板创建
 
 ```bash
-coremind create my-agent --template translator
+coremind create my-agent --template translator --language typescript
 cd my-agent
 ```
 
-看一下生成的 `coremind.yaml`——这就是你的智能体定义：模型、人设、工具都在里面。
+看一下生成的 `coremind.yaml`——这是智能体定义。项目还会生成测试/评测骨架、双语需求与架构、开发 SOP、验收清单、项目 Skill 和 checkpoint 目录；已有文件不会覆盖。
 
 ## 3. 配置 API key
 
@@ -44,16 +44,18 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 ✓ 运行完成：工具 0 次调用 · 耗时 2.1s · 约 45 tokens · 输出 18 字
 ```
 
-## 5. 五个命令
+## 5. 七个命令
 
 命令怎么装、在哪敲、key 怎么管理、常见坑——详见[CLI 使用指南](05-cli-usage.md)。
 
 | 命令 | 用途 |
 |---|---|
-| `coremind create <name>` | 从模板创建项目（`--template <id>` 非交互） |
+| `coremind create <name>` | 新建或接入项目（`--template`、`--language`） |
 | `coremind run <file>` | 运行一次（`--prompt` 首条输入 / `--print` 只输出结果 / `--session <id>` 保存会话） |
-| `coremind chat <file>` | 交互式多轮对话（`/help` `/exit` `/abort` 命令，工具调用实时展示） |
-| `coremind list-templates` | 查看全部 8 个模板 |
+| `coremind chat <file>` | 多轮 TUI（审批、预算、Trace、checkpoint/diff/恢复） |
+| `coremind check [file]` | 检查配置、安全、项目材料和质量档 |
+| `coremind eval [file]` | 重复运行 `evals/scenarios.yaml` |
+| `coremind templates` | 查看全部 8 个模板（兼容 `list-templates`） |
 | `coremind doctor` | 环境自检（Node 版本 / 配置 / API key 是否存在） |
 
 ## 下一步
@@ -62,4 +64,5 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 - 想改人设、换模型、加工具？→ [配置指南](02-configuration.md)
 - 想让 agent 更专业（按 SOP 干活）？→ [技能指南](03-skills.md)
 - 跑完不知道好不好？→ [质量与调优](04-quality.md)
-- 看看别人怎么做？→ 8 个[场景模板](../README.md#场景模板)（每个模板自带 README 说明）
+- 看看经过完整材料与离线评测的实现？→ [4 个黄金示例](../../examples/golden/README.zh-CN.md)
+- 按模块学习？→ [16 个能力模块](../modules/README.zh-CN.md)
