@@ -17,13 +17,13 @@ The current public release provides:
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Windows and Linux automation plus public releases on GitHub, npm, PyPI, and the bilingual documentation site.
 
-The project remains a Beta Candidate. It is not presented as production-ready or equivalent to a mature coding-agent product until manual TUI acceptance in real Windows and Linux terminals is complete.
+The current release is in Beta. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
 
 ## `0.2.x`: phase-one stabilization
 
 The stabilization line focuses on reliability and usability of the delivered scope:
 
-- Complete manual TUI acceptance on Windows and Linux and publish a reusable checklist.
+- Continue improving the Windows and Linux TUI experience and terminal compatibility.
 - Fix installation, configuration, diagnostics, and interaction issues found during initial community use.
 - Expand provider certification backed by real invocation evidence.
 - Continue cross-language checks for CLI, TypeScript SDK, and Python SDK outcomes and events.

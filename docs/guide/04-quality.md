@@ -42,7 +42,7 @@ runtime:
 
 `edit/write` 在修改前保存文件快照，可计算 diff 并显式恢复。Linux 的内置 `bash` 使用 OS 级沙箱，当前固定断网、只允许写工作区，初始化失败时关闭执行且不回退宿主 shell。Windows 没有 OS 级 shell 沙箱；shell 和任意自定义工具只标记为不可自动回退。CoreMind 不会伪造完整恢复保证。
 
-Linux 实现锁定 [Anthropic Sandbox Runtime](https://github.com/anthropic-experimental/sandbox-runtime) `0.0.71` 并依赖 [Bubblewrap](https://github.com/containers/bubblewrap)。前者官方仍标注为 Beta Research Preview，因此它是当前 Alpha 的纵深防御实现，不是生产成熟度或 Claude Code 等价性的证据。Linux CI 必须实际执行越界写入和联网失败测试。
+Linux 实现锁定 [Anthropic Sandbox Runtime](https://github.com/anthropic-experimental/sandbox-runtime) `0.0.71` 并依赖 [Bubblewrap](https://github.com/containers/bubblewrap)。前者官方仍标注为 Beta Research Preview，因此当前将其作为纵深防御实现。Linux CI 必须实际执行越界写入和联网失败测试，安全结论以完整权限策略、恢复机制和自动化证据为准。
 
 Ubuntu/Debian 需要安装 `bubblewrap`、`socat` 和 `ripgrep`。Ubuntu 24.04 及以后默认的 AppArmor 非特权用户命名空间限制会阻止这套隔离机制；当前 CI 仅在临时 runner 中关闭该限制。生产机器不得照抄 CI 设置，必须由系统安全负责人评估后决定启用方式；无法满足前置条件时，CoreMind 会关闭 Linux `bash` 执行，而不是降级到宿主 shell。
 

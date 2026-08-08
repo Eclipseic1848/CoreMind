@@ -175,7 +175,7 @@ coremind doctor
 
 ## 5. chat 全屏 TUI：交互式对话
 
-`coremind chat` 会进入一个**全屏交互界面**（类 Claude Code 风格）：
+`coremind chat` 会进入一个**全屏交互界面**：
 
 ```powershell
 coremind chat coremind.yaml

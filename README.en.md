@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current public version is `0.2.0-beta.1`. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are complete. The project is not presented as production-ready or equivalent to Claude Code until manual TUI acceptance is closed.
+> The current public version is `0.2.0-beta.1`. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are complete. You are welcome to try it and contribute to the community.
 
 [Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](CODE_OF_CONDUCT.en.md)
 
@@ -93,7 +93,7 @@ coremind templates           List templates
 
 `run`, `chat`, and `eval` accept `--permission ask|assisted|full`. Full mode skips per-operation prompts, but explicit deny rules, audit, trace, and checkpoints remain active; path-aware file tools still enforce workspace policy. On Linux, built-in bash runs in an OS sandbox with network disabled and workspace-only writes, and fails closed when the sandbox is unavailable. Windows does not yet have an OS-level shell sandbox, so shell and custom-tool side effects remain high-risk and non-reversible.
 
-The Linux sandbox dependency is still an upstream research preview. It is an Alpha defense-in-depth mechanism, not evidence of production maturity or Claude Code equivalence.
+The Linux sandbox dependency is still an upstream research preview and is used as a defense-in-depth mechanism. Security conclusions rely on the complete permission policy, recovery controls, and automated test evidence.
 
 ## SDK architecture
 

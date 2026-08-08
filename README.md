@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前公开版本是 `0.2.0-beta.1`。GitHub、npm、PyPI、双语文档站、Windows/Linux CI 和一个真实 Provider 认证已经完成；TUI 人工验收闭环前，仍不宣称生产就绪或 Claude Code 等价。
+> 当前公开版本是 `0.2.0-beta.1`。GitHub、npm、PyPI、双语文档站、Windows/Linux CI 和一个真实 Provider 认证已经完成，欢迎试用并参与社区共建。
 
 [4 个黄金示例](examples/golden/README.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
@@ -133,7 +133,7 @@ quality:
 
 Linux 上的内置 `bash` 在 OS 级沙箱中运行，当前固定断网、只允许写工作区，并在沙箱不可用时关闭执行而不回退宿主 shell。Windows 一期没有 OS 级 shell 沙箱；`bash` 与任意自定义工具仍按不可逆高风险操作处理。CoreMind 不会把 checkpoint 描述成任意副作用的完整恢复。
 
-Linux 沙箱依赖仍处于上游研究预览阶段，所以当前只能作为 Alpha 防护能力，不能单独证明生产成熟或与 Claude Code 等价。
+Linux 沙箱依赖仍处于上游研究预览阶段，当前作为纵深防御能力使用；安全结论以完整权限策略、恢复机制和自动化测试证据为准。
 
 ## CLI/TUI
 
