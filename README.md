@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前候选版本是 `0.2.0-beta.1`。Batch 0～5 的功能与发布工程已通过本地门禁，并已有一个真实 Provider 认证；Windows/Linux 发布候选验收完成前，仍不宣称生产就绪或 Claude Code 等价。
+> 当前公开版本是 `0.2.0-beta.1`。Batch 0～5、本地门禁、Windows/Linux CI 和一个真实 Provider 认证已经通过；PyPI 与 TUI 人工验收闭环完成前，仍不宣称生产就绪或 Claude Code 等价。
 
 [4 个黄金示例](examples/golden/README.zh-CN.md) · [迭代方案](docs/coremind-iteration-plan-2026-08-31.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
