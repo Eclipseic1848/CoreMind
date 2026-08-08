@@ -87,7 +87,7 @@ jobs:
 
       - name: 示例配置冒烟（离线）
         run: |
-          node -e "const { readFileSync } = require('node:fs'); const { parseConfigText, validateConfig } = await import('coremind-config'); for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
+          node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
 
       - name: 发布元数据预检
         run: npm run release:preflight -- --allow-dirty

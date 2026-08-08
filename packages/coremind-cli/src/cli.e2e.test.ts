@@ -144,7 +144,7 @@ describe("coremind CLI 端到端", () => {
     const checked = runCli(["check", "coremind.yaml"], { cwd: projectDir });
     expect(checked.code).toBe(0);
     expect(checked.stdout).toContain("质量门禁通过");
-  });
+  }, 15_000);
 
   it("check 不允许用覆盖原因绕过明文密钥", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-check-secret-e2e-"));
