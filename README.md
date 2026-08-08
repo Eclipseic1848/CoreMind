@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/coremind-iteration-plan-2026-08-31.md)
+[![阶段](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -18,9 +18,9 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前公开版本是 `0.2.0-beta.1`。Batch 0～5、本地门禁、Windows/Linux CI 和一个真实 Provider 认证已经通过；PyPI 与 TUI 人工验收闭环完成前，仍不宣称生产就绪或 Claude Code 等价。
+> 当前公开版本是 `0.2.0-beta.1`。GitHub、npm、PyPI、双语文档站、Windows/Linux CI 和一个真实 Provider 认证已经完成；TUI 人工验收闭环前，仍不宣称生产就绪或 Claude Code 等价。
 
-[4 个黄金示例](examples/golden/README.zh-CN.md) · [迭代方案](docs/coremind-iteration-plan-2026-08-31.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
+[4 个黄金示例](examples/golden/README.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前版本具备什么能力
 
@@ -39,7 +39,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
 | 当前平台 | Windows 与 Linux 为一期目标平台；自动化本地候选已在 Windows 验证，Linux 以公开 CI 最终验收 |
 
-当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[能力边界与发布门禁](docs/coremind-iteration-plan-2026-08-31.md)。
+当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
 ## 后续版本计划
 

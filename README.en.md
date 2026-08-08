@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/coremind-iteration-plan-2026-08-31.md)
+[![Status](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current public version is `0.2.0-beta.1`. Batch 0–5, local gates, Windows/Linux CI, and one live provider certification have passed. The project is not presented as production-ready or equivalent to Claude Code until PyPI publication and manual TUI acceptance are closed.
+> The current public version is `0.2.0-beta.1`. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are complete. The project is not presented as production-ready or equivalent to Claude Code until manual TUI acceptance is closed.
 
 [Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](CODE_OF_CONDUCT.en.md)
 
@@ -39,7 +39,7 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
 | Current platforms | Windows and Linux are the phase-one targets; local candidate automation is verified on Windows and public CI is the final Linux gate |
 
-The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [scope and release gates](docs/coremind-iteration-plan-2026-08-31.md).
+The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
 ## Version roadmap
 

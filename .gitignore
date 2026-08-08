@@ -37,3 +37,6 @@ Thumbs.db
 # 内部文档（不推送到 GitHub）
 PLAN.md
 handoff.md
+CLAUDE.md
+docs/analysis/
+docs/coremind-iteration-plan-2026-08-31.md
