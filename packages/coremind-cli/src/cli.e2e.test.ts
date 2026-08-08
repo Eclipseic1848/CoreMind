@@ -249,6 +249,16 @@ describe("coremind CLI 端到端", () => {
     expect(stderr).toContain("会话 id");
   });
 
+  it("run 指定 --session 但配置未启用会话时明确失败", () => {
+    const { code, stderr } = runCli(
+      ["run", mockConfigPath, "--prompt", "测试", "--session", "silent-session"],
+      { env: { MOCK_PORT: String(MOCK_PORT) } },
+    );
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("session.enabled");
+  });
+
   it("run 不存在的配置文件退出码 1", () => {
     const { code } = runCli(["run", "no-such-file.yaml"]);
     expect(code).toBe(1);
@@ -349,6 +359,19 @@ describe("coremind CLI 端到端", () => {
     });
     expect(code).toBe(0);
     expect(stdout).toContain("/exit");
+  });
+
+  it("chat 指定 --session 但配置未启用会话时明确失败", () => {
+    const { code, stderr } = runCli(
+      ["chat", mockConfigPath, "--session", "silent-session", "--quiet"],
+      {
+        env: { MOCK_PORT: String(MOCK_PORT) },
+        input: "/exit\n",
+      },
+    );
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("session.enabled");
   });
 
   it("run --max-steps 超出上限退出码 1", () => {

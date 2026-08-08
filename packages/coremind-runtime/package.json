@@ -1,6 +1,6 @@
 {
   "name": "coremind-runtime",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.2",
   "description": "CoreMind 运行时：provider 注册、Agent 构建、简化编排引擎、会话管理",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-runtime" },
@@ -30,8 +30,8 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.83.0",
     "@earendil-works/pi-ai": "0.83.0",
-    "coremind-config": "0.2.0-beta.1",
-    "coremind-templates": "0.2.0-beta.1",
-    "coremind-tools": "0.2.0-beta.1"
+    "coremind-config": "0.2.0-beta.2",
+    "coremind-templates": "0.2.0-beta.2",
+    "coremind-tools": "0.2.0-beta.2"
   }
 }

@@ -18,6 +18,8 @@ coremind eval my-agent/coremind.yaml
 2. 运行 [模块示例](../../../examples/modules/operate-coremind-cli/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+5. 在长回答生成期间输入 `/abort`，确认回答停止且可以继续输入。
+6. 使用 `--session` 前设置 `session.enabled: true`；缺失时 CLI 必须明确失败，不能静默继续。
 
 ## 常见误区
 

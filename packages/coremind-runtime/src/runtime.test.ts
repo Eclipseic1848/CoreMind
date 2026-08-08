@@ -273,6 +273,37 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it("ask 模式全部工具请求被拒绝时返回暂停而不是成功", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-denied-"));
+    writeFileSync(path.join(dir, "notes.txt"), "审批拒绝测试", "utf8");
+    const server = createToolCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {
+          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "必须读取 notes.txt 才能完成任务",
+        approveTool: async () => "deny",
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
+      expect(result.trace.some((entry) => entry.event.type === "policy_denied")).toBe(true);
+      expect(result.releaseReadiness.ready).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it("总运行超时会中止单 Agent 并返回 run_timeout", async () => {
     const server = createServer((_request, response) => {
       setTimeout(() => {

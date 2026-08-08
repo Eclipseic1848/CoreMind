@@ -4,7 +4,7 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release: `0.2.0-beta.1`
+## Current release: `0.2.0-beta.2`
 
 The current public release provides:
 

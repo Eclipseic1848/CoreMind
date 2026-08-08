@@ -18,6 +18,8 @@ coremind eval my-agent/coremind.yaml
 2. Run the [module example](../../../examples/modules/operate-coremind-cli/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+5. Enter `/abort` during a long response and verify that generation stops and input remains usable.
+6. Set `session.enabled: true` before using `--session`; the CLI must fail clearly rather than continue silently when it is missing.
 
 ## Common mistakes
 

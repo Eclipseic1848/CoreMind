@@ -13,6 +13,8 @@ session:
   compact: false
 ```
 
+只有启用后才能使用 CLI 的 `--session <id>`。如果配置未启用，CLI 会明确失败并提示修正。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

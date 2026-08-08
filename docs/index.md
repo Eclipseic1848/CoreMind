@@ -33,4 +33,4 @@ features:
 
 ## 当前阶段
 
-CoreMind 当前公开版本为 `0.2.0-beta.1`，适合试用、评审和共同开发，尚不应被视为生产稳定版。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
+CoreMind 当前公开版本为 `0.2.0-beta.2`，适合试用、评审和共同开发。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。

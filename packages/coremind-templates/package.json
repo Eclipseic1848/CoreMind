@@ -1,6 +1,6 @@
 {
   "name": "coremind-templates",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.2",
   "description": "CoreMind 模板库：场景模板与元数据索引",
   "license": "MIT",
   "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-templates" },
@@ -30,6 +30,6 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "coremind-config": "0.2.0-beta.1"
+    "coremind-config": "0.2.0-beta.2"
   }
 }

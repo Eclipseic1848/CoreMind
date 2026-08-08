@@ -18,13 +18,13 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current public version is `0.2.0-beta.1`. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are complete. You are welcome to try it and contribute to the community.
+> The current public version is `0.2.0-beta.2`. This release fixes TUI abort handling, denied-tool outcome semantics, and Session configuration guidance. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are covered. You are welcome to try it and contribute to the community.
 
 [Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current version supports
 
-`0.2.0-beta.1` is the unified phase-one release candidate. All three entry paths share one runtime and one result model.
+`0.2.0-beta.2` is the unified phase-one release candidate. All three entry paths share one runtime and one result model.
 
 | Capability | Current support |
 |---|---|

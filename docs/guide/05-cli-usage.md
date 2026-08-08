@@ -223,12 +223,22 @@ coremind chat "D:\projects\my-agent\coremind.yaml"
 
 ### 断点续聊：这次聊完，下次接着聊
 
+先在 `coremind.yaml` 中启用会话：
+
+```yaml
+session:
+  enabled: true
+  dir: ./sessions
+```
+
+再传入会话 ID：
+
 ```powershell
 coremind chat coremind.yaml --session work-1     # 第一次：保存为 work-1
 coremind chat coremind.yaml --session work-1     # 第二次：自动恢复历史对话
 ```
 
-`run` 命令同样支持 `--session <id>`，跨命令共享会话历史。
+`run` 命令同样支持 `--session <id>`，跨命令共享会话历史。未设置 `session.enabled: true` 时，CLI 会明确失败并提示配置，不会静默忽略会话 ID。
 
 ## 6. run 意外中断恢复
 
