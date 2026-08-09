@@ -38,6 +38,24 @@ describe("覆盖率基线门禁", () => {
     expect(report.blockers.join("\n")).toContain("全仓 lines");
     expect(report.blockers.join("\n")).toContain("tool-policy.ts branches");
   });
+
+  it("按目标平台选择全仓基线，避免平台专属测试造成假回归", () => {
+    const platformBaseline = {
+      totals: { lines: 50, statements: 50, functions: 50, branches: 50 },
+      platforms: {
+        win32: { lines: 70, statements: 70, functions: 70, branches: 70 },
+        linux: { lines: 60, statements: 60, functions: 60, branches: 60 },
+      },
+      critical: {},
+      targets: { total: 80, criticalBranches: 90 },
+    };
+    const report = { total: coverage(65, 65, 65, 65) };
+
+    expect(evaluateCoverage(report, platformBaseline, "linux").ready).toBe(true);
+    expect(evaluateCoverage(report, platformBaseline, "win32").blockers).toContain(
+      "全仓 lines 65% 低于基线 70%",
+    );
+  });
 });
 
 function coverage(lines: number, statements: number, functions: number, branches: number) {

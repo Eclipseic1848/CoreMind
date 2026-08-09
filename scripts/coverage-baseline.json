@@ -1,12 +1,26 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "recordedAt": "2026-08-09",
   "command": "npm run test:coverage",
   "totals": {
     "lines": 72.54,
-    "statements": 70.51,
+    "statements": 70.48,
     "functions": 79.82,
-    "branches": 62.66
+    "branches": 62.21
+  },
+  "platforms": {
+    "win32": {
+      "lines": 72.54,
+      "statements": 70.51,
+      "functions": 79.82,
+      "branches": 62.66
+    },
+    "linux": {
+      "lines": 72.58,
+      "statements": 70.48,
+      "functions": 80.26,
+      "branches": 62.21
+    }
   },
   "critical": {
     "packages/coremind-runtime/src/tool-policy.ts": {

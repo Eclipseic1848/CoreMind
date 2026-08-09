@@ -5,14 +5,15 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const metrics = ["lines", "statements", "functions", "branches"];
 
-export function evaluateCoverage(summary, baseline) {
+export function evaluateCoverage(summary, baseline, platform = process.platform) {
   const blockers = [];
   const targetGaps = [];
   const total = summary.total;
   if (!total) return { ready: false, blockers: ["覆盖率报告缺少 total"], targetGaps };
+  const totalFloors = baseline.platforms?.[platform] ?? baseline.totals;
 
   for (const metric of metrics) {
-    compareFloor(`全仓 ${metric}`, total[metric]?.pct, baseline.totals?.[metric], blockers);
+    compareFloor(`全仓 ${metric}`, total[metric]?.pct, totalFloors?.[metric], blockers);
     if (Number(total[metric]?.pct) < Number(baseline.targets?.total)) {
       targetGaps.push(`全仓 ${metric} ${total[metric]?.pct}% < 目标 ${baseline.targets?.total}%`);
     }

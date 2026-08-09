@@ -728,15 +728,26 @@ describe("CoreMindRuntime", () => {
     try {
       const port = (server.address() as AddressInfo).port;
       const abortController = new AbortController();
+      let markLoopStarted: (() => void) | undefined;
+      const loopStarted = new Promise<void>((resolve) => {
+        markLoopStarted = resolve;
+      });
       const runtime = await CoreMindRuntime.create({
         config: loopConfig(port),
         configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-abort-")),
         initialPrompt: "修复缺陷",
         signal: abortController.signal,
+        events: (event) => {
+          if (event.type === "step_start" && event.stepId === "loop-execute") {
+            markLoopStarted?.();
+          }
+        },
       });
-      setTimeout(() => abortController.abort(), 10);
 
-      const result = await runtime.run();
+      const runPromise = runtime.run();
+      await loopStarted;
+      abortController.abort();
+      const result = await runPromise;
 
       expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
       expect(
