@@ -34,7 +34,7 @@ jobs:
       - name: 固定发布工具链
         run: |
           npm install --global npm@11.5.1
-          python -m pip install --disable-pip-version-check build==1.5.1 twine==7.0.0
+          python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
 
       - name: 构建并验证同提交发布物
         env:

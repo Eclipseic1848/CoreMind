@@ -15,8 +15,9 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 7. Let Release Please open a draft release PR, use `release:sync-version` for npm/Python parity, and update both release notes.
 8. After merge, run `release:bundle` only on one clean tag and validate every npm tarball, wheel, source ZIP, SHA-256, and attestation.
 9. Present the diff, platform results, provider result, and preflight, then approve protected OIDC environments before the unified release workflow.
-10. Review Dependabot updates to pinned Action SHAs and npm/Python dependencies. After downloading the bundle, verify `SHA256SUMS.txt` before attestation, registry, or Release work.
-10. Preserve traces, evaluations, artifact manifests, and owner approval; do not publish implicitly.
+10. Review Dependabot updates to pinned Action SHAs and npm/Python dependencies, and confirm pinned release tools have not been yanked by their official registries. Rerun workflow contracts and artifact gates after a tool-version change.
+11. After downloading the bundle, verify `SHA256SUMS.txt` before attestation, registry, or Release work.
+12. Preserve traces, evaluations, artifact manifests, and owner approval; do not publish implicitly.
 
 ## Stop conditions
 

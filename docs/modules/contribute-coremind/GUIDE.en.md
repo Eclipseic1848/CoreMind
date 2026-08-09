@@ -27,6 +27,7 @@ npm run release:preflight -- --allow-dirty
 6. Follow the [RC acceptance guide](../../release/RC-ACCEPTANCE.en.md) for both real TTY files and live-provider evidence. Artifacts must come from one clean tag.
 7. Release Please only prepares a draft PR. The unified workflow publishes npm, PyPI, attestations, and the GitHub Release only after protected OIDC environment approval.
 8. External Actions accept verified full SHAs only. Dependabot upgrade PRs rerun the same gates, and every artifact consumer independently verifies SHA-256.
+9. Before release, verify npm, Python build, and upload tools remain available and not yanked on their official registries. After a tool-version change, rerun workflow contracts, the wheel gate, and the complete artifact gates.
 
 ## Common mistakes
 

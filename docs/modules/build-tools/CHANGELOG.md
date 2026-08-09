@@ -5,6 +5,7 @@
 - Added a bounded `ProcessRunner`, read-only `GitAdapter`, and bounded unified diff helpers.
 - Added Windows shell selection and fail-closed permission combinations without weakening Linux isolation.
 - Added timeout, cancellation, output, environment, path, link, and complexity tests.
+- Made caller-supplied host-shell environments authoritative and added deterministic Git Bash, PowerShell fallback, minimal-environment, and execution-context isolation coverage.
 
 ## Unreleased
 

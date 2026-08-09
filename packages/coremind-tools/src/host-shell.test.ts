@@ -37,15 +37,42 @@ describe("宿主 Shell", () => {
     expect(shell.input?.("Write-Output ok")).toContain("Write-Output ok");
   });
 
+  it("Windows 兼容 Path 键并从标准安装根目录寻找 Git Bash", () => {
+    const localAppData = "C:\\Users\\tester\\AppData\\Local";
+    const gitBash = path.win32.join(localAppData, "Programs", "Git", "bin", "bash.exe");
+    const shell = resolveWindowsShell(
+      {
+        Path: ["", '"C:\\Tools"', ""].join(path.win32.delimiter),
+        ProgramW6432: "C:\\Program Files",
+        ProgramFiles: "C:\\Program Files",
+        LOCALAPPDATA: localAppData,
+      },
+      (candidate) => candidate === gitBash,
+    );
+
+    expect(shell.command).toBe(gitBash);
+  });
+
+  it("Windows 空环境明确回退 PowerShell", () => {
+    expect(resolveWindowsShell({}, () => false).command).toBe("powershell.exe");
+  });
+
+  it("未显式提供环境时仍能构造顺序执行工具", () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-host-shell-default-"));
+
+    expect(createHostBashTool({ cwd }).executionMode).toBe("sequential");
+  });
+
   it("通过统一 ProcessRunner 执行命令", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-host-shell-"));
-    const tool = createHostBashTool({ cwd });
+    const env = process.platform === "win32" ? windowsPowerShellEnvironment() : undefined;
+    const tool = createHostBashTool({ cwd, env });
+    const command =
+      process.platform === "win32"
+        ? `& '${process.execPath.replaceAll("'", "''")}' -e "process.stdout.write('host-ok')"`
+        : `"${process.execPath.replaceAll('"', '\\"')}" -e "process.stdout.write('host-ok')"`;
 
-    const result = await tool.execute(
-      "host-shell",
-      { command: "node -e \"process.stdout.write('host-ok')\"", timeout: 10 },
-      undefined,
-    );
+    const result = await tool.execute("host-shell", { command, timeout: 10 }, undefined);
 
     expect(result.content[0]).toMatchObject({
       type: "text",
@@ -53,3 +80,20 @@ describe("宿主 Shell", () => {
     });
   });
 });
+
+function windowsPowerShellEnvironment(): NodeJS.ProcessEnv {
+  const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
+  const searchPath = [
+    path.win32.join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+    path.win32.join(systemRoot, "System32"),
+  ].join(path.win32.delimiter);
+  return {
+    PATH: searchPath,
+    SystemRoot: systemRoot,
+    WINDIR: process.env.WINDIR ?? systemRoot,
+    COMSPEC: process.env.COMSPEC ?? path.win32.join(systemRoot, "System32", "cmd.exe"),
+    PATHEXT: process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD",
+    TEMP: process.env.TEMP,
+    TMP: process.env.TMP,
+  };
+}

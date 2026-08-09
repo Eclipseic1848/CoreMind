@@ -15,8 +15,9 @@
 7. 由 Release Please 创建草稿发布 PR，使用 `release:sync-version` 同步 npm/Python 版本并更新双语发布说明。
 8. 合并后只在同一干净 Tag 上执行 `release:bundle`，验证每个 npm tarball、wheel、源码 ZIP、SHA-256 和来源证明。
 9. 展示 diff、双平台结果、Provider 结果与发布预检，确认受保护 OIDC 环境后再执行统一发布工作流。
-10. 审核 Dependabot 对 Action 完整 SHA 与 npm/Python 依赖的更新；下载发布物后先校验 `SHA256SUMS.txt`，再进入证明、Registry 或 Release 步骤。
-10. 保存 Trace、评测、产物清单和人工确认记录；未经明确授权不发布。
+10. 审核 Dependabot 对 Action 完整 SHA 与 npm/Python 依赖的更新；确认锁定的发布工具未被官方 Registry 撤回。工具版本变化后重跑工作流合同和发布物门禁。
+11. 下载发布物后先校验 `SHA256SUMS.txt`，再进入证明、Registry 或 Release 步骤。
+12. 保存 Trace、评测、产物清单和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

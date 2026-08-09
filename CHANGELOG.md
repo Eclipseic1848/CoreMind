@@ -28,8 +28,8 @@
 - 工具调用新增 `started`、`committed`、`unknown` Effect Receipt。恢复时完整步骤和已提交副作用不重复执行，未知副作用转人工核对。
 - Context 压缩失败新增 `context_compaction_failed` 事件；确定性摘要必须保留目标、约束、权限、已修改文件、测试状态和下一步。
 - 新增双语“验证修复 Loop”黄金示例，确定性覆盖首次验证失败、修复后通过、暂停恢复和耗尽失败；黄金示例总数增加到 5 个。
-- 当前 Windows 候选覆盖率提升到 lines 72.67%、statements 70.63%、functions 79.97%、branches 62.93%；ToolPolicy 分支 86.23%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%。
-- 新增 `ProcessRunner`：使用命令与参数数组执行跨平台子进程，支持流式输出、超时、中止、输出上限和受控环境变量；显式环境不会重新合并宿主密钥。
+- 当前 Windows 候选覆盖率提升到 lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；ToolPolicy 分支 86.23%、Host Shell 分支 70.58%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%。
+- 新增 `ProcessRunner`：使用命令与参数数组执行跨平台子进程，支持流式输出、超时、中止、输出上限和受控环境变量；显式环境不会重新合并宿主密钥。宿主 Shell 现在也以调用方显式提供的最小环境为权威，不再被工具执行上下文中的环境覆盖。
 - 新增只读 `GitAdapter` 的 status/diff/log 工具，以及带输入、输出、复杂度和路径上限的统一 Diff；不开放任意 Git 子命令或仓库写操作。
 - Windows 宿主 Shell 选择会排除不可用的系统转发器，优先发现真实 Git Bash，并保留 full、工作区与网络三项同时开放才可执行的策略。
 - 评测 schemaVersion 2 新增 outcome、trajectory、command、file、diff、state、response 七类 grader；既有脏工作区、受保护文件、允许修改路径和最终测试可共同进入发布证据。
@@ -38,9 +38,11 @@
 - 能力模块增加到 17 个，新增编码智能体双语 README、SOP、指南、Skill 和示例。
 - Release Candidate 版本同步器会统一根清单、8 个 npm 包、内部精确依赖、锁文件与 Python PEP 440 版本；当前候选为 npm `0.2.0-rc.1` / Python `0.2.0rc1`。
 - Release Please 只生成草稿发布 PR；统一发布工作流从一个干净 Tag 构建一次 npm tarball、wheel 与独立源码 ZIP，经受保护 OIDC 环境发布 npm/PyPI，并生成 SHA-256 清单和 GitHub 构建来源证明。
+- Python 发布工具链使用当前可用且未撤回的 `build==1.5.0`；工作流合同拒绝已撤回版本，工具版本变化后必须重跑 wheel 与发布物门禁。
 - GitHub Actions 全部固定到已核对的完整提交 SHA，由 Dependabot 每周维护 Action、npm 与 Python 依赖；每个下载发布物的作业都在使用前独立校验 SHA-256。
 - 新增 P01～P20 RC 验收矩阵：P01～P19 必须同时通过完整套件与逐 Case 测试锚点，P20 的 Windows/Linux 真实 TTY 证据必须绑定相同版本和提交。
 - 新增全仓 Markdown 审计，检查 350 余个项目文档的严格 UTF-8、本地链接和文档标识边界；依赖、缓存与构建产物明确排除。
+- 本地 `.scratch` 继续用于验收证据和隔离工具环境，并同时排除在 Git、静态检查和发布物之外，避免第三方临时文件污染仓库门禁。
 - Trace 与 RunState 持久化前隐藏凭据字段、正文、命令敏感参数和 URL 密钥，同时保留路径与非敏感测试命令供审计和轨迹 grader 使用。
 - Agent 工具循环新增连续两次工具调用结果均回灌后再结束的回归测试，避免用单次工具调用代替 P02 多工具证据。
 

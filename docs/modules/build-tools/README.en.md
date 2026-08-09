@@ -25,7 +25,7 @@ Connect deterministic business actions through built-in tools, script tools, or 
 - `effect.operations` may combine `read`, `write`, `process`, `network`, and `external`; `reversible` must reflect reality
 - Custom tools must not reuse built-in names such as `read`, `write`, or `bash`, which would make permission semantics ambiguous
 - Linux bash fails closed when sandbox initialization fails and never falls back to the host shell
-- `ProcessRunner` avoids shell concatenation, bounds UTF-8 output and execution time, and controls environment variables. An explicit environment is never re-merged with the host environment
+- `ProcessRunner` avoids shell concatenation, bounds UTF-8 output and execution time, and controls environment variables. A caller-supplied `env` is authoritative: it is neither re-merged with the host environment nor replaced by the tool execution context
 - `GitAdapter` exposes fixed read-only status/diff/log operations without arbitrary subcommands, mutations, or path escape
 - Unified diff limits input, output, and computational complexity to prevent oversized files from exhausting the process
 - The Windows host shell opens only with full mode, disabled workspace restriction, and allowed network. This is an explicit risk choice, not an isolation claim
@@ -43,6 +43,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-tools/src/registry.test.ts](../../../packages/coremind-tools/src/registry.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
 - [packages/coremind-tools/src/process-runner.test.ts](../../../packages/coremind-tools/src/process-runner.test.ts)
+- [packages/coremind-tools/src/host-shell.test.ts](../../../packages/coremind-tools/src/host-shell.test.ts)
 - [packages/coremind-tools/src/git-adapter.test.ts](../../../packages/coremind-tools/src/git-adapter.test.ts)
 - [packages/coremind-tools/src/unified-diff.test.ts](../../../packages/coremind-tools/src/unified-diff.test.ts)
 - [packages/coremind-runtime/src/public-tool.test.ts](../../../packages/coremind-runtime/src/public-tool.test.ts)

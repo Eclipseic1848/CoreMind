@@ -28,8 +28,8 @@ This file records user-facing changes. Versions follow Semantic Versioning; beta
 - Tool calls now record `started`, `committed`, or `unknown` effect receipts. Resume does not replay completed steps or committed effects, while unknown effects require human reconciliation.
 - Context compaction failures emit `context_compaction_failed`. Deterministic summaries preserve goals, constraints, permissions, modified files, test status, and next steps.
 - Added the bilingual Verified Repair Loop golden example with deterministic first-failure, repaired-success, pause-resume, and exhaustion paths, bringing the total to five golden examples.
-- The current Windows candidate reaches 72.67% lines, 70.63% statements, 79.97% functions, and 62.93% branches. ToolPolicy branches are 86.23%, LoopController branches are 100%, LoopRunner branches are 92.4%, and Checkpoint branches are 75.4%.
-- Added `ProcessRunner` for cross-platform command-plus-argument execution with streaming output, timeout, cancellation, output limits, and controlled environment variables. Explicit environments are never re-merged with host secrets.
+- The current Windows candidate reaches 72.71% lines, 70.66% statements, 80.11% functions, and 63.11% branches. ToolPolicy branches are 86.23%, Host Shell branches are 70.58%, LoopController branches are 100%, LoopRunner branches are 92.4%, and Checkpoint branches are 75.4%.
+- Added `ProcessRunner` for cross-platform command-plus-argument execution with streaming output, timeout, cancellation, output limits, and controlled environment variables. Explicit environments are never re-merged with host secrets. Host-shell execution now also treats the caller-supplied minimal environment as authoritative instead of allowing the tool execution context to replace it.
 - Added read-only `GitAdapter` status/diff/log tools and unified diffs with input, output, complexity, and path limits. Arbitrary Git subcommands and repository mutations are intentionally unavailable.
 - Windows host-shell selection now excludes unusable system relays, discovers a real Git Bash installation when available, and retains the policy that full mode, open workspace access, and allowed network must all be selected.
 - Evaluation schemaVersion 2 adds outcome, trajectory, command, file, diff, state, and response graders. Dirty-worktree preservation, protected files, allowed paths, and final tests can now contribute to release evidence.
@@ -38,9 +38,11 @@ This file records user-facing changes. Versions follow Semantic Versioning; beta
 - Increased the capability-module catalog to 17 with a bilingual Coding Agent README, SOP, guide, Skill, and examples.
 - The release-candidate version synchronizer aligns the root manifest, eight npm packages, exact internal dependencies, lockfile, and Python PEP 440 metadata. The current candidate is npm `0.2.0-rc.1` / Python `0.2.0rc1`.
 - Release Please prepares a draft release PR only. A unified workflow builds npm tarballs, the wheel, and an independent source ZIP once from a clean tag, publishes npm/PyPI through protected OIDC environments, and creates SHA-256 plus GitHub build attestations.
+- The Python release toolchain uses the available, non-yanked `build==1.5.0`. Workflow contracts reject the withdrawn version, and every tool-version change must rerun wheel and artifact gates.
 - Every GitHub Action is pinned to a verified full commit SHA and maintained weekly by Dependabot together with npm and Python dependencies. Every artifact-consuming job independently verifies SHA-256 before use.
 - Added a P01-P20 RC matrix. P01-P19 require both broad suites and per-case test anchors, while P20's real Windows/Linux TTY evidence must bind to the same version and commit.
 - Added repository-wide Markdown auditing for strict UTF-8, local links, and the documentation identifier boundary across more than 350 project files while explicitly excluding dependencies, caches, and build outputs.
+- Local `.scratch` remains reserved for acceptance evidence and isolated tool environments and is excluded from Git, static checks, and artifacts so third-party temporary files cannot contaminate repository gates.
 - Credential fields, bodies, command secrets, and URL secrets are redacted before Trace and RunState persistence while paths and non-sensitive test commands remain available to audit and trajectory graders.
 - Added a regression test that requires two consecutive tool-call results to feed back before the agent can finish, so P02 is no longer represented by a single tool call.
 

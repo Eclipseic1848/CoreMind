@@ -39,7 +39,7 @@ const patch = await git.diff();
 const preview = await diffFiles("src/before.ts", "src/after.ts");
 ```
 
-`ProcessRunner` takes a command and argument array rather than a concatenated string for shell interpretation. When explicit environment variables are needed, pass only the keys required by the task and do not copy secrets into child processes by default. `GitAdapter` reads evidence and intentionally omits checkout, add, commit, reset, clean, and push. Unified diff is limited to bounded text files and fails explicitly when limits are exceeded.
+`ProcessRunner` takes a command and argument array rather than a concatenated string for shell interpretation. When explicit environment variables are needed, pass only the keys required by the task. That `env` is authoritative: it is not merged with the host environment or replaced by the tool execution context. Do not copy secrets into child processes by default. `GitAdapter` reads evidence and intentionally omits checkout, add, commit, reset, clean, and push. Unified diff is limited to bounded text files and fails explicitly when limits are exceeded.
 
 ## Verification
 
@@ -49,6 +49,7 @@ const preview = await diffFiles("src/before.ts", "src/after.ts");
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. Test nested path escape, network denial, repeated calls, and tool exceptions; confirm policy blocks before execution.
 6. Test process timeout, cancellation, output limits, missing executables, Git link escape, and oversized diffs.
+7. On Windows, cover Git Bash, the PowerShell fallback, and an explicit minimal environment; confirm the execution context cannot override the caller-supplied `env`.
 
 ## Common mistakes
 

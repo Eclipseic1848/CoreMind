@@ -450005,16 +450005,17 @@ var CONFIG_COMMAND_USAGE = `${APP_NAME} config [-l] [--approve|--no-approve]`;
 
 // packages/coremind-tools/dist/host-shell.js
 function createHostBashTool(options) {
+  const env4 = options.env ?? process.env;
   const operations = {
     exec: async (command, cwd, execution) => {
-      const shell = process.platform === "win32" ? resolveWindowsShell(execution.env ?? options.env ?? process.env) : posixShell();
+      const shell = process.platform === "win32" ? resolveWindowsShell(env4) : posixShell();
       try {
         const result = await new ProcessRunner().run({
           command: shell.command,
           args: shell.args(command),
           input: shell.input?.(command),
           cwd,
-          env: execution.env ?? options.env,
+          env: env4,
           signal: execution.signal,
           timeoutMs: execution.timeout === void 0 ? void 0 : execution.timeout * 1e3,
           onData: execution.onData

@@ -17,19 +17,17 @@ interface ShellInvocation {
 
 /** 非 Linux 宿主命令统一走 ProcessRunner；权限层仍在执行前决定是否允许。 */
 export function createHostBashTool(options: HostBashOptions): AgentTool {
+  const env = options.env ?? process.env;
   const operations: BashOperations = {
     exec: async (command, cwd, execution) => {
-      const shell =
-        process.platform === "win32"
-          ? resolveWindowsShell(execution.env ?? options.env ?? process.env)
-          : posixShell();
+      const shell = process.platform === "win32" ? resolveWindowsShell(env) : posixShell();
       try {
         const result = await new ProcessRunner().run({
           command: shell.command,
           args: shell.args(command),
           input: shell.input?.(command),
           cwd,
-          env: execution.env ?? options.env,
+          env,
           signal: execution.signal,
           timeoutMs: execution.timeout === undefined ? undefined : execution.timeout * 1_000,
           onData: execution.onData,

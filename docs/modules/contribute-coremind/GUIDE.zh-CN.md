@@ -27,6 +27,7 @@ npm run release:preflight -- --allow-dirty
 6. 按 [RC 验收指南](../../release/RC-ACCEPTANCE.zh-CN.md)保存双平台真实 TTY 与真实 Provider 证据；发布物必须来自同一干净 Tag。
 7. Release Please 只准备草稿发布 PR；OIDC 受保护环境批准后，统一工作流才发布 npm、PyPI、来源证明和 GitHub Release。
 8. 外部 Action 只接受已核对的完整 SHA；Dependabot 升级 PR 必须重跑同一组门禁。每个发布物作业在使用前独立校验 SHA-256。
+9. 发布前核对 npm、Python 构建与上传工具仍可从官方 Registry 获取且未被撤回；工具版本变化后重跑工作流合同、wheel 和完整发布物门禁。
 
 ## 常见误区
 

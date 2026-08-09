@@ -10,7 +10,7 @@ description: "Connect deterministic business actions through built-in tools, scr
 3. Follow [the SOP](../../docs/modules/build-tools/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Require every custom tool to declare `effect.operations` and `effect.reversible`, reject built-in-name collisions, and test nested path and URL arguments against workspace and network policy before trusting the tool.
-6. Run subprocesses with a command plus argument array, explicit timeout/output limits, cancellation, and the smallest environment. Never reintroduce host secrets through environment merging.
+6. Run subprocesses with a command plus argument array, explicit timeout/output limits, cancellation, and the smallest environment. Treat a caller-supplied `env` as authoritative; never reintroduce host secrets through merging or let the execution context replace it.
 7. Keep Git adapters read-only and bounded. Reject arbitrary subcommands, mutations, workspace escape, and unsafe links. Bound diff input, output, and complexity.
 8. Inspect RunOutcome, Trace, budgets, approvals, checkpoints, and diffs. Treat a fluent answer without evidence as unverified.
 9. Run the tests listed in [module.yaml](../../docs/modules/build-tools/module.yaml) and `npm run check:modules`.

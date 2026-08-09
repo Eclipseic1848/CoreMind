@@ -31,11 +31,13 @@ Change CoreMind source within its one-way dependencies, test-first workflow, bil
 - Dependencies must remain config to tools to templates to runtime to facade/CLI/worker
 - Never push, tag, or publish without authorization
 - Preserve unrelated user changes
+- `.scratch` is reserved for ignored local acceptance evidence and isolated tool environments; it is excluded from Git, static checks, and artifacts.
 - Provider discovery is not certification; releases require live evidence
 - One passing test run does not replace three consecutive Windows/Linux runs. Record an honest coverage baseline below target and allow it only to increase.
 - Release artifacts must pass file allowlists, type resolution, clean installation, and bundled Worker startup.
 - Release Please creates a draft release PR only; maintainers still approve tags and publication.
 - External Actions use full commit SHAs and Dependabot proposes reviewable upgrades.
+- npm, Python build, and upload tools use explicit versions. If a registry yanks one, the RC must move to a verified non-yanked version and rerun artifact gates.
 - npm/PyPI trusted-publishing identity binds the workflow filename and protected environment; any mismatch stops publication.
 - Artifacts must come from one clean tag with SHA-256, a manifest, and build attestation.
 

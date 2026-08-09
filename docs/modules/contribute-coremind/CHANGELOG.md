@@ -6,6 +6,8 @@
 - Added a P01-P20 RC matrix with test-evidence anchors and version/commit-bound Windows/Linux TTY evidence.
 - Added repository-wide Markdown auditing, trusted npm/PyPI publishing, one-build artifact reuse, SHA-256 manifests, and GitHub build attestations.
 - Pinned all external Actions to verified full commit SHAs, added weekly Dependabot maintenance, and required checksum verification in every artifact-consuming job.
+- Replaced a yanked Python build-tool release with verified `build==1.5.0` and added workflow contracts that reject the withdrawn version.
+- Aligned static-analysis scope with the existing `.scratch` Git boundary so isolated release-tool environments cannot contaminate repository lint results.
 
 ## Unreleased - Batch 6B
 

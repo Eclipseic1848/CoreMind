@@ -5,6 +5,7 @@
       "**",
       "!**/dist",
       "!**/node_modules",
+      "!.scratch",
       "!docs/.vitepress/.temp",
       "!docs/.vitepress/cache",
       "!docs/.vitepress/dist",

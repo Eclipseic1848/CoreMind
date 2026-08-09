@@ -42,6 +42,8 @@ describe("GitHub Actions 收口合同", () => {
     expect(commands).toContain("npm run release:test-npm");
     expect(commands).toContain("npm run release:test-source");
     expect(commands).toContain("npm run acceptance:rc");
+    expect(commands).toContain("build==1.5.0");
+    expect(commands).not.toContain("build==1.5.1");
   });
 
   it("Release Please 只创建草稿版本 PR，不自动打标签或发布", () => {
@@ -84,6 +86,8 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs.release.needs).toEqual(expect.arrayContaining(["npm", "pypi", "attest"]));
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
+    expect(serialized).toContain("build==1.5.0");
+    expect(serialized).not.toContain("build==1.5.1");
     for (const jobName of ["attest", "npm", "pypi", "release"]) {
       const commands = workflow.jobs[jobName].steps
         .map((step: { run?: string }) => step.run ?? "")

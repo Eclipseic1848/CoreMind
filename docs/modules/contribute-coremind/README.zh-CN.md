@@ -31,11 +31,13 @@
 - 依赖方向必须保持 config → tools → templates → runtime → facade/CLI/worker
 - 不得未经授权 push、tag 或发布
 - 不相关用户修改必须保留
+- `.scratch` 只保存忽略的本地验收证据与隔离工具环境，不进入 Git、静态检查或发布物
 - 供应商可发现不等于已认证，正式发布必须有真实证据
 - 单次测试通过不能替代 Windows/Linux 三连跑；覆盖率低于目标时必须记录真实基线且只允许上升
 - 发布物必须通过文件 allowlist、类型解析、干净安装和内置 Worker 启动验证
 - Release Please 只创建草稿发布 PR；Tag 与正式发布仍由维护者批准
 - 外部 Action 固定完整提交 SHA，交由 Dependabot 提出可审查的升级 PR
+- npm、Python 构建与上传工具锁定明确版本；若版本被 Registry 撤回，RC 必须升级到已验证的非撤回版本并重跑发布物门禁
 - npm/PyPI 可信发布身份绑定工作流文件和受保护环境，任一身份不匹配都停止发布
 - 发布物必须来自同一干净 Tag，并保存 SHA-256、产物清单和构建来源证明
 

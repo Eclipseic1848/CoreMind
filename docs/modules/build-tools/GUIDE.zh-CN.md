@@ -39,7 +39,7 @@ const patch = await git.diff();
 const preview = await diffFiles("src/before.ts", "src/after.ts");
 ```
 
-`ProcessRunner` 接受命令与参数数组，不接受一段待 Shell 解释的拼接字符串。需要显式传递环境变量时，只传任务所需键值；默认不应把密钥复制给子进程。`GitAdapter` 是证据读取器，不提供 checkout、add、commit、reset、clean 或 push。统一 Diff 只适合受限大小的文本文件，超限会明确失败。
+`ProcessRunner` 接受命令与参数数组，不接受一段待 Shell 解释的拼接字符串。需要显式传递环境变量时，只传任务所需键值；该 `env` 会作为权威环境使用，不会再与宿主环境合并，也不会被工具执行上下文覆盖。默认不应把密钥复制给子进程。`GitAdapter` 是证据读取器，不提供 checkout、add、commit、reset、clean 或 push。统一 Diff 只适合受限大小的文本文件，超限会明确失败。
 
 ## 验证
 
@@ -49,6 +49,7 @@ const preview = await diffFiles("src/before.ts", "src/after.ts");
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
 5. 分别测试嵌套路径越界、网络拒绝、重复调用和工具异常；确认策略在执行前阻断。
 6. 分别测试进程超时、中止、输出上限、缺失命令、Git 链接逃逸和超大 Diff。
+7. 在 Windows 同时覆盖 Git Bash、PowerShell 回退和显式最小环境；确认运行上下文不能覆盖调用方提供的 `env`。
 
 ## 常见误区
 
