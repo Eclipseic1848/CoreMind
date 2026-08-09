@@ -9,7 +9,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 1. Read the handoff and authoritative plan first.
 2. Write a failing test before the smallest implementation.
 3. Synchronize module contracts and bilingual docs.
-4. Run focused tests, then `npm run test:stability` and `npm run test:coverage`; coverage may not fall below the recorded baseline.
+4. Run focused tests, then `npm run test:stability` and `npm run test:coverage`. Windows/Linux coverage may not fall below their recorded floors, and the generic fallback may not be weaker than their per-metric minimum.
 5. Run `docs:audit` across all project Markdown for strict UTF-8, local links, and the documentation identifier boundary.
 6. Run `acceptance:rc`, require P01-P19 to bind to real tests, and complete both real TTY files plus a live provider under the RC guide.
 7. Let Release Please open a draft release PR, use `release:sync-version` for npm/Python parity, and update both release notes.

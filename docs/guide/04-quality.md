@@ -217,7 +217,7 @@ npm run acceptance:rc
 npm run docs:audit
 ```
 
-`test:stability` 连续运行三次全量测试，任何一轮失败立即阻断。`test:coverage` 使用 V8 记录全仓和关键 Runtime 文件的真实覆盖率。Windows 与 Linux 会运行不同的平台安全测试，因此分别锁定全仓不下降基线：Windows 为 lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；Linux 当前底线为 lines 72.58%、statements 70.48%、functions 80.26%、branches 62.21%，并由目标平台 CI 复核。关键 Runtime 文件继续使用跨平台共同底线，其中 ToolPolicy 分支底线为 86.23%。Windows Shell 能力探测使用注入式确定性用例，集成测试显式传入最小环境，属性测试固定随机种子，并以独立回归覆盖关键权限分支，避免机器环境和随机样本造成覆盖率漂移。当前仍低于全仓 80% 与关键分支 90% 长期目标，因此门禁持续报告差距，不把基线写成目标已达成。
+`test:stability` 连续运行三次全量测试，任何一轮失败立即阻断。`test:coverage` 使用 V8 记录全仓和关键 Runtime 文件的真实覆盖率。Windows 与 Linux 会运行不同的平台安全测试，因此分别锁定全仓不下降基线：Windows 为 lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；Linux 为 lines 73.26%、statements 71.19%、functions 81.00%、branches 63.23%，均来自候选提交 `f6ba774` 的目标平台 CI。通用回退基线取两种正式平台的逐项最小值，不能比任一正式平台更宽松。关键 Runtime 文件继续使用跨平台共同底线，其中 ToolPolicy 分支底线为 86.23%。Windows Shell 能力探测使用注入式确定性用例，集成测试显式传入最小环境，属性测试固定随机种子，并以独立回归覆盖关键权限分支，避免机器环境和随机样本造成覆盖率漂移。当前仍低于全仓 80% 与关键分支 90% 长期目标，因此门禁持续报告差距，不把基线写成目标已达成。
 
 npm 门禁逐包执行实际 `npm pack`，拒绝测试、内部计划、运行状态、checkpoint、临时文件和凭据进入 tarball，再用 publint、类型解析和全新项目安装验证公共入口。源码 ZIP 门禁使用临时 Git 索引生成当前候选快照，不改变真实暂存区；跨平台 ZIP 解码器在解压前检查文件清单并拒绝路径穿越，随后在干净目录执行安装、构建、合同检查和 CLI 启动。wheel 门禁检查内容与元数据，安装到全新虚拟环境，并实际启动内置 Worker。
 

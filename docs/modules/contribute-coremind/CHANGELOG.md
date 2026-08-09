@@ -8,6 +8,7 @@
 - Pinned all external Actions to verified full commit SHAs, added weekly Dependabot maintenance, and required checksum verification in every artifact-consuming job.
 - Replaced a yanked Python build-tool release with verified `build==1.5.0` and added workflow contracts that reject the withdrawn version.
 - Aligned static-analysis scope with the existing `.scratch` Git boundary so isolated release-tool environments cannot contaminate repository lint results.
+- Tightened the Linux coverage floor to the target-platform CI measurement and required the generic fallback to equal the per-metric minimum of the Windows and Linux floors.
 
 ## Unreleased - Batch 6B
 

@@ -33,7 +33,7 @@ Change CoreMind source within its one-way dependencies, test-first workflow, bil
 - Preserve unrelated user changes
 - `.scratch` is reserved for ignored local acceptance evidence and isolated tool environments; it is excluded from Git, static checks, and artifacts.
 - Provider discovery is not certification; releases require live evidence
-- One passing test run does not replace three consecutive Windows/Linux runs. Record an honest coverage baseline below target and allow it only to increase.
+- One passing test run does not replace three consecutive Windows/Linux runs. Record honest per-platform coverage floors below target, allow them only to increase, and set the generic fallback to their per-metric minimum.
 - Release artifacts must pass file allowlists, type resolution, clean installation, and bundled Worker startup.
 - Release Please creates a draft release PR only; maintainers still approve tags and publication.
 - External Actions use full commit SHAs and Dependabot proposes reviewable upgrades.

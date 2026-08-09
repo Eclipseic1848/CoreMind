@@ -23,7 +23,7 @@ npm run release:preflight -- --allow-dirty
 2. Run the [module example](../../../examples/modules/contribute-coremind/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
-5. A formal candidate needs three consecutive runs on both Windows and Linux. Keep missing platform evidence pending instead of substituting another platform.
+5. A formal candidate needs three consecutive runs on both Windows and Linux. Keep missing platform evidence pending instead of substituting another platform. Coverage floors use target-platform measurements, and the generic fallback equals their per-metric minimum.
 6. Follow the [RC acceptance guide](../../release/RC-ACCEPTANCE.en.md) for both real TTY files and live-provider evidence. Artifacts must come from one clean tag.
 7. Release Please only prepares a draft PR. The unified workflow publishes npm, PyPI, attestations, and the GitHub Release only after protected OIDC environment approval.
 8. External Actions accept verified full SHAs only. Dependabot upgrade PRs rerun the same gates, and every artifact consumer independently verifies SHA-256.

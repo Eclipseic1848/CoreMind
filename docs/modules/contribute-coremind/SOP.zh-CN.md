@@ -9,7 +9,7 @@
 1. 先读 handoff 和权威方案。
 2. 写失败测试再做最小实现。
 3. 同步模块合同与双语文档。
-4. 先跑聚焦测试，再执行 `npm run test:stability` 和 `npm run test:coverage`；覆盖率不得低于已记录基线。
+4. 先跑聚焦测试，再执行 `npm run test:stability` 和 `npm run test:coverage`；Windows/Linux 覆盖率不得低于各自已记录基线，通用回退不得低于两平台的逐项最小值。
 5. 运行 `docs:audit`，检查全部项目 Markdown 的严格 UTF-8、本地链接与文档标识边界。
 6. 运行 `acceptance:rc`，确认 P01～P19 逐 Case 绑定到实际测试；按 RC 指南完成双平台真实 TTY 与真实 Provider。
 7. 由 Release Please 创建草稿发布 PR，使用 `release:sync-version` 同步 npm/Python 版本并更新双语发布说明。

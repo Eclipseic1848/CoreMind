@@ -28,7 +28,7 @@
 - 工具调用新增 `started`、`committed`、`unknown` Effect Receipt。恢复时完整步骤和已提交副作用不重复执行，未知副作用转人工核对。
 - Context 压缩失败新增 `context_compaction_failed` 事件；确定性摘要必须保留目标、约束、权限、已修改文件、测试状态和下一步。
 - 新增双语“验证修复 Loop”黄金示例，确定性覆盖首次验证失败、修复后通过、暂停恢复和耗尽失败；黄金示例总数增加到 5 个。
-- 当前 Windows 候选覆盖率提升到 lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；ToolPolicy 分支 86.23%、Host Shell 分支 70.58%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%。
+- 当前候选覆盖率：Windows lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；Linux lines 73.26%、statements 71.19%、functions 81.00%、branches 63.23%。ToolPolicy 分支 86.23%、Host Shell 分支 70.58%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%；通用回退基线取两种正式平台的逐项最小值。
 - 新增 `ProcessRunner`：使用命令与参数数组执行跨平台子进程，支持流式输出、超时、中止、输出上限和受控环境变量；显式环境不会重新合并宿主密钥。宿主 Shell 现在也以调用方显式提供的最小环境为权威，不再被工具执行上下文中的环境覆盖。
 - 新增只读 `GitAdapter` 的 status/diff/log 工具，以及带输入、输出、复杂度和路径上限的统一 Diff；不开放任意 Git 子命令或仓库写操作。
 - Windows 宿主 Shell 选择会排除不可用的系统转发器，优先发现真实 Git Bash，并保留 full、工作区与网络三项同时开放才可执行的策略。

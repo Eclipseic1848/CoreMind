@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { evaluateCoverage } from "./check-coverage.mjs";
 
@@ -55,6 +56,22 @@ describe("覆盖率基线门禁", () => {
     expect(evaluateCoverage(report, platformBaseline, "win32").blockers).toContain(
       "全仓 lines 65% 低于基线 70%",
     );
+  });
+
+  it("通用回退基线等于正式平台当前基线的逐项最小值", () => {
+    const repositoryBaseline = JSON.parse(
+      readFileSync("scripts/coverage-baseline.json", "utf8"),
+    ) as {
+      totals: Record<string, number>;
+      platforms: Record<string, Record<string, number>>;
+    };
+
+    for (const metric of ["lines", "statements", "functions", "branches"]) {
+      const supportedValues = ["win32", "linux"].map(
+        (platform) => repositoryBaseline.platforms[platform][metric],
+      );
+      expect(repositoryBaseline.totals[metric]).toBe(Math.min(...supportedValues));
+    }
   });
 });
 
