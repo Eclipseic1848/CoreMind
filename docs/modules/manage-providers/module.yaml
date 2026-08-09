@@ -3,7 +3,7 @@ id: manage-providers
 name:
   zh-CN: "Provider 与模型"
   en: "Providers and Models"
-version: 0.1.0-alpha.2
+version: 0.2.0-rc.1
 sourcePaths:
   - "packages/coremind-runtime/src/provider.ts"
 documents:
@@ -29,4 +29,4 @@ supportedPlatforms:
   - "linux"
 dependencies:
   - "configure-coremind"
-maturity: implemented-alpha
+maturity: release-candidate

@@ -3,7 +3,7 @@ id: configure-coremind
 name:
   zh-CN: "配置与 Schema"
   en: "Configuration and Schema"
-version: 0.1.0-alpha.2
+version: 0.2.0-rc.1
 sourcePaths:
   - "packages/coremind-config/src"
 documents:
@@ -29,4 +29,4 @@ supportedPlatforms:
   - "linux"
 dependencies:
   []
-maturity: implemented-alpha
+maturity: release-candidate

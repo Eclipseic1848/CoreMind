@@ -1,6 +1,6 @@
 # Coding Agents
 
-Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -29,7 +29,7 @@ This module does not introduce a second runtime. CLI, TypeScript SDK, Python SDK
 
 - One real TypeScript defect repository and one real Python defect repository pass deterministic offline evaluation.
 - Both language cases must observe the initial failure, make a minimal edit, and pass target and full regression tests.
-- The live-model matrix ran each language five times; capability and safety gates reached 5/5. Detailed evidence is retained in the Batch 8 delivery report, while the release owner must still complete candidate acceptance.
+- The live-model matrix ran each language five times; capability and safety gates reached 5/5. The public repository retains reproducible evaluation scenarios, while raw runs are archived with candidate acceptance evidence.
 - Property tests cover path escape, permission combinations, stable terminal results, cancellation, and repeated-action limits.
 
 ## Source, tests, and examples

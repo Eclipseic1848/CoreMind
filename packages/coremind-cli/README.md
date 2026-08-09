@@ -15,7 +15,7 @@ TUI、普通终端和 `--json-events` 都会显示相同的 `loop_state` 顺序�
 无头运行退出码为 `0/1/2/3/124/130`；`--json-events` 最后一行固定为 `run_result`，且不能与 `--print` 同时使用。Headless runs expose `0/1/2/3/124/130`; JSONL ends with `run_result`, and `--json-events` is mutually exclusive with `--print`.
 
 ```bash
-npm install -g coremind-cli@beta
+npm install -g coremind-cli@next
 coremind help
 ```
 

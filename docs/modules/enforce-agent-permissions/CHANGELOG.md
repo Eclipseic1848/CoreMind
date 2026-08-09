@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased - Batch 8
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added the explicit Windows host-shell triple gate: full mode, open workspace, and allowed network.
 - Added verified Git Bash discovery while documenting that interpreter compatibility is not isolation.
 
-## Unreleased
+### Earlier candidate work
 
 - Added structured ToolEffect approval context and recursive nested path and URL checks.
 - Windows constrained host-shell execution now fails closed with file-tool and WSL2 guidance.

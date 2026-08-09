@@ -74,7 +74,7 @@ async function checkModule(id) {
   requireString(manifest.name?.["zh-CN"], `${id}.name.zh-CN`);
   requireString(manifest.name?.en, `${id}.name.en`);
   requireString(manifest.version, `${id}.version`);
-  requireEqual(manifest.maturity, "implemented-alpha", `${id}.maturity`);
+  requireEqual(manifest.maturity, "release-candidate", `${id}.maturity`);
   requireArrayContains(manifest.supportedPlatforms, "windows", `${id}.supportedPlatforms`);
   requireArrayContains(manifest.supportedPlatforms, "linux", `${id}.supportedPlatforms`);
 

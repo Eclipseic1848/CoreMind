@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-rc.1 - 2026-08-09
 
 - Python custom tools now send mandatory structured effect declarations through the protocol.
 - Python receives the same unified terminal outcome semantics as TypeScript and CLI.

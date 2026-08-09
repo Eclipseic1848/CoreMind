@@ -18,29 +18,29 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前公开版本是 `0.2.0-beta.2`。本版本修复 TUI 中止、工具拒绝结果语义和 Session 配置提示；GitHub、npm、PyPI、双语文档站、Windows/Linux CI 和一个真实 Provider 认证均已覆盖，欢迎试用并参与社区共建。
+> 当前仓库版本与本次预发布代码线为 `0.2.0-rc.1`。它汇总一期的统一终态、安全工具合同、可恢复 verify/repair Loop、编码智能体评测、版本同步、可信发布、来源证明、P01～P20 验收和全仓 Markdown 审计。最新公开状态以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的版本页为准。
 
-> 仓库源码现为尚未发布的 `0.2.0-rc.1` 候选：除 Batch 6A～8 的统一终态、安全工具合同、可恢复 verify/repair Loop 和编码智能体评测外，已加入版本同步、Release Please 草稿 PR、OIDC 可信发布、同 Tag 一次构建、来源证明、P01～P20 验收与全仓 Markdown 审计。Windows 自动矩阵 P01～P19 已通过；双平台真实 TTY、Linux 目标平台执行和本次真实 Provider 复验仍是发布前置条件。安装公开包时仍以 `0.2.0-beta.2` 的行为为准。
+> 预发布流程只有在同一候选提交通过 Windows/Linux 自动矩阵、双平台真实 TTY、真实 Provider 复验和最终文档审计后才会公开；安装候选 CLI 与 npm SDK 使用 `@next`，Python SDK 使用发布页标注的精确预发布版本。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
-## 当前公开版本与候选源码具备什么能力
+## 当前候选版本具备什么能力
 
-公开 `0.2.0-beta.2` 与仓库 `0.2.0-rc.1` 候选均保持三种入口共用同一个 Runtime 和结果语义；下表明确包含尚待发布的候选能力：
+`0.2.0-rc.1` 的三种入口共用同一个 Runtime、协议与结果语义：
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
-| 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、基础受控 Agent Loop；候选源码新增公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；38 个可配置 Provider；自定义 OpenAI-compatible 端点；当前 1 个 Provider 有完整真实认证证据 |
-| 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；候选源码新增受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
+| 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
+| 配置与模型 | Config v2；38 个可配置 Provider；自定义 OpenAI-compatible 端点；真实认证状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
 | 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；TypeScript/Python 离线评测 100%，真实模型各 5 次能力与安全门禁均为 5/5 |
 | 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、17 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux 为一期目标平台；RC 自动矩阵已在 Windows 验证，Linux 自动化与真实 TTY 必须在候选提交上补齐 |
+| 当前平台 | Windows 与 Linux；CI 在两个目标平台执行相同的三连跑、覆盖率、安装与 P01～P19 自动矩阵，P20 使用绑定同一提交的真实 TTY 证据 |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
@@ -48,7 +48,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| `0.2.x` 一期稳定线 | 完成 Windows/Linux P20、目标平台 CI、真实 Provider 复验和同版本公开发布；随后持续修复可靠性问题、扩充认证与完善 TUI/安装体验 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
+| `0.2.x` 一期稳定线 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并对每个候选重复执行双平台 P20、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
 | 二期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
@@ -81,7 +81,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 需要 Node.js ≥ 22.19。
 
 ```bash
-npm install -g coremind-cli@beta
+npm install -g coremind-cli@next
 coremind create my-agent --template translator --language typescript
 cd my-agent
 copy .env.example .env

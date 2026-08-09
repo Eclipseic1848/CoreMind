@@ -1,6 +1,6 @@
 # CoreMind Security Policy
 
-Security issues must be handled privately. This page describes responsible reporting and the explicit boundaries of the current beta candidate.
+Security issues must be handled privately. This page describes responsible reporting and the explicit boundaries of the current prerelease candidate.
 
 [简体中文](SECURITY.md)
 
@@ -8,8 +8,8 @@ Security issues must be handled privately. This page describes responsible repor
 
 | Version | Security updates |
 | --- | --- |
-| Latest beta line | Supported according to severity and reproducibility |
-| Older alpha or beta versions | Not guaranteed; upgrade and retest first |
+| Latest prerelease line | Supported according to severity and reproducibility |
+| Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
 
 ## Report privately

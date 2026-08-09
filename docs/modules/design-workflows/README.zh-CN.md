@@ -1,6 +1,6 @@
 # Workflow 与显式有界 Loop
 
-状态：implemented-alpha（候选源码含 Batch 7）；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

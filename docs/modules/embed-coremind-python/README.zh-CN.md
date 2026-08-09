@@ -1,6 +1,6 @@
 # Python SDK 与工具桥
 
-状态：implemented-alpha；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

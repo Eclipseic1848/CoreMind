@@ -1,6 +1,6 @@
 # Templates and Project Guidance
 
-Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

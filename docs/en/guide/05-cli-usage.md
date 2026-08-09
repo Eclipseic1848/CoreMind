@@ -14,15 +14,15 @@ coremind eval [config]
 coremind list-templates
 ```
 
-Use `npx coremind-cli` before global installation, or invoke `coremind` after installing the CLI package globally.
+Use `npx coremind-cli@next` before global installation, or invoke `coremind` after installing `coremind-cli@next` globally.
 
 ## Recommended first run
 
 ```bash
-npx coremind-cli doctor
-npx coremind-cli check coremind.yaml
-npx coremind-cli run coremind.yaml --dry-run
-npx coremind-cli chat coremind.yaml
+npx coremind-cli@next doctor
+npx coremind-cli@next check coremind.yaml
+npx coremind-cli@next run coremind.yaml --dry-run
+npx coremind-cli@next chat coremind.yaml
 ```
 
 This sequence separates environment, configuration, resolution, and live execution failures.

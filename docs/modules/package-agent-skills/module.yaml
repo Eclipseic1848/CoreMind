@@ -3,7 +3,7 @@ id: package-agent-skills
 name:
   zh-CN: "Skill 与 SOP 装载"
   en: "Skill and SOP Loading"
-version: 0.1.0-alpha.2
+version: 0.2.0-rc.1
 sourcePaths:
   - "packages/coremind-templates/src/skills.ts"
   - "packages/coremind-templates/skills"
@@ -29,4 +29,4 @@ supportedPlatforms:
   - "linux"
 dependencies:
   - "configure-coremind"
-maturity: implemented-alpha
+maturity: release-candidate

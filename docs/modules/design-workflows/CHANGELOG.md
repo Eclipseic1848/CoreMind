@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Batch 7
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added the public `loop` schema for planning, execution, verification, repair, bounded iterations, no-progress detection, pause, and exhaustion behavior.
 - Added a hidden state-machine adapter, stable snapshots, cancellation propagation, and deterministic event-order contracts.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Release Candidate engineering
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added Release Please draft-PR preparation, synchronized npm/Python version tooling, and immutable same-tag artifact identity checks.
 - Added a P01-P20 RC matrix with test-evidence anchors and version/commit-bound Windows/Linux TTY evidence.
@@ -9,8 +9,10 @@
 - Replaced a yanked Python build-tool release with verified `build==1.5.0` and added workflow contracts that reject the withdrawn version.
 - Aligned static-analysis scope with the existing `.scratch` Git boundary so isolated release-tool environments cannot contaminate repository lint results.
 - Tightened the Linux coverage floor to the target-platform CI measurement and required the generic fallback to equal the per-metric minimum of the Windows and Linux floors.
+- Set one cross-platform 15-second test-harness limit above the product's longest 10-second controlled-process timeout, removing Windows scheduling flakes without changing runtime budgets.
+- Kept post-release local HTML handbooks outside the RC source boundary while retaining all runtime, SDK, CLI, module, example, and contribution assets required by users.
 
-## Unreleased - Batch 6B
+### Packaging and cross-platform validation
 
 - Added npm artifact allowlists, publint and type-resolution checks, and a clean tarball installation test for every public workspace.
 - Added Python wheel content, Twine, clean virtual-environment installation, public-version parity, and bundled Worker startup gates.

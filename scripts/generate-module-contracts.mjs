@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const version = "0.1.0-alpha.2";
+const version = "0.2.0-rc.1";
 
 const modules = [
   moduleOf({
@@ -961,7 +961,7 @@ console.log(`已生成 ${modules.length} 个模块合同。`);
 function moduleOf(value) {
   return {
     ...value,
-    maturity: "implemented-alpha",
+    maturity: "release-candidate",
     platforms: ["windows", "linux"],
   };
 }

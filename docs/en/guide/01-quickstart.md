@@ -9,8 +9,8 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 ## 2. Install and create a project
 
 ```bash
-npm install coremind-ai coremind-cli
-npx coremind create my-agent
+npm install coremind-ai@next coremind-cli@next
+npx coremind-cli@next create my-agent
 cd my-agent
 ```
 

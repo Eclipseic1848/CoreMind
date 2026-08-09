@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added stable terminal exit codes and a final JSONL `run_result` event with stderr-only diagnostics.
 - Made `--print` and `--json-events` mutually exclusive to keep machine output deterministic.

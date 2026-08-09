@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-rc.1 - 2026-08-09
 
 - Required explicit effect declarations for custom script tools and documented nested path/URL fields and reserved built-in names.
 - Added the mutually exclusive public `loop` schema with agent-reference validation, defaults, bounds, and failure or exhaustion policies.

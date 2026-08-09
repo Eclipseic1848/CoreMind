@@ -18,29 +18,29 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current public version is `0.2.0-beta.2`. This release fixes TUI abort handling, denied-tool outcome semantics, and Session configuration guidance. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are covered. You are welcome to try it and contribute to the community.
+> The repository and current prerelease line are `0.2.0-rc.1`. It brings together phase-one terminal semantics, safe tool contracts, resumable verify-repair Loops, coding-agent evaluations, synchronized versions, trusted publishing, provenance, P01-P20 acceptance, and repository-wide Markdown auditing. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for public availability.
 
-> Repository source is now the unpublished `0.2.0-rc.1` candidate. In addition to Batch 6A-8 terminal semantics, safe tool contracts, the resumable verify-repair Loop, and coding-agent evaluations, it adds synchronized versions, a Release Please draft PR, OIDC trusted publishing, one-build same-tag artifacts, attestations, P01-P20 acceptance, and repository-wide Markdown auditing. The Windows P01-P19 automated matrix passes; real TTY on both platforms, target-platform Linux execution, and the current live-provider recheck remain publication prerequisites. Public installs still follow `0.2.0-beta.2`.
+> A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
 
 [Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
-## What the public release and candidate source support
+## What the current candidate supports
 
-Public `0.2.0-beta.2` and repository candidate `0.2.0-rc.1` keep all three entry paths on one runtime and one result model. The table explicitly includes candidate capabilities that are not public yet.
+All three `0.2.0-rc.1` entry paths share one runtime, protocol, and result model.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
-| Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, and the basic bounded agent loop; candidate source adds public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 38 configurable providers, custom OpenAI-compatible endpoints, and one provider with complete live certification evidence |
-| Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; candidate-source controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
+| Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
+| Configuration and models | Config v2, 38 configurable providers, custom OpenAI-compatible endpoints, and evidence status recorded in the [provider matrix](docs/providers/README.en.md) |
+| Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; TypeScript/Python offline evaluation is 100%, and five live runs per language passed capability and safety 5/5 |
 | Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 17 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux are the phase-one targets; RC automation is verified on Windows, while Linux automation and real TTY must run against the candidate commit |
+| Current platforms | Windows and Linux; CI runs the same three-run stability, coverage, installation, and P01-P19 matrix on both targets, while P20 uses real TTY evidence bound to the same commit |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -48,7 +48,7 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| `0.2.x` phase-one stabilization | Complete both-platform P20, target-platform CI, the current live-provider recheck, and synchronized publication; then continue reliability, certification, and TUI/install improvements | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
+| `0.2.x` phase-one stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while repeating both-platform P20, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
 | Phase-two Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
@@ -71,7 +71,7 @@ Phase one targets Windows and Linux. macOS support follows later. A complete web
 Node.js 22.19 or newer is required.
 
 ```bash
-npm install -g coremind-cli@beta
+npm install -g coremind-cli@next
 coremind create my-agent --template translator --language typescript
 cd my-agent
 cp .env.example .env

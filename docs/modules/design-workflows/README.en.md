@@ -1,6 +1,6 @@
 # Workflows and Explicit Bounded Loops
 
-Status: implemented-alpha (candidate source includes Batch 7). Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

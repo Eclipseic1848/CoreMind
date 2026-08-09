@@ -33,6 +33,6 @@ features:
 
 ## Project status
 
-CoreMind's current public version is `0.2.0-beta.2` and is intended for evaluation, review, and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+CoreMind's repository and current prerelease line are `0.2.0-rc.1`, intended for evaluation, review, and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
 
-Repository source is the unpublished `0.2.0-rc.1` candidate. The Windows P01-P19 automated matrix passes; real TTY acceptance on Windows and Linux, target-platform Linux execution, and the current live-provider recheck are still incomplete. Public installation therefore remains on `0.2.0-beta.2`. Contributors can use the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).
+Every prerelease candidate must complete the Windows/Linux P01-P19 automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit on the same commit. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), npm, and PyPI as the source of truth for public availability; maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

@@ -3,7 +3,7 @@ id: evaluate-agents
 name:
   zh-CN: "测试、评测与质量门禁"
   en: "Testing, Evaluation, and Quality Gates"
-version: 0.1.0-alpha.2
+version: 0.2.0-rc.1
 sourcePaths:
   - "packages/coremind-runtime/src/evaluation.ts"
   - "packages/coremind-runtime/src/evaluation-graders.ts"
@@ -36,4 +36,4 @@ supportedPlatforms:
 dependencies:
   - "inspect-agent-traces"
   - "enforce-agent-permissions"
-maturity: implemented-alpha
+maturity: release-candidate

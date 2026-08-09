@@ -1,10 +1,10 @@
 # CoreMind Changelog
 
-This file records user-facing changes. Versions follow Semantic Versioning; beta releases may include explicitly documented interface changes.
+This file records user-facing changes. Versions follow Semantic Versioning; prereleases may include explicitly documented interface changes.
 
 [简体中文](CHANGELOG.md)
 
-## Unreleased
+## 0.2.0-rc.1 — 2026-08-09
 
 ### Added and fixed
 
@@ -45,6 +45,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; beta
 - Local `.scratch` remains reserved for acceptance evidence and isolated tool environments and is excluded from Git, static checks, and artifacts so third-party temporary files cannot contaminate repository gates.
 - Credential fields, bodies, command secrets, and URL secrets are redacted before Trace and RunState persistence while paths and non-sensitive test commands remain available to audit and trajectory graders.
 - Added a regression test that requires two consecutive tool-call results to feed back before the agent can finish, so P02 is no longer represented by a single tool call.
+- The repository test harness now uses a 15-second outer limit above the product's longest 10-second controlled-process timeout, preventing loaded runners from reporting a harness timeout before the real outcome without changing runtime budgets.
 
 ## 0.2.0-beta.2 — 2026-08-08
 

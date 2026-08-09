@@ -3,7 +3,7 @@ id: contribute-coremind
 name:
   zh-CN: "源码与社区贡献"
   en: "Source and Community Contribution"
-version: 0.1.0-alpha.2
+version: 0.2.0-rc.1
 sourcePaths:
   - "package.json"
   - "vitest.config.ts"
@@ -76,4 +76,4 @@ dependencies:
   - "configure-coremind"
   - "evaluate-agents"
   - "scaffold-coremind-projects"
-maturity: implemented-alpha
+maturity: release-candidate

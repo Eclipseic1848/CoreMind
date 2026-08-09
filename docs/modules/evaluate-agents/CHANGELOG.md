@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Batch 8
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added schemaVersion 2 with outcome, trajectory, command, file, diff, state, and response graders.
 - Added dirty-worktree preservation, bounded command/file/diff evaluation, property tests, and real TypeScript/Python defect repositories.

@@ -4,22 +4,22 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release: `0.2.0-beta.2`
+## Current candidate: `0.2.0-rc.1`
 
-The current public release provides:
+The current candidate includes:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
 - Config v2, 38 configurable model providers, and custom compatible endpoints.
 - `ask`, `assisted`, and `full` permission modes with path policy, approvals, audit, checkpoints, diffs, and recovery.
 - Explicit outcomes, budgets, traces, sessions, context protection, tests, evaluations, and release gates.
-- Eight project templates, four offline golden examples, and 16 capability modules.
+- Eight project templates, five offline golden examples, two real-defect coding-agent repositories, and 17 capability modules.
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
-- Windows and Linux automation plus public releases on GitHub, npm, PyPI, and the bilingual documentation site.
+- Acceptance workflows that combine Windows/Linux automation with real TTY checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 
-The current release is in Beta. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
+The current candidate is a prerelease. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
 
-The repository source is the unpublished `0.2.0-rc.1` candidate. It additionally contains the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Batch 8 gates and the Windows P01-P19 automated matrix pass; real TTY on both platforms, target-platform Linux execution, and the current live-provider recheck still block publication.
+It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
 ## `0.2.x`: phase-one stabilization
 

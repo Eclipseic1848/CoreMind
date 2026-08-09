@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0-rc.1 - 2026-08-09
 
 - Context compaction failures now emit an explicit event and preserve messages; deterministic summaries retain six mandatory operational sections.
 

@@ -1,13 +1,14 @@
 # Changelog
 
-## Unreleased - Batch 8
+## 0.2.0-rc.1 - 2026-08-09
 
 - Added a bounded `ProcessRunner`, read-only `GitAdapter`, and bounded unified diff helpers.
 - Added Windows shell selection and fail-closed permission combinations without weakening Linux isolation.
 - Added timeout, cancellation, output, environment, path, link, and complexity tests.
 - Made caller-supplied host-shell environments authoritative and added deterministic Git Bash, PowerShell fallback, minimal-environment, and execution-context isolation coverage.
+- Kept the repository test harness's outer timeout above the tool's own bounded timeout so loaded runners can report the real process outcome instead of a test-harness timeout.
 
-## Unreleased
+### Earlier candidate work
 
 - Added mandatory structured effect declarations for script, TypeScript, and Python tools, including optional dotted path and URL field selectors.
 - Added fail-closed handling for undeclared effects under workspace or network restrictions.

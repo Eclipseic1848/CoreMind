@@ -125,4 +125,4 @@ coremind check coremind.yaml
 - Provider 权限或账号服务未开通时，恢复账号授权后重跑原认证对象；未经批准不得换模型或 Provider。
 - 泄露凭据时先撤销，再清理证据和通知维护者；不得仅删除日志后继续发布。
 
-发布完成后更新 CHANGELOG、README、路线图、Provider 证据、RC 报告和 `handoff.md`，并从公共 Registry 再验证一次版本一致性。
+发布完成后更新 CHANGELOG、README、路线图、Provider 证据、公开发布记录和维护者内部交接记录（如适用），并从公共 Registry 再验证一次版本一致性。
