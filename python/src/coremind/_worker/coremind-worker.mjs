@@ -450038,8 +450038,8 @@ function createHostBashTool(options) {
   tool.executionMode = "sequential";
   return tool;
 }
-function resolveWindowsShell(env4) {
-  const gitBash = findGitBash(env4);
+function resolveWindowsShell(env4, pathExists3 = existsSync4) {
+  const gitBash = findGitBash(env4, pathExists3);
   if (gitBash) {
     return {
       command: gitBash,
@@ -450066,30 +450066,30 @@ function resolveWindowsShell(env4) {
     ].join("\n")
   };
 }
-function findGitBash(env4) {
+function findGitBash(env4, pathExists3) {
   const candidates = /* @__PURE__ */ new Set();
-  for (const entry of (env4.PATH ?? env4.Path ?? "").split(path19.delimiter)) {
+  for (const entry of (env4.PATH ?? env4.Path ?? "").split(path19.win32.delimiter)) {
     const directory = entry.replace(/^"|"$/g, "").trim();
     if (!directory)
       continue;
-    if (existsSync4(path19.join(directory, "git.exe"))) {
-      const parent = path19.basename(directory).toLowerCase() === "cmd" ? path19.dirname(directory) : directory;
-      candidates.add(path19.join(parent, "bin", "bash.exe"));
+    if (pathExists3(path19.win32.join(directory, "git.exe"))) {
+      const parent = path19.win32.basename(directory).toLowerCase() === "cmd" ? path19.win32.dirname(directory) : directory;
+      candidates.add(path19.win32.join(parent, "bin", "bash.exe"));
     }
     const lowered = directory.toLowerCase();
     if (!lowered.includes("windows\\system32") && !lowered.includes("windowsapps")) {
-      candidates.add(path19.join(directory, "bash.exe"));
+      candidates.add(path19.win32.join(directory, "bash.exe"));
     }
   }
   for (const root of [
     env4.ProgramW6432,
     env4.ProgramFiles,
-    env4.LOCALAPPDATA && path19.join(env4.LOCALAPPDATA, "Programs")
+    env4.LOCALAPPDATA && path19.win32.join(env4.LOCALAPPDATA, "Programs")
   ]) {
     if (root)
-      candidates.add(path19.join(root, "Git", "bin", "bash.exe"));
+      candidates.add(path19.win32.join(root, "Git", "bin", "bash.exe"));
   }
-  return [...candidates].find((candidate) => existsSync4(candidate));
+  return [...candidates].find((candidate) => pathExists3(candidate));
 }
 function posixShell() {
   return { command: "/bin/bash", args: (command) => ["-lc", command] };

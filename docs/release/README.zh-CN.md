@@ -59,6 +59,8 @@ npm run acceptance:rc
 
 必须记录真实数字，而不是只写“测试通过”：测试文件/Case 数、条件跳过原因、覆盖率基线与目标差距、Python 测试、模块合同、黄金示例和依赖审计结果。
 
+属性测试必须使用仓库固定种子，受宿主能力影响的探测必须通过可注入依赖构造确定性用例；同一提交在重复执行或不同 Runner 上出现覆盖率漂移时，先修复测试不确定性，不得直接降低基线。
+
 `docs:audit` 检查仓库维护的全部 Markdown 是否为严格 UTF-8、本地链接是否存在，以及文档标识边界是否合规。依赖、缓存、构建和覆盖率目录不属于项目文档，不进入扫描。
 
 ## 4. 完成 RC 人工与真实服务验收
@@ -92,7 +94,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 
 1. 从指定 Tag checkout，同一作业完成代码、安全和发布预检。
 2. 构建 8 个 npm tarball、1 个 wheel、1 个独立源码 ZIP。
-3. 对 npm 执行 allowlist、publint、类型解析；对 wheel 执行 Twine、干净安装和内置 Worker；对源码 ZIP 执行内容和解压安装门禁。
+3. 对 npm 执行 allowlist、publint、类型解析；对 wheel 执行 Twine、干净安装和内置 Worker；对源码 ZIP 使用跨平台解码器执行内容、路径穿越和解压安装门禁。
 4. 生成 `release-manifest.json` 与 `SHA256SUMS.txt`，每个产物记录版本、大小和 SHA-256。
 5. 上传一次构建产物；每个消费作业都在使用前独立校验 `SHA256SUMS.txt`，再由独立作业生成 GitHub 构建来源证明。
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。

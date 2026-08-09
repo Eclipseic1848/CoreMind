@@ -55,8 +55,11 @@ export function createHostBashTool(options: HostBashOptions): AgentTool {
 }
 
 /** 优先寻找 Git 安装目录内的真实 Bash，明确排除 WSL/应用商店中继。 */
-export function resolveWindowsShell(env: NodeJS.ProcessEnv): ShellInvocation {
-  const gitBash = findGitBash(env);
+export function resolveWindowsShell(
+  env: NodeJS.ProcessEnv,
+  pathExists: (candidate: string) => boolean = existsSync,
+): ShellInvocation {
+  const gitBash = findGitBash(env, pathExists);
   if (gitBash) {
     return {
       command: gitBash,
@@ -85,29 +88,34 @@ export function resolveWindowsShell(env: NodeJS.ProcessEnv): ShellInvocation {
   };
 }
 
-function findGitBash(env: NodeJS.ProcessEnv): string | undefined {
+function findGitBash(
+  env: NodeJS.ProcessEnv,
+  pathExists: (candidate: string) => boolean,
+): string | undefined {
   const candidates = new Set<string>();
-  for (const entry of (env.PATH ?? env.Path ?? "").split(path.delimiter)) {
+  for (const entry of (env.PATH ?? env.Path ?? "").split(path.win32.delimiter)) {
     const directory = entry.replace(/^"|"$/g, "").trim();
     if (!directory) continue;
-    if (existsSync(path.join(directory, "git.exe"))) {
+    if (pathExists(path.win32.join(directory, "git.exe"))) {
       const parent =
-        path.basename(directory).toLowerCase() === "cmd" ? path.dirname(directory) : directory;
-      candidates.add(path.join(parent, "bin", "bash.exe"));
+        path.win32.basename(directory).toLowerCase() === "cmd"
+          ? path.win32.dirname(directory)
+          : directory;
+      candidates.add(path.win32.join(parent, "bin", "bash.exe"));
     }
     const lowered = directory.toLowerCase();
     if (!lowered.includes("windows\\system32") && !lowered.includes("windowsapps")) {
-      candidates.add(path.join(directory, "bash.exe"));
+      candidates.add(path.win32.join(directory, "bash.exe"));
     }
   }
   for (const root of [
     env.ProgramW6432,
     env.ProgramFiles,
-    env.LOCALAPPDATA && path.join(env.LOCALAPPDATA, "Programs"),
+    env.LOCALAPPDATA && path.win32.join(env.LOCALAPPDATA, "Programs"),
   ]) {
-    if (root) candidates.add(path.join(root, "Git", "bin", "bash.exe"));
+    if (root) candidates.add(path.win32.join(root, "Git", "bin", "bash.exe"));
   }
-  return [...candidates].find((candidate) => existsSync(candidate));
+  return [...candidates].find((candidate) => pathExists(candidate));
 }
 
 function posixShell(): ShellInvocation {

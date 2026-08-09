@@ -38,6 +38,10 @@ sessions/
 # 编辑器/系统
 .DS_Store
 Thumbs.db
+/.claude/
+
+# 二期本地原型（一期发布不包含）
+/apps/coremind-web/
 
 # 内部文档（不推送到 GitHub）
 PLAN.md

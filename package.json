@@ -5,8 +5,7 @@
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "apps/*"
+    "packages/*"
   ],
   "engines": {
     "node": ">=22.19.0"
@@ -48,6 +47,7 @@
     "@vitest/coverage-v8": "4.1.10",
     "esbuild": "0.28.1",
     "fast-check": "4.9.0",
+    "fflate": "0.8.3",
     "publint": "0.3.23",
     "typescript": "^5.9.0",
     "vitepress": "1.6.4",

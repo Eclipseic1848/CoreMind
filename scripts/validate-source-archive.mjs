@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { unzipSync } from "fflate";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,6 +36,37 @@ export function evaluateSourceArchiveEntries(entries) {
     if (forbidden) blockers.push(relative);
   }
   return blockers;
+}
+
+export function decodeSourceArchive(archive) {
+  const bytes = archive instanceof Uint8Array ? archive : new Uint8Array(archive);
+  return unzipSync(bytes);
+}
+
+export async function extractSourceArchive(files, destinationRoot) {
+  const root = path.resolve(destinationRoot);
+  for (const [entry, content] of Object.entries(files)) {
+    const normalized = entry.replaceAll("\\", "/");
+    const segments = normalized.split("/").filter(Boolean);
+    if (
+      path.posix.isAbsolute(normalized) ||
+      /^[A-Za-z]:/.test(normalized) ||
+      normalized.includes("\0") ||
+      segments.includes("..")
+    ) {
+      throw new Error(`源码 ZIP 包含非法路径：${entry}`);
+    }
+    const destination = path.resolve(root, ...segments);
+    if (destination !== root && !destination.startsWith(`${root}${path.sep}`)) {
+      throw new Error(`源码 ZIP 路径越界：${entry}`);
+    }
+    if (normalized.endsWith("/")) {
+      await mkdir(destination, { recursive: true });
+      continue;
+    }
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, content);
+  }
 }
 
 async function main() {
@@ -74,9 +106,8 @@ async function main() {
       );
     }
 
-    const entries = run("tar", ["-tf", archive], repositoryRoot, process.env, false, false)
-      .stdout.split(/\r?\n/)
-      .filter(Boolean);
+    const archiveFiles = decodeSourceArchive(await readFile(archive));
+    const entries = Object.keys(archiveFiles);
     const blockers = evaluateSourceArchiveEntries(entries);
     if (blockers.length > 0) {
       throw new Error(`源码 ZIP 包含禁止文件：\n- ${blockers.join("\n- ")}`);
@@ -84,7 +115,7 @@ async function main() {
 
     const extractionRoot = path.join(temporaryRoot, "extracted");
     await mkdir(extractionRoot);
-    run("tar", ["-xf", archive, "-C", extractionRoot], repositoryRoot);
+    await extractSourceArchive(archiveFiles, extractionRoot);
     const sourceRoot = path.join(extractionRoot, prefix);
     await rejectWorkstationPaths(sourceRoot);
 

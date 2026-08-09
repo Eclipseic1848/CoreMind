@@ -106,6 +106,38 @@ describe("ToolPolicy", () => {
     });
   });
 
+  it("受约束模式拒绝自定义工具的进程或外部副作用", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "ask" });
+
+    await expect(
+      policy.authorize(
+        "main",
+        "external_runner",
+        { value: "x" },
+        { operations: ["process"], reversible: false },
+      ),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("process/external"),
+    });
+  });
+
+  it("network allow 对已声明的网络工具执行配置预授权", async () => {
+    const policy = createPolicy({ mode: "ask", workspaceOnly: false, network: "allow" });
+
+    await expect(
+      policy.authorize(
+        "main",
+        "fetch_report",
+        { url: "https://example.com/report" },
+        { operations: ["network"], reversible: false },
+      ),
+    ).resolves.toMatchObject({
+      allowed: true,
+      approvedBy: "configuration",
+    });
+  });
+
   it("assisted 自动批准工作区低风险工具，但敏感工具仍询问", async () => {
     const requests: ToolApprovalRequest[] = [];
     const policy = createPolicy({ mode: "assisted" }, async (request) => {

@@ -27,7 +27,7 @@ describe("Batch 8 属性测试", () => {
           expect(decision.reason).toContain("路径超出工作区");
         },
       ),
-      { numRuns: 60 },
+      { numRuns: 60, seed: 60801 },
     );
   });
 
@@ -51,7 +51,7 @@ describe("Batch 8 属性测试", () => {
           );
         },
       ),
-      { numRuns: 50 },
+      { numRuns: 50, seed: 60802 },
     );
   });
 
@@ -87,7 +87,7 @@ describe("Batch 8 属性测试", () => {
           expect(outcome.finishReason).toBe(code);
         },
       ),
-      { numRuns: 80 },
+      { numRuns: 80, seed: 60803 },
     );
   });
 
@@ -104,7 +104,7 @@ describe("Batch 8 属性测试", () => {
         setTimeout(() => controller.abort(), delayMs);
         await expect(running).rejects.toMatchObject({ code: "process_aborted" });
       }),
-      { numRuns: 20 },
+      { numRuns: 20, seed: 60804 },
     );
   });
 
@@ -135,7 +135,7 @@ describe("Batch 8 属性测试", () => {
         expect(controller.phase).toBe("failed");
         expect(controller.getSnapshot().failureCode).toBe("loop_no_progress");
       }),
-      { numRuns: 40 },
+      { numRuns: 40, seed: 60805 },
     );
   });
 });

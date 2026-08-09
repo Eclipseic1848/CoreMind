@@ -1,5 +1,10 @@
+import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { evaluateSourceArchiveEntries } from "./validate-source-archive.mjs";
+import {
+  decodeSourceArchive,
+  evaluateSourceArchiveEntries,
+  extractSourceArchive,
+} from "./validate-source-archive.mjs";
 
 describe("源码 ZIP 内容门禁", () => {
   it("允许公开源码、测试和环境变量示例", () => {
@@ -32,5 +37,23 @@ describe("源码 ZIP 内容门禁", () => {
     expect(result.join("\n")).toContain("node_modules");
     expect(result.join("\n")).toContain(".coremind/runs");
     expect(result.join("\n")).toContain(".pytest_cache");
+  });
+
+  it("使用跨平台 ZIP 解码器读取源码包，不依赖系统 tar 对 ZIP 的兼容性", () => {
+    const archive = zipSync({
+      "coremind-source/": new Uint8Array(),
+      "coremind-source/package.json": strToU8('{"name":"coremind"}'),
+    });
+
+    expect(Object.keys(decodeSourceArchive(archive))).toEqual([
+      "coremind-source/",
+      "coremind-source/package.json",
+    ]);
+  });
+
+  it("解压前拒绝路径穿越条目", async () => {
+    await expect(
+      extractSourceArchive({ "../escape.txt": strToU8("blocked") }, "unused-source-root"),
+    ).rejects.toThrow("源码 ZIP 包含非法路径");
   });
 });

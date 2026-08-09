@@ -10,10 +10,10 @@
   },
   "platforms": {
     "win32": {
-      "lines": 72.54,
-      "statements": 70.51,
-      "functions": 79.82,
-      "branches": 62.66
+      "lines": 72.67,
+      "statements": 70.63,
+      "functions": 79.97,
+      "branches": 62.93
     },
     "linux": {
       "lines": 72.58,
@@ -24,7 +24,7 @@
   },
   "critical": {
     "packages/coremind-runtime/src/tool-policy.ts": {
-      "branches": 82.6
+      "branches": 86.23
     },
     "packages/coremind-runtime/src/run-terminalizer.ts": {
       "branches": 100

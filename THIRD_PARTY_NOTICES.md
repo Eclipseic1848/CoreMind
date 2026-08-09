@@ -21,6 +21,7 @@ CoreMind 的运行时底座直接依赖以下 npm 包（MIT 协议，Copyright 2
 | execa 10.0.1 | 跨平台子进程执行、超时、中止与流式输出适配 | MIT |
 | diff 9.0.0 | 受限统一差异生成 | BSD-3-Clause |
 | fast-check 4.9.0 | 路径、权限、终态、中止与重复动作属性测试（仅开发依赖） | MIT |
+| fflate 0.8.3 | 发布门禁中的跨平台源码 ZIP 读取与安全解压（仅开发依赖） | MIT |
 | typebox | 配置 schema 校验 | MIT |
 | yaml | YAML 配置解析 | ISC |
 
