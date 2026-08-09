@@ -9,6 +9,9 @@ provider:
 tools:
   - path: ./src/order-tool.ts
     name: lookup_order
+    effect:
+      operations: [read]
+      reversible: true
 agents:
   main:
     systemPrompt: |

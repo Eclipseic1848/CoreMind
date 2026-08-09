@@ -16,7 +16,15 @@ import {
   parsePermissionMode,
 } from "../approval.js";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
-import { cyan, dim, errorLine, toolLine, toolResultLine, yellow } from "../render.js";
+import {
+  cyan,
+  dim,
+  errorLine,
+  loopStateLine,
+  toolLine,
+  toolResultLine,
+  yellow,
+} from "../render.js";
 import { runChatTUI } from "../tui.js";
 
 function printChatHelp(): void {
@@ -158,6 +166,9 @@ function renderChatEvent(event: CoreMindEvent): void {
       break;
     case "tool_result":
       process.stdout.write(` ${toolResultLine(event.isError)}`);
+      break;
+    case "loop_state":
+      process.stdout.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
       break;
     default:
       break;

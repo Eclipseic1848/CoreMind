@@ -1,4 +1,3 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -6,6 +5,7 @@ import path from "node:path";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
+import { ProcessRunner, ProcessRunnerError } from "./process-runner.js";
 
 export interface LinuxSandboxedBashOptions {
   cwd: string;
@@ -136,48 +136,24 @@ async function spawnSandboxed(
 ): Promise<{ exitCode: number | null }> {
   const executable = argv[0];
   if (!executable) throw new Error("Linux sandbox 未生成可执行命令");
-  if (options.signal?.aborted) throw new Error("aborted");
-
-  const child = spawn(executable, argv.slice(1), {
-    cwd,
-    env,
-    detached: true,
-    shell: false,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout?.on("data", options.onData);
-  child.stderr?.on("data", options.onData);
-
-  let timedOut = false;
-  const stop = () => terminateProcessTree(child);
-  const timer =
-    options.timeout === undefined
-      ? undefined
-      : setTimeout(() => {
-          timedOut = true;
-          stop();
-        }, options.timeout * 1_000);
-  options.signal?.addEventListener("abort", stop, { once: true });
-
   try {
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
-      child.once("error", reject);
-      child.once("close", resolve);
+    const result = await new ProcessRunner().run({
+      command: executable,
+      args: argv.slice(1),
+      cwd,
+      env,
+      signal: options.signal,
+      timeoutMs: options.timeout === undefined ? undefined : options.timeout * 1_000,
+      onData: options.onData,
     });
-    if (options.signal?.aborted) throw new Error("aborted");
-    if (timedOut) throw new Error(`timeout:${options.timeout}`);
-    return { exitCode };
-  } finally {
-    if (timer) clearTimeout(timer);
-    options.signal?.removeEventListener("abort", stop);
-  }
-}
-
-function terminateProcessTree(child: ChildProcess): void {
-  if (!child.pid) return;
-  try {
-    process.kill(-child.pid, "SIGTERM");
-  } catch {
-    child.kill("SIGTERM");
+    return { exitCode: result.exitCode };
+  } catch (error) {
+    if (error instanceof ProcessRunnerError && error.code === "process_aborted") {
+      throw new Error("aborted", { cause: error });
+    }
+    if (error instanceof ProcessRunnerError && error.code === "process_timeout") {
+      throw new Error(`timeout:${options.timeout}`, { cause: error });
+    }
+    throw error;
   }
 }

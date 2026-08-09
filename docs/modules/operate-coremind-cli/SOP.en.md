@@ -10,9 +10,13 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 2. Check the local environment with doctor.
 3. Develop with run or chat.
 4. Accept with check and eval.
-5. Use --print, --json-events, or --json in automation.
-6. Run the listed module tests and `npm run check:modules`.
-7. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+5. Use TUI for people, `--print` for text pipes, and `--json-events` for automation; never pass the last two options together.
+6. Automation must check both the exit code and final `run_result`, while preserving stderr diagnostics.
+7. Inject denial, budget exhaustion, timeout, and abort, then verify `2/3/124/130` respectively.
+8. For an explicit Loop, inject verification failure, pause-resume, and exhaustion; compare TUI, readline, and JSONL state order.
+9. Confirm resume does not replay completed steps or committed effects and requires human reconciliation for unknown effects.
+10. Run the listed module tests and `npm run check:modules`.
+11. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

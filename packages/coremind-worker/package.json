@@ -1,11 +1,17 @@
 {
   "name": "coremind-worker",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-rc.1",
   "description": "CoreMind 跨语言 Node Runtime worker",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-worker" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eclipseic1848/CoreMind.git",
+    "directory": "packages/coremind-worker"
+  },
   "homepage": "https://github.com/Eclipseic1848/CoreMind#readme",
-  "bugs": { "url": "https://github.com/Eclipseic1848/CoreMind/issues" },
+  "bugs": {
+    "url": "https://github.com/Eclipseic1848/CoreMind/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -31,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-ai": "0.2.0-beta.2",
-    "coremind-protocol": "0.2.0-beta.2"
+    "coremind-ai": "0.2.0-rc.1",
+    "coremind-protocol": "0.2.0-rc.1"
   }
 }

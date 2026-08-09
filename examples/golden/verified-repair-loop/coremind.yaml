@@ -1,0 +1,47 @@
+schemaVersion: 2
+name: verified-repair-loop
+description: 显式验证、修复、暂停恢复与耗尽处理的 Loop 黄金示例
+provider:
+  id: golden-loop
+  baseUrl: http://127.0.0.1:8815/v1
+  model: golden-mock
+  apiKeyEnv: GOLDEN_MOCK_API_KEY
+  contextWindow: 2048
+  maxTokens: 256
+agents:
+  executor:
+    systemPrompt: 你负责生成候选结果。测试会故意注入一个需要修复的初始结果。
+  verifier:
+    systemPrompt: 你负责独立验证。只有候选结果为 candidate-fixed 时才输出 PASS，否则只输出 FAIL。
+  repairer:
+    systemPrompt: 你负责有界修复。根据验证反馈输出修复后的候选结果。
+loop:
+  execute:
+    agent: executor
+    input: "执行任务：{{prompt}}"
+  verify:
+    agent: verifier
+    input: "验证候选结果：{{candidate.text}}"
+    passIf: "{{text}} == PASS"
+  repair:
+    agent: repairer
+    input: "根据验证结果 {{verification.text}} 修复 {{candidate.text}}"
+  maxIterations: 3
+  maxRepairs: 2
+  maxRepeatedAction: 2
+  onFailure: repair
+  onExhausted: fail
+runtime:
+  maxTurns: 8
+  maxSteps: 8
+  maxRetries: 1
+  runTimeoutMs: 30000
+  stepTimeoutMs: 10000
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+quality:
+  profile: standard
+  minScenarioPassRate: 1
+  allowOverride: true

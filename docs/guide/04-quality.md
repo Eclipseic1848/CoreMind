@@ -7,7 +7,7 @@ CoreMind 把“模型返回了文字”与“运行成功、业务正确、可�
 ```ts
 const result = await runtime.run();
 
-result.outcome;          // succeeded / failed / paused / aborted 与明确原因
+result.outcome;          // succeeded / failed / paused / aborted / timeout / budget_exceeded
 result.metrics;          // 耗时、turn、step、工具、重试、token、费用
 result.evaluation;       // 场景结果、业务评分、安全发现
 result.releaseReadiness; // 是否可发布以及 blockers / warnings
@@ -40,7 +40,11 @@ runtime:
 
 每个 Trace 事件包含 `runId`、`eventId`、严格递增的 `sequence` 和时间戳。RunState 使用 append-only JSONL 保存开始、事件、checkpoint 与结束证据。
 
-`edit/write` 在修改前保存文件快照，可计算 diff 并显式恢复。Linux 的内置 `bash` 使用 OS 级沙箱，当前固定断网、只允许写工作区，初始化失败时关闭执行且不回退宿主 shell。Windows 没有 OS 级 shell 沙箱；shell 和任意自定义工具只标记为不可自动回退。CoreMind 不会伪造完整恢复保证。
+Trace 事件在持久化或转发前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥、URL 敏感参数和命令中的敏感值；正文只留长度标记，普通测试命令仍可审查。这不代替操作系统访问控制，会话与非敏感 Trace 上下文仍应按业务数据管理。
+
+`edit/write` 在修改前保存文件快照，可计算 diff 并显式恢复。恢复时还会比较工具完成后的文件指纹；用户或并发进程后来修改过文件时，CoreMind 会报告 `checkpoint_conflict` 并拒绝覆盖。Linux 的内置 `bash` 使用 OS 级沙箱，当前固定断网、只允许写工作区，初始化失败时关闭执行且不回退宿主 shell。Windows 没有 OS 级 shell 沙箱；宿主 Shell 只有在 full、`workspaceOnly: false`、`network: allow` 同时选择时开放，其他组合失败关闭。Git Bash 发现不改变这一安全边界。
+
+TypeScript、Python 与脚本自定义工具都必须声明 `effect.operations` 和 `effect.reversible`；非标准嵌套路径或 URL 用 `pathFields`、`urlFields` 标记。权限层不依据工具名称猜测未知副作用，自定义工具也不能冒用内置工具名。
 
 Linux 实现锁定 [Anthropic Sandbox Runtime](https://github.com/anthropic-experimental/sandbox-runtime) `0.0.71` 并依赖 [Bubblewrap](https://github.com/containers/bubblewrap)。前者官方仍标注为 Beta Research Preview，因此当前将其作为纵深防御实现。Linux CI 必须实际执行越界写入和联网失败测试，安全结论以完整权限策略、恢复机制和自动化证据为准。
 
@@ -51,7 +55,7 @@ Ubuntu/Debian 需要安装 `bubblewrap`、`socat` 和 `ripgrep`。Ubuntu 24.04 �
 - `--session <id>` 保存并恢复多轮消息；损坏会话会返回 `session_restore_failed`，不会静默创建新会话。
 - 每轮 Chat 都是完整 Harness Run，TUI 与无头运行使用相同预算、权限、Trace 和 checkpoint。
 - Provider 调用前按 turn 边界做确定性 Context 保护，并产生 `context_compacted` 事件。
-- `session.compact` 是持久会话的可选 LLM 摘要；Loop 内 Context 保护不依赖它。
+- `session.compact` 是持久会话的可选 LLM 摘要；Loop 内 Context 保护不依赖它。压缩失败会发出 `context_compaction_failed`，不会静默退化；摘要固定保留目标、约束、权限、已修改文件、测试状态和下一步。
 
 ## 5. 三档质量级别
 
@@ -105,6 +109,42 @@ coremind eval coremind.yaml --suite evals/regression.yaml --json
 
 每次尝试都使用真实 `CoreMindRuntime`。模型异常、工具失败导致的运行异常和业务断言失败都会进入报告。交互终端可以处理 ask 审批；非 TTY 环境安全拒绝，CI 应为已审查工具写明确 allow，或显式选择符合风险边界的权限模式。
 
+需要验证工具轨迹、测试命令、文件、差异和运行状态时，使用 schemaVersion 2。它要求至少一个 `outcome` grader，同一场景最多 20 个 grader；schemaVersion 1 继续用于兼容简单文本断言。
+
+```yaml
+schemaVersion: 2
+scenarios:
+  - id: repair-discount
+    input: 复现并修复折扣计算错误
+    repetitions: 3
+    graders:
+      - { id: outcome, type: outcome, status: succeeded }
+      - type: trajectory
+        sequence:
+          - { tool: bash, result: failed }
+          - { tool: read, result: succeeded }
+          - { tool: edit, result: succeeded }
+          - { tool: bash, result: succeeded }
+        maxToolFailures: 1
+      - type: command
+        command: node
+        args: ["--test"]
+      - type: file
+        path: src/discount.ts
+        contains: ["Math.min"]
+      - type: diff
+        requiredPaths: ["src/discount.ts"]
+        allowedPaths: ["src/discount.ts"]
+        preserveExisting: true
+      - type: state
+        maxTurns: 12
+        maxSecurityFindings: 0
+      - type: response
+        contains: ["src/discount.ts", "测试"]
+```
+
+`command` grader 使用命令与参数数组，不经过 Shell 拼接；`file` 与 `diff` 路径限制在工作区内。评测开始前会记录受保护文件和脏工作区基线，默认拒绝覆盖用户已有未提交内容。首次缺陷测试失败可以是预期复现证据，它计入工具失败指标，但不能被误记为安全漏洞。
+
 ## 8. Workflow 重试
 
 ```yaml
@@ -119,26 +159,73 @@ workflow:
       if: "{{text}} contains INCOMPLETE"
 ```
 
-`retry.max` 是步骤局部上限，`runtime.maxRetries` 是全局上限。全局耗尽会明确中止；步骤局部次数耗尽但未超过全局上限时，会保留最后输出并发出质量告警，因此必须用场景评测决定它是否可接受。
+`retry.max` 是步骤局部上限，`runtime.maxRetries` 是全局上限。只要重试条件仍判定输出不合格，任一上限耗尽都会以 `retry_exhausted` 明确失败；Runtime 不再接受已知不合格的最后输出。
 
-## 9. 中断恢复与幂等边界
+## 9. 显式验证修复 Loop
 
-每个运行把事件和完整步骤输出追加写入 `.coremind/runs/<runId>.jsonl`。进程意外中断后，可以从最后一个完整稳定边界继续：
+`workflow` 适合固定依赖；需要“生成 → 验证 → 修复 → 再验证”时，使用公开 `loop` 配置。Loop 只有 verify 的 `passIf` 通过后才成功，并受最大迭代、最大修复、重复动作、预算和超时共同约束。
+
+```yaml
+loop:
+  execute: { agent: coder, input: "{{prompt}}" }
+  verify:
+    agent: reviewer
+    input: "{{candidate.text}}"
+    passIf: "{{text}} == PASS"
+  repair: { agent: coder, input: "{{verification.text}}" }
+  maxIterations: 3
+  maxRepairs: 2
+  maxRepeatedAction: 2
+  onFailure: repair
+  onExhausted: fail
+```
+
+Provider/网络错误只有经统一分类确认为瞬态时才重试。审批拒绝和安全策略拒绝会暂停，参数错误与确定性业务失败直接失败；中止和超时会传播到 Loop 控制器并留下同名终态。TUI、无头 CLI、TypeScript SDK 和 Python SDK 观察同一状态序列。
+
+## 10. 中断、暂停恢复与 Effect Receipt
+
+每个运行把事件、Loop 稳定快照和完整步骤输出追加写入 `.coremind/runs/<runId>.jsonl`。进程意外中断或 Loop 显式暂停后，可以从最后一个完整稳定边界继续：
 
 ```bash
 coremind run coremind.yaml --resume <runId>
 ```
 
-恢复使用原 runId，延续 Trace sequence、预算、重试计数和原始输入，并复用已完成步骤的 `step_output`。以下情况会明确拒绝，不会猜测或重放：
+恢复使用原 runId，延续 Trace sequence、预算、重试计数、Loop 快照和原始输入，并复用已完成步骤的 `step_output`。以下情况会明确拒绝，不会猜测或重放：
 
 - RunState 已正常结束或已记录失败/中止结论。
 - JSONL 损坏、sequence 不连续，或当前配置指纹与原运行不一致。
 - 调用方提供了不同输入。
-- 未完成步骤已经调用 `edit`、`write`、`bash`、自定义工具等非重放安全能力。
+- 未完成步骤存在 `unknown` 副作用，尚未由人工完成核对。
 
-工具事件带有幂等关联标识，方便业务工具记录收据或做去重；它不是通用的“恰好一次执行”承诺。涉及订单、支付、消息发送等副作用时，业务工具必须在自己的持久层实现幂等，并为重复调用写测试。
+工具调用生成稳定幂等关联标识，并记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复时，完整步骤与已提交副作用不会自动重放；`started` 或 `unknown` 会进入人工核对，而不是猜测执行结果。这仍不是通用的“恰好一次执行”承诺。涉及订单、支付、消息发送等外部副作用时，业务工具必须在自己的持久层实现幂等、收据或补偿流程，并为重复调用写测试。
 
-## 10. 推荐验收顺序
+## 11. 源码与发布物门禁
+
+源码贡献和候选发布必须验证“测试能过”之外的内容：
+
+```bash
+npm run test:stability
+npm run test:coverage
+npm run release:check-npm
+npm run release:test-npm
+npm run release:test-source
+npm run build:python-worker
+python -X utf8 -m build --wheel python
+python -X utf8 -m twine check python/dist/*
+npm run release:check-wheel
+npm run acceptance:rc
+npm run docs:audit
+```
+
+`test:stability` 连续运行三次全量测试，任何一轮失败立即阻断。`test:coverage` 使用 V8 记录全仓和关键 Runtime 文件的真实覆盖率。`0.2.0-rc.1` 候选基线为 lines 72.54%、statements 70.51%、functions 79.82%、branches 62.66%；当前仍低于全仓 80% 与关键分支 90% 长期目标，因此门禁先阻止任何指标下降并持续报告差距，不把基线写成目标已达成。
+
+npm 门禁逐包执行实际 `npm pack`，拒绝测试、内部计划、运行状态、checkpoint、临时文件和凭据进入 tarball，再用 publint、类型解析和全新项目安装验证公共入口。源码 ZIP 门禁使用临时 Git 索引生成当前候选快照，不改变真实暂存区，并在干净解压目录执行安装、构建、合同检查和 CLI 启动。wheel 门禁检查内容与元数据，安装到全新虚拟环境，并实际启动内置 Worker。
+
+Windows 与 Linux 必须分别保留三连跑结果。GitHub Actions 可提供 Linux 自动化证据，但真实 TUI 仍需目标平台 TTY 人工验收。
+
+Release Candidate 另按[RC 验收指南](../release/RC-ACCEPTANCE.zh-CN.md)执行 P01～P20。P01～P19 必须同时有自动套件与精确测试标题锚点；P20 必须保留绑定同一版本和提交的 Windows/Linux 真实 TTY 证据。真实 Provider 当次复验和目标平台 CI 是独立门禁，不能由自动矩阵代替。
+
+## 12. 推荐验收顺序
 
 1. 为业务正常、边界、失败、权限拒绝和预算超限写场景。
 2. 运行单元/集成测试。
@@ -147,4 +234,4 @@ coremind run coremind.yaml --resume <runId>
 5. 检查 Trace、预算、审批、checkpoint/diff 与失败原因。
 6. 由业务负责人确认结果；只有 `ReleaseReadiness.ready` 且人工门禁完成后才进入发布。
 
-可直接参考 [评测模块](../modules/evaluate-agents/README.zh-CN.md) 与 [四个黄金示例](../../examples/golden/README.zh-CN.md)。
+可直接参考 [评测模块](../modules/evaluate-agents/README.zh-CN.md)、[5 个黄金示例](../../examples/golden/README.zh-CN.md)与[编码智能体真实缺陷评测](../../examples/coding-evals/README.zh-CN.md)。

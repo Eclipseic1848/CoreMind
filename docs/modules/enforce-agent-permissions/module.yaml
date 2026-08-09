@@ -8,6 +8,7 @@ sourcePaths:
   - "packages/coremind-runtime/src/tool-policy.ts"
   - "packages/coremind-cli/src/approval.ts"
   - "packages/coremind-tools/src/linux-sandbox.ts"
+  - "packages/coremind-tools/src/host-shell.ts"
 documents:
   readme:
     zh-CN: docs/modules/enforce-agent-permissions/README.zh-CN.md
@@ -27,6 +28,7 @@ testPaths:
   - "packages/coremind-runtime/src/tool-policy.test.ts"
   - "packages/coremind-cli/src/approval.test.ts"
   - "packages/coremind-tools/src/linux-sandbox.test.ts"
+  - "packages/coremind-tools/src/host-shell.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

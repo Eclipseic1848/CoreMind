@@ -9,8 +9,11 @@
 ```text
 npm run build
 npm run check
-npm test
+npm run test:stability
+npm run test:coverage
 npm run docs:build
+npm run docs:audit
+npm run acceptance:rc
 npm run release:preflight -- --allow-dirty
 ```
 
@@ -20,6 +23,10 @@ npm run release:preflight -- --allow-dirty
 2. 运行 [模块示例](../../../examples/modules/contribute-coremind/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+5. 正式候选必须在 Windows 与 Linux 各三连跑；没有的平台证据保持待验收，不用其他平台结果代替。
+6. 按 [RC 验收指南](../../release/RC-ACCEPTANCE.zh-CN.md)保存双平台真实 TTY 与真实 Provider 证据；发布物必须来自同一干净 Tag。
+7. Release Please 只准备草稿发布 PR；OIDC 受保护环境批准后，统一工作流才发布 npm、PyPI、来源证明和 GitHub Release。
+8. 外部 Action 只接受已核对的完整 SHA；Dependabot 升级 PR 必须重跑同一组门禁。每个发布物作业在使用前独立校验 SHA-256。
 
 ## 常见误区
 
@@ -27,3 +34,5 @@ npm run release:preflight -- --allow-dirty
 - 不要把一次成功运行当成稳定性证明。
 - 不要通过 full 模式绕过 deny、工作区保护、审计或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
+- 不要把覆盖率目标写成已达成；当前门禁以真实基线阻止下降，并明确列出到 80%/90% 目标的差距。
+- 不要把 Release Please PR、历史 Provider 证据或单个平台 TTY 当成发布完成。

@@ -1,4 +1,4 @@
-# 配置与 Schema开发 SOP
+# 配置与 Schema 开发 SOP
 
 ## 前置条件
 
@@ -8,10 +8,14 @@
 
 1. 先写 schemaVersion、name 和 agents。
 2. 显式选择 runtime、permissions 和 quality。
-3. 运行 coremind check，再处理全部错误与告警。
-4. 业务字段不明确时停止并询问负责人。
-5. 运行模块列出的测试，并执行 `npm run check:modules`。
-6. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+3. 固定步骤选择 `workflow`；只有独立验证与有界修复场景才选择 `loop`，两者不得并存。
+4. 为 Loop 设置 passIf、最大迭代、最大修复、重复动作和失败/耗尽策略。
+5. 为每个自定义工具列出真实副作用，填写 `effect.operations`、`effect.reversible`，并用 `pathFields`、`urlFields` 指向嵌套目标字段。
+6. 确认自定义工具名不与内置工具冲突。
+7. 运行 `coremind check`，再处理全部错误与告警。
+8. 业务字段、验证规则或副作用不明确时停止并询问负责人。
+9. 运行模块列出的测试，并执行 `npm run check:modules`。
+10. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

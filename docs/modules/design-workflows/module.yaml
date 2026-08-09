@@ -6,7 +6,11 @@ name:
 version: 0.1.0-alpha.2
 sourcePaths:
   - "packages/coremind-runtime/src/orchestrator.ts"
+  - "packages/coremind-runtime/src/loop-controller.ts"
+  - "packages/coremind-runtime/src/loop-runner.ts"
+  - "packages/coremind-runtime/src/retry-policy.ts"
   - "packages/coremind-config/src/schema/workflow.ts"
+  - "packages/coremind-config/src/schema/loop.ts"
 documents:
   readme:
     zh-CN: docs/modules/design-workflows/README.zh-CN.md
@@ -24,7 +28,11 @@ examplePaths:
   - examples/modules/design-workflows/README.en.md
 testPaths:
   - "packages/coremind-runtime/src/orchestrator.test.ts"
+  - "packages/coremind-runtime/src/loop-controller.test.ts"
+  - "packages/coremind-runtime/src/loop-runner.test.ts"
+  - "packages/coremind-runtime/src/retry-policy.test.ts"
   - "packages/coremind-runtime/src/budget.test.ts"
+  - "examples/golden/golden-examples.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

@@ -8,7 +8,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 当前版本已经公开提供：
 
-- CLI/TUI、TypeScript SDK、Python SDK和完整源码三种使用路径。
+- CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
 - Config v2、38 个可配置模型供应商及自定义兼容端点。
 - `ask`、`assisted`、`full` 三档权限，以及路径策略、审批、审计、checkpoint、diff 和恢复。
@@ -19,6 +19,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 当前版本处于 Beta 阶段，欢迎在开发和测试环境中试用，并通过社区反馈帮助项目持续改进。
 
+仓库候选源码现为未发布的 `0.2.0-rc.1`，在公开包之上增加显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。Batch 8 门禁已完成，Windows P01～P19 自动矩阵已通过；双平台真实 TTY、Linux 目标平台执行与当次真实 Provider 复验仍是发布阻断项。
+
 ## `0.2.x`：一期稳定线
 
 一期稳定线聚焦已经交付能力的可靠性和可用性：
@@ -27,6 +29,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 根据首次社区试用修复安装、配置、错误提示和交互体验问题。
 - 扩充经过真实调用验证的模型供应商认证证据。
 - 持续验证 CLI、TypeScript SDK 和 Python SDK 的结果与事件一致性。
+- 将已完成的显式有界 Loop 与编码智能体证据纳入跨平台 Release Candidate 验收。
 - 加强安全、恢复、评测、文档和公开包的发布回归。
 
 未经过真实测试的能力只标记为可配置，不标记为官方认证。

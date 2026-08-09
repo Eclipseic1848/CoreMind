@@ -18,6 +18,19 @@ quality:
   profile: standard
 ```
 
+When adding a custom script tool, declare its effects with this structure:
+
+```yaml
+agents:
+  main:
+    tools:
+      - path: tools/save-report.mjs
+        effect:
+          operations: [write]
+          reversible: true
+          pathFields: [output.path]
+```
+
 ## Verification
 
 1. Run the tests listed in the module manifest from the repository root.

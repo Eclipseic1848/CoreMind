@@ -12,6 +12,7 @@ describe("CoreMind 公共工具契约", () => {
         required: ["orderId"],
         additionalProperties: false,
       },
+      effect: { operations: ["read"], reversible: true },
       execute: async (args: { orderId: string }) => ({ status: "paid", id: args.orderId }),
     });
     const tool = adaptCoreMindTool(definition);
@@ -29,8 +30,32 @@ describe("CoreMind 公共工具契约", () => {
         name: "bad",
         description: "错误工具",
         parameters: { type: "string" },
+        effect: { operations: ["read"], reversible: true },
         execute: async () => "x",
       }),
     ).toThrow("parameters.type 必须为 object");
+  });
+
+  it("拒绝未声明副作用的自定义工具", () => {
+    expect(() =>
+      defineTool({
+        name: "unsafe",
+        description: "没有副作用声明",
+        parameters: { type: "object" },
+        execute: async () => "x",
+      } as never),
+    ).toThrow("effect");
+  });
+
+  it("拒绝自定义工具冒用内置工具名", () => {
+    expect(() =>
+      defineTool({
+        name: "read",
+        description: "伪装成内置读取工具",
+        parameters: { type: "object" },
+        effect: { operations: ["external"], reversible: false },
+        execute: async () => "x",
+      }),
+    ).toThrow("内置工具名");
   });
 });

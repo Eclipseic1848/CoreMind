@@ -15,7 +15,8 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 ## Errors and boundaries
 
 - session_restore_failed: stop on corruption instead of silently starting over
-- Context compaction preserves recent complete turns and emits an event
+- Context compaction preserves recent complete turns and emits an event; failure emits `context_compaction_failed` instead of silently truncating
+- Summaries preserve goals, constraints, permissions, modified files, test status, and next steps
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

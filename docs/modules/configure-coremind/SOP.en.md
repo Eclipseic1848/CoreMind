@@ -8,10 +8,14 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 1. Define schemaVersion, name, and agents first.
 2. Select runtime, permissions, and quality explicitly.
-3. Run coremind check and resolve every error and warning.
-4. Stop and ask the owner when business fields are unknown.
-5. Run the listed module tests and `npm run check:modules`.
-6. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+3. Choose `workflow` for fixed steps and `loop` only for independent verification with bounded repair; never configure both.
+4. Set passIf, iteration, repair, repeated-action, failure, and exhaustion bounds for every Loop.
+5. Inventory every custom tool's real effects, set `effect.operations` and `effect.reversible`, and use `pathFields` or `urlFields` for nested targets.
+6. Confirm that custom tool names do not collide with built-in names.
+7. Run `coremind check` and resolve every error and warning.
+8. Stop and ask the owner when business fields, verification rules, or effects are unknown.
+9. Run the listed module tests and `npm run check:modules`.
+10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

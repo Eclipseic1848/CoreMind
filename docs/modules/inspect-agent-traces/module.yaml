@@ -26,6 +26,7 @@ examplePaths:
 testPaths:
   - "packages/coremind-runtime/src/run-state.test.ts"
   - "packages/coremind-runtime/src/runtime.test.ts"
+  - "packages/coremind-runtime/src/trace.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

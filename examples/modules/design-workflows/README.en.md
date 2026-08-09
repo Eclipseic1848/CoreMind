@@ -1,25 +1,33 @@
-# Workflows and Bounded Loops Example
+# Workflows and Explicit Bounded Loops Example
 
-This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
+Use `workflow` for a fixed two-step pipeline. The following `loop` is only for an independently verified result with bounded repair:
 
-```text
-workflow:
-  - id: draft
-    type: call
-    agent: writer
-    input: '{{prompt}}'
-    saveAs: draft
-  - id: review
-    type: call
+```yaml
+loop:
+  execute:
+    agent: coder
+    input: "{{prompt}}"
+  verify:
     agent: reviewer
-    input: '{{draft.text}}'
+    input: "{{candidate.text}}"
+    passIf: "{{text}} == PASS"
+  repair:
+    agent: coder
+    input: "{{verification.text}}"
+  maxIterations: 3
+  maxRepairs: 2
+  maxRepeatedAction: 2
+  onFailure: repair
+  onExhausted: fail
 ```
+
+See the runnable [verified repair golden example](../../golden/verified-repair-loop/README.en.md). It deliberately fails the first verification and asserts repair success, pause-resume, and exhaustion failure.
 
 ## Verification
 
-1. Run the tests listed in the module manifest from the repository root.
-2. Run `coremind check` for configuration examples.
-3. Add scenarios and run `coremind eval` for business outputs.
-4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
+1. Run `coremind check coremind.yaml`.
+2. Use `--json-events` to inspect ordered `loop_state` events and the final `run_result`.
+3. Inject denial, 503, no progress, and exhaustion; none may masquerade as success.
+4. Resume the same run ID and confirm completed steps and committed effects do not replay.
 
 Return to the [English guide](../../../docs/modules/design-workflows/GUIDE.en.md).

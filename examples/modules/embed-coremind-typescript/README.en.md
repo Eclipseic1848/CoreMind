@@ -10,6 +10,7 @@ const runtime = await CoreMindRuntime.create({
   toolDefinitions: [lookupOrder],
 });
 const result = await runtime.run();
+if (result.outcome.status !== 'succeeded') throw new Error(result.outcome.finishReason);
 ```
 
 ## Verification
@@ -18,5 +19,6 @@ const result = await runtime.run();
 2. Run `coremind check` for configuration examples.
 3. Add scenarios and run `coremind eval` for business outputs.
 4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
+5. Add `effect` to `lookupOrder` and verify `defineTool` rejects a missing declaration.
 
 Return to the [English guide](../../../docs/modules/embed-coremind-typescript/GUIDE.en.md).

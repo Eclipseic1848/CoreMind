@@ -4,7 +4,7 @@ Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not 
 
 ## Purpose
 
-Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, with run --resume for unfinished runs that have a safe recovery boundary.
+Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, display explicit Loop progress, and use run --resume for paused or interrupted runs with a safe boundary.
 
 ## Public interfaces
 
@@ -18,9 +18,13 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 
 ## Errors and boundaries
 
-- Failed commands return a non-zero exit code
+- Stable `run` exit codes: succeeded `0`, failed `1`, paused `2`, budget exhausted `3`, timeout `124`, and aborted `130`
+- `--json-events` keeps stdout as JSONL and always ends with `run_result`; diagnostics go to stderr
+- `--print` and `--json-events` are mutually exclusive so prose cannot contaminate machine output
 - Non-TTY approvals deny safely
-- TUI and readline share the same ChatSession harness
+- TUI and readline share the same ChatSession harness, and failed terminal states display their reason
+- TUI approvals show effects, complete targets, and reasons first; long bodies are summarized and credential fields redacted
+- TUI, readline, and JSONL expose the same ordered `loop_state` events; pause exits with code `2` and remains resumable
 - Unsafe or already-finished run IDs fail resume explicitly
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.

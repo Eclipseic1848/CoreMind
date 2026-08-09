@@ -12,12 +12,15 @@ Snapshot files before edit/write, expose diff and explicit restore, and mark ung
 /restore CHECKPOINT_ID
 ```
 
+Use `/checkpoints` → `/diff ID` → human confirmation → `/restore ID`. If restore returns `checkpoint_conflict`, the file changed after the tool completed. Do not retry an overwrite: copy the current file, compare all three states manually, and decide how to merge.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
 2. Run the [module example](../../../examples/modules/manage-checkpoints/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+5. Edit the same file manually after the tool writes it, then run `/restore`; it must refuse and preserve the manual edit.
 
 ## Common mistakes
 

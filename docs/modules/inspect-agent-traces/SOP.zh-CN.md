@@ -9,11 +9,13 @@
 1. 先按 runId 定位运行。
 2. 按 sequence 重建时间线。
 3. 从第一个 fatal error 或 policy_denied 向前检查。
-4. 确认 step_output 是完整稳定边界后再恢复。
-5. 用事件证据复现后再修改。
-6. 保留修复前后 Trace。
-7. 运行模块列出的测试，并执行 `npm run check:modules`。
-8. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+4. 对 Loop 核对状态快照版本、配置指纹和最后稳定 phase。
+5. 确认 step_output 完整，committed 副作用不重放，unknown 副作用已转人工核对后再恢复。
+6. 用事件证据复现后再修改。
+7. 使用假凭据、正文和带敏感查询参数的 URL 验证持久化前脱敏，同时确认普通测试命令仍可供 grader 审计。
+8. 保留修复前后 Trace。
+9. 运行模块列出的测试，并执行 `npm run check:modules`。
+10. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

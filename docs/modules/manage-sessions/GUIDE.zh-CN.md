@@ -21,6 +21,7 @@ session:
 2. 运行 [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+5. 注入一次压缩失败，确认原消息保留并出现 `context_compaction_failed`；检查摘要六个必备部分。
 
 ## 常见误区
 

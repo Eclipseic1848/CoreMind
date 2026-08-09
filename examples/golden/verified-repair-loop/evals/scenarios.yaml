@@ -1,0 +1,7 @@
+schemaVersion: 1
+scenarios:
+  - id: repair-before-success
+    input: 修复候选结果
+    expected:
+      contains:
+        - candidate-fixed

@@ -8,12 +8,13 @@
 
 1. 创建并复用一个客户端。
 2. 先 initialize，再注册 Python 工具。
-3. 为 callable 注解参数类型。
-4. 订阅事件和处理审批。
-5. 仅用 resume_run 恢复未完成且安全的运行。
-6. 在 finally 或上下文管理器中关闭 worker。
-7. 运行模块列出的测试，并执行 `npm run check:modules`。
-8. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+3. 为 callable 注解参数类型，并填写真实 `effect.operations` 与 `effect.reversible`。
+4. 订阅事件和处理审批，穷举消费六种 RunOutcome 终态。
+5. 仅用 resume_run 恢复暂停或意外中断且安全的运行。
+6. 显式 Loop 必须与 TypeScript 对比状态顺序、暂停恢复、耗尽和 Effect Receipt。
+7. 注入一次工具注册失败，确认客户端自动终止半启动 worker；正常流程仍在 finally 或上下文管理器中关闭 worker。
+8. 运行模块列出的测试，并执行 `npm run check:modules`。
+9. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

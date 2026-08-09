@@ -10,6 +10,7 @@ const runtime = await CoreMindRuntime.create({
   toolDefinitions: [lookupOrder],
 });
 const result = await runtime.run();
+if (result.outcome.status !== 'succeeded') throw new Error(result.outcome.finishReason);
 ```
 
 ## 验证步骤
@@ -18,5 +19,6 @@ const result = await runtime.run();
 2. 配置类示例运行 `coremind check`。
 3. 业务输出类示例补充场景后运行 `coremind eval`。
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
+5. 给 `lookupOrder` 补充 `effect`，并验证缺少声明时 `defineTool` 明确拒绝。
 
 返回 [中文指南](../../../docs/modules/embed-coremind-typescript/GUIDE.zh-CN.md)。

@@ -17,6 +17,9 @@
 - checkpoint_too_large：超出快照上限时阻止修改
 - checkpoint_not_reversible：拒绝伪恢复
 - checkpoint_corrupt：记录无效
+- checkpoint_conflict：工具完成后文件又被人工或并发修改，拒绝覆盖新内容
+
+`edit`/`write` 在执行前保存原始快照，执行后记录预期文件指纹。恢复只在当前文件仍等于该预期状态时进行；这是一条乐观并发保护，不是任意副作用事务。
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

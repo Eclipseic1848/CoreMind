@@ -7,12 +7,15 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 ## Procedure
 
 1. Define business success first.
-2. Create happy, boundary, failure, and denial scenarios.
-3. Run coremind check.
-4. Run coremind eval.
-5. Use ReleaseReadiness—not a fluent answer—to decide release.
-6. Run the listed module tests and `npm run check:modules`.
-7. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+2. Create happy, boundary, failure, denial, timeout, and cancellation scenarios.
+3. Use schemaVersion 1 for compatible text checks; use schemaVersion 2 when tools, files, diffs, and runtime-state evidence matter.
+4. Include an outcome grader in every schemaVersion 2 scenario, then add trajectory, command, file, diff, state, and response graders according to risk.
+5. Capture the dirty-worktree and protected-file baseline, and declare allowed plus forbidden paths before execution.
+6. Run `coremind check` and `coremind eval`; repeat strict scenarios at least three times.
+7. Keep deterministic offline and live-model results separate. Record model, provider, platform, repetitions, cost/tokens, and data-egress authorization for live runs.
+8. Use release readiness, security gates, final tests, and owner review—not fluent prose—to decide release.
+9. Run the listed module tests and `npm run check:modules`.
+10. Preserve trace, grader, diff, and human-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

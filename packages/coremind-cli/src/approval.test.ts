@@ -10,6 +10,13 @@ const request = (id: string): ToolApprovalRequest => ({
   args: { path: "notes.txt" },
   risk: "low",
   reason: "需要批准",
+  effect: {
+    operations: ["read"],
+    paths: ["notes.txt"],
+    urls: [],
+    reversible: true,
+    declared: true,
+  },
 });
 
 describe("ApprovalQueue", () => {

@@ -59,8 +59,14 @@ npm run check
 ```bash
 npm run build
 npm run check
-npm test
+npm run test:stability
+npm run test:coverage
 npm run docs:build
+npm run release:check-npm
+npm run release:test-npm
+npm run release:test-source
+npm run acceptance:rc
+npm run docs:audit
 npm run release:preflight -- --allow-dirty
 ```
 
@@ -69,10 +75,14 @@ Python 改动还需要运行：
 ```bash
 python -X utf8 -m unittest discover -s python/tests -v
 npm run build:python-worker
-python -X utf8 -m build python
+python -X utf8 -m build --wheel python
+python -X utf8 -m twine check python/dist/*
+npm run release:check-wheel
 ```
 
-发布前还会在全新虚拟环境中安装 Wheel，并验证 npm 包内容；本地通过不代表可以跳过 CI。
+`release:check-wheel` 会自行创建全新虚拟环境，验证安装、版本和内置 Worker 启动。正式候选仍需 Windows/Linux 各三连跑；本地通过不代表可以跳过目标平台 CI 或人工 TTY 验收。
+
+发布版本由 Release Please 草稿 PR 统一准备，不从功能分支直接打 Tag。RC 必须按[RC 验收指南](docs/release/RC-ACCEPTANCE.zh-CN.md)留存 P01～P20、双平台、真实 Provider 和同提交证据；归档前再运行全仓 Markdown 审计。npm 与 PyPI 使用受保护 GitHub 环境和 OIDC 可信发布，贡献者无需也不应提交 Registry Token。完整过程见[发布 SOP](docs/release/README.zh-CN.md)。
 
 ## 文档与 Skill 规则
 

@@ -26,6 +26,8 @@ export function validateConfig(data: unknown): CoreMindConfig {
     throw new ConfigValidationError(`配置格式已升级：${details[0]}`, details);
   }
 
+  validateCustomToolEffects(record);
+
   if (!Value.Check(CoreMindConfigSchema, data)) {
     const details: string[] = [];
     for (const error of Value.Errors(CoreMindConfigSchema, data)) {
@@ -39,8 +41,67 @@ export function validateConfig(data: unknown): CoreMindConfig {
   }
 
   const config = Value.Parse(CoreMindConfigSchema, data) as CoreMindConfig;
+  if (config.workflow && config.loop) {
+    const detail = "workflow 与 loop 只能选择一种，不能同时配置";
+    throw new ConfigValidationError(detail, [detail]);
+  }
   validateWorkflowStepIds(config.workflow ?? []);
+  validateLoopAgents(config);
   return config;
+}
+
+function validateLoopAgents(config: CoreMindConfig): void {
+  if (!config.loop) return;
+  const knownAgents = new Set(Object.keys(config.agents));
+  const actions = [
+    ["planning", config.loop.planning],
+    ["execute", config.loop.execute],
+    ["verify", config.loop.verify],
+    ["repair", config.loop.repair],
+  ] as const;
+  const details = actions.flatMap(([name, action]) =>
+    action && !knownAgents.has(action.agent)
+      ? [`loop.${name}.agent 引用了未定义的 Agent：${action.agent}`]
+      : [],
+  );
+  if (details.length > 0) {
+    throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
+  }
+}
+
+function validateCustomToolEffects(record: Record<string, unknown>): void {
+  const locations: Array<{ prefix: string; tools: unknown }> = [
+    { prefix: "tools", tools: record.tools },
+  ];
+  if (
+    record.agents !== null &&
+    typeof record.agents === "object" &&
+    !Array.isArray(record.agents)
+  ) {
+    for (const [name, agent] of Object.entries(record.agents as Record<string, unknown>)) {
+      if (agent !== null && typeof agent === "object" && !Array.isArray(agent)) {
+        locations.push({
+          prefix: `agents.${name}.tools`,
+          tools: (agent as Record<string, unknown>).tools,
+        });
+      }
+    }
+  }
+  for (const location of locations) {
+    if (!Array.isArray(location.tools)) continue;
+    for (const [index, tool] of location.tools.entries()) {
+      if (
+        tool !== null &&
+        typeof tool === "object" &&
+        !Array.isArray(tool) &&
+        "path" in tool &&
+        !("effect" in tool)
+      ) {
+        const detail = `${location.prefix}.${index}.effect：自定义工具必须声明副作用`;
+        throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
+      }
+    }
+  }
 }
 
 function validateWorkflowStepIds(steps: WorkflowStep[]): void {

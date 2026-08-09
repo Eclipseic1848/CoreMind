@@ -1,0 +1,44 @@
+schemaVersion: 1
+id: build-coding-agents
+name:
+  zh-CN: "编码智能体"
+  en: "Coding Agents"
+version: 0.1.0-alpha.2
+sourcePaths:
+  - "packages/coremind-tools/src/process-runner.ts"
+  - "packages/coremind-tools/src/git-adapter.ts"
+  - "packages/coremind-tools/src/unified-diff.ts"
+  - "packages/coremind-runtime/src/evaluation-graders.ts"
+  - "examples/coding-evals"
+documents:
+  readme:
+    zh-CN: docs/modules/build-coding-agents/README.zh-CN.md
+    en: docs/modules/build-coding-agents/README.en.md
+  sop:
+    zh-CN: docs/modules/build-coding-agents/SOP.zh-CN.md
+    en: docs/modules/build-coding-agents/SOP.en.md
+  guide:
+    zh-CN: docs/modules/build-coding-agents/GUIDE.zh-CN.md
+    en: docs/modules/build-coding-agents/GUIDE.en.md
+  changelog: docs/modules/build-coding-agents/CHANGELOG.md
+skillPath: skills/build-coding-agents/SKILL.md
+examplePaths:
+  - examples/modules/build-coding-agents/README.zh-CN.md
+  - examples/modules/build-coding-agents/README.en.md
+testPaths:
+  - "packages/coremind-tools/src/process-runner.test.ts"
+  - "packages/coremind-tools/src/git-adapter.test.ts"
+  - "packages/coremind-tools/src/unified-diff.test.ts"
+  - "packages/coremind-runtime/src/evaluation.test.ts"
+  - "packages/coremind-runtime/src/batch8-properties.test.ts"
+  - "examples/coding-evals/coding-evals.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "design-agents"
+  - "build-tools"
+  - "evaluate-agents"
+  - "enforce-agent-permissions"
+  - "manage-checkpoints"
+maturity: implemented-alpha

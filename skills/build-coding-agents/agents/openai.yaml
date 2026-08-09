@@ -1,0 +1,4 @@
+interface:
+  display_name: "CoreMind Coding Agents"
+  short_description: "Build and verify bounded coding-agent workflows"
+  default_prompt: "Use $build-coding-agents to implement and verify this coding task without overwriting user changes or expanding scope."

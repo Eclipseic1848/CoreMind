@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "9b5df98a48b2a17a4d504b0786f46732a09bdf8c",
+  "release-type": "node",
+  "include-component-in-tag": false,
+  "versioning": "prerelease",
+  "draft-pull-request": true,
+  "skip-github-release": true,
+  "pull-request-title-pattern": "chore: prepare CoreMind ${version}",
+  "pull-request-header": "This draft prepares one synchronized CoreMind release. Before marking it ready, run the version synchronizer, update both changelogs, and pass the full release gate.",
+  "packages": {
+    ".": {
+      "prerelease-type": "rc",
+      "changelog-path": "CHANGELOG.en.md",
+      "extra-files": [
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-cli/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-config/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-protocol/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-templates/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-tools/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind-worker/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.dependencies.coremind-config" },
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.dependencies.coremind-protocol" },
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.dependencies.coremind-runtime" },
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.dependencies.coremind-tools" },
+        { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.dependencies.coremind-templates" },
+        { "type": "json", "path": "packages/coremind-cli/package.json", "jsonpath": "$.dependencies.coremind-ai" },
+        { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-config" },
+        { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-templates" },
+        { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-tools" },
+        { "type": "json", "path": "packages/coremind-templates/package.json", "jsonpath": "$.devDependencies.coremind-config" },
+        { "type": "json", "path": "packages/coremind-tools/package.json", "jsonpath": "$.dependencies.coremind-config" },
+        { "type": "json", "path": "packages/coremind-worker/package.json", "jsonpath": "$.dependencies.coremind-ai" },
+        { "type": "json", "path": "packages/coremind-worker/package.json", "jsonpath": "$.dependencies.coremind-protocol" },
+        { "type": "generic", "path": "python/pyproject.toml" },
+        { "type": "generic", "path": "python/src/coremind/__init__.py" }
+      ]
+    }
+  }
+}

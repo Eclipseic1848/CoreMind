@@ -64,7 +64,13 @@ export class WorkerServer {
   private initialized?: InitializedState;
   private readonly toolSpecs = new Map<
     string,
-    { name: string; label?: string; description: string; parameters: unknown }
+    {
+      name: string;
+      label?: string;
+      description: string;
+      parameters: unknown;
+      effect: CoreMindToolDefinition["effect"];
+    }
   >();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
@@ -175,6 +181,7 @@ export class WorkerServer {
         "resumeRun",
         "checkpointDiff",
         "checkpointRestore",
+        "loop",
       ],
     };
   }
@@ -268,6 +275,7 @@ export class WorkerServer {
       label: spec.label,
       description: spec.description,
       parameters: spec.parameters as CoreMindToolDefinition["parameters"],
+      effect: spec.effect,
       execute: (args, context) => this.invokePythonTool(spec.name, context.callId, args),
     }));
   }
@@ -317,10 +325,13 @@ export class WorkerServer {
     const records = await state.runStore.read(runId);
     if (records.length === 0) throw new CoreMindError("unknown_run", `未找到 runId：${runId}`);
     const finish = [...records].reverse().find((record) => record.kind === "finish");
+    const pause = [...records].reverse().find((record) => record.kind === "pause");
+    const terminal = finish ?? pause;
     return {
       runId,
-      status: finish ? "finished" : "interrupted",
-      outcome: finishPayload(finish?.payload),
+      status: finish ? "finished" : pause ? "paused" : "interrupted",
+      resumable: !finish,
+      outcome: outcomePayload(terminal?.payload),
       checkpoints: checkpointRecords(records, runId),
       records,
     };
@@ -403,7 +414,7 @@ function checkpointRecords(
   });
 }
 
-function finishPayload(payload: unknown): unknown {
+function outcomePayload(payload: unknown): unknown {
   if (payload === null || typeof payload !== "object") return undefined;
   return (payload as { outcome?: unknown }).outcome;
 }

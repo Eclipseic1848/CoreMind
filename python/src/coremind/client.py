@@ -94,20 +94,19 @@ class CoreMindClient:
             self._stderr_reader.start()
             try:
                 result = self._request_raw("initialize", self._initialize_params())
+                if result.get("protocolVersion") != PROTOCOL_VERSION:
+                    raise ProtocolError(
+                        f"协议版本不匹配：SDK={PROTOCOL_VERSION}，worker={result.get('protocolVersion')}",
+                        rpc_code=-32000,
+                        coremind_code="protocol_version_mismatch",
+                    )
+                for spec in self._tools.values():
+                    self._register_tool_spec(spec[1])
             except BaseException:
                 self._terminate_process()
                 self._process = None
                 raise
-            if result.get("protocolVersion") != PROTOCOL_VERSION:
-                self._terminate_process()
-                raise ProtocolError(
-                    f"协议版本不匹配：SDK={PROTOCOL_VERSION}，worker={result.get('protocolVersion')}",
-                    rpc_code=-32000,
-                    coremind_code="protocol_version_mismatch",
-                )
             self._started = True
-            for spec in self._tools.values():
-                self._register_tool_spec(spec[1])
             return self
 
     def run(self, input: str | None = None) -> dict[str, Any]:
@@ -135,7 +134,7 @@ class CoreMindClient:
         return dict(self._request_raw("inspect_run", {"runId": run_id}))
 
     def resume_run(self, run_id: str, *, input: str | None = None) -> dict[str, Any]:
-        """从意外中断运行的最近稳定步骤边界继续执行。"""
+        """从意外中断或显式暂停运行的最近稳定边界继续执行。"""
 
         self.start()
         params: dict[str, Any] = {"runId": run_id}
@@ -171,6 +170,7 @@ class CoreMindClient:
     def tool(
         self,
         *,
+        effect: Mapping[str, Any],
         name: str | None = None,
         description: str | None = None,
         parameters: Mapping[str, Any] | None = None,
@@ -185,6 +185,7 @@ class CoreMindClient:
                 "name": tool_name,
                 "description": description or inspect.getdoc(function) or tool_name,
                 "parameters": dict(parameters) if parameters else _schema_from_callable(function),
+                "effect": _normalize_tool_effect(effect),
             }
             self._tools[tool_name] = (function, spec)
             if self._started:
@@ -499,6 +500,33 @@ def _schema_from_callable(function: Callable[..., Any]) -> dict[str, Any]:
     if required:
         schema["required"] = required
     return schema
+
+
+def _normalize_tool_effect(effect: Mapping[str, Any]) -> dict[str, Any]:
+    """校验并复制工具副作用声明，避免把不可证明的权限信息发送给 worker。"""
+
+    allowed = {"read", "write", "process", "network", "external"}
+    operations = effect.get("operations")
+    reversible = effect.get("reversible")
+    if (
+        not isinstance(operations, list)
+        or not operations
+        or any(operation not in allowed for operation in operations)
+        or not isinstance(reversible, bool)
+    ):
+        raise CoreMindError("Python 工具必须提供有效 effect 副作用声明")
+    normalized: dict[str, Any] = {
+        "operations": list(dict.fromkeys(operations)),
+        "reversible": reversible,
+    }
+    for field in ("pathFields", "urlFields"):
+        value = effect.get(field)
+        if value is None:
+            continue
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+            raise CoreMindError(f"Python 工具 effect.{field} 必须是非空字符串数组")
+        normalized[field] = list(value)
+    return normalized
 
 
 def _annotation_schema(annotation: Any) -> dict[str, Any]:

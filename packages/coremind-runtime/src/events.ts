@@ -1,4 +1,8 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
+import type { LoopPhase } from "./loop-controller.js";
+import type { ToolEffect } from "./tool-policy.js";
+
+export type EffectReceiptStatus = "started" | "committed" | "unknown";
 
 /**
  * CoreMind 归一化事件——CLI 渲染、库调用方、二期 Web 面板共用同一契约。
@@ -32,6 +36,13 @@ export type CoreMindEvent =
       callId?: string;
       stepId?: string;
     }
+  | {
+      type: "effect_receipt";
+      idempotencyKey: string;
+      tool: string;
+      status: EffectReceiptStatus;
+      stepId?: string;
+    }
   | { type: "step_start"; stepId: string; kind: string }
   | {
       type: "step_output";
@@ -42,6 +53,15 @@ export type CoreMindEvent =
     }
   | { type: "step_resumed"; stepId: string }
   | { type: "step_end"; stepId: string; ok: boolean }
+  | {
+      type: "loop_state";
+      from: LoopPhase;
+      to: LoopPhase;
+      trigger: string;
+      iteration: number;
+      repairs: number;
+      reason?: string;
+    }
   | { type: "retry"; scope: "provider" | "workflow"; attempt: number; stepId?: string }
   | {
       type: "approval_required";
@@ -51,6 +71,7 @@ export type CoreMindEvent =
       tool: string;
       args: unknown;
       risk: "low" | "high";
+      effect: ToolEffect;
     }
   | {
       type: "approval_resolved";
@@ -71,6 +92,11 @@ export type CoreMindEvent =
       beforeTokens: number;
       afterTokens: number;
       removedMessages: number;
+    }
+  | {
+      type: "context_compaction_failed";
+      message: string;
+      preservedMessages: number;
     }
   | {
       type: "checkpoint_created";

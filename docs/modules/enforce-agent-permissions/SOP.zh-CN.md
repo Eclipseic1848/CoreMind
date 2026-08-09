@@ -9,11 +9,12 @@
 1. 默认从 ask 开始。
 2. 列出允许与禁止的工具。
 3. 对网络单独选择 ask、allow 或 deny；注意当前 Linux bash 仍固定断网。
-4. 用真实工具验证三档模式。
-5. 不得把 full 解释为关闭审计或 checkpoint。
-6. Windows shell 没有 OS 沙箱，按不可逆高风险操作处理。
-7. 运行模块列出的测试，并执行 `npm run check:modules`。
-8. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+4. 审查每个自定义工具的 `effect`，并用嵌套路径、URL、绝对路径、盘符、UNC 和目录链接验证递归与规范化检查。
+5. 用真实工具验证三档模式，不只验证模拟函数。
+6. 不得把 full 解释为关闭 deny、工作区、网络、审计或 checkpoint。
+7. Windows 受约束 Shell 必须失败关闭；确需宿主 Shell 时，用户必须同时明确选择 full、关闭工作区限制和允许网络，并接受它没有 OS 隔离。也可选择隔离的 Linux 环境。
+8. 运行模块列出的测试，并执行 `npm run check:modules`。
+9. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

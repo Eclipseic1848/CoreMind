@@ -2,10 +2,25 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { CoreMindError } from "./errors.js";
+import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import type { CompletedWorkflowStep } from "./orchestrator.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
-export type RunStateKind = "start" | "resume" | "event" | "checkpoint" | "finish";
+export interface EffectReceipt {
+  idempotencyKey: string;
+  tool: string;
+  status: "started" | "committed" | "unknown";
+  stepId?: string;
+}
+
+export type RunStateKind =
+  | "start"
+  | "resume"
+  | "event"
+  | "checkpoint"
+  | "loop"
+  | "pause"
+  | "finish";
 
 export interface RunStateRecord {
   version: 1;
@@ -28,7 +43,9 @@ export interface RunResumePlan {
   nextJournalSequence: number;
   nextTraceSequence: number;
   completedSteps: Map<string, CompletedWorkflowStep>;
+  effectReceipts: Map<string, EffectReceipt>;
   previousTrace: CoreMindTraceEvent[];
+  loopSnapshot?: LoopControllerSnapshot;
 }
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
@@ -126,6 +143,14 @@ export class RunStateJournal {
     this.enqueue("checkpoint", payload);
   }
 
+  loop(payload: LoopControllerSnapshot): void {
+    this.enqueue("loop", payload);
+  }
+
+  pause(payload: unknown): void {
+    this.enqueue("pause", payload);
+  }
+
   finish(payload: unknown): void {
     this.enqueue("finish", payload);
   }
@@ -184,10 +209,15 @@ export function prepareRunResume(
   }
 
   const completedSteps = new Map<string, CompletedWorkflowStep>();
-  const unsafeToolStarts: Array<{ stepId?: string; tool: string }> = [];
+  const unsafeToolStarts: Array<{ stepId?: string; tool: string; idempotencyKey?: string }> = [];
+  const effectReceipts = new Map<string, EffectReceipt>();
   const previousTrace: CoreMindTraceEvent[] = [];
+  let loopSnapshot: LoopControllerSnapshot | undefined;
   let nextTraceSequence = 0;
   for (const record of ordered) {
+    if (record.kind === "loop") {
+      loopSnapshot = loopSnapshotPayload(record.payload, record.runId, configFingerprint);
+    }
     if (record.kind !== "event") continue;
     const trace = tracePayload(record.payload, record.runId);
     previousTrace.push(trace);
@@ -210,13 +240,28 @@ export function prepareRunResume(
       });
     }
     if (event.type === "tool_call") {
-      const toolEvent = event as { type: "tool_call"; tool: string; stepId?: string };
+      const toolEvent = event as {
+        type: "tool_call";
+        tool: string;
+        stepId?: string;
+        idempotencyKey?: string;
+      };
       if (!REPLAY_SAFE_TOOLS.has(toolEvent.tool)) {
         unsafeToolStarts.push({
           tool: toolEvent.tool,
           ...(toolEvent.stepId ? { stepId: toolEvent.stepId } : {}),
+          ...(toolEvent.idempotencyKey ? { idempotencyKey: toolEvent.idempotencyKey } : {}),
         });
       }
+    }
+    if (event.type === "effect_receipt") {
+      const receipt = event as EffectReceipt & { type: "effect_receipt" };
+      effectReceipts.set(receipt.idempotencyKey, {
+        idempotencyKey: receipt.idempotencyKey,
+        tool: receipt.tool,
+        status: receipt.status,
+        ...(receipt.stepId ? { stepId: receipt.stepId } : {}),
+      });
     }
   }
 
@@ -224,9 +269,16 @@ export function prepareRunResume(
     (toolCall) => !toolCall.stepId || !completedSteps.has(toolCall.stepId),
   );
   if (unsafe) {
+    const receipt = unsafe.idempotencyKey ? effectReceipts.get(unsafe.idempotencyKey) : undefined;
+    if (receipt?.status === "committed") {
+      throw new CoreMindError(
+        "committed_effect_pending",
+        `工具 ${unsafe.tool} 的副作用已提交，但步骤尚未到达稳定边界；为避免重复执行，已暂停自动恢复`,
+      );
+    }
     throw new CoreMindError(
-      "unsafe_resume",
-      `未完成步骤已启动不可安全重放的工具 ${unsafe.tool}；请先人工核对副作用`,
+      "unknown_effect",
+      `未完成步骤的工具 ${unsafe.tool} 副作用状态未知；请先人工核对后再决定`,
     );
   }
 
@@ -236,7 +288,9 @@ export function prepareRunResume(
     nextJournalSequence: ordered.at(-1)!.sequence,
     nextTraceSequence,
     completedSteps,
+    effectReceipts,
     previousTrace,
+    ...(loopSnapshot ? { loopSnapshot } : {}),
   };
 }
 
@@ -283,9 +337,19 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
   if (
     event.type === "tool_call" &&
     (typeof event.tool !== "string" ||
-      (event.stepId !== undefined && typeof event.stepId !== "string"))
+      (event.stepId !== undefined && typeof event.stepId !== "string") ||
+      (event.idempotencyKey !== undefined && typeof event.idempotencyKey !== "string"))
   ) {
     throw new CoreMindError("run_state_corrupt", "RunState 包含非法 tool_call");
+  }
+  if (
+    event.type === "effect_receipt" &&
+    (typeof event.idempotencyKey !== "string" ||
+      typeof event.tool !== "string" ||
+      !["started", "committed", "unknown"].includes(String(event.status)) ||
+      (event.stepId !== undefined && typeof event.stepId !== "string"))
+  ) {
+    throw new CoreMindError("run_state_corrupt", "RunState 包含非法 effect_receipt");
   }
   return trace as CoreMindTraceEvent;
 }
@@ -299,6 +363,49 @@ function stableJson(value: unknown): string {
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
 }
 
+const LOOP_PHASES = new Set<LoopPhase>([
+  "idle",
+  "planning",
+  "executing",
+  "verifying",
+  "repairing",
+  "paused",
+  "succeeded",
+  "failed",
+  "aborted",
+  "timeout",
+  "budget_exceeded",
+]);
+
+function loopSnapshotPayload(
+  payload: unknown,
+  expectedRunId: string,
+  expectedConfigFingerprint: string,
+): LoopControllerSnapshot {
+  if (payload === null || typeof payload !== "object") {
+    throw new CoreMindError("run_state_corrupt", "RunState loop 缺少快照对象");
+  }
+  const snapshot = payload as Partial<LoopControllerSnapshot>;
+  if (
+    snapshot.schemaVersion !== 1 ||
+    snapshot.machineVersion !== "1" ||
+    snapshot.runId !== expectedRunId ||
+    snapshot.configFingerprint !== expectedConfigFingerprint ||
+    !LOOP_PHASES.has(snapshot.phase as LoopPhase) ||
+    !isNonNegativeInteger(snapshot.iteration) ||
+    !isNonNegativeInteger(snapshot.repairCount) ||
+    !isNonNegativeInteger(snapshot.repeatedActionCount) ||
+    !isNonNegativeInteger(snapshot.transitionSequence)
+  ) {
+    throw new CoreMindError("run_state_corrupt", "RunState 包含非法 Loop 快照");
+  }
+  return snapshot as LoopControllerSnapshot;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
 function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
   if (value === null || typeof value !== "object") {
     throw new CoreMindError("run_state_corrupt", `RunState ${expectedRunId} 包含非对象记录`);
@@ -309,7 +416,9 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     record.runId !== expectedRunId ||
     !Number.isInteger(record.sequence) ||
     typeof record.timestamp !== "string" ||
-    !["start", "resume", "event", "checkpoint", "finish"].includes(record.kind ?? "")
+    !["start", "resume", "event", "checkpoint", "loop", "pause", "finish"].includes(
+      record.kind ?? "",
+    )
   ) {
     throw new CoreMindError("run_state_corrupt", `RunState ${expectedRunId} 包含非法记录`);
   }

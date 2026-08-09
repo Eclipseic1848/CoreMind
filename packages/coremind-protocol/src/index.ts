@@ -5,6 +5,25 @@ export const PROTOCOL_VERSION = "1.0" as const;
 
 const RpcIdSchema = Type.Union([Type.String(), Type.Number()]);
 
+const ToolEffectDeclarationSchema = Type.Object(
+  {
+    operations: Type.Array(
+      Type.Union([
+        Type.Literal("read"),
+        Type.Literal("write"),
+        Type.Literal("process"),
+        Type.Literal("network"),
+        Type.Literal("external"),
+      ]),
+      { minItems: 1, uniqueItems: true },
+    ),
+    reversible: Type.Boolean(),
+    pathFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    urlFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+  },
+  { additionalProperties: false },
+);
+
 export const InitializeRequestSchema = Type.Object(
   {
     jsonrpc: Type.Literal("2.0"),
@@ -98,6 +117,7 @@ export const RegisterToolRequestSchema = Type.Object(
         name: Type.String({ minLength: 1 }),
         description: Type.String({ minLength: 1 }),
         parameters: Type.Unknown(),
+        effect: ToolEffectDeclarationSchema,
         label: Type.Optional(Type.String({ minLength: 1 })),
       },
       { additionalProperties: false },

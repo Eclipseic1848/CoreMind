@@ -333,7 +333,7 @@ describe("Orchestrator", () => {
     expect(outputs.get("s1")?.text).toContain("好结果");
   });
 
-  it("retry：耗尽后接受最后输出（非 fatal 告警）", async () => {
+  it("retry：耗尽后拒绝已知不合格输出", async () => {
     const steps: WorkflowStep[] = [
       {
         id: "s1",
@@ -345,8 +345,7 @@ describe("Orchestrator", () => {
       },
     ];
     const defs = { a: [fauxAssistantMessage("坏1"), fauxAssistantMessage("坏2")] };
-    const outputs = await run(steps, defs);
-    expect(outputs.get("s1")?.text).toContain("坏2");
+    await expect(run(steps, defs)).rejects.toMatchObject({ code: "retry_exhausted" });
   });
 
   it("全局重试预算优先于步骤自身 retry.max", async () => {

@@ -1,11 +1,17 @@
 {
   "name": "coremind-config",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-rc.1",
   "description": "CoreMind 配置层：coremind.yaml 的 schema、解析与校验",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/Eclipseic1848/CoreMind.git", "directory": "packages/coremind-config" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Eclipseic1848/CoreMind.git",
+    "directory": "packages/coremind-config"
+  },
   "homepage": "https://github.com/Eclipseic1848/CoreMind#readme",
-  "bugs": { "url": "https://github.com/Eclipseic1848/CoreMind/issues" },
+  "bugs": {
+    "url": "https://github.com/Eclipseic1848/CoreMind/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

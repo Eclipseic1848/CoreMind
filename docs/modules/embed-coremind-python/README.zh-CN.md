@@ -4,7 +4,7 @@
 
 ## 目的
 
-用 Python 客户端通过 stdio JSON-RPC 驱动同一 Node Runtime，并把 Python callable 注册为 Agent 工具。
+用 Python 客户端通过 stdio JSON-RPC 驱动同一 Node Runtime，共享显式 Loop，并把 Python callable 注册为 Agent 工具。
 
 ## 公共接口
 
@@ -22,7 +22,11 @@
 - 协议错误映射为类型化 Python 异常
 - worker 常驻复用，不为每次请求创建进程
 - 工具结果跨语言保持 JSON 可序列化
-- resume_run 复用 Node Runtime 的同一安全恢复判定
+- `@client.tool` 必须提供 `effect`；Protocol 注册会校验副作用声明
+- 初始化或工具注册失败时客户端立即关闭 worker，不遗留半启动进程
+- `run`/`chat` 与 TypeScript 返回同一套成功、失败、暂停、中止、超时和预算耗尽终态
+- resume_run 复用 Node Runtime 的同一安全恢复判定，可继续暂停或意外中断运行
+- Python 与 TypeScript 对 `loop_state` 顺序、Loop 终态、稳定快照和 Effect Receipt 保持一致
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

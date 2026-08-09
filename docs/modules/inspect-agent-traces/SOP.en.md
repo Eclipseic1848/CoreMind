@@ -9,11 +9,13 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 1. Locate the run by runId.
 2. Rebuild the timeline by sequence.
 3. Inspect backward from the first fatal error or policy_denied.
-4. Resume only after confirming a complete step_output boundary.
-5. Reproduce from evidence before changing code.
-6. Keep before-and-after traces.
-7. Run the listed module tests and `npm run check:modules`.
-8. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+4. For a Loop, validate snapshot version, configuration fingerprint, and the latest stable phase.
+5. Resume only after confirming complete step output, no replay of committed effects, and human reconciliation of unknown effects.
+6. Reproduce from evidence before changing code.
+7. Use fake credentials, body content, and a URL with a sensitive query value to verify pre-persistence redaction while keeping ordinary test commands auditable for graders.
+8. Keep before-and-after traces.
+9. Run the listed module tests and `npm run check:modules`.
+10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

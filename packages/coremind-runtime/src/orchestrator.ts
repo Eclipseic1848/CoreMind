@@ -178,9 +178,13 @@ export class Orchestrator {
         if (retryNeeded) {
           this.events({
             type: "error",
-            message: `步骤 ${step.id} 重试 ${maxAttempts - 1} 次后仍未通过质量检查，接受当前输出`,
-            fatal: false,
+            message: `步骤 ${step.id} 重试 ${maxAttempts - 1} 次后仍未通过质量检查`,
+            fatal: true,
           });
+          throw new CoreMindError(
+            "retry_exhausted",
+            `步骤 ${step.id} 的已知不合格输出在重试耗尽后被拒绝`,
+          );
         }
         if (step.saveAs) this.saveOutput(step.saveAs, output);
         this.events({

@@ -1,7 +1,8 @@
 import type { ChatSession, CoreMindEvent, RunResult } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ApprovalQueue, PendingApproval } from "./approval.js";
+import { type ApprovalQueue, formatApprovalDisplay, type PendingApproval } from "./approval.js";
+import { loopStateText } from "./render.js";
 
 /** 消息视图（会话渲染用） */
 interface MessageView {
@@ -33,6 +34,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   const [showHelp, setShowHelp] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>();
   const [lastRun, setLastRun] = useState<RunResult>();
+  const [loopStatus, setLoopStatus] = useState<string>();
   const idRef = useRef(0);
 
   // 键盘输入（受控输入框：字符累积 / 退格 / 回车发送）
@@ -57,6 +59,9 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   // 订阅会话事件：流式文本增量 + 工具调用实时状态
   useEffect(() => {
     const pushEvent = (event: CoreMindEvent) => {
+      if (event.type === "loop_state") {
+        setLoopStatus(loopStateText(event.to, event.iteration, event.repairs));
+      }
       setMessages((prev) => {
         const next = [...prev];
         switch (event.type) {
@@ -132,7 +137,10 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       try {
         const diff = await session.diffCheckpoint(checkpointId);
         const text = diff.reversible
-          ? `changed=${diff.changed}\n--- before\n${diff.beforeText ?? "(文件不存在)"}\n+++ after\n${diff.afterText ?? "(文件不存在)"}`
+          ? `changed=${diff.changed}\n${
+              diff.unifiedDiff ??
+              `--- before\n${diff.beforeText ?? "(文件不存在)"}\n+++ after\n${diff.afterText ?? "(文件不存在)"}`
+            }`
           : `不可自动比较：${diff.reason ?? "未知原因"}`;
         setMessages((prev) => [
           ...prev,
@@ -167,9 +175,21 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       { id: idRef.current++, role: "user", text: trimmed, tools: [] },
     ]);
     setBusy(true);
+    setLoopStatus(undefined);
     try {
       const result = await session.chat(trimmed);
       setLastRun(result.run);
+      if (result.run.outcome.status !== "succeeded") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: idRef.current++,
+            role: "assistant",
+            text: formatOutcomeDiagnostic(result.run),
+            tools: [],
+          },
+        ]);
+      }
     } catch (error) {
       setMessages((prev) => [
         ...prev,
@@ -198,6 +218,9 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   };
 
   const visible = messages.slice(-MAX_VISIBLE);
+  const approvalDisplay = pendingApproval
+    ? formatApprovalDisplay(pendingApproval.request)
+    : undefined;
 
   return (
     <Box flexDirection="column" height="100%">
@@ -218,14 +241,17 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         {visible.map((msg) => (
           <MessageRow key={msg.id} msg={msg} />
         ))}
-        {busy && <Text dimColor>…</Text>}
+        {busy && <Text dimColor>{loopStatus ? `↻ ${loopStatus}` : "…"}</Text>}
       </Box>
-      {pendingApproval && (
+      {pendingApproval && approvalDisplay && (
         <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
           <Text color="yellow" bold>
             权限审批：{pendingApproval.request.tool}（{pendingApproval.request.risk}）
           </Text>
-          <Text>{JSON.stringify(pendingApproval.request.args).slice(0, 200)}</Text>
+          <Text>副作用：{approvalDisplay.effect}</Text>
+          <Text>目标：{approvalDisplay.targets}</Text>
+          <Text>原因：{approvalDisplay.reason}</Text>
+          <Text>参数：{approvalDisplay.arguments}</Text>
           <Text>[y] 允许 · [n/Enter] 拒绝</Text>
         </Box>
       )}
@@ -298,4 +324,17 @@ function formatRunStatus(run: RunResult): string {
   const metrics = run.metrics;
   const tokens = metrics.tokens === undefined ? "token 未提供" : `${metrics.tokens} tokens`;
   return `${run.outcome.status} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · 评测场景 ${run.evaluation.scenarioResults.length}`;
+}
+
+function formatOutcomeDiagnostic(run: RunResult): string {
+  const labels: Record<Exclude<RunResult["outcome"]["status"], "succeeded">, string> = {
+    failed: "运行失败",
+    paused: "运行暂停",
+    aborted: "运行中止",
+    timeout: "运行超时",
+    budget_exceeded: "预算超限",
+  };
+  const status = run.outcome.status;
+  if (status === "succeeded") return "运行成功";
+  return `${labels[status]}：${run.outcome.error?.message ?? run.outcome.finishReason}`;
 }

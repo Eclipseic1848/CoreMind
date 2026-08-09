@@ -1,6 +1,5 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import {
-  createBashTool,
   createEditTool,
   createFindTool,
   createGrepTool,
@@ -8,7 +7,14 @@ import {
   createReadTool,
   createWriteTool,
 } from "@earendil-works/pi-coding-agent";
-import type { BuiltinToolId, ToolConfig } from "coremind-config";
+import {
+  BUILTIN_TOOL_EFFECTS,
+  type BuiltinToolId,
+  type ToolConfig,
+  type ToolEffectDeclaration,
+} from "coremind-config";
+import { createGitDiffTool, createGitLogTool, createGitStatusTool } from "./git-adapter.js";
+import { createHostBashTool } from "./host-shell.js";
 import { createLinuxSandboxedBashTool } from "./linux-sandbox.js";
 import { loadScriptTool } from "./script-tool.js";
 import { createWebFetchTool, createWebSearchToolIfAvailable } from "./web-tools.js";
@@ -22,10 +28,13 @@ const BUILTIN_FACTORIES: Record<
   ls: (cwd) => bridgeCodingTool(createLsTool(cwd)),
   find: (cwd) => bridgeCodingTool(createFindTool(cwd)),
   grep: (cwd) => bridgeCodingTool(createGrepTool(cwd)),
+  git_status: (cwd) => createGitStatusTool(cwd),
+  git_diff: (cwd) => createGitDiffTool(cwd),
+  git_log: (cwd) => createGitLogTool(cwd),
   bash: (cwd, env) =>
     process.platform === "linux"
       ? createLinuxSandboxedBashTool({ cwd, env })
-      : bridgeCodingTool(createBashTool(cwd)),
+      : createHostBashTool({ cwd, env }),
   edit: (cwd) => bridgeCodingTool(createEditTool(cwd)),
   write: (cwd) => bridgeCodingTool(createWriteTool(cwd)),
   "web-fetch": () => createWebFetchTool(),
@@ -51,6 +60,7 @@ export interface BuildToolsOptions {
 
 export interface BuildToolsResult {
   tools: AgentTool[];
+  effects: Map<string, ToolEffectDeclaration>;
   warnings: string[];
 }
 
@@ -66,12 +76,19 @@ export async function buildTools(
 ): Promise<BuildToolsResult> {
   const env = opts.env ?? process.env;
   const tools: AgentTool[] = [];
+  const effects = new Map<string, ToolEffectDeclaration>();
   const warnings: string[] = [];
 
   for (const cfg of configs) {
     if ("path" in cfg) {
       try {
-        tools.push(await loadScriptTool(cfg, opts.configDir));
+        const tool = await loadScriptTool(cfg, opts.configDir);
+        if (Object.hasOwn(BUILTIN_TOOL_EFFECTS, tool.name)) {
+          warnings.push(`脚本工具 ${tool.name} 不得使用内置工具名，已跳过`);
+          continue;
+        }
+        tools.push(tool);
+        effects.set(tool.name, cfg.effect);
       } catch (error) {
         warnings.push(error instanceof Error ? error.message : String(error));
       }
@@ -90,6 +107,7 @@ export async function buildTools(
       continue;
     }
     tools.push(tool);
+    effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
   }
 
   // 规模护栏：工具过多会退化模型选择准确率（Shopify 生产经验：0-20 清晰、50+ 难推理）
@@ -99,5 +117,5 @@ export async function buildTools(
     );
   }
 
-  return { tools, warnings };
+  return { tools, effects, warnings };
 }

@@ -1,6 +1,7 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { AgentConfigSchema, SessionConfigSchema } from "./agent.js";
 import { PermissionsConfigSchema, QualityConfigSchema, RuntimeLimitsSchema } from "./harness.js";
+import { type LoopConfig, LoopConfigSchema } from "./loop.js";
 import {
   type CustomProviderSchema,
   ModelOptionsSchema,
@@ -26,6 +27,7 @@ export const CoreMindConfigSchema = Type.Object({
   }),
   defaultAgent: Type.Optional(Type.String({ description: "缺省 agent 名，缺省为第一个" })),
   workflow: Type.Optional(Type.Array(WorkflowStepSchema)),
+  loop: Type.Optional(LoopConfigSchema),
   session: Type.Optional(SessionConfigSchema),
   runtime: Type.Optional(RuntimeLimitsSchema),
   permissions: Type.Optional(PermissionsConfigSchema),
@@ -42,4 +44,5 @@ export type ToolConfig = Static<typeof ToolConfigSchema>;
 export type ToolRefConfig = Static<typeof ToolRefSchema>;
 export type ScriptToolConfig = Static<typeof ScriptToolSchema>;
 export type WorkflowStep = Static<typeof WorkflowStepSchema>;
+export type { LoopConfig };
 export type SessionConfig = Static<typeof SessionConfigSchema>;

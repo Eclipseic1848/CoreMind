@@ -9,10 +9,11 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 1. Enable sessions only when continuity is required.
 2. Use a safe sessionId.
 3. Verify restored sessions append only new messages.
-4. Observe context_compacted events.
-5. Inject a corrupt-file failure.
-6. Run the listed module tests and `npm run check:modules`.
-7. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+4. Observe context_compacted and context_compaction_failed events; a failure must preserve original messages.
+5. Confirm summaries preserve goals, constraints, permissions, modified files, test status, and next steps.
+6. Inject corrupt-file and compaction failures.
+7. Run the listed module tests and `npm run check:modules`.
+8. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

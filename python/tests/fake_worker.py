@@ -23,6 +23,18 @@ for line in sys.stdin:
     params = request["params"]
     if method == "initialize":
         send({"jsonrpc": "2.0", "id": request_id, "result": {"protocolVersion": "1.0"}})
+    elif method == "register_tool" and params["name"] == "reject_registration":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32000,
+                    "message": "拒绝测试工具",
+                    "data": {"coremindCode": "invalid_tool"},
+                },
+            }
+        )
     elif method == "register_tool":
         send({"jsonrpc": "2.0", "id": request_id, "result": {"registered": params["name"]}})
     elif method == "run" and params.get("input") == "调用工具":

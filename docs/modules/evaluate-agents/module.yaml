@@ -6,6 +6,7 @@ name:
 version: 0.1.0-alpha.2
 sourcePaths:
   - "packages/coremind-runtime/src/evaluation.ts"
+  - "packages/coremind-runtime/src/evaluation-graders.ts"
   - "packages/coremind-runtime/src/project-check.ts"
   - "packages/coremind-runtime/src/result.ts"
 documents:
@@ -25,8 +26,10 @@ examplePaths:
   - examples/modules/evaluate-agents/README.en.md
 testPaths:
   - "packages/coremind-runtime/src/evaluation.test.ts"
+  - "packages/coremind-runtime/src/batch8-properties.test.ts"
   - "packages/coremind-runtime/src/project-check.test.ts"
   - "packages/coremind-runtime/src/quality.test.ts"
+  - "examples/coding-evals/coding-evals.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

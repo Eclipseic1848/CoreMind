@@ -1,3 +1,5 @@
+import type { LoopPhase } from "coremind-ai";
+
 /** 极简 ANSI 渲染（避免引入 TUI 依赖） */
 
 const RESET = "\x1b[0m";
@@ -25,6 +27,29 @@ export const dim = (s: string) => paint(DIM, s);
 /** 步骤行：─ 收集 (collector) */
 export function stepLine(stepId: string, kind: string): string {
   return dim(`── [${stepId}] ${kind}`);
+}
+
+/** Loop 状态行：↻ 修复中 · 第 2 轮 · 已修复 1 次 */
+export function loopStateLine(phase: LoopPhase, iteration: number, repairs: number): string {
+  return dim(`↻ ${loopStateText(phase, iteration, repairs)}`);
+}
+
+/** 不带 ANSI 的 Loop 状态文本，供 ink TUI 使用。 */
+export function loopStateText(phase: LoopPhase, iteration: number, repairs: number): string {
+  const labels: Record<LoopPhase, string> = {
+    idle: "等待开始",
+    planning: "规划中",
+    executing: "执行中",
+    verifying: "验证中",
+    repairing: "修复中",
+    paused: "已暂停",
+    succeeded: "验证通过",
+    failed: "验证失败",
+    aborted: "已中止",
+    timeout: "已超时",
+    budget_exceeded: "预算耗尽",
+  };
+  return `${labels[phase]} · 第 ${iteration} 轮 · 已修复 ${repairs} 次`;
 }
 
 /** 工具调用行：  ⚙ read notes.txt */

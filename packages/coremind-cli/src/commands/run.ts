@@ -7,6 +7,8 @@ import {
   formatMetrics,
   loadConfigFile,
   parseAndValidate,
+  type RunResult,
+  type RunStatus,
 } from "coremind-ai";
 import {
   ApprovalQueue,
@@ -15,7 +17,16 @@ import {
   parsePermissionMode,
 } from "../approval.js";
 import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
-import { cyan, dim, errorLine, stepLine, toolLine, toolResultLine, yellow } from "../render.js";
+import {
+  cyan,
+  dim,
+  errorLine,
+  loopStateLine,
+  stepLine,
+  toolLine,
+  toolResultLine,
+  yellow,
+} from "../render.js";
 
 /**
  * coremind run <file>：校验配置 → 构建运行时 → 执行。
@@ -56,6 +67,10 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
 
   const printOnly = flagBool(parsed, "print");
   const jsonEvents = flagBool(parsed, "json-events");
+  if (printOnly && jsonEvents) {
+    console.error(errorLine("--print 与 --json-events 不能同时使用"));
+    return 1;
+  }
   const initialPrompt = flagString(parsed, "prompt") ?? flagString(parsed, "p");
   const sessionId = flagString(parsed, "session");
   if (sessionId && !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
@@ -105,7 +120,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         renderEvent(event);
       },
     });
-    if (runtime.resumedContextLength > 0) {
+    if (runtime.resumedContextLength > 0 && !jsonEvents) {
       console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
     }
 
@@ -116,14 +131,23 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         result.transcript.endsWith("\n") ? result.transcript : `${result.transcript}\n`,
       );
     }
-    if (result.sessionFile) {
+    if (jsonEvents) {
+      process.stdout.write(`${JSON.stringify(toRunResultEvent(result))}\n`);
+    }
+    if (result.sessionFile && !jsonEvents) {
       console.log(dim(`会话已保存：${result.sessionFile}`));
     }
     // 质量摘要（管道/机器模式不打印，保持 --print/--json-events 纯净）
-    if (!printOnly && !jsonEvents) {
+    if (!printOnly && !jsonEvents && result.outcome.status === "succeeded") {
       console.log(dim(`✓ 运行完成：${formatMetrics(result.metrics)}`));
     }
-    return 0;
+    if (result.outcome.status !== "succeeded") {
+      const diagnostic =
+        result.outcome.error?.message ??
+        `运行以 ${result.outcome.status} 结束：${result.outcome.finishReason}`;
+      console.error(errorLine(diagnostic));
+    }
+    return exitCodeForRunStatus(result.outcome.status);
   } catch (error) {
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
@@ -135,6 +159,36 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
   }
 }
 
+export const RUN_EXIT_CODES: Readonly<Record<RunStatus, number>> = {
+  succeeded: 0,
+  failed: 1,
+  paused: 2,
+  budget_exceeded: 3,
+  timeout: 124,
+  aborted: 130,
+};
+
+/** CLI 与自动化脚本共同依赖的稳定退出码映射。 */
+export function exitCodeForRunStatus(status: RunStatus): number {
+  return RUN_EXIT_CODES[status];
+}
+
+/** JSONL 的最后一行；不序列化 Map 等仅供进程内使用的数据。 */
+export function toRunResultEvent(result: RunResult): Record<string, unknown> {
+  return {
+    type: "run_result",
+    version: 1,
+    runId: result.runId,
+    outcome: result.outcome,
+    metrics: result.metrics,
+    evaluation: result.evaluation,
+    releaseReadiness: result.releaseReadiness,
+    checkpoints: result.checkpoints,
+    ...(result.runStateFile ? { runStateFile: result.runStateFile } : {}),
+    ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}),
+  };
+}
+
 /** 默认模式的事件渲染（流式文本 + 步骤 + 工具调用） */
 function renderEvent(
   event: Parameters<NonNullable<Parameters<typeof CoreMindRuntime.create>[0]["events"]>>[0],
@@ -142,6 +196,9 @@ function renderEvent(
   switch (event.type) {
     case "text_delta":
       process.stdout.write(event.delta);
+      break;
+    case "loop_state":
+      process.stdout.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
       break;
     case "step_start":
       process.stdout.write(`\n${stepLine(event.stepId, event.kind)}\n`);

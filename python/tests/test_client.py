@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from coremind import AsyncCoreMindClient, CoreMindClient
+from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
 
 
 class CoreMindClientTest(unittest.TestCase):
@@ -33,7 +33,10 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(self.events[0]["event"]["type"], "agent_start")
 
     def test_python_callable_round_trip(self) -> None:
-        @self.client.tool(description="查询订单")
+        @self.client.tool(
+            description="查询订单",
+            effect={"operations": ["read"], "reversible": True},
+        )
         def lookup_order(order_id: str) -> dict[str, str]:
             return {"id": order_id, "status": "paid"}
 
@@ -54,6 +57,20 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(resumed["runId"], "interrupted-run")
         self.assertTrue(diff["changed"])
         self.assertTrue(restored["restored"])
+
+    def test_registration_failure_closes_worker(self) -> None:
+        @self.client.tool(
+            name="reject_registration",
+            description="触发注册失败",
+            effect={"operations": ["read"], "reversible": True},
+        )
+        def rejected_tool() -> str:
+            return "x"
+
+        with self.assertRaises(ProtocolError):
+            self.client.start()
+
+        self.assertIsNone(self.client.pid)
 
 
 class AsyncCoreMindClientTest(unittest.IsolatedAsyncioTestCase):

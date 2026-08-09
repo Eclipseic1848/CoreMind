@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { describe, expect, it } from "vitest";
-import { protectContext } from "./context.js";
+import { ContextProtector, protectContext } from "./context.js";
 
 describe("protectContext", () => {
   it("未接近上下文窗口时不改写消息", () => {
@@ -35,9 +35,29 @@ describe("protectContext", () => {
     expect(result.removedMessages).toBeGreaterThan(0);
     expect(result.messages[0]?.role).toBe("user");
     expect(textOf(result.messages[0])).toContain("CoreMind 上下文摘要");
+    expect(textOf(result.messages[0])).toContain("目标：");
+    expect(textOf(result.messages[0])).toContain("约束：");
+    expect(textOf(result.messages[0])).toContain("权限：");
+    expect(textOf(result.messages[0])).toContain("已修改文件：");
+    expect(textOf(result.messages[0])).toContain("测试状态：");
+    expect(textOf(result.messages[0])).toContain("下一步：");
     expect(result.messages.map(textOf)).toContain("最近问题");
     expect(result.messages.map(textOf)).toContain("最近回答");
     expect(result.afterTokens).toBeLessThan(result.beforeTokens);
+  });
+
+  it("压缩异常时保留原消息并报告失败，不静默吞掉", () => {
+    const failures: string[] = [];
+    const invalid = [undefined as unknown as AgentMessage];
+    const protector = new ContextProtector(
+      { contextWindow: 1, reserveTokens: 0, keepRecentTokens: 1 },
+      undefined,
+      (failure) => failures.push(failure.message),
+    );
+
+    expect(protector.transform(invalid)).toBe(invalid);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("上下文压缩失败");
   });
 });
 

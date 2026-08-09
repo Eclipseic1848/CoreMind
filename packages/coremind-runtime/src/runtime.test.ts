@@ -91,7 +91,13 @@ describe("CoreMindRuntime", () => {
       env: {},
     });
 
-    await expect(runtime.run()).rejects.toMatchObject({ code: "agent_failed" });
+    const result = await runtime.run();
+
+    expect(result.outcome).toMatchObject({
+      status: "failed",
+      finishReason: "agent_failed",
+      error: { code: "agent_failed" },
+    });
   });
 
   it("工作流步骤的模型失败时向调用方报告失败", async () => {
@@ -115,7 +121,13 @@ describe("CoreMindRuntime", () => {
       env: {},
     });
 
-    await expect(runtime.run()).rejects.toMatchObject({ code: "agent_failed" });
+    const result = await runtime.run();
+
+    expect(result.outcome).toMatchObject({
+      status: "failed",
+      finishReason: "agent_failed",
+      error: { code: "agent_failed" },
+    });
   });
 
   it("质量统计包含调用方收到的工具事件", async () => {
@@ -227,7 +239,17 @@ describe("CoreMindRuntime", () => {
         initialPrompt: "读取 notes.txt",
       });
 
-      await expect(runtime.run()).rejects.toMatchObject({ code: "budget_exceeded" });
+      const result = await runtime.run();
+
+      expect(result.outcome).toEqual({
+        status: "budget_exceeded",
+        finishReason: "budget_exceeded",
+        error: {
+          code: "budget_exceeded",
+          message: "工具调用次数超过上限（0 次）",
+        },
+      });
+      expect(result.releaseReadiness.ready).toBe(false);
     } finally {
       await closeServer(server);
     }
@@ -268,6 +290,11 @@ describe("CoreMindRuntime", () => {
             entry.event.idempotencyKey === `${result.runId}:call-read`,
         ),
       ).toBe(true);
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "effect_receipt")
+          .map((entry) => entry.event.status),
+      ).toEqual(["started", "committed"]);
     } finally {
       await closeServer(server);
     }
@@ -342,7 +369,14 @@ describe("CoreMindRuntime", () => {
         initialPrompt: "执行",
       });
 
-      await expect(runtime.run()).rejects.toMatchObject({ code: "run_timeout" });
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "timeout",
+        finishReason: "run_timeout",
+        error: { code: "run_timeout" },
+      });
+      expect(result.releaseReadiness.ready).toBe(false);
     } finally {
       await closeServer(server);
     }
@@ -484,6 +518,236 @@ describe("CoreMindRuntime", () => {
       await closeServer(server);
     }
   });
+
+  it("显式 Loop 只有在修复后再次验证通过才返回成功", async () => {
+    const server = createTextSequenceServer(["candidate-a", "FAIL", "candidate-b", "PASS"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: loopConfig(port),
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-success-")),
+        initialPrompt: "修复缺陷",
+        events: (event) => events.push(event),
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({ status: "succeeded", finishReason: "completed" });
+      expect(result.transcript).toBe("candidate-b");
+      expect(result.outputs.get("candidate")?.text).toBe("candidate-b");
+      expect(
+        events.filter((event) => event.type === "loop_state").map((event) => event.to),
+      ).toEqual(["executing", "verifying", "repairing", "verifying", "succeeded"]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("TUI/readline 使用的 runAgentTurn 观察到同一 Loop 状态序列", async () => {
+    const server = createTextSequenceServer(["candidate-a", "FAIL", "candidate-b", "PASS"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-loop-chat-"));
+      const runtime = await CoreMindRuntime.create({ config: loopConfig(port), configDir: dir });
+      const events: CoreMindEvent[] = [];
+
+      const result = await runtime.runAgentTurn("coder", "修复缺陷", [], (event) =>
+        events.push(event),
+      );
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toBe("candidate-b");
+      expect(
+        events.filter((event) => event.type === "loop_state").map((event) => event.to),
+      ).toEqual(["executing", "verifying", "repairing", "verifying", "succeeded"]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Loop 暂停后从稳定快照继续，不重复执行已完成步骤", async () => {
+    const server = createTextSequenceServer(["candidate-a", "FAIL", "candidate-b", "PASS"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const config = loopConfig(port, { onFailure: "pause" });
+      const store = new MemoryRunStore();
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-loop-resume-"));
+      const first = await CoreMindRuntime.create({
+        config,
+        configDir: dir,
+        initialPrompt: "修复缺陷",
+        runStore: store,
+      });
+
+      const paused = await first.run();
+      expect(paused.outcome).toMatchObject({ status: "paused", finishReason: "loop_paused" });
+      expect((await store.read(paused.runId)).at(-1)?.kind).toBe("pause");
+
+      const second = await CoreMindRuntime.create({
+        config,
+        configDir: dir,
+        initialPrompt: "修复缺陷",
+        runStore: store,
+        resumeRunId: paused.runId,
+      });
+      const resumed = await second.run();
+
+      expect(resumed.outcome.status).toBe("succeeded");
+      expect(resumed.transcript).toBe("candidate-b");
+      expect((await store.read(paused.runId)).at(-1)?.kind).toBe("finish");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Loop 修复次数耗尽后返回失败，不能接受不合格输出", async () => {
+    const server = createTextSequenceServer(["candidate-a", "FAIL"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: loopConfig(port, { maxRepairs: 0 }),
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-exhausted-")),
+        initialPrompt: "修复缺陷",
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        finishReason: "loop_exhausted",
+      });
+      expect(result.transcript).toBe("candidate-a");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Loop 只重试模型层确认的瞬态错误，并记录有界 retry 事件", async () => {
+    let requests = 0;
+    const responses = ["candidate-a", "PASS"];
+    const server = createServer((_request, response) => {
+      requests += 1;
+      if (requests === 1) {
+        response.writeHead(503, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: { message: "service unavailable" } }));
+        return;
+      }
+      const text = responses.shift() ?? "PASS";
+      sendSse(response, [
+        {
+          id: `retry-${requests}`,
+          choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }],
+        },
+        { id: `retry-${requests}`, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...loopConfig(port),
+          runtime: { maxRetries: 1 },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-retry-")),
+        initialPrompt: "修复缺陷",
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(requests).toBe(3);
+      expect(
+        result.trace.filter((entry) => entry.event.type === "retry").map((entry) => entry.event),
+      ).toEqual([expect.objectContaining({ type: "retry", scope: "provider", attempt: 1 })]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Loop 总超时会传播取消并记录 timeout 控制器终态", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "late-loop",
+              choices: [
+                { index: 0, delta: { role: "assistant", content: "太晚" }, finish_reason: null },
+              ],
+            },
+            { id: "late-loop", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 100);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...loopConfig(port), runtime: { runTimeoutMs: 10, maxRetries: 0 } },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-timeout-")),
+        initialPrompt: "修复缺陷",
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({ status: "timeout", finishReason: "run_timeout" });
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "loop_state")
+          .map((entry) => entry.event.to),
+      ).toContain("timeout");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("外部中止会传播到 Loop 并记录 aborted 控制器终态", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "aborted-loop",
+              choices: [
+                { index: 0, delta: { role: "assistant", content: "太晚" }, finish_reason: null },
+              ],
+            },
+            { id: "aborted-loop", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 100);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const abortController = new AbortController();
+      const runtime = await CoreMindRuntime.create({
+        config: loopConfig(port),
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-loop-abort-")),
+        initialPrompt: "修复缺陷",
+        signal: abortController.signal,
+      });
+      setTimeout(() => abortController.abort(), 10);
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "loop_state")
+          .map((entry) => entry.event.to),
+      ).toContain("aborted");
+    } finally {
+      await closeServer(server);
+    }
+  });
 });
 
 function sendSse(response: ServerResponse, chunks: unknown[]): void {
@@ -567,4 +831,60 @@ async function closeServer(server: ReturnType<typeof createServer>): Promise<voi
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
+}
+
+function createTextSequenceServer(responses: string[]) {
+  return createServer((_request, response) => {
+    const text = responses.shift();
+    if (text === undefined) {
+      response.writeHead(500, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "缺少模拟响应" } }));
+      return;
+    }
+    sendSse(response, [
+      {
+        id: `loop-${responses.length}`,
+        choices: [{ index: 0, delta: { role: "assistant", content: text }, finish_reason: null }],
+      },
+      {
+        id: `loop-${responses.length}`,
+        choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+      },
+    ]);
+  });
+}
+
+function loopConfig(
+  port: number,
+  overrides: Partial<NonNullable<CoreMindConfig["loop"]>> = {},
+): CoreMindConfig {
+  return {
+    schemaVersion: 2,
+    name: "Loop Runtime 测试",
+    provider: {
+      id: "probe",
+      baseUrl: `http://127.0.0.1:${port}/v1`,
+      model: "probe-model",
+      apiKey: "test-key",
+    },
+    agents: {
+      coder: { systemPrompt: "编码" },
+      reviewer: { systemPrompt: "验证" },
+    },
+    loop: {
+      execute: { agent: "coder", input: "执行 {{prompt}}" },
+      verify: {
+        agent: "reviewer",
+        input: "验证 {{candidate.text}}",
+        passIf: "{{text}} == PASS",
+      },
+      repair: { agent: "coder", input: "根据 {{verification.text}} 修复" },
+      maxIterations: 3,
+      maxRepairs: 2,
+      maxRepeatedAction: 3,
+      onFailure: "repair",
+      onExhausted: "fail",
+      ...overrides,
+    },
+  };
 }

@@ -6,6 +6,7 @@ import { parse } from "yaml";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modulesRoot = path.join(root, "docs", "modules");
 const expectedModules = [
+  "build-coding-agents",
   "build-tools",
   "configure-coremind",
   "contribute-coremind",
@@ -28,6 +29,7 @@ const expectedGoldenExamples = [
   "contract-review-workflow",
   "faq-order-assistant",
   "python-data-analysis",
+  "verified-repair-loop",
 ];
 const failures = [];
 

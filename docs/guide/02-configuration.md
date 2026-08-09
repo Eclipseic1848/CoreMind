@@ -14,6 +14,7 @@ tools: [...]            # 全局默认工具（agent 未单独配置时继承）
 agents: {...}           # 必填：至少一个智能体
 defaultAgent: 名称       # 缺省取第一个
 workflow: [...]         # 可选：编排步骤（缺省时单 agent 直答）
+loop: {...}             # 可选：显式生成/验证/修复闭环；与 workflow 互斥
 session: {...}          # 可选：会话持久化
 runtime: {...}          # 可选：turn/step/工具/重试/token/费用/超时预算
 permissions: {...}      # 可选：ask / assisted / full 与路径/网络策略
@@ -70,15 +71,22 @@ agents:
 
 ## tools：工具
 
-**内置工具**（白名单）：`read` / `ls` / `find` / `grep` / `bash` / `edit` / `write` / `web-fetch` / `web-search`（web-search 需要 `TAVILY_API_KEY`）。
+**内置工具**（白名单）：`read` / `ls` / `find` / `grep` / `bash` / `edit` / `write` / `git_status` / `git_diff` / `git_log` / `web-fetch` / `web-search`（web-search 需要 `TAVILY_API_KEY`）。三个 Git 工具只读且参数固定，不能替代提交、切换、清理或推送命令。
 
 ```yaml
 tools:
   - id: read
+  - id: git_status
+  - id: git_diff
   - id: bash
   - id: web-search          # 未配 key 时会跳过并告警
   - path: ./my-tool.ts      # 自定义脚本工具（JS/TS，default 导出工具对象）
+    effect:                 # 必填：让权限层在执行前判断真实副作用
+      operations: [write]  # read / write / process / network / external
+      reversible: true
 ```
+
+如果自定义工具的路径或 URL 参数使用了非标准字段名，可再声明 `pathFields` 或 `urlFields`，支持 `output.path` 这样的点号路径。缺少 `effect` 的自定义工具不会通过配置校验，也不能使用 `read`、`write`、`bash` 等内置工具名。
 
 注意：单个 agent 工具超过 20 个会告警（工具过多会降低模型选择准确率）。
 
@@ -119,6 +127,38 @@ workflow:
 
 **护栏**（保证智能体不失控）：嵌套深度 ≤ 8、总步骤 ≤ 100、单步骤超时 5 分钟（超时自动中止）。可用 `--max-steps <n>` 收紧步骤上限。
 
+## loop：显式验证与有界修复
+
+当业务要求“候选结果必须由独立步骤验证，失败后才能有限修复”时使用 `loop`。固定步骤仍应使用 `workflow`；两者不能同时配置。
+
+```yaml
+loop:
+  planning:                         # 可选：先规划，再执行
+    agent: planner
+    input: "规划：{{prompt}}"
+  execute:
+    agent: coder
+    input: "执行：{{prompt}}"
+  verify:
+    agent: reviewer
+    input: "验证：{{candidate.text}}"
+    passIf: "{{text}} == PASS"      # 必填：确定、可测试的通过条件
+  repair:
+    agent: coder
+    input: "根据 {{verification.text}} 修复 {{candidate.text}}"
+  maxIterations: 3                 # 默认 3
+  maxRepairs: 2                    # 默认 2
+  maxRepeatedAction: 2             # 相同候选达到阈值即判定无进展
+  onFailure: repair                # repair / pause / fail
+  onExhausted: fail                # pause / fail
+```
+
+可用变量包括 `{{prompt}}`、`{{plan.text}}`、`{{candidate.text}}`、`{{verification.text}}`、`{{iteration}}` 和 `{{repairs}}`。verify 未通过时不会返回成功；达到迭代、修复、无进展、预算或超时上限时会进入明确的暂停或失败终态。
+
+Loop 在每个稳定状态保存版本化快照。使用 `coremind run coremind.yaml --resume <runId>` 可从暂停或意外中断的稳定边界继续。工具副作用同时记录 `started`、`committed` 或 `unknown` 收据：已提交副作用不自动重放，未知副作用要求人工核对。
+
+完整的失败注入、暂停恢复和耗尽处理见[验证修复黄金示例](../../examples/golden/verified-repair-loop/README.zh-CN.md)。
+
 ## runtime：多维预算
 
 ```yaml
@@ -149,7 +189,7 @@ permissions:
     - bash
 ```
 
-显式 `deny` 和工作区路径保护始终优先，包括 full 模式。full 只代表不逐项询问，不关闭 Trace、审计、checkpoint 或回退。`bash` 与任意自定义工具可能产生不可逆副作用，运行结果会如实标记。
+显式 `deny` 和工作区路径保护始终优先，包括 full 模式。full 只代表不逐项询问，不关闭 Trace、审计、checkpoint、Effect Receipt 或恢复检查。Windows 宿主 Shell 只有在 full、`workspaceOnly: false`、`network: allow` 同时明确选择时开放；其他组合安全拒绝。Git Bash 只提供命令兼容性，不提供隔离；自定义工具的未知副作用在受约束模式下也会安全拒绝。
 
 ## quality：质量档
 

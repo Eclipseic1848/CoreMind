@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -17,13 +17,33 @@ describe("CheckpointManager", () => {
 
     const checkpoint = await manager.capture("edit", { path: "notes.txt" });
     writeFileSync(file, "修改后", "utf8");
+    await manager.markApplied(checkpoint!.checkpointId);
     const diff = await manager.diff(checkpoint!.checkpointId);
 
     expect(checkpoint).toMatchObject({ reversible: true, existed: true });
     expect(diff).toMatchObject({ changed: true, beforeText: "修改前", afterText: "修改后" });
+    expect(diff.unifiedDiff).toContain("-修改前");
+    expect(diff.unifiedDiff).toContain("+修改后");
 
     await manager.restore(checkpoint!.checkpointId);
     expect(readFileSync(file, "utf8")).toBe("修改前");
+  });
+
+  it("修改后的文件超过 diff 上限时拒绝生成大结果", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-large-"));
+    writeFileSync(path.join(cwd, "large.txt"), "small", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-large-diff",
+      maxFileBytes: 16,
+    });
+    const checkpoint = await manager.capture("write", { path: "large.txt" });
+    writeFileSync(path.join(cwd, "large.txt"), "x".repeat(32), "utf8");
+
+    await expect(manager.diff(checkpoint!.checkpointId)).rejects.toMatchObject({
+      code: "checkpoint_too_large",
+    });
   });
 
   it("新建文件的快照恢复会只删除该新文件", async () => {
@@ -35,6 +55,12 @@ describe("CheckpointManager", () => {
     });
     const checkpoint = await manager.capture("write", { path: "new.txt" });
     writeFileSync(path.join(cwd, "new.txt"), "新文件", "utf8");
+    await manager.markApplied(checkpoint!.checkpointId);
+
+    const diff = await manager.diff(checkpoint!.checkpointId);
+    expect(diff).toMatchObject({ changed: true, afterText: "新文件", reversible: true });
+    expect(diff).not.toHaveProperty("beforeText");
+    expect(diff.unifiedDiff).toContain("--- /dev/null");
 
     await manager.restore(checkpoint!.checkpointId);
 
@@ -52,9 +78,53 @@ describe("CheckpointManager", () => {
     const checkpoint = await manager.capture("bash", { command: "npm test" });
 
     expect(checkpoint).toMatchObject({ reversible: false });
+    await expect(manager.diff(checkpoint!.checkpointId)).resolves.toMatchObject({
+      changed: false,
+      reversible: false,
+    });
     await expect(manager.restore(checkpoint!.checkpointId)).rejects.toMatchObject({
       code: "checkpoint_not_reversible",
     });
+  });
+
+  it("既有文件被删除后生成指向空文件的统一 diff", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-delete-"));
+    const file = path.join(cwd, "removed.txt");
+    writeFileSync(file, "待删除内容", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-delete",
+    });
+    const checkpoint = await manager.capture("edit", { path: "removed.txt" });
+    unlinkSync(file);
+    await manager.markApplied(checkpoint!.checkpointId);
+
+    const diff = await manager.diff(checkpoint!.checkpointId);
+
+    expect(diff).toMatchObject({ changed: true, beforeText: "待删除内容", reversible: true });
+    expect(diff).not.toHaveProperty("afterText");
+    expect(diff.unifiedDiff).toContain("+++ /dev/null");
+  });
+
+  it("工具完成后文件又被修改时拒绝恢复，避免覆盖用户新内容", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-conflict-"));
+    const file = path.join(cwd, "notes.txt");
+    writeFileSync(file, "修改前", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-conflict",
+    });
+    const checkpoint = await manager.capture("edit", { path: "notes.txt" });
+    writeFileSync(file, "工具修改后", "utf8");
+    await manager.markApplied(checkpoint!.checkpointId);
+    writeFileSync(file, "用户后续修改", "utf8");
+
+    await expect(manager.restore(checkpoint!.checkpointId)).rejects.toMatchObject({
+      code: "checkpoint_conflict",
+    });
+    expect(readFileSync(file, "utf8")).toBe("用户后续修改");
   });
 
   it("可通过运行结果中的记录重新查看 diff 并显式恢复", async () => {
@@ -68,6 +138,7 @@ describe("CheckpointManager", () => {
     });
     const checkpoint = await manager.capture("edit", { path: "notes.txt" });
     writeFileSync(file, "已修改", "utf8");
+    await manager.markApplied(checkpoint!.checkpointId);
 
     await expect(inspectCheckpoint(checkpoint!, cwd)).resolves.toMatchObject({
       changed: true,

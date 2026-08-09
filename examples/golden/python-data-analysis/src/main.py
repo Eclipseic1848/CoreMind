@@ -13,7 +13,11 @@ from coremind import CoreMindClient
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def analyze_sales_file(csv_path: str, project_root: Path = PROJECT_ROOT) -> dict[str, Any]:
+def analyze_sales_file(
+    csv_path: str,
+    project_root: Path = PROJECT_ROOT,
+    output_path: str = "artifacts/summary.json",
+) -> dict[str, Any]:
     """读取工作区内 CSV，计算确定性汇总并写入 JSON 产物。"""
 
     root = project_root.resolve()
@@ -30,7 +34,9 @@ def analyze_sales_file(csv_path: str, project_root: Path = PROJECT_ROOT) -> dict
             rows += 1
             by_region[row["region"]] = by_region.get(row["region"], 0.0) + amount
     result = {"rows": rows, "total": total, "byRegion": by_region}
-    output = root / "artifacts" / "summary.json"
+    output = (root / output_path).resolve()
+    if root != output and root not in output.parents:
+        raise ValueError(f"输出路径超出项目目录：{output_path}")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
@@ -39,9 +45,17 @@ def analyze_sales_file(csv_path: str, project_root: Path = PROJECT_ROOT) -> dict
 def register_tools(client: CoreMindClient, project_root: Path = PROJECT_ROOT) -> None:
     """在 worker 启动前注册 Python callable。"""
 
-    @client.tool(name="analyze_sales", description="分析工作区内的销售 CSV")
-    def analyze_sales(csv_path: str) -> dict[str, Any]:
-        return analyze_sales_file(csv_path, project_root)
+    @client.tool(
+        name="analyze_sales",
+        description="分析工作区内的销售 CSV",
+        effect={
+            "operations": ["read", "write"],
+            "reversible": False,
+            "pathFields": ["csv_path", "output_path"],
+        },
+    )
+    def analyze_sales(csv_path: str, output_path: str) -> dict[str, Any]:
+        return analyze_sales_file(csv_path, project_root, output_path)
 
 
 def main() -> None:

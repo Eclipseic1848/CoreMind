@@ -9,11 +9,12 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 1. Start with ask by default.
 2. List allowed and denied tools.
 3. Choose ask, allow, or deny for network tools while noting that Linux bash remains offline.
-4. Verify all three modes with real tools.
-5. Never interpret full as disabling audit or checkpoints.
-6. Treat Windows shell execution as a non-reversible high-risk operation because it has no OS sandbox.
-7. Run the listed module tests and `npm run check:modules`.
-8. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+4. Review every custom tool `effect`, then test nested paths, URLs, absolute paths, drives, UNC paths, and directory links against recursive and canonical checks.
+5. Verify all three modes with real tools, not only mocks.
+6. Never interpret full as disabling deny, workspace, network, audit, or checkpoints.
+7. Windows constrained shell must fail closed. Host-shell access requires the user to select full mode, disable workspace restriction, allow network, and accept that no OS isolation exists. An isolated Linux environment remains an alternative.
+8. Run the listed module tests and `npm run check:modules`.
+9. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

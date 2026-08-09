@@ -12,12 +12,15 @@
 /restore CHECKPOINT_ID
 ```
 
+推荐顺序是 `/checkpoints` → `/diff ID` → 人工确认 → `/restore ID`。如果 `/restore` 返回 `checkpoint_conflict`，说明文件在工具完成后又发生变化：不要重试覆盖；先复制当前文件，人工比较三份内容，再决定如何合并。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。
 2. 运行 [模块示例](../../../examples/modules/manage-checkpoints/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+5. 工具写入后手工修改同一文件，再执行 `/restore`；必须拒绝且保留手工修改。
 
 ## 常见误区
 

@@ -19,6 +19,8 @@ The current public release provides:
 
 The current release is in Beta. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
 
+The repository source is the unpublished `0.2.0-rc.1` candidate. It additionally contains the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Batch 8 gates and the Windows P01-P19 automated matrix pass; real TTY on both platforms, target-platform Linux execution, and the current live-provider recheck still block publication.
+
 ## `0.2.x`: phase-one stabilization
 
 The stabilization line focuses on reliability and usability of the delivered scope:
@@ -27,6 +29,7 @@ The stabilization line focuses on reliability and usability of the delivered sco
 - Fix installation, configuration, diagnostics, and interaction issues found during initial community use.
 - Expand provider certification backed by real invocation evidence.
 - Continue cross-language checks for CLI, TypeScript SDK, and Python SDK outcomes and events.
+- Include the completed bounded-Loop and coding-agent evidence in cross-platform release-candidate acceptance.
 - Strengthen security, recovery, evaluation, documentation, and public-package release regression coverage.
 
 A provider that has not passed live verification remains configurable but is not marked as officially certified.

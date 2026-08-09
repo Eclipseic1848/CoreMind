@@ -11,6 +11,9 @@ provider:
 tools:
   - path: ./src/search-tool.ts
     name: search_knowledge
+    effect:
+      operations: [read]
+      reversible: true
 agents:
   researcher:
     systemPrompt: 调查问题时必须调用 search_knowledge；证据充分时输出 EVIDENCE_COMPLETE。

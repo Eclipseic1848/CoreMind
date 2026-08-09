@@ -1,34 +1,60 @@
-# Workflow 与受控 Loop上手指南
+# Workflow 与显式有界 Loop 上手指南
 
-## 什么时候使用
+## 第一步：先选对模式
 
-用顺序、并行、条件和有限重试组合 Agent，以全局预算阻止无边界循环，并从已持久化的稳定步骤边界安全恢复。
+- 输入经过固定的两三步处理：使用 `workflow`。
+- 单个 Agent 自主调用工具即可完成：使用基础 Agent Loop，并设置 Runtime 预算。
+- 结果必须经过独立验证，失败后允许有限修复：使用 `loop`。
 
-## 最小示例
+## 第二步：写最小 Loop 配置
 
-```text
-workflow:
-  - id: draft
-    type: call
-    agent: writer
-    input: '{{prompt}}'
-    saveAs: draft
-  - id: review
-    type: call
+```yaml
+agents:
+  coder:
+    systemPrompt: 生成或修复候选结果
+  reviewer:
+    systemPrompt: 独立验证，只输出 PASS 或 FAIL
+
+loop:
+  execute:
+    agent: coder
+    input: "执行：{{prompt}}"
+  verify:
     agent: reviewer
-    input: '{{draft.text}}'
+    input: "验证：{{candidate.text}}"
+    passIf: "{{text}} == PASS"
+  repair:
+    agent: coder
+    input: "根据 {{verification.text}} 修复 {{candidate.text}}"
+  maxIterations: 3
+  maxRepairs: 2
+  maxRepeatedAction: 2
+  onFailure: repair
+  onExhausted: fail
 ```
 
-## 验证
+`passIf` 必须是可验证的确定性条件。`onFailure: pause` 适合必须先由人工确认的业务；`onFailure: fail` 适合禁止自动修复的任务。
 
-1. 按 [SOP](SOP.zh-CN.md) 执行。
-2. 运行 [模块示例](../../../examples/modules/design-workflows/README.zh-CN.md)。
-3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
-4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+## 第三步：运行与观察
 
-## 常见误区
+```powershell
+coremind check coremind.yaml
+coremind run coremind.yaml --prompt "修复候选结果" --json-events
+```
 
-- 不要让模型替业务负责人发明规则。
-- 不要把一次成功运行当成稳定性证明。
-- 不要通过 full 模式绕过 deny、工作区保护、审计或恢复。
-- 不要把继承 Provider 误称为已通过真实认证。
+检查 `loop_state` 的顺序、最终 `run_result`、工具 Trace、Effect Receipt、预算和 checkpoint。暂停运行使用原 runId 恢复：
+
+```powershell
+coremind run coremind.yaml --resume <runId>
+```
+
+## 第四步：至少验证六个反例
+
+1. 首次 verify 返回 FAIL，确认进入 repair。
+2. repair 后仍 FAIL，确认达到上限后返回 `loop_exhausted`。
+3. 连续产生相同候选，确认无进展阈值会暂停或失败。
+4. 用户拒绝审批，确认暂停且不重放工具。
+5. 注入 503 后恢复，确认只做有界瞬态重试。
+6. 在稳定边界退出并恢复，确认已完成步骤与 committed 副作用不重复。
+
+可直接运行[验证修复黄金示例](../../../examples/golden/verified-repair-loop/README.zh-CN.md)，它已覆盖修复成功、暂停恢复和耗尽失败。

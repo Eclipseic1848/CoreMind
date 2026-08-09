@@ -1,4 +1,4 @@
-# Session 与 Context开发 SOP
+# Session 与 Context 开发 SOP
 
 ## 前置条件
 
@@ -9,10 +9,11 @@
 1. 只为需要续聊的场景开启 Session。
 2. 使用安全 sessionId。
 3. 验证恢复后只追加新消息。
-4. 观察 context_compacted 事件。
-5. 对损坏文件做失败注入。
-6. 运行模块列出的测试，并执行 `npm run check:modules`。
-7. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+4. 观察 context_compacted 与 context_compaction_failed 事件，失败时不得丢失原消息。
+5. 检查摘要保留目标、约束、权限、已修改文件、测试状态和下一步。
+6. 对损坏文件与压缩失败做失败注入。
+7. 运行模块列出的测试，并执行 `npm run check:modules`。
+8. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

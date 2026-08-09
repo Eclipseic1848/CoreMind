@@ -17,6 +17,7 @@ export {
   restoreCheckpoint,
 } from "./checkpoint.js";
 export {
+  type ContextProtectionFailure,
   type ContextProtectionOptions,
   type ContextProtectionResult,
   ContextProtector,
@@ -24,23 +25,51 @@ export {
 } from "./context.js";
 export { CoreMindError } from "./errors.js";
 export {
+  type CommandGrader,
+  type DiffGrader,
   type EvaluationAttempt,
   type EvaluationExpectation,
+  type EvaluationGrader,
+  type EvaluationGraderResult,
   type EvaluationRuntime,
   type EvaluationRuntimeFactory,
   type EvaluationScenario,
   type EvaluationSuite,
   type EvaluationSuiteResult,
+  type FileGrader,
   loadEvaluationSuite,
+  type OutcomeGrader,
+  type ResponseGrader,
   type RunEvaluationOptions,
   runEvaluationSuite,
+  type StateGrader,
+  type TrajectoryGrader,
+  type TrajectoryStep,
   validateEvaluationSuite,
 } from "./evaluation.js";
 export {
   type CoreMindEvent,
+  type EffectReceiptStatus,
   extractText,
   normalizeEvent,
 } from "./events.js";
+export {
+  LoopController,
+  type LoopControllerConfig,
+  type LoopControllerEvent,
+  type LoopControllerSnapshot,
+  type LoopExhaustedStrategy,
+  type LoopFailureStrategy,
+  type LoopPhase,
+  type LoopTransition,
+} from "./loop-controller.js";
+export {
+  LoopRunner,
+  type LoopRunnerOptions,
+  type LoopRunResult,
+  type LoopStepKind,
+  type LoopStepRequest,
+} from "./loop-runner.js";
 export {
   type CompletedWorkflowStep,
   evalCondition,
@@ -82,6 +111,14 @@ export {
   type ScenarioResult,
 } from "./result.js";
 export {
+  classifyRetry,
+  type RetryCategory,
+  type RetryClassification,
+  runWithTransientRetry,
+  type TransientRetryOptions,
+} from "./retry-policy.js";
+export {
+  type EffectReceipt,
   FileRunStore,
   fingerprintRunConfig,
   MemoryRunStore,
@@ -92,6 +129,7 @@ export {
   type RunStateRecord,
   type RunStore,
 } from "./run-state.js";
+export { RunTerminalizer } from "./run-terminalizer.js";
 export {
   buildAgentFromConfig,
   CoreMindRuntime,
@@ -102,6 +140,7 @@ export { CoreMindSession } from "./session.js";
 export {
   type ApprovalDecision,
   type ToolApprovalRequest,
+  type ToolEffect,
   ToolPolicy,
   type ToolPolicyDecision,
   type ToolRisk,

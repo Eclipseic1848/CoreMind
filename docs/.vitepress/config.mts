@@ -59,6 +59,7 @@ function zhTheme() {
       { text: "开发指南", link: "/guide/02-configuration" },
       { text: "功能模块", link: "/modules/README.zh-CN" },
       { text: "供应商", link: "/providers/README.zh-CN" },
+      { text: "发布验收", link: "/release/RC-ACCEPTANCE.zh-CN" },
       { text: "路线图", link: "/roadmap.zh-CN" },
     ],
     sidebar: {
@@ -87,6 +88,7 @@ function enTheme() {
       { text: "Guides", link: "/en/guide/02-configuration" },
       { text: "Modules", link: "/modules/README.en" },
       { text: "Providers", link: "/providers/README.en" },
+      { text: "Release acceptance", link: "/release/RC-ACCEPTANCE.en" },
       { text: "Roadmap", link: "/roadmap.en" },
     ],
     sidebar: {

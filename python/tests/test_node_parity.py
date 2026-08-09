@@ -125,7 +125,10 @@ class NodeRuntimeParityTest(unittest.TestCase):
                     request_timeout=20,
                 ) as client:
 
-                    @client.tool(description="查询订单")
+                    @client.tool(
+                        description="查询订单",
+                        effect={"operations": ["read"], "reversible": True},
+                    )
                     def lookup_order(order_id: str) -> dict[str, str]:
                         return {"id": order_id, "status": "paid"}
 
@@ -133,6 +136,98 @@ class NodeRuntimeParityTest(unittest.TestCase):
 
             self.assertEqual(json.loads(result["transcript"]), {"id": "A-1", "status": "paid"})
             self.assertEqual(result["metrics"]["toolCalls"], 1)
+        finally:
+            mock_server.terminate()
+            try:
+                mock_server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                mock_server.kill()
+                mock_server.wait(timeout=2)
+
+    def test_loop_states_and_terminal_result_match_typescript(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "测试需要 Node.js")
+        port = _free_port()
+        mock_server = subprocess.Popen(
+            [node, str(Path(__file__).with_name("mock_loop_server.mjs")), str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            _wait_for_port(port)
+            base_url = f"http://127.0.0.1:{port}/v1"
+            with tempfile.TemporaryDirectory(prefix="coremind-loop-parity-") as directory:
+                config = {
+                    "schemaVersion": 2,
+                    "name": "Loop 跨语言一致性测试",
+                    "provider": {
+                        "id": "probe",
+                        "baseUrl": base_url,
+                        "model": "probe-model",
+                        "apiKey": "test-key",
+                    },
+                    "agents": {
+                        "coder": {"systemPrompt": "编码"},
+                        "reviewer": {"systemPrompt": "验证"},
+                    },
+                    "loop": {
+                        "execute": {"agent": "coder", "input": "执行 {{prompt}}"},
+                        "verify": {
+                            "agent": "reviewer",
+                            "input": "验证 {{candidate.text}}",
+                            "passIf": "{{text}} == PASS",
+                        },
+                        "repair": {
+                            "agent": "coder",
+                            "input": "根据 {{verification.text}} 修复",
+                        },
+                        "maxIterations": 3,
+                        "maxRepairs": 2,
+                        "maxRepeatedAction": 3,
+                    },
+                }
+                with CoreMindClient(
+                    config,
+                    config_dir=directory,
+                    cwd=directory,
+                    request_timeout=20,
+                ) as client:
+                    python_result = client.run("修复缺陷")
+
+                completed = subprocess.run(
+                    [
+                        node,
+                        str(Path(__file__).with_name("ts_loop_parity.mjs")),
+                        base_url,
+                        directory,
+                    ],
+                    cwd=REPOSITORY_ROOT,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=20,
+                )
+                typescript_result = json.loads(completed.stdout)
+
+            python_states = [
+                entry["event"]["to"]
+                for entry in python_result["trace"]
+                if entry["event"]["type"] == "loop_state"
+            ]
+            typescript_states = [
+                entry["event"]["to"]
+                for entry in typescript_result["trace"]
+                if entry["event"]["type"] == "loop_state"
+            ]
+            self.assertEqual(python_result["outcome"], typescript_result["outcome"])
+            self.assertEqual(python_result["transcript"], "candidate-b")
+            self.assertEqual(python_result["transcript"], typescript_result["transcript"])
+            self.assertEqual(
+                python_states,
+                ["executing", "verifying", "repairing", "verifying", "succeeded"],
+            )
+            self.assertEqual(python_states, typescript_states)
         finally:
             mock_server.terminate()
             try:

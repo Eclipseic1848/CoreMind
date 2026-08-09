@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createUnifiedDiff, DiffLimitError } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 
 export interface CheckpointRecord {
@@ -13,6 +14,8 @@ export interface CheckpointRecord {
   targetPath?: string;
   existed?: boolean;
   beforeSha256?: string;
+  afterExisted?: boolean;
+  afterSha256?: string;
   reason?: string;
   snapshotFile: string;
 }
@@ -29,6 +32,7 @@ export interface CheckpointDiff {
   afterSha256?: string;
   beforeText?: string;
   afterText?: string;
+  unifiedDiff?: string;
   reversible: boolean;
   reason?: string;
 }
@@ -40,7 +44,17 @@ export interface CheckpointManagerOptions {
   maxFileBytes?: number;
 }
 
-const READ_ONLY_TOOLS = new Set(["read", "ls", "find", "grep", "web-fetch", "web-search"]);
+const READ_ONLY_TOOLS = new Set([
+  "read",
+  "ls",
+  "find",
+  "grep",
+  "git_status",
+  "git_diff",
+  "git_log",
+  "web-fetch",
+  "web-search",
+]);
 
 /** 修改工具的本地快照、diff 与显式恢复入口。 */
 export class CheckpointManager {
@@ -113,8 +127,33 @@ export class CheckpointManager {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     const before = stored.contentBase64 ? Buffer.from(stored.contentBase64, "base64") : undefined;
+    if ((before?.byteLength ?? 0) + (after?.byteLength ?? 0) > this.maxFileBytes) {
+      throw new CoreMindError(
+        "checkpoint_too_large",
+        `检查点 diff 输入大于 ${this.maxFileBytes} 字节上限`,
+      );
+    }
     const beforeSha256 = before ? sha256(before) : undefined;
     const afterSha256 = after ? sha256(after) : undefined;
+    const relativePath =
+      path.relative(this.options.cwd, stored.targetPath) || path.basename(stored.targetPath);
+    let unifiedDiff: string;
+    try {
+      unifiedDiff = createUnifiedDiff(
+        before?.toString("utf8") ?? "",
+        after?.toString("utf8") ?? "",
+        {
+          oldPath: stored.existed ? relativePath : "/dev/null",
+          newPath: after ? relativePath : "/dev/null",
+          maxInputBytes: this.maxFileBytes,
+        },
+      );
+    } catch (error) {
+      if (error instanceof DiffLimitError) {
+        throw new CoreMindError("checkpoint_too_large", error.message);
+      }
+      throw error;
+    }
     return {
       checkpointId,
       targetPath: stored.targetPath,
@@ -123,8 +162,28 @@ export class CheckpointManager {
       afterSha256,
       ...(before ? { beforeText: before.toString("utf8") } : {}),
       ...(after ? { afterText: after.toString("utf8") } : {}),
+      unifiedDiff,
       reversible: true,
     };
+  }
+
+  /** 工具执行结束后记录预期文件状态，供恢复时识别后续人工或并发修改。 */
+  async markApplied(checkpointId: string): Promise<void> {
+    const stored = await this.load(checkpointId);
+    if (!stored.reversible || !stored.targetPath) return;
+    await this.safeTargetPath(stored.targetPath);
+    const after = await readOptionalFile(stored.targetPath);
+    stored.afterExisted = after !== undefined;
+    if (after) stored.afterSha256 = sha256(after);
+    else delete stored.afterSha256;
+    await writeFile(stored.snapshotFile, `${JSON.stringify(stored)}\n`, "utf8");
+
+    const record = this.records.find((item) => item.checkpointId === checkpointId);
+    if (record) {
+      record.afterExisted = stored.afterExisted;
+      if (stored.afterSha256) record.afterSha256 = stored.afterSha256;
+      else delete record.afterSha256;
+    }
   }
 
   /** 仅在调用方显式请求时恢复单个目标文件。 */
@@ -137,6 +196,24 @@ export class CheckpointManager {
       );
     }
     await this.safeTargetPath(stored.targetPath);
+    if (stored.afterExisted === undefined) {
+      throw new CoreMindError(
+        "checkpoint_conflict",
+        `检查点 ${checkpointId} 缺少工具执行后的文件状态，无法安全恢复`,
+      );
+    }
+    const current = await readOptionalFile(stored.targetPath);
+    const currentExists = current !== undefined;
+    const currentSha256 = current ? sha256(current) : undefined;
+    if (
+      currentExists !== stored.afterExisted ||
+      (currentExists && currentSha256 !== stored.afterSha256)
+    ) {
+      throw new CoreMindError(
+        "checkpoint_conflict",
+        `文件 ${stored.targetPath} 已在工具执行后再次变化，已拒绝覆盖`,
+      );
+    }
     if (stored.existed) {
       const content = Buffer.from(stored.contentBase64 ?? "", "base64");
       await mkdir(path.dirname(stored.targetPath), { recursive: true });
@@ -205,6 +282,15 @@ export class CheckpointManager {
       throw new CoreMindError("checkpoint_failed", `检查点目标超出工作区：${input}`);
     }
     return target;
+  }
+}
+
+async function readOptionalFile(targetPath: string): Promise<Buffer | undefined> {
+  try {
+    return await readFile(targetPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
   }
 }
 

@@ -131,6 +131,62 @@ describe("validateConfig", () => {
     ).toThrow("workflow 步骤 id 重复：same");
   });
 
+  it("显式 Loop 配置填充有界默认值", () => {
+    const config = validateConfig({
+      schemaVersion: 2,
+      name: "verified-loop",
+      agents: {
+        worker: { systemPrompt: "执行任务" },
+        reviewer: { systemPrompt: "验证结果" },
+      },
+      loop: {
+        execute: { agent: "worker", input: "{{prompt}}" },
+        verify: {
+          agent: "reviewer",
+          input: "检查 {{candidate.text}}",
+          passIf: "{{text}} contains PASS",
+        },
+        repair: { agent: "worker", input: "根据 {{verification.text}} 修复" },
+      },
+    });
+
+    expect(config.loop).toMatchObject({
+      maxIterations: 3,
+      maxRepairs: 2,
+      maxRepeatedAction: 2,
+      onFailure: "repair",
+      onExhausted: "fail",
+    });
+  });
+
+  it("workflow 与 loop 不能同时配置，避免两个控制器争夺运行权", () => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        workflow: [{ id: "s1", type: "prompt", agent: "main", input: "x" }],
+        loop: {
+          execute: { agent: "main", input: "x" },
+          verify: { agent: "main", input: "检查", passIf: "{{text}} contains PASS" },
+          repair: { agent: "main", input: "修复" },
+        },
+      }),
+    ).toThrow("workflow 与 loop 只能选择一种");
+  });
+
+  it("Loop 的每个阶段都必须引用已定义 Agent", () => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        loop: {
+          planning: { agent: "missing-planner", input: "规划" },
+          execute: { agent: "main", input: "执行" },
+          verify: { agent: "missing-reviewer", input: "检查", passIf: "true" },
+          repair: { agent: "main", input: "修复" },
+        },
+      }),
+    ).toThrow("loop.planning.agent 引用了未定义的 Agent：missing-planner");
+  });
+
   it("自定义 provider（OpenAI 兼容端点）通过校验", () => {
     const config = validateConfig({
       schemaVersion: 2,
@@ -139,6 +195,28 @@ describe("validateConfig", () => {
       agents: { main: {} },
     });
     expect(config.provider).toMatchObject({ baseUrl: "http://localhost:11434/v1" });
+  });
+
+  it("自定义脚本工具必须声明副作用", () => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        tools: [{ path: "./tool.mjs" }],
+      }),
+    ).toThrow("tools.0.effect");
+
+    const config = validateConfig({
+      ...validYaml,
+      tools: [
+        {
+          path: "./tool.mjs",
+          effect: { operations: ["write"], reversible: true },
+        },
+      ],
+    });
+    expect(config.tools[0]).toMatchObject({
+      effect: { operations: ["write"], reversible: true },
+    });
   });
 });
 

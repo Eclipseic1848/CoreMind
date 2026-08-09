@@ -18,15 +18,15 @@ node --version
 ### 全局安装（推荐）
 
 ```bash
-npm install -g coremind-cli@alpha
+npm install -g coremind-cli@beta
 ```
 
-`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。`@alpha` 是因为当前以 alpha 版本发布（安装包里会带 `@alpha`，发布正式版后会去掉）。
+`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。`@beta` 固定安装当前 Beta 发布线。
 
 ### 验证安装成功
 
 ```bash
-coremind --version        # 显示 coremind v0.1.0-alpha.2 之类
+coremind --version        # 显示 coremind v0.2.0-beta.2 之类
 coremind doctor           # 环境自检：Node 版本 / API key 是否就位
 ```
 
@@ -47,7 +47,7 @@ npm uninstall -g coremind-cli
 ### 不想安装？临时体验（不推荐日常用）
 
 ```bash
-npx -y coremind-cli@alpha doctor
+npx -y coremind-cli@beta doctor
 ```
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
@@ -57,7 +57,7 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | 命令 | 用途 | 常用参数 | 例子 |
 |---|---|---|---|
 | `coremind create <name>` | 创建或接入项目 | `--template <id>`、`--language <lang>` | `coremind create . --template translator` |
-| `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
+| `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断/显式暂停的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
 | `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
 | `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
 | `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
@@ -65,6 +65,20 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 
 记不住？随时 `coremind help`（或 `coremind --help`）查看全部命令和参数。
+
+`eval` 同时支持 schemaVersion 1 的文本断言和 schemaVersion 2 的多证据 grader。编码任务建议使用后者，同时验证终态、工具轨迹、测试命令、允许文件、Git 差异、运行状态和最终回答：
+
+```powershell
+coremind eval coremind.yaml --suite evals/scenarios.yaml --json
+```
+
+完整配置与可执行样例见[编码智能体指南](../modules/build-coding-agents/GUIDE.zh-CN.md)和[真实缺陷评测](../../examples/coding-evals/README.zh-CN.md)。
+
+### run 自动化终态
+
+`coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 的最后一条 `run_result`，诊断信息从 stderr 保存。
+
+`--print` 用于普通文本管道，`--json-events` 用于 JSONL 自动化，两者不能同时使用。
 
 ## 3. 在哪里运行：目录规则（新手最容易困惑的部分）
 
@@ -190,6 +204,7 @@ coremind chat coremind.yaml
 │ 你 > 帮我写个周报模板                  │  ← 消息区（你的问题 + agent 的回答）
 │ [assistant]                          │
 │ 本周工作：...                        │
+│ ↻ Loop: verifying · 迭代 2/3         │  ← 显式 Loop 当前状态
 │ ⚙ read ✓  ⚙ grep ✓  ⚙ write ✓       │  ← 工具调用实时状态（…运行中 / ✓成功 / ✗失败）
 │ …                                    │
 ├──────────────────────────────────────┤
@@ -211,6 +226,8 @@ coremind chat coremind.yaml
 | 中止当前回答 | 输入 `/abort`（停止生成，可继续提问） |
 | 退出对话 | 输入 `/exit`（**退出时自动保存会话**，下次可恢复） |
 
+审批卡片会显示副作用、完整路径或 URL、风险原因和脱敏后的参数。工具执行还会记录 started/committed/unknown Effect Receipt。恢复 checkpoint 时若文件在工具完成后又被修改，命令会报告冲突并保留当前内容，不会静默覆盖。
+
 ### 从任意目录启动
 
 ```powershell
@@ -219,7 +236,9 @@ coremind chat "D:\projects\my-agent\coremind.yaml"
 
 ### 非交互终端环境（管道/脚本）
 
-当标准输入不是终端（比如在脚本里、管道传入）时，全屏界面不可用，会自动回退到普通单行输入模式。需要审批的工具在非 TTY 环境默认拒绝；可信 CI 应显式配置 allow，或明确传入 `--permission full`，且 full 仍保留 deny、工作区保护、审计和 checkpoint。想强制用单行模式：`coremind chat coremind.yaml --no-tui`。
+当标准输入不是终端（比如在脚本里、管道传入）时，全屏界面不可用，会自动回退到普通单行输入模式。需要审批的工具在非 TTY 环境默认拒绝；可信 CI 应显式配置 allow，或明确传入 `--permission full`，且 full 仍保留 deny、工作区保护、审计、checkpoint、Effect Receipt 和恢复检查。想强制用单行模式：`coremind chat coremind.yaml --no-tui`。
+
+Windows 宿主 Shell 不提供工作区或网络隔离。只有 `--permission full`、`workspaceOnly: false`、`network: allow` 三项同时满足时 Shell 请求才会执行；其他组合会被拒绝。发现 Git Bash 只提升命令兼容性，不改变安全边界；需要约束时请使用文件工具或隔离的 Linux 环境。
 
 ### 断点续聊：这次聊完，下次接着聊
 
@@ -240,17 +259,17 @@ coremind chat coremind.yaml --session work-1     # 第二次：自动恢复历�
 
 `run` 命令同样支持 `--session <id>`，跨命令共享会话历史。未设置 `session.enabled: true` 时，CLI 会明确失败并提示配置，不会静默忽略会话 ID。
 
-## 6. run 意外中断恢复
+## 6. run 意外中断与 Loop 暂停恢复
 
-如果进程被断电、崩溃或强制结束，`.coremind/runs/<runId>.jsonl` 中没有结束记录，可以尝试：
+如果进程被断电、崩溃、强制结束，或显式 Loop 以 `paused` 暂停，可以使用同一 runId 继续：
 
 ```powershell
 coremind run coremind.yaml --resume <runId>
 ```
 
-通常不要再次传 `--prompt`，Runtime 会使用原始输入；如果传入，内容必须与原输入完全一致。恢复会延续原 runId、Trace sequence、预算和重试计数，并直接复用已经完整持久化的 Workflow 步骤输出。
+通常不要再次传 `--prompt`，Runtime 会使用原始输入；如果传入，内容必须与原输入完全一致。恢复会延续原 runId、Trace sequence、预算、重试计数和 Loop 快照，并直接复用已经完整持久化的 Workflow/Loop 步骤输出。
 
-以下情况是有意拒绝，不是命令故障：运行已经结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤调用过可能产生副作用的工具。CoreMind 只支持稳定步骤边界恢复，不宣称恢复任意调用栈，也不自动重放不确定副作用。
+以下情况是有意拒绝，不是命令故障：运行已经正常结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤留下 `started`/`unknown` 副作用。CoreMind 只支持稳定业务状态恢复，不宣称恢复任意调用栈；`committed` 副作用不会自动重放，未知副作用必须先由人工核对。
 
 ## 7. 多项目工作流
 
@@ -282,7 +301,7 @@ cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什
 
 | 现象 | 原因与解决 |
 |---|---|
-| `coremind 无法识别` / `command not found` | 没装成功。先 `npm install -g coremind-cli@alpha`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
+| `coremind 无法识别` / `command not found` | 没装成功。先 `npm install -g coremind-cli@beta`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
 | 提示缺少 API key | ① `.env` 没填或填错（检查变量名是否 `DEEPSEEK_API_KEY`、等号后无空格）；② `.env` 不在**你敲命令的目录**（见 3 节铁律）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
 | 运行很久没反应 / 超时 | 模型服务慢或网络问题；步骤超时上限是 5 分钟，重试一次；用 `coremind doctor` 确认 key 存在 |

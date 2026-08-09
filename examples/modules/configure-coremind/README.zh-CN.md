@@ -18,6 +18,19 @@ quality:
   profile: standard
 ```
 
+增加自定义脚本工具时，使用下面的结构声明副作用：
+
+```yaml
+agents:
+  main:
+    tools:
+      - path: tools/save-report.mjs
+        effect:
+          operations: [write]
+          reversible: true
+          pathFields: [output.path]
+```
+
 ## 验证步骤
 
 1. 从仓库根目录运行模块清单中的测试。

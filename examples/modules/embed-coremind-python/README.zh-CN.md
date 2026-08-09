@@ -4,7 +4,10 @@
 
 ```text
 with CoreMindClient(config_path='coremind.yaml') as client:
-    @client.tool(description='查询模拟订单')
+    @client.tool(
+        description='查询模拟订单',
+        effect={'operations': ['read'], 'reversible': True},
+    )
     def lookup_order(order_id: str) -> dict[str, str]:
         return {'id': order_id, 'status': 'paid'}
     result = client.run('查询 A-100')
@@ -16,5 +19,7 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 2. 配置类示例运行 `coremind check`。
 3. 业务输出类示例补充场景后运行 `coremind eval`。
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
+5. 删除 `effect` 再运行，确认 Python 在注册前明确拒绝；恢复后验证工具可正常调用。
+6. 让测试 worker 拒绝一次注册，确认异常后没有遗留子进程或被占用的临时目录。
 
 返回 [中文指南](../../../docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。

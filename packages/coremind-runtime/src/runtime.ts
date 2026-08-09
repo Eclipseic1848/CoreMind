@@ -7,7 +7,7 @@ import type {
   AgentTool,
   BeforeToolCallContext,
 } from "@earendil-works/pi-agent-core";
-import type { AgentConfig, CoreMindConfig } from "coremind-config";
+import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import { buildTools } from "coremind-tools";
 import { type AgentBuildContext, buildAgent } from "./agent-factory.js";
@@ -22,6 +22,7 @@ import {
 import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import { LoopRunner, type LoopStepRequest } from "./loop-runner.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
@@ -34,6 +35,7 @@ import {
   type RunMetrics,
   type RunOutcome,
 } from "./result.js";
+import { classifyRetry, runWithTransientRetry } from "./retry-policy.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
@@ -41,6 +43,7 @@ import {
   RunStateJournal,
   type RunStore,
 } from "./run-state.js";
+import { RunTerminalizer } from "./run-terminalizer.js";
 import { CoreMindSession } from "./session.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
@@ -117,6 +120,7 @@ export class CoreMindRuntime {
     private readonly config: CoreMindConfig,
     private readonly agentConfigs: Map<string, AgentConfig>,
     private readonly toolsByAgent: Map<string, AgentTool[]>,
+    private readonly toolEffectsByAgent: Map<string, Map<string, ToolEffectDeclaration>>,
     private readonly providerRuntime: ProviderRuntime,
     private readonly options: CoreMindRuntimeOptions,
     sessionMessages: AgentMessage[] | undefined,
@@ -145,18 +149,32 @@ export class CoreMindRuntime {
     // 2. 每个 agent：构建工具与技能（Agent 实例按需创建，避免并发冲突）
     const agentConfigs = new Map<string, AgentConfig>();
     const toolsByAgent = new Map<string, AgentTool[]>();
+    const toolEffectsByAgent = new Map<string, Map<string, ToolEffectDeclaration>>();
     const skillsByAgent = new Map<string, string[]>();
     const externalTools = (options.toolDefinitions ?? []).map(adaptCoreMindTool);
     // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
-      const { tools, warnings } = await buildTools(toolConfigs ?? [], { cwd, configDir, env });
+      const { tools, warnings, effects } = await buildTools(toolConfigs ?? [], {
+        cwd,
+        configDir,
+        env,
+      });
       for (const warning of warnings) {
         emit({ type: "error", message: warning, fatal: false });
       }
       agentConfigs.set(name, agentCfg);
       toolsByAgent.set(name, [...tools, ...externalTools]);
+      toolEffectsByAgent.set(
+        name,
+        new Map([
+          ...effects,
+          ...(options.toolDefinitions ?? []).map(
+            (definition) => [definition.name, definition.effect] as const,
+          ),
+        ]),
+      );
 
       // 技能：内置优先，未命中的查自定义目录，仍缺失才告警（不阻断）
       const { contents, missing } = resolveSkills(agentCfg.skills ?? []);
@@ -202,6 +220,7 @@ export class CoreMindRuntime {
       config,
       agentConfigs,
       toolsByAgent,
+      toolEffectsByAgent,
       providerRuntime,
       options,
       sessionMessages,
@@ -263,6 +282,7 @@ export class CoreMindRuntime {
       turnConfig,
       this.agentConfigs,
       this.toolsByAgent,
+      this.toolEffectsByAgent,
       this.providerRuntime,
       {
         ...this.options,
@@ -328,16 +348,47 @@ export class CoreMindRuntime {
     );
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const userEvents = this.options.events ?? (() => {});
+    const activeToolEffects = new Map<
+      string,
+      { idempotencyKey: string; tool: string; stepId?: string }
+    >();
+    const recordEvent = (event: CoreMindEvent) => {
+      collected.push(event);
+      trace.record(event);
+      userEvents(event);
+    };
     const emit = (event: CoreMindEvent) => {
       const enriched =
         event.type === "tool_call" && event.callId && !event.idempotencyKey
-          ? { ...event, idempotencyKey: `${runId}:${event.callId}` }
+          ? { ...event, idempotencyKey: effectIdempotencyKey(runId, event.stepId, event.callId) }
           : event;
-      collected.push(enriched);
-      trace.record(enriched);
-      userEvents(enriched);
+      recordEvent(enriched);
+      if (enriched.type === "tool_call" && enriched.callId && enriched.idempotencyKey) {
+        const effect = {
+          idempotencyKey: enriched.idempotencyKey,
+          tool: enriched.tool,
+          ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
+        };
+        activeToolEffects.set(effectCallKey(enriched.stepId, enriched.callId), effect);
+        recordEvent({ type: "effect_receipt", ...effect, status: "started" });
+      }
+      if (enriched.type === "tool_result" && enriched.callId) {
+        const callKey = effectCallKey(enriched.stepId, enriched.callId);
+        const effect = activeToolEffects.get(callKey) ?? {
+          idempotencyKey: effectIdempotencyKey(runId, enriched.stepId, enriched.callId),
+          tool: enriched.tool,
+          ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
+        };
+        activeToolEffects.delete(callKey);
+        recordEvent({
+          type: "effect_receipt",
+          ...effect,
+          status: enriched.isError ? "unknown" : "committed",
+        });
+      }
     };
     const workflow = this.config.workflow;
+    const loop = this.config.loop;
     const limits = resolveRuntimeLimits(this.config.runtime, {
       maxSteps: this.options.maxSteps,
       stepTimeoutMs: this.options.stepTimeoutMs,
@@ -350,6 +401,7 @@ export class CoreMindRuntime {
       runId: trace.runId,
     });
     let checkpointFailure: CoreMindError | undefined;
+    const checkpointByCallId = new Map<string, string>();
     const contextWindow = this.providerRuntime.model.contextWindow;
     const contextProtector = new ContextProtector(
       {
@@ -363,6 +415,12 @@ export class CoreMindRuntime {
           beforeTokens: result.beforeTokens,
           afterTokens: result.afterTokens,
           removedMessages: result.removedMessages,
+        }),
+      (failure) =>
+        emit({
+          type: "context_compaction_failed",
+          message: failure.message,
+          preservedMessages: failure.preservedMessages,
         }),
     );
     const policy = new ToolPolicy({
@@ -380,6 +438,7 @@ export class CoreMindRuntime {
           tool: request.tool,
           args: request.args,
           risk: request.risk,
+          effect: request.effect,
         }),
       onApprovalResolved: (request, decision) =>
         emit({
@@ -390,12 +449,17 @@ export class CoreMindRuntime {
         }),
     });
     this.activeHarnessFactory = (agentName) => ({
-      maxRetries: limits.maxRetries,
+      maxRetries: loop ? 0 : limits.maxRetries,
       transformContext: async (messages) => contextProtector.transform(messages),
       beforeToolCall: async (context: BeforeToolCallContext) => {
         const blockedByBudget = budget.beforeToolCall();
         if (blockedByBudget) return blockedByBudget;
-        const decision = await policy.authorize(agentName, context.toolCall.name, context.args);
+        const decision = await policy.authorize(
+          agentName,
+          context.toolCall.name,
+          context.args,
+          this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
+        );
         if (!decision.allowed) {
           emit({
             type: "policy_denied",
@@ -408,6 +472,7 @@ export class CoreMindRuntime {
         try {
           const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args);
           if (checkpoint) {
+            checkpointByCallId.set(context.toolCall.id, checkpoint.checkpointId);
             journal.checkpoint(checkpoint);
             emit({
               type: "checkpoint_created",
@@ -430,109 +495,191 @@ export class CoreMindRuntime {
         }
         return undefined;
       },
-      afterToolCall: async (context: AfterToolCallContext) => budget.afterToolCall(context.isError),
+      afterToolCall: async (context: AfterToolCallContext) => {
+        const checkpointId = checkpointByCallId.get(context.toolCall.id);
+        checkpointByCallId.delete(context.toolCall.id);
+        if (checkpointId) {
+          try {
+            await checkpointManager.markApplied(checkpointId);
+          } catch (error) {
+            checkpointFailure =
+              error instanceof CoreMindError
+                ? error
+                : new CoreMindError(
+                    "checkpoint_failed",
+                    error instanceof Error ? error.message : String(error),
+                  );
+            emit({ type: "error", message: checkpointFailure.message, fatal: true });
+          }
+        }
+        const budgetResult = budget.afterToolCall(context.isError);
+        return checkpointFailure ? { terminate: true } : budgetResult;
+      },
       onAgentEvent: (event, agent) => {
         if (budget.observeAgentEvent(event)) agent.abort();
       },
     });
 
-    let outputs: Map<string, StepOutput>;
-    let transcript: string;
+    let outputs = new Map<string, StepOutput>();
+    let transcript = "";
+    let terminalError: unknown;
+    let loopSnapshot = resumePlan?.loopSnapshot;
+    let activeLoopRunner: LoopRunner | undefined;
     try {
-      ({ outputs, transcript } = await this.runWithGuard(limits.runTimeoutMs, async () => {
-        if (workflow && workflow.length > 0) {
-          const orchestrator = new Orchestrator(workflow, {
-            createAgent: (name, stepId) =>
-              this.createAgent(name, (event) =>
-                emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
-              ),
-            events: emit,
-            initialPrompt: effectiveInitialPrompt,
-            signal: this.options.signal,
-            maxSteps: limits.maxSteps,
-            stepTimeoutMs: limits.stepTimeoutMs,
-            maxRetries: limits.maxRetries,
-            initialRetryCount:
-              resumePlan?.previousTrace.filter((entry) => entry.event.type === "retry").length ?? 0,
-            completedSteps: resumePlan?.completedSteps,
-          });
-          const workflowOutputs = await orchestrator.run();
-          return { outputs: workflowOutputs, transcript: lastOutputText(workflowOutputs) };
-        }
-        // 单 agent 模式
-        const name = this.config.defaultAgent ?? firstKey(this.config.agents);
-        if (!name) {
-          throw new CoreMindError(
-            "no_agent",
-            "配置中没有定义任何 agent，请至少定义一个 agents 条目",
-          );
-        }
-        if (effectiveInitialPrompt === undefined) {
-          throw new CoreMindError(
-            "no_prompt",
-            "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
-          );
-        }
-        const agent = this.createAgent(name, emit);
-        if (!agent) {
-          throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
-        }
-        const messageCursor = agent.state.messages.length;
-        await agent.prompt(effectiveInitialPrompt);
-        await agent.waitForIdle();
-        const agentError = extractAgentError(agent.state.messages);
-        if (agentError) {
-          throw new CoreMindError("agent_failed", `Agent ${name} 执行失败：${agentError}`);
-        }
-        transcript = extractText(agent.state.messages.slice(messageCursor));
-        return { outputs: new Map<string, StepOutput>(), transcript };
-      }));
+      ({ outputs, transcript } = await this.runWithGuard(
+        limits.runTimeoutMs,
+        async () => {
+          if (loop) {
+            let retryCount =
+              resumePlan?.previousTrace.filter(
+                (entry) => entry.event.type === "retry" && entry.event.scope === "provider",
+              ).length ?? 0;
+            const runner = new LoopRunner({
+              runId,
+              configFingerprint,
+              initialPrompt: effectiveInitialPrompt,
+              loop,
+              completedSteps: resumePlan?.completedSteps,
+              restoredSnapshot: resumePlan?.loopSnapshot,
+              emit,
+              persistSnapshot: async (snapshot) => {
+                loopSnapshot = snapshot;
+                journal.loop(snapshot);
+                await journal.flush();
+              },
+              executeStep: (request) =>
+                runWithTransientRetry(
+                  () => this.executeLoopStep(request, emit, limits.stepTimeoutMs, collected),
+                  {
+                    maxRetries: Math.max(0, limits.maxRetries - retryCount),
+                    signal: this.options.signal,
+                    onRetry: () => {
+                      retryCount += 1;
+                      emit({
+                        type: "retry",
+                        scope: "provider",
+                        attempt: retryCount,
+                        stepId: request.stepId,
+                      });
+                    },
+                  },
+                ),
+            });
+            activeLoopRunner = runner;
+            const loopResult = await runner.run();
+            outputs = loopResult.outputs;
+            transcript = loopResult.transcript;
+            loopSnapshot = loopResult.snapshot;
+            if (loopResult.error !== undefined) throw loopResult.error;
+            return { outputs, transcript };
+          }
+          if (workflow && workflow.length > 0) {
+            const orchestrator = new Orchestrator(workflow, {
+              createAgent: (name, stepId) =>
+                this.createAgent(name, (event) =>
+                  emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
+                ),
+              events: emit,
+              initialPrompt: effectiveInitialPrompt,
+              signal: this.options.signal,
+              maxSteps: limits.maxSteps,
+              stepTimeoutMs: limits.stepTimeoutMs,
+              maxRetries: limits.maxRetries,
+              initialRetryCount:
+                resumePlan?.previousTrace.filter((entry) => entry.event.type === "retry").length ??
+                0,
+              completedSteps: resumePlan?.completedSteps,
+            });
+            const workflowOutputs = await orchestrator.run();
+            return { outputs: workflowOutputs, transcript: lastOutputText(workflowOutputs) };
+          }
+          // 单 agent 模式
+          const name = this.config.defaultAgent ?? firstKey(this.config.agents);
+          if (!name) {
+            throw new CoreMindError(
+              "no_agent",
+              "配置中没有定义任何 agent，请至少定义一个 agents 条目",
+            );
+          }
+          if (effectiveInitialPrompt === undefined) {
+            throw new CoreMindError(
+              "no_prompt",
+              "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
+            );
+          }
+          const agent = this.createAgent(name, emit);
+          if (!agent) {
+            throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
+          }
+          const messageCursor = agent.state.messages.length;
+          await agent.prompt(effectiveInitialPrompt);
+          await agent.waitForIdle();
+          const agentError = extractAgentError(agent.state.messages);
+          if (agentError) {
+            throw new CoreMindError("agent_failed", `Agent ${name} 执行失败：${agentError}`);
+          }
+          transcript = extractText(agent.state.messages.slice(messageCursor));
+          return { outputs: new Map<string, StepOutput>(), transcript };
+        },
+        (error) => activeLoopRunner?.interrupt(error),
+      ));
       if (checkpointFailure) throw checkpointFailure;
       budget.throwIfExceeded();
     } catch (error) {
-      let runError = error;
-      if (checkpointFailure) runError = checkpointFailure;
+      terminalError = checkpointFailure ?? error;
       try {
         if (!checkpointFailure) budget.throwIfExceeded();
       } catch (budgetError) {
-        runError = budgetError;
+        terminalError = budgetError;
       }
-      journal.finish(failedRunPayload(runError));
-      await journal.flush();
-      throw runError;
     } finally {
       this.activeHarnessFactory = undefined;
     }
 
     let sessionFile: string | undefined;
-    try {
-      sessionFile = await this.persistSession();
-    } catch (error) {
-      journal.finish(failedRunPayload(error));
-      await journal.flush();
-      throw error;
+    if (terminalError === undefined) {
+      try {
+        sessionFile = await this.persistSession();
+      } catch (error) {
+        terminalError = error;
+      }
     }
     const allMessages = [...this.collectMessages().values()].flat();
+    if (terminalError !== undefined && transcript.length === 0) {
+      transcript = extractText(allMessages);
+    }
     const metrics = analyzeRunMetrics(
       collected,
       allMessages,
       performance.now() - started,
       transcript.length,
     );
-    const allToolRequestsDenied =
-      collected.some((event) => event.type === "policy_denied") &&
-      !collected.some((event) => event.type === "tool_result" && !event.isError);
-    const outcome: RunOutcome = allToolRequestsDenied
-      ? { status: "paused", finishReason: "tool_approval_denied" }
-      : { status: "succeeded", finishReason: "completed" };
+    const outcome = new RunTerminalizer().terminalize(collected, terminalError);
     const evaluation = createEvaluationReport(this.config.quality, metrics);
-    for (const checkpoint of checkpointManager.records) {
-      if (!checkpoint.reversible) {
-        evaluation.securityFindings.push(`工具 ${checkpoint.tool} 的副作用不可自动回退`);
-      }
-    }
     const releaseReadiness = assessReleaseReadiness(outcome, evaluation);
-    journal.finish({ outcome, metrics, evaluation, releaseReadiness });
+    const irreversibleTools = [
+      ...new Set(
+        checkpointManager.records
+          .filter((checkpoint) => !checkpoint.reversible)
+          .map((checkpoint) => checkpoint.tool),
+      ),
+    ];
+    if (irreversibleTools.length > 0) {
+      releaseReadiness.warnings.push(
+        `存在不可自动回退的工具执行：${irreversibleTools.join("、")}；请结合 Trace 和外部系统记录复核`,
+      );
+    }
+    if (outcome.status === "paused") {
+      journal.pause({
+        outcome,
+        metrics,
+        evaluation,
+        releaseReadiness,
+        ...(loopSnapshot ? { loopSnapshot } : {}),
+      });
+    } else {
+      journal.finish({ outcome, metrics, evaluation, releaseReadiness });
+    }
     await journal.flush();
     return {
       runId: trace.runId,
@@ -550,25 +697,41 @@ export class CoreMindRuntime {
     };
   }
 
-  private async runWithGuard<T>(timeoutMs: number, operation: () => Promise<T>): Promise<T> {
+  private async runWithGuard<T>(
+    timeoutMs: number,
+    operation: () => Promise<T>,
+    onGuardError?: (error: CoreMindError) => Promise<void> | undefined,
+  ): Promise<T> {
     const signal = this.options.signal;
     if (signal?.aborted) throw new CoreMindError("aborted", "执行已中止");
     let timer: NodeJS.Timeout | undefined;
     let rejectAbort: ((reason: CoreMindError) => void) | undefined;
+    let guardTriggered = false;
     const aborted = new Promise<never>((_resolve, reject) => {
       rejectAbort = reject;
     });
+    const triggerGuard = (error: CoreMindError, reject: (reason: CoreMindError) => void): void => {
+      if (guardTriggered) return;
+      guardTriggered = true;
+      void Promise.resolve(onGuardError?.(error))
+        .catch(() => undefined)
+        .then(() => {
+          reject(error);
+          this.abortAll();
+        });
+    };
     const onAbort = () => {
-      this.abortAll();
-      rejectAbort?.(new CoreMindError("aborted", "执行已中止"));
+      if (rejectAbort) triggerGuard(new CoreMindError("aborted", "执行已中止"), rejectAbort);
     };
     signal?.addEventListener("abort", onAbort, { once: true });
     const timedOut =
       timeoutMs > 0
         ? new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => {
-              this.abortAll();
-              reject(new CoreMindError("run_timeout", `运行超时（${timeoutMs}ms），已中止`));
+              triggerGuard(
+                new CoreMindError("run_timeout", `运行超时（${timeoutMs}ms），已中止`),
+                reject,
+              );
             }, timeoutMs);
           })
         : new Promise<never>(() => {});
@@ -578,6 +741,72 @@ export class CoreMindRuntime {
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
     }
+  }
+
+  private async executeLoopStep(
+    request: LoopStepRequest,
+    emit: (event: CoreMindEvent) => void,
+    timeoutMs: number,
+    collected: CoreMindEvent[],
+  ): Promise<string> {
+    const eventCursor = collected.length;
+    const agent = this.createAgent(request.agent, (event) =>
+      emit({ ...event, stepId: request.stepId } as CoreMindEvent),
+    );
+    if (!agent) {
+      throw new CoreMindError(
+        "unknown_agent",
+        `Loop 引用了未定义的 agent：${request.agent}（${request.stepId}）`,
+      );
+    }
+    const messageCursor = agent.state.messages.length;
+    let timer: NodeJS.Timeout | undefined;
+    const operation = (async () => {
+      await agent.prompt(request.input);
+      await agent.waitForIdle();
+    })();
+    try {
+      if (timeoutMs > 0) {
+        await Promise.race([
+          operation,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
+              agent.abort();
+              reject(
+                new CoreMindError(
+                  "step_timeout",
+                  `步骤 ${request.stepId} 执行超时（${timeoutMs}ms），已中止`,
+                ),
+              );
+            }, timeoutMs);
+          }),
+        ]);
+      } else {
+        await operation;
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    const stepEvents = collected.slice(eventCursor);
+    const budgetExceeded = stepEvents.find((event) => event.type === "budget_exceeded");
+    if (budgetExceeded?.type === "budget_exceeded") {
+      throw new CoreMindError("budget_exceeded", budgetExceeded.message);
+    }
+    if (stepEvents.some((event) => event.type === "policy_denied")) {
+      throw new CoreMindError("loop_paused", `步骤 ${request.stepId} 的工具请求未获批准`);
+    }
+    const lastAssistant = [...agent.state.messages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    if (lastAssistant?.stopReason === "aborted") {
+      throw new CoreMindError("aborted", `步骤 ${request.stepId} 已中止`);
+    }
+    if (lastAssistant?.stopReason === "error") {
+      const agentError = lastAssistant.errorMessage ?? "模型执行失败，但未提供错误详情";
+      const code = classifyRetry(lastAssistant).retryable ? "provider_transient" : "agent_failed";
+      throw new CoreMindError(code, `步骤 ${request.stepId} 的 Agent 执行失败：${agentError}`);
+    }
+    return extractText(agent.state.messages.slice(messageCursor));
   }
 
   private abortAll(): void {
@@ -638,14 +867,10 @@ function firstKey(record: Record<string, unknown>): string | undefined {
   return Object.keys(record)[0];
 }
 
-function failedRunPayload(error: unknown): { outcome: RunOutcome } {
-  const code = error instanceof CoreMindError ? error.code : "unknown";
-  const message = error instanceof Error ? error.message : String(error);
-  return {
-    outcome: {
-      status: code === "aborted" || code === "run_timeout" ? "aborted" : "failed",
-      finishReason: code,
-      error: { code, message },
-    },
-  };
+function effectCallKey(stepId: string | undefined, callId: string): string {
+  return `${stepId ?? "agent"}:${callId}`;
+}
+
+function effectIdempotencyKey(runId: string, stepId: string | undefined, callId: string): string {
+  return stepId ? `${runId}:${stepId}:${callId}` : `${runId}:${callId}`;
 }

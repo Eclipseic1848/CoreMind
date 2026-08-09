@@ -21,6 +21,7 @@ The CLI accepts `--session <id>` only after sessions are enabled. Otherwise it f
 2. Run the [module example](../../../examples/modules/manage-sessions/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+5. Inject one compaction failure, confirm messages remain and `context_compaction_failed` is emitted, then inspect all six mandatory summary sections.
 
 ## Common mistakes
 

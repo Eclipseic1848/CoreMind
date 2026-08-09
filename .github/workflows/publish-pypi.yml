@@ -1,7 +1,12 @@
-name: Publish Python Package
+name: Publish CoreMind Release
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "已存在且指向候选提交的标签，例如 v0.2.0-rc.1"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -10,37 +15,106 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
 
       - name: 安装 Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22.x
-          cache: npm
+          node-version: "24"
+          package-manager-cache: false
 
       - name: 安装 Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
-      - name: 构建并检查 wheel
+      - name: 固定发布工具链
+        run: |
+          npm install --global npm@11.5.1
+          python -m pip install --disable-pip-version-check build==1.5.1 twine==7.0.0
+
+      - name: 构建并验证同提交发布物
+        env:
+          COREMIND_RELEASE_TAG: ${{ inputs.tag }}
         run: |
           npm ci
-          npm run build:python-worker
-          python -m pip install --disable-pip-version-check build twine
-          python -m build --wheel python
-          python -m twine check python/dist/*
-          python -X utf8 scripts/check-python-wheel.py "$(find python/dist -name '*.whl' -print -quit)"
+          npm run check
+          npm run security:audit
+          npm run release:bundle -- --tag "${COREMIND_RELEASE_TAG}"
 
-      - name: 保存发布物
-        uses: actions/upload-artifact@v4
+      - name: 保存一次构建的全部发布物
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: python-package
-          path: python/dist/*
+          name: coremind-release-bundle
+          path: release-artifacts/
           if-no-files-found: error
+          retention-days: 14
 
-  publish:
+  attest:
     needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: 下载已验证发布物
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 校验已验证发布物哈希
+        run: |
+          cd release-artifacts
+          sha256sum --check SHA256SUMS.txt
+
+      - name: 生成 GitHub 构建来源证明
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: release-artifacts/**/*
+
+  npm:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/coremind-cli
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: 安装 npm 可信发布工具链
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - run: npm install --global npm@11.5.1
+
+      - name: 下载已验证发布物
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 校验哈希并按依赖顺序发布八个 npm 包
+        run: |
+          cd release-artifacts
+          sha256sum --check SHA256SUMS.txt
+          cd ..
+          node scripts/publish-npm-artifacts.mjs --publish release-artifacts
+
+  pypi:
+    needs: [build]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -49,10 +123,51 @@ jobs:
       id-token: write
     steps:
       - name: 下载已验证发布物
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: python-package
-          path: dist
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 校验已验证发布物哈希
+        run: |
+          cd release-artifacts
+          sha256sum --check SHA256SUMS.txt
 
       - name: 使用可信发布上传 PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          packages-dir: release-artifacts/python
+
+  release:
+    needs: [npm, pypi, attest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载已验证发布物
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 校验已验证发布物哈希
+        run: |
+          cd release-artifacts
+          sha256sum --check SHA256SUMS.txt
+
+      - name: 创建仅含当前独立源码包与校验信息的 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          prerelease=""
+          if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
+          gh release create "${RELEASE_TAG}" \
+            release-artifacts/source/*.zip \
+            release-artifacts/SHA256SUMS.txt \
+            release-artifacts/release-manifest.json \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --generate-notes \
+            --title "CoreMind ${RELEASE_TAG#v}" \
+            ${prerelease}

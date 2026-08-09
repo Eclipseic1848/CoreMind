@@ -5,6 +5,7 @@ Every module includes implementation paths, tests, bilingual README/SOP/guides, 
 - [Configuration and Schema](configure-coremind/README.en.md)
 - [Providers and Models](manage-providers/README.en.md)
 - [Agent Construction](design-agents/README.en.md)
+- [Coding Agents](build-coding-agents/README.en.md)
 - [Tools and Business Capabilities](build-tools/README.en.md)
 - [Skill and SOP Loading](package-agent-skills/README.en.md)
 - [Workflows and Bounded Loops](design-workflows/README.en.md)

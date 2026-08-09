@@ -27,7 +27,13 @@ describe("ChatSession", () => {
     });
     const chat = new ChatSession(runtime, "main");
 
-    await expect(chat.chat("触发模型错误")).rejects.toMatchObject({ code: "agent_failed" });
+    const result = await chat.chat("触发模型错误");
+
+    expect(result.run.outcome).toMatchObject({
+      status: "failed",
+      finishReason: "agent_failed",
+      error: { code: "agent_failed" },
+    });
   });
 
   it("每轮只返回本轮新增的 assistant 文本", async () => {

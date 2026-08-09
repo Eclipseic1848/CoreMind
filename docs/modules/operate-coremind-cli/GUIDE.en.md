@@ -2,7 +2,7 @@
 
 ## When to use it
 
-Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, with run --resume for unfinished runs that have a safe recovery boundary.
+Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, observe Loop progress, and use run --resume for paused or interrupted runs with a safe boundary.
 
 ## Minimal example
 
@@ -20,10 +20,21 @@ coremind eval my-agent/coremind.yaml
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. Enter `/abort` during a long response and verify that generation stops and input remains usable.
 6. Set `session.enabled: true` before using `--session`; the CLI must fail clearly rather than continue silently when it is missing.
+7. For an explicit Loop, compare state order across TUI, readline, and `--json-events`, then resume a pause with the same run ID.
+
+## Automation contract
+
+```powershell
+coremind run coremind.yaml --prompt "acceptance run" --json-events *> run-output.txt
+$LASTEXITCODE
+Get-Content -LiteralPath run-output.txt -Encoding utf8 | Select-Object -Last 1
+```
+
+Production scripts should redirect stdout and stderr separately; the example combines them only for manual inspection. Use `0/1/2/3/124/130` as terminal exit codes, and require the final JSONL line to parse as `type: "run_result"`. Never infer success by searching human-readable text.
 
 ## Common mistakes
 
 - Do not let the model invent business rules for the owner.
 - Do not treat one successful run as stability evidence.
-- Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
+- Do not use full mode to bypass configured deny rules, audit, checkpoints, effect receipts, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
 - Do not describe inherited providers as genuinely certified.

@@ -6,6 +6,7 @@ name:
 version: 0.1.0-alpha.2
 sourcePaths:
   - "packages/coremind-cli/src"
+  - "packages/coremind-runtime/src/run-terminalizer.ts"
 documents:
   readme:
     zh-CN: docs/modules/operate-coremind-cli/README.zh-CN.md
@@ -23,7 +24,10 @@ examplePaths:
   - examples/modules/operate-coremind-cli/README.en.md
 testPaths:
   - "packages/coremind-cli/src/cli.e2e.test.ts"
+  - "packages/coremind-cli/src/commands/run.test.ts"
+  - "packages/coremind-cli/src/tui.test.tsx"
   - "packages/coremind-cli/src/approval.test.ts"
+  - "packages/coremind-runtime/src/run-terminalizer.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

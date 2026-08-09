@@ -4,9 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   type CoreMindConfig,
+  CoreMindRuntime,
   checkProject,
   loadConfigFile,
   loadEvaluationSuite,
+  MemoryRunStore,
   parseAndValidate,
   runEvaluationSuite,
 } from "coremind-ai";
@@ -25,13 +27,14 @@ afterAll(() => {
   else process.env.GOLDEN_MOCK_API_KEY = previousKey;
 });
 
-describe("四个黄金示例", () => {
-  it("四个项目的 Config v2 与 standard 项目材料均通过", async () => {
+describe("五个黄金示例", () => {
+  it("五个项目的 Config v2 与 standard 项目材料均通过", async () => {
     for (const id of [
       "faq-order-assistant",
       "contract-review-workflow",
       "python-data-analysis",
       "bounded-research-agent",
+      "verified-repair-loop",
     ]) {
       const projectDir = path.join(goldenRoot, id);
       const config = parseAndValidate(
@@ -75,6 +78,69 @@ describe("四个黄金示例", () => {
       expect(result.attempts[0]?.runId && result.attempts[0].outcome.status === "succeeded").toBe(
         true,
       );
+    });
+  });
+
+  it("验证修复 Loop 注入首次失败，并在修复后才成功", async () => {
+    await withServer("loop", async (baseUrl) => {
+      const result = await evaluate("verified-repair-loop", baseUrl);
+      expect(result.passRate).toBe(1);
+      expect(result.attempts[0]?.transcript).toBe("candidate-fixed");
+      expect(result.attempts[0]?.outcome.status).toBe("succeeded");
+    });
+  });
+
+  it("验证修复 Loop 从暂停快照恢复，并以耗尽失败阻止错误成功", async () => {
+    await withServer("loop", async (baseUrl) => {
+      const projectDir = path.join(goldenRoot, "verified-repair-loop");
+      const baseConfig = await loadConfig(projectDir, baseUrl);
+      const store = new MemoryRunStore();
+      const pausedConfig: CoreMindConfig = {
+        ...baseConfig,
+        loop: { ...baseConfig.loop!, onFailure: "pause" },
+      };
+      const first = await CoreMindRuntime.create({
+        config: pausedConfig,
+        configDir: projectDir,
+        cwd: projectDir,
+        initialPrompt: "修复候选结果",
+        runStore: store,
+      });
+
+      const paused = await first.run();
+      expect(paused.outcome).toMatchObject({ status: "paused", finishReason: "loop_paused" });
+
+      const resumedRuntime = await CoreMindRuntime.create({
+        config: pausedConfig,
+        configDir: projectDir,
+        cwd: projectDir,
+        initialPrompt: "修复候选结果",
+        resumeRunId: paused.runId,
+        runStore: store,
+      });
+      const resumed = await resumedRuntime.run();
+      expect(resumed.outcome.status).toBe("succeeded");
+      expect(resumed.transcript).toBe("candidate-fixed");
+      expect(
+        resumed.trace.filter(
+          (entry) => entry.event.type === "step_start" && entry.event.stepId === "loop-execute",
+        ),
+      ).toHaveLength(1);
+
+      const exhaustedRuntime = await CoreMindRuntime.create({
+        config: {
+          ...baseConfig,
+          loop: { ...baseConfig.loop!, maxRepairs: 0 },
+        },
+        configDir: projectDir,
+        cwd: projectDir,
+        initialPrompt: "修复候选结果",
+      });
+      const exhausted = await exhaustedRuntime.run();
+      expect(exhausted.outcome).toMatchObject({
+        status: "failed",
+        finishReason: "loop_exhausted",
+      });
     });
   });
 });

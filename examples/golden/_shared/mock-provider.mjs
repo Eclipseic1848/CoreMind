@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 
-/** 为四个黄金示例提供完全离线的 OpenAI-compatible SSE Provider。 */
+/** 为黄金示例提供完全离线的 OpenAI-compatible SSE Provider。 */
 export function createGoldenMockServer(profile) {
   return createServer((request, response) => {
     if (request.method !== "POST" || !request.url?.includes("/chat/completions")) {
@@ -59,7 +59,13 @@ export function createGoldenMockServer(profile) {
 
       if (profile === "data") {
         if (toolResult) sendText(response, textOf(toolResult.content));
-        else sendTool(response, "analyze_sales", { csv_path: "data/sales.csv" }, "data-call");
+        else
+          sendTool(
+            response,
+            "analyze_sales",
+            { csv_path: "data/sales.csv", output_path: "artifacts/summary.json" },
+            "data-call",
+          );
         return;
       }
 
@@ -73,6 +79,17 @@ export function createGoldenMockServer(profile) {
           sendText(response, "EVIDENCE_COMPLETE：S1 与 S2 已交叉核对，并保留分歧。 ");
         } else {
           sendTool(response, "search_knowledge", { query: userText }, "research-call");
+        }
+        return;
+      }
+
+      if (profile === "loop") {
+        if (systemText.includes("独立验证")) {
+          sendText(response, userText.includes("candidate-fixed") ? "PASS" : "FAIL");
+        } else if (systemText.includes("有界修复")) {
+          sendText(response, "candidate-fixed");
+        } else {
+          sendText(response, "candidate-needs-repair");
         }
         return;
       }

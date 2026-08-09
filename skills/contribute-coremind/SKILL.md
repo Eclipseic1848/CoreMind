@@ -10,7 +10,10 @@ description: "Change CoreMind source within its one-way dependencies, test-first
 3. Follow [the SOP](../../docs/modules/contribute-coremind/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
-6. Run the tests listed in [module.yaml](../../docs/modules/contribute-coremind/module.yaml) and `npm run check:modules`.
-7. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
+6. Run the tests listed in [module.yaml](../../docs/modules/contribute-coremind/module.yaml), `npm run test:stability`, `npm run test:coverage`, `npm run docs:audit`, `npm run acceptance:rc`, and `npm run check:modules`.
+7. For release-facing changes, require Release Please's draft PR, synchronized npm/Python versions, P01-P19 evidence anchors, both real TTY files, a current live-provider recheck, and one clean-tag artifact bundle.
+8. Publish npm and PyPI only through protected OIDC environments, then create the GitHub Release from the exact same tarballs, wheel, source ZIP, checksums, manifest, and attestation.
+9. Require external Actions to use verified full commit SHAs, let Dependabot propose upgrades, and verify the checksum manifest independently in every artifact-consuming job.
+9. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

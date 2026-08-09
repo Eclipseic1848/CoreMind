@@ -56,11 +56,54 @@ describe("Windows TUI 交互验收", () => {
       args: { path: "result.txt" },
       risk: "high",
       reason: "验证高风险写入操作必须由用户批准",
+      effect: {
+        operations: ["write"],
+        paths: ["result.txt"],
+        urls: [],
+        reversible: true,
+        declared: true,
+      },
     });
     await settle();
     expect(app.lastFrame()).toContain("权限审批：write（high）");
     app.stdin.write("y");
     await expect(decision).resolves.toBe("allow");
+    app.unmount();
+  });
+
+  it("长参数不会遮住审批目标与副作用", async () => {
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI
+        title="长参数审批"
+        session={createSession()}
+        approvals={approvals}
+        onExit={() => {}}
+      />,
+    );
+    const decision = approvals.request({
+      approvalId: "approval-long",
+      runId: "run-long",
+      agent: "assistant",
+      tool: "write",
+      args: { content: "很长的正文".repeat(100), path: "reports/final-acceptance.md" },
+      risk: "low",
+      reason: "写入验收报告",
+      effect: {
+        operations: ["write"],
+        paths: ["reports/final-acceptance.md"],
+        urls: [],
+        reversible: true,
+        declared: true,
+      },
+    });
+
+    await settle();
+    expect(app.lastFrame()).toContain("目标：reports/final-acceptance.md");
+    expect(app.lastFrame()).toContain("副作用：write · 可回退");
+    expect(app.lastFrame()).not.toContain("很长的正文很长的正文很长的正文");
+    app.stdin.write("n");
+    await expect(decision).resolves.toBe("deny");
     app.unmount();
   });
 
@@ -83,6 +126,89 @@ describe("Windows TUI 交互验收", () => {
     await typeCommand(app.stdin.write, "/abort");
     await settle();
     expect(session.abort).toHaveBeenCalledOnce();
+    app.unmount();
+  });
+
+  it("忙碌期间显示 Loop 的当前验证与修复进度", async () => {
+    let listener: Parameters<ChatSession["onEvent"]>[0] | undefined;
+    const session = createSession();
+    session.onEvent = (handler) => {
+      listener = handler;
+      return () => {};
+    };
+    vi.mocked(session.chat).mockImplementation(() => new Promise(() => {}));
+    const app = render(
+      <ChatTUI
+        title="Loop 进度"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+
+    await typeCommand(app.stdin.write, "修复缺陷");
+    listener?.({
+      type: "loop_state",
+      from: "verifying",
+      to: "repairing",
+      trigger: "VERIFIED",
+      iteration: 2,
+      repairs: 1,
+    });
+    await settle();
+
+    expect(app.lastFrame()).toContain("修复中 · 第 2 轮 · 已修复 1 次");
+    app.unmount();
+  });
+
+  it("Runtime 返回失败终态时显示可读诊断，而不是静默结束", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({
+      text: "",
+      events: [],
+      run: {
+        runId: "run-failed",
+        outcome: {
+          status: "failed",
+          finishReason: "agent_failed",
+          error: { code: "agent_failed", message: "模型连接失败" },
+        },
+        metrics: {
+          durationMs: 1,
+          turns: 1,
+          steps: { total: 0, succeeded: 0, failed: 0 },
+          toolCalls: 0,
+          toolFailures: 0,
+          retries: 0,
+          outputChars: 0,
+        },
+        evaluation: {
+          profile: "standard",
+          scenarioResults: [],
+          qualityScores: {},
+          securityFindings: [],
+        },
+        releaseReadiness: { ready: false, blockers: ["运行失败"], warnings: [] },
+        trace: [],
+        checkpoints: [],
+        outputs: new Map(),
+        messages: new Map(),
+        transcript: "",
+      },
+    });
+    const app = render(
+      <ChatTUI
+        title="失败终态"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+
+    await typeCommand(app.stdin.write, "执行任务");
+    await settle();
+
+    expect(app.lastFrame()).toContain("运行失败：模型连接失败");
     app.unmount();
   });
 });

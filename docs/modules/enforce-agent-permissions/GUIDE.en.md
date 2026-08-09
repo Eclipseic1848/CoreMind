@@ -15,12 +15,25 @@ permissions:
     - bash
 ```
 
+The three modes decide who approves; they never override explicit policy:
+
+| Scenario | ask | assisted | full |
+|---|---|---|---|
+| Declared low-risk read/write inside the workspace | Prompt | Auto-approve | Auto-approve |
+| Network policy is `ask` | Prompt | Prompt | Prompt |
+| Explicit deny or escaped path | Deny | Deny | Deny |
+| Windows shell with workspace restriction or network not allowed | Deny | Deny | Deny |
+| Windows shell with open workspace and allowed network | Deny | Deny | Execute without OS isolation |
+| Undeclared custom effect while restrictions apply | Deny | Deny | Deny |
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
 2. Run the [module example](../../../examples/modules/enforce-agent-permissions/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+5. On Windows, verify file tools still work and that `bash` is denied in ask, assisted, or whenever one restriction remains. With all three conditions open, confirm a real Git Bash or PowerShell is selected and trace, checkpoints, and audit remain active.
+6. Verify that `..`, outside absolute paths, another drive, UNC paths, and directory links pointing outside the workspace are all denied.
 
 ## Common mistakes
 

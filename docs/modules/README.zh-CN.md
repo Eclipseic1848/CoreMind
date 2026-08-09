@@ -5,6 +5,7 @@
 - [配置与 Schema](configure-coremind/README.zh-CN.md)
 - [Provider 与模型](manage-providers/README.zh-CN.md)
 - [Agent 构建](design-agents/README.zh-CN.md)
+- [编码智能体](build-coding-agents/README.zh-CN.md)
 - [工具与业务能力](build-tools/README.zh-CN.md)
 - [Skill 与 SOP 装载](package-agent-skills/README.zh-CN.md)
 - [Workflow 与受控 Loop](design-workflows/README.zh-CN.md)

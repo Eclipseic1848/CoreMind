@@ -1,4 +1,4 @@
-# TypeScript SDK开发 SOP
+# TypeScript SDK 开发 SOP
 
 ## 前置条件
 
@@ -8,11 +8,12 @@
 
 1. 只从 coremind-ai 导入公共接口。
 2. 用 parseAndValidate 校验外部配置。
-3. 注入 defineTool 工具和审批处理器。
-4. 消费 RunOutcome 与结构化事件。
-5. 不要依赖 packages 内部路径。
-6. 运行模块列出的测试，并执行 `npm run check:modules`。
-7. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+3. 为每个 defineTool 工具填写 JSON Schema、`effect`，再注入审批处理器。
+4. 穷举消费 RunOutcome 六种终态与结构化事件；不要只处理成功与异常。
+5. 显式 Loop 必须验证状态顺序、暂停恢复、耗尽、超时、中止和 Effect Receipt。
+6. 不要依赖 packages 内部路径。
+7. 运行模块列出的测试，并执行 `npm run check:modules`。
+8. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

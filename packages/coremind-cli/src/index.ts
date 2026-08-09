@@ -62,7 +62,7 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
       --print           只输出最终文本（适合管道/脚本）
       --json-events     输出 JSONL 事件流（供外部集成/Web 面板）
       --session <id>    保存并恢复会话
-      --resume <runId>  从意外中断运行的稳定步骤边界继续
+      --resume <runId>  从意外中断或显式暂停运行的稳定边界继续
       --max-steps <n>   工作流总步骤上限（默认 100）
       --permission <m>  临时选择 ask、assisted 或 full
   ${cyan("chat <file>")}            交互式对话（多轮上下文）

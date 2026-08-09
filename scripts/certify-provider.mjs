@@ -8,6 +8,7 @@ import {
   CoreMindRuntime,
   defineTool,
 } from "../packages/coremind-runtime/dist/index.js";
+import { assertCertificationSucceeded } from "./provider-certification.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const providerId = process.env.COREMIND_CERT_PROVIDER ?? "alibaba-model-studio";
@@ -25,7 +26,7 @@ try {
     events: (event) => basicEvents.push(event),
   });
   const basicResult = await basic.run();
-  assertSucceeded(basicResult, "流式与结构化结果");
+  assertCertificationSucceeded(basicResult, "流式与结构化结果");
   const structured = parseJsonObject(basicResult.transcript);
   if (structured.status !== "ok" || structured.marker !== "CM-CERT-2026") {
     throw new Error("结构化结果字段不符合预期");
@@ -39,6 +40,7 @@ try {
     name: "lookup_certification_marker",
     description: "返回认证标记。必须先调用此工具，不能自行猜测标记。",
     parameters: { type: "object", properties: {}, additionalProperties: false },
+    effect: { operations: ["read"], reversible: true },
     execute: () => ({ text: "TOOL-CERT-4271" }),
   });
   const toolEvents = [];
@@ -48,7 +50,7 @@ try {
     toolDefinitions: [tool],
   });
   const toolResult = await toolRuntime.run();
-  assertSucceeded(toolResult, "工具调用");
+  assertCertificationSucceeded(toolResult, "工具调用");
   const called = toolEvents.some(
     (event) => event.type === "tool_call" && event.tool === "lookup_certification_marker",
   );
@@ -64,8 +66,8 @@ try {
   const session = new ChatSession(chatRuntime, "assistant");
   const firstTurn = await session.chat("记住合成测试代码 SESSION-CERT-8319，只回复已记住。");
   const secondTurn = await session.chat("我刚才要求你记住的代码是什么？只回复代码。");
-  assertSucceeded(firstTurn.run, "多轮第一轮");
-  assertSucceeded(secondTurn.run, "多轮第二轮");
+  assertCertificationSucceeded(firstTurn.run, "多轮第一轮");
+  assertCertificationSucceeded(secondTurn.run, "多轮第二轮");
   if (!secondTurn.text.includes("SESSION-CERT-8319")) throw new Error("多轮上下文未保持");
   details.multiTurn = { passed: true, turns: 2, outputHash: hash(secondTurn.text) };
 
@@ -130,12 +132,6 @@ async function createRuntime({ prompt, events, toolDefinitions } = {}) {
     toolDefinitions,
     env: process.env,
   });
-}
-
-function assertSucceeded(result, label) {
-  if (result.outcome.status !== "succeeded") {
-    throw new Error(`${label}失败：${result.outcome.finishReason}`);
-  }
 }
 
 function parseJsonObject(text) {

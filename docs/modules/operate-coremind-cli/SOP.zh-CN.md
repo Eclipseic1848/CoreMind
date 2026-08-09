@@ -1,4 +1,4 @@
-# CLI 与 TUI开发 SOP
+# CLI 与 TUI 开发 SOP
 
 ## 前置条件
 
@@ -10,9 +10,13 @@
 2. 用 doctor 检查本地环境。
 3. 用 run 或 chat 开发。
 4. 用 check 与 eval 验收。
-5. 在脚本中使用 --print、--json-events 或 --json。
-6. 运行模块列出的测试，并执行 `npm run check:modules`。
-7. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+5. 人工阅读使用 TUI；文本管道使用 `--print`；自动化消费使用 `--json-events`，两种参数不得同时传入。
+6. 自动化必须同时检查退出码和最后一条 `run_result`，并把 stderr 作为诊断保存。
+7. 分别注入权限拒绝、预算耗尽、超时与中止，验证 `2/3/124/130`。
+8. 对显式 Loop 注入验证失败、暂停恢复和耗尽；比较 TUI、readline 和 JSONL 的状态顺序。
+9. 确认恢复没有重复完整步骤或 committed 副作用，unknown 副作用会要求人工核对。
+10. 运行模块列出的测试，并执行 `npm run check:modules`。
+11. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

@@ -89,6 +89,7 @@ describe("CoreMind Protocol v1", () => {
             properties: { orderId: { type: "string" } },
             required: ["orderId"],
           },
+          effect: { operations: ["read"], reversible: true },
         },
       }),
     ).toMatchObject({ method: "register_tool" });
@@ -112,6 +113,35 @@ describe("CoreMind Protocol v1", () => {
         params: { protocolVersion: PROTOCOL_VERSION, configPath: "coremind.yaml" },
       }),
     ).toMatchObject({ method: "initialize", params: { configPath: "coremind.yaml" } });
+  });
+
+  it("initialize 接受显式 Loop 配置而不暴露控制器实现", () => {
+    const request = parseProtocolRequest({
+      jsonrpc: "2.0",
+      id: "init-loop",
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "loop-demo",
+          agents: { worker: {}, reviewer: {} },
+          loop: {
+            execute: { agent: "worker", input: "执行 {{prompt}}" },
+            verify: {
+              agent: "reviewer",
+              input: "验证 {{candidate.text}}",
+              passIf: "{{text}} contains PASS",
+            },
+            repair: { agent: "worker", input: "修复" },
+          },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(request).toMatchObject({ method: "initialize", params: { config: { loop: {} } } });
+    expect(JSON.stringify(request)).not.toContain("xstate");
   });
 
   it("覆盖 RunState 检查与 checkpoint diff/显式恢复", () => {

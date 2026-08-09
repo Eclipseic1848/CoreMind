@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-rc%20candidate-2563eb)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -20,24 +20,27 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 > The current public version is `0.2.0-beta.2`. This release fixes TUI abort handling, denied-tool outcome semantics, and Session configuration guidance. GitHub, npm, PyPI, the bilingual documentation site, Windows/Linux CI, and one live provider certification are covered. You are welcome to try it and contribute to the community.
 
+> Repository source is now the unpublished `0.2.0-rc.1` candidate. In addition to Batch 6A-8 terminal semantics, safe tool contracts, the resumable verify-repair Loop, and coding-agent evaluations, it adds synchronized versions, a Release Please draft PR, OIDC trusted publishing, one-build same-tag artifacts, attestations, P01-P20 acceptance, and repository-wide Markdown auditing. The Windows P01-P19 automated matrix passes; real TTY on both platforms, target-platform Linux execution, and the current live-provider recheck remain publication prerequisites. Public installs still follow `0.2.0-beta.2`.
+
 [Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
-## What the current version supports
+## What the public release and candidate source support
 
-`0.2.0-beta.2` is the unified phase-one release candidate. All three entry paths share one runtime and one result model.
+Public `0.2.0-beta.2` and repository candidate `0.2.0-rc.1` keep all three entry paths on one runtime and one result model. The table explicitly includes candidate capabilities that are not public yet.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
-| Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, bounded loops, retries, and timeouts |
+| Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, and the basic bounded agent loop; candidate source adds public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
 | Configuration and models | Config v2, 38 configurable providers, custom OpenAI-compatible endpoints, and one provider with complete live certification evidence |
-| Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; `ask`, `assisted`, and `full` permission modes |
+| Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; candidate-source controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
-| Quality engineering | `check`, `eval`, development/standard/strict gates, scenario evaluation, failure injection, and release preflight |
-| Learning system | Eight templates, four offline golden examples, and 16 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
+| Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
+| Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; TypeScript/Python offline evaluation is 100%, and five live runs per language passed capability and safety 5/5 |
+| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 17 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux are the phase-one targets; local candidate automation is verified on Windows and public CI is the final Linux gate |
+| Current platforms | Windows and Linux are the phase-one targets; RC automation is verified on Windows, while Linux automation and real TTY must run against the candidate commit |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -45,7 +48,7 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| `0.2.x` phase-one stabilization | Complete the Windows/Linux release candidate and public release; continue reliability fixes, live provider certifications, and TUI/install improvements | CLI, both SDKs, and source continue to share one runtime; unverified capabilities are not advertised as certified |
+| `0.2.x` phase-one stabilization | Complete both-platform P20, target-platform CI, the current live-provider recheck, and synchronized publication; then continue reliability, certification, and TUI/install improvements | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
 | Phase-two Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
@@ -91,7 +94,9 @@ coremind doctor [file]       Environment and provider diagnostics
 coremind templates           List templates
 ```
 
-`run`, `chat`, and `eval` accept `--permission ask|assisted|full`. Full mode skips per-operation prompts, but explicit deny rules, audit, trace, and checkpoints remain active; path-aware file tools still enforce workspace policy. On Linux, built-in bash runs in an OS sandbox with network disabled and workspace-only writes, and fails closed when the sandbox is unavailable. Windows does not yet have an OS-level shell sandbox, so shell and custom-tool side effects remain high-risk and non-reversible.
+`run`, `chat`, and `eval` accept `--permission ask|assisted|full`. Full mode skips per-operation prompts, but explicit deny rules, audit, trace, checkpoints, workspace policy, and network policy remain active. On Linux, built-in bash runs in an OS sandbox with network disabled and workspace-only writes, and fails closed when the sandbox is unavailable. On Windows, host-shell execution requires full mode, `workspaceOnly: false`, and `network: allow`; every other combination is denied. Git Bash discovery provides command compatibility rather than isolation.
+
+`coremind run` exposes stable automation exit codes: `0` succeeded, `1` failed, `2` paused for human action, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL and its final line is always a `type: "run_result"` terminal record; diagnostics go to stderr. `--print` and `--json-events` are mutually exclusive so machine output cannot be contaminated by plain text.
 
 The Linux sandbox dependency is still an upstream research preview and is used as a defense-in-depth mechanism. Security conclusions rely on the complete permission policy, recovery controls, and automated test evidence.
 
@@ -101,12 +106,14 @@ TypeScript applications import the public facade from `coremind-ai`. Python appl
 
 Every run separates:
 
-- `RunOutcome`: success, failure, pause, or abort and the explicit reason.
+- `RunOutcome`: success, failure, pause, abort, timeout, or budget exhaustion and the explicit reason.
 - `RunMetrics`: duration, turns, steps, tool calls, retries, tokens, and cost when available.
 - `EvaluationReport`: scenario results, scores, and security findings.
 - `ReleaseReadiness`: blockers, warnings, and recorded non-security overrides.
 
 An unfinished run can be continued with `coremind run <file> --resume <runId>` or the SDK resume API. Resume reuses only complete persisted workflow-step outputs. It rejects finished runs, mismatched configuration or input, and incomplete steps that invoked non-replay-safe tools. Tool-call idempotency identifiers are correlation inputs for business-side receipt or deduplication; they are not an exactly-once guarantee.
+
+Custom tools must declare `effect.operations` and `effect.reversible`. The permission layer recursively inspects nested paths and URLs, and fails closed for undeclared effects under workspace or network restrictions. File restore also checks the post-tool fingerprint and refuses to overwrite a file changed later by a user or concurrent process.
 
 ## Provider policy
 
@@ -118,8 +125,9 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [16 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`.
-- [4 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, and bounded research.
+- [17 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`.
+- [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
+- [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.
 
 ## Source verification
@@ -128,11 +136,18 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 npm ci
 npm run build
 npm run check
-npm test
+npm run test:stability
+npm run test:coverage
+npm run test:coding-evals
 npm run build:python-worker
+npm run release:check-npm
+npm run release:test-npm
+npm run release:test-source
+python -X utf8 -m build --wheel python
+npm run release:check-wheel
 ```
 
-CI targets Windows and Linux and exercises the Node packages, Python SDK, real worker parity, golden examples, and wheel construction.
+CI targets Windows and Linux, runs the Node suite three consecutive times, and checks non-decreasing coverage, the Python SDK, real Worker parity, golden examples, npm tarballs, and clean wheel installation. Final Linux evidence comes from target-platform CI plus a recorded manual TTY acceptance.
 
 ## License
 

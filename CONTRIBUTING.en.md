@@ -37,12 +37,20 @@ npm run check
 ```bash
 npm run build
 npm run check
-npm test
+npm run test:stability
+npm run test:coverage
 npm run docs:build
+npm run release:check-npm
+npm run release:test-npm
+npm run release:test-source
+npm run acceptance:rc
+npm run docs:audit
 npm run release:preflight -- --allow-dirty
 ```
 
-Python changes also require the Python test suite, worker build, wheel build, and a clean-environment installation check.
+Python changes also require the Python test suite, Worker build, wheel build, Twine, and `npm run release:check-wheel`, which installs into a fresh virtual environment and starts the bundled Worker. A candidate still needs three consecutive Windows/Linux runs plus separately recorded manual TTY acceptance.
+
+Release versions are prepared through a Release Please draft PR, never by tagging a feature branch directly. Follow the [RC acceptance guide](docs/release/RC-ACCEPTANCE.en.md) for P01-P20, both target platforms, the current live-provider recheck, and same-commit evidence; run the repository-wide Markdown audit again before archiving the candidate. npm and PyPI use protected GitHub environments and OIDC trusted publishing, so contributors must not submit registry tokens. See the [release SOP](docs/release/README.en.md) for the complete process.
 
 ## Documentation and provider evidence
 

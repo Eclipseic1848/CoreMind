@@ -6,11 +6,15 @@ docs/.vitepress/.temp/
 
 # 构建产物
 dist/
+coverage/
+coverage-loop/
+release-artifacts/
 *.tsbuildinfo
 python/build/
 python/dist/
 python/src/*.egg-info/
 **/__pycache__/
+.pytest_cache/
 *.pyc
 /packages/coremind-cli/test/.coremind/
 examples/golden/*/.coremind/runs/
@@ -28,6 +32,7 @@ npm-debug.log*
 
 # 会话数据
 sessions/
+/.coremind/
 .scratch/
 
 # 编辑器/系统

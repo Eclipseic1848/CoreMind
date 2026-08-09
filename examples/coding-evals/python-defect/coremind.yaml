@@ -1,0 +1,38 @@
+schemaVersion: 2
+name: python-defect-eval
+description: Python 最小真实缺陷修复评测
+provider:
+  id: coding-python
+  baseUrl: http://127.0.0.1:8822/v1
+  model: coding-mock
+  apiKeyEnv: CODING_MOCK_API_KEY
+tools:
+  - id: bash
+  - id: read
+  - id: edit
+  - id: git_status
+  - id: git_diff
+  - id: git_log
+agents:
+  main:
+    systemPrompt: |
+      你是受控代码修复 Agent。必须先复现目标测试失败，再读取并定位缺陷；只做最小修改。
+      修改后依次运行目标测试和完整回归测试，最后读取 Git 状态和 diff。
+      不得修改 coremind.yaml、.env.example 或 user-notes.txt。
+      固定顺序为：bash 运行 `python -m unittest tests.test_tax`；read 读取 `src/pricing.py`；
+      edit 精确修改该文件；再次运行目标测试；bash 运行 `python -m unittest discover -s tests`；
+      调用 git_status；最后调用 git_diff 且 path 为 `src/pricing.py`。不得省略、合并或改换命令。
+runtime:
+  maxTurns: 12
+  maxToolCalls: 12
+  maxToolFailures: 2
+  maxRetries: 1
+  runTimeoutMs: 120000
+permissions:
+  mode: full
+  workspaceOnly: false
+  network: allow
+quality:
+  profile: development
+  minScenarioPassRate: 1
+  allowOverride: false

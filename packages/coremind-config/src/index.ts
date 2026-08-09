@@ -10,6 +10,7 @@ export {
   type CoreMindConfig,
   CoreMindConfigSchema,
   type CustomProviderConfig,
+  type LoopConfig,
   type ModelOptionsConfig,
   type ProviderConfig,
   type ProviderRefConfig,
@@ -27,12 +28,24 @@ export {
   type RuntimeLimitsConfig,
   RuntimeLimitsSchema,
 } from "./schema/harness.js";
+export {
+  type LoopActionConfig,
+  LoopActionSchema,
+  LoopConfigSchema,
+  type LoopVerificationConfig,
+  LoopVerificationSchema,
+} from "./schema/loop.js";
 export { ModelOptionsSchema } from "./schema/provider.js";
 export {
+  BUILTIN_TOOL_EFFECTS,
   BUILTIN_TOOL_IDS,
   type BuiltinToolId,
   ScriptToolSchema,
+  TOOL_EFFECT_OPERATIONS,
   ToolConfigSchema,
+  type ToolEffectDeclaration,
+  ToolEffectDeclarationSchema,
+  type ToolEffectOperation,
   ToolRefSchema,
 } from "./schema/tools.js";
 export {

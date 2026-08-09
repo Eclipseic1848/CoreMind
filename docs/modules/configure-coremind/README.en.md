@@ -4,7 +4,9 @@ Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not 
 
 ## Purpose
 
-Describe agents, tools, workflows, budgets, permissions, and quality profiles in one validated coremind.yaml file.
+Describe agents, tools, a Workflow or explicit Loop, budgets, permissions, and quality profiles in one validated coremind.yaml file.
+
+Every custom script tool must declare read, write, process, network, or external effects through `effect`. Missing declarations fail configuration validation instead of being guessed by the permission layer.
 
 ## Public interfaces
 
@@ -12,11 +14,14 @@ Describe agents, tools, workflows, budgets, permissions, and quality profiles in
 - `parseConfigText`
 - `parseAndValidate`
 - `validateConfig`
+- `ToolEffectDeclarationSchema`
+- `LoopConfigSchema`
 
 ## Errors and boundaries
 
 - ConfigParseError: unreadable file or invalid YAML/JSON
 - ConfigValidationError: configuration does not satisfy the v2 schema
+- Validation rejects simultaneous `workflow` and `loop`, unknown Loop agents, and invalid bounds before execution
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

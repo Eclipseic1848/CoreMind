@@ -4,7 +4,13 @@ import type { Usage } from "@earendil-works/pi-ai";
 import type { QualityConfig } from "coremind-config";
 import type { CoreMindEvent } from "./events.js";
 
-export type RunStatus = "succeeded" | "failed" | "paused" | "aborted";
+export type RunStatus =
+  | "succeeded"
+  | "failed"
+  | "paused"
+  | "aborted"
+  | "timeout"
+  | "budget_exceeded";
 
 /** 运行是否以及为何结束；不与质量评分混在一起。 */
 export interface RunOutcome {

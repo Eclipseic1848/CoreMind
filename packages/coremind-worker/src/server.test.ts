@@ -44,7 +44,9 @@ describe("WorkerServer", () => {
       params: { input: "执行" },
     });
 
-    expect(initialized).toMatchObject({ result: { protocolVersion: PROTOCOL_VERSION } });
+    expect(initialized).toMatchObject({
+      result: { protocolVersion: PROTOCOL_VERSION, capabilities: expect.arrayContaining(["loop"]) },
+    });
     expect(sent).toContainEqual(
       expect.objectContaining({
         method: "event",
@@ -102,6 +104,7 @@ describe("WorkerServer", () => {
         name: "lookup_order",
         description: "查询订单",
         parameters: { type: "object", properties: { orderId: { type: "string" } } },
+        effect: { operations: ["read"], reversible: true },
       },
     });
 
@@ -178,6 +181,7 @@ describe("WorkerServer", () => {
     });
     const checkpoint = await checkpoints.capture("edit", { path: "notes.txt" });
     writeFileSync(target, "修改后", "utf8");
+    await checkpoints.markApplied(checkpoint!.checkpointId);
     const journal = new RunStateJournal(
       "run-inspect",
       new FileRunStore(path.join(directory, ".coremind", "runs")),
@@ -226,6 +230,43 @@ describe("WorkerServer", () => {
     });
     expect(restored).toMatchObject({ result: { restored: true } });
     expect(readFileSync(target, "utf8")).toBe("修改前");
+  });
+
+  it("inspect_run 明确区分可恢复的暂停运行", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-worker-paused-"));
+    const journal = new RunStateJournal(
+      "run-paused",
+      new FileRunStore(path.join(directory, ".coremind", "runs")),
+    );
+    await journal.start({ configName: "demo" });
+    journal.pause({ outcome: { status: "paused", finishReason: "loop_paused" } });
+    await journal.flush();
+    const server = new WorkerServer({ send: () => {} });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: directory,
+      },
+    });
+
+    const inspected = await server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "inspect_run",
+      params: { runId: "run-paused" },
+    });
+
+    expect(inspected).toMatchObject({
+      result: {
+        status: "paused",
+        resumable: true,
+        outcome: { status: "paused", finishReason: "loop_paused" },
+      },
+    });
   });
 });
 

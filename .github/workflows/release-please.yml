@@ -1,0 +1,27 @@
+name: Prepare Release Pull Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: "目标版本，例如 0.2.0-rc.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 创建或更新草稿发布 PR
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          release-as: ${{ inputs.release_as }}
+          skip-github-release: true

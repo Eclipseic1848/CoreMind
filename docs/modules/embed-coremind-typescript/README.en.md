@@ -4,7 +4,7 @@ Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not 
 
 ## Purpose
 
-Embed runtime, tools, sessions, evaluation, and events in Node applications through the single coremind-ai facade.
+Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node applications through the single coremind-ai facade.
 
 ## Public interfaces
 
@@ -13,10 +13,14 @@ Embed runtime, tools, sessions, evaluation, and events in Node applications thro
 - `defineTool`
 - `checkProject`
 - `runEvaluationSuite`
+- `LoopConfig` / `LoopPhase`
 
 ## Errors and boundaries
 
-- Public failures use CoreMindError.code
+- `runtime.run()` and `ChatSession.chat()` return failure, pause, abort, timeout, and budget exhaustion through `RunResult.outcome`; callers do not need exceptions for run terminal states
+- Pre-run creation and configuration failures still use `CoreMindError.code`
+- `defineTool` requires a structured `effect` declaration
+- `loop_state`, RunOutcome, stable snapshots, and effect receipts share the same runtime semantics as CLI and Python
 - The facade only re-exports and never duplicates business logic
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.

@@ -4,7 +4,7 @@ Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not 
 
 ## Purpose
 
-Preserve reviewable evidence through events carrying runId, eventId, sequence, and timestamp plus append-only RunState, and derive safe resume plans.
+Preserve reviewable evidence through redacted ordered events and append-only RunState, including stable Loop snapshots and effect receipts, then derive safe resume plans.
 
 ## Public interfaces
 
@@ -13,13 +13,15 @@ Preserve reviewable evidence through events carrying runId, eventId, sequence, a
 - `FileRunStore`
 - `CoreMindEvent`
 - `prepareRunResume`
+- `LoopControllerSnapshot`
 
 ## Errors and boundaries
 
 - Corrupt or discontinuous JSONL reports run_state_corrupt
 - Finished runs cannot be resumed again
-- Resume is rejected for mismatched config fingerprints, input, or non-replay-safe side effects
-- Events increase monotonically and include approvals, budgets, and checkpoints in one trace
+- Resume is rejected for mismatched configuration fingerprints, input, or unknown effects
+- Events increase monotonically and include Loop states, approvals, budgets, effect receipts, and checkpoints in one trace
+- Credential fields, bodies, command secrets, and URL secrets are redacted before Trace/RunState persistence while paths and non-sensitive test commands remain auditable
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
@@ -30,6 +32,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-runtime/src/events.ts](../../../packages/coremind-runtime/src/events.ts)
 - [packages/coremind-runtime/src/run-state.test.ts](../../../packages/coremind-runtime/src/run-state.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
+- [packages/coremind-runtime/src/trace.test.ts](../../../packages/coremind-runtime/src/trace.test.ts)
 - [模块示例](../../../examples/modules/inspect-agent-traces/README.zh-CN.md)
 - [Module example](../../../examples/modules/inspect-agent-traces/README.en.md)
 - [Agent Skill](../../../skills/inspect-agent-traces/SKILL.md)

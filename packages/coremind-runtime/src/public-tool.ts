@@ -1,4 +1,9 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
+import {
+  BUILTIN_TOOL_IDS,
+  TOOL_EFFECT_OPERATIONS,
+  type ToolEffectDeclaration,
+} from "coremind-config";
 import { CoreMindError } from "./errors.js";
 
 export interface JsonObjectSchema extends Record<string, unknown> {
@@ -26,6 +31,7 @@ export interface CoreMindToolDefinition<TArgs = Record<string, unknown>> {
   label?: string;
   description: string;
   parameters: JsonObjectSchema;
+  effect: ToolEffectDeclaration;
   execute: (
     args: TArgs,
     context: CoreMindToolContext,
@@ -38,6 +44,9 @@ export function defineTool<TArgs>(
   if (definition.name.trim().length === 0) {
     throw new CoreMindError("invalid_tool", "工具 name 不能为空");
   }
+  if ((BUILTIN_TOOL_IDS as readonly string[]).includes(definition.name)) {
+    throw new CoreMindError("invalid_tool", `自定义工具 ${definition.name} 不得使用内置工具名`);
+  }
   if (definition.description.trim().length === 0) {
     throw new CoreMindError("invalid_tool", `工具 ${definition.name} 的 description 不能为空`);
   }
@@ -45,6 +54,19 @@ export function defineTool<TArgs>(
     throw new CoreMindError(
       "invalid_tool",
       `工具 ${definition.name} 的 parameters.type 必须为 object`,
+    );
+  }
+  if (
+    definition.effect === null ||
+    typeof definition.effect !== "object" ||
+    !Array.isArray(definition.effect.operations) ||
+    definition.effect.operations.length === 0 ||
+    definition.effect.operations.some((operation) => !TOOL_EFFECT_OPERATIONS.includes(operation)) ||
+    typeof definition.effect.reversible !== "boolean"
+  ) {
+    throw new CoreMindError(
+      "invalid_tool",
+      `工具 ${definition.name} 必须提供有效 effect 副作用声明`,
     );
   }
   return definition;

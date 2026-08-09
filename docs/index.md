@@ -34,3 +34,5 @@ features:
 ## 当前阶段
 
 CoreMind 当前公开版本为 `0.2.0-beta.2`，适合试用、评审和共同开发。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
+
+仓库源码当前是未发布的 `0.2.0-rc.1` 候选。Windows P01～P19 自动验收已通过；Windows/Linux 真实 TTY、Linux 目标平台执行和真实 Provider 当次复验尚未完成，因此公开安装仍以 `0.2.0-beta.2` 为准。贡献者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。

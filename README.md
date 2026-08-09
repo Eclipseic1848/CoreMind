@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-beta%20candidate-2563eb)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-rc%20candidate-2563eb)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -20,24 +20,27 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > 当前公开版本是 `0.2.0-beta.2`。本版本修复 TUI 中止、工具拒绝结果语义和 Session 配置提示；GitHub、npm、PyPI、双语文档站、Windows/Linux CI 和一个真实 Provider 认证均已覆盖，欢迎试用并参与社区共建。
 
-[4 个黄金示例](examples/golden/README.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
+> 仓库源码现为尚未发布的 `0.2.0-rc.1` 候选：除 Batch 6A～8 的统一终态、安全工具合同、可恢复 verify/repair Loop 和编码智能体评测外，已加入版本同步、Release Please 草稿 PR、OIDC 可信发布、同 Tag 一次构建、来源证明、P01～P20 验收与全仓 Markdown 审计。Windows 自动矩阵 P01～P19 已通过；双平台真实 TTY、Linux 目标平台执行和本次真实 Provider 复验仍是发布前置条件。安装公开包时仍以 `0.2.0-beta.2` 的行为为准。
 
-## 当前版本具备什么能力
+[5 个黄金示例](examples/golden/README.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
-`0.2.0-beta.2` 是一期统一发布候选，三种入口共用同一个 Runtime 和结果语义：
+## 当前公开版本与候选源码具备什么能力
+
+公开 `0.2.0-beta.2` 与仓库 `0.2.0-rc.1` 候选均保持三种入口共用同一个 Runtime 和结果语义；下表明确包含尚待发布的候选能力：
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
-| 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、受预算约束的 Loop、重试与超时 |
+| 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、基础受控 Agent Loop；候选源码新增公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
 | 配置与模型 | Config v2；38 个可配置 Provider；自定义 OpenAI-compatible 端点；当前 1 个 Provider 有完整真实认证证据 |
-| 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；`ask`、`assisted`、`full` 三档权限 |
+| 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；候选源码新增受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
-| 质量工程 | `check`、`eval`、development/standard/strict 三档质量门禁、场景评测、失败注入和发布预检 |
-| 新手学习 | 8 个场景模板、4 个离线黄金示例、16 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
+| 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
+| 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；TypeScript/Python 离线评测 100%，真实模型各 5 次能力与安全门禁均为 5/5 |
+| 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、17 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux 为一期目标平台；自动化本地候选已在 Windows 验证，Linux 以公开 CI 最终验收 |
+| 当前平台 | Windows 与 Linux 为一期目标平台；RC 自动矩阵已在 Windows 验证，Linux 自动化与真实 TTY 必须在候选提交上补齐 |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
@@ -45,7 +48,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| `0.2.x` 一期稳定线 | 完成 Windows/Linux RC 与公开发布；持续修复可靠性问题、扩充真实 Provider 认证、完善 TUI 与安装体验 | CLI、双 SDK、源码共用同一 Runtime；未认证能力不作承诺 |
+| `0.2.x` 一期稳定线 | 完成 Windows/Linux P20、目标平台 CI、真实 Provider 复验和同版本公开发布；随后持续修复可靠性问题、扩充认证与完善 TUI/安装体验 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
 | 二期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
@@ -131,7 +134,7 @@ quality:
 - `assisted`：工作区内低风险文件操作自动批准，高风险操作询问。
 - `full`：不逐项询问，但显式 deny、审计、Trace 和 checkpoint 仍然生效；路径感知文件工具继续执行工作区策略。
 
-Linux 上的内置 `bash` 在 OS 级沙箱中运行，当前固定断网、只允许写工作区，并在沙箱不可用时关闭执行而不回退宿主 shell。Windows 一期没有 OS 级 shell 沙箱；`bash` 与任意自定义工具仍按不可逆高风险操作处理。CoreMind 不会把 checkpoint 描述成任意副作用的完整恢复。
+Linux 上的内置 `bash` 在 OS 级沙箱中运行，当前固定断网、只允许写工作区，并在沙箱不可用时关闭执行而不回退宿主 shell。Windows 一期没有 OS 级 shell 沙箱；宿主 Shell 只有在 full、`workspaceOnly: false`、`network: allow` 同时选择时开放，其他组合安全拒绝。Git Bash 发现只提供命令兼容性，不提供隔离。CoreMind 不会把 checkpoint 描述成任意副作用的完整恢复。
 
 Linux 沙箱依赖仍处于上游研究预览阶段，当前作为纵深防御能力使用；安全结论以完整权限策略、恢复机制和自动化测试证据为准。
 
@@ -148,6 +151,8 @@ coremind templates           查看模板（兼容 list-templates）
 ```
 
 `run/chat/eval` 可用 `--permission ask|assisted|full` 临时选择批准强度，但不会关闭安全边界和审计。TUI 支持 `/status`、`/checkpoints`、`/diff <id>`、`/restore <id>`、`/abort` 和 `/exit`。
+
+`coremind run` 的退出码可直接用于 PowerShell、CI 和其他自动化：`0` 成功、`1` 失败、`2` 等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。使用 `--json-events` 时，stdout 只输出 JSONL，最后一行固定为 `type: "run_result"` 的完整终态；诊断信息写入 stderr。`--print` 与 `--json-events` 不能同时使用，避免机器输出混入普通文本。
 
 ## TypeScript SDK
 
@@ -168,6 +173,7 @@ const lookupOrder = defineTool<{ orderId: string }>({
     properties: { orderId: { type: "string" } },
     required: ["orderId"],
   },
+  effect: { operations: ["read"], reversible: true },
   execute: async ({ orderId }) => ({ orderId, status: "paid" }),
 });
 
@@ -191,7 +197,10 @@ from coremind import CoreMindClient
 
 client = CoreMindClient("coremind.yaml", approval_handler=lambda request: "allow")
 
-@client.tool(description="查询订单")
+@client.tool(
+    description="查询订单",
+    effect={"operations": ["read"], "reversible": True},
+)
 def lookup_order(order_id: str) -> dict[str, str]:
     return {"id": order_id, "status": "paid"}
 
@@ -204,10 +213,12 @@ print(result["outcome"], result["transcript"])
 
 ## Harness 与质量证据
 
-- 统一 `RunOutcome / RunMetrics / EvaluationReport / ReleaseReadiness`，失败不能伪装为成功。
+- 统一 `RunOutcome / RunMetrics / EvaluationReport / ReleaseReadiness`；成功、失败、暂停、中止、超时和预算耗尽都通过返回值表达，失败不能伪装为成功。
 - turn、step、工具调用/失败、重试、token、费用、步骤与总运行超时预算。
 - ask/assisted/full 三档权限，deny、路径和网络策略优先。
-- edit/write 前 checkpoint，运行后 diff 与显式恢复；不可逆工具如实标记。
+- edit/write 前 checkpoint，运行后 diff 与显式恢复；恢复前检查工具完成后的文件指纹，检测到人工或并发修改时拒绝覆盖。
+- 自定义工具必须声明 `effect.operations` 与 `effect.reversible`；权限层递归检查嵌套路径和 URL，未知副作用在受约束模式下安全拒绝。
+- Windows 宿主 Shell 只有在 full、关闭工作区限制、允许网络同时选择时开放，其他组合安全拒绝；Git Bash 不等于隔离；Linux Shell 继续使用操作系统级隔离。
 - 带 runId、eventId、sequence、timestamp 的 Trace 与 append-only RunState。
 - 意外中断后可从完整 `step_output` 边界继续；已结束运行、配置/输入不匹配或未完成步骤含非重放安全工具时明确拒绝恢复。
 - 每个工具调用写入幂等关联标识；业务工具仍需自行用该标识实现收据或去重，CoreMind 不承诺“恰好一次”。
@@ -224,8 +235,9 @@ CoreMind 提供锁定的 Provider 清单（当前为 37 个继承入口和 1 个
 
 ## 学习与验证材料
 
-- [16 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`。
-- [4 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查，均可用本地 mock Provider 离线运行。
+- [17 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`。
+- [5 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查与验证修复 Loop，均可用本地 mock Provider 离线运行。
+- [2 个编码智能体真实缺陷仓库](examples/coding-evals/README.zh-CN.md)：TypeScript 与 Python 均验证复现、最小修复、目标/回归测试、只读 Git 证据和脏工作区保护。
 - [配置指南](docs/guide/02-configuration.md)、[Skill 指南](docs/guide/03-skills.md)、[质量指南](docs/guide/04-quality.md)、[CLI 指南](docs/guide/05-cli-usage.md)。
 
 ## 源码开发
@@ -234,11 +246,18 @@ CoreMind 提供锁定的 Provider 清单（当前为 37 个继承入口和 1 个
 npm ci
 npm run build
 npm run check
-npm test
+npm run test:stability
+npm run test:coverage
+npm run test:coding-evals
 npm run build:python-worker
+npm run release:check-npm
+npm run release:test-npm
+npm run release:test-source
+python -X utf8 -m build --wheel python
+npm run release:check-wheel
 ```
 
-`npm run check:modules` 会检查 16 个模块与 4 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 在 Windows 与 Linux 运行 Node、Python SDK、真实 worker parity 和 wheel 构建。
+`npm run check:modules` 会检查 17 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。Linux 的最终证据以目标平台 CI 与人工 TTY 验收记录为准。
 
 ## 开源协议
 

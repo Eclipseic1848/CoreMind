@@ -20,14 +20,16 @@ function makeFauxContext() {
 }
 
 describe("buildAgent（离线 faux 端到端）", () => {
-  it("配置 → Agent 跑通，工具执行并返回最终文本", async () => {
+  it("配置 → Agent 连续两次工具调用的结果都回灌后再结束", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-"));
     writeFileSync(path.join(dir, "notes.txt"), "这是测试内容", "utf8");
+    writeFileSync(path.join(dir, "notes-2.txt"), "这是第二份测试内容", "utf8");
     const { models, model, faux } = makeFauxContext();
-    // 两步响应：先触发工具调用，再输出文本
+    // 三步响应：连续两次工具调用都完成后再输出最终文本。
     faux.setResponses([
       fauxAssistantMessage([fauxToolCall("read", { path: "notes.txt" })]),
-      fauxAssistantMessage("完成，已读取"),
+      fauxAssistantMessage([fauxToolCall("read", { path: "notes-2.txt" })]),
+      fauxAssistantMessage("完成，已读取两份内容"),
     ]);
 
     const events: CoreMindEvent[] = [];
@@ -62,15 +64,15 @@ describe("buildAgent（离线 faux 端到端）", () => {
     }
 
     // 工具事件细节
-    const toolCall = events.find((e) => e.type === "tool_call");
-    if (toolCall && toolCall.type === "tool_call") {
-      expect(toolCall.tool).toBe("read");
-      expect(toolCall.args).toMatchObject({ path: "notes.txt" });
-    }
-    const toolResult = events.find((e) => e.type === "tool_result");
-    if (toolResult && toolResult.type === "tool_result") {
-      expect(toolResult.isError).toBe(false);
-    }
+    const toolCalls = events.filter((e) => e.type === "tool_call");
+    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls.map((event) => event.args)).toEqual([
+      { path: "notes.txt" },
+      { path: "notes-2.txt" },
+    ]);
+    const toolResults = events.filter((e) => e.type === "tool_result");
+    expect(toolResults).toHaveLength(2);
+    expect(toolResults.every((event) => !event.isError)).toBe(true);
 
     // 最终文本（从消息提取）
     const text = agent.state.messages

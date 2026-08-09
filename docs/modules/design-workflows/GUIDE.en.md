@@ -1,34 +1,60 @@
-# Workflows and Bounded Loops Guide
+# Workflows and Explicit Bounded Loops Guide
 
-## When to use it
+## Step 1: choose the mode first
 
-Compose agents with sequence, parallelism, conditions, and bounded retries, enforce a global loop budget, and resume safely from persisted stable step boundaries.
+- Use `workflow` when inputs pass through fixed processing steps.
+- Use the basic agent loop with runtime budgets when one agent can decide its tool calls.
+- Use `loop` when an independent verifier must reject a candidate and bounded repair is allowed.
 
-## Minimal example
+## Step 2: write the smallest Loop configuration
 
-```text
-workflow:
-  - id: draft
-    type: call
-    agent: writer
-    input: '{{prompt}}'
-    saveAs: draft
-  - id: review
-    type: call
+```yaml
+agents:
+  coder:
+    systemPrompt: Generate or repair the candidate
+  reviewer:
+    systemPrompt: Verify independently and output only PASS or FAIL
+
+loop:
+  execute:
+    agent: coder
+    input: "Execute: {{prompt}}"
+  verify:
     agent: reviewer
-    input: '{{draft.text}}'
+    input: "Verify: {{candidate.text}}"
+    passIf: "{{text}} == PASS"
+  repair:
+    agent: coder
+    input: "Repair {{candidate.text}} using {{verification.text}}"
+  maxIterations: 3
+  maxRepairs: 2
+  maxRepeatedAction: 2
+  onFailure: repair
+  onExhausted: fail
 ```
 
-## Verification
+`passIf` must be deterministic and testable. Use `onFailure: pause` when a human must decide before repair, and `onFailure: fail` when automatic repair is forbidden.
 
-1. Follow the [SOP](SOP.en.md).
-2. Run the [module example](../../../examples/modules/design-workflows/README.en.md).
-3. Run `coremind check`; also run `coremind eval` for business outputs.
-4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+## Step 3: run and observe
 
-## Common mistakes
+```powershell
+coremind check coremind.yaml
+coremind run coremind.yaml --prompt "repair the candidate" --json-events
+```
 
-- Do not let the model invent business rules for the owner.
-- Do not treat one successful run as stability evidence.
-- Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
-- Do not describe inherited providers as genuinely certified.
+Inspect `loop_state` order, the final `run_result`, tool traces, effect receipts, budgets, and checkpoints. Resume a paused run with the original run ID:
+
+```powershell
+coremind run coremind.yaml --resume <runId>
+```
+
+## Step 4: test at least six counterexamples
+
+1. First verification returns FAIL and transitions to repair.
+2. Verification still fails after repair and ends as `loop_exhausted` at the limit.
+3. Repeated identical candidates hit the no-progress policy.
+4. A denied approval pauses without replaying the tool.
+5. One injected 503 triggers only the bounded transient retry.
+6. Exit at a stable boundary and resume without replaying completed steps or committed effects.
+
+Run the [verified repair golden example](../../../examples/golden/verified-repair-loop/README.en.md) for repair success, pause-resume, and exhaustion coverage.

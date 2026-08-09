@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -115,6 +116,71 @@ const modules = [
       "agents:\n  main:\n    systemPrompt: |\n      只根据订单工具返回的数据回答；缺失信息时明确说明。\n    tools:\n      - id: read",
   }),
   moduleOf({
+    id: "build-coding-agents",
+    zh: "编码智能体",
+    en: "Coding Agents",
+    purposeZh: "把复现缺陷、定位原因、最小修改、目标测试、回归测试和差异审查固化为受控流程。",
+    purposeEn:
+      "Turn defect reproduction, diagnosis, minimal repair, target tests, regression tests, and diff review into a controlled workflow.",
+    source: [
+      "packages/coremind-tools/src/process-runner.ts",
+      "packages/coremind-tools/src/git-adapter.ts",
+      "packages/coremind-tools/src/unified-diff.ts",
+      "packages/coremind-runtime/src/evaluation-graders.ts",
+      "examples/coding-evals",
+    ],
+    tests: [
+      "packages/coremind-tools/src/process-runner.test.ts",
+      "packages/coremind-tools/src/git-adapter.test.ts",
+      "packages/coremind-tools/src/unified-diff.test.ts",
+      "packages/coremind-runtime/src/evaluation.test.ts",
+      "packages/coremind-runtime/src/batch8-properties.test.ts",
+      "examples/coding-evals/coding-evals.test.ts",
+    ],
+    dependencies: [
+      "design-agents",
+      "build-tools",
+      "evaluate-agents",
+      "enforce-agent-permissions",
+      "manage-checkpoints",
+    ],
+    interfaces: [
+      "ProcessRunner",
+      "GitAdapter",
+      "createUnifiedDiff",
+      "runEvaluationSuite",
+      "EvaluationGrader",
+    ],
+    errorsZh: [
+      "无法复现缺陷时停止修改",
+      "工作区越界、未授权网络和受保护文件修改会被拒绝",
+      "既有脏工作区默认必须保持原样",
+      "测试、grader 或安全门禁失败时不得声明完成",
+    ],
+    errorsEn: [
+      "Editing stops when the defect cannot be reproduced",
+      "Workspace escape, unauthorized network access, and protected-file edits are rejected",
+      "Pre-existing dirty-worktree content is preserved by default",
+      "Failed tests, graders, or security gates prevent completion claims",
+    ],
+    stepsZh: [
+      "记录分支、脏工作区和受保护文件基线",
+      "用最小目标测试复现失败",
+      "定位根因并只做最小修改",
+      "依次运行目标与完整回归测试",
+      "审查 Git 状态、差异、Trace、Checkpoint 和 grader",
+    ],
+    stepsEn: [
+      "Record the branch, dirty worktree, and protected-file baseline",
+      "Reproduce the failure with the smallest target test",
+      "Locate the cause and make only the smallest repair",
+      "Run target tests followed by the complete regression suite",
+      "Review Git status, diff, trace, checkpoints, and graders",
+    ],
+    example:
+      "npm run build\nnpm run test:coding-evals\ncoremind eval coremind.yaml --suite evals/scenarios.yaml --json",
+  }),
+  moduleOf({
     id: "build-tools",
     zh: "工具与业务能力",
     en: "Tools and Business Capabilities",
@@ -124,26 +190,42 @@ const modules = [
     source: [
       "packages/coremind-tools/src",
       "packages/coremind-tools/src/linux-sandbox.ts",
+      "packages/coremind-tools/src/process-runner.ts",
+      "packages/coremind-tools/src/git-adapter.ts",
+      "packages/coremind-tools/src/unified-diff.ts",
       "packages/coremind-runtime/src/public-tool.ts",
     ],
     tests: [
       "packages/coremind-tools/src/registry.test.ts",
       "packages/coremind-tools/src/linux-sandbox.test.ts",
+      "packages/coremind-tools/src/process-runner.test.ts",
+      "packages/coremind-tools/src/git-adapter.test.ts",
+      "packages/coremind-tools/src/unified-diff.test.ts",
       "packages/coremind-runtime/src/public-tool.test.ts",
     ],
     dependencies: ["configure-coremind", "enforce-agent-permissions", "manage-checkpoints"],
-    interfaces: ["buildTools", "defineTool", "adaptCoreMindTool"],
+    interfaces: [
+      "buildTools",
+      "defineTool",
+      "adaptCoreMindTool",
+      "ProcessRunner",
+      "GitAdapter",
+      "createUnifiedDiff",
+      "diffFiles",
+    ],
     errorsZh: [
       "工具加载失败会告警并跳过",
       "工具异常会进入 tool_result 与失败预算",
       "越权路径或 deny 规则会阻止执行",
       "Linux bash 沙箱初始化失败时关闭执行，不回退到宿主 shell",
+      "子进程、只读 Git 和统一 Diff 均使用超时、输出、路径与复杂度上限",
     ],
     errorsEn: [
       "Tool loading failures are warned and skipped",
       "Tool exceptions enter tool_result and failure budgets",
       "Escaped paths or deny rules block execution",
       "Linux bash fails closed when sandbox initialization fails and never falls back to the host shell",
+      "Subprocesses, read-only Git, and unified diffs enforce timeout, output, path, and complexity limits",
     ],
     stepsZh: [
       "先定义输入 JSON Schema、副作用和幂等策略",
@@ -152,6 +234,7 @@ const modules = [
       "为写操作确认权限与恢复能力",
       "在 Linux CI 中验证 bash 不能越界写入或联网",
       "保持 Linux bash 串行执行，避免共享沙箱清理器并发互扰",
+      "验证子进程环境隔离、Git 只读边界与 Diff 大小上限",
     ],
     stepsEn: [
       "Define the input JSON Schema, side effects, and idempotency strategy",
@@ -160,9 +243,10 @@ const modules = [
       "Confirm permission and recovery behavior for writes",
       "Verify in Linux CI that bash cannot write outside the workspace or access the network",
       "Keep Linux bash execution sequential so shared sandbox cleanup cannot race",
+      "Verify subprocess environment isolation, read-only Git boundaries, and diff limits",
     ],
     example:
-      "const lookupOrder = defineTool({\n  name: 'lookup_order',\n  description: '按编号查询模拟订单',\n  parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },\n  execute: async ({ id }) => ({ id, status: 'paid' }),\n});",
+      "const lookupOrder = defineTool({\n  name: 'lookup_order',\n  description: '按编号查询模拟订单',\n  parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },\n  effect: { operations: ['read'], reversible: true },\n  execute: async ({ id }) => ({ id, status: 'paid' }),\n});",
   }),
   moduleOf({
     id: "package-agent-skills",
@@ -200,20 +284,30 @@ const modules = [
     zh: "Workflow 与受控 Loop",
     en: "Workflows and Bounded Loops",
     purposeZh:
-      "用顺序、并行、条件和有限重试组合 Agent，以全局预算阻止无边界循环，并从已持久化的稳定步骤边界安全恢复。",
+      "在静态 Workflow 与显式 verify/repair Loop 之间做清晰选择，用有界状态、稳定快照和 Effect Receipt 阻止伪成功与副作用重放。",
     purposeEn:
-      "Compose agents with sequence, parallelism, conditions, and bounded retries, enforce a global loop budget, and resume safely from persisted stable step boundaries.",
+      "Choose clearly between static workflows and explicit verify-repair loops, using bounded state, stable snapshots, and effect receipts to prevent false success and side-effect replay.",
     source: [
       "packages/coremind-runtime/src/orchestrator.ts",
+      "packages/coremind-runtime/src/loop-controller.ts",
+      "packages/coremind-runtime/src/loop-runner.ts",
+      "packages/coremind-runtime/src/retry-policy.ts",
       "packages/coremind-config/src/schema/workflow.ts",
+      "packages/coremind-config/src/schema/loop.ts",
     ],
     tests: [
       "packages/coremind-runtime/src/orchestrator.test.ts",
+      "packages/coremind-runtime/src/loop-controller.test.ts",
+      "packages/coremind-runtime/src/loop-runner.test.ts",
+      "packages/coremind-runtime/src/retry-policy.test.ts",
       "packages/coremind-runtime/src/budget.test.ts",
+      "examples/golden/golden-examples.test.ts",
     ],
     dependencies: ["design-agents", "inspect-agent-traces"],
     interfaces: [
       "Orchestrator",
+      "LoopController",
+      "LoopRunner",
       "evalCondition",
       "RunBudgetController",
       "prepareRunResume",
@@ -221,32 +315,36 @@ const modules = [
     ],
     errorsZh: [
       "步骤超时、未知 Agent、重试耗尽和总步骤超限均明确失败",
+      "验证失败必须进入修复、暂停或失败；达到最大迭代、最大修复或无进展阈值时不得成功",
+      "恢复只发生在稳定状态；committed 副作用不重放，unknown 副作用必须暂停人工核对",
       "并发步骤使用独立 Agent 实例",
       "未完成步骤调用过非重放安全工具时以 unsafe_resume 拒绝自动恢复",
     ],
     errorsEn: [
       "Step timeout, unknown agent, exhausted retries, and step-budget overflow fail explicitly",
+      "Verification failure must repair, pause, or fail; iteration, repair, and no-progress exhaustion cannot succeed",
+      "Resume occurs only at stable states; committed effects are not replayed and unknown effects require human review",
       "Parallel steps use isolated agent instances",
       "Automatic resume fails with unsafe_resume when an incomplete step called a non-replay-safe tool",
     ],
     stepsZh: [
       "先画清输入输出依赖",
+      "固定依赖使用 workflow；需要生成、验证、修复闭环时才使用 loop",
       "确定性操作留在工具或普通代码",
-      "为每个重试写可验证条件",
-      "设置 maxSteps、maxRetries 和超时",
-      "注入失败并确认不会伪成功",
-      "只从完整 step_output 边界恢复，绝不宣称任意调用栈恢复",
+      "设置 passIf、maxIterations、maxRepairs、maxRepeatedAction 和耗尽策略",
+      "分别注入验证失败、审批拒绝、瞬态错误、无进展、预算耗尽和进程中断",
+      "检查状态序列、Effect Receipt、稳定快照和恢复后未重复副作用",
     ],
     stepsEn: [
       "Map input and output dependencies",
+      "Use workflow for fixed dependencies and loop only for a generate-verify-repair cycle",
       "Keep deterministic operations in tools or normal code",
-      "Give every retry a verifiable condition",
-      "Set maxSteps, maxRetries, and timeouts",
-      "Inject failures and confirm they never masquerade as success",
-      "Resume only from complete step_output boundaries and never claim arbitrary call-stack recovery",
+      "Set passIf, maxIterations, maxRepairs, maxRepeatedAction, and the exhaustion policy",
+      "Inject verification failure, denied approval, transient errors, no progress, budget exhaustion, and process interruption",
+      "Inspect state order, effect receipts, stable snapshots, and the absence of side-effect replay after resume",
     ],
     example:
-      "workflow:\n  - id: draft\n    type: call\n    agent: writer\n    input: '{{prompt}}'\n    saveAs: draft\n  - id: review\n    type: call\n    agent: reviewer\n    input: '{{draft.text}}'",
+      "loop:\n  execute:\n    agent: coder\n    input: '{{prompt}}'\n  verify:\n    agent: reviewer\n    input: '{{candidate.text}}'\n    passIf: '{{text}} == PASS'\n  repair:\n    agent: coder\n    input: '{{verification.text}}'\n  maxIterations: 3\n  maxRepairs: 2\n  maxRepeatedAction: 2\n  onFailure: repair\n  onExhausted: fail",
   }),
   moduleOf({
     id: "manage-sessions",
@@ -303,11 +401,13 @@ const modules = [
       "packages/coremind-runtime/src/tool-policy.ts",
       "packages/coremind-cli/src/approval.ts",
       "packages/coremind-tools/src/linux-sandbox.ts",
+      "packages/coremind-tools/src/host-shell.ts",
     ],
     tests: [
       "packages/coremind-runtime/src/tool-policy.test.ts",
       "packages/coremind-cli/src/approval.test.ts",
       "packages/coremind-tools/src/linux-sandbox.test.ts",
+      "packages/coremind-tools/src/host-shell.test.ts",
     ],
     dependencies: ["configure-coremind", "inspect-agent-traces"],
     interfaces: [
@@ -321,12 +421,14 @@ const modules = [
       "显式 deny 与路径感知文件工具的越界路径在 full 下也不会放行",
       "任意 shell 副作用不承诺自动回退",
       "Linux bash 当前默认拒绝网络，沙箱不可用时关闭执行",
+      "Windows 宿主 Shell 只有 full、关闭工作区限制和允许网络同时满足时开放",
     ],
     errorsEn: [
       "Missing approval handlers deny safely",
       "Explicit deny and escaped paths for path-aware file tools remain blocked in full mode",
       "Arbitrary shell side effects are never claimed as automatically reversible",
       "Linux bash currently denies network access and fails closed when the sandbox is unavailable",
+      "The Windows host shell opens only when full mode, open workspace access, and allowed network are all selected",
     ],
     stepsZh: [
       "默认从 ask 开始",
@@ -334,7 +436,7 @@ const modules = [
       "对网络单独选择 ask、allow 或 deny；注意当前 Linux bash 仍固定断网",
       "用真实工具验证三档模式",
       "不得把 full 解释为关闭审计或 checkpoint",
-      "Windows shell 没有 OS 沙箱，按不可逆高风险操作处理",
+      "Windows shell 没有 OS 沙箱；验证三项开放条件与 Git Bash 兼容性边界",
     ],
     stepsEn: [
       "Start with ask by default",
@@ -342,7 +444,7 @@ const modules = [
       "Choose ask, allow, or deny for network tools while noting that Linux bash remains offline",
       "Verify all three modes with real tools",
       "Never interpret full as disabling audit or checkpoints",
-      "Treat Windows shell execution as a non-reversible high-risk operation because it has no OS sandbox",
+      "Verify the three Windows opening conditions and treat Git Bash as compatibility rather than isolation",
     ],
     example:
       "permissions:\n  mode: assisted\n  workspaceOnly: true\n  network: deny\n  deny:\n    - bash",
@@ -391,9 +493,9 @@ const modules = [
     zh: "Trace、RunState 与调试",
     en: "Trace, RunState, and Debugging",
     purposeZh:
-      "用带 runId、eventId、sequence 和 timestamp 的事件及 append-only RunState 保存可复核证据，并生成安全恢复计划。",
+      "用带 runId、eventId、sequence 和 timestamp 的脱敏事件及 append-only RunState 保存可复核证据，并生成安全恢复计划。",
     purposeEn:
-      "Preserve reviewable evidence through events carrying runId, eventId, sequence, and timestamp plus append-only RunState, and derive safe resume plans.",
+      "Preserve reviewable evidence through redacted events carrying runId, eventId, sequence, and timestamp plus append-only RunState, and derive safe resume plans.",
     source: [
       "packages/coremind-runtime/src/trace.ts",
       "packages/coremind-runtime/src/run-state.ts",
@@ -402,6 +504,7 @@ const modules = [
     tests: [
       "packages/coremind-runtime/src/run-state.test.ts",
       "packages/coremind-runtime/src/runtime.test.ts",
+      "packages/coremind-runtime/src/trace.test.ts",
     ],
     dependencies: ["configure-coremind"],
     interfaces: [
@@ -416,12 +519,14 @@ const modules = [
       "已结束运行不可重复恢复",
       "配置指纹、输入或非重放安全副作用不匹配时拒绝恢复",
       "事件严格递增，审批、预算和 checkpoint 进入同一 Trace",
+      "凭据字段、正文、命令中的敏感参数和 URL 密钥在持久化前隐藏",
     ],
     errorsEn: [
       "Corrupt or discontinuous JSONL reports run_state_corrupt",
       "Finished runs cannot be resumed again",
       "Resume is rejected for mismatched config fingerprints, input, or non-replay-safe side effects",
       "Events increase monotonically and include approvals, budgets, and checkpoints in one trace",
+      "Credential fields, bodies, command secrets, and URL secrets are redacted before persistence",
     ],
     stepsZh: [
       "先按 runId 定位运行",
@@ -429,6 +534,7 @@ const modules = [
       "从第一个 fatal error 或 policy_denied 向前检查",
       "确认 step_output 是完整稳定边界后再恢复",
       "用事件证据复现后再修改",
+      "确认 Trace 与 RunState 不包含测试凭据或正文原文",
       "保留修复前后 Trace",
     ],
     stepsEn: [
@@ -437,6 +543,7 @@ const modules = [
       "Inspect backward from the first fatal error or policy_denied",
       "Resume only after confirming a complete step_output boundary",
       "Reproduce from evidence before changing code",
+      "Confirm Trace and RunState do not contain test credentials or raw bodies",
       "Keep before-and-after traces",
     ],
     example:
@@ -451,13 +558,16 @@ const modules = [
       "Separate runtime outcome, metrics, business evaluation, and release readiness while preventing failures from masquerading as passes.",
     source: [
       "packages/coremind-runtime/src/evaluation.ts",
+      "packages/coremind-runtime/src/evaluation-graders.ts",
       "packages/coremind-runtime/src/project-check.ts",
       "packages/coremind-runtime/src/result.ts",
     ],
     tests: [
       "packages/coremind-runtime/src/evaluation.test.ts",
+      "packages/coremind-runtime/src/batch8-properties.test.ts",
       "packages/coremind-runtime/src/project-check.test.ts",
       "packages/coremind-runtime/src/quality.test.ts",
+      "examples/coding-evals/coding-evals.test.ts",
     ],
     dependencies: ["inspect-agent-traces", "enforce-agent-permissions"],
     interfaces: [
@@ -466,22 +576,26 @@ const modules = [
       "RunOutcome",
       "EvaluationReport",
       "ReleaseReadiness",
+      "EvaluationGrader",
     ],
     errorsZh: [
       "安全门禁不可覆盖",
       "非安全门禁只有在 allowOverride 和明确原因同时存在时才能覆盖，并追加写入 .coremind/quality-overrides.jsonl",
       "审计写入失败时拒绝覆盖",
       "strict 场景至少重复三次",
+      "schemaVersion 2 强制 outcome grader，并保护既有脏工作区",
     ],
     errorsEn: [
       "Security gates cannot be overridden",
       "Non-security gates require allowOverride plus an explicit reason and append a record to .coremind/quality-overrides.jsonl",
       "An audit-write failure rejects the override",
       "Strict scenarios run at least three times",
+      "schemaVersion 2 requires an outcome grader and preserves the dirty-worktree baseline",
     ],
     stepsZh: [
       "先定义业务成功条件",
       "为正常、边界、失败和拒绝建立场景",
+      "按风险配置 trajectory、command、file、diff、state 与 response grader",
       "运行 coremind check",
       "运行 coremind eval",
       "只根据 ReleaseReadiness 决定是否进入发布",
@@ -489,12 +603,13 @@ const modules = [
     stepsEn: [
       "Define business success first",
       "Create happy, boundary, failure, and denial scenarios",
+      "Select trajectory, command, file, diff, state, and response graders according to risk",
       "Run coremind check",
       "Run coremind eval",
       "Use ReleaseReadiness—not a fluent answer—to decide release",
     ],
     example:
-      "schemaVersion: 1\nscenarios:\n  - id: paid-order\n    input: 查询订单 A-100\n    expected:\n      contains:\n        - 已支付\n      notContains:\n        - TODO",
+      "schemaVersion: 2\nscenarios:\n  - id: paid-order\n    input: 查询订单 A-100\n    graders:\n      - { type: outcome, status: succeeded }\n      - { type: response, contains: [已支付], notContains: [TODO] }\n      - { type: state, maxSecurityFindings: 0 }",
   }),
   moduleOf({
     id: "operate-coremind-cli",
@@ -706,29 +821,60 @@ const modules = [
     id: "contribute-coremind",
     zh: "源码与社区贡献",
     en: "Source and Community Contribution",
-    purposeZh: "在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码。",
+    purposeZh:
+      "在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码，并验证同提交发布物。",
     purposeEn:
-      "Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary.",
+      "Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, release authorization boundary, and same-commit artifact gates.",
     source: [
       "package.json",
       "vitest.config.ts",
       ".github/workflows/ci.yml",
+      ".github/workflows/docs.yml",
+      ".github/workflows/release-please.yml",
+      ".github/workflows/publish-pypi.yml",
+      ".github/dependabot.yml",
+      ".release-please-manifest.json",
+      "release-please-config.json",
       "CONTRIBUTING.md",
       "SECURITY.md",
       "docs/.vitepress/config.mts",
       "docs/providers/certifications.json",
       "docs/release/README.zh-CN.md",
+      "docs/release/RC-ACCEPTANCE.zh-CN.md",
       "scripts/check-module-contract.mjs",
       "scripts/check-docs-site.mjs",
       "scripts/clean-package-dist.mjs",
       "scripts/generate-provider-matrix.mjs",
       "scripts/release-preflight.mjs",
+      "scripts/release-version.mjs",
+      "scripts/release-artifacts.mjs",
+      "scripts/publish-npm-artifacts.mjs",
+      "scripts/rc-acceptance.mjs",
+      "scripts/audit-markdown.mjs",
+      "scripts/markdown-audit-lib.mjs",
+      "scripts/package-artifacts.mjs",
+      "scripts/validate-npm-tarballs.mjs",
+      "scripts/validate-source-archive.mjs",
+      "scripts/check-python-wheel.py",
+      "scripts/test-stability.mjs",
+      "scripts/check-coverage.mjs",
+      "scripts/coverage-baseline.json",
     ],
     tests: [
       "scripts/check-module-contract.mjs",
       "scripts/docs-link-policy.test.ts",
       "scripts/provider-matrix.test.ts",
       "scripts/release-preflight.test.ts",
+      "scripts/release-version.test.ts",
+      "scripts/release-artifacts.test.ts",
+      "scripts/publish-npm-artifacts.test.ts",
+      "scripts/rc-acceptance.test.ts",
+      "scripts/markdown-audit.test.ts",
+      "scripts/package-artifacts.test.ts",
+      "scripts/source-archive.test.ts",
+      "scripts/coverage-baseline.test.ts",
+      "scripts/workflow-contract.test.ts",
+      "python/tests/test_release_metadata.py",
       "packages/coremind/src/index.test.ts",
     ],
     dependencies: ["configure-coremind", "evaluate-agents", "scaffold-coremind-projects"],
@@ -738,27 +884,38 @@ const modules = [
       "npm run check",
       "npm run check:modules",
       "npm run docs:build",
+      "npm run docs:audit",
+      "npm run test:stability",
+      "npm run test:coverage",
       "npm run providers:matrix",
       "npm run release:preflight",
+      "npm run release:sync-version",
+      "npm run acceptance:rc",
+      "npm run release:bundle",
     ],
     errorsZh: [
       "依赖方向必须保持 config → tools → templates → runtime → facade/CLI/worker",
       "不得未经授权 push、tag 或发布",
       "不相关用户修改必须保留",
       "供应商可发现不等于已认证，正式发布必须有真实证据",
+      "Release Please 只生成草稿 PR；Tag 与发布继续由维护者批准",
+      "发布物必须来自同一干净 Tag，且通过哈希、来源证明与干净安装门禁",
     ],
     errorsEn: [
       "Dependencies must remain config to tools to templates to runtime to facade/CLI/worker",
       "Never push, tag, or publish without authorization",
       "Preserve unrelated user changes",
       "Provider discovery is not certification; releases require live evidence",
+      "Release Please creates a draft PR only; maintainers still approve tags and publication",
+      "Artifacts must come from one clean tag and pass hash, attestation, and clean-install gates",
     ],
     stepsZh: [
       "先读 handoff 和权威方案",
       "写失败测试再做最小实现",
       "同步模块合同与双语文档",
       "生成供应商矩阵并构建双语文档站",
-      "按依赖顺序构建并跑代码、文档和发布预检",
+      "执行全仓 Markdown、稳定性、覆盖率与 RC 验收",
+      "按依赖顺序构建并验证同提交 npm、wheel 与源码 ZIP",
       "展示 diff，等待明确发布授权",
     ],
     stepsEn: [
@@ -766,11 +923,14 @@ const modules = [
       "Write a failing test before the smallest implementation",
       "Synchronize module contracts and bilingual docs",
       "Generate the provider matrix and build the bilingual documentation site",
-      "Build in dependency order and run code, documentation, and release gates",
+      "Run repository-wide Markdown, stability, coverage, and RC acceptance",
+      "Build in dependency order and verify same-commit npm, wheel, and source ZIP artifacts",
       "Show the diff and wait for explicit release authorization",
     ],
+    skillVerification:
+      "Run the tests listed in module.yaml, npm run test:stability, npm run test:coverage, npm run docs:audit, npm run acceptance:rc, and npm run check:modules.",
     example:
-      "npm run build\nnpm run check\nnpm test\nnpm run docs:build\nnpm run release:preflight -- --allow-dirty",
+      "npm run build\nnpm run check\nnpm run test:stability\nnpm run test:coverage\nnpm run docs:audit\nnpm run acceptance:rc",
   }),
 ];
 
@@ -786,7 +946,7 @@ for (const item of modules) {
   await write(docsDir, "SOP.en.md", sopEn(item));
   await write(docsDir, "GUIDE.zh-CN.md", guideZh(item));
   await write(docsDir, "GUIDE.en.md", guideEn(item));
-  await write(docsDir, "CHANGELOG.md", changelog(item));
+  await writeIfMissing(docsDir, "CHANGELOG.md", changelog(item));
   await write(docsDir, "module.yaml", manifest(item));
   await write(examplesDir, "README.zh-CN.md", exampleZh(item));
   await write(examplesDir, "README.en.md", exampleEn(item));
@@ -811,6 +971,13 @@ async function write(...parts) {
   const file = path.join(...parts);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, content.replaceAll("\r\n", "\n"), "utf8");
+}
+
+async function writeIfMissing(...parts) {
+  const content = parts.pop();
+  const file = path.join(...parts);
+  if (existsSync(file)) return;
+  await write(...parts, content);
 }
 
 function links(item) {
@@ -849,7 +1016,10 @@ function guideEn(item) {
 
 function skill(item) {
   const description = `${item.purposeEn} Use when creating, changing, reviewing, or diagnosing the ${item.en.toLowerCase()} capability in a CoreMind project.`;
-  return `---\nname: ${item.id}\ndescription: ${JSON.stringify(description)}\n---\n\n# ${item.en}\n\n1. Read [the module contract](../../docs/modules/${item.id}/README.en.md) and the language-matched guide only when implementation details are needed.\n2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.\n3. Follow [the SOP](../../docs/modules/${item.id}/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.\n4. Add or update a failing test before implementation, then make the smallest change that passes it.\n5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.\n6. Run the tests listed in [module.yaml](../../docs/modules/${item.id}/module.yaml) and \`npm run check:modules\`.\n7. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.\n\n中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。\n`;
+  const verification =
+    item.skillVerification ??
+    `Run the tests listed in [module.yaml](../../docs/modules/${item.id}/module.yaml) and \`npm run check:modules\`.`;
+  return `---\nname: ${item.id}\ndescription: ${JSON.stringify(description)}\n---\n\n# ${item.en}\n\n1. Read [the module contract](../../docs/modules/${item.id}/README.en.md) and the language-matched guide only when implementation details are needed.\n2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.\n3. Follow [the SOP](../../docs/modules/${item.id}/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.\n4. Add or update a failing test before implementation, then make the smallest change that passes it.\n5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.\n6. ${verification}\n7. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.\n\n中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。\n`;
 }
 
 function exampleZh(item) {

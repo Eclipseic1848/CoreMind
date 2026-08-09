@@ -158,6 +158,47 @@ const examples = [
       "Never expand offline evidence into fabricated internet sources",
     ],
   },
+  {
+    id: "verified-repair-loop",
+    titleZh: "验证修复 Loop",
+    titleEn: "Verified Repair Loop",
+    profile: "loop",
+    port: 8815,
+    language: "TypeScript",
+    implementationPaths: ["coremind.yaml"],
+    skill: "build-verified-repair-loop",
+    goalZh: "先生成候选结果，再由独立验证者判定；失败时有界修复，并演示暂停恢复与耗尽终态。",
+    goalEn:
+      "Generate a candidate, verify it independently, repair within bounds, and demonstrate pause-resume and exhaustion outcomes.",
+    architectureZh: [
+      "Executor + Verifier + Repairer",
+      "显式有界 Loop",
+      "稳定快照暂停恢复",
+      "失败注入与耗尽断言",
+    ],
+    architectureEn: [
+      "Executor, verifier, and repairer",
+      "Explicit bounded Loop",
+      "Pause-resume from stable snapshots",
+      "Failure injection and exhaustion assertions",
+    ],
+    run: 'node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "修复候选结果"',
+    eval: "node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml",
+    expectedZh:
+      "首次验证返回 FAIL，修复后再次验证返回 PASS，最终输出 candidate-fixed；测试同时验证暂停恢复与耗尽失败。",
+    expectedEn:
+      "The first verification returns FAIL, repair produces candidate-fixed, and the next verification returns PASS; tests also cover pause-resume and exhaustion.",
+    failuresZh: [
+      "验证失败不是运行成功：必须进入 repair、pause 或 fail",
+      "暂停后使用同一 runId 恢复，不得重复已经完成的 execute",
+      "maxRepairs 耗尽必须返回 loop_exhausted，不能接受未通过结果",
+    ],
+    failuresEn: [
+      "A failed verification is not success: it must transition to repair, pause, or fail",
+      "Resume the same runId after pause without replaying a completed execute step",
+      "Exhausting maxRepairs must return loop_exhausted instead of accepting an unverified result",
+    ],
+  },
 ];
 
 for (const item of examples) {
@@ -289,10 +330,11 @@ function exampleSkill(item) {
 function manifest(item) {
   const test =
     item.id === "python-data-analysis" ? "tests/test_example.py" : "../golden-examples.test.ts";
-  return `schemaVersion: 1\nid: ${item.id}\nlanguage: ${item.language.toLowerCase()}\noffline: true\nconfigPath: coremind.yaml\nscenarioPath: evals/scenarios.yaml\nimplementationPaths:\n  - src\ntestPath: ${test}\ndocuments:\n  zh-CN: README.zh-CN.md\n  en: README.en.md\n  sopZh: SOP.zh-CN.md\n  sopEn: SOP.en.md\n  failuresZh: FAILURES.zh-CN.md\n  failuresEn: FAILURES.en.md\nskillPath: skills/${item.skill}/SKILL.md\nqualityProfile: standard\nminimumPassRate: 1\n`;
+  const implementationPaths = item.implementationPaths ?? ["src"];
+  return `schemaVersion: 1\nid: ${item.id}\nlanguage: ${item.language.toLowerCase()}\noffline: true\nconfigPath: coremind.yaml\nscenarioPath: evals/scenarios.yaml\nimplementationPaths:\n${implementationPaths.map((value) => `  - ${value}`).join("\n")}\ntestPath: ${test}\ndocuments:\n  zh-CN: README.zh-CN.md\n  en: README.en.md\n  sopZh: SOP.zh-CN.md\n  sopEn: SOP.en.md\n  failuresZh: FAILURES.zh-CN.md\n  failuresEn: FAILURES.en.md\nskillPath: skills/${item.skill}/SKILL.md\nqualityProfile: standard\nminimumPassRate: 1\n`;
 }
 
 function index(language) {
   const zh = language === "zh";
-  return `# ${zh ? "CoreMind 黄金示例" : "CoreMind Golden Examples"}\n\n${zh ? "四个示例均使用模拟数据和本地 Provider，可离线执行；继承 Provider 不等于真实认证。" : "All four examples use mock data and a local provider, so they run offline. Inherited provider support is not real certification."}\n\n${examples.map((item) => `- [${zh ? item.titleZh : item.titleEn}](${item.id}/README.${zh ? "zh-CN" : "en"}.md)`).join("\n")}\n`;
+  return `# ${zh ? "CoreMind 黄金示例" : "CoreMind Golden Examples"}\n\n${zh ? "全部示例均使用模拟数据和本地 Provider，可离线执行；继承 Provider 不等于真实认证。" : "All examples use mock data and a local provider, so they run offline. Inherited provider support is not real certification."}\n\n${examples.map((item) => `- [${zh ? item.titleZh : item.titleEn}](${item.id}/README.${zh ? "zh-CN" : "en"}.md)`).join("\n")}\n`;
 }

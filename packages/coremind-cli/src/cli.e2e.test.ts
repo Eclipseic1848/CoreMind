@@ -18,10 +18,15 @@ const mockConfigFixturePath = path.join(
   "test",
   "mock-config.yaml",
 );
+const loopMockServerPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../python/tests/mock_loop_server.mjs",
+);
 const mockProjectDirectory = mkdtempSync(path.join(tmpdir(), "coremind-cli-fixture-"));
 const mockConfigPath = path.join(mockProjectDirectory, "coremind.yaml");
 writeFileSync(mockConfigPath, readFileSync(mockConfigFixturePath, "utf8"), "utf8");
 const MOCK_PORT = 8799;
+const LOOP_MOCK_PORT = 8800;
 
 function runCli(
   args: string[],
@@ -42,15 +47,20 @@ function runCli(
 }
 
 let mockServer: ReturnType<typeof spawn> | undefined;
+let loopMockServer: ReturnType<typeof spawn> | undefined;
 
 beforeAll(async () => {
   mockServer = spawn("node", [mockServerPath, String(MOCK_PORT)], { stdio: "ignore" });
+  loopMockServer = spawn("node", [loopMockServerPath, String(LOOP_MOCK_PORT)], {
+    stdio: "ignore",
+  });
   // 等待 server 就绪
   await new Promise((resolve) => setTimeout(resolve, 800));
 });
 
 afterAll(() => {
   mockServer?.kill();
+  loopMockServer?.kill();
 });
 
 describe("coremind CLI 端到端", () => {
@@ -241,6 +251,100 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("耗时");
   });
 
+  it("run --json-events 最后一行输出稳定的 run_result 终态", () => {
+    const { stdout, code, stderr } = runCli(
+      ["run", mockConfigPath, "--prompt", "JSON 终态测试", "--json-events"],
+      { env: { MOCK_PORT: String(MOCK_PORT) } },
+    );
+    const lines = stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { type?: string; outcome?: { status?: string } });
+
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
+    expect(lines.at(-1)).toMatchObject({
+      type: "run_result",
+      outcome: { status: "succeeded" },
+    });
+  });
+
+  it("run --json-events 输出 Loop 状态序列并以复验成功结束", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-loop-"));
+    const configPath = path.join(dir, "coremind.yaml");
+    writeFileSync(
+      configPath,
+      [
+        "schemaVersion: 2",
+        "name: CLI Loop 验收",
+        "provider:",
+        "  id: probe",
+        `  baseUrl: http://127.0.0.1:${LOOP_MOCK_PORT}/v1`,
+        "  model: probe-model",
+        "  apiKey: test-key",
+        "agents:",
+        "  coder:",
+        "    systemPrompt: 编码",
+        "  reviewer:",
+        "    systemPrompt: 验证",
+        "loop:",
+        "  execute:",
+        "    agent: coder",
+        "    input: 执行 {{prompt}}",
+        "  verify:",
+        "    agent: reviewer",
+        "    input: 验证 {{candidate.text}}",
+        "    passIf: '{{text}} == PASS'",
+        "  repair:",
+        "    agent: coder",
+        "    input: 根据 {{verification.text}} 修复",
+        "  maxRepeatedAction: 3",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const { stdout, stderr, code } = runCli(
+      ["run", configPath, "--prompt", "修复缺陷", "--json-events"],
+      { cwd: dir },
+    );
+    const lines = stdout
+      .trim()
+      .split("\n")
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            type?: string;
+            to?: string;
+            outcome?: { status?: string };
+          },
+      );
+    const states = lines
+      .filter((line) => line.type === "loop_state")
+      .map((line) => line.to as string);
+
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
+    expect(states).toEqual(["executing", "verifying", "repairing", "verifying", "succeeded"]);
+    expect(lines.at(-1)).toMatchObject({
+      type: "run_result",
+      outcome: { status: "succeeded" },
+    });
+  });
+
+  it("run 拒绝同时使用 --print 与 --json-events，避免污染机器输出", () => {
+    const { code, stderr } = runCli([
+      "run",
+      mockConfigPath,
+      "--prompt",
+      "冲突参数",
+      "--print",
+      "--json-events",
+    ]);
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("不能同时使用");
+  });
+
   it("run 非法 --session id（路径穿越防护）退出码 1", () => {
     const { code, stderr } = runCli(["run", mockConfigPath, "--session", "../../evil"], {
       env: { MOCK_PORT: String(MOCK_PORT) },
@@ -374,7 +478,7 @@ describe("coremind CLI 端到端", () => {
     expect(stderr).toContain("session.enabled");
   });
 
-  it("run --max-steps 超出上限退出码 1", () => {
+  it("run --max-steps 超出上限返回预算退出码 3", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const yaml = path.join(dir, "maxsteps.yaml");
     writeFileSync(
@@ -407,7 +511,7 @@ describe("coremind CLI 端到端", () => {
     const { code, stderr } = runCli(["run", yaml, "--max-steps", "1"], {
       env: { MOCK_PORT: String(MOCK_PORT) },
     });
-    expect(code).toBe(1);
+    expect(code).toBe(3);
     expect(stderr).toContain("步骤数超过上限");
   });
 });

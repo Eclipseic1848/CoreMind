@@ -41,11 +41,13 @@ Validates configuration and project contracts without contacting a model. Use it
 
 ## `run`
 
-Executes a single request and exits with a structured result. Use `--dry-run` to inspect resolved settings without model traffic. Automation should consume the documented result fields and process exit code rather than parsing decorative terminal text.
+Executes a single request and exits with a structured result. Use `--dry-run` to inspect resolved settings without model traffic. Use `--resume <runId>` to continue a paused or interrupted run from a persisted stable boundary. Automation should consume documented result fields and the process exit code rather than decorative terminal text.
+
+Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `--print` and `--json-events` are mutually exclusive.
 
 ## `chat`
 
-Starts the terminal interface with streaming output, approval requests, session controls, and trace visibility. Use `ask` mode while learning or reviewing a new repository.
+Starts the terminal interface with streaming output, approval requests, current Loop state, session controls, and trace visibility. Use `ask` mode while learning or reviewing a new repository.
 
 Use `/abort` to stop the active response. To persist a named session, enable it in `coremind.yaml` before passing `--session`:
 
@@ -61,9 +63,17 @@ coremind chat coremind.yaml --session work-1
 
 Both `chat` and `run` fail with a configuration hint if `--session` is provided without `session.enabled: true`; the session identifier is never silently ignored.
 
+Approval panels show effects, complete paths or URLs, risk reasons, and redacted arguments. Tool execution records started, committed, or unknown effect receipts. Checkpoint restore refuses to overwrite a file changed after the tool completed. Resume does not replay committed effects and pauses for human reconciliation of unknown effects. On Windows, host shell execution requires full mode, `workspaceOnly: false`, and `network: allow`; every other combination is denied. Git Bash discovery provides compatibility, not isolation.
+
 ## `eval`
 
-Runs declared evaluation cases and reports gate results. Keep evaluation datasets free of secrets and record provider/model versions for reproducibility.
+Runs declared evaluation cases and reports gate results. schemaVersion 1 supports compatible text assertions; schemaVersion 2 adds outcome, trajectory, command, file, diff, state, and response graders. Coding tasks should use the second form to prove target and regression tests, allowed files, dirty-worktree preservation, and final evidence.
+
+```powershell
+coremind eval coremind.yaml --suite evals/scenarios.yaml --json
+```
+
+See the [Coding Agent guide](../../modules/build-coding-agents/GUIDE.en.md) and [real-defect evaluations](../../../examples/coding-evals/README.en.md). Keep evaluation datasets free of secrets and record provider/model versions for reproducibility.
 
 ## Troubleshooting order
 

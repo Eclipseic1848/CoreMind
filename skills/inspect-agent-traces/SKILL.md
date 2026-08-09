@@ -10,7 +10,9 @@ description: "Preserve reviewable evidence through events carrying runId, eventI
 3. Follow [the SOP](../../docs/modules/inspect-agent-traces/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
-6. Run the tests listed in [module.yaml](../../docs/modules/inspect-agent-traces/module.yaml) and `npm run check:modules`.
-7. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
+6. For explicit Loops, inspect ordered states, the latest versioned snapshot, and started/committed/unknown effect receipts before approving resume.
+7. Verify that credential fields, bodies, command secrets, and URL secrets are redacted before persistence without hiding normal test commands needed by graders.
+8. Run the tests listed in [module.yaml](../../docs/modules/inspect-agent-traces/module.yaml) and `npm run check:modules`.
+9. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
-中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。
+中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint、Effect Receipt 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

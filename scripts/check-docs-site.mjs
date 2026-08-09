@@ -8,6 +8,7 @@ const pairs = [
   ["docs/providers/README.zh-CN.md", "docs/providers/README.en.md"],
   ["docs/providers/CERTIFICATION.zh-CN.md", "docs/providers/CERTIFICATION.en.md"],
   ["docs/release/README.zh-CN.md", "docs/release/README.en.md"],
+  ["docs/release/RC-ACCEPTANCE.zh-CN.md", "docs/release/RC-ACCEPTANCE.en.md"],
   ["CONTRIBUTING.md", "CONTRIBUTING.en.md"],
   ["SECURITY.md", "SECURITY.en.md"],
   ["CODE_OF_CONDUCT.md", "docs/en/community-code-of-conduct.md"],

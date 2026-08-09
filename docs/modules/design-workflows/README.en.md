@@ -1,33 +1,46 @@
-# Workflows and Bounded Loops
+# Workflows and Explicit Bounded Loops
 
-Status: implemented-alpha. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: implemented-alpha (candidate source includes Batch 7). Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
-Compose agents with sequence, parallelism, conditions, and bounded retries, enforce a global loop budget, and resume safely from persisted stable step boundaries.
+This module helps developers without Loop Engineering experience choose correctly between fixed orchestration and verified convergence. Failures, pauses, resumes, retries, and effects remain observable and reviewable.
 
-## Public interfaces
+| Mode | Use it when | Framework guarantee |
+|---|---|---|
+| Basic agent loop | One agent decides whether to continue calling tools | Shared budgets, permissions, trace, and terminal results; no business-quality convergence claim |
+| `workflow` | Steps and dependencies are known before execution | Sequence, parallelism, conditions, bounded retries, and stable-step resume |
+| `loop` | The task requires generate, verify, repair, and re-verify | Explicit states, bounded repair, no-progress detection, pause-resume, and exhaustion failure |
 
-- `Orchestrator`
-- `evalCondition`
-- `RunBudgetController`
-- `prepareRunResume`
-- `fingerprintRunConfig`
+`workflow` and `loop` are mutually exclusive. Do not choose a Loop merely to appear more autonomous; keep deterministic rules in normal code, tools, or a Workflow.
 
-## Errors and boundaries
+## Public interfaces and states
 
-- Step timeout, unknown agent, exhausted retries, and step-budget overflow fail explicitly
-- Parallel steps use isolated agent instances
-- Automatic resume fails with unsafe_resume when an incomplete step called a non-replay-safe tool
+- Configuration: `LoopConfig`, `LoopActionConfig`, and `LoopVerificationConfig`
+- Execution: `LoopController`, `LoopRunner`, and `Orchestrator`
+- Resume: `prepareRunResume`, `RunStateJournal`, and effect receipts
+- States: `planning`, `executing`, `verifying`, `repairing`, `paused`, plus success, failure, abort, timeout, and budget-exhaustion terminals
 
-CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
+The internal state-machine dependency stays behind `LoopController` and is not part of configuration, protocol, or SDK contracts. Every dependency upgrade must rerun transition, snapshot, cancellation, and event-order contracts.
+
+## Reliability and effect boundaries
+
+- A failed verification must repair, pause, or fail; it cannot return success.
+- `maxIterations`, `maxRepairs`, `maxRepeatedAction`, global budgets, and timeouts bound execution.
+- Only confirmed transient provider or network errors retry. Approval denials, security denials, invalid arguments, and deterministic business failures do not retry blindly.
+- Tool effects receive `started`, `committed`, or `unknown` receipts. Resume does not replay committed effects, while unknown effects pause for human reconciliation.
+- A snapshot represents a stable CoreMind business state, not an arbitrary call stack or in-flight external request.
+- `full` reduces per-action prompts but never disables explicit deny rules, budgets, traces, checkpoints, receipts, or resume checks.
 
 ## Source, tests, and examples
 
-- [packages/coremind-runtime/src/orchestrator.ts](../../../packages/coremind-runtime/src/orchestrator.ts)
-- [packages/coremind-config/src/schema/workflow.ts](../../../packages/coremind-config/src/schema/workflow.ts)
-- [packages/coremind-runtime/src/orchestrator.test.ts](../../../packages/coremind-runtime/src/orchestrator.test.ts)
-- [packages/coremind-runtime/src/budget.test.ts](../../../packages/coremind-runtime/src/budget.test.ts)
-- [模块示例](../../../examples/modules/design-workflows/README.zh-CN.md)
+- [Loop configuration schema](../../../packages/coremind-config/src/schema/loop.ts)
+- [LoopController](../../../packages/coremind-runtime/src/loop-controller.ts)
+- [LoopRunner](../../../packages/coremind-runtime/src/loop-runner.ts)
+- [Retry classification](../../../packages/coremind-runtime/src/retry-policy.ts)
 - [Module example](../../../examples/modules/design-workflows/README.en.md)
-- [Agent Skill](../../../skills/design-workflows/SKILL.md)
+- [Verified repair golden example](../../../examples/golden/verified-repair-loop/README.en.md)
+- [Development SOP](SOP.en.md)
+- [Reusable Skill](../../../skills/design-workflows/SKILL.md)
+
+CoreMind owns execution mechanisms and quality evidence. Users or business owners retain control of goals, verification rules, approval ownership, and final acceptance.

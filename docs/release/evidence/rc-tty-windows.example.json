@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "platform": "windows",
+  "version": "0.2.0-rc.1",
+  "commit": "replace-with-full-candidate-commit",
+  "testedAt": "2026-08-09T00:00:00.000Z",
+  "terminal": "Windows Terminal / PowerShell 7",
+  "passed": false,
+  "checks": {
+    "launch": false,
+    "help": false,
+    "approval-deny": false,
+    "approval-allow": false,
+    "abort": false,
+    "session-resume": false,
+    "checkpoint-diff-restore": false,
+    "exit": false
+  },
+  "notes": "Replace every placeholder only after observing the result in a real terminal."
+}

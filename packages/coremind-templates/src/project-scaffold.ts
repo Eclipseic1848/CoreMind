@@ -74,9 +74,9 @@ function toolSkeleton(language: ProjectLanguage): string {
     return `"""业务工具骨架；字段和返回规则必须由业务负责人确认。"""\n\n\ndef example_tool(value: str) -> dict[str, str]:\n    # TODO（需业务负责人确认）：替换为真实业务逻辑。\n    return {"value": value}\n`;
   }
   if (language === "javascript") {
-    return `import { defineTool } from "coremind-ai";\n\nexport const exampleTool = defineTool({\n  name: "example_tool",\n  description: "TODO（需业务负责人确认）",\n  parameters: {\n    type: "object",\n    properties: { value: { type: "string" } },\n    required: ["value"],\n    additionalProperties: false,\n  },\n  // TODO（需业务负责人确认）：替换为真实业务逻辑。\n  execute: async ({ value }) => ({ value }),\n});\n`;
+    return `import { defineTool } from "coremind-ai";\n\nexport const exampleTool = defineTool({\n  name: "example_tool",\n  description: "TODO（需业务负责人确认）",\n  parameters: {\n    type: "object",\n    properties: { value: { type: "string" } },\n    required: ["value"],\n    additionalProperties: false,\n  },\n  effect: { operations: ["external"], reversible: false },\n  // TODO（需业务负责人确认）：替换为真实业务逻辑，并准确填写 effect。\n  execute: async ({ value }) => ({ value }),\n});\n`;
   }
-  return `import { defineTool } from "coremind-ai";\n\nexport const exampleTool = defineTool<{ value: string }>({\n  name: "example_tool",\n  description: "TODO（需业务负责人确认）",\n  parameters: {\n    type: "object",\n    properties: { value: { type: "string" } },\n    required: ["value"],\n    additionalProperties: false,\n  },\n  // TODO（需业务负责人确认）：替换为真实业务逻辑。\n  execute: async ({ value }) => ({ value }),\n});\n`;
+  return `import { defineTool } from "coremind-ai";\n\nexport const exampleTool = defineTool<{ value: string }>({\n  name: "example_tool",\n  description: "TODO（需业务负责人确认）",\n  parameters: {\n    type: "object",\n    properties: { value: { type: "string" } },\n    required: ["value"],\n    additionalProperties: false,\n  },\n  effect: { operations: ["external"], reversible: false },\n  // TODO（需业务负责人确认）：替换为真实业务逻辑，并准确填写 effect。\n  execute: async ({ value }) => ({ value }),\n});\n`;
 }
 
 function zhRequirements(name: string): string {

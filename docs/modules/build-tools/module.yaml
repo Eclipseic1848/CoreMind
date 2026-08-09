@@ -7,6 +7,9 @@ version: 0.1.0-alpha.2
 sourcePaths:
   - "packages/coremind-tools/src"
   - "packages/coremind-tools/src/linux-sandbox.ts"
+  - "packages/coremind-tools/src/process-runner.ts"
+  - "packages/coremind-tools/src/git-adapter.ts"
+  - "packages/coremind-tools/src/unified-diff.ts"
   - "packages/coremind-runtime/src/public-tool.ts"
 documents:
   readme:
@@ -26,6 +29,9 @@ examplePaths:
 testPaths:
   - "packages/coremind-tools/src/registry.test.ts"
   - "packages/coremind-tools/src/linux-sandbox.test.ts"
+  - "packages/coremind-tools/src/process-runner.test.ts"
+  - "packages/coremind-tools/src/git-adapter.test.ts"
+  - "packages/coremind-tools/src/unified-diff.test.ts"
   - "packages/coremind-runtime/src/public-tool.test.ts"
 supportedPlatforms:
   - "windows"

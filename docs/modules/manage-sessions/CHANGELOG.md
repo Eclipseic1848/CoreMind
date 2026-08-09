@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Context compaction failures now emit an explicit event and preserve messages; deterministic summaries retain six mandatory operational sections.
+
 ## 0.2.0-beta.2 - 2026-08-08
 
 - Reject `--session` with actionable guidance when session persistence is not enabled.

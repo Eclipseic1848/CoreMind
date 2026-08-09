@@ -10,6 +10,13 @@ export interface ApprovalQuestioner {
   question(prompt: string): Promise<string>;
 }
 
+export interface ApprovalDisplay {
+  effect: string;
+  targets: string;
+  reason: string;
+  arguments: string;
+}
+
 interface QueueEntry extends PendingApproval {
   resolve: (decision: ApprovalDecision) => void;
 }
@@ -72,6 +79,17 @@ export function applyPermissionMode(config: CoreMindConfig, mode: PermissionMode
   };
 }
 
+/** 审批信息的单一格式化入口：目标优先，长正文摘要，凭据字段隐藏。 */
+export function formatApprovalDisplay(request: ToolApprovalRequest): ApprovalDisplay {
+  const targets = [...request.effect.paths, ...request.effect.urls];
+  return {
+    effect: `${request.effect.operations.join("+")} · ${request.effect.reversible ? "可回退" : "不可自动回退"}`,
+    targets: targets.length > 0 ? targets.join("、") : "未提供具体路径或 URL",
+    reason: request.reason,
+    arguments: JSON.stringify(summarizeArguments(request.args), null, 2) ?? String(request.args),
+  };
+}
+
 /** 把审批队列接到已有 readline；同一时间只提出一个问题。 */
 export function bindReadlineApprovals(
   queue: ApprovalQueue,
@@ -84,9 +102,9 @@ export function bindReadlineApprovals(
     asking = true;
     const pending = queue.current;
     try {
-      const args = JSON.stringify(pending.request.args);
+      const display = formatApprovalDisplay(pending.request);
       const answer = await questioner.question(
-        `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n参数：${args}\n允许？[y/N] `,
+        `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
       );
       queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");
     } catch {
@@ -101,4 +119,27 @@ export function bindReadlineApprovals(
     closed = true;
     unsubscribe();
   };
+}
+
+function summarizeArguments(value: unknown, key = "", depth = 0): unknown {
+  if (depth > 8) return "<嵌套过深，已省略>";
+  if (typeof value === "string") {
+    if (/token|secret|password|api[_-]?key|authorization/i.test(key)) return "<已隐藏>";
+    if (/content|body|text|patch/i.test(key) && value.length > 160) {
+      return `<正文 ${value.length} 字符，审批后写入>`;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => summarizeArguments(item, key, depth + 1));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([childKey, item]) => [
+        childKey,
+        summarizeArguments(item, childKey, depth + 1),
+      ]),
+    );
+  }
+  return value;
 }
