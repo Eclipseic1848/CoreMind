@@ -143,6 +143,7 @@ jobs:
     needs: [npm, pypi, attest]
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
     steps:
       - name: 下载已验证发布物
@@ -172,3 +173,8 @@ jobs:
             --generate-notes \
             --title "CoreMind ${RELEASE_TAG#v}" \
             ${prerelease}
+
+      - name: 派发双语文档部署
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docs.yml --ref main --repo "${GITHUB_REPOSITORY}"
