@@ -68,13 +68,17 @@ describe("GitHub Actions 收口合同", () => {
   it("统一发布工作流一次构建并分别通过受保护环境发布 npm 与 PyPI", () => {
     const workflow = parse(readFileSync(".github/workflows/publish-pypi.yml", "utf8"));
     const serialized = JSON.stringify(workflow);
+    const buildCommands = workflow.jobs.build.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    const workspaceBuildIndex = buildCommands.indexOf("npm run build");
+    const checkIndex = buildCommands.indexOf("npm run check");
+    const bundleIndex = buildCommands.indexOf("npm run release:bundle");
 
     expect(workflow.on.workflow_dispatch.inputs.tag.required).toBe(true);
-    expect(
-      workflow.jobs.build.steps.some((step: { run?: string }) =>
-        step.run?.includes("npm run release:bundle"),
-      ),
-    ).toBe(true);
+    expect(workspaceBuildIndex).toBeGreaterThanOrEqual(0);
+    expect(checkIndex).toBeGreaterThan(workspaceBuildIndex);
+    expect(bundleIndex).toBeGreaterThan(checkIndex);
     expect(workflow.jobs.npm.environment.name).toBe("npm");
     expect(workflow.jobs.npm.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.npm.needs).toContain("build");

@@ -41,6 +41,7 @@ jobs:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
         run: |
           npm ci
+          npm run build
           npm run check
           npm run security:audit
           npm run release:bundle -- --tag "${COREMIND_RELEASE_TAG}"
