@@ -5,8 +5,8 @@ export default defineProject({
     name: "coremind-tools-host-shell",
     include: ["src/host-shell.test.ts"],
     fileParallelism: false,
-    // 等普通并行项目完成后再启动真实宿主 Shell，避免共享 Runner 资源争用。
+    // 等普通并行项目完成后再启动真实宿主 Shell；60 秒只覆盖托管 Windows 首次进程启动。
     sequence: { groupOrder: 1 },
-    testTimeout: 15_000,
+    testTimeout: 60_000,
   },
 });
