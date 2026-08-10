@@ -146,6 +146,6 @@ describe("GitHub Actions 收口合同", () => {
     expect(hostShellConfig).toContain('include: ["src/host-shell.test.ts"]');
     expect(hostShellConfig).toContain("fileParallelism: false");
     expect(hostShellConfig).toContain("groupOrder: 1");
-    expect(hostShellConfig).toContain("testTimeout: 15_000");
+    expect(hostShellConfig).toContain("testTimeout: 60_000");
   });
 });
