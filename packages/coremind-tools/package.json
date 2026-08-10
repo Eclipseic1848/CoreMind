@@ -36,7 +36,7 @@
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.71",
     "@earendil-works/pi-agent-core": "0.83.0",
-    "@earendil-works/pi-ai": "0.83.0",
+    "@earendil-works/pi-ai": "0.84.0",
     "@earendil-works/pi-coding-agent": "^0.84.1",
     "coremind-config": "0.2.0-rc.1",
     "diff": "9.0.0",

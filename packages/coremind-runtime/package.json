@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.83.0",
-    "@earendil-works/pi-ai": "0.83.0",
+    "@earendil-works/pi-ai": "0.84.0",
     "coremind-config": "0.2.0-rc.1",
     "coremind-templates": "0.2.0-rc.1",
     "coremind-tools": "0.2.0-rc.1",
