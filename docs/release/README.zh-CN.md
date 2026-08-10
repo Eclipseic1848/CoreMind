@@ -100,6 +100,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
 7. 受保护 `pypi` 环境批准后，以 OIDC 发布同一个 wheel。
 8. npm、PyPI 与来源证明都成功后，创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
+9. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
 
 任何已存在的 Registry 版本都会使发布失败，脚本不会静默跳过。发布版本不可覆盖；必须修复后使用新版本。
 

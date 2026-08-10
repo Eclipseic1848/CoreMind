@@ -88,6 +88,11 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs.attest.permissions.attestations).toBe("write");
     expect(workflow.jobs.attest.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.release.needs).toEqual(expect.arrayContaining(["npm", "pypi", "attest"]));
+    expect(workflow.jobs.release.permissions.actions).toBe("write");
+    const releaseCommands = workflow.jobs.release.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    expect(releaseCommands).toContain("gh workflow run docs.yml --ref main");
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
     expect(serialized).toContain("build==1.5.0");
