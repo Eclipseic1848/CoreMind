@@ -116,4 +116,15 @@ describe("GitHub Actions 收口合同", () => {
     );
     expect(ecosystems).toEqual(expect.arrayContaining(["github-actions", "npm", "pip"]));
   });
+
+  it("真实子进程长链路项目显式声明 15 秒测试 Harness 上限", () => {
+    for (const file of [
+      "packages/coremind-runtime/vitest.config.ts",
+      "packages/coremind-tools/vitest.config.ts",
+    ]) {
+      const config = readFileSync(file, "utf8");
+      expect(config).toContain("defineProject");
+      expect(config).toContain("testTimeout: 15_000");
+    }
+  });
 });
