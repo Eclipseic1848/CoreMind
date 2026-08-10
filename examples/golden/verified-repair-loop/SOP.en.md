@@ -1,6 +1,6 @@
 # Verified Repair Loop Development SOP
 
-1. Read the [requirements](docs/requirements.en.md) and [architecture](docs/architecture.en.md). This example verifies mechanisms, not production business rules.
+1. Read the [requirements](docs/requirements.en.md) and [architecture](docs/architecture.en.md). This example verifies the framework mechanisms; replace its sample rules with your accepted business rules.
 2. Start the offline mock provider and confirm that the environment variable contains only the example value, with no real secret or business data.
 3. Run `coremind check coremind.yaml` before the happy path.
 4. Verify execute → verify → repair → verify → succeeded state order and preserve RunOutcome and trace evidence.

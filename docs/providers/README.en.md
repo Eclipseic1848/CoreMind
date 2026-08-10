@@ -1,6 +1,6 @@
 # Provider Support and Certification Matrix
 
-> Generated on 2026-08-08 from the static runtime catalog and the human-maintained evidence ledger. Do not edit the table manually.
+> Generated on 2026-08-10 from the static runtime catalog and the human-maintained evidence ledger. Do not edit the table manually.
 
 CoreMind currently supports configuration for **38** built-in providers. **1** have complete real-call evidence and **37** are catalog-only. **Configurable does not mean certified.**
 
@@ -12,46 +12,46 @@ CoreMind currently supports configuration for **38** built-in providers. **1** h
 
 ## Current matrix
 
-| Provider ID | Default model | Models | Status | Evidence |
-|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | 1 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-08.json) |
-| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | 114 | Configurable, unverified | — |
-| `ant-ling` | `Ling-2.6-1T` | 3 | Configurable, unverified | — |
-| `anthropic` | `claude-fable-5` | 15 | Configurable, unverified | — |
-| `azure-openai-responses` | `gpt-4` | 38 | Configurable, unverified | — |
-| `cerebras` | `gemma-4-31b` | 3 | Configurable, unverified | — |
-| `cloudflare-ai-gateway` | `claude-3-5-haiku` | 43 | Configurable, unverified | — |
-| `cloudflare-workers-ai` | `@cf/google/gemma-4-26b-a4b-it` | 13 | Configurable, unverified | — |
-| `deepseek` | `deepseek-v4-flash` | 2 | Configurable, unverified | — |
-| `fireworks` | `accounts/fireworks/models/deepseek-v4-flash` | 16 | Configurable, unverified | — |
-| `github-copilot` | `claude-haiku-4.5` | 29 | Configurable, unverified | — |
-| `google` | `deep-research-max-preview-04-2026` | 24 | Configurable, unverified | — |
-| `google-vertex` | `gemini-2.5-flash` | 12 | Configurable, unverified | — |
-| `groq` | `llama-3.1-8b-instant` | 7 | Configurable, unverified | — |
-| `huggingface` | `MiniMaxAI/MiniMax-M2` | 51 | Configurable, unverified | — |
-| `kimi-coding` | `k3` | 4 | Configurable, unverified | — |
-| `minimax` | `MiniMax-M2.7` | 3 | Configurable, unverified | — |
-| `minimax-cn` | `MiniMax-M2.7` | 3 | Configurable, unverified | — |
-| `mistral` | `codestral-latest` | 30 | Configurable, unverified | — |
-| `moonshotai` | `kimi-k2-0711-preview` | 10 | Configurable, unverified | — |
-| `moonshotai-cn` | `kimi-k2-0711-preview` | 10 | Configurable, unverified | — |
-| `nvidia` | `google/gemma-3-12b-it` | 30 | Configurable, unverified | — |
-| `openai` | `gpt-4` | 38 | Configurable, unverified | — |
-| `openai-codex` | `gpt-5.3-codex-spark` | 7 | Configurable, unverified | — |
-| `opencode` | `claude-fable-5` | 59 | Configurable, unverified | — |
-| `opencode-go` | `minimax-m3` | 16 | Configurable, unverified | — |
-| `openrouter` | `ai21/jamba-large-1.7` | 303 | Configurable, unverified | — |
-| `qwen-token-plan` | `MiniMax-M2.5` | 15 | Configurable, unverified | — |
-| `qwen-token-plan-cn` | `MiniMax-M2.5` | 15 | Configurable, unverified | — |
-| `together` | `MiniMaxAI/MiniMax-M2.7` | 17 | Configurable, unverified | — |
-| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | 193 | Configurable, unverified | — |
-| `xai` | `grok-4.3` | 3 | Configurable, unverified | — |
-| `xiaomi` | `mimo-v2-flash` | 6 | Configurable, unverified | — |
-| `xiaomi-token-plan-ams` | `mimo-v2-pro` | 3 | Configurable, unverified | — |
-| `xiaomi-token-plan-cn` | `mimo-v2-pro` | 3 | Configurable, unverified | — |
-| `xiaomi-token-plan-sgp` | `mimo-v2-pro` | 3 | Configurable, unverified | — |
-| `zai` | `glm-4.5-air` | 6 | Configurable, unverified | — |
-| `zai-coding-cn` | `glm-4.5-air` | 6 | Configurable, unverified | — |
+| Provider ID | Default model | Certified version | Models | Status | Evidence |
+|---|---|---|---:|---|---|
+| `alibaba-model-studio` | `qwen-plus` | `0.2.0-rc.1` | 1 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-10.json) |
+| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 114 | Configurable, unverified | — |
+| `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
+| `anthropic` | `claude-fable-5` | — | 15 | Configurable, unverified | — |
+| `azure-openai-responses` | `gpt-4` | — | 38 | Configurable, unverified | — |
+| `cerebras` | `gemma-4-31b` | — | 3 | Configurable, unverified | — |
+| `cloudflare-ai-gateway` | `claude-3-5-haiku` | — | 43 | Configurable, unverified | — |
+| `cloudflare-workers-ai` | `@cf/google/gemma-4-26b-a4b-it` | — | 13 | Configurable, unverified | — |
+| `deepseek` | `deepseek-v4-flash` | — | 2 | Configurable, unverified | — |
+| `fireworks` | `accounts/fireworks/models/deepseek-v4-flash` | — | 16 | Configurable, unverified | — |
+| `github-copilot` | `claude-haiku-4.5` | — | 29 | Configurable, unverified | — |
+| `google` | `deep-research-max-preview-04-2026` | — | 24 | Configurable, unverified | — |
+| `google-vertex` | `gemini-2.5-flash` | — | 12 | Configurable, unverified | — |
+| `groq` | `llama-3.1-8b-instant` | — | 7 | Configurable, unverified | — |
+| `huggingface` | `MiniMaxAI/MiniMax-M2` | — | 51 | Configurable, unverified | — |
+| `kimi-coding` | `k3` | — | 4 | Configurable, unverified | — |
+| `minimax` | `MiniMax-M2.7` | — | 3 | Configurable, unverified | — |
+| `minimax-cn` | `MiniMax-M2.7` | — | 3 | Configurable, unverified | — |
+| `mistral` | `codestral-latest` | — | 30 | Configurable, unverified | — |
+| `moonshotai` | `kimi-k2-0711-preview` | — | 10 | Configurable, unverified | — |
+| `moonshotai-cn` | `kimi-k2-0711-preview` | — | 10 | Configurable, unverified | — |
+| `nvidia` | `google/gemma-3-12b-it` | — | 30 | Configurable, unverified | — |
+| `openai` | `gpt-4` | — | 38 | Configurable, unverified | — |
+| `openai-codex` | `gpt-5.3-codex-spark` | — | 7 | Configurable, unverified | — |
+| `opencode` | `claude-fable-5` | — | 59 | Configurable, unverified | — |
+| `opencode-go` | `minimax-m3` | — | 16 | Configurable, unverified | — |
+| `openrouter` | `ai21/jamba-large-1.7` | — | 303 | Configurable, unverified | — |
+| `qwen-token-plan` | `MiniMax-M2.5` | — | 15 | Configurable, unverified | — |
+| `qwen-token-plan-cn` | `MiniMax-M2.5` | — | 15 | Configurable, unverified | — |
+| `together` | `MiniMaxAI/MiniMax-M2.7` | — | 17 | Configurable, unverified | — |
+| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | — | 193 | Configurable, unverified | — |
+| `xai` | `grok-4.3` | — | 3 | Configurable, unverified | — |
+| `xiaomi` | `mimo-v2-flash` | — | 6 | Configurable, unverified | — |
+| `xiaomi-token-plan-ams` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
+| `xiaomi-token-plan-cn` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
+| `xiaomi-token-plan-sgp` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
+| `zai` | `glm-4.5-air` | — | 6 | Configurable, unverified | — |
+| `zai-coding-cn` | `glm-4.5-air` | — | 6 | Configurable, unverified | — |
 
 ## Adding a certification
 

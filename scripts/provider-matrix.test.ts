@@ -23,6 +23,7 @@ describe("Provider 认证矩阵", () => {
       certifications: [
         {
           id: "alpha",
+          version: "0.2.0-rc.1",
           testedAt: "2026-08-08",
           model: "a1",
           evidence: "artifacts/providers/alpha.json",
@@ -33,6 +34,25 @@ describe("Provider 认证矩阵", () => {
     });
 
     expect(matrix.providers[0]?.status).toBe("certified");
+    expect(matrix.providers[0]?.testedVersion).toBe("0.2.0-rc.1");
     expect(matrix.summary.certified).toBe(1);
+  });
+
+  it("缺少 CoreMind 版本的证据台账不能标记认证", () => {
+    expect(() =>
+      buildProviderMatrix({
+        providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],
+        certifications: [
+          {
+            id: "alpha",
+            testedAt: "2026-08-08",
+            model: "a1",
+            evidence: "artifacts/providers/alpha.json",
+            checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
+          },
+        ],
+        generatedAt: "2026-08-08",
+      }),
+    ).toThrow("认证证据不完整");
   });
 });

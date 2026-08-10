@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAndValidate } from "../packages/coremind-config/dist/index.js";
@@ -8,13 +8,17 @@ import {
   CoreMindRuntime,
   defineTool,
 } from "../packages/coremind-runtime/dist/index.js";
-import { assertCertificationSucceeded } from "./provider-certification.mjs";
+import {
+  assertCertificationSucceeded,
+  createCertificationEvidence,
+} from "./provider-certification.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const providerId = process.env.COREMIND_CERT_PROVIDER ?? "alibaba-model-studio";
 const model = process.env.COREMIND_CERT_MODEL ?? "qwen-plus";
 const apiKeyEnv = process.env.COREMIND_CERT_API_KEY_ENV ?? "DASHSCOPE_API_KEY";
 const testedAt = new Date().toISOString();
+const version = JSON.parse(await readFile(path.join(root, "package.json"), "utf8")).version;
 const originalKey = process.env[apiKeyEnv];
 if (!originalKey) throw new Error(`缺少认证密钥环境变量：${apiKeyEnv}`);
 
@@ -66,10 +70,17 @@ try {
   const session = new ChatSession(chatRuntime, "assistant");
   const firstTurn = await session.chat("记住合成测试代码 SESSION-CERT-8319，只回复已记住。");
   const secondTurn = await session.chat("我刚才要求你记住的代码是什么？只回复代码。");
+  const thirdTurn = await session.chat("请再次只回复刚才的合成测试代码。");
   assertCertificationSucceeded(firstTurn.run, "多轮第一轮");
   assertCertificationSucceeded(secondTurn.run, "多轮第二轮");
-  if (!secondTurn.text.includes("SESSION-CERT-8319")) throw new Error("多轮上下文未保持");
-  details.multiTurn = { passed: true, turns: 2, outputHash: hash(secondTurn.text) };
+  assertCertificationSucceeded(thirdTurn.run, "多轮第三轮");
+  if (
+    !secondTurn.text.includes("SESSION-CERT-8319") ||
+    !thirdTurn.text.includes("SESSION-CERT-8319")
+  ) {
+    throw new Error("多轮上下文未保持");
+  }
+  details.multiTurn = { passed: true, turns: 3, outputHash: hash(thirdTurn.text) };
 
   process.env[apiKeyEnv] = "invalid-coremind-certification-key";
   const errorRuntime = await createRuntime({ prompt: "只回复 ERROR-CHECK" });
@@ -93,18 +104,15 @@ try {
   process.env[apiKeyEnv] = originalKey;
 }
 
-const evidence = {
-  schemaVersion: 1,
+const evidence = createCertificationEvidence({
   provider: providerId,
   model,
+  version,
   testedAt,
   platform: `${process.platform}-${process.arch}`,
   node: process.version,
-  checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
   details,
-  dataPolicy: "synthetic-only",
-  secretsRecorded: false,
-};
+});
 const date = testedAt.slice(0, 10);
 const output = path.join(root, "docs", "providers", "evidence", `${providerId}-${date}.json`);
 await mkdir(path.dirname(output), { recursive: true });

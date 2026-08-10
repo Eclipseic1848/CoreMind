@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "provider": "alibaba-model-studio",
+  "model": "qwen-plus",
+  "version": "0.2.0-rc.1",
+  "testedAt": "2026-08-10T01:12:31.453Z",
+  "platform": "win32-x64",
+  "node": "v22.22.1",
+  "checks": [
+    "streaming",
+    "tool-call",
+    "structured-result",
+    "multi-turn",
+    "error"
+  ],
+  "details": {
+    "streaming": {
+      "passed": true,
+      "deltaCount": 4
+    },
+    "structuredResult": {
+      "passed": true,
+      "outputHash": "3be32a5bc267a7d09bb3177c1318e06d4e1e14268275f551d626d6f8cb7246fb"
+    },
+    "toolCall": {
+      "passed": true,
+      "calls": 1
+    },
+    "multiTurn": {
+      "passed": true,
+      "turns": 3,
+      "outputHash": "8e31806b12a63f30394c65c6b0826a68dd5caa0a1e66d95a1667104a5c484943"
+    },
+    "error": {
+      "passed": true,
+      "status": "failed"
+    }
+  },
+  "dataPolicy": "synthetic-only",
+  "secretsRecorded": false
+}

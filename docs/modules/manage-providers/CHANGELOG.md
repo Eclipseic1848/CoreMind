@@ -3,6 +3,7 @@
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Promoted the synchronized module contract and documentation maturity to release candidate.
+- Aligned the live certification harness and generated matrix with the public SOP by requiring three context-preserving turns and version-bound complete evidence; recertified `alibaba-model-studio/qwen-plus` against `0.2.0-rc.1`.
 
 ## 0.1.0-alpha.2 - 2026-08-08
 

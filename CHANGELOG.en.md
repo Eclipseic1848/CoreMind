@@ -46,6 +46,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Credential fields, bodies, command secrets, and URL secrets are redacted before Trace and RunState persistence while paths and non-sensitive test commands remain available to audit and trajectory graders.
 - Added a regression test that requires two consecutive tool-call results to feed back before the agent can finish, so P02 is no longer represented by a single tool call.
 - The repository test harness now uses a 15-second outer limit above the product's longest 10-second controlled-process timeout, preventing loaded runners from reporting a harness timeout before the real outcome without changing runtime budgets.
+- Live Provider certification now requires at least three context-preserving turns and validates all five checks plus the CoreMind version before writing evidence; the generated matrix also rejects versionless ledgers and displays the certified version. `alibaba-model-studio/qwen-plus` has been recertified against `0.2.0-rc.1` with redacted summary-only evidence.
 
 ## 0.2.0-beta.2 — 2026-08-08
 

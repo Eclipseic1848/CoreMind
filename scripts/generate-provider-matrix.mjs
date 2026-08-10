@@ -45,7 +45,7 @@ console.log(
 function renderChinese(data) {
   const rows = data.providers.map(
     (item) =>
-      `| \`${item.id}\` | \`${item.defaultModel}\` | ${item.modelCount} | ${item.status === "certified" ? "已认证" : "可配置，未认证"} | ${item.evidence ? `[证据](${item.evidence})` : "—"} |`,
+      `| \`${item.id}\` | \`${item.defaultModel}\` | ${item.testedVersion ? `\`${item.testedVersion}\`` : "—"} | ${item.modelCount} | ${item.status === "certified" ? "已认证" : "可配置，未认证"} | ${item.evidence ? `[证据](${item.evidence})` : "—"} |`,
   );
   return `# Provider 支持与认证矩阵
 
@@ -61,8 +61,8 @@ CoreMind 当前可配置 **${data.summary.supported}** 个内置 Provider，其�
 
 ## 当前矩阵
 
-| Provider ID | 默认模型 | 模型数 | 状态 | 证据 |
-|---|---|---:|---|---|
+| Provider ID | 默认模型 | 认证版本 | 模型数 | 状态 | 证据 |
+|---|---|---|---:|---|---|
 ${rows.join("\n")}
 
 ## 如何新增认证
@@ -74,7 +74,7 @@ ${rows.join("\n")}
 function renderEnglish(data) {
   const rows = data.providers.map(
     (item) =>
-      `| \`${item.id}\` | \`${item.defaultModel}\` | ${item.modelCount} | ${item.status === "certified" ? "Certified" : "Configurable, unverified"} | ${item.evidence ? `[Evidence](${item.evidence})` : "—"} |`,
+      `| \`${item.id}\` | \`${item.defaultModel}\` | ${item.testedVersion ? `\`${item.testedVersion}\`` : "—"} | ${item.modelCount} | ${item.status === "certified" ? "Certified" : "Configurable, unverified"} | ${item.evidence ? `[Evidence](${item.evidence})` : "—"} |`,
   );
   return `# Provider Support and Certification Matrix
 
@@ -90,8 +90,8 @@ CoreMind currently supports configuration for **${data.summary.supported}** buil
 
 ## Current matrix
 
-| Provider ID | Default model | Models | Status | Evidence |
-|---|---|---:|---|---|
+| Provider ID | Default model | Certified version | Models | Status | Evidence |
+|---|---|---|---:|---|---|
 ${rows.join("\n")}
 
 ## Adding a certification

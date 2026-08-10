@@ -20,6 +20,7 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
       return {
         ...provider,
         status: certified ? "certified" : "inherited-unverified",
+        testedVersion: certification?.version,
         testedAt: certification?.testedAt,
         testedModel: certification?.model,
         evidence: certification?.evidence,
@@ -45,7 +46,14 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
 }
 
 function hasCompleteEvidence(certification) {
-  if (!certification.testedAt || !certification.model || !certification.evidence) return false;
+  if (
+    !certification.version ||
+    !certification.testedAt ||
+    !certification.model ||
+    !certification.evidence
+  ) {
+    return false;
+  }
   const checks = new Set(certification.checks ?? []);
   return REQUIRED_CERTIFICATION_CHECKS.every((check) => checks.has(check));
 }

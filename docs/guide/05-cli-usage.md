@@ -269,7 +269,7 @@ coremind run coremind.yaml --resume <runId>
 
 通常不要再次传 `--prompt`，Runtime 会使用原始输入；如果传入，内容必须与原输入完全一致。恢复会延续原 runId、Trace sequence、预算、重试计数和 Loop 快照，并直接复用已经完整持久化的 Workflow/Loop 步骤输出。
 
-以下情况是有意拒绝，不是命令故障：运行已经正常结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤留下 `started`/`unknown` 副作用。CoreMind 只支持稳定业务状态恢复，不宣称恢复任意调用栈；`committed` 副作用不会自动重放，未知副作用必须先由人工核对。
+以下情况是有意拒绝，不是命令故障：运行已经正常结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤留下 `started`/`unknown` 副作用。CoreMind 的恢复边界是可验证的稳定业务状态；`committed` 副作用不会自动重放，未知副作用必须先由人工核对。
 
 ## 7. 多项目工作流
 
