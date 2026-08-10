@@ -67,10 +67,7 @@ describe("宿主 Shell", () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-host-shell-"));
     const env = process.platform === "win32" ? windowsPowerShellEnvironment() : undefined;
     const tool = createHostBashTool({ cwd, env });
-    const command =
-      process.platform === "win32"
-        ? `& '${process.execPath.replaceAll("'", "''")}' -e "process.stdout.write('host-ok')"`
-        : `"${process.execPath.replaceAll('"', '\\"')}" -e "process.stdout.write('host-ok')"`;
+    const command = process.platform === "win32" ? "Write-Output 'host-ok'" : "printf 'host-ok'";
 
     const result = await tool.execute("host-shell", { command, timeout: 10 }, undefined);
 
