@@ -132,4 +132,20 @@ describe("GitHub Actions 收口合同", () => {
       expect(config).toContain("testTimeout: 15_000");
     }
   });
+
+  it("真实宿主 Shell 集成在并行项目完成后独立运行", () => {
+    const rootConfig = readFileSync("vitest.config.ts", "utf8");
+    const toolsConfig = readFileSync("packages/coremind-tools/vitest.config.ts", "utf8");
+    const hostShellConfig = readFileSync(
+      "packages/coremind-tools/vitest.host-shell.config.ts",
+      "utf8",
+    );
+
+    expect(rootConfig).toContain("packages/coremind-tools/vitest.host-shell.config.ts");
+    expect(toolsConfig).toContain("src/host-shell.test.ts");
+    expect(hostShellConfig).toContain('include: ["src/host-shell.test.ts"]');
+    expect(hostShellConfig).toContain("fileParallelism: false");
+    expect(hostShellConfig).toContain("groupOrder: 1");
+    expect(hostShellConfig).toContain("testTimeout: 15_000");
+  });
 });
