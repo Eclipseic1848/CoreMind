@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-08-09",
+  "recordedAt": "2026-08-10",
   "command": "npm run test:coverage",
   "totals": {
-    "lines": 72.71,
-    "statements": 70.66,
-    "functions": 80.11,
-    "branches": 63.11
+    "lines": 72.82,
+    "statements": 70.8,
+    "functions": 80.32,
+    "branches": 63.23
   },
   "platforms": {
     "win32": {
-      "lines": 72.71,
-      "statements": 70.66,
-      "functions": 80.11,
-      "branches": 63.11
+      "lines": 72.82,
+      "statements": 70.8,
+      "functions": 80.32,
+      "branches": 63.3
     },
     "linux": {
       "lines": 73.26,

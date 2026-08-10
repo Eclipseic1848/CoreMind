@@ -33,7 +33,7 @@ Creates a project from a maintained template. The wizard asks for language and p
 
 ## `doctor`
 
-Checks Node.js, configuration visibility, credentials, platform capabilities, and common installation problems. A successful result confirms prerequisites, not live provider behavior.
+Checks Node.js, configuration visibility, credentials, platform capabilities, and common installation problems. Without a config it summarizes common keys; with a config it checks that config's `provider.apiKeyEnv` or supported default instead of requiring unrelated Provider keys. A successful result confirms prerequisites, not live provider behavior.
 
 ## `check`
 

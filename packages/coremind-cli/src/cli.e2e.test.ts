@@ -231,6 +231,54 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).not.toContain("未配置：DEEPSEEK_API_KEY");
   });
 
+  it("doctor 使用配置声明的 apiKeyEnv，而不是无关的固定清单", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-doctor-provider-"));
+    const configPath = path.join(dir, "coremind.yaml");
+    writeFileSync(
+      configPath,
+      [
+        "schemaVersion: 2",
+        "name: provider-doctor",
+        "provider:",
+        "  id: alibaba-model-studio",
+        "  model: qwen-plus",
+        "  apiKeyEnv: DASHSCOPE_API_KEY",
+        "agents:",
+        "  main:",
+        "    systemPrompt: 测试助手",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const configured = runCli(["doctor", configPath], {
+      cwd: dir,
+      env: {
+        DASHSCOPE_API_KEY: "test-key",
+        DEEPSEEK_API_KEY: "",
+        OPENAI_API_KEY: "",
+        MOONSHOT_API_KEY: "",
+        ZAI_API_KEY: "",
+      },
+    });
+    expect(configured.code).toBe(0);
+    expect(configured.stdout).toContain("DASHSCOPE_API_KEY 已配置");
+    expect(configured.stdout).not.toContain("未配置：DEEPSEEK_API_KEY");
+
+    const missing = runCli(["doctor", configPath], {
+      cwd: dir,
+      env: {
+        DASHSCOPE_API_KEY: "",
+        DEEPSEEK_API_KEY: "",
+        OPENAI_API_KEY: "",
+        MOONSHOT_API_KEY: "",
+        ZAI_API_KEY: "",
+      },
+    });
+    expect(missing.code).toBe(1);
+    expect(missing.stdout).toContain("未配置：DASHSCOPE_API_KEY");
+    expect(missing.stdout).not.toContain("未配置：DEEPSEEK_API_KEY");
+  });
+
   it("run 连接 mock server 输出最终文本（--print）", () => {
     const { stdout, code } = runCli(
       ["run", mockConfigPath, "--prompt", "你好世界测试", "--print"],

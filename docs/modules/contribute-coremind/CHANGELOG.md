@@ -9,7 +9,7 @@
 - Replaced a yanked Python build-tool release with verified `build==1.5.0` and added workflow contracts that reject the withdrawn version.
 - Aligned static-analysis scope with the existing `.scratch` Git boundary so isolated release-tool environments cannot contaminate repository lint results.
 - Tightened the Linux coverage floor to the target-platform CI measurement and required the generic fallback to equal the per-metric minimum of the Windows and Linux floors.
-- Set one cross-platform 15-second test-harness limit above the product's longest 10-second controlled-process timeout, removing Windows scheduling flakes without changing runtime budgets.
+- Added explicit project-local Harness limits for long-running Runtime and CLI subprocess tests so Vitest multi-project mode cannot fall back to five seconds under Windows load; product runtime budgets remain unchanged.
 - Kept post-release local HTML handbooks outside the RC source boundary while retaining all runtime, SDK, CLI, module, example, and contribution assets required by users.
 
 ### Packaging and cross-platform validation

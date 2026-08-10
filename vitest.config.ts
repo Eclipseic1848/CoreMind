@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     // Vitest 4 使用 projects；所有包与黄金示例必须共用 npm test 门禁。
-    // 外层上限必须覆盖产品自身最长 10 秒的受控进程超时，避免高负载 Runner 先误判失败。
+    // 项目模式不会把这里的上限可靠地下传到每个独立项目；长链路项目必须在自身配置中显式声明。
     testTimeout: 15_000,
     projects: [
       "packages/*",

@@ -21,6 +21,7 @@ coremind eval my-agent/coremind.yaml
 5. Enter `/abort` during a long response and verify that generation stops and input remains usable.
 6. Set `session.enabled: true` before using `--session`; the CLI must fail clearly rather than continue silently when it is missing.
 7. For an explicit Loop, compare state order across TUI, readline, and `--json-events`, then resume a pause with the same run ID.
+8. With `coremind doctor coremind.yaml`, verify that credential checks follow that config's `provider.apiKeyEnv` and do not fail on unrelated Provider keys.
 
 ## Automation contract
 

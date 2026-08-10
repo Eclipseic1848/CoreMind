@@ -21,6 +21,7 @@ coremind eval my-agent/coremind.yaml
 5. 在长回答生成期间输入 `/abort`，确认回答停止且可以继续输入。
 6. 使用 `--session` 前设置 `session.enabled: true`；缺失时 CLI 必须明确失败，不能静默继续。
 7. 使用显式 Loop 时确认 TUI、readline 和 `--json-events` 的状态顺序一致；暂停后以同一 runId 恢复。
+8. 使用 `coremind doctor coremind.yaml` 时确认只检查该配置的 `provider.apiKeyEnv`，不会把无关 Provider 的密钥缺失当成失败。
 
 ## 自动化契约
 

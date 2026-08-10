@@ -28,7 +28,7 @@
 - 工具调用新增 `started`、`committed`、`unknown` Effect Receipt。恢复时完整步骤和已提交副作用不重复执行，未知副作用转人工核对。
 - Context 压缩失败新增 `context_compaction_failed` 事件；确定性摘要必须保留目标、约束、权限、已修改文件、测试状态和下一步。
 - 新增双语“验证修复 Loop”黄金示例，确定性覆盖首次验证失败、修复后通过、暂停恢复和耗尽失败；黄金示例总数增加到 5 个。
-- 当前候选覆盖率：Windows lines 72.71%、statements 70.66%、functions 80.11%、branches 63.11%；Linux lines 73.26%、statements 71.19%、functions 81.00%、branches 63.23%。ToolPolicy 分支 86.23%、Host Shell 分支 70.58%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%；通用回退基线取两种正式平台的逐项最小值。
+- 当前候选覆盖率：Windows lines 72.82%、statements 70.80%、functions 80.32%、branches 63.30%；Linux lines 73.26%、statements 71.19%、functions 81.00%、branches 63.23%。ToolPolicy 分支 86.23%、Host Shell 分支 70.58%、LoopController 分支 100%、LoopRunner 分支 92.4%、Checkpoint 分支 75.4%；通用回退基线取两种正式平台的逐项最小值。
 - 新增 `ProcessRunner`：使用命令与参数数组执行跨平台子进程，支持流式输出、超时、中止、输出上限和受控环境变量；显式环境不会重新合并宿主密钥。宿主 Shell 现在也以调用方显式提供的最小环境为权威，不再被工具执行上下文中的环境覆盖。
 - 新增只读 `GitAdapter` 的 status/diff/log 工具，以及带输入、输出、复杂度和路径上限的统一 Diff；不开放任意 Git 子命令或仓库写操作。
 - Windows 宿主 Shell 选择会排除不可用的系统转发器，优先发现真实 Git Bash，并保留 full、工作区与网络三项同时开放才可执行的策略。
@@ -45,8 +45,9 @@
 - 本地 `.scratch` 继续用于验收证据和隔离工具环境，并同时排除在 Git、静态检查和发布物之外，避免第三方临时文件污染仓库门禁。
 - Trace 与 RunState 持久化前隐藏凭据字段、正文、命令敏感参数和 URL 密钥，同时保留路径与非敏感测试命令供审计和轨迹 grader 使用。
 - Agent 工具循环新增连续两次工具调用结果均回灌后再结束的回归测试，避免用单次工具调用代替 P02 多工具证据。
-- 全仓测试 Harness 的 15 秒外层上限现在高于产品自身最长 10 秒的受控进程超时，避免高负载 Runner 在真实进程结果返回前先由测试框架误判失败；Runtime 预算不变。
+- 长链路 Runtime 测试项目显式使用 15 秒 Harness 外层上限，高于产品自身最长 10 秒的受控进程超时；CLI 子进程项目继续使用 30 秒上限。项目级配置避免 Vitest 多项目模式回退到 5 秒默认值，在高负载 Runner 上抢先误判失败；Runtime 预算不变。
 - Provider 真实认证现在强制完成至少三轮上下文验证，并在写入证据前校验五项检查和 CoreMind 版本；认证矩阵也会拒绝缺少版本的台账并公开显示认证版本。`alibaba-model-studio/qwen-plus` 已基于 `0.2.0-rc.1` 重新通过五项真实复验，证据仅保留脱敏摘要。
+- `doctor <配置文件>` 现在优先检查配置声明的 `provider.apiKeyEnv`，不会再因无关 Provider 的固定密钥清单产生假失败；未显式声明时也会识别 Alibaba 入口的默认变量。
 
 ## 0.2.0-beta.2 — 2026-08-08
 

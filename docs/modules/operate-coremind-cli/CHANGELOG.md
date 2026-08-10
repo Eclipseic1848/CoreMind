@@ -6,6 +6,7 @@
 - Made `--print` and `--json-events` mutually exclusive to keep machine output deterministic.
 - TUI now displays failed terminal reasons and structured approval details without hiding critical targets behind long content.
 - TUI, readline, and JSONL now expose the same explicit Loop state order, and `run --resume` continues safe paused runs without replaying committed effects.
+- `doctor <config-file>` now validates the configured `provider.apiKeyEnv` (including the Alibaba default) rather than reporting unrelated fixed-list keys as missing.
 
 ## 0.2.0-beta.2 - 2026-08-08
 

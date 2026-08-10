@@ -9,12 +9,20 @@ interface CheckResult {
   detail?: string;
 }
 
+const COMMON_API_KEY_ENV_KEYS = [
+  "DEEPSEEK_API_KEY",
+  "OPENAI_API_KEY",
+  "MOONSHOT_API_KEY",
+  "ZAI_API_KEY",
+];
+
 /**
  * coremind doctor [file]：环境自检。
  * 检查 Node 版本、配置文件可解析、provider 注册可用性、常见 env 变量。
  */
 export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Promise<number> {
   const checks: CheckResult[] = [];
+  let configuredApiKeyEnv: string | undefined;
 
   // 1. Node 版本
   const nodeMajor = Number(process.versions.node.split(".")[0]);
@@ -30,6 +38,7 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
     try {
       const data = await loadConfigFile(file);
       const result = parseAndValidate(data);
+      configuredApiKeyEnv = resolveConfiguredApiKeyEnv(result.config);
       checks.push({
         name: `配置文件 ${file}`,
         ok: true,
@@ -65,16 +74,10 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
     }
   }
 
-  // 4. 常见 env 变量
-  const envKeys = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "MOONSHOT_API_KEY", "ZAI_API_KEY"];
-  const missing = envKeys.filter((key) => !process.env[key]);
+  // 4. 配置文件声明了凭据来源时只检查该变量；无配置时保留通用体检。
   checks.push({
     name: "API key 环境变量",
-    ok: missing.length < envKeys.length,
-    detail:
-      missing.length === 0
-        ? "常见提供商 key 均已配置（仅检查存在性，未验证有效性）"
-        : `未配置：${missing.join("、")}（用不到的可以忽略；仅检查存在性）`,
+    ...checkApiKeyEnvironment(configuredApiKeyEnv, process.env),
   });
 
   // 输出
@@ -99,4 +102,36 @@ function runtimeProviderId(config: {
   provider?: { id?: string } | { id?: string; baseUrl?: string };
 }): string {
   return config.provider?.id ?? "deepseek";
+}
+
+export function resolveConfiguredApiKeyEnv(config: {
+  provider?: { id?: string; apiKeyEnv?: string };
+}): string | undefined {
+  const explicit = config.provider?.apiKeyEnv?.trim();
+  if (explicit) return explicit;
+  return config.provider?.id === "alibaba-model-studio" ? "DASHSCOPE_API_KEY" : undefined;
+}
+
+export function checkApiKeyEnvironment(
+  configuredApiKeyEnv: string | undefined,
+  env: NodeJS.ProcessEnv,
+): Pick<CheckResult, "ok" | "detail"> {
+  if (configuredApiKeyEnv) {
+    const configured = Boolean(env[configuredApiKeyEnv]);
+    return {
+      ok: configured,
+      detail: configured
+        ? `${configuredApiKeyEnv} 已配置（仅检查存在性，未验证有效性）`
+        : `未配置：${configuredApiKeyEnv}（仅检查存在性）`,
+    };
+  }
+
+  const missing = COMMON_API_KEY_ENV_KEYS.filter((key) => !env[key]);
+  return {
+    ok: missing.length < COMMON_API_KEY_ENV_KEYS.length,
+    detail:
+      missing.length === 0
+        ? "常见提供商 key 均已配置（仅检查存在性，未验证有效性）"
+        : `未配置：${missing.join("、")}（用不到的可以忽略；仅检查存在性）`,
+  };
 }
