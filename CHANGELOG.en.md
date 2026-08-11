@@ -12,6 +12,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Added bilingual 0.2-to-0.3 migration guides, known limitations, and a bilingual SOP/Skill index for all 21 modules; synchronized the root README, public roadmap, provider status, and release SOP.
 - Extended `.gitignore` for virtual environments, type-checker caches, coverage data, and local registry credentials. Source archives continue to exclude internal analyses, handoff notes, sessions, run evidence, secrets, caches, and build outputs.
 - Added a Markdown gate for Chinese/English paragraph boundaries and split bilingual package READMEs into independent language sections instead of appending an English translation to a Chinese description.
+- Changed the both-platform CI checkout to full history so the frozen baseline can resolve the immutable `v0.2.0-rc.1` tag, with a workflow-contract test preventing shallow-checkout regression.
 
 ### Current verification evidence
 

@@ -31,11 +31,15 @@ describe("GitHub Actions 收口合同", () => {
 
   it("双平台 CI 使用三连跑、覆盖率和真实发布物门禁", () => {
     const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const checkout = workflow.jobs.test.steps.find((step: { uses?: string }) =>
+      step.uses?.startsWith("actions/checkout@"),
+    );
     const commands = workflow.jobs.test.steps
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
 
     expect(workflow.jobs.test.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
+    expect(checkout.with["fetch-depth"]).toBe(0);
     expect(commands).toContain("npm run test:stability");
     expect(commands).toContain("npm run test:coverage");
     expect(commands).toContain("npm run release:check-npm");
