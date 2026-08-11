@@ -38,6 +38,35 @@ quality:
 
 On Windows, constrained modes do not execute test commands through the host shell. Run tests manually, or select the open host-process, workspace, and network boundaries only after accepting them explicitly. Linux can use the built-in shell when its isolation prerequisites are satisfied.
 
+## TypeScript SDK: establish the engineering loop
+
+```ts
+import {
+  buildRepositoryMap,
+  createEngineeringKernelDefinition,
+  createEngineeringTaskPlan,
+  inspectCodingRepository,
+  selectCodingEnvironment,
+} from "coremind-ai";
+
+const inspection = await inspectCodingRepository(process.cwd());
+// Present ambiguous suggestions to the user before passing their explicit choice.
+const selection = await selectCodingEnvironment(inspection, {
+  language: "typescript",
+  packageManager: "npm",
+  testCommand: "npm test",
+});
+const repoMap = buildRepositoryMap(inspection, selection);
+const plan = createEngineeringTaskPlan({
+  task: "Repair order discount calculation",
+  acceptanceCriteria: ["Target test passes", "Regression passes", "Diff stays in scope"],
+  selection,
+});
+const kernel = createEngineeringKernelDefinition({ selection });
+```
+
+Pass `kernel.loop` to the shared Runtime loop configuration. `repoMap` and `plan` are coding-domain inputs and do not redefine the generic terminal state. After changes, use `EngineeringEvidenceLedger` to bind checkpoints, diffs, and actual exit codes. The Python SDK reaches the same Runtime through the Worker/Protocol and does not create a Python-specific loop.
+
 ## schemaVersion 2 evaluation
 
 ```yaml
@@ -69,10 +98,12 @@ scenarios:
 ## Verification
 
 1. Preserve `git status --short` and fingerprints for protected files.
-2. Run the defect test and prove that it fails before the repair.
-3. Run `coremind check coremind.yaml --profile strict`.
-4. Run `coremind eval coremind.yaml --suite evals/scenarios.yaml --json`.
-5. Inspect graders, tool trajectory, final tests, `git diff`, trace, checkpoints, and terminal outcome.
-6. Repeat the run and record the pass rate. Live-model evidence supplements deterministic tests and never replaces them.
+2. Inspect detection suggestions and explicitly choose the language, package manager, and test command when ambiguous.
+3. Run the defect test and prove that it fails before the repair.
+4. Run `coremind check coremind.yaml --profile strict`.
+5. Run `coremind eval coremind.yaml --suite evals/scenarios.yaml --json`.
+6. Match the plan, actual tools, checkpoints, target test, regression test, `git diff`, trace, and terminal outcome.
+7. Run `npm run test:coding-evals` and require all TypeScript/Python single-file and cross-file gates to pass.
+8. Repeat the run and record the pass rate. Live-model evidence supplements deterministic tests and never replaces them.
 
 Copy the [real-defect evaluation examples](../../../examples/coding-evals/README.en.md) when starting.

@@ -1,6 +1,6 @@
 {
   "name": "coremind-protocol",
-  "version": "0.2.0-rc.1",
+  "version": "0.3.0-rc.1",
   "description": "CoreMind 跨语言 JSON-RPC 协议与校验",
   "license": "MIT",
   "repository": {

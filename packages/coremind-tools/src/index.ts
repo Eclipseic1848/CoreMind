@@ -1,6 +1,17 @@
 // CoreMind 工具层：内置工具注册表、网页工具、自定义脚本工具
 
 export {
+  type ArtifactImportResult,
+  type ArtifactRecord,
+  type ArtifactStatus,
+  ArtifactStore,
+  type ArtifactStoreOptions,
+  extractArtifactRecord,
+  redactSecrets,
+  wrapToolWithArtifactCapture,
+} from "./artifact-store.js";
+
+export {
   createGitDiffTool,
   createGitLogTool,
   createGitStatusTool,

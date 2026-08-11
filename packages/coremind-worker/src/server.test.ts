@@ -45,7 +45,10 @@ describe("WorkerServer", () => {
     });
 
     expect(initialized).toMatchObject({
-      result: { protocolVersion: PROTOCOL_VERSION, capabilities: expect.arrayContaining(["loop"]) },
+      result: {
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: expect.arrayContaining(["loop", "runSnapshot"]),
+      },
     });
     expect(sent).toContainEqual(
       expect.objectContaining({
@@ -57,6 +60,13 @@ describe("WorkerServer", () => {
       result: {
         runId: "run-1",
         outcome: { status: "succeeded" },
+        snapshot: {
+          schemaVersion: 1,
+          runId: "run-1",
+          operation: { state: "completed" },
+          outcome: { status: "succeeded" },
+          resumable: false,
+        },
         outputs: { answer: { text: "完成" } },
         messages: { main: [] },
       },
@@ -271,8 +281,18 @@ describe("WorkerServer", () => {
 });
 
 function successfulResult(entry: any) {
-  return {
+  const result = {
     runId: entry.runId,
+    operation: {
+      schemaVersion: 1 as const,
+      operationId: `operation-${entry.runId}`,
+      runId: entry.runId,
+      correlationId: `${entry.runId}:operation-${entry.runId}`,
+      state: "completed" as const,
+      transitionSequence: 3,
+      createdAt: "2026-08-07T00:00:00.000Z",
+      updatedAt: "2026-08-07T00:00:01.000Z",
+    },
     outcome: { status: "succeeded" as const, finishReason: "completed" },
     metrics: {
       durationMs: 1,
@@ -295,6 +315,23 @@ function successfulResult(entry: any) {
     messages: new Map([["main", []]]),
     transcript: "完成",
     checkpoints: [],
+  };
+  return {
+    ...result,
+    snapshot: {
+      schemaVersion: 1 as const,
+      runId: result.runId,
+      operation: result.operation,
+      outcome: result.outcome,
+      metrics: result.metrics,
+      evaluation: result.evaluation,
+      releaseReadiness: result.releaseReadiness,
+      trace: result.trace,
+      checkpoints: result.checkpoints,
+      artifacts: [],
+      extensions: [],
+      resumable: false,
+    },
   };
 }
 

@@ -15,8 +15,9 @@
 7. 分别注入权限拒绝、预算耗尽、超时与中止，验证 `2/3/124/130`。
 8. 对显式 Loop 注入验证失败、暂停恢复和耗尽；比较 TUI、readline 和 JSONL 的状态顺序。
 9. 确认恢复没有重复完整步骤或 committed 副作用，unknown 副作用会要求人工核对。
-10. 运行模块列出的测试，并执行 `npm run check:modules`。
-11. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+10. 对比 TUI `/status`、`/artifacts`、`/context` 与最后一条 JSONL `snapshot`，字段与真实文件状态必须一致。
+11. 运行模块列出的测试，并执行 `npm run check:modules`。
+12. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

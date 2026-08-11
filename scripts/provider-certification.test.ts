@@ -32,8 +32,10 @@ describe("Provider 认证诊断", () => {
     });
 
     expect(evidence).toMatchObject({
+      schemaVersion: 2,
       version: "0.2.0-rc.1",
       details: { multiTurn: { passed: true, turns: 3 } },
+      checks: expect.arrayContaining(["abort", "long-context"]),
       secretsRecorded: false,
     });
   });
@@ -70,6 +72,8 @@ function completeDetails(turns: number) {
     toolCall: { passed: true },
     structuredResult: { passed: true },
     multiTurn: { passed: true, turns },
+    abort: { passed: true },
     error: { passed: true },
+    longContext: { passed: true },
   };
 }

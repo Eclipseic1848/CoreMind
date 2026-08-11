@@ -14,8 +14,10 @@
 6. 运行 `coremind check` 与 `coremind eval`；strict 场景至少重复三次。
 7. 将确定性离线结果与真实模型结果分开记录；真实结果同时记录模型、Provider、平台、次数、费用/Token 和数据外发授权。
 8. 只根据 ReleaseReadiness、安全门禁、最终测试和负责人复核决定是否进入发布。
-9. 运行模块列出的测试，并执行 `npm run check:modules`。
-10. 保存 Trace、grader、差异和人工确认记录；未经明确授权不发布。
+9. 需要比较策略时，先固定实验 id、版本、seed、arm 权重和输入指纹生成规则；每个 arm 使用同一任务、预算、Provider 和 grader。
+10. 用 `runExperiment` 保存环境、选择哈希、真实 RunOutcome、指标、完整 Trace 和 grader；不要只保存模型文字。
+11. 运行模块列出的测试，并执行 `npm run check:modules`。
+12. 保存 Trace、grader、差异和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

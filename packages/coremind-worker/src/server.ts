@@ -9,6 +9,7 @@ import {
   FileRunStore,
   inspectCheckpoint,
   loadConfigFile,
+  operationSnapshotFromRecords,
   parseAndValidate,
   type RunResult,
   restoreCheckpoint,
@@ -24,6 +25,7 @@ import {
   type ProtocolSuccessResponse,
   ProtocolValidationError,
   parseProtocolRequest,
+  parseRunSnapshot,
 } from "coremind-protocol";
 
 export type WorkerMessage =
@@ -182,6 +184,7 @@ export class WorkerServer {
         "checkpointDiff",
         "checkpointRestore",
         "loop",
+        "runSnapshot",
       ],
     };
   }
@@ -331,6 +334,7 @@ export class WorkerServer {
       runId,
       status: finish ? "finished" : pause ? "paused" : "interrupted",
       resumable: !finish,
+      operation: operationSnapshotFromRecords(records),
       outcome: outcomePayload(terminal?.payload),
       checkpoints: checkpointRecords(records, runId),
       records,
@@ -422,6 +426,7 @@ function outcomePayload(payload: unknown): unknown {
 function serializeRunResult(result: RunResult): unknown {
   return {
     ...result,
+    snapshot: parseRunSnapshot(result.snapshot),
     outputs: Object.fromEntries(result.outputs),
     messages: Object.fromEntries(result.messages),
   };

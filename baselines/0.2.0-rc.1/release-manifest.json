@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "version": "0.2.0-rc.1",
+  "pythonVersion": "0.2.0rc1",
+  "npmDistTag": "next",
+  "tag": "v0.2.0-rc.1",
+  "commit": "34b32b82450e5df27c6ebb9eca300ac54abdd078",
+  "builtAt": "2026-08-10T07:04:59.184Z",
+  "artifacts": [
+    {
+      "path": "npm/coremind-ai-0.2.0-rc.1.tgz",
+      "size": 3021,
+      "sha256": "9a0d92c6de2001e2e8751024d12cedeadb1b619ff20403a9df9ec33e51cd49d1",
+      "kind": "npm",
+      "name": "coremind-ai",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-cli-0.2.0-rc.1.tgz",
+      "size": 32957,
+      "sha256": "ebc4f4cac9e9e48c686090ce4062944dd15f3ad8c1243992a125ccc8e4db682a",
+      "kind": "npm",
+      "name": "coremind-cli",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-config-0.2.0-rc.1.tgz",
+      "size": 18645,
+      "sha256": "9107dac4e7bd8f45c7741b4cdd212ccf2a6189179555bbfd77518072d688b426",
+      "kind": "npm",
+      "name": "coremind-config",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-protocol-0.2.0-rc.1.tgz",
+      "size": 6018,
+      "sha256": "5f1d5a1a3518248f17174200a67449f3844eb3353ce996f1a2776abb7c6b48c8",
+      "kind": "npm",
+      "name": "coremind-protocol",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-runtime-0.2.0-rc.1.tgz",
+      "size": 99512,
+      "sha256": "73e05ac6bd1b150335bcf40b460d209e87d55633655986d917b50f4ad74b901c",
+      "kind": "npm",
+      "name": "coremind-runtime",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-templates-0.2.0-rc.1.tgz",
+      "size": 18875,
+      "sha256": "b1d3582616f2a3189138c13d7016831e477b1f5e08ce8cda7578c0a3c585c87d",
+      "kind": "npm",
+      "name": "coremind-templates",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-tools-0.2.0-rc.1.tgz",
+      "size": 23744,
+      "sha256": "a0e78d8eb3b67f5cedaf1c2f05cc107136a6fca8b4962fba56de495d5e19d844",
+      "kind": "npm",
+      "name": "coremind-tools",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "npm/coremind-worker-0.2.0-rc.1.tgz",
+      "size": 9717,
+      "sha256": "111b6b34cc304de8778ca484ee2522f2d57cc90d53ceee6663121e5636b0f7af",
+      "kind": "npm",
+      "name": "coremind-worker",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "python/coremind_ai-0.2.0rc1-py3-none-any.whl",
+      "size": 3457688,
+      "sha256": "ea0fa0c038f2b6bfe04a8320ef86db526fc3ebc6de5ee1a80263ddfcf88445a7",
+      "kind": "python",
+      "name": "coremind-ai",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "path": "source/coremind-0.2.0-rc.1-source.zip",
+      "size": 4374142,
+      "sha256": "100b7a052be493aa431e75a5e3dbcadec0d19c98aac56272f8b809a3d7dc9f7a",
+      "kind": "source",
+      "name": "coremind-source",
+      "version": "0.2.0-rc.1"
+    }
+  ]
+}

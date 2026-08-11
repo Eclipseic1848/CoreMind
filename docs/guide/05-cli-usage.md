@@ -26,7 +26,7 @@ npm install -g coremind-cli@next
 ### 验证安装成功
 
 ```bash
-coremind --version        # 例如显示 coremind v0.2.0-rc.1
+coremind --version        # 当前源码候选显示 coremind v0.3.0-rc.1
 coremind doctor           # 环境自检：Node 版本 / API key 是否就位
 ```
 

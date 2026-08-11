@@ -1,0 +1,40 @@
+schemaVersion: 1
+id: manage-context-artifacts
+name:
+  zh-CN: "上下文与 Artifact 治理"
+  en: "Context and Artifact Governance"
+version: 0.3.0-rc.1
+sourcePaths:
+  - "packages/coremind-runtime/src/context.ts"
+  - "packages/coremind-runtime/src/agent-factory.ts"
+  - "packages/coremind-runtime/src/events.ts"
+  - "packages/coremind-runtime/src/result.ts"
+  - "packages/coremind-tools/src/artifact-store.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-context-artifacts/README.zh-CN.md
+    en: docs/modules/manage-context-artifacts/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-context-artifacts/SOP.zh-CN.md
+    en: docs/modules/manage-context-artifacts/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-context-artifacts/GUIDE.zh-CN.md
+    en: docs/modules/manage-context-artifacts/GUIDE.en.md
+  changelog: docs/modules/manage-context-artifacts/CHANGELOG.md
+skillPath: skills/manage-context-artifacts/SKILL.md
+examplePaths:
+  - examples/modules/manage-context-artifacts/README.zh-CN.md
+  - examples/modules/manage-context-artifacts/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/context.test.ts"
+  - "packages/coremind-runtime/src/result.test.ts"
+  - "packages/coremind-tools/src/artifact-store.test.ts"
+  - "packages/coremind-tools/src/registry.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "manage-sessions"
+  - "build-tools"
+  - "inspect-agent-traces"
+maturity: release-candidate

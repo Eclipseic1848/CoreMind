@@ -55,6 +55,29 @@ scenarios:
 
 The seven grader types validate outcome, tool trajectory, commands, files, Git diff, runtime state, and final response. Evaluation captures file and dirty-worktree baselines first. Commands do not use shell concatenation, and paths cannot escape the workspace.
 
+## Lightweight experiments
+
+```ts
+const experiment = defineExperiment({
+  id: "context-strategy",
+  version: "1",
+  seed: "team-approved-seed",
+  arms: [
+    { id: "baseline", weight: 1 },
+    { id: "candidate", weight: 1, config: { compact: true } },
+  ],
+});
+
+const record = await runExperiment({
+  definition: experiment,
+  inputFingerprint: "sha256:fixture-a",
+  environment,
+  run: async (arm) => executeAndGrade(arm),
+});
+```
+
+`ExperimentRecord` retains the assignment hash, arm, environment, terminal state, metrics, complete trace, and graders. Fingerprint real inputs first; never place sensitive source text in the experiment ledger.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
@@ -62,6 +85,7 @@ The seven grader types validate outcome, tool trajectory, commands, files, Git d
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. For code changes, also inspect target tests, complete regression, the allowed-file list, and fingerprints of pre-existing dirty files.
+6. Re-run the same frozen task set and compare success, tool failures, approvals, cost, and recovery evidence. Do not move weights or gates after observing results.
 
 ## Common mistakes
 

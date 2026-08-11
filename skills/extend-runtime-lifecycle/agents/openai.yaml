@@ -1,0 +1,4 @@
+interface:
+  display_name: "Runtime Lifecycle Extensions"
+  short_description: "Build trusted, bounded Runtime extensions"
+  default_prompt: "Use $extend-runtime-lifecycle to design or verify this extension with explicit trust, minimal capability grants, timeout isolation, and no permission or terminal-state bypass."

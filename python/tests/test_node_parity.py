@@ -77,6 +77,15 @@ class NodeRuntimeParityTest(unittest.TestCase):
 
             self.assertEqual(python_result["outcome"], typescript_result["outcome"])
             self.assertEqual(python_result["transcript"], typescript_result["transcript"])
+            for result in (python_result, typescript_result):
+                self.assertEqual(result["snapshot"]["runId"], result["runId"])
+                self.assertEqual(result["snapshot"]["outcome"], result["outcome"])
+                self.assertEqual(result["snapshot"]["operation"], result["operation"])
+                self.assertEqual(result["snapshot"]["metrics"], result["metrics"])
+                self.assertEqual(result["snapshot"]["trace"], result["trace"])
+            self.assertEqual(
+                set(python_result["snapshot"]), set(typescript_result["snapshot"])
+            )
             self.assertEqual(
                 [entry["event"]["type"] for entry in python_result["trace"]],
                 [entry["event"]["type"] for entry in typescript_result["trace"]],

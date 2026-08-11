@@ -13,8 +13,9 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 5. Use resume_run only for paused or interrupted runs deemed safe.
 6. Compare explicit Loop state order, pause-resume, exhaustion, and effect receipts with TypeScript.
 7. Inject one tool-registration failure and confirm the client terminates the partially started worker; still close normal runs in a context manager or finally block.
-8. Run the listed module tests and `npm run check:modules`.
-9. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+8. Compare the Python snapshot with a TypeScript sample. Tampered schemaVersion, runId, or outcome must produce stable `invalid_run_snapshot` failure.
+9. Run the listed module tests and `npm run check:modules`.
+10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

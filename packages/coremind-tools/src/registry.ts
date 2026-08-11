@@ -13,6 +13,7 @@ import {
   type ToolConfig,
   type ToolEffectDeclaration,
 } from "coremind-config";
+import { ArtifactStore, wrapToolWithArtifactCapture } from "./artifact-store.js";
 import { createGitDiffTool, createGitLogTool, createGitStatusTool } from "./git-adapter.js";
 import { createHostBashTool } from "./host-shell.js";
 import { createLinuxSandboxedBashTool } from "./linux-sandbox.js";
@@ -24,10 +25,10 @@ const BUILTIN_FACTORIES: Record<
   BuiltinToolId,
   (cwd: string, env: NodeJS.ProcessEnv) => AgentTool | null
 > = {
-  read: (cwd) => bridgeCodingTool(createReadTool(cwd)),
-  ls: (cwd) => bridgeCodingTool(createLsTool(cwd)),
-  find: (cwd) => bridgeCodingTool(createFindTool(cwd)),
-  grep: (cwd) => bridgeCodingTool(createGrepTool(cwd)),
+  read: (cwd) => createReadTool(cwd),
+  ls: (cwd) => createLsTool(cwd),
+  find: (cwd) => createFindTool(cwd),
+  grep: (cwd) => createGrepTool(cwd),
   git_status: (cwd) => createGitStatusTool(cwd),
   git_diff: (cwd) => createGitDiffTool(cwd),
   git_log: (cwd) => createGitLogTool(cwd),
@@ -35,16 +36,11 @@ const BUILTIN_FACTORIES: Record<
     process.platform === "linux"
       ? createLinuxSandboxedBashTool({ cwd, env })
       : createHostBashTool({ cwd, env }),
-  edit: (cwd) => bridgeCodingTool(createEditTool(cwd)),
-  write: (cwd) => bridgeCodingTool(createWriteTool(cwd)),
+  edit: (cwd) => createEditTool(cwd),
+  write: (cwd) => createWriteTool(cwd),
   "web-fetch": () => createWebFetchTool(),
   "web-search": (_, env) => createWebSearchToolIfAvailable(env),
 };
-
-/** 隔离命令工具包的类型版本差异；运行时工具协议仍由集成测试验证。 */
-function bridgeCodingTool(tool: unknown): AgentTool {
-  return tool as AgentTool;
-}
 
 /** 单个 agent 工具数量建议上限（工具过多会降低模型工具选择准确率，参考主流生产经验 0-20） */
 export const MAX_TOOLS_PER_AGENT = 20;
@@ -56,6 +52,8 @@ export interface BuildToolsOptions {
   configDir: string;
   /** 环境变量（默认 process.env），测试可注入 */
   env?: NodeJS.ProcessEnv;
+  /** 受控工具输出存储；缺省使用工作区 .coremind/artifacts。 */
+  artifactStore?: ArtifactStore;
 }
 
 export interface BuildToolsResult {
@@ -78,6 +76,7 @@ export async function buildTools(
   const tools: AgentTool[] = [];
   const effects = new Map<string, ToolEffectDeclaration>();
   const warnings: string[] = [];
+  const artifactStore = opts.artifactStore ?? new ArtifactStore({ cwd: opts.cwd });
 
   for (const cfg of configs) {
     if ("path" in cfg) {
@@ -87,7 +86,7 @@ export async function buildTools(
           warnings.push(`脚本工具 ${tool.name} 不得使用内置工具名，已跳过`);
           continue;
         }
-        tools.push(tool);
+        tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
         effects.set(tool.name, cfg.effect);
       } catch (error) {
         warnings.push(error instanceof Error ? error.message : String(error));
@@ -106,7 +105,7 @@ export async function buildTools(
       warnings.push(`工具 ${cfg.id} 需要额外配置（如 API key），已跳过`);
       continue;
     }
-    tools.push(tool);
+    tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
     effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
   }
 

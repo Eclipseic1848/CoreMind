@@ -13,7 +13,8 @@ description: "Separate runtime outcome, metrics, business evaluation, and releas
 6. Capture dirty-worktree and protected-file baselines before each attempt. Preserve user changes and reject paths outside the workspace.
 7. Inspect RunOutcome, Trace, budgets, approvals, checkpoints, grader evidence, final tests, and diffs. Treat a fluent answer without evidence as unverified.
 8. Separate deterministic offline evidence from live-provider evidence, and label automated review honestly.
-9. Run the tests listed in [module.yaml](../../docs/modules/evaluate-agents/module.yaml) and `npm run check:modules`.
-10. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
+9. For comparisons, freeze experiment id/version/seed, arm weights, input fingerprints, environment, budget, and graders before running. Preserve the complete trace and truthful outcome for every arm.
+10. Run the tests listed in [module.yaml](../../docs/modules/evaluate-agents/module.yaml) and `npm run check:modules`.
+11. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

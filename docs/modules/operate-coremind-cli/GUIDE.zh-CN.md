@@ -22,6 +22,7 @@ coremind eval my-agent/coremind.yaml
 6. 使用 `--session` 前设置 `session.enabled: true`；缺失时 CLI 必须明确失败，不能静默继续。
 7. 使用显式 Loop 时确认 TUI、readline 和 `--json-events` 的状态顺序一致；暂停后以同一 runId 恢复。
 8. 使用 `coremind doctor coremind.yaml` 时确认只检查该配置的 `provider.apiKeyEnv`，不会把无关 Provider 的密钥缺失当成失败。
+9. 在 TUI 中依次运行 `/status`、`/artifacts`、`/context`，核对恢复、评测、完整产物引用和上下文压缩证据。
 
 ## 自动化契约
 
@@ -32,6 +33,8 @@ Get-Content -LiteralPath run-output.txt -Encoding utf8 | Select-Object -Last 1
 ```
 
 正式脚本应分别重定向 stdout 与 stderr；上例只用于人工观察。退出码按 `0/1/2/3/124/130` 判断终态，JSONL 最后一行必须能解析为 `type: "run_result"`。不要通过搜索自然语言“成功”来判断执行结果。
+
+机器调用应优先读取最后一行的 `snapshot`。顶层兼容字段仍保留，但 `snapshot` 是 CLI、Worker 和两个 SDK 的同一纯 JSON 终态信封。
 
 ## 常见误区
 

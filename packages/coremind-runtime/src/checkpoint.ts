@@ -8,6 +8,9 @@ export interface CheckpointRecord {
   version: 1;
   checkpointId: string;
   runId: string;
+  operationId?: string;
+  toolCallId?: string;
+  idempotencyKey?: string;
   timestamp: string;
   tool: string;
   reversible: boolean;
@@ -65,11 +68,20 @@ export class CheckpointManager {
     this.maxFileBytes = options.maxFileBytes ?? 10 * 1024 * 1024;
   }
 
-  async capture(tool: string, args: unknown): Promise<CheckpointRecord | undefined> {
+  async capture(
+    tool: string,
+    args: unknown,
+    correlation: {
+      operationId?: string;
+      toolCallId?: string;
+      idempotencyKey?: string;
+    } = {},
+  ): Promise<CheckpointRecord | undefined> {
     if (READ_ONLY_TOOLS.has(tool)) return undefined;
     if (tool !== "edit" && tool !== "write") {
       return this.persist({
         tool,
+        ...correlation,
         reversible: false,
         reason: "任意命令或自定义工具可能产生工作区外副作用，无法保证自动回退",
       });
@@ -101,6 +113,7 @@ export class CheckpointManager {
     }
     return this.persist({
       tool,
+      ...correlation,
       reversible: true,
       targetPath,
       existed,

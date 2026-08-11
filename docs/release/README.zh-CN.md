@@ -2,7 +2,7 @@
 
 本 SOP 把同一提交的 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。任一渠道成功都不能替代整体验收。
 
-[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md)
+[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 
 ## 发布原则
 
@@ -27,10 +27,10 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.2.0-rc.1`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0-rc.1`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
 
 ```powershell
-npm run release:sync-version -- 0.2.0-rc.1
+npm run release:sync-version -- 0.3.0-rc.1
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。

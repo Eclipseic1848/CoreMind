@@ -11,6 +11,7 @@ with CoreMindClient(config_path='coremind.yaml') as client:
     def lookup_order(order_id: str) -> dict[str, str]:
         return {'id': order_id, 'status': 'paid'}
     result = client.run('查询 A-100')
+    print(result['snapshot'])
 ```
 
 ## 验证步骤
@@ -21,5 +22,6 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
 5. 删除 `effect` 再运行，确认 Python 在注册前明确拒绝；恢复后验证工具可正常调用。
 6. 让测试 worker 拒绝一次注册，确认异常后没有遗留子进程或被占用的临时目录。
+7. 篡改测试 Worker 的 snapshot schemaVersion 或 outcome，确认 SDK 返回 `invalid_run_snapshot`，而不是接受不一致结果。
 
 返回 [中文指南](../../../docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。

@@ -21,5 +21,6 @@ scenarios:
 3. Add scenarios and run `coremind eval` for business outputs.
 4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
 5. For code changes, use the [real-defect evaluations](../../coding-evals/README.en.md) and validate commands, files, diffs, and dirty-worktree preservation.
+6. When comparing two strategies, use `defineExperiment` to freeze the version, seed, arm weights, and input fingerprint, then retain the complete trace and graders in `ExperimentRecord`.
 
 Return to the [English guide](../../../docs/modules/evaluate-agents/GUIDE.en.md).

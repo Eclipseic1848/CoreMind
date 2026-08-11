@@ -1,6 +1,6 @@
 # 工具与业务能力
 
-状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

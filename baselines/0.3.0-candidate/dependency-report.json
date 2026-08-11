@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-10",
+  "summary": {
+    "lockstep": true,
+    "version": "0.84.1",
+    "packages": 3
+  },
+  "dependencies": [
+    {
+      "name": "@earendil-works/pi-agent-core",
+      "declaredVersions": [
+        "0.84.1"
+      ],
+      "installedVersions": [
+        "0.84.1"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-0.84.1.tgz",
+      "integrity": "sha512-evyzXYWCLQGmcaBYHlmSku02r8qoN4SGI60GZABo6iV+H+nqX+P9ud8fEZ4GmRq9mUSREvvfX+w9dA9ThF9C6w=="
+    },
+    {
+      "name": "@earendil-works/pi-ai",
+      "declaredVersions": [
+        "0.84.1"
+      ],
+      "installedVersions": [
+        "0.84.1"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-0.84.1.tgz",
+      "integrity": "sha512-wMsAdJMxuNri08vLqTyYVI201DQQezGhPSTkzYsHdw5dYX3rCNwEmSvpaAwhi7ELKI/2tE/CEgSWg/6iRxSgdQ=="
+    },
+    {
+      "name": "@earendil-works/pi-coding-agent",
+      "declaredVersions": [
+        "0.84.1"
+      ],
+      "installedVersions": [
+        "0.84.1"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-0.84.1.tgz",
+      "integrity": "sha512-ncAqFrG+iybuPGOhMiZoEHkEzTpJgz3guYD32pD+M7ucc0WeHmauP6wa7qwP8V/KWvsZDVNa5XGsdZ7fkC7w7A=="
+    }
+  ],
+  "packaging": {
+    "cliShrinkwrap": false,
+    "reason": "CLI 与 SDK 共用工作区 Lockfile、干净安装和 tarball 内容门禁"
+  },
+  "audit": {
+    "command": "npm run security:audit",
+    "registryDifferences": "进入发布候选前在 Windows/Linux 干净环境分别复核"
+  }
+}

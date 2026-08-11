@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   CoreMindRuntime,
+  createDenyPolicyExtension,
+  createRunSnapshot,
+  defineExperiment,
   PROTOCOL_VERSION,
   parseProtocolRequest,
+  RunSnapshotSchema,
   TEMPLATES,
   validateConfig,
 } from "./index.js";
@@ -14,5 +18,9 @@ describe("coremind-ai 公共门面", () => {
     expect(TEMPLATES.length).toBeGreaterThan(0);
     expect(PROTOCOL_VERSION).toBe("1.0");
     expect(parseProtocolRequest).toBeTypeOf("function");
+    expect(createRunSnapshot).toBeTypeOf("function");
+    expect(defineExperiment).toBeTypeOf("function");
+    expect(createDenyPolicyExtension).toBeTypeOf("function");
+    expect(RunSnapshotSchema).toBeTypeOf("object");
   });
 });

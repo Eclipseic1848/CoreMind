@@ -1,9 +1,10 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { LoopControllerSnapshot } from "./loop-controller.js";
+import { DurableOperation } from "./operation-state.js";
 import {
   FileRunStore,
   MemoryRunStore,
@@ -35,6 +36,52 @@ describe("RunState", () => {
     writeFileSync(store.pathFor("broken"), "{坏数据", "utf8");
 
     await expect(store.read("broken")).rejects.toMatchObject({ code: "run_state_corrupt" });
+  });
+
+  it("只修复已有完整记录之后的 torn tail，不吞掉整文件损坏", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-torn-"));
+    const store = new FileRunStore(dir);
+    const valid = record(1, "start", { configFingerprint: "same" });
+    writeFileSync(store.pathFor("run-restore"), `${JSON.stringify(valid)}\n{"version":1`, "utf8");
+
+    await expect(store.read("run-restore")).resolves.toEqual([valid]);
+    expect(readFileSync(store.pathFor("run-restore"), "utf8")).toBe(`${JSON.stringify(valid)}\n`);
+  });
+
+  it("原子提交前故障不改变旧文件，重试后只追加一次", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-fault-"));
+    const initial = new FileRunStore(dir);
+    await initial.append(record(1, "start", { configFingerprint: "same" }));
+    let fail = true;
+    const injected = new FileRunStore(dir, {
+      beforeCommit: () => {
+        if (fail) throw new Error("injected crash");
+      },
+    });
+    const next = record(2, "event", { type: "agent_start" });
+
+    await expect(injected.append(next)).rejects.toThrow("injected crash");
+    expect(await initial.read("run-restore")).toHaveLength(1);
+    fail = false;
+    await injected.append(next);
+    await injected.append(next);
+    expect((await initial.read("run-restore")).map((item) => item.sequence)).toEqual([1, 2]);
+  });
+
+  it("两个 writer 的冲突不会造成丢记录或非法序号", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-writers-"));
+    const left = new FileRunStore(dir);
+    const right = new FileRunStore(dir);
+    await left.append(record(1, "start", { configFingerprint: "same" }));
+
+    const results = await Promise.allSettled([
+      left.append(record(2, "event", { writer: "left" })),
+      right.append(record(2, "event", { writer: "right" })),
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await left.read("run-restore")).map((item) => item.sequence)).toEqual([1, 2]);
   });
 
   it("恢复日志从原序号继续追加，不产生重复 sequence", async () => {
@@ -74,6 +121,29 @@ describe("RunState", () => {
     expect(records.map((item) => item.kind)).toEqual(["start", "loop", "loop", "pause"]);
     expect(plan.loopSnapshot).toEqual(paused);
     expect(plan.nextJournalSequence).toBe(4);
+  });
+
+  it("保存 operation 状态并在恢复计划中返回同一权威快照", async () => {
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal("run-operation", store);
+    const operation = DurableOperation.create({
+      runId: "run-operation",
+      operationId: "operation-1",
+      eventId: "accepted-1",
+    });
+
+    await journal.start({ configFingerprint: "fingerprint", initialPrompt: "开始" });
+    journal.operation(operation.records()[0]!);
+    journal.operation(operation.transition({ eventId: "start-1", type: "START" }).record!);
+    journal.operation(
+      operation.transition({ eventId: "pause-1", type: "PAUSE", reason: "approval" }).record!,
+    );
+    journal.pause({ outcome: { status: "paused" } });
+    await journal.flush();
+
+    const plan = prepareRunResume(await store.read("run-operation"), "fingerprint");
+    expect(plan.operationSnapshot).toEqual(operation.snapshot());
+    expect(plan.operationRecords).toEqual(operation.records());
   });
 
   it("从稳定步骤输出构造恢复计划", () => {

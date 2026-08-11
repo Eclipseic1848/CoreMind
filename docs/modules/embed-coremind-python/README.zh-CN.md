@@ -1,6 +1,6 @@
 # Python SDK 与工具桥
 
-状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -16,6 +16,7 @@
 - `checkpoint_diff`
 - `checkpoint_restore`
 - `CoreMind Protocol v1`
+- `result["snapshot"]` 纯 JSON 运行快照
 
 ## 错误与边界
 
@@ -27,6 +28,8 @@
 - `run`/`chat` 与 TypeScript 返回同一套成功、失败、暂停、中止、超时和预算耗尽终态
 - resume_run 复用 Node Runtime 的同一安全恢复判定，可继续暂停或意外中断运行
 - Python 与 TypeScript 对 `loop_state` 顺序、Loop 终态、稳定快照和 Effect Receipt 保持一致
+- SDK 校验 snapshot 必需字段、schemaVersion、runId 和 outcome；不一致时抛出 `ProtocolError`，错误码为 `invalid_run_snapshot`
+- PyPI 包继续携带构建后的 Node Worker，不创建独立 Python Runtime 或 Loop
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

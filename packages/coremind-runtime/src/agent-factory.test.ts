@@ -166,12 +166,14 @@ describe("buildAgent（options 与 apiKey 注入）", () => {
     expect(agent.state.systemPrompt).toContain("技能内容B");
   });
 
-  it("无 skills 时不追加技能段", async () => {
+  it("无 skills 时仍生成稳定前缀并明确标记为空", async () => {
     const { models, model } = makeFauxContext();
     const agent = buildAgent(
       { systemPrompt: "基础提示" },
       { models, model, tools: [], agentName: "t", onEvent: () => {} },
     );
-    expect(agent.state.systemPrompt).toBe("基础提示");
+    expect(agent.state.systemPrompt).toContain("# CoreMind 稳定上下文 v1");
+    expect(agent.state.systemPrompt).toContain("## 项目指令\n基础提示");
+    expect(agent.state.systemPrompt).toContain("## 专业技能\n- 无");
   });
 });

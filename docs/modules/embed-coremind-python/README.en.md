@@ -1,6 +1,6 @@
 # Python SDK and Tool Bridge
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -16,6 +16,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - `checkpoint_diff`
 - `checkpoint_restore`
 - `CoreMind Protocol v1`
+- Pure-JSON `result["snapshot"]`
 
 ## Errors and boundaries
 
@@ -27,6 +28,8 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - `run` and `chat` return the same success, failure, pause, abort, timeout, and budget-exhaustion terminal states as TypeScript
 - resume_run reuses the same safe-resume decision for paused or interrupted runs in the Node runtime
 - Python and TypeScript preserve identical `loop_state` order, Loop terminals, stable snapshots, and effect receipts
+- The SDK validates required snapshot fields, schemaVersion, runId, and outcome; mismatches raise `ProtocolError` with `invalid_run_snapshot`
+- The PyPI package continues to carry the built Node Worker and does not introduce a separate Python Runtime or Loop
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

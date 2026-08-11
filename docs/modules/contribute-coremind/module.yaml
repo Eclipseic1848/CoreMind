@@ -3,7 +3,7 @@ id: contribute-coremind
 name:
   zh-CN: "源码与社区贡献"
   en: "Source and Community Contribution"
-version: 0.2.0-rc.1
+version: 0.3.0-rc.1
 sourcePaths:
   - "package.json"
   - "vitest.config.ts"
@@ -32,6 +32,13 @@ sourcePaths:
   - "scripts/test-stability.mjs"
   - "scripts/check-coverage.mjs"
   - "scripts/coverage-baseline.json"
+  - "scripts/phase2-baseline.mjs"
+  - "baselines/0.2.0-rc.1/baseline.json"
+  - "baselines/0.2.0-rc.1/behavior-matrix.json"
+  - "baselines/0.2.0-rc.1/coding-benchmark.json"
+  - "baselines/0.2.0-rc.1/platform-acceptance.json"
+  - "baselines/0.2.0-rc.1/release-gates.json"
+  - "baselines/0.2.0-rc.1/release-manifest.json"
   - "scripts/release-version.mjs"
   - "scripts/release-artifacts.mjs"
   - "scripts/publish-npm-artifacts.mjs"
@@ -60,6 +67,7 @@ testPaths:
   - "scripts/release-preflight.test.ts"
   - "scripts/package-artifacts.test.ts"
   - "scripts/coverage-baseline.test.ts"
+  - "scripts/phase2-baseline.test.ts"
   - "scripts/workflow-contract.test.ts"
   - "scripts/source-archive.test.ts"
   - "scripts/release-version.test.ts"

@@ -82,6 +82,46 @@ try {
   }
   details.multiTurn = { passed: true, turns: 3, outputHash: hash(thirdTurn.text) };
 
+  const abortController = new AbortController();
+  const abortRuntime = await createRuntime({
+    prompt: "请生成一篇至少五千字、分二十节的纯合成技术文章。",
+    signal: abortController.signal,
+  });
+  const abortTimer = setTimeout(() => abortController.abort(), 50);
+  const abortResult = await abortRuntime.run();
+  clearTimeout(abortTimer);
+  if (abortResult.outcome.status !== "aborted") {
+    throw new Error(`中止未映射为 aborted：${abortResult.outcome.status}`);
+  }
+  details.abort = { passed: true, status: abortResult.outcome.status };
+
+  const longContextChars = Number(process.env.COREMIND_CERT_LONG_CONTEXT_CHARS ?? 64_000);
+  if (
+    !Number.isInteger(longContextChars) ||
+    longContextChars < 10_000 ||
+    longContextChars > 250_000
+  ) {
+    throw new Error("COREMIND_CERT_LONG_CONTEXT_CHARS 必须是 10000 到 250000 的整数");
+  }
+  const longContextMarker = "LONG-CONTEXT-CERT-6197";
+  const fillerUnit = "这是只包含合成内容的长上下文认证段落，不含任何用户或业务数据。";
+  const filler = fillerUnit
+    .repeat(Math.ceil(longContextChars / fillerUnit.length))
+    .slice(0, longContextChars);
+  const longContextRuntime = await createRuntime({
+    prompt: `记住标记 ${longContextMarker}。阅读以下合成长文本后，只输出该标记。\n${filler}\n现在只输出标记。`,
+  });
+  const longContextResult = await longContextRuntime.run();
+  assertCertificationSucceeded(longContextResult, "长上下文");
+  if (!longContextResult.transcript.includes(longContextMarker)) {
+    throw new Error("长上下文末端未返回预期标记");
+  }
+  details.longContext = {
+    passed: true,
+    inputChars: longContextChars,
+    outputHash: hash(longContextResult.transcript),
+  };
+
   process.env[apiKeyEnv] = "invalid-coremind-certification-key";
   const errorRuntime = await createRuntime({ prompt: "只回复 ERROR-CHECK" });
   try {
@@ -119,7 +159,7 @@ await mkdir(path.dirname(output), { recursive: true });
 await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 console.log(`Provider 真实认证通过：${providerId}/${model}，证据：${path.relative(root, output)}`);
 
-async function createRuntime({ prompt, events, toolDefinitions } = {}) {
+async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {
   const { config } = parseAndValidate({
     schemaVersion: 2,
     name: "provider-certification",
@@ -138,6 +178,7 @@ async function createRuntime({ prompt, events, toolDefinitions } = {}) {
     initialPrompt: prompt,
     events,
     toolDefinitions,
+    signal,
     env: process.env,
   });
 }

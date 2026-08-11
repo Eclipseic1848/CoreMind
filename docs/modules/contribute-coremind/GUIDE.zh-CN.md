@@ -2,12 +2,13 @@
 
 ## 什么时候使用
 
-在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码。
+在冻结公开合同、单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码。
 
 ## 最小示例
 
 ```text
 npm run build
+npm run baseline:check
 npm run check
 npm run test:stability
 npm run test:coverage
@@ -29,6 +30,13 @@ npm run release:preflight -- --allow-dirty
 8. 外部 Action 只接受已核对的完整 SHA；Dependabot 升级 PR 必须重跑同一组门禁。每个发布物作业在使用前独立校验 SHA-256。
 9. 发布前核对 npm、Python 构建与上传工具仍可从官方 Registry 获取且未被撤回；工具版本变化后重跑工作流合同、wheel 和完整发布物门禁。
 
+## 冻结基线如何使用
+
+- `baseline:check` 从正式构建产物重新生成 8 个公开包的类型摘要，并核对 Config/Protocol Schema、关键依赖组合、P01～P20、双平台行为、同题编码评测合同和覆盖率下限。
+- 当前开发提交、采集时间、平台和构建哈希只用于追溯，不会造成误报；Release Tag 指向与 Release Manifest 摘要属于阻断合同。覆盖率可以提高，不能下降。
+- `baseline:update` 不是修复失败的捷径。只有经过批准的合同变化，且迁移、兼容和回滚已写清楚时，才允许带明确原因执行。
+- 真实外部编码对照当前保持 `not-run`；它涉及模型费用、隐私和样例代码外发，必须另行授权。
+
 ## 常见误区
 
 - 不要让模型替业务负责人发明规则。
@@ -37,3 +45,4 @@ npm run release:preflight -- --allow-dirty
 - 不要把继承 Provider 误称为已通过真实认证。
 - 不要把覆盖率目标写成已达成；当前门禁以真实基线阻止下降，并明确列出到 80%/90% 目标的差距。
 - 不要把 Release Please PR、历史 Provider 证据或单个平台 TTY 当成发布完成。
+- 不要通过重写基线掩盖公开接口、依赖或行为回归。

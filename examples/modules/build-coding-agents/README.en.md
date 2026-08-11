@@ -1,6 +1,6 @@
 # Coding Agent Module Example
 
-This module includes two real defect fixtures that run in fresh temporary Git repositories:
+This module includes two real single-file defect fixtures that run in fresh temporary Git repositories, plus cross-file Engineering Kernel cases in the same gate:
 
 - [TypeScript discount defect](../../coding-evals/typescript-defect)
 - [Python tax defect](../../coding-evals/python-defect)
@@ -12,7 +12,7 @@ npm run build
 npm run test:coding-evals
 ```
 
-Expected result: both cases pass. Each observes one initial target-test failure, applies one minimal repair, and passes target plus full regression tests. `user-notes.txt` and the protected configuration or environment example remain unchanged.
+Expected result: all six cases pass. The two real-defect fixtures observe the initial failure, apply a minimal repair, and pass target plus full regression tests. TypeScript and Python also verify cross-file repair, pre-write checkpoint, diff, restore, wrong command, approval denial, and abort. `user-notes.txt` and protected configuration/environment examples remain unchanged.
 
 ## Live-model verification
 

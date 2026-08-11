@@ -14,6 +14,7 @@ import {
 } from "coremind-ai";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createCodingEvalMockServer } from "./_shared/mock-provider.mjs";
+import "./engineering-kernel.test.js";
 
 const examplesRoot = path.dirname(fileURLToPath(import.meta.url));
 const previousKey = process.env.CODING_MOCK_API_KEY;

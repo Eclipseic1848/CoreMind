@@ -1,0 +1,42 @@
+schemaVersion: 1
+id: adapt-runtime-dependencies
+name:
+  zh-CN: "Runtime 依赖 Adapter"
+  en: "Runtime Dependency Adapters"
+version: 0.3.0-rc.1
+sourcePaths:
+  - "packages/coremind-runtime/src/dependency-adapter.ts"
+  - "packages/coremind-runtime/src/session.ts"
+  - "packages/coremind-runtime/src/provider.ts"
+  - "packages/coremind-tools/src/registry.ts"
+  - "scripts/dependency-report.mjs"
+documents:
+  readme:
+    zh-CN: docs/modules/adapt-runtime-dependencies/README.zh-CN.md
+    en: docs/modules/adapt-runtime-dependencies/README.en.md
+  sop:
+    zh-CN: docs/modules/adapt-runtime-dependencies/SOP.zh-CN.md
+    en: docs/modules/adapt-runtime-dependencies/SOP.en.md
+  guide:
+    zh-CN: docs/modules/adapt-runtime-dependencies/GUIDE.zh-CN.md
+    en: docs/modules/adapt-runtime-dependencies/GUIDE.en.md
+  changelog: docs/modules/adapt-runtime-dependencies/CHANGELOG.md
+skillPath: skills/adapt-runtime-dependencies/SKILL.md
+examplePaths:
+  - examples/modules/adapt-runtime-dependencies/README.zh-CN.md
+  - examples/modules/adapt-runtime-dependencies/README.en.md
+testPaths:
+  - "scripts/dependency-lockstep.test.ts"
+  - "scripts/dependency-report.test.ts"
+  - "packages/coremind-runtime/src/dependency-adapter.test.ts"
+  - "packages/coremind-runtime/src/session.test.ts"
+  - "packages/coremind-runtime/src/provider.test.ts"
+  - "packages/coremind-tools/src/registry.test.ts"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "manage-providers"
+  - "build-tools"
+  - "manage-sessions"
+maturity: release-candidate

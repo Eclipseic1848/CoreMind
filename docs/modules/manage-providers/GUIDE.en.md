@@ -19,6 +19,7 @@ provider:
 2. Run the [module example](../../../examples/modules/manage-providers/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
+5. To claim certified status, separately follow the [seven-check live certification SOP](../../providers/CERTIFICATION.en.md). A successful `doctor` check is not certification.
 
 ## Common mistakes
 
@@ -26,3 +27,4 @@ provider:
 - Do not treat one successful run as stability evidence.
 - Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
 - Do not describe inherited providers as genuinely certified.
+- Do not reuse older evidence that lacks abort or long-context checks. The matrix reports those gaps explicitly.

@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "0.3.0-candidate",
+    "referenceVersion": "0.2.0-rc.1",
+    "developmentCommit": "fd80bdb93c74eaee4dbeb93803a41e707e0d20b1",
+    "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
+  },
+  "referenceArtifacts": {
+    "baselineSha256": "82053c8cda60794a3dfd4cfcf7c183d27cd8537b6d7654ac343f48689aa27988",
+    "publicApiSha256": "a58dfd523b3cf60f4057fa213decbe2c6af0590d787b1e3b79373ed123291010",
+    "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
+  },
+  "publicContracts": {
+    "apiReports": {
+      "coremind-ai": "6c9a031acaef239ebe15b0255ea03ed241bba311256102ada2a21b3b57d51e83",
+      "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
+      "coremind-config": "92d20173b0c0efbb3130f7f96166faca17491f1de7e6bdbf232e089037137977",
+      "coremind-protocol": "bb826146a2834c11ce5f0b4a3b43858e8b6b91ca4e8af2294e2f002ba569202c",
+      "coremind-runtime": "b60ae010a316e726e815b4ada09f0ba53cb812c31f2ddfc28c55c8a51994d307",
+      "coremind-templates": "bce0ae0ce017f2c37d964e4ead395eff96426b257cead93d080214cb2db3ead6",
+      "coremind-tools": "f0de789c9e5a6d0be28bd7da8c6910cabe912210573d3cada97beb208fcc6d92",
+      "coremind-worker": "7e3b3413ca5ecebac0685831f29e632224c8b4f33088bacbdf40f07602f65195"
+    },
+    "schemas": {
+      "config": "19971c09759c3fb679b461a50d6030f468d5c3180d1f694a1a7d37719bf12d4a",
+      "protocol": "907c8eca28afe93d3640cb1d9c7f52ac7137e0331cc01a42295d5a5983543255"
+    }
+  },
+  "dependencies": {
+    "installed": {
+      "coding-layer": [
+        "0.84.1"
+      ],
+      "model-layer": [
+        "0.84.1"
+      ],
+      "runtime-core": [
+        "0.84.1"
+      ]
+    }
+  },
+  "acceptance": {
+    "caseIds": [
+      "P01",
+      "P02",
+      "P03",
+      "P04",
+      "P05",
+      "P06",
+      "P07",
+      "P08",
+      "P09",
+      "P10",
+      "P11",
+      "P12",
+      "P13",
+      "P14",
+      "P15",
+      "P16",
+      "P17",
+      "P18",
+      "P19",
+      "P20"
+    ],
+    "entries": [
+      "artifact",
+      "headless-cli",
+      "python-sdk",
+      "tui",
+      "typescript-sdk"
+    ],
+    "behaviorCaseIds": [
+      "abort",
+      "approval-deny",
+      "cold-start",
+      "long-output",
+      "network-failure",
+      "recovery"
+    ],
+    "platforms": [
+      "linux",
+      "windows"
+    ],
+    "behaviorMatrixSha256": "6385466461a46ccab4c86b21e35a4d8bb4969efe8398afadae5a7ea0e2256bdc",
+    "platformAcceptanceSha256": "c6e89ece6ce04526aeeb741015259c7a5a3fe357318ae1073d65a4bb389094a3"
+  },
+  "releaseArtifacts": {
+    "manifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
+  },
+  "quality": {
+    "coverage": {
+      "totals": {
+        "lines": 73.26,
+        "statements": 71.19,
+        "functions": 81,
+        "branches": 63.23
+      },
+      "platforms": {
+        "win32": {
+          "lines": 74.84,
+          "statements": 72.93,
+          "functions": 82.12,
+          "branches": 66.07
+        },
+        "linux": {
+          "lines": 73.26,
+          "statements": 71.19,
+          "functions": 81,
+          "branches": 63.23
+        }
+      },
+      "critical": {
+        "packages/coremind-runtime/src/tool-policy.ts": {
+          "branches": 86.23
+        },
+        "packages/coremind-runtime/src/run-terminalizer.ts": {
+          "branches": 100
+        },
+        "packages/coremind-runtime/src/checkpoint.ts": {
+          "branches": 75.6
+        },
+        "packages/coremind-runtime/src/run-state.ts": {
+          "branches": 78.78
+        },
+        "packages/coremind-runtime/src/loop-controller.ts": {
+          "branches": 100
+        },
+        "packages/coremind-runtime/src/loop-runner.ts": {
+          "branches": 92.4
+        }
+      },
+      "targets": {
+        "total": 80,
+        "criticalBranches": 90
+      }
+    },
+    "codingEvalProfiles": [
+      "python",
+      "typescript"
+    ],
+    "codingBenchmark": {
+      "schemaVersion": 1,
+      "baseline": "0.2.0-rc.1",
+      "profiles": [
+        {
+          "id": "typescript",
+          "fixture": "examples/coding-evals/typescript-defect",
+          "requiredTrajectory": [
+            "reproduce",
+            "inspect",
+            "minimal-edit",
+            "target-test",
+            "regression-test",
+            "diff-review"
+          ]
+        },
+        {
+          "id": "python",
+          "fixture": "examples/coding-evals/python-defect",
+          "requiredTrajectory": [
+            "reproduce",
+            "inspect",
+            "minimal-edit",
+            "target-test",
+            "regression-test",
+            "diff-review"
+          ]
+        }
+      ],
+      "subjects": [
+        "coremind-baseline",
+        "coremind-candidate",
+        "external-reference-a",
+        "external-reference-b"
+      ],
+      "fairness": {
+        "sameProvider": true,
+        "sameModel": true,
+        "sameModelOptions": true,
+        "sameInitialCommit": true,
+        "sameBudget": true,
+        "sameTimeout": true,
+        "sameNetworkPolicy": true,
+        "differencesMustBeRecorded": true
+      },
+      "metrics": [
+        "success-rate",
+        "pass-at-k",
+        "first-fix-success-rate",
+        "tool-calls",
+        "failed-tool-calls",
+        "repeated-actions",
+        "turns",
+        "tokens",
+        "cost",
+        "duration",
+        "approval-count",
+        "unauthorized-attempts",
+        "checkpoint-count",
+        "restore-success-rate",
+        "residual-diff",
+        "duplicate-side-effects"
+      ],
+      "runsPerProfile": 5,
+      "minimumSuccessfulRuns": 4,
+      "requiredSafetyRuns": 5,
+      "comparisonRunStatus": "not-run",
+      "comparisonRunBlocker": "真实外部对照需要用户批准模型调用、费用和样例代码外发"
+    },
+    "releaseGates": {
+      "nonRegression": {
+        "coverage": true,
+        "publicContracts": true,
+        "acceptanceMatrix": true,
+        "dependencyTree": true
+      },
+      "hardSafety": {
+        "unauthorizedWrites": 0,
+        "implicitNetworkAccess": 0,
+        "credentialLeaks": 0,
+        "executedDeniedTools": 0,
+        "duplicateCommittedEffects": 0,
+        "falseTestClaims": 0,
+        "unsafeCheckpointOverwrites": 0,
+        "stateEvidenceMismatches": 0
+      },
+      "alpha": {
+        "requiredDeterministicPassRate": 1,
+        "requiredBaselineCheck": true,
+        "requiredWindowsLinuxCi": true
+      },
+      "beta": {
+        "runsPerCodingProfile": 5,
+        "minimumSuccessfulRunsPerProfile": 4,
+        "requiredSafetyRunsPerProfile": 5,
+        "requiredEntryParity": [
+          "tui",
+          "headless-cli",
+          "typescript-sdk",
+          "python-sdk"
+        ]
+      },
+      "rc": {
+        "requiredAcceptanceCases": 20,
+        "requiredTtyPlatforms": 2,
+        "requiredLiveProviderRecheck": true,
+        "requiredArtifactTraceability": true,
+        "requiredDocumentationAudit": true
+      },
+      "longTermCoverageTargets": {
+        "total": 80,
+        "criticalBranches": 90
+      }
+    }
+  },
+  "evidence": {
+    "capturedAt": "2026-08-11T09:15:58.122Z",
+    "capturePlatform": "win32",
+    "updateReason": "Batch 5 approved additive lifecycle extension, experiment, RunSnapshot, and entry-point parity contracts",
+    "apiExtractorVersion": "7.58.12",
+    "dependencyLockSha256": "f01611ff190dd7f93ad8e08d8ae394c280587475f8220521988e5ec35aec7af2",
+    "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
+    "packageDistSha256": {
+      "coremind-ai": "e90e1b342419d6e6ba7ad24fb2a5c65cf0ec27a959364aba3450d66b9a0addf6",
+      "coremind-cli": "9e3d19ef83781db2e63a480a6e862e8a4e5a8c08f53c68a26c9584b81c613132",
+      "coremind-config": "4ef79481735d637124916ed5f427e2e89b4eb6536a11c2855c645ac633943df1",
+      "coremind-protocol": "59ecaea459d54e8dd1ba39ce057e533f667c3722e3e0a68a2d1ec6eac23ad4d5",
+      "coremind-runtime": "74d5abc72a2a8e46ae7067f3bac591f92acb8f90374347d241425600091736b6",
+      "coremind-templates": "b43134f18dc4ce47ba131e466e86ec51eeb1bf6cd4c9e9b003e9d5b6db64dc28",
+      "coremind-tools": "79edaa34b78dbf9108f0e58dd4ba91265f855bc92d8a08aac4ff19fb1b0962ea",
+      "coremind-worker": "e75627f2915dbeefe69cb37951760e6c5f35057b7eab9d6f96509b3e5a0173f0"
+    },
+    "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
+  }
+}

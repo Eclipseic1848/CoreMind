@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { type AgentMessage, estimateTokens } from "@earendil-works/pi-agent-core";
 
 export interface ContextProtectionOptions {
@@ -12,6 +13,30 @@ export interface ContextProtectionResult {
   beforeTokens: number;
   afterTokens: number;
   removedMessages: number;
+  strategy: "none" | "deterministic-v1";
+  reason?: "threshold";
+  summaryFingerprint?: string;
+}
+
+export interface StableContextPrefixInput {
+  projectInstructions: string;
+  tools: Array<{ name: string; description: string }>;
+  stableFacts?: Record<string, string | number | boolean>;
+  skillsContent?: string[];
+}
+
+export interface StableContextPrefix {
+  text: string;
+  fingerprint: string;
+}
+
+export interface ContextStrategyComparison {
+  selected: "deterministic-v1";
+  variants: Array<{
+    strategy: "none" | "deterministic-v1" | "deterministic-v1-more-recent";
+    tokens: number;
+    messages: number;
+  }>;
 }
 
 export interface ContextProtectionFailure {
@@ -36,6 +61,7 @@ export function protectContext(
       beforeTokens,
       afterTokens: beforeTokens,
       removedMessages: 0,
+      strategy: "none",
     };
   }
 
@@ -58,15 +84,17 @@ export function protectContext(
       beforeTokens,
       afterTokens: beforeTokens,
       removedMessages: 0,
+      strategy: "none",
     };
   }
 
   const removed = messages.slice(0, cutIndex);
   const tail = messages.slice(cutIndex);
   const maxSummaryChars = Math.max(480, options.keepRecentTokens * 2);
+  const summaryText = buildLocalSummary(removed, maxSummaryChars);
   const summary: AgentMessage = {
     role: "user",
-    content: buildLocalSummary(removed, maxSummaryChars),
+    content: summaryText,
     timestamp: Date.now(),
   };
   const protectedMessages = [summary, ...tail];
@@ -76,6 +104,64 @@ export function protectContext(
     beforeTokens,
     afterTokens: totalEstimatedTokens(protectedMessages),
     removedMessages: removed.length,
+    strategy: "deterministic-v1",
+    reason: "threshold",
+    summaryFingerprint: fingerprint(summaryText),
+  };
+}
+
+/** 固定分区和排序规则，保证同一静态输入生成逐字节一致的 Provider 前缀。 */
+export function buildStableContextPrefix(input: StableContextPrefixInput): StableContextPrefix {
+  const tools = [...input.tools]
+    .sort((left, right) => left.name.localeCompare(right.name, "en"))
+    .map((tool) => `- ${tool.name}: ${tool.description}`)
+    .join("\n");
+  const facts = Object.entries(input.stableFacts ?? {})
+    .sort(([left], [right]) => left.localeCompare(right, "en"))
+    .map(([key, value]) => `- ${key}: ${String(value)}`)
+    .join("\n");
+  const skills = (input.skillsContent ?? [])
+    .map((content, index) => `### Skill ${index + 1}\n${content}`)
+    .join("\n\n");
+  const text = [
+    "# CoreMind 稳定上下文 v1",
+    "## 核心规则\n遵循配置、权限、预算、质量门禁和可恢复运行契约；不得虚构工具结果。",
+    `## 项目指令\n${input.projectInstructions.trim()}`,
+    `## 工具契约\n${tools || "- 无"}`,
+    `## 稳定事实\n${facts || "- 无"}`,
+    `## 专业技能\n${skills || "- 无"}`,
+  ].join("\n\n");
+  return { text, fingerprint: fingerprint(text) };
+}
+
+/** 只输出离线策略对照，不改变运行时默认策略。 */
+export function compareContextStrategies(
+  messages: AgentMessage[],
+  options: ContextProtectionOptions,
+): ContextStrategyComparison {
+  const current = protectContext(messages, options);
+  const moreRecent = protectContext(messages, {
+    ...options,
+    keepRecentTokens: Math.max(
+      options.keepRecentTokens,
+      Math.floor(options.keepRecentTokens * 1.5),
+    ),
+  });
+  return {
+    selected: "deterministic-v1",
+    variants: [
+      { strategy: "none", tokens: totalEstimatedTokens(messages), messages: messages.length },
+      {
+        strategy: "deterministic-v1",
+        tokens: current.afterTokens,
+        messages: current.messages.length,
+      },
+      {
+        strategy: "deterministic-v1-more-recent",
+        tokens: moreRecent.afterTokens,
+        messages: moreRecent.messages.length,
+      },
+    ],
   };
 }
 
@@ -132,6 +218,14 @@ function buildLocalSummary(messages: AgentMessage[], maxChars: number): string {
     /(?:修改|写入|保存|创建|删除|文件|\.ts\b|\.tsx\b|\.js\b|\.py\b|\.md\b|modified|wrote|file)/i,
   );
   const tests = findAll(texts, /(?:测试|门禁|通过|失败|检查|test|pass|fail|check)/i);
+  const incompleteTasks = findAll(
+    texts,
+    /(?:未完成|待办|剩余|阻塞|暂停|继续|incomplete|todo|remaining|blocked|paused)/i,
+  );
+  const uncertainEffects = findAll(
+    texts,
+    /(?:不确定|未知|可能|需确认|副作用|uncertain|unknown|possible|side effect)/i,
+  );
   const nextStep = findLast(texts, /(?:下一步|接下来|继续|next)/i) ?? entries.at(-1)?.text;
   const sections = [
     `目标：${clip(target ?? "未记录", 120)}`,
@@ -139,6 +233,8 @@ function buildLocalSummary(messages: AgentMessage[], maxChars: number): string {
     `权限：${clip(permissions || "未记录", 100)}`,
     `已修改文件：${clip(modifiedFiles || "未记录", 120)}`,
     `测试状态：${clip(tests || "未记录", 100)}`,
+    `未完成任务：${clip(incompleteTasks || "未记录", 100)}`,
+    `不确定副作用：${clip(uncertainEffects || "未记录", 100)}`,
     `下一步：${clip(nextStep ?? "未记录", 120)}`,
   ];
   const prefix = `[CoreMind 上下文摘要：以下内容由本地确定性压缩生成]\n${sections.join("\n")}`;
@@ -147,6 +243,10 @@ function buildLocalSummary(messages: AgentMessage[], maxChars: number): string {
   return remaining > 0 && history.length > 0
     ? `${prefix}\n历史：${clip(history, remaining)}`
     : prefix;
+}
+
+function fingerprint(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
 function findFirst(texts: string[], pattern: RegExp): string | undefined {

@@ -9,7 +9,13 @@ import type {
 } from "@earendil-works/pi-agent-core";
 import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
-import { buildTools } from "coremind-tools";
+import {
+  type ArtifactRecord,
+  ArtifactStore,
+  buildTools,
+  extractArtifactRecord,
+  wrapToolWithArtifactCapture,
+} from "coremind-tools";
 import { type AgentBuildContext, buildAgent } from "./agent-factory.js";
 import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import {
@@ -22,7 +28,18 @@ import {
 import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import {
+  LifecycleExtensionHost,
+  type LifecycleExtensionPolicy,
+  type LifecycleExtensionReceipt,
+} from "./lifecycle-extension.js";
 import { LoopRunner, type LoopStepRequest } from "./loop-runner.js";
+import {
+  DurableOperation,
+  type DurableOperationSnapshot,
+  type OperationEvent,
+  restoreDurableOperation,
+} from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
@@ -45,6 +62,7 @@ import {
 } from "./run-state.js";
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { CoreMindSession } from "./session.js";
+import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 
@@ -71,6 +89,8 @@ export interface CoreMindRuntimeOptions {
   resumeRunId?: string;
   /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
   toolDefinitions?: CoreMindToolDefinition[];
+  /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
+  lifecycleExtensions?: LifecycleExtensionPolicy;
   signal?: AbortSignal;
   /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
   sessionId?: string;
@@ -82,6 +102,8 @@ export interface CoreMindRuntimeOptions {
 
 export interface RunResult {
   runId: string;
+  /** 通用 durable operation 的权威外围状态；Workflow/Loop 细节仍由各自快照负责。 */
+  operation: DurableOperationSnapshot;
   outcome: RunOutcome;
   metrics: RunMetrics;
   evaluation: EvaluationReport;
@@ -97,6 +119,12 @@ export interface RunResult {
   transcript: string;
   /** 会话文件路径（已落盘时） */
   sessionFile?: string;
+  /** 本轮产生或因敏感内容而阻断的完整输出记录。 */
+  artifacts?: ArtifactRecord[];
+  /** 四个只读生命周期事件的扩展执行收据。 */
+  extensions?: LifecycleExtensionReceipt[];
+  /** CLI、Worker、TypeScript SDK 与 Python SDK 共用的纯 JSON 权威快照。 */
+  snapshot: RunSnapshot;
 }
 
 /**
@@ -114,7 +142,10 @@ export class CoreMindRuntime {
   private readonly sessionMessages?: AgentMessage[];
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
-  private activeHarnessFactory?: (agentName: string) => AgentBuildContext["harness"];
+  private activeHarnessFactory?: (
+    agentName: string,
+    stepId?: string,
+  ) => AgentBuildContext["harness"];
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -151,7 +182,10 @@ export class CoreMindRuntime {
     const toolsByAgent = new Map<string, AgentTool[]>();
     const toolEffectsByAgent = new Map<string, Map<string, ToolEffectDeclaration>>();
     const skillsByAgent = new Map<string, string[]>();
-    const externalTools = (options.toolDefinitions ?? []).map(adaptCoreMindTool);
+    const artifactStore = new ArtifactStore({ cwd });
+    const externalTools = (options.toolDefinitions ?? []).map((definition) =>
+      wrapToolWithArtifactCapture(adaptCoreMindTool(definition), artifactStore),
+    );
     // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
@@ -160,6 +194,7 @@ export class CoreMindRuntime {
         cwd,
         configDir,
         env,
+        artifactStore,
       });
       for (const warning of warnings) {
         emit({ type: "error", message: warning, fatal: false });
@@ -233,6 +268,7 @@ export class CoreMindRuntime {
   createAgent(
     name: string,
     onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
+    stepId?: string,
   ): Agent | undefined {
     const agentCfg = this.agentConfigs.get(name);
     if (!agentCfg) return undefined;
@@ -246,7 +282,13 @@ export class CoreMindRuntime {
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       skillsContent: this.skillsByAgent.get(name),
-      harness: this.activeHarnessFactory?.(name),
+      stableFacts: {
+        provider: this.providerRuntime.model.provider,
+        model: this.providerRuntime.model.id,
+        contextWindow: this.providerRuntime.model.contextWindow,
+      },
+      promptCacheStatus: this.providerRuntime.promptCacheStatus,
+      harness: this.activeHarnessFactory?.(name, stepId),
     });
     this.lastAgents.set(name, agent);
     return agent;
@@ -309,6 +351,9 @@ export class CoreMindRuntime {
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
     const started = performance.now();
+    const lifecycleHost = this.options.lifecycleExtensions
+      ? new LifecycleExtensionHost(this.options.lifecycleExtensions)
+      : undefined;
     const runStore =
       this.options.runStore ??
       new FileRunStore(path.join(this.options.configDir, ".coremind", "runs"));
@@ -323,12 +368,35 @@ export class CoreMindRuntime {
     const runId = resumePlan?.runId ?? randomUUID();
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
+    const operation =
+      resumePlan && resumePlan.operationRecords.length > 0
+        ? restoreDurableOperation(resumePlan.operationRecords)
+        : DurableOperation.create({
+            runId,
+            operationId: randomUUID(),
+            eventId: randomUUID(),
+          });
+    const persistOperation = (event: OperationEvent): void => {
+      const transition = operation.transition(event);
+      if (transition.record) journal.operation(transition.record);
+    };
+    const initialOperationState = operation.snapshot().state;
+    if (
+      resumePlan &&
+      initialOperationState !== "accepted" &&
+      initialOperationState !== "running" &&
+      initialOperationState !== "paused"
+    ) {
+      throw new CoreMindError(
+        "operation_not_resumable",
+        `操作 ${operation.snapshot().operationId} 处于 ${initialOperationState}，不能继续执行`,
+      );
+    }
     if (resumePlan) {
       journal.resume({
         completedStepIds: [...resumePlan.completedSteps.keys()],
         resumedAt: new Date().toISOString(),
       });
-      await journal.flush();
     } else {
       await journal.start({
         configName: this.config.name,
@@ -336,8 +404,30 @@ export class CoreMindRuntime {
         configFingerprint,
         initialPrompt: this.options.initialPrompt,
         sessionId: this.options.sessionId,
+        operationId: operation.snapshot().operationId,
       });
     }
+    if (!resumePlan || resumePlan.operationRecords.length === 0) {
+      journal.operation(operation.records()[0]!);
+    }
+    if (operation.snapshot().state === "running") {
+      persistOperation({
+        eventId: randomUUID(),
+        type: "PAUSE",
+        reason: "process_interrupted",
+      });
+    }
+    if (operation.snapshot().state === "accepted") {
+      persistOperation({ eventId: randomUUID(), type: "START" });
+    } else if (operation.snapshot().state === "paused") {
+      persistOperation({ eventId: randomUUID(), type: "RESUME" });
+    } else {
+      throw new CoreMindError(
+        "operation_not_resumable",
+        `操作 ${operation.snapshot().operationId} 处于 ${operation.snapshot().state}，不能继续执行`,
+      );
+    }
+    await journal.flush();
     const trace = new TraceRecorder(
       runId,
       (entry) => {
@@ -348,6 +438,7 @@ export class CoreMindRuntime {
     );
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const userEvents = this.options.events ?? (() => {});
+    const extensionReceipts: LifecycleExtensionReceipt[] = [];
     const activeToolEffects = new Map<
       string,
       { idempotencyKey: string; tool: string; stepId?: string }
@@ -359,7 +450,9 @@ export class CoreMindRuntime {
     };
     const emit = (event: CoreMindEvent) => {
       const enriched =
-        event.type === "tool_call" && event.callId && !event.idempotencyKey
+        (event.type === "tool_call" || event.type === "tool_result") &&
+        event.callId &&
+        !event.idempotencyKey
           ? { ...event, idempotencyKey: effectIdempotencyKey(runId, event.stepId, event.callId) }
           : event;
       recordEvent(enriched);
@@ -387,6 +480,27 @@ export class CoreMindRuntime {
         });
       }
     };
+    const dispatchLifecycle = async (
+      lifecycle: Parameters<LifecycleExtensionHost["dispatch"]>[0],
+      payload: Record<string, unknown>,
+    ) => {
+      if (!lifecycleHost) return undefined;
+      const result = await lifecycleHost.dispatch(lifecycle, payload);
+      for (const receipt of result.receipts) {
+        extensionReceipts.push(receipt);
+        emit({
+          type: "extension_lifecycle",
+          extensionId: receipt.extensionId,
+          extensionVersion: receipt.extensionVersion,
+          lifecycle: receipt.event,
+          status: receipt.status,
+          durationMs: receipt.durationMs,
+          error: receipt.error,
+          denied: receipt.denied,
+        });
+      }
+      return result;
+    };
     const workflow = this.config.workflow;
     const loop = this.config.loop;
     const limits = resolveRuntimeLimits(this.config.runtime, {
@@ -401,6 +515,7 @@ export class CoreMindRuntime {
       runId: trace.runId,
     });
     let checkpointFailure: CoreMindError | undefined;
+    const artifacts: ArtifactRecord[] = [];
     const checkpointByCallId = new Map<string, string>();
     const contextWindow = this.providerRuntime.model.contextWindow;
     const contextProtector = new ContextProtector(
@@ -415,6 +530,9 @@ export class CoreMindRuntime {
           beforeTokens: result.beforeTokens,
           afterTokens: result.afterTokens,
           removedMessages: result.removedMessages,
+          strategy: "deterministic-v1",
+          reason: "threshold",
+          summaryFingerprint: result.summaryFingerprint!,
         }),
       (failure) =>
         emit({
@@ -448,9 +566,17 @@ export class CoreMindRuntime {
           decision,
         }),
     });
-    this.activeHarnessFactory = (agentName) => ({
+    this.activeHarnessFactory = (agentName, stepId) => ({
       maxRetries: loop ? 0 : limits.maxRetries,
-      transformContext: async (messages) => contextProtector.transform(messages),
+      transformContext: async (messages) => {
+        await dispatchLifecycle("before-model", {
+          runId,
+          agent: agentName,
+          stepId,
+          messageCount: messages.length,
+        });
+        return contextProtector.transform(messages);
+      },
       beforeToolCall: async (context: BeforeToolCallContext) => {
         const blockedByBudget = budget.beforeToolCall();
         if (blockedByBudget) return blockedByBudget;
@@ -469,8 +595,32 @@ export class CoreMindRuntime {
           });
           return { block: true, reason: decision.reason };
         }
+        const extensionDecision = await dispatchLifecycle("before-tool", {
+          runId,
+          agent: agentName,
+          stepId,
+          tool: context.toolCall.name,
+          callId: context.toolCall.id,
+          args: context.args,
+          approvalAllowed: true,
+        });
+        if (extensionDecision?.denied) {
+          const reason = extensionDecision.denied.reason;
+          emit({
+            type: "policy_denied",
+            agent: agentName,
+            tool: context.toolCall.name,
+            reason,
+          });
+          return { block: true, reason };
+        }
         try {
-          const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args);
+          const idempotencyKey = effectIdempotencyKey(runId, stepId, context.toolCall.id);
+          const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args, {
+            operationId: operation.snapshot().operationId,
+            toolCallId: context.toolCall.id,
+            idempotencyKey,
+          });
           if (checkpoint) {
             checkpointByCallId.set(context.toolCall.id, checkpoint.checkpointId);
             journal.checkpoint(checkpoint);
@@ -478,6 +628,8 @@ export class CoreMindRuntime {
               type: "checkpoint_created",
               checkpointId: checkpoint.checkpointId,
               tool: checkpoint.tool,
+              callId: context.toolCall.id,
+              idempotencyKey,
               targetPath: checkpoint.targetPath,
               reversible: checkpoint.reversible,
             });
@@ -496,6 +648,22 @@ export class CoreMindRuntime {
         return undefined;
       },
       afterToolCall: async (context: AfterToolCallContext) => {
+        const artifact = extractArtifactRecord(context.result.details);
+        if (artifact) {
+          artifacts.push(artifact);
+          emit({
+            type: "artifact_created",
+            artifactId: artifact.artifactId,
+            status: artifact.status,
+            sizeBytes: artifact.sizeBytes,
+            relativePath: artifact.relativePath,
+            sha256: artifact.sha256,
+            mediaType: artifact.mediaType,
+            redaction: artifact.redaction,
+            tool: context.toolCall.name,
+            callId: context.toolCall.id,
+          });
+        }
         const checkpointId = checkpointByCallId.get(context.toolCall.id);
         checkpointByCallId.delete(context.toolCall.id);
         if (checkpointId) {
@@ -513,6 +681,16 @@ export class CoreMindRuntime {
           }
         }
         const budgetResult = budget.afterToolCall(context.isError);
+        await dispatchLifecycle("after-tool", {
+          runId,
+          agent: agentName,
+          stepId,
+          tool: context.toolCall.name,
+          callId: context.toolCall.id,
+          isError: context.isError,
+          checkpointId,
+          artifactId: artifact?.artifactId,
+        });
         return checkpointFailure ? { terminate: true } : budgetResult;
       },
       onAgentEvent: (event, agent) => {
@@ -576,8 +754,10 @@ export class CoreMindRuntime {
           if (workflow && workflow.length > 0) {
             const orchestrator = new Orchestrator(workflow, {
               createAgent: (name, stepId) =>
-                this.createAgent(name, (event) =>
-                  emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
+                this.createAgent(
+                  name,
+                  (event) => emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
+                  stepId,
                 ),
               events: emit,
               initialPrompt: effectiveInitialPrompt,
@@ -670,7 +850,46 @@ export class CoreMindRuntime {
       );
     }
     if (outcome.status === "paused") {
+      persistOperation({
+        eventId: randomUUID(),
+        type: "PAUSE",
+        reason: outcome.finishReason,
+      });
+    } else {
+      if (outcome.status === "aborted") {
+        persistOperation({
+          eventId: randomUUID(),
+          type: "REQUEST_ABORT",
+          reason: outcome.finishReason,
+        });
+        persistOperation({
+          eventId: randomUUID(),
+          type: "FAIL",
+          reason: outcome.finishReason,
+        });
+      } else if (outcome.status === "succeeded") {
+        persistOperation({ eventId: randomUUID(), type: "COMPLETE" });
+      } else {
+        persistOperation({
+          eventId: randomUUID(),
+          type: "FAIL",
+          reason: outcome.finishReason,
+        });
+      }
+    }
+    await dispatchLifecycle("run-finished", {
+      runId,
+      operation: operation.snapshot(),
+      outcome,
+      metrics,
+      evaluation,
+      releaseReadiness,
+      checkpointCount: checkpointManager.records.length,
+      artifactCount: artifacts.length,
+    });
+    if (outcome.status === "paused") {
       journal.pause({
+        operation: operation.snapshot(),
         outcome,
         metrics,
         evaluation,
@@ -678,11 +897,30 @@ export class CoreMindRuntime {
         ...(loopSnapshot ? { loopSnapshot } : {}),
       });
     } else {
-      journal.finish({ outcome, metrics, evaluation, releaseReadiness });
+      journal.finish({
+        operation: operation.snapshot(),
+        outcome,
+        metrics,
+        evaluation,
+        releaseReadiness,
+      });
     }
     await journal.flush();
+    const snapshot = createRunSnapshot({
+      runId: trace.runId,
+      operation: operation.snapshot(),
+      outcome,
+      metrics,
+      evaluation,
+      releaseReadiness,
+      trace: trace.entries,
+      checkpoints: checkpointManager.records,
+      artifacts,
+      extensions: extensionReceipts,
+    });
     return {
       runId: trace.runId,
+      operation: operation.snapshot(),
       outcome,
       metrics,
       evaluation,
@@ -694,6 +932,9 @@ export class CoreMindRuntime {
       messages: this.collectMessages(),
       transcript,
       sessionFile,
+      artifacts,
+      extensions: extensionReceipts,
+      snapshot,
     };
   }
 
@@ -750,8 +991,10 @@ export class CoreMindRuntime {
     collected: CoreMindEvent[],
   ): Promise<string> {
     const eventCursor = collected.length;
-    const agent = this.createAgent(request.agent, (event) =>
-      emit({ ...event, stepId: request.stepId } as CoreMindEvent),
+    const agent = this.createAgent(
+      request.agent,
+      (event) => emit({ ...event, stepId: request.stepId } as CoreMindEvent),
+      request.stepId,
     );
     if (!agent) {
       throw new CoreMindError(

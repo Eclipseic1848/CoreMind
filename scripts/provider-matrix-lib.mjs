@@ -3,7 +3,9 @@ const REQUIRED_CERTIFICATION_CHECKS = [
   "tool-call",
   "structured-result",
   "multi-turn",
+  "abort",
   "error",
+  "long-context",
 ];
 
 /** 用运行时目录和人工证据台账生成认证矩阵，未提供完整证据时绝不自动认证。 */
@@ -14,16 +16,19 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
     .map((provider) => {
       const certification = certificationById.get(provider.id);
       const certified = certification ? hasCompleteEvidence(certification) : false;
-      if (certification && !certified) {
-        throw new Error(`Provider ${provider.id} 的认证证据不完整`);
-      }
+      const missingChecks = certification ? missingCertificationChecks(certification) : [];
       return {
         ...provider,
         status: certified ? "certified" : "inherited-unverified",
-        testedVersion: certification?.version,
-        testedAt: certification?.testedAt,
-        testedModel: certification?.model,
-        evidence: certification?.evidence,
+        ...(certified
+          ? {
+              testedVersion: certification.version,
+              testedAt: certification.testedAt,
+              testedModel: certification.model,
+              evidence: certification.evidence,
+            }
+          : {}),
+        ...(certification && missingChecks.length > 0 ? { certificationGap: missingChecks } : {}),
       };
     });
 
@@ -54,6 +59,15 @@ function hasCompleteEvidence(certification) {
   ) {
     return false;
   }
+  return missingCertificationChecks(certification).length === 0;
+}
+
+function missingCertificationChecks(certification) {
   const checks = new Set(certification.checks ?? []);
-  return REQUIRED_CERTIFICATION_CHECKS.every((check) => checks.has(check));
+  const missing = REQUIRED_CERTIFICATION_CHECKS.filter((check) => !checks.has(check));
+  if (!certification.version) missing.push("version");
+  if (!certification.testedAt) missing.push("testedAt");
+  if (!certification.model) missing.push("model");
+  if (!certification.evidence) missing.push("evidence");
+  return missing;
 }

@@ -49,7 +49,7 @@ export function createHostBashTool(options: HostBashOptions): AgentTool {
     exposeSessionEnvironment: false,
   });
   tool.executionMode = "sequential";
-  return tool as unknown as AgentTool;
+  return tool;
 }
 
 /** 优先寻找 Git 安装目录内的真实 Bash，明确排除 WSL/应用商店中继。 */

@@ -55,6 +55,29 @@ scenarios:
 
 七类 grader 分别验证终态、工具轨迹、命令、文件、Git 差异、运行状态和最终回答。评测前会记录文件与脏工作区基线；评测命令不通过 Shell 拼接，路径不得逃逸工作区。
 
+## 轻量实验
+
+```ts
+const experiment = defineExperiment({
+  id: "context-strategy",
+  version: "1",
+  seed: "team-approved-seed",
+  arms: [
+    { id: "baseline", weight: 1 },
+    { id: "candidate", weight: 1, config: { compact: true } },
+  ],
+});
+
+const record = await runExperiment({
+  definition: experiment,
+  inputFingerprint: "sha256:fixture-a",
+  environment,
+  run: async (arm) => executeAndGrade(arm),
+});
+```
+
+`ExperimentRecord` 保存分配哈希、arm、环境、运行终态、指标、完整 Trace 和 grader。真实输入应先生成不可逆指纹；不要把敏感原文写入实验台账。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。
@@ -62,6 +85,7 @@ scenarios:
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
 5. 对代码修改同时检查目标测试、完整回归、允许文件列表和既有脏文件指纹。
+6. 对实验重复运行同一固定任务集，比较成功率、工具失败、审批、成本与恢复证据，不能追着结果修改权重或门槛。
 
 ## 常见误区
 

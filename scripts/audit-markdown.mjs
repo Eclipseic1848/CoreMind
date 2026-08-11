@@ -16,5 +16,7 @@ if (report.blockers.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log(`Markdown 审计通过：${report.files} 个文件，严格 UTF-8、本地链接与标识边界均有效。`);
+  console.log(
+    `Markdown 审计通过：${report.files} 个文件，严格 UTF-8、本地链接、标识边界与中英文段落边界均有效。`,
+  );
 }

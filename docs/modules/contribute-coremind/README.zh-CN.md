@@ -1,10 +1,10 @@
 # 源码与社区贡献
 
-状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
-在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码，并用可重复门禁证明同一提交的源码、npm 包、Python wheel、独立源码 ZIP 与文档站一致。
+在公开合同冻结、单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码，并用可重复门禁证明同一提交的源码、npm 包、Python wheel、独立源码 ZIP 与文档站一致。
 
 ## 公共接口
 
@@ -16,6 +16,8 @@
 - `npm run docs:audit`
 - `npm run test:stability`
 - `npm run test:coverage`
+- `npm run baseline:check`
+- `npm run baseline:update -- --reason "已批准的变更原因"`
 - `npm run release:check-npm`
 - `npm run release:test-npm`
 - `npm run release:test-source`
@@ -31,6 +33,8 @@
 - 依赖方向必须保持 config → tools → templates → runtime → facade/CLI/worker
 - 不得未经授权 push、tag 或发布
 - 不相关用户修改必须保留
+- 冻结基线只允许在已批准的合同变更下用明确原因更新；不得为了让失败结果变绿而降低门槛
+- 当前开发提交、采集时间、平台和构建哈希属于追溯证据；Release Tag 指向、Release Manifest 摘要、公开 API、Schema、依赖组合、验收矩阵和质量下限属于阻断合同
 - `.scratch` 只保存忽略的本地验收证据与隔离工具环境，不进入 Git、静态检查或发布物
 - 供应商可发现不等于已认证，正式发布必须有真实证据
 - 单次测试通过不能替代 Windows/Linux 三连跑；覆盖率低于目标时必须记录两平台真实基线且只允许上升，通用回退取两平台逐项最小值
@@ -72,6 +76,13 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [scripts/test-stability.mjs](../../../scripts/test-stability.mjs)
 - [scripts/check-coverage.mjs](../../../scripts/check-coverage.mjs)
 - [scripts/coverage-baseline.json](../../../scripts/coverage-baseline.json)
+- [scripts/phase2-baseline.mjs](../../../scripts/phase2-baseline.mjs)
+- [冻结基线](../../../baselines/0.2.0-rc.1/baseline.json)
+- [平台行为矩阵](../../../baselines/0.2.0-rc.1/behavior-matrix.json)
+- [同题编码评测合同](../../../baselines/0.2.0-rc.1/coding-benchmark.json)
+- [双平台人工证据摘要](../../../baselines/0.2.0-rc.1/platform-acceptance.json)
+- [阶段门槛](../../../baselines/0.2.0-rc.1/release-gates.json)
+- [公开发布物清单](../../../baselines/0.2.0-rc.1/release-manifest.json)
 - [scripts/release-version.mjs](../../../scripts/release-version.mjs)
 - [scripts/release-artifacts.mjs](../../../scripts/release-artifacts.mjs)
 - [scripts/publish-npm-artifacts.mjs](../../../scripts/publish-npm-artifacts.mjs)
@@ -84,6 +95,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [scripts/release-preflight.test.ts](../../../scripts/release-preflight.test.ts)
 - [scripts/package-artifacts.test.ts](../../../scripts/package-artifacts.test.ts)
 - [scripts/coverage-baseline.test.ts](../../../scripts/coverage-baseline.test.ts)
+- [scripts/phase2-baseline.test.ts](../../../scripts/phase2-baseline.test.ts)
 - [scripts/workflow-contract.test.ts](../../../scripts/workflow-contract.test.ts)
 - [scripts/source-archive.test.ts](../../../scripts/source-archive.test.ts)
 - [scripts/release-version.test.ts](../../../scripts/release-version.test.ts)

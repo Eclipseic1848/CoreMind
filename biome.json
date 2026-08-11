@@ -9,6 +9,9 @@
       "!docs/.vitepress/.temp",
       "!docs/.vitepress/cache",
       "!docs/.vitepress/dist",
+      "!baselines/**/public-api",
+      "!智能体开发SOP.html",
+      "!CoreMind使用手册.html",
       "!**/*.json",
       "!python/build",
       "!python/src/coremind/_worker/*.mjs"

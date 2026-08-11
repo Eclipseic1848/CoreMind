@@ -1,0 +1,4 @@
+interface:
+  display_name: "Context and Artifact Governance"
+  short_description: "Keep long tasks bounded, auditable, and secret-safe"
+  default_prompt: "Use $manage-context-artifacts to implement or verify this context or artifact change with stable fingerprints, bounded previews, and secret-blocking evidence."

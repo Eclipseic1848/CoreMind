@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adapt Runtime Dependencies"
+  short_description: "Align and verify CoreMind runtime adapters"
+  default_prompt: "Use $adapt-runtime-dependencies to align, verify, or roll back CoreMind runtime dependencies safely."

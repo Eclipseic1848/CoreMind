@@ -5,6 +5,31 @@ import { describe, expect, it } from "vitest";
 import { CheckpointManager, inspectCheckpoint, restoreCheckpoint } from "./checkpoint.js";
 
 describe("CheckpointManager", () => {
+  it("将 operation、工具调用与副作用幂等键写入同一检查点记录", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-correlation-"));
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-correlation",
+    });
+    const record = await manager.capture(
+      "write",
+      { path: "linked.txt" },
+      {
+        operationId: "operation-correlation",
+        toolCallId: "call-correlation",
+        idempotencyKey: "run-correlation:call-correlation",
+      },
+    );
+
+    expect(record).toMatchObject({
+      runId: "run-correlation",
+      operationId: "operation-correlation",
+      toolCallId: "call-correlation",
+      idempotencyKey: "run-correlation:call-correlation",
+    });
+  });
+
   it("修改既有文件前保存快照，可查看 diff 并恢复", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-"));
     const file = path.join(cwd, "notes.txt");

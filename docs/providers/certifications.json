@@ -1,12 +1,14 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-08-10",
+  "schemaVersion": 2,
+  "updatedAt": "2026-08-11",
   "criteria": [
     "streaming",
     "tool-call",
     "structured-result",
     "multi-turn",
-    "error"
+    "abort",
+    "error",
+    "long-context"
   ],
   "certifications": [
     {

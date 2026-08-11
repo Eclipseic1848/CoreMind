@@ -65,6 +65,50 @@ describe("全仓 Markdown 审计", () => {
     expect(codes).toContain("invalid-utf8");
   });
 
+  it("阻止同一描述段落在中文句子后继续附加英文句子", async () => {
+    const root = await createRoot();
+    await writeFile(
+      path.join(root, "mixed.md"),
+      [
+        "# 混排示例",
+        "",
+        "运行结果使用统一终态。Run results use the same terminal states.",
+        "",
+        "SDK、CLI 和 JSONL 使用同一快照。",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const report = await auditMarkdownTree(root);
+
+    expect(report.blockers).toContainEqual(
+      expect.objectContaining({
+        code: "mixed-language-paragraph",
+        file: "mixed.md",
+        line: 3,
+      }),
+    );
+  });
+
+  it("允许中英文独立成段并保留常见英文技术名词", async () => {
+    const root = await createRoot();
+    await writeFile(
+      path.join(root, "separated.md"),
+      [
+        "# CoreMind SDK",
+        "",
+        "CLI、SDK 和 JSONL 使用同一份 RunSnapshot。",
+        "",
+        "The CLI, SDK, and JSONL outputs use the same RunSnapshot.",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const report = await auditMarkdownTree(root);
+
+    expect(report.blockers).toEqual([]);
+  });
+
   it("跳过依赖、构建与覆盖率目录", async () => {
     const root = await createRoot();
     for (const directory of ["node_modules", "dist", "coverage", ".git", ".scratch"]) {

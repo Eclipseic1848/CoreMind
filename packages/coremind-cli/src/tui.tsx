@@ -118,6 +118,16 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
       return;
     }
+    if (trimmed === "/artifacts") {
+      const text = formatArtifacts(lastRun);
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
+    if (trimmed === "/context") {
+      const text = formatContext(lastRun);
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
     if (trimmed === "/checkpoints") {
       const checkpoints = session.listCheckpoints();
       const text =
@@ -234,7 +244,8 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         {showHelp && (
           <Box marginY={1}>
             <Text color="yellow">
-              /status 状态 · /checkpoints 列表 · /diff ID · /restore ID · /exit · /abort
+              /status 状态 · /artifacts 产物 · /context 上下文 · /checkpoints 列表 · /diff ID ·
+              /restore ID · /exit · /abort
             </Text>
           </Box>
         )}
@@ -320,10 +331,35 @@ export function runChatTUI(
   });
 }
 
-function formatRunStatus(run: RunResult): string {
+export function formatRunStatus(run: RunResult): string {
   const metrics = run.metrics;
   const tokens = metrics.tokens === undefined ? "token 未提供" : `${metrics.tokens} tokens`;
-  return `${run.outcome.status} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · 评测场景 ${run.evaluation.scenarioResults.length}`;
+  const artifacts = metrics.artifacts ?? { stored: 0, blocked: 0, totalBytes: 0 };
+  const context = metrics.context;
+  const recovery = run.snapshot.resumable ? "可恢复" : "不可恢复";
+  const evaluation = run.releaseReadiness.ready
+    ? `评测 ${run.evaluation.scenarioResults.length} · 可发布`
+    : `评测 ${run.evaluation.scenarioResults.length} · 阻断 ${run.releaseReadiness.blockers.length}`;
+  return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0} · ${evaluation}`;
+}
+
+function formatArtifacts(run: RunResult | undefined): string {
+  if (!run) return "尚未完成任何运行。";
+  const artifacts = run.snapshot.artifacts;
+  if (artifacts.length === 0) return "本轮没有 Artifact。";
+  return artifacts
+    .map((artifact) => {
+      const location = artifact.relativePath ?? "未保存";
+      return `${artifact.artifactId} · ${artifact.status} · ${artifact.sizeBytes} bytes · ${location}`;
+    })
+    .join("\n");
+}
+
+function formatContext(run: RunResult | undefined): string {
+  if (!run) return "尚未完成任何运行。";
+  const context = run.snapshot.metrics.context;
+  if (!context) return "Provider 未提供上下文用量。";
+  return `上下文输入 ${context.inputTokens} · 输出 ${context.outputTokens} · cache ${context.promptCacheStatus}（读 ${context.cacheReadTokens} / 写 ${context.cacheWriteTokens}）· 压缩 ${context.compactions} · 稳定前缀 ${context.stablePrefixFingerprints.length}`;
 }
 
 function formatOutcomeDiagnostic(run: RunResult): string {

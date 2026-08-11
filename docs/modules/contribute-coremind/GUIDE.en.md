@@ -2,12 +2,13 @@
 
 ## When to use it
 
-Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary.
+Change CoreMind source within its frozen public contracts, one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary.
 
 ## Minimal example
 
 ```text
 npm run build
+npm run baseline:check
 npm run check
 npm run test:stability
 npm run test:coverage
@@ -29,6 +30,13 @@ npm run release:preflight -- --allow-dirty
 8. External Actions accept verified full SHAs only. Dependabot upgrade PRs rerun the same gates, and every artifact consumer independently verifies SHA-256.
 9. Before release, verify npm, Python build, and upload tools remain available and not yanked on their official registries. After a tool-version change, rerun workflow contracts, the wheel gate, and the complete artifact gates.
 
+## Using the frozen baseline
+
+- `baseline:check` regenerates public type summaries for all eight packages from production build output and checks Config/Protocol schemas, the critical dependency combination, P01-P20, both-platform behavior, the same-task coding benchmark contract, and coverage floors.
+- The current development commit, capture time, platform, and build hashes are trace metadata and do not cause false positives. The Release Tag target and Release Manifest digest are blocking contracts. Coverage may improve but may not regress.
+- `baseline:update` is not a shortcut around failure. Use it with an explicit reason only after an approved contract change has documented migration, compatibility, and rollback.
+- Live external coding comparisons remain `not-run`. Model cost, privacy, and sample-code egress require separate authorization.
+
 ## Common mistakes
 
 - Do not let the model invent business rules for the owner.
@@ -37,3 +45,4 @@ npm run release:preflight -- --allow-dirty
 - Do not describe inherited providers as genuinely certified.
 - Do not claim target coverage is already met. The current gate preserves the measured baseline, blocks decreases, and reports the remaining 80%/90% gaps.
 - Do not treat a Release Please PR, historical provider evidence, or one platform's TTY as a completed release.
+- Do not rewrite the baseline to hide a public-interface, dependency, or behavior regression.

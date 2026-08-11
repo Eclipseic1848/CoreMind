@@ -307,14 +307,24 @@ describe("coremind CLI 端到端", () => {
     const lines = stdout
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line) as { type?: string; outcome?: { status?: string } });
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            type?: string;
+            runId?: string;
+            outcome?: { status?: string };
+            snapshot?: { schemaVersion?: number; runId?: string; outcome?: { status?: string } };
+          },
+      );
 
     expect(code).toBe(0);
     expect(stderr).toBe("");
     expect(lines.at(-1)).toMatchObject({
       type: "run_result",
       outcome: { status: "succeeded" },
+      snapshot: { schemaVersion: 1, outcome: { status: "succeeded" } },
     });
+    expect(lines.at(-1)?.snapshot?.runId).toBe(lines.at(-1)?.runId);
   });
 
   it("run --json-events 输出 Loop 状态序列并以复验成功结束", () => {

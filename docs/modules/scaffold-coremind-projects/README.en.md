@@ -1,6 +1,6 @@
 # Templates and Project Guidance
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

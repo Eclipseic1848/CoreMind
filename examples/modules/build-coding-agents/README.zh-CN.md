@@ -1,6 +1,6 @@
 # 编码智能体模块示例
 
-本模块提供两个会被复制到临时 Git 仓库运行的真实缺陷样例：
+本模块提供两个会被复制到临时 Git 仓库运行的真实单文件缺陷样例，并在同一门禁中执行 Engineering Kernel 跨文件场景：
 
 - [TypeScript 折扣计算缺陷](../../coding-evals/typescript-defect)
 - [Python 税费计算缺陷](../../coding-evals/python-defect)
@@ -12,7 +12,7 @@ npm run build
 npm run test:coding-evals
 ```
 
-预期：两个样例全部通过；每个样例先观察一次目标测试失败，再完成一次最小修改，最终目标测试和完整回归测试均通过。`user-notes.txt` 与配置/环境示例保持原样。
+预期：6 个 Case 全部通过。两个真实缺陷样例先观察目标测试失败，再完成最小修改并通过目标与完整回归测试；TypeScript/Python 各自还验证跨文件修复、写前 checkpoint、Diff、Restore、错误命令、审批拒绝和中止。`user-notes.txt` 与配置/环境示例保持原样。
 
 ## 真实模型验证
 

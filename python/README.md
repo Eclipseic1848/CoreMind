@@ -10,6 +10,10 @@ The Python SDK talks to the same Node runtime over local stdio JSON-RPC; it does
 
 Both clients expose `resume_run(run_id, input=None)`. It resumes only paused or interrupted runs that pass the shared runtime checks, including configuration fingerprints and effect reconciliation. Explicit Loop state order and terminal results match the TypeScript SDK.
 
+每次 `run`、`chat` 和 `resume_run` 都返回 `snapshot`：它是与 CLI JSONL、TypeScript SDK 相同的纯 JSON 权威快照。SDK 会校验 schemaVersion、runId 和 outcome；不一致时返回 `invalid_run_snapshot`，而不是接受错误状态。
+
+Every `run`, `chat`, and `resume_run` response includes the same pure-JSON `snapshot` used by CLI JSONL and the TypeScript SDK. The client rejects schemaVersion, runId, or outcome mismatches with `invalid_run_snapshot`.
+
 编码智能体使用同一 Node Runtime 的工具、Checkpoint、Trace 和终态。Python 项目可通过共享评测入口验证目标测试、回归测试、文件和差异；SDK 不在 Python 内重写另一套进程或 Git 执行语义。
 
 Coding agents use the same Node runtime tools, checkpoints, traces, and terminal results. Python projects can validate target tests, regression tests, files, and diffs through the shared evaluation path; the SDK does not reimplement process or Git semantics in Python.

@@ -7,9 +7,17 @@ export function assertCertificationSucceeded(result, label) {
   throw new Error(`${label}失败：${details}`);
 }
 
-const REQUIRED_DETAIL_KEYS = ["streaming", "toolCall", "structuredResult", "multiTurn", "error"];
+const REQUIRED_DETAIL_KEYS = [
+  "streaming",
+  "toolCall",
+  "structuredResult",
+  "multiTurn",
+  "abort",
+  "error",
+  "longContext",
+];
 
-/** 只在五项真实检查完整通过后生成可提交的认证证据。 */
+/** 只在七项真实检查完整通过后生成可提交的认证证据。 */
 export function createCertificationEvidence({
   provider,
   model,
@@ -32,14 +40,22 @@ export function createCertificationEvidence({
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     provider,
     model,
     version,
     testedAt,
     platform,
     node,
-    checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
+    checks: [
+      "streaming",
+      "tool-call",
+      "structured-result",
+      "multi-turn",
+      "abort",
+      "error",
+      "long-context",
+    ],
     details,
     dataPolicy: "synthetic-only",
     secretsRecorded: false,

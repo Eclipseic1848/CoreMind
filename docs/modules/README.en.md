@@ -2,10 +2,16 @@
 
 Every module includes implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and a machine-checkable manifest.
 
+[Open the complete SOP/Skill index](SOP-SKILL-INDEX.en.md)
+
 - [Configuration and Schema](configure-coremind/README.en.md)
 - [Providers and Models](manage-providers/README.en.md)
+- [Runtime Dependency Adapters](adapt-runtime-dependencies/README.en.md)
+- [Durable Runs and Recovery](recover-durable-runs/README.en.md)
+- [Context and Artifact Governance](manage-context-artifacts/README.en.md)
 - [Agent Construction](design-agents/README.en.md)
 - [Coding Agents](build-coding-agents/README.en.md)
+- [Runtime Lifecycle Extensions](extend-runtime-lifecycle/README.en.md)
 - [Tools and Business Capabilities](build-tools/README.en.md)
 - [Skill and SOP Loading](package-agent-skills/README.en.md)
 - [Workflows and Bounded Loops](design-workflows/README.en.md)

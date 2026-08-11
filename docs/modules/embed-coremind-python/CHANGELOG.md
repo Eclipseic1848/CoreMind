@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-08-11
+
+- Synchronized this module contract with the repository release candidate.
+- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+
+## 0.3.0-beta.2 - 2026-08-11
+
+- Added strict validation for the shared pure-JSON `RunSnapshot` and stable `invalid_run_snapshot` errors.
+- Verified snapshot and terminal parity against TypeScript while retaining the bundled Node Worker architecture.
+
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Python custom tools now send mandatory structured effect declarations through the protocol.

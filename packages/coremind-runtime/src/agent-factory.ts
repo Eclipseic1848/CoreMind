@@ -10,6 +10,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import type { Model, Models } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
+import { buildStableContextPrefix } from "./context.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
 
 export interface AgentBuildContext {
@@ -27,6 +28,10 @@ export interface AgentBuildContext {
   apiKeyOverride?: string;
   /** 注入的专业技能内容（skills/<id>/README.md，附加到系统提示词） */
   skillsContent?: string[];
+  /** 不含凭据且在一轮 Run 内不变的事实。 */
+  stableFacts?: Record<string, string | number | boolean>;
+  /** Provider 目录是否明确声明缓存计费能力。 */
+  promptCacheStatus?: "available" | "unavailable";
   /** CoreMind Harness 钩子；由每次 Run 注入，不写入用户配置。 */
   harness?: {
     maxRetries?: number;
@@ -49,14 +54,20 @@ export interface AgentBuildContext {
  */
 export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent {
   const { temperature, maxTokens } = agentCfg.options ?? {};
-  // 技能注入：专业技能段附加到系统提示词（技能提上限）
-  const skillsBlock =
-    ctx.skillsContent && ctx.skillsContent.length > 0
-      ? `\n\n# 专业技能\n${ctx.skillsContent.join("\n\n---\n\n")}`
-      : "";
+  const stablePrefix = buildStableContextPrefix({
+    projectInstructions: agentCfg.systemPrompt ?? "",
+    tools: ctx.tools.map((tool) => ({ name: tool.name, description: tool.description })),
+    stableFacts: ctx.stableFacts,
+    skillsContent: ctx.skillsContent,
+  });
+  ctx.onEvent({
+    type: "context_prefix",
+    agent: ctx.agentName,
+    fingerprint: stablePrefix.fingerprint,
+  });
   const agent = new Agent({
     initialState: {
-      systemPrompt: `${agentCfg.systemPrompt}${skillsBlock}`,
+      systemPrompt: stablePrefix.text,
       model: ctx.model,
       tools: ctx.tools,
       messages: ctx.sessionMessages ?? [],
@@ -81,7 +92,13 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
   agent.subscribe((event) => {
     ctx.harness?.onAgentEvent?.(event, agent);
     const coreEvent = normalizeEvent(event);
-    if (coreEvent) ctx.onEvent({ ...coreEvent, agent: ctx.agentName } as CoreMindEvent);
+    if (coreEvent) {
+      const enriched =
+        coreEvent.type === "turn_end" && ctx.promptCacheStatus
+          ? { ...coreEvent, promptCacheStatus: ctx.promptCacheStatus }
+          : coreEvent;
+      ctx.onEvent({ ...enriched, agent: ctx.agentName } as CoreMindEvent);
+    }
   });
 
   return agent;

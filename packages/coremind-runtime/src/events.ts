@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
+import type { LifecycleEventType, LifecycleExtensionReceiptStatus } from "./lifecycle-extension.js";
 import type { LoopPhase } from "./loop-controller.js";
 import type { ToolEffect } from "./tool-policy.js";
 
@@ -15,6 +16,11 @@ export type CoreMindEvent =
       agent: string;
       stepId?: string;
       tokens?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      cacheReadTokens?: number;
+      cacheWriteTokens?: number;
+      promptCacheStatus?: "available" | "unavailable";
       costUsd?: number;
       requestsAnotherTurn?: boolean;
     }
@@ -34,6 +40,7 @@ export type CoreMindEvent =
       tool: string;
       isError: boolean;
       callId?: string;
+      idempotencyKey?: string;
       stepId?: string;
     }
   | {
@@ -92,6 +99,9 @@ export type CoreMindEvent =
       beforeTokens: number;
       afterTokens: number;
       removedMessages: number;
+      strategy: "deterministic-v1";
+      reason: "threshold";
+      summaryFingerprint: string;
     }
   | {
       type: "context_compaction_failed";
@@ -99,9 +109,38 @@ export type CoreMindEvent =
       preservedMessages: number;
     }
   | {
+      type: "context_prefix";
+      agent: string;
+      fingerprint: string;
+    }
+  | {
+      type: "artifact_created";
+      artifactId: string;
+      status: "stored" | "blocked";
+      sizeBytes: number;
+      relativePath?: string;
+      sha256?: string;
+      mediaType: string;
+      redaction: "none" | "blocked-secret";
+      tool: string;
+      callId?: string;
+    }
+  | {
+      type: "extension_lifecycle";
+      extensionId: string;
+      extensionVersion: string;
+      lifecycle: LifecycleEventType;
+      status: LifecycleExtensionReceiptStatus;
+      durationMs: number;
+      error?: string;
+      denied?: boolean;
+    }
+  | {
       type: "checkpoint_created";
       checkpointId: string;
       tool: string;
+      callId?: string;
+      idempotencyKey?: string;
       targetPath?: string;
       reversible: boolean;
     }
@@ -124,7 +163,16 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
       return {
         type: "turn_end",
         agent: "",
-        ...(usage ? { tokens: usage.totalTokens, costUsd: usage.cost.total } : {}),
+        ...(usage
+          ? {
+              tokens: usage.totalTokens,
+              inputTokens: usage.input,
+              outputTokens: usage.output,
+              cacheReadTokens: usage.cacheRead,
+              cacheWriteTokens: usage.cacheWrite,
+              costUsd: usage.cost.total,
+            }
+          : {}),
         requestsAnotherTurn:
           message.role === "assistant" && message.content.some((item) => item.type === "toolCall"),
       };

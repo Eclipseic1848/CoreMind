@@ -27,7 +27,15 @@ describe("Provider 认证矩阵", () => {
           testedAt: "2026-08-08",
           model: "a1",
           evidence: "artifacts/providers/alpha.json",
-          checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
+          checks: [
+            "streaming",
+            "tool-call",
+            "structured-result",
+            "multi-turn",
+            "abort",
+            "error",
+            "long-context",
+          ],
         },
       ],
       generatedAt: "2026-08-08",
@@ -38,21 +46,25 @@ describe("Provider 认证矩阵", () => {
     expect(matrix.summary.certified).toBe(1);
   });
 
-  it("缺少 CoreMind 版本的证据台账不能标记认证", () => {
-    expect(() =>
-      buildProviderMatrix({
-        providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],
-        certifications: [
-          {
-            id: "alpha",
-            testedAt: "2026-08-08",
-            model: "a1",
-            evidence: "artifacts/providers/alpha.json",
-            checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
-          },
-        ],
-        generatedAt: "2026-08-08",
-      }),
-    ).toThrow("认证证据不完整");
+  it("旧版或缺字段证据保留缺口，但只能标记为可配置未认证", () => {
+    const matrix = buildProviderMatrix({
+      providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],
+      certifications: [
+        {
+          id: "alpha",
+          testedAt: "2026-08-08",
+          model: "a1",
+          evidence: "artifacts/providers/alpha.json",
+          checks: ["streaming", "tool-call", "structured-result", "multi-turn", "error"],
+        },
+      ],
+      generatedAt: "2026-08-08",
+    });
+
+    expect(matrix.providers[0]).toMatchObject({
+      status: "inherited-unverified",
+      certificationGap: expect.arrayContaining(["abort", "long-context", "version"]),
+    });
+    expect(matrix.summary.certified).toBe(0);
   });
 });

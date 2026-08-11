@@ -1,0 +1,4 @@
+interface:
+  display_name: "Durable Run Recovery"
+  short_description: "Verify safe run, Session, and effect recovery"
+  default_prompt: "Use $recover-durable-runs to diagnose or implement this recovery change with fault-injection evidence and no uncertain effect replay."

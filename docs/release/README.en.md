@@ -2,7 +2,7 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site from one commit and at one stability level.
 
-[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md)
+[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 
 ## Principles
 
@@ -20,10 +20,10 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `0.2.0-rc.1`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0-rc.1`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 0.2.0-rc.1
+npm run release:sync-version -- 0.3.0-rc.1
 npm run release:preflight -- --allow-dirty
 ```
 

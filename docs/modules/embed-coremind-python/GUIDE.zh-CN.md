@@ -15,6 +15,7 @@ with CoreMindClient(config_path='coremind.yaml') as client:
     def lookup_order(order_id: str) -> dict[str, str]:
         return {'id': order_id, 'status': 'paid'}
     result = client.run('查询 A-100')
+    print(result['snapshot']['operation'], result['snapshot']['artifacts'])
     if result['outcome']['status'] != 'succeeded':
         raise RuntimeError(result['outcome']['finishReason'])
 ```
@@ -32,6 +33,7 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 5. 验证 Python 与 TypeScript 对六种终态、工具副作用和审批事件的字段完全一致。
 6. 注入一次注册失败，确认 `client.pid` 被清空且临时目录可以删除。
 7. 使用显式 Loop 时对比 Python 与 TypeScript 的 `loop_state` 顺序；暂停后调用 `resume_run`，确认 committed 副作用未重复。
+8. 校验 `result['snapshot']` 与顶层 runId、outcome、operation、metrics、trace 一致；收到 `invalid_run_snapshot` 时停止使用该 Worker。
 
 ## 常见误区
 
