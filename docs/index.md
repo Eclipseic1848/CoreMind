@@ -33,6 +33,6 @@ features:
 
 ## 当前阶段
 
-CoreMind 当前仓库源码候选为尚未发布的 `0.3.0-rc.1`，最新公开版本仍是 `0.2.0-rc.1`。源码候选适合评审和共同开发；公开安装请以 Release 与 Registry 为准。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
+CoreMind 当前代码版本为 `0.3.0-rc.1`。是否已经公开可安装，请以 Release 与 Registry 为准；源码始终可用于评审和共同开发。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
 
 每个预发布候选都必须在同一提交完成 Windows/Linux P01～P19 自动矩阵、双平台真实 TTY、真实 Provider 当次复验和最终文档审计。公开可用版本以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、npm 与 PyPI 为准；维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。

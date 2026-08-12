@@ -4,7 +4,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
-## 0.3.0-rc.1 — 2026-08-11 (source candidate, unpublished)
+## 0.3.0-rc.1 — 2026-08-11
 
 ### Closure and release preparation
 
@@ -13,6 +13,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Extended `.gitignore` for virtual environments, type-checker caches, coverage data, and local registry credentials. Source archives continue to exclude internal analyses, handoff notes, sessions, run evidence, secrets, caches, and build outputs.
 - Added a Markdown gate for Chinese/English paragraph boundaries and split bilingual package READMEs into independent language sections instead of appending an English translation to a Chinese description.
 - Changed the both-platform CI checkout to full history so the frozen baseline can resolve the immutable `v0.2.0-rc.1` tag, with a workflow-contract test preventing shallow-checkout regression.
+- Aligned CI and documentation workflows on the same current pinned Action commits used by the release workflow, removing legacy-runtime deprecation warnings while retaining full commit-SHA pinning.
 
 ### Current verification evidence
 
@@ -21,11 +22,12 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - All eight npm tarballs pass content allowlists, publint, type resolution, clean-project installation, and ESM imports. The CLI reports `coremind v0.3.0-rc.1`.
 - The Python wheel passes content checks, clean-venv installation, version parity, and bundled-Worker startup. The standalone source ZIP completes clean installation, build, contract checks, and CLI startup in isolation.
 - Contracts pass for 21 modules, five golden examples, 14 bilingual documentation-site pairs, and 410 Markdown files, including strict UTF-8, local links, public identifier boundaries, and Chinese/English paragraph separation.
+- `alibaba-model-studio/qwen-plus` completed live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks against `0.3.0-rc.1`. The redacted evidence contains no secret, prompt body, or response body.
 
 ### Release gates still open
 
 - The final commit is not frozen. Windows and Linux P20 real-TTY evidence must bind to the same final commit; historical `0.2.0-rc.1` evidence cannot be reused.
-- All 40 providers are configurable, but none has completed the seven-check live revalidation for `0.3.0-rc.1`. Linux CI and the release workflow must also pass on the final commit.
+- All 40 providers are configurable. One has completed the seven-check live revalidation for `0.3.0-rc.1`, while the other 39 remain configurable but uncertified. The release workflow and both-platform CI must still pass on the final commit.
 - The phase-two live external same-task model comparison was explicitly deferred. Offline 6/6 evidence does not establish live-model quality.
 - No tag, GitHub Release, npm publication, or PyPI publication occurs until these gates pass and the final clean-worktree preflight succeeds.
 

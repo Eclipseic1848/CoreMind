@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前仓库源码候选为 `0.3.0-rc.1`，尚未发布；最新公开版本仍是 `0.2.0-rc.1`。源码候选增加二期 Harness、Context/Artifact、Coding Kernel、受控扩展、实验与四入口快照，但必须通过同一提交的完整 RC Gate 后才能发布。公开可用状态以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的版本页为准。
+> 当前代码版本为 `0.3.0-rc.1`，增加二期 Harness、Context/Artifact、Coding Kernel、受控扩展、实验与四入口快照。是否已经公开可安装，请以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的版本页为准。
 
 > 预发布流程只有在同一候选提交通过 Windows/Linux 自动矩阵、双平台真实 TTY、真实 Provider 复验和最终文档审计后才会公开；安装候选 CLI 与 npm SDK 使用 `@next`，Python SDK 使用发布页标注的精确预发布版本。
 
@@ -26,13 +26,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 ## 当前仓库具备什么能力
 
-公开版 `0.2.0-rc.1` 与未发布的 `phase2/0.3.0` 源码候选都坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力仍以 Registry 和 Release 为准。
+`0.2.0-rc.1` 与当前 `0.3.0-rc.1` 都坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力仍以 Registry 和 Release 为准。
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；当前七项认证标准下 0 个已认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；当前七项认证标准下 1 个已认证、39 个待认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
@@ -40,7 +40,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
 | 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、21 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux；一期公开版已完成双平台 CI/P20，当前二期源码候选已完成 Windows P01～P19 自动矩阵，仍需同一最终提交的 Linux CI 与双平台真实 TTY 复验 |
+| 当前平台 | Windows 与 Linux；当前候选的自动矩阵与上一提交的双平台 CI 已通过，正式发布前还需在最终提交完成双平台真实 TTY 与新一轮 CI |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
@@ -55,7 +55,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 `0.3.0` 将按 alpha、beta、rc 逐级验证；发布日期根据每个 Gate 的真实结果确定。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-当前 `phase2/0.3.0` 源码候选已完成 Batch 0～5 的能力建设和 Batch 6 本地自动收口：依赖锁步、可持久恢复 Harness、Context/Artifact、第一方 Coding/Engineering Kernel、四事件受控扩展、可追踪实验和四入口 `RunSnapshot` 已进入 `0.3.0-rc.1`。P01～P19、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和 410 个 Markdown 文件的本地门禁通过；同一最终提交的 Windows/Linux P20、真实 Provider 七项复验和双平台 CI 仍是发布前置条件。该候选尚未发布，不能替代 `0.2.0-rc.1` 的公开安装声明。
+当前 `0.3.0-rc.1` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：依赖锁步、可持久恢复 Harness、Context/Artifact、第一方 Coding/Engineering Kernel、四事件受控扩展、可追踪实验和四入口 `RunSnapshot` 均已落地。P01～P19、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和 410 个 Markdown 文件的本地门禁通过；`alibaba-model-studio/qwen-plus` 已完成当前版本的七项真实复验。发布状态和最终资产请以 Release 与 Registry 为准。
 
 ## CoreMind 解决什么问题
 
@@ -233,7 +233,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧五项证据继续保留用于追溯，但不满足当前标准，因此当前矩阵为 0 个已认证、40 个待认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧五项证据继续保留用于追溯，但不满足当前标准。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0-rc.1` 完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

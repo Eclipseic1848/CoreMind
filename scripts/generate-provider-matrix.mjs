@@ -81,7 +81,7 @@ function renderEnglish(data) {
 
 > Generated on ${data.generatedAt} from the static runtime catalog and the human-maintained evidence ledger. Do not edit the table manually.
 
-CoreMind currently supports configuration for **${data.summary.supported}** built-in providers. **${data.summary.certified}** have complete real-call evidence and **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified.**
+CoreMind currently supports configuration for **${data.summary.supported}** built-in providers. Complete real-call evidence exists for **${data.summary.certified}**, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified.**
 
 ## Status definitions
 

@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current repository source candidate is `0.3.0-rc.1` and is not published; the latest public version remains `0.2.0-rc.1`. The source candidate adds the phase-two harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots, but it must pass the complete same-commit RC gates before publication. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for public availability.
+> The current code version is `0.3.0-rc.1`. It adds the phase-two harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for installable availability.
 
 > A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
 
@@ -26,13 +26,13 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 ## What the current repository supports
 
-The public `0.2.0-rc.1` release and unpublished `phase2/0.3.0` source candidate keep CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
+Both `0.2.0-rc.1` and the current `0.3.0-rc.1` keep CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and zero currently certified under the seven-check evidence contract; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and one currently certified under the seven-check evidence contract, with 39 still unverified; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
@@ -40,7 +40,7 @@ The public `0.2.0-rc.1` release and unpublished `phase2/0.3.0` source candidate 
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
 | Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 21 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux; the public phase-one release passed both-platform CI/P20, while the phase-two source candidate passes the Windows P01-P19 automated matrix and still requires Linux CI plus real TTY rechecks on both platforms for the same final commit |
+| Current platforms | Windows and Linux; the candidate passes the automated matrix and its preceding commit passed both-platform CI, while final-commit TTY acceptance and fresh CI remain prerelease gates |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -55,7 +55,7 @@ The current version does not include a complete Web development environment, an 
 
 `0.3.0` will advance through alpha, beta, and rc based on verified gate results; no calendar date overrides a failed gate. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-The current `phase2/0.3.0` source candidate has completed Batches 0 through 5 and the local automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are now in `0.3.0-rc.1`. Local gates pass for P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and 410 Markdown files. Real Windows/Linux P20, a seven-check live-provider revalidation, and both-platform CI on the same final commit remain release prerequisites. This candidate is unpublished and does not replace the public `0.2.0-rc.1` installation statement.
+The current `0.3.0-rc.1` has completed Batches 0 through 5 plus the automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are implemented. Local gates pass for P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and 410 Markdown files. `alibaba-model-studio/qwen-plus` has completed the current version's seven-check live revalidation. Use Releases and registries as the source of truth for publication status and final assets.
 
 ## Product boundary
 
@@ -120,7 +120,7 @@ Custom tools must declare `effect.operations` and `effect.reversible`. The permi
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract, so the matrix currently reports zero certified and 40 unverified entries.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract. `alibaba-model-studio/qwen-plus` completed all seven checks against `0.3.0-rc.1`, so the matrix currently reports one certified and 39 unverified entries.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

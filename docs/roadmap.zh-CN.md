@@ -45,7 +45,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 保持 TUI、无头 CLI、TypeScript SDK 与 Python SDK 的终态、事件、审批和恢复一致。
 - 为每批能力同步提供测试、SOP、Skill、中英文指南、示例、迁移与回滚说明。
 
-当前 `0.3.0` 源码候选已经完成 Batch 0～5 的能力建设和 Batch 6 本地自动收口：关键依赖保持同一精确版本族并由私有 Adapter 隔离；运行增加 durable operation、原子 RunState、Session 双后端合同、自动备份迁移和副作用不重放边界；长任务增加稳定上下文前缀、确定性压缩证据、真实缓存指标和工作区内受控 Artifact；编码能力升级为 Runtime 内第一方 Engineering Kernel；扩展面只开放四个受控生命周期事件，并增加可追踪轻量实验、七项 Provider 认证合同、TUI 运行证据视图和四入口共享 `RunSnapshot`。`0.3.0-rc.1` 的 P01～P19、npm、wheel、源码包、模块和 Markdown 本地门禁已通过；最终提交的双平台 P20、真实 Provider 七项复验和 Windows/Linux CI 仍必须完成。该进度尚不等于新的公开版本；公开可用版本仍以 Release 与 Registry 为准。
+`0.3.0-rc.1` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：关键依赖保持同一精确版本族并由私有 Adapter 隔离；运行增加 durable operation、原子 RunState、Session 双后端合同、自动备份迁移和副作用不重放边界；长任务增加稳定上下文前缀、确定性压缩证据、真实缓存指标和工作区内受控 Artifact；编码能力升级为 Runtime 内第一方 Engineering Kernel；扩展面只开放四个受控生命周期事件，并增加可追踪轻量实验、七项 Provider 认证合同、TUI 运行证据视图和四入口共享 `RunSnapshot`。P01～P19、npm、wheel、源码包、模块和 Markdown 本地门禁已通过，`alibaba-model-studio/qwen-plus` 也已完成七项真实复验。公开可用状态和最终发布资产始终以 Release 与 Registry 为准。
 
 二期从不可变的 `0.2.0-rc.1` 参考基线开始，冻结公开类型、Config/Protocol Schema、关键依赖组合、P01～P20、双平台行为、同题编码评测条件和质量下限。覆盖率可以提高，不能下降；任何有意合同变化都必须说明迁移与回滚，不能为通过测试而降低门槛。
 
