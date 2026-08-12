@@ -121,14 +121,29 @@ async function openTerminal(configPath, cwd, sessionId) {
     ...(process.platform === "win32" ? { useConpty: true, useConptyDll: true } : {}),
   });
   let output = "";
+  let rawOutput = "";
+  let exitResult;
   terminal.onData((chunk) => {
+    rawOutput += chunk;
     output += stripAnsi(chunk);
   });
-  const exitPromise = new Promise((resolve) => terminal.onExit(resolve));
+  const exitPromise = new Promise((resolve) =>
+    terminal.onExit((result) => {
+      exitResult = result;
+      resolve(result);
+    }),
+  );
+  // Linux 子进程可能在监听器注册前完成首屏渲染；resize 会要求 TUI 在同一真实伪终端内重绘。
+  terminal.resize(159, 50);
+  terminal.resize(160, 50);
   await waitFor(
     () => output.includes("你 >"),
     "输入框",
     () => output,
+    () =>
+      exitResult
+        ? `CLI 已提前退出：code=${exitResult.exitCode} signal=${exitResult.signal}; raw=${stripAnsi(rawOutput).slice(-2_000)}`
+        : undefined,
   );
   return {
     output: () => output,
@@ -203,9 +218,11 @@ async function typeCommand(terminal, command) {
   terminal.write("\r");
 }
 
-async function waitFor(predicate, label, output) {
-  for (let attempt = 0; attempt < 600; attempt += 1) {
+async function waitFor(predicate, label, output, failure) {
+  for (let attempt = 0; attempt < 2_400; attempt += 1) {
     if (predicate()) return;
+    const failureMessage = failure?.();
+    if (failureMessage) throw new Error(failureMessage);
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   throw new Error(`等待真实 TTY ${label} 超时：${output().slice(-2_000)}`);
