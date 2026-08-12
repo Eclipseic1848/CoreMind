@@ -40,7 +40,7 @@ Both `0.2.0-rc.1` and the current `0.3.0-rc.1` keep CLI/TUI, TypeScript, Python,
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
 | Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 21 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux; the candidate passes the automated matrix and its preceding commit passed both-platform CI, while final-commit TTY acceptance and fresh CI remain prerelease gates |
+| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix, both-platform CI, real TTY acceptance on both platforms, and a live-provider recheck on the same source commit; Releases and registries remain authoritative for installation |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 

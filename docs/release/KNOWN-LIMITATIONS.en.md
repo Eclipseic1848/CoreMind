@@ -4,7 +4,7 @@
 
 - All 40 provider entries are configurable. Only `alibaba-model-studio/qwen-plus` has completed the `0.3.0-rc.1` seven-check live revalidation; the other 39 remain uncertified. Never present configurability as certification or generalize one model's evidence to another model or deployment.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
-- The current worktree passes the P01-P19 automated matrix, and Windows/Linux CI passed on the preceding candidate commit. Real P20 TTY acceptance on both platforms and a fresh both-platform CI run still require the final commit.
+- Every publishable tag must bind to the same source that passed P01-P19, Windows/Linux CI, real P20 TTY acceptance on both platforms, and the live-provider recheck. Candidate checks must not be presented as public availability while any release channel lacks the version.
 - The non-regression coverage gate passes, but repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.
 - Lifecycle extensions are controlled in-process extensions, not an operating-system sandbox. Only four events are exposed, and unknown project extensions are not loaded by default.
 - Windows host-shell safety depends on the permission, workspace, and network combination. Only the built-in Linux shell uses the additional network-disabled isolation; the two are not equivalent sandboxes.

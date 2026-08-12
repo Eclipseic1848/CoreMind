@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current public prerelease: `0.2.0-rc.1`
+## Current prerelease line: `0.3.0-rc.1`
 
-The current public version includes:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.3.0-rc.1` source line includes:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -17,7 +17,7 @@ The current public version includes:
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Acceptance workflows that combine Windows/Linux automation with real TTY checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 
-The current version is a prerelease. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
+This version line is a prerelease. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 

@@ -40,7 +40,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
 | 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、21 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux；当前候选的自动矩阵与上一提交的双平台 CI 已通过，正式发布前还需在最终提交完成双平台真实 TTY 与新一轮 CI |
+| 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI、双平台真实 TTY 和真实 Provider 复验，安装状态以 Release 与 Registry 为准 |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 

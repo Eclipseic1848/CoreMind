@@ -18,20 +18,20 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 ### Current verification evidence
 
-- The P01-P19 test anchors are synchronized with the RC automated matrix. Across the repository, 69 test files pass and one is conditionally skipped; 465 tests pass and four are conditionally skipped. The Python SDK and real bundled Worker pass 10/10, and offline Coding Eval passes 6/6.
+- The P01-P19 test anchors are synchronized with the RC automated matrix. Across the repository, 69 test files pass and one is conditionally skipped; 466 tests pass and four are conditionally skipped. The Python SDK and real bundled Worker pass 10/10, and offline Coding Eval passes 6/6.
 - The first Windows P20 run found that a model could treat a human denial as an ordinary tool error and request approval again. The Runtime now blocks the denied tool and later unapproved calls in the same batch, returns `paused` after the batch is reconciled, and makes no next model request. In a sequential workflow, the denied step saves no output and no later step starts. Single-tool, mixed-tool, and two-step workflow regressions all assert zero write side effects.
-- All three post-fix stability runs pass 465 tests with four conditional skips and zero drift. Coverage is 75.83% lines, 73.93% statements, 83.19% functions, and 66.96% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
+- The repaired product source completed three stability runs with zero drift. After adding the deterministic release-template version contract, the final repository suite passes 466 tests with four conditional skips. Coverage is 75.83% lines, 73.93% statements, 83.19% functions, and 66.96% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
 - All eight npm tarballs pass content allowlists, publint, type resolution, clean-project installation, and ESM imports. The CLI reports `coremind v0.3.0-rc.1`.
 - The Python wheel passes content checks, clean-venv installation, version parity, and bundled-Worker startup. The standalone source ZIP completes clean installation, build, contract checks, and CLI startup in isolation.
 - Contracts pass for 21 modules, five golden examples, 14 bilingual documentation-site pairs, and 410 Markdown files, including strict UTF-8, local links, public identifier boundaries, and Chinese/English paragraph separation.
 - `alibaba-model-studio/qwen-plus` completed live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks against `0.3.0-rc.1`. The redacted evidence contains no secret, prompt body, or response body.
 
-### Release gates still open
+### Release gates
 
-- The final commit is not frozen. Windows and Linux P20 real-TTY evidence must bind to the same final commit; historical `0.2.0-rc.1` evidence cannot be reused.
-- All 40 providers are configurable. One has completed the seven-check live revalidation for `0.3.0-rc.1`, while the other 39 remain configurable but uncertified. The release workflow and both-platform CI must still pass on the final commit.
+- Windows and Linux P20 real-TTY evidence must bind to the same final source commit; historical `0.2.0-rc.1` evidence cannot be reused, and merge or tag operations must not change the accepted source content.
+- All 40 providers are configurable. One has completed the seven-check live revalidation for `0.3.0-rc.1`, while the other 39 remain configurable but uncertified. Both-platform CI on the final source commit remains mandatory before publication.
 - The phase-two live external same-task model comparison was explicitly deferred. Offline 6/6 evidence does not establish live-model quality.
-- No tag, GitHub Release, npm publication, or PyPI publication occurs until these gates pass and the final clean-worktree preflight succeeds.
+- A tag, GitHub Release, npm publication, or PyPI publication may occur only after these gates pass and the final clean-worktree preflight succeeds.
 
 ## 0.3.0-beta.2 — 2026-08-11 (source candidate, unpublished)
 
