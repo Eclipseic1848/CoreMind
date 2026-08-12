@@ -52,8 +52,7 @@ export function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions)
     exposeSessionEnvironment: false,
   });
   tool.executionMode = "sequential";
-  // 命令工具包带有自己的工具类型副本，结构化执行协议保持兼容。
-  return tool as unknown as AgentTool;
+  return tool;
 }
 
 /** 默认拒绝网络和凭据，只允许写工作区；权限审批与 sandbox 是两条独立防线。 */

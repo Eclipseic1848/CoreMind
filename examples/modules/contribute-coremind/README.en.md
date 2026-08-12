@@ -4,6 +4,7 @@ This is the smallest module example. Ask the business owner to confirm fields an
 
 ```text
 npm run build
+npm run baseline:check
 npm run check
 npm run test:stability
 npm run test:coverage
@@ -22,5 +23,6 @@ npm run release:preflight -- --allow-dirty
 5. Record Windows and Linux results separately; never mark an unexecuted platform as passed.
 6. Run `npm run acceptance:rc -- --require-manual` only after both same-commit TTY files and the current live-provider result exist. Do not continue to publication otherwise.
 7. Confirm workflows contain no movable Action tags, and require every Dependabot upgrade pull request to pass the complete gate.
+8. If `baseline:check` fails, distinguish a regression from an approved contract change. Do not update the baseline without migration, rollback, and an explicit reason.
 
 Return to the [English guide](../../../docs/modules/contribute-coremind/GUIDE.en.md).

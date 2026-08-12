@@ -100,6 +100,12 @@ class CoreMindClient:
                         rpc_code=-32000,
                         coremind_code="protocol_version_mismatch",
                     )
+                if "runSnapshot" not in result.get("capabilities", []):
+                    raise ProtocolError(
+                        "worker 不支持当前 SDK 要求的 RunSnapshot 能力",
+                        rpc_code=-32000,
+                        coremind_code="protocol_capability_missing",
+                    )
                 for spec in self._tools.values():
                     self._register_tool_spec(spec[1])
             except BaseException:
@@ -113,13 +119,17 @@ class CoreMindClient:
         """执行一次 Run，返回与 TypeScript SDK 等价的 JSON 结果。"""
 
         self.start()
-        return dict(self._request_raw("run", {"input": input} if input is not None else {}))
+        return _validate_run_result(
+            self._request_raw("run", {"input": input} if input is not None else {})
+        )
 
     def chat(self, message: str, *, agent: str = "main") -> dict[str, Any]:
         """在常驻 worker 中发起一次聊天请求。"""
 
         self.start()
-        return dict(self._request_raw("chat", {"agent": agent, "message": message}))
+        return _validate_run_result(
+            self._request_raw("chat", {"agent": agent, "message": message})
+        )
 
     def cancel(self, run_id: str) -> None:
         """取消指定的活动运行。"""
@@ -140,7 +150,7 @@ class CoreMindClient:
         params: dict[str, Any] = {"runId": run_id}
         if input is not None:
             params["input"] = input
-        return dict(self._request_raw("resume_run", params))
+        return _validate_run_result(self._request_raw("resume_run", params))
 
     def checkpoint_diff(self, run_id: str, checkpoint_id: str) -> dict[str, Any]:
         """比较 checkpoint 前内容与当前工作区文件。"""
@@ -458,6 +468,44 @@ class AsyncCoreMindClient:
 
     async def __aexit__(self, _type: object, _value: object, _traceback: object) -> None:
         await self.close()
+
+
+def _validate_run_result(value: Mapping[str, Any]) -> dict[str, Any]:
+    result = dict(value)
+    snapshot = result.get("snapshot")
+    required = {
+        "schemaVersion",
+        "runId",
+        "operation",
+        "outcome",
+        "metrics",
+        "evaluation",
+        "releaseReadiness",
+        "trace",
+        "checkpoints",
+        "artifacts",
+        "extensions",
+        "resumable",
+    }
+    if not isinstance(snapshot, Mapping) or set(snapshot) != required:
+        raise ProtocolError(
+            "worker 返回的 RunSnapshot 缺失或不符合协议",
+            rpc_code=-32600,
+            coremind_code="invalid_run_snapshot",
+        )
+    if snapshot.get("schemaVersion") != 1 or snapshot.get("runId") != result.get("runId"):
+        raise ProtocolError(
+            "worker 返回的 RunSnapshot 版本或 runId 不一致",
+            rpc_code=-32600,
+            coremind_code="invalid_run_snapshot",
+        )
+    if snapshot.get("outcome") != result.get("outcome"):
+        raise ProtocolError(
+            "worker 返回的 RunSnapshot 与运行终态不一致",
+            rpc_code=-32600,
+            coremind_code="invalid_run_snapshot",
+        )
+    return result
 
 
 def _discover_worker_command() -> list[str]:

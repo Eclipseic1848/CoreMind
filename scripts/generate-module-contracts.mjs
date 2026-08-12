@@ -76,6 +76,186 @@ const modules = [
     example: "provider:\n  id: deepseek\n  model: deepseek-chat\n  apiKeyEnv: DEEPSEEK_API_KEY",
   }),
   moduleOf({
+    id: "adapt-runtime-dependencies",
+    zh: "Runtime 依赖 Adapter",
+    en: "Runtime Dependency Adapters",
+    purposeZh:
+      "统一关键运行依赖版本，并用 CoreMind 私有 Adapter 隔离消息、工具、Usage、错误和 Session 实现。",
+    purposeEn:
+      "Align critical runtime versions and isolate message, tool, usage, error, and Session implementations behind private CoreMind adapters.",
+    source: [
+      "packages/coremind-runtime/src/dependency-adapter.ts",
+      "packages/coremind-runtime/src/session.ts",
+      "packages/coremind-runtime/src/provider.ts",
+      "packages/coremind-tools/src/registry.ts",
+      "scripts/dependency-report.mjs",
+    ],
+    tests: [
+      "scripts/dependency-lockstep.test.ts",
+      "scripts/dependency-report.test.ts",
+      "packages/coremind-runtime/src/dependency-adapter.test.ts",
+      "packages/coremind-runtime/src/session.test.ts",
+      "packages/coremind-runtime/src/provider.test.ts",
+      "packages/coremind-tools/src/registry.test.ts",
+    ],
+    dependencies: ["manage-providers", "build-tools", "manage-sessions"],
+    interfaces: ["inspectRuntimeCompatibility"],
+    errorsZh: ["依赖版本混搭时阻断构建", "消息、工具或会话合同无法无损适配时整体回退"],
+    errorsEn: [
+      "Mixed dependency versions block the build",
+      "The complete family rolls back when message, tool, or Session contracts cannot be adapted losslessly",
+    ],
+    stepsZh: [
+      "冻结参考版本、候选版本和整体回滚点",
+      "先写依赖唯一性与行为合同失败测试",
+      "统一精确版本并在私有 Adapter 中完成转换",
+      "运行依赖、Provider、工具、Session 与候选基线门禁",
+    ],
+    stepsEn: [
+      "Freeze the reference version, candidate version, and whole-family rollback point",
+      "Write failing version-uniqueness and behavior-contract tests first",
+      "Align exact versions and keep conversions inside private adapters",
+      "Run dependency, Provider, tool, Session, and candidate-baseline gates",
+    ],
+    example:
+      "const report = inspectRuntimeCompatibility();\nif (!report.capabilities.streaming) throw new Error('Runtime incompatible');",
+    maturity: "alpha",
+  }),
+  moduleOf({
+    id: "recover-durable-runs",
+    zh: "持久运行与故障恢复",
+    en: "Durable Runs and Recovery",
+    purposeZh:
+      "用单一 operation 外围状态、原子 RunState、版本化 Session、Checkpoint 与 Effect Receipt 明确恢复边界，避免重复副作用和伪恢复。",
+    purposeEn:
+      "Define recovery boundaries with one operation envelope, atomic RunState, versioned sessions, checkpoints, and effect receipts so side effects are not replayed or falsely recovered.",
+    source: [
+      "packages/coremind-runtime/src/operation-state.ts",
+      "packages/coremind-runtime/src/run-state.ts",
+      "packages/coremind-runtime/src/session.ts",
+      "packages/coremind-runtime/src/checkpoint.ts",
+      "packages/coremind-runtime/src/runtime.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/operation-state.test.ts",
+      "packages/coremind-runtime/src/run-state.test.ts",
+      "packages/coremind-runtime/src/session-conformance.test.ts",
+      "packages/coremind-runtime/src/session.test.ts",
+      "packages/coremind-runtime/src/checkpoint.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
+      "packages/coremind-worker/src/server.test.ts",
+    ],
+    dependencies: [
+      "design-workflows",
+      "manage-sessions",
+      "manage-checkpoints",
+      "inspect-agent-traces",
+    ],
+    interfaces: [
+      "DurableOperation",
+      "restoreDurableOperation",
+      "FileRunStore",
+      "prepareRunResume",
+      "CoreMindSession",
+      "RunResult.operation",
+    ],
+    errorsZh: [
+      "非法、重复或乱序 operation 事件会失败关闭",
+      "未知或已提交但未稳定归属的副作用必须人工判定，不会自动重放",
+      "旧 Session 迁移前自动备份；不能无损转换时保留原文件",
+      "RunState 锁冲突、序号冲突和不可修复损坏均返回稳定错误",
+    ],
+    errorsEn: [
+      "Illegal, duplicate, or out-of-order operation events fail closed",
+      "Unknown or committed effects without stable ownership require human review and are never replayed automatically",
+      "Legacy sessions are backed up before migration and kept unchanged when lossless conversion is impossible",
+      "RunState lock conflicts, sequence conflicts, and unrecoverable corruption return stable errors",
+    ],
+    stepsZh: [
+      "为运行分配 runId、operationId 和 correlationId",
+      "按 accepted、running、paused、aborting、completed 或 failed 合法迁移",
+      "把对话、运行、副作用和用量分别交给唯一权威存储",
+      "在工具执行前创建 Checkpoint 和 started Effect Receipt",
+      "恢复时先检查终态、稳定步骤与副作用收据，再决定重试、跳过或人工处理",
+      "迁移旧 Session 前校验、备份并注入失败测试",
+    ],
+    stepsEn: [
+      "Assign runId, operationId, and correlationId",
+      "Use only legal accepted, running, paused, aborting, completed, or failed transitions",
+      "Give conversation, run, side-effect, and usage state one authoritative owner each",
+      "Create a checkpoint and started effect receipt before tool execution",
+      "Before recovery, inspect terminal state, stable steps, and effect receipts to retry, skip, or request human review",
+      "Validate, back up, and failure-test every legacy Session migration",
+    ],
+    example:
+      'coremind run coremind.yaml --prompt "执行任务" --json-events\ncoremind run coremind.yaml --resume <runId> --json-events',
+    maturity: "alpha",
+  }),
+  moduleOf({
+    id: "manage-context-artifacts",
+    version: "0.3.0-alpha.3",
+    zh: "上下文与 Artifact 治理",
+    en: "Context and Artifact Governance",
+    purposeZh:
+      "用稳定 Provider 前缀、可审计的确定性压缩、真实缓存计量和受控大输出 Artifact 保持长任务可用且不泄漏秘密。",
+    purposeEn:
+      "Keep long-running tasks usable without leaking secrets through a stable provider prefix, auditable deterministic compaction, truthful cache metrics, and controlled large-output artifacts.",
+    source: [
+      "packages/coremind-runtime/src/context.ts",
+      "packages/coremind-runtime/src/agent-factory.ts",
+      "packages/coremind-runtime/src/events.ts",
+      "packages/coremind-runtime/src/result.ts",
+      "packages/coremind-tools/src/artifact-store.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/context.test.ts",
+      "packages/coremind-runtime/src/result.test.ts",
+      "packages/coremind-tools/src/artifact-store.test.ts",
+      "packages/coremind-tools/src/registry.test.ts",
+    ],
+    dependencies: ["manage-sessions", "build-tools", "inspect-agent-traces"],
+    interfaces: [
+      "buildStableContextPrefix",
+      "protectContext",
+      "compareContextStrategies",
+      "ArtifactStore",
+      "wrapToolWithArtifactCapture",
+      "RunMetrics.context",
+      "RunMetrics.artifacts",
+    ],
+    errorsZh: [
+      "压缩异常时保留原消息并发出失败事件，不静默丢失上下文",
+      "不受信任的完整输出路径会被丢弃，不会被读取或删除",
+      "疑似凭据不会进入模型预览或 Artifact 文件",
+      "缓存能力未由模型目录声明时标为 unavailable，零命中不会伪造成命中",
+    ],
+    errorsEn: [
+      "Compaction failures preserve the original messages and emit a failure event",
+      "Untrusted full-output paths are discarded without reading or deleting them",
+      "Suspected credentials never enter model previews or artifact files",
+      "Cache support is unavailable unless declared by model metadata, and zero usage is never reported as a hit",
+    ],
+    stepsZh: [
+      "按固定分区和排序生成稳定上下文前缀并记录指纹",
+      "在每次 Provider 请求前检查阈值并只使用本地确定性摘要",
+      "在摘要中保留目标、约束、审批、改动、测试、未完成任务和不确定副作用",
+      "把超大工具输出流式导入工作区受控 Artifact 目录",
+      "向模型仅返回有界头尾预览、摘要、哈希和相对引用",
+      "比较压缩策略指标后再调整默认值，禁止自动创建项目记忆",
+    ],
+    stepsEn: [
+      "Build a stable context prefix with fixed sections and ordering, then record its fingerprint",
+      "Check thresholds before every provider request and use only a local deterministic summary",
+      "Preserve goals, constraints, approvals, changes, tests, incomplete work, and uncertain effects",
+      "Stream large tool output into the controlled workspace artifact directory",
+      "Return only a bounded head-tail preview, summary, hash, and relative reference to the model",
+      "Compare strategy metrics before changing defaults and never create project memory automatically",
+    ],
+    example:
+      "const store = new ArtifactStore({ cwd: process.cwd() });\nconst comparison = compareContextStrategies(messages, options);",
+    maturity: "alpha",
+  }),
+  moduleOf({
     id: "design-agents",
     zh: "Agent 构建",
     en: "Agent Construction",
@@ -116,7 +296,70 @@ const modules = [
       "agents:\n  main:\n    systemPrompt: |\n      只根据订单工具返回的数据回答；缺失信息时明确说明。\n    tools:\n      - id: read",
   }),
   moduleOf({
+    id: "extend-runtime-lifecycle",
+    version: "0.3.0-beta.2",
+    maturity: "beta",
+    zh: "Runtime 生命周期扩展",
+    en: "Runtime Lifecycle Extensions",
+    purposeZh:
+      "通过四个只读生命周期事件、显式信任清单和逐项能力授权扩展 Runtime，同时保持权限、Checkpoint 与真实终态不可绕过。",
+    purposeEn:
+      "Extend the Runtime through four read-only lifecycle events, an explicit trust list, and per-capability grants without bypassing permissions, checkpoints, or truthful terminal states.",
+    source: [
+      "packages/coremind-runtime/src/lifecycle-extension.ts",
+      "packages/coremind-runtime/src/runtime.ts",
+      "packages/coremind-runtime/src/events.ts",
+    ],
+    tests: [
+      "packages/coremind-runtime/src/lifecycle-extension.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
+    ],
+    dependencies: [
+      "enforce-agent-permissions",
+      "manage-checkpoints",
+      "inspect-agent-traces",
+      "recover-durable-runs",
+    ],
+    interfaces: [
+      "defineLifecycleExtension",
+      "LifecycleExtensionHost",
+      "createTraceExporterExtension",
+      "createDenyPolicyExtension",
+      "CoreMindRuntimeOptions.lifecycleExtensions",
+    ],
+    errorsZh: [
+      "未显式信任或能力未完整授权的扩展拒绝加载",
+      "扩展超时或异常只产生收据，不能改写真正终态",
+      "before-tool 只能附加拒绝，不能授予通用权限已经拒绝的操作",
+      "项目目录中的未知扩展不会被自动扫描或加载",
+    ],
+    errorsEn: [
+      "Extensions that are not explicitly trusted or fully granted are rejected",
+      "Timeouts and failures produce receipts but cannot rewrite the true terminal state",
+      "before-tool may only add a denial and cannot grant an operation rejected by the shared policy",
+      "Unknown project-local extensions are never scanned or loaded automatically",
+    ],
+    stepsZh: [
+      "只选择 before-model、before-tool、after-tool 或 run-finished 中确有必要的事件",
+      "声明文件、进程、网络、凭据和 UI 能力，并由宿主逐项授权",
+      "将扩展 id 加入显式信任清单，设置短超时并保留执行收据",
+      "用同步、异步、超时、异常、审批拒绝和终态不可伪造 Case 验证",
+      "不把项目本地代码自动提升为可信扩展，也不把扩展建设成第二套 Runtime",
+    ],
+    stepsEn: [
+      "Choose only the required before-model, before-tool, after-tool, or run-finished event",
+      "Declare file, process, network, credential, and UI capabilities and grant each explicitly",
+      "Add the extension id to the trust list, set a short timeout, and retain execution receipts",
+      "Test sync, async, timeout, failure, approval denial, and terminal-state integrity cases",
+      "Never auto-promote project-local code to a trusted extension or build a second Runtime",
+    ],
+    example:
+      "const extension = createDenyPolicyExtension({ id: 'deny-shell', deniedTools: ['bash'] });\nconst runtime = await CoreMindRuntime.create({ ...options, lifecycleExtensions: { extensions: [extension], trustedIds: ['deny-shell'], grants: { 'deny-shell': extension.capabilities }, timeoutMs: 500 } });",
+  }),
+  moduleOf({
     id: "build-coding-agents",
+    version: "0.3.0-beta.1",
+    maturity: "beta",
     zh: "编码智能体",
     en: "Coding Agents",
     purposeZh: "把复现缺陷、定位原因、最小修改、目标测试、回归测试和差异审查固化为受控流程。",
@@ -127,6 +370,7 @@ const modules = [
       "packages/coremind-tools/src/git-adapter.ts",
       "packages/coremind-tools/src/unified-diff.ts",
       "packages/coremind-runtime/src/evaluation-graders.ts",
+      "packages/coremind-runtime/src/coding/engineering-kernel.ts",
       "examples/coding-evals",
     ],
     tests: [
@@ -135,7 +379,9 @@ const modules = [
       "packages/coremind-tools/src/unified-diff.test.ts",
       "packages/coremind-runtime/src/evaluation.test.ts",
       "packages/coremind-runtime/src/batch8-properties.test.ts",
+      "packages/coremind-runtime/src/coding/engineering-kernel.test.ts",
       "examples/coding-evals/coding-evals.test.ts",
+      "examples/coding-evals/engineering-kernel.test.ts",
     ],
     dependencies: [
       "design-agents",
@@ -150,21 +396,29 @@ const modules = [
       "createUnifiedDiff",
       "runEvaluationSuite",
       "EvaluationGrader",
+      "inspectCodingRepository",
+      "selectCodingEnvironment",
+      "createEngineeringTaskPlan",
+      "createEngineeringKernelDefinition",
+      "EngineeringEvidenceLedger",
     ],
     errorsZh: [
       "无法复现缺陷时停止修改",
       "工作区越界、未授权网络和受保护文件修改会被拒绝",
       "既有脏工作区默认必须保持原样",
       "测试、grader 或安全门禁失败时不得声明完成",
+      "语言、包管理器或测试命令存在歧义时必须由用户选择",
     ],
     errorsEn: [
       "Editing stops when the defect cannot be reproduced",
       "Workspace escape, unauthorized network access, and protected-file edits are rejected",
       "Pre-existing dirty-worktree content is preserved by default",
       "Failed tests, graders, or security gates prevent completion claims",
+      "Language, package-manager, or test-command ambiguity requires an explicit user choice",
     ],
     stepsZh: [
       "记录分支、脏工作区和受保护文件基线",
+      "只把仓库探测作为建议，并由用户确认语言、包管理器与测试命令",
       "用最小目标测试复现失败",
       "定位根因并只做最小修改",
       "依次运行目标与完整回归测试",
@@ -172,6 +426,7 @@ const modules = [
     ],
     stepsEn: [
       "Record the branch, dirty worktree, and protected-file baseline",
+      "Treat repository detection as a suggestion and ask the user to confirm language, package manager, and test command",
       "Reproduce the failure with the smallest target test",
       "Locate the cause and make only the smallest repair",
       "Run target tests followed by the complete regression suite",
@@ -822,9 +1077,9 @@ const modules = [
     zh: "源码与社区贡献",
     en: "Source and Community Contribution",
     purposeZh:
-      "在单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码，并验证同提交发布物。",
+      "在公开合同冻结、单向依赖、测试优先、双语材料和发布授权边界内修改 CoreMind 源码，并验证同提交发布物。",
     purposeEn:
-      "Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, release authorization boundary, and same-commit artifact gates.",
+      "Change CoreMind source within its frozen public contracts, one-way dependencies, test-first workflow, bilingual material contract, release authorization boundary, and same-commit artifact gates.",
     source: [
       "package.json",
       "vitest.config.ts",
@@ -859,6 +1114,13 @@ const modules = [
       "scripts/test-stability.mjs",
       "scripts/check-coverage.mjs",
       "scripts/coverage-baseline.json",
+      "scripts/phase2-baseline.mjs",
+      "baselines/0.2.0-rc.1/baseline.json",
+      "baselines/0.2.0-rc.1/behavior-matrix.json",
+      "baselines/0.2.0-rc.1/coding-benchmark.json",
+      "baselines/0.2.0-rc.1/platform-acceptance.json",
+      "baselines/0.2.0-rc.1/release-gates.json",
+      "baselines/0.2.0-rc.1/release-manifest.json",
     ],
     tests: [
       "scripts/check-module-contract.mjs",
@@ -873,9 +1135,11 @@ const modules = [
       "scripts/package-artifacts.test.ts",
       "scripts/source-archive.test.ts",
       "scripts/coverage-baseline.test.ts",
+      "scripts/phase2-baseline.test.ts",
       "scripts/workflow-contract.test.ts",
       "python/tests/test_release_metadata.py",
       "packages/coremind/src/index.test.ts",
+      "packages/coremind-cli/src/tui.test.tsx",
     ],
     dependencies: ["configure-coremind", "evaluate-agents", "scaffold-coremind-projects"],
     interfaces: [
@@ -887,6 +1151,8 @@ const modules = [
       "npm run docs:audit",
       "npm run test:stability",
       "npm run test:coverage",
+      "npm run baseline:check",
+      "npm run baseline:update -- --reason <reason>",
       "npm run providers:matrix",
       "npm run release:preflight",
       "npm run release:sync-version",
@@ -897,6 +1163,8 @@ const modules = [
       "依赖方向必须保持 config → tools → templates → runtime → facade/CLI/worker",
       "不得未经授权 push、tag 或发布",
       "不相关用户修改必须保留",
+      "当前开发提交、采集时间、平台和构建哈希只是追溯证据；冻结 Release Tag 指向和 Release Manifest 摘要属于阻断合同",
+      "冻结基线只允许在已批准的合同变更下用明确 reason 更新；不得追着测试结果降低门槛",
       "供应商可发现不等于已认证，正式发布必须有真实证据",
       "Release Please 只生成草稿 PR；Tag 与发布继续由维护者批准",
       "发布物必须来自同一干净 Tag，且通过哈希、来源证明与干净安装门禁",
@@ -905,13 +1173,17 @@ const modules = [
       "Dependencies must remain config to tools to templates to runtime to facade/CLI/worker",
       "Never push, tag, or publish without authorization",
       "Preserve unrelated user changes",
+      "The current development commit, capture time, platform, and build hashes are trace evidence; the frozen Release Tag target and Release Manifest digest are blocking contracts",
+      "Update the frozen baseline only for an approved contract change with an explicit reason; never lower gates to follow results",
       "Provider discovery is not certification; releases require live evidence",
       "Release Please creates a draft PR only; maintainers still approve tags and publication",
       "Artifacts must come from one clean tag and pass hash, attestation, and clean-install gates",
     ],
     stepsZh: [
       "先读 handoff 和权威方案",
+      "先构建并运行冻结基线，确认改动前合同与行为基线成立",
       "写失败测试再做最小实现",
+      "若改动有意改变公开合同，先记录迁移与回滚，再用明确原因更新基线",
       "同步模块合同与双语文档",
       "生成供应商矩阵并构建双语文档站",
       "执行全仓 Markdown、稳定性、覆盖率与 RC 验收",
@@ -920,7 +1192,9 @@ const modules = [
     ],
     stepsEn: [
       "Read the handoff and authoritative plan first",
+      "Build and verify the frozen baseline before changing contracts or behavior",
       "Write a failing test before the smallest implementation",
+      "For an intentional public-contract change, record migration and rollback before updating the baseline with an explicit reason",
       "Synchronize module contracts and bilingual docs",
       "Generate the provider matrix and build the bilingual documentation site",
       "Run repository-wide Markdown, stability, coverage, and RC acceptance",
@@ -928,9 +1202,9 @@ const modules = [
       "Show the diff and wait for explicit release authorization",
     ],
     skillVerification:
-      "Run the tests listed in module.yaml, npm run test:stability, npm run test:coverage, npm run docs:audit, npm run acceptance:rc, and npm run check:modules.",
+      "Run the tests listed in module.yaml, npm run baseline:check, npm run test:stability, npm run test:coverage, npm run docs:audit, npm run acceptance:rc, and npm run check:modules.",
     example:
-      "npm run build\nnpm run check\nnpm run test:stability\nnpm run test:coverage\nnpm run docs:audit\nnpm run acceptance:rc",
+      "npm run build\nnpm run baseline:check\nnpm run check\nnpm run test:stability\nnpm run test:coverage\nnpm run docs:audit\nnpm run acceptance:rc",
   }),
 ];
 
@@ -961,8 +1235,8 @@ console.log(`已生成 ${modules.length} 个模块合同。`);
 function moduleOf(value) {
   return {
     ...value,
-    maturity: "release-candidate",
-    platforms: ["windows", "linux"],
+    maturity: value.maturity ?? "release-candidate",
+    platforms: value.platforms ?? ["windows", "linux"],
   };
 }
 
@@ -1031,12 +1305,12 @@ function exampleEn(item) {
 }
 
 function changelog(item) {
-  return `# Changelog\n\n## ${version} - 2026-08-08\n\n- Established the implementation, tests, bilingual documentation, SOP, guide, reusable Skill, examples, and module manifest for ${item.en}.\n`;
+  return `# Changelog\n\n## ${item.version ?? version} - 2026-08-08\n\n- Established the implementation, tests, bilingual documentation, SOP, guide, reusable Skill, examples, and module manifest for ${item.en}.\n`;
 }
 
 function manifest(item) {
   const list = (values) => values.map((value) => `  - ${JSON.stringify(value)}`).join("\n");
-  return `schemaVersion: 1\nid: ${item.id}\nname:\n  zh-CN: ${JSON.stringify(item.zh)}\n  en: ${JSON.stringify(item.en)}\nversion: ${version}\nsourcePaths:\n${list(item.source)}\ndocuments:\n  readme:\n    zh-CN: docs/modules/${item.id}/README.zh-CN.md\n    en: docs/modules/${item.id}/README.en.md\n  sop:\n    zh-CN: docs/modules/${item.id}/SOP.zh-CN.md\n    en: docs/modules/${item.id}/SOP.en.md\n  guide:\n    zh-CN: docs/modules/${item.id}/GUIDE.zh-CN.md\n    en: docs/modules/${item.id}/GUIDE.en.md\n  changelog: docs/modules/${item.id}/CHANGELOG.md\nskillPath: skills/${item.id}/SKILL.md\nexamplePaths:\n  - examples/modules/${item.id}/README.zh-CN.md\n  - examples/modules/${item.id}/README.en.md\ntestPaths:\n${list(item.tests)}\nsupportedPlatforms:\n${list(item.platforms)}\ndependencies:\n${item.dependencies.length > 0 ? list(item.dependencies) : "  []"}\nmaturity: ${item.maturity}\n`;
+  return `schemaVersion: 1\nid: ${item.id}\nname:\n  zh-CN: ${JSON.stringify(item.zh)}\n  en: ${JSON.stringify(item.en)}\nversion: ${item.version ?? version}\nsourcePaths:\n${list(item.source)}\ndocuments:\n  readme:\n    zh-CN: docs/modules/${item.id}/README.zh-CN.md\n    en: docs/modules/${item.id}/README.en.md\n  sop:\n    zh-CN: docs/modules/${item.id}/SOP.zh-CN.md\n    en: docs/modules/${item.id}/SOP.en.md\n  guide:\n    zh-CN: docs/modules/${item.id}/GUIDE.zh-CN.md\n    en: docs/modules/${item.id}/GUIDE.en.md\n  changelog: docs/modules/${item.id}/CHANGELOG.md\nskillPath: skills/${item.id}/SKILL.md\nexamplePaths:\n  - examples/modules/${item.id}/README.zh-CN.md\n  - examples/modules/${item.id}/README.en.md\ntestPaths:\n${list(item.tests)}\nsupportedPlatforms:\n${list(item.platforms)}\ndependencies:\n${item.dependencies.length > 0 ? list(item.dependencies) : "  []"}\nmaturity: ${item.maturity}\n`;
 }
 
 function moduleIndex(language) {

@@ -9,10 +9,13 @@ import type { RunOutcome, RunStatus } from "./result.js";
  */
 export class RunTerminalizer {
   terminalize(events: CoreMindEvent[], error?: unknown): RunOutcome {
-    if (error !== undefined) return outcomeFromError(error);
-    if (events.some((event) => event.type === "policy_denied")) {
+    if (
+      events.some((event) => event.type === "policy_denied") &&
+      (error === undefined || (error instanceof CoreMindError && error.code === "loop_paused"))
+    ) {
       return { status: "paused", finishReason: "tool_approval_denied" };
     }
+    if (error !== undefined) return outcomeFromError(error);
     return { status: "succeeded", finishReason: "completed" };
   }
 }

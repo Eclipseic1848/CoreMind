@@ -15,6 +15,14 @@ python/dist/
 python/src/*.egg-info/
 **/__pycache__/
 .pytest_cache/
+.venv/
+venv/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.coverage
+htmlcov/
 *.pyc
 /packages/coremind-cli/test/.coremind/
 examples/golden/*/.coremind/runs/
@@ -29,6 +37,9 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+/.envrc
+/.npmrc
+/.pypirc
 
 # 会话数据
 sessions/

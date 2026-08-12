@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "baseline": "0.2.0-rc.1",
+  "cases": [
+    {
+      "id": "cold-start",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-cli/src/cli.e2e.test.ts:--version 输出版本号（验证安装）",
+        "P20:launch"
+      ]
+    },
+    {
+      "id": "long-output",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-cli/src/tui.test.tsx:长流式输出持续渲染到末尾标记",
+        "packages/coremind-runtime/src/checkpoint.test.ts:修改后的文件超过 diff 上限时拒绝生成大结果"
+      ]
+    },
+    {
+      "id": "abort",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-cli/src/tui.test.tsx:忙碌生成期间输入 /abort 会中止当前回答",
+        "packages/coremind-runtime/src/runtime.test.ts:外部中止会传播到 Loop 并记录 aborted 控制流",
+        "P20:abort"
+      ]
+    },
+    {
+      "id": "recovery",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-cli/src/cli.e2e.test.ts:run --session 保存并在二次运行恢复（断点续聊）",
+        "packages/coremind-runtime/src/runtime.test.ts:Loop 暂停后从稳定快照继续，不重复执行已完成步骤",
+        "P20:session-resume",
+        "P20:checkpoint-diff-restore"
+      ]
+    },
+    {
+      "id": "approval-deny",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-runtime/src/runtime.test.ts:ask 模式全部工具请求被拒绝时返回暂停而不是成功",
+        "P20:approval-deny"
+      ]
+    },
+    {
+      "id": "network-failure",
+      "platforms": ["windows", "linux"],
+      "evidence": [
+        "packages/coremind-runtime/src/tool-policy.test.ts:network deny 拒绝嵌套 URL，即使工具 ID 未显式命名为网络工具",
+        "packages/coremind-runtime/src/retry-policy.test.ts:只重试瞬态错误并按顺序报告次数",
+        "packages/coremind-runtime/src/runtime.test.ts:Loop 只重试模型层确认的瞬态错误，并记录有界 retry 控制流"
+      ]
+    }
+  ]
+}

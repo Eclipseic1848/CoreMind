@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
-  "recordedAt": "2026-08-10",
+  "recordedAt": "2026-08-11",
   "command": "npm run test:coverage",
   "totals": {
-    "lines": 72.82,
-    "statements": 70.8,
-    "functions": 80.32,
+    "lines": 73.26,
+    "statements": 71.19,
+    "functions": 81,
     "branches": 63.23
   },
   "platforms": {
     "win32": {
-      "lines": 72.82,
-      "statements": 70.8,
-      "functions": 80.32,
-      "branches": 63.3
+      "lines": 74.84,
+      "statements": 72.93,
+      "functions": 82.12,
+      "branches": 66.07
     },
     "linux": {
       "lines": 73.26,
@@ -30,10 +30,10 @@
       "branches": 100
     },
     "packages/coremind-runtime/src/checkpoint.ts": {
-      "branches": 75.4
+      "branches": 75.6
     },
     "packages/coremind-runtime/src/run-state.ts": {
-      "branches": 75
+      "branches": 78.78
     },
     "packages/coremind-runtime/src/loop-controller.ts": {
       "branches": 100

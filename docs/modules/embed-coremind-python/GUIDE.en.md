@@ -15,6 +15,7 @@ with CoreMindClient(config_path='coremind.yaml') as client:
     def lookup_order(order_id: str) -> dict[str, str]:
         return {'id': order_id, 'status': 'paid'}
     result = client.run('查询 A-100')
+    print(result['snapshot']['operation'], result['snapshot']['artifacts'])
     if result['outcome']['status'] != 'succeeded':
         raise RuntimeError(result['outcome']['finishReason'])
 ```
@@ -32,6 +33,7 @@ If initialization or any tool registration fails, the client closes the started 
 5. Verify Python and TypeScript expose identical fields for all six terminal states, tool effects, and approval events.
 6. Inject one registration failure and confirm `client.pid` is cleared and the temporary directory can be removed.
 7. For an explicit Loop, compare Python and TypeScript `loop_state` order, then call `resume_run` after pause and confirm committed effects do not replay.
+8. Verify `result['snapshot']` matches top-level runId, outcome, operation, metrics, and trace. Stop using a Worker that reports `invalid_run_snapshot`.
 
 ## Common mistakes
 

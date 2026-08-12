@@ -3,9 +3,11 @@ id: enforce-agent-permissions
 name:
   zh-CN: "权限与安全"
   en: "Permissions and Security"
-version: 0.2.0-rc.1
+version: 0.3.0-rc.1
 sourcePaths:
   - "packages/coremind-runtime/src/tool-policy.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
+  - "packages/coremind-runtime/src/agent-factory.ts"
   - "packages/coremind-cli/src/approval.ts"
   - "packages/coremind-tools/src/linux-sandbox.ts"
   - "packages/coremind-tools/src/host-shell.ts"
@@ -26,6 +28,7 @@ examplePaths:
   - examples/modules/enforce-agent-permissions/README.en.md
 testPaths:
   - "packages/coremind-runtime/src/tool-policy.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
   - "packages/coremind-cli/src/approval.test.ts"
   - "packages/coremind-tools/src/linux-sandbox.test.ts"
   - "packages/coremind-tools/src/host-shell.test.ts"

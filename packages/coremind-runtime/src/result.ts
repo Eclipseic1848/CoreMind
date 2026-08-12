@@ -1,7 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import { calculateContextTokens } from "@earendil-works/pi-agent-core";
-import type { Usage } from "@earendil-works/pi-ai";
 import type { QualityConfig } from "coremind-config";
+import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import type { CoreMindEvent } from "./events.js";
 
 export type RunStatus =
@@ -30,6 +29,17 @@ export interface RunMetrics {
   tokens?: number;
   costUsd?: number;
   outputChars: number;
+  context?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    promptCacheStatus: "available" | "unavailable" | "unknown";
+    compactions: number;
+    lastSummaryFingerprint?: string;
+    stablePrefixFingerprints: string[];
+  };
+  artifacts?: { stored: number; blocked: number; totalBytes: number };
 }
 
 export interface ScenarioResult {
@@ -71,6 +81,17 @@ export function analyzeRunMetrics(
   let traceTokens = 0;
   let traceCostUsd = 0;
   let hasTraceUsage = false;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
+  let promptCacheStatus: "available" | "unavailable" | "unknown" = "unknown";
+  let compactions = 0;
+  let lastSummaryFingerprint: string | undefined;
+  const stablePrefixFingerprints = new Set<string>();
+  let artifactsStored = 0;
+  let artifactsBlocked = 0;
+  let artifactBytes = 0;
 
   for (const event of events) {
     switch (event.type) {
@@ -84,6 +105,23 @@ export function analyzeRunMetrics(
           traceCostUsd += event.costUsd;
           hasTraceUsage = true;
         }
+        inputTokens += event.inputTokens ?? 0;
+        outputTokens += event.outputTokens ?? 0;
+        cacheReadTokens += event.cacheReadTokens ?? 0;
+        cacheWriteTokens += event.cacheWriteTokens ?? 0;
+        if (event.promptCacheStatus) promptCacheStatus = event.promptCacheStatus;
+        break;
+      case "context_compacted":
+        compactions += 1;
+        lastSummaryFingerprint = event.summaryFingerprint;
+        break;
+      case "context_prefix":
+        stablePrefixFingerprints.add(event.fingerprint);
+        break;
+      case "artifact_created":
+        artifactBytes += event.sizeBytes;
+        if (event.status === "stored") artifactsStored += 1;
+        else artifactsBlocked += 1;
         break;
       case "step_end":
         stepsTotal += 1;
@@ -107,9 +145,9 @@ export function analyzeRunMetrics(
   if (!hasTraceUsage) {
     for (const message of messages) {
       if (message.role !== "assistant" || !("usage" in message) || !message.usage) continue;
-      const usage = message.usage as Usage;
-      tokens = (tokens ?? 0) + calculateContextTokens(usage);
-      if (Number.isFinite(usage.cost?.total)) costUsd = (costUsd ?? 0) + usage.cost.total;
+      const usage = normalizeDependencyUsage(message.usage);
+      tokens = (tokens ?? 0) + usage.contextTokens;
+      costUsd = (costUsd ?? 0) + usage.costUsd;
     }
   }
 
@@ -123,6 +161,17 @@ export function analyzeRunMetrics(
     ...(tokens !== undefined ? { tokens } : {}),
     ...(costUsd !== undefined ? { costUsd } : {}),
     outputChars,
+    context: {
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      promptCacheStatus,
+      compactions,
+      ...(lastSummaryFingerprint ? { lastSummaryFingerprint } : {}),
+      stablePrefixFingerprints: [...stablePrefixFingerprints].sort(),
+    },
+    artifacts: { stored: artifactsStored, blocked: artifactsBlocked, totalBytes: artifactBytes },
   };
 }
 

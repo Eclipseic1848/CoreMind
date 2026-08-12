@@ -18,29 +18,29 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The repository and current prerelease line are `0.2.0-rc.1`. It brings together phase-one terminal semantics, safe tool contracts, resumable verify-repair Loops, coding-agent evaluations, synchronized versions, trusted publishing, provenance, P01-P20 acceptance, and repository-wide Markdown auditing. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for public availability.
+> The current code version is `0.3.0-rc.1`. It adds the phase-two harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for installable availability.
 
 > A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
 
-[Golden examples](examples/golden/README.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
+[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [0.2→0.3 migration](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
-## What the current candidate supports
+## What the current repository supports
 
-All three `0.2.0-rc.1` entry paths share one runtime, protocol, and result model.
+Both `0.2.0-rc.1` and the current `0.3.0-rc.1` keep CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 38 configurable providers, custom OpenAI-compatible endpoints, and evidence status recorded in the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and one currently certified under the seven-check evidence contract, with 39 still unverified; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
-| Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; TypeScript/Python offline evaluation is 100%, and five live runs per language passed capability and safety 5/5 |
-| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 17 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
+| Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
+| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 21 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux; CI runs the same three-run stability, coverage, installation, and P01-P19 matrix on both targets, while P20 uses real TTY evidence bound to the same commit |
+| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix, both-platform CI, real TTY acceptance on both platforms, and a live-provider recheck on the same source commit; Releases and registries remain authoritative for installation |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -49,10 +49,13 @@ The current version does not include a complete Web development environment, an 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
 | `0.2.x` phase-one stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while repeating both-platform P20, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
-| Phase-two Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
+| `0.3.0` phase-two kernel line | Lockstep dependencies and private adapters, a durable recoverable harness, context and artifact engineering, a first-party Coding/Engineering Kernel, entry-point parity, and executable evaluation | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts; each batch must pass the frozen baseline before advancing |
+| Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
-Exact post-phase-one versions and dates will be set after real user feedback. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
+`0.3.0` will advance through alpha, beta, and rc based on verified gate results; no calendar date overrides a failed gate. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
+
+The current `0.3.0-rc.1` has completed Batches 0 through 5 plus the automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are implemented. Local gates pass for P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and 410 Markdown files. `alibaba-model-studio/qwen-plus` has completed the current version's seven-check live revalidation. Use Releases and registries as the source of truth for publication status and final assets.
 
 ## Product boundary
 
@@ -64,7 +67,7 @@ The three supported use paths are:
 - TypeScript and Python SDKs embedded in an existing application.
 - Full source for extension and community contribution.
 
-Phase one targets Windows and Linux. macOS support follows later. A complete web development environment belongs to phase two; phase one does not ship an official hosted API platform or Docker image.
+Windows and Linux remain the formal target platforms. macOS support follows later. A complete web development environment belongs to phase three; the current scope does not ship an official hosted API platform or Docker image.
 
 ## Quick start
 
@@ -113,11 +116,11 @@ Every run separates:
 
 An unfinished run can be continued with `coremind run <file> --resume <runId>` or the SDK resume API. Resume reuses only complete persisted workflow-step outputs. It rejects finished runs, mismatched configuration or input, and incomplete steps that invoked non-replay-safe tools. Tool-call idempotency identifiers are correlation inputs for business-side receipt or deduplication; they are not an exactly-once guarantee.
 
-Custom tools must declare `effect.operations` and `effect.reversible`. The permission layer recursively inspects nested paths and URLs, and fails closed for undeclared effects under workspace or network restrictions. File restore also checks the post-tool fingerprint and refuses to overwrite a file changed later by a user or concurrent process.
+Custom tools must declare `effect.operations` and `effect.reversible`. The permission layer recursively inspects nested paths and URLs, and fails closed for undeclared effects under workspace or network restrictions. In ask mode, a human denial blocks that tool and later unapproved calls in the same batch. The run returns `paused` after batch reconciliation without another model request or approval prompt. In a sequential workflow, the denied step saves no output and no later step starts. File restore also checks the post-tool fingerprint and refuses to overwrite a file changed later by a user or concurrent process.
 
 ## Provider policy
 
-CoreMind exposes a locked provider catalog plus a native certified endpoint, and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. A provider becomes CoreMind Certified only after real streaming, tool-call, structured-result, multi-turn, and error-handling evidence exists.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract. `alibaba-model-studio/qwen-plus` completed all seven checks against `0.3.0-rc.1`, so the matrix currently reports one certified and 39 unverified entries.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
@@ -125,7 +128,7 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [17 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`.
+- [21 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`.
 - [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
 - [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-08-12
+
+- Synchronized this module contract with the repository release candidate.
+- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Added the public `loop` schema for planning, execution, verification, repair, bounded iterations, no-progress detection, pause, and exhaustion behavior.

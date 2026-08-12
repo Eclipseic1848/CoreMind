@@ -6,6 +6,7 @@ import { parse } from "yaml";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const modulesRoot = path.join(root, "docs", "modules");
 const expectedModules = [
+  "adapt-runtime-dependencies",
   "build-coding-agents",
   "build-tools",
   "configure-coremind",
@@ -16,12 +17,15 @@ const expectedModules = [
   "embed-coremind-typescript",
   "enforce-agent-permissions",
   "evaluate-agents",
+  "extend-runtime-lifecycle",
   "inspect-agent-traces",
   "manage-checkpoints",
+  "manage-context-artifacts",
   "manage-providers",
   "manage-sessions",
   "operate-coremind-cli",
   "package-agent-skills",
+  "recover-durable-runs",
   "scaffold-coremind-projects",
 ];
 const expectedGoldenExamples = [
@@ -74,7 +78,7 @@ async function checkModule(id) {
   requireString(manifest.name?.["zh-CN"], `${id}.name.zh-CN`);
   requireString(manifest.name?.en, `${id}.name.en`);
   requireString(manifest.version, `${id}.version`);
-  requireEqual(manifest.maturity, "release-candidate", `${id}.maturity`);
+  requireOneOf(manifest.maturity, ["alpha", "beta", "release-candidate"], `${id}.maturity`);
   requireArrayContains(manifest.supportedPlatforms, "windows", `${id}.supportedPlatforms`);
   requireArrayContains(manifest.supportedPlatforms, "linux", `${id}.supportedPlatforms`);
 
@@ -351,6 +355,12 @@ function requireString(value, label) {
 
 function requireEqual(actual, expected, label) {
   if (actual !== expected) failures.push(`${label} 应为 ${JSON.stringify(expected)}`);
+}
+
+function requireOneOf(actual, expected, label) {
+  if (!expected.includes(actual)) {
+    failures.push(`${label} 必须是 ${expected.join("、")} 之一，实际为 ${String(actual)}`);
+  }
 }
 
 function requireArrayContains(value, expected, label) {

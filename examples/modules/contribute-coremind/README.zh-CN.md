@@ -4,6 +4,7 @@
 
 ```text
 npm run build
+npm run baseline:check
 npm run check
 npm run test:stability
 npm run test:coverage
@@ -22,5 +23,6 @@ npm run release:preflight -- --allow-dirty
 5. 记录 Windows/Linux 各自结果；未运行的平台不得标记通过。
 6. RC 完整时再运行 `npm run acceptance:rc -- --require-manual`；没有同提交的双平台 TTY 与真实 Provider 时不得继续发布。
 7. 检查工作流中没有可移动的 Action Tag，Dependabot 升级 PR 也必须通过完整门禁。
+8. 如果 `baseline:check` 失败，先判断是回归还是已批准的合同变化；没有迁移、回滚与明确原因时不得更新基线。
 
 返回 [中文指南](../../../docs/modules/contribute-coremind/GUIDE.zh-CN.md)。

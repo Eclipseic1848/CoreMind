@@ -19,6 +19,7 @@ provider:
 2. 运行 [模块示例](../../../examples/modules/manage-providers/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
+5. 需要“已认证”状态时，另按[七项真实认证 SOP](../../providers/CERTIFICATION.zh-CN.md)执行；`doctor` 成功不等于认证。
 
 ## 常见误区
 
@@ -26,3 +27,4 @@ provider:
 - 不要把一次成功运行当成稳定性证明。
 - 不要通过 full 模式绕过 deny、工作区保护、审计或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
+- 不要沿用缺少 abort 或长上下文检查的旧证据；矩阵会如实显示认证缺口。

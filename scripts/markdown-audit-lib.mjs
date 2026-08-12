@@ -17,6 +17,10 @@ const IGNORED_DIRECTORIES = new Set([
 
 const FORBIDDEN_IDENTIFIER =
   /\bpi\b|pi[-_ ](?:agent|ai|coding)|@earendil-works|github\.com\/earendil-works/iu;
+const CHINESE_TO_ENGLISH_SENTENCE =
+  /[\p{Script=Han}][^。！？!?\n]*[。！？!?]\s*[A-Za-z][A-Za-z'-]*(?:[\s,;:]+[A-Za-z][A-Za-z'-]*){3,}/u;
+const ENGLISH_TO_CHINESE_SENTENCE =
+  /[A-Za-z][A-Za-z'-]*(?:[\s,;:]+[A-Za-z][A-Za-z'-]*){3,}[^.!?\n]*[.!?]\s*[\p{Script=Han}]/u;
 
 /** 审计仓库维护的全部 Markdown，不进入依赖、缓存、覆盖率或构建产物目录。 */
 export async function auditMarkdownTree(root) {
@@ -57,6 +61,16 @@ export async function auditMarkdownTree(root) {
     }
 
     const searchable = removeCode(content);
+    for (const paragraph of extractParagraphs(searchable)) {
+      const mixedIndex = mixedLanguageIndex(paragraph.content);
+      if (mixedIndex === undefined) continue;
+      blockers.push({
+        code: "mixed-language-paragraph",
+        file: relative,
+        line: lineNumber(searchable, paragraph.index + mixedIndex),
+        message: "同一描述段落混合了完整的中文和英文句子，请拆分为独立语言段落",
+      });
+    }
     for (const link of extractLinks(searchable)) {
       const destination = normalizeDestination(link.target);
       if (!destination || isNonFileDestination(destination)) continue;
@@ -89,6 +103,32 @@ export async function auditMarkdownTree(root) {
   }
 
   return { files: files.length, blockers };
+}
+
+function extractParagraphs(content) {
+  const paragraphs = [];
+  let start = 0;
+  const separator = /\r?\n[ \t]*\r?\n/g;
+  for (const match of content.matchAll(separator)) {
+    const end = match.index ?? start;
+    if (content.slice(start, end).trim().length > 0) {
+      paragraphs.push({ content: content.slice(start, end), index: start });
+    }
+    start = end + match[0].length;
+  }
+  if (content.slice(start).trim().length > 0) {
+    paragraphs.push({ content: content.slice(start), index: start });
+  }
+  return paragraphs;
+}
+
+function mixedLanguageIndex(paragraph) {
+  const chineseToEnglish = CHINESE_TO_ENGLISH_SENTENCE.exec(paragraph);
+  const englishToChinese = ENGLISH_TO_CHINESE_SENTENCE.exec(paragraph);
+  const indexes = [chineseToEnglish?.index, englishToChinese?.index].filter(
+    (index) => index !== undefined,
+  );
+  return indexes.length > 0 ? Math.min(...indexes) : undefined;
 }
 
 async function collectMarkdownFiles(directory) {

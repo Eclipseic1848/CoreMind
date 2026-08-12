@@ -1,6 +1,6 @@
 # CLI 与 TUI
 
-状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -26,6 +26,8 @@
 - TUI 审批先显示副作用、完整目标与原因；长正文摘要，凭据字段隐藏
 - TUI、readline 和 JSONL 显示相同的 `loop_state` 顺序；暂停以退出码 `2` 返回且可恢复
 - 不安全或已结束的 runId 恢复会明确失败
+- TUI 的 `/status`、`/artifacts` 与 `/context` 显示恢复、评测、Artifact、缓存和压缩状态
+- JSONL 最后一条 `run_result.snapshot` 与 TypeScript/Python SDK 使用同一纯 JSON 快照
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

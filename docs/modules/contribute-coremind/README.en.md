@@ -1,10 +1,10 @@
 # Source and Community Contribution
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
-Change CoreMind source within its one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary, with repeatable proof that same-commit source, npm packages, the Python wheel, the independent source ZIP, and the documentation site agree.
+Change CoreMind source within its frozen public contracts, one-way dependencies, test-first workflow, bilingual material contract, and release authorization boundary, with repeatable proof that same-commit source, npm packages, the Python wheel, the independent source ZIP, and the documentation site agree.
 
 ## Public interfaces
 
@@ -16,6 +16,8 @@ Change CoreMind source within its one-way dependencies, test-first workflow, bil
 - `npm run docs:audit`
 - `npm run test:stability`
 - `npm run test:coverage`
+- `npm run baseline:check`
+- `npm run baseline:update -- --reason "approved change reason"`
 - `npm run release:check-npm`
 - `npm run release:test-npm`
 - `npm run release:test-source`
@@ -31,6 +33,8 @@ Change CoreMind source within its one-way dependencies, test-first workflow, bil
 - Dependencies must remain config to tools to templates to runtime to facade/CLI/worker
 - Never push, tag, or publish without authorization
 - Preserve unrelated user changes
+- Update the frozen baseline only for an approved contract change with an explicit reason. Never lower a gate merely to make a failing result pass.
+- The current development commit, capture time, platform, and build hashes are trace evidence. The Release Tag target, Release Manifest digest, public APIs, schemas, dependency combinations, acceptance matrix, and quality floors are blocking contracts.
 - `.scratch` is reserved for ignored local acceptance evidence and isolated tool environments; it is excluded from Git, static checks, and artifacts.
 - Provider discovery is not certification; releases require live evidence
 - One passing test run does not replace three consecutive Windows/Linux runs. Record honest per-platform coverage floors below target, allow them only to increase, and set the generic fallback to their per-metric minimum.
@@ -72,6 +76,13 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [scripts/test-stability.mjs](../../../scripts/test-stability.mjs)
 - [scripts/check-coverage.mjs](../../../scripts/check-coverage.mjs)
 - [scripts/coverage-baseline.json](../../../scripts/coverage-baseline.json)
+- [scripts/phase2-baseline.mjs](../../../scripts/phase2-baseline.mjs)
+- [frozen baseline](../../../baselines/0.2.0-rc.1/baseline.json)
+- [platform behavior matrix](../../../baselines/0.2.0-rc.1/behavior-matrix.json)
+- [same-task coding benchmark contract](../../../baselines/0.2.0-rc.1/coding-benchmark.json)
+- [both-platform manual evidence summary](../../../baselines/0.2.0-rc.1/platform-acceptance.json)
+- [stage gates](../../../baselines/0.2.0-rc.1/release-gates.json)
+- [public release manifest](../../../baselines/0.2.0-rc.1/release-manifest.json)
 - [scripts/release-version.mjs](../../../scripts/release-version.mjs)
 - [scripts/release-artifacts.mjs](../../../scripts/release-artifacts.mjs)
 - [scripts/publish-npm-artifacts.mjs](../../../scripts/publish-npm-artifacts.mjs)
@@ -84,6 +95,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [scripts/release-preflight.test.ts](../../../scripts/release-preflight.test.ts)
 - [scripts/package-artifacts.test.ts](../../../scripts/package-artifacts.test.ts)
 - [scripts/coverage-baseline.test.ts](../../../scripts/coverage-baseline.test.ts)
+- [scripts/phase2-baseline.test.ts](../../../scripts/phase2-baseline.test.ts)
 - [scripts/workflow-contract.test.ts](../../../scripts/workflow-contract.test.ts)
 - [scripts/source-archive.test.ts](../../../scripts/source-archive.test.ts)
 - [scripts/release-version.test.ts](../../../scripts/release-version.test.ts)

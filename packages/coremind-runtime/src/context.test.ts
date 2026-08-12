@@ -1,6 +1,11 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { describe, expect, it } from "vitest";
-import { ContextProtector, protectContext } from "./context.js";
+import {
+  buildStableContextPrefix,
+  ContextProtector,
+  compareContextStrategies,
+  protectContext,
+} from "./context.js";
 
 describe("protectContext", () => {
   it("未接近上下文窗口时不改写消息", () => {
@@ -44,6 +49,11 @@ describe("protectContext", () => {
     expect(result.messages.map(textOf)).toContain("最近问题");
     expect(result.messages.map(textOf)).toContain("最近回答");
     expect(result.afterTokens).toBeLessThan(result.beforeTokens);
+    expect(result.reason).toBe("threshold");
+    expect(result.strategy).toBe("deterministic-v1");
+    expect(result.summaryFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(textOf(result.messages[0])).toContain("未完成任务：");
+    expect(textOf(result.messages[0])).toContain("不确定副作用：");
   });
 
   it("压缩异常时保留原消息并报告失败，不静默吞掉", () => {
@@ -58,6 +68,53 @@ describe("protectContext", () => {
     expect(protector.transform(invalid)).toBe(invalid);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toContain("上下文压缩失败");
+  });
+
+  it("稳定前缀不受对象键顺序和工具输入顺序影响", () => {
+    const first = buildStableContextPrefix({
+      projectInstructions: "只修改任务范围内的文件。",
+      tools: [
+        { name: "write", description: "写文件" },
+        { name: "read", description: "读文件" },
+      ],
+      stableFacts: { model: "test-model", provider: "test-provider" },
+      skillsContent: ["先验证，再交付。"],
+    });
+    const second = buildStableContextPrefix({
+      projectInstructions: "只修改任务范围内的文件。",
+      tools: [
+        { name: "read", description: "读文件" },
+        { name: "write", description: "写文件" },
+      ],
+      stableFacts: { provider: "test-provider", model: "test-model" },
+      skillsContent: ["先验证，再交付。"],
+    });
+
+    expect(first).toEqual(second);
+    expect(first.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.text.indexOf("核心规则")).toBeLessThan(first.text.indexOf("项目指令"));
+    expect(first.text.indexOf("项目指令")).toBeLessThan(first.text.indexOf("工具契约"));
+  });
+
+  it("只生成策略对照数据，不擅自切换默认压缩策略", () => {
+    const messages: AgentMessage[] = [
+      user(`任务-${"甲".repeat(300)}`),
+      assistant(`处理-${"乙".repeat(300)}`),
+      user("继续完成并运行测试"),
+    ];
+    const comparison = compareContextStrategies(messages, {
+      contextWindow: 100,
+      reserveTokens: 10,
+      keepRecentTokens: 20,
+    });
+
+    expect(comparison.selected).toBe("deterministic-v1");
+    expect(comparison.variants.map((item) => item.strategy)).toEqual([
+      "none",
+      "deterministic-v1",
+      "deterministic-v1-more-recent",
+    ]);
+    expect(comparison.variants[1]?.tokens).toBeLessThan(comparison.variants[0]?.tokens ?? 0);
   });
 });
 

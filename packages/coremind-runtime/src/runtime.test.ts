@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -6,6 +6,7 @@ import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
 import type { CoreMindEvent } from "./events.js";
+import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
 import { fingerprintRunConfig, MemoryRunStore, RunStateJournal } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 
@@ -51,6 +52,11 @@ describe("CoreMindRuntime", () => {
       const result = await runtime.run();
 
       expect(result.outcome).toMatchObject({ status: "succeeded", finishReason: "completed" });
+      expect(result.operation).toMatchObject({
+        runId: result.runId,
+        state: "completed",
+        transitionSequence: 3,
+      });
       expect(result.metrics).toMatchObject({ turns: 1, toolCalls: 0, toolFailures: 0 });
       expect(result.metrics.durationMs).toBeGreaterThanOrEqual(0);
       expect(result.evaluation.profile).toBe("standard");
@@ -291,6 +297,13 @@ describe("CoreMindRuntime", () => {
         ),
       ).toBe(true);
       expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "tool_result" &&
+            entry.event.idempotencyKey === `${result.runId}:call-read`,
+        ),
+      ).toBe(true);
+      expect(
         result.trace
           .filter((entry) => entry.event.type === "effect_receipt")
           .map((entry) => entry.event.status),
@@ -324,8 +337,283 @@ describe("CoreMindRuntime", () => {
         status: "paused",
         finishReason: "tool_approval_denied",
       });
+      expect(result.trace.filter((entry) => entry.event.type === "approval_required")).toHaveLength(
+        1,
+      );
+      expect(
+        result.trace.filter(
+          (entry) => entry.event.type === "approval_resolved" && entry.event.decision === "deny",
+        ),
+      ).toHaveLength(1);
+      expect(result.trace.filter((entry) => entry.event.type === "turn_end")).toHaveLength(1);
+      expect(result.operation).toMatchObject({
+        state: "paused",
+        pauseReason: "tool_approval_denied",
+      });
       expect(result.trace.some((entry) => entry.event.type === "policy_denied")).toBe(true);
       expect(result.releaseReadiness.ready).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("人工拒绝第一次工具审批后立即停止，不再次请求模型或审批", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-denied-stop-"));
+    const target = path.join(dir, "article.md");
+    writeFileSync(path.join(dir, "notes.txt"), "不应触发第二次审批", "utf8");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `tool-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                  {
+                    index: 1,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `tool-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let approvals = 0;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "write" }, { id: "read" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "必须写入 article.md 才能完成任务",
+        approveTool: async () => {
+          approvals += 1;
+          return "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toBe(1);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("同批次先允许后拒绝时在批次结束后停止，不再请求模型", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-mixed-denial-stop-"));
+    const target = path.join(dir, "article.md");
+    writeFileSync(path.join(dir, "notes.txt"), "允许读取的内容", "utf8");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `mixed-tool-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                  },
+                  {
+                    index: 1,
+                    id: `call-write-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `mixed-tool-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const approvals: string[] = [];
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "read" }, { id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "读取 notes.txt，但不要写入 article.md",
+        approveTool: async (request) => {
+          approvals.push(request.tool);
+          return request.tool === "read" ? "allow" : "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toEqual(["read", "write"]);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("工作流步骤的工具审批被拒绝后立即暂停，不执行后续步骤", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-workflow-denied-stop-"));
+    const target = path.join(dir, "article.md");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `workflow-denied-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-write-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `workflow-denied-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let approvals = 0;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "write" }],
+          workflow: [
+            {
+              id: "write-article",
+              type: "prompt",
+              agent: "main",
+              input: "写入 article.md",
+              saveAs: "article",
+            },
+            {
+              id: "continue-after-denial",
+              type: "prompt",
+              agent: "main",
+              input: "不得执行的后续步骤",
+              saveAs: "later",
+            },
+          ],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "验证工作流拒绝边界",
+        approveTool: async () => {
+          approvals += 1;
+          return "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toBe(1);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outputs.has("article")).toBe(false);
+      expect(result.outputs.has("later")).toBe(false);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "step_end" &&
+            entry.event.stepId === "write-article" &&
+            entry.event.ok === false,
+        ),
+      ).toBe(true);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "step_start" && entry.event.stepId === "continue-after-denial",
+        ),
+      ).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
     } finally {
       await closeServer(server);
     }
@@ -376,6 +664,7 @@ describe("CoreMindRuntime", () => {
         finishReason: "run_timeout",
         error: { code: "run_timeout" },
       });
+      expect(result.operation).toMatchObject({ state: "failed", failureReason: "run_timeout" });
       expect(result.releaseReadiness.ready).toBe(false);
     } finally {
       await closeServer(server);
@@ -597,6 +886,7 @@ describe("CoreMindRuntime", () => {
       const resumed = await second.run();
 
       expect(resumed.outcome.status).toBe("succeeded");
+      expect(resumed.operation).toMatchObject({ state: "completed" });
       expect(resumed.transcript).toBe("candidate-b");
       expect((await store.read(paused.runId)).at(-1)?.kind).toBe("finish");
     } finally {
@@ -750,11 +1040,122 @@ describe("CoreMindRuntime", () => {
       const result = await runPromise;
 
       expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
+      expect(result.operation).toMatchObject({ state: "failed", failureReason: "aborted" });
       expect(
         result.trace
           .filter((entry) => entry.event.type === "loop_state")
           .map((entry) => entry.event.to),
       ).toContain("aborted");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("生命周期扩展的异常和超时只形成收据，不改变真实成功终态", async () => {
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const capabilities = {
+      files: "none",
+      process: false,
+      network: false,
+      credentials: false,
+      ui: false,
+    } as const;
+    let finishedOperationState: unknown;
+    const failed = defineLifecycleExtension({
+      id: "failed-exporter",
+      version: "1.0.0",
+      capabilities,
+      handlers: {
+        "run-finished": ({ payload }) => {
+          finishedOperationState = (payload.operation as { state?: unknown }).state;
+          throw new Error("export failed");
+        },
+      },
+    });
+    const timeout = defineLifecycleExtension({
+      id: "slow-exporter",
+      version: "1.0.0",
+      capabilities,
+      handlers: { "before-model": () => new Promise(() => {}) },
+    });
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "扩展失败隔离",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-extension-isolation-")),
+        initialPrompt: "执行",
+        lifecycleExtensions: {
+          extensions: [failed, timeout],
+          trustedIds: [failed.id, timeout.id],
+          grants: { [failed.id]: capabilities, [timeout.id]: capabilities },
+          timeoutMs: 5,
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(finishedOperationState).toBe("completed");
+      expect(result.snapshot.outcome).toEqual(result.outcome);
+      expect(result.snapshot.extensions).toEqual(result.extensions);
+      expect(result.extensions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ extensionId: "failed-exporter", status: "failed" }),
+          expect.objectContaining({ extensionId: "slow-exporter", status: "timed_out" }),
+        ]),
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("扩展只能在通用审批允许后追加拒绝，不能篡改审批结果", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-extension-deny-"));
+    writeFileSync(path.join(dir, "notes.txt"), "扩展拒绝测试", "utf8");
+    const server = createToolCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const extension = createDenyPolicyExtension({ id: "deny-read", deniedTools: ["read"] });
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {
+          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "读取 notes.txt",
+        approveTool: async () => "allow",
+        lifecycleExtensions: {
+          extensions: [extension],
+          trustedIds: [extension.id],
+          grants: { [extension.id]: extension.capabilities },
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome.status).toBe("paused");
+      expect(result.checkpoints).toHaveLength(0);
+      expect(result.trace.some((entry) => entry.event.type === "approval_resolved")).toBe(true);
+      expect(
+        result.trace.some(
+          (entry) => entry.event.type === "policy_denied" && entry.event.tool === "read",
+        ),
+      ).toBe(true);
+      expect(result.extensions).toContainEqual(
+        expect.objectContaining({ extensionId: "deny-read", denied: true }),
+      );
     } finally {
       await closeServer(server);
     }

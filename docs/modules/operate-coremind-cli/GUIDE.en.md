@@ -22,6 +22,7 @@ coremind eval my-agent/coremind.yaml
 6. Set `session.enabled: true` before using `--session`; the CLI must fail clearly rather than continue silently when it is missing.
 7. For an explicit Loop, compare state order across TUI, readline, and `--json-events`, then resume a pause with the same run ID.
 8. With `coremind doctor coremind.yaml`, verify that credential checks follow that config's `provider.apiKeyEnv` and do not fail on unrelated Provider keys.
+9. In the TUI, run `/status`, `/artifacts`, and `/context`, then verify recovery, evaluation, artifact references, and context-compaction evidence.
 
 ## Automation contract
 
@@ -32,6 +33,8 @@ Get-Content -LiteralPath run-output.txt -Encoding utf8 | Select-Object -Last 1
 ```
 
 Production scripts should redirect stdout and stderr separately; the example combines them only for manual inspection. Use `0/1/2/3/124/130` as terminal exit codes, and require the final JSONL line to parse as `type: "run_result"`. Never infer success by searching human-readable text.
+
+Machine consumers should prefer the final `snapshot`. Compatibility fields remain at the top level, while `snapshot` is the common pure-JSON terminal envelope for CLI, Worker, and both SDKs.
 
 ## Common mistakes
 

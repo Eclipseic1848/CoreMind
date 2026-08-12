@@ -18,18 +18,20 @@ Provider discovery means that CoreMind has an adapter entry point. It does not m
 | Tool call | Arguments are valid, the tool result is returned, and generation continues |
 | Structured result | Output matches the declared structure; invalid output is rejected or repaired |
 | Multi-turn | Context stays correct for at least three turns without role contamination |
+| Abort | An active generation can be explicitly stopped, reports `aborted`, and leaves the Runtime usable |
 | Error handling | Invalid keys, rate limits, timeouts, and server errors remain diagnosable without leaking secrets |
+| Long context | At the recorded synthetic input size, the model still returns the boundary marker without real user or business data |
 
 ## Procedure
 
 1. Start with one provider, one model, and one side-effect-free tool.
-2. Run all five checks and retain redacted commands, configuration summaries, and result summaries.
+2. Run all seven checks and retain redacted commands, configuration summaries, and result summaries.
 3. Re-run failed checks once; a single intermittent success is not sufficient.
-4. Add one evidence record to `docs/providers/certifications.json`. Every required check must be `true`.
+4. Add one evidence record to `docs/providers/certifications.json`. Every one of the seven checks must be `true`.
 5. Run `npm run build && npm run providers:matrix` to regenerate both matrices.
 6. Run `npm run check` and `npm test` to verify that documentation and runtime discovery remain aligned.
 7. Ask another maintainer to review the evidence, data-egress approval, and redaction before merge.
 
 ## Revocation
 
-Revoke certification when an API changes incompatibly, a default model is retired, a live regression fails, a security issue is found, or no retest occurred across a major version. Fix the issue and repeat the complete procedure before restoring certification.
+Evidence must include provider, model, CoreMind version, date, platform, all seven results, the synthetic long-context size, and a reviewable link. Downgrade certification when a current check is missing, an API changes incompatibly, a default model is retired, a live regression fails, a security issue is found, or no retest occurred across a major version. Repeat the complete procedure before restoring certification.

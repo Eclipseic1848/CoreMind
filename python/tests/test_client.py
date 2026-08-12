@@ -28,6 +28,8 @@ class CoreMindClientTest(unittest.TestCase):
         second = self.client.run("第二次")
 
         self.assertEqual(first["outcome"]["status"], "succeeded")
+        self.assertEqual(first["snapshot"]["outcome"], first["outcome"])
+        self.assertEqual(first["snapshot"]["runId"], first["runId"])
         self.assertEqual(second["transcript"], "完成")
         self.assertEqual(self.client.pid, pid)
         self.assertEqual(self.events[0]["event"]["type"], "agent_start")
@@ -71,6 +73,12 @@ class CoreMindClientTest(unittest.TestCase):
             self.client.start()
 
         self.assertIsNone(self.client.pid)
+
+    def test_inconsistent_snapshot_is_rejected_with_stable_error(self) -> None:
+        with self.assertRaises(ProtocolError) as captured:
+            self.client.run("坏快照")
+
+        self.assertEqual(captured.exception.coremind_code, "invalid_run_snapshot")
 
 
 class AsyncCoreMindClientTest(unittest.IsolatedAsyncioTestCase):

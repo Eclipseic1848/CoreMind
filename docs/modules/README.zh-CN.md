@@ -2,10 +2,16 @@
 
 每个模块均包含实现路径、测试、双语 README/SOP/指南、通用 Skill、示例和机器可检查清单。
 
+[查看完整 SOP/Skill 索引](SOP-SKILL-INDEX.zh-CN.md)
+
 - [配置与 Schema](configure-coremind/README.zh-CN.md)
 - [Provider 与模型](manage-providers/README.zh-CN.md)
+- [Runtime 依赖 Adapter](adapt-runtime-dependencies/README.zh-CN.md)
+- [持久运行与故障恢复](recover-durable-runs/README.zh-CN.md)
+- [上下文与 Artifact 治理](manage-context-artifacts/README.zh-CN.md)
 - [Agent 构建](design-agents/README.zh-CN.md)
 - [编码智能体](build-coding-agents/README.zh-CN.md)
+- [Runtime 生命周期扩展](extend-runtime-lifecycle/README.zh-CN.md)
 - [工具与业务能力](build-tools/README.zh-CN.md)
 - [Skill 与 SOP 装载](package-agent-skills/README.zh-CN.md)
 - [Workflow 与受控 Loop](design-workflows/README.zh-CN.md)

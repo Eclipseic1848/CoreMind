@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "0.2.0-rc.1",
+    "developmentCommit": "fd80bdb93c74eaee4dbeb93803a41e707e0d20b1",
+    "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
+  },
+  "publicContracts": {
+    "apiReports": {
+      "coremind-ai": "401d2604cd195ffd30a2ed99335ca324c975b029ac804eb22c653f77b57b1fc2",
+      "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
+      "coremind-config": "92d20173b0c0efbb3130f7f96166faca17491f1de7e6bdbf232e089037137977",
+      "coremind-protocol": "23b4d79ba23bc3005a5b7d9c59940a11e00826d90855401431120b1cae65e17d",
+      "coremind-runtime": "634391097be73529d1fa528dc791ebff959394b07588d48191003470e68fb8ac",
+      "coremind-templates": "bce0ae0ce017f2c37d964e4ead395eff96426b257cead93d080214cb2db3ead6",
+      "coremind-tools": "97b78e090b85a746bc75db31a0d9a96845dcc92ea017cc667daab58094e2e105",
+      "coremind-worker": "7e3b3413ca5ecebac0685831f29e632224c8b4f33088bacbdf40f07602f65195"
+    },
+    "schemas": {
+      "config": "19971c09759c3fb679b461a50d6030f468d5c3180d1f694a1a7d37719bf12d4a",
+      "protocol": "907c8eca28afe93d3640cb1d9c7f52ac7137e0331cc01a42295d5a5983543255"
+    }
+  },
+  "dependencies": {
+    "installed": {
+      "coding-layer": [
+        "0.84.1"
+      ],
+      "model-layer": [
+        "0.83.0",
+        "0.84.1"
+      ],
+      "runtime-core": [
+        "0.83.0",
+        "0.84.1"
+      ]
+    }
+  },
+  "acceptance": {
+    "caseIds": [
+      "P01",
+      "P02",
+      "P03",
+      "P04",
+      "P05",
+      "P06",
+      "P07",
+      "P08",
+      "P09",
+      "P10",
+      "P11",
+      "P12",
+      "P13",
+      "P14",
+      "P15",
+      "P16",
+      "P17",
+      "P18",
+      "P19",
+      "P20"
+    ],
+    "entries": [
+      "artifact",
+      "headless-cli",
+      "python-sdk",
+      "tui",
+      "typescript-sdk"
+    ],
+    "behaviorCaseIds": [
+      "abort",
+      "approval-deny",
+      "cold-start",
+      "long-output",
+      "network-failure",
+      "recovery"
+    ],
+    "platforms": [
+      "linux",
+      "windows"
+    ],
+    "behaviorMatrixSha256": "6385466461a46ccab4c86b21e35a4d8bb4969efe8398afadae5a7ea0e2256bdc",
+    "platformAcceptanceSha256": "c6e89ece6ce04526aeeb741015259c7a5a3fe357318ae1073d65a4bb389094a3"
+  },
+  "releaseArtifacts": {
+    "manifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
+  },
+  "quality": {
+    "coverage": {
+      "totals": {
+        "lines": 72.98,
+        "statements": 70.97,
+        "functions": 80.32,
+        "branches": 63.23
+      },
+      "platforms": {
+        "win32": {
+          "lines": 72.98,
+          "statements": 70.97,
+          "functions": 80.32,
+          "branches": 63.52
+        },
+        "linux": {
+          "lines": 73.26,
+          "statements": 71.19,
+          "functions": 81,
+          "branches": 63.23
+        }
+      },
+      "critical": {
+        "packages/coremind-runtime/src/tool-policy.ts": {
+          "branches": 86.23
+        },
+        "packages/coremind-runtime/src/run-terminalizer.ts": {
+          "branches": 100
+        },
+        "packages/coremind-runtime/src/checkpoint.ts": {
+          "branches": 75.4
+        },
+        "packages/coremind-runtime/src/run-state.ts": {
+          "branches": 75
+        },
+        "packages/coremind-runtime/src/loop-controller.ts": {
+          "branches": 100
+        },
+        "packages/coremind-runtime/src/loop-runner.ts": {
+          "branches": 92.4
+        }
+      },
+      "targets": {
+        "total": 80,
+        "criticalBranches": 90
+      }
+    },
+    "codingEvalProfiles": [
+      "python",
+      "typescript"
+    ],
+    "codingBenchmark": {
+      "schemaVersion": 1,
+      "baseline": "0.2.0-rc.1",
+      "profiles": [
+        {
+          "id": "typescript",
+          "fixture": "examples/coding-evals/typescript-defect",
+          "requiredTrajectory": [
+            "reproduce",
+            "inspect",
+            "minimal-edit",
+            "target-test",
+            "regression-test",
+            "diff-review"
+          ]
+        },
+        {
+          "id": "python",
+          "fixture": "examples/coding-evals/python-defect",
+          "requiredTrajectory": [
+            "reproduce",
+            "inspect",
+            "minimal-edit",
+            "target-test",
+            "regression-test",
+            "diff-review"
+          ]
+        }
+      ],
+      "subjects": [
+        "coremind-baseline",
+        "coremind-candidate",
+        "external-reference-a",
+        "external-reference-b"
+      ],
+      "fairness": {
+        "sameProvider": true,
+        "sameModel": true,
+        "sameModelOptions": true,
+        "sameInitialCommit": true,
+        "sameBudget": true,
+        "sameTimeout": true,
+        "sameNetworkPolicy": true,
+        "differencesMustBeRecorded": true
+      },
+      "metrics": [
+        "success-rate",
+        "pass-at-k",
+        "first-fix-success-rate",
+        "tool-calls",
+        "failed-tool-calls",
+        "repeated-actions",
+        "turns",
+        "tokens",
+        "cost",
+        "duration",
+        "approval-count",
+        "unauthorized-attempts",
+        "checkpoint-count",
+        "restore-success-rate",
+        "residual-diff",
+        "duplicate-side-effects"
+      ],
+      "runsPerProfile": 5,
+      "minimumSuccessfulRuns": 4,
+      "requiredSafetyRuns": 5,
+      "comparisonRunStatus": "not-run",
+      "comparisonRunBlocker": "真实外部对照需要用户批准模型调用、费用和样例代码外发"
+    },
+    "releaseGates": {
+      "nonRegression": {
+        "coverage": true,
+        "publicContracts": true,
+        "acceptanceMatrix": true,
+        "dependencyTree": true
+      },
+      "hardSafety": {
+        "unauthorizedWrites": 0,
+        "implicitNetworkAccess": 0,
+        "credentialLeaks": 0,
+        "executedDeniedTools": 0,
+        "duplicateCommittedEffects": 0,
+        "falseTestClaims": 0,
+        "unsafeCheckpointOverwrites": 0,
+        "stateEvidenceMismatches": 0
+      },
+      "alpha": {
+        "requiredDeterministicPassRate": 1,
+        "requiredBaselineCheck": true,
+        "requiredWindowsLinuxCi": true
+      },
+      "beta": {
+        "runsPerCodingProfile": 5,
+        "minimumSuccessfulRunsPerProfile": 4,
+        "requiredSafetyRunsPerProfile": 5,
+        "requiredEntryParity": [
+          "tui",
+          "headless-cli",
+          "typescript-sdk",
+          "python-sdk"
+        ]
+      },
+      "rc": {
+        "requiredAcceptanceCases": 20,
+        "requiredTtyPlatforms": 2,
+        "requiredLiveProviderRecheck": true,
+        "requiredArtifactTraceability": true,
+        "requiredDocumentationAudit": true
+      },
+      "longTermCoverageTargets": {
+        "total": 80,
+        "criticalBranches": 90
+      }
+    }
+  },
+  "evidence": {
+    "capturedAt": "2026-08-11T05:09:02.064Z",
+    "capturePlatform": "win32",
+    "updateReason": "冻结发布提交与 Release Manifest 摘要，修复门禁漏检",
+    "apiExtractorVersion": "7.58.12",
+    "dependencyLockSha256": "f6476607578c27bac53c999ffb7b8723c929b70e0d6741cb241da6c419325321",
+    "codingEvalFixtureSha256": "05a5d52d0fe471dba2703978788f09eb83f7247b0afa1b6ce7067876d929a5ec",
+    "packageDistSha256": {
+      "coremind-ai": "6c818aa3c0fcc0838e900e0f6f57d8e5c423fd929a58d8e003976b433d52b10b",
+      "coremind-cli": "fd01bfb4d7aa59bfd78b7d76bdee74877d04446abd0d6898e55756c37a5751a5",
+      "coremind-config": "4ef79481735d637124916ed5f427e2e89b4eb6536a11c2855c645ac633943df1",
+      "coremind-protocol": "258bc51ad81a14973e5d8e337e795e98ab4140e2221d0b79968acb3d31164472",
+      "coremind-runtime": "fa351c744a3600d1ea0b154c34cc1adcbd61a0ae15dadc855eb91119ed371d1c",
+      "coremind-templates": "b43134f18dc4ce47ba131e466e86ec51eeb1bf6cd4c9e9b003e9d5b6db64dc28",
+      "coremind-tools": "9f8a827e05ad22af23f014a00567006356a4f581b6b0ac4d2fa2d225fcb531a2",
+      "coremind-worker": "13fa5043b364ae58282720ac9904cf62364acafb8a0b9a9a2e0d068f5eaef07d"
+    },
+    "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
+  }
+}

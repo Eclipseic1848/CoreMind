@@ -8,6 +8,11 @@ describe("buildProviderRuntime（内置提供商）", () => {
     expect(runtime.model.provider).toBe("deepseek");
     expect(runtime.model.id).toBeTruthy();
     expect(runtime.warnings).toEqual([]);
+    expect(runtime.promptCacheStatus).toBe(
+      runtime.model.cost.cacheRead > 0 || runtime.model.cost.cacheWrite > 0
+        ? "available"
+        : "unavailable",
+    );
   });
 
   it("配置的 model 命中目录", async () => {
@@ -42,7 +47,7 @@ describe("buildProviderRuntime（内置提供商）", () => {
   it("完整继承锁定 pi-agent 版本的 37 个静态 Provider", async () => {
     const { listInheritedProviders } = await import("./provider.js");
     const providers = listInheritedProviders();
-    expect(providers).toHaveLength(37);
+    expect(providers).toHaveLength(39);
     expect(providers).toContain("xiaomi");
     expect((await buildProviderRuntime({ id: "xiaomi" })).model.provider).toBe("xiaomi");
   });
@@ -100,6 +105,7 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     });
     // cost 字段必须齐全（计费计算依赖）
     expect(runtime.model.cost).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+    expect(runtime.promptCacheStatus).toBe("unavailable");
     expect(runtime.warnings).toEqual([]);
   });
 

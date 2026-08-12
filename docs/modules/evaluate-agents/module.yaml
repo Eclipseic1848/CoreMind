@@ -3,12 +3,13 @@ id: evaluate-agents
 name:
   zh-CN: "测试、评测与质量门禁"
   en: "Testing, Evaluation, and Quality Gates"
-version: 0.2.0-rc.1
+version: 0.3.0-rc.1
 sourcePaths:
   - "packages/coremind-runtime/src/evaluation.ts"
   - "packages/coremind-runtime/src/evaluation-graders.ts"
   - "packages/coremind-runtime/src/project-check.ts"
   - "packages/coremind-runtime/src/result.ts"
+  - "packages/coremind-runtime/src/experiment.ts"
 documents:
   readme:
     zh-CN: docs/modules/evaluate-agents/README.zh-CN.md
@@ -30,6 +31,7 @@ testPaths:
   - "packages/coremind-runtime/src/project-check.test.ts"
   - "packages/coremind-runtime/src/quality.test.ts"
   - "examples/coding-evals/coding-evals.test.ts"
+  - "packages/coremind-runtime/src/experiment.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

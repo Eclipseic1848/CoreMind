@@ -1,3 +1,4 @@
+import { Value } from "@sinclair/typebox/value";
 import { describe, expect, it } from "vitest";
 import {
   createErrorResponse,
@@ -5,9 +6,31 @@ import {
   createSuccessResponse,
   PROTOCOL_VERSION,
   parseProtocolRequest,
+  parseRunSnapshot,
+  RunSnapshotSchema,
 } from "./index.js";
 
 describe("CoreMind Protocol v1", () => {
+  it("校验跨入口共享的运行快照信封", () => {
+    const snapshot = {
+      schemaVersion: 1,
+      runId: "run-1",
+      operation: { state: "completed" },
+      outcome: { status: "succeeded" },
+      metrics: {},
+      evaluation: {},
+      releaseReadiness: {},
+      trace: [],
+      checkpoints: [],
+      artifacts: [],
+      extensions: [],
+      resumable: false,
+    };
+    expect(Value.Check(RunSnapshotSchema, snapshot)).toBe(true);
+    expect(parseRunSnapshot(snapshot).runId).toBe("run-1");
+    expect(() => parseRunSnapshot({ ...snapshot, resumable: "no" })).toThrow("RunSnapshot");
+  });
+
   it("解析合法的 initialize 请求", () => {
     const request = parseProtocolRequest({
       jsonrpc: "2.0",

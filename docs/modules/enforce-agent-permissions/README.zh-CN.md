@@ -1,6 +1,6 @@
 # 权限与安全
 
-状态：release-candidate；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -17,6 +17,7 @@
 ## 错误与边界
 
 - 没有审批处理器时安全拒绝
+- 人工拒绝任一工具审批后，被拒绝项和本批次尚未审批的后续工具都会被阻断；本批结果归并后把运行置为 `paused`，不会继续请求模型或重复弹出审批；顺序工作流不会保存拒绝步骤的输出，也不会启动后续步骤
 - 显式 deny 与路径感知文件工具的越界路径在 full 下也不会放行
 - 路径与 URL 会递归检查嵌套参数；审批面板优先展示副作用、完整目标与原因
 - Windows 宿主 Shell 只有在 `mode: full`、`workspaceOnly: false`、`network: allow` 同时满足时开放；其他组合安全拒绝
@@ -33,6 +34,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/host-shell.ts](../../../packages/coremind-tools/src/host-shell.ts)
 - [packages/coremind-runtime/src/tool-policy.test.ts](../../../packages/coremind-runtime/src/tool-policy.test.ts)
+- [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
 - [packages/coremind-cli/src/approval.test.ts](../../../packages/coremind-cli/src/approval.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
 - [packages/coremind-tools/src/host-shell.test.ts](../../../packages/coremind-tools/src/host-shell.test.ts)

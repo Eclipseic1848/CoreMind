@@ -1,8 +1,13 @@
-import { createHash } from "node:crypto";
-import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CoreMindError } from "./errors.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
+import {
+  type DurableOperationSnapshot,
+  type OperationStateRecord,
+  restoreDurableOperation,
+} from "./operation-state.js";
 import type { CompletedWorkflowStep } from "./orchestrator.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
@@ -19,6 +24,7 @@ export type RunStateKind =
   | "event"
   | "checkpoint"
   | "loop"
+  | "operation"
   | "pause"
   | "finish";
 
@@ -46,11 +52,26 @@ export interface RunResumePlan {
   effectReceipts: Map<string, EffectReceipt>;
   previousTrace: CoreMindTraceEvent[];
   loopSnapshot?: LoopControllerSnapshot;
+  operationSnapshot?: DurableOperationSnapshot;
+  operationRecords: OperationStateRecord[];
 }
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
+export interface FileRunStoreOptions {
+  /** 仅供故障注入测试：临时文件完成后、原子发布前调用。 */
+  beforeCommit?: (context: {
+    destination: string;
+    temporary: string;
+    record?: RunStateRecord;
+  }) => void | Promise<void>;
+  lockTimeoutMs?: number;
+}
+
 export class FileRunStore implements RunStore {
-  constructor(readonly directory: string) {}
+  constructor(
+    readonly directory: string,
+    private readonly options: FileRunStoreOptions = {},
+  ) {}
 
   pathFor(runId: string): string {
     if (!/^[a-zA-Z0-9_-]+$/.test(runId)) {
@@ -61,8 +82,30 @@ export class FileRunStore implements RunStore {
 
   async append(record: RunStateRecord): Promise<void> {
     try {
-      await mkdir(this.directory, { recursive: true });
-      await appendFile(this.pathFor(record.runId), `${JSON.stringify(record)}\n`, "utf8");
+      const destination = this.pathFor(record.runId);
+      validateRecord(record, record.runId);
+      await this.withWriterLock(destination, async () => {
+        const parsed = await this.readUnlocked(record.runId, destination);
+        const duplicate = parsed.records.find((item) => item.sequence === record.sequence);
+        if (duplicate) {
+          if (stableJson(duplicate) === stableJson(record)) return;
+          throw new CoreMindError(
+            "run_state_conflict",
+            `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
+          );
+        }
+        const expectedSequence = (parsed.records.at(-1)?.sequence ?? 0) + 1;
+        if (record.sequence !== expectedSequence) {
+          throw new CoreMindError(
+            "run_state_conflict",
+            `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
+          );
+        }
+        const text = `${parsed.records.map((item) => JSON.stringify(item)).join("\n")}${
+          parsed.records.length > 0 ? "\n" : ""
+        }${JSON.stringify(record)}\n`;
+        await this.publishAtomically(destination, text, record);
+      });
     } catch (error) {
       if (error instanceof CoreMindError) throw error;
       throw new CoreMindError(
@@ -73,28 +116,100 @@ export class FileRunStore implements RunStore {
   }
 
   async read(runId: string): Promise<RunStateRecord[]> {
-    let text: string;
     try {
-      text = await readFile(this.pathFor(runId), "utf8");
+      const destination = this.pathFor(runId);
+      return await this.withWriterLock(destination, async () => {
+        const parsed = await this.readUnlocked(runId, destination);
+        if (parsed.repairedText !== undefined) {
+          await this.publishAtomically(destination, parsed.repairedText);
+        }
+        return parsed.records;
+      });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
       if (error instanceof CoreMindError) throw error;
       throw new CoreMindError(
         "run_state_failed",
         `RunState 读取失败：${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  private async readUnlocked(
+    runId: string,
+    destination: string,
+  ): Promise<{ records: RunStateRecord[]; repairedText?: string }> {
+    let text: string;
     try {
-      return text
-        .split("\n")
-        .filter((line) => line.trim().length > 0)
-        .map((line) => validateRecord(JSON.parse(line) as unknown, runId));
+      text = await readFile(destination, "utf8");
     } catch (error) {
-      if (error instanceof CoreMindError) throw error;
-      throw new CoreMindError(
-        "run_state_corrupt",
-        `RunState ${runId} 已损坏：${error instanceof Error ? error.message : String(error)}`,
-      );
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { records: [] };
+      throw error;
+    }
+    const terminated = text.endsWith("\n");
+    const lines = text.split("\n");
+    if (terminated) lines.pop();
+    const records: RunStateRecord[] = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]!;
+      if (line.trim().length === 0) continue;
+      try {
+        records.push(validateRecord(JSON.parse(line) as unknown, runId));
+      } catch (error) {
+        if (!terminated && index === lines.length - 1 && records.length > 0) {
+          return {
+            records,
+            repairedText: `${records.map((item) => JSON.stringify(item)).join("\n")}\n`,
+          };
+        }
+        if (error instanceof CoreMindError) throw error;
+        throw new CoreMindError(
+          "run_state_corrupt",
+          `RunState ${runId} 已损坏：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    return { records };
+  }
+
+  private async publishAtomically(
+    destination: string,
+    text: string,
+    record?: RunStateRecord,
+  ): Promise<void> {
+    const temporary = `${destination}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
+      await this.options.beforeCommit?.({ destination, temporary, record });
+      await rename(temporary, destination);
+    } finally {
+      await rm(temporary, { force: true }).catch(() => undefined);
+    }
+  }
+
+  private async withWriterLock<T>(destination: string, operation: () => Promise<T>): Promise<T> {
+    await mkdir(this.directory, { recursive: true });
+    const lockPath = `${destination}.lock`;
+    const deadline = Date.now() + (this.options.lockTimeoutMs ?? 2_000);
+    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    while (!handle) {
+      try {
+        handle = await open(lockPath, "wx");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        if (Date.now() >= deadline) {
+          throw new CoreMindError(
+            "run_state_locked",
+            `RunState ${path.basename(destination)} 正由另一 writer 使用`,
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+    try {
+      return await operation();
+    } finally {
+      await handle.close();
+      await rm(lockPath, { force: true });
     }
   }
 }
@@ -104,6 +219,21 @@ export class MemoryRunStore implements RunStore {
 
   async append(record: RunStateRecord): Promise<void> {
     const items = this.records.get(record.runId) ?? [];
+    const duplicate = items.find((item) => item.sequence === record.sequence);
+    if (duplicate) {
+      if (stableJson(duplicate) === stableJson(record)) return;
+      throw new CoreMindError(
+        "run_state_conflict",
+        `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
+      );
+    }
+    const expectedSequence = (items.at(-1)?.sequence ?? 0) + 1;
+    if (record.sequence !== expectedSequence) {
+      throw new CoreMindError(
+        "run_state_conflict",
+        `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
+      );
+    }
     items.push(structuredClone(record));
     this.records.set(record.runId, items);
   }
@@ -145,6 +275,10 @@ export class RunStateJournal {
 
   loop(payload: LoopControllerSnapshot): void {
     this.enqueue("loop", payload);
+  }
+
+  operation(payload: OperationStateRecord): void {
+    this.enqueue("operation", payload);
   }
 
   pause(payload: unknown): void {
@@ -213,10 +347,14 @@ export function prepareRunResume(
   const effectReceipts = new Map<string, EffectReceipt>();
   const previousTrace: CoreMindTraceEvent[] = [];
   let loopSnapshot: LoopControllerSnapshot | undefined;
+  const operationRecords: OperationStateRecord[] = [];
   let nextTraceSequence = 0;
   for (const record of ordered) {
     if (record.kind === "loop") {
       loopSnapshot = loopSnapshotPayload(record.payload, record.runId, configFingerprint);
+    }
+    if (record.kind === "operation") {
+      operationRecords.push(operationRecordPayload(record.payload, record.runId));
     }
     if (record.kind !== "event") continue;
     const trace = tracePayload(record.payload, record.runId);
@@ -265,6 +403,8 @@ export function prepareRunResume(
     }
   }
 
+  const operationSnapshot = operationSnapshotFromRecords(ordered);
+
   const unsafe = unsafeToolStarts.find(
     (toolCall) => !toolCall.stepId || !completedSteps.has(toolCall.stepId),
   );
@@ -290,8 +430,22 @@ export function prepareRunResume(
     completedSteps,
     effectReceipts,
     previousTrace,
+    operationRecords,
     ...(loopSnapshot ? { loopSnapshot } : {}),
+    ...(operationSnapshot ? { operationSnapshot } : {}),
   };
+}
+
+/** 从 RunState 中校验并提取最新 operation 快照，供 CLI/SDK/Worker 共用。 */
+export function operationSnapshotFromRecords(
+  records: readonly RunStateRecord[],
+): DurableOperationSnapshot | undefined {
+  const operationRecords = records
+    .filter((record) => record.kind === "operation")
+    .map((record) => operationRecordPayload(record.payload, record.runId));
+  return operationRecords.length > 0
+    ? restoreDurableOperation(operationRecords).snapshot()
+    : undefined;
 }
 
 /** 配置指纹只落 hash，不把配置或凭据复制进 RunState。 */
@@ -402,6 +556,17 @@ function loopSnapshotPayload(
   return snapshot as LoopControllerSnapshot;
 }
 
+function operationRecordPayload(payload: unknown, expectedRunId: string): OperationStateRecord {
+  if (payload === null || typeof payload !== "object") {
+    throw new CoreMindError("run_state_corrupt", "RunState operation 缺少状态记录");
+  }
+  const record = payload as Partial<OperationStateRecord>;
+  if (record.schemaVersion !== 1 || record.runId !== expectedRunId) {
+    throw new CoreMindError("run_state_corrupt", "RunState operation 与运行标识不一致");
+  }
+  return record as OperationStateRecord;
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -416,7 +581,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     record.runId !== expectedRunId ||
     !Number.isInteger(record.sequence) ||
     typeof record.timestamp !== "string" ||
-    !["start", "resume", "event", "checkpoint", "loop", "pause", "finish"].includes(
+    !["start", "resume", "event", "checkpoint", "loop", "operation", "pause", "finish"].includes(
       record.kind ?? "",
     )
   ) {

@@ -42,7 +42,7 @@ Retries must have a limit and should address a specific recoverable condition. R
 
 Use `workflow` for fixed dependencies. Use the public `loop` configuration only for a generate, verify, repair, and re-verify cycle. Success requires the verifier's deterministic `passIf` condition; iteration, repair, repeated-action, budget, and timeout limits bound the run.
 
-Confirmed transient provider and network errors may retry. Approval or security denials pause, invalid arguments and deterministic business failures fail, and abort or timeout propagates to the Loop controller with the same terminal meaning. TUI, headless CLI, TypeScript SDK, and Python SDK observe the same ordered states.
+Confirmed transient provider and network errors may retry. The first human approval denial blocks that call and later unapproved calls in the same batch, then pauses after batch reconciliation without another model request. A sequential workflow saves no output for the denied step and starts no later step. Security denials also pause. Invalid arguments and deterministic business failures fail, while abort or timeout propagates to the Loop controller with the same terminal meaning. TUI, headless CLI, TypeScript SDK, and Python SDK observe the same ordered states.
 
 Every stable state persists a versioned snapshot. A paused or interrupted run resumes with the same run ID without replaying completed steps. Tool effects receive `started`, `committed`, or `unknown` receipts: committed effects do not replay automatically, while unknown effects require human reconciliation. This is evidence for safe recovery, not a universal exactly-once guarantee.
 

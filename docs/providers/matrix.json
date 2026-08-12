@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-10",
+  "generatedAt": "2026-08-12",
   "summary": {
-    "supported": 38,
+    "supported": 40,
     "certified": 1,
-    "unverified": 37
+    "unverified": 39
   },
   "providers": [
     {
@@ -12,10 +12,10 @@
       "defaultModel": "qwen-plus",
       "modelCount": 1,
       "status": "certified",
-      "testedVersion": "0.2.0-rc.1",
-      "testedAt": "2026-08-10T01:12:31.453Z",
+      "testedVersion": "0.3.0-rc.1",
+      "testedAt": "2026-08-12T00:48:50.223Z",
       "testedModel": "qwen-plus",
-      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-10.json"
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-12.json"
     },
     {
       "id": "amazon-bedrock",
@@ -32,13 +32,19 @@
     {
       "id": "anthropic",
       "defaultModel": "claude-fable-5",
-      "modelCount": 15,
+      "modelCount": 13,
       "status": "inherited-unverified"
     },
     {
       "id": "azure-openai-responses",
       "defaultModel": "gpt-4",
       "modelCount": 38,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "baseten",
+      "defaultModel": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "modelCount": 16,
       "status": "inherited-unverified"
     },
     {
@@ -68,13 +74,13 @@
     {
       "id": "fireworks",
       "defaultModel": "accounts/fireworks/models/deepseek-v4-flash",
-      "modelCount": 16,
+      "modelCount": 17,
       "status": "inherited-unverified"
     },
     {
       "id": "github-copilot",
       "defaultModel": "claude-haiku-4.5",
-      "modelCount": 29,
+      "modelCount": 30,
       "status": "inherited-unverified"
     },
     {
@@ -92,13 +98,13 @@
     {
       "id": "groq",
       "defaultModel": "llama-3.1-8b-instant",
-      "modelCount": 7,
+      "modelCount": 6,
       "status": "inherited-unverified"
     },
     {
       "id": "huggingface",
       "defaultModel": "MiniMaxAI/MiniMax-M2",
-      "modelCount": 51,
+      "modelCount": 58,
       "status": "inherited-unverified"
     },
     {
@@ -122,7 +128,7 @@
     {
       "id": "mistral",
       "defaultModel": "codestral-latest",
-      "modelCount": 30,
+      "modelCount": 31,
       "status": "inherited-unverified"
     },
     {
@@ -164,37 +170,43 @@
     {
       "id": "opencode-go",
       "defaultModel": "minimax-m3",
-      "modelCount": 16,
+      "modelCount": 18,
       "status": "inherited-unverified"
     },
     {
       "id": "openrouter",
       "defaultModel": "ai21/jamba-large-1.7",
-      "modelCount": 303,
+      "modelCount": 335,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan",
       "defaultModel": "MiniMax-M2.5",
-      "modelCount": 15,
+      "modelCount": 16,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan-cn",
       "defaultModel": "MiniMax-M2.5",
-      "modelCount": 15,
+      "modelCount": 16,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "qwen-token-plan-individual",
+      "defaultModel": "deepseek-v4-flash-0731",
+      "modelCount": 7,
       "status": "inherited-unverified"
     },
     {
       "id": "together",
       "defaultModel": "MiniMaxAI/MiniMax-M2.7",
-      "modelCount": 17,
+      "modelCount": 18,
       "status": "inherited-unverified"
     },
     {
       "id": "vercel-ai-gateway",
       "defaultModel": "alibaba/qwen-3-14b",
-      "modelCount": 193,
+      "modelCount": 197,
       "status": "inherited-unverified"
     },
     {
@@ -229,14 +241,14 @@
     },
     {
       "id": "zai",
-      "defaultModel": "glm-4.5-air",
-      "modelCount": 6,
+      "defaultModel": "glm-4.7",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "zai-coding-cn",
-      "defaultModel": "glm-4.5-air",
-      "modelCount": 6,
+      "defaultModel": "glm-4.7",
+      "modelCount": 4,
       "status": "inherited-unverified"
     }
   ]

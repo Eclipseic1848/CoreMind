@@ -16,13 +16,36 @@ def send(value: object) -> None:
     sys.stdout.flush()
 
 
+def snapshot(run_id: str, outcome: dict[str, str]) -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "runId": run_id,
+        "operation": {"state": "completed"},
+        "outcome": outcome,
+        "metrics": {},
+        "evaluation": {},
+        "releaseReadiness": {},
+        "trace": [],
+        "checkpoints": [],
+        "artifacts": [],
+        "extensions": [],
+        "resumable": False,
+    }
+
+
 for line in sys.stdin:
     request = json.loads(line)
     request_id = request["id"]
     method = request["method"]
     params = request["params"]
     if method == "initialize":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"protocolVersion": "1.0"}})
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {"protocolVersion": "1.0", "capabilities": ["runSnapshot"]},
+            }
+        )
     elif method == "register_tool" and params["name"] == "reject_registration":
         send(
             {
@@ -37,6 +60,18 @@ for line in sys.stdin:
         )
     elif method == "register_tool":
         send({"jsonrpc": "2.0", "id": request_id, "result": {"registered": params["name"]}})
+    elif method == "run" and params.get("input") == "坏快照":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "runId": "run-bad",
+                    "outcome": {"status": "succeeded", "finishReason": "completed"},
+                    "snapshot": {"schemaVersion": 1, "runId": "other-run"},
+                },
+            }
+        )
     elif method == "run" and params.get("input") == "调用工具":
         pending_run_id = request_id
         send(
@@ -61,6 +96,9 @@ for line in sys.stdin:
                 "result": {
                     "runId": "run-tool",
                     "outcome": {"status": "succeeded", "finishReason": "completed"},
+                    "snapshot": snapshot(
+                        "run-tool", {"status": "succeeded", "finishReason": "completed"}
+                    ),
                     "transcript": json.dumps(params["result"], ensure_ascii=False, separators=(",", ":")),
                     "outputs": {},
                     "messages": {"main": []},
@@ -89,6 +127,9 @@ for line in sys.stdin:
                 "result": {
                     "runId": "run-1",
                     "outcome": {"status": "succeeded", "finishReason": "completed"},
+                    "snapshot": snapshot(
+                        "run-1", {"status": "succeeded", "finishReason": "completed"}
+                    ),
                     "transcript": "完成",
                     "outputs": {},
                     "messages": {"main": []},
@@ -117,6 +158,10 @@ for line in sys.stdin:
                 "result": {
                     "runId": params["runId"],
                     "outcome": {"status": "succeeded", "finishReason": "completed"},
+                    "snapshot": snapshot(
+                        params["runId"],
+                        {"status": "succeeded", "finishReason": "completed"},
+                    ),
                     "transcript": "已恢复",
                     "outputs": {},
                     "messages": {"main": []},

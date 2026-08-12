@@ -4,6 +4,120 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.3.0-rc.1 — 2026-08-12
+
+### 收口与发布准备
+
+- 将根清单、8 个公开 npm 包、内部精确依赖、锁文件和 Python SDK 同步为 npm `0.3.0-rc.1` / Python `0.3.0rc1`。
+- 新增 0.2→0.3 双语迁移指南、双语已知限制、21 个模块的 SOP/Skill 双语索引，并同步根 README、公开路线图、Provider 状态和发布 SOP。
+- `.gitignore` 补充虚拟环境、类型检查、覆盖率和本机 Registry 凭据边界；源码包仍排除内部分析、交接、会话、运行证据、密钥、缓存和构建产物。
+- Markdown 审计新增中英文段落边界门禁；双语包 README 改为独立语言章节，避免在同一描述中先中文后附英文译文。
+- 双平台 CI 的 checkout 改为完整历史，确保冻结基线能读取不可变的 `v0.2.0-rc.1` Tag；新增工作流合同测试阻止浅克隆配置回归。
+- CI 与文档工作流复用统一的当前 Action 固定提交，消除旧运行时弃用警告；所有外部 Action 继续固定完整提交哈希。
+- 冻结基线命令现在会先重建 8 个正式包，再采集公开类型合同，避免旧 `dist` 掩盖源码类型漂移；Runtime 的拒绝停止钩子保持内部封装，不扩大公开 API。
+
+### 当前验证证据
+
+- RC 自动矩阵 P01～P19 的测试锚点已同步；全仓 69 个测试文件通过、1 个按条件跳过，466 项测试通过、4 项按条件跳过；Python SDK 与真实捆绑 Worker 10/10；离线 Coding Eval 6/6。
+- Windows P20 首轮发现人工拒绝后模型会把拒绝当成普通工具错误并重复申请审批。Runtime 现在会阻断被拒绝的工具和本批次尚未审批的后续工具，在本批结果归并后返回 `paused`；不会进入下一轮模型请求。若拒绝发生在顺序工作流中，当前步骤不会保存输出，后续步骤也不会启动。单工具、混合工具和两步工作流回归均为零写入副作用。
+- 修复后的产品源码已完成三轮稳定性验证且零漂移；加入确定性的发布模板版本契约后，最终仓库套件为 466 项通过、4 项条件跳过。覆盖率 lines 75.83%、statements 73.93%、functions 83.19%、branches 66.96%，不下降门禁通过。总体 80% 与部分关键安全分支 90% 仍是长期目标。
+- 8 个 npm tarball 均通过内容 allowlist、publint、类型解析、全新项目安装和 ESM 导入；CLI 报告 `coremind v0.3.0-rc.1`。
+- Python wheel 通过内容检查、全新虚拟环境安装、版本一致性和内置 Worker 启动；独立源码 ZIP 在隔离目录完成安装、构建、合同检查和 CLI 启动。
+- 21 个模块、5 个黄金示例、14 组文档站双语材料和 410 个 Markdown 文件通过合同、严格 UTF-8、本地链接、公开标识与中英文段落边界检查。
+- `alibaba-model-studio/qwen-plus` 已基于 `0.3.0-rc.1` 完成流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文七项真实复验；脱敏证据不包含密钥、提示原文或回复正文。
+
+### 发布门禁
+
+- Windows/Linux P20 真实 TTY 证据必须绑定同一最终源码提交，历史 `0.2.0-rc.1` 证据不能复用；合并与 Tag 不能改变已验收的源码内容。
+- 40 个 Provider 均可配置，其中 1 个已完成 `0.3.0-rc.1` 七项真实复验，另外 39 个仍为可配置但未认证；发布前仍要求最终源码提交的双平台 CI 全绿。
+- 二期真实外部同题模型对照经维护者批准延期，不用离线 6/6 替代真实模型质量结论。
+- 只有上述门禁全部满足并完成最终无脏工作区预检，才能创建 Tag 并发布 GitHub Release、npm 或 PyPI。
+
+## 0.3.0-beta.2 — 2026-08-11（源码候选，未发布）
+
+### 新增
+
+- 生命周期扩展只开放 `before-model`、`before-tool`、`after-tool`、`run-finished` 四个事件；扩展需显式声明信任、能力和授权，默认不加载未知项目扩展。
+- 新增 experiment → arm → run → trace 轻量实验合同，记录版本、环境、输入指纹、随机种子、运行、完整 Trace 和既有 grader 结果。
+- 新增 `RunResult.snapshot` 与 Protocol 校验，CLI、Worker、TypeScript、Python 共用 operation、outcome、指标、评测、Trace、Checkpoint、Artifact、扩展收据和恢复判断。
+- TUI 新增 `/artifacts` 与 `/context`，`/status` 同时展示运行终态、恢复、压缩、产物和评测状态。
+- Provider 认证升级为流式、工具调用、结构化结果、多轮、abort、错误映射、长上下文七项合同；旧五项证据保留追溯但不再标记当前认证。
+- 新增第 21 个能力模块“Runtime 生命周期扩展”，并同步更新恢复、评测、Provider、CLI 与双 SDK 模块的 SOP、Skill、中英文指南和示例。
+
+### 安全、证据与边界
+
+- 扩展只能拒绝工具，不能批准被权限层拒绝的操作；扩展超时或异常不能绕过权限、Checkpoint 或改写真实终态。
+- 定向核心/协议/CLI 88/88，Python SDK 与真实 Worker 10/10，Coding Eval 6/6；全仓 458 项通过、4 项按条件跳过。
+- 覆盖率 lines 75.76%、statements 73.86%、functions 83.13%、branches 66.85%，不下降门禁通过；总体 80% 和部分关键安全分支 90% 长期目标仍未达到。
+- 当前 40 个 Provider 均可配置，但尚无条目完成新版七项真实复验；Linux CI、双平台真实 TTY 和真实 Provider 复验仍属于 RC 前置条件。
+- 本候选不增加 Web UI、独立 Python Loop、扩展市场或第二套运行终态。
+
+## 0.3.0-beta.1 — 2026-08-11（源码候选，未发布）
+
+### 新增
+
+- 编码能力从示例组合升级为 Runtime 内的第一方 Engineering Kernel，公开仓库探测、用户显式环境选择、Repo Map、六阶段工程计划、有界 verify/repair Loop 与交付证据接口。
+- 标准化 read/search/write/edit/process/Git 工具合同；所有文件变更必须关联写前 checkpoint，进程与网络继续复用通用权限边界。
+- TypeScript 与 Python 在既有真实单文件缺陷评测之外，新增跨文件缺陷、错误命令、审批拒绝、中止、Diff 与 Restore 确定性门禁。
+
+### 证据与边界
+
+- 全仓 443 项通过、4 项按条件跳过；Coding Eval 6/6；Coding Kernel 行覆盖率 92.45%、分支覆盖率 87.12%。
+- 未运行或失败的测试不能被声明为通过；语言、包管理器或测试命令有歧义时必须由用户选择。
+- 本候选未新增浏览器自动化、桌面控制、LSP 集群、工作树编排或扩展市场；Config v2、Protocol v1 与通用终态保持不变。
+
+## 0.3.0-alpha.3 — 2026-08-11（源码候选，未发布）
+
+### 新增
+
+- 新增逐字节稳定的上下文前缀与 SHA-256 指纹，固定核心规则、项目指令、工具、稳定事实和 Skill 的顺序。
+- 新增受控 Artifact Store：大输出以流式方式保存到工作区，模型只看到有界头尾、摘要、哈希和相对引用。
+- 新增 Context/Artifact 指标、真实缓存读写 token、离线策略对照，以及第 20 个双语能力模块。
+
+### 安全与兼容
+
+- 疑似凭据不会进入模型预览或 Artifact；不受信任的完整输出路径不会被读取或删除；Artifact 真实路径不能逃逸工作区。
+- Config v2 与 Protocol v1 请求不变；`RunMetrics.context`、`RunMetrics.artifacts` 与 `RunResult.artifacts` 均为新增可选字段，Runtime 正常返回这些证据。
+- 默认仍使用本地确定性压缩，不自动创建项目 Memory；候选压缩只产生对照数据，不自动切换。
+
+## 0.3.0-alpha.2 — 2026-08-10（源码候选，未发布）
+
+### 新增
+
+- 新增 durable operation 外围状态与 `RunResult.operation`，统一 CLI、TUI、TypeScript 与 Python 对运行状态的读取。
+- 新增 Memory/JSONL Session 双后端合同、RunState 故障注入、并发 writer 与不完整尾行恢复测试。
+- 新增第 19 个能力模块“持久运行与故障恢复”，包含双语 README/GUIDE/SOP、Skill、示例和迁移/回滚说明。
+
+### 变更
+
+- RunState 使用单 writer 锁、连续序号和临时文件原子发布；只自动修复有完整前序记录的不完整最后一行。
+- 工具调用、Effect Receipt、Checkpoint、operation 与终态通过 run/call/幂等关联键串联；不确定或未稳定归属的副作用不会自动重放。
+- 旧 schema v3 Session 首次打开前自动生成 `.v3.backup`，迁移可重复执行；无法无损表达时保留原文件并失败关闭。
+
+### 兼容与回滚
+
+- Config v2 与 Protocol v1 请求保持不变；CLI `run_result` 只新增 `operation` 字段，既有字段和退出码保留。
+- 终态 operation 不允许 resume。旧 Session 可按迁移指南从备份回滚，外部副作用仍需业务系统提供幂等或人工核验。
+
+## 0.3.0-alpha.1 — 2026-08-10（源码候选，未发布）
+
+### 新增
+
+- 新增 CoreMind 自有 Runtime 兼容层报告，可通过 TypeScript SDK 与 `coremind doctor` 检查依赖族、Adapter、错误映射和关键能力。
+- 新增不可变参考基线与独立候选基线；候选更新必须记录明确原因，不能覆盖 `0.2.0-rc.1` 参考证据。
+- 新增依赖锁步、完整性报告和 CI 门禁；当前源码候选包含 39 个继承 Provider 与 1 个 CoreMind 原生入口。
+
+### 变更
+
+- 三个关键运行依赖统一为同一精确版本族，删除跨版本工具类型桥接。
+- Session 适配到版本化仓库接口，同时保留 `session.dir/<id>.jsonl` 公共路径和损坏文件显式失败语义；旧布局备份与幂等迁移已在后续 alpha.2 候选交付。
+- 新增第 18 个能力模块“Runtime 依赖 Adapter”，同步提供测试、双语 README/GUIDE/SOP、Skill、示例和迁移指南。
+
+### 兼容与回滚
+
+- Config v2、Protocol v1、RunOutcome、权限、Checkpoint 和恢复语义保持不变。
+- 若消息、工具、Usage、错误或 Session 合同出现不可适配漂移，必须整体回退关键依赖版本族，禁止混搭。
+
 ## 0.2.0-rc.1 — 2026-08-09
 
 ### 新增与修复

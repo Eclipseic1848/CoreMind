@@ -1,6 +1,6 @@
 # Real-Defect Coding Agent Evaluations
 
-These are executable defect repositories, not static examples of successful prose. Tests copy each fixture into a fresh temporary Git repository, commit the defect baseline, create one dirty user draft, and then run the real CoreMind runtime, tool policy, and schemaVersion 2 graders.
+These are two executable single-file defect repositories plus two cross-file Engineering Kernel scenario groups, not static examples of successful prose. Tests copy each fixture into a fresh temporary Git repository, commit the defect baseline, create one dirty user draft, and then run the real CoreMind runtime, tool policy, and schemaVersion 2 graders.
 
 | Case | Initial defect | Required edit | Final verification |
 |---|---|---|---|
@@ -8,6 +8,8 @@ These are executable defect repositories, not static examples of successful pros
 | Python | Tax rounding | `src/pricing.py` | Target test plus complete unittest discovery |
 
 Both cases require the same trajectory: run the failing test, read the implementation, make a minimal edit, run the target test, run regression tests, inspect Git status, and inspect the diff. Evaluation also proves that protected configuration, the environment example, and the pre-existing dirty user file remain unchanged.
+
+The TypeScript and Python cross-file scenarios additionally verify advisory repository detection, pre-write checkpoints, diffs, restore, wrong commands, approval denial, and abort. The offline gate contains six cases in total.
 
 ## Deterministic offline run
 

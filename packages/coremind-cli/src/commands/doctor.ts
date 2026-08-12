@@ -1,5 +1,10 @@
 import path from "node:path";
-import { CoreMindRuntime, loadConfigFile, parseAndValidate } from "coremind-ai";
+import {
+  CoreMindRuntime,
+  inspectRuntimeCompatibility,
+  loadConfigFile,
+  parseAndValidate,
+} from "coremind-ai";
 import type { ParsedArgs } from "../args.js";
 import { dim, green, red, yellow } from "../render.js";
 
@@ -30,6 +35,13 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
     name: "Node 版本",
     ok: nodeMajor >= 22,
     detail: `v${process.versions.node}（要求 >= 22.19）`,
+  });
+
+  const compatibility = inspectRuntimeCompatibility();
+  checks.push({
+    name: "Runtime 兼容层",
+    ok: true,
+    detail: `依赖族 ${compatibility.dependencyFamily} · Adapter v${compatibility.adapterVersion} · 错误映射 v${compatibility.errorMappingVersion}`,
   });
 
   // 2. 配置文件（可选）

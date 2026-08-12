@@ -1,0 +1,20 @@
+# Changelog
+
+## 0.3.0-rc.1 - 2026-08-12
+
+- Synchronized this module contract with the repository release candidate.
+- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+
+## 0.3.0-beta.2 - 2026-08-11
+
+- Added the shared `RunResult.snapshot` recovery contract across CLI, Worker, TypeScript, and Python entry points.
+- Added snapshot schema validation, parity checks, and explicit rejection of inconsistent terminal data.
+- Updated the bilingual README, guide, SOP, Skill, example, and module manifest.
+
+## 0.3.0-alpha.2 - 2026-08-10
+
+- Added a durable operation lifecycle and recovery validation.
+- Added atomic RunState publication, writer conflict handling, bounded torn-tail repair, and fault-injection tests.
+- Added Memory/JSONL Session conformance and backed-up, idempotent legacy migration.
+- Correlated tool calls, effect receipts, checkpoints, operation snapshots, and terminal records.
+- Added bilingual README, guide, SOP, Skill, example, and module manifest.

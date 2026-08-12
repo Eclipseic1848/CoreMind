@@ -5,6 +5,25 @@ export const PROTOCOL_VERSION = "1.0" as const;
 
 const RpcIdSchema = Type.Union([Type.String(), Type.Number()]);
 
+/** Worker、TypeScript SDK 与 Python SDK 共享的运行快照信封。 */
+export const RunSnapshotSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    runId: Type.String({ minLength: 1 }),
+    operation: Type.Unknown(),
+    outcome: Type.Unknown(),
+    metrics: Type.Unknown(),
+    evaluation: Type.Unknown(),
+    releaseReadiness: Type.Unknown(),
+    trace: Type.Array(Type.Unknown()),
+    checkpoints: Type.Array(Type.Unknown()),
+    artifacts: Type.Array(Type.Unknown()),
+    extensions: Type.Array(Type.Unknown()),
+    resumable: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+
 const ToolEffectDeclarationSchema = Type.Object(
   {
     operations: Type.Array(
@@ -287,6 +306,7 @@ export const PythonToolCallNotificationSchema = Type.Object(
 );
 
 export type RpcId = Static<typeof RpcIdSchema>;
+export type ProtocolRunSnapshot = Static<typeof RunSnapshotSchema>;
 export type ProtocolSuccessResponse = Static<typeof ProtocolSuccessResponseSchema>;
 export type ProtocolErrorResponse = Static<typeof ProtocolErrorResponseSchema>;
 export type ProtocolEventNotification = Static<typeof ProtocolEventNotificationSchema>;
@@ -322,6 +342,16 @@ export function parseProtocolRequest(value: unknown): ProtocolRequest {
     }
   }
   return parsed;
+}
+
+export function parseRunSnapshot(value: unknown): ProtocolRunSnapshot {
+  if (!Value.Check(RunSnapshotSchema, value)) {
+    const details = [...Value.Errors(RunSnapshotSchema, value)]
+      .map((error) => `${error.path || "/"}: ${error.message}`)
+      .join("；");
+    throw new ProtocolValidationError(`无效的 CoreMind RunSnapshot：${details}`);
+  }
+  return Value.Parse(RunSnapshotSchema, value) as ProtocolRunSnapshot;
 }
 
 export function createSuccessResponse(id: RpcId, result: unknown): ProtocolSuccessResponse {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-08-12
+
+- Synchronized this module contract with the repository release candidate.
+- P20 found that repeated model tool calls could reopen approval after a human denial. The Runtime now blocks the denied tool and later unapproved calls in that batch, then pauses without another model request. A sequential workflow saves no output for the denied step and starts no later step. Single-tool, mixed-tool, and two-step workflow regressions assert zero write side effects.
+
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Added the explicit Windows host-shell triple gate: full mode, open workspace, and allowed network.

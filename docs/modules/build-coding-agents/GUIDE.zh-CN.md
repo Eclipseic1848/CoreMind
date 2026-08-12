@@ -38,6 +38,35 @@ quality:
 
 在 Windows 的受约束模式下，测试命令不会通过宿主 Shell 自动执行。开发者可先手工运行测试，或在明确接受宿主进程、工作区与网络边界后选择开放条件。Linux 可在隔离前置条件满足时使用内置 Shell。
 
+## TypeScript SDK：建立工程闭环
+
+```ts
+import {
+  buildRepositoryMap,
+  createEngineeringKernelDefinition,
+  createEngineeringTaskPlan,
+  inspectCodingRepository,
+  selectCodingEnvironment,
+} from "coremind-ai";
+
+const inspection = await inspectCodingRepository(process.cwd());
+// 有歧义时先把 inspection 展示给用户，再把用户选择传入；不要静默替用户决定。
+const selection = await selectCodingEnvironment(inspection, {
+  language: "typescript",
+  packageManager: "npm",
+  testCommand: "npm test",
+});
+const repoMap = buildRepositoryMap(inspection, selection);
+const plan = createEngineeringTaskPlan({
+  task: "修复订单折扣计算",
+  acceptanceCriteria: ["目标测试通过", "完整回归通过", "Diff 只包含任务文件"],
+  selection,
+});
+const kernel = createEngineeringKernelDefinition({ selection });
+```
+
+`kernel.loop` 直接交给通用 Runtime 的 Loop 配置处理；`repoMap` 和 `plan` 属于 Coding 领域输入，不会改变通用终态。文件变更后用 `EngineeringEvidenceLedger` 记录 checkpoint、Diff 和真实退出码。Python SDK 通过 Worker/Protocol 使用同一 Runtime，不创建 Python 专属 Loop。
+
 ## schemaVersion 2 评测
 
 ```yaml
@@ -69,10 +98,12 @@ scenarios:
 ## 验证
 
 1. 先保存 `git status --short` 和受保护文件指纹。
-2. 运行缺陷测试，确认它在修复前确实失败。
-3. 运行 `coremind check coremind.yaml --profile strict`。
-4. 运行 `coremind eval coremind.yaml --suite evals/scenarios.yaml --json`。
-5. 检查 grader、工具轨迹、最终测试、`git diff`、Trace、Checkpoint 与终态。
-6. 重复运行并记录通过率；真实模型只作为补充证据，不能替代确定性测试。
+2. 查看探测建议，并在歧义时明确选择语言、包管理器和测试命令。
+3. 运行缺陷测试，确认它在修复前确实失败。
+4. 运行 `coremind check coremind.yaml --profile strict`。
+5. 运行 `coremind eval coremind.yaml --suite evals/scenarios.yaml --json`。
+6. 检查计划、实际工具、checkpoint、目标测试、回归测试、`git diff`、Trace 与终态是否一致。
+7. 执行 `npm run test:coding-evals`，确认 TypeScript/Python 单文件与跨文件门禁全部通过。
+8. 重复运行并记录通过率；真实模型只作为补充证据，不能替代确定性测试。
 
 可直接复制 [真实缺陷评测示例](../../../examples/coding-evals/README.zh-CN.md)。

@@ -8,6 +8,6 @@ CoreMind 的本地 Node.js Worker，通过标准输入输出协议向 Python SDK
 
 工具注册必须携带结构化副作用；初始化或注册失败时 Python 客户端会关闭 Worker，避免遗留子进程。
 
-协议能力声明包含 `loop`；`resume_run` 可继续安全的暂停或意外中断运行，但不会绕过配置指纹、Effect Receipt 或副作用核对。
+协议能力声明包含 `loop` 与 `runSnapshot`；每个运行返回同一纯 JSON 权威快照。`resume_run` 可继续安全的暂停或意外中断运行，但不会绕过配置指纹、Effect Receipt 或副作用核对。
 
 许可证：[MIT](https://github.com/Eclipseic1848/CoreMind/blob/main/LICENSE)

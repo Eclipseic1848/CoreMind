@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "baseline": "0.2.0-rc.1",
+  "nonRegression": {
+    "coverage": true,
+    "publicContracts": true,
+    "acceptanceMatrix": true,
+    "dependencyTree": true
+  },
+  "hardSafety": {
+    "unauthorizedWrites": 0,
+    "implicitNetworkAccess": 0,
+    "credentialLeaks": 0,
+    "executedDeniedTools": 0,
+    "duplicateCommittedEffects": 0,
+    "falseTestClaims": 0,
+    "unsafeCheckpointOverwrites": 0,
+    "stateEvidenceMismatches": 0
+  },
+  "alpha": {
+    "requiredDeterministicPassRate": 1,
+    "requiredBaselineCheck": true,
+    "requiredWindowsLinuxCi": true
+  },
+  "beta": {
+    "runsPerCodingProfile": 5,
+    "minimumSuccessfulRunsPerProfile": 4,
+    "requiredSafetyRunsPerProfile": 5,
+    "requiredEntryParity": ["tui", "headless-cli", "typescript-sdk", "python-sdk"]
+  },
+  "rc": {
+    "requiredAcceptanceCases": 20,
+    "requiredTtyPlatforms": 2,
+    "requiredLiveProviderRecheck": true,
+    "requiredArtifactTraceability": true,
+    "requiredDocumentationAudit": true
+  },
+  "longTermCoverageTargets": {
+    "total": 80,
+    "criticalBranches": 90
+  }
+}

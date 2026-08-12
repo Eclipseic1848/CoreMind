@@ -20,6 +20,8 @@ export interface ProviderRuntime {
   warnings: string[];
   /** 配置 apiKeyEnv 时从该环境变量解析出的 key（覆盖内置 provider 默认环境变量） */
   apiKeyOverride?: string;
+  /** 仅依据锁定模型目录的缓存计费元数据判定，不把 0 命中伪装为命中。 */
+  promptCacheStatus: "available" | "unavailable";
 }
 
 const DEFAULT_PROVIDER = "deepseek";
@@ -110,7 +112,7 @@ async function buildBuiltinRuntime(
       `配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在环境中找到，将回退使用 ${cfg.id} 的默认环境变量`,
     );
   }
-  return { models, model, warnings, apiKeyOverride };
+  return { models, model, warnings, apiKeyOverride, promptCacheStatus: cacheStatus(model) };
 }
 
 /** 自定义 OpenAI 兼容端点（Ollama / 本地模型 / 网关） */
@@ -140,7 +142,11 @@ async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRu
       api: openAICompletionsApi(),
     }),
   );
-  return { models, model, warnings };
+  return { models, model, warnings, promptCacheStatus: cacheStatus(model) };
+}
+
+function cacheStatus(model: Model<any>): "available" | "unavailable" {
+  return model.cost.cacheRead > 0 || model.cost.cacheWrite > 0 ? "available" : "unavailable";
 }
 
 /** 手工构造 OpenAI 兼容 Model 对象。cost 必须给全 0（计费计算缺字段出 NaN） */

@@ -1,6 +1,6 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
-import type { Usage } from "@earendil-works/pi-ai";
 import type { RuntimeLimitsConfig } from "coremind-config";
+import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 
@@ -98,9 +98,9 @@ export class RunBudgetController {
     this.turns += 1;
     const message = event.message;
     if (message.role === "assistant" && message.usage) {
-      const usage = message.usage as Usage;
+      const usage = normalizeDependencyUsage(message.usage);
       this.tokens += usage.totalTokens;
-      this.costUsd += usage.cost.total;
+      this.costUsd += usage.costUsd;
     }
 
     if (this.limits.maxTokens !== undefined && this.tokens > this.limits.maxTokens) {

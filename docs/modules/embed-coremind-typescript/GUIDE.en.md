@@ -14,6 +14,7 @@ const runtime = await CoreMindRuntime.create({
   toolDefinitions: [lookupOrder],
 });
 const result = await runtime.run();
+console.log(result.snapshot.operation, result.snapshot.artifacts);
 if (result.outcome.status !== 'succeeded') {
   console.error(result.outcome.error?.message ?? result.outcome.finishReason);
 }
@@ -29,6 +30,7 @@ Create `lookupOrder` with `defineTool` and a truthful declaration such as `effec
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. Add caller-branch tests for `failed`, `paused`, `aborted`, `timeout`, and `budget_exceeded`.
 6. With `config.loop`, collect ordered `loop_state` events and verify resume does not replay completed steps or committed effects.
+7. Send `result.snapshot` across boundaries instead of directly serializing the `outputs` or `messages` maps.
 
 ## Common mistakes
 

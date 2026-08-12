@@ -1,4 +1,4 @@
-import { type AssistantMessage, isRetryableAssistantError } from "@earendil-works/pi-ai";
+import { isRetryableDependencyAssistantError } from "./dependency-adapter.js";
 import { CoreMindError } from "./errors.js";
 
 export type RetryCategory = "transient" | "permanent" | "human";
@@ -51,7 +51,7 @@ export function classifyRetry(error: unknown): RetryClassification {
   }
   for (const value of values) {
     if (isAssistantFailure(value)) {
-      return isRetryableAssistantError(value as AssistantMessage)
+      return isRetryableDependencyAssistantError(value)
         ? { category: "transient", retryable: true, reason: "模型适配层判定为瞬态错误" }
         : { category: "permanent", retryable: false, reason: "模型适配层判定为确定性错误" };
     }

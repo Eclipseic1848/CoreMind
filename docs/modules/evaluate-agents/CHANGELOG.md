@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-08-12
+
+- Synchronized this module contract with the repository release candidate.
+- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+
+## 0.3.0-beta.2 - 2026-08-11
+
+- Added deterministic experiment definitions, weighted arm selection, environment capture, complete run traces, and grader evidence.
+- Documented fair-comparison, input-fingerprint, privacy, and gate-freezing requirements.
+
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Added schemaVersion 2 with outcome, trajectory, command, file, diff, state, and response graders.

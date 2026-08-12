@@ -17,12 +17,48 @@ export {
   restoreCheckpoint,
 } from "./checkpoint.js";
 export {
+  buildRepositoryMap,
+  CODING_TOOL_CONTRACTS,
+  type CodingEnvironmentChoice,
+  type CodingEnvironmentSelection,
+  CodingKernelError,
+  type CodingKernelErrorCode,
+  type CodingLanguage,
+  type CodingRepositoryInspection,
+  type CodingToolContract,
+  type CodingToolId,
+  createEngineeringKernelDefinition,
+  createEngineeringTaskPlan,
+  type EngineeringChange,
+  type EngineeringControlEvent,
+  type EngineeringDeliverySummary,
+  EngineeringEvidenceLedger,
+  type EngineeringPhaseId,
+  type EngineeringTaskPlan,
+  type EngineeringVerification,
+  inspectCodingRepository,
+  type LanguageCandidate,
+  type PackageManager,
+  type RepositoryMap,
+  type RepositoryMapEntry,
+  selectCodingEnvironment,
+} from "./coding/engineering-kernel.js";
+export {
+  buildStableContextPrefix,
   type ContextProtectionFailure,
   type ContextProtectionOptions,
   type ContextProtectionResult,
   ContextProtector,
+  type ContextStrategyComparison,
+  compareContextStrategies,
   protectContext,
+  type StableContextPrefix,
+  type StableContextPrefixInput,
 } from "./context.js";
+export {
+  inspectRuntimeCompatibility,
+  type RuntimeCompatibilityReport,
+} from "./dependency-adapter.js";
 export { CoreMindError } from "./errors.js";
 export {
   type CommandGrader,
@@ -54,6 +90,39 @@ export {
   normalizeEvent,
 } from "./events.js";
 export {
+  defineExperiment,
+  type ExperimentArm,
+  type ExperimentDefinition,
+  type ExperimentEnvironment,
+  ExperimentError,
+  type ExperimentErrorCode,
+  type ExperimentRecord,
+  type ExperimentRunEvidence,
+  type ExperimentSelection,
+  runExperiment,
+  selectExperimentArm,
+} from "./experiment.js";
+export {
+  createDenyPolicyExtension,
+  createTraceExporterExtension,
+  defineLifecycleExtension,
+  type ExtensionFileCapability,
+  LIFECYCLE_EVENTS,
+  type LifecycleDispatchResult,
+  type LifecycleEventType,
+  type LifecycleExtension,
+  type LifecycleExtensionCapabilities,
+  type LifecycleExtensionDecision,
+  LifecycleExtensionError,
+  type LifecycleExtensionErrorCode,
+  type LifecycleExtensionEvent,
+  type LifecycleExtensionHandler,
+  LifecycleExtensionHost,
+  type LifecycleExtensionPolicy,
+  type LifecycleExtensionReceipt,
+  type LifecycleExtensionReceiptStatus,
+} from "./lifecycle-extension.js";
+export {
   LoopController,
   type LoopControllerConfig,
   type LoopControllerEvent,
@@ -70,6 +139,16 @@ export {
   type LoopStepKind,
   type LoopStepRequest,
 } from "./loop-runner.js";
+export {
+  DurableOperation,
+  type DurableOperationSnapshot,
+  type OperationEvent,
+  type OperationEventType,
+  type OperationState,
+  type OperationStateRecord,
+  type OperationTransitionResult,
+  restoreDurableOperation,
+} from "./operation-state.js";
 export {
   type CompletedWorkflowStep,
   evalCondition,
@@ -122,6 +201,7 @@ export {
   FileRunStore,
   fingerprintRunConfig,
   MemoryRunStore,
+  operationSnapshotFromRecords,
   prepareRunResume,
   type RunResumePlan,
   RunStateJournal,
@@ -137,6 +217,11 @@ export {
   type RunResult,
 } from "./runtime.js";
 export { CoreMindSession } from "./session.js";
+export {
+  createRunSnapshot,
+  type RunSnapshot,
+  type RunSnapshotInput,
+} from "./snapshot.js";
 export {
   type ApprovalDecision,
   type ToolApprovalRequest,

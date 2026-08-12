@@ -1,15 +1,20 @@
 # Coding Agents
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
 Turn “reproduce the defect → locate the cause → make the smallest change → run the target test → run regression tests → inspect the diff” into a controlled workflow that beginners can verify.
 
-This module does not introduce a second runtime. CLI, TypeScript SDK, Python SDK, and source usage share the same harness, loop, permissions, budgets, traces, checkpoints, and terminal semantics.
+This capability is now a first-party Engineering Kernel inside the Runtime rather than an example composition. It does not introduce a second runtime. CLI, TypeScript SDK, Python SDK, and source usage share the same harness, loop, permissions, budgets, sessions, context, traces, checkpoints, evaluation, and terminal semantics.
 
 ## Public interfaces
 
+- `inspectCodingRepository`: performs bounded, read-only detection of TypeScript, JavaScript, Python, package managers, and test commands; detection is advisory only.
+- `selectCodingEnvironment`: requires an explicit user choice when language, package manager, or test command is ambiguous.
+- `buildRepositoryMap` and `createEngineeringTaskPlan`: create a repository map and the six-phase understand → plan → modify → verify → repair → deliver workflow.
+- `createEngineeringKernelDefinition`: creates a bounded verify/repair definition that reuses the shared `LoopController` and limits iterations, repairs, and repeated actions.
+- `EngineeringEvidenceLedger`: joins changes, pre-write checkpoints, actual command exit codes, diff review, and control events; it rejects unsupported success claims.
 - `ProcessRunner`: runs a command plus argument array with timeout, cancellation, output limits, and controlled environment variables.
 - `GitAdapter`: exposes read-only `status`, `diff`, and `log` without arbitrary Git subcommands or mutations.
 - `createUnifiedDiff` and `diffFiles`: create unified diffs with input, output, and complexity limits.
@@ -19,6 +24,8 @@ This module does not introduce a second runtime. CLI, TypeScript SDK, Python SDK
 ## Security boundaries
 
 - Prefer path-aware `read`, `edit`, and `write` tools plus read-only Git tools.
+- Every `edit` or `write` change must reference a pre-write checkpoint. Process and network access continue through the shared permission policy.
+- Detection never chooses the project entry on the user's behalf. Mixed languages, multiple lock files, or unknown test commands become explicit decisions.
 - On Windows, the host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected. This records explicit acceptance of host-process boundaries; it does not provide operating-system isolation.
 - The built-in Linux shell fails closed when its isolation layer is unavailable and never falls back to the host shell.
 - Evaluation captures the dirty-worktree baseline before execution and preserves pre-existing user changes by default.
@@ -27,7 +34,8 @@ This module does not introduce a second runtime. CLI, TypeScript SDK, Python SDK
 
 ## Verified evidence
 
-- One real TypeScript defect repository and one real Python defect repository pass deterministic offline evaluation.
+- One real single-file TypeScript defect repository and one real single-file Python defect repository pass deterministic offline evaluation.
+- Both languages also cover cross-file defects, wrong commands, approval denial, abort, checkpoint diff, and restore. A test that did not run or failed cannot be reported as passed.
 - Both language cases must observe the initial failure, make a minimal edit, and pass target and full regression tests.
 - The live-model matrix ran each language five times; capability and safety gates reached 5/5. The public repository retains reproducible evaluation scenarios, while raw runs are archived with candidate acceptance evidence.
 - Property tests cover path escape, permission combinations, stable terminal results, cancellation, and repeated-action limits.
@@ -38,6 +46,8 @@ This module does not introduce a second runtime. CLI, TypeScript SDK, Python SDK
 - [Read-only GitAdapter](../../../packages/coremind-tools/src/git-adapter.ts)
 - [Unified diff](../../../packages/coremind-tools/src/unified-diff.ts)
 - [Evaluation graders](../../../packages/coremind-runtime/src/evaluation-graders.ts)
+- [Engineering Kernel](../../../packages/coremind-runtime/src/coding/engineering-kernel.ts)
+- [Kernel contract tests](../../../packages/coremind-runtime/src/coding/engineering-kernel.test.ts)
 - [Real-defect examples](../../../examples/coding-evals/README.en.md)
 - [Module example](../../../examples/modules/build-coding-agents/README.en.md)
 - [Agent Skill](../../../skills/build-coding-agents/SKILL.md)

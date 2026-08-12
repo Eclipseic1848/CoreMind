@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-rc.1 - 2026-08-12
+
+- Synchronized this module contract with the repository release candidate.
+- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+
+## 0.3.0-beta.2 - 2026-08-11
+
+- Expanded live certification to seven checks by adding abort and long-context evidence.
+- Changed matrix generation so older incomplete evidence remains auditable but is downgraded to configurable and unverified.
+
 ## 0.2.0-rc.1 - 2026-08-09
 
 - Promoted the synchronized module contract and documentation maturity to release candidate.

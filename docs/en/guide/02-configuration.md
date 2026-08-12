@@ -25,6 +25,8 @@ permissions:
 
 Keep the first configuration small. Add tools, workflow stages, or an explicit Loop only when a verified requirement needs them.
 
+Providers are inherited dynamically from the locked runtime family. `0.2.0-rc.1` contains 37 inherited entries; `0.3.0-rc.1` contains 39 inherited entries and one CoreMind-native entry, for 40 configurable Providers. Use `listInheritedProviders()` to inspect the exact installed catalog. Configurability is not live certification.
+
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 
 ## Environment substitution

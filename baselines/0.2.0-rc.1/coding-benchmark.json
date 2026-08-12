@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "baseline": "0.2.0-rc.1",
+  "profiles": [
+    {
+      "id": "typescript",
+      "fixture": "examples/coding-evals/typescript-defect",
+      "requiredTrajectory": [
+        "reproduce",
+        "inspect",
+        "minimal-edit",
+        "target-test",
+        "regression-test",
+        "diff-review"
+      ]
+    },
+    {
+      "id": "python",
+      "fixture": "examples/coding-evals/python-defect",
+      "requiredTrajectory": [
+        "reproduce",
+        "inspect",
+        "minimal-edit",
+        "target-test",
+        "regression-test",
+        "diff-review"
+      ]
+    }
+  ],
+  "subjects": [
+    "coremind-baseline",
+    "coremind-candidate",
+    "external-reference-a",
+    "external-reference-b"
+  ],
+  "fairness": {
+    "sameProvider": true,
+    "sameModel": true,
+    "sameModelOptions": true,
+    "sameInitialCommit": true,
+    "sameBudget": true,
+    "sameTimeout": true,
+    "sameNetworkPolicy": true,
+    "differencesMustBeRecorded": true
+  },
+  "metrics": [
+    "success-rate",
+    "pass-at-k",
+    "first-fix-success-rate",
+    "tool-calls",
+    "failed-tool-calls",
+    "repeated-actions",
+    "turns",
+    "tokens",
+    "cost",
+    "duration",
+    "approval-count",
+    "unauthorized-attempts",
+    "checkpoint-count",
+    "restore-success-rate",
+    "residual-diff",
+    "duplicate-side-effects"
+  ],
+  "runsPerProfile": 5,
+  "minimumSuccessfulRuns": 4,
+  "requiredSafetyRuns": 5,
+  "comparisonRunStatus": "not-run",
+  "comparisonRunBlocker": "真实外部对照需要用户批准模型调用、费用和样例代码外发"
+}

@@ -10,6 +10,7 @@ import {
 } from "./evaluation-graders.js";
 import type { EvaluationReport, ReleaseReadiness, RunOutcome } from "./result.js";
 import { CoreMindRuntime, type CoreMindRuntimeOptions, type RunResult } from "./runtime.js";
+import { createRunSnapshot } from "./snapshot.js";
 import type { ApprovalDecision, ToolApprovalRequest } from "./tool-policy.js";
 
 export type {
@@ -319,8 +320,19 @@ function summarizeToolTrajectory(
 }
 
 function failedRunResult(outcome: RunOutcome): RunResult {
-  return {
+  const result = {
     runId: "evaluation-error",
+    operation: {
+      schemaVersion: 1,
+      operationId: "evaluation-error",
+      runId: "evaluation-error",
+      correlationId: "evaluation-error:evaluation-error",
+      state: "failed",
+      transitionSequence: 1,
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      failureReason: outcome.finishReason,
+    },
     outcome,
     metrics: {
       durationMs: 0,
@@ -330,6 +342,16 @@ function failedRunResult(outcome: RunOutcome): RunResult {
       toolFailures: 0,
       retries: 0,
       outputChars: 0,
+      context: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        promptCacheStatus: "unknown",
+        compactions: 0,
+        stablePrefixFingerprints: [],
+      },
+      artifacts: { stored: 0, blocked: 0, totalBytes: 0 },
     },
     evaluation: {
       profile: "standard",
@@ -343,5 +365,21 @@ function failedRunResult(outcome: RunOutcome): RunResult {
     outputs: new Map(),
     messages: new Map(),
     transcript: "",
+    artifacts: [],
+  } satisfies Omit<RunResult, "snapshot">;
+  return {
+    ...result,
+    snapshot: createRunSnapshot({
+      runId: result.runId,
+      operation: result.operation,
+      outcome: result.outcome,
+      metrics: result.metrics,
+      evaluation: result.evaluation,
+      releaseReadiness: result.releaseReadiness,
+      trace: result.trace,
+      checkpoints: result.checkpoints,
+      artifacts: result.artifacts,
+      extensions: [],
+    }),
   };
 }

@@ -178,7 +178,9 @@ export function toRunResultEvent(result: RunResult): Record<string, unknown> {
   return {
     type: "run_result",
     version: 1,
+    snapshot: result.snapshot,
     runId: result.runId,
+    operation: result.operation,
     outcome: result.outcome,
     metrics: result.metrics,
     evaluation: result.evaluation,

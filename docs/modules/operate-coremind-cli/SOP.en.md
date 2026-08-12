@@ -15,8 +15,9 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 7. Inject denial, budget exhaustion, timeout, and abort, then verify `2/3/124/130` respectively.
 8. For an explicit Loop, inject verification failure, pause-resume, and exhaustion; compare TUI, readline, and JSONL state order.
 9. Confirm resume does not replay completed steps or committed effects and requires human reconciliation for unknown effects.
-10. Run the listed module tests and `npm run check:modules`.
-11. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+10. Compare TUI `/status`, `/artifacts`, and `/context` with the final JSONL `snapshot`; fields must match actual files and run state.
+11. Run the listed module tests and `npm run check:modules`.
+12. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

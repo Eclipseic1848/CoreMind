@@ -4,6 +4,120 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.3.0-rc.1 — 2026-08-12
+
+### Closure and release preparation
+
+- Synchronized the root manifest, eight public npm packages, exact internal dependencies, lockfile, and Python SDK to npm `0.3.0-rc.1` / Python `0.3.0rc1`.
+- Added bilingual 0.2-to-0.3 migration guides, known limitations, and a bilingual SOP/Skill index for all 21 modules; synchronized the root README, public roadmap, provider status, and release SOP.
+- Extended `.gitignore` for virtual environments, type-checker caches, coverage data, and local registry credentials. Source archives continue to exclude internal analyses, handoff notes, sessions, run evidence, secrets, caches, and build outputs.
+- Added a Markdown gate for Chinese/English paragraph boundaries and split bilingual package READMEs into independent language sections instead of appending an English translation to a Chinese description.
+- Changed the both-platform CI checkout to full history so the frozen baseline can resolve the immutable `v0.2.0-rc.1` tag, with a workflow-contract test preventing shallow-checkout regression.
+- Aligned CI and documentation workflows on the same current pinned Action commits used by the release workflow, removing legacy-runtime deprecation warnings while retaining full commit-SHA pinning.
+- The frozen-baseline command now rebuilds all eight public packages before collecting API contracts, so stale `dist` output cannot hide source-level type drift. The Runtime denial-stop hook remains internal and does not expand the public API.
+
+### Current verification evidence
+
+- The P01-P19 test anchors are synchronized with the RC automated matrix. Across the repository, 69 test files pass and one is conditionally skipped; 466 tests pass and four are conditionally skipped. The Python SDK and real bundled Worker pass 10/10, and offline Coding Eval passes 6/6.
+- The first Windows P20 run found that a model could treat a human denial as an ordinary tool error and request approval again. The Runtime now blocks the denied tool and later unapproved calls in the same batch, returns `paused` after the batch is reconciled, and makes no next model request. In a sequential workflow, the denied step saves no output and no later step starts. Single-tool, mixed-tool, and two-step workflow regressions all assert zero write side effects.
+- The repaired product source completed three stability runs with zero drift. After adding the deterministic release-template version contract, the final repository suite passes 466 tests with four conditional skips. Coverage is 75.83% lines, 73.93% statements, 83.19% functions, and 66.96% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
+- All eight npm tarballs pass content allowlists, publint, type resolution, clean-project installation, and ESM imports. The CLI reports `coremind v0.3.0-rc.1`.
+- The Python wheel passes content checks, clean-venv installation, version parity, and bundled-Worker startup. The standalone source ZIP completes clean installation, build, contract checks, and CLI startup in isolation.
+- Contracts pass for 21 modules, five golden examples, 14 bilingual documentation-site pairs, and 410 Markdown files, including strict UTF-8, local links, public identifier boundaries, and Chinese/English paragraph separation.
+- `alibaba-model-studio/qwen-plus` completed live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks against `0.3.0-rc.1`. The redacted evidence contains no secret, prompt body, or response body.
+
+### Release gates
+
+- Windows and Linux P20 real-TTY evidence must bind to the same final source commit; historical `0.2.0-rc.1` evidence cannot be reused, and merge or tag operations must not change the accepted source content.
+- All 40 providers are configurable. One has completed the seven-check live revalidation for `0.3.0-rc.1`, while the other 39 remain configurable but uncertified. Both-platform CI on the final source commit remains mandatory before publication.
+- The phase-two live external same-task model comparison was explicitly deferred. Offline 6/6 evidence does not establish live-model quality.
+- A tag, GitHub Release, npm publication, or PyPI publication may occur only after these gates pass and the final clean-worktree preflight succeeds.
+
+## 0.3.0-beta.2 — 2026-08-11 (source candidate, unpublished)
+
+### Added
+
+- Limited lifecycle extensions to `before-model`, `before-tool`, `after-tool`, and `run-finished`. Extensions declare trust, capabilities, and grants explicitly; unknown project extensions are not loaded by default.
+- Added the lightweight experiment → arm → run → trace contract with version, environment, input fingerprint, random seed, run, complete trace, and existing grader results.
+- Added `RunResult.snapshot` plus Protocol validation so CLI, Worker, TypeScript, and Python share operation, outcome, metrics, evaluation, trace, checkpoints, artifacts, extension receipts, and resumability.
+- Added TUI `/artifacts` and `/context`; `/status` now covers terminal state, recovery, compaction, artifacts, and evaluation.
+- Expanded provider certification to seven checks: streaming, tool calls, structured results, multi-turn, abort, error mapping, and long context. Older five-check evidence remains traceable but no longer counts as current certification.
+- Added the twenty-first capability module, Runtime Lifecycle Extensions, and synchronized recovery, evaluation, provider, CLI, and both-SDK SOPs, Skills, bilingual guides, and examples.
+
+### Safety, evidence, and boundaries
+
+- An extension may deny a tool but cannot approve an operation rejected by the permission layer. Extension timeout or failure cannot bypass permissions or checkpoints or rewrite the true terminal state.
+- Targeted core/protocol/CLI tests passed 88/88, Python SDK and real Worker tests passed 10/10, and Coding Eval passed 6/6. Repository tests passed 458 with 4 conditional skips.
+- Coverage is 75.76% lines, 73.86% statements, 83.13% functions, and 66.85% branches; the non-regression gate passes, while the long-term 80% repository and selected 90% safety-branch targets remain open.
+- All 40 provider entries are configurable, but none has completed the new seven-check live revalidation. Linux CI, real TTY acceptance on both platforms, and live-provider revalidation remain RC prerequisites.
+- This candidate does not add a Web UI, an independent Python Loop, an extension marketplace, or a second terminal-state model.
+
+## 0.3.0-beta.1 — 2026-08-11 (source candidate, unpublished)
+
+### Added
+
+- Promoted coding from an example composition to a first-party Engineering Kernel inside the Runtime, exposing repository inspection, explicit environment selection, repository maps, six-phase engineering plans, bounded verify/repair loops, and delivery evidence.
+- Standardized read/search/write/edit/process/Git contracts. Every file change must reference a pre-write checkpoint, while process and network access continue through the shared permission boundary.
+- Added deterministic TypeScript and Python cross-file defects, wrong commands, approval denial, abort, diff, and restore cases alongside the existing real single-file defect evaluations.
+
+### Evidence and boundaries
+
+- Repository tests: 443 passed and 4 conditionally skipped. Coding evaluation: 6/6. Coding Kernel coverage: 92.45% lines and 87.12% branches.
+- A test that did not run or failed cannot be claimed as passed. Ambiguous language, package-manager, or test-command evidence requires an explicit user choice.
+- This candidate does not add browser automation, desktop control, an LSP cluster, worktree orchestration, or an extension marketplace. Config v2, Protocol v1, and generic terminal semantics remain unchanged.
+
+## 0.3.0-alpha.3 — 2026-08-11 (source candidate, unpublished)
+
+### Added
+
+- Added a byte-stable context prefix and SHA-256 fingerprint with fixed ordering for core rules, project instructions, tools, stable facts, and skills.
+- Added a controlled artifact store that streams large output into the workspace while exposing only a bounded head-tail preview, summary, hash, and relative reference to the model.
+- Added context/artifact metrics, real cache read/write token accounting, offline strategy comparison, and the twentieth bilingual capability module.
+
+### Security and compatibility
+
+- Suspected credentials never enter previews or artifacts. Untrusted full-output paths are not read or deleted, and resolved artifact paths cannot escape the workspace.
+- Config v2 and Protocol v1 requests are unchanged. `RunMetrics.context`, `RunMetrics.artifacts`, and `RunResult.artifacts` are additive optional fields that normal runtime results populate.
+- Local deterministic compaction remains the default. Project memory is never created automatically, and candidate strategies do not switch themselves on.
+
+## 0.3.0-alpha.2 — 2026-08-10 (source candidate, unpublished)
+
+### Added
+
+- Added a durable operation envelope and `RunResult.operation` so CLI, TUI, TypeScript, and Python read the same run state.
+- Added one Memory/JSONL Session conformance suite plus RunState fault-injection, competing-writer, and incomplete-tail recovery tests.
+- Added the nineteenth capability module, Durable Runs and Recovery, with bilingual README/GUIDE/SOP documents, a Skill, examples, and migration/rollback guidance.
+
+### Changed
+
+- RunState now uses a single-writer lock, consecutive sequences, and temporary-file atomic publication. Automatic repair is limited to an incomplete final line after complete records.
+- Tool calls, effect receipts, checkpoints, operations, and terminal records share run/call/idempotency correlation. Uncertain effects or effects without stable ownership are never replayed automatically.
+- A legacy schema-v3 Session receives a `.v3.backup` before first-open migration. Migration is idempotent and fails closed without replacing entries that cannot be represented losslessly.
+
+### Compatibility and rollback
+
+- Config v2 and Protocol v1 requests are unchanged. CLI `run_result` adds only the `operation` field while preserving existing fields and exit codes.
+- Terminal operations cannot resume. Legacy sessions can roll back from the documented backup; external effects still require business-system idempotency or human verification.
+
+## 0.3.0-alpha.1 — 2026-08-10 (source candidate, unpublished)
+
+### Added
+
+- Added a CoreMind-owned Runtime compatibility report, exposed through the TypeScript SDK and `coremind doctor`, for dependency-family, adapter, error-mapping, and capability checks.
+- Added an immutable reference baseline and a separate candidate baseline. Candidate updates require an explicit reason and cannot overwrite the `0.2.0-rc.1` evidence.
+- Added dependency lockstep, integrity reporting, and CI gates. The source candidate currently exposes 39 inherited Providers plus one CoreMind-native entry.
+
+### Changed
+
+- Aligned the three critical runtime dependencies to one exact version family and removed cross-version tool bridges.
+- Adapted Session persistence to the versioned repository interface while preserving the `session.dir/<id>.jsonl` public path and explicit corrupt-file failure semantics. Backup-backed idempotent migration is delivered by the later alpha.2 candidate.
+- Added the eighteenth capability module, Runtime Dependency Adapters, with tests, bilingual README/GUIDE/SOP documents, a Skill, examples, and migration guidance.
+
+### Compatibility and rollback
+
+- Config v2, Protocol v1, RunOutcome, permission, Checkpoint, and recovery semantics are unchanged.
+- Any unadaptable message, tool, usage, error, or Session drift requires a whole-family rollback; mixed versions are not supported.
+
 ## 0.2.0-rc.1 — 2026-08-09
 
 ### Added and fixed

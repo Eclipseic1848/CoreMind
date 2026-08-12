@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "platform": "windows",
-  "version": "0.2.0-rc.1",
+  "version": "0.3.0-rc.1",
   "commit": "replace-with-full-candidate-commit",
-  "testedAt": "2026-08-09T00:00:00.000Z",
+  "testedAt": "replace-with-ISO-8601-timestamp",
   "terminal": "Windows Terminal / PowerShell 7",
   "passed": false,
   "checks": {

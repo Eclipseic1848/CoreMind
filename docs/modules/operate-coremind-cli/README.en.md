@@ -1,6 +1,6 @@
 # CLI and TUI
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -26,6 +26,8 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 - TUI approvals show effects, complete targets, and reasons first; long bodies are summarized and credential fields redacted
 - TUI, readline, and JSONL expose the same ordered `loop_state` events; pause exits with code `2` and remains resumable
 - Unsafe or already-finished run IDs fail resume explicitly
+- TUI `/status`, `/artifacts`, and `/context` show recovery, evaluation, artifact, cache, and compaction status
+- The final JSONL `run_result.snapshot` is the same pure-JSON snapshot used by the TypeScript and Python SDKs
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

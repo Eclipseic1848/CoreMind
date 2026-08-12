@@ -14,6 +14,7 @@ const runtime = await CoreMindRuntime.create({
   toolDefinitions: [lookupOrder],
 });
 const result = await runtime.run();
+console.log(result.snapshot.operation, result.snapshot.artifacts);
 if (result.outcome.status !== 'succeeded') {
   console.error(result.outcome.error?.message ?? result.outcome.finishReason);
 }
@@ -29,6 +30,7 @@ if (result.outcome.status !== 'succeeded') {
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
 5. 对 `failed`、`paused`、`aborted`、`timeout`、`budget_exceeded` 分别写调用方分支测试。
 6. 使用 `config.loop` 时收集 `loop_state`，验证暂停恢复不会重复完整步骤或 committed 副作用。
+7. 对外传递结果时使用 `result.snapshot`，不要直接序列化 `outputs` 或 `messages` 中的 Map。
 
 ## 常见误区
 

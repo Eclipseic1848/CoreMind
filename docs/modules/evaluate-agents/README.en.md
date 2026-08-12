@@ -1,6 +1,6 @@
 # Testing, Evaluation, and Quality Gates
 
-Status: release-candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -14,6 +14,8 @@ Separate runtime outcome, metrics, business evaluation, and release readiness wh
 - `RunOutcome`
 - `EvaluationReport`
 - `ReleaseReadiness`
+- `defineExperiment`, `selectExperimentArm`, and `runExperiment`
+- `ExperimentRecord`
 
 ## Errors and boundaries
 
@@ -23,6 +25,8 @@ Separate runtime outcome, metrics, business evaluation, and release readiness wh
 - Strict scenarios run at least three times
 - schemaVersion 2 requires at least one `outcome` grader and allows at most 20 graders per scenario
 - Command, file, and diff evaluation enforce workspace, output, and timeout limits; pre-existing dirty-worktree content is preserved by default
+- Arm assignment is deterministic from experiment id, version, seed, and input fingerprint; it is reproducible and is not presented as cryptographic randomness
+- Every experiment record binds version, environment, input fingerprint, arm, terminal outcome, complete trace, and grader results
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
@@ -32,10 +36,12 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-runtime/src/evaluation-graders.ts](../../../packages/coremind-runtime/src/evaluation-graders.ts)
 - [packages/coremind-runtime/src/project-check.ts](../../../packages/coremind-runtime/src/project-check.ts)
 - [packages/coremind-runtime/src/result.ts](../../../packages/coremind-runtime/src/result.ts)
+- [packages/coremind-runtime/src/experiment.ts](../../../packages/coremind-runtime/src/experiment.ts)
 - [packages/coremind-runtime/src/evaluation.test.ts](../../../packages/coremind-runtime/src/evaluation.test.ts)
 - [packages/coremind-runtime/src/batch8-properties.test.ts](../../../packages/coremind-runtime/src/batch8-properties.test.ts)
 - [packages/coremind-runtime/src/project-check.test.ts](../../../packages/coremind-runtime/src/project-check.test.ts)
 - [packages/coremind-runtime/src/quality.test.ts](../../../packages/coremind-runtime/src/quality.test.ts)
+- [packages/coremind-runtime/src/experiment.test.ts](../../../packages/coremind-runtime/src/experiment.test.ts)
 - [模块示例](../../../examples/modules/evaluate-agents/README.zh-CN.md)
 - [Module example](../../../examples/modules/evaluate-agents/README.en.md)
 - [Agent Skill](../../../skills/evaluate-agents/SKILL.md)

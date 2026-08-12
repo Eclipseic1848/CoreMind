@@ -21,5 +21,6 @@ scenarios:
 3. 业务输出类示例补充场景后运行 `coremind eval`。
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
 5. 涉及代码修改时参考 [真实缺陷评测](../../coding-evals/README.zh-CN.md)，同时校验命令、文件、差异和脏工作区保护。
+6. 比较两个策略时，用 `defineExperiment` 固定版本、seed、arm 权重和输入指纹，并把完整 Trace 与 grader 写入 `ExperimentRecord`。
 
 返回 [中文指南](../../../docs/modules/evaluate-agents/GUIDE.zh-CN.md)。

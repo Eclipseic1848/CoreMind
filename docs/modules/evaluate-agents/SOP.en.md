@@ -14,8 +14,10 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 6. Run `coremind check` and `coremind eval`; repeat strict scenarios at least three times.
 7. Keep deterministic offline and live-model results separate. Record model, provider, platform, repetitions, cost/tokens, and data-egress authorization for live runs.
 8. Use release readiness, security gates, final tests, and owner review—not fluent prose—to decide release.
-9. Run the listed module tests and `npm run check:modules`.
-10. Preserve trace, grader, diff, and human-approval evidence; do not publish without explicit authorization.
+9. When comparing strategies, freeze the experiment id, version, seed, arm weights, and input-fingerprint rule. Use the same task, budget, provider, and graders for every arm.
+10. Use `runExperiment` to retain environment, assignment hash, truthful outcome, metrics, complete trace, and graders; do not store only model prose.
+11. Run the listed module tests and `npm run check:modules`.
+12. Preserve trace, grader, diff, and human-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

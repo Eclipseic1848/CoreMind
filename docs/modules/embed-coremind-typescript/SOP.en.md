@@ -12,8 +12,9 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 4. Exhaustively consume all six RunOutcome terminal states and structured events; do not handle only success and exceptions.
 5. For explicit Loops, verify state order, pause-resume, exhaustion, timeout, abort, and effect receipts.
 6. Do not depend on package-internal paths.
-7. Run the listed module tests and `npm run check:modules`.
-8. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+7. Across processes, languages, or storage, transmit only `RunResult.snapshot`; validate schemaVersion, runId, operation, and outcome consistency.
+8. Run the listed module tests and `npm run check:modules`.
+9. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions
 

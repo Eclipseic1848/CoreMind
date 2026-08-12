@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "baseline": "0.2.0-rc.1",
+  "candidateCommit": "3fb14ac0d25ae2794e1663a97e10c1149c073663",
+  "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078",
+  "releaseDelta": "仅发布工作流与测试 Harness 配置，不含产品 Runtime 变更",
+  "platforms": {
+    "windows": {
+      "terminal": "Windows PowerShell interactive TTY",
+      "passed": true,
+      "checks": [
+        "launch",
+        "help",
+        "approval-deny",
+        "approval-allow",
+        "abort",
+        "session-resume",
+        "checkpoint-diff-restore",
+        "exit"
+      ],
+      "ciRun": "31351248830"
+    },
+    "linux": {
+      "terminal": "GitHub Codespaces browser VS Code Linux TTY",
+      "passed": true,
+      "checks": [
+        "launch",
+        "help",
+        "approval-deny",
+        "approval-allow",
+        "abort",
+        "session-resume",
+        "checkpoint-diff-restore",
+        "exit"
+      ],
+      "ciRun": "31351248830"
+    }
+  }
+}

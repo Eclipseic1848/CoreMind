@@ -3,10 +3,11 @@ id: embed-coremind-typescript
 name:
   zh-CN: "TypeScript SDK"
   en: "TypeScript SDK"
-version: 0.2.0-rc.1
+version: 0.3.0-rc.1
 sourcePaths:
   - "packages/coremind/src/index.ts"
   - "packages/coremind-runtime/src/public-tool.ts"
+  - "packages/coremind-runtime/src/snapshot.ts"
 documents:
   readme:
     zh-CN: docs/modules/embed-coremind-typescript/README.zh-CN.md
@@ -25,6 +26,7 @@ examplePaths:
 testPaths:
   - "packages/coremind/src/index.test.ts"
   - "packages/coremind-runtime/src/public-tool.test.ts"
+  - "packages/coremind-runtime/src/snapshot.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

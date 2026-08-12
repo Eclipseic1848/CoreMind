@@ -17,5 +17,6 @@ coremind run my-agent/coremind.yaml --prompt "验收" --json-events
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
 5. 检查 JSONL 最后一行是 `run_result`，并分别验证成功 `0`、失败 `1`、暂停 `2`、预算 `3`、超时 `124`、中止 `130`。
 6. 同时传入 `--print --json-events`，确认 CLI 在模型调用前明确报错且退出码为 `1`。
+7. TUI 中运行 `/status`、`/artifacts`、`/context`；再对比 JSONL 最后一行的 `snapshot`，确认恢复、评测、产物和压缩字段一致。
 
 返回 [中文指南](../../../docs/modules/operate-coremind-cli/GUIDE.zh-CN.md)。

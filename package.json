@@ -1,6 +1,6 @@
 {
   "name": "coremind-monorepo",
-  "version": "0.2.0-rc.1",
+  "version": "0.3.0-rc.1",
   "private": true,
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
@@ -13,6 +13,10 @@
   "scripts": {
     "build": "npm run build --workspace coremind-config && npm run build --workspace coremind-protocol && npm run build --workspace coremind-tools && npm run build --workspace coremind-templates && npm run build --workspace coremind-runtime && npm run build --workspace coremind-ai && npm run build --workspace coremind-worker && npm run build --workspace coremind-cli",
     "build:python-worker": "npm run build && node scripts/build-python-worker.mjs",
+    "baseline:check": "npm run build && node scripts/phase2-baseline.mjs",
+    "baseline:update": "npm run build && node scripts/phase2-baseline.mjs --update",
+    "dependencies:report": "node scripts/dependency-report.mjs",
+    "dependencies:check": "node scripts/dependency-report.mjs --check",
     "check:modules": "node scripts/check-module-contract.mjs",
     "check:docs": "node scripts/check-docs-site.mjs",
     "docs:build": "vitepress build docs",
@@ -43,6 +47,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "^2.3.0",
+    "@microsoft/api-extractor": "7.58.12",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "4.1.10",
     "esbuild": "0.28.1",

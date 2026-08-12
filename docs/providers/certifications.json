@@ -1,12 +1,14 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-08-10",
+  "schemaVersion": 2,
+  "updatedAt": "2026-08-12",
   "criteria": [
     "streaming",
     "tool-call",
     "structured-result",
     "multi-turn",
-    "error"
+    "abort",
+    "error",
+    "long-context"
   ],
   "certifications": [
     {
@@ -22,6 +24,22 @@
         "error"
       ],
       "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-10.json"
+    },
+    {
+      "id": "alibaba-model-studio",
+      "model": "qwen-plus",
+      "version": "0.3.0-rc.1",
+      "testedAt": "2026-08-12T00:48:50.223Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "abort",
+        "error",
+        "long-context"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-12.json"
     }
   ]
 }

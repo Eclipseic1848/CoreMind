@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   evaluateRcAcceptance,
@@ -125,6 +127,20 @@ describe("Release Candidate 验收矩阵", () => {
 
   it("真实 TTY 证据保存在不改变候选提交的忽略目录", () => {
     expect(TTY_EVIDENCE_RELATIVE_DIRECTORY.replaceAll("\\", "/")).toBe(".scratch/rc-evidence");
+  });
+
+  it("双平台 TTY 模板版本与根版本保持一致", async () => {
+    const root = process.cwd();
+    const manifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+    for (const platform of ["windows", "linux"]) {
+      const template = JSON.parse(
+        await readFile(
+          path.join(root, "docs", "release", "evidence", `rc-tty-${platform}.example.json`),
+          "utf8",
+        ),
+      );
+      expect(template.version).toBe(manifest.version);
+    }
   });
 });
 
