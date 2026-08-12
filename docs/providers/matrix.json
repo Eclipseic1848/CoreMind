@@ -12,10 +12,12 @@
       "defaultModel": "qwen-plus",
       "modelCount": 1,
       "status": "certified",
-      "testedVersion": "0.3.0-rc.1",
-      "testedAt": "2026-08-12T00:48:50.223Z",
+      "testedVersion": "0.3.0-rc.2",
+      "testedAt": "2026-08-12T18:47:56.445Z",
       "testedModel": "qwen-plus",
-      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-12.json"
+      "testedCommit": "3e5afe2ab0a6bba369c28e52f3d8926dbbd3e574",
+      "runtimeArtifactSha256": "81f58f08a00111b7e2d90529992a987db47fa7ce55dfbf3e4ea3dfe68cf36b54",
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.0-rc.2-2026-08-12.json"
     },
     {
       "id": "amazon-bedrock",
