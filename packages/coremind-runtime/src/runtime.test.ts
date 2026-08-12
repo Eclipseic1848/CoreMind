@@ -7,7 +7,12 @@ import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
 import type { CoreMindEvent } from "./events.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
-import { fingerprintRunConfig, MemoryRunStore, RunStateJournal } from "./run-state.js";
+import {
+  fingerprintRunConfig,
+  MemoryRunStore,
+  prepareRunResume,
+  RunStateJournal,
+} from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 
 describe("CoreMindRuntime", () => {
@@ -319,6 +324,7 @@ describe("CoreMindRuntime", () => {
     const server = createToolCallingServer();
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 
+    const store = new MemoryRunStore();
     try {
       const port = (server.address() as AddressInfo).port;
       const runtime = await CoreMindRuntime.create({
@@ -329,6 +335,7 @@ describe("CoreMindRuntime", () => {
         cwd: dir,
         initialPrompt: "必须读取 notes.txt 才能完成任务",
         approveTool: async () => "deny",
+        runStore: store,
       });
 
       const result = await runtime.run();
@@ -352,6 +359,18 @@ describe("CoreMindRuntime", () => {
       });
       expect(result.trace.some((entry) => entry.event.type === "policy_denied")).toBe(true);
       expect(result.releaseReadiness.ready).toBe(false);
+      expect(result.snapshot.resumable).toBe(true);
+      const records = await store.read(result.runId);
+      expect(() =>
+        prepareRunResume(
+          records,
+          fingerprintRunConfig(
+            toolConfig(port, {
+              permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+            }),
+          ),
+        ),
+      ).not.toThrow();
     } finally {
       await closeServer(server);
     }
@@ -402,6 +421,7 @@ describe("CoreMindRuntime", () => {
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     let approvals = 0;
+    const store = new MemoryRunStore();
 
     try {
       const port = (server.address() as AddressInfo).port;
@@ -420,6 +440,7 @@ describe("CoreMindRuntime", () => {
           approvals += 1;
           return "deny";
         },
+        runStore: store,
       });
 
       const result = await runtime.run();
@@ -431,6 +452,20 @@ describe("CoreMindRuntime", () => {
         status: "paused",
         finishReason: "tool_approval_denied",
       });
+      const receiptStatuses = result.trace
+        .filter((entry) => entry.event.type === "effect_receipt")
+        .map((entry) => entry.event.status);
+      expect(receiptStatuses.length).toBeGreaterThan(0);
+      expect(receiptStatuses.every((status) => status === "not_started")).toBe(true);
+      const resumeConfig: CoreMindConfig = {
+        ...toolConfig(port, {
+          runtime: { maxTurns: 3 },
+          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+        }),
+        tools: [{ id: "write" }, { id: "read" }],
+      };
+      const records = await store.read(result.runId);
+      expect(() => prepareRunResume(records, fingerprintRunConfig(resumeConfig))).not.toThrow();
     } finally {
       await closeServer(server);
     }

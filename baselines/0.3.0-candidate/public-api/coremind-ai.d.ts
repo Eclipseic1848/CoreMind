@@ -23,6 +23,8 @@ import { CommandGrader } from 'coremind-runtime';
 import { CoreMindConfig } from 'coremind-config';
 import { CoreMindError } from 'coremind-runtime';
 import { CoreMindEvent } from 'coremind-runtime';
+import { CoreMindMessage } from 'coremind-runtime';
+import { CoreMindMessageContent } from 'coremind-runtime';
 import { CoreMindRuntime } from 'coremind-runtime';
 import { CoreMindRuntimeOptions } from 'coremind-runtime';
 import { CoreMindToolContext } from 'coremind-runtime';
@@ -97,6 +99,7 @@ import { LifecycleExtensionHost } from 'coremind-runtime';
 import { LifecycleExtensionPolicy } from 'coremind-runtime';
 import { LifecycleExtensionReceipt } from 'coremind-runtime';
 import { listInheritedProviders } from 'coremind-runtime';
+import { listSupportedProviders } from 'coremind-runtime';
 import { loadConfigFile } from 'coremind-config';
 import { loadEvaluationSuite } from 'coremind-runtime';
 import { LoopActionConfig } from 'coremind-config';
@@ -221,6 +224,10 @@ export { CoreMindConfig }
 export { CoreMindError }
 
 export { CoreMindEvent }
+
+export { CoreMindMessage }
+
+export { CoreMindMessageContent }
 
 export { CoreMindRuntime }
 
@@ -369,6 +376,8 @@ export { LifecycleExtensionPolicy }
 export { LifecycleExtensionReceipt }
 
 export { listInheritedProviders }
+
+export { listSupportedProviders }
 
 export { loadConfigFile }
 

@@ -4,6 +4,35 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.3.0-rc.2 — 2026-08-12
+
+### Reliability and security
+
+- Lifecycle extensions now share recursive redaction. Extensions without credential capability no longer receive cookies, private keys, sensitive URL parameters, or command values.
+- RunState and operation logs are validated in persisted order. Only a syntactically torn JSON tail is repaired; semantic corruption or reordering fails closed.
+- Tool side effects are marked started only after approval. A denied approval produces a `not_started` receipt, so the paused run can resume from a stable boundary.
+- Per-run side effects, idempotency keys, and timing now live in a dedicated coordinator to reduce Runtime orchestration coupling.
+
+### Harness, Loop, and SDKs
+
+- Coding and engineering success is bound to Runtime-observed executions, command exit codes, test classification, checkpoints, and diffs. A caller-provided PASS string cannot satisfy delivery evidence.
+- Engineering evidence configuration, nested Protocol schemas, and public type contracts are stricter. Public TypeScript declarations no longer expose low-level runtime dependency types.
+- Provider credentials resolve only from the explicitly injected environment, preventing embedded tests and host processes from silently sharing credentials.
+- The Python wheel now includes a Worker manifest with version, protocol, and SHA-256. The SDK rejects a bundled Worker whose version or content drifted.
+
+### CLI, templates, and release engineering
+
+- `coremind create` explicitly selects provider, model, and credential environment variable. Non-interactive creation without a provider fails with a repair command, and `coremind providers` separates configurable entries from certified ones.
+- Default templates use the currently certified provider. Blog, contract, and weekly-report templates reduce repeated approvals and prohibit invented business facts.
+- Windows and Linux CI now run real pseudoterminal P20 checks for launch, help, status, streaming, approval denial and allowance, session resume, checkpoint diff and restore, abort, and exit on the same commit.
+- Releases accept only the latest `main` commit with successful same-commit CI and P20 evidence. npm, PyPI, and GitHub Release continuation skips only byte-identical existing assets and fails on conflicts.
+- Version synchronization covers the root manifest, eight npm packages, the Python SDK, 21 modules, P20 templates, and generators. Public docs no longer hard-code a drifting Markdown-file count.
+
+### Known boundaries
+
+- Live external same-task model comparison, certification of the other 39 providers, formal macOS support, and the complete Web development environment remain later roadmap work.
+- Coverage keeps its per-platform non-regression gate. Repository-wide 80% and critical security-branch 90% remain improvement targets and are not achieved by lowering thresholds.
+
 ## 0.3.0-rc.1 — 2026-08-12
 
 ### Closure and release preparation

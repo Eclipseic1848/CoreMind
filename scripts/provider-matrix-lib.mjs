@@ -25,6 +25,8 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
               testedVersion: certification.version,
               testedAt: certification.testedAt,
               testedModel: certification.model,
+              testedCommit: certification.commit,
+              runtimeArtifactSha256: certification.runtimeArtifactSha256,
               evidence: certification.evidence,
             }
           : {}),
@@ -55,6 +57,8 @@ function hasCompleteEvidence(certification) {
     !certification.version ||
     !certification.testedAt ||
     !certification.model ||
+    !/^[0-9a-f]{40}$/.test(certification.commit ?? "") ||
+    !/^[0-9a-f]{64}$/.test(certification.runtimeArtifactSha256 ?? "") ||
     !certification.evidence
   ) {
     return false;
@@ -68,6 +72,10 @@ function missingCertificationChecks(certification) {
   if (!certification.version) missing.push("version");
   if (!certification.testedAt) missing.push("testedAt");
   if (!certification.model) missing.push("model");
+  if (!/^[0-9a-f]{40}$/.test(certification.commit ?? "")) missing.push("commit");
+  if (!/^[0-9a-f]{64}$/.test(certification.runtimeArtifactSha256 ?? "")) {
+    missing.push("runtimeArtifactSha256");
+  }
   if (!certification.evidence) missing.push("evidence");
   return missing;
 }

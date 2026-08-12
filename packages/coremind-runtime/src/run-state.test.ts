@@ -48,6 +48,18 @@ describe("RunState", () => {
     expect(readFileSync(store.pathFor("run-restore"), "utf8")).toBe(`${JSON.stringify(valid)}\n`);
   });
 
+  it("末行 JSON 完整但字段非法时失败关闭，不能当作 torn tail 删除", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-semantic-tail-"));
+    const store = new FileRunStore(dir);
+    const valid = record(1, "start", { configFingerprint: "same" });
+    const invalid = { ...record(2, "event", { type: "agent_start" }), sequence: 99 };
+    const original = `${JSON.stringify(valid)}\n${JSON.stringify(invalid)}`;
+    writeFileSync(store.pathFor("run-restore"), original, "utf8");
+
+    await expect(store.read("run-restore")).rejects.toMatchObject({ code: "run_state_corrupt" });
+    expect(readFileSync(store.pathFor("run-restore"), "utf8")).toBe(original);
+  });
+
   it("原子提交前故障不改变旧文件，重试后只追加一次", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-fault-"));
     const initial = new FileRunStore(dir);
@@ -173,6 +185,39 @@ describe("RunState", () => {
       saveAs: "first",
       output: { text: "已完成", metadata: { agent: "main", stepId: "s1" } },
     });
+  });
+
+  it("恢复计划按实际落盘顺序校验，拒绝被重新排列的记录", () => {
+    const records: RunStateRecord[] = [
+      record(2, "event", { type: "agent_start" }),
+      record(1, "start", { configFingerprint: "fingerprint", initialPrompt: "开始" }),
+    ];
+
+    expect(() => prepareRunResume(records, "fingerprint")).toThrowError(
+      expect.objectContaining({ code: "run_state_corrupt" }),
+    );
+  });
+
+  it("未进入执行阶段的副作用不阻止恢复", () => {
+    const records: RunStateRecord[] = [
+      record(1, "start", { configFingerprint: "fingerprint", initialPrompt: "开始" }),
+      traceRecord(2, 1, {
+        type: "tool_call",
+        agent: "main",
+        stepId: "s1",
+        tool: "write",
+        idempotencyKey: "run-restore:write-1",
+      }),
+      traceRecord(3, 2, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:write-1",
+        tool: "write",
+        status: "not_started",
+        stepId: "s1",
+      }),
+    ];
+
+    expect(() => prepareRunResume(records, "fingerprint")).not.toThrow();
   });
 
   it("没有完成收据的副作用会标记为 unknown 并阻止自动恢复", () => {

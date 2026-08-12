@@ -15,7 +15,8 @@ coremind --help                 # 查看帮助
 ## 2. 从模板创建
 
 ```bash
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
 ```
 
@@ -24,13 +25,13 @@ cd my-agent
 ## 3. 配置 API key
 
 ```bash
-copy .env.example .env          # Windows；macOS/Linux 用 cp
-# 编辑 .env，填入 DEEPSEEK_API_KEY=<你的 key>
+copy .env.example .env          # Windows；Linux 用 cp
+# 编辑 .env，填入 DASHSCOPE_API_KEY=<你的 key>
 ```
 
 `.env` 会被**自动加载**（前提：在你运行命令的目录下，见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)）。
 
-缺省使用 DeepSeek 模型；其他提供商见[配置指南](02-configuration.md#provider)。
+交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择当前认证的阿里云百炼入口；其他提供商见[配置指南](02-configuration.md#provider)。
 
 ## 4. 运行
 
@@ -44,7 +45,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 ✓ 运行完成：工具 0 次调用 · 耗时 2.1s · 约 45 tokens · 输出 18 字
 ```
 
-## 5. 七个命令
+## 5. 八个命令
 
 命令怎么装、在哪敲、key 怎么管理、常见坑——详见[CLI 使用指南](05-cli-usage.md)。
 
@@ -56,6 +57,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 | `coremind check [file]` | 检查配置、安全、项目材料和质量档 |
 | `coremind eval [file]` | 重复运行 `evals/scenarios.yaml` |
 | `coremind templates` | 查看全部 8 个模板（兼容 `list-templates`） |
+| `coremind providers` | 查看可配置 Provider 与当前认证状态 |
 | `coremind doctor` | 环境自检（Node 版本 / 配置 / API key 是否存在） |
 
 ## 下一步

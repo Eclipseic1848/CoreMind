@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-translator --template translator
+coremind create my-translator --template translator --provider alibaba-model-studio
 cd my-translator
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 coremind run coremind.yaml --prompt "翻译：你好，世界"
 ```
 

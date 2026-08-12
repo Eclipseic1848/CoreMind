@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const version = "0.2.0-rc.1";
+const version = JSON.parse(await readFile("package.json", "utf8")).version;
 
 const modules = [
   moduleOf({
@@ -49,13 +49,27 @@ const modules = [
     purposeZh: "继承锁定运行时依赖的 Provider 清单，并把“可选”与“经过真实认证”严格分开。",
     purposeEn:
       "Inherit the provider catalog from the locked runtime dependency while keeping availability separate from real certification.",
-    source: ["packages/coremind-runtime/src/provider.ts"],
+    source: [
+      "packages/coremind-runtime/src/provider.ts",
+      "packages/coremind-cli/src/commands/list-providers.ts",
+      "scripts/certify-provider.mjs",
+      "scripts/provider-certification.mjs",
+      "scripts/provider-matrix-lib.mjs",
+    ],
     tests: [
       "packages/coremind-runtime/src/provider.test.ts",
       "packages/coremind-runtime/src/integration.real.test.ts",
+      "packages/coremind-cli/src/commands/create.test.ts",
+      "scripts/provider-certification.test.ts",
+      "scripts/provider-matrix.test.ts",
     ],
     dependencies: ["configure-coremind"],
-    interfaces: ["buildProviderRuntime", "listInheritedProviders"],
+    interfaces: [
+      "buildProviderRuntime",
+      "listInheritedProviders",
+      "listSupportedProviders",
+      "coremind providers",
+    ],
     errorsZh: ["未知 Provider 或模型会拒绝启动", "缺少 apiKeyEnv 时会给出明确鉴权错误"],
     errorsEn: [
       "Unknown providers or models prevent startup",
@@ -134,6 +148,8 @@ const modules = [
       "packages/coremind-runtime/src/run-state.ts",
       "packages/coremind-runtime/src/session.ts",
       "packages/coremind-runtime/src/checkpoint.ts",
+      "packages/coremind-runtime/src/run-effect-coordinator.ts",
+      "packages/coremind-runtime/src/snapshot.ts",
       "packages/coremind-runtime/src/runtime.ts",
     ],
     tests: [
@@ -142,6 +158,8 @@ const modules = [
       "packages/coremind-runtime/src/session-conformance.test.ts",
       "packages/coremind-runtime/src/session.test.ts",
       "packages/coremind-runtime/src/checkpoint.test.ts",
+      "packages/coremind-runtime/src/run-effect-coordinator.test.ts",
+      "packages/coremind-runtime/src/snapshot.test.ts",
       "packages/coremind-runtime/src/runtime.test.ts",
       "packages/coremind-worker/src/server.test.ts",
     ],
@@ -193,7 +211,6 @@ const modules = [
   }),
   moduleOf({
     id: "manage-context-artifacts",
-    version: "0.3.0-alpha.3",
     zh: "上下文与 Artifact 治理",
     en: "Context and Artifact Governance",
     purposeZh:
@@ -297,7 +314,6 @@ const modules = [
   }),
   moduleOf({
     id: "extend-runtime-lifecycle",
-    version: "0.3.0-beta.2",
     maturity: "beta",
     zh: "Runtime 生命周期扩展",
     en: "Runtime Lifecycle Extensions",
@@ -358,7 +374,6 @@ const modules = [
   }),
   moduleOf({
     id: "build-coding-agents",
-    version: "0.3.0-beta.1",
     maturity: "beta",
     zh: "编码智能体",
     en: "Coding Agents",
@@ -371,6 +386,7 @@ const modules = [
       "packages/coremind-tools/src/unified-diff.ts",
       "packages/coremind-runtime/src/evaluation-graders.ts",
       "packages/coremind-runtime/src/coding/engineering-kernel.ts",
+      "packages/coremind-runtime/src/coding/runtime-engineering-evidence.ts",
       "examples/coding-evals",
     ],
     tests: [
@@ -380,6 +396,7 @@ const modules = [
       "packages/coremind-runtime/src/evaluation.test.ts",
       "packages/coremind-runtime/src/batch8-properties.test.ts",
       "packages/coremind-runtime/src/coding/engineering-kernel.test.ts",
+      "packages/coremind-runtime/src/coding/runtime-engineering-evidence.test.ts",
       "examples/coding-evals/coding-evals.test.ts",
       "examples/coding-evals/engineering-kernel.test.ts",
     ],
@@ -401,6 +418,7 @@ const modules = [
       "createEngineeringTaskPlan",
       "createEngineeringKernelDefinition",
       "EngineeringEvidenceLedger",
+      "loop.verify.evidence",
     ],
     errorsZh: [
       "无法复现缺陷时停止修改",
@@ -654,12 +672,15 @@ const modules = [
       "Enforce ask, assisted, and full approval modes while distinguishing path-aware file tools, the Linux bash OS sandbox, and Windows shell risk boundaries.",
     source: [
       "packages/coremind-runtime/src/tool-policy.ts",
+      "packages/coremind-runtime/src/runtime.ts",
+      "packages/coremind-runtime/src/agent-factory.ts",
       "packages/coremind-cli/src/approval.ts",
       "packages/coremind-tools/src/linux-sandbox.ts",
       "packages/coremind-tools/src/host-shell.ts",
     ],
     tests: [
       "packages/coremind-runtime/src/tool-policy.test.ts",
+      "packages/coremind-runtime/src/runtime.test.ts",
       "packages/coremind-cli/src/approval.test.ts",
       "packages/coremind-tools/src/linux-sandbox.test.ts",
       "packages/coremind-tools/src/host-shell.test.ts",
@@ -816,6 +837,7 @@ const modules = [
       "packages/coremind-runtime/src/evaluation-graders.ts",
       "packages/coremind-runtime/src/project-check.ts",
       "packages/coremind-runtime/src/result.ts",
+      "packages/coremind-runtime/src/experiment.ts",
     ],
     tests: [
       "packages/coremind-runtime/src/evaluation.test.ts",
@@ -823,6 +845,7 @@ const modules = [
       "packages/coremind-runtime/src/project-check.test.ts",
       "packages/coremind-runtime/src/quality.test.ts",
       "examples/coding-evals/coding-evals.test.ts",
+      "packages/coremind-runtime/src/experiment.test.ts",
     ],
     dependencies: ["inspect-agent-traces", "enforce-agent-permissions"],
     interfaces: [
@@ -874,10 +897,19 @@ const modules = [
       "通过 create、run、chat、check、eval、doctor 和 templates 完成新手端到端开发路径，并用 run --resume 从安全边界恢复未完成运行。",
     purposeEn:
       "Provide a beginner end-to-end path through create, run, chat, check, eval, doctor, and templates, with run --resume for unfinished runs that have a safe recovery boundary.",
-    source: ["packages/coremind-cli/src"],
+    source: [
+      "packages/coremind-cli/src",
+      "packages/coremind-runtime/src/run-terminalizer.ts",
+      "packages/coremind-runtime/src/snapshot.ts",
+      "scripts/tty-acceptance.mjs",
+    ],
     tests: [
       "packages/coremind-cli/src/cli.e2e.test.ts",
       "packages/coremind-cli/src/approval.test.ts",
+      "packages/coremind-cli/src/commands/create.test.ts",
+      "packages/coremind-cli/src/commands/run.test.ts",
+      "packages/coremind-cli/src/tui.test.tsx",
+      "packages/coremind-runtime/src/run-terminalizer.test.ts",
     ],
     dependencies: [
       "configure-coremind",
@@ -893,6 +925,7 @@ const modules = [
       "coremind eval",
       "coremind doctor",
       "coremind templates",
+      "coremind providers",
     ],
     errorsZh: [
       "命令失败返回非零退出码",
@@ -921,7 +954,7 @@ const modules = [
       "Use --print, --json-events, or --json in automation",
     ],
     example:
-      "coremind create my-agent --template translator --language typescript\ncoremind check my-agent/coremind.yaml\ncoremind eval my-agent/coremind.yaml",
+      "coremind providers\ncoremind create my-agent --template translator --language typescript --provider alibaba-model-studio\ncoremind check my-agent/coremind.yaml\ncoremind eval my-agent/coremind.yaml",
   }),
   moduleOf({
     id: "embed-coremind-typescript",
@@ -930,10 +963,15 @@ const modules = [
     purposeZh: "通过 coremind-ai 单一门面在 Node 工程中嵌入 Runtime、工具、会话、评测和事件。",
     purposeEn:
       "Embed runtime, tools, sessions, evaluation, and events in Node applications through the single coremind-ai facade.",
-    source: ["packages/coremind/src/index.ts", "packages/coremind-runtime/src/public-tool.ts"],
+    source: [
+      "packages/coremind/src/index.ts",
+      "packages/coremind-runtime/src/public-tool.ts",
+      "packages/coremind-runtime/src/snapshot.ts",
+    ],
     tests: [
       "packages/coremind/src/index.test.ts",
       "packages/coremind-runtime/src/public-tool.test.ts",
+      "packages/coremind-runtime/src/snapshot.test.ts",
     ],
     dependencies: ["configure-coremind", "design-agents", "build-tools"],
     interfaces: [
@@ -977,12 +1015,14 @@ const modules = [
       "python/src/coremind",
       "packages/coremind-worker/src",
       "packages/coremind-protocol/src",
+      "scripts/build-python-worker.mjs",
     ],
     tests: [
       "python/tests/test_client.py",
       "python/tests/test_node_parity.py",
       "packages/coremind-worker/src/server.test.ts",
       "packages/coremind-protocol/src/protocol.test.ts",
+      "python/tests/test_release_metadata.py",
     ],
     dependencies: ["configure-coremind", "build-tools", "inspect-agent-traces"],
     interfaces: [
@@ -1104,7 +1144,9 @@ const modules = [
       "scripts/release-version.mjs",
       "scripts/release-artifacts.mjs",
       "scripts/publish-npm-artifacts.mjs",
+      "scripts/verify-pypi-artifact.mjs",
       "scripts/rc-acceptance.mjs",
+      "scripts/tty-acceptance.mjs",
       "scripts/audit-markdown.mjs",
       "scripts/markdown-audit-lib.mjs",
       "scripts/package-artifacts.mjs",
@@ -1130,6 +1172,7 @@ const modules = [
       "scripts/release-version.test.ts",
       "scripts/release-artifacts.test.ts",
       "scripts/publish-npm-artifacts.test.ts",
+      "scripts/verify-pypi-artifact.test.ts",
       "scripts/rc-acceptance.test.ts",
       "scripts/markdown-audit.test.ts",
       "scripts/package-artifacts.test.ts",
@@ -1213,17 +1256,17 @@ for (const item of modules) {
   const examplesDir = path.join("examples", "modules", item.id);
   await mkdir(docsDir, { recursive: true });
   await mkdir(examplesDir, { recursive: true });
-  await write("skills", item.id, "SKILL.md", skill(item));
-  await write(docsDir, "README.zh-CN.md", readmeZh(item));
-  await write(docsDir, "README.en.md", readmeEn(item));
-  await write(docsDir, "SOP.zh-CN.md", sopZh(item));
-  await write(docsDir, "SOP.en.md", sopEn(item));
-  await write(docsDir, "GUIDE.zh-CN.md", guideZh(item));
-  await write(docsDir, "GUIDE.en.md", guideEn(item));
+  await writeIfMissing("skills", item.id, "SKILL.md", skill(item));
+  await writeIfMissing(docsDir, "README.zh-CN.md", readmeZh(item));
+  await writeIfMissing(docsDir, "README.en.md", readmeEn(item));
+  await writeIfMissing(docsDir, "SOP.zh-CN.md", sopZh(item));
+  await writeIfMissing(docsDir, "SOP.en.md", sopEn(item));
+  await writeIfMissing(docsDir, "GUIDE.zh-CN.md", guideZh(item));
+  await writeIfMissing(docsDir, "GUIDE.en.md", guideEn(item));
   await writeIfMissing(docsDir, "CHANGELOG.md", changelog(item));
   await write(docsDir, "module.yaml", manifest(item));
-  await write(examplesDir, "README.zh-CN.md", exampleZh(item));
-  await write(examplesDir, "README.en.md", exampleEn(item));
+  await writeIfMissing(examplesDir, "README.zh-CN.md", exampleZh(item));
+  await writeIfMissing(examplesDir, "README.en.md", exampleEn(item));
 }
 
 await mkdir(path.join("docs", "modules"), { recursive: true });
@@ -1235,7 +1278,8 @@ console.log(`已生成 ${modules.length} 个模块合同。`);
 function moduleOf(value) {
   return {
     ...value,
-    maturity: value.maturity ?? "release-candidate",
+    version,
+    maturity: "release-candidate",
     platforms: value.platforms ?? ["windows", "linux"],
   };
 }
@@ -1305,12 +1349,12 @@ function exampleEn(item) {
 }
 
 function changelog(item) {
-  return `# Changelog\n\n## ${item.version ?? version} - 2026-08-08\n\n- Established the implementation, tests, bilingual documentation, SOP, guide, reusable Skill, examples, and module manifest for ${item.en}.\n`;
+  return `# Changelog\n\n## ${version} - 2026-08-08\n\n- Established the implementation, tests, bilingual documentation, SOP, guide, reusable Skill, examples, and module manifest for ${item.en}.\n`;
 }
 
 function manifest(item) {
   const list = (values) => values.map((value) => `  - ${JSON.stringify(value)}`).join("\n");
-  return `schemaVersion: 1\nid: ${item.id}\nname:\n  zh-CN: ${JSON.stringify(item.zh)}\n  en: ${JSON.stringify(item.en)}\nversion: ${item.version ?? version}\nsourcePaths:\n${list(item.source)}\ndocuments:\n  readme:\n    zh-CN: docs/modules/${item.id}/README.zh-CN.md\n    en: docs/modules/${item.id}/README.en.md\n  sop:\n    zh-CN: docs/modules/${item.id}/SOP.zh-CN.md\n    en: docs/modules/${item.id}/SOP.en.md\n  guide:\n    zh-CN: docs/modules/${item.id}/GUIDE.zh-CN.md\n    en: docs/modules/${item.id}/GUIDE.en.md\n  changelog: docs/modules/${item.id}/CHANGELOG.md\nskillPath: skills/${item.id}/SKILL.md\nexamplePaths:\n  - examples/modules/${item.id}/README.zh-CN.md\n  - examples/modules/${item.id}/README.en.md\ntestPaths:\n${list(item.tests)}\nsupportedPlatforms:\n${list(item.platforms)}\ndependencies:\n${item.dependencies.length > 0 ? list(item.dependencies) : "  []"}\nmaturity: ${item.maturity}\n`;
+  return `schemaVersion: 1\nid: ${item.id}\nname:\n  zh-CN: ${JSON.stringify(item.zh)}\n  en: ${JSON.stringify(item.en)}\nversion: ${version}\nsourcePaths:\n${list(item.source)}\ndocuments:\n  readme:\n    zh-CN: docs/modules/${item.id}/README.zh-CN.md\n    en: docs/modules/${item.id}/README.en.md\n  sop:\n    zh-CN: docs/modules/${item.id}/SOP.zh-CN.md\n    en: docs/modules/${item.id}/SOP.en.md\n  guide:\n    zh-CN: docs/modules/${item.id}/GUIDE.zh-CN.md\n    en: docs/modules/${item.id}/GUIDE.en.md\n  changelog: docs/modules/${item.id}/CHANGELOG.md\nskillPath: skills/${item.id}/SKILL.md\nexamplePaths:\n  - examples/modules/${item.id}/README.zh-CN.md\n  - examples/modules/${item.id}/README.en.md\ntestPaths:\n${list(item.tests)}\nsupportedPlatforms:\n${list(item.platforms)}\ndependencies:\n${item.dependencies.length > 0 ? list(item.dependencies) : "  []"}\nmaturity: ${item.maturity}\n`;
 }
 
 function moduleIndex(language) {
@@ -1326,5 +1370,9 @@ function moduleIndex(language) {
       return `- [${label}](${item.id}/${file})`;
     })
     .join("\n");
-  return `${title}\n\n${intro}\n\n${rows}\n`;
+  const completeIndex =
+    language === "zh"
+      ? "[查看完整 SOP/Skill 索引](SOP-SKILL-INDEX.zh-CN.md)"
+      : "[Open the complete SOP/Skill index](SOP-SKILL-INDEX.en.md)";
+  return `${title}\n\n${intro}\n\n${completeIndex}\n\n${rows}\n`;
 }

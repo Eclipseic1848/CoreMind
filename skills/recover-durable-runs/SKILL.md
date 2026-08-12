@@ -10,7 +10,7 @@ description: "Design, diagnose, or verify CoreMind durable operation state, RunS
 3. Follow the [SOP](../../docs/modules/recover-durable-runs/SOP.en.md) in order.
 4. Reproduce the failure with a fault-injection test before changing persistence or recovery behavior.
 5. Preserve `runId`, `operationId`, `correlationId`, `callId`, idempotency key, checkpoint, effect receipt, terminal evidence, and the shared `RunResult.snapshot`.
-6. Retry only work proven replay-safe. Pause for unknown effects or committed effects outside a stable completed step.
+6. Validate records in persisted order. Retry only work proven replay-safe: `not_started` may be reconsidered; pause for `started`, `unknown`, or committed effects outside a stable completed step.
 7. Back up a legacy Session before conversion, publish the alias last, and rerun migration to prove idempotency.
 8. Compare the CLI, Worker, TypeScript, and Python snapshots; reject schema, `runId`, outcome, or key-set drift.
 9. Run every test listed in [module.yaml](../../docs/modules/recover-durable-runs/module.yaml), then `npm run check:modules` and the repository gates.

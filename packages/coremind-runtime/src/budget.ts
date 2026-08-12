@@ -93,10 +93,14 @@ export class RunBudgetController {
     return this.violation ? { terminate: true } : undefined;
   }
 
-  observeAgentEvent(event: AgentEvent): boolean {
-    if (event.type !== "turn_end") return this.violation !== undefined;
+  observeAgentEvent(event: unknown): boolean {
+    if (event === null || typeof event !== "object" || !("type" in event)) {
+      return this.violation !== undefined;
+    }
+    const runtimeEvent = event as AgentEvent;
+    if (runtimeEvent.type !== "turn_end") return this.violation !== undefined;
     this.turns += 1;
-    const message = event.message;
+    const message = runtimeEvent.message;
     if (message.role === "assistant" && message.usage) {
       const usage = normalizeDependencyUsage(message.usage);
       this.tokens += usage.totalTokens;

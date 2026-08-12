@@ -12,6 +12,7 @@ coremind run [config] [prompt]
 coremind chat [config]
 coremind eval [config]
 coremind list-templates
+coremind providers
 ```
 
 Use `npx coremind-cli@next` before global installation, or invoke `coremind` after installing `coremind-cli@next` globally.
@@ -29,7 +30,11 @@ This sequence separates environment, configuration, resolution, and live executi
 
 ## `create`
 
-Creates a project from a maintained template. The wizard asks for language and permission mode, then writes the configuration, environment sample, tests, and local guidance. Existing non-empty targets are rejected unless the command explicitly supports safe reuse.
+Creates a project from a maintained template. The wizard asks for language, provider, and permission mode, then writes the configuration, environment sample, tests, and local guidance. Non-interactive execution requires `--provider`; optional `--model` and `--api-key-env` values refine the selection. Existing non-empty targets are rejected unless the command explicitly supports safe reuse.
+
+## `providers`
+
+Lists every configurable provider and separates current certification evidence from catalog-only support. Use it before `create`; configurability alone is not a live certification claim.
 
 ## `doctor`
 

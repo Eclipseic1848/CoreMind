@@ -34,7 +34,10 @@ describe("宿主 Shell", () => {
     expect(shell.command.toLowerCase()).not.toContain("system32\\bash.exe");
     expect(shell.command.toLowerCase()).not.toContain("windowsapps\\bash.exe");
     expect(shell.command).toBe("powershell.exe");
-    expect(shell.input?.("Write-Output ok")).toContain("Write-Output ok");
+    const args = shell.args("Write-Output ok");
+    expect(args).toContain("-EncodedCommand");
+    expect(Buffer.from(args.at(-1)!, "base64").toString("utf16le")).toContain("Write-Output ok");
+    expect(shell.input).toBeUndefined();
   });
 
   it("Windows 兼容 Path 键并从标准安装根目录寻找 Git Bash", () => {

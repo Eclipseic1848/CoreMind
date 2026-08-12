@@ -13,7 +13,7 @@ description: "Build and verify a CoreMind coding agent that reproduces defects, 
 6. State a testable root-cause hypothesis. Capture a checkpoint before every edit/write, then make the fewest required changes without adjacent refactoring.
 7. Run target and complete regression tests. Record actual commands and exit codes; inspect `git_status`, `git_diff`, trace, checkpoints, budgets, approvals, and terminal outcome.
 8. Enter bounded repair only from failure evidence. Stop on repeated action, no progress, exhausted repair count, or exhausted budget.
-9. Use `EngineeringEvidenceLedger` plus schemaVersion 2 outcome, trajectory, command, file, diff, state, and response graders. Keep deterministic and live-provider evidence separate.
+9. Require Runtime-emitted `engineering_evidence` backed by actual tool results, successful target and regression commands, a pre-write checkpoint, and `git_diff`. A model-produced `PASS` or manually filled legacy ledger is never sufficient.
 10. Treat Windows host-shell access as an explicitly open boundary, not isolation. Keep constrained workflows on path-aware tools; require the Linux isolation prerequisites before built-in shell execution.
 11. Never commit, push, delete, publish, disclose secrets, or broaden scope without the corresponding user authorization.
 12. Stop on any failed security gate, target test, regression test, protected-file check, or non-reversible effect without a receipt.

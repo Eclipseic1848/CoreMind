@@ -11,10 +11,11 @@
 3. 把核心依赖全部改为同一精确版本，使用 `npm install --ignore-scripts` 更新 Lockfile。
 4. 在私有 Adapter 内转换消息、工具、Usage 和错误；不得向 Config 增加底层版本字段。
 5. 运行 Provider streaming/tool/abort/usage/error/timeout、Session roundtrip 和工具合同测试。
-6. 重新生成 Provider 矩阵与依赖报告；新增条目保持“可配置、未认证”。
-7. 写清 Session/API 迁移和整体回滚命令，再以明确原因更新候选基线。
-8. 执行 Windows/Linux 安装、构建、打包、CLI 与 Python Worker smoke。
-9. 同步 README、Guide、SOP、Skill、示例和 Changelog；运行文档门禁。
+6. 构建公开类型聚合文件，确认 Runtime 与统一 SDK 根入口只暴露 CoreMind 自有消息、工具和结果合同。
+7. 重新生成 Provider 矩阵与依赖报告；新增条目保持“可配置、未认证”。
+8. 写清 Session/API 迁移和整体回滚命令，再以明确原因更新候选基线。
+9. 执行 Windows/Linux 安装、构建、打包、CLI 与 Python Worker smoke。
+10. 同步 README、Guide、SOP、Skill、示例和 Changelog；运行文档门禁。
 
 ## 回滚
 

@@ -25,7 +25,7 @@ npm run release:preflight -- --allow-dirty
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
 5. 正式候选必须在 Windows 与 Linux 各三连跑；没有的平台证据保持待验收，不用其他平台结果代替。覆盖率基线使用各平台实测值，通用回退必须等于两平台的逐项最小值。
-6. 按 [RC 验收指南](../../release/RC-ACCEPTANCE.zh-CN.md)保存双平台真实 TTY 与真实 Provider 证据；发布物必须来自同一干净 Tag。
+6. 按 [RC 验收指南](../../release/RC-ACCEPTANCE.zh-CN.md)保存双平台真实伪终端与真实 Provider 证据；发布物必须来自同一干净 Tag。
 7. Release Please 只准备草稿发布 PR；OIDC 受保护环境批准后，统一工作流才发布 npm、PyPI、来源证明和 GitHub Release。
 8. 外部 Action 只接受已核对的完整 SHA；Dependabot 升级 PR 必须重跑同一组门禁。每个发布物作业在使用前独立校验 SHA-256。
 9. 发布前核对 npm、Python 构建与上传工具仍可从官方 Registry 获取且未被撤回；工具版本变化后重跑工作流合同、wheel 和完整发布物门禁。

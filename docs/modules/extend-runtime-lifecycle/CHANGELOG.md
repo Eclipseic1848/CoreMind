@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.2 - 2026-08-12
+
+- Applied shared recursive credential redaction to lifecycle payloads, including cookies, private keys, URLs, and command arguments.
+
 ## 0.3.0-rc.1 - 2026-08-12
 
 - Synchronized this module contract with the repository release candidate.

@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-reviewer --template code-reviewer
+coremind create my-reviewer --template code-reviewer --provider alibaba-model-studio
 cd my-reviewer
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 coremind run coremind.yaml --prompt "审查 src/main.ts"
 ```
 

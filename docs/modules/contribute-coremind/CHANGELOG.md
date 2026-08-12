@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.2 - 2026-08-12
+
+- Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.
+
 ## 0.3.0-rc.1 - 2026-08-12
 
 - Synchronized this module contract with the repository release candidate.

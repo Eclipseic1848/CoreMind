@@ -40,6 +40,24 @@
         "long-context"
       ],
       "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-12.json"
+    },
+    {
+      "id": "alibaba-model-studio",
+      "model": "qwen-plus",
+      "version": "0.3.0-rc.2",
+      "commit": "3e5afe2ab0a6bba369c28e52f3d8926dbbd3e574",
+      "runtimeArtifactSha256": "81f58f08a00111b7e2d90529992a987db47fa7ce55dfbf3e4ea3dfe68cf36b54",
+      "testedAt": "2026-08-12T18:47:56.445Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "abort",
+        "error",
+        "long-context"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.0-rc.2-2026-08-12.json"
     }
   ]
 }

@@ -18,15 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current code version is `0.3.0-rc.1`. It adds the phase-two harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for installable availability.
+> The current code version is `0.3.0-rc.2`. It adds the phase-two harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for installable availability.
 
-> A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
+> A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real pseudoterminal acceptance (Windows ConPTY / Linux PTY), a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The current `0.3.0-rc.1` keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
+The current `0.3.0-rc.2` keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
 
 | Capability | Current support |
 |---|---|
@@ -40,7 +40,7 @@ The current `0.3.0-rc.1` keeps CLI/TUI, TypeScript, Python, and source on one ru
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
 | Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 21 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix, both-platform CI, real TTY acceptance on both platforms, and a live-provider recheck on the same source commit; Releases and registries remain authoritative for installation |
+| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix, real pseudoterminal acceptance on both platforms, and a live-provider recheck on the same source commit; Releases and registries remain authoritative for installation |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -48,14 +48,14 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| `0.3.0-rc.1` current candidate | Delivered lockstep dependencies and private adapters, a durable recoverable harness, context and artifact engineering, a first-party Coding/Engineering Kernel, entry-point parity, and executable evaluation | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
+| `0.3.0-rc.2` current candidate | Delivered lockstep dependencies and private adapters, a durable recoverable harness, context and artifact engineering, a first-party Coding/Engineering Kernel, entry-point parity, and executable evaluation | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
 | `0.3.x` stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while running both-platform acceptance, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 `0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-The current `0.3.0-rc.1` has completed Batches 0 through 5 plus the automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are implemented. Local gates pass for P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and 410 Markdown files. `alibaba-model-studio/qwen-plus` has completed the current version's seven-check live revalidation. Use Releases and registries as the source of truth for publication status and final assets.
+The current `0.3.0-rc.2` has completed Batches 0 through 5 plus the automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are implemented. P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files enter the unified release gate. Use the current provider evidence ledger, Releases, and registries as the source of truth for final certification and publication status.
 
 ## Product boundary
 
@@ -75,7 +75,8 @@ Node.js 22.19 or newer is required.
 
 ```bash
 npm install -g coremind-cli@next
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
 cp .env.example .env
 coremind check coremind.yaml
@@ -83,7 +84,7 @@ coremind run coremind.yaml --prompt "Translate: hello world"
 coremind eval coremind.yaml
 ```
 
-The scaffold generates code and test skeletons, evaluation scenarios, bilingual requirements and architecture, development SOPs, testing guidance, an acceptance checklist, a project skill, a decision log, and checkpoint storage. Existing files are never overwritten.
+Interactive terminals ask for a provider; scripts and CI must pass `--provider` explicitly. Use `coremind providers` to inspect configurable entries and their certification status. The scaffold generates code and test skeletons, evaluation scenarios, bilingual requirements and architecture, development SOPs, testing guidance, an acceptance checklist, a project skill, a decision log, and checkpoint storage. Existing files are never overwritten.
 
 ## CLI
 
@@ -120,7 +121,7 @@ Custom tools must declare `effect.operations` and `effect.reversible`. The permi
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract. `alibaba-model-studio/qwen-plus` completed all seven checks against `0.3.0-rc.1`, so the matrix currently reports one certified and 39 unverified entries.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract. `alibaba-model-studio/qwen-plus` completed all seven checks against `0.3.0-rc.2`, so the matrix currently reports one certified and 39 unverified entries.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
@@ -150,7 +151,7 @@ python -X utf8 -m build --wheel python
 npm run release:check-wheel
 ```
 
-CI targets Windows and Linux, runs the Node suite three consecutive times, and checks non-decreasing coverage, the Python SDK, real Worker parity, golden examples, npm tarballs, and clean wheel installation. Final Linux evidence comes from target-platform CI plus a recorded manual TTY acceptance.
+CI targets Windows and Linux, runs the Node suite three consecutive times, and checks non-decreasing coverage, the Python SDK, real Worker parity, golden examples, npm tarballs, and clean wheel installation. P20 uses an automated real pseudoterminal on the target platform; a manual review is added only when the script and visible terminal behavior disagree.
 
 ## License
 

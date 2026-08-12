@@ -3,11 +3,12 @@ id: operate-coremind-cli
 name:
   zh-CN: "CLI 与 TUI"
   en: "CLI and TUI"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "packages/coremind-cli/src"
   - "packages/coremind-runtime/src/run-terminalizer.ts"
   - "packages/coremind-runtime/src/snapshot.ts"
+  - "scripts/tty-acceptance.mjs"
 documents:
   readme:
     zh-CN: docs/modules/operate-coremind-cli/README.zh-CN.md
@@ -25,9 +26,10 @@ examplePaths:
   - examples/modules/operate-coremind-cli/README.en.md
 testPaths:
   - "packages/coremind-cli/src/cli.e2e.test.ts"
+  - "packages/coremind-cli/src/approval.test.ts"
+  - "packages/coremind-cli/src/commands/create.test.ts"
   - "packages/coremind-cli/src/commands/run.test.ts"
   - "packages/coremind-cli/src/tui.test.tsx"
-  - "packages/coremind-cli/src/approval.test.ts"
   - "packages/coremind-runtime/src/run-terminalizer.test.ts"
 supportedPlatforms:
   - "windows"

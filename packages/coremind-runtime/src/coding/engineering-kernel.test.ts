@@ -132,6 +132,13 @@ describe("Engineering Kernel contracts", () => {
       "deliver",
     ]);
     expect(kernel.loop).toMatchObject({ maxIterations: 3, maxRepairs: 2, maxRepeatedAction: 2 });
+    expect(kernel.loop.verify.evidence).toEqual({
+      mode: "runtime",
+      regressionCommand: "npm test",
+      minSuccessfulTestCommands: 2,
+      requireCheckpoint: true,
+      requireDiffReview: true,
+    });
     expect(kernel.requiredTools).toEqual(CODING_TOOL_CONTRACTS.map((tool) => tool.id));
     expect(kernel.excludedCapabilities).toContain("browser-automation");
   });

@@ -55,7 +55,100 @@ export async function synchronizeReleaseVersion(rootDirectory, npmVersion) {
     "utf8",
   );
 
+  await synchronizeModuleManifestVersions(rootDirectory, npmVersion);
+  await synchronizeModuleChangelogs(rootDirectory, npmVersion);
+  await synchronizeTtyEvidenceTemplates(rootDirectory, npmVersion);
+
+  const releaseManifestPath = path.join(rootDirectory, ".release-please-manifest.json");
+  if (existsSync(releaseManifestPath)) {
+    const releaseManifest = await readJson(releaseManifestPath);
+    releaseManifest["."] = npmVersion;
+    await writeJson(releaseManifestPath, releaseManifest);
+  }
+
   return { npmVersion, pythonVersion, npmPackages: packages.length };
+}
+
+async function synchronizeModuleChangelogs(rootDirectory, npmVersion) {
+  const moduleRoot = path.join(rootDirectory, "docs", "modules");
+  if (!existsSync(moduleRoot)) return;
+  const entries = await readdir(moduleRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const changelogPath = path.join(moduleRoot, entry.name, "CHANGELOG.md");
+    if (!existsSync(changelogPath)) continue;
+    const changelog = await readFile(changelogPath, "utf8");
+    if (changelog.includes(`## ${npmVersion}`)) continue;
+    const summary = moduleReleaseSummary(entry.name);
+    const next = changelog.replace(
+      /^# Changelog\s*/u,
+      `# Changelog\n\n## ${npmVersion} - 2026-08-12\n\n- ${summary}\n\n`,
+    );
+    await writeFile(changelogPath, next, "utf8");
+  }
+}
+
+function moduleReleaseSummary(moduleId) {
+  const summaries = {
+    "build-coding-agents":
+      "Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.",
+    "contribute-coremind":
+      "Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.",
+    "embed-coremind-python":
+      "Added a versioned worker manifest with protocol, package-version, and SHA-256 validation before Python launches the bundled worker.",
+    "extend-runtime-lifecycle":
+      "Applied shared recursive credential redaction to lifecycle payloads, including cookies, private keys, URLs, and command arguments.",
+    "manage-providers":
+      "Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.",
+    "operate-coremind-cli":
+      "Added provider discovery, explicit project scaffolding choices, and automated real ConPTY/pseudoterminal acceptance evidence.",
+    "recover-durable-runs":
+      "Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.",
+  };
+  return (
+    summaries[moduleId] ??
+    "Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate."
+  );
+}
+
+async function synchronizeTtyEvidenceTemplates(rootDirectory, npmVersion) {
+  const evidenceRoot = path.join(rootDirectory, "docs", "release", "evidence");
+  for (const platform of ["windows", "linux"]) {
+    const templatePath = path.join(evidenceRoot, `rc-tty-${platform}.example.json`);
+    if (!existsSync(templatePath)) continue;
+    const template = await readJson(templatePath);
+    template.version = npmVersion;
+    template.evidenceLevel = "automated-real-tty";
+    for (const check of ["streaming", "status"]) {
+      if (!(check in template.checks)) template.checks[check] = false;
+    }
+    await writeJson(templatePath, template);
+  }
+}
+
+async function synchronizeModuleManifestVersions(rootDirectory, npmVersion) {
+  const generatorPath = path.join(rootDirectory, "scripts", "generate-module-contracts.mjs");
+  if (existsSync(generatorPath)) {
+    const generator = await readFile(generatorPath, "utf8");
+    if (/const version\s*=\s*"\d/.test(generator)) {
+      throw new Error("模块合同生成器仍硬编码版本；应从根 package.json 读取");
+    }
+  }
+
+  const moduleRoot = path.join(rootDirectory, "docs", "modules");
+  if (!existsSync(moduleRoot)) return;
+  const entries = await readdir(moduleRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = path.join(moduleRoot, entry.name, "module.yaml");
+    if (!existsSync(manifestPath)) continue;
+    const manifest = await readFile(manifestPath, "utf8");
+    await writeFile(
+      manifestPath,
+      manifest.replace(/^version:\s*.+$/m, `version: ${npmVersion}`),
+      "utf8",
+    );
+  }
 }
 
 export async function validateReleaseVersion(rootDirectory) {

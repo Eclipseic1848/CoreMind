@@ -25,6 +25,10 @@ import {
   inspectCheckpoint as inspectStoredCheckpoint,
   restoreCheckpoint as restoreStoredCheckpoint,
 } from "./checkpoint.js";
+import {
+  assessRuntimeEngineeringEvidence,
+  createToolExecutionEvidence,
+} from "./coding/runtime-engineering-evidence.js";
 import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
@@ -42,6 +46,7 @@ import {
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
+import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
 import {
   analyzeRunMetrics,
@@ -53,6 +58,7 @@ import {
   type RunOutcome,
 } from "./result.js";
 import { classifyRetry, runWithTransientRetry } from "./retry-policy.js";
+import { RunEffectCoordinator } from "./run-effect-coordinator.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
@@ -119,7 +125,7 @@ export interface RunResult {
   /** workflow 步骤输出（saveAs → 输出） */
   outputs: Map<string, StepOutput>;
   /** agent 名 → 最终消息 */
-  messages: Map<string, AgentMessage[]>;
+  messages: Map<string, CoreMindMessage[]>;
   /** 主输出文本（CLI --print 直接打印） */
   transcript: string;
   /** 会话文件路径（已落盘时） */
@@ -267,7 +273,7 @@ export class CoreMindRuntime {
   }
 
   /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
-  createAgent(
+  private createAgent(
     name: string,
     onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
     stepId?: string,
@@ -312,8 +318,10 @@ export class CoreMindRuntime {
   }
 
   /** 返回交互会话应继承的恢复消息副本。 */
-  initialMessagesFor(name: string): AgentMessage[] {
-    return name === this.mainAgentName ? [...(this.sessionMessages ?? [])] : [];
+  initialMessagesFor(name: string): CoreMindMessage[] {
+    return (name === this.mainAgentName
+      ? [...(this.sessionMessages ?? [])]
+      : []) as unknown as CoreMindMessage[];
   }
 
   /**
@@ -323,7 +331,7 @@ export class CoreMindRuntime {
   async runAgentTurn(
     agentName: string,
     message: string,
-    history: AgentMessage[],
+    history: CoreMindMessage[],
     events: (event: CoreMindEvent) => void,
     signal?: AbortSignal,
   ): Promise<RunResult> {
@@ -345,7 +353,7 @@ export class CoreMindRuntime {
         events,
         signal,
       },
-      history,
+      history as unknown as AgentMessage[],
       history.length,
       this.skillsByAgent,
     );
@@ -451,47 +459,13 @@ export class CoreMindRuntime {
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const userEvents = this.options.events ?? (() => {});
     const extensionReceipts: LifecycleExtensionReceipt[] = [];
-    const activeToolEffects = new Map<
-      string,
-      { idempotencyKey: string; tool: string; stepId?: string }
-    >();
     const recordEvent = (event: CoreMindEvent) => {
       collected.push(event);
       trace.record(event);
       userEvents(event);
     };
-    const emit = (event: CoreMindEvent) => {
-      const enriched =
-        (event.type === "tool_call" || event.type === "tool_result") &&
-        event.callId &&
-        !event.idempotencyKey
-          ? { ...event, idempotencyKey: effectIdempotencyKey(runId, event.stepId, event.callId) }
-          : event;
-      recordEvent(enriched);
-      if (enriched.type === "tool_call" && enriched.callId && enriched.idempotencyKey) {
-        const effect = {
-          idempotencyKey: enriched.idempotencyKey,
-          tool: enriched.tool,
-          ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
-        };
-        activeToolEffects.set(effectCallKey(enriched.stepId, enriched.callId), effect);
-        recordEvent({ type: "effect_receipt", ...effect, status: "started" });
-      }
-      if (enriched.type === "tool_result" && enriched.callId) {
-        const callKey = effectCallKey(enriched.stepId, enriched.callId);
-        const effect = activeToolEffects.get(callKey) ?? {
-          idempotencyKey: effectIdempotencyKey(runId, enriched.stepId, enriched.callId),
-          tool: enriched.tool,
-          ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
-        };
-        activeToolEffects.delete(callKey);
-        recordEvent({
-          type: "effect_receipt",
-          ...effect,
-          status: enriched.isError ? "unknown" : "committed",
-        });
-      }
-    };
+    const effectCoordinator = new RunEffectCoordinator(runId, recordEvent);
+    const emit = (event: CoreMindEvent) => effectCoordinator.emit(event);
     const dispatchLifecycle = async (
       lifecycle: Parameters<LifecycleExtensionHost["dispatch"]>[0],
       payload: Record<string, unknown>,
@@ -588,7 +562,7 @@ export class CoreMindRuntime {
           stepId,
           messageCount: messages.length,
         });
-        return contextProtector.transform(messages);
+        return contextProtector.transform(messages) as unknown as AgentMessage[];
       },
       beforeToolCall: async (context: BeforeToolCallContext) => {
         if (deniedAgents.has(agentName)) {
@@ -667,9 +641,25 @@ export class CoreMindRuntime {
           emit({ type: "error", message: checkpointFailure.message, fatal: true });
           return { block: true, reason: checkpointFailure.message };
         }
+        effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
         return undefined;
       },
       afterToolCall: async (context: AfterToolCallContext) => {
+        const execution = createToolExecutionEvidence({
+          tool: context.toolCall.name,
+          args: context.args,
+          isError: context.isError,
+          result: context.result,
+          durationMs: effectCoordinator.consumeDuration(stepId, context.toolCall.id),
+        });
+        emit({
+          type: "tool_execution_evidence",
+          agent: agentName,
+          tool: context.toolCall.name,
+          callId: context.toolCall.id,
+          ...(stepId ? { stepId } : {}),
+          execution,
+        });
         const artifact = extractArtifactRecord(context.result.details);
         if (artifact) {
           artifacts.push(artifact);
@@ -756,6 +746,17 @@ export class CoreMindRuntime {
                 journal.loop(snapshot);
                 await journal.flush();
               },
+              verifyEvidence: loop.verify.evidence
+                ? ({ stepId, textPassed }) => {
+                    const report = assessRuntimeEngineeringEvidence(
+                      collected,
+                      loop.verify.evidence!,
+                      stepId,
+                    );
+                    emit({ type: "engineering_evidence", stepId, textPassed, ...report });
+                    return report.passed;
+                  }
+                : undefined,
               executeStep: (request) =>
                 runWithTransientRetry(
                   () => this.executeLoopStep(request, emit, limits.stepTimeoutMs, collected),
@@ -960,7 +961,7 @@ export class CoreMindRuntime {
       runStateFile: runStore.pathFor?.(runId),
       checkpoints: checkpointManager.records,
       outputs,
-      messages: this.collectMessages(),
+      messages: this.collectMessages() as unknown as Map<string, CoreMindMessage[]>,
       transcript,
       sessionFile,
       artifacts,
@@ -1139,10 +1140,6 @@ function lastOutputText(outputs: Map<string, StepOutput>): string {
 
 function firstKey(record: Record<string, unknown>): string | undefined {
   return Object.keys(record)[0];
-}
-
-function effectCallKey(stepId: string | undefined, callId: string): string {
-  return `${stepId ?? "agent"}:${callId}`;
 }
 
 function effectIdempotencyKey(runId: string, stepId: string | undefined, callId: string): string {

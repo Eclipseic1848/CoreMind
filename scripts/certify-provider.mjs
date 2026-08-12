@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -11,6 +12,7 @@ import {
 import {
   assertCertificationSucceeded,
   createCertificationEvidence,
+  upsertCertificationRecord,
 } from "./provider-certification.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,6 +21,13 @@ const model = process.env.COREMIND_CERT_MODEL ?? "qwen-plus";
 const apiKeyEnv = process.env.COREMIND_CERT_API_KEY_ENV ?? "DASHSCOPE_API_KEY";
 const testedAt = new Date().toISOString();
 const version = JSON.parse(await readFile(path.join(root, "package.json"), "utf8")).version;
+const commit = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+}).trim();
+const runtimeArtifactSha256 = hash(
+  await readFile(path.join(root, "packages", "coremind-runtime", "dist", "index.js")),
+);
 const originalKey = process.env[apiKeyEnv];
 if (!originalKey) throw new Error(`缺少认证密钥环境变量：${apiKeyEnv}`);
 
@@ -148,15 +157,26 @@ const evidence = createCertificationEvidence({
   provider: providerId,
   model,
   version,
+  commit,
+  runtimeArtifactSha256,
   testedAt,
   platform: `${process.platform}-${process.arch}`,
   node: process.version,
   details,
 });
 const date = testedAt.slice(0, 10);
-const output = path.join(root, "docs", "providers", "evidence", `${providerId}-${date}.json`);
+const evidenceFile = `${providerId}-${version}-${date}.json`;
+const output = path.join(root, "docs", "providers", "evidence", evidenceFile);
 await mkdir(path.dirname(output), { recursive: true });
 await writeFile(output, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+const ledgerPath = path.join(root, "docs", "providers", "certifications.json");
+const ledger = JSON.parse(await readFile(ledgerPath, "utf8"));
+const evidenceUrl = `https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/${evidenceFile}`;
+await writeFile(
+  ledgerPath,
+  `${JSON.stringify(upsertCertificationRecord(ledger, evidence, evidenceUrl), null, 2)}\n`,
+  "utf8",
+);
 console.log(`Provider 真实认证通过：${providerId}/${model}，证据：${path.relative(root, output)}`);
 
 async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {

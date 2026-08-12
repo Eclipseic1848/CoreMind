@@ -4,6 +4,35 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.3.0-rc.2 — 2026-08-12
+
+### 可靠性与安全
+
+- 生命周期扩展统一使用递归脱敏，未声明凭据能力的扩展不再收到 Cookie、私钥、带敏感参数的 URL 或命令值。
+- RunState 与 operation 日志按落盘顺序验证；只修复尾部 JSON 语法截断，语义损坏或乱序记录会失败关闭。
+- 审批通过后才记录工具副作用已开始；审批拒绝产生 `not_started` 收据，暂停运行可从稳定边界继续。
+- 每次运行的工具副作用、幂等键和计时状态已抽离为独立协调器，降低 Runtime 编排变更的耦合风险。
+
+### Harness、Loop 与 SDK
+
+- Coding/Engineering Kernel 的通过结果绑定 Runtime 实际工具执行、命令退出码、测试分类、checkpoint 和 diff 证据；调用方手填的“通过”不再满足交付门禁。
+- Config 的工程证据策略、Protocol 嵌套 Schema 和公开类型合同已收紧；公开 TypeScript 声明不再泄漏低层运行依赖类型。
+- Provider 环境变量只从显式注入环境解析，嵌入式测试和宿主进程不会静默串用凭据。
+- Python wheel 内置 Worker 新增版本、协议和 SHA-256 Manifest，SDK 启动前会拒绝版本或内容漂移。
+
+### CLI、模板与发布
+
+- `coremind create` 会显式选择 Provider、模型和凭据环境变量；非交互模式未指定 Provider 时失败并给出修复命令，`coremind providers` 区分“可配置”和“已认证”。
+- 默认模板统一使用当前已认证 Provider；博客、合同和周报模板减少重复审批，且明确禁止发明未提供的业务事实。
+- Windows/Linux CI 新增真实伪终端 P20：启动、帮助、状态、流式输出、审批拒绝/批准、会话恢复、checkpoint diff/restore、中止和退出均绑定同一提交。
+- 发布工作流只接受 `main` 最新提交、同提交双平台 CI 和 P20 证据；npm、PyPI 与 GitHub Release 的断点续传仅在既有资产哈希一致时跳过，冲突会失败关闭。
+- 版本同步覆盖根清单、8 个 npm 包、Python SDK、21 个模块、P20 模板和生成器；公开文档不再硬编码会漂移的 Markdown 文件数量。
+
+### 已知边界
+
+- 真实外部同题模型对照、其余 39 个 Provider 认证、macOS 正式支持和完整 Web 开发环境仍按路线图后续推进。
+- 覆盖率继续执行双平台不下降门禁；全仓 80% 与关键安全分支 90% 仍是后续提升目标，不以降低阈值换取通过。
+
 ## 0.3.0-rc.1 — 2026-08-12
 
 ### 收口与发布准备

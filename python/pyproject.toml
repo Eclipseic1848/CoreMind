@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coremind-ai"
-version = "0.3.0rc1" # x-release-please-version
+version = "0.3.0rc2" # x-release-please-version
 description = "CoreMind Python SDK：通过本地协议调用统一 Node Runtime"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,4 +36,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-coremind = ["py.typed", "_worker/*.mjs", "skills/*/README.md"]
+coremind = ["py.typed", "_worker/*.mjs", "_worker/manifest.json", "skills/*/README.md"]

@@ -99,6 +99,16 @@ jobs:
         run: |
           node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
 
+      - name: 当前平台真实伪终端验收
+        run: npm run acceptance:tty
+
+      - name: 保存当前平台真实伪终端证据
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: rc-tty-${{ runner.os }}
+          path: .scratch/rc-evidence/rc-tty-*.json
+          if-no-files-found: error
+
       - name: 发布元数据预检
         run: npm run release:preflight -- --allow-dirty
 

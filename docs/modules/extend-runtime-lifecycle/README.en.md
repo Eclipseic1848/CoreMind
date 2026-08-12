@@ -1,6 +1,6 @@
 # Runtime Lifecycle Extensions
 
-Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: `0.3.0-rc.2` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -30,7 +30,7 @@ CoreMind enforces these invariants:
 
 - An id absent from `trustedIds` cannot load.
 - File, process, network, credential, and UI requests must be fully covered by `grants`.
-- Credential-like fields are replaced with `<redacted>` unless credential access is granted.
+- Without credential capability, keys, authorization headers, cookies, private keys, URL credentials or sensitive query parameters, and command secrets are recursively redacted. Business body fields remain available under the declared capability contract.
 - Handlers receive a deeply frozen clone and cannot mutate Runtime objects.
 - Timeouts and failures produce receipts but never escape into the Runtime.
 - `before-tool` may only add a denial; it cannot override shared or human denial.

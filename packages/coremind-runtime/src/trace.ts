@@ -40,12 +40,12 @@ export class TraceRecorder {
 /** Trace 与 RunState 只能保存审计所需摘要，不能持久化凭据、正文或命令原文。 */
 export function sanitizeTraceEvent(event: CoreMindEvent): CoreMindEvent {
   if (event.type === "tool_call") {
-    return { ...event, args: redactValue(event.args) };
+    return { ...event, args: redactSensitiveValue(event.args) };
   }
   if (event.type === "approval_required") {
     return {
       ...event,
-      args: redactValue(event.args),
+      args: redactSensitiveValue(event.args),
       effect: {
         ...event.effect,
         urls: event.effect.urls.map(redactUrl),
@@ -55,22 +55,34 @@ export function sanitizeTraceEvent(event: CoreMindEvent): CoreMindEvent {
   return event;
 }
 
-function redactValue(value: unknown, key = "", seen = new WeakSet<object>()): unknown {
+/** 为 Trace 或无凭据能力的扩展创建递归脱敏副本。 */
+export function redactSensitiveValue(
+  value: unknown,
+  options: { redactBodies?: boolean } = {},
+  key = "",
+  seen = new WeakSet<object>(),
+): unknown {
   if (isSecretKey(key)) return "<已隐藏>";
   if (typeof value === "string") {
-    if (isBodyKey(key)) return `<${key || "正文"} 已隐藏：${value.length} 字符>`;
+    if (options.redactBodies !== false && isBodyKey(key)) {
+      return `<${key || "正文"} 已隐藏：${value.length} 字符>`;
+    }
     if (isCommandKey(key)) return redactSensitiveText(value);
-    if (/^urls?$/iu.test(key)) return redactUrl(value);
+    if (/^(?:urls?|url|uri|endpoint|base[_-]?url)$/iu.test(key) || /^https?:\/\//iu.test(value)) {
+      return redactUrl(value);
+    }
     return value;
   }
-  if (Array.isArray(value)) return value.map((item) => redactValue(item, key, seen));
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSensitiveValue(item, options, key, seen));
+  }
   if (value !== null && typeof value === "object") {
     if (seen.has(value)) return "<循环引用已省略>";
     seen.add(value);
     const redacted = Object.fromEntries(
       Object.entries(value).map(([childKey, item]) => [
         childKey,
-        redactValue(item, childKey, seen),
+        redactSensitiveValue(item, options, childKey, seen),
       ]),
     );
     seen.delete(value);

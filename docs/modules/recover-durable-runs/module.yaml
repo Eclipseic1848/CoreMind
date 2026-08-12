@@ -3,14 +3,15 @@ id: recover-durable-runs
 name:
   zh-CN: "持久运行与故障恢复"
   en: "Durable Runs and Recovery"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "packages/coremind-runtime/src/operation-state.ts"
   - "packages/coremind-runtime/src/run-state.ts"
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/checkpoint.ts"
-  - "packages/coremind-runtime/src/runtime.ts"
+  - "packages/coremind-runtime/src/run-effect-coordinator.ts"
   - "packages/coremind-runtime/src/snapshot.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
 documents:
   readme:
     zh-CN: docs/modules/recover-durable-runs/README.zh-CN.md
@@ -32,8 +33,9 @@ testPaths:
   - "packages/coremind-runtime/src/session-conformance.test.ts"
   - "packages/coremind-runtime/src/session.test.ts"
   - "packages/coremind-runtime/src/checkpoint.test.ts"
-  - "packages/coremind-runtime/src/runtime.test.ts"
+  - "packages/coremind-runtime/src/run-effect-coordinator.test.ts"
   - "packages/coremind-runtime/src/snapshot.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
   - "packages/coremind-worker/src/server.test.ts"
 supportedPlatforms:
   - "windows"

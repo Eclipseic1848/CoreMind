@@ -17,6 +17,7 @@ const dependencyPackages = {
   "model-layer": "@earendil-works/pi-ai",
   "runtime-core": "@earendil-works/pi-agent-core",
 };
+const forbiddenPublicTypeImports = ["@earendil-works/pi-agent-core", "@earendil-works/pi-ai"];
 
 export function evaluatePhase2Baseline(expected, actual) {
   const blockers = [];
@@ -280,6 +281,14 @@ async function collectPublicApiSnapshots(root) {
           );
         }
         const content = normalizeText(await readFile(outputPath, "utf8"));
+        if (name === "coremind-runtime" || name === "coremind-ai") {
+          const leaked = forbiddenPublicTypeImports.find((dependency) =>
+            content.includes(dependency),
+          );
+          if (leaked) {
+            throw new Error(`${name} 的公开类型仍暴露私有运行依赖：${leaked}`);
+          }
+        }
         return [name, content];
       }),
     );

@@ -1,59 +1,13 @@
-import { AfterToolCallContext } from '@earendil-works/pi-agent-core';
-import { AfterToolCallResult } from '@earendil-works/pi-agent-core';
-import { Agent } from '@earendil-works/pi-agent-core';
-import type { AgentConfig } from 'coremind-config';
-import { AgentEvent } from '@earendil-works/pi-agent-core';
-import { AgentMessage } from '@earendil-works/pi-agent-core';
-import { AgentTool } from '@earendil-works/pi-agent-core';
 import { ArtifactRecord } from 'coremind-tools';
-import { BeforeToolCallContext } from '@earendil-works/pi-agent-core';
-import { BeforeToolCallResult } from '@earendil-works/pi-agent-core';
 import type { CoreMindConfig } from 'coremind-config';
 import type { LoopConfig } from 'coremind-config';
-import { Model } from '@earendil-works/pi-ai';
-import { Models } from '@earendil-works/pi-ai';
 import type { PermissionsConfig } from 'coremind-config';
-import type { ProviderConfig } from 'coremind-config';
 import type { QualityConfig } from 'coremind-config';
 import type { RuntimeLimitsConfig } from 'coremind-config';
-import { SessionContext } from '@earendil-works/pi-agent-core';
 import { ToolEffectDeclaration } from 'coremind-config';
 import type { ToolEffectOperation } from 'coremind-config';
-import type { WorkflowStep } from 'coremind-config';
 
-/** 仅供 Runtime Adapter 使用，不作为用户必须理解的接口。 */
-export declare function adaptCoreMindTool(definition: CoreMindToolDefinition<any>): AgentTool;
-
-export declare interface AgentBuildContext {
-    /** 共享模型集合（所有 agent 同一实例，streamFn 绑定） */
-    models: Models;
-    model: Model<any>;
-    tools: AgentTool[];
-    /** agent 名（注入归一化事件） */
-    agentName: string;
-    /** 事件转发 */
-    onEvent: (event: CoreMindEvent) => void;
-    /** 会话历史（断点续聊恢复用） */
-    sessionMessages?: AgentMessage[];
-    /** 配置 apiKeyEnv 时的 key 覆盖（内置 provider） */
-    apiKeyOverride?: string;
-    /** 注入的专业技能内容（skills/<id>/README.md，附加到系统提示词） */
-    skillsContent?: string[];
-    /** 不含凭据且在一轮 Run 内不变的事实。 */
-    stableFacts?: Record<string, string | number | boolean>;
-    /** Provider 目录是否明确声明缓存计费能力。 */
-    promptCacheStatus?: "available" | "unavailable";
-    /** CoreMind Harness 钩子；由每次 Run 注入，不写入用户配置。 */
-    harness?: {
-        maxRetries?: number;
-        transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
-        beforeToolCall?: (context: BeforeToolCallContext, signal?: AbortSignal) => Promise<BeforeToolCallResult | undefined>;
-        afterToolCall?: (context: AfterToolCallContext, signal?: AbortSignal) => Promise<AfterToolCallResult | undefined>;
-        onAgentEvent?: (event: AgentEvent, agent: Agent) => void;
-    };
-}
-
-export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: AgentMessage[], durationMs: number, outputChars: number): RunMetrics;
+export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: CoreMindMessage[], durationMs: number, outputChars: number): RunMetrics;
 
 export declare type ApprovalDecision = "allow" | "deny";
 
@@ -66,17 +20,8 @@ export declare interface BudgetViolation {
     message: string;
 }
 
-/**
- * 把 agent 配置构建为可运行的 Agent 实例。
- * 关键点：显式绑定 models.streamSimple 为 streamFn，自定义 baseUrl/headers 才能生效。
- */
-export declare function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent;
-
 /** 便捷入口：加载配置 → 构建运行时 */
 export declare function buildAgentFromConfig(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime>;
-
-/** 构建运行时：注册 provider 并解析模型 */
-export declare function buildProviderRuntime(providerCfg?: ProviderConfig, env?: NodeJS.ProcessEnv): Promise<ProviderRuntime>;
 
 export declare function buildRepositoryMap(inspection: CodingRepositoryInspection, selection: CodingEnvironmentSelection): RepositoryMap;
 
@@ -264,7 +209,7 @@ export declare interface CommandGrader extends GraderBase {
 }
 
 /** 只输出离线策略对照，不改变运行时默认策略。 */
-export declare function compareContextStrategies(messages: AgentMessage[], options: ContextProtectionOptions): ContextStrategyComparison;
+export declare function compareContextStrategies(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextStrategyComparison;
 
 export declare interface CompletedWorkflowStep {
     output: StepOutput;
@@ -283,7 +228,7 @@ export declare interface ContextProtectionOptions {
 }
 
 export declare interface ContextProtectionResult {
-    messages: AgentMessage[];
+    messages: CoreMindMessage[];
     compacted: boolean;
     beforeTokens: number;
     afterTokens: number;
@@ -298,7 +243,7 @@ export declare class ContextProtector {
     private readonly onCompacted?;
     private readonly onFailed?;
     constructor(options: ContextProtectionOptions, onCompacted?: ((result: ContextProtectionResult) => void) | undefined, onFailed?: ((failure: ContextProtectionFailure) => void) | undefined);
-    transform(messages: AgentMessage[]): AgentMessage[];
+    transform(messages: CoreMindMessage[]): CoreMindMessage[];
 }
 
 export declare interface ContextStrategyComparison {
@@ -464,6 +409,23 @@ export declare type CoreMindEvent = {
     targetPath?: string;
     reversible: boolean;
 } | {
+    type: "tool_execution_evidence";
+    agent: string;
+    tool: string;
+    callId: string;
+    stepId?: string;
+    execution: ToolExecutionEvidence;
+} | {
+    type: "engineering_evidence";
+    stepId: string;
+    textPassed: boolean;
+    passed: boolean;
+    successfulTestCommands: number;
+    regressionCommandMatched: boolean;
+    checkpointRecorded: boolean;
+    diffReviewed: boolean;
+    reasons: string[];
+} | {
     type: "agent_end";
     agent: string;
     stepId?: string;
@@ -471,6 +433,38 @@ export declare type CoreMindEvent = {
     type: "error";
     message: string;
     fatal: boolean;
+};
+
+/** CoreMind 公共消息合同只承诺稳定、可序列化的字段，不暴露底层运行时消息类型。 */
+export declare interface CoreMindMessage {
+    role: "user" | "assistant" | "toolResult" | string;
+    content?: CoreMindMessageContent[] | string;
+    timestamp?: number;
+    stopReason?: string;
+    errorMessage?: string;
+}
+
+export declare type CoreMindMessageContent = {
+    type: "text";
+    text: string;
+} | {
+    type: "image";
+    data: string;
+    mimeType: string;
+} | {
+    type: "thinking";
+    thinking: string;
+} | {
+    type: "toolCall";
+    id: string;
+    name: string;
+    arguments: unknown;
+} | {
+    type: "toolResult";
+    toolCallId: string;
+    toolName: string;
+    content: unknown;
+    isError: boolean;
 };
 
 /**
@@ -499,16 +493,16 @@ export declare class CoreMindRuntime {
     /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
     static create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime>;
     /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
-    createAgent(name: string, onEvent?: (event: CoreMindEvent) => void, stepId?: string): Agent | undefined;
+    private createAgent;
     /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
     hasAgent(name: string): boolean;
     /** 返回交互会话应继承的恢复消息副本。 */
-    initialMessagesFor(name: string): AgentMessage[];
+    initialMessagesFor(name: string): CoreMindMessage[];
     /**
      * 把一轮交互对话作为完整 Run 执行。
      * 因此 chat/TUI 与无头 run 共用预算、权限、checkpoint、Trace 和失败语义。
      */
-    runAgentTurn(agentName: string, message: string, history: AgentMessage[], events: (event: CoreMindEvent) => void, signal?: AbortSignal): Promise<RunResult>;
+    runAgentTurn(agentName: string, message: string, history: CoreMindMessage[], events: (event: CoreMindEvent) => void, signal?: AbortSignal): Promise<RunResult>;
     inspectCheckpoint(record: CheckpointRecord): Promise<CheckpointDiff>;
     restoreCheckpoint(record: CheckpointRecord): Promise<void>;
     /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
@@ -553,45 +547,6 @@ export declare interface CoreMindRuntimeOptions {
     maxSteps?: number;
     /** 单步骤超时毫秒（护栏，默认 300000 = 5 分钟；0 = 不超时） */
     stepTimeoutMs?: number;
-}
-
-/**
- * 会话（二期）：通过 CoreMind Adapter 使用版本化会话仓库。
- * - 落盘：每条消息一个树条目（Session.appendMessage）
- * - 恢复：buildContext() 生成"视图"——压缩条目自动替换旧历史，存储不变（非破坏）
- * - 压缩：P2b（shouldCompact + compact + appendCompaction）
- */
-export declare class CoreMindSession {
-    private readonly session;
-    readonly isNew: boolean;
-    readonly filePath: string;
-    private constructor();
-    /** 打开或创建会话（已存在 → 恢复语义；不存在 → 新建） */
-    static open(opts: CoreMindSessionOptions): Promise<CoreMindSession>;
-    /** 会话文件是否存在（恢复前判断用） */
-    static exists(dir: string, sessionId: string, cwd: string): Promise<boolean>;
-    /** 追加消息（每条一个树条目） */
-    appendMessages(messages: AgentMessage[]): Promise<void>;
-    /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
-    buildContext(): Promise<SessionContext>;
-    /**
-     * 自动压缩：上下文超预算时生成 LLM 摘要并追加压缩条目（存储不变——非破坏）。
-     * 返回是否执行了压缩。
-     */
-    maybeCompact(models: Models, model: Model<any>, contextWindow: number, settings?: Partial<{
-        enabled: boolean;
-        reserveTokens: number;
-        keepRecentTokens: number;
-    }>): Promise<boolean>;
-}
-
-declare interface CoreMindSessionOptions {
-    /** 会话存储目录 */
-    dir: string;
-    /** 会话文件名标识（--session <id>） */
-    sessionId: string;
-    /** 工作目录（存储元数据用） */
-    cwd: string;
 }
 
 export declare interface CoreMindToolContext {
@@ -720,11 +675,11 @@ export declare interface DurableOperationSnapshot {
 export declare interface EffectReceipt {
     idempotencyKey: string;
     tool: string;
-    status: "started" | "committed" | "unknown";
+    status: "not_started" | "started" | "committed" | "unknown";
     stepId?: string;
 }
 
-export declare type EffectReceiptStatus = "started" | "committed" | "unknown";
+export declare type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
 
 export declare interface EngineeringChange {
     path: string;
@@ -755,7 +710,8 @@ export declare interface EngineeringDeliverySummary {
 }
 
 /**
- * 只聚合 Coding 领域证据；运行、权限、Loop、Checkpoint 与终态仍由通用 Runtime 所有。
+ * @deprecated 仅用于导入旧版外部证据。新代码应使用 createEngineeringKernelDefinition，
+ * 由 Runtime Trace 的 engineering_evidence 事件作为成功判定来源。
  */
 export declare class EngineeringEvidenceLedger {
     private readonly input;
@@ -944,7 +900,7 @@ export declare interface ExperimentSelection {
 export declare type ExtensionFileCapability = "none" | "read" | "write";
 
 /** 从 Agent 消息列表提取最终文本（拼接全部 assistant 文本块） */
-export declare function extractText(messages: AgentMessage[]): string;
+export declare function extractText(messages: CoreMindMessage[]): string;
 
 export declare interface FileGrader extends GraderBase {
     type: "file";
@@ -1208,6 +1164,12 @@ export declare interface LoopRunnerOptions {
     persistSnapshot: (snapshot: LoopControllerSnapshot) => Promise<void>;
     restoredSnapshot?: LoopControllerSnapshot;
     completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
+    /** Runtime 证据门；返回 false 时即使文本条件为真也不能完成。 */
+    verifyEvidence?: (request: {
+        iteration: number;
+        stepId: string;
+        textPassed: boolean;
+    }) => boolean | Promise<boolean>;
 }
 
 export declare interface LoopRunResult {
@@ -1244,7 +1206,7 @@ export declare class MemoryRunStore implements RunStore {
  * 把上游 Agent 事件归一化为 CoreMind 事件。
  * 只保留对 UI/调用方有意义的事件；流式文本来自 message_update 的 text_delta。
  */
-export declare function normalizeEvent(event: AgentEvent): CoreMindEvent | null;
+export declare function normalizeEvent(event: unknown): CoreMindEvent | null;
 
 export declare interface OperationEvent {
     eventId: string;
@@ -1278,79 +1240,6 @@ export declare interface OperationTransitionResult {
     changed: boolean;
     snapshot: DurableOperationSnapshot;
     record?: OperationStateRecord;
-}
-
-/**
- * 简化编排引擎：顺序 / 并行 / if / switch / 多 agent 调用。
- * - 变量：{{var}} 插值；saveAs 输出注册为 <saveAs>.text
- * - 每个步骤经工厂创建独立 agent 实例执行
- * - 护栏：嵌套深度与总步骤数硬上限，防止多 agent 互相调用死循环
- */
-export declare class Orchestrator {
-    private readonly steps;
-    private readonly createAgent;
-    private readonly events;
-    private readonly initialPrompt?;
-    private readonly signal?;
-    private readonly maxDepth;
-    private readonly maxSteps;
-    private readonly stepTimeoutMs;
-    private stepCount;
-    private readonly maxRetries;
-    private retryCount;
-    private readonly completedSteps;
-    /** outputs：saveAs → 输出（并行步骤共享） */
-    readonly outputs: Map<string, StepOutput>;
-    /** 插值变量源（outputs 自动注册 + initialPrompt → prompt） */
-    readonly variables: Map<string, string>;
-    constructor(steps: WorkflowStep[], opts: OrchestratorOptions);
-    /** 执行整个 workflow，返回 outputs */
-    run(): Promise<Map<string, StepOutput>>;
-    private runSteps;
-    private runStep;
-    /**
-     * 派发任务给某 agent（唯一执行 Agent 的地方；每步独立实例）。
-     * 支持：单步超时护栏（stepTimeoutMs）、质量把关重试（retry.if 为真则重试）。
-     */
-    private runAgentStep;
-    /** 单步执行 + 超时护栏：超时中止 agent 并抛 step_timeout */
-    private promptWithTimeout;
-    /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */
-    private interpolateWithStepText;
-    /** 并行执行子步骤：共享 outputs/variables，事件按声明顺序聚合文本 */
-    private runParallelStep;
-    private runIfStep;
-    private runSwitchStep;
-    private saveOutput;
-    /** {{var}} 插值：未命中变量原样保留 */
-    private interpolate;
-    private checkGuard;
-}
-
-export declare interface OrchestratorOptions {
-    /**
-     * agent 工厂：按名字创建独立实例（多 agent 按名字调用）。
-     * 每个步骤使用独立实例执行——步骤之间通过 {{变量}} 传递结果，
-     * 避免并发冲突，同时天然防止共享消息状态的竞态。
-     */
-    createAgent: (name: string, stepId?: string) => Agent | undefined;
-    /** 事件转发 */
-    events: (event: CoreMindEvent) => void;
-    /** 首条用户输入，注册为 {{prompt}} 变量 */
-    initialPrompt?: string;
-    signal?: AbortSignal;
-    /** 嵌套深度护栏（默认 8） */
-    maxDepth?: number;
-    /** 总步骤数护栏（默认 100） */
-    maxSteps?: number;
-    /** 单步骤超时毫秒（默认 300000 = 5 分钟；0 = 不超时） */
-    stepTimeoutMs?: number;
-    /** 工作流全局重试次数上限（默认 3） */
-    maxRetries?: number;
-    /** 恢复前已消耗的工作流重试次数。 */
-    initialRetryCount?: number;
-    /** 从 RunState 恢复出的稳定步骤；这些步骤不会重复执行。 */
-    completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
 }
 
 export declare interface OutcomeGrader extends GraderBase {
@@ -1387,20 +1276,7 @@ export declare interface ProjectCheckReport {
  * 在每次 Provider 请求前执行的本地上下文保护。
  * 摘要只在用户环境生成；保留区从 user 消息开始，避免留下孤立 toolResult。
  */
-export declare function protectContext(messages: AgentMessage[], options: ContextProtectionOptions): ContextProtectionResult;
-
-export declare interface ProviderRuntime {
-    /** 模型集合（含鉴权、流式调用） */
-    models: Models;
-    /** 解析出的当前模型（默认或配置指定） */
-    model: Model<any>;
-    /** 解析警告（如配置的模型不在目录中） */
-    warnings: string[];
-    /** 配置 apiKeyEnv 时从该环境变量解析出的 key（覆盖内置 provider 默认环境变量） */
-    apiKeyOverride?: string;
-    /** 仅依据锁定模型目录的缓存计费元数据判定，不把 0 命中伪装为命中。 */
-    promptCacheStatus: "available" | "unavailable";
-}
+export declare function protectContext(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextProtectionResult;
 
 /** 发布判断与普通运行成功分离。 */
 export declare interface ReleaseReadiness {
@@ -1481,7 +1357,7 @@ export declare class RunBudgetController {
     afterToolCall(isError: boolean): {
         terminate: true;
     } | undefined;
-    observeAgentEvent(event: AgentEvent): boolean;
+    observeAgentEvent(event: unknown): boolean;
     throwIfExceeded(): void;
     private fail;
 }
@@ -1561,7 +1437,7 @@ export declare interface RunResult {
     /** workflow 步骤输出（saveAs → 输出） */
     outputs: Map<string, StepOutput>;
     /** agent 名 → 最终消息 */
-    messages: Map<string, AgentMessage[]>;
+    messages: Map<string, CoreMindMessage[]>;
     /** 主输出文本（CLI --print 直接打印） */
     transcript: string;
     /** 会话文件路径（已落盘时） */
@@ -1732,6 +1608,14 @@ export declare interface ToolEffect {
     urls: string[];
     reversible: boolean;
     declared: boolean;
+}
+
+/** 工具执行证据不保存命令原文，只保留退出码、耗时与不可逆摘要。 */
+declare interface ToolExecutionEvidence {
+    durationMs: number;
+    exitCode: number | null;
+    commandSha256?: string;
+    testCommand?: boolean;
 }
 
 /** 三档权限的唯一判定点；显式 deny 和工作区边界始终优先。 */

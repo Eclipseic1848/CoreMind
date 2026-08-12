@@ -173,6 +173,30 @@ describe("validateConfig", () => {
     ).toThrow("workflow 与 loop 只能选择一种");
   });
 
+  it("Runtime 证据门会填充安全默认值", () => {
+    const config = validateConfig({
+      ...validYaml,
+      loop: {
+        execute: { agent: "main", input: "执行" },
+        verify: {
+          agent: "main",
+          input: "验证",
+          passIf: "{{text}} == PASS",
+          evidence: { mode: "runtime", regressionCommand: "npm test" },
+        },
+        repair: { agent: "main", input: "修复" },
+      },
+    });
+
+    expect(config.loop?.verify.evidence).toEqual({
+      mode: "runtime",
+      regressionCommand: "npm test",
+      minSuccessfulTestCommands: 2,
+      requireCheckpoint: true,
+      requireDiffReview: true,
+    });
+  });
+
   it("Loop 的每个阶段都必须引用已定义 Agent", () => {
     expect(() =>
       validateConfig({

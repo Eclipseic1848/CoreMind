@@ -12,7 +12,7 @@
 - npm 与 PyPI 使用 GitHub OIDC 可信发布；仓库和工作流不得保存长期 Registry Token。
 - 外部 GitHub Action 固定到完整提交 SHA，Dependabot 每周创建 Action、npm 和 Python 依赖升级 PR；升级必须通过完整门禁后合并。
 - 发布物只构建一次，后续 npm、PyPI、来源证明和 GitHub Release 都下载同一份构建产物。
-- 真实 Provider、Windows TTY、Linux TTY、双平台 CI、全仓 Markdown 审计任一失败都停止发布。
+- 真实 Provider、Windows ConPTY、Linux PTY、双平台 CI、全仓 Markdown 审计任一失败都停止发布。
 
 ## 1. 发布账号与环境只配置一次
 
@@ -27,10 +27,10 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0-rc.1`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0-rc.2`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
 
 ```powershell
-npm run release:sync-version -- 0.3.0-rc.1
+npm run release:sync-version -- 0.3.0-rc.2
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
@@ -68,10 +68,10 @@ npm run acceptance:rc
 严格按 [RC 验收指南](RC-ACCEPTANCE.zh-CN.md)执行：
 
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
-- Windows 和 Linux 各有一份真实 TTY P20 证据，且绑定同一版本与候选提交。
+- Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
 - 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验。
-- Linux 自动化必须由目标平台运行；Windows 或普通 CI 不能伪造成 Linux 真实 TTY。
+- Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
 
@@ -102,7 +102,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 8. npm、PyPI 与来源证明都成功后，创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
 9. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
 
-任何已存在的 Registry 版本都会使发布失败，脚本不会静默跳过。发布版本不可覆盖；必须修复后使用新版本。
+发布支持安全断点续传：npm、PyPI 或 GitHub Release 已存在的同名同版本资产只有在哈希一致时才跳过；缺失资产继续上传，哈希冲突立即失败。发布版本不可覆盖，冲突时必须修复并使用更高版本。
 
 ## 7. 发布后公共 Registry 验证
 
@@ -111,7 +111,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 ```powershell
 npm install -g coremind-cli@next
 coremind --version
-coremind create acceptance-agent --template blog-writer --language typescript
+coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent
 coremind check coremind.yaml
 ```

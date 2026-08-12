@@ -33,6 +33,12 @@ describe("统一发布版本", () => {
     expect(
       readFileSync(path.join(root, "python", "src", "coremind", "__init__.py"), "utf8"),
     ).toContain('__version__ = "0.2.0rc1"');
+    expect(
+      readFileSync(path.join(root, "docs", "modules", "demo", "module.yaml"), "utf8"),
+    ).toContain("version: 0.2.0-rc.1");
+    expect(
+      readFileSync(path.join(root, "docs", "modules", "demo", "CHANGELOG.md"), "utf8"),
+    ).toContain("## 0.2.0-rc.1");
     await expect(validateReleaseVersion(root)).resolves.toMatchObject({
       ready: true,
       npmVersion: "0.2.0-rc.1",
@@ -59,6 +65,8 @@ function createFixture(): string {
   mkdirSync(path.join(root, "packages", "base"), { recursive: true });
   mkdirSync(path.join(root, "packages", "facade"), { recursive: true });
   mkdirSync(path.join(root, "python", "src", "coremind"), { recursive: true });
+  mkdirSync(path.join(root, "scripts"), { recursive: true });
+  mkdirSync(path.join(root, "docs", "modules", "demo"), { recursive: true });
   writeJson(path.join(root, "package.json"), {
     name: "root",
     private: true,
@@ -81,6 +89,21 @@ function createFixture(): string {
   writeFileSync(
     path.join(root, "python", "src", "coremind", "__init__.py"),
     '__version__ = "0.2.0b2"\n',
+    "utf8",
+  );
+  writeFileSync(
+    path.join(root, "scripts", "generate-module-contracts.mjs"),
+    'const version = JSON.parse(await readFile("package.json", "utf8")).version;\n',
+    "utf8",
+  );
+  writeFileSync(
+    path.join(root, "docs", "modules", "demo", "module.yaml"),
+    "schemaVersion: 1\nversion: 0.2.0-beta.2\n",
+    "utf8",
+  );
+  writeFileSync(
+    path.join(root, "docs", "modules", "demo", "CHANGELOG.md"),
+    "# Changelog\n\n## 0.2.0-beta.2\n\n- Older release.\n",
     "utf8",
   );
   return root;

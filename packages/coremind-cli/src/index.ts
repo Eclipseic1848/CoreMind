@@ -38,6 +38,8 @@ export async function main(argv: string[]): Promise<number> {
     case "templates":
     case "list-templates":
       return (await import("./commands/list-templates.js")).cmdListTemplates();
+    case "providers":
+      return (await import("./commands/list-providers.js")).cmdListProviders();
     case "doctor":
       return (await import("./commands/doctor.js")).cmdDoctor(parsed, rest);
     default:
@@ -57,6 +59,9 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
   ${cyan("create <name>")}          创建新项目或接入已有工程
       --template <id>   非交互选择模板
       --language <lang> typescript、javascript 或 python
+      --provider <id>   选择模型 Provider（非交互时必填）
+      --model <id>      可选，指定模型
+      --api-key-env <n> 自定义 Provider 凭据环境变量名
   ${cyan("run <file>")}             运行智能体配置
       --prompt "..."    首条输入（单 agent 模式必填；workflow 注册为 {{prompt}}）
       --print           只输出最终文本（适合管道/脚本）
@@ -71,10 +76,11 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
       --override-reason  覆盖非安全门禁并留痕
   ${cyan("eval [file]")}            运行场景评测（--suite <file>，TTY 可审批）
   ${cyan("templates")}              列出场景模板（兼容 list-templates）
+  ${cyan("providers")}              列出可配置 Provider 与认证状态
   ${cyan("doctor [file]")}          环境自检
 
 示例：
-  ${dim("coremind create my-agent --template translator")}
+  ${dim("coremind create my-agent --template translator --provider alibaba-model-studio")}
   ${dim('coremind run my-agent/coremind.yaml --prompt "翻译：你好，世界"')}
 `);
 }

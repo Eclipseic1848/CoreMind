@@ -1,6 +1,6 @@
 # 编码智能体
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -13,8 +13,9 @@
 - `inspectCodingRepository`：有界、只读地探测 TypeScript、JavaScript、Python、包管理器和测试命令；探测结果只作为建议。
 - `selectCodingEnvironment`：在语言、包管理器或测试命令存在歧义时要求用户明确选择。
 - `buildRepositoryMap`、`createEngineeringTaskPlan`：形成仓库地图和“理解 → 计划 → 修改 → 验证 → 修复 → 交付”六阶段任务计划。
-- `createEngineeringKernelDefinition`：生成复用通用 `LoopController` 的有界 verify/repair 定义，默认限制迭代、修复和重复动作。
-- `EngineeringEvidenceLedger`：聚合变更、写前 checkpoint、真实命令退出码、Diff 审查和控制面事件；证据不足时拒绝成功声明。
+- `createEngineeringKernelDefinition`：生成复用通用 `LoopController` 的有界 verify/repair 定义，并默认启用 Runtime 证据门。
+- `engineering_evidence` 事件：Runtime 从真实工具执行、命令退出码、Checkpoint 与 `git_diff` 自动判定交付证据；模型输出 `PASS` 只是必要条件，不能单独决定成功。
+- `EngineeringEvidenceLedger`：仅保留为旧版外部证据导入兼容层；新代码不得手工填写它来形成成功结论。
 - `ProcessRunner`：使用命令与参数数组执行子进程，支持超时、中止、输出上限和受控环境变量。
 - `GitAdapter`：只读 `status`、`diff`、`log`，不接受任意 Git 子命令或写操作。
 - `createUnifiedDiff`、`diffFiles`：生成带输入、输出和复杂度上限的统一差异。
@@ -30,6 +31,7 @@
 - Linux 内置 Shell 在隔离层不可用时失败关闭，不回退到宿主 Shell。
 - 评测在运行前记录脏工作区基线；默认要求用户已有未提交内容保持原样。
 - Checkpoint、Diff、Trace 与恢复在 full 模式下仍然生效。
+- Runtime Trace 只保存命令 SHA-256、是否为测试命令、退出码和耗时，不持久化命令原文或凭据。
 - 本模块不自动执行 `git commit`、`git push`、发布、删除或其他扩大范围的动作。
 
 ## 已验证证据
@@ -48,6 +50,7 @@
 - [评测器](../../../packages/coremind-runtime/src/evaluation-graders.ts)
 - [Engineering Kernel](../../../packages/coremind-runtime/src/coding/engineering-kernel.ts)
 - [Kernel 合同测试](../../../packages/coremind-runtime/src/coding/engineering-kernel.test.ts)
+- [Runtime 证据门](../../../packages/coremind-runtime/src/coding/runtime-engineering-evidence.ts)
 - [真实缺陷示例](../../../examples/coding-evals/README.zh-CN.md)
 - [模块示例](../../../examples/modules/build-coding-agents/README.zh-CN.md)
 - [Agent Skill](../../../skills/build-coding-agents/SKILL.md)

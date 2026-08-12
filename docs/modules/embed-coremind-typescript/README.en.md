@@ -1,6 +1,6 @@
 # TypeScript SDK
 
-Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: `0.3.0-rc.2` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -24,7 +24,7 @@ Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node a
 - `defineTool` requires a structured `effect` declaration
 - `loop_state`, RunOutcome, stable snapshots, and effect receipts share the same runtime semantics as CLI and Python
 - The facade only re-exports and never duplicates business logic
-- `RunResult.snapshot` is pure JSON and shares schema, terminal state, trace, checkpoints, artifacts, and extension receipts with CLI JSONL and the Python Worker
+- `RunResult.snapshot` is pure JSON. Protocol fully validates terminal state, metrics, trace, checkpoints, artifacts, and extension receipts to reject cross-language structural drift
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

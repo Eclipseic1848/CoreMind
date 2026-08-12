@@ -11,7 +11,7 @@ export interface TemplateMeta {
   name: string;
   category: TemplateCategory;
   description: string;
-  /** 需要的环境变量（如 DEEPSEEK_API_KEY） */
+  /** 模板业务工具额外需要的环境变量；Provider 凭据由 CLI 单独选择。 */
   requiresEnv: string[];
   /** 模板目录绝对路径 */
   dir: string;
@@ -31,7 +31,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "中英翻译助手",
     category: "general",
     description: "中英互译，保持术语一致性，支持任意长文本分段处理",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("general", "translator"),
   },
   {
@@ -39,7 +39,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "博客写作助手",
     category: "general",
     description: "根据要点撰写博客/公众号文章并保存为 markdown 文件",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("general", "blog-writer"),
   },
   {
@@ -47,7 +47,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "代码审查员",
     category: "coding",
     description: "审查指定文件，标记风险等级并给出修改建议",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("coding", "code-reviewer"),
   },
   {
@@ -55,7 +55,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Bug 歼灭师",
     category: "coding",
     description: "双 agent 协作：分析根因 → 实施修复 → 验证结果",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("coding", "bug-squasher"),
   },
   {
@@ -63,7 +63,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "面试官",
     category: "industry",
     description: "按岗位面试候选人，根据回答质量分路追问（switch 分支）",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("industry", "hr-interviewer"),
   },
   {
@@ -71,7 +71,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "合同审查律师",
     category: "industry",
     description: "逐条审查合同条款风险，输出 markdown 审查报告",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("industry", "contract-reviewer"),
   },
   {
@@ -79,7 +79,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "周报生成器",
     category: "workflow",
     description: "扫描本周代码变更并生成周报（parallel + if + 多 agent 全特性示范）",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("workflow", "weekly-report"),
   },
   {
@@ -87,7 +87,7 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "客服工单分诊",
     category: "workflow",
     description: "工单自动分类并起草回复（双 agent + switch 分类）",
-    requiresEnv: ["DEEPSEEK_API_KEY"],
+    requiresEnv: [],
     dir: templateDir("workflow", "customer-triage"),
   },
 ];

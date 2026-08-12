@@ -12,7 +12,7 @@ description: "Embed CoreMind runtime, tools, sessions, explicit Loops, evaluatio
 5. Require a truthful effect declaration for every custom tool and exhaustively handle succeeded, failed, paused, aborted, timeout, and budget_exceeded outcomes.
 6. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
 7. For explicit Loops, consume ordered `loop_state` events and verify pause-resume without replaying completed steps or committed effects.
-8. Use `RunResult.snapshot` across process or language boundaries and verify it matches outcome, operation, trace, checkpoints, artifacts, and extension receipts.
+8. Use `RunResult.snapshot` across process or language boundaries and apply the full Protocol schema to outcome, operation, metrics, trace, checkpoints, artifacts, and extension receipts.
 9. Run the tests listed in [module.yaml](../../docs/modules/embed-coremind-typescript/module.yaml) and `npm run check:modules`.
 10. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 

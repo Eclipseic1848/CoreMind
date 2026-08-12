@@ -14,7 +14,7 @@ Confirm task scope, allowed files, protected files, test commands, completion cr
 6. Capture a checkpoint before every `edit` or `write`, then change the fewest files and lines required. Never overwrite pre-existing user changes.
 7. Run the target test first and the complete regression suite second. Record the actual command, exit code, duration, and artifact reference. Prose is not a substitute for evidence.
 8. Enter bounded repair only from failure evidence. Stop at repeated-action, no-progress, repair-count, or budget limits.
-9. Review `git_status` and `git_diff`, then use `EngineeringEvidenceLedger` to match changes, checkpoints, tests, and the final claim.
+9. Actually call `git_status` and `git_diff` during verification. Runtime must emit `engineering_evidence` proving target test, full regression, pre-write checkpoint, and diff review.
 10. Validate with schemaVersion 2 outcome, trajectory, command, file, diff, state, and response graders.
 11. For both TypeScript and Python, exercise single-file, cross-file, wrong-command, approval-denial, abort/resume, diff/restore, and dirty-worktree cases.
 12. Record model, provider, version, platform, repetitions, success rate, tool count, latency, tokens, cost, approvals, failure class, safety events, and reviewer conclusion.

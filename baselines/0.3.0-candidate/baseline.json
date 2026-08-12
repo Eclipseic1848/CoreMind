@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "fd80bdb93c74eaee4dbeb93803a41e707e0d20b1",
+    "developmentCommit": "07eae07e10780a3d578b64c38e4e8025b5b0dc61",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,17 +13,17 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "6c9a031acaef239ebe15b0255ea03ed241bba311256102ada2a21b3b57d51e83",
+      "coremind-ai": "0ca3568e438820835d760c01fcc4bb91b050140187352677c953092617c38bc3",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
-      "coremind-config": "92d20173b0c0efbb3130f7f96166faca17491f1de7e6bdbf232e089037137977",
-      "coremind-protocol": "bb826146a2834c11ce5f0b4a3b43858e8b6b91ca4e8af2294e2f002ba569202c",
-      "coremind-runtime": "b60ae010a316e726e815b4ada09f0ba53cb812c31f2ddfc28c55c8a51994d307",
-      "coremind-templates": "bce0ae0ce017f2c37d964e4ead395eff96426b257cead93d080214cb2db3ead6",
+      "coremind-config": "535be46351385cb09fb072d1c7419601039d5de9d168907f7fe7eeca1f612a0d",
+      "coremind-protocol": "c4208b4dd1d14b6054728d54e54d11c69609cbadfdf4f64eb6cbcf3168c9da79",
+      "coremind-runtime": "55ceea1519dc4895d2cced7b109f921a2c5552fd33b4185f88c0088733efb151",
+      "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "f0de789c9e5a6d0be28bd7da8c6910cabe912210573d3cada97beb208fcc6d92",
       "coremind-worker": "7e3b3413ca5ecebac0685831f29e632224c8b4f33088bacbdf40f07602f65195"
     },
     "schemas": {
-      "config": "19971c09759c3fb679b461a50d6030f468d5c3180d1f694a1a7d37719bf12d4a",
+      "config": "d14c63b9321b716f84a554df4851f35545feb4197ab655122e1837060faabac4",
       "protocol": "907c8eca28afe93d3640cb1d9c7f52ac7137e0331cc01a42295d5a5983543255"
     }
   },
@@ -128,6 +128,9 @@
         },
         "packages/coremind-runtime/src/loop-runner.ts": {
           "branches": 92.4
+        },
+        "packages/coremind-runtime/src/run-effect-coordinator.ts": {
+          "branches": 90
         }
       },
       "targets": {
@@ -255,19 +258,19 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-11T09:15:58.122Z",
+    "capturedAt": "2026-08-12T18:15:07.352Z",
     "capturePlatform": "win32",
-    "updateReason": "Batch 5 approved additive lifecycle extension, experiment, RunSnapshot, and entry-point parity contracts",
+    "updateReason": "^0.3.0-rc.2^ isolates^ CoreMind^ public^ message^ contracts,^ deepens^ Protocol^ schemas,^ adds^ runtime^ evidence^ and^ recovery^ coordination,^ and^ retains^ the^ immutable^ 0.2.0-rc.1^ reference^ baseline^",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "f01611ff190dd7f93ad8e08d8ae394c280587475f8220521988e5ec35aec7af2",
+    "dependencyLockSha256": "79791ca40b3140777b1f2248bea01afe3c3afc7c0e6d411f29293d957a26cc39",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
     "packageDistSha256": {
-      "coremind-ai": "e90e1b342419d6e6ba7ad24fb2a5c65cf0ec27a959364aba3450d66b9a0addf6",
-      "coremind-cli": "9e3d19ef83781db2e63a480a6e862e8a4e5a8c08f53c68a26c9584b81c613132",
-      "coremind-config": "4ef79481735d637124916ed5f427e2e89b4eb6536a11c2855c645ac633943df1",
-      "coremind-protocol": "59ecaea459d54e8dd1ba39ce057e533f667c3722e3e0a68a2d1ec6eac23ad4d5",
-      "coremind-runtime": "74d5abc72a2a8e46ae7067f3bac591f92acb8f90374347d241425600091736b6",
-      "coremind-templates": "b43134f18dc4ce47ba131e466e86ec51eeb1bf6cd4c9e9b003e9d5b6db64dc28",
+      "coremind-ai": "438e56023515bed4030125f605df80fa67ad12f251b705ffd7610e601719a6a2",
+      "coremind-cli": "4359f0cf6ee9f9a7cef3716a829437ab39dd37c3c62103c1457b99d7bdb5f4b5",
+      "coremind-config": "dedeacbeb22c7dc3d98779f7cd562ec542c16e0d5133599274cf6262caff79cb",
+      "coremind-protocol": "f23d1fb7f2a1a1c274e6930a5ca7d1cae7ad6875906a460e4b6a9bc29b5bb50d",
+      "coremind-runtime": "f9fb3e58f121050b794a7aba370917837c0159e40350c4a77ecf1e3af528566d",
+      "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "79edaa34b78dbf9108f0e58dd4ba91265f855bc92d8a08aac4ff19fb1b0962ea",
       "coremind-worker": "e75627f2915dbeefe69cb37951760e6c5f35057b7eab9d6f96509b3e5a0173f0"
     },

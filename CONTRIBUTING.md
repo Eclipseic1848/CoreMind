@@ -80,7 +80,7 @@ python -X utf8 -m twine check python/dist/*
 npm run release:check-wheel
 ```
 
-`release:check-wheel` 会自行创建全新虚拟环境，验证安装、版本和内置 Worker 启动。正式候选仍需 Windows/Linux 各三连跑；本地通过不代表可以跳过目标平台 CI 或人工 TTY 验收。
+`release:check-wheel` 会自行创建全新虚拟环境，验证安装、版本和内置 Worker 启动。正式候选仍需 Windows/Linux 各三连跑；本地通过不代表可以跳过目标平台 CI 或双平台真实伪终端验收。
 
 发布版本由 Release Please 草稿 PR 统一准备，不从功能分支直接打 Tag。RC 必须按[RC 验收指南](docs/release/RC-ACCEPTANCE.zh-CN.md)留存 P01～P20、双平台、真实 Provider 和同提交证据；归档前再运行全仓 Markdown 审计。npm 与 PyPI 使用受保护 GitHub 环境和 OIDC 可信发布，贡献者无需也不应提交 Registry Token。完整过程见[发布 SOP](docs/release/README.zh-CN.md)。
 

@@ -5,20 +5,233 @@ export const PROTOCOL_VERSION = "1.0" as const;
 
 const RpcIdSchema = Type.Union([Type.String(), Type.Number()]);
 
+const NonEmptyStringSchema = Type.String({ minLength: 1 });
+const NonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
+const NonNegativeNumberSchema = Type.Number({ minimum: 0 });
+const TimestampSchema = Type.String({
+  pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
+});
+
+const OperationStateSchema = Type.Union([
+  Type.Literal("accepted"),
+  Type.Literal("running"),
+  Type.Literal("paused"),
+  Type.Literal("aborting"),
+  Type.Literal("completed"),
+  Type.Literal("failed"),
+]);
+
+const DurableOperationSnapshotSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    operationId: NonEmptyStringSchema,
+    runId: NonEmptyStringSchema,
+    correlationId: NonEmptyStringSchema,
+    state: OperationStateSchema,
+    transitionSequence: Type.Integer({ minimum: 1 }),
+    createdAt: TimestampSchema,
+    updatedAt: TimestampSchema,
+    pauseReason: Type.Optional(NonEmptyStringSchema),
+    failureReason: Type.Optional(NonEmptyStringSchema),
+  },
+  { additionalProperties: false },
+);
+
+const RunOutcomeSchema = Type.Object(
+  {
+    status: Type.Union([
+      Type.Literal("succeeded"),
+      Type.Literal("failed"),
+      Type.Literal("paused"),
+      Type.Literal("aborted"),
+      Type.Literal("timeout"),
+      Type.Literal("budget_exceeded"),
+    ]),
+    finishReason: NonEmptyStringSchema,
+    error: Type.Optional(
+      Type.Object(
+        { code: NonEmptyStringSchema, message: NonEmptyStringSchema },
+        { additionalProperties: false },
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const RunMetricsSchema = Type.Object(
+  {
+    durationMs: NonNegativeNumberSchema,
+    turns: NonNegativeIntegerSchema,
+    steps: Type.Object(
+      {
+        total: NonNegativeIntegerSchema,
+        succeeded: NonNegativeIntegerSchema,
+        failed: NonNegativeIntegerSchema,
+      },
+      { additionalProperties: false },
+    ),
+    toolCalls: NonNegativeIntegerSchema,
+    toolFailures: NonNegativeIntegerSchema,
+    retries: NonNegativeIntegerSchema,
+    tokens: Type.Optional(NonNegativeNumberSchema),
+    costUsd: Type.Optional(NonNegativeNumberSchema),
+    outputChars: NonNegativeIntegerSchema,
+    context: Type.Optional(
+      Type.Object(
+        {
+          inputTokens: NonNegativeIntegerSchema,
+          outputTokens: NonNegativeIntegerSchema,
+          cacheReadTokens: NonNegativeIntegerSchema,
+          cacheWriteTokens: NonNegativeIntegerSchema,
+          promptCacheStatus: Type.Union([
+            Type.Literal("available"),
+            Type.Literal("unavailable"),
+            Type.Literal("unknown"),
+          ]),
+          compactions: NonNegativeIntegerSchema,
+          lastSummaryFingerprint: Type.Optional(NonEmptyStringSchema),
+          stablePrefixFingerprints: Type.Array(NonEmptyStringSchema),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    artifacts: Type.Optional(
+      Type.Object(
+        {
+          stored: NonNegativeIntegerSchema,
+          blocked: NonNegativeIntegerSchema,
+          totalBytes: NonNegativeIntegerSchema,
+        },
+        { additionalProperties: false },
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const EvaluationReportSchema = Type.Object(
+  {
+    profile: Type.Union([
+      Type.Literal("development"),
+      Type.Literal("standard"),
+      Type.Literal("strict"),
+    ]),
+    scenarioResults: Type.Array(
+      Type.Object(
+        {
+          id: NonEmptyStringSchema,
+          passed: Type.Boolean(),
+          score: Type.Optional(Type.Number()),
+          reason: Type.Optional(Type.String()),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    qualityScores: Type.Record(Type.String(), Type.Number()),
+    securityFindings: Type.Array(Type.String()),
+  },
+  { additionalProperties: false },
+);
+
+const ReleaseReadinessSchema = Type.Object(
+  {
+    ready: Type.Boolean(),
+    blockers: Type.Array(Type.String()),
+    warnings: Type.Array(Type.String()),
+    overrideRecord: Type.Optional(
+      Type.Object(
+        { reason: NonEmptyStringSchema, recordedAt: TimestampSchema },
+        { additionalProperties: false },
+      ),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const TraceEventSchema = Type.Object(
+  {
+    eventId: NonEmptyStringSchema,
+    runId: NonEmptyStringSchema,
+    sequence: Type.Integer({ minimum: 1 }),
+    timestamp: TimestampSchema,
+    event: Type.Object({ type: NonEmptyStringSchema }, { additionalProperties: true }),
+  },
+  { additionalProperties: false },
+);
+
+const CheckpointRecordSchema = Type.Object(
+  {
+    version: Type.Literal(1),
+    checkpointId: NonEmptyStringSchema,
+    runId: NonEmptyStringSchema,
+    operationId: Type.Optional(NonEmptyStringSchema),
+    toolCallId: Type.Optional(NonEmptyStringSchema),
+    idempotencyKey: Type.Optional(NonEmptyStringSchema),
+    timestamp: TimestampSchema,
+    tool: NonEmptyStringSchema,
+    reversible: Type.Boolean(),
+    targetPath: Type.Optional(NonEmptyStringSchema),
+    existed: Type.Optional(Type.Boolean()),
+    beforeSha256: Type.Optional(NonEmptyStringSchema),
+    afterExisted: Type.Optional(Type.Boolean()),
+    afterSha256: Type.Optional(NonEmptyStringSchema),
+    reason: Type.Optional(Type.String()),
+    snapshotFile: NonEmptyStringSchema,
+  },
+  { additionalProperties: false },
+);
+
+const ArtifactRecordSchema = Type.Object(
+  {
+    artifactId: NonEmptyStringSchema,
+    status: Type.Union([Type.Literal("stored"), Type.Literal("blocked")]),
+    relativePath: Type.Optional(NonEmptyStringSchema),
+    sizeBytes: NonNegativeIntegerSchema,
+    sha256: Type.Optional(NonEmptyStringSchema),
+    mediaType: NonEmptyStringSchema,
+    createdAt: TimestampSchema,
+    retention: Type.Literal("run"),
+    redaction: Type.Union([Type.Literal("none"), Type.Literal("blocked-secret")]),
+  },
+  { additionalProperties: false },
+);
+
+const LifecycleExtensionReceiptSchema = Type.Object(
+  {
+    extensionId: NonEmptyStringSchema,
+    extensionVersion: NonEmptyStringSchema,
+    event: Type.Union([
+      Type.Literal("before-model"),
+      Type.Literal("before-tool"),
+      Type.Literal("after-tool"),
+      Type.Literal("run-finished"),
+    ]),
+    status: Type.Union([
+      Type.Literal("succeeded"),
+      Type.Literal("failed"),
+      Type.Literal("timed_out"),
+    ]),
+    durationMs: NonNegativeNumberSchema,
+    error: Type.Optional(Type.String()),
+    denied: Type.Optional(Type.Boolean()),
+  },
+  { additionalProperties: false },
+);
+
 /** Worker、TypeScript SDK 与 Python SDK 共享的运行快照信封。 */
 export const RunSnapshotSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
     runId: Type.String({ minLength: 1 }),
-    operation: Type.Unknown(),
-    outcome: Type.Unknown(),
-    metrics: Type.Unknown(),
-    evaluation: Type.Unknown(),
-    releaseReadiness: Type.Unknown(),
-    trace: Type.Array(Type.Unknown()),
-    checkpoints: Type.Array(Type.Unknown()),
-    artifacts: Type.Array(Type.Unknown()),
-    extensions: Type.Array(Type.Unknown()),
+    operation: DurableOperationSnapshotSchema,
+    outcome: RunOutcomeSchema,
+    metrics: RunMetricsSchema,
+    evaluation: EvaluationReportSchema,
+    releaseReadiness: ReleaseReadinessSchema,
+    trace: Type.Array(TraceEventSchema),
+    checkpoints: Type.Array(CheckpointRecordSchema),
+    artifacts: Type.Array(ArtifactRecordSchema),
+    extensions: Type.Array(LifecycleExtensionReceiptSchema),
     resumable: Type.Boolean(),
   },
   { additionalProperties: false },
@@ -351,7 +564,8 @@ export function parseRunSnapshot(value: unknown): ProtocolRunSnapshot {
       .join("；");
     throw new ProtocolValidationError(`无效的 CoreMind RunSnapshot：${details}`);
   }
-  return Value.Parse(RunSnapshotSchema, value) as ProtocolRunSnapshot;
+  // 快照验证不能清理事件的扩展字段，否则 snapshot.trace 会与权威 trace 发生漂移。
+  return structuredClone(value) as ProtocolRunSnapshot;
 }
 
 export function createSuccessResponse(id: RpcId, result: unknown): ProtocolSuccessResponse {

@@ -40,6 +40,9 @@
     },
     "packages/coremind-runtime/src/loop-runner.ts": {
       "branches": 92.4
+    },
+    "packages/coremind-runtime/src/run-effect-coordinator.ts": {
+      "branches": 90
     }
   },
   "targets": {

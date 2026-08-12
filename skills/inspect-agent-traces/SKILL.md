@@ -10,7 +10,7 @@ description: "Preserve reviewable evidence through events carrying runId, eventI
 3. Follow [the SOP](../../docs/modules/inspect-agent-traces/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
-6. For explicit Loops, inspect ordered states, the latest versioned snapshot, and started/committed/unknown effect receipts before approving resume.
+6. For explicit Loops, inspect persisted state order, the latest versioned snapshot, and not_started/started/committed/unknown effect receipts before approving resume.
 7. Verify that credential fields, bodies, command secrets, and URL secrets are redacted before persistence without hiding normal test commands needed by graders.
 8. Run the tests listed in [module.yaml](../../docs/modules/inspect-agent-traces/module.yaml) and `npm run check:modules`.
 9. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.

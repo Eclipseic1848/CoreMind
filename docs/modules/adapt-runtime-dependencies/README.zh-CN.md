@@ -1,6 +1,6 @@
 # Runtime 依赖 Adapter
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -10,6 +10,7 @@
 
 - `inspectRuntimeCompatibility()`：以 CoreMind 自有结构返回依赖族、Adapter 版本、错误映射版本和能力状态。
 - `coremind doctor`：展示兼容层状态，但不要求用户在配置中理解或填写底层版本。
+- `CoreMindMessage`、`CoreMindToolDefinition`：SDK 公开合同只使用 CoreMind 自有类型；私有运行依赖不会出现在根入口声明中。
 
 ## 不变量
 
@@ -19,6 +20,7 @@
 - 不用双重强转掩盖跨版本类型冲突。
 - SDK 不使用 shrinkwrap；CLI 与 SDK 共用工作区 Lockfile、干净安装和 tarball 内容门禁。
 - 依赖升级失败时整体回退，禁止混搭进入主线。
+- 候选基线采集会扫描 `coremind-runtime` 和 `coremind-ai` 的聚合声明；发现私有依赖类型即阻断。
 
 ## 源码、测试与证据
 

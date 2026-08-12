@@ -1,6 +1,6 @@
 # Runtime 生命周期扩展
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -30,7 +30,7 @@
 
 - 未出现在 `trustedIds` 中的扩展拒绝加载。
 - 扩展请求的文件、进程、网络、凭据或 UI 能力必须被 `grants` 完整覆盖。
-- 没有凭据能力时，payload 中疑似密钥字段会被替换为 `<redacted>`。
+- 没有凭据能力时，payload 中的密钥、认证头、Cookie、私钥、URL 凭据/敏感参数及命令敏感值都会递归脱敏；业务正文仍可供扩展按授权处理。
 - handler 收到深冻结副本，不能修改 Runtime 对象。
 - 超时与异常只记录 `failed`/`timed_out` 收据，不抛回 Runtime。
 - `before-tool` 只能附加 deny，不能覆盖通用权限拒绝或人工拒绝。

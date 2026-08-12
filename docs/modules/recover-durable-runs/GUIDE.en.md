@@ -18,7 +18,7 @@ The final `run_result.snapshot` is the authoritative pure-JSON result for `runId
 coremind run coremind.yaml --resume <runId> --json-events
 ```
 
-Automatic resume stops for a changed configuration fingerprint, a terminal operation, an unknown effect receipt, a committed effect outside a stable completed step, or corrupt RunState.
+Automatic resume stops for a changed configuration fingerprint, a terminal operation, a `started` or `unknown` effect receipt, a committed effect outside a stable completed step, or corrupt RunState. A tool denied before execution uses `not_started` and is not mistaken for an uncertain side effect.
 
 ## Legacy sessions
 

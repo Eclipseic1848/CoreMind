@@ -20,9 +20,9 @@
 
 1. 工具调用分配 `callId`，由 run、step 和 call 生成 `idempotencyKey`。
 2. 写操作执行前创建 Checkpoint；不可回退的命令也要留下不可逆记录。
-3. 发起工具时写 `started` Effect Receipt。
-4. 明确成功后写 `committed`；结果不确定时写 `unknown`。
-5. 恢复时：稳定完成步骤中的 `committed` 跳过；未完成步骤的 `committed` 或任何 `unknown` 停止并请求人工判断。
+3. 审批或策略拒绝发生在执行前时写 `not_started`；只有批准并即将执行时才写 `started`。
+4. 明确成功后写 `committed`；已开始但结果不确定时写 `unknown`。
+5. 恢复时：`not_started` 可重新决策；稳定完成步骤中的 `committed` 跳过；未完成步骤的 `committed`、`started` 或 `unknown` 停止并请求人工判断。
 
 ## 四、Session 迁移
 
@@ -39,7 +39,7 @@
 | 现场 | 动作 |
 |---|---|
 | 只有未完成 JSONL 尾行，前面记录完整 | 自动裁掉尾行并原子重写 |
-| 整文件无法解析或 sequence 断裂 | 失败关闭，从备份或人工证据恢复 |
+| 整文件无法解析、字段非法、sequence 断裂或落盘顺序乱序 | 失败关闭，从备份或人工证据恢复；只有完整记录后的 JSON 语法截断尾部可自动修复 |
 | `.lock` 存在且 writer 仍在 | 等待，不删除锁 |
 | `.lock` 存在且已证明 writer 不存在 | 备份锁和数据后人工移除锁，再重试 |
 | operation 已 completed/failed | 不允许 resume，创建新任务 |

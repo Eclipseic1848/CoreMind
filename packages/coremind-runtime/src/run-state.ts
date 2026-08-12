@@ -14,7 +14,7 @@ import type { CoreMindTraceEvent } from "./trace.js";
 export interface EffectReceipt {
   idempotencyKey: string;
   tool: string;
-  status: "started" | "committed" | "unknown";
+  status: "not_started" | "started" | "committed" | "unknown";
   stepId?: string;
 }
 
@@ -152,8 +152,9 @@ export class FileRunStore implements RunStore {
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index]!;
       if (line.trim().length === 0) continue;
+      let parsed: unknown;
       try {
-        records.push(validateRecord(JSON.parse(line) as unknown, runId));
+        parsed = JSON.parse(line) as unknown;
       } catch (error) {
         if (!terminated && index === lines.length - 1 && records.length > 0) {
           return {
@@ -161,12 +162,16 @@ export class FileRunStore implements RunStore {
             repairedText: `${records.map((item) => JSON.stringify(item)).join("\n")}\n`,
           };
         }
-        if (error instanceof CoreMindError) throw error;
         throw new CoreMindError(
           "run_state_corrupt",
           `RunState ${runId} 已损坏：${error instanceof Error ? error.message : String(error)}`,
         );
       }
+      const record = validateRecord(parsed, runId);
+      if (record.sequence !== records.length + 1) {
+        throw new CoreMindError("run_state_corrupt", `RunState ${runId} 的记录顺序不连续`);
+      }
+      records.push(record);
     }
     return { records };
   }
@@ -315,7 +320,7 @@ export function prepareRunResume(
   requestedPrompt?: string,
 ): RunResumePlan {
   if (records.length === 0) throw new CoreMindError("unknown_run", "没有可恢复的 RunState");
-  const ordered = [...records].sort((left, right) => left.sequence - right.sequence);
+  const ordered = [...records];
   for (let index = 0; index < ordered.length; index++) {
     if (ordered[index]?.sequence !== index + 1) {
       throw new CoreMindError("run_state_corrupt", "RunState sequence 不连续，无法安全恢复");
@@ -405,9 +410,13 @@ export function prepareRunResume(
 
   const operationSnapshot = operationSnapshotFromRecords(ordered);
 
-  const unsafe = unsafeToolStarts.find(
-    (toolCall) => !toolCall.stepId || !completedSteps.has(toolCall.stepId),
-  );
+  const unsafe = unsafeToolStarts.find((toolCall) => {
+    if (toolCall.stepId && completedSteps.has(toolCall.stepId)) return false;
+    const receipt = toolCall.idempotencyKey
+      ? effectReceipts.get(toolCall.idempotencyKey)
+      : undefined;
+    return receipt?.status !== "not_started";
+  });
   if (unsafe) {
     const receipt = unsafe.idempotencyKey ? effectReceipts.get(unsafe.idempotencyKey) : undefined;
     if (receipt?.status === "committed") {
@@ -500,7 +509,7 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
     event.type === "effect_receipt" &&
     (typeof event.idempotencyKey !== "string" ||
       typeof event.tool !== "string" ||
-      !["started", "committed", "unknown"].includes(String(event.status)) ||
+      !["not_started", "started", "committed", "unknown"].includes(String(event.status)) ||
       (event.stepId !== undefined && typeof event.stepId !== "string"))
   ) {
     throw new CoreMindError("run_state_corrupt", "RunState 包含非法 effect_receipt");

@@ -18,15 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前代码版本为 `0.3.0-rc.1`，增加二期 Harness、Context/Artifact、Coding Kernel、受控扩展、实验与四入口快照。是否已经公开可安装，请以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的版本页为准。
+> 当前代码版本为 `0.3.0-rc.2`，增加二期 Harness、Context/Artifact、Coding Kernel、受控扩展、实验与四入口快照。是否已经公开可安装，请以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的版本页为准。
 
-> 预发布流程只有在同一候选提交通过 Windows/Linux 自动矩阵、双平台真实 TTY、真实 Provider 复验和最终文档审计后才会公开；安装候选 CLI 与 npm SDK 使用 `@next`，Python SDK 使用发布页标注的精确预发布版本。
+> 预发布流程只有在同一候选提交通过 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验和最终文档审计后才会公开；安装候选 CLI 与 npm SDK 使用 `@next`，Python SDK 使用发布页标注的精确预发布版本。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-当前 `0.3.0-rc.1` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力以 Registry 和 Release 为准。
+当前 `0.3.0-rc.2` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力以 Registry 和 Release 为准。
 
 | 能力域 | 当前支持 |
 |---|---|
@@ -40,7 +40,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
 | 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、21 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI、双平台真实 TTY 和真实 Provider 复验，安装状态以 Release 与 Registry 为准 |
+| 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI、双平台真实伪终端和真实 Provider 复验，安装状态以 Release 与 Registry 为准 |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
@@ -48,14 +48,14 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| `0.3.0-rc.1` 当前候选 | 已交付依赖锁步与私有 Adapter、可持久恢复的 Harness、Context/Artifact 工程、第一方 Coding/Engineering Kernel、多入口一致性与可执行评测 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
+| `0.3.0-rc.2` 当前候选 | 已交付依赖锁步与私有 Adapter、可持久恢复的 Harness、Context/Artifact 工程、第一方 Coding/Engineering Kernel、多入口一致性与可执行评测 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
 | `0.3.x` 稳定迭代 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并为每个候选执行双平台验收、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
 `0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-当前 `0.3.0-rc.1` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：依赖锁步、可持久恢复 Harness、Context/Artifact、第一方 Coding/Engineering Kernel、四事件受控扩展、可追踪实验和四入口 `RunSnapshot` 均已落地。P01～P19、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和 410 个 Markdown 文件的本地门禁通过；`alibaba-model-studio/qwen-plus` 已完成当前版本的七项真实复验。发布状态和最终资产请以 Release 与 Registry 为准。
+当前 `0.3.0-rc.2` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：依赖锁步、可持久恢复 Harness、Context/Artifact、第一方 Coding/Engineering Kernel、四事件受控扩展、可追踪实验和四入口 `RunSnapshot` 均已落地。P01～P19、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件均进入统一门禁；`alibaba-model-studio/qwen-plus` 需以当前版本证据台账和 Registry/Release 的最终结果为准。
 
 ## CoreMind 解决什么问题
 
@@ -73,7 +73,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 | 入口 | 适合谁 | 说明 |
 |---|---|---|
-| CLI/TUI | 第一次开发 Agent 的工程师 | `create/run/chat/check/eval/doctor/templates` 完整路径 |
+| CLI/TUI | 第一次开发 Agent 的工程师 | `create/run/chat/check/eval/doctor/templates/providers` 完整路径 |
 | 嵌入式 SDK | 在现有应用中集成 Agent | TypeScript 直接调用统一 Runtime；Python 通过 stdio JSON-RPC 调用同一 Node Runtime |
 | 源码 | 需要扩展框架或参与社区开发 | npm workspaces、TypeScript ESM、Python SDK、协议和模块合同全部开放 |
 
@@ -85,7 +85,8 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ```bash
 npm install -g coremind-cli@next
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
 copy .env.example .env
 coremind check coremind.yaml
@@ -93,7 +94,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 coremind eval coremind.yaml
 ```
 
-Linux 将 `copy` 换成 `cp`。空目录会要求选择 TypeScript、JavaScript 或 Python；已有工程能唯一识别语言时自动判断，混合工程不会猜测。
+Linux 将 `copy` 换成 `cp`。交互终端会询问 Provider；脚本或 CI 必须显式传入 `--provider`，可用 `coremind providers` 查看清单。空目录会要求选择 TypeScript、JavaScript 或 Python；已有工程能唯一识别语言时自动判断，混合工程不会猜测。
 
 生成的项目不仅有 `coremind.yaml`，还包括代码/测试骨架、`evals/scenarios.yaml`、中英文需求与架构、开发 SOP、测试指南、验收清单、项目 Skill、决策记录和 checkpoint 目录。已有文件不会被覆盖。
 
@@ -234,7 +235,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧五项证据继续保留用于追溯，但不满足当前标准。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0-rc.1` 完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧五项证据继续保留用于追溯，但不满足当前标准。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0-rc.2` 完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 
@@ -264,7 +265,7 @@ python -X utf8 -m build --wheel python
 npm run release:check-wheel
 ```
 
-`npm run check:modules` 会检查 21 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。Linux 的最终证据以目标平台 CI 与人工 TTY 验收记录为准。
+`npm run check:modules` 会检查 21 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。P20 由目标平台真实伪终端自动验收；若自动脚本与人工可见界面出现差异，再补充人工复核记录。
 
 ## 开源协议
 

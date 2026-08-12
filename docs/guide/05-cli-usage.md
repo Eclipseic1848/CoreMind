@@ -26,7 +26,7 @@ npm install -g coremind-cli@next
 ### 验证安装成功
 
 ```bash
-coremind --version        # 0.3.0-rc.1 显示 coremind v0.3.0-rc.1
+coremind --version        # 0.3.0-rc.2 显示 coremind v0.3.0-rc.2
 coremind doctor           # 环境自检：Node 版本 / API key 是否就位
 ```
 
@@ -52,16 +52,17 @@ npx -y coremind-cli@next doctor
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
 
-## 2. 七个命令速查
+## 2. 八个命令速查
 
 | 命令 | 用途 | 常用参数 | 例子 |
 |---|---|---|---|
-| `coremind create <name>` | 创建或接入项目 | `--template <id>`、`--language <lang>` | `coremind create . --template translator` |
+| `coremind create <name>` | 创建或接入项目；交互时选择 Provider，非交互时必须显式指定 | `--template <id>`、`--language <lang>`、`--provider <id>`、`--model <id>`、`--api-key-env <name>` | `coremind create . --template translator --provider alibaba-model-studio` |
 | `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断/显式暂停的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
 | `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
 | `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
 | `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
 | `coremind templates` | 查看全部 8 个场景模板 | — | `coremind templates` |
+| `coremind providers` | 查看可配置 Provider 与当前认证状态 | — | `coremind providers` |
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 
 记不住？随时 `coremind help`（或 `coremind --help`）查看全部命令和参数。

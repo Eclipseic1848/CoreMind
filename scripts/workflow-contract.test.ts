@@ -89,6 +89,8 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs.pypi.environment.name).toBe("pypi");
     expect(workflow.jobs.pypi.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.pypi.needs).toContain("build");
+    expect(serialized).toContain("verify-pypi-artifact.mjs");
+    expect(serialized).not.toContain("skip-existing");
     expect(workflow.jobs.attest.permissions.attestations).toBe("write");
     expect(workflow.jobs.attest.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.release.needs).toEqual(expect.arrayContaining(["npm", "pypi", "attest"]));
@@ -97,6 +99,16 @@ describe("GitHub Actions 收口合同", () => {
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
     expect(releaseCommands).toContain("gh workflow run docs.yml --ref main");
+    expect(releaseCommands).toContain("cmp --silent");
+    expect(releaseCommands).not.toContain("--clobber");
+    expect(workflow.jobs.build.needs).toBe("candidate");
+    const candidateCommands = workflow.jobs.candidate.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    expect(candidateCommands).toContain("git fetch origin main --no-tags");
+    expect(candidateCommands).toContain("git rev-parse FETCH_HEAD");
+    expect(candidateCommands).toContain("actions/workflows/ci.yml/runs");
+    expect(candidateCommands).toContain("--verify-manual-only");
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
     expect(serialized).toContain("build==1.5.0");

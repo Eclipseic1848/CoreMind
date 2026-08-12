@@ -3,9 +3,11 @@ id: manage-providers
 name:
   zh-CN: "Provider 与模型"
   en: "Providers and Models"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "packages/coremind-runtime/src/provider.ts"
+  - "packages/coremind-cli/src/commands/list-providers.ts"
+  - "scripts/certify-provider.mjs"
   - "scripts/provider-certification.mjs"
   - "scripts/provider-matrix-lib.mjs"
 documents:
@@ -26,6 +28,7 @@ examplePaths:
 testPaths:
   - "packages/coremind-runtime/src/provider.test.ts"
   - "packages/coremind-runtime/src/integration.real.test.ts"
+  - "packages/coremind-cli/src/commands/create.test.ts"
   - "scripts/provider-certification.test.ts"
   - "scripts/provider-matrix.test.ts"
 supportedPlatforms:

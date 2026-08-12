@@ -1,6 +1,6 @@
 # Runtime Dependency Adapters
 
-Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: `0.3.0-rc.2` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -10,6 +10,7 @@ Keep model streaming, messages, tools, usage, and error classification behind pr
 
 - `inspectRuntimeCompatibility()` returns the dependency family, adapter version, error-mapping version, and capabilities in a CoreMind-owned structure.
 - `coremind doctor` shows compatibility status without adding low-level version fields to user configuration.
+- `CoreMindMessage` and `CoreMindToolDefinition` keep the public SDK contract CoreMind-owned; private runtime dependency types do not appear in root declarations.
 
 ## Invariants
 
@@ -19,6 +20,7 @@ Keep model streaming, messages, tools, usage, and error classification behind pr
 - Double casts may not conceal cross-version type conflicts.
 - SDK packages do not use shrinkwrap. CLI and SDK packages share the workspace lockfile, clean-install checks, and tarball-content gates.
 - A failed upgrade rolls back as one family; mixed versions never enter the main line.
+- Candidate baseline capture scans the `coremind-runtime` and `coremind-ai` declaration rollups and blocks private dependency type leaks.
 
 ## Source, tests, and evidence
 

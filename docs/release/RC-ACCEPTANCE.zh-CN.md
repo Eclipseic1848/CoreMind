@@ -37,13 +37,19 @@ npm run acceptance:rc
 | P17 | 凭据、正文与命令敏感值不进入 Trace/RunState | TUI、无头 CLI、双 SDK |
 | P18 | npm tarball 内容与入口 | 发布物 |
 | P19 | Python wheel 内容与 Worker | 发布物 |
-| P20 | Windows 与 Linux 真实 TTY | TUI |
+| P20 | Windows 与 Linux 真实伪终端 | TUI |
 
-## 2. P20 真实 TTY
+## 2. P20 真实伪终端
 
-必须在 Windows 和 Linux 的真实交互终端各执行一次。普通 CI 输出、伪终端快照和另一平台的结果不能替代真实 TTY。
+正式候选必须在 Windows 和 Linux 各启动一次由操作系统 PTY/ConPTY 承载的真实 CLI/TUI 进程，并向该进程发送真实按键。普通 CI 日志、组件渲染快照、管道 stdin 和另一平台的结果都不能替代该检查。执行：
 
-每个平台必须人工确认：
+```powershell
+npm run acceptance:tty
+```
+
+CI 在两个目标平台分别执行同一命令，保存绑定版本与提交的证据 Artifact；发布工作流下载两份证据并再次校验。脚本无法启动平台伪终端、终端渲染异常或用户报告实际体验偏差时，必须回退到人工终端验收，不能跳过 P20。
+
+每个平台必须实际确认：
 
 1. `launch`：TUI 进入全屏交互界面。
 2. `help`：帮助命令可见且不破坏输入状态。
@@ -54,12 +60,12 @@ npm run acceptance:rc
 7. `checkpoint-diff-restore`：可查看 diff，并恢复到写入前状态。
 8. `exit`：正常退出并返回宿主终端。
 
-从对应模板复制证据：
+自动脚本根据对应模板生成证据：
 
 - [Windows 模板](evidence/rc-tty-windows.example.json)
 - [Linux 模板](evidence/rc-tty-linux.example.json)
 
-保存为 `.scratch/rc-evidence/rc-tty-windows.json` 和 `.scratch/rc-evidence/rc-tty-linux.json`。`version` 与 `commit` 必须等于当前候选，全部检查必须为 `true`。`.scratch` 不进入 Git：如果把包含提交 SHA 的证据再提交进候选，会改变 SHA 并形成无法通过的自引用。发布负责人应将两份 JSON 与对应工作流运行号存入受控验收档案，不将业务内容或密钥写入证据。随后执行：
+证据保存为 `.scratch/rc-evidence/rc-tty-windows.json` 和 `.scratch/rc-evidence/rc-tty-linux.json`。`version` 与 `commit` 必须等于当前候选，`evidenceLevel` 必须为 `automated-real-tty`，全部检查必须为 `true`。`.scratch` 不进入 Git：如果把包含提交 SHA 的证据再提交进候选，会改变 SHA 并形成无法通过的自引用。发布负责人应将两份 JSON 与对应工作流运行号存入受控验收档案，不将业务内容或密钥写入证据。随后执行：
 
 ```powershell
 npm run acceptance:rc -- --require-manual

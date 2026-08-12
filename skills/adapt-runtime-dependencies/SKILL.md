@@ -11,8 +11,9 @@ description: "Align CoreMind runtime dependencies behind private adapters, verif
 4. Write a failing contract test before changing versions or adapters.
 5. Require one exact dependency family and remove cross-version double casts.
 6. Keep message, tool, usage, error, timeout, and Session conversions private to CoreMind adapters.
-7. Run every test in [module.yaml](../../docs/modules/adapt-runtime-dependencies/module.yaml), then `npm run dependencies:check`, `npm run baseline:check`, and `npm run check:modules`.
-8. Keep catalog availability separate from live certification. Do not send real prompts or code without authorization.
-9. Roll back the whole dependency family on semantic drift; never publish implicitly.
+7. Reject public declaration rollups that expose private runtime dependency types; SDK users should see CoreMind-owned contracts only.
+8. Run every test in [module.yaml](../../docs/modules/adapt-runtime-dependencies/module.yaml), then `npm run dependencies:check`, `npm run baseline:check`, and `npm run check:modules`.
+9. Keep catalog availability separate from live certification. Do not send real prompts or code without authorization.
+10. Roll back the whole dependency family on semantic drift; never publish implicitly.
 
 中文执行原则：依赖必须整体锁步，先用行为测试证明兼容，再更新候选基线；参考基线、权限、终态和恢复合同不得被底层实现改写。

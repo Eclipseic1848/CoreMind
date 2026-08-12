@@ -1,6 +1,5 @@
 // CoreMind 运行时：provider 注册、Agent 构建、编排、会话、门面
 
-export { type AgentBuildContext, buildAgent } from "./agent-factory.js";
 export {
   type BudgetViolation,
   type ResolvedRuntimeLimits,
@@ -152,8 +151,6 @@ export {
 export {
   type CompletedWorkflowStep,
   evalCondition,
-  Orchestrator,
-  type OrchestratorOptions,
   type StepOutput,
 } from "./orchestrator.js";
 export {
@@ -164,13 +161,11 @@ export {
   type ProjectCheckReport,
 } from "./project-check.js";
 export {
-  buildProviderRuntime,
   listInheritedProviders,
   listSupportedProviders,
-  type ProviderRuntime,
 } from "./provider.js";
+export type { CoreMindMessage, CoreMindMessageContent } from "./public-message.js";
 export {
-  adaptCoreMindTool,
   type CoreMindToolContext,
   type CoreMindToolDefinition,
   type CoreMindToolOutput,
@@ -216,7 +211,6 @@ export {
   type CoreMindRuntimeOptions,
   type RunResult,
 } from "./runtime.js";
-export { CoreMindSession } from "./session.js";
 export {
   createRunSnapshot,
   type RunSnapshot,

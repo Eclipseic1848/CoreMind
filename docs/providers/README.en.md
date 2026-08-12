@@ -15,7 +15,7 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.0-rc.1` | 1 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-2026-08-12.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.0-rc.2` | 1 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.0-rc.2-2026-08-12.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 114 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
 | `anthropic` | `claude-fable-5` | — | 13 | Configurable, unverified | — |

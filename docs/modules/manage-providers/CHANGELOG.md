@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.2 - 2026-08-12
+
+- Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.
+
 ## 0.3.0-rc.1 - 2026-08-12
 
 - Synchronized this module contract with the repository release candidate.

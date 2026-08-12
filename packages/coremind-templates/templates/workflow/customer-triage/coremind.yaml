@@ -1,8 +1,10 @@
-schemaVersion: 2
+﻿schemaVersion: 2
 name: customer-triage
 description: 客服工单分类与回复起草（双 agent + switch 分类）
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   classifier:

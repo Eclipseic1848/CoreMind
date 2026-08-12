@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -47,6 +48,7 @@ export function evaluateReleaseMetadata({
   pythonVersion,
   requiredFilesMissing,
   providerMatrixCurrent,
+  providerCertificationCurrent = true,
 }) {
   const blockers = [];
   const versions = [...new Set(packages.map((item) => item.version))];
@@ -70,6 +72,8 @@ export function evaluateReleaseMetadata({
     blockers.push(`缺少发布/社区文件：${requiredFilesMissing.join("、")}`);
   }
   if (!providerMatrixCurrent) blockers.push("Provider 矩阵与认证台账不一致");
+  if (!providerCertificationCurrent)
+    blockers.push("Provider 认证证据未绑定当前版本与 Runtime 摘要");
 
   return {
     ready: blockers.length === 0,
@@ -113,11 +117,30 @@ export async function inspectRepository(rootDirectory, { allowDirty = false } = 
   const matrix = JSON.parse(
     await readFile(path.join(rootDirectory, "docs", "providers", "matrix.json"), "utf8"),
   );
+  const runtimeArtifact = path.join(
+    rootDirectory,
+    "packages",
+    "coremind-runtime",
+    "dist",
+    "index.js",
+  );
+  const runtimeArtifactSha256 = existsSync(runtimeArtifact)
+    ? createHash("sha256")
+        .update(await readFile(runtimeArtifact))
+        .digest("hex")
+    : undefined;
+  const currentCertification = ledger.certifications.find(
+    (item) =>
+      item.version === normalizePythonVersion(pythonVersion) &&
+      /^[0-9a-f]{40}$/.test(item.commit ?? "") &&
+      item.runtimeArtifactSha256 === runtimeArtifactSha256,
+  );
   const report = evaluateReleaseMetadata({
     packages,
     pythonVersion,
     requiredFilesMissing: missing,
     providerMatrixCurrent: matrix.generatedAt === ledger.updatedAt && matrix.providers.length >= 38,
+    providerCertificationCurrent: Boolean(currentCertification),
   });
 
   const warnings = [];

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createNpmPublishPlan } from "./publish-npm-artifacts.mjs";
+import {
+  createNpmPublishPlan,
+  decideExistingNpmArtifact,
+  npmTarballIntegrity,
+} from "./publish-npm-artifacts.mjs";
 
 describe("npm 发布顺序", () => {
   it("按依赖顺序发布八个公开包并沿用清单 dist-tag", () => {
@@ -35,6 +39,14 @@ describe("npm 发布顺序", () => {
       "coremind-cli",
     ]);
     expect(plan.every((item) => item.distTag === "next")).toBe(true);
+  });
+
+  it("中断重跑只跳过 Registry 中完整性一致的同版本包", () => {
+    const integrity = npmTarballIntegrity(Buffer.from("same artifact", "utf8"));
+    expect(integrity).toMatch(/^sha512-/);
+    expect(decideExistingNpmArtifact(integrity, integrity)).toBe("skip-identical");
+    expect(decideExistingNpmArtifact(integrity, "sha512-other")).toBe("conflict");
+    expect(decideExistingNpmArtifact(integrity, "")).toBe("publish");
   });
 
   it("缺包、重复包或版本漂移都会阻止发布", () => {

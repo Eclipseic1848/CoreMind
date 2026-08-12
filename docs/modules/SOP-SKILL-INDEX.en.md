@@ -1,6 +1,6 @@
 # CoreMind SOP and Skill Index
 
-All modules are synchronized to the `0.3.0-rc.1` release candidate. New users should follow README for boundaries, Guide for onboarding, SOP for execution, Skill for reuse, and Example for verification.
+All modules are synchronized to the `0.3.0-rc.2` release candidate. New users should follow README for boundaries, Guide for onboarding, SOP for execution, Skill for reuse, and Example for verification.
 
 | Capability | README | SOP | Skill | Example |
 |---|---|---|---|---|

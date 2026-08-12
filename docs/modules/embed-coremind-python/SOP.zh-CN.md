@@ -13,7 +13,7 @@
 5. 仅用 resume_run 恢复暂停或意外中断且安全的运行。
 6. 显式 Loop 必须与 TypeScript 对比状态顺序、暂停恢复、耗尽和 Effect Receipt。
 7. 注入一次工具注册失败，确认客户端自动终止半启动 worker；正常流程仍在 finally 或上下文管理器中关闭 worker。
-8. 对比 Python 返回的 snapshot 与 TypeScript 同结构样本；篡改 schemaVersion、runId 或 outcome 时必须稳定报 `invalid_run_snapshot`。
+8. 对比 Python 返回的 snapshot 与 TypeScript 同结构样本；逐层篡改 operation、outcome、metrics、Trace、Checkpoint 与 Artifact 时必须稳定报 `invalid_run_snapshot`。
 9. 运行模块列出的测试，并执行 `npm run check:modules`。
 10. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 

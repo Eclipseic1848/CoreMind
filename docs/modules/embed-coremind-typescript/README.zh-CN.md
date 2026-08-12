@@ -1,6 +1,6 @@
 # TypeScript SDK
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -24,7 +24,7 @@
 - `defineTool` 必须提供结构化 `effect` 副作用声明
 - `loop_state`、RunOutcome、稳定快照和 Effect Receipt 与 CLI/Python 共用同一 Runtime 语义
 - 库门面只 re-export，不复制业务逻辑
-- `RunResult.snapshot` 是纯 JSON，并与 CLI JSONL 和 Python Worker 的 schema、终态、Trace、Checkpoint、Artifact、扩展收据一致
+- `RunResult.snapshot` 是纯 JSON；Protocol 会对终态、指标、Trace、Checkpoint、Artifact 和扩展收据执行完整嵌套校验，拒绝跨语言结构漂移
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 
