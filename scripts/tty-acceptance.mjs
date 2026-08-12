@@ -117,7 +117,12 @@ async function openTerminal(configPath, cwd, sessionId) {
     cwd,
     cols: 160,
     rows: 50,
-    env: { ...process.env, COREMIND_TTY_TEST_KEY: "synthetic-key", NO_COLOR: "1" },
+    env: {
+      ...process.env,
+      CI: "false",
+      COREMIND_TTY_TEST_KEY: "synthetic-key",
+      NO_COLOR: "1",
+    },
     ...(process.platform === "win32" ? { useConpty: true, useConptyDll: true } : {}),
   });
   let output = "";
