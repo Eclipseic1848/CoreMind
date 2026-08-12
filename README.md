@@ -22,11 +22,11 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > 预发布流程只有在同一候选提交通过 Windows/Linux 自动矩阵、双平台真实 TTY、真实 Provider 复验和最终文档审计后才会公开；安装候选 CLI 与 npm SDK 使用 `@next`，Python SDK 使用发布页标注的精确预发布版本。
 
-[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [0.2→0.3 迁移](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
+[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-`0.2.0-rc.1` 与当前 `0.3.0-rc.1` 都坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力仍以 Registry 和 Release 为准。
+当前 `0.3.0-rc.1` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码描述，公开安装能力以 Registry 和 Release 为准。
 
 | 能力域 | 当前支持 |
 |---|---|
@@ -48,12 +48,12 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| `0.2.x` 一期稳定线 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并对每个候选重复执行双平台 P20、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
-| `0.3.0` 二期内核线 | 依赖锁步与私有 Adapter、可持久恢复的 Harness、Context/Artifact 工程、第一方 Coding/Engineering Kernel、多入口一致性与可执行评测 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有；每批通过冻结基线后才推进 |
+| `0.3.0-rc.1` 当前候选 | 已交付依赖锁步与私有 Adapter、可持久恢复的 Harness、Context/Artifact 工程、第一方 Coding/Engineering Kernel、多入口一致性与可执行评测 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
+| `0.3.x` 稳定迭代 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并为每个候选执行双平台验收、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
-`0.3.0` 将按 alpha、beta、rc 逐级验证；发布日期根据每个 Gate 的真实结果确定。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
+`0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
 当前 `0.3.0-rc.1` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：依赖锁步、可持久恢复 Harness、Context/Artifact、第一方 Coding/Engineering Kernel、四事件受控扩展、可追踪实验和四入口 `RunSnapshot` 均已落地。P01～P19、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和 410 个 Markdown 文件的本地门禁通过；`alibaba-model-studio/qwen-plus` 已完成当前版本的七项真实复验。发布状态和最终资产请以 Release 与 Registry 为准。
 

@@ -21,15 +21,15 @@ This version line is a prerelease. You are welcome to evaluate it in development
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
-## `0.2.x`: phase-one stabilization
+## `0.3.x`: current stabilization
 
-The stabilization line focuses on reliability and usability of the delivered scope:
+The current stabilization line focuses on reliability and usability of the capabilities delivered in `0.3.0-rc.1`:
 
 - Continue improving the Windows and Linux TUI experience and terminal compatibility.
 - Fix installation, configuration, diagnostics, and interaction issues found during initial community use.
 - Expand provider certification backed by real invocation evidence.
 - Continue cross-language checks for CLI, TypeScript SDK, and Python SDK outcomes and events.
-- Include the completed bounded-Loop and coding-agent evidence in cross-platform release-candidate acceptance.
+- Continue including bounded-Loop, harness, and coding-agent evidence in cross-platform release-candidate acceptance.
 - Strengthen security, recovery, evaluation, documentation, and public-package release regression coverage.
 
 A provider that has not passed live verification remains configurable but is not marked as officially certified.

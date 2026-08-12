@@ -22,11 +22,11 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 > A prerelease is published only after the same candidate commit passes the Windows/Linux automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit. Install candidate CLI and npm SDK packages with `@next`; use the exact prerelease version shown on PyPI for the Python SDK.
 
-[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [0.2→0.3 migration](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
+[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-Both `0.2.0-rc.1` and the current `0.3.0-rc.1` keep CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
+The current `0.3.0-rc.1` keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
 
 | Capability | Current support |
 |---|---|
@@ -48,12 +48,12 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| `0.2.x` phase-one stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while repeating both-platform P20, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
-| `0.3.0` phase-two kernel line | Lockstep dependencies and private adapters, a durable recoverable harness, context and artifact engineering, a first-party Coding/Engineering Kernel, entry-point parity, and executable evaluation | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts; each batch must pass the frozen baseline before advancing |
+| `0.3.0-rc.1` current candidate | Delivered lockstep dependencies and private adapters, a durable recoverable harness, context and artifact engineering, a first-party Coding/Engineering Kernel, entry-point parity, and executable evaluation | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
+| `0.3.x` stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while running both-platform acceptance, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
-`0.3.0` will advance through alpha, beta, and rc based on verified gate results; no calendar date overrides a failed gate. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
+`0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
 The current `0.3.0-rc.1` has completed Batches 0 through 5 plus the automated closure for Batch 6. Dependency lockstep, the durable recoverable harness, context/artifact engineering, the first-party Coding/Engineering Kernel, four-event bounded extensions, traceable experiments, and the shared four-entry `RunSnapshot` are implemented. Local gates pass for P01-P19, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and 410 Markdown files. `alibaba-model-studio/qwen-plus` has completed the current version's seven-check live revalidation. Use Releases and registries as the source of truth for publication status and final assets.
 
