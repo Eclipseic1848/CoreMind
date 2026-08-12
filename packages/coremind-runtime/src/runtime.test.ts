@@ -360,6 +360,7 @@ describe("CoreMindRuntime", () => {
   it("人工拒绝第一次工具审批后立即停止，不再次请求模型或审批", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-denied-stop-"));
     const target = path.join(dir, "article.md");
+    writeFileSync(path.join(dir, "notes.txt"), "不应触发第二次审批", "utf8");
     let providerRequests = 0;
     const server = createServer((_request, response) => {
       providerRequests += 1;
@@ -380,6 +381,12 @@ describe("CoreMindRuntime", () => {
                       name: "write",
                       arguments: '{"path":"article.md","content":"不应写入"}',
                     },
+                  },
+                  {
+                    index: 1,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: { name: "read", arguments: '{"path":"notes.txt"}' },
                   },
                 ],
               },
@@ -404,7 +411,7 @@ describe("CoreMindRuntime", () => {
             runtime: { maxTurns: 3 },
             permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
           }),
-          tools: [{ id: "write" }],
+          tools: [{ id: "write" }, { id: "read" }],
         },
         configDir: dir,
         cwd: dir,
@@ -420,6 +427,189 @@ describe("CoreMindRuntime", () => {
       expect(providerRequests).toBe(1);
       expect(approvals).toBe(1);
       expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("同批次先允许后拒绝时在批次结束后停止，不再请求模型", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-mixed-denial-stop-"));
+    const target = path.join(dir, "article.md");
+    writeFileSync(path.join(dir, "notes.txt"), "允许读取的内容", "utf8");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `mixed-tool-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                  },
+                  {
+                    index: 1,
+                    id: `call-write-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `mixed-tool-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const approvals: string[] = [];
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "read" }, { id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "读取 notes.txt，但不要写入 article.md",
+        approveTool: async (request) => {
+          approvals.push(request.tool);
+          return request.tool === "read" ? "allow" : "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toEqual(["read", "write"]);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("工作流步骤的工具审批被拒绝后立即暂停，不执行后续步骤", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-workflow-denied-stop-"));
+    const target = path.join(dir, "article.md");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `workflow-denied-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-write-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `workflow-denied-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let approvals = 0;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "write" }],
+          workflow: [
+            {
+              id: "write-article",
+              type: "prompt",
+              agent: "main",
+              input: "写入 article.md",
+              saveAs: "article",
+            },
+            {
+              id: "continue-after-denial",
+              type: "prompt",
+              agent: "main",
+              input: "不得执行的后续步骤",
+              saveAs: "later",
+            },
+          ],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "验证工作流拒绝边界",
+        approveTool: async () => {
+          approvals += 1;
+          return "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toBe(1);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outputs.has("article")).toBe(false);
+      expect(result.outputs.has("later")).toBe(false);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "step_end" &&
+            entry.event.stepId === "write-article" &&
+            entry.event.ok === false,
+        ),
+      ).toBe(true);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "step_start" && entry.event.stepId === "continue-after-denial",
+        ),
+      ).toBe(false);
       expect(result.outcome).toMatchObject({
         status: "paused",
         finishReason: "tool_approval_denied",

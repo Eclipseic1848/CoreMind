@@ -7,7 +7,6 @@ import {
   type AgentTool,
   type BeforeToolCallContext,
   type BeforeToolCallResult,
-  type ShouldStopAfterTurnContext,
 } from "@earendil-works/pi-agent-core";
 import type { Model, Models } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
@@ -45,10 +44,6 @@ export interface AgentBuildContext {
       context: AfterToolCallContext,
       signal?: AbortSignal,
     ) => Promise<AfterToolCallResult | undefined>;
-    shouldStopAfterTurn?: (
-      context: ShouldStopAfterTurnContext,
-      signal?: AbortSignal,
-    ) => boolean | Promise<boolean>;
     onAgentEvent?: (event: AgentEvent, agent: Agent) => void;
   };
 }
@@ -91,7 +86,6 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     transformContext: ctx.harness?.transformContext,
     beforeToolCall: ctx.harness?.beforeToolCall,
     afterToolCall: ctx.harness?.afterToolCall,
-    shouldStopAfterTurn: ctx.harness?.shouldStopAfterTurn,
   });
 
   // 事件归一化转发（agent 名由上下文注入，stepId 由编排层补充）

@@ -14,11 +14,13 @@ npm run acceptance:rc
 
 The command runs the full Node suite, Python SDK/real Worker tests, synchronized-version preflight, and all eight npm packages through content checks, publint, type resolution, and clean-project installation, plus wheel content and clean-install checks. P01-P19 are also bound to explicit test files and test titles. A missing evidence anchor fails the RC even when the broad test suite exits successfully.
 
+Run `npm run baseline:check` before the RC matrix. It rebuilds every public package before comparing the frozen type contracts; stale `dist` output is not accepted as evidence that source contracts are unchanged.
+
 | Case | Acceptance target | Entry paths |
 |---|---|---|
 | P01 | Plain response and complete terminal outcome | TUI, headless CLI, both SDKs |
 | P02 | Consecutive tool-result feedback | TUI, headless CLI, both SDKs |
-| P03 | Denial with zero side effects | TUI, headless CLI, both SDKs |
+| P03 | Denial with zero side effects in the batch and later workflow steps | TUI, headless CLI, both SDKs |
 | P04 | Partial success cannot hide a denial | TUI, headless CLI, both SDKs |
 | P05 | Path escape fails closed | Headless CLI, both SDKs |
 | P06 | Network denial cannot be bypassed | Headless CLI, both SDKs |
@@ -41,7 +43,7 @@ The command runs the full Node suite, Python SDK/real Worker tests, synchronized
 
 Run the interactive acceptance once in a real Windows terminal and once in a real Linux terminal. Ordinary CI output, pseudo-terminal snapshots, and another platform's result are not substitutes.
 
-Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. Copy the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json), then save completed evidence as `.scratch/rc-evidence/rc-tty-windows.json` and `.scratch/rc-evidence/rc-tty-linux.json`. The version and commit must match the candidate, and every check must be `true`. `.scratch` stays outside Git: committing evidence that contains the candidate SHA would change that SHA and create an impossible self-reference. Archive both JSON files with the corresponding workflow run identifier in a controlled acceptance store, without business content or secrets.
+Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step. Copy the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json), then save completed evidence as `.scratch/rc-evidence/rc-tty-windows.json` and `.scratch/rc-evidence/rc-tty-linux.json`. The version and commit must match the candidate, and every check must be `true`. `.scratch` stays outside Git: committing evidence that contains the candidate SHA would change that SHA and create an impossible self-reference. Archive both JSON files with the corresponding workflow run identifier in a controlled acceptance store, without business content or secrets.
 
 Then run:
 

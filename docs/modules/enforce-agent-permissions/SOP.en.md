@@ -14,7 +14,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 6. Never interpret full as disabling deny, workspace, network, audit, or checkpoints.
 7. Windows constrained shell must fail closed. Host-shell access requires the user to select full mode, disable workspace restriction, allow network, and accept that no OS isolation exists. An isolated Linux environment remains an alternative.
 8. Run the listed module tests and `npm run check:modules`.
-9. Use a deterministic provider that would request the same tool every turn to test the denial boundary. After the first denial, both model-request and approval counts must equal one, the outcome must be `paused`, and the target file must not exist.
+9. Use a deterministic provider that would request the same tool every turn to test the denial boundary. After the first denial, both model-request and approval counts must equal one, the outcome must be `paused`, and the target file must not exist. A two-step sequential workflow must also prove that the denied step saves no output and no later step starts.
 10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
 ## Stop conditions

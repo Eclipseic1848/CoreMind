@@ -17,7 +17,7 @@ Enforce ask, assisted, and full approval modes while distinguishing path-aware f
 ## Errors and boundaries
 
 - Missing approval handlers deny safely
-- A human denial terminates the current tool batch and pauses the run. It is not fed back as an ordinary recoverable tool error, so the model cannot request another approval in the same run.
+- A human denial blocks that call and later unapproved calls in the same batch, then pauses after batch reconciliation. It is not fed back as an ordinary recoverable tool error, so the model cannot request another approval in the same run. A sequential workflow saves no output for the denied step and starts no later step.
 - Explicit deny and escaped paths for path-aware file tools remain blocked in full mode
 - Nested path and URL arguments are inspected recursively; approval UI shows effects, complete targets, and reasons first
 - The Windows host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected; every other combination fails closed

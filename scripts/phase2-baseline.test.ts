@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -91,6 +91,17 @@ describe("0.3.0 二期基线门禁", () => {
   it("没有变更原因时拒绝重写冻结基线", async () => {
     await expect(updatePhase2Baseline(process.cwd())).rejects.toThrow(
       "更新冻结基线必须通过 --reason 记录原因",
+    );
+  });
+
+  it("基线命令先重建正式产物，避免旧 dist 掩盖源码类型漂移", async () => {
+    const manifest = JSON.parse(await readFile(path.join(process.cwd(), "package.json"), "utf8"));
+
+    expect(manifest.scripts["baseline:check"]).toBe(
+      "npm run build && node scripts/phase2-baseline.mjs",
+    );
+    expect(manifest.scripts["baseline:update"]).toBe(
+      "npm run build && node scripts/phase2-baseline.mjs --update",
     );
   });
 

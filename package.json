@@ -13,8 +13,8 @@
   "scripts": {
     "build": "npm run build --workspace coremind-config && npm run build --workspace coremind-protocol && npm run build --workspace coremind-tools && npm run build --workspace coremind-templates && npm run build --workspace coremind-runtime && npm run build --workspace coremind-ai && npm run build --workspace coremind-worker && npm run build --workspace coremind-cli",
     "build:python-worker": "npm run build && node scripts/build-python-worker.mjs",
-    "baseline:check": "node scripts/phase2-baseline.mjs",
-    "baseline:update": "node scripts/phase2-baseline.mjs --update",
+    "baseline:check": "npm run build && node scripts/phase2-baseline.mjs",
+    "baseline:update": "npm run build && node scripts/phase2-baseline.mjs --update",
     "dependencies:report": "node scripts/dependency-report.mjs",
     "dependencies:check": "node scripts/dependency-report.mjs --check",
     "check:modules": "node scripts/check-module-contract.mjs",

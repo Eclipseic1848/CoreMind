@@ -4,7 +4,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
-## 0.3.0-rc.1 — 2026-08-11
+## 0.3.0-rc.1 — 2026-08-12
 
 ### Closure and release preparation
 
@@ -14,12 +14,13 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Added a Markdown gate for Chinese/English paragraph boundaries and split bilingual package READMEs into independent language sections instead of appending an English translation to a Chinese description.
 - Changed the both-platform CI checkout to full history so the frozen baseline can resolve the immutable `v0.2.0-rc.1` tag, with a workflow-contract test preventing shallow-checkout regression.
 - Aligned CI and documentation workflows on the same current pinned Action commits used by the release workflow, removing legacy-runtime deprecation warnings while retaining full commit-SHA pinning.
+- The frozen-baseline command now rebuilds all eight public packages before collecting API contracts, so stale `dist` output cannot hide source-level type drift. The Runtime denial-stop hook remains internal and does not expand the public API.
 
 ### Current verification evidence
 
-- The RC automated matrix passes P01-P19: 69 test files pass and one is conditionally skipped; 460 tests pass and four are conditionally skipped; Python SDK and real bundled Worker pass 10/10; offline Coding Eval passes 6/6.
-- The first Windows P20 run found that a model could treat a human denial as an ordinary tool error and request approval again. The Runtime now terminates the current tool batch and returns `paused` after the first human denial. A regression fixes the boundary at one model request, one approval, and zero side effects; the repository now passes 461 tests with four conditional skips.
-- All three post-fix stability runs pass 461 tests with four conditional skips and zero drift. Coverage is 75.78% lines, 73.91% statements, 83.15% functions, and 66.87% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
+- The P01-P19 test anchors are synchronized with the RC automated matrix. Across the repository, 69 test files pass and one is conditionally skipped; 465 tests pass and four are conditionally skipped. The Python SDK and real bundled Worker pass 10/10, and offline Coding Eval passes 6/6.
+- The first Windows P20 run found that a model could treat a human denial as an ordinary tool error and request approval again. The Runtime now blocks the denied tool and later unapproved calls in the same batch, returns `paused` after the batch is reconciled, and makes no next model request. In a sequential workflow, the denied step saves no output and no later step starts. Single-tool, mixed-tool, and two-step workflow regressions all assert zero write side effects.
+- All three post-fix stability runs pass 465 tests with four conditional skips and zero drift. Coverage is 75.83% lines, 73.93% statements, 83.19% functions, and 66.96% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
 - All eight npm tarballs pass content allowlists, publint, type resolution, clean-project installation, and ESM imports. The CLI reports `coremind v0.3.0-rc.1`.
 - The Python wheel passes content checks, clean-venv installation, version parity, and bundled-Worker startup. The standalone source ZIP completes clean installation, build, contract checks, and CLI startup in isolation.
 - Contracts pass for 21 modules, five golden examples, 14 bilingual documentation-site pairs, and 410 Markdown files, including strict UTF-8, local links, public identifier boundaries, and Chinese/English paragraph separation.

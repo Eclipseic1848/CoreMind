@@ -16,6 +16,22 @@ describe("RunTerminalizer", () => {
     });
   });
 
+  it("权限拒绝触发内部 Loop 暂停时仍保持稳定的公开终态", () => {
+    const events: CoreMindEvent[] = [
+      { type: "policy_denied", agent: "main", tool: "write", reason: "用户拒绝" },
+    ];
+
+    expect(
+      new RunTerminalizer().terminalize(
+        events,
+        new CoreMindError("loop_paused", "用于中断后续工作流步骤"),
+      ),
+    ).toEqual({
+      status: "paused",
+      finishReason: "tool_approval_denied",
+    });
+  });
+
   it.each([
     ["aborted", "aborted"],
     ["run_timeout", "timeout"],

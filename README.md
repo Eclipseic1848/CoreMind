@@ -219,7 +219,7 @@ print(result["outcome"], result["transcript"])
 - 统一 `RunOutcome / RunMetrics / EvaluationReport / ReleaseReadiness`；成功、失败、暂停、中止、超时和预算耗尽都通过返回值表达，失败不能伪装为成功。
 - turn、step、工具调用/失败、重试、token、费用、步骤与总运行超时预算。
 - ask/assisted/full 三档权限，deny、路径和网络策略优先。
-- ask 模式下人工拒绝任一工具审批后，当前工具批次立即终止并返回 `paused`；不会把拒绝当成普通工具错误继续请求模型或重复弹出审批。
+- ask 模式下人工拒绝任一工具审批后，被拒绝项和本批次尚未审批的后续工具都会被阻断；本批结果归并后返回 `paused`，不会继续请求模型或重复弹出审批。顺序工作流中的拒绝步骤不会保存输出，后续步骤不会启动。
 - edit/write 前 checkpoint，运行后 diff 与显式恢复；恢复前检查工具完成后的文件指纹，检测到人工或并发修改时拒绝覆盖。
 - 自定义工具必须声明 `effect.operations` 与 `effect.reversible`；权限层递归检查嵌套路径和 URL，未知副作用在受约束模式下安全拒绝。
 - Windows 宿主 Shell 只有在 full、关闭工作区限制、允许网络同时选择时开放，其他组合安全拒绝；Git Bash 不等于隔离；Linux Shell 继续使用操作系统级隔离。

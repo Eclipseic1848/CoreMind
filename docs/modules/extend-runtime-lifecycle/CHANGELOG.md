@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0-rc.1 - 2026-08-11
+## 0.3.0-rc.1 - 2026-08-12
 
 - Synchronized this module contract with the repository release candidate.
 - Added no module-specific product behavior during the Batch 6 release-candidate closure.

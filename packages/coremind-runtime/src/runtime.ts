@@ -66,6 +66,11 @@ import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 
+type RuntimeHarness = NonNullable<AgentBuildContext["harness"]> & {
+  shouldStopAfterTurn?: NonNullable<Agent["shouldStopAfterTurn"]>;
+  throwIfDenied?: () => void;
+};
+
 export interface CoreMindRuntimeOptions {
   /** 已校验的配置 */
   config: CoreMindConfig;
@@ -142,10 +147,7 @@ export class CoreMindRuntime {
   private readonly sessionMessages?: AgentMessage[];
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
-  private activeHarnessFactory?: (
-    agentName: string,
-    stepId?: string,
-  ) => AgentBuildContext["harness"];
+  private activeHarnessFactory?: (agentName: string, stepId?: string) => RuntimeHarness;
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -272,6 +274,7 @@ export class CoreMindRuntime {
   ): Agent | undefined {
     const agentCfg = this.agentConfigs.get(name);
     if (!agentCfg) return undefined;
+    const harness = this.activeHarnessFactory?.(name, stepId);
     const agent = buildAgent(agentCfg, {
       models: this.providerRuntime.models,
       model: this.providerRuntime.model,
@@ -288,8 +291,17 @@ export class CoreMindRuntime {
         contextWindow: this.providerRuntime.model.contextWindow,
       },
       promptCacheStatus: this.providerRuntime.promptCacheStatus,
-      harness: this.activeHarnessFactory?.(name, stepId),
+      harness,
     });
+    // 该停止钩子只属于 Runtime 内部 Harness，不扩大公开 AgentBuildContext 合同。
+    agent.shouldStopAfterTurn = harness?.shouldStopAfterTurn;
+    if (harness?.throwIfDenied) {
+      const waitForIdle = agent.waitForIdle.bind(agent);
+      agent.waitForIdle = async () => {
+        await waitForIdle();
+        harness.throwIfDenied?.();
+      };
+    }
     this.lastAgents.set(name, agent);
     return agent;
   }
@@ -579,6 +591,13 @@ export class CoreMindRuntime {
         return contextProtector.transform(messages);
       },
       beforeToolCall: async (context: BeforeToolCallContext) => {
+        if (deniedAgents.has(agentName)) {
+          return {
+            block: true,
+            reason: "同一工具批次已有请求被拒绝",
+            terminate: true,
+          };
+        }
         const blockedByBudget = budget.beforeToolCall();
         if (blockedByBudget) return blockedByBudget;
         const decision = await policy.authorize(
@@ -697,6 +716,14 @@ export class CoreMindRuntime {
         return checkpointFailure ? { terminate: true } : budgetResult;
       },
       shouldStopAfterTurn: () => deniedAgents.has(agentName),
+      throwIfDenied: () => {
+        if (deniedAgents.has(agentName)) {
+          throw new CoreMindError(
+            "loop_paused",
+            stepId ? `步骤 ${stepId} 的工具请求未获批准` : `Agent ${agentName} 的工具请求未获批准`,
+          );
+        }
+      },
       onAgentEvent: (event, agent) => {
         if (budget.observeAgentEvent(event)) agent.abort();
       },
