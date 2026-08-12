@@ -66,23 +66,24 @@ export function resolveWindowsShell(
   }
   return {
     command: "powershell.exe",
-    args: () => [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-Command",
-      "-",
-    ],
-    input: (command) =>
-      [
+    args: (command) => {
+      const script = [
         "$ErrorActionPreference = 'Stop'",
         "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)",
         "$OutputEncoding = [Console]::OutputEncoding",
         command,
         "if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }",
-      ].join("\n"),
+      ].join("\n");
+      return [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ];
+    },
   };
 }
 
