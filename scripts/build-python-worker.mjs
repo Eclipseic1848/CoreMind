@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +8,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const pythonPackage = path.join(repositoryRoot, "python", "src", "coremind");
 const workerDirectory = path.join(pythonPackage, "_worker");
 const workerOutput = path.join(workerDirectory, "coremind-worker.mjs");
+const workerManifestOutput = path.join(workerDirectory, "manifest.json");
 
 await mkdir(workerDirectory, { recursive: true });
 await build({
@@ -25,7 +27,18 @@ await build({
 
 // 第三方内联文本可能保留空白行缩进；发布前统一清理，保证 Git 格式门禁可重复通过。
 const workerBundle = await readFile(workerOutput, "utf8");
-await writeFile(workerOutput, workerBundle.replace(/[ \t]+$/gm, ""), "utf8");
+const normalizedBundle = workerBundle.replace(/[ \t]+$/gm, "");
+await writeFile(workerOutput, normalizedBundle, "utf8");
+const pythonProject = await readFile(path.join(repositoryRoot, "python", "pyproject.toml"), "utf8");
+const pythonVersion = /^version\s*=\s*"([^"]+)"/m.exec(pythonProject)?.[1];
+if (!pythonVersion) throw new Error("python/pyproject.toml 缺少 project.version");
+const workerManifest = {
+  schemaVersion: 1,
+  version: pythonVersion,
+  protocolVersion: "1.0",
+  bundleSha256: createHash("sha256").update(normalizedBundle, "utf8").digest("hex"),
+};
+await writeFile(workerManifestOutput, `${JSON.stringify(workerManifest, null, 2)}\n`, "utf8");
 
 await cp(
   path.join(repositoryRoot, "packages", "coremind-templates", "skills"),

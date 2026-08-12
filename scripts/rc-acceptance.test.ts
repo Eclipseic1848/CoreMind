@@ -25,7 +25,7 @@ describe("Release Candidate 验收矩阵", () => {
     );
   });
 
-  it("自动套件和逐 Case 证据全部成功时 P01-P19 通过，P20 仍等待真实 TTY", () => {
+  it("自动套件和逐 Case 证据全部成功时 P01-P19 通过，P20 仍等待真实伪终端", () => {
     const suiteResults = Object.fromEntries(
       ["node", "python", "metadata", "artifacts"].map((name) => [name, true]),
     );
@@ -40,7 +40,7 @@ describe("Release Candidate 验收矩阵", () => {
     expect(report.cases.find((item) => item.id === "P20")?.status).toBe("pending_manual");
   });
 
-  it("双平台真实 TTY 证据齐全后才能整体通过", () => {
+  it("双平台真实伪终端证据齐全后才能整体通过", () => {
     const suiteResults = { node: true, python: true, metadata: true, artifacts: true };
     const report = evaluateRcAcceptance({
       suiteResults,
@@ -82,7 +82,7 @@ describe("Release Candidate 验收矩阵", () => {
     );
   });
 
-  it("真实 TTY 证据必须绑定候选版本、提交和全部交互检查", () => {
+  it("真实伪终端证据必须绑定候选版本、提交和全部交互检查", () => {
     const evidence = {
       schemaVersion: 1,
       platform: "windows",
@@ -91,6 +91,7 @@ describe("Release Candidate 验收矩阵", () => {
       testedAt: "2026-08-09T15:00:00.000Z",
       terminal: "Windows Terminal / PowerShell 7",
       passed: true,
+      evidenceLevel: "automated-real-tty",
       checks: Object.fromEntries(TTY_CHECKS.map((check) => [check, true])),
     };
 
@@ -103,7 +104,7 @@ describe("Release Candidate 验收矩阵", () => {
     ).toEqual([]);
   });
 
-  it("缺少中止检查或绑定到其他提交的 TTY 证据不能通过", () => {
+  it("缺少状态检查或绑定到其他提交的伪终端证据不能通过", () => {
     const evidence = {
       schemaVersion: 1,
       platform: "linux",
@@ -112,6 +113,7 @@ describe("Release Candidate 验收矩阵", () => {
       testedAt: "2026-08-09T15:00:00.000Z",
       terminal: "browser terminal",
       passed: true,
+      evidenceLevel: "automated-real-tty",
       checks: Object.fromEntries(TTY_CHECKS.map((check) => [check, check !== "abort"])),
     };
 
@@ -125,7 +127,7 @@ describe("Release Candidate 验收矩阵", () => {
     expect(blockers.join("\n")).toContain("abort");
   });
 
-  it("真实 TTY 证据保存在不改变候选提交的忽略目录", () => {
+  it("真实伪终端证据保存在不改变候选提交的忽略目录", () => {
     expect(TTY_EVIDENCE_RELATIVE_DIRECTORY.replaceAll("\\", "/")).toBe(".scratch/rc-evidence");
   });
 

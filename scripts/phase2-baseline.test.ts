@@ -105,6 +105,13 @@ describe("0.3.0 二期基线门禁", () => {
     );
   });
 
+  it("公开 API 快照门禁禁止 Runtime 和统一 SDK 泄露私有运行依赖", async () => {
+    const source = await readFile(path.join(process.cwd(), "scripts/phase2-baseline.mjs"), "utf8");
+
+    expect(source).toContain("forbiddenPublicTypeImports");
+    expect(source).toContain("公开类型仍暴露私有运行依赖");
+  });
+
   it("通过正式构建产物采集公开 seam、依赖与验收证据", async () => {
     const snapshot = await capturePhase2Baseline(process.cwd(), {
       baselineId: REFERENCE_BASELINE_ID,

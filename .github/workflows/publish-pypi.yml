@@ -12,7 +12,46 @@ permissions:
   contents: read
 
 jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: 验证标签、main 与双平台 CI 属于同一提交
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag_sha="$(git rev-parse HEAD)"
+          git fetch origin main --no-tags
+          main_sha="$(git rev-parse FETCH_HEAD)"
+          test "${tag_sha}" = "${main_sha}"
+          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
+          test "${conclusion}" = "success"
+
+      - name: 下载同提交双平台真实伪终端证据
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .id')"
+          mkdir -p .scratch/rc-evidence/downloads .scratch/rc-evidence/final
+          gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --pattern 'rc-tty-*' --dir .scratch/rc-evidence/downloads
+          find .scratch/rc-evidence/downloads -type f -name 'rc-tty-*.json' -exec cp {} .scratch/rc-evidence/final/ \;
+          rm -rf .scratch/rc-evidence/downloads
+          mv .scratch/rc-evidence/final/*.json .scratch/rc-evidence/
+          rmdir .scratch/rc-evidence/final
+
+      - name: 校验 P20 证据绑定与候选完整性
+        run: node scripts/rc-acceptance.mjs --verify-manual-only
+
   build:
+    needs: candidate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -121,8 +160,13 @@ jobs:
       name: pypi
       url: https://pypi.org/p/coremind-ai
     permissions:
+      contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+
       - name: 下载已验证发布物
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -134,7 +178,12 @@ jobs:
           cd release-artifacts
           sha256sum --check SHA256SUMS.txt
 
+      - name: 判断 PyPI 同版本产物是否可安全续传
+        id: pypi-state
+        run: echo "decision=$(node scripts/verify-pypi-artifact.mjs release-artifacts)" >> "${GITHUB_OUTPUT}"
+
       - name: 使用可信发布上传 PyPI
+        if: steps.pypi-state.outputs.decision == 'publish'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: release-artifacts/python
@@ -164,6 +213,22 @@ jobs:
         run: |
           prerelease=""
           if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            mkdir -p existing-release
+            gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --dir existing-release
+            for asset in release-artifacts/source/*.zip release-artifacts/SHA256SUMS.txt release-artifacts/release-manifest.json; do
+              name="$(basename "${asset}")"
+              if [[ -f "existing-release/${name}" ]]; then
+                cmp --silent "${asset}" "existing-release/${name}" || {
+                  echo "GitHub Release 已存在冲突资产：${name}" >&2
+                  exit 1
+                }
+              else
+                gh release upload "${RELEASE_TAG}" "${asset}" --repo "${GITHUB_REPOSITORY}"
+              fi
+            done
+            exit 0
+          fi
           gh release create "${RELEASE_TAG}" \
             release-artifacts/source/*.zip \
             release-artifacts/SHA256SUMS.txt \

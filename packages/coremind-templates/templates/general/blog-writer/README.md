@@ -10,16 +10,17 @@
 ## 快速开始
 
 ```bash
-coremind create my-blog --template blog-writer
+coremind create my-blog --template blog-writer --provider alibaba-model-studio
 cd my-blog
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
+# 填入创建时所选 Provider 对应的环境变量
 coremind run coremind.yaml --prompt "写一篇关于 AI 入门的高中生活应用文章"
 ```
 
 ## 配置要点
 
-- 两步 workflow：撰写 → 保存为文件（演示 `write` 工具与顺序步骤）
-- writer agent 配备 `write` / `bash` 工具
+- 单步工作流完成撰写与保存，只请求一次 `write` 审批
+- writer 只配备 `write` 工具；不得虚构用户未提供的产品功能、价格、网址或试用政策
 
 ## 调优提示
 

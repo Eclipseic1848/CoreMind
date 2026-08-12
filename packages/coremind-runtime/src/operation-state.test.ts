@@ -64,6 +64,21 @@ describe("DurableOperation", () => {
     );
   });
 
+  it("恢复时拒绝真实落盘顺序乱序，不能先排序再接受", () => {
+    const operation = DurableOperation.create({
+      runId: "run-order",
+      operationId: "op-order",
+      eventId: "accepted-order",
+    });
+    operation.transition({ eventId: "start-order", type: "START" });
+    operation.transition({ eventId: "complete-order", type: "COMPLETE" });
+    const [accepted, started, completed] = operation.records();
+
+    expect(() => restoreDurableOperation([started!, accepted!, completed!])).toThrowError(
+      expect.objectContaining({ code: "operation_state_corrupt" }),
+    );
+  });
+
   it("中止先进入 aborting，再以 failed 终态保存真实原因", () => {
     const operation = DurableOperation.create({
       runId: "run-3",

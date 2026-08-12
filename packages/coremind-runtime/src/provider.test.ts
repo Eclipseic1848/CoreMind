@@ -84,6 +84,32 @@ describe("buildProviderRuntime（内置提供商）", () => {
     expect(runtime.warnings[0]).toContain("NO_SUCH_KEY");
   });
 
+  it("显式注入 env 时不读取宿主机同名凭据", async () => {
+    const original = process.env.DEEPSEEK_API_KEY;
+    process.env.DEEPSEEK_API_KEY = "host-secret";
+    try {
+      const runtime = await buildProviderRuntime({ id: "deepseek" }, {
+        DEEPSEEK_API_KEY: "injected-secret",
+      } as NodeJS.ProcessEnv);
+      const auth = await runtime.models.getAuth(runtime.model);
+      expect(auth?.auth.apiKey).toBe("injected-secret");
+
+      const isolated = await buildProviderRuntime({ id: "deepseek" }, {} as NodeJS.ProcessEnv);
+      expect(await isolated.models.getAuth(isolated.model)).toBeUndefined();
+    } finally {
+      if (original === undefined) delete process.env.DEEPSEEK_API_KEY;
+      else process.env.DEEPSEEK_API_KEY = original;
+    }
+  });
+
+  it("显式 apiKeyEnv 缺失时不回退提供商默认变量", async () => {
+    const runtime = await buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
+      DEEPSEEK_API_KEY: "must-not-be-used",
+    } as NodeJS.ProcessEnv);
+    expect(runtime.apiKeyOverride).toBeUndefined();
+    expect(await runtime.models.getAuth(runtime.model)).toBeUndefined();
+  });
+
   it("未配置 apiKeyEnv 时无 override", async () => {
     const runtime = await buildProviderRuntime({ id: "deepseek" });
     expect(runtime.apiKeyOverride).toBeUndefined();
@@ -92,12 +118,15 @@ describe("buildProviderRuntime（内置提供商）", () => {
 
 describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
   it("构造正确的模型与 provider", async () => {
-    const runtime = await buildProviderRuntime({
-      id: "ollama",
-      baseUrl: "http://localhost:11434/v1",
-      model: "qwen2.5:7b",
-      apiKeyEnv: "OLLAMA_API_KEY",
-    });
+    const runtime = await buildProviderRuntime(
+      {
+        id: "ollama",
+        baseUrl: "http://localhost:11434/v1",
+        model: "qwen2.5:7b",
+        apiKeyEnv: "OLLAMA_API_KEY",
+      },
+      { OLLAMA_API_KEY: "test-key" } as NodeJS.ProcessEnv,
+    );
     expect(runtime.model).toMatchObject({
       id: "qwen2.5:7b",
       provider: "ollama",
@@ -126,6 +155,35 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     });
     expect(runtime.model.provider).toBe("gateway");
     expect(runtime.warnings[0]).toContain("apiKeyEnv");
+  });
+
+  it("自定义提供商只从显式注入 env 解析密钥", async () => {
+    const original = process.env.GATEWAY_API_KEY;
+    process.env.GATEWAY_API_KEY = "host-secret";
+    try {
+      const runtime = await buildProviderRuntime(
+        {
+          id: "gateway",
+          baseUrl: "http://127.0.0.1:8080/v1",
+          model: "m1",
+        },
+        { GATEWAY_API_KEY: "injected-secret" } as NodeJS.ProcessEnv,
+      );
+      expect((await runtime.models.getAuth(runtime.model))?.auth.apiKey).toBe("injected-secret");
+
+      const isolated = await buildProviderRuntime(
+        {
+          id: "gateway",
+          baseUrl: "http://127.0.0.1:8080/v1",
+          model: "m1",
+        },
+        {} as NodeJS.ProcessEnv,
+      );
+      expect(await isolated.models.getAuth(isolated.model)).toBeUndefined();
+    } finally {
+      if (original === undefined) delete process.env.GATEWAY_API_KEY;
+      else process.env.GATEWAY_API_KEY = original;
+    }
   });
 
   it("contextWindow/maxTokens 可配置覆盖，缺省保守兜底", async () => {

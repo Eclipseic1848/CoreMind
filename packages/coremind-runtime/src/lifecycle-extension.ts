@@ -1,4 +1,5 @@
 // biome-ignore-all lint/suspicious/noConfusingVoidType: 生命周期处理器需要同时支持异步无返回值与显式决策。
+import { redactSensitiveValue } from "./trace.js";
 export const LIFECYCLE_EVENTS = [
   "before-model",
   "before-tool",
@@ -257,6 +258,11 @@ function clonePayload(
   value: Record<string, unknown>,
   allowCredentials: boolean,
 ): Readonly<Record<string, unknown>> {
+  if (!allowCredentials) {
+    return deepFreeze(
+      redactSensitiveValue(value, { redactBodies: false }) as Record<string, unknown>,
+    );
+  }
   return deepFreeze(cloneValue(value, allowCredentials, new WeakSet()) as Record<string, unknown>);
 }
 

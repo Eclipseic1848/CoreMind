@@ -34,6 +34,7 @@ describe("发布元数据预检", () => {
       pythonVersion: "0.2.0b1",
       requiredFilesMissing: [],
       providerMatrixCurrent: true,
+      providerCertificationCurrent: true,
     });
 
     expect(report.ready).toBe(true);
@@ -66,11 +67,13 @@ describe("发布元数据预检", () => {
       pythonVersion: "0.2.0b1",
       requiredFilesMissing: ["SECURITY.md"],
       providerMatrixCurrent: false,
+      providerCertificationCurrent: false,
     });
 
     expect(report.ready).toBe(false);
     expect(report.blockers.join("\n")).toContain("版本不一致");
     expect(report.blockers.join("\n")).toContain("SECURITY.md");
     expect(report.blockers.join("\n")).toContain("Provider 矩阵");
+    expect(report.blockers.join("\n")).toContain("Runtime 摘要");
   });
 });

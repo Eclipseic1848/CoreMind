@@ -1,9 +1,18 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { LifecycleEventType, LifecycleExtensionReceiptStatus } from "./lifecycle-extension.js";
 import type { LoopPhase } from "./loop-controller.js";
+import type { CoreMindMessage } from "./public-message.js";
 import type { ToolEffect } from "./tool-policy.js";
 
-export type EffectReceiptStatus = "started" | "committed" | "unknown";
+export type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
+
+/** 工具执行证据不保存命令原文，只保留退出码、耗时与不可逆摘要。 */
+export interface ToolExecutionEvidence {
+  durationMs: number;
+  exitCode: number | null;
+  commandSha256?: string;
+  testCommand?: boolean;
+}
 
 /**
  * CoreMind 归一化事件——CLI 渲染、库调用方、二期 Web 面板共用同一契约。
@@ -144,6 +153,25 @@ export type CoreMindEvent =
       targetPath?: string;
       reversible: boolean;
     }
+  | {
+      type: "tool_execution_evidence";
+      agent: string;
+      tool: string;
+      callId: string;
+      stepId?: string;
+      execution: ToolExecutionEvidence;
+    }
+  | {
+      type: "engineering_evidence";
+      stepId: string;
+      textPassed: boolean;
+      passed: boolean;
+      successfulTestCommands: number;
+      regressionCommandMatched: boolean;
+      checkpointRecorded: boolean;
+      diffReviewed: boolean;
+      reasons: string[];
+    }
   | { type: "agent_end"; agent: string; stepId?: string }
   | { type: "error"; message: string; fatal: boolean };
 
@@ -151,14 +179,16 @@ export type CoreMindEvent =
  * 把上游 Agent 事件归一化为 CoreMind 事件。
  * 只保留对 UI/调用方有意义的事件；流式文本来自 message_update 的 text_delta。
  */
-export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
-  switch (event.type) {
+export function normalizeEvent(event: unknown): CoreMindEvent | null {
+  if (event === null || typeof event !== "object" || !("type" in event)) return null;
+  const runtimeEvent = event as AgentEvent;
+  switch (runtimeEvent.type) {
     case "agent_start":
       return { type: "agent_start", agent: "" };
     case "agent_end":
       return { type: "agent_end", agent: "" };
     case "turn_end": {
-      const message = event.message;
+      const message = runtimeEvent.message;
       const usage = message.role === "assistant" ? message.usage : undefined;
       return {
         type: "turn_end",
@@ -178,7 +208,7 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
       };
     }
     case "message_update": {
-      const streamEvent = event.assistantMessageEvent;
+      const streamEvent = runtimeEvent.assistantMessageEvent;
       if (streamEvent?.type === "text_delta" && streamEvent.delta.length > 0) {
         return { type: "text_delta", agent: "", delta: streamEvent.delta };
       }
@@ -188,17 +218,17 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
       return {
         type: "tool_call",
         agent: "",
-        tool: event.toolName,
-        args: event.args,
-        callId: event.toolCallId,
+        tool: runtimeEvent.toolName,
+        args: runtimeEvent.args,
+        callId: runtimeEvent.toolCallId,
       };
     case "tool_execution_end":
       return {
         type: "tool_result",
         agent: "",
-        tool: event.toolName,
-        isError: event.isError,
-        callId: event.toolCallId,
+        tool: runtimeEvent.toolName,
+        isError: runtimeEvent.isError,
+        callId: runtimeEvent.toolCallId,
       };
     default:
       return null;
@@ -206,8 +236,9 @@ export function normalizeEvent(event: AgentEvent): CoreMindEvent | null {
 }
 
 /** 从 Agent 消息列表提取最终文本（拼接全部 assistant 文本块） */
-export function extractText(messages: AgentMessage[]): string {
-  return messages
+export function extractText(messages: CoreMindMessage[]): string {
+  const runtimeMessages = messages as unknown as AgentMessage[];
+  return runtimeMessages
     .filter((m) => m.role === "assistant")
     .flatMap((m) => m.content ?? [])
     .filter((c): c is Extract<typeof c, { type: "text" }> => c.type === "text")
@@ -216,9 +247,10 @@ export function extractText(messages: AgentMessage[]): string {
 }
 
 /** 提取最后一条 assistant 消息的执行错误；正常结束时返回 undefined。 */
-export function extractAgentError(messages: AgentMessage[]): string | undefined {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index];
+export function extractAgentError(messages: CoreMindMessage[]): string | undefined {
+  const runtimeMessages = messages as unknown as AgentMessage[];
+  for (let index = runtimeMessages.length - 1; index >= 0; index--) {
+    const message = runtimeMessages[index];
     if (message?.role !== "assistant") continue;
     return message.stopReason === "error"
       ? (message.errorMessage ?? "模型执行失败，但未提供错误详情")

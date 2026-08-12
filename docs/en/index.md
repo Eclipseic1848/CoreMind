@@ -33,6 +33,6 @@ features:
 
 ## Project status
 
-The current code version is `0.3.0-rc.1`. Use Releases and registries as the source of truth for installable availability; the source remains available for review and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+The current code version is `0.3.0-rc.2`. Use Releases and registries as the source of truth for installable availability; the source remains available for review and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
 
-Every prerelease candidate must complete the Windows/Linux P01-P19 automated matrix, real TTY acceptance on both platforms, a current live-provider recheck, and the final documentation audit on the same commit. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), npm, and PyPI as the source of truth for public availability; maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).
+Every prerelease candidate must complete the Windows/Linux P01-P19 automated matrix, real pseudoterminal acceptance on both platforms, a current live-provider recheck, and the final documentation audit on the same commit. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), npm, and PyPI as the source of truth for public availability; maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

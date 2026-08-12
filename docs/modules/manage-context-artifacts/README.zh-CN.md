@@ -1,6 +1,6 @@
 # 上下文与 Artifact 治理
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 这个模块解决什么问题
 

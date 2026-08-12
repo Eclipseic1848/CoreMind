@@ -1,5 +1,6 @@
 import {
   type ApiKeyAuth,
+  type AuthContext,
   createModels,
   createProvider,
   envApiKeyAuth,
@@ -44,7 +45,7 @@ export async function buildProviderRuntime(
 ): Promise<ProviderRuntime> {
   const cfg = providerCfg ?? { id: DEFAULT_PROVIDER };
   if ("baseUrl" in cfg) {
-    return buildCustomRuntime(cfg);
+    return buildCustomRuntime(cfg, env);
   }
   if (cfg.id === "alibaba-model-studio") {
     return buildAlibabaModelStudioRuntime(cfg, env);
@@ -59,18 +60,18 @@ async function buildAlibabaModelStudioRuntime(
 ): Promise<ProviderRuntime> {
   const modelId = cfg.model ?? "qwen-plus";
   const apiKeyEnv = cfg.apiKeyEnv ?? "DASHSCOPE_API_KEY";
-  const runtime = await buildCustomRuntime({
-    id: cfg.id,
-    name: "Alibaba Cloud Model Studio",
-    baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
-    model: modelId,
-    apiKeyEnv,
-    contextWindow: 131072,
-    maxTokens: 8192,
-  });
-  const apiKeyOverride = env[apiKeyEnv];
-  if (!apiKeyOverride) runtime.warnings.push(`环境变量 ${apiKeyEnv} 未配置`);
-  return { ...runtime, apiKeyOverride };
+  return buildCustomRuntime(
+    {
+      id: cfg.id,
+      name: "Alibaba Cloud Model Studio",
+      baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      model: modelId,
+      apiKeyEnv,
+      contextWindow: 131072,
+      maxTokens: 8192,
+    },
+    env,
+  );
 }
 
 /** 内置提供商：注册工厂，从目录解析模型（model 未命中时回退默认并告警） */
@@ -78,7 +79,7 @@ async function buildBuiltinRuntime(
   cfg: { id: string; model?: string; apiKeyEnv?: string },
   env: NodeJS.ProcessEnv,
 ): Promise<ProviderRuntime> {
-  const models = builtinModels();
+  const models = builtinModels({ authContext: isolatedAuthContext(env, cfg.apiKeyEnv) });
   const provider = models.getProvider(cfg.id);
   if (!provider) {
     throw new CoreMindError(
@@ -105,20 +106,22 @@ async function buildBuiltinRuntime(
       );
     }
   }
-  // apiKeyEnv 覆盖：配置了指定 env 变量时，把它的值作为每次请求的 apiKey（替代默认变量）
+  // apiKeyEnv 覆盖：显式名称是唯一来源，不允许再回退到宿主机或提供商默认变量。
   const apiKeyOverride = cfg.apiKeyEnv ? env[cfg.apiKeyEnv] : undefined;
   if (cfg.apiKeyEnv && !apiKeyOverride) {
-    warnings.push(
-      `配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在环境中找到，将回退使用 ${cfg.id} 的默认环境变量`,
-    );
+    warnings.push(`配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在注入环境中找到`);
   }
   return { models, model, warnings, apiKeyOverride, promptCacheStatus: cacheStatus(model) };
 }
 
 /** 自定义 OpenAI 兼容端点（Ollama / 本地模型 / 网关） */
-async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRuntime> {
-  const models = createModels();
+async function buildCustomRuntime(
+  cfg: CustomProviderConfig,
+  env: NodeJS.ProcessEnv,
+): Promise<ProviderRuntime> {
   const id = cfg.id ?? "custom";
+  const apiKeyEnv = inferEnv(cfg, id);
+  const models = createModels({ authContext: isolatedAuthContext(env, apiKeyEnv) });
   const model = buildCustomModel(cfg, id);
   // apiKey 直填告警：密钥会随配置文件进入版本库/分享链路，引导用 apiKeyEnv
   const warnings: string[] = [];
@@ -134,15 +137,31 @@ async function buildCustomRuntime(cfg: CustomProviderConfig): Promise<ProviderRu
       baseUrl: cfg.baseUrl,
       headers: cfg.headers,
       auth: {
-        apiKey: cfg.apiKey
-          ? staticKeyAuth(cfg.apiKey)
-          : envApiKeyAuth(cfg.name ?? id, [inferEnv(cfg, id)]),
+        apiKey: cfg.apiKey ? staticKeyAuth(cfg.apiKey) : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]),
       },
       models: [model],
       api: openAICompletionsApi(),
     }),
   );
-  return { models, model, warnings, promptCacheStatus: cacheStatus(model) };
+  const apiKeyOverride = cfg.apiKey ? undefined : env[apiKeyEnv];
+  if (!cfg.apiKey && cfg.apiKeyEnv && !apiKeyOverride) {
+    warnings.push(`配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在注入环境中找到`);
+  }
+  return {
+    models,
+    model,
+    warnings,
+    ...(apiKeyOverride ? { apiKeyOverride } : {}),
+    promptCacheStatus: cacheStatus(model),
+  };
+}
+
+/** 只暴露调用方注入的环境；显式 apiKeyEnv 时仅允许读取该变量，禁止宿主凭据回退。 */
+function isolatedAuthContext(env: NodeJS.ProcessEnv, apiKeyEnv?: string): AuthContext {
+  return {
+    env: async (name) => (apiKeyEnv && name !== apiKeyEnv ? undefined : env[name]),
+    fileExists: async () => false,
+  };
 }
 
 function cacheStatus(model: Model<any>): "available" | "unavailable" {

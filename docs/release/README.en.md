@@ -20,10 +20,10 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0-rc.1`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0-rc.2`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 0.3.0-rc.1
+npm run release:sync-version -- 0.3.0-rc.2
 npm run release:preflight -- --allow-dirty
 ```
 
@@ -47,7 +47,7 @@ Record concrete counts, conditional-skip reasons, coverage floors and target gap
 
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows and Linux TTY evidence must bind to the same version and commit; and a currently authorized provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -59,7 +59,7 @@ After the final Markdown audit, mark the release PR ready. Merge only after both
 
 Manually run `Publish CoreMind Release` with the existing tag. The workflow checks out that tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
 
-The Release attaches only the independent source ZIP, checksums, and manifest in addition to GitHub's unavoidable automatic source zip/tar.gz links. Existing registry versions fail explicitly; scripts never silently skip them.
+The Release attaches only the independent source ZIP, checksums, and manifest in addition to GitHub's unavoidable automatic source zip/tar.gz links. Publication supports safe continuation: existing same-name, same-version npm, PyPI, or GitHub Release assets are skipped only when their hashes match; missing assets are uploaded and hash conflicts fail immediately. Published versions remain immutable, so conflicts require a higher repaired version.
 
 ## Public-registry verification and failure handling
 

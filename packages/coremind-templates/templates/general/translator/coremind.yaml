@@ -1,8 +1,10 @@
-schemaVersion: 2
+﻿schemaVersion: 2
 name: translator
 description: 中英互译助手，保持术语一致性
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   translator:

@@ -93,16 +93,49 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("translator");
   });
 
+  it("providers 明确区分已认证与仅可配置入口", () => {
+    const { stdout, code } = runCli(["providers"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("alibaba-model-studio");
+    expect(stdout).toContain("CoreMind 已认证");
+    expect(stdout).toContain("deepseek");
+    expect(stdout).toContain("可配置，尚未认证");
+  });
+
+  it("非交互 create 未选择 Provider 时失败并给出命令", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-provider-required-"));
+    const { code, stderr } = runCli(
+      ["create", "missing-provider", "--template", "translator", "--language", "typescript"],
+      { cwd: dir },
+    );
+    expect(code).toBe(1);
+    expect(stderr).toContain("--provider");
+  });
+
   it("create 生成项目并替换 name", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const { code } = runCli(
-      ["create", "my-agent", "--template", "translator", "--language", "typescript"],
+      [
+        "create",
+        "my-agent",
+        "--template",
+        "translator",
+        "--language",
+        "typescript",
+        "--provider",
+        "alibaba-model-studio",
+      ],
       { cwd: dir },
     );
     expect(code).toBe(0);
     const yaml = readFileSync(path.join(dir, "my-agent", "coremind.yaml"), "utf8");
     expect(yaml).toContain("name: my-agent");
     expect(yaml).toContain("description: my-agent");
+    expect(yaml).toContain("id: alibaba-model-studio");
+    expect(yaml).toContain("apiKeyEnv: DASHSCOPE_API_KEY");
+    expect(readFileSync(path.join(dir, "my-agent", ".env.example"), "utf8")).toBe(
+      "DASHSCOPE_API_KEY=\n",
+    );
     expect(existsSync(path.join(dir, "my-agent", ".env.example"))).toBe(true);
     expect(existsSync(path.join(dir, "my-agent", "skills", "project-agent", "SKILL.md"))).toBe(
       true,
@@ -113,7 +146,16 @@ describe("coremind CLI 端到端", () => {
   it("create 非法名称退出码 1", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const { code, stderr } = runCli(
-      ["create", "Bad Name", "--template", "translator", "--language", "typescript"],
+      [
+        "create",
+        "Bad Name",
+        "--template",
+        "translator",
+        "--language",
+        "typescript",
+        "--provider",
+        "alibaba-model-studio",
+      ],
       { cwd: dir },
     );
     expect(code).toBe(1);
@@ -123,7 +165,16 @@ describe("coremind CLI 端到端", () => {
   it("create 未知模板退出码 1", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const { code } = runCli(
-      ["create", "x", "--template", "not-exist", "--language", "typescript"],
+      [
+        "create",
+        "x",
+        "--template",
+        "not-exist",
+        "--language",
+        "typescript",
+        "--provider",
+        "alibaba-model-studio",
+      ],
       { cwd: dir },
     );
     expect(code).toBe(1);
@@ -134,7 +185,10 @@ describe("coremind CLI 端到端", () => {
     writeFileSync(path.join(dir, "package.json"), '{"name":"existing"}', "utf8");
     writeFileSync(path.join(dir, "README.md"), "用户原有说明", "utf8");
 
-    const { code, stdout } = runCli(["create", ".", "--template", "translator"], { cwd: dir });
+    const { code, stdout } = runCli(
+      ["create", ".", "--template", "translator", "--provider", "alibaba-model-studio"],
+      { cwd: dir },
+    );
 
     expect(code).toBe(0);
     expect(stdout).toContain("javascript");
@@ -145,7 +199,16 @@ describe("coremind CLI 端到端", () => {
   it("check 对脚手架完整的 standard 项目返回通过", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-check-e2e-"));
     const created = runCli(
-      ["create", "checked-agent", "--template", "translator", "--language", "typescript"],
+      [
+        "create",
+        "checked-agent",
+        "--template",
+        "translator",
+        "--language",
+        "typescript",
+        "--provider",
+        "alibaba-model-studio",
+      ],
       { cwd: dir },
     );
     expect(created.code).toBe(0);

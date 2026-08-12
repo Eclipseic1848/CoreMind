@@ -1,7 +1,7 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { CheckpointDiff, CheckpointRecord } from "./checkpoint.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import type { CoreMindMessage } from "./public-message.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
 
 /** 一轮对话的结果 */
@@ -23,7 +23,7 @@ export interface ChatTurnResult {
 export class ChatSession {
   readonly agentName: string;
   private readonly listeners = new Set<(event: CoreMindEvent) => void>();
-  private messages: AgentMessage[];
+  private messages: CoreMindMessage[];
   private activeController?: AbortController;
   private latestSessionFile?: string;
   private latestRun?: RunResult;

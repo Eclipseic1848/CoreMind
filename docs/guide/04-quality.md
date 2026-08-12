@@ -223,7 +223,7 @@ npm 门禁逐包执行实际 `npm pack`，拒绝测试、内部计划、运行�
 
 Windows 与 Linux 必须分别保留三连跑结果。GitHub Actions 可提供 Linux 自动化证据，但真实 TUI 仍需目标平台 TTY 人工验收。
 
-Release Candidate 另按[RC 验收指南](../release/RC-ACCEPTANCE.zh-CN.md)执行 P01～P20。P01～P19 必须同时有自动套件与精确测试标题锚点；P20 必须保留绑定同一版本和提交的 Windows/Linux 真实 TTY 证据。真实 Provider 当次复验和目标平台 CI 是独立门禁，不能由自动矩阵代替。
+Release Candidate 另按[RC 验收指南](../release/RC-ACCEPTANCE.zh-CN.md)执行 P01～P20。P01～P19 必须同时有自动套件与精确测试标题锚点；P20 必须保留绑定同一版本和提交的 Windows/Linux 真实伪终端证据。真实 Provider 当次复验和目标平台 CI 是独立门禁，不能由自动矩阵代替。
 
 ## 12. 推荐验收顺序
 

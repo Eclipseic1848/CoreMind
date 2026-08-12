@@ -2,7 +2,9 @@ schemaVersion: 2
 name: weekly-report
 description: 扫描本周代码变更并生成中英文周报（parallel + if + 多 agent）
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   collector:
@@ -24,7 +26,6 @@ agents:
       - weekly-report
     tools:
       - id: write
-      - id: bash
 
 workflow:
   - id: collect
@@ -42,8 +43,7 @@ workflow:
       - id: fallback
         type: prompt
         agent: writer
-        input: 本周没有新的代码变更，请生成一封说明性的简短周报。
-        saveAs: report
+        input: 本周没有新的代码变更。请生成说明性简短周报，并只调用一次 write 保存到 docs/weekly-report.md。
     else:
       - id: collect-checks
         type: parallel
@@ -66,17 +66,7 @@ workflow:
           基于以下材料撰写本周周报：
           【代码变更】{{changes.text}}
           【构建/测试】{{checks.text}}
-          输出 markdown。
-        saveAs: report
-
-  - id: emit
-    type: prompt
-    agent: writer
-    input: |
-      把上面生成的周报写入文件 docs/weekly-report.md。
-      如果 docs 目录不存在，先创建。
-      周报内容：
-      {{report.text}}
+          输出 markdown，并只调用一次 write 保存到 docs/weekly-report.md。
 
 runtime: {}
 permissions:

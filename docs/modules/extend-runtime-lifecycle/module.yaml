@@ -3,7 +3,7 @@ id: extend-runtime-lifecycle
 name:
   zh-CN: "Runtime 生命周期扩展"
   en: "Runtime Lifecycle Extensions"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "packages/coremind-runtime/src/lifecycle-extension.ts"
   - "packages/coremind-runtime/src/runtime.ts"

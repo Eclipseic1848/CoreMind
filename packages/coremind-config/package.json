@@ -1,6 +1,6 @@
 {
   "name": "coremind-config",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0-rc.2",
   "description": "CoreMind 配置层：coremind.yaml 的 schema、解析与校验",
   "license": "MIT",
   "repository": {

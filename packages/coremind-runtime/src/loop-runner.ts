@@ -29,6 +29,12 @@ export interface LoopRunnerOptions {
   persistSnapshot: (snapshot: LoopControllerSnapshot) => Promise<void>;
   restoredSnapshot?: LoopControllerSnapshot;
   completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
+  /** Runtime 证据门；返回 false 时即使文本条件为真也不能完成。 */
+  verifyEvidence?: (request: {
+    iteration: number;
+    stepId: string;
+    textPassed: boolean;
+  }) => boolean | Promise<boolean>;
 }
 
 export interface LoopRunResult {
@@ -165,7 +171,15 @@ export class LoopRunner {
     );
     this.saveOutput("verification", output);
     const condition = this.interpolate(verification.passIf, output.text);
-    await this.sendAndPersist({ type: "VERIFIED", passed: evalCondition(condition) });
+    const textPassed = evalCondition(condition);
+    const evidencePassed = this.options.verifyEvidence
+      ? await this.options.verifyEvidence({
+          iteration,
+          stepId: `loop-verify-${iteration}`,
+          textPassed,
+        })
+      : true;
+    await this.sendAndPersist({ type: "VERIFIED", passed: textPassed && evidencePassed });
   }
 
   private async runRepair(): Promise<void> {

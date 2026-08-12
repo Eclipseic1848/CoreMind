@@ -382,6 +382,13 @@ export function createEngineeringKernelDefinition(options: {
         agent: verifier,
         input: `验证 {{candidate.text}}；必须运行目标测试和 ${options.selection.testCommand}，审查 Git Diff。仅在全部证据通过时输出 PASS。`,
         passIf: "{{text}} == PASS",
+        evidence: {
+          mode: "runtime",
+          regressionCommand: options.selection.testCommand,
+          minSuccessfulTestCommands: 2,
+          requireCheckpoint: true,
+          requireDiffReview: true,
+        },
       },
       repair: {
         agent: coder,
@@ -434,7 +441,8 @@ export interface EngineeringDeliverySummary {
 }
 
 /**
- * 只聚合 Coding 领域证据；运行、权限、Loop、Checkpoint 与终态仍由通用 Runtime 所有。
+ * @deprecated 仅用于导入旧版外部证据。新代码应使用 createEngineeringKernelDefinition，
+ * 由 Runtime Trace 的 engineering_evidence 事件作为成功判定来源。
  */
 export class EngineeringEvidenceLedger {
   private readonly changes: EngineeringChange[] = [];

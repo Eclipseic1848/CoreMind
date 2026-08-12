@@ -3,7 +3,8 @@
 This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
 
 ```text
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 coremind check my-agent/coremind.yaml
 coremind eval my-agent/coremind.yaml
 coremind run my-agent/coremind.yaml --prompt "acceptance" --json-events

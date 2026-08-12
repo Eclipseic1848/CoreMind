@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-interviewer --template hr-interviewer
+coremind create my-interviewer --template hr-interviewer --provider alibaba-model-studio
 cd my-interviewer
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 coremind run coremind.yaml --prompt "高级前端工程师"
 ```
 

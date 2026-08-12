@@ -7,7 +7,8 @@
 ## 最小示例
 
 ```text
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 coremind check my-agent/coremind.yaml
 coremind eval my-agent/coremind.yaml
 ```

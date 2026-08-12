@@ -26,6 +26,8 @@ describe("Provider 认证矩阵", () => {
           version: "0.2.0-rc.1",
           testedAt: "2026-08-08",
           model: "a1",
+          commit: "a".repeat(40),
+          runtimeArtifactSha256: "b".repeat(64),
           evidence: "artifacts/providers/alpha.json",
           checks: [
             "streaming",
@@ -43,6 +45,8 @@ describe("Provider 认证矩阵", () => {
 
     expect(matrix.providers[0]?.status).toBe("certified");
     expect(matrix.providers[0]?.testedVersion).toBe("0.2.0-rc.1");
+    expect(matrix.providers[0]?.testedCommit).toBe("a".repeat(40));
+    expect(matrix.providers[0]?.runtimeArtifactSha256).toBe("b".repeat(64));
     expect(matrix.summary.certified).toBe(1);
   });
 

@@ -15,11 +15,33 @@ describe("CoreMind Protocol v1", () => {
     const snapshot = {
       schemaVersion: 1,
       runId: "run-1",
-      operation: { state: "completed" },
-      outcome: { status: "succeeded" },
-      metrics: {},
-      evaluation: {},
-      releaseReadiness: {},
+      operation: {
+        schemaVersion: 1,
+        operationId: "operation-1",
+        runId: "run-1",
+        correlationId: "run-1:operation-1",
+        state: "completed",
+        transitionSequence: 3,
+        createdAt: "2026-08-12T00:00:00.000Z",
+        updatedAt: "2026-08-12T00:00:01.000Z",
+      },
+      outcome: { status: "succeeded", finishReason: "completed" },
+      metrics: {
+        durationMs: 1000,
+        turns: 1,
+        steps: { total: 1, succeeded: 1, failed: 0 },
+        toolCalls: 0,
+        toolFailures: 0,
+        retries: 0,
+        outputChars: 12,
+      },
+      evaluation: {
+        profile: "strict",
+        scenarioResults: [],
+        qualityScores: { execution: 1 },
+        securityFindings: [],
+      },
+      releaseReadiness: { ready: true, blockers: [], warnings: [] },
       trace: [],
       checkpoints: [],
       artifacts: [],
@@ -28,7 +50,34 @@ describe("CoreMind Protocol v1", () => {
     };
     expect(Value.Check(RunSnapshotSchema, snapshot)).toBe(true);
     expect(parseRunSnapshot(snapshot).runId).toBe("run-1");
+    const snapshotWithDetailedTrace = {
+      ...snapshot,
+      trace: [
+        {
+          eventId: "event-1",
+          runId: "run-1",
+          sequence: 1,
+          timestamp: "2026-08-12T00:00:00.000Z",
+          event: { type: "context_prefix", agent: "main", fingerprint: "sha256:test" },
+        },
+      ],
+    };
+    expect(parseRunSnapshot(snapshotWithDetailedTrace).trace).toEqual(
+      snapshotWithDetailedTrace.trace,
+    );
     expect(() => parseRunSnapshot({ ...snapshot, resumable: "no" })).toThrow("RunSnapshot");
+    expect(() =>
+      parseRunSnapshot({
+        ...snapshot,
+        operation: { ...snapshot.operation, state: "teleported" },
+      }),
+    ).toThrow("/operation/state");
+    expect(() =>
+      parseRunSnapshot({
+        ...snapshot,
+        metrics: { ...snapshot.metrics, steps: { total: "1", succeeded: 1, failed: 0 } },
+      }),
+    ).toThrow("/metrics/steps/total");
   });
 
   it("解析合法的 initialize 请求", () => {

@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-squasher --template bug-squasher
+coremind create my-squasher --template bug-squasher --provider alibaba-model-studio
 cd my-squasher
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 # 在出问题的项目目录运行：
 coremind run coremind.yaml --prompt "运行 npm test 报错：TypeError: xxx is not a function"
 ```

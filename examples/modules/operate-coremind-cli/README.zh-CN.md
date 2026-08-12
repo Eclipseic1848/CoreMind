@@ -3,7 +3,8 @@
 该示例展示模块的最小用法；复制前先由业务负责人确认字段与规则。
 
 ```text
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 coremind check my-agent/coremind.yaml
 coremind eval my-agent/coremind.yaml
 coremind run my-agent/coremind.yaml --prompt "验收" --json-events

@@ -14,6 +14,8 @@ export const TTY_CHECKS = [
   "abort",
   "session-resume",
   "checkpoint-diff-restore",
+  "streaming",
+  "status",
   "exit",
 ];
 
@@ -157,7 +159,7 @@ export const RC_CASES = [
   ),
   {
     id: "P20",
-    title: "Windows 与 Linux 真实 TTY",
+    title: "Windows 与 Linux 真实伪终端",
     suites: [],
     entries: ["tui"],
     evidence: [],
@@ -270,6 +272,9 @@ export function validateTtyEvidence(evidence, expected) {
   if (evidence.version !== expected.version) blockers.push(`version 应为 ${expected.version}`);
   if (evidence.commit !== expected.commit) blockers.push(`commit 应为 ${expected.commit}`);
   if (evidence.passed !== true) blockers.push("passed 必须为 true");
+  if (evidence.evidenceLevel !== "automated-real-tty") {
+    blockers.push("evidenceLevel 必须为 automated-real-tty");
+  }
   if (typeof evidence.terminal !== "string" || evidence.terminal.trim().length === 0) {
     blockers.push("terminal 不能为空");
   }
@@ -322,7 +327,7 @@ async function runAcceptance({ requireManual }) {
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   console.log(
     report.automatedReady
-      ? `RC 自动验收通过：P01～P19；P20 ${report.ready ? "已通过" : "等待双平台真实 TTY"}`
+      ? `RC 自动验收通过：P01～P19；P20 ${report.ready ? "已通过" : "等待双平台真实伪终端证据"}`
       : "RC 自动验收失败",
   );
   console.log(`证据：${path.relative(repositoryRoot, output)}`);
@@ -380,5 +385,17 @@ function gitValue(args) {
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  await runAcceptance({ requireManual: process.argv.includes("--require-manual") });
+  if (process.argv.includes("--verify-manual-only")) {
+    const commit = gitValue(["rev-parse", "HEAD"]);
+    const version = JSON.parse(
+      await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
+    ).version;
+    const manual = await loadManualEvidence({ commit, version });
+    if (manual.evidence.length !== 2 || manual.blockers.length > 0) {
+      throw new Error(`双平台真实伪终端证据无效：\n- ${manual.blockers.join("\n- ")}`);
+    }
+    console.log(`双平台真实伪终端证据通过：${version} · ${commit}`);
+  } else {
+    await runAcceptance({ requireManual: process.argv.includes("--require-manual") });
+  }
 }

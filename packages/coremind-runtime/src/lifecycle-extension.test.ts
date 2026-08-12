@@ -34,7 +34,7 @@ describe("LifecycleExtensionHost", () => {
     ).toThrowError(expect.objectContaining({ code: "extension_not_trusted" }));
   });
 
-  it("按稳定顺序执行同步与异步 handler，并向无凭据权限扩展隐藏密钥", async () => {
+  it("按稳定顺序执行 handler，并完整隐藏无凭据权限扩展可见的敏感值", async () => {
     const observed: string[] = [];
     const sync = defineLifecycleExtension({
       id: "sync",
@@ -62,11 +62,22 @@ describe("LifecycleExtensionHost", () => {
     const result = await host.dispatch("before-model", {
       prompt: "hello",
       apiKey: "secret-value",
+      cookie: "session=private-cookie",
+      privateKey: "PRIVATE KEY",
+      endpoint: "https://user:pass@example.com/run?token=url-secret&mode=safe",
+      command: "curl --password command-secret https://example.com?apiKey=query-secret",
     });
 
     expect(result.receipts.map((item) => item.extensionId)).toEqual(["async", "sync"]);
     expect(result.receipts.every((item) => item.status === "succeeded")).toBe(true);
-    expect(observed).toEqual(["async", 'sync:{"apiKey":"<redacted>","prompt":"hello"}']);
+    const payload = observed.find((item) => item.startsWith("sync:")) ?? "";
+    expect(payload).not.toContain("secret-value");
+    expect(payload).not.toContain("private-cookie");
+    expect(payload).not.toContain("PRIVATE KEY");
+    expect(payload).not.toContain("url-secret");
+    expect(payload).not.toContain("command-secret");
+    expect(payload).not.toContain("query-secret");
+    expect(payload).toContain("mode=safe");
   });
 
   it("超时和异常被记录，不会向 Runtime 抛出或伪造结果", async () => {

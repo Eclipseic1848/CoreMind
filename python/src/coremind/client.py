@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
 import json
 import os
@@ -74,6 +75,8 @@ class CoreMindClient:
             if self._started:
                 return self
             command = self._worker_command or _discover_worker_command()
+            if self._worker_command is None:
+                _verify_bundled_worker(command)
             try:
                 self._process = subprocess.Popen(
                     command,
@@ -529,6 +532,36 @@ def _discover_worker_command() -> list[str]:
     raise WorkerNotFoundError(
         "找不到 CoreMind Node worker。请安装随 PyPI 包提供的 worker，或设置 COREMIND_WORKER_PATH"
     )
+
+
+def _verify_bundled_worker(command: Sequence[str]) -> None:
+    """启动随 wheel 分发的 Worker 前校验版本、协议与内容摘要。"""
+
+    if len(command) < 2:
+        return
+    worker = Path(command[1]).resolve()
+    bundled = Path(__file__).resolve().parent / "_worker" / "coremind-worker.mjs"
+    if worker != bundled.resolve():
+        return
+    manifest_path = bundled.with_name("manifest.json")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        actual_sha256 = hashlib.sha256(bundled.read_bytes()).hexdigest()
+    except (OSError, ValueError) as error:
+        raise WorkerNotFoundError(f"无法校验随包 Worker：{error}") from error
+
+    from . import __version__
+
+    if manifest.get("version") != __version__:
+        raise WorkerNotFoundError(
+            f"随包 Worker 版本漂移：SDK={__version__}，Worker={manifest.get('version')}"
+        )
+    if manifest.get("protocolVersion") != PROTOCOL_VERSION:
+        raise WorkerNotFoundError(
+            f"随包 Worker 协议漂移：SDK={PROTOCOL_VERSION}，Worker={manifest.get('protocolVersion')}"
+        )
+    if manifest.get("bundleSha256") != actual_sha256:
+        raise WorkerNotFoundError("随包 Worker 内容摘要不匹配；请重新安装 coremind-ai")
 
 
 def _schema_from_callable(function: Callable[..., Any]) -> dict[str, Any]:

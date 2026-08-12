@@ -7,7 +7,8 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 ## Minimal example
 
 ```text
-coremind create my-agent --template translator --language typescript
+coremind providers
+coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 coremind check my-agent/coremind.yaml
 coremind eval my-agent/coremind.yaml
 ```

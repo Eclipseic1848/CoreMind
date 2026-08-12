@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-report --template weekly-report
+coremind create my-report --template weekly-report --provider alibaba-model-studio
 cd my-report
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 cd 你的代码仓库目录
 coremind run coremind.yaml
 ```
@@ -20,7 +20,7 @@ coremind run coremind.yaml
 ## 配置要点
 
 - 三个角色：collector（收集事实）、writer（撰写，已配置 `skills: [weekly-report]` 技能）
-- 工作流：收集 git 历史 → `if` 判断有无变更 → `parallel` 并行跑构建/测试 → 生成周报 → 写入文件
+- 工作流：收集 git 历史 → `if` 判断有无变更 → `parallel` 并行跑构建/测试 → 一次生成并写入周报
 - 周报结构（技能约束）：本周工作 / 风险与阻塞 / 下周计划
 
 ## 调优提示

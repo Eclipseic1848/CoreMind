@@ -9,7 +9,7 @@ Generate language-aware code skeletons, tests, evaluations, bilingual documentat
 ```text
 coremind create . --template customer-triage
 # 混合或空工程：
-coremind create . --template customer-triage --language python
+coremind create . --template customer-triage --language python --provider alibaba-model-studio
 ```
 
 ## Verification

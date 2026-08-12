@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-rc.2 - 2026-08-12
+
+- Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.
+
 ## 0.3.0-rc.1 - 2026-08-12
 
 - Synchronized this module contract with the repository release candidate.

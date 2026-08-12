@@ -1,6 +1,6 @@
 # 持久运行与故障恢复
 
-状态：\`0.3.0-rc.1\` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -32,7 +32,8 @@ LoopController 继续管理 planning、execute、verify、repair 等业务阶段
 - 相同 `eventId` 不会重复产生状态变化。
 - 已提交副作用只有在所属步骤稳定完成时才会随步骤跳过；归属不确定时必须人工判断。
 - Checkpoint、工具调用和 Effect Receipt 使用同一个幂等关联键。
-- RunState 的 sequence 必须连续；竞争 writer 不会静默覆盖。
+- RunState 必须按实际落盘顺序保持连续；读取与恢复不会通过重新排序掩盖乱序，竞争 writer 也不会静默覆盖。
+- 审批或策略拒绝发生在工具执行前时记录 `not_started`，可安全重新决策；只有真实进入执行后才记录 `started`。
 - 只修复“已有完整记录 + 最后一行未写完”的 JSONL 尾部；整文件损坏失败关闭。
 - 旧 Session 在迁移前生成 `.v3.backup`；迁移失败时公开原文件保持不变。
 

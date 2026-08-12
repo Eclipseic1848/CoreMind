@@ -3,13 +3,14 @@ id: build-coding-agents
 name:
   zh-CN: "编码智能体"
   en: "Coding Agents"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "packages/coremind-tools/src/process-runner.ts"
   - "packages/coremind-tools/src/git-adapter.ts"
   - "packages/coremind-tools/src/unified-diff.ts"
   - "packages/coremind-runtime/src/evaluation-graders.ts"
   - "packages/coremind-runtime/src/coding/engineering-kernel.ts"
+  - "packages/coremind-runtime/src/coding/runtime-engineering-evidence.ts"
   - "examples/coding-evals"
 documents:
   readme:
@@ -33,6 +34,7 @@ testPaths:
   - "packages/coremind-runtime/src/evaluation.test.ts"
   - "packages/coremind-runtime/src/batch8-properties.test.ts"
   - "packages/coremind-runtime/src/coding/engineering-kernel.test.ts"
+  - "packages/coremind-runtime/src/coding/runtime-engineering-evidence.test.ts"
   - "examples/coding-evals/coding-evals.test.ts"
   - "examples/coding-evals/engineering-kernel.test.ts"
 supportedPlatforms:

@@ -10,18 +10,19 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 ```bash
 npm install coremind-ai@next coremind-cli@next
-npx coremind-cli@next create my-agent
+npx coremind-cli@next providers
+npx coremind-cli@next create my-agent --provider alibaba-model-studio
 cd my-agent
 ```
 
-Select a template, language, and permission mode when prompted. The generated project contains configuration, environment examples, tests, and local operating instructions.
+Select a template, language, provider, and permission mode when prompted. Non-interactive scripts must provide `--provider`. The generated project contains configuration, environment examples, tests, and local operating instructions.
 
 ## 3. Configure credentials
 
 Copy `.env.example` to `.env` and add only the credential required by your selected provider. Never commit `.env`.
 
 ```dotenv
-OPENAI_API_KEY=replace_me
+DASHSCOPE_API_KEY=replace_me
 ```
 
 Provider support does not imply live certification. Check the [provider matrix](/providers/README.en) before production evaluation.

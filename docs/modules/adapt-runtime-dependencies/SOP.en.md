@@ -11,10 +11,11 @@ Read the [module contract](README.en.md). Fix the reference version, candidate v
 3. Set every critical dependency to the same exact version and refresh the lockfile with `npm install --ignore-scripts`.
 4. Convert messages, tools, usage, and errors inside private adapters. Do not add low-level version fields to Config.
 5. Run Provider streaming/tool/abort/usage/error/timeout, Session roundtrip, and tool contract tests.
-6. Regenerate the Provider matrix and dependency report. New catalog entries remain configurable and unverified.
-7. Document Session/API migration and whole-family rollback before updating the candidate baseline with an explicit reason.
-8. Run Windows/Linux install, build, package, CLI, and Python Worker smoke tests.
-9. Synchronize README, Guide, SOP, Skill, examples, and Changelog, then run documentation gates.
+6. Build the public declaration rollups and verify that the Runtime and unified SDK roots expose only CoreMind-owned message, tool, and result contracts.
+7. Regenerate the Provider matrix and dependency report. New catalog entries remain configurable and unverified.
+8. Document Session/API migration and whole-family rollback before updating the candidate baseline with an explicit reason.
+9. Run Windows/Linux install, build, package, CLI, and Python Worker smoke tests.
+10. Synchronize README, Guide, SOP, Skill, examples, and Changelog, then run documentation gates.
 
 ## Rollback
 

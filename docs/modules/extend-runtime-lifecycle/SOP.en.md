@@ -28,7 +28,7 @@
 4. Deny a tool in shared or human policy and verify the extension cannot execute or rewrite denial.
 5. Let shared policy allow, then deny in the extension; verify no tool or checkpoint runs.
 6. Verify `run-finished` sees the true completed, paused, or failed operation.
-7. Verify outputs contain no test credential or ungranted credential field.
+7. Verify outputs contain no test key, authorization header, cookie, private key, sensitive URL parameter, or command secret, while ordinary business fields remain intact.
 
 ## 5. Delivery and rollback
 

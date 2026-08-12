@@ -10,9 +10,9 @@
 ## 快速开始
 
 ```bash
-coremind create my-triage --template customer-triage
+coremind create my-triage --template customer-triage --provider alibaba-model-studio
 cd my-triage
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 coremind run coremind.yaml --prompt "我的订单 3 天没发货，客服电话打不通，我要投诉！"
 ```
 

@@ -70,13 +70,20 @@ describe("模板配置合法", () => {
       walk(workflow as never[] as never);
     });
 
-    it(`[${t.id}] requiresEnv 与实际配置的 provider 一致`, () => {
-      // 内置 deepseek 需要 DEEPSEEK_API_KEY
-      const provider = config.provider;
-      const isBuiltin = !("baseUrl" in (provider ?? {}));
-      if (isBuiltin) {
-        expect(t.requiresEnv).toContain("DEEPSEEK_API_KEY");
-      }
+    it(`[${t.id}] 包内模板使用已认证入口且不把 Provider 凭据写成业务依赖`, () => {
+      expect(config.provider).toMatchObject({
+        id: "alibaba-model-studio",
+        apiKeyEnv: "DASHSCOPE_API_KEY",
+      });
+      expect(t.requiresEnv).toEqual([]);
     });
   }
+
+  it("blog-writer 一次生成并一次写入，不提供无关命令工具", () => {
+    const config = parsed.get("blog-writer")!;
+    expect(config.workflow).toHaveLength(1);
+    expect(config.agents.writer?.tools?.map((tool) => tool.id)).toEqual(["write"]);
+    expect(config.agents.writer?.systemPrompt).toContain("不得虚构");
+    expect(JSON.stringify(config.workflow)).toContain("只调用一次 write");
+  });
 });

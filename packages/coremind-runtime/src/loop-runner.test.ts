@@ -26,6 +26,7 @@ function createRunner(
     loop?: LoopConfig;
     restoredSnapshot?: ConstructorParameters<typeof LoopRunner>[0]["restoredSnapshot"];
     completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
+    verifyEvidence?: ConstructorParameters<typeof LoopRunner>[0]["verifyEvidence"];
   } = {},
 ) {
   const events: CoreMindEvent[] = [];
@@ -49,11 +50,24 @@ function createRunner(
     },
     restoredSnapshot: options.restoredSnapshot,
     completedSteps: options.completedSteps,
+    verifyEvidence: options.verifyEvidence,
   });
   return { runner, events, snapshots, requests, executeStep };
 }
 
 describe("LoopRunner", () => {
+  it("Runtime 证据门可否决模型输出的 PASS", async () => {
+    const { runner } = createRunner(["candidate", "PASS"], {
+      loop: { ...baseLoop, maxIterations: 1, maxRepairs: 0 },
+      verifyEvidence: () => false,
+    });
+
+    const result = await runner.run();
+
+    expect(result.snapshot.phase).toBe("failed");
+    expect(result.error).toMatchObject({ code: "loop_exhausted" });
+  });
+
   it("执行、验证失败、修复、再次验证通过后才成功", async () => {
     const { runner, events, snapshots, requests } = createRunner([
       "candidate-a",

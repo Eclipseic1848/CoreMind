@@ -10,15 +10,15 @@
 ## 快速开始
 
 ```bash
-coremind create my-reviewer --template contract-reviewer
+coremind create my-reviewer --template contract-reviewer --provider alibaba-model-studio
 cd my-reviewer
-copy .env.example .env        # 填入 DEEPSEEK_API_KEY
+Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
 coremind run coremind.yaml --prompt "请审查：<合同内容粘贴到这里，或提供文件路径>"
 ```
 
 ## 配置要点
 
-- 两步 workflow：逐条审查 → 保存报告（`write` 工具）
+- 单步工作流完成审查与保存，只请求一次 `write` 审批
 - 审查维度内置：责任/赔偿/知识产权/保密/解约/争议解决
 
 ## 调优提示

@@ -20,9 +20,9 @@
 
 1. Allocate a `callId` and derive an `idempotencyKey` from run, step, and call.
 2. Create a checkpoint before a write. Irreversible commands still require an explicit non-reversible record.
-3. Persist a `started` effect receipt before execution.
-4. Persist `committed` after confirmed success or `unknown` when the result is uncertain.
-5. During recovery, skip `committed` effects only with their stable completed step. Pause for a committed effect in an incomplete step or for any unknown effect.
+3. Persist `not_started` when approval or policy denies execution; persist `started` only after approval and immediately before execution.
+4. Persist `committed` after confirmed success or `unknown` when an already-started result is uncertain.
+5. During recovery, reconsider `not_started`; skip `committed` only with its stable completed step; pause for `started`, `unknown`, or a committed effect in an incomplete step.
 
 ## 4. Session migration
 
@@ -39,7 +39,7 @@
 | Evidence | Action |
 |---|---|
 | Only the final JSONL line is incomplete after valid records | Remove the tail and atomically republish |
-| Whole-file parsing fails or sequence is broken | Fail closed and recover from backup or human evidence |
+| Parsing or field validation fails, sequence is broken, or persisted order is shuffled | Fail closed and recover from backup or human evidence; only a syntactically truncated JSON tail after complete records may be repaired automatically |
 | A lock exists and its writer is active | Wait; do not delete the lock |
 | A lock exists and the writer is proven absent | Back up lock and data, remove the lock manually, then retry |
 | Operation is completed or failed | Do not resume; create a new task |

@@ -3,7 +3,7 @@ id: contribute-coremind
 name:
   zh-CN: "源码与社区贡献"
   en: "Source and Community Contribution"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "package.json"
   - "vitest.config.ts"
@@ -25,6 +25,14 @@ sourcePaths:
   - "scripts/clean-package-dist.mjs"
   - "scripts/generate-provider-matrix.mjs"
   - "scripts/release-preflight.mjs"
+  - "scripts/release-version.mjs"
+  - "scripts/release-artifacts.mjs"
+  - "scripts/publish-npm-artifacts.mjs"
+  - "scripts/verify-pypi-artifact.mjs"
+  - "scripts/rc-acceptance.mjs"
+  - "scripts/tty-acceptance.mjs"
+  - "scripts/audit-markdown.mjs"
+  - "scripts/markdown-audit-lib.mjs"
   - "scripts/package-artifacts.mjs"
   - "scripts/validate-npm-tarballs.mjs"
   - "scripts/validate-source-archive.mjs"
@@ -39,12 +47,6 @@ sourcePaths:
   - "baselines/0.2.0-rc.1/platform-acceptance.json"
   - "baselines/0.2.0-rc.1/release-gates.json"
   - "baselines/0.2.0-rc.1/release-manifest.json"
-  - "scripts/release-version.mjs"
-  - "scripts/release-artifacts.mjs"
-  - "scripts/publish-npm-artifacts.mjs"
-  - "scripts/rc-acceptance.mjs"
-  - "scripts/audit-markdown.mjs"
-  - "scripts/markdown-audit-lib.mjs"
 documents:
   readme:
     zh-CN: docs/modules/contribute-coremind/README.zh-CN.md
@@ -65,18 +67,20 @@ testPaths:
   - "scripts/docs-link-policy.test.ts"
   - "scripts/provider-matrix.test.ts"
   - "scripts/release-preflight.test.ts"
-  - "scripts/package-artifacts.test.ts"
-  - "scripts/coverage-baseline.test.ts"
-  - "scripts/phase2-baseline.test.ts"
-  - "scripts/workflow-contract.test.ts"
-  - "scripts/source-archive.test.ts"
   - "scripts/release-version.test.ts"
   - "scripts/release-artifacts.test.ts"
   - "scripts/publish-npm-artifacts.test.ts"
+  - "scripts/verify-pypi-artifact.test.ts"
   - "scripts/rc-acceptance.test.ts"
   - "scripts/markdown-audit.test.ts"
+  - "scripts/package-artifacts.test.ts"
+  - "scripts/source-archive.test.ts"
+  - "scripts/coverage-baseline.test.ts"
+  - "scripts/phase2-baseline.test.ts"
+  - "scripts/workflow-contract.test.ts"
   - "python/tests/test_release_metadata.py"
   - "packages/coremind/src/index.test.ts"
+  - "packages/coremind-cli/src/tui.test.tsx"
 supportedPlatforms:
   - "windows"
   - "linux"

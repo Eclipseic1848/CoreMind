@@ -3,11 +3,12 @@ id: embed-coremind-python
 name:
   zh-CN: "Python SDK 与工具桥"
   en: "Python SDK and Tool Bridge"
-version: 0.3.0-rc.1
+version: 0.3.0-rc.2
 sourcePaths:
   - "python/src/coremind"
   - "packages/coremind-worker/src"
   - "packages/coremind-protocol/src"
+  - "scripts/build-python-worker.mjs"
 documents:
   readme:
     zh-CN: docs/modules/embed-coremind-python/README.zh-CN.md
@@ -28,6 +29,7 @@ testPaths:
   - "python/tests/test_node_parity.py"
   - "packages/coremind-worker/src/server.test.ts"
   - "packages/coremind-protocol/src/protocol.test.ts"
+  - "python/tests/test_release_metadata.py"
 supportedPlatforms:
   - "windows"
   - "linux"

@@ -18,7 +18,7 @@ coremind run coremind.yaml --prompt "执行任务" --json-events
 coremind run coremind.yaml --resume <runId> --json-events
 ```
 
-以下情况不会自动继续：配置指纹变化、operation 已终结、Effect Receipt 为 unknown、已提交副作用不属于稳定完成步骤、RunState 损坏。
+以下情况不会自动继续：配置指纹变化、operation 已终结、Effect Receipt 为 `started` 或 `unknown`、已提交副作用不属于稳定完成步骤、RunState 损坏。执行前被拒绝的工具使用 `not_started`，不会被误判为未知副作用。
 
 ## 旧 Session
 

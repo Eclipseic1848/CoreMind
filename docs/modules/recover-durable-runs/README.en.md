@@ -1,6 +1,6 @@
 # Durable Runs and Recovery
 
-Status: \`0.3.0-rc.1\` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: `0.3.0-rc.2` release candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -32,7 +32,8 @@ LoopController remains the owner of planning, execution, verification, and repai
 - Reusing an `eventId` does not apply a transition twice.
 - A committed effect is skipped only with its stable completed step; uncertainty requires human review.
 - Checkpoints, tool calls, and effect receipts share one idempotency correlation key.
-- RunState sequences are consecutive and competing writers never overwrite silently.
+- RunState records must be consecutive in actual persisted order. Read and resume never sort away an ordering fault, and competing writers never overwrite silently.
+- Approval or policy denial before execution records `not_started`, which is safe to reconsider; `started` is emitted only after execution is authorized to begin.
 - Only an incomplete final JSONL line after complete records may be repaired; whole-file corruption fails closed.
 - A legacy Session gets a `.v3.backup` before migration, and its public source remains unchanged on failure.
 

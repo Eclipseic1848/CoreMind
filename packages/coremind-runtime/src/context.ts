@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { type AgentMessage, estimateTokens } from "@earendil-works/pi-agent-core";
+import type { CoreMindMessage } from "./public-message.js";
 
 export interface ContextProtectionOptions {
   contextWindow: number;
@@ -8,7 +9,7 @@ export interface ContextProtectionOptions {
 }
 
 export interface ContextProtectionResult {
-  messages: AgentMessage[];
+  messages: CoreMindMessage[];
   compacted: boolean;
   beforeTokens: number;
   afterTokens: number;
@@ -49,10 +50,11 @@ export interface ContextProtectionFailure {
  * 摘要只在用户环境生成；保留区从 user 消息开始，避免留下孤立 toolResult。
  */
 export function protectContext(
-  messages: AgentMessage[],
+  messages: CoreMindMessage[],
   options: ContextProtectionOptions,
 ): ContextProtectionResult {
-  const beforeTokens = totalEstimatedTokens(messages);
+  const runtimeMessages = messages as unknown as AgentMessage[];
+  const beforeTokens = totalEstimatedTokens(runtimeMessages);
   const threshold = Math.max(1, options.contextWindow - options.reserveTokens);
   if (beforeTokens <= threshold || messages.length < 3) {
     return {
@@ -68,7 +70,7 @@ export function protectContext(
   let tailTokens = 0;
   let cutIndex = messages.length - 1;
   for (let index = messages.length - 1; index >= 0; index--) {
-    const next = estimateTokens(messages[index]!);
+    const next = estimateTokens(runtimeMessages[index]!);
     if (tailTokens > 0 && tailTokens + next > options.keepRecentTokens) break;
     tailTokens += next;
     cutIndex = index;
@@ -91,8 +93,8 @@ export function protectContext(
   const removed = messages.slice(0, cutIndex);
   const tail = messages.slice(cutIndex);
   const maxSummaryChars = Math.max(480, options.keepRecentTokens * 2);
-  const summaryText = buildLocalSummary(removed, maxSummaryChars);
-  const summary: AgentMessage = {
+  const summaryText = buildLocalSummary(removed as unknown as AgentMessage[], maxSummaryChars);
+  const summary: CoreMindMessage = {
     role: "user",
     content: summaryText,
     timestamp: Date.now(),
@@ -102,7 +104,7 @@ export function protectContext(
     messages: protectedMessages,
     compacted: true,
     beforeTokens,
-    afterTokens: totalEstimatedTokens(protectedMessages),
+    afterTokens: totalEstimatedTokens(protectedMessages as unknown as AgentMessage[]),
     removedMessages: removed.length,
     strategy: "deterministic-v1",
     reason: "threshold",
@@ -136,7 +138,7 @@ export function buildStableContextPrefix(input: StableContextPrefixInput): Stabl
 
 /** 只输出离线策略对照，不改变运行时默认策略。 */
 export function compareContextStrategies(
-  messages: AgentMessage[],
+  messages: CoreMindMessage[],
   options: ContextProtectionOptions,
 ): ContextStrategyComparison {
   const current = protectContext(messages, options);
@@ -150,7 +152,11 @@ export function compareContextStrategies(
   return {
     selected: "deterministic-v1",
     variants: [
-      { strategy: "none", tokens: totalEstimatedTokens(messages), messages: messages.length },
+      {
+        strategy: "none",
+        tokens: totalEstimatedTokens(messages as unknown as AgentMessage[]),
+        messages: messages.length,
+      },
       {
         strategy: "deterministic-v1",
         tokens: current.afterTokens,
@@ -172,7 +178,7 @@ export class ContextProtector {
     private readonly onFailed?: (failure: ContextProtectionFailure) => void,
   ) {}
 
-  transform(messages: AgentMessage[]): AgentMessage[] {
+  transform(messages: CoreMindMessage[]): CoreMindMessage[] {
     try {
       const result = protectContext(messages, this.options);
       if (result.compacted) this.onCompacted?.(result);
@@ -192,7 +198,7 @@ function totalEstimatedTokens(messages: AgentMessage[]): number {
   return messages.reduce((total, message) => total + estimateTokens(message), 0);
 }
 
-function findLastUserIndex(messages: AgentMessage[]): number {
+function findLastUserIndex(messages: CoreMindMessage[]): number {
   for (let index = messages.length - 1; index > 0; index--) {
     if (messages[index]?.role === "user") return index;
   }

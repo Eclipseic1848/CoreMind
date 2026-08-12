@@ -1,7 +1,7 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { QualityConfig } from "coremind-config";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import type { CoreMindEvent } from "./events.js";
+import type { CoreMindMessage } from "./public-message.js";
 
 export type RunStatus =
   | "succeeded"
@@ -67,7 +67,7 @@ export interface ReleaseReadiness {
 
 export function analyzeRunMetrics(
   events: CoreMindEvent[],
-  messages: AgentMessage[],
+  messages: CoreMindMessage[],
   durationMs: number,
   outputChars: number,
 ): RunMetrics {
@@ -144,8 +144,11 @@ export function analyzeRunMetrics(
   let costUsd: number | undefined = hasTraceUsage ? traceCostUsd : undefined;
   if (!hasTraceUsage) {
     for (const message of messages) {
-      if (message.role !== "assistant" || !("usage" in message) || !message.usage) continue;
-      const usage = normalizeDependencyUsage(message.usage);
+      const runtimeMessage = message as typeof message & { usage?: unknown };
+      if (message.role !== "assistant" || !runtimeMessage.usage) continue;
+      const usage = normalizeDependencyUsage(
+        runtimeMessage.usage as Parameters<typeof normalizeDependencyUsage>[0],
+      );
       tokens = (tokens ?? 0) + usage.contextTokens;
       costUsd = (costUsd ?? 0) + usage.costUsd;
     }

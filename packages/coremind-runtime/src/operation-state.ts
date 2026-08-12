@@ -113,7 +113,7 @@ export class DurableOperation {
     if (records.length === 0) {
       throw new CoreMindError("operation_state_corrupt", "Durable operation 缺少 accepted 记录");
     }
-    const ordered = [...records].sort((left, right) => left.sequence - right.sequence);
+    const ordered = [...records];
     const first = ordered[0]!;
     if (
       first.schemaVersion !== 1 ||

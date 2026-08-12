@@ -5,7 +5,7 @@ This is the smallest module example. Ask the business owner to confirm fields an
 ```text
 coremind create . --template customer-triage
 # 混合或空工程：
-coremind create . --template customer-triage --language python
+coremind create . --template customer-triage --language python --provider alibaba-model-studio
 ```
 
 ## Verification

@@ -1,8 +1,10 @@
-schemaVersion: 2
+﻿schemaVersion: 2
 name: code-reviewer
 description: 对指定文件进行代码审查，标记风险等级
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   reviewer:

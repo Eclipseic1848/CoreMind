@@ -14,6 +14,23 @@ export const LoopVerificationSchema = Type.Object({
     minLength: 1,
     description: "验证文本条件；{{text}} 指验证 Agent 的输出",
   }),
+  evidence: Type.Optional(
+    Type.Object(
+      {
+        mode: Type.Literal("runtime"),
+        regressionCommand: Type.String({ minLength: 1 }),
+        minSuccessfulTestCommands: Type.Optional(
+          Type.Integer({ minimum: 1, maximum: 20, default: 2 }),
+        ),
+        requireCheckpoint: Type.Optional(Type.Boolean({ default: true })),
+        requireDiffReview: Type.Optional(Type.Boolean({ default: true })),
+      },
+      {
+        description:
+          "由 Runtime 工具结果、Checkpoint 与 Diff 元数据决定验证，不接受模型口头声明代替证据",
+      },
+    ),
+  ),
 });
 
 /** 显式验证—修复 Loop；状态机实现属于 Runtime 内部细节。 */

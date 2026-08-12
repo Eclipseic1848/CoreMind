@@ -1,8 +1,10 @@
-schemaVersion: 2
+﻿schemaVersion: 2
 name: bug-squasher
 description: 调试助手：分析根因 → 实施修复 → 验证结果（双 agent 协作）
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   analyzer:

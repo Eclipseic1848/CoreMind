@@ -54,7 +54,7 @@ export declare interface TemplateMeta {
     name: string;
     category: TemplateCategory;
     description: string;
-    /** 需要的环境变量（如 DEEPSEEK_API_KEY） */
+    /** 模板业务工具额外需要的环境变量；Provider 凭据由 CLI 单独选择。 */
     requiresEnv: string[];
     /** 模板目录绝对路径 */
     dir: string;

@@ -179,6 +179,13 @@ verify: TObject<    {
 agent: TString;
 input: TString;
 passIf: TString;
+evidence: TOptional<TObject<    {
+mode: TLiteral<"runtime">;
+regressionCommand: TString;
+minSuccessfulTestCommands: TOptional<TInteger>;
+requireCheckpoint: TOptional<TBoolean>;
+requireDiffReview: TOptional<TBoolean>;
+}>>;
 }>;
 repair: TObject<    {
 agent: TString;
@@ -269,6 +276,13 @@ verify: TObject<    {
 agent: TString;
 input: TString;
 passIf: TString;
+evidence: TOptional<TObject<    {
+mode: TLiteral<"runtime">;
+regressionCommand: TString;
+minSuccessfulTestCommands: TOptional<TInteger>;
+requireCheckpoint: TOptional<TBoolean>;
+requireDiffReview: TOptional<TBoolean>;
+}>>;
 }>;
 repair: TObject<    {
 agent: TString;
@@ -288,6 +302,13 @@ export declare const LoopVerificationSchema: TObject<    {
 agent: TString;
 input: TString;
 passIf: TString;
+evidence: TOptional<TObject<    {
+mode: TLiteral<"runtime">;
+regressionCommand: TString;
+minSuccessfulTestCommands: TOptional<TInteger>;
+requireCheckpoint: TOptional<TBoolean>;
+requireDiffReview: TOptional<TBoolean>;
+}>>;
 }>;
 
 export declare type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;

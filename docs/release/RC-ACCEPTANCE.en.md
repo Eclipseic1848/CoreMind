@@ -37,13 +37,19 @@ Run `npm run baseline:check` before the RC matrix. It rebuilds every public pack
 | P17 | Credentials, bodies, and command secrets stay out of Trace/RunState | TUI, headless CLI, both SDKs |
 | P18 | npm tarball contents and entries | Artifacts |
 | P19 | Python wheel contents and Worker | Artifacts |
-| P20 | Real Windows and Linux TTY | TUI |
+| P20 | Real Windows and Linux pseudoterminals | TUI |
 
-## P20 real TTY
+## P20 real pseudoterminal
 
-Run the interactive acceptance once in a real Windows terminal and once in a real Linux terminal. Ordinary CI output, pseudo-terminal snapshots, and another platform's result are not substitutes.
+Each release candidate must start the real CLI/TUI process inside an operating-system PTY or ConPTY on Windows and Linux and send actual keyboard input to that process. Ordinary CI logs, component render snapshots, piped stdin, and another platform's result are not substitutes. Run:
 
-Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step. Copy the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json), then save completed evidence as `.scratch/rc-evidence/rc-tty-windows.json` and `.scratch/rc-evidence/rc-tty-linux.json`. The version and commit must match the candidate, and every check must be `true`. `.scratch` stays outside Git: committing evidence that contains the candidate SHA would change that SHA and create an impossible self-reference. Archive both JSON files with the corresponding workflow run identifier in a controlled acceptance store, without business content or secrets.
+```powershell
+npm run acceptance:tty
+```
+
+CI executes this command on both target platforms and uploads version- and commit-bound evidence artifacts. The release workflow downloads and validates both artifacts. If the script cannot start the platform pseudoterminal, terminal rendering is abnormal, or users report a real-experience discrepancy, fall back to manual terminal acceptance instead of skipping P20.
+
+Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, `streaming`, `status`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step. The script generates evidence from the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json) under `.scratch/rc-evidence/`. Version and commit must match the candidate, `evidenceLevel` must be `automated-real-tty`, and every check must be `true`. `.scratch` stays outside Git to avoid a commit-SHA self-reference. Archive both JSON files with the workflow run identifier, without business content or secrets.
 
 Then run:
 

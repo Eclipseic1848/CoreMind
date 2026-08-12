@@ -2,7 +2,9 @@ schemaVersion: 2
 name: blog-writer
 description: 根据要点撰写博客/公众号文章并保存到文件
 provider:
-  id: deepseek
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 
 agents:
   writer:
@@ -12,25 +14,19 @@ agents:
       2. 结构清晰，使用小标题分段
       3. 语言生动自然，避免空洞套话
       4. 结尾给出总结或行动建议
+      5. 只使用用户明确提供的事实；信息不足时标注“待确认”，不得虚构产品功能、网址、价格或试用政策
+      6. 完成正文后只调用一次 write 工具，把完整文章写入 article.md
     tools:
       - id: write
-      - id: bash
 
 workflow:
-  - id: write-article
+  - id: create-article
     type: prompt
     agent: writer
     input: |
-      请根据以下要点撰写一篇文章（{{prompt}}）：
-      1. 先用 100 字概述文章主题
-      2. 输出完整文章
-    saveAs: article
-  - id: save-article
-    type: prompt
-    agent: writer
-    input: |
-      请将文章写入文件 article.md。文章内容如下：
-      {{article.text}}
+      请根据以下用户要求撰写完整文章，并只调用一次 write 工具保存到 article.md：
+      {{prompt}}
+      不要调用其他工具。写入成功后只简要确认保存结果。
 
 runtime: {}
 permissions:

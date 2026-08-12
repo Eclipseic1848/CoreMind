@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -41,27 +42,72 @@ export function createNpmPublishPlan(manifest) {
   }));
 }
 
+export function npmTarballIntegrity(content) {
+  return `sha512-${createHash("sha512").update(content).digest("base64")}`;
+}
+
+export function decideExistingNpmArtifact(localIntegrity, registryIntegrity) {
+  if (!registryIntegrity) return "publish";
+  if (registryIntegrity === localIntegrity) return "skip-identical";
+  return "conflict";
+}
+
 async function publishArtifacts(rootDirectory) {
   const manifestPath = path.join(rootDirectory, "release-manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const plan = createNpmPublishPlan(manifest);
+  const transactionPath = path.join(rootDirectory, "publish-state.json");
+  const transaction = {
+    schemaVersion: 1,
+    version: manifest.version,
+    commit: manifest.commit,
+    updatedAt: new Date().toISOString(),
+    npm: {},
+  };
   for (const item of plan) {
     const tarball = path.resolve(rootDirectory, item.path);
     if (!tarball.startsWith(`${path.resolve(rootDirectory)}${path.sep}`) || !existsSync(tarball)) {
       throw new Error(`${item.name} 发布物不存在或越界：${item.path}`);
     }
     const specifier = `${item.name}@${manifest.version}`;
-    const existing = runNpm(["view", specifier, "version", "--json"], true);
+    const localIntegrity = npmTarballIntegrity(await readFile(tarball));
+    const existing = runNpm(["view", specifier, "dist.integrity", "--json"], true);
     if (existing.status === 0) {
-      throw new Error(`npm 已存在 ${specifier}；拒绝静默跳过，请人工核对已发布内容`);
+      const registryIntegrity = parseRegistryIntegrity(existing.stdout);
+      const decision = decideExistingNpmArtifact(localIntegrity, registryIntegrity);
+      if (decision === "skip-identical") {
+        transaction.npm[item.name] = { status: "verified-existing", integrity: localIntegrity };
+        await persistTransaction(transactionPath, transaction);
+        console.log(`npm 已存在且完整性一致，安全跳过：${specifier}`);
+        continue;
+      }
+      throw new Error(
+        `npm 已存在 ${specifier}，但完整性与本地发布物不一致；拒绝覆盖（registry=${registryIntegrity || "missing"}，local=${localIntegrity}）`,
+      );
     }
     const diagnostic = `${existing.stdout}\n${existing.stderr}`;
     if (!/E404|404 Not Found|is not in this registry/i.test(diagnostic)) {
       throw new Error(`无法确认 ${specifier} 是否已发布：${diagnostic.trim()}`);
     }
     runNpm(["publish", tarball, "--access", "public", "--tag", item.distTag]);
+    transaction.npm[item.name] = { status: "published", integrity: localIntegrity };
+    await persistTransaction(transactionPath, transaction);
     console.log(`npm 发布完成：${specifier}（${item.distTag}）`);
   }
+}
+
+function parseRegistryIntegrity(stdout) {
+  try {
+    const value = JSON.parse(stdout);
+    return typeof value === "string" ? value : "";
+  } catch {
+    return stdout.trim().replace(/^"|"$/g, "");
+  }
+}
+
+async function persistTransaction(file, transaction) {
+  transaction.updatedAt = new Date().toISOString();
+  await writeFile(file, `${JSON.stringify(transaction, null, 2)}\n`, "utf8");
 }
 
 function runNpm(args, allowFailure = false) {

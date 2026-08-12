@@ -14,7 +14,7 @@
 6. 每次 `edit` 或 `write` 前创建 checkpoint；只修改完成任务所需的最少文件和最少代码，不得覆盖用户既有改动。
 7. 先运行目标测试，再运行完整回归测试；把真实命令、退出码、耗时和 Artifact 写入验证证据。失败不得用文字解释替代。
 8. 验证失败时只按失败证据进入有界 repair；达到重复动作、无进展、修复次数或预算上限后停止。
-9. 使用 `git_status` 与 `git_diff` 核对修改范围，并由 `EngineeringEvidenceLedger` 检查变更、checkpoint、测试和最终声明一致性。
+9. 在验证阶段实际调用 `git_status` 与 `git_diff` 核对修改范围；由 Runtime 自动生成 `engineering_evidence`，同时要求目标测试、完整回归、写前 Checkpoint 和 Diff 审查通过。
 10. 用 schemaVersion 2 的 outcome、trajectory、command、file、diff、state、response grader 验证结果。
 11. TypeScript 与 Python 均至少执行单文件、跨文件、错误命令、审批拒绝、中止恢复、Diff/Restore 和脏工作区保护用例。
 12. 保存模型、Provider、版本、平台、运行次数、成功率、工具数、耗时、token、成本、审批、失败分类、安全事件和人工复核结论。

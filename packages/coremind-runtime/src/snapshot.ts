@@ -31,6 +31,25 @@ export function createRunSnapshot(input: RunSnapshotInput): RunSnapshot {
   return structuredClone({
     schemaVersion: 1 as const,
     ...input,
-    resumable: input.operation.state === "paused" && input.outcome.status === "paused",
+    resumable:
+      input.operation.state === "paused" &&
+      input.outcome.status === "paused" &&
+      hasSafeResumeBoundary(input.trace),
+  });
+}
+
+/** 快照只在所有未完成副作用都有明确未开始收据时宣称可恢复。 */
+function hasSafeResumeBoundary(trace: readonly CoreMindTraceEvent[]): boolean {
+  const receipts = new Map<string, "not_started" | "started" | "committed" | "unknown">();
+  const completedSteps = new Set<string>();
+  for (const entry of trace) {
+    const event = entry.event;
+    if (event.type === "effect_receipt") receipts.set(event.idempotencyKey, event.status);
+    if (event.type === "step_output") completedSteps.add(event.stepId);
+  }
+  return !trace.some(({ event }) => {
+    if (event.type !== "tool_call" || !event.idempotencyKey) return false;
+    if (event.stepId && completedSteps.has(event.stepId)) return false;
+    return receipts.get(event.idempotencyKey) !== "not_started";
   });
 }

@@ -6,6 +6,7 @@ import { TLiteral } from '@sinclair/typebox';
 import { TNumber } from '@sinclair/typebox';
 import { TObject } from '@sinclair/typebox';
 import { TOptional } from '@sinclair/typebox';
+import { TRecord } from '@sinclair/typebox';
 import { TString } from '@sinclair/typebox';
 import { TUnion } from '@sinclair/typebox';
 import { TUnknown } from '@sinclair/typebox';
@@ -320,15 +321,123 @@ qualityOverride: TOptional<TBoolean>;
 export declare const RunSnapshotSchema: TObject<    {
 schemaVersion: TLiteral<1>;
 runId: TString;
-operation: TUnknown;
-outcome: TUnknown;
-metrics: TUnknown;
-evaluation: TUnknown;
-releaseReadiness: TUnknown;
-trace: TArray<TUnknown>;
-checkpoints: TArray<TUnknown>;
-artifacts: TArray<TUnknown>;
-extensions: TArray<TUnknown>;
+operation: TObject<    {
+schemaVersion: TLiteral<1>;
+operationId: TString;
+runId: TString;
+correlationId: TString;
+state: TUnion<[TLiteral<"accepted">, TLiteral<"running">, TLiteral<"paused">, TLiteral<"aborting">, TLiteral<"completed">, TLiteral<"failed">]>;
+transitionSequence: TInteger;
+createdAt: TString;
+updatedAt: TString;
+pauseReason: TOptional<TString>;
+failureReason: TOptional<TString>;
+}>;
+outcome: TObject<    {
+status: TUnion<[TLiteral<"succeeded">, TLiteral<"failed">, TLiteral<"paused">, TLiteral<"aborted">, TLiteral<"timeout">, TLiteral<"budget_exceeded">]>;
+finishReason: TString;
+error: TOptional<TObject<    {
+code: TString;
+message: TString;
+}>>;
+}>;
+metrics: TObject<    {
+durationMs: TNumber;
+turns: TInteger;
+steps: TObject<    {
+total: TInteger;
+succeeded: TInteger;
+failed: TInteger;
+}>;
+toolCalls: TInteger;
+toolFailures: TInteger;
+retries: TInteger;
+tokens: TOptional<TNumber>;
+costUsd: TOptional<TNumber>;
+outputChars: TInteger;
+context: TOptional<TObject<    {
+inputTokens: TInteger;
+outputTokens: TInteger;
+cacheReadTokens: TInteger;
+cacheWriteTokens: TInteger;
+promptCacheStatus: TUnion<[TLiteral<"available">, TLiteral<"unavailable">, TLiteral<"unknown">]>;
+compactions: TInteger;
+lastSummaryFingerprint: TOptional<TString>;
+stablePrefixFingerprints: TArray<TString>;
+}>>;
+artifacts: TOptional<TObject<    {
+stored: TInteger;
+blocked: TInteger;
+totalBytes: TInteger;
+}>>;
+}>;
+evaluation: TObject<    {
+profile: TUnion<[TLiteral<"development">, TLiteral<"standard">, TLiteral<"strict">]>;
+scenarioResults: TArray<TObject<    {
+id: TString;
+passed: TBoolean;
+score: TOptional<TNumber>;
+reason: TOptional<TString>;
+}>>;
+qualityScores: TRecord<TString, TNumber>;
+securityFindings: TArray<TString>;
+}>;
+releaseReadiness: TObject<    {
+ready: TBoolean;
+blockers: TArray<TString>;
+warnings: TArray<TString>;
+overrideRecord: TOptional<TObject<    {
+reason: TString;
+recordedAt: TString;
+}>>;
+}>;
+trace: TArray<TObject<    {
+eventId: TString;
+runId: TString;
+sequence: TInteger;
+timestamp: TString;
+event: TObject<    {
+type: TString;
+}>;
+}>>;
+checkpoints: TArray<TObject<    {
+version: TLiteral<1>;
+checkpointId: TString;
+runId: TString;
+operationId: TOptional<TString>;
+toolCallId: TOptional<TString>;
+idempotencyKey: TOptional<TString>;
+timestamp: TString;
+tool: TString;
+reversible: TBoolean;
+targetPath: TOptional<TString>;
+existed: TOptional<TBoolean>;
+beforeSha256: TOptional<TString>;
+afterExisted: TOptional<TBoolean>;
+afterSha256: TOptional<TString>;
+reason: TOptional<TString>;
+snapshotFile: TString;
+}>>;
+artifacts: TArray<TObject<    {
+artifactId: TString;
+status: TUnion<[TLiteral<"stored">, TLiteral<"blocked">]>;
+relativePath: TOptional<TString>;
+sizeBytes: TInteger;
+sha256: TOptional<TString>;
+mediaType: TString;
+createdAt: TString;
+retention: TLiteral<"run">;
+redaction: TUnion<[TLiteral<"none">, TLiteral<"blocked-secret">]>;
+}>>;
+extensions: TArray<TObject<    {
+extensionId: TString;
+extensionVersion: TString;
+event: TUnion<[TLiteral<"before-model">, TLiteral<"before-tool">, TLiteral<"after-tool">, TLiteral<"run-finished">]>;
+status: TUnion<[TLiteral<"succeeded">, TLiteral<"failed">, TLiteral<"timed_out">]>;
+durationMs: TNumber;
+error: TOptional<TString>;
+denied: TOptional<TBoolean>;
+}>>;
 resumable: TBoolean;
 }>;
 
