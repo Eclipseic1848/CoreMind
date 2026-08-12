@@ -34,6 +34,7 @@ The three modes decide who approves; they never override explicit policy:
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. On Windows, verify file tools still work and that `bash` is denied in ask, assisted, or whenever one restriction remains. With all three conditions open, confirm a real Git Bash or PowerShell is selected and trace, checkpoints, and audit remain active.
 6. Verify that `..`, outside absolute paths, another drive, UNC paths, and directory links pointing outside the workspace are all denied.
+7. In ask mode, deny the first real tool approval. Confirm exactly one model request and one approval, zero file side effects, and a `paused` outcome. Do not wait for repeated denials to exhaust a generic turn budget.
 
 ## Common mistakes
 
@@ -41,3 +42,4 @@ The three modes decide who approves; they never override explicit policy:
 - Do not treat one successful run as stability evidence.
 - Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
 - Do not describe inherited providers as genuinely certified.
+- Do not feed a human denial back as a model-repairable tool error. A retry requires a new user-initiated run.

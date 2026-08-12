@@ -6,6 +6,8 @@ CoreMind 的智能体运行时，提供模型供应商解析、会话、工具�
 
 工具副作用记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不重复完整步骤和已提交副作用，未知副作用要求人工核对。文件恢复还会检查工具执行后的指纹，拒绝覆盖用户或并发进程的后续修改。
 
+人工或策略拒绝工具后，当前智能体循环会在本批工具结果完成归并后立即暂停，不再请求下一轮模型或重复申请审批。拒绝仍记录为 `tool_approval_denied`，且被拒绝的工具不会产生副作用。
+
 Evaluation schemaVersion 2 提供 outcome、trajectory、command、file、diff、state、response 七类 grader，并在执行前记录受保护文件与脏工作区基线。一次 Runtime 成功、一次预期测试失败、最终代码正确和是否可以发布是不同结论，必须分别记录。
 
 Trace 事件在持久化和转发前统一脱敏：密钥、Token、口令、认证头、Cookie、私钥、URL 敏感参数和命令中的敏感值不进入 RunState；正常测试命令仍保留可审查性。该防线不代替本地文件访问控制和业务数据保留策略。

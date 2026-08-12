@@ -3,7 +3,7 @@
 ## 0.3.0-rc.1 - 2026-08-11
 
 - Synchronized this module contract with the repository release candidate.
-- Added no module-specific product behavior during the Batch 6 release-candidate closure.
+- P20 found that repeated model tool calls could reopen approval after a human denial. The Runtime now terminates the current tool batch and pauses immediately, with a regression asserting one model request, one approval, and zero side effects.
 
 ## 0.2.0-rc.1 - 2026-08-09
 

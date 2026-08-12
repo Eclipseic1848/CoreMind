@@ -18,7 +18,8 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 ### Current verification evidence
 
 - The RC automated matrix passes P01-P19: 69 test files pass and one is conditionally skipped; 460 tests pass and four are conditionally skipped; Python SDK and real bundled Worker pass 10/10; offline Coding Eval passes 6/6.
-- Three consecutive stability runs show zero drift. Coverage is 75.76% lines, 73.86% statements, 83.13% functions, and 66.85% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
+- The first Windows P20 run found that a model could treat a human denial as an ordinary tool error and request approval again. The Runtime now terminates the current tool batch and returns `paused` after the first human denial. A regression fixes the boundary at one model request, one approval, and zero side effects; the repository now passes 461 tests with four conditional skips.
+- All three post-fix stability runs pass 461 tests with four conditional skips and zero drift. Coverage is 75.78% lines, 73.91% statements, 83.15% functions, and 66.87% branches. The non-regression gate passes, while the repository-wide 80% and selected 90% safety-branch targets remain long-term goals.
 - All eight npm tarballs pass content allowlists, publint, type resolution, clean-project installation, and ESM imports. The CLI reports `coremind v0.3.0-rc.1`.
 - The Python wheel passes content checks, clean-venv installation, version parity, and bundled-Worker startup. The standalone source ZIP completes clean installation, build, contract checks, and CLI startup in isolation.
 - Contracts pass for 21 modules, five golden examples, 14 bilingual documentation-site pairs, and 410 Markdown files, including strict UTF-8, local links, public identifier boundaries, and Chinese/English paragraph separation.

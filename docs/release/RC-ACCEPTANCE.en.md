@@ -41,7 +41,7 @@ The command runs the full Node suite, Python SDK/real Worker tests, synchronized
 
 Run the interactive acceptance once in a real Windows terminal and once in a real Linux terminal. Ordinary CI output, pseudo-terminal snapshots, and another platform's result are not substitutes.
 
-Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, and `exit`. Copy the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json), then save completed evidence as `.scratch/rc-evidence/rc-tty-windows.json` and `.scratch/rc-evidence/rc-tty-linux.json`. The version and commit must match the candidate, and every check must be `true`. `.scratch` stays outside Git: committing evidence that contains the candidate SHA would change that SHA and create an impossible self-reference. Archive both JSON files with the corresponding workflow run identifier in a controlled acceptance store, without business content or secrets.
+Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. Copy the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json), then save completed evidence as `.scratch/rc-evidence/rc-tty-windows.json` and `.scratch/rc-evidence/rc-tty-linux.json`. The version and commit must match the candidate, and every check must be `true`. `.scratch` stays outside Git: committing evidence that contains the candidate SHA would change that SHA and create an impossible self-reference. Archive both JSON files with the corresponding workflow run identifier in a controlled acceptance store, without business content or secrets.
 
 Then run:
 
@@ -59,7 +59,7 @@ P01-P20 do not replace the live-provider release recheck. With approved data and
 npm run providers:certify
 ```
 
-Certification covers streaming, tool calls, structured results, multi-turn state, and the error path. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
+Certification covers seven checks: streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
 
 ## Completion
 

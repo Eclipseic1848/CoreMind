@@ -42,6 +42,10 @@ export const RC_CASES = [
       "packages/coremind-runtime/src/runtime.test.ts",
       "ask 模式全部工具请求被拒绝时返回暂停而不是成功",
     ),
+    anchor(
+      "packages/coremind-runtime/src/runtime.test.ts",
+      "人工拒绝第一次工具审批后立即停止，不再次请求模型或审批",
+    ),
   ]),
   caseItem("P04", "部分成功不能覆盖拒绝", ["node"], allEntries(), [
     anchor(

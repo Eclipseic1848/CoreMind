@@ -566,6 +566,7 @@ export class CoreMindRuntime {
           decision,
         }),
     });
+    const deniedAgents = new Set<string>();
     this.activeHarnessFactory = (agentName, stepId) => ({
       maxRetries: loop ? 0 : limits.maxRetries,
       transformContext: async (messages) => {
@@ -587,13 +588,14 @@ export class CoreMindRuntime {
           this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
         );
         if (!decision.allowed) {
+          deniedAgents.add(agentName);
           emit({
             type: "policy_denied",
             agent: agentName,
             tool: context.toolCall.name,
             reason: decision.reason,
           });
-          return { block: true, reason: decision.reason };
+          return { block: true, reason: decision.reason, terminate: true };
         }
         const extensionDecision = await dispatchLifecycle("before-tool", {
           runId,
@@ -605,6 +607,7 @@ export class CoreMindRuntime {
           approvalAllowed: true,
         });
         if (extensionDecision?.denied) {
+          deniedAgents.add(agentName);
           const reason = extensionDecision.denied.reason;
           emit({
             type: "policy_denied",
@@ -612,7 +615,7 @@ export class CoreMindRuntime {
             tool: context.toolCall.name,
             reason,
           });
-          return { block: true, reason };
+          return { block: true, reason, terminate: true };
         }
         try {
           const idempotencyKey = effectIdempotencyKey(runId, stepId, context.toolCall.id);
@@ -693,6 +696,7 @@ export class CoreMindRuntime {
         });
         return checkpointFailure ? { terminate: true } : budgetResult;
       },
+      shouldStopAfterTurn: () => deniedAgents.has(agentName),
       onAgentEvent: (event, agent) => {
         if (budget.observeAgentEvent(event)) agent.abort();
       },

@@ -17,6 +17,7 @@ Enforce ask, assisted, and full approval modes while distinguishing path-aware f
 ## Errors and boundaries
 
 - Missing approval handlers deny safely
+- A human denial terminates the current tool batch and pauses the run. It is not fed back as an ordinary recoverable tool error, so the model cannot request another approval in the same run.
 - Explicit deny and escaped paths for path-aware file tools remain blocked in full mode
 - Nested path and URL arguments are inspected recursively; approval UI shows effects, complete targets, and reasons first
 - The Windows host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected; every other combination fails closed
@@ -33,6 +34,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/host-shell.ts](../../../packages/coremind-tools/src/host-shell.ts)
 - [packages/coremind-runtime/src/tool-policy.test.ts](../../../packages/coremind-runtime/src/tool-policy.test.ts)
+- [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
 - [packages/coremind-cli/src/approval.test.ts](../../../packages/coremind-cli/src/approval.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
 - [packages/coremind-tools/src/host-shell.test.ts](../../../packages/coremind-tools/src/host-shell.test.ts)

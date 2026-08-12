@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -337,12 +337,93 @@ describe("CoreMindRuntime", () => {
         status: "paused",
         finishReason: "tool_approval_denied",
       });
+      expect(result.trace.filter((entry) => entry.event.type === "approval_required")).toHaveLength(
+        1,
+      );
+      expect(
+        result.trace.filter(
+          (entry) => entry.event.type === "approval_resolved" && entry.event.decision === "deny",
+        ),
+      ).toHaveLength(1);
+      expect(result.trace.filter((entry) => entry.event.type === "turn_end")).toHaveLength(1);
       expect(result.operation).toMatchObject({
         state: "paused",
         pauseReason: "tool_approval_denied",
       });
       expect(result.trace.some((entry) => entry.event.type === "policy_denied")).toBe(true);
       expect(result.releaseReadiness.ready).toBe(false);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("人工拒绝第一次工具审批后立即停止，不再次请求模型或审批", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-denied-stop-"));
+    const target = path.join(dir, "article.md");
+    let providerRequests = 0;
+    const server = createServer((_request, response) => {
+      providerRequests += 1;
+      sendSse(response, [
+        {
+          id: `tool-${providerRequests}`,
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: `call-read-${providerRequests}`,
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"不应写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `tool-${providerRequests}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let approvals = 0;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: { maxTurns: 3 },
+            permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          }),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "必须写入 article.md 才能完成任务",
+        approveTool: async () => {
+          approvals += 1;
+          return "deny";
+        },
+      });
+
+      const result = await runtime.run();
+
+      expect(providerRequests).toBe(1);
+      expect(approvals).toBe(1);
+      expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "tool_approval_denied",
+      });
     } finally {
       await closeServer(server);
     }
