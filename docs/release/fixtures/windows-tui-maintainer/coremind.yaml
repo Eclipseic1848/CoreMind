@@ -1,0 +1,23 @@
+schemaVersion: 2
+name: rc2-windows-maintainer-tui
+provider:
+  id: mock
+  baseUrl: http://127.0.0.1:18821/v1
+  model: mock-model
+  apiKeyEnv: COREMIND_TUI_TEST_KEY
+tools:
+  - id: write
+agents:
+  main:
+    systemPrompt: 按用户要求执行测试任务。
+    tools:
+      - id: write
+runtime:
+  maxTurns: 3
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: ask
+session:
+  enabled: true
+  dir: ./sessions

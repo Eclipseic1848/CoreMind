@@ -1,0 +1,8 @@
+{
+  "name": "coremind-windows-tui-maintainer-acceptance",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "coremind-cli": "0.3.0-rc.2"
+  }
+}

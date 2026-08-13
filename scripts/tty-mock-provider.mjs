@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 const port = Number(process.argv[2]);
 if (!Number.isInteger(port) || port <= 0) throw new Error("必须提供有效端口");
+const manualPaced = process.argv.includes("--manual-paced");
 
 createServer((request, response) => {
   if (request.method === "GET" && request.url === "/health") {
@@ -20,7 +21,11 @@ createServer((request, response) => {
   });
   request.on("end", () => {
     const messages = JSON.parse(body).messages ?? [];
-    const toolResult = [...messages].reverse().find((message) => message.role === "tool");
+    const toolResult = manualPaced
+      ? messages.at(-1)?.role === "tool"
+        ? messages.at(-1)
+        : undefined
+      : [...messages].reverse().find((message) => message.role === "tool");
     const lastUser = [...messages].reverse().find((message) => message.role === "user");
     const prompt = extractText(lastUser?.content);
 
@@ -42,9 +47,24 @@ createServer((request, response) => {
       response.on("close", () => clearTimeout(timer));
       return;
     }
+    if (manualPaced && prompt.includes("验收口令是什么")) {
+      const hasMarker = messages.some(
+        (message) =>
+          message.role === "user" &&
+          extractText(message.content).includes("记住验收口令：RC2-WIN-21"),
+      );
+      sendPacedText(response, hasMarker ? "RC2-WIN-21" : "未找到验收口令");
+      return;
+    }
+    if (manualPaced) {
+      sendPacedText(response, `mock流式回复：${prompt.slice(0, 30)}`);
+      return;
+    }
     sendText(response, `mock回复：${prompt.slice(0, 30)}`);
   });
-}).listen(port, "127.0.0.1");
+}).listen(port, "127.0.0.1", () => {
+  if (manualPaced) console.log(`人工验收 Mock Provider 已监听 http://127.0.0.1:${port}`);
+});
 
 function sendText(response, text) {
   response.write(
@@ -60,6 +80,38 @@ function sendText(response, text) {
     })}\n\n`,
   );
   response.end("data: [DONE]\n\n");
+}
+
+function sendPacedText(response, text) {
+  const characters = Array.from(text);
+  let index = 0;
+  const timer = setInterval(() => {
+    if (index < characters.length) {
+      response.write(
+        `data: ${JSON.stringify({
+          id: "paced-text",
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: characters[index] },
+              finish_reason: null,
+            },
+          ],
+        })}\n\n`,
+      );
+      index += 1;
+      return;
+    }
+    clearInterval(timer);
+    response.write(
+      `data: ${JSON.stringify({
+        id: "paced-text",
+        choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+      })}\n\n`,
+    );
+    response.end("data: [DONE]\n\n");
+  }, 90);
+  response.on("close", () => clearInterval(timer));
 }
 
 function sendToolCall(response) {

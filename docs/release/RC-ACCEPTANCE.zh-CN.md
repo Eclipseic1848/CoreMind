@@ -65,6 +65,8 @@ CI 在两个目标平台分别执行同一命令，保存绑定版本与提交�
 - [Windows 模板](evidence/rc-tty-windows.example.json)
 - [Linux 模板](evidence/rc-tty-linux.example.json)
 
+面向 `0.3.0-rc.2` 稳定化发布的维护者 Windows 主观体验，使用[Windows TUI 维护者人工验收手册](WINDOWS-TUI-MAINTAINER-ACCEPTANCE.zh-CN.md)。该人工结果不能由本节自动证据代填。
+
 证据保存为 `.scratch/rc-evidence/rc-tty-windows.json` 和 `.scratch/rc-evidence/rc-tty-linux.json`。`version` 与 `commit` 必须等于当前候选，`evidenceLevel` 必须为 `automated-real-tty`，全部检查必须为 `true`。`.scratch` 不进入 Git：如果把包含提交 SHA 的证据再提交进候选，会改变 SHA 并形成无法通过的自引用。发布负责人应将两份 JSON 与对应工作流运行号存入受控验收档案，不将业务内容或密钥写入证据。随后执行：
 
 ```powershell
