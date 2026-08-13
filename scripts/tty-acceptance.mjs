@@ -20,7 +20,7 @@ const target = path.join(workspace, "article.md");
 const evidenceDirectory = path.join(root, ".scratch", "rc-evidence");
 const evidencePath = path.join(evidenceDirectory, `rc-tty-${platform}.json`);
 const server = spawnChild(process.execPath, [mockServer, String(port)], {
-  cwd: workspace,
+  cwd: root,
   stdio: "ignore",
 });
 let completed = false;
