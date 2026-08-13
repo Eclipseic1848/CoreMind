@@ -58,6 +58,16 @@ describe("统一发布版本", () => {
     expect(report.ready).toBe(false);
     expect(report.blockers.join("\n")).toContain("facade");
   });
+
+  it("预发布模块记录不能冒充稳定版记录", async () => {
+    const root = createFixture();
+    const changelogPath = path.join(root, "docs", "modules", "demo", "CHANGELOG.md");
+    writeFileSync(changelogPath, "# Changelog\n\n## 0.3.0-rc.2\n\n- Release candidate.\n", "utf8");
+
+    await synchronizeReleaseVersion(root, "0.3.0");
+
+    expect(readFileSync(changelogPath, "utf8")).toContain("## 0.3.0 -");
+  });
 });
 
 function createFixture(): string {

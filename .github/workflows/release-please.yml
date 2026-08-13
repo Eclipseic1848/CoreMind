@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_as:
-        description: "目标版本，例如 0.2.0-rc.1"
+        description: "目标版本，例如 0.3.0"
         required: true
         type: string
 

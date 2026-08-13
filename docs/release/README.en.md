@@ -20,10 +20,10 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0-rc.2`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 0.3.0-rc.2
+npm run release:sync-version -- 0.3.0
 npm run release:preflight -- --allow-dirty
 ```
 

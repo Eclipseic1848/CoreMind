@@ -66,7 +66,9 @@ describe("GitHub Actions 收口合同", () => {
     expect(config["draft-pull-request"]).toBe(true);
     expect(config["skip-github-release"]).toBe(true);
     expect(config.packages["."]["changelog-path"]).toBe("CHANGELOG.en.md");
-    expect(manifest["."]).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+    expect(config.versioning).not.toBe("prerelease");
+    expect(config.packages["."]["prerelease-type"]).toBeUndefined();
+    expect(manifest["."]).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it("统一发布工作流一次构建并分别通过受保护环境发布 npm 与 PyPI", () => {

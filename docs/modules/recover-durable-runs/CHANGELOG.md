@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 - 2026-08-13
+
+- Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.
+
 ## 0.3.0-rc.2 - 2026-08-12
 
 - Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.

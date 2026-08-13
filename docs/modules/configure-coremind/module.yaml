@@ -3,7 +3,7 @@ id: configure-coremind
 name:
   zh-CN: "配置与 Schema"
   en: "Configuration and Schema"
-version: 0.3.0-rc.2
+version: 0.3.0
 sourcePaths:
   - "packages/coremind-config/src"
 documents:

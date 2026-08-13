@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-08-13
+
+- Added an immutable `0.2.0-rc.1` reference baseline for the Release Tag target and Manifest digest, eight public type surfaces, Config/Protocol schemas, dependency versions, P01-P20, platform behavior, coding-evaluation conditions, coverage floors, and release artifact hashes.
+- Added `baseline:check` to Windows/Linux CI and required an explicit reason for any deliberate baseline update.
+- Recorded live external coding comparison as `not-run` until model cost, privacy, and sample-code egress receive separate approval.
+- Added deterministic long-stream TUI coverage without changing product runtime behavior.
+
 ## 0.3.0-rc.2 - 2026-08-12
 
 - Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.
@@ -8,13 +15,6 @@
 
 - Synchronized this module contract with the repository release candidate.
 - Added no module-specific product behavior during the Batch 6 release-candidate closure.
-
-## 0.3.0 - Unreleased
-
-- Added an immutable `0.2.0-rc.1` reference baseline for the Release Tag target and Manifest digest, eight public type surfaces, Config/Protocol schemas, dependency versions, P01-P20, platform behavior, coding-evaluation conditions, coverage floors, and release artifact hashes.
-- Added `baseline:check` to Windows/Linux CI and required an explicit reason for any deliberate baseline update.
-- Recorded live external coding comparison as `not-run` until model cost, privacy, and sample-code egress receive separate approval.
-- Added deterministic long-stream TUI coverage without changing product runtime behavior.
 
 ## 0.2.0-rc.1 - 2026-08-09
 

@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current prerelease line: `0.3.0-rc.2`
+## Current stable candidate: `0.3.0` (unpublished)
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.3.0-rc.2` source line includes:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.3.0` stable candidate retains these rc.2 capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -17,13 +17,13 @@ This public roadmap describes product boundaries and intended directions. It del
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 
-This version line is a prerelease. You are welcome to evaluate it in development and test environments and help improve it through community feedback.
+The current source version is not publicly released. Controlled dogfooding of the rc.2 CLI, TypeScript SDK, Python SDK, independent source package, and Windows TUI found no stable-release blocker. The stable candidate still requires automated gates, provider revalidation, exact-main identity, final maintainer acceptance, and Release Readiness.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
 ## `0.3.x`: current stabilization
 
-The current stabilization line focuses on reliability and usability of the capabilities delivered in `0.3.0-rc.2`:
+The current stabilization line focuses on the reliability and usability of the capabilities delivered in `0.3.0-rc.2` as they enter the `0.3.0` candidate:
 
 - Continue improving the Windows and Linux TUI experience and terminal compatibility.
 - Fix installation, configuration, diagnostics, and interaction issues found during initial community use.
@@ -45,7 +45,7 @@ Phase two advances through `alpha → beta → rc` and strengthens the framework
 - Keep outcomes, events, approvals, and recovery consistent across TUI, headless CLI, TypeScript SDK, and Python SDK.
 - Ship tests, SOP, Skill, bilingual guides, examples, migration, and rollback guidance with every batch.
 
-`0.3.0-rc.2` has completed Batches 0 through 5 plus the automated closure for Batch 6: critical dependencies use one exact family behind private adapters; runs have a durable operation envelope, atomic RunState, Session backend conformance, backed-up migration, and non-replay boundaries for uncertain effects; long tasks add stable context prefixes, deterministic compaction evidence, truthful cache metrics, and controlled workspace artifacts; coding is a first-party Engineering Kernel inside the Runtime; and the extension surface is limited to four controlled lifecycle events with traceable experiments, a seven-check provider contract, TUI evidence views, and one shared `RunSnapshot` across all entry points. Local gates pass for P01-P19, npm packages, the wheel, the source archive, modules, and Markdown. `alibaba-model-studio/qwen-plus` also completed the seven-check live revalidation. Releases and registries remain the source of truth for public availability and final release assets.
+`0.3.0-rc.2` completed Batches 0 through 6: critical dependencies use one exact family behind private adapters; runs have a durable operation envelope, atomic RunState, Session backend conformance, backed-up migration, and non-replay boundaries for uncertain effects; long tasks add stable context prefixes, deterministic compaction evidence, truthful cache metrics, and controlled workspace artifacts; coding is a first-party Engineering Kernel inside the Runtime; and the extension surface is limited to four controlled lifecycle events with traceable experiments, a seven-check provider contract, TUI evidence views, and one shared `RunSnapshot` across all entry points. The current `0.3.0` candidate adds no product behavior and only synchronizes stable versions and release materials. The current evidence ledger, Releases, and registries remain authoritative for candidate provider status, public availability, and final assets.
 
 Phase two starts from an immutable `0.2.0-rc.1` reference baseline that freezes public types, Config/Protocol schemas, the critical dependency combination, P01-P20, both-platform behavior, same-task coding-evaluation conditions, and quality floors. Coverage may improve but may not regress. Every intentional contract change must explain migration and rollback; gates are never lowered merely to pass.
 
