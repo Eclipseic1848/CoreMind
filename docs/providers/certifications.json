@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-12",
+  "updatedAt": "2026-08-13",
   "criteria": [
     "streaming",
     "tool-call",
@@ -58,6 +58,24 @@
         "long-context"
       ],
       "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.0-rc.2-2026-08-12.json"
+    },
+    {
+      "id": "alibaba-model-studio",
+      "model": "qwen-plus",
+      "version": "0.3.0",
+      "commit": "ddf2a155dcbdcc7b2ae6058ae6def774398d1641",
+      "runtimeArtifactSha256": "81f58f08a00111b7e2d90529992a987db47fa7ce55dfbf3e4ea3dfe68cf36b54",
+      "testedAt": "2026-08-13T08:45:24.085Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "abort",
+        "error",
+        "long-context"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.0-2026-08-13.json"
     }
   ]
 }
