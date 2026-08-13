@@ -32,7 +32,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；rc.2 七项认证证据覆盖 1 个 Provider，稳定候选复验尚未完成，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.3.0` 稳定候选七项真实复验覆盖 1 个 Provider，另外 39 个待认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
@@ -55,7 +55,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 `0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-`0.3.0-rc.2` 已完成 Batch 0～6 并通过公开发布物 Dogfooding；当前 `0.3.0` 稳定候选没有新增产品行为，只同步版本、发布元数据和必要文档。P01～P20、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件仍进入统一门禁；`alibaba-model-studio/qwen-plus` 的稳定候选状态以待完成的当前版本复验和证据台账为准。
+`0.3.0-rc.2` 已完成 Batch 0～6 并通过公开发布物 Dogfooding；当前 `0.3.0` 稳定候选没有新增产品行为，只同步版本、发布元数据和必要文档。`alibaba-model-studio/qwen-plus` 已在候选 Runtime 上完成七项真实复验；P01～P20、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件仍须通过同一候选的统一门禁。
 
 ## CoreMind 解决什么问题
 
@@ -235,7 +235,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧五项证据继续保留用于追溯，但不满足当前标准。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0-rc.2` 完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧证据继续保留用于追溯，但不能替代当前候选复验。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0` 候选完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

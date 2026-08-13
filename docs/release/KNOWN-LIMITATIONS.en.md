@@ -2,7 +2,7 @@
 
 > This file records the truthful boundary of the unpublished `0.3.0` stable candidate. Use Releases and registries to determine whether acceptance and publication have completed.
 
-- All 40 provider entries are configurable. `alibaba-model-studio/qwen-plus` has rc.2 seven-check evidence, but `0.3.0` candidate revalidation is not complete; its final status comes from the current-version evidence ledger, while the other 39 remain uncertified. Never present configurability as certification or generalize one model's evidence to another model or deployment.
+- All 40 provider entries are configurable. `alibaba-model-studio/qwen-plus` has completed the seven-check live revalidation on the `0.3.0` candidate Runtime, while the other 39 remain uncertified. Final status comes from the current-version evidence ledger. Never present configurability as certification or generalize one model's evidence to another model or deployment.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
 - Every publishable tag must bind to the same source that passed P01-P19, Windows/Linux CI, real P20 pseudoterminal acceptance on both platforms, and the live-provider recheck. Candidate checks must not be presented as public availability while any release channel lacks the version.
 - The non-regression coverage gate passes, but repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.

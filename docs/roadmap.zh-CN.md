@@ -17,7 +17,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 每个能力模块配套测试、SOP、Skill、中英文指南和示例。
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 
-当前源码版本尚未公开发布。rc.2 的 CLI、TypeScript SDK、Python SDK、独立源码包和 Windows TUI 已完成受控 Dogfooding，未发现稳定版硬阻断；稳定候选仍须完成自动门禁、Provider 复验、精确 main、最终人工验收和 Release Readiness。
+当前源码版本尚未公开发布。rc.2 的 CLI、TypeScript SDK、Python SDK、独立源码包和 Windows TUI 已完成受控 Dogfooding，未发现稳定版硬阻断；`0.3.0` 候选 Provider 七项真实复验已完成，稳定候选仍须完成双平台自动门禁、精确 main、最终人工验收和 Release Readiness。
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、真实 Provider 复验和最终文档审计后才能同步发布。
 

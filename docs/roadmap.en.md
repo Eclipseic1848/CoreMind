@@ -17,7 +17,7 @@ This public roadmap describes product boundaries and intended directions. It del
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 
-The current source version is not publicly released. Controlled dogfooding of the rc.2 CLI, TypeScript SDK, Python SDK, independent source package, and Windows TUI found no stable-release blocker. The stable candidate still requires automated gates, provider revalidation, exact-main identity, final maintainer acceptance, and Release Readiness.
+The current source version is not publicly released. Controlled dogfooding of the rc.2 CLI, TypeScript SDK, Python SDK, independent source package, and Windows TUI found no stable-release blocker. The `0.3.0` candidate has completed the seven-check live-provider revalidation; the stable candidate still requires the both-platform automated gates, exact-main identity, final maintainer acceptance, and Release Readiness.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 

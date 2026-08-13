@@ -32,7 +32,7 @@ The current `0.3.0` stable candidate keeps CLI/TUI, TypeScript, Python, and sour
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, rc.2 seven-check evidence for one provider, and pending stable-candidate revalidation; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, seven-check live evidence for one provider on the `0.3.0` stable candidate, and 39 still uncertified; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
@@ -55,7 +55,7 @@ The current version does not include a complete Web development environment, an 
 
 `0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding. The current `0.3.0` stable candidate adds no product behavior; it synchronizes versions, release metadata, and required documentation. P01-P20, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files still enter the unified release gate. Stable-candidate provider status remains pending until the current-version revalidation is recorded.
+`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding. The current `0.3.0` stable candidate adds no product behavior; it synchronizes versions, release metadata, and required documentation. `alibaba-model-studio/qwen-plus` has completed the seven-check live revalidation on the candidate Runtime. P01-P20, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files must still pass the unified gate on the same candidate.
 
 ## Product boundary
 
@@ -121,7 +121,7 @@ Custom tools must declare `effect.operations` and `effect.reversible`. The permi
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older five-check evidence remains traceable but does not satisfy the current contract. `alibaba-model-studio/qwen-plus` completed all seven checks against `0.3.0-rc.2`, so the matrix currently reports one certified and 39 unverified entries.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older evidence remains traceable but cannot substitute for a current-candidate recheck. `alibaba-model-studio/qwen-plus` completed all seven checks against the `0.3.0` candidate, so the matrix currently reports one certified and 39 unverified entries.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
