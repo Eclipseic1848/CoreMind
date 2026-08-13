@@ -78,7 +78,10 @@ async function synchronizeModuleChangelogs(rootDirectory, npmVersion) {
     const changelogPath = path.join(moduleRoot, entry.name, "CHANGELOG.md");
     if (!existsSync(changelogPath)) continue;
     const changelog = await readFile(changelogPath, "utf8");
-    if (changelog.includes(`## ${npmVersion}`)) continue;
+    const hasVersionHeading = changelog
+      .split(/\r?\n/u)
+      .some((line) => line === `## ${npmVersion}` || line.startsWith(`## ${npmVersion} - `));
+    if (hasVersionHeading) continue;
     const summary = moduleReleaseSummary(entry.name);
     const next = changelog.replace(
       /^# Changelog\s*/u,

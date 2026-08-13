@@ -15,15 +15,15 @@ coremind list-templates
 coremind providers
 ```
 
-Use `npx coremind-cli@next` before global installation, or invoke `coremind` after installing `coremind-cli@next` globally.
+After npm lists `0.3.0`, use `npx coremind-cli@0.3.0` before global installation, or invoke `coremind` after installing `coremind-cli@0.3.0` globally. While the stable candidate is unpublished, use the version currently listed by Releases and registries.
 
 ## Recommended first run
 
 ```bash
-npx coremind-cli@next doctor
-npx coremind-cli@next check coremind.yaml
-npx coremind-cli@next run coremind.yaml --dry-run
-npx coremind-cli@next chat coremind.yaml
+npx coremind-cli@0.3.0 doctor
+npx coremind-cli@0.3.0 check coremind.yaml
+npx coremind-cli@0.3.0 run coremind.yaml --dry-run
+npx coremind-cli@0.3.0 chat coremind.yaml
 ```
 
 This sequence separates environment, configuration, resolution, and live execution failures.

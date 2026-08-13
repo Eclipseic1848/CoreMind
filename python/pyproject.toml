@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "coremind-ai"
-version = "0.3.0rc2" # x-release-please-version
+version = "0.3.0" # x-release-please-version
 description = "CoreMind Python SDK：通过本地协议调用统一 Node Runtime"
 readme = "README.md"
 requires-python = ">=3.10"

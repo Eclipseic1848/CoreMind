@@ -51,6 +51,8 @@ CI executes this command on both target platforms and uploads version- and commi
 
 Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, `streaming`, `status`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step. The script generates evidence from the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json) under `.scratch/rc-evidence/`. Version and commit must match the candidate, `evidenceLevel` must be `automated-real-tty`, and every check must be `true`. `.scratch` stays outside Git to avoid a commit-SHA self-reference. Archive both JSON files with the workflow run identifier, without business content or secrets.
 
+The existing [Windows TUI maintainer acceptance guide](WINDOWS-TUI-MAINTAINER-ACCEPTANCE.zh-CN.md) records historical manual experience evidence for `0.3.0-rc.2`. The `0.3.0` stable candidate must receive a separate final maintainer acceptance run against the exact candidate artifact. Historical manual results and the automated evidence in this section cannot substitute for one another.
+
 Then run:
 
 ```powershell

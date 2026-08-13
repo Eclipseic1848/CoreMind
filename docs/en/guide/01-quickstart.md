@@ -8,10 +8,12 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 ## 2. Install and create a project
 
+Confirm that npm lists `0.3.0` before running these commands. While the stable candidate is unpublished, use the version currently listed by Releases and registries.
+
 ```bash
-npm install coremind-ai@next coremind-cli@next
-npx coremind-cli@next providers
-npx coremind-cli@next create my-agent --provider alibaba-model-studio
+npm install coremind-ai@0.3.0 coremind-cli@0.3.0
+npx coremind-cli@0.3.0 providers
+npx coremind-cli@0.3.0 create my-agent --provider alibaba-model-studio
 cd my-agent
 ```
 

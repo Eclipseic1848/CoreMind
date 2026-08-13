@@ -18,15 +18,15 @@ node --version
 ### 全局安装（推荐）
 
 ```bash
-npm install -g coremind-cli@next
+npm install -g coremind-cli@0.3.0
 ```
 
-`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。`@next` 固定安装当前预发布线。
+`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。执行前先确认 Registry 已公开 `0.3.0`；稳定候选阶段使用 Release 或 Registry 当前列出的版本。
 
 ### 验证安装成功
 
 ```bash
-coremind --version        # 0.3.0-rc.2 显示 coremind v0.3.0-rc.2
+coremind --version        # 0.3.0 显示 coremind v0.3.0
 coremind doctor           # 环境自检：Node 版本 / API key 是否就位
 ```
 
@@ -47,7 +47,7 @@ npm uninstall -g coremind-cli
 ### 不想安装？临时体验（不推荐日常用）
 
 ```bash
-npx -y coremind-cli@next doctor
+npx -y coremind-cli@0.3.0 doctor
 ```
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
@@ -302,7 +302,7 @@ cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什
 
 | 现象 | 原因与解决 |
 |---|---|
-| `coremind 无法识别` / `command not found` | 没装成功。先 `npm install -g coremind-cli@next`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
+| `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@0.3.0`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
 | 提示缺少 API key | ① `.env` 没填或填错（检查变量名是否 `DEEPSEEK_API_KEY`、等号后无空格）；② `.env` 不在**你敲命令的目录**（见 3 节铁律）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
 | 运行很久没反应 / 超时 | 模型服务慢或网络问题；步骤超时上限是 5 分钟，重试一次；用 `coremind doctor` 确认 key 存在 |

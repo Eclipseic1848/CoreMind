@@ -4,6 +4,21 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.3.0 — stable candidate, unpublished
+
+### Stabilization result
+
+- Completed clean-environment Windows/Linux dogfooding of the public `0.3.0-rc.2` npm CLI, TypeScript SDK, PyPI Python SDK, and independent source ZIP, plus maintainer-run Windows TUI checks M01-M09. No stable-release blocker was found.
+- No `0.3.0-rc.3` is created merely to consume a version number. This candidate synchronizes stable versions, release metadata, and required documentation without adding user-visible functionality or changing Config, Protocol, outcomes, permissions, effects, or recovery semantics.
+- Aligned all eight npm packages, exact internal dependencies, the Python package, module contracts, real-terminal evidence templates, and the Release Please manifest on `0.3.0`. Historical rc.2 artifacts, acceptance records, and provider evidence remain immutable.
+- Fixed release synchronization so an `0.3.0-rc.2` module heading cannot be mistaken for an `0.3.0` heading, with a focused regression test.
+- Revalidated `alibaba-model-studio/qwen-plus` on the `0.3.0` candidate Runtime across streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context. The evidence records only synthetic-data summaries, the version, candidate source commit, and Runtime SHA-256.
+
+### Publication status
+
+- This entry describes an unpublished stable candidate. Candidate provider revalidation is complete; the full both-platform automated gates, exact `main` identity, final Windows maintainer acceptance, and Release Readiness remain separate planned stages.
+- The Git tag, GitHub Release, npm `latest`, PyPI wheel, independent source ZIP, and documentation site have not been authorized for stable publication. Registries and Releases remain authoritative for public installation.
+
 ## 0.3.0-rc.2 — 2026-08-12
 
 ### Reliability and security

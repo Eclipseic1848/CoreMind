@@ -3,14 +3,12 @@
   "bootstrap-sha": "9b5df98a48b2a17a4d504b0786f46732a09bdf8c",
   "release-type": "node",
   "include-component-in-tag": false,
-  "versioning": "prerelease",
   "draft-pull-request": true,
   "skip-github-release": true,
   "pull-request-title-pattern": "chore: prepare CoreMind ${version}",
   "pull-request-header": "This draft prepares one synchronized CoreMind release. Before marking it ready, run the version synchronizer, update both changelogs, and pass the full release gate.",
   "packages": {
     ".": {
-      "prerelease-type": "rc",
       "changelog-path": "CHANGELOG.en.md",
       "extra-files": [
         { "type": "json", "path": "packages/coremind/package.json", "jsonpath": "$.version" },

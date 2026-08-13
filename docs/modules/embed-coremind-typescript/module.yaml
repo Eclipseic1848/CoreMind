@@ -3,7 +3,7 @@ id: embed-coremind-typescript
 name:
   zh-CN: "TypeScript SDK"
   en: "TypeScript SDK"
-version: 0.3.0-rc.2
+version: 0.3.0
 sourcePaths:
   - "packages/coremind/src/index.ts"
   - "packages/coremind-runtime/src/public-tool.ts"

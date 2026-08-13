@@ -4,9 +4,9 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前预发布线：`0.3.0-rc.2`
+## 当前稳定候选：`0.3.0`（尚未发布）
 
-`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `0.3.0-rc.2` 源码线包含：
+`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `0.3.0` 稳定候选完整继承 rc.2 的以下能力：
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
@@ -17,13 +17,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 每个能力模块配套测试、SOP、Skill、中英文指南和示例。
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 
-本版本线属于预发布版本，欢迎在开发和测试环境中试用，并通过社区反馈帮助项目持续改进。
+当前源码版本尚未公开发布。rc.2 的 CLI、TypeScript SDK、Python SDK、独立源码包和 Windows TUI 已完成受控 Dogfooding，未发现稳定版硬阻断；`0.3.0` 候选 Provider 七项真实复验已完成，稳定候选仍须完成双平台自动门禁、精确 main、最终人工验收和 Release Readiness。
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、真实 Provider 复验和最终文档审计后才能同步发布。
 
 ## `0.3.x`：当前稳定迭代
 
-当前稳定线聚焦 `0.3.0-rc.2` 已交付能力的可靠性和可用性：
+当前稳定线聚焦 `0.3.0-rc.2` 已交付能力在 `0.3.0` 候选中的可靠性和可用性：
 
 - 持续改善 Windows/Linux TUI 的交互体验与终端兼容性。
 - 根据首次社区试用修复安装、配置、错误提示和交互体验问题。
@@ -45,7 +45,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 保持 TUI、无头 CLI、TypeScript SDK 与 Python SDK 的终态、事件、审批和恢复一致。
 - 为每批能力同步提供测试、SOP、Skill、中英文指南、示例、迁移与回滚说明。
 
-`0.3.0-rc.2` 已完成 Batch 0～5 的能力建设和 Batch 6 自动收口：关键依赖保持同一精确版本族并由私有 Adapter 隔离；运行增加 durable operation、原子 RunState、Session 双后端合同、自动备份迁移和副作用不重放边界；长任务增加稳定上下文前缀、确定性压缩证据、真实缓存指标和工作区内受控 Artifact；编码能力升级为 Runtime 内第一方 Engineering Kernel；扩展面只开放四个受控生命周期事件，并增加可追踪轻量实验、七项 Provider 认证合同、TUI 运行证据视图和四入口共享 `RunSnapshot`。P01～P19、npm、wheel、源码包、模块和 Markdown 本地门禁已通过，`alibaba-model-studio/qwen-plus` 也已完成七项真实复验。公开可用状态和最终发布资产始终以 Release 与 Registry 为准。
+`0.3.0-rc.2` 已完成 Batch 0～6：关键依赖保持同一精确版本族并由私有 Adapter 隔离；运行具备 durable operation、原子 RunState、Session 双后端合同、自动备份迁移和副作用不重放边界；长任务具备稳定上下文前缀、确定性压缩证据、真实缓存指标和工作区内受控 Artifact；编码能力是 Runtime 内第一方 Engineering Kernel；扩展面只开放四个受控生命周期事件，并提供可追踪轻量实验、七项 Provider 认证合同、TUI 运行证据视图和四入口共享 `RunSnapshot`。当前 `0.3.0` 候选不新增产品行为，只同步稳定版本与发布材料；公开可用状态、候选 Provider 证据和最终发布资产始终以当前证据台账、Release 与 Registry 为准。
 
 二期从不可变的 `0.2.0-rc.1` 参考基线开始，冻结公开类型、Config/Protocol Schema、关键依赖组合、P01～P20、双平台行为、同题编码评测条件和质量下限。覆盖率可以提高，不能下降；任何有意合同变化都必须说明迁移与回滚，不能为通过测试而降低门槛。
 

@@ -1,6 +1,6 @@
 # 配置与 Schema
 
-状态：`0.3.0-rc.2` 发布候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：尚未发布的 `0.3.0` 稳定候选；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

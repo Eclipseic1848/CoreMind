@@ -27,10 +27,10 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0-rc.2`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
 
 ```powershell
-npm run release:sync-version -- 0.3.0-rc.2
+npm run release:sync-version -- 0.3.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
@@ -109,7 +109,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@next
+npm install -g coremind-cli@0.3.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent
