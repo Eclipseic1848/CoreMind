@@ -171,12 +171,17 @@ async function openTerminal(configPath, cwd, sessionId) {
     },
     exit: async () => {
       await typeCommand(terminal, "/exit");
-      const result = await Promise.race([
-        exitPromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("真实 TTY 未在退出命令后结束")), 5_000),
-        ),
-      ]);
+      let result;
+      try {
+        result = await Promise.race([
+          exitPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("真实 TTY 未在退出命令后结束")), 5_000),
+          ),
+        ]);
+      } finally {
+        terminal.kill();
+      }
       if (result.exitCode !== 0) throw new Error(`CLI 退出码应为 0，实际为 ${result.exitCode}`);
     },
   };
