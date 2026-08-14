@@ -198,6 +198,18 @@ describe("LoopRunner", () => {
     expect(result.error).toBe(original);
   });
 
+  it("终态后的中止不覆盖既有终态或重复持久化", async () => {
+    const { runner, snapshots } = createRunner(["candidate", "PASS"]);
+    const result = await runner.run();
+    const persistedCount = snapshots.length;
+
+    await runner.interrupt(new CoreMindError("run_timeout", "迟到的中止"));
+
+    expect(result.snapshot.phase).toBe("succeeded");
+    expect(runner.getSnapshot().phase).toBe("succeeded");
+    expect(snapshots).toHaveLength(persistedCount);
+  });
+
   it("缺省有界参数生效，未知插值变量保持原样", async () => {
     const loop: LoopConfig = {
       execute: { agent: "coder", input: "执行 {{missing}}" },
