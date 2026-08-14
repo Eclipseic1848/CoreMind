@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-stable%20candidate-2563eb)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-stable%200.3.0-22c55e)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -12,27 +12,27 @@
 
 CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop · SOP/Skills
 
-[Quick Start](docs/en/guide/01-quickstart.md) · [Documentation](docs/en/index.md) · [Modules](docs/modules/README.en.md) · [Provider Matrix](docs/providers/README.en.md) · [Contribute](CONTRIBUTING.en.md) · [简体中文](README.md)
+[Quick Start](docs/en/guide/01-quickstart.md) · [Online docs](https://eclipseic1848.github.io/CoreMind/en/) · [Repository docs](docs/en/index.md) · [Modules](docs/modules/README.en.md) · [Provider Matrix](docs/providers/README.en.md) · [Contribute](CONTRIBUTING.en.md) · [简体中文](README.md)
 
 </div>
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current source is the unpublished `0.3.0` stable candidate. It retains the rc.2 harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) as the source of truth for installable availability.
+> The current stable release is `0.3.0`. It retains the rc.2 harness, context/artifact engineering, Coding Kernel, bounded extensions, experiments, and shared snapshots. Install it from the [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0), [npm](https://www.npmjs.com/package/coremind-cli/v/0.3.0), or [PyPI](https://pypi.org/project/coremind-ai/0.3.0/).
 
-> `0.3.0` is published only after the same candidate commit passes the Windows/Linux automated matrix, real pseudoterminal acceptance (Windows ConPTY / Linux PTY), a current live-provider recheck, the final documentation audit, and explicit maintainer publication authorization. Do not present the source version as publicly released while those stages remain open.
+> `0.3.0` completed the Windows/Linux automated matrix, real pseudoterminal acceptance (Windows ConPTY / Linux PTY), a current live-provider recheck, the final documentation audit, and explicit maintainer publication authorization on one commit. The tag, eight npm packages, PyPI wheel, standalone source ZIP, manifest, and checksums bind to that release; the [bilingual documentation site](https://eclipseic1848.github.io/CoreMind/en/) reflects the `0.3.0` publication state.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The current `0.3.0` stable candidate keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the current repository; registries and Releases remain authoritative for installable capabilities.
+The current stable release, `0.3.0`, keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the repository and published artifacts.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, seven-check live evidence for one provider on the `0.3.0` stable candidate, and 39 still uncertified; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, seven-check live evidence for one provider on `0.3.0`, and 39 still uncertified; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
@@ -48,14 +48,14 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| Unpublished `0.3.0` stable candidate | Closes version and release-material preparation over the rc.2 lockstep dependencies, durable harness, context/artifact engineering, Coding/Engineering Kernel, and entry-point parity without new product behavior | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
+| Published `0.3.0` stable release | Closes version and release-material preparation over the rc.2 lockstep dependencies, durable harness, context/artifact engineering, Coding/Engineering Kernel, and entry-point parity without new product behavior | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
 | `0.3.x` stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while running both-platform acceptance, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 `0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding. The current `0.3.0` stable candidate adds no product behavior; it synchronizes versions, release metadata, and required documentation. `alibaba-model-studio/qwen-plus` has completed the seven-check live revalidation on the candidate Runtime. P01-P20, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files must still pass the unified gate on the same candidate.
+`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding. The `0.3.0` stable release adds no product behavior; it synchronizes versions, release metadata, and required documentation. `alibaba-model-studio/qwen-plus` completed the seven-check live revalidation on the release Runtime. P01-P20, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files passed the unified gate on the same release commit.
 
 ## Product boundary
 
@@ -71,7 +71,7 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Node.js 22.19 or newer is required. Run the stable installation command below only after registries list `0.3.0`; during candidate validation, use source or the version currently shown by Releases and registries.
+Node.js 22.19 or newer is required. `0.3.0` is available from the npm registry, so the stable installation command below can be used directly.
 
 ```bash
 npm install -g coremind-cli@0.3.0

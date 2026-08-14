@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19。
 
-先确认 npm 已公开 `coremind-cli@0.3.0`；稳定候选尚未发布时，使用 Release 或 Registry 当前列出的版本。
+`coremind-cli@0.3.0` 已在 npm 公开，可直接安装稳定版。
 
 ```bash
-npm install -g coremind-cli@0.3.0   # 仅在 Registry 已公开 0.3.0 后执行
+npm install -g coremind-cli@0.3.0
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```

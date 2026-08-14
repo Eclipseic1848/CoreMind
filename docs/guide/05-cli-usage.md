@@ -21,7 +21,7 @@ node --version
 npm install -g coremind-cli@0.3.0
 ```
 
-`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。执行前先确认 Registry 已公开 `0.3.0`；稳定候选阶段使用 Release 或 Registry 当前列出的版本。
+`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。`0.3.0` 已在 Registry 公开；后续版本仍以 Release 或 Registry 当前列出的版本为准。
 
 ### 验证安装成功
 
