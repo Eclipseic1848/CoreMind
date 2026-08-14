@@ -73,7 +73,7 @@ describe("宿主 Shell", () => {
     const command = process.platform === "win32" ? "Write-Output 'host-ok'" : "printf 'host-ok'";
 
     // 成功路径由项目级 15 秒 Harness 约束；产品超时语义由 ProcessRunner 单测独立验证。
-    const result = await tool.execute("host-shell", { command }, undefined);
+    const result = await tool.execute("host-shell", { command, timeout: 15 }, undefined);
 
     expect(result.content[0]).toMatchObject({
       type: "text",
