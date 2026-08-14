@@ -1,6 +1,6 @@
 # TypeScript SDK
 
-Status: unpublished `0.3.0` stable candidate. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: published `0.3.0` stable release. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

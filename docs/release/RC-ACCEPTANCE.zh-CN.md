@@ -2,6 +2,8 @@
 
 本指南用于验证同一候选提交上的 CLI/TUI、无头 CLI、TypeScript SDK、Python SDK 与发布物。自动测试、真实终端和真实 Provider 是三类独立证据，不能互相替代。
 
+> `0.3.0` 已使用本指南完成最终验收，并从提交 `dc6e45489b06f3c28da1934f063fbfbc671c05ef` [正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)。本指南继续用于后续候选，不表示后续版本已自动通过。
+
 [English](RC-ACCEPTANCE.en.md)
 
 ## 1. 自动矩阵
@@ -65,7 +67,7 @@ CI 在两个目标平台分别执行同一命令，保存绑定版本与提交�
 - [Windows 模板](evidence/rc-tty-windows.example.json)
 - [Linux 模板](evidence/rc-tty-linux.example.json)
 
-现有[Windows TUI 维护者人工验收手册](WINDOWS-TUI-MAINTAINER-ACCEPTANCE.zh-CN.md)记录的是 `0.3.0-rc.2` 的历史人工体验证据。`0.3.0` 稳定候选必须使用精确候选产物另行完成维护者最终人工验收；历史人工结果和本节自动证据均不能互相代填。
+现有[Windows TUI 维护者人工验收手册](WINDOWS-TUI-MAINTAINER-ACCEPTANCE.zh-CN.md)记录的是 `0.3.0-rc.2` 的历史人工体验证据。`0.3.0` 已使用精确候选产物另行完成维护者最终人工验收；后续候选仍须独立验收，历史人工结果和本节自动证据均不能互相代填。
 
 证据保存为 `.scratch/rc-evidence/rc-tty-windows.json` 和 `.scratch/rc-evidence/rc-tty-linux.json`。`version` 与 `commit` 必须等于当前候选，`evidenceLevel` 必须为 `automated-real-tty`，全部检查必须为 `true`。`.scratch` 不进入 Git：如果把包含提交 SHA 的证据再提交进候选，会改变 SHA 并形成无法通过的自引用。发布负责人应将两份 JSON 与对应工作流运行号存入受控验收档案，不将业务内容或密钥写入证据。随后执行：
 

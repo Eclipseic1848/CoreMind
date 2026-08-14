@@ -15,7 +15,7 @@ coremind list-templates
 coremind providers
 ```
 
-After npm lists `0.3.0`, use `npx coremind-cli@0.3.0` before global installation, or invoke `coremind` after installing `coremind-cli@0.3.0` globally. While the stable candidate is unpublished, use the version currently listed by Releases and registries.
+Use `npx coremind-cli@0.3.0` before global installation, or invoke `coremind` after installing `coremind-cli@0.3.0` globally. The stable release is published; use Releases and registries as the source of truth for later versions.
 
 ## Recommended first run
 

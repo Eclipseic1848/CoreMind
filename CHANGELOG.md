@@ -4,20 +4,20 @@
 
 [English](CHANGELOG.en.md)
 
-## 0.3.0 — 稳定候选，尚未发布
+## 0.3.0 — 2026-08-14
 
 ### 稳定化结论
 
 - 基于公开 `0.3.0-rc.2` 完成 npm CLI、TypeScript SDK、PyPI Python SDK、独立源码 ZIP 的 Windows/Linux 干净环境 Dogfooding，以及维护者 Windows TUI M01～M09 人工验收；未发现稳定版硬阻断。
-- 不创建只为占版本号的 `0.3.0-rc.3`；当前候选仅同步稳定版版本、发布元数据和必要文档，不新增用户可见功能，不改变 Config、Protocol、终态、权限、副作用或恢复语义。
+- 不创建只为占版本号的 `0.3.0-rc.3`；该候选仅同步稳定版版本、发布元数据和必要文档，不新增用户可见功能，不改变 Config、Protocol、终态、权限、副作用或恢复语义。
 - 八个 npm 包、内部精确依赖、Python 包、模块合同、真实终端证据模板和 Release Please 清单统一为 `0.3.0`；历史 rc.2 发布物、验收记录和 Provider 证据保持不可变。
 - 修复稳定版版本同步时把 `0.3.0-rc.2` 模块记录误认成 `0.3.0` 的标题匹配问题，并增加目标回归测试。
-- `alibaba-model-studio/qwen-plus` 已在 `0.3.0` 候选 Runtime 上完成流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文七项真实复验；证据只记录合成数据摘要、版本、候选源码提交和 Runtime SHA-256。
+- `alibaba-model-studio/qwen-plus` 已在 `0.3.0` 发布 Runtime 上完成流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文七项真实复验；证据只记录合成数据摘要、版本、发布源码提交和 Runtime SHA-256。
 
 ### 发布状态
 
-- 本条目描述尚未发布的稳定候选。候选 Provider 复验已完成；完整双平台自动门禁、精确 `main`、最终 Windows 人工验收和 Release Readiness 仍按稳定版计划逐项完成。
-- Git Tag、GitHub Release、npm `latest`、PyPI、独立源码 ZIP 和文档站尚未获准发布；公开可安装版本继续以 Registry 与 Release 为准。
+- 完整双平台自动门禁、精确 `main`、最终 Windows 人工验收和 Release Readiness 已完成；最终发布提交为 `dc6e45489b06f3c28da1934f063fbfbc671c05ef`。
+- `v0.3.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)、8 个 npm 包及 `latest`、[PyPI](https://pypi.org/project/coremind-ai/0.3.0/)、独立源码 ZIP 和[双语文档站](https://eclipseic1848.github.io/CoreMind/)已发布；公开产物重新下载后的哈希与同一次发布构建一致。
 
 ## 0.3.0-rc.2 — 2026-08-12
 

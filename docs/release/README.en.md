@@ -2,6 +2,8 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site from one commit and at one stability level.
 
+> `0.3.0` was [published](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0) on 2026-08-14 from commit `dc6e45489b06f3c28da1934f063fbfbc671c05ef` by following this SOP. The steps below remain required for later releases.
+
 [简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 
 ## Principles

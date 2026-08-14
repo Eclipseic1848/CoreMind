@@ -2,6 +2,8 @@
 
 本 SOP 把同一提交的 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。任一渠道成功都不能替代整体验收。
 
+> `0.3.0` 已于 2026-08-14 按本 SOP 从提交 `dc6e45489b06f3c28da1934f063fbfbc671c05ef` [正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)。以下步骤继续作为后续版本的发布要求。
+
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 
 ## 发布原则
