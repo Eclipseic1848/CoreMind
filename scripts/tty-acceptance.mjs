@@ -123,7 +123,7 @@ async function openTerminal(configPath, cwd, sessionId) {
       COREMIND_TTY_TEST_KEY: "synthetic-key",
       NO_COLOR: "1",
     },
-    ...(process.platform === "win32" ? { useConpty: true, useConptyDll: true } : {}),
+    ...(process.platform === "win32" ? { useConpty: true } : {}),
   });
   let output = "";
   let rawOutput = "";
