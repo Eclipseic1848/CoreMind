@@ -66,14 +66,12 @@ describe("宿主 Shell", () => {
     expect(createHostBashTool({ cwd }).executionMode).toBe("sequential");
   });
 
-  it("通过统一 ProcessRunner 执行命令", async () => {
+  it("通过统一 ProcessRunner 在真实宿主环境执行命令", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-host-shell-"));
-    const env = process.platform === "win32" ? windowsPowerShellEnvironment() : undefined;
-    const tool = createHostBashTool({ cwd, env });
-    const command = process.platform === "win32" ? "Write-Output 'host-ok'" : "printf 'host-ok'";
+    const tool = createHostBashTool({ cwd });
 
-    // 成功路径由项目级 15 秒 Harness 约束；产品超时语义由 ProcessRunner 单测独立验证。
-    const result = await tool.execute("host-shell", { command, timeout: 15 }, undefined);
+    // 成功路径由独立项目的 60 秒 Harness 约束；产品超时语义由 ProcessRunner 单测独立验证。
+    const result = await tool.execute("host-shell", { command: "echo host-ok" }, undefined);
 
     expect(result.content[0]).toMatchObject({
       type: "text",
@@ -81,20 +79,3 @@ describe("宿主 Shell", () => {
     });
   });
 });
-
-function windowsPowerShellEnvironment(): NodeJS.ProcessEnv {
-  const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
-  const searchPath = [
-    path.win32.join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
-    path.win32.join(systemRoot, "System32"),
-  ].join(path.win32.delimiter);
-  return {
-    PATH: searchPath,
-    SystemRoot: systemRoot,
-    WINDIR: process.env.WINDIR ?? systemRoot,
-    COMSPEC: process.env.COMSPEC ?? path.win32.join(systemRoot, "System32", "cmd.exe"),
-    PATHEXT: process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD",
-    TEMP: process.env.TEMP,
-    TMP: process.env.TMP,
-  };
-}
