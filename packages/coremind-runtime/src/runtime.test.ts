@@ -318,6 +318,46 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it("Turn 身份：工具执行归属刚结束的 Turn，下一轮开启新 Turn", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-turn-"));
+    writeFileSync(path.join(dir, "notes.txt"), "turn 测试", "utf8");
+    const server = createToolCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {
+          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "读取 notes.txt",
+        approveTool: async () => "allow",
+      });
+
+      const result = await runtime.run();
+
+      const agentStart = result.trace.find((entry) => entry.event.type === "agent_start");
+      const turnEnds = result.trace.filter((entry) => entry.event.type === "turn_end");
+      const withTurnId = (type: string) =>
+        result.trace
+          .filter((entry) => entry.event.type === type)
+          .map((entry) => (entry.event as { turnId?: string }).turnId);
+
+      expect(agentStart?.event.turnId).toBeDefined();
+      // 两轮模型请求（工具调用 + 最终回复）产生两个不同 Turn
+      expect(turnEnds).toHaveLength(2);
+      expect(turnEnds[1]?.event.turnId).not.toBe(turnEnds[0]?.event.turnId);
+      // 工具执行归属第一轮刚结束的 Turn
+      const firstTurnId = turnEnds[0]?.event.turnId;
+      for (const turnId of withTurnId("tool_call")) expect(turnId).toBe(firstTurnId);
+      for (const turnId of withTurnId("tool_result")) expect(turnId).toBe(firstTurnId);
+      for (const turnId of withTurnId("effect_receipt")) expect(turnId).toBe(firstTurnId);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it("ask 模式全部工具请求被拒绝时返回暂停而不是成功", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-denied-"));
     writeFileSync(path.join(dir, "notes.txt"), "审批拒绝测试", "utf8");
@@ -1063,7 +1103,7 @@ describe("CoreMindRuntime", () => {
         initialPrompt: "修复缺陷",
         signal: abortController.signal,
         events: (event) => {
-          if (event.type === "step_start" && event.stepId === "loop-execute") {
+          if (event.type === "step_start" && event.stepId === "loop-execute:0") {
             markLoopStarted?.();
           }
         },

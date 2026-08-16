@@ -1,4 +1,5 @@
 import type { CoreMindEvent } from "./events.js";
+import { type RunId, receiptId } from "./ids.js";
 
 interface ActiveEffect {
   idempotencyKey: string;
@@ -13,7 +14,7 @@ export class RunEffectCoordinator {
   private readonly startedAt = new Map<string, number>();
 
   constructor(
-    private readonly runId: string,
+    private readonly runId: RunId,
     private readonly recordEvent: (event: CoreMindEvent) => void,
     private readonly now: () => number = () => performance.now(),
   ) {}
@@ -70,7 +71,7 @@ export class RunEffectCoordinator {
     ) {
       return {
         ...event,
-        idempotencyKey: effectIdempotencyKey(this.runId, event.stepId, event.callId),
+        idempotencyKey: receiptId(this.runId, event.stepId, event.callId),
       };
     }
     return event;
@@ -78,7 +79,7 @@ export class RunEffectCoordinator {
 
   private createEffect(stepId: string | undefined, callId: string, tool: string): ActiveEffect {
     return {
-      idempotencyKey: effectIdempotencyKey(this.runId, stepId, callId),
+      idempotencyKey: receiptId(this.runId, stepId, callId),
       tool,
       ...(stepId ? { stepId } : {}),
     };
@@ -87,8 +88,4 @@ export class RunEffectCoordinator {
 
 function effectCallKey(stepId: string | undefined, callId: string): string {
   return `${stepId ?? "agent"}:${callId}`;
-}
-
-function effectIdempotencyKey(runId: string, stepId: string | undefined, callId: string): string {
-  return stepId ? `${runId}:${stepId}:${callId}` : `${runId}:${callId}`;
 }
