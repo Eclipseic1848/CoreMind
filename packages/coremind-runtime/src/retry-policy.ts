@@ -1,5 +1,5 @@
 import { isRetryableDependencyAssistantError } from "./dependency-adapter.js";
-import { CoreMindError } from "./errors.js";
+import { CoreMindError, retryClassForCode } from "./errors.js";
 
 export type RetryCategory = "transient" | "permanent" | "human";
 
@@ -15,21 +15,7 @@ export interface TransientRetryOptions {
   onRetry?: (attempt: number, error: unknown) => void;
 }
 
-const HUMAN_CODES = new Set([
-  "approval_denied",
-  "tool_approval_denied",
-  "policy_denied",
-  "unknown_effect",
-  "committed_effect_pending",
-  "loop_paused",
-]);
-const TRANSIENT_CODES = new Set([
-  "network_error",
-  "provider_unavailable",
-  "provider_timeout",
-  "provider_transient",
-  "rate_limit",
-]);
+// 系统级网络错误码（Node 层），不属于 CoreMind 错误码表，保留在本模块。
 const TRANSIENT_SYSTEM_CODES = new Set([
   "ECONNRESET",
   "ECONNREFUSED",
@@ -45,7 +31,7 @@ export function classifyRetry(error: unknown): RetryClassification {
   const values = errorChain(error);
   for (const value of values) {
     const code = stringField(value, "code");
-    if (code && HUMAN_CODES.has(code)) {
+    if (code && retryClassForCode(code) === "human") {
       return { category: "human", retryable: false, reason: `需要人工处置：${code}` };
     }
   }
@@ -58,7 +44,7 @@ export function classifyRetry(error: unknown): RetryClassification {
   }
   for (const value of values) {
     const code = stringField(value, "code");
-    if (code && TRANSIENT_CODES.has(code)) {
+    if (code && retryClassForCode(code) === "transient") {
       return { category: "transient", retryable: true, reason: `瞬态错误：${code}` };
     }
     if (code && TRANSIENT_SYSTEM_CODES.has(code)) {
