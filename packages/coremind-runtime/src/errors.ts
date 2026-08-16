@@ -82,6 +82,7 @@ export const ERROR_CODES = {
     retryClass: "fatal",
   },
   loop_config_invalid: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  loop_state_invalid: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   operation_state_corrupt: {
     terminality: "terminal",
     cancelClass: "corruption",

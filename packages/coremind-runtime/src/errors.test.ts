@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   CoreMindError,
-  ERROR_CODES,
   cancelSignalForCode,
+  ERROR_CODES,
   retryClassForCode,
   terminalStatusForCode,
 } from "./errors.js";
@@ -66,6 +66,7 @@ const EXISTING_CODES = [
   "loop_snapshot_invalid",
   "loop_snapshot_mismatch",
   "loop_config_invalid",
+  "loop_state_invalid",
   "operation_state_corrupt",
   "invalid_operation_state",
   "session_migration_invalid",
