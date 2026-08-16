@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { LoopConfig } from "coremind-config";
-import { CoreMindError } from "./errors.js";
+import { CoreMindError, cancelSignalForCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import {
   LoopController,
@@ -254,14 +254,18 @@ export class LoopRunner {
       await this.sendAndPersist({ type: "PAUSE", reason: code });
       return;
     }
-    if (code === "aborted") {
-      await this.sendAndPersist({ type: "ABORT" });
-    } else if (code === "run_timeout" || code === "step_timeout") {
-      await this.sendAndPersist({ type: "TIMEOUT" });
-    } else if (code === "budget_exceeded" || code === "retry_limit" || code === "step_limit") {
-      await this.sendAndPersist({ type: "BUDGET_EXCEEDED" });
-    } else {
-      await this.sendAndPersist({ type: "FAIL", code, message });
+    switch (cancelSignalForCode(code)) {
+      case "abort":
+        await this.sendAndPersist({ type: "ABORT" });
+        break;
+      case "timeout":
+        await this.sendAndPersist({ type: "TIMEOUT" });
+        break;
+      case "budget_exceeded":
+        await this.sendAndPersist({ type: "BUDGET_EXCEEDED" });
+        break;
+      default:
+        await this.sendAndPersist({ type: "FAIL", code, message });
     }
   }
 

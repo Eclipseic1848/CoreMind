@@ -1,6 +1,6 @@
-import { CoreMindError } from "./errors.js";
+import { CoreMindError, terminalStatusForCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
-import type { RunOutcome, RunStatus } from "./result.js";
+import type { RunOutcome } from "./result.js";
 
 /**
  * 把一次运行的所有结束路径收敛为稳定终态。
@@ -24,18 +24,8 @@ function outcomeFromError(error: unknown): RunOutcome {
   const code = error instanceof CoreMindError ? error.code : "unknown";
   const message = error instanceof Error ? error.message : String(error);
   return {
-    status: statusFromCode(code),
+    status: terminalStatusForCode(code),
     finishReason: code,
     error: { code, message },
   };
-}
-
-function statusFromCode(code: string): RunStatus {
-  if (code === "loop_paused") return "paused";
-  if (code === "aborted") return "aborted";
-  if (code === "run_timeout" || code === "step_timeout") return "timeout";
-  if (code === "budget_exceeded" || code === "retry_limit" || code === "step_limit") {
-    return "budget_exceeded";
-  }
-  return "failed";
 }
