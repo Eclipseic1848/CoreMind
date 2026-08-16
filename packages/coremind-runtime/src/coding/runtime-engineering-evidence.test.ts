@@ -8,7 +8,7 @@ import {
 
 describe("Runtime engineering evidence", () => {
   it("只在真实测试、回归、Checkpoint 与 Diff 全部存在时通过", () => {
-    const stepId = "loop-verify-1";
+    const stepId = "loop-verify:1";
     const events: CoreMindEvent[] = [
       {
         type: "checkpoint_created",
@@ -40,7 +40,7 @@ describe("Runtime engineering evidence", () => {
     const report = assessRuntimeEngineeringEvidence(
       [],
       { mode: "runtime", regressionCommand: "npm test" },
-      "loop-verify-1",
+      "loop-verify:1",
     );
     expect(report.passed).toBe(false);
     expect(report.reasons).toHaveLength(4);

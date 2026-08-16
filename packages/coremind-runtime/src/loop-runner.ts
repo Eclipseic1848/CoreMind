@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { LoopConfig } from "coremind-config";
 import { CoreMindError, cancelSignalForCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import { legacyStepId } from "./ids.js";
 import {
   LoopController,
   type LoopControllerEvent,
@@ -147,9 +148,10 @@ export class LoopRunner {
 
   private async runExecution(): Promise<void> {
     const action = this.options.loop.execute;
+    const iteration = this.controller.getSnapshot().iteration;
     const output = await this.runStep(
       "execute",
-      "loop-execute",
+      `loop-execute:${iteration}`,
       action.agent,
       this.interpolate(action.input),
       "candidate",
@@ -164,7 +166,7 @@ export class LoopRunner {
     this.variables.set("iteration", String(iteration));
     const output = await this.runStep(
       "verify",
-      `loop-verify-${iteration}`,
+      `loop-verify:${iteration}`,
       verification.agent,
       this.interpolate(verification.input),
       "verification",
@@ -175,7 +177,7 @@ export class LoopRunner {
     const evidencePassed = this.options.verifyEvidence
       ? await this.options.verifyEvidence({
           iteration,
-          stepId: `loop-verify-${iteration}`,
+          stepId: `loop-verify:${iteration}`,
           textPassed,
         })
       : true;
@@ -188,7 +190,7 @@ export class LoopRunner {
     this.variables.set("repairs", String(repairCount));
     const output = await this.runStep(
       "repair",
-      `loop-repair-${repairCount}`,
+      `loop-repair:${repairCount}`,
       repair.agent,
       this.interpolate(repair.input),
       "candidate",
@@ -204,7 +206,12 @@ export class LoopRunner {
     input: string,
     saveAs: string,
   ): Promise<StepOutput> {
-    const completed = this.completedSteps.get(stepId);
+    const completed =
+      this.completedSteps.get(stepId) ??
+      (() => {
+        const legacy = legacyStepId(stepId);
+        return legacy ? this.completedSteps.get(legacy) : undefined;
+      })();
     if (completed) {
       this.options.emit({ type: "step_resumed", stepId });
       if (completed.saveAs) this.saveOutput(completed.saveAs, completed.output);

@@ -123,7 +123,7 @@ describe("五个黄金示例", () => {
       expect(resumed.transcript).toBe("candidate-fixed");
       expect(
         resumed.trace.filter(
-          (entry) => entry.event.type === "step_start" && entry.event.stepId === "loop-execute",
+          (entry) => entry.event.type === "step_start" && entry.event.stepId === "loop-execute:0",
         ),
       ).toHaveLength(1);
 

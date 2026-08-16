@@ -32,6 +32,7 @@ import {
 import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import { type RunId, receiptId } from "./ids.js";
 import {
   LifecycleExtensionHost,
   type LifecycleExtensionPolicy,
@@ -71,6 +72,7 @@ import { CoreMindSession } from "./session.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
+import { TurnTracker } from "./turn-tracker.js";
 
 type RuntimeHarness = NonNullable<AgentBuildContext["harness"]> & {
   shouldStopAfterTurn?: NonNullable<Agent["shouldStopAfterTurn"]>;
@@ -385,7 +387,7 @@ export class CoreMindRuntime {
           this.options.initialPrompt,
         )
       : undefined;
-    const runId = resumePlan?.runId ?? randomUUID();
+    const runId: RunId = (resumePlan?.runId ?? randomUUID()) as RunId;
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
     const operation =
@@ -459,10 +461,12 @@ export class CoreMindRuntime {
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const userEvents = this.options.events ?? (() => {});
     const extensionReceipts: LifecycleExtensionReceipt[] = [];
+    const turnTracker = new TurnTracker();
     const recordEvent = (event: CoreMindEvent) => {
-      collected.push(event);
-      trace.record(event);
-      userEvents(event);
+      const enriched = turnTracker.withTurnId(event);
+      collected.push(enriched);
+      trace.record(enriched);
+      userEvents(enriched);
     };
     const effectCoordinator = new RunEffectCoordinator(runId, recordEvent);
     const emit = (event: CoreMindEvent) => effectCoordinator.emit(event);
@@ -611,7 +615,7 @@ export class CoreMindRuntime {
           return { block: true, reason, terminate: true };
         }
         try {
-          const idempotencyKey = effectIdempotencyKey(runId, stepId, context.toolCall.id);
+          const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
           const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args, {
             operationId: operation.snapshot().operationId,
             toolCallId: context.toolCall.id,
@@ -1140,8 +1144,4 @@ function lastOutputText(outputs: Map<string, StepOutput>): string {
 
 function firstKey(record: Record<string, unknown>): string | undefined {
   return Object.keys(record)[0];
-}
-
-function effectIdempotencyKey(runId: string, stepId: string | undefined, callId: string): string {
-  return stepId ? `${runId}:${stepId}:${callId}` : `${runId}:${callId}`;
 }

@@ -19,11 +19,13 @@ export interface ToolExecutionEvidence {
  * 所有事件都带 agent 名（由订阅方注入），workflow 步骤事件带 stepId。
  */
 export type CoreMindEvent =
-  | { type: "agent_start"; agent: string; stepId?: string }
+  | { type: "agent_start"; agent: string; stepId?: string; turnId?: string }
   | {
       type: "turn_end";
       agent: string;
       stepId?: string;
+      /** 所属 Turn（规格 02：一次请求-响应回合的身份，可选追加字段） */
+      turnId?: string;
       tokens?: number;
       inputTokens?: number;
       outputTokens?: number;
@@ -42,6 +44,7 @@ export type CoreMindEvent =
       callId?: string;
       idempotencyKey?: string;
       stepId?: string;
+      turnId?: string;
     }
   | {
       type: "tool_result";
@@ -51,6 +54,7 @@ export type CoreMindEvent =
       callId?: string;
       idempotencyKey?: string;
       stepId?: string;
+      turnId?: string;
     }
   | {
       type: "effect_receipt";
@@ -58,6 +62,7 @@ export type CoreMindEvent =
       tool: string;
       status: EffectReceiptStatus;
       stepId?: string;
+      turnId?: string;
     }
   | { type: "step_start"; stepId: string; kind: string }
   | {
@@ -172,7 +177,7 @@ export type CoreMindEvent =
       diffReviewed: boolean;
       reasons: string[];
     }
-  | { type: "agent_end"; agent: string; stepId?: string }
+  | { type: "agent_end"; agent: string; stepId?: string; turnId?: string }
   | { type: "error"; message: string; fatal: boolean };
 
 /**

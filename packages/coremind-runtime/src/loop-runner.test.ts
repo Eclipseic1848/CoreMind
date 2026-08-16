@@ -83,10 +83,10 @@ describe("LoopRunner", () => {
     expect(result.transcript).toBe("candidate-b");
     expect(result.outputs.get("candidate")?.text).toBe("candidate-b");
     expect(requests.map((request) => request.stepId)).toEqual([
-      "loop-execute",
-      "loop-verify-1",
-      "loop-repair-1",
-      "loop-verify-2",
+      "loop-execute:0",
+      "loop-verify:1",
+      "loop-repair:1",
+      "loop-verify:2",
     ]);
     expect(requests[2]?.input).toContain("FAIL");
     expect(events.filter((event) => event.type === "loop_state").map((event) => event.to)).toEqual([
@@ -112,8 +112,8 @@ describe("LoopRunner", () => {
     expect(result.snapshot.phase).toBe("succeeded");
     expect(requests.map((request) => request.stepId)).toEqual([
       "loop-plan",
-      "loop-execute",
-      "loop-verify-1",
+      "loop-execute:0",
+      "loop-verify:1",
     ]);
     expect(requests[1]?.input).toBe("按 plan-a 执行");
   });
@@ -132,21 +132,21 @@ describe("LoopRunner", () => {
 
     const completed = new Map<string, CompletedWorkflowStep>([
       [
-        "loop-execute",
+        "loop-execute:0",
         {
           output: {
             text: "candidate-a",
-            metadata: { agent: "coder", stepId: "loop-execute" },
+            metadata: { agent: "coder", stepId: "loop-execute:0" },
           },
         },
       ],
       [
-        "loop-verify-1",
+        "loop-verify:1",
         {
           saveAs: "verification",
           output: {
             text: "FAIL",
-            metadata: { agent: "reviewer", stepId: "loop-verify-1" },
+            metadata: { agent: "reviewer", stepId: "loop-verify:1" },
           },
         },
       ],
@@ -161,8 +161,8 @@ describe("LoopRunner", () => {
 
     expect(result.snapshot.phase).toBe("succeeded");
     expect(resumed.requests.map((request) => request.stepId)).toEqual([
-      "loop-repair-1",
-      "loop-verify-2",
+      "loop-repair:1",
+      "loop-verify:2",
     ]);
     expect(resumed.events.some((event) => event.type === "step_resumed")).toBe(false);
   });
@@ -240,12 +240,12 @@ describe("LoopRunner", () => {
     const executingSnapshot = { ...controller, phase: "executing" as const, transitionSequence: 1 };
     const completed = new Map<string, CompletedWorkflowStep>([
       [
-        "loop-execute",
+        "loop-execute:0",
         {
           saveAs: "candidate",
           output: {
             text: "candidate-a",
-            metadata: { agent: "coder", stepId: "loop-execute" },
+            metadata: { agent: "coder", stepId: "loop-execute:0" },
           },
         },
       ],
@@ -258,7 +258,7 @@ describe("LoopRunner", () => {
     const result = await resumed.runner.run();
 
     expect(result.snapshot.phase).toBe("succeeded");
-    expect(resumed.requests.map((request) => request.stepId)).toEqual(["loop-verify-1"]);
+    expect(resumed.requests.map((request) => request.stepId)).toEqual(["loop-verify:1"]);
     expect(resumed.events.some((event) => event.type === "step_resumed")).toBe(true);
   });
 
