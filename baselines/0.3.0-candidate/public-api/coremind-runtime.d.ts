@@ -270,10 +270,13 @@ export declare type CoreMindEvent = {
     type: "agent_start";
     agent: string;
     stepId?: string;
+    turnId?: string;
 } | {
     type: "turn_end";
     agent: string;
     stepId?: string;
+    /** 所属 Turn（规格 02：一次请求-响应回合的身份，可选追加字段） */
+    turnId?: string;
     tokens?: number;
     inputTokens?: number;
     outputTokens?: number;
@@ -295,6 +298,7 @@ export declare type CoreMindEvent = {
     callId?: string;
     idempotencyKey?: string;
     stepId?: string;
+    turnId?: string;
 } | {
     type: "tool_result";
     agent: string;
@@ -303,12 +307,14 @@ export declare type CoreMindEvent = {
     callId?: string;
     idempotencyKey?: string;
     stepId?: string;
+    turnId?: string;
 } | {
     type: "effect_receipt";
     idempotencyKey: string;
     tool: string;
     status: EffectReceiptStatus;
     stepId?: string;
+    turnId?: string;
 } | {
     type: "step_start";
     stepId: string;
@@ -429,6 +435,7 @@ export declare type CoreMindEvent = {
     type: "agent_end";
     agent: string;
     stepId?: string;
+    turnId?: string;
 } | {
     type: "error";
     message: string;
