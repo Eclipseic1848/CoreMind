@@ -262,6 +262,36 @@ describe("LoopRunner", () => {
     expect(resumed.events.some((event) => event.type === "step_resumed")).toBe(true);
   });
 
+  it("恢复已完成步骤但记录缺少 saveAs 时仍复用输出", async () => {
+    const controller = createRunner(["unused"]).runner.getSnapshot();
+    const executingSnapshot = {
+      ...controller,
+      phase: "executing" as const,
+      transitionSequence: 1,
+    };
+    const completed = new Map<string, CompletedWorkflowStep>([
+      [
+        "loop-execute",
+        {
+          output: {
+            text: "candidate-a",
+            metadata: { agent: "coder", stepId: "loop-execute" },
+          },
+        },
+      ],
+    ]);
+    const resumed = createRunner(["PASS"], {
+      restoredSnapshot: executingSnapshot,
+      completedSteps: completed,
+    });
+
+    const result = await resumed.runner.run();
+
+    expect(result.snapshot.phase).toBe("succeeded");
+    expect(result.transcript).toBe("candidate-a");
+    expect(resumed.events.some((event) => event.type === "step_resumed")).toBe(true);
+  });
+
   it.each([
     [new CoreMindError("approval_denied", "等待审批"), "paused", "loop_paused"],
     [new CoreMindError("aborted", "用户中止"), "aborted", "aborted"],
@@ -284,6 +314,25 @@ describe("LoopRunner", () => {
 
     expect(result.snapshot.phase).toBe(phase);
     expect(result.error).toMatchObject({ code: returnedCode });
+  });
+
+  it("执行器抛出非 Error 对象时按普通失败处理", async () => {
+    const runner = new LoopRunner({
+      runId: "run-string-error",
+      configFingerprint: "config-string-error",
+      initialPrompt: "执行",
+      loop: baseLoop,
+      executeStep: async () => {
+        throw "plain failure";
+      },
+      emit: () => {},
+      persistSnapshot: async () => {},
+    });
+
+    const result = await runner.run();
+
+    expect(result.snapshot.phase).toBe("failed");
+    expect(result.error).toBe("plain failure");
   });
 
   it("没有继续目标的耗尽暂停不会伪造恢复迁移", async () => {
