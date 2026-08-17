@@ -8,6 +8,7 @@ import { DurableOperation } from "./operation-state.js";
 import {
   FileRunStore,
   findUnsafeToolCall,
+  isRejectedAfterAbort,
   MemoryRunStore,
   prepareRunResume,
   RunStateJournal,
@@ -325,6 +326,175 @@ describe("RunState", () => {
     // 无 sessionSeqStart / turnSeqStart 的旧数据正常恢复；跨轮归属按规格 01 §2.3 声明不可回答
     expect(plan.runId).toBe("run-restore");
     expect(plan.nextJournalSequence).toBe(4);
+  });
+});
+
+describe("RunStateJournal 事件准入（取消收敛）", () => {
+  it("markAborted 后收尾事实（pause/finish/operation/loop）放行", async () => {
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal("run-admit", store);
+    await journal.start({ configFingerprint: "fingerprint" });
+
+    journal.markAborted();
+    journal.operation({ type: "operation" });
+    journal.loop({ phase: "failed" } as never);
+    journal.pause({ reason: "aborted" });
+    journal.finish({ outcome: { status: "aborted" } });
+    await journal.flush();
+
+    const records = await store.read("run-admit");
+    expect(records.map((item) => item.kind)).toEqual([
+      "start",
+      "operation",
+      "loop",
+      "pause",
+      "finish",
+    ]);
+  });
+
+  it("markAborted 后终态类事件（tool_result/turn_end）被拒绝写入并计数，不抛错", async () => {
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal("run-admit", store);
+    await journal.start({ configFingerprint: "fingerprint" });
+
+    journal.markAborted();
+    journal.event(traceEvent(1, { type: "turn_end", agent: "main" }));
+    journal.event(
+      traceEvent(2, { type: "tool_result", agent: "main", tool: "read", isError: false }),
+    );
+    await journal.flush();
+
+    const records = await store.read("run-admit");
+    expect(records.map((item) => item.kind)).toEqual(["start"]);
+    expect(journal.rejectedAfterAbort()).toBe(2);
+  });
+
+  it("分界前已启动活动的 effect_receipt 终态放行（R3），迟到无归属收据拒绝", async () => {
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal("run-admit", store);
+    await journal.start({ configFingerprint: "fingerprint" });
+    journal.markAborted(new Set(["turn-0"]));
+
+    // 分界前启动的活动（turn-0 已在 trace 中）→ 放行
+    journal.event(
+      traceEvent(1, {
+        type: "effect_receipt",
+        idempotencyKey: "r:1",
+        tool: "write",
+        status: "committed",
+        stepId: "s0",
+        turnId: "turn-0",
+      }),
+    );
+    // 迟到且无归属（无法证明属于分界前活动）→ 拒绝
+    journal.event(
+      traceEvent(2, {
+        type: "effect_receipt",
+        idempotencyKey: "r:2",
+        tool: "write",
+        status: "committed",
+      }),
+    );
+    // abort 后才生成的活动 → 拒绝
+    journal.event(
+      traceEvent(3, {
+        type: "effect_receipt",
+        idempotencyKey: "r:3",
+        tool: "write",
+        status: "started",
+        turnId: "turn-99",
+      }),
+    );
+    await journal.flush();
+
+    const records = await store.read("run-admit");
+    expect(records.map((item) => item.kind)).toEqual(["start", "event"]);
+    expect(journal.rejectedAfterAbort()).toBe(2);
+  });
+
+  it("markAborted 后非终态事件（text_delta/approval_required/error）放行", async () => {
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal("run-admit", store);
+    await journal.start({ configFingerprint: "fingerprint" });
+
+    journal.markAborted();
+    journal.event(traceEvent(1, { type: "text_delta", agent: "main", delta: "迟到增量" }));
+    journal.event(
+      traceEvent(2, {
+        type: "approval_required",
+        approvalId: "a1",
+        runId: "run-admit",
+        agent: "main",
+        tool: "write",
+        args: {},
+        risk: "low",
+        effect: {
+          severity: "low",
+          type: "write",
+          paths: ["x"],
+          reversible: true,
+          description: "写",
+        },
+      }),
+    );
+    journal.event(traceEvent(3, { type: "error", message: "x", fatal: false }));
+    await journal.flush();
+
+    const records = await store.read("run-admit");
+    expect(records.filter((item) => item.kind === "event")).toHaveLength(3);
+    expect(journal.rejectedAfterAbort()).toBe(0);
+  });
+});
+
+function traceEvent(sequence: number, event: Record<string, unknown>): CoreMindTraceEvent {
+  return {
+    eventId: `event-${sequence}`,
+    runId: "run-admit",
+    sequence,
+    timestamp: new Date().toISOString(),
+    event,
+  } as unknown as CoreMindTraceEvent;
+}
+
+describe("isRejectedAfterAbort 分支覆盖", () => {
+  it("payload 非对象或 event 非对象时放行", () => {
+    expect(isRejectedAfterAbort(null, new Set())).toBe(false);
+    expect(isRejectedAfterAbort(42, new Set())).toBe(false);
+    expect(isRejectedAfterAbort({ event: "not-object" }, new Set())).toBe(false);
+  });
+
+  it("effect_receipt status 缺失或 not_started 时放行", () => {
+    expect(isRejectedAfterAbort({ event: { type: "effect_receipt" } }, new Set())).toBe(false);
+    expect(
+      isRejectedAfterAbort(
+        { event: { type: "effect_receipt", status: "not_started", turnId: "t1" } },
+        new Set(),
+      ),
+    ).toBe(false);
+  });
+
+  it("knownTurnIds 为空时无归属与有归属的收据均拒绝；命中集合放行", () => {
+    expect(
+      isRejectedAfterAbort(
+        { event: { type: "effect_receipt", status: "committed", turnId: "t1" } },
+        undefined,
+      ),
+    ).toBe(true);
+    expect(
+      isRejectedAfterAbort(
+        { event: { type: "effect_receipt", status: "committed", turnId: "t1" } },
+        new Set(["t1"]),
+      ),
+    ).toBe(false);
+  });
+
+  it("tool_result / turn_end 一律拒绝；其他类型放行", () => {
+    expect(isRejectedAfterAbort({ event: { type: "tool_result" } }, new Set())).toBe(true);
+    expect(isRejectedAfterAbort({ event: { type: "turn_end" } }, new Set())).toBe(true);
+    expect(isRejectedAfterAbort({ event: { type: "text_delta", delta: "x" } }, new Set())).toBe(
+      false,
+    );
+    expect(isRejectedAfterAbort({ event: { type: "approval_required" } }, new Set())).toBe(false);
   });
 });
 

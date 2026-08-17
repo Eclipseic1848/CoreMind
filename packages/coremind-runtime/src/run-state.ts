@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CoreMindError } from "./errors.js";
+import type { CoreMindEvent } from "./events.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import {
   type DurableOperationSnapshot,
@@ -252,6 +253,9 @@ export class MemoryRunStore implements RunStore {
 export class RunStateJournal {
   private sequence: number;
   private pending: Promise<void> = Promise.resolve();
+  private aborted = false;
+  private rejectedAfterAbortCount = 0;
+  private knownTurnIds?: ReadonlySet<string>;
 
   constructor(
     readonly runId: string,
@@ -259,6 +263,39 @@ export class RunStateJournal {
     initialSequence = 0,
   ) {
     this.sequence = initialSequence;
+  }
+
+  /**
+   * 取消收敛：设置事件准入分界点（规格 03 §3）。
+   * 此后收尾事实（operation/loop/pause/finish）放行；终态类事件被静默拒绝并计数。
+   * knownTurnIds：分界前已启动的活动集合（R3 判定：分界前启动的工具 receipt 放行）。
+   */
+  markAborted(knownTurnIds?: ReadonlySet<string>): void {
+    this.aborted = true;
+    this.knownTurnIds = knownTurnIds;
+  }
+
+  /** 已设置准入分界点（transcript 回退等取消语义依赖此标志） */
+  isAborted(): boolean {
+    return this.aborted;
+  }
+
+  /** 准入拒绝的事件计数（记入 metrics.rejectedAfterAbort） */
+  rejectedAfterAbort(): number {
+    return this.rejectedAfterAbortCount;
+  }
+
+  /**
+   * 事件准入（trace 层前置调用，规格 03 §3 / ADR"不入 Trace 或 journal"）：
+   * abort 后的迟到终态事实返回 false（计数），调用方不写入 trace/collected/回调。
+   */
+  admitEvent(event: CoreMindEvent): boolean {
+    if (!this.aborted) return true;
+    if (isRejectedAfterAbort({ event }, this.knownTurnIds)) {
+      this.rejectedAfterAbortCount += 1;
+      return false;
+    }
+    return true;
   }
 
   async start(payload: unknown): Promise<void> {
@@ -299,6 +336,11 @@ export class RunStateJournal {
   }
 
   private enqueue(kind: RunStateKind, payload: unknown): void {
+    // 事件准入（规格 03 §3）：分界点后的终态类事件拒绝写入，静默不抛错
+    if (this.aborted && kind === "event" && isRejectedAfterAbort(payload, this.knownTurnIds)) {
+      this.rejectedAfterAbortCount += 1;
+      return;
+    }
     const record: RunStateRecord = {
       version: 1,
       runId: this.runId,
@@ -309,6 +351,31 @@ export class RunStateJournal {
     };
     this.pending = this.pending.then(() => this.store.append(record));
   }
+}
+
+/**
+ * 准入判定：分界点后到达的终态类事件（规格 03 §3）。
+ * - tool_result / turn_end（assistant 文本落定）→ 拒绝（旧活动的迟到终态事实）；
+ * - effect_receipt 终态：turnId 属于分界前已启动的活动（R3，knownTurnIds 命中）→ 放行；
+ *   否则（无归属或 abort 后新生成的活动）→ 拒绝；
+ * - 非终态事件（text_delta / approval_required / error 等）→ 放行。
+ */
+export function isRejectedAfterAbort(
+  payload: unknown,
+  knownTurnIds?: ReadonlySet<string>,
+): boolean {
+  const trace = payload as { event?: Record<string, unknown> };
+  const event = trace?.event;
+  if (event === null || typeof event !== "object") return false;
+  const type = (event as { type?: unknown }).type;
+  if (type === "tool_result" || type === "turn_end") return true;
+  if (type === "effect_receipt") {
+    const receipt = event as { status?: unknown; turnId?: unknown };
+    if (receipt.status === undefined || receipt.status === "not_started") return false;
+    const turnId = receipt.turnId;
+    return turnId === undefined || !knownTurnIds?.has(String(turnId));
+  }
+  return false;
 }
 
 const REPLAY_SAFE_TOOLS = new Set(["read", "ls", "find", "grep", "web-fetch", "web-search"]);

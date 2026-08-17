@@ -101,6 +101,8 @@ export interface CoreMindRuntimeOptions {
   runStore?: RunStore;
   /** 继续一个没有 finish 记录的意外中断运行。 */
   resumeRunId?: string;
+  /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
+  runId?: string;
   /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
   toolDefinitions?: CoreMindToolDefinition[];
   /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
@@ -157,6 +159,10 @@ export class CoreMindRuntime {
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
   private activeHarnessFactory?: (agentName: string, stepId?: string) => RuntimeHarness;
+  /** 并发 run() 检测（R7）：进行中的 run promise */
+  private activeRunPromise?: Promise<RunResult>;
+  /** 当前 run 的 journal（persistSession 的准入/abort 语义用） */
+  private runJournal?: RunStateJournal;
   /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
   private activeSession?: CoreMindSession;
   /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
@@ -379,6 +385,22 @@ export class CoreMindRuntime {
 
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
+    // R7：同一实例不支持并发 run()，运行时检测并明确报错（串行化属 0.3.x-B）
+    if (this.activeRunPromise) {
+      throw new CoreMindError("concurrent_run", "同一 Runtime 实例不支持并发 run()");
+    }
+    const promise = this.executeRunBody();
+    this.activeRunPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (this.activeRunPromise === promise) this.activeRunPromise = undefined;
+      this.runJournal = undefined;
+    }
+  }
+
+  /** run() 主体（并发检测由外层 run() 包装） */
+  private async executeRunBody(): Promise<RunResult> {
     const started = performance.now();
     const lifecycleHost = this.options.lifecycleExtensions
       ? new LifecycleExtensionHost(this.options.lifecycleExtensions)
@@ -405,9 +427,11 @@ export class CoreMindRuntime {
           this.options.initialPrompt,
         )
       : undefined;
-    const runId: RunId = (resumePlan?.runId ?? randomUUID()) as RunId;
+    // 预生成 runId（D-1）：resume 时以恢复记录为准，否则优先使用调用方预生成值
+    const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
+    this.runJournal = journal;
     const operation =
       resumePlan && resumePlan.operationRecords.length > 0
         ? restoreDurableOperation(resumePlan.operationRecords)
@@ -489,6 +513,8 @@ export class CoreMindRuntime {
     const turnTracker = new TurnTracker();
     const recordEvent = (event: CoreMindEvent) => {
       const enriched = turnTracker.withTurnId(event);
+      // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
+      if (!journal.admitEvent(enriched)) return;
       collected.push(enriched);
       trace.record(enriched);
       userEvents(enriched);
@@ -793,6 +819,8 @@ export class CoreMindRuntime {
     try {
       ({ outputs, transcript } = await this.runWithGuard(
         limits.runTimeoutMs,
+        journal,
+        () => knownTurnIdsFrom(collected),
         async () => {
           if (loop) {
             let retryCount =
@@ -910,12 +938,19 @@ export class CoreMindRuntime {
       } catch (budgetError) {
         terminalError = budgetError;
       }
+      // step_timeout / budget_exceeded 与 Abort 共用准入机制（规格 03 §1）：
+      // 终止确定后设置分界点，拦截其后的迟到终态事实
+      const code = terminalError instanceof CoreMindError ? terminalError.code : undefined;
+      if (!journal.isAborted() && (code === "step_timeout" || code === "budget_exceeded")) {
+        journal.markAborted(knownTurnIdsFrom(collected));
+      }
     } finally {
       this.activeHarnessFactory = undefined;
     }
 
     let sessionFile: string | undefined;
-    if (terminalError === undefined) {
+    // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）
+    if (terminalError === undefined || journal.isAborted()) {
       try {
         sessionFile = await this.persistSession();
       } catch (error) {
@@ -923,7 +958,9 @@ export class CoreMindRuntime {
       }
     }
     const allMessages = [...this.collectMessages().values()].flat();
-    if (terminalError !== undefined && transcript.length === 0) {
+    // transcript 回退（方案 A）：仅 abort 未生效且存在终态错误时允许回捞；
+    // abort 生效后以已确认事实为准，不回捞竞态赢家文本（规格 03 §3）
+    if (terminalError !== undefined && transcript.length === 0 && !journal.isAborted()) {
       transcript = extractText(allMessages);
     }
     const metrics = analyzeRunMetrics(
@@ -931,6 +968,7 @@ export class CoreMindRuntime {
       allMessages,
       performance.now() - started,
       transcript.length,
+      journal.rejectedAfterAbort(),
     );
     const outcome = new RunTerminalizer().terminalize(collected, terminalError);
     const evaluation = createEvaluationReport(this.config.quality, metrics);
@@ -1038,6 +1076,8 @@ export class CoreMindRuntime {
 
   private async runWithGuard<T>(
     timeoutMs: number,
+    journal: RunStateJournal,
+    knownTurnIds: () => ReadonlySet<string>,
     operation: () => Promise<T>,
     onGuardError?: (error: CoreMindError) => Promise<void> | undefined,
   ): Promise<T> {
@@ -1052,6 +1092,9 @@ export class CoreMindRuntime {
     const triggerGuard = (error: CoreMindError, reject: (reason: CoreMindError) => void): void => {
       if (guardTriggered) return;
       guardTriggered = true;
+      // Abort 生效点（规格 03 §1）：设置事件准入分界点，此后迟到终态事实不再写入；
+      // 分界前已启动的活动集合用于 R3 判定（分界前启动的工具 receipt 放行）
+      journal.markAborted(knownTurnIds());
       void Promise.resolve(onGuardError?.(error))
         .catch(() => undefined)
         .then(() => {
@@ -1175,9 +1218,12 @@ export class CoreMindRuntime {
         cwd: this.options.cwd ?? process.cwd(),
       }));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
-    await cm.appendMessages(
-      main.state.messages.slice(this.compactedPrefixEnd ?? this.resumedContextLength),
-    );
+    let messages = main.state.messages.slice(this.compactedPrefixEnd ?? this.resumedContextLength);
+    if (this.runJournal?.isAborted()) {
+      // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
+      messages = trimUnconfirmedTail(messages);
+    }
+    await cm.appendMessages(messages);
     // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
     if (session.compact) {
       await cm.maybeCompact(
@@ -1195,6 +1241,27 @@ export async function buildAgentFromConfig(
   options: CoreMindRuntimeOptions,
 ): Promise<CoreMindRuntime> {
   return CoreMindRuntime.create(options);
+}
+
+/** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */
+function knownTurnIdsFrom(collected: readonly CoreMindEvent[]): Set<string> {
+  return new Set(
+    collected.flatMap((event) => {
+      const turnId = (event as { turnId?: string }).turnId;
+      return turnId ? [turnId] : [];
+    }),
+  );
+}
+
+/** D-4 方案 A：去掉尾部未正常终止的 assistant 消息（abort 竞态赢家文本不落会话树） */
+function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] {
+  let end = messages.length;
+  while (end > 0) {
+    const last = messages[end - 1]!;
+    if (last.role === "assistant" && last.stopReason !== "stop") end -= 1;
+    else break;
+  }
+  return messages.slice(0, end);
 }
 
 function sessionDir(config: CoreMindConfig, configDir: string): string {

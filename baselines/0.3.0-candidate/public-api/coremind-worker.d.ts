@@ -21,6 +21,8 @@ export declare class WorkerServer {
     private readonly pendingToolCalls;
     private activeController?;
     private activeRunId?;
+    /** 请求预生成的 runId（D-1）：首事件前 cancel 的可寻址值 */
+    private requestedRunId?;
     private running;
     private closed;
     constructor(options: WorkerServerOptions);

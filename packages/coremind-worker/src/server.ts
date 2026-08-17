@@ -78,6 +78,8 @@ export class WorkerServer {
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
   private activeController?: AbortController;
   private activeRunId?: string;
+  /** 请求预生成的 runId（D-1）：首事件前 cancel 的可寻址值 */
+  private requestedRunId?: string;
   private running = false;
   private closed = false;
 
@@ -122,9 +124,21 @@ export class WorkerServer {
       case "register_tool":
         return this.registerTool(request.params);
       case "run":
-        return this.executeRun(request.params.input);
+        return this.executeRun(
+          request.params.input,
+          undefined,
+          false,
+          undefined,
+          request.params.runId,
+        );
       case "chat":
-        return this.executeRun(request.params.message, request.params.agent, true);
+        return this.executeRun(
+          request.params.message,
+          request.params.agent,
+          true,
+          undefined,
+          request.params.runId,
+        );
       case "approve":
         return this.resolveApproval(request.params);
       case "tool_result":
@@ -216,12 +230,15 @@ export class WorkerServer {
     agent?: string,
     persistentChat = false,
     resumeRunId?: string,
+    requestedRunId?: string,
   ): Promise<unknown> {
     const state = this.requireInitialized();
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
     this.running = true;
     this.activeController = new AbortController();
     this.activeRunId = undefined;
+    // 预生成 runId（D-1）：首事件前 cancel 用该值寻址；未提供时保持 0.3.0 行为
+    this.requestedRunId = requestedRunId;
     try {
       const baseConfig = agent
         ? { ...state.config, defaultAgent: agent, workflow: undefined }
@@ -245,6 +262,7 @@ export class WorkerServer {
         signal: this.activeController.signal,
         runStore: state.runStore,
         resumeRunId,
+        runId: requestedRunId,
         toolDefinitions: this.createPythonToolDefinitions(),
         approveTool: (request) =>
           new Promise((resolve) => {
@@ -267,6 +285,7 @@ export class WorkerServer {
       this.running = false;
       this.activeController = undefined;
       this.activeRunId = undefined;
+      this.requestedRunId = undefined;
       for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
       this.pendingApprovals.clear();
     }
@@ -374,7 +393,9 @@ export class WorkerServer {
   }
 
   private cancel(runId: string): unknown {
-    if (!this.running || this.activeRunId !== runId || !this.activeController) {
+    // 首事件前：用请求预生成的 runId 寻址（D-1）；首事件后：用 activeRunId
+    const current = this.activeRunId ?? this.requestedRunId;
+    if (!this.running || current !== runId || !this.activeController) {
       throw new CoreMindError("unknown_run", `当前没有运行中的 runId：${runId}`);
     }
     this.activeController.abort();

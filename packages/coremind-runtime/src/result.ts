@@ -40,6 +40,8 @@ export interface RunMetrics {
     stablePrefixFingerprints: string[];
   };
   artifacts?: { stored: number; blocked: number; totalBytes: number };
+  /** 取消收敛：事件准入拒绝写入的迟到终态事件数（规格 03 §3） */
+  rejectedAfterAbort?: number;
 }
 
 export interface ScenarioResult {
@@ -70,6 +72,7 @@ export function analyzeRunMetrics(
   messages: CoreMindMessage[],
   durationMs: number,
   outputChars: number,
+  rejectedAfterAbort = 0,
 ): RunMetrics {
   let turns = 0;
   let stepsTotal = 0;
@@ -175,6 +178,7 @@ export function analyzeRunMetrics(
       stablePrefixFingerprints: [...stablePrefixFingerprints].sort(),
     },
     artifacts: { stored: artifactsStored, blocked: artifactsBlocked, totalBytes: artifactBytes },
+    ...(rejectedAfterAbort > 0 ? { rejectedAfterAbort } : {}),
   };
 }
 

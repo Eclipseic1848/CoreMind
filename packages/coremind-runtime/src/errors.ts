@@ -128,6 +128,7 @@ export const ERROR_CODES = {
   python_tool_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   unknown_approval: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   not_initialized: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  concurrent_run: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
 
   // —— 其他 ——
   unknown_agent: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },

@@ -282,7 +282,12 @@ export const RunRequestSchema = Type.Object(
     id: RpcIdSchema,
     method: Type.Literal("run"),
     params: Type.Object(
-      { input: Type.Optional(Type.String()), qualityOverride: Type.Optional(Type.Boolean()) },
+      {
+        input: Type.Optional(Type.String()),
+        qualityOverride: Type.Optional(Type.Boolean()),
+        // 预生成 runId（D-1）：首事件前取消的可寻址方式；旧客户端不提供，行为不变
+        runId: Type.Optional(Type.String({ minLength: 1 })),
+      },
       { additionalProperties: false },
     ),
   },
@@ -295,7 +300,12 @@ export const ChatRequestSchema = Type.Object(
     id: RpcIdSchema,
     method: Type.Literal("chat"),
     params: Type.Object(
-      { agent: Type.String({ minLength: 1 }), message: Type.String() },
+      {
+        agent: Type.String({ minLength: 1 }),
+        message: Type.String(),
+        // 预生成 runId（D-1）：首事件前取消的可寻址方式；旧客户端不提供，行为不变
+        runId: Type.Optional(Type.String({ minLength: 1 })),
+      },
       { additionalProperties: false },
     ),
   },

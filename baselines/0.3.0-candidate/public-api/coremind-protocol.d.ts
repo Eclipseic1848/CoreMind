@@ -38,6 +38,7 @@ method: TLiteral<"chat">;
 params: TObject<    {
 agent: TString;
 message: TString;
+runId: TOptional<TString>;
 }>;
 }>;
 
@@ -158,6 +159,7 @@ method: TLiteral<"run">;
 params: TObject<    {
 input: TOptional<TString>;
 qualityOverride: TOptional<TBoolean>;
+runId: TOptional<TString>;
 }>;
 }>, TObject<    {
 jsonrpc: TLiteral<"2.0">;
@@ -166,6 +168,7 @@ method: TLiteral<"chat">;
 params: TObject<    {
 agent: TString;
 message: TString;
+runId: TOptional<TString>;
 }>;
 }>, TObject<    {
 jsonrpc: TLiteral<"2.0">;
@@ -314,6 +317,7 @@ method: TLiteral<"run">;
 params: TObject<    {
 input: TOptional<TString>;
 qualityOverride: TOptional<TBoolean>;
+runId: TOptional<TString>;
 }>;
 }>;
 

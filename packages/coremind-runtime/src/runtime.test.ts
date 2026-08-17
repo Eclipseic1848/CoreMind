@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -1123,6 +1123,361 @@ describe("CoreMindRuntime", () => {
           .filter((entry) => entry.event.type === "loop_state")
           .map((entry) => entry.event.to),
       ).toContain("aborted");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("迟到回复：abort 后流式输出完成 → transcript 无文本、trace 无 turn 终态、会话树无消息", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "late",
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: "assistant", content: "迟到竞态赢家文本" },
+                  finish_reason: null,
+                },
+              ],
+            },
+            { id: "late", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-late-reply-"));
+      const abortController = new AbortController();
+      const started = new Promise<void>((resolve) => {
+        setTimeout(resolve, 15);
+      });
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "迟到回复测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        initialPrompt: "执行",
+        sessionId: "s1",
+        signal: abortController.signal,
+        runStore: new MemoryRunStore(),
+      });
+
+      const runPromise = runtime.run();
+      await started;
+      abortController.abort();
+      const result = await runPromise;
+
+      // transcript 不含竞态赢家文本（方案 A：abort 生效后不回捞）
+      expect(result.outcome.status).toBe("aborted");
+      expect(result.transcript).not.toContain("迟到竞态赢家文本");
+      // trace 无 turn 终态事件（abort 中断流式，不产生终态事实）
+      expect(result.trace.some((entry) => entry.event.type === "turn_end")).toBe(false);
+      // 会话树无该消息（D-4 方案 A：竞态赢家文本不落盘；无已确认部分可写）
+      const sessionFile = path.join(dir, "sessions", "s1.jsonl");
+      if (existsSync(sessionFile)) {
+        expect(readFileSync(sessionFile, "utf8")).not.toContain("迟到竞态赢家文本");
+      }
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("R2 竞速：abort 与 run_timeout 同时触发时首次触发者（abort）胜出", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "r2-race",
+              choices: [
+                { index: 0, delta: { role: "assistant", content: "太慢" }, finish_reason: null },
+              ],
+            },
+            { id: "r2-race", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const abortController = new AbortController();
+      const started = new Promise<void>((resolve) => setTimeout(resolve, 5));
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "R2 竞速测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          runtime: { runTimeoutMs: 30 },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-r2-race-")),
+        initialPrompt: "执行",
+        signal: abortController.signal,
+      });
+
+      const runPromise = runtime.run();
+      await started;
+      abortController.abort(); // 与 30ms 超时竞速，abort 先到
+      const result = await runPromise;
+
+      expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("R2：多次中止幂等，首次触发者胜出", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "r2",
+              choices: [
+                { index: 0, delta: { role: "assistant", content: "太慢" }, finish_reason: null },
+              ],
+            },
+            { id: "r2", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const abortController = new AbortController();
+      const started = new Promise<void>((resolve) => setTimeout(resolve, 10));
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "多次中止测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-r2-")),
+        initialPrompt: "执行",
+        signal: abortController.signal,
+      });
+
+      const runPromise = runtime.run();
+      await started;
+      abortController.abort();
+      abortController.abort(); // 第二次中止无效果
+      const result = await runPromise;
+
+      expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
+      expect(result.operation).toMatchObject({ state: "failed", failureReason: "aborted" });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("R4：abort 后立刻 resume 被拒绝（run_already_finished）", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "r4",
+              choices: [
+                { index: 0, delta: { role: "assistant", content: "太慢" }, finish_reason: null },
+              ],
+            },
+            { id: "r4", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-r4-"));
+      const store = new MemoryRunStore();
+      const abortController = new AbortController();
+      const started = new Promise<void>((resolve) => setTimeout(resolve, 10));
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "R4 恢复拒绝测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: dir,
+        initialPrompt: "执行",
+        signal: abortController.signal,
+        runStore: store,
+      });
+
+      const runPromise = runtime.run();
+      await started;
+      abortController.abort();
+      const result = await runPromise;
+      expect(result.outcome.status).toBe("aborted");
+
+      // 恢复被拒绝：aborted 已写入 finish 记录
+      const resumed = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "R4 恢复拒绝测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: dir,
+        resumeRunId: result.runId,
+        runStore: store,
+      });
+      await expect(resumed.run()).rejects.toMatchObject({ code: "run_already_finished" });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("R5：step 超时输出丢弃，错误码保持 step_timeout", async () => {
+    const server = createServer((_request, response) => {
+      setTimeout(() => {
+        if (!response.destroyed) {
+          sendSse(response, [
+            {
+              id: "r5",
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: "assistant", content: "超时后才到" },
+                  finish_reason: null,
+                },
+              ],
+            },
+            { id: "r5", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+        }
+      }, 80);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: loopConfig(port),
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-r5-")),
+        initialPrompt: "执行",
+        stepTimeoutMs: 20,
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "timeout",
+        finishReason: "step_timeout",
+      });
+      expect(result.transcript).not.toContain("超时后才到");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("R7：同实例并发 run() 抛 concurrent_run", async () => {
+    const server = createServer(() => {
+      // 不回复：让第一个 run 挂起
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "R7 并发测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-r7-")),
+        initialPrompt: "执行",
+      });
+
+      const first = runtime.run();
+      const second = runtime.run();
+      await expect(second).rejects.toMatchObject({ code: "concurrent_run" });
+      // 清理：第一个 run 需要结束（超时中止）
+      first.catch(() => undefined);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("预生成 runId 被使用；resume 时以恢复记录为准", async () => {
+    const server = createServer((_request, response) => {
+      sendSse(response, [
+        {
+          id: "runid",
+          choices: [
+            { index: 0, delta: { role: "assistant", content: "完成" }, finish_reason: null },
+          ],
+        },
+        { id: "runid", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "预生成 runId 测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: mkdtempSync(path.join(tmpdir(), "coremind-runid-")),
+        initialPrompt: "执行",
+        runId: "pre-generated-run-id",
+      });
+
+      const result = await runtime.run();
+
+      expect(result.runId).toBe("pre-generated-run-id");
+      expect(result.trace.every((entry) => entry.runId === "pre-generated-run-id")).toBe(true);
     } finally {
       await closeServer(server);
     }
