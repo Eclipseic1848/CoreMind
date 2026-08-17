@@ -7,7 +7,7 @@ import type { RuntimeLimitsConfig } from 'coremind-config';
 import { ToolEffectDeclaration } from 'coremind-config';
 import type { ToolEffectOperation } from 'coremind-config';
 
-export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: CoreMindMessage[], durationMs: number, outputChars: number): RunMetrics;
+export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: CoreMindMessage[], durationMs: number, outputChars: number, rejectedAfterAbort?: number): RunMetrics;
 
 export declare type ApprovalDecision = "allow" | "deny";
 
@@ -506,6 +506,10 @@ export declare class CoreMindRuntime {
     /** agent 名 → 注入的技能内容 */
     private readonly skillsByAgent;
     private activeHarnessFactory?;
+    /** 并发 run() 检测（R7）：进行中的 run promise */
+    private activeRunPromise?;
+    /** 当前 run 的 journal（persistSession 的准入/abort 语义用） */
+    private runJournal?;
     /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
     private activeSession?;
     /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
@@ -530,6 +534,8 @@ export declare class CoreMindRuntime {
     restoreCheckpoint(record: CheckpointRecord): Promise<void>;
     /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
     run(): Promise<RunResult>;
+    /** run() 主体（并发检测由外层 run() 包装） */
+    private executeRunBody;
     private runWithGuard;
     private executeLoopStep;
     private abortAll;
@@ -559,6 +565,8 @@ export declare interface CoreMindRuntimeOptions {
     runStore?: RunStore;
     /** 继续一个没有 finish 记录的意外中断运行。 */
     resumeRunId?: string;
+    /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
+    runId?: string;
     /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
     toolDefinitions?: CoreMindToolDefinition[];
     /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
@@ -1434,6 +1442,8 @@ export declare interface RunMetrics {
         blocked: number;
         totalBytes: number;
     };
+    /** 取消收敛：事件准入拒绝写入的迟到终态事件数（规格 03 §3） */
+    rejectedAfterAbort?: number;
 }
 
 /** 运行是否以及为何结束；不与质量评分混在一起。 */
@@ -1510,7 +1520,25 @@ export declare class RunStateJournal {
     readonly store: RunStore;
     private sequence;
     private pending;
+    private aborted;
+    private rejectedAfterAbortCount;
+    private knownTurnIds?;
     constructor(runId: string, store: RunStore, initialSequence?: number);
+    /**
+     * 取消收敛：设置事件准入分界点（规格 03 §3）。
+     * 此后收尾事实（operation/loop/pause/finish）放行；终态类事件被静默拒绝并计数。
+     * knownTurnIds：分界前已启动的活动集合（R3 判定：分界前启动的工具 receipt 放行）。
+     */
+    markAborted(knownTurnIds?: ReadonlySet<string>): void;
+    /** 已设置准入分界点（transcript 回退等取消语义依赖此标志） */
+    isAborted(): boolean;
+    /** 准入拒绝的事件计数（记入 metrics.rejectedAfterAbort） */
+    rejectedAfterAbort(): number;
+    /**
+     * 事件准入（trace 层前置调用，规格 03 §3 / ADR"不入 Trace 或 journal"）：
+     * abort 后的迟到终态事实返回 false（计数），调用方不写入 trace/collected/回调。
+     */
+    admitEvent(event: CoreMindEvent): boolean;
     start(payload: unknown): Promise<void>;
     event(payload: unknown): void;
     resume(payload: unknown): void;

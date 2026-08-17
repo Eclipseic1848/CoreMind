@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "8891fcb182098b1550632df68fff424a01ba27c8",
+    "developmentCommit": "b999a1fcdbbc0da022d0732cfba50189404739bf",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -16,15 +16,15 @@
       "coremind-ai": "0ca3568e438820835d760c01fcc4bb91b050140187352677c953092617c38bc3",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "535be46351385cb09fb072d1c7419601039d5de9d168907f7fe7eeca1f612a0d",
-      "coremind-protocol": "c4208b4dd1d14b6054728d54e54d11c69609cbadfdf4f64eb6cbcf3168c9da79",
-      "coremind-runtime": "26fbc20d02f679f7406304e2a02a27e0047c7b37070003dc0ae9683c2c749263",
+      "coremind-protocol": "00695ae8275f2460f7c20a0386456cd7c85b3744cfe4461305987d8e881d7d1d",
+      "coremind-runtime": "497f06713a8279efc41c06f6e55462df2d90ab8b146b9d6e949576a41f5be69f",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "f0de789c9e5a6d0be28bd7da8c6910cabe912210573d3cada97beb208fcc6d92",
-      "coremind-worker": "7e3b3413ca5ecebac0685831f29e632224c8b4f33088bacbdf40f07602f65195"
+      "coremind-worker": "2288314e4e1c7b56a6d0b9f9c4ef45ea1ae22586a828c59ccfd8ce7d631dcc38"
     },
     "schemas": {
       "config": "d14c63b9321b716f84a554df4851f35545feb4197ab655122e1837060faabac4",
-      "protocol": "907c8eca28afe93d3640cb1d9c7f52ac7137e0331cc01a42295d5a5983543255"
+      "protocol": "16b7284ffb4c0c2804e922ecfd1c17939fdceaae837f71e4ac862f8de44bd205"
     }
   },
   "dependencies": {
@@ -258,9 +258,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-17T02:25:19.809Z",
+    "capturedAt": "2026-08-17T06:32:18.902Z",
     "capturePlatform": "win32",
-    "updateReason": "^0.3.1^ [03]^ 事实域关联与压缩落盘（Issue^ #37）：context_compacted^ 事件新增可选^ sessionEntryId（会话树条目引用）；ContextProtectionResult^ 新增可选^ replacedRange（被替换的输入消息范围）；ContextProtector^ 新增^ transformAsync^ 方法（压缩回调允许会话树落盘，回调失败回退原文），原同步^ transform^ 签名保持不变。另：resumable^ 安全门合并为单点后，无^ idempotencyKey^ 的非^ replay-safe^ 工具调用在^ RunSnapshot.resumable^ 判定上由放行改为视为不安全（与恢复计划判定对齐，行为修复，更保守）。均为可选扩展/行为修复；迁移与回滚说明见^ PR^ body。^",
+    "updateReason": "^0.3.1^ [05]^ 事件准入与取消收敛（Issue^ #38）：新增^ isRejectedAfterAbort^ 导出（准入判定纯函数，R3^ 分界前活动集合判定）；CoreMindRuntimeOptions^ 新增可选^ runId（D-1）；RunMetrics^ 新增可选^ rejectedAfterAbort；worker^ 协议^ run/chat^ 请求^ params^ 新增可选^ runId。均为可选扩展；迁移与回滚说明见^ PR^ body。^",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "fd1d906919d435b9258342c470c7b3b1fcd43d4c083643be2f8fcbda9e37fc7d",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -268,11 +268,11 @@
       "coremind-ai": "f678afd126e2fa962ed1d4bd6f890f6dc01dae52d1370d2b4f98a6a82a9f2c40",
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "dedeacbeb22c7dc3d98779f7cd562ec542c16e0d5133599274cf6262caff79cb",
-      "coremind-protocol": "fceba384b6157a31c454a02dbdb96e15fa59222bce92de35b709a4c335da1759",
-      "coremind-runtime": "5acea5aa75259a3a62b1c4aea59e1b0f0af95ea86ab30640f085bbefcfc5db85",
+      "coremind-protocol": "c39585a5138b4dcdaafe8c15816b8f7f3191341c62022d15b2b6e72203a981a3",
+      "coremind-runtime": "b29ff11b588ebdc87d378f8141d9960c40d42ac44c597e0fb3889bbdd9f79735",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "2aa2103b14dfeecd2a860f0794fc44475d6a0f1d7d3d71ea6d58660cdd8e39c4",
-      "coremind-worker": "e75627f2915dbeefe69cb37951760e6c5f35057b7eab9d6f96509b3e5a0173f0"
+      "coremind-worker": "f37354cd50d8d128bfb331cbf2db5d06261488fb12a2bd2e221c907e27abc02a"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

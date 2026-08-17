@@ -90,6 +90,7 @@ const EXISTING_CODES = [
   "python_tool_failed",
   "unknown_approval",
   "not_initialized",
+  "concurrent_run",
   // 其他
   "unknown_agent",
   "agent_failed",

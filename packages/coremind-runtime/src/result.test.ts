@@ -75,4 +75,12 @@ describe("analyzeRunMetrics", () => {
     expect(metrics.context?.cacheReadTokens).toBe(0);
     expect(metrics.context?.cacheWriteTokens).toBe(0);
   });
+
+  it("准入拒绝计数记入 metrics.rejectedAfterAbort；为 0 时不出现", () => {
+    const metrics = analyzeRunMetrics([], [], 1, 0, 3);
+    const zero = analyzeRunMetrics([], [], 1, 0, 0);
+
+    expect(metrics.rejectedAfterAbort).toBe(3);
+    expect(zero.rejectedAfterAbort).toBeUndefined();
+  });
 });

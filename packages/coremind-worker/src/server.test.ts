@@ -278,6 +278,150 @@ describe("WorkerServer", () => {
       },
     });
   });
+
+  it("run 请求带预生成 runId 时传给 Runtime；不带时保持向后兼容", async () => {
+    const sent: unknown[] = [];
+    const receivedRunIds: Array<string | undefined> = [];
+    const factory: WorkerRuntimeFactory = async (options) => {
+      receivedRunIds.push(options.runId);
+      return {
+        run: async () => {
+          const entry = {
+            eventId: "event-1",
+            runId: "run-1",
+            sequence: 1,
+            timestamp: "2026-08-07T00:00:00.000Z",
+            event: { type: "agent_start" as const, agent: "main" },
+          };
+          options.trace?.(entry);
+          return successfulResult(entry);
+        },
+      };
+    };
+    const server = new WorkerServer({
+      send: (message) => sent.push(message),
+      runtimeFactory: factory,
+    });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "run",
+      params: { input: "执行", runId: "client-run-123" },
+    });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "run",
+      params: { input: "执行" },
+    });
+
+    expect(receivedRunIds).toEqual(["client-run-123", undefined]);
+  });
+
+  it("预生成 runId 支持首事件前 cancel（D-1）", async () => {
+    const sent: unknown[] = [];
+    let cancelled = false;
+    const factory: WorkerRuntimeFactory = async (options) => ({
+      run: async () => {
+        // 首事件前：不发任何 trace 事件，挂起等待取消
+        await new Promise<void>((resolve) => {
+          options.signal?.addEventListener("abort", () => {
+            cancelled = true;
+            resolve();
+          });
+        });
+        throw new Error("cancelled");
+      },
+    });
+    const server = new WorkerServer({
+      send: (message) => sent.push(message),
+      runtimeFactory: factory,
+    });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+
+    const runPromise = server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "run",
+      params: { input: "执行", runId: "pre-cancel-1" },
+    });
+    // 等 run 挂起后（首事件前）用预生成 runId 取消
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    const cancelledResponse = await server.handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "cancel",
+      params: { runId: "pre-cancel-1" },
+    });
+
+    expect(cancelledResponse).toMatchObject({ result: { cancelled: true } });
+    expect(cancelled).toBe(true);
+    await runPromise;
+  });
+
+  it("首事件前用不匹配 runId 取消被拒绝（unknown_run）", async () => {
+    const factory: WorkerRuntimeFactory = async (options) => ({
+      run: async () =>
+        new Promise<never>((_resolve, reject) => {
+          options.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    });
+    const server = new WorkerServer({ send: () => {}, runtimeFactory: factory });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+
+    const runPromise = server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "run",
+      params: { input: "执行", runId: "pre-cancel-2" },
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 30));
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "cancel",
+      params: { runId: "other-run" },
+    });
+
+    expect(response).toMatchObject({ error: { data: { coremindCode: "unknown_run" } } });
+    // 清理：取消挂起的 run（用正确 runId）
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "cancel",
+      params: { runId: "pre-cancel-2" },
+    });
+    await runPromise;
+  });
 });
 
 function successfulResult(entry: any) {
