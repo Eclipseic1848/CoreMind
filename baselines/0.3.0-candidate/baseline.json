@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "56d77f59582c5b1b2b5c60f442388976f3ea9e2b",
+    "developmentCommit": "8891fcb182098b1550632df68fff424a01ba27c8",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,7 +17,7 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "535be46351385cb09fb072d1c7419601039d5de9d168907f7fe7eeca1f612a0d",
       "coremind-protocol": "c4208b4dd1d14b6054728d54e54d11c69609cbadfdf4f64eb6cbcf3168c9da79",
-      "coremind-runtime": "9b0cf4876532e88ee53aa731ef8becb61685628d2fbecfc92dba01ff6382a9b7",
+      "coremind-runtime": "26fbc20d02f679f7406304e2a02a27e0047c7b37070003dc0ae9683c2c749263",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "f0de789c9e5a6d0be28bd7da8c6910cabe912210573d3cada97beb208fcc6d92",
       "coremind-worker": "7e3b3413ca5ecebac0685831f29e632224c8b4f33088bacbdf40f07602f65195"
@@ -258,9 +258,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-16T16:18:40.785Z",
+    "capturedAt": "2026-08-17T02:25:19.809Z",
     "capturePlatform": "win32",
-    "updateReason": "^0.3.x-A^ [02]^ 规格^ 02^ Turn^ 身份：CoreMindEvent^ 六类事件增加可选^ turnId^ 字段（可选追加、向后兼容；迁移无需动作，回滚=移除字段）^",
+    "updateReason": "^0.3.1^ [03]^ 事实域关联与压缩落盘（Issue^ #37）：context_compacted^ 事件新增可选^ sessionEntryId（会话树条目引用）；ContextProtectionResult^ 新增可选^ replacedRange（被替换的输入消息范围）；ContextProtector^ 新增^ transformAsync^ 方法（压缩回调允许会话树落盘，回调失败回退原文），原同步^ transform^ 签名保持不变。另：resumable^ 安全门合并为单点后，无^ idempotencyKey^ 的非^ replay-safe^ 工具调用在^ RunSnapshot.resumable^ 判定上由放行改为视为不安全（与恢复计划判定对齐，行为修复，更保守）。均为可选扩展/行为修复；迁移与回滚说明见^ PR^ body。^",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "fd1d906919d435b9258342c470c7b3b1fcd43d4c083643be2f8fcbda9e37fc7d",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -269,7 +269,7 @@
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "dedeacbeb22c7dc3d98779f7cd562ec542c16e0d5133599274cf6262caff79cb",
       "coremind-protocol": "fceba384b6157a31c454a02dbdb96e15fa59222bce92de35b709a4c335da1759",
-      "coremind-runtime": "8157016fa6ec1b4b58c831e9e396426bc931370c5a0e343db3f6aef1bc3770e1",
+      "coremind-runtime": "5acea5aa75259a3a62b1c4aea59e1b0f0af95ea86ab30640f085bbefcfc5db85",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "2aa2103b14dfeecd2a860f0794fc44475d6a0f1d7d3d71ea6d58660cdd8e39c4",
       "coremind-worker": "e75627f2915dbeefe69cb37951760e6c5f35057b7eab9d6f96509b3e5a0173f0"

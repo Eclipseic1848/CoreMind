@@ -116,6 +116,8 @@ export type CoreMindEvent =
       strategy: "deterministic-v1";
       reason: "threshold";
       summaryFingerprint: string;
+      /** 会话树压缩条目引用（落盘成功时存在）；摘要正文不落 RunState */
+      sessionEntryId?: string;
     }
   | {
       type: "context_compaction_failed";

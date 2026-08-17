@@ -29,6 +29,7 @@ import {
   assessRuntimeEngineeringEvidence,
   createToolExecutionEvidence,
 } from "./coding/runtime-engineering-evidence.js";
+import { type BranchMessage, projectBranchMessages } from "./compaction-projection.js";
 import { ContextProtector } from "./context.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
@@ -156,6 +157,12 @@ export class CoreMindRuntime {
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
   private activeHarnessFactory?: (agentName: string, stepId?: string) => RuntimeHarness;
+  /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
+  private activeSession?: CoreMindSession;
+  /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
+  private sessionBranch?: BranchMessage[];
+  /** 压缩后 agent 消息数组中被会话树代表的前缀长度（persist 跳过，避免重复落盘） */
+  private compactedPrefixEnd?: number;
 
   private constructor(
     private readonly config: CoreMindConfig,
@@ -380,6 +387,17 @@ export class CoreMindRuntime {
       this.options.runStore ??
       new FileRunStore(path.join(this.options.configDir, ".coremind", "runs"));
     const configFingerprint = fingerprintRunConfig(this.config);
+    // 会话树关联：打开会话拿 seq 水位与已落盘视图（压缩条目落盘与重建桥接用）
+    let sessionSeqStart: number | undefined;
+    if (this.options.sessionId && this.config.session?.enabled) {
+      this.activeSession = await CoreMindSession.open({
+        dir: sessionDir(this.config, this.options.configDir),
+        sessionId: this.options.sessionId,
+        cwd: this.options.cwd ?? process.cwd(),
+      });
+      sessionSeqStart = await this.activeSession.currentSeq();
+      this.sessionBranch = projectBranchMessages(await this.activeSession.branchEntries());
+    }
     const resumePlan = this.options.resumeRunId
       ? prepareRunResume(
           await runStore.read(this.options.resumeRunId),
@@ -418,6 +436,10 @@ export class CoreMindRuntime {
       journal.resume({
         completedStepIds: [...resumePlan.completedSteps.keys()],
         resumedAt: new Date().toISOString(),
+        ...(this.options.sessionId ? { sessionId: this.options.sessionId } : {}),
+        ...(sessionSeqStart !== undefined
+          ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
+          : {}),
       });
     } else {
       await journal.start({
@@ -426,6 +448,9 @@ export class CoreMindRuntime {
         configFingerprint,
         initialPrompt: this.options.initialPrompt,
         sessionId: this.options.sessionId,
+        ...(sessionSeqStart !== undefined
+          ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
+          : {}),
         operationId: operation.snapshot().operationId,
       });
     }
@@ -514,7 +539,42 @@ export class CoreMindRuntime {
         reserveTokens: Math.min(16_384, Math.max(1_024, Math.floor(contextWindow * 0.15))),
         keepRecentTokens: Math.min(20_000, Math.max(2_048, Math.floor(contextWindow * 0.25))),
       },
-      (result) =>
+      async (result) => {
+        let sessionEntryId: string | undefined;
+        const range = result.replacedRange;
+        const branch = this.sessionBranch;
+        if (this.activeSession && branch && range && branch.length > 0) {
+          // 替换范围延伸进本轮未落盘消息时，会话树内的范围终点截到已落盘末尾，
+          // 未落盘尾部由 retainedTail 快照携带——重建依然无损（发送 = 摘要 + 保留区）。
+          const coveredEnd = Math.min(range.end, branch.length);
+          const summaryMessage = result.messages[0] as { content: string; timestamp: number };
+          const entry = await this.activeSession.appendCompaction({
+            summary: summaryMessage.content,
+            retainedTail: result.messages.slice(1) as unknown as AgentMessage[],
+            tokensBefore: result.beforeTokens,
+            details: {
+              fingerprint: result.summaryFingerprint!,
+              rangeStartId: branch[range.start]!.entryId,
+              rangeEndId: branch[coveredEnd - 1]!.entryId,
+              summaryTimestamp: summaryMessage.timestamp,
+            },
+          });
+          sessionEntryId = entry.id;
+          // 更新已落盘视图：压缩产物（摘要 + 保留区）由该条目代表
+          this.sessionBranch = [
+            {
+              message: result.messages[0]! as unknown as AgentMessage,
+              entryId: entry.id,
+              seq: entry.seq,
+            },
+            ...result.messages.slice(1).map((message) => ({
+              message: message as unknown as AgentMessage,
+              entryId: entry.id,
+              seq: entry.seq,
+            })),
+          ];
+          this.compactedPrefixEnd = result.messages.length;
+        }
         emit({
           type: "context_compacted",
           beforeTokens: result.beforeTokens,
@@ -523,7 +583,9 @@ export class CoreMindRuntime {
           strategy: "deterministic-v1",
           reason: "threshold",
           summaryFingerprint: result.summaryFingerprint!,
-        }),
+          ...(sessionEntryId ? { sessionEntryId } : {}),
+        });
+      },
       (failure) =>
         emit({
           type: "context_compaction_failed",
@@ -566,7 +628,7 @@ export class CoreMindRuntime {
           stepId,
           messageCount: messages.length,
         });
-        return contextProtector.transform(messages) as unknown as AgentMessage[];
+        return (await contextProtector.transformAsync(messages)) as unknown as AgentMessage[];
       },
       beforeToolCall: async (context: BeforeToolCallContext) => {
         if (deniedAgents.has(agentName)) {
@@ -1105,13 +1167,17 @@ export class CoreMindRuntime {
     if (!sessionId || !session?.enabled) return undefined;
     const main = this.lastAgents.get(this.mainAgentName);
     if (!main) return undefined;
-    const cm = await CoreMindSession.open({
-      dir: sessionDir(this.config, this.options.configDir),
-      sessionId,
-      cwd: this.options.cwd ?? process.cwd(),
-    });
-    // 只追加本轮新增（恢复时注入的历史已在会话文件中，避免重复）
-    await cm.appendMessages(main.state.messages.slice(this.resumedContextLength));
+    const cm =
+      this.activeSession ??
+      (await CoreMindSession.open({
+        dir: sessionDir(this.config, this.options.configDir),
+        sessionId,
+        cwd: this.options.cwd ?? process.cwd(),
+      }));
+    // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
+    await cm.appendMessages(
+      main.state.messages.slice(this.compactedPrefixEnd ?? this.resumedContextLength),
+    );
     // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
     if (session.compact) {
       await cm.maybeCompact(

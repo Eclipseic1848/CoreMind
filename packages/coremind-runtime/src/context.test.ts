@@ -56,6 +56,36 @@ describe("protectContext", () => {
     expect(textOf(result.messages[0])).toContain("不确定副作用：");
   });
 
+  it("压缩时报告被替换的输入消息范围（供会话树落盘桥接）", () => {
+    const messages: AgentMessage[] = [
+      user(`旧问题-${"甲".repeat(200)}`),
+      assistant(`旧回答-${"乙".repeat(200)}`),
+      user("最近问题"),
+      assistant("最近回答"),
+    ];
+
+    const result = protectContext(messages, {
+      contextWindow: 120,
+      reserveTokens: 20,
+      keepRecentTokens: 30,
+    });
+
+    expect(result.compacted).toBe(true);
+    expect(result.replacedRange).toEqual({ start: 0, end: result.removedMessages });
+    expect(result.replacedRange?.end).toBeLessThan(messages.length);
+  });
+
+  it("未压缩时替换范围为空", () => {
+    const result = protectContext([user("短消息")], {
+      contextWindow: 10_000,
+      reserveTokens: 1_000,
+      keepRecentTokens: 2_000,
+    });
+
+    expect(result.compacted).toBe(false);
+    expect(result.replacedRange).toBeUndefined();
+  });
+
   it("压缩异常时保留原消息并报告失败，不静默吞掉", () => {
     const failures: string[] = [];
     const invalid = [undefined as unknown as AgentMessage];
@@ -68,6 +98,46 @@ describe("protectContext", () => {
     expect(protector.transform(invalid)).toBe(invalid);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toContain("上下文压缩失败");
+  });
+
+  it("同步 transform 拒绝异步压缩回调（避免落盘竞态，0.3.0 兼容入口）", () => {
+    const failures: string[] = [];
+    const messages: AgentMessage[] = [
+      user(`旧问题-${"甲".repeat(200)}`),
+      assistant(`旧回答-${"乙".repeat(200)}`),
+      user("最近问题"),
+      assistant("最近回答"),
+    ];
+    const protector = new ContextProtector(
+      { contextWindow: 120, reserveTokens: 20, keepRecentTokens: 30 },
+      async () => {},
+      (failure) => failures.push(failure.message),
+    );
+
+    expect(protector.transform(messages)).toBe(messages);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("transformAsync");
+  });
+
+  it("transformAsync 回调失败时保留原消息并报告失败（落盘失败不改变发送内容）", async () => {
+    const failures: string[] = [];
+    const messages: AgentMessage[] = [
+      user(`旧问题-${"甲".repeat(200)}`),
+      assistant(`旧回答-${"乙".repeat(200)}`),
+      user("最近问题"),
+      assistant("最近回答"),
+    ];
+    const protector = new ContextProtector(
+      { contextWindow: 120, reserveTokens: 20, keepRecentTokens: 30 },
+      () => {
+        throw new Error("落盘失败");
+      },
+      (failure) => failures.push(failure.message),
+    );
+
+    await expect(protector.transformAsync(messages)).resolves.toBe(messages);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("落盘失败");
   });
 
   it("稳定前缀不受对象键顺序和工具输入顺序影响", () => {

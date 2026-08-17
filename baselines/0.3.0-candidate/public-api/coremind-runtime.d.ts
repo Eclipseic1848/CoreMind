@@ -236,14 +236,22 @@ export declare interface ContextProtectionResult {
     strategy: "none" | "deterministic-v1";
     reason?: "threshold";
     summaryFingerprint?: string;
+    /** 被摘要替换的输入消息范围 [start, end)（仅压缩时存在，供会话树落盘桥接） */
+    replacedRange?: {
+        start: number;
+        end: number;
+    };
 }
 
 export declare class ContextProtector {
     private readonly options;
     private readonly onCompacted?;
     private readonly onFailed?;
-    constructor(options: ContextProtectionOptions, onCompacted?: ((result: ContextProtectionResult) => void) | undefined, onFailed?: ((failure: ContextProtectionFailure) => void) | undefined);
+    constructor(options: ContextProtectionOptions, onCompacted?: ((result: ContextProtectionResult) => void | Promise<void>) | undefined, onFailed?: ((failure: ContextProtectionFailure) => void) | undefined);
+    /** 同步压缩（0.3.0 兼容入口）：异步压缩回调必须改用 transformAsync，避免落盘竞态。 */
     transform(messages: CoreMindMessage[]): CoreMindMessage[];
+    /** 异步压缩：回调允许会话树落盘；回调失败时保留原文并走失败路径。 */
+    transformAsync(messages: CoreMindMessage[]): Promise<CoreMindMessage[]>;
 }
 
 export declare interface ContextStrategyComparison {
@@ -378,6 +386,8 @@ export declare type CoreMindEvent = {
     strategy: "deterministic-v1";
     reason: "threshold";
     summaryFingerprint: string;
+    /** 会话树压缩条目引用（落盘成功时存在）；摘要正文不落 RunState */
+    sessionEntryId?: string;
 } | {
     type: "context_compaction_failed";
     message: string;
@@ -496,6 +506,12 @@ export declare class CoreMindRuntime {
     /** agent 名 → 注入的技能内容 */
     private readonly skillsByAgent;
     private activeHarnessFactory?;
+    /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
+    private activeSession?;
+    /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
+    private sessionBranch?;
+    /** 压缩后 agent 消息数组中被会话树代表的前缀长度（persist 跳过，避免重复落盘） */
+    private compactedPrefixEnd?;
     private constructor();
     /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
     static create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime>;

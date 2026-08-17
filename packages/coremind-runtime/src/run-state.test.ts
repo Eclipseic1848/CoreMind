@@ -7,11 +7,13 @@ import type { LoopControllerSnapshot } from "./loop-controller.js";
 import { DurableOperation } from "./operation-state.js";
 import {
   FileRunStore,
+  findUnsafeToolCall,
   MemoryRunStore,
   prepareRunResume,
   RunStateJournal,
   type RunStateRecord,
 } from "./run-state.js";
+import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
   it("以只追加 JSONL 顺序保存 start、event 和 finish", async () => {
@@ -297,7 +299,145 @@ describe("RunState", () => {
     expect(plan.completedSteps.has("s1")).toBe(true);
     expect(plan.effectReceipts.get("run-restore:write-1")?.status).toBe("committed");
   });
+
+  it("0.3.0 历史 RunState（start 无会话树水位字段）仍可恢复读取，不报 corrupt", () => {
+    const records: RunStateRecord[] = [
+      record(1, "start", { configFingerprint: "fingerprint", initialPrompt: "开始" }),
+      traceRecord(2, 1, {
+        type: "tool_call",
+        agent: "main",
+        stepId: "s1",
+        tool: "write",
+        idempotencyKey: "run-restore:write-1",
+      }),
+      traceRecord(3, 2, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:write-1",
+        tool: "write",
+        status: "not_started",
+        stepId: "s1",
+      }),
+      record(4, "pause", { reason: "process_interrupted" }),
+    ];
+
+    const plan = prepareRunResume(records, "fingerprint");
+
+    // 无 sessionSeqStart / turnSeqStart 的旧数据正常恢复；跨轮归属按规格 01 §2.3 声明不可回答
+    expect(plan.runId).toBe("run-restore");
+    expect(plan.nextJournalSequence).toBe(4);
+  });
 });
+
+describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
+  it("replay-safe 工具不阻塞恢复", () => {
+    const trace = [
+      traceEntry(1, { type: "tool_call", agent: "main", tool: "read", idempotencyKey: "r:1" }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toBeUndefined();
+  });
+
+  it("not_started 收据视为安全", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "write",
+        idempotencyKey: "r:1",
+      }),
+      traceEntry(2, {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "r:1",
+        status: "not_started",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toBeUndefined();
+  });
+
+  it("没有收据的非安全工具视为不安全", () => {
+    const trace = [traceEntry(1, { type: "tool_call", agent: "main", tool: "send_email" })];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "send_email" });
+  });
+
+  it("步骤完成后不再视为不安全（即使收据已提交）", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "write",
+        idempotencyKey: "r:1",
+        stepId: "s1",
+      }),
+      traceEntry(2, {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "r:1",
+        status: "committed",
+        stepId: "s1",
+      }),
+      traceEntry(3, { type: "step_output", stepId: "s1", agent: "main", text: "完成" }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toBeUndefined();
+  });
+
+  it("已提交副作用在步骤未稳定完成时返回收据状态", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "write",
+        idempotencyKey: "r:1",
+        stepId: "s1",
+      }),
+      traceEntry(2, {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "r:1",
+        status: "committed",
+        stepId: "s1",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({
+      tool: "write",
+      idempotencyKey: "r:1",
+      receiptStatus: "committed",
+    });
+  });
+
+  it("unknown 收据返回收据状态供调用方区分报错", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "write",
+        idempotencyKey: "r:1",
+      }),
+      traceEntry(2, {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "r:1",
+        status: "unknown",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ receiptStatus: "unknown" });
+  });
+});
+
+function traceEntry(sequence: number, event: Record<string, unknown>): CoreMindTraceEvent {
+  return {
+    eventId: `event-${sequence}`,
+    runId: "run-restore",
+    sequence,
+    timestamp: new Date().toISOString(),
+    event,
+  } as unknown as CoreMindTraceEvent;
+}
 
 function loopSnapshot(overrides: Partial<LoopControllerSnapshot>): LoopControllerSnapshot {
   return {

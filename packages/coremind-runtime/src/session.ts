@@ -27,6 +27,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, Models } from "@earendil-works/pi-ai";
+import type { CoremindCompactionDetails } from "./compaction-projection.js";
 import { CoreMindError } from "./errors.js";
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
@@ -169,6 +170,40 @@ export class CoreMindSession {
   /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
   async buildContext(): Promise<SessionContext> {
     return buildSessionContext(await this.session.findEntriesOnBranch({ order: "oldestFirst" }));
+  }
+
+  /** 主 lane 全部条目（oldestFirst）——投影与请求重建用 */
+  async branchEntries(): Promise<Awaited<ReturnType<Session["findEntriesOnBranch"]>>> {
+    return this.session.findEntriesOnBranch({ order: "oldestFirst" });
+  }
+
+  /** 主 lane 当前 seq 水位（空树为 0）——Run 关联会话树的起始水位 */
+  async currentSeq(): Promise<number> {
+    const entries = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    return entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+  }
+
+  /**
+   * 追加 CoreMind 确定性压缩条目（追加不删除历史），返回完整条目。
+   * 替换范围与指纹放 details；恢复视图按上游语义用摘要 + retainedTail 替换旧历史。
+   */
+  async appendCompaction(compaction: {
+    summary: string;
+    retainedTail: AgentMessage[];
+    tokensBefore: number;
+    details: CoremindCompactionDetails;
+  }): Promise<Awaited<ReturnType<Session["appendEntry"]>>> {
+    return this.session.appendEntry(
+      {
+        type: "compaction",
+        id: this.session.idGenerator.next(),
+        summary: compaction.summary,
+        retainedTail: compaction.retainedTail,
+        tokensBefore: compaction.tokensBefore,
+        details: compaction.details,
+      },
+      "main",
+    );
   }
 
   /**

@@ -313,6 +313,46 @@ export class RunStateJournal {
 
 const REPLAY_SAFE_TOOLS = new Set(["read", "ls", "find", "grep", "web-fetch", "web-search"]);
 
+/** 未到达稳定边界的非 replay-safe 工具调用（resumable 安全门的判定结果） */
+export interface UnsafeToolCall {
+  tool: string;
+  stepId?: string;
+  idempotencyKey?: string;
+  receiptStatus?: EffectReceipt["status"];
+}
+
+/**
+ * resumable 安全门单点实现（缺口 G-1）：
+ * 找出第一个副作用状态无法证明为 not_started 的非 replay-safe 工具调用。
+ * 快照 resumable 标志与恢复计划共用此判定，避免双实现漂移。
+ */
+export function findUnsafeToolCall(
+  trace: readonly CoreMindTraceEvent[],
+): UnsafeToolCall | undefined {
+  const receipts = new Map<string, EffectReceipt>();
+  const completedSteps = new Set<string>();
+  for (const entry of trace) {
+    const event = entry.event;
+    if (event.type === "effect_receipt") receipts.set(event.idempotencyKey, event);
+    if (event.type === "step_output") completedSteps.add(event.stepId);
+  }
+  for (const entry of trace) {
+    const event = entry.event;
+    if (event.type !== "tool_call") continue;
+    if (REPLAY_SAFE_TOOLS.has(event.tool)) continue;
+    if (event.stepId && completedSteps.has(event.stepId)) continue;
+    const receipt = event.idempotencyKey ? receipts.get(event.idempotencyKey) : undefined;
+    if (receipt?.status === "not_started") continue;
+    return {
+      tool: event.tool,
+      ...(event.stepId ? { stepId: event.stepId } : {}),
+      ...(event.idempotencyKey ? { idempotencyKey: event.idempotencyKey } : {}),
+      ...(receipt ? { receiptStatus: receipt.status } : {}),
+    };
+  }
+  return undefined;
+}
+
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
 export function prepareRunResume(
   records: RunStateRecord[],
@@ -348,7 +388,6 @@ export function prepareRunResume(
   }
 
   const completedSteps = new Map<string, CompletedWorkflowStep>();
-  const unsafeToolStarts: Array<{ stepId?: string; tool: string; idempotencyKey?: string }> = [];
   const effectReceipts = new Map<string, EffectReceipt>();
   const previousTrace: CoreMindTraceEvent[] = [];
   let loopSnapshot: LoopControllerSnapshot | undefined;
@@ -382,21 +421,7 @@ export function prepareRunResume(
         },
       });
     }
-    if (event.type === "tool_call") {
-      const toolEvent = event as {
-        type: "tool_call";
-        tool: string;
-        stepId?: string;
-        idempotencyKey?: string;
-      };
-      if (!REPLAY_SAFE_TOOLS.has(toolEvent.tool)) {
-        unsafeToolStarts.push({
-          tool: toolEvent.tool,
-          ...(toolEvent.stepId ? { stepId: toolEvent.stepId } : {}),
-          ...(toolEvent.idempotencyKey ? { idempotencyKey: toolEvent.idempotencyKey } : {}),
-        });
-      }
-    }
+    // tool_call 的安全门判定统一走 findUnsafeToolCall（见下方），这里不再重复收集。
     if (event.type === "effect_receipt") {
       const receipt = event as EffectReceipt & { type: "effect_receipt" };
       effectReceipts.set(receipt.idempotencyKey, {
@@ -410,16 +435,9 @@ export function prepareRunResume(
 
   const operationSnapshot = operationSnapshotFromRecords(ordered);
 
-  const unsafe = unsafeToolStarts.find((toolCall) => {
-    if (toolCall.stepId && completedSteps.has(toolCall.stepId)) return false;
-    const receipt = toolCall.idempotencyKey
-      ? effectReceipts.get(toolCall.idempotencyKey)
-      : undefined;
-    return receipt?.status !== "not_started";
-  });
+  const unsafe = findUnsafeToolCall(previousTrace);
   if (unsafe) {
-    const receipt = unsafe.idempotencyKey ? effectReceipts.get(unsafe.idempotencyKey) : undefined;
-    if (receipt?.status === "committed") {
+    if (unsafe.receiptStatus === "committed") {
       throw new CoreMindError(
         "committed_effect_pending",
         `工具 ${unsafe.tool} 的副作用已提交，但步骤尚未到达稳定边界；为避免重复执行，已暂停自动恢复`,
