@@ -1420,7 +1420,11 @@ describe("CoreMindRuntime", () => {
       const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-compact-overflow-"));
       const sessionDir = path.join(dir, "sessions");
       // 树里只有 2 条短消息；runAgentTurn 注入的 history（未落盘）更长
-      const cm = await CoreMindSession.open({ dir: sessionDir, sessionId: "s1", cwd: process.cwd() });
+      const cm = await CoreMindSession.open({
+        dir: sessionDir,
+        sessionId: "s1",
+        cwd: process.cwd(),
+      });
       await cm.appendMessages([
         { id: "t1", role: "user", content: [{ type: "text", text: "树内一" }] },
         { id: "t2", role: "assistant", content: [{ type: "text", text: "树内二" }] },
@@ -1460,9 +1464,9 @@ describe("CoreMindRuntime", () => {
       // 压缩发生了且带会话树条目引用（范围截到已落盘末尾仍可落盘）
       const compacted = events.filter((event) => event.type === "context_compacted");
       expect(compacted.length).toBeGreaterThan(0);
-      expect(
-        compacted.some((event) => "sessionEntryId" in event && event.sessionEntryId),
-      ).toBe(true);
+      expect(compacted.some((event) => "sessionEntryId" in event && event.sessionEntryId)).toBe(
+        true,
+      );
 
       // 重建 == 实际发送
       const reopened = await CoreMindSession.open({
