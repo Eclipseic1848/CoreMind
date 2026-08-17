@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
+import { applyCompaction, projectRawBranchMessages } from "./compaction-projection.js";
 import type { CoreMindEvent } from "./events.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
 import {
@@ -14,6 +15,7 @@ import {
   RunStateJournal,
 } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
+import { CoreMindSession } from "./session.js";
 
 describe("CoreMindRuntime", () => {
   it("成功运行返回分离的结果、指标、评测、发布就绪度和结构化 Trace", async () => {
@@ -1235,6 +1237,251 @@ describe("CoreMindRuntime", () => {
       await closeServer(server);
     }
   });
+
+  it("会话启用时 start 记录携带会话树水位关联字段", async () => {
+    const server = createServer((_request, response) => {
+      sendSse(response, [
+        {
+          id: "corr",
+          choices: [
+            { index: 0, delta: { role: "assistant", content: "完成" }, finish_reason: null },
+          ],
+        },
+        { id: "corr", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-session-seq-"));
+      const cm = await CoreMindSession.open({
+        dir: path.join(dir, "sessions"),
+        sessionId: "s1",
+        cwd: process.cwd(),
+      });
+      await cm.appendMessages([
+        { id: "h1", role: "user", content: [{ type: "text", text: "历史一" }] },
+        { id: "h2", role: "assistant", content: [{ type: "text", text: "历史二" }] },
+      ]);
+      const seqBefore = await cm.currentSeq();
+      expect(seqBefore).toBeGreaterThan(0);
+
+      const store = new MemoryRunStore();
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "关联字段测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        initialPrompt: "执行",
+        sessionId: "s1",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+      const start = records.find((record) => record.kind === "start");
+      expect(start?.payload).toMatchObject({
+        sessionId: "s1",
+        sessionSeqStart: seqBefore,
+        turnSeqStart: seqBefore,
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("请求级压缩把摘要条目落盘会话树，事件只带引用，重建消息与实际发送逐条一致", async () => {
+    const captured: { messages: unknown[] }[] = [];
+    const server = createServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk: Buffer) => {
+        body += chunk.toString("utf8");
+      });
+      request.on("end", () => {
+        captured.push(JSON.parse(body) as { messages: unknown[] });
+        sendSse(response, [
+          {
+            id: "compact",
+            choices: [
+              { index: 0, delta: { role: "assistant", content: "已继续" }, finish_reason: null },
+            ],
+          },
+          { id: "compact", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+        ]);
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-compact-"));
+      const sessionDir = path.join(dir, "sessions");
+      const cm = await CoreMindSession.open({
+        dir: sessionDir,
+        sessionId: "s1",
+        cwd: process.cwd(),
+      });
+      const long = "旧历史内容".repeat(80);
+      await cm.appendMessages([
+        { id: "h1", role: "user", content: [{ type: "text", text: `${long}一` }] },
+        { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}二` }] },
+        { id: "h3", role: "user", content: [{ type: "text", text: `${long}三` }] },
+        { id: "h4", role: "assistant", content: [{ type: "text", text: `${long}四` }] },
+        { id: "h5", role: "user", content: [{ type: "text", text: `${long}五` }] },
+      ]);
+
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "压缩落盘测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 300,
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        initialPrompt: "继续完成",
+        sessionId: "s1",
+        events: (event) => events.push(event),
+      });
+
+      await runtime.run();
+
+      // 压缩事件：只含指纹与会话树条目引用，不含摘要正文
+      const compactedEvents = events.filter((event) => event.type === "context_compacted");
+      expect(compactedEvents.length).toBeGreaterThan(0);
+      const compacted = compactedEvents[0] as {
+        summaryFingerprint?: string;
+        sessionEntryId?: string;
+      };
+      expect(compacted.summaryFingerprint).toMatch(/^[a-f0-9]{64}$/);
+      expect(typeof compacted.sessionEntryId).toBe("string");
+      expect("summary" in compacted).toBe(false);
+
+      // 会话树：压缩条目已落盘（追加不删除历史），persist 不重复摘要与保留区
+      const reopened = await CoreMindSession.open({
+        dir: sessionDir,
+        sessionId: "s1",
+        cwd: process.cwd(),
+      });
+      const entries = await reopened.branchEntries();
+      const compactions = entries.filter((entry) => entry.type === "compaction");
+      expect(compactions).toHaveLength(1);
+
+      // 重建 == 实际发送（忽略 system 前缀，逐条按内容比对）
+      const sent = captured[0]!.messages.filter((message) => {
+        const role = (message as { role?: string }).role;
+        return role !== "system";
+      });
+      const rebuilt = applyCompaction(projectRawBranchMessages(entries), compactions);
+      expect(rebuilt.map(contentOf)).toEqual(sent.map(contentOf));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("压缩范围延伸进未落盘消息时仍落盘（范围截到已落盘末尾，重建无损）", async () => {
+    const captured: { messages: unknown[] }[] = [];
+    const server = createServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk: Buffer) => {
+        body += chunk.toString("utf8");
+      });
+      request.on("end", () => {
+        captured.push(JSON.parse(body) as { messages: unknown[] });
+        sendSse(response, [
+          {
+            id: "overflow",
+            choices: [
+              { index: 0, delta: { role: "assistant", content: "已回复" }, finish_reason: null },
+            ],
+          },
+          { id: "overflow", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+        ]);
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-compact-overflow-"));
+      const sessionDir = path.join(dir, "sessions");
+      // 树里只有 2 条短消息；runAgentTurn 注入的 history（未落盘）更长
+      const cm = await CoreMindSession.open({ dir: sessionDir, sessionId: "s1", cwd: process.cwd() });
+      await cm.appendMessages([
+        { id: "t1", role: "user", content: [{ type: "text", text: "树内一" }] },
+        { id: "t2", role: "assistant", content: [{ type: "text", text: "树内二" }] },
+      ]);
+
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "压缩越界测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 300,
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        sessionId: "s1",
+        events: (event) => events.push(event),
+      });
+      const long = "未落盘历史".repeat(90);
+      await runtime.runAgentTurn(
+        "main",
+        "继续",
+        [
+          { id: "h1", role: "user", content: [{ type: "text", text: `${long}甲` }] },
+          { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}乙` }] },
+          { id: "h3", role: "user", content: [{ type: "text", text: `${long}丙` }] },
+        ],
+        (event) => events.push(event),
+      );
+
+      // 压缩发生了且带会话树条目引用（范围截到已落盘末尾仍可落盘）
+      const compacted = events.filter((event) => event.type === "context_compacted");
+      expect(compacted.length).toBeGreaterThan(0);
+      expect(
+        compacted.some((event) => "sessionEntryId" in event && event.sessionEntryId),
+      ).toBe(true);
+
+      // 重建 == 实际发送
+      const reopened = await CoreMindSession.open({
+        dir: sessionDir,
+        sessionId: "s1",
+        cwd: process.cwd(),
+      });
+      const entries = await reopened.branchEntries();
+      const compactions = entries.filter((entry) => entry.type === "compaction");
+      const sent = captured[0]!.messages.filter((message) => {
+        const role = (message as { role?: string }).role;
+        return role !== "system";
+      });
+      const rebuilt = applyCompaction(projectRawBranchMessages(entries), compactions);
+      expect(rebuilt.map(contentOf)).toEqual(sent.map(contentOf));
+    } finally {
+      await closeServer(server);
+    }
+  });
 });
 
 function sendSse(response: ServerResponse, chunks: unknown[]): void {
@@ -1293,6 +1540,27 @@ function createToolCallingServer() {
       ]);
     });
   });
+}
+
+/** 消息的内容指纹（跨格式归一化：字符串 content 或文本块拼接） */
+function contentOf(message: unknown): string {
+  const record = message as {
+    role?: string;
+    content?: unknown;
+    summary?: string;
+    text?: string;
+  };
+  if (record.summary !== undefined) return `summary:${record.summary}`;
+  if (typeof record.content === "string") return record.content;
+  if (Array.isArray(record.content)) {
+    return record.content
+      .map((item) => {
+        const block = item as { type?: string; text?: string };
+        return block.type === "text" ? (block.text ?? "") : "";
+      })
+      .join("");
+  }
+  return record.text ?? "";
 }
 
 function toolConfig(

@@ -230,4 +230,92 @@ describe("CoreMindSession（二期会话树存储）", () => {
     });
     expect(compressed).toBe(false);
   });
+
+  it("currentSeq：空树为 0，追加消息与压缩条目后递增", async () => {
+    const dir = makeDir();
+    const cm = await CoreMindSession.open({ dir, sessionId: "s5", cwd });
+    expect(await cm.currentSeq()).toBe(0);
+
+    await cm.appendMessages([
+      { id: "y1", role: "user", content: [{ type: "text", text: "第一条" }] },
+    ]);
+    const afterMessage = await cm.currentSeq();
+    expect(afterMessage).toBeGreaterThan(0);
+
+    await cm.appendCompaction({
+      summary: "摘要",
+      retainedTail: [],
+      tokensBefore: 100,
+      details: { fingerprint: "f", rangeStartId: "y1", rangeEndId: "y1" },
+    });
+    expect(await cm.currentSeq()).toBeGreaterThan(afterMessage);
+  });
+
+  it("appendCompaction：落盘 CoreMind 压缩条目，恢复视图按摘要替换历史", async () => {
+    const dir = makeDir();
+    const opts = { dir, sessionId: "s6", cwd };
+    const cm = await CoreMindSession.open(opts);
+    await cm.appendMessages([
+      { id: "z1", role: "user", content: [{ type: "text", text: "被压缩的旧问题" }] },
+      { id: "z2", role: "assistant", content: [{ type: "text", text: "被压缩的旧回答" }] },
+      { id: "z3", role: "user", content: [{ type: "text", text: "保留的最近问题" }] },
+    ]);
+
+    const appended = await cm.appendCompaction({
+      summary: "本地确定性摘要",
+      retainedTail: [
+        { id: "tail", role: "user", content: [{ type: "text", text: "保留的最近问题" }] },
+      ],
+      tokensBefore: 800,
+      details: { fingerprint: "abc123", rangeStartId: "z1", rangeEndId: "z2" },
+    });
+
+    // 返回完整条目（含 seq / id / parentId），details 保留替换范围与指纹
+    expect(appended).toMatchObject({
+      type: "compaction",
+      summary: "本地确定性摘要",
+      tokensBefore: 800,
+      details: { fingerprint: "abc123", rangeStartId: "z1", rangeEndId: "z2" },
+    });
+    expect(appended.seq).toBeGreaterThan(0);
+    expect(typeof appended.id).toBe("string");
+
+    // 视图：摘要 + 保留尾部替换了旧历史；重新打开仍可恢复（已持久化）
+    const view = await cm.buildContext();
+    expect(view.messages.map(textOf)).toEqual(["本地确定性摘要", "保留的最近问题"]);
+    const reopened = await CoreMindSession.open(opts);
+    const reopenedView = await reopened.buildContext();
+    expect(reopenedView.messages.map(textOf)).toEqual(["本地确定性摘要", "保留的最近问题"]);
+
+    // 历史条目仍在（追加不删除）；branchEntries 可用于投影与重建
+    const entries = await reopened.branchEntries();
+    expect(entries.map((entry) => entry.type)).toEqual([
+      "message",
+      "message",
+      "message",
+      "compaction",
+    ]);
+  });
 });
+
+function textOf(message: { role: string; content: unknown } | undefined): string {
+  if (!message) return "";
+  if (message.role === "user") {
+    return typeof message.content === "string"
+      ? message.content
+      : (message.content as { type: string; text: string }[])
+          .filter((item) => item.type === "text")
+          .map((item) => item.text)
+          .join("");
+  }
+  if (message.role === "assistant") {
+    return (message.content as { type: string; text: string }[])
+      .filter((item) => item.type === "text")
+      .map((item) => item.text)
+      .join("");
+  }
+  if (message.role === "compactionSummary") {
+    return String((message as { summary?: string }).summary ?? "");
+  }
+  return "";
+}

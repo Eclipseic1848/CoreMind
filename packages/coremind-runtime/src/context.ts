@@ -17,6 +17,8 @@ export interface ContextProtectionResult {
   strategy: "none" | "deterministic-v1";
   reason?: "threshold";
   summaryFingerprint?: string;
+  /** 被摘要替换的输入消息范围 [start, end)（仅压缩时存在，供会话树落盘桥接） */
+  replacedRange?: { start: number; end: number };
 }
 
 export interface StableContextPrefixInput {
@@ -109,6 +111,7 @@ export function protectContext(
     strategy: "deterministic-v1",
     reason: "threshold",
     summaryFingerprint: fingerprint(summaryText),
+    replacedRange: { start: 0, end: cutIndex },
   };
 }
 
@@ -174,14 +177,36 @@ export function compareContextStrategies(
 export class ContextProtector {
   constructor(
     private readonly options: ContextProtectionOptions,
-    private readonly onCompacted?: (result: ContextProtectionResult) => void,
+    private readonly onCompacted?: (result: ContextProtectionResult) => void | Promise<void>,
     private readonly onFailed?: (failure: ContextProtectionFailure) => void,
   ) {}
 
+  /** 同步压缩（0.3.0 兼容入口）：异步压缩回调必须改用 transformAsync，避免落盘竞态。 */
   transform(messages: CoreMindMessage[]): CoreMindMessage[] {
     try {
       const result = protectContext(messages, this.options);
-      if (result.compacted) this.onCompacted?.(result);
+      if (result.compacted) {
+        const pending = this.onCompacted?.(result);
+        if (pending instanceof Promise) {
+          throw new Error("异步压缩回调必须使用 transformAsync，不能用同步 transform");
+        }
+      }
+      return result.messages;
+    } catch (error) {
+      // 上游约定 transformContext 不得抛错；失败时保留原始上下文。
+      this.onFailed?.({
+        message: `上下文压缩失败：${error instanceof Error ? error.message : String(error)}`,
+        preservedMessages: messages.length,
+      });
+      return messages;
+    }
+  }
+
+  /** 异步压缩：回调允许会话树落盘；回调失败时保留原文并走失败路径。 */
+  async transformAsync(messages: CoreMindMessage[]): Promise<CoreMindMessage[]> {
+    try {
+      const result = protectContext(messages, this.options);
+      if (result.compacted) await this.onCompacted?.(result);
       return result.messages;
     } catch (error) {
       // 上游约定 transformContext 不得抛错；失败时保留原始上下文。

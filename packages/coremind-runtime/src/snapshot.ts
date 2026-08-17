@@ -3,6 +3,7 @@ import type { CheckpointRecord } from "./checkpoint.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
 import type { DurableOperationSnapshot } from "./operation-state.js";
 import type { EvaluationReport, ReleaseReadiness, RunMetrics, RunOutcome } from "./result.js";
+import { findUnsafeToolCall } from "./run-state.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 /** 所有入口共享的、纯 JSON 运行快照；不包含 Map、回调或 Provider 私有对象。 */
@@ -31,25 +32,10 @@ export function createRunSnapshot(input: RunSnapshotInput): RunSnapshot {
   return structuredClone({
     schemaVersion: 1 as const,
     ...input,
+    // resumable 安全门与恢复计划共用 findUnsafeToolCall 单点实现（缺口 G-1）
     resumable:
       input.operation.state === "paused" &&
       input.outcome.status === "paused" &&
-      hasSafeResumeBoundary(input.trace),
-  });
-}
-
-/** 快照只在所有未完成副作用都有明确未开始收据时宣称可恢复。 */
-function hasSafeResumeBoundary(trace: readonly CoreMindTraceEvent[]): boolean {
-  const receipts = new Map<string, "not_started" | "started" | "committed" | "unknown">();
-  const completedSteps = new Set<string>();
-  for (const entry of trace) {
-    const event = entry.event;
-    if (event.type === "effect_receipt") receipts.set(event.idempotencyKey, event.status);
-    if (event.type === "step_output") completedSteps.add(event.stepId);
-  }
-  return !trace.some(({ event }) => {
-    if (event.type !== "tool_call" || !event.idempotencyKey) return false;
-    if (event.stepId && completedSteps.has(event.stepId)) return false;
-    return receipts.get(event.idempotencyKey) !== "not_started";
+      findUnsafeToolCall(input.trace) === undefined,
   });
 }
