@@ -75,6 +75,26 @@ describe("CoreMindSession（二期会话树存储）", () => {
     expect(ctx2.messages).toHaveLength(3);
   });
 
+  it("落盘带 undefined 字段的工具结果消息时不抛错（assertJsonSerializable 通过）", async () => {
+    const dir = makeDir();
+    const cm = await CoreMindSession.open({ dir, sessionId: "s1", cwd });
+    // pi-agent 的 toolResult 消息可能携带值为 undefined 的 details/usage 字段；
+    // JSON.stringify 会省略它们，但会话存储的 assertJsonSerializable 会拒绝 undefined 值字段
+    const toolResult = {
+      role: "toolResult",
+      toolCallId: "call-read",
+      toolName: "read",
+      content: [{ type: "text", text: "文件内容" }],
+      details: undefined,
+      usage: undefined,
+    };
+
+    await expect(cm.appendMessages([toolResult])).resolves.not.toThrow();
+    const ctx = await cm.buildContext();
+    expect(ctx.messages).toHaveLength(1);
+    expect(ctx.messages[0]).toMatchObject({ role: "toolResult", toolName: "read" });
+  });
+
   it("非法 sessionId（路径穿越防护）抛 CoreMindError", async () => {
     const dir = makeDir();
     await expect(CoreMindSession.open({ dir, sessionId: "../../evil", cwd })).rejects.toThrow(

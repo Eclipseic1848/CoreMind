@@ -43,6 +43,12 @@
     },
     "packages/coremind-runtime/src/run-effect-coordinator.ts": {
       "branches": 90
+    },
+    "packages/coremind-runtime/src/rebuild-request.ts": {
+      "statements": 100,
+      "functions": 100,
+      "lines": 100,
+      "branches": 100
     }
   },
   "targets": {

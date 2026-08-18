@@ -599,7 +599,8 @@ export class CoreMindRuntime {
               seq: entry.seq,
             })),
           ];
-          this.compactedPrefixEnd = result.messages.length;
+          // persist 跳过压缩产物代表的部分：摘要 + 保留区（保留区=压缩后消息数-1，起点=range.end）
+          this.compactedPrefixEnd = result.messages.length + range.end - 1;
         }
         emit({
           type: "context_compacted",
@@ -949,8 +950,12 @@ export class CoreMindRuntime {
     }
 
     let sessionFile: string | undefined;
-    // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）
-    if (terminalError === undefined || journal.isAborted()) {
+    // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）；
+    // 审批拒绝等 paused（loop_paused）是可在用户处置后继续的暂停态，同样应落盘已确认部分，
+    // 使持久事实可重建该 Run 的请求（规格 01 §2 请求重建契约的适用范围）
+    const terminalCode = terminalError instanceof CoreMindError ? terminalError.code : undefined;
+    sessionPersistPaused = terminalCode === "loop_paused";
+    if (terminalError === undefined || journal.isAborted() || sessionPersistPaused) {
       try {
         sessionFile = await this.persistSession();
       } catch (error) {
@@ -1222,6 +1227,9 @@ export class CoreMindRuntime {
     if (this.runJournal?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
       messages = trimUnconfirmedTail(messages);
+    } else if (sessionPersistPaused) {
+      // 审批拒绝等 paused：只落已发送部分——去掉尾部未发送的工具调用产物（toolResult + toolUse）
+      messages = trimRejectedTrail(messages);
     }
     await cm.appendMessages(messages);
     // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
@@ -1253,6 +1261,13 @@ function knownTurnIdsFrom(collected: readonly CoreMindEvent[]): Set<string> {
   );
 }
 
+/**
+ * 当前 Run 是否因审批拒绝等 paused（persistSession 落已发送部分用）。
+ * 模块级而非类字段：避免进入 api-extractor 的 untrimmed d.ts（冻结基线逐字哈希）。
+ * run 由 R7 保证实例内串行，跨实例并发仅在此瞬时标志上偶发串扰，语义安全（多 trim 尾部）。
+ */
+let sessionPersistPaused = false;
+
 /** D-4 方案 A：去掉尾部未正常终止的 assistant 消息（abort 竞态赢家文本不落会话树） */
 function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] {
   let end = messages.length;
@@ -1260,6 +1275,24 @@ function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] 
     const last = messages[end - 1]!;
     if (last.role === "assistant" && last.stopReason !== "stop") end -= 1;
     else break;
+  }
+  return messages.slice(0, end);
+}
+
+/** 审批拒绝等 paused：去掉尾部未发送的工具调用产物（toolResult 及配对的 assistant toolUse） */
+function trimRejectedTrail(messages: readonly AgentMessage[]): AgentMessage[] {
+  let end = messages.length;
+  while (end > 0) {
+    const last = messages[end - 1];
+    if (last?.role === "toolResult") {
+      end -= 1;
+      continue;
+    }
+    if (last?.role === "assistant" && last.stopReason === "toolUse") {
+      end -= 1;
+      continue;
+    }
+    break;
   }
   return messages.slice(0, end);
 }

@@ -160,10 +160,10 @@ export class CoreMindSession {
     return (await repository.list({ cwd })).some((candidate) => candidate.id === sessionId);
   }
 
-  /** 追加消息（每条一个树条目） */
+  /** 追加消息（每条一个树条目）；先深层删除 undefined 值字段（会话存储拒绝 undefined 值） */
   async appendMessages(messages: AgentMessage[]): Promise<void> {
     for (const message of messages) {
-      await this.session.appendMessage(message);
+      await this.session.appendMessage(stripUndefined(message));
     }
   }
 
@@ -723,4 +723,21 @@ async function fileExists(file: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 深层删除值为 undefined 的字段。
+ * 上游 toolResult 消息可能携带 undefined 的 details/usage 字段：JSON.stringify 会省略，
+ * 但会话树存储的 assertJsonSerializable 拒绝 undefined 值字段，落盘前必须清理。
+ */
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripUndefined) as unknown as T;
+  if (isObject(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (item !== undefined) result[key] = stripUndefined(item);
+    }
+    return result as T;
+  }
+  return value;
 }
