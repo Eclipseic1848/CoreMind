@@ -327,6 +327,41 @@ describe("RunState", () => {
     expect(plan.runId).toBe("run-restore");
     expect(plan.nextJournalSequence).toBe(4);
   });
+
+  it("0.3.0 run 文件（含压缩事件、无会话树引用）从磁盘读取不报 corrupt（A-3）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-legacy-"));
+    const store = new FileRunStore(dir);
+    // 0.3.0 生成的 run 文件：start 无 sessionSeqStart；context_compacted 事件无 sessionEntryId 引用
+    const records: RunStateRecord[] = [
+      record(1, "start", { configFingerprint: "fingerprint", initialPrompt: "开始" }),
+      traceRecord(2, 1, {
+        type: "context_compacted",
+        beforeTokens: 100,
+        afterTokens: 50,
+        removedMessages: 3,
+        strategy: "deterministic-v1",
+        reason: "threshold",
+        summaryFingerprint: `${"0".repeat(64)}`,
+      }),
+      record(3, "finish", { status: "succeeded" }),
+    ];
+    writeFileSync(
+      store.pathFor("run-restore"),
+      `${records.map((item) => JSON.stringify(item)).join("\n")}\n`,
+      "utf8",
+    );
+
+    const parsed = await store.read("run-restore");
+    expect(parsed.map((item) => item.kind)).toEqual(["start", "event", "finish"]);
+    const compacted = parsed[1]!.payload as CoreMindTraceEvent;
+    expect(compacted.event.type).toBe("context_compacted");
+    // 0.3.0 的压缩事件只带指纹，不携带会话树引用；读取不因缺字段报 corrupt
+    expect("sessionEntryId" in compacted.event).toBe(false);
+    // 已结束运行按语义拒绝恢复（run_already_finished），而非判为损坏
+    expect(() => prepareRunResume(parsed, "fingerprint")).toThrowError(
+      expect.objectContaining({ code: "run_already_finished" }),
+    );
+  });
 });
 
 describe("RunStateJournal 事件准入（取消收敛）", () => {
