@@ -35,6 +35,16 @@ import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { type RunId, receiptId } from "./ids.js";
 import {
+  claimInput,
+  completeInput,
+  createInputReceipt,
+  discardInput,
+  type InputId,
+  inputFingerprint,
+  newInputId,
+  receiptStatusOf,
+} from "./input-receipt.js";
+import {
   LifecycleExtensionHost,
   type LifecycleExtensionPolicy,
   type LifecycleExtensionReceipt,
@@ -64,6 +74,7 @@ import { RunEffectCoordinator } from "./run-effect-coordinator.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
+  hasPendingJournalFlush,
   prepareRunResume,
   RunStateJournal,
   type RunStore,
@@ -511,6 +522,23 @@ export class CoreMindRuntime {
     const userEvents = this.options.events ?? (() => {});
     const extensionReceipts: LifecycleExtensionReceipt[] = [];
     const turnTracker = new TurnTracker();
+    // 输入收据（规格 03 §4）：恢复时沿用原 run 的 inputId（收据链连续），否则新生成
+    const inputId =
+      effectiveInitialPrompt === undefined
+        ? undefined
+        : (resumedInputId(collected) ?? newInputId());
+    // 收据状态由本 run 发出的事件推进（pending → claimed → completed/discarded）；
+    // resume 时原 run 已登记（pending/claimed）则本 run 不重复登记与 claim（折叠不允许
+    // pending→pending / claimed→claimed），仅收尾按终态推进
+    const existingInputState =
+      inputId === undefined ? undefined : receiptStatusOf(collected, inputId);
+    let inputReceiptState: "pending" | "claimed" | "completed" | "discarded" | undefined =
+      existingInputState ?? (inputId === undefined ? undefined : "pending");
+    const emitInputEvent = (event: CoreMindEvent): void => {
+      collected.push(event);
+      trace.record(event);
+      userEvents(event);
+    };
     const recordEvent = (event: CoreMindEvent) => {
       const enriched = turnTracker.withTurnId(event);
       // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
@@ -518,7 +546,23 @@ export class CoreMindRuntime {
       collected.push(enriched);
       trace.record(enriched);
       userEvents(enriched);
+      // 输入被首个 Turn 认领（规格 03 §4：claim 绑定 TurnId；resume 时已 claimed 不再重复）；
+      // 排在 agent_start 之后，保证事件顺序：agent_start → input_claimed
+      if (enriched.type === "agent_start" && inputReceiptState === "pending") {
+        inputReceiptState = "claimed";
+        emitInputEvent(claimInput({ inputId: inputId!, turnId: enriched.turnId! }));
+      }
     };
+    if (inputId !== undefined && existingInputState === undefined) {
+      // headless initialPrompt / chat 每轮 message：Run start 时登记 pending 收据（带指纹，
+      // 不落原文）；resume 沿用原收据不重复登记
+      emitInputEvent(
+        createInputReceipt({
+          inputId,
+          contentFingerprint: inputFingerprint(effectiveInitialPrompt!),
+        }),
+      );
+    }
     const effectCoordinator = new RunEffectCoordinator(runId, recordEvent);
     const emit = (event: CoreMindEvent) => effectCoordinator.emit(event);
     const dispatchLifecycle = async (
@@ -949,6 +993,10 @@ export class CoreMindRuntime {
       this.activeHarnessFactory = undefined;
     }
 
+    // 静止等待（规格 03 §5）：runWithGuard 收尾路径调用，等所有 agent 真正 idle、
+    // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
+    await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
+
     let sessionFile: string | undefined;
     // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）；
     // 审批拒绝等 paused（loop_paused）是可在用户处置后继续的暂停态，同样应落盘已确认部分，
@@ -976,6 +1024,17 @@ export class CoreMindRuntime {
       journal.rejectedAfterAbort(),
     );
     const outcome = new RunTerminalizer().terminalize(collected, terminalError);
+    // 输入收据终态（规格 03 §4）：succeeded → completed；abort/超时/预算/失败 → discarded
+    // （未消费输入）；paused（审批拒绝等）保持 claimed，resume 继续同一输入
+    if (inputReceiptState !== undefined && inputReceiptState !== "completed") {
+      if (outcome.status === "succeeded") {
+        inputReceiptState = "completed";
+        emitInputEvent(completeInput({ inputId: inputId! }));
+      } else if (outcome.status !== "paused") {
+        inputReceiptState = "discarded";
+        emitInputEvent(discardInput({ inputId: inputId! }));
+      }
+    }
     const evaluation = createEvaluationReport(this.config.quality, metrics);
     const releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     const irreversibleTools = [
@@ -1098,14 +1157,13 @@ export class CoreMindRuntime {
       if (guardTriggered) return;
       guardTriggered = true;
       // Abort 生效点（规格 03 §1）：设置事件准入分界点，此后迟到终态事实不再写入；
-      // 分界前已启动的活动集合用于 R3 判定（分界前启动的工具 receipt 放行）
+      // 分界前已启动的活动集合用于 R3 判定（分界前启动的工具 receipt 放行）。
+      // interrupt 先触发（loop 内部取消），随后同步 abortAll 尽早终止在飞活动，
+      // 让静止判定尽快满足（Cancel → Quiescent）
       journal.markAborted(knownTurnIds());
-      void Promise.resolve(onGuardError?.(error))
-        .catch(() => undefined)
-        .then(() => {
-          reject(error);
-          this.abortAll();
-        });
+      void Promise.resolve(onGuardError?.(error)).catch(() => undefined);
+      this.abortAll();
+      void Promise.resolve().then(() => reject(error));
     };
     const onAbort = () => {
       if (rejectAbort) triggerGuard(new CoreMindError("aborted", "执行已中止"), rejectAbort);
@@ -1208,6 +1266,25 @@ export class CoreMindRuntime {
     return messages;
   }
 
+  /**
+   * 等待静止（规格 03 §5）：所有 agent 已 idle ∧ 无 pending 工具结果 ∧
+   * journal 无 pending flush（append 队列空且已落盘）。
+   * 超时上限与 runTimeout 解耦（独立 quiescenceTimeout，默认 5s）：
+   * 超时记录 quiescence_timeout 事件但不改变终态。返回是否达到静止。
+   */
+  async waitForQuiescence(timeoutMs: number = DEFAULT_QUIESCENCE_TIMEOUT_MS): Promise<boolean> {
+    const journal = this.runJournal;
+    const deadline = performance.now() + timeoutMs;
+    for (;;) {
+      if (isQuiescent(this.lastAgents, journal)) return true;
+      if (performance.now() >= deadline) {
+        this.options.events?.({ type: "quiescence_timeout", timeoutMs });
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, QUIESCENCE_POLL_INTERVAL_MS));
+    }
+  }
+
   /** 会话配置开启时，把主 agent 本轮新增消息追加落盘（返回会话文件路径） */
   async persistSession(): Promise<string | undefined> {
     const sessionId = this.options.sessionId;
@@ -1249,6 +1326,38 @@ export async function buildAgentFromConfig(
   options: CoreMindRuntimeOptions,
 ): Promise<CoreMindRuntime> {
   return CoreMindRuntime.create(options);
+}
+
+/** 静止等待默认超时（规格 03 §5：默认 5s，与 runTimeout 解耦） */
+const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
+
+/** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
+const QUIESCENCE_POLL_INTERVAL_MS = 10;
+
+/**
+ * 静止判定（规格 03 §5）：quiescent ⇔ 所有 agent 已 idle ∧ 无 pending 工具结果 ∧
+ * journal 无 pending flush。模块级函数而非 private 方法：避免进入 untrimmed d.ts
+ * （#39 教训：类私有成员也会进 d.ts，冻结基线逐字哈希会失败）。
+ */
+function isQuiescent(agents: Map<string, Agent>, journal: RunStateJournal | undefined): boolean {
+  for (const agent of agents.values()) {
+    if (agent.state.isStreaming) return false;
+    if (agent.state.pendingToolCalls.size > 0) return false;
+    if (agent.hasQueuedMessages()) return false;
+  }
+  if (journal !== undefined && hasPendingJournalFlush(journal)) return false;
+  return true;
+}
+
+/**
+ * 从既有事件序列提取已登记的输入 ID（resume 时沿用原 run 的收据，
+ * 使收据链跨 run 连续——规格 03 §4：输入收据参与恢复合法性判定）。
+ */
+function resumedInputId(events: readonly CoreMindEvent[]): InputId | undefined {
+  for (const event of events) {
+    if (event.type === "input_receipt") return event.inputId as InputId;
+  }
+  return undefined;
 }
 
 /** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */
