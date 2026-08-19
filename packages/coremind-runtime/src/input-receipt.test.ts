@@ -159,6 +159,18 @@ describe("foldInputReceipts（事件序列折叠当前状态，不覆盖旧记�
     expect(() => foldInputReceipts(events)).toThrow();
   });
 
+  it("收据族事件缺少 inputId 时跳过（脏数据容错，不抛错）", () => {
+    // TS 类型禁止缺 inputId，但持久化数据可能损坏——折叠对缺失字段容错跳过
+    const events = [
+      { type: "input_receipt", status: "pending" },
+      createInputReceipt({ inputId: id("in-1"), contentFingerprint: "fp" }),
+      claimInput({ inputId: id("in-1"), turnId: "t1" }),
+    ] as unknown as CoreMindEvent[];
+    const state = foldInputReceipts(events);
+    expect(state.get("in-1")).toBe("claimed");
+    expect(state.size).toBe(1);
+  });
+
   it("从事件流中识别收据事件（isInputReceiptEvent 辅助）", () => {
     // 通过折叠行为覆盖：混合无关事件不影响折叠
     const events: CoreMindEvent[] = [
