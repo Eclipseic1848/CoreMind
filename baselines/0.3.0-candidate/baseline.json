@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "7609211ed53cb83109a2f6b245273e468943e884",
+    "developmentCommit": "40b14786e66742c2c5fbcbcbe177b35ff777a341",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,7 +17,7 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "535be46351385cb09fb072d1c7419601039d5de9d168907f7fe7eeca1f612a0d",
       "coremind-protocol": "00695ae8275f2460f7c20a0386456cd7c85b3744cfe4461305987d8e881d7d1d",
-      "coremind-runtime": "497f06713a8279efc41c06f6e55462df2d90ab8b146b9d6e949576a41f5be69f",
+      "coremind-runtime": "bb15366c374dad9b8b90875ad4069830847fb6600d8ba259dc4ae79ed0ac7561",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "f0de789c9e5a6d0be28bd7da8c6910cabe912210573d3cada97beb208fcc6d92",
       "coremind-worker": "2288314e4e1c7b56a6d0b9f9c4ef45ea1ae22586a828c59ccfd8ce7d631dcc38"
@@ -133,6 +133,12 @@
           "branches": 90
         },
         "packages/coremind-runtime/src/rebuild-request.ts": {
+          "statements": 100,
+          "functions": 100,
+          "lines": 100,
+          "branches": 100
+        },
+        "packages/coremind-runtime/src/input-receipt.ts": {
           "statements": 100,
           "functions": 100,
           "lines": 100,
@@ -264,9 +270,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-18T10:12:23.409Z",
+    "capturedAt": "2026-08-19T05:14:41.587Z",
     "capturePlatform": "win32",
-    "updateReason": "^feat^(0.3.1^)^ #39:^ 登记^ rebuild-request.ts^ 100^%^ 覆盖门槛（新增关键文件）^",
+    "updateReason": "^feat^(0.3.1^)^ #40:^ 输入收据与静止判定——CoreMindEvent^ 新增^ input_receipt/input_claimed/input_completed/input_discarded/quiescence_timeout^ 事件；index.ts^ 导出^ input-receipt^ 深模块（InputId/InputReceiptStatus/创建与折叠函数）；CoreMindRuntime^ 新增^ waitForQuiescence^(^)^ 方法；登记^ input-receipt.ts^ 100^%^ 覆盖门槛（新增关键文件）。兼容扩展：新事件为^ union^ 追加成员，旧消费者按^ switch^ 分支处理；新导出不影响既有^ API。^",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "fd1d906919d435b9258342c470c7b3b1fcd43d4c083643be2f8fcbda9e37fc7d",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -275,7 +281,7 @@
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "dedeacbeb22c7dc3d98779f7cd562ec542c16e0d5133599274cf6262caff79cb",
       "coremind-protocol": "c39585a5138b4dcdaafe8c15816b8f7f3191341c62022d15b2b6e72203a981a3",
-      "coremind-runtime": "4bd44b0f635d1511e13e14ecb60efbe334a2f53671af0f0bd30c0cc7cbc51552",
+      "coremind-runtime": "cf3c5f0f67ba0aabf3067fac482116ce5c629f630249e2d529c28da4061ea390",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "2aa2103b14dfeecd2a860f0794fc44475d6a0f1d7d3d71ea6d58660cdd8e39c4",
       "coremind-worker": "f37354cd50d8d128bfb331cbf2db5d06261488fb12a2bd2e221c907e27abc02a"

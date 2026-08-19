@@ -142,6 +142,13 @@ export declare function checkProject(options: ProjectCheckOptions): Promise<Proj
 
 export declare type CheckSeverity = "error" | "warning" | "info";
 
+/** 输入被认领：生成 claimed 事件（绑定 TurnId） */
+export declare function claimInput(options: ClaimInputOptions): CoreMindEvent;
+
+declare interface ClaimInputOptions extends InputReceiptEventOptions {
+    turnId: string;
+}
+
 /** 只根据结构化状态分类；未知错误失败关闭，避免把业务失败误当成瞬态故障。 */
 export declare function classifyRetry(error: unknown): RetryClassification;
 
@@ -215,6 +222,9 @@ export declare interface CompletedWorkflowStep {
     output: StepOutput;
     saveAs?: string;
 }
+
+/** 输入对应活动已终态：生成 completed 事件 */
+export declare function completeInput(options: InputReceiptEventOptions): CoreMindEvent;
 
 export declare interface ContextProtectionFailure {
     message: string;
@@ -450,6 +460,37 @@ export declare type CoreMindEvent = {
     type: "error";
     message: string;
     fatal: boolean;
+} | {
+    /** 输入收据（规格 03 §4）：输入到达，尚未被任何活动消费 */
+    type: "input_receipt";
+    inputId: string;
+    status: "pending";
+    /** 输入正文的短指纹（sha256 前 16 位），不落原文 */
+    contentFingerprint: string;
+    timestamp: string;
+} | {
+    /** 输入被一个 Run/Turn 认领（绑定 TurnId） */
+    type: "input_claimed";
+    inputId: string;
+    status: "claimed";
+    turnId: string;
+    timestamp: string;
+} | {
+    /** 输入对应的活动已终态完成 */
+    type: "input_completed";
+    inputId: string;
+    status: "completed";
+    timestamp: string;
+} | {
+    /** 输入因取消/竞态被明确丢弃（如 abort 后未消费的排队输入） */
+    type: "input_discarded";
+    inputId: string;
+    status: "discarded";
+    timestamp: string;
+} | {
+    /** 静止等待超时（不改变 Run 终态，仅记录） */
+    type: "quiescence_timeout";
+    timeoutMs: number;
 };
 
 /** CoreMind 公共消息合同只承诺稳定、可序列化的字段，不暴露底层运行时消息类型。 */
@@ -540,6 +581,13 @@ export declare class CoreMindRuntime {
     private executeLoopStep;
     private abortAll;
     private collectMessages;
+    /**
+     * 等待静止（规格 03 §5）：所有 agent 已 idle ∧ 无 pending 工具结果 ∧
+     * journal 无 pending flush（append 队列空且已落盘）。
+     * 超时上限与 runTimeout 解耦（独立 quiescenceTimeout，默认 5s）：
+     * 超时记录 quiescence_timeout 事件但不改变终态。返回是否达到静止。
+     */
+    waitForQuiescence(timeoutMs?: number): Promise<boolean>;
     /** 会话配置开启时，把主 agent 本轮新增消息追加落盘（返回会话文件路径） */
     persistSession(): Promise<string | undefined>;
 }
@@ -641,6 +689,13 @@ export declare function createEngineeringTaskPlan(input: {
 
 export declare function createEvaluationReport(quality: QualityConfig | undefined, metrics: RunMetrics): EvaluationReport;
 
+/** 输入到达：生成 pending 收据事件（带输入指纹与时间戳） */
+export declare function createInputReceipt(options: CreateInputReceiptOptions): CoreMindEvent;
+
+declare interface CreateInputReceiptOptions extends InputReceiptEventOptions {
+    contentFingerprint: string;
+}
+
 /** 在 Runtime 终态确定后生成唯一快照，供 CLI、Worker 与两个 SDK 原样传递。 */
 export declare function createRunSnapshot(input: RunSnapshotInput): RunSnapshot;
 
@@ -666,6 +721,9 @@ export declare interface DiffGrader extends GraderBase {
     notContains?: string[];
     preserveExisting?: boolean;
 }
+
+/** 输入被明确丢弃：生成 discarded 事件 */
+export declare function discardInput(options: InputReceiptEventOptions): CoreMindEvent;
 
 /**
  * 通用运行外围的持久操作状态，不复制 Workflow/Loop 的业务状态。
@@ -970,11 +1028,51 @@ declare interface FileRunStoreOptions {
 /** 配置指纹只落 hash，不把配置或凭据复制进 RunState。 */
 export declare function fingerprintRunConfig(config: unknown): string;
 
+/**
+ * 从事件序列折叠每个输入的当前状态（规格 §4：状态由事件序列折叠，不覆盖旧记录）。
+ * 非法转移（completed/discarded 后再次推进、未登记就转移）抛错——语义损坏 fail closed。
+ * 事件乱序时按 inputId 独立推进（同一输入的事件仍按到达顺序判定转移）。
+ */
+export declare function foldInputReceipts(events: readonly CoreMindEvent[]): Map<InputId, InputReceiptStatus>;
+
 export declare function formatMetrics(metrics: RunMetrics): string;
 
 declare interface GraderBase {
     id?: string;
 }
+
+/** 输入正文的稳定短指纹（sha256 前 16 位）：Trace 只保存摘要，不落原文 */
+export declare function inputFingerprint(content: string): string;
+
+/**
+ * 输入收据与静止判定（规格 docs/spec/0.3.x-a/03-cancellation-and-quiescence.md §4）。
+ *
+ * 每个外部输入获得稳定 ID 与四态收据：
+ *
+ * ```
+ * pending → claimed → completed
+ *         ↘ discarded
+ * ```
+ *
+ * - pending：输入已收到、尚未被任何活动消费
+ * - claimed：输入被一个 Run/Turn 认领（绑定 TurnId）
+ * - discarded：因取消/竞态被明确丢弃（如 abort 后到达的排队输入）
+ * - completed：输入对应的活动已终态
+ *
+ * 状态转移是追加事件（input_claimed / input_completed / input_discarded），由事件序列
+ * 折叠出当前状态——不覆盖旧记录。折叠遇到非法转移（无回退）抛错，语义损坏 fail closed。
+ */
+/** 品牌化的输入 ID（规格 02：跨 Run/Turn 稳定；协议边界序列化为 string） */
+export declare type InputId = string & {
+    readonly __brand: "InputId";
+};
+
+declare interface InputReceiptEventOptions {
+    inputId: InputId;
+    timestamp?: string;
+}
+
+export declare type InputReceiptStatus = "pending" | "claimed" | "completed" | "discarded";
 
 /** 使用 RunResult 中的记录重新计算当前 diff。 */
 export declare function inspectCheckpoint(record: CheckpointRecord, cwd: string): Promise<CheckpointDiff>;
@@ -985,6 +1083,12 @@ export declare function inspectCodingRepository(repositoryRoot: string, options?
 }): Promise<CodingRepositoryInspection>;
 
 export declare function inspectRuntimeCompatibility(): RuntimeCompatibilityReport;
+
+/** 该事件是否属于输入收据事件族（折叠时过滤用） */
+export declare function isInputReceiptEvent(event: CoreMindEvent): boolean;
+
+/** 转移合法性：undefined（未登记）只能到 pending（登记）；否则按转移表 */
+export declare function isValidTransition(from: InputReceiptStatus | undefined, to: InputReceiptStatus): boolean;
 
 export declare interface JsonObjectSchema extends Record<string, unknown> {
     type: "object";
@@ -1233,6 +1337,9 @@ export declare class MemoryRunStore implements RunStore {
     read(runId: string): Promise<RunStateRecord[]>;
 }
 
+/** 生成新的输入 ID（与 RunId/TurnId 同源的 randomUUID 品牌类型） */
+export declare function newInputId(): InputId;
+
 /**
  * 把上游 Agent 事件归一化为 CoreMind 事件。
  * 只保留对 UI/调用方有意义的事件；流式文本来自 message_update 的 text_delta。
@@ -1308,6 +1415,9 @@ export declare interface ProjectCheckReport {
  * 摘要只在用户环境生成；保留区从 user 消息开始，避免留下孤立 toolResult。
  */
 export declare function protectContext(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextProtectionResult;
+
+/** 事件序列中某输入的最新收据状态（折叠查询的便捷封装） */
+export declare function receiptStatusOf(events: readonly CoreMindEvent[], inputId: InputId): InputReceiptStatus | undefined;
 
 /** 发布判断与普通运行成功分离。 */
 export declare interface ReleaseReadiness {

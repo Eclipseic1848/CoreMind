@@ -180,7 +180,43 @@ export type CoreMindEvent =
       reasons: string[];
     }
   | { type: "agent_end"; agent: string; stepId?: string; turnId?: string }
-  | { type: "error"; message: string; fatal: boolean };
+  | { type: "error"; message: string; fatal: boolean }
+  | {
+      /** 输入收据（规格 03 §4）：输入到达，尚未被任何活动消费 */
+      type: "input_receipt";
+      inputId: string;
+      status: "pending";
+      /** 输入正文的短指纹（sha256 前 16 位），不落原文 */
+      contentFingerprint: string;
+      timestamp: string;
+    }
+  | {
+      /** 输入被一个 Run/Turn 认领（绑定 TurnId） */
+      type: "input_claimed";
+      inputId: string;
+      status: "claimed";
+      turnId: string;
+      timestamp: string;
+    }
+  | {
+      /** 输入对应的活动已终态完成 */
+      type: "input_completed";
+      inputId: string;
+      status: "completed";
+      timestamp: string;
+    }
+  | {
+      /** 输入因取消/竞态被明确丢弃（如 abort 后未消费的排队输入） */
+      type: "input_discarded";
+      inputId: string;
+      status: "discarded";
+      timestamp: string;
+    }
+  | {
+      /** 静止等待超时（不改变 Run 终态，仅记录） */
+      type: "quiescence_timeout";
+      timeoutMs: number;
+    };
 
 /**
  * 把上游 Agent 事件归一化为 CoreMind 事件。

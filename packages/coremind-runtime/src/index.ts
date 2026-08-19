@@ -102,6 +102,20 @@ export {
   selectExperimentArm,
 } from "./experiment.js";
 export {
+  claimInput,
+  completeInput,
+  createInputReceipt,
+  discardInput,
+  foldInputReceipts,
+  type InputId,
+  type InputReceiptStatus,
+  inputFingerprint,
+  isInputReceiptEvent,
+  isValidTransition,
+  newInputId,
+  receiptStatusOf,
+} from "./input-receipt.js";
+export {
   createDenyPolicyExtension,
   createTraceExporterExtension,
   defineLifecycleExtension,

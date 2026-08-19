@@ -3,6 +3,7 @@ import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import { inputFingerprint } from "./input-receipt.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import {
   type DurableOperationSnapshot,
@@ -349,8 +350,33 @@ export class RunStateJournal {
       kind,
       payload,
     };
-    this.pending = this.pending.then(() => this.store.append(record));
+    incrementPendingFlush(this);
+    this.pending = this.pending
+      .then(() => this.store.append(record))
+      .finally(() => decrementPendingFlush(this));
   }
+}
+
+/**
+ * 每个 journal 的未落盘 append 计数（静止判定用：append 队列空且已落盘）。
+ * 模块级 WeakMap 而非类字段：避免进入 api-extractor 的 untrimmed d.ts（冻结基线逐字哈希，
+ * #39 教训：类私有成员也会出现在 d.ts 中）。
+ */
+const journalPendingWrites = new WeakMap<RunStateJournal, number>();
+
+function incrementPendingFlush(journal: RunStateJournal): void {
+  journalPendingWrites.set(journal, (journalPendingWrites.get(journal) ?? 0) + 1);
+}
+
+function decrementPendingFlush(journal: RunStateJournal): void {
+  const count = (journalPendingWrites.get(journal) ?? 1) - 1;
+  if (count <= 0) journalPendingWrites.delete(journal);
+  else journalPendingWrites.set(journal, count);
+}
+
+/** journal 是否仍有未落盘的写入（规格 03 §5：静止条件之一） */
+export function hasPendingJournalFlush(journal: RunStateJournal): boolean {
+  return (journalPendingWrites.get(journal) ?? 0) > 0;
 }
 
 /**
@@ -450,8 +476,17 @@ export function prepareRunResume(
   }
   const storedPrompt =
     typeof startPayload.initialPrompt === "string" ? startPayload.initialPrompt : undefined;
-  if (requestedPrompt !== undefined && requestedPrompt !== storedPrompt) {
-    throw new CoreMindError("resume_input_mismatch", "恢复输入与原运行不一致，已拒绝恢复");
+  if (requestedPrompt !== undefined) {
+    // 输入收据联动（规格 03 §4/§6 R9）：原 run 已登记 input_receipt 时按指纹校验
+    // （Trace 只存摘要不落原文）；无收据（0.3.0 旧格式）保留现状字符串比对，语义不变
+    const receiptFingerprint = findInputReceiptFingerprint(records);
+    const mismatch =
+      receiptFingerprint !== undefined
+        ? inputFingerprint(requestedPrompt) !== receiptFingerprint
+        : requestedPrompt !== storedPrompt;
+    if (mismatch) {
+      throw new CoreMindError("resume_input_mismatch", "恢复输入与原运行不一致，已拒绝恢复");
+    }
   }
 
   const completedSteps = new Map<string, CompletedWorkflowStep>();
@@ -682,4 +717,19 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     throw new CoreMindError("run_state_corrupt", `RunState ${expectedRunId} 包含非法记录`);
   }
   return record as RunStateRecord;
+}
+
+/** 从 RunState 事件记录中找第一个 input_receipt 的指纹（恢复时输入收据联动校验用） */
+function findInputReceiptFingerprint(records: readonly RunStateRecord[]): string | undefined {
+  for (const record of records) {
+    if (record.kind !== "event") continue;
+    const trace = record.payload as { event?: { type?: unknown; contentFingerprint?: unknown } };
+    if (
+      trace?.event?.type === "input_receipt" &&
+      typeof trace.event.contentFingerprint === "string"
+    ) {
+      return trace.event.contentFingerprint;
+    }
+  }
+  return undefined;
 }
