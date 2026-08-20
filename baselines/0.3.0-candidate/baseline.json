@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "c40e52488761559aa92a12dd1b30fd7cdb035e9e",
+    "developmentCommit": "3d3caa824a3a296709a2a51113771d2cee32db74",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -143,6 +143,12 @@
           "functions": 100,
           "lines": 100,
           "branches": 100
+        },
+        "packages/coremind-runtime/src/race-seeds.ts": {
+          "statements": 100,
+          "functions": 100,
+          "lines": 100,
+          "branches": 100
         }
       },
       "targets": {
@@ -270,9 +276,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-19T06:45:07.288Z",
+    "capturedAt": "2026-08-20T02:17:15.838Z",
     "capturePlatform": "win32",
-    "updateReason": "^chore^(0.3.1^)^ #40:^ 补充^ foldInputReceipts^ 脏数据容错分支测试后重跑覆盖率（input-receipt.ts^ 100^%^ 不变，baseline^ 同步^ developmentCommit）^",
+    "updateReason": "^chore^(0.3.1^)^ #41:^ 登记^ race-seeds.ts^ 100^%^ 覆盖门槛（新增竞态种子深模块，测试辅助源码，不进公共^ API）^",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "fd1d906919d435b9258342c470c7b3b1fcd43d4c083643be2f8fcbda9e37fc7d",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -281,7 +287,7 @@
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "dedeacbeb22c7dc3d98779f7cd562ec542c16e0d5133599274cf6262caff79cb",
       "coremind-protocol": "c39585a5138b4dcdaafe8c15816b8f7f3191341c62022d15b2b6e72203a981a3",
-      "coremind-runtime": "7cc4310f29165a17dce61aca9c319ebfad4e5ef7f8fee281aefbf0fc0a4c4a3f",
+      "coremind-runtime": "343b4c4359ec159526847c8a5df0147c79cad31f005c64fc7d70d5412fa75967",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "2aa2103b14dfeecd2a860f0794fc44475d6a0f1d7d3d71ea6d58660cdd8e39c4",
       "coremind-worker": "f37354cd50d8d128bfb331cbf2db5d06261488fb12a2bd2e221c907e27abc02a"
