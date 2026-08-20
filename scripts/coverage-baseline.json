@@ -61,6 +61,12 @@
       "functions": 100,
       "lines": 100,
       "branches": 100
+    },
+    "packages/coremind-runtime/src/invariant-checker.ts": {
+      "statements": 100,
+      "functions": 100,
+      "lines": 100,
+      "branches": 100
     }
   },
   "targets": {

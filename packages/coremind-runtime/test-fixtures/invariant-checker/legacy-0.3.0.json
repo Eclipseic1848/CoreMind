@@ -1,0 +1,96 @@
+{
+  "runRecords": [
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 1,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "start",
+      "payload": {
+        "configFingerprint": "legacy"
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 2,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "agent_start",
+          "agent": "main"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 3,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_start",
+          "stepId": "loop-execute",
+          "kind": "loop_execute"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 4,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_end",
+          "stepId": "loop-execute",
+          "ok": true
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 5,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_start",
+          "stepId": "loop-execute",
+          "kind": "loop_execute"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 6,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_end",
+          "stepId": "loop-execute",
+          "ok": true
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-legacy",
+      "sequence": 7,
+      "timestamp": "2026-08-16T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "turn_end",
+          "agent": "main"
+        }
+      }
+    }
+  ]
+}

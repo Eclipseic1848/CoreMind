@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CoreMindEvent } from "./events.js";
+import { checkInvariantFacts } from "./invariant-checker.js";
 import { describeRaceScenario, generateRaceScenario, type RaceScenario } from "./race-seeds.js";
+import type { RunStateRecord } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
 
@@ -276,21 +278,39 @@ function assertNoLateFacts(outcome: SeedOutcome & SeedAssertions, scenario: Race
 
 /** 断言 2：无孤儿结果（I-7：每个工具 Call 有配对 tool_result 或 run 终态显式关闭） */
 function assertNoOrphanCalls(outcome: SeedOutcome, scenario: RaceScenario): void {
-  const { result, events } = outcome;
-  const calls = new Set(
-    events.flatMap((event) => (event.type === "tool_call" ? [event.callId ?? ""] : [])),
+  const { result } = outcome;
+  const runRecords: RunStateRecord[] = [
+    {
+      version: 1,
+      runId: result.runId,
+      sequence: 1,
+      timestamp: result.trace[0]?.timestamp ?? new Date(0).toISOString(),
+      kind: "start",
+      payload: {},
+    },
+    ...result.trace.map(
+      (entry, index): RunStateRecord => ({
+        version: 1,
+        runId: result.runId,
+        sequence: index + 2,
+        timestamp: entry.timestamp,
+        kind: "event",
+        payload: entry,
+      }),
+    ),
+    {
+      version: 1,
+      runId: result.runId,
+      sequence: result.trace.length + 2,
+      timestamp: new Date().toISOString(),
+      kind: "finish",
+      payload: { status: result.outcome.status },
+    },
+  ];
+  const violations = checkInvariantFacts({ runRecords }, { mode: "gate" }).filter(
+    (violation) => violation.invariant === "I-7",
   );
-  calls.delete("");
-  const resolved = new Set(
-    events.flatMap((event) => (event.type === "tool_result" ? [event.callId ?? ""] : [])),
-  );
-  const orphans = [...calls].filter((callId) => !resolved.has(callId));
-  const abortedRun = result.outcome.status === "aborted" || result.outcome.status === "timeout";
-  // 孤儿仅允许由 aborted/timeout 终态显式关闭（在飞工具被中止，无 tool_result 属预期）
-  expect(
-    orphans.length === 0 || abortedRun,
-    `${describeRaceScenario(scenario)}：存在孤儿工具 Call ${orphans.join("、")}（run 未中止）`,
-  ).toBe(true);
+  expect(violations, `${describeRaceScenario(scenario)}：存在孤儿工具 Call`).toEqual([]);
 }
 
 /** 断言 3：无重复副作用（同 idempotencyKey 的 receipt 终态唯一） */

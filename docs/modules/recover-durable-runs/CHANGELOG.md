@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - Unreleased
+
+- Added the internal I-1 through I-12 correlation invariant checker with `off`, `eval`, and `gate` modes.
+- Added tracked current and legacy fixtures, including the 0.3.0-to-0.3.1 Resume compatibility boundary.
+- Synchronized the bilingual README, guide, SOP, Skill, example, and module manifest.
+
 ## 0.3.0 - 2026-08-13
 
 - Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.
