@@ -110,7 +110,7 @@ jobs:
           if-no-files-found: error
 
       - name: 发布元数据预检
-        run: npm run release:preflight -- --allow-dirty
+        run: npm run release:preflight -- --allow-dirty --defer-provider-certification
 
       - name: npm 包 allowlist 与禁止文件
         run: npm run release:check-npm
@@ -122,4 +122,4 @@ jobs:
         run: npm run release:test-source
 
       - name: Release Candidate 自动验收矩阵
-        run: npm run acceptance:rc
+        run: npm run acceptance:rc -- --defer-provider-certification

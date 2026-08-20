@@ -43,6 +43,8 @@ npm run release:sync-version -- 0.3.0
 npm run release:preflight -- --allow-dirty
 ```
 
+普通功能分支的双平台 CI 可在 `release:preflight` 和嵌套 `acceptance:rc` 命令中显式使用 `--defer-provider-certification`，只延后“当前开发中 Runtime 已完成真实 Provider 认证”这一项。该模式必须输出警告，不能用于发布候选、Tag、`release:bundle` 或正式发布工作流；这些路径继续要求版本与 Runtime SHA-256 精确绑定的真实认证。环境变量不能启用延后模式。
+
 草稿 PR 未通过全部检查前不得标记 ready；不得从普通功能分支直接创建发布 Tag。
 
 ## 3. 执行代码与文档门禁

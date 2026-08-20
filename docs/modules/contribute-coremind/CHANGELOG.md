@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-08-20
+
+- Split ordinary feature-branch CI from strict release certification: development checks may explicitly defer only the current Runtime's provider evidence, while release candidates, tags, bundles, and publication retain exact version and Runtime SHA-256 binding.
+
 ## 0.3.0 - 2026-08-13
 
 - Added an immutable `0.2.0-rc.1` reference baseline for the Release Tag target and Manifest digest, eight public type surfaces, Config/Protocol schemas, dependency versions, P01-P20, platform behavior, coding-evaluation conditions, coverage floors, and release artifact hashes.

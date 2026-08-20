@@ -24,6 +24,7 @@
 - `npm run release:check-wheel`
 - `npm run providers:matrix`
 - `npm run release:preflight`
+- `npm run release:preflight -- --allow-dirty --defer-provider-certification`（仅普通功能分支 CI）
 - `npm run release:sync-version -- <semver>`
 - `npm run acceptance:rc`
 - `npm run release:bundle -- --tag <tag>`
@@ -37,6 +38,7 @@
 - 当前开发提交、采集时间、平台和构建哈希属于追溯证据；Release Tag 指向、Release Manifest 摘要、公开 API、Schema、依赖组合、验收矩阵和质量下限属于阻断合同
 - `.scratch` 只保存忽略的本地验收证据与隔离工具环境，不进入 Git、静态检查或发布物
 - 供应商可发现不等于已认证，正式发布必须有真实证据
+- 普通功能分支可显式延后当前 Runtime 的 Provider 认证；发布候选、Tag、发布打包与正式发布不得使用延后模式
 - 单次测试通过不能替代 Windows/Linux 三连跑；覆盖率低于目标时必须记录两平台真实基线且只允许上升，通用回退取两平台逐项最小值
 - 发布物必须通过文件 allowlist、类型解析、干净安装和内置 Worker 启动验证
 - Release Please 只创建草稿发布 PR；Tag 与正式发布仍由维护者批准
