@@ -65,6 +65,11 @@ class RequestRecorder {
 
 type MockScriptResult = Array<Record<string, unknown>>;
 
+interface MockServerOptions {
+  shouldRecord?: () => boolean;
+  cancelReplyOnClose?: boolean;
+}
+
 /** 场景对应的响应脚本：流式文本或工具调用（timing 决定） */
 function scenarioScript(scenario: RaceScenario, toolName: string): MockScriptResult {
   if (scenario.timing === "tool" || scenario.timing === "approval") {
@@ -111,10 +116,16 @@ function createMockServer(
   getScript: () => MockScriptResult,
   recorder: RequestRecorder,
   getDelayMs: () => number,
-  shouldRecord: () => boolean = () => true,
-): Promise<{ server: Server; port: number; pendingReplies: () => number }> {
+  options: MockServerOptions = {},
+): Promise<{
+  server: Server;
+  port: number;
+  pendingReplies: () => number;
+  replyAttempts: () => number;
+}> {
   return new Promise((resolve) => {
     let pendingReplies = 0;
+    let replyAttempts = 0;
     const server = createServer((request, response) => {
       let body = "";
       request.on("data", (chunk: Buffer) => {
@@ -122,7 +133,7 @@ function createMockServer(
       });
       request.on("end", () => {
         const parsed = JSON.parse(body) as { messages: unknown[] };
-        if (shouldRecord()) recorder.record(parsed.messages);
+        if (options.shouldRecord?.() ?? true) recorder.record(parsed.messages);
         const script = getScript();
         const delayMs = getDelayMs();
         let replyPending = true;
@@ -132,6 +143,7 @@ function createMockServer(
           pendingReplies -= 1;
         };
         const reply = () => {
+          replyAttempts += 1;
           settleReply();
           response.writeHead(200, {
             "content-type": "text/event-stream",
@@ -153,6 +165,7 @@ function createMockServer(
         pendingReplies += 1;
         const timer = setTimeout(reply, delayMs);
         response.once("close", () => {
+          if (options.cancelReplyOnClose === false) return;
           clearTimeout(timer);
           settleReply();
         });
@@ -163,9 +176,15 @@ function createMockServer(
         server,
         port: (server.address() as { port: number }).port,
         pendingReplies: () => pendingReplies,
+        replyAttempts: () => replyAttempts,
       });
     });
   });
+}
+
+async function closeMockServer(server: Server): Promise<void> {
+  server.closeAllConnections();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +386,13 @@ function assertNoDuplicateEffects(outcome: SeedOutcome, scenario: RaceScenario):
 }
 
 /** 执行一个种子范围块（共享 server，块内串行保持脚本闭包确定性） */
-async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string): Promise<void> {
+async function runSeedChunk(
+  seedStart: number,
+  seedEnd: number,
+  toolName: string,
+  serverOptions: MockServerOptions = {},
+  requestStartTimeoutMs = 15_000,
+): Promise<void> {
   const recorder = new RequestRecorder();
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-matrix-"));
   let currentScenario: RaceScenario = generateRaceScenario(seedStart);
@@ -375,12 +400,20 @@ async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string
     () => scenarioScript(currentScenario, toolName),
     recorder,
     () => (currentScenario.action === "timeout" ? currentScenario.actionDelayMs + 500 : 30),
+    serverOptions,
   );
   try {
     for (let seed = seedStart; seed < seedEnd; seed += 1) {
       const scenario = generateRaceScenario(seed);
       currentScenario = scenario;
-      const outcome = await runSeedScenario(scenario, recorder, port, dir, toolName);
+      const outcome = await runSeedScenario(
+        scenario,
+        recorder,
+        port,
+        dir,
+        toolName,
+        requestStartTimeoutMs,
+      );
       assertNoLateFacts(outcome, scenario);
       assertNoOrphanCalls(outcome, scenario);
       assertNoDuplicateEffects(outcome, scenario);
@@ -389,9 +422,8 @@ async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string
     }
   } finally {
     // 断言失败时也消费全部录制（全局 afterEach 不因本测试的残留污染后续测试）
-    recorder.take(recorder.count() - 1);
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (recorder.count() > 0) recorder.take(recorder.count() - 1);
+    await closeMockServer(server);
   }
 }
 
@@ -448,16 +480,22 @@ describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
       () => scenarioScript(scenario, "read"),
       recorder,
       () => 0,
-      () => false,
+      { shouldRecord: () => false },
     );
     try {
       await expect(runSeedScenario(scenario, recorder, port, dir, "read", 25)).rejects.toThrow(
         describeRaceScenario(scenario),
       );
     } finally {
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
+  });
+
+  it("真实矩阵路径的请求启动失败保留固定种子", async () => {
+    const scenario = generateRaceScenario(997);
+    await expect(
+      runSeedChunk(scenario.seed, scenario.seed + 1, "read", { shouldRecord: () => false }, 25),
+    ).rejects.toThrow(describeRaceScenario(scenario));
   });
 
   it("Abort 后取消假 Provider 延迟回复，不跨种子悬挂", async () => {
@@ -475,8 +513,7 @@ describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
       expect(pendingReplies(), describeRaceScenario(scenario)).toBe(0);
     } finally {
       if (recorder.count() > 0) recorder.take(recorder.count() - 1);
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
   });
 
@@ -515,7 +552,7 @@ describe("C-3 迟到回复拦截", () => {
     const recorder = new RequestRecorder();
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-c3-"));
     // abort 后 50ms 才完成流：请求录制后立即 abort，响应在 abort 生效后到达
-    const { server, port } = await createMockServer(
+    const { server, port, replyAttempts } = await createMockServer(
       () => [
         {
           id: "a",
@@ -531,6 +568,7 @@ describe("C-3 迟到回复拦截", () => {
       ],
       recorder,
       () => 50,
+      { cancelReplyOnClose: false },
     );
     const events: CoreMindEvent[] = [];
     const controller = new AbortController();
@@ -565,6 +603,11 @@ describe("C-3 迟到回复拦截", () => {
       controller.abort();
       const result = await runPromise;
       expect(result.outcome.status).toBe("aborted");
+      const replyDeadline = Date.now() + 1_000;
+      while (replyAttempts() === 0 && Date.now() < replyDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(replyAttempts()).toBe(1);
       // transcript 无迟到文本（方案 A：竞态赢家文本丢弃）
       expect(result.transcript).not.toContain("迟到的回答文本");
       // trace 无迟到文本（turn_end 终态被准入拒绝或未落定）
@@ -589,8 +632,7 @@ describe("C-3 迟到回复拦截", () => {
       recorder.take(0);
     } finally {
       recorder.take(recorder.count() - 1);
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
   });
 });
@@ -618,8 +660,7 @@ describe("四入口取消路径", () => {
       recorder.take(recorder.count() - 1);
     } finally {
       recorder.take(recorder.count() - 1);
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
   });
 });
