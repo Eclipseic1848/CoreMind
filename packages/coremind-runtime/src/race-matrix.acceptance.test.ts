@@ -111,8 +111,10 @@ function createMockServer(
   getScript: () => MockScriptResult,
   recorder: RequestRecorder,
   getDelayMs: () => number,
-): Promise<{ server: Server; port: number }> {
+  shouldRecord: () => boolean = () => true,
+): Promise<{ server: Server; port: number; pendingReplies: () => number }> {
   return new Promise((resolve) => {
+    let pendingReplies = 0;
     const server = createServer((request, response) => {
       let body = "";
       request.on("data", (chunk: Buffer) => {
@@ -120,14 +122,23 @@ function createMockServer(
       });
       request.on("end", () => {
         const parsed = JSON.parse(body) as { messages: unknown[] };
-        recorder.record(parsed.messages);
+        if (shouldRecord()) recorder.record(parsed.messages);
+        const script = getScript();
+        const delayMs = getDelayMs();
+        let replyPending = true;
+        const settleReply = () => {
+          if (!replyPending) return;
+          replyPending = false;
+          pendingReplies -= 1;
+        };
         const reply = () => {
+          settleReply();
           response.writeHead(200, {
             "content-type": "text/event-stream",
             "cache-control": "no-cache",
             connection: "keep-alive",
           });
-          for (const chunk of getScript()) {
+          for (const chunk of script) {
             response.write(`data: ${JSON.stringify(chunk)}\n\n`);
           }
           response.write(
@@ -139,11 +150,20 @@ function createMockServer(
           );
           response.end("data: [DONE]\n\n");
         };
-        setTimeout(reply, getDelayMs());
+        pendingReplies += 1;
+        const timer = setTimeout(reply, delayMs);
+        response.once("close", () => {
+          clearTimeout(timer);
+          settleReply();
+        });
       });
     });
     server.listen(0, "127.0.0.1", () => {
-      resolve({ server, port: (server.address() as { port: number }).port });
+      resolve({
+        server,
+        port: (server.address() as { port: number }).port,
+        pendingReplies: () => pendingReplies,
+      });
     });
   });
 }
@@ -171,6 +191,7 @@ async function runSeedScenario(
   port: number,
   dir: string,
   toolName: string,
+  requestStartTimeoutMs = 15_000,
 ): Promise<SeedOutcome & SeedAssertions> {
   const events: CoreMindEvent[] = [];
   const controller = new AbortController();
@@ -203,7 +224,26 @@ async function runSeedScenario(
 
   const before = recorder.count();
   const runPromise = runtime.run();
-  await recorder.waitForNext(before);
+  try {
+    await Promise.race([
+      recorder.waitForNext(before, requestStartTimeoutMs),
+      runPromise.then(
+        () => {
+          if (recorder.count() <= before) {
+            throw new Error("Run 在 Provider 请求录制前结束");
+          }
+        },
+        (error: unknown) => Promise.reject(error),
+      ),
+    ]);
+  } catch (error) {
+    controller.abort();
+    await withSeedTimeout(runPromise, scenario, requestStartTimeoutMs).catch(() => undefined);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${describeRaceScenario(scenario)}：Provider 请求启动确认失败：${detail}`, {
+      cause: error,
+    });
+  }
 
   const knownTurnIds = new Set(
     events.flatMap((event) => (event.type === "agent_start" && event.turnId ? [event.turnId] : [])),
@@ -400,6 +440,46 @@ async function assertNoHangingPromises(
 // 1,000 种子矩阵
 // ---------------------------------------------------------------------------
 describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
+  it("Provider 请求启动确认失败时输出固定种子，支持回放", async () => {
+    const scenario = generateRaceScenario(997);
+    const recorder = new RequestRecorder();
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-replay-"));
+    const { server, port } = await createMockServer(
+      () => scenarioScript(scenario, "read"),
+      recorder,
+      () => 0,
+      () => false,
+    );
+    try {
+      await expect(runSeedScenario(scenario, recorder, port, dir, "read", 25)).rejects.toThrow(
+        describeRaceScenario(scenario),
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("Abort 后取消假 Provider 延迟回复，不跨种子悬挂", async () => {
+    const scenario = generateRaceScenario(8);
+    const recorder = new RequestRecorder();
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-provider-idle-"));
+    const { server, port, pendingReplies } = await createMockServer(
+      () => scenarioScript(scenario, "read"),
+      recorder,
+      () => scenario.actionDelayMs + 500,
+    );
+    try {
+      await runSeedScenario(scenario, recorder, port, dir, "read");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(pendingReplies(), describeRaceScenario(scenario)).toBe(0);
+    } finally {
+      if (recorder.count() > 0) recorder.take(recorder.count() - 1);
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("全部种子通过四条断言；失败可回放（种子号）", async () => {
     const toolName = "read";
     // 种子范围（回放契约）：RACE_SEED_START/END 环境变量定位失败种子，
