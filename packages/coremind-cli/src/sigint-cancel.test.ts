@@ -16,10 +16,15 @@ const cliPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "d
 describe("CLI SIGINT 取消", () => {
   it("run 进行中收到 SIGINT：aborted 终态、无迟到输出", async () => {
     let requestCount = 0;
+    let markRequestStarted: () => void = () => {};
+    const requestStarted = new Promise<void>((resolve) => {
+      markRequestStarted = resolve;
+    });
     const server = createServer((request, response) => {
       request.resume(); // 排空请求体（响应不需要解析 body）
       request.on("end", () => {
         requestCount += 1;
+        markRequestStarted();
         // 延迟 400ms 响应：确保 SIGINT 在流式进行中到达
         setTimeout(() => {
           response.writeHead(200, {
@@ -71,33 +76,60 @@ agents:
 `,
       "utf8",
     );
+    let child: ReturnType<typeof spawn> | undefined;
     try {
-      const child = spawn(
+      child = spawn(
         "node",
         [cliPath, "run", path.join(dir, "coremind.yaml"), "--prompt", "请回答", "--print"],
         { stdio: ["ignore", "pipe", "pipe"] },
       );
+      let stdout = "";
+      let stderr = "";
+      child.stdout?.on("data", (data: Buffer) => {
+        stdout += data.toString("utf8");
+      });
+      child.stderr?.on("data", (data: Buffer) => {
+        stderr += data.toString("utf8");
+      });
+      const childClosed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+        (resolve, reject) => {
+          child?.once("error", reject);
+          child?.once("close", (code, signal) => resolve({ code, signal }));
+        },
+      );
       // 等 mock 收到请求（run 已在执行）再发 SIGINT
-      const deadline = Date.now() + 5_000;
-      while (requestCount === 0 && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
+      let readinessTimer: ReturnType<typeof setTimeout> | undefined;
+      const readiness = await Promise.race([
+        requestStarted.then(() => ({ kind: "request" }) as const),
+        childClosed.then((result) => ({ kind: "closed", result }) as const),
+        new Promise<{ kind: "timeout" }>((resolve) => {
+          readinessTimer = setTimeout(() => resolve({ kind: "timeout" }), 30_000);
+        }),
+      ]);
+      if (readinessTimer) {
+        clearTimeout(readinessTimer);
+      }
+      if (readiness.kind === "closed") {
+        throw new Error(
+          `CLI 在 Provider 请求前退出：code=${readiness.result.code}, signal=${readiness.result.signal}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+        );
+      }
+      if (readiness.kind === "timeout") {
+        throw new Error(`等待 CLI Provider 请求超时\nstdout:\n${stdout}\nstderr:\n${stderr}`);
       }
       expect(requestCount).toBe(1);
       child.kill("SIGINT");
-      const result = await new Promise<{ code: number | null; stdout: string }>((resolve) => {
-        let stdout = "";
-        child.stdout?.on("data", (data: Buffer) => {
-          stdout += data.toString("utf8");
-        });
-        child.on("close", (code) => resolve({ code, stdout }));
-      });
+      const result = await childClosed;
       // 迟到文本不入 stdout（方案 A：竞态赢家文本丢弃）
-      expect(result.stdout).not.toContain("迟到的完整回答");
+      expect(stdout).not.toContain("迟到的完整回答");
       // SIGINT 中止是非正常退出（非 0）
       expect(result.code).not.toBe(0);
     } finally {
+      if (child && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGTERM");
+      }
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
-  });
+  }, 40_000);
 });
