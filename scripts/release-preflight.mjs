@@ -84,7 +84,10 @@ export function evaluateReleaseMetadata({
   };
 }
 
-export async function inspectRepository(rootDirectory, { allowDirty = false } = {}) {
+export async function inspectRepository(
+  rootDirectory,
+  { allowDirty = false, deferProviderCertification = false } = {},
+) {
   const packageDirectories = await readdir(path.join(rootDirectory, "packages"), {
     withFileTypes: true,
   });
@@ -140,7 +143,7 @@ export async function inspectRepository(rootDirectory, { allowDirty = false } = 
     pythonVersion,
     requiredFilesMissing: missing,
     providerMatrixCurrent: matrix.generatedAt === ledger.updatedAt && matrix.providers.length >= 38,
-    providerCertificationCurrent: Boolean(currentCertification),
+    providerCertificationCurrent: deferProviderCertification || Boolean(currentCertification),
   });
 
   const warnings = [];
@@ -154,6 +157,9 @@ export async function inspectRepository(rootDirectory, { allowDirty = false } = 
     if (git.status !== 0) report.blockers.push("无法读取 Git 工作区状态");
     else if (git.stdout.trim()) report.blockers.push("Git 工作区不干净");
   }
+  if (deferProviderCertification) {
+    warnings.push("开发分支已延后当前 Runtime 的 Provider 认证；发布候选必须移除此选项");
+  }
   report.ready = report.blockers.length === 0;
   return { ...report, warnings };
 }
@@ -166,8 +172,12 @@ function normalizeMetadataUrl(value) {
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const allowDirty = process.argv.includes("--allow-dirty");
+  const deferProviderCertification = process.argv.includes("--defer-provider-certification");
   const json = process.argv.includes("--json");
-  const report = await inspectRepository(repositoryRoot, { allowDirty });
+  const report = await inspectRepository(repositoryRoot, {
+    allowDirty,
+    deferProviderCertification,
+  });
   if (json) console.log(JSON.stringify(report, null, 2));
   else {
     console.log(

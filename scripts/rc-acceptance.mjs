@@ -203,6 +203,21 @@ export const RC_SUITES = [
   },
 ];
 
+export function resolveRcSuites({ deferProviderCertification = false } = {}) {
+  if (!deferProviderCertification) return RC_SUITES;
+  return RC_SUITES.map((suite) =>
+    suite.name === "metadata"
+      ? {
+          ...suite,
+          commands: suite.commands.map(([command, args]) => [
+            command,
+            [...args, "--defer-provider-certification"],
+          ]),
+        }
+      : suite,
+  );
+}
+
 export function evaluateRcAcceptance({ suiteResults, evidenceResults, manualEvidence }) {
   const manualPlatforms = new Set(
     manualEvidence.filter((item) => item.passed === true).map((item) => item.platform),
@@ -295,9 +310,9 @@ function runtimeEntries() {
   return ["headless-cli", "typescript-sdk", "python-sdk"];
 }
 
-async function runAcceptance({ requireManual }) {
+async function runAcceptance({ requireManual, deferProviderCertification = false }) {
   const suiteResults = {};
-  for (const suite of RC_SUITES) {
+  for (const suite of resolveRcSuites({ deferProviderCertification })) {
     suiteResults[suite.name] = suite.commands.every(([command, args]) => run(command, args));
     if (!suiteResults[suite.name]) break;
   }
@@ -396,6 +411,9 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     }
     console.log(`双平台真实伪终端证据通过：${version} · ${commit}`);
   } else {
-    await runAcceptance({ requireManual: process.argv.includes("--require-manual") });
+    await runAcceptance({
+      requireManual: process.argv.includes("--require-manual"),
+      deferProviderCertification: process.argv.includes("--defer-provider-certification"),
+    });
   }
 }

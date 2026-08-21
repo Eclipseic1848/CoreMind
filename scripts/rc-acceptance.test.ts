@@ -5,6 +5,7 @@ import {
   evaluateRcAcceptance,
   RC_CASES,
   RC_SUITES,
+  resolveRcSuites,
   TTY_CHECKS,
   TTY_EVIDENCE_RELATIVE_DIRECTORY,
   validateTtyEvidence,
@@ -80,6 +81,16 @@ describe("Release Candidate 验收矩阵", () => {
     expect(commands).toEqual(
       expect.arrayContaining(["run release:check-npm", "run release:test-npm"]),
     );
+  });
+
+  it("只有显式开发模式才向元数据套件传递 Provider 认证延后选项", () => {
+    const strictMetadata = resolveRcSuites().find((suite) => suite.name === "metadata");
+    const deferredMetadata = resolveRcSuites({ deferProviderCertification: true }).find(
+      (suite) => suite.name === "metadata",
+    );
+
+    expect(strictMetadata?.commands[0][1]).not.toContain("--defer-provider-certification");
+    expect(deferredMetadata?.commands[0][1]).toContain("--defer-provider-certification");
   });
 
   it("真实伪终端证据必须绑定候选版本、提交和全部交互检查", () => {

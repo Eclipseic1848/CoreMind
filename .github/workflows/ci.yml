@@ -109,7 +109,12 @@ jobs:
           path: .scratch/rc-evidence/rc-tty-*.json
           if-no-files-found: error
 
-      - name: 发布元数据预检
+      - name: 发布元数据预检（普通功能分支）
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+        run: npm run release:preflight -- --allow-dirty --defer-provider-certification
+
+      - name: 发布元数据预检（严格）
+        if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
         run: npm run release:preflight -- --allow-dirty
 
       - name: npm 包 allowlist 与禁止文件
@@ -121,5 +126,10 @@ jobs:
       - name: 源码 ZIP 干净安装与构建
         run: npm run release:test-source
 
-      - name: Release Candidate 自动验收矩阵
+      - name: Release Candidate 自动验收矩阵（普通功能分支）
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+        run: npm run acceptance:rc -- --defer-provider-certification
+
+      - name: Release Candidate 自动验收矩阵（严格）
+        if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
         run: npm run acceptance:rc

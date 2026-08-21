@@ -37,6 +37,25 @@ LoopController remains the owner of planning, execution, verification, and repai
 - Only an incomplete final JSONL line after complete records may be repaired; whole-file corruption fails closed.
 - A legacy Session gets a `.v3.backup` before migration, and its public source remains unchanged on failure.
 
+## 0.3.1 candidate: correlation invariant checker
+
+`checkInvariantFacts(facts, { mode })` is an internal, read-only Runtime seam. It never modifies facts and does not change the public SDK export surface. Production defaults to `off`; `eval` returns diagnostics; `gate` is used by release acceptance. I-1 through I-12 are stable violation codes, not new public `CoreMindError` codes.
+
+| Violation | Check |
+|---|---|
+| I-1 | RunState journal sequences are consecutive |
+| I-2 | Same-sequence same-content appends are idempotent; different content conflicts |
+| I-3 | No record follows `finish` |
+| I-4 | New-format StepIds are unique within a Run; legacy 0.3.0 `loop-execute` explicitly degrades |
+| I-5 | Run, Session, Turn, and Call correlation is consistent; legacy records without TurnId skip Turn-level checks |
+| I-6 | ReceiptId resolves to the same Run, Step, and Call |
+| I-7 | Every tool Call has exactly one explainable termination; aborted/timeout Runs explicitly close in-flight Calls |
+| I-8 | Checkpoints resolve to the same Run, Operation, Call, and Receipt |
+| I-9 | `approval_required` and `approval_resolved` pair one-to-one by ApprovalId |
+| I-10 | No late terminal fact bypasses admission after the Abort boundary |
+| I-11 | Operation chains start with ACCEPT, keep consecutive sequences, and use legal transitions |
+| I-12 | Effect Receipt states move only through legal forward transitions |
+
 ## Platform boundary
 
 Windows and Linux use the same contracts and test definitions. A stale lock is not guessed away after a process crash. An operator must first prove that no writer remains, following the [recovery SOP](SOP.en.md). Real cross-process crash behavior still requires target-platform acceptance.
@@ -45,6 +64,7 @@ Windows and Linux use the same contracts and test definitions. A stale lock is n
 
 - [Operation state machine](../../../packages/coremind-runtime/src/operation-state.ts)
 - [RunState](../../../packages/coremind-runtime/src/run-state.ts)
+- [Correlation invariant checker](../../../packages/coremind-runtime/src/invariant-checker.ts)
 - [Run snapshot](../../../packages/coremind-runtime/src/snapshot.ts)
 - [Session adapter](../../../packages/coremind-runtime/src/session.ts)
 - [Backend conformance suite](../../../packages/coremind-runtime/src/session-conformance.test.ts)

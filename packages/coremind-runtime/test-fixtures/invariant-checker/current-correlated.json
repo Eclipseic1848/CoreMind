@@ -1,0 +1,236 @@
+{
+  "runRecords": [
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 1,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "start",
+      "payload": {
+        "sessionId": "session-current",
+        "sessionSeqStart": 1,
+        "turnSeqStart": 1
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 2,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "operation",
+      "payload": {
+        "schemaVersion": 1,
+        "operationId": "operation-current",
+        "runId": "run-current",
+        "correlationId": "run-current:operation-current",
+        "sequence": 1,
+        "eventId": "operation-event-1",
+        "event": "ACCEPT",
+        "from": null,
+        "to": "accepted",
+        "timestamp": "2026-08-20T00:00:00.000Z"
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 3,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "operation",
+      "payload": {
+        "schemaVersion": 1,
+        "operationId": "operation-current",
+        "runId": "run-current",
+        "correlationId": "run-current:operation-current",
+        "sequence": 2,
+        "eventId": "operation-event-2",
+        "event": "START",
+        "from": "accepted",
+        "to": "running",
+        "timestamp": "2026-08-20T00:00:00.000Z"
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 4,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "agent_start",
+          "agent": "main",
+          "turnId": "turn-current"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 5,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_start",
+          "stepId": "step-current",
+          "kind": "agent"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 6,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "tool_call",
+          "agent": "main",
+          "tool": "write",
+          "args": {},
+          "callId": "call-current",
+          "stepId": "step-current",
+          "turnId": "turn-current",
+          "idempotencyKey": "run-current:step-current:call-current"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 7,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "approval_required",
+          "approvalId": "approval-current",
+          "runId": "run-current",
+          "agent": "main",
+          "tool": "write",
+          "args": {},
+          "risk": "high",
+          "effect": {
+            "operations": ["write"],
+            "paths": ["file.txt"],
+            "urls": [],
+            "reversible": true,
+            "declared": true
+          }
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 8,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "approval_resolved",
+          "approvalId": "approval-current",
+          "runId": "run-current",
+          "decision": "allow"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 9,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "effect_receipt",
+          "idempotencyKey": "run-current:step-current:call-current",
+          "tool": "write",
+          "status": "started",
+          "stepId": "step-current",
+          "turnId": "turn-current"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 10,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "effect_receipt",
+          "idempotencyKey": "run-current:step-current:call-current",
+          "tool": "write",
+          "status": "committed",
+          "stepId": "step-current",
+          "turnId": "turn-current"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 11,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "turn_end",
+          "agent": "main",
+          "turnId": "turn-current"
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 12,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "event",
+      "payload": {
+        "event": {
+          "type": "step_end",
+          "stepId": "step-current",
+          "ok": true
+        }
+      }
+    },
+    {
+      "version": 1,
+      "runId": "run-current",
+      "sequence": 13,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "kind": "finish",
+      "payload": {
+        "status": "succeeded"
+      }
+    }
+  ],
+  "checkpoints": [
+    {
+      "version": 1,
+      "checkpointId": "checkpoint-current",
+      "runId": "run-current",
+      "operationId": "operation-current",
+      "toolCallId": "call-current",
+      "idempotencyKey": "run-current:step-current:call-current",
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "tool": "write",
+      "reversible": true,
+      "snapshotFile": "checkpoint-current.json"
+    }
+  ],
+  "session": {
+    "sessionId": "session-current",
+    "entries": [
+      {
+        "id": "entry-current",
+        "seq": 1
+      }
+    ]
+  }
+}

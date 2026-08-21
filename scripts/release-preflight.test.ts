@@ -1,7 +1,46 @@
+import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { evaluateReleaseMetadata, normalizePythonVersion } from "./release-preflight.mjs";
 
 describe("发布元数据预检", () => {
+  it("普通开发检查可以延后当前 Runtime 的 Provider 认证", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/release-preflight.mjs",
+        "--allow-dirty",
+        "--defer-provider-certification",
+        "--json",
+      ],
+      { cwd: process.cwd(), encoding: "utf8" },
+    );
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(report.ready).toBe(true);
+    expect(report.blockers).not.toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+    expect(report.warnings).toContain(
+      "开发分支已延后当前 Runtime 的 Provider 认证；发布候选必须移除此选项",
+    );
+  });
+
+  it("环境变量不能绕过严格发布预检", () => {
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/release-preflight.mjs", "--allow-dirty", "--json"],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: { ...process.env, COREMIND_DEFER_PROVIDER_CERTIFICATION: "1" },
+      },
+    );
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(1);
+    expect(report.ready).toBe(false);
+    expect(report.blockers).toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+  });
+
   it("把 PEP 440 预发布版本转换为 npm 版本", () => {
     expect(normalizePythonVersion("0.2.0a1")).toBe("0.2.0-alpha.1");
     expect(normalizePythonVersion("0.2.0b2")).toBe("0.2.0-beta.2");

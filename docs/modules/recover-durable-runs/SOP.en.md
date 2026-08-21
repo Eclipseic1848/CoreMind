@@ -48,8 +48,8 @@
 ## 6. Verification
 
 ```text
-npx vitest run packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
+npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
 npm run check:modules
 ```
 
-Use the same command on Linux. Real process crashes, competing writers, and filesystem rename behavior require separate Windows and Linux acceptance.
+The checker in `gate` mode must traverse the tracked deterministic fixtures and return zero violations for I-1 through I-12; `eval` must remain independently runnable. Use the same command on Linux. Real process crashes, competing writers, and filesystem rename behavior require separate Windows and Linux acceptance.

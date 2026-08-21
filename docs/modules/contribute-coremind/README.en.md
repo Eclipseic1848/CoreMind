@@ -24,6 +24,7 @@ Change CoreMind source within its frozen public contracts, one-way dependencies,
 - `npm run release:check-wheel`
 - `npm run providers:matrix`
 - `npm run release:preflight`
+- `npm run release:preflight -- --allow-dirty --defer-provider-certification` (ordinary feature-branch CI only)
 - `npm run release:sync-version -- <semver>`
 - `npm run acceptance:rc`
 - `npm run release:bundle -- --tag <tag>`
@@ -37,6 +38,7 @@ Change CoreMind source within its frozen public contracts, one-way dependencies,
 - The current development commit, capture time, platform, and build hashes are trace evidence. The Release Tag target, Release Manifest digest, public APIs, schemas, dependency combinations, acceptance matrix, and quality floors are blocking contracts.
 - `.scratch` is reserved for ignored local acceptance evidence and isolated tool environments; it is excluded from Git, static checks, and artifacts.
 - Provider discovery is not certification; releases require live evidence
+- An ordinary feature branch may explicitly defer current-Runtime provider certification; release candidates, tags, release bundles, and publication must not use deferred mode
 - One passing test run does not replace three consecutive Windows/Linux runs. Record honest per-platform coverage floors below target, allow them only to increase, and set the generic fallback to their per-metric minimum.
 - Release artifacts must pass file allowlists, type resolution, clean installation, and bundled Worker startup.
 - Release Please creates a draft release PR only; maintainers still approve tags and publication.

@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CoreMindEvent } from "./events.js";
+import { checkInvariantFacts } from "./invariant-checker.js";
 import { describeRaceScenario, generateRaceScenario, type RaceScenario } from "./race-seeds.js";
+import type { RunStateRecord } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
 
@@ -63,6 +65,11 @@ class RequestRecorder {
 
 type MockScriptResult = Array<Record<string, unknown>>;
 
+interface MockServerOptions {
+  shouldRecord?: () => boolean;
+  cancelReplyOnClose?: boolean;
+}
+
 /** 场景对应的响应脚本：流式文本或工具调用（timing 决定） */
 function scenarioScript(scenario: RaceScenario, toolName: string): MockScriptResult {
   if (scenario.timing === "tool" || scenario.timing === "approval") {
@@ -109,8 +116,16 @@ function createMockServer(
   getScript: () => MockScriptResult,
   recorder: RequestRecorder,
   getDelayMs: () => number,
-): Promise<{ server: Server; port: number }> {
+  options: MockServerOptions = {},
+): Promise<{
+  server: Server;
+  port: number;
+  pendingReplies: () => number;
+  replyAttempts: () => number;
+}> {
   return new Promise((resolve) => {
+    let pendingReplies = 0;
+    let replyAttempts = 0;
     const server = createServer((request, response) => {
       let body = "";
       request.on("data", (chunk: Buffer) => {
@@ -118,14 +133,24 @@ function createMockServer(
       });
       request.on("end", () => {
         const parsed = JSON.parse(body) as { messages: unknown[] };
-        recorder.record(parsed.messages);
+        if (options.shouldRecord?.() ?? true) recorder.record(parsed.messages);
+        const script = getScript();
+        const delayMs = getDelayMs();
+        let replyPending = true;
+        const settleReply = () => {
+          if (!replyPending) return;
+          replyPending = false;
+          pendingReplies -= 1;
+        };
         const reply = () => {
+          replyAttempts += 1;
+          settleReply();
           response.writeHead(200, {
             "content-type": "text/event-stream",
             "cache-control": "no-cache",
             connection: "keep-alive",
           });
-          for (const chunk of getScript()) {
+          for (const chunk of script) {
             response.write(`data: ${JSON.stringify(chunk)}\n\n`);
           }
           response.write(
@@ -137,13 +162,29 @@ function createMockServer(
           );
           response.end("data: [DONE]\n\n");
         };
-        setTimeout(reply, getDelayMs());
+        pendingReplies += 1;
+        const timer = setTimeout(reply, delayMs);
+        response.once("close", () => {
+          if (options.cancelReplyOnClose === false) return;
+          clearTimeout(timer);
+          settleReply();
+        });
       });
     });
     server.listen(0, "127.0.0.1", () => {
-      resolve({ server, port: (server.address() as { port: number }).port });
+      resolve({
+        server,
+        port: (server.address() as { port: number }).port,
+        pendingReplies: () => pendingReplies,
+        replyAttempts: () => replyAttempts,
+      });
     });
   });
+}
+
+async function closeMockServer(server: Server): Promise<void> {
+  server.closeAllConnections();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +210,7 @@ async function runSeedScenario(
   port: number,
   dir: string,
   toolName: string,
+  requestStartTimeoutMs = 15_000,
 ): Promise<SeedOutcome & SeedAssertions> {
   const events: CoreMindEvent[] = [];
   const controller = new AbortController();
@@ -201,7 +243,26 @@ async function runSeedScenario(
 
   const before = recorder.count();
   const runPromise = runtime.run();
-  await recorder.waitForNext(before);
+  try {
+    await Promise.race([
+      recorder.waitForNext(before, requestStartTimeoutMs),
+      runPromise.then(
+        () => {
+          if (recorder.count() <= before) {
+            throw new Error("Run 在 Provider 请求录制前结束");
+          }
+        },
+        (error: unknown) => Promise.reject(error),
+      ),
+    ]);
+  } catch (error) {
+    controller.abort();
+    await withSeedTimeout(runPromise, scenario, requestStartTimeoutMs).catch(() => undefined);
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${describeRaceScenario(scenario)}：Provider 请求启动确认失败：${detail}`, {
+      cause: error,
+    });
+  }
 
   const knownTurnIds = new Set(
     events.flatMap((event) => (event.type === "agent_start" && event.turnId ? [event.turnId] : [])),
@@ -276,21 +337,39 @@ function assertNoLateFacts(outcome: SeedOutcome & SeedAssertions, scenario: Race
 
 /** 断言 2：无孤儿结果（I-7：每个工具 Call 有配对 tool_result 或 run 终态显式关闭） */
 function assertNoOrphanCalls(outcome: SeedOutcome, scenario: RaceScenario): void {
-  const { result, events } = outcome;
-  const calls = new Set(
-    events.flatMap((event) => (event.type === "tool_call" ? [event.callId ?? ""] : [])),
+  const { result } = outcome;
+  const runRecords: RunStateRecord[] = [
+    {
+      version: 1,
+      runId: result.runId,
+      sequence: 1,
+      timestamp: result.trace[0]?.timestamp ?? new Date(0).toISOString(),
+      kind: "start",
+      payload: {},
+    },
+    ...result.trace.map(
+      (entry, index): RunStateRecord => ({
+        version: 1,
+        runId: result.runId,
+        sequence: index + 2,
+        timestamp: entry.timestamp,
+        kind: "event",
+        payload: entry,
+      }),
+    ),
+    {
+      version: 1,
+      runId: result.runId,
+      sequence: result.trace.length + 2,
+      timestamp: new Date().toISOString(),
+      kind: "finish",
+      payload: { status: result.outcome.status },
+    },
+  ];
+  const violations = checkInvariantFacts({ runRecords }, { mode: "gate" }).filter(
+    (violation) => violation.invariant === "I-7",
   );
-  calls.delete("");
-  const resolved = new Set(
-    events.flatMap((event) => (event.type === "tool_result" ? [event.callId ?? ""] : [])),
-  );
-  const orphans = [...calls].filter((callId) => !resolved.has(callId));
-  const abortedRun = result.outcome.status === "aborted" || result.outcome.status === "timeout";
-  // 孤儿仅允许由 aborted/timeout 终态显式关闭（在飞工具被中止，无 tool_result 属预期）
-  expect(
-    orphans.length === 0 || abortedRun,
-    `${describeRaceScenario(scenario)}：存在孤儿工具 Call ${orphans.join("、")}（run 未中止）`,
-  ).toBe(true);
+  expect(violations, `${describeRaceScenario(scenario)}：存在孤儿工具 Call`).toEqual([]);
 }
 
 /** 断言 3：无重复副作用（同 idempotencyKey 的 receipt 终态唯一） */
@@ -307,7 +386,13 @@ function assertNoDuplicateEffects(outcome: SeedOutcome, scenario: RaceScenario):
 }
 
 /** 执行一个种子范围块（共享 server，块内串行保持脚本闭包确定性） */
-async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string): Promise<void> {
+async function runSeedChunk(
+  seedStart: number,
+  seedEnd: number,
+  toolName: string,
+  serverOptions: MockServerOptions = {},
+  requestStartTimeoutMs = 15_000,
+): Promise<void> {
   const recorder = new RequestRecorder();
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-matrix-"));
   let currentScenario: RaceScenario = generateRaceScenario(seedStart);
@@ -315,12 +400,20 @@ async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string
     () => scenarioScript(currentScenario, toolName),
     recorder,
     () => (currentScenario.action === "timeout" ? currentScenario.actionDelayMs + 500 : 30),
+    serverOptions,
   );
   try {
     for (let seed = seedStart; seed < seedEnd; seed += 1) {
       const scenario = generateRaceScenario(seed);
       currentScenario = scenario;
-      const outcome = await runSeedScenario(scenario, recorder, port, dir, toolName);
+      const outcome = await runSeedScenario(
+        scenario,
+        recorder,
+        port,
+        dir,
+        toolName,
+        requestStartTimeoutMs,
+      );
       assertNoLateFacts(outcome, scenario);
       assertNoOrphanCalls(outcome, scenario);
       assertNoDuplicateEffects(outcome, scenario);
@@ -329,9 +422,8 @@ async function runSeedChunk(seedStart: number, seedEnd: number, toolName: string
     }
   } finally {
     // 断言失败时也消费全部录制（全局 afterEach 不因本测试的残留污染后续测试）
-    recorder.take(recorder.count() - 1);
-    server.closeAllConnections();
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (recorder.count() > 0) recorder.take(recorder.count() - 1);
+    await closeMockServer(server);
   }
 }
 
@@ -380,6 +472,51 @@ async function assertNoHangingPromises(
 // 1,000 种子矩阵
 // ---------------------------------------------------------------------------
 describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
+  it("Provider 请求启动确认失败时输出固定种子，支持回放", async () => {
+    const scenario = generateRaceScenario(997);
+    const recorder = new RequestRecorder();
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-replay-"));
+    const { server, port } = await createMockServer(
+      () => scenarioScript(scenario, "read"),
+      recorder,
+      () => 0,
+      { shouldRecord: () => false },
+    );
+    try {
+      await expect(runSeedScenario(scenario, recorder, port, dir, "read", 25)).rejects.toThrow(
+        describeRaceScenario(scenario),
+      );
+    } finally {
+      await closeMockServer(server);
+    }
+  });
+
+  it("真实矩阵路径的请求启动失败保留固定种子", async () => {
+    const scenario = generateRaceScenario(997);
+    await expect(
+      runSeedChunk(scenario.seed, scenario.seed + 1, "read", { shouldRecord: () => false }, 25),
+    ).rejects.toThrow(describeRaceScenario(scenario));
+  });
+
+  it("Abort 后取消假 Provider 延迟回复，不跨种子悬挂", async () => {
+    const scenario = generateRaceScenario(8);
+    const recorder = new RequestRecorder();
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-provider-idle-"));
+    const { server, port, pendingReplies } = await createMockServer(
+      () => scenarioScript(scenario, "read"),
+      recorder,
+      () => scenario.actionDelayMs + 500,
+    );
+    try {
+      await runSeedScenario(scenario, recorder, port, dir, "read");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(pendingReplies(), describeRaceScenario(scenario)).toBe(0);
+    } finally {
+      if (recorder.count() > 0) recorder.take(recorder.count() - 1);
+      await closeMockServer(server);
+    }
+  });
+
   it("全部种子通过四条断言；失败可回放（种子号）", async () => {
     const toolName = "read";
     // 种子范围（回放契约）：RACE_SEED_START/END 环境变量定位失败种子，
@@ -415,7 +552,7 @@ describe("C-3 迟到回复拦截", () => {
     const recorder = new RequestRecorder();
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-c3-"));
     // abort 后 50ms 才完成流：请求录制后立即 abort，响应在 abort 生效后到达
-    const { server, port } = await createMockServer(
+    const { server, port, replyAttempts } = await createMockServer(
       () => [
         {
           id: "a",
@@ -431,6 +568,7 @@ describe("C-3 迟到回复拦截", () => {
       ],
       recorder,
       () => 50,
+      { cancelReplyOnClose: false },
     );
     const events: CoreMindEvent[] = [];
     const controller = new AbortController();
@@ -465,6 +603,11 @@ describe("C-3 迟到回复拦截", () => {
       controller.abort();
       const result = await runPromise;
       expect(result.outcome.status).toBe("aborted");
+      const replyDeadline = Date.now() + 1_000;
+      while (replyAttempts() === 0 && Date.now() < replyDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(replyAttempts()).toBe(1);
       // transcript 无迟到文本（方案 A：竞态赢家文本丢弃）
       expect(result.transcript).not.toContain("迟到的回答文本");
       // trace 无迟到文本（turn_end 终态被准入拒绝或未落定）
@@ -489,8 +632,7 @@ describe("C-3 迟到回复拦截", () => {
       recorder.take(0);
     } finally {
       recorder.take(recorder.count() - 1);
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
   });
 });
@@ -518,8 +660,7 @@ describe("四入口取消路径", () => {
       recorder.take(recorder.count() - 1);
     } finally {
       recorder.take(recorder.count() - 1);
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeMockServer(server);
     }
   });
 });

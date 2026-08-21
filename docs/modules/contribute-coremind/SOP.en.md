@@ -13,7 +13,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 5. Synchronize module contracts and bilingual docs.
 6. Run focused tests, then `npm run test:stability` and `npm run test:coverage`. Windows/Linux coverage may not fall below their recorded floors, and the generic fallback may not be weaker than their per-metric minimum.
 7. Run `docs:audit` across all project Markdown for strict UTF-8, local links, and the documentation identifier boundary.
-8. Run `acceptance:rc`, require P01-P19 to bind to real tests, and complete both real-pseudoterminal files plus a live provider under the RC guide.
+8. Run `acceptance:rc` and require P01-P19 to bind to real tests. Ordinary feature-branch CI may explicitly defer current-Runtime provider certification, but a formal candidate must remove deferred mode and complete both real-pseudoterminal files plus a live provider under the RC guide.
 9. Same-task coding comparisons must keep the model, options, initial commit, budget, timeout, and network conditions fixed. Obtain cost, privacy, and code-egress authorization before a live external run; otherwise retain `not-run`.
 10. Let Release Please open a draft release PR, use `release:sync-version` for npm/Python parity, and update both release notes.
 11. After merge, run `release:bundle` only on one clean tag and validate every npm tarball, wheel, source ZIP, SHA-256, and attestation.

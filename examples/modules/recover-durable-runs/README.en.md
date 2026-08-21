@@ -27,7 +27,9 @@ coremind run coremind.yaml --resume <runId> --json-events
 Run from the repository root:
 
 ```text
-npx vitest run packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
+npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
 ```
+
+The checker test runs the tracked current-format and 0.3.0 fixtures in `gate` mode. Do not substitute a local `.coremind` directory for acceptance input.
 
 Return to the [English guide](../../../docs/modules/recover-durable-runs/GUIDE.en.md).

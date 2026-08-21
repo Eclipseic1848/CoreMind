@@ -12,6 +12,12 @@ coremind run coremind.yaml --prompt "执行任务" --json-events
 
 最后一条 `run_result.snapshot` 是权威纯 JSON 结果，统一包含 `runId`、`operation`、`outcome`、指标、评测、Trace、Checkpoint、Artifact、扩展收据和恢复判断。顶层兼容字段必须与快照一致；不要只根据自然语言总结判断成功。
 
+## 验证关联不变量
+
+Runtime 内部的 `checkInvariantFacts(facts, { mode })` 只读检查 Run、Session 与 Checkpoint 事实。生产默认 `off`；调试或评估使用 `eval`；发布验收使用 `gate`。Gate fixture 必须存放在受 Git 跟踪的 `packages/coremind-runtime/test-fixtures/invariant-checker/`，不能读取运行测试时生成的 `.coremind` 文件。
+
+0.3.0 旧事实没有 TurnId，检查器按事实发生时的已知关联降级；同一 Run 在 0.3.1 Resume 后产生的新 TurnId 不能反向改变旧记录语义。
+
 ## 继续暂停或中断的运行
 
 ```powershell
@@ -31,5 +37,6 @@ coremind run coremind.yaml --resume <runId> --json-events
 - 手工删除锁，却没有先确认是否仍有 writer。
 - 只备份新格式文件，遗漏自动生成的旧文件备份。
 - 终端关闭后用新 prompt 重跑，导致不可幂等工具重复执行。
+- 把本机 `.coremind` 运行产物当作可复现的 Gate fixture。
 
 运行 [模块示例](../../../examples/modules/recover-durable-runs/README.zh-CN.md) 后，再把恢复策略接入具体业务。

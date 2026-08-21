@@ -29,6 +29,8 @@ npm run release:sync-version -- 0.3.0
 npm run release:preflight -- --allow-dirty
 ```
 
+Both-platform CI on an ordinary feature branch may explicitly use `--defer-provider-certification` on both `release:preflight` and the nested `acceptance:rc` command. This defers only the requirement that the in-development Runtime already have a live-provider certification. The mode must emit a warning and must not be used for a release candidate, tag, `release:bundle`, or the publication workflow; those paths still require live evidence bound to the exact version and Runtime SHA-256. An environment variable cannot enable deferred mode.
+
 The synchronizer updates the root manifest, all eight public npm packages, exact internal dependencies, the lockfile, Python PEP 440 metadata, and `coremind.__version__`. Update both changelogs, READMEs, migration guidance, provider state, third-party notices, and roadmaps before marking the PR ready.
 
 ## Code, documentation, and RC gates

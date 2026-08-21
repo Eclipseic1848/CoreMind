@@ -48,8 +48,8 @@
 ## 六、验证命令
 
 ```powershell
-npx vitest run packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
+npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1
 npm run check:modules
 ```
 
-Linux 使用同一命令。真实进程崩溃、并发 writer 与文件系统 rename 行为必须分别在 Windows 和 Linux 验收，不能互相替代。
+检查器的 `gate` 档必须遍历仓库内受跟踪的确定性 fixture，并对 I-1～I-12 输出零 violation；`eval` 档必须可独立运行。Linux 使用同一命令。真实进程崩溃、并发 writer 与文件系统 rename 行为必须分别在 Windows 和 Linux 验收，不能互相替代。

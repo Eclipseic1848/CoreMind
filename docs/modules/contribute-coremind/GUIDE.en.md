@@ -18,6 +18,8 @@ npm run acceptance:rc
 npm run release:preflight -- --allow-dirty
 ```
 
+When Runtime changes on an ordinary feature branch have not yet entered release-candidate certification, CI may use `npm run release:preflight -- --allow-dirty --defer-provider-certification`. The deferral warning means only that development gates passed; a formal candidate must remove the option and complete the live-provider recheck.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

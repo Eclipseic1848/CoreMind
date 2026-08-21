@@ -18,6 +18,8 @@ npm run acceptance:rc
 npm run release:preflight -- --allow-dirty
 ```
 
+普通功能分支 CI 因 Runtime 改动尚未进入发布候选认证时，可使用 `npm run release:preflight -- --allow-dirty --defer-provider-certification`。看到延后警告只代表开发门禁通过；正式候选必须移除该选项并完成真实 Provider 复验。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

@@ -37,6 +37,25 @@ LoopController 继续管理 planning、execute、verify、repair 等业务阶段
 - 只修复“已有完整记录 + 最后一行未写完”的 JSONL 尾部；整文件损坏失败关闭。
 - 旧 Session 在迁移前生成 `.v3.backup`；迁移失败时公开原文件保持不变。
 
+## 0.3.1 候选：关联不变量检查器
+
+`checkInvariantFacts(facts, { mode })` 是 Runtime 内部的只读检查缝隙，不修改任何事实，也不改变公共 SDK 导出面。生产默认 `off`；`eval` 返回调试诊断；`gate` 供发布验收使用。I-1～I-12 是稳定违规码，不是新增的公共 `CoreMindError` 错误码。
+
+| 违规码 | 检查内容 |
+|---|---|
+| I-1 | RunState journal sequence 连续无洞 |
+| I-2 | 同 sequence 同内容幂等，异内容冲突 |
+| I-3 | finish 后无新记录 |
+| I-4 | 新格式 StepId 在 Run 内唯一；0.3.0 的 `loop-execute` 显式降级 |
+| I-5 | Run、Session、Turn 与 Call 关联一致；旧记录缺少 TurnId 时跳过 Turn 级判断 |
+| I-6 | ReceiptId 回溯到同一 Run、Step 与 Call |
+| I-7 | 每个工具 Call 恰有一个可解释终结；aborted/timeout Run 显式关闭在飞 Call |
+| I-8 | Checkpoint 回溯到同一 Run、Operation、Call 与 Receipt |
+| I-9 | `approval_required` / `approval_resolved` 按 ApprovalId 一一配对 |
+| I-10 | Abort 分界点后无不被准入规则允许的迟到终态事实 |
+| I-11 | Operation 链以 ACCEPT 开始、sequence 连续且迁移合法 |
+| I-12 | Effect Receipt 状态只沿合法方向迁移且不回退 |
+
 ## 平台边界
 
 Windows 与 Linux 使用相同的合同和测试定义。锁文件在异常进程退出后不会被自动猜测删除：确认没有 writer 后，由操作者按 [恢复 SOP](SOP.zh-CN.md) 处理。真实跨进程崩溃仍必须在目标平台人工验收。
@@ -45,6 +64,7 @@ Windows 与 Linux 使用相同的合同和测试定义。锁文件在异常进�
 
 - [operation 状态机](../../../packages/coremind-runtime/src/operation-state.ts)
 - [RunState](../../../packages/coremind-runtime/src/run-state.ts)
+- [关联不变量检查器](../../../packages/coremind-runtime/src/invariant-checker.ts)
 - [运行快照](../../../packages/coremind-runtime/src/snapshot.ts)
 - [Session Adapter](../../../packages/coremind-runtime/src/session.ts)
 - [双后端合同测试](../../../packages/coremind-runtime/src/session-conformance.test.ts)
