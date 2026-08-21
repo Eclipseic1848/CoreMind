@@ -50,6 +50,30 @@ describe("GitHub Actions 收口合同", () => {
     expect(commands).not.toContain("build==1.5.1");
   });
 
+  it("预检与 RC 矩阵只在普通功能 PR 延后 Provider 认证", () => {
+    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const ordinaryPullRequest =
+      "github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')";
+    const strictRun =
+      "github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')";
+    for (const [deferredName, strictName] of [
+      ["发布元数据预检（普通功能分支）", "发布元数据预检（严格）"],
+      ["Release Candidate 自动验收矩阵（普通功能分支）", "Release Candidate 自动验收矩阵（严格）"],
+    ]) {
+      const deferred = workflow.jobs.test.steps.find(
+        (step: { name?: string }) => step.name === deferredName,
+      );
+      const strict = workflow.jobs.test.steps.find(
+        (step: { name?: string }) => step.name === strictName,
+      );
+
+      expect(deferred.if).toBe(ordinaryPullRequest);
+      expect(deferred.run).toContain("--defer-provider-certification");
+      expect(strict.if).toBe(strictRun);
+      expect(strict.run).not.toContain("--defer-provider-certification");
+    }
+  });
+
   it("Release Please 只创建草稿版本 PR，不自动打标签或发布", () => {
     const workflow = parse(readFileSync(".github/workflows/release-please.yml", "utf8"));
     const config = JSON.parse(readFileSync("release-please-config.json", "utf8"));
