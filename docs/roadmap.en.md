@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current stable release: `0.3.0` (published)
+## Current stable release: `0.3.1` (published)
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.3.0` stable release retains these rc.2 capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.3.1` stable release retains `0.3.0` and adds these stability capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -16,8 +16,9 @@ This public roadmap describes product boundaries and intended directions. It del
 - Eight project templates, five offline golden examples, two real-defect coding-agent repositories, and 21 capability modules.
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
+- Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-`0.3.0` is publicly released. Controlled dogfooding of the rc.2 CLI, TypeScript SDK, Python SDK, independent source package, and Windows TUI found no stable-release blocker. The seven-check live-provider revalidation, both-platform automated gates, exact-main identity, final maintainer acceptance, and Release Readiness are complete.
+`0.3.1` is publicly released. All eight npm packages, the PyPI wheel, standalone source package, provenance, and bilingual documentation site were published from one commit. The seven-check live-provider revalidation, both-platform automated gates, exact-main identity, P01-P20, real pseudoterminals, and Release Readiness are complete.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
@@ -25,7 +26,7 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 
 The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) without adding product behavior or changing the `0.3.0` Config, Protocol, result semantics, permissions, effects, recovery, or dependency contracts:
 
-- **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete; `0.3.1` is undergoing release-candidate verification and is not yet publicly released.
+- **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete and publicly released in `0.3.1`.
 - **0.3.x-B: tools and recovery** — an explicit tool stage graph with monotonic security, persistence failure contracts, and orthogonal error results; Windows isolation experiments only as separately authorized spikes.
 - **0.3.x-C: evidence system** — event replay and real-entry testing, per-file quality gates for critical modules, provider certification hardening, and an observability baseline.
 

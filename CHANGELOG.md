@@ -24,7 +24,11 @@
 - 修复 manifest 模式忽略手动 `release-as` 的问题：候选工作流改用可锁定输入版本的非 manifest 入口，且新建 PR 后立即幂等转为草稿。
 - 将 8 个 npm 包、内部精确依赖、Python 元数据、模块合同与真实终端证据模板统一到 `0.3.1`。
 - 修复模块变更记录生成器使用历史常量 `2026-08-12` 的问题，改为写入候选日期。
-- 本条目描述尚未发布的候选版本；真实 Provider 认证、双平台 RC 证据、Tag、Registry、GitHub Release 与文档发布仍是独立门禁。
+
+### 发布状态
+
+- `alibaba-model-studio/qwen-plus` 已在 `0.3.1` Runtime 上完成七项真实认证；双平台 CI、P01～P20、真实伪终端、严格预检与 RC 自动验收矩阵全部通过，最终发布提交为 `bdc8eb8ef66c586212311ab6e071e502c9dd8cb2`。
+- `v0.3.1` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1)、8 个 npm 包及 `latest`、[PyPI](https://pypi.org/project/coremind-ai/0.3.1/)、来源证明、独立源码 ZIP 和双语文档站已发布；公共 Registry 全新安装与 Release 资产哈希复核通过。
 
 ## 0.3.0 — 2026-08-14
 

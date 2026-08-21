@@ -24,7 +24,11 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Fixed manifest mode ignoring the manual `release-as` value: candidate preparation now uses the non-manifest entry that binds the input version, then immediately and idempotently converts the new PR to draft.
 - Synchronized all eight npm packages, exact internal dependencies, Python metadata, module contracts, and real-terminal evidence templates on `0.3.1`.
 - Fixed module changelog generation to use the candidate date instead of the historical `2026-08-12` constant.
-- This entry describes an unpublished candidate. Live Provider certification, both-platform RC evidence, Tag creation, registries, GitHub Release, and documentation publication remain separate gates.
+
+### Publication status
+
+- `alibaba-model-studio/qwen-plus` completed the seven-check live certification on the `0.3.1` Runtime. Both-platform CI, P01-P20, real pseudoterminals, strict preflight, and the automated RC matrix passed; the final release commit is `bdc8eb8ef66c586212311ab6e071e502c9dd8cb2`.
+- The `v0.3.1` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1), all eight npm packages and `latest`, [PyPI](https://pypi.org/project/coremind-ai/0.3.1/), provenance, the standalone source ZIP, and the bilingual documentation site are published. Clean public-registry installation and Release-asset hash verification passed.
 
 ## 0.3.0 — 2026-08-14
 

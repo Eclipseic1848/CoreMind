@@ -33,6 +33,6 @@ features:
 
 ## Project status
 
-The current stable release is `0.3.0`, available from the [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0), npm, and PyPI. The source remains available for review and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+The current stable release is `0.3.1`, available from the [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1), npm, and PyPI. The source remains available for review and community development. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
 
-`0.3.0` completed the Windows/Linux P01-P20 automated matrix, real pseudoterminal acceptance on both platforms, a current live-provider recheck, and the final documentation audit on the same release commit. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), npm, and PyPI as the source of truth for public availability; maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).
+`0.3.1` completed the Windows/Linux P01-P20 automated matrix, real pseudoterminal acceptance on both platforms, a current live-provider recheck, and the final documentation audit on the same release commit. Use [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), npm, and PyPI as the source of truth for public availability; maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-stable%200.3.0-22c55e)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-stable%200.3.1-22c55e)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -18,21 +18,21 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前稳定版为已发布的 `0.3.0`，完整继承 rc.2 的 Harness、Context/Artifact、Coding Kernel、受控扩展、实验与四入口快照。可从 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.3.0) 与 [PyPI](https://pypi.org/project/coremind-ai/0.3.0/) 获取。
+> 当前稳定版为已发布的 `0.3.1`，在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、输入收据与取消收敛。可从 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.3.1) 与 [PyPI](https://pypi.org/project/coremind-ai/0.3.1/) 获取。
 
-> `0.3.0` 已从同一提交完成 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验、最终文档审计和维护者发布授权。Tag、8 个 npm 包、PyPI wheel、独立源码 ZIP、Manifest 和哈希清单均绑定该发布；[双语文档站](https://eclipseic1848.github.io/CoreMind/)的发布状态与 `0.3.0` 一致。
+> `0.3.1` 已从同一提交完成 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验、最终文档审计和维护者发布授权。Tag、8 个 npm 包、PyPI wheel、独立源码 ZIP、Manifest 和哈希清单均绑定该发布；[双语文档站](https://eclipseic1848.github.io/CoreMind/)同步反映 `0.3.1` 发布状态。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-当前稳定版 `0.3.0` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码与已发布产物描述。
+当前稳定版 `0.3.1` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码与已发布产物描述。
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.3.0` 七项真实复验覆盖 1 个 Provider，另外 39 个待认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.3.1` 七项真实复验覆盖 1 个 Provider，另外 39 个待认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
@@ -48,14 +48,14 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| `0.3.0` 稳定版（已发布） | 在 rc.2 已交付的依赖锁步、可持久恢复 Harness、Context/Artifact、Coding/Engineering Kernel 和多入口一致性上完成版本与发布材料收口 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
+| `0.3.1` 稳定版（已发布） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
 | `0.3.x` 稳定迭代 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并为每个候选执行双平台验收、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
 `0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-`0.3.0-rc.2` 完成 Batch 0～6 并通过公开发布物 Dogfooding；`0.3.0` 稳定版没有新增产品行为，只同步版本、发布元数据和必要文档。`alibaba-model-studio/qwen-plus` 已在发布 Runtime 上完成七项真实复验；P01～P20、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件已在同一发布提交通过统一门禁。
+`0.3.0-rc.2` 完成 Batch 0～6 并通过公开发布物 Dogfooding；`0.3.0` 稳定版完成二期发布收口。`0.3.1` 完成 0.3.x-A 的事实、身份、不变量与取消收敛，并在发布 Runtime 上重新完成 `alibaba-model-studio/qwen-plus` 七项真实复验；P01～P20、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件已在同一发布提交通过统一门禁。
 
 ## CoreMind 解决什么问题
 
@@ -81,10 +81,10 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-需要 Node.js ≥ 22.19。`0.3.0` 已在 npm Registry 公开，可执行下面的稳定版安装命令。
+需要 Node.js ≥ 22.19。`0.3.1` 已在 npm Registry 公开，可执行下面的稳定版安装命令。
 
 ```bash
-npm install -g coremind-cli@0.3.0
+npm install -g coremind-cli@0.3.1
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
