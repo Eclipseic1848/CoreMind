@@ -21,7 +21,17 @@ jobs:
         id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          release-type: node
+          path: .
           release-as: ${{ inputs.release_as }}
           skip-github-release: true
+      - name: 转为草稿发布 PR
+        if: steps.release.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ steps.release.outputs.pr }}
+        run: |
+          pr_number="$(jq -r '.number' <<< "$RELEASE_PR")"
+          if [[ "$(gh pr view "$pr_number" --json isDraft --jq .isDraft)" != "true" ]]; then
+            gh pr ready "$pr_number" --undo
+          fi

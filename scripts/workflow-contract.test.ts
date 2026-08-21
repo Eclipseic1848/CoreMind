@@ -74,9 +74,8 @@ describe("GitHub Actions 收口合同", () => {
     }
   });
 
-  it("Release Please 只创建草稿版本 PR，不自动打标签或发布", () => {
+  it("Release Please 以非 manifest 入口锁定手动版本并转为草稿 PR", () => {
     const workflow = parse(readFileSync(".github/workflows/release-please.yml", "utf8"));
-    const config = JSON.parse(readFileSync("release-please-config.json", "utf8"));
     const manifest = JSON.parse(readFileSync(".release-please-manifest.json", "utf8"));
     const step = workflow.jobs.release.steps.find((item: { uses?: string }) =>
       item.uses?.startsWith("googleapis/release-please-action@"),
@@ -86,12 +85,18 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.permissions.contents).toBe("write");
     expect(workflow.permissions["pull-requests"]).toBe("write");
     expect(step.uses).toMatch(/^googleapis\/release-please-action@[0-9a-f]{40}$/u);
+    expect(step.with["release-type"]).toBe("node");
+    expect(step.with.path).toBe(".");
     expect(step.with["release-as"]).toContain("release_as");
-    expect(config["draft-pull-request"]).toBe(true);
-    expect(config["skip-github-release"]).toBe(true);
-    expect(config.packages["."]["changelog-path"]).toBe("CHANGELOG.en.md");
-    expect(config.versioning).not.toBe("prerelease");
-    expect(config.packages["."]["prerelease-type"]).toBeUndefined();
+    expect(step.with["config-file"]).toBeUndefined();
+    expect(step.with["manifest-file"]).toBeUndefined();
+    expect(step.with["skip-github-release"]).toBe(true);
+    const draftStep = workflow.jobs.release.steps.find(
+      (item: { name?: string }) => item.name === "转为草稿发布 PR",
+    );
+    expect(draftStep.if).toContain("steps.release.outputs.pr");
+    expect(draftStep.run).toContain("gh pr ready");
+    expect(draftStep.run).toContain("--undo");
     expect(manifest["."]).toMatch(/^\d+\.\d+\.\d+$/);
   });
 

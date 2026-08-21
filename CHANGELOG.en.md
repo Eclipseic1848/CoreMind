@@ -4,6 +4,28 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.3.1 — 2026-08-21
+
+### Runtime facts and identity
+
+- Added typed Run, Turn, Step, Call, Receipt, Approval, Checkpoint, and Operation identities while preserving the existing public string-facing API.
+- Made Session, Run, and compaction records reconstructible across current and `0.3.0` historical data, including deterministic Provider-request replay fixtures.
+- Added independently executable I-1 through I-12 correlation checks with `off`, `eval`, and release `gate` modes; versioned fixtures cover current and legacy facts.
+
+### Cancellation and recovery
+
+- Moved abort admission ahead of Trace and journal persistence, converged late events at the guard, and kept only confirmed transcript/session facts after interruption.
+- Added durable input receipts, claimed/completed/discarded transitions, quiescence detection, and resume continuity without persisting prompt text.
+- Added a 1,000-seed cancellation race matrix, delayed-provider isolation checks, four-entry-point cancellation coverage, and replayable failure diagnostics.
+
+### Release engineering
+
+- Kept ordinary feature PRs on an explicit deferred Provider-certification path while Release Please candidates, `main`, and manual runs retain strict certification.
+- Fixed manifest mode ignoring the manual `release-as` value: candidate preparation now uses the non-manifest entry that binds the input version, then immediately and idempotently converts the new PR to draft.
+- Synchronized all eight npm packages, exact internal dependencies, Python metadata, module contracts, and real-terminal evidence templates on `0.3.1`.
+- Fixed module changelog generation to use the candidate date instead of the historical `2026-08-12` constant.
+- This entry describes an unpublished candidate. Live Provider certification, both-platform RC evidence, Tag creation, registries, GitHub Release, and documentation publication remain separate gates.
+
 ## 0.3.0 — 2026-08-14
 
 ### Stabilization result

@@ -10,7 +10,7 @@ This SOP publishes GitHub source, eight npm packages including the CLI and TypeS
 
 - Version, commit, tag, artifact manifest, and public documentation must agree.
 - TypeScript and Python ship together. The Python SDK continues to call the same Node runtime.
-- Release Please creates or updates a **draft release PR only**. It does not tag or publish.
+- Release Please only creates or updates the release PR, and the workflow then immediately and idempotently converts a newly created ready PR to draft. It never tags or publishes. Conversion leaves a brief ready window, so repository auto-merge must remain disabled and no publication side effect may depend only on a PR being ready.
 - npm and PyPI use GitHub OIDC trusted publishing; the repository and workflow do not store long-lived registry tokens.
 - External GitHub Actions are pinned to full commit SHAs. Dependabot opens weekly update pull requests for Actions, npm, and Python dependencies, and those updates must pass the complete gate before merge.
 - Artifacts are built once. npm, PyPI, attestations, and the GitHub Release all download that same build.
@@ -18,11 +18,11 @@ This SOP publishes GitHub source, eight npm packages including the CLI and TypeS
 
 ## One-time account configuration
 
-Create protected GitHub environments named `npm` and `pypi`, both requiring maintainer approval. Configure Trusted Publishers for all eight npm packages with repository `Eclipseic1848/CoreMind`, workflow `publish-pypi.yml`, and environment `npm`. Configure the PyPI `coremind-ai` publisher with the same repository and workflow plus environment `pypi`. The workflow filename and environment are part of the OIDC identity; renaming either requires a coordinated registry-side update and revalidation.
+Create protected GitHub environments named `npm` and `pypi`, both requiring maintainer approval. Configure Trusted Publishers for all eight npm packages with repository `Eclipseic1848/CoreMind`, workflow `publish-pypi.yml`, and environment `npm`. Configure the PyPI `coremind-ai` publisher with the same repository and workflow plus environment `pypi`. Allow GitHub Actions to create pull requests, keep repository auto-merge disabled, and do not configure irreversible automation that runs only because a PR is ready. The workflow filename and environment are part of the OIDC identity; renaming either requires a coordinated registry-side update and revalidation.
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0`. Release Please opens a draft PR. In that PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `0.3.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 ```powershell
 npm run release:sync-version -- 0.3.0

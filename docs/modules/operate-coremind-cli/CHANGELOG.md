@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-08-21
+
+- Added provider discovery, explicit project scaffolding choices, and automated real ConPTY/pseudoterminal acceptance evidence.
+
 ## 0.3.0 - 2026-08-13
 
 - Added provider discovery, explicit project scaffolding choices, and automated real ConPTY/pseudoterminal acceptance evidence.

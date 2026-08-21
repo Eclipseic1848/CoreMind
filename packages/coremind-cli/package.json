@@ -1,6 +1,6 @@
 {
   "name": "coremind-cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "CoreMind CLI：脚手架与运行器（coremind create / run / chat ...）",
   "license": "MIT",
   "repository": {
@@ -37,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-ai": "0.3.0",
+    "coremind-ai": "0.3.1",
     "dotenv": "^17.4.2",
     "ink": "^7.1.1",
     "react": "^19.2.8"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 - 2026-08-21
+
+- Applied shared recursive credential redaction to lifecycle payloads, including cookies, private keys, URLs, and command arguments.
+
 ## 0.3.0 - 2026-08-13
 
 - Applied shared recursive credential redaction to lifecycle payloads, including cookies, private keys, URLs, and command arguments.

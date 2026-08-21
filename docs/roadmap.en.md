@@ -25,7 +25,7 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 
 The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) without adding product behavior or changing the `0.3.0` Config, Protocol, result semantics, permissions, effects, recovery, or dependency contracts:
 
-- **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design is finalized (glossary, ADRs, and specs in `docs/adr/` and `docs/spec/0.3.x-a/`), and the implementation issues are public ([#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35)).
+- **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete; `0.3.1` is undergoing release-candidate verification and is not yet publicly released.
 - **0.3.x-B: tools and recovery** — an explicit tool stage graph with monotonic security, persistence failure contracts, and orthogonal error results; Windows isolation experiments only as separately authorized spikes.
 - **0.3.x-C: evidence system** — event replay and real-entry testing, per-file quality gates for critical modules, provider certification hardening, and an observability baseline.
 

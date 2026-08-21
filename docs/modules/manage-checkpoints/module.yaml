@@ -3,7 +3,7 @@ id: manage-checkpoints
 name:
   zh-CN: "Checkpoint、Diff 与恢复"
   en: "Checkpoints, Diffs, and Restore"
-version: 0.3.0
+version: 0.3.1
 sourcePaths:
   - "packages/coremind-runtime/src/checkpoint.ts"
 documents:

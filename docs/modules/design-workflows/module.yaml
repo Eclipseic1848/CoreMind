@@ -3,7 +3,7 @@ id: design-workflows
 name:
   zh-CN: "Workflow 与受控 Loop"
   en: "Workflows and Bounded Loops"
-version: 0.3.0
+version: 0.3.1
 sourcePaths:
   - "packages/coremind-runtime/src/orchestrator.ts"
   - "packages/coremind-runtime/src/loop-controller.ts"
