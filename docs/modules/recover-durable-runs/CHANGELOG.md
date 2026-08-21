@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 - Unreleased
+## 0.3.1 - 2026-08-21
 
 - Added the internal I-1 through I-12 correlation invariant checker with `off`, `eval`, and `gate` modes.
 - Added tracked current and legacy fixtures, including the 0.3.0-to-0.3.1 Resume compatibility boundary.

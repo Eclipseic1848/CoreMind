@@ -72,6 +72,7 @@ export async function synchronizeReleaseVersion(rootDirectory, npmVersion) {
 async function synchronizeModuleChangelogs(rootDirectory, npmVersion) {
   const moduleRoot = path.join(rootDirectory, "docs", "modules");
   if (!existsSync(moduleRoot)) return;
+  const releaseDate = new Date().toISOString().slice(0, 10);
   const entries = await readdir(moduleRoot, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -85,7 +86,7 @@ async function synchronizeModuleChangelogs(rootDirectory, npmVersion) {
     const summary = moduleReleaseSummary(entry.name);
     const next = changelog.replace(
       /^# Changelog\s*/u,
-      `# Changelog\n\n## ${npmVersion} - 2026-08-12\n\n- ${summary}\n\n`,
+      `# Changelog\n\n## ${npmVersion} - ${releaseDate}\n\n- ${summary}\n\n`,
     );
     await writeFile(changelogPath, next, "utf8");
   }

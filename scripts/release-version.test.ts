@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   normalizePythonVersion,
   synchronizeReleaseVersion,
@@ -67,6 +67,22 @@ describe("统一发布版本", () => {
     await synchronizeReleaseVersion(root, "0.3.0");
 
     expect(readFileSync(changelogPath, "utf8")).toContain("## 0.3.0 -");
+  });
+
+  it("模块记录使用当前候选日期而不是历史发布日期", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
+    try {
+      const root = createFixture();
+
+      await synchronizeReleaseVersion(root, "0.3.1");
+
+      expect(
+        readFileSync(path.join(root, "docs", "modules", "demo", "CHANGELOG.md"), "utf8"),
+      ).toContain("## 0.3.1 - 2026-08-21");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

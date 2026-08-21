@@ -10,7 +10,7 @@
 
 - 版本、提交、Tag、产物清单与公开文档必须一致。
 - TypeScript 与 Python 同步发布；Python SDK 继续调用同一个 Node Runtime，不建立第二套运行引擎。
-- Release Please 只创建或更新**草稿发布 PR**，不自动 Tag、不自动发布。
+- Release Please 只创建或更新发布 PR，工作流随后立即将新建 ready PR 幂等转为草稿，不自动 Tag、不自动发布。转换期间存在短暂 ready 窗口，因此仓库必须关闭自动合并，且不得配置仅对 ready PR 生效的发布副作用。
 - npm 与 PyPI 使用 GitHub OIDC 可信发布；仓库和工作流不得保存长期 Registry Token。
 - 外部 GitHub Action 固定到完整提交 SHA，Dependabot 每周创建 Action、npm 和 Python 依赖升级 PR；升级必须通过完整门禁后合并。
 - 发布物只构建一次，后续 npm、PyPI、来源证明和 GitHub Release 都下载同一份构建产物。
@@ -24,12 +24,13 @@
 2. 8 个 npm 包分别配置 Trusted Publisher：仓库 `Eclipseic1848/CoreMind`、工作流文件 `publish-pypi.yml`、环境 `npm`。
 3. PyPI 项目 `coremind-ai` 配置 Trusted Publisher：同一仓库、同一工作流文件、环境 `pypi`。
 4. GitHub Actions 可以写入构建来源证明，并允许发布工作流创建 Release。
+5. GitHub Actions 被允许创建 Pull Request，仓库自动合并保持关闭，且没有仅因 PR 处于 ready 就产生不可逆副作用的自动化。
 
 工作流文件名和环境名是 OIDC 身份的一部分，不能在发布前随意改名。任何改名都要先同步修改 Registry 端可信发布者配置并重新验证。
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0`。Release Please 创建草稿 PR 后，维护者在该 PR 中执行版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 ```powershell
 npm run release:sync-version -- 0.3.0

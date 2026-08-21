@@ -4,29 +4,27 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
-## [0.4.0](https://github.com/Eclipseic1848/CoreMind/compare/v0.3.0...v0.4.0) (2026-08-21)
+## 0.3.1 — 2026-08-21
 
+### Runtime facts and identity
 
-### Features
+- Added typed Run, Turn, Step, Call, Receipt, Approval, Checkpoint, and Operation identities while preserving the existing public string-facing API.
+- Made Session, Run, and compaction records reconstructible across current and `0.3.0` historical data, including deterministic Provider-request replay fixtures.
+- Added independently executable I-1 through I-12 correlation checks with `off`, `eval`, and release `gate` modes; versioned fixtures cover current and legacy facts.
 
-* **0.3.1:** 40: 输入收据与静止判定 ([c40e524](https://github.com/Eclipseic1848/CoreMind/commit/c40e52488761559aa92a12dd1b30fd7cdb035e9e))
-* **0.3.1:** Provider 请求重建验收套件（[#39](https://github.com/Eclipseic1848/CoreMind/issues/39)） ([3e66e04](https://github.com/Eclipseic1848/CoreMind/commit/3e66e048a3fac5298c603effe0f3bb108adc6603))
-* **0.3.1:** Provider 请求重建验收套件（[#39](https://github.com/Eclipseic1848/CoreMind/issues/39)） ([7609211](https://github.com/Eclipseic1848/CoreMind/commit/7609211ed53cb83109a2f6b245273e468943e884))
-* **0.3.1:** 事件准入与取消收敛 ([2a49cd9](https://github.com/Eclipseic1848/CoreMind/commit/2a49cd98e159a1396726b8442f55af06dd568c73))
-* **0.3.1:** 事件准入与取消收敛（[#38](https://github.com/Eclipseic1848/CoreMind/issues/38)） ([d3e119d](https://github.com/Eclipseic1848/CoreMind/commit/d3e119d982bfb9f7e8c6bf68b369720f0e886cf4))
-* **0.3.1:** 事实域关联与压缩落盘 ([b999a1f](https://github.com/Eclipseic1848/CoreMind/commit/b999a1fcdbbc0da022d0732cfba50189404739bf))
-* **0.3.1:** 事实域关联与压缩落盘（[#37](https://github.com/Eclipseic1848/CoreMind/issues/37)） ([fe98886](https://github.com/Eclipseic1848/CoreMind/commit/fe988863f2c385f412fe739a67af43aecf6b7cf4))
-* **runtime:** add invariant checker gate ([#42](https://github.com/Eclipseic1848/CoreMind/issues/42)) ([6723933](https://github.com/Eclipseic1848/CoreMind/commit/67239330118d4943b4915850a4ec57355380c753))
-* **runtime:** typed identity, TurnId and unique StepId ([#36](https://github.com/Eclipseic1848/CoreMind/issues/36)) ([ca8cf3b](https://github.com/Eclipseic1848/CoreMind/commit/ca8cf3b73243b9e2a26a2cae935b969c0c52dfcd))
-* **runtime:** typed identity, TurnId and unique StepId ([#36](https://github.com/Eclipseic1848/CoreMind/issues/36)) ([c139dd2](https://github.com/Eclipseic1848/CoreMind/commit/c139dd2c05ec1144d0ac96b190494cbf89dfc72f))
+### Cancellation and recovery
 
+- Moved abort admission ahead of Trace and journal persistence, converged late events at the guard, and kept only confirmed transcript/session facts after interruption.
+- Added durable input receipts, claimed/completed/discarded transitions, quiescence detection, and resume continuity without persisting prompt text.
+- Added a 1,000-seed cancellation race matrix, delayed-provider isolation checks, four-entry-point cancellation coverage, and replayable failure diagnostics.
 
-### Bug Fixes
+### Release engineering
 
-* **ci:** keep release candidates on strict certification ([e8b0bc6](https://github.com/Eclipseic1848/CoreMind/commit/e8b0bc6ec710bc4e668f9782fba3933c47811f52))
-* **ci:** separate development and release certification gates ([0d75bac](https://github.com/Eclipseic1848/CoreMind/commit/0d75bac55665d03b27f7616bb6dcc21026be2270))
-* **runtime:** add loop_state_invalid to the error-code table ([#35](https://github.com/Eclipseic1848/CoreMind/issues/35)) ([739b035](https://github.com/Eclipseic1848/CoreMind/commit/739b035bdf3eb1d500d462d097c5b426f41f10ab))
-* **test:** golden resume assertion tracks the unique StepId template ([#36](https://github.com/Eclipseic1848/CoreMind/issues/36)) ([9721f65](https://github.com/Eclipseic1848/CoreMind/commit/9721f65afc42e217b3c2e48ef89616227d0461b7))
+- Kept ordinary feature PRs on an explicit deferred Provider-certification path while Release Please candidates, `main`, and manual runs retain strict certification.
+- Fixed manifest mode ignoring the manual `release-as` value: candidate preparation now uses the non-manifest entry that binds the input version, then immediately and idempotently converts the new PR to draft.
+- Synchronized all eight npm packages, exact internal dependencies, Python metadata, module contracts, and real-terminal evidence templates on `0.3.1`.
+- Fixed module changelog generation to use the candidate date instead of the historical `2026-08-12` constant.
+- This entry describes an unpublished candidate. Live Provider certification, both-platform RC evidence, Tag creation, registries, GitHub Release, and documentation publication remain separate gates.
 
 ## 0.3.0 — 2026-08-14
 

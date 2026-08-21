@@ -4,6 +4,28 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.3.1 — 2026-08-21
+
+### 运行事实与身份
+
+- 新增 Run、Turn、Step、Call、Receipt、Approval、Checkpoint 与 Operation 的类型化身份，同时保持现有面向字符串的公共 API。
+- 使 Session、Run 与压缩记录可从当前及 `0.3.0` 历史数据重建，并提供确定性的 Provider 请求回放 fixture。
+- 新增可独立执行的 I-1～I-12 关联检查，支持 `off`、`eval` 与发布 `gate` 三档；版本化 fixture 覆盖当前和历史事实。
+
+### 取消与恢复
+
+- 将中止准入前置到 Trace 与 journal 落盘之前，在 guard 处收敛迟到事件，中断后只保留已确认的 transcript/session 事实。
+- 新增可持久化输入收据、claimed/completed/discarded 转移、静止判定与恢复连续性，且不落盘输入正文。
+- 新增 1,000 固定种子取消竞态矩阵、Provider 迟到回复隔离、四入口取消覆盖及可回放失败诊断。
+
+### 发布工程
+
+- 普通功能 PR 显式延后 Provider 认证；Release Please 候选、`main` 与手动运行继续执行严格认证。
+- 修复 manifest 模式忽略手动 `release-as` 的问题：候选工作流改用可锁定输入版本的非 manifest 入口，且新建 PR 后立即幂等转为草稿。
+- 将 8 个 npm 包、内部精确依赖、Python 元数据、模块合同与真实终端证据模板统一到 `0.3.1`。
+- 修复模块变更记录生成器使用历史常量 `2026-08-12` 的问题，改为写入候选日期。
+- 本条目描述尚未发布的候选版本；真实 Provider 认证、双平台 RC 证据、Tag、Registry、GitHub Release 与文档发布仍是独立门禁。
+
 ## 0.3.0 — 2026-08-14
 
 ### 稳定化结论
