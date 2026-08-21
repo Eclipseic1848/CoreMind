@@ -1,6 +1,13 @@
 import { spawnSync } from "node:child_process";
+import { cp, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { evaluateReleaseMetadata, normalizePythonVersion } from "./release-preflight.mjs";
+import {
+  evaluateReleaseMetadata,
+  inspectRepository,
+  normalizePythonVersion,
+} from "./release-preflight.mjs";
 
 describe("发布元数据预检", () => {
   it("普通开发检查可以延后当前 Runtime 的 Provider 认证", () => {
@@ -24,21 +31,20 @@ describe("发布元数据预检", () => {
     );
   });
 
-  it("环境变量不能绕过严格发布预检", () => {
-    const result = spawnSync(
-      process.execPath,
-      ["scripts/release-preflight.mjs", "--allow-dirty", "--json"],
-      {
-        cwd: process.cwd(),
-        encoding: "utf8",
-        env: { ...process.env, COREMIND_DEFER_PROVIDER_CERTIFICATION: "1" },
-      },
-    );
-    const report = JSON.parse(result.stdout);
+  it("环境变量不能绕过严格发布预检", async () => {
+    const fixtureRoot = await createUncertifiedRepositoryFixture();
+    const original = process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION;
+    process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION = "1";
+    try {
+      const report = await inspectRepository(fixtureRoot, { allowDirty: true });
 
-    expect(result.status).toBe(1);
-    expect(report.ready).toBe(false);
-    expect(report.blockers).toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+      expect(report.ready).toBe(false);
+      expect(report.blockers).toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+    } finally {
+      if (original === undefined) delete process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION;
+      else process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION = original;
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
   });
 
   it("把 PEP 440 预发布版本转换为 npm 版本", () => {
@@ -116,3 +122,30 @@ describe("发布元数据预检", () => {
     expect(report.blockers.join("\n")).toContain("Runtime 摘要");
   });
 });
+
+async function createUncertifiedRepositoryFixture() {
+  const sourceRoot = process.cwd();
+  const fixtureRoot = await mkdtemp(path.join(tmpdir(), "coremind-release-preflight-"));
+  await mkdir(path.join(fixtureRoot, "packages"), { recursive: true });
+  for (const entry of await readdir(path.join(sourceRoot, "packages"), { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const sourcePackage = path.join(sourceRoot, "packages", entry.name);
+    const targetPackage = path.join(fixtureRoot, "packages", entry.name);
+    await mkdir(targetPackage, { recursive: true });
+    await cp(path.join(sourcePackage, "package.json"), path.join(targetPackage, "package.json"));
+    await cp(path.join(sourcePackage, "README.md"), path.join(targetPackage, "README.md"));
+  }
+  await mkdir(path.join(fixtureRoot, "python"), { recursive: true });
+  await cp(
+    path.join(sourceRoot, "python", "pyproject.toml"),
+    path.join(fixtureRoot, "python", "pyproject.toml"),
+  );
+  await mkdir(path.join(fixtureRoot, "docs", "providers"), { recursive: true });
+  for (const file of ["certifications.json", "matrix.json"]) {
+    await cp(
+      path.join(sourceRoot, "docs", "providers", file),
+      path.join(fixtureRoot, "docs", "providers", file),
+    );
+  }
+  return fixtureRoot;
+}
