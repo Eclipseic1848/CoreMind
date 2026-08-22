@@ -1,6 +1,6 @@
 # 长程上下文必须从权威事实生成模型工作集
 
-CoreMind 已在每次 Provider 请求前执行确定性压缩，并把压缩产物关联到 Session 事实；但不同模型窗口、自定义端点能力、反复压缩和长任务恢复仍可能让“自动压缩”被误解为无限上下文。本决策声明：每次请求都为即将调用的具体模型解析 Context Capability，并从权威 Fact 构建 Context Working Set；模型切换时按新预算重建，压缩必须保留 lineage，无法安全容纳时以 `context_budget_exhausted` 暂停而不是静默截断。
+CoreMind 已在每次 Provider 请求前执行确定性压缩，并把压缩产物关联到 Session 事实；但不同模型窗口、自定义端点能力、反复压缩和长任务 Resume 仍可能让“自动压缩”被误解为无限上下文。本决策声明：每次请求都为即将调用的具体模型解析 Context Capability，并从权威 Fact 构建 Context Working Set；模型切换时按新预算重建，压缩必须保留 lineage，无法安全容纳时以 `context_budget_exhausted` 暂停而不是静默截断。
 
 ## Status
 

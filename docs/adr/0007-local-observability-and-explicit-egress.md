@@ -14,7 +14,7 @@ accepted（2026-08-22 用户确认）
 
 ## Consequences
 
-- OTel 只是从 Fact 派生的可丢弃 Projection，不参与恢复、重放或终态判定。
+- OTel 只是从 Fact 派生的可丢弃 Projection，不参与 Resume、重放或终态判定。
 - `DISABLED` 不创建外部 Exporter；仅配置 endpoint 不视为同意发送。
 - Exporter 故障、丢失、重复或 shutdown 超时不得改变任务结果，也不得阻塞权威 Fact 落盘。
 - 外传前必须执行 CoreMind 自有的脱敏和字段允许列表；未配置规则不能等价为“原样发送”。

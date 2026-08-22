@@ -6,7 +6,7 @@
 
 ## 1. 目标与非目标
 
-本批目标是让 CoreMind 对每次工具调用回答五个相互独立的问题：工具代码是否运行、外部 Effect 是否可能发生、关键 Fact 是否持久、恢复时可否重放、资源是否清理完成。
+本批目标是让 CoreMind 对每次工具调用回答五个相互独立的问题：工具代码是否运行、外部 Effect 是否可能发生、关键 Fact 是否持久、Resume 时可否重放、资源是否清理完成。
 
 本批不引入 MCP、远程执行、Subagent、SQLite 强制依赖或新的公共权限档；`ask / assisted / full` 的公开含义保持不变。
 
@@ -17,7 +17,7 @@
 | 维度 | 允许值 | 说明 |
 | --- | --- | --- |
 | `effect` | `none / workspace / process / network / external / unknown` | 调用可触达的状态边界 |
-| `replay` | `safe / idempotent / unsafe / unknown` | 相同参数再次执行的恢复语义 |
+| `replay` | `safe / idempotent / unsafe / unknown` | Resume 时相同参数再次执行的语义 |
 | `concurrency` | `parallel / run_serial / workspace_exclusive` | 最宽允许并发；后续 Policy 只能收紧 |
 | `checkpoint` | `none / required / unsupported` | 是否需要 Workspace Checkpoint |
 | `durability` | `ordinary / critical` | 执行前必须达到的 Store 等级 |
@@ -26,6 +26,7 @@
 ### 2.1 单调安全
 
 - 未注册、缺字段、冲突或无法解析的工具统一为 `effect: unknown`、`replay: unknown`、`concurrency: run_serial`、`durability: critical`。
+- 对 `effect: unknown`，`checkpoint: unsupported` 表示无法建立必要的 Workspace Checkpoint，而不是不需要 Checkpoint；ToolExecutionEngine 必须在调用 Adapter 前阻断。只有 Resolver 能证明调用不触达 Workspace 时，才可把 Checkpoint 要求收紧为 `none`。
 - Config、Extension、Host 或入口只可维持或收紧能力，不能把 `unknown` 降为 `none`，也不能把 `unsafe` 升为 `safe`。
 - 工具实现可提供幂等证明，但最终能力由 CoreMind 解析并写入 Fact；只靠名称白名单不得决定安全性。
 - `web-fetch`、`web-search` 等网络读取至少是 `effect: network`，规范术语为 External Observable Read，不能归入纯本地读取。
@@ -92,13 +93,13 @@ Store Adapter 必须公开 `supportedDurability` 与失败原因。跨进程崩�
 ## 6. Workspace Lease 与执行 lane
 
 - Workspace 身份是解析 symlink/junction、大小写与相对路径后的 canonical root。
-- 同一 canonical Workspace 允许并行纯读；同一时刻只允许一个 Run 或 Child Run 持有写租约。
+- 同一 canonical Workspace 允许并行 Pure Local Read；同一时刻只允许一个 Run 或 Child Run 持有写租约。
 - 获取租约发生在 Checkpoint 和 `started_durable` 之前；释放发生在工具工作、子进程与尾部写入全部 Quiescent 之后。
 - 其他写任务可以排队或明确返回 `workspace_busy`，但不能无租约执行。
 - 只有 canonical root 彼此隔离且无共享写目标时，多个 Run/Worker 才能并行写。
 - 进程或网络工具默认在 Run 内串行；只有 Capability 明确证明可交换或幂等时才允许更宽并发。
 
-## 7. External Observable Read 恢复
+## 7. External Observable Read 的 Resume 处置
 
 任务中断后按以下顺序处理网络读取：
 
@@ -106,7 +107,7 @@ Store Adapter 必须公开 `supportedDurability` 与失败原因。跨进程崩�
 2. Capability 与 Receipt 能证明安全重放：允许重试，并追加新的 attempt Fact。
 3. 无法判断请求是否到达远端：EffectState 为 `unknown`，暂停并请求用户决定。
 
-正常首次联网仍遵循现有网络权限；本规则不增加“每次网络读取都审批”的公开行为，只禁止恢复端无条件重复请求。
+正常首次联网仍遵循现有网络权限；本规则不增加“每次网络读取都审批”的公开行为，只禁止 Resume 端无条件重复请求。
 
 ## 8. 兼容与迁移
 

@@ -23,7 +23,7 @@
 
 - OTel 未安装、未配置或 `DISABLED` 时，CLI/TUI/TS/Python 仍可看到同一 RunSnapshot、Context、工具阶段、错误与共享状态。
 - 四入口对模式、脱敏 endpoint、内容级别、queue/drop Projection 的结果结构等价。
-- 删除全部观测 Projection 后，可以从 Fact 重建；Run 恢复不读取观测缓存。
+- 删除全部观测 Projection 后，可以从 Fact 重建；Run Resume 不读取观测缓存。
 
 ## 4. Telemetry Egress
 

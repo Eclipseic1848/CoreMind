@@ -34,7 +34,7 @@ Child Run 是由父 Run 委派的完整 Run。它拥有自己的 RunId、Turn/St
 
 - Child Run 写入与父 Run 使用同一 canonical Workspace Lease 服务；父子关系不提供并行写例外。
 - 子级拥有自己的 CallId 与 EffectReceipt；父级只保存 Delegation、ChildRunId 与结果引用，不复制 Receipt。
-- 子级 Effect 为 committed/unknown 时，父级恢复不能重新创建相同委派以尝试重放。
+- 子级 Effect 为 committed/unknown 时，父级 Resume 不能重新创建相同委派以尝试重放。
 - Workspace Checkpoint 归属执行写入的 Child Run，并通过 ParentRunId/DelegationId 回溯；Restore 仍是显式用户动作。
 
 ## 5. 生命周期与取消传播
@@ -50,7 +50,7 @@ delegation_recorded
 - 默认是结构化并发：父 Run 到达相关 join 点前必须等待子级终态或明确处置。
 - 父 Cancel 传播到全部活动后代；只有显式、预先接受的 durable job policy 才允许子级脱离父生命周期。
 - Cancel ACK 不等于完成。父 Run 只有在后代终止/暂停、工具和进程清理、关键 Fact flush 后才能 Quiescent。
-- Worker/Host 崩溃后无法确认所有权的子级进入 `child_orphaned`；恢复器先执行孤儿审计，不自动重启。
+- Worker/Host 崩溃后无法确认所有权的子级进入 `child_orphaned`；Resume 处理器先执行孤儿审计，不自动重启。
 - 子 Cancel 不自动 Cancel 父 Run；父级收到类型化 ChildRunOutcome 后决定继续、修复、暂停或失败。
 
 ## 6. Context 与结果

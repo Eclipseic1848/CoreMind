@@ -5,7 +5,7 @@
 
 ## 1. 两个独立能力
 
-- **Local Observability**：在本机通过 CLI/TUI/TS/Python Projection 查看运行、工具、耗时、错误、Context、Artifact、恢复和共享状态。默认开启。
+- **Local Observability**：在本机通过 CLI/TUI/TS/Python Projection 查看运行、工具、耗时、错误、Context、Artifact、RecoveryDecision 和共享状态。默认开启。
 - **Telemetry Egress**：把可观测 Projection 发送到进程外的 OTel/OTLP 端点。默认关闭，必须显式授权。
 
 禁用外传不得关闭本地可观测性；启用本地视图也不构成外传同意。
@@ -48,7 +48,7 @@ CLI/TUI/SDK 查询至少返回：
 - 同一 Fact 可被重复投影；接收端按稳定 identity 去重，CoreMind 不宣称 exactly-once telemetry。
 - enqueue、batch、retry、drop、flush 与 shutdown 失败只产生本地观测，不改变 RunOutcome、RecoveryDecision 或 EffectState。
 - Exporter shutdown 有界；到期后记录丢失可能性并允许 Runtime 收敛。
-- OTel 不进入模型请求，也不能作为 Provider Context、恢复输入或发布资格的唯一证据。
+- OTel 不进入模型请求，也不能作为 Provider Context、Resume 输入或发布资格的唯一证据。
 
 ## 6. 脱敏与网络边界
 

@@ -23,7 +23,7 @@
 | 编号 | 不变量 |
 | --- | --- |
 | B-1 | `started_durable` 失败时，真实外部 Effect 次数为 0 |
-| B-2 | non-idempotent 或 unknown Effect 一旦可能 started，自动恢复执行次数为 0 |
+| B-2 | non-idempotent 或 unknown Effect 一旦可能 started，自动 Resume 执行次数为 0 |
 | B-3 | 同一 ReceiptId 不得关联不同参数指纹、Run、Turn、Call 或 Capability |
 | B-4 | Policy、Extension、MCP Adapter、Python Tool 与 Script Tool 不能绕过 ToolExecutionEngine |
 | B-5 | Tool Capability 在一次 Call 内不可变，任何后续决策只可收紧 |
@@ -31,7 +31,7 @@
 | B-7 | Lease 释放时，所属工具、子进程和关键尾部 Fact 已 Quiescent |
 | B-8 | External Observable Read 状态未知时不得自动重放 |
 | B-9 | Tool Error、EffectState、PersistenceState、RecoveryDisposition 与 CleanupState 可独立断言 |
-| B-10 | CLI、TUI、TypeScript 与 Python 对相同 Fact 生成相同结果与恢复处置 |
+| B-10 | CLI、TUI、TypeScript 与 Python 对相同 Fact 生成相同结果与 RecoveryDisposition |
 
 ## 3. 场景矩阵
 
@@ -54,9 +54,9 @@
 - 两个 Runtime、两个 Worker、父子 Run 同时写同一 canonical Workspace，只允许一个取得 Lease。
 - 相对路径、路径大小写、symlink/junction 指向同一根目录时仍视为冲突。
 - 两个隔离 Workspace 可并行写；读操作不被无关写租约全局阻断。
-- Owner 崩溃后 Lease 不得静默转移；先完成遗留判定与恢复处置。
+- Owner 崩溃后 Lease 不得静默转移；先完成遗留判定与 RecoveryDisposition。
 
-### 3.4 网络读取恢复
+### 3.4 网络读取的 Resume 处置
 
 - 已持久化结果且参数指纹一致：复用结果，网络调用计数为 0。
 - 幂等证明成立：创建新 attempt 后重试，旧 Receipt 保持不可变。

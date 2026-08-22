@@ -9,7 +9,7 @@
 - [0.3.x-A：取消收敛、输入收据与静止](0.3.x-a/03-cancellation-and-quiescence.md)
 - [0.3.x-A：验收设计](0.3.x-a/04-acceptance-matrix.md)
 
-## R1-H 可信 Harness 加固
+## 可信 Harness 加固（#60～#73）
 
 ### 0.3.x-B：可信工具执行
 

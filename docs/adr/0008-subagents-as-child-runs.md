@@ -1,6 +1,6 @@
 # Subagent 统一建模为 Child Run
 
-把 Subagent 当作普通 Tool Call 会隐藏其模型请求、预算、权限、Workspace 写入、取消和恢复状态，使父任务无法解释委派是否安全收敛。本决策声明：Subagent 在 Runtime 内统一建模为 Child Run，拥有独立身份、事实、预算、权限、终态和恢复状态，并通过类型化父子关系连接父 Run；产品界面可以把它投影为简洁委派。
+把 Subagent 当作普通 Tool Call 会隐藏其模型请求、预算、权限、Workspace 写入、取消和 RecoveryDecision，使父任务无法解释委派是否安全收敛。本决策声明：Subagent 在 Runtime 内统一建模为 Child Run，拥有独立身份、事实、预算、权限、终态和 RecoveryDecision，并通过类型化父子关系连接父 Run；产品界面可以把它投影为简洁委派。
 
 ## Status
 
@@ -8,7 +8,7 @@ accepted（2026-08-22 用户确认）
 
 ## Considered Options
 
-- **普通 Tool Call**：被否。只能表达一次调用和结果，无法独立恢复、检查预算、传播取消或证明 Workspace 冲突已收敛。
+- **普通 Tool Call**：被否。只能表达一次调用和结果，无法独立 Resume、检查预算、传播取消或证明 Workspace 冲突已收敛。
 - **共享父 Run 状态的后台 Agent**：被否。事实、权限和终态相互污染，崩溃后无法判定所有权与孤儿活动。
 - **Child Run**（采纳）：复用 Run 的事实与控制合同，通过 ParentRunId/ChildRunId 关联；UI 是否展开详情只是 Projection 选择。
 

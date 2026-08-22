@@ -13,7 +13,7 @@ Protocol v2 为 CLI、TUI、TypeScript、Python、未来 Web 与远程 Host 提�
 - 类型化、可续订事件；
 - Cancel、Approval、Steering、Follow-up 等控制回执；
 - RunSnapshot、RecoveryDecision、Context 与 Artifact Projection Query；
-- 断线后按 cursor 恢复，而不改变 Runtime 权威状态。
+- 断线后按 cursor 续订，而不改变 Runtime 权威状态。
 
 Protocol Host 只是单一 Node Runtime 的入口 Adapter，不拥有第二份 Run 状态机。
 
@@ -56,7 +56,7 @@ RunHandle = RunId
 
 sequence 是 Run 内 cursor，不是全局时钟。重连客户端用 `afterSequence` 续订；Host 可重复发送已交付事件，客户端按 `(RunId, sequence, eventId)` 去重。
 
-token delta 与 UI progress 可以是可丢弃 live event；安全关键事件必须引用 durable Fact。客户端不得把 live event 当成恢复事实。
+token delta 与 UI progress 可以是可丢弃 live event；安全关键事件必须引用 durable Fact。客户端不得把 live event 当成 Resume 的权威事实。
 
 ## 5. 控制回执
 
@@ -88,7 +88,7 @@ v2 查询只调用 ProjectionEngine，至少覆盖：
 ## 7. 断线与重连
 
 - 客户端断线不 Cancel Run，除非启动请求明确声明连接所有权策略。
-- Host 重启后从 Fact 重建活动 Run 与 cursor；无法安全恢复的 Run 进入明确 paused/unknown，而不是重复 Provider 或工具调用。
+- Host 重启后从 Fact 重建活动 Run 与 cursor；无法安全 Resume 的 Run 进入明确 paused/unknown，而不是重复 Provider 或工具调用。
 - cursor 早于可用保留范围时返回 `cursor_expired`，并提供从 Projection snapshot + 新 cursor 继续的受控路径。
 - 重连不能重新应用已经 `applied` 的 Control，也不能丢失 pending Control。
 

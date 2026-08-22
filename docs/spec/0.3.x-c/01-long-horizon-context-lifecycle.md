@@ -57,7 +57,7 @@ availableInput = effectiveContextWindow
 - 核心规则、项目指令与当前 Skill 合同；
 - 当前用户目标与显式约束；
 - 已批准、拒绝和仍待处理的权限决定；
-- started/committed/unknown Effect 与恢复处置；
+- started/committed/unknown Effect 与 RecoveryDisposition；
 - 当前活动计划、未完成步骤和下一步；
 - 已修改文件、关键测试证据和未解决失败；
 - 至少一个满足工具消息配对的最近完整 Turn。
@@ -86,7 +86,7 @@ availableInput = effectiveContextWindow
 
 原始 Session 历史不删除。达到实现期冻结的 lineage depth 阈值后，必须从 canonical facts 重新投影新的基线摘要；不得无限对上一版摘要继续摘要。
 
-## 6. 模型切换与恢复
+## 6. 模型切换与 Resume
 
 ### 大窗口 → 小窗口
 
@@ -99,11 +99,11 @@ availableInput = effectiveContextWindow
 
 ### 小窗口 → 大窗口
 
-保持当前工作集，不自动把全部归档原文重新注入。历史只能通过有界、可审计检索按需恢复，避免任务焦点漂移和无谓 token 消耗。
+保持当前工作集，不自动把全部归档原文重新注入。历史只能通过有界、可审计检索按需重新注入，避免任务焦点漂移和无谓 token 消耗。
 
-### 崩溃恢复
+### 崩溃后 Resume
 
-恢复端以 Compaction Ledger、TaskState Projection 与 canonical facts 重建同一请求。摘要正文不得只存在于内存、Trace 或 OTel。
+Resume 端以 Compaction Ledger、TaskState Projection 与 canonical facts 重建同一请求。摘要正文不得只存在于内存、Trace 或 OTel。
 
 ### Provider 超窗错误
 

@@ -56,6 +56,38 @@ _Avoid_: 结果、执行记录
 一次外部输入的接收状态定案，取值 pending / claimed / discarded / completed。每个外部输入有稳定输入 ID。
 _Avoid_: 消息收据、prompt 记录
 
+### 工具与持久化边界
+
+**Tool Capability（工具能力）**：
+一次工具调用在副作用、可重放性、并发、Checkpoint 与持久化要求上的规范化能力声明；未知能力按最严格边界处理。
+_Avoid_: 风险等级、工具类型、权限模式
+
+**External Observable Read（外部可观察读取）**：
+不写本地 Workspace、但会访问外部系统并可能产生费用、限流、访问记录或一次性消耗的读取。
+_Avoid_: 无副作用读取、纯读（Pure Local Read 才是纯读）
+
+**Durability Barrier（持久化屏障）**：
+安全关键 Fact 已达到 Store 声明的持久化等级、后续副作用才允许开始的分界点。
+_Avoid_: flush、保存完成、写入队列为空
+
+**Workspace Lease（工作区租约）**：
+授予一个 Run 或 Child Run 在规范化 Workspace 中写入的独占权；并行读取不需要写租约。
+_Avoid_: 文件锁、Run 锁、进程锁
+
+### 上下文、观测与委派
+
+**Context Working Set（上下文工作集）**：
+针对即将调用的具体模型，从权威 Fact 生成并满足该模型输入预算的消息集合。
+_Avoid_: Session、完整历史、Context Window
+
+**Telemetry Egress（遥测外传）**：
+把本地可观测 Projection 发送到 CoreMind 进程之外的行为；它与本地显性展示是两个独立能力。
+_Avoid_: 可观测性、Trace、日志
+
+**Child Run（子运行）**：
+由父 Run 委派、拥有独立身份、事实、预算、权限、终态与 RecoveryDecision 的 Run；其能力只能维持或收紧父级限制。
+_Avoid_: 普通 Tool Call、后台任务、共享状态的子智能体
+
 **Branded ID（品牌 ID）**：
 带编译期品牌类型的标识（RunId / TurnId / StepId / CallId / ApprovalId / ReceiptId / CheckpointId 等），协议边界上仍序列化为字符串并做格式校验。
 _Avoid_: 普通 string ID、uuid
