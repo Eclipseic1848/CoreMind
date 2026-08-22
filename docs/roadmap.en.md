@@ -24,11 +24,11 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 
 ## `0.3.x`: stabilization hardening (in progress)
 
-The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) without adding product behavior or changing the `0.3.0` Config, Protocol, result semantics, permissions, effects, recovery, or dependency contracts:
+The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) through compatibility-first evolution. It does not create a second Runtime or pull Web, Jobs, or subagents forward. Config v2, Protocol v1, the three permission modes, and existing successful paths remain compatible; new fail-closed states that prevent silent loss, duplicate effects, or privilege expansion must be explicit, migratable, reversible, and maintainer-confirmed:
 
 - **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete and publicly released in `0.3.1`.
-- **0.3.x-B: tools and recovery** — an explicit tool stage graph with monotonic security, persistence failure contracts, and orthogonal error results; Windows isolation experiments only as separately authorized spikes.
-- **0.3.x-C: evidence system** — event replay and real-entry testing, per-file quality gates for critical modules, provider certification hardening, and an observability baseline.
+- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results; Windows isolation experiments only as separately authorized spikes.
+- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, per-file quality gates for critical modules, provider certification hardening, and an observability baseline that is locally visible with explicit egress.
 
 Version numbers and dates are not promised; each batch proceeds only after its acceptance gates pass and the maintainer confirms. A provider that has not passed live verification remains configurable but is not marked as officially certified.
 
@@ -36,9 +36,9 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 After the `0.3.x` hardening line, work proceeds in the following directions (scope and acceptance are confirmed by the maintainer before each phase starts):
 
-- **0.4.x**: stable Host/Protocol contracts, Session projection and query, and controlled extension seams.
+- **0.4.x**: Protocol v2 with RunHandle, resumable events, and control receipts begins in `0.4.0`, while a v1 migration entry remains throughout `0.4.x`; this phase also stabilizes Host contracts, Session projection and query, and controlled extension seams.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.x**: Goals, Jobs, and subagents — durable tasks, ownership, budgets, and cancellation propagation.
+- **0.7.x**: Goals, Jobs, and subagents — every subagent is a Child Run with independent facts, narrowed permissions and budgets, parent-child cancellation, orphan recovery, and Workspace leasing.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
 - **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
 
