@@ -10,6 +10,32 @@ export {
   redactSecrets,
   wrapToolWithArtifactCapture,
 } from "./artifact-store.js";
+export {
+  BUILTIN_TOOL_CAPABILITIES,
+  type CapabilityConstraintOrigin,
+  inferLegacyToolCapability,
+  isResolvedToolCapability,
+  RECOVERY_DISPOSITIONS,
+  type RecoveryDisposition,
+  type ResolvedToolCapability,
+  type ResolveToolCapabilityInput,
+  recoveryDispositionFor,
+  resolveToolCapability,
+  TOOL_CAPABILITY_CHECKPOINTS,
+  TOOL_CAPABILITY_CONCURRENCY,
+  TOOL_CAPABILITY_DURABILITY,
+  TOOL_CAPABILITY_EFFECTS,
+  TOOL_CAPABILITY_REPLAYS,
+  type ToolCapabilityCheckpoint,
+  type ToolCapabilityConcurrency,
+  type ToolCapabilityConstraint,
+  type ToolCapabilityDeclaration,
+  type ToolCapabilityDurability,
+  type ToolCapabilityEffect,
+  type ToolCapabilityReplay,
+  type ToolCapabilityResolution,
+  type ToolCapabilitySource,
+} from "./capability.js";
 
 export {
   createGitDiffTool,

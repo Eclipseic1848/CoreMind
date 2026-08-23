@@ -100,6 +100,7 @@ export {
   inspectCheckpoint,
   inspectCodingRepository,
   inspectRuntimeCompatibility,
+  isRunStateResumable,
   type JsonObjectSchema,
   type LanguageCandidate,
   LIFECYCLE_EVENTS,

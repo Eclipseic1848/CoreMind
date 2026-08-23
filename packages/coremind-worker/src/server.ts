@@ -8,6 +8,7 @@ import {
   type CoreMindToolDefinition,
   FileRunStore,
   inspectCheckpoint,
+  isRunStateResumable,
   loadConfigFile,
   operationSnapshotFromRecords,
   parseAndValidate,
@@ -352,7 +353,7 @@ export class WorkerServer {
     return {
       runId,
       status: finish ? "finished" : pause ? "paused" : "interrupted",
-      resumable: !finish,
+      resumable: isRunStateResumable(records),
       operation: operationSnapshotFromRecords(records),
       outcome: outcomePayload(terminal?.payload),
       checkpoints: checkpointRecords(records, runId),

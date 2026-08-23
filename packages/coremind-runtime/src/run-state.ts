@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  isResolvedToolCapability,
+  RECOVERY_DISPOSITIONS,
+  recoveryDispositionFor,
+} from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import { inputFingerprint } from "./input-receipt.js";
@@ -11,6 +16,8 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import type { CompletedWorkflowStep } from "./orchestrator.js";
+import { toolCapabilityCallKey } from "./tool-capability-identity.js";
+import { projectToolCapabilities } from "./tool-capability-projection.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 export interface EffectReceipt {
@@ -404,8 +411,6 @@ export function isRejectedAfterAbort(
   return false;
 }
 
-const REPLAY_SAFE_TOOLS = new Set(["read", "ls", "find", "grep", "web-fetch", "web-search"]);
-
 /** 未到达稳定边界的非 replay-safe 工具调用（resumable 安全门的判定结果） */
 export interface UnsafeToolCall {
   tool: string;
@@ -424,6 +429,14 @@ export function findUnsafeToolCall(
 ): UnsafeToolCall | undefined {
   const receipts = new Map<string, EffectReceipt>();
   const completedSteps = new Set<string>();
+  const capabilities = new Map(
+    projectToolCapabilities(trace.map((entry) => entry.event))
+      .filter((projection) => projection.callId !== undefined)
+      .map((projection) => [
+        toolCapabilityCallKey(projection.agent, projection.stepId, projection.callId!),
+        projection,
+      ]),
+  );
   for (const entry of trace) {
     const event = entry.event;
     if (event.type === "effect_receipt") receipts.set(event.idempotencyKey, event);
@@ -432,10 +445,13 @@ export function findUnsafeToolCall(
   for (const entry of trace) {
     const event = entry.event;
     if (event.type !== "tool_call") continue;
-    if (REPLAY_SAFE_TOOLS.has(event.tool)) continue;
     if (event.stepId && completedSteps.has(event.stepId)) continue;
     const receipt = event.idempotencyKey ? receipts.get(event.idempotencyKey) : undefined;
     if (receipt?.status === "not_started") continue;
+    const capability = event.callId
+      ? capabilities.get(toolCapabilityCallKey(event.agent, event.stepId, event.callId))
+      : undefined;
+    if (capability?.recoveryDisposition === "replay_safe") continue;
     return {
       tool: event.tool,
       ...(event.stepId ? { stepId: event.stepId } : {}),
@@ -444,6 +460,15 @@ export function findUnsafeToolCall(
     };
   }
   return undefined;
+}
+
+/** 由 Runtime 单点判断持久化运行是否满足自动恢复的安全前提。 */
+export function isRunStateResumable(records: readonly RunStateRecord[]): boolean {
+  if (records.length === 0 || records.some((record) => record.kind === "finish")) return false;
+  const trace = records
+    .filter((record) => record.kind === "event")
+    .map((record) => tracePayload(record.payload, record.runId));
+  return findUnsafeToolCall(trace) === undefined;
 }
 
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
@@ -634,6 +659,18 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
   ) {
     throw new CoreMindError("run_state_corrupt", "RunState 包含非法 effect_receipt");
   }
+  if (
+    event.type === "capability_resolved" &&
+    (typeof event.agent !== "string" ||
+      typeof event.tool !== "string" ||
+      typeof event.callId !== "string" ||
+      (event.stepId !== undefined && typeof event.stepId !== "string") ||
+      !isResolvedToolCapability(event.capability, event.tool) ||
+      !RECOVERY_DISPOSITIONS.includes(event.recoveryDisposition as never) ||
+      recoveryDispositionFor(event.capability) !== event.recoveryDisposition)
+  ) {
+    throw new CoreMindError("run_state_corrupt", "RunState 包含非法 capability_resolved");
+  }
   return trace as CoreMindTraceEvent;
 }
 
@@ -715,6 +752,14 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     )
   ) {
     throw new CoreMindError("run_state_corrupt", `RunState ${expectedRunId} 包含非法记录`);
+  }
+  if (
+    record.kind === "event" &&
+    record.payload !== null &&
+    typeof record.payload === "object" &&
+    "event" in record.payload
+  ) {
+    tracePayload(record.payload, expectedRunId);
   }
   return record as RunStateRecord;
 }

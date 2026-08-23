@@ -14,6 +14,11 @@ import {
   type ToolEffectDeclaration,
 } from "coremind-config";
 import { ArtifactStore, wrapToolWithArtifactCapture } from "./artifact-store.js";
+import {
+  inferLegacyToolCapability,
+  type ResolvedToolCapability,
+  resolveToolCapability,
+} from "./capability.js";
 import { createGitDiffTool, createGitLogTool, createGitStatusTool } from "./git-adapter.js";
 import { createHostBashTool } from "./host-shell.js";
 import { createLinuxSandboxedBashTool } from "./linux-sandbox.js";
@@ -59,6 +64,7 @@ export interface BuildToolsOptions {
 export interface BuildToolsResult {
   tools: AgentTool[];
   effects: Map<string, ToolEffectDeclaration>;
+  capabilities: Map<string, ResolvedToolCapability>;
   warnings: string[];
 }
 
@@ -75,6 +81,7 @@ export async function buildTools(
   const env = opts.env ?? process.env;
   const tools: AgentTool[] = [];
   const effects = new Map<string, ToolEffectDeclaration>();
+  const capabilities = new Map<string, ResolvedToolCapability>();
   const warnings: string[] = [];
   const artifactStore = opts.artifactStore ?? new ArtifactStore({ cwd: opts.cwd });
 
@@ -88,6 +95,7 @@ export async function buildTools(
         }
         tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
         effects.set(tool.name, cfg.effect);
+        capabilities.set(tool.name, inferLegacyToolCapability(tool.name, cfg.effect));
       } catch (error) {
         warnings.push(error instanceof Error ? error.message : String(error));
       }
@@ -107,6 +115,7 @@ export async function buildTools(
     }
     tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
     effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
+    capabilities.set(tool.name, resolveToolCapability({ tool: tool.name }));
   }
 
   // 规模护栏：工具过多会退化模型选择准确率（Shopify 生产经验：0-20 清晰、50+ 难推理）
@@ -116,5 +125,5 @@ export async function buildTools(
     );
   }
 
-  return { tools, effects, warnings };
+  return { tools, effects, capabilities, warnings };
 }

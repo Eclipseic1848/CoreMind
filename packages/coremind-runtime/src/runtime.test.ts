@@ -227,6 +227,142 @@ describe("CoreMindRuntime", () => {
 
       expect(events.some((event) => event.type === "tool_call")).toBe(true);
       expect(result.metrics.toolCalls).toBe(1);
+      const capabilityFacts = result.trace.filter(
+        (entry) => entry.event.type === "capability_resolved",
+      );
+      expect(capabilityFacts).toHaveLength(1);
+      expect(capabilityFacts[0]?.event).toMatchObject({
+        type: "capability_resolved",
+        agent: "main",
+        tool: "read",
+        callId: "call-read",
+        capability: {
+          effect: "none",
+          replay: "safe",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "ordinary",
+          source: "builtin",
+          resolution: "resolved",
+        },
+        recoveryDisposition: "replay_safe",
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("同一 CallId 更换工具时在执行前失败关闭", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-capability-conflict-"));
+    writeFileSync(path.join(dir, "notes.txt"), "只读内容", "utf8");
+    const target = path.join(dir, "conflict.txt");
+    let providerRequests = 0;
+    const server = createServer((request, response) => {
+      request.setEncoding("utf8");
+      request.resume();
+      request.on("end", () => {
+        providerRequests += 1;
+        if (providerRequests > 2) {
+          sendSse(response, [
+            {
+              id: "final",
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: "assistant", content: "不应到达" },
+                  finish_reason: null,
+                },
+              ],
+            },
+            { id: "final", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+          ]);
+          return;
+        }
+        const firstCall = providerRequests === 1;
+        sendSse(response, [
+          {
+            id: "conflicting-tools",
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  role: "assistant",
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: "shared-call",
+                      type: "function",
+                      function: firstCall
+                        ? { name: "read", arguments: '{"path":"notes.txt"}' }
+                        : {
+                            name: "write",
+                            arguments: '{"path":"conflict.txt","content":"不应写入"}',
+                          },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+          {
+            id: "conflicting-tools",
+            choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+          },
+        ]);
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "Capability Call 冲突测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          tools: [{ id: "read" }, { id: "write" }],
+          agents: { main: { systemPrompt: "按要求调用工具" } },
+          permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "执行两个工具",
+      });
+
+      const result = await runtime.run();
+
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "tool_call")
+          .map((entry) =>
+            entry.event.type === "tool_call"
+              ? { callId: entry.event.callId, tool: entry.event.tool }
+              : undefined,
+          ),
+      ).toEqual([
+        { callId: "shared-call", tool: "read" },
+        { callId: "shared-call", tool: "write" },
+      ]);
+      expect(result.outcome).toMatchObject({ status: "failed" });
+      expect(existsSync(target)).toBe(false);
+      expect(result.trace).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event: expect.objectContaining({
+              type: "error",
+              message: expect.stringContaining("Tool Capability"),
+            }),
+          }),
+        ]),
+      );
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));

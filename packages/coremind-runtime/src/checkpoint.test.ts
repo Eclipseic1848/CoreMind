@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { CheckpointManager, inspectCheckpoint, restoreCheckpoint } from "./checkpoint.js";
 
@@ -110,6 +111,73 @@ describe("CheckpointManager", () => {
     await expect(manager.restore(checkpoint!.checkpointId)).rejects.toMatchObject({
       code: "checkpoint_not_reversible",
     });
+  });
+
+  it("自定义工具按 Capability 建立快照，不依赖 edit/write 名称", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-capability-"));
+    writeFileSync(path.join(cwd, "custom.txt"), "修改前", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-capability",
+    });
+    const capability = resolveToolCapability({
+      tool: "custom_writer",
+      source: "registered",
+      declaration: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+    });
+
+    const checkpoint = await manager.capture(
+      "custom_writer",
+      { path: "custom.txt" },
+      { capability },
+    );
+
+    expect(checkpoint).toMatchObject({
+      tool: "custom_writer",
+      reversible: true,
+      existed: true,
+    });
+  });
+
+  it("自定义工具为声明的全部路径字段建立快照", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-multiple-paths-"));
+    writeFileSync(path.join(cwd, "input.csv"), "原始数据", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-multiple-paths",
+    });
+    const capability = resolveToolCapability({
+      tool: "analyze_sales",
+      source: "registered",
+      declaration: {
+        effect: "workspace",
+        replay: "unknown",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+    });
+
+    const checkpoints = await manager.captureAll(
+      "analyze_sales",
+      { csv_path: "input.csv", output_path: "summary.json" },
+      { capability, pathFields: ["csv_path", "output_path"] },
+    );
+
+    expect(checkpoints).toHaveLength(2);
+    expect(checkpoints.map((checkpoint) => path.basename(checkpoint.targetPath!))).toEqual([
+      "input.csv",
+      "summary.json",
+    ]);
+    expect(checkpoints.map((checkpoint) => checkpoint.existed)).toEqual([true, false]);
   });
 
   it("既有文件被删除后生成指向空文件的统一 diff", async () => {

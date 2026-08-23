@@ -211,6 +211,7 @@ async function runSeedScenario(
   dir: string,
   toolName: string,
   requestStartTimeoutMs = 15_000,
+  timeoutStartupGraceMs = 0,
 ): Promise<SeedOutcome & SeedAssertions> {
   const events: CoreMindEvent[] = [];
   const controller = new AbortController();
@@ -229,7 +230,11 @@ async function runSeedScenario(
       agents: { main: { systemPrompt: "助手" } },
       ...(scenario.timing === "approval" ? { permissions: { mode: "ask" } } : {}),
       ...(scenario.action === "timeout"
-        ? { runtime: { runTimeoutMs: scenario.actionDelayMs + 80 } }
+        ? {
+            runtime: {
+              runTimeoutMs: scenario.actionDelayMs + 80 + timeoutStartupGraceMs,
+            },
+          }
         : {}),
     },
     configDir: dir,
@@ -500,15 +505,18 @@ describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
 
   it("Abort 后取消假 Provider 延迟回复，不跨种子悬挂", async () => {
     const scenario = generateRaceScenario(8);
+    // 默认全量测试会跨文件并行；给本地 HTTP 请求建立连接留出独立宽限，
+    // 同量推迟假回复，保持 timeout 仍比回复早 420ms，不弱化取消语义。
+    const timeoutStartupGraceMs = 5_000;
     const recorder = new RequestRecorder();
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-provider-idle-"));
     const { server, port, pendingReplies } = await createMockServer(
       () => scenarioScript(scenario, "read"),
       recorder,
-      () => scenario.actionDelayMs + 500,
+      () => scenario.actionDelayMs + 500 + timeoutStartupGraceMs,
     );
     try {
-      await runSeedScenario(scenario, recorder, port, dir, "read");
+      await runSeedScenario(scenario, recorder, port, dir, "read", 15_000, timeoutStartupGraceMs);
       await new Promise((resolve) => setTimeout(resolve, 20));
       expect(pendingReplies(), describeRaceScenario(scenario)).toBe(0);
     } finally {

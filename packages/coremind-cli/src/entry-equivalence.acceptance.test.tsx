@@ -85,16 +85,37 @@ interface ResultFingerprint {
   outcomeStatus: string;
   snapshotSchemaVersion: number;
   snapshotResumable: boolean;
+  capabilityEffect: string;
+  capabilitySource: string;
+  recoveryDisposition: string;
+}
+
+interface SnapshotFingerprintInput {
+  schemaVersion: number;
+  resumable: boolean;
+  trace: Array<{
+    event: {
+      type: string;
+      capability?: { effect?: string; source?: string };
+      recoveryDisposition?: string;
+    };
+  }>;
 }
 
 function fingerprintOf(
   outcomeStatus: string,
-  snapshot: { schemaVersion: number; resumable: boolean },
+  snapshot: SnapshotFingerprintInput,
 ): ResultFingerprint {
+  const capability = snapshot.trace.find(
+    (entry) => entry.event.type === "capability_resolved",
+  )?.event;
   return {
     outcomeStatus,
     snapshotSchemaVersion: snapshot.schemaVersion,
     snapshotResumable: snapshot.resumable,
+    capabilityEffect: capability?.capability?.effect ?? "missing",
+    capabilitySource: capability?.capability?.source ?? "missing",
+    recoveryDisposition: capability?.recoveryDisposition ?? "missing",
   };
 }
 
@@ -109,26 +130,56 @@ async function createEquivalenceServer(
     });
     request.on("end", () => {
       const parsed = JSON.parse(body) as { messages: unknown[] };
-      onRequest(wireSignatures(parsed.messages));
+      const signatures = wireSignatures(parsed.messages);
+      onRequest(signatures);
       response.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         connection: "keep-alive",
       });
-      const chunks = [
-        {
-          id: "eq",
-          choices: [
-            { index: 0, delta: { role: "assistant", content: "回答" }, finish_reason: null },
-          ],
-        },
-        { id: "eq", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
-        {
-          id: "eq",
-          choices: [],
-          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        },
-      ];
+      const chunks = signatures.some((message) => message.role === "tool")
+        ? [
+            {
+              id: "eq-final",
+              choices: [
+                {
+                  index: 0,
+                  delta: { role: "assistant", content: "读取完成" },
+                  finish_reason: null,
+                },
+              ],
+            },
+            {
+              id: "eq-final",
+              choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+            },
+          ]
+        : [
+            {
+              id: "eq-tool",
+              choices: [
+                {
+                  index: 0,
+                  delta: {
+                    role: "assistant",
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: "call-read-equivalence",
+                        type: "function",
+                        function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                      },
+                    ],
+                  },
+                  finish_reason: null,
+                },
+              ],
+            },
+            {
+              id: "eq-tool",
+              choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+            },
+          ];
       for (const chunk of chunks) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
       response.end("data: [DONE]\n\n");
     });
@@ -149,6 +200,8 @@ function fixtureConfig(port: number): CoreMindConfig {
       apiKey: "test-key",
     },
     agents: { main: { systemPrompt: "助手" } },
+    tools: [{ id: "read" }],
+    permissions: { mode: "assisted", workspaceOnly: true, network: "deny" },
   };
 }
 
@@ -166,6 +219,7 @@ async function captureTsSdk(): Promise<{
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
+  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port),
@@ -216,6 +270,7 @@ async function captureCli(): Promise<{
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
   const configPath = path.join(dir, "coremind.yaml");
+  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
   // 配置文件支持 JSON 格式（YAML/JSON 双格式）
   writeFileSync(configPath, JSON.stringify(fixtureConfig(port)), "utf8");
   try {
@@ -224,7 +279,7 @@ async function captureCli(): Promise<{
       [cliPath, "run", configPath, "--prompt", "你好", "--json-events"],
       { cwd: dir },
     );
-    expect(code).toBe(0);
+    expect(code, stderr).toBe(0);
     expect(stderr).not.toContain("Error");
     // 解析 run_result 事件（含 outcome 与 snapshot）
     const runResult = stdout
@@ -235,7 +290,7 @@ async function captureCli(): Promise<{
           return JSON.parse(line) as {
             type?: string;
             outcome?: { status?: string };
-            snapshot?: { schemaVersion?: number; resumable?: boolean };
+            snapshot?: SnapshotFingerprintInput;
           };
         } catch {
           return null;
@@ -248,7 +303,7 @@ async function captureCli(): Promise<{
       signatures: captured,
       fingerprint: fingerprintOf(
         runResult?.outcome?.status ?? "",
-        runResult?.snapshot as { schemaVersion: number; resumable: boolean },
+        runResult?.snapshot as SnapshotFingerprintInput,
       ),
     };
   } finally {
@@ -266,12 +321,16 @@ async function typeCommand(write: (value: string) => void, command: string): Pro
 }
 
 /** 轮询直到捕获到请求或超时 */
-async function waitForCapture(captured: WireSignature[], timeoutMs = 5_000): Promise<void> {
+async function waitForCapture(
+  captured: WireSignature[],
+  expectedCount = 1,
+  timeoutMs = 5_000,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  while (captured.length === 0 && Date.now() < deadline) {
+  while (captured.length < expectedCount && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  if (captured.length === 0) throw new Error("未捕获到任何请求");
+  if (captured.length < expectedCount) throw new Error("未捕获到完整工具请求链");
 }
 
 /** 入口 3a：TUI——ink 渲染 ChatTUI + 真实 ChatSession 驱动一轮对话（请求等价） */
@@ -281,6 +340,7 @@ async function captureTui(): Promise<{ signatures: WireSignature[] }> {
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
+  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port),
@@ -297,7 +357,7 @@ async function captureTui(): Promise<{ signatures: WireSignature[] }> {
       />,
     );
     await typeCommand(app.stdin.write, "你好");
-    await waitForCapture(captured);
+    await waitForCapture(captured, 6);
     app.unmount();
     return { signatures: captured };
   } finally {
@@ -309,6 +369,7 @@ async function captureTui(): Promise<{ signatures: WireSignature[] }> {
 async function captureChatResult(): Promise<ResultFingerprint> {
   const { server, port } = await createEquivalenceServer(() => {});
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-result-"));
+  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port),
@@ -334,6 +395,7 @@ async function capturePython(): Promise<{
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
+  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
   const scriptPath = path.join(dir, "capture.py");
   const script = [
     "import sys, json",
@@ -344,6 +406,8 @@ async function capturePython(): Promise<{
     '  "name": "等价性验收",',
     `  "provider": {"id": "probe", "baseUrl": "http://127.0.0.1:${port}/v1", "model": "probe-model", "apiKey": "test-key"},`,
     '  "agents": {"main": {"systemPrompt": "助手"}},',
+    '  "tools": [{"id": "read"}],',
+    '  "permissions": {"mode": "assisted", "workspaceOnly": True, "network": "deny"},',
     "}, config_dir=" +
       JSON.stringify(dir) +
       ", cwd=" +
@@ -352,7 +416,7 @@ async function capturePython(): Promise<{
     'result = client.run("你好")',
     'print("OUTCOME:" + json.dumps(result["outcome"]))',
     'snap = result["snapshot"]',
-    'print("SNAPSHOT:" + json.dumps({"schemaVersion": snap["schemaVersion"], "resumable": snap["resumable"]}))',
+    'print("SNAPSHOT:" + json.dumps({"schemaVersion": snap["schemaVersion"], "resumable": snap["resumable"], "trace": snap["trace"]}))',
     "client.close()",
   ].join("\n");
   writeFileSync(scriptPath, script, "utf8");
@@ -361,7 +425,7 @@ async function capturePython(): Promise<{
       cwd: dir,
       env: { ...process.env, PYTHONIOENCODING: "utf-8", COREMIND_WORKER_PATH: workerPath },
     });
-    expect(code).toBe(0);
+    expect(code, stderr).toBe(0);
     expect(stderr).not.toContain("Traceback");
     const outcomeLine = stdout.split("\n").find((line) => line.startsWith("OUTCOME:"));
     const snapshotLine = stdout.split("\n").find((line) => line.startsWith("SNAPSHOT:"));
@@ -371,6 +435,7 @@ async function capturePython(): Promise<{
     const snapshot = JSON.parse(snapshotLine!.slice("SNAPSHOT:".length)) as {
       schemaVersion: number;
       resumable: boolean;
+      trace: SnapshotFingerprintInput["trace"];
     };
     expect(outcome.status).toBe("succeeded");
     return { signatures: captured, fingerprint: fingerprintOf(outcome.status, snapshot) };
@@ -388,8 +453,15 @@ describe("四入口请求等价（门 A-2）", () => {
       capturePython(),
     ]);
     const tuiResult = await captureChatResult();
-    // 纯文本 fixture：system + user 两条
-    expect(tsCaptured.signatures.map((item) => item.role)).toEqual(["system", "user"]);
+    // 工具 fixture：首请求两条，第二次请求包含原请求、toolUse 与 toolResult。
+    expect(tsCaptured.signatures.map((item) => item.role)).toEqual([
+      "system",
+      "user",
+      "system",
+      "user",
+      "assistant",
+      "tool",
+    ]);
     // 规范化请求等价：CLI / TUI / Python 与 TS SDK 逐条一致
     expect(cliCaptured.signatures).toEqual(tsCaptured.signatures);
     expect(tuiCaptured.signatures).toEqual(tsCaptured.signatures);
@@ -398,5 +470,10 @@ describe("四入口请求等价（门 A-2）", () => {
     expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
     expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
     expect(tuiResult).toEqual(tsCaptured.fingerprint);
+    expect(tsCaptured.fingerprint).toMatchObject({
+      capabilityEffect: "none",
+      capabilitySource: "builtin",
+      recoveryDisposition: "replay_safe",
+    });
   });
 });

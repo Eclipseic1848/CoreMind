@@ -1,6 +1,18 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core';
+import { BUILTIN_TOOL_CAPABILITIES } from 'coremind-config';
 import { SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import type { ScriptToolConfig } from 'coremind-config';
+import { TOOL_CAPABILITY_CHECKPOINTS } from 'coremind-config';
+import { TOOL_CAPABILITY_CONCURRENCY } from 'coremind-config';
+import { TOOL_CAPABILITY_DURABILITY } from 'coremind-config';
+import { TOOL_CAPABILITY_EFFECTS } from 'coremind-config';
+import { TOOL_CAPABILITY_REPLAYS } from 'coremind-config';
+import { ToolCapabilityCheckpoint } from 'coremind-config';
+import { ToolCapabilityConcurrency } from 'coremind-config';
+import { ToolCapabilityDeclaration } from 'coremind-config';
+import { ToolCapabilityDurability } from 'coremind-config';
+import { ToolCapabilityEffect } from 'coremind-config';
+import { ToolCapabilityReplay } from 'coremind-config';
 import { ToolConfig } from 'coremind-config';
 import { ToolEffectDeclaration } from 'coremind-config';
 import { Type } from '@earendil-works/pi-ai';
@@ -78,8 +90,13 @@ export declare interface BuildToolsOptions {
 export declare interface BuildToolsResult {
     tools: AgentTool[];
     effects: Map<string, ToolEffectDeclaration>;
+    capabilities: Map<string, ResolvedToolCapability>;
     warnings: string[];
 }
+
+export { BUILTIN_TOOL_CAPABILITIES }
+
+export declare type CapabilityConstraintOrigin = "config" | "extension" | "host" | "entrypoint";
 
 export declare function createGitDiffTool(cwd: string): AgentTool<typeof GitDiffParams>;
 
@@ -191,6 +208,12 @@ export declare interface HostBashOptions {
     env?: NodeJS.ProcessEnv;
 }
 
+/** 供 0.3.x 旧 effect 调用方与 Runtime 注册兼容；新集成应直接声明完整 Capability。 */
+export declare function inferLegacyToolCapability(tool: string, declaration: ToolEffectDeclaration): ResolvedToolCapability;
+
+/** 在 JavaScript、RunState 与插件等非类型安全边界验证完整且自洽的解析结果。 */
+export declare function isResolvedToolCapability(value: unknown, expectedTool?: string): value is ResolvedToolCapability;
+
 export declare function isSensitiveEnvironmentName(name: string): boolean;
 
 export declare interface LinuxSandboxedBashOptions {
@@ -249,7 +272,33 @@ export declare interface ProcessRunResult {
     failed: boolean;
 }
 
+export declare const RECOVERY_DISPOSITIONS: readonly ["replay_safe", "requires_proof", "requires_human", "forbidden"];
+
+export declare type RecoveryDisposition = (typeof RECOVERY_DISPOSITIONS)[number];
+
+export declare function recoveryDispositionFor(capability: Pick<ResolvedToolCapability, "effect" | "replay">): RecoveryDisposition;
+
 export declare function redactSecrets(text: string): string;
+
+export declare interface ResolvedToolCapability extends ToolCapabilityDeclaration {
+    tool: string;
+    source: ToolCapabilitySource;
+    resolution: ToolCapabilityResolution;
+    issues: readonly string[];
+}
+
+/**
+ * 解析一次工具调用的不可变能力。缺失、非法或降权冲突均返回最严格 fallback，
+ * 让调用方可以记录 Fact 后失败关闭，而不是按工具名称猜测安全性。
+ */
+export declare function resolveToolCapability(input: ResolveToolCapabilityInput): ResolvedToolCapability;
+
+export declare interface ResolveToolCapabilityInput {
+    tool: string;
+    source?: Exclude<ToolCapabilitySource, "fallback">;
+    declaration?: Partial<ToolCapabilityDeclaration>;
+    constraints?: readonly ToolCapabilityConstraint[];
+}
 
 /** 优先寻找 Git 安装目录内的真实 Bash，明确排除 WSL/应用商店中继。 */
 export declare function resolveWindowsShell(env: NodeJS.ProcessEnv, pathExists?: (candidate: string) => boolean): ShellInvocation;
@@ -267,6 +316,37 @@ declare interface ShellInvocation {
 
 /** 简化 HTML 转纯文本：去 script/style、去标签、解码实体、折叠空白 */
 export declare function stripHtml(html: string): string;
+
+export { TOOL_CAPABILITY_CHECKPOINTS }
+
+export { TOOL_CAPABILITY_CONCURRENCY }
+
+export { TOOL_CAPABILITY_DURABILITY }
+
+export { TOOL_CAPABILITY_EFFECTS }
+
+export { TOOL_CAPABILITY_REPLAYS }
+
+export { ToolCapabilityCheckpoint }
+
+export { ToolCapabilityConcurrency }
+
+export declare interface ToolCapabilityConstraint {
+    origin: CapabilityConstraintOrigin;
+    capability: Partial<ToolCapabilityDeclaration>;
+}
+
+export { ToolCapabilityDeclaration }
+
+export { ToolCapabilityDurability }
+
+export { ToolCapabilityEffect }
+
+export { ToolCapabilityReplay }
+
+export declare type ToolCapabilityResolution = "resolved" | "fallback";
+
+export declare type ToolCapabilitySource = "builtin" | "registered" | "inferred" | "fallback";
 
 export declare interface UnifiedDiffOptions {
     oldPath?: string;

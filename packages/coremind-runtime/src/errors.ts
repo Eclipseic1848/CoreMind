@@ -106,6 +106,11 @@ export const ERROR_CODES = {
   invalid_run_id: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   invalid_config: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   invalid_tool: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  tool_capability_conflict: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 瞬态类 ——
   network_error: { terminality: "transient", cancelClass: "other", retryClass: "transient" },

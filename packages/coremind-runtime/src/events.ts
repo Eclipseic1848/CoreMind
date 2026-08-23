@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
+import type { RecoveryDisposition, ResolvedToolCapability } from "coremind-tools";
 import type { LifecycleEventType, LifecycleExtensionReceiptStatus } from "./lifecycle-extension.js";
 import type { LoopPhase } from "./loop-controller.js";
 import type { CoreMindMessage } from "./public-message.js";
@@ -57,6 +58,15 @@ export type CoreMindEvent =
       turnId?: string;
     }
   | {
+      type: "capability_resolved";
+      agent: string;
+      tool: string;
+      callId: string;
+      stepId?: string;
+      capability: ResolvedToolCapability;
+      recoveryDisposition: RecoveryDisposition;
+    }
+  | {
       type: "effect_receipt";
       idempotencyKey: string;
       tool: string;
@@ -93,6 +103,7 @@ export type CoreMindEvent =
       args: unknown;
       risk: "low" | "high";
       effect: ToolEffect;
+      capability?: ResolvedToolCapability;
     }
   | {
       type: "approval_resolved";

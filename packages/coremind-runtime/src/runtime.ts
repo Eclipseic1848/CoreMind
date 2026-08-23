@@ -14,6 +14,10 @@ import {
   ArtifactStore,
   buildTools,
   extractArtifactRecord,
+  inferLegacyToolCapability,
+  type ResolvedToolCapability,
+  recoveryDispositionFor,
+  resolveToolCapability,
   wrapToolWithArtifactCapture,
 } from "coremind-tools";
 import { type AgentBuildContext, buildAgent } from "./agent-factory.js";
@@ -82,6 +86,7 @@ import {
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { CoreMindSession } from "./session.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
+import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
@@ -186,6 +191,7 @@ export class CoreMindRuntime {
     private readonly agentConfigs: Map<string, AgentConfig>,
     private readonly toolsByAgent: Map<string, AgentTool[]>,
     private readonly toolEffectsByAgent: Map<string, Map<string, ToolEffectDeclaration>>,
+    private readonly toolCapabilitiesByAgent: Map<string, Map<string, ResolvedToolCapability>>,
     private readonly providerRuntime: ProviderRuntime,
     private readonly options: CoreMindRuntimeOptions,
     sessionMessages: AgentMessage[] | undefined,
@@ -215,6 +221,7 @@ export class CoreMindRuntime {
     const agentConfigs = new Map<string, AgentConfig>();
     const toolsByAgent = new Map<string, AgentTool[]>();
     const toolEffectsByAgent = new Map<string, Map<string, ToolEffectDeclaration>>();
+    const toolCapabilitiesByAgent = new Map<string, Map<string, ResolvedToolCapability>>();
     const skillsByAgent = new Map<string, string[]>();
     const artifactStore = new ArtifactStore({ cwd });
     const externalTools = (options.toolDefinitions ?? []).map((definition) =>
@@ -224,7 +231,7 @@ export class CoreMindRuntime {
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
-      const { tools, warnings, effects } = await buildTools(toolConfigs ?? [], {
+      const { tools, warnings, effects, capabilities } = await buildTools(toolConfigs ?? [], {
         cwd,
         configDir,
         env,
@@ -241,6 +248,25 @@ export class CoreMindRuntime {
           ...effects,
           ...(options.toolDefinitions ?? []).map(
             (definition) => [definition.name, definition.effect] as const,
+          ),
+        ]),
+      );
+      toolCapabilitiesByAgent.set(
+        name,
+        new Map([
+          ...capabilities,
+          ...(options.toolDefinitions ?? []).map(
+            (definition) =>
+              [
+                definition.name,
+                definition.capability
+                  ? resolveToolCapability({
+                      tool: definition.name,
+                      source: "registered",
+                      declaration: definition.capability,
+                    })
+                  : inferLegacyToolCapability(definition.name, definition.effect),
+              ] as const,
           ),
         ]),
       );
@@ -290,6 +316,7 @@ export class CoreMindRuntime {
       agentConfigs,
       toolsByAgent,
       toolEffectsByAgent,
+      toolCapabilitiesByAgent,
       providerRuntime,
       options,
       sessionMessages,
@@ -371,6 +398,7 @@ export class CoreMindRuntime {
       this.agentConfigs,
       this.toolsByAgent,
       this.toolEffectsByAgent,
+      this.toolCapabilitiesByAgent,
       this.providerRuntime,
       {
         ...this.options,
@@ -600,8 +628,13 @@ export class CoreMindRuntime {
       runId: trace.runId,
     });
     let checkpointFailure: CoreMindError | undefined;
+    let capabilityFailure: CoreMindError | undefined;
     const artifacts: ArtifactRecord[] = [];
-    const checkpointByCallId = new Map<string, string>();
+    const checkpointByCallId = new Map<string, string[]>();
+    const capabilityByCallId = new Map<
+      string,
+      { tool: string; capability: ResolvedToolCapability }
+    >();
     const contextWindow = this.providerRuntime.model.contextWindow;
     const contextProtector = new ContextProtector(
       {
@@ -680,6 +713,7 @@ export class CoreMindRuntime {
           args: request.args,
           risk: request.risk,
           effect: request.effect,
+          capability: request.capability,
         }),
       onApprovalResolved: (request, decision) =>
         emit({
@@ -711,10 +745,40 @@ export class CoreMindRuntime {
         }
         const blockedByBudget = budget.beforeToolCall();
         if (blockedByBudget) return blockedByBudget;
+        const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+        const existingCapability = capabilityByCallId.get(callKey);
+        if (existingCapability && existingCapability.tool !== context.toolCall.name) {
+          capabilityFailure = new CoreMindError(
+            "tool_capability_conflict",
+            `Call ${agentName}/${stepId ?? "-"}/${context.toolCall.id} 从 ${existingCapability.tool} 变更为 ${context.toolCall.name}，Tool Capability 不可变`,
+          );
+          emit({ type: "error", message: capabilityFailure.message, fatal: true });
+          return { block: true, reason: capabilityFailure.message };
+        }
+        let capability = existingCapability?.capability;
+        if (!existingCapability) {
+          capability =
+            this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.name) ??
+            resolveToolCapability({ tool: context.toolCall.name });
+          capabilityByCallId.set(callKey, {
+            tool: context.toolCall.name,
+            capability,
+          });
+          emit({
+            type: "capability_resolved",
+            agent: agentName,
+            tool: context.toolCall.name,
+            callId: context.toolCall.id,
+            ...(stepId ? { stepId } : {}),
+            capability,
+            recoveryDisposition: recoveryDispositionFor(capability),
+          });
+        }
         const decision = await policy.authorize(
           agentName,
           context.toolCall.name,
           context.args,
+          capability,
           this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
         );
         if (!decision.allowed) {
@@ -749,23 +813,35 @@ export class CoreMindRuntime {
         }
         try {
           const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
-          const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args, {
-            operationId: operation.snapshot().operationId,
-            toolCallId: context.toolCall.id,
-            idempotencyKey,
-          });
-          if (checkpoint) {
-            checkpointByCallId.set(context.toolCall.id, checkpoint.checkpointId);
-            journal.checkpoint(checkpoint);
-            emit({
-              type: "checkpoint_created",
-              checkpointId: checkpoint.checkpointId,
-              tool: checkpoint.tool,
-              callId: context.toolCall.id,
+          const checkpoints = await checkpointManager.captureAll(
+            context.toolCall.name,
+            context.args,
+            {
+              operationId: operation.snapshot().operationId,
+              toolCallId: context.toolCall.id,
               idempotencyKey,
-              targetPath: checkpoint.targetPath,
-              reversible: checkpoint.reversible,
-            });
+              capability,
+              pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name)
+                ?.pathFields,
+            },
+          );
+          if (checkpoints.length > 0) {
+            checkpointByCallId.set(
+              context.toolCall.id,
+              checkpoints.map((checkpoint) => checkpoint.checkpointId),
+            );
+            for (const checkpoint of checkpoints) {
+              journal.checkpoint(checkpoint);
+              emit({
+                type: "checkpoint_created",
+                checkpointId: checkpoint.checkpointId,
+                tool: checkpoint.tool,
+                callId: context.toolCall.id,
+                idempotencyKey,
+                targetPath: checkpoint.targetPath,
+                reversible: checkpoint.reversible,
+              });
+            }
           }
         } catch (error) {
           checkpointFailure =
@@ -813,11 +889,16 @@ export class CoreMindRuntime {
             callId: context.toolCall.id,
           });
         }
-        const checkpointId = checkpointByCallId.get(context.toolCall.id);
+        const checkpointIds = checkpointByCallId.get(context.toolCall.id);
+        const checkpointId = checkpointIds?.[0];
         checkpointByCallId.delete(context.toolCall.id);
-        if (checkpointId) {
+        if (checkpointIds) {
           try {
-            await checkpointManager.markApplied(checkpointId);
+            await Promise.all(
+              checkpointIds.map((storedCheckpointId) =>
+                checkpointManager.markApplied(storedCheckpointId),
+              ),
+            );
           } catch (error) {
             checkpointFailure =
               error instanceof CoreMindError
@@ -974,6 +1055,7 @@ export class CoreMindRuntime {
         },
         (error) => activeLoopRunner?.interrupt(error),
       ));
+      if (capabilityFailure) throw capabilityFailure;
       if (checkpointFailure) throw checkpointFailure;
       budget.throwIfExceeded();
     } catch (error) {

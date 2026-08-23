@@ -1,0 +1,21 @@
+[
+  {
+    "version": 1,
+    "runId": "run-0.3.1",
+    "sequence": 1,
+    "timestamp": "2026-08-20T00:00:00.000Z",
+    "kind": "event",
+    "payload": {
+      "runId": "run-0.3.1",
+      "sequence": 1,
+      "timestamp": "2026-08-20T00:00:00.000Z",
+      "event": {
+        "type": "tool_call",
+        "agent": "main",
+        "tool": "write",
+        "args": { "path": "notes.txt" },
+        "callId": "call-0.3.1"
+      }
+    }
+  }
+]

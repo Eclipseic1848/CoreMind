@@ -1,3 +1,4 @@
+import { recoveryDispositionFor, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { createRunSnapshot } from "./snapshot.js";
 
@@ -136,6 +137,7 @@ describe("RunSnapshot", () => {
   });
 
   it("replay-safe 工具无收据也不影响 resumable（安全门单点语义）", () => {
+    const capability = resolveToolCapability({ tool: "read" });
     const snapshot = createRunSnapshot({
       runId: "run-1",
       operation: {
@@ -171,6 +173,20 @@ describe("RunSnapshot", () => {
           runId: "run-1",
           sequence: 1,
           timestamp: "2026-08-11T00:00:00.000Z",
+          event: {
+            type: "capability_resolved",
+            agent: "main",
+            tool: "read",
+            callId: "call-1",
+            capability,
+            recoveryDisposition: recoveryDispositionFor(capability),
+          },
+        },
+        {
+          eventId: "event-2",
+          runId: "run-1",
+          sequence: 2,
+          timestamp: "2026-08-11T00:00:01.000Z",
           event: { type: "tool_call", agent: "main", tool: "read", callId: "call-1" },
         },
       ],
