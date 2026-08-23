@@ -144,6 +144,38 @@ describe("ToolPolicy", () => {
     });
   });
 
+  it("旧式网络声明接受合法 urlFields 选择器", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "allow" });
+
+    await expect(
+      policy.authorize(
+        "main",
+        "legacy_fetch",
+        { endpoint: "https://example.com/report" },
+        {
+          operations: ["network"],
+          reversible: false,
+          urlFields: ["endpoint"],
+        },
+      ),
+    ).resolves.toMatchObject({ allowed: true, approvedBy: "configuration" });
+  });
+
+  it("旧式声明包含非法 urlFields 数组时失败关闭", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "allow" });
+
+    await expect(
+      policy.authorize("main", "forged_legacy_url", {}, {
+        operations: ["network"],
+        reversible: false,
+        urlFields: [1],
+      } as never),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("完整 Capability"),
+    });
+  });
+
   it("完整形状的自定义 Capability 也不能伪造 builtin 来源", async () => {
     const policy = createPolicy({ mode: "full", workspaceOnly: true, network: "allow" });
 
