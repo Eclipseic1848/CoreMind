@@ -146,6 +146,40 @@ describe("CheckpointManager", () => {
     });
   });
 
+  it("自定义工具为声明的全部路径字段建立快照", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-multiple-paths-"));
+    writeFileSync(path.join(cwd, "input.csv"), "原始数据", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-multiple-paths",
+    });
+    const capability = resolveToolCapability({
+      tool: "analyze_sales",
+      source: "registered",
+      declaration: {
+        effect: "workspace",
+        replay: "unknown",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+    });
+
+    const checkpoints = await manager.captureAll(
+      "analyze_sales",
+      { csv_path: "input.csv", output_path: "summary.json" },
+      { capability, pathFields: ["csv_path", "output_path"] },
+    );
+
+    expect(checkpoints).toHaveLength(2);
+    expect(checkpoints.map((checkpoint) => path.basename(checkpoint.targetPath!))).toEqual([
+      "input.csv",
+      "summary.json",
+    ]);
+    expect(checkpoints.map((checkpoint) => checkpoint.existed)).toEqual([true, false]);
+  });
+
   it("既有文件被删除后生成指向空文件的统一 diff", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-delete-"));
     const file = path.join(cwd, "removed.txt");

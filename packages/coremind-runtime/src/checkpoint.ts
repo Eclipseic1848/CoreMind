@@ -8,6 +8,7 @@ import {
   resolveToolCapability,
 } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
+import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
 
 export interface CheckpointRecord {
   version: 1;
@@ -52,6 +53,20 @@ export interface CheckpointManagerOptions {
   maxFileBytes?: number;
 }
 
+interface CheckpointCorrelation {
+  operationId?: string;
+  toolCallId?: string;
+  idempotencyKey?: string;
+  capability?: ResolvedToolCapability;
+}
+
+interface CheckpointTargetSnapshot {
+  targetPath: string;
+  existed: boolean;
+  beforeSha256?: string;
+  contentBase64?: string;
+}
+
 /** 修改工具的本地快照、diff 与显式恢复入口。 */
 export class CheckpointManager {
   readonly records: CheckpointRecord[] = [];
@@ -64,28 +79,44 @@ export class CheckpointManager {
   async capture(
     tool: string,
     args: unknown,
-    correlation: {
-      operationId?: string;
-      toolCallId?: string;
-      idempotencyKey?: string;
-      capability?: ResolvedToolCapability;
-    } = {},
+    correlation: CheckpointCorrelation = {},
   ): Promise<CheckpointRecord | undefined> {
+    return (await this.captureAll(tool, args, { ...correlation, pathFields: ["path"] }))[0];
+  }
+
+  async captureAll(
+    tool: string,
+    args: unknown,
+    correlation: CheckpointCorrelation & { pathFields?: readonly string[] } = {},
+  ): Promise<CheckpointRecord[]> {
     const capability = correlation.capability ?? resolveToolCapability({ tool });
-    if (capability.checkpoint === "none") return undefined;
+    const metadata = checkpointMetadata(correlation);
+    if (capability.checkpoint === "none") return [];
     if (capability.checkpoint === "unsupported") {
-      return this.persist({
-        tool,
-        ...correlation,
-        reversible: false,
-        reason: "任意命令或自定义工具可能产生工作区外副作用，无法保证自动回退",
-      });
+      return [
+        await this.persist({
+          tool,
+          ...metadata,
+          reversible: false,
+          reason: "任意命令或自定义工具可能产生工作区外副作用，无法保证自动回退",
+        }),
+      ];
     }
 
-    const target = pathArgument(args);
-    if (!target) {
+    const targets = unique(collectDeclaredStringFields(args, correlation.pathFields ?? ["path"]));
+    if (targets.length === 0) {
       throw new CoreMindError("checkpoint_failed", `工具 ${tool} 缺少可识别的 path 参数`);
     }
+    const snapshots: CheckpointTargetSnapshot[] = [];
+    for (const target of targets) snapshots.push(await this.snapshotTarget(target));
+    const checkpoints: CheckpointRecord[] = [];
+    for (const snapshot of snapshots) {
+      checkpoints.push(await this.persist({ tool, ...metadata, reversible: true, ...snapshot }));
+    }
+    return checkpoints;
+  }
+
+  private async snapshotTarget(target: string): Promise<CheckpointTargetSnapshot> {
     const targetPath = await this.safeTargetPath(target);
     let content: Buffer | undefined;
     let existed = true;
@@ -106,16 +137,13 @@ export class CheckpointManager {
         `文件 ${target} 大于检查点上限 ${this.maxFileBytes} 字节，已阻止修改`,
       );
     }
-    return this.persist({
-      tool,
-      ...correlation,
-      reversible: true,
+    return {
       targetPath,
       existed,
       ...(content
         ? { beforeSha256: sha256(content), contentBase64: content.toString("base64") }
         : {}),
-    });
+    };
   }
 
   async diff(checkpointId: string): Promise<CheckpointDiff> {
@@ -328,10 +356,18 @@ function managerFromRecord(record: CheckpointRecord, cwd: string): CheckpointMan
   return new CheckpointManager({ cwd, rootDir: path.dirname(runDirectory), runId: record.runId });
 }
 
-function pathArgument(args: unknown): string | undefined {
-  if (args === null || typeof args !== "object" || Array.isArray(args)) return undefined;
-  const value = (args as Record<string, unknown>).path;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+function checkpointMetadata(
+  correlation: CheckpointCorrelation,
+): Omit<CheckpointCorrelation, "capability"> {
+  return {
+    ...(correlation.operationId ? { operationId: correlation.operationId } : {}),
+    ...(correlation.toolCallId ? { toolCallId: correlation.toolCallId } : {}),
+    ...(correlation.idempotencyKey ? { idempotencyKey: correlation.idempotencyKey } : {}),
+  };
+}
+
+function unique(values: readonly string[]): string[] {
+  return [...new Set(values)];
 }
 
 function sha256(content: Buffer): string {

@@ -79,6 +79,13 @@ export declare interface CheckFinding {
     overridden?: boolean;
 }
 
+declare interface CheckpointCorrelation {
+    operationId?: string;
+    toolCallId?: string;
+    idempotencyKey?: string;
+    capability?: ResolvedToolCapability;
+}
+
 export declare interface CheckpointDiff {
     checkpointId: string;
     targetPath?: string;
@@ -98,12 +105,11 @@ export declare class CheckpointManager {
     readonly records: CheckpointRecord[];
     private readonly maxFileBytes;
     constructor(options: CheckpointManagerOptions);
-    capture(tool: string, args: unknown, correlation?: {
-        operationId?: string;
-        toolCallId?: string;
-        idempotencyKey?: string;
-        capability?: ResolvedToolCapability;
-    }): Promise<CheckpointRecord | undefined>;
+    capture(tool: string, args: unknown, correlation?: CheckpointCorrelation): Promise<CheckpointRecord | undefined>;
+    captureAll(tool: string, args: unknown, correlation?: CheckpointCorrelation & {
+        pathFields?: readonly string[];
+    }): Promise<CheckpointRecord[]>;
+    private snapshotTarget;
     diff(checkpointId: string): Promise<CheckpointDiff>;
     /** 工具执行结束后记录预期文件状态，供恢复时识别后续人工或并发修改。 */
     markApplied(checkpointId: string): Promise<void>;

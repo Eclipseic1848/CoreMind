@@ -13,6 +13,7 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
+import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
 
 export type ToolRisk = "low" | "high";
 export type ApprovalDecision = "allow" | "deny";
@@ -252,11 +253,11 @@ function resolveToolEffect(
 ): ToolEffect {
   const paths = [
     ...collectPathArguments(args),
-    ...collectFields(args, selectors?.pathFields ?? []),
+    ...collectDeclaredStringFields(args, selectors?.pathFields ?? []),
   ];
   const urls = [
     ...collectUrls(args),
-    ...collectFields(args, selectors?.urlFields ?? []).filter(isHttpUrl),
+    ...collectDeclaredStringFields(args, selectors?.urlFields ?? []).filter(isHttpUrl),
   ];
   const operations = toolEffectOperationsForCapability(capability.effect);
   if (urls.length > 0 && !operations.includes("network")) operations.push("network");
@@ -268,22 +269,6 @@ function resolveToolEffect(
       selectors?.reversible ?? (capability.replay === "safe" || capability.replay === "idempotent"),
     declared: capability.resolution === "resolved",
   };
-}
-
-function collectFields(value: unknown, fields: string[]): string[] {
-  const values: string[] = [];
-  for (const field of fields) {
-    let current: unknown = value;
-    for (const segment of field.split(".")) {
-      if (current === null || typeof current !== "object" || Array.isArray(current)) {
-        current = undefined;
-        break;
-      }
-      current = (current as Record<string, unknown>)[segment];
-    }
-    if (typeof current === "string" && current.length > 0) values.push(current);
-  }
-  return values;
 }
 
 function collectUrls(value: unknown): string[] {

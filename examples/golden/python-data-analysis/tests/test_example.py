@@ -100,6 +100,11 @@ class PythonDataAnalysisGoldenTest(unittest.TestCase):
             self.assertEqual(output["rows"], 3)
             self.assertEqual(output["total"], 300)
             self.assertEqual(result["metrics"]["toolCalls"], 1)
+            self.assertEqual(len(result["checkpoints"]), 2)
+            self.assertEqual(
+                [Path(checkpoint["targetPath"]).name for checkpoint in result["checkpoints"]],
+                ["sales.csv", "summary.json"],
+            )
         finally:
             server.terminate()
             try:

@@ -630,7 +630,7 @@ export class CoreMindRuntime {
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
     const artifacts: ArtifactRecord[] = [];
-    const checkpointByCallId = new Map<string, string>();
+    const checkpointByCallId = new Map<string, string[]>();
     const capabilityByCallId = new Map<
       string,
       { tool: string; capability: ResolvedToolCapability }
@@ -813,24 +813,35 @@ export class CoreMindRuntime {
         }
         try {
           const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
-          const checkpoint = await checkpointManager.capture(context.toolCall.name, context.args, {
-            operationId: operation.snapshot().operationId,
-            toolCallId: context.toolCall.id,
-            idempotencyKey,
-            capability,
-          });
-          if (checkpoint) {
-            checkpointByCallId.set(context.toolCall.id, checkpoint.checkpointId);
-            journal.checkpoint(checkpoint);
-            emit({
-              type: "checkpoint_created",
-              checkpointId: checkpoint.checkpointId,
-              tool: checkpoint.tool,
-              callId: context.toolCall.id,
+          const checkpoints = await checkpointManager.captureAll(
+            context.toolCall.name,
+            context.args,
+            {
+              operationId: operation.snapshot().operationId,
+              toolCallId: context.toolCall.id,
               idempotencyKey,
-              targetPath: checkpoint.targetPath,
-              reversible: checkpoint.reversible,
-            });
+              capability,
+              pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name)
+                ?.pathFields,
+            },
+          );
+          if (checkpoints.length > 0) {
+            checkpointByCallId.set(
+              context.toolCall.id,
+              checkpoints.map((checkpoint) => checkpoint.checkpointId),
+            );
+            for (const checkpoint of checkpoints) {
+              journal.checkpoint(checkpoint);
+              emit({
+                type: "checkpoint_created",
+                checkpointId: checkpoint.checkpointId,
+                tool: checkpoint.tool,
+                callId: context.toolCall.id,
+                idempotencyKey,
+                targetPath: checkpoint.targetPath,
+                reversible: checkpoint.reversible,
+              });
+            }
           }
         } catch (error) {
           checkpointFailure =
@@ -878,11 +889,16 @@ export class CoreMindRuntime {
             callId: context.toolCall.id,
           });
         }
-        const checkpointId = checkpointByCallId.get(context.toolCall.id);
+        const checkpointIds = checkpointByCallId.get(context.toolCall.id);
+        const checkpointId = checkpointIds?.[0];
         checkpointByCallId.delete(context.toolCall.id);
-        if (checkpointId) {
+        if (checkpointIds) {
           try {
-            await checkpointManager.markApplied(checkpointId);
+            await Promise.all(
+              checkpointIds.map((storedCheckpointId) =>
+                checkpointManager.markApplied(storedCheckpointId),
+              ),
+            );
           } catch (error) {
             checkpointFailure =
               error instanceof CoreMindError

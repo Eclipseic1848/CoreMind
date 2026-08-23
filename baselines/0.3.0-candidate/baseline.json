@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "60cabb9eaf4dc86ee5ed79eb9804fbeefce38132",
+    "developmentCommit": "f6767d17e391b05cf795eda8c522076c067fa9b7",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,7 +17,7 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "49b63f94752f739a1f9c3ccfe089881f00a136074e86a2f2fd40f3b370204350",
       "coremind-protocol": "00695ae8275f2460f7c20a0386456cd7c85b3744cfe4461305987d8e881d7d1d",
-      "coremind-runtime": "c3c4ba1ace17b3df6f0d378accf2e1e26f25935b93c8db0517e8cc0a6469b41f",
+      "coremind-runtime": "40c78ea6364354ff030e2a541a3f6b7464461c5fffdc2cc2d25abd1f8092dec7",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "4576ed05e6114edbd6a0c11147ed5847e32e6e1be21adaf68a8011ee0534b29f",
       "coremind-worker": "2288314e4e1c7b56a6d0b9f9c4ef45ea1ae22586a828c59ccfd8ce7d631dcc38"
@@ -282,9 +282,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-23T07:53:00.698Z",
+    "capturedAt": "2026-08-23T10:07:25.019Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #61 Tool Capability 单调安全与不可变 Fact 合同",
+    "updateReason": "Issue #61 Tool Capability 多路径检查点合同",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "0fd145119ee8d7944eabb6967e619852edb0c00cf20faf86080db8e7bee956ce",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -293,7 +293,7 @@
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "947a52b0beda6c71bdf1459123bf1153e5bcfaa7d0ab67acc7e93cb79a97d295",
       "coremind-protocol": "c39585a5138b4dcdaafe8c15816b8f7f3191341c62022d15b2b6e72203a981a3",
-      "coremind-runtime": "d8b999d87df05f4a8b85fb831ca8a7289ce99c0e9525a2e764289d5af928088a",
+      "coremind-runtime": "dbb699ee9e00e3bb7997ee8a99c34960ec3c48d9c8761b9c2d6035edeb4caaca",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "75f3f2ff7f60364e3c5eb757b8a37528dd3cd4eb8a196cc22f006d8548891b5f",
       "coremind-worker": "154f6263eff40e0d0fed274156ad6a95cb20abf4f78a7c89a84b5a332edb49d8"
