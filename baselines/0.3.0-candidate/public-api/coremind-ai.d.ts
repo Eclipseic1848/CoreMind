@@ -71,6 +71,12 @@ import { ExperimentError } from 'coremind-runtime';
 import { ExperimentRecord } from 'coremind-runtime';
 import { ExperimentRunEvidence } from 'coremind-runtime';
 import { ExperimentSelection } from 'coremind-runtime';
+import { FactAppendOptions } from 'coremind-runtime';
+import { FactDurabilityReceipt } from 'coremind-runtime';
+import { FactLedger } from 'coremind-runtime';
+import { FactLedgerLevelMetrics } from 'coremind-runtime';
+import { FactLedgerMetrics } from 'coremind-runtime';
+import { FactLedgerStatus } from 'coremind-runtime';
 import { FileDiffOptions } from 'coremind-tools';
 import { FileGrader } from 'coremind-runtime';
 import { FileRunStore } from 'coremind-runtime';
@@ -331,6 +337,18 @@ export { ExperimentRecord }
 export { ExperimentRunEvidence }
 
 export { ExperimentSelection }
+
+export { FactAppendOptions }
+
+export { FactDurabilityReceipt }
+
+export { FactLedger }
+
+export { FactLedgerLevelMetrics }
+
+export { FactLedgerMetrics }
+
+export { FactLedgerStatus }
 
 export { FileDiffOptions }
 

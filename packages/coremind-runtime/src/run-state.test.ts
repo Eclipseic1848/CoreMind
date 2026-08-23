@@ -56,6 +56,27 @@ describe("RunState", () => {
     });
   });
 
+  it("读取旧记录时保留 eventId 缺失，不伪造 durability receipt", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-legacy-fact-"));
+    const store = new FileRunStore(dir);
+    const legacy = record(1, "event", { legacy: "0.3.1" });
+    writeFileSync(store.pathFor(legacy.runId), `${JSON.stringify(legacy)}\n`, "utf8");
+
+    const [loaded] = await store.read(legacy.runId);
+
+    expect(loaded).toEqual(legacy);
+    expect(loaded).not.toHaveProperty("eventId");
+    expect(loaded).not.toHaveProperty("durability");
+    expect(loaded).not.toHaveProperty("acknowledgement");
+  });
+
+  it("拒绝新记录中的空 eventId", async () => {
+    const store = new MemoryRunStore();
+    await expect(store.append({ ...record(1, "event", {}), eventId: " " })).rejects.toMatchObject({
+      code: "run_state_corrupt",
+    });
+  });
+
   it("Journal 拒绝 Store 越权或降级的 critical acknowledgement", async () => {
     let unsupportedBarrierCalls = 0;
     const ordinaryOnly = {
@@ -210,10 +231,7 @@ describe("RunState", () => {
     ]);
     expect(right).toEqual(left);
     const records = left;
-    expect(records.map((item) => item.payload)).toEqual([
-      { probe: "process-crash" },
-      { type: "probe_fact", value: "critical-visible-after-exit" },
-    ]);
+    expect(records.map((item) => item.payload)).toEqual([{ probe: "process-crash" }]);
   });
 
   it("无法证明 owner 已死亡的空白或异常 lock 不会被自动删除", async () => {
@@ -653,27 +671,30 @@ describe("RunState", () => {
 });
 
 describe("RunStateJournal 事件准入（取消收敛）", () => {
-  it("markAborted 后收尾事实（pause/finish/operation/loop）放行", async () => {
-    const store = new MemoryRunStore();
-    const journal = new RunStateJournal("run-admit", store);
-    await journal.start({ configFingerprint: "fingerprint" });
+  it.each(["pause", "finish"] as const)(
+    "markAborted 后 operation/loop 与唯一 %s 终态放行",
+    async (terminalKind) => {
+      const store = new MemoryRunStore();
+      const runId = `run-admit-${terminalKind}`;
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configFingerprint: "fingerprint" });
 
-    journal.markAborted();
-    journal.operation({ type: "operation" });
-    journal.loop({ phase: "failed" } as never);
-    journal.pause({ reason: "aborted" });
-    journal.finish({ outcome: { status: "aborted" } });
-    await journal.flush();
+      journal.markAborted();
+      journal.operation({ type: "operation" });
+      journal.loop({ phase: "failed" } as never);
+      if (terminalKind === "pause") journal.pause({ reason: "aborted" });
+      else journal.finish({ outcome: { status: "aborted" } });
+      await journal.flush();
 
-    const records = await store.read("run-admit");
-    expect(records.map((item) => item.kind)).toEqual([
-      "start",
-      "operation",
-      "loop",
-      "pause",
-      "finish",
-    ]);
-  });
+      const records = await store.read(runId);
+      expect(records.map((item) => item.kind)).toEqual([
+        "start",
+        "operation",
+        "loop",
+        terminalKind,
+      ]);
+    },
+  );
 
   it("markAborted 后终态类事件（tool_result/turn_end）被拒绝写入并计数，不抛错", async () => {
     const store = new MemoryRunStore();

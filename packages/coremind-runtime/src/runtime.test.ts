@@ -71,11 +71,9 @@ describe("CoreMindRuntime", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-terminal-barrier-"));
     const server = createTextSequenceServer(["完成"]);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    let criticalBarriers = 0;
     const store = new FileRunStore(path.join(dir, "runs"), {
-      beforeBarrier: () => {
-        criticalBarriers += 1;
-        if (criticalBarriers === 2) throw new Error("terminal barrier failed");
+      beforeBarrier: ({ record }) => {
+        if (record?.kind === "finish") throw new Error("terminal barrier failed");
       },
     });
 
@@ -107,14 +105,7 @@ describe("CoreMindRuntime", () => {
       });
       const records = await store.read(result.runId);
       const finishes = records.filter((record) => record.kind === "finish");
-      expect(finishes).toHaveLength(2);
-      expect(finishes.at(-1)?.payload).toMatchObject({
-        outcome: {
-          status: "failed",
-          error: { code: "durability_barrier_failed" },
-        },
-        supersedesUnacknowledgedTerminal: true,
-      });
+      expect(finishes).toEqual([]);
       expect(
         checkInvariantFacts({ runRecords: records }, { mode: "eval" }).filter(
           (violation) => violation.invariant === "I-3",
@@ -163,11 +154,14 @@ describe("CoreMindRuntime", () => {
     const target = path.join(dir, "article.md");
     const server = createWriteCallingServer();
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    let criticalBarriers = 0;
     const store = new FileRunStore(path.join(dir, "runs"), {
-      beforeBarrier: () => {
-        criticalBarriers += 1;
-        if (criticalBarriers === 2) throw new Error("started barrier failed");
+      beforeBarrier: ({ record }) => {
+        const payload = record?.payload as
+          | { event?: { type?: string; status?: string } }
+          | undefined;
+        if (payload?.event?.type === "effect_receipt" && payload.event.status === "started") {
+          throw new Error("started barrier failed");
+        }
       },
     });
 
@@ -205,16 +199,69 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it("started Receipt 在 critical acknowledgement 完成前不可见为可执行", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-started-pending-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let barrierEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      barrierEntered = resolve;
+    });
+    let acknowledge!: () => void;
+    const acknowledgement = new Promise<void>((resolve) => {
+      acknowledge = resolve;
+    });
+    const store = new FileRunStore(path.join(dir, "runs"), {
+      beforeBarrier: async ({ record }) => {
+        const payload = record?.payload as
+          | { event?: { type?: string; status?: string } }
+          | undefined;
+        if (payload?.event?.type === "effect_receipt" && payload.event.status === "started") {
+          barrierEntered();
+          await acknowledgement;
+        }
+      },
+    });
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+          }),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        runStore: store,
+      });
+
+      const run = runtime.run();
+      await entered;
+      expect(existsSync(target)).toBe(false);
+      acknowledge();
+      const result = await run;
+
+      expect(readFileSync(target, "utf8")).toBe("已写入");
+      expect(result.outcome.status).toBe("succeeded");
+    } finally {
+      acknowledge?.();
+      await closeServer(server);
+    }
+  });
+
   it("Tool 返回后 result barrier 失败保留执行与 Effect 事实，只把持久化标为失败", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-result-barrier-"));
     const target = path.join(dir, "article.md");
     const server = createWriteCallingServer();
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    let criticalBarriers = 0;
     const store = new FileRunStore(path.join(dir, "runs"), {
-      beforeBarrier: () => {
-        criticalBarriers += 1;
-        if (criticalBarriers === 3) throw new Error("result barrier failed");
+      beforeBarrier: ({ record }) => {
+        const payload = record?.payload as { event?: { type?: string } } | undefined;
+        if (payload?.event?.type === "tool_result") throw new Error("result barrier failed");
       },
     });
 
@@ -1292,7 +1339,8 @@ describe("CoreMindRuntime", () => {
           },
         ],
       };
-      const store = new MemoryRunStore();
+      const runStateDir = mkdtempSync(path.join(tmpdir(), "coremind-run-resume-state-"));
+      const store = new FileRunStore(runStateDir);
       const journal = new RunStateJournal("resume-run", store);
       await journal.start({
         configFingerprint: fingerprintRunConfig(config),

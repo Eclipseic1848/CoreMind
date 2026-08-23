@@ -8,6 +8,13 @@ import {
 } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import {
+  type FactAppendOptions,
+  type FactDurabilityReceipt,
+  FactLedger,
+  type FactLedgerMetrics,
+  type FactLedgerStatus,
+} from "./fact-ledger.js";
 import { inputFingerprint } from "./input-receipt.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import {
@@ -42,6 +49,7 @@ export interface RunStateRecord {
   version: 1;
   runId: string;
   sequence: number;
+  eventId?: string;
   timestamp: string;
   kind: RunStateKind;
   payload: unknown;
@@ -71,6 +79,10 @@ export interface RunStore {
   readonly supportedDurability?: readonly RunStoreDurability[];
   readonly durabilityBoundary?: RunStoreDurabilityBoundary;
   append(record: RunStateRecord): Promise<void>;
+  commit?(
+    record: RunStateRecord,
+    durability: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement>;
   barrier?(
     runId: string,
     requested: RunStoreDurability,
@@ -105,6 +117,8 @@ export interface FileRunStoreOptions {
     destination: string;
     runId: string;
     requested: RunStoreDurability;
+    /** 精确 Fact commit 时为当前记录；全局 barrier 时缺省。 */
+    record?: RunStateRecord;
   }) => void | Promise<void>;
   lockTimeoutMs?: number;
 }
@@ -127,35 +141,32 @@ export class FileRunStore implements RunStore {
 
   async append(record: RunStateRecord): Promise<void> {
     try {
-      const destination = this.pathFor(record.runId);
-      validateRecord(record, record.runId);
-      await this.withWriterLock(destination, async () => {
-        const parsed = await this.readUnlocked(record.runId, destination);
-        const duplicate = parsed.records.find((item) => item.sequence === record.sequence);
-        if (duplicate) {
-          if (stableJson(duplicate) === stableJson(record)) return;
-          throw new CoreMindError(
-            "run_state_conflict",
-            `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
-          );
-        }
-        const expectedSequence = (parsed.records.at(-1)?.sequence ?? 0) + 1;
-        if (record.sequence !== expectedSequence) {
-          throw new CoreMindError(
-            "run_state_conflict",
-            `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
-          );
-        }
-        const text = `${parsed.records.map((item) => JSON.stringify(item)).join("\n")}${
-          parsed.records.length > 0 ? "\n" : ""
-        }${JSON.stringify(record)}\n`;
-        await this.publishAtomically(destination, text, record);
-      });
+      await this.writeRecord(record, "ordinary");
     } catch (error) {
       if (error instanceof CoreMindError) throw error;
       throw new CoreMindError(
         "run_state_failed",
         `RunState 写入失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async commit(
+    record: RunStateRecord,
+    durability: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement> {
+    assertSupportedDurability(this, durability);
+    try {
+      await this.writeRecord(record, durability);
+      return durabilityAcknowledgement(this, durability);
+    } catch (error) {
+      if (error instanceof CoreMindError) throw error;
+      const code = durability === "critical" ? "durability_barrier_failed" : "run_state_failed";
+      throw new CoreMindError(
+        code,
+        `RunState ${record.runId} 的 ${durability} commit 失败：${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
@@ -254,15 +265,75 @@ export class FileRunStore implements RunStore {
     destination: string,
     text: string,
     record?: RunStateRecord,
+    durability: RunStoreDurability = "ordinary",
   ): Promise<void> {
     const temporary = `${destination}.${process.pid}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit?.({ destination, temporary, record });
+      if (durability === "critical") {
+        let handle: Awaited<ReturnType<typeof open>> | undefined;
+        try {
+          handle = await open(temporary, "r+");
+          await this.options.beforeBarrier?.({
+            destination,
+            runId: record!.runId,
+            requested: durability,
+            record,
+          });
+          await handle.sync();
+        } finally {
+          await handle?.close().catch(() => undefined);
+        }
+      }
       await rename(temporary, destination);
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined);
     }
+  }
+
+  private async writeRecord(record: RunStateRecord, durability: RunStoreDurability): Promise<void> {
+    const destination = this.pathFor(record.runId);
+    validateRecord(record, record.runId);
+    await this.withWriterLock(destination, async () => {
+      const parsed = await this.readUnlocked(record.runId, destination);
+      const duplicate = parsed.records.find((item) => item.sequence === record.sequence);
+      if (duplicate) {
+        if (stableJson(duplicate) === stableJson(record)) {
+          if (durability === "critical") {
+            let handle: Awaited<ReturnType<typeof open>> | undefined;
+            try {
+              handle = await open(destination, "r+");
+              await this.options.beforeBarrier?.({
+                destination,
+                runId: record.runId,
+                requested: durability,
+                record,
+              });
+              await handle.sync();
+            } finally {
+              await handle?.close().catch(() => undefined);
+            }
+          }
+          return;
+        }
+        throw new CoreMindError(
+          "run_state_conflict",
+          `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
+        );
+      }
+      const expectedSequence = (parsed.records.at(-1)?.sequence ?? 0) + 1;
+      if (record.sequence !== expectedSequence) {
+        throw new CoreMindError(
+          "run_state_conflict",
+          `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
+        );
+      }
+      const text = `${parsed.records.map((item) => JSON.stringify(item)).join("\n")}${
+        parsed.records.length > 0 ? "\n" : ""
+      }${JSON.stringify(record)}\n`;
+      await this.publishAtomically(destination, text, record, durability);
+    });
   }
 
   private async withWriterLock<T>(destination: string, operation: () => Promise<T>): Promise<T> {
@@ -432,6 +503,15 @@ export class MemoryRunStore implements RunStore {
     this.records.set(record.runId, items);
   }
 
+  async commit(
+    record: RunStateRecord,
+    durability: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement> {
+    assertSupportedDurability(this, durability);
+    await this.append(record);
+    return durabilityAcknowledgement(this, durability);
+  }
+
   async read(runId: string): Promise<RunStateRecord[]> {
     return structuredClone(this.records.get(runId) ?? []);
   }
@@ -447,8 +527,7 @@ export class MemoryRunStore implements RunStore {
 
 /** 把同步事件串行化为 RunStore 的有序异步写入。 */
 export class RunStateJournal {
-  private sequence: number;
-  private pending: Promise<void> = Promise.resolve();
+  private readonly ledger: FactLedger;
   private aborted = false;
   private rejectedAfterAbortCount = 0;
   private knownTurnIds?: ReadonlySet<string>;
@@ -462,7 +541,7 @@ export class RunStateJournal {
     readonly store: RunStore,
     initialSequence = 0,
   ) {
-    this.sequence = initialSequence;
+    this.ledger = new FactLedger(runId, store, initialSequence);
   }
 
   /**
@@ -499,8 +578,7 @@ export class RunStateJournal {
   }
 
   async start(payload: unknown): Promise<void> {
-    this.enqueue("start", payload);
-    await this.flush();
+    await this.appendFact("start", payload);
   }
 
   event(payload: unknown): void {
@@ -535,7 +613,7 @@ export class RunStateJournal {
     durability: RunStoreDurability = "ordinary",
   ): Promise<RunStoreDurabilityAcknowledgement> {
     try {
-      await this.pending;
+      await this.ledger.flush();
       assertSupportedDurability(this.store, durability);
       const acknowledgement = this.store.barrier
         ? await this.store.barrier(this.runId, durability)
@@ -553,24 +631,33 @@ export class RunStateJournal {
     return structuredClone(this.durabilityCounters);
   }
 
+  appendFact(
+    kind: RunStateKind,
+    payload: unknown,
+    options: FactAppendOptions = {},
+  ): Promise<FactDurabilityReceipt> {
+    return this.ledger.append(kind, payload, options);
+  }
+
+  factMetrics(): FactLedgerMetrics {
+    return this.ledger.metrics();
+  }
+
+  factStatus(): FactLedgerStatus {
+    return this.ledger.status();
+  }
+
+  pendingFactCount(): number {
+    return this.ledger.metrics().pending;
+  }
+
   private enqueue(kind: RunStateKind, payload: unknown): void {
     // 事件准入（规格 03 §3）：分界点后的终态类事件拒绝写入，静默不抛错
     if (this.aborted && kind === "event" && isRejectedAfterAbort(payload, this.knownTurnIds)) {
       this.rejectedAfterAbortCount += 1;
       return;
     }
-    const record: RunStateRecord = {
-      version: 1,
-      runId: this.runId,
-      sequence: ++this.sequence,
-      timestamp: new Date().toISOString(),
-      kind,
-      payload,
-    };
-    incrementPendingFlush(this);
-    this.pending = this.pending
-      .then(() => this.store.append(record))
-      .finally(() => decrementPendingFlush(this));
+    void this.appendFact(kind, payload);
   }
 }
 
@@ -632,26 +719,9 @@ function validateDurabilityAcknowledgement(
   );
 }
 
-/**
- * 每个 journal 的未落盘 append 计数（静止判定用：append 队列空且已落盘）。
- * 模块级 WeakMap 而非类字段：避免进入 api-extractor 的 untrimmed d.ts（冻结基线逐字哈希，
- * #39 教训：类私有成员也会出现在 d.ts 中）。
- */
-const journalPendingWrites = new WeakMap<RunStateJournal, number>();
-
-function incrementPendingFlush(journal: RunStateJournal): void {
-  journalPendingWrites.set(journal, (journalPendingWrites.get(journal) ?? 0) + 1);
-}
-
-function decrementPendingFlush(journal: RunStateJournal): void {
-  const count = (journalPendingWrites.get(journal) ?? 1) - 1;
-  if (count <= 0) journalPendingWrites.delete(journal);
-  else journalPendingWrites.set(journal, count);
-}
-
 /** journal 是否仍有未落盘的写入（规格 03 §5：静止条件之一） */
 export function hasPendingJournalFlush(journal: RunStateJournal): boolean {
-  return (journalPendingWrites.get(journal) ?? 0) > 0;
+  return journal.pendingFactCount() > 0;
 }
 
 /**
@@ -1083,6 +1153,8 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     record.runId !== expectedRunId ||
     !Number.isInteger(record.sequence) ||
     typeof record.timestamp !== "string" ||
+    (record.eventId !== undefined &&
+      (typeof record.eventId !== "string" || record.eventId.trim().length === 0)) ||
     !["start", "resume", "event", "checkpoint", "loop", "operation", "pause", "finish"].includes(
       record.kind ?? "",
     )

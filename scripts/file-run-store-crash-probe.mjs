@@ -24,8 +24,11 @@ const store = new FileRunStore(
 );
 const journal = new RunStateJournal(runId, store);
 await journal.start({ probe: "process-crash" });
-journal.event({ type: "probe_fact", value: "critical-visible-after-exit" });
-await journal.flush("critical");
+await journal.appendFact(
+  "event",
+  { type: "probe_fact", value: "critical-visible-after-exit" },
+  { durability: "critical", eventId: "crash-probe-critical-fact" },
+);
 
-// 不执行 Runtime 的正常收尾，模拟 barrier ack 后进程立即退出。
+// 不执行 Runtime 的正常收尾，模拟精确 Fact commit ack 后进程立即退出。
 process.exit(86);
