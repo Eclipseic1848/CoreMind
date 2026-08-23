@@ -613,8 +613,30 @@ export class CoreMindRuntime {
       queueMicrotask(() => {
         const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
         const finalizer = (async () => {
-          await journal.flush();
-          await toolExecutionEngine.finalizeResult(identity);
+          const lifecycle = toolExecutionEngine.inspect(identity);
+          const capability = capabilityByCallId.get(
+            toolCapabilityCallKey(event.agent, event.stepId, event.callId!),
+          )?.capability;
+          const durability =
+            lifecycle?.result.executionOutcome === "not_invoked"
+              ? "ordinary"
+              : (capability?.durability ?? "critical");
+          try {
+            await journal.flush(durability);
+            await toolExecutionEngine.finalizeResult(identity);
+          } catch (error) {
+            const failure =
+              error instanceof CoreMindError
+                ? error
+                : new CoreMindError(
+                    "durability_barrier_failed",
+                    error instanceof Error ? error.message : String(error),
+                  );
+            if (toolExecutionEngine.inspect(identity)?.currentPhase === "observed") {
+              await toolExecutionEngine.failResultDurability(identity, failure.message);
+            }
+            throw failure;
+          }
         })();
         lifecycleFinalizers.add(finalizer);
         void finalizer
@@ -865,6 +887,19 @@ export class CoreMindRuntime {
                   reason: "Policy 在审批前拒绝 Call",
                 },
           );
+          if (decision.approvalId) {
+            try {
+              await journal.flush("critical");
+            } catch (error) {
+              checkpointFailure = durabilityFailure(error);
+              await toolExecutionEngine.blockBeforeExecution(
+                lifecycleIdentity,
+                checkpointFailure.message,
+              );
+              emit({ type: "error", message: checkpointFailure.message, fatal: true });
+              return { block: true, reason: checkpointFailure.message, terminate: true };
+            }
+          }
           await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, decision.reason);
           deniedAgents.add(agentName);
           emit({
@@ -885,6 +920,19 @@ export class CoreMindRuntime {
                 reason: decision.reason,
               },
         );
+        if (decision.approvedBy === "user") {
+          try {
+            await journal.flush("critical");
+          } catch (error) {
+            checkpointFailure = durabilityFailure(error);
+            await toolExecutionEngine.blockBeforeExecution(
+              lifecycleIdentity,
+              checkpointFailure.message,
+            );
+            emit({ type: "error", message: checkpointFailure.message, fatal: true });
+            return { block: true, reason: checkpointFailure.message, terminate: true };
+          }
+        }
         const extensionDecision = await dispatchLifecycle("before-tool", {
           runId,
           agent: agentName,
@@ -945,7 +993,7 @@ export class CoreMindRuntime {
                 reversible: checkpoint.reversible,
               });
             }
-            await journal.flush();
+            await journal.flush("critical");
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "checkpoint_durable",
               status: "completed",
@@ -979,15 +1027,30 @@ export class CoreMindRuntime {
         }
         effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
         if (resolvedCapability.durability === "critical") {
-          await journal.flush();
-          await toolExecutionEngine.advance(lifecycleIdentity, {
-            phase: "started_durable",
-            status: "completed",
-            result: {
-              effectState: resolvedCapability.effect === "none" ? "not_started" : "started",
-              cleanupState: resolvedCapability.effect === "none" ? "not_needed" : "pending",
-            },
-          });
+          try {
+            await journal.flush("critical");
+            await toolExecutionEngine.advance(lifecycleIdentity, {
+              phase: "started_durable",
+              status: "completed",
+              result: {
+                effectState: resolvedCapability.effect === "none" ? "not_started" : "started",
+                cleanupState: resolvedCapability.effect === "none" ? "not_needed" : "pending",
+              },
+            });
+          } catch (error) {
+            checkpointFailure = durabilityFailure(error);
+            await toolExecutionEngine.advance(lifecycleIdentity, {
+              phase: "started_durable",
+              status: "failed",
+              reason: checkpointFailure.message,
+            });
+            await toolExecutionEngine.blockBeforeExecution(
+              lifecycleIdentity,
+              checkpointFailure.message,
+            );
+            emit({ type: "error", message: checkpointFailure.message, fatal: true });
+            return { block: true, reason: checkpointFailure.message };
+          }
         } else {
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "started_durable",
@@ -1261,7 +1324,13 @@ export class CoreMindRuntime {
     while (lifecycleFinalizers.size > 0) {
       await Promise.allSettled([...lifecycleFinalizers]);
     }
-    if (lifecycleFailure && terminalError === undefined) terminalError = lifecycleFailure;
+    if (
+      lifecycleFailure &&
+      (terminalError === undefined ||
+        (terminalError instanceof CoreMindError && terminalError.code === "agent_failed"))
+    ) {
+      terminalError = lifecycleFailure;
+    }
 
     // 静止等待（规格 03 §5）：runWithGuard 收尾路径调用，等所有 agent 真正 idle、
     // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
@@ -1286,6 +1355,11 @@ export class CoreMindRuntime {
     if (terminalError !== undefined && transcript.length === 0 && !journal.isAborted()) {
       transcript = extractText(allMessages);
     }
+    try {
+      await journal.flush("critical");
+    } catch (error) {
+      terminalError = durabilityFailure(error);
+    }
     const metrics = analyzeRunMetrics(
       collected,
       allMessages,
@@ -1293,7 +1367,7 @@ export class CoreMindRuntime {
       transcript.length,
       journal.rejectedAfterAbort(),
     );
-    const outcome = new RunTerminalizer().terminalize(collected, terminalError);
+    let outcome = new RunTerminalizer().terminalize(collected, terminalError);
     // 输入收据终态（规格 03 §4）：succeeded → completed；abort/超时/预算/失败 → discarded
     // （未消费输入）；paused（审批拒绝等）保持 claimed，resume 继续同一输入
     if (inputReceiptState !== undefined && inputReceiptState !== "completed") {
@@ -1305,8 +1379,8 @@ export class CoreMindRuntime {
         emitInputEvent(discardInput({ inputId: inputId! }));
       }
     }
-    const evaluation = createEvaluationReport(this.config.quality, metrics);
-    const releaseReadiness = assessReleaseReadiness(outcome, evaluation);
+    let evaluation = createEvaluationReport(this.config.quality, metrics);
+    let releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     const irreversibleTools = [
       ...new Set(
         checkpointManager.records
@@ -1375,7 +1449,33 @@ export class CoreMindRuntime {
         releaseReadiness,
       });
     }
-    await journal.flush();
+    const terminalDurabilityFailure =
+      terminalError instanceof CoreMindError &&
+      (terminalError.code === "durability_unsupported" ||
+        terminalError.code === "durability_barrier_failed");
+    try {
+      await journal.flush(terminalDurabilityFailure ? "ordinary" : "critical");
+    } catch (error) {
+      const finalDurabilityFailure = durabilityFailure(error);
+      terminalError = finalDurabilityFailure;
+      // 首条 finish 已入 append-only 日志后，只允许紧邻的收敛 finish；错误仍通知调用方，
+      // 但不再追加会违反 I-3 的终态后 Trace Fact。
+      userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
+      outcome = new RunTerminalizer().terminalize(collected, terminalError);
+      evaluation = createEvaluationReport(this.config.quality, metrics);
+      releaseReadiness = assessReleaseReadiness(outcome, evaluation);
+      // append-only 日志不能删除先前未获 critical ack 的候选终态；追加最终失败收敛记录，
+      // 让持久投影与返回结果都以最后一条 finish 为准。
+      journal.finish({
+        operation: operation.snapshot(),
+        outcome,
+        metrics,
+        evaluation,
+        releaseReadiness,
+        supersedesUnacknowledgedTerminal: true,
+      });
+      await journal.flush("ordinary");
+    }
     const snapshot = createRunSnapshot({
       runId: trace.runId,
       operation: operation.snapshot(),
@@ -1609,6 +1709,15 @@ const QUIESCENCE_POLL_INTERVAL_MS = 10;
  * journal 无 pending flush。模块级函数而非 private 方法：避免进入 untrimmed d.ts
  * （#39 教训：类私有成员也会进 d.ts，冻结基线逐字哈希会失败）。
  */
+function durabilityFailure(error: unknown): CoreMindError {
+  return error instanceof CoreMindError
+    ? error
+    : new CoreMindError(
+        "durability_barrier_failed",
+        error instanceof Error ? error.message : String(error),
+      );
+}
+
 function isQuiescent(agents: Map<string, Agent>, journal: RunStateJournal | undefined): boolean {
   for (const agent of agents.values()) {
     if (agent.state.isStreaming) return false;

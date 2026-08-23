@@ -13,6 +13,8 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Preserve legacy `effect` inputs through conservative migration, while projecting 0.3.0/0.3.1 records without Capability Facts explicitly as `legacy/unknown`.
 - Added one Tool Call lifecycle reducer with orthogonal result axes; success, denial, tool failure, persistence failure, cancellation, and timeout now converge to one offline-reconstructible terminal state.
 - Unified recovery decisions for Runtime, RunSnapshot, Worker, and both SDKs on the persisted lifecycle projection; a non-idempotent or unknown Effect is never replayed automatically once it may have started.
+- Added ordinary/critical capability and acknowledgement contracts to `RunStore`; File Store claims only the boundary verified by Windows/Linux process-crash probes, while Memory Store no longer presents memory visibility as critical durability.
+- Checkpoints, started Receipts, and critical Tool Results now use critical barriers around Adapter execution; failures keep execution, Effect, and persistence axes orthogonal and expose level-specific metrics.
 
 ## 0.3.1 — 2026-08-21
 

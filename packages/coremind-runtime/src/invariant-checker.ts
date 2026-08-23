@@ -48,6 +48,8 @@ export function checkInvariantFacts(
   const recordsBySequence = new Map<string, RunStateRecord>();
   const latestSequenceByRun = new Map<string, number>();
   const finishedRunIds = new Set<string>();
+  const correctedTerminalRunIds = new Set<string>();
+  const lastRecordByRun = new Map<string, RunStateRecord>();
   const interruptedRunIds = new Set<string>();
   const startedSteps = new Set<string>();
   const currentTurnByRun = new Map<string, string>();
@@ -300,7 +302,14 @@ export function checkInvariantFacts(
         startedSteps.add(stepKey);
       }
     }
-    if (finishedRunIds.has(record.runId)) {
+    const terminalCorrection = isTerminalDurabilityCorrection(
+      record,
+      lastRecordByRun.get(record.runId),
+    );
+    if (
+      finishedRunIds.has(record.runId) &&
+      (correctedTerminalRunIds.has(record.runId) || !terminalCorrection)
+    ) {
       violations.push({
         invariant: "I-3",
         message: "Run 终态之后仍存在新记录",
@@ -308,12 +317,14 @@ export function checkInvariantFacts(
         sequence: record.sequence,
       });
     }
+    if (terminalCorrection) correctedTerminalRunIds.add(record.runId);
     if (record.kind === "finish") {
       finishedRunIds.add(record.runId);
       if (finishStatus(record) === "aborted" || finishStatus(record) === "timeout") {
         interruptedRunIds.add(record.runId);
       }
     }
+    lastRecordByRun.set(record.runId, record);
   }
   for (const [key, call] of calls) {
     const receiptCount = call.receiptId ? (terminalReceiptCounts.get(call.receiptId) ?? 0) : 0;
@@ -388,6 +399,31 @@ export function checkInvariantFacts(
     });
   }
   return violations;
+}
+
+function isTerminalDurabilityCorrection(
+  record: RunStateRecord,
+  previous: RunStateRecord | undefined,
+): boolean {
+  if (
+    record.kind !== "finish" ||
+    previous?.kind !== "finish" ||
+    previous.runId !== record.runId ||
+    record.payload === null ||
+    typeof record.payload !== "object"
+  ) {
+    return false;
+  }
+  const payload = record.payload as {
+    supersedesUnacknowledgedTerminal?: unknown;
+    outcome?: { status?: unknown; error?: { code?: unknown } };
+  };
+  return (
+    payload.supersedesUnacknowledgedTerminal === true &&
+    payload.outcome?.status === "failed" &&
+    (payload.outcome.error?.code === "durability_unsupported" ||
+      payload.outcome.error?.code === "durability_barrier_failed")
+  );
 }
 
 function finishStatus(record: RunStateRecord): unknown {

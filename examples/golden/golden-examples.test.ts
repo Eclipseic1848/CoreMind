@@ -1,14 +1,16 @@
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   type CoreMindConfig,
   CoreMindRuntime,
   checkProject,
+  FileRunStore,
   loadConfigFile,
   loadEvaluationSuite,
-  MemoryRunStore,
   parseAndValidate,
   runEvaluationSuite,
 } from "coremind-ai";
@@ -94,7 +96,8 @@ describe("五个黄金示例", () => {
     await withServer("loop", async (baseUrl) => {
       const projectDir = path.join(goldenRoot, "verified-repair-loop");
       const baseConfig = await loadConfig(projectDir, baseUrl);
-      const store = new MemoryRunStore();
+      const runDir = mkdtempSync(path.join(tmpdir(), "coremind-golden-loop-"));
+      const store = new FileRunStore(path.join(runDir, "runs"));
       const pausedConfig: CoreMindConfig = {
         ...baseConfig,
         loop: { ...baseConfig.loop!, onFailure: "pause" },

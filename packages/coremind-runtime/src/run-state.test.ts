@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,6 +19,214 @@ import {
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
+  it("Store 在初始化时声明持久化能力，Memory 不能把内存可见伪装成 critical", async () => {
+    const memory = new MemoryRunStore();
+    const file = new FileRunStore(mkdtempSync(path.join(tmpdir(), "coremind-run-durability-")));
+
+    expect(memory.supportedDurability).toEqual(["ordinary"]);
+    expect(file.supportedDurability).toEqual(["ordinary", "critical"]);
+    expect(file.durabilityBoundary).toBe("process_crash");
+
+    const journal = new RunStateJournal("run-memory-critical", memory);
+    journal.event({ type: "agent_start", agent: "main" });
+    await expect(journal.flush("critical")).rejects.toMatchObject({
+      code: "durability_unsupported",
+    });
+    expect(await memory.read("run-memory-critical")).toHaveLength(1);
+  });
+
+  it("旧 RunStore 保持 ordinary 兼容，但缺少 barrier 时不能升级为 critical", async () => {
+    const records: RunStateRecord[] = [];
+    const legacyStore = {
+      append: async (item: RunStateRecord) => {
+        records.push(item);
+      },
+      read: async () => structuredClone(records),
+    };
+    const journal = new RunStateJournal("run-legacy-store", legacyStore);
+    journal.event({ legacy: true });
+
+    await expect(journal.flush()).resolves.toMatchObject({
+      requested: "ordinary",
+      achieved: "ordinary",
+      boundary: "process_memory",
+    });
+    await expect(journal.flush("critical")).rejects.toMatchObject({
+      code: "durability_unsupported",
+    });
+  });
+
+  it("Journal 拒绝 Store 越权或降级的 critical acknowledgement", async () => {
+    let unsupportedBarrierCalls = 0;
+    const ordinaryOnly = {
+      supportedDurability: ["ordinary"] as const,
+      durabilityBoundary: "process_memory" as const,
+      append: async (_item: RunStateRecord) => undefined,
+      read: async () => [],
+      barrier: async () => {
+        unsupportedBarrierCalls += 1;
+        return {
+          requested: "critical" as const,
+          achieved: "critical" as const,
+          boundary: "process_crash" as const,
+        };
+      },
+    };
+    const unsupported = new RunStateJournal("run-ordinary-only", ordinaryOnly);
+    unsupported.event({ unsafe: true });
+    await expect(unsupported.flush("critical")).rejects.toMatchObject({
+      code: "durability_unsupported",
+    });
+    expect(unsupportedBarrierCalls).toBe(0);
+
+    const downgraded = {
+      supportedDurability: ["ordinary", "critical"] as const,
+      durabilityBoundary: "process_crash" as const,
+      append: async (_item: RunStateRecord) => undefined,
+      read: async () => [],
+      barrier: async () => ({
+        requested: "critical" as const,
+        achieved: "ordinary" as const,
+        boundary: "process_crash" as const,
+      }),
+    };
+    const invalidAck = new RunStateJournal("run-downgraded-ack", downgraded);
+    invalidAck.event({ unsafe: true });
+    await expect(invalidAck.flush("critical")).rejects.toMatchObject({
+      code: "durability_barrier_failed",
+    });
+  });
+
+  it("critical barrier 只有在 Store 确认后成功，enqueue 成功不能冒充 committed", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-barrier-fault-"));
+    let failBarrier = true;
+    const store = new FileRunStore(dir, {
+      beforeBarrier: () => {
+        if (failBarrier) throw new Error("injected barrier failure");
+      },
+    });
+    const journal = new RunStateJournal("run-barrier-fault", store);
+    journal.event({ type: "effect_receipt", status: "started", turnId: "turn-1" });
+
+    await expect(journal.flush("critical")).rejects.toMatchObject({
+      code: "durability_barrier_failed",
+    });
+    expect(await store.read("run-barrier-fault")).toHaveLength(1);
+
+    failBarrier = false;
+    await expect(journal.flush("critical")).resolves.toMatchObject({
+      requested: "critical",
+      achieved: "critical",
+      boundary: "process_crash",
+    });
+    expect(journal.durabilityMetrics()).toEqual({
+      ordinary: { succeeded: 0, failed: 0 },
+      critical: { succeeded: 1, failed: 1 },
+    });
+  });
+
+  it("critical barrier 与后续 append 共用 writer lock，Windows 不发生打开文件 rename 竞态", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-barrier-race-"));
+    let releaseBarrier!: () => void;
+    const barrierReleased = new Promise<void>((resolve) => {
+      releaseBarrier = resolve;
+    });
+    let enterBarrier!: () => void;
+    const barrierEntered = new Promise<void>((resolve) => {
+      enterBarrier = resolve;
+    });
+    const store = new FileRunStore(dir, {
+      beforeBarrier: async () => {
+        enterBarrier();
+        await barrierReleased;
+      },
+    });
+    const journal = new RunStateJournal("run-barrier-race", store);
+    journal.event({ order: 1 });
+    const critical = journal.flush("critical");
+    await barrierEntered;
+    journal.event({ order: 2 });
+    releaseBarrier();
+
+    await critical;
+    await journal.flush();
+    expect((await store.read("run-barrier-race")).map((item) => item.payload)).toEqual([
+      { order: 1 },
+      { order: 2 },
+    ]);
+  });
+
+  it("多个 File Store 争用同一 writer lock 时重试 Windows EPERM/EACCES", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-lock-contention-"));
+    const runId = "run-lock-contention";
+    const stores = Array.from(
+      { length: 64 },
+      () => new FileRunStore(dir, { lockTimeoutMs: 10_000 }),
+    );
+    await stores[0]!.append({
+      ...record(1, "start", { configFingerprint: "same" }),
+      runId,
+    });
+
+    await Promise.all(
+      stores.map((store, index) =>
+        index % 2 === 0 ? store.read(runId) : store.barrier(runId, "critical"),
+      ),
+    );
+
+    expect(await stores[0]!.read(runId)).toHaveLength(1);
+  });
+
+  it("File Store critical ack 后进程立即退出，Windows/Linux 均可读取稳定 Fact 前缀", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-crash-probe-"));
+    const repositoryRoot = process.env.INIT_CWD ?? process.cwd();
+    const script = path.join(repositoryRoot, "scripts", "file-run-store-crash-probe.mjs");
+    const child = spawnSync(process.execPath, [script, dir, "run-crash-probe"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+
+    expect(child.status, child.stderr).toBe(86);
+    const records = await new FileRunStore(dir).read("run-crash-probe");
+    expect(records.map((item) => item.payload)).toEqual([
+      { probe: "process-crash" },
+      { type: "probe_fact", value: "critical-visible-after-exit" },
+    ]);
+  });
+
+  it("File Store 持锁进程崩溃后回收 dead-owner lock，并保留已有稳定前缀", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-stale-lock-probe-"));
+    const repositoryRoot = process.env.INIT_CWD ?? process.cwd();
+    const script = path.join(repositoryRoot, "scripts", "file-run-store-crash-probe.mjs");
+    const child = spawnSync(process.execPath, [script, dir, "run-stale-lock-probe", "lock-crash"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+
+    expect(child.status, child.stderr).toBe(87);
+    const [left, right] = await Promise.all([
+      new FileRunStore(dir).read("run-stale-lock-probe"),
+      new FileRunStore(dir).read("run-stale-lock-probe"),
+    ]);
+    expect(right).toEqual(left);
+    const records = left;
+    expect(records.map((item) => item.payload)).toEqual([
+      { probe: "process-crash" },
+      { type: "probe_fact", value: "critical-visible-after-exit" },
+    ]);
+  });
+
+  it("无法证明 owner 已死亡的空白或异常 lock 不会被自动删除", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-invalid-lock-"));
+    const lockPath = path.join(dir, "run-invalid-lock.jsonl.lock");
+    writeFileSync(lockPath, "", "utf8");
+
+    await expect(
+      new FileRunStore(dir, { lockTimeoutMs: 20 }).read("run-invalid-lock"),
+    ).rejects.toMatchObject({ code: "run_state_locked" });
+    expect(readFileSync(lockPath, "utf8")).toBe("");
+  });
+
   it("拒绝持久化结果轴枚举非法的 tool_lifecycle Fact", async () => {
     const store = new MemoryRunStore();
     const invalid = traceRecord(1, 1, {
@@ -613,6 +822,51 @@ describe("isRejectedAfterAbort 分支覆盖", () => {
 });
 
 describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
+  it("started Receipt 不被较早 lifecycle 的 not_started 覆盖，崩溃前缀必须人工处置", () => {
+    const identity = { agent: "main", tool: "write", callId: "call-crash" };
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        ...identity,
+        idempotencyKey: "run-restore:call-crash",
+      }),
+      traceEntry(2, {
+        type: "tool_lifecycle",
+        ...identity,
+        resolution: { phase: "call_recorded", status: "completed" },
+      }),
+      traceEntry(3, {
+        type: "tool_lifecycle",
+        ...identity,
+        resolution: {
+          phase: "capability_resolved",
+          status: "completed",
+          result: { recoveryDisposition: "requires_human" },
+        },
+      }),
+      ...["policy_resolved", "approval_resolved", "lease_acquired", "checkpoint_durable"].map(
+        (phase, index) =>
+          traceEntry(index + 4, {
+            type: "tool_lifecycle",
+            ...identity,
+            resolution: { phase, status: "completed" },
+          }),
+      ),
+      traceEntry(8, {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "run-restore:call-crash",
+        status: "started",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({
+      tool: "write",
+      idempotencyKey: "run-restore:call-crash",
+      receiptStatus: "unknown",
+    });
+  });
+
   it("混合历史与 lifecycle Trace 时仍检查 legacy 不安全 Call", () => {
     const trace = [
       traceEntry(1, {

@@ -1043,13 +1043,17 @@ export declare interface FileGrader extends GraderBase {
 export declare class FileRunStore implements RunStore {
     readonly directory: string;
     private readonly options;
+    readonly supportedDurability: readonly ["ordinary", "critical"];
+    readonly durabilityBoundary: "process_crash";
     constructor(directory: string, options?: FileRunStoreOptions);
     pathFor(runId: string): string;
     append(record: RunStateRecord): Promise<void>;
+    barrier(runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     read(runId: string): Promise<RunStateRecord[]>;
     private readUnlocked;
     private publishAtomically;
     private withWriterLock;
+    private reclaimStaleWriterLock;
 }
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
@@ -1059,6 +1063,12 @@ declare interface FileRunStoreOptions {
         destination: string;
         temporary: string;
         record?: RunStateRecord;
+    }) => void | Promise<void>;
+    /** 仅供故障注入测试：critical barrier 同步文件前调用。 */
+    beforeBarrier?: (context: {
+        destination: string;
+        runId: string;
+        requested: RunStoreDurability;
     }) => void | Promise<void>;
     lockTimeoutMs?: number;
 }
@@ -1373,9 +1383,12 @@ export declare interface LoopTransition {
 }
 
 export declare class MemoryRunStore implements RunStore {
+    readonly supportedDurability: readonly ["ordinary"];
+    readonly durabilityBoundary: "process_memory";
     private readonly records;
     append(record: RunStateRecord): Promise<void>;
     read(runId: string): Promise<RunStateRecord[]>;
+    barrier(_runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
 }
 
 /** 生成新的输入 ID（与 RunId/TurnId 同源的 randomUUID 品牌类型） */
@@ -1684,6 +1697,7 @@ export declare class RunStateJournal {
     private aborted;
     private rejectedAfterAbortCount;
     private knownTurnIds?;
+    private readonly durabilityCounters;
     constructor(runId: string, store: RunStore, initialSequence?: number);
     /**
      * 取消收敛：设置事件准入分界点（规格 03 §3）。
@@ -1708,7 +1722,8 @@ export declare class RunStateJournal {
     operation(payload: OperationStateRecord): void;
     pause(payload: unknown): void;
     finish(payload: unknown): void;
-    flush(): Promise<void>;
+    flush(durability?: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
+    durabilityMetrics(): RunStoreDurabilityMetrics;
     private enqueue;
 }
 
@@ -1726,9 +1741,34 @@ export declare interface RunStateRecord {
 export declare type RunStatus = "succeeded" | "failed" | "paused" | "aborted" | "timeout" | "budget_exceeded";
 
 export declare interface RunStore {
+    /** 旧 Adapter 缺省时仅按 ordinary/process_memory 兼容，critical 必须失败关闭。 */
+    readonly supportedDurability?: readonly RunStoreDurability[];
+    readonly durabilityBoundary?: RunStoreDurabilityBoundary;
     append(record: RunStateRecord): Promise<void>;
+    barrier?(runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     read(runId: string): Promise<RunStateRecord[]>;
     pathFor?(runId: string): string;
+}
+
+export declare type RunStoreDurability = "ordinary" | "critical";
+
+export declare interface RunStoreDurabilityAcknowledgement {
+    requested: RunStoreDurability;
+    achieved: RunStoreDurability;
+    boundary: RunStoreDurabilityBoundary;
+}
+
+export declare type RunStoreDurabilityBoundary = "process_memory" | "process_crash" | "system_crash" | "power_loss";
+
+export declare interface RunStoreDurabilityMetrics {
+    ordinary: {
+        succeeded: number;
+        failed: number;
+    };
+    critical: {
+        succeeded: number;
+        failed: number;
+    };
 }
 
 /**
@@ -1901,6 +1941,8 @@ export declare class ToolExecutionEngine {
     blockBeforeExecution(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
     /** 在 Tool Result 已落盘后收敛正常 Call。 */
     finalizeResult(identity: ToolCallIdentity): Promise<ToolCallLifecycleState>;
+    /** Tool 已返回但结果 barrier 失败：保留执行与 Effect 事实，只收敛持久化失败。 */
+    failResultDurability(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
     /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
     settleInterrupted(executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">, reason: string): Promise<void>;
     private settleOneInterrupted;

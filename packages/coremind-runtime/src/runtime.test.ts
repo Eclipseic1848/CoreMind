@@ -7,8 +7,10 @@ import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
 import { applyCompaction, projectRawBranchMessages } from "./compaction-projection.js";
 import type { CoreMindEvent } from "./events.js";
+import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
 import {
+  FileRunStore,
   fingerprintRunConfig,
   MemoryRunStore,
   prepareRunResume,
@@ -18,6 +20,254 @@ import { CoreMindRuntime } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
 
 describe("CoreMindRuntime", () => {
+  it("用户审批 Fact 无法达到 critical 时，Pure Local Read 也不能越过 Adapter 前门禁", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-approval-durability-"));
+    writeFileSync(path.join(dir, "notes.txt"), "不应读取", "utf8");
+    const server = createToolCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {
+          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "读取 notes.txt",
+        approveTool: async () => "allow",
+        runStore: new MemoryRunStore(),
+      });
+
+      const result = await runtime.run();
+      const lifecycle = result.trace
+        .filter((entry) => entry.event.type === "tool_lifecycle")
+        .map((entry) =>
+          entry.event.type === "tool_lifecycle" ? entry.event.resolution : undefined,
+        );
+
+      expect(lifecycle).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ phase: "executing", status: "skipped" }),
+          expect.objectContaining({
+            phase: "observed",
+            result: expect.objectContaining({
+              executionOutcome: "not_invoked",
+              effectState: "not_started",
+            }),
+          }),
+        ]),
+      );
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "durability_unsupported" },
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("仅最终 pause/finish barrier 失败时返回结构化持久化失败，而不是 reject", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-terminal-barrier-"));
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let criticalBarriers = 0;
+    const store = new FileRunStore(path.join(dir, "runs"), {
+      beforeBarrier: () => {
+        criticalBarriers += 1;
+        if (criticalBarriers === 2) throw new Error("terminal barrier failed");
+      },
+    });
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "终态 Barrier 测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "完成任务" } },
+        },
+        configDir: dir,
+        initialPrompt: "完成",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      expect(result).toMatchObject({
+        outcome: {
+          status: "failed",
+          error: { code: "durability_barrier_failed" },
+        },
+      });
+      const records = await store.read(result.runId);
+      const finishes = records.filter((record) => record.kind === "finish");
+      expect(finishes).toHaveLength(2);
+      expect(finishes.at(-1)?.payload).toMatchObject({
+        outcome: {
+          status: "failed",
+          error: { code: "durability_barrier_failed" },
+        },
+        supersedesUnacknowledgedTerminal: true,
+      });
+      expect(
+        checkInvariantFacts({ runRecords: records }, { mode: "eval" }).filter(
+          (violation) => violation.invariant === "I-3",
+        ),
+      ).toEqual([]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Store 不支持 critical 时副作用工具在 Adapter 前失败关闭", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-durability-unsupported-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+          }),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        runStore: new MemoryRunStore(),
+      });
+
+      const result = await runtime.run();
+
+      expect(existsSync(target)).toBe(false);
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "durability_unsupported" },
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("started_durable barrier 失败时真实 Effect 次数为零", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-started-barrier-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let criticalBarriers = 0;
+    const store = new FileRunStore(path.join(dir, "runs"), {
+      beforeBarrier: () => {
+        criticalBarriers += 1;
+        if (criticalBarriers === 2) throw new Error("started barrier failed");
+      },
+    });
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+          }),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const lifecycle = result.trace
+        .filter((entry) => entry.event.type === "tool_lifecycle")
+        .map((entry) =>
+          entry.event.type === "tool_lifecycle" ? entry.event.resolution : undefined,
+        );
+
+      expect(existsSync(target)).toBe(false);
+      expect(lifecycle).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ phase: "checkpoint_durable", status: "completed" }),
+          expect.objectContaining({ phase: "started_durable", status: "failed" }),
+        ]),
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Tool 返回后 result barrier 失败保留执行与 Effect 事实，只把持久化标为失败", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-result-barrier-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let criticalBarriers = 0;
+    const store = new FileRunStore(path.join(dir, "runs"), {
+      beforeBarrier: () => {
+        criticalBarriers += 1;
+        if (criticalBarriers === 3) throw new Error("result barrier failed");
+      },
+    });
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+          }),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const lifecycle = result.trace.filter((entry) => entry.event.type === "tool_lifecycle");
+      const failedPersistence = lifecycle.find(
+        (entry) =>
+          entry.event.type === "tool_lifecycle" &&
+          entry.event.resolution.phase === "result_durable",
+      )?.event;
+
+      expect(readFileSync(target, "utf8")).toBe("已写入");
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "durability_barrier_failed" },
+      });
+      expect(failedPersistence).toMatchObject({
+        type: "tool_lifecycle",
+        resolution: {
+          phase: "result_durable",
+          status: "failed",
+          result: { persistenceState: "failed" },
+        },
+      });
+      expect(
+        lifecycle.some(
+          (entry) =>
+            entry.event.type === "tool_lifecycle" &&
+            entry.event.resolution.phase === "observed" &&
+            entry.event.resolution.result?.executionOutcome === "returned" &&
+            entry.event.resolution.result.effectState === "committed",
+        ),
+      ).toBe(true);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it("成功运行返回分离的结果、指标、评测、发布就绪度和结构化 Trace", async () => {
     const server = createServer((_request, response) => {
       sendSse(response, [
@@ -544,7 +794,7 @@ describe("CoreMindRuntime", () => {
     const server = createToolCallingServer();
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 
-    const store = new MemoryRunStore();
+    const store = new FileRunStore(path.join(dir, "runs"));
     try {
       const port = (server.address() as AddressInfo).port;
       const runtime = await CoreMindRuntime.create({
@@ -662,7 +912,7 @@ describe("CoreMindRuntime", () => {
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     let approvals = 0;
-    const store = new MemoryRunStore();
+    const store = new FileRunStore(path.join(dir, "runs"));
 
     try {
       const port = (server.address() as AddressInfo).port;
@@ -1139,8 +1389,8 @@ describe("CoreMindRuntime", () => {
     try {
       const port = (server.address() as AddressInfo).port;
       const config = loopConfig(port, { onFailure: "pause" });
-      const store = new MemoryRunStore();
       const dir = mkdtempSync(path.join(tmpdir(), "coremind-loop-resume-"));
+      const store = new FileRunStore(path.join(dir, "runs"));
       const first = await CoreMindRuntime.create({
         config,
         configDir: dir,
@@ -1372,7 +1622,7 @@ describe("CoreMindRuntime", () => {
         initialPrompt: "执行",
         sessionId: "s1",
         signal: abortController.signal,
-        runStore: new MemoryRunStore(),
+        runStore: new FileRunStore(path.join(dir, "runs")),
       });
 
       const runPromise = runtime.run();
@@ -1516,7 +1766,7 @@ describe("CoreMindRuntime", () => {
     try {
       const port = (server.address() as AddressInfo).port;
       const dir = mkdtempSync(path.join(tmpdir(), "coremind-r4-"));
-      const store = new MemoryRunStore();
+      const store = new FileRunStore(path.join(dir, "runs"));
       const abortController = new AbortController();
       const started = new Promise<void>((resolve) => setTimeout(resolve, 10));
       const runtime = await CoreMindRuntime.create({
@@ -2095,6 +2345,60 @@ function createToolCallingServer() {
           ],
         },
         { id: "tool", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+      ]);
+    });
+  });
+}
+
+function createWriteCallingServer() {
+  return createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      const messages = (JSON.parse(body) as { messages?: Array<{ role?: string }> }).messages ?? [];
+      if (messages.some((message) => message.role === "tool")) {
+        sendSse(response, [
+          {
+            id: "write-final",
+            choices: [
+              { index: 0, delta: { role: "assistant", content: "完成" }, finish_reason: null },
+            ],
+          },
+          { id: "write-final", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+        ]);
+        return;
+      }
+      sendSse(response, [
+        {
+          id: "write-tool",
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call-write",
+                    type: "function",
+                    function: {
+                      name: "write",
+                      arguments: '{"path":"article.md","content":"已写入"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: "write-tool",
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
       ]);
     });
   });

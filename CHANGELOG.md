@@ -13,6 +13,8 @@
 - 旧 `effect` 声明保持兼容并保守迁移；0.3.0/0.3.1 历史记录缺少 Capability Fact 时显式投影为 `legacy/unknown`。
 - 新增唯一 Tool Call 生命周期 reducer 与正交结果轴；成功、拒绝、工具错误、持久化错误、取消和超时均形成可离线重建的单一终态。
 - Runtime、RunSnapshot、Worker 与双 SDK 的恢复判断统一复用持久化 lifecycle 投影；non-idempotent 或 unknown Effect 一旦可能开始，不会自动重放。
+- `RunStore` 新增 ordinary/critical 能力与 acknowledgement 合同；File Store 只承诺经 Windows/Linux 进程崩溃探针验证的边界，Memory Store 不再把内存可见伪装为 critical。
+- Checkpoint、started Receipt 与关键 Tool Result 在 Adapter 前后使用 critical barrier；失败保持执行、Effect 与持久化轴正交，并提供分级指标。
 
 ## 0.3.1 — 2026-08-21
 

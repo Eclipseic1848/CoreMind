@@ -56,6 +56,16 @@ export const ERROR_CODES = {
   operation_not_resumable: { terminality: "terminal", cancelClass: "human", retryClass: "fatal" },
   unknown_run: { terminality: "terminal", cancelClass: "human", retryClass: "fatal" },
   run_state_failed: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  durability_unsupported: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  durability_barrier_failed: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
