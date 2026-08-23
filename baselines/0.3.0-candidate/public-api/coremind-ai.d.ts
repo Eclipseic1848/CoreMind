@@ -87,6 +87,7 @@ import { GitStatusEntry } from 'coremind-tools';
 import { inspectCheckpoint } from 'coremind-runtime';
 import { inspectCodingRepository } from 'coremind-runtime';
 import { inspectRuntimeCompatibility } from 'coremind-runtime';
+import { isRunStateResumable } from 'coremind-runtime';
 import { JsonObjectSchema } from 'coremind-runtime';
 import { LanguageCandidate } from 'coremind-runtime';
 import { LIFECYCLE_EVENTS } from 'coremind-runtime';
@@ -352,6 +353,8 @@ export { inspectCheckpoint }
 export { inspectCodingRepository }
 
 export { inspectRuntimeCompatibility }
+
+export { isRunStateResumable }
 
 export { JsonObjectSchema }
 

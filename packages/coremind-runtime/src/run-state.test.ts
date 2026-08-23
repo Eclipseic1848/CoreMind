@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { recoveryDispositionFor, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import type { LoopControllerSnapshot } from "./loop-controller.js";
 import { DurableOperation } from "./operation-state.js";
@@ -17,6 +18,67 @@ import {
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
+  it("拒绝持久化字段缺失的 capability_resolved 安全事实", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-capability-"));
+    const store = new FileRunStore(dir);
+    const invalid = traceRecord(1, 1, {
+      type: "capability_resolved",
+      agent: "main",
+      tool: "read",
+      callId: "call-invalid",
+      capability: { effect: "none" },
+      recoveryDisposition: "replay_safe",
+    });
+
+    await expect(store.append(invalid)).rejects.toMatchObject({ code: "run_state_corrupt" });
+  });
+
+  it.each([
+    {
+      name: "恢复处置与 replay 不一致",
+      capability: {
+        tool: "read",
+        effect: "none",
+        replay: "safe",
+        concurrency: "parallel",
+        checkpoint: "none",
+        durability: "ordinary",
+        source: "builtin",
+        resolution: "resolved",
+        issues: [],
+      },
+      recoveryDisposition: "requires_human",
+    },
+    {
+      name: "fallback 未采用最严格能力元组",
+      capability: {
+        tool: "read",
+        effect: "none",
+        replay: "safe",
+        concurrency: "parallel",
+        checkpoint: "none",
+        durability: "ordinary",
+        source: "fallback",
+        resolution: "fallback",
+        issues: ["capability_missing"],
+      },
+      recoveryDisposition: "replay_safe",
+    },
+  ])("拒绝持久化$name的 capability_resolved", async ({ capability, recoveryDisposition }) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-capability-consistency-"));
+    const store = new FileRunStore(dir);
+    const invalid = traceRecord(1, 1, {
+      type: "capability_resolved",
+      agent: "main",
+      tool: "read",
+      callId: "call-inconsistent",
+      capability,
+      recoveryDisposition,
+    });
+
+    await expect(store.append(invalid)).rejects.toMatchObject({ code: "run_state_corrupt" });
+  });
+
   it("以只追加 JSONL 顺序保存 start、event 和 finish", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-"));
     const store = new FileRunStore(dir);
@@ -534,12 +596,64 @@ describe("isRejectedAfterAbort 分支覆盖", () => {
 });
 
 describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
-  it("replay-safe 工具不阻塞恢复", () => {
+  it("历史记录缺少 Capability Fact 时不能按 read 名称推断为安全", () => {
     const trace = [
-      traceEntry(1, { type: "tool_call", agent: "main", tool: "read", idempotencyKey: "r:1" }),
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "read",
+        callId: "call-read-legacy",
+        idempotencyKey: "r:1",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "read" });
+  });
+
+  it("匹配 replay_safe Capability Fact 的本地读取不阻塞恢复", () => {
+    const capability = resolveToolCapability({ tool: "read" });
+    const trace = [
+      traceEntry(1, {
+        type: "capability_resolved",
+        agent: "main",
+        tool: "read",
+        callId: "call-read-current",
+        capability,
+        recoveryDisposition: recoveryDispositionFor(capability),
+      }),
+      traceEntry(2, {
+        type: "tool_call",
+        agent: "main",
+        tool: "read",
+        callId: "call-read-current",
+        idempotencyKey: "r:1",
+      }),
     ];
 
     expect(findUnsafeToolCall(trace)).toBeUndefined();
+  });
+
+  it("外部读取不能按 web-fetch 名称推断为 replay-safe", () => {
+    const capability = resolveToolCapability({ tool: "web-fetch" });
+    const trace = [
+      traceEntry(1, {
+        type: "capability_resolved",
+        agent: "main",
+        tool: "web-fetch",
+        callId: "call-web-fetch",
+        capability,
+        recoveryDisposition: recoveryDispositionFor(capability),
+      }),
+      traceEntry(2, {
+        type: "tool_call",
+        agent: "main",
+        tool: "web-fetch",
+        callId: "call-web-fetch",
+        idempotencyKey: "r:2",
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "web-fetch" });
   });
 
   it("not_started 收据视为安全", () => {

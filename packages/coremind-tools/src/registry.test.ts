@@ -24,12 +24,28 @@ describe("buildTools", () => {
       "write",
       "web-fetch",
     ] as const;
-    const { tools, warnings } = await buildTools(
+    const { tools, capabilities, warnings } = await buildTools(
       ids.map((id) => ({ id })),
       { cwd: configDir, configDir },
     );
     expect(warnings).toEqual([]);
     expect(tools.map((t) => t.name).sort()).toEqual([...ids].sort());
+    expect(capabilities.get("read")).toMatchObject({
+      tool: "read",
+      effect: "none",
+      replay: "safe",
+      concurrency: "parallel",
+      checkpoint: "none",
+      durability: "ordinary",
+      source: "builtin",
+      resolution: "resolved",
+    });
+    expect(capabilities.get("web-fetch")).toMatchObject({
+      tool: "web-fetch",
+      effect: "network",
+      replay: "unknown",
+      source: "builtin",
+    });
   });
 
   it("enabled: false 的工具被跳过", async () => {
@@ -75,7 +91,7 @@ describe("buildTools", () => {
       };`,
       "utf8",
     );
-    const { tools, effects, warnings } = await buildTools(
+    const { tools, effects, capabilities, warnings } = await buildTools(
       [{ path: "my-tool.mjs", effect: { operations: ["read"], reversible: true } }],
       {
         cwd: configDir,
@@ -87,6 +103,15 @@ describe("buildTools", () => {
     expect(effects.get("current_time")).toEqual({
       operations: ["read"],
       reversible: true,
+    });
+    expect(capabilities.get("current_time")).toMatchObject({
+      effect: "none",
+      replay: "safe",
+      concurrency: "parallel",
+      checkpoint: "none",
+      durability: "ordinary",
+      source: "inferred",
+      resolution: "resolved",
     });
     const result = await tools[0]?.execute("call-1", {}, undefined);
     expect(result.content[0]).toMatchObject({ type: "text", text: "2026-01-01" });

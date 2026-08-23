@@ -18,6 +18,37 @@ export const BUILTIN_TOOL_IDS = [
 
 export type BuiltinToolId = (typeof BUILTIN_TOOL_IDS)[number];
 
+export const TOOL_CAPABILITY_EFFECTS = [
+  "none",
+  "workspace",
+  "process",
+  "network",
+  "external",
+  "unknown",
+] as const;
+export const TOOL_CAPABILITY_REPLAYS = ["safe", "idempotent", "unsafe", "unknown"] as const;
+export const TOOL_CAPABILITY_CONCURRENCY = [
+  "parallel",
+  "run_serial",
+  "workspace_exclusive",
+] as const;
+export const TOOL_CAPABILITY_CHECKPOINTS = ["none", "required", "unsupported"] as const;
+export const TOOL_CAPABILITY_DURABILITY = ["ordinary", "critical"] as const;
+
+export type ToolCapabilityEffect = (typeof TOOL_CAPABILITY_EFFECTS)[number];
+export type ToolCapabilityReplay = (typeof TOOL_CAPABILITY_REPLAYS)[number];
+export type ToolCapabilityConcurrency = (typeof TOOL_CAPABILITY_CONCURRENCY)[number];
+export type ToolCapabilityCheckpoint = (typeof TOOL_CAPABILITY_CHECKPOINTS)[number];
+export type ToolCapabilityDurability = (typeof TOOL_CAPABILITY_DURABILITY)[number];
+
+export interface ToolCapabilityDeclaration {
+  effect: ToolCapabilityEffect;
+  replay: ToolCapabilityReplay;
+  concurrency: ToolCapabilityConcurrency;
+  checkpoint: ToolCapabilityCheckpoint;
+  durability: ToolCapabilityDurability;
+}
+
 export const TOOL_EFFECT_OPERATIONS = ["read", "write", "process", "network", "external"] as const;
 
 export type ToolEffectOperation = (typeof TOOL_EFFECT_OPERATIONS)[number];
@@ -51,20 +82,116 @@ export interface ToolEffectDeclaration {
   urlFields?: string[];
 }
 
-export const BUILTIN_TOOL_EFFECTS: Readonly<Record<BuiltinToolId, ToolEffectDeclaration>> = {
-  read: { operations: ["read"], reversible: true },
-  ls: { operations: ["read"], reversible: true },
-  find: { operations: ["read"], reversible: true },
-  grep: { operations: ["read"], reversible: true },
-  git_status: { operations: ["read"], reversible: true },
-  git_diff: { operations: ["read"], reversible: true, pathFields: ["path"] },
-  git_log: { operations: ["read"], reversible: true, pathFields: ["path"] },
-  edit: { operations: ["write"], reversible: true },
-  write: { operations: ["write"], reversible: true },
-  bash: { operations: ["process"], reversible: false },
-  "web-fetch": { operations: ["network"], reversible: false },
-  "web-search": { operations: ["network"], reversible: false },
+interface BuiltinToolMetadata {
+  capability: ToolCapabilityDeclaration;
+  pathFields?: string[];
+  urlFields?: string[];
+}
+
+const PURE_LOCAL_READ: ToolCapabilityDeclaration = {
+  effect: "none",
+  replay: "safe",
+  concurrency: "parallel",
+  checkpoint: "none",
+  durability: "ordinary",
 };
+const WORKSPACE_WRITE: ToolCapabilityDeclaration = {
+  effect: "workspace",
+  replay: "idempotent",
+  concurrency: "workspace_exclusive",
+  checkpoint: "required",
+  durability: "critical",
+};
+const BUILTIN_TOOL_METADATA: Readonly<Record<BuiltinToolId, BuiltinToolMetadata>> = {
+  read: { capability: PURE_LOCAL_READ },
+  ls: { capability: PURE_LOCAL_READ },
+  find: { capability: PURE_LOCAL_READ },
+  grep: { capability: PURE_LOCAL_READ },
+  git_status: { capability: PURE_LOCAL_READ },
+  git_diff: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
+  git_log: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
+  edit: { capability: WORKSPACE_WRITE },
+  write: { capability: WORKSPACE_WRITE },
+  bash: {
+    capability: {
+      effect: "process",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "unsupported",
+      durability: "critical",
+    },
+  },
+  "web-fetch": {
+    capability: {
+      effect: "network",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "none",
+      durability: "critical",
+    },
+  },
+  "web-search": {
+    capability: {
+      effect: "network",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "none",
+      durability: "critical",
+    },
+  },
+};
+
+/** 唯一内置工具能力注册表；旧 effect 视图由此派生。 */
+export const BUILTIN_TOOL_CAPABILITIES: Readonly<Record<BuiltinToolId, ToolCapabilityDeclaration>> =
+  Object.freeze(
+    Object.fromEntries(
+      BUILTIN_TOOL_IDS.map((id) => [id, Object.freeze(BUILTIN_TOOL_METADATA[id].capability)]),
+    ) as Record<BuiltinToolId, ToolCapabilityDeclaration>,
+  );
+
+export const BUILTIN_TOOL_EFFECTS: Readonly<Record<BuiltinToolId, ToolEffectDeclaration>> =
+  Object.freeze(
+    Object.fromEntries(
+      BUILTIN_TOOL_IDS.map((id) => {
+        const metadata = BUILTIN_TOOL_METADATA[id];
+        return [
+          id,
+          Object.freeze({
+            operations: Object.freeze(
+              toolEffectOperationsForCapability(metadata.capability.effect),
+            ) as unknown as ToolEffectOperation[],
+            reversible:
+              metadata.capability.replay === "safe" || metadata.capability.replay === "idempotent",
+            ...(metadata.pathFields
+              ? { pathFields: Object.freeze([...metadata.pathFields]) as unknown as string[] }
+              : {}),
+            ...(metadata.urlFields
+              ? { urlFields: Object.freeze([...metadata.urlFields]) as unknown as string[] }
+              : {}),
+          }),
+        ];
+      }),
+    ) as Record<BuiltinToolId, ToolEffectDeclaration>,
+  );
+
+/** 将规范化 Capability effect 投影为 0.3.x 兼容 ToolEffect operations。 */
+export function toolEffectOperationsForCapability(
+  effect: ToolCapabilityEffect,
+): ToolEffectOperation[] {
+  switch (effect) {
+    case "none":
+      return ["read"];
+    case "workspace":
+      return ["write"];
+    case "process":
+      return ["process"];
+    case "network":
+      return ["network"];
+    case "external":
+    case "unknown":
+      return ["external"];
+  }
+}
 
 /** 引用内置工具 */
 export const ToolRefSchema = Type.Object({

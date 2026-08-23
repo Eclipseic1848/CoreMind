@@ -4,6 +4,7 @@ import {
   TOOL_EFFECT_OPERATIONS,
   type ToolEffectDeclaration,
 } from "coremind-config";
+import type { ToolCapabilityDeclaration } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 
 export interface JsonObjectSchema extends Record<string, unknown> {
@@ -32,6 +33,8 @@ export interface CoreMindToolDefinition<TArgs = Record<string, unknown>> {
   description: string;
   parameters: JsonObjectSchema;
   effect: ToolEffectDeclaration;
+  /** 完整能力声明；省略时从旧 effect 保守推导，跨多个可变边界则 strict fallback。 */
+  capability?: ToolCapabilityDeclaration;
   execute: (
     args: TArgs,
     context: CoreMindToolContext,

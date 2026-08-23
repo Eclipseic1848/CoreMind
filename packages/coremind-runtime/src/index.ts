@@ -209,6 +209,7 @@ export {
   type EffectReceipt,
   FileRunStore,
   fingerprintRunConfig,
+  isRunStateResumable,
   MemoryRunStore,
   operationSnapshotFromRecords,
   prepareRunResume,
@@ -230,6 +231,11 @@ export {
   type RunSnapshot,
   type RunSnapshotInput,
 } from "./snapshot.js";
+export {
+  projectToolCapabilities,
+  projectToolCapabilitiesFromRecords,
+  type ToolCapabilityProjection,
+} from "./tool-capability-projection.js";
 export {
   type ApprovalDecision,
   type ToolApprovalRequest,

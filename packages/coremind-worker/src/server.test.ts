@@ -279,6 +279,90 @@ describe("WorkerServer", () => {
     });
   });
 
+  it("inspect_run 对未稳定提交的副作用复用 Runtime 安全门", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-worker-unsafe-resume-"));
+    const journal = new RunStateJournal(
+      "run-unsafe",
+      new FileRunStore(path.join(directory, ".coremind", "runs")),
+    );
+    await journal.start({ configName: "demo" });
+    journal.event({
+      eventId: "event-1",
+      runId: "run-unsafe",
+      sequence: 1,
+      timestamp: "2026-08-23T00:00:00.000Z",
+      event: {
+        type: "capability_resolved",
+        agent: "main",
+        tool: "write",
+        callId: "call-write",
+        capability: {
+          tool: "write",
+          effect: "workspace",
+          replay: "idempotent",
+          concurrency: "workspace_exclusive",
+          checkpoint: "required",
+          durability: "critical",
+          source: "builtin",
+          resolution: "resolved",
+          issues: [],
+        },
+        recoveryDisposition: "requires_proof",
+      },
+    });
+    journal.event({
+      eventId: "event-2",
+      runId: "run-unsafe",
+      sequence: 2,
+      timestamp: "2026-08-23T00:00:01.000Z",
+      event: {
+        type: "tool_call",
+        agent: "main",
+        tool: "write",
+        args: { path: "notes.txt" },
+        callId: "call-write",
+        idempotencyKey: "run-unsafe:call-write",
+      },
+    });
+    journal.event({
+      eventId: "event-3",
+      runId: "run-unsafe",
+      sequence: 3,
+      timestamp: "2026-08-23T00:00:02.000Z",
+      event: {
+        type: "effect_receipt",
+        tool: "write",
+        idempotencyKey: "run-unsafe:call-write",
+        status: "committed",
+      },
+    });
+    journal.pause({ outcome: { status: "paused", finishReason: "interrupted" } });
+    await journal.flush();
+
+    const server = new WorkerServer({ send: () => {} });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: directory,
+      },
+    });
+
+    const inspected = await server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "inspect_run",
+      params: { runId: "run-unsafe" },
+    });
+
+    expect(inspected).toMatchObject({
+      result: { status: "paused", resumable: false },
+    });
+  });
+
   it("run 请求带预生成 runId 时传给 Runtime；不带时保持向后兼容", async () => {
     const sent: unknown[] = [];
     const receivedRunIds: Array<string | undefined> = [];

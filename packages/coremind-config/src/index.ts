@@ -37,16 +37,29 @@ export {
 } from "./schema/loop.js";
 export { ModelOptionsSchema } from "./schema/provider.js";
 export {
+  BUILTIN_TOOL_CAPABILITIES,
   BUILTIN_TOOL_EFFECTS,
   BUILTIN_TOOL_IDS,
   type BuiltinToolId,
   ScriptToolSchema,
+  TOOL_CAPABILITY_CHECKPOINTS,
+  TOOL_CAPABILITY_CONCURRENCY,
+  TOOL_CAPABILITY_DURABILITY,
+  TOOL_CAPABILITY_EFFECTS,
+  TOOL_CAPABILITY_REPLAYS,
   TOOL_EFFECT_OPERATIONS,
+  type ToolCapabilityCheckpoint,
+  type ToolCapabilityConcurrency,
+  type ToolCapabilityDeclaration,
+  type ToolCapabilityDurability,
+  type ToolCapabilityEffect,
+  type ToolCapabilityReplay,
   ToolConfigSchema,
   type ToolEffectDeclaration,
   ToolEffectDeclarationSchema,
   type ToolEffectOperation,
   ToolRefSchema,
+  toolEffectOperationsForCapability,
 } from "./schema/tools.js";
 export {
   ConfigValidationError,

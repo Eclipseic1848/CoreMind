@@ -1,11 +1,14 @@
 import { ArtifactRecord } from 'coremind-tools';
 import type { CoreMindConfig } from 'coremind-config';
 import type { LoopConfig } from 'coremind-config';
-import type { PermissionsConfig } from 'coremind-config';
+import { PermissionsConfig } from 'coremind-config';
 import type { QualityConfig } from 'coremind-config';
+import { RecoveryDisposition } from 'coremind-tools';
+import { ResolvedToolCapability } from 'coremind-tools';
 import type { RuntimeLimitsConfig } from 'coremind-config';
+import type { ToolCapabilityDeclaration } from 'coremind-tools';
 import { ToolEffectDeclaration } from 'coremind-config';
-import type { ToolEffectOperation } from 'coremind-config';
+import { ToolEffectOperation } from 'coremind-config';
 
 export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: CoreMindMessage[], durationMs: number, outputChars: number, rejectedAfterAbort?: number): RunMetrics;
 
@@ -99,6 +102,7 @@ export declare class CheckpointManager {
         operationId?: string;
         toolCallId?: string;
         idempotencyKey?: string;
+        capability?: ResolvedToolCapability;
     }): Promise<CheckpointRecord | undefined>;
     diff(checkpointId: string): Promise<CheckpointDiff>;
     /** 工具执行结束后记录预期文件状态，供恢复时识别后续人工或并发修改。 */
@@ -327,6 +331,14 @@ export declare type CoreMindEvent = {
     stepId?: string;
     turnId?: string;
 } | {
+    type: "capability_resolved";
+    agent: string;
+    tool: string;
+    callId: string;
+    stepId?: string;
+    capability: ResolvedToolCapability;
+    recoveryDisposition: RecoveryDisposition;
+} | {
     type: "effect_receipt";
     idempotencyKey: string;
     tool: string;
@@ -372,6 +384,7 @@ export declare type CoreMindEvent = {
     args: unknown;
     risk: "low" | "high";
     effect: ToolEffect;
+    capability?: ResolvedToolCapability;
 } | {
     type: "approval_resolved";
     approvalId: string;
@@ -534,6 +547,7 @@ export declare class CoreMindRuntime {
     private readonly agentConfigs;
     private readonly toolsByAgent;
     private readonly toolEffectsByAgent;
+    private readonly toolCapabilitiesByAgent;
     private readonly providerRuntime;
     private readonly options;
     /** 最近创建的每个 agent 实例（收集最终消息/落盘用） */
@@ -640,6 +654,8 @@ export declare interface CoreMindToolDefinition<TArgs = Record<string, unknown>>
     description: string;
     parameters: JsonObjectSchema;
     effect: ToolEffectDeclaration;
+    /** 完整能力声明；省略时从旧 effect 保守推导，跨多个可变边界则 strict fallback。 */
+    capability?: ToolCapabilityDeclaration;
     execute: (args: TArgs, context: CoreMindToolContext) => Promise<CoreMindToolOutput | unknown> | CoreMindToolOutput | unknown;
 }
 
@@ -1087,6 +1103,9 @@ export declare function inspectRuntimeCompatibility(): RuntimeCompatibilityRepor
 /** 该事件是否属于输入收据事件族（折叠时过滤用） */
 export declare function isInputReceiptEvent(event: CoreMindEvent): boolean;
 
+/** 由 Runtime 单点判断持久化运行是否满足自动恢复的安全前提。 */
+export declare function isRunStateResumable(records: readonly RunStateRecord[]): boolean;
+
 /** 转移合法性：undefined（未登记）只能到 pending（登记）；否则按转移表 */
 export declare function isValidTransition(from: InputReceiptStatus | undefined, to: InputReceiptStatus): boolean;
 
@@ -1409,6 +1428,12 @@ export declare interface ProjectCheckReport {
         auditFile: string;
     };
 }
+
+/** 从同一 Runtime 的规范化 Fact 生成入口共享的 Capability 视图。 */
+export declare function projectToolCapabilities(events: readonly CoreMindEvent[]): ToolCapabilityProjection[];
+
+/** 0.3.0/0.3.1 RunState 读取端：只使用当时已持久化的 Fact，不按名称补写结论。 */
+export declare function projectToolCapabilitiesFromRecords(records: readonly RunStateRecord[]): ToolCapabilityProjection[];
 
 /**
  * 在每次 Provider 请求前执行的本地上下文保护。
@@ -1761,6 +1786,17 @@ export declare interface ToolApprovalRequest {
     risk: ToolRisk;
     reason: string;
     effect: ToolEffect;
+    capability?: ResolvedToolCapability;
+}
+
+export declare interface ToolCapabilityProjection {
+    agent: string;
+    callId?: string;
+    stepId?: string;
+    tool: string;
+    capability: ResolvedToolCapability;
+    recoveryDisposition: RecoveryDisposition;
+    provenance: "current" | "legacy";
 }
 
 export declare interface ToolEffect {
@@ -1784,7 +1820,7 @@ export declare class ToolPolicy {
     private readonly options;
     private readonly permissions;
     constructor(options: ToolPolicyOptions);
-    authorize(agent: string, tool: string, args: unknown, declaration?: ToolEffectDeclaration): Promise<ToolPolicyDecision>;
+    authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration): Promise<ToolPolicyDecision>;
     private findEscapedPath;
 }
 

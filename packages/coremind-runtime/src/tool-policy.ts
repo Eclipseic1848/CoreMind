@@ -1,11 +1,18 @@
 import { realpath } from "node:fs/promises";
 import path from "node:path";
-import type {
-  PermissionsConfig,
-  ToolEffectDeclaration,
-  ToolEffectOperation,
+import {
+  type PermissionsConfig,
+  TOOL_EFFECT_OPERATIONS,
+  type ToolEffectDeclaration,
+  type ToolEffectOperation,
+  toolEffectOperationsForCapability,
 } from "coremind-config";
-import { BUILTIN_TOOL_EFFECTS } from "coremind-config";
+import {
+  inferLegacyToolCapability,
+  isResolvedToolCapability,
+  type ResolvedToolCapability,
+  resolveToolCapability,
+} from "coremind-tools";
 
 export type ToolRisk = "low" | "high";
 export type ApprovalDecision = "allow" | "deny";
@@ -27,6 +34,7 @@ export interface ToolApprovalRequest {
   risk: ToolRisk;
   reason: string;
   effect: ToolEffect;
+  capability?: ResolvedToolCapability;
 }
 
 export interface ToolPolicyDecision {
@@ -47,7 +55,6 @@ export interface ToolPolicyOptions {
   onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
 }
 
-const LOW_RISK_TOOLS = new Set(["read", "ls", "find", "grep", "edit", "write"]);
 const PATH_KEYS = new Set(["path", "file", "filepath", "cwd", "directory"]);
 
 /** 三档权限的唯一判定点；显式 deny 和工作区边界始终优先。 */
@@ -70,13 +77,31 @@ export class ToolPolicy {
     agent: string,
     tool: string,
     args: unknown,
-    declaration?: ToolEffectDeclaration,
+    capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration,
+    selectors?: ToolEffectDeclaration,
   ): Promise<ToolPolicyDecision> {
     if (matchesAny(tool, this.permissions.deny)) {
       return { allowed: false, reason: `工具 ${tool} 在 permissions.deny 中` };
     }
 
-    const effect = resolveToolEffect(tool, args, declaration);
+    const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
+    if (capability.resolution === "fallback") {
+      return {
+        allowed: false,
+        reason: `自定义工具 ${tool} 未声明副作用或完整 Capability，无法安全解析：${capability.issues.join("、")}`,
+      };
+    }
+    if (capability.effect === "unknown" && capability.checkpoint === "unsupported") {
+      return {
+        allowed: false,
+        reason: `工具 ${tool} 的 Effect 未知且无法建立必要 Checkpoint，已在执行前阻断`,
+      };
+    }
+    const effect = resolveToolEffect(
+      args,
+      capability,
+      selectors ?? legacySelectors(capabilityOrDeclaration),
+    );
 
     if (
       tool === "bash" &&
@@ -91,7 +116,7 @@ export class ToolPolicy {
     }
 
     if (
-      !effect.declared &&
+      capability.effect === "unknown" &&
       (this.permissions.workspaceOnly || this.permissions.network !== "allow")
     ) {
       return {
@@ -100,7 +125,7 @@ export class ToolPolicy {
       };
     }
 
-    const customTool = !Object.hasOwn(BUILTIN_TOOL_EFFECTS, tool);
+    const customTool = capability.source !== "builtin";
     if (
       customTool &&
       this.permissions.workspaceOnly &&
@@ -130,7 +155,8 @@ export class ToolPolicy {
       }
     }
 
-    const networkTool = effect.operations.includes("network") || effect.urls.length > 0;
+    const networkTool =
+      capability.effect === "network" || capability.effect === "external" || effect.urls.length > 0;
     if (networkTool && this.permissions.network === "deny") {
       return { allowed: false, reason: `网络策略拒绝工具 ${tool}` };
     }
@@ -144,11 +170,11 @@ export class ToolPolicy {
     if (this.permissions.mode === "full" && !(networkTool && this.permissions.network === "ask")) {
       return { allowed: true, reason: "完全访问模式", approvedBy: "mode" };
     }
-    if (this.permissions.mode === "assisted" && isLowRisk(tool, effect) && !networkTool) {
+    if (this.permissions.mode === "assisted" && isLowRisk(capability) && !networkTool) {
       return { allowed: true, reason: "帮我批准模式的工作区内低风险工具", approvedBy: "mode" };
     }
 
-    const risk: ToolRisk = isLowRisk(tool, effect) && !networkTool ? "low" : "high";
+    const risk: ToolRisk = isLowRisk(capability) && !networkTool ? "low" : "high";
     const request: ToolApprovalRequest = {
       approvalId: this.options.createApprovalId(),
       runId: this.options.runId,
@@ -158,6 +184,7 @@ export class ToolPolicy {
       risk,
       reason: risk === "high" ? "敏感工具需要批准" : "请求批准模式要求逐项确认",
       effect,
+      capability,
     };
     this.options.onApprovalRequired?.(request);
     if (!this.options.approve) {
@@ -219,25 +246,27 @@ function collectPathArguments(value: unknown): string[] {
 }
 
 function resolveToolEffect(
-  tool: string,
   args: unknown,
-  declaration?: ToolEffectDeclaration,
+  capability: ResolvedToolCapability,
+  selectors?: ToolEffectDeclaration,
 ): ToolEffect {
-  const builtin = BUILTIN_TOOL_EFFECTS[tool as keyof typeof BUILTIN_TOOL_EFFECTS];
-  const resolved = declaration ?? builtin;
-  const paths = [...collectPathArguments(args), ...collectFields(args, resolved?.pathFields ?? [])];
+  const paths = [
+    ...collectPathArguments(args),
+    ...collectFields(args, selectors?.pathFields ?? []),
+  ];
   const urls = [
     ...collectUrls(args),
-    ...collectFields(args, resolved?.urlFields ?? []).filter(isHttpUrl),
+    ...collectFields(args, selectors?.urlFields ?? []).filter(isHttpUrl),
   ];
-  const operations = [...(resolved?.operations ?? ["external"])] as ToolEffectOperation[];
+  const operations = toolEffectOperationsForCapability(capability.effect);
   if (urls.length > 0 && !operations.includes("network")) operations.push("network");
   return {
     operations,
     paths: unique(paths),
     urls: unique(urls),
-    reversible: resolved?.reversible ?? false,
-    declared: resolved !== undefined,
+    reversible:
+      selectors?.reversible ?? (capability.replay === "safe" || capability.replay === "idempotent"),
+    declared: capability.resolution === "resolved",
   };
 }
 
@@ -268,12 +297,45 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
-function isLowRisk(tool: string, effect: ToolEffect): boolean {
+function isLowRisk(capability: ResolvedToolCapability): boolean {
+  return capability.effect === "none" || capability.effect === "workspace";
+}
+
+function resolvePolicyCapability(
+  tool: string,
+  input: ResolvedToolCapability | ToolEffectDeclaration | undefined,
+): ResolvedToolCapability {
+  if (isResolvedToolCapability(input, tool)) return input;
+  if (isLegacyEffectDeclaration(input)) return inferLegacyToolCapability(tool, input);
+  if (input) return resolveToolCapability({ tool: `${tool}:invalid_capability` });
+  return resolveToolCapability({ tool });
+}
+
+function isLegacyEffectDeclaration(value: unknown): value is ToolEffectDeclaration {
   return (
-    LOW_RISK_TOOLS.has(tool) ||
-    (effect.declared &&
-      effect.operations.every((operation) => operation === "read" || operation === "write"))
+    value !== null &&
+    typeof value === "object" &&
+    "operations" in value &&
+    Array.isArray(value.operations) &&
+    value.operations.length > 0 &&
+    value.operations.every((operation) => TOOL_EFFECT_OPERATIONS.includes(operation as never)) &&
+    "reversible" in value &&
+    typeof value.reversible === "boolean" &&
+    (!("pathFields" in value) ||
+      value.pathFields === undefined ||
+      isStringArray(value.pathFields)) &&
+    (!("urlFields" in value) || value.urlFields === undefined || isStringArray(value.urlFields))
   );
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
+}
+
+function legacySelectors(
+  value: ResolvedToolCapability | ToolEffectDeclaration | undefined,
+): ToolEffectDeclaration | undefined {
+  return isLegacyEffectDeclaration(value) ? value : undefined;
 }
 
 function unique(values: string[]): string[] {

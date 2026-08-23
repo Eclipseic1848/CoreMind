@@ -4,6 +4,14 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## Unreleased
+
+### Tool capability and recovery
+
+- Resolve and persist one immutable `ResolvedToolCapability` for every Tool Call, giving Policy, Approval, Checkpoint, and all four entry-point projections one safety decision source.
+- Fail closed for unregistered, incomplete, conflicting, or cross-dimensionally unsafe declarations; an External Observable Read is no longer considered replay-safe from its name or `replay: safe` alone.
+- Preserve legacy `effect` inputs through conservative migration, while projecting 0.3.0/0.3.1 records without Capability Facts explicitly as `legacy/unknown`.
+
 ## 0.3.1 — 2026-08-21
 
 ### Runtime facts and identity

@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
@@ -89,6 +90,84 @@ describe("ToolPolicy", () => {
         reason: expect.stringContaining("未声明副作用"),
       },
     );
+  });
+
+  it("full 模式也拒绝 unknown 且无法建立 Checkpoint 的工具", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "allow" });
+    const capability = resolveToolCapability({
+      tool: "registered_unknown",
+      source: "registered",
+      declaration: {
+        effect: "unknown",
+        replay: "unknown",
+        concurrency: "run_serial",
+        checkpoint: "unsupported",
+        durability: "critical",
+      },
+    });
+
+    await expect(
+      policy.authorize("main", "registered_unknown", { value: "x" }, capability),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("Checkpoint"),
+    });
+  });
+
+  it("运行期伪造的残缺 Capability 在 full 模式也失败关闭", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "allow" });
+
+    await expect(
+      policy.authorize("main", "forged_tool", {}, {
+        resolution: "resolved",
+        checkpoint: "none",
+        durability: "ordinary",
+      } as never),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("完整 Capability"),
+    });
+  });
+
+  it("旧式声明包含非法字段选择器时不崩溃并失败关闭", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "allow" });
+
+    await expect(
+      policy.authorize("main", "forged_legacy", {}, {
+        operations: ["read"],
+        reversible: true,
+        pathFields: { nested: "path" },
+      } as never),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("完整 Capability"),
+    });
+  });
+
+  it("完整形状的自定义 Capability 也不能伪造 builtin 来源", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: true, network: "allow" });
+
+    await expect(
+      policy.authorize(
+        "main",
+        "forged_builtin",
+        {},
+        {
+          tool: "forged_builtin",
+          effect: "workspace",
+          replay: "idempotent",
+          concurrency: "workspace_exclusive",
+          checkpoint: "required",
+          durability: "critical",
+          source: "builtin",
+          resolution: "resolved",
+          issues: [],
+        },
+      ),
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("完整 Capability"),
+    });
   });
 
   it("workspaceOnly 拒绝未暴露目标路径的自定义写工具", async () => {

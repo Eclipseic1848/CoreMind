@@ -1,7 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { createUnifiedDiff, DiffLimitError } from "coremind-tools";
+import {
+  createUnifiedDiff,
+  DiffLimitError,
+  type ResolvedToolCapability,
+  resolveToolCapability,
+} from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 
 export interface CheckpointRecord {
@@ -47,18 +52,6 @@ export interface CheckpointManagerOptions {
   maxFileBytes?: number;
 }
 
-const READ_ONLY_TOOLS = new Set([
-  "read",
-  "ls",
-  "find",
-  "grep",
-  "git_status",
-  "git_diff",
-  "git_log",
-  "web-fetch",
-  "web-search",
-]);
-
 /** 修改工具的本地快照、diff 与显式恢复入口。 */
 export class CheckpointManager {
   readonly records: CheckpointRecord[] = [];
@@ -75,10 +68,12 @@ export class CheckpointManager {
       operationId?: string;
       toolCallId?: string;
       idempotencyKey?: string;
+      capability?: ResolvedToolCapability;
     } = {},
   ): Promise<CheckpointRecord | undefined> {
-    if (READ_ONLY_TOOLS.has(tool)) return undefined;
-    if (tool !== "edit" && tool !== "write") {
+    const capability = correlation.capability ?? resolveToolCapability({ tool });
+    if (capability.checkpoint === "none") return undefined;
+    if (capability.checkpoint === "unsupported") {
       return this.persist({
         tool,
         ...correlation,

@@ -6,6 +6,8 @@ CoreMind 的智能体运行时，提供模型供应商解析、会话、工具�
 
 工具副作用记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不重复完整步骤和已提交副作用，未知副作用要求人工核对。文件恢复还会检查工具执行后的指纹，拒绝覆盖用户或并发进程的后续修改。
 
+Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_resolved` Fact，并让后续消费者复用同一份冻结 Capability。`projectToolCapabilities()` 为 CLI、TUI、TypeScript 和 Python 提供统一投影；读取 0.3.0/0.3.1 历史记录时，缺少该 Fact 的 Call 显式标记为 `legacy`、`unknown` 与 `requires_human`，不会根据旧工具名补写安全结论。Durability Barrier、Workspace Lease 和新的 ToolExecutionEngine 仍属于后续加固阶段，本包当前不声称这些执行保障已经完成。
+
 人工或策略拒绝工具后，当前智能体循环会在本批工具结果完成归并后立即暂停，不再请求下一轮模型或重复申请审批。拒绝仍记录为 `tool_approval_denied`，且被拒绝的工具不会产生副作用。
 
 Evaluation schemaVersion 2 提供 outcome、trajectory、command、file、diff、state、response 七类 grader，并在执行前记录受保护文件与脏工作区基线。一次 Runtime 成功、一次预期测试失败、最终代码正确和是否可以发布是不同结论，必须分别记录。

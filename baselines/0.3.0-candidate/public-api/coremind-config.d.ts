@@ -40,6 +40,9 @@ description: TOptional<TString>;
 skills: TOptional<TArray<TString>>;
 }>;
 
+/** 唯一内置工具能力注册表；旧 effect 视图由此派生。 */
+export declare const BUILTIN_TOOL_CAPABILITIES: Readonly<Record<BuiltinToolId, ToolCapabilityDeclaration>>;
+
 export declare const BUILTIN_TOOL_EFFECTS: Readonly<Record<BuiltinToolId, ToolEffectDeclaration>>;
 
 /** 内置工具白名单 */
@@ -420,7 +423,35 @@ dir: TOptional<TString>;
 compact: TOptional<TBoolean>;
 }>;
 
+export declare const TOOL_CAPABILITY_CHECKPOINTS: readonly ["none", "required", "unsupported"];
+
+export declare const TOOL_CAPABILITY_CONCURRENCY: readonly ["parallel", "run_serial", "workspace_exclusive"];
+
+export declare const TOOL_CAPABILITY_DURABILITY: readonly ["ordinary", "critical"];
+
+export declare const TOOL_CAPABILITY_EFFECTS: readonly ["none", "workspace", "process", "network", "external", "unknown"];
+
+export declare const TOOL_CAPABILITY_REPLAYS: readonly ["safe", "idempotent", "unsafe", "unknown"];
+
 export declare const TOOL_EFFECT_OPERATIONS: readonly ["read", "write", "process", "network", "external"];
+
+export declare type ToolCapabilityCheckpoint = (typeof TOOL_CAPABILITY_CHECKPOINTS)[number];
+
+export declare type ToolCapabilityConcurrency = (typeof TOOL_CAPABILITY_CONCURRENCY)[number];
+
+export declare interface ToolCapabilityDeclaration {
+    effect: ToolCapabilityEffect;
+    replay: ToolCapabilityReplay;
+    concurrency: ToolCapabilityConcurrency;
+    checkpoint: ToolCapabilityCheckpoint;
+    durability: ToolCapabilityDurability;
+}
+
+export declare type ToolCapabilityDurability = (typeof TOOL_CAPABILITY_DURABILITY)[number];
+
+export declare type ToolCapabilityEffect = (typeof TOOL_CAPABILITY_EFFECTS)[number];
+
+export declare type ToolCapabilityReplay = (typeof TOOL_CAPABILITY_REPLAYS)[number];
 
 export declare type ToolConfig = Static<typeof ToolConfigSchema>;
 
@@ -455,6 +486,9 @@ urlFields: TOptional<TArray<TString>>;
 }>;
 
 export declare type ToolEffectOperation = (typeof TOOL_EFFECT_OPERATIONS)[number];
+
+/** 将规范化 Capability effect 投影为 0.3.x 兼容 ToolEffect operations。 */
+export declare function toolEffectOperationsForCapability(effect: ToolCapabilityEffect): ToolEffectOperation[];
 
 export declare type ToolRefConfig = Static<typeof ToolRefSchema>;
 
