@@ -102,6 +102,14 @@ export {
   selectExperimentArm,
 } from "./experiment.js";
 export {
+  type FactAppendOptions,
+  type FactDurabilityReceipt,
+  FactLedger,
+  type FactLedgerLevelMetrics,
+  type FactLedgerMetrics,
+  type FactLedgerStatus,
+} from "./fact-ledger.js";
+export {
   claimInput,
   completeInput,
   createInputReceipt,

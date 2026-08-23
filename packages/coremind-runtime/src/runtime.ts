@@ -82,6 +82,7 @@ import {
   prepareRunResume,
   RunStateJournal,
   type RunStore,
+  type RunStoreDurability,
 } from "./run-state.js";
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { CoreMindSession } from "./session.js";
@@ -539,10 +540,17 @@ export class CoreMindRuntime {
       );
     }
     await journal.flush();
+    const capabilityByCallId = new Map<
+      string,
+      { tool: string; capability: ResolvedToolCapability }
+    >();
     const trace = new TraceRecorder(
       runId,
       (entry) => {
-        journal.event(entry);
+        void journal.appendFact("event", entry, {
+          durability: traceFactDurability(entry.event, capabilityByCallId),
+          eventId: entry.eventId,
+        });
         this.options.trace?.(entry);
       },
       resumePlan?.previousTrace,
@@ -613,16 +621,8 @@ export class CoreMindRuntime {
       queueMicrotask(() => {
         const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
         const finalizer = (async () => {
-          const lifecycle = toolExecutionEngine.inspect(identity);
-          const capability = capabilityByCallId.get(
-            toolCapabilityCallKey(event.agent, event.stepId, event.callId!),
-          )?.capability;
-          const durability =
-            lifecycle?.result.executionOutcome === "not_invoked"
-              ? "ordinary"
-              : (capability?.durability ?? "critical");
           try {
-            await journal.flush(durability);
+            await journal.flush();
             await toolExecutionEngine.finalizeResult(identity);
           } catch (error) {
             const failure =
@@ -690,10 +690,6 @@ export class CoreMindRuntime {
     let capabilityFailure: CoreMindError | undefined;
     const artifacts: ArtifactRecord[] = [];
     const checkpointByCallId = new Map<string, string[]>();
-    const capabilityByCallId = new Map<
-      string,
-      { tool: string; capability: ResolvedToolCapability }
-    >();
     const contextWindow = this.providerRuntime.model.contextWindow;
     const contextProtector = new ContextProtector(
       {
@@ -889,7 +885,7 @@ export class CoreMindRuntime {
           );
           if (decision.approvalId) {
             try {
-              await journal.flush("critical");
+              await journal.flush();
             } catch (error) {
               checkpointFailure = durabilityFailure(error);
               await toolExecutionEngine.blockBeforeExecution(
@@ -922,7 +918,7 @@ export class CoreMindRuntime {
         );
         if (decision.approvedBy === "user") {
           try {
-            await journal.flush("critical");
+            await journal.flush();
           } catch (error) {
             checkpointFailure = durabilityFailure(error);
             await toolExecutionEngine.blockBeforeExecution(
@@ -982,7 +978,7 @@ export class CoreMindRuntime {
               checkpoints.map((checkpoint) => checkpoint.checkpointId),
             );
             for (const checkpoint of checkpoints) {
-              journal.checkpoint(checkpoint);
+              await journal.appendFact("checkpoint", checkpoint, { durability: "critical" });
               emit({
                 type: "checkpoint_created",
                 checkpointId: checkpoint.checkpointId,
@@ -993,7 +989,7 @@ export class CoreMindRuntime {
                 reversible: checkpoint.reversible,
               });
             }
-            await journal.flush("critical");
+            await journal.flush();
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "checkpoint_durable",
               status: "completed",
@@ -1028,7 +1024,7 @@ export class CoreMindRuntime {
         effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
         if (resolvedCapability.durability === "critical") {
           try {
-            await journal.flush("critical");
+            await journal.flush();
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "started_durable",
               status: "completed",
@@ -1356,7 +1352,7 @@ export class CoreMindRuntime {
       transcript = extractText(allMessages);
     }
     try {
-      await journal.flush("critical");
+      await journal.flush();
     } catch (error) {
       terminalError = durabilityFailure(error);
     }
@@ -1431,50 +1427,41 @@ export class CoreMindRuntime {
       checkpointCount: checkpointManager.records.length,
       artifactCount: artifacts.length,
     });
-    if (outcome.status === "paused") {
-      journal.pause({
-        operation: operation.snapshot(),
-        outcome,
-        metrics,
-        evaluation,
-        releaseReadiness,
-        ...(loopSnapshot ? { loopSnapshot } : {}),
-      });
-    } else {
-      journal.finish({
-        operation: operation.snapshot(),
-        outcome,
-        metrics,
-        evaluation,
-        releaseReadiness,
-      });
-    }
-    const terminalDurabilityFailure =
-      terminalError instanceof CoreMindError &&
-      (terminalError.code === "durability_unsupported" ||
-        terminalError.code === "durability_barrier_failed");
+    // operation/input/lifecycle 收尾事实必须先形成稳定前缀，终态 Fact 才能成为最后一条。
     try {
-      await journal.flush(terminalDurabilityFailure ? "ordinary" : "critical");
+      await journal.flush();
     } catch (error) {
-      const finalDurabilityFailure = durabilityFailure(error);
-      terminalError = finalDurabilityFailure;
-      // 首条 finish 已入 append-only 日志后，只允许紧邻的收敛 finish；错误仍通知调用方，
-      // 但不再追加会违反 I-3 的终态后 Trace Fact。
-      userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
+      terminalError = durabilityFailure(error);
       outcome = new RunTerminalizer().terminalize(collected, terminalError);
       evaluation = createEvaluationReport(this.config.quality, metrics);
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
-      // append-only 日志不能删除先前未获 critical ack 的候选终态；追加最终失败收敛记录，
-      // 让持久投影与返回结果都以最后一条 finish 为准。
-      journal.finish({
-        operation: operation.snapshot(),
-        outcome,
-        metrics,
-        evaluation,
-        releaseReadiness,
-        supersedesUnacknowledgedTerminal: true,
-      });
-      await journal.flush("ordinary");
+    }
+    const terminalKind = outcome.status === "paused" ? "pause" : "finish";
+    const terminalPayload = {
+      operation: operation.snapshot(),
+      outcome,
+      metrics,
+      evaluation,
+      releaseReadiness,
+      ...(outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {}),
+    };
+    const terminalDurabilityFailure =
+      journal.factStatus().state === "poisoned" ||
+      (terminalError instanceof CoreMindError &&
+        (terminalError.code === "durability_unsupported" ||
+          terminalError.code === "durability_barrier_failed" ||
+          terminalError.code === "fact_ledger_poisoned"));
+    if (!terminalDurabilityFailure) {
+      try {
+        await journal.appendFact(terminalKind, terminalPayload, { durability: "critical" });
+      } catch (error) {
+        const finalDurabilityFailure = durabilityFailure(error);
+        terminalError = finalDurabilityFailure;
+        userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
+        outcome = new RunTerminalizer().terminalize(collected, terminalError);
+        evaluation = createEvaluationReport(this.config.quality, metrics);
+        releaseReadiness = assessReleaseReadiness(outcome, evaluation);
+      }
     }
     const snapshot = createRunSnapshot({
       runId: trace.runId,
@@ -1755,6 +1742,34 @@ function knownTurnIdsFrom(collected: readonly CoreMindEvent[]): Set<string> {
       return turnId ? [turnId] : [];
     }),
   );
+}
+
+function traceFactDurability(
+  event: CoreMindEvent,
+  capabilities: ReadonlyMap<string, { tool: string; capability: ResolvedToolCapability }>,
+): RunStoreDurability {
+  switch (event.type) {
+    case "capability_resolved":
+      return "ordinary";
+    case "tool_result": {
+      const callId = event.callId;
+      if (!callId) return "critical";
+      return (
+        capabilities.get(toolCapabilityCallKey(event.agent, event.stepId, callId))?.capability
+          .durability ?? "critical"
+      );
+    }
+    case "tool_lifecycle":
+      return "ordinary";
+    case "effect_receipt":
+      return event.status === "not_started" ? "ordinary" : "critical";
+    case "approval_required":
+    case "approval_resolved":
+    case "policy_denied":
+      return "critical";
+    default:
+      return "ordinary";
+  }
 }
 
 /**

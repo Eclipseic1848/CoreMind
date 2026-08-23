@@ -78,6 +78,8 @@ const EXISTING_CODES = [
   "tool_lifecycle_invalid",
   "durability_unsupported",
   "durability_barrier_failed",
+  "fact_ledger_poisoned",
+  "fact_ledger_terminal",
   // 瞬态
   "network_error",
   "provider_unavailable",

@@ -1029,6 +1029,69 @@ export declare type ExtensionFileCapability = "none" | "read" | "write";
 /** 从 Agent 消息列表提取最终文本（拼接全部 assistant 文本块） */
 export declare function extractText(messages: CoreMindMessage[]): string;
 
+export declare interface FactAppendOptions {
+    durability?: RunStoreDurability;
+    eventId?: string;
+}
+
+export declare interface FactDurabilityReceipt {
+    runId: string;
+    sequence: number;
+    eventId: string;
+    kind: RunStateKind;
+    durability: RunStoreDurability;
+    acknowledgement: RunStoreDurabilityAcknowledgement;
+    latencyMs: number;
+    acknowledgedAt: string;
+}
+
+/**
+ * 单个 Run 的权威 Fact 提交队列。
+ *
+ * 每次 append 都返回绑定该 sequence/eventId 的 Store acknowledgement；任何失败都会显式
+ * poison 当前实例，阻止后续预留 sequence 被静默提交。恢复必须从 Store 稳定前缀建立新实例。
+ */
+export declare class FactLedger {
+    readonly runId: string;
+    readonly store: RunStore;
+    private nextSequence;
+    private tail;
+    private pending;
+    private terminal;
+    private terminalReserved;
+    private poison?;
+    private readonly counters;
+    constructor(runId: string, store: RunStore, initialSequence?: number);
+    append(kind: RunStateKind, payload: unknown, options?: FactAppendOptions): Promise<FactDurabilityReceipt>;
+    flush(): Promise<void>;
+    status(): FactLedgerStatus;
+    metrics(): FactLedgerMetrics;
+    private poisonedError;
+}
+
+export declare interface FactLedgerLevelMetrics {
+    succeeded: number;
+    failed: number;
+    totalLatencyMs: number;
+    maxLatencyMs: number;
+}
+
+export declare interface FactLedgerMetrics {
+    pending: number;
+    ordinary: FactLedgerLevelMetrics;
+    critical: FactLedgerLevelMetrics;
+}
+
+export declare type FactLedgerStatus = {
+    state: "healthy";
+    nextSequence: number;
+    terminal: boolean;
+} | {
+    state: "poisoned";
+    failedSequence: number;
+    reason: string;
+};
+
 export declare interface FileGrader extends GraderBase {
     type: "file";
     path: string;
@@ -1048,10 +1111,12 @@ export declare class FileRunStore implements RunStore {
     constructor(directory: string, options?: FileRunStoreOptions);
     pathFor(runId: string): string;
     append(record: RunStateRecord): Promise<void>;
+    commit(record: RunStateRecord, durability: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     barrier(runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     read(runId: string): Promise<RunStateRecord[]>;
     private readUnlocked;
     private publishAtomically;
+    private writeRecord;
     private withWriterLock;
     private reclaimStaleWriterLock;
 }
@@ -1069,6 +1134,8 @@ declare interface FileRunStoreOptions {
         destination: string;
         runId: string;
         requested: RunStoreDurability;
+        /** 精确 Fact commit 时为当前记录；全局 barrier 时缺省。 */
+        record?: RunStateRecord;
     }) => void | Promise<void>;
     lockTimeoutMs?: number;
 }
@@ -1387,6 +1454,7 @@ export declare class MemoryRunStore implements RunStore {
     readonly durabilityBoundary: "process_memory";
     private readonly records;
     append(record: RunStateRecord): Promise<void>;
+    commit(record: RunStateRecord, durability: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     read(runId: string): Promise<RunStateRecord[]>;
     barrier(_runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
 }
@@ -1692,8 +1760,7 @@ export declare type RunSnapshotInput = Omit<RunSnapshot, "schemaVersion" | "resu
 export declare class RunStateJournal {
     readonly runId: string;
     readonly store: RunStore;
-    private sequence;
-    private pending;
+    private readonly ledger;
     private aborted;
     private rejectedAfterAbortCount;
     private knownTurnIds?;
@@ -1724,6 +1791,10 @@ export declare class RunStateJournal {
     finish(payload: unknown): void;
     flush(durability?: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     durabilityMetrics(): RunStoreDurabilityMetrics;
+    appendFact(kind: RunStateKind, payload: unknown, options?: FactAppendOptions): Promise<FactDurabilityReceipt>;
+    factMetrics(): FactLedgerMetrics;
+    factStatus(): FactLedgerStatus;
+    pendingFactCount(): number;
     private enqueue;
 }
 
@@ -1733,6 +1804,7 @@ export declare interface RunStateRecord {
     version: 1;
     runId: string;
     sequence: number;
+    eventId?: string;
     timestamp: string;
     kind: RunStateKind;
     payload: unknown;
@@ -1745,6 +1817,7 @@ export declare interface RunStore {
     readonly supportedDurability?: readonly RunStoreDurability[];
     readonly durabilityBoundary?: RunStoreDurabilityBoundary;
     append(record: RunStateRecord): Promise<void>;
+    commit?(record: RunStateRecord, durability: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     barrier?(runId: string, requested: RunStoreDurability): Promise<RunStoreDurabilityAcknowledgement>;
     read(runId: string): Promise<RunStateRecord[]>;
     pathFor?(runId: string): string;
