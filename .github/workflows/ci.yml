@@ -51,6 +51,9 @@ jobs:
       - name: 构建
         run: npm run build
 
+      - name: 跨进程 Workspace Lease 验收
+        run: npm run acceptance:workspace-lease
+
       - name: 二期公开合同冻结基线
         run: npm run baseline:check
 

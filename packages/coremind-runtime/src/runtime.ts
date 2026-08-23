@@ -92,6 +92,7 @@ import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
+import { type WorkspaceLeaseHandle, WorkspaceLeaseService } from "./workspace-lease.js";
 
 type RuntimeHarness = NonNullable<AgentBuildContext["harness"]> & {
   shouldStopAfterTurn?: NonNullable<Agent["shouldStopAfterTurn"]>;
@@ -613,6 +614,62 @@ export class CoreMindRuntime {
         recordEvent(fact);
       },
     });
+    const workspaceLeaseService = new WorkspaceLeaseService();
+    const workspaceLeaseByCall = new Map<
+      string,
+      { lease: WorkspaceLeaseHandle; identity: ToolCallIdentity }
+    >();
+    const releaseWorkspaceLease = async (identity: ToolCallIdentity): Promise<void> => {
+      const callKey = toolCapabilityCallKey(identity.agent, identity.stepId, identity.callId);
+      const held = workspaceLeaseByCall.get(callKey);
+      if (!held) return;
+      const { lease } = held;
+      await journal.flush("critical");
+      const lifecycle = toolExecutionEngine.inspect(identity);
+      await lease.release({
+        activeTools: lifecycle?.terminal ? 0 : 1,
+        activeProcesses: 0,
+        pendingCriticalFacts: journal.pendingFactCount(),
+      });
+      workspaceLeaseByCall.delete(callKey);
+      emit({
+        type: "workspace_lease",
+        status: "released",
+        canonicalRoot: lease.canonicalRoot,
+        lane: lease.lane,
+        owner: {
+          runId: lease.owner.runId,
+          callId: lease.owner.callId,
+          pid: lease.owner.pid,
+        },
+        agent: identity.agent,
+        callId: identity.callId,
+        ...(identity.stepId ? { stepId: identity.stepId } : {}),
+      });
+      await journal.flush("critical");
+    };
+    const rollbackWorkspaceLease = async (identity: ToolCallIdentity): Promise<void> => {
+      const callKey = toolCapabilityCallKey(identity.agent, identity.stepId, identity.callId);
+      const held = workspaceLeaseByCall.get(callKey);
+      if (!held) return;
+      await held.lease.rollbackBeforeExecution();
+      workspaceLeaseByCall.delete(callKey);
+      emit({
+        type: "workspace_lease",
+        status: "released",
+        canonicalRoot: held.lease.canonicalRoot,
+        lane: held.lease.lane,
+        owner: {
+          runId: held.lease.owner.runId,
+          callId: held.lease.owner.callId,
+          pid: held.lease.owner.pid,
+        },
+        agent: identity.agent,
+        callId: identity.callId,
+        ...(identity.stepId ? { stepId: identity.stepId } : {}),
+      });
+      await journal.flush("critical");
+    };
     onToolResultRecorded = (event) => {
       const recorded = toolExecutionEngine.inspect({
         ...toolCallIdentity(event.agent, event.stepId, event.callId!),
@@ -624,6 +681,7 @@ export class CoreMindRuntime {
           try {
             await journal.flush();
             await toolExecutionEngine.finalizeResult(identity);
+            await releaseWorkspaceLease(identity);
           } catch (error) {
             const failure =
               error instanceof CoreMindError
@@ -954,14 +1012,93 @@ export class CoreMindRuntime {
           await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
           return { block: true, reason, terminate: true };
         }
-        await toolExecutionEngine.advance(lifecycleIdentity, {
-          phase: "lease_acquired",
-          status: "skipped",
-          reason:
-            resolvedCapability.concurrency === "parallel"
-              ? "Pure Local Read 不需要 Workspace Lease"
-              : "Workspace Lease 由后续 Gate 接入",
-        });
+        if (resolvedCapability.concurrency === "parallel") {
+          await toolExecutionEngine.advance(lifecycleIdentity, {
+            phase: "lease_acquired",
+            status: "skipped",
+            reason: "Pure Local Read 不需要 Workspace Lease",
+          });
+        } else {
+          try {
+            const lease = await workspaceLeaseService.acquire({
+              workspaceRoot: this.options.cwd ?? process.cwd(),
+              lane: resolvedCapability.concurrency,
+              owner: { runId, callId: context.toolCall.id },
+            });
+            workspaceLeaseByCall.set(
+              toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
+              {
+                lease,
+                identity: lifecycleIdentity,
+              },
+            );
+            emit({
+              type: "workspace_lease",
+              status: "acquired",
+              canonicalRoot: lease.canonicalRoot,
+              lane: lease.lane,
+              owner: {
+                runId: lease.owner.runId,
+                callId: lease.owner.callId,
+                pid: lease.owner.pid,
+              },
+              agent: agentName,
+              callId: context.toolCall.id,
+              ...(stepId ? { stepId } : {}),
+            });
+            await journal.flush("critical");
+            await toolExecutionEngine.advance(lifecycleIdentity, {
+              phase: "lease_acquired",
+              status: "completed",
+            });
+          } catch (error) {
+            const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+            const held = workspaceLeaseByCall.get(callKey);
+            if (held) {
+              await rollbackWorkspaceLease(lifecycleIdentity).catch(() => undefined);
+            }
+            let leaseFailure =
+              error instanceof CoreMindError
+                ? error
+                : new CoreMindError(
+                    "workspace_lease_invalid",
+                    error instanceof Error ? error.message : String(error),
+                  );
+            if (leaseFailure.code === "workspace_lease_recovery_required") {
+              const inspection = await workspaceLeaseService.inspect(
+                this.options.cwd ?? process.cwd(),
+              );
+              if (inspection.state === "recovery_required" && inspection.owner) {
+                emit({
+                  type: "workspace_lease",
+                  status: "recovery_required",
+                  canonicalRoot: inspection.canonicalRoot,
+                  lane: resolvedCapability.concurrency,
+                  owner: {
+                    runId: inspection.owner.runId,
+                    callId: inspection.owner.callId,
+                    pid: inspection.owner.pid,
+                  },
+                  agent: agentName,
+                  callId: context.toolCall.id,
+                  ...(stepId ? { stepId } : {}),
+                });
+                try {
+                  await journal.flush("critical");
+                } catch (durabilityError) {
+                  leaseFailure = durabilityFailure(durabilityError);
+                }
+              }
+            }
+            checkpointFailure = leaseFailure;
+            await toolExecutionEngine.blockBeforeExecution(
+              lifecycleIdentity,
+              checkpointFailure.message,
+            );
+            emit({ type: "error", message: checkpointFailure.message, fatal: true });
+            return { block: true, reason: checkpointFailure.message, terminate: true };
+          }
+        }
         try {
           const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
           const checkpoints = await checkpointManager.captureAll(
@@ -1023,6 +1160,7 @@ export class CoreMindRuntime {
             checkpointFailure.message,
           );
           emit({ type: "error", message: checkpointFailure.message, fatal: true });
+          await rollbackWorkspaceLease(lifecycleIdentity);
           return { block: true, reason: checkpointFailure.message };
         }
         effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
@@ -1049,6 +1187,7 @@ export class CoreMindRuntime {
               checkpointFailure.message,
             );
             emit({ type: "error", message: checkpointFailure.message, fatal: true });
+            await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: checkpointFailure.message };
           }
         } else {
@@ -1334,7 +1473,27 @@ export class CoreMindRuntime {
 
     // 静止等待（规格 03 §5）：runWithGuard 收尾路径调用，等所有 agent 真正 idle、
     // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
-    await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
+    const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
+    if (!runtimeQuiescent && workspaceLeaseByCall.size > 0) {
+      terminalError ??= new CoreMindError(
+        "workspace_lease_not_quiescent",
+        "Runtime 未达到静止条件，Workspace Lease 保持占用并等待恢复审计",
+      );
+    } else {
+      for (const { identity } of [...workspaceLeaseByCall.values()]) {
+        try {
+          await releaseWorkspaceLease(identity);
+        } catch (error) {
+          terminalError ??=
+            error instanceof CoreMindError
+              ? error
+              : new CoreMindError(
+                  "workspace_lease_not_quiescent",
+                  error instanceof Error ? error.message : String(error),
+                );
+        }
+      }
+    }
 
     let sessionFile: string | undefined;
     // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）；
@@ -1755,6 +1914,8 @@ function traceFactDurability(
   switch (event.type) {
     case "capability_resolved":
       return "ordinary";
+    case "workspace_lease":
+      return "critical";
     case "tool_result": {
       const callId = event.callId;
       if (!callId) return "critical";

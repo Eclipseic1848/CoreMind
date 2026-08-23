@@ -6,6 +6,7 @@ import type { QualityConfig } from 'coremind-config';
 import { RecoveryDisposition } from 'coremind-tools';
 import { ResolvedToolCapability } from 'coremind-tools';
 import type { RuntimeLimitsConfig } from 'coremind-config';
+import type { ToolCapabilityConcurrency } from 'coremind-config';
 import type { ToolCapabilityDeclaration } from 'coremind-tools';
 import { ToolEffectDeclaration } from 'coremind-config';
 import { ToolEffectOperation } from 'coremind-config';
@@ -34,6 +35,9 @@ export declare function buildRepositoryMap(inspection: CodingRepositoryInspectio
 
 /** 固定分区和排序规则，保证同一静态输入生成逐字节一致的 Provider 前缀。 */
 export declare function buildStableContextPrefix(input: StableContextPrefixInput): StableContextPrefix;
+
+/** 解析相对路径、symlink/junction 与 Windows 大小写后的 Workspace 身份。 */
+export declare function canonicalizeWorkspace(workspaceRoot: string): Promise<string>;
 
 /**
  * 交互式会话（库 API）：多轮对话循环，供 CLI chat 与自定义 UI 复用。
@@ -350,6 +354,19 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     stepId?: string;
     capability: ResolvedToolCapability;
     recoveryDisposition: RecoveryDisposition;
+} | {
+    type: "workspace_lease";
+    status: "acquired" | "released" | "recovery_required";
+    canonicalRoot: string;
+    lane: "parallel" | "run_serial" | "workspace_exclusive";
+    owner: {
+        runId: string;
+        callId: string;
+        pid: number;
+    };
+    agent: string;
+    callId: string;
+    stepId?: string;
 } | {
     type: "effect_receipt";
     idempotencyKey: string;
@@ -1542,6 +1559,11 @@ export declare function projectToolCapabilities(events: readonly CoreMindEvent[]
 /** 0.3.0/0.3.1 RunState 读取端：只使用当时已持久化的 Fact，不按名称补写结论。 */
 export declare function projectToolCapabilitiesFromRecords(records: readonly RunStateRecord[]): ToolCapabilityProjection[];
 
+/** 从规范化 Lease Fact 折叠当前状态；缺失历史 Fact 时不按路径或工具名补写。 */
+export declare function projectWorkspaceLeases(events: readonly CoreMindEvent[]): WorkspaceLeaseProjection[];
+
+export declare function projectWorkspaceLeasesFromRecords(records: readonly RunStateRecord[]): WorkspaceLeaseProjection[];
+
 /**
  * 在每次 Provider 请求前执行的本地上下文保护。
  * 摘要只在用户环境生成；保留区从 user 消息开始，避免留下孤立 toolResult。
@@ -2098,5 +2120,87 @@ export declare interface TransientRetryOptions {
 export declare function validateEvaluationSuite(value: unknown): EvaluationSuite;
 
 export declare function validateToolCallLifecycleFact(value: unknown): ToolCallLifecycleFact;
+
+export declare interface WorkspaceLeaseAcquireOptions {
+    workspaceRoot: string;
+    lane: ToolCapabilityConcurrency;
+    owner: WorkspaceLeaseOwnerInput;
+}
+
+export declare interface WorkspaceLeaseHandle {
+    readonly canonicalRoot: string;
+    readonly lane: ToolCapabilityConcurrency;
+    readonly owner: WorkspaceLeaseOwner;
+    readonly requiresWriteLease: boolean;
+    release(quiescence: WorkspaceQuiescence): Promise<void>;
+    rollbackBeforeExecution(): Promise<void>;
+}
+
+export declare type WorkspaceLeaseInspection = {
+    state: "available";
+    canonicalRoot: string;
+} | {
+    state: "held";
+    canonicalRoot: string;
+    owner: WorkspaceLeaseOwner;
+} | {
+    state: "recovery_required";
+    canonicalRoot: string;
+    owner?: WorkspaceLeaseOwner;
+    reason: string;
+};
+
+export declare interface WorkspaceLeaseOwner extends WorkspaceLeaseOwnerInput {
+    schemaVersion: 1;
+    canonicalRoot: string;
+    pid: number;
+    nonce: string;
+    acquiredAt: string;
+}
+
+export declare interface WorkspaceLeaseOwnerInput {
+    runId: string;
+    callId: string;
+}
+
+export declare function workspaceLeasePath(canonicalRoot: string): string;
+
+export declare interface WorkspaceLeaseProjection {
+    agent: string;
+    callId: string;
+    stepId?: string;
+    canonicalRoot: string;
+    lane: ToolCapabilityConcurrency;
+    owner: {
+        runId: string;
+        callId: string;
+        pid: number;
+    };
+    status: "acquired" | "released" | "recovery_required";
+}
+
+export declare interface WorkspaceLeaseRecoveryDecision {
+    state: "recovered";
+    canonicalRoot: string;
+    previousOwner: WorkspaceLeaseOwner;
+    recoveredAt: string;
+}
+
+/** 本地文件系统 Workspace 单写者服务；不声称网络文件系统或远程分布式一致性。 */
+export declare class WorkspaceLeaseService {
+    private readonly runSerialOwners;
+    acquire(options: WorkspaceLeaseAcquireOptions): Promise<WorkspaceLeaseHandle>;
+    inspect(workspaceRoot: string): Promise<WorkspaceLeaseInspection>;
+    recover(workspaceRoot: string, expectedOwnerNonce: string): Promise<WorkspaceLeaseRecoveryDecision>;
+    private acquireRunSerial;
+    private fileLease;
+    private inspectCanonical;
+}
+
+export declare interface WorkspaceQuiescence {
+    activeTools: number;
+    activeProcesses: number;
+    pendingCriticalFacts: number;
+}
 
 export { }

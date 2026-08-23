@@ -33,6 +33,7 @@
     "release:publish-npm": "node scripts/publish-npm-artifacts.mjs --publish",
     "acceptance:rc": "node scripts/rc-acceptance.mjs",
     "acceptance:tty": "node scripts/tty-acceptance.mjs",
+    "acceptance:workspace-lease": "node scripts/workspace-lease-process-probe.mjs",
     "security:audit": "node scripts/check-security-audit.mjs",
     "test": "vitest run",
     "test:stability": "node scripts/test-stability.mjs",
