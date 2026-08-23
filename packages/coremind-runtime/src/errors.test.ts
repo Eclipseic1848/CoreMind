@@ -74,6 +74,8 @@ const EXISTING_CODES = [
   "invalid_run_id",
   "invalid_config",
   "invalid_tool",
+  "tool_capability_conflict",
+  "tool_lifecycle_invalid",
   // 瞬态
   "network_error",
   "provider_unavailable",

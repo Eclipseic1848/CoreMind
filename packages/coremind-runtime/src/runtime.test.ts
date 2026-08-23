@@ -399,6 +399,27 @@ describe("CoreMindRuntime", () => {
         },
       });
       expect(result.releaseReadiness.ready).toBe(false);
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "tool_lifecycle")
+          .map((entry) => {
+            const resolution = (entry.event as { resolution: { phase: string; status: string } })
+              .resolution;
+            return `${resolution.phase}:${resolution.status}`;
+          }),
+      ).toEqual([
+        "call_recorded:completed",
+        "capability_resolved:completed",
+        "policy_resolved:skipped",
+        "approval_resolved:skipped",
+        "lease_acquired:skipped",
+        "checkpoint_durable:skipped",
+        "started_durable:skipped",
+        "executing:skipped",
+        "observed:skipped",
+        "result_durable:completed",
+        "terminal:completed",
+      ]);
     } finally {
       await closeServer(server);
     }
@@ -451,6 +472,27 @@ describe("CoreMindRuntime", () => {
           .filter((entry) => entry.event.type === "effect_receipt")
           .map((entry) => entry.event.status),
       ).toEqual(["started", "committed"]);
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "tool_lifecycle")
+          .map((entry) => {
+            const resolution = (entry.event as { resolution: { phase: string; status: string } })
+              .resolution;
+            return `${resolution.phase}:${resolution.status}`;
+          }),
+      ).toEqual([
+        "call_recorded:completed",
+        "capability_resolved:completed",
+        "policy_resolved:completed",
+        "approval_resolved:completed",
+        "lease_acquired:skipped",
+        "checkpoint_durable:skipped",
+        "started_durable:skipped",
+        "executing:completed",
+        "observed:completed",
+        "result_durable:completed",
+        "terminal:completed",
+      ]);
     } finally {
       await closeServer(server);
     }
@@ -538,6 +580,27 @@ describe("CoreMindRuntime", () => {
       expect(result.trace.some((entry) => entry.event.type === "policy_denied")).toBe(true);
       expect(result.releaseReadiness.ready).toBe(false);
       expect(result.snapshot.resumable).toBe(true);
+      expect(
+        result.trace
+          .filter((entry) => entry.event.type === "tool_lifecycle")
+          .map((entry) => {
+            const resolution = (entry.event as { resolution: { phase: string; status: string } })
+              .resolution;
+            return `${resolution.phase}:${resolution.status}`;
+          }),
+      ).toEqual([
+        "call_recorded:completed",
+        "capability_resolved:completed",
+        "policy_resolved:completed",
+        "approval_resolved:completed",
+        "lease_acquired:skipped",
+        "checkpoint_durable:skipped",
+        "started_durable:skipped",
+        "executing:skipped",
+        "observed:skipped",
+        "result_durable:completed",
+        "terminal:completed",
+      ]);
       const records = await store.read(result.runId);
       expect(() =>
         prepareRunResume(

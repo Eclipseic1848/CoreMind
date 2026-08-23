@@ -39,6 +39,7 @@ import { createEventNotification } from 'coremind-protocol';
 import { createPythonToolCallNotification } from 'coremind-protocol';
 import { createRunSnapshot } from 'coremind-runtime';
 import { createSuccessResponse } from 'coremind-protocol';
+import { createToolCallLifecycle } from 'coremind-runtime';
 import { createTraceExporterExtension } from 'coremind-runtime';
 import { createUnifiedDiff } from 'coremind-tools';
 import { defineExperiment } from 'coremind-runtime';
@@ -128,6 +129,7 @@ import { ProcessRunRequest } from 'coremind-tools';
 import { ProcessRunResult } from 'coremind-tools';
 import { ProjectGuidanceOptions } from 'coremind-templates';
 import { ProjectLanguage } from 'coremind-templates';
+import { projectToolCallLifecycles } from 'coremind-runtime';
 import { PROTOCOL_VERSION } from 'coremind-protocol';
 import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolEventNotification } from 'coremind-protocol';
@@ -168,8 +170,12 @@ import { StepOutput } from 'coremind-runtime';
 import { TemplateMeta } from 'coremind-templates';
 import { TEMPLATES } from 'coremind-templates';
 import { ToolApprovalRequest } from 'coremind-runtime';
+import { ToolCallLifecycleFact } from 'coremind-runtime';
+import { ToolCallLifecycleState } from 'coremind-runtime';
+import { ToolCallResultAxes } from 'coremind-runtime';
 import { ToolEffect } from 'coremind-runtime';
 import { ToolEffectDeclaration } from 'coremind-config';
+import { ToolExecutionEngine } from 'coremind-runtime';
 import { TrajectoryGrader } from 'coremind-runtime';
 import { TrajectoryStep } from 'coremind-runtime';
 import { UnifiedDiffOptions } from 'coremind-tools';
@@ -257,6 +263,8 @@ export { createPythonToolCallNotification }
 export { createRunSnapshot }
 
 export { createSuccessResponse }
+
+export { createToolCallLifecycle }
 
 export { createTraceExporterExtension }
 
@@ -436,6 +444,8 @@ export { ProjectGuidanceOptions }
 
 export { ProjectLanguage }
 
+export { projectToolCallLifecycles }
+
 export { PROTOCOL_VERSION }
 
 export { ProtocolErrorResponse }
@@ -516,9 +526,17 @@ export { TEMPLATES }
 
 export { ToolApprovalRequest }
 
+export { ToolCallLifecycleFact }
+
+export { ToolCallLifecycleState }
+
+export { ToolCallResultAxes }
+
 export { ToolEffect }
 
 export { ToolEffectDeclaration }
+
+export { ToolExecutionEngine }
 
 export { TrajectoryGrader }
 

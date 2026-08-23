@@ -3,6 +3,7 @@ import type { RecoveryDisposition, ResolvedToolCapability } from "coremind-tools
 import type { LifecycleEventType, LifecycleExtensionReceiptStatus } from "./lifecycle-extension.js";
 import type { LoopPhase } from "./loop-controller.js";
 import type { CoreMindMessage } from "./public-message.js";
+import type { ToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import type { ToolEffect } from "./tool-policy.js";
 
 export type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
@@ -20,6 +21,7 @@ export interface ToolExecutionEvidence {
  * 所有事件都带 agent 名（由订阅方注入），workflow 步骤事件带 stepId。
  */
 export type CoreMindEvent =
+  | ToolCallLifecycleFact
   | { type: "agent_start"; agent: string; stepId?: string; turnId?: string }
   | {
       type: "turn_end";

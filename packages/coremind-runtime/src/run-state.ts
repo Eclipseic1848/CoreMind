@@ -16,6 +16,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import type { CompletedWorkflowStep } from "./orchestrator.js";
+import { projectToolCallLifecycles, validateToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { projectToolCapabilities } from "./tool-capability-projection.js";
 import type { CoreMindTraceEvent } from "./trace.js";
@@ -232,6 +233,7 @@ export class MemoryRunStore implements RunStore {
   private readonly records = new Map<string, RunStateRecord[]>();
 
   async append(record: RunStateRecord): Promise<void> {
+    validateRecord(record, record.runId);
     const items = this.records.get(record.runId) ?? [];
     const duplicate = items.find((item) => item.sequence === record.sequence);
     if (duplicate) {
@@ -427,6 +429,29 @@ export interface UnsafeToolCall {
 export function findUnsafeToolCall(
   trace: readonly CoreMindTraceEvent[],
 ): UnsafeToolCall | undefined {
+  const lifecycleFacts = trace
+    .map((entry) => entry.event)
+    .filter((event) => event.type === "tool_lifecycle");
+  if (lifecycleFacts.length > 0) {
+    const completedSteps = new Set(
+      trace
+        .map((entry) => entry.event)
+        .filter((event) => event.type === "step_output")
+        .map((event) => event.stepId),
+    );
+    for (const state of projectToolCallLifecycles(lifecycleFacts)) {
+      if (state.stepId && completedSteps.has(state.stepId)) continue;
+      if (state.result.effectState === "not_started") continue;
+      if (state.result.recoveryDisposition === "replay_safe") continue;
+      return {
+        tool: state.tool,
+        ...(state.stepId ? { stepId: state.stepId } : {}),
+        receiptStatus: state.result.effectState,
+      };
+    }
+    return undefined;
+  }
+
   const receipts = new Map<string, EffectReceipt>();
   const completedSteps = new Set<string>();
   const capabilities = new Map(
@@ -670,6 +695,13 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
       recoveryDispositionFor(event.capability) !== event.recoveryDisposition)
   ) {
     throw new CoreMindError("run_state_corrupt", "RunState 包含非法 capability_resolved");
+  }
+  if (event.type === "tool_lifecycle") {
+    try {
+      validateToolCallLifecycleFact(event);
+    } catch {
+      throw new CoreMindError("run_state_corrupt", "RunState 包含非法 tool_lifecycle");
+    }
   }
   return trace as CoreMindTraceEvent;
 }

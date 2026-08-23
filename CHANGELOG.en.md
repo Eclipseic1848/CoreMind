@@ -11,6 +11,8 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Resolve and persist one immutable `ResolvedToolCapability` for every Tool Call, giving Policy, Approval, Checkpoint, and all four entry-point projections one safety decision source.
 - Fail closed for unregistered, incomplete, conflicting, or cross-dimensionally unsafe declarations; an External Observable Read is no longer considered replay-safe from its name or `replay: safe` alone.
 - Preserve legacy `effect` inputs through conservative migration, while projecting 0.3.0/0.3.1 records without Capability Facts explicitly as `legacy/unknown`.
+- Added one Tool Call lifecycle reducer with orthogonal result axes; success, denial, tool failure, persistence failure, cancellation, and timeout now converge to one offline-reconstructible terminal state.
+- Unified recovery decisions for Runtime, RunSnapshot, Worker, and both SDKs on the persisted lifecycle projection; a non-idempotent or unknown Effect is never replayed automatically once it may have started.
 
 ## 0.3.1 — 2026-08-21
 

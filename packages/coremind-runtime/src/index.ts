@@ -232,6 +232,27 @@ export {
   type RunSnapshotInput,
 } from "./snapshot.js";
 export {
+  type AuthorizationState,
+  advanceToolCallLifecycle,
+  type CleanupState,
+  createToolCallLifecycle,
+  type EffectState,
+  type EnvironmentState,
+  type ExecutionOutcome,
+  type PersistenceState,
+  projectToolCallLifecycles,
+  TOOL_CALL_PHASES,
+  type ToolCallIdentity,
+  type ToolCallLifecycleFact,
+  type ToolCallLifecycleState,
+  type ToolCallPhase,
+  type ToolCallPhaseResolution,
+  type ToolCallResultAxes,
+  ToolExecutionEngine,
+  type ToolExecutionEngineOptions,
+  validateToolCallLifecycleFact,
+} from "./tool-call-lifecycle.js";
+export {
   projectToolCapabilities,
   projectToolCapabilitiesFromRecords,
   type ToolCapabilityProjection,
