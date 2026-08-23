@@ -92,9 +92,13 @@ export function createToolCallLifecycle(
   if (
     !isNonBlankString(input.agent) ||
     !isNonBlankString(input.callId) ||
-    !isNonBlankString(input.tool)
+    !isNonBlankString(input.tool) ||
+    (input.stepId !== undefined && !isNonBlankString(input.stepId))
   ) {
-    throw new CoreMindError("tool_lifecycle_invalid", "Tool Call 身份与工具必须为非空字符串");
+    throw new CoreMindError(
+      "tool_lifecycle_invalid",
+      "Tool Call 身份、可选 Step 与工具必须为非空字符串",
+    );
   }
   return {
     version: 1,
@@ -267,7 +271,7 @@ export class ToolExecutionEngine {
   }
 
   /** 在 Tool Result 已落盘后收敛正常 Call。 */
-  async finalizeObserved(identity: ToolCallIdentity): Promise<ToolCallLifecycleState> {
+  async finalizeResult(identity: ToolCallIdentity): Promise<ToolCallLifecycleState> {
     let current = await this.advance(identity, {
       phase: "result_durable",
       status: "completed",
@@ -328,22 +332,7 @@ export class ToolExecutionEngine {
     }
     current = this.inspect(identity);
     if (!current || current.terminal) return;
-    if (current.currentPhase === "observed") {
-      current = await this.advance(identity, {
-        phase: "result_durable",
-        status: "completed",
-        result: { persistenceState: "durable" },
-      });
-    }
-    if (current.currentPhase === "result_durable") {
-      await this.advance(identity, {
-        phase: "terminal",
-        status: "completed",
-        result: {
-          cleanupState: current.result.effectState === "not_started" ? "not_needed" : "pending",
-        },
-      });
-    }
+    if (current.currentPhase === "observed") await this.finalizeResult(identity);
   }
 
   private async advanceUnqueued(

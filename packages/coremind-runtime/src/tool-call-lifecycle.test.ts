@@ -141,6 +141,12 @@ describe("Tool Call 生命周期 reducer", () => {
     });
   });
 
+  it("拒绝会导致在线与离线 key 分叉的空白 stepId", () => {
+    expect(() =>
+      createToolCallLifecycle({ agent: "main", stepId: "", callId: "call-1", tool: "read" }),
+    ).toThrowError(expect.objectContaining({ code: "tool_lifecycle_invalid" }));
+  });
+
   it("结果持久化失败不抹去已返回结果与已提交 Effect", () => {
     let state = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "write" });
     for (const phase of [
@@ -369,7 +375,7 @@ describe("Tool Call 生命周期 reducer", () => {
       result: { executionOutcome: "returned", effectState: "committed" },
     });
 
-    const terminal = await engine.finalizeObserved(identity);
+    const terminal = await engine.finalizeResult(identity);
 
     expect(terminal).toMatchObject({
       terminal: true,

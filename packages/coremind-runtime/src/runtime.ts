@@ -614,7 +614,7 @@ export class CoreMindRuntime {
         const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
         const finalizer = (async () => {
           await journal.flush();
-          await toolExecutionEngine.finalizeObserved(identity);
+          await toolExecutionEngine.finalizeResult(identity);
         })();
         lifecycleFinalizers.add(finalizer);
         void finalizer
@@ -1630,7 +1630,6 @@ function resumedInputId(events: readonly CoreMindEvent[]): InputId | undefined {
   return undefined;
 }
 
-/** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */
 function toolCallIdentity(
   agent: string,
   stepId: string | undefined,
@@ -1639,6 +1638,7 @@ function toolCallIdentity(
   return { agent, callId, ...(stepId ? { stepId } : {}) };
 }
 
+/** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */
 function knownTurnIdsFrom(collected: readonly CoreMindEvent[]): Set<string> {
   return new Set(
     collected.flatMap((event) => {

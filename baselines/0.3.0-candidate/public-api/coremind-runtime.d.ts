@@ -1900,7 +1900,7 @@ export declare class ToolExecutionEngine {
     private trackPending;
     blockBeforeExecution(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
     /** 在 Tool Result 已落盘后收敛正常 Call。 */
-    finalizeObserved(identity: ToolCallIdentity): Promise<ToolCallLifecycleState>;
+    finalizeResult(identity: ToolCallIdentity): Promise<ToolCallLifecycleState>;
     /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
     settleInterrupted(executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">, reason: string): Promise<void>;
     private settleOneInterrupted;
