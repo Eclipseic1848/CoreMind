@@ -781,6 +781,10 @@ export class CoreMindRuntime {
     const deniedAgents = new Set<string>();
     this.activeHarnessFactory = (agentName, stepId) => ({
       maxRetries: loop ? 0 : limits.maxRetries,
+      executeTool: (tool, callId, args, signal, onUpdate) =>
+        toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
+          tool.execute(callId, args, signal, onUpdate),
+        ),
       transformContext: async (messages) => {
         while (lifecycleFinalizers.size > 0) {
           await Promise.allSettled([...lifecycleFinalizers]);

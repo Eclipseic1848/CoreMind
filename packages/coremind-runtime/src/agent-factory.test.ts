@@ -8,7 +8,7 @@ import {
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import { createReadTool } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildAgent } from "./agent-factory.js";
 import type { CoreMindEvent } from "./events.js";
 
@@ -82,6 +82,135 @@ describe("buildAgent（离线 faux 端到端）", () => {
       .map((c) => c.text)
       .join("");
     expect(text).toContain("完成");
+  });
+
+  it("所有 AgentTool.execute 都经过 Harness 的唯一执行入口", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-tool-entry-"));
+    writeFileSync(path.join(dir, "notes.txt"), "唯一入口", "utf8");
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("read", { path: "notes.txt" })]),
+      fauxAssistantMessage("完成"),
+    ]);
+    const original = createReadTool(dir);
+    const adapter = vi.fn(original.execute.bind(original));
+    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) =>
+      tool.execute(callId, args, signal, onUpdate),
+    );
+    const agent = buildAgent(
+      { systemPrompt: "测试助手", tools: [{ id: "read" }] },
+      {
+        models,
+        model,
+        tools: [{ ...original, execute: adapter }],
+        agentName: "tester",
+        onEvent: () => undefined,
+        harness: { executeTool },
+      },
+    );
+
+    await agent.prompt("读取 notes.txt");
+    await agent.waitForIdle();
+
+    expect(executeTool).toHaveBeenCalledTimes(1);
+    expect(adapter).toHaveBeenCalledTimes(1);
+  });
+
+  it("Harness 执行入口拒绝时不会旁路调用原 Adapter", async () => {
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("read", { path: "notes.txt" })]),
+      fauxAssistantMessage("完成"),
+    ]);
+    const original = createReadTool(process.cwd());
+    const adapter = vi.fn(original.execute.bind(original));
+    const executeTool = vi.fn(async () => {
+      throw new Error("Harness gate rejected");
+    });
+    const agent = buildAgent(
+      { systemPrompt: "测试助手", tools: [{ id: "read" }] },
+      {
+        models,
+        model,
+        tools: [{ ...original, execute: adapter }],
+        agentName: "tester",
+        onEvent: () => undefined,
+        harness: { executeTool },
+      },
+    );
+
+    await agent.prompt("读取 notes.txt");
+    await agent.waitForIdle();
+
+    expect(executeTool).toHaveBeenCalledTimes(1);
+    expect(adapter).not.toHaveBeenCalled();
+  });
+
+  it("并行 Adapter 完成顺序不改写模型要求的 Tool Result 顺序与 callId", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-tool-order-"));
+    writeFileSync(path.join(dir, "notes.txt"), "并行顺序", "utf8");
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([
+      fauxAssistantMessage([
+        fauxToolCall("slow-read", { path: "notes.txt" }, { id: "call-slow" }),
+        fauxToolCall("fast-read", { path: "notes.txt" }, { id: "call-fast" }),
+      ]),
+      fauxAssistantMessage("完成"),
+    ]);
+    const base = createReadTool(dir);
+    let releaseSlow!: () => void;
+    const fastCompleted = new Promise<void>((resolve) => {
+      releaseSlow = resolve;
+    });
+    const completionOrder: string[] = [];
+    const slow = {
+      ...base,
+      name: "slow-read",
+      label: "slow-read",
+      execute: async (...args: Parameters<typeof base.execute>) => {
+        await fastCompleted;
+        completionOrder.push("slow");
+        return base.execute(...args);
+      },
+    };
+    const fast = {
+      ...base,
+      name: "fast-read",
+      label: "fast-read",
+      execute: async (...args: Parameters<typeof base.execute>) => {
+        completionOrder.push("fast");
+        releaseSlow();
+        return base.execute(...args);
+      },
+    };
+    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) =>
+      tool.execute(callId, args, signal, onUpdate),
+    );
+    const agent = buildAgent(
+      { systemPrompt: "测试助手" },
+      {
+        models,
+        model,
+        tools: [slow, fast],
+        agentName: "tester",
+        onEvent: () => undefined,
+        harness: { executeTool },
+      },
+    );
+
+    await agent.prompt("并行读取");
+    await agent.waitForIdle();
+
+    expect(completionOrder).toEqual(["fast", "slow"]);
+    expect(
+      agent.state.messages
+        .filter((message) => message.role === "toolResult")
+        .map((message) => message.toolCallId),
+    ).toEqual(["call-slow", "call-fast"]);
+    expect(executeTool.mock.calls.map((call) => call[1]).sort()).toEqual([
+      "call-fast",
+      "call-slow",
+    ]);
   });
 });
 

@@ -10,11 +10,7 @@ import {
 
 describe("Tool Call 生命周期 reducer", () => {
   it("Call 记录后按唯一阶段图推进到 Capability 已解析", () => {
-    const recorded = createToolCallLifecycle({
-      agent: "main",
-      callId: "call-1",
-      tool: "read",
-    });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
 
     const resolved = advanceToolCallLifecycle(recorded, {
       phase: "capability_resolved",
@@ -116,7 +112,11 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝没有原因的 failed 阶段", () => {
-    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
+    const recorded = createToolCallLifecycle({
+      agent: "main",
+      callId: "call-1",
+      tool: "read",
+    });
 
     expect(() =>
       advanceToolCallLifecycle(recorded, {
@@ -329,6 +329,49 @@ describe("Tool Call 生命周期 reducer", () => {
     expect(engine.inspect(identity)).toBeUndefined();
   });
 
+  it("Adapter 只能在 executing 阶段由 ToolExecutionEngine 调用", async () => {
+    const engine = new ToolExecutionEngine({ persist: async () => undefined });
+    const identity = { agent: "main", callId: "call-adapter-gate" };
+    await engine.recordCall({ ...identity, tool: "write" });
+    let adapterCalls = 0;
+
+    await expect(
+      engine.executeAdapter(identity, async () => {
+        adapterCalls += 1;
+        return "unsafe";
+      }),
+    ).rejects.toMatchObject({ code: "tool_lifecycle_invalid" });
+
+    expect(adapterCalls).toBe(0);
+  });
+
+  it("同一 Call 的 Adapter 只调用一次，包括并发或失败后重入", async () => {
+    const engine = new ToolExecutionEngine({ persist: async () => undefined });
+    const identity = { agent: "main", callId: "call-adapter-once" };
+    await advanceEngineToExecuting(engine, identity, "write");
+    let adapterCalls = 0;
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const first = engine.executeAdapter(identity, async () => {
+      adapterCalls += 1;
+      await pending;
+      throw new Error("adapter failed after possible effect");
+    });
+    await expect(engine.executeAdapter(identity, async () => "duplicate")).rejects.toMatchObject({
+      code: "tool_lifecycle_invalid",
+    });
+    release();
+    await expect(first).rejects.toThrow("adapter failed after possible effect");
+    await expect(engine.executeAdapter(identity, async () => "retry")).rejects.toMatchObject({
+      code: "tool_lifecycle_invalid",
+    });
+
+    expect(adapterCalls).toBe(1);
+  });
+
   it("同一 Call 的并发迁移只持久化一个合法终结", async () => {
     const facts: unknown[] = [];
     const engine = new ToolExecutionEngine({
@@ -461,3 +504,22 @@ describe("Tool Call 生命周期 reducer", () => {
     },
   );
 });
+
+async function advanceEngineToExecuting(
+  engine: ToolExecutionEngine,
+  identity: { agent: string; callId: string; stepId?: string },
+  tool: string,
+): Promise<void> {
+  await engine.recordCall({ ...identity, tool });
+  for (const phase of [
+    "capability_resolved",
+    "policy_resolved",
+    "approval_resolved",
+    "lease_acquired",
+    "checkpoint_durable",
+    "started_durable",
+    "executing",
+  ] as const) {
+    await engine.advance(identity, { phase, status: "completed" });
+  }
+}
