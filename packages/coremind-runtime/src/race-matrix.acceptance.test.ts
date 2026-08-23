@@ -316,9 +316,10 @@ function assertNoLateFacts(outcome: SeedOutcome & SeedAssertions, scenario: Race
   // 准入计数：0 = 无迟到事实；abort/timeout 终态时 pi-agent 中止流程自身会发 failure
   // turn_end（stopReason aborted）被准入拒绝 → 计数 1 是机制正常工作的证据，不是旧活动迟到事实
   // abort/timeout 终态时 pi-agent 中止流程自身发 failure turn_end（1 次）；
-  // tool 时机在飞工具的 tool_result 在 abort 后到达也会被准入拒绝（再 +1）
+  // tool 时机在飞工具的 tool_result 与原工具 Turn 的 turn_end 在 abort 后到达会被拒绝（再 +2）；
+  // lifecycle reducer 会让该 Turn 保持开放直至 Call 收敛，因此这两个事实都可能晚于分界点。
   const abortedRun = result.outcome.status === "aborted" || result.outcome.status === "timeout";
-  const maxRejected = abortedRun ? (scenario.timing === "tool" ? 2 : 1) : 0;
+  const maxRejected = abortedRun ? (scenario.timing === "tool" ? 3 : 1) : 0;
   const rejected = result.metrics.rejectedAfterAbort ?? 0; // 可选字段：0 时不落 metrics
   expect(
     rejected,

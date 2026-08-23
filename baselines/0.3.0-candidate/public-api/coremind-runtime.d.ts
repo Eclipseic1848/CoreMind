@@ -10,11 +10,15 @@ import type { ToolCapabilityDeclaration } from 'coremind-tools';
 import { ToolEffectDeclaration } from 'coremind-config';
 import { ToolEffectOperation } from 'coremind-config';
 
+export declare function advanceToolCallLifecycle(state: ToolCallLifecycleState, resolution: ToolCallPhaseResolution): ToolCallLifecycleState;
+
 export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: CoreMindMessage[], durationMs: number, outputChars: number, rejectedAfterAbort?: number): RunMetrics;
 
 export declare type ApprovalDecision = "allow" | "deny";
 
 export declare function assessReleaseReadiness(outcome: RunOutcome, evaluation: EvaluationReport): ReleaseReadiness;
+
+export declare type AuthorizationState = "pending" | "allowed" | "approved" | "denied" | "expired";
 
 export declare interface BudgetViolation {
     dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
@@ -162,6 +166,8 @@ declare interface ClaimInputOptions extends InputReceiptEventOptions {
 /** 只根据结构化状态分类；未知错误失败关闭，避免把业务失败误当成瞬态故障。 */
 export declare function classifyRetry(error: unknown): RetryClassification;
 
+export declare type CleanupState = "not_needed" | "pending" | "quiescent" | "failed";
+
 export declare const CODING_TOOL_CONTRACTS: readonly CodingToolContract[];
 
 export declare interface CodingEnvironmentChoice {
@@ -294,7 +300,7 @@ export declare class CoreMindError extends Error {
  * CoreMind 归一化事件——CLI 渲染、库调用方、二期 Web 面板共用同一契约。
  * 所有事件都带 agent 名（由订阅方注入），workflow 步骤事件带 stepId。
  */
-export declare type CoreMindEvent = {
+export declare type CoreMindEvent = ToolCallLifecycleFact | {
     type: "agent_start";
     agent: string;
     stepId?: string;
@@ -721,6 +727,10 @@ declare interface CreateInputReceiptOptions extends InputReceiptEventOptions {
 /** 在 Runtime 终态确定后生成唯一快照，供 CLI、Worker 与两个 SDK 原样传递。 */
 export declare function createRunSnapshot(input: RunSnapshotInput): RunSnapshot;
 
+export declare function createToolCallLifecycle(input: ToolCallIdentity & {
+    tool: string;
+}): ToolCallLifecycleState;
+
 export declare function createTraceExporterExtension(options: {
     id: string;
     exporter: (event: LifecycleExtensionEvent) => void | Promise<void>;
@@ -791,6 +801,8 @@ export declare interface EffectReceipt {
 }
 
 export declare type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
+
+export declare type EffectState = "not_started" | "started" | "committed" | "unknown";
 
 export declare interface EngineeringChange {
     path: string;
@@ -871,6 +883,8 @@ export declare interface EngineeringVerification {
     status: "passed" | "failed" | "aborted";
 }
 
+export declare type EnvironmentState = "available" | "degraded" | "unavailable";
+
 /**
  * 条件求值（刻意极简，一期不做表达式解析器）：
  * - 插值后的整体：空串视为假，"true"/"false" 字面量直接判定
@@ -948,6 +962,8 @@ export declare interface EvaluationSuiteResult {
     passRate: number;
     totalRuns: number;
 }
+
+export declare type ExecutionOutcome = "not_invoked" | "returned" | "threw" | "timed_out" | "aborted";
 
 export declare interface ExperimentArm {
     id: string;
@@ -1413,6 +1429,8 @@ export declare interface OutcomeGrader extends GraderBase {
 
 export declare type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
+export declare type PersistenceState = "pending" | "durable" | "failed" | "unknown";
+
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
 export declare function prepareRunResume(records: RunStateRecord[], configFingerprint: string, requestedPrompt?: string): RunResumePlan;
 
@@ -1434,6 +1452,8 @@ export declare interface ProjectCheckReport {
         auditFile: string;
     };
 }
+
+export declare function projectToolCallLifecycles(facts: readonly unknown[]): ToolCallLifecycleState[];
 
 /** 从同一 Runtime 的规范化 Fact 生成入口共享的 Capability 视图。 */
 export declare function projectToolCapabilities(events: readonly CoreMindEvent[]): ToolCapabilityProjection[];
@@ -1783,6 +1803,8 @@ export declare interface StepOutput {
     };
 }
 
+export declare const TOOL_CALL_PHASES: readonly ["call_recorded", "capability_resolved", "policy_resolved", "approval_resolved", "lease_acquired", "checkpoint_durable", "started_durable", "executing", "observed", "result_durable", "terminal"];
+
 export declare interface ToolApprovalRequest {
     approvalId: string;
     runId: string;
@@ -1793,6 +1815,57 @@ export declare interface ToolApprovalRequest {
     reason: string;
     effect: ToolEffect;
     capability?: ResolvedToolCapability;
+}
+
+export declare interface ToolCallIdentity {
+    agent: string;
+    callId: string;
+    stepId?: string;
+}
+
+export declare interface ToolCallLifecycleFact {
+    type: "tool_lifecycle";
+    agent: string;
+    callId: string;
+    tool: string;
+    stepId?: string;
+    turnId?: string;
+    resolution: ToolCallPhaseResolution;
+}
+
+export declare interface ToolCallLifecycleState {
+    version: 1;
+    agent: string;
+    callId: string;
+    tool: string;
+    stepId?: string;
+    currentPhase: ToolCallPhase;
+    terminal: boolean;
+    phases: ToolCallPhaseResolution[];
+    result: ToolCallResultAxes;
+}
+
+export declare type ToolCallPhase = (typeof TOOL_CALL_PHASES)[number];
+
+export declare type ToolCallPhaseResolution = ({
+    phase: ToolCallPhase;
+    status: "completed";
+} | {
+    phase: ToolCallPhase;
+    status: "skipped" | "failed";
+    reason: string;
+}) & {
+    result?: Partial<ToolCallResultAxes>;
+};
+
+export declare interface ToolCallResultAxes {
+    executionOutcome: ExecutionOutcome;
+    effectState: EffectState;
+    persistenceState: PersistenceState;
+    recoveryDisposition: RecoveryDisposition;
+    cleanupState: CleanupState;
+    authorizationState: AuthorizationState;
+    environmentState: EnvironmentState;
 }
 
 export declare interface ToolCapabilityProjection {
@@ -1811,6 +1884,32 @@ export declare interface ToolEffect {
     urls: string[];
     reversible: boolean;
     declared: boolean;
+}
+
+/** 所有 Call 入口共用的生命周期写入与投影 seam。 */
+export declare class ToolExecutionEngine {
+    private readonly options;
+    private readonly states;
+    private readonly pendingByCall;
+    constructor(options: ToolExecutionEngineOptions);
+    recordCall(input: ToolCallIdentity & {
+        tool: string;
+    }): Promise<ToolCallLifecycleState>;
+    private recordCallUnqueued;
+    advance(identity: ToolCallIdentity, resolution: ToolCallPhaseResolution): Promise<ToolCallLifecycleState>;
+    private trackPending;
+    blockBeforeExecution(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
+    /** 在 Tool Result 已落盘后收敛正常 Call。 */
+    finalizeResult(identity: ToolCallIdentity): Promise<ToolCallLifecycleState>;
+    /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
+    settleInterrupted(executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">, reason: string): Promise<void>;
+    private settleOneInterrupted;
+    private advanceUnqueued;
+    inspect(identity: ToolCallIdentity): ToolCallLifecycleState | undefined;
+}
+
+export declare interface ToolExecutionEngineOptions {
+    persist: (fact: ToolCallLifecycleFact) => Promise<void>;
 }
 
 /** 工具执行证据不保存命令原文，只保留退出码、耗时与不可逆摘要。 */
@@ -1879,5 +1978,7 @@ export declare interface TransientRetryOptions {
 }
 
 export declare function validateEvaluationSuite(value: unknown): EvaluationSuite;
+
+export declare function validateToolCallLifecycleFact(value: unknown): ToolCallLifecycleFact;
 
 export { }

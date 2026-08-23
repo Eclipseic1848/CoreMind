@@ -11,6 +11,8 @@
 - 为每个 Tool Call 解析并持久化唯一、不可变的 `ResolvedToolCapability`，统一 Policy、Approval、Checkpoint 与四入口投影的安全判断。
 - 未注册、残缺、冲突及跨维度不安全声明统一失败关闭；External Observable Read 不再仅凭名称或 `replay: safe` 宣称可安全重放。
 - 旧 `effect` 声明保持兼容并保守迁移；0.3.0/0.3.1 历史记录缺少 Capability Fact 时显式投影为 `legacy/unknown`。
+- 新增唯一 Tool Call 生命周期 reducer 与正交结果轴；成功、拒绝、工具错误、持久化错误、取消和超时均形成可离线重建的单一终态。
+- Runtime、RunSnapshot、Worker 与双 SDK 的恢复判断统一复用持久化 lifecycle 投影；non-idempotent 或 unknown Effect 一旦可能开始，不会自动重放。
 
 ## 0.3.1 — 2026-08-21
 

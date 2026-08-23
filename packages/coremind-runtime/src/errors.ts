@@ -111,6 +111,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  tool_lifecycle_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 瞬态类 ——
   network_error: { terminality: "transient", cancelClass: "other", retryClass: "transient" },

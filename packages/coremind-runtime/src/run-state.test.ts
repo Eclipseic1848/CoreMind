@@ -18,6 +18,23 @@ import {
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
+  it("拒绝持久化结果轴枚举非法的 tool_lifecycle Fact", async () => {
+    const store = new MemoryRunStore();
+    const invalid = traceRecord(1, 1, {
+      type: "tool_lifecycle",
+      agent: "main",
+      tool: "write",
+      callId: "call-invalid-lifecycle",
+      resolution: {
+        phase: "call_recorded",
+        status: "completed",
+        result: { effectState: "maybe" },
+      },
+    });
+
+    await expect(store.append(invalid)).rejects.toMatchObject({ code: "run_state_corrupt" });
+  });
+
   it("拒绝持久化字段缺失的 capability_resolved 安全事实", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-capability-"));
     const store = new FileRunStore(dir);
@@ -596,6 +613,81 @@ describe("isRejectedAfterAbort 分支覆盖", () => {
 });
 
 describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
+  it("混合历史与 lifecycle Trace 时仍检查 legacy 不安全 Call", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "legacy",
+        tool: "send_email",
+        callId: "legacy-unsafe",
+      }),
+      traceEntry(2, {
+        type: "tool_lifecycle",
+        agent: "main",
+        tool: "read",
+        callId: "current-safe",
+        resolution: { phase: "call_recorded", status: "completed" },
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "send_email" });
+  });
+
+  it("优先使用 lifecycle 正交轴阻止 unknown Effect 自动恢复", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_lifecycle",
+        agent: "main",
+        tool: "write",
+        callId: "call-lifecycle",
+        resolution: { phase: "call_recorded", status: "completed" },
+      }),
+      traceEntry(2, {
+        type: "tool_lifecycle",
+        agent: "main",
+        tool: "write",
+        callId: "call-lifecycle",
+        resolution: {
+          phase: "capability_resolved",
+          status: "completed",
+          result: { recoveryDisposition: "requires_human" },
+        },
+      }),
+      ...[
+        "policy_resolved",
+        "approval_resolved",
+        "lease_acquired",
+        "checkpoint_durable",
+        "started_durable",
+        "executing",
+      ].map((phase, index) =>
+        traceEntry(index + 3, {
+          type: "tool_lifecycle",
+          agent: "main",
+          tool: "write",
+          callId: "call-lifecycle",
+          resolution: { phase, status: "completed" },
+        }),
+      ),
+      traceEntry(10, {
+        type: "tool_lifecycle",
+        agent: "main",
+        tool: "write",
+        callId: "call-lifecycle",
+        resolution: {
+          phase: "observed",
+          status: "completed",
+          result: { executionOutcome: "timed_out", effectState: "unknown" },
+        },
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({
+      tool: "write",
+      receiptStatus: "unknown",
+    });
+  });
+
   it("历史记录缺少 Capability Fact 时不能按 read 名称推断为安全", () => {
     const trace = [
       traceEntry(1, {

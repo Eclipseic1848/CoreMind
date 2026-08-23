@@ -32,6 +32,7 @@ export class TurnTracker {
       }
       case "tool_call":
       case "tool_result":
+      case "tool_lifecycle":
       case "effect_receipt": {
         if (this.openTurnId === undefined) this.openTurnId = randomUUID();
         return { ...event, turnId: this.openTurnId };
