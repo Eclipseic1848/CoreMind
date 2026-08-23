@@ -159,6 +159,10 @@ import { RunStateJournal } from 'coremind-runtime';
 import { RunStateRecord } from 'coremind-runtime';
 import { RunStatus } from 'coremind-runtime';
 import { RunStore } from 'coremind-runtime';
+import { RunStoreDurability } from 'coremind-runtime';
+import { RunStoreDurabilityAcknowledgement } from 'coremind-runtime';
+import { RunStoreDurabilityBoundary } from 'coremind-runtime';
+import { RunStoreDurabilityMetrics } from 'coremind-runtime';
 import { RuntimeLimitsConfig } from 'coremind-config';
 import { scaffoldProjectGuidance } from 'coremind-templates';
 import { selectCodingEnvironment } from 'coremind-runtime';
@@ -503,6 +507,14 @@ export { RunStateRecord }
 export { RunStatus }
 
 export { RunStore }
+
+export { RunStoreDurability }
+
+export { RunStoreDurabilityAcknowledgement }
+
+export { RunStoreDurabilityBoundary }
+
+export { RunStoreDurabilityMetrics }
 
 export { RuntimeLimitsConfig }
 

@@ -287,6 +287,27 @@ export class ToolExecutionEngine {
     return current;
   }
 
+  /** Tool 已返回但结果 barrier 失败：保留执行与 Effect 事实，只收敛持久化失败。 */
+  async failResultDurability(
+    identity: ToolCallIdentity,
+    reason: string,
+  ): Promise<ToolCallLifecycleState> {
+    let current = await this.advance(identity, {
+      phase: "result_durable",
+      status: "failed",
+      reason,
+      result: { persistenceState: "failed" },
+    });
+    current = await this.advance(identity, {
+      phase: "terminal",
+      status: "completed",
+      result: {
+        cleanupState: current.result.cleanupState === "pending" ? "pending" : "not_needed",
+      },
+    });
+    return current;
+  }
+
   /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
   async settleInterrupted(
     executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">,

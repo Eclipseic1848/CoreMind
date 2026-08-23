@@ -76,6 +76,8 @@ const EXISTING_CODES = [
   "invalid_tool",
   "tool_capability_conflict",
   "tool_lifecycle_invalid",
+  "durability_unsupported",
+  "durability_barrier_failed",
   // 瞬态
   "network_error",
   "provider_unavailable",

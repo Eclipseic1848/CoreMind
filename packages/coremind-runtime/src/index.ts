@@ -218,6 +218,10 @@ export {
   type RunStateKind,
   type RunStateRecord,
   type RunStore,
+  type RunStoreDurability,
+  type RunStoreDurabilityAcknowledgement,
+  type RunStoreDurabilityBoundary,
+  type RunStoreDurabilityMetrics,
 } from "./run-state.js";
 export { RunTerminalizer } from "./run-terminalizer.js";
 export {

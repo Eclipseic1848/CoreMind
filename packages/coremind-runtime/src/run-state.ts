@@ -47,8 +47,34 @@ export interface RunStateRecord {
   payload: unknown;
 }
 
+export type RunStoreDurability = "ordinary" | "critical";
+
+export type RunStoreDurabilityBoundary =
+  | "process_memory"
+  | "process_crash"
+  | "system_crash"
+  | "power_loss";
+
+export interface RunStoreDurabilityAcknowledgement {
+  requested: RunStoreDurability;
+  achieved: RunStoreDurability;
+  boundary: RunStoreDurabilityBoundary;
+}
+
+export interface RunStoreDurabilityMetrics {
+  ordinary: { succeeded: number; failed: number };
+  critical: { succeeded: number; failed: number };
+}
+
 export interface RunStore {
+  /** 旧 Adapter 缺省时仅按 ordinary/process_memory 兼容，critical 必须失败关闭。 */
+  readonly supportedDurability?: readonly RunStoreDurability[];
+  readonly durabilityBoundary?: RunStoreDurabilityBoundary;
   append(record: RunStateRecord): Promise<void>;
+  barrier?(
+    runId: string,
+    requested: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement>;
   read(runId: string): Promise<RunStateRecord[]>;
   pathFor?(runId: string): string;
 }
@@ -74,10 +100,19 @@ export interface FileRunStoreOptions {
     temporary: string;
     record?: RunStateRecord;
   }) => void | Promise<void>;
+  /** 仅供故障注入测试：critical barrier 同步文件前调用。 */
+  beforeBarrier?: (context: {
+    destination: string;
+    runId: string;
+    requested: RunStoreDurability;
+  }) => void | Promise<void>;
   lockTimeoutMs?: number;
 }
 
 export class FileRunStore implements RunStore {
+  readonly supportedDurability = ["ordinary", "critical"] as const;
+  readonly durabilityBoundary = "process_crash" as const;
+
   constructor(
     readonly directory: string,
     private readonly options: FileRunStoreOptions = {},
@@ -121,6 +156,35 @@ export class FileRunStore implements RunStore {
       throw new CoreMindError(
         "run_state_failed",
         `RunState 写入失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async barrier(
+    runId: string,
+    requested: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement> {
+    assertSupportedDurability(this, requested);
+    if (requested === "ordinary") return durabilityAcknowledgement(this, requested);
+    const destination = this.pathFor(runId);
+    try {
+      return await this.withWriterLock(destination, async () => {
+        let handle: Awaited<ReturnType<typeof open>> | undefined;
+        try {
+          handle = await open(destination, "r+");
+          await this.options.beforeBarrier?.({ destination, runId, requested });
+          await handle.sync();
+          return durabilityAcknowledgement(this, requested);
+        } finally {
+          await handle?.close().catch(() => undefined);
+        }
+      });
+    } catch (error) {
+      throw new CoreMindError(
+        "durability_barrier_failed",
+        `RunState ${runId} 的 critical barrier 失败：${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
@@ -206,12 +270,19 @@ export class FileRunStore implements RunStore {
     const lockPath = `${destination}.lock`;
     const deadline = Date.now() + (this.options.lockTimeoutMs ?? 2_000);
     let handle: Awaited<ReturnType<typeof open>> | undefined;
+    let transientPermissionError: unknown;
     while (!handle) {
       try {
         handle = await open(lockPath, "wx");
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        const contention = await classifyWriterLockContention(error, lockPath);
+        if (contention === "not_contention") throw error;
+        if (contention === "transient_missing") transientPermissionError ??= error;
+        if (await this.reclaimStaleWriterLock(lockPath)) continue;
         if (Date.now() >= deadline) {
+          if (contention === "transient_missing" && transientPermissionError) {
+            throw transientPermissionError;
+          }
           throw new CoreMindError(
             "run_state_locked",
             `RunState ${path.basename(destination)} 正由另一 writer 使用`,
@@ -221,15 +292,122 @@ export class FileRunStore implements RunStore {
       }
     }
     try {
+      await handle.writeFile(
+        JSON.stringify({
+          pid: process.pid,
+          createdAt: new Date().toISOString(),
+          nonce: randomUUID(),
+        }),
+        "utf8",
+      );
       return await operation();
     } finally {
       await handle.close();
       await rm(lockPath, { force: true });
     }
   }
+
+  private async reclaimStaleWriterLock(lockPath: string): Promise<boolean> {
+    const inspected = await inspectWriterLock(lockPath);
+    if (inspected.state !== "valid" || isProcessAlive(inspected.owner.pid)) return false;
+
+    const claimPath = `${lockPath}.reclaim-${inspected.owner.nonce}`;
+    const tombstonePath = `${claimPath}.tombstone-${randomUUID()}`;
+    let claimHandle: Awaited<ReturnType<typeof open>>;
+    try {
+      claimHandle = await open(claimPath, "wx");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+      throw error;
+    }
+    try {
+      await claimHandle.writeFile(
+        JSON.stringify({ pid: process.pid, ownerNonce: inspected.owner.nonce }),
+        "utf8",
+      );
+      const current = await inspectWriterLock(lockPath);
+      if (
+        current.state !== "valid" ||
+        current.owner.nonce !== inspected.owner.nonce ||
+        isProcessAlive(current.owner.pid)
+      ) {
+        return false;
+      }
+      // 固定 claim 文件由 wx 原子选出唯一回收者；只移动已复核的旧锁，随后只删 tombstone，
+      // 永远不对可能已由新 writer 重建的 lockPath 执行删除。
+      await rename(lockPath, tombstonePath);
+      return true;
+    } finally {
+      await claimHandle.close().catch(() => undefined);
+      await rm(tombstonePath, { force: true }).catch(() => undefined);
+      await rm(claimPath, { force: true }).catch(() => undefined);
+    }
+  }
+}
+
+async function classifyWriterLockContention(
+  error: unknown,
+  lockPath: string,
+): Promise<"valid_contention" | "path_contention" | "transient_missing" | "not_contention"> {
+  const code = (error as NodeJS.ErrnoException).code;
+  if (code === "EEXIST") {
+    return (await inspectWriterLock(lockPath)).state === "valid"
+      ? "valid_contention"
+      : "path_contention";
+  }
+  if (process.platform !== "win32" || (code !== "EPERM" && code !== "EACCES")) {
+    return "not_contention";
+  }
+  const inspected = await inspectWriterLock(lockPath);
+  if (inspected.state === "valid") return "valid_contention";
+  // 锁刚好消失时允许短暂重试，但若截止前从未观察到有效 owner，调用方保留原权限异常。
+  return inspected.state === "missing" ? "transient_missing" : "not_contention";
+}
+
+interface WriterLockOwner {
+  pid: number;
+  nonce: string;
+}
+
+async function inspectWriterLock(
+  lockPath: string,
+): Promise<
+  { state: "valid"; owner: WriterLockOwner } | { state: "missing" } | { state: "invalid" }
+> {
+  try {
+    const owner = JSON.parse(await readFile(lockPath, "utf8")) as {
+      pid?: unknown;
+      nonce?: unknown;
+    };
+    if (
+      typeof owner.pid === "number" &&
+      Number.isInteger(owner.pid) &&
+      owner.pid > 0 &&
+      typeof owner.nonce === "string" &&
+      owner.nonce.length > 0
+    ) {
+      return { state: "valid", owner: { pid: owner.pid, nonce: owner.nonce } };
+    }
+    return { state: "invalid" };
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT"
+      ? { state: "missing" }
+      : { state: "invalid" };
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+  }
 }
 
 export class MemoryRunStore implements RunStore {
+  readonly supportedDurability = ["ordinary"] as const;
+  readonly durabilityBoundary = "process_memory" as const;
   private readonly records = new Map<string, RunStateRecord[]>();
 
   async append(record: RunStateRecord): Promise<void> {
@@ -257,6 +435,14 @@ export class MemoryRunStore implements RunStore {
   async read(runId: string): Promise<RunStateRecord[]> {
     return structuredClone(this.records.get(runId) ?? []);
   }
+
+  async barrier(
+    _runId: string,
+    requested: RunStoreDurability,
+  ): Promise<RunStoreDurabilityAcknowledgement> {
+    assertSupportedDurability(this, requested);
+    return durabilityAcknowledgement(this, requested);
+  }
 }
 
 /** 把同步事件串行化为 RunStore 的有序异步写入。 */
@@ -266,6 +452,10 @@ export class RunStateJournal {
   private aborted = false;
   private rejectedAfterAbortCount = 0;
   private knownTurnIds?: ReadonlySet<string>;
+  private readonly durabilityCounters: RunStoreDurabilityMetrics = {
+    ordinary: { succeeded: 0, failed: 0 },
+    critical: { succeeded: 0, failed: 0 },
+  };
 
   constructor(
     readonly runId: string,
@@ -341,8 +531,26 @@ export class RunStateJournal {
     this.enqueue("finish", payload);
   }
 
-  async flush(): Promise<void> {
-    await this.pending;
+  async flush(
+    durability: RunStoreDurability = "ordinary",
+  ): Promise<RunStoreDurabilityAcknowledgement> {
+    try {
+      await this.pending;
+      assertSupportedDurability(this.store, durability);
+      const acknowledgement = this.store.barrier
+        ? await this.store.barrier(this.runId, durability)
+        : legacyDurabilityAcknowledgement(this.store, durability);
+      validateDurabilityAcknowledgement(this.store, durability, acknowledgement);
+      this.durabilityCounters[durability].succeeded += 1;
+      return acknowledgement;
+    } catch (error) {
+      this.durabilityCounters[durability].failed += 1;
+      throw error;
+    }
+  }
+
+  durabilityMetrics(): RunStoreDurabilityMetrics {
+    return structuredClone(this.durabilityCounters);
   }
 
   private enqueue(kind: RunStateKind, payload: unknown): void {
@@ -364,6 +572,64 @@ export class RunStateJournal {
       .then(() => this.store.append(record))
       .finally(() => decrementPendingFlush(this));
   }
+}
+
+function assertSupportedDurability(store: RunStore, requested: RunStoreDurability): void {
+  const supported = store.supportedDurability ?? ["ordinary"];
+  if (supported.includes(requested)) return;
+  throw new CoreMindError(
+    "durability_unsupported",
+    `RunStore 仅支持 ${supported.join(", ")}，不能满足 ${requested}`,
+  );
+}
+
+function durabilityAcknowledgement(
+  store: RunStore,
+  requested: RunStoreDurability,
+): RunStoreDurabilityAcknowledgement {
+  return {
+    requested,
+    achieved: requested,
+    boundary: store.durabilityBoundary ?? "process_memory",
+  };
+}
+
+function legacyDurabilityAcknowledgement(
+  store: RunStore,
+  requested: RunStoreDurability,
+): RunStoreDurabilityAcknowledgement {
+  assertSupportedDurability(store, requested);
+  if (requested === "critical") {
+    throw new CoreMindError(
+      "durability_unsupported",
+      "旧 RunStore 未实现 critical barrier acknowledgement",
+    );
+  }
+  return durabilityAcknowledgement(store, requested);
+}
+
+function validateDurabilityAcknowledgement(
+  store: RunStore,
+  requested: RunStoreDurability,
+  acknowledgement: RunStoreDurabilityAcknowledgement,
+): void {
+  const supported = store.supportedDurability ?? ["ordinary"];
+  const boundary = store.durabilityBoundary ?? "process_memory";
+  const achievedSatisfiesRequest =
+    acknowledgement.achieved === "critical" || requested === "ordinary";
+  if (
+    acknowledgement.requested === requested &&
+    achievedSatisfiesRequest &&
+    supported.includes(acknowledgement.achieved) &&
+    acknowledgement.boundary === boundary &&
+    !(requested === "critical" && boundary === "process_memory")
+  ) {
+    return;
+  }
+  throw new CoreMindError(
+    "durability_barrier_failed",
+    `RunStore 返回了与 ${requested}/${boundary} 不一致的 durability acknowledgement`,
+  );
 }
 
 /**
@@ -439,18 +705,48 @@ export function findUnsafeToolCall(
     .map((entry) => entry.event)
     .filter((event) => event.type === "tool_lifecycle");
   const lifecycleStates = projectToolCallLifecycles(lifecycleFacts);
+  const receiptByIdempotencyKey = new Map<string, EffectReceipt>();
+  const receiptByLifecycleCall = new Map<string, EffectReceipt>();
+  for (const entry of trace) {
+    const event = entry.event;
+    if (event.type === "effect_receipt") {
+      receiptByIdempotencyKey.set(event.idempotencyKey, event);
+    }
+  }
+  for (const entry of trace) {
+    const event = entry.event;
+    if (event.type !== "tool_call" || !event.callId || !event.idempotencyKey) continue;
+    const receipt = receiptByIdempotencyKey.get(event.idempotencyKey);
+    if (receipt) {
+      receiptByLifecycleCall.set(
+        toolCapabilityCallKey(event.agent, event.stepId, event.callId),
+        receipt,
+      );
+    }
+  }
   const lifecycleCallKeys = new Set(
     lifecycleStates.map((state) => toolCapabilityCallKey(state.agent, state.stepId, state.callId)),
   );
   if (lifecycleFacts.length > 0) {
     for (const state of lifecycleStates) {
       if (state.stepId && completedSteps.has(state.stepId)) continue;
-      if (state.result.effectState === "not_started") continue;
+      const receipt = receiptByLifecycleCall.get(
+        toolCapabilityCallKey(state.agent, state.stepId, state.callId),
+      );
+      const effectState =
+        state.result.effectState === "not_started" && receipt?.status === "started"
+          ? "unknown"
+          : state.result.effectState === "not_started" &&
+              (receipt?.status === "committed" || receipt?.status === "unknown")
+            ? receipt.status
+            : state.result.effectState;
+      if (effectState === "not_started") continue;
       if (state.result.recoveryDisposition === "replay_safe") continue;
       return {
         tool: state.tool,
         ...(state.stepId ? { stepId: state.stepId } : {}),
-        receiptStatus: state.result.effectState,
+        ...(receipt?.idempotencyKey ? { idempotencyKey: receipt.idempotencyKey } : {}),
+        receiptStatus: effectState,
       };
     }
   }

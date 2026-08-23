@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "def33ded2a4f91ccf8487e17cee7dadbb86e2c76",
+    "developmentCommit": "08dffc56f08170c218ecae3e8b193e5c59090f71",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,11 +13,11 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "1a5248613f4550e25d071199e561a5287c391c1f66eb9755ac170c7347d59fcf",
+      "coremind-ai": "6db22d13706cb29f50c88db12f6806a1898f855388f5dfb1d67013b0667393b5",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "49b63f94752f739a1f9c3ccfe089881f00a136074e86a2f2fd40f3b370204350",
       "coremind-protocol": "00695ae8275f2460f7c20a0386456cd7c85b3744cfe4461305987d8e881d7d1d",
-      "coremind-runtime": "d89be4c5142361630329fc69dc67eff1014fb891fd75f156f9620271811a31a3",
+      "coremind-runtime": "0612d3281bb43b08be84981fdefc9974179007c62cf3405a45dba466b356b153",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "4576ed05e6114edbd6a0c11147ed5847e32e6e1be21adaf68a8011ee0534b29f",
       "coremind-worker": "2288314e4e1c7b56a6d0b9f9c4ef45ea1ae22586a828c59ccfd8ce7d631dcc38"
@@ -282,18 +282,18 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-23T12:49:53.122Z",
+    "capturedAt": "2026-08-23T15:11:10.647Z",
     "capturePlatform": "win32",
-    "updateReason": "issue-62-final-review",
+    "updateReason": "^Issue^ #63^ adds^ graded^ RunStore^ durability^ contracts^",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "0fd145119ee8d7944eabb6967e619852edb0c00cf20faf86080db8e7bee956ce",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
     "packageDistSha256": {
-      "coremind-ai": "f7ca14b380cec7fe897d875f7f79bb01d33380d2faf4221ec830b5de085ad17a",
+      "coremind-ai": "78352b97a58a67d81681b8178aab080a8afc963a64297d4cb62b8fbcf323d5db",
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "947a52b0beda6c71bdf1459123bf1153e5bcfaa7d0ab67acc7e93cb79a97d295",
       "coremind-protocol": "c39585a5138b4dcdaafe8c15816b8f7f3191341c62022d15b2b6e72203a981a3",
-      "coremind-runtime": "4c7861b5fae7b15a8c54da7d4af2cc91cb1c8827558985587d3034380fd529a7",
+      "coremind-runtime": "d06dfb427d83cc59d98e75a4f468414bc92543d9f066e6034e7ba41f347e19bd",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "75f3f2ff7f60364e3c5eb757b8a37528dd3cd4eb8a196cc22f006d8548891b5f",
       "coremind-worker": "154f6263eff40e0d0fed274156ad6a95cb20abf4f78a7c89a84b5a332edb49d8"

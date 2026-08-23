@@ -87,6 +87,77 @@ describe("关联不变量检查器", () => {
     );
   });
 
+  it("I-3：仅允许紧邻且最终失败的 durability 收敛 finish", () => {
+    const corrected = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          record(2, { outcome: { status: "succeeded" } }, "finish"),
+          record(
+            3,
+            {
+              outcome: {
+                status: "failed",
+                error: { code: "durability_barrier_failed" },
+              },
+              supersedesUnacknowledgedTerminal: true,
+            },
+            "finish",
+          ),
+        ],
+      },
+      { mode: "eval" },
+    );
+    expect(corrected.filter((violation) => violation.invariant === "I-3")).toEqual([]);
+
+    const afterCorrection = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          record(2, { outcome: { status: "succeeded" } }, "finish"),
+          record(
+            3,
+            {
+              outcome: {
+                status: "failed",
+                error: { code: "durability_barrier_failed" },
+              },
+              supersedesUnacknowledgedTerminal: true,
+            },
+            "finish",
+          ),
+          record(4, {}, "event"),
+        ],
+      },
+      { mode: "eval" },
+    );
+    expect(afterCorrection).toContainEqual(
+      expect.objectContaining({ invariant: "I-3", sequence: 4 }),
+    );
+  });
+
+  it("I-3：拒绝非 durability 失败或不相邻的伪收敛 finish", () => {
+    const violations = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          record(2, { outcome: { status: "succeeded" } }, "finish"),
+          record(3, {}, "event"),
+          record(
+            4,
+            {
+              outcome: { status: "failed", error: { code: "provider_unavailable" } },
+              supersedesUnacknowledgedTerminal: true,
+            },
+            "finish",
+          ),
+        ],
+      },
+      { mode: "eval" },
+    );
+    expect(violations.filter((violation) => violation.invariant === "I-3")).toHaveLength(2);
+  });
+
   it("I-4：检出 Run 内重复启动的 StepId", () => {
     const violations = checkInvariantFacts(
       {
