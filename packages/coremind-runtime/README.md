@@ -10,6 +10,10 @@ Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_res
 
 所有当前工具入口经过 `ToolExecutionEngine` 的唯一阶段 reducer：从 `call_recorded` 依次推进到 `terminal`，不需要的阶段也会记录 `skipped(reason)`。执行结果、Effect、持久化、恢复、清理、授权和环境是相互独立的结果轴；取消或超时会收敛开放 Call，迟到结果不能改写已持久终态。`projectToolCallLifecycles()` 是 Runtime、Worker 和 SDK 共用的离线投影。Durability Barrier 的能力协商与平台承诺、Workspace Lease 的互斥和跨进程清理仍由后续加固阶段交付，本包不提前声称这些保障已经完成。
 
+## English: Tool lifecycle
+
+Every current tool entry point passes through the single `ToolExecutionEngine` phase reducer, from `call_recorded` to `terminal`, with unused phases recorded as `skipped(reason)`. Execution, effect, persistence, recovery, cleanup, authorization, and environment remain orthogonal result axes. Cancellation and timeout converge open calls, and late results cannot rewrite a persisted terminal state. Runtime, Worker, and SDK consumers share the offline `projectToolCallLifecycles()` projection. Later hardening gates still own durability capability negotiation, platform guarantees, Workspace Lease exclusion, and cross-process cleanup; this package does not claim those guarantees yet.
+
 人工或策略拒绝工具后，当前智能体循环会在本批工具结果完成归并后立即暂停，不再请求下一轮模型或重复申请审批。拒绝仍记录为 `tool_approval_denied`，且被拒绝的工具不会产生副作用。
 
 Evaluation schemaVersion 2 提供 outcome、trajectory、command、file、diff、state、response 七类 grader，并在执行前记录受保护文件与脏工作区基线。一次 Runtime 成功、一次预期测试失败、最终代码正确和是否可以发布是不同结论，必须分别记录。

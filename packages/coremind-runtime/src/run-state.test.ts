@@ -613,6 +613,26 @@ describe("isRejectedAfterAbort 分支覆盖", () => {
 });
 
 describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
+  it("混合历史与 lifecycle Trace 时仍检查 legacy 不安全 Call", () => {
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "legacy",
+        tool: "send_email",
+        callId: "legacy-unsafe",
+      }),
+      traceEntry(2, {
+        type: "tool_lifecycle",
+        agent: "main",
+        tool: "read",
+        callId: "current-safe",
+        resolution: { phase: "call_recorded", status: "completed" },
+      }),
+    ];
+
+    expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "send_email" });
+  });
+
   it("优先使用 lifecycle 正交轴阻止 unknown Effect 自动恢复", () => {
     const trace = [
       traceEntry(1, {

@@ -71,15 +71,34 @@ export interface ToolExecutionEngineOptions {
   persist: (fact: ToolCallLifecycleFact) => Promise<void>;
 }
 
-export function createToolCallLifecycle(input: {
-  agent?: string;
-  callId: string;
-  tool: string;
-  stepId?: string;
-}): ToolCallLifecycleState {
+const RESULT_AXES_BY_PHASE: Readonly<Record<ToolCallPhase, readonly (keyof ToolCallResultAxes)[]>> =
+  {
+    call_recorded: [],
+    capability_resolved: ["recoveryDisposition", "environmentState"],
+    policy_resolved: ["authorizationState"],
+    approval_resolved: ["authorizationState"],
+    lease_acquired: ["environmentState"],
+    checkpoint_durable: [],
+    started_durable: ["effectState", "cleanupState"],
+    executing: ["environmentState"],
+    observed: ["executionOutcome", "effectState", "cleanupState", "environmentState"],
+    result_durable: ["persistenceState"],
+    terminal: ["cleanupState"],
+  };
+
+export function createToolCallLifecycle(
+  input: ToolCallIdentity & { tool: string },
+): ToolCallLifecycleState {
+  if (
+    !isNonBlankString(input.agent) ||
+    !isNonBlankString(input.callId) ||
+    !isNonBlankString(input.tool)
+  ) {
+    throw new CoreMindError("tool_lifecycle_invalid", "Tool Call 身份与工具必须为非空字符串");
+  }
   return {
     version: 1,
-    agent: input.agent ?? "",
+    agent: input.agent,
     callId: input.callId,
     tool: input.tool,
     ...(input.stepId ? { stepId: input.stepId } : {}),
@@ -114,6 +133,18 @@ export function advanceToolCallLifecycle(
     throw new CoreMindError(
       "tool_lifecycle_invalid",
       `Call ${state.callId} 的 ${resolution.status} 阶段 ${resolution.phase} 缺少原因`,
+    );
+  }
+  if (resolution.phase === "terminal" && resolution.status !== "completed") {
+    throw new CoreMindError("tool_lifecycle_invalid", `Call ${state.callId} 的 terminal 必须完成`);
+  }
+  const unexpectedResultAxis = Object.keys(resolution.result ?? {}).find(
+    (axis) => !RESULT_AXES_BY_PHASE[resolution.phase].includes(axis as keyof ToolCallResultAxes),
+  );
+  if (unexpectedResultAxis) {
+    throw new CoreMindError(
+      "tool_lifecycle_invalid",
+      `Call ${state.callId} 的 ${resolution.phase} 不能更新 ${unexpectedResultAxis}`,
     );
   }
   const nextEffectState = resolution.result?.effectState;
@@ -235,6 +266,23 @@ export class ToolExecutionEngine {
     return current;
   }
 
+  /** 在 Tool Result 已落盘后收敛正常 Call。 */
+  async finalizeObserved(identity: ToolCallIdentity): Promise<ToolCallLifecycleState> {
+    let current = await this.advance(identity, {
+      phase: "result_durable",
+      status: "completed",
+      result: { persistenceState: "durable" },
+    });
+    current = await this.advance(identity, {
+      phase: "terminal",
+      status: "completed",
+      result: {
+        cleanupState: current.result.cleanupState === "pending" ? "pending" : "not_needed",
+      },
+    });
+    return current;
+  }
+
   /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
   async settleInterrupted(
     executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">,
@@ -348,6 +396,12 @@ export function projectToolCallLifecycles(facts: readonly unknown[]): ToolCallLi
         `Call ${callKey} 的 ${fact.resolution.phase} 缺少 call_recorded 前缀`,
       );
     }
+    if (current.tool !== fact.tool) {
+      throw new CoreMindError(
+        "tool_lifecycle_invalid",
+        `Call ${callKey} 的工具不能从 ${current.tool} 变更为 ${fact.tool}`,
+      );
+    }
     states.set(callKey, advanceToolCallLifecycle(current, fact.resolution));
   }
   return [...states.values()].map((state) => structuredClone(state));
@@ -373,7 +427,14 @@ export function validateToolCallLifecycleFact(value: unknown): ToolCallLifecycle
     (resolution.status !== "completed" && !isNonBlankString(resolution.reason)) ||
     (resolution.phase === "call_recorded" && resolution.status !== "completed") ||
     (resolution.phase === "terminal" && resolution.status !== "completed") ||
-    !isValidResultPatch(result)
+    !isValidResultPatch(result) ||
+    (result !== undefined &&
+      Object.keys(result).some(
+        (axis) =>
+          !RESULT_AXES_BY_PHASE[resolution.phase as ToolCallPhase].includes(
+            axis as keyof ToolCallResultAxes,
+          ),
+      ))
   ) {
     throw new CoreMindError("tool_lifecycle_invalid", "Tool lifecycle Fact 合同无效");
   }
@@ -383,7 +444,9 @@ export function validateToolCallLifecycleFact(value: unknown): ToolCallLifecycle
 function isValidResultPatch(result: Record<string, unknown> | undefined): boolean {
   if (result === undefined) return true;
   if (result === null || typeof result !== "object" || Array.isArray(result)) return false;
+  const knownAxes = new Set(Object.values(RESULT_AXES_BY_PHASE).flat());
   return (
+    Object.keys(result).every((axis) => knownAxes.has(axis as keyof ToolCallResultAxes)) &&
     isOptionalMember(result.executionOutcome, [
       "not_invoked",
       "returned",

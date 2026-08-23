@@ -86,7 +86,7 @@ import {
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { CoreMindSession } from "./session.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
-import { ToolExecutionEngine } from "./tool-call-lifecycle.js";
+import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
@@ -607,32 +607,14 @@ export class CoreMindRuntime {
     });
     onToolResultRecorded = (event) => {
       const recorded = toolExecutionEngine.inspect({
-        agent: event.agent,
-        callId: event.callId!,
-        ...(event.stepId ? { stepId: event.stepId } : {}),
+        ...toolCallIdentity(event.agent, event.stepId, event.callId!),
       });
       if (!recorded || recorded.tool !== event.tool) return;
       queueMicrotask(() => {
-        const identity = {
-          agent: event.agent,
-          callId: event.callId!,
-          ...(event.stepId ? { stepId: event.stepId } : {}),
-        };
+        const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
         const finalizer = (async () => {
           await journal.flush();
-          await toolExecutionEngine.advance(identity, {
-            phase: "result_durable",
-            status: "completed",
-            result: { persistenceState: "durable" },
-          });
-          const current = toolExecutionEngine.inspect(identity);
-          await toolExecutionEngine.advance(identity, {
-            phase: "terminal",
-            status: "completed",
-            result: {
-              cleanupState: current?.result.cleanupState === "pending" ? "quiescent" : "not_needed",
-            },
-          });
+          await toolExecutionEngine.finalizeObserved(identity);
         })();
         lifecycleFinalizers.add(finalizer);
         void finalizer
@@ -795,11 +777,7 @@ export class CoreMindRuntime {
         return (await contextProtector.transformAsync(messages)) as unknown as AgentMessage[];
       },
       beforeToolCall: async (context: BeforeToolCallContext) => {
-        const lifecycleIdentity = {
-          agent: agentName,
-          callId: context.toolCall.id,
-          ...(stepId ? { stepId } : {}),
-        };
+        const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
         const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
         const existingCapability = capabilityByCallId.get(callKey);
         if (existingCapability && existingCapability.tool !== context.toolCall.name) {
@@ -987,6 +965,15 @@ export class CoreMindRuntime {
                   "checkpoint_failed",
                   error instanceof Error ? error.message : String(error),
                 );
+          await toolExecutionEngine.advance(lifecycleIdentity, {
+            phase: "checkpoint_durable",
+            status: "failed",
+            reason: checkpointFailure.message,
+          });
+          await toolExecutionEngine.blockBeforeExecution(
+            lifecycleIdentity,
+            checkpointFailure.message,
+          );
           emit({ type: "error", message: checkpointFailure.message, fatal: true });
           return { block: true, reason: checkpointFailure.message };
         }
@@ -1015,11 +1002,7 @@ export class CoreMindRuntime {
         return undefined;
       },
       afterToolCall: async (context: AfterToolCallContext) => {
-        const lifecycleIdentity = {
-          agent: agentName,
-          callId: context.toolCall.id,
-          ...(stepId ? { stepId } : {}),
-        };
+        const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
         const capability = capabilityByCallId.get(
           toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
         )?.capability;
@@ -1648,6 +1631,14 @@ function resumedInputId(events: readonly CoreMindEvent[]): InputId | undefined {
 }
 
 /** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */
+function toolCallIdentity(
+  agent: string,
+  stepId: string | undefined,
+  callId: string,
+): ToolCallIdentity {
+  return { agent, callId, ...(stepId ? { stepId } : {}) };
+}
+
 function knownTurnIdsFrom(collected: readonly CoreMindEvent[]): Set<string> {
   return new Set(
     collected.flatMap((event) => {

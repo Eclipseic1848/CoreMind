@@ -727,11 +727,8 @@ declare interface CreateInputReceiptOptions extends InputReceiptEventOptions {
 /** 在 Runtime 终态确定后生成唯一快照，供 CLI、Worker 与两个 SDK 原样传递。 */
 export declare function createRunSnapshot(input: RunSnapshotInput): RunSnapshot;
 
-export declare function createToolCallLifecycle(input: {
-    agent?: string;
-    callId: string;
+export declare function createToolCallLifecycle(input: ToolCallIdentity & {
     tool: string;
-    stepId?: string;
 }): ToolCallLifecycleState;
 
 export declare function createTraceExporterExtension(options: {
@@ -1902,6 +1899,8 @@ export declare class ToolExecutionEngine {
     advance(identity: ToolCallIdentity, resolution: ToolCallPhaseResolution): Promise<ToolCallLifecycleState>;
     private trackPending;
     blockBeforeExecution(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
+    /** 在 Tool Result 已落盘后收敛正常 Call。 */
+    finalizeObserved(identity: ToolCallIdentity): Promise<ToolCallLifecycleState>;
     /** 在 Run 取消或超时时，把所有开放 Call 收敛为单一、不可改写的终态。 */
     settleInterrupted(executionOutcome: Extract<ExecutionOutcome, "aborted" | "timed_out">, reason: string): Promise<void>;
     private settleOneInterrupted;

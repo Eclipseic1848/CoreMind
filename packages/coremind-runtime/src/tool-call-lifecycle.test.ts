@@ -11,6 +11,7 @@ import {
 describe("Tool Call 生命周期 reducer", () => {
   it("Call 记录后按唯一阶段图推进到 Capability 已解析", () => {
     const recorded = createToolCallLifecycle({
+      agent: "main",
       callId: "call-1",
       tool: "read",
     });
@@ -36,7 +37,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝跳过未决阶段的迁移", () => {
-    const recorded = createToolCallLifecycle({ callId: "call-1", tool: "read" });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
 
     expect(() =>
       advanceToolCallLifecycle(recorded, {
@@ -49,7 +50,11 @@ describe("Tool Call 生命周期 reducer", () => {
   it("任意非下一阶段都不能绕过唯一阶段图", () => {
     fc.assert(
       fc.property(fc.constantFrom(...TOOL_CALL_PHASES.slice(1)), (phase) => {
-        const recorded = createToolCallLifecycle({ callId: "call-property", tool: "read" });
+        const recorded = createToolCallLifecycle({
+          agent: "main",
+          callId: "call-property",
+          tool: "read",
+        });
         if (phase === "capability_resolved") return;
         expect(() =>
           advanceToolCallLifecycle(recorded, { phase, status: "completed" }),
@@ -58,8 +63,24 @@ describe("Tool Call 生命周期 reducer", () => {
     );
   });
 
+  it("结果轴只能在负责该事实的阶段更新", () => {
+    const recorded = createToolCallLifecycle({
+      agent: "main",
+      callId: "call-axis",
+      tool: "read",
+    });
+
+    expect(() =>
+      advanceToolCallLifecycle(recorded, {
+        phase: "capability_resolved",
+        status: "completed",
+        result: { executionOutcome: "returned" },
+      }),
+    ).toThrowError(expect.objectContaining({ code: "tool_lifecycle_invalid" }));
+  });
+
   it("不需要审批时保留带原因的 skipped 阶段", () => {
-    const recorded = createToolCallLifecycle({ callId: "call-1", tool: "read" });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
     const capabilityResolved = advanceToolCallLifecycle(recorded, {
       phase: "capability_resolved",
       status: "completed",
@@ -83,7 +104,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝没有原因的 skipped 阶段", () => {
-    const recorded = createToolCallLifecycle({ callId: "call-1", tool: "read" });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
 
     expect(() =>
       advanceToolCallLifecycle(recorded, {
@@ -95,7 +116,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝没有原因的 failed 阶段", () => {
-    const recorded = createToolCallLifecycle({ callId: "call-1", tool: "read" });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "read" });
 
     expect(() =>
       advanceToolCallLifecycle(recorded, {
@@ -107,7 +128,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("新 Call 建立保守且正交的初始结果轴", () => {
-    const recorded = createToolCallLifecycle({ callId: "call-1", tool: "write" });
+    const recorded = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "write" });
 
     expect(recorded.result).toEqual({
       executionOutcome: "not_invoked",
@@ -121,7 +142,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("结果持久化失败不抹去已返回结果与已提交 Effect", () => {
-    let state = createToolCallLifecycle({ callId: "call-1", tool: "write" });
+    let state = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "write" });
     for (const phase of [
       "capability_resolved",
       "policy_resolved",
@@ -186,7 +207,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝把已提交 Effect 回退为未开始", () => {
-    let state = createToolCallLifecycle({ callId: "call-1", tool: "write" });
+    let state = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "write" });
     for (const phase of [
       "capability_resolved",
       "policy_resolved",
@@ -214,7 +235,7 @@ describe("Tool Call 生命周期 reducer", () => {
   });
 
   it("拒绝改写已经观测到的执行结果", () => {
-    let state = createToolCallLifecycle({ callId: "call-1", tool: "write" });
+    let state = createToolCallLifecycle({ agent: "main", callId: "call-1", tool: "write" });
     for (const phase of [
       "capability_resolved",
       "policy_resolved",
@@ -267,6 +288,27 @@ describe("Tool Call 生命周期 reducer", () => {
     expect(projectToolCallLifecycles(facts)).toEqual([engine.inspect(identity)]);
   });
 
+  it("离线投影拒绝同一 Call 身份在后续 Fact 更换工具", () => {
+    expect(() =>
+      projectToolCallLifecycles([
+        {
+          type: "tool_lifecycle",
+          agent: "main",
+          callId: "call-identity",
+          tool: "read",
+          resolution: { phase: "call_recorded", status: "completed" },
+        },
+        {
+          type: "tool_lifecycle",
+          agent: "main",
+          callId: "call-identity",
+          tool: "write",
+          resolution: { phase: "capability_resolved", status: "completed" },
+        },
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "tool_lifecycle_invalid" }));
+  });
+
   it("生命周期 Fact 持久化失败时不发布候选投影", async () => {
     const engine = new ToolExecutionEngine({
       persist: async () => {
@@ -298,6 +340,41 @@ describe("Tool Call 生命周期 reducer", () => {
 
     expect(results.map((result) => result.status).sort()).toEqual(["fulfilled", "rejected"]);
     expect(facts).toHaveLength(2);
+  });
+
+  it("正常终结不会在清理门禁前宣称 quiescent", async () => {
+    const engine = new ToolExecutionEngine({ persist: async () => undefined });
+    const identity = { agent: "main", callId: "call-cleanup" };
+    await engine.recordCall({ ...identity, tool: "write" });
+    for (const phase of [
+      "capability_resolved",
+      "policy_resolved",
+      "approval_resolved",
+      "lease_acquired",
+      "checkpoint_durable",
+      "started_durable",
+      "executing",
+    ] as const) {
+      await engine.advance(identity, {
+        phase,
+        status: "completed",
+        ...(phase === "started_durable"
+          ? { result: { effectState: "started" as const, cleanupState: "pending" as const } }
+          : {}),
+      });
+    }
+    await engine.advance(identity, {
+      phase: "observed",
+      status: "completed",
+      result: { executionOutcome: "returned", effectState: "committed" },
+    });
+
+    const terminal = await engine.finalizeObserved(identity);
+
+    expect(terminal).toMatchObject({
+      terminal: true,
+      result: { persistenceState: "durable", cleanupState: "pending" },
+    });
   });
 
   it("拒绝重复记录同一 Agent、Step 与 callId", async () => {

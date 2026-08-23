@@ -429,17 +429,21 @@ export interface UnsafeToolCall {
 export function findUnsafeToolCall(
   trace: readonly CoreMindTraceEvent[],
 ): UnsafeToolCall | undefined {
+  const completedSteps = new Set(
+    trace
+      .map((entry) => entry.event)
+      .filter((event) => event.type === "step_output")
+      .map((event) => event.stepId),
+  );
   const lifecycleFacts = trace
     .map((entry) => entry.event)
     .filter((event) => event.type === "tool_lifecycle");
+  const lifecycleStates = projectToolCallLifecycles(lifecycleFacts);
+  const lifecycleCallKeys = new Set(
+    lifecycleStates.map((state) => toolCapabilityCallKey(state.agent, state.stepId, state.callId)),
+  );
   if (lifecycleFacts.length > 0) {
-    const completedSteps = new Set(
-      trace
-        .map((entry) => entry.event)
-        .filter((event) => event.type === "step_output")
-        .map((event) => event.stepId),
-    );
-    for (const state of projectToolCallLifecycles(lifecycleFacts)) {
+    for (const state of lifecycleStates) {
       if (state.stepId && completedSteps.has(state.stepId)) continue;
       if (state.result.effectState === "not_started") continue;
       if (state.result.recoveryDisposition === "replay_safe") continue;
@@ -449,11 +453,9 @@ export function findUnsafeToolCall(
         receiptStatus: state.result.effectState,
       };
     }
-    return undefined;
   }
 
   const receipts = new Map<string, EffectReceipt>();
-  const completedSteps = new Set<string>();
   const capabilities = new Map(
     projectToolCapabilities(trace.map((entry) => entry.event))
       .filter((projection) => projection.callId !== undefined)
@@ -470,6 +472,12 @@ export function findUnsafeToolCall(
   for (const entry of trace) {
     const event = entry.event;
     if (event.type !== "tool_call") continue;
+    if (
+      event.callId &&
+      lifecycleCallKeys.has(toolCapabilityCallKey(event.agent, event.stepId, event.callId))
+    ) {
+      continue;
+    }
     if (event.stepId && completedSteps.has(event.stepId)) continue;
     const receipt = event.idempotencyKey ? receipts.get(event.idempotencyKey) : undefined;
     if (receipt?.status === "not_started") continue;
