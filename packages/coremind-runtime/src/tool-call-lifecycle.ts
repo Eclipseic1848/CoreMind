@@ -182,6 +182,7 @@ export function advanceToolCallLifecycle(
 export class ToolExecutionEngine {
   private readonly states = new Map<string, ToolCallLifecycleState>();
   private readonly pendingByCall = new Map<string, Promise<void>>();
+  private readonly adapterInvoked = new Set<string>();
 
   constructor(private readonly options: ToolExecutionEngineOptions) {}
 
@@ -220,6 +221,34 @@ export class ToolExecutionEngine {
     const previous = this.pendingByCall.get(callKey) ?? Promise.resolve();
     const task = previous.then(() => this.advanceUnqueued(identity, resolution));
     return this.trackPending(callKey, task);
+  }
+
+  /** 唯一 Tool Adapter 调用入口：只有已完成 executing 门禁的 Call 可执行一次。 */
+  async executeAdapter<T>(identity: ToolCallIdentity, execute: () => Promise<T> | T): Promise<T> {
+    const callKey = lifecycleCallKey(identity);
+    const state = this.states.get(callKey);
+    const currentResolution = state?.phases.at(-1);
+    if (
+      !state ||
+      state.terminal ||
+      state.currentPhase !== "executing" ||
+      currentResolution?.phase !== "executing" ||
+      currentResolution.status !== "completed"
+    ) {
+      throw new CoreMindError(
+        "tool_lifecycle_invalid",
+        `Call ${callKey} 未通过 executing 门禁，不得调用 Tool Adapter`,
+      );
+    }
+    if (this.adapterInvoked.has(callKey)) {
+      throw new CoreMindError(
+        "tool_lifecycle_invalid",
+        `Call ${callKey} 的 Tool Adapter 已调用，不得重入或自动重试`,
+      );
+    }
+    // 在 await 前预留唯一调用权；即使 Adapter 抛错，也不能假定 Effect 未发生并重试。
+    this.adapterInvoked.add(callKey);
+    return execute();
   }
 
   private async trackPending<T>(callKey: string, task: Promise<T>): Promise<T> {

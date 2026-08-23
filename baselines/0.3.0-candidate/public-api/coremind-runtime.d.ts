@@ -2004,12 +2004,15 @@ export declare class ToolExecutionEngine {
     private readonly options;
     private readonly states;
     private readonly pendingByCall;
+    private readonly adapterInvoked;
     constructor(options: ToolExecutionEngineOptions);
     recordCall(input: ToolCallIdentity & {
         tool: string;
     }): Promise<ToolCallLifecycleState>;
     private recordCallUnqueued;
     advance(identity: ToolCallIdentity, resolution: ToolCallPhaseResolution): Promise<ToolCallLifecycleState>;
+    /** 唯一 Tool Adapter 调用入口：只有已完成 executing 门禁的 Call 可执行一次。 */
+    executeAdapter<T>(identity: ToolCallIdentity, execute: () => Promise<T> | T): Promise<T>;
     private trackPending;
     blockBeforeExecution(identity: ToolCallIdentity, reason: string): Promise<ToolCallLifecycleState>;
     /** 在 Tool Result 已落盘后收敛正常 Call。 */

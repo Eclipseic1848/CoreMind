@@ -44,6 +44,10 @@ export interface AgentBuildContext {
       context: AfterToolCallContext,
       signal?: AbortSignal,
     ) => Promise<AfterToolCallResult | undefined>;
+    executeTool?: (
+      tool: AgentTool,
+      ...args: Parameters<AgentTool["execute"]>
+    ) => ReturnType<AgentTool["execute"]>;
     onAgentEvent?: (event: AgentEvent, agent: Agent) => void;
   };
 }
@@ -54,9 +58,16 @@ export interface AgentBuildContext {
  */
 export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent {
   const { temperature, maxTokens } = agentCfg.options ?? {};
+  const tools = ctx.harness?.executeTool
+    ? ctx.tools.map((tool) => ({
+        ...tool,
+        execute: (...args: Parameters<AgentTool["execute"]>) =>
+          ctx.harness!.executeTool!(tool, ...args),
+      }))
+    : ctx.tools;
   const stablePrefix = buildStableContextPrefix({
     projectInstructions: agentCfg.systemPrompt ?? "",
-    tools: ctx.tools.map((tool) => ({ name: tool.name, description: tool.description })),
+    tools: tools.map((tool) => ({ name: tool.name, description: tool.description })),
     stableFacts: ctx.stableFacts,
     skillsContent: ctx.skillsContent,
   });
@@ -69,7 +80,7 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     initialState: {
       systemPrompt: stablePrefix.text,
       model: ctx.model,
-      tools: ctx.tools,
+      tools,
       messages: ctx.sessionMessages ?? [],
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
