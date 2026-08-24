@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 
 /** 可持久化、可跨 SDK 对齐的一条运行轨迹。 */
@@ -40,7 +41,11 @@ export class TraceRecorder {
 /** Trace 与 RunState 只能保存审计所需摘要，不能持久化凭据、正文或命令原文。 */
 export function sanitizeTraceEvent(event: CoreMindEvent): CoreMindEvent {
   if (event.type === "tool_call") {
-    return { ...event, args: redactSensitiveValue(event.args) };
+    return {
+      ...event,
+      args: redactSensitiveValue(event.args),
+      argumentsFingerprint: fingerprintEffectReceiptValue(event.args),
+    };
   }
   if (event.type === "approval_required") {
     return {

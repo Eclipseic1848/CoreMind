@@ -222,6 +222,8 @@ export declare interface CodingToolContract {
 
 export declare type CodingToolId = "read" | "grep" | "find" | "edit" | "write" | "bash" | "git_status" | "git_diff" | "git_log";
 
+export declare function collectToolReplayCandidates(trace: readonly CoreMindTraceEvent[]): ToolReplayCandidate[];
+
 export declare interface CommandGrader extends GraderBase {
     type: "command";
     command: string;
@@ -333,6 +335,8 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     agent: string;
     tool: string;
     args: unknown;
+    /** Trace 在脱敏前冻结的参数指纹；不保存原始正文。 */
+    argumentsFingerprint?: string;
     callId?: string;
     idempotencyKey?: string;
     stepId?: string;
@@ -346,6 +350,16 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     idempotencyKey?: string;
     stepId?: string;
     turnId?: string;
+} | {
+    type: "tool_attempt";
+    attemptId: string;
+    previousReceiptId: string;
+    attempt: number;
+    agent: string;
+    tool: string;
+    callId: string;
+    stepId?: string;
+    argumentsFingerprint: string;
 } | {
     type: "capability_resolved";
     agent: string;
@@ -372,8 +386,11 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     idempotencyKey: string;
     tool: string;
     status: EffectReceiptStatus;
+    agent?: string;
+    callId?: string;
     stepId?: string;
     turnId?: string;
+    binding?: EffectReceiptBinding;
 } | {
     type: "step_start";
     stepId: string;
@@ -815,6 +832,18 @@ export declare interface EffectReceipt {
     tool: string;
     status: "not_started" | "started" | "committed" | "unknown";
     stepId?: string;
+}
+
+declare interface EffectReceiptBinding {
+    version: 1;
+    runId: string;
+    turnId: string;
+    agent: string;
+    stepId?: string;
+    callId: string;
+    tool: string;
+    argumentsFingerprint: string;
+    capabilityFingerprint: string;
 }
 
 export declare type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
@@ -1754,6 +1783,7 @@ export declare interface RunResumePlan {
     nextTraceSequence: number;
     completedSteps: Map<string, CompletedWorkflowStep>;
     effectReceipts: Map<string, EffectReceipt>;
+    toolReplayCandidates: ToolReplayCandidate[];
     previousTrace: CoreMindTraceEvent[];
     loopSnapshot?: LoopControllerSnapshot;
     operationSnapshot?: DurableOperationSnapshot;
@@ -2085,6 +2115,17 @@ declare interface ToolPolicyOptions {
     platform?: NodeJS.Platform;
     onApprovalRequired?: (request: ToolApprovalRequest) => void;
     onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
+}
+
+export declare interface ToolReplayCandidate {
+    previousReceiptId: string;
+    previousCallId: string;
+    attempt: number;
+    agent: string;
+    tool: string;
+    stepId?: string;
+    argumentsFingerprint: string;
+    capabilityFingerprint: string;
 }
 
 export declare type ToolRisk = "low" | "high";

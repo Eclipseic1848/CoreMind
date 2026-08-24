@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { createEffectReceiptBinding } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts, type InvariantFacts } from "./invariant-checker.js";
 import type { RunStateRecord } from "./run-state.js";
@@ -1092,6 +1093,142 @@ describe("关联不变量检查器", () => {
 
     expect(violations).toContainEqual(
       expect.objectContaining({ invariant: "I-12", receiptId: "run-1:call-1" }),
+    );
+  });
+
+  it("I-12：同一 ReceiptId 不能在终态改绑参数指纹", () => {
+    const binding = {
+      version: 1 as const,
+      runId: "run-1",
+      turnId: "turn-1",
+      agent: "main",
+      callId: "call-1",
+      tool: "write",
+      argumentsFingerprint: "a".repeat(64),
+      capabilityFingerprint: "b".repeat(64),
+    };
+    const violations = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          eventRecord(2, { type: "agent_start", agent: "main", turnId: "turn-1" }),
+          eventRecord(3, {
+            type: "tool_call",
+            agent: "main",
+            tool: "write",
+            args: { path: "article.md" },
+            callId: "call-1",
+            turnId: "turn-1",
+            idempotencyKey: "run-1:call-1",
+          }),
+          eventRecord(4, {
+            type: "effect_receipt",
+            idempotencyKey: "run-1:call-1",
+            tool: "write",
+            status: "started",
+            agent: "main",
+            callId: "call-1",
+            turnId: "turn-1",
+            binding,
+          }),
+          eventRecord(5, {
+            type: "effect_receipt",
+            idempotencyKey: "run-1:call-1",
+            tool: "write",
+            status: "unknown",
+            agent: "main",
+            callId: "call-1",
+            turnId: "turn-1",
+            binding: { ...binding, argumentsFingerprint: "c".repeat(64) },
+          }),
+        ],
+      },
+      { mode: "gate" },
+    );
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        invariant: "I-12",
+        sequence: 5,
+        receiptId: "run-1:call-1",
+      }),
+    );
+  });
+
+  it("I-12：Receipt 指纹必须从原始 Tool Call 与 Capability 事实重算", () => {
+    const capability = {
+      tool: "write",
+      effect: "workspace" as const,
+      replay: "unsafe" as const,
+      concurrency: "workspace_exclusive" as const,
+      checkpoint: "required" as const,
+      durability: "critical" as const,
+      source: "registered" as const,
+      resolution: "resolved" as const,
+      issues: [],
+    };
+    const binding = createEffectReceiptBinding({
+      runId: "run-1",
+      turnId: "turn-1",
+      agent: "main",
+      callId: "call-1",
+      tool: "write",
+      args: { path: "伪造路径.md" },
+      capability,
+    });
+    const violations = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          eventRecord(2, { type: "agent_start", agent: "main", turnId: "turn-1" }),
+          eventRecord(3, {
+            type: "tool_call",
+            agent: "main",
+            tool: "write",
+            args: { path: "真实路径.md" },
+            callId: "call-1",
+            turnId: "turn-1",
+            idempotencyKey: "run-1:call-1",
+          }),
+          eventRecord(4, {
+            type: "capability_resolved",
+            agent: "main",
+            callId: "call-1",
+            tool: "write",
+            capability,
+            recoveryDisposition: "forbidden",
+          }),
+          eventRecord(5, {
+            type: "effect_receipt",
+            idempotencyKey: "run-1:call-1",
+            tool: "write",
+            status: "started",
+            agent: "main",
+            callId: "call-1",
+            turnId: "turn-1",
+            binding,
+          }),
+          eventRecord(6, {
+            type: "effect_receipt",
+            idempotencyKey: "run-1:call-1",
+            tool: "write",
+            status: "unknown",
+            agent: "main",
+            callId: "call-1",
+            turnId: "turn-1",
+            binding,
+          }),
+        ],
+      },
+      { mode: "gate" },
+    );
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        invariant: "I-12",
+        sequence: 5,
+        receiptId: "run-1:call-1",
+      }),
     );
   });
 

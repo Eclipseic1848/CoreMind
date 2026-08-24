@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ProcessRunner, ProcessRunnerError } from "./process-runner.js";
 
@@ -42,6 +44,31 @@ describe("ProcessRunner", () => {
     ).rejects.toMatchObject({ code: "process_timeout" });
   });
 
+  it("超时会终止完整进程树，不遗留孙进程", async () => {
+    const script = path.resolve(process.cwd(), "scripts", "process-tree-probe.mjs");
+    let output = "";
+    let childPid: number | undefined;
+    try {
+      await expect(
+        new ProcessRunner().run({
+          command: process.execPath,
+          args: [script],
+          timeoutMs: 200,
+          onStdout: (chunk) => {
+            output += chunk.toString("utf8");
+            const match = output.match(/CHILD_PID:(\d+)/);
+            if (match) childPid = Number(match[1]);
+          },
+        }),
+      ).rejects.toMatchObject({ code: "process_timeout" });
+      expect(childPid).toBeTypeOf("number");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(isProcessAlive(childPid!)).toBe(false);
+    } finally {
+      if (childPid && isProcessAlive(childPid)) terminateProbeProcess(childPid);
+    }
+  });
+
   it("调用方取消后返回稳定错误码", async () => {
     const controller = new AbortController();
     const running = new ProcessRunner().run({
@@ -73,3 +100,24 @@ describe("ProcessRunner", () => {
     expect(failure).toMatchObject({ code: "process_spawn_failed" });
   });
 });
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function terminateProbeProcess(pid: number): void {
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
+    return;
+  }
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {
+    // 测试创建的进程可能已在检查后自行退出。
+  }
+}

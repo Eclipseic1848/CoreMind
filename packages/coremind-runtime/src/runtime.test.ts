@@ -1074,11 +1074,31 @@ describe("CoreMindRuntime", () => {
             entry.event.idempotencyKey === `${result.runId}:call-read`,
         ),
       ).toBe(true);
-      expect(
-        result.trace
-          .filter((entry) => entry.event.type === "effect_receipt")
-          .map((entry) => entry.event.status),
-      ).toEqual(["started", "committed"]);
+      const receiptEvents = result.trace
+        .filter((entry) => entry.event.type === "effect_receipt")
+        .map((entry) => entry.event);
+      expect(receiptEvents.map((event) => event.status)).toEqual(["started", "committed"]);
+      expect(receiptEvents.map((event) => event.binding)).toEqual([
+        expect.objectContaining({
+          version: 1,
+          runId: result.runId,
+          agent: "main",
+          callId: "call-read",
+          tool: "read",
+          argumentsFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+          capabilityFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        }),
+        expect.objectContaining({
+          version: 1,
+          runId: result.runId,
+          agent: "main",
+          callId: "call-read",
+          tool: "read",
+          argumentsFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+          capabilityFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        }),
+      ]);
+      expect(receiptEvents[1]?.binding).toEqual(receiptEvents[0]?.binding);
       expect(
         result.trace
           .filter((entry) => entry.event.type === "tool_lifecycle")
@@ -2395,6 +2415,22 @@ describe("CoreMindRuntime", () => {
       expect(result.extensions).toContainEqual(
         expect.objectContaining({ extensionId: "deny-read", denied: true }),
       );
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "tool_lifecycle" &&
+            entry.event.resolution.phase === "executing" &&
+            entry.event.resolution.status === "skipped",
+        ),
+      ).toBe(true);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "tool_lifecycle" &&
+            entry.event.resolution.phase === "executing" &&
+            entry.event.resolution.status === "completed",
+        ),
+      ).toBe(false);
     } finally {
       await closeServer(server);
     }

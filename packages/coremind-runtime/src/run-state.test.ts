@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { recoveryDispositionFor, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
+import { createEffectReceiptBinding } from "./effect-receipt-binding.js";
 import type { LoopControllerSnapshot } from "./loop-controller.js";
 import { DurableOperation } from "./operation-state.js";
 import {
@@ -1021,6 +1022,110 @@ describe("findUnsafeToolCall（resumable 安全门单点实现）", () => {
     ];
 
     expect(findUnsafeToolCall(trace)).toMatchObject({ tool: "web-fetch" });
+  });
+
+  it("同一 ReceiptId 改绑参数时恢复判定失败关闭", () => {
+    const binding = {
+      version: 1 as const,
+      runId: "run-restore",
+      turnId: "turn-1",
+      agent: "main",
+      callId: "call-web-fetch",
+      tool: "web-fetch",
+      argumentsFingerprint: "a".repeat(64),
+      capabilityFingerprint: "b".repeat(64),
+    };
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "web-fetch",
+        args: { url: "https://example.invalid" },
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        idempotencyKey: "run-restore:call-web-fetch",
+      }),
+      traceEntry(2, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:call-web-fetch",
+        tool: "web-fetch",
+        status: "started",
+        agent: "main",
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        binding,
+      }),
+      traceEntry(3, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:call-web-fetch",
+        tool: "web-fetch",
+        status: "unknown",
+        agent: "main",
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        binding: { ...binding, argumentsFingerprint: "c".repeat(64) },
+      }),
+    ];
+
+    expect(() => findUnsafeToolCall(trace)).toThrowError(
+      expect.objectContaining({ code: "effect_receipt_conflict" }),
+    );
+  });
+
+  it("Receipt 指纹与原始 Call 事实不一致时恢复判定失败关闭", () => {
+    const capability = resolveToolCapability({ tool: "web-fetch" });
+    const binding = createEffectReceiptBinding({
+      runId: "run-restore",
+      turnId: "turn-1",
+      agent: "main",
+      callId: "call-web-fetch",
+      tool: "web-fetch",
+      args: { url: "https://forged.invalid" },
+      capability,
+    });
+    const trace = [
+      traceEntry(1, {
+        type: "tool_call",
+        agent: "main",
+        tool: "web-fetch",
+        args: { url: "https://actual.invalid" },
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        idempotencyKey: "run-restore:call-web-fetch",
+      }),
+      traceEntry(2, {
+        type: "capability_resolved",
+        agent: "main",
+        tool: "web-fetch",
+        callId: "call-web-fetch",
+        capability,
+        recoveryDisposition: recoveryDispositionFor(capability),
+      }),
+      traceEntry(3, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:call-web-fetch",
+        tool: "web-fetch",
+        status: "started",
+        agent: "main",
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        binding,
+      }),
+      traceEntry(4, {
+        type: "effect_receipt",
+        idempotencyKey: "run-restore:call-web-fetch",
+        tool: "web-fetch",
+        status: "unknown",
+        agent: "main",
+        callId: "call-web-fetch",
+        turnId: "turn-1",
+        binding,
+      }),
+    ];
+
+    expect(() => findUnsafeToolCall(trace)).toThrowError(
+      expect.objectContaining({ code: "effect_receipt_conflict" }),
+    );
   });
 
   it("not_started 收据视为安全", () => {

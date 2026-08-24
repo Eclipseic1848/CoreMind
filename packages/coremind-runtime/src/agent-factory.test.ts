@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createModels } from "@earendil-works/pi-ai";
@@ -8,9 +8,17 @@ import {
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import { createReadTool } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it, vi } from "vitest";
+import { buildTools } from "coremind-tools";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildAgent } from "./agent-factory.js";
 import type { CoreMindEvent } from "./events.js";
+import { ToolExecutionEngine } from "./tool-call-lifecycle.js";
+
+const temporaryRoots: string[] = [];
+
+afterEach(() => {
+  for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
 
 function makeFauxContext() {
   const models = createModels();
@@ -144,6 +152,114 @@ describe("buildAgent（离线 faux 端到端）", () => {
 
     expect(executeTool).toHaveBeenCalledTimes(1);
     expect(adapter).not.toHaveBeenCalled();
+  });
+
+  it("配置加载的真实 Script Tool 仍在原 Adapter 前经过 ToolExecutionEngine", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-script-entry-"));
+    temporaryRoots.push(dir);
+    const marker = path.join(dir, "adapter-entered.marker");
+    writeFileSync(
+      path.join(dir, "script-tool.mjs"),
+      `export default {
+        name: "script_gate",
+        description: "真实脚本工具入口",
+        parameters: { type: "object", properties: {} },
+        execute: async () => {
+          const { writeFile } = await import("node:fs/promises");
+          await writeFile(${JSON.stringify(marker)}, "entered", "utf8");
+          return { content: [{ type: "text", text: "entered" }] };
+        }
+      };`,
+      "utf8",
+    );
+    const built = await buildTools(
+      [
+        {
+          path: "script-tool.mjs",
+          effect: { operations: ["external"], reversible: false },
+        },
+      ],
+      { cwd: dir, configDir: dir },
+    );
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("script_gate", {})]),
+      fauxAssistantMessage("完成"),
+    ]);
+    const lifecycleFacts: CoreMindEvent[] = [];
+    const engine = new ToolExecutionEngine({
+      persist: async (fact) => {
+        lifecycleFacts.push(fact);
+      },
+    });
+    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) => {
+      const identity = { agent: "tester", callId };
+      await engine.recordCall({ ...identity, tool: tool.name });
+      for (const phase of [
+        "capability_resolved",
+        "policy_resolved",
+        "approval_resolved",
+        "lease_acquired",
+        "checkpoint_durable",
+      ] as const) {
+        await engine.advance(identity, { phase, status: "completed" });
+      }
+      await engine.advance(identity, {
+        phase: "started_durable",
+        status: "completed",
+        result: { effectState: "started" },
+      });
+      await engine.advance(identity, { phase: "executing", status: "completed" });
+      const result = await engine.executeAdapter(identity, () =>
+        tool.execute(callId, args, signal, onUpdate),
+      );
+      await engine.advance(identity, {
+        phase: "observed",
+        status: "completed",
+        result: {
+          executionOutcome: "returned",
+          effectState: "committed",
+          cleanupState: "not_needed",
+        },
+      });
+      await engine.finalizeResult(identity);
+      return result;
+    });
+    const agent = buildAgent(
+      { systemPrompt: "测试助手" },
+      {
+        models,
+        model,
+        tools: built.tools,
+        agentName: "tester",
+        onEvent: () => undefined,
+        harness: { executeTool },
+      },
+    );
+
+    await agent.prompt("调用全部来源工具");
+    await agent.waitForIdle();
+
+    expect(built.warnings).toEqual([]);
+    expect(executeTool).toHaveBeenCalledTimes(1);
+    expect(existsSync(marker)).toBe(true);
+    expect(
+      lifecycleFacts
+        .filter((fact) => fact.type === "tool_lifecycle")
+        .map((fact) => (fact.type === "tool_lifecycle" ? fact.resolution.phase : undefined)),
+    ).toEqual([
+      "call_recorded",
+      "capability_resolved",
+      "policy_resolved",
+      "approval_resolved",
+      "lease_acquired",
+      "checkpoint_durable",
+      "started_durable",
+      "executing",
+      "observed",
+      "result_durable",
+      "terminal",
+    ]);
   });
 
   it("并行 Adapter 完成顺序不改写模型要求的 Tool Result 顺序与 callId", async () => {

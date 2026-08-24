@@ -26,6 +26,8 @@ describe("RunEffectCoordinator", () => {
       type: "effect_receipt",
       idempotencyKey: "run-1:call-1",
       status: "not_started",
+      agent: "main",
+      callId: "call-1",
     });
   });
 
@@ -59,8 +61,8 @@ describe("RunEffectCoordinator", () => {
     });
 
     expect(events.filter((event) => event.type === "effect_receipt")).toEqual([
-      expect.objectContaining({ status: "started" }),
-      expect.objectContaining({ status: "committed" }),
+      expect.objectContaining({ status: "started", agent: "main", callId: "call-1" }),
+      expect.objectContaining({ status: "committed", agent: "main", callId: "call-1" }),
     ]);
   });
 

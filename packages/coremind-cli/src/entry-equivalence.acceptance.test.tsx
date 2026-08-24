@@ -205,12 +205,16 @@ function fixtureConfig(port: number): CoreMindConfig {
   };
 }
 
+function prepareFixtureFile(directory: string, missingFile: boolean): void {
+  if (!missingFile) writeFileSync(path.join(directory, "notes.txt"), "四入口能力一致", "utf8");
+}
+
 async function closeServer(server: Server): Promise<void> {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 }
 
 /** 入口 1：TS SDK——直接驱动 CoreMindRuntime */
-async function captureTsSdk(): Promise<{
+async function captureTsSdk(missingFile = false): Promise<{
   signatures: WireSignature[];
   fingerprint: ResultFingerprint;
 }> {
@@ -219,7 +223,7 @@ async function captureTsSdk(): Promise<{
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
-  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
+  prepareFixtureFile(dir, missingFile);
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port),
@@ -260,7 +264,7 @@ function spawnAndWait(
 }
 
 /** 入口 2：CLI——异步 spawn dist/cli.js run --json-events（同步 spawn 会阻塞 mock server 事件循环） */
-async function captureCli(): Promise<{
+async function captureCli(missingFile = false): Promise<{
   signatures: WireSignature[];
   fingerprint: ResultFingerprint;
 }> {
@@ -270,7 +274,7 @@ async function captureCli(): Promise<{
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
   const configPath = path.join(dir, "coremind.yaml");
-  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
+  prepareFixtureFile(dir, missingFile);
   // 配置文件支持 JSON 格式（YAML/JSON 双格式）
   writeFileSync(configPath, JSON.stringify(fixtureConfig(port)), "utf8");
   try {
@@ -333,14 +337,30 @@ async function waitForCapture(
   if (captured.length < expectedCount) throw new Error("未捕获到完整工具请求链");
 }
 
+async function waitForTuiFingerprint(
+  read: () => ResultFingerprint | undefined,
+  timeoutMs = 5_000,
+): Promise<ResultFingerprint> {
+  const deadline = Date.now() + timeoutMs;
+  while (read() === undefined && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  const fingerprint = read();
+  if (!fingerprint) throw new Error("TUI 渲染入口未返回运行结果");
+  return fingerprint;
+}
+
 /** 入口 3a：TUI——ink 渲染 ChatTUI + 真实 ChatSession 驱动一轮对话（请求等价） */
-async function captureTui(): Promise<{ signatures: WireSignature[] }> {
+async function captureTui(missingFile = false): Promise<{
+  signatures: WireSignature[];
+  fingerprint: ResultFingerprint;
+}> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer((signatures) =>
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
-  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
+  prepareFixtureFile(dir, missingFile);
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port),
@@ -348,6 +368,13 @@ async function captureTui(): Promise<{ signatures: WireSignature[] }> {
       cwd: dir,
     });
     const session = new ChatSession(runtime, "main");
+    const chat = session.chat.bind(session);
+    let fingerprint: ResultFingerprint | undefined;
+    vi.spyOn(session, "chat").mockImplementation(async (message) => {
+      const turn = await chat(message);
+      fingerprint = fingerprintOf(turn.run.outcome.status, turn.run.snapshot);
+      return turn;
+    });
     const app = render(
       <ChatTUI
         title="等价性验收"
@@ -358,35 +385,16 @@ async function captureTui(): Promise<{ signatures: WireSignature[] }> {
     );
     await typeCommand(app.stdin.write, "你好");
     await waitForCapture(captured, 6);
+    const resultFingerprint = await waitForTuiFingerprint(() => fingerprint);
     app.unmount();
-    return { signatures: captured };
-  } finally {
-    await closeServer(server);
-  }
-}
-
-/** 入口 3b：TUI 底层 ChatSession 的结果指纹（outcome 机器码 + RunSnapshot） */
-async function captureChatResult(): Promise<ResultFingerprint> {
-  const { server, port } = await createEquivalenceServer(() => {});
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-result-"));
-  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
-  try {
-    const runtime = await CoreMindRuntime.create({
-      config: fixtureConfig(port),
-      configDir: dir,
-      cwd: dir,
-    });
-    const session = new ChatSession(runtime, "main");
-    const turn = await session.chat("你好");
-    expect(turn.run.outcome.status).toBe("succeeded");
-    return fingerprintOf(turn.run.outcome.status, turn.run.snapshot);
+    return { signatures: captured, fingerprint: resultFingerprint };
   } finally {
     await closeServer(server);
   }
 }
 
 /** 入口 4：Python SDK——spawn 临时脚本驱动 CoreMindClient（经 worker 连 mock provider） */
-async function capturePython(): Promise<{
+async function capturePython(missingFile = false): Promise<{
   signatures: WireSignature[];
   fingerprint: ResultFingerprint;
 }> {
@@ -395,7 +403,7 @@ async function capturePython(): Promise<{
     captured.push(...signatures),
   );
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
-  writeFileSync(path.join(dir, "notes.txt"), "四入口能力一致", "utf8");
+  prepareFixtureFile(dir, missingFile);
   const scriptPath = path.join(dir, "capture.py");
   const script = [
     "import sys, json",
@@ -452,7 +460,6 @@ describe("四入口请求等价（门 A-2）", () => {
       captureTui(),
       capturePython(),
     ]);
-    const tuiResult = await captureChatResult();
     // 工具 fixture：首请求两条，第二次请求包含原请求、toolUse 与 toolResult。
     expect(tsCaptured.signatures.map((item) => item.role)).toEqual([
       "system",
@@ -469,11 +476,27 @@ describe("四入口请求等价（门 A-2）", () => {
     // outcome 同一机器码 + RunSnapshot 结构等价（门 A-2）
     expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
     expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
-    expect(tuiResult).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
     expect(tsCaptured.fingerprint).toMatchObject({
       capabilityEffect: "none",
       capabilitySource: "builtin",
       recoveryDisposition: "replay_safe",
     });
+  });
+
+  it("Tool Error fault fixture 在四入口生成相同结果与 RecoveryDisposition", async () => {
+    const [tsCaptured, cliCaptured, tuiCaptured, pyCaptured] = await Promise.all([
+      captureTsSdk(true),
+      captureCli(true),
+      captureTui(true),
+      capturePython(true),
+    ]);
+
+    expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    for (const captured of [tsCaptured, cliCaptured, tuiCaptured, pyCaptured]) {
+      expect(captured.signatures.some((item) => item.role === "tool")).toBe(true);
+    }
   });
 });

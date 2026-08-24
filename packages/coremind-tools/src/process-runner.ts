@@ -67,6 +67,7 @@ export class ProcessRunner {
         reject: false,
         timeout: request.timeoutMs,
         cancelSignal: request.signal,
+        killDescendants: true,
         forceKillAfterDelay: 1_000,
         maxBuffer: maxOutputBytes,
         windowsHide: true,

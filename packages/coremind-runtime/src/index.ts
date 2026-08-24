@@ -214,6 +214,7 @@ export {
   type TransientRetryOptions,
 } from "./retry-policy.js";
 export {
+  collectToolReplayCandidates,
   type EffectReceipt,
   FileRunStore,
   fingerprintRunConfig,
@@ -230,6 +231,7 @@ export {
   type RunStoreDurabilityAcknowledgement,
   type RunStoreDurabilityBoundary,
   type RunStoreDurabilityMetrics,
+  type ToolReplayCandidate,
 } from "./run-state.js";
 export { RunTerminalizer } from "./run-terminalizer.js";
 export {

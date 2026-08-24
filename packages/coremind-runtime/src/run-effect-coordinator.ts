@@ -4,6 +4,8 @@ import { type RunId, receiptId } from "./ids.js";
 interface ActiveEffect {
   idempotencyKey: string;
   tool: string;
+  agent?: string;
+  callId: string;
   stepId?: string;
 }
 
@@ -27,6 +29,8 @@ export class RunEffectCoordinator {
       this.activeEffects.set(effectCallKey(enriched.stepId, enriched.callId), {
         idempotencyKey: enriched.idempotencyKey,
         tool: enriched.tool,
+        agent: enriched.agent,
+        callId: enriched.callId,
         ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
       });
       return;
@@ -81,6 +85,7 @@ export class RunEffectCoordinator {
     return {
       idempotencyKey: receiptId(this.runId, stepId, callId),
       tool,
+      callId,
       ...(stepId ? { stepId } : {}),
     };
   }

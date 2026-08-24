@@ -1,4 +1,6 @@
+import { canonicalJson } from "./canonical-json.js";
 import type { CheckpointRecord } from "./checkpoint.js";
+import { validateEffectReceiptBindingsAgainstFacts } from "./effect-receipt-binding.js";
 import type { CoreMindEvent, EffectReceiptStatus } from "./events.js";
 import { receiptId } from "./ids.js";
 import { type OperationStateRecord, restoreDurableOperation } from "./operation-state.js";
@@ -61,6 +63,7 @@ export function checkInvariantFacts(
   const failedCallCounts = new Map<string, number>();
   const receiptStates = new Map<string, EffectReceiptStatus>();
   const receiptObservations = new Map<string, { runId: string; sequence: number }>();
+  const eventsByRun = new Map<string, CoreMindEvent[]>();
   const pendingApprovals = new Map<string, { runId: string; sequence: number }>();
   const operationChains = new Map<string, OperationStateRecord[]>();
   for (const record of facts.runRecords) {
@@ -139,6 +142,11 @@ export function checkInvariantFacts(
       }
     }
     const event = eventFrom(record);
+    if (event) {
+      const runEvents = eventsByRun.get(record.runId) ?? [];
+      runEvents.push(event);
+      eventsByRun.set(record.runId, runEvents);
+    }
     if (isAbortRequest(record)) {
       abortedRuns.add(record.runId);
       turnsKnownAtAbort.set(record.runId, new Set(knownTurnsByRun.get(record.runId) ?? []));
@@ -230,6 +238,25 @@ export function checkInvariantFacts(
         });
       }
       receiptStates.set(event.idempotencyKey, event.status);
+      try {
+        validateEffectReceiptBindingsAgainstFacts(record.runId, eventsByRun.get(record.runId)!);
+      } catch (error) {
+        const alreadyReported = violations.some(
+          (violation) =>
+            violation.invariant === "I-12" &&
+            violation.receiptId === event.idempotencyKey &&
+            violation.sequence === record.sequence,
+        );
+        if (!alreadyReported) {
+          violations.push({
+            invariant: "I-12",
+            message: `EffectReceipt ${event.idempotencyKey} 的绑定或状态冲突：${String(error)}`,
+            runId: record.runId,
+            sequence: record.sequence,
+            receiptId: event.idempotencyKey,
+          });
+        }
+      }
     }
     if (
       (event?.type === "tool_call" || event?.type === "tool_result") &&
@@ -460,13 +487,4 @@ function eventFrom(record: RunStateRecord): CoreMindEvent | undefined {
     return undefined;
   }
   return event as CoreMindEvent;
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, item]) => item !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
 }
