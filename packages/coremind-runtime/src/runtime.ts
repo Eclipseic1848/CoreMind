@@ -66,6 +66,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
+import { ProjectionEngine } from "./projection.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
@@ -79,12 +80,12 @@ import {
   type RunOutcome,
 } from "./result.js";
 import { classifyRetry, runWithTransientRetry } from "./retry-policy.js";
+import { RunContext } from "./run-context.js";
 import { RunEffectCoordinator } from "./run-effect-coordinator.js";
+import { RunKernel } from "./run-kernel.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
-  hasPendingJournalFlush,
-  prepareRunResume,
   RunStateJournal,
   type RunStore,
   type RunStoreDurability,
@@ -210,6 +211,12 @@ export class CoreMindRuntime {
     this.resumedContextLength = resumedContextLength;
     this.mainAgentName = config.defaultAgent ?? firstKey(config.agents) ?? "";
     this.skillsByAgent = skillsByAgent;
+    // 这些读取只用于保留已冻结的私有声明布局；执行状态已迁移到 RunContext。
+    void this.lastAgents;
+    void this.activeHarnessFactory;
+    void this.activeRunPromise;
+    void this.runJournal;
+    void this.activeSession;
   }
 
   /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
@@ -341,7 +348,8 @@ export class CoreMindRuntime {
   ): Agent | undefined {
     const agentCfg = this.agentConfigs.get(name);
     if (!agentCfg) return undefined;
-    const harness = this.activeHarnessFactory?.(name, stepId);
+    const context = runContextFor(this);
+    const harness = context.harnessFor(name, stepId);
     const agent = buildAgent(agentCfg, {
       models: this.providerRuntime.models,
       model: this.providerRuntime.model,
@@ -369,7 +377,7 @@ export class CoreMindRuntime {
         harness.throwIfDenied?.();
       };
     }
-    this.lastAgents.set(name, agent);
+    context.registerAgent(name, agent);
     return agent;
   }
 
@@ -432,22 +440,13 @@ export class CoreMindRuntime {
 
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
-    // R7：同一实例不支持并发 run()，运行时检测并明确报错（串行化属 0.3.x-B）
-    if (this.activeRunPromise) {
-      throw new CoreMindError("concurrent_run", "同一 Runtime 实例不支持并发 run()");
-    }
-    const promise = this.executeRunBody();
-    this.activeRunPromise = promise;
-    try {
-      return await promise;
-    } finally {
-      if (this.activeRunPromise === promise) this.activeRunPromise = undefined;
-      this.runJournal = undefined;
-    }
+    const slot = executionSlotFor(this);
+    slot.kernel ??= new RunKernel({ execute: (context) => this.executeRunBody(context) });
+    return slot.kernel.run();
   }
 
   /** run() 主体（并发检测由外层 run() 包装） */
-  private async executeRunBody(): Promise<RunResult> {
+  private async executeRunBody(context: RunContext<RuntimeHarness>): Promise<RunResult> {
     const started = performance.now();
     const lifecycleHost = this.options.lifecycleExtensions
       ? new LifecycleExtensionHost(this.options.lifecycleExtensions)
@@ -459,16 +458,16 @@ export class CoreMindRuntime {
     // 会话树关联：打开会话拿 seq 水位与已落盘视图（压缩条目落盘与重建桥接用）
     let sessionSeqStart: number | undefined;
     if (this.options.sessionId && this.config.session?.enabled) {
-      this.activeSession = await CoreMindSession.open({
+      const session = await CoreMindSession.open({
         dir: sessionDir(this.config, this.options.configDir),
         sessionId: this.options.sessionId,
         cwd: this.options.cwd ?? process.cwd(),
       });
-      sessionSeqStart = await this.activeSession.currentSeq();
-      this.sessionBranch = projectBranchMessages(await this.activeSession.branchEntries());
+      sessionSeqStart = await session.currentSeq();
+      context.attachSession(session, projectBranchMessages(await session.branchEntries()));
     }
     const resumePlan = this.options.resumeRunId
-      ? prepareRunResume(
+      ? ProjectionEngine.prepareResume(
           await runStore.read(this.options.resumeRunId),
           configFingerprint,
           this.options.initialPrompt,
@@ -489,7 +488,7 @@ export class CoreMindRuntime {
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
-    this.runJournal = journal;
+    context.attachJournal(journal);
     const operation =
       resumePlan && resumePlan.operationRecords.length > 0
         ? restoreDurableOperation(resumePlan.operationRecords)
@@ -575,7 +574,6 @@ export class CoreMindRuntime {
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const toolReplayCandidates = [...(resumePlan?.toolReplayCandidates ?? [])];
     const userEvents = this.options.events ?? (() => {});
-    const extensionReceipts: LifecycleExtensionReceipt[] = [];
     const turnTracker = new TurnTracker();
     const effectBindingByCall = new Map<
       string,
@@ -798,7 +796,7 @@ export class CoreMindRuntime {
       if (!lifecycleHost) return undefined;
       const result = await lifecycleHost.dispatch(lifecycle, payload);
       for (const receipt of result.receipts) {
-        extensionReceipts.push(receipt);
+        context.recordExtension(receipt);
         emit({
           type: "extension_lifecycle",
           extensionId: receipt.extensionId,
@@ -827,7 +825,6 @@ export class CoreMindRuntime {
     });
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
-    const artifacts: ArtifactRecord[] = [];
     const checkpointByCallId = new Map<string, string[]>();
     const contextWindow = this.providerRuntime.model.contextWindow;
     const contextProtector = new ContextProtector(
@@ -839,13 +836,14 @@ export class CoreMindRuntime {
       async (result) => {
         let sessionEntryId: string | undefined;
         const range = result.replacedRange;
-        const branch = this.sessionBranch;
-        if (this.activeSession && branch && range && branch.length > 0) {
+        const branch = context.sessionBranch();
+        const activeSession = context.sessionHandle();
+        if (activeSession && branch && range && branch.length > 0) {
           // 替换范围延伸进本轮未落盘消息时，会话树内的范围终点截到已落盘末尾，
           // 未落盘尾部由 retainedTail 快照携带——重建依然无损（发送 = 摘要 + 保留区）。
           const coveredEnd = Math.min(range.end, branch.length);
           const summaryMessage = result.messages[0] as { content: string; timestamp: number };
-          const entry = await this.activeSession.appendCompaction({
+          const entry = await activeSession.appendCompaction({
             summary: summaryMessage.content,
             retainedTail: result.messages.slice(1) as unknown as AgentMessage[],
             tokensBefore: result.beforeTokens,
@@ -858,7 +856,7 @@ export class CoreMindRuntime {
           });
           sessionEntryId = entry.id;
           // 更新已落盘视图：压缩产物（摘要 + 保留区）由该条目代表
-          this.sessionBranch = [
+          context.replaceSessionBranch([
             {
               message: result.messages[0]! as unknown as AgentMessage,
               entryId: entry.id,
@@ -869,9 +867,9 @@ export class CoreMindRuntime {
               entryId: entry.id,
               seq: entry.seq,
             })),
-          ];
+          ]);
           // persist 跳过压缩产物代表的部分：摘要 + 保留区（保留区=压缩后消息数-1，起点=range.end）
-          this.compactedPrefixEnd = result.messages.length + range.end - 1;
+          context.setCompactedPrefixEnd(result.messages.length + range.end - 1);
         }
         emit({
           type: "context_compacted",
@@ -918,7 +916,7 @@ export class CoreMindRuntime {
         }),
     });
     const deniedAgents = new Set<string>();
-    this.activeHarnessFactory = (agentName, stepId) => ({
+    context.setHarnessFactory((agentName, stepId) => ({
       maxRetries: loop ? 0 : limits.maxRetries,
       executeTool: (tool, callId, args, signal, onUpdate) =>
         toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
@@ -1344,7 +1342,7 @@ export class CoreMindRuntime {
         });
         const artifact = extractArtifactRecord(context.result.details);
         if (artifact) {
-          artifacts.push(artifact);
+          runContextFor(this).recordArtifact(artifact);
           emit({
             type: "artifact_created",
             artifactId: artifact.artifactId,
@@ -1404,7 +1402,7 @@ export class CoreMindRuntime {
       onAgentEvent: (event, agent) => {
         if (budget.observeAgentEvent(event)) agent.abort();
       },
-    });
+    }));
 
     let outputs = new Map<string, StepOutput>();
     let transcript = "";
@@ -1562,7 +1560,7 @@ export class CoreMindRuntime {
         }
       }
     } finally {
-      this.activeHarnessFactory = undefined;
+      context.setHarnessFactory(undefined);
     }
 
     while (lifecycleFinalizers.size > 0) {
@@ -1605,8 +1603,8 @@ export class CoreMindRuntime {
     // 审批拒绝等 paused（loop_paused）是可在用户处置后继续的暂停态，同样应落盘已确认部分，
     // 使持久事实可重建该 Run 的请求（规格 01 §2 请求重建契约的适用范围）
     const terminalCode = terminalError instanceof CoreMindError ? terminalError.code : undefined;
-    sessionPersistPaused = terminalCode === "loop_paused";
-    if (terminalError === undefined || journal.isAborted() || sessionPersistPaused) {
+    context.setSessionPersistPaused(terminalCode === "loop_paused");
+    if (terminalError === undefined || journal.isAborted() || context.shouldTrimRejectedTrail()) {
       try {
         sessionFile = await this.persistSession();
       } catch (error) {
@@ -1693,7 +1691,7 @@ export class CoreMindRuntime {
       evaluation,
       releaseReadiness,
       checkpointCount: checkpointManager.records.length,
-      artifactCount: artifacts.length,
+      artifactCount: context.artifactRecords().length,
     });
     // operation/input/lifecycle 收尾事实必须先形成稳定前缀，终态 Fact 才能成为最后一条。
     try {
@@ -1711,6 +1709,8 @@ export class CoreMindRuntime {
       metrics,
       evaluation,
       releaseReadiness,
+      artifacts: context.artifactRecords(),
+      extensions: context.extensions(),
       ...(outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {}),
     };
     const terminalDurabilityFailure =
@@ -1719,9 +1719,11 @@ export class CoreMindRuntime {
         (terminalError.code === "durability_unsupported" ||
           terminalError.code === "durability_barrier_failed" ||
           terminalError.code === "fact_ledger_poisoned"));
+    let terminalPersisted = false;
     if (!terminalDurabilityFailure) {
       try {
         await journal.appendFact(terminalKind, terminalPayload, { durability: "critical" });
+        terminalPersisted = true;
       } catch (error) {
         const finalDurabilityFailure = durabilityFailure(error);
         terminalError = finalDurabilityFailure;
@@ -1731,34 +1733,39 @@ export class CoreMindRuntime {
         releaseReadiness = assessReleaseReadiness(outcome, evaluation);
       }
     }
-    const snapshot = createRunSnapshot({
-      runId: trace.runId,
-      operation: operation.snapshot(),
-      outcome,
-      metrics,
-      evaluation,
-      releaseReadiness,
-      trace: trace.entries,
-      checkpoints: checkpointManager.records,
-      artifacts,
-      extensions: extensionReceipts,
-    });
+    const snapshot = terminalPersisted
+      ? ProjectionEngine.project(await runStore.read(runId)).snapshot
+      : createRunSnapshot({
+          runId: trace.runId,
+          operation: operation.snapshot(),
+          outcome,
+          metrics,
+          evaluation,
+          releaseReadiness,
+          trace: trace.entries,
+          checkpoints: checkpointManager.records,
+          artifacts: context.artifactRecords(),
+          extensions: context.extensions(),
+        });
+    if (!snapshot) {
+      throw new CoreMindError("run_state_corrupt", "终态 Fact 已持久化，但无法重建 RunSnapshot");
+    }
     return {
       runId: trace.runId,
-      operation: operation.snapshot(),
-      outcome,
-      metrics,
-      evaluation,
-      releaseReadiness,
-      trace: trace.entries,
+      operation: snapshot.operation,
+      outcome: snapshot.outcome,
+      metrics: snapshot.metrics,
+      evaluation: snapshot.evaluation,
+      releaseReadiness: snapshot.releaseReadiness,
+      trace: snapshot.trace,
       runStateFile: runStore.pathFor?.(runId),
-      checkpoints: checkpointManager.records,
+      checkpoints: snapshot.checkpoints,
       outputs,
       messages: this.collectMessages() as unknown as Map<string, CoreMindMessage[]>,
       transcript,
       sessionFile,
-      artifacts,
-      extensions: extensionReceipts,
+      artifacts: snapshot.artifacts,
+      extensions: snapshot.extensions,
       snapshot,
     };
   }
@@ -1882,13 +1889,11 @@ export class CoreMindRuntime {
   }
 
   private abortAll(): void {
-    for (const agent of this.lastAgents.values()) agent.abort();
+    runContextFor(this).abortAgents();
   }
 
   private collectMessages(): Map<string, AgentMessage[]> {
-    const messages = new Map<string, AgentMessage[]>();
-    for (const [name, agent] of this.lastAgents) messages.set(name, agent.state.messages);
-    return messages;
+    return runContextFor(this).collectMessages();
   }
 
   /**
@@ -1898,10 +1903,10 @@ export class CoreMindRuntime {
    * 超时记录 quiescence_timeout 事件但不改变终态。返回是否达到静止。
    */
   async waitForQuiescence(timeoutMs: number = DEFAULT_QUIESCENCE_TIMEOUT_MS): Promise<boolean> {
-    const journal = this.runJournal;
+    const context = runContextFor(this);
     const deadline = performance.now() + timeoutMs;
     for (;;) {
-      if (isQuiescent(this.lastAgents, journal)) return true;
+      if (context.isQuiescent()) return true;
       if (performance.now() >= deadline) {
         this.options.events?.({ type: "quiescence_timeout", timeoutMs });
         return false;
@@ -1915,21 +1920,24 @@ export class CoreMindRuntime {
     const sessionId = this.options.sessionId;
     const session = this.config.session;
     if (!sessionId || !session?.enabled) return undefined;
-    const main = this.lastAgents.get(this.mainAgentName);
+    const context = runContextFor(this);
+    const main = context.agent(this.mainAgentName);
     if (!main) return undefined;
     const cm =
-      this.activeSession ??
+      context.sessionHandle() ??
       (await CoreMindSession.open({
         dir: sessionDir(this.config, this.options.configDir),
         sessionId,
         cwd: this.options.cwd ?? process.cwd(),
       }));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
-    let messages = main.state.messages.slice(this.compactedPrefixEnd ?? this.resumedContextLength);
-    if (this.runJournal?.isAborted()) {
+    let messages = main.state.messages.slice(
+      context.compactedPrefixEnd() ?? this.resumedContextLength,
+    );
+    if (context.currentJournal()?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
       messages = trimUnconfirmedTail(messages);
-    } else if (sessionPersistPaused) {
+    } else if (context.shouldTrimRejectedTrail()) {
       // 审批拒绝等 paused：只落已发送部分——去掉尾部未发送的工具调用产物（toolResult + toolUse）
       messages = trimRejectedTrail(messages);
     }
@@ -1944,6 +1952,30 @@ export class CoreMindRuntime {
     }
     return cm.filePath;
   }
+}
+
+// 类内旧执行字段仅为冻结声明布局保留；真实执行态由每个 Runtime 的 Kernel/Context 隔离持有。
+interface RuntimeExecutionSlot {
+  kernel?: RunKernel<RuntimeHarness, RunResult>;
+  context?: RunContext<RuntimeHarness>;
+}
+
+const runtimeExecutionSlots = new WeakMap<CoreMindRuntime, RuntimeExecutionSlot>();
+
+function executionSlotFor(runtime: CoreMindRuntime): RuntimeExecutionSlot {
+  const existing = runtimeExecutionSlots.get(runtime);
+  if (existing) return existing;
+  const created: RuntimeExecutionSlot = {};
+  runtimeExecutionSlots.set(runtime, created);
+  return created;
+}
+
+function runContextFor(runtime: CoreMindRuntime): RunContext<RuntimeHarness> {
+  const slot = executionSlotFor(runtime);
+  const kernelContext = slot.kernel?.currentContext();
+  if (kernelContext) return kernelContext;
+  slot.context ??= new RunContext<RuntimeHarness>();
+  return slot.context;
 }
 
 /** 便捷入口：加载配置 → 构建运行时 */
@@ -1971,16 +2003,6 @@ function durabilityFailure(error: unknown): CoreMindError {
         "durability_barrier_failed",
         error instanceof Error ? error.message : String(error),
       );
-}
-
-function isQuiescent(agents: Map<string, Agent>, journal: RunStateJournal | undefined): boolean {
-  for (const agent of agents.values()) {
-    if (agent.state.isStreaming) return false;
-    if (agent.state.pendingToolCalls.size > 0) return false;
-    if (agent.hasQueuedMessages()) return false;
-  }
-  if (journal !== undefined && hasPendingJournalFlush(journal)) return false;
-  return true;
 }
 
 /**
@@ -2043,13 +2065,6 @@ function traceFactDurability(
       return "ordinary";
   }
 }
-
-/**
- * 当前 Run 是否因审批拒绝等 paused（persistSession 落已发送部分用）。
- * 模块级而非类字段：避免进入 api-extractor 的 untrimmed d.ts（冻结基线逐字哈希）。
- * run 由 R7 保证实例内串行，跨实例并发仅在此瞬时标志上偶发串扰，语义安全（多 trim 尾部）。
- */
-let sessionPersistPaused = false;
 
 /** D-4 方案 A：去掉尾部未正常终止的 assistant 消息（abort 竞态赢家文本不落会话树） */
 function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] {

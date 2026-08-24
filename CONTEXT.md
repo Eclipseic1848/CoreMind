@@ -42,6 +42,18 @@ _Avoid_: 状态、日志、快照（Snapshot 是投影）
 从事实派生的可丢弃视图（RunSnapshot、会话上下文视图、CheckpointDiff、metrics、TUI 状态）。投影可随时从事实重建，不承载权威信息。
 _Avoid_: 视图、模型、缓存
 
+**ProjectionEngine（投影引擎）**：
+只读取同一 Run 的连续 Fact 前缀并生成终态、恢复、上下文、控制与观测 Projection 的纯归约器；不持有缓存，也不补造 Fact 中不存在的信息。
+_Avoid_: Store、Runtime、恢复状态机
+
+**RunContext（运行上下文）**：
+一个 Run 内可变资源的唯一所有者，持有 Agent、Harness、Journal、Session 句柄、Artifact 与扩展收据；不作为持久 Fact，也不跨 Run 复用。
+_Avoid_: Session、RunState、全局上下文
+
+**RunKernel（运行内核）**：
+负责创建和回收 RunContext、拒绝同一 Runtime 实例上的并发 Run，并通过可替换执行依赖进入 Runtime 主体的薄生命周期边界。
+_Avoid_: 业务编排器、状态仓库、ProjectionEngine
+
 **Rebuild（重建）**：
 从持久事实规范化地重新生成投影或 Provider 请求的过程。请求可重建是验收不变量：从事实重建的每次 Provider 请求与实际发送值一致。
 _Avoid_: 恢复、重放
