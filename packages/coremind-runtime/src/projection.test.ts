@@ -124,7 +124,13 @@ describe("ProjectionEngine", () => {
       checkpoints: [checkpoint],
       artifacts: [artifact],
       extensions: [extension],
-      context: { stablePrefixes: [], compactions: [], failures: [] },
+      context: {
+        stablePrefixes: [],
+        budgets: [],
+        compactions: [],
+        failures: [],
+        lifecycleFailures: [],
+      },
       pendingControls: [
         {
           type: "approval",

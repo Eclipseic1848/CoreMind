@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
-import { applyCompaction, projectRawBranchMessages } from "./compaction-projection.js";
+import {
+  applyCompaction,
+  projectBranchMessages,
+  projectRawBranchMessages,
+} from "./compaction-projection.js";
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
@@ -2571,7 +2575,7 @@ describe("CoreMindRuntime", () => {
         sessionId: "s1",
         cwd: process.cwd(),
       });
-      const long = "旧历史内容".repeat(80);
+      const long = "旧历史内容".repeat(500);
       await cm.appendMessages([
         { id: "h1", role: "user", content: [{ type: "text", text: `${long}一` }] },
         { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}二` }] },
@@ -2590,7 +2594,8 @@ describe("CoreMindRuntime", () => {
             baseUrl: `http://127.0.0.1:${port}/v1`,
             model: "probe-model",
             apiKey: "test-key",
-            contextWindow: 300,
+            contextWindow: 2048,
+            maxTokens: 256,
           },
           agents: { main: { systemPrompt: "测试助手" } },
           session: { enabled: true },
@@ -2623,6 +2628,32 @@ describe("CoreMindRuntime", () => {
       const entries = await reopened.branchEntries();
       const compactions = entries.filter((entry) => entry.type === "compaction");
       expect(compactions).toHaveLength(1);
+      expect(compactions[0]?.details).toMatchObject({
+        contextLifecycle: {
+          compactionId: expect.stringMatching(/^[a-f0-9]{64}$/),
+          strategyId: "task-state",
+          strategyVersion: 1,
+          lineageDepth: 1,
+          rebuiltFromCanonical: false,
+          trigger: "threshold",
+        },
+      });
+      const taskState = JSON.parse(compactions[0]!.summary.split("\n").slice(1).join("\n")) as {
+        goal?: string;
+        sourceFacts?: { goal?: string[] };
+      };
+      expect(taskState).toMatchObject({
+        goal: "继续完成",
+        sourceFacts: { goal: [expect.stringContaining("start.initialPrompt")] },
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "context_budget_resolved",
+          source: "explicit_config",
+          effectiveContextWindow: 2048,
+          estimator: "pi-agent-core-estimate-v1",
+        }),
+      );
 
       // 重建 == 实际发送（忽略 system 前缀，逐条按内容比对）
       const sent = captured[0]!.messages.filter((message) => {
@@ -2631,6 +2662,36 @@ describe("CoreMindRuntime", () => {
       });
       const rebuilt = applyCompaction(projectRawBranchMessages(entries), compactions);
       expect(rebuilt.map(contentOf)).toEqual(sent.map(contentOf));
+
+      const resumeRuntime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "压缩恢复测试",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 2048,
+            maxTokens: 256,
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        initialPrompt: "再次继续",
+        sessionId: "s1",
+      });
+      await resumeRuntime.run();
+      const resumedSent = captured[1]!.messages.filter(
+        (message) => (message as { role?: string }).role !== "system",
+      );
+      const restoredPrefix = projectBranchMessages(entries).map((item) => item.message);
+      expect(resumedSent.slice(0, restoredPrefix.length).map(contentOf)).toEqual(
+        restoredPrefix.map(contentOf),
+      );
+      expect((resumedSent[0] as { role?: string }).role).toBe("user");
+      expect(String(contentOf(resumedSent[0]))).toContain("[CoreMind TaskState v1]");
     } finally {
       await closeServer(server);
     }
@@ -2682,7 +2743,8 @@ describe("CoreMindRuntime", () => {
             baseUrl: `http://127.0.0.1:${port}/v1`,
             model: "probe-model",
             apiKey: "test-key",
-            contextWindow: 300,
+            contextWindow: 2048,
+            maxTokens: 256,
           },
           agents: { main: { systemPrompt: "测试助手" } },
           session: { enabled: true },
@@ -2691,7 +2753,7 @@ describe("CoreMindRuntime", () => {
         sessionId: "s1",
         events: (event) => events.push(event),
       });
-      const long = "未落盘历史".repeat(90);
+      const long = "未落盘历史".repeat(600);
       await runtime.runAgentTurn(
         "main",
         "继续",
@@ -2724,6 +2786,236 @@ describe("CoreMindRuntime", () => {
       });
       const rebuilt = applyCompaction(projectRawBranchMessages(entries), compactions);
       expect(rebuilt.map(contentOf)).toEqual(sent.map(contentOf));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("完整静态预算耗尽时在 Provider 前暂停，网络调用计数为 0", async () => {
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      sendSse(response, [
+        { id: "unexpected", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-context-budget-"));
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "Context 预算前门",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 1024,
+            maxTokens: 256,
+          },
+          agents: { main: { systemPrompt: "不可删除项目规则".repeat(1000) } },
+        },
+        configDir: dir,
+        initialPrompt: "不能发送",
+        events: (event) => events.push(event),
+      });
+
+      const result = await runtime.run();
+
+      expect(providerCalls).toBe(0);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "context_budget_exhausted" },
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "context_lifecycle_failed",
+          code: "context_budget_exhausted",
+          providerCallBlocked: true,
+        }),
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("自定义端点缺省窗口显式记录 assumed_context_window 证据", async () => {
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      sendSse(response, [
+        { id: "fallback", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-context-fallback-"));
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "Context fallback",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "unknown-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试" } },
+        },
+        configDir: dir,
+        initialPrompt: "执行",
+        events: (event) => events.push(event),
+      });
+
+      await runtime.run();
+
+      expect(providerCalls).toBe(1);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "context_budget_resolved",
+          source: "conservative_fallback",
+          confidence: "assumed",
+          evidence: ["assumed_context_window"],
+        }),
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Provider 报告超窗时不盲目重试相同请求", async () => {
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      response.writeHead(400, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          error: { message: "Your input exceeds the context window of this model" },
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-provider-overflow-"));
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "Provider overflow",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 8192,
+            maxTokens: 512,
+          },
+          agents: { main: { systemPrompt: "测试" } },
+          runtime: { maxRetries: 3 },
+        },
+        configDir: dir,
+        initialPrompt: "触发 Provider 超窗",
+        events: (event) => events.push(event),
+      });
+
+      const result = await runtime.run();
+
+      expect(providerCalls).toBe(1);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "context_budget_exhausted" },
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "context_lifecycle_failed",
+          reason: "provider_overflow",
+          providerCallBlocked: true,
+        }),
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("Resume 遇到损坏的 Context lineage 时失败关闭且不调用 Provider", async () => {
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      sendSse(response, [
+        { id: "unexpected", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lineage-corrupt-"));
+      const sessionDir = path.join(dir, "sessions");
+      const session = await CoreMindSession.open({ dir: sessionDir, sessionId: "s1", cwd: dir });
+      await session.appendMessages([{ role: "user", content: "原始事实", timestamp: 1 }]);
+      const sourceEntry = (await session.branchEntries())[0]!;
+      await session.appendCompaction({
+        summary: "[CoreMind TaskState v1]\n{}",
+        retainedTail: [],
+        tokensBefore: 100,
+        details: {
+          fingerprint: "f".repeat(64),
+          rangeStartId: sourceEntry.id,
+          rangeEndId: sourceEntry.id,
+          summaryTimestamp: 1,
+          contextLifecycle: {
+            compactionId: "tampered",
+            sourceFingerprint: "a".repeat(64),
+            sourceRange: { start: 0, end: 1 },
+            strategyId: "task-state",
+            strategyVersion: 1,
+            capabilityFingerprint: "b".repeat(64),
+            budget: { availableInputTokens: 100, estimator: "pi-agent-core-estimate-v1" },
+            tokensBefore: 100,
+            tokensAfter: 10,
+            summaryFingerprint: "c".repeat(64),
+            retainedTailFingerprint: "d".repeat(64),
+            taskStateFingerprint: "e".repeat(64),
+            lineageDepth: 1,
+            rebuiltFromCanonical: false,
+            createdAt: 1,
+            trigger: "threshold",
+          },
+        },
+      });
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "lineage corrupt",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 8192,
+            maxTokens: 512,
+          },
+          agents: { main: { systemPrompt: "测试" } },
+          session: { enabled: true },
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "恢复",
+        sessionId: "s1",
+      });
+
+      const result = await runtime.run();
+
+      expect(providerCalls).toBe(0);
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "context_lineage_corrupt" },
+      });
     } finally {
       await closeServer(server);
     }

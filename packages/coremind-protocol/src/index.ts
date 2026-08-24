@@ -91,6 +91,32 @@ const RunMetricsSchema = Type.Object(
           compactions: NonNegativeIntegerSchema,
           lastSummaryFingerprint: Type.Optional(NonEmptyStringSchema),
           stablePrefixFingerprints: Type.Array(NonEmptyStringSchema),
+          lastBudget: Type.Optional(
+            Type.Object(
+              {
+                providerId: NonEmptyStringSchema,
+                modelId: NonEmptyStringSchema,
+                capabilityFingerprint: NonEmptyStringSchema,
+                source: Type.Union([
+                  Type.Literal("locked_catalog"),
+                  Type.Literal("explicit_config"),
+                  Type.Literal("provider_metadata"),
+                  Type.Literal("conservative_fallback"),
+                ]),
+                confidence: Type.Union([
+                  Type.Literal("verified"),
+                  Type.Literal("declared"),
+                  Type.Literal("assumed"),
+                ]),
+                effectiveContextWindow: NonNegativeIntegerSchema,
+                reservedOutputTokens: NonNegativeIntegerSchema,
+                availableInputTokens: NonNegativeIntegerSchema,
+                messageTokens: NonNegativeIntegerSchema,
+                estimator: Type.Literal("pi-agent-core-estimate-v1"),
+              },
+              { additionalProperties: false },
+            ),
+          ),
         },
         { additionalProperties: false },
       ),

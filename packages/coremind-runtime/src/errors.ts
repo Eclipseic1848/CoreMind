@@ -48,6 +48,21 @@ export const ERROR_CODES = {
     cancelClass: "human",
     retryClass: "human",
   },
+  context_budget_exhausted: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  context_capability_conflict: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  context_artifact_missing: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
 
   // —— 恢复类 ——
   resume_input_mismatch: { terminality: "terminal", cancelClass: "human", retryClass: "fatal" },
@@ -156,6 +171,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  context_lineage_corrupt: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 瞬态类 ——
   network_error: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
@@ -192,7 +212,15 @@ export const ERROR_CODES = {
 export function terminalStatusForCode(
   code: string,
 ): "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed" {
-  if (code === "loop_paused" || code === "workspace_lease_recovery_required") return "paused";
+  if (
+    code === "loop_paused" ||
+    code === "workspace_lease_recovery_required" ||
+    code === "context_budget_exhausted" ||
+    code === "context_capability_conflict" ||
+    code === "context_artifact_missing"
+  ) {
+    return "paused";
+  }
   const info = codeInfo(code);
   if (info === undefined) return "failed";
   switch (info.cancelClass) {

@@ -13,6 +13,16 @@ describe("buildProviderRuntime（内置提供商）", () => {
         ? "available"
         : "unavailable",
     );
+    expect(runtime.contextCapabilityCandidates).toEqual([
+      {
+        providerId: runtime.model.provider,
+        modelId: runtime.model.id,
+        contextWindow: runtime.model.contextWindow,
+        maxOutputTokens: runtime.model.maxTokens,
+        source: "locked_catalog",
+        confidence: "verified",
+      },
+    ]);
   });
 
   it("配置的 model 命中目录", async () => {
@@ -65,6 +75,12 @@ describe("buildProviderRuntime（内置提供商）", () => {
       baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     });
     expect(runtime.apiKeyOverride).toBe("test-key");
+    expect(runtime.contextCapabilityCandidates[0]).toMatchObject({
+      source: "locked_catalog",
+      confidence: "verified",
+      contextWindow: 131072,
+      maxOutputTokens: 8192,
+    });
   });
 
   it("apiKeyEnv 配置时解析为 apiKeyOverride", async () => {
@@ -196,6 +212,16 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     });
     expect(big.model.contextWindow).toBe(131072);
     expect(big.model.maxTokens).toBe(8192);
+    expect(big.contextCapabilityCandidates).toEqual([
+      {
+        providerId: "big",
+        modelId: "m1",
+        contextWindow: 131072,
+        maxOutputTokens: 8192,
+        source: "explicit_config",
+        confidence: "declared",
+      },
+    ]);
 
     const fallback = await buildProviderRuntime({
       id: "default",
@@ -204,5 +230,15 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
     });
     expect(fallback.model.contextWindow).toBe(32768);
     expect(fallback.model.maxTokens).toBe(4096);
+    expect(fallback.contextCapabilityCandidates).toEqual([
+      {
+        providerId: "default",
+        modelId: "m1",
+        contextWindow: 32768,
+        maxOutputTokens: 4096,
+        source: "conservative_fallback",
+        confidence: "assumed",
+      },
+    ]);
   });
 });
