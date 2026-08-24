@@ -35,6 +35,11 @@ import {
 } from "./coding/runtime-engineering-evidence.js";
 import { type BranchMessage, projectBranchMessages } from "./compaction-projection.js";
 import { ContextProtector } from "./context.js";
+import {
+  createEffectReceiptBinding,
+  type EffectReceiptBinding,
+  fingerprintEffectReceiptValue,
+} from "./effect-receipt-binding.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { type RunId, receiptId } from "./ids.js";
@@ -469,6 +474,17 @@ export class CoreMindRuntime {
           this.options.initialPrompt,
         )
       : undefined;
+    for (const candidate of resumePlan?.toolReplayCandidates ?? []) {
+      const currentCapability =
+        this.toolCapabilitiesByAgent.get(candidate.agent)?.get(candidate.tool) ??
+        resolveToolCapability({ tool: candidate.tool });
+      if (fingerprintEffectReceiptValue(currentCapability) !== candidate.capabilityFingerprint) {
+        throw new CoreMindError(
+          "tool_capability_conflict",
+          `恢复调用 ${candidate.previousCallId} 的 Tool Capability 已漂移，不能自动重放`,
+        );
+      }
+    }
     // 预生成 runId（D-1）：resume 时以恢复记录为准，否则优先使用调用方预生成值
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
@@ -557,9 +573,22 @@ export class CoreMindRuntime {
       resumePlan?.previousTrace,
     );
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
+    const toolReplayCandidates = [...(resumePlan?.toolReplayCandidates ?? [])];
     const userEvents = this.options.events ?? (() => {});
     const extensionReceipts: LifecycleExtensionReceipt[] = [];
     const turnTracker = new TurnTracker();
+    const effectBindingByCall = new Map<
+      string,
+      {
+        args: unknown;
+        turnId: string;
+        tool: string;
+        agent: string;
+        callId: string;
+        stepId?: string;
+      }
+    >();
+    const effectBindingByReceipt = new Map<string, EffectReceiptBinding>();
     // 输入收据（规格 03 §4）：恢复时沿用原 run 的 inputId（收据链连续），否则新生成
     const inputId =
       effectiveInitialPrompt === undefined
@@ -583,7 +612,59 @@ export class CoreMindRuntime {
       userEvents(event);
     };
     const recordEvent = (event: CoreMindEvent) => {
-      const enriched = turnTracker.withTurnId(event);
+      let enriched = turnTracker.withTurnId(event);
+      if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
+        effectBindingByCall.set(
+          toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId),
+          {
+            args: enriched.args,
+            turnId: enriched.turnId,
+            tool: enriched.tool,
+            agent: enriched.agent,
+            callId: enriched.callId,
+            ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
+          },
+        );
+      }
+      if (enriched.type === "effect_receipt") {
+        if (!enriched.agent || !enriched.callId || !enriched.turnId) {
+          throw new CoreMindError(
+            "effect_receipt_conflict",
+            `EffectReceipt ${enriched.idempotencyKey} 缺少 Agent、Turn 或 Call 身份`,
+          );
+        }
+        const callKey = toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId);
+        const call = effectBindingByCall.get(callKey);
+        const capability = capabilityByCallId.get(callKey)?.capability;
+        if (!call || !capability || call.tool !== enriched.tool) {
+          throw new CoreMindError(
+            "effect_receipt_conflict",
+            `EffectReceipt ${enriched.idempotencyKey} 无法绑定到冻结的 Tool Call 与 Capability`,
+          );
+        }
+        const binding = createEffectReceiptBinding({
+          runId,
+          turnId: enriched.turnId,
+          agent: enriched.agent,
+          ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
+          callId: enriched.callId,
+          tool: enriched.tool,
+          args: call.args,
+          capability,
+        });
+        const previous = effectBindingByReceipt.get(enriched.idempotencyKey);
+        if (
+          previous &&
+          fingerprintEffectReceiptValue(previous) !== fingerprintEffectReceiptValue(binding)
+        ) {
+          throw new CoreMindError(
+            "effect_receipt_conflict",
+            `EffectReceipt ${enriched.idempotencyKey} 关联了不同的 Run、Turn、Call、参数或 Capability`,
+          );
+        }
+        effectBindingByReceipt.set(enriched.idempotencyKey, binding);
+        enriched = { ...enriched, binding };
+      }
       // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
       if (!journal.admitEvent(enriched)) return;
       collected.push(enriched);
@@ -859,6 +940,30 @@ export class CoreMindRuntime {
       beforeToolCall: async (context: BeforeToolCallContext) => {
         const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
         const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+        const argumentsFingerprint = fingerprintEffectReceiptValue(context.args);
+        const replayCandidateIndex = toolReplayCandidates.findIndex(
+          (candidate) =>
+            candidate.agent === agentName &&
+            candidate.stepId === stepId &&
+            candidate.tool === context.toolCall.name &&
+            candidate.argumentsFingerprint === argumentsFingerprint,
+        );
+        if (replayCandidateIndex >= 0) {
+          const candidate = toolReplayCandidates.splice(replayCandidateIndex, 1)[0]!;
+          const nextReceiptId = receiptId(runId, stepId, context.toolCall.id);
+          emit({
+            type: "tool_attempt",
+            attemptId: `${nextReceiptId}:attempt:${candidate.attempt}`,
+            previousReceiptId: candidate.previousReceiptId,
+            attempt: candidate.attempt,
+            agent: agentName,
+            tool: context.toolCall.name,
+            callId: context.toolCall.id,
+            ...(stepId ? { stepId } : {}),
+            argumentsFingerprint,
+          });
+          await journal.flush("critical");
+        }
         const existingCapability = capabilityByCallId.get(callKey);
         if (existingCapability && existingCapability.tool !== context.toolCall.name) {
           capabilityFailure = new CoreMindError(
@@ -1924,6 +2029,8 @@ function traceFactDurability(
           .durability ?? "critical"
       );
     }
+    case "tool_attempt":
+      return "critical";
     case "tool_lifecycle":
       return "ordinary";
     case "effect_receipt":

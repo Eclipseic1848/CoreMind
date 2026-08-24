@@ -141,6 +141,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  effect_receipt_conflict: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
   workspace_lease_invalid: {
     terminality: "terminal",
     cancelClass: "corruption",

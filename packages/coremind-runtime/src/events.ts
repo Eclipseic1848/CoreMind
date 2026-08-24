@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { RecoveryDisposition, ResolvedToolCapability } from "coremind-tools";
+import type { EffectReceiptBinding } from "./effect-receipt-binding.js";
 import type { LifecycleEventType, LifecycleExtensionReceiptStatus } from "./lifecycle-extension.js";
 import type { LoopPhase } from "./loop-controller.js";
 import type { CoreMindMessage } from "./public-message.js";
@@ -44,6 +45,8 @@ export type CoreMindEvent =
       agent: string;
       tool: string;
       args: unknown;
+      /** Trace 在脱敏前冻结的参数指纹；不保存原始正文。 */
+      argumentsFingerprint?: string;
       callId?: string;
       idempotencyKey?: string;
       stepId?: string;
@@ -58,6 +61,17 @@ export type CoreMindEvent =
       idempotencyKey?: string;
       stepId?: string;
       turnId?: string;
+    }
+  | {
+      type: "tool_attempt";
+      attemptId: string;
+      previousReceiptId: string;
+      attempt: number;
+      agent: string;
+      tool: string;
+      callId: string;
+      stepId?: string;
+      argumentsFingerprint: string;
     }
   | {
       type: "capability_resolved";
@@ -83,8 +97,11 @@ export type CoreMindEvent =
       idempotencyKey: string;
       tool: string;
       status: EffectReceiptStatus;
+      agent?: string;
+      callId?: string;
       stepId?: string;
       turnId?: string;
+      binding?: EffectReceiptBinding;
     }
   | { type: "step_start"; stepId: string; kind: string }
   | {

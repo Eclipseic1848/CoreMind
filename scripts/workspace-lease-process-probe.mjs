@@ -1,14 +1,17 @@
 import { fork } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { WorkspaceLeaseService } from "../packages/coremind-runtime/dist/index.js";
+import {
+  canonicalizeWorkspace,
+  WorkspaceLeaseService,
+} from "../packages/coremind-runtime/dist/index.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
 if (process.argv[2] === "--child") {
-  const [, , , workspaceRoot, runId] = process.argv;
+  const [, , , workspaceRoot, runId, mode] = process.argv;
   const service = new WorkspaceLeaseService();
   process.send?.({ type: "ready" });
   process.on("message", async (message) => {
@@ -19,6 +22,10 @@ if (process.argv[2] === "--child") {
           lane: "workspace_exclusive",
           owner: { runId, callId: `${runId}-call` },
         });
+        if (mode === "owner-exit") {
+          sendAndExit({ type: "acquired", runId, nonce: lease.owner.nonce }, 88);
+          return;
+        }
         process.send?.({ type: "acquired", runId });
         process.once("message", async (next) => {
           if (next?.type !== "release") return;
@@ -38,7 +45,11 @@ if (process.argv[2] === "--child") {
 }
 
 async function runProbe() {
-  const workspaceRoot = await mkdtemp(path.join(tmpdir(), "coremind-lease-process-"));
+  const probeRoot = await mkdtemp(path.join(tmpdir(), "coremind-lease-process-"));
+  const workspaceRoot = path.join(probeRoot, "workspace");
+  const linkedRoot = path.join(probeRoot, "workspace-link");
+  await mkdir(workspaceRoot);
+  await symlink(workspaceRoot, linkedRoot, process.platform === "win32" ? "junction" : "dir");
   const children = [
     spawnContender(workspaceRoot, "parent-run"),
     spawnContender(workspaceRoot, "child-run"),
@@ -58,28 +69,79 @@ async function runProbe() {
     winner.send({ type: "release" });
     await waitForMessage(winner, (message) => message.type === "released");
     await Promise.all(children.map(waitForExit));
-    const inspection = await new WorkspaceLeaseService().inspect(workspaceRoot);
+    const service = new WorkspaceLeaseService();
+    const inspection = await service.inspect(workspaceRoot);
     if (inspection.state !== "available") {
       throw new Error(`跨进程租约释放后仍被占用：${JSON.stringify(inspection)}`);
+    }
+    const relativeRoot = path.relative(process.cwd(), workspaceRoot);
+    const canonicalRoots = await Promise.all([
+      canonicalizeWorkspace(workspaceRoot),
+      canonicalizeWorkspace(relativeRoot),
+      canonicalizeWorkspace(linkedRoot),
+      ...(process.platform === "win32" ? [canonicalizeWorkspace(workspaceRoot.toUpperCase())] : []),
+    ]);
+    if (new Set(canonicalRoots).size !== 1) {
+      throw new Error(`Workspace 路径归一化结果不一致：${JSON.stringify(canonicalRoots)}`);
+    }
+
+    const crashedOwner = spawnContender(workspaceRoot, "crashed-owner", "owner-exit");
+    children.push(crashedOwner);
+    await waitForReady(crashedOwner);
+    const crashedDecisionPromise = waitForDecision(crashedOwner);
+    crashedOwner.send({ type: "start" });
+    const crashedDecision = await crashedDecisionPromise;
+    const crashedExitCode = await waitForExit(crashedOwner);
+    if (crashedDecision.type !== "acquired" || crashedExitCode !== 88) {
+      throw new Error(
+        `Owner exit 探针结果无效：${JSON.stringify({ crashedDecision, crashedExitCode })}`,
+      );
+    }
+    const recoveryInspection = await service.inspect(workspaceRoot);
+    if (
+      recoveryInspection.state !== "recovery_required" ||
+      recoveryInspection.owner?.nonce !== crashedDecision.nonce
+    ) {
+      throw new Error(`Owner exit 未进入恢复审计：${JSON.stringify(recoveryInspection)}`);
+    }
+    await service
+      .acquire({
+        workspaceRoot,
+        lane: "workspace_exclusive",
+        owner: { runId: "silent-takeover", callId: "silent-takeover-call" },
+      })
+      .then(async (unexpected) => {
+        await unexpected.rollbackBeforeExecution();
+        throw new Error("Owner exit 后发生了静默 Lease 转移");
+      })
+      .catch((error) => {
+        if (error?.code !== "workspace_lease_recovery_required") throw error;
+      });
+    await service.recover(workspaceRoot, crashedDecision.nonce);
+    const recoveredInspection = await service.inspect(workspaceRoot);
+    if (recoveredInspection.state !== "available") {
+      throw new Error(`显式恢复后 Lease 仍不可用：${JSON.stringify(recoveredInspection)}`);
     }
     console.log(
       JSON.stringify({
         status: "passed",
         platform: process.platform,
         contenders: results,
-        finalLeaseState: inspection.state,
+        pathAliases: canonicalRoots.length,
+        ownerExitState: recoveryInspection.state,
+        finalLeaseState: recoveredInspection.state,
       }),
     );
   } finally {
     for (const child of children) {
       if (child.exitCode === null) child.kill();
     }
-    await rm(workspaceRoot, { recursive: true, force: true });
+    await rm(probeRoot, { recursive: true, force: true });
   }
 }
 
-function spawnContender(workspaceRoot, runId) {
-  return fork(scriptPath, ["--child", workspaceRoot, runId], {
+function spawnContender(workspaceRoot, runId, mode) {
+  return fork(scriptPath, ["--child", workspaceRoot, runId, ...(mode ? [mode] : [])], {
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
 }

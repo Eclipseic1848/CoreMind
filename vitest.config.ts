@@ -11,6 +11,7 @@ export default defineConfig({
       "examples/golden/vitest.config.ts",
       "examples/coding-evals/vitest.config.ts",
       "scripts/vitest.config.ts",
+      "scripts/vitest.trusted-tool-fault-matrix.config.ts",
     ],
     coverage: {
       provider: "v8",

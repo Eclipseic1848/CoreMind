@@ -4,6 +4,8 @@
 > 状态：accepted（2026-08-22 用户确认）
 > 本文件定义未来实现门，不声称门已经通过
 
+修订记录（2026-08-23，Issue #67）：本次仅更正与主规格“不引入 MCP、Subagent”及后续版本路线冲突的验收表述，并区分当前 Runtime/OS 进程证据与未来 Worker/Child Run 证据；不改变 Config、Protocol、权限、安全边界或 0.3.x-B 已承诺的实现范围。
+
 ## 1. 必测写入与执行切点
 
 对 Workspace write、process、network、external 和 unknown 工具，在以下切点分别注入同步异常、异步拒绝、进程崩溃与 Cancel：
@@ -25,7 +27,7 @@
 | B-1 | `started_durable` 失败时，真实外部 Effect 次数为 0 |
 | B-2 | non-idempotent 或 unknown Effect 一旦可能 started，自动 Resume 执行次数为 0 |
 | B-3 | 同一 ReceiptId 不得关联不同参数指纹、Run、Turn、Call 或 Capability |
-| B-4 | Policy、Extension、MCP Adapter、Python Tool 与 Script Tool 不能绕过 ToolExecutionEngine |
+| B-4 | 已交付的 Built-in、Python 与 Script Tool 只能在 `ToolExecutionEngine` 的 `executing:completed` 后进入 Adapter；Policy 与 Extension 只能阻断或收紧，不能直接调用 Adapter |
 | B-5 | Tool Capability 在一次 Call 内不可变，任何后续决策只可收紧 |
 | B-6 | 同一 canonical Workspace 同时持有的写租约不超过 1 |
 | B-7 | Lease 释放时，所属工具、子进程和关键尾部 Fact 已 Quiescent |
@@ -51,10 +53,12 @@
 
 ### 3.3 Workspace 并发
 
-- 两个 Runtime、两个 Worker、父子 Run 同时写同一 canonical Workspace，只允许一个取得 Lease。
+- 两个 Runtime，以及两个独立 OS 进程所有者同时写同一 canonical Workspace，只允许一个取得 Lease。
 - 相对路径、路径大小写、symlink/junction 指向同一根目录时仍视为冲突。
 - 两个隔离 Workspace 可并行写；读操作不被无关写租约全局阻断。
 - Owner 崩溃后 Lease 不得静默转移；先完成遗留判定与 RecoveryDisposition。
+
+本批不引入 MCP、ProtocolHost 或 Child Run，因此不把“真实 MCP Adapter”“两个独立 WorkerServer”或“父子 Run”列为 0.3.x-B 已完成证据。后续能力必须复用同一个公开 `CoreMindToolDefinition` / `WorkspaceLeaseService` seam，并在各自批次补真实入口验收；不能用本批的 Runtime 或进程所有者探针替代。
 
 ### 3.4 网络读取的 Resume 处置
 
@@ -62,6 +66,13 @@
 - 幂等证明成立：创建新 attempt 后重试，旧 Receipt 保持不可变。
 - 请求可能到达但无结果：暂停，网络调用计数保持不变。
 - 一次性 URL、计费搜索和限流 API fixture 均覆盖 unknown 路径。
+
+### 3.5 当前 Tool 入口
+
+- Built-in Tool：真实 Runtime 测试分别证明 Policy/Approval 与 Extension 拒绝时 `executing` 为 `skipped`，没有 `executing:completed`。
+- Python Tool：真实 WorkerServer、Runtime、本地 Provider 与 `python_tool_call` 往返测试证明通知发生在 `executing:completed` 之后。
+- Script Tool：配置加载真实脚本模块，并在完整 `ToolExecutionEngine` 生命周期后进入脚本 Adapter。
+- MCP 属于未来批次；本矩阵不生成虚假的 MCP 来源标签，也不把公共 seam 的单元测试宣传为真实 MCP 验收。
 
 ## 4. 竞态与属性测试
 

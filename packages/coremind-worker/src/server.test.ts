@@ -1,4 +1,6 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CheckpointManager, FileRunStore, RunStateJournal } from "coremind-ai";
@@ -140,6 +142,101 @@ describe("WorkerServer", () => {
       }),
     );
     expect(response).toMatchObject({ result: { transcript: '{"status":"paid"}' } });
+  });
+
+  it("Python 工具经真实 Runtime Harness 后才进入 Worker Adapter", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-worker-python-harness-"));
+    const provider = createPythonToolCallingServer();
+    await new Promise<void>((resolve) => provider.listen(0, "127.0.0.1", resolve));
+    const sent: Array<any> = [];
+    let notifyPythonToolCall!: () => void;
+    const pythonToolCall = new Promise<void>((resolve) => {
+      notifyPythonToolCall = resolve;
+    });
+    const server = new WorkerServer({
+      send: (message) => {
+        sent.push(message);
+        if ("method" in message && message.method === "python_tool_call") notifyPythonToolCall();
+      },
+    });
+    let runPromise: ReturnType<WorkerServer["handle"]> | undefined;
+
+    try {
+      const port = (provider.address() as AddressInfo).port;
+      await server.handle({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: PROTOCOL_VERSION,
+          config: {
+            schemaVersion: 2,
+            name: "Python Harness 入口测试",
+            provider: {
+              id: "probe",
+              baseUrl: `http://127.0.0.1:${port}/v1`,
+              model: "probe-model",
+              apiKey: "test-key",
+            },
+            agents: { main: { systemPrompt: "调用 python_probe" } },
+            permissions: { mode: "full", workspaceOnly: true, network: "deny" },
+          },
+          configDir: directory,
+          cwd: directory,
+        },
+      });
+      await server.handle({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "register_tool",
+        params: {
+          name: "python_probe",
+          description: "验证 Python Adapter 入口",
+          parameters: { type: "object", properties: { value: { type: "string" } } },
+          effect: { operations: ["read"], reversible: true },
+        },
+      });
+
+      runPromise = server.handle({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "run",
+        params: { input: "调用 python_probe" },
+      });
+      await withTimeout(pythonToolCall, 5_000, "等待 Python Tool Adapter 通知超时");
+      const adapterIndex = sent.findIndex((message) => message.method === "python_tool_call");
+      const executingIndex = sent.findIndex(
+        (message) =>
+          message.method === "event" &&
+          message.params?.event?.type === "tool_lifecycle" &&
+          message.params.event.tool === "python_probe" &&
+          message.params.event.resolution?.phase === "executing" &&
+          message.params.event.resolution?.status === "completed",
+      );
+
+      expect(executingIndex).toBeGreaterThanOrEqual(0);
+      expect(adapterIndex).toBeGreaterThan(executingIndex);
+      expect(sent[adapterIndex]).toMatchObject({
+        params: { tool: "python_probe", callId: "python-harness-call", args: { value: "ok" } },
+      });
+
+      await server.handle({
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tool_result",
+        params: { callId: "python-harness-call", result: { accepted: true } },
+      });
+      await expect(runPromise).resolves.toMatchObject({
+        result: { outcome: { status: "succeeded" }, transcript: "Python 工具完成" },
+      });
+    } finally {
+      await server.handle({ jsonrpc: "2.0", id: 5, method: "close", params: {} });
+      if (runPromise) await runPromise;
+      await new Promise<void>((resolve, reject) => {
+        provider.close((error) => (error ? reject(error) : resolve()));
+      });
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("通过 resume_run 把中断 runId 交给同一 Runtime", async () => {
@@ -569,4 +666,82 @@ async function waitUntil(predicate: () => boolean): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 1));
   }
   throw new Error("等待条件超时");
+}
+
+function createPythonToolCallingServer() {
+  return createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      const messages = (JSON.parse(body) as { messages?: Array<{ role?: string }> }).messages ?? [];
+      if (messages.some((message) => message.role === "tool")) {
+        sendPythonSse(response, [
+          {
+            id: "python-final",
+            choices: [
+              {
+                index: 0,
+                delta: { role: "assistant", content: "Python 工具完成" },
+                finish_reason: null,
+              },
+            ],
+          },
+          {
+            id: "python-final",
+            choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+          },
+        ]);
+        return;
+      }
+      sendPythonSse(response, [
+        {
+          id: "python-tool",
+          choices: [
+            {
+              index: 0,
+              delta: {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "python-harness-call",
+                    type: "function",
+                    function: { name: "python_probe", arguments: '{"value":"ok"}' },
+                  },
+                ],
+              },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: "python-tool",
+          choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+  });
+}
+
+function sendPythonSse(response: ServerResponse, chunks: unknown[]): void {
+  response.writeHead(200, { "content-type": "text/event-stream" });
+  for (const chunk of chunks) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
+  response.end("data: [DONE]\n\n");
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

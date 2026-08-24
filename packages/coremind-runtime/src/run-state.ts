@@ -6,6 +6,8 @@ import {
   RECOVERY_DISPOSITIONS,
   recoveryDispositionFor,
 } from "coremind-tools";
+import { canonicalJson as stableJson } from "./canonical-json.js";
+import { validateEffectReceiptBindingsAgainstFacts } from "./effect-receipt-binding.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import {
@@ -33,6 +35,17 @@ export interface EffectReceipt {
   tool: string;
   status: "not_started" | "started" | "committed" | "unknown";
   stepId?: string;
+}
+
+export interface ToolReplayCandidate {
+  previousReceiptId: string;
+  previousCallId: string;
+  attempt: number;
+  agent: string;
+  tool: string;
+  stepId?: string;
+  argumentsFingerprint: string;
+  capabilityFingerprint: string;
 }
 
 export type RunStateKind =
@@ -98,6 +111,7 @@ export interface RunResumePlan {
   nextTraceSequence: number;
   completedSteps: Map<string, CompletedWorkflowStep>;
   effectReceipts: Map<string, EffectReceipt>;
+  toolReplayCandidates: ToolReplayCandidate[];
   previousTrace: CoreMindTraceEvent[];
   loopSnapshot?: LoopControllerSnapshot;
   operationSnapshot?: DurableOperationSnapshot;
@@ -765,6 +779,11 @@ export interface UnsafeToolCall {
 export function findUnsafeToolCall(
   trace: readonly CoreMindTraceEvent[],
 ): UnsafeToolCall | undefined {
+  const replayCandidateKeys = new Set(
+    collectToolReplayCandidates(trace).map((candidate) =>
+      toolCapabilityCallKey(candidate.agent, candidate.stepId, candidate.previousCallId),
+    ),
+  );
   const completedSteps = new Set(
     trace
       .map((entry) => entry.event)
@@ -812,6 +831,9 @@ export function findUnsafeToolCall(
             : state.result.effectState;
       if (effectState === "not_started") continue;
       if (state.result.recoveryDisposition === "replay_safe") continue;
+      if (replayCandidateKeys.has(toolCapabilityCallKey(state.agent, state.stepId, state.callId))) {
+        continue;
+      }
       return {
         tool: state.tool,
         ...(state.stepId ? { stepId: state.stepId } : {}),
@@ -851,6 +873,12 @@ export function findUnsafeToolCall(
       ? capabilities.get(toolCapabilityCallKey(event.agent, event.stepId, event.callId))
       : undefined;
     if (capability?.recoveryDisposition === "replay_safe") continue;
+    if (
+      event.callId &&
+      replayCandidateKeys.has(toolCapabilityCallKey(event.agent, event.stepId, event.callId))
+    ) {
+      continue;
+    }
     return {
       tool: event.tool,
       ...(event.stepId ? { stepId: event.stepId } : {}),
@@ -859,6 +887,70 @@ export function findUnsafeToolCall(
     };
   }
   return undefined;
+}
+
+export function collectToolReplayCandidates(
+  trace: readonly CoreMindTraceEvent[],
+): ToolReplayCandidate[] {
+  const events = trace.map((entry) => entry.event);
+  const completedSteps = new Set(
+    events.filter((event) => event.type === "step_output").map((event) => event.stepId),
+  );
+  const bindings = events.some(
+    (event) => event.type === "effect_receipt" && event.binding !== undefined,
+  )
+    ? validateEffectReceiptBindingsAgainstFacts(trace[0]?.runId ?? "", events)
+    : [];
+  const bindingByReceipt = new Map(bindings.map((binding) => [binding.idempotencyKey, binding]));
+  const capabilityByCall = new Map(
+    projectToolCapabilities(events)
+      .filter((projection) => projection.callId !== undefined)
+      .map((projection) => [
+        toolCapabilityCallKey(projection.agent, projection.stepId, projection.callId!),
+        projection,
+      ]),
+  );
+  const priorAttemptByCall = new Map(
+    events.flatMap((event) =>
+      event.type === "tool_attempt"
+        ? [[toolCapabilityCallKey(event.agent, event.stepId, event.callId), event.attempt] as const]
+        : [],
+    ),
+  );
+  const candidates: ToolReplayCandidate[] = [];
+  for (const event of events) {
+    if (
+      event.type !== "tool_call" ||
+      !event.callId ||
+      !event.idempotencyKey ||
+      (event.stepId && completedSteps.has(event.stepId))
+    ) {
+      continue;
+    }
+    const callKey = toolCapabilityCallKey(event.agent, event.stepId, event.callId);
+    const capability = capabilityByCall.get(callKey);
+    const receipt = bindingByReceipt.get(event.idempotencyKey);
+    if (
+      capability?.capability.replay !== "idempotent" ||
+      capability.recoveryDisposition !== "requires_proof" ||
+      receipt?.provenance !== "bound" ||
+      !receipt.binding ||
+      (receipt.status !== "started" && receipt.status !== "unknown")
+    ) {
+      continue;
+    }
+    candidates.push({
+      previousReceiptId: event.idempotencyKey,
+      previousCallId: event.callId,
+      attempt: (priorAttemptByCall.get(callKey) ?? 1) + 1,
+      agent: event.agent,
+      tool: event.tool,
+      ...(event.stepId ? { stepId: event.stepId } : {}),
+      argumentsFingerprint: receipt.binding.argumentsFingerprint,
+      capabilityFingerprint: receipt.binding.capabilityFingerprint,
+    });
+  }
+  return candidates;
 }
 
 /** 由 Runtime 单点判断持久化运行是否满足自动恢复的安全前提。 */
@@ -982,6 +1074,7 @@ export function prepareRunResume(
     nextTraceSequence,
     completedSteps,
     effectReceipts,
+    toolReplayCandidates: collectToolReplayCandidates(previousTrace),
     previousTrace,
     operationRecords,
     ...(loopSnapshot ? { loopSnapshot } : {}),
@@ -1078,15 +1171,6 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
     }
   }
   return trace as CoreMindTraceEvent;
-}
-
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, item]) => item !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right));
-  return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
 }
 
 const LOOP_PHASES = new Set<LoopPhase>([
