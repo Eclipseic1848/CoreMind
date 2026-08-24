@@ -69,6 +69,16 @@ export type CoreMindEvent =
       recoveryDisposition: RecoveryDisposition;
     }
   | {
+      type: "workspace_lease";
+      status: "acquired" | "released" | "recovery_required";
+      canonicalRoot: string;
+      lane: "parallel" | "run_serial" | "workspace_exclusive";
+      owner: { runId: string; callId: string; pid: number };
+      agent: string;
+      callId: string;
+      stepId?: string;
+    }
+  | {
       type: "effect_receipt";
       idempotencyKey: string;
       tool: string;

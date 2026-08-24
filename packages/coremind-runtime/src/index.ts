@@ -278,3 +278,18 @@ export {
   type ToolRisk,
 } from "./tool-policy.js";
 export { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
+export {
+  canonicalizeWorkspace,
+  projectWorkspaceLeases,
+  projectWorkspaceLeasesFromRecords,
+  type WorkspaceLeaseAcquireOptions,
+  type WorkspaceLeaseHandle,
+  type WorkspaceLeaseInspection,
+  type WorkspaceLeaseOwner,
+  type WorkspaceLeaseOwnerInput,
+  type WorkspaceLeaseProjection,
+  type WorkspaceLeaseRecoveryDecision,
+  WorkspaceLeaseService,
+  type WorkspaceQuiescence,
+  workspaceLeasePath,
+} from "./workspace-lease.js";

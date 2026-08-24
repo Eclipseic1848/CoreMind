@@ -76,6 +76,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  workspace_lease_recovery_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
 
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
@@ -136,6 +141,16 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  workspace_lease_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  workspace_lease_not_quiescent: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 瞬态类 ——
   network_error: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
@@ -147,6 +162,7 @@ export const ERROR_CODES = {
   provider_timeout: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
   provider_transient: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
   rate_limit: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
+  workspace_busy: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
 
   // —— worker 类 ——
   worker_closed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
@@ -171,7 +187,7 @@ export const ERROR_CODES = {
 export function terminalStatusForCode(
   code: string,
 ): "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed" {
-  if (code === "loop_paused") return "paused";
+  if (code === "loop_paused" || code === "workspace_lease_recovery_required") return "paused";
   const info = codeInfo(code);
   if (info === undefined) return "failed";
   switch (info.cancelClass) {

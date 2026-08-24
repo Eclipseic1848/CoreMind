@@ -152,6 +152,7 @@ describe("错误码码表（单一事实源）", () => {
     expect(terminalStatusForCode("budget_exceeded")).toBe("budget_exceeded");
     expect(terminalStatusForCode("retry_limit")).toBe("budget_exceeded");
     expect(terminalStatusForCode("approval_denied")).toBe("failed");
+    expect(terminalStatusForCode("workspace_lease_recovery_required")).toBe("paused");
     expect(terminalStatusForCode("run_state_corrupt")).toBe("failed");
     expect(terminalStatusForCode("unknown_agent")).toBe("failed");
     expect(terminalStatusForCode("not_a_real_code")).toBe("failed");

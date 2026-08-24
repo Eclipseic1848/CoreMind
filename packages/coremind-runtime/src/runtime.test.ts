@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -9,6 +9,7 @@ import { applyCompaction, projectRawBranchMessages } from "./compaction-projecti
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
+import type { CoreMindToolDefinition } from "./public-tool.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
@@ -18,8 +19,317 @@ import {
 } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
+import {
+  canonicalizeWorkspace,
+  projectWorkspaceLeasesFromRecords,
+  WorkspaceLeaseService,
+  workspaceLeasePath,
+} from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("Workspace 写租约被占用时在 Checkpoint 和 Adapter 前失败关闭", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-busy-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const blocker = await new WorkspaceLeaseService().acquire({
+      workspaceRoot: dir,
+      lane: "workspace_exclusive",
+      owner: { runId: "blocking-run", callId: "blocking-call" },
+    });
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...toolConfig(port, {}), tools: [{ id: "write" }] },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        approveTool: async () => "allow",
+        runStore: new FileRunStore(path.join(dir, "runs")),
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "workspace_busy" },
+      });
+      expect(existsSync(target)).toBe(false);
+      expect(
+        result.trace.some(
+          (entry) =>
+            entry.event.type === "checkpoint_created" ||
+            (entry.event.type === "tool_lifecycle" &&
+              entry.event.resolution.phase === "checkpoint_durable" &&
+              entry.event.resolution.status === "completed"),
+        ),
+      ).toBe(false);
+    } finally {
+      await blocker.release({ activeTools: 0, activeProcesses: 0, pendingCriticalFacts: 0 });
+      await closeServer(server);
+    }
+  });
+
+  it("Workspace Lease 在 checkpoint 前取得，并在结果关键 Fact 后静止释放", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-order-"));
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const leaseService = new WorkspaceLeaseService();
+    const store = new FileRunStore(path.join(dir, "runs"));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...toolConfig(port, {}), tools: [{ id: "write" }] },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        approveTool: async () => "allow",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const lifecycle = result.trace.flatMap((entry) =>
+        entry.event.type === "tool_lifecycle" ? [entry.event.resolution] : [],
+      );
+      const resultDurableIndex = result.trace.findIndex(
+        (entry) =>
+          entry.event.type === "tool_lifecycle" &&
+          entry.event.resolution.phase === "result_durable",
+      );
+      const releasedIndex = result.trace.findIndex(
+        (entry) => entry.event.type === "workspace_lease" && entry.event.status === "released",
+      );
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(lifecycle.findIndex((item) => item.phase === "lease_acquired")).toBeLessThan(
+        lifecycle.findIndex((item) => item.phase === "checkpoint_durable"),
+      );
+      expect(releasedIndex).toBeGreaterThan(resultDurableIndex);
+      expect(result.trace).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event: expect.objectContaining({ type: "workspace_lease", status: "acquired" }),
+          }),
+          expect.objectContaining({
+            event: expect.objectContaining({ type: "workspace_lease", status: "released" }),
+          }),
+        ]),
+      );
+      expect(await leaseService.inspect(dir)).toEqual({
+        state: "available",
+        canonicalRoot: await canonicalizeWorkspace(dir),
+      });
+      expect(projectWorkspaceLeasesFromRecords(await store.read(result.runId))).toEqual([
+        expect.objectContaining({ callId: "call-write", status: "released" }),
+      ]);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("遗留 Workspace Lease 先持久化 recovery_required，再暂停等待显式恢复", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-recovery-"));
+    const canonicalRoot = await canonicalizeWorkspace(dir);
+    const lockPath = workspaceLeasePath(canonicalRoot);
+    mkdirSync(path.dirname(lockPath), { recursive: true });
+    writeFileSync(
+      lockPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        canonicalRoot,
+        runId: "dead-run",
+        callId: "dead-call",
+        pid: 2_147_483_647,
+        nonce: "dead-runtime-owner",
+        acquiredAt: "2026-08-23T00:00:00.000Z",
+      }),
+      "utf8",
+    );
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const leaseService = new WorkspaceLeaseService();
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...toolConfig(port, {}), tools: [{ id: "write" }] },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        approveTool: async () => "allow",
+        runStore: new FileRunStore(path.join(dir, "runs")),
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "workspace_lease_recovery_required" },
+      });
+      expect(result.trace).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            event: expect.objectContaining({
+              type: "workspace_lease",
+              status: "recovery_required",
+              owner: expect.objectContaining({ runId: "dead-run" }),
+            }),
+          }),
+        ]),
+      );
+      expect(existsSync(path.join(dir, "article.md"))).toBe(false);
+    } finally {
+      await leaseService.recover(dir, "dead-runtime-owner");
+      await closeServer(server);
+    }
+  });
+
+  it("取消活动 Adapter 后等待关键尾部静止，再释放 Workspace Lease", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-cancel-"));
+    const server = createWriteCallingServer("slow_write");
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const controller = new AbortController();
+    let adapterEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      adapterEntered = resolve;
+    });
+    const slowTool: CoreMindToolDefinition = {
+      name: "slow_write",
+      description: "等待取消的写入工具",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+      effect: { operations: ["write"], reversible: true, pathFields: ["path"] },
+      capability: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+      execute: async (_args, context) => {
+        adapterEntered();
+        await new Promise<never>((_resolve, reject) => {
+          if (context.signal?.aborted) {
+            reject(new Error("cancelled"));
+            return;
+          }
+          context.signal?.addEventListener("abort", () => reject(new Error("cancelled")), {
+            once: true,
+          });
+        });
+      },
+    };
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {}),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        approveTool: async () => "allow",
+        runStore: new FileRunStore(path.join(dir, "runs")),
+        toolDefinitions: [slowTool],
+        signal: controller.signal,
+      });
+
+      const run = runtime.run();
+      await entered;
+      expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "held" });
+      controller.abort();
+      const result = await run;
+
+      expect(result.outcome.status).toBe("aborted");
+      expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "available" });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("两个 Runtime 同时写同一 Workspace 时最多一个进入 Adapter", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-two-runs-"));
+    const firstServer = createWriteCallingServer("held_write");
+    const secondServer = createWriteCallingServer();
+    await Promise.all([
+      new Promise<void>((resolve) => firstServer.listen(0, "127.0.0.1", resolve)),
+      new Promise<void>((resolve) => secondServer.listen(0, "127.0.0.1", resolve)),
+    ]);
+    let adapterEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      adapterEntered = resolve;
+    });
+    let releaseAdapter!: () => void;
+    const adapterReleased = new Promise<void>((resolve) => {
+      releaseAdapter = resolve;
+    });
+    const heldTool: CoreMindToolDefinition = {
+      name: "held_write",
+      description: "用于双 Runtime 竞争测试的写工具",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+      effect: { operations: ["write"], reversible: true, pathFields: ["path"] },
+      capability: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+      execute: async () => {
+        adapterEntered();
+        await adapterReleased;
+        return { text: "first done" };
+      },
+    };
+
+    try {
+      const first = await CoreMindRuntime.create({
+        config: toolConfig((firstServer.address() as AddressInfo).port, {}),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "执行 held_write",
+        approveTool: async () => "allow",
+        runStore: new FileRunStore(path.join(dir, "runs-first")),
+        toolDefinitions: [heldTool],
+      });
+      const second = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig((secondServer.address() as AddressInfo).port, {}),
+          tools: [{ id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        approveTool: async () => "allow",
+        runStore: new FileRunStore(path.join(dir, "runs-second")),
+      });
+
+      const firstRun = first.run();
+      await entered;
+      const secondResult = await second.run();
+
+      expect(secondResult.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "workspace_busy" },
+      });
+      expect(existsSync(path.join(dir, "article.md"))).toBe(false);
+      releaseAdapter();
+      expect((await firstRun).outcome.status).toBe("succeeded");
+      expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "available" });
+    } finally {
+      releaseAdapter();
+      await Promise.all([closeServer(firstServer), closeServer(secondServer)]);
+    }
+  });
+
   it("用户审批 Fact 无法达到 critical 时，Pure Local Read 也不能越过 Adapter 前门禁", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-approval-durability-"));
     writeFileSync(path.join(dir, "notes.txt"), "不应读取", "utf8");
@@ -2398,7 +2708,7 @@ function createToolCallingServer() {
   });
 }
 
-function createWriteCallingServer() {
+function createWriteCallingServer(toolName = "write") {
   return createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -2433,7 +2743,7 @@ function createWriteCallingServer() {
                     id: "call-write",
                     type: "function",
                     function: {
-                      name: "write",
+                      name: toolName,
                       arguments: '{"path":"article.md","content":"已写入"}',
                     },
                   },
