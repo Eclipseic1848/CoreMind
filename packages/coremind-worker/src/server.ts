@@ -8,13 +8,12 @@ import {
   type CoreMindToolDefinition,
   FileRunStore,
   inspectCheckpoint,
-  isRunStateResumable,
   loadConfigFile,
-  operationSnapshotFromRecords,
   parseAndValidate,
   type RunResult,
   restoreCheckpoint,
 } from "coremind-ai";
+import { ProjectionEngine } from "coremind-ai/internal";
 import {
   createErrorResponse,
   createEventNotification,
@@ -347,18 +346,7 @@ export class WorkerServer {
     const state = this.requireInitialized();
     const records = await state.runStore.read(runId);
     if (records.length === 0) throw new CoreMindError("unknown_run", `未找到 runId：${runId}`);
-    const finish = [...records].reverse().find((record) => record.kind === "finish");
-    const pause = [...records].reverse().find((record) => record.kind === "pause");
-    const terminal = finish ?? pause;
-    return {
-      runId,
-      status: finish ? "finished" : pause ? "paused" : "interrupted",
-      resumable: isRunStateResumable(records),
-      operation: operationSnapshotFromRecords(records),
-      outcome: outcomePayload(terminal?.payload),
-      checkpoints: checkpointRecords(records, runId),
-      records,
-    };
+    return ProjectionEngine.project(records);
   }
 
   private async checkpointDiff(runId: string, checkpointId: string): Promise<unknown> {
@@ -381,7 +369,7 @@ export class WorkerServer {
     checkpointId: string,
   ): Promise<CheckpointRecord> {
     const records = await store.read(runId);
-    const checkpoint = checkpointRecords(records, runId).find(
+    const checkpoint = ProjectionEngine.project(records).checkpoints.find(
       (record) => record.checkpointId === checkpointId,
     );
     if (!checkpoint) {
@@ -419,30 +407,6 @@ export class WorkerServer {
     if (!this.initialized) throw new CoreMindError("not_initialized", "请先调用 initialize");
     return this.initialized;
   }
-}
-
-function checkpointRecords(
-  records: Awaited<ReturnType<FileRunStore["read"]>>,
-  runId: string,
-): CheckpointRecord[] {
-  return records.flatMap((record) => {
-    if (
-      record.kind !== "checkpoint" ||
-      record.payload === null ||
-      typeof record.payload !== "object"
-    ) {
-      return [];
-    }
-    const checkpoint = record.payload as Partial<CheckpointRecord>;
-    return checkpoint.version === 1 && checkpoint.runId === runId && checkpoint.checkpointId
-      ? [checkpoint as CheckpointRecord]
-      : [];
-  });
-}
-
-function outcomePayload(payload: unknown): unknown {
-  if (payload === null || typeof payload !== "object") return undefined;
-  return (payload as { outcome?: unknown }).outcome;
 }
 
 function serializeRunResult(result: RunResult): unknown {

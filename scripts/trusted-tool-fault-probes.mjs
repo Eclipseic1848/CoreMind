@@ -246,6 +246,7 @@ export async function runOwnedCrashProbe(scenario, workspaceRoot, tracker) {
     journalMarker,
     checkpointMarker,
     boundaryMarker,
+    probeStartupDelayMs: scenario.probeStartupDelayMs,
   };
   const scriptPath = fileURLToPath(new URL("./trusted-tool-crash-owner.mjs", import.meta.url));
   const result = await withOwnedProcessSlot(tracker, () =>
@@ -254,7 +255,7 @@ export async function runOwnedCrashProbe(scenario, workspaceRoot, tracker) {
       new ProcessRunner().run({
         command: process.execPath,
         args: [scriptPath, JSON.stringify(payload)],
-        timeoutMs: 15_000,
+        timeoutMs: OWNED_CRASH_PROBE_TIMEOUT_MS,
         maxOutputBytes: 512 * 1024,
       }),
       scenario.kind === "owner_exit",
@@ -448,6 +449,9 @@ const OWNED_CRASH_POINT_ORDER = [
   "journal_flush",
   "run_terminal",
 ];
+
+// 真实崩溃探针包含 Node 子进程与 Worker 冷启动；验收预算独立于产品工具执行超时。
+const OWNED_CRASH_PROBE_TIMEOUT_MS = 30_000;
 
 const LIFECYCLE_VISIBLE_BEFORE_DURABILITY = new Set([
   "call_fact",

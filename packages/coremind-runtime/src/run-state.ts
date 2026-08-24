@@ -17,7 +17,7 @@ import {
   type FactLedgerMetrics,
   type FactLedgerStatus,
 } from "./fact-ledger.js";
-import { inputFingerprint } from "./input-receipt.js";
+import { foldInputReceipts, inputFingerprint } from "./input-receipt.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import {
   type DurableOperationSnapshot,
@@ -959,7 +959,7 @@ export function isRunStateResumable(records: readonly RunStateRecord[]): boolean
   const trace = records
     .filter((record) => record.kind === "event")
     .map((record) => tracePayload(record.payload, record.runId));
-  return findUnsafeToolCall(trace) === undefined;
+  return inputReceiptsAreResumable(trace) && findUnsafeToolCall(trace) === undefined;
 }
 
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
@@ -1053,6 +1053,9 @@ export function prepareRunResume(
 
   const operationSnapshot = operationSnapshotFromRecords(ordered);
 
+  if (!inputReceiptsAreResumable(previousTrace)) {
+    throw new CoreMindError("run_already_finished", "输入已到终态，不能自动恢复");
+  }
   const unsafe = findUnsafeToolCall(previousTrace);
   if (unsafe) {
     if (unsafe.receiptStatus === "committed") {
@@ -1080,6 +1083,18 @@ export function prepareRunResume(
     ...(loopSnapshot ? { loopSnapshot } : {}),
     ...(operationSnapshot ? { operationSnapshot } : {}),
   };
+}
+
+function inputReceiptsAreResumable(trace: readonly CoreMindTraceEvent[]): boolean {
+  try {
+    const statuses = foldInputReceipts(trace.map((entry) => entry.event));
+    return [...statuses.values()].every((status) => status === "pending" || status === "claimed");
+  } catch (error) {
+    throw new CoreMindError(
+      "run_state_corrupt",
+      `输入收据无法安全折叠：${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 /** 从 RunState 中校验并提取最新 operation 快照，供 CLI/SDK/Worker 共用。 */

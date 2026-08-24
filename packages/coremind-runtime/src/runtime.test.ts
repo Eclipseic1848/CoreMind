@@ -9,6 +9,7 @@ import { applyCompaction, projectRawBranchMessages } from "./compaction-projecti
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
+import { ProjectionEngine } from "./projection.js";
 import type { CoreMindToolDefinition } from "./public-tool.js";
 import {
   FileRunStore,
@@ -320,9 +321,13 @@ describe("CoreMindRuntime", () => {
         status: "failed",
         error: { code: "workspace_busy" },
       });
+      expect(secondResult.trace.every((entry) => entry.runId === secondResult.runId)).toBe(true);
       expect(existsSync(path.join(dir, "article.md"))).toBe(false);
       releaseAdapter();
-      expect((await firstRun).outcome.status).toBe("succeeded");
+      const firstResult = await firstRun;
+      expect(firstResult.outcome.status).toBe("succeeded");
+      expect(firstResult.runId).not.toBe(secondResult.runId);
+      expect(firstResult.trace.every((entry) => entry.runId === firstResult.runId)).toBe(true);
       expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "available" });
     } finally {
       releaseAdapter();
@@ -2374,6 +2379,45 @@ describe("CoreMindRuntime", () => {
           expect.objectContaining({ extensionId: "slow-exporter", status: "timed_out" }),
         ]),
       );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("删除当次 Projection 后只从持久 Facts 重建相同 RunSnapshot", async () => {
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-projection-rebuild-"));
+    const store = new FileRunStore(path.join(directory, "runs"));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "投影重建",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: directory,
+        initialPrompt: "执行",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const original = structuredClone(result.snapshot);
+      let projection = ProjectionEngine.project(await store.read(result.runId));
+      expect(projection.snapshot).toEqual(original);
+
+      projection = undefined as never;
+      const rebuilt = ProjectionEngine.project(await store.read(result.runId));
+
+      expect(projection).toBeUndefined();
+      expect(rebuilt.snapshot).toEqual(original);
     } finally {
       await closeServer(server);
     }

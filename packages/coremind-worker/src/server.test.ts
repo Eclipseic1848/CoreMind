@@ -328,15 +328,119 @@ describe("WorkerServer", () => {
       method: "checkpoint_restore",
       params: { runId: "run-inspect", checkpointId: checkpoint!.checkpointId, confirm: true },
     });
+    const factsPath = new FileRunStore(path.join(directory, ".coremind", "runs")).pathFor!(
+      "run-inspect",
+    );
+    const factsBeforeFailedQuery = readFileSync(factsPath, "utf8");
+    const missing = await server.handle({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "inspect_run",
+      params: { runId: "run-missing" },
+    });
+    await server.handle({ jsonrpc: "2.0", id: 6, method: "close" });
 
     expect(inspected).toMatchObject({
-      result: { status: "finished", checkpoints: [{ checkpointId: checkpoint!.checkpointId }] },
+      result: {
+        schemaVersion: 1,
+        status: "finished",
+        recovery: { resumable: false },
+        resumable: false,
+        checkpoints: [{ checkpointId: checkpoint!.checkpointId }],
+        trace: [],
+        observability: { factCount: 3, lastSequence: 3 },
+      },
     });
     expect(diff).toMatchObject({
       result: { changed: true, beforeText: "修改前", afterText: "修改后" },
     });
     expect(restored).toMatchObject({ result: { restored: true } });
+    expect(missing).toMatchObject({ error: { data: { coremindCode: "unknown_run" } } });
+    expect(readFileSync(factsPath, "utf8")).toBe(factsBeforeFailedQuery);
     expect(readFileSync(target, "utf8")).toBe("修改前");
+  });
+
+  it("两个真实 Worker 并发运行时 RunContext、Fact 与 Projection 互不串扰", async () => {
+    const provider = createEchoProviderServer();
+    await new Promise<void>((resolve) => provider.listen(0, "127.0.0.1", resolve));
+    const port = (provider.address() as AddressInfo).port;
+    const firstDirectory = mkdtempSync(path.join(tmpdir(), "coremind-worker-concurrent-a-"));
+    const secondDirectory = mkdtempSync(path.join(tmpdir(), "coremind-worker-concurrent-b-"));
+    const first = new WorkerServer({ send: () => {} });
+    const second = new WorkerServer({ send: () => {} });
+    const config = {
+      schemaVersion: 2 as const,
+      name: "Worker 并发隔离",
+      provider: {
+        id: "probe",
+        baseUrl: `http://127.0.0.1:${port}/v1`,
+        model: "probe-model",
+        apiKey: "test-key",
+      },
+      agents: { main: { systemPrompt: "测试助手" } },
+    };
+    try {
+      await Promise.all([
+        first.handle({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: PROTOCOL_VERSION, config, configDir: firstDirectory },
+        }),
+        second.handle({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: PROTOCOL_VERSION, config, configDir: secondDirectory },
+        }),
+      ]);
+
+      const [firstRun, secondRun] = await Promise.all([
+        first.handle({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "run",
+          params: { input: "任务-A", runId: "worker-run-a" },
+        }),
+        second.handle({
+          jsonrpc: "2.0",
+          id: 2,
+          method: "run",
+          params: { input: "任务-B", runId: "worker-run-b" },
+        }),
+      ]);
+      const firstProjection = await first.handle({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "inspect_run",
+        params: { runId: "worker-run-a" },
+      });
+      const secondProjection = await second.handle({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "inspect_run",
+        params: { runId: "worker-run-b" },
+      });
+
+      expect(firstRun).toMatchObject({
+        result: { runId: "worker-run-a", transcript: "回复：任务-A" },
+      });
+      expect(secondRun).toMatchObject({
+        result: { runId: "worker-run-b", transcript: "回复：任务-B" },
+      });
+      expect(firstProjection).toMatchObject({
+        result: { runId: "worker-run-a", snapshot: { runId: "worker-run-a" } },
+      });
+      expect(secondProjection).toMatchObject({
+        result: { runId: "worker-run-b", snapshot: { runId: "worker-run-b" } },
+      });
+    } finally {
+      await Promise.all([
+        new Promise<void>((resolve) => provider.close(() => resolve())),
+        first.handle({ jsonrpc: "2.0", id: 4, method: "close" }).then(() => undefined),
+        second.handle({ jsonrpc: "2.0", id: 4, method: "close" }).then(() => undefined),
+      ]);
+    }
   });
 
   it("inspect_run 明确区分可恢复的暂停运行", async () => {
@@ -720,6 +824,40 @@ function createPythonToolCallingServer() {
         {
           id: "python-tool",
           choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+        },
+      ]);
+    });
+  });
+}
+
+function createEchoProviderServer() {
+  return createServer((request, response) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.on("end", () => {
+      JSON.parse(body);
+      const input = body.includes("任务-A")
+        ? "任务-A"
+        : body.includes("任务-B")
+          ? "任务-B"
+          : undefined;
+      sendPythonSse(response, [
+        {
+          id: "worker-concurrent",
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: `回复：${input ?? "未知"}` },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: "worker-concurrent",
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
         },
       ]);
     });

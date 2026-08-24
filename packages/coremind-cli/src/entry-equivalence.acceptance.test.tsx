@@ -4,7 +4,8 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ChatSession, type CoreMindConfig, CoreMindRuntime } from "coremind-ai";
+import { ChatSession, type CoreMindConfig, CoreMindRuntime, FileRunStore } from "coremind-ai";
+import { ProjectionEngine } from "coremind-ai/internal";
 import { render } from "ink-testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { ApprovalQueue } from "./approval.js";
@@ -117,6 +118,17 @@ function fingerprintOf(
     capabilitySource: capability?.capability?.source ?? "missing",
     recoveryDisposition: capability?.recoveryDisposition ?? "missing",
   };
+}
+
+async function fingerprintFromFacts(
+  directory: string,
+  runId: string,
+  outcomeStatus: string,
+): Promise<ResultFingerprint> {
+  const store = new FileRunStore(path.join(directory, ".coremind", "runs"));
+  const projection = ProjectionEngine.project(await store.read(runId));
+  expect(projection.snapshot).toBeDefined();
+  return fingerprintOf(outcomeStatus, projection.snapshot!);
 }
 
 /** 假 Provider：记录每次请求的规范化签名，脚本化返回纯文本响应 */
@@ -235,7 +247,7 @@ async function captureTsSdk(missingFile = false): Promise<{
     expect(result.outcome.status).toBe("succeeded");
     return {
       signatures: captured,
-      fingerprint: fingerprintOf(result.outcome.status, result.snapshot),
+      fingerprint: await fingerprintFromFacts(dir, result.runId, result.outcome.status),
     };
   } finally {
     await closeServer(server);
@@ -293,6 +305,7 @@ async function captureCli(missingFile = false): Promise<{
         try {
           return JSON.parse(line) as {
             type?: string;
+            runId?: string;
             outcome?: { status?: string };
             snapshot?: SnapshotFingerprintInput;
           };
@@ -305,9 +318,10 @@ async function captureCli(missingFile = false): Promise<{
     expect(runResult?.outcome?.status).toBe("succeeded");
     return {
       signatures: captured,
-      fingerprint: fingerprintOf(
+      fingerprint: await fingerprintFromFacts(
+        dir,
+        runResult?.runId ?? "",
         runResult?.outcome?.status ?? "",
-        runResult?.snapshot as SnapshotFingerprintInput,
       ),
     };
   } finally {
@@ -372,7 +386,7 @@ async function captureTui(missingFile = false): Promise<{
     let fingerprint: ResultFingerprint | undefined;
     vi.spyOn(session, "chat").mockImplementation(async (message) => {
       const turn = await chat(message);
-      fingerprint = fingerprintOf(turn.run.outcome.status, turn.run.snapshot);
+      fingerprint = await fingerprintFromFacts(dir, turn.run.runId, turn.run.outcome.status);
       return turn;
     });
     const app = render(
@@ -422,6 +436,7 @@ async function capturePython(missingFile = false): Promise<{
       JSON.stringify(dir) +
       ", request_timeout=60)",
     'result = client.run("你好")',
+    'print("RUN_ID:" + result["runId"])',
     'print("OUTCOME:" + json.dumps(result["outcome"]))',
     'snap = result["snapshot"]',
     'print("SNAPSHOT:" + json.dumps({"schemaVersion": snap["schemaVersion"], "resumable": snap["resumable"], "trace": snap["trace"]}))',
@@ -436,8 +451,10 @@ async function capturePython(missingFile = false): Promise<{
     expect(code, stderr).toBe(0);
     expect(stderr).not.toContain("Traceback");
     const outcomeLine = stdout.split("\n").find((line) => line.startsWith("OUTCOME:"));
+    const runIdLine = stdout.split("\n").find((line) => line.startsWith("RUN_ID:"));
     const snapshotLine = stdout.split("\n").find((line) => line.startsWith("SNAPSHOT:"));
     expect(outcomeLine).toBeTruthy();
+    expect(runIdLine).toBeTruthy();
     expect(snapshotLine).toBeTruthy();
     const outcome = JSON.parse(outcomeLine!.slice("OUTCOME:".length)) as { status: string };
     const snapshot = JSON.parse(snapshotLine!.slice("SNAPSHOT:".length)) as {
@@ -446,7 +463,15 @@ async function capturePython(missingFile = false): Promise<{
       trace: SnapshotFingerprintInput["trace"];
     };
     expect(outcome.status).toBe("succeeded");
-    return { signatures: captured, fingerprint: fingerprintOf(outcome.status, snapshot) };
+    expect(snapshot.schemaVersion).toBe(1);
+    return {
+      signatures: captured,
+      fingerprint: await fingerprintFromFacts(
+        dir,
+        runIdLine!.slice("RUN_ID:".length).trim(),
+        outcome.status,
+      ),
+    };
   } finally {
     await closeServer(server);
   }

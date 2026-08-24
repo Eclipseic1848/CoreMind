@@ -36,6 +36,9 @@ if (isMainThread && payload.kind === "owner_exit") {
 }
 
 async function runOwnedScenario(input) {
+  if (input.probeStartupDelayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, input.probeStartupDelayMs));
+  }
   await mkdir(input.workspaceRoot, { recursive: true });
   await mkdir(input.stateDirectory, { recursive: true });
   await writeFile(path.join(input.workspaceRoot, "checkpoint-target.txt"), "before", "utf8");

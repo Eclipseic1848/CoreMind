@@ -23,7 +23,7 @@ const POINT_ORDER = [
   "run_terminal",
 ];
 
-export async function runLiveBoundaryProbe(scenario, workspaceRoot, tracker) {
+export async function runLiveBoundaryProbe(scenario, workspaceRoot, tracker, options = {}) {
   if (OWNED_CRASH_KINDS.has(scenario.kind)) return undefined;
   const probeRoot = path.join(workspaceRoot, `live-boundary-${scenario.seed}`);
   const scenarioWorkspace = path.join(probeRoot, "workspace");
@@ -37,7 +37,7 @@ export async function runLiveBoundaryProbe(scenario, workspaceRoot, tracker) {
   const runId = `live-boundary-run-${scenario.seed}`;
   const callId = `live-boundary-call-${scenario.seed}`;
   const identity = { agent: "main", stepId: "fault-step", callId };
-  const fileStore = new FileRunStore(stateDirectory);
+  const fileStore = new FileRunStore(stateDirectory, options.fileRunStoreOptions);
   let storeFault;
   const store = {
     get supportedDurability() {
@@ -218,6 +218,17 @@ export async function runLiveBoundaryProbe(scenario, workspaceRoot, tracker) {
         .release({ activeTools: 0, activeProcesses: 0, pendingCriticalFacts: 0 })
         .catch(() => contentionBlocker.rollbackBeforeExecution().catch(() => undefined));
       tracker.heldLeases.delete(contentionBlocker);
+    }
+  }
+
+  try {
+    // 故障可能发生在 journal.event() 与显式 flush 之间；读取前必须先等待探针自己的 writer 静止。
+    await journal.flush("ordinary");
+  } catch (error) {
+    if (scenario.kind !== "store_failure") {
+      throw liveBoundaryFailure(
+        `真实边界 ${runId} 的 Journal 未静止：${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
