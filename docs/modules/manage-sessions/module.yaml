@@ -8,6 +8,8 @@ sourcePaths:
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/chat-session.ts"
   - "packages/coremind-runtime/src/context.ts"
+  - "packages/coremind-runtime/src/context-lifecycle.ts"
+  - "packages/coremind-runtime/src/context-task-state.ts"
 documents:
   readme:
     zh-CN: docs/modules/manage-sessions/README.zh-CN.md
@@ -27,6 +29,9 @@ testPaths:
   - "packages/coremind-runtime/src/session.test.ts"
   - "packages/coremind-runtime/src/chat-session.test.ts"
   - "packages/coremind-runtime/src/context.test.ts"
+  - "packages/coremind-runtime/src/context-lifecycle.test.ts"
+  - "packages/coremind-runtime/src/context-task-state.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

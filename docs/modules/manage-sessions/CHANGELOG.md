@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added model-aware capability resolution and a complete per-request context budget with explicit evidence.
+- Added fact-projected task state, bounded working sets, durable session summaries, and verifiable compaction lineage with canonical rebuilds.
+- Added pre-provider failure closure for unknown or conflicting capabilities, output-limit conflicts, missing artifacts, unavailable session persistence, exhausted undeletable context, and corrupt lineage.
+- Added context budget, lifecycle failure, and compaction lineage projections shared by the Runtime, Protocol, CLI, and both SDKs. Live-provider certification remains separate evidence.
+
 ## 0.3.1 - 2026-08-21
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.

@@ -6,6 +6,13 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 ## Unreleased
 
+### Context lifecycle and long tasks
+
+- Resolve context windows, output limits, and evidence for the actual provider/model and request. Trusted candidates use a safe intersection; unknown, conflicting, route-mismatched, output-over-limit, or unmeasured multimodal capabilities fail closed before the provider call.
+- Budget the exact output request, stable prefix, tool schemas, structured output, protocol overhead, and safety margin. Compaction replaces the old prefix with task state projected from Runtime facts while retaining the previous complete turn and active unfinished user message.
+- Persist every summary in the session with a verifiable parent-linked ledger, rebuilding from canonical session messages at the depth limit. Missing durable sessions, artifact drift, or corrupt lineage return a structured pause without silent truncation.
+- Runtime, Protocol, CLI, and both SDKs share budget, compaction, and failure projections. A provider-reported overflow never blindly retries the same request. Live-provider certification remains a separate evidence gate.
+
 ### Tool capability and recovery
 
 - Resolve and persist one immutable `ResolvedToolCapability` for every Tool Call, giving Policy, Approval, Checkpoint, and all four entry-point projections one safety decision source.

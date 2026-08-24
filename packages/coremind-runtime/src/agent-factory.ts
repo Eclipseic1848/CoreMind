@@ -13,6 +13,11 @@ import type { AgentConfig } from "coremind-config";
 import { buildStableContextPrefix } from "./context.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
 
+export interface AgentContextContract {
+  stablePrefix: string;
+  toolSchemas: unknown[];
+}
+
 export interface AgentBuildContext {
   /** 共享模型集合（所有 agent 同一实例，streamFn 绑定） */
   models: Models;
@@ -35,6 +40,8 @@ export interface AgentBuildContext {
   /** CoreMind Harness 钩子；由每次 Run 注入，不写入用户配置。 */
   harness?: {
     maxRetries?: number;
+    registerContextContract?: (contract: AgentContextContract) => void;
+    beforeModelRequest?: () => void;
     transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
     beforeToolCall?: (
       context: BeforeToolCallContext,
@@ -76,6 +83,14 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     agent: ctx.agentName,
     fingerprint: stablePrefix.fingerprint,
   });
+  ctx.harness?.registerContextContract?.({
+    stablePrefix: stablePrefix.text,
+    toolSchemas: tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    })),
+  });
   const agent = new Agent({
     initialState: {
       systemPrompt: stablePrefix.text,
@@ -85,14 +100,16 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
-    streamFn: (m, c, o) =>
-      ctx.models.streamSimple(m, c, {
+    streamFn: (m, c, o) => {
+      ctx.harness?.beforeModelRequest?.();
+      return ctx.models.streamSimple(m, c, {
         ...o,
         ...(ctx.harness?.maxRetries !== undefined ? { maxRetries: ctx.harness.maxRetries } : {}),
         ...(ctx.apiKeyOverride ? { apiKey: ctx.apiKeyOverride } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
-      }),
+      });
+    },
     toolExecution: "parallel",
     transformContext: ctx.harness?.transformContext,
     beforeToolCall: ctx.harness?.beforeToolCall,

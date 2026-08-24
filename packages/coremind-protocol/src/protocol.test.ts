@@ -34,6 +34,27 @@ describe("CoreMind Protocol v1", () => {
         toolFailures: 0,
         retries: 0,
         outputChars: 12,
+        context: {
+          inputTokens: 12,
+          outputTokens: 2,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          promptCacheStatus: "unavailable",
+          compactions: 0,
+          stablePrefixFingerprints: ["prefix-a"],
+          lastBudget: {
+            providerId: "probe",
+            modelId: "model-a",
+            capabilityFingerprint: "capability-a",
+            source: "explicit_config",
+            confidence: "declared",
+            effectiveContextWindow: 8192,
+            reservedOutputTokens: 512,
+            availableInputTokens: 7000,
+            messageTokens: 12,
+            estimator: "pi-agent-core-estimate-v1",
+          },
+        },
       },
       evaluation: {
         profile: "strict",
@@ -50,6 +71,9 @@ describe("CoreMind Protocol v1", () => {
     };
     expect(Value.Check(RunSnapshotSchema, snapshot)).toBe(true);
     expect(parseRunSnapshot(snapshot).runId).toBe("run-1");
+    expect(parseRunSnapshot(snapshot).metrics.context?.lastBudget).toEqual(
+      snapshot.metrics.context.lastBudget,
+    );
     const snapshotWithDetailedTrace = {
       ...snapshot,
       trace: [

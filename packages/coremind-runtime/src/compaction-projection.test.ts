@@ -4,6 +4,7 @@ import {
   applyCompaction,
   isCoremindCompaction,
   projectBranchMessages,
+  projectContextCompactionLedger,
   projectRawBranchMessages,
 } from "./compaction-projection.js";
 
@@ -140,6 +141,35 @@ describe("projectRawBranchMessages", () => {
     const raw = projectRawBranchMessages(entries);
 
     expect(raw.map((item) => item.entryId)).toEqual(["m1", "m3"]);
+  });
+});
+
+describe("projectContextCompactionLedger", () => {
+  it("恢复新 lifecycle ledger，并把无该字段的历史压缩保留为 legacy unknown", () => {
+    const lifecycle = {
+      compactionId: "a".repeat(64),
+      sourceFingerprint: "b".repeat(64),
+      sourceRange: { start: 0, end: 1 },
+      strategyId: "task-state" as const,
+      strategyVersion: 1 as const,
+      capabilityFingerprint: "c".repeat(64),
+      budget: { availableInputTokens: 100, estimator: "pi-agent-core-estimate-v1" as const },
+      tokensBefore: 200,
+      tokensAfter: 50,
+      summaryFingerprint: "d".repeat(64),
+      retainedTailFingerprint: "e".repeat(64),
+      taskStateFingerprint: "f".repeat(64),
+      lineageDepth: 1,
+      rebuiltFromCanonical: false,
+      createdAt: 1,
+      trigger: "threshold" as const,
+    };
+    const current = coremindCompaction("c2", "c1", "新摘要", [], 200, "m1", "m1", 2);
+    current.details = { ...current.details, contextLifecycle: lifecycle };
+
+    expect(
+      projectContextCompactionLedger([compactionEntry("c1", null, "旧摘要", [], 100, 1), current]),
+    ).toEqual([lifecycle]);
   });
 });
 

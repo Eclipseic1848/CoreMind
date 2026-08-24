@@ -4,6 +4,7 @@ import {
   createCompactionSummaryMessage,
   type Entry,
 } from "@earendil-works/pi-agent-core";
+import type { ContextCompactionLedgerEntry } from "./context-lifecycle.js";
 
 /** 视图消息 + 来源条目 id（压缩替换范围按条目 id 定位） */
 export interface BranchMessage {
@@ -23,6 +24,8 @@ export interface CoremindCompactionDetails {
   rangeEndId: string;
   /** 发送摘要消息的时间戳（重建字节级一致用；缺省回退条目 timestamp） */
   summaryTimestamp?: number;
+  /** 0.3.x-C Context 生命周期 lineage；旧压缩缺省表示 legacy/unknown。 */
+  contextLifecycle?: ContextCompactionLedgerEntry;
 }
 
 /** 判断压缩条目是否为 CoreMind 确定性压缩（details 携带替换范围） */
@@ -59,7 +62,13 @@ export function projectBranchMessages(entries: readonly Entry[]): BranchMessage[
       result.push({ message: entry.message, entryId: entry.id, seq: entry.seq });
     } else if (entry.type === "compaction") {
       result.push({
-        message: createCompactionSummaryMessage(entry.summary, entry.tokensBefore, entry.timestamp),
+        message: isCoremindCompaction(entry)
+          ? ({
+              role: "user",
+              content: entry.summary,
+              timestamp: entry.details.summaryTimestamp ?? entry.timestamp,
+            } as AgentMessage)
+          : createCompactionSummaryMessage(entry.summary, entry.tokensBefore, entry.timestamp),
         entryId: entry.id,
         seq: entry.seq,
       });
@@ -80,6 +89,19 @@ export function projectRawBranchMessages(entries: readonly Entry[]): BranchMessa
     result.push({ message: entry.message, entryId: entry.id, seq: entry.seq });
   }
   return result;
+}
+
+/** 只恢复显式持久化的 0.3.x-C ledger；旧压缩不伪造当前 capability 或 lineage。 */
+export function projectContextCompactionLedger(
+  entries: readonly Entry[],
+): ContextCompactionLedgerEntry[] {
+  const ledger: ContextCompactionLedgerEntry[] = [];
+  for (const entry of entries) {
+    if (entry.type !== "compaction" || entry.details === undefined) continue;
+    const details = entry.details as Partial<CoremindCompactionDetails>;
+    if (details.contextLifecycle !== undefined) ledger.push(details.contextLifecycle);
+  }
+  return ledger;
 }
 
 /**

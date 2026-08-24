@@ -421,4 +421,65 @@ describe("buildAgent（options 与 apiKey 注入）", () => {
     expect(agent.state.systemPrompt).toContain("## 项目指令\n基础提示");
     expect(agent.state.systemPrompt).toContain("## 专业技能\n- 无");
   });
+
+  it("把实际稳定前缀与工具 Schema 注册到 Runtime Context 合同", () => {
+    const { models, model } = makeFauxContext();
+    const contracts: Array<{ stablePrefix: string; toolSchemas: unknown[] }> = [];
+    buildAgent(
+      { systemPrompt: "预算合同" },
+      {
+        models,
+        model,
+        tools: [createReadTool(process.cwd())],
+        agentName: "t",
+        onEvent: () => {},
+        harness: { registerContextContract: (contract) => contracts.push(contract) },
+      },
+    );
+
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0]?.stablePrefix).toContain("预算合同");
+    expect(contracts[0]?.toolSchemas).toEqual([
+      expect.objectContaining({ name: "read", description: expect.any(String) }),
+    ]);
+  });
+
+  it("Context transform 失败后在网络流创建前失败关闭", async () => {
+    const { models, model } = makeFauxContext();
+    let blocked = false;
+    let providerCalls = 0;
+    const real = models.streamSimple.bind(models);
+    models.streamSimple = ((m, c, o) => {
+      providerCalls += 1;
+      return real(m, c, o);
+    }) as typeof models.streamSimple;
+    const agent = buildAgent(
+      { systemPrompt: "t" },
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "t",
+        onEvent: () => {},
+        harness: {
+          transformContext: async (messages) => {
+            blocked = true;
+            return messages;
+          },
+          beforeModelRequest: () => {
+            if (blocked) throw new Error("context_budget_exhausted");
+          },
+        },
+      },
+    );
+
+    await agent.prompt("不能发送");
+    await agent.waitForIdle();
+    expect(providerCalls).toBe(0);
+    expect(agent.state.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      stopReason: "error",
+      errorMessage: expect.stringContaining("context_budget_exhausted"),
+    });
+  });
 });

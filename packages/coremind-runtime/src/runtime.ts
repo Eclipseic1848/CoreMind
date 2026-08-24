@@ -7,6 +7,7 @@ import type {
   AgentTool,
   BeforeToolCallContext,
 } from "@earendil-works/pi-agent-core";
+import { isContextOverflow } from "@earendil-works/pi-ai";
 import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import {
@@ -20,7 +21,7 @@ import {
   resolveToolCapability,
   wrapToolWithArtifactCapture,
 } from "coremind-tools";
-import { type AgentBuildContext, buildAgent } from "./agent-factory.js";
+import { type AgentBuildContext, type AgentContextContract, buildAgent } from "./agent-factory.js";
 import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import {
   type CheckpointDiff,
@@ -33,8 +34,19 @@ import {
   assessRuntimeEngineeringEvidence,
   createToolExecutionEvidence,
 } from "./coding/runtime-engineering-evidence.js";
-import { type BranchMessage, projectBranchMessages } from "./compaction-projection.js";
-import { ContextProtector } from "./context.js";
+import {
+  type BranchMessage,
+  projectBranchMessages,
+  projectContextCompactionLedger,
+  projectRawBranchMessages,
+} from "./compaction-projection.js";
+import {
+  type ContextCompactionLedgerEntry,
+  ContextLifecycleError,
+  ContextLifecycleManager,
+  type ContextLifecyclePreparation,
+} from "./context-lifecycle.js";
+import { type ContextPlanStep, projectContextTaskState } from "./context-task-state.js";
 import {
   createEffectReceiptBinding,
   type EffectReceiptBinding,
@@ -103,6 +115,7 @@ import { type WorkspaceLeaseHandle, WorkspaceLeaseService } from "./workspace-le
 type RuntimeHarness = NonNullable<AgentBuildContext["harness"]> & {
   shouldStopAfterTurn?: NonNullable<Agent["shouldStopAfterTurn"]>;
   throwIfDenied?: () => void;
+  throwIfContextFailed?: () => void;
 };
 
 export interface CoreMindRuntimeOptions {
@@ -312,10 +325,12 @@ export class CoreMindRuntime {
       try {
         if (await CoreMindSession.exists(dir, options.sessionId, cwd)) {
           const cm = await CoreMindSession.open({ dir, sessionId: options.sessionId, cwd });
-          const ctx = await cm.buildContext();
-          if (ctx.messages.length > 0) {
-            sessionMessages = ctx.messages;
-            resumedContextLength = ctx.messages.length;
+          const restored = projectBranchMessages(await cm.branchEntries()).map(
+            (item) => item.message,
+          );
+          if (restored.length > 0) {
+            sessionMessages = restored;
+            resumedContextLength = restored.length;
           }
         }
       } catch (error) {
@@ -370,11 +385,12 @@ export class CoreMindRuntime {
     });
     // 该停止钩子只属于 Runtime 内部 Harness，不扩大公开 AgentBuildContext 合同。
     agent.shouldStopAfterTurn = harness?.shouldStopAfterTurn;
-    if (harness?.throwIfDenied) {
+    if (harness?.throwIfDenied || harness?.throwIfContextFailed) {
       const waitForIdle = agent.waitForIdle.bind(agent);
       agent.waitForIdle = async () => {
         await waitForIdle();
         harness.throwIfDenied?.();
+        harness.throwIfContextFailed?.();
       };
     }
     context.registerAgent(name, agent);
@@ -457,14 +473,19 @@ export class CoreMindRuntime {
     const configFingerprint = fingerprintRunConfig(this.config);
     // 会话树关联：打开会话拿 seq 水位与已落盘视图（压缩条目落盘与重建桥接用）
     let sessionSeqStart: number | undefined;
+    let canonicalSessionBranch: BranchMessage[] = [];
+    let previousContextCompactions: ContextCompactionLedgerEntry[] = [];
     if (this.options.sessionId && this.config.session?.enabled) {
       const session = await CoreMindSession.open({
         dir: sessionDir(this.config, this.options.configDir),
         sessionId: this.options.sessionId,
         cwd: this.options.cwd ?? process.cwd(),
       });
-      sessionSeqStart = await session.currentSeq();
-      context.attachSession(session, projectBranchMessages(await session.branchEntries()));
+      const sessionEntries = await session.branchEntries();
+      sessionSeqStart = sessionEntries.reduce((max, entry) => Math.max(max, entry.seq), 0);
+      context.attachSession(session, projectBranchMessages(sessionEntries));
+      canonicalSessionBranch = projectRawBranchMessages(sessionEntries);
+      previousContextCompactions = projectContextCompactionLedger(sessionEntries);
     }
     const resumePlan = this.options.resumeRunId
       ? ProjectionEngine.prepareResume(
@@ -827,68 +848,85 @@ export class CoreMindRuntime {
     let capabilityFailure: CoreMindError | undefined;
     const checkpointByCallId = new Map<string, string[]>();
     const contextWindow = this.providerRuntime.model.contextWindow;
-    const contextProtector = new ContextProtector(
-      {
-        contextWindow,
-        reserveTokens: Math.min(16_384, Math.max(1_024, Math.floor(contextWindow * 0.15))),
-        keepRecentTokens: Math.min(20_000, Math.max(2_048, Math.floor(contextWindow * 0.25))),
-      },
-      async (result) => {
-        let sessionEntryId: string | undefined;
-        const range = result.replacedRange;
-        const branch = context.sessionBranch();
-        const activeSession = context.sessionHandle();
-        if (activeSession && branch && range && branch.length > 0) {
-          // 替换范围延伸进本轮未落盘消息时，会话树内的范围终点截到已落盘末尾，
-          // 未落盘尾部由 retainedTail 快照携带——重建依然无损（发送 = 摘要 + 保留区）。
-          const coveredEnd = Math.min(range.end, branch.length);
-          const summaryMessage = result.messages[0] as { content: string; timestamp: number };
-          const entry = await activeSession.appendCompaction({
-            summary: summaryMessage.content,
-            retainedTail: result.messages.slice(1) as unknown as AgentMessage[],
-            tokensBefore: result.beforeTokens,
-            details: {
-              fingerprint: result.summaryFingerprint!,
-              rangeStartId: branch[range.start]!.entryId,
-              rangeEndId: branch[coveredEnd - 1]!.entryId,
-              summaryTimestamp: summaryMessage.timestamp,
-            },
-          });
-          sessionEntryId = entry.id;
-          // 更新已落盘视图：压缩产物（摘要 + 保留区）由该条目代表
-          context.replaceSessionBranch([
-            {
-              message: result.messages[0]! as unknown as AgentMessage,
-              entryId: entry.id,
-              seq: entry.seq,
-            },
-            ...result.messages.slice(1).map((message) => ({
-              message: message as unknown as AgentMessage,
-              entryId: entry.id,
-              seq: entry.seq,
-            })),
-          ]);
-          // persist 跳过压缩产物代表的部分：摘要 + 保留区（保留区=压缩后消息数-1，起点=range.end）
-          context.setCompactedPrefixEnd(result.messages.length + range.end - 1);
-        }
-        emit({
-          type: "context_compacted",
-          beforeTokens: result.beforeTokens,
-          afterTokens: result.afterTokens,
-          removedMessages: result.removedMessages,
-          strategy: "deterministic-v1",
-          reason: "threshold",
-          summaryFingerprint: result.summaryFingerprint!,
-          ...(sessionEntryId ? { sessionEntryId } : {}),
-        });
-      },
-      (failure) =>
-        emit({
-          type: "context_compaction_failed",
-          message: failure.message,
-          preservedMessages: failure.preservedMessages,
-        }),
-    );
+    const contextLifecycleManager = new ContextLifecycleManager();
+    const contextContracts = new Map<string, AgentContextContract>();
+    let contextFailure: ContextLifecycleError | undefined;
+    const recordContextFailure = (
+      failure: ContextLifecycleError,
+      preservedMessages: number,
+    ): void => {
+      contextFailure = failure;
+      emit({
+        type: "context_lifecycle_failed",
+        code: failure.code,
+        reason: failure.reason,
+        pausable: failure.pausable,
+        preservedMessages,
+        providerCallBlocked: true,
+      });
+    };
+    const throwIfContextFailed = (): void => {
+      if (contextFailure) throw new CoreMindError(contextFailure.code, contextFailure.message);
+    };
+    const persistContextCompaction = async (
+      preparation: ContextLifecyclePreparation,
+      sourceMessages: AgentMessage[],
+      originalMessageCount: number,
+    ): Promise<string | undefined> => {
+      const compaction = preparation.compaction;
+      if (!compaction) return undefined;
+      const activeSession = context.sessionHandle();
+      if (!activeSession) {
+        throw new ContextLifecycleError(
+          "Context 压缩需要可持久化 Session；摘要不能只存在于内存",
+          "budget_exhausted",
+          "context_budget_exhausted",
+        );
+      }
+
+      let branch = compaction.ledgerEntry.rebuiltFromCanonical
+        ? canonicalSessionBranch
+        : (context.sessionBranch() ?? []);
+      if (branch.length < sourceMessages.length) {
+        await activeSession.appendMessages(sourceMessages.slice(branch.length));
+        const appendedEntries = await activeSession.branchEntries();
+        canonicalSessionBranch = projectRawBranchMessages(appendedEntries);
+        context.replaceSessionBranch(projectBranchMessages(appendedEntries));
+        branch = compaction.ledgerEntry.rebuiltFromCanonical
+          ? canonicalSessionBranch
+          : (context.sessionBranch() ?? []);
+      }
+      const range = compaction.replacedRange;
+      if (range.end > branch.length || !branch[range.start] || !branch[range.end - 1]) {
+        throw new ContextLifecycleError(
+          "Context 压缩范围无法绑定到 canonical Session Facts",
+          "lineage_corrupt",
+          "context_lineage_corrupt",
+        );
+      }
+      const summaryMessage = preparation.workingSet.messages[0] as {
+        content: string;
+        timestamp: number;
+      };
+      const entry = await activeSession.appendCompaction({
+        summary: summaryMessage.content,
+        retainedTail: preparation.workingSet.messages.slice(1) as unknown as AgentMessage[],
+        tokensBefore: compaction.tokensBefore,
+        details: {
+          fingerprint: compaction.summaryFingerprint,
+          rangeStartId: branch[range.start]!.entryId,
+          rangeEndId: branch[range.end - 1]!.entryId,
+          summaryTimestamp: summaryMessage.timestamp,
+          contextLifecycle: compaction.ledgerEntry,
+        },
+      });
+      previousContextCompactions.push(compaction.ledgerEntry);
+      const updatedEntries = await activeSession.branchEntries();
+      canonicalSessionBranch = projectRawBranchMessages(updatedEntries);
+      context.replaceSessionBranch(projectBranchMessages(updatedEntries));
+      context.setCompactedPrefixEnd(originalMessageCount);
+      return entry.id;
+    };
     const policy = new ToolPolicy({
       permissions: this.config.permissions,
       cwd: this.options.cwd ?? process.cwd(),
@@ -916,139 +954,305 @@ export class CoreMindRuntime {
         }),
     });
     const deniedAgents = new Set<string>();
-    context.setHarnessFactory((agentName, stepId) => ({
-      maxRetries: loop ? 0 : limits.maxRetries,
-      executeTool: (tool, callId, args, signal, onUpdate) =>
-        toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
-          tool.execute(callId, args, signal, onUpdate),
-        ),
-      transformContext: async (messages) => {
-        while (lifecycleFinalizers.size > 0) {
-          await Promise.allSettled([...lifecycleFinalizers]);
-        }
-        if (lifecycleFailure) throw lifecycleFailure;
-        await dispatchLifecycle("before-model", {
-          runId,
-          agent: agentName,
-          stepId,
-          messageCount: messages.length,
-        });
-        return (await contextProtector.transformAsync(messages)) as unknown as AgentMessage[];
-      },
-      beforeToolCall: async (context: BeforeToolCallContext) => {
-        const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
-        const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
-        const argumentsFingerprint = fingerprintEffectReceiptValue(context.args);
-        const replayCandidateIndex = toolReplayCandidates.findIndex(
-          (candidate) =>
-            candidate.agent === agentName &&
-            candidate.stepId === stepId &&
-            candidate.tool === context.toolCall.name &&
-            candidate.argumentsFingerprint === argumentsFingerprint,
-        );
-        if (replayCandidateIndex >= 0) {
-          const candidate = toolReplayCandidates.splice(replayCandidateIndex, 1)[0]!;
-          const nextReceiptId = receiptId(runId, stepId, context.toolCall.id);
-          emit({
-            type: "tool_attempt",
-            attemptId: `${nextReceiptId}:attempt:${candidate.attempt}`,
-            previousReceiptId: candidate.previousReceiptId,
-            attempt: candidate.attempt,
+    context.setHarnessFactory((agentName, stepId) => {
+      let contextWorkingSet: { sourceLength: number; messages: AgentMessage[] } | undefined;
+      return {
+        maxRetries: loop ? 0 : limits.maxRetries,
+        registerContextContract: (contract) => contextContracts.set(agentName, contract),
+        beforeModelRequest: throwIfContextFailed,
+        throwIfContextFailed,
+        executeTool: (tool, callId, args, signal, onUpdate) =>
+          toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
+            tool.execute(callId, args, signal, onUpdate),
+          ),
+        transformContext: async (messages) => {
+          if (contextFailure) return messages;
+          while (lifecycleFinalizers.size > 0) {
+            await Promise.allSettled([...lifecycleFinalizers]);
+          }
+          if (lifecycleFailure) throw lifecycleFailure;
+          await dispatchLifecycle("before-model", {
+            runId,
             agent: agentName,
-            tool: context.toolCall.name,
-            callId: context.toolCall.id,
-            ...(stepId ? { stepId } : {}),
-            argumentsFingerprint,
+            stepId,
+            messageCount: messages.length,
           });
-          await journal.flush("critical");
-        }
-        const existingCapability = capabilityByCallId.get(callKey);
-        if (existingCapability && existingCapability.tool !== context.toolCall.name) {
-          capabilityFailure = new CoreMindError(
-            "tool_capability_conflict",
-            `Call ${agentName}/${stepId ?? "-"}/${context.toolCall.id} 从 ${existingCapability.tool} 变更为 ${context.toolCall.name}，Tool Capability 不可变`,
-          );
-          emit({ type: "error", message: capabilityFailure.message, fatal: true });
-          return { block: true, reason: capabilityFailure.message };
-        }
-        await toolExecutionEngine.recordCall({
-          ...lifecycleIdentity,
-          tool: context.toolCall.name,
-        });
-        let capability = existingCapability?.capability;
-        if (!existingCapability) {
-          capability =
-            this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.name) ??
-            resolveToolCapability({ tool: context.toolCall.name });
-          capabilityByCallId.set(callKey, {
-            tool: context.toolCall.name,
-            capability,
+          const contract = contextContracts.get(agentName);
+          if (!contract) {
+            recordContextFailure(
+              new ContextLifecycleError(
+                `Agent ${agentName} 没有注册可预算的稳定 Context 合同`,
+                "invalid_budget",
+                "context_capability_conflict",
+              ),
+              messages.length,
+            );
+            return messages;
+          }
+          const remembered = contextWorkingSet;
+          const effectiveMessages = remembered
+            ? [...remembered.messages, ...messages.slice(remembered.sourceLength)]
+            : messages;
+          const canonicalMessages = context.sessionHandle()
+            ? [
+                ...canonicalSessionBranch.map((item) => item.message),
+                ...messages.slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
+              ]
+            : messages;
+          const taskState = projectContextTaskState({
+            runId,
+            agentName,
+            initialPrompt: effectiveInitialPrompt,
+            projectInstructions: this.agentConfigs.get(agentName)?.systemPrompt,
+            permissions: this.config.permissions,
+            workflowSteps: this.config.workflow as unknown as ContextPlanStep[] | undefined,
+            trace: trace.entries,
           });
-          emit({
-            type: "capability_resolved",
-            agent: agentName,
+          const artifactReferences = context.artifactRecords().flatMap((record) =>
+            record.status === "stored" && record.relativePath && record.sha256
+              ? [
+                  {
+                    artifactId: record.artifactId,
+                    relativePath: record.relativePath,
+                    sizeBytes: record.sizeBytes,
+                    sha256: record.sha256,
+                  },
+                ]
+              : [],
+          );
+          try {
+            const preparation = await contextLifecycleManager.prepare({
+              providerId: this.providerRuntime.model.provider,
+              modelId: this.providerRuntime.model.id,
+              resolvedAt: Date.now(),
+              capabilityCandidates: this.providerRuntime.contextCapabilityCandidates,
+              request: {
+                messages: effectiveMessages as unknown as CoreMindMessage[],
+                stablePrefix: contract.stablePrefix,
+                toolSchemas: contract.toolSchemas,
+                ...(this.agentConfigs.get(agentName)?.options?.maxTokens === undefined
+                  ? {}
+                  : {
+                      requestedMaxOutputTokens:
+                        this.agentConfigs.get(agentName)!.options!.maxTokens,
+                    }),
+                taskState,
+                workspaceRoot: this.options.cwd ?? process.cwd(),
+                artifactReferences,
+                canonicalMessages: canonicalMessages as unknown as CoreMindMessage[],
+                previousCompactions: previousContextCompactions,
+                compactionTrigger: "threshold",
+              },
+            });
+            emit({
+              type: "context_budget_resolved",
+              providerId: preparation.capability.providerId,
+              modelId: preparation.capability.modelId,
+              capabilityFingerprint: preparation.capability.configFingerprint,
+              source: preparation.capability.source,
+              confidence: preparation.capability.confidence,
+              effectiveContextWindow: preparation.budget.effectiveContextWindow,
+              reservedOutputTokens: preparation.budget.reservedOutputTokens,
+              availableInputTokens: preparation.budget.availableInputTokens,
+              messageTokens: preparation.budget.messageTokens,
+              stablePrefixTokens: preparation.budget.stablePrefixTokens,
+              toolSchemaTokens: preparation.budget.toolSchemaTokens,
+              structuredOutputTokens: preparation.budget.structuredOutputTokens,
+              multimodalTokens: preparation.budget.multimodalTokens,
+              protocolOverheadTokens: preparation.budget.protocolOverheadTokens,
+              safetyMarginTokens: preparation.budget.safetyMarginTokens,
+              estimator: preparation.budget.estimator,
+              evidence: preparation.evidence.map((item) => item.type),
+            });
+            const sourceMessages = preparation.compaction?.ledgerEntry.rebuiltFromCanonical
+              ? canonicalMessages
+              : effectiveMessages;
+            const sessionEntryId = await persistContextCompaction(
+              preparation,
+              sourceMessages,
+              messages.length,
+            );
+            contextWorkingSet = {
+              sourceLength: messages.length,
+              messages: [...(preparation.workingSet.messages as unknown as AgentMessage[])],
+            };
+            if (preparation.compaction) {
+              emit({
+                type: "context_compacted",
+                beforeTokens: preparation.compaction.tokensBefore,
+                afterTokens: preparation.compaction.tokensAfter,
+                removedMessages: preparation.compaction.removedMessages,
+                strategy: "task-state-v1",
+                reason: "threshold",
+                summaryFingerprint: preparation.compaction.summaryFingerprint,
+                capabilityFingerprint: preparation.capability.configFingerprint,
+                lineageDepth: preparation.compaction.ledgerEntry.lineageDepth,
+                rebuiltFromCanonical: preparation.compaction.ledgerEntry.rebuiltFromCanonical,
+                trigger: preparation.compaction.ledgerEntry.trigger,
+                ...(sessionEntryId ? { sessionEntryId } : {}),
+              });
+            }
+            return preparation.workingSet.messages as unknown as AgentMessage[];
+          } catch (error) {
+            const failure =
+              error instanceof ContextLifecycleError
+                ? error
+                : new ContextLifecycleError(
+                    `Context 生命周期持久化失败：${error instanceof Error ? error.message : String(error)}`,
+                    "budget_exhausted",
+                    "context_budget_exhausted",
+                  );
+            recordContextFailure(failure, messages.length);
+            return messages;
+          }
+        },
+        beforeToolCall: async (context: BeforeToolCallContext) => {
+          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
+          const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+          const argumentsFingerprint = fingerprintEffectReceiptValue(context.args);
+          const replayCandidateIndex = toolReplayCandidates.findIndex(
+            (candidate) =>
+              candidate.agent === agentName &&
+              candidate.stepId === stepId &&
+              candidate.tool === context.toolCall.name &&
+              candidate.argumentsFingerprint === argumentsFingerprint,
+          );
+          if (replayCandidateIndex >= 0) {
+            const candidate = toolReplayCandidates.splice(replayCandidateIndex, 1)[0]!;
+            const nextReceiptId = receiptId(runId, stepId, context.toolCall.id);
+            emit({
+              type: "tool_attempt",
+              attemptId: `${nextReceiptId}:attempt:${candidate.attempt}`,
+              previousReceiptId: candidate.previousReceiptId,
+              attempt: candidate.attempt,
+              agent: agentName,
+              tool: context.toolCall.name,
+              callId: context.toolCall.id,
+              ...(stepId ? { stepId } : {}),
+              argumentsFingerprint,
+            });
+            await journal.flush("critical");
+          }
+          const existingCapability = capabilityByCallId.get(callKey);
+          if (existingCapability && existingCapability.tool !== context.toolCall.name) {
+            capabilityFailure = new CoreMindError(
+              "tool_capability_conflict",
+              `Call ${agentName}/${stepId ?? "-"}/${context.toolCall.id} 从 ${existingCapability.tool} 变更为 ${context.toolCall.name}，Tool Capability 不可变`,
+            );
+            emit({ type: "error", message: capabilityFailure.message, fatal: true });
+            return { block: true, reason: capabilityFailure.message };
+          }
+          await toolExecutionEngine.recordCall({
+            ...lifecycleIdentity,
             tool: context.toolCall.name,
-            callId: context.toolCall.id,
-            ...(stepId ? { stepId } : {}),
-            capability,
-            recoveryDisposition: recoveryDispositionFor(capability),
           });
-        }
-        if (!capability) {
-          throw new CoreMindError(
-            "tool_capability_conflict",
-            `Call ${context.toolCall.id} 缺少已解析 Tool Capability`,
+          let capability = existingCapability?.capability;
+          if (!existingCapability) {
+            capability =
+              this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.name) ??
+              resolveToolCapability({ tool: context.toolCall.name });
+            capabilityByCallId.set(callKey, {
+              tool: context.toolCall.name,
+              capability,
+            });
+            emit({
+              type: "capability_resolved",
+              agent: agentName,
+              tool: context.toolCall.name,
+              callId: context.toolCall.id,
+              ...(stepId ? { stepId } : {}),
+              capability,
+              recoveryDisposition: recoveryDispositionFor(capability),
+            });
+          }
+          if (!capability) {
+            throw new CoreMindError(
+              "tool_capability_conflict",
+              `Call ${context.toolCall.id} 缺少已解析 Tool Capability`,
+            );
+          }
+          const resolvedCapability = capability;
+          await toolExecutionEngine.advance(lifecycleIdentity, {
+            phase: "capability_resolved",
+            status: "completed",
+            result: { recoveryDisposition: recoveryDispositionFor(resolvedCapability) },
+          });
+          if (deniedAgents.has(agentName)) {
+            const reason = "同一工具批次已有请求被拒绝";
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
+            return { block: true, reason, terminate: true };
+          }
+          const blockedByBudget = budget.beforeToolCall();
+          if (blockedByBudget) {
+            await toolExecutionEngine.blockBeforeExecution(
+              lifecycleIdentity,
+              blockedByBudget.reason ?? "工具调用预算已阻断 Call",
+            );
+            return blockedByBudget;
+          }
+          const decision = await policy.authorize(
+            agentName,
+            context.toolCall.name,
+            context.args,
+            resolvedCapability,
+            this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
           );
-        }
-        const resolvedCapability = capability;
-        await toolExecutionEngine.advance(lifecycleIdentity, {
-          phase: "capability_resolved",
-          status: "completed",
-          result: { recoveryDisposition: recoveryDispositionFor(resolvedCapability) },
-        });
-        if (deniedAgents.has(agentName)) {
-          const reason = "同一工具批次已有请求被拒绝";
-          await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
-          return { block: true, reason, terminate: true };
-        }
-        const blockedByBudget = budget.beforeToolCall();
-        if (blockedByBudget) {
-          await toolExecutionEngine.blockBeforeExecution(
-            lifecycleIdentity,
-            blockedByBudget.reason ?? "工具调用预算已阻断 Call",
-          );
-          return blockedByBudget;
-        }
-        const decision = await policy.authorize(
-          agentName,
-          context.toolCall.name,
-          context.args,
-          resolvedCapability,
-          this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
-        );
-        await toolExecutionEngine.advance(lifecycleIdentity, {
-          phase: "policy_resolved",
-          status: "completed",
-          result: {
-            authorizationState: decision.allowed
-              ? decision.approvedBy === "user"
-                ? "approved"
-                : "allowed"
-              : "denied",
-          },
-        });
-        if (!decision.allowed) {
+          await toolExecutionEngine.advance(lifecycleIdentity, {
+            phase: "policy_resolved",
+            status: "completed",
+            result: {
+              authorizationState: decision.allowed
+                ? decision.approvedBy === "user"
+                  ? "approved"
+                  : "allowed"
+                : "denied",
+            },
+          });
+          if (!decision.allowed) {
+            await toolExecutionEngine.advance(
+              lifecycleIdentity,
+              decision.approvalId
+                ? { phase: "approval_resolved", status: "completed" }
+                : {
+                    phase: "approval_resolved",
+                    status: "skipped",
+                    reason: "Policy 在审批前拒绝 Call",
+                  },
+            );
+            if (decision.approvalId) {
+              try {
+                await journal.flush();
+              } catch (error) {
+                checkpointFailure = durabilityFailure(error);
+                await toolExecutionEngine.blockBeforeExecution(
+                  lifecycleIdentity,
+                  checkpointFailure.message,
+                );
+                emit({ type: "error", message: checkpointFailure.message, fatal: true });
+                return { block: true, reason: checkpointFailure.message, terminate: true };
+              }
+            }
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, decision.reason);
+            deniedAgents.add(agentName);
+            emit({
+              type: "policy_denied",
+              agent: agentName,
+              tool: context.toolCall.name,
+              reason: decision.reason,
+            });
+            return { block: true, reason: decision.reason, terminate: true };
+          }
           await toolExecutionEngine.advance(
             lifecycleIdentity,
-            decision.approvalId
+            decision.approvedBy === "user"
               ? { phase: "approval_resolved", status: "completed" }
               : {
                   phase: "approval_resolved",
                   status: "skipped",
-                  reason: "Policy 在审批前拒绝 Call",
+                  reason: decision.reason,
                 },
           );
-          if (decision.approvalId) {
+          if (decision.approvedBy === "user") {
             try {
               await journal.flush();
             } catch (error) {
@@ -1061,227 +1265,167 @@ export class CoreMindRuntime {
               return { block: true, reason: checkpointFailure.message, terminate: true };
             }
           }
-          await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, decision.reason);
-          deniedAgents.add(agentName);
-          emit({
-            type: "policy_denied",
+          const extensionDecision = await dispatchLifecycle("before-tool", {
+            runId,
             agent: agentName,
+            stepId,
             tool: context.toolCall.name,
-            reason: decision.reason,
+            callId: context.toolCall.id,
+            args: context.args,
+            approvalAllowed: true,
           });
-          return { block: true, reason: decision.reason, terminate: true };
-        }
-        await toolExecutionEngine.advance(
-          lifecycleIdentity,
-          decision.approvedBy === "user"
-            ? { phase: "approval_resolved", status: "completed" }
-            : {
-                phase: "approval_resolved",
-                status: "skipped",
-                reason: decision.reason,
-              },
-        );
-        if (decision.approvedBy === "user") {
-          try {
-            await journal.flush();
-          } catch (error) {
-            checkpointFailure = durabilityFailure(error);
-            await toolExecutionEngine.blockBeforeExecution(
-              lifecycleIdentity,
-              checkpointFailure.message,
-            );
-            emit({ type: "error", message: checkpointFailure.message, fatal: true });
-            return { block: true, reason: checkpointFailure.message, terminate: true };
-          }
-        }
-        const extensionDecision = await dispatchLifecycle("before-tool", {
-          runId,
-          agent: agentName,
-          stepId,
-          tool: context.toolCall.name,
-          callId: context.toolCall.id,
-          args: context.args,
-          approvalAllowed: true,
-        });
-        if (extensionDecision?.denied) {
-          deniedAgents.add(agentName);
-          const reason = extensionDecision.denied.reason;
-          emit({
-            type: "policy_denied",
-            agent: agentName,
-            tool: context.toolCall.name,
-            reason,
-          });
-          await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
-          return { block: true, reason, terminate: true };
-        }
-        if (resolvedCapability.concurrency === "parallel") {
-          await toolExecutionEngine.advance(lifecycleIdentity, {
-            phase: "lease_acquired",
-            status: "skipped",
-            reason: "Pure Local Read 不需要 Workspace Lease",
-          });
-        } else {
-          try {
-            const lease = await workspaceLeaseService.acquire({
-              workspaceRoot: this.options.cwd ?? process.cwd(),
-              lane: resolvedCapability.concurrency,
-              owner: { runId, callId: context.toolCall.id },
-            });
-            workspaceLeaseByCall.set(
-              toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
-              {
-                lease,
-                identity: lifecycleIdentity,
-              },
-            );
+          if (extensionDecision?.denied) {
+            deniedAgents.add(agentName);
+            const reason = extensionDecision.denied.reason;
             emit({
-              type: "workspace_lease",
-              status: "acquired",
-              canonicalRoot: lease.canonicalRoot,
-              lane: lease.lane,
-              owner: {
-                runId: lease.owner.runId,
-                callId: lease.owner.callId,
-                pid: lease.owner.pid,
-              },
+              type: "policy_denied",
               agent: agentName,
-              callId: context.toolCall.id,
-              ...(stepId ? { stepId } : {}),
+              tool: context.toolCall.name,
+              reason,
             });
-            await journal.flush("critical");
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
+            return { block: true, reason, terminate: true };
+          }
+          if (resolvedCapability.concurrency === "parallel") {
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "lease_acquired",
-              status: "completed",
+              status: "skipped",
+              reason: "Pure Local Read 不需要 Workspace Lease",
             });
-          } catch (error) {
-            const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
-            const held = workspaceLeaseByCall.get(callKey);
-            if (held) {
-              await rollbackWorkspaceLease(lifecycleIdentity).catch(() => undefined);
+          } else {
+            try {
+              const lease = await workspaceLeaseService.acquire({
+                workspaceRoot: this.options.cwd ?? process.cwd(),
+                lane: resolvedCapability.concurrency,
+                owner: { runId, callId: context.toolCall.id },
+              });
+              workspaceLeaseByCall.set(
+                toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
+                {
+                  lease,
+                  identity: lifecycleIdentity,
+                },
+              );
+              emit({
+                type: "workspace_lease",
+                status: "acquired",
+                canonicalRoot: lease.canonicalRoot,
+                lane: lease.lane,
+                owner: {
+                  runId: lease.owner.runId,
+                  callId: lease.owner.callId,
+                  pid: lease.owner.pid,
+                },
+                agent: agentName,
+                callId: context.toolCall.id,
+                ...(stepId ? { stepId } : {}),
+              });
+              await journal.flush("critical");
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "lease_acquired",
+                status: "completed",
+              });
+            } catch (error) {
+              const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+              const held = workspaceLeaseByCall.get(callKey);
+              if (held) {
+                await rollbackWorkspaceLease(lifecycleIdentity).catch(() => undefined);
+              }
+              let leaseFailure =
+                error instanceof CoreMindError
+                  ? error
+                  : new CoreMindError(
+                      "workspace_lease_invalid",
+                      error instanceof Error ? error.message : String(error),
+                    );
+              if (leaseFailure.code === "workspace_lease_recovery_required") {
+                const inspection = await workspaceLeaseService.inspect(
+                  this.options.cwd ?? process.cwd(),
+                );
+                if (inspection.state === "recovery_required" && inspection.owner) {
+                  emit({
+                    type: "workspace_lease",
+                    status: "recovery_required",
+                    canonicalRoot: inspection.canonicalRoot,
+                    lane: resolvedCapability.concurrency,
+                    owner: {
+                      runId: inspection.owner.runId,
+                      callId: inspection.owner.callId,
+                      pid: inspection.owner.pid,
+                    },
+                    agent: agentName,
+                    callId: context.toolCall.id,
+                    ...(stepId ? { stepId } : {}),
+                  });
+                  try {
+                    await journal.flush("critical");
+                  } catch (durabilityError) {
+                    leaseFailure = durabilityFailure(durabilityError);
+                  }
+                }
+              }
+              checkpointFailure = leaseFailure;
+              await toolExecutionEngine.blockBeforeExecution(
+                lifecycleIdentity,
+                checkpointFailure.message,
+              );
+              emit({ type: "error", message: checkpointFailure.message, fatal: true });
+              return { block: true, reason: checkpointFailure.message, terminate: true };
             }
-            let leaseFailure =
+          }
+          try {
+            const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
+            const checkpoints = await checkpointManager.captureAll(
+              context.toolCall.name,
+              context.args,
+              {
+                operationId: operation.snapshot().operationId,
+                toolCallId: context.toolCall.id,
+                idempotencyKey,
+                capability: resolvedCapability,
+                pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name)
+                  ?.pathFields,
+              },
+            );
+            if (checkpoints.length > 0) {
+              checkpointByCallId.set(
+                context.toolCall.id,
+                checkpoints.map((checkpoint) => checkpoint.checkpointId),
+              );
+              for (const checkpoint of checkpoints) {
+                await journal.appendFact("checkpoint", checkpoint, { durability: "critical" });
+                emit({
+                  type: "checkpoint_created",
+                  checkpointId: checkpoint.checkpointId,
+                  tool: checkpoint.tool,
+                  callId: context.toolCall.id,
+                  idempotencyKey,
+                  targetPath: checkpoint.targetPath,
+                  reversible: checkpoint.reversible,
+                });
+              }
+              await journal.flush();
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "checkpoint_durable",
+                status: "completed",
+              });
+            } else {
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "checkpoint_durable",
+                status: "skipped",
+                reason: "Tool Capability 不要求 Workspace Checkpoint",
+              });
+            }
+          } catch (error) {
+            checkpointFailure =
               error instanceof CoreMindError
                 ? error
                 : new CoreMindError(
-                    "workspace_lease_invalid",
+                    "checkpoint_failed",
                     error instanceof Error ? error.message : String(error),
                   );
-            if (leaseFailure.code === "workspace_lease_recovery_required") {
-              const inspection = await workspaceLeaseService.inspect(
-                this.options.cwd ?? process.cwd(),
-              );
-              if (inspection.state === "recovery_required" && inspection.owner) {
-                emit({
-                  type: "workspace_lease",
-                  status: "recovery_required",
-                  canonicalRoot: inspection.canonicalRoot,
-                  lane: resolvedCapability.concurrency,
-                  owner: {
-                    runId: inspection.owner.runId,
-                    callId: inspection.owner.callId,
-                    pid: inspection.owner.pid,
-                  },
-                  agent: agentName,
-                  callId: context.toolCall.id,
-                  ...(stepId ? { stepId } : {}),
-                });
-                try {
-                  await journal.flush("critical");
-                } catch (durabilityError) {
-                  leaseFailure = durabilityFailure(durabilityError);
-                }
-              }
-            }
-            checkpointFailure = leaseFailure;
-            await toolExecutionEngine.blockBeforeExecution(
-              lifecycleIdentity,
-              checkpointFailure.message,
-            );
-            emit({ type: "error", message: checkpointFailure.message, fatal: true });
-            return { block: true, reason: checkpointFailure.message, terminate: true };
-          }
-        }
-        try {
-          const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
-          const checkpoints = await checkpointManager.captureAll(
-            context.toolCall.name,
-            context.args,
-            {
-              operationId: operation.snapshot().operationId,
-              toolCallId: context.toolCall.id,
-              idempotencyKey,
-              capability: resolvedCapability,
-              pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name)
-                ?.pathFields,
-            },
-          );
-          if (checkpoints.length > 0) {
-            checkpointByCallId.set(
-              context.toolCall.id,
-              checkpoints.map((checkpoint) => checkpoint.checkpointId),
-            );
-            for (const checkpoint of checkpoints) {
-              await journal.appendFact("checkpoint", checkpoint, { durability: "critical" });
-              emit({
-                type: "checkpoint_created",
-                checkpointId: checkpoint.checkpointId,
-                tool: checkpoint.tool,
-                callId: context.toolCall.id,
-                idempotencyKey,
-                targetPath: checkpoint.targetPath,
-                reversible: checkpoint.reversible,
-              });
-            }
-            await journal.flush();
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "checkpoint_durable",
-              status: "completed",
-            });
-          } else {
-            await toolExecutionEngine.advance(lifecycleIdentity, {
-              phase: "checkpoint_durable",
-              status: "skipped",
-              reason: "Tool Capability 不要求 Workspace Checkpoint",
-            });
-          }
-        } catch (error) {
-          checkpointFailure =
-            error instanceof CoreMindError
-              ? error
-              : new CoreMindError(
-                  "checkpoint_failed",
-                  error instanceof Error ? error.message : String(error),
-                );
-          await toolExecutionEngine.advance(lifecycleIdentity, {
-            phase: "checkpoint_durable",
-            status: "failed",
-            reason: checkpointFailure.message,
-          });
-          await toolExecutionEngine.blockBeforeExecution(
-            lifecycleIdentity,
-            checkpointFailure.message,
-          );
-          emit({ type: "error", message: checkpointFailure.message, fatal: true });
-          await rollbackWorkspaceLease(lifecycleIdentity);
-          return { block: true, reason: checkpointFailure.message };
-        }
-        effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
-        if (resolvedCapability.durability === "critical") {
-          try {
-            await journal.flush();
-            await toolExecutionEngine.advance(lifecycleIdentity, {
-              phase: "started_durable",
-              status: "completed",
-              result: {
-                effectState: resolvedCapability.effect === "none" ? "not_started" : "started",
-                cleanupState: resolvedCapability.effect === "none" ? "not_needed" : "pending",
-              },
-            });
-          } catch (error) {
-            checkpointFailure = durabilityFailure(error);
-            await toolExecutionEngine.advance(lifecycleIdentity, {
-              phase: "started_durable",
               status: "failed",
               reason: checkpointFailure.message,
             });
@@ -1293,116 +1437,160 @@ export class CoreMindRuntime {
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: checkpointFailure.message };
           }
-        } else {
+          effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
+          if (resolvedCapability.durability === "critical") {
+            try {
+              await journal.flush();
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "started_durable",
+                status: "completed",
+                result: {
+                  effectState: resolvedCapability.effect === "none" ? "not_started" : "started",
+                  cleanupState: resolvedCapability.effect === "none" ? "not_needed" : "pending",
+                },
+              });
+            } catch (error) {
+              checkpointFailure = durabilityFailure(error);
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "started_durable",
+                status: "failed",
+                reason: checkpointFailure.message,
+              });
+              await toolExecutionEngine.blockBeforeExecution(
+                lifecycleIdentity,
+                checkpointFailure.message,
+              );
+              emit({ type: "error", message: checkpointFailure.message, fatal: true });
+              await rollbackWorkspaceLease(lifecycleIdentity);
+              return { block: true, reason: checkpointFailure.message };
+            }
+          } else {
+            await toolExecutionEngine.advance(lifecycleIdentity, {
+              phase: "started_durable",
+              status: "skipped",
+              reason: "Pure Local Read 不需要 started Durability Barrier",
+            });
+          }
           await toolExecutionEngine.advance(lifecycleIdentity, {
-            phase: "started_durable",
-            status: "skipped",
-            reason: "Pure Local Read 不需要 started Durability Barrier",
+            phase: "executing",
+            status: "completed",
           });
-        }
-        await toolExecutionEngine.advance(lifecycleIdentity, {
-          phase: "executing",
-          status: "completed",
-        });
-        return undefined;
-      },
-      afterToolCall: async (context: AfterToolCallContext) => {
-        const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
-        const capability = capabilityByCallId.get(
-          toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
-        )?.capability;
-        await toolExecutionEngine.advance(lifecycleIdentity, {
-          phase: "observed",
-          status: "completed",
-          result: {
-            executionOutcome: context.isError ? "threw" : "returned",
-            effectState:
-              capability?.effect === "none"
-                ? "not_started"
-                : context.isError
-                  ? "unknown"
-                  : "committed",
-            cleanupState: capability?.effect === "none" ? "not_needed" : "pending",
-          },
-        });
-        const execution = createToolExecutionEvidence({
-          tool: context.toolCall.name,
-          args: context.args,
-          isError: context.isError,
-          result: context.result,
-          durationMs: effectCoordinator.consumeDuration(stepId, context.toolCall.id),
-        });
-        emit({
-          type: "tool_execution_evidence",
-          agent: agentName,
-          tool: context.toolCall.name,
-          callId: context.toolCall.id,
-          ...(stepId ? { stepId } : {}),
-          execution,
-        });
-        const artifact = extractArtifactRecord(context.result.details);
-        if (artifact) {
-          runContextFor(this).recordArtifact(artifact);
+          return undefined;
+        },
+        afterToolCall: async (context: AfterToolCallContext) => {
+          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
+          const capability = capabilityByCallId.get(
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
+          )?.capability;
+          await toolExecutionEngine.advance(lifecycleIdentity, {
+            phase: "observed",
+            status: "completed",
+            result: {
+              executionOutcome: context.isError ? "threw" : "returned",
+              effectState:
+                capability?.effect === "none"
+                  ? "not_started"
+                  : context.isError
+                    ? "unknown"
+                    : "committed",
+              cleanupState: capability?.effect === "none" ? "not_needed" : "pending",
+            },
+          });
+          const execution = createToolExecutionEvidence({
+            tool: context.toolCall.name,
+            args: context.args,
+            isError: context.isError,
+            result: context.result,
+            durationMs: effectCoordinator.consumeDuration(stepId, context.toolCall.id),
+          });
           emit({
-            type: "artifact_created",
-            artifactId: artifact.artifactId,
-            status: artifact.status,
-            sizeBytes: artifact.sizeBytes,
-            relativePath: artifact.relativePath,
-            sha256: artifact.sha256,
-            mediaType: artifact.mediaType,
-            redaction: artifact.redaction,
+            type: "tool_execution_evidence",
+            agent: agentName,
             tool: context.toolCall.name,
             callId: context.toolCall.id,
+            ...(stepId ? { stepId } : {}),
+            execution,
           });
-        }
-        const checkpointIds = checkpointByCallId.get(context.toolCall.id);
-        const checkpointId = checkpointIds?.[0];
-        checkpointByCallId.delete(context.toolCall.id);
-        if (checkpointIds) {
-          try {
-            await Promise.all(
-              checkpointIds.map((storedCheckpointId) =>
-                checkpointManager.markApplied(storedCheckpointId),
-              ),
-            );
-          } catch (error) {
-            checkpointFailure =
-              error instanceof CoreMindError
-                ? error
-                : new CoreMindError(
-                    "checkpoint_failed",
-                    error instanceof Error ? error.message : String(error),
-                  );
-            emit({ type: "error", message: checkpointFailure.message, fatal: true });
+          const artifact = extractArtifactRecord(context.result.details);
+          if (artifact) {
+            runContextFor(this).recordArtifact(artifact);
+            emit({
+              type: "artifact_created",
+              artifactId: artifact.artifactId,
+              status: artifact.status,
+              sizeBytes: artifact.sizeBytes,
+              relativePath: artifact.relativePath,
+              sha256: artifact.sha256,
+              mediaType: artifact.mediaType,
+              redaction: artifact.redaction,
+              tool: context.toolCall.name,
+              callId: context.toolCall.id,
+            });
           }
-        }
-        const budgetResult = budget.afterToolCall(context.isError);
-        await dispatchLifecycle("after-tool", {
-          runId,
-          agent: agentName,
-          stepId,
-          tool: context.toolCall.name,
-          callId: context.toolCall.id,
-          isError: context.isError,
-          checkpointId,
-          artifactId: artifact?.artifactId,
-        });
-        return checkpointFailure ? { terminate: true } : budgetResult;
-      },
-      shouldStopAfterTurn: () => deniedAgents.has(agentName),
-      throwIfDenied: () => {
-        if (deniedAgents.has(agentName)) {
-          throw new CoreMindError(
-            "loop_paused",
-            stepId ? `步骤 ${stepId} 的工具请求未获批准` : `Agent ${agentName} 的工具请求未获批准`,
-          );
-        }
-      },
-      onAgentEvent: (event, agent) => {
-        if (budget.observeAgentEvent(event)) agent.abort();
-      },
-    }));
+          const checkpointIds = checkpointByCallId.get(context.toolCall.id);
+          const checkpointId = checkpointIds?.[0];
+          checkpointByCallId.delete(context.toolCall.id);
+          if (checkpointIds) {
+            try {
+              await Promise.all(
+                checkpointIds.map((storedCheckpointId) =>
+                  checkpointManager.markApplied(storedCheckpointId),
+                ),
+              );
+            } catch (error) {
+              checkpointFailure =
+                error instanceof CoreMindError
+                  ? error
+                  : new CoreMindError(
+                      "checkpoint_failed",
+                      error instanceof Error ? error.message : String(error),
+                    );
+              emit({ type: "error", message: checkpointFailure.message, fatal: true });
+            }
+          }
+          const budgetResult = budget.afterToolCall(context.isError);
+          await dispatchLifecycle("after-tool", {
+            runId,
+            agent: agentName,
+            stepId,
+            tool: context.toolCall.name,
+            callId: context.toolCall.id,
+            isError: context.isError,
+            checkpointId,
+            artifactId: artifact?.artifactId,
+          });
+          return checkpointFailure ? { terminate: true } : budgetResult;
+        },
+        shouldStopAfterTurn: () => deniedAgents.has(agentName),
+        throwIfDenied: () => {
+          if (deniedAgents.has(agentName)) {
+            throw new CoreMindError(
+              "loop_paused",
+              stepId
+                ? `步骤 ${stepId} 的工具请求未获批准`
+                : `Agent ${agentName} 的工具请求未获批准`,
+            );
+          }
+        },
+        onAgentEvent: (event, agent) => {
+          if (
+            event.type === "turn_end" &&
+            event.message.role === "assistant" &&
+            isContextOverflow(event.message, contextWindow)
+          ) {
+            recordContextFailure(
+              new ContextLifecycleError(
+                `Provider 报告 ${this.providerRuntime.model.provider}/${this.providerRuntime.model.id} 超出 Context 窗口；相同请求不会重试`,
+                "provider_overflow",
+                "context_budget_exhausted",
+              ),
+              agent.state.messages.length,
+            );
+          }
+          if (budget.observeAgentEvent(event)) agent.abort();
+        },
+      };
+    });
 
     let outputs = new Map<string, StepOutput>();
     let transcript = "";

@@ -10,6 +10,7 @@ import {
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import { builtinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
 import type { CustomProviderConfig, ProviderConfig } from "coremind-config";
+import type { ContextCapabilityCandidate } from "./context-lifecycle.js";
 import { CoreMindError } from "./errors.js";
 
 export interface ProviderRuntime {
@@ -23,6 +24,8 @@ export interface ProviderRuntime {
   apiKeyOverride?: string;
   /** 仅依据锁定模型目录的缓存计费元数据判定，不把 0 命中伪装为命中。 */
   promptCacheStatus: "available" | "unavailable";
+  /** 每次请求重新解析的模型能力来源；不得从 Session 旧值或 UI Projection 反推。 */
+  contextCapabilityCandidates: ContextCapabilityCandidate[];
 }
 
 const DEFAULT_PROVIDER = "deepseek";
@@ -71,6 +74,7 @@ async function buildAlibabaModelStudioRuntime(
       maxTokens: 8192,
     },
     env,
+    { source: "locked_catalog", confidence: "verified" },
   );
 }
 
@@ -111,13 +115,21 @@ async function buildBuiltinRuntime(
   if (cfg.apiKeyEnv && !apiKeyOverride) {
     warnings.push(`配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在注入环境中找到`);
   }
-  return { models, model, warnings, apiKeyOverride, promptCacheStatus: cacheStatus(model) };
+  return {
+    models,
+    model,
+    warnings,
+    apiKeyOverride,
+    promptCacheStatus: cacheStatus(model),
+    contextCapabilityCandidates: [contextCapability(model, "locked_catalog", "verified")],
+  };
 }
 
 /** 自定义 OpenAI 兼容端点（Ollama / 本地模型 / 网关） */
 async function buildCustomRuntime(
   cfg: CustomProviderConfig,
   env: NodeJS.ProcessEnv,
+  capabilityOrigin?: Pick<ContextCapabilityCandidate, "source" | "confidence">,
 ): Promise<ProviderRuntime> {
   const id = cfg.id ?? "custom";
   const apiKeyEnv = inferEnv(cfg, id);
@@ -153,6 +165,29 @@ async function buildCustomRuntime(
     warnings,
     ...(apiKeyOverride ? { apiKeyOverride } : {}),
     promptCacheStatus: cacheStatus(model),
+    contextCapabilityCandidates: [
+      contextCapability(
+        model,
+        capabilityOrigin?.source ??
+          (cfg.contextWindow === undefined ? "conservative_fallback" : "explicit_config"),
+        capabilityOrigin?.confidence ?? (cfg.contextWindow === undefined ? "assumed" : "declared"),
+      ),
+    ],
+  };
+}
+
+function contextCapability(
+  model: Model<any>,
+  source: ContextCapabilityCandidate["source"],
+  confidence: ContextCapabilityCandidate["confidence"],
+): ContextCapabilityCandidate {
+  return {
+    providerId: model.provider,
+    modelId: model.id,
+    contextWindow: model.contextWindow,
+    maxOutputTokens: model.maxTokens,
+    source,
+    confidence,
   };
 }
 

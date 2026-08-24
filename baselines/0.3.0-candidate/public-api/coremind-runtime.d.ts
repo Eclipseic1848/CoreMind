@@ -448,19 +448,49 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     actual: number;
     message: string;
 } | {
+    type: "context_budget_resolved";
+    providerId: string;
+    modelId: string;
+    capabilityFingerprint: string;
+    source: "locked_catalog" | "explicit_config" | "provider_metadata" | "conservative_fallback";
+    confidence: "verified" | "declared" | "assumed";
+    effectiveContextWindow: number;
+    reservedOutputTokens: number;
+    availableInputTokens: number;
+    messageTokens: number;
+    stablePrefixTokens: number;
+    toolSchemaTokens: number;
+    structuredOutputTokens: number;
+    multimodalTokens: number;
+    protocolOverheadTokens: number;
+    safetyMarginTokens: number;
+    estimator: "pi-agent-core-estimate-v1";
+    evidence: Array<"safe_context_intersection" | "assumed_context_window">;
+} | {
     type: "context_compacted";
     beforeTokens: number;
     afterTokens: number;
     removedMessages: number;
-    strategy: "deterministic-v1";
+    strategy: "deterministic-v1" | "task-state-v1";
     reason: "threshold";
     summaryFingerprint: string;
+    capabilityFingerprint?: string;
+    lineageDepth?: number;
+    rebuiltFromCanonical?: boolean;
+    trigger?: "threshold" | "model_switch" | "provider_overflow";
     /** 会话树压缩条目引用（落盘成功时存在）；摘要正文不落 RunState */
     sessionEntryId?: string;
 } | {
     type: "context_compaction_failed";
     message: string;
     preservedMessages: number;
+} | {
+    type: "context_lifecycle_failed";
+    code: "context_capability_conflict" | "context_budget_exhausted" | "context_artifact_missing" | "context_lineage_corrupt";
+    reason: string;
+    pausable: boolean;
+    preservedMessages: number;
+    providerCallBlocked: true;
 } | {
     type: "context_prefix";
     agent: string;
@@ -1729,6 +1759,18 @@ export declare interface RunMetrics {
         compactions: number;
         lastSummaryFingerprint?: string;
         stablePrefixFingerprints: string[];
+        lastBudget?: {
+            providerId: string;
+            modelId: string;
+            capabilityFingerprint: string;
+            source: "locked_catalog" | "explicit_config" | "provider_metadata" | "conservative_fallback";
+            confidence: "verified" | "declared" | "assumed";
+            effectiveContextWindow: number;
+            reservedOutputTokens: number;
+            availableInputTokens: number;
+            messageTokens: number;
+            estimator: "pi-agent-core-estimate-v1";
+        };
     };
     artifacts?: {
         stored: number;

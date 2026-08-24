@@ -368,6 +368,18 @@ promptCacheStatus: TUnion<[TLiteral<"available">, TLiteral<"unavailable">, TLite
 compactions: TInteger;
 lastSummaryFingerprint: TOptional<TString>;
 stablePrefixFingerprints: TArray<TString>;
+lastBudget: TOptional<TObject<    {
+providerId: TString;
+modelId: TString;
+capabilityFingerprint: TString;
+source: TUnion<[TLiteral<"locked_catalog">, TLiteral<"explicit_config">, TLiteral<"provider_metadata">, TLiteral<"conservative_fallback">]>;
+confidence: TUnion<[TLiteral<"verified">, TLiteral<"declared">, TLiteral<"assumed">]>;
+effectiveContextWindow: TInteger;
+reservedOutputTokens: TInteger;
+availableInputTokens: TInteger;
+messageTokens: TInteger;
+estimator: TLiteral<"pi-agent-core-estimate-v1">;
+}>>;
 }>>;
 artifacts: TOptional<TObject<    {
 stored: TInteger;

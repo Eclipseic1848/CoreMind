@@ -117,6 +117,8 @@ Every run separates:
 
 An unfinished run can be continued with `coremind run <file> --resume <runId>` or the SDK resume API. Resume reuses only complete persisted workflow-step outputs. It rejects finished runs, mismatched configuration or input, and incomplete steps that invoked non-replay-safe tools. Tool-call idempotency identifiers are correlation inputs for business-side receipt or deduplication; they are not an exactly-once guarantee.
 
+Before every provider call, CoreMind resolves a budget for the actual model and request. Compaction uses fact-projected task state, retains the previous complete turn plus the active user message, and persists both the summary and its lineage in the session. A missing durable session, capability conflict, or oversized undeletable set pauses before network access.
+
 Custom tools must declare `effect.operations` and `effect.reversible`. The permission layer recursively inspects nested paths and URLs, and fails closed for undeclared effects under workspace or network restrictions. In ask mode, a human denial blocks that tool and later unapproved calls in the same batch. The run returns `paused` after batch reconciliation without another model request or approval prompt. In a sequential workflow, the denied step saves no output and no later step starts. File restore also checks the post-tool fingerprint and refuses to overwrite a file changed later by a user or concurrent process.
 
 ## Provider policy

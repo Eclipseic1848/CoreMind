@@ -531,13 +531,12 @@ describe("Provider 请求重建验收（门 A-1）", () => {
   });
 
   it("fixture 4：压缩触发——重建应用压缩摘要替换，与发送逐条一致（摘要替换位置）", async () => {
-    const long = "旧历史内容".repeat(80);
+    const long = "旧历史内容".repeat(1_000);
     const sessionHistory: AgentMessage[] = [
       { role: "user", content: `${long}一`, timestamp: 0 } as AgentMessage,
       assistantMsg(`${long}二`),
-      { role: "user", content: `${long}三`, timestamp: 0 } as AgentMessage,
-      assistantMsg(`${long}四`),
-      { role: "user", content: `${long}五`, timestamp: 0 } as AgentMessage,
+      { role: "user", content: "最近完整问题", timestamp: 0 } as AgentMessage,
+      assistantMsg("最近完整回答"),
     ];
     const outcome = await runFixture({
       sessionId: "s4",
@@ -551,7 +550,8 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
           apiKey: "test-key",
-          contextWindow: 300,
+          contextWindow: 2048,
+          maxTokens: 256,
         },
         agents: { main: { systemPrompt: "测试助手" } },
         session: { enabled: true },
@@ -583,7 +583,9 @@ describe("Provider 请求重建验收（门 A-1）", () => {
     expect(rebuildSignatures(rebuilt)).toEqual(wireSignatures(sent));
     // 摘要替换位置：重建第一条是本地确定性压缩摘要（user 角色）
     expect(rebuilt[0]).toMatchObject({ role: "user" });
-    expect(String((rebuilt[0] as { content: string }).content)).toContain("CoreMind 上下文摘要");
+    expect(String((rebuilt[0] as { content: string }).content)).toContain(
+      "[CoreMind TaskState v1]",
+    );
     expect(outcome.recorder.unconsumed()).toBe(0);
   });
 

@@ -38,6 +38,18 @@ export interface RunMetrics {
     compactions: number;
     lastSummaryFingerprint?: string;
     stablePrefixFingerprints: string[];
+    lastBudget?: {
+      providerId: string;
+      modelId: string;
+      capabilityFingerprint: string;
+      source: "locked_catalog" | "explicit_config" | "provider_metadata" | "conservative_fallback";
+      confidence: "verified" | "declared" | "assumed";
+      effectiveContextWindow: number;
+      reservedOutputTokens: number;
+      availableInputTokens: number;
+      messageTokens: number;
+      estimator: "pi-agent-core-estimate-v1";
+    };
   };
   artifacts?: { stored: number; blocked: number; totalBytes: number };
   /** 取消收敛：事件准入拒绝写入的迟到终态事件数（规格 03 §3） */
@@ -92,6 +104,7 @@ export function analyzeRunMetrics(
   let compactions = 0;
   let lastSummaryFingerprint: string | undefined;
   const stablePrefixFingerprints = new Set<string>();
+  let lastBudget: NonNullable<RunMetrics["context"]>["lastBudget"];
   let artifactsStored = 0;
   let artifactsBlocked = 0;
   let artifactBytes = 0;
@@ -117,6 +130,20 @@ export function analyzeRunMetrics(
       case "context_compacted":
         compactions += 1;
         lastSummaryFingerprint = event.summaryFingerprint;
+        break;
+      case "context_budget_resolved":
+        lastBudget = {
+          providerId: event.providerId,
+          modelId: event.modelId,
+          capabilityFingerprint: event.capabilityFingerprint,
+          source: event.source,
+          confidence: event.confidence,
+          effectiveContextWindow: event.effectiveContextWindow,
+          reservedOutputTokens: event.reservedOutputTokens,
+          availableInputTokens: event.availableInputTokens,
+          messageTokens: event.messageTokens,
+          estimator: event.estimator,
+        };
         break;
       case "context_prefix":
         stablePrefixFingerprints.add(event.fingerprint);
@@ -176,6 +203,7 @@ export function analyzeRunMetrics(
       compactions,
       ...(lastSummaryFingerprint ? { lastSummaryFingerprint } : {}),
       stablePrefixFingerprints: [...stablePrefixFingerprints].sort(),
+      ...(lastBudget ? { lastBudget } : {}),
     },
     artifacts: { stored: artifactsStored, blocked: artifactsBlocked, totalBytes: artifactBytes },
     ...(rejectedAfterAbort > 0 ? { rejectedAfterAbort } : {}),

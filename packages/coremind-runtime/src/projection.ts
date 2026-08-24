@@ -32,16 +32,39 @@ export interface RecoveryDecision {
 
 export interface ContextProjection {
   stablePrefixes: Array<{ agent: string; fingerprint: string }>;
+  budgets: Array<{
+    providerId: string;
+    modelId: string;
+    capabilityFingerprint: string;
+    source: "locked_catalog" | "explicit_config" | "provider_metadata" | "conservative_fallback";
+    confidence: "verified" | "declared" | "assumed";
+    effectiveContextWindow: number;
+    reservedOutputTokens: number;
+    availableInputTokens: number;
+    messageTokens: number;
+    estimator: "pi-agent-core-estimate-v1";
+  }>;
   compactions: Array<{
     beforeTokens: number;
     afterTokens: number;
     removedMessages: number;
-    strategy: "deterministic-v1";
+    strategy: "deterministic-v1" | "task-state-v1";
     reason: "threshold";
     summaryFingerprint: string;
     sessionEntryId?: string;
+    capabilityFingerprint?: string;
+    lineageDepth?: number;
+    rebuiltFromCanonical?: boolean;
+    trigger?: "threshold" | "model_switch" | "provider_overflow";
   }>;
   failures: Array<{ message: string; preservedMessages: number }>;
+  lifecycleFailures: Array<{
+    code: string;
+    reason: string;
+    pausable: boolean;
+    preservedMessages: number;
+    providerCallBlocked: true;
+  }>;
 }
 
 export type ArtifactProjection = Omit<ArtifactRecord, "createdAt" | "retention"> &
@@ -344,6 +367,24 @@ function projectContext(trace: readonly CoreMindTraceEvent[]): ContextProjection
         ? [{ agent: event.agent, fingerprint: event.fingerprint }]
         : [],
     ),
+    budgets: trace.flatMap(({ event }) =>
+      event.type === "context_budget_resolved"
+        ? [
+            {
+              providerId: event.providerId,
+              modelId: event.modelId,
+              capabilityFingerprint: event.capabilityFingerprint,
+              source: event.source,
+              confidence: event.confidence,
+              effectiveContextWindow: event.effectiveContextWindow,
+              reservedOutputTokens: event.reservedOutputTokens,
+              availableInputTokens: event.availableInputTokens,
+              messageTokens: event.messageTokens,
+              estimator: event.estimator,
+            },
+          ]
+        : [],
+    ),
     compactions: trace.flatMap(({ event }) =>
       event.type === "context_compacted"
         ? [
@@ -355,6 +396,14 @@ function projectContext(trace: readonly CoreMindTraceEvent[]): ContextProjection
               reason: event.reason,
               summaryFingerprint: event.summaryFingerprint,
               ...(event.sessionEntryId ? { sessionEntryId: event.sessionEntryId } : {}),
+              ...(event.capabilityFingerprint
+                ? { capabilityFingerprint: event.capabilityFingerprint }
+                : {}),
+              ...(event.lineageDepth === undefined ? {} : { lineageDepth: event.lineageDepth }),
+              ...(event.rebuiltFromCanonical === undefined
+                ? {}
+                : { rebuiltFromCanonical: event.rebuiltFromCanonical }),
+              ...(event.trigger ? { trigger: event.trigger } : {}),
             },
           ]
         : [],
@@ -362,6 +411,19 @@ function projectContext(trace: readonly CoreMindTraceEvent[]): ContextProjection
     failures: trace.flatMap(({ event }) =>
       event.type === "context_compaction_failed"
         ? [{ message: event.message, preservedMessages: event.preservedMessages }]
+        : [],
+    ),
+    lifecycleFailures: trace.flatMap(({ event }) =>
+      event.type === "context_lifecycle_failed"
+        ? [
+            {
+              code: event.code,
+              reason: event.reason,
+              pausable: event.pausable,
+              preservedMessages: event.preservedMessages,
+              providerCallBlocked: event.providerCallBlocked,
+            },
+          ]
         : [],
     ),
   };
@@ -422,18 +484,66 @@ function isProjectionEventValid(event: Record<string, unknown>, runId: string): 
       );
     case "context_prefix":
       return typeof event.agent === "string" && typeof event.fingerprint === "string";
+    case "context_budget_resolved":
+      return (
+        typeof event.providerId === "string" &&
+        typeof event.modelId === "string" &&
+        typeof event.capabilityFingerprint === "string" &&
+        [
+          "locked_catalog",
+          "explicit_config",
+          "provider_metadata",
+          "conservative_fallback",
+        ].includes(String(event.source)) &&
+        ["verified", "declared", "assumed"].includes(String(event.confidence)) &&
+        isNumber(event.effectiveContextWindow) &&
+        isNumber(event.reservedOutputTokens) &&
+        isNumber(event.availableInputTokens) &&
+        isNumber(event.messageTokens) &&
+        isNumber(event.stablePrefixTokens) &&
+        isNumber(event.toolSchemaTokens) &&
+        isNumber(event.structuredOutputTokens) &&
+        isNumber(event.multimodalTokens) &&
+        isNumber(event.protocolOverheadTokens) &&
+        isNumber(event.safetyMarginTokens) &&
+        event.estimator === "pi-agent-core-estimate-v1" &&
+        Array.isArray(event.evidence) &&
+        event.evidence.every(
+          (item) => item === "safe_context_intersection" || item === "assumed_context_window",
+        )
+      );
     case "context_compacted":
       return (
         isNumber(event.beforeTokens) &&
         isNumber(event.afterTokens) &&
         isNumber(event.removedMessages) &&
-        event.strategy === "deterministic-v1" &&
+        (event.strategy === "deterministic-v1" || event.strategy === "task-state-v1") &&
         event.reason === "threshold" &&
         typeof event.summaryFingerprint === "string" &&
-        optionalString(event.sessionEntryId)
+        optionalString(event.sessionEntryId) &&
+        optionalString(event.capabilityFingerprint) &&
+        optionalNumber(event.lineageDepth) &&
+        optionalBoolean(event.rebuiltFromCanonical) &&
+        (event.trigger === undefined ||
+          event.trigger === "threshold" ||
+          event.trigger === "model_switch" ||
+          event.trigger === "provider_overflow")
       );
     case "context_compaction_failed":
       return typeof event.message === "string" && isNumber(event.preservedMessages);
+    case "context_lifecycle_failed":
+      return (
+        [
+          "context_capability_conflict",
+          "context_budget_exhausted",
+          "context_artifact_missing",
+          "context_lineage_corrupt",
+        ].includes(String(event.code)) &&
+        typeof event.reason === "string" &&
+        typeof event.pausable === "boolean" &&
+        isNumber(event.preservedMessages) &&
+        event.providerCallBlocked === true
+      );
     default:
       return true;
   }

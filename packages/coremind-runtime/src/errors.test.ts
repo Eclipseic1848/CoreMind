@@ -46,6 +46,9 @@ const EXISTING_CODES = [
   "loop_paused",
   "unknown_effect",
   "committed_effect_pending",
+  "context_budget_exhausted",
+  "context_capability_conflict",
+  "context_artifact_missing",
   // 恢复
   "resume_input_mismatch",
   "resume_config_mismatch",
@@ -80,6 +83,7 @@ const EXISTING_CODES = [
   "durability_barrier_failed",
   "fact_ledger_poisoned",
   "fact_ledger_terminal",
+  "context_lineage_corrupt",
   // 瞬态
   "network_error",
   "provider_unavailable",
@@ -153,6 +157,8 @@ describe("错误码码表（单一事实源）", () => {
     expect(terminalStatusForCode("retry_limit")).toBe("budget_exceeded");
     expect(terminalStatusForCode("approval_denied")).toBe("failed");
     expect(terminalStatusForCode("workspace_lease_recovery_required")).toBe("paused");
+    expect(terminalStatusForCode("context_budget_exhausted")).toBe("paused");
+    expect(terminalStatusForCode("context_lineage_corrupt")).toBe("failed");
     expect(terminalStatusForCode("run_state_corrupt")).toBe("failed");
     expect(terminalStatusForCode("unknown_agent")).toBe("failed");
     expect(terminalStatusForCode("not_a_real_code")).toBe("failed");
@@ -164,6 +170,7 @@ describe("错误码码表（单一事实源）", () => {
     expect(cancelSignalForCode("budget_exceeded")).toBe("budget_exceeded");
     expect(cancelSignalForCode("approval_denied")).toBe("pause");
     expect(cancelSignalForCode("loop_paused")).toBe("pause");
+    expect(cancelSignalForCode("context_budget_exhausted")).toBe("pause");
     // 恢复类码是 cancelClass=human 但 retryClass=fatal：现状语义为 FAIL 而非 PAUSE
     expect(cancelSignalForCode("resume_input_mismatch")).toBe("fail");
     expect(cancelSignalForCode("run_state_corrupt")).toBe("fail");

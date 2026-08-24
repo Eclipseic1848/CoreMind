@@ -7,6 +7,26 @@ describe("analyzeRunMetrics", () => {
     const events: CoreMindEvent[] = [
       { type: "context_prefix", agent: "main", fingerprint: "prefix-a" },
       {
+        type: "context_budget_resolved",
+        providerId: "probe",
+        modelId: "model-a",
+        capabilityFingerprint: "capability-a",
+        source: "explicit_config",
+        confidence: "declared",
+        effectiveContextWindow: 8192,
+        reservedOutputTokens: 1024,
+        availableInputTokens: 6000,
+        messageTokens: 2000,
+        stablePrefixTokens: 300,
+        toolSchemaTokens: 400,
+        structuredOutputTokens: 0,
+        multimodalTokens: 0,
+        protocolOverheadTokens: 100,
+        safetyMarginTokens: 368,
+        estimator: "pi-agent-core-estimate-v1",
+        evidence: [],
+      },
+      {
         type: "turn_end",
         agent: "main",
         tokens: 20,
@@ -49,6 +69,18 @@ describe("analyzeRunMetrics", () => {
       compactions: 1,
       lastSummaryFingerprint: "summary-a",
       stablePrefixFingerprints: ["prefix-a"],
+      lastBudget: {
+        providerId: "probe",
+        modelId: "model-a",
+        capabilityFingerprint: "capability-a",
+        source: "explicit_config",
+        confidence: "declared",
+        effectiveContextWindow: 8192,
+        reservedOutputTokens: 1024,
+        availableInputTokens: 6000,
+        messageTokens: 2000,
+        estimator: "pi-agent-core-estimate-v1",
+      },
     });
     expect(metrics.artifacts).toEqual({ stored: 1, blocked: 0, totalBytes: 1024 });
   });
