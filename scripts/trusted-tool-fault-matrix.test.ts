@@ -20,6 +20,35 @@ import {
 import { runLiveBoundaryProbe } from "./trusted-tool-live-boundary-probes.mjs";
 
 describe("0.3.x-B 独立可信工具故障矩阵", () => {
+  it("读取终态记录前等待 during 故障留下的 Journal 写入静止", async () => {
+    const workspaceRoot = mkdtempSync(path.join(tmpdir(), "coremind-live-boundary-quiescence-"));
+    const tracker = createFaultResourceTracker();
+    try {
+      await expect(
+        runLiveBoundaryProbe(
+          {
+            seed: 1_182,
+            point: "run_terminal",
+            kind: "sync_throw",
+            effect: "unknown",
+            timing: "during",
+          },
+          workspaceRoot,
+          tracker,
+          {
+            fileRunStoreOptions: {
+              lockTimeoutMs: 20,
+              beforeCommit: () => new Promise((resolve) => setTimeout(resolve, 100)),
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ status: "passed" });
+    } finally {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
   it("真实边界机制失败保留实际身份与最小 Fact 前缀", async () => {
     const workspaceRoot = mkdtempSync(path.join(tmpdir(), "coremind-live-boundary-failure-"));
     const tracker = createFaultResourceTracker();
