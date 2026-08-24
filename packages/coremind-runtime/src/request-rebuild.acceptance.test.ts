@@ -531,13 +531,12 @@ describe("Provider 请求重建验收（门 A-1）", () => {
   });
 
   it("fixture 4：压缩触发——重建应用压缩摘要替换，与发送逐条一致（摘要替换位置）", async () => {
-    const long = "旧历史内容".repeat(500);
+    const long = "旧历史内容".repeat(1_000);
     const sessionHistory: AgentMessage[] = [
       { role: "user", content: `${long}一`, timestamp: 0 } as AgentMessage,
       assistantMsg(`${long}二`),
-      { role: "user", content: `${long}三`, timestamp: 0 } as AgentMessage,
-      assistantMsg(`${long}四`),
-      { role: "user", content: `${long}五`, timestamp: 0 } as AgentMessage,
+      { role: "user", content: "最近完整问题", timestamp: 0 } as AgentMessage,
+      assistantMsg("最近完整回答"),
     ];
     const outcome = await runFixture({
       sessionId: "s4",

@@ -203,7 +203,7 @@ describe("ContextLifecycleManager 请求预算", () => {
     expect(result.compaction).toBeUndefined();
   });
 
-  it("输出保留量同时受模型上限、本次请求和总窗口四分之一约束", async () => {
+  it("输出保留量与实际请求一致，不用窗口比例静默缩小 maxTokens", async () => {
     const result = await new ContextLifecycleManager().prepare({
       providerId: "custom",
       modelId: "small-model",
@@ -214,17 +214,38 @@ describe("ContextLifecycleManager 请求预算", () => {
       request: { ...emptyRequest(), requestedMaxOutputTokens: 3_000 },
     });
 
-    expect(result.budget.reservedOutputTokens).toBe(2_000);
+    expect(result.budget.reservedOutputTokens).toBe(3_000);
+  });
+
+  it("本次请求 maxTokens 超过模型输出上限时在 Provider 前失败", async () => {
+    await expect(
+      new ContextLifecycleManager().prepare({
+        providerId: "custom",
+        modelId: "small-model",
+        resolvedAt: 1,
+        capabilityCandidates: [
+          candidate("explicit_config", "declared", 8_000, 2_000, "custom", "small-model"),
+        ],
+        request: { ...emptyRequest(), requestedMaxOutputTokens: 3_000 },
+      }),
+    ).rejects.toMatchObject({
+      code: "context_capability_conflict",
+      reason: "invalid_budget",
+    });
   });
 });
 
 describe("ContextLifecycleManager Working Set", () => {
-  it("超预算时用确定性 TaskState 替换关闭前缀并原样保留最近完整 Turn", async () => {
-    const latestTurn = user("继续 #69，下一步先验证压缩 lineage");
+  it("超预算时用 TaskState 替换旧前缀，并保留上一完整 Turn 与当前未完成 user", async () => {
+    const latestCompleteUser = user("上一轮：核对 #69 的压缩 lineage");
+    const latestCompleteAssistant = assistant("上一轮已完成 lineage 核对");
+    const pendingUser = user("当前轮：继续实现持久化门禁");
     const messages = [
       user(`旧问题-${"甲".repeat(8_000)}`),
       assistant(`旧回答-${"乙".repeat(8_000)}`),
-      latestTurn,
+      latestCompleteUser,
+      latestCompleteAssistant,
+      pendingUser,
     ];
     const taskState = {
       goal: "完成 CoreMind #69",
@@ -252,8 +273,12 @@ describe("ContextLifecycleManager Working Set", () => {
     });
 
     expect(result.workingSet.compacted).toBe(true);
-    expect(result.workingSet.messages).toHaveLength(2);
-    expect(result.workingSet.messages[1]).toBe(latestTurn);
+    expect(result.workingSet.messages).toHaveLength(4);
+    expect(result.workingSet.messages.slice(1)).toEqual([
+      latestCompleteUser,
+      latestCompleteAssistant,
+      pendingUser,
+    ]);
     expect(textOf(result.workingSet.messages[0])).toContain("CoreMind TaskState v1");
     expect(textOf(result.workingSet.messages[0])).toContain("完成 CoreMind #69");
     expect(textOf(result.workingSet.messages[0])).toContain("仅允许离线验证");
@@ -674,6 +699,7 @@ async function prepareSwitchRequest(options: {
       messages: options.messages,
       canonicalMessages: options.canonicalMessages,
       previousCompactions: options.previousCompactions,
+      requestedMaxOutputTokens: 1_024,
       compactionTrigger: "model_switch",
     },
   });

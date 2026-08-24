@@ -2575,13 +2575,12 @@ describe("CoreMindRuntime", () => {
         sessionId: "s1",
         cwd: process.cwd(),
       });
-      const long = "旧历史内容".repeat(500);
+      const long = "旧历史内容".repeat(1_000);
       await cm.appendMessages([
         { id: "h1", role: "user", content: [{ type: "text", text: `${long}一` }] },
         { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}二` }] },
-        { id: "h3", role: "user", content: [{ type: "text", text: `${long}三` }] },
-        { id: "h4", role: "assistant", content: [{ type: "text", text: `${long}四` }] },
-        { id: "h5", role: "user", content: [{ type: "text", text: `${long}五` }] },
+        { id: "h3", role: "user", content: [{ type: "text", text: "最近完整问题" }] },
+        { id: "h4", role: "assistant", content: [{ type: "text", text: "最近完整回答" }] },
       ]);
 
       const events: CoreMindEvent[] = [];
@@ -2761,6 +2760,9 @@ describe("CoreMindRuntime", () => {
           { id: "h1", role: "user", content: [{ type: "text", text: `${long}甲` }] },
           { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}乙` }] },
           { id: "h3", role: "user", content: [{ type: "text", text: `${long}丙` }] },
+          { id: "h4", role: "assistant", content: [{ type: "text", text: `${long}丁` }] },
+          { id: "h5", role: "user", content: [{ type: "text", text: "最近完整问题" }] },
+          { id: "h6", role: "assistant", content: [{ type: "text", text: "最近完整回答" }] },
         ],
         (event) => events.push(event),
       );
@@ -2786,6 +2788,67 @@ describe("CoreMindRuntime", () => {
       });
       const rebuilt = applyCompaction(projectRawBranchMessages(entries), compactions);
       expect(rebuilt.map(contentOf)).toEqual(sent.map(contentOf));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("没有可持久化 Session 时拒绝压缩，Provider 调用计数为 0", async () => {
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      sendSse(response, [
+        { id: "unexpected", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-compact-without-session-"));
+      const events: CoreMindEvent[] = [];
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          schemaVersion: 2,
+          name: "无 Session 压缩门禁",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKey: "test-key",
+            contextWindow: 2048,
+            maxTokens: 256,
+          },
+          agents: { main: { systemPrompt: "测试助手" } },
+        },
+        configDir: dir,
+        events: (event) => events.push(event),
+      });
+      const long = "不可只存在内存的旧历史".repeat(600);
+
+      const result = await runtime.runAgentTurn(
+        "main",
+        "当前请求",
+        [
+          { id: "h1", role: "user", content: [{ type: "text", text: `${long}甲` }] },
+          { id: "h2", role: "assistant", content: [{ type: "text", text: `${long}乙` }] },
+          { id: "h3", role: "user", content: [{ type: "text", text: "上一完整问题" }] },
+          { id: "h4", role: "assistant", content: [{ type: "text", text: "上一完整回答" }] },
+        ],
+        (event) => events.push(event),
+      );
+
+      expect(providerCalls).toBe(0);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "context_budget_exhausted" },
+      });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "context_lifecycle_failed",
+          code: "context_budget_exhausted",
+          providerCallBlocked: true,
+        }),
+      );
     } finally {
       await closeServer(server);
     }

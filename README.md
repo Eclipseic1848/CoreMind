@@ -227,7 +227,7 @@ print(result["outcome"], result["transcript"])
 - 带 runId、eventId、sequence、timestamp 的 Trace 与 append-only RunState。
 - 意外中断后可从完整 `step_output` 边界继续；已结束运行、配置/输入不匹配或未完成步骤含非重放安全工具时明确拒绝恢复。
 - 每个工具调用写入幂等关联标识；业务工具仍需自行用该标识实现收据或去重，CoreMind 不承诺“恰好一次”。
-- Provider 调用前的确定性 Context 保护和多轮 Session 恢复。
+- Provider 调用前按实际模型与请求重新预算 Context；压缩使用事实投影的 TaskState，保留上一完整 Turn 与当前 user 消息，并把摘要和 lineage 持久化到 Session。无可持久化 Session、能力冲突或不可删除集合超限时在网络调用前暂停。
 - `RunResult.snapshot` 统一四个入口的 operation、outcome、指标、评测、Trace、Checkpoint、Artifact、扩展收据和恢复判断。
 - 生命周期扩展仅开放 before-model、before-tool、after-tool、run-finished 四个事件；能力与信任显式声明，默认不加载未知本地扩展。
 - 轻量 experiment → arm → run → trace 记录版本、输入指纹、环境、随机种子、运行结果和 grader，不建立第二套评测终态。

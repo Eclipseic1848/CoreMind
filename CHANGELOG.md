@@ -6,6 +6,13 @@
 
 ## 未发布
 
+### Context 生命周期与长任务
+
+- 按实际 Provider/model 和本次请求解析 Context 窗口、输出上限与证据来源；多个可信候选取安全交集，未知、冲突、路由不匹配、请求输出超限和多模态占用未知均在 Provider 前失败关闭。
+- 完整预算本次输出、稳定前缀、工具 Schema、结构化输出、协议开销与安全余量；压缩用 Runtime Facts 投影的 TaskState 替换旧前缀，并保留上一完整 Turn 与当前未完成 user 消息。
+- 每次压缩把摘要写入 Session，并持久化可验证的父链 Ledger；达到深度阈值后从 canonical Session 消息重建。无可持久化 Session、Artifact 漂移或 lineage 损坏时返回结构化暂停，不静默截断。
+- Runtime、Protocol、CLI 与双 SDK 共享预算、压缩和失败投影；Provider 报告超窗时不盲目重试相同请求。真实 Provider 认证仍是独立证据门禁。
+
 ### 工具能力与恢复
 
 - 为每个 Tool Call 解析并持久化唯一、不可变的 `ResolvedToolCapability`，统一 Policy、Approval、Checkpoint 与四入口投影的安全判断。

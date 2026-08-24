@@ -401,7 +401,7 @@ function buildWorkingSet(
     };
   }
 
-  const tailStart = findLastUserIndex(request.messages);
+  const tailStart = findRetainedTailStart(request.messages);
   if (tailStart <= 0) throwUndeletableSetExceeded();
   const retainedTail = request.messages.slice(tailStart);
   const summaryText = `[CoreMind TaskState v1]\n${canonicalJson(request.taskState)}`;
@@ -469,12 +469,14 @@ function buildRequestBudget(
       "invalid_budget",
     );
   }
+  if (requestedOutput > capability.maxOutputTokens) {
+    throw new ContextLifecycleError(
+      `本次请求 maxTokens ${requestedOutput} 超过模型输出上限 ${capability.maxOutputTokens}`,
+      "invalid_budget",
+    );
+  }
 
-  const reservedOutputTokens = Math.min(
-    capability.maxOutputTokens,
-    requestedOutput,
-    Math.max(1, Math.floor(capability.contextWindow * 0.25)),
-  );
+  const reservedOutputTokens = requestedOutput;
   const stablePrefixTokens = estimateTextTokens(request.stablePrefix);
   const toolSchemaTokens =
     request.toolSchemas.length === 0 ? 0 : estimateTextTokens(canonicalJson(request.toolSchemas));
@@ -607,11 +609,27 @@ function estimateMessageTokens(messages: CoreMindMessage[]): number {
   );
 }
 
-function findLastUserIndex(messages: CoreMindMessage[]): number {
+function findRetainedTailStart(messages: CoreMindMessage[]): number {
+  let latestUserIndex = -1;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === "user") return index;
+    if (messages[index]?.role === "user") {
+      latestUserIndex = index;
+      break;
+    }
   }
-  return -1;
+
+  if (latestUserIndex < 0) return -1;
+  const latestUserIsComplete = messages
+    .slice(latestUserIndex + 1)
+    .some((message) => message.role === "assistant");
+  if (latestUserIsComplete) return latestUserIndex;
+
+  let assistantSeen = false;
+  for (let index = latestUserIndex - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "assistant") assistantSeen = true;
+    if (messages[index]?.role === "user" && assistantSeen) return index;
+  }
+  return latestUserIndex;
 }
 
 function throwUndeletableSetExceeded(): never {

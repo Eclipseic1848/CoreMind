@@ -877,8 +877,11 @@ export class CoreMindRuntime {
       if (!compaction) return undefined;
       const activeSession = context.sessionHandle();
       if (!activeSession) {
-        previousContextCompactions.push(compaction.ledgerEntry);
-        return undefined;
+        throw new ContextLifecycleError(
+          "Context 压缩需要可持久化 Session；摘要不能只存在于内存",
+          "budget_exhausted",
+          "context_budget_exhausted",
+        );
       }
 
       let branch = compaction.ledgerEntry.rebuiltFromCanonical
