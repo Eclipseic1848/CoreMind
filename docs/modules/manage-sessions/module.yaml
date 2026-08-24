@@ -30,6 +30,7 @@ testPaths:
   - "packages/coremind-runtime/src/chat-session.test.ts"
   - "packages/coremind-runtime/src/context.test.ts"
   - "packages/coremind-runtime/src/context-lifecycle.test.ts"
+  - "packages/coremind-runtime/src/context-task-state.test.ts"
   - "packages/coremind-runtime/src/runtime.test.ts"
 supportedPlatforms:
   - "windows"

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { ContextLifecycleManager } from "./context-lifecycle.js";
+import type { CoreMindMessage } from "./public-message.js";
 
 describe("ContextLifecycleManager capability 解析", () => {
   it("多个可信上限取安全交集而不是最大窗口", async () => {
@@ -322,6 +323,62 @@ describe("ContextLifecycleManager Working Set", () => {
       reason: "undeletable_set_exceeds_budget",
     });
   });
+
+  it.each([
+    ["只有 toolUse", [assistantToolUse("call-read")]],
+    [
+      "已有 toolResult 但没有最终 assistant",
+      [assistantToolUse("call-read"), toolResult("call-read")],
+    ],
+    ["toolResult 与 toolUse 不匹配", [assistantToolUse("call-read"), toolResult("call-write")]],
+  ])("%s 时保留上一真正闭合且工具配对的 Turn", async (_scenario, incompleteToolTurn) => {
+    const latestCompleteUser = user("上一完整问题");
+    const latestCompleteAssistant = assistant("上一完整回答");
+    const toolUser = user("读取文件");
+    const pendingUser = user("当前继续请求");
+    const result = await prepareWorkingSet([
+      user(`旧问题-${"甲".repeat(8_000)}`),
+      assistant(`旧回答-${"乙".repeat(8_000)}`),
+      latestCompleteUser,
+      latestCompleteAssistant,
+      toolUser,
+      ...incompleteToolTurn,
+      pendingUser,
+    ]);
+
+    expect(result.workingSet.messages.slice(1)).toEqual([
+      latestCompleteUser,
+      latestCompleteAssistant,
+      toolUser,
+      ...incompleteToolTurn,
+      pendingUser,
+    ]);
+  });
+
+  it("toolUse、matching toolResult 与最终 assistant 齐全时保留整个最近完整 Turn", async () => {
+    const toolUser = user("读取文件");
+    const toolAssistant = assistantToolUse("call-read");
+    const resultMessage = toolResult("call-read");
+    const finalAssistant = assistant("读取完成");
+    const pendingUser = user("当前继续请求");
+    const result = await prepareWorkingSet([
+      user(`旧问题-${"甲".repeat(8_000)}`),
+      assistant(`旧回答-${"乙".repeat(8_000)}`),
+      toolUser,
+      toolAssistant,
+      resultMessage,
+      finalAssistant,
+      pendingUser,
+    ]);
+
+    expect(result.workingSet.messages.slice(1)).toEqual([
+      toolUser,
+      toolAssistant,
+      resultMessage,
+      finalAssistant,
+      pendingUser,
+    ]);
+  });
 });
 
 describe("ContextLifecycleManager Artifact 校验", () => {
@@ -635,6 +692,44 @@ function assistant(text: string) {
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
   };
+}
+
+function assistantToolUse(toolCallId: string) {
+  return {
+    ...assistant(""),
+    content: [
+      {
+        type: "toolCall" as const,
+        id: toolCallId,
+        name: "read",
+        arguments: { path: "notes.txt" },
+      },
+    ],
+    stopReason: "toolUse" as const,
+  };
+}
+
+function toolResult(toolCallId: string) {
+  return {
+    role: "toolResult" as const,
+    toolCallId,
+    toolName: "read",
+    content: [{ type: "text" as const, text: "文件内容" }],
+    isError: false,
+    timestamp: 1,
+  };
+}
+
+async function prepareWorkingSet(messages: CoreMindMessage[]) {
+  return new ContextLifecycleManager().prepare({
+    providerId: "custom",
+    modelId: "compact-model",
+    resolvedAt: 1,
+    capabilityCandidates: [
+      candidate("explicit_config", "declared", 2_000, 256, "custom", "compact-model"),
+    ],
+    request: { ...emptyRequest(), messages },
+  });
 }
 
 function textOf(message: { role: string; content: unknown } | undefined): string {

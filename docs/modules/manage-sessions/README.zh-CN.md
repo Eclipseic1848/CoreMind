@@ -43,6 +43,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-runtime/src/chat-session.test.ts](../../../packages/coremind-runtime/src/chat-session.test.ts)
 - [packages/coremind-runtime/src/context.test.ts](../../../packages/coremind-runtime/src/context.test.ts)
 - [packages/coremind-runtime/src/context-lifecycle.test.ts](../../../packages/coremind-runtime/src/context-lifecycle.test.ts)
+- [packages/coremind-runtime/src/context-task-state.test.ts](../../../packages/coremind-runtime/src/context-task-state.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
 - [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-sessions/README.en.md)

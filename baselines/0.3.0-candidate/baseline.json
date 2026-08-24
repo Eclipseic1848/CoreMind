@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "d9cc962ba40eebe37480588de1c0a122056c2890",
+    "developmentCommit": "e5dbd938c5844e29764210c4e76567f71e0bf273",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -282,9 +282,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-24T17:55:59.271Z",
+    "capturedAt": "2026-08-24T18:33:35.177Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #69 review fixes: preserve complete turn, exact output reserve, durable compaction and public docs",
+    "updateReason": "Issue #69 final review: require tool-paired complete turns and synchronize module tests",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "0fd145119ee8d7944eabb6967e619852edb0c00cf20faf86080db8e7bee956ce",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
@@ -293,7 +293,7 @@
       "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
       "coremind-config": "947a52b0beda6c71bdf1459123bf1153e5bcfaa7d0ab67acc7e93cb79a97d295",
       "coremind-protocol": "70dce477e0b88c08cbacd1598cc995ec6dc5a0517d67c24cbb1ebdc8b1817ec7",
-      "coremind-runtime": "666fb54adeaf1e2ffd1557be62eae2c7dc245241db303c1eff8753526b19492a",
+      "coremind-runtime": "149dd3af0263d8191b1759b72c0d4b961504d62581b163d97f7262bdc203f99c",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "82dcc2531208b48f9c52ddc25d3f02268ee1425666b94d12fd36335b0de8a07e",
       "coremind-worker": "ee3b5682dfabcb929c2ff69bcac394de3d24c80228439b8fc76dcbff0e350b33"

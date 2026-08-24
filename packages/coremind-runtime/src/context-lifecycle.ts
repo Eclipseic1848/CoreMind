@@ -611,25 +611,70 @@ function estimateMessageTokens(messages: CoreMindMessage[]): number {
 
 function findRetainedTailStart(messages: CoreMindMessage[]): number {
   let latestUserIndex = -1;
+  let turnEnd = messages.length;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === "user") {
-      latestUserIndex = index;
-      break;
-    }
-  }
-
-  if (latestUserIndex < 0) return -1;
-  const latestUserIsComplete = messages
-    .slice(latestUserIndex + 1)
-    .some((message) => message.role === "assistant");
-  if (latestUserIsComplete) return latestUserIndex;
-
-  let assistantSeen = false;
-  for (let index = latestUserIndex - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === "assistant") assistantSeen = true;
-    if (messages[index]?.role === "user" && assistantSeen) return index;
+    if (messages[index]?.role !== "user") continue;
+    if (latestUserIndex < 0) latestUserIndex = index;
+    if (isCompleteTurn(messages, index, turnEnd)) return index;
+    turnEnd = index;
   }
   return latestUserIndex;
+}
+
+function isCompleteTurn(messages: CoreMindMessage[], start: number, end: number): boolean {
+  const finalMessage = messages[end - 1];
+  if (
+    finalMessage?.role !== "assistant" ||
+    (finalMessage.stopReason !== undefined &&
+      finalMessage.stopReason !== "stop" &&
+      finalMessage.stopReason !== "length")
+  ) {
+    return false;
+  }
+
+  const pendingToolCalls = new Set<string>();
+  for (let index = start + 1; index < end; index += 1) {
+    const message = messages[index]!;
+    if (message.role === "assistant") {
+      if (index < end - 1 && message.stopReason !== "toolUse") return false;
+      const toolCallIds = extractToolCallIds(message);
+      if (message.stopReason === "toolUse" && toolCallIds.length === 0) return false;
+      for (const toolCallId of toolCallIds) {
+        if (pendingToolCalls.has(toolCallId)) return false;
+        pendingToolCalls.add(toolCallId);
+      }
+      continue;
+    }
+    if (message.role !== "toolResult") continue;
+    const toolResultIds = extractToolResultIds(message);
+    if (toolResultIds.length === 0) return false;
+    for (const toolResultId of toolResultIds) {
+      if (!pendingToolCalls.delete(toolResultId)) return false;
+    }
+  }
+  return pendingToolCalls.size === 0;
+}
+
+function extractToolCallIds(message: CoreMindMessage): string[] {
+  if (!Array.isArray(message.content)) return [];
+  return message.content.flatMap((item) =>
+    item.type === "toolCall" && item.id.trim() ? [item.id] : [],
+  );
+}
+
+function extractToolResultIds(message: CoreMindMessage): string[] {
+  const topLevelId = (message as CoreMindMessage & { toolCallId?: unknown }).toolCallId;
+  const contentIds = Array.isArray(message.content)
+    ? message.content.flatMap((item) =>
+        item.type === "toolResult" && item.toolCallId.trim() ? [item.toolCallId] : [],
+      )
+    : [];
+  return [
+    ...new Set([
+      ...(typeof topLevelId === "string" && topLevelId.trim() ? [topLevelId] : []),
+      ...contentIds,
+    ]),
+  ];
 }
 
 function throwUndeletableSetExceeded(): never {
