@@ -15,6 +15,7 @@ import {
 import {
   createActualFaultInjector,
   createFaultResourceTracker,
+  runOwnedCrashProbe,
   summarizeFaultResources,
 } from "./trusted-tool-fault-probes.mjs";
 import { runLiveBoundaryProbe } from "./trusted-tool-live-boundary-probes.mjs";
@@ -45,6 +46,29 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
       ).resolves.toMatchObject({ status: "passed" });
     } finally {
       await new Promise((resolve) => setTimeout(resolve, 120));
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("owner 崩溃验收预算覆盖受压冷启动且保留真实退出证据", async () => {
+    const workspaceRoot = mkdtempSync(path.join(tmpdir(), "coremind-owner-cold-start-"));
+    const tracker = createFaultResourceTracker();
+    try {
+      await expect(
+        runOwnedCrashProbe(
+          {
+            seed: 125,
+            point: "result_barrier",
+            kind: "owner_exit",
+            effect: "workspace",
+            timing: "before",
+            probeStartupDelayMs: 15_100,
+          },
+          workspaceRoot,
+          tracker,
+        ),
+      ).resolves.toMatchObject({ status: "passed", owner: "worker", exitCode: 87 });
+    } finally {
       rmSync(workspaceRoot, { recursive: true, force: true });
     }
   });
