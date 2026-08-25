@@ -1,6 +1,6 @@
 # CoreMind Security Policy
 
-Security issues must be handled privately. This page describes responsible reporting and the explicit boundaries of the current prerelease candidate.
+Security issues must be handled privately. This page describes responsible reporting and the explicit boundaries of the current stable release and development source.
 
 [简体中文](SECURITY.md)
 
@@ -26,7 +26,10 @@ If no private entry point is available, open a public issue without technical de
 - Custom TypeScript, Python, and script tools must declare operations, reversibility, and non-standard target fields. They do not automatically receive OS isolation, and authors still own validation, least privilege, timeouts, idempotency, and side-effect control.
 - Secrets belong in environment variables, never configuration, source, logs, traces, screenshots, or fixtures.
 - Before persistence or observer delivery, trace events recursively redact secret, token, password, authorization, cookie, private-key, and credential fields. Sensitive URL credentials/query values and command values are also replaced; normal test commands remain reviewable, while body-like content is represented only by a length marker.
-- Telemetry is off by default. Explicit approval is required before sending business data to an external model or tool.
+- Local Observability is visible by default, but it only projects canonical facts on the local machine. Enabling a local view is not consent for egress, and a projection cannot be written back as recovery authority.
+- Telemetry defaults to `DISABLED`: no exporter is constructed, no egress credential is read, and no network request is sent. `FEEDBACK_ONLY` may send only the bounded fact prefix covered by durable consent; `FULL` may still send only allowlisted fields after its configuration takes effect.
+- The default content level is `metrics_only`. Prompts, responses, tool arguments or results, commands, file content, full paths, environment values, and credentials cannot be exported. `content` requires separate explicit consent and cannot be inferred from `FULL` mode.
+- Exporter queue, retry, drop, authentication, timeout, or shutdown failures may produce local observations only; they cannot change RunOutcome, fact sequence, RecoveryDecision, or EffectState.
 - Checkpoint restore compares the post-tool file fingerprint and refuses to overwrite a later user or concurrent edit. Run state and Loop snapshots resume only at validated stable boundaries with matching configuration and input.
 - Tool calls record `started`, `committed`, or `unknown` effect receipts. Resume does not replay committed effects automatically, while started or unknown effects require human reconciliation. This is not a universal exactly-once guarantee; email, payment, database writes, and other external effects still need business idempotency, receipts, or compensation.
 - The internal state machine controls transitions only. CoreMind configuration fingerprints, permissions, budgets, traces, terminal semantics, and resume validation remain authoritative. Corrupt, unknown-version, or mismatched snapshots are rejected.

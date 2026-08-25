@@ -1,6 +1,6 @@
 # CoreMind 安全策略
 
-安全问题需要私下处理。本页说明如何报告漏洞，以及当前预发布候选明确提供和不提供的安全边界。
+安全问题需要私下处理。本页说明如何报告漏洞，以及当前稳定版与开发源码明确提供和不提供的安全边界。
 
 [English](SECURITY.en.md)
 
@@ -38,7 +38,10 @@
 
 - 密钥只通过环境变量注入，不写入 YAML、源码、日志、Trace、截图或测试样例。
 - Trace 在写入 RunState 和转发给观察者前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥与凭据字段；URL 凭据/敏感查询参数及命令中的敏感值也会替换。普通测试命令保留可审查性，正文类字段只保留长度标记。
-- 默认不启用遥测；向外部模型或工具发送业务数据前必须取得用户明确授权。
+- 本地 Observability 默认显性可见，但只从 canonical facts 生成本机 Projection；启用本地视图不等于同意外传，Projection 也不能写回并成为恢复权威。
+- Telemetry 默认为 `DISABLED`：不构造 Exporter、不读取外传凭据、不发送网络请求。`FEEDBACK_ONLY` 只允许发送持久 consent 覆盖的有界事实前缀；`FULL` 也只允许发送配置生效后的 allowlist 字段。
+- 默认内容级别是 `metrics_only`。提示词、回复、工具参数/结果、命令、文件正文、完整路径、环境变量值和凭据不得外传；`content` 必须另行明确授权，不能从 `FULL` 模式推断。
+- Exporter 的队列、重试、丢弃、认证、超时或关闭故障只能产生本地观测，不得改变 RunOutcome、Fact sequence、RecoveryDecision 或 EffectState。
 - 脱敏不是数据隔离：会话、Checkpoint、质量覆盖记录及非敏感 Trace 字段仍可能包含业务上下文。请按敏感业务数据管理本地状态，使用操作系统访问控制，并自行配置保留和清理策略。
 
 ### 恢复边界

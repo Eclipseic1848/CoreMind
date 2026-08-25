@@ -50,9 +50,10 @@ npm run check
 2. 为缺陷先写能复现失败的测试；为功能先写可验证的验收测试。
 3. 实现满足测试的最小改动，不顺手重构无关代码。
 4. 同步更新中英文文档、SOP、Skill、示例和变更记录。
-5. 运行与改动相关的测试，再运行完整门禁。
-6. 自查 Diff，删除调试日志、临时文件、密钥和本机绝对路径。
-7. 创建 Pull Request，并完整填写模板。
+5. 若一个阶段 Gate 完成，复核 README、行为准则、贡献指南、MIT License、安全策略和 GitHub About；只更新已经变化的事实、流程或联系信息，并记录无需修改的复核项。
+6. 运行与改动相关的测试，再运行完整门禁。
+7. 自查 Diff，删除调试日志、临时文件、密钥和本机绝对路径。
+8. 创建 Pull Request，并完整填写模板。
 
 ## 完整质量门禁
 
@@ -81,6 +82,8 @@ npm run release:check-wheel
 ```
 
 `release:check-wheel` 会自行创建全新虚拟环境，验证安装、版本和内置 Worker 启动。正式候选仍需 Windows/Linux 各三连跑；本地通过不代表可以跳过目标平台 CI 或双平台真实伪终端验收。
+
+涉及 Fact、Projection、Replay 或 Observability 的改动还必须证明：Projection 可从 canonical facts 确定性重建，不会反向成为恢复权威；CLI、TUI、TypeScript、Python 入口对共同合同等价。涉及 Telemetry 的改动必须覆盖默认 `DISABLED` 零 Exporter/零凭据读取/零网络、持久 consent 绑定、字段 allowlist 与递归脱敏，以及 Exporter 故障不改变 RunOutcome、Fact sequence、RecoveryDecision 或 EffectState。
 
 发布版本由 Release Please 草稿 PR 统一准备，不从功能分支直接打 Tag。RC 必须按[RC 验收指南](docs/release/RC-ACCEPTANCE.zh-CN.md)留存 P01～P20、双平台、真实 Provider 和同提交证据；归档前再运行全仓 Markdown 审计。npm 与 PyPI 使用受保护 GitHub 环境和 OIDC 可信发布，贡献者无需也不应提交 Registry Token。完整过程见[发布 SOP](docs/release/README.zh-CN.md)。
 

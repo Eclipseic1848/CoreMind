@@ -30,9 +30,10 @@ npm run check
 2. Add a failing regression test or an executable acceptance test.
 3. Implement the smallest change that satisfies it.
 4. Update bilingual documentation, SOPs, Skills, examples, and changelogs when behavior changes.
-5. Run focused tests and then the full quality gate.
-6. Review the diff for debug output, temporary files, secrets, and workstation paths.
-7. Open a pull request and complete every relevant template field.
+5. When a phase gate completes, review the README, Code of Conduct, contributing guide, MIT License, security policy, and GitHub About. Update only facts, processes, or contact details that changed, and record reviewed items that need no edit.
+6. Run focused tests and then the full quality gate.
+7. Review the diff for debug output, temporary files, secrets, and workstation paths.
+8. Open a pull request and complete every relevant template field.
 
 ```bash
 npm run build
@@ -49,6 +50,8 @@ npm run release:preflight -- --allow-dirty
 ```
 
 Python changes also require the Python test suite, Worker build, wheel build, Twine, and `npm run release:check-wheel`, which installs into a fresh virtual environment and starts the bundled Worker. A candidate still needs three consecutive Windows/Linux runs plus separately recorded real-pseudoterminal evidence from both target platforms.
+
+Changes to facts, projections, replay, or observability must also prove that projections rebuild deterministically from canonical facts without becoming recovery authority, and that CLI, TUI, TypeScript, and Python entries preserve the shared contract. Telemetry changes must cover default `DISABLED` behavior with no exporter construction, credential reads, or network; durable consent binding; field allowlists and recursive redaction; and exporter failures that cannot change RunOutcome, fact sequence, RecoveryDecision, or EffectState.
 
 Release versions are prepared through a Release Please draft PR, never by tagging a feature branch directly. Follow the [RC acceptance guide](docs/release/RC-ACCEPTANCE.en.md) for P01-P20, both target platforms, the current live-provider recheck, and same-commit evidence; run the repository-wide Markdown audit again before archiving the candidate. npm and PyPI use protected GitHub environments and OIDC trusted publishing, so contributors must not submit registry tokens. See the [release SOP](docs/release/README.en.md) for the complete process.
 
