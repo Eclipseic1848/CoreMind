@@ -1,6 +1,7 @@
 import type { TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { type CoreMindConfig, CoreMindConfigSchema, type WorkflowStep } from "./schema/config.js";
+import { CustomProviderSchema } from "./schema/provider.js";
 
 /** 配置校验失败（含可读的中文字段路径） */
 export class ConfigValidationError extends Error {
@@ -27,6 +28,7 @@ export function validateConfig(data: unknown): CoreMindConfig {
   }
 
   validateCustomToolEffects(record);
+  validateCustomProviderFields(record);
 
   if (!Value.Check(CoreMindConfigSchema, data)) {
     const details: string[] = [];
@@ -49,6 +51,26 @@ export function validateConfig(data: unknown): CoreMindConfig {
   validateLoopAgents(config);
   validateTelemetry(config);
   return config;
+}
+
+function validateCustomProviderFields(record: Record<string, unknown>): void {
+  const provider = record.provider;
+  if (
+    provider === null ||
+    typeof provider !== "object" ||
+    Array.isArray(provider) ||
+    !("baseUrl" in provider)
+  ) {
+    return;
+  }
+
+  const allowed = propertiesOf(CustomProviderSchema);
+  const details = Object.keys(provider)
+    .filter((key) => !allowed.has(key))
+    .map((key) => `provider.${key}：自定义 Provider 不支持该字段`);
+  if (details.length > 0) {
+    throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
+  }
 }
 
 function validateTelemetry(config: CoreMindConfig): void {
