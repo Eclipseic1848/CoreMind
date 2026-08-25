@@ -31,6 +31,7 @@ describe("GitHub Actions 收口合同", () => {
 
   it("双平台 CI 使用三连跑、覆盖率和真实发布物门禁", () => {
     const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const stabilityScript = readFileSync("scripts/test-stability.mjs", "utf8");
     const checkout = workflow.jobs.test.steps.find((step: { uses?: string }) =>
       step.uses?.startsWith("actions/checkout@"),
     );
@@ -41,6 +42,7 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs.test.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
     expect(checkout.with["fetch-depth"]).toBe(0);
     expect(commands).toContain("npm run test:stability");
+    expect(stabilityScript).toContain('"--maxWorkers=1"');
     expect(commands).toContain("npm run test:coverage");
     expect(commands).toContain("npm run release:check-npm");
     expect(commands).toContain("npm run release:test-npm");

@@ -7,12 +7,19 @@ for (let run = 1; run <= totalRuns; run += 1) {
   console.log(`稳定性测试 ${run}/${totalRuns}`);
   const env = { ...process.env, COREMIND_STABILITY_RUN: String(run) };
   const result = npmCli
-    ? spawnSync(process.execPath, [npmCli, "test"], { stdio: "inherit", env })
-    : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["test"], {
+    ? spawnSync(process.execPath, [npmCli, "test", "--", "--maxWorkers=1"], {
         stdio: "inherit",
         env,
-        shell: process.platform === "win32",
-      });
+      })
+    : spawnSync(
+        process.platform === "win32" ? "npm.cmd" : "npm",
+        ["test", "--", "--maxWorkers=1"],
+        {
+          stdio: "inherit",
+          env,
+          shell: process.platform === "win32",
+        },
+      );
   if (result.status !== 0) {
     console.error(`稳定性测试第 ${run} 次失败`);
     process.exitCode = result.status ?? 1;
