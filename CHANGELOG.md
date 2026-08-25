@@ -6,6 +6,14 @@
 
 ## 未发布
 
+### Replay 与显性可观测性
+
+- 新增 deterministic `ReplayKit`，从固定 Run Facts 与 Provider request fixture 重建 RunSnapshot、Context、Artifact、RecoveryDecision 和本地观测；0.3.0/0.3.1 缺少 Telemetry 字段的历史 Fact 显式标记为 `legacy_default`。
+- `RunResult.observability`、CLI JSONL、TUI `/observability`、Worker 与 Python SDK 共享同一 Fact Projection，显示 Run/Turn/Call、耗时、错误、Context、Artifact、共享状态、Telemetry 模式、脱敏 origin、授权范围和交付队列。
+- Telemetry 默认 `DISABLED`，不构造 Exporter、不读取凭据。`FEEDBACK_ONLY` 只接受绑定同一 Run 与 canonical Fact 前缀指纹的持久 consent；`content` 需要声明保留目的和撤销方式的独立授权。模式、目标、字段或范围指纹不一致均失败关闭。
+- Exporter DNS/TLS/401/429/timeout、queue full、重复、drop、脱敏失败和 shutdown 超时只更新可丢弃的交付投影，不改变 RunOutcome、Facts 或恢复结论；`handed_off` 明确不等于接收端 delivered。
+- 当前源码只交付可注入 Exporter seam、受信任 Adapter 收据合同与离线故障证据；Core 校验精确 origin、解析地址、redirect/proxy deny、TLS strict 和收据指纹，但该收据不证明网络策略真实执行。没有新增 OTel 依赖，也没有执行真实 OTLP endpoint、凭据、Telemetry 出网或真实 Provider 认证。
+
 ### Context 生命周期与长任务
 
 - 按实际 Provider/model 和本次请求解析 Context 窗口、输出上限与证据来源；多个可信候选取安全交集，未知、冲突、路由不匹配、请求输出超限和多模态占用未知均在 Provider 前失败关闭。

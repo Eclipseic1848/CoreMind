@@ -4,7 +4,13 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ChatSession, type CoreMindConfig, CoreMindRuntime, FileRunStore } from "coremind-ai";
+import {
+  ChatSession,
+  type CoreMindConfig,
+  CoreMindRuntime,
+  FileRunStore,
+  type LocalObservabilityProjection,
+} from "coremind-ai";
 import { ProjectionEngine } from "coremind-ai/internal";
 import { render } from "ink-testing-library";
 import { describe, expect, it, vi } from "vitest";
@@ -33,6 +39,12 @@ interface WireSignature {
   text: string;
   toolCalls?: Array<{ name: string; args: string }>;
   toolName?: string;
+}
+
+interface EntryCapture {
+  signatures: WireSignature[];
+  fingerprint: ResultFingerprint;
+  port: number;
 }
 
 function textOf(content: unknown): string {
@@ -89,7 +101,29 @@ interface ResultFingerprint {
   capabilityEffect: string;
   capabilitySource: string;
   recoveryDisposition: string;
+  observabilitySchemaVersion: number;
+  localObservabilityEnabled: boolean;
+  telemetryMode: string;
+  telemetrySource: string;
+  telemetryContentLevel: string;
+  exporterLoaded: boolean;
+  contextBudgets: number;
+  contextCompactions: number;
+  callsStarted: number;
+  callsCompleted: number;
+  deliverySemantics: string;
+  authorizedScopeCount: number;
+  normalizedFacts: unknown[];
+  outcome: unknown;
+  recovery: unknown;
+  context: unknown;
+  providerRequests: unknown[];
 }
+
+type LiveResultFingerprint = Omit<
+  ResultFingerprint,
+  "normalizedFacts" | "outcome" | "recovery" | "context" | "providerRequests"
+>;
 
 interface SnapshotFingerprintInput {
   schemaVersion: number;
@@ -106,7 +140,8 @@ interface SnapshotFingerprintInput {
 function fingerprintOf(
   outcomeStatus: string,
   snapshot: SnapshotFingerprintInput,
-): ResultFingerprint {
+  observability: LocalObservabilityProjection,
+): LiveResultFingerprint {
   const capability = snapshot.trace.find(
     (entry) => entry.event.type === "capability_resolved",
   )?.event;
@@ -117,6 +152,18 @@ function fingerprintOf(
     capabilityEffect: capability?.capability?.effect ?? "missing",
     capabilitySource: capability?.capability?.source ?? "missing",
     recoveryDisposition: capability?.recoveryDisposition ?? "missing",
+    observabilitySchemaVersion: observability.schemaVersion,
+    localObservabilityEnabled: observability.localEnabled,
+    telemetryMode: observability.telemetry.mode,
+    telemetrySource: observability.telemetry.source,
+    telemetryContentLevel: observability.telemetry.contentLevel,
+    exporterLoaded: observability.telemetry.exporterLoaded,
+    contextBudgets: observability.context.budgets,
+    contextCompactions: observability.context.compactions,
+    callsStarted: observability.calls.started,
+    callsCompleted: observability.calls.completed,
+    deliverySemantics: observability.telemetry.deliverySemantics,
+    authorizedScopeCount: observability.telemetry.authorizedScopes.length,
   };
 }
 
@@ -126,14 +173,67 @@ async function fingerprintFromFacts(
   outcomeStatus: string,
 ): Promise<ResultFingerprint> {
   const store = new FileRunStore(path.join(directory, ".coremind", "runs"));
-  const projection = ProjectionEngine.project(await store.read(runId));
+  const records = await store.read(runId);
+  const projection = ProjectionEngine.project(records);
   expect(projection.snapshot).toBeDefined();
-  return fingerprintOf(outcomeStatus, projection.snapshot!);
+  return {
+    ...fingerprintOf(outcomeStatus, projection.snapshot!, projection.observability),
+    normalizedFacts: projection.records.map((record) => normalizeFact(record)),
+    outcome: normalizeFact(projection.outcome),
+    recovery: normalizeFact(projection.recovery),
+    context: normalizeFact(projection.context),
+    providerRequests: projection.trace.flatMap((entry) =>
+      entry.event.type === "provider_request"
+        ? [
+            {
+              requestId: entry.event.requestId,
+              providerId: entry.event.providerId,
+              modelId: entry.event.modelId,
+              messageFingerprint: entry.event.messageFingerprint,
+              toolSchemaFingerprint: entry.event.toolSchemaFingerprint,
+              capabilityFingerprint: entry.event.capabilityFingerprint,
+              contextWorkingSetFingerprint: entry.event.contextWorkingSetFingerprint,
+            },
+          ]
+        : [],
+    ),
+  };
+}
+
+function normalizeFact(value: unknown, key = ""): unknown {
+  if (Array.isArray(value)) return value.map((item) => normalizeFact(item));
+  if (value === null || typeof value !== "object") {
+    if (typeof value === "number" && key === "durationMs") return "<duration>";
+    if (typeof value !== "string") return value;
+    if (/^\d{4}-\d{2}-\d{2}T/u.test(value)) return "<timestamp>";
+    if (/Fingerprint$/u.test(key) && /^[0-9a-f]{64}$/iu.test(value)) return `<${key}>`;
+    if (key === "correlationId" || key === "idempotencyKey") return `<${key}>`;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
+      return `<${key || "uuid"}>`;
+    }
+    return value
+      .replace(/[A-Z]:\\[^'"\r\n]*/giu, "<path>")
+      .replace(/\/(?:tmp|var\/tmp)\/[^'"\r\n]*/gu, "<path>");
+  }
+  const omitted = new Set([
+    "timestamp",
+    "configuredAt",
+    "sessionId",
+    "sessionSeqStart",
+    "turnSeqStart",
+  ]);
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([field, item]) => !omitted.has(field) && item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right, "en"))
+      .map(([field, item]) => [field, normalizeFact(item, field)]),
+  );
 }
 
 /** 假 Provider：记录每次请求的规范化签名，脚本化返回纯文本响应 */
 async function createEquivalenceServer(
   onRequest: (signatures: WireSignature[]) => void,
+  options: { port?: number } = {},
 ): Promise<{ server: Server; port: number }> {
   const server = createServer((request, response) => {
     let body = "";
@@ -179,7 +279,10 @@ async function createEquivalenceServer(
                         index: 0,
                         id: "call-read-equivalence",
                         type: "function",
-                        function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                        function: {
+                          name: "read",
+                          arguments: '{"path":"notes.txt"}',
+                        },
                       },
                     ],
                   },
@@ -196,7 +299,7 @@ async function createEquivalenceServer(
       response.end("data: [DONE]\n\n");
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
   return { server, port: (server.address() as { port: number }).port };
 }
 
@@ -226,15 +329,19 @@ async function closeServer(server: Server): Promise<void> {
 }
 
 /** 入口 1：TS SDK——直接驱动 CoreMindRuntime */
-async function captureTsSdk(missingFile = false): Promise<{
-  signatures: WireSignature[];
-  fingerprint: ResultFingerprint;
-}> {
+async function captureTsSdk(
+  missingFile = false,
+  fixedPort?: number,
+  fixedDirectory?: string,
+): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
-  const { server, port } = await createEquivalenceServer((signatures) =>
-    captured.push(...signatures),
+  const { server, port } = await createEquivalenceServer(
+    (signatures) => captured.push(...signatures),
+    {
+      ...(fixedPort === undefined ? {} : { port: fixedPort }),
+    },
   );
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
+  const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
   prepareFixtureFile(dir, missingFile);
   try {
     const runtime = await CoreMindRuntime.create({
@@ -245,9 +352,17 @@ async function captureTsSdk(missingFile = false): Promise<{
     });
     const result = await runtime.run();
     expect(result.outcome.status).toBe("succeeded");
+    const liveFingerprint = fingerprintOf(
+      result.outcome.status,
+      result.snapshot,
+      result.observability,
+    );
+    const fingerprint = await fingerprintFromFacts(dir, result.runId, result.outcome.status);
+    expect(fingerprint).toMatchObject(liveFingerprint);
     return {
       signatures: captured,
-      fingerprint: await fingerprintFromFacts(dir, result.runId, result.outcome.status),
+      fingerprint,
+      port,
     };
   } finally {
     await closeServer(server);
@@ -276,15 +391,19 @@ function spawnAndWait(
 }
 
 /** 入口 2：CLI——异步 spawn dist/cli.js run --json-events（同步 spawn 会阻塞 mock server 事件循环） */
-async function captureCli(missingFile = false): Promise<{
-  signatures: WireSignature[];
-  fingerprint: ResultFingerprint;
-}> {
+async function captureCli(
+  missingFile = false,
+  fixedPort?: number,
+  fixedDirectory?: string,
+): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
-  const { server, port } = await createEquivalenceServer((signatures) =>
-    captured.push(...signatures),
+  const { server, port } = await createEquivalenceServer(
+    (signatures) => captured.push(...signatures),
+    {
+      ...(fixedPort === undefined ? {} : { port: fixedPort }),
+    },
   );
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
+  const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
   const configPath = path.join(dir, "coremind.yaml");
   prepareFixtureFile(dir, missingFile);
   // 配置文件支持 JSON 格式（YAML/JSON 双格式）
@@ -308,6 +427,7 @@ async function captureCli(missingFile = false): Promise<{
             runId?: string;
             outcome?: { status?: string };
             snapshot?: SnapshotFingerprintInput;
+            observability?: LocalObservabilityProjection;
           };
         } catch {
           return null;
@@ -316,13 +436,19 @@ async function captureCli(missingFile = false): Promise<{
       .find((item) => item && item.type === "run_result");
     expect(runResult).toBeTruthy();
     expect(runResult?.outcome?.status).toBe("succeeded");
+    expect(runResult?.snapshot).toBeDefined();
+    expect(runResult?.observability).toBeDefined();
+    const liveFingerprint = fingerprintOf(
+      runResult?.outcome?.status ?? "",
+      runResult!.snapshot!,
+      runResult!.observability!,
+    );
+    const fingerprint = await fingerprintFromFacts(dir, runResult?.runId ?? "", "succeeded");
+    expect(fingerprint).toMatchObject(liveFingerprint);
     return {
       signatures: captured,
-      fingerprint: await fingerprintFromFacts(
-        dir,
-        runResult?.runId ?? "",
-        runResult?.outcome?.status ?? "",
-      ),
+      fingerprint,
+      port,
     };
   } finally {
     await closeServer(server);
@@ -365,15 +491,19 @@ async function waitForTuiFingerprint(
 }
 
 /** 入口 3a：TUI——ink 渲染 ChatTUI + 真实 ChatSession 驱动一轮对话（请求等价） */
-async function captureTui(missingFile = false): Promise<{
-  signatures: WireSignature[];
-  fingerprint: ResultFingerprint;
-}> {
+async function captureTui(
+  missingFile = false,
+  fixedPort?: number,
+  fixedDirectory?: string,
+): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
-  const { server, port } = await createEquivalenceServer((signatures) =>
-    captured.push(...signatures),
+  const { server, port } = await createEquivalenceServer(
+    (signatures) => captured.push(...signatures),
+    {
+      ...(fixedPort === undefined ? {} : { port: fixedPort }),
+    },
   );
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
+  const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
   prepareFixtureFile(dir, missingFile);
   try {
     const runtime = await CoreMindRuntime.create({
@@ -386,7 +516,13 @@ async function captureTui(missingFile = false): Promise<{
     let fingerprint: ResultFingerprint | undefined;
     vi.spyOn(session, "chat").mockImplementation(async (message) => {
       const turn = await chat(message);
+      const liveFingerprint = fingerprintOf(
+        turn.run.outcome.status,
+        turn.run.snapshot,
+        turn.run.observability,
+      );
       fingerprint = await fingerprintFromFacts(dir, turn.run.runId, turn.run.outcome.status);
+      expect(fingerprint).toMatchObject(liveFingerprint);
       return turn;
     });
     const app = render(
@@ -401,22 +537,26 @@ async function captureTui(missingFile = false): Promise<{
     await waitForCapture(captured, 6);
     const resultFingerprint = await waitForTuiFingerprint(() => fingerprint);
     app.unmount();
-    return { signatures: captured, fingerprint: resultFingerprint };
+    return { signatures: captured, fingerprint: resultFingerprint, port };
   } finally {
     await closeServer(server);
   }
 }
 
 /** 入口 4：Python SDK——spawn 临时脚本驱动 CoreMindClient（经 worker 连 mock provider） */
-async function capturePython(missingFile = false): Promise<{
-  signatures: WireSignature[];
-  fingerprint: ResultFingerprint;
-}> {
+async function capturePython(
+  missingFile = false,
+  fixedPort?: number,
+  fixedDirectory?: string,
+): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
-  const { server, port } = await createEquivalenceServer((signatures) =>
-    captured.push(...signatures),
+  const { server, port } = await createEquivalenceServer(
+    (signatures) => captured.push(...signatures),
+    {
+      ...(fixedPort === undefined ? {} : { port: fixedPort }),
+    },
   );
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
+  const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
   prepareFixtureFile(dir, missingFile);
   const scriptPath = path.join(dir, "capture.py");
   const script = [
@@ -440,6 +580,7 @@ async function capturePython(missingFile = false): Promise<{
     'print("OUTCOME:" + json.dumps(result["outcome"]))',
     'snap = result["snapshot"]',
     'print("SNAPSHOT:" + json.dumps({"schemaVersion": snap["schemaVersion"], "resumable": snap["resumable"], "trace": snap["trace"]}))',
+    'print("OBSERVABILITY:" + json.dumps(result["observability"]))',
     "client.close()",
   ].join("\n");
   writeFileSync(scriptPath, script, "utf8");
@@ -453,24 +594,33 @@ async function capturePython(missingFile = false): Promise<{
     const outcomeLine = stdout.split("\n").find((line) => line.startsWith("OUTCOME:"));
     const runIdLine = stdout.split("\n").find((line) => line.startsWith("RUN_ID:"));
     const snapshotLine = stdout.split("\n").find((line) => line.startsWith("SNAPSHOT:"));
+    const observabilityLine = stdout.split("\n").find((line) => line.startsWith("OBSERVABILITY:"));
     expect(outcomeLine).toBeTruthy();
     expect(runIdLine).toBeTruthy();
     expect(snapshotLine).toBeTruthy();
+    expect(observabilityLine).toBeTruthy();
     const outcome = JSON.parse(outcomeLine!.slice("OUTCOME:".length)) as { status: string };
     const snapshot = JSON.parse(snapshotLine!.slice("SNAPSHOT:".length)) as {
       schemaVersion: number;
       resumable: boolean;
       trace: SnapshotFingerprintInput["trace"];
     };
+    const observability = JSON.parse(
+      observabilityLine!.slice("OBSERVABILITY:".length),
+    ) as LocalObservabilityProjection;
     expect(outcome.status).toBe("succeeded");
     expect(snapshot.schemaVersion).toBe(1);
+    const liveFingerprint = fingerprintOf(outcome.status, snapshot, observability);
+    const fingerprint = await fingerprintFromFacts(
+      dir,
+      runIdLine!.slice("RUN_ID:".length).trim(),
+      outcome.status,
+    );
+    expect(fingerprint).toMatchObject(liveFingerprint);
     return {
       signatures: captured,
-      fingerprint: await fingerprintFromFacts(
-        dir,
-        runIdLine!.slice("RUN_ID:".length).trim(),
-        outcome.status,
-      ),
+      fingerprint,
+      port,
     };
   } finally {
     await closeServer(server);
@@ -479,12 +629,11 @@ async function capturePython(missingFile = false): Promise<{
 
 describe("四入口请求等价（门 A-2）", () => {
   it("TS SDK / CLI / TUI / Python 驱动同 fixture 生成等价规范化请求与结果", async () => {
-    const [tsCaptured, cliCaptured, tuiCaptured, pyCaptured] = await Promise.all([
-      captureTsSdk(),
-      captureCli(),
-      captureTui(),
-      capturePython(),
-    ]);
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-success-"));
+    const tsCaptured = await captureTsSdk(false, undefined, directory);
+    const cliCaptured = await captureCli(false, tsCaptured.port, directory);
+    const tuiCaptured = await captureTui(false, tsCaptured.port, directory);
+    const pyCaptured = await capturePython(false, tsCaptured.port, directory);
     // 工具 fixture：首请求两条，第二次请求包含原请求、toolUse 与 toolResult。
     expect(tsCaptured.signatures.map((item) => item.role)).toEqual([
       "system",
@@ -510,12 +659,11 @@ describe("四入口请求等价（门 A-2）", () => {
   });
 
   it("Tool Error fault fixture 在四入口生成相同结果与 RecoveryDisposition", async () => {
-    const [tsCaptured, cliCaptured, tuiCaptured, pyCaptured] = await Promise.all([
-      captureTsSdk(true),
-      captureCli(true),
-      captureTui(true),
-      capturePython(true),
-    ]);
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-fault-"));
+    const tsCaptured = await captureTsSdk(true, undefined, directory);
+    const cliCaptured = await captureCli(true, tsCaptured.port, directory);
+    const tuiCaptured = await captureTui(true, tsCaptured.port, directory);
+    const pyCaptured = await capturePython(true, tsCaptured.port, directory);
 
     expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
     expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);

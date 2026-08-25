@@ -2,6 +2,11 @@ import type { ArtifactRecord } from "coremind-tools";
 import type { CheckpointRecord } from "./checkpoint.js";
 import { CoreMindError } from "./errors.js";
 import { LIFECYCLE_EVENTS, type LifecycleExtensionReceipt } from "./lifecycle-extension.js";
+import {
+  type LocalObservabilityProjection,
+  projectLocalObservability,
+  validateTelemetryConsentFact,
+} from "./observability.js";
 import type { DurableOperationSnapshot } from "./operation-state.js";
 import type { EvaluationReport, ReleaseReadiness, RunMetrics, RunOutcome } from "./result.js";
 import {
@@ -84,11 +89,7 @@ export interface RunProjection {
   extensions: LifecycleExtensionReceipt[];
   context: ContextProjection;
   pendingControls: PendingApprovalControl[];
-  observability: {
-    factCount: number;
-    lastSequence: number;
-    lastTimestamp: string;
-  };
+  observability: LocalObservabilityProjection;
   records: RunStateRecord[];
   snapshot?: RunSnapshot;
 }
@@ -105,6 +106,7 @@ export const ProjectionEngine = {
       if (record.runId !== runId || record.sequence !== index + 1) {
         throw new CoreMindError("run_state_corrupt", "Run Facts 身份或 sequence 不连续");
       }
+      if (record.kind === "telemetry_consent") validateTelemetryConsentFact(record.payload);
     }
 
     const trace = ordered.flatMap((record) => {
@@ -163,6 +165,23 @@ export const ProjectionEngine = {
       artifacts: exactArtifacts ?? (artifacts.length === 0 ? [] : undefined),
       extensions,
     });
+    const context = projectContext(trace);
+    const pendingControls = projectPendingControls(trace);
+    const observability = projectLocalObservability(ordered, {
+      runStatus: status,
+      resumable: recovery.resumable,
+      ...(operation ? { operationState: operation.state } : {}),
+      context: {
+        budgets: context.budgets.length,
+        compactions: context.compactions.length,
+        failures: context.failures.length + context.lifecycleFailures.length,
+      },
+      artifacts: {
+        stored: artifacts.filter((artifact) => artifact.status === "stored").length,
+        blocked: artifacts.filter((artifact) => artifact.status === "blocked").length,
+      },
+      pendingControls: pendingControls.length,
+    });
 
     return structuredClone({
       schemaVersion: 1 as const,
@@ -176,13 +195,9 @@ export const ProjectionEngine = {
       checkpoints,
       artifacts,
       extensions,
-      context: projectContext(trace),
-      pendingControls: projectPendingControls(trace),
-      observability: {
-        factCount: ordered.length,
-        lastSequence: ordered.at(-1)!.sequence,
-        lastTimestamp: ordered.at(-1)!.timestamp,
-      },
+      context,
+      pendingControls,
+      observability,
       records: ordered,
       ...(snapshot ? { snapshot } : {}),
     });
@@ -484,6 +499,19 @@ function isProjectionEventValid(event: Record<string, unknown>, runId: string): 
       );
     case "context_prefix":
       return typeof event.agent === "string" && typeof event.fingerprint === "string";
+    case "provider_request":
+      return (
+        typeof event.requestId === "string" &&
+        typeof event.agent === "string" &&
+        optionalString(event.stepId) &&
+        typeof event.providerId === "string" &&
+        typeof event.modelId === "string" &&
+        typeof event.messageFingerprint === "string" &&
+        typeof event.stablePrefixFingerprint === "string" &&
+        typeof event.toolSchemaFingerprint === "string" &&
+        typeof event.capabilityFingerprint === "string" &&
+        typeof event.contextWorkingSetFingerprint === "string"
+      );
     case "context_budget_resolved":
       return (
         typeof event.providerId === "string" &&

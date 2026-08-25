@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   applyCompaction,
   projectBranchMessages,
@@ -13,6 +13,11 @@ import {
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
+import {
+  createTelemetryConsentFact,
+  createTelemetryEgressAuthorization,
+  TelemetryExporterError,
+} from "./observability.js";
 import { ProjectionEngine } from "./projection.js";
 import type { CoreMindToolDefinition } from "./public-tool.js";
 import {
@@ -1700,8 +1705,17 @@ describe("CoreMindRuntime", () => {
       });
       await journal.flush();
       const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-resume-"));
+      const resumeConfig: CoreMindConfig = {
+        ...config,
+        telemetry: {
+          mode: "FULL",
+          endpoint: "https://telemetry.example/v1/traces",
+          contentLevel: "metrics_only",
+          allowedFields: [],
+        },
+      };
       const runtime = await CoreMindRuntime.create({
-        config,
+        config: resumeConfig,
         configDir: dir,
         initialPrompt: "开始",
         resumeRunId: "resume-run",
@@ -1715,7 +1729,19 @@ describe("CoreMindRuntime", () => {
       expect(result.outputs.get("first")?.text).toBe("第一步已完成");
       expect(result.outputs.get("second")?.text).toContain("第二步完成");
       expect(result.trace.some((entry) => entry.event.type === "step_resumed")).toBe(true);
-      expect((await store.read("resume-run")).at(-1)?.kind).toBe("finish");
+      const resumedFacts = await store.read("resume-run");
+      expect(resumedFacts.at(-1)?.kind).toBe("finish");
+      expect(
+        resumedFacts.find((fact) => fact.kind === "telemetry_configuration")?.payload,
+      ).toMatchObject({
+        schemaVersion: 1,
+        mode: "FULL",
+        endpointOrigin: "https://telemetry.example",
+      });
+      expect(result.observability.telemetry).toMatchObject({
+        mode: "FULL",
+        lastFailure: "exporter_unavailable",
+      });
     } finally {
       await closeServer(server);
     }
@@ -3079,6 +3105,180 @@ describe("CoreMindRuntime", () => {
         status: "failed",
         error: { code: "context_lineage_corrupt" },
       });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("默认本地观测显性且 DISABLED 不构造 Exporter、不读取凭据", async () => {
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const createExporter = vi.fn();
+    const readCredentials = vi.fn();
+    try {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-observability-disabled-"));
+      const port = (server.address() as AddressInfo).port;
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {}),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "执行",
+        runStore: store,
+        telemetry: { createExporter, readCredentials },
+      });
+
+      const result = await runtime.run();
+      const facts = await store.read(result.runId);
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.observability).toMatchObject({
+        localEnabled: true,
+        run: { status: "finished" },
+        telemetry: { mode: "DISABLED", source: "default", exporterLoaded: false },
+      });
+      expect(facts[0]?.payload).toMatchObject({
+        telemetry: { mode: "DISABLED", contentLevel: "metrics_only", allowedFields: [] },
+      });
+      expect(createExporter).not.toHaveBeenCalled();
+      expect(readCredentials).not.toHaveBeenCalled();
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("FULL Exporter 故障只更新交付投影，不改变 RunOutcome 与权威恢复投影", async () => {
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-observability-fault-"));
+      const port = (server.address() as AddressInfo).port;
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {}),
+          telemetry: {
+            mode: "FULL",
+            endpoint: "https://telemetry.example/v1/traces?token=secret",
+            contentLevel: "metrics_only",
+            allowedFields: [],
+          },
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "执行",
+        runStore: store,
+        telemetry: {
+          authorizeEgress: ({ endpointOrigin }) =>
+            createTelemetryEgressAuthorization({
+              targetOrigin: endpointOrigin,
+              resolvedAddresses: ["192.0.2.10"],
+            }),
+          createExporter: () => ({
+            export: async () => {
+              throw new TelemetryExporterError("http_429", "注入限流");
+            },
+          }),
+        },
+      });
+
+      const result = await runtime.run();
+      const rebuilt = ProjectionEngine.project(await store.read(result.runId));
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.observability.telemetry).toMatchObject({
+        mode: "FULL",
+        failed: expect.any(Number),
+        lastFailure: "http_429",
+      });
+      expect(result.observability.telemetry.failed).toBeGreaterThan(0);
+      expect(rebuilt.outcome).toEqual(result.outcome);
+      expect(rebuilt.recovery).toEqual({ resumable: false, operation: result.operation });
+      expect(rebuilt.observability.telemetry).toMatchObject({
+        mode: "FULL",
+        exporterLoaded: false,
+        failed: 0,
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("content consent 在 Exporter 前持久化并只暴露脱敏 endpoint origin", async () => {
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const exported: unknown[] = [];
+    const factoryContexts: unknown[] = [];
+    try {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-observability-content-"));
+      const port = (server.address() as AddressInfo).port;
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {}),
+          telemetry: {
+            mode: "FULL",
+            endpoint: "https://telemetry.example/v1/traces?token=secret",
+            contentLevel: "content",
+            allowedFields: ["start.initialPrompt"],
+          },
+        },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "允许发送的正文",
+        runId: "run-observability-content",
+        runStore: store,
+        telemetry: {
+          consents: [
+            createTelemetryConsentFact({
+              runId: "run-observability-content",
+              consentId: "content-1",
+              kind: "content",
+              targetOrigin: "https://telemetry.example",
+              contentLevel: "content",
+              allowedFields: ["start.initialPrompt"],
+              retentionPurpose: "诊断该次用户授权反馈，保留 7 天",
+              revocationMethod: "由调用方撤销该 consent，并向接收端发起删除",
+              grantedAt: "2026-08-24T00:00:00.000Z",
+            }),
+          ],
+          authorizeEgress: ({ endpointOrigin }) =>
+            createTelemetryEgressAuthorization({
+              targetOrigin: endpointOrigin,
+              resolvedAddresses: ["192.0.2.10"],
+            }),
+          createExporter: (context) => {
+            factoryContexts.push(context);
+            return {
+              export: async (record) => {
+                exported.push(record);
+              },
+            };
+          },
+        },
+      });
+
+      const result = await runtime.run();
+      const facts = await store.read(result.runId);
+      const consentIndex = facts.findIndex((fact) => fact.kind === "telemetry_consent");
+      const firstEventIndex = facts.findIndex((fact) => fact.kind === "event");
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(consentIndex).toBeGreaterThan(0);
+      expect(consentIndex).toBeLessThan(firstEventIndex);
+      expect(factoryContexts).toEqual([
+        expect.objectContaining({
+          endpointOrigin: "https://telemetry.example",
+          authorization: expect.objectContaining({
+            targetOrigin: "https://telemetry.example",
+            redirectPolicy: "deny",
+            proxyPolicy: "deny",
+            tlsPolicy: "strict",
+          }),
+        }),
+      ]);
+      expect(JSON.stringify(exported)).toContain("允许发送的正文");
+      expect(JSON.stringify(exported)).not.toContain("token=secret");
     } finally {
       await closeServer(server);
     }

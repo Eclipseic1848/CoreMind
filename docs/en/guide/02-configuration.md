@@ -107,6 +107,28 @@ tools:
 
 Allowed operations are `read`, `write`, `process`, `network`, and `external`. Use `reversible: true` only when the framework can restore every side effect. Missing declarations fail validation; nested path and URL arguments are checked recursively before execution. Custom tools cannot reuse built-in names such as `read`, `write`, or `bash`. On Windows, host-shell execution opens only with full mode, `workspaceOnly: false`, and `network: allow`; every other combination fails closed. Git Bash provides interpreter compatibility rather than isolation.
 
+## Local observation and Telemetry egress
+
+Local observation is always enabled and needs no configuration. The following block controls only the optional process-external Telemetry Projection; omitting it is equivalent to `DISABLED`.
+
+```yaml
+telemetry:
+  mode: DISABLED              # DISABLED / FEEDBACK_ONLY / FULL
+  # endpoint: https://otel.example/v1/traces
+  contentLevel: metrics_only  # metrics_only / content
+  allowedFields: []
+```
+
+- `DISABLED` does not construct an Exporter or read egress credentials. Environment variables and installed monitoring packages never enable it implicitly.
+- `FEEDBACK_ONLY` requires the Runtime to persist a scope-fingerprinted feedback consent at critical durability before sending the bounded Fact prefix it covers.
+- `FULL` projects only allowed fields after the persisted configuration takes effect. The default `metrics_only` excludes prompts, responses, tool arguments/results, commands, file bodies, full paths, and credentials.
+- `content` also requires an independent content consent bound to the same `runId`, target origin, field scope, retention purpose, and revocation method. YAML `content` or `allowedFields` values are not authorization by themselves.
+- Local status exposes only the endpoint origin, never query parameters, user information, or credentials. `handed_off` means passed to the Exporter, not stored by the receiver.
+
+The current source provides an injectable Exporter seam and offline fault tests. It does not bundle an OTel adapter and does not authorize a live OTLP endpoint, credentials, or network testing. Enabled modes require an `endpoint`; without an Adapter, the run result remains unchanged while the local delivery projection reports `exporter_unavailable`. A trusted Adapter must enforce the exact origin, DNS resolution, redirect/proxy denial, and strict TLS within a bounded timeout before returning resolved addresses and a policy receipt to Core. Core validates only the receipt shape and fingerprint; it cannot prove that network policy was actually enforced. `createTelemetryEgressAuthorization` is a receipt constructor, not DNS/TLS certification.
+
+Telemetry configuration can change when resuming without changing run identity. Runtime first persists a new `telemetry_configuration` Fact at critical durability, and `FULL` projects only Facts at or after its activation sequence instead of backfilling earlier history.
+
 ## Quality gates
 
 Quality checks should be observable and repeatable. Examples include schema validation, required citations, test execution, maximum unresolved issues, or a business-specific score threshold. A gate failure must not be rewritten as success.

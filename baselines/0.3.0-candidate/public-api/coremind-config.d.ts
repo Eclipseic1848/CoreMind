@@ -228,6 +228,12 @@ profile: TOptional<TUnion<[TLiteral<"development">, TLiteral<"standard">, TLiter
 allowOverride: TOptional<TBoolean>;
 minScenarioPassRate: TOptional<TNumber>;
 }>>;
+telemetry: TOptional<TObject<    {
+mode: TOptional<TUnion<[TLiteral<"DISABLED">, TLiteral<"FEEDBACK_ONLY">, TLiteral<"FULL">]>>;
+endpoint: TOptional<TString>;
+contentLevel: TOptional<TUnion<[TLiteral<"metrics_only">, TLiteral<"content">]>>;
+allowedFields: TOptional<TArray<TString>>;
+}>>;
 }>;
 
 export declare type CustomProviderConfig = Static<typeof CustomProviderSchema>;
@@ -422,6 +428,24 @@ enabled: TBoolean;
 dir: TOptional<TString>;
 compact: TOptional<TBoolean>;
 }>;
+
+export declare type TelemetryConfig = Static<typeof TelemetryConfigSchema>;
+
+/** 本地观测始终开启；这里只配置可选的进程外投影通道。 */
+export declare const TelemetryConfigSchema: TObject<    {
+mode: TOptional<TUnion<[TLiteral<"DISABLED">, TLiteral<"FEEDBACK_ONLY">, TLiteral<"FULL">]>>;
+endpoint: TOptional<TString>;
+contentLevel: TOptional<TUnion<[TLiteral<"metrics_only">, TLiteral<"content">]>>;
+allowedFields: TOptional<TArray<TString>>;
+}>;
+
+export declare type TelemetryContentLevel = Static<typeof TelemetryContentLevelSchema>;
+
+export declare const TelemetryContentLevelSchema: TUnion<[TLiteral<"metrics_only">, TLiteral<"content">]>;
+
+export declare type TelemetryMode = Static<typeof TelemetryModeSchema>;
+
+export declare const TelemetryModeSchema: TUnion<[TLiteral<"DISABLED">, TLiteral<"FEEDBACK_ONLY">, TLiteral<"FULL">]>;
 
 export declare const TOOL_CAPABILITY_CHECKPOINTS: readonly ["none", "required", "unsupported"];
 

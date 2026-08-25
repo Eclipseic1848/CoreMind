@@ -47,7 +47,17 @@ export function validateConfig(data: unknown): CoreMindConfig {
   }
   validateWorkflowStepIds(config.workflow ?? []);
   validateLoopAgents(config);
+  validateTelemetry(config);
   return config;
+}
+
+function validateTelemetry(config: CoreMindConfig): void {
+  const telemetry = config.telemetry;
+  if (!telemetry || telemetry.mode === undefined || telemetry.mode === "DISABLED") return;
+  if (!telemetry.endpoint) {
+    const detail = `telemetry.endpoint：${telemetry.mode} 模式必须显式配置 HTTP(S) endpoint`;
+    throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
+  }
 }
 
 function validateLoopAgents(config: CoreMindConfig): void {

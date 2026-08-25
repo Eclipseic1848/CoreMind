@@ -56,6 +56,46 @@ describe("validateConfig", () => {
     expect(config.quality).toMatchObject({ profile: "standard", allowOverride: true });
   });
 
+  it("Telemetry 配置填充无外传安全默认值", () => {
+    const config = validateConfig({ ...validYaml, telemetry: {} });
+
+    expect(config.telemetry).toEqual({
+      mode: "DISABLED",
+      contentLevel: "metrics_only",
+      allowedFields: [],
+    });
+  });
+
+  it("启用 Telemetry 必须提供 HTTP(S) endpoint，未知模式失败关闭", () => {
+    expect(() => validateConfig({ ...validYaml, telemetry: { mode: "FULL" } })).toThrow(
+      "telemetry.endpoint",
+    );
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        telemetry: { mode: "FEEDBACK_ONLY", endpoint: "file:///tmp/telemetry" },
+      }),
+    ).toThrow("telemetry.endpoint");
+    expect(() => validateConfig({ ...validYaml, telemetry: { mode: "UNKNOWN" } })).toThrow(
+      ConfigValidationError,
+    );
+
+    const config = validateConfig({
+      ...validYaml,
+      telemetry: {
+        mode: "FULL",
+        endpoint: "https://telemetry.example/v1/traces?token=secret",
+        contentLevel: "metrics_only",
+      },
+    });
+    expect(config.telemetry).toMatchObject({
+      mode: "FULL",
+      endpoint: "https://telemetry.example/v1/traces?token=secret",
+      contentLevel: "metrics_only",
+      allowedFields: [],
+    });
+  });
+
   it("缺少必填 name 时报中文可读错误", () => {
     expect(() => validateConfig({ schemaVersion: 2, agents: {} })).toThrow(ConfigValidationError);
     try {

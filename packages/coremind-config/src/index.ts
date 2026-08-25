@@ -37,6 +37,14 @@ export {
 } from "./schema/loop.js";
 export { ModelOptionsSchema } from "./schema/provider.js";
 export {
+  type TelemetryConfig,
+  TelemetryConfigSchema,
+  type TelemetryContentLevel,
+  TelemetryContentLevelSchema,
+  type TelemetryMode,
+  TelemetryModeSchema,
+} from "./schema/telemetry.js";
+export {
   BUILTIN_TOOL_CAPABILITIES,
   BUILTIN_TOOL_EFFECTS,
   BUILTIN_TOOL_IDS,

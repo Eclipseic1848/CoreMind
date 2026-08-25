@@ -12,7 +12,12 @@ runtime = await CoreMindRuntime.create({
   configDir,
   trace: (entry) => console.log(entry.sequence, entry.event.type),
 });
+
+facts = await runStore.read(runId);
+replayed = ReplayKit.replay({ facts, providerRequests });
 ```
+
+`providerRequests` 必须来自该次运行实际送入 Provider 的规范化 Working Set；ReplayKit 会把它与持久 `provider_request` 指纹逐项核对，并且不会再次调用 Provider 或工具。
 
 ## 验证
 
@@ -22,6 +27,8 @@ runtime = await CoreMindRuntime.create({
 4. 检查失败状态、预算、Trace、审批和 checkpoint，而不只看最终文字是否流畅。
 5. 显式 Loop 还要核对 `loop_state` 顺序、最新稳定快照和每个副作用的 started/committed/unknown 收据。
 6. 使用只存在于测试环境的假凭据和正文运行一次工具，确认 Trace 与 RunState 中只保留隐藏标记、目标路径和非敏感审计信息。
+7. 比较 CLI、TUI、TypeScript SDK、Python SDK 的规范化请求、Fact Projection、Outcome、Recovery、Context 与 Provider 请求证据。
+8. 如启用 Telemetry，核对持久配置生效序列、同 Run consent、Fact 前缀指纹、内容保留目的与撤销方式，以及受信任 Adapter 产生的精确 origin 出站收据。
 
 ## 常见误区
 
@@ -30,3 +37,4 @@ runtime = await CoreMindRuntime.create({
 - 不要通过 full 模式绕过 deny、工作区保护、审计、Effect Receipt 或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
 - 不要为了调试关闭 Trace 脱敏；需要原始业务数据时应在业务系统内按其访问控制单独查看。
+- 不要把 `createTelemetryEgressAuthorization` 当成 DNS/TLS 证明；它只构造 Core 可校验的收据，真实策略执行属于受信任网络 Adapter 的责任。

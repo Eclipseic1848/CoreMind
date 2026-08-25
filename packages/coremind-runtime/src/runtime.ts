@@ -72,6 +72,17 @@ import {
 } from "./lifecycle-extension.js";
 import { LoopRunner, type LoopStepRequest } from "./loop-runner.js";
 import {
+  createTelemetryConfigurationFact,
+  type LocalObservabilityProjection,
+  projectLocalObservability,
+  type TelemetryConsentFact,
+  TelemetryEgressController,
+  type TelemetryEgressControllerOptions,
+  type TelemetryPolicy,
+  validateTelemetryConsentBinding,
+  validateTelemetryConsentFact,
+} from "./observability.js";
+import {
   DurableOperation,
   type DurableOperationSnapshot,
   type OperationEvent,
@@ -82,6 +93,7 @@ import { ProjectionEngine } from "./projection.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
+import { createProviderRequestReplayFact } from "./replay-kit.js";
 import {
   analyzeRunMetrics,
   assessReleaseReadiness,
@@ -145,6 +157,11 @@ export interface CoreMindRuntimeOptions {
   toolDefinitions?: CoreMindToolDefinition[];
   /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
   lifecycleExtensions?: LifecycleExtensionPolicy;
+  /** 可选 Telemetry 传输 seam；模式与字段范围来自已校验配置。 */
+  telemetry?: Omit<TelemetryEgressControllerOptions, "policy"> & {
+    /** 必须在任何 export 前以 critical Fact 持久化的显式授权。 */
+    consents?: TelemetryConsentFact[];
+  };
   signal?: AbortSignal;
   /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
   sessionId?: string;
@@ -179,6 +196,8 @@ export interface RunResult {
   extensions?: LifecycleExtensionReceipt[];
   /** CLI、Worker、TypeScript SDK 与 Python SDK 共用的纯 JSON 权威快照。 */
   snapshot: RunSnapshot;
+  /** 默认开启、从 Facts 派生的本地观测；外传交付状态不参与恢复。 */
+  observability: LocalObservabilityProjection;
 }
 
 /**
@@ -471,6 +490,14 @@ export class CoreMindRuntime {
       this.options.runStore ??
       new FileRunStore(path.join(this.options.configDir, ".coremind", "runs"));
     const configFingerprint = fingerprintRunConfig(this.config);
+    const telemetryPolicy = telemetryPolicyFromConfig(this.config);
+    const telemetryConfiguration = createTelemetryConfigurationFact(
+      telemetryPolicy,
+      new Date().toISOString(),
+    );
+    const telemetryConsents = (this.options.telemetry?.consents ?? []).map((consent) =>
+      validateTelemetryConsentFact(consent),
+    );
     // 会话树关联：打开会话拿 seq 水位与已落盘视图（压缩条目落盘与重建桥接用）
     let sessionSeqStart: number | undefined;
     let canonicalSessionBranch: BranchMessage[] = [];
@@ -543,6 +570,9 @@ export class CoreMindRuntime {
           ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
           : {}),
       });
+      await journal.appendFact("telemetry_configuration", telemetryConfiguration, {
+        durability: "critical",
+      });
     } else {
       await journal.start({
         configName: this.config.name,
@@ -554,7 +584,12 @@ export class CoreMindRuntime {
           ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
           : {}),
         operationId: operation.snapshot().operationId,
+        telemetry: telemetryConfiguration,
       });
+    }
+    for (const consent of telemetryConsents) {
+      validateTelemetryConsentBinding(consent, await runStore.read(runId));
+      await journal.appendFact("telemetry_consent", consent, { durability: "critical" });
     }
     if (!resumePlan || resumePlan.operationRecords.length === 0) {
       journal.operation(operation.records()[0]!);
@@ -956,10 +991,38 @@ export class CoreMindRuntime {
     const deniedAgents = new Set<string>();
     context.setHarnessFactory((agentName, stepId) => {
       let contextWorkingSet: { sourceLength: number; messages: AgentMessage[] } | undefined;
+      let providerRequestOrdinal = 0;
+      let pendingProviderCapabilityFingerprint: string | undefined;
       return {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(agentName, contract),
         beforeModelRequest: throwIfContextFailed,
+        onModelRequestDispatched: ({ providerId, modelId, messages }) => {
+          const contract = contextContracts.get(agentName);
+          if (!contract || !pendingProviderCapabilityFingerprint) {
+            throw new ContextLifecycleError(
+              "Provider 请求缺少已解析的 Context Working Set",
+              "budget_exhausted",
+              "context_budget_exhausted",
+            );
+          }
+          providerRequestOrdinal += 1;
+          emit({
+            type: "provider_request",
+            agent: agentName,
+            ...(stepId ? { stepId } : {}),
+            ...createProviderRequestReplayFact({
+              requestId: `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
+              providerId,
+              modelId,
+              messages,
+              stablePrefix: contract.stablePrefix,
+              toolSchemas: contract.toolSchemas,
+              capabilityFingerprint: pendingProviderCapabilityFingerprint,
+            }),
+          });
+          pendingProviderCapabilityFingerprint = undefined;
+        },
         throwIfContextFailed,
         executeTool: (tool, callId, args, signal, onUpdate) =>
           toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
@@ -1076,6 +1139,7 @@ export class CoreMindRuntime {
               sourceLength: messages.length,
               messages: [...(preparation.workingSet.messages as unknown as AgentMessage[])],
             };
+            pendingProviderCapabilityFingerprint = preparation.capability.configFingerprint;
             if (preparation.compaction) {
               emit({
                 type: "context_compacted",
@@ -1921,8 +1985,12 @@ export class CoreMindRuntime {
         releaseReadiness = assessReleaseReadiness(outcome, evaluation);
       }
     }
+    const persistedRecords = terminalPersisted ? await runStore.read(runId) : undefined;
+    const persistedProjection = persistedRecords
+      ? ProjectionEngine.project(persistedRecords)
+      : undefined;
     const snapshot = terminalPersisted
-      ? ProjectionEngine.project(await runStore.read(runId)).snapshot
+      ? persistedProjection?.snapshot
       : createRunSnapshot({
           runId: trace.runId,
           operation: operation.snapshot(),
@@ -1937,6 +2005,28 @@ export class CoreMindRuntime {
         });
     if (!snapshot) {
       throw new CoreMindError("run_state_corrupt", "终态 Fact 已持久化，但无法重建 RunSnapshot");
+    }
+    let observability =
+      persistedProjection?.observability ??
+      fallbackObservability({
+        outcome,
+        operation: operation.snapshot(),
+        telemetry: telemetryConfiguration,
+      });
+    if (persistedRecords) {
+      const { consents: _consents, ...egressOptions } = this.options.telemetry ?? {};
+      const delivery = await new TelemetryEgressController({
+        policy: telemetryPolicy,
+        ...egressOptions,
+      }).export(persistedRecords);
+      observability = {
+        ...observability,
+        telemetry: {
+          ...observability.telemetry,
+          ...delivery,
+          source: observability.telemetry.source,
+        },
+      };
     }
     return {
       runId: trace.runId,
@@ -1955,6 +2045,7 @@ export class CoreMindRuntime {
       artifacts: snapshot.artifacts,
       extensions: snapshot.extensions,
       snapshot,
+      observability,
     };
   }
 
@@ -2292,6 +2383,38 @@ function lastOutputText(outputs: Map<string, StepOutput>): string {
   const values = [...outputs.values()];
   const last = values[values.length - 1];
   return last ? last.text : "";
+}
+
+function telemetryPolicyFromConfig(config: CoreMindConfig): TelemetryPolicy {
+  return {
+    mode: config.telemetry?.mode ?? "DISABLED",
+    contentLevel: config.telemetry?.contentLevel ?? "metrics_only",
+    allowedFields: config.telemetry?.allowedFields ?? [],
+    ...(config.telemetry?.endpoint ? { endpoint: config.telemetry.endpoint } : {}),
+  };
+}
+
+function fallbackObservability(input: {
+  outcome: RunOutcome;
+  operation: DurableOperationSnapshot;
+  telemetry: ReturnType<typeof createTelemetryConfigurationFact>;
+}): LocalObservabilityProjection {
+  const projection = projectLocalObservability([], {
+    runStatus: input.outcome.status === "paused" ? "paused" : "finished",
+    resumable: input.outcome.status === "paused" && input.operation.state === "paused",
+    operationState: input.operation.state,
+  });
+  return {
+    ...projection,
+    telemetry: {
+      ...projection.telemetry,
+      mode: input.telemetry.mode,
+      contentLevel: input.telemetry.contentLevel,
+      allowedFields: input.telemetry.allowedFields,
+      ...(input.telemetry.endpointOrigin ? { endpointOrigin: input.telemetry.endpointOrigin } : {}),
+      source: input.telemetry.mode === "DISABLED" ? "default" : "configured",
+    },
+  };
 }
 
 function firstKey(record: Record<string, unknown>): string | undefined {

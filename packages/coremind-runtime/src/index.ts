@@ -161,6 +161,36 @@ export {
   type LoopStepRequest,
 } from "./loop-runner.js";
 export {
+  createTelemetryConfigurationFact,
+  createTelemetryConsentFact,
+  createTelemetryEgressAuthorization,
+  isTelemetryConsentFact,
+  type LocalObservabilityProjection,
+  type ProjectLocalObservabilityOptions,
+  projectLocalObservability,
+  type TelemetryAuthorizationScope,
+  type TelemetryConfigurationFact,
+  type TelemetryConfigurationSource,
+  type TelemetryConsentFact,
+  type TelemetryConsentInput,
+  type TelemetryContentLevel,
+  type TelemetryDeliveryProjection,
+  type TelemetryEgressAuthorization,
+  TelemetryEgressController,
+  type TelemetryEgressControllerOptions,
+  type TelemetryExporter,
+  TelemetryExporterError,
+  type TelemetryExportRecord,
+  type TelemetryFailureCode,
+  type TelemetryMode,
+  type TelemetryPolicy,
+  telemetryConsentScopeFingerprint,
+  telemetryFactPrefixFingerprint,
+  validateTelemetryConfigurationFact,
+  validateTelemetryConsentBinding,
+  validateTelemetryConsentFact,
+} from "./observability.js";
+export {
   DurableOperation,
   type DurableOperationSnapshot,
   type OperationEvent,
@@ -194,6 +224,14 @@ export {
   defineTool,
   type JsonObjectSchema,
 } from "./public-tool.js";
+export {
+  createProviderRequestReplayFact,
+  type ProviderRequestReplayFact,
+  type ProviderRequestReplayFixture,
+  type ReplayFixture,
+  ReplayKit,
+  type ReplayResult,
+} from "./replay-kit.js";
 export {
   analyzeRunMetrics,
   assessReleaseReadiness,

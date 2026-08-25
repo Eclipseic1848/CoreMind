@@ -49,7 +49,12 @@ describe("WorkerServer", () => {
     expect(initialized).toMatchObject({
       result: {
         protocolVersion: PROTOCOL_VERSION,
-        capabilities: expect.arrayContaining(["loop", "runSnapshot"]),
+        capabilities: expect.arrayContaining([
+          "loop",
+          "runSnapshot",
+          "localObservability",
+          "telemetryProjection",
+        ]),
       },
     });
     expect(sent).toContainEqual(
@@ -71,6 +76,10 @@ describe("WorkerServer", () => {
         },
         outputs: { answer: { text: "完成" } },
         messages: { main: [] },
+        observability: {
+          localEnabled: true,
+          telemetry: { mode: "DISABLED" },
+        },
       },
     });
   });
@@ -348,7 +357,11 @@ describe("WorkerServer", () => {
         resumable: false,
         checkpoints: [{ checkpointId: checkpoint!.checkpointId }],
         trace: [],
-        observability: { factCount: 3, lastSequence: 3 },
+        observability: {
+          localEnabled: true,
+          derivedFromSequence: 3,
+          telemetry: { mode: "DISABLED", exporterLoaded: false },
+        },
       },
     });
     expect(diff).toMatchObject({
@@ -744,6 +757,35 @@ function successfulResult(entry: any) {
     messages: new Map([["main", []]]),
     transcript: "完成",
     checkpoints: [],
+    observability: {
+      schemaVersion: 1 as const,
+      localEnabled: true as const,
+      derivedFromSequence: 3,
+      run: { status: "finished" as const, resumable: false },
+      turns: { started: 1, completed: 1, active: 0 },
+      calls: { started: 0, completed: 0, failed: 0, active: 0, durationMs: 0 },
+      tools: [],
+      errors: [],
+      context: { budgets: 1, compactions: 0, failures: 0 },
+      artifacts: { stored: 0, blocked: 0 },
+      sharedState: { pendingControls: 0 },
+      recovery: { resumable: false },
+      telemetry: {
+        mode: "DISABLED" as const,
+        source: "default" as const,
+        exporterLoaded: false,
+        contentLevel: "metrics_only" as const,
+        allowedFields: [],
+        queued: 0,
+        handedOff: 0,
+        failed: 0,
+        dropped: 0,
+        duplicates: 0,
+        shutdownTimedOut: false,
+        deliverySemantics: "best_effort_handoff_not_delivery" as const,
+        authorizedScopes: [],
+      },
+    },
   };
   return {
     ...result,

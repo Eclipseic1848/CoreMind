@@ -22,6 +22,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > `0.3.1` 已从同一提交完成 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验、最终文档审计和维护者发布授权。Tag、8 个 npm 包、PyPI wheel、独立源码 ZIP、Manifest 和哈希清单均绑定该发布；[双语文档站](https://eclipseic1848.github.io/CoreMind/)同步反映 `0.3.1` 发布状态。
 
+> 当前开发源码（尚未发布）新增可重建 ReplayKit 与默认显性的本地 Observability，并把 Telemetry 外传保持为显式、默认关闭的独立能力。该源码没有新增 OTel 依赖，也没有执行真实 OTLP endpoint、凭据或 Provider 认证；已发布能力仍以 `0.3.1` Registry/Release 为准。
+
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力

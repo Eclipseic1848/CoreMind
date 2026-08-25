@@ -199,6 +199,8 @@ export class WorkerServer {
         "checkpointRestore",
         "loop",
         "runSnapshot",
+        "localObservability",
+        "telemetryProjection",
       ],
     };
   }

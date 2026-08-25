@@ -206,6 +206,19 @@ export type CoreMindEvent =
       fingerprint: string;
     }
   | {
+      type: "provider_request";
+      requestId: string;
+      agent: string;
+      stepId?: string;
+      providerId: string;
+      modelId: string;
+      messageFingerprint: string;
+      stablePrefixFingerprint: string;
+      toolSchemaFingerprint: string;
+      capabilityFingerprint: string;
+      contextWorkingSetFingerprint: string;
+    }
+  | {
       type: "artifact_created";
       artifactId: string;
       status: "stored" | "blocked";

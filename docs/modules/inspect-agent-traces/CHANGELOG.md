@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added deterministic ReplayKit evidence, persisted Provider Working Set fingerprints, always-on local observation, and explicit Telemetry consent/egress boundaries.
+- Added Runtime, ReplayKit, Observability, and four-entry equivalence tests to the module contract.
+
 ## 0.3.1 - 2026-08-21
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.

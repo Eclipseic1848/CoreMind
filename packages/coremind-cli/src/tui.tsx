@@ -2,6 +2,7 @@ import type { ChatSession, CoreMindEvent, RunResult } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type ApprovalQueue, formatApprovalDisplay, type PendingApproval } from "./approval.js";
+import { formatObservabilityStatus } from "./observability-format.js";
 import { loopStateText } from "./render.js";
 
 /** 消息视图（会话渲染用） */
@@ -128,6 +129,13 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
       return;
     }
+    if (trimmed === "/observability") {
+      const text = lastRun
+        ? formatObservabilityStatus(lastRun.observability)
+        : "尚未完成任何运行。";
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
     if (trimmed === "/checkpoints") {
       const checkpoints = session.listCheckpoints();
       const text =
@@ -244,8 +252,8 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         {showHelp && (
           <Box marginY={1}>
             <Text color="yellow">
-              /status 状态 · /artifacts 产物 · /context 上下文 · /checkpoints 列表 · /diff ID ·
-              /restore ID · /exit · /abort
+              /status 状态 · /artifacts 产物 · /context 上下文 · /observability 观测 · /checkpoints
+              列表 · /diff ID · /restore ID · /exit · /abort
             </Text>
           </Box>
         )}
@@ -340,7 +348,7 @@ export function formatRunStatus(run: RunResult): string {
   const evaluation = run.releaseReadiness.ready
     ? `评测 ${run.evaluation.scenarioResults.length} · 可发布`
     : `评测 ${run.evaluation.scenarioResults.length} · 阻断 ${run.releaseReadiness.blockers.length}`;
-  return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0} · ${evaluation}`;
+  return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0} · Telemetry ${run.observability.telemetry.mode} · ${evaluation}`;
 }
 
 function formatArtifacts(run: RunResult | undefined): string {

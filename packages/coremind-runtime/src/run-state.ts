@@ -51,6 +51,8 @@ export interface ToolReplayCandidate {
 export type RunStateKind =
   | "start"
   | "resume"
+  | "telemetry_configuration"
+  | "telemetry_consent"
   | "event"
   | "checkpoint"
   | "loop"
@@ -1111,7 +1113,13 @@ export function operationSnapshotFromRecords(
 
 /** 配置指纹只落 hash，不把配置或凭据复制进 RunState。 */
 export function fingerprintRunConfig(config: unknown): string {
-  return createHash("sha256").update(stableJson(config)).digest("hex");
+  const resumeConfig =
+    config !== null && typeof config === "object" && !Array.isArray(config)
+      ? Object.fromEntries(
+          Object.entries(config as Record<string, unknown>).filter(([key]) => key !== "telemetry"),
+        )
+      : config;
+  return createHash("sha256").update(stableJson(resumeConfig)).digest("hex");
 }
 
 function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEvent {
@@ -1254,9 +1262,18 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
     typeof record.timestamp !== "string" ||
     (record.eventId !== undefined &&
       (typeof record.eventId !== "string" || record.eventId.trim().length === 0)) ||
-    !["start", "resume", "event", "checkpoint", "loop", "operation", "pause", "finish"].includes(
-      record.kind ?? "",
-    )
+    ![
+      "start",
+      "resume",
+      "telemetry_configuration",
+      "telemetry_consent",
+      "event",
+      "checkpoint",
+      "loop",
+      "operation",
+      "pause",
+      "finish",
+    ].includes(record.kind ?? "")
   ) {
     throw new CoreMindError("run_state_corrupt", `RunState ${expectedRunId} 包含非法记录`);
   }

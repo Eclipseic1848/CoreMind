@@ -8,6 +8,8 @@ sourcePaths:
   - "packages/coremind-runtime/src/trace.ts"
   - "packages/coremind-runtime/src/run-state.ts"
   - "packages/coremind-runtime/src/events.ts"
+  - "packages/coremind-runtime/src/observability.ts"
+  - "packages/coremind-runtime/src/replay-kit.ts"
 documents:
   readme:
     zh-CN: docs/modules/inspect-agent-traces/README.zh-CN.md
@@ -27,6 +29,9 @@ testPaths:
   - "packages/coremind-runtime/src/run-state.test.ts"
   - "packages/coremind-runtime/src/runtime.test.ts"
   - "packages/coremind-runtime/src/trace.test.ts"
+  - "packages/coremind-runtime/src/observability.test.ts"
+  - "packages/coremind-runtime/src/replay-kit.test.ts"
+  - "packages/coremind-cli/src/entry-equivalence.acceptance.test.tsx"
 supportedPlatforms:
   - "windows"
   - "linux"

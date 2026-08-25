@@ -8,6 +8,7 @@ import {
   evaluateGraders,
   validateEvaluationGraders,
 } from "./evaluation-graders.js";
+import { projectLocalObservability } from "./observability.js";
 import type { EvaluationReport, ReleaseReadiness, RunOutcome } from "./result.js";
 import { CoreMindRuntime, type CoreMindRuntimeOptions, type RunResult } from "./runtime.js";
 import { createRunSnapshot } from "./snapshot.js";
@@ -366,6 +367,11 @@ function failedRunResult(outcome: RunOutcome): RunResult {
     messages: new Map(),
     transcript: "",
     artifacts: [],
+    observability: projectLocalObservability([], {
+      runStatus: "finished",
+      resumable: false,
+      operationState: "failed",
+    }),
   } satisfies Omit<RunResult, "snapshot">;
   return {
     ...result,

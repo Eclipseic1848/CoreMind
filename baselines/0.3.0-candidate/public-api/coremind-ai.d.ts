@@ -36,9 +36,13 @@ import { createEngineeringKernelDefinition } from 'coremind-runtime';
 import { createEngineeringTaskPlan } from 'coremind-runtime';
 import { createErrorResponse } from 'coremind-protocol';
 import { createEventNotification } from 'coremind-protocol';
+import { createProviderRequestReplayFact } from 'coremind-runtime';
 import { createPythonToolCallNotification } from 'coremind-protocol';
 import { createRunSnapshot } from 'coremind-runtime';
 import { createSuccessResponse } from 'coremind-protocol';
+import { createTelemetryConfigurationFact } from 'coremind-runtime';
+import { createTelemetryConsentFact } from 'coremind-runtime';
+import { createTelemetryEgressAuthorization } from 'coremind-runtime';
 import { createToolCallLifecycle } from 'coremind-runtime';
 import { createTraceExporterExtension } from 'coremind-runtime';
 import { createUnifiedDiff } from 'coremind-tools';
@@ -95,6 +99,7 @@ import { inspectCheckpoint } from 'coremind-runtime';
 import { inspectCodingRepository } from 'coremind-runtime';
 import { inspectRuntimeCompatibility } from 'coremind-runtime';
 import { isRunStateResumable } from 'coremind-runtime';
+import { isTelemetryConsentFact } from 'coremind-runtime';
 import { JsonObjectSchema } from 'coremind-runtime';
 import { LanguageCandidate } from 'coremind-runtime';
 import { LIFECYCLE_EVENTS } from 'coremind-runtime';
@@ -110,6 +115,7 @@ import { listInheritedProviders } from 'coremind-runtime';
 import { listSupportedProviders } from 'coremind-runtime';
 import { loadConfigFile } from 'coremind-config';
 import { loadEvaluationSuite } from 'coremind-runtime';
+import { LocalObservabilityProjection } from 'coremind-runtime';
 import { LoopActionConfig } from 'coremind-config';
 import { LoopConfig } from 'coremind-config';
 import { LoopPhase } from 'coremind-runtime';
@@ -135,6 +141,8 @@ import { ProcessRunRequest } from 'coremind-tools';
 import { ProcessRunResult } from 'coremind-tools';
 import { ProjectGuidanceOptions } from 'coremind-templates';
 import { ProjectLanguage } from 'coremind-templates';
+import { projectLocalObservability } from 'coremind-runtime';
+import { ProjectLocalObservabilityOptions } from 'coremind-runtime';
 import { projectToolCallLifecycles } from 'coremind-runtime';
 import { PROTOCOL_VERSION } from 'coremind-protocol';
 import { ProtocolErrorResponse } from 'coremind-protocol';
@@ -143,9 +151,14 @@ import { ProtocolRequest } from 'coremind-protocol';
 import { ProtocolRunSnapshot } from 'coremind-protocol';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
 import { ProtocolValidationError } from 'coremind-protocol';
+import { ProviderRequestReplayFact } from 'coremind-runtime';
+import { ProviderRequestReplayFixture } from 'coremind-runtime';
 import { PythonToolCallNotification } from 'coremind-protocol';
 import { QualityConfig } from 'coremind-config';
 import { ReleaseReadiness } from 'coremind-runtime';
+import { ReplayFixture } from 'coremind-runtime';
+import { ReplayKit } from 'coremind-runtime';
+import { ReplayResult } from 'coremind-runtime';
 import { RepositoryMap } from 'coremind-runtime';
 import { RepositoryMapEntry } from 'coremind-runtime';
 import { resolveSkills } from 'coremind-templates';
@@ -177,6 +190,25 @@ import { SkillMeta } from 'coremind-templates';
 import { SKILLS } from 'coremind-templates';
 import { StateGrader } from 'coremind-runtime';
 import { StepOutput } from 'coremind-runtime';
+import { TelemetryAuthorizationScope } from 'coremind-runtime';
+import { TelemetryConfig } from 'coremind-config';
+import { TelemetryConfigurationFact } from 'coremind-runtime';
+import { TelemetryConfigurationSource } from 'coremind-runtime';
+import { TelemetryConsentFact } from 'coremind-runtime';
+import { TelemetryConsentInput } from 'coremind-runtime';
+import { telemetryConsentScopeFingerprint } from 'coremind-runtime';
+import { TelemetryContentLevel } from 'coremind-config';
+import { TelemetryDeliveryProjection } from 'coremind-runtime';
+import { TelemetryEgressAuthorization } from 'coremind-runtime';
+import { TelemetryEgressController } from 'coremind-runtime';
+import { TelemetryEgressControllerOptions } from 'coremind-runtime';
+import { TelemetryExporter } from 'coremind-runtime';
+import { TelemetryExporterError } from 'coremind-runtime';
+import { TelemetryExportRecord } from 'coremind-runtime';
+import { telemetryFactPrefixFingerprint } from 'coremind-runtime';
+import { TelemetryFailureCode } from 'coremind-runtime';
+import { TelemetryMode } from 'coremind-config';
+import { TelemetryPolicy } from 'coremind-runtime';
 import { TemplateMeta } from 'coremind-templates';
 import { TEMPLATES } from 'coremind-templates';
 import { ToolApprovalRequest } from 'coremind-runtime';
@@ -190,6 +222,9 @@ import { TrajectoryGrader } from 'coremind-runtime';
 import { TrajectoryStep } from 'coremind-runtime';
 import { UnifiedDiffOptions } from 'coremind-tools';
 import { validateConfig } from 'coremind-config';
+import { validateTelemetryConfigurationFact } from 'coremind-runtime';
+import { validateTelemetryConsentBinding } from 'coremind-runtime';
+import { validateTelemetryConsentFact } from 'coremind-runtime';
 import { WorkflowStep } from 'coremind-config';
 
 export { AgentConfig }
@@ -268,11 +303,19 @@ export { createErrorResponse }
 
 export { createEventNotification }
 
+export { createProviderRequestReplayFact }
+
 export { createPythonToolCallNotification }
 
 export { createRunSnapshot }
 
 export { createSuccessResponse }
+
+export { createTelemetryConfigurationFact }
+
+export { createTelemetryConsentFact }
+
+export { createTelemetryEgressAuthorization }
 
 export { createToolCallLifecycle }
 
@@ -386,6 +429,8 @@ export { inspectRuntimeCompatibility }
 
 export { isRunStateResumable }
 
+export { isTelemetryConsentFact }
+
 export { JsonObjectSchema }
 
 export { LanguageCandidate }
@@ -415,6 +460,8 @@ export { listSupportedProviders }
 export { loadConfigFile }
 
 export { loadEvaluationSuite }
+
+export { LocalObservabilityProjection }
 
 export { LoopActionConfig }
 
@@ -466,6 +513,10 @@ export { ProjectGuidanceOptions }
 
 export { ProjectLanguage }
 
+export { projectLocalObservability }
+
+export { ProjectLocalObservabilityOptions }
+
 export { projectToolCallLifecycles }
 
 export { PROTOCOL_VERSION }
@@ -482,11 +533,21 @@ export { ProtocolSuccessResponse }
 
 export { ProtocolValidationError }
 
+export { ProviderRequestReplayFact }
+
+export { ProviderRequestReplayFixture }
+
 export { PythonToolCallNotification }
 
 export { QualityConfig }
 
 export { ReleaseReadiness }
+
+export { ReplayFixture }
+
+export { ReplayKit }
+
+export { ReplayResult }
 
 export { RepositoryMap }
 
@@ -550,6 +611,44 @@ export { StateGrader }
 
 export { StepOutput }
 
+export { TelemetryAuthorizationScope }
+
+export { TelemetryConfig }
+
+export { TelemetryConfigurationFact }
+
+export { TelemetryConfigurationSource }
+
+export { TelemetryConsentFact }
+
+export { TelemetryConsentInput }
+
+export { telemetryConsentScopeFingerprint }
+
+export { TelemetryContentLevel }
+
+export { TelemetryDeliveryProjection }
+
+export { TelemetryEgressAuthorization }
+
+export { TelemetryEgressController }
+
+export { TelemetryEgressControllerOptions }
+
+export { TelemetryExporter }
+
+export { TelemetryExporterError }
+
+export { TelemetryExportRecord }
+
+export { telemetryFactPrefixFingerprint }
+
+export { TelemetryFailureCode }
+
+export { TelemetryMode }
+
+export { TelemetryPolicy }
+
 export { TemplateMeta }
 
 export { TEMPLATES }
@@ -575,6 +674,12 @@ export { TrajectoryStep }
 export { UnifiedDiffOptions }
 
 export { validateConfig }
+
+export { validateTelemetryConfigurationFact }
+
+export { validateTelemetryConsentBinding }
+
+export { validateTelemetryConsentFact }
 
 export { WorkflowStep }
 

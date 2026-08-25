@@ -77,7 +77,7 @@ coremind eval coremind.yaml --suite evals/scenarios.yaml --json
 
 ### run 自动化终态
 
-`coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 的最后一条 `run_result`，诊断信息从 stderr 保存。
+`coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 的最后一条 `run_result`，诊断信息从 stderr 保存。`run_result.observability` 与 TypeScript/Python/Worker 使用同一 Fact Projection；即使 Telemetry 为 `DISABLED`，本地 Run、Context、Call、错误和交付状态仍存在。
 
 `--print` 用于普通文本管道，`--json-events` 用于 JSONL 自动化，两者不能同时使用。
 
@@ -221,6 +221,9 @@ coremind chat coremind.yaml
 | 删除字符 | **退格键** |
 | 查看命令帮助 | 输入 `/help`（再输一次关闭） |
 | 查看本轮预算/质量 | 输入 `/status` |
+| 查看 Artifact | 输入 `/artifacts` |
+| 查看 Context 预算与压缩 | 输入 `/context` |
+| 查看本地观测与 Telemetry 状态 | 输入 `/observability` |
 | 查看检查点 | 输入 `/checkpoints` |
 | 查看变更 | 输入 `/diff <checkpointId>` |
 | 显式恢复文件 | 输入 `/restore <checkpointId>` |
@@ -228,6 +231,8 @@ coremind chat coremind.yaml
 | 退出对话 | 输入 `/exit`（**退出时自动保存会话**，下次可恢复） |
 
 审批卡片会显示副作用、完整路径或 URL、风险原因和脱敏后的参数。工具执行还会记录 started/committed/unknown Effect Receipt。恢复 checkpoint 时若文件在工具完成后又被修改，命令会报告冲突并保留当前内容，不会静默覆盖。
+
+`/observability` 显示本地观测开关、Run/Call 耗时、Telemetry mode、脱敏 endpoint origin、内容级别、允许字段、持久授权范围、Exporter 是否装载，以及 queued/handed-off/failed/dropped。`handed-off` 只表示已交给 Exporter，不表示接收端已经保存；默认 `DISABLED` 不读取外传凭据或构造 Exporter。
 
 ### 从任意目录启动
 

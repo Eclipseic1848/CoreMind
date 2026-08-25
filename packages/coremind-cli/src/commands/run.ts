@@ -17,6 +17,7 @@ import {
   parsePermissionMode,
 } from "../approval.js";
 import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
+import { formatObservabilityStatus } from "../observability-format.js";
 import {
   cyan,
   dim,
@@ -134,6 +135,9 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     if (jsonEvents) {
       process.stdout.write(`${JSON.stringify(toRunResultEvent(result))}\n`);
     }
+    if (!printOnly && !jsonEvents) {
+      console.log(dim(formatObservabilityStatus(result.observability)));
+    }
     if (result.sessionFile && !jsonEvents) {
       console.log(dim(`会话已保存：${result.sessionFile}`));
     }
@@ -185,6 +189,7 @@ export function toRunResultEvent(result: RunResult): Record<string, unknown> {
     metrics: result.metrics,
     evaluation: result.evaluation,
     releaseReadiness: result.releaseReadiness,
+    observability: result.observability,
     checkpoints: result.checkpoints,
     ...(result.runStateFile ? { runStateFile: result.runStateFile } : {}),
     ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}),

@@ -48,11 +48,13 @@ Validates configuration and project contracts without contacting a model. Use it
 
 Executes a single request and exits with a structured result. Use `--dry-run` to inspect resolved settings without model traffic. Use `--resume <runId>` to continue a paused or interrupted run from a persisted stable boundary. Automation should consume documented result fields and the process exit code rather than decorative terminal text.
 
-Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `--print` and `--json-events` are mutually exclusive.
+Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `run_result.observability` is the same Fact Projection used by TypeScript, Python, and Worker consumers. Local Run, Context, Call, error, and delivery state remains available when Telemetry is `DISABLED`. `--print` and `--json-events` are mutually exclusive.
 
 ## `chat`
 
 Starts the terminal interface with streaming output, approval requests, current Loop state, session controls, and trace visibility. Use `ask` mode while learning or reviewing a new repository.
+
+Use `/status` for the terminal summary, `/artifacts` for stored or blocked artifacts, `/context` for budget and compaction state, and `/observability` for local observation and Telemetry status. The observation view includes Run/Call timing, mode, redacted endpoint origin, content level, allowed fields, persisted authorization scopes, Exporter loading, and queued/handed-off/failed/dropped counts. `handed-off` means passed to the Exporter, not stored by the receiver. The default `DISABLED` mode neither reads egress credentials nor constructs an Exporter.
 
 Use `/abort` to stop the active response. To persist a named session, enable it in `coremind.yaml` before passing `--session`:
 
