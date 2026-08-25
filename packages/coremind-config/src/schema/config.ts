@@ -8,6 +8,7 @@ import {
   type ProviderRefSchema,
   ProviderSchema,
 } from "./provider.js";
+import { TelemetryConfigSchema } from "./telemetry.js";
 import { type ScriptToolSchema, ToolConfigSchema, type ToolRefSchema } from "./tools.js";
 import { WorkflowStepSchema } from "./workflow.js";
 
@@ -32,6 +33,7 @@ export const CoreMindConfigSchema = Type.Object({
   runtime: Type.Optional(RuntimeLimitsSchema),
   permissions: Type.Optional(PermissionsConfigSchema),
   quality: Type.Optional(QualityConfigSchema),
+  telemetry: Type.Optional(TelemetryConfigSchema),
 });
 
 export type CoreMindConfig = Static<typeof CoreMindConfigSchema>;

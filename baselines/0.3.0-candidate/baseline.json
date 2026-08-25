@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "e5dbd938c5844e29764210c4e76567f71e0bf273",
+    "developmentCommit": "f781edca9b5261d056ed5192fe278493741a1b8a",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,17 +13,17 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "a72661ff78bf6f11f6484e9b91d89aee743fe9cbe646505f0c4574788c5a7b4f",
+      "coremind-ai": "d4bb41058efa0ebfb9b54077fe56c45e54839614d3c384e982eee9435d8560eb",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
-      "coremind-config": "49b63f94752f739a1f9c3ccfe089881f00a136074e86a2f2fd40f3b370204350",
+      "coremind-config": "f9298b453190f381689db8b44767e405449d305fe55b741005c44d8e3b808214",
       "coremind-protocol": "8849c1d847fbb7f32aa91b8eaec0edb91d152186719b0c86079156cfa9934c24",
-      "coremind-runtime": "e8a795d55dcf264936ed31beed0a5c09560fd90cc780d45902524f08cf91e35c",
+      "coremind-runtime": "f6cb08f9768aa02278b96befb4452d8581c8f02cf12101a978c008c51f80b765",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "4576ed05e6114edbd6a0c11147ed5847e32e6e1be21adaf68a8011ee0534b29f",
       "coremind-worker": "2288314e4e1c7b56a6d0b9f9c4ef45ea1ae22586a828c59ccfd8ce7d631dcc38"
     },
     "schemas": {
-      "config": "d14c63b9321b716f84a554df4851f35545feb4197ab655122e1837060faabac4",
+      "config": "334b19ad76d2c7d04e3b297f06d3f3788ad1f781881f06412e559fcf573debef",
       "protocol": "16b7284ffb4c0c2804e922ecfd1c17939fdceaae837f71e4ac862f8de44bd205"
     }
   },
@@ -282,21 +282,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-24T18:33:35.177Z",
+    "capturedAt": "2026-08-24T23:22:03.335Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #69 final review: require tool-paired complete turns and synchronize module tests",
+    "updateReason": "issue-70-replay-observability",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "0fd145119ee8d7944eabb6967e619852edb0c00cf20faf86080db8e7bee956ce",
     "codingEvalFixtureSha256": "baff4e1a6b5ec2d7957fed859a91e19553579f00d40e0249b5ac7a84035e1d9b",
     "packageDistSha256": {
-      "coremind-ai": "87ab1b2bc47f9e290aa2f446f1aa462cd2a6ce52630755826bdc940c693b55c0",
-      "coremind-cli": "f412ab359f411ef5963c8d24beaa3f40321fe883b69ba7d8ece8c0e01d06efbe",
-      "coremind-config": "947a52b0beda6c71bdf1459123bf1153e5bcfaa7d0ab67acc7e93cb79a97d295",
+      "coremind-ai": "83a268099eb1c221c6cfbd28458f16f05715af13a40fc3aa3f351a3ae9a09d73",
+      "coremind-cli": "74336c690bb9a89e03fe1b53dff3972e7c035fda578feca0258629cb90c9ebff",
+      "coremind-config": "df78db22a8bf84842bad623022c079bb53388cac2d2010c4c5117557f7678875",
       "coremind-protocol": "70dce477e0b88c08cbacd1598cc995ec6dc5a0517d67c24cbb1ebdc8b1817ec7",
-      "coremind-runtime": "149dd3af0263d8191b1759b72c0d4b961504d62581b163d97f7262bdc203f99c",
+      "coremind-runtime": "7072b078e2f8c29c45955111cb2d3c807df4c9110ad0cb176e9f966d8495bb2d",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "82dcc2531208b48f9c52ddc25d3f02268ee1425666b94d12fd36335b0de8a07e",
-      "coremind-worker": "ee3b5682dfabcb929c2ff69bcac394de3d24c80228439b8fc76dcbff0e350b33"
+      "coremind-worker": "10c2467ab089902b0de3236dd265df4f03a6f3587f378d853bdfbe13c2b23691"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

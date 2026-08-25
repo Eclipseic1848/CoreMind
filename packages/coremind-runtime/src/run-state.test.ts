@@ -11,6 +11,7 @@ import { DurableOperation } from "./operation-state.js";
 import {
   FileRunStore,
   findUnsafeToolCall,
+  fingerprintRunConfig,
   isRejectedAfterAbort,
   MemoryRunStore,
   prepareRunResume,
@@ -20,6 +21,22 @@ import {
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
+  it("Telemetry 配置不参与 Resume 身份指纹", () => {
+    const base = { schemaVersion: 2, name: "resume", agents: { main: { systemPrompt: "x" } } };
+
+    expect(
+      fingerprintRunConfig({
+        ...base,
+        telemetry: { mode: "FULL", endpoint: "https://one.example/v1" },
+      }),
+    ).toBe(
+      fingerprintRunConfig({
+        ...base,
+        telemetry: { mode: "DISABLED", endpoint: "https://two.example/v1" },
+      }),
+    );
+  });
+
   it("Store 在初始化时声明持久化能力，Memory 不能把内存可见伪装成 critical", async () => {
     const memory = new MemoryRunStore();
     const file = new FileRunStore(mkdtempSync(path.join(tmpdir(), "coremind-run-durability-")));

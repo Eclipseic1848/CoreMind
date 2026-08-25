@@ -6,6 +6,14 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 ## Unreleased
 
+### Replay and explicit observability
+
+- Added deterministic `ReplayKit` reconstruction from fixed Run Facts and Provider-request fixtures, covering RunSnapshot, Context, Artifacts, RecoveryDecision, and local observations. Historical 0.3.0/0.3.1 Facts without Telemetry fields are marked `legacy_default`.
+- `RunResult.observability`, CLI JSONL, TUI `/observability`, Worker, and Python SDK now share one Fact Projection for Run/Turn/Call state, timing, errors, Context, Artifacts, shared state, Telemetry mode, redacted origin, authorization scopes, and delivery queues.
+- Telemetry defaults to `DISABLED` without constructing an Exporter or reading credentials. `FEEDBACK_ONLY` accepts only persisted consents bound to the same run and canonical Fact-prefix fingerprint, while `content` requires separate consent declaring retention purpose and revocation method. Mode, target, field, or scope-fingerprint mismatches fail closed.
+- Exporter DNS/TLS/401/429/timeout, queue-full, duplicate, drop, redaction, and shutdown-timeout failures update only a disposable delivery projection; they cannot alter RunOutcome, Facts, or recovery. `handed_off` explicitly does not mean receiver-side delivery.
+- The current source provides an injectable Exporter seam, a trusted-Adapter receipt contract, and offline fault evidence only. Core validates exact origin, resolved addresses, redirect/proxy denial, strict TLS, and the receipt fingerprint, but the receipt does not prove real network-policy enforcement. It adds no OTel dependency and has not run a live OTLP endpoint, credential, Telemetry-egress, or live-Provider certification.
+
 ### Context lifecycle and long tasks
 
 - Resolve context windows, output limits, and evidence for the actual provider/model and request. Trusted candidates use a safe intersection; unknown, conflicting, route-mismatched, output-over-limit, or unmeasured multimodal capabilities fail closed before the provider call.

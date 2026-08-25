@@ -14,7 +14,7 @@ TUI、普通终端和 `--json-events` 都会显示相同的 `loop_state` 顺序�
 
 无头运行退出码为 `0/1/2/3/124/130`；`--json-events` 最后一行固定为 `run_result`，且不能与 `--print` 同时使用。
 
-TUI 可用 `/status`、`/artifacts`、`/context` 核对恢复、评测、产物、缓存和压缩状态；JSONL 的 `run_result.snapshot` 与两个 SDK 使用同一快照。
+TUI 可用 `/status`、`/artifacts`、`/context`、`/observability` 核对恢复、评测、产物、缓存、压缩和本地观测；JSONL 的 `run_result.snapshot` 与 `run_result.observability` 和两个 SDK 使用同一 Fact Projection。观测视图显式区分本地状态与 Telemetry 外传，并声明 `handed-off` 不等于接收端 delivered。
 
 ```bash
 npm install -g coremind-cli@next
@@ -37,7 +37,7 @@ In ask mode, pressing Enter or `n` denies the tool and pauses the run without an
 
 Headless runs expose `0/1/2/3/124/130`; JSONL ends with `run_result`, and `--json-events` is mutually exclusive with `--print`.
 
-Use `/status`, `/artifacts`, and `/context` to inspect recovery, evaluation, artifacts, cache, and compaction; `run_result.snapshot` is shared with both SDKs.
+Use `/status`, `/artifacts`, `/context`, and `/observability` to inspect recovery, evaluation, artifacts, cache, compaction, and local observations. `run_result.snapshot` and `run_result.observability` share one Fact Projection with both SDKs. The view separates local state from Telemetry egress and states that `handed-off` does not mean receiver-side delivery.
 
 ```bash
 npm install -g coremind-cli@next

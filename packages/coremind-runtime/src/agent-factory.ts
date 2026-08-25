@@ -42,6 +42,12 @@ export interface AgentBuildContext {
     maxRetries?: number;
     registerContextContract?: (contract: AgentContextContract) => void;
     beforeModelRequest?: () => void;
+    /** Provider Runtime 已接受最终 Working Set；这是本地调度证据，不声明远端已收包。 */
+    onModelRequestDispatched?: (request: {
+      providerId: string;
+      modelId: string;
+      messages: readonly unknown[];
+    }) => void;
     transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
     beforeToolCall?: (
       context: BeforeToolCallContext,
@@ -102,13 +108,20 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
     streamFn: (m, c, o) => {
       ctx.harness?.beforeModelRequest?.();
-      return ctx.models.streamSimple(m, c, {
+      o?.signal?.throwIfAborted();
+      const response = ctx.models.streamSimple(m, c, {
         ...o,
         ...(ctx.harness?.maxRetries !== undefined ? { maxRetries: ctx.harness.maxRetries } : {}),
         ...(ctx.apiKeyOverride ? { apiKey: ctx.apiKeyOverride } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
         ...(maxTokens !== undefined ? { maxTokens } : {}),
       });
+      ctx.harness?.onModelRequestDispatched?.({
+        providerId: m.provider,
+        modelId: m.id,
+        messages: c.messages,
+      });
+      return response;
     },
     toolExecution: "parallel",
     transformContext: ctx.harness?.transformContext,

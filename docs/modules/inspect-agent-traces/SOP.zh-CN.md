@@ -14,8 +14,10 @@
 6. 用事件证据复现后再修改。
 7. 使用假凭据、正文和带敏感查询参数的 URL 验证持久化前脱敏，同时确认普通测试命令仍可供 grader 审计。
 8. 保留修复前后 Trace。
-9. 运行模块列出的测试，并执行 `npm run check:modules`。
-10. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
+9. 对 Replay 使用固定 Facts 与实际 Working Set fixture，核对 Fact、请求与 replay 指纹；任何不一致都按损坏状态处理，禁止回退成近似重放。
+10. 对 Telemetry 核对持久配置、生效序列、同 Run consent、feedback 前缀、content 保留目的/撤销方式和受信任 Adapter 的精确 origin 出站收据。收据不是实际 DNS/TLS 认证证据。
+11. 运行模块列出的测试，并执行 `npm run check:modules`。
+12. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
 ## 停止条件
 

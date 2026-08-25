@@ -14,6 +14,10 @@ Both clients expose `resume_run(run_id, input=None)`. It resumes only paused or 
 
 Every `run`, `chat`, and `resume_run` response includes the same pure-JSON `snapshot` used by CLI JSONL and the TypeScript SDK. The client rejects schemaVersion, runId, or outcome mismatches with `invalid_run_snapshot`.
 
+当前源码的相同响应还包含 `observability`；`inspect_run()` 可从持久 Facts 重建该结构。Worker 宣告 `localObservability` 能力后，Python SDK 会校验 schema、Telemetry 模式、脱敏 origin、交付语义、非负计数和 consent 范围，损坏数据返回 `invalid_observability`。默认 `DISABLED` 的本地观测仍然可用，且不会构造 Exporter 或读取外传凭据。
+
+Current source responses also include `observability`, and `inspect_run()` rebuilds it from persisted Facts. Once the Worker advertises `localObservability`, the Python SDK validates its schema, Telemetry mode, redacted origin, delivery semantics, non-negative counters, and consent scopes; malformed data returns `invalid_observability`. Local observations remain available in the default `DISABLED` mode without constructing an Exporter or reading egress credentials.
+
 编码智能体使用同一 Node Runtime 的工具、Checkpoint、Trace 和终态。Python 项目可通过共享评测入口验证目标测试、回归测试、文件和差异；SDK 不在 Python 内重写另一套进程或 Git 执行语义。
 
 Coding agents use the same Node runtime tools, checkpoints, traces, and terminal results. Python projects can validate target tests, regression tests, files, and diffs through the shared evaluation path; the SDK does not reimplement process or Git semantics in Python.

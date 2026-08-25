@@ -17,6 +17,8 @@ export declare function analyzeRunMetrics(events: CoreMindEvent[], messages: Cor
 
 export declare type ApprovalDecision = "allow" | "deny";
 
+declare type ArtifactProjection = Omit<ArtifactRecord, "createdAt" | "retention"> & Partial<Pick<ArtifactRecord, "createdAt" | "retention">>;
+
 export declare function assessReleaseReadiness(outcome: RunOutcome, evaluation: EvaluationReport): ReleaseReadiness;
 
 export declare type AuthorizationState = "pending" | "allowed" | "approved" | "denied" | "expired";
@@ -247,6 +249,49 @@ export declare interface CompletedWorkflowStep {
 
 /** 输入对应活动已终态：生成 completed 事件 */
 export declare function completeInput(options: InputReceiptEventOptions): CoreMindEvent;
+
+declare interface ContextProjection {
+    stablePrefixes: Array<{
+        agent: string;
+        fingerprint: string;
+    }>;
+    budgets: Array<{
+        providerId: string;
+        modelId: string;
+        capabilityFingerprint: string;
+        source: "locked_catalog" | "explicit_config" | "provider_metadata" | "conservative_fallback";
+        confidence: "verified" | "declared" | "assumed";
+        effectiveContextWindow: number;
+        reservedOutputTokens: number;
+        availableInputTokens: number;
+        messageTokens: number;
+        estimator: "pi-agent-core-estimate-v1";
+    }>;
+    compactions: Array<{
+        beforeTokens: number;
+        afterTokens: number;
+        removedMessages: number;
+        strategy: "deterministic-v1" | "task-state-v1";
+        reason: "threshold";
+        summaryFingerprint: string;
+        sessionEntryId?: string;
+        capabilityFingerprint?: string;
+        lineageDepth?: number;
+        rebuiltFromCanonical?: boolean;
+        trigger?: "threshold" | "model_switch" | "provider_overflow";
+    }>;
+    failures: Array<{
+        message: string;
+        preservedMessages: number;
+    }>;
+    lifecycleFailures: Array<{
+        code: string;
+        reason: string;
+        pausable: boolean;
+        preservedMessages: number;
+        providerCallBlocked: true;
+    }>;
+}
 
 export declare interface ContextProtectionFailure {
     message: string;
@@ -496,6 +541,18 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     agent: string;
     fingerprint: string;
 } | {
+    type: "provider_request";
+    requestId: string;
+    agent: string;
+    stepId?: string;
+    providerId: string;
+    modelId: string;
+    messageFingerprint: string;
+    stablePrefixFingerprint: string;
+    toolSchemaFingerprint: string;
+    capabilityFingerprint: string;
+    contextWorkingSetFingerprint: string;
+} | {
     type: "artifact_created";
     artifactId: string;
     status: "stored" | "blocked";
@@ -709,6 +766,11 @@ export declare interface CoreMindRuntimeOptions {
     toolDefinitions?: CoreMindToolDefinition[];
     /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
     lifecycleExtensions?: LifecycleExtensionPolicy;
+    /** 可选 Telemetry 传输 seam；模式与字段范围来自已校验配置。 */
+    telemetry?: Omit<TelemetryEgressControllerOptions, "policy"> & {
+        /** 必须在任何 export 前以 critical Fact 持久化的显式授权。 */
+        consents?: TelemetryConsentFact[];
+    };
     signal?: AbortSignal;
     /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
     sessionId?: string;
@@ -788,8 +850,25 @@ declare interface CreateInputReceiptOptions extends InputReceiptEventOptions {
     contentFingerprint: string;
 }
 
+/** 从实际 Working Set 输入生成可持久化、无正文的 Provider 请求证据。 */
+export declare function createProviderRequestReplayFact(fixture: ProviderRequestReplayFixture): ProviderRequestReplayFact;
+
 /** 在 Runtime 终态确定后生成唯一快照，供 CLI、Worker 与两个 SDK 原样传递。 */
 export declare function createRunSnapshot(input: RunSnapshotInput): RunSnapshot;
+
+/** 写入 Run start 的安全配置快照：只保留 endpoint origin，不落 query 或凭据。 */
+export declare function createTelemetryConfigurationFact(policy: TelemetryPolicy, configuredAt: string): TelemetryConfigurationFact;
+
+/** 创建与授权范围精确绑定的持久 consent Fact。 */
+export declare function createTelemetryConsentFact(input: TelemetryConsentInput): TelemetryConsentFact;
+
+/**
+ * 构造供 Core 校验的出站策略收据；真实 DNS/TLS 与网络策略必须由受信任 Adapter 执行。
+ */
+export declare function createTelemetryEgressAuthorization(input: {
+    targetOrigin: string;
+    resolvedAddresses: string[];
+}): TelemetryEgressAuthorization;
 
 export declare function createToolCallLifecycle(input: ToolCallIdentity & {
     tool: string;
@@ -1281,6 +1360,8 @@ export declare function isInputReceiptEvent(event: CoreMindEvent): boolean;
 /** 由 Runtime 单点判断持久化运行是否满足自动恢复的安全前提。 */
 export declare function isRunStateResumable(records: readonly RunStateRecord[]): boolean;
 
+export declare function isTelemetryConsentFact(value: unknown): value is TelemetryConsentFact;
+
 /** 转移合法性：undefined（未登记）只能到 pending（登记）；否则按转移表 */
 export declare function isValidTransition(from: InputReceiptStatus | undefined, to: InputReceiptStatus): boolean;
 
@@ -1380,6 +1461,57 @@ export declare function listInheritedProviders(): string[];
 export declare function listSupportedProviders(): string[];
 
 export declare function loadEvaluationSuite(file: string): Promise<EvaluationSuite>;
+
+export declare interface LocalObservabilityProjection {
+    schemaVersion: 1;
+    localEnabled: true;
+    derivedFromSequence: number;
+    run: {
+        status: RunProjectionStatus;
+        resumable: boolean;
+        operationState?: string;
+        durationMs?: number;
+    };
+    turns: {
+        started: number;
+        completed: number;
+        active: number;
+    };
+    calls: {
+        started: number;
+        completed: number;
+        failed: number;
+        active: number;
+        durationMs: number;
+    };
+    tools: ToolCallLifecycleState[];
+    errors: Array<{
+        sequence: number;
+        message: string;
+        fatal: boolean;
+    }>;
+    context: {
+        budgets: number;
+        compactions: number;
+        failures: number;
+    };
+    artifacts: {
+        stored: number;
+        blocked: number;
+    };
+    sharedState: {
+        pendingControls: number;
+    };
+    recovery: {
+        resumable: boolean;
+        operationState?: string;
+    };
+    telemetry: TelemetryDeliveryProjection & {
+        source: TelemetryConfigurationSource;
+        deliverySemantics: "best_effort_handoff_not_delivery";
+        authorizedScopes: TelemetryAuthorizationScope[];
+    };
+}
 
 /** XState 只存在于此适配器内部；调用方只读写 CoreMind 的领域事件和版本化快照。 */
 export declare class LoopController {
@@ -1586,6 +1718,15 @@ export declare interface OutcomeGrader extends GraderBase {
 
 export declare type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
+declare interface PendingApprovalControl {
+    type: "approval";
+    approvalId: string;
+    runId: string;
+    agent: string;
+    tool: string;
+    risk: "low" | "high";
+}
+
 export declare type PersistenceState = "pending" | "durable" | "failed" | "unknown";
 
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
@@ -1610,6 +1751,26 @@ export declare interface ProjectCheckReport {
     };
 }
 
+/** 从 canonical Run Facts 重建默认开启的本地观测视图。 */
+export declare function projectLocalObservability(records: readonly RunStateRecord[], options?: ProjectLocalObservabilityOptions): LocalObservabilityProjection;
+
+export declare interface ProjectLocalObservabilityOptions {
+    runStatus?: RunProjectionStatus;
+    resumable?: boolean;
+    operationState?: string;
+    context?: {
+        budgets: number;
+        compactions: number;
+        failures: number;
+    };
+    artifacts?: {
+        stored: number;
+        blocked: number;
+    };
+    pendingControls?: number;
+    telemetryDelivery?: TelemetryDeliveryProjection;
+}
+
 export declare function projectToolCallLifecycles(facts: readonly unknown[]): ToolCallLifecycleState[];
 
 /** 从同一 Runtime 的规范化 Fact 生成入口共享的 Capability 视图。 */
@@ -1629,8 +1790,34 @@ export declare function projectWorkspaceLeasesFromRecords(records: readonly RunS
  */
 export declare function protectContext(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextProtectionResult;
 
+export declare interface ProviderRequestReplayFact {
+    requestId: string;
+    providerId: string;
+    modelId: string;
+    messageFingerprint: string;
+    stablePrefixFingerprint: string;
+    toolSchemaFingerprint: string;
+    capabilityFingerprint: string;
+    contextWorkingSetFingerprint: string;
+}
+
+export declare interface ProviderRequestReplayFixture {
+    requestId: string;
+    providerId: string;
+    modelId: string;
+    messages: readonly unknown[];
+    stablePrefix: string;
+    toolSchemas: readonly unknown[];
+    capabilityFingerprint: string;
+}
+
 /** 事件序列中某输入的最新收据状态（折叠查询的便捷封装） */
 export declare function receiptStatusOf(events: readonly CoreMindEvent[], inputId: InputId): InputReceiptStatus | undefined;
+
+declare interface RecoveryDecision {
+    resumable: boolean;
+    operation?: DurableOperationSnapshot;
+}
 
 /** 发布判断与普通运行成功分离。 */
 export declare interface ReleaseReadiness {
@@ -1641,6 +1828,25 @@ export declare interface ReleaseReadiness {
         reason: string;
         recordedAt: string;
     };
+}
+
+export declare interface ReplayFixture {
+    facts: readonly RunStateRecord[];
+    providerRequests: readonly ProviderRequestReplayFixture[];
+}
+
+/** 对固定 canonical Facts 与请求 fixture 执行无副作用、可重复的本地重放。 */
+export declare const ReplayKit: {
+    replay(fixture: ReplayFixture): ReplayResult;
+};
+
+export declare interface ReplayResult {
+    schemaVersion: 1;
+    factFingerprint: string;
+    replayFingerprint: string;
+    projection: RunProjection;
+    observation: LocalObservabilityProjection;
+    providerRequests: ProviderRequestReplayFact[];
 }
 
 export declare interface RepositoryMap {
@@ -1791,6 +1997,27 @@ export declare interface RunOutcome {
     };
 }
 
+declare interface RunProjection {
+    schemaVersion: 1;
+    runId: string;
+    status: RunProjectionStatus;
+    resumable: boolean;
+    operation?: DurableOperationSnapshot;
+    outcome?: RunOutcome;
+    recovery: RecoveryDecision;
+    trace: CoreMindTraceEvent[];
+    checkpoints: CheckpointRecord[];
+    artifacts: ArtifactProjection[];
+    extensions: LifecycleExtensionReceipt[];
+    context: ContextProjection;
+    pendingControls: PendingApprovalControl[];
+    observability: LocalObservabilityProjection;
+    records: RunStateRecord[];
+    snapshot?: RunSnapshot;
+}
+
+declare type RunProjectionStatus = "finished" | "paused" | "interrupted";
+
 export declare interface RunResult {
     runId: string;
     /** 通用 durable operation 的权威外围状态；Workflow/Loop 细节仍由各自快照负责。 */
@@ -1816,6 +2043,8 @@ export declare interface RunResult {
     extensions?: LifecycleExtensionReceipt[];
     /** CLI、Worker、TypeScript SDK 与 Python SDK 共用的纯 JSON 权威快照。 */
     snapshot: RunSnapshot;
+    /** 默认开启、从 Facts 派生的本地观测；外传交付状态不参与恢复。 */
+    observability: LocalObservabilityProjection;
 }
 
 export declare interface RunResumePlan {
@@ -1892,7 +2121,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "start" | "resume" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;
@@ -2008,6 +2237,147 @@ export declare interface StepOutput {
         agent: string;
         stepId: string;
     };
+}
+
+export declare interface TelemetryAuthorizationScope {
+    runId: string;
+    consentId: string;
+    scopeFingerprint: string;
+    kind: TelemetryConsentFact["kind"];
+    targetOrigin: string;
+    contentLevel: TelemetryContentLevel;
+    allowedFields: string[];
+    throughSequence?: number;
+    factPrefixFingerprint?: string;
+    retentionPurpose?: string;
+    revocationMethod?: string;
+    grantedAt: string;
+}
+
+export declare interface TelemetryConfigurationFact {
+    schemaVersion: 1;
+    mode: TelemetryMode;
+    contentLevel: TelemetryContentLevel;
+    allowedFields: string[];
+    configuredAt: string;
+    endpointOrigin?: string;
+}
+
+export declare type TelemetryConfigurationSource = "default" | "configured" | "legacy_default";
+
+export declare interface TelemetryConsentFact {
+    schemaVersion: 1;
+    scopeFingerprint: string;
+    runId: string;
+    consentId: string;
+    kind: "feedback" | "content";
+    targetOrigin: string;
+    contentLevel: TelemetryContentLevel;
+    allowedFields: string[];
+    throughSequence?: number;
+    factPrefixFingerprint?: string;
+    retentionPurpose?: string;
+    revocationMethod?: string;
+    grantedAt: string;
+}
+
+export declare type TelemetryConsentInput = Omit<TelemetryConsentFact, "schemaVersion" | "scopeFingerprint">;
+
+/** consent 只绑定发送范围，不把 UI 状态或授权时间混入范围身份。 */
+export declare function telemetryConsentScopeFingerprint(input: Pick<TelemetryConsentFact, "runId" | "kind" | "targetOrigin" | "contentLevel" | "allowedFields" | "throughSequence" | "factPrefixFingerprint" | "retentionPurpose" | "revocationMethod">): string;
+
+export declare type TelemetryContentLevel = "metrics_only" | "content";
+
+export declare interface TelemetryDeliveryProjection {
+    mode: TelemetryMode;
+    exporterLoaded: boolean;
+    endpointOrigin?: string;
+    contentLevel: TelemetryContentLevel;
+    allowedFields: string[];
+    queued: number;
+    handedOff: number;
+    failed: number;
+    dropped: number;
+    duplicates: number;
+    shutdownTimedOut: boolean;
+    lastFailure?: TelemetryFailureCode;
+}
+
+export declare interface TelemetryEgressAuthorization {
+    schemaVersion: 1;
+    targetOrigin: string;
+    resolvedAddresses: string[];
+    redirectPolicy: "deny";
+    proxyPolicy: "deny";
+    tlsPolicy: "strict";
+    policyFingerprint: string;
+}
+
+/**
+ * 可丢弃的 Telemetry 投影器。它只消费已经持久化的 Facts，且永远不写回运行事实。
+ */
+export declare class TelemetryEgressController {
+    private readonly options;
+    constructor(options: TelemetryEgressControllerOptions);
+    export(records: readonly RunStateRecord[]): Promise<TelemetryDeliveryProjection>;
+}
+
+export declare interface TelemetryEgressControllerOptions {
+    policy: TelemetryPolicy;
+    createExporter?: (context: {
+        endpointOrigin: string;
+        authorization: TelemetryEgressAuthorization;
+        signal: AbortSignal;
+        credentials?: Readonly<Record<string, string>>;
+    }) => TelemetryExporter | Promise<TelemetryExporter>;
+    authorizeEgress?: (context: {
+        endpointOrigin: string;
+        signal: AbortSignal;
+    }) => TelemetryEgressAuthorization | Promise<TelemetryEgressAuthorization>;
+    readCredentials?: (signal: AbortSignal) => Promise<Record<string, string>>;
+    queueLimit?: number;
+    exportTimeoutMs?: number;
+    shutdownTimeoutMs?: number;
+    redact?: (value: unknown) => unknown;
+}
+
+export declare interface TelemetryExporter {
+    export(record: TelemetryExportRecord, context: {
+        authorization: TelemetryEgressAuthorization;
+        signal: AbortSignal;
+    }): void | Promise<void>;
+    shutdown?(context: {
+        signal: AbortSignal;
+    }): void | Promise<void>;
+}
+
+export declare class TelemetryExporterError extends Error {
+    readonly code: TelemetryFailureCode;
+    constructor(code: TelemetryFailureCode, message: string);
+}
+
+export declare interface TelemetryExportRecord {
+    identity: string;
+    runId: string;
+    sequence: number;
+    timestamp: string;
+    kind: RunStateKind;
+    eventType?: string;
+    fields: Readonly<Record<string, unknown>>;
+}
+
+/** 把 feedback 授权绑定到同一 Run 当时已持久化的精确 Fact 前缀。 */
+export declare function telemetryFactPrefixFingerprint(records: readonly RunStateRecord[], throughSequence: number): string;
+
+export declare type TelemetryFailureCode = "dns" | "tls" | "http_401" | "http_429" | "timeout" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed";
+
+export declare type TelemetryMode = "DISABLED" | "FEEDBACK_ONLY" | "FULL";
+
+export declare interface TelemetryPolicy {
+    mode: TelemetryMode;
+    endpoint?: string;
+    contentLevel?: TelemetryContentLevel;
+    allowedFields?: string[];
 }
 
 export declare const TOOL_CALL_PHASES: readonly ["call_recorded", "capability_resolved", "policy_resolved", "approval_resolved", "lease_acquired", "checkpoint_durable", "started_durable", "executing", "observed", "result_durable", "terminal"];
@@ -2201,6 +2571,13 @@ export declare interface TransientRetryOptions {
 }
 
 export declare function validateEvaluationSuite(value: unknown): EvaluationSuite;
+
+export declare function validateTelemetryConfigurationFact(value: unknown): TelemetryConfigurationFact;
+
+/** 在写入前验证 consent 只覆盖同一 Run 已经 durable 的 Fact 高水位。 */
+export declare function validateTelemetryConsentBinding(value: unknown, persistedRecords: readonly RunStateRecord[]): TelemetryConsentFact;
+
+export declare function validateTelemetryConsentFact(value: unknown): TelemetryConsentFact;
 
 export declare function validateToolCallLifecycleFact(value: unknown): ToolCallLifecycleFact;
 

@@ -30,6 +30,12 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(first["outcome"]["status"], "succeeded")
         self.assertEqual(first["snapshot"]["outcome"], first["outcome"])
         self.assertEqual(first["snapshot"]["runId"], first["runId"])
+        self.assertTrue(first["observability"]["localEnabled"])
+        self.assertEqual(first["observability"]["telemetry"]["mode"], "DISABLED")
+        self.assertEqual(
+            first["observability"]["telemetry"]["deliverySemantics"],
+            "best_effort_handoff_not_delivery",
+        )
         self.assertEqual(second["transcript"], "完成")
         self.assertEqual(self.client.pid, pid)
         self.assertEqual(self.events[0]["event"]["type"], "agent_start")
@@ -56,6 +62,7 @@ class CoreMindClientTest(unittest.TestCase):
         restored = self.client.checkpoint_restore("run-1", "checkpoint-1", confirm=True)
 
         self.assertEqual(inspected["status"], "finished")
+        self.assertTrue(inspected["observability"]["localEnabled"])
         self.assertEqual(resumed["runId"], "interrupted-run")
         self.assertTrue(diff["changed"])
         self.assertTrue(restored["restored"])
@@ -79,6 +86,28 @@ class CoreMindClientTest(unittest.TestCase):
             self.client.run("坏快照")
 
         self.assertEqual(captured.exception.coremind_code, "invalid_run_snapshot")
+
+    def test_declared_local_observability_rejects_invalid_projection(self) -> None:
+        with self.assertRaises(ProtocolError) as captured:
+            self.client.run("坏观测")
+
+        self.assertEqual(captured.exception.coremind_code, "invalid_observability")
+
+        with self.assertRaises(ProtocolError) as nested:
+            self.client.run("坏观测嵌套")
+
+        self.assertEqual(nested.exception.coremind_code, "invalid_observability")
+
+        for prompt in (
+            "坏观测关闭超时",
+            "坏观测失败码",
+            "坏观测工具阶段",
+            "坏观测工具状态",
+            "坏观测工具轴",
+        ):
+            with self.subTest(prompt=prompt), self.assertRaises(ProtocolError) as deep:
+                self.client.run(prompt)
+            self.assertEqual(deep.exception.coremind_code, "invalid_observability")
 
 
 class AsyncCoreMindClientTest(unittest.IsolatedAsyncioTestCase):

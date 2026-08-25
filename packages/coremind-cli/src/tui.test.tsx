@@ -283,6 +283,11 @@ describe("Windows TUI 交互验收", () => {
     await settle();
     expect(app.lastFrame()).toContain("cache available");
     expect(app.lastFrame()).toContain("稳定前缀 1");
+
+    await typeCommand(app.stdin.write, "/observability");
+    await settle();
+    expect(app.lastFrame()).toContain("本地观测 开启");
+    expect(app.lastFrame()).toContain("Telemetry DISABLED");
     app.unmount();
   });
 });
@@ -324,6 +329,35 @@ function createRun(overrides: Partial<Omit<RunResult, "snapshot">> = {}): RunRes
     transcript: "完成",
     artifacts: [],
     extensions: [],
+    observability: {
+      schemaVersion: 1,
+      localEnabled: true,
+      derivedFromSequence: 1,
+      run: { status: "finished", resumable: false },
+      turns: { started: 1, completed: 1, active: 0 },
+      calls: { started: 0, completed: 0, failed: 0, active: 0, durationMs: 0 },
+      tools: [],
+      errors: [],
+      context: { budgets: 0, compactions: 0, failures: 0 },
+      artifacts: { stored: 0, blocked: 0 },
+      sharedState: { pendingControls: 0 },
+      recovery: { resumable: false },
+      telemetry: {
+        mode: "DISABLED",
+        source: "default",
+        exporterLoaded: false,
+        contentLevel: "metrics_only",
+        allowedFields: [],
+        queued: 0,
+        handedOff: 0,
+        failed: 0,
+        dropped: 0,
+        duplicates: 0,
+        shutdownTimedOut: false,
+        deliverySemantics: "best_effort_handoff_not_delivery",
+        authorizedScopes: [],
+      },
+    },
   };
   const result = { ...base, ...overrides };
   return {
