@@ -233,7 +233,7 @@ function normalizeFact(value: unknown, key = ""): unknown {
 /** 假 Provider：记录每次请求的规范化签名，脚本化返回纯文本响应 */
 async function createEquivalenceServer(
   onRequest: (signatures: WireSignature[]) => void,
-  options: { port?: number } = {},
+  options: { port?: number; toolError?: boolean } = {},
 ): Promise<{ server: Server; port: number }> {
   const server = createServer((request, response) => {
     let body = "";
@@ -280,8 +280,8 @@ async function createEquivalenceServer(
                         id: "call-read-equivalence",
                         type: "function",
                         function: {
-                          name: "read",
-                          arguments: '{"path":"notes.txt"}',
+                          name: options.toolError ? "fault_probe" : "read",
+                          arguments: options.toolError ? "{}" : '{"path":"notes.txt"}',
                         },
                       },
                     ],
@@ -304,7 +304,7 @@ async function createEquivalenceServer(
 }
 
 /** fixture 配置（指向指定 mock provider 端口） */
-function fixtureConfig(port: number): CoreMindConfig {
+function fixtureConfig(port: number, toolError = false): CoreMindConfig {
   return {
     schemaVersion: 2,
     name: "等价性验收",
@@ -315,13 +315,34 @@ function fixtureConfig(port: number): CoreMindConfig {
       apiKey: "test-key",
     },
     agents: { main: { systemPrompt: "助手" } },
-    tools: [{ id: "read" }],
+    tools: toolError
+      ? [
+          {
+            path: "fault-tool.mjs",
+            name: "fault_probe",
+            effect: { operations: ["read"], reversible: true },
+          },
+        ]
+      : [{ id: "read" }],
     permissions: { mode: "assisted", workspaceOnly: true, network: "deny" },
   };
 }
 
-function prepareFixtureFile(directory: string, missingFile: boolean): void {
-  if (!missingFile) writeFileSync(path.join(directory, "notes.txt"), "四入口能力一致", "utf8");
+function prepareFixtureFiles(directory: string, toolError: boolean): void {
+  if (!toolError) {
+    writeFileSync(path.join(directory, "notes.txt"), "四入口能力一致", "utf8");
+    return;
+  }
+  writeFileSync(
+    path.join(directory, "fault-tool.mjs"),
+    `export default {
+  name: "fault_probe",
+  description: "产生固定错误的等价性测试工具",
+  parameters: { type: "object", properties: {}, additionalProperties: false },
+  execute: async () => { throw new Error("deterministic-tool-error"); }
+};\n`,
+    "utf8",
+  );
 }
 
 async function closeServer(server: Server): Promise<void> {
@@ -330,7 +351,7 @@ async function closeServer(server: Server): Promise<void> {
 
 /** 入口 1：TS SDK——直接驱动 CoreMindRuntime */
 async function captureTsSdk(
-  missingFile = false,
+  toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
 ): Promise<EntryCapture> {
@@ -339,13 +360,14 @@ async function captureTsSdk(
     (signatures) => captured.push(...signatures),
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
+      toolError,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
-  prepareFixtureFile(dir, missingFile);
+  prepareFixtureFiles(dir, toolError);
   try {
     const runtime = await CoreMindRuntime.create({
-      config: fixtureConfig(port),
+      config: fixtureConfig(port, toolError),
       configDir: dir,
       cwd: dir,
       initialPrompt: "你好",
@@ -392,7 +414,7 @@ function spawnAndWait(
 
 /** 入口 2：CLI——异步 spawn dist/cli.js run --json-events（同步 spawn 会阻塞 mock server 事件循环） */
 async function captureCli(
-  missingFile = false,
+  toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
 ): Promise<EntryCapture> {
@@ -401,13 +423,14 @@ async function captureCli(
     (signatures) => captured.push(...signatures),
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
+      toolError,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
   const configPath = path.join(dir, "coremind.yaml");
-  prepareFixtureFile(dir, missingFile);
+  prepareFixtureFiles(dir, toolError);
   // 配置文件支持 JSON 格式（YAML/JSON 双格式）
-  writeFileSync(configPath, JSON.stringify(fixtureConfig(port)), "utf8");
+  writeFileSync(configPath, JSON.stringify(fixtureConfig(port, toolError)), "utf8");
   try {
     const { code, stdout, stderr } = await spawnAndWait(
       "node",
@@ -492,7 +515,7 @@ async function waitForTuiFingerprint(
 
 /** 入口 3a：TUI——ink 渲染 ChatTUI + 真实 ChatSession 驱动一轮对话（请求等价） */
 async function captureTui(
-  missingFile = false,
+  toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
 ): Promise<EntryCapture> {
@@ -501,13 +524,14 @@ async function captureTui(
     (signatures) => captured.push(...signatures),
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
+      toolError,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
-  prepareFixtureFile(dir, missingFile);
+  prepareFixtureFiles(dir, toolError);
   try {
     const runtime = await CoreMindRuntime.create({
-      config: fixtureConfig(port),
+      config: fixtureConfig(port, toolError),
       configDir: dir,
       cwd: dir,
     });
@@ -545,7 +569,7 @@ async function captureTui(
 
 /** 入口 4：Python SDK——spawn 临时脚本驱动 CoreMindClient（经 worker 连 mock provider） */
 async function capturePython(
-  missingFile = false,
+  toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
 ): Promise<EntryCapture> {
@@ -554,23 +578,19 @@ async function capturePython(
     (signatures) => captured.push(...signatures),
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
+      toolError,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
-  prepareFixtureFile(dir, missingFile);
+  prepareFixtureFiles(dir, toolError);
   const scriptPath = path.join(dir, "capture.py");
+  const configJson = JSON.stringify(fixtureConfig(port, toolError));
   const script = [
     "import sys, json",
     `sys.path.insert(0, ${JSON.stringify(pythonSrcPath)})`,
     "from coremind.client import CoreMindClient",
-    "client = CoreMindClient({",
-    '  "schemaVersion": 2,',
-    '  "name": "等价性验收",',
-    `  "provider": {"id": "probe", "baseUrl": "http://127.0.0.1:${port}/v1", "model": "probe-model", "apiKey": "test-key"},`,
-    '  "agents": {"main": {"systemPrompt": "助手"}},',
-    '  "tools": [{"id": "read"}],',
-    '  "permissions": {"mode": "assisted", "workspaceOnly": True, "network": "deny"},',
-    "}, config_dir=" +
+    `config = json.loads(${JSON.stringify(configJson)})`,
+    "client = CoreMindClient(config, config_dir=" +
       JSON.stringify(dir) +
       ", cwd=" +
       JSON.stringify(dir) +
