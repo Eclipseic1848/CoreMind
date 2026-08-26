@@ -90,6 +90,7 @@ async function probeLinuxSandbox(
     ".catch(() => process.exit(outsideBlocked && credentialHidden ? 0 : 4))",
   ].join(";");
   const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
+  const commandId = randomUUID();
   try {
     const wrapped = await SandboxManager.wrapWithSandboxArgv(
       command,
@@ -97,7 +98,7 @@ async function probeLinuxSandbox(
       buildLinuxSandboxConfig(workspaceRoot, probeEnvironment),
       undefined,
       workspaceRoot,
-      { commandId: randomUUID(), commandText: "CoreMind Linux sandbox negative probe" },
+      { commandId, commandText: "CoreMind Linux sandbox negative probe" },
     );
     const executable = wrapped.argv[0];
     if (!executable) throw new Error("Linux sandbox probe 未生成可执行命令");
@@ -113,6 +114,16 @@ async function probeLinuxSandbox(
       maxOutputBytes: 64 * 1024,
     });
     const available = result.exitCode === 0;
+    if (!available) {
+      console.error(
+        "[DEBUG-72-LINUX-PROBE]",
+        JSON.stringify({
+          exitCode: result.exitCode,
+          stdout: result.stdout.slice(0, 2_000),
+          stderr: result.stderr.slice(0, 2_000),
+        }),
+      );
+    }
     return {
       available,
       evidence: [
