@@ -4,6 +4,10 @@ export default defineProject({
   test: {
     name: "release-engineering",
     include: ["**/*.test.ts"],
-    exclude: [...configDefaults.exclude, "trusted-tool-fault-matrix.test.ts"],
+    exclude: [
+      ...configDefaults.exclude,
+      "phase2-baseline.test.ts",
+      "trusted-tool-fault-matrix.test.ts",
+    ],
   },
 });

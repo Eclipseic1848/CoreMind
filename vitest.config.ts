@@ -13,6 +13,7 @@ export default defineConfig({
       "examples/coding-evals/vitest.config.ts",
       "scripts/vitest.config.ts",
       "scripts/vitest.trusted-tool-fault-matrix.config.ts",
+      "scripts/vitest.phase2-baseline.config.ts",
     ],
     coverage: {
       provider: "v8",
