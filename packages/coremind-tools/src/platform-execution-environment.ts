@@ -81,14 +81,7 @@ async function probeLinuxSandbox(
   });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("无法创建本地网络负向探针");
-  const probeScript = [
-    "const fs = require('node:fs')",
-    `let outsideBlocked = false; try { fs.writeFileSync(${JSON.stringify(outsidePath)}, 'x') } catch { outsideBlocked = true }`,
-    "const credentialHidden = process.env.COREMIND_SANDBOX_PROBE_SECRET === undefined",
-    `fetch(${JSON.stringify(`http://127.0.0.1:${address.port}`)})`,
-    ".then(() => process.exit(3))",
-    ".catch(() => process.exit(outsideBlocked && credentialHidden ? 0 : 4))",
-  ].join(";");
+  const probeScript = buildLinuxSandboxProbeScript(outsidePath, address.port);
   const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
   const commandId = randomUUID();
   try {
@@ -114,16 +107,6 @@ async function probeLinuxSandbox(
       maxOutputBytes: 64 * 1024,
     });
     const available = result.exitCode === 0;
-    if (!available) {
-      console.error(
-        "[DEBUG-72-LINUX-PROBE]",
-        JSON.stringify({
-          exitCode: result.exitCode,
-          stdout: result.stdout.slice(0, 2_000),
-          stderr: result.stderr.slice(0, 2_000),
-        }),
-      );
-    }
     return {
       available,
       evidence: [
@@ -138,6 +121,18 @@ async function probeLinuxSandbox(
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
+}
+
+/** 生成交给 Node 执行的 Linux sandbox 负向探针脚本。 */
+export function buildLinuxSandboxProbeScript(outsidePath: string, port: number): string {
+  return [
+    "const fs = require('node:fs')",
+    `let outsideBlocked = false; try { fs.writeFileSync(${JSON.stringify(outsidePath)}, 'x') } catch { outsideBlocked = true }`,
+    "const credentialHidden = process.env.COREMIND_SANDBOX_PROBE_SECRET === undefined",
+    `fetch(${JSON.stringify(`http://127.0.0.1:${port}`)})`,
+    ".then(() => process.exit(3))",
+    ".catch(() => process.exit(outsideBlocked && credentialHidden ? 0 : 4))",
+  ].join("\n");
 }
 
 function shellQuote(value: string): string {
