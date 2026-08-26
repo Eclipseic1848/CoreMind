@@ -214,6 +214,7 @@ describe("GitHub Actions 收口合同", () => {
   });
 
   it("正式产物基线采集在独立资源组运行", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     const rootConfig = readFileSync("vitest.config.ts", "utf8");
     const releaseConfig = readFileSync("scripts/vitest.config.ts", "utf8");
     const baselineConfig = readFileSync("scripts/vitest.phase2-baseline.config.ts", "utf8");
@@ -224,5 +225,6 @@ describe("GitHub Actions 收口合同", () => {
     expect(baselineConfig).toContain("fileParallelism: false");
     expect(baselineConfig).toContain("groupOrder: 4");
     expect(baselineConfig).toContain("testTimeout: 60_000");
+    expect(manifest.scripts["test:coverage"]).toContain("--project=!phase2-baseline");
   });
 });
