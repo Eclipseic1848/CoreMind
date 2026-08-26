@@ -3,6 +3,7 @@
 > 配套 ADR：[0006-protocol-v2-with-v1-migration](../../adr/0006-protocol-v2-with-v1-migration.md)
 > 目标：`0.4.0` 引入 v2；整个 `0.4.x` 保留 v1 兼容入口
 > 状态：accepted（2026-08-22 用户确认）
+> 实现状态：#71 本地候选已覆盖核心合同与离线验收；尚不代表发布或真实远程 Host 认证
 
 ## 1. 目标
 
@@ -30,7 +31,7 @@ Protocol Host 只是单一 Node Runtime 的入口 Adapter，不拥有第二份 R
 
 ## 3. RunHandle
 
-run/chat/resume 接受由客户端预生成或 Host 分配的 RunId，并在任务进入后台执行后立即返回：
+run/chat/resume 接受客户端预生成的稳定 RunId，并在任务进入后台执行后立即返回。SDK 可以在调用方省略时本地预生成，但 Host v2 线协议不补造 RunId：
 
 ```text
 RunHandle = RunId
@@ -43,6 +44,8 @@ RunHandle = RunId
 返回 RunHandle 只表示请求被接收，不表示 Run 已开始调用 Provider、工具已授权或终态成功。
 
 同一 RunId 的重复 start 请求必须通过输入指纹决定幂等返回或 `run_id_conflict`；不得启动第二个 Run。
+
+首次 run/chat 结束后，resume 可以用同一 RunId 承接；resume 自身的重复请求仍按完整 start 指纹幂等或冲突。
 
 ## 4. 类型化事件 envelope
 
@@ -114,3 +117,7 @@ v2 查询只调用 ProjectionEngine，至少覆盖：
 - start/duplicate/conflict、断线、Host crash、cursor replay、慢消费者、Control 重复与 Cancel-to-Quiescent 故障注入。
 - v1 在整个 0.4.x 的迁移 fixture；未授权前不存在移除代码。
 - Windows/Linux Worker 与真实入口通过；真实远程 Host/网络部署另行授权。
+
+当前本地候选已在 Windows 验证真实 stdio Worker 与 Python 捆绑 Worker；Linux 由仓库 CI matrix 执行，只有对应 CI 运行成功后才能标记跨平台门通过。
+
+这里的“v1/v2 × 四入口”是共享 Runtime 的语义矩阵，不要求本地 CLI/TUI 增加协议选择开关：#70 的四入口验收固定 CLI、TUI、TypeScript 与 Python 的共同 Fact、Outcome、RecoveryDecision；#71 的 ProtocolHost 验收再固定 v1/v2 对同一 Runtime 输入与完成态共同 Fact、Outcome、RecoveryDecision 的等价。两段证据都通过才关闭该矩阵，v2 专属 RunHandle、start identity、cursor 与 query 元数据不参与 v1 共同能力比较。

@@ -9,6 +9,7 @@ sys.stdin.reconfigure(encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
 
 pending_run_id: int | None = None
+selected_protocol = "1.0"
 
 
 def send(value: object) -> None:
@@ -114,6 +115,25 @@ for line in sys.stdin:
     method = request["method"]
     params = request["params"]
     if method == "initialize":
+        if "protocolRange" in params:
+            selected_protocol = "2.0"
+            send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "selectedProtocol": "2.0",
+                        "serverCapabilities": [
+                            "runHandle",
+                            "cursorResume",
+                            "controlInbox",
+                            "projectionQuery",
+                        ],
+                        "schemaFingerprint": "sha256:" + "0" * 64,
+                    },
+                }
+            )
+            continue
         send(
             {
                 "jsonrpc": "2.0",
@@ -121,6 +141,98 @@ for line in sys.stdin:
                 "result": {
                     "protocolVersion": "1.0",
                     "capabilities": ["runSnapshot", "localObservability"],
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method in {"run", "chat", "resume"}:
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "runId": params["runId"],
+                    "acceptedAt": "2026-08-25T00:00:00.000Z",
+                    "initialCursor": 0,
+                    "selectedProtocol": "2.0",
+                    "availableControls": ["cancel", "approval", "steering", "follow_up"],
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method == "events":
+        if params["runId"] == "expired-run":
+            send(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "error": {
+                        "code": -32000,
+                        "message": "事件游标已过期",
+                        "data": {
+                            "coremindCode": "cursor_expired",
+                            "details": {
+                                "recovery": {
+                                    "runId": "expired-run",
+                                    "newCursor": 7,
+                                    "derivedFromSequence": 7,
+                                    "projection": {"status": "interrupted"},
+                                }
+                            },
+                        },
+                    },
+                }
+            )
+            continue
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "schemaVersion": 1,
+                    "runId": params["runId"],
+                    "afterSequence": params["afterSequence"],
+                    "nextCursor": 1,
+                    "hasMore": False,
+                    "events": [
+                        {
+                            "protocolVersion": "2.0",
+                            "eventType": "fact.start",
+                            "eventSchemaVersion": 1,
+                            "runId": params["runId"],
+                            "sequence": 1,
+                            "eventId": "start-1",
+                            "timestamp": "2026-08-25T00:00:00.000Z",
+                            "payload": {},
+                            "ignorable": False,
+                            "sensitivity": "local",
+                        }
+                    ],
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method == "query":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "schemaVersion": 1,
+                    "runId": params["runId"],
+                    "derivedFromSequence": 1,
+                    "projection": {"runId": params["runId"], "status": "interrupted"},
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method == "control":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "schemaVersion": 1,
+                    "controlId": params["controlId"],
+                    "runId": params["runId"],
+                    "status": "applied",
+                    "appliedSequence": 2,
                 },
             }
         )

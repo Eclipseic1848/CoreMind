@@ -1,6 +1,49 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
+export {
+  negotiateProtocolV2,
+  PROTOCOL_V2_SCHEMA_BUNDLE,
+  PROTOCOL_V2_SCHEMA_FINGERPRINT,
+  PROTOCOL_V2_VERSION,
+  type ProtocolV2ChatRequest,
+  ProtocolV2ChatRequestSchema,
+  type ProtocolV2ControlCommand,
+  ProtocolV2ControlCommandSchema,
+  type ProtocolV2ControlReceipt,
+  ProtocolV2ControlReceiptSchema,
+  type ProtocolV2ControlRequest,
+  ProtocolV2ControlRequestSchema,
+  ProtocolV2ErrorResponseSchema,
+  type ProtocolV2EventEnvelope,
+  ProtocolV2EventEnvelopeSchema,
+  type ProtocolV2EventPage,
+  ProtocolV2EventPageSchema,
+  type ProtocolV2EventsRequest,
+  ProtocolV2EventsRequestSchema,
+  type ProtocolV2InitializeRequest,
+  ProtocolV2InitializeRequestSchema,
+  type ProtocolV2InitializeResult,
+  ProtocolV2InitializeResultSchema,
+  ProtocolV2NegotiationError,
+  type ProtocolV2QueryRequest,
+  ProtocolV2QueryRequestSchema,
+  type ProtocolV2QueryResult,
+  ProtocolV2QueryResultSchema,
+  type ProtocolV2Request,
+  ProtocolV2RequestSchema,
+  type ProtocolV2ResumeRequest,
+  ProtocolV2ResumeRequestSchema,
+  type ProtocolV2RunHandle,
+  ProtocolV2RunHandleSchema,
+  type ProtocolV2RunRequest,
+  ProtocolV2RunRequestSchema,
+  type ProtocolV2StartRequest,
+  ProtocolV2ValidationError,
+  type ProtocolVersionRange,
+  parseProtocolV2Request,
+} from "./v2.js";
+
 export const PROTOCOL_VERSION = "1.0" as const;
 
 const RpcIdSchema = Type.Union([Type.String(), Type.Number()]);

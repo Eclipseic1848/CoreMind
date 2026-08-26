@@ -16,6 +16,12 @@ Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_res
 
 `ProjectionEngine` 同时生成默认开启的 `LocalObservabilityProjection`，`ReplayKit` 直接复用该唯一投影重建 Run、Context、Artifact、Recovery 与观测，并逐项核对实际 Provider Working Set fixture 与持久请求指纹。Telemetry 外传默认 `DISABLED`；启用模式必须与持久配置 Fact、脱敏 origin、字段范围和带 SHA-256 范围指纹的 consent 一致，content consent 还必须声明保留目的与撤销方式。Exporter 只接收 allowlist/递归脱敏副本，故障、丢弃、重复和 shutdown 超时不写回 Facts 或终态。该包只提供注入 seam，不绑定第三方 OTel 类型或真实 endpoint。`createTelemetryEgressAuthorization` 只构造可校验收据；实际 DNS、TLS、禁止 redirect/proxy 与精确 origin 策略必须由受信任 Adapter 执行，Core 不把收据冒充成网络认证证据。
 
+`ControlInbox` 与当前 Run 的 `RunStateJournal` 共用单一 Fact writer。Cancel、Approval、Steering 和 Follow-up 先持久化为 accepted，再在可应用点写入 applied 或 rejected；相同 `controlId` 与相同指纹返回 duplicate，不同内容返回 conflict。ACK 只证明对应阶段已持久化，不把 Cancel ACK 冒充为 Quiescent。`ProjectionEngine` 从 Facts 重建 pending controls，Host 或连接重启后可以重试未决控制而不重复已应用副作用。
+
+## English: Durable controls
+
+`ControlInbox` shares the current RunStateJournal's single fact writer. Cancel, Approval, Steering, and Follow-up are persisted as accepted before an applicable point records applied or rejected. The same control ID and fingerprint returns duplicate; different content returns conflict. An acknowledgement proves only its persisted stage and never represents Cancel as Quiescent. ProjectionEngine rebuilds pending controls from facts, so a Host or connection restart can retry unresolved controls without repeating an applied effect.
+
 ## English: Tool lifecycle
 
 Every current tool entry point passes through `ToolExecutionEngine`. It is both the single phase reducer from `call_recorded` to `terminal` and the owner of the one-shot Tool Adapter invocation after all pre-execution gates pass; unused phases are recorded as `skipped(reason)`. Execution, effect, persistence, recovery, cleanup, authorization, and environment remain orthogonal result axes. Cancellation and timeout converge open calls, and late results cannot rewrite a persisted terminal state. Runtime, Worker, and SDK consumers share the offline `projectToolCallLifecycles()` projection.

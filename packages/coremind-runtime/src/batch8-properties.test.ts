@@ -91,6 +91,7 @@ describe("Batch 8 属性测试", () => {
     );
   });
 
+  // 20 次真实进程启动/终止在整仓并发压力下会超过项目默认 15 秒；单次产品门仍为 2 秒。
   it("取消发生在任意短延迟时都终止进程", async () => {
     await fc.assert(
       fc.asyncProperty(fc.integer({ min: 0, max: 20 }), async (delayMs) => {
@@ -106,7 +107,7 @@ describe("Batch 8 属性测试", () => {
       }),
       { numRuns: 20, seed: 60804 },
     );
-  });
+  }, 60_000);
 
   it("重复动作在配置阈值内必然收敛到无进展终态", () => {
     fc.assert(

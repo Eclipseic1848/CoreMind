@@ -1,5 +1,11 @@
-import type { ArtifactRecord } from "coremind-tools";
+import {
+  type ArtifactRecord,
+  isResolvedToolCapability,
+  RECOVERY_DISPOSITIONS,
+  recoveryDispositionFor,
+} from "coremind-tools";
 import type { CheckpointRecord } from "./checkpoint.js";
+import { type PendingControlProjection, projectPendingControlFacts } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
 import { LIFECYCLE_EVENTS, type LifecycleExtensionReceipt } from "./lifecycle-extension.js";
 import {
@@ -17,6 +23,7 @@ import {
   type RunStateRecord,
 } from "./run-state.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
+import { validateToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 export type RunProjectionStatus = "finished" | "paused" | "interrupted";
@@ -29,6 +36,8 @@ export interface PendingApprovalControl {
   tool: string;
   risk: "low" | "high";
 }
+
+export type PendingControl = PendingApprovalControl | PendingControlProjection;
 
 export interface RecoveryDecision {
   resumable: boolean;
@@ -88,7 +97,7 @@ export interface RunProjection {
   artifacts: ArtifactProjection[];
   extensions: LifecycleExtensionReceipt[];
   context: ContextProjection;
-  pendingControls: PendingApprovalControl[];
+  pendingControls: PendingControl[];
   observability: LocalObservabilityProjection;
   records: RunStateRecord[];
   snapshot?: RunSnapshot;
@@ -166,7 +175,10 @@ export const ProjectionEngine = {
       extensions,
     });
     const context = projectContext(trace);
-    const pendingControls = projectPendingControls(trace);
+    const pendingControls = [
+      ...projectPendingApprovals(trace),
+      ...projectPendingControlFacts(runId, ordered),
+    ];
     const observability = projectLocalObservability(ordered, {
       runStatus: status,
       resumable: recovery.resumable,
@@ -355,7 +367,7 @@ function projectExtensions(trace: readonly CoreMindTraceEvent[]): LifecycleExten
   );
 }
 
-function projectPendingControls(trace: readonly CoreMindTraceEvent[]): PendingApprovalControl[] {
+function projectPendingApprovals(trace: readonly CoreMindTraceEvent[]): PendingApprovalControl[] {
   const resolved = new Set(
     trace.flatMap(({ event }) => (event.type === "approval_resolved" ? [event.approvalId] : [])),
   );
@@ -459,6 +471,130 @@ function isTraceEvent(value: unknown, runId: string): value is CoreMindTraceEven
 
 function isProjectionEventValid(event: Record<string, unknown>, runId: string): boolean {
   switch (event.type) {
+    case "agent_start":
+    case "agent_end":
+      return (
+        typeof event.agent === "string" &&
+        optionalString(event.stepId) &&
+        optionalString(event.turnId)
+      );
+    case "turn_end":
+      return (
+        typeof event.agent === "string" &&
+        optionalString(event.stepId) &&
+        optionalString(event.turnId) &&
+        optionalNumber(event.tokens) &&
+        optionalNumber(event.inputTokens) &&
+        optionalNumber(event.outputTokens) &&
+        optionalNumber(event.cacheReadTokens) &&
+        optionalNumber(event.cacheWriteTokens) &&
+        (event.promptCacheStatus === undefined ||
+          event.promptCacheStatus === "available" ||
+          event.promptCacheStatus === "unavailable") &&
+        optionalNumber(event.costUsd) &&
+        optionalBoolean(event.requestsAnotherTurn)
+      );
+    case "text_delta":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.delta === "string" &&
+        optionalString(event.stepId)
+      );
+    case "tool_call":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        "args" in event &&
+        optionalString(event.argumentsFingerprint) &&
+        optionalString(event.callId) &&
+        optionalString(event.idempotencyKey) &&
+        optionalString(event.stepId) &&
+        optionalString(event.turnId)
+      );
+    case "tool_result":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        typeof event.isError === "boolean" &&
+        optionalString(event.callId) &&
+        optionalString(event.idempotencyKey) &&
+        optionalString(event.stepId) &&
+        optionalString(event.turnId)
+      );
+    case "tool_attempt":
+      return (
+        typeof event.attemptId === "string" &&
+        typeof event.previousReceiptId === "string" &&
+        Number.isInteger(event.attempt) &&
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        typeof event.callId === "string" &&
+        optionalString(event.stepId) &&
+        typeof event.argumentsFingerprint === "string"
+      );
+    case "capability_resolved":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        typeof event.callId === "string" &&
+        optionalString(event.stepId) &&
+        isResolvedToolCapability(event.capability, event.tool) &&
+        RECOVERY_DISPOSITIONS.includes(event.recoveryDisposition as never) &&
+        recoveryDispositionFor(event.capability) === event.recoveryDisposition
+      );
+    case "workspace_lease":
+      return (
+        ["acquired", "released", "recovery_required"].includes(String(event.status)) &&
+        typeof event.canonicalRoot === "string" &&
+        ["parallel", "run_serial", "workspace_exclusive"].includes(String(event.lane)) &&
+        isRecord(event.owner) &&
+        (event.status === "recovery_required" || event.owner.runId === runId) &&
+        typeof event.owner.callId === "string" &&
+        Number.isInteger(event.owner.pid) &&
+        typeof event.agent === "string" &&
+        typeof event.callId === "string" &&
+        optionalString(event.stepId)
+      );
+    case "effect_receipt":
+      return (
+        typeof event.idempotencyKey === "string" &&
+        typeof event.tool === "string" &&
+        ["not_started", "started", "committed", "unknown"].includes(String(event.status)) &&
+        optionalString(event.agent) &&
+        optionalString(event.callId) &&
+        optionalString(event.stepId) &&
+        optionalString(event.turnId) &&
+        (event.binding === undefined || isEffectReceiptBinding(event.binding, event, runId))
+      );
+    case "step_start":
+      return typeof event.stepId === "string" && typeof event.kind === "string";
+    case "step_output":
+      return (
+        typeof event.stepId === "string" &&
+        typeof event.agent === "string" &&
+        typeof event.text === "string" &&
+        optionalString(event.saveAs)
+      );
+    case "step_resumed":
+      return typeof event.stepId === "string";
+    case "step_end":
+      return typeof event.stepId === "string" && typeof event.ok === "boolean";
+    case "loop_state":
+      return (
+        isLoopPhase(event.from) &&
+        isLoopPhase(event.to) &&
+        typeof event.trigger === "string" &&
+        nonNegativeInteger(event.iteration) &&
+        nonNegativeInteger(event.repairs) &&
+        optionalString(event.reason)
+      );
+    case "retry":
+      return (
+        (event.scope === "provider" || event.scope === "workflow") &&
+        Number.isInteger(event.attempt) &&
+        (event.attempt as number) >= 1 &&
+        optionalString(event.stepId)
+      );
     case "artifact_created":
       return (
         typeof event.artifactId === "string" &&
@@ -489,13 +625,31 @@ function isProjectionEventValid(event: Record<string, unknown>, runId: string): 
         event.runId === runId &&
         typeof event.agent === "string" &&
         typeof event.tool === "string" &&
-        (event.risk === "low" || event.risk === "high")
+        "args" in event &&
+        (event.risk === "low" || event.risk === "high") &&
+        isToolEffect(event.effect) &&
+        (event.capability === undefined || isResolvedToolCapability(event.capability, event.tool))
       );
     case "approval_resolved":
       return (
         typeof event.approvalId === "string" &&
         event.runId === runId &&
         (event.decision === "allow" || event.decision === "deny")
+      );
+    case "policy_denied":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        typeof event.reason === "string"
+      );
+    case "budget_exceeded":
+      return (
+        ["turns", "toolCalls", "toolFailures", "tokens", "costUsd"].includes(
+          String(event.dimension),
+        ) &&
+        isNumber(event.limit) &&
+        isNumber(event.actual) &&
+        typeof event.message === "string"
       );
     case "context_prefix":
       return typeof event.agent === "string" && typeof event.fingerprint === "string";
@@ -572,8 +726,142 @@ function isProjectionEventValid(event: Record<string, unknown>, runId: string): 
         isNumber(event.preservedMessages) &&
         event.providerCallBlocked === true
       );
+    case "checkpoint_created":
+      return (
+        typeof event.checkpointId === "string" &&
+        typeof event.tool === "string" &&
+        optionalString(event.callId) &&
+        optionalString(event.idempotencyKey) &&
+        optionalString(event.targetPath) &&
+        typeof event.reversible === "boolean"
+      );
+    case "tool_execution_evidence":
+      return (
+        typeof event.agent === "string" &&
+        typeof event.tool === "string" &&
+        typeof event.callId === "string" &&
+        optionalString(event.stepId) &&
+        isRecord(event.execution) &&
+        isNumber(event.execution.durationMs) &&
+        (event.execution.exitCode === null || Number.isInteger(event.execution.exitCode)) &&
+        optionalString(event.execution.commandSha256) &&
+        optionalBoolean(event.execution.testCommand)
+      );
+    case "engineering_evidence":
+      return (
+        typeof event.stepId === "string" &&
+        typeof event.textPassed === "boolean" &&
+        typeof event.passed === "boolean" &&
+        nonNegativeInteger(event.successfulTestCommands) &&
+        typeof event.regressionCommandMatched === "boolean" &&
+        typeof event.checkpointRecorded === "boolean" &&
+        typeof event.diffReviewed === "boolean" &&
+        Array.isArray(event.reasons) &&
+        event.reasons.every((reason) => typeof reason === "string")
+      );
+    case "error":
+      return typeof event.message === "string" && typeof event.fatal === "boolean";
+    case "input_receipt":
+      return (
+        typeof event.inputId === "string" &&
+        event.status === "pending" &&
+        typeof event.contentFingerprint === "string" &&
+        isTimestamp(event.timestamp)
+      );
+    case "input_claimed":
+      return (
+        typeof event.inputId === "string" &&
+        event.status === "claimed" &&
+        typeof event.turnId === "string" &&
+        isTimestamp(event.timestamp)
+      );
+    case "input_completed":
+      return (
+        typeof event.inputId === "string" &&
+        event.status === "completed" &&
+        isTimestamp(event.timestamp)
+      );
+    case "input_discarded":
+      return (
+        typeof event.inputId === "string" &&
+        event.status === "discarded" &&
+        isTimestamp(event.timestamp)
+      );
+    case "quiescence_timeout":
+      return isNumber(event.timeoutMs);
+    case "tool_lifecycle":
+      return isToolLifecycleFact(event);
     default:
-      return true;
+      return false;
+  }
+}
+
+const LOOP_PHASES = new Set([
+  "idle",
+  "planning",
+  "executing",
+  "verifying",
+  "repairing",
+  "paused",
+  "succeeded",
+  "failed",
+  "aborted",
+  "timeout",
+  "budget_exceeded",
+]);
+
+function isLoopPhase(value: unknown): boolean {
+  return typeof value === "string" && LOOP_PHASES.has(value);
+}
+
+function nonNegativeInteger(value: unknown): boolean {
+  return Number.isInteger(value) && (value as number) >= 0;
+}
+
+function isToolEffect(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    Array.isArray(value.operations) &&
+    value.operations.every((operation) =>
+      ["read", "write", "process", "network", "external"].includes(String(operation)),
+    ) &&
+    Array.isArray(value.paths) &&
+    value.paths.every((path) => typeof path === "string") &&
+    Array.isArray(value.urls) &&
+    value.urls.every((url) => typeof url === "string") &&
+    typeof value.reversible === "boolean" &&
+    typeof value.declared === "boolean"
+  );
+}
+
+function isEffectReceiptBinding(
+  value: unknown,
+  event: Record<string, unknown>,
+  runId: string,
+): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    value.version === 1 &&
+    value.runId === runId &&
+    typeof value.turnId === "string" &&
+    value.agent === event.agent &&
+    optionalString(value.stepId) &&
+    value.stepId === event.stepId &&
+    value.callId === event.callId &&
+    value.tool === event.tool &&
+    typeof value.argumentsFingerprint === "string" &&
+    value.argumentsFingerprint.length === 64 &&
+    typeof value.capabilityFingerprint === "string" &&
+    value.capabilityFingerprint.length === 64
+  );
+}
+
+function isToolLifecycleFact(value: unknown): boolean {
+  try {
+    validateToolCallLifecycleFact(value);
+    return true;
+  } catch {
+    return false;
   }
 }
 

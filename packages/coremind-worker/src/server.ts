@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import {
   type CheckpointRecord,
+  type ControlApplyResult,
+  type ControlReceipt,
   type CoreMindConfig,
   CoreMindError,
   CoreMindRuntime,
@@ -9,8 +12,12 @@ import {
   FileRunStore,
   inspectCheckpoint,
   loadConfigFile,
+  type ProtocolStartIdentity,
   parseAndValidate,
+  type RunControlCommand,
   type RunResult,
+  RunStateJournal,
+  type RunStateRecord,
   restoreCheckpoint,
 } from "coremind-ai";
 import { ProjectionEngine } from "coremind-ai/internal";
@@ -19,14 +26,35 @@ import {
   createEventNotification,
   createPythonToolCallNotification,
   createSuccessResponse,
+  negotiateProtocolV2,
+  PROTOCOL_V2_SCHEMA_FINGERPRINT,
   PROTOCOL_VERSION,
   type ProtocolErrorResponse,
   type ProtocolRequest,
   type ProtocolSuccessResponse,
+  type ProtocolV2ControlRequest,
+  type ProtocolV2EventsRequest,
+  type ProtocolV2InitializeRequest,
+  ProtocolV2NegotiationError,
+  type ProtocolV2QueryRequest,
+  type ProtocolV2Request,
+  type ProtocolV2RunHandle,
+  type ProtocolV2StartRequest,
+  ProtocolV2ValidationError,
   ProtocolValidationError,
   parseProtocolRequest,
+  parseProtocolV2Request,
   parseRunSnapshot,
 } from "coremind-protocol";
+
+const PROTOCOL_V2_SERVER_CAPABILITIES = [
+  "runHandle",
+  "typedEvents",
+  "cursorResume",
+  "controlInbox",
+  "projectionQuery",
+] as const;
+const PROTOCOL_V2_AVAILABLE_CONTROLS = ["cancel", "approval", "steering", "follow_up"] as const;
 
 export type WorkerMessage =
   | ProtocolSuccessResponse
@@ -34,20 +62,38 @@ export type WorkerMessage =
   | ReturnType<typeof createEventNotification>
   | ReturnType<typeof createPythonToolCallNotification>;
 
-export type WorkerRuntime = Pick<CoreMindRuntime, "run">;
+export type WorkerRuntime = Pick<CoreMindRuntime, "run"> & {
+  acceptControl?: (command: RunControlCommand) => Promise<ControlReceipt>;
+  applyPendingControls?: () => Promise<ControlReceipt[]>;
+};
 export type WorkerRuntimeFactory = (options: CoreMindRuntimeOptions) => Promise<WorkerRuntime>;
 
 export interface WorkerServerOptions {
   send: (message: WorkerMessage) => void;
   runtimeFactory?: WorkerRuntimeFactory;
+  runStoreFactory?: (directory: string) => ProtocolEventRunStore;
 }
+
+export interface ProtocolEventWindow {
+  retainedFromSequence: number;
+  latestSequence: number;
+  records: RunStateRecord[];
+}
+
+export type ProtocolEventRunStore = FileRunStore & {
+  readEventWindow?: (options: {
+    runId: string;
+    afterSequence: number;
+    limit: number;
+  }) => Promise<ProtocolEventWindow>;
+};
 
 interface InitializedState {
   config: CoreMindConfig;
   configDir: string;
   cwd: string;
   sessionId?: string;
-  runStore: FileRunStore;
+  runStore: ProtocolEventRunStore;
 }
 
 interface PendingApproval {
@@ -60,10 +106,11 @@ interface PendingToolCall {
   reject: (error: Error) => void;
 }
 
-/** 常驻 Node worker 的协议状态机；stdio 只是它的传输适配器。 */
-export class WorkerServer {
+/** 常驻 Node Protocol Host；stdio 只是它的传输适配器。 */
+export class ProtocolHost {
   private readonly runtimeFactory: WorkerRuntimeFactory;
   private initialized?: InitializedState;
+  private selectedProtocol?: typeof PROTOCOL_VERSION | "2.0";
   private readonly toolSpecs = new Map<
     string,
     {
@@ -76,7 +123,16 @@ export class WorkerServer {
   >();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
+  private readonly protocolV2Starts = new Map<
+    string,
+    {
+      method: ProtocolV2StartRequest["method"];
+      fingerprint: string;
+      handle: ProtocolV2RunHandle;
+    }
+  >();
   private activeController?: AbortController;
+  private activeRuntime?: WorkerRuntime;
   private activeRunId?: string;
   /** 请求预生成的 runId（D-1）：首事件前 cancel 的可寻址值 */
   private requestedRunId?: string;
@@ -87,12 +143,32 @@ export class WorkerServer {
     this.runtimeFactory = options.runtimeFactory ?? CoreMindRuntime.create;
   }
 
+  /** 传输断开只影响交付，不得反向污染 Runtime 或权威 Fact。 */
+  private send(message: WorkerMessage): void {
+    try {
+      this.options.send(message);
+    } catch {
+      return;
+    }
+  }
+
   /** 供 stdio 使用：不等待长运行，以便继续接收 approve/cancel/tool_result。 */
   accept(value: unknown): void {
-    void this.handle(value).then((response) => this.options.send(response));
+    void this.handle(value).then((response) => this.send(response));
   }
 
   async handle(value: unknown): Promise<ProtocolSuccessResponse | ProtocolErrorResponse> {
+    if (isProtocolV2Initialize(value)) return this.handleProtocolV2Initialize(value);
+    if (this.selectedProtocol === "2.0") {
+      return isProtocolV2Envelope(value)
+        ? this.handleProtocolV2(value)
+        : createErrorResponse(
+            rpcIdFrom(value),
+            -32_601,
+            "v2 连接不能混用 v1 request envelope",
+            "protocol_version_mixed",
+          );
+    }
     let request: ProtocolRequest;
     try {
       request = parseProtocolRequest(value);
@@ -108,7 +184,246 @@ export class WorkerServer {
 
     try {
       const result = await this.dispatch(request);
+      if (request.method === "initialize") this.selectedProtocol = PROTOCOL_VERSION;
       return createSuccessResponse(request.id, result);
+    } catch (error) {
+      return protocolError(request.id, error);
+    }
+  }
+
+  private async handleProtocolV2(
+    value: unknown,
+  ): Promise<ProtocolSuccessResponse | ProtocolErrorResponse> {
+    let request: ProtocolV2Request;
+    try {
+      request = parseProtocolV2Request(value);
+    } catch (error) {
+      return protocolError(rpcIdFrom(value), error);
+    }
+    try {
+      if (request.method === "run" || request.method === "chat" || request.method === "resume") {
+        return createSuccessResponse(request.id, await this.beginProtocolV2Run(request));
+      }
+      if (request.method === "control") {
+        return createSuccessResponse(request.id, await this.acceptProtocolV2Control(request));
+      }
+      if (request.method === "events") {
+        return createSuccessResponse(request.id, await this.readProtocolV2Events(request));
+      }
+      if (request.method === "query") {
+        return createSuccessResponse(request.id, await this.queryProtocolV2Projection(request));
+      }
+      return createErrorResponse(
+        request.id,
+        -32_601,
+        "v2 连接已经完成 initialize",
+        "protocol_version_mixed",
+      );
+    } catch (error) {
+      return protocolError(request.id, error);
+    }
+  }
+
+  private async beginProtocolV2Run(request: ProtocolV2StartRequest): Promise<ProtocolV2RunHandle> {
+    const fingerprint = protocolV2StartFingerprint(request);
+    const existing = this.protocolV2Starts.get(request.params.runId);
+    if (existing) {
+      if (existing.fingerprint === fingerprint) return existing.handle;
+      if (request.method !== "resume" || existing.method === "resume") {
+        throw new CoreMindError(
+          "run_id_conflict",
+          `runId ${request.params.runId} 已绑定不同的 start 请求`,
+        );
+      }
+    }
+    const state = this.requireInitialized();
+    const records = await state.runStore.read(request.params.runId);
+    const persisted = persistedProtocolV2Start(records);
+    if (persisted) {
+      if (persisted.fingerprint === fingerprint) {
+        if (ProjectionEngine.project(records).status === "interrupted") {
+          const journal = new RunStateJournal(
+            request.params.runId,
+            state.runStore,
+            records.at(-1)!.sequence,
+          );
+          journal.pause({ reason: "process_interrupted" });
+          await journal.flush();
+        }
+        const handle = protocolV2RunHandle(request.params.runId, persisted.acceptedAt);
+        this.protocolV2Starts.set(request.params.runId, {
+          method: request.method,
+          fingerprint,
+          handle,
+        });
+        return handle;
+      }
+      // 第一次 resume 合法地承接既有 run/chat；重复 resume 则仍由指纹约束。
+      if (request.method !== "resume" || persisted.method === "resume") {
+        throw new CoreMindError(
+          "run_id_conflict",
+          `runId ${request.params.runId} 已绑定不同的 start 请求`,
+        );
+      }
+    } else if (records.length > 0 && request.method !== "resume") {
+      throw new CoreMindError(
+        "run_id_conflict",
+        `runId ${request.params.runId} 已存在但缺少可验证的 v2 start 身份`,
+      );
+    }
+    if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
+    const handle = protocolV2RunHandle(request.params.runId, new Date().toISOString());
+    const protocolStart: ProtocolStartIdentity = {
+      protocolVersion: "2.0",
+      method: request.method,
+      fingerprint,
+      acceptedAt: handle.acceptedAt,
+    };
+    this.protocolV2Starts.set(request.params.runId, {
+      method: request.method,
+      fingerprint,
+      handle,
+    });
+    const completion =
+      request.method === "chat"
+        ? this.executeRun(
+            request.params.message,
+            request.params.agent,
+            true,
+            undefined,
+            request.params.runId,
+            protocolStart,
+          )
+        : this.executeRun(
+            request.params.input,
+            undefined,
+            false,
+            request.method === "resume" ? request.params.runId : undefined,
+            request.params.runId,
+            protocolStart,
+          );
+    void completion.catch(() => undefined);
+    return handle;
+  }
+
+  private async acceptProtocolV2Control(
+    request: ProtocolV2ControlRequest,
+  ): Promise<ControlReceipt> {
+    const runtime = await this.waitForActiveRuntime(request.params.runId);
+    if (!runtime.acceptControl) {
+      throw new CoreMindError("control_unavailable", "当前 Runtime 不支持持久 ControlInbox");
+    }
+    return runtime.acceptControl(request.params);
+  }
+
+  private async readProtocolV2Events(request: ProtocolV2EventsRequest): Promise<unknown> {
+    const state = this.requireInitialized();
+    const records = await state.runStore.read(request.params.runId);
+    if (records.length === 0) {
+      throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
+    }
+    const projection = ProjectionEngine.project(records);
+    const latestSequence = records.at(-1)!.sequence;
+    if (request.params.afterSequence > latestSequence) {
+      throw new CoreMindError(
+        "cursor_ahead",
+        `afterSequence ${request.params.afterSequence} 超过当前最新 sequence ${latestSequence}`,
+      );
+    }
+    const limit = request.params.limit ?? 100;
+    const window = state.runStore.readEventWindow
+      ? await state.runStore.readEventWindow({
+          runId: request.params.runId,
+          afterSequence: request.params.afterSequence,
+          limit,
+        })
+      : {
+          retainedFromSequence: records[0]!.sequence,
+          latestSequence,
+          records: records
+            .filter((record) => record.sequence > request.params.afterSequence)
+            .slice(0, limit),
+        };
+    validateProtocolEventWindow(window, latestSequence);
+    if (request.params.afterSequence < window.retainedFromSequence - 1) {
+      throw new ProtocolCursorExpiredError({
+        runId: request.params.runId,
+        newCursor: window.retainedFromSequence - 1,
+        derivedFromSequence: latestSequence,
+        projection,
+      });
+    }
+    const page = window.records
+      .filter((record) => record.sequence > request.params.afterSequence)
+      .slice(0, limit);
+    const nextCursor = page.at(-1)?.sequence ?? request.params.afterSequence;
+    return {
+      schemaVersion: 1,
+      runId: request.params.runId,
+      afterSequence: request.params.afterSequence,
+      nextCursor,
+      hasMore: nextCursor < window.latestSequence,
+      events: page.map(toProtocolV2Event),
+    };
+  }
+
+  private async queryProtocolV2Projection(request: ProtocolV2QueryRequest): Promise<unknown> {
+    const state = this.requireInitialized();
+    const records = await state.runStore.read(request.params.runId);
+    if (records.length === 0) {
+      throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
+    }
+    return {
+      schemaVersion: 1,
+      runId: request.params.runId,
+      derivedFromSequence: records.at(-1)!.sequence,
+      projection: ProjectionEngine.project(records),
+    };
+  }
+
+  private async waitForActiveRuntime(runId: string): Promise<WorkerRuntime> {
+    for (let attempt = 0; attempt < 5_000; attempt++) {
+      const currentRunId = this.activeRunId ?? this.requestedRunId;
+      if (!this.running || currentRunId !== runId) {
+        throw new CoreMindError("unknown_run", `当前没有运行中的 runId：${runId}`);
+      }
+      if (this.activeRuntime) return this.activeRuntime;
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    throw new CoreMindError("control_unavailable", `等待 Runtime ${runId} 的 ControlInbox 超时`);
+  }
+
+  private async handleProtocolV2Initialize(
+    value: unknown,
+  ): Promise<ProtocolSuccessResponse | ProtocolErrorResponse> {
+    let request: ProtocolV2InitializeRequest;
+    try {
+      const parsed = parseProtocolV2Request(value);
+      if (parsed.method !== "initialize") {
+        throw new ProtocolV2ValidationError("v2 initialize 路径收到非 initialize 请求");
+      }
+      request = parsed;
+    } catch (error) {
+      return protocolError(rpcIdFrom(value), error);
+    }
+    try {
+      const selectedProtocol = negotiateProtocolV2(request.params.protocolRange);
+      const initialized = (await this.initialize(toV1InitializeParams(request.params))) as {
+        warnings: string[];
+      };
+      this.selectedProtocol = selectedProtocol;
+      return createSuccessResponse(request.id, {
+        selectedProtocol,
+        runtime: "node",
+        warnings: initialized.warnings,
+        serverCapabilities: [...PROTOCOL_V2_SERVER_CAPABILITIES],
+        schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
+        migration: {
+          v1Supported: true,
+          v1SupportedThrough: "0.4.x",
+          earliestRemoval: "0.5.0",
+        },
+      });
     } catch (error) {
       return protocolError(request.id, error);
     }
@@ -178,12 +493,19 @@ export class WorkerServer {
       configDir,
       cwd: path.resolve(params.cwd ?? configDir),
       sessionId: params.sessionId,
-      runStore: new FileRunStore(path.join(configDir, ".coremind", "runs")),
+      runStore:
+        this.options.runStoreFactory?.(path.join(configDir, ".coremind", "runs")) ??
+        new FileRunStore(path.join(configDir, ".coremind", "runs")),
     };
     return {
       protocolVersion: PROTOCOL_VERSION,
       runtime: "node",
       warnings,
+      migration: {
+        recommendedProtocol: "2.0",
+        v1SupportedThrough: "0.4.x",
+        earliestRemoval: "0.5.0",
+      },
       capabilities: [
         "run",
         "chat",
@@ -233,6 +555,7 @@ export class WorkerServer {
     persistentChat = false,
     resumeRunId?: string,
     requestedRunId?: string,
+    protocolStart?: ProtocolStartIdentity,
   ): Promise<unknown> {
     const state = this.requireInitialized();
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
@@ -265,14 +588,18 @@ export class WorkerServer {
         runStore: state.runStore,
         resumeRunId,
         runId: requestedRunId,
+        protocolStart,
         toolDefinitions: this.createPythonToolDefinitions(),
-        approveTool: (request) =>
-          new Promise((resolve) => {
+        approveTool: async (request) => {
+          const decision = new Promise<"allow" | "deny">((resolve) => {
             this.pendingApprovals.set(request.approvalId, { runId: request.runId, resolve });
-          }),
+          });
+          await this.activeRuntime?.applyPendingControls?.();
+          return decision;
+        },
         trace: (entry) => {
           this.activeRunId = entry.runId;
-          this.options.send(
+          this.send(
             createEventNotification({
               runId: entry.runId,
               sequence: entry.sequence,
@@ -281,11 +608,14 @@ export class WorkerServer {
             }),
           );
         },
+        applyControl: (command) => this.applyWorkerControl(command),
       });
+      this.activeRuntime = runtime;
       return serializeRunResult(await runtime.run());
     } finally {
       this.running = false;
       this.activeController = undefined;
+      this.activeRuntime = undefined;
       this.activeRunId = undefined;
       this.requestedRunId = undefined;
       for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
@@ -312,7 +642,7 @@ export class WorkerServer {
     if (this.pendingToolCalls.has(callId)) {
       throw new CoreMindError("duplicate_tool_call", `重复的 Python 工具 callId：${callId}`);
     }
-    this.options.send(createPythonToolCallNotification({ runId, callId, tool, args }));
+    this.send(createPythonToolCallNotification({ runId, callId, tool, args }));
     return new Promise((resolve, reject) => {
       this.pendingToolCalls.set(callId, { resolve, reject });
     });
@@ -342,6 +672,34 @@ export class WorkerServer {
     this.pendingApprovals.delete(params.approvalId);
     pending.resolve(params.decision);
     return { accepted: true };
+  }
+
+  private async applyWorkerControl(command: RunControlCommand): Promise<ControlApplyResult> {
+    const currentRunId = this.activeRunId ?? this.requestedRunId;
+    if (!this.running || currentRunId !== command.runId) {
+      return { status: "rejected", reason: `当前没有运行中的 runId：${command.runId}` };
+    }
+    if (command.type === "cancel") {
+      if (!this.activeController) {
+        return { status: "rejected", reason: `运行 ${command.runId} 没有可取消的控制器` };
+      }
+      return {
+        status: "applied",
+        afterDurable: () => this.activeController?.abort(),
+      };
+    }
+    if (command.type === "approval") {
+      const pending = this.pendingApprovals.get(command.approvalId);
+      if (!pending || pending.runId !== command.runId) return "accepted";
+      return {
+        status: "applied",
+        afterDurable: () => {
+          this.pendingApprovals.delete(command.approvalId);
+          pending.resolve(command.decision);
+        },
+      };
+    }
+    return { status: "rejected", reason: `${command.type} 必须由 Runtime agent queue 应用` };
   }
 
   private async inspectRun(runId: string): Promise<unknown> {
@@ -429,11 +787,22 @@ function rpcIdFrom(value: unknown): string | number {
 }
 
 function protocolError(id: string | number, error: unknown): ProtocolErrorResponse {
+  if (error instanceof ProtocolCursorExpiredError) {
+    return createErrorResponse(id, -32_000, error.message, error.code, {
+      recovery: error.recovery,
+    });
+  }
   if (error instanceof CoreMindError) {
     return createErrorResponse(id, -32_000, error.message, error.code);
   }
   if (error instanceof ProtocolValidationError) {
     return createErrorResponse(id, -32_600, error.message, "protocol_validation_failed");
+  }
+  if (error instanceof ProtocolV2ValidationError) {
+    return createErrorResponse(id, -32_600, error.message, "protocol_validation_failed");
+  }
+  if (error instanceof ProtocolV2NegotiationError) {
+    return createErrorResponse(id, -32_601, error.message, error.code);
   }
   return createErrorResponse(
     id,
@@ -442,3 +811,155 @@ function protocolError(id: string | number, error: unknown): ProtocolErrorRespon
     "internal_error",
   );
 }
+
+class ProtocolCursorExpiredError extends CoreMindError {
+  constructor(
+    readonly recovery: {
+      runId: string;
+      newCursor: number;
+      derivedFromSequence: number;
+      projection: unknown;
+    },
+  ) {
+    super("cursor_expired", `事件 cursor 已过期；最早可恢复 cursor 为 ${recovery.newCursor}`);
+  }
+}
+
+function validateProtocolEventWindow(window: ProtocolEventWindow, latestSequence: number): void {
+  if (
+    !Number.isInteger(window.retainedFromSequence) ||
+    window.retainedFromSequence < 1 ||
+    !Number.isInteger(window.latestSequence) ||
+    window.latestSequence !== latestSequence ||
+    window.records.some(
+      (record) =>
+        record.sequence < window.retainedFromSequence || record.sequence > window.latestSequence,
+    )
+  ) {
+    throw new CoreMindError("run_state_corrupt", "事件保留窗口与权威 Run Facts 不一致");
+  }
+}
+
+function isProtocolV2Initialize(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false;
+  const request = value as { method?: unknown; params?: unknown };
+  if (
+    request.method !== "initialize" ||
+    request.params === null ||
+    typeof request.params !== "object"
+  ) {
+    return false;
+  }
+  return "protocolRange" in request.params;
+}
+
+function isProtocolV2Envelope(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (value as { protocolVersion?: unknown }).protocolVersion === "2.0"
+  );
+}
+
+function toV1InitializeParams(
+  params: ProtocolV2InitializeRequest["params"],
+): Extract<ProtocolRequest, { method: "initialize" }>["params"] {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    ...(params.config !== undefined
+      ? { config: params.config }
+      : { configPath: params.configPath! }),
+    ...(params.configDir !== undefined ? { configDir: params.configDir } : {}),
+    ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
+    ...(params.sessionId !== undefined ? { sessionId: params.sessionId } : {}),
+  };
+}
+
+function protocolV2StartFingerprint(request: ProtocolV2StartRequest): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        method: request.method,
+        params: request.params,
+      }),
+    )
+    .digest("hex");
+}
+
+function protocolV2RunHandle(runId: string, acceptedAt: string): ProtocolV2RunHandle {
+  return {
+    runId,
+    acceptedAt,
+    initialCursor: 0,
+    selectedProtocol: "2.0",
+    availableControls: [...PROTOCOL_V2_AVAILABLE_CONTROLS],
+  };
+}
+
+function persistedProtocolV2Start(records: RunStateRecord[]): ProtocolStartIdentity | undefined {
+  for (let index = records.length - 1; index >= 0; index--) {
+    const record = records[index]!;
+    if (record.kind !== "start" && record.kind !== "resume") continue;
+    const payload = asRecord(record.payload);
+    const identity = payload ? asRecord(payload.protocolStart) : undefined;
+    if (
+      identity?.protocolVersion === "2.0" &&
+      (identity.method === "run" || identity.method === "chat" || identity.method === "resume") &&
+      typeof identity.fingerprint === "string" &&
+      identity.fingerprint.length > 0 &&
+      typeof identity.acceptedAt === "string" &&
+      identity.acceptedAt.length > 0
+    ) {
+      return identity as unknown as ProtocolStartIdentity;
+    }
+  }
+  return undefined;
+}
+
+function toProtocolV2Event(record: RunStateRecord): unknown {
+  const trace = record.kind === "event" ? asRecord(record.payload) : undefined;
+  const event = trace ? asRecord(trace.event) : undefined;
+  const payload = event ?? record.payload;
+  const identity = event ?? asRecord(record.payload);
+  return {
+    protocolVersion: "2.0" as const,
+    eventType: event && typeof event.type === "string" ? event.type : `fact.${record.kind}`,
+    eventSchemaVersion: 1 as const,
+    runId: record.runId,
+    sequence: record.sequence,
+    eventId:
+      record.eventId ??
+      (trace && typeof trace.eventId === "string"
+        ? trace.eventId
+        : `legacy:${record.runId}:${record.sequence}`),
+    timestamp: record.timestamp,
+    ...eventIdentity(identity),
+    payload: structuredClone(payload),
+    ignorable: false,
+    sensitivity: "local" as const,
+  };
+}
+
+function eventIdentity(value: Record<string, unknown> | undefined): Record<string, string> {
+  if (!value) return {};
+  const result: Record<string, string> = {};
+  for (const key of [
+    "turnId",
+    "stepId",
+    "callId",
+    "approvalId",
+    "receiptId",
+    "childRunId",
+  ] as const) {
+    if (typeof value[key] === "string") result[key] = value[key];
+  }
+  return result;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+export { ProtocolHost as WorkerServer };

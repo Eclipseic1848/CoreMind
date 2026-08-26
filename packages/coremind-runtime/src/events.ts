@@ -307,6 +307,53 @@ export type CoreMindEvent =
       timeoutMs: number;
     };
 
+export const COREMIND_EVENT_TYPES = [
+  "agent_start",
+  "turn_end",
+  "text_delta",
+  "tool_call",
+  "tool_result",
+  "tool_attempt",
+  "capability_resolved",
+  "workspace_lease",
+  "effect_receipt",
+  "step_start",
+  "step_output",
+  "step_resumed",
+  "step_end",
+  "loop_state",
+  "retry",
+  "approval_required",
+  "approval_resolved",
+  "policy_denied",
+  "budget_exceeded",
+  "context_budget_resolved",
+  "context_compacted",
+  "context_compaction_failed",
+  "context_lifecycle_failed",
+  "context_prefix",
+  "provider_request",
+  "artifact_created",
+  "extension_lifecycle",
+  "checkpoint_created",
+  "tool_execution_evidence",
+  "engineering_evidence",
+  "agent_end",
+  "error",
+  "input_receipt",
+  "input_claimed",
+  "input_completed",
+  "input_discarded",
+  "quiescence_timeout",
+  "tool_lifecycle",
+] as const satisfies readonly CoreMindEvent["type"][];
+
+const COREMIND_EVENT_TYPE_SET = new Set<string>(COREMIND_EVENT_TYPES);
+
+export function isCoreMindEventType(value: unknown): value is CoreMindEvent["type"] {
+  return typeof value === "string" && COREMIND_EVENT_TYPE_SET.has(value);
+}
+
 /**
  * 把上游 Agent 事件归一化为 CoreMind 事件。
  * 只保留对 UI/调用方有意义的事件；流式文本来自 message_update 的 text_delta。

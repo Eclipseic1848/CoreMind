@@ -54,6 +54,12 @@ export {
   type StableContextPrefix,
   type StableContextPrefixInput,
 } from "./context.js";
+export type {
+  ControlApplyResult,
+  ControlReceipt,
+  ControlReceiptStatus,
+  RunControlCommand,
+} from "./control-inbox.js";
 export {
   inspectRuntimeCompatibility,
   type RuntimeCompatibilityReport,
@@ -276,6 +282,7 @@ export {
   buildAgentFromConfig,
   CoreMindRuntime,
   type CoreMindRuntimeOptions,
+  type ProtocolStartIdentity,
   type RunResult,
 } from "./runtime.js";
 export {

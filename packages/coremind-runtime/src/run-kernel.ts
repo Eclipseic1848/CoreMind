@@ -25,6 +25,7 @@ export class RunKernel<THarness, TResult> {
     } finally {
       if (this.active === promise) this.active = undefined;
       context.attachJournal(undefined);
+      context.attachControlInbox(undefined);
       context.setHarnessFactory(undefined);
     }
   }

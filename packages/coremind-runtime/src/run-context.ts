@@ -1,6 +1,7 @@
 import type { Agent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ArtifactRecord } from "coremind-tools";
 import type { BranchMessage } from "./compaction-projection.js";
+import type { ControlInbox } from "./control-inbox.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
 import { hasPendingJournalFlush, type RunStateJournal } from "./run-state.js";
 import type { CoreMindSession } from "./session.js";
@@ -10,6 +11,7 @@ export class RunContext<THarness> {
   private readonly agents = new Map<string, Agent>();
   private harnessFactory?: (agentName: string, stepId?: string) => THarness;
   private journal?: RunStateJournal;
+  private controlInbox?: ControlInbox;
   private session?: CoreMindSession;
   private branch?: BranchMessage[];
   private compactedPrefix?: number;
@@ -47,6 +49,14 @@ export class RunContext<THarness> {
 
   currentJournal(): RunStateJournal | undefined {
     return this.journal;
+  }
+
+  attachControlInbox(controlInbox?: ControlInbox): void {
+    this.controlInbox = controlInbox;
+  }
+
+  currentControlInbox(): ControlInbox | undefined {
+    return this.controlInbox;
   }
 
   isQuiescent(): boolean {

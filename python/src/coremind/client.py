@@ -11,6 +11,7 @@ import queue
 import shutil
 import subprocess
 import threading
+import uuid
 from collections import deque
 from pathlib import Path
 from types import UnionType
@@ -20,6 +21,7 @@ from urllib.parse import urlsplit
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
 
 PROTOCOL_VERSION = "1.0"
+PROTOCOL_V2_VERSION = "2.0"
 ApprovalHandler = Callable[[Mapping[str, Any]], str]
 EventHandler = Callable[[Mapping[str, Any]], None]
 
@@ -38,7 +40,10 @@ class CoreMindClient:
         event_handler: EventHandler | None = None,
         approval_handler: ApprovalHandler | None = None,
         request_timeout: float = 300.0,
+        protocol_version: str = PROTOCOL_VERSION,
     ) -> None:
+        if protocol_version not in {PROTOCOL_VERSION, PROTOCOL_V2_VERSION}:
+            raise ValueError("protocol_version 只支持 1.0 或 2.0")
         self._config = config
         self._config_dir = Path(config_dir).resolve() if config_dir else None
         self._cwd = Path(cwd).resolve() if cwd else None
@@ -47,6 +52,7 @@ class CoreMindClient:
         self._event_handler = event_handler
         self._approval_handler = approval_handler
         self._request_timeout = request_timeout
+        self._protocol_version = protocol_version
         self._process: subprocess.Popen[str] | None = None
         self._reader: threading.Thread | None = None
         self._stderr_reader: threading.Thread | None = None
@@ -60,7 +66,7 @@ class CoreMindClient:
         self._closed = False
         self._capabilities: frozenset[str] = frozenset()
         self._tools: dict[str, tuple[Callable[..., Any], dict[str, Any]]] = {}
-        self.events: list[Mapping[str, Any]] = []
+        self.received_events: list[Mapping[str, Any]] = []
 
     @property
     def pid(self) -> int | None:
@@ -76,6 +82,12 @@ class CoreMindClient:
                 raise CoreMindError("客户端已关闭")
             if self._started:
                 return self
+            if self._protocol_version == PROTOCOL_V2_VERSION and self._tools:
+                raise ProtocolError(
+                    "Protocol v2 尚未开放 Python callable 注册；不能混用 v1 register_tool",
+                    rpc_code=-32601,
+                    coremind_code="protocol_capability_missing",
+                )
             command = self._worker_command or _discover_worker_command()
             if self._worker_command is None:
                 _verify_bundled_worker(command)
@@ -98,26 +110,44 @@ class CoreMindClient:
             self._reader.start()
             self._stderr_reader.start()
             try:
-                result = self._request_raw("initialize", self._initialize_params())
-                if result.get("protocolVersion") != PROTOCOL_VERSION:
+                initialize_params = (
+                    self._initialize_v2_params()
+                    if self._protocol_version == PROTOCOL_V2_VERSION
+                    else self._initialize_params()
+                )
+                result = self._request_raw("initialize", initialize_params)
+                selected = (
+                    result.get("selectedProtocol")
+                    if self._protocol_version == PROTOCOL_V2_VERSION
+                    else result.get("protocolVersion")
+                )
+                if selected != self._protocol_version:
                     raise ProtocolError(
-                        f"协议版本不匹配：SDK={PROTOCOL_VERSION}，worker={result.get('protocolVersion')}",
+                        f"协议版本不匹配：SDK={self._protocol_version}，worker={selected}",
                         rpc_code=-32000,
                         coremind_code="protocol_version_mismatch",
                     )
-                if "runSnapshot" not in result.get("capabilities", []):
+                capabilities = result.get(
+                    "serverCapabilities" if self._protocol_version == PROTOCOL_V2_VERSION else "capabilities",
+                    [],
+                )
+                required_capability = (
+                    "runHandle" if self._protocol_version == PROTOCOL_V2_VERSION else "runSnapshot"
+                )
+                if required_capability not in capabilities:
                     raise ProtocolError(
-                        "worker 不支持当前 SDK 要求的 RunSnapshot 能力",
+                        f"worker 不支持当前 SDK 要求的 {required_capability} 能力",
                         rpc_code=-32000,
                         coremind_code="protocol_capability_missing",
                     )
                 self._capabilities = frozenset(
                     capability
-                    for capability in result.get("capabilities", [])
+                    for capability in capabilities
                     if isinstance(capability, str)
                 )
-                for spec in self._tools.values():
-                    self._register_tool_spec(spec[1])
+                if self._protocol_version == PROTOCOL_VERSION:
+                    for spec in self._tools.values():
+                        self._register_tool_spec(spec[1])
             except BaseException:
                 self._terminate_process()
                 self._process = None
@@ -125,21 +155,34 @@ class CoreMindClient:
             self._started = True
             return self
 
-    def run(self, input: str | None = None) -> dict[str, Any]:
+    def run(self, input: str | None = None, *, run_id: str | None = None) -> dict[str, Any]:
         """执行一次 Run，返回与 TypeScript SDK 等价的 JSON 结果。"""
 
         self.start()
+        params: dict[str, Any] = {}
+        if input is not None:
+            params["input"] = input
+        if run_id is not None or self._protocol_version == PROTOCOL_V2_VERSION:
+            params["runId"] = run_id or uuid.uuid4().hex
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            return _validate_run_handle(self._request_raw("run", params))
         return _validate_run_result(
-            self._request_raw("run", {"input": input} if input is not None else {}),
+            self._request_raw("run", params),
             require_observability="localObservability" in self._capabilities,
         )
 
-    def chat(self, message: str, *, agent: str = "main") -> dict[str, Any]:
+    def chat(
+        self, message: str, *, agent: str = "main", run_id: str | None = None
+    ) -> dict[str, Any]:
         """在常驻 worker 中发起一次聊天请求。"""
 
         self.start()
+        params = {"agent": agent, "message": message}
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            params["runId"] = run_id or uuid.uuid4().hex
+            return _validate_run_handle(self._request_raw("chat", params))
         return _validate_run_result(
-            self._request_raw("chat", {"agent": agent, "message": message}),
+            self._request_raw("chat", params),
             require_observability="localObservability" in self._capabilities,
         )
 
@@ -147,12 +190,24 @@ class CoreMindClient:
         """取消指定的活动运行。"""
 
         self.start()
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            self.control(
+                {
+                    "schemaVersion": 1,
+                    "controlId": uuid.uuid4().hex,
+                    "runId": run_id,
+                    "type": "cancel",
+                }
+            )
+            return
         self._request_raw("cancel", {"runId": run_id})
 
     def inspect_run(self, run_id: str) -> dict[str, Any]:
         """读取 append-only RunState、完成状态与 checkpoint 列表。"""
 
         self.start()
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            return self.query(run_id)
         result = dict(self._request_raw("inspect_run", {"runId": run_id}))
         if "localObservability" in self._capabilities:
             _validate_observability(result.get("observability"))
@@ -165,6 +220,8 @@ class CoreMindClient:
         params: dict[str, Any] = {"runId": run_id}
         if input is not None:
             params["input"] = input
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            return _validate_run_handle(self._request_raw("resume", params))
         return _validate_run_result(
             self._request_raw("resume_run", params),
             require_observability="localObservability" in self._capabilities,
@@ -174,6 +231,7 @@ class CoreMindClient:
         """比较 checkpoint 前内容与当前工作区文件。"""
 
         self.start()
+        self._require_v1_method("checkpoint_diff")
         return dict(
             self._request_raw(
                 "checkpoint_diff", {"runId": run_id, "checkpointId": checkpoint_id}
@@ -188,12 +246,39 @@ class CoreMindClient:
         if confirm is not True:
             raise CoreMindError("恢复 checkpoint 必须显式传入 confirm=True")
         self.start()
+        self._require_v1_method("checkpoint_restore")
         return dict(
             self._request_raw(
                 "checkpoint_restore",
                 {"runId": run_id, "checkpointId": checkpoint_id, "confirm": True},
             )
         )
+
+    def events(
+        self, run_id: str, *, after_sequence: int, limit: int | None = None
+    ) -> dict[str, Any]:
+        """按 durable sequence 拉取 Protocol v2 事件页。"""
+
+        self.start()
+        self._require_v2_method("events")
+        params: dict[str, Any] = {"runId": run_id, "afterSequence": after_sequence}
+        if limit is not None:
+            params["limit"] = limit
+        return _validate_events_page(self._request_raw("events", params), run_id)
+
+    def query(self, run_id: str) -> dict[str, Any]:
+        """读取由 ProjectionEngine 生成的 Protocol v2 查询结果。"""
+
+        self.start()
+        self._require_v2_method("query")
+        return _validate_query_result(self._request_raw("query", {"runId": run_id}), run_id)
+
+    def control(self, command: Mapping[str, Any]) -> dict[str, Any]:
+        """提交 Protocol v2 持久控制命令并返回回执。"""
+
+        self.start()
+        self._require_v2_method("control")
+        return _validate_control_receipt(self._request_raw("control", command), command)
 
     def tool(
         self,
@@ -228,7 +313,11 @@ class CoreMindClient:
         with self._lifecycle_lock:
             if self._closed:
                 return
-            if self._process and self._process.poll() is None:
+            if (
+                self._protocol_version == PROTOCOL_VERSION
+                and self._process
+                and self._process.poll() is None
+            ):
                 try:
                     self._request_raw("close", {}, timeout=5.0)
                 except CoreMindError:
@@ -259,6 +348,37 @@ class CoreMindClient:
             params["sessionId"] = self._session_id
         return params
 
+    def _initialize_v2_params(self) -> dict[str, Any]:
+        params = self._initialize_params()
+        params.pop("protocolVersion", None)
+        params["protocolRange"] = {
+            "minVersion": PROTOCOL_V2_VERSION,
+            "maxVersion": PROTOCOL_V2_VERSION,
+        }
+        params["capabilities"] = [
+            "runHandle",
+            "cursorResume",
+            "controlInbox",
+            "projectionQuery",
+        ]
+        return params
+
+    def _require_v1_method(self, method: str) -> None:
+        if self._protocol_version != PROTOCOL_VERSION:
+            raise ProtocolError(
+                f"Protocol v2 不支持 {method}；请使用 v2 query/control 合同",
+                rpc_code=-32601,
+                coremind_code="protocol_capability_missing",
+            )
+
+    def _require_v2_method(self, method: str) -> None:
+        if self._protocol_version != PROTOCOL_V2_VERSION:
+            raise ProtocolError(
+                f"{method} 仅属于 Protocol v2",
+                rpc_code=-32601,
+                coremind_code="protocol_capability_missing",
+            )
+
     def _register_tool_spec(self, spec: Mapping[str, Any]) -> None:
         self._request_raw("register_tool", dict(spec))
 
@@ -277,7 +397,17 @@ class CoreMindClient:
             self._next_id += 1
             response_queue: queue.Queue[Mapping[str, Any] | BaseException] = queue.Queue(maxsize=1)
             self._pending[request_id] = response_queue
-        request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": dict(params)}
+        request = {
+            "jsonrpc": "2.0",
+            **(
+                {"protocolVersion": PROTOCOL_V2_VERSION}
+                if self._protocol_version == PROTOCOL_V2_VERSION and method != "initialize"
+                else {}
+            ),
+            "id": request_id,
+            "method": method,
+            "params": dict(params),
+        }
         try:
             with self._write_lock:
                 process.stdin.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
@@ -297,6 +427,7 @@ class CoreMindClient:
                 str(error.get("message", "CoreMind 协议错误")),
                 rpc_code=int(error.get("code", -32000)),
                 coremind_code=data.get("coremindCode"),
+                details=data.get("details"),
             )
         result = response.get("result")
         return result if isinstance(result, Mapping) else {"value": result}
@@ -344,7 +475,7 @@ class CoreMindClient:
         if not isinstance(params, Mapping):
             return
         if method == "event":
-            self.events.append(params)
+            self.received_events.append(params)
             if self._event_handler:
                 self._event_handler(params)
             event = params.get("event")
@@ -450,11 +581,15 @@ class AsyncCoreMindClient:
         await asyncio.to_thread(self._client.start)
         return self
 
-    async def run(self, input: str | None = None) -> dict[str, Any]:
-        return await asyncio.to_thread(self._client.run, input)
+    async def run(
+        self, input: str | None = None, *, run_id: str | None = None
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.run, input, run_id=run_id)
 
-    async def chat(self, message: str, *, agent: str = "main") -> dict[str, Any]:
-        return await asyncio.to_thread(self._client.chat, message, agent=agent)
+    async def chat(
+        self, message: str, *, agent: str = "main", run_id: str | None = None
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.chat, message, agent=agent, run_id=run_id)
 
     async def cancel(self, run_id: str) -> None:
         await asyncio.to_thread(self._client.cancel, run_id)
@@ -478,6 +613,22 @@ class AsyncCoreMindClient:
             confirm=confirm,
         )
 
+    async def events(
+        self, run_id: str, *, after_sequence: int, limit: int | None = None
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self._client.events,
+            run_id,
+            after_sequence=after_sequence,
+            limit=limit,
+        )
+
+    async def query(self, run_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.query, run_id)
+
+    async def control(self, command: Mapping[str, Any]) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.control, command)
+
     async def close(self) -> None:
         await asyncio.to_thread(self._client.close)
 
@@ -486,6 +637,79 @@ class AsyncCoreMindClient:
 
     async def __aexit__(self, _type: object, _value: object, _traceback: object) -> None:
         await self.close()
+
+
+def _validate_run_handle(value: Mapping[str, Any]) -> dict[str, Any]:
+    result = dict(value)
+    controls = result.get("availableControls")
+    if (
+        not isinstance(result.get("runId"), str)
+        or not isinstance(result.get("acceptedAt"), str)
+        or result.get("initialCursor") != 0
+        or result.get("selectedProtocol") != PROTOCOL_V2_VERSION
+        or not isinstance(controls, list)
+        or not all(isinstance(item, str) for item in controls)
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 RunHandle 非法",
+            rpc_code=-32600,
+            coremind_code="invalid_run_handle",
+        )
+    return result
+
+
+def _validate_events_page(value: Mapping[str, Any], run_id: str) -> dict[str, Any]:
+    result = dict(value)
+    events = result.get("events")
+    if (
+        result.get("schemaVersion") != 1
+        or result.get("runId") != run_id
+        or not isinstance(result.get("nextCursor"), int)
+        or not isinstance(result.get("hasMore"), bool)
+        or not isinstance(events, list)
+        or not all(isinstance(item, Mapping) for item in events)
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 事件页非法",
+            rpc_code=-32600,
+            coremind_code="invalid_event_page",
+        )
+    return result
+
+
+def _validate_query_result(value: Mapping[str, Any], run_id: str) -> dict[str, Any]:
+    result = dict(value)
+    if (
+        result.get("schemaVersion") != 1
+        or result.get("runId") != run_id
+        or not isinstance(result.get("derivedFromSequence"), int)
+        or not isinstance(result.get("projection"), Mapping)
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 Projection Query 非法",
+            rpc_code=-32600,
+            coremind_code="invalid_projection_query",
+        )
+    return result
+
+
+def _validate_control_receipt(
+    value: Mapping[str, Any], command: Mapping[str, Any]
+) -> dict[str, Any]:
+    result = dict(value)
+    if (
+        result.get("schemaVersion") != 1
+        or result.get("controlId") != command.get("controlId")
+        or result.get("runId") != command.get("runId")
+        or result.get("status")
+        not in {"accepted", "applied", "rejected", "duplicate", "conflict"}
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 ControlReceipt 非法",
+            rpc_code=-32600,
+            coremind_code="invalid_control_receipt",
+        )
+    return result
 
 
 def _validate_run_result(
