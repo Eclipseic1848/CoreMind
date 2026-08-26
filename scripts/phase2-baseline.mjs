@@ -48,7 +48,7 @@ async function assemblePhase2Baseline(root, evidenceOptions, apiReports, baselin
     "coremind-config",
     evidenceOptions.capturedAt,
   );
-  const { ProtocolRequestSchema } = await importBuiltPackage(
+  const { ProtocolRequestSchema, PROTOCOL_V2_SCHEMA_BUNDLE } = await importBuiltPackage(
     root,
     "coremind-protocol",
     evidenceOptions.capturedAt,
@@ -90,6 +90,7 @@ async function assemblePhase2Baseline(root, evidenceOptions, apiReports, baselin
       schemas: {
         config: hashCanonicalValue(CoreMindConfigSchema),
         protocol: hashCanonicalValue(ProtocolRequestSchema),
+        protocolV2: hashCanonicalValue(PROTOCOL_V2_SCHEMA_BUNDLE),
       },
     },
     dependencies: {

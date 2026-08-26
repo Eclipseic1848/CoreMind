@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -37,6 +37,41 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("把 Protocol v2 start 身份持久化到权威 start Fact", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-protocol-start-"));
+    const server = createTextSequenceServer(["完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const store = new FileRunStore(path.join(dir, "runs"));
+    const protocolStart = {
+      protocolVersion: "2.0" as const,
+      method: "run" as const,
+      fingerprint: "start-fingerprint",
+      acceptedAt: "2026-08-25T00:00:00.000Z",
+    };
+
+    try {
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig((server.address() as AddressInfo).port, {}),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "执行",
+        runId: "protocol-start-run",
+        runStore: store,
+        protocolStart,
+      });
+
+      await runtime.run();
+      const start = (await store.read("protocol-start-run")).find(
+        (record) => record.kind === "start",
+      );
+
+      expect(start?.payload).toMatchObject({ protocolStart });
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("Workspace 写租约被占用时在 Checkpoint 和 Adapter 前失败关闭", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-busy-"));
     const target = path.join(dir, "article.md");
@@ -258,6 +293,118 @@ describe("CoreMindRuntime", () => {
       expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "available" });
     } finally {
       await closeServer(server);
+    }
+  });
+
+  it("持久 Cancel Control 与 Runtime Facts 共用单调 writer，并收敛到 aborted", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-control-cancel-"));
+    const server = createWriteCallingServer("slow_write");
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const controller = new AbortController();
+    const store = new FileRunStore(path.join(dir, "runs"));
+    const events: CoreMindEvent[] = [];
+    let adapterEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      adapterEntered = resolve;
+    });
+    const slowTool: CoreMindToolDefinition = {
+      name: "slow_write",
+      description: "等待持久控制取消的写入工具",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+      effect: { operations: ["write"], reversible: true, pathFields: ["path"] },
+      capability: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+      execute: async (_args, context) => {
+        adapterEntered();
+        await new Promise<never>((_resolve, reject) => {
+          if (context.signal?.aborted) {
+            reject(new Error("cancelled"));
+            return;
+          }
+          context.signal?.addEventListener("abort", () => reject(new Error("cancelled")), {
+            once: true,
+          });
+        });
+      },
+    };
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig(port, {}),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "写入 article.md",
+        runId: "control-cancel-run",
+        approveTool: async () => "allow",
+        runStore: store,
+        toolDefinitions: [slowTool],
+        events: (event) => events.push(event),
+        signal: controller.signal,
+        applyControl: async (command) => {
+          if (command.type !== "cancel") return { status: "rejected", reason: "测试只接受 cancel" };
+          return { status: "applied", afterDurable: () => controller.abort() };
+        },
+      });
+
+      const run = runtime.run();
+      await entered;
+      const receipt = await runtime.acceptControl({
+        schemaVersion: 1,
+        controlId: "cancel-1",
+        runId: "control-cancel-run",
+        type: "cancel",
+        reason: "用户停止",
+      });
+      const result = await run;
+      const records = await store.read("control-cancel-run");
+      const controls = records.filter((record) => record.kind === "control");
+
+      expect({
+        receipt,
+        outcome: result.outcome.status,
+        quiescent: await runtime.waitForQuiescence(100),
+        workspaceLease: await new WorkspaceLeaseService().inspect(dir),
+        quiescenceTimeouts: events.filter((event) => event.type === "quiescence_timeout"),
+        controls,
+        sequences: records.map((item) => item.sequence),
+      }).toEqual({
+        receipt: {
+          schemaVersion: 1,
+          controlId: "cancel-1",
+          runId: "control-cancel-run",
+          status: "applied",
+          appliedSequence: controls[1]?.sequence,
+        },
+        outcome: "aborted",
+        quiescent: true,
+        workspaceLease: expect.objectContaining({ state: "available" }),
+        quiescenceTimeouts: [],
+        controls: [
+          expect.objectContaining({
+            kind: "control",
+            payload: expect.objectContaining({ controlId: "cancel-1", state: "accepted" }),
+          }),
+          expect.objectContaining({
+            kind: "control",
+            payload: expect.objectContaining({ controlId: "cancel-1", state: "applied" }),
+          }),
+        ],
+        sequences: records.map((_item, index) => index + 1),
+      });
+    } finally {
+      controller.abort();
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 

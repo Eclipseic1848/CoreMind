@@ -15,6 +15,8 @@ export type StepId = string & { readonly __brand: "StepId" };
 export type CallId = string & { readonly __brand: "CallId" };
 /** 审批标识 */
 export type ApprovalId = string & { readonly __brand: "ApprovalId" };
+/** 控制命令标识 */
+export type ControlId = string & { readonly __brand: "ControlId" };
 /** 副作用收据标识：规范化 idempotencyKey */
 export type ReceiptId = string & { readonly __brand: "ReceiptId" };
 /** 检查点标识 */

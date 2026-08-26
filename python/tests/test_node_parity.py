@@ -9,13 +9,74 @@ import time
 import unittest
 from pathlib import Path
 
-from coremind import CoreMindClient
+from coremind import CoreMindClient, ProtocolError
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 class NodeRuntimeParityTest(unittest.TestCase):
+    def test_protocol_v2_uses_bundled_node_worker(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "测试需要 Node.js")
+        port = _free_port()
+        mock_server = subprocess.Popen(
+            [
+                node,
+                str(REPOSITORY_ROOT / "packages" / "coremind-cli" / "test" / "mock-openai-server.mjs"),
+                str(port),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            _wait_for_port(port)
+            with tempfile.TemporaryDirectory(prefix="coremind-python-v2-") as directory:
+                config = {
+                    "schemaVersion": 2,
+                    "name": "Python Protocol v2 真实入口",
+                    "provider": {
+                        "id": "probe",
+                        "baseUrl": f"http://127.0.0.1:{port}/v1",
+                        "model": "probe-model",
+                        "apiKey": "test-key",
+                    },
+                    "agents": {"main": {"systemPrompt": "测试助手"}},
+                }
+                with CoreMindClient(
+                    config,
+                    protocol_version="2.0",
+                    config_dir=directory,
+                    cwd=directory,
+                    request_timeout=20,
+                ) as client:
+                    handle = client.run("你好", run_id="python-real-v2")
+                    projection = None
+                    for _attempt in range(100):
+                        try:
+                            projection = client.query("python-real-v2")
+                        except ProtocolError:
+                            time.sleep(0.02)
+                            continue
+                        if projection["projection"]["status"] == "finished":
+                            break
+                        time.sleep(0.02)
+                    events = client.events("python-real-v2", after_sequence=0, limit=100)
+
+            self.assertEqual(handle["selectedProtocol"], "2.0")
+            self.assertEqual(handle["runId"], "python-real-v2")
+            self.assertIsNotNone(projection)
+            self.assertEqual(projection["projection"]["status"], "finished")
+            self.assertGreater(events["nextCursor"], 0)
+            self.assertTrue(events["events"])
+        finally:
+            mock_server.terminate()
+            try:
+                mock_server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                mock_server.kill()
+                mock_server.wait(timeout=2)
+
     def test_typescript_and_python_share_outcome_and_event_contract(self) -> None:
         node = shutil.which("node")
         self.assertIsNotNone(node, "测试需要 Node.js")

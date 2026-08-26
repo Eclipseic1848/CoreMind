@@ -16,7 +16,15 @@ class WorkerExitedError(CoreMindError):
 class ProtocolError(CoreMindError):
     """CoreMind Protocol 返回的结构化错误。"""
 
-    def __init__(self, message: str, *, rpc_code: int, coremind_code: str | None = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        rpc_code: int,
+        coremind_code: str | None = None,
+        details: object | None = None,
+    ):
         super().__init__(message)
         self.rpc_code = rpc_code
         self.coremind_code = coremind_code
+        self.details = details

@@ -67,6 +67,53 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertTrue(diff["changed"])
         self.assertTrue(restored["restored"])
 
+    def test_protocol_v2_run_handle_events_query_and_control(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "demo-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            handle = client.run("长程任务", run_id="python-v2-run")
+            events = client.events("python-v2-run", after_sequence=0, limit=10)
+            query = client.query("python-v2-run")
+            receipt = client.control(
+                {
+                    "schemaVersion": 1,
+                    "controlId": "cancel-python-v2",
+                    "runId": "python-v2-run",
+                    "type": "cancel",
+                    "reason": "测试取消",
+                }
+            )
+
+            self.assertEqual(handle["runId"], "python-v2-run")
+            self.assertEqual(handle["selectedProtocol"], "2.0")
+            self.assertEqual(events["nextCursor"], 1)
+            self.assertEqual(query["derivedFromSequence"], 1)
+            self.assertEqual(receipt["status"], "applied")
+        finally:
+            client.close()
+
+    def test_protocol_v2_cursor_expired_exposes_recovery_details(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "demo-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            with self.assertRaises(ProtocolError) as captured:
+                client.events("expired-run", after_sequence=0)
+
+            self.assertEqual(captured.exception.coremind_code, "cursor_expired")
+            self.assertEqual(captured.exception.details["recovery"]["newCursor"], 7)
+        finally:
+            client.close()
+
     def test_registration_failure_closes_worker(self) -> None:
         @self.client.tool(
             name="reject_registration",
@@ -121,6 +168,23 @@ class AsyncCoreMindClientTest(unittest.IsolatedAsyncioTestCase):
         try:
             result = await client.run("异步调用")
             self.assertEqual(result["outcome"]["status"], "succeeded")
+        finally:
+            await client.close()
+
+    async def test_async_adapter_supports_protocol_v2(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = AsyncCoreMindClient(
+            {"schemaVersion": 2, "name": "demo-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            handle = await client.run("异步长程任务", run_id="async-v2-run")
+            events = await client.events("async-v2-run", after_sequence=0)
+
+            self.assertEqual(handle["selectedProtocol"], "2.0")
+            self.assertEqual(events["runId"], "async-v2-run")
         finally:
             await client.close()
 

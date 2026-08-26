@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -75,7 +75,7 @@ describe("五个黄金示例", () => {
         approvals.push(request.tool);
         return "allow";
       });
-      expect(result.passRate).toBe(1);
+      expect(result.passRate, JSON.stringify(result.attempts, null, 2)).toBe(1);
       expect(approvals).toEqual(["search_knowledge"]);
       expect(result.attempts[0]?.runId && result.attempts[0].outcome.status === "succeeded").toBe(
         true,
@@ -155,13 +155,23 @@ async function evaluate(
 ) {
   const projectDir = path.join(goldenRoot, id);
   const config = await loadConfig(projectDir, baseUrl);
-  return runEvaluationSuite({
-    config,
-    configDir: projectDir,
-    cwd: projectDir,
-    suite: await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml")),
-    approveTool,
-  });
+  const runRoot = mkdtempSync(path.join(tmpdir(), `coremind-golden-${id}-`));
+  try {
+    return await runEvaluationSuite({
+      config,
+      configDir: projectDir,
+      cwd: projectDir,
+      suite: await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml")),
+      approveTool,
+      runtimeFactory: (options) =>
+        CoreMindRuntime.create({
+          ...options,
+          runStore: new FileRunStore(path.join(runRoot, "runs")),
+        }),
+    });
+  } finally {
+    rmSync(runRoot, { recursive: true, force: true });
+  }
 }
 
 async function loadConfig(projectDir: string, baseUrl: string): Promise<CoreMindConfig> {

@@ -53,6 +53,7 @@ export type RunStateKind =
   | "resume"
   | "telemetry_configuration"
   | "telemetry_consent"
+  | "control"
   | "event"
   | "checkpoint"
   | "loop"
@@ -1267,6 +1268,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
       "resume",
       "telemetry_configuration",
       "telemetry_consent",
+      "control",
       "event",
       "checkpoint",
       "loop",

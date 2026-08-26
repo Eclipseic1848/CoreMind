@@ -340,6 +340,29 @@ export declare interface ContextStrategyComparison {
     }>;
 }
 
+export declare type ControlApplyResult = "accepted" | "applied" | {
+    status: "applied";
+    /** applied Fact 稳定提交后执行；实现必须保证不抛错。 */
+    afterDurable?: () => void | Promise<void>;
+} | {
+    status: "rejected";
+    reason: string;
+};
+
+export declare interface ControlReceipt {
+    schemaVersion: 1;
+    controlId: string;
+    runId: string;
+    status: ControlReceiptStatus;
+    acceptedSequence?: number;
+    appliedSequence?: number;
+    rejectedSequence?: number;
+    duplicateOf?: "accepted" | "applied" | "rejected";
+    reason?: string;
+}
+
+export declare type ControlReceiptStatus = "accepted" | "applied" | "rejected" | "duplicate" | "conflict";
+
 /** CoreMind 运行时错误（带错误码，便于 CLI 与库调用方区分处理） */
 export declare class CoreMindError extends Error {
     /** 机器可读错误码；分类语义见 ERROR_CODES 码表 */
@@ -722,11 +745,17 @@ export declare class CoreMindRuntime {
     restoreCheckpoint(record: CheckpointRecord): Promise<void>;
     /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
     run(): Promise<RunResult>;
+    /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
+    acceptControl(command: RunControlCommand): Promise<ControlReceipt>;
+    /** 当新的可应用点出现时，重试仍处于 accepted 的持久控制。 */
+    applyPendingControls(): Promise<ControlReceipt[]>;
+    private currentControlInbox;
     /** run() 主体（并发检测由外层 run() 包装） */
     private executeRunBody;
     private runWithGuard;
     private executeLoopStep;
     private abortAll;
+    private applyRunControl;
     private collectMessages;
     /**
      * 等待静止（规格 03 §5）：所有 agent 已 idle ∧ 无 pending 工具结果 ∧
@@ -762,6 +791,8 @@ export declare interface CoreMindRuntimeOptions {
     resumeRunId?: string;
     /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
     runId?: string;
+    /** 入口已接受的 Protocol v2 start 身份；随 start/resume Fact 持久化供 Host 重建。 */
+    protocolStart?: ProtocolStartIdentity;
     /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
     toolDefinitions?: CoreMindToolDefinition[];
     /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
@@ -771,6 +802,8 @@ export declare interface CoreMindRuntimeOptions {
         /** 必须在任何 export 前以 critical Fact 持久化的显式授权。 */
         consents?: TelemetryConsentFact[];
     };
+    /** ProtocolHost 控制应用 seam；持久顺序由 Runtime ControlInbox 负责。 */
+    applyControl?: (command: RunControlCommand) => Promise<ControlApplyResult>;
     signal?: AbortSignal;
     /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
     sessionId?: string;
@@ -1727,6 +1760,17 @@ declare interface PendingApprovalControl {
     risk: "low" | "high";
 }
 
+declare type PendingControl = PendingApprovalControl | PendingControlProjection;
+
+declare interface PendingControlProjection {
+    source: "control_inbox";
+    controlId: string;
+    runId: string;
+    type: RunControlCommand["type"];
+    acceptedSequence: number;
+    command: RunControlCommand;
+}
+
 export declare type PersistenceState = "pending" | "durable" | "failed" | "unknown";
 
 /** 从中断的 append-only RunState 构造安全恢复计划。 */
@@ -1789,6 +1833,13 @@ export declare function projectWorkspaceLeasesFromRecords(records: readonly RunS
  * 摘要只在用户环境生成；保留区从 user 消息开始，避免留下孤立 toolResult。
  */
 export declare function protectContext(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextProtectionResult;
+
+export declare interface ProtocolStartIdentity {
+    protocolVersion: "2.0";
+    method: "run" | "chat" | "resume";
+    fingerprint: string;
+    acceptedAt: string;
+}
 
 export declare interface ProviderRequestReplayFact {
     requestId: string;
@@ -1922,6 +1973,27 @@ export declare class RunBudgetController {
     private fail;
 }
 
+declare interface RunControlBase {
+    schemaVersion: 1;
+    controlId: string;
+    runId: string;
+}
+
+export declare type RunControlCommand = (RunControlBase & {
+    type: "cancel";
+    reason?: string;
+}) | (RunControlBase & {
+    type: "approval";
+    approvalId: string;
+    decision: "allow" | "deny";
+}) | (RunControlBase & {
+    type: "steering";
+    message: string;
+}) | (RunControlBase & {
+    type: "follow_up";
+    message: string;
+});
+
 export declare interface RunEvaluationOptions {
     config: CoreMindConfig;
     configDir: string;
@@ -2010,7 +2082,7 @@ declare interface RunProjection {
     artifacts: ArtifactProjection[];
     extensions: LifecycleExtensionReceipt[];
     context: ContextProjection;
-    pendingControls: PendingApprovalControl[];
+    pendingControls: PendingControl[];
     observability: LocalObservabilityProjection;
     records: RunStateRecord[];
     snapshot?: RunSnapshot;
@@ -2121,7 +2193,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;

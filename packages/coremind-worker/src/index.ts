@@ -1,4 +1,5 @@
 export {
+  ProtocolHost,
   type WorkerMessage,
   type WorkerRuntime,
   type WorkerRuntimeFactory,
