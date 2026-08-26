@@ -29,6 +29,11 @@ export const CustomProviderSchema = Type.Object({
   apiKey: Type.Optional(Type.String({ description: "直接写 API key（不建议，优先用 apiKeyEnv）" })),
   apiKeyEnv: Type.Optional(Type.String({ description: "API key 环境变量名" })),
   headers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "附加请求头" })),
+  thinkingFormat: Type.Optional(
+    Type.Literal("qwen", {
+      description: "Qwen 思考控制格式；由 agent.options.thinkingLevel 决定 enable_thinking",
+    }),
+  ),
   contextWindow: Type.Optional(
     Type.Integer({
       minimum: 1024,
