@@ -81,6 +81,7 @@ api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
 headers: TOptional<TRecord<TString, TString>>;
+thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>, TObject<    {
@@ -248,6 +249,7 @@ api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
 headers: TOptional<TRecord<TString, TString>>;
+thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>;
@@ -374,6 +376,7 @@ api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
 headers: TOptional<TRecord<TString, TString>>;
+thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>, TObject<    {

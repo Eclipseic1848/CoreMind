@@ -211,12 +211,13 @@ function buildCustomModel(cfg: CustomProviderConfig, id: string): Model<any> {
     api: "openai-completions",
     provider: id,
     baseUrl: cfg.baseUrl,
-    reasoning: false,
+    reasoning: cfg.thinkingFormat !== undefined,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     // contextWindow/maxTokens：配置可覆盖（对齐真实模型能力），缺省保守兜底
     contextWindow: cfg.contextWindow ?? 32768,
     maxTokens: cfg.maxTokens ?? 4096,
+    compat: cfg.thinkingFormat ? { thinkingFormat: cfg.thinkingFormat } : undefined,
   };
 }
 
