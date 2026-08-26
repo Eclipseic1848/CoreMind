@@ -1,22 +1,24 @@
 import {
-  type AfterToolCallContext,
-  type AfterToolCallResult,
   Agent,
   type AgentEvent,
   type AgentMessage,
   type AgentTool,
-  type BeforeToolCallContext,
-  type BeforeToolCallResult,
 } from "@earendil-works/pi-agent-core";
-import type { Model, Models } from "@earendil-works/pi-ai";
+import { isContextOverflow, type Model, type Models } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
+import type {
+  AgentDriver,
+  AgentDriverControl,
+  AgentDriverHarness,
+  AgentDriverObservation,
+  AgentDriverStatus,
+  AgentDriverToolCall,
+  AgentDriverTurnObservation,
+} from "./agent-driver.js";
 import { buildStableContextPrefix } from "./context.js";
+import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
-
-export interface AgentContextContract {
-  stablePrefix: string;
-  toolSchemas: unknown[];
-}
+import type { CoreMindMessage } from "./public-message.js";
 
 export interface AgentBuildContext {
   /** 共享模型集合（所有 agent 同一实例，streamFn 绑定） */
@@ -27,8 +29,10 @@ export interface AgentBuildContext {
   agentName: string;
   /** 事件转发 */
   onEvent: (event: CoreMindEvent) => void;
+  /** CoreMind-owned Driver 观测；不把底层 AgentEvent 暴露给调用方。 */
+  onObservation?: (observation: AgentDriverObservation | AgentDriverTurnObservation) => void;
   /** 会话历史（断点续聊恢复用） */
-  sessionMessages?: AgentMessage[];
+  sessionMessages?: CoreMindMessage[];
   /** 配置 apiKeyEnv 时的 key 覆盖（内置 provider） */
   apiKeyOverride?: string;
   /** 注入的专业技能内容（skills/<id>/README.md，附加到系统提示词） */
@@ -38,31 +42,7 @@ export interface AgentBuildContext {
   /** Provider 目录是否明确声明缓存计费能力。 */
   promptCacheStatus?: "available" | "unavailable";
   /** CoreMind Harness 钩子；由每次 Run 注入，不写入用户配置。 */
-  harness?: {
-    maxRetries?: number;
-    registerContextContract?: (contract: AgentContextContract) => void;
-    beforeModelRequest?: () => void;
-    /** Provider Runtime 已接受最终 Working Set；这是本地调度证据，不声明远端已收包。 */
-    onModelRequestDispatched?: (request: {
-      providerId: string;
-      modelId: string;
-      messages: readonly unknown[];
-    }) => void;
-    transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
-    beforeToolCall?: (
-      context: BeforeToolCallContext,
-      signal?: AbortSignal,
-    ) => Promise<BeforeToolCallResult | undefined>;
-    afterToolCall?: (
-      context: AfterToolCallContext,
-      signal?: AbortSignal,
-    ) => Promise<AfterToolCallResult | undefined>;
-    executeTool?: (
-      tool: AgentTool,
-      ...args: Parameters<AgentTool["execute"]>
-    ) => ReturnType<AgentTool["execute"]>;
-    onAgentEvent?: (event: AgentEvent, agent: Agent) => void;
-  };
+  harness?: AgentDriverHarness;
 }
 
 /**
@@ -74,8 +54,15 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
   const tools = ctx.harness?.executeTool
     ? ctx.tools.map((tool) => ({
         ...tool,
-        execute: (...args: Parameters<AgentTool["execute"]>) =>
-          ctx.harness!.executeTool!(tool, ...args),
+        execute: async (...args: Parameters<AgentTool["execute"]>) => {
+          const [callId, params, signal, onUpdate] = args;
+          return (await ctx.harness!.executeTool!({
+            call: { callId, tool: tool.name, args: params },
+            signal,
+            invoke: () =>
+              tool.execute(callId, params, signal, onUpdate) as ReturnType<AgentTool["execute"]>,
+          })) as Awaited<ReturnType<AgentTool["execute"]>>;
+        },
       }))
     : ctx.tools;
   const stablePrefix = buildStableContextPrefix({
@@ -102,7 +89,7 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       systemPrompt: stablePrefix.text,
       model: ctx.model,
       tools,
-      messages: ctx.sessionMessages ?? [],
+      messages: (ctx.sessionMessages ?? []) as unknown as AgentMessage[],
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
@@ -124,14 +111,56 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       return response;
     },
     toolExecution: "parallel",
-    transformContext: ctx.harness?.transformContext,
-    beforeToolCall: ctx.harness?.beforeToolCall,
-    afterToolCall: ctx.harness?.afterToolCall,
+    transformContext: ctx.harness?.transformContext
+      ? async (messages, signal) =>
+          (await ctx.harness!.transformContext!(
+            messages as unknown as CoreMindMessage[],
+            signal,
+          )) as unknown as AgentMessage[]
+      : undefined,
+    beforeToolCall: ctx.harness?.beforeToolCall
+      ? (context, signal) =>
+          ctx.harness!.beforeToolCall!(
+            {
+              toolCall: {
+                callId: context.toolCall.id,
+                tool: context.toolCall.name,
+                args: context.args,
+              },
+            },
+            signal,
+          )
+      : undefined,
+    shouldStopAfterTurn: ctx.harness?.shouldStopAfterTurn,
+    afterToolCall: ctx.harness?.afterToolCall
+      ? async (context, signal) =>
+          (await ctx.harness!.afterToolCall!(
+            {
+              toolCall: {
+                callId: context.toolCall.id,
+                tool: context.toolCall.name,
+                args: context.args,
+              },
+              result: context.result,
+              isError: context.isError,
+            },
+            signal,
+          )) as Awaited<ReturnType<NonNullable<Agent["afterToolCall"]>>>
+      : undefined,
   });
 
   // 事件归一化转发（agent 名由上下文注入，stepId 由编排层补充）
+  const activeDriverCalls = new Map<string, AgentDriverToolCall>();
   agent.subscribe((event) => {
-    ctx.harness?.onAgentEvent?.(event, agent);
+    const observation = normalizeDriverObservation(
+      event,
+      ctx.model.contextWindow,
+      activeDriverCalls,
+    );
+    if (observation) {
+      ctx.harness?.onObservation?.(observation);
+      ctx.onObservation?.(observation);
+    }
     const coreEvent = normalizeEvent(event);
     if (coreEvent) {
       const enriched =
@@ -143,4 +172,123 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
   });
 
   return agent;
+}
+
+/** 生产 Adapter：把 P3 Agent 生命周期收敛到 CoreMind 私有 AgentDriver seam。 */
+export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext): AgentDriver {
+  const agent = buildAgent(agentCfg, ctx);
+  return new PiAgentDriver(agent, ctx.harness);
+}
+
+class PiAgentDriver implements AgentDriver {
+  private queuedControls = 0;
+
+  constructor(
+    private readonly agent: Agent,
+    private readonly harness: AgentDriverHarness | undefined,
+  ) {
+    agent.subscribe((event) => {
+      if (event.type === "agent_end") this.queuedControls = 0;
+    });
+  }
+
+  prompt(input: string): Promise<void> {
+    return this.agent.prompt(input);
+  }
+
+  async waitForIdle(): Promise<void> {
+    await this.agent.waitForIdle();
+    this.harness?.throwIfDenied?.();
+    this.harness?.throwIfContextFailed?.();
+  }
+
+  messages(): CoreMindMessage[] {
+    return [...this.agent.state.messages] as unknown as CoreMindMessage[];
+  }
+
+  status(): AgentDriverStatus {
+    return {
+      running: this.agent.state.isStreaming,
+      pendingToolCalls: this.agent.state.pendingToolCalls.size,
+      queuedControls: this.queuedControls,
+    };
+  }
+
+  abort(): void {
+    this.agent.abort();
+  }
+
+  queueControl(control: AgentDriverControl): void {
+    const message: AgentMessage = {
+      role: "user",
+      content: control.message,
+      timestamp: Date.now(),
+    };
+    this.queuedControls += 1;
+    if (control.type === "steering") this.agent.steer(message);
+    else this.agent.followUp(message);
+  }
+}
+
+function normalizeDriverObservation(
+  event: AgentEvent,
+  contextWindow: number,
+  activeCalls?: Map<string, AgentDriverToolCall>,
+): AgentDriverObservation | AgentDriverTurnObservation | undefined {
+  switch (event.type) {
+    case "agent_start":
+      return { type: event.type };
+    case "agent_end":
+      activeCalls?.clear();
+      return { type: event.type };
+    case "turn_end": {
+      const usage =
+        event.message.role === "assistant" && event.message.usage
+          ? normalizeDependencyUsage(event.message.usage)
+          : { totalTokens: 0, contextTokens: 0, costUsd: 0 };
+      return {
+        type: "turn_end",
+        message: event.message as unknown as CoreMindMessage,
+        ...usage,
+        requestsAnotherTurn:
+          event.message.role === "assistant" &&
+          event.message.content.some((item) => item.type === "toolCall"),
+        contextOverflow:
+          event.message.role === "assistant" && isContextOverflow(event.message, contextWindow),
+      };
+    }
+    case "message_update":
+      return event.assistantMessageEvent.type === "text_delta" &&
+        event.assistantMessageEvent.delta.length > 0
+        ? { type: "text_delta", delta: event.assistantMessageEvent.delta }
+        : undefined;
+    case "tool_execution_start": {
+      const call = {
+        callId: event.toolCallId,
+        tool: event.toolName,
+        args: event.args,
+      };
+      activeCalls?.set(event.toolCallId, call);
+      return {
+        type: "tool_execution_start",
+        call,
+      };
+    }
+    case "tool_execution_end": {
+      const call = activeCalls?.get(event.toolCallId) ?? {
+        callId: event.toolCallId,
+        tool: event.toolName,
+        args: undefined,
+      };
+      activeCalls?.delete(event.toolCallId);
+      return {
+        type: "tool_execution_end",
+        call,
+        result: event.result,
+        isError: event.isError,
+      };
+    }
+    default:
+      return undefined;
+  }
 }

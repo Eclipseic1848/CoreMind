@@ -171,6 +171,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  environment_terminate_failed: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
   context_lineage_corrupt: {
     terminality: "terminal",
     cancelClass: "corruption",

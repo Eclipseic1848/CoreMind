@@ -1,14 +1,16 @@
-import type { Agent, AgentMessage } from "@earendil-works/pi-agent-core";
 import type { ArtifactRecord } from "coremind-tools";
+import type { ExecutionEnvironment } from "coremind-tools/internal";
+import type { AgentDriver } from "./agent-driver.js";
 import type { BranchMessage } from "./compaction-projection.js";
 import type { ControlInbox } from "./control-inbox.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
+import type { CoreMindMessage } from "./public-message.js";
 import { hasPendingJournalFlush, type RunStateJournal } from "./run-state.js";
 import type { CoreMindSession } from "./session.js";
 
 /** 单次 Run 的可变资源所有者；Runtime 门面只负责创建与切换实例。 */
 export class RunContext<THarness> {
-  private readonly agents = new Map<string, Agent>();
+  private readonly agents = new Map<string, AgentDriver>();
   private harnessFactory?: (agentName: string, stepId?: string) => THarness;
   private journal?: RunStateJournal;
   private controlInbox?: ControlInbox;
@@ -18,12 +20,14 @@ export class RunContext<THarness> {
   private persistPaused = false;
   private readonly artifacts: ArtifactRecord[] = [];
   private readonly extensionReceipts: LifecycleExtensionReceipt[] = [];
+  private executionEnvironment?: ExecutionEnvironment;
+  private terminationError?: unknown;
 
-  registerAgent(name: string, agent: Agent): void {
+  registerAgent(name: string, agent: AgentDriver): void {
     this.agents.set(name, agent);
   }
 
-  agent(name: string): Agent | undefined {
+  agent(name: string): AgentDriver | undefined {
     return this.agents.get(name);
   }
 
@@ -31,8 +35,8 @@ export class RunContext<THarness> {
     for (const agent of this.agents.values()) agent.abort();
   }
 
-  collectMessages(): Map<string, AgentMessage[]> {
-    return new Map([...this.agents].map(([name, agent]) => [name, agent.state.messages]));
+  collectMessages(): Map<string, CoreMindMessage[]> {
+    return new Map([...this.agents].map(([name, agent]) => [name, agent.messages()]));
   }
 
   setHarnessFactory(factory?: (agentName: string, stepId?: string) => THarness): void {
@@ -61,15 +65,33 @@ export class RunContext<THarness> {
 
   isQuiescent(): boolean {
     for (const agent of this.agents.values()) {
-      if (
-        agent.state.isStreaming ||
-        agent.state.pendingToolCalls.size > 0 ||
-        agent.hasQueuedMessages()
-      ) {
+      const status = agent.status();
+      if (status.running || status.pendingToolCalls > 0 || status.queuedControls > 0) {
         return false;
       }
     }
+    if (this.executionEnvironment && !this.executionEnvironment.isQuiescent()) return false;
     return this.journal === undefined || !hasPendingJournalFlush(this.journal);
+  }
+
+  attachExecutionEnvironment(environment: ExecutionEnvironment): void {
+    this.executionEnvironment = environment;
+    this.terminationError = undefined;
+  }
+
+  async terminateEnvironment(reason: string): Promise<void> {
+    if (!this.executionEnvironment) return;
+    try {
+      await this.executionEnvironment.terminate(reason);
+      this.terminationError = undefined;
+    } catch (error) {
+      this.terminationError = error;
+      throw error;
+    }
+  }
+
+  environmentTerminationError(): unknown {
+    return this.terminationError;
   }
 
   attachSession(session: CoreMindSession, branch: BranchMessage[]): void {

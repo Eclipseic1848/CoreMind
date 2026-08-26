@@ -2,7 +2,7 @@
 
 ## Preconditions
 
-Read the [module contract](README.en.md). Fix the reference version, candidate version, affected seams, migration scope, and rollback point. Live-provider calls, cost, or code egress require separate authorization.
+Read the [module contract](README.en.md) and copy the [dependency upgrade spike template](DEPENDENCY-UPGRADE-SPIKE-TEMPLATE.en.md). Fix the reference version, candidate version, affected seams, migration scope, and rollback point. Live-provider calls, cost, or code egress require separate authorization.
 
 ## Procedure
 

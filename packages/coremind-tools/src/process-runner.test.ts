@@ -1,7 +1,13 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ProcessRunner, ProcessRunnerError } from "./process-runner.js";
+import { createFakeExecutionEnvironment } from "./execution-environment.js";
+import {
+  createSupervisedProcessRunner,
+  ProcessRunner,
+  ProcessRunnerError,
+  probeProcessTreeTermination,
+} from "./process-runner.js";
 
 describe("ProcessRunner", () => {
   it("以参数数组执行进程并分别保留标准输出和标准错误", async () => {
@@ -69,6 +75,13 @@ describe("ProcessRunner", () => {
     }
   });
 
+  it("平台终止 probe 以真实子进程验证进程树能力", async () => {
+    await expect(probeProcessTreeTermination()).resolves.toMatchObject({
+      available: true,
+      evidence: [expect.stringContaining(`process-tree:${process.platform}:verified`)],
+    });
+  });
+
   it("调用方取消后返回稳定错误码", async () => {
     const controller = new AbortController();
     const running = new ProcessRunner().run({
@@ -79,6 +92,38 @@ describe("ProcessRunner", () => {
     controller.abort();
 
     await expect(running).rejects.toMatchObject({ code: "process_aborted" });
+  });
+
+  it("执行环境终止会取消真实进程并在进程退出后恢复 Quiescent", async () => {
+    const environment = createFakeExecutionEnvironment({
+      claimed: { networkEgress: "unrestricted" },
+      observed: { networkEgress: "unrestricted" },
+      terminationTimeoutMs: 2_000,
+    });
+    const script = path.resolve(process.cwd(), "scripts", "process-tree-probe.mjs");
+    let output = "";
+    let childPid: number | undefined;
+    try {
+      const running = createSupervisedProcessRunner(environment).run({
+        command: process.execPath,
+        args: [script],
+        onStdout: (chunk) => {
+          output += chunk.toString("utf8");
+          const match = output.match(/CHILD_PID:(\d+)/);
+          if (match) childPid = Number(match[1]);
+        },
+      });
+      await waitUntil(() => !environment.isQuiescent() && childPid !== undefined);
+
+      const terminating = environment.terminate("测试取消");
+      await expect(running).rejects.toMatchObject({ code: "process_aborted" });
+      await expect(terminating).resolves.toBeUndefined();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(environment.isQuiescent()).toBe(true);
+      expect(isProcessAlive(childPid!)).toBe(false);
+    } finally {
+      if (childPid && isProcessAlive(childPid)) terminateProbeProcess(childPid);
+    }
   });
 
   it("输出超过上限时失败关闭", async () => {
@@ -100,6 +145,14 @@ describe("ProcessRunner", () => {
     expect(failure).toMatchObject({ code: "process_spawn_failed" });
   });
 });
+
+async function waitUntil(predicate: () => boolean): Promise<void> {
+  const deadline = performance.now() + 1_000;
+  while (!predicate()) {
+    if (performance.now() >= deadline) throw new Error("等待条件超时");
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+}
 
 function isProcessAlive(pid: number): boolean {
   try {

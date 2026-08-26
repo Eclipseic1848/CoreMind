@@ -303,7 +303,7 @@ export class FileRunStore implements RunStore {
           await handle?.close().catch(() => undefined);
         }
       }
-      await rename(temporary, destination);
+      await renameAtomically(temporary, destination);
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined);
     }
@@ -431,6 +431,27 @@ export class FileRunStore implements RunStore {
       await rm(claimPath, { force: true }).catch(() => undefined);
     }
   }
+}
+
+const ATOMIC_RENAME_RETRY_DELAYS_MS = [5, 10, 20, 40, 80, 160, 320, 640, 1_280] as const;
+
+/** Windows 扫描器可能短暂占用新文件；只重试可恢复的 rename 错误。 */
+async function renameAtomically(temporary: string, destination: string): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await rename(temporary, destination);
+      return;
+    } catch (error) {
+      const delay = ATOMIC_RENAME_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined || !isTransientRenameError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+function isTransientRenameError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  return code === "EPERM" || code === "EACCES" || code === "EBUSY";
 }
 
 async function classifyWriterLockContention(

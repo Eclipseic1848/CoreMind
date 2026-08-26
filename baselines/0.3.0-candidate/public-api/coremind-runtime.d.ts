@@ -701,10 +701,11 @@ export declare type CoreMindMessageContent = {
 export declare class CoreMindRuntime {
     private readonly config;
     private readonly agentConfigs;
-    private readonly toolsByAgent;
+    private readonly driverBuilders;
     private readonly toolEffectsByAgent;
     private readonly toolCapabilitiesByAgent;
     private readonly providerRuntime;
+    private readonly executionEnvironment;
     private readonly options;
     /** 最近创建的每个 agent 实例（收集最终消息/落盘用） */
     private readonly lastAgents;
@@ -730,7 +731,7 @@ export declare class CoreMindRuntime {
     private constructor();
     /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
     static create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime>;
-    /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
+    /** 按名字创建独立 Driver 实例（每次新实例，消息历史独立） */
     private createAgent;
     /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
     hasAgent(name: string): boolean;

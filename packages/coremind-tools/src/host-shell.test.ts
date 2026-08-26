@@ -2,7 +2,12 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createHostBashTool, resolveWindowsShell } from "./host-shell.js";
+import { createFakeExecutionEnvironment } from "./execution-environment.js";
+import {
+  createHostBashTool,
+  createHostBashToolForEnvironment,
+  resolveWindowsShell,
+} from "./host-shell.js";
 
 describe("宿主 Shell", () => {
   it("Windows 优先选择 Git 安装目录中的 Bash", () => {
@@ -77,5 +82,19 @@ describe("宿主 Shell", () => {
       type: "text",
       text: expect.stringContaining("host-ok"),
     });
+  });
+
+  it("环境终止能力 probe 失败时不进入宿主命令 Adapter", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-host-shell-probe-"));
+    const environment = createFakeExecutionEnvironment({
+      claimed: { networkEgress: "unrestricted" },
+      observed: { networkEgress: "unrestricted" },
+      probeStatus: "failed",
+    });
+    const tool = createHostBashToolForEnvironment({ cwd }, environment);
+
+    await expect(
+      tool.execute("host-shell-probe", { command: "echo should-not-run" }, undefined),
+    ).rejects.toMatchObject({ code: "environment_probe_failed" });
   });
 });

@@ -40,6 +40,8 @@ declare class ProtocolHost {
     private requestedRunId?;
     private running;
     private closed;
+    private activeExecutionCompletion?;
+    private resolveActiveExecution?;
     constructor(options: WorkerServerOptions);
     /** 传输断开只影响交付，不得反向污染 Runtime 或权威 Fact。 */
     private send;
@@ -68,6 +70,11 @@ declare class ProtocolHost {
     private findCheckpoint;
     private cancel;
     private close;
+    /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
+    shutdown(timeoutMs?: number): Promise<{
+        closed: true;
+        quiescent: boolean;
+    }>;
     private requireInitialized;
 }
 export { ProtocolHost }

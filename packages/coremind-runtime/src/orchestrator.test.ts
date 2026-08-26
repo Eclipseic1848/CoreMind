@@ -1,4 +1,3 @@
-import { Agent } from "@earendil-works/pi-agent-core";
 import { createModels } from "@earendil-works/pi-ai";
 import {
   type FauxResponseStep,
@@ -7,6 +6,8 @@ import {
 } from "@earendil-works/pi-ai/providers/faux";
 import type { WorkflowStep } from "coremind-config";
 import { describe, expect, it } from "vitest";
+import type { AgentDriver } from "./agent-driver.js";
+import { buildAgentDriver } from "./agent-factory.js";
 import { CoreMindError } from "./errors.js";
 import { evalCondition, Orchestrator } from "./orchestrator.js";
 
@@ -17,17 +18,23 @@ let instanceCounter = 0;
  * 注意：faux provider 的响应队列按 provider id 在模块级共享，
  * 因此每个实例必须使用唯一 provider id，避免并发实例互相干扰。
  */
-function makeAgent(name: string, responses: FauxResponseStep[]): Agent {
+function makeAgent(name: string, responses: FauxResponseStep[]): AgentDriver {
   instanceCounter += 1;
   const providerId = `faux-${name}-${instanceCounter}`;
   const models = createModels();
   const faux = fauxProvider({ provider: providerId });
   models.setProvider(faux.provider);
   faux.setResponses(responses);
-  return new Agent({
-    initialState: { systemPrompt: name, model: faux.getModel(), tools: [], messages: [] },
-    streamFn: (m, c, o) => models.streamSimple(m, c, o),
-  });
+  return buildAgentDriver(
+    { systemPrompt: name },
+    {
+      models,
+      model: faux.getModel(),
+      tools: [],
+      agentName: name,
+      onEvent: () => undefined,
+    },
+  );
 }
 
 const events: string[] = [];
@@ -92,8 +99,10 @@ describe("Orchestrator", () => {
       },
       waitForIdle: async () => {},
       abort: () => {},
-      state: { messages: [] },
-    } as unknown as Agent;
+      messages: () => [],
+      status: () => ({ running: false, pendingToolCalls: 0, queuedControls: 0 }),
+      queueControl: () => {},
+    } satisfies AgentDriver;
     const orchestrator = new Orchestrator(
       [{ id: "s1", type: "prompt", agent: "a", input: "触发失败" }],
       {
@@ -292,12 +301,14 @@ describe("Orchestrator", () => {
   });
 
   it("步骤超时抛 step_timeout（abort 中止挂起的 agent）", async () => {
-    const hanging = new Agent({
-      initialState: { systemPrompt: "h", messages: [] },
-      streamFn: async function* () {
-        await new Promise(() => {});
-      },
-    });
+    const hanging = {
+      prompt: () => new Promise<void>(() => {}),
+      waitForIdle: () => new Promise<void>(() => {}),
+      abort: () => {},
+      messages: () => [],
+      status: () => ({ running: true, pendingToolCalls: 0, queuedControls: 0 }),
+      queueControl: () => {},
+    } satisfies AgentDriver;
     const orchestrator = new Orchestrator([{ id: "s1", type: "prompt", agent: "a", input: "x" }], {
       createAgent: () => hanging,
       events: track,

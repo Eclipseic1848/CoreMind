@@ -102,9 +102,7 @@ describe("buildAgent（离线 faux 端到端）", () => {
     ]);
     const original = createReadTool(dir);
     const adapter = vi.fn(original.execute.bind(original));
-    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) =>
-      tool.execute(callId, args, signal, onUpdate),
-    );
+    const executeTool = vi.fn(async ({ invoke }) => invoke());
     const agent = buildAgent(
       { systemPrompt: "测试助手", tools: [{ id: "read" }] },
       {
@@ -192,9 +190,9 @@ describe("buildAgent（离线 faux 端到端）", () => {
         lifecycleFacts.push(fact);
       },
     });
-    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) => {
-      const identity = { agent: "tester", callId };
-      await engine.recordCall({ ...identity, tool: tool.name });
+    const executeTool = vi.fn(async ({ call, invoke }) => {
+      const identity = { agent: "tester", callId: call.callId };
+      await engine.recordCall({ ...identity, tool: call.tool });
       for (const phase of [
         "capability_resolved",
         "policy_resolved",
@@ -210,9 +208,7 @@ describe("buildAgent（离线 faux 端到端）", () => {
         result: { effectState: "started" },
       });
       await engine.advance(identity, { phase: "executing", status: "completed" });
-      const result = await engine.executeAdapter(identity, () =>
-        tool.execute(callId, args, signal, onUpdate),
-      );
+      const result = await engine.executeAdapter(identity, invoke);
       await engine.advance(identity, {
         phase: "observed",
         status: "completed",
@@ -299,9 +295,7 @@ describe("buildAgent（离线 faux 端到端）", () => {
         return base.execute(...args);
       },
     };
-    const executeTool = vi.fn(async (tool, callId, args, signal, onUpdate) =>
-      tool.execute(callId, args, signal, onUpdate),
-    );
+    const executeTool = vi.fn(async ({ invoke }) => invoke());
     const agent = buildAgent(
       { systemPrompt: "测试助手" },
       {
@@ -323,7 +317,7 @@ describe("buildAgent（离线 faux 端到端）", () => {
         .filter((message) => message.role === "toolResult")
         .map((message) => message.toolCallId),
     ).toEqual(["call-slow", "call-fast"]);
-    expect(executeTool.mock.calls.map((call) => call[1]).sort()).toEqual([
+    expect(executeTool.mock.calls.map(([request]) => request.call.callId).sort()).toEqual([
       "call-fast",
       "call-slow",
     ]);

@@ -4,9 +4,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
+import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-import { createStdioSender } from "./stdio.js";
+import { describe, expect, it, vi } from "vitest";
+import { WorkerServer } from "./server.js";
+import { createStdioSender, runStdioWorker } from "./stdio.js";
 
 describe("stdio 传输背压", () => {
   it("等待 drain 并在有界队列满时只丢弃 live event", () => {
@@ -43,11 +45,47 @@ describe("stdio 传输背压", () => {
     ]);
   });
 
+  it("EOF completion 必须等待 Worker shutdown 完成", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    let releaseShutdown: (() => void) | undefined;
+    const shutdown = vi.spyOn(WorkerServer.prototype, "shutdown").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseShutdown = () => resolve({ closed: true, quiescent: true });
+        }),
+    );
+
+    try {
+      const completion = runStdioWorker(input, output);
+      expect(completion).toBeInstanceOf(Promise);
+      input.end();
+      await vi.waitFor(() => expect(shutdown).toHaveBeenCalledOnce());
+      let completed = false;
+      void completion.then(() => {
+        completed = true;
+      });
+      await Promise.resolve();
+      expect(completed).toBe(false);
+
+      releaseShutdown?.();
+      await completion;
+      expect(completed).toBe(true);
+    } finally {
+      shutdown.mockRestore();
+      input.destroy();
+      output.destroy();
+    }
+  });
+
   it("通过正式 dist/stdio.js 完成 v2 initialize、RunHandle 与 cancel", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-stdio-smoke-"));
     const entry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/stdio.js");
     const worker = spawn(process.execPath, [entry], { stdio: ["pipe", "pipe", "pipe"] });
-    const exited = new Promise<void>((resolve) => worker.once("exit", () => resolve()));
+    const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+      worker.once("exit", (code, signal) => resolve({ code, signal })),
+    );
+    let exitedAfterEof = false;
     const lines = createInterface({ input: worker.stdout, crlfDelay: Number.POSITIVE_INFINITY });
     const pending = new Map<string, (message: Record<string, unknown>) => void>();
     lines.on("line", (line) => {
@@ -117,9 +155,13 @@ describe("stdio 传输背压", () => {
       expect(cancelled).toMatchObject({
         result: { controlId: "cancel-smoke", status: "applied" },
       });
-    } finally {
       worker.stdin.end();
-      worker.kill();
+      await vi.waitFor(() => expect(worker.exitCode).toBe(0), { timeout: 10_000 });
+      await expect(exited).resolves.toEqual({ code: 0, signal: null });
+      exitedAfterEof = true;
+    } finally {
+      if (!worker.stdin.destroyed) worker.stdin.end();
+      if (!exitedAfterEof && worker.exitCode === null && worker.signalCode === null) worker.kill();
       await exited;
       lines.close();
       rmSync(directory, { recursive: true, force: true });

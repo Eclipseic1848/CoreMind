@@ -677,6 +677,59 @@ describe("WorkerServer", () => {
     await runPromise;
   });
 
+  it("close 必须等待在飞 Runtime 完成异步清理后才确认 closed", async () => {
+    let entered = false;
+    let cleanupFinished = false;
+    const factory: WorkerRuntimeFactory = async (options) => ({
+      run: async () => {
+        entered = true;
+        await new Promise<void>((resolve) => {
+          options.signal?.addEventListener(
+            "abort",
+            () => {
+              setTimeout(() => {
+                cleanupFinished = true;
+                resolve();
+              }, 20);
+            },
+            { once: true },
+          );
+        });
+        return successfulResult({
+          eventId: "worker-close-event",
+          runId: "worker-close-run",
+          sequence: 1,
+          timestamp: "2026-08-26T00:00:00.000Z",
+          event: { type: "agent_start", agent: "main" },
+        });
+      },
+    });
+    const server = new WorkerServer({ send: () => {}, runtimeFactory: factory });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+    const running = server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "run",
+      params: { input: "执行", runId: "worker-close-run" },
+    });
+    await waitUntil(() => entered);
+
+    const closed = await server.handle({ jsonrpc: "2.0", id: 3, method: "close", params: {} });
+
+    expect(closed).toMatchObject({ result: { closed: true, quiescent: true } });
+    expect(cleanupFinished).toBe(true);
+    await running;
+  });
+
   it("首事件前用不匹配 runId 取消被拒绝（unknown_run）", async () => {
     const factory: WorkerRuntimeFactory = async (options) => ({
       run: async () =>
