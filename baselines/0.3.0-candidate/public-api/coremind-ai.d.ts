@@ -20,6 +20,9 @@ import { CodingRepositoryInspection } from 'coremind-runtime';
 import { CodingToolContract } from 'coremind-runtime';
 import { CodingToolId } from 'coremind-runtime';
 import { CommandGrader } from 'coremind-runtime';
+import { ControlApplyResult } from 'coremind-runtime';
+import { ControlReceipt } from 'coremind-runtime';
+import { ControlReceiptStatus } from 'coremind-runtime';
 import { CoreMindConfig } from 'coremind-config';
 import { CoreMindError } from 'coremind-runtime';
 import { CoreMindEvent } from 'coremind-runtime';
@@ -121,6 +124,7 @@ import { LoopConfig } from 'coremind-config';
 import { LoopPhase } from 'coremind-runtime';
 import { LoopVerificationConfig } from 'coremind-config';
 import { MemoryRunStore } from 'coremind-runtime';
+import { negotiateProtocolV2 } from 'coremind-protocol';
 import { OperationEvent } from 'coremind-runtime';
 import { OperationEventType } from 'coremind-runtime';
 import { operationSnapshotFromRecords } from 'coremind-runtime';
@@ -131,6 +135,7 @@ import { PackageManager } from 'coremind-runtime';
 import { parseAndValidate } from 'coremind-config';
 import { parseConfigText } from 'coremind-config';
 import { parseProtocolRequest } from 'coremind-protocol';
+import { parseProtocolV2Request } from 'coremind-protocol';
 import { parseRunSnapshot } from 'coremind-protocol';
 import { PermissionsConfig } from 'coremind-config';
 import { prepareRunResume } from 'coremind-runtime';
@@ -144,13 +149,52 @@ import { ProjectLanguage } from 'coremind-templates';
 import { projectLocalObservability } from 'coremind-runtime';
 import { ProjectLocalObservabilityOptions } from 'coremind-runtime';
 import { projectToolCallLifecycles } from 'coremind-runtime';
+import { PROTOCOL_V2_SCHEMA_BUNDLE } from 'coremind-protocol';
+import { PROTOCOL_V2_SCHEMA_FINGERPRINT } from 'coremind-protocol';
+import { PROTOCOL_V2_VERSION } from 'coremind-protocol';
 import { PROTOCOL_VERSION } from 'coremind-protocol';
 import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolEventNotification } from 'coremind-protocol';
 import { ProtocolRequest } from 'coremind-protocol';
 import { ProtocolRunSnapshot } from 'coremind-protocol';
+import { ProtocolStartIdentity } from 'coremind-runtime';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
+import { ProtocolV2ChatRequest } from 'coremind-protocol';
+import { ProtocolV2ChatRequestSchema } from 'coremind-protocol';
+import { ProtocolV2ControlCommand } from 'coremind-protocol';
+import { ProtocolV2ControlCommandSchema } from 'coremind-protocol';
+import { ProtocolV2ControlReceipt } from 'coremind-protocol';
+import { ProtocolV2ControlReceiptSchema } from 'coremind-protocol';
+import { ProtocolV2ControlRequest } from 'coremind-protocol';
+import { ProtocolV2ControlRequestSchema } from 'coremind-protocol';
+import { ProtocolV2ErrorResponseSchema } from 'coremind-protocol';
+import { ProtocolV2EventEnvelope } from 'coremind-protocol';
+import { ProtocolV2EventEnvelopeSchema } from 'coremind-protocol';
+import { ProtocolV2EventPage } from 'coremind-protocol';
+import { ProtocolV2EventPageSchema } from 'coremind-protocol';
+import { ProtocolV2EventsRequest } from 'coremind-protocol';
+import { ProtocolV2EventsRequestSchema } from 'coremind-protocol';
+import { ProtocolV2InitializeRequest } from 'coremind-protocol';
+import { ProtocolV2InitializeRequestSchema } from 'coremind-protocol';
+import { ProtocolV2InitializeResult } from 'coremind-protocol';
+import { ProtocolV2InitializeResultSchema } from 'coremind-protocol';
+import { ProtocolV2NegotiationError } from 'coremind-protocol';
+import { ProtocolV2QueryRequest } from 'coremind-protocol';
+import { ProtocolV2QueryRequestSchema } from 'coremind-protocol';
+import { ProtocolV2QueryResult } from 'coremind-protocol';
+import { ProtocolV2QueryResultSchema } from 'coremind-protocol';
+import { ProtocolV2Request } from 'coremind-protocol';
+import { ProtocolV2RequestSchema } from 'coremind-protocol';
+import { ProtocolV2ResumeRequest } from 'coremind-protocol';
+import { ProtocolV2ResumeRequestSchema } from 'coremind-protocol';
+import { ProtocolV2RunHandle } from 'coremind-protocol';
+import { ProtocolV2RunHandleSchema } from 'coremind-protocol';
+import { ProtocolV2RunRequest } from 'coremind-protocol';
+import { ProtocolV2RunRequestSchema } from 'coremind-protocol';
+import { ProtocolV2StartRequest } from 'coremind-protocol';
+import { ProtocolV2ValidationError } from 'coremind-protocol';
 import { ProtocolValidationError } from 'coremind-protocol';
+import { ProtocolVersionRange } from 'coremind-protocol';
 import { ProviderRequestReplayFact } from 'coremind-runtime';
 import { ProviderRequestReplayFixture } from 'coremind-runtime';
 import { PythonToolCallNotification } from 'coremind-protocol';
@@ -165,6 +209,7 @@ import { resolveSkills } from 'coremind-templates';
 import { ResponseGrader } from 'coremind-runtime';
 import { restoreCheckpoint } from 'coremind-runtime';
 import { restoreDurableOperation } from 'coremind-runtime';
+import { RunControlCommand } from 'coremind-runtime';
 import { runEvaluationSuite } from 'coremind-runtime';
 import { runExperiment } from 'coremind-runtime';
 import { RunMetrics } from 'coremind-runtime';
@@ -270,6 +315,12 @@ export { CodingToolContract }
 export { CodingToolId }
 
 export { CommandGrader }
+
+export { ControlApplyResult }
+
+export { ControlReceipt }
+
+export { ControlReceiptStatus }
 
 export { CoreMindConfig }
 
@@ -473,6 +524,8 @@ export { LoopVerificationConfig }
 
 export { MemoryRunStore }
 
+export { negotiateProtocolV2 }
+
 export { OperationEvent }
 
 export { OperationEventType }
@@ -492,6 +545,8 @@ export { parseAndValidate }
 export { parseConfigText }
 
 export { parseProtocolRequest }
+
+export { parseProtocolV2Request }
 
 export { parseRunSnapshot }
 
@@ -519,6 +574,12 @@ export { ProjectLocalObservabilityOptions }
 
 export { projectToolCallLifecycles }
 
+export { PROTOCOL_V2_SCHEMA_BUNDLE }
+
+export { PROTOCOL_V2_SCHEMA_FINGERPRINT }
+
+export { PROTOCOL_V2_VERSION }
+
 export { PROTOCOL_VERSION }
 
 export { ProtocolErrorResponse }
@@ -529,9 +590,81 @@ export { ProtocolRequest }
 
 export { ProtocolRunSnapshot }
 
+export { ProtocolStartIdentity }
+
 export { ProtocolSuccessResponse }
 
+export { ProtocolV2ChatRequest }
+
+export { ProtocolV2ChatRequestSchema }
+
+export { ProtocolV2ControlCommand }
+
+export { ProtocolV2ControlCommandSchema }
+
+export { ProtocolV2ControlReceipt }
+
+export { ProtocolV2ControlReceiptSchema }
+
+export { ProtocolV2ControlRequest }
+
+export { ProtocolV2ControlRequestSchema }
+
+export { ProtocolV2ErrorResponseSchema }
+
+export { ProtocolV2EventEnvelope }
+
+export { ProtocolV2EventEnvelopeSchema }
+
+export { ProtocolV2EventPage }
+
+export { ProtocolV2EventPageSchema }
+
+export { ProtocolV2EventsRequest }
+
+export { ProtocolV2EventsRequestSchema }
+
+export { ProtocolV2InitializeRequest }
+
+export { ProtocolV2InitializeRequestSchema }
+
+export { ProtocolV2InitializeResult }
+
+export { ProtocolV2InitializeResultSchema }
+
+export { ProtocolV2NegotiationError }
+
+export { ProtocolV2QueryRequest }
+
+export { ProtocolV2QueryRequestSchema }
+
+export { ProtocolV2QueryResult }
+
+export { ProtocolV2QueryResultSchema }
+
+export { ProtocolV2Request }
+
+export { ProtocolV2RequestSchema }
+
+export { ProtocolV2ResumeRequest }
+
+export { ProtocolV2ResumeRequestSchema }
+
+export { ProtocolV2RunHandle }
+
+export { ProtocolV2RunHandleSchema }
+
+export { ProtocolV2RunRequest }
+
+export { ProtocolV2RunRequestSchema }
+
+export { ProtocolV2StartRequest }
+
+export { ProtocolV2ValidationError }
+
 export { ProtocolValidationError }
+
+export { ProtocolVersionRange }
 
 export { ProviderRequestReplayFact }
 
@@ -560,6 +693,8 @@ export { ResponseGrader }
 export { restoreCheckpoint }
 
 export { restoreDurableOperation }
+
+export { RunControlCommand }
 
 export { runEvaluationSuite }
 

@@ -26,6 +26,7 @@ describe("0.3.0 二期基线门禁", () => {
     const actual = structuredClone(baseline);
     actual.publicContracts.apiReports["coremind-runtime"] = "changed";
     actual.publicContracts.schemas.config = "changed";
+    actual.publicContracts.schemas.protocolV2 = "changed";
 
     const result = evaluatePhase2Baseline(baseline, actual);
 
@@ -34,6 +35,7 @@ describe("0.3.0 二期基线门禁", () => {
       expect.arrayContaining([
         "publicContracts.apiReports.coremind-runtime 与冻结基线不一致",
         "publicContracts.schemas.config 与冻结基线不一致",
+        "publicContracts.schemas.protocolV2 与冻结基线不一致",
       ]),
     );
   });
@@ -140,6 +142,7 @@ describe("0.3.0 二期基线门禁", () => {
     expect(snapshot.publicContracts.schemas).toEqual({
       config: expect.stringMatching(/^[0-9a-f]{64}$/),
       protocol: expect.stringMatching(/^[0-9a-f]{64}$/),
+      protocolV2: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(snapshot.acceptance.caseIds).toHaveLength(20);
     expect(snapshot.acceptance.entries).toEqual(
@@ -194,6 +197,7 @@ function fixture() {
       schemas: {
         config: "config-schema",
         protocol: "protocol-schema",
+        protocolV2: "protocol-v2-schema",
       },
     },
     dependencies: {

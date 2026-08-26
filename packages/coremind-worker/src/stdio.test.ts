@@ -1,0 +1,128 @@
+import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { createStdioSender } from "./stdio.js";
+
+describe("stdio 传输背压", () => {
+  it("等待 drain 并在有界队列满时只丢弃 live event", () => {
+    const writes: string[] = [];
+    let blocked = true;
+    const output = Object.assign(new EventEmitter(), {
+      write(value: string) {
+        writes.push(value);
+        if (blocked) {
+          blocked = false;
+          return false;
+        }
+        return true;
+      },
+    }) as unknown as NodeJS.WritableStream;
+    const send = createStdioSender(output, { maxQueuedMessages: 1 });
+    const live = (sequence: number) => ({
+      jsonrpc: "2.0",
+      method: "event",
+      params: { runId: "run-1", sequence },
+    });
+
+    send(live(1));
+    send(live(2));
+    send(live(3));
+    send({ jsonrpc: "2.0", id: "response", result: { ok: true } });
+
+    expect(writes).toHaveLength(1);
+    output.emit("drain");
+    expect(writes.map((line) => JSON.parse(line))).toEqual([
+      live(1),
+      live(2),
+      { jsonrpc: "2.0", id: "response", result: { ok: true } },
+    ]);
+  });
+
+  it("通过正式 dist/stdio.js 完成 v2 initialize、RunHandle 与 cancel", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-stdio-smoke-"));
+    const entry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dist/stdio.js");
+    const worker = spawn(process.execPath, [entry], { stdio: ["pipe", "pipe", "pipe"] });
+    const exited = new Promise<void>((resolve) => worker.once("exit", () => resolve()));
+    const lines = createInterface({ input: worker.stdout, crlfDelay: Number.POSITIVE_INFINITY });
+    const pending = new Map<string, (message: Record<string, unknown>) => void>();
+    lines.on("line", (line) => {
+      const message = JSON.parse(line) as Record<string, unknown>;
+      const resolve = pending.get(String(message.id));
+      if (resolve) {
+        pending.delete(String(message.id));
+        resolve(message);
+      }
+    });
+    const request = (message: Record<string, unknown>) =>
+      new Promise<Record<string, unknown>>((resolve, reject) => {
+        const id = String(message.id);
+        pending.set(id, resolve);
+        worker.stdin.write(`${JSON.stringify(message)}\n`, (error) => {
+          if (error) {
+            pending.delete(id);
+            reject(error);
+          }
+        });
+      });
+
+    try {
+      const initialized = await request({
+        jsonrpc: "2.0",
+        id: "init",
+        method: "initialize",
+        params: {
+          protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
+          config: {
+            schemaVersion: 2,
+            name: "stdio-smoke",
+            provider: {
+              id: "probe",
+              baseUrl: "http://127.0.0.1:9/v1",
+              model: "probe-model",
+              apiKey: "test-key",
+            },
+            agents: { main: {} },
+          },
+          configDir: directory,
+          cwd: directory,
+        },
+      });
+      const started = await request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "run",
+        method: "run",
+        params: { runId: "stdio-smoke-run", input: "smoke" },
+      });
+      const cancelled = await request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "close",
+        method: "control",
+        params: {
+          schemaVersion: 1,
+          controlId: "cancel-smoke",
+          runId: "stdio-smoke-run",
+          type: "cancel",
+        },
+      });
+
+      expect(initialized).toMatchObject({ result: { selectedProtocol: "2.0" } });
+      expect(started).toMatchObject({ result: { runId: "stdio-smoke-run" } });
+      expect(cancelled).toMatchObject({
+        result: { controlId: "cancel-smoke", status: "applied" },
+      });
+    } finally {
+      worker.stdin.end();
+      worker.kill();
+      await exited;
+      lines.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 15_000);
+});

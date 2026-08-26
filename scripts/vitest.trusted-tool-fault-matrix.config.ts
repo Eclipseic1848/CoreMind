@@ -5,7 +5,7 @@ export default defineProject({
     name: "trusted-tool-fault-matrix",
     include: ["trusted-tool-fault-matrix.test.ts"],
     fileParallelism: false,
-    sequence: { groupOrder: 1 },
+    sequence: { groupOrder: 2 },
     testTimeout: 900_000,
   },
 });

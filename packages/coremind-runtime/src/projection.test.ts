@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import type { ArtifactRecord } from "coremind-tools";
 import { describe, expect, it } from "vitest";
+import { canonicalJson } from "./canonical-json.js";
 import type { CheckpointRecord } from "./checkpoint.js";
 import { claimInput, completeInput, createInputReceipt, type InputId } from "./input-receipt.js";
 import { ProjectionEngine } from "./projection.js";
@@ -18,7 +20,13 @@ describe("ProjectionEngine", () => {
         tool: "write",
         args: { path: "notes.txt" },
         risk: "high",
-        effect: { filesystem: "write", subprocess: false, urls: [] },
+        effect: {
+          operations: ["write"],
+          paths: ["notes.txt"],
+          urls: [],
+          reversible: true,
+          declared: true,
+        },
       }),
       traceEntry(runId, 2, {
         type: "artifact_created",
@@ -211,7 +219,13 @@ describe("ProjectionEngine", () => {
           tool: "write",
           args: {},
           risk: "high",
-          effect: { filesystem: "write", subprocess: false, urls: [] },
+          effect: {
+            operations: ["write"],
+            paths: [],
+            urls: [],
+            reversible: true,
+            declared: true,
+          },
         }),
       ),
       record(
@@ -296,6 +310,50 @@ describe("ProjectionEngine", () => {
     ).toThrow("身份或 sequence 不连续");
   });
 
+  it("从 Control Facts 投影 accepted 控制，并在 applied 后移出 pending", () => {
+    const runId = "run-pending-control";
+    const command = {
+      schemaVersion: 1 as const,
+      controlId: "cancel-1",
+      runId,
+      type: "cancel" as const,
+      reason: "用户停止",
+    };
+    const fingerprint = createHash("sha256").update(canonicalJson(command)).digest("hex");
+    const accepted = [
+      record(runId, 1, "start", { configName: "pending-control" }),
+      record(runId, 2, "control", {
+        schemaVersion: 1,
+        controlId: command.controlId,
+        fingerprint,
+        state: "accepted",
+        command,
+      }),
+    ];
+
+    expect(ProjectionEngine.project(accepted).pendingControls).toEqual([
+      {
+        source: "control_inbox",
+        controlId: "cancel-1",
+        runId,
+        type: "cancel",
+        acceptedSequence: 2,
+        command,
+      },
+    ]);
+    expect(
+      ProjectionEngine.project([
+        ...accepted,
+        record(runId, 3, "control", {
+          schemaVersion: 1,
+          controlId: command.controlId,
+          fingerprint,
+          state: "applied",
+        }),
+      ]).pendingControls,
+    ).toEqual([]);
+  });
+
   it("resume 使旧 pause 失效，恢复中的前缀不继承旧终态", () => {
     const runId = "run-resumed";
     const projection = ProjectionEngine.project([
@@ -368,6 +426,18 @@ describe("ProjectionEngine", () => {
         ),
       ]),
     ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+    for (const malformed of [
+      { type: "text_delta", agent: "main" },
+      { type: "tool_call", agent: "main", tool: "read" },
+      { type: "turn_end", tokens: 1 },
+    ]) {
+      expect(() =>
+        ProjectionEngine.project([
+          start,
+          record(runId, 2, "event", traceEntry(runId, 1, malformed as CoreMindTraceEvent["event"])),
+        ]),
+      ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+    }
     expect(() =>
       ProjectionEngine.project([
         start,

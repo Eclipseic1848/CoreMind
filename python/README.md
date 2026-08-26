@@ -2,13 +2,21 @@
 
 Python SDK 通过本地 stdio JSON-RPC 调用与 TypeScript/CLI 相同的 Node Runtime，不维护第二套 Agent Loop。
 
-当前稳定包为已发布的 `coremind-ai==0.3.0`；完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
+当前稳定包为已发布的 `coremind-ai==0.3.1`；完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
+
+当前源码可用 `CoreMindClient(..., protocol_version="2.0")` 显式启用 Protocol v2；默认仍为 v1。v2 的 `run`、`chat` 和 `resume_run` 返回 `RunHandle`，调用方必须提供或由 SDK 预生成稳定 `run_id`；随后使用 `events(run_id, after_sequence=...)`、`query(run_id)` 与 `control(command)` 读取事件、投影和提交持久控制。`cursor_expired` 的 Projection snapshot 与新 cursor 可从 `ProtocolError.details` 读取。同步与异步客户端使用相同合同。
+
+Protocol v2 当前不开放 Python callable 注册，也不暴露 v1 的 checkpoint diff/restore RPC；这些组合会返回 `protocol_capability_missing`，不会静默退回 v1。v1 在整个 `0.4.x` 保留，最早移除版本为 `0.5.0` 且需要独立决策。
 
 同步和异步客户端都提供 `resume_run(run_id, input=None)`。它只恢复 Node Runtime 判定为安全的暂停或意外中断运行，不会绕过配置指纹、输入一致性、Effect Receipt 或副作用核对。显式 Loop 的状态序列和终态与 TypeScript SDK 保持一致。
 
 The Python SDK talks to the same Node runtime over local stdio JSON-RPC; it does not maintain a second Agent Loop. See `docs/modules/embed-coremind-python/` for the bilingual guide.
 
 Both clients expose `resume_run(run_id, input=None)`. It resumes only paused or interrupted runs that pass the shared runtime checks, including configuration fingerprints and effect reconciliation. Explicit Loop state order and terminal results match the TypeScript SDK.
+
+Current source can opt into Protocol v2 with `CoreMindClient(..., protocol_version="2.0")`; v1 remains the default. v2 returns a `RunHandle` and exposes cursor-based `events`, Projection `query`, and durable `control` calls through the same bundled Node runtime. Controlled cursor recovery details are available on `ProtocolError.details`.
+
+Protocol v2 does not currently support Python callable registration or expose the v1 checkpoint diff/restore RPCs. These combinations return `protocol_capability_missing` instead of silently falling back to v1. The v1 entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
 
 每次 `run`、`chat` 和 `resume_run` 都返回 `snapshot`：它是与 CLI JSONL、TypeScript SDK 相同的纯 JSON 权威快照。SDK 会校验 schemaVersion、runId 和 outcome；不一致时返回 `invalid_run_snapshot`，而不是接受错误状态。
 

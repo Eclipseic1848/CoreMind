@@ -48,6 +48,13 @@ import {
 } from "./context-lifecycle.js";
 import { type ContextPlanStep, projectContextTaskState } from "./context-task-state.js";
 import {
+  type ControlApplyResult,
+  ControlInbox,
+  type ControlReceipt,
+  type InternalRunControlCommand,
+  type RunControlCommand,
+} from "./control-inbox.js";
+import {
   createEffectReceiptBinding,
   type EffectReceiptBinding,
   fingerprintEffectReceiptValue,
@@ -153,6 +160,8 @@ export interface CoreMindRuntimeOptions {
   resumeRunId?: string;
   /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
   runId?: string;
+  /** 入口已接受的 Protocol v2 start 身份；随 start/resume Fact 持久化供 Host 重建。 */
+  protocolStart?: ProtocolStartIdentity;
   /** 通过稳定 CoreMind 契约注入的 TypeScript 或跨语言工具。 */
   toolDefinitions?: CoreMindToolDefinition[];
   /** 显式注册、信任并授权的进程内生命周期扩展；不会扫描项目目录。 */
@@ -162,6 +171,8 @@ export interface CoreMindRuntimeOptions {
     /** 必须在任何 export 前以 critical Fact 持久化的显式授权。 */
     consents?: TelemetryConsentFact[];
   };
+  /** ProtocolHost 控制应用 seam；持久顺序由 Runtime ControlInbox 负责。 */
+  applyControl?: (command: RunControlCommand) => Promise<ControlApplyResult>;
   signal?: AbortSignal;
   /** 会话 id：落盘文件名标识（断点续聊恢复二期提供） */
   sessionId?: string;
@@ -169,6 +180,13 @@ export interface CoreMindRuntimeOptions {
   maxSteps?: number;
   /** 单步骤超时毫秒（护栏，默认 300000 = 5 分钟；0 = 不超时） */
   stepTimeoutMs?: number;
+}
+
+export interface ProtocolStartIdentity {
+  protocolVersion: "2.0";
+  method: "run" | "chat" | "resume";
+  fingerprint: string;
+  acceptedAt: string;
 }
 
 export interface RunResult {
@@ -480,6 +498,29 @@ export class CoreMindRuntime {
     return slot.kernel.run();
   }
 
+  /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
+  async acceptControl(command: RunControlCommand): Promise<ControlReceipt> {
+    for (let attempt = 0; attempt < 5_000; attempt++) {
+      const inbox = this.currentControlInbox();
+      if (inbox) return inbox.accept(command);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    throw new CoreMindError(
+      "control_unavailable",
+      `等待 Runtime ${command.runId} 的 ControlInbox 超时`,
+    );
+  }
+
+  /** 当新的可应用点出现时，重试仍处于 accepted 的持久控制。 */
+  async applyPendingControls(): Promise<ControlReceipt[]> {
+    const inbox = this.currentControlInbox();
+    return inbox?.applyPending() ?? [];
+  }
+
+  private currentControlInbox(): ControlInbox | undefined {
+    return executionSlotFor(this).kernel?.currentContext()?.currentControlInbox();
+  }
+
   /** run() 主体（并发检测由外层 run() 包装） */
   private async executeRunBody(context: RunContext<RuntimeHarness>): Promise<RunResult> {
     const started = performance.now();
@@ -565,6 +606,7 @@ export class CoreMindRuntime {
       journal.resume({
         completedStepIds: [...resumePlan.completedSteps.keys()],
         resumedAt: new Date().toISOString(),
+        ...(this.options.protocolStart ? { protocolStart: this.options.protocolStart } : {}),
         ...(this.options.sessionId ? { sessionId: this.options.sessionId } : {}),
         ...(sessionSeqStart !== undefined
           ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
@@ -585,6 +627,7 @@ export class CoreMindRuntime {
           : {}),
         operationId: operation.snapshot().operationId,
         telemetry: telemetryConfiguration,
+        ...(this.options.protocolStart ? { protocolStart: this.options.protocolStart } : {}),
       });
     }
     for (const consent of telemetryConsents) {
@@ -612,6 +655,14 @@ export class CoreMindRuntime {
       );
     }
     await journal.flush();
+    context.attachControlInbox(
+      new ControlInbox({
+        runId,
+        journal,
+        records: await runStore.read(runId),
+        apply: (command) => this.applyRunControl(command, context),
+      }),
+    );
     const capabilityByCallId = new Map<
       string,
       { tool: string; capability: ResolvedToolCapability }
@@ -2169,6 +2220,30 @@ export class CoreMindRuntime {
 
   private abortAll(): void {
     runContextFor(this).abortAgents();
+  }
+
+  private async applyRunControl(
+    command: InternalRunControlCommand,
+    context: RunContext<RuntimeHarness>,
+  ): Promise<ControlApplyResult> {
+    if (command.type === "steering" || command.type === "follow_up") {
+      const agent = context.agent(this.mainAgentName);
+      if (!agent) return "accepted";
+      const message = {
+        role: "user" as const,
+        content: [{ type: "text" as const, text: command.message }],
+        timestamp: Date.now(),
+      };
+      if (command.type === "steering") agent.steer(message);
+      else agent.followUp(message);
+      return "applied";
+    }
+    return (
+      this.options.applyControl?.(command) ?? {
+        status: "rejected",
+        reason: `当前入口不能应用 ${command.type} 控制`,
+      }
+    );
   }
 
   private collectMessages(): Map<string, AgentMessage[]> {

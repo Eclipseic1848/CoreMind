@@ -195,25 +195,41 @@ describe("RunState", () => {
     ]);
   });
 
-  it("多个 File Store 争用同一 writer lock 时重试 Windows EPERM/EACCES", async () => {
+  it("多个 File Store 争用同一 writer lock 时等待持有者释放后继续", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-lock-contention-"));
     const runId = "run-lock-contention";
-    const stores = Array.from(
-      { length: 64 },
-      () => new FileRunStore(dir, { lockTimeoutMs: 10_000 }),
-    );
-    await stores[0]!.append({
+    let releaseHolder!: () => void;
+    const holderReleased = new Promise<void>((resolve) => {
+      releaseHolder = resolve;
+    });
+    let enterHolder!: () => void;
+    const holderEntered = new Promise<void>((resolve) => {
+      enterHolder = resolve;
+    });
+    const holder = new FileRunStore(dir, {
+      beforeBarrier: async () => {
+        enterHolder();
+        await holderReleased;
+      },
+    });
+    const contender = new FileRunStore(dir);
+    await holder.append({
       ...record(1, "start", { configFingerprint: "same" }),
       runId,
     });
 
-    await Promise.all(
-      stores.map((store, index) =>
-        index % 2 === 0 ? store.read(runId) : store.barrier(runId, "critical"),
-      ),
-    );
+    const holding = holder.barrier(runId, "critical");
+    await holderEntered;
+    let contenderSettled = false;
+    const waiting = contender.barrier(runId, "critical").finally(() => {
+      contenderSettled = true;
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(contenderSettled).toBe(false);
+    releaseHolder();
+    await Promise.all([holding, waiting]);
 
-    expect(await stores[0]!.read(runId)).toHaveLength(1);
+    expect(await contender.read(runId)).toHaveLength(1);
   });
 
   it("File Store critical ack 后进程立即退出，Windows/Linux 均可读取稳定 Fact 前缀", async () => {

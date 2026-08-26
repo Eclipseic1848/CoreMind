@@ -1,4 +1,5 @@
 // 仅供同仓库受控组件复用；不属于 coremind-runtime 主公共入口。
+
 export {
   CompactionLedger,
   type ContextArtifactReference,
@@ -29,9 +30,12 @@ export {
   type ContextTaskStateProjectionInput,
   projectContextTaskState,
 } from "./context-task-state.js";
+export { ControlInbox, type InternalRunControlCommand } from "./control-inbox.js";
+export type { RunId } from "./ids.js";
 export {
   type ContextProjection,
   type PendingApprovalControl,
+  type PendingControl,
   ProjectionEngine,
   type RecoveryDecision,
   type RunProjection,

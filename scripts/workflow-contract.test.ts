@@ -180,19 +180,35 @@ describe("GitHub Actions 收口合同", () => {
     }
   });
 
-  it("真实宿主 Shell 集成在并行项目完成后独立运行", () => {
+  it("子进程验收、故障矩阵与时延验收按资源隔离顺序运行", () => {
     const rootConfig = readFileSync("vitest.config.ts", "utf8");
     const toolsConfig = readFileSync("packages/coremind-tools/vitest.config.ts", "utf8");
+    const cliConfig = readFileSync("packages/coremind-cli/vitest.config.ts", "utf8");
+    const goldenConfig = readFileSync("examples/golden/vitest.config.ts", "utf8");
+    const codingEvalsConfig = readFileSync("examples/coding-evals/vitest.config.ts", "utf8");
     const hostShellConfig = readFileSync(
       "packages/coremind-tools/vitest.host-shell.config.ts",
+      "utf8",
+    );
+    const faultMatrixConfig = readFileSync(
+      "scripts/vitest.trusted-tool-fault-matrix.config.ts",
+      "utf8",
+    );
+    const inputReceiptConfig = readFileSync(
+      "packages/coremind-runtime/vitest.input-receipt-acceptance.config.ts",
       "utf8",
     );
 
     expect(rootConfig).toContain("packages/coremind-tools/vitest.host-shell.config.ts");
     expect(toolsConfig).toContain("src/host-shell.test.ts");
+    for (const config of [cliConfig, goldenConfig, codingEvalsConfig]) {
+      expect(config).toContain("groupOrder: 1");
+    }
     expect(hostShellConfig).toContain('include: ["src/host-shell.test.ts"]');
     expect(hostShellConfig).toContain("fileParallelism: false");
-    expect(hostShellConfig).toContain("groupOrder: 1");
+    expect(hostShellConfig).toContain("groupOrder: 2");
     expect(hostShellConfig).toContain("testTimeout: 60_000");
+    expect(faultMatrixConfig).toContain("groupOrder: 2");
+    expect(inputReceiptConfig).toContain("groupOrder: 3");
   });
 });
