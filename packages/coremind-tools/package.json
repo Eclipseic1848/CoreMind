@@ -1,6 +1,6 @@
 {
   "name": "coremind-tools",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CoreMind 工具层：内置工具注册表与自定义脚本工具加载",
   "license": "MIT",
   "repository": {
@@ -38,7 +38,7 @@
     "@earendil-works/pi-agent-core": "0.84.1",
     "@earendil-works/pi-ai": "0.84.1",
     "@earendil-works/pi-coding-agent": "0.84.1",
-    "coremind-config": "0.3.1",
+    "coremind-config": "0.3.2",
     "diff": "9.0.0",
     "execa": "10.0.1"
   }

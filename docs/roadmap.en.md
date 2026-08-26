@@ -22,13 +22,19 @@ This public roadmap describes product boundaries and intended directions. It del
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
+## `0.3.2`: draft candidate (unpublished)
+
+The `0.3.2` draft candidate collects the completed `0.3.x-B/C` source work: unified Tool Capability and lifecycle handling, tiered durability and Workspace leasing, Context lifecycle, ReplayKit, always-visible local Observability, and explicit default-off Telemetry egress boundaries. Custom Qwen-compatible endpoints add `thinkingFormat: qwen`, allowing an Agent's `thinkingLevel: off` to send `enable_thinking: false` through a controlled contract while arbitrary request fields remain rejected.
+
+This candidate has not completed its current Node 22 both-platform CI, live Provider certification, RC acceptance, tag, registries, GitHub Release, or post-release documentation synchronization. `0.3.1` therefore remains the only public stable release.
+
 ## `0.3.x`: stabilization hardening (in progress)
 
 The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) through compatibility-first evolution. It does not create a second Runtime or pull Web, Jobs, or subagents forward. Config v2, Protocol v1, the three permission modes, and existing successful paths remain compatible; new fail-closed states that prevent silent loss, duplicate effects, or privilege expansion must be explicit, migratable, reversible, and maintainer-confirmed:
 
 - **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete and publicly released in `0.3.1`.
-- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results; Windows isolation experiments only as separately authorized spikes.
-- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, per-file quality gates for critical modules, provider certification hardening, and an observability baseline that is locally visible with explicit egress.
+- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results. The source work is complete and included in the `0.3.2` draft candidate; Windows isolation experiments remain separately authorized spikes.
+- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, per-file quality gates for critical modules, provider certification hardening, and an observability baseline that is locally visible with explicit egress. The source gate is complete and included in the `0.3.2` draft candidate, while release evidence gates remain incomplete.
 
 Version numbers and dates are not promised; each batch proceeds only after its acceptance gates pass and the maintainer confirms. A provider that has not passed live verification remains configurable but is not marked as officially certified.
 

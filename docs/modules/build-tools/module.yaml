@@ -3,7 +3,7 @@ id: build-tools
 name:
   zh-CN: "工具与业务能力"
   en: "Tools and Business Capabilities"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-tools/src"
   - "packages/coremind-tools/src/linux-sandbox.ts"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+
 ## Unreleased
 
 - Added model-aware capability resolution and a complete per-request context budget with explicit evidence.

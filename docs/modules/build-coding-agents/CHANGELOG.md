@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.
+
 ## 0.3.1 - 2026-08-21
 
 - Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.

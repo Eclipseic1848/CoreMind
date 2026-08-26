@@ -3,7 +3,7 @@ id: manage-providers
 name:
   zh-CN: "Provider 与模型"
   en: "Providers and Models"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-runtime/src/provider.ts"
   - "packages/coremind-cli/src/commands/list-providers.ts"

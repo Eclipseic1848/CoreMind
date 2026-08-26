@@ -1,6 +1,6 @@
 {
   "name": "coremind-ai",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CoreMind（星枢智核）—— 配置驱动智能体开发框架（统一入口）",
   "license": "MIT",
   "repository": {
@@ -38,10 +38,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-config": "0.3.1",
-    "coremind-protocol": "0.3.1",
-    "coremind-runtime": "0.3.1",
-    "coremind-tools": "0.3.1",
-    "coremind-templates": "0.3.1"
+    "coremind-config": "0.3.2",
+    "coremind-protocol": "0.3.2",
+    "coremind-runtime": "0.3.2",
+    "coremind-tools": "0.3.2",
+    "coremind-templates": "0.3.2"
   }
 }

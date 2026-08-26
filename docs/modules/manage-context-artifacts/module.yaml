@@ -3,7 +3,7 @@ id: manage-context-artifacts
 name:
   zh-CN: "上下文与 Artifact 治理"
   en: "Context and Artifact Governance"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-runtime/src/context.ts"
   - "packages/coremind-runtime/src/agent-factory.ts"

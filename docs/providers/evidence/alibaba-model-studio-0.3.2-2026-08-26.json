@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "provider": "alibaba-model-studio",
+  "model": "qwen-plus",
+  "version": "0.3.2",
+  "commit": "d75be51b10079a1231bf4b76f900d3511f2e3ff3",
+  "runtimeArtifactSha256": "5e3f90a4cd44818a9b1d8133ecb3c7e714fa30ea87082085990c4b03f214d93b",
+  "testedAt": "2026-08-26T07:02:53.028Z",
+  "platform": "win32-x64",
+  "node": "v24.16.0",
+  "checks": [
+    "streaming",
+    "tool-call",
+    "structured-result",
+    "multi-turn",
+    "abort",
+    "error",
+    "long-context"
+  ],
+  "details": {
+    "streaming": {
+      "passed": true,
+      "deltaCount": 4
+    },
+    "structuredResult": {
+      "passed": true,
+      "outputHash": "3be32a5bc267a7d09bb3177c1318e06d4e1e14268275f551d626d6f8cb7246fb"
+    },
+    "toolCall": {
+      "passed": true,
+      "calls": 1
+    },
+    "multiTurn": {
+      "passed": true,
+      "turns": 3,
+      "outputHash": "8e31806b12a63f30394c65c6b0826a68dd5caa0a1e66d95a1667104a5c484943"
+    },
+    "abort": {
+      "passed": true,
+      "status": "aborted"
+    },
+    "longContext": {
+      "passed": true,
+      "inputChars": 64000,
+      "outputHash": "f05df1bb955b73dea64b49f1597258da1f6cb602e2f0705de16d16c49f7cf666"
+    },
+    "error": {
+      "passed": true,
+      "status": "failed"
+    }
+  },
+  "dataPolicy": "synthetic-only",
+  "secretsRecorded": false
+}

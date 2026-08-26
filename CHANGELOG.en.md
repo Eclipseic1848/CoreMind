@@ -4,7 +4,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
-## Unreleased
+## 0.3.2 — 2026-08-26 (draft candidate, unpublished)
 
 ### Replay and explicit observability
 
@@ -30,6 +30,17 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - Unified recovery decisions for Runtime, RunSnapshot, Worker, and both SDKs on the persisted lifecycle projection; a non-idempotent or unknown Effect is never replayed automatically once it may have started.
 - Added ordinary/critical capability and acknowledgement contracts to `RunStore`; File Store claims only the boundary verified by Windows/Linux process-crash probes, while Memory Store no longer presents memory visibility as critical durability.
 - Checkpoints, started Receipts, and critical Tool Results now use critical barriers around Adapter execution; failures keep execution, Effect, and persistence axes orthogonal and expose level-specific metrics.
+
+### Provider compatibility
+
+- A custom OpenAI-compatible Provider may explicitly declare `thinkingFormat: qwen`. When its Agent uses `thinkingLevel: off`, the Runtime sends `enable_thinking: false` through the public configuration contract without opening arbitrary request-body passthrough.
+- Custom Providers now reject fields outside their schema, preventing credentials or unaudited parameters from being injected as arbitrary request data.
+
+### Release engineering and candidate status
+
+- Synchronized all eight npm packages, exact internal dependencies, the Python package, 21 module contracts, real-terminal evidence templates, and the bundled Python worker on `0.3.2`.
+- Bound the Release Please draft-conversion step to the current GitHub repository so a workflow without checkout can locate the new PR; it still cannot merge, tag, or publish automatically.
+- This entry describes a draft candidate. The `0.3.2` Node 22 both-platform CI, live Provider certification, RC acceptance, tag, registries, GitHub Release, and post-release public-document synchronization remain incomplete. The current public stable release remains `0.3.1`.
 
 ## 0.3.1 — 2026-08-21
 
