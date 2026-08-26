@@ -29,6 +29,7 @@ import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import type { Model, Models } from "@earendil-works/pi-ai";
 import type { CoremindCompactionDetails } from "./compaction-projection.js";
 import { CoreMindError } from "./errors.js";
+import type { CoreMindMessage } from "./public-message.js";
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -161,9 +162,9 @@ export class CoreMindSession {
   }
 
   /** 追加消息（每条一个树条目）；先深层删除 undefined 值字段（会话存储拒绝 undefined 值） */
-  async appendMessages(messages: AgentMessage[]): Promise<void> {
+  async appendMessages(messages: CoreMindMessage[]): Promise<void> {
     for (const message of messages) {
-      await this.session.appendMessage(stripUndefined(message));
+      await this.session.appendMessage(stripUndefined(message) as AgentMessage);
     }
   }
 
@@ -189,7 +190,7 @@ export class CoreMindSession {
    */
   async appendCompaction(compaction: {
     summary: string;
-    retainedTail: AgentMessage[];
+    retainedTail: CoreMindMessage[];
     tokensBefore: number;
     details: CoremindCompactionDetails;
   }): Promise<Awaited<ReturnType<Session["appendEntry"]>>> {
@@ -198,7 +199,7 @@ export class CoreMindSession {
         type: "compaction",
         id: this.session.idGenerator.next(),
         summary: compaction.summary,
-        retainedTail: compaction.retainedTail,
+        retainedTail: compaction.retainedTail as AgentMessage[],
         tokensBefore: compaction.tokensBefore,
         details: compaction.details,
       },

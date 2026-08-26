@@ -139,7 +139,14 @@ const GitLogParams = Type.Object({
 });
 
 export function createGitStatusTool(cwd: string): AgentTool<typeof GitStatusParams> {
-  const adapter = new GitAdapter({ cwd });
+  return createGitStatusToolWithRunner(cwd);
+}
+
+export function createGitStatusToolWithRunner(
+  cwd: string,
+  runner?: ProcessRunner,
+): AgentTool<typeof GitStatusParams> {
+  const adapter = new GitAdapter({ cwd, runner });
   return {
     name: "git_status",
     label: "Git 状态",
@@ -151,7 +158,14 @@ export function createGitStatusTool(cwd: string): AgentTool<typeof GitStatusPara
 }
 
 export function createGitDiffTool(cwd: string): AgentTool<typeof GitDiffParams> {
-  const adapter = new GitAdapter({ cwd });
+  return createGitDiffToolWithRunner(cwd);
+}
+
+export function createGitDiffToolWithRunner(
+  cwd: string,
+  runner?: ProcessRunner,
+): AgentTool<typeof GitDiffParams> {
+  const adapter = new GitAdapter({ cwd, runner });
   return {
     name: "git_diff",
     label: "Git 差异",
@@ -163,7 +177,14 @@ export function createGitDiffTool(cwd: string): AgentTool<typeof GitDiffParams> 
 }
 
 export function createGitLogTool(cwd: string): AgentTool<typeof GitLogParams> {
-  const adapter = new GitAdapter({ cwd });
+  return createGitLogToolWithRunner(cwd);
+}
+
+export function createGitLogToolWithRunner(
+  cwd: string,
+  runner?: ProcessRunner,
+): AgentTool<typeof GitLogParams> {
+  const adapter = new GitAdapter({ cwd, runner });
   return {
     name: "git_log",
     label: "Git 日志",

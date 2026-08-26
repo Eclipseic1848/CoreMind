@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
-import { ProcessRunner, ProcessRunnerError } from "./process-runner.js";
+import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
+import { createSupervisedProcessRunner, ProcessRunnerError } from "./process-runner.js";
 
 export interface HostBashOptions {
   cwd: string;
@@ -17,12 +18,26 @@ interface ShellInvocation {
 
 /** 非 Linux 宿主命令统一走 ProcessRunner；权限层仍在执行前决定是否允许。 */
 export function createHostBashTool(options: HostBashOptions): AgentTool {
+  return createHostBashToolForEnvironment(options);
+}
+
+export function createHostBashToolForEnvironment(
+  options: HostBashOptions,
+  executionEnvironment?: ExecutionEnvironment,
+): AgentTool {
   const env = options.env ?? process.env;
+  const runner = createSupervisedProcessRunner(executionEnvironment);
   const operations: BashOperations = {
     exec: async (command, cwd, execution) => {
+      if (executionEnvironment) {
+        await resolveExecutionEnvironment(executionEnvironment, {
+          processControl: "process_tree",
+          termination: { kill: "process_tree", timeout: true },
+        });
+      }
       const shell = process.platform === "win32" ? resolveWindowsShell(env) : posixShell();
       try {
-        const result = await new ProcessRunner().run({
+        const result = await runner.run({
           command: shell.command,
           args: shell.args(command),
           input: shell.input?.(command),

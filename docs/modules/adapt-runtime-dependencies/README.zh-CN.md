@@ -29,6 +29,7 @@
 - [工具注册表](../../../packages/coremind-tools/src/registry.ts)
 - [依赖锁步测试](../../../scripts/dependency-lockstep.test.ts)
 - [依赖报告测试](../../../scripts/dependency-report.test.ts)
+- [依赖升级 Spike 模板](DEPENDENCY-UPGRADE-SPIKE-TEMPLATE.zh-CN.md)
 - [候选依赖报告](../../../baselines/0.3.0-candidate/dependency-report.json)
 - [模块示例](../../../examples/modules/adapt-runtime-dependencies/README.zh-CN.md)
 - [Module example](../../../examples/modules/adapt-runtime-dependencies/README.en.md)

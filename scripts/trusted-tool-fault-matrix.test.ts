@@ -145,17 +145,31 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
     expect(injector.evidence.mechanismCode).toBe("injected_async_reject");
   });
 
-  it("Runtime 的唯一 Tool Adapter 调用点受 ToolExecutionEngine 门禁包裹", () => {
-    const source = readFileSync(
+  it("AgentDriver 的唯一 Tool Adapter 调用点受 Runtime ToolExecutionEngine 门禁包裹", () => {
+    const adapterSource = readFileSync(
+      path.resolve(process.cwd(), "packages", "coremind-runtime", "src", "agent-factory.ts"),
+      "utf8",
+    );
+    const runtimeSource = readFileSync(
       path.resolve(process.cwd(), "packages", "coremind-runtime", "src", "runtime.ts"),
       "utf8",
     );
-    const directCalls = [...source.matchAll(/tool\.execute\(/g)];
+    const directCalls = [...adapterSource.matchAll(/tool\.execute\(/g)];
 
     expect(directCalls).toHaveLength(1);
-    const callIndex = directCalls[0]!.index!;
-    const gateIndex = source.lastIndexOf("toolExecutionEngine.executeAdapter", callIndex);
-    expect(gateIndex).toBeGreaterThan(callIndex - 300);
+    const adapterCallIndex = directCalls[0]!.index!;
+    const invokeIndex = adapterSource.lastIndexOf("invoke: () =>", adapterCallIndex);
+    expect(invokeIndex).toBeGreaterThan(adapterCallIndex - 200);
+
+    const gateCalls = [...runtimeSource.matchAll(/toolExecutionEngine\.executeAdapter\(/g)];
+    expect(gateCalls).toHaveLength(1);
+    const gateCallIndex = gateCalls[0]!.index!;
+    const harnessIndex = runtimeSource.lastIndexOf(
+      "executeTool: ({ call, invoke }) =>",
+      gateCallIndex,
+    );
+    expect(harnessIndex).toBeGreaterThan(gateCallIndex - 200);
+    expect(runtimeSource.slice(gateCallIndex, gateCallIndex + 300)).toMatch(/\binvoke\b/);
   });
 
   it("固定 seed 覆盖 Effect、切点、故障类型与时序的完整笛卡尔积", () => {

@@ -1,5 +1,5 @@
-import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import { describe, expect, it } from "vitest";
+import type { AgentDriverTurnObservation } from "./agent-driver.js";
 import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import type { CoreMindEvent } from "./events.js";
 
@@ -55,7 +55,7 @@ function turnEndEvent(options: {
   totalTokens: number;
   cost: number;
   withToolCall?: boolean;
-}): AgentEvent {
+}): AgentDriverTurnObservation {
   return {
     type: "turn_end",
     message: {
@@ -63,26 +63,13 @@ function turnEndEvent(options: {
       content: options.withToolCall
         ? [{ type: "toolCall", id: "call-1", name: "read", arguments: {} }]
         : [{ type: "text", text: "完成" }],
-      api: "openai-completions",
-      provider: "test",
-      model: "test",
       stopReason: options.withToolCall ? "toolUse" : "stop",
       timestamp: Date.now(),
-      usage: {
-        input: options.totalTokens,
-        output: 0,
-        cacheRead: 0,
-        cacheWrite: 0,
-        totalTokens: options.totalTokens,
-        cost: {
-          input: options.cost,
-          output: 0,
-          cacheRead: 0,
-          cacheWrite: 0,
-          total: options.cost,
-        },
-      },
     },
-    toolResults: [],
-  } as AgentEvent;
+    totalTokens: options.totalTokens,
+    contextTokens: options.totalTokens,
+    costUsd: options.cost,
+    requestsAnotherTurn: options.withToolCall ?? false,
+    contextOverflow: false,
+  };
 }

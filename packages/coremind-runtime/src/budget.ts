@@ -1,6 +1,4 @@
-import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { RuntimeLimitsConfig } from "coremind-config";
-import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 
@@ -94,17 +92,11 @@ export class RunBudgetController {
   }
 
   observeAgentEvent(event: unknown): boolean {
-    if (event === null || typeof event !== "object" || !("type" in event)) {
-      return this.violation !== undefined;
-    }
-    const runtimeEvent = event as AgentEvent;
-    if (runtimeEvent.type !== "turn_end") return this.violation !== undefined;
+    if (!isRecord(event) || event.type !== "turn_end") return this.violation !== undefined;
     this.turns += 1;
-    const message = runtimeEvent.message;
-    if (message.role === "assistant" && message.usage) {
-      const usage = normalizeDependencyUsage(message.usage);
-      this.tokens += usage.totalTokens;
-      this.costUsd += usage.costUsd;
+    if (typeof event.totalTokens === "number" && typeof event.costUsd === "number") {
+      this.tokens += event.totalTokens;
+      this.costUsd += event.costUsd;
     }
 
     if (this.limits.maxTokens !== undefined && this.tokens > this.limits.maxTokens) {
@@ -124,8 +116,7 @@ export class RunBudgetController {
       );
     }
 
-    const requestsAnotherTurn =
-      message.role === "assistant" && message.content.some((item) => item.type === "toolCall");
+    const requestsAnotherTurn = event.requestsAnotherTurn === true;
     if (requestsAnotherTurn && this.turns >= this.limits.maxTurns) {
       this.fail(
         "turns",
@@ -154,6 +145,10 @@ export class RunBudgetController {
     }
     return { block: true, reason: message };
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function withoutUndefined<T extends object>(value: T): Partial<T> {

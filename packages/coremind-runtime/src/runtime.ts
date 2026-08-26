@@ -1,19 +1,10 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type {
-  AfterToolCallContext,
-  Agent,
-  AgentMessage,
-  AgentTool,
-  BeforeToolCallContext,
-} from "@earendil-works/pi-agent-core";
-import { isContextOverflow } from "@earendil-works/pi-ai";
 import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import {
   type ArtifactRecord,
   ArtifactStore,
-  buildTools,
   extractArtifactRecord,
   inferLegacyToolCapability,
   type ResolvedToolCapability,
@@ -21,7 +12,19 @@ import {
   resolveToolCapability,
   wrapToolWithArtifactCapture,
 } from "coremind-tools";
-import { type AgentBuildContext, type AgentContextContract, buildAgent } from "./agent-factory.js";
+import {
+  buildToolsWithExecutionEnvironment,
+  createPlatformExecutionEnvironment,
+  type ExecutionEnvironment,
+} from "coremind-tools/internal";
+import type {
+  AgentDriver,
+  AgentDriverAfterToolCallContext,
+  AgentDriverBeforeToolCallContext,
+  AgentDriverContextContract,
+  AgentDriverHarness,
+} from "./agent-driver.js";
+import { buildAgentDriver } from "./agent-factory.js";
 import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import {
   type CheckpointDiff,
@@ -131,11 +134,13 @@ import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
 import { type WorkspaceLeaseHandle, WorkspaceLeaseService } from "./workspace-lease.js";
 
-type RuntimeHarness = NonNullable<AgentBuildContext["harness"]> & {
-  shouldStopAfterTurn?: NonNullable<Agent["shouldStopAfterTurn"]>;
-  throwIfDenied?: () => void;
-  throwIfContextFailed?: () => void;
-};
+type RuntimeHarness = AgentDriverHarness;
+
+type AgentDriverBuilder = (input: {
+  onEvent: (event: CoreMindEvent) => void;
+  harness?: RuntimeHarness;
+  sessionMessages?: CoreMindMessage[];
+}) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
   /** 已校验的配置 */
@@ -224,13 +229,13 @@ export interface RunResult {
  */
 export class CoreMindRuntime {
   /** 最近创建的每个 agent 实例（收集最终消息/落盘用） */
-  private readonly lastAgents = new Map<string, Agent>();
+  private readonly lastAgents = new Map<string, AgentDriver>();
   /** 恢复的会话上下文消息数（0 = 未恢复） */
   readonly resumedContextLength: number;
   /** 主 agent 名（会话归属） */
   private readonly mainAgentName: string;
   /** 恢复视图（作为主 agent 初始消息） */
-  private readonly sessionMessages?: AgentMessage[];
+  private readonly sessionMessages?: CoreMindMessage[];
   /** agent 名 → 注入的技能内容 */
   private readonly skillsByAgent: Map<string, string[]>;
   private activeHarnessFactory?: (agentName: string, stepId?: string) => RuntimeHarness;
@@ -248,12 +253,13 @@ export class CoreMindRuntime {
   private constructor(
     private readonly config: CoreMindConfig,
     private readonly agentConfigs: Map<string, AgentConfig>,
-    private readonly toolsByAgent: Map<string, AgentTool[]>,
+    private readonly driverBuilders: Map<string, AgentDriverBuilder>,
     private readonly toolEffectsByAgent: Map<string, Map<string, ToolEffectDeclaration>>,
     private readonly toolCapabilitiesByAgent: Map<string, Map<string, ResolvedToolCapability>>,
     private readonly providerRuntime: ProviderRuntime,
+    private readonly executionEnvironment: ExecutionEnvironment,
     private readonly options: CoreMindRuntimeOptions,
-    sessionMessages: AgentMessage[] | undefined,
+    sessionMessages: CoreMindMessage[] | undefined,
     resumedContextLength: number,
     skillsByAgent: Map<string, string[]>,
   ) {
@@ -284,11 +290,15 @@ export class CoreMindRuntime {
 
     // 2. 每个 agent：构建工具与技能（Agent 实例按需创建，避免并发冲突）
     const agentConfigs = new Map<string, AgentConfig>();
-    const toolsByAgent = new Map<string, AgentTool[]>();
+    const driverBuilders = new Map<string, AgentDriverBuilder>();
     const toolEffectsByAgent = new Map<string, Map<string, ToolEffectDeclaration>>();
     const toolCapabilitiesByAgent = new Map<string, Map<string, ResolvedToolCapability>>();
     const skillsByAgent = new Map<string, string[]>();
     const artifactStore = new ArtifactStore({ cwd });
+    const executionEnvironment = createPlatformExecutionEnvironment({
+      workspaceRoot: cwd,
+      env,
+    });
     const externalTools = (options.toolDefinitions ?? []).map((definition) =>
       wrapToolWithArtifactCapture(adaptCoreMindTool(definition), artifactStore),
     );
@@ -296,17 +306,21 @@ export class CoreMindRuntime {
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
-      const { tools, warnings, effects, capabilities } = await buildTools(toolConfigs ?? [], {
-        cwd,
-        configDir,
-        env,
-        artifactStore,
-      });
+      const { tools, warnings, effects, capabilities } = await buildToolsWithExecutionEnvironment(
+        toolConfigs ?? [],
+        {
+          cwd,
+          configDir,
+          env,
+          artifactStore,
+        },
+        executionEnvironment,
+      );
       for (const warning of warnings) {
         emit({ type: "error", message: warning, fatal: false });
       }
       agentConfigs.set(name, agentCfg);
-      toolsByAgent.set(name, [...tools, ...externalTools]);
+      const driverTools = [...tools, ...externalTools];
       toolEffectsByAgent.set(
         name,
         new Map([
@@ -352,10 +366,29 @@ export class CoreMindRuntime {
         }
       }
       skillsByAgent.set(name, allContents);
+      driverBuilders.set(name, ({ onEvent, harness, sessionMessages }) =>
+        buildAgentDriver(agentCfg, {
+          models: providerRuntime.models,
+          model: providerRuntime.model,
+          tools: driverTools,
+          agentName: name,
+          onEvent,
+          apiKeyOverride: providerRuntime.apiKeyOverride,
+          sessionMessages,
+          skillsContent: allContents,
+          stableFacts: {
+            provider: providerRuntime.model.provider,
+            model: providerRuntime.model.id,
+            contextWindow: providerRuntime.model.contextWindow,
+          },
+          promptCacheStatus: providerRuntime.promptCacheStatus,
+          harness,
+        }),
+      );
     }
 
     // 会话恢复：--session 且 session.enabled 时，打开已有会话注入历史视图（非破坏）
-    let sessionMessages: AgentMessage[] | undefined;
+    let sessionMessages: CoreMindMessage[] | undefined;
     let resumedContextLength = 0;
     if (options.sessionId && config.session?.enabled) {
       const dir = sessionDir(config, configDir);
@@ -366,7 +399,7 @@ export class CoreMindRuntime {
             (item) => item.message,
           );
           if (restored.length > 0) {
-            sessionMessages = restored;
+            sessionMessages = restored as unknown as CoreMindMessage[];
             resumedContextLength = restored.length;
           }
         }
@@ -381,10 +414,11 @@ export class CoreMindRuntime {
     return new CoreMindRuntime(
       config,
       agentConfigs,
-      toolsByAgent,
+      driverBuilders,
       toolEffectsByAgent,
       toolCapabilitiesByAgent,
       providerRuntime,
+      executionEnvironment,
       options,
       sessionMessages,
       resumedContextLength,
@@ -392,44 +426,22 @@ export class CoreMindRuntime {
     );
   }
 
-  /** 按名字创建独立 Agent 实例（每次新实例，消息历史独立） */
+  /** 按名字创建独立 Driver 实例（每次新实例，消息历史独立） */
   private createAgent(
     name: string,
     onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
     stepId?: string,
-  ): Agent | undefined {
-    const agentCfg = this.agentConfigs.get(name);
-    if (!agentCfg) return undefined;
+  ): AgentDriver | undefined {
+    const buildDriver = this.driverBuilders.get(name);
+    if (!buildDriver) return undefined;
     const context = runContextFor(this);
     const harness = context.harnessFor(name, stepId);
-    const agent = buildAgent(agentCfg, {
-      models: this.providerRuntime.models,
-      model: this.providerRuntime.model,
-      tools: this.toolsByAgent.get(name) ?? [],
-      agentName: name,
+    const agent = buildDriver({
       onEvent,
-      apiKeyOverride: this.providerRuntime.apiKeyOverride,
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
-      skillsContent: this.skillsByAgent.get(name),
-      stableFacts: {
-        provider: this.providerRuntime.model.provider,
-        model: this.providerRuntime.model.id,
-        contextWindow: this.providerRuntime.model.contextWindow,
-      },
-      promptCacheStatus: this.providerRuntime.promptCacheStatus,
       harness,
     });
-    // 该停止钩子只属于 Runtime 内部 Harness，不扩大公开 AgentBuildContext 合同。
-    agent.shouldStopAfterTurn = harness?.shouldStopAfterTurn;
-    if (harness?.throwIfDenied || harness?.throwIfContextFailed) {
-      const waitForIdle = agent.waitForIdle.bind(agent);
-      agent.waitForIdle = async () => {
-        await waitForIdle();
-        harness.throwIfDenied?.();
-        harness.throwIfContextFailed?.();
-      };
-    }
     context.registerAgent(name, agent);
     return agent;
   }
@@ -465,10 +477,11 @@ export class CoreMindRuntime {
     const turnRuntime = new CoreMindRuntime(
       turnConfig,
       this.agentConfigs,
-      this.toolsByAgent,
+      this.driverBuilders,
       this.toolEffectsByAgent,
       this.toolCapabilitiesByAgent,
       this.providerRuntime,
+      this.executionEnvironment,
       {
         ...this.options,
         config: turnConfig,
@@ -476,7 +489,7 @@ export class CoreMindRuntime {
         events,
         signal,
       },
-      history as unknown as AgentMessage[],
+      history,
       history.length,
       this.skillsByAgent,
     );
@@ -523,6 +536,7 @@ export class CoreMindRuntime {
 
   /** run() 主体（并发检测由外层 run() 包装） */
   private async executeRunBody(context: RunContext<RuntimeHarness>): Promise<RunResult> {
+    context.attachExecutionEnvironment(this.executionEnvironment);
     const started = performance.now();
     const lifecycleHost = this.options.lifecycleExtensions
       ? new LifecycleExtensionHost(this.options.lifecycleExtensions)
@@ -933,9 +947,8 @@ export class CoreMindRuntime {
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
     const checkpointByCallId = new Map<string, string[]>();
-    const contextWindow = this.providerRuntime.model.contextWindow;
     const contextLifecycleManager = new ContextLifecycleManager();
-    const contextContracts = new Map<string, AgentContextContract>();
+    const contextContracts = new Map<string, AgentDriverContextContract>();
     let contextFailure: ContextLifecycleError | undefined;
     const recordContextFailure = (
       failure: ContextLifecycleError,
@@ -956,7 +969,7 @@ export class CoreMindRuntime {
     };
     const persistContextCompaction = async (
       preparation: ContextLifecyclePreparation,
-      sourceMessages: AgentMessage[],
+      sourceMessages: CoreMindMessage[],
       originalMessageCount: number,
     ): Promise<string | undefined> => {
       const compaction = preparation.compaction;
@@ -996,7 +1009,7 @@ export class CoreMindRuntime {
       };
       const entry = await activeSession.appendCompaction({
         summary: summaryMessage.content,
-        retainedTail: preparation.workingSet.messages.slice(1) as unknown as AgentMessage[],
+        retainedTail: preparation.workingSet.messages.slice(1),
         tokensBefore: compaction.tokensBefore,
         details: {
           fingerprint: compaction.summaryFingerprint,
@@ -1041,7 +1054,7 @@ export class CoreMindRuntime {
     });
     const deniedAgents = new Set<string>();
     context.setHarnessFactory((agentName, stepId) => {
-      let contextWorkingSet: { sourceLength: number; messages: AgentMessage[] } | undefined;
+      let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
       return {
@@ -1075,9 +1088,10 @@ export class CoreMindRuntime {
           pendingProviderCapabilityFingerprint = undefined;
         },
         throwIfContextFailed,
-        executeTool: (tool, callId, args, signal, onUpdate) =>
-          toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, callId), () =>
-            tool.execute(callId, args, signal, onUpdate),
+        executeTool: ({ call, invoke }) =>
+          toolExecutionEngine.executeAdapter(
+            toolCallIdentity(agentName, stepId, call.callId),
+            invoke,
           ),
         transformContext: async (messages) => {
           if (contextFailure) return messages;
@@ -1188,7 +1202,7 @@ export class CoreMindRuntime {
             );
             contextWorkingSet = {
               sourceLength: messages.length,
-              messages: [...(preparation.workingSet.messages as unknown as AgentMessage[])],
+              messages: [...preparation.workingSet.messages],
             };
             pendingProviderCapabilityFingerprint = preparation.capability.configFingerprint;
             if (preparation.compaction) {
@@ -1207,7 +1221,7 @@ export class CoreMindRuntime {
                 ...(sessionEntryId ? { sessionEntryId } : {}),
               });
             }
-            return preparation.workingSet.messages as unknown as AgentMessage[];
+            return preparation.workingSet.messages;
           } catch (error) {
             const failure =
               error instanceof ContextLifecycleError
@@ -1221,60 +1235,60 @@ export class CoreMindRuntime {
             return messages;
           }
         },
-        beforeToolCall: async (context: BeforeToolCallContext) => {
-          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
-          const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
-          const argumentsFingerprint = fingerprintEffectReceiptValue(context.args);
+        beforeToolCall: async (context: AgentDriverBeforeToolCallContext) => {
+          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
+          const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.callId);
+          const argumentsFingerprint = fingerprintEffectReceiptValue(context.toolCall.args);
           const replayCandidateIndex = toolReplayCandidates.findIndex(
             (candidate) =>
               candidate.agent === agentName &&
               candidate.stepId === stepId &&
-              candidate.tool === context.toolCall.name &&
+              candidate.tool === context.toolCall.tool &&
               candidate.argumentsFingerprint === argumentsFingerprint,
           );
           if (replayCandidateIndex >= 0) {
             const candidate = toolReplayCandidates.splice(replayCandidateIndex, 1)[0]!;
-            const nextReceiptId = receiptId(runId, stepId, context.toolCall.id);
+            const nextReceiptId = receiptId(runId, stepId, context.toolCall.callId);
             emit({
               type: "tool_attempt",
               attemptId: `${nextReceiptId}:attempt:${candidate.attempt}`,
               previousReceiptId: candidate.previousReceiptId,
               attempt: candidate.attempt,
               agent: agentName,
-              tool: context.toolCall.name,
-              callId: context.toolCall.id,
+              tool: context.toolCall.tool,
+              callId: context.toolCall.callId,
               ...(stepId ? { stepId } : {}),
               argumentsFingerprint,
             });
             await journal.flush("critical");
           }
           const existingCapability = capabilityByCallId.get(callKey);
-          if (existingCapability && existingCapability.tool !== context.toolCall.name) {
+          if (existingCapability && existingCapability.tool !== context.toolCall.tool) {
             capabilityFailure = new CoreMindError(
               "tool_capability_conflict",
-              `Call ${agentName}/${stepId ?? "-"}/${context.toolCall.id} 从 ${existingCapability.tool} 变更为 ${context.toolCall.name}，Tool Capability 不可变`,
+              `Call ${agentName}/${stepId ?? "-"}/${context.toolCall.callId} 从 ${existingCapability.tool} 变更为 ${context.toolCall.tool}，Tool Capability 不可变`,
             );
             emit({ type: "error", message: capabilityFailure.message, fatal: true });
             return { block: true, reason: capabilityFailure.message };
           }
           await toolExecutionEngine.recordCall({
             ...lifecycleIdentity,
-            tool: context.toolCall.name,
+            tool: context.toolCall.tool,
           });
           let capability = existingCapability?.capability;
           if (!existingCapability) {
             capability =
-              this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.name) ??
-              resolveToolCapability({ tool: context.toolCall.name });
+              this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.tool) ??
+              resolveToolCapability({ tool: context.toolCall.tool });
             capabilityByCallId.set(callKey, {
-              tool: context.toolCall.name,
+              tool: context.toolCall.tool,
               capability,
             });
             emit({
               type: "capability_resolved",
               agent: agentName,
-              tool: context.toolCall.name,
-              callId: context.toolCall.id,
+              tool: context.toolCall.tool,
+              callId: context.toolCall.callId,
               ...(stepId ? { stepId } : {}),
               capability,
               recoveryDisposition: recoveryDispositionFor(capability),
@@ -1283,7 +1297,7 @@ export class CoreMindRuntime {
           if (!capability) {
             throw new CoreMindError(
               "tool_capability_conflict",
-              `Call ${context.toolCall.id} 缺少已解析 Tool Capability`,
+              `Call ${context.toolCall.callId} 缺少已解析 Tool Capability`,
             );
           }
           const resolvedCapability = capability;
@@ -1307,10 +1321,10 @@ export class CoreMindRuntime {
           }
           const decision = await policy.authorize(
             agentName,
-            context.toolCall.name,
-            context.args,
+            context.toolCall.tool,
+            context.toolCall.args,
             resolvedCapability,
-            this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name),
+            this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.tool),
           );
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
@@ -1352,7 +1366,7 @@ export class CoreMindRuntime {
             emit({
               type: "policy_denied",
               agent: agentName,
-              tool: context.toolCall.name,
+              tool: context.toolCall.tool,
               reason: decision.reason,
             });
             return { block: true, reason: decision.reason, terminate: true };
@@ -1384,9 +1398,9 @@ export class CoreMindRuntime {
             runId,
             agent: agentName,
             stepId,
-            tool: context.toolCall.name,
-            callId: context.toolCall.id,
-            args: context.args,
+            tool: context.toolCall.tool,
+            callId: context.toolCall.callId,
+            args: context.toolCall.args,
             approvalAllowed: true,
           });
           if (extensionDecision?.denied) {
@@ -1395,7 +1409,7 @@ export class CoreMindRuntime {
             emit({
               type: "policy_denied",
               agent: agentName,
-              tool: context.toolCall.name,
+              tool: context.toolCall.tool,
               reason,
             });
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
@@ -1412,10 +1426,10 @@ export class CoreMindRuntime {
               const lease = await workspaceLeaseService.acquire({
                 workspaceRoot: this.options.cwd ?? process.cwd(),
                 lane: resolvedCapability.concurrency,
-                owner: { runId, callId: context.toolCall.id },
+                owner: { runId, callId: context.toolCall.callId },
               });
               workspaceLeaseByCall.set(
-                toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
+                toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
                 {
                   lease,
                   identity: lifecycleIdentity,
@@ -1432,7 +1446,7 @@ export class CoreMindRuntime {
                   pid: lease.owner.pid,
                 },
                 agent: agentName,
-                callId: context.toolCall.id,
+                callId: context.toolCall.callId,
                 ...(stepId ? { stepId } : {}),
               });
               await journal.flush("critical");
@@ -1441,7 +1455,7 @@ export class CoreMindRuntime {
                 status: "completed",
               });
             } catch (error) {
-              const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.id);
+              const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.callId);
               const held = workspaceLeaseByCall.get(callKey);
               if (held) {
                 await rollbackWorkspaceLease(lifecycleIdentity).catch(() => undefined);
@@ -1469,7 +1483,7 @@ export class CoreMindRuntime {
                       pid: inspection.owner.pid,
                     },
                     agent: agentName,
-                    callId: context.toolCall.id,
+                    callId: context.toolCall.callId,
                     ...(stepId ? { stepId } : {}),
                   });
                   try {
@@ -1489,22 +1503,22 @@ export class CoreMindRuntime {
             }
           }
           try {
-            const idempotencyKey = receiptId(runId, stepId, context.toolCall.id);
+            const idempotencyKey = receiptId(runId, stepId, context.toolCall.callId);
             const checkpoints = await checkpointManager.captureAll(
-              context.toolCall.name,
-              context.args,
+              context.toolCall.tool,
+              context.toolCall.args,
               {
                 operationId: operation.snapshot().operationId,
-                toolCallId: context.toolCall.id,
+                toolCallId: context.toolCall.callId,
                 idempotencyKey,
                 capability: resolvedCapability,
-                pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.name)
+                pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.tool)
                   ?.pathFields,
               },
             );
             if (checkpoints.length > 0) {
               checkpointByCallId.set(
-                context.toolCall.id,
+                context.toolCall.callId,
                 checkpoints.map((checkpoint) => checkpoint.checkpointId),
               );
               for (const checkpoint of checkpoints) {
@@ -1513,7 +1527,7 @@ export class CoreMindRuntime {
                   type: "checkpoint_created",
                   checkpointId: checkpoint.checkpointId,
                   tool: checkpoint.tool,
-                  callId: context.toolCall.id,
+                  callId: context.toolCall.callId,
                   idempotencyKey,
                   targetPath: checkpoint.targetPath,
                   reversible: checkpoint.reversible,
@@ -1552,7 +1566,7 @@ export class CoreMindRuntime {
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: checkpointFailure.message };
           }
-          effectCoordinator.markStarted(stepId, context.toolCall.id, context.toolCall.name);
+          effectCoordinator.markStarted(stepId, context.toolCall.callId, context.toolCall.tool);
           if (resolvedCapability.durability === "critical") {
             try {
               await journal.flush();
@@ -1592,10 +1606,10 @@ export class CoreMindRuntime {
           });
           return undefined;
         },
-        afterToolCall: async (context: AfterToolCallContext) => {
-          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.id);
+        afterToolCall: async (context: AgentDriverAfterToolCallContext) => {
+          const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
           const capability = capabilityByCallId.get(
-            toolCapabilityCallKey(agentName, stepId, context.toolCall.id),
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
           )?.capability;
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "observed",
@@ -1612,17 +1626,17 @@ export class CoreMindRuntime {
             },
           });
           const execution = createToolExecutionEvidence({
-            tool: context.toolCall.name,
-            args: context.args,
+            tool: context.toolCall.tool,
+            args: context.toolCall.args,
             isError: context.isError,
             result: context.result,
-            durationMs: effectCoordinator.consumeDuration(stepId, context.toolCall.id),
+            durationMs: effectCoordinator.consumeDuration(stepId, context.toolCall.callId),
           });
           emit({
             type: "tool_execution_evidence",
             agent: agentName,
-            tool: context.toolCall.name,
-            callId: context.toolCall.id,
+            tool: context.toolCall.tool,
+            callId: context.toolCall.callId,
             ...(stepId ? { stepId } : {}),
             execution,
           });
@@ -1638,13 +1652,13 @@ export class CoreMindRuntime {
               sha256: artifact.sha256,
               mediaType: artifact.mediaType,
               redaction: artifact.redaction,
-              tool: context.toolCall.name,
-              callId: context.toolCall.id,
+              tool: context.toolCall.tool,
+              callId: context.toolCall.callId,
             });
           }
-          const checkpointIds = checkpointByCallId.get(context.toolCall.id);
+          const checkpointIds = checkpointByCallId.get(context.toolCall.callId);
           const checkpointId = checkpointIds?.[0];
-          checkpointByCallId.delete(context.toolCall.id);
+          checkpointByCallId.delete(context.toolCall.callId);
           if (checkpointIds) {
             try {
               await Promise.all(
@@ -1668,8 +1682,8 @@ export class CoreMindRuntime {
             runId,
             agent: agentName,
             stepId,
-            tool: context.toolCall.name,
-            callId: context.toolCall.id,
+            tool: context.toolCall.tool,
+            callId: context.toolCall.callId,
             isError: context.isError,
             checkpointId,
             artifactId: artifact?.artifactId,
@@ -1687,11 +1701,12 @@ export class CoreMindRuntime {
             );
           }
         },
-        onAgentEvent: (event, agent) => {
+        onObservation: (observation) => {
+          const driver = context.agent(agentName);
           if (
-            event.type === "turn_end" &&
-            event.message.role === "assistant" &&
-            isContextOverflow(event.message, contextWindow)
+            observation.type === "turn_end" &&
+            "contextOverflow" in observation &&
+            observation.contextOverflow
           ) {
             recordContextFailure(
               new ContextLifecycleError(
@@ -1699,10 +1714,10 @@ export class CoreMindRuntime {
                 "provider_overflow",
                 "context_budget_exhausted",
               ),
-              agent.state.messages.length,
+              driver?.messages().length ?? 0,
             );
           }
-          if (budget.observeAgentEvent(event)) agent.abort();
+          if (budget.observeAgentEvent(observation)) driver?.abort();
         },
       };
     });
@@ -1813,14 +1828,15 @@ export class CoreMindRuntime {
           if (!agent) {
             throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
           }
-          const messageCursor = agent.state.messages.length;
+          const messageCursor = agent.messages().length;
           await agent.prompt(effectiveInitialPrompt);
           await agent.waitForIdle();
-          const agentError = extractAgentError(agent.state.messages);
+          const messages = agent.messages();
+          const agentError = extractAgentError(messages);
           if (agentError) {
             throw new CoreMindError("agent_failed", `Agent ${name} 执行失败：${agentError}`);
           }
-          transcript = extractText(agent.state.messages.slice(messageCursor));
+          transcript = extractText(messages.slice(messageCursor));
           return { outputs: new Map<string, StepOutput>(), transcript };
         },
         (error) => activeLoopRunner?.interrupt(error),
@@ -1880,6 +1896,15 @@ export class CoreMindRuntime {
     // 静止等待（规格 03 §5）：runWithGuard 收尾路径调用，等所有 agent 真正 idle、
     // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
     const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
+    const environmentTerminationError = context.environmentTerminationError();
+    if (environmentTerminationError) {
+      terminalError = new CoreMindError(
+        "environment_terminate_failed",
+        environmentTerminationError instanceof Error
+          ? environmentTerminationError.message
+          : String(environmentTerminationError),
+      );
+    }
     if (!runtimeQuiescent && workspaceLeaseByCall.size > 0) {
       terminalError ??= new CoreMindError(
         "workspace_lease_not_quiescent",
@@ -2168,7 +2193,7 @@ export class CoreMindRuntime {
         `Loop 引用了未定义的 agent：${request.agent}（${request.stepId}）`,
       );
     }
-    const messageCursor = agent.state.messages.length;
+    const messageCursor = agent.messages().length;
     let timer: NodeJS.Timeout | undefined;
     const operation = (async () => {
       await agent.prompt(request.input);
@@ -2204,9 +2229,8 @@ export class CoreMindRuntime {
     if (stepEvents.some((event) => event.type === "policy_denied")) {
       throw new CoreMindError("loop_paused", `步骤 ${request.stepId} 的工具请求未获批准`);
     }
-    const lastAssistant = [...agent.state.messages]
-      .reverse()
-      .find((message) => message.role === "assistant");
+    const messages = agent.messages();
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
     if (lastAssistant?.stopReason === "aborted") {
       throw new CoreMindError("aborted", `步骤 ${request.stepId} 已中止`);
     }
@@ -2215,11 +2239,13 @@ export class CoreMindRuntime {
       const code = classifyRetry(lastAssistant).retryable ? "provider_transient" : "agent_failed";
       throw new CoreMindError(code, `步骤 ${request.stepId} 的 Agent 执行失败：${agentError}`);
     }
-    return extractText(agent.state.messages.slice(messageCursor));
+    return extractText(messages.slice(messageCursor));
   }
 
   private abortAll(): void {
-    runContextFor(this).abortAgents();
+    const context = runContextFor(this);
+    context.abortAgents();
+    void context.terminateEnvironment("Runtime cancel").catch(() => undefined);
   }
 
   private async applyRunControl(
@@ -2229,13 +2255,7 @@ export class CoreMindRuntime {
     if (command.type === "steering" || command.type === "follow_up") {
       const agent = context.agent(this.mainAgentName);
       if (!agent) return "accepted";
-      const message = {
-        role: "user" as const,
-        content: [{ type: "text" as const, text: command.message }],
-        timestamp: Date.now(),
-      };
-      if (command.type === "steering") agent.steer(message);
-      else agent.followUp(message);
+      agent.queueControl({ type: command.type, message: command.message });
       return "applied";
     }
     return (
@@ -2246,7 +2266,7 @@ export class CoreMindRuntime {
     );
   }
 
-  private collectMessages(): Map<string, AgentMessage[]> {
+  private collectMessages(): Map<string, CoreMindMessage[]> {
     return runContextFor(this).collectMessages();
   }
 
@@ -2285,9 +2305,7 @@ export class CoreMindRuntime {
         cwd: this.options.cwd ?? process.cwd(),
       }));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
-    let messages = main.state.messages.slice(
-      context.compactedPrefixEnd() ?? this.resumedContextLength,
-    );
+    let messages = main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength);
     if (context.currentJournal()?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
       messages = trimUnconfirmedTail(messages);
@@ -2421,7 +2439,7 @@ function traceFactDurability(
 }
 
 /** D-4 方案 A：去掉尾部未正常终止的 assistant 消息（abort 竞态赢家文本不落会话树） */
-function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] {
+function trimUnconfirmedTail(messages: readonly CoreMindMessage[]): CoreMindMessage[] {
   let end = messages.length;
   while (end > 0) {
     const last = messages[end - 1]!;
@@ -2432,7 +2450,7 @@ function trimUnconfirmedTail(messages: readonly AgentMessage[]): AgentMessage[] 
 }
 
 /** 审批拒绝等 paused：去掉尾部未发送的工具调用产物（toolResult 及配对的 assistant toolUse） */
-function trimRejectedTrail(messages: readonly AgentMessage[]): AgentMessage[] {
+function trimRejectedTrail(messages: readonly CoreMindMessage[]): CoreMindMessage[] {
   let end = messages.length;
   while (end > 0) {
     const last = messages[end - 1];

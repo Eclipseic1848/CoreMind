@@ -29,6 +29,7 @@ Keep model streaming, messages, tools, usage, and error classification behind pr
 - [Tool registry](../../../packages/coremind-tools/src/registry.ts)
 - [Lockstep test](../../../scripts/dependency-lockstep.test.ts)
 - [Dependency report test](../../../scripts/dependency-report.test.ts)
+- [Dependency upgrade spike template](DEPENDENCY-UPGRADE-SPIKE-TEMPLATE.en.md)
 - [Candidate dependency report](../../../baselines/0.3.0-candidate/dependency-report.json)
 - [Module example](../../../examples/modules/adapt-runtime-dependencies/README.en.md)
 - [中文示例](../../../examples/modules/adapt-runtime-dependencies/README.zh-CN.md)

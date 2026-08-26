@@ -138,6 +138,8 @@ export class ProtocolHost {
   private requestedRunId?: string;
   private running = false;
   private closed = false;
+  private activeExecutionCompletion?: Promise<void>;
+  private resolveActiveExecution?: () => void;
 
   constructor(private readonly options: WorkerServerOptions) {
     this.runtimeFactory = options.runtimeFactory ?? CoreMindRuntime.create;
@@ -560,6 +562,9 @@ export class ProtocolHost {
     const state = this.requireInitialized();
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
     this.running = true;
+    this.activeExecutionCompletion = new Promise<void>((resolve) => {
+      this.resolveActiveExecution = resolve;
+    });
     this.activeController = new AbortController();
     this.activeRunId = undefined;
     // 预生成 runId（D-1）：首事件前 cancel 用该值寻址；未提供时保持 0.3.0 行为
@@ -620,6 +625,9 @@ export class ProtocolHost {
       this.requestedRunId = undefined;
       for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
       this.pendingApprovals.clear();
+      this.resolveActiveExecution?.();
+      this.resolveActiveExecution = undefined;
+      this.activeExecutionCompletion = undefined;
     }
   }
 
@@ -751,7 +759,12 @@ export class ProtocolHost {
     return { cancelled: true };
   }
 
-  private close(): unknown {
+  private close(): Promise<{ closed: true; quiescent: boolean }> {
+    return this.shutdown();
+  }
+
+  /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
+  async shutdown(timeoutMs = 5_000): Promise<{ closed: true; quiescent: boolean }> {
     this.activeController?.abort();
     for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
     for (const pending of this.pendingToolCalls.values()) {
@@ -760,7 +773,20 @@ export class ProtocolHost {
     this.pendingApprovals.clear();
     this.pendingToolCalls.clear();
     this.closed = true;
-    return { closed: true };
+    const active = this.activeExecutionCompletion;
+    if (!active) return { closed: true, quiescent: true };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const quiescent = await Promise.race([
+        active.then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), timeoutMs);
+        }),
+      ]);
+      return { closed: true, quiescent };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private requireInitialized(): InitializedState {

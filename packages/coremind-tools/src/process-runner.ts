@@ -1,4 +1,13 @@
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { execa } from "execa";
+
+interface ProcessActivitySupervisor {
+  beginActivity(input: { id: string; kind: "process" }): {
+    readonly signal: AbortSignal;
+    settle(): void;
+  };
+}
 
 export type ProcessRunnerErrorCode =
   | "process_timeout"
@@ -53,7 +62,18 @@ export class ProcessRunner {
       throw new ProcessRunnerError("process_spawn_failed", "maxOutputBytes 必须是正整数");
     }
 
+    let activity: ReturnType<ProcessActivitySupervisor["beginActivity"]> | undefined;
+    let executionSignal = request.signal;
     try {
+      activity = activitySupervisors.get(this)?.beginActivity({
+        id: `process:${randomUUID()}`,
+        kind: "process",
+      });
+      executionSignal = activity
+        ? request.signal
+          ? AbortSignal.any([request.signal, activity.signal])
+          : activity.signal
+        : request.signal;
       const subprocess = execa(request.command, [...(request.args ?? [])], {
         cwd: request.cwd,
         env: normalizeEnvironment(request.env),
@@ -66,7 +86,7 @@ export class ProcessRunner {
         stripFinalNewline: false,
         reject: false,
         timeout: request.timeoutMs,
-        cancelSignal: request.signal,
+        cancelSignal: executionSignal,
         killDescendants: true,
         forceKillAfterDelay: 1_000,
         maxBuffer: maxOutputBytes,
@@ -88,7 +108,7 @@ export class ProcessRunner {
           `进程执行超过 ${request.timeoutMs ?? 0} 毫秒`,
         );
       }
-      if (result.isCanceled || request.signal?.aborted) {
+      if (result.isCanceled || executionSignal?.aborted) {
         throw new ProcessRunnerError("process_aborted", "进程执行已取消");
       }
       if (result.isMaxBuffer) {
@@ -115,11 +135,106 @@ export class ProcessRunner {
     } catch (error) {
       if (error instanceof ProcessRunnerError) throw error;
       throw new ProcessRunnerError(
-        request.signal?.aborted ? "process_aborted" : "process_spawn_failed",
+        executionSignal?.aborted ? "process_aborted" : "process_spawn_failed",
         error instanceof Error ? error.message : String(error),
         { cause: error },
       );
+    } finally {
+      activity?.settle();
     }
+  }
+}
+
+const activitySupervisors = new WeakMap<ProcessRunner, ProcessActivitySupervisor>();
+
+/** 包内工厂：绑定执行环境的生命周期监督，不扩张 ProcessRunner 公共构造契约。 */
+export function createSupervisedProcessRunner(
+  activitySupervisor: ProcessActivitySupervisor | undefined,
+): ProcessRunner {
+  const runner = new ProcessRunner();
+  if (activitySupervisor) activitySupervisors.set(runner, activitySupervisor);
+  return runner;
+}
+
+export interface ProcessTreeProbeResult {
+  available: boolean;
+  evidence: readonly string[];
+}
+
+/** 用真实父子进程验证取消能否收敛完整进程树；结果供平台环境 Adapter 缓存。 */
+export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeResult> {
+  const controller = new AbortController();
+  let output = "";
+  let childPid: number | undefined;
+  const script = [
+    "const { spawn } = require('node:child_process')",
+    "const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })",
+    "process.stdout.write('CHILD_PID:' + child.pid + '\\n')",
+    "setInterval(() => {}, 1000)",
+  ].join(";");
+  const running = new ProcessRunner()
+    .run({
+      command: process.execPath,
+      args: ["-e", script],
+      signal: controller.signal,
+      onStdout: (chunk) => {
+        output += chunk.toString("utf8");
+        const match = output.match(/CHILD_PID:(\d+)/);
+        if (match) childPid = Number(match[1]);
+      },
+    })
+    .catch((error: unknown) => error);
+
+  try {
+    const deadline = performance.now() + 2_000;
+    while (childPid === undefined && performance.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    if (childPid === undefined) {
+      controller.abort();
+      await running;
+      return { available: false, evidence: [`process-tree:${process.platform}:no-child-pid`] };
+    }
+    controller.abort();
+    const outcome = await running;
+    if (!(outcome instanceof ProcessRunnerError) || outcome.code !== "process_aborted") {
+      return {
+        available: false,
+        evidence: [`process-tree:${process.platform}:cancel-contract-failed`],
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const available = !isProcessAlive(childPid);
+    return {
+      available,
+      evidence: [
+        `process-tree:${process.platform}:${available ? "verified" : "descendant-survived"}`,
+      ],
+    };
+  } finally {
+    controller.abort();
+    if (childPid !== undefined && isProcessAlive(childPid)) terminateProcessTree(childPid);
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function terminateProcessTree(pid: number): void {
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
+    return;
+  }
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {
+    // Probe 创建的进程可能已在检查后自行退出。
   }
 }
 

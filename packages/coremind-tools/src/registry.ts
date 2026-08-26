@@ -19,32 +19,50 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "./capability.js";
-import { createGitDiffTool, createGitLogTool, createGitStatusTool } from "./git-adapter.js";
-import { createHostBashTool } from "./host-shell.js";
-import { createLinuxSandboxedBashTool } from "./linux-sandbox.js";
+import type { ExecutionEnvironment } from "./execution-environment.js";
+import {
+  createGitDiffToolWithRunner,
+  createGitLogToolWithRunner,
+  createGitStatusToolWithRunner,
+} from "./git-adapter.js";
+import { createHostBashToolForEnvironment } from "./host-shell.js";
+import { createLinuxSandboxedBashToolForEnvironment } from "./linux-sandbox.js";
+import { createSupervisedProcessRunner } from "./process-runner.js";
 import { loadScriptTool } from "./script-tool.js";
-import { createWebFetchTool, createWebSearchToolIfAvailable } from "./web-tools.js";
+import {
+  createWebFetchToolForEnvironment,
+  createWebSearchToolForEnvironment,
+} from "./web-tools.js";
 
 /** 内置工具工厂：id → 构造器（返回 null 表示需要额外配置而跳过） */
 const BUILTIN_FACTORIES: Record<
   BuiltinToolId,
-  (cwd: string, env: NodeJS.ProcessEnv) => AgentTool | null
+  (
+    cwd: string,
+    env: NodeJS.ProcessEnv,
+    executionEnvironment?: ExecutionEnvironment,
+  ) => AgentTool | null
 > = {
   read: (cwd) => createReadTool(cwd),
   ls: (cwd) => createLsTool(cwd),
   find: (cwd) => createFindTool(cwd),
   grep: (cwd) => createGrepTool(cwd),
-  git_status: (cwd) => createGitStatusTool(cwd),
-  git_diff: (cwd) => createGitDiffTool(cwd),
-  git_log: (cwd) => createGitLogTool(cwd),
-  bash: (cwd, env) =>
+  git_status: (cwd, _env, executionEnvironment) =>
+    createGitStatusToolWithRunner(cwd, createSupervisedProcessRunner(executionEnvironment)),
+  git_diff: (cwd, _env, executionEnvironment) =>
+    createGitDiffToolWithRunner(cwd, createSupervisedProcessRunner(executionEnvironment)),
+  git_log: (cwd, _env, executionEnvironment) =>
+    createGitLogToolWithRunner(cwd, createSupervisedProcessRunner(executionEnvironment)),
+  bash: (cwd, env, executionEnvironment) =>
     process.platform === "linux"
-      ? createLinuxSandboxedBashTool({ cwd, env })
-      : createHostBashTool({ cwd, env }),
+      ? createLinuxSandboxedBashToolForEnvironment({ cwd, env }, executionEnvironment)
+      : createHostBashToolForEnvironment({ cwd, env }, executionEnvironment),
   edit: (cwd) => createEditTool(cwd),
   write: (cwd) => createWriteTool(cwd),
-  "web-fetch": () => createWebFetchTool(),
-  "web-search": (_, env) => createWebSearchToolIfAvailable(env),
+  "web-fetch": (_cwd, _env, executionEnvironment) =>
+    createWebFetchToolForEnvironment(executionEnvironment),
+  "web-search": (_cwd, env, executionEnvironment) =>
+    createWebSearchToolForEnvironment(env, executionEnvironment),
 };
 
 /** 单个 agent 工具数量建议上限（工具过多会降低模型工具选择准确率，参考主流生产经验 0-20） */
@@ -78,6 +96,14 @@ export async function buildTools(
   configs: ToolConfig[],
   opts: BuildToolsOptions,
 ): Promise<BuildToolsResult> {
+  return buildToolsWithExecutionEnvironment(configs, opts);
+}
+
+export async function buildToolsWithExecutionEnvironment(
+  configs: ToolConfig[],
+  opts: BuildToolsOptions,
+  executionEnvironment?: ExecutionEnvironment,
+): Promise<BuildToolsResult> {
   const env = opts.env ?? process.env;
   const tools: AgentTool[] = [];
   const effects = new Map<string, ToolEffectDeclaration>();
@@ -108,7 +134,7 @@ export async function buildTools(
       warnings.push(`内置工具 ${cfg.id} 不存在，已跳过`);
       continue;
     }
-    const tool = factory(opts.cwd, env);
+    const tool = factory(opts.cwd, env, executionEnvironment);
     if (!tool) {
       warnings.push(`工具 ${cfg.id} 需要额外配置（如 API key），已跳过`);
       continue;

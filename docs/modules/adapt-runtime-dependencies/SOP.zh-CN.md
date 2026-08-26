@@ -2,7 +2,7 @@
 
 ## 前置条件
 
-先阅读[模块说明](README.zh-CN.md)，固定参考版本、候选版本、受影响 seam、迁移范围和回滚点。真实 Provider 请求、费用或代码外发必须另行授权。
+先阅读[模块说明](README.zh-CN.md)，复制[依赖升级 Spike 模板](DEPENDENCY-UPGRADE-SPIKE-TEMPLATE.zh-CN.md)，固定参考版本、候选版本、受影响 seam、迁移范围和回滚点。真实 Provider 请求、费用或代码外发必须另行授权。
 
 ## 执行步骤
 

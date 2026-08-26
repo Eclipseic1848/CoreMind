@@ -65,7 +65,7 @@ function isLiveEvent(message: unknown): boolean {
 export function runStdioWorker(
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
-): void {
+): Promise<void> {
   const send = createStdioSender(output);
   const server = new WorkerServer({ send });
   const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
@@ -87,8 +87,16 @@ export function runStdioWorker(
     }
     server.accept(value);
   });
+  return new Promise<void>((resolve, reject) => {
+    lines.once("close", () => {
+      void server.shutdown().then(
+        () => resolve(),
+        (error: unknown) => reject(error),
+      );
+    });
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  runStdioWorker();
+  await runStdioWorker();
 }

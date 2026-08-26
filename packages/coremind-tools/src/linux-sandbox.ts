@@ -5,7 +5,8 @@ import path from "node:path";
 import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
-import { ProcessRunner, ProcessRunnerError } from "./process-runner.js";
+import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
+import { createSupervisedProcessRunner, ProcessRunnerError } from "./process-runner.js";
 
 export interface LinuxSandboxedBashOptions {
   cwd: string;
@@ -16,34 +17,62 @@ let sandboxInitialization: Promise<void> | undefined;
 
 /** Linux bash 使用真实 OS 隔离；初始化或依赖缺失时失败关闭，不回退到宿主 shell。 */
 export function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions): AgentTool {
+  return createLinuxSandboxedBashToolForEnvironment(options);
+}
+
+export function createLinuxSandboxedBashToolForEnvironment(
+  options: LinuxSandboxedBashOptions,
+  executionEnvironment?: ExecutionEnvironment,
+): AgentTool {
   const env = options.env ?? process.env;
   const operations: BashOperations = {
     exec: async (command, cwd, execution) => {
-      await ensureSandboxInitialized();
+      if (executionEnvironment) {
+        await resolveExecutionEnvironment(executionEnvironment, {
+          isolation: "sandbox",
+          writeAccess: "workspace",
+          networkEgress: "denied",
+          credentialIsolation: "environment",
+          processControl: "process_tree",
+          termination: { kill: "process_tree", timeout: true },
+        });
+      }
+      await ensureLinuxSandboxInitialized();
       const tempDirectory = path.join(cwd, ".coremind", "tmp");
       await mkdir(tempDirectory, { recursive: true });
       const commandId = randomUUID();
-      const wrapped = await SandboxManager.wrapWithSandboxArgv(
-        command,
-        "/bin/bash",
-        buildLinuxSandboxConfig(cwd, env),
-        execution.signal,
-        cwd,
-        { commandId, commandText: command },
-      );
+      const cleanupActivity = executionEnvironment?.beginActivity({
+        id: `sandbox-cleanup:${commandId}`,
+        kind: "temporary_resource",
+      });
+      const signal = cleanupActivity
+        ? execution.signal
+          ? AbortSignal.any([execution.signal, cleanupActivity.signal])
+          : cleanupActivity.signal
+        : execution.signal;
       try {
+        const wrapped = await SandboxManager.wrapWithSandboxArgv(
+          command,
+          "/bin/bash",
+          buildLinuxSandboxConfig(cwd, env),
+          signal,
+          cwd,
+          { commandId, commandText: command },
+        );
         return await spawnSandboxed(
           wrapped.argv,
           cwd,
           {
-            ...sanitizeEnvironment(env),
+            ...sanitizeLinuxSandboxEnvironment(env),
             PATH: env.PATH ?? process.env.PATH,
             TMPDIR: tempDirectory,
           },
-          execution,
+          { ...execution, signal },
+          executionEnvironment,
         );
       } finally {
         SandboxManager.cleanupAfterCommand();
+        cleanupActivity?.settle();
       }
     },
   };
@@ -103,7 +132,7 @@ export function isSensitiveEnvironmentName(name: string): boolean {
   );
 }
 
-async function ensureSandboxInitialized(): Promise<void> {
+export async function ensureLinuxSandboxInitialized(): Promise<void> {
   sandboxInitialization ??= SandboxManager.initialize(
     {
       network: { allowedDomains: [], deniedDomains: [] },
@@ -121,7 +150,7 @@ async function ensureSandboxInitialized(): Promise<void> {
   await sandboxInitialization;
 }
 
-function sanitizeEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function sanitizeLinuxSandboxEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(env).filter(([name]) => !isSensitiveEnvironmentName(name)),
   );
@@ -132,11 +161,12 @@ async function spawnSandboxed(
   cwd: string,
   env: NodeJS.ProcessEnv,
   options: Parameters<BashOperations["exec"]>[2],
+  executionEnvironment?: ExecutionEnvironment,
 ): Promise<{ exitCode: number | null }> {
   const executable = argv[0];
   if (!executable) throw new Error("Linux sandbox 未生成可执行命令");
   try {
-    const result = await new ProcessRunner().run({
+    const result = await createSupervisedProcessRunner(executionEnvironment).run({
       command: executable,
       args: argv.slice(1),
       cwd,

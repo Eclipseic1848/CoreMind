@@ -1,5 +1,5 @@
-import type { Agent } from "@earendil-works/pi-agent-core";
 import type { WorkflowStep } from "coremind-config";
+import type { AgentDriver } from "./agent-driver.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 
@@ -20,7 +20,7 @@ export interface OrchestratorOptions {
    * 每个步骤使用独立实例执行——步骤之间通过 {{变量}} 传递结果，
    * 避免并发冲突，同时天然防止共享消息状态的竞态。
    */
-  createAgent: (name: string, stepId?: string) => Agent | undefined;
+  createAgent: (name: string, stepId?: string) => AgentDriver | undefined;
   /** 事件转发 */
   events: (event: CoreMindEvent) => void;
   /** 首条用户输入，注册为 {{prompt}} 变量 */
@@ -49,7 +49,7 @@ const INTERPOLATE_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
  * - 护栏：嵌套深度与总步骤数硬上限，防止多 agent 互相调用死循环
  */
 export class Orchestrator {
-  private readonly createAgent: (name: string, stepId?: string) => Agent | undefined;
+  private readonly createAgent: (name: string, stepId?: string) => AgentDriver | undefined;
   private readonly events: (event: CoreMindEvent) => void;
   private readonly initialPrompt?: string;
   private readonly signal?: AbortSignal;
@@ -205,7 +205,11 @@ export class Orchestrator {
   }
 
   /** 单步执行 + 超时护栏：超时中止 agent 并抛 step_timeout */
-  private async promptWithTimeout(agent: Agent, input: string, stepId: string): Promise<string> {
+  private async promptWithTimeout(
+    agent: AgentDriver,
+    input: string,
+    stepId: string,
+  ): Promise<string> {
     const timeoutMs = this.stepTimeoutMs;
     if (timeoutMs <= 0) {
       await agent.prompt(input);
@@ -327,12 +331,13 @@ function emptyOutput(stepId: string): StepOutput {
   return { text: "", metadata: { agent: "", stepId } };
 }
 
-function extractSuccessfulText(agent: Agent, stepId: string): string {
-  const agentError = extractAgentError(agent.state.messages);
+function extractSuccessfulText(agent: AgentDriver, stepId: string): string {
+  const messages = agent.messages();
+  const agentError = extractAgentError(messages);
   if (agentError) {
     throw new CoreMindError("agent_failed", `步骤 ${stepId} 的 Agent 执行失败：${agentError}`);
   }
-  return extractText(agent.state.messages);
+  return extractText(messages);
 }
 
 /**
