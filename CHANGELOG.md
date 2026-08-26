@@ -4,7 +4,7 @@
 
 [English](CHANGELOG.en.md)
 
-## 未发布
+## 0.3.2 — 2026-08-26（草案候选，尚未发布）
 
 ### Replay 与显性可观测性
 
@@ -31,42 +31,16 @@
 - `RunStore` 新增 ordinary/critical 能力与 acknowledgement 合同；File Store 只承诺经 Windows/Linux 进程崩溃探针验证的边界，Memory Store 不再把内存可见伪装为 critical。
 - Checkpoint、started Receipt 与关键 Tool Result 在 Adapter 前后使用 critical barrier；失败保持执行、Effect 与持久化轴正交，并提供分级指标。
 
-## [0.3.2](https://github.com/Eclipseic1848/CoreMind/compare/v0.3.1...v0.3.2) (2026-08-26)
+### Provider 兼容
 
+- 自定义 OpenAI-compatible Provider 可显式声明 `thinkingFormat: qwen`；当 Agent 使用 `thinkingLevel: off` 时，Runtime 会通过公开配置合同发送 `enable_thinking: false`，不开放任意请求体透传。
+- 自定义 Provider 现在拒绝 Schema 之外的字段，避免把凭据或未受审计参数作为任意请求体注入。
 
-### Features
+### 发布工程与候选状态
 
-* add replay and local observability ([adabc09](https://github.com/Eclipseic1848/CoreMind/commit/adabc09df00084dec8542ae31d4d7ba13487ab35))
-* **runtime:** add authoritative tool capabilities ([#61](https://github.com/Eclipseic1848/CoreMind/issues/61)) ([03769e6](https://github.com/Eclipseic1848/CoreMind/commit/03769e652b3f5073d2553f9ec532d45fdcd23156))
-* **runtime:** add context lifecycle management ([#69](https://github.com/Eclipseic1848/CoreMind/issues/69)) ([d9cc962](https://github.com/Eclipseic1848/CoreMind/commit/d9cc962ba40eebe37480588de1c0a122056c2890))
-* **runtime:** add exact fact durability receipts ([#64](https://github.com/Eclipseic1848/CoreMind/issues/64)) ([4f93652](https://github.com/Eclipseic1848/CoreMind/commit/4f93652e7e9ad3bd84efdf5e8d9cd0e4d3e0fe39))
-* **runtime:** add exact FactLedger durability receipts ([10c5fcb](https://github.com/Eclipseic1848/CoreMind/commit/10c5fcb06f00f0b700483eb22fd6b27b1b7bf511))
-* **runtime:** add graded durability barriers ([665e4c2](https://github.com/Eclipseic1848/CoreMind/commit/665e4c2563dbef872ecd0b5d490e25ea81e46e16))
-* **runtime:** add graded durability barriers ([#63](https://github.com/Eclipseic1848/CoreMind/issues/63)) ([f32b8f0](https://github.com/Eclipseic1848/CoreMind/commit/f32b8f0ab6f3dd83369dea64b610e514129c3fbf))
-* **runtime:** add trusted tool fault matrix ([#67](https://github.com/Eclipseic1848/CoreMind/issues/67)) ([ebd3261](https://github.com/Eclipseic1848/CoreMind/commit/ebd326176b10c0bf2eca43e680b8a993dc9c9667))
-* **runtime:** enforce single tool execution entry ([#65](https://github.com/Eclipseic1848/CoreMind/issues/65)) ([165954b](https://github.com/Eclipseic1848/CoreMind/commit/165954bd683e9c34f536b4f2fb043f5170752ceb))
-* **runtime:** enforce single tool execution entry ([#65](https://github.com/Eclipseic1848/CoreMind/issues/65)) ([e8e8a6b](https://github.com/Eclipseic1848/CoreMind/commit/e8e8a6b2a8c9614aeeb4cf7e66eff829828b7c1a))
-* **runtime:** enforce workspace writer leases ([#66](https://github.com/Eclipseic1848/CoreMind/issues/66)) ([407425a](https://github.com/Eclipseic1848/CoreMind/commit/407425a87dca677803ca9051ad3dea04d929fa04))
-* **runtime:** enforce workspace writer leases ([#66](https://github.com/Eclipseic1848/CoreMind/issues/66)) ([45531f8](https://github.com/Eclipseic1848/CoreMind/commit/45531f820059fb178851df41bb2b3b3e535e5f7f))
-* **runtime:** freeze tool call lifecycle reducer ([#76](https://github.com/Eclipseic1848/CoreMind/issues/76)) ([08dffc5](https://github.com/Eclipseic1848/CoreMind/commit/08dffc56f08170c218ecae3e8b193e5c59090f71))
-* **runtime:** unify run context and projections ([6653e46](https://github.com/Eclipseic1848/CoreMind/commit/6653e4632ca9999b9e8740c0c3ab2546758a1c31))
-* **runtime:** unify run context and projections ([#68](https://github.com/Eclipseic1848/CoreMind/issues/68)) ([fea3b05](https://github.com/Eclipseic1848/CoreMind/commit/fea3b057fb3679779c4ccba4610727135a2a22ef))
-* **runtime:** 统一 Tool Capability 与单调安全 ([#61](https://github.com/Eclipseic1848/CoreMind/issues/61)) ([69f6b1e](https://github.com/Eclipseic1848/CoreMind/commit/69f6b1ead872ecf2b147196e0d74e22daedd4ac0))
-
-
-### Bug Fixes
-
-* **ci:** serialize stability test runs ([1f20fb3](https://github.com/Eclipseic1848/CoreMind/commit/1f20fb33c858f780773747105b9d658503a5ab1a))
-* **provider:** support Qwen thinking control ([4a2864e](https://github.com/Eclipseic1848/CoreMind/commit/4a2864ece574eb29b56a9bab6dc3b94f52a3e3fd))
-* **provider:** support Qwen thinking control ([5fbfad4](https://github.com/Eclipseic1848/CoreMind/commit/5fbfad49eb3c95834addb7c6ec1a791218edc082))
-* **runtime:** checkpoint declared tool paths ([7b7853a](https://github.com/Eclipseic1848/CoreMind/commit/7b7853a8599329484351fb5c3c3ef6af5fb35904))
-* **runtime:** close context lifecycle review gaps ([#69](https://github.com/Eclipseic1848/CoreMind/issues/69)) ([e5dbd93](https://github.com/Eclipseic1848/CoreMind/commit/e5dbd938c5844e29764210c4e76567f71e0bf273))
-* **runtime:** require tool-paired context turns ([#69](https://github.com/Eclipseic1848/CoreMind/issues/69)) ([be6f93f](https://github.com/Eclipseic1848/CoreMind/commit/be6f93f6f98a937d2c1b42804537def3a17591e4))
-
-
-### Reverts
-
-* **ci:** keep proven Node 22 stability parallelism ([15e4b56](https://github.com/Eclipseic1848/CoreMind/commit/15e4b5624fb20d6043a272ce2e2b0251d8393612))
+- 8 个 npm 包、精确内部依赖、Python 包、21 个模块合同、真实终端证据模板和内嵌 Python worker 已同步到 `0.3.2`。
+- Release Please 的草稿转换步骤显式绑定当前 GitHub 仓库，使无 checkout 的工作流也能定位新建 PR；仍不会自动合并、打 Tag 或发布。
+- 本条目描述草案候选。`0.3.2` 的 Node 22 双平台 CI、真实 Provider 认证、RC 验收、Tag、Registry、GitHub Release 与发布后公共文档同步尚未完成；当前公开稳定版仍为 `0.3.1`。
 
 ## 0.3.1 — 2026-08-21
 

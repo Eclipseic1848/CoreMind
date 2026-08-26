@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.
+
 ## 0.3.1 - 2026-08-21
 
 - Added the internal I-1 through I-12 correlation invariant checker with `off`, `eval`, and `gate` modes.

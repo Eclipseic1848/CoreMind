@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.
+
 ## 0.3.1 - 2026-08-21
 
 - Split ordinary feature-branch CI from strict release certification: development checks may explicitly defer only the current Runtime's provider evidence, while release candidates, tags, bundles, and publication retain exact version and Runtime SHA-256 binding.

@@ -3,7 +3,7 @@ id: design-agents
 name:
   zh-CN: "Agent 构建"
   en: "Agent Construction"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-runtime/src/agent-factory.ts"
   - "packages/coremind-runtime/src/runtime.ts"

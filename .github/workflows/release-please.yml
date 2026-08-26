@@ -29,6 +29,7 @@ jobs:
         if: steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_PR: ${{ steps.release.outputs.pr }}
         run: |
           pr_number="$(jq -r '.number' <<< "$RELEASE_PR")"

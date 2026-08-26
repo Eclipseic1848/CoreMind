@@ -95,6 +95,7 @@ describe("GitHub Actions 收口合同", () => {
       (item: { name?: string }) => item.name === "转为草稿发布 PR",
     );
     expect(draftStep.if).toContain("steps.release.outputs.pr");
+    expect(draftStep.env.GH_REPO).toContain("github.repository");
     expect(draftStep.run).toContain("gh pr ready");
     expect(draftStep.run).toContain("--undo");
     expect(manifest["."]).toMatch(/^\d+\.\d+\.\d+$/);

@@ -3,7 +3,7 @@ id: adapt-runtime-dependencies
 name:
   zh-CN: "Runtime 依赖 Adapter"
   en: "Runtime Dependency Adapters"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-runtime/src/dependency-adapter.ts"
   - "packages/coremind-runtime/src/session.ts"

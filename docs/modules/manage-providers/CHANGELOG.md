@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.
+
 ## 0.3.1 - 2026-08-21
 
 - Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.
