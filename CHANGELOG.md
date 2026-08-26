@@ -4,7 +4,7 @@
 
 [English](CHANGELOG.en.md)
 
-## 未发布
+## 0.3.2 — 2026-08-26（草案候选，尚未发布）
 
 ### Replay 与显性可观测性
 
@@ -30,6 +30,17 @@
 - Runtime、RunSnapshot、Worker 与双 SDK 的恢复判断统一复用持久化 lifecycle 投影；non-idempotent 或 unknown Effect 一旦可能开始，不会自动重放。
 - `RunStore` 新增 ordinary/critical 能力与 acknowledgement 合同；File Store 只承诺经 Windows/Linux 进程崩溃探针验证的边界，Memory Store 不再把内存可见伪装为 critical。
 - Checkpoint、started Receipt 与关键 Tool Result 在 Adapter 前后使用 critical barrier；失败保持执行、Effect 与持久化轴正交，并提供分级指标。
+
+### Provider 兼容
+
+- 自定义 OpenAI-compatible Provider 可显式声明 `thinkingFormat: qwen`；当 Agent 使用 `thinkingLevel: off` 时，Runtime 会通过公开配置合同发送 `enable_thinking: false`，不开放任意请求体透传。
+- 自定义 Provider 现在拒绝 Schema 之外的字段，避免把凭据或未受审计参数作为任意请求体注入。
+
+### 发布工程与候选状态
+
+- 8 个 npm 包、精确内部依赖、Python 包、21 个模块合同、真实终端证据模板和内嵌 Python worker 已同步到 `0.3.2`。
+- Release Please 的草稿转换步骤显式绑定当前 GitHub 仓库，使无 checkout 的工作流也能定位新建 PR；仍不会自动合并、打 Tag 或发布。
+- 本条目描述草案候选。`0.3.2` 的 Node 22 双平台 CI、真实 Provider 认证、RC 验收、Tag、Registry、GitHub Release 与发布后公共文档同步尚未完成；当前公开稳定版仍为 `0.3.1`。
 
 ## 0.3.1 — 2026-08-21
 

@@ -3,7 +3,7 @@ id: build-coding-agents
 name:
   zh-CN: "编码智能体"
   en: "Coding Agents"
-version: 0.3.1
+version: 0.3.2
 sourcePaths:
   - "packages/coremind-tools/src/process-runner.ts"
   - "packages/coremind-tools/src/git-adapter.ts"

@@ -4,6 +4,10 @@
 
 - Added bilingual dependency-upgrade spike templates covering exact identity, private seams, protocol and recovery compatibility, four-entry and dual-platform evidence, Provider boundaries, supply chain, rollback, and independent authorization gates.
 
+## 0.3.2 - 2026-08-26
+
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+
 ## 0.3.1 - 2026-08-21
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.

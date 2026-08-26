@@ -95,6 +95,7 @@ describe("GitHub Actions 收口合同", () => {
       (item: { name?: string }) => item.name === "转为草稿发布 PR",
     );
     expect(draftStep.if).toContain("steps.release.outputs.pr");
+    expect(draftStep.env.GH_REPO).toContain("github.repository");
     expect(draftStep.run).toContain("gh pr ready");
     expect(draftStep.run).toContain("--undo");
     expect(manifest["."]).toMatch(/^\d+\.\d+\.\d+$/);
@@ -213,6 +214,7 @@ describe("GitHub Actions 收口合同", () => {
   });
 
   it("正式产物基线采集在独立资源组运行", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
     const rootConfig = readFileSync("vitest.config.ts", "utf8");
     const releaseConfig = readFileSync("scripts/vitest.config.ts", "utf8");
     const baselineConfig = readFileSync("scripts/vitest.phase2-baseline.config.ts", "utf8");
@@ -223,5 +225,6 @@ describe("GitHub Actions 收口合同", () => {
     expect(baselineConfig).toContain("fileParallelism: false");
     expect(baselineConfig).toContain("groupOrder: 4");
     expect(baselineConfig).toContain("testTimeout: 60_000");
+    expect(manifest.scripts["test:coverage"]).toContain("--project=!phase2-baseline");
   });
 });

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-08-26
+
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+
 ## 0.3.1 - 2026-08-21
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.

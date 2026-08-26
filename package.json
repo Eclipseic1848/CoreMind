@@ -1,6 +1,6 @@
 {
   "name": "coremind-monorepo",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
@@ -37,7 +37,7 @@
     "security:audit": "node scripts/check-security-audit.mjs",
     "test": "vitest run",
     "test:stability": "node scripts/test-stability.mjs",
-    "test:coverage": "vitest run --maxWorkers=1 --coverage && node scripts/check-coverage.mjs",
+    "test:coverage": "vitest run --maxWorkers=1 --coverage --project=!phase2-baseline && node scripts/check-coverage.mjs",
     "test:coding-evals": "vitest run --project coding-evals",
     "eval:coding-real": "node scripts/run-coding-evals.mjs",
     "test:watch": "vitest",
