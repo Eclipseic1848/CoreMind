@@ -23,7 +23,7 @@ jobs:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
 
-      - name: 验证标签、main 与双平台 CI 属于同一提交
+      - name: 验证标签、main 与严格候选资格属于同一提交
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -31,17 +31,23 @@ jobs:
           git fetch origin main --no-tags
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
-          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
-          test "${conclusion}" = "success"
+          run_id=""
+          for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
+            qualified="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "success")] | length')"
+            if [ "${qualified}" -gt 0 ]; then
+              run_id="${candidate_run_id}"
+              break
+            fi
+          done
+          test -n "${run_id}"
+          echo "COREMIND_CANDIDATE_RUN_ID=${run_id}" >> "${GITHUB_ENV}"
 
       - name: 下载同提交双平台真实伪终端证据
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sha="$(git rev-parse HEAD)"
-          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .id')"
           mkdir -p .scratch/rc-evidence/downloads .scratch/rc-evidence/final
-          gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --pattern 'rc-tty-*' --dir .scratch/rc-evidence/downloads
+          gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'rc-tty-*' --dir .scratch/rc-evidence/downloads
           find .scratch/rc-evidence/downloads -type f -name 'rc-tty-*.json' -exec cp {} .scratch/rc-evidence/final/ \;
           rm -rf .scratch/rc-evidence/downloads
           mv .scratch/rc-evidence/final/*.json .scratch/rc-evidence/

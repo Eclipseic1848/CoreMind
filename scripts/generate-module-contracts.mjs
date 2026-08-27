@@ -1123,7 +1123,9 @@ const modules = [
     source: [
       "package.json",
       "vitest.config.ts",
+      "vitest.engineering.config.ts",
       ".github/workflows/ci.yml",
+      ".github/workflows/candidate-qualification.yml",
       ".github/workflows/docs.yml",
       ".github/workflows/release-please.yml",
       ".github/workflows/publish-pypi.yml",

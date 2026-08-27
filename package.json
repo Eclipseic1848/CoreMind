@@ -36,6 +36,7 @@
     "acceptance:workspace-lease": "node scripts/workspace-lease-process-probe.mjs",
     "security:audit": "node scripts/check-security-audit.mjs",
     "test": "vitest run",
+    "test:engineering": "vitest run --config vitest.engineering.config.ts",
     "test:stability": "node scripts/test-stability.mjs",
     "test:coverage": "vitest run --maxWorkers=1 --coverage --project=!phase2-baseline && node scripts/check-coverage.mjs",
     "test:coding-evals": "vitest run --project coding-evals",
