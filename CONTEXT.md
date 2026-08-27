@@ -100,6 +100,58 @@ _Avoid_: 可观测性、Trace、日志
 由父 Run 委派、拥有独立身份、事实、预算、权限、终态与 RecoveryDecision 的 Run；其能力只能维持或收紧父级限制。
 _Avoid_: 普通 Tool Call、后台任务、共享状态的子智能体
 
+**Child Run 产品化**：
+Child Run 从仅可编程调用的内核合同进入受支持产品能力的状态；必须具备可发现的委派入口、跨正式入口的一致语义和真实多 Agent 验收。
+_Avoid_: Child Run 内核完成、Experimental Child Run、已有类型导出
+
+**Delegation Tool（委派工具）**：
+活动父 Run 在 Config 明确允许时创建 Child Run 的正式产品入口；它把一次委派绑定到父级身份、限制和生命周期，而不是启动脱离父级的后台任务。
+_Avoid_: spawn child、后台 Agent、普通 Tool Call
+
+**Delegation Target（委派目标）**：
+在 Config 中声明、且出现在当前父 Agent allowlist 内的命名 Agent；单次委派只能收紧其预算与限制，不能引入新的 authority。
+_Avoid_: 临时 Agent 定义、内联 Provider、任意 Agent 名称
+
+**Delegation Approval（委派批准）**：
+允许父 Run 按固定目标、输入指纹和限制创建一次 Child Run 的批准；它不授权 Child Run 后续执行工具或产生外部副作用。
+_Avoid_: 子级全权授权、工具预批准、继承父级批准
+
+**Delegated Context（委派上下文）**：
+提供给 Child Run 的有界 Context Working Set，只包含任务、稳定项目规则、继承的安全约束和本次明确引用的 Fact/Artifact。
+_Avoid_: 父 Session 副本、完整对话转发、隐式文件或凭据共享
+
+**Delegation Budget（委派预算）**：
+父 Run 为一个 Child Run 在 token、工具调用、费用、wall time、步骤和后代数上一次性划拨的额度；成功创建后该额度不因未使用而归还。
+_Avoid_: 可退款配额、共享预算计数器、子级自定额度
+
+**Delegation Disposition（委派处置）**：
+父 Run 收到非成功 ChildRunResult 后，对接受失败、改走其他方案、重新委派或向父级传播终态所作的持久决定。
+_Avoid_: parent_joined、已读结果、模型静默忽略
+
+**Delegation Attempt（委派尝试）**：
+由一个 DelegationId 唯一标识的一次 Child Run 创建尝试；相同身份只做幂等返回，需要再次执行时必须建立新的、有明确关联的尝试。
+_Avoid_: 自动重试、复用 DelegationId 重跑、隐式重放
+
+**Delegation Model Route（委派模型路由）**：
+Child Run 从项目级 Provider 与命名 Delegation Target 的模型配置继承并固定下来的模型路由；单次委派不能覆盖它。
+_Avoid_: 内联 Provider、委派时换模型、子级自选出站目标
+
+**Delegated Workspace（委派工作区）**：
+Child Run 从父 Run 继承的 canonical Workspace；父子和兄弟共享同一 Workspace Lease 服务，单次委派不能替换路径根。
+_Avoid_: 临时工作区、自动 Git worktree、委派级 cwd
+
+**Error Contract（错误合同）**：
+把稳定字符串错误码与终态、取消和重试分类绑定的唯一注册表；CoreMind 自有错误必须登记，未知外部错误不得自动重试。
+_Avoid_: 任意错误字符串、入口自有映射、未知错误按瞬态处理
+
+**Execution Security Gate（执行安全门）**：
+所有可能触发 Provider、工具或 Child Run 副作用的正式执行入口必须共同通过的不可绕过校验；它拒绝配置中的明文密钥和敏感 Header 值，只允许在 Adapter 边界解析环境变量或 SecretRef，并在缺失时于出站前失败。
+_Avoid_: 仅由 check 命令检查、入口各自校验、配置内明文凭据
+
+**Release Closure（发布闭环）**：
+同一候选提交已经合入受保护的 main，通过工程与发布资格门、真实 Provider 验收和候选包安装验证，随后完成 Tag、GitHub Release、npm、PyPI 发布并通过公开包回装检查的状态。
+_Avoid_: 代码完成、测试通过、准备发布、只创建 Tag
+
 **Branded ID（品牌 ID）**：
 带编译期品牌类型的标识（RunId / TurnId / StepId / CallId / ApprovalId / ReceiptId / CheckpointId 等），协议边界上仍序列化为字符串并做格式校验。
 _Avoid_: 普通 string ID、uuid
