@@ -2,6 +2,7 @@
 export {
   type ContextProjection,
   ControlInbox,
+  enforceExecutionSecurity,
   type InternalRunControlCommand,
   type PendingApprovalControl,
   ProjectionEngine,

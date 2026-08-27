@@ -4,7 +4,12 @@ const [baseUrl, configDir] = process.argv.slice(2);
 const config = {
   schemaVersion: 2,
   name: "Loop 跨语言一致性测试",
-  provider: { id: "probe", baseUrl, model: "probe-model", apiKey: "test-key" },
+  provider: {
+    id: "probe",
+    baseUrl,
+    model: "probe-model",
+    apiKeyEnv: "COREMIND_TEST_API_KEY",
+  },
   agents: {
     coder: { systemPrompt: "编码" },
     reviewer: { systemPrompt: "验证" },

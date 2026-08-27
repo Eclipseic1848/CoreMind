@@ -20,7 +20,7 @@ import {
   type RunStateRecord,
   restoreCheckpoint,
 } from "coremind-ai";
-import { ProjectionEngine } from "coremind-ai/internal";
+import { enforceExecutionSecurity, ProjectionEngine } from "coremind-ai/internal";
 import {
   createErrorResponse,
   createEventNotification,
@@ -491,6 +491,10 @@ export class ProtocolHost {
       configDir = path.resolve(params.configDir ?? process.cwd());
     }
     const { config, warnings } = parseAndValidate(rawConfig);
+    enforceExecutionSecurity(
+      config,
+      (name) => typeof process.env[name] === "string" && process.env[name]!.length > 0,
+    );
     this.initialized = {
       config,
       configDir,

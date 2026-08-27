@@ -77,6 +77,7 @@ import {
 } from "./effect-receipt-binding.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import { enforceExecutionSecurity } from "./execution-security.js";
 import { type RunId, receiptId } from "./ids.js";
 import {
   claimInput,
@@ -308,6 +309,10 @@ export class CoreMindRuntime {
     const { config, configDir } = options;
     const cwd = options.cwd ?? process.cwd();
     const env = options.env ?? process.env;
+    enforceExecutionSecurity(
+      config,
+      (name) => typeof env[name] === "string" && env[name]!.length > 0,
+    );
     const emit = options.events ?? (() => {});
 
     // 1. provider（解析模型，警告转发）

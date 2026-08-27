@@ -2,6 +2,7 @@ import { access, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { CoreMindConfig, QualityConfig } from "coremind-config";
 import { CoreMindError } from "./errors.js";
+import { inspectExecutionSecurity } from "./execution-security.js";
 
 export type CheckSeverity = "error" | "warning" | "info";
 
@@ -29,6 +30,7 @@ export interface ProjectCheckReport {
 export interface ProjectCheckOptions {
   config: CoreMindConfig;
   projectDir: string;
+  env?: NodeJS.ProcessEnv;
   profile?: QualityConfig["profile"];
   overrideReason?: string;
 }
@@ -54,14 +56,17 @@ const REQUIRED_PROJECT_FILES = [
 export async function checkProject(options: ProjectCheckOptions): Promise<ProjectCheckReport> {
   const profile = options.profile ?? options.config.quality?.profile ?? "standard";
   const findings: CheckFinding[] = [];
+  const env = options.env ?? process.env;
 
-  const provider = options.config.provider;
-  if (provider && "apiKey" in provider && provider.apiKey) {
+  for (const finding of inspectExecutionSecurity(
+    options.config,
+    (name) => typeof env[name] === "string" && env[name]!.length > 0,
+  )) {
     findings.push({
-      code: "SECURITY_PLAINTEXT_KEY",
+      code: finding.code,
       severity: "error",
-      message: "配置中存在明文 apiKey；请改用 apiKeyEnv",
-      path: "coremind.yaml",
+      message: finding.message,
+      path: finding.path,
       overridable: false,
     });
   }

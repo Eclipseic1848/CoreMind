@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { spawn } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
@@ -312,7 +313,7 @@ function fixtureConfig(port: number, toolError = false): CoreMindConfig {
       id: "probe",
       baseUrl: `http://127.0.0.1:${port}/v1`,
       model: "probe-model",
-      apiKey: "test-key",
+      apiKeyEnv: "COREMIND_TEST_API_KEY",
     },
     agents: { main: { systemPrompt: "助手" } },
     tools: toolError

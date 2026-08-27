@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -44,7 +45,7 @@ describe("自定义 Provider 的 Qwen 思考控制", () => {
         id: "bailian-probe",
         baseUrl: `http://127.0.0.1:${port}/v1`,
         model: "qwen3.8-27b",
-        apiKey: "test-key",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
         thinkingFormat: "qwen",
       } as const;
       const config = validateConfig({

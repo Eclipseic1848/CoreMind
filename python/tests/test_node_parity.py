@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import socket
 import subprocess
@@ -16,6 +17,18 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 class NodeRuntimeParityTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.previous_test_api_key = os.environ.get("COREMIND_TEST_API_KEY")
+        os.environ["COREMIND_TEST_API_KEY"] = "test-only"
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls.previous_test_api_key is None:
+            os.environ.pop("COREMIND_TEST_API_KEY", None)
+        else:
+            os.environ["COREMIND_TEST_API_KEY"] = cls.previous_test_api_key
+
     def test_protocol_v2_uses_bundled_node_worker(self) -> None:
         node = shutil.which("node")
         self.assertIsNotNone(node, "测试需要 Node.js")
@@ -39,7 +52,7 @@ class NodeRuntimeParityTest(unittest.TestCase):
                         "id": "probe",
                         "baseUrl": f"http://127.0.0.1:{port}/v1",
                         "model": "probe-model",
-                        "apiKey": "test-key",
+                        "apiKeyEnv": "COREMIND_TEST_API_KEY",
                     },
                     "agents": {"main": {"systemPrompt": "测试助手"}},
                 }
@@ -105,7 +118,7 @@ class NodeRuntimeParityTest(unittest.TestCase):
                         "id": "probe",
                         "baseUrl": base_url,
                         "model": "probe-model",
-                        "apiKey": "test-key",
+                        "apiKeyEnv": "COREMIND_TEST_API_KEY",
                     },
                     "agents": {"main": {"systemPrompt": "测试助手"}},
                 }
@@ -182,7 +195,7 @@ class NodeRuntimeParityTest(unittest.TestCase):
                         "id": "probe",
                         "baseUrl": f"http://127.0.0.1:{port}/v1",
                         "model": "probe-model",
-                        "apiKey": "test-key",
+                        "apiKeyEnv": "COREMIND_TEST_API_KEY",
                     },
                     "agents": {"main": {"systemPrompt": "调用工具"}},
                     "permissions": {"mode": "ask", "workspaceOnly": True, "network": "ask"},
@@ -234,7 +247,7 @@ class NodeRuntimeParityTest(unittest.TestCase):
                         "id": "probe",
                         "baseUrl": base_url,
                         "model": "probe-model",
-                        "apiKey": "test-key",
+                        "apiKeyEnv": "COREMIND_TEST_API_KEY",
                     },
                     "agents": {
                         "coder": {"systemPrompt": "编码"},

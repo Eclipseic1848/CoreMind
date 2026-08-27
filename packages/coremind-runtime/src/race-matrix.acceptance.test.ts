@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
@@ -224,7 +225,7 @@ async function runSeedScenario(
         id: "probe",
         baseUrl: `http://127.0.0.1:${port}/v1`,
         model: "probe-model",
-        apiKey: "test-key",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
       },
       ...(isToolTiming ? { tools: [{ id: toolName }] } : {}),
       agents: { main: { systemPrompt: "助手" } },
@@ -296,7 +297,7 @@ async function runSeedScenario(
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         agents: { main: { systemPrompt: "助手" } },
       },
@@ -590,7 +591,7 @@ describe("C-3 迟到回复拦截", () => {
             id: "probe",
             baseUrl: `http://127.0.0.1:${port}/v1`,
             model: "probe-model",
-            apiKey: "test-key",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
           },
           agents: { main: { systemPrompt: "助手" } },
           session: { enabled: true },

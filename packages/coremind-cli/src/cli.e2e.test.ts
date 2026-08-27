@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -250,7 +251,7 @@ describe("coremind CLI 端到端", () => {
       cwd: dir,
     });
     expect(checked.code).toBe(1);
-    expect(checked.stdout + checked.stderr).toContain("SECURITY_PLAINTEXT_KEY");
+    expect(checked.stdout + checked.stderr).toContain("invalid_config");
   });
 
   it("eval 使用真实 Runtime 运行场景并输出发布判断", () => {
@@ -402,7 +403,7 @@ describe("coremind CLI 端到端", () => {
         "  id: probe",
         `  baseUrl: http://127.0.0.1:${LOOP_MOCK_PORT}/v1`,
         "  model: probe-model",
-        "  apiKey: test-key",
+        "  apiKeyEnv: COREMIND_TEST_API_KEY",
         "agents:",
         "  coder:",
         "    systemPrompt: 编码",
@@ -540,7 +541,7 @@ describe("coremind CLI 端到端", () => {
         "  id: mock",
         "  baseUrl: http://127.0.0.1:8799/v1",
         "  model: mock-model",
-        "  apiKey: mock-key",
+        "  apiKeyEnv: COREMIND_TEST_API_KEY",
         "agents:",
         "  main:",
         "    systemPrompt: 测试助手",
@@ -611,7 +612,7 @@ describe("coremind CLI 端到端", () => {
         "  id: mock",
         "  baseUrl: http://127.0.0.1:8799/v1",
         "  model: mock-model",
-        "  apiKey: mock-key",
+        "  apiKeyEnv: COREMIND_TEST_API_KEY",
         "agents:",
         "  a:",
         "    systemPrompt: 助手A",

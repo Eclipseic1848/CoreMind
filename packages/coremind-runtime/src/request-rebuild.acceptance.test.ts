@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
@@ -370,7 +371,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         agents: { main: { systemPrompt: "助手" } },
         session: { enabled: true },
@@ -410,7 +411,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         tools: [{ id: "read" }],
         agents: { main: { systemPrompt: "调用工具" } },
@@ -481,7 +482,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         tools: [{ id: "read" }],
         agents: { main: { systemPrompt: "调用工具" } },
@@ -549,7 +550,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
           contextWindow: 2048,
           maxTokens: 256,
         },
@@ -600,7 +601,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         agents: { main: { systemPrompt: "助手" } },
         session: { enabled: true },
@@ -677,7 +678,7 @@ describe("Provider 请求重建验收（门 A-1）", () => {
             id: "probe",
             baseUrl: `http://127.0.0.1:${port}/v1`,
             model: "probe-model",
-            apiKey: "test-key",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
           },
           agents: { main: { systemPrompt: "助手" } },
           session: { enabled: true },

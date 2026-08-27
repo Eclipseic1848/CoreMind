@@ -30,7 +30,7 @@ describe("checkProject", () => {
     expect(report.findings.filter((finding) => finding.severity === "error")).toEqual([]);
   });
 
-  it("明文 API key 是不可覆盖的安全错误", async () => {
+  it("明文 API key 返回统一的不可覆盖配置错误", async () => {
     const projectDir = mkdtempSync(path.join(tmpdir(), "coremind-check-secret-"));
     const report = await checkProject({
       config: {
@@ -48,7 +48,7 @@ describe("checkProject", () => {
 
     expect(report.passed).toBe(false);
     expect(report.findings).toContainEqual(
-      expect.objectContaining({ code: "SECURITY_PLAINTEXT_KEY", overridable: false }),
+      expect.objectContaining({ code: "invalid_config", overridable: false }),
     );
   });
 
