@@ -42,6 +42,7 @@ declare class ProtocolHost {
     private closed;
     private activeExecutionCompletion?;
     private resolveActiveExecution?;
+    private lastExecutionQuiescent;
     constructor(options: WorkerServerOptions);
     /** 传输断开只影响交付，不得反向污染 Runtime 或权威 Fact。 */
     private send;

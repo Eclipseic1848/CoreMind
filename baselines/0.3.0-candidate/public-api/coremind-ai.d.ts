@@ -10,6 +10,27 @@ import { CheckpointDiff } from 'coremind-runtime';
 import { CheckpointManager } from 'coremind-runtime';
 import { CheckpointRecord } from 'coremind-runtime';
 import { checkProject } from 'coremind-runtime';
+import { CHILD_RUN_LIMIT_DEFAULTS } from 'coremind-runtime';
+import { ChildRunBudgetAllocation } from 'coremind-runtime';
+import { ChildRunContextReference } from 'coremind-runtime';
+import { ChildRunCoordinator } from 'coremind-runtime';
+import { ChildRunCoordinatorOptions } from 'coremind-runtime';
+import { ChildRunDelegationRequest } from 'coremind-runtime';
+import { ChildRunEnvironmentRequirement } from 'coremind-runtime';
+import { ChildRunExecutionAdapter } from 'coremind-runtime';
+import { ChildRunExecutionInput } from 'coremind-runtime';
+import { ChildRunFact } from 'coremind-runtime';
+import { ChildRunHandle } from 'coremind-runtime';
+import { childRunInputFingerprint } from 'coremind-runtime';
+import { ChildRunJoinOptions } from 'coremind-runtime';
+import { ChildRunLifecyclePolicy } from 'coremind-runtime';
+import { ChildRunModelSnapshot } from 'coremind-runtime';
+import { ChildRunNodeProjection } from 'coremind-runtime';
+import { ChildRunPermissionSnapshot } from 'coremind-runtime';
+import { ChildRunPolicySnapshot } from 'coremind-runtime';
+import { ChildRunResult } from 'coremind-runtime';
+import { ChildRunTreeProjection } from 'coremind-runtime';
+import { ChildRunWorkspaceSnapshot } from 'coremind-runtime';
 import { CODING_TOOL_CONTRACTS } from 'coremind-runtime';
 import { CodingEnvironmentChoice } from 'coremind-runtime';
 import { CodingEnvironmentSelection } from 'coremind-runtime';
@@ -23,6 +44,8 @@ import { CommandGrader } from 'coremind-runtime';
 import { ControlApplyResult } from 'coremind-runtime';
 import { ControlReceipt } from 'coremind-runtime';
 import { ControlReceiptStatus } from 'coremind-runtime';
+import { CoreMindChildRunAdapter } from 'coremind-runtime';
+import { CoreMindChildRunAdapterOptions } from 'coremind-runtime';
 import { CoreMindConfig } from 'coremind-config';
 import { CoreMindError } from 'coremind-runtime';
 import { CoreMindEvent } from 'coremind-runtime';
@@ -34,6 +57,7 @@ import { CoreMindToolContext } from 'coremind-runtime';
 import { CoreMindToolDefinition } from 'coremind-runtime';
 import { CoreMindToolOutput } from 'coremind-runtime';
 import { CoreMindTraceEvent } from 'coremind-runtime';
+import { createCoreMindChildRunAdapter } from 'coremind-runtime';
 import { createDenyPolicyExtension } from 'coremind-runtime';
 import { createEngineeringKernelDefinition } from 'coremind-runtime';
 import { createEngineeringTaskPlan } from 'coremind-runtime';
@@ -101,6 +125,7 @@ import { GitStatusEntry } from 'coremind-tools';
 import { inspectCheckpoint } from 'coremind-runtime';
 import { inspectCodingRepository } from 'coremind-runtime';
 import { inspectRuntimeCompatibility } from 'coremind-runtime';
+import { isChildRunFact } from 'coremind-runtime';
 import { isRunStateResumable } from 'coremind-runtime';
 import { isTelemetryConsentFact } from 'coremind-runtime';
 import { JsonObjectSchema } from 'coremind-runtime';
@@ -145,6 +170,7 @@ import { ProcessRunnerErrorCode } from 'coremind-tools';
 import { ProcessRunRequest } from 'coremind-tools';
 import { ProcessRunResult } from 'coremind-tools';
 import { ProjectGuidanceOptions } from 'coremind-templates';
+import { ProjectionEngine } from 'coremind-runtime';
 import { ProjectLanguage } from 'coremind-templates';
 import { projectLocalObservability } from 'coremind-runtime';
 import { ProjectLocalObservabilityOptions } from 'coremind-runtime';
@@ -214,6 +240,7 @@ import { runEvaluationSuite } from 'coremind-runtime';
 import { runExperiment } from 'coremind-runtime';
 import { RunMetrics } from 'coremind-runtime';
 import { RunOutcome } from 'coremind-runtime';
+import { RunProjection } from 'coremind-runtime';
 import { RunResult } from 'coremind-runtime';
 import { RunResumePlan } from 'coremind-runtime';
 import { RunSnapshot } from 'coremind-runtime';
@@ -296,6 +323,48 @@ export { CheckpointRecord }
 
 export { checkProject }
 
+export { CHILD_RUN_LIMIT_DEFAULTS }
+
+export { ChildRunBudgetAllocation }
+
+export { ChildRunContextReference }
+
+export { ChildRunCoordinator }
+
+export { ChildRunCoordinatorOptions }
+
+export { ChildRunDelegationRequest }
+
+export { ChildRunEnvironmentRequirement }
+
+export { ChildRunExecutionAdapter }
+
+export { ChildRunExecutionInput }
+
+export { ChildRunFact }
+
+export { ChildRunHandle }
+
+export { childRunInputFingerprint }
+
+export { ChildRunJoinOptions }
+
+export { ChildRunLifecyclePolicy }
+
+export { ChildRunModelSnapshot }
+
+export { ChildRunNodeProjection }
+
+export { ChildRunPermissionSnapshot }
+
+export { ChildRunPolicySnapshot }
+
+export { ChildRunResult }
+
+export { ChildRunTreeProjection }
+
+export { ChildRunWorkspaceSnapshot }
+
 export { CODING_TOOL_CONTRACTS }
 
 export { CodingEnvironmentChoice }
@@ -322,6 +391,10 @@ export { ControlReceipt }
 
 export { ControlReceiptStatus }
 
+export { CoreMindChildRunAdapter }
+
+export { CoreMindChildRunAdapterOptions }
+
 export { CoreMindConfig }
 
 export { CoreMindError }
@@ -343,6 +416,8 @@ export { CoreMindToolDefinition }
 export { CoreMindToolOutput }
 
 export { CoreMindTraceEvent }
+
+export { createCoreMindChildRunAdapter }
 
 export { createDenyPolicyExtension }
 
@@ -478,6 +553,8 @@ export { inspectCodingRepository }
 
 export { inspectRuntimeCompatibility }
 
+export { isChildRunFact }
+
 export { isRunStateResumable }
 
 export { isTelemetryConsentFact }
@@ -565,6 +642,8 @@ export { ProcessRunRequest }
 export { ProcessRunResult }
 
 export { ProjectGuidanceOptions }
+
+export { ProjectionEngine }
 
 export { ProjectLanguage }
 
@@ -703,6 +782,8 @@ export { runExperiment }
 export { RunMetrics }
 
 export { RunOutcome }
+
+export { RunProjection }
 
 export { RunResult }
 
