@@ -26,9 +26,10 @@
 
 - [Protocol v2 与 v1 迁移](0.4.x/01-protocol-v2-and-v1-migration.md)
 
-### 0.7.x：Goals、Jobs 与 Subagent
+### 0.7.x：Child Run 与多 Agent
 
 - [Child Run 合同](0.7.x/01-child-run-contract.md)
+- [0.7.0 P0：Child Run 产品化与稳定发布](0.7.x/02-p0-child-run-productization-and-stable-release.md)
 
 ## 状态口径
 
