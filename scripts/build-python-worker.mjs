@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -9,6 +9,7 @@ const pythonPackage = path.join(repositoryRoot, "python", "src", "coremind");
 const workerDirectory = path.join(pythonPackage, "_worker");
 const workerOutput = path.join(workerDirectory, "coremind-worker.mjs");
 const workerManifestOutput = path.join(workerDirectory, "manifest.json");
+const errorContractOutput = path.join(pythonPackage, "_error_contract.json");
 
 await mkdir(workerDirectory, { recursive: true });
 await build({
@@ -39,6 +40,22 @@ const workerManifest = {
   bundleSha256: createHash("sha256").update(normalizedBundle, "utf8").digest("hex"),
 };
 await writeFile(workerManifestOutput, `${JSON.stringify(workerManifest, null, 2)}\n`, "utf8");
+
+const protocolModule = await import(
+  pathToFileURL(path.join(repositoryRoot, "packages", "coremind-protocol", "dist", "index.js")).href
+);
+if (
+  protocolModule.ERROR_CODES === null ||
+  typeof protocolModule.ERROR_CODES !== "object" ||
+  Array.isArray(protocolModule.ERROR_CODES)
+) {
+  throw new Error("coremind-protocol 未导出有效 ERROR_CODES");
+}
+const errorContract = {
+  schemaVersion: 1,
+  codes: protocolModule.ERROR_CODES,
+};
+await writeFile(errorContractOutput, `${JSON.stringify(errorContract, null, 2)}\n`, "utf8");
 
 await cp(
   path.join(repositoryRoot, "packages", "coremind-templates", "skills"),

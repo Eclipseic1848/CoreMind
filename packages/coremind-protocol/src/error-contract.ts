@@ -1,3 +1,5 @@
+import { Type } from "@sinclair/typebox";
+
 /**
  * CoreMind 跨语言错误合同的单一事实源。
  *
@@ -412,6 +414,46 @@ export const ERROR_CODES = defineErrorCodes({
     cancelClass: "other",
     retryClass: "fatal",
   },
+  protocol_capability_missing: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  protocol_version_mismatch: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  invalid_run_handle: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  invalid_event_page: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  invalid_projection_query: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  invalid_control_receipt: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  invalid_run_snapshot: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  invalid_observability: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
   parse_error: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   internal_error: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
 
@@ -578,6 +620,11 @@ export const ERROR_CODES = defineErrorCodes({
 
 /** Error Contract 中登记的稳定公开错误码。 */
 export type ErrorCode = keyof typeof ERROR_CODES;
+
+/** 由唯一注册表派生，供 Protocol v1/v2 与公共类型共同复用。 */
+export const ErrorCodeSchema = Type.Unsafe<ErrorCode>(
+  Type.Union(Object.keys(ERROR_CODES).map((code) => Type.Literal(code))),
+);
 
 /** 外部错误码归一化结果；原始值仅供后续脱敏审计，不是公开错误码。 */
 export interface NormalizedExternalErrorCode {

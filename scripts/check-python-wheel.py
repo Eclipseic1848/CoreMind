@@ -23,6 +23,7 @@ def main() -> int:
         names = archive.namelist()
         metadata_name = next((name for name in names if name.endswith(".dist-info/METADATA")), None)
         worker_name = "coremind/_worker/coremind-worker.mjs"
+        error_contract_name = "coremind/_error_contract.json"
         blockers: list[str] = []
         if metadata_name is None:
             blockers.append("缺少 METADATA")
@@ -32,6 +33,13 @@ def main() -> int:
                 blockers.append("METADATA 缺少 MIT License-Expression")
         if worker_name not in names:
             blockers.append("缺少内置 Node worker")
+        if error_contract_name not in names:
+            blockers.append("缺少 Python Error Contract")
+        else:
+            error_contract = json.loads(archive.read(error_contract_name).decode("utf-8"))
+            unclassified = error_contract.get("codes", {}).get("unclassified_error", {})
+            if error_contract.get("schemaVersion") != 1 or unclassified.get("humanAction") != "required":
+                blockers.append("Python Error Contract 无效")
         forbidden_entry = re.compile(r"(^|/)(__pycache__|tests?|\.git|\.env)(/|$)|\.pyc$", re.I)
         bad_entries = [name for name in names if forbidden_entry.search(name)]
         if bad_entries:
@@ -99,9 +107,10 @@ def smoke_install(wheel: Path) -> None:
 import json
 import tempfile
 from importlib.metadata import version
-from coremind import CoreMindClient, __version__
+from coremind import ERROR_CODES, CoreMindClient, __version__
 
 assert __version__ == version("coremind-ai"), (__version__, version("coremind-ai"))
+assert ERROR_CODES["unclassified_error"]["humanAction"] == "required"
 config = {
     "schemaVersion": 2,
     "name": "wheel-smoke",

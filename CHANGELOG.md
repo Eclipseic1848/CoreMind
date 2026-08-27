@@ -6,7 +6,7 @@
 
 ## 0.7.0-dev — 2026-08-27（未发布源码候选）
 
-- 新增由 Protocol 包拥有的类型化 Error Contract 注册表，覆盖现有稳定自有错误码并统一终态、取消、重试和人工处置分类。Runtime、Provider、Tool、Child Run 与 Evaluation 已迁移到该合同；自定义工具通过 `ToolExecutionError` 显式声明可预期的 `tool_execution_failed`，裸 Adapter 异常与其他未知外部码仅以脱敏审计信息进入 Outcome 与持久 Fact，公开码收敛为暂停且禁止自动重试的 `unclassified_error`。Protocol、CLI、TUI 与双 SDK 产品入口迁移仍待后续 P0 任务。
+- 新增由 Protocol 包拥有的类型化 Error Contract 唯一注册表，覆盖现有稳定自有错误码并统一终态、取消、重试和人工处置分类。Config、Runtime、Provider、Tool、Child Run、Evaluation、Protocol、Worker、CLI、TUI 与双 SDK 已迁移到该合同；Protocol v1/v2 schema、fingerprint 与公开 Outcome 类型从注册表派生，Python 包携带构建生成且逐项校验的只读分类。自定义工具通过 `ToolExecutionError` 显式声明可预期的 `tool_execution_failed`，裸 Adapter 异常与其他未知外部码仅以脱敏审计信息进入 Outcome 与持久 Fact，公开码收敛为暂停且禁止自动重试的 `unclassified_error`；未登记自有码由 TypeScript 类型门和 Python CI 门拒绝。
 - Subagent 统一建模为完整 Child Run，新增稳定父子身份、幂等委派、单调 authority、父预算划拨、结构化取消/join、orphan audit 与递归树投影。
 - 真实 Child Runtime Adapter 在执行前验证同一 authority、RunId、AbortSignal、任务、实际模型、canonical Workspace、权限、工具、环境探针和有限预算。
 - Protocol v2、Worker、TypeScript `RunResult`、CLI JSONL、TUI `/children` 与 Python bundled worker 共享同一 Fact Projection；1,000 个确定性交错种子覆盖兄弟并发、重复委派、取消、失败与 join。

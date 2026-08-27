@@ -5,6 +5,7 @@ import {
   createEventNotification,
   createSuccessResponse,
   PROTOCOL_VERSION,
+  ProtocolErrorResponseSchema,
   parseProtocolRequest,
   parseRunSnapshot,
   RunSnapshotSchema,
@@ -89,6 +90,28 @@ describe("CoreMind Protocol v1", () => {
     expect(parseRunSnapshot(snapshotWithDetailedTrace).trace).toEqual(
       snapshotWithDetailedTrace.trace,
     );
+    const failedSnapshot = {
+      ...snapshot,
+      outcome: {
+        status: "paused",
+        finishReason: "unclassified_error",
+        error: {
+          code: "unclassified_error",
+          message: "外部执行返回未分类错误，需人工审计后继续",
+          audit: { originalCode: "vendor_private_error" },
+        },
+      },
+    };
+    expect(Value.Check(RunSnapshotSchema, failedSnapshot)).toBe(true);
+    expect(
+      Value.Check(RunSnapshotSchema, {
+        ...failedSnapshot,
+        outcome: {
+          ...failedSnapshot.outcome,
+          error: { ...failedSnapshot.outcome.error, code: "vendor_private_error" },
+        },
+      }),
+    ).toBe(false);
     expect(() => parseRunSnapshot({ ...snapshot, resumable: "no" })).toThrow("RunSnapshot");
     expect(() =>
       parseRunSnapshot({
@@ -157,6 +180,23 @@ describe("CoreMind Protocol v1", () => {
       id: "run-1",
       error: { code: -32_000, message: "执行失败", data: { coremindCode: "agent_failed" } },
     });
+    expect(
+      Value.Check(
+        ProtocolErrorResponseSchema,
+        createErrorResponse("run-1", -32_000, "执行失败", "agent_failed"),
+      ),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolErrorResponseSchema, {
+        jsonrpc: "2.0",
+        id: "run-1",
+        error: {
+          code: -32_000,
+          message: "执行失败",
+          data: { coremindCode: "vendor_private_error" },
+        },
+      }),
+    ).toBe(false);
     expect(
       createEventNotification({
         runId: "run-1",

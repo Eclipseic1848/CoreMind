@@ -3,8 +3,12 @@ import { Value } from "@sinclair/typebox/value";
 import { type CoreMindConfig, CoreMindConfigSchema, type WorkflowStep } from "./schema/config.js";
 import { CustomProviderSchema } from "./schema/provider.js";
 
+export type ConfigValidationErrorCode = "invalid_config";
+
 /** 配置校验失败（含可读的中文字段路径） */
 export class ConfigValidationError extends Error {
+  readonly code: ConfigValidationErrorCode = "invalid_config";
+
   /** 校验错误明细列表 */
   readonly details: readonly string[];
 

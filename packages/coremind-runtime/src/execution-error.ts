@@ -56,8 +56,10 @@ export function classifyExecutionError(error: unknown): ExecutionErrorClassifica
 }
 
 /** 已登记错误保持原语义；未知外部错误只公开 unclassified_error。 */
-export function normalizeExecutionError(error: unknown): CoreMindError {
-  if (error instanceof CoreMindError && isErrorCode(error.code)) return error;
+export function normalizeExecutionError(error: unknown): CoreMindError<ErrorCode> {
+  if (error instanceof CoreMindError && isErrorCode(error.code)) {
+    return error as CoreMindError<ErrorCode>;
+  }
   const classification = classifyExecutionError(error);
   return new CoreMindError(classification.code, classification.message, classification.audit);
 }

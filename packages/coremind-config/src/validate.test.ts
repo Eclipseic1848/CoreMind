@@ -102,6 +102,7 @@ describe("validateConfig", () => {
       validateConfig({ schemaVersion: 2, agents: {} });
     } catch (e) {
       const err = e as ConfigValidationError;
+      expect(err.code).toBe("invalid_config");
       expect(err.message).toContain("配置校验失败");
       expect(err.details.join("\n")).toContain("name");
     }

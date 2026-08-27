@@ -51,6 +51,23 @@ function collectCoreMindErrorLiterals(directory: string): string[] {
   return codes;
 }
 
+function collectPythonProtocolErrorLiterals(directory: string): string[] {
+  const codes: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      codes.push(...collectPythonProtocolErrorLiterals(path));
+      continue;
+    }
+    if (!entry.name.endsWith(".py")) continue;
+    const source = readFileSync(path, "utf8");
+    for (const match of source.matchAll(/coremind_code\s*=\s*["']([^"']+)["']/g)) {
+      codes.push(match[1]);
+    }
+  }
+  return codes;
+}
+
 describe("错误码码表（单一事实源）", () => {
   it("包含规格 03 列出的全部码", () => {
     for (const group of Object.values(SPEC_CODES)) {
@@ -66,6 +83,27 @@ describe("错误码码表（单一事实源）", () => {
       .filter((code) => !(code in ERROR_CODES))
       .sort();
     expect(unregistered).toEqual([]);
+  });
+
+  it("Python SDK 自有错误字面量全部使用已登记码", () => {
+    const pythonSourceDirectory = resolve(import.meta.dirname, "../../../python/src/coremind");
+    const unregistered = [...new Set(collectPythonProtocolErrorLiterals(pythonSourceDirectory))]
+      .filter((code) => !(code in ERROR_CODES))
+      .sort();
+    expect(unregistered).toEqual([]);
+  });
+
+  it("Python SDK 发布的错误分类由唯一注册表完整派生", () => {
+    const contractPath = resolve(
+      import.meta.dirname,
+      "../../../python/src/coremind/_error_contract.json",
+    );
+    const contract = JSON.parse(readFileSync(contractPath, "utf8")) as {
+      schemaVersion: number;
+      codes: unknown;
+    };
+    expect(contract.schemaVersion).toBe(1);
+    expect(contract.codes).toEqual(ERROR_CODES);
   });
 
   it("每个码都有三个分类属性", () => {

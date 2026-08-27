@@ -1,11 +1,13 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { type ErrorCode, ErrorCodeSchema } from "./error-contract.js";
 
 export {
   ERROR_CODES,
   type ErrorCancelClass,
   type ErrorCode,
   type ErrorCodeInfo,
+  ErrorCodeSchema,
   type ErrorHumanAction,
   type ErrorRetryClass,
   type ErrorRunStatus,
@@ -107,7 +109,13 @@ const RunOutcomeSchema = Type.Object(
     finishReason: NonEmptyStringSchema,
     error: Type.Optional(
       Type.Object(
-        { code: NonEmptyStringSchema, message: NonEmptyStringSchema },
+        {
+          code: ErrorCodeSchema,
+          message: NonEmptyStringSchema,
+          audit: Type.Optional(
+            Type.Object({ originalCode: NonEmptyStringSchema }, { additionalProperties: false }),
+          ),
+        },
         { additionalProperties: false },
       ),
     ),
@@ -564,7 +572,10 @@ export const ProtocolErrorResponseSchema = Type.Object(
         message: Type.String(),
         data: Type.Optional(
           Type.Object(
-            { coremindCode: Type.Optional(Type.String()), details: Type.Optional(Type.Unknown()) },
+            {
+              coremindCode: Type.Optional(ErrorCodeSchema),
+              details: Type.Optional(Type.Unknown()),
+            },
             { additionalProperties: false },
           ),
         ),
@@ -669,7 +680,7 @@ export function createErrorResponse(
   id: RpcId,
   code: number,
   message: string,
-  coremindCode?: string,
+  coremindCode?: ErrorCode,
   details?: unknown,
 ): ProtocolErrorResponse {
   const data =

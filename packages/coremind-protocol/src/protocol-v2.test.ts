@@ -5,6 +5,7 @@ import {
   PROTOCOL_V2_SCHEMA_BUNDLE,
   PROTOCOL_V2_SCHEMA_FINGERPRINT,
   PROTOCOL_V2_VERSION,
+  ProtocolV2ErrorResponseSchema,
   ProtocolV2EventEnvelopeSchema,
   parseProtocolV2Request,
 } from "./index.js";
@@ -22,6 +23,31 @@ describe("CoreMind Protocol v2", () => {
       "errorResponse",
     ]);
     expect(PROTOCOL_V2_SCHEMA_FINGERPRINT).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(JSON.stringify(PROTOCOL_V2_SCHEMA_BUNDLE.errorResponse)).toContain(
+      '"unclassified_error"',
+    );
+    expect(
+      Value.Check(ProtocolV2ErrorResponseSchema, {
+        jsonrpc: "2.0",
+        id: "run-1",
+        error: {
+          code: -32_000,
+          message: "需要人工处置",
+          data: { coremindCode: "unclassified_error" },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2ErrorResponseSchema, {
+        jsonrpc: "2.0",
+        id: "run-1",
+        error: {
+          code: -32_000,
+          message: "私有错误",
+          data: { coremindCode: "vendor_private_error" },
+        },
+      }),
+    ).toBe(false);
   });
 
   it("事件 schema 以 eventType 判别并校验已知 payload 字段", () => {
