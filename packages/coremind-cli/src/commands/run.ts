@@ -137,6 +137,13 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     }
     if (!printOnly && !jsonEvents) {
       console.log(dim(formatObservabilityStatus(result.observability)));
+      if (result.childRuns) {
+        console.log(
+          dim(
+            `Child Runs ${result.childRuns.nodes.length} · 活动 ${result.childRuns.activeDescendants} · 未处置 ${result.childRuns.unhandledDescendants}`,
+          ),
+        );
+      }
     }
     if (result.sessionFile && !jsonEvents) {
       console.log(dim(`会话已保存：${result.sessionFile}`));
@@ -190,6 +197,7 @@ export function toRunResultEvent(result: RunResult): Record<string, unknown> {
     evaluation: result.evaluation,
     releaseReadiness: result.releaseReadiness,
     observability: result.observability,
+    ...(result.childRuns ? { childRuns: result.childRuns } : {}),
     checkpoints: result.checkpoints,
     ...(result.runStateFile ? { runStateFile: result.runStateFile } : {}),
     ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}),

@@ -2,7 +2,7 @@ import type { ChatSession, RunResult } from "coremind-ai";
 import { render } from "ink-testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { ApprovalQueue } from "./approval.js";
-import { ChatTUI } from "./tui.js";
+import { ChatTUI, formatChildRuns } from "./tui.js";
 
 function createSession(): ChatSession {
   return {
@@ -16,6 +16,26 @@ function createSession(): ChatSession {
 }
 
 describe("Windows TUI 交互验收", () => {
+  it("显性显示 Child Run 身份、状态与结果", () => {
+    expect(
+      formatChildRuns({
+        childRuns: {
+          nodes: [
+            {
+              delegationId: "delegation-review",
+              childRunId: "run-child-review",
+              status: "joined",
+              outcome: { status: "succeeded", finishReason: "reviewed" },
+            },
+          ],
+          activeDescendants: 0,
+          unhandledDescendants: 0,
+          quiescent: true,
+        },
+      } as RunResult),
+    ).toBe("delegation-review · run-child-review · joined · reviewed");
+  });
+
   it("渲染标题、输入框和帮助命令，并能正常退出", async () => {
     const onExit = vi.fn();
     const app = render(

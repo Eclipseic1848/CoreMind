@@ -30,6 +30,8 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(first["outcome"]["status"], "succeeded")
         self.assertEqual(first["snapshot"]["outcome"], first["outcome"])
         self.assertEqual(first["snapshot"]["runId"], first["runId"])
+        self.assertTrue(first["childRuns"]["quiescent"])
+        self.assertEqual(first["childRuns"]["nodes"][0]["delegationId"], "delegation-1")
         self.assertTrue(first["observability"]["localEnabled"])
         self.assertEqual(first["observability"]["telemetry"]["mode"], "DISABLED")
         self.assertEqual(
@@ -93,6 +95,10 @@ class CoreMindClientTest(unittest.TestCase):
             self.assertEqual(handle["selectedProtocol"], "2.0")
             self.assertEqual(events["nextCursor"], 1)
             self.assertEqual(query["derivedFromSequence"], 1)
+            self.assertEqual(
+                query["projection"]["childRuns"]["nodes"][0]["childRunId"],
+                "child-1",
+            )
             self.assertEqual(receipt["status"], "applied")
         finally:
             client.close()

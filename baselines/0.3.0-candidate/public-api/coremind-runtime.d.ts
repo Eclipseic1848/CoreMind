@@ -24,7 +24,7 @@ export declare function assessReleaseReadiness(outcome: RunOutcome, evaluation: 
 export declare type AuthorizationState = "pending" | "allowed" | "approved" | "denied" | "expired";
 
 export declare interface BudgetViolation {
-    dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
+    dimension: "turns" | "steps" | "toolCalls" | "toolFailures" | "tokens" | "costUsd" | "wallTimeMs";
     limit: number;
     actual: number;
     message: string;
@@ -161,6 +161,235 @@ export declare interface CheckpointRecord {
 export declare function checkProject(options: ProjectCheckOptions): Promise<ProjectCheckReport>;
 
 export declare type CheckSeverity = "error" | "warning" | "info";
+
+export declare const CHILD_RUN_LIMIT_DEFAULTS: Readonly<{
+    maxDepth: 3;
+    maxActiveChildren: 4;
+    maxDescendants: 32;
+}>;
+
+export declare interface ChildRunBudgetAllocation {
+    tokens: number;
+    toolCalls: number;
+    costUsd: number;
+    wallTimeMs: number;
+    steps: number;
+    descendants: number;
+}
+
+export declare interface ChildRunContextReference {
+    workingSetFingerprint: string;
+    references: readonly string[];
+}
+
+/**
+ * Child Run 深模块：把幂等身份、持久生命周期和结构化 join 隐藏在一个委派接口后。
+ * 实际子运行由 Adapter 执行；父 Run 只保存关系与结构化结果，不复制子级消息或 Receipt。
+ */
+export declare class ChildRunCoordinator {
+    private readonly options;
+    private readonly delegations;
+    private readonly now;
+    private readonly remainingBudget;
+    private readonly parentPolicy;
+    private constructor();
+    static open(options: ChildRunCoordinatorOptions): Promise<ChildRunCoordinator>;
+    delegate(request: ChildRunDelegationRequest): Promise<ChildRunHandle>;
+    cancelAll(reason: string): Promise<void>;
+    isQuiescent(): boolean;
+    private execute;
+    private handleFor;
+    private assertActiveChildLimit;
+    private auditRestoredOrphans;
+    private join;
+    private cancelState;
+    private appendLifecycle;
+    private lifecycleFact;
+    private restore;
+}
+
+export declare interface ChildRunCoordinatorOptions {
+    parentRunId: string;
+    parentJournal: RunStateJournal;
+    runStore: RunStore;
+    parentPolicy: ChildRunPolicySnapshot;
+    adapter: ChildRunExecutionAdapter;
+    createChildRunId: () => string;
+    reserveParentBudget?: (allocation: ChildRunBudgetAllocation) => () => void;
+    cancellationGraceMs?: number;
+    now?: () => string;
+}
+
+export declare interface ChildRunDelegationRequest {
+    delegationId: string;
+    parentTurnId: string;
+    parentStepId: string;
+    agentName: string;
+    task: string;
+    model: ChildRunModelSnapshot;
+    workspace: ChildRunWorkspaceSnapshot;
+    lifecyclePolicy: ChildRunLifecyclePolicy;
+    context: ChildRunContextReference;
+    allocation: ChildRunBudgetAllocation;
+    permissions: ChildRunPermissionSnapshot;
+    environment: ChildRunEnvironmentRequirement;
+}
+
+export declare interface ChildRunEnvironmentRequirement {
+    isolation?: "sandbox";
+    readAccess?: "workspace" | "none";
+    writeAccess?: "workspace" | "none";
+    outsideWorkspaceAccess?: "blocked";
+    networkEgress?: "controlled" | "denied";
+    credentialIsolation?: "environment" | "environment_and_files";
+    processControl?: "process" | "process_tree";
+    termination?: {
+        kill?: "process" | "process_tree";
+        timeout?: boolean;
+        pty?: boolean;
+    };
+    durability?: "critical";
+}
+
+export declare interface ChildRunExecutionAdapter {
+    execute(input: ChildRunExecutionInput): Promise<ChildRunResult>;
+}
+
+export declare interface ChildRunExecutionInput {
+    parentRunId: string;
+    childRunId: string;
+    delegationId: string;
+    inputFingerprint: string;
+    request: ChildRunDelegationRequest;
+    inheritedPolicy: ChildRunPolicySnapshot;
+    signal: AbortSignal;
+}
+
+export declare type ChildRunFact = {
+    type: "delegation_recorded";
+    parentRunId: string;
+    childRunId: string;
+    delegationId: string;
+    parentTurnId: string;
+    parentStepId: string;
+    inputFingerprint: string;
+    agentName: string;
+    model: ChildRunModelSnapshot;
+    workspace: ChildRunWorkspaceSnapshot;
+    lifecyclePolicy: ChildRunLifecyclePolicy;
+    context: ChildRunContextReference;
+    inheritedPolicy: ChildRunPolicySnapshot;
+    requestedAllocation: ChildRunBudgetAllocation;
+    requestedPermissions: ChildRunPermissionSnapshot;
+    requestedEnvironment: ChildRunEnvironmentRequirement;
+    recordedAt: string;
+} | ChildRunLifecycleFact;
+
+export declare interface ChildRunHandle {
+    readonly parentRunId: string;
+    readonly childRunId: string;
+    readonly delegationId: string;
+    readonly inputFingerprint: string;
+    cancel(reason?: string): Promise<void>;
+    join(options?: ChildRunJoinOptions): Promise<ChildRunResult>;
+}
+
+declare interface ChildRunIdentityFact<TType extends string> {
+    type: TType;
+    parentRunId: string;
+    childRunId: string;
+    delegationId: string;
+    inputFingerprint: string;
+    recordedAt: string;
+}
+
+export declare function childRunInputFingerprint(request: ChildRunDelegationRequest): string;
+
+export declare interface ChildRunJoinOptions {
+    timeoutMs?: number;
+}
+
+declare type ChildRunLifecycleFact = ChildRunIdentityFact<"child_created"> | ChildRunIdentityFact<"child_running"> | (ChildRunIdentityFact<"child_cancel_requested"> & {
+    requestedBy: "parent" | "child" | "join_timeout";
+    reason: string;
+}) | (ChildRunIdentityFact<"child_terminal"> & {
+    result: ChildRunResult;
+}) | (ChildRunIdentityFact<"child_paused"> & {
+    result: ChildRunResult;
+}) | (ChildRunIdentityFact<"child_orphaned"> & {
+    result: ChildRunResult;
+}) | (ChildRunIdentityFact<"parent_joined"> & {
+    result: ChildRunResult;
+});
+
+export declare interface ChildRunLifecyclePolicy {
+    join: "structured";
+    cancel: "propagate_parent";
+    orphan: "audit_pause";
+    detach: "forbidden" | "durable_preaccepted";
+}
+
+export declare interface ChildRunModelSnapshot {
+    providerId: string;
+    model: string;
+}
+
+export declare interface ChildRunNodeProjection {
+    parentRunId: string;
+    childRunId: string;
+    delegationId: string;
+    inputFingerprint: string;
+    budget: ChildRunBudgetAllocation;
+    permissions: ChildRunPermissionSnapshot;
+    model: ChildRunModelSnapshot;
+    workspace: ChildRunWorkspaceSnapshot;
+    workspaceLeases?: WorkspaceLeaseProjection[];
+    status: "recorded" | "created" | "running" | "terminal" | "paused" | "orphaned" | "joined";
+    outcome?: RunOutcome;
+    result?: ChildRunResult;
+}
+
+export declare interface ChildRunPermissionSnapshot {
+    mode: "ask" | "assisted" | "full";
+    workspaceOnly: boolean;
+    network: "ask" | "allow" | "deny";
+    tools: readonly string[];
+    paths: readonly string[];
+    credentials: readonly string[];
+}
+
+export declare interface ChildRunPolicySnapshot {
+    depth: number;
+    budget: ChildRunBudgetAllocation;
+    permissions: ChildRunPermissionSnapshot;
+    environment: ChildRunEnvironmentRequirement;
+    model: ChildRunModelSnapshot;
+    workspace: ChildRunWorkspaceSnapshot;
+    protectedContextReferences: readonly string[];
+    maxDepth?: number;
+    maxActiveChildren?: number;
+    maxDescendants?: number;
+}
+
+export declare interface ChildRunResult {
+    outcome: RunOutcome;
+    evidence: readonly string[];
+    artifacts: readonly string[];
+    workspaceChanges: readonly string[];
+    unresolvedRisks: readonly string[];
+}
+
+export declare interface ChildRunTreeProjection {
+    nodes: ChildRunNodeProjection[];
+    activeDescendants: number;
+    unhandledDescendants: number;
+    quiescent: boolean;
+}
+
+export declare interface ChildRunWorkspaceSnapshot {
+    canonicalRoot: string;
+    lease: "shared_canonical";
+}
 
 /** 输入被认领：生成 claimed 事件（绑定 TurnId） */
 export declare function claimInput(options: ClaimInputOptions): CoreMindEvent;
@@ -363,6 +592,17 @@ export declare interface ControlReceipt {
 
 export declare type ControlReceiptStatus = "accepted" | "applied" | "rejected" | "duplicate" | "conflict";
 
+declare const CORE_MIND_CHILD_RUN_ADAPTER: unique symbol;
+
+export declare interface CoreMindChildRunAdapter extends ChildRunExecutionAdapter {
+    readonly [CORE_MIND_CHILD_RUN_ADAPTER]: true;
+}
+
+export declare interface CoreMindChildRunAdapterOptions {
+    createRuntime(input: ChildRunExecutionInput): Promise<CoreMindRuntime>;
+    quiescenceTimeoutMs?: number;
+}
+
 /** CoreMind 运行时错误（带错误码，便于 CLI 与库调用方区分处理） */
 export declare class CoreMindError extends Error {
     /** 机器可读错误码；分类语义见 ERROR_CODES 码表 */
@@ -511,7 +751,7 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     reason: string;
 } | {
     type: "budget_exceeded";
-    dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
+    dimension: "turns" | "steps" | "toolCalls" | "toolFailures" | "tokens" | "costUsd" | "wallTimeMs";
     limit: number;
     actual: number;
     message: string;
@@ -746,6 +986,10 @@ export declare class CoreMindRuntime {
     restoreCheckpoint(record: CheckpointRecord): Promise<void>;
     /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
     run(): Promise<RunResult>;
+    /** 在活动父 Run 上创建类型化 Child Run；未配置或尚未启动时失败关闭。 */
+    delegateChildRun(request: ChildRunDelegationRequest): Promise<ChildRunHandle>;
+    /** Adapter 执行前验证工厂没有丢失或放宽 Child Run 身份、取消与策略。 */
+    verifyChildRunAuthority(input: ChildRunExecutionInput): Promise<void>;
     /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
     acceptControl(command: RunControlCommand): Promise<ControlReceipt>;
     /** 当新的可应用点出现时，重试仍处于 accepted 的持久控制。 */
@@ -788,6 +1032,12 @@ export declare interface CoreMindRuntimeOptions {
     approveTool?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
     /** 自定义 RunStore；缺省写入配置目录下 .coremind/runs。 */
     runStore?: RunStore;
+    /** 可选 Child Run 深模块；父身份、Journal 与 RunStore 始终由当前 Runtime 注入。 */
+    childRuns?: Omit<ChildRunCoordinatorOptions, "parentRunId" | "parentJournal" | "runStore" | "reserveParentBudget" | "adapter"> & {
+        adapter: CoreMindChildRunAdapter;
+    };
+    /** 仅供真实 Child Runtime Adapter 绑定并自检本次委派；必须保留同一不可替换输入对象。 */
+    childRunAuthority?: ChildRunExecutionInput;
     /** 继续一个没有 finish 记录的意外中断运行。 */
     resumeRunId?: string;
     /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
@@ -846,6 +1096,12 @@ export declare interface CoreMindTraceEvent {
     timestamp: string;
     event: CoreMindEvent;
 }
+
+/**
+ * 把 Child Run 合同桥接到独立 CoreMindRuntime；工厂必须把 input.signal、childRunId 与
+ * inheritedPolicy 映射进 Runtime 配置，不能在桥接层放宽权限或预算。
+ */
+export declare function createCoreMindChildRunAdapter(options: CoreMindChildRunAdapterOptions): CoreMindChildRunAdapter;
 
 export declare function createDenyPolicyExtension(options: {
     id: string;
@@ -1388,6 +1644,8 @@ export declare function inspectCodingRepository(repositoryRoot: string, options?
 
 export declare function inspectRuntimeCompatibility(): RuntimeCompatibilityReport;
 
+export declare function isChildRunFact(value: unknown): value is ChildRunFact;
+
 /** 该事件是否属于输入收据事件族（折叠时过滤用） */
 export declare function isInputReceiptEvent(event: CoreMindEvent): boolean;
 
@@ -1796,6 +2054,13 @@ export declare interface ProjectCheckReport {
     };
 }
 
+/** 从 append-only Run Facts 生成可删除、可重建的唯一运行投影。 */
+export declare const ProjectionEngine: {
+    project(records: readonly RunStateRecord[]): RunProjection;
+    prepareResume(records: readonly RunStateRecord[], configFingerprint: string, requestedPrompt?: string): RunResumePlan;
+    projectTree(store: RunStore, rootRunId: string): Promise<RunProjection>;
+};
+
 /** 从 canonical Run Facts 重建默认开启的本地观测视图。 */
 export declare function projectLocalObservability(records: readonly RunStateRecord[], options?: ProjectLocalObservabilityOptions): LocalObservabilityProjection;
 
@@ -1956,8 +2221,10 @@ export declare class RunBudgetController {
     private turns;
     private toolCalls;
     private toolFailures;
+    private steps;
     private tokens;
     private costUsd;
+    private readonly reserved;
     violation?: BudgetViolation;
     constructor(limits: ResolvedRuntimeLimits, emit: (event: CoreMindEvent) => void);
     /** 恢复运行时重放既有 Trace 的计数，不重复发出事件或副作用。 */
@@ -1970,8 +2237,17 @@ export declare class RunBudgetController {
         terminate: true;
     } | undefined;
     observeAgentEvent(event: unknown): boolean;
+    reserveChild(allocation: RunBudgetReservation, elapsedMs: number): () => void;
     throwIfExceeded(): void;
     private fail;
+}
+
+declare interface RunBudgetReservation {
+    tokens: number;
+    toolCalls: number;
+    costUsd: number;
+    wallTimeMs: number;
+    steps: number;
 }
 
 declare interface RunControlBase {
@@ -2070,7 +2346,7 @@ export declare interface RunOutcome {
     };
 }
 
-declare interface RunProjection {
+export declare interface RunProjection {
     schemaVersion: 1;
     runId: string;
     status: RunProjectionStatus;
@@ -2084,6 +2360,7 @@ declare interface RunProjection {
     extensions: LifecycleExtensionReceipt[];
     context: ContextProjection;
     pendingControls: PendingControl[];
+    childRuns?: ChildRunTreeProjection;
     observability: LocalObservabilityProjection;
     records: RunStateRecord[];
     snapshot?: RunSnapshot;
@@ -2118,6 +2395,8 @@ export declare interface RunResult {
     snapshot: RunSnapshot;
     /** 默认开启、从 Facts 派生的本地观测；外传交付状态不参与恢复。 */
     observability: LocalObservabilityProjection;
+    /** 从 canonical Facts 重建的完整 Child Run tree；没有委派时省略。 */
+    childRuns?: ChildRunTreeProjection;
 }
 
 export declare interface RunResumePlan {
@@ -2194,7 +2473,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;
@@ -2582,6 +2861,7 @@ export declare class ToolPolicy {
     constructor(options: ToolPolicyOptions);
     authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration): Promise<ToolPolicyDecision>;
     private findEscapedPath;
+    private findOutsideAllowedPaths;
 }
 
 export declare interface ToolPolicyDecision {
@@ -2597,6 +2877,7 @@ declare interface ToolPolicyOptions {
     runId: string;
     approve?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
     createApprovalId: () => string;
+    allowedPaths?: readonly string[];
     platform?: NodeJS.Platform;
     onApprovalRequired?: (request: ToolApprovalRequest) => void;
     onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;

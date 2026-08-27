@@ -44,7 +44,7 @@ After the `0.3.x` hardening line, work proceeds in the following directions (sco
 
 - **0.4.x**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams is merged as source on `main`, while a v1 migration entry remains throughout `0.4.x`. Merged source is not a published `0.4.0`; a version candidate and release gates remain required.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.x**: Goals, Jobs, and subagents — every subagent is a Child Run with independent facts, narrowed permissions and budgets, parent-child cancellation, orphan recovery, and Workspace leasing.
+- **0.7.x**: Goals, Jobs, and subagents — an unpublished Child Run source candidate now has independent facts, actual-Runtime authority checks, parent budget reservation, parent-child cancellation, orphan audit, workspace lease projection, an explicit tree, and local cross-process crash and single-Writer acceptance. Goals, Jobs, durable detach, real product acceptance, and release gates remain incomplete.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
 - **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
 

@@ -143,7 +143,14 @@ export type CoreMindEvent =
   | { type: "policy_denied"; agent: string; tool: string; reason: string }
   | {
       type: "budget_exceeded";
-      dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
+      dimension:
+        | "turns"
+        | "steps"
+        | "toolCalls"
+        | "toolFailures"
+        | "tokens"
+        | "costUsd"
+        | "wallTimeMs";
       limit: number;
       actual: number;
       message: string;

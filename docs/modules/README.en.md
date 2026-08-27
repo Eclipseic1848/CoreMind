@@ -8,6 +8,7 @@ Every module includes implementation paths, tests, bilingual README/SOP/guides, 
 - [Providers and Models](manage-providers/README.en.md)
 - [Runtime Dependency Adapters](adapt-runtime-dependencies/README.en.md)
 - [Durable Runs and Recovery](recover-durable-runs/README.en.md)
+- [Orchestrate Child Runs](orchestrate-child-runs/README.en.md)
 - [Context and Artifact Governance](manage-context-artifacts/README.en.md)
 - [Agent Construction](design-agents/README.en.md)
 - [Runtime Lifecycle Extensions](extend-runtime-lifecycle/README.en.md)

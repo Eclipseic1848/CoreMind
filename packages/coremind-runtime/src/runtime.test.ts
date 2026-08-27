@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it, vi } from "vitest";
+import type { ChildRunExecutionInput } from "./child-run.js";
+import { createCoreMindChildRunAdapter } from "./child-runtime-adapter.js";
 import {
   applyCompaction,
   projectBranchMessages,
@@ -37,6 +39,314 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("真实 Child Runtime Adapter 绑定 authority、执行独立 Run 并等待 Quiescent", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-real-child-"));
+    const server = createTextSequenceServer(["子任务完成"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const config = toolConfig((server.address() as AddressInfo).port, {
+        runtime: {
+          maxSteps: 2,
+          maxToolCalls: 2,
+          maxTokens: 1_000,
+          maxCostUsd: 10,
+          runTimeoutMs: 5_000,
+        },
+      });
+      const canonicalRoot = await canonicalizeWorkspace(dir);
+      const policy = {
+        depth: 1,
+        model: { providerId: "probe", model: "probe-model" },
+        workspace: { canonicalRoot, lease: "shared_canonical" as const },
+        protectedContextReferences: [],
+        budget: {
+          tokens: 1_000,
+          toolCalls: 2,
+          costUsd: 10,
+          wallTimeMs: 5_000,
+          steps: 2,
+          descendants: 0,
+        },
+        permissions: {
+          mode: "ask" as const,
+          workspaceOnly: true,
+          network: "ask" as const,
+          tools: ["read"],
+          paths: ["."],
+          credentials: [],
+        },
+        environment: {},
+        maxDepth: 3,
+        maxActiveChildren: 2,
+        maxDescendants: 0,
+      };
+      const request = {
+        delegationId: "delegation-real-child",
+        parentTurnId: "turn-parent",
+        parentStepId: "step-parent",
+        agentName: "main",
+        task: "执行真实子任务",
+        model: policy.model,
+        workspace: policy.workspace,
+        lifecyclePolicy: {
+          join: "structured" as const,
+          cancel: "propagate_parent" as const,
+          orphan: "audit_pause" as const,
+          detach: "forbidden" as const,
+        },
+        context: { workingSetFingerprint: "sha256:real-child", references: [] },
+        allocation: policy.budget,
+        permissions: policy.permissions,
+        environment: policy.environment,
+      };
+      const controller = new AbortController();
+      const input: ChildRunExecutionInput = {
+        parentRunId: "run-parent",
+        childRunId: "run-real-child",
+        delegationId: request.delegationId,
+        inputFingerprint: "sha256:real-child-input",
+        request,
+        inheritedPolicy: policy,
+        signal: controller.signal,
+      };
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const adapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config,
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+
+      await expect(adapter.execute(input)).resolves.toMatchObject({
+        outcome: { status: "succeeded" },
+      });
+      expect((await store.read("run-real-child")).at(-1)?.kind).toBe("finish");
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("Child Run 父策略必须绑定真实模型、Workspace、权限与有限 Runtime 预算", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-child-authority-"));
+    const server = createTextSequenceServer(["不应调用"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const canonicalRoot = await canonicalizeWorkspace(dir);
+      const basePolicy = {
+        depth: 0,
+        model: { providerId: "probe", model: "probe-model" },
+        workspace: { canonicalRoot, lease: "shared_canonical" as const },
+        protectedContextReferences: [],
+        budget: {
+          tokens: 100,
+          toolCalls: 2,
+          costUsd: 1,
+          wallTimeMs: 1_000,
+          steps: 2,
+          descendants: 2,
+        },
+        permissions: {
+          mode: "ask" as const,
+          workspaceOnly: true,
+          network: "ask" as const,
+          tools: ["read"],
+          paths: ["."],
+          credentials: [],
+        },
+        environment: { networkEgress: "controlled" as const },
+        maxDepth: 3,
+        maxActiveChildren: 2,
+      };
+      const childRuns = {
+        parentPolicy: basePolicy,
+        adapter: createCoreMindChildRunAdapter({
+          createRuntime: async () => ({
+            verifyChildRunAuthority: async () => undefined,
+            run: async () => ({ runId: "run-child" }) as never,
+            waitForQuiescence: async () => true,
+          }),
+        }),
+        createChildRunId: () => "run-child",
+      };
+      const boundedConfig = toolConfig(port, {
+        runtime: { maxTokens: 1_000, maxCostUsd: 10 },
+      });
+      const wrongModel = await CoreMindRuntime.create({
+        config: boundedConfig,
+        configDir: dir,
+        cwd: dir,
+        childRuns: {
+          ...childRuns,
+          parentPolicy: { ...basePolicy, model: { providerId: "other", model: "other" } },
+        },
+      });
+      await expect(wrongModel.run()).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const unbounded = await CoreMindRuntime.create({
+        config: toolConfig(port, {}),
+        configDir: dir,
+        cwd: dir,
+        childRuns,
+      });
+      await expect(unbounded.run()).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const widerTools = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, {
+            runtime: {
+              maxTokens: 100,
+              maxCostUsd: 1,
+              maxToolCalls: 2,
+              runTimeoutMs: 1_000,
+              maxSteps: 2,
+            },
+          }),
+          tools: [{ id: "read" }, { id: "write" }],
+        },
+        configDir: dir,
+        cwd: dir,
+        childRuns,
+      });
+      await expect(widerTools.run()).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const arbitraryAdapter = await CoreMindRuntime.create({
+        config: toolConfig(port, {
+          runtime: {
+            maxTokens: 100,
+            maxCostUsd: 1,
+            maxToolCalls: 2,
+            runTimeoutMs: 1_000,
+            maxSteps: 2,
+          },
+        }),
+        configDir: dir,
+        cwd: dir,
+        childRuns: {
+          ...childRuns,
+          adapter: { execute: async () => ({}) } as never,
+        },
+      });
+      await expect(arbitraryAdapter.run()).rejects.toMatchObject({
+        code: "child_run_identity_mismatch",
+      });
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("Resume 不能在未配置 Coordinator 时绕过未处置 Child Run 的 orphan audit", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-child-resume-"));
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      response.writeHead(500).end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const config = toolConfig((server.address() as AddressInfo).port, {});
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const journal = new RunStateJournal("run-child-interrupted", store);
+      await journal.start({
+        configFingerprint: fingerprintRunConfig(config),
+        initialPrompt: "继续父任务",
+      });
+      const policy = {
+        depth: 1,
+        model: { providerId: "probe", model: "probe-model" },
+        workspace: { canonicalRoot: await canonicalizeWorkspace(dir), lease: "shared_canonical" },
+        protectedContextReferences: [],
+        budget: {
+          tokens: 10,
+          toolCalls: 1,
+          costUsd: 1,
+          wallTimeMs: 1_000,
+          steps: 1,
+          descendants: 0,
+        },
+        permissions: {
+          mode: "ask",
+          workspaceOnly: true,
+          network: "ask",
+          tools: ["read"],
+          paths: ["."],
+          credentials: [],
+        },
+        environment: { networkEgress: "controlled" },
+        maxDepth: 3,
+        maxActiveChildren: 2,
+        maxDescendants: 0,
+      } as const;
+      const identity = {
+        parentRunId: "run-child-interrupted",
+        childRunId: "run-child-orphan",
+        delegationId: "delegation-orphan",
+        inputFingerprint: "sha256:orphan",
+      };
+      await journal.appendFact(
+        "delegation",
+        {
+          type: "delegation_recorded",
+          ...identity,
+          parentTurnId: "turn-parent",
+          parentStepId: "step-parent",
+          agentName: "worker",
+          model: policy.model,
+          workspace: policy.workspace,
+          lifecyclePolicy: {
+            join: "structured",
+            cancel: "propagate_parent",
+            orphan: "audit_pause",
+            detach: "forbidden",
+          },
+          context: { workingSetFingerprint: "sha256:context", references: [] },
+          inheritedPolicy: policy,
+          requestedAllocation: policy.budget,
+          requestedPermissions: policy.permissions,
+          requestedEnvironment: policy.environment,
+          recordedAt: "2026-08-27T00:00:00.000Z",
+        },
+        { durability: "critical" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "child_created", ...identity, recordedAt: "2026-08-27T00:00:01.000Z" },
+        { durability: "critical" },
+      );
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "继续父任务",
+        resumeRunId: "run-child-interrupted",
+        runStore: store,
+      });
+
+      await expect(runtime.run()).rejects.toMatchObject({
+        code: "child_run_orphan_audit_required",
+      });
+      expect(providerCalls).toBe(0);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("把 Protocol v2 start 身份持久化到权威 start Fact", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-protocol-start-"));
     const server = createTextSequenceServer(["完成"]);

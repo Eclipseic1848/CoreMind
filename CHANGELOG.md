@@ -4,6 +4,14 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.7.0-dev — 2026-08-27（未发布源码候选）
+
+- Subagent 统一建模为完整 Child Run，新增稳定父子身份、幂等委派、单调 authority、父预算划拨、结构化取消/join、orphan audit 与递归树投影。
+- 真实 Child Runtime Adapter 在执行前验证同一 authority、RunId、AbortSignal、任务、实际模型、canonical Workspace、权限、工具、环境探针和有限预算。
+- Protocol v2、Worker、TypeScript `RunResult`、CLI JSONL、TUI `/children` 与 Python bundled worker 共享同一 Fact Projection；1,000 个确定性交错种子覆盖兄弟并发、重复委派、取消、失败与 join。
+- Windows 本地跨进程验收覆盖父进程崩溃后的 orphan audit、Child Worker 崩溃、父取消后无遗留子进程、Effect 不重放，以及父子 Workspace 竞争只有一个 Writer；当前不支持 durable detach，真实多 Agent 产品验收、远端 CI、合并和发布尚未完成。
+- Phase Gate 已同步双语 README 与安全策略；行为准则、贡献指南和 MIT License 的事实、流程与联系人未变化，因此保持不变。GitHub About 需在远端交付授权后同步，当前未改动。
+
 ## 0.3.2 — 2026-08-26（已合并候选，尚未发布）
 
 ### Replay 与显性可观测性

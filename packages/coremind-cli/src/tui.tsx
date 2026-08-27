@@ -136,6 +136,11 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
       return;
     }
+    if (trimmed === "/children") {
+      const text = formatChildRuns(lastRun);
+      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      return;
+    }
     if (trimmed === "/checkpoints") {
       const checkpoints = session.listCheckpoints();
       const text =
@@ -252,8 +257,8 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         {showHelp && (
           <Box marginY={1}>
             <Text color="yellow">
-              /status 状态 · /artifacts 产物 · /context 上下文 · /observability 观测 · /checkpoints
-              列表 · /diff ID · /restore ID · /exit · /abort
+              /status 状态 · /children 子运行 · /artifacts 产物 · /context 上下文 · /observability
+              观测 · /checkpoints 列表 · /diff ID · /restore ID · /exit · /abort
             </Text>
           </Box>
         )}
@@ -348,7 +353,19 @@ export function formatRunStatus(run: RunResult): string {
   const evaluation = run.releaseReadiness.ready
     ? `评测 ${run.evaluation.scenarioResults.length} · 可发布`
     : `评测 ${run.evaluation.scenarioResults.length} · 阻断 ${run.releaseReadiness.blockers.length}`;
-  return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0} · Telemetry ${run.observability.telemetry.mode} · ${evaluation}`;
+  const children = run.childRuns ? ` · Child Runs ${run.childRuns.nodes.length}` : "";
+  return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0}${children} · Telemetry ${run.observability.telemetry.mode} · ${evaluation}`;
+}
+
+export function formatChildRuns(run: RunResult | undefined): string {
+  if (!run) return "尚未完成任何运行。";
+  if (!run.childRuns || run.childRuns.nodes.length === 0) return "本轮没有 Child Run。";
+  return run.childRuns.nodes
+    .map(
+      (node) =>
+        `${node.delegationId} · ${node.childRunId} · ${node.status} · ${node.outcome?.finishReason ?? "等待结果"}`,
+    )
+    .join("\n");
 }
 
 function formatArtifacts(run: RunResult | undefined): string {

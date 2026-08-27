@@ -608,6 +608,159 @@ describe("ProtocolHost", () => {
     }
   });
 
+  it("Protocol v2 events 与 query 从同一 delegation Facts 返回等价 Child Run tree", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-child-runs-"));
+    const runId = "child-tree-parent";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "child-tree" });
+      const identity = {
+        parentRunId: runId,
+        childRunId: "child-tree-child",
+        delegationId: "delegation-tree",
+        inputFingerprint: "sha256:tree",
+        recordedAt: "2026-08-27T00:00:00.000Z",
+      };
+      const result = {
+        outcome: { status: "succeeded", finishReason: "done" },
+        evidence: ["event:child-done"],
+        artifacts: [],
+        workspaceChanges: [],
+        unresolvedRisks: [],
+      };
+      await journal.appendFact(
+        "delegation",
+        {
+          type: "delegation_recorded",
+          ...identity,
+          parentTurnId: "turn-parent",
+          parentStepId: "step-parent",
+          agentName: "worker",
+          model: { providerId: "test", model: "test-model" },
+          workspace: { canonicalRoot: dir, lease: "shared_canonical" },
+          lifecyclePolicy: {
+            join: "structured",
+            cancel: "propagate_parent",
+            orphan: "audit_pause",
+            detach: "forbidden",
+          },
+          context: { workingSetFingerprint: "sha256:context", references: [] },
+          inheritedPolicy: {
+            depth: 1,
+            model: { providerId: "test", model: "test-model" },
+            workspace: { canonicalRoot: dir, lease: "shared_canonical" },
+            protectedContextReferences: [],
+            budget: {
+              tokens: 100,
+              toolCalls: 1,
+              costUsd: 1,
+              wallTimeMs: 1_000,
+              steps: 1,
+              descendants: 0,
+            },
+            permissions: {
+              mode: "ask",
+              workspaceOnly: true,
+              network: "deny",
+              tools: ["read"],
+              paths: ["."],
+              credentials: [],
+            },
+            environment: { networkEgress: "denied" },
+            maxDepth: 3,
+            maxActiveChildren: 4,
+          },
+          requestedAllocation: {
+            tokens: 100,
+            toolCalls: 1,
+            costUsd: 1,
+            wallTimeMs: 1_000,
+            steps: 1,
+            descendants: 0,
+          },
+          requestedPermissions: {
+            mode: "ask",
+            workspaceOnly: true,
+            network: "deny",
+            tools: ["read"],
+            paths: ["."],
+            credentials: [],
+          },
+          requestedEnvironment: { networkEgress: "denied" },
+        },
+        { durability: "critical", eventId: "delegation-recorded" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "child_created", ...identity },
+        { durability: "critical", eventId: "child-created" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "child_running", ...identity },
+        { eventId: "child-running" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "child_terminal", ...identity, result },
+        { durability: "critical", eventId: "child-terminal" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "parent_joined", ...identity, result },
+        { durability: "critical", eventId: "parent-joined" },
+      );
+
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, dir);
+      const events = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "child-events",
+        method: "events",
+        params: { runId, afterSequence: 1 },
+      });
+      const query = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "child-query",
+        method: "query",
+        params: { runId },
+      });
+
+      expect((events as { result?: { events?: unknown[] } }).result?.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            eventType: "fact.delegation",
+            parentRunId: runId,
+            childRunId: "child-tree-child",
+            delegationId: "delegation-tree",
+          }),
+        ]),
+      );
+      expect(query).toMatchObject({
+        result: {
+          projection: {
+            childRuns: {
+              nodes: [
+                expect.objectContaining({
+                  parentRunId: runId,
+                  childRunId: "child-tree-child",
+                  delegationId: "delegation-tree",
+                  status: "joined",
+                }),
+              ],
+              quiescent: true,
+            },
+          },
+        },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("cursor 早于保留窗口时返回 Projection snapshot 与受控新游标", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-expired-cursor-"));
     const runId = "expired-cursor-run";
@@ -1021,6 +1174,49 @@ describe("ProtocolHost", () => {
       continuedAfterTrace: true,
       aborted: false,
     });
+  });
+
+  it("父 Runtime 已返回但 Child tree 未静止时 shutdown 不谎报 quiescent", async () => {
+    const baseFactory = completedParityRuntimeFactory();
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async (options) => {
+        const base = await baseFactory({
+          ...options,
+          runId: options.runId ?? `non-quiescent-run-${Date.now()}`,
+        });
+        return {
+          run: async () => ({
+            ...(await base.run()),
+            childRuns: {
+              nodes: [],
+              activeDescendants: 1,
+              unhandledDescendants: 1,
+              quiescent: false,
+            },
+          }),
+        } as never;
+      },
+    });
+    await host.handle({
+      jsonrpc: "2.0",
+      id: "init-non-quiescent",
+      method: "initialize",
+      params: {
+        protocolVersion: "1.0",
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+    const response = await host.handle({
+      jsonrpc: "2.0",
+      id: "non-quiescent-run",
+      method: "run",
+      params: { input: "执行" },
+    });
+
+    expect(response).toMatchObject({ result: { childRuns: { quiescent: false } } });
+    await expect(host.shutdown()).resolves.toEqual({ closed: true, quiescent: false });
   });
 });
 

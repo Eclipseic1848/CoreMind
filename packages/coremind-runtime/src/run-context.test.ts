@@ -1,6 +1,7 @@
 import { createFakeExecutionEnvironment } from "coremind-tools/internal";
 import { describe, expect, it } from "vitest";
 import type { AgentDriver } from "./agent-driver.js";
+import type { ChildRunCoordinator } from "./child-run.js";
 import { RunContext } from "./run-context.js";
 
 describe("RunContext", () => {
@@ -47,6 +48,24 @@ describe("RunContext", () => {
     });
 
     activity.settle();
+    expect(context.isQuiescent()).toBe(true);
+  });
+
+  it("Child Run 参与父 Run 的取消传播与 Quiescent 判定", async () => {
+    const context = new RunContext<never>();
+    let quiescent = false;
+    let cancelReason: string | undefined;
+    context.attachChildRuns({
+      isQuiescent: () => quiescent,
+      cancelAll: async (reason: string) => {
+        cancelReason = reason;
+        quiescent = true;
+      },
+    } as ChildRunCoordinator);
+
+    expect(context.isQuiescent()).toBe(false);
+    await context.cancelChildRuns("父 Runtime 取消");
+    expect(cancelReason).toBe("父 Runtime 取消");
     expect(context.isQuiescent()).toBe(true);
   });
 });

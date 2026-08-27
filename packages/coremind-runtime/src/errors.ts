@@ -96,6 +96,46 @@ export const ERROR_CODES = {
     cancelClass: "human",
     retryClass: "human",
   },
+  child_run_orphan_audit_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  child_run_parent_mismatch: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  child_run_adapter_failed: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  child_run_policy_escalation: {
+    terminality: "terminal",
+    cancelClass: "human",
+    retryClass: "fatal",
+  },
+  child_run_concurrency_limit: {
+    terminality: "terminal",
+    cancelClass: "budget",
+    retryClass: "fatal",
+  },
+  child_run_identity_mismatch: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  child_run_not_quiescent: {
+    terminality: "pausable",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  child_run_unavailable: {
+    terminality: "terminal",
+    cancelClass: "human",
+    retryClass: "fatal",
+  },
 
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
@@ -181,6 +221,11 @@ export const ERROR_CODES = {
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  delegation_conflict: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
 
   // —— 瞬态类 ——
   network_error: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
@@ -222,7 +267,8 @@ export function terminalStatusForCode(
     code === "workspace_lease_recovery_required" ||
     code === "context_budget_exhausted" ||
     code === "context_capability_conflict" ||
-    code === "context_artifact_missing"
+    code === "context_artifact_missing" ||
+    code === "child_run_orphan_audit_required"
   ) {
     return "paused";
   }

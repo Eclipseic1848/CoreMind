@@ -1,8 +1,8 @@
 # 0.7.x 规格：Child Run 合同
 
 > 配套 ADR：[0008-subagents-as-child-runs](../../adr/0008-subagents-as-child-runs.md)
-> 状态：accepted（2026-08-22 用户确认）
-> 本规格提前冻结边界，不把 Subagent 实现前移到 0.3.x 或 0.4.x
+> 状态：accepted；未发布源码候选已实现（2026-08-27）
+> 本实现仍属于 `0.7.x`，没有改写 `0.3.x`/`0.4.x` 的公开发布状态
 
 ## 1. 定义与非目标
 
@@ -68,7 +68,7 @@ delegation_recorded
 
 ## 8. 限制与防护
 
-- 默认最大深度、最大活动 Child Run 数与总后代数必须有限；确切默认值在实现前通过性能与安全测试冻结。
+- 默认最大深度为 3、最大活动 Child Run 数为 4、总后代数为 32；输入必须是有限非负整数。
 - Child Run 不允许扩大网络、路径、工具、模型费用或凭据范围。
 - 无法提供独立 Fact、取消传播、孤儿回收或 Workspace Lease 的 Agent Adapter 不具备 Subagent capability。
 - MCP Tool 返回、普通并行工具和 Workflow Step 不因“工作复杂”自动成为 Child Run。
@@ -82,4 +82,4 @@ delegation_recorded
 - Effect 不重复、无孤儿进程、无悬挂 Child Run、父级 Quiescent 判定正确。
 - CLI/TUI/TS/Python/未来 Web 从同一 ProjectionEngine 得到等价 Child Run tree。
 
-实现与真实多 Agent 产品验收必须在 0.7.x 阶段另行授权；本规格 accepted 不代表能力已存在。
+本地源码候选已经实现并通过离线 Runtime、1,000 个调度种子、Windows 父/子跨进程崩溃、Workspace 双 Writer 竞争、Effect 不重放、取消后无遗留子进程及 Python bundled worker 一致性验证。真实多 Agent 产品验收、远端 CI、合并、版本候选与发布仍是独立门禁。当前不支持 `parent_detached_by_policy`，只有 `detach: forbidden` 可执行。

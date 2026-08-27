@@ -4,7 +4,7 @@
 
 ## Status
 
-accepted（2026-08-22 用户确认）
+accepted；未发布源码候选已实现（2026-08-27），尚未完成远端交付与产品验收
 
 ## Considered Options
 

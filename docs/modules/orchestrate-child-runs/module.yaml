@@ -1,0 +1,45 @@
+schemaVersion: 1
+id: orchestrate-child-runs
+name:
+  zh-CN: "编排 Child Run"
+  en: "Orchestrate Child Runs"
+version: 0.7.0-dev
+sourcePaths:
+  - "packages/coremind-runtime/src/child-run.ts"
+  - "packages/coremind-runtime/src/child-runtime-adapter.ts"
+  - "packages/coremind-runtime/src/runtime-instance-authority.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
+  - "packages/coremind-runtime/src/projection.ts"
+  - "packages/coremind-protocol/src/v2.ts"
+  - "packages/coremind-worker/src/server.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/orchestrate-child-runs/README.zh-CN.md
+    en: docs/modules/orchestrate-child-runs/README.en.md
+  sop:
+    zh-CN: docs/modules/orchestrate-child-runs/SOP.zh-CN.md
+    en: docs/modules/orchestrate-child-runs/SOP.en.md
+  guide:
+    zh-CN: docs/modules/orchestrate-child-runs/GUIDE.zh-CN.md
+    en: docs/modules/orchestrate-child-runs/GUIDE.en.md
+  changelog: docs/modules/orchestrate-child-runs/CHANGELOG.md
+skillPath: skills/orchestrate-child-runs/SKILL.md
+examplePaths:
+  - examples/modules/orchestrate-child-runs/README.zh-CN.md
+  - examples/modules/orchestrate-child-runs/README.en.md
+testPaths:
+  - "packages/coremind-runtime/src/child-run.test.ts"
+  - "packages/coremind-runtime/src/child-runtime-adapter.test.ts"
+  - "packages/coremind-runtime/src/runtime.test.ts"
+  - "packages/coremind-runtime/src/workspace-lease.test.ts"
+  - "packages/coremind-worker/src/protocol-host.test.ts"
+  - "packages/coremind-cli/src/tui.test.tsx"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "recover-durable-runs"
+  - "enforce-agent-permissions"
+  - "manage-context-artifacts"
+  - "operate-coremind-cli"
+maturity: alpha

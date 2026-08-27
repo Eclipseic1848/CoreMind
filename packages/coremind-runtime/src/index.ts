@@ -16,6 +16,33 @@ export {
   restoreCheckpoint,
 } from "./checkpoint.js";
 export {
+  CHILD_RUN_LIMIT_DEFAULTS,
+  type ChildRunBudgetAllocation,
+  type ChildRunContextReference,
+  ChildRunCoordinator,
+  type ChildRunCoordinatorOptions,
+  type ChildRunDelegationRequest,
+  type ChildRunEnvironmentRequirement,
+  type ChildRunExecutionAdapter,
+  type ChildRunExecutionInput,
+  type ChildRunFact,
+  type ChildRunHandle,
+  type ChildRunJoinOptions,
+  type ChildRunLifecyclePolicy,
+  type ChildRunModelSnapshot,
+  type ChildRunPermissionSnapshot,
+  type ChildRunPolicySnapshot,
+  type ChildRunResult,
+  type ChildRunWorkspaceSnapshot,
+  childRunInputFingerprint,
+  isChildRunFact,
+} from "./child-run.js";
+export {
+  type CoreMindChildRunAdapter,
+  type CoreMindChildRunAdapterOptions,
+  createCoreMindChildRunAdapter,
+} from "./child-runtime-adapter.js";
+export {
   buildRepositoryMap,
   CODING_TOOL_CONTRACTS,
   type CodingEnvironmentChoice,
@@ -218,6 +245,12 @@ export {
   type ProjectCheckOptions,
   type ProjectCheckReport,
 } from "./project-check.js";
+export {
+  type ChildRunNodeProjection,
+  type ChildRunTreeProjection,
+  ProjectionEngine,
+  type RunProjection,
+} from "./projection.js";
 export {
   listInheritedProviders,
   listSupportedProviders,
