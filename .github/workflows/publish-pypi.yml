@@ -31,6 +31,8 @@ jobs:
           git fetch origin main --no-tags
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
+          engineering_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
+          test "${engineering_conclusion}" = "success"
           run_id=""
           for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
             qualified="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "success")] | length')"
@@ -48,10 +50,14 @@ jobs:
         run: |
           mkdir -p .scratch/rc-evidence/downloads .scratch/rc-evidence/final
           gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'rc-tty-*' --dir .scratch/rc-evidence/downloads
+          gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'provider-certification-*' --dir .scratch/provider-certification
           find .scratch/rc-evidence/downloads -type f -name 'rc-tty-*.json' -exec cp {} .scratch/rc-evidence/final/ \;
           rm -rf .scratch/rc-evidence/downloads
           mv .scratch/rc-evidence/final/*.json .scratch/rc-evidence/
           rmdir .scratch/rc-evidence/final
+
+      - name: 校验同提交 Provider 认证证据
+        run: node scripts/verify-provider-certification-artifact.mjs .scratch/provider-certification --commit "$(git rev-parse HEAD)"
 
       - name: 校验 P20 证据绑定与候选完整性
         run: node scripts/rc-acceptance.mjs --verify-manual-only

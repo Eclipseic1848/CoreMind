@@ -11,9 +11,9 @@
 3. 写失败测试再做最小实现。
 4. 如果有意改变公开合同，先写迁移与回滚说明；获得架构决定后，才可用 `npm run baseline:update -- --reason "原因"` 更新基线。
 5. 同步模块合同与双语文档。
-6. 先跑聚焦测试，再执行 `npm run test:stability` 和 `npm run test:coverage`；Windows/Linux 覆盖率不得低于各自已记录基线，通用回退不得低于两平台的逐项最小值。
+6. 先跑聚焦测试和 `npm run test:engineering`；PR/main 由双平台 `Engineering CI` 提供快速反馈。nightly/manual 候选再执行 `npm run test:stability`、`npm run test:coverage`、发布物和 TTY 门禁；Windows/Linux 覆盖率不得低于各自已记录基线。
 7. 运行 `docs:audit`，检查全部项目 Markdown 的严格 UTF-8、本地链接与文档标识边界。
-8. 运行 `acceptance:rc`，确认 P01～P19 逐 Case 绑定到实际测试；普通功能分支 CI 可显式延后当前 Runtime 的 Provider 认证，但正式候选必须移除延后模式，并按 RC 指南完成双平台真实伪终端与真实 Provider。
+8. 运行 `acceptance:rc`，确认 P01～P19 逐 Case 绑定到实际测试；普通工程门不得读取真实 Provider 凭据。只有人工选择 `strict-provider` 才执行真实认证，正式候选必须保存提交绑定的 Provider Artifact 与双平台 TTY Artifact。
 9. 同题编码对照必须固定模型、参数、初始提交、预算、超时和网络条件；真实外部运行前先获得费用、隐私与代码外发授权，未运行时保持 `not-run`。
 10. 由 Release Please 创建草稿发布 PR，使用 `release:sync-version` 同步 npm/Python 版本并更新双语发布说明。
 11. 合并后只在同一干净 Tag 上执行 `release:bundle`，验证每个 npm tarball、wheel、源码 ZIP、SHA-256 和来源证明。

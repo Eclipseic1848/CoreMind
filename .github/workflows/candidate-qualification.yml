@@ -37,15 +37,15 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [22.x]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-
       - name: 开始记录实际运行时间
         shell: bash
         run: |
           echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
           echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: 安装 Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -162,6 +162,12 @@ jobs:
       COREMIND_CERT_API_KEY_ENV: COREMIND_CERT_API_KEY
       COREMIND_CERT_API_KEY: ${{ secrets.COREMIND_CERT_API_KEY }}
     steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
@@ -181,11 +187,50 @@ jobs:
       - name: 严格发布元数据预检
         run: npm run release:preflight -- --allow-dirty
 
+      - name: 保存 Provider 认证证据
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: provider-certification-${{ github.sha }}
+          path: |
+            docs/providers/evidence/*.json
+            docs/providers/certifications.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: 记录 Provider 认证实际运行时间
+        if: always()
+        shell: bash
+        run: |
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - COREMIND_JOB_STARTED_EPOCH))"
+          {
+            echo "### Provider certification"
+            echo "- Provider/模型：${{ inputs.provider }}/${{ inputs.model }}"
+            echo "- 开始：${COREMIND_JOB_STARTED_AT}"
+            echo "- 耗时：${duration_seconds} 秒"
+            echo "- 结果：${{ job.status }}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   qualified:
     name: Candidate qualified
     needs: [candidate, provider-certification]
     if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
-      - name: 确认候选资格
-        run: echo "双平台完整矩阵与真实 Provider 认证均已通过。"
+      - name: 记录严格候选总耗时并确认资格
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          started_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.run_started_at')"
+          started_epoch="$(date -d "${started_at}" +%s)"
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - started_epoch))"
+          {
+            echo "### Candidate qualified"
+            echo "- 开始：${started_at}"
+            echo "- 总耗时：${duration_seconds} 秒"
+            echo "- 结果：双平台完整矩阵与真实 Provider 认证均已通过"
+          } >> "${GITHUB_STEP_SUMMARY}"

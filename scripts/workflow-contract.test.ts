@@ -102,8 +102,21 @@ describe("GitHub Actions 收口合同", () => {
     expect(providerCommands).toContain("npm run providers:certify");
     expect(providerCommands).toContain("npm run release:preflight -- --allow-dirty");
     expect(providerCommands).not.toContain("--defer-provider-certification");
+    const evidenceUpload = workflow.jobs["provider-certification"].steps.find(
+      (step: { name?: string }) => step.name === "保存 Provider 认证证据",
+    );
+    expect(evidenceUpload.uses).toContain("actions/upload-artifact@");
+    expect(evidenceUpload.with.path).toContain("docs/providers/evidence/*.json");
+    expect(evidenceUpload.with.path).toContain("docs/providers/certifications.json");
+    expect(providerCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
+    expect(providerCommands).toContain("GITHUB_STEP_SUMMARY");
     expect(workflow.jobs.qualified.name).toBe("Candidate qualified");
     expect(workflow.jobs.qualified.if).toContain("strict-provider");
+    const qualifiedCommands = workflow.jobs.qualified.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    expect(qualifiedCommands).toContain("GITHUB_RUN_ID");
+    expect(qualifiedCommands).toContain("GITHUB_STEP_SUMMARY");
   });
 
   it("快速测试显式列出工程项目，候选三连跑仍覆盖完整 npm test", () => {
@@ -120,6 +133,46 @@ describe("GitHub Actions 收口合同", () => {
     expect(engineeringConfig).toContain("scripts/vitest.config.ts");
     expect(engineeringConfig).not.toContain("trusted-tool-fault-matrix");
     expect(engineeringConfig).not.toContain("phase2-baseline");
+  });
+
+  it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
+    const engineering = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const candidate = parse(readFileSync(".github/workflows/candidate-qualification.yml", "utf8"));
+    const commands = [
+      ...engineering.jobs.engineering.steps,
+      ...candidate.jobs.candidate.steps,
+      ...candidate.jobs["provider-certification"].steps,
+    ]
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    const preservedGateCommands = [
+      "npx biome check .",
+      "npm run security:audit",
+      "npm run build",
+      "npm run acceptance:workspace-lease",
+      "npm run baseline:check",
+      "npm run dependencies:check",
+      "npm run check:modules",
+      "npm run check:docs",
+      "npm run docs:build",
+      "npm run providers:matrix",
+      "npm run test:stability",
+      "npm run test:coverage",
+      "npm run build:python-worker",
+      "python -W error::ResourceWarning -m unittest discover",
+      "python -m build --wheel python",
+      "python -m twine check python/dist/*",
+      "npm run release:check-wheel",
+      "node --input-type=module -e",
+      "npm run acceptance:tty",
+      "npm run release:preflight",
+      "npm run release:check-npm",
+      "npm run release:test-npm",
+      "npm run release:test-source",
+      "npm run acceptance:rc",
+    ];
+
+    for (const command of preservedGateCommands) expect(commands).toContain(command);
   });
 
   it("Release Please 以非 manifest 入口锁定手动版本并转为草稿 PR", () => {
@@ -187,8 +240,11 @@ describe("GitHub Actions 收口合同", () => {
       .join("\n");
     expect(candidateCommands).toContain("git fetch origin main --no-tags");
     expect(candidateCommands).toContain("git rev-parse FETCH_HEAD");
+    expect(candidateCommands).toContain("actions/workflows/ci.yml/runs");
     expect(candidateCommands).toContain("actions/workflows/candidate-qualification.yml/runs");
     expect(candidateCommands).toContain("Candidate qualified");
+    expect(candidateCommands).toContain("provider-certification-*");
+    expect(candidateCommands).toContain("verify-provider-certification-artifact.mjs");
     expect(candidateCommands).toContain("--verify-manual-only");
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
