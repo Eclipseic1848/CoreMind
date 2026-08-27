@@ -34,6 +34,16 @@
 
 不要运行来源不明的配置、Skill、脚本或工具定义。
 
+### 执行环境能力证据
+
+当前源码通过 ExecutionEnvironment probe 观测实际能力；平台名、Adapter 名称、配置字段或历史测试不能替代当前进程证据。Linux sandbox 首次使用时负向验证工作区外写入、敏感环境变量隐藏和网络阻断，并同时验证完整进程树终止；任一 probe 缺失、虚报或不满足调用要求都失败关闭。Windows Trusted Host 如实报告无 sandbox、路径与网络不受限，不能满足隔离或受控 egress 的任务必须拒绝或转移到另行验证的环境。
+
+AgentDriver 只隔离模型 reactive loop，不能直接写权威 Fact、决定恢复或绕过唯一 ToolExecutionEngine。进程、网络和临时资源都参与 Quiescent；取消后的清理失败不能伪装成成功静止。
+
+### Protocol v2 控制边界
+
+当前源码的 Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已调用、工具已授权或运行成功。`accepted` 控制回执也不等于 `applied`；Cancel ACK 不等于 Abort、终态或 Quiescent。控制先进入持久 ControlInbox，再由 Runtime 产生权威 Fact。客户端断线默认不取消运行，重连按 `(runId, sequence, eventId)` 去重；Projection query 可重建但不能写回成为事实或授权。v1 在整个 `0.4.x` 保留迁移入口。
+
 ### 密钥与数据
 
 - 密钥只通过环境变量注入，不写入 YAML、源码、日志、Trace、截图或测试样例。

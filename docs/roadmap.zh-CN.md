@@ -22,19 +22,19 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、真实 Provider 复验和最终文档审计后才能同步发布。
 
-## `0.3.2`：草案候选（尚未发布）
+## `0.3.2`：已合并候选（尚未发布）
 
-`0.3.2` 草案候选汇总已完成的 `0.3.x-B/C` 源码工作：统一 Tool Capability 与生命周期、分级持久化和 Workspace 租约、Context 生命周期、ReplayKit、本地显性 Observability，以及默认关闭的 Telemetry 外传边界。自定义 Qwen 兼容端点新增 `thinkingFormat: qwen`，可通过 Agent 的 `thinkingLevel: off` 受控发送 `enable_thinking: false`，同时拒绝任意请求体字段。
+`0.3.2` 候选已合入 `main`，汇总完成的 `0.3.x-B/C` 源码工作：统一 Tool Capability 与生命周期、分级持久化和 Workspace 租约、Context 生命周期、ReplayKit、本地显性 Observability，以及默认关闭的 Telemetry 外传边界。自定义 Qwen 兼容端点新增 `thinkingFormat: qwen`，可通过 Agent 的 `thinkingLevel: off` 受控发送 `enable_thinking: false`，同时拒绝任意请求体字段。
 
-该候选尚未完成当次 Node 22 双平台 CI、真实 Provider 认证、RC 验收、Tag、Registry、GitHub Release 或发布后文档同步；因此 `0.3.1` 仍是唯一公开稳定版。
+该候选已经完成当次 Node 22 双平台 CI、真实 Provider 七项认证与 RC 验收，但尚未创建 Tag、Registry、GitHub Release 或发布后文档同步；因此 `0.3.1` 仍是唯一公开稳定版。随后合入 `main` 的 Protocol v2、AgentDriver 与 ExecutionEnvironment 属于未发布的 `0.4.x` 源码，不反向改变 `0.3.2` 候选范围。
 
 ## `0.3.x`：稳定性加固线（进行中）
 
 `0.3.x` 按 A → B → C 三批加固运行时语义，以兼容演进为主，不建设第二 Runtime，也不前移 Web、Jobs 或 Subagent。Config v2、Protocol v1、三档权限和现有成功路径保持兼容；为防止静默丢失、重复副作用或越权而新增的失败关闭状态必须显式、可迁移、可回滚，并通过维护者确认：
 
 - **0.3.x-A：事实、身份与取消收敛**——声明唯一事实与派生投影（Session / Run / Workspace 三个事实域）、类型化身份与关联不变量、取消收敛与输入收据。设计与 Issues [#35～#42](https://github.com/Eclipseic1848/CoreMind/issues/35) 已完成，并随 `0.3.1` 公开发布。
-- **0.3.x-B：工具与恢复**——统一 Tool Capability、显式工具阶段图与单调安全、分级 Durability Barrier、Workspace 单写者租约、持久化故障契约与正交错误结果；源码工作已完成并进入 `0.3.2` 草案候选，Windows 隔离实验仍只作为单独授权的 Spike。
-- **0.3.x-C：证据系统**——事件回放与真实入口测试、跨模型长程 Context 生命周期、关键模块质量门、Provider 认证矩阵加固，以及“本地显性、外传明确”的可观测性基线；源码 Gate 已完成并进入 `0.3.2` 草案候选，发布证据门禁仍未完成。
+- **0.3.x-B：工具与恢复**——统一 Tool Capability、显式工具阶段图与单调安全、分级 Durability Barrier、Workspace 单写者租约、持久化故障契约与正交错误结果；源码工作已完成并进入已合并的 `0.3.2` 候选，Windows 隔离实验仍只作为单独授权的 Spike。
+- **0.3.x-C：证据系统**——事件回放与真实入口测试、跨模型长程 Context 生命周期、关键模块质量门、Provider 认证矩阵加固，以及“本地显性、外传明确”的可观测性基线；源码、双平台 CI、真实 Provider 与 RC 证据门已完成并进入已合并的 `0.3.2` 候选，Tag/Registry/Release 仍未执行。
 
 版本号与日期不承诺；每批只有验收通过且维护者确认后才进入下一批。未经过真实测试的能力只标记为可配置，不标记为官方认证。
 
@@ -42,7 +42,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 在 `0.3.x` 加固线之后，按以下方向推进（具体范围与验收在每期开始前由维护者确认）：
 
-- **0.4.x**：在 `0.4.0` 引入 Protocol v2 与 RunHandle/续订/控制回执，整个 `0.4.x` 保留 v1 迁移入口；同时稳定 Host、Session 投影与查询、受控扩展缝隙。
+- **0.4.x**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已作为源码合入 `main`，整个 `0.4.x` 保留 v1 迁移入口；这些合并事实不等于 `0.4.0` 已发布，后续仍需版本候选与发布门。
 - **0.5.x～0.6.x**：Web 开发环境——运行与控制面先行，再建设在线编辑、测试与评测闭环；始终复用同一 Protocol 与 Runtime。
 - **0.7.x**：Goals、Jobs 与子智能体——Subagent 统一建模为 Child Run，具备独立事实、收紧的权限与预算、父子取消、孤儿回收和 Workspace 租约。
 - **0.8.x**：MCP/LSP 接入、受控第三方插件、远程执行环境与平台生态。

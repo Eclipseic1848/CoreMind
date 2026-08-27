@@ -3,7 +3,7 @@
 > 配套 ADR：[0006-protocol-v2-with-v1-migration](../../adr/0006-protocol-v2-with-v1-migration.md)
 > 目标：`0.4.0` 引入 v2；整个 `0.4.x` 保留 v1 兼容入口
 > 状态：accepted（2026-08-22 用户确认）
-> 实现状态：#71 本地候选已覆盖核心合同与离线验收；尚不代表发布或真实远程 Host 认证
+> 实现状态：#71 已合入 `main` 并通过 Ubuntu/Windows CI；尚不代表 `0.4.0` 发布或真实远程 Host 认证
 
 ## 1. 目标
 
@@ -118,6 +118,6 @@ v2 查询只调用 ProjectionEngine，至少覆盖：
 - v1 在整个 0.4.x 的迁移 fixture；未授权前不存在移除代码。
 - Windows/Linux Worker 与真实入口通过；真实远程 Host/网络部署另行授权。
 
-当前本地候选已在 Windows 验证真实 stdio Worker 与 Python 捆绑 Worker；Linux 由仓库 CI matrix 执行，只有对应 CI 运行成功后才能标记跨平台门通过。
+#71 合并候选已验证真实 stdio Worker、Python 捆绑 Worker 与 Ubuntu/Windows CI；真实远程 Host、网络部署与 `0.4.0` 发布仍是独立门禁。
 
 这里的“v1/v2 × 四入口”是共享 Runtime 的语义矩阵，不要求本地 CLI/TUI 增加协议选择开关：#70 的四入口验收固定 CLI、TUI、TypeScript 与 Python 的共同 Fact、Outcome、RecoveryDecision；#71 的 ProtocolHost 验收再固定 v1/v2 对同一 Runtime 输入与完成态共同 Fact、Outcome、RecoveryDecision 的等价。两段证据都通过才关闭该矩阵，v2 专属 RunHandle、start identity、cursor 与 query 元数据不参与 v1 共同能力比较。

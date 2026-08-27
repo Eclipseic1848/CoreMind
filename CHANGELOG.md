@@ -4,7 +4,7 @@
 
 [English](CHANGELOG.en.md)
 
-## 0.3.2 — 2026-08-26（草案候选，尚未发布）
+## 0.3.2 — 2026-08-26（已合并候选，尚未发布）
 
 ### Replay 与显性可观测性
 
@@ -12,14 +12,14 @@
 - `RunResult.observability`、CLI JSONL、TUI `/observability`、Worker 与 Python SDK 共享同一 Fact Projection，显示 Run/Turn/Call、耗时、错误、Context、Artifact、共享状态、Telemetry 模式、脱敏 origin、授权范围和交付队列。
 - Telemetry 默认 `DISABLED`，不构造 Exporter、不读取凭据。`FEEDBACK_ONLY` 只接受绑定同一 Run 与 canonical Fact 前缀指纹的持久 consent；`content` 需要声明保留目的和撤销方式的独立授权。模式、目标、字段或范围指纹不一致均失败关闭。
 - Exporter DNS/TLS/401/429/timeout、queue full、重复、drop、脱敏失败和 shutdown 超时只更新可丢弃的交付投影，不改变 RunOutcome、Facts 或恢复结论；`handed_off` 明确不等于接收端 delivered。
-- 当前源码只交付可注入 Exporter seam、受信任 Adapter 收据合同与离线故障证据；Core 校验精确 origin、解析地址、redirect/proxy deny、TLS strict 和收据指纹，但该收据不证明网络策略真实执行。没有新增 OTel 依赖，也没有执行真实 OTLP endpoint、凭据、Telemetry 出网或真实 Provider 认证。
+- 当前源码只交付可注入 Exporter seam、受信任 Adapter 收据合同与离线故障证据；Core 校验精确 origin、解析地址、redirect/proxy deny、TLS strict 和收据指纹，但该收据不证明网络策略真实执行。没有新增 OTel 依赖，也没有执行真实 OTLP endpoint、凭据或 Telemetry 出网；`0.3.2` Provider 七项认证是独立证据，不能替代 Telemetry 出站验证。
 
 ### Context 生命周期与长任务
 
 - 按实际 Provider/model 和本次请求解析 Context 窗口、输出上限与证据来源；多个可信候选取安全交集，未知、冲突、路由不匹配、请求输出超限和多模态占用未知均在 Provider 前失败关闭。
 - 完整预算本次输出、稳定前缀、工具 Schema、结构化输出、协议开销与安全余量；压缩用 Runtime Facts 投影的 TaskState 替换旧前缀，并保留上一完整 Turn 与当前未完成 user 消息。
 - 每次压缩把摘要写入 Session，并持久化可验证的父链 Ledger；达到深度阈值后从 canonical Session 消息重建。无可持久化 Session、Artifact 漂移或 lineage 损坏时返回结构化暂停，不静默截断。
-- Runtime、Protocol、CLI 与双 SDK 共享预算、压缩和失败投影；Provider 报告超窗时不盲目重试相同请求。真实 Provider 认证仍是独立证据门禁。
+- Runtime、Protocol、CLI 与双 SDK 共享预算、压缩和失败投影；Provider 报告超窗时不盲目重试相同请求。真实 Provider 认证是独立证据门禁，`0.3.2` 候选已完成七项复验。
 
 ### 工具能力与恢复
 
@@ -40,7 +40,8 @@
 
 - 8 个 npm 包、精确内部依赖、Python 包、21 个模块合同、真实终端证据模板和内嵌 Python worker 已同步到 `0.3.2`。
 - Release Please 的草稿转换步骤显式绑定当前 GitHub 仓库，使无 checkout 的工作流也能定位新建 PR；仍不会自动合并、打 Tag 或发布。
-- 本条目描述草案候选。`0.3.2` 的 Node 22 双平台 CI、真实 Provider 认证、RC 验收、Tag、Registry、GitHub Release 与发布后公共文档同步尚未完成；当前公开稳定版仍为 `0.3.1`。
+- 阶段 Gate 复核已同步 README 与安全策略；行为准则、贡献指南和 MIT License 没有事实、流程或联系信息变化，因此保持不变。GitHub About 作为仓库设置在同一 Gate 中单独同步。
+- 本条目描述已合入 `main` 的未发布候选。`0.3.2` 的 Node 22 双平台 CI、真实 Provider 七项认证与 RC 验收已完成；Tag、Registry、GitHub Release 与发布后公共文档同步尚未执行，当前公开稳定版仍为 `0.3.1`。
 
 ## 0.3.1 — 2026-08-21
 
