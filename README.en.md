@@ -22,21 +22,25 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 > `0.3.1` completed the Windows/Linux automated matrix, real pseudoterminal acceptance (Windows ConPTY / Linux PTY), a current live-provider recheck, the final documentation audit, and explicit maintainer publication authorization on one commit. The tag, eight npm packages, PyPI wheel, standalone source ZIP, manifest, and checksums bind to that release; the [bilingual documentation site](https://eclipseic1848.github.io/CoreMind/en/) reflects the `0.3.1` publication state.
 
-> The unpublished `0.3.2` draft candidate collects the completed `0.3.x-B/C` work: unified Tool Capability, recovery and durability boundaries, cross-model Context lifecycle, reconstructible ReplayKit, always-visible local Observability, and controlled thinking-disable configuration for custom Qwen-compatible endpoints. Telemetry egress remains explicit and disabled by default. This candidate has not completed its current Node 22 both-platform CI, live Provider certification, or RC acceptance; Registry and Release artifacts remain authoritative for published `0.3.1` behavior.
+> The `0.3.2` candidate is merged into `main` and has completed Node 22 both-platform CI, seven-check live Provider certification, and RC acceptance. It collects unified Tool Capability, recovery and durability boundaries, cross-model Context lifecycle, ReplayKit, always-visible local Observability, and explicit default-off Telemetry egress boundaries. No tag, GitHub Release, or registry artifact exists for it, so `0.3.1` remains the installable stable release.
+
+> Current `main` also contains the `0.4.x` Protocol v2, durable ControlInbox, RunHandle/cursor/query contracts, AgentDriver, and ExecutionEnvironment capability seam. The v1 migration entry remains throughout `0.4.x`. These sources passed both-platform CI in #71/#72 and are merged, but `0.4.0` has not been released.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The current stable release, `0.3.1`, keeps CLI/TUI, TypeScript, Python, and source on one runtime, protocol, and result model. The table describes the repository and published artifacts.
+The `0.3.1` stable release and later source keep CLI/TUI, TypeScript, and Python on one runtime and result model. The table distinguishes published stable behavior from unreleased `main` capabilities.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, seven-check live evidence for one provider on `0.3.1`, and 39 still uncertified; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, seven-check live evidence for one provider on the unpublished `0.3.2` candidate, and 39 still uncertified; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
+| Protocol and control | The stable release uses Protocol v1; current source can opt into Protocol v2 RunHandles, cursor resume, Projection queries, and durable control receipts, while v1 remains throughout `0.4.x` |
+| Execution environment | Current source isolates the reactive loop behind AgentDriver and verifies process-tree, network, credential, and isolation capabilities through ExecutionEnvironment probes; Windows Trusted Host is not presented as a sandbox, and Linux fails closed when probes are insufficient |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
@@ -51,13 +55,14 @@ The current version does not include a complete Web development environment, an 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
 | Published `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
-| `0.3.x` stabilization | Continue reliability fixes, provider certification, and TUI/install improvements while running both-platform acceptance, target-platform CI, live-provider rechecks, and synchronized publication for every candidate | CLI, both SDKs, and source share one runtime; unverified or unrechecked capabilities are not presented as current evidence |
+| Merged `0.3.2` candidate (unpublished) | Completes the 0.3.x-B/C tools, recovery, Context, Replay, Observability, and Telemetry boundaries with both-platform CI, live-provider revalidation, and RC acceptance | No tag, Release, or registry artifact exists; stable installs remain pinned to `0.3.1` |
+| Current `0.4.x` source | Protocol v2 with v1 migration, durable controls, AgentDriver, and ExecutionEnvironment seams | No second Runtime; merged source is not a `0.4.0` release |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 `0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding, and `0.3.0` closed the phase-two release. `0.3.1` completes the 0.3.x-A facts, identity, invariants, and cancellation-convergence batch, with a fresh seven-check live revalidation of `alibaba-model-studio/qwen-plus` on the release Runtime. P01-P20, all eight npm tarballs, the Python wheel, the standalone source ZIP, 21 modules, and all audited Markdown files passed the unified gate on the same release commit.
+`0.3.0-rc.2` completed Batches 0 through 6 and public-artifact dogfooding, and `0.3.0` closed the phase-two release. `0.3.1` completes the 0.3.x-A facts, identity, invariants, and cancellation-convergence batch. The unpublished `0.3.2` candidate completes 0.3.x-B/C and has a fresh seven-check live revalidation of `alibaba-model-studio/qwen-plus`, both-platform CI, and RC acceptance; registries and Releases remain on `0.3.1`.
 
 ## Product boundary
 
@@ -125,7 +130,7 @@ Custom tools must declare `effect.operations` and `effect.reversible`. The permi
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older evidence remains traceable but cannot substitute for a current-candidate recheck. `alibaba-model-studio/qwen-plus` completed all seven checks against the `0.3.0` candidate, so the matrix currently reports one certified and 39 unverified entries.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Older evidence remains traceable but cannot substitute for a current-candidate recheck. `alibaba-model-studio/qwen-plus` completed all seven checks against the `0.3.2` candidate, so the matrix currently reports one certified and 39 unverified entries; this does not mean `0.3.2` is published.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

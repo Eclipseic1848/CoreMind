@@ -2,7 +2,7 @@
 
 > 配套 ADR：0004～0008
 > 目标：把底层模型循环与平台执行能力隔离在两个私有 seam 后
-> 状态：accepted（Issue #72）；实现状态为本地候选，不代表合并、发布或真实 Provider 认证
+> 状态：accepted（Issue #72）；实现已通过 PR #89 合入 `main` 并完成 Ubuntu/Windows CI，不代表 `0.4.0` 发布或真实 Provider 认证
 
 ## 1. 边界与所有权
 

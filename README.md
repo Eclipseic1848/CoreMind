@@ -22,21 +22,25 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > `0.3.1` 已从同一提交完成 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验、最终文档审计和维护者发布授权。Tag、8 个 npm 包、PyPI wheel、独立源码 ZIP、Manifest 和哈希清单均绑定该发布；[双语文档站](https://eclipseic1848.github.io/CoreMind/)同步反映 `0.3.1` 发布状态。
 
-> `0.3.2` 草案候选（尚未发布）汇总已完成的 `0.3.x-B/C`：统一 Tool Capability、恢复与持久化边界、跨模型 Context 生命周期、可重建 ReplayKit 和默认显性的本地 Observability，并为自定义 Qwen 兼容端点增加受控的思考关闭配置。Telemetry 外传仍显式且默认关闭；该候选尚未完成当次 Node 22 双平台 CI、真实 Provider 认证或 RC 验收。已发布能力仍以 `0.3.1` Registry/Release 为准。
+> `0.3.2` 候选已合入 `main`，完成 Node 22 双平台 CI、真实 Provider 七项认证与 RC 验收，汇总统一 Tool Capability、恢复与持久化边界、跨模型 Context 生命周期、ReplayKit、默认显性的本地 Observability 和默认关闭的 Telemetry 外传边界。它尚未创建 Tag、GitHub Release 或 Registry 产物，因此可安装稳定版仍是 `0.3.1`。
+
+> 当前 `main` 还包含面向 `0.4.x` 的 Protocol v2、持久 ControlInbox、RunHandle/cursor/query、AgentDriver 与 ExecutionEnvironment capability seam；v1 在整个 `0.4.x` 保留迁移入口。这些源码已通过 #71/#72 双平台 CI 并合入，但不等于 `0.4.0` 已发布。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-当前稳定版 `0.3.1` 坚持 CLI/TUI、TypeScript SDK、Python SDK 和源码共用同一个 Runtime、协议与结果语义；下表按当前仓库源码与已发布产物描述。
+当前稳定版 `0.3.1` 与后续源码坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义；下表同时标明公开稳定能力和当前 `main` 的未发布能力。
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.3.1` 七项真实复验覆盖 1 个 Provider，另外 39 个待认证，真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.3.2` 候选的七项真实复验覆盖 1 个 Provider，另外 39 个待认证，且不代表候选已发布；真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
+| 协议与控制 | 稳定版使用 Protocol v1；当前源码可显式启用 Protocol v2 的 RunHandle、cursor 续订、Projection query 与持久控制回执，v1 在整个 `0.4.x` 保留 |
+| 执行环境 | 当前源码以 AgentDriver 隔离 reactive loop，并以 ExecutionEnvironment probe 验证进程树、网络、凭据与隔离能力；Windows Trusted Host 不伪装成 sandbox，Linux sandbox 能力不足时失败关闭 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
 | 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
@@ -51,13 +55,14 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
 | `0.3.1` 稳定版（已发布） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
-| `0.3.x` 稳定迭代 | 持续修复可靠性问题、扩充 Provider 认证、完善 TUI/安装体验，并为每个候选执行双平台验收、目标平台 CI、真实 Provider 复验和同步发布 | CLI、双 SDK、源码共用同一 Runtime；未认证或未复验能力不作当前承诺 |
+| `0.3.2` 合并候选（未发布） | 完成 0.3.x-B/C 的工具、恢复、Context、Replay、Observability 与 Telemetry 边界，并通过双平台 CI、真实 Provider 复验和 RC 验收 | 未创建 Tag/Release/Registry；安装命令仍固定 `0.3.1` |
+| `0.4.x` 当前源码 | Protocol v2 与 v1 迁移、持久控制、AgentDriver 和 ExecutionEnvironment seam | 不建立第二 Runtime；源码合并不等于 `0.4.0` 发布 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
 `0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-`0.3.0-rc.2` 完成 Batch 0～6 并通过公开发布物 Dogfooding；`0.3.0` 稳定版完成二期发布收口。`0.3.1` 完成 0.3.x-A 的事实、身份、不变量与取消收敛，并在发布 Runtime 上重新完成 `alibaba-model-studio/qwen-plus` 七项真实复验；P01～P20、8 个 npm tarball、Python wheel、独立源码 ZIP、21 个模块和全部受审计 Markdown 文件已在同一发布提交通过统一门禁。
+`0.3.0-rc.2` 完成 Batch 0～6 并通过公开发布物 Dogfooding；`0.3.0` 稳定版完成二期发布收口。`0.3.1` 完成 0.3.x-A 的事实、身份、不变量与取消收敛。未发布的 `0.3.2` 候选完成 0.3.x-B/C，并在候选 Runtime 上重新完成 `alibaba-model-studio/qwen-plus` 七项真实复验、双平台 CI 和 RC 验收；Registry 与 Release 仍以 `0.3.1` 为准。
 
 ## CoreMind 解决什么问题
 
@@ -196,7 +201,7 @@ console.log(result.outcome, result.metrics, result.transcript);
 
 ## Python SDK
 
-Python SDK 启动一个常驻 Node worker，通过 CoreMind Protocol v1 使用相同的 Runtime 和结果语义；它不是第二套 Python Agent Loop。
+Python SDK 启动一个常驻 Node worker，并使用相同的 Runtime 和结果语义；已发布稳定版默认使用 Protocol v1，当前源码可显式启用 Protocol v2，且 v1 在整个 `0.4.x` 保留。它不是第二套 Python Agent Loop。
 
 ```python
 from coremind import CoreMindClient
@@ -237,7 +242,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧证据继续保留用于追溯，但不能替代当前候选复验。`alibaba-model-studio/qwen-plus` 已基于 `0.3.0` 候选完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。旧证据继续保留用于追溯，但不能替代当前候选复验。`alibaba-model-studio/qwen-plus` 已基于 `0.3.2` 候选完成七项真实复验，因此当前矩阵为 1 个已认证、39 个待认证；这不代表 `0.3.2` 已发布。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

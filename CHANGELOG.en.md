@@ -4,7 +4,7 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
-## 0.3.2 — 2026-08-26 (draft candidate, unpublished)
+## 0.3.2 — 2026-08-26 (merged candidate, unpublished)
 
 ### Replay and explicit observability
 
@@ -12,14 +12,14 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 - `RunResult.observability`, CLI JSONL, TUI `/observability`, Worker, and Python SDK now share one Fact Projection for Run/Turn/Call state, timing, errors, Context, Artifacts, shared state, Telemetry mode, redacted origin, authorization scopes, and delivery queues.
 - Telemetry defaults to `DISABLED` without constructing an Exporter or reading credentials. `FEEDBACK_ONLY` accepts only persisted consents bound to the same run and canonical Fact-prefix fingerprint, while `content` requires separate consent declaring retention purpose and revocation method. Mode, target, field, or scope-fingerprint mismatches fail closed.
 - Exporter DNS/TLS/401/429/timeout, queue-full, duplicate, drop, redaction, and shutdown-timeout failures update only a disposable delivery projection; they cannot alter RunOutcome, Facts, or recovery. `handed_off` explicitly does not mean receiver-side delivery.
-- The current source provides an injectable Exporter seam, a trusted-Adapter receipt contract, and offline fault evidence only. Core validates exact origin, resolved addresses, redirect/proxy denial, strict TLS, and the receipt fingerprint, but the receipt does not prove real network-policy enforcement. It adds no OTel dependency and has not run a live OTLP endpoint, credential, Telemetry-egress, or live-Provider certification.
+- The current source provides an injectable Exporter seam, a trusted-Adapter receipt contract, and offline fault evidence only. Core validates exact origin, resolved addresses, redirect/proxy denial, strict TLS, and the receipt fingerprint, but the receipt does not prove real network-policy enforcement. It adds no OTel dependency and has not run a live OTLP endpoint, credential, or Telemetry egress. The separate `0.3.2` seven-check Provider certification does not substitute for Telemetry-egress verification.
 
 ### Context lifecycle and long tasks
 
 - Resolve context windows, output limits, and evidence for the actual provider/model and request. Trusted candidates use a safe intersection; unknown, conflicting, route-mismatched, output-over-limit, or unmeasured multimodal capabilities fail closed before the provider call.
 - Budget the exact output request, stable prefix, tool schemas, structured output, protocol overhead, and safety margin. Compaction replaces the old prefix with task state projected from Runtime facts while retaining the previous complete turn and active unfinished user message.
 - Persist every summary in the session with a verifiable parent-linked ledger, rebuilding from canonical session messages at the depth limit. Missing durable sessions, artifact drift, or corrupt lineage return a structured pause without silent truncation.
-- Runtime, Protocol, CLI, and both SDKs share budget, compaction, and failure projections. A provider-reported overflow never blindly retries the same request. Live-provider certification remains a separate evidence gate.
+- Runtime, Protocol, CLI, and both SDKs share budget, compaction, and failure projections. A provider-reported overflow never blindly retries the same request. Live-provider certification is a separate evidence gate, and the `0.3.2` candidate completed its seven-check revalidation.
 
 ### Tool capability and recovery
 
@@ -40,7 +40,8 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 - Synchronized all eight npm packages, exact internal dependencies, the Python package, 21 module contracts, real-terminal evidence templates, and the bundled Python worker on `0.3.2`.
 - Bound the Release Please draft-conversion step to the current GitHub repository so a workflow without checkout can locate the new PR; it still cannot merge, tag, or publish automatically.
-- This entry describes a draft candidate. The `0.3.2` Node 22 both-platform CI, live Provider certification, RC acceptance, tag, registries, GitHub Release, and post-release public-document synchronization remain incomplete. The current public stable release remains `0.3.1`.
+- The phase-gate review synchronized the README and security policy. The Code of Conduct, contributing guide, and MIT License remain unchanged because no facts, process, or contact details changed. GitHub About is synchronized separately as a repository setting within the same gate.
+- This entry describes an unpublished candidate merged into `main`. The `0.3.2` Node 22 both-platform CI, seven-check live Provider certification, and RC acceptance are complete. Tag, registries, GitHub Release, and post-release public-document synchronization have not been performed, so the current public stable release remains `0.3.1`.
 
 ## 0.3.1 — 2026-08-21
 
