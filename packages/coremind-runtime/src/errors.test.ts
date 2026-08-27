@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CoreMindError,
@@ -30,83 +32,24 @@ const SPEC_CODES = {
   ],
 } as const;
 
-// 现有代码构造点使用的全部错误码（快照）：码表不得遗漏任何现存码，否则对外字符串行为变化。
-const EXISTING_CODES = [
-  // 取消/终态
-  "aborted",
-  "run_timeout",
-  "step_timeout",
-  "budget_exceeded",
-  "retry_limit",
-  "step_limit",
-  // 暂停/人工
-  "approval_denied",
-  "tool_approval_denied",
-  "policy_denied",
-  "loop_paused",
-  "unknown_effect",
-  "committed_effect_pending",
-  "context_budget_exhausted",
-  "context_capability_conflict",
-  "context_artifact_missing",
-  // 恢复
-  "resume_input_mismatch",
-  "resume_config_mismatch",
-  "run_already_finished",
-  "operation_not_resumable",
-  "unknown_run",
-  "run_state_failed",
-  // 损坏/无效
-  "run_state_corrupt",
-  "run_state_conflict",
-  "run_state_locked",
-  "checkpoint_corrupt",
-  "checkpoint_conflict",
-  "checkpoint_failed",
-  "checkpoint_not_found",
-  "checkpoint_too_large",
-  "invalid_checkpoint_id",
-  "loop_snapshot_invalid",
-  "loop_snapshot_mismatch",
-  "loop_config_invalid",
-  "loop_state_invalid",
-  "operation_state_corrupt",
-  "invalid_operation_state",
-  "session_migration_invalid",
-  "session_layout_conflict",
-  "invalid_run_id",
-  "invalid_config",
-  "invalid_tool",
-  "tool_capability_conflict",
-  "tool_lifecycle_invalid",
-  "durability_unsupported",
-  "durability_barrier_failed",
-  "fact_ledger_poisoned",
-  "fact_ledger_terminal",
-  "context_lineage_corrupt",
-  // 瞬态
-  "network_error",
-  "provider_unavailable",
-  "provider_timeout",
-  "provider_transient",
-  "rate_limit",
-  // worker
-  "worker_closed",
-  "already_initialized",
-  "worker_busy",
-  "duplicate_tool",
-  "duplicate_tool_call",
-  "unknown_tool_call",
-  "python_tool_failed",
-  "unknown_approval",
-  "not_initialized",
-  "concurrent_run",
-  // 其他
-  "unknown_agent",
-  "agent_failed",
-  "no_models",
-  "unknown",
-] as const;
+function collectCoreMindErrorLiterals(directory: string): string[] {
+  const codes: string[] = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "dist" && entry.name !== "node_modules") {
+        codes.push(...collectCoreMindErrorLiterals(path));
+      }
+      continue;
+    }
+    if (!/\.tsx?$/.test(entry.name)) continue;
+    const source = readFileSync(path, "utf8");
+    for (const match of source.matchAll(/new\s+CoreMindError\s*\(\s*["']([^"']+)["']/g)) {
+      codes.push(match[1]);
+    }
+  }
+  return codes;
+}
 
 describe("错误码码表（单一事实源）", () => {
   it("包含规格 03 列出的全部码", () => {
@@ -117,10 +60,12 @@ describe("错误码码表（单一事实源）", () => {
     }
   });
 
-  it("包含现有构造点使用的全部码（快照，防遗漏）", () => {
-    for (const code of EXISTING_CODES) {
-      expect(ERROR_CODES[code], `码表缺少现有码：${code}`).toBeDefined();
-    }
+  it("仓库内 CoreMindError 字面量构造点全部使用已登记码", () => {
+    const packagesDirectory = resolve(import.meta.dirname, "../..");
+    const unregistered = [...new Set(collectCoreMindErrorLiterals(packagesDirectory))]
+      .filter((code) => !(code in ERROR_CODES))
+      .sort();
+    expect(unregistered).toEqual([]);
   });
 
   it("每个码都有三个分类属性", () => {
