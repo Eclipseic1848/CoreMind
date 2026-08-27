@@ -79,6 +79,824 @@ export declare function createPythonToolCallNotification(params: Omit<PythonTool
 
 export declare function createSuccessResponse(id: RpcId, result: unknown): ProtocolSuccessResponse;
 
+/**
+ * 错误码码表：键为对外错误码字符串（0.3.0 起保持稳定），值为三个正交分类属性。
+ * "other" 是规格外历史码的中性取消分类（规格 03 枚举之外的兜底）。
+ */
+export declare const ERROR_CODES: ErrorCodeRegistry<{
+    readonly aborted: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "cancel";
+        readonly retryClass: "fatal";
+    };
+    readonly run_timeout: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "timeout";
+        readonly retryClass: "fatal";
+    };
+    readonly step_timeout: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "timeout";
+        readonly retryClass: "fatal";
+    };
+    readonly budget_exceeded: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly retry_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly step_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly approval_denied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly tool_approval_denied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly policy_denied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly loop_paused: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly unknown_effect: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly committed_effect_pending: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly context_budget_exhausted: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly context_capability_conflict: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly context_artifact_missing: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly unclassified_error: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly resume_input_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly resume_config_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly run_already_finished: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly operation_not_resumable: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown_run: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly run_state_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly durability_unsupported: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly durability_barrier_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly fact_ledger_poisoned: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly fact_ledger_terminal: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly workspace_lease_recovery_required: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly child_run_orphan_audit_required: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+        readonly runStatus: "paused";
+    };
+    readonly child_run_parent_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_adapter_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_policy_escalation: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_concurrency_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_identity_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_not_quiescent: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly child_run_unavailable: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "human";
+        readonly retryClass: "fatal";
+    };
+    readonly run_state_corrupt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly run_state_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly run_state_locked: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_corrupt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_not_found: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_too_large: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly checkpoint_not_reversible: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_checkpoint_id: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_snapshot_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_snapshot_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_config_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_state_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly operation_state_corrupt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_operation_state: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_operation_transition: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly control_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly control_run_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_migration_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_layout_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_session_id: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_restore_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_migration_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_migration_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_migration_unsupported: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_alias_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly session_open_locked: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_run_id: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_config: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_tool: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly tool_capability_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly tool_lifecycle_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly effect_receipt_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly workspace_lease_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly workspace_lease_not_quiescent: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly environment_terminate_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly context_lineage_corrupt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly delegation_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly network_error: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly provider_unavailable: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly provider_timeout: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly provider_transient: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly rate_limit: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly workspace_busy: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly worker_closed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly already_initialized: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly worker_busy: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly duplicate_tool: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly duplicate_tool_call: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown_tool_call: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly python_tool_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown_approval: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly not_initialized: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly concurrent_run: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly control_unavailable: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown_agent: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown_provider: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly agent_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly no_agent: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly no_prompt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly no_models: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_exhausted: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly loop_no_progress: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly verification_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly retry_exhausted: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly quality_override_audit_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly cursor_ahead: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly cursor_expired: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly run_id_conflict: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly protocol_validation_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly protocol_version_mixed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly protocol_version_unsupported: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly parse_error: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly internal_error: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly coding_choice_required: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly coding_invalid_choice: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly coding_invalid_change: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly coding_verification_claim_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly coding_delivery_not_verified: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly experiment_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly experiment_run_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly extension_invalid: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly extension_duplicate: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly extension_not_trusted: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly extension_capability_denied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly dns: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly tls: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly http_401: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly http_429: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly timeout: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly exporter_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly exporter_unavailable: {
+        readonly terminality: "transient";
+        readonly cancelClass: "other";
+        readonly retryClass: "transient";
+    };
+    readonly egress_policy_missing: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly egress_policy_denied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly configuration_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly feedback_consent_missing: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly content_consent_missing: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly redaction_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly environment_probe_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly environment_capability_mismatch: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly environment_requirement_unsatisfied: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly environment_activity_conflict: {
+        readonly terminality: "pausable";
+        readonly cancelClass: "human";
+        readonly retryClass: "human";
+    };
+    readonly git_command_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly git_invalid_request: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly git_path_outside_workspace: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly process_timeout: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "timeout";
+        readonly retryClass: "fatal";
+    };
+    readonly process_aborted: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "cancel";
+        readonly retryClass: "fatal";
+    };
+    readonly process_output_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly process_spawn_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly diff_complexity_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly diff_input_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly diff_output_limit: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "budget";
+        readonly retryClass: "fatal";
+    };
+    readonly diff_path_outside_workspace: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly unknown: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+}>;
+
+/**
+ * 取消分类：cancel=外部中止、timeout=超时、budget=预算/限制、
+ * human=需人工处置、corruption=数据/配置损坏、other=非取消类错误
+ */
+export declare type ErrorCancelClass = "cancel" | "timeout" | "budget" | "human" | "corruption" | "other";
+
+/** Error Contract 中登记的稳定公开错误码。 */
+export declare type ErrorCode = keyof typeof ERROR_CODES;
+
+declare type ErrorCodeBaseInfo = Omit<ErrorCodeInfo, "humanAction" | "runStatus"> & {
+    runStatus?: ErrorRunStatus;
+};
+
+export declare interface ErrorCodeInfo {
+    /** 错误自身是否可恢复；不等同于 expand 阶段保留的既有 Run 输出。 */
+    terminality: ErrorTerminality;
+    cancelClass: ErrorCancelClass;
+    retryClass: ErrorRetryClass;
+    humanAction: ErrorHumanAction;
+    /** 既有 Run 输出的兼容投影；可能暂时与 terminality 不同，迁移时必须显式改合同。 */
+    runStatus: ErrorRunStatus;
+}
+
+declare type ErrorCodeRegistry<T extends Readonly<Record<string, ErrorCodeBaseInfo>>> = {
+    readonly [Code in keyof T]: T[Code] & {
+        readonly humanAction: T[Code]["retryClass"] extends "human" ? "required" : "none";
+        readonly runStatus: ErrorRunStatus;
+    };
+};
+
+/** 人工处置分类：required=继续前必须人工处置、none=不要求人工介入 */
+export declare type ErrorHumanAction = "required" | "none";
+
+/** 重试分类：human=需人工处置不可重试、transient=可安全重试、fatal=确定性失败 */
+export declare type ErrorRetryClass = "human" | "transient" | "fatal";
+
+/** 当前公开 Run 终态；expand 阶段保留既有输出，后续迁移只能在合同变更下调整。 */
+export declare type ErrorRunStatus = "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed";
+
+/**
+ * CoreMind 跨语言错误合同的单一事实源。
+ *
+ * 所有取消/终态/恢复/损坏语义的分类都在 ERROR_CODES 中声明；
+ * retry-policy、run-terminalizer、loop-runner 的分类只引用本模块，不再维护自有字符串集合。
+ * 规格见 docs/spec/0.3.x-a/03-cancellation-and-quiescence.md §2。
+ */
+/** 终态性：terminal=终态、pausable=可暂停恢复、transient=可重试瞬态 */
+export declare type ErrorTerminality = "terminal" | "pausable" | "transient";
+
 export declare type InitializeRequest = Static<typeof InitializeRequestSchema>;
 
 export declare const InitializeRequestSchema: TObject<    {
@@ -104,8 +922,22 @@ runId: TString;
 }>;
 }>;
 
+/** 判断一个值是否为已登记的稳定错误码。 */
+export declare function isErrorCode(code: unknown): code is ErrorCode;
+
 /** 从客户端显式范围中选择 Host 当前唯一支持的 v2 版本。 */
 export declare function negotiateProtocolV2(range: ProtocolVersionRange): typeof PROTOCOL_V2_VERSION;
+
+/** 外部错误码归一化结果；原始值仅供后续脱敏审计，不是公开错误码。 */
+export declare interface NormalizedExternalErrorCode {
+    code: ErrorCode;
+    audit?: {
+        originalCode: string;
+    };
+}
+
+/** 把未知外部错误码收敛到唯一的失败关闭合同。 */
+export declare function normalizeExternalErrorCode(code: string): NormalizedExternalErrorCode;
 
 export declare function parseProtocolRequest(value: unknown): ProtocolRequest;
 
@@ -246,7 +1078,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     delegationId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "budget_exceeded" | "retry" | "approval_required" | "policy_denied" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -642,7 +1474,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     delegationId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "budget_exceeded" | "retry" | "approval_required" | "policy_denied" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -1329,7 +2161,7 @@ childRunId: TOptional<TString>;
 delegationId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "budget_exceeded" | "retry" | "approval_required" | "policy_denied" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;
@@ -1728,7 +2560,7 @@ childRunId: TOptional<TString>;
 delegationId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "budget_exceeded" | "retry" | "approval_required" | "policy_denied" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;

@@ -1,6 +1,17 @@
 import { ArtifactRecord } from 'coremind-tools';
 import type { CoreMindConfig } from 'coremind-config';
+import { ERROR_CODES } from 'coremind-protocol';
+import { ErrorCancelClass } from 'coremind-protocol';
+import { ErrorCode } from 'coremind-protocol';
+import { ErrorCodeInfo } from 'coremind-protocol';
+import { ErrorHumanAction } from 'coremind-protocol';
+import { ErrorRetryClass } from 'coremind-protocol';
+import { ErrorRunStatus } from 'coremind-protocol';
+import { ErrorTerminality } from 'coremind-protocol';
+import { isErrorCode } from 'coremind-protocol';
 import type { LoopConfig } from 'coremind-config';
+import { NormalizedExternalErrorCode } from 'coremind-protocol';
+import { normalizeExternalErrorCode } from 'coremind-protocol';
 import { PermissionsConfig } from 'coremind-config';
 import type { QualityConfig } from 'coremind-config';
 import { RecoveryDisposition } from 'coremind-tools';
@@ -1330,6 +1341,22 @@ export declare interface EngineeringVerification {
 
 export declare type EnvironmentState = "available" | "degraded" | "unavailable";
 
+export { ERROR_CODES }
+
+export { ErrorCancelClass }
+
+export { ErrorCode }
+
+export { ErrorCodeInfo }
+
+export { ErrorHumanAction }
+
+export { ErrorRetryClass }
+
+export { ErrorRunStatus }
+
+export { ErrorTerminality }
+
 /**
  * 条件求值（刻意极简，一期不做表达式解析器）：
  * - 插值后的整体：空串视为假，"true"/"false" 字面量直接判定
@@ -1645,6 +1672,8 @@ export declare function inspectCodingRepository(repositoryRoot: string, options?
 export declare function inspectRuntimeCompatibility(): RuntimeCompatibilityReport;
 
 export declare function isChildRunFact(value: unknown): value is ChildRunFact;
+
+export { isErrorCode }
 
 /** 该事件是否属于输入收据事件族（折叠时过滤用） */
 export declare function isInputReceiptEvent(event: CoreMindEvent): boolean;
@@ -1962,11 +1991,15 @@ export declare class MemoryRunStore implements RunStore {
 /** 生成新的输入 ID（与 RunId/TurnId 同源的 randomUUID 品牌类型） */
 export declare function newInputId(): InputId;
 
+export { NormalizedExternalErrorCode }
+
 /**
  * 把上游 Agent 事件归一化为 CoreMind 事件。
  * 只保留对 UI/调用方有意义的事件；流式文本来自 message_update 的 text_delta。
  */
 export declare function normalizeEvent(event: unknown): CoreMindEvent | null;
+
+export { normalizeExternalErrorCode }
 
 export declare interface OperationEvent {
     eventId: string;
