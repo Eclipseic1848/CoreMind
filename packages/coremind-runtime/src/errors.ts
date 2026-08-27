@@ -12,6 +12,7 @@ export {
   type ErrorCodeInfo,
   type ErrorHumanAction,
   type ErrorRetryClass,
+  type ErrorRunStatus,
   type ErrorTerminality,
   isErrorCode,
   type NormalizedExternalErrorCode,
@@ -22,28 +23,7 @@ export {
 export function terminalStatusForCode(
   code: string,
 ): "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed" {
-  if (
-    code === "loop_paused" ||
-    code === "workspace_lease_recovery_required" ||
-    code === "context_budget_exhausted" ||
-    code === "context_capability_conflict" ||
-    code === "context_artifact_missing" ||
-    code === "child_run_orphan_audit_required"
-  ) {
-    return "paused";
-  }
-  const info = codeInfo(code);
-  if (info === undefined) return "failed";
-  switch (info.cancelClass) {
-    case "cancel":
-      return "aborted";
-    case "timeout":
-      return "timeout";
-    case "budget":
-      return "budget_exceeded";
-    default:
-      return "failed";
-  }
+  return codeInfo(code)?.runStatus ?? "failed";
 }
 
 /** 从码表派生 Loop 控制器信号（替代 loop-runner 的自有映射字符串集合）。 */

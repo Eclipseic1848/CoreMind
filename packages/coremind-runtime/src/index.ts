@@ -99,6 +99,7 @@ export {
   type ErrorCodeInfo,
   type ErrorHumanAction,
   type ErrorRetryClass,
+  type ErrorRunStatus,
   type ErrorTerminality,
   isErrorCode,
   type NormalizedExternalErrorCode,

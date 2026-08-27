@@ -1,3 +1,16 @@
+import type {
+  DiffLimitErrorCode,
+  GitAdapterErrorCode,
+  ProcessRunnerErrorCode,
+} from "coremind-tools";
+import type { ExecutionEnvironmentErrorCode } from "coremind-tools/internal";
+import type { ContextLifecycleErrorCode } from "./context-lifecycle.js";
+import type {
+  CodingKernelErrorCode,
+  ExperimentErrorCode,
+  LifecycleExtensionErrorCode,
+  TelemetryFailureCode,
+} from "./index.js";
 import { CoreMindError, type ErrorCode } from "./index.js";
 
 type Equal<Left, Right> =
@@ -8,6 +21,21 @@ type Expect<Value extends true> = Value;
 
 type _CoreMindErrorCodeIsRegistered = Expect<
   Equal<ConstructorParameters<typeof CoreMindError>[0], ErrorCode>
+>;
+
+type ExistingOwnedErrorCode =
+  | CodingKernelErrorCode
+  | ContextLifecycleErrorCode
+  | ExperimentErrorCode
+  | LifecycleExtensionErrorCode
+  | TelemetryFailureCode
+  | ExecutionEnvironmentErrorCode
+  | GitAdapterErrorCode
+  | ProcessRunnerErrorCode
+  | DiffLimitErrorCode;
+
+type _ExistingOwnedErrorsAreRegistered = Expect<
+  Equal<Exclude<ExistingOwnedErrorCode, ErrorCode>, never>
 >;
 
 function rejectsUnregisteredCode(): void {

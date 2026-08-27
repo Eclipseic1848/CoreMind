@@ -9,6 +9,7 @@ describe("Error Contract", () => {
       expect(info.cancelClass).toMatch(/^(cancel|timeout|budget|human|corruption|other)$/);
       expect(info.retryClass).toMatch(/^(human|transient|fatal)$/);
       expect(info.humanAction).toMatch(/^(required|none)$/);
+      expect(info.runStatus).toMatch(/^(paused|aborted|timeout|budget_exceeded|failed)$/);
     }
   });
 
@@ -18,6 +19,7 @@ describe("Error Contract", () => {
       cancelClass: "human",
       retryClass: "human",
       humanAction: "required",
+      runStatus: "paused",
     });
   });
 

@@ -21,18 +21,25 @@ export type ErrorRetryClass = "human" | "transient" | "fatal";
 /** 人工处置分类：required=继续前必须人工处置、none=不要求人工介入 */
 export type ErrorHumanAction = "required" | "none";
 
+/** 当前公开 Run 终态；expand 阶段保留既有输出，后续迁移只能在合同变更下调整。 */
+export type ErrorRunStatus = "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed";
+
 export interface ErrorCodeInfo {
   terminality: ErrorTerminality;
   cancelClass: ErrorCancelClass;
   retryClass: ErrorRetryClass;
   humanAction: ErrorHumanAction;
+  runStatus: ErrorRunStatus;
 }
 
-type ErrorCodeBaseInfo = Omit<ErrorCodeInfo, "humanAction">;
+type ErrorCodeBaseInfo = Omit<ErrorCodeInfo, "humanAction" | "runStatus"> & {
+  runStatus?: ErrorRunStatus;
+};
 
 type ErrorCodeRegistry<T extends Readonly<Record<string, ErrorCodeBaseInfo>>> = {
   readonly [Code in keyof T]: T[Code] & {
     readonly humanAction: T[Code]["retryClass"] extends "human" ? "required" : "none";
+    readonly runStatus: ErrorRunStatus;
   };
 };
 
@@ -42,9 +49,26 @@ function defineErrorCodes<const T extends Readonly<Record<string, ErrorCodeBaseI
   return Object.fromEntries(
     Object.entries(codes).map(([code, info]) => [
       code,
-      { ...info, humanAction: info.retryClass === "human" ? "required" : "none" },
+      {
+        ...info,
+        humanAction: info.retryClass === "human" ? "required" : "none",
+        runStatus: info.runStatus ?? defaultRunStatus(info.cancelClass),
+      },
     ]),
   ) as ErrorCodeRegistry<T>;
+}
+
+function defaultRunStatus(cancelClass: ErrorCancelClass): ErrorRunStatus {
+  switch (cancelClass) {
+    case "cancel":
+      return "aborted";
+    case "timeout":
+      return "timeout";
+    case "budget":
+      return "budget_exceeded";
+    default:
+      return "failed";
+  }
 }
 
 /**
@@ -64,7 +88,12 @@ export const ERROR_CODES = defineErrorCodes({
   approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   tool_approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   policy_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
-  loop_paused: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
+  loop_paused: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+    runStatus: "paused",
+  },
   unknown_effect: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   committed_effect_pending: {
     terminality: "pausable",
@@ -75,21 +104,25 @@ export const ERROR_CODES = defineErrorCodes({
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
   context_capability_conflict: {
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
   context_artifact_missing: {
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
   unclassified_error: {
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
 
   // —— 恢复类 ——
@@ -123,11 +156,13 @@ export const ERROR_CODES = defineErrorCodes({
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
   child_run_orphan_audit_required: {
     terminality: "pausable",
     cancelClass: "human",
     retryClass: "human",
+    runStatus: "paused",
   },
   child_run_parent_mismatch: {
     terminality: "terminal",
@@ -376,6 +411,165 @@ export const ERROR_CODES = defineErrorCodes({
   },
   parse_error: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   internal_error: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+
+  // —— Coding Kernel 类 ——
+  coding_choice_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  coding_invalid_choice: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  coding_invalid_change: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  coding_verification_claim_mismatch: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  coding_delivery_not_verified: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+
+  // —— 实验与生命周期扩展类 ——
+  experiment_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  experiment_run_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  extension_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  extension_duplicate: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  extension_not_trusted: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  extension_capability_denied: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+
+  // —— Telemetry 类 ——
+  dns: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
+  tls: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
+  http_401: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  http_429: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
+  timeout: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
+  exporter_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  exporter_unavailable: {
+    terminality: "transient",
+    cancelClass: "other",
+    retryClass: "transient",
+  },
+  egress_policy_missing: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  egress_policy_denied: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  configuration_mismatch: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  feedback_consent_missing: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  content_consent_missing: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  redaction_failed: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+
+  // —— 执行环境与工具类 ——
+  environment_probe_failed: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  environment_capability_mismatch: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  environment_requirement_unsatisfied: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  environment_activity_conflict: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  git_command_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  git_invalid_request: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  git_path_outside_workspace: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  process_timeout: { terminality: "terminal", cancelClass: "timeout", retryClass: "fatal" },
+  process_aborted: { terminality: "terminal", cancelClass: "cancel", retryClass: "fatal" },
+  process_output_limit: {
+    terminality: "terminal",
+    cancelClass: "budget",
+    retryClass: "fatal",
+  },
+  process_spawn_failed: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
+  diff_complexity_limit: {
+    terminality: "terminal",
+    cancelClass: "budget",
+    retryClass: "fatal",
+  },
+  diff_input_limit: { terminality: "terminal", cancelClass: "budget", retryClass: "fatal" },
+  diff_output_limit: { terminality: "terminal", cancelClass: "budget", retryClass: "fatal" },
+  diff_path_outside_workspace: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
   unknown: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
 } as const satisfies Record<string, ErrorCodeBaseInfo>);
 

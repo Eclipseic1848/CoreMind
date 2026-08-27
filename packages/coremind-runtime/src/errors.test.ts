@@ -149,6 +149,7 @@ describe("错误码码表（单一事实源）", () => {
   });
 
   it("terminalStatusForCode 从码表派生，未知码失败关闭", () => {
+    expect(terminalStatusForCode("unclassified_error")).toBe("paused");
     expect(terminalStatusForCode("loop_paused")).toBe("paused");
     expect(terminalStatusForCode("aborted")).toBe("aborted");
     expect(terminalStatusForCode("run_timeout")).toBe("timeout");
