@@ -10,6 +10,7 @@
 npm run build
 npm run baseline:check
 npm run check
+npm run test:engineering
 npm run test:stability
 npm run test:coverage
 npm run docs:build
@@ -18,7 +19,7 @@ npm run acceptance:rc
 npm run release:preflight -- --allow-dirty
 ```
 
-普通功能分支 CI 因 Runtime 改动尚未进入发布候选认证时，可使用 `npm run release:preflight -- --allow-dirty --defer-provider-certification`。看到延后警告只代表开发门禁通过；正式候选必须移除该选项并完成真实 Provider 复验。
+PR/main 的 `Engineering CI` 运行双平台快速门，不读取真实 Provider 凭据。nightly/manual 候选承接三连跑、覆盖率、发布物、TTY 与故障矩阵；离线演练不等于候选资格，只有人工选择 `strict-provider` 并产生提交绑定证据才会出现 `Candidate qualified`。
 
 ## 验证
 

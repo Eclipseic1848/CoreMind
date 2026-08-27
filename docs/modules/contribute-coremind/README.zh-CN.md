@@ -14,6 +14,7 @@
 - `npm run check:modules`
 - `npm run docs:build`
 - `npm run docs:audit`
+- `npm run test:engineering`
 - `npm run test:stability`
 - `npm run test:coverage`
 - `npm run baseline:check`
@@ -39,6 +40,8 @@
 - `.scratch` 只保存忽略的本地验收证据与隔离工具环境，不进入 Git、静态检查或发布物
 - 供应商可发现不等于已认证，正式发布必须有真实证据
 - 普通功能分支可显式延后当前 Runtime 的 Provider 认证；发布候选、Tag、发布打包与正式发布不得使用延后模式
+- PR/main 的 `Engineering CI` 提供双平台快速反馈且不读取真实 Provider 凭据；nightly/manual 候选门保留完整测试与发布物门禁，只有人工选择 `strict-provider` 才能形成发布资格
+- 正式发布必须同时验证同提交的工程门、`Candidate qualified`、双平台 TTY Artifact 与提交绑定的 Provider 认证 Artifact
 - 单次测试通过不能替代 Windows/Linux 三连跑；覆盖率低于目标时必须记录两平台真实基线且只允许上升，通用回退取两平台逐项最小值
 - 发布物必须通过文件 allowlist、类型解析、干净安装和内置 Worker 启动验证
 - Release Please 只创建草稿发布 PR；Tag 与正式发布仍由维护者批准
@@ -53,7 +56,9 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 
 - [package.json](../../../package.json)
 - [vitest.config.ts](../../../vitest.config.ts)
+- [vitest.engineering.config.ts](../../../vitest.engineering.config.ts)
 - [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)
+- [.github/workflows/candidate-qualification.yml](../../../.github/workflows/candidate-qualification.yml)
 - [.github/workflows/docs.yml](../../../.github/workflows/docs.yml)
 - [.github/workflows/release-please.yml](../../../.github/workflows/release-please.yml)
 - [.github/workflows/publish-pypi.yml](../../../.github/workflows/publish-pypi.yml)
@@ -70,6 +75,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [scripts/check-docs-site.mjs](../../../scripts/check-docs-site.mjs)
 - [scripts/clean-package-dist.mjs](../../../scripts/clean-package-dist.mjs)
 - [scripts/generate-provider-matrix.mjs](../../../scripts/generate-provider-matrix.mjs)
+- [scripts/verify-provider-certification-artifact.mjs](../../../scripts/verify-provider-certification-artifact.mjs)
 - [scripts/release-preflight.mjs](../../../scripts/release-preflight.mjs)
 - [scripts/package-artifacts.mjs](../../../scripts/package-artifacts.mjs)
 - [scripts/validate-npm-tarballs.mjs](../../../scripts/validate-npm-tarballs.mjs)
@@ -94,6 +100,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [scripts/check-module-contract.mjs](../../../scripts/check-module-contract.mjs)
 - [scripts/docs-link-policy.test.ts](../../../scripts/docs-link-policy.test.ts)
 - [scripts/provider-matrix.test.ts](../../../scripts/provider-matrix.test.ts)
+- [scripts/verify-provider-certification-artifact.test.ts](../../../scripts/verify-provider-certification-artifact.test.ts)
 - [scripts/release-preflight.test.ts](../../../scripts/release-preflight.test.ts)
 - [scripts/package-artifacts.test.ts](../../../scripts/package-artifacts.test.ts)
 - [scripts/coverage-baseline.test.ts](../../../scripts/coverage-baseline.test.ts)

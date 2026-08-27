@@ -14,6 +14,7 @@ Change CoreMind source within its frozen public contracts, one-way dependencies,
 - `npm run check:modules`
 - `npm run docs:build`
 - `npm run docs:audit`
+- `npm run test:engineering`
 - `npm run test:stability`
 - `npm run test:coverage`
 - `npm run baseline:check`
@@ -39,6 +40,8 @@ Change CoreMind source within its frozen public contracts, one-way dependencies,
 - `.scratch` is reserved for ignored local acceptance evidence and isolated tool environments; it is excluded from Git, static checks, and artifacts.
 - Provider discovery is not certification; releases require live evidence
 - An ordinary feature branch may explicitly defer current-Runtime provider certification; release candidates, tags, release bundles, and publication must not use deferred mode
+- PR/main `Engineering CI` provides fast dual-platform feedback without live-provider credentials. The nightly/manual candidate gate retains complete tests and artifact gates; only an explicitly selected `strict-provider` run can qualify a release.
+- Publication requires the same commit to pass Engineering CI and `Candidate qualified`, with both-platform TTY artifacts and commit-bound provider-certification artifacts.
 - One passing test run does not replace three consecutive Windows/Linux runs. Record honest per-platform coverage floors below target, allow them only to increase, and set the generic fallback to their per-metric minimum.
 - Release artifacts must pass file allowlists, type resolution, clean installation, and bundled Worker startup.
 - Release Please creates a draft release PR only; maintainers still approve tags and publication.
@@ -53,7 +56,9 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 
 - [package.json](../../../package.json)
 - [vitest.config.ts](../../../vitest.config.ts)
+- [vitest.engineering.config.ts](../../../vitest.engineering.config.ts)
 - [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)
+- [.github/workflows/candidate-qualification.yml](../../../.github/workflows/candidate-qualification.yml)
 - [.github/workflows/docs.yml](../../../.github/workflows/docs.yml)
 - [.github/workflows/release-please.yml](../../../.github/workflows/release-please.yml)
 - [.github/workflows/publish-pypi.yml](../../../.github/workflows/publish-pypi.yml)
@@ -70,6 +75,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [scripts/check-docs-site.mjs](../../../scripts/check-docs-site.mjs)
 - [scripts/clean-package-dist.mjs](../../../scripts/clean-package-dist.mjs)
 - [scripts/generate-provider-matrix.mjs](../../../scripts/generate-provider-matrix.mjs)
+- [scripts/verify-provider-certification-artifact.mjs](../../../scripts/verify-provider-certification-artifact.mjs)
 - [scripts/release-preflight.mjs](../../../scripts/release-preflight.mjs)
 - [scripts/package-artifacts.mjs](../../../scripts/package-artifacts.mjs)
 - [scripts/validate-npm-tarballs.mjs](../../../scripts/validate-npm-tarballs.mjs)
@@ -94,6 +100,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [scripts/check-module-contract.mjs](../../../scripts/check-module-contract.mjs)
 - [scripts/docs-link-policy.test.ts](../../../scripts/docs-link-policy.test.ts)
 - [scripts/provider-matrix.test.ts](../../../scripts/provider-matrix.test.ts)
+- [scripts/verify-provider-certification-artifact.test.ts](../../../scripts/verify-provider-certification-artifact.test.ts)
 - [scripts/release-preflight.test.ts](../../../scripts/release-preflight.test.ts)
 - [scripts/package-artifacts.test.ts](../../../scripts/package-artifacts.test.ts)
 - [scripts/coverage-baseline.test.ts](../../../scripts/coverage-baseline.test.ts)

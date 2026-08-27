@@ -1,0 +1,236 @@
+name: Candidate Qualification
+
+on:
+  schedule:
+    - cron: "30 7 * * *"
+  workflow_dispatch:
+    inputs:
+      qualification_mode:
+        description: "offline-rehearsal 仅演练；strict-provider 才执行真实 Provider 认证并形成候选资格"
+        required: true
+        default: offline-rehearsal
+        type: choice
+        options:
+          - offline-rehearsal
+          - strict-provider
+      provider:
+        description: "严格认证使用的 Provider ID"
+        required: true
+        default: alibaba-model-studio
+        type: string
+      model:
+        description: "严格认证使用的模型"
+        required: true
+        default: qwen-plus
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Candidate rehearsal (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22.x]
+    steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: 安装 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 安装 Linux sandbox 依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: 完整工程与发布前置门禁
+        run: |
+          npx biome check .
+          npm run security:audit
+          npm run build
+          npm run typecheck
+          npm run acceptance:workspace-lease
+          npm run baseline:check
+          npm run dependencies:check
+          npm run check:modules
+          npm run check:docs
+          npm run docs:audit
+          npm run docs:build
+
+      - name: 供应商矩阵一致性
+        shell: bash
+        run: |
+          npm run providers:matrix
+          git diff --exit-code -- docs/providers
+
+      - name: 测试三连跑（离线）
+        run: npm run test:stability
+
+      - name: 覆盖率不下降门禁
+        run: npm run test:coverage
+
+      - name: 构建 Python worker
+        run: npm run build:python-worker
+
+      - name: 安装并测试 Python SDK（离线）
+        run: |
+          python -m pip install --disable-pip-version-check ./python
+          python -W error::ResourceWarning -m unittest discover -s python/tests -p "test_*.py" -v
+          python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
+
+      - name: 构建并检查 PyPI wheel
+        run: |
+          python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
+          python -m build --wheel python
+          python -m twine check python/dist/*
+          npm run release:check-wheel
+
+      - name: 当前平台真实伪终端验收
+        run: npm run acceptance:tty
+
+      - name: 保存当前平台真实伪终端证据
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: rc-tty-${{ runner.os }}
+          path: .scratch/rc-evidence/rc-tty-*.json
+          if-no-files-found: error
+
+      - name: 发布元数据离线演练
+        run: npm run release:preflight -- --allow-dirty --defer-provider-certification
+
+      - name: npm 包 allowlist 与禁止文件
+        run: npm run release:check-npm
+
+      - name: npm tarball、类型与干净安装
+        run: npm run release:test-npm
+
+      - name: 源码 ZIP 干净安装与构建
+        run: npm run release:test-source
+
+      - name: Release Candidate 离线验收矩阵
+        run: npm run acceptance:rc -- --defer-provider-certification
+
+      - name: 记录实际运行时间
+        if: always()
+        shell: bash
+        run: |
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - COREMIND_JOB_STARTED_EPOCH))"
+          {
+            echo "### Candidate rehearsal · ${{ matrix.os }}"
+            echo "- 模式：${{ inputs.qualification_mode || 'offline-rehearsal' }}"
+            echo "- 开始：${COREMIND_JOB_STARTED_AT}"
+            echo "- 耗时：${duration_seconds} 秒"
+            echo "- 结果：${{ job.status }}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  provider-certification:
+    name: Provider certification
+    needs: candidate
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider'
+    runs-on: ubuntu-latest
+    env:
+      COREMIND_CERT_PROVIDER: ${{ inputs.provider }}
+      COREMIND_CERT_MODEL: ${{ inputs.model }}
+      COREMIND_CERT_API_KEY_ENV: COREMIND_CERT_API_KEY
+      COREMIND_CERT_API_KEY: ${{ secrets.COREMIND_CERT_API_KEY }}
+    steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: 构建并执行真实 Provider 认证
+        run: |
+          npm ci
+          npm run build
+          npm run providers:certify
+
+      - name: 严格发布元数据预检
+        run: npm run release:preflight -- --allow-dirty
+
+      - name: 保存 Provider 认证证据
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: provider-certification-${{ github.sha }}
+          path: |
+            docs/providers/evidence/*.json
+            docs/providers/certifications.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: 记录 Provider 认证实际运行时间
+        if: always()
+        shell: bash
+        run: |
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - COREMIND_JOB_STARTED_EPOCH))"
+          {
+            echo "### Provider certification"
+            echo "- Provider/模型：${{ inputs.provider }}/${{ inputs.model }}"
+            echo "- 开始：${COREMIND_JOB_STARTED_AT}"
+            echo "- 耗时：${duration_seconds} 秒"
+            echo "- 结果：${{ job.status }}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  qualified:
+    name: Candidate qualified
+    needs: [candidate, provider-certification]
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: 记录严格候选总耗时并确认资格
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          started_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.run_started_at')"
+          started_epoch="$(date -d "${started_at}" +%s)"
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - started_epoch))"
+          {
+            echo "### Candidate qualified"
+            echo "- 开始：${started_at}"
+            echo "- 总耗时：${duration_seconds} 秒"
+            echo "- 结果：双平台完整矩阵与真实 Provider 认证均已通过"
+          } >> "${GITHUB_STEP_SUMMARY}"
