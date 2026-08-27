@@ -23,6 +23,13 @@ describe("Error Contract", () => {
     });
   });
 
+  it("expand 阶段分别表达恢复分类和既有 Run 输出", () => {
+    expect(ERROR_CODES.approval_denied).toMatchObject({
+      terminality: "pausable",
+      runStatus: "failed",
+    });
+  });
+
   it("未知外部错误只把原始码保留为审计信息", () => {
     expect(normalizeExternalErrorCode("vendor_overloaded_v3")).toEqual({
       code: "unclassified_error",

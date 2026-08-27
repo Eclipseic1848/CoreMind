@@ -25,10 +25,12 @@ export type ErrorHumanAction = "required" | "none";
 export type ErrorRunStatus = "paused" | "aborted" | "timeout" | "budget_exceeded" | "failed";
 
 export interface ErrorCodeInfo {
+  /** 错误自身是否可恢复；不等同于 expand 阶段保留的既有 Run 输出。 */
   terminality: ErrorTerminality;
   cancelClass: ErrorCancelClass;
   retryClass: ErrorRetryClass;
   humanAction: ErrorHumanAction;
+  /** 既有 Run 输出的兼容投影；可能暂时与 terminality 不同，迁移时必须显式改合同。 */
   runStatus: ErrorRunStatus;
 }
 

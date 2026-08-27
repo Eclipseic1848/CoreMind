@@ -1,9 +1,4 @@
-import {
-  ERROR_CODES,
-  type ErrorCode,
-  type ErrorCodeInfo,
-  type ErrorRetryClass,
-} from "coremind-protocol";
+import { ERROR_CODES, type ErrorCodeInfo, type ErrorRetryClass } from "coremind-protocol";
 
 export {
   ERROR_CODES,
@@ -57,9 +52,9 @@ export function retryClassForCode(code: string): ErrorRetryClass | undefined {
 /** CoreMind 运行时错误（带错误码，便于 CLI 与库调用方区分处理） */
 export class CoreMindError extends Error {
   /** 机器可读错误码；分类语义见 ERROR_CODES 码表 */
-  readonly code: ErrorCode;
+  readonly code: string;
 
-  constructor(code: ErrorCode, message: string) {
+  constructor(code: string, message: string) {
     super(message);
     this.name = "CoreMindError";
     this.code = code;

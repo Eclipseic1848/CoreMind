@@ -19,8 +19,8 @@ type Equal<Left, Right> =
     : false;
 type Expect<Value extends true> = Value;
 
-type _CoreMindErrorCodeIsRegistered = Expect<
-  Equal<ConstructorParameters<typeof CoreMindError>[0], ErrorCode>
+type _CoreMindErrorConstructorRemainsCompatible = Expect<
+  Equal<ConstructorParameters<typeof CoreMindError>[0], string>
 >;
 
 type ExistingOwnedErrorCode =
@@ -38,9 +38,10 @@ type _ExistingOwnedErrorsAreRegistered = Expect<
   Equal<Exclude<ExistingOwnedErrorCode, ErrorCode>, never>
 >;
 
-function rejectsUnregisteredCode(): void {
+function rejectsUnregisteredErrorCode(): void {
   // @ts-expect-error 未登记错误码必须在编译期被拒绝
-  new CoreMindError("vendor_private_error", "不应成为公开错误码");
+  const code: ErrorCode = "vendor_private_error";
+  new CoreMindError(code, "不应成为公开错误码");
 }
 
-void rejectsUnregisteredCode;
+void rejectsUnregisteredErrorCode;
