@@ -31,8 +31,8 @@ describe("ChatSession", () => {
 
     expect(result.run.outcome).toMatchObject({
       status: "failed",
-      finishReason: "agent_failed",
-      error: { code: "agent_failed" },
+      finishReason: "provider_transient",
+      error: { code: "provider_transient" },
     });
   });
 

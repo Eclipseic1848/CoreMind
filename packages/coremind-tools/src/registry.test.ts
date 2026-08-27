@@ -2,7 +2,9 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildTools } from "./registry.js";
+import { createFakeExecutionEnvironment } from "./execution-environment.js";
+import { buildTools, buildToolsWithExecutionEnvironment } from "./registry.js";
+import { ToolExecutionError } from "./tool-error.js";
 
 function makeConfigDir(): string {
   return mkdtempSync(path.join(tmpdir(), "coremind-tools-"));
@@ -115,6 +117,75 @@ describe("buildTools", () => {
     });
     const result = await tools[0]?.execute("call-1", {}, undefined);
     expect(result.content[0]).toMatchObject({ type: "text", text: "2026-01-01" });
+  });
+
+  it("内置 Bash 非零退出显式返回已登记工具失败", async () => {
+    const configDir = makeConfigDir();
+    const { tools } = await buildTools([{ id: "bash" }], { cwd: configDir, configDir });
+
+    const error = await tools[0]
+      ?.execute("call-bash", { command: "exit 7" }, undefined)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ToolExecutionError);
+    expect(error).toMatchObject({ code: "tool_execution_failed" });
+  });
+
+  it("内置工具未登记的裸异常不伪装成已知工具失败", async () => {
+    const configDir = makeConfigDir();
+    const { tools } = await buildTools([{ id: "ls" }], { cwd: configDir, configDir });
+
+    const error = await tools[0]
+      ?.execute("call-ls", { path: "missing-directory" }, undefined)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ToolExecutionError);
+    expect(error).not.toHaveProperty("code");
+  });
+
+  it("内置工具保留执行环境的结构化错误码", async () => {
+    const configDir = makeConfigDir();
+    const environment = createFakeExecutionEnvironment({
+      claimed: { networkEgress: "unrestricted" },
+      observed: { networkEgress: "unrestricted" },
+      probeStatus: "failed",
+    });
+    const { tools } = await buildToolsWithExecutionEnvironment(
+      [{ id: "bash" }],
+      { cwd: configDir, configDir },
+      environment,
+    );
+
+    await expect(
+      tools[0]?.execute("call-environment", { command: "echo unreachable" }, undefined),
+    ).rejects.toMatchObject({ code: "environment_probe_failed" });
+  });
+
+  it("脚本工具裸异常保持未知 Adapter 故障", async () => {
+    const configDir = makeConfigDir();
+    writeFileSync(
+      path.join(configDir, "failing-tool.mjs"),
+      `export default {
+        name: "failing_tool",
+        description: "抛出未登记异常",
+        parameters: {},
+        execute: async () => { throw new Error("unexpected-adapter-failure"); },
+      };`,
+      "utf8",
+    );
+    const { tools } = await buildTools(
+      [{ path: "failing-tool.mjs", effect: { operations: ["read"], reversible: true } }],
+      { cwd: configDir, configDir },
+    );
+
+    const error = await tools[0]
+      ?.execute("call-script", {}, undefined)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ToolExecutionError);
+    expect(error).not.toHaveProperty("code");
   });
 
   it("拒绝脚本工具冒用内置工具名", async () => {

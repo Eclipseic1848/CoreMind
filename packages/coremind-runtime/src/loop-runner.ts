@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { LoopConfig } from "coremind-config";
 import { CoreMindError, cancelSignalForCode, isErrorCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import { legacyStepId } from "./ids.js";
 import {
   LoopController,
@@ -126,8 +127,9 @@ export class LoopRunner {
       }
       return this.result(terminalError(this.controller.getSnapshot()));
     } catch (error) {
-      await this.recordExecutionError(error);
-      return this.result(errorForCaller(error, this.controller.getSnapshot()));
+      const normalized = normalizeExecutionError(error);
+      await this.recordExecutionError(normalized);
+      return this.result(errorForCaller(normalized, this.controller.getSnapshot()));
     }
   }
 
@@ -304,7 +306,10 @@ function terminalError(snapshot: LoopControllerSnapshot): CoreMindError | undefi
 }
 
 function errorForCaller(error: unknown, snapshot: LoopControllerSnapshot): unknown {
-  if (snapshot.phase === "paused") return terminalError(snapshot);
+  if (snapshot.phase === "paused") {
+    if (error instanceof CoreMindError && error.code === "unclassified_error") return error;
+    return terminalError(snapshot);
+  }
   return error;
 }
 

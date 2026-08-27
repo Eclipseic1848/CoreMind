@@ -55,6 +55,7 @@ export type PendingControl = PendingApprovalControl | PendingControlProjection;
 
 export interface RecoveryDecision {
   resumable: boolean;
+  requiresHuman: boolean;
   operation?: DurableOperationSnapshot;
 }
 
@@ -195,8 +196,10 @@ export const ProjectionEngine = {
     const artifacts = exactArtifacts ?? projectArtifacts(trace);
     const extensions =
       terminalField(terminalPayload, "extensions", asExtensionReceipts) ?? projectExtensions(trace);
+    const requiresHuman = outcome?.error?.code === "unclassified_error";
     const recovery: RecoveryDecision = {
-      resumable: isRunStateResumable(ordered),
+      resumable: isRunStateResumable(ordered) && !requiresHuman,
+      requiresHuman,
       ...(operation ? { operation } : {}),
     };
     const snapshot = projectSnapshot({
@@ -263,6 +266,12 @@ export const ProjectionEngine = {
       return prepareRunResume([], configFingerprint, requestedPrompt);
     }
     const projection = ProjectionEngine.project(records);
+    if (projection.recovery.requiresHuman) {
+      throw new CoreMindError(
+        "unclassified_error",
+        "运行包含未分类外部错误，必须人工审计并通过显式处置流程继续",
+      );
+    }
     const plan = prepareRunResume([...records], configFingerprint, requestedPrompt);
     if (!projection.recovery.resumable) {
       throw new CoreMindError("run_state_corrupt", "Projection 与恢复计划的准入结果不一致");
@@ -1075,7 +1084,9 @@ function asRunOutcome(value: unknown): RunOutcome | undefined {
     (value.error === undefined ||
       (isRecord(value.error) &&
         typeof value.error.code === "string" &&
-        typeof value.error.message === "string"))
+        typeof value.error.message === "string" &&
+        (value.error.audit === undefined ||
+          (isRecord(value.error.audit) && typeof value.error.audit.originalCode === "string"))))
     ? (value as unknown as RunOutcome)
     : undefined;
 }

@@ -4,6 +4,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
 import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
 import { createSupervisedProcessRunner, ProcessRunnerError } from "./process-runner.js";
+import { commandExecutionError } from "./tool-error.js";
 
 export interface HostBashOptions {
   cwd: string;
@@ -47,6 +48,9 @@ export function createHostBashToolForEnvironment(
           timeoutMs: execution.timeout === undefined ? undefined : execution.timeout * 1_000,
           onData: execution.onData,
         });
+        if (typeof result.exitCode === "number" && result.exitCode !== 0) {
+          throw commandExecutionError({ ...result, exitCode: result.exitCode });
+        }
         return { exitCode: result.exitCode };
       } catch (error) {
         if (error instanceof ProcessRunnerError && error.code === "process_aborted") {

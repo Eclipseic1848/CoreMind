@@ -58,14 +58,19 @@ describe("RunTerminalizer", () => {
     ).toMatchObject({ status: "paused", finishReason: "loop_paused" });
   });
 
-  it.each([
-    [new Error("普通错误"), "普通错误"],
-    ["字符串错误", "字符串错误"],
-  ])("把非 CoreMind 错误安全归一化为 unknown", (error, message) => {
+  it("把未知外部错误安全归一化为需人工处理的暂停，并脱敏审计值", () => {
+    const error = Object.assign(new Error("Bearer provider-secret"), {
+      code: "vendor_private?token=provider-secret",
+    });
+
     expect(new RunTerminalizer().terminalize([], error)).toEqual({
-      status: "failed",
-      finishReason: "unknown",
-      error: { code: "unknown", message },
+      status: "paused",
+      finishReason: "unclassified_error",
+      error: {
+        code: "unclassified_error",
+        message: "外部执行返回未分类错误，需人工审计后继续",
+        audit: { originalCode: "vendor_private?token=hidden" },
+      },
     });
   });
 });

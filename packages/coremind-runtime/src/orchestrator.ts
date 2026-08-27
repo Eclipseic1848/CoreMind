@@ -2,6 +2,7 @@ import type { WorkflowStep } from "coremind-config";
 import type { AgentDriver } from "./agent-driver.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import { normalizeExecutionError } from "./execution-error.js";
 
 /** 单个步骤的输出 */
 export interface StepOutput {
@@ -214,7 +215,7 @@ export class Orchestrator {
     if (timeoutMs <= 0) {
       await agent.prompt(input);
       await agent.waitForIdle();
-      return extractSuccessfulText(agent, stepId);
+      return extractSuccessfulText(agent);
     }
     let timer: NodeJS.Timeout | undefined;
     const run = (async () => {
@@ -239,7 +240,7 @@ export class Orchestrator {
     } finally {
       if (timer) clearTimeout(timer);
     }
-    return extractSuccessfulText(agent, stepId);
+    return extractSuccessfulText(agent);
   }
 
   /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */
@@ -331,11 +332,15 @@ function emptyOutput(stepId: string): StepOutput {
   return { text: "", metadata: { agent: "", stepId } };
 }
 
-function extractSuccessfulText(agent: AgentDriver, stepId: string): string {
+function extractSuccessfulText(agent: AgentDriver): string {
   const messages = agent.messages();
   const agentError = extractAgentError(messages);
   if (agentError) {
-    throw new CoreMindError("agent_failed", `步骤 ${stepId} 的 Agent 执行失败：${agentError}`);
+    throw normalizeExecutionError({
+      role: "assistant",
+      stopReason: "error",
+      errorMessage: agentError,
+    });
   }
   return extractText(messages);
 }

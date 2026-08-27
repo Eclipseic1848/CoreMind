@@ -69,6 +69,7 @@ export {
 } from "./process-runner.js";
 export { type BuildToolsOptions, type BuildToolsResult, buildTools } from "./registry.js";
 export { loadScriptTool, ScriptToolError } from "./script-tool.js";
+export { ToolExecutionError } from "./tool-error.js";
 export {
   createUnifiedDiff,
   DiffLimitError,

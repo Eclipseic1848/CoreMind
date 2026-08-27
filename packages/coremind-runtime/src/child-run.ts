@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { tightenExecutionEnvironmentRequirement } from "coremind-tools/internal";
 import { canonicalJson } from "./canonical-json.js";
-import { CoreMindError } from "./errors.js";
+import { CoreMindError, terminalStatusForCode } from "./errors.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import type { RunOutcome } from "./result.js";
 import type { RunStateJournal, RunStateRecord, RunStore } from "./run-state.js";
+import { redactSensitiveText } from "./trace.js";
 
 export const CHILD_RUN_LIMIT_DEFAULTS = Object.freeze({
   maxDepth: 3,
@@ -330,15 +332,17 @@ export class ChildRunCoordinator {
       result = cancellationResult(state.cancellationFinishReason ?? "parent_cancelled");
     } else {
       try {
-        result = await this.options.adapter.execute({
-          parentRunId: this.options.parentRunId,
-          childRunId: state.childRunId,
-          delegationId: state.delegationId,
-          inputFingerprint: state.inputFingerprint,
-          request,
-          inheritedPolicy: childPolicy,
-          signal,
-        });
+        result = normalizeChildRunResult(
+          await this.options.adapter.execute({
+            parentRunId: this.options.parentRunId,
+            childRunId: state.childRunId,
+            delegationId: state.delegationId,
+            inputFingerprint: state.inputFingerprint,
+            request,
+            inheritedPolicy: childPolicy,
+            signal,
+          }),
+        );
       } catch (error) {
         result = signal.aborted
           ? cancellationResult(state.cancellationFinishReason ?? "parent_cancelled")
@@ -760,18 +764,60 @@ function removeUndefined(value: unknown): unknown {
 }
 
 function adapterFailureResult(error: unknown): ChildRunResult {
-  const message = error instanceof Error ? error.message : String(error);
+  const normalized = normalizeExecutionError(error);
+  const { code, message, audit } = normalized;
   return {
     outcome: {
-      status: "failed",
-      finishReason: "child_run_adapter_failed",
-      error: { code: "child_run_adapter_failed", message },
+      status: terminalStatusForCode(code),
+      finishReason: code,
+      error: { code, message, ...(audit ? { audit } : {}) },
     },
     evidence: [],
     artifacts: [],
     workspaceChanges: [],
     unresolvedRisks: [message],
   };
+}
+
+function normalizeChildRunResult(result: ChildRunResult): ChildRunResult {
+  if (!isChildRunResult(result)) {
+    throw new Error("Child Run Adapter 返回了无效结果");
+  }
+  const sanitized = {
+    ...structuredClone(result),
+    evidence: result.evidence.map(redactSensitiveText),
+    artifacts: result.artifacts.map(redactSensitiveText),
+    workspaceChanges: result.workspaceChanges.map(redactSensitiveText),
+    unresolvedRisks: result.unresolvedRisks.map(redactSensitiveText),
+  };
+  const error =
+    result.outcome.error ??
+    (result.outcome.status === "succeeded" || isChildLifecycleOutcomeWithoutError(result.outcome)
+      ? undefined
+      : { code: result.outcome.finishReason, message: result.outcome.finishReason });
+  if (!error) return sanitized;
+  const normalized = normalizeExecutionError(error);
+  return {
+    ...sanitized,
+    outcome: {
+      status: terminalStatusForCode(normalized.code),
+      finishReason: normalized.code,
+      error: {
+        code: normalized.code,
+        message: normalized.message,
+        ...(normalized.audit ? { audit: normalized.audit } : {}),
+      },
+    },
+  };
+}
+
+function isChildLifecycleOutcomeWithoutError(outcome: RunOutcome): boolean {
+  return (
+    (outcome.status === "aborted" &&
+      (outcome.finishReason === "parent_cancelled" ||
+        outcome.finishReason === "child_cancelled")) ||
+    (outcome.status === "timeout" && outcome.finishReason === "child_join_timeout")
+  );
 }
 
 function cancellationResult(

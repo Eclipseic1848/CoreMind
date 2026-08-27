@@ -1,5 +1,5 @@
-import { isRetryableDependencyAssistantError } from "./dependency-adapter.js";
-import { CoreMindError, retryClassForCode } from "./errors.js";
+import { CoreMindError } from "./errors.js";
+import { classifyExecutionError } from "./execution-error.js";
 
 export type RetryCategory = "transient" | "permanent" | "human";
 
@@ -15,61 +15,29 @@ export interface TransientRetryOptions {
   onRetry?: (attempt: number, error: unknown) => void;
 }
 
-// 系统级网络错误码（Node 层），不属于 CoreMind 错误码表，保留在本模块。
-const TRANSIENT_SYSTEM_CODES = new Set([
-  "ECONNRESET",
-  "ECONNREFUSED",
-  "EPIPE",
-  "ETIMEDOUT",
-  "EAI_AGAIN",
-  "UND_ERR_CONNECT_TIMEOUT",
-  "UND_ERR_HEADERS_TIMEOUT",
-]);
-
 /** 只根据结构化状态分类；未知错误失败关闭，避免把业务失败误当成瞬态故障。 */
 export function classifyRetry(error: unknown): RetryClassification {
-  const values = errorChain(error);
-  for (const value of values) {
-    const code = stringField(value, "code");
-    if (code && retryClassForCode(code) === "human") {
-      return { category: "human", retryable: false, reason: `需要人工处置：${code}` };
-    }
+  const classification = classifyExecutionError(error);
+  switch (classification.retryClass) {
+    case "human":
+      return {
+        category: "human",
+        retryable: false,
+        reason: `需要人工处置：${classification.code}`,
+      };
+    case "transient":
+      return {
+        category: "transient",
+        retryable: true,
+        reason: `瞬态错误：${classification.code}`,
+      };
+    case "fatal":
+      return {
+        category: "permanent",
+        retryable: false,
+        reason: `确定性错误：${classification.code}`,
+      };
   }
-  for (const value of values) {
-    if (isAssistantFailure(value)) {
-      return isRetryableDependencyAssistantError(value)
-        ? { category: "transient", retryable: true, reason: "模型适配层判定为瞬态错误" }
-        : { category: "permanent", retryable: false, reason: "模型适配层判定为确定性错误" };
-    }
-  }
-  for (const value of values) {
-    const code = stringField(value, "code");
-    if (code && retryClassForCode(code) === "transient") {
-      return { category: "transient", retryable: true, reason: `瞬态错误：${code}` };
-    }
-    if (code && TRANSIENT_SYSTEM_CODES.has(code)) {
-      return { category: "transient", retryable: true, reason: `网络错误：${code}` };
-    }
-    const status = numericField(value, "status") ?? numericField(value, "statusCode");
-    if (
-      status === 408 ||
-      status === 429 ||
-      (status !== undefined && status >= 500 && status <= 599)
-    ) {
-      return { category: "transient", retryable: true, reason: `HTTP ${status}` };
-    }
-  }
-  return { category: "permanent", retryable: false, reason: "未识别为可安全重试的瞬态错误" };
-}
-
-function isAssistantFailure(value: unknown): boolean {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    (value as Record<string, unknown>).role === "assistant" &&
-    (value as Record<string, unknown>).stopReason === "error" &&
-    typeof (value as Record<string, unknown>).errorMessage === "string"
-  );
 }
 
 /** 执行有界重试；只有明确分类为 transient 的失败才能进入下一次尝试。 */
@@ -93,32 +61,4 @@ export async function runWithTransientRetry<T>(
 
 function assertNotAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) throw new CoreMindError("aborted", "执行已中止");
-}
-
-function errorChain(error: unknown): unknown[] {
-  const values: unknown[] = [];
-  const seen = new Set<unknown>();
-  let current: unknown = error;
-  while (current !== undefined && current !== null && !seen.has(current)) {
-    values.push(current);
-    seen.add(current);
-    current = objectField(current, "cause");
-  }
-  return values;
-}
-
-function objectField(value: unknown, key: string): unknown {
-  return value !== null && typeof value === "object"
-    ? (value as Record<string, unknown>)[key]
-    : undefined;
-}
-
-function stringField(value: unknown, key: string): string | undefined {
-  const field = objectField(value, key);
-  return typeof field === "string" ? field : undefined;
-}
-
-function numericField(value: unknown, key: string): number | undefined {
-  const field = objectField(value, key);
-  return typeof field === "number" && Number.isFinite(field) ? field : undefined;
 }

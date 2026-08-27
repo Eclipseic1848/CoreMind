@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { CoreMindConfig } from "coremind-config";
 import { parseConfigText } from "coremind-config";
+import { terminalStatusForCode } from "./errors.js";
 import {
   captureEvaluationBaseline,
   type EvaluationGrader,
@@ -8,6 +9,7 @@ import {
   evaluateGraders,
   validateEvaluationGraders,
 } from "./evaluation-graders.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import { projectLocalObservability } from "./observability.js";
 import type { EvaluationReport, ReleaseReadiness, RunOutcome } from "./result.js";
 import { CoreMindRuntime, type CoreMindRuntimeOptions, type RunResult } from "./runtime.js";
@@ -183,14 +185,12 @@ export async function runEvaluationSuite(
           toolTrajectory: summarizeToolTrajectory(result),
         });
       } catch (error) {
-        const code =
-          error !== null && typeof error === "object" && "code" in error
-            ? String((error as { code: unknown }).code)
-            : "unknown";
+        const normalized = normalizeExecutionError(error);
+        const { code, message, audit } = normalized;
         const outcome: RunOutcome = {
-          status: "failed",
+          status: terminalStatusForCode(code),
           finishReason: code,
-          error: { code, message: error instanceof Error ? error.message : String(error) },
+          error: { code, message, ...(audit ? { audit } : {}) },
         };
         const failedResult = failedRunResult(outcome);
         const graderResults = await evaluateGraders(graders, failedResult, cwd, baseline);

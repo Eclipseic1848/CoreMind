@@ -15,7 +15,7 @@ export type RunStatus =
 export interface RunOutcome {
   status: RunStatus;
   finishReason: string;
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; audit?: { originalCode: string } };
 }
 
 /** 可观测的执行成本与规模，不对业务正确性作判断。 */

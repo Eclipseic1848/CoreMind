@@ -178,7 +178,7 @@ describe("LoopRunner", () => {
     expect(executeStep).toHaveBeenCalledTimes(2);
   });
 
-  it("执行器失败时保存失败状态并保留原错误", async () => {
+  it("执行器失败时保存失败状态并返回稳定错误分类", async () => {
     const original = Object.assign(new Error("provider down"), { status: 503 });
     const runner = new LoopRunner({
       runId: "run-loop",
@@ -195,7 +195,10 @@ describe("LoopRunner", () => {
     const result = await runner.run();
 
     expect(result.snapshot.phase).toBe("failed");
-    expect(result.error).toBe(original);
+    expect(result.error).toMatchObject({
+      code: "provider_unavailable",
+      message: "provider down",
+    });
   });
 
   it("终态后的中止不覆盖既有终态或重复持久化", async () => {
@@ -316,7 +319,7 @@ describe("LoopRunner", () => {
     expect(result.error).toMatchObject({ code: returnedCode });
   });
 
-  it("执行器抛出非 Error 对象时按普通失败处理", async () => {
+  it("执行器抛出非 Error 对象时归一化并暂停人工处理", async () => {
     const runner = new LoopRunner({
       runId: "run-string-error",
       configFingerprint: "config-string-error",
@@ -331,8 +334,11 @@ describe("LoopRunner", () => {
 
     const result = await runner.run();
 
-    expect(result.snapshot.phase).toBe("failed");
-    expect(result.error).toBe("plain failure");
+    expect(result.snapshot.phase).toBe("paused");
+    expect(result.error).toMatchObject({
+      code: "unclassified_error",
+      audit: { originalCode: "plain failure" },
+    });
   });
 
   it("没有继续目标的耗尽暂停不会伪造恢复迁移", async () => {

@@ -77,6 +77,7 @@ import {
 } from "./effect-receipt-binding.js";
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import { type RunId, receiptId } from "./ids.js";
 import {
   claimInput,
@@ -126,7 +127,7 @@ import {
   type RunMetrics,
   type RunOutcome,
 } from "./result.js";
-import { classifyRetry, runWithTransientRetry } from "./retry-policy.js";
+import { runWithTransientRetry } from "./retry-policy.js";
 import { RunContext } from "./run-context.js";
 import { RunEffectCoordinator } from "./run-effect-coordinator.js";
 import { RunKernel } from "./run-kernel.js";
@@ -1057,6 +1058,11 @@ export class CoreMindRuntime {
     });
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
+    const adapterFailures = new Map<string, CoreMindError>();
+    const selectedAdapterFailure = (): CoreMindError | undefined =>
+      [...adapterFailures.entries()].sort(([left], [right]) =>
+        left < right ? -1 : left > right ? 1 : 0,
+      )[0]?.[1];
     const checkpointByCallId = new Map<string, string[]>();
     const contextLifecycleManager = new ContextLifecycleManager();
     const contextContracts = new Map<string, AgentDriverContextContract>();
@@ -1200,11 +1206,23 @@ export class CoreMindRuntime {
           pendingProviderCapabilityFingerprint = undefined;
         },
         throwIfContextFailed,
-        executeTool: ({ call, invoke }) =>
-          toolExecutionEngine.executeAdapter(
-            toolCallIdentity(agentName, stepId, call.callId),
-            invoke,
-          ),
+        executeTool: async ({ call, invoke }) => {
+          try {
+            return await toolExecutionEngine.executeAdapter(
+              toolCallIdentity(agentName, stepId, call.callId),
+              invoke,
+            );
+          } catch (error) {
+            const normalized = normalizeExecutionError(error);
+            if (normalized.code !== "tool_execution_failed") {
+              adapterFailures.set(
+                toolCapabilityCallKey(agentName, stepId, call.callId),
+                normalized,
+              );
+            }
+            throw normalized;
+          }
+        },
         transformContext: async (messages) => {
           if (contextFailure) return messages;
           while (lifecycleFinalizers.size > 0) {
@@ -1800,7 +1818,7 @@ export class CoreMindRuntime {
             checkpointId,
             artifactId: artifact?.artifactId,
           });
-          return checkpointFailure ? { terminate: true } : budgetResult;
+          return checkpointFailure || adapterFailures.size > 0 ? { terminate: true } : budgetResult;
         },
         shouldStopAfterTurn: () => deniedAgents.has(agentName),
         throwIfDenied: () => {
@@ -1946,7 +1964,11 @@ export class CoreMindRuntime {
           const messages = agent.messages();
           const agentError = extractAgentError(messages);
           if (agentError) {
-            throw new CoreMindError("agent_failed", `Agent ${name} 执行失败：${agentError}`);
+            throw normalizeExecutionError({
+              role: "assistant",
+              stopReason: "error",
+              errorMessage: agentError,
+            });
           }
           transcript = extractText(messages.slice(messageCursor));
           return { outputs: new Map<string, StepOutput>(), transcript };
@@ -1954,14 +1976,20 @@ export class CoreMindRuntime {
         (error) => activeLoopRunner?.interrupt(error),
       ));
       if (capabilityFailure) throw capabilityFailure;
+      const adapterFailure = selectedAdapterFailure();
+      if (adapterFailure) throw adapterFailure;
       if (checkpointFailure) throw checkpointFailure;
       budget.throwIfExceeded();
     } catch (error) {
-      terminalError = checkpointFailure ?? error;
+      terminalError = checkpointFailure ?? capabilityFailure ?? selectedAdapterFailure() ?? error;
       try {
         if (!checkpointFailure) budget.throwIfExceeded();
       } catch (budgetError) {
-        terminalError = budgetError;
+        if (
+          !(terminalError instanceof CoreMindError && terminalError.code === "unclassified_error")
+        ) {
+          terminalError = budgetError;
+        }
       }
       // step_timeout / budget_exceeded 与 Abort 共用准入机制（规格 03 §1）：
       // 终止确定后设置分界点，拦截其后的迟到终态事实
@@ -2362,8 +2390,7 @@ export class CoreMindRuntime {
     }
     if (lastAssistant?.stopReason === "error") {
       const agentError = lastAssistant.errorMessage ?? "模型执行失败，但未提供错误详情";
-      const code = classifyRetry(lastAssistant).retryable ? "provider_transient" : "agent_failed";
-      throw new CoreMindError(code, `步骤 ${request.stepId} 的 Agent 执行失败：${agentError}`);
+      throw normalizeExecutionError({ ...lastAssistant, errorMessage: agentError });
     }
     return extractText(messages.slice(messageCursor));
   }
