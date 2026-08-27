@@ -94,7 +94,7 @@ export class LoopRunner {
 
   /** 由 Runtime 的总超时或外部取消入口推进到同一确定性终态。 */
   async interrupt(error: unknown): Promise<void> {
-    await this.recordExecutionError(error);
+    await this.recordExecutionError(normalizeExecutionError(error));
   }
 
   async run(): Promise<LoopRunResult> {
@@ -254,10 +254,10 @@ export class LoopRunner {
     }
   }
 
-  private async recordExecutionError(error: unknown): Promise<void> {
+  private async recordExecutionError(error: CoreMindError): Promise<void> {
     if (isTerminal(this.controller.phase)) return;
-    const code = error instanceof CoreMindError ? error.code : "loop_failed";
-    const message = error instanceof Error ? error.message : String(error);
+    const code = error.code;
+    const message = error.message;
     const category = classifyRetry(error).category;
     if (category === "human") {
       await this.sendAndPersist({ type: "PAUSE", reason: code });

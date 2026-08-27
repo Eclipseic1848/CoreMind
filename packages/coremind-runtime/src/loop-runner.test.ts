@@ -213,6 +213,24 @@ describe("LoopRunner", () => {
     expect(snapshots).toHaveLength(persistedCount);
   });
 
+  it("未知 interrupt 异常统一归类并暂停人工处理", async () => {
+    const initial = createRunner(["unused"]).runner.getSnapshot();
+    const { runner } = createRunner(["unused"], {
+      restoredSnapshot: {
+        ...initial,
+        phase: "executing",
+        transitionSequence: 1,
+      },
+    });
+
+    await runner.interrupt("plain interrupt failure");
+
+    expect(runner.getSnapshot()).toMatchObject({
+      phase: "paused",
+      pauseReason: "unclassified_error",
+    });
+  });
+
   it("缺省有界参数生效，未知插值变量保持原样", async () => {
     const loop: LoopConfig = {
       execute: { agent: "coder", input: "执行 {{missing}}" },
