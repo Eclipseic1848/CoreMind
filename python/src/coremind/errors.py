@@ -37,6 +37,12 @@ def error_code_info(code: str | None) -> ErrorCodeInfo | None:
     return ERROR_CODES.get(code) if code is not None else None
 
 
+def _normalize_error_code(code: str | None) -> tuple[str | None, str | None]:
+    if code is None or code in ERROR_CODES:
+        return code, None
+    return "unclassified_error", code
+
+
 class CoreMindError(RuntimeError):
     """Python SDK 基础错误。"""
 
@@ -61,7 +67,9 @@ class ProtocolError(CoreMindError):
         details: object | None = None,
     ):
         super().__init__(message)
+        normalized_code, original_code = _normalize_error_code(coremind_code)
         self.rpc_code = rpc_code
-        self.coremind_code = coremind_code
+        self.coremind_code = normalized_code
+        self.original_coremind_code = original_code
         self.details = details
-        self.error_info = error_code_info(coremind_code)
+        self.error_info = error_code_info(normalized_code)

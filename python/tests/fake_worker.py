@@ -373,6 +373,21 @@ for line in sys.stdin:
                 },
             }
         )
+    elif method == "run" and params.get("input") == "未知错误码":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {
+                    "code": -32000,
+                    "message": "自定义 Worker 返回了未知错误码",
+                    "data": {
+                        "coremindCode": "vendor_private_error",
+                        "details": {"source": "synthetic-custom-worker"},
+                    },
+                },
+            }
+        )
     elif method == "tool_result":
         send({"jsonrpc": "2.0", "id": request_id, "result": {"accepted": True}})
         send(
