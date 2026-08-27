@@ -4,6 +4,14 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.7.0-dev — 2026-08-27 (unpublished source candidate)
+
+- Unified subagents as complete Child Runs with stable parent-child identity, idempotent delegation, monotonic authority, parent budget reservation, structured cancellation and join, orphan audit, and recursive tree projection.
+- A real Child Runtime adapter verifies the same authority, RunId, AbortSignal, task, actual model, canonical workspace, permissions, tools, environment probe, and finite budget before execution.
+- Protocol v2, Worker, TypeScript `RunResult`, CLI JSONL, TUI `/children`, and the Python bundled worker share one Fact Projection. One thousand deterministic interleaving seeds cover sibling concurrency, duplicate delegation, cancellation, failure, and join.
+- Local Windows cross-process acceptance covers parent-crash orphan audit, Child Worker crash, no surviving child process after parent cancellation, no Effect replay, and a single Writer under parent-child workspace contention. Durable detach is not supported; real multi-agent product acceptance, remote CI, merge, and release remain incomplete.
+- The phase gate updates the bilingual README and security policy. The Code of Conduct, contributing guide, and MIT License have no changed facts, process, or contacts and remain unchanged. GitHub About awaits explicit remote-delivery authorization and has not been modified.
+
 ## 0.3.2 — 2026-08-26 (merged candidate, unpublished)
 
 ### Replay and explicit observability

@@ -57,6 +57,7 @@ The current version does not include a complete Web development environment, an 
 | Published `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
 | Merged `0.3.2` candidate (unpublished) | Completes the 0.3.x-B/C tools, recovery, Context, Replay, Observability, and Telemetry boundaries with both-platform CI, live-provider revalidation, and RC acceptance | No tag, Release, or registry artifact exists; stable installs remain pinned to `0.3.1` |
 | Current `0.4.x` source | Protocol v2 with v1 migration, durable controls, AgentDriver, and ExecutionEnvironment seams | No second Runtime; merged source is not a `0.4.0` release |
+| `0.7.x` source candidate | Subagents are Child Runs with independent facts, narrowed authority, parent budget reservation, cancellation, orphan audit, leases, and an explicit tree projection | Unpublished; local cross-process acceptance passed, while durable detach and real multi-agent product acceptance remain incomplete |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
@@ -138,7 +139,7 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [21 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`.
+- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module is explicitly marked as an unpublished alpha.
 - [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
 - [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.

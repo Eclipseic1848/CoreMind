@@ -24,6 +24,7 @@ const expectedModules = [
   "manage-providers",
   "manage-sessions",
   "operate-coremind-cli",
+  "orchestrate-child-runs",
   "package-agent-skills",
   "recover-durable-runs",
   "scaffold-coremind-projects",

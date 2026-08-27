@@ -47,6 +47,28 @@ describe("ToolPolicy", () => {
     });
   });
 
+  it("Child Run path allowlist 在实际 ToolPolicy 执行层阻断范围外访问", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-policy-child-paths-"));
+    mkdirSync(path.join(cwd, "src"), { recursive: true });
+    const policy = new ToolPolicy({
+      permissions: { mode: "full", workspaceOnly: true },
+      allowedPaths: ["src"],
+      cwd,
+      runId: "run-child-paths",
+      createApprovalId: () => "approval-child-paths",
+    });
+
+    await expect(policy.authorize("main", "read", { path: "src/index.ts" })).resolves.toMatchObject(
+      {
+        allowed: true,
+      },
+    );
+    await expect(policy.authorize("main", "read", { path: "README.md" })).resolves.toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("Child Run allowlist"),
+    });
+  });
+
   it.runIf(process.platform === "win32")("Windows 拒绝盘符与 UNC 路径", async () => {
     const policy = createPolicy({ mode: "full", workspaceOnly: true }, undefined, "win32");
 

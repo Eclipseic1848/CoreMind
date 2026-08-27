@@ -16,6 +16,7 @@ import {
   buildToolsWithExecutionEnvironment,
   createPlatformExecutionEnvironment,
   type ExecutionEnvironment,
+  resolveExecutionEnvironment,
 } from "coremind-tools/internal";
 import type {
   AgentDriver,
@@ -25,7 +26,7 @@ import type {
   AgentDriverHarness,
 } from "./agent-driver.js";
 import { buildAgentDriver } from "./agent-factory.js";
-import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
+import { type ResolvedRuntimeLimits, RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import {
   type CheckpointDiff,
   CheckpointManager,
@@ -33,6 +34,18 @@ import {
   inspectCheckpoint as inspectStoredCheckpoint,
   restoreCheckpoint as restoreStoredCheckpoint,
 } from "./checkpoint.js";
+import {
+  ChildRunCoordinator,
+  type ChildRunCoordinatorOptions,
+  type ChildRunDelegationRequest,
+  type ChildRunExecutionInput,
+  type ChildRunHandle,
+  type ChildRunPolicySnapshot,
+} from "./child-run.js";
+import {
+  type CoreMindChildRunAdapter,
+  isCoreMindChildRunAdapter,
+} from "./child-runtime-adapter.js";
 import {
   assessRuntimeEngineeringEvidence,
   createToolExecutionEvidence,
@@ -99,7 +112,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
-import { ProjectionEngine } from "./projection.js";
+import { type ChildRunTreeProjection, ProjectionEngine } from "./projection.js";
 import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
@@ -125,6 +138,7 @@ import {
   type RunStoreDurability,
 } from "./run-state.js";
 import { RunTerminalizer } from "./run-terminalizer.js";
+import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
 import { CoreMindSession } from "./session.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
@@ -132,7 +146,11 @@ import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
-import { type WorkspaceLeaseHandle, WorkspaceLeaseService } from "./workspace-lease.js";
+import {
+  canonicalizeWorkspace,
+  type WorkspaceLeaseHandle,
+  WorkspaceLeaseService,
+} from "./workspace-lease.js";
 
 type RuntimeHarness = AgentDriverHarness;
 
@@ -161,6 +179,13 @@ export interface CoreMindRuntimeOptions {
   approveTool?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
   /** 自定义 RunStore；缺省写入配置目录下 .coremind/runs。 */
   runStore?: RunStore;
+  /** 可选 Child Run 深模块；父身份、Journal 与 RunStore 始终由当前 Runtime 注入。 */
+  childRuns?: Omit<
+    ChildRunCoordinatorOptions,
+    "parentRunId" | "parentJournal" | "runStore" | "reserveParentBudget" | "adapter"
+  > & { adapter: CoreMindChildRunAdapter };
+  /** 仅供真实 Child Runtime Adapter 绑定并自检本次委派；必须保留同一不可替换输入对象。 */
+  childRunAuthority?: ChildRunExecutionInput;
   /** 继续一个没有 finish 记录的意外中断运行。 */
   resumeRunId?: string;
   /** 预生成的 runId（worker/客户端先取消后执行的场景；resume 时忽略） */
@@ -221,6 +246,8 @@ export interface RunResult {
   snapshot: RunSnapshot;
   /** 默认开启、从 Facts 派生的本地观测；外传交付状态不参与恢复。 */
   observability: LocalObservabilityProjection;
+  /** 从 canonical Facts 重建的完整 Child Run tree；没有委派时省略。 */
+  childRuns?: ChildRunTreeProjection;
 }
 
 /**
@@ -263,6 +290,7 @@ export class CoreMindRuntime {
     resumedContextLength: number,
     skillsByAgent: Map<string, string[]>,
   ) {
+    registerCoreMindRuntimeInstance(this);
     this.sessionMessages = sessionMessages;
     this.resumedContextLength = resumedContextLength;
     this.mainAgentName = config.defaultAgent ?? firstKey(config.agents) ?? "";
@@ -511,6 +539,50 @@ export class CoreMindRuntime {
     return slot.kernel.run();
   }
 
+  /** 在活动父 Run 上创建类型化 Child Run；未配置或尚未启动时失败关闭。 */
+  async delegateChildRun(request: ChildRunDelegationRequest): Promise<ChildRunHandle> {
+    for (let attempt = 0; attempt < 5_000; attempt++) {
+      const childRuns = executionSlotFor(this).kernel?.currentContext()?.currentChildRuns();
+      if (childRuns) return childRuns.delegate(request);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    throw new CoreMindError(
+      "child_run_unavailable",
+      "当前 Runtime 未启用 Child Run 或尚未进入活动状态",
+    );
+  }
+
+  /** Adapter 执行前验证工厂没有丢失或放宽 Child Run 身份、取消与策略。 */
+  async verifyChildRunAuthority(input: ChildRunExecutionInput): Promise<void> {
+    if (
+      this.options.childRunAuthority !== input ||
+      this.options.runId !== input.childRunId ||
+      this.options.signal !== input.signal ||
+      this.options.initialPrompt !== input.request.task
+    ) {
+      throw new CoreMindError(
+        "child_run_identity_mismatch",
+        "Child Runtime 未绑定原始委派输入、RunId、AbortSignal 或任务输入",
+      );
+    }
+    await assertRuntimeChildPolicyAuthority({
+      policy: input.inheritedPolicy,
+      config: this.config,
+      provider: this.providerRuntime,
+      executionEnvironment: this.executionEnvironment,
+      workspaceRoot: this.options.cwd ?? process.cwd(),
+      tools: new Set(
+        [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
+          ...capabilities.keys(),
+        ]),
+      ),
+      limits: resolveRuntimeLimits(this.config.runtime, {
+        maxSteps: this.options.maxSteps,
+        stepTimeoutMs: this.options.stepTimeoutMs,
+      }),
+    });
+  }
+
   /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
   async acceptControl(command: RunControlCommand): Promise<ControlReceipt> {
     for (let attempt = 0; attempt < 5_000; attempt++) {
@@ -569,12 +641,20 @@ export class CoreMindRuntime {
       canonicalSessionBranch = projectRawBranchMessages(sessionEntries);
       previousContextCompactions = projectContextCompactionLedger(sessionEntries);
     }
-    const resumePlan = this.options.resumeRunId
-      ? ProjectionEngine.prepareResume(
-          await runStore.read(this.options.resumeRunId),
-          configFingerprint,
-          this.options.initialPrompt,
-        )
+    const resumeRecords = this.options.resumeRunId
+      ? await runStore.read(this.options.resumeRunId)
+      : undefined;
+    if (resumeRecords && resumeRecords.length > 0 && !this.options.childRuns) {
+      const childRuns = ProjectionEngine.project(resumeRecords).childRuns;
+      if (childRuns && !childRuns.quiescent) {
+        throw new CoreMindError(
+          "child_run_orphan_audit_required",
+          "恢复记录包含未处置 Child Run，必须配置 Child Run Coordinator 完成 orphan audit",
+        );
+      }
+    }
+    const resumePlan = resumeRecords
+      ? ProjectionEngine.prepareResume(resumeRecords, configFingerprint, this.options.initialPrompt)
       : undefined;
     for (const candidate of resumePlan?.toolReplayCandidates ?? []) {
       const currentCapability =
@@ -939,6 +1019,37 @@ export class CoreMindRuntime {
     });
     const budget = new RunBudgetController(limits, emit);
     for (const event of collected) budget.restore(event);
+    if (this.options.childRuns) {
+      if (!isCoreMindChildRunAdapter(this.options.childRuns.adapter)) {
+        throw new CoreMindError(
+          "child_run_identity_mismatch",
+          "CoreMindRuntime 只接受由 createCoreMindChildRunAdapter 创建的受信 Adapter",
+        );
+      }
+      await assertRuntimeChildPolicyAuthority({
+        policy: this.options.childRuns.parentPolicy,
+        config: this.config,
+        provider: this.providerRuntime,
+        executionEnvironment: this.executionEnvironment,
+        workspaceRoot: this.options.cwd ?? process.cwd(),
+        tools: new Set(
+          [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
+            ...capabilities.keys(),
+          ]),
+        ),
+        limits,
+      });
+      context.attachChildRuns(
+        await ChildRunCoordinator.open({
+          ...this.options.childRuns,
+          parentRunId: runId,
+          parentJournal: journal,
+          runStore,
+          reserveParentBudget: (allocation) =>
+            budget.reserveChild(allocation, performance.now() - started),
+        }),
+      );
+    }
     const checkpointManager = new CheckpointManager({
       cwd: this.options.cwd ?? process.cwd(),
       rootDir: path.join(this.options.configDir, ".coremind", "checkpoints"),
@@ -1028,6 +1139,7 @@ export class CoreMindRuntime {
     };
     const policy = new ToolPolicy({
       permissions: this.config.permissions,
+      allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
@@ -1905,6 +2017,16 @@ export class CoreMindRuntime {
           : String(environmentTerminationError),
       );
     }
+    const childRunsNotQuiescent =
+      !runtimeQuiescent &&
+      context.currentChildRuns() !== undefined &&
+      !context.currentChildRuns()?.isQuiescent();
+    if (childRunsNotQuiescent) {
+      terminalError ??= new CoreMindError(
+        "child_run_not_quiescent",
+        "Runtime 的 Child Run 未完成取消、清理与结构化 join，不能形成父级终态",
+      );
+    }
     if (!runtimeQuiescent && workspaceLeaseByCall.size > 0) {
       terminalError ??= new CoreMindError(
         "workspace_lease_not_quiescent",
@@ -2104,6 +2226,9 @@ export class CoreMindRuntime {
         },
       };
     }
+    const childRuns = persistedRecords
+      ? (await ProjectionEngine.projectTree(runStore, runId)).childRuns
+      : undefined;
     return {
       runId: trace.runId,
       operation: snapshot.operation,
@@ -2122,6 +2247,7 @@ export class CoreMindRuntime {
       extensions: snapshot.extensions,
       snapshot,
       observability,
+      ...(childRuns ? { childRuns } : {}),
     };
   }
 
@@ -2245,6 +2371,7 @@ export class CoreMindRuntime {
   private abortAll(): void {
     const context = runContextFor(this);
     context.abortAgents();
+    void context.cancelChildRuns("Runtime cancel").catch(() => undefined);
     void context.terminateEnvironment("Runtime cancel").catch(() => undefined);
   }
 
@@ -2362,6 +2489,86 @@ const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
 const QUIESCENCE_POLL_INTERVAL_MS = 10;
+
+async function assertRuntimeChildPolicyAuthority(input: {
+  policy: ChildRunPolicySnapshot;
+  config: CoreMindConfig;
+  provider: ProviderRuntime;
+  executionEnvironment: ExecutionEnvironment;
+  workspaceRoot: string;
+  tools: ReadonlySet<string>;
+  limits: ResolvedRuntimeLimits;
+}): Promise<void> {
+  const { policy, config, provider, executionEnvironment, workspaceRoot, tools, limits } = input;
+  const canonicalRoot = await canonicalizeWorkspace(workspaceRoot);
+  if (
+    policy.model.providerId !== provider.model.provider ||
+    policy.model.model !== provider.model.id
+  ) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "Child Run 父策略模型与当前 Runtime 的实际 Provider/model 不一致",
+    );
+  }
+  if (
+    policy.workspace.canonicalRoot !== canonicalRoot ||
+    policy.workspace.lease !== "shared_canonical"
+  ) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "Child Run 父策略 Workspace 必须绑定当前 Runtime 的 canonical root 与共享租约",
+    );
+  }
+  const permissions = {
+    mode: config.permissions?.mode ?? "ask",
+    workspaceOnly: config.permissions?.workspaceOnly ?? true,
+    network: config.permissions?.network ?? "ask",
+  };
+  if (
+    policy.permissions.mode !== permissions.mode ||
+    policy.permissions.workspaceOnly !== permissions.workspaceOnly ||
+    policy.permissions.network !== permissions.network ||
+    [...tools].some((tool) => !policy.permissions.tools.includes(tool)) ||
+    policy.permissions.paths.some(
+      (allowedPath) => path.isAbsolute(allowedPath) || allowedPath.split(/[\\/]/u).includes(".."),
+    ) ||
+    policy.permissions.credentials.length > 0
+  ) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "Child Run 父策略权限、工具、路径或凭据范围不是当前 Runtime 的真实子集",
+    );
+  }
+  if (limits.maxTokens === undefined || limits.maxCostUsd === undefined) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "启用 Child Run 前必须为父 Runtime 显式配置 maxTokens 与 maxCostUsd",
+    );
+  }
+  const budgetBounds = {
+    tokens: limits.maxTokens,
+    toolCalls: limits.maxToolCalls,
+    costUsd: limits.maxCostUsd,
+    wallTimeMs: limits.runTimeoutMs,
+    steps: limits.maxSteps,
+  };
+  for (const key of Object.keys(budgetBounds) as (keyof typeof budgetBounds)[]) {
+    if (budgetBounds[key] > policy.budget[key]) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        `Child Runtime 的 ${key} 实际上限超过父级划拨预算`,
+      );
+    }
+  }
+  try {
+    await resolveExecutionEnvironment(executionEnvironment, policy.environment);
+  } catch (error) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
 
 /**
  * 静止判定（规格 03 §5）：quiescent ⇔ 所有 agent 已 idle ∧ 无 pending 工具结果 ∧

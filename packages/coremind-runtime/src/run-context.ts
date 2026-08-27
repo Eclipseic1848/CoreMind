@@ -1,6 +1,7 @@
 import type { ArtifactRecord } from "coremind-tools";
 import type { ExecutionEnvironment } from "coremind-tools/internal";
 import type { AgentDriver } from "./agent-driver.js";
+import type { ChildRunCoordinator } from "./child-run.js";
 import type { BranchMessage } from "./compaction-projection.js";
 import type { ControlInbox } from "./control-inbox.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
@@ -21,6 +22,7 @@ export class RunContext<THarness> {
   private readonly artifacts: ArtifactRecord[] = [];
   private readonly extensionReceipts: LifecycleExtensionReceipt[] = [];
   private executionEnvironment?: ExecutionEnvironment;
+  private childRuns?: ChildRunCoordinator;
   private terminationError?: unknown;
 
   registerAgent(name: string, agent: AgentDriver): void {
@@ -63,6 +65,18 @@ export class RunContext<THarness> {
     return this.controlInbox;
   }
 
+  attachChildRuns(childRuns?: ChildRunCoordinator): void {
+    this.childRuns = childRuns;
+  }
+
+  currentChildRuns(): ChildRunCoordinator | undefined {
+    return this.childRuns;
+  }
+
+  async cancelChildRuns(reason: string): Promise<void> {
+    await this.childRuns?.cancelAll(reason);
+  }
+
   isQuiescent(): boolean {
     for (const agent of this.agents.values()) {
       const status = agent.status();
@@ -70,6 +84,7 @@ export class RunContext<THarness> {
         return false;
       }
     }
+    if (this.childRuns && !this.childRuns.isQuiescent()) return false;
     if (this.executionEnvironment && !this.executionEnvironment.isQuiescent()) return false;
     return this.journal === undefined || !hasPendingJournalFlush(this.journal);
   }

@@ -5,6 +5,15 @@ import {
   recoveryDispositionFor,
 } from "coremind-tools";
 import type { CheckpointRecord } from "./checkpoint.js";
+import {
+  type ChildRunBudgetAllocation,
+  type ChildRunModelSnapshot,
+  type ChildRunPermissionSnapshot,
+  type ChildRunResult,
+  type ChildRunWorkspaceSnapshot,
+  foldChildRunLifecycleStatus,
+  isChildRunFact,
+} from "./child-run.js";
 import { type PendingControlProjection, projectPendingControlFacts } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
 import { LIFECYCLE_EVENTS, type LifecycleExtensionReceipt } from "./lifecycle-extension.js";
@@ -21,10 +30,15 @@ import {
   prepareRunResume,
   type RunResumePlan,
   type RunStateRecord,
+  type RunStore,
 } from "./run-state.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { validateToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import type { CoreMindTraceEvent } from "./trace.js";
+import {
+  projectWorkspaceLeasesFromRecords,
+  type WorkspaceLeaseProjection,
+} from "./workspace-lease.js";
 
 export type RunProjectionStatus = "finished" | "paused" | "interrupted";
 
@@ -98,9 +112,32 @@ export interface RunProjection {
   extensions: LifecycleExtensionReceipt[];
   context: ContextProjection;
   pendingControls: PendingControl[];
+  childRuns?: ChildRunTreeProjection;
   observability: LocalObservabilityProjection;
   records: RunStateRecord[];
   snapshot?: RunSnapshot;
+}
+
+export interface ChildRunNodeProjection {
+  parentRunId: string;
+  childRunId: string;
+  delegationId: string;
+  inputFingerprint: string;
+  budget: ChildRunBudgetAllocation;
+  permissions: ChildRunPermissionSnapshot;
+  model: ChildRunModelSnapshot;
+  workspace: ChildRunWorkspaceSnapshot;
+  workspaceLeases?: WorkspaceLeaseProjection[];
+  status: "recorded" | "created" | "running" | "terminal" | "paused" | "orphaned" | "joined";
+  outcome?: RunOutcome;
+  result?: ChildRunResult;
+}
+
+export interface ChildRunTreeProjection {
+  nodes: ChildRunNodeProjection[];
+  activeDescendants: number;
+  unhandledDescendants: number;
+  quiescent: boolean;
 }
 
 /** 从 append-only Run Facts 生成可删除、可重建的唯一运行投影。 */
@@ -179,6 +216,7 @@ export const ProjectionEngine = {
       ...projectPendingApprovals(trace),
       ...projectPendingControlFacts(runId, ordered),
     ];
+    const childRuns = projectChildRuns(ordered, runId);
     const observability = projectLocalObservability(ordered, {
       runStatus: status,
       resumable: recovery.resumable,
@@ -209,6 +247,7 @@ export const ProjectionEngine = {
       extensions,
       context,
       pendingControls,
+      ...(childRuns ? { childRuns } : {}),
       observability,
       records: ordered,
       ...(snapshot ? { snapshot } : {}),
@@ -230,7 +269,115 @@ export const ProjectionEngine = {
     }
     return plan;
   },
+
+  async projectTree(store: RunStore, rootRunId: string): Promise<RunProjection> {
+    const root = this.project(await store.read(rootRunId));
+    const visited = new Set([rootRunId]);
+    const nodes: ChildRunNodeProjection[] = [];
+
+    const collect = async (projection: RunProjection): Promise<void> => {
+      for (const sourceNode of projection.childRuns?.nodes ?? []) {
+        const node = structuredClone(sourceNode);
+        nodes.push(node);
+        if (visited.has(node.childRunId)) {
+          throw new CoreMindError("run_state_corrupt", "Child Run tree 包含循环或重复 ChildRunId");
+        }
+        visited.add(node.childRunId);
+        const childRecords = await store.read(node.childRunId);
+        if (childRecords.length === 0) continue;
+        const workspaceLeases = projectWorkspaceLeasesFromRecords(childRecords);
+        if (workspaceLeases.length > 0) node.workspaceLeases = workspaceLeases;
+        await collect(this.project(childRecords));
+      }
+    };
+    await collect(root);
+    if (nodes.length === 0) return root;
+    const activeDescendants = nodes.filter(
+      (node) => node.status === "created" || node.status === "running",
+    ).length;
+    const unhandledDescendants = nodes.filter((node) => node.status !== "joined").length;
+    return {
+      ...root,
+      childRuns: {
+        nodes,
+        activeDescendants,
+        unhandledDescendants,
+        quiescent: unhandledDescendants === 0,
+      },
+    };
+  },
 };
+
+function projectChildRuns(
+  records: readonly RunStateRecord[],
+  parentRunId: string,
+): ChildRunTreeProjection | undefined {
+  const nodes = new Map<string, ChildRunNodeProjection>();
+  for (const record of records) {
+    if (record.kind !== "delegation") continue;
+    if (!isChildRunFact(record.payload)) {
+      throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 delegation payload");
+    }
+    const fact = record.payload;
+    if (fact.parentRunId !== parentRunId) {
+      throw new CoreMindError("run_state_corrupt", "Delegation Fact 的父 Run 身份不一致");
+    }
+    const existing = nodes.get(fact.delegationId);
+    if (fact.type === "delegation_recorded") {
+      if (existing) {
+        throw new CoreMindError("run_state_corrupt", "同一 DelegationId 存在重复 recorded Fact");
+      }
+      nodes.set(fact.delegationId, {
+        parentRunId,
+        childRunId: fact.childRunId,
+        delegationId: fact.delegationId,
+        inputFingerprint: fact.inputFingerprint,
+        budget: structuredClone(fact.inheritedPolicy.budget),
+        permissions: structuredClone(fact.inheritedPolicy.permissions),
+        model: structuredClone(fact.model),
+        workspace: structuredClone(fact.workspace),
+        status: "recorded",
+      });
+      continue;
+    }
+    if (
+      !existing ||
+      existing.childRunId !== fact.childRunId ||
+      existing.inputFingerprint !== fact.inputFingerprint
+    ) {
+      throw new CoreMindError("run_state_corrupt", "Child Run 生命周期缺少匹配的 Delegation Fact");
+    }
+    existing.status = foldChildRunLifecycleStatus(existing.status, fact.type);
+    if (fact.type === "child_terminal") {
+      existing.outcome = structuredClone(fact.result.outcome);
+      existing.result = structuredClone(fact.result);
+    }
+    if (fact.type === "child_paused") {
+      existing.outcome = structuredClone(fact.result.outcome);
+      existing.result = structuredClone(fact.result);
+    }
+    if (fact.type === "child_orphaned") {
+      existing.outcome = structuredClone(fact.result.outcome);
+      existing.result = structuredClone(fact.result);
+    }
+    if (fact.type === "parent_joined") {
+      existing.outcome = structuredClone(fact.result.outcome);
+      existing.result = structuredClone(fact.result);
+    }
+  }
+  if (nodes.size === 0) return undefined;
+  const projected = [...nodes.values()];
+  const activeDescendants = projected.filter(
+    (node) => node.status === "created" || node.status === "running",
+  ).length;
+  const unhandledDescendants = projected.filter((node) => node.status !== "joined").length;
+  return {
+    nodes: structuredClone(projected),
+    activeDescendants,
+    unhandledDescendants,
+    quiescent: unhandledDescendants === 0,
+  };
+}
 
 function projectSnapshot(input: {
   runId: string;

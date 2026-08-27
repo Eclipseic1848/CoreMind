@@ -51,6 +51,7 @@ export interface ToolPolicyOptions {
   runId: string;
   approve?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
   createApprovalId: () => string;
+  allowedPaths?: readonly string[];
   platform?: NodeJS.Platform;
   onApprovalRequired?: (request: ToolApprovalRequest) => void;
   onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
@@ -103,6 +104,23 @@ export class ToolPolicy {
       capability,
       selectors ?? legacySelectors(capabilityOrDeclaration),
     );
+    const hasRestrictedChildPathScope =
+      this.options.allowedPaths !== undefined &&
+      !this.options.allowedPaths.some(
+        (allowedPath) =>
+          path.resolve(this.options.cwd, allowedPath) === path.resolve(this.options.cwd),
+      );
+    if (
+      hasRestrictedChildPathScope &&
+      (effect.operations.includes("process") ||
+        effect.operations.includes("external") ||
+        (capability.effect === "workspace" && effect.paths.length === 0))
+    ) {
+      return {
+        allowed: false,
+        reason: `工具 ${tool} 未暴露可验证的 Child Run allowlist 内目标路径`,
+      };
+    }
 
     if (
       tool === "bash" &&
@@ -153,6 +171,15 @@ export class ToolPolicy {
       const escaped = await this.findEscapedPath(effect.paths);
       if (escaped) {
         return { allowed: false, reason: `路径超出工作区，已拒绝：${escaped}` };
+      }
+    }
+    if (this.options.allowedPaths) {
+      const outsideAllowedPath = await this.findOutsideAllowedPaths(effect.paths);
+      if (outsideAllowedPath) {
+        return {
+          allowed: false,
+          reason: `路径超出 Child Run allowlist，已拒绝：${outsideAllowedPath}`,
+        };
       }
     }
 
@@ -215,6 +242,27 @@ export class ToolPolicy {
       if (isOutside(lexicalCwd, addressed)) return candidate;
       const canonicalTarget = await canonicalize(addressed);
       if (isOutside(canonicalCwd, canonicalTarget)) return candidate;
+    }
+    return undefined;
+  }
+
+  private async findOutsideAllowedPaths(candidates: string[]): Promise<string | undefined> {
+    if (candidates.length === 0) return undefined;
+    const lexicalCwd = path.resolve(this.options.cwd);
+    const allowedRoots = await Promise.all(
+      (this.options.allowedPaths ?? []).map(async (allowedPath) => {
+        const lexical = path.resolve(lexicalCwd, allowedPath);
+        return { lexical, canonical: await canonicalize(lexical) };
+      }),
+    );
+    for (const candidate of candidates) {
+      const lexicalTarget = path.resolve(lexicalCwd, candidate);
+      const canonicalTarget = await canonicalize(lexicalTarget);
+      const allowed = allowedRoots.some(
+        (root) =>
+          !isOutside(root.lexical, lexicalTarget) && !isOutside(root.canonical, canonicalTarget),
+      );
+      if (!allowed) return candidate;
     }
     return undefined;
   }

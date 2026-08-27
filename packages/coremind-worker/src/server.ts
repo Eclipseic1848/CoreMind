@@ -140,6 +140,7 @@ export class ProtocolHost {
   private closed = false;
   private activeExecutionCompletion?: Promise<void>;
   private resolveActiveExecution?: () => void;
+  private lastExecutionQuiescent = true;
 
   constructor(private readonly options: WorkerServerOptions) {
     this.runtimeFactory = options.runtimeFactory ?? CoreMindRuntime.create;
@@ -379,7 +380,7 @@ export class ProtocolHost {
       schemaVersion: 1,
       runId: request.params.runId,
       derivedFromSequence: records.at(-1)!.sequence,
-      projection: ProjectionEngine.project(records),
+      projection: await ProjectionEngine.projectTree(state.runStore, request.params.runId),
     };
   }
 
@@ -562,6 +563,7 @@ export class ProtocolHost {
     const state = this.requireInitialized();
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
     this.running = true;
+    this.lastExecutionQuiescent = false;
     this.activeExecutionCompletion = new Promise<void>((resolve) => {
       this.resolveActiveExecution = resolve;
     });
@@ -616,7 +618,9 @@ export class ProtocolHost {
         applyControl: (command) => this.applyWorkerControl(command),
       });
       this.activeRuntime = runtime;
-      return serializeRunResult(await runtime.run());
+      const result = await runtime.run();
+      this.lastExecutionQuiescent = result.childRuns?.quiescent !== false;
+      return serializeRunResult(result);
     } finally {
       this.running = false;
       this.activeController = undefined;
@@ -774,11 +778,11 @@ export class ProtocolHost {
     this.pendingToolCalls.clear();
     this.closed = true;
     const active = this.activeExecutionCompletion;
-    if (!active) return { closed: true, quiescent: true };
+    if (!active) return { closed: true, quiescent: this.lastExecutionQuiescent };
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const quiescent = await Promise.race([
-        active.then(() => true),
+        active.then(() => this.lastExecutionQuiescent),
         new Promise<false>((resolve) => {
           timer = setTimeout(() => resolve(false), timeoutMs);
         }),
@@ -975,7 +979,9 @@ function eventIdentity(value: Record<string, unknown> | undefined): Record<strin
     "callId",
     "approvalId",
     "receiptId",
+    "parentRunId",
     "childRunId",
+    "delegationId",
   ] as const) {
     if (typeof value[key] === "string") result[key] = value[key];
   }

@@ -26,6 +26,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > 当前 `main` 还包含面向 `0.4.x` 的 Protocol v2、持久 ControlInbox、RunHandle/cursor/query、AgentDriver 与 ExecutionEnvironment capability seam；v1 在整个 `0.4.x` 保留迁移入口。这些源码已通过 #71/#72 双平台 CI 并合入，但不等于 `0.4.0` 已发布。
 
+> `0.7.x` 未发布源码候选新增完整 Child Run：稳定父子身份、幂等委派、实际 Runtime authority 校验、父预算划拨、结构化取消/join、orphan audit、递归 Projection 与显性的 TUI `/children`。它尚未合入或发布，不支持 durable detach，也没有完成真实多 Agent 产品验收。
+
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
@@ -57,6 +59,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | `0.3.1` 稳定版（已发布） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
 | `0.3.2` 合并候选（未发布） | 完成 0.3.x-B/C 的工具、恢复、Context、Replay、Observability 与 Telemetry 边界，并通过双平台 CI、真实 Provider 复验和 RC 验收 | 未创建 Tag/Release/Registry；安装命令仍固定 `0.3.1` |
 | `0.4.x` 当前源码 | Protocol v2 与 v1 迁移、持久控制、AgentDriver 和 ExecutionEnvironment seam | 不建立第二 Runtime；源码合并不等于 `0.4.0` 发布 |
+| `0.7.x` 源码候选 | Subagent 统一为 Child Run，具备独立 Fact、收紧 authority、父预算、取消、orphan audit、Lease 与显性树投影 | 尚未发布；本地跨进程验收已通过，durable detach 与真实多 Agent 产品验收仍未完成 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
@@ -250,7 +253,7 @@ CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 Op
 
 ## 学习与验证材料
 
-- [21 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`。
+- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块明确标记为未发布 alpha。
 - [5 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查与验证修复 Loop，均可用本地 mock Provider 离线运行。
 - [2 个编码智能体真实缺陷仓库](examples/coding-evals/README.zh-CN.md)：TypeScript 与 Python 均验证复现、最小修复、目标/回归测试、只读 Git 证据和脏工作区保护。
 - [配置指南](docs/guide/02-configuration.md)、[Skill 指南](docs/guide/03-skills.md)、[质量指南](docs/guide/04-quality.md)、[CLI 指南](docs/guide/05-cli-usage.md)。
@@ -272,7 +275,7 @@ python -X utf8 -m build --wheel python
 npm run release:check-wheel
 ```
 
-`npm run check:modules` 会检查 21 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。P20 由目标平台真实伪终端自动验收；若自动脚本与人工可见界面出现差异，再补充人工复核记录。
+`npm run check:modules` 会检查 22 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。P20 由目标平台真实伪终端自动验收；若自动脚本与人工可见界面出现差异，再补充人工复核记录。
 
 ## 开源协议
 

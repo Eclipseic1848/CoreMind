@@ -60,6 +60,28 @@ describe("CoreMind Protocol v2", () => {
     expect(JSON.stringify(ProtocolV2EventEnvelopeSchema)).toContain('"delta"');
   });
 
+  it("Protocol v2 事件 envelope 显式携带父子 Run 与 Delegation 身份", () => {
+    expect(JSON.stringify(ProtocolV2EventEnvelopeSchema)).toContain('"parentRunId"');
+    expect(JSON.stringify(ProtocolV2EventEnvelopeSchema)).toContain('"delegationId"');
+    expect(
+      Value.Check(ProtocolV2EventEnvelopeSchema, {
+        protocolVersion: "2.0",
+        eventSchemaVersion: 1,
+        eventType: "fact.delegation",
+        runId: "run-parent",
+        parentRunId: "run-parent",
+        childRunId: "run-child",
+        delegationId: "delegation-review",
+        sequence: 1,
+        eventId: "event-delegation",
+        timestamp: "2026-08-27T00:00:00.000Z",
+        payload: { type: "child_created" },
+        ignorable: false,
+        sensitivity: "local",
+      }),
+    ).toBe(true);
+  });
+
   it("解析显式版本范围与客户端能力的 initialize 请求", () => {
     const request = parseProtocolV2Request({
       jsonrpc: "2.0",

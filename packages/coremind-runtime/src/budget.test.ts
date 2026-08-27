@@ -49,6 +49,59 @@ describe("RunBudgetController", () => {
     expect(budget.beforeToolCall()).toMatchObject({ block: true });
     expect(budget.violation?.dimension).toBe("toolCalls");
   });
+
+  it("Child Run 划拨同步减少父级工具、步骤、Token、费用与 wall-time 预算", () => {
+    const budget = new RunBudgetController(
+      resolveRuntimeLimits(
+        {
+          maxSteps: 3,
+          maxToolCalls: 3,
+          maxTokens: 100,
+          maxCostUsd: 10,
+          runTimeoutMs: 1_000,
+        },
+        {},
+      ),
+      () => {},
+    );
+    const release = budget.reserveChild(
+      { tokens: 90, toolCalls: 2, costUsd: 9, wallTimeMs: 900, steps: 2 },
+      0,
+    );
+
+    expect(budget.beforeToolCall()).toBeUndefined();
+    expect(budget.beforeToolCall()).toMatchObject({ block: true });
+    expect(budget.violation?.dimension).toBe("toolCalls");
+    release();
+
+    const stepBudget = new RunBudgetController(
+      resolveRuntimeLimits({ maxSteps: 3, maxTokens: 100, maxCostUsd: 10 }, {}),
+      () => {},
+    );
+    stepBudget.reserveChild({ tokens: 1, toolCalls: 1, costUsd: 1, wallTimeMs: 1, steps: 2 }, 0);
+    stepBudget.observeAgentEvent({ type: "step_start" });
+    stepBudget.observeAgentEvent({ type: "step_start" });
+    expect(stepBudget.violation?.dimension).toBe("steps");
+
+    const tokenBudget = new RunBudgetController(
+      resolveRuntimeLimits({ maxTokens: 100, maxCostUsd: 10 }, {}),
+      () => {},
+    );
+    tokenBudget.reserveChild({ tokens: 90, toolCalls: 1, costUsd: 9, wallTimeMs: 1, steps: 1 }, 0);
+    tokenBudget.observeAgentEvent(turnEndEvent({ totalTokens: 11, cost: 2 }));
+    expect(tokenBudget.violation?.dimension).toBe("tokens");
+
+    const wallBudget = new RunBudgetController(
+      resolveRuntimeLimits({ maxTokens: 100, maxCostUsd: 10, runTimeoutMs: 1_000 }, {}),
+      () => {},
+    );
+    expect(() =>
+      wallBudget.reserveChild(
+        { tokens: 1, toolCalls: 1, costUsd: 1, wallTimeMs: 901, steps: 1 },
+        100,
+      ),
+    ).toThrow("wallTimeMs");
+  });
 });
 
 function turnEndEvent(options: {

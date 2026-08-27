@@ -1,0 +1,4 @@
+interface:
+  display_name: "Child Run Orchestration"
+  short_description: "Build and verify safe structured child runs"
+  default_prompt: "Use $orchestrate-child-runs to implement or diagnose Child Run identity, authority, cancellation, recovery, leases, and projection with deterministic evidence."

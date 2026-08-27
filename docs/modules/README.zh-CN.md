@@ -8,6 +8,7 @@
 - [Provider 与模型](manage-providers/README.zh-CN.md)
 - [Runtime 依赖 Adapter](adapt-runtime-dependencies/README.zh-CN.md)
 - [持久运行与故障恢复](recover-durable-runs/README.zh-CN.md)
+- [编排 Child Run](orchestrate-child-runs/README.zh-CN.md)
 - [上下文与 Artifact 治理](manage-context-artifacts/README.zh-CN.md)
 - [Agent 构建](design-agents/README.zh-CN.md)
 - [Runtime 生命周期扩展](extend-runtime-lifecycle/README.zh-CN.md)

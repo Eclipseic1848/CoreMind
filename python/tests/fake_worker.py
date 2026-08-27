@@ -72,6 +72,23 @@ def observability(sequence: int = 0) -> dict[str, object]:
     }
 
 
+def child_runs(run_id: str) -> dict[str, object]:
+    node = {
+        "parentRunId": run_id,
+        "childRunId": "child-1",
+        "delegationId": "delegation-1",
+        "status": "joined",
+        "children": [],
+    }
+    return {
+        "roots": [node],
+        "nodes": [node],
+        "activeDescendants": 0,
+        "unhandledDescendants": 0,
+        "quiescent": True,
+    }
+
+
 def tool_lifecycle() -> dict[str, object]:
     phases = [
         {"phase": phase, "status": "completed"}
@@ -218,7 +235,11 @@ for line in sys.stdin:
                     "schemaVersion": 1,
                     "runId": params["runId"],
                     "derivedFromSequence": 1,
-                    "projection": {"runId": params["runId"], "status": "interrupted"},
+                    "projection": {
+                        "runId": params["runId"],
+                        "status": "interrupted",
+                        "childRuns": child_runs(params["runId"]),
+                    },
                 },
             }
         )
@@ -397,6 +418,7 @@ for line in sys.stdin:
                         "run-1", {"status": "succeeded", "finishReason": "completed"}
                     ),
                     "observability": observability(3),
+                    "childRuns": child_runs("run-1"),
                     "transcript": "完成",
                     "outputs": {},
                     "messages": {"main": []},

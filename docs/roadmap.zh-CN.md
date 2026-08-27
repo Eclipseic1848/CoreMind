@@ -44,7 +44,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 - **0.4.x**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已作为源码合入 `main`，整个 `0.4.x` 保留 v1 迁移入口；这些合并事实不等于 `0.4.0` 已发布，后续仍需版本候选与发布门。
 - **0.5.x～0.6.x**：Web 开发环境——运行与控制面先行，再建设在线编辑、测试与评测闭环；始终复用同一 Protocol 与 Runtime。
-- **0.7.x**：Goals、Jobs 与子智能体——Subagent 统一建模为 Child Run，具备独立事实、收紧的权限与预算、父子取消、孤儿回收和 Workspace 租约。
+- **0.7.x**：Goals、Jobs 与子智能体——Child Run 的未发布源码候选已实现独立事实、实际 Runtime authority 校验、父预算划拨、父子取消、孤儿审计、Workspace 租约投影与显性树，并通过本地跨进程崩溃和单 Writer 验收；Goals、Jobs、durable detach、真实产品验收和发布门仍未完成。
 - **0.8.x**：MCP/LSP 接入、受控第三方插件、远程执行环境与平台生态。
 - **0.9.x～1.0.0**：功能冻结、兼容与安全收口，经过正式候选后发布稳定合同。
 

@@ -56,6 +56,8 @@ AgentDriver 只隔离模型 reactive loop，不能直接写权威 Fact、决定�
 
 ### 恢复边界
 
+Child Run 是独立 Run，不是普通 Tool Call。父策略必须绑定实际 Provider/model、canonical Workspace、权限、工具、执行环境探针和有限 Runtime 预算；子级只能收紧。父取消必须等全部子级终止或暂停、关键 Fact flush 并结构化 join 后才能 Quiescent。恢复发现不明所有权时进入 orphan audit pause，不自动重启。Windows Trusted Host 不能证明 sandbox 或 controlled egress；当前也不支持 durable detach。
+
 Checkpoint 可以恢复框架记录的文件状态；RunState 和 Loop 快照可以从完整稳定边界继续。恢复前会验证记录顺序、配置指纹、输入一致性和工具副作用，文件恢复还会比较工具完成后的指纹，用户或并发进程后来修改过文件时会拒绝覆盖。
 
 工具调用会记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不会自动重放已提交副作用；`started` 或 `unknown` 要求人工核对。该机制不等于通用的“恰好一次执行”，也不能自动撤销邮件、付款、数据库写入或其他外部副作用。业务工具仍应在自己的持久层实现幂等、收据或补偿流程。

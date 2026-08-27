@@ -15,10 +15,18 @@ export interface ResolvedRuntimeLimits {
 }
 
 export interface BudgetViolation {
-  dimension: "turns" | "toolCalls" | "toolFailures" | "tokens" | "costUsd";
+  dimension: "turns" | "steps" | "toolCalls" | "toolFailures" | "tokens" | "costUsd" | "wallTimeMs";
   limit: number;
   actual: number;
   message: string;
+}
+
+export interface RunBudgetReservation {
+  tokens: number;
+  toolCalls: number;
+  costUsd: number;
+  wallTimeMs: number;
+  steps: number;
 }
 
 const DEFAULT_LIMITS: ResolvedRuntimeLimits = {
@@ -45,8 +53,16 @@ export class RunBudgetController {
   private turns = 0;
   private toolCalls = 0;
   private toolFailures = 0;
+  private steps = 0;
   private tokens = 0;
   private costUsd = 0;
+  private readonly reserved: RunBudgetReservation = {
+    tokens: 0,
+    toolCalls: 0,
+    costUsd: 0,
+    wallTimeMs: 0,
+    steps: 0,
+  };
   violation?: BudgetViolation;
 
   constructor(
@@ -56,6 +72,7 @@ export class RunBudgetController {
 
   /** 恢复运行时重放既有 Trace 的计数，不重复发出事件或副作用。 */
   restore(event: CoreMindEvent): void {
+    if (event.type === "step_start") this.steps += 1;
     if (event.type === "tool_call") this.toolCalls += 1;
     if (event.type === "tool_result" && event.isError) this.toolFailures += 1;
     if (event.type === "turn_end") {
@@ -67,11 +84,11 @@ export class RunBudgetController {
 
   beforeToolCall(): { block: true; reason: string } | undefined {
     this.toolCalls += 1;
-    if (this.toolCalls > this.limits.maxToolCalls) {
+    if (this.toolCalls + this.reserved.toolCalls > this.limits.maxToolCalls) {
       return this.fail(
         "toolCalls",
         this.limits.maxToolCalls,
-        this.toolCalls,
+        this.toolCalls + this.reserved.toolCalls,
         `工具调用次数超过上限（${this.limits.maxToolCalls} 次）`,
       );
     }
@@ -92,26 +109,45 @@ export class RunBudgetController {
   }
 
   observeAgentEvent(event: unknown): boolean {
-    if (!isRecord(event) || event.type !== "turn_end") return this.violation !== undefined;
+    if (!isRecord(event)) return this.violation !== undefined;
+    if (event.type === "step_start") {
+      this.steps += 1;
+      if (this.steps + this.reserved.steps > this.limits.maxSteps) {
+        this.fail(
+          "steps",
+          this.limits.maxSteps,
+          this.steps + this.reserved.steps,
+          `步骤数与 Child Run 划拨超过上限（${this.limits.maxSteps}）`,
+        );
+      }
+      return this.violation !== undefined;
+    }
+    if (event.type !== "turn_end") return this.violation !== undefined;
     this.turns += 1;
     if (typeof event.totalTokens === "number" && typeof event.costUsd === "number") {
       this.tokens += event.totalTokens;
       this.costUsd += event.costUsd;
     }
 
-    if (this.limits.maxTokens !== undefined && this.tokens > this.limits.maxTokens) {
+    if (
+      this.limits.maxTokens !== undefined &&
+      this.tokens + this.reserved.tokens > this.limits.maxTokens
+    ) {
       this.fail(
         "tokens",
         this.limits.maxTokens,
-        this.tokens,
+        this.tokens + this.reserved.tokens,
         `Token 消耗超过上限（${this.limits.maxTokens}）`,
       );
     }
-    if (this.limits.maxCostUsd !== undefined && this.costUsd > this.limits.maxCostUsd) {
+    if (
+      this.limits.maxCostUsd !== undefined &&
+      this.costUsd + this.reserved.costUsd > this.limits.maxCostUsd
+    ) {
       this.fail(
         "costUsd",
         this.limits.maxCostUsd,
-        this.costUsd,
+        this.costUsd + this.reserved.costUsd,
         `费用超过上限（$${this.limits.maxCostUsd}）`,
       );
     }
@@ -126,6 +162,35 @@ export class RunBudgetController {
       );
     }
     return this.violation !== undefined;
+  }
+
+  reserveChild(allocation: RunBudgetReservation, elapsedMs: number): () => void {
+    const checks: readonly [keyof RunBudgetReservation, number][] = [
+      ["toolCalls", this.limits.maxToolCalls - this.toolCalls],
+      ["steps", this.limits.maxSteps - this.steps],
+      ["wallTimeMs", this.limits.runTimeoutMs - elapsedMs],
+      ["tokens", (this.limits.maxTokens ?? 0) - this.tokens],
+      ["costUsd", (this.limits.maxCostUsd ?? 0) - this.costUsd],
+    ];
+    for (const [key, available] of checks) {
+      if (this.reserved[key] + allocation[key] > available) {
+        throw new CoreMindError(
+          "child_run_policy_escalation",
+          `Child Run 的 ${key} 划拨超过父 Runtime 实际剩余预算`,
+        );
+      }
+    }
+    for (const key of Object.keys(this.reserved) as (keyof RunBudgetReservation)[]) {
+      this.reserved[key] += allocation[key];
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      for (const key of Object.keys(this.reserved) as (keyof RunBudgetReservation)[]) {
+        this.reserved[key] -= allocation[key];
+      }
+    };
   }
 
   throwIfExceeded(): void {
