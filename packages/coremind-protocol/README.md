@@ -12,11 +12,15 @@ Protocol v2 通过显式版本范围协商，在 `run`、`chat`、`resume` 接�
 
 `PROTOCOL_V2_SCHEMA_BUNDLE` 与 `PROTOCOL_V2_SCHEMA_FINGERPRINT` 同时锁定请求、初始化结果、RunHandle、事件信封、事件页、查询结果、控制回执和错误响应。v1 在整个 `0.4.x` 保留同步兼容入口，并返回非错误迁移提示；最早移除版本是 `0.5.0`，且仍需独立决策。
 
+`ERROR_CODES` 是跨 Runtime、Protocol、Worker 与 SDK 的类型化 Error Contract 注册表，记录稳定字符串码、恢复分类、兼容 Run 输出、取消、重试和人工处置分类。expand 阶段的 `terminality` 与 `runStatus` 分别表达错误是否可恢复和既有 Run 投影，因此可能暂时不同，后续迁移不得静默改写。`normalizeExternalErrorCode()` 保留未知外部码用于后续脱敏审计，但公开码固定收敛为 `unclassified_error`，对应暂停、人工处置和禁止自动重试。本阶段保留既有入口映射；调用方迁移与历史 Fact 审计将在后续 P0 任务完成。
+
 ## English: Protocol v2
 
 Protocol v2 explicitly negotiates a version range, requires a stable client-generated Run ID for `run`, `chat`, and `resume`, and immediately returns a RunHandle. Clients then resume durable events by sequence, query the single ProjectionEngine, and submit durable controls with stable control IDs. Duplicate starts and controls are fingerprinted; conflicts, unknown versions, mixed v1/v2 envelopes, and unknown non-ignorable events fail closed.
 
 `PROTOCOL_V2_SCHEMA_BUNDLE` and its fingerprint cover requests, initialization results, RunHandles, event envelopes and pages, query results, control receipts, and error responses. The synchronous v1 compatibility entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
+
+`ERROR_CODES` is the typed Error Contract registry shared by Runtime, Protocol, Worker, and SDK consumers. It binds stable string codes to recoverability, compatibility Run output, cancellation, retry, and human-action classifications. During the expand phase, `terminality` and `runStatus` separately describe whether an error is recoverable and what the existing Run projection emits, so they may temporarily differ and must not be changed silently during migration. `normalizeExternalErrorCode()` retains an unknown external code for later redacted audit while constraining the public code to `unclassified_error`, which pauses for human handling and forbids automatic retry. This expand phase preserves existing entry-point mappings; caller migration and historical Fact audit remain follow-up P0 work.
 
 任何不兼容协议变更必须同步升级 TypeScript、Python、内置 Worker 和协议标识，并通过跨语言与黄金样例测试；不得只更新一端。贡献流程见[贡献指南](https://github.com/Eclipseic1848/CoreMind/blob/main/CONTRIBUTING.md)。
 

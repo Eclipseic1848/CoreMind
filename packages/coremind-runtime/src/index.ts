@@ -91,7 +91,20 @@ export {
   inspectRuntimeCompatibility,
   type RuntimeCompatibilityReport,
 } from "./dependency-adapter.js";
-export { CoreMindError } from "./errors.js";
+export {
+  CoreMindError,
+  ERROR_CODES,
+  type ErrorCancelClass,
+  type ErrorCode,
+  type ErrorCodeInfo,
+  type ErrorHumanAction,
+  type ErrorRetryClass,
+  type ErrorRunStatus,
+  type ErrorTerminality,
+  isErrorCode,
+  type NormalizedExternalErrorCode,
+  normalizeExternalErrorCode,
+} from "./errors.js";
 export {
   type CommandGrader,
   type DiffGrader,

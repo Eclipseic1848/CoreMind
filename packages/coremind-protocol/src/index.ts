@@ -2,6 +2,20 @@ import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
 export {
+  ERROR_CODES,
+  type ErrorCancelClass,
+  type ErrorCode,
+  type ErrorCodeInfo,
+  type ErrorHumanAction,
+  type ErrorRetryClass,
+  type ErrorRunStatus,
+  type ErrorTerminality,
+  isErrorCode,
+  type NormalizedExternalErrorCode,
+  normalizeExternalErrorCode,
+} from "./error-contract.js";
+
+export {
   negotiateProtocolV2,
   PROTOCOL_V2_SCHEMA_BUNDLE,
   PROTOCOL_V2_SCHEMA_FINGERPRINT,
