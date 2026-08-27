@@ -140,6 +140,18 @@ class CoreMindClientTest(unittest.TestCase):
 
         self.assertEqual(captured.exception.coremind_code, "invalid_run_snapshot")
 
+    def test_custom_worker_unknown_code_fails_closed(self) -> None:
+        with self.assertRaises(ProtocolError) as captured:
+            self.client.run("未知错误码")
+
+        error = captured.exception
+        self.assertEqual(error.coremind_code, "unclassified_error")
+        self.assertEqual(error.original_coremind_code, "vendor_private_error")
+        self.assertEqual(error.error_info["humanAction"], "required")
+        self.assertEqual(error.error_info["retryClass"], "human")
+        self.assertEqual(error.error_info["runStatus"], "paused")
+        self.assertEqual(error.details, {"source": "synthetic-custom-worker"})
+
     def test_declared_local_observability_rejects_invalid_projection(self) -> None:
         with self.assertRaises(ProtocolError) as captured:
             self.client.run("坏观测")

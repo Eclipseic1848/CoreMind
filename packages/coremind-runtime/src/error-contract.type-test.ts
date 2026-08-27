@@ -1,3 +1,4 @@
+import type { ConfigParseErrorCode, ConfigValidationErrorCode } from "coremind-config";
 import type {
   DiffLimitErrorCode,
   GitAdapterErrorCode,
@@ -11,6 +12,7 @@ import type {
   ErrorCode,
   ExperimentErrorCode,
   LifecycleExtensionErrorCode,
+  RunOutcome,
   TelemetryFailureCode,
 } from "./index.js";
 
@@ -25,6 +27,8 @@ type _CoreMindErrorConstructorRemainsCompatible = Expect<
 >;
 
 type ExistingOwnedErrorCode =
+  | ConfigParseErrorCode
+  | ConfigValidationErrorCode
   | CodingKernelErrorCode
   | ContextLifecycleErrorCode
   | ExperimentErrorCode
@@ -46,3 +50,15 @@ function rejectsUnregisteredErrorCode(): void {
 }
 
 void rejectsUnregisteredErrorCode;
+
+function rejectsUnregisteredRunOutcome(): void {
+  const outcome: RunOutcome = {
+    status: "failed",
+    finishReason: "vendor_private_error",
+    // @ts-expect-error 公开 Outcome 不得携带未登记错误码
+    error: { code: "vendor_private_error", message: "私有错误" },
+  };
+  void outcome;
+}
+
+void rejectsUnregisteredRunOutcome;

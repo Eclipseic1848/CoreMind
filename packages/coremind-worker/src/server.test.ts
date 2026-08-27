@@ -3,7 +3,7 @@ import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { CheckpointManager, FileRunStore, RunStateJournal } from "coremind-ai";
+import { CheckpointManager, CoreMindError, FileRunStore, RunStateJournal } from "coremind-ai";
 import { PROTOCOL_VERSION } from "coremind-protocol";
 import { describe, expect, it } from "vitest";
 import { type WorkerRuntimeFactory, WorkerServer } from "./server.js";
@@ -82,6 +82,100 @@ describe("WorkerServer", () => {
         },
       },
     });
+  });
+
+  it("未登记 Runtime 错误在 JSON-RPC 出站前失败关闭并脱敏", async () => {
+    const server = new WorkerServer({
+      send: () => {},
+      runtimeFactory: async () => ({
+        run: async () => {
+          const privateCode = ["vendor_private_error", "token=worker-secret"].join("?");
+          throw new CoreMindError(privateCode, "Bearer worker-secret");
+        },
+      }),
+    });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: "init-unclassified",
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: "run-unclassified",
+      method: "run",
+      params: { input: "触发未知错误" },
+    });
+
+    expect(response).toMatchObject({
+      error: {
+        message: "外部执行返回未分类错误，需人工审计后继续",
+        data: {
+          coremindCode: "unclassified_error",
+          details: {
+            audit: { originalCode: "vendor_private_error?token=hidden" },
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(response)).not.toContain("worker-secret");
+  });
+
+  it.each([
+    {
+      name: "裸异常",
+      error: new Error("Bearer worker-secret"),
+      expectedCode: "unclassified_error",
+      expectedMessage: "外部执行返回未分类错误，需人工审计后继续",
+    },
+    {
+      name: "配置解析错误",
+      error: Object.assign(new Error("无法读取配置：token=worker-secret"), {
+        name: "ConfigParseError",
+        code: "parse_error",
+      }),
+      expectedCode: "parse_error",
+      expectedMessage: "无法读取配置：token=hidden",
+    },
+  ])("$name 在 JSON-RPC 出站前统一分类并脱敏", async ({ error, expectedCode, expectedMessage }) => {
+    const server = new WorkerServer({
+      send: () => {},
+      runtimeFactory: async () => ({
+        run: async () => {
+          throw error;
+        },
+      }),
+    });
+    await server.handle({
+      jsonrpc: "2.0",
+      id: "init-entry-error",
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: "run-entry-error",
+      method: "run",
+      params: { input: "触发入口错误" },
+    });
+
+    expect(response).toMatchObject({
+      error: {
+        message: expectedMessage,
+        data: { coremindCode: expectedCode },
+      },
+    });
+    expect(JSON.stringify(response)).not.toContain("worker-secret");
   });
 
   it("Python 工具通知与 tool_result 在同一常驻进程内往返", async () => {

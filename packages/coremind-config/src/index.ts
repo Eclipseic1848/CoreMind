@@ -2,6 +2,7 @@
 
 export {
   ConfigParseError,
+  type ConfigParseErrorCode,
   loadConfigFile,
   parseConfigText,
 } from "./parse.js";
@@ -71,6 +72,7 @@ export {
 } from "./schema/tools.js";
 export {
   ConfigValidationError,
+  type ConfigValidationErrorCode,
   findUnknownKeys,
   parseAndValidate,
   validateConfig,

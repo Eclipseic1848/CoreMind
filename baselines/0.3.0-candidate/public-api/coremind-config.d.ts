@@ -52,15 +52,21 @@ export declare type BuiltinToolId = (typeof BUILTIN_TOOL_IDS)[number];
 
 /** 配置解析错误（文件读取失败或 YAML/JSON 语法错误） */
 export declare class ConfigParseError extends Error {
+    readonly code: ConfigParseErrorCode;
     constructor(message: string);
 }
 
+export declare type ConfigParseErrorCode = "parse_error";
+
 /** 配置校验失败（含可读的中文字段路径） */
 export declare class ConfigValidationError extends Error {
+    readonly code: ConfigValidationErrorCode;
     /** 校验错误明细列表 */
     readonly details: readonly string[];
     constructor(message: string, details: readonly string[]);
 }
+
+export declare type ConfigValidationErrorCode = "invalid_config";
 
 export declare type CoreMindConfig = Static<typeof CoreMindConfigSchema>;
 

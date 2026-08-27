@@ -25,6 +25,11 @@ agents:
 
   it("语法错误抛出 ConfigParseError", () => {
     expect(() => parseConfigText("schemaVersion: [1, 2")).toThrow(ConfigParseError);
+    try {
+      parseConfigText("schemaVersion: [1, 2");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "parse_error" });
+    }
   });
 
   it("YAML 与 JSON 解析后走同一校验路径", () => {
