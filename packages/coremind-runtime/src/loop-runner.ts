@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { LoopConfig } from "coremind-config";
-import { CoreMindError, cancelSignalForCode } from "./errors.js";
+import { CoreMindError, cancelSignalForCode, isErrorCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import { legacyStepId } from "./ids.js";
 import {
@@ -296,8 +296,9 @@ function terminalError(snapshot: LoopControllerSnapshot): CoreMindError | undefi
   if (snapshot.phase === "paused") {
     return new CoreMindError("loop_paused", snapshot.pauseReason ?? "Loop 已暂停");
   }
+  const code = snapshot.failureCode ?? "loop_failed";
   return new CoreMindError(
-    snapshot.failureCode ?? "loop_failed",
+    isErrorCode(code) ? code : "unclassified_error",
     snapshot.failureMessage ?? `Loop 以 ${snapshot.phase} 结束`,
   );
 }
