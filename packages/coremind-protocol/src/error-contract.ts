@@ -89,6 +89,7 @@ export const ERROR_CODES = defineErrorCodes({
   // —— 暂停/人工类 ——
   approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   tool_approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
+  tool_execution_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   policy_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   loop_paused: {
     terminality: "pausable",

@@ -339,7 +339,7 @@ function prepareFixtureFiles(directory: string, toolError: boolean): void {
   name: "fault_probe",
   description: "产生固定错误的等价性测试工具",
   parameters: { type: "object", properties: {}, additionalProperties: false },
-  execute: async () => { throw new Error("deterministic-tool-error"); }
+  execute: async () => { const error = new Error("deterministic-tool-error"); error.code = "tool_execution_failed"; throw error; }
 };\n`,
     "utf8",
   );

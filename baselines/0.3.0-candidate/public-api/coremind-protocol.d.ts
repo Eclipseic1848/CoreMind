@@ -124,6 +124,11 @@ export declare const ERROR_CODES: ErrorCodeRegistry<{
         readonly cancelClass: "human";
         readonly retryClass: "human";
     };
+    readonly tool_execution_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
     readonly policy_denied: {
         readonly terminality: "pausable";
         readonly cancelClass: "human";

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { LoopConfig } from "coremind-config";
 import { CoreMindError, cancelSignalForCode, isErrorCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import { legacyStepId } from "./ids.js";
 import {
   LoopController,
@@ -93,7 +94,7 @@ export class LoopRunner {
 
   /** 由 Runtime 的总超时或外部取消入口推进到同一确定性终态。 */
   async interrupt(error: unknown): Promise<void> {
-    await this.recordExecutionError(error);
+    await this.recordExecutionError(normalizeExecutionError(error));
   }
 
   async run(): Promise<LoopRunResult> {
@@ -126,8 +127,9 @@ export class LoopRunner {
       }
       return this.result(terminalError(this.controller.getSnapshot()));
     } catch (error) {
-      await this.recordExecutionError(error);
-      return this.result(errorForCaller(error, this.controller.getSnapshot()));
+      const normalized = normalizeExecutionError(error);
+      await this.recordExecutionError(normalized);
+      return this.result(errorForCaller(normalized, this.controller.getSnapshot()));
     }
   }
 
@@ -252,10 +254,10 @@ export class LoopRunner {
     }
   }
 
-  private async recordExecutionError(error: unknown): Promise<void> {
+  private async recordExecutionError(error: CoreMindError): Promise<void> {
     if (isTerminal(this.controller.phase)) return;
-    const code = error instanceof CoreMindError ? error.code : "loop_failed";
-    const message = error instanceof Error ? error.message : String(error);
+    const code = error.code;
+    const message = error.message;
     const category = classifyRetry(error).category;
     if (category === "human") {
       await this.sendAndPersist({ type: "PAUSE", reason: code });
@@ -304,7 +306,10 @@ function terminalError(snapshot: LoopControllerSnapshot): CoreMindError | undefi
 }
 
 function errorForCaller(error: unknown, snapshot: LoopControllerSnapshot): unknown {
-  if (snapshot.phase === "paused") return terminalError(snapshot);
+  if (snapshot.phase === "paused") {
+    if (error instanceof CoreMindError && error.code === "unclassified_error") return error;
+    return terminalError(snapshot);
+  }
   return error;
 }
 

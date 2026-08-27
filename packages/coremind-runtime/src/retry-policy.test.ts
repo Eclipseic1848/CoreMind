@@ -10,12 +10,12 @@ describe("retry policy", () => {
     [new CoreMindError("approval_denied", "用户拒绝"), "human"],
     [new CoreMindError("unknown_effect", "副作用未知"), "human"],
     [new CoreMindError("invalid_config", "参数无效"), "permanent"],
-    [new Error("未分类错误"), "permanent"],
+    [new Error("未分类错误"), "human"],
   ] as const)("把 %o 分类为 %s", (error, category) => {
     expect(classifyRetry(error).category).toBe(category);
   });
 
-  it("复用模型适配层的成熟分类器识别瞬态与配额错误", () => {
+  it("复用模型适配层的成熟分类器识别瞬态错误，未知配额错误要求人工处理", () => {
     const transient = {
       role: "assistant",
       stopReason: "error",
@@ -28,7 +28,7 @@ describe("retry policy", () => {
     };
 
     expect(classifyRetry(transient).category).toBe("transient");
-    expect(classifyRetry(quota).category).toBe("permanent");
+    expect(classifyRetry(quota).category).toBe("human");
   });
 
   it("只重试瞬态错误并按顺序报告次数", async () => {
@@ -58,6 +58,19 @@ describe("retry policy", () => {
       status: 503,
     });
     expect(transient).toHaveBeenCalledTimes(2);
+  });
+
+  it("未知外部异常要求人工处置且绝不重试", async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error("未知 Adapter 异常"), { code: "vendor_private_error" }),
+      );
+
+    await expect(runWithTransientRetry(operation, { maxRetries: 3 })).rejects.toMatchObject({
+      code: "vendor_private_error",
+    });
+    expect(operation).toHaveBeenCalledOnce();
   });
 
   it("中止信号阻止下一次尝试", async () => {

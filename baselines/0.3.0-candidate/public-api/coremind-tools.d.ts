@@ -348,6 +348,12 @@ export declare type ToolCapabilityResolution = "resolved" | "fallback";
 
 export declare type ToolCapabilitySource = "builtin" | "registered" | "inferred" | "fallback";
 
+/** 内置工具向 Agent 报告的可观察执行失败，不表示 Tool Adapter 边界失控。 */
+export declare class ToolExecutionError extends Error {
+    readonly code = "tool_execution_failed";
+    constructor(message: string, options?: ErrorOptions);
+}
+
 export declare interface UnifiedDiffOptions {
     oldPath?: string;
     newPath?: string;
