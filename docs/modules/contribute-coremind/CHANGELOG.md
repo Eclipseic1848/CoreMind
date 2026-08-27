@@ -3,6 +3,7 @@
 ## 0.3.2 - 2026-08-26
 
 - Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.
+- Split fast PR/main engineering feedback from nightly/manual candidate qualification, with explicit live-provider authorization, commit-bound evidence artifacts, and publication checks for both gates.
 
 ## 0.3.1 - 2026-08-21
 

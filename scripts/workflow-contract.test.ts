@@ -29,49 +29,154 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs.deploy.environment.name).toBe("github-pages");
   });
 
-  it("双平台 CI 使用三连跑、覆盖率和真实发布物门禁", () => {
+  it("双平台工程 CI 为 PR 与 main 提供稳定快速门禁", () => {
     const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
-    const checkout = workflow.jobs.test.steps.find((step: { uses?: string }) =>
+    const checkout = workflow.jobs.engineering.steps.find((step: { uses?: string }) =>
       step.uses?.startsWith("actions/checkout@"),
     );
-    const commands = workflow.jobs.test.steps
+    const commands = workflow.jobs.engineering.steps
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
 
-    expect(workflow.jobs.test.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
+    expect(workflow.name).toBe("Engineering CI");
+    expect(workflow.on).toHaveProperty("pull_request");
+    expect(workflow.on.push.branches).toEqual(["main"]);
+    expect(workflow.jobs.engineering.name).toContain("Engineering");
+    expect(workflow.jobs.engineering.strategy.matrix.os).toEqual([
+      "ubuntu-latest",
+      "windows-latest",
+    ]);
     expect(checkout.with["fetch-depth"]).toBe(0);
-    expect(commands).toContain("npm run test:stability");
-    expect(commands).toContain("npm run test:coverage");
-    expect(commands).toContain("npm run release:check-npm");
-    expect(commands).toContain("npm run release:test-npm");
-    expect(commands).toContain("npm run release:test-source");
-    expect(commands).toContain("npm run acceptance:rc");
-    expect(commands).toContain("build==1.5.0");
-    expect(commands).not.toContain("build==1.5.1");
+    expect(commands).toContain("npm run typecheck");
+    expect(commands).toContain("npm run security:audit");
+    expect(commands).toContain("npm run check:docs");
+    expect(commands).toContain("npm run test:engineering");
+    expect(commands).toContain("python -W error::ResourceWarning -m unittest discover");
+    expect(commands).toContain("COREMIND_JOB_STARTED_EPOCH");
+    expect(commands).toContain("GITHUB_STEP_SUMMARY");
+    expect(commands.indexOf("npm run build")).toBeLessThan(commands.indexOf("npm run typecheck"));
+    for (const heavyCommand of [
+      "npm run test:stability",
+      "npm run test:coverage",
+      "npm run acceptance:tty",
+      "npm run release:check-npm",
+      "npm run acceptance:rc",
+      "npm run providers:certify",
+    ]) {
+      expect(commands).not.toContain(heavyCommand);
+    }
   });
 
-  it("预检与 RC 矩阵只在普通功能 PR 延后 Provider 认证", () => {
-    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
-    const ordinaryPullRequest =
-      "github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')";
-    const strictRun =
-      "github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')";
-    for (const [deferredName, strictName] of [
-      ["发布元数据预检（普通功能分支）", "发布元数据预检（严格）"],
-      ["Release Candidate 自动验收矩阵（普通功能分支）", "Release Candidate 自动验收矩阵（严格）"],
-    ]) {
-      const deferred = workflow.jobs.test.steps.find(
-        (step: { name?: string }) => step.name === deferredName,
-      );
-      const strict = workflow.jobs.test.steps.find(
-        (step: { name?: string }) => step.name === strictName,
-      );
+  it("候选资格门承接完整离线矩阵且真实 Provider 认证只能显式手动触发", () => {
+    const workflow = parse(readFileSync(".github/workflows/candidate-qualification.yml", "utf8"));
+    const candidateCommands = workflow.jobs.candidate.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    const providerCommands = workflow.jobs["provider-certification"].steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
 
-      expect(deferred.if).toBe(ordinaryPullRequest);
-      expect(deferred.run).toContain("--defer-provider-certification");
-      expect(strict.if).toBe(strictRun);
-      expect(strict.run).not.toContain("--defer-provider-certification");
+    expect(workflow.name).toBe("Candidate Qualification");
+    expect(workflow.on).toHaveProperty("schedule");
+    expect(workflow.on).toHaveProperty("workflow_dispatch");
+    expect(workflow.on.workflow_dispatch.inputs.qualification_mode.required).toBe(true);
+    expect(workflow.on.workflow_dispatch.inputs.qualification_mode.default).toBe(
+      "offline-rehearsal",
+    );
+    expect(workflow.jobs.candidate.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
+    for (const command of [
+      "npm run test:stability",
+      "npm run test:coverage",
+      "npm run acceptance:tty",
+      "npm run release:check-npm",
+      "npm run release:test-npm",
+      "npm run release:test-source",
+      "npm run acceptance:rc -- --defer-provider-certification",
+    ]) {
+      expect(candidateCommands).toContain(command);
     }
+    expect(candidateCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
+    expect(candidateCommands).toContain("GITHUB_STEP_SUMMARY");
+    expect(candidateCommands.indexOf("npm run build")).toBeLessThan(
+      candidateCommands.indexOf("npm run typecheck"),
+    );
+    expect(candidateCommands).not.toContain("npm run providers:certify");
+    expect(workflow.jobs["provider-certification"].if).toContain("workflow_dispatch");
+    expect(workflow.jobs["provider-certification"].if).toContain("strict-provider");
+    expect(providerCommands).toContain("npm run providers:certify");
+    expect(providerCommands).toContain("npm run release:preflight -- --allow-dirty");
+    expect(providerCommands).not.toContain("--defer-provider-certification");
+    const evidenceUpload = workflow.jobs["provider-certification"].steps.find(
+      (step: { name?: string }) => step.name === "保存 Provider 认证证据",
+    );
+    expect(evidenceUpload.uses).toContain("actions/upload-artifact@");
+    expect(evidenceUpload.with.path).toContain("docs/providers/evidence/*.json");
+    expect(evidenceUpload.with.path).toContain("docs/providers/certifications.json");
+    expect(providerCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
+    expect(providerCommands).toContain("GITHUB_STEP_SUMMARY");
+    expect(workflow.jobs.qualified.name).toBe("Candidate qualified");
+    expect(workflow.jobs.qualified.if).toContain("strict-provider");
+    const qualifiedCommands = workflow.jobs.qualified.steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    expect(qualifiedCommands).toContain("GITHUB_RUN_ID");
+    expect(qualifiedCommands).toContain("GITHUB_STEP_SUMMARY");
+  });
+
+  it("快速测试显式列出工程项目，候选三连跑仍覆盖完整 npm test", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    const engineeringConfig = readFileSync("vitest.engineering.config.ts", "utf8");
+
+    expect(manifest.scripts.test).toBe("vitest run");
+    expect(manifest.scripts["test:stability"]).toContain("scripts/test-stability.mjs");
+    expect(manifest.scripts["test:engineering"]).toContain("vitest.engineering.config.ts");
+    expect(engineeringConfig).toContain('"packages/*"');
+    expect(engineeringConfig).toContain("vitest.input-receipt-acceptance.config.ts");
+    expect(engineeringConfig).toContain("vitest.host-shell.config.ts");
+    expect(engineeringConfig).toContain("examples/coding-evals/vitest.config.ts");
+    expect(engineeringConfig).toContain("scripts/vitest.config.ts");
+    expect(engineeringConfig).not.toContain("trusted-tool-fault-matrix");
+    expect(engineeringConfig).not.toContain("phase2-baseline");
+  });
+
+  it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
+    const engineering = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const candidate = parse(readFileSync(".github/workflows/candidate-qualification.yml", "utf8"));
+    const commands = [
+      ...engineering.jobs.engineering.steps,
+      ...candidate.jobs.candidate.steps,
+      ...candidate.jobs["provider-certification"].steps,
+    ]
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    const preservedGateCommands = [
+      "npx biome check .",
+      "npm run security:audit",
+      "npm run build",
+      "npm run acceptance:workspace-lease",
+      "npm run baseline:check",
+      "npm run dependencies:check",
+      "npm run check:modules",
+      "npm run check:docs",
+      "npm run docs:build",
+      "npm run providers:matrix",
+      "npm run test:stability",
+      "npm run test:coverage",
+      "npm run build:python-worker",
+      "python -W error::ResourceWarning -m unittest discover",
+      "python -m build --wheel python",
+      "python -m twine check python/dist/*",
+      "npm run release:check-wheel",
+      "node --input-type=module -e",
+      "npm run acceptance:tty",
+      "npm run release:preflight",
+      "npm run release:check-npm",
+      "npm run release:test-npm",
+      "npm run release:test-source",
+      "npm run acceptance:rc",
+    ];
+
+    for (const command of preservedGateCommands) expect(commands).toContain(command);
   });
 
   it("Release Please 以非 manifest 入口锁定手动版本并转为草稿 PR", () => {
@@ -140,6 +245,10 @@ describe("GitHub Actions 收口合同", () => {
     expect(candidateCommands).toContain("git fetch origin main --no-tags");
     expect(candidateCommands).toContain("git rev-parse FETCH_HEAD");
     expect(candidateCommands).toContain("actions/workflows/ci.yml/runs");
+    expect(candidateCommands).toContain("actions/workflows/candidate-qualification.yml/runs");
+    expect(candidateCommands).toContain("Candidate qualified");
+    expect(candidateCommands).toContain("provider-certification-*");
+    expect(candidateCommands).toContain("verify-provider-certification-artifact.mjs");
     expect(candidateCommands).toContain("--verify-manual-only");
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
@@ -156,6 +265,7 @@ describe("GitHub Actions 收口合同", () => {
   it("所有外部 Action 固定完整 SHA，并由 Dependabot 维护", () => {
     for (const file of [
       ".github/workflows/ci.yml",
+      ".github/workflows/candidate-qualification.yml",
       ".github/workflows/docs.yml",
       ".github/workflows/release-please.yml",
       ".github/workflows/publish-pypi.yml",

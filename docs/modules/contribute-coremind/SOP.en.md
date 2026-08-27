@@ -11,9 +11,9 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 3. Write a failing test before the smallest implementation.
 4. For an intentional public-contract change, document migration and rollback first. Update the baseline with `npm run baseline:update -- --reason "reason"` only after an architecture decision approves it.
 5. Synchronize module contracts and bilingual docs.
-6. Run focused tests, then `npm run test:stability` and `npm run test:coverage`. Windows/Linux coverage may not fall below their recorded floors, and the generic fallback may not be weaker than their per-metric minimum.
+6. Run focused tests and `npm run test:engineering`; dual-platform `Engineering CI` gives fast PR/main feedback. The nightly/manual candidate then runs `npm run test:stability`, `npm run test:coverage`, artifact, and TTY gates. Windows/Linux coverage may not fall below the recorded floors.
 7. Run `docs:audit` across all project Markdown for strict UTF-8, local links, and the documentation identifier boundary.
-8. Run `acceptance:rc` and require P01-P19 to bind to real tests. Ordinary feature-branch CI may explicitly defer current-Runtime provider certification, but a formal candidate must remove deferred mode and complete both real-pseudoterminal files plus a live provider under the RC guide.
+8. Run `acceptance:rc` and require P01-P19 to bind to real tests. Engineering CI must not read live-provider credentials. Only a manually selected `strict-provider` run may call the provider; a formal candidate preserves commit-bound provider and both-platform TTY artifacts.
 9. Same-task coding comparisons must keep the model, options, initial commit, budget, timeout, and network conditions fixed. Obtain cost, privacy, and code-egress authorization before a live external run; otherwise retain `not-run`.
 10. Let Release Please open a draft release PR, use `release:sync-version` for npm/Python parity, and update both release notes.
 11. After merge, run `release:bundle` only on one clean tag and validate every npm tarball, wheel, source ZIP, SHA-256, and attestation.
