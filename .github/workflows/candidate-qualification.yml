@@ -73,9 +73,9 @@ jobs:
       - name: 完整工程与发布前置门禁
         run: |
           npx biome check .
-          npm run typecheck
           npm run security:audit
           npm run build
+          npm run typecheck
           npm run acceptance:workspace-lease
           npm run baseline:check
           npm run dependencies:check

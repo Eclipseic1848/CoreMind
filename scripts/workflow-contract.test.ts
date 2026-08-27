@@ -54,6 +54,7 @@ describe("GitHub Actions 收口合同", () => {
     expect(commands).toContain("python -W error::ResourceWarning -m unittest discover");
     expect(commands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(commands).toContain("GITHUB_STEP_SUMMARY");
+    expect(commands.indexOf("npm run build")).toBeLessThan(commands.indexOf("npm run typecheck"));
     for (const heavyCommand of [
       "npm run test:stability",
       "npm run test:coverage",
@@ -96,6 +97,9 @@ describe("GitHub Actions 收口合同", () => {
     }
     expect(candidateCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(candidateCommands).toContain("GITHUB_STEP_SUMMARY");
+    expect(candidateCommands.indexOf("npm run build")).toBeLessThan(
+      candidateCommands.indexOf("npm run typecheck"),
+    );
     expect(candidateCommands).not.toContain("npm run providers:certify");
     expect(workflow.jobs["provider-certification"].if).toContain("workflow_dispatch");
     expect(workflow.jobs["provider-certification"].if).toContain("strict-provider");

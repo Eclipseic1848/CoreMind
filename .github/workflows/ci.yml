@@ -52,16 +52,16 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
 
-      - name: 代码风格与类型检查
-        run: |
-          npx biome check .
-          npm run typecheck
+      - name: 代码风格检查
+        run: npx biome check .
 
       - name: 生产依赖与开发工具风险门禁
         run: npm run security:audit
 
-      - name: 构建
-        run: npm run build
+      - name: 构建与类型检查
+        run: |
+          npm run build
+          npm run typecheck
 
       - name: 跨进程 Workspace Lease 验收
         run: npm run acceptance:workspace-lease
