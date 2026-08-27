@@ -2,6 +2,8 @@
 
 CoreMind 的配置解析与校验包。它负责读取 `coremind.yaml`、应用默认值，并在智能体开始执行前返回可定位的配置错误。
 
+`ConfigParseError.code` 固定为已登记的 `parse_error`，`ConfigValidationError.code` 固定为 `invalid_config`；上层入口从统一 Error Contract 获得终态、重试和人工处置分类，不在 Config 内维护第二份映射。
+
 ```ts
 import { loadConfig } from "coremind-config";
 

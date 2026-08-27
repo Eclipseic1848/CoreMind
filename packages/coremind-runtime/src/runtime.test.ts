@@ -1,5 +1,13 @@
 import "../../../test/setup-env.js";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -1187,8 +1195,8 @@ describe("CoreMindRuntime", () => {
 
     expect(result.outcome).toMatchObject({
       status: "failed",
-      finishReason: "agent_failed",
-      error: { code: "agent_failed" },
+      finishReason: "provider_transient",
+      error: { code: "provider_transient" },
     });
   });
 
@@ -1217,9 +1225,219 @@ describe("CoreMindRuntime", () => {
 
     expect(result.outcome).toMatchObject({
       status: "failed",
-      finishReason: "agent_failed",
-      error: { code: "agent_failed" },
+      finishReason: "provider_transient",
+      error: { code: "provider_transient" },
     });
+  });
+
+  it("未知 Provider 错误不重试，暂停并把脱敏审计值写入终态 Fact", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-provider-unclassified-"));
+    const store = new FileRunStore(path.join(dir, "runs"));
+    let requests = 0;
+    const server = createServer((_request, response) => {
+      requests += 1;
+      response.writeHead(400, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({
+          error: {
+            code: "vendor_private_error",
+            message: "Bearer provider-secret token=provider-secret",
+          },
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, { runtime: { maxRetries: 3 } }),
+          tools: [],
+        },
+        configDir: dir,
+        initialPrompt: "触发未知 Provider 错误",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+      const terminal = records.at(-1);
+
+      expect(requests).toBe(1);
+      expect(result.metrics.retries).toBe(0);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "unclassified_error",
+        error: {
+          code: "unclassified_error",
+          audit: { originalCode: expect.any(String) },
+        },
+      });
+      expect(JSON.stringify(result.outcome)).not.toContain("provider-secret");
+      expect(terminal).toMatchObject({
+        kind: "pause",
+        payload: { outcome: result.outcome },
+      });
+      expect(ProjectionEngine.project(records).recovery).toMatchObject({
+        resumable: false,
+        requiresHuman: true,
+      });
+      const resumed = await CoreMindRuntime.create({
+        config: {
+          ...toolConfig(port, { runtime: { maxRetries: 3 } }),
+          tools: [],
+        },
+        configDir: dir,
+        initialPrompt: "触发未知 Provider 错误",
+        runStore: store,
+        resumeRunId: result.runId,
+      });
+      await expect(resumed.run()).rejects.toMatchObject({ code: "unclassified_error" });
+      expect(requests).toBe(1);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("未知 Tool Adapter 异常只产生一次副作用并暂停等待人工审计", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-tool-unclassified-"));
+    const effectMarker = path.join(dir, "effects.log");
+    const store = new FileRunStore(path.join(dir, "runs"));
+    const server = createWriteCallingServer("unstable_write");
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const unstableTool: CoreMindToolDefinition = {
+      name: "unstable_write",
+      description: "产生一次副作用后返回未知 Adapter 错误",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+      effect: { operations: ["write"], reversible: true, pathFields: ["path"] },
+      capability: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+      execute: async () => {
+        appendFileSync(effectMarker, "effect\n", "utf8");
+        throw Object.assign(new Error("Bearer tool-secret"), {
+          code: "vendor_tool_error?token=tool-secret",
+        });
+      },
+    };
+    try {
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig((server.address() as AddressInfo).port, {
+          runtime: { maxRetries: 3, maxToolFailures: 0 },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "调用写入工具",
+        approveTool: async () => "allow",
+        runStore: store,
+        toolDefinitions: [unstableTool],
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "unclassified_error",
+        error: {
+          code: "unclassified_error",
+          audit: { originalCode: "vendor_tool_error?token=hidden" },
+        },
+      });
+      expect(readFileSync(effectMarker, "utf8").trim().split("\n")).toEqual(["effect"]);
+      expect(result.metrics.retries).toBe(0);
+      expect(JSON.stringify(records)).not.toContain("tool-secret");
+      expect(ProjectionEngine.project(records).recovery).toMatchObject({
+        resumable: false,
+        requiresHuman: true,
+      });
+      const resumed = await CoreMindRuntime.create({
+        config: toolConfig((server.address() as AddressInfo).port, {
+          runtime: { maxRetries: 3, maxToolFailures: 0 },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "调用写入工具",
+        approveTool: async () => "allow",
+        runStore: store,
+        toolDefinitions: [unstableTool],
+        resumeRunId: result.runId,
+      });
+      await expect(resumed.run()).rejects.toMatchObject({ code: "unclassified_error" });
+      expect(readFileSync(effectMarker, "utf8").trim().split("\n")).toEqual(["effect"]);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("并行 Tool 同时失败时按稳定 Call 标识选择终态", async () => {
+    const runWithDelays = async (alphaDelayMs: number, betaDelayMs: number) => {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-parallel-tool-failures-"));
+      const server = createParallelFailingToolServer();
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const attempts: string[] = [];
+      const failingTool = (name: string, delayMs: number): CoreMindToolDefinition => ({
+        name,
+        description: `${name} 并行失败探针`,
+        parameters: { type: "object", properties: {} },
+        effect: { operations: ["read"], reversible: true },
+        capability: {
+          effect: "none",
+          replay: "safe",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "ordinary",
+        },
+        execute: async () => {
+          attempts.push(name);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          throw Object.assign(new Error(`${name} failed`), { code: `vendor_${name}` });
+        },
+      });
+      try {
+        const runtime = await CoreMindRuntime.create({
+          config: toolConfig((server.address() as AddressInfo).port, {
+            runtime: { maxRetries: 3 },
+          }),
+          configDir: dir,
+          cwd: dir,
+          initialPrompt: "并行调用两个工具",
+          approveTool: async () => "allow",
+          toolDefinitions: [failingTool("alpha", alphaDelayMs), failingTool("beta", betaDelayMs)],
+        });
+
+        const result = await runtime.run();
+        return { outcome: result.outcome, attempts: [...attempts].sort() };
+      } finally {
+        await closeServer(server);
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    const alphaFinishesLast = await runWithDelays(25, 0);
+    const alphaFinishesFirst = await runWithDelays(0, 25);
+
+    for (const result of [alphaFinishesLast, alphaFinishesFirst]) {
+      expect(result.attempts).toEqual(["alpha", "beta"]);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "unclassified_error",
+        error: {
+          code: "unclassified_error",
+          audit: { originalCode: "vendor_alpha" },
+        },
+      });
+    }
   });
 
   it("质量统计包含调用方收到的工具事件", async () => {
@@ -3651,7 +3869,11 @@ describe("CoreMindRuntime", () => {
       });
       expect(result.observability.telemetry.failed).toBeGreaterThan(0);
       expect(rebuilt.outcome).toEqual(result.outcome);
-      expect(rebuilt.recovery).toEqual({ resumable: false, operation: result.operation });
+      expect(rebuilt.recovery).toEqual({
+        resumable: false,
+        requiresHuman: false,
+        operation: result.operation,
+      });
       expect(rebuilt.observability.telemetry).toMatchObject({
         mode: "FULL",
         exporterLoaded: false,
@@ -3852,6 +4074,43 @@ function createWriteCallingServer(toolName = "write") {
         },
       ]);
     });
+  });
+}
+
+function createParallelFailingToolServer() {
+  return createServer((_request, response) => {
+    sendSse(response, [
+      {
+        id: "parallel-tool",
+        choices: [
+          {
+            index: 0,
+            delta: {
+              role: "assistant",
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "call-alpha",
+                  type: "function",
+                  function: { name: "alpha", arguments: "{}" },
+                },
+                {
+                  index: 1,
+                  id: "call-beta",
+                  type: "function",
+                  function: { name: "beta", arguments: "{}" },
+                },
+              ],
+            },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "parallel-tool",
+        choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+      },
+    ]);
   });
 }
 

@@ -48,6 +48,13 @@ interface EntryCapture {
   port: number;
 }
 
+interface ProviderFault {
+  code: string;
+  status?: number;
+  expectedStatus: "failed" | "paused";
+  expectedExitCode: 1 | 2;
+}
+
 function textOf(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
@@ -234,7 +241,7 @@ function normalizeFact(value: unknown, key = ""): unknown {
 /** 假 Provider：记录每次请求的规范化签名，脚本化返回纯文本响应 */
 async function createEquivalenceServer(
   onRequest: (signatures: WireSignature[]) => void,
-  options: { port?: number; toolError?: boolean } = {},
+  options: { port?: number; toolError?: boolean; providerFault?: ProviderFault } = {},
 ): Promise<{ server: Server; port: number }> {
   const server = createServer((request, response) => {
     let body = "";
@@ -245,6 +252,17 @@ async function createEquivalenceServer(
       const parsed = JSON.parse(body) as { messages: unknown[] };
       const signatures = wireSignatures(parsed.messages);
       onRequest(signatures);
+      if (options.providerFault) {
+        response.writeHead(options.providerFault.status ?? 400, {
+          "content-type": "application/json",
+        });
+        response.end(
+          JSON.stringify({
+            error: { code: options.providerFault.code, message: "固定 Provider 错误" },
+          }),
+        );
+        return;
+      }
       response.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
@@ -340,7 +358,7 @@ function prepareFixtureFiles(directory: string, toolError: boolean): void {
   name: "fault_probe",
   description: "产生固定错误的等价性测试工具",
   parameters: { type: "object", properties: {}, additionalProperties: false },
-  execute: async () => { throw new Error("deterministic-tool-error"); }
+  execute: async () => { const error = new Error("deterministic-tool-error"); error.code = "tool_execution_failed"; throw error; }
 };\n`,
     "utf8",
   );
@@ -355,6 +373,7 @@ async function captureTsSdk(
   toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
+  providerFault?: ProviderFault,
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -362,6 +381,7 @@ async function captureTsSdk(
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
+      providerFault,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
@@ -374,7 +394,7 @@ async function captureTsSdk(
       initialPrompt: "你好",
     });
     const result = await runtime.run();
-    expect(result.outcome.status).toBe("succeeded");
+    expect(result.outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
     const liveFingerprint = fingerprintOf(
       result.outcome.status,
       result.snapshot,
@@ -418,6 +438,7 @@ async function captureCli(
   toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
+  providerFault?: ProviderFault,
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -425,6 +446,7 @@ async function captureCli(
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
+      providerFault,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
@@ -438,7 +460,7 @@ async function captureCli(
       [cliPath, "run", configPath, "--prompt", "你好", "--json-events"],
       { cwd: dir },
     );
-    expect(code, stderr).toBe(0);
+    expect(code, stderr).toBe(providerFault?.expectedExitCode ?? 0);
     expect(stderr).not.toContain("Error");
     // 解析 run_result 事件（含 outcome 与 snapshot）
     const runResult = stdout
@@ -459,7 +481,8 @@ async function captureCli(
       })
       .find((item) => item && item.type === "run_result");
     expect(runResult).toBeTruthy();
-    expect(runResult?.outcome?.status).toBe("succeeded");
+    const expectedStatus = providerFault?.expectedStatus ?? "succeeded";
+    expect(runResult?.outcome?.status).toBe(expectedStatus);
     expect(runResult?.snapshot).toBeDefined();
     expect(runResult?.observability).toBeDefined();
     const liveFingerprint = fingerprintOf(
@@ -467,7 +490,7 @@ async function captureCli(
       runResult!.snapshot!,
       runResult!.observability!,
     );
-    const fingerprint = await fingerprintFromFacts(dir, runResult?.runId ?? "", "succeeded");
+    const fingerprint = await fingerprintFromFacts(dir, runResult?.runId ?? "", expectedStatus);
     expect(fingerprint).toMatchObject(liveFingerprint);
     return {
       signatures: captured,
@@ -519,6 +542,7 @@ async function captureTui(
   toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
+  providerFault?: ProviderFault,
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -526,6 +550,7 @@ async function captureTui(
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
+      providerFault,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
@@ -541,6 +566,7 @@ async function captureTui(
     let fingerprint: ResultFingerprint | undefined;
     vi.spyOn(session, "chat").mockImplementation(async (message) => {
       const turn = await chat(message);
+      expect(turn.run.outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
       const liveFingerprint = fingerprintOf(
         turn.run.outcome.status,
         turn.run.snapshot,
@@ -559,7 +585,7 @@ async function captureTui(
       />,
     );
     await typeCommand(app.stdin.write, "你好");
-    await waitForCapture(captured, 6);
+    await waitForCapture(captured, providerFault ? 2 : 6);
     const resultFingerprint = await waitForTuiFingerprint(() => fingerprint);
     app.unmount();
     return { signatures: captured, fingerprint: resultFingerprint, port };
@@ -573,6 +599,7 @@ async function capturePython(
   toolError = false,
   fixedPort?: number,
   fixedDirectory?: string,
+  providerFault?: ProviderFault,
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -580,6 +607,7 @@ async function capturePython(
     {
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
+      providerFault,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
@@ -629,7 +657,7 @@ async function capturePython(
     const observability = JSON.parse(
       observabilityLine!.slice("OBSERVABILITY:".length),
     ) as LocalObservabilityProjection;
-    expect(outcome.status).toBe("succeeded");
+    expect(outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
     expect(snapshot.schemaVersion).toBe(1);
     const liveFingerprint = fingerprintOf(outcome.status, snapshot, observability);
     const fingerprint = await fingerprintFromFacts(
@@ -692,5 +720,60 @@ describe("四入口请求等价（门 A-2）", () => {
     for (const captured of [tsCaptured, cliCaptured, tuiCaptured, pyCaptured]) {
       expect(captured.signatures.some((item) => item.role === "tool")).toBe(true);
     }
+  });
+
+  it("已知 Provider 瞬态错误在四入口给出相同登记码与处置结果", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-rate-limit-"));
+    const fault: ProviderFault = {
+      code: "vendor_rate_limit",
+      status: 429,
+      expectedStatus: "failed",
+      expectedExitCode: 1,
+    };
+    const tsCaptured = await captureTsSdk(false, undefined, directory, fault);
+    const cliCaptured = await captureCli(false, tsCaptured.port, directory, fault);
+    const tuiCaptured = await captureTui(false, tsCaptured.port, directory, fault);
+    const pyCaptured = await capturePython(false, tsCaptured.port, directory, fault);
+
+    expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tsCaptured.fingerprint.outcome).toMatchObject({
+      status: "failed",
+      error: { code: "provider_transient" },
+    });
+    expect(tsCaptured.fingerprint.recovery).toMatchObject({
+      resumable: false,
+      requiresHuman: false,
+    });
+  });
+
+  it("未知 Provider 错误在四入口失败关闭并要求人工处置", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-unclassified-error-"));
+    const fault: ProviderFault = {
+      code: "vendor_private_error?token=provider-secret",
+      expectedStatus: "paused",
+      expectedExitCode: 2,
+    };
+    const tsCaptured = await captureTsSdk(false, undefined, directory, fault);
+    const cliCaptured = await captureCli(false, tsCaptured.port, directory, fault);
+    const tuiCaptured = await captureTui(false, tsCaptured.port, directory, fault);
+    const pyCaptured = await capturePython(false, tsCaptured.port, directory, fault);
+
+    expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tsCaptured.fingerprint.outcome).toMatchObject({
+      status: "paused",
+      error: {
+        code: "unclassified_error",
+        audit: { originalCode: expect.stringContaining("vendor_private_error?token=hidden") },
+      },
+    });
+    expect(tsCaptured.fingerprint.recovery).toMatchObject({
+      resumable: false,
+      requiresHuman: true,
+    });
+    expect(JSON.stringify(tsCaptured.fingerprint)).not.toContain("provider-secret");
   });
 });

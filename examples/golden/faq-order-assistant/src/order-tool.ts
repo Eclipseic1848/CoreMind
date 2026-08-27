@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { ToolExecutionError } from "coremind-tools";
 
 interface Order {
   id: string;
@@ -20,7 +21,7 @@ export default {
     const dataFile = fileURLToPath(new URL("../data/orders.json", import.meta.url));
     const orders = JSON.parse(await readFile(dataFile, "utf8")) as Order[];
     const order = orders.find((item) => item.id === params.orderId);
-    if (!order) throw new Error(`订单 ${params.orderId} 不存在`);
+    if (!order) throw new ToolExecutionError(`订单 ${params.orderId} 不存在`);
     return { content: [{ type: "text", text: JSON.stringify(order) }], details: order };
   },
 };

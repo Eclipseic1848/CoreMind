@@ -1291,7 +1291,7 @@ describe("ChildRunCoordinator", () => {
     }
   }, 15_000);
 
-  it("独立 Child Worker 崩溃被结构化为失败且进程已退出", async () => {
+  it("独立 Child Worker 未知崩溃暂停且不重复副作用", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-child-worker-crash-"));
     temporaryDirectories.push(directory);
     const effectMarker = path.join(directory, "effect.log");
@@ -1309,7 +1309,9 @@ describe("ChildRunCoordinator", () => {
           const source = `require("node:fs").appendFileSync(${JSON.stringify(effectMarker)}, "effect\\n", "utf8"); process.exit(88);`;
           worker = spawn(process.execPath, ["-e", source], { stdio: "pipe", windowsHide: true });
           const exitCode = await waitForChildExitCode(worker);
-          throw new Error(`Child Worker 崩溃：${exitCode}`);
+          throw Object.assign(new Error(`Child Worker 崩溃：${exitCode}`), {
+            code: "vendor_child_worker?token=child-secret",
+          });
         },
       },
       createChildRunId: () => "run-crashed-worker",
@@ -1319,12 +1321,134 @@ describe("ChildRunCoordinator", () => {
       await coordinator.delegate(testDelegationRequest("delegation-worker-crash"))
     ).join();
     expect(result.outcome).toMatchObject({
-      status: "failed",
-      finishReason: "child_run_adapter_failed",
+      status: "paused",
+      finishReason: "unclassified_error",
+      error: {
+        code: "unclassified_error",
+        audit: { originalCode: "vendor_child_worker?token=hidden" },
+      },
     });
+    expect(JSON.stringify(result)).not.toContain("child-secret");
     expect(worker?.exitCode).toBe(88);
     expect((await readFile(effectMarker, "utf8")).trim().split("\n")).toEqual(["effect"]);
     expect(coordinator.isQuiescent()).toBe(true);
+  });
+
+  it("Child Adapter 返回的私有错误码在持久化前归一化并脱敏", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-child-private-error", store);
+    await journal.start({ configFingerprint: "child-private-error" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-child-private-error",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          outcome: {
+            status: "failed",
+            finishReason: "vendor_private_error",
+            error: {
+              code: "vendor_private_error?token=child-secret",
+              message: "Bearer child-secret",
+            },
+          },
+          evidence: ["Bearer child-evidence-secret"],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: ["token=child-risk-secret"],
+        }),
+      },
+      createChildRunId: () => "run-child-private-result",
+    });
+
+    const result = await (
+      await coordinator.delegate(testDelegationRequest("delegation-private-result"))
+    ).join();
+    expect(result.outcome).toMatchObject({
+      status: "paused",
+      finishReason: "unclassified_error",
+      error: {
+        code: "unclassified_error",
+        audit: { originalCode: "vendor_private_error?token=hidden" },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("child-secret");
+    expect(JSON.stringify(result)).not.toContain("child-evidence-secret");
+    expect(JSON.stringify(result)).not.toContain("child-risk-secret");
+    expect(JSON.stringify(await store.read("run-child-private-error"))).not.toContain(
+      "child-secret",
+    );
+  });
+
+  it("Child Adapter 省略 error 时仍按未知 finishReason 收敛", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-child-private-finish", store);
+    await journal.start({ configFingerprint: "child-private-finish" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-child-private-finish",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          outcome: {
+            status: "failed",
+            finishReason: "vendor_private_finish?api_key=child-secret",
+          },
+          evidence: [],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: [],
+        }),
+      },
+      createChildRunId: () => "run-child-private-finish-result",
+    });
+
+    const result = await (
+      await coordinator.delegate(testDelegationRequest("delegation-private-finish"))
+    ).join();
+    expect(result.outcome).toMatchObject({
+      status: "paused",
+      finishReason: "unclassified_error",
+      error: {
+        code: "unclassified_error",
+        audit: { originalCode: "vendor_private_finish?api_key=hidden" },
+      },
+    });
+    expect(JSON.stringify(await store.read("run-child-private-finish"))).not.toContain(
+      "child-secret",
+    );
+  });
+
+  it("Child Adapter 正常返回父取消结果时保持取消语义", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-child-adapter-cancel", store);
+    await journal.start({ configFingerprint: "child-adapter-cancel" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-child-adapter-cancel",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          outcome: { status: "aborted", finishReason: "parent_cancelled" },
+          evidence: [],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: [],
+        }),
+      },
+      createChildRunId: () => "run-child-adapter-cancelled",
+    });
+
+    const result = await (
+      await coordinator.delegate(testDelegationRequest("delegation-adapter-cancel"))
+    ).join();
+    expect(result.outcome).toEqual({ status: "aborted", finishReason: "parent_cancelled" });
+    expect(JSON.stringify(await store.read("run-child-adapter-cancel"))).toContain(
+      '"finishReason":"parent_cancelled"',
+    );
   });
 
   it("父 Cancel 会终止独立 Child Worker，join 后无孤儿进程", async () => {

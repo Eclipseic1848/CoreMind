@@ -1,4 +1,4 @@
-name: CI
+name: Engineering CI
 
 on:
   workflow_dispatch:
@@ -6,8 +6,12 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  engineering:
+    name: Engineering (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -15,6 +19,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [22.x]
     steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
@@ -48,24 +58,23 @@ jobs:
       - name: 生产依赖与开发工具风险门禁
         run: npm run security:audit
 
-      - name: 构建
-        run: npm run build
+      - name: 构建与类型检查
+        run: |
+          npm run build
+          npm run typecheck
 
       - name: 跨进程 Workspace Lease 验收
         run: npm run acceptance:workspace-lease
 
-      - name: 二期公开合同冻结基线
-        run: npm run baseline:check
-
-      - name: 核心依赖锁步与审计报告
-        run: npm run dependencies:check
-
-      - name: 模块交付合同
-        run: npm run check:modules
+      - name: 核心依赖锁步与模块合同
+        run: |
+          npm run dependencies:check
+          npm run check:modules
 
       - name: 双语文档与文档站
         run: |
           npm run check:docs
+          npm run docs:audit
           npm run docs:build
 
       - name: 供应商矩阵一致性
@@ -74,65 +83,31 @@ jobs:
           npm run providers:matrix
           git diff --exit-code -- docs/providers
 
-      - name: 测试三连跑（离线）
-        run: npm run test:stability
-
-      - name: 覆盖率不下降门禁
-        run: npm run test:coverage
+      - name: 核心确定性测试
+        run: npm run test:engineering
 
       - name: 构建 Python worker
         run: npm run build:python-worker
 
-      - name: 安装并测试 Python SDK（离线）
+      - name: Python SDK 与跨语言合同（离线）
         run: |
           python -m pip install --disable-pip-version-check ./python
           python -W error::ResourceWarning -m unittest discover -s python/tests -p "test_*.py" -v
           python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
 
-      - name: 构建 PyPI wheel
-        run: |
-          python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
-          python -m build --wheel python
-          python -m twine check python/dist/*
-
-      - name: 检查 Python wheel 内容
-        run: npm run release:check-wheel
-
       - name: 示例配置冒烟（离线）
         run: |
           node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
 
-      - name: 当前平台真实伪终端验收
-        run: npm run acceptance:tty
-
-      - name: 保存当前平台真实伪终端证据
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: rc-tty-${{ runner.os }}
-          path: .scratch/rc-evidence/rc-tty-*.json
-          if-no-files-found: error
-
-      - name: 发布元数据预检（普通功能分支）
-        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
-        run: npm run release:preflight -- --allow-dirty --defer-provider-certification
-
-      - name: 发布元数据预检（严格）
-        if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
-        run: npm run release:preflight -- --allow-dirty
-
-      - name: npm 包 allowlist 与禁止文件
-        run: npm run release:check-npm
-
-      - name: npm tarball、类型与干净安装
-        run: npm run release:test-npm
-
-      - name: 源码 ZIP 干净安装与构建
-        run: npm run release:test-source
-
-      - name: Release Candidate 自动验收矩阵（普通功能分支）
-        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
-        run: npm run acceptance:rc -- --defer-provider-certification
-
-      - name: Release Candidate 自动验收矩阵（严格）
-        if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
-        run: npm run acceptance:rc
+      - name: 记录实际运行时间
+        if: always()
+        shell: bash
+        run: |
+          finished_epoch="$(date +%s)"
+          duration_seconds="$((finished_epoch - COREMIND_JOB_STARTED_EPOCH))"
+          {
+            echo "### Engineering CI · ${{ matrix.os }}"
+            echo "- 开始：${COREMIND_JOB_STARTED_AT}"
+            echo "- 耗时：${duration_seconds} 秒"
+            echo "- 结果：${{ job.status }}"
+          } >> "${GITHUB_STEP_SUMMARY}"

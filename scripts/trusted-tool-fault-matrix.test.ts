@@ -165,11 +165,14 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
     expect(gateCalls).toHaveLength(1);
     const gateCallIndex = gateCalls[0]!.index!;
     const harnessIndex = runtimeSource.lastIndexOf(
-      "executeTool: ({ call, invoke }) =>",
+      "executeTool: async ({ call, invoke }) =>",
       gateCallIndex,
     );
-    expect(harnessIndex).toBeGreaterThan(gateCallIndex - 200);
-    expect(runtimeSource.slice(gateCallIndex, gateCallIndex + 300)).toMatch(/\binvoke\b/);
+    const nextHookIndex = runtimeSource.indexOf("transformContext:", gateCallIndex);
+    expect(harnessIndex).toBeGreaterThan(-1);
+    expect(harnessIndex).toBeLessThan(gateCallIndex);
+    expect(nextHookIndex).toBeGreaterThan(gateCallIndex);
+    expect(runtimeSource.slice(harnessIndex, nextHookIndex)).toMatch(/\binvoke\b/);
   });
 
   it("固定 seed 覆盖 Effect、切点、故障类型与时序的完整笛卡尔积", () => {

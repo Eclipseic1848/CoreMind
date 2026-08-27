@@ -36,4 +36,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-coremind = ["py.typed", "_worker/*.mjs", "_worker/manifest.json", "skills/*/README.md"]
+coremind = ["py.typed", "_error_contract.json", "_worker/*.mjs", "_worker/manifest.json", "skills/*/README.md"]

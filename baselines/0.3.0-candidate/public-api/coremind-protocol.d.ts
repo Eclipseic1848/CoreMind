@@ -11,6 +11,7 @@ import { TRecord } from '@sinclair/typebox';
 import { TString } from '@sinclair/typebox';
 import { TUnion } from '@sinclair/typebox';
 import { TUnknown } from '@sinclair/typebox';
+import { TUnsafe } from '@sinclair/typebox';
 
 export declare const ApproveRequestSchema: TObject<    {
 jsonrpc: TLiteral<"2.0">;
@@ -71,7 +72,7 @@ method: TLiteral<"close">;
 params: TObject<    {}>;
 }>;
 
-export declare function createErrorResponse(id: RpcId, code: number, message: string, coremindCode?: string, details?: unknown): ProtocolErrorResponse;
+export declare function createErrorResponse(id: RpcId, code: number, message: string, coremindCode?: ErrorCode, details?: unknown): ProtocolErrorResponse;
 
 export declare function createEventNotification(params: Omit<ProtocolEventNotification["params"], "protocolVersion">): ProtocolEventNotification;
 
@@ -123,6 +124,11 @@ export declare const ERROR_CODES: ErrorCodeRegistry<{
         readonly terminality: "pausable";
         readonly cancelClass: "human";
         readonly retryClass: "human";
+    };
+    readonly tool_execution_failed: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
     };
     readonly policy_denied: {
         readonly terminality: "pausable";
@@ -636,6 +642,46 @@ export declare const ERROR_CODES: ErrorCodeRegistry<{
         readonly cancelClass: "other";
         readonly retryClass: "fatal";
     };
+    readonly protocol_capability_missing: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly protocol_version_mismatch: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "other";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_run_handle: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_event_page: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_projection_query: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_control_receipt: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_run_snapshot: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
+    readonly invalid_observability: {
+        readonly terminality: "terminal";
+        readonly cancelClass: "corruption";
+        readonly retryClass: "fatal";
+    };
     readonly parse_error: {
         readonly terminality: "terminal";
         readonly cancelClass: "other";
@@ -877,6 +923,9 @@ declare type ErrorCodeRegistry<T extends Readonly<Record<string, ErrorCodeBaseIn
         readonly runStatus: ErrorRunStatus;
     };
 };
+
+/** 由唯一注册表派生，供 Protocol v1/v2 与公共类型共同复用。 */
+export declare const ErrorCodeSchema: TUnsafe<"timeout" | "aborted" | "budget_exceeded" | "run_timeout" | "step_timeout" | "retry_limit" | "step_limit" | "approval_denied" | "tool_approval_denied" | "tool_execution_failed" | "policy_denied" | "loop_paused" | "unknown_effect" | "committed_effect_pending" | "context_budget_exhausted" | "context_capability_conflict" | "context_artifact_missing" | "unclassified_error" | "resume_input_mismatch" | "resume_config_mismatch" | "run_already_finished" | "operation_not_resumable" | "unknown_run" | "run_state_failed" | "durability_unsupported" | "durability_barrier_failed" | "fact_ledger_poisoned" | "fact_ledger_terminal" | "workspace_lease_recovery_required" | "child_run_orphan_audit_required" | "child_run_parent_mismatch" | "child_run_adapter_failed" | "child_run_policy_escalation" | "child_run_concurrency_limit" | "child_run_identity_mismatch" | "child_run_not_quiescent" | "child_run_unavailable" | "run_state_corrupt" | "run_state_conflict" | "run_state_locked" | "checkpoint_corrupt" | "checkpoint_conflict" | "checkpoint_failed" | "checkpoint_not_found" | "checkpoint_too_large" | "checkpoint_not_reversible" | "invalid_checkpoint_id" | "loop_snapshot_invalid" | "loop_snapshot_mismatch" | "loop_config_invalid" | "loop_state_invalid" | "operation_state_corrupt" | "invalid_operation_state" | "invalid_operation_transition" | "control_invalid" | "control_run_mismatch" | "session_migration_invalid" | "session_layout_conflict" | "invalid_session_id" | "session_restore_failed" | "session_migration_conflict" | "session_migration_failed" | "session_migration_unsupported" | "session_alias_failed" | "session_open_locked" | "invalid_run_id" | "invalid_config" | "invalid_tool" | "tool_capability_conflict" | "tool_lifecycle_invalid" | "effect_receipt_conflict" | "workspace_lease_invalid" | "workspace_lease_not_quiescent" | "environment_terminate_failed" | "context_lineage_corrupt" | "delegation_conflict" | "network_error" | "provider_unavailable" | "provider_timeout" | "provider_transient" | "rate_limit" | "workspace_busy" | "worker_closed" | "already_initialized" | "worker_busy" | "duplicate_tool" | "duplicate_tool_call" | "unknown_tool_call" | "python_tool_failed" | "unknown_approval" | "not_initialized" | "concurrent_run" | "control_unavailable" | "unknown_agent" | "unknown_provider" | "agent_failed" | "no_agent" | "no_prompt" | "no_models" | "loop_failed" | "loop_exhausted" | "loop_no_progress" | "verification_failed" | "retry_exhausted" | "quality_override_audit_failed" | "cursor_ahead" | "cursor_expired" | "run_id_conflict" | "protocol_validation_failed" | "protocol_version_mixed" | "protocol_version_unsupported" | "protocol_capability_missing" | "protocol_version_mismatch" | "invalid_run_handle" | "invalid_event_page" | "invalid_projection_query" | "invalid_control_receipt" | "invalid_run_snapshot" | "invalid_observability" | "parse_error" | "internal_error" | "coding_choice_required" | "coding_invalid_choice" | "coding_invalid_change" | "coding_verification_claim_mismatch" | "coding_delivery_not_verified" | "experiment_invalid" | "experiment_run_invalid" | "extension_invalid" | "extension_duplicate" | "extension_not_trusted" | "extension_capability_denied" | "dns" | "tls" | "http_401" | "http_429" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed" | "environment_probe_failed" | "environment_capability_mismatch" | "environment_requirement_unsatisfied" | "environment_activity_conflict" | "git_command_failed" | "git_invalid_request" | "git_path_outside_workspace" | "process_timeout" | "process_aborted" | "process_output_limit" | "process_spawn_failed" | "diff_complexity_limit" | "diff_input_limit" | "diff_output_limit" | "diff_path_outside_workspace" | "unknown">;
 
 /** 人工处置分类：required=继续前必须人工处置、none=不要求人工介入 */
 export declare type ErrorHumanAction = "required" | "none";
@@ -1872,7 +1921,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     code: TInteger;
     message: TString;
     data: TOptional<TObject<    {
-    coremindCode: TOptional<TString>;
+    coremindCode: TOptional<TUnsafe<"timeout" | "aborted" | "budget_exceeded" | "run_timeout" | "step_timeout" | "retry_limit" | "step_limit" | "approval_denied" | "tool_approval_denied" | "tool_execution_failed" | "policy_denied" | "loop_paused" | "unknown_effect" | "committed_effect_pending" | "context_budget_exhausted" | "context_capability_conflict" | "context_artifact_missing" | "unclassified_error" | "resume_input_mismatch" | "resume_config_mismatch" | "run_already_finished" | "operation_not_resumable" | "unknown_run" | "run_state_failed" | "durability_unsupported" | "durability_barrier_failed" | "fact_ledger_poisoned" | "fact_ledger_terminal" | "workspace_lease_recovery_required" | "child_run_orphan_audit_required" | "child_run_parent_mismatch" | "child_run_adapter_failed" | "child_run_policy_escalation" | "child_run_concurrency_limit" | "child_run_identity_mismatch" | "child_run_not_quiescent" | "child_run_unavailable" | "run_state_corrupt" | "run_state_conflict" | "run_state_locked" | "checkpoint_corrupt" | "checkpoint_conflict" | "checkpoint_failed" | "checkpoint_not_found" | "checkpoint_too_large" | "checkpoint_not_reversible" | "invalid_checkpoint_id" | "loop_snapshot_invalid" | "loop_snapshot_mismatch" | "loop_config_invalid" | "loop_state_invalid" | "operation_state_corrupt" | "invalid_operation_state" | "invalid_operation_transition" | "control_invalid" | "control_run_mismatch" | "session_migration_invalid" | "session_layout_conflict" | "invalid_session_id" | "session_restore_failed" | "session_migration_conflict" | "session_migration_failed" | "session_migration_unsupported" | "session_alias_failed" | "session_open_locked" | "invalid_run_id" | "invalid_config" | "invalid_tool" | "tool_capability_conflict" | "tool_lifecycle_invalid" | "effect_receipt_conflict" | "workspace_lease_invalid" | "workspace_lease_not_quiescent" | "environment_terminate_failed" | "context_lineage_corrupt" | "delegation_conflict" | "network_error" | "provider_unavailable" | "provider_timeout" | "provider_transient" | "rate_limit" | "workspace_busy" | "worker_closed" | "already_initialized" | "worker_busy" | "duplicate_tool" | "duplicate_tool_call" | "unknown_tool_call" | "python_tool_failed" | "unknown_approval" | "not_initialized" | "concurrent_run" | "control_unavailable" | "unknown_agent" | "unknown_provider" | "agent_failed" | "no_agent" | "no_prompt" | "no_models" | "loop_failed" | "loop_exhausted" | "loop_no_progress" | "verification_failed" | "retry_exhausted" | "quality_override_audit_failed" | "cursor_ahead" | "cursor_expired" | "run_id_conflict" | "protocol_validation_failed" | "protocol_version_mixed" | "protocol_version_unsupported" | "protocol_capability_missing" | "protocol_version_mismatch" | "invalid_run_handle" | "invalid_event_page" | "invalid_projection_query" | "invalid_control_receipt" | "invalid_run_snapshot" | "invalid_observability" | "parse_error" | "internal_error" | "coding_choice_required" | "coding_invalid_choice" | "coding_invalid_change" | "coding_verification_claim_mismatch" | "coding_delivery_not_verified" | "experiment_invalid" | "experiment_run_invalid" | "extension_invalid" | "extension_duplicate" | "extension_not_trusted" | "extension_capability_denied" | "dns" | "tls" | "http_401" | "http_429" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed" | "environment_probe_failed" | "environment_capability_mismatch" | "environment_requirement_unsatisfied" | "environment_activity_conflict" | "git_command_failed" | "git_invalid_request" | "git_path_outside_workspace" | "process_timeout" | "process_aborted" | "process_output_limit" | "process_spawn_failed" | "diff_complexity_limit" | "diff_input_limit" | "diff_output_limit" | "diff_path_outside_workspace" | "unknown">>;
     details: TOptional<TUnknown>;
     }>>;
     }>;
@@ -1894,7 +1943,7 @@ error: TObject<    {
 code: TInteger;
 message: TString;
 data: TOptional<TObject<    {
-coremindCode: TOptional<TString>;
+coremindCode: TOptional<TUnsafe<"timeout" | "aborted" | "budget_exceeded" | "run_timeout" | "step_timeout" | "retry_limit" | "step_limit" | "approval_denied" | "tool_approval_denied" | "tool_execution_failed" | "policy_denied" | "loop_paused" | "unknown_effect" | "committed_effect_pending" | "context_budget_exhausted" | "context_capability_conflict" | "context_artifact_missing" | "unclassified_error" | "resume_input_mismatch" | "resume_config_mismatch" | "run_already_finished" | "operation_not_resumable" | "unknown_run" | "run_state_failed" | "durability_unsupported" | "durability_barrier_failed" | "fact_ledger_poisoned" | "fact_ledger_terminal" | "workspace_lease_recovery_required" | "child_run_orphan_audit_required" | "child_run_parent_mismatch" | "child_run_adapter_failed" | "child_run_policy_escalation" | "child_run_concurrency_limit" | "child_run_identity_mismatch" | "child_run_not_quiescent" | "child_run_unavailable" | "run_state_corrupt" | "run_state_conflict" | "run_state_locked" | "checkpoint_corrupt" | "checkpoint_conflict" | "checkpoint_failed" | "checkpoint_not_found" | "checkpoint_too_large" | "checkpoint_not_reversible" | "invalid_checkpoint_id" | "loop_snapshot_invalid" | "loop_snapshot_mismatch" | "loop_config_invalid" | "loop_state_invalid" | "operation_state_corrupt" | "invalid_operation_state" | "invalid_operation_transition" | "control_invalid" | "control_run_mismatch" | "session_migration_invalid" | "session_layout_conflict" | "invalid_session_id" | "session_restore_failed" | "session_migration_conflict" | "session_migration_failed" | "session_migration_unsupported" | "session_alias_failed" | "session_open_locked" | "invalid_run_id" | "invalid_config" | "invalid_tool" | "tool_capability_conflict" | "tool_lifecycle_invalid" | "effect_receipt_conflict" | "workspace_lease_invalid" | "workspace_lease_not_quiescent" | "environment_terminate_failed" | "context_lineage_corrupt" | "delegation_conflict" | "network_error" | "provider_unavailable" | "provider_timeout" | "provider_transient" | "rate_limit" | "workspace_busy" | "worker_closed" | "already_initialized" | "worker_busy" | "duplicate_tool" | "duplicate_tool_call" | "unknown_tool_call" | "python_tool_failed" | "unknown_approval" | "not_initialized" | "concurrent_run" | "control_unavailable" | "unknown_agent" | "unknown_provider" | "agent_failed" | "no_agent" | "no_prompt" | "no_models" | "loop_failed" | "loop_exhausted" | "loop_no_progress" | "verification_failed" | "retry_exhausted" | "quality_override_audit_failed" | "cursor_ahead" | "cursor_expired" | "run_id_conflict" | "protocol_validation_failed" | "protocol_version_mixed" | "protocol_version_unsupported" | "protocol_capability_missing" | "protocol_version_mismatch" | "invalid_run_handle" | "invalid_event_page" | "invalid_projection_query" | "invalid_control_receipt" | "invalid_run_snapshot" | "invalid_observability" | "parse_error" | "internal_error" | "coding_choice_required" | "coding_invalid_choice" | "coding_invalid_change" | "coding_verification_claim_mismatch" | "coding_delivery_not_verified" | "experiment_invalid" | "experiment_run_invalid" | "extension_invalid" | "extension_duplicate" | "extension_not_trusted" | "extension_capability_denied" | "dns" | "tls" | "http_401" | "http_429" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed" | "environment_probe_failed" | "environment_capability_mismatch" | "environment_requirement_unsatisfied" | "environment_activity_conflict" | "git_command_failed" | "git_invalid_request" | "git_path_outside_workspace" | "process_timeout" | "process_aborted" | "process_output_limit" | "process_spawn_failed" | "diff_complexity_limit" | "diff_input_limit" | "diff_output_limit" | "diff_path_outside_workspace" | "unknown">>;
 details: TOptional<TUnknown>;
 }>>;
 }>;
@@ -2135,7 +2184,7 @@ error: TObject<    {
 code: TInteger;
 message: TString;
 data: TOptional<TObject<    {
-coremindCode: TOptional<TString>;
+coremindCode: TOptional<TUnsafe<"timeout" | "aborted" | "budget_exceeded" | "run_timeout" | "step_timeout" | "retry_limit" | "step_limit" | "approval_denied" | "tool_approval_denied" | "tool_execution_failed" | "policy_denied" | "loop_paused" | "unknown_effect" | "committed_effect_pending" | "context_budget_exhausted" | "context_capability_conflict" | "context_artifact_missing" | "unclassified_error" | "resume_input_mismatch" | "resume_config_mismatch" | "run_already_finished" | "operation_not_resumable" | "unknown_run" | "run_state_failed" | "durability_unsupported" | "durability_barrier_failed" | "fact_ledger_poisoned" | "fact_ledger_terminal" | "workspace_lease_recovery_required" | "child_run_orphan_audit_required" | "child_run_parent_mismatch" | "child_run_adapter_failed" | "child_run_policy_escalation" | "child_run_concurrency_limit" | "child_run_identity_mismatch" | "child_run_not_quiescent" | "child_run_unavailable" | "run_state_corrupt" | "run_state_conflict" | "run_state_locked" | "checkpoint_corrupt" | "checkpoint_conflict" | "checkpoint_failed" | "checkpoint_not_found" | "checkpoint_too_large" | "checkpoint_not_reversible" | "invalid_checkpoint_id" | "loop_snapshot_invalid" | "loop_snapshot_mismatch" | "loop_config_invalid" | "loop_state_invalid" | "operation_state_corrupt" | "invalid_operation_state" | "invalid_operation_transition" | "control_invalid" | "control_run_mismatch" | "session_migration_invalid" | "session_layout_conflict" | "invalid_session_id" | "session_restore_failed" | "session_migration_conflict" | "session_migration_failed" | "session_migration_unsupported" | "session_alias_failed" | "session_open_locked" | "invalid_run_id" | "invalid_config" | "invalid_tool" | "tool_capability_conflict" | "tool_lifecycle_invalid" | "effect_receipt_conflict" | "workspace_lease_invalid" | "workspace_lease_not_quiescent" | "environment_terminate_failed" | "context_lineage_corrupt" | "delegation_conflict" | "network_error" | "provider_unavailable" | "provider_timeout" | "provider_transient" | "rate_limit" | "workspace_busy" | "worker_closed" | "already_initialized" | "worker_busy" | "duplicate_tool" | "duplicate_tool_call" | "unknown_tool_call" | "python_tool_failed" | "unknown_approval" | "not_initialized" | "concurrent_run" | "control_unavailable" | "unknown_agent" | "unknown_provider" | "agent_failed" | "no_agent" | "no_prompt" | "no_models" | "loop_failed" | "loop_exhausted" | "loop_no_progress" | "verification_failed" | "retry_exhausted" | "quality_override_audit_failed" | "cursor_ahead" | "cursor_expired" | "run_id_conflict" | "protocol_validation_failed" | "protocol_version_mixed" | "protocol_version_unsupported" | "protocol_capability_missing" | "protocol_version_mismatch" | "invalid_run_handle" | "invalid_event_page" | "invalid_projection_query" | "invalid_control_receipt" | "invalid_run_snapshot" | "invalid_observability" | "parse_error" | "internal_error" | "coding_choice_required" | "coding_invalid_choice" | "coding_invalid_change" | "coding_verification_claim_mismatch" | "coding_delivery_not_verified" | "experiment_invalid" | "experiment_run_invalid" | "extension_invalid" | "extension_duplicate" | "extension_not_trusted" | "extension_capability_denied" | "dns" | "tls" | "http_401" | "http_429" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed" | "environment_probe_failed" | "environment_capability_mismatch" | "environment_requirement_unsatisfied" | "environment_activity_conflict" | "git_command_failed" | "git_invalid_request" | "git_path_outside_workspace" | "process_timeout" | "process_aborted" | "process_output_limit" | "process_spawn_failed" | "diff_complexity_limit" | "diff_input_limit" | "diff_output_limit" | "diff_path_outside_workspace" | "unknown">>;
 details: TOptional<TUnknown>;
 }>>;
 }>;
@@ -3232,8 +3281,11 @@ outcome: TObject<    {
 status: TUnion<[TLiteral<"succeeded">, TLiteral<"failed">, TLiteral<"paused">, TLiteral<"aborted">, TLiteral<"timeout">, TLiteral<"budget_exceeded">]>;
 finishReason: TString;
 error: TOptional<TObject<    {
-code: TString;
+code: TUnsafe<"timeout" | "aborted" | "budget_exceeded" | "run_timeout" | "step_timeout" | "retry_limit" | "step_limit" | "approval_denied" | "tool_approval_denied" | "tool_execution_failed" | "policy_denied" | "loop_paused" | "unknown_effect" | "committed_effect_pending" | "context_budget_exhausted" | "context_capability_conflict" | "context_artifact_missing" | "unclassified_error" | "resume_input_mismatch" | "resume_config_mismatch" | "run_already_finished" | "operation_not_resumable" | "unknown_run" | "run_state_failed" | "durability_unsupported" | "durability_barrier_failed" | "fact_ledger_poisoned" | "fact_ledger_terminal" | "workspace_lease_recovery_required" | "child_run_orphan_audit_required" | "child_run_parent_mismatch" | "child_run_adapter_failed" | "child_run_policy_escalation" | "child_run_concurrency_limit" | "child_run_identity_mismatch" | "child_run_not_quiescent" | "child_run_unavailable" | "run_state_corrupt" | "run_state_conflict" | "run_state_locked" | "checkpoint_corrupt" | "checkpoint_conflict" | "checkpoint_failed" | "checkpoint_not_found" | "checkpoint_too_large" | "checkpoint_not_reversible" | "invalid_checkpoint_id" | "loop_snapshot_invalid" | "loop_snapshot_mismatch" | "loop_config_invalid" | "loop_state_invalid" | "operation_state_corrupt" | "invalid_operation_state" | "invalid_operation_transition" | "control_invalid" | "control_run_mismatch" | "session_migration_invalid" | "session_layout_conflict" | "invalid_session_id" | "session_restore_failed" | "session_migration_conflict" | "session_migration_failed" | "session_migration_unsupported" | "session_alias_failed" | "session_open_locked" | "invalid_run_id" | "invalid_config" | "invalid_tool" | "tool_capability_conflict" | "tool_lifecycle_invalid" | "effect_receipt_conflict" | "workspace_lease_invalid" | "workspace_lease_not_quiescent" | "environment_terminate_failed" | "context_lineage_corrupt" | "delegation_conflict" | "network_error" | "provider_unavailable" | "provider_timeout" | "provider_transient" | "rate_limit" | "workspace_busy" | "worker_closed" | "already_initialized" | "worker_busy" | "duplicate_tool" | "duplicate_tool_call" | "unknown_tool_call" | "python_tool_failed" | "unknown_approval" | "not_initialized" | "concurrent_run" | "control_unavailable" | "unknown_agent" | "unknown_provider" | "agent_failed" | "no_agent" | "no_prompt" | "no_models" | "loop_failed" | "loop_exhausted" | "loop_no_progress" | "verification_failed" | "retry_exhausted" | "quality_override_audit_failed" | "cursor_ahead" | "cursor_expired" | "run_id_conflict" | "protocol_validation_failed" | "protocol_version_mixed" | "protocol_version_unsupported" | "protocol_capability_missing" | "protocol_version_mismatch" | "invalid_run_handle" | "invalid_event_page" | "invalid_projection_query" | "invalid_control_receipt" | "invalid_run_snapshot" | "invalid_observability" | "parse_error" | "internal_error" | "coding_choice_required" | "coding_invalid_choice" | "coding_invalid_change" | "coding_verification_claim_mismatch" | "coding_delivery_not_verified" | "experiment_invalid" | "experiment_run_invalid" | "extension_invalid" | "extension_duplicate" | "extension_not_trusted" | "extension_capability_denied" | "dns" | "tls" | "http_401" | "http_429" | "exporter_failed" | "exporter_unavailable" | "egress_policy_missing" | "egress_policy_denied" | "configuration_mismatch" | "feedback_consent_missing" | "content_consent_missing" | "redaction_failed" | "environment_probe_failed" | "environment_capability_mismatch" | "environment_requirement_unsatisfied" | "environment_activity_conflict" | "git_command_failed" | "git_invalid_request" | "git_path_outside_workspace" | "process_timeout" | "process_aborted" | "process_output_limit" | "process_spawn_failed" | "diff_complexity_limit" | "diff_input_limit" | "diff_output_limit" | "diff_path_outside_workspace" | "unknown">;
 message: TString;
+audit: TOptional<TObject<    {
+originalCode: TString;
+}>>;
 }>>;
 }>;
 metrics: TObject<    {

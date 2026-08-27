@@ -32,6 +32,7 @@ export {
 } from "./context-task-state.js";
 export { ControlInbox, type InternalRunControlCommand } from "./control-inbox.js";
 export { enforceExecutionSecurity } from "./execution-security.js";
+export { classifyExecutionError } from "./execution-error.js";
 export type { RunId } from "./ids.js";
 export {
   type ContextProjection,

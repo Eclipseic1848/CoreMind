@@ -127,7 +127,7 @@ describe("ProjectionEngine", () => {
       resumable: true,
       operation,
       outcome,
-      recovery: { resumable: true, operation },
+      recovery: { resumable: true, requiresHuman: false, operation },
       trace,
       checkpoints: [checkpoint],
       artifacts: [artifact],

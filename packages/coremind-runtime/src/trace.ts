@@ -110,14 +110,18 @@ function isCommandKey(key: string): boolean {
   return /^(?:command|script|sql)$/iu.test(key);
 }
 
-function redactSensitiveText(value: string): string {
+export function redactSensitiveText(value: string): string {
   return value
     .replace(/https?:\/\/[^\s"']+/giu, (url) => redactUrl(url))
     .replace(
       /((?:--?(?:api[_-]?key|token|secret|password|authorization)|(?:api[_-]?key|token|secret|password|authorization))\s*(?:=|\s)\s*)[^\s"']+/giu,
       "$1hidden",
     )
-    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden");
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden")
+    .replace(
+      /\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16})\b/gu,
+      "credential-hidden",
+    );
 }
 
 function redactUrl(value: string): string {

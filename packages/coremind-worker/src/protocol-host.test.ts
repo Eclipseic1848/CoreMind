@@ -125,7 +125,10 @@ describe("ProtocolHost", () => {
         }
       ).result;
       expect(v2Projection.outcome).toEqual(v1Result.outcome);
-      expect(v2Projection.recovery).toEqual({ resumable: v1Result.snapshot.resumable });
+      expect(v2Projection.recovery).toEqual({
+        resumable: v1Result.snapshot.resumable,
+        requiresHuman: false,
+      });
       expect(commonProtocolFacts(v2Records)).toEqual(commonProtocolFacts(v1Records));
     } finally {
       rmSync(v1Dir, { recursive: true, force: true });

@@ -80,6 +80,37 @@ describe("runEvaluationSuite", () => {
     expect(result.releaseReadiness.ready).toBe(false);
   });
 
+  it("Evaluation Runtime 的未知 Adapter 错误归一化为人工暂停", async () => {
+    const runtimeFactory: EvaluationRuntimeFactory = async () => ({
+      run: async () => {
+        throw Object.assign(new Error("Bearer evaluation-secret"), {
+          code: "vendor_evaluation?token=evaluation-secret",
+        });
+      },
+    });
+
+    const result = await runEvaluationSuite({
+      config: { ...config, quality: { profile: "development" } },
+      configDir: ".",
+      runtimeFactory,
+      suite: {
+        schemaVersion: 1,
+        scenarios: [{ id: "unknown-adapter", input: "执行", expected: {} }],
+      },
+    });
+
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0]?.outcome).toMatchObject({
+      status: "paused",
+      finishReason: "unclassified_error",
+      error: {
+        code: "unclassified_error",
+        audit: { originalCode: "vendor_evaluation?token=hidden" },
+      },
+    });
+    expect(JSON.stringify(result.attempts[0]?.outcome)).not.toContain("evaluation-secret");
+  });
+
   it("schemaVersion 2 的七类 grader 共同验证代码修复结果", async () => {
     const cwd = createEvaluationRepository();
     const runtimeFactory: EvaluationRuntimeFactory = async () => ({

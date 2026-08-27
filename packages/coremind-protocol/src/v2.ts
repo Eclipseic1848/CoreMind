@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { ErrorCodeSchema } from "./error-contract.js";
 
 export const PROTOCOL_V2_VERSION = "2.0" as const;
 
@@ -982,7 +983,7 @@ export const ProtocolV2ErrorResponseSchema = Type.Object(
         data: Type.Optional(
           Type.Object(
             {
-              coremindCode: Type.Optional(Type.String({ minLength: 1 })),
+              coremindCode: Type.Optional(ErrorCodeSchema),
               details: Type.Optional(Type.Unknown()),
             },
             { additionalProperties: false },

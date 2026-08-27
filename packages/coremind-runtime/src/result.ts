@@ -1,5 +1,6 @@
 import type { QualityConfig } from "coremind-config";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
+import type { ErrorCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import type { CoreMindMessage } from "./public-message.js";
 
@@ -15,7 +16,7 @@ export type RunStatus =
 export interface RunOutcome {
   status: RunStatus;
   finishReason: string;
-  error?: { code: string; message: string };
+  error?: { code: ErrorCode; message: string; audit?: { originalCode: string } };
 }
 
 /** 可观测的执行成本与规模，不对业务正确性作判断。 */

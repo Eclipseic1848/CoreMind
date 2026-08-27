@@ -4,6 +4,8 @@ CoreMind 的智能体运行时，提供模型供应商解析、会话、工具�
 
 所有调用统一返回成功、失败、暂停、中止、超时或预算耗尽终态。`LoopController` 封装内部状态机，提供 verify/repair、无进展检测、稳定快照和暂停恢复；只有验证通过才返回成功。
 
+Runtime、Provider、Tool、Child Run 与 Evaluation 入口共用 Protocol 的 Error Contract。已登记错误保留稳定分类；未知外部异常统一返回暂停且禁止自动重试的 `unclassified_error`，原始外部错误码只以脱敏 `audit.originalCode` 写入 Outcome 与持久 Fact，避免泄露凭据或重复副作用。恢复投影要求人工处置，不会把未知错误猜成瞬态。
+
 工具副作用记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不重复完整步骤和已提交副作用，未知副作用要求人工核对。文件恢复还会检查工具执行后的指纹，拒绝覆盖用户或并发进程的后续修改。
 
 Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_resolved` Fact，并让后续消费者复用同一份冻结 Capability。`projectToolCapabilities()` 为 CLI、TUI、TypeScript 和 Python 提供统一投影；读取 0.3.0/0.3.1 历史记录时，缺少该 Fact 的 Call 显式标记为 `legacy`、`unknown` 与 `requires_human`，不会根据旧工具名补写安全结论。
@@ -19,6 +21,8 @@ Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_res
 `ControlInbox` 与当前 Run 的 `RunStateJournal` 共用单一 Fact writer。Cancel、Approval、Steering 和 Follow-up 先持久化为 accepted，再在可应用点写入 applied 或 rejected；相同 `controlId` 与相同指纹返回 duplicate，不同内容返回 conflict。ACK 只证明对应阶段已持久化，不把 Cancel ACK 冒充为 Quiescent。`ProjectionEngine` 从 Facts 重建 pending controls，Host 或连接重启后可以重试未决控制而不重复已应用副作用。
 
 ## English: Durable controls
+
+Runtime, Provider, Tool, Child Run, and Evaluation entry points share the Protocol Error Contract. Registered errors retain their stable classifications. Unknown external failures become the pausing, non-retryable `unclassified_error`; only a redacted `audit.originalCode` is retained in the Outcome and durable Fact. Recovery requires human disposition instead of guessing that an unknown failure is transient.
 
 `ControlInbox` shares the current RunStateJournal's single fact writer. Cancel, Approval, Steering, and Follow-up are persisted as accepted before an applicable point records applied or rejected. The same control ID and fingerprint returns duplicate; different content returns conflict. An acknowledgement proves only its persisted stage and never represents Cancel as Quiescent. ProjectionEngine rebuilds pending controls from facts, so a Host or connection restart can retry unresolved controls without repeating an applied effect.
 

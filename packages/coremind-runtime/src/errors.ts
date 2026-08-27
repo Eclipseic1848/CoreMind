@@ -50,13 +50,16 @@ export function retryClassForCode(code: string): ErrorRetryClass | undefined {
 }
 
 /** CoreMind 运行时错误（带错误码，便于 CLI 与库调用方区分处理） */
-export class CoreMindError extends Error {
+export class CoreMindError<Code extends string = string> extends Error {
   /** 机器可读错误码；分类语义见 ERROR_CODES 码表 */
-  readonly code: string;
+  readonly code: Code;
+  /** 未知外部错误的脱敏审计值；不得作为公开错误码重新解释。 */
+  readonly audit?: { originalCode: string };
 
-  constructor(code: string, message: string) {
+  constructor(code: Code, message: string, audit?: { originalCode: string }) {
     super(message);
     this.name = "CoreMindError";
     this.code = code;
+    this.audit = audit;
   }
 }

@@ -1,5 +1,6 @@
 import { CoreMindError, terminalStatusForCode } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import { normalizeExecutionError } from "./execution-error.js";
 import type { RunOutcome } from "./result.js";
 
 /**
@@ -21,11 +22,11 @@ export class RunTerminalizer {
 }
 
 function outcomeFromError(error: unknown): RunOutcome {
-  const code = error instanceof CoreMindError ? error.code : "unknown";
-  const message = error instanceof Error ? error.message : String(error);
+  const normalized = normalizeExecutionError(error);
+  const { code, message, audit } = normalized;
   return {
     status: terminalStatusForCode(code),
     finishReason: code,
-    error: { code, message },
+    error: { code, message, ...(audit ? { audit } : {}) },
   };
 }

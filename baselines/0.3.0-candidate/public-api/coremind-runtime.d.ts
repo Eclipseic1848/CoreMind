@@ -615,10 +615,16 @@ export declare interface CoreMindChildRunAdapterOptions {
 }
 
 /** CoreMind 运行时错误（带错误码，便于 CLI 与库调用方区分处理） */
-export declare class CoreMindError extends Error {
+export declare class CoreMindError<Code extends string = string> extends Error {
     /** 机器可读错误码；分类语义见 ERROR_CODES 码表 */
-    readonly code: string;
-    constructor(code: string, message: string);
+    readonly code: Code;
+    /** 未知外部错误的脱敏审计值；不得作为公开错误码重新解释。 */
+    readonly audit?: {
+        originalCode: string;
+    };
+    constructor(code: Code, message: string, audit?: {
+        originalCode: string;
+    });
 }
 
 /**
@@ -2166,6 +2172,7 @@ export declare function receiptStatusOf(events: readonly CoreMindEvent[], inputI
 
 declare interface RecoveryDecision {
     resumable: boolean;
+    requiresHuman: boolean;
     operation?: DurableOperationSnapshot;
 }
 
@@ -2374,8 +2381,11 @@ export declare interface RunOutcome {
     status: RunStatus;
     finishReason: string;
     error?: {
-        code: string;
+        code: ErrorCode;
         message: string;
+        audit?: {
+            originalCode: string;
+        };
     };
 }
 

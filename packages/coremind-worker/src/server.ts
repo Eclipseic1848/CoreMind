@@ -20,7 +20,11 @@ import {
   type RunStateRecord,
   restoreCheckpoint,
 } from "coremind-ai";
-import { enforceExecutionSecurity, ProjectionEngine } from "coremind-ai/internal";
+import {
+  classifyExecutionError,
+  enforceExecutionSecurity,
+  ProjectionEngine,
+} from "coremind-ai/internal";
 import {
   createErrorResponse,
   createEventNotification,
@@ -822,12 +826,9 @@ function rpcIdFrom(value: unknown): string | number {
 
 function protocolError(id: string | number, error: unknown): ProtocolErrorResponse {
   if (error instanceof ProtocolCursorExpiredError) {
-    return createErrorResponse(id, -32_000, error.message, error.code, {
+    return createErrorResponse(id, -32_000, error.message, "cursor_expired", {
       recovery: error.recovery,
     });
-  }
-  if (error instanceof CoreMindError) {
-    return createErrorResponse(id, -32_000, error.message, error.code);
   }
   if (error instanceof ProtocolValidationError) {
     return createErrorResponse(id, -32_600, error.message, "protocol_validation_failed");
@@ -838,11 +839,13 @@ function protocolError(id: string | number, error: unknown): ProtocolErrorRespon
   if (error instanceof ProtocolV2NegotiationError) {
     return createErrorResponse(id, -32_601, error.message, error.code);
   }
+  const classification = classifyExecutionError(error);
   return createErrorResponse(
     id,
-    -32_603,
-    error instanceof Error ? error.message : String(error),
-    "internal_error",
+    -32_000,
+    classification.message,
+    classification.code,
+    classification.audit ? { audit: classification.audit } : undefined,
   );
 }
 

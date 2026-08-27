@@ -10,6 +10,7 @@ Change CoreMind source within its frozen public contracts, one-way dependencies,
 npm run build
 npm run baseline:check
 npm run check
+npm run test:engineering
 npm run test:stability
 npm run test:coverage
 npm run docs:build
@@ -18,7 +19,7 @@ npm run acceptance:rc
 npm run release:preflight -- --allow-dirty
 ```
 
-When Runtime changes on an ordinary feature branch have not yet entered release-candidate certification, CI may use `npm run release:preflight -- --allow-dirty --defer-provider-certification`. The deferral warning means only that development gates passed; a formal candidate must remove the option and complete the live-provider recheck.
+PR/main `Engineering CI` runs the fast dual-platform gate without live-provider credentials. The nightly/manual candidate owns stability, coverage, artifacts, TTY, and heavy fault gates. An offline rehearsal is not qualification; only a manually selected `strict-provider` run with commit-bound evidence produces `Candidate qualified`.
 
 ## Verification
 

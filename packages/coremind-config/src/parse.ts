@@ -1,8 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 
+export type ConfigParseErrorCode = "parse_error";
+
 /** 配置解析错误（文件读取失败或 YAML/JSON 语法错误） */
 export class ConfigParseError extends Error {
+  readonly code: ConfigParseErrorCode = "parse_error";
+
   constructor(message: string) {
     super(message);
     this.name = "ConfigParseError";
