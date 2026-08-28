@@ -16,6 +16,80 @@ const validYaml = {
 };
 
 describe("validateConfig", () => {
+  it("Delegation 默认关闭，显式命名 Target 时保留固定预算", () => {
+    const disabled = validateConfig(validYaml);
+    expect(disabled.agents.main).not.toHaveProperty("delegation");
+
+    const enabled = validateConfig({
+      ...validYaml,
+      agents: {
+        main: {
+          delegation: {
+            targets: {
+              researcher: {
+                budget: {
+                  tokens: 500,
+                  toolCalls: 2,
+                  costUsd: 0.5,
+                  wallTimeMs: 5_000,
+                  steps: 2,
+                  descendants: 0,
+                },
+              },
+            },
+          },
+        },
+        researcher: { systemPrompt: "执行子任务" },
+      },
+    });
+
+    expect(enabled.agents.main).toMatchObject({
+      delegation: {
+        targets: {
+          researcher: {
+            budget: {
+              tokens: 500,
+              toolCalls: 2,
+              costUsd: 0.5,
+              wallTimeMs: 5_000,
+              steps: 2,
+              descendants: 0,
+            },
+          },
+        },
+      },
+    });
+  });
+
+  it.each([
+    ["未定义", "missing"],
+    ["自身", "main"],
+  ])("拒绝委派给%s Delegation Target", (_caseName, target) => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        agents: {
+          main: {
+            delegation: {
+              targets: {
+                [target]: {
+                  budget: {
+                    tokens: 100,
+                    toolCalls: 1,
+                    costUsd: 0.1,
+                    wallTimeMs: 1_000,
+                    steps: 1,
+                    descendants: 0,
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ).toThrow(`agents.main.delegation.targets.${target}`);
+  });
+
   it("接受后端无关的 SecretRef 与 Header 引用", () => {
     const { config } = parseAndValidate({
       schemaVersion: 2,

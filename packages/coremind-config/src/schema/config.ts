@@ -1,5 +1,11 @@
 import { type Static, Type } from "@sinclair/typebox";
-import { AgentConfigSchema, SessionConfigSchema } from "./agent.js";
+import {
+  AgentConfigSchema,
+  type AgentDelegationConfig,
+  type DelegationBudgetConfig,
+  type DelegationTargetConfig,
+  SessionConfigSchema,
+} from "./agent.js";
 import { PermissionsConfigSchema, QualityConfigSchema, RuntimeLimitsSchema } from "./harness.js";
 import { type LoopConfig, LoopConfigSchema } from "./loop.js";
 import {
@@ -40,6 +46,7 @@ export const CoreMindConfigSchema = Type.Object({
 
 export type CoreMindConfig = Static<typeof CoreMindConfigSchema>;
 export type AgentConfig = Static<typeof AgentConfigSchema>;
+export type { AgentDelegationConfig, DelegationBudgetConfig, DelegationTargetConfig };
 export type ProviderConfig = Static<typeof ProviderSchema>;
 export type ProviderRefConfig = Static<typeof ProviderRefSchema>;
 export type CustomProviderConfig = Static<typeof CustomProviderSchema>;

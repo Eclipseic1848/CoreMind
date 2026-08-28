@@ -1,6 +1,24 @@
-import { Type } from "@sinclair/typebox";
+import { type Static, Type } from "@sinclair/typebox";
 import { ModelOptionsSchema } from "./provider.js";
 import { ToolConfigSchema } from "./tools.js";
+
+/** 单个 Delegation Target 的固定六维预算。 */
+export const DelegationBudgetSchema = Type.Object({
+  tokens: Type.Integer({ minimum: 1 }),
+  toolCalls: Type.Integer({ minimum: 0 }),
+  costUsd: Type.Number({ minimum: 0 }),
+  wallTimeMs: Type.Integer({ minimum: 1 }),
+  steps: Type.Integer({ minimum: 1 }),
+  descendants: Type.Integer({ minimum: 0 }),
+});
+
+export const DelegationTargetConfigSchema = Type.Object({
+  budget: DelegationBudgetSchema,
+});
+
+export const AgentDelegationConfigSchema = Type.Object({
+  targets: Type.Record(Type.String({ minLength: 1 }), DelegationTargetConfigSchema),
+});
 
 /** 单个 agent 定义 */
 export const AgentConfigSchema = Type.Object({
@@ -22,7 +40,12 @@ export const AgentConfigSchema = Type.Object({
         "注入的专业技能 id（如 code-review / weekly-report / translation），内容附加到系统提示词",
     }),
   ),
+  delegation: Type.Optional(AgentDelegationConfigSchema),
 });
+
+export type DelegationBudgetConfig = Static<typeof DelegationBudgetSchema>;
+export type DelegationTargetConfig = Static<typeof DelegationTargetConfigSchema>;
+export type AgentDelegationConfig = Static<typeof AgentDelegationConfigSchema>;
 
 /** 会话配置（持久化开关） */
 export const SessionConfigSchema = Type.Object({

@@ -4,6 +4,7 @@ import type { AgentDriver } from "./agent-driver.js";
 import type { ChildRunCoordinator } from "./child-run.js";
 import type { BranchMessage } from "./compaction-projection.js";
 import type { ControlInbox } from "./control-inbox.js";
+import type { CallId, RunId, StepId, TurnId } from "./ids.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { hasPendingJournalFlush, type RunStateJournal } from "./run-state.js";
@@ -23,6 +24,11 @@ export class RunContext<THarness> {
   private readonly extensionReceipts: LifecycleExtensionReceipt[] = [];
   private executionEnvironment?: ExecutionEnvironment;
   private childRuns?: ChildRunCoordinator;
+  private runId?: RunId;
+  private readonly toolCalls = new Map<
+    string,
+    { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId }
+  >();
   private terminationError?: unknown;
 
   registerAgent(name: string, agent: AgentDriver): void {
@@ -71,6 +77,25 @@ export class RunContext<THarness> {
 
   currentChildRuns(): ChildRunCoordinator | undefined {
     return this.childRuns;
+  }
+
+  attachRunId(runId: RunId): void {
+    this.runId = runId;
+  }
+
+  currentRunId(): RunId | undefined {
+    return this.runId;
+  }
+
+  recordToolCall(input: { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId }): void {
+    this.toolCalls.set(`${input.agent}\0${input.callId}`, input);
+  }
+
+  toolCall(
+    agent: string,
+    callId: CallId,
+  ): { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId } | undefined {
+    return this.toolCalls.get(`${agent}\0${callId}`);
   }
 
   async cancelChildRuns(reason: string): Promise<void> {

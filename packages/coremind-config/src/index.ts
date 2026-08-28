@@ -8,9 +8,12 @@ export {
 } from "./parse.js";
 export {
   type AgentConfig,
+  type AgentDelegationConfig,
   type CoreMindConfig,
   CoreMindConfigSchema,
   type CustomProviderConfig,
+  type DelegationBudgetConfig,
+  type DelegationTargetConfig,
   type EnvironmentValueRef,
   type LoopConfig,
   type ModelOptionsConfig,

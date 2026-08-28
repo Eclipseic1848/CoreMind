@@ -78,6 +78,32 @@ agents:
       - code-review
 ```
 
+### delegation：配置驱动的 Child Run
+
+Delegation 默认关闭。只有父 Agent 在 `delegation.targets` 中显式列出的同项目命名 Agent，才会作为内建 `delegate` 工具的目标：
+
+```yaml
+agents:
+  coordinator:
+    systemPrompt: 负责拆解任务并汇总结果。
+    delegation:
+      targets:
+        researcher:
+          budget:
+            tokens: 2000
+            toolCalls: 4
+            costUsd: 0.5
+            wallTimeMs: 60000
+            steps: 6
+            descendants: 0
+  researcher:
+    systemPrompt: 只完成收到的研究任务并返回证据。
+```
+
+六个预算字段必须完整声明。模型调用 `delegate` 时只能提交 `target`、`task`、显式 `fact:` / `artifact:` 引用，以及不超过 Config 上限的可选 `limits`；不能内联覆盖 Agent、Provider、model、tools、permissions、路径、网络、凭据或 workspace。工具只存在于活动父 Run 内，创建的 Child Run 继承项目 Provider 与 canonical Workspace，并以独立 RunId、Fact 和结构化结果参与同一 Projection。
+
+启用 Delegation 时，父级 `runtime.maxTokens` 和 `runtime.maxCostUsd` 必须显式配置；其他父级预算也必须足以覆盖目标预算。省略 `delegation`（或没有任何 target）不会向模型暴露 `delegate`，也不会产生 Child Run Fact。
+
 ## tools：工具
 
 **内置工具**（白名单）：`read` / `ls` / `find` / `grep` / `bash` / `edit` / `write` / `git_status` / `git_diff` / `git_log` / `web-fetch` / `web-search`（web-search 需要 `TAVILY_API_KEY`）。三个 Git 工具只读且参数固定，不能替代提交、切换、清理或推送命令。
