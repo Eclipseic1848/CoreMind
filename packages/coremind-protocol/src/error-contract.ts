@@ -308,6 +308,16 @@ export const ERROR_CODES = defineErrorCodes({
   },
   invalid_run_id: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   invalid_config: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  execution_security_violation: {
+    terminality: "terminal",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  secret_reference_unresolved: {
+    terminality: "terminal",
+    cancelClass: "human",
+    retryClass: "human",
+  },
   invalid_tool: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   tool_capability_conflict: {
     terminality: "terminal",

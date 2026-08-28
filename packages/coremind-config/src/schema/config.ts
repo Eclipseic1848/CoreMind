@@ -4,9 +4,11 @@ import { PermissionsConfigSchema, QualityConfigSchema, RuntimeLimitsSchema } fro
 import { type LoopConfig, LoopConfigSchema } from "./loop.js";
 import {
   type CustomProviderSchema,
+  type EnvironmentValueRefSchema,
   ModelOptionsSchema,
   type ProviderRefSchema,
   ProviderSchema,
+  type SecretRefSchema,
 } from "./provider.js";
 import { TelemetryConfigSchema } from "./telemetry.js";
 import { type ScriptToolSchema, ToolConfigSchema, type ToolRefSchema } from "./tools.js";
@@ -41,6 +43,8 @@ export type AgentConfig = Static<typeof AgentConfigSchema>;
 export type ProviderConfig = Static<typeof ProviderSchema>;
 export type ProviderRefConfig = Static<typeof ProviderRefSchema>;
 export type CustomProviderConfig = Static<typeof CustomProviderSchema>;
+export type SecretRef = Static<typeof SecretRefSchema>;
+export type EnvironmentValueRef = Static<typeof EnvironmentValueRefSchema>;
 export type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;
 export type ToolConfig = Static<typeof ToolConfigSchema>;
 export type ToolRefConfig = Static<typeof ToolRefSchema>;

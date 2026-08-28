@@ -14,7 +14,12 @@ const certificationsPath = path.join(outputDirectory, "certifications.json");
 const ledger = JSON.parse(await readFile(certificationsPath, "utf8"));
 const providers = [];
 for (const id of listSupportedProviders()) {
-  const runtime = await buildProviderRuntime({ id }, {});
+  // 这里只读取锁定的静态模型目录；显式测试引用避免目录生成器依赖真实凭据。
+  const runtime = await buildProviderRuntime(
+    { id, apiKeySecretRef: { secretRef: `matrix/${id}` } },
+    {},
+    { resolve: async () => "matrix-only" },
+  );
   providers.push({
     id,
     defaultModel: runtime.model.id,

@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -77,7 +78,7 @@ async function createRegisteredRuntime(): Promise<CoreMindRuntime> {
         id: "probe",
         baseUrl: "http://127.0.0.1:1/v1",
         model: "probe-model",
-        apiKey: "test-key",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
       },
       agents: { main: {} },
     },

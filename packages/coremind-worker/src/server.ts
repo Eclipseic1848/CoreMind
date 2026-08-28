@@ -19,8 +19,14 @@ import {
   RunStateJournal,
   type RunStateRecord,
   restoreCheckpoint,
+  type SecretResolver,
 } from "coremind-ai";
-import { classifyExecutionError, ProjectionEngine } from "coremind-ai/internal";
+import {
+  buildProviderRuntime,
+  classifyExecutionError,
+  enforceExecutionSecurity,
+  ProjectionEngine,
+} from "coremind-ai/internal";
 import {
   createErrorResponse,
   createEventNotification,
@@ -72,6 +78,7 @@ export interface WorkerServerOptions {
   send: (message: WorkerMessage) => void;
   runtimeFactory?: WorkerRuntimeFactory;
   runStoreFactory?: (directory: string) => ProtocolEventRunStore;
+  secretResolver?: SecretResolver;
 }
 
 export interface ProtocolEventWindow {
@@ -491,6 +498,12 @@ export class ProtocolHost {
       configDir = path.resolve(params.configDir ?? process.cwd());
     }
     const { config, warnings } = parseAndValidate(rawConfig);
+    enforceExecutionSecurity(config);
+    await buildProviderRuntime(
+      config.provider ?? { id: "deepseek" },
+      process.env,
+      this.options.secretResolver,
+    );
     this.initialized = {
       config,
       configDir,
@@ -589,6 +602,7 @@ export class ProtocolHost {
         config,
         configDir: state.configDir,
         cwd: state.cwd,
+        secretResolver: this.options.secretResolver,
         sessionId: persistentChat ? (state.sessionId ?? "python-default") : state.sessionId,
         initialPrompt: input,
         signal: this.activeController.signal,

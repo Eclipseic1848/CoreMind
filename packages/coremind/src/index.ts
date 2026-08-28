@@ -243,6 +243,7 @@ export {
   restoreDurableOperation,
   runEvaluationSuite,
   runExperiment,
+  type SecretResolver,
   type StateGrader,
   type StepOutput,
   selectCodingEnvironment,

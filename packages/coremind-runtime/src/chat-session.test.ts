@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -17,7 +18,7 @@ describe("ChatSession", () => {
         id: "probe",
         baseUrl: "http://127.0.0.1:1/v1",
         model: "probe-model",
-        apiKey: "test-key",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
       },
       agents: { main: { systemPrompt: "测试助手" } },
     };
@@ -74,7 +75,7 @@ describe("ChatSession", () => {
           id: "probe",
           baseUrl: `http://127.0.0.1:${port}/v1`,
           model: "probe-model",
-          apiKey: "test-key",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
         },
         agents: { main: { systemPrompt: "测试助手" } },
       };
@@ -164,7 +165,7 @@ describe("ChatSession", () => {
             id: "probe",
             baseUrl: `http://127.0.0.1:${port}/v1`,
             model: "probe-model",
-            apiKey: "test-key",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
           },
           tools: [{ id: "read" }],
           agents: { main: { systemPrompt: "按要求调用工具" } },

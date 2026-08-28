@@ -78,6 +78,7 @@ import {
 import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { normalizeExecutionError } from "./execution-error.js";
+import { enforceExecutionSecurity } from "./execution-security.js";
 import { type RunId, receiptId } from "./ids.js";
 import {
   claimInput,
@@ -114,7 +115,7 @@ import {
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { type ChildRunTreeProjection, ProjectionEngine } from "./projection.js";
-import { buildProviderRuntime, type ProviderRuntime } from "./provider.js";
+import { buildProviderRuntime, type ProviderRuntime, type SecretResolver } from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
 import { createProviderRequestReplayFact } from "./replay-kit.js";
@@ -170,6 +171,8 @@ export interface CoreMindRuntimeOptions {
   cwd?: string;
   /** 环境变量（默认 process.env） */
   env?: NodeJS.ProcessEnv;
+  /** Provider Adapter 使用的后端无关秘密解析器。 */
+  secretResolver?: SecretResolver;
   /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
   initialPrompt?: string;
   /** 事件回调（CLI 渲染 / Web 面板共用） */
@@ -309,10 +312,15 @@ export class CoreMindRuntime {
     const { config, configDir } = options;
     const cwd = options.cwd ?? process.cwd();
     const env = options.env ?? process.env;
+    enforceExecutionSecurity(config);
     const emit = options.events ?? (() => {});
 
     // 1. provider（解析模型，警告转发）
-    const providerRuntime = await buildProviderRuntime(config.provider, env);
+    const providerRuntime = await buildProviderRuntime(
+      config.provider,
+      env,
+      options.secretResolver,
+    );
     for (const warning of providerRuntime.warnings) {
       emit({ type: "error", message: warning, fatal: false });
     }

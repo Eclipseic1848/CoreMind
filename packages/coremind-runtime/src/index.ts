@@ -267,6 +267,7 @@ export {
 export {
   listInheritedProviders,
   listSupportedProviders,
+  type SecretResolver,
 } from "./provider.js";
 export type { CoreMindMessage, CoreMindMessageContent } from "./public-message.js";
 export {

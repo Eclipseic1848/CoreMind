@@ -116,6 +116,19 @@ describe("错误码码表（单一事实源）", () => {
     }
   });
 
+  it("执行安全门使用专用稳定错误码", () => {
+    expect(ERROR_CODES.execution_security_violation).toMatchObject({
+      terminality: "terminal",
+      cancelClass: "human",
+      retryClass: "human",
+    });
+    expect(ERROR_CODES.secret_reference_unresolved).toMatchObject({
+      terminality: "terminal",
+      cancelClass: "human",
+      retryClass: "human",
+    });
+  });
+
   it("规格码的取消分类与规格 03 一致", () => {
     expect(ERROR_CODES.aborted.cancelClass).toBe("cancel");
     expect(ERROR_CODES.run_timeout.cancelClass).toBe("timeout");

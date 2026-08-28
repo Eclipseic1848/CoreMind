@@ -1,3 +1,7 @@
+// 测试只使用固定假值，避免依赖工作区外的测试夹具而越过 Worker rootDir。
+process.env.COREMIND_TEST_API_KEY = "test-only";
+process.env.DEEPSEEK_API_KEY = "test-only";
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -9,6 +13,109 @@ import { describe, expect, it } from "vitest";
 import { type WorkerRuntimeFactory, WorkerServer } from "./server.js";
 
 describe("WorkerServer", () => {
+  it("初始化时通过统一安全门拒绝不安全配置且不创建执行依赖", async () => {
+    let runtimeFactoryCalls = 0;
+    let runStoreFactoryCalls = 0;
+    const server = new WorkerServer({
+      send: () => {},
+      runtimeFactory: async () => {
+        runtimeFactoryCalls += 1;
+        throw new Error("不应创建 Runtime");
+      },
+      runStoreFactory: (directory) => {
+        runStoreFactoryCalls += 1;
+        return new FileRunStore(directory);
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "unsafe-worker",
+          provider: {
+            id: "gateway",
+            baseUrl: "http://127.0.0.1:9/v1",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            apiKey: "plaintext-secret",
+          },
+          agents: { main: {} },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(response).toMatchObject({
+      error: { data: { coremindCode: "execution_security_violation" } },
+    });
+    expect(runtimeFactoryCalls).toBe(0);
+    expect(runStoreFactoryCalls).toBe(0);
+  });
+
+  it("SecretRef 缺少 resolver 时初始化失败且不泄漏引用", async () => {
+    const opaqueRef = "opaque/worker/key/never-log";
+    const server = new WorkerServer({ send: () => {} });
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "worker-secret-ref",
+          provider: {
+            id: "gateway",
+            baseUrl: "http://127.0.0.1:9/v1",
+            model: "probe",
+            apiKeySecretRef: { secretRef: opaqueRef },
+          },
+          agents: { main: {} },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(response).toMatchObject({
+      error: { data: { coremindCode: "secret_reference_unresolved" } },
+    });
+    expect(JSON.stringify(response)).not.toContain(opaqueRef);
+  });
+
+  it("宿主注入 resolver 时 Worker 初始化成功", async () => {
+    const server = new WorkerServer({
+      send: () => {},
+      secretResolver: { resolve: async () => "test-only" },
+    });
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "worker-secret-ref",
+          provider: {
+            id: "gateway",
+            baseUrl: "http://127.0.0.1:9/v1",
+            model: "probe",
+            apiKeySecretRef: { secretRef: "opaque/worker/key" },
+          },
+          agents: { main: {} },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(response).toMatchObject({ result: { runtime: "node" } });
+  });
+
   it("初始化后运行同一个 CoreMind Runtime，并把 Map 转为跨语言对象", async () => {
     const sent: unknown[] = [];
     const factory: WorkerRuntimeFactory = async (options) => ({
@@ -279,7 +386,7 @@ describe("WorkerServer", () => {
               id: "probe",
               baseUrl: `http://127.0.0.1:${port}/v1`,
               model: "probe-model",
-              apiKey: "test-key",
+              apiKeyEnv: "COREMIND_TEST_API_KEY",
             },
             agents: { main: { systemPrompt: "调用 python_probe" } },
             permissions: { mode: "full", workspaceOnly: true, network: "deny" },
@@ -482,7 +589,7 @@ describe("WorkerServer", () => {
         id: "probe",
         baseUrl: `http://127.0.0.1:${port}/v1`,
         model: "probe-model",
-        apiKey: "test-key",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
       },
       agents: { main: { systemPrompt: "测试助手" } },
     };

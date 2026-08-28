@@ -1,3 +1,4 @@
+import "../../../test/setup-env.js";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -240,7 +241,7 @@ function resumeConfig(providerPort: number): CoreMindConfig {
       id: "probe",
       baseUrl: `http://127.0.0.1:${providerPort}/v1`,
       model: "probe-model",
-      apiKey: "test-key",
+      apiKeyEnv: "COREMIND_TEST_API_KEY",
     },
     agents: { main: { systemPrompt: "只按要求调用工具" } },
     workflow: [
