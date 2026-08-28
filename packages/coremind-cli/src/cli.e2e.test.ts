@@ -1,6 +1,7 @@
 import "../../../test/setup-env.js";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,9 +73,10 @@ beforeAll(async () => {
   delegationMockServer = spawn("node", [delegationMockServerPath, String(DELEGATION_MOCK_PORT)], {
     stdio: "ignore",
   });
-  // 等待 server 就绪
-  await new Promise((resolve) => setTimeout(resolve, 800));
-});
+  await Promise.all(
+    [MOCK_PORT, LOOP_MOCK_PORT, DELEGATION_MOCK_PORT].map((port) => waitForServer(port)),
+  );
+}, 30_000);
 
 afterAll(() => {
   mockServer?.kill();
@@ -801,4 +803,23 @@ function delegationConfig(port: number): string {
   };
   config.provider.baseUrl = `http://127.0.0.1:${port}/v1`;
   return JSON.stringify(config);
+}
+
+async function waitForServer(port: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (await canConnect(port)) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`mock server 未在端口 ${port} 就绪`);
+}
+
+function canConnect(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: "127.0.0.1", port });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
 }
