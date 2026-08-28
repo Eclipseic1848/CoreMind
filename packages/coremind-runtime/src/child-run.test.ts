@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CHILD_RUN_LIMIT_DEFAULTS,
+  type ChildRunBudgetAllocation,
   ChildRunCoordinator,
   type ChildRunDelegationRequest,
   type ChildRunExecutionAdapter,
@@ -371,6 +372,82 @@ describe("ChildRunCoordinator", () => {
     expect(
       (await store.read(parentRunId)).filter((record) => record.kind === "delegation"),
     ).toEqual([]);
+  });
+
+  it("单次委派只能收紧后代深度、活动子级数与后代总数", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-hierarchy-parent", store);
+    await journal.start({ configFingerprint: "hierarchy-parent" });
+    let inheritedPolicy: ChildRunPolicySnapshot | undefined;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-hierarchy-parent",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async (input) => {
+          inheritedPolicy = input.inheritedPolicy;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => "run-hierarchy-child",
+    });
+    const request = {
+      ...testDelegationRequest("delegation-hierarchy"),
+      allocation: {
+        ...testDelegationRequest("delegation-hierarchy").allocation,
+        descendants: 2,
+      },
+      hierarchyLimits: {
+        maxDepth: 1,
+        maxActiveChildren: 0,
+      },
+    };
+
+    await (await coordinator.delegate(request)).join();
+    expect(inheritedPolicy).toMatchObject({
+      depth: 1,
+      maxDepth: 1,
+      maxActiveChildren: 0,
+      maxDescendants: 2,
+    });
+    expect(
+      (await store.read("run-hierarchy-parent"))
+        .filter((record) => record.kind === "delegation")
+        .map((record) => record.payload),
+    ).toContainEqual(
+      expect.objectContaining({
+        type: "delegation_recorded",
+        inheritedPolicy: expect.objectContaining({
+          maxDepth: 1,
+          maxActiveChildren: 0,
+          maxDescendants: 2,
+        }),
+      }),
+    );
+
+    const childJournal = new RunStateJournal("run-hierarchy-child", store);
+    await childJournal.start({ configFingerprint: "hierarchy-child" });
+    const childCoordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-hierarchy-child",
+      parentJournal: childJournal,
+      runStore: store,
+      parentPolicy: inheritedPolicy!,
+      adapter: { execute: async () => successfulChildResult() },
+      createChildRunId: () => "must-not-create",
+    });
+    await expect(
+      childCoordinator.delegate(testDelegationRequest("delegation-must-not-expand")),
+    ).rejects.toMatchObject({ code: "child_run_concurrency_limit" });
+
+    for (const hierarchyLimits of [{ maxDepth: 4 }, { maxActiveChildren: 5 }]) {
+      await expect(
+        coordinator.delegate({
+          ...testDelegationRequest(`delegation-expand-${Object.keys(hierarchyLimits)[0]}`),
+          hierarchyLimits,
+        }),
+      ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    }
   });
 
   it("限制活动子级并发，父取消传播后等待终态与 join 才静止", async () => {
@@ -771,6 +848,280 @@ describe("ChildRunCoordinator", () => {
         },
       }),
     ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+  });
+
+  it("创建前初始化失败释放完整六维父级预留", async () => {
+    const baseStore = durableMemoryRunStore();
+    const store: RunStore = {
+      ...baseStore,
+      commit: async (record, durability) => {
+        if (record.kind === "delegation") throw new Error("delegation-init-failed");
+        return baseStore.commit!(record, durability);
+      },
+    };
+    const journal = new RunStateJournal("run-init-release", store);
+    await journal.start({ configFingerprint: "init-release" });
+    const request = testDelegationRequest("delegation-init-release");
+    const released: ChildRunBudgetAllocation[] = [];
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-init-release",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: { execute: async () => successfulChildResult() },
+      createChildRunId: () => "run-init-release-child",
+      reserveParentBudget: (allocation) => {
+        const reserved = structuredClone(allocation);
+        return () => released.push(reserved);
+      },
+    });
+
+    await expect(coordinator.delegate(request)).rejects.toThrow("delegation-init-failed");
+    expect(released).toEqual([request.allocation]);
+    expect(await store.read("run-init-release")).toEqual([
+      expect.objectContaining({ kind: "start" }),
+    ]);
+  });
+
+  it("recorded 已持久化而 child_created 提交未知时保留身份与预留并禁止重放", async () => {
+    const baseStore = durableMemoryRunStore();
+    let failChildCreated = true;
+    const store: RunStore = {
+      ...baseStore,
+      commit: async (record, durability) => {
+        if (
+          failChildCreated &&
+          record.kind === "delegation" &&
+          (record.payload as { type?: string }).type === "child_created"
+        ) {
+          failChildCreated = false;
+          throw new Error("child-created-commit-failed");
+        }
+        return baseStore.commit!(record, durability);
+      },
+    };
+    const parentRunId = "run-created-commit-failure";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "created-commit-failure" });
+    const request = testDelegationRequest("delegation-created-commit-failure");
+    const released: ChildRunBudgetAllocation[] = [];
+    let childIds = 0;
+    let executions = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          executions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => `run-created-commit-failure-child-${++childIds}`,
+      reserveParentBudget: (allocation) => {
+        const reserved = structuredClone(allocation);
+        return () => released.push(reserved);
+      },
+    });
+
+    await expect(coordinator.delegate(request)).rejects.toThrow("child-created-commit-failed");
+    const replay = await coordinator.delegate(request);
+
+    expect(replay.childRunId).toBe("run-created-commit-failure-child-1");
+    await expect(replay.join()).rejects.toThrow("child-created-commit-failed");
+    expect(childIds).toBe(1);
+    expect(executions).toBe(0);
+    expect(released).toEqual([]);
+    expect(
+      (await store.read(parentRunId)).filter((record) => record.kind === "delegation"),
+    ).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ type: "delegation_recorded" }),
+      }),
+    ]);
+    await expect(coordinator.delegate({ ...request, task: "不同输入" })).rejects.toMatchObject({
+      code: "delegation_conflict",
+    });
+  });
+
+  it("首个 recorded 已落盘但返回异常时回读确认并保留身份与预留", async () => {
+    const baseStore = durableMemoryRunStore();
+    let failAfterRecordedCommit = true;
+    const store: RunStore = {
+      ...baseStore,
+      commit: async (record, durability) => {
+        const committed = await baseStore.commit!(record, durability);
+        if (
+          failAfterRecordedCommit &&
+          record.kind === "delegation" &&
+          (record.payload as { type?: string }).type === "delegation_recorded"
+        ) {
+          failAfterRecordedCommit = false;
+          throw new Error("delegation-recorded-ack-unknown");
+        }
+        return committed;
+      },
+    };
+    const parentRunId = "run-recorded-ack-unknown";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "recorded-ack-unknown" });
+    const request = testDelegationRequest("delegation-recorded-ack-unknown");
+    const released: ChildRunBudgetAllocation[] = [];
+    let childIds = 0;
+    let executions = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          executions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => `run-recorded-ack-unknown-child-${++childIds}`,
+      reserveParentBudget: (allocation) => {
+        const reserved = structuredClone(allocation);
+        return () => released.push(reserved);
+      },
+    });
+
+    await expect(coordinator.delegate(request)).rejects.toThrow("delegation-recorded-ack-unknown");
+    const replay = await coordinator.delegate(request);
+
+    expect(replay.childRunId).toBe("run-recorded-ack-unknown-child-1");
+    await expect(replay.join()).rejects.toThrow("delegation-recorded-ack-unknown");
+    expect(childIds).toBe(1);
+    expect(executions).toBe(0);
+    expect(released).toEqual([]);
+    expect(
+      (await store.read(parentRunId)).filter((record) => record.kind === "delegation"),
+    ).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ type: "delegation_recorded" }),
+      }),
+    ]);
+    await expect(coordinator.delegate({ ...request, task: "不同输入" })).rejects.toMatchObject({
+      code: "delegation_conflict",
+    });
+  });
+
+  it.each(["tokens", "toolCalls", "costUsd", "wallTimeMs", "steps", "descendants"] as const)(
+    "Child Run 创建成功后不退还 %s 预留",
+    async (dimension) => {
+      const store = durableMemoryRunStore();
+      const parentRunId = `run-no-refund-${dimension}`;
+      const journal = new RunStateJournal(parentRunId, store);
+      await journal.start({ configFingerprint: `no-refund-${dimension}` });
+      const request = {
+        ...testDelegationRequest(`delegation-no-refund-${dimension}-1`),
+        allocation: {
+          tokens: 1,
+          toolCalls: 1,
+          costUsd: 1,
+          wallTimeMs: 1,
+          steps: 1,
+          descendants: 0,
+        },
+      };
+      const parentBudget: ChildRunBudgetAllocation = {
+        tokens: 2,
+        toolCalls: 2,
+        costUsd: 2,
+        wallTimeMs: 2,
+        steps: 2,
+        descendants: 2,
+      };
+      parentBudget[dimension] = 1;
+      const coordinator = await ChildRunCoordinator.open({
+        parentRunId,
+        parentJournal: journal,
+        runStore: store,
+        parentPolicy: {
+          ...testParentPolicy(),
+          budget: parentBudget,
+          maxDescendants: parentBudget.descendants,
+        },
+        adapter: { execute: async () => successfulChildResult() },
+        createChildRunId: (() => {
+          let id = 0;
+          return () => `${parentRunId}:child:${++id}`;
+        })(),
+      });
+
+      await (await coordinator.delegate(request)).join();
+      await expect(
+        coordinator.delegate({
+          ...request,
+          delegationId: `delegation-no-refund-${dimension}-2`,
+        }),
+      ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    },
+  );
+
+  it("不同父 Agent 使用独立委派预算池，且预算作用域随 Fact 持久化", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-budget-scopes", store);
+    await journal.start({ configFingerprint: "budget-scopes" });
+    const scopedBudget: ChildRunBudgetAllocation = {
+      tokens: 10,
+      toolCalls: 1,
+      costUsd: 1,
+      wallTimeMs: 1_000,
+      steps: 1,
+      descendants: 1,
+    };
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-budget-scopes",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      delegationBudgetPools: {
+        planner: scopedBudget,
+        reviewer: scopedBudget,
+        disabled: scopedBudget,
+      },
+      delegationHierarchyLimits: {
+        planner: { maxDepth: 3, maxActiveChildren: 1, maxDescendants: 1 },
+        reviewer: { maxDepth: 3, maxActiveChildren: 1, maxDescendants: 1 },
+        disabled: { maxDepth: 3, maxActiveChildren: 0, maxDescendants: 1 },
+      },
+      adapter: { execute: async () => successfulChildResult() },
+      createChildRunId: (() => {
+        let id = 0;
+        return () => `run-budget-scope-child-${++id}`;
+      })(),
+    });
+    const requestFor = (budgetScope: string, suffix: string) => ({
+      ...testDelegationRequest(`delegation-${budgetScope}-${suffix}`),
+      budgetScope,
+      allocation: {
+        tokens: 10,
+        toolCalls: 1,
+        costUsd: 1,
+        wallTimeMs: 1_000,
+        steps: 1,
+        descendants: 0,
+      },
+    });
+
+    await expect(coordinator.delegate(requestFor("disabled", "first"))).rejects.toMatchObject({
+      code: "child_run_concurrency_limit",
+    });
+    await (await coordinator.delegate(requestFor("planner", "first"))).join();
+    await (await coordinator.delegate(requestFor("reviewer", "first"))).join();
+    await expect(coordinator.delegate(requestFor("planner", "second"))).rejects.toMatchObject({
+      code: "child_run_policy_escalation",
+    });
+    expect(
+      (await store.read("run-budget-scopes"))
+        .filter(
+          (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+        )
+        .map((record) => (record.payload as { budgetScope?: string }).budgetScope),
+    ).toEqual(["planner", "reviewer"]);
   });
 
   it("从 RunStore 递归重建三层 Child Run tree", async () => {

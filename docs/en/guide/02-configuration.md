@@ -64,6 +64,17 @@ agents:
   coordinator:
     systemPrompt: Split tasks and combine verified results.
     delegation:
+      budget:                 # six-dimensional pool for this parent agent
+        tokens: 4000
+        toolCalls: 8
+        costUsd: 1
+        wallTimeMs: 120000
+        steps: 12
+        descendants: 4
+      limits:                 # optional; defaults are 3 / 4 / 32
+        maxDepth: 3
+        maxActiveChildren: 2
+        maxDescendants: 4
       targets:
         researcher:
           preapproved: true # assisted mode only
@@ -78,7 +89,9 @@ agents:
     systemPrompt: Complete only the delegated research task and return evidence.
 ```
 
-All six budget fields are required. A call may provide only a fixed target, task, explicit `fact:` or `artifact:` references, and optional tighter limits. It cannot override the agent, provider, model, tools, permissions, paths, network, credentials, or workspace.
+All six fields are required both for the parent `delegation.budget` pool and for every Target budget. Pools are isolated by parent agent; a Target budget is its fixed default and hard ceiling. A call may provide only a fixed target, task, explicit `fact:` or `artifact:` references, and optional tighter six-dimensional budget, `maxDepth`, or `maxActiveChildren`. It cannot override the agent, provider, model, tools, permissions, paths, network, credentials, or workspace.
+
+The default hierarchy limits are depth 3, four active Child Runs per parent agent, and 32 total descendants; Config and individual calls can only tighten them. An initialization failure proven to occur before the first delegation Fact is persisted releases the reservation. After creation, unused tokens, tool calls, cost, wall time, steps, and descendant capacity are never refunded. If the critical creation-Fact commit result is unknown, CoreMind retains the recorded identity and reservation for orphan audit rather than reusing the DelegationId. The same DelegationId plus the same normalized input returns the original ChildRunId; a different input conflicts without a second execution.
 
 Delegation has a stricter approval matrix than ordinary low-risk tools. `ask` approves every delegation; `assisted` auto-approves only a target explicitly marked `preapproved: true` when the complete request satisfies every hard boundary; `full` may create a compliant Child Run without a prompt. Explicit deny rules, the target allowlist, all six budget dimensions, non-expanding child tools, and path, network, and credential boundaries always win. Approval binds the fixed target, task, references, and effective limits and carries the exact Child Run input fingerprint later recorded as `delegation_recorded.inputFingerprint`, so any change requires a new approval.
 

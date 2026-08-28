@@ -16,7 +16,7 @@ const validYaml = {
 };
 
 describe("validateConfig", () => {
-  it("Delegation 默认关闭，显式命名 Target 时保留固定预算", () => {
+  it("Delegation 默认关闭，显式启用时保留父级预算池、层级上限与 Target 固定预算", () => {
     const disabled = validateConfig(validYaml);
     expect(disabled.agents.main).not.toHaveProperty("delegation");
 
@@ -25,6 +25,19 @@ describe("validateConfig", () => {
       agents: {
         main: {
           delegation: {
+            budget: {
+              tokens: 1_000,
+              toolCalls: 6,
+              costUsd: 1,
+              wallTimeMs: 20_000,
+              steps: 8,
+              descendants: 4,
+            },
+            limits: {
+              maxDepth: 2,
+              maxActiveChildren: 2,
+              maxDescendants: 4,
+            },
             targets: {
               researcher: {
                 preapproved: true,
@@ -46,6 +59,19 @@ describe("validateConfig", () => {
 
     expect(enabled.agents.main).toMatchObject({
       delegation: {
+        budget: {
+          tokens: 1_000,
+          toolCalls: 6,
+          costUsd: 1,
+          wallTimeMs: 20_000,
+          steps: 8,
+          descendants: 4,
+        },
+        limits: {
+          maxDepth: 2,
+          maxActiveChildren: 2,
+          maxDescendants: 4,
+        },
         targets: {
           researcher: {
             preapproved: true,
@@ -64,6 +90,76 @@ describe("validateConfig", () => {
   });
 
   it.each([
+    [
+      "超过默认深度",
+      {
+        budget: {
+          tokens: 1_000,
+          toolCalls: 6,
+          costUsd: 1,
+          wallTimeMs: 20_000,
+          steps: 8,
+          descendants: 4,
+        },
+        limits: { maxDepth: 4 },
+      },
+    ],
+    [
+      "Target 预算超过父级池",
+      {
+        budget: {
+          tokens: 499,
+          toolCalls: 6,
+          costUsd: 1,
+          wallTimeMs: 20_000,
+          steps: 8,
+          descendants: 4,
+        },
+      },
+    ],
+    [
+      "父级后代预算超过结构上限",
+      {
+        budget: {
+          tokens: 1_000,
+          toolCalls: 6,
+          costUsd: 1,
+          wallTimeMs: 20_000,
+          steps: 8,
+          descendants: 5,
+        },
+        limits: { maxDescendants: 4 },
+      },
+    ],
+  ])("拒绝%s", (_caseName, delegation) => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        agents: {
+          main: {
+            delegation: {
+              ...delegation,
+              targets: {
+                researcher: {
+                  budget: {
+                    tokens: 500,
+                    toolCalls: 2,
+                    costUsd: 0.5,
+                    wallTimeMs: 5_000,
+                    steps: 2,
+                    descendants: 1,
+                  },
+                },
+              },
+            },
+          },
+          researcher: { systemPrompt: "执行子任务" },
+        },
+      }),
+    ).toThrow();
+  });
+
+  it.each([
     ["未定义", "missing"],
     ["自身", "main"],
   ])("拒绝委派给%s Delegation Target", (_caseName, target) => {
@@ -73,6 +169,14 @@ describe("validateConfig", () => {
         agents: {
           main: {
             delegation: {
+              budget: {
+                tokens: 500,
+                toolCalls: 4,
+                costUsd: 0.5,
+                wallTimeMs: 5_000,
+                steps: 4,
+                descendants: 1,
+              },
               targets: {
                 [target]: {
                   budget: {

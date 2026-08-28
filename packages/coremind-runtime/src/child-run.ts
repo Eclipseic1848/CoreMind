@@ -13,6 +13,8 @@ export const CHILD_RUN_LIMIT_DEFAULTS = Object.freeze({
   maxDescendants: 32,
 });
 
+const DEFAULT_BUDGET_SCOPE = "__default__";
+
 export interface ChildRunBudgetAllocation {
   tokens: number;
   toolCalls: number;
@@ -60,6 +62,17 @@ export interface ChildRunPolicySnapshot {
   maxDescendants?: number;
 }
 
+export interface ChildRunHierarchyLimits {
+  maxDepth?: number;
+  maxActiveChildren?: number;
+}
+
+export interface ChildRunCoordinatorHierarchyLimits {
+  maxDepth: number;
+  maxActiveChildren: number;
+  maxDescendants: number;
+}
+
 export interface ChildRunContextReference {
   workingSetFingerprint: string;
   references: readonly string[];
@@ -84,6 +97,7 @@ export interface ChildRunLifecyclePolicy {
 
 export interface ChildRunDelegationRequest {
   delegationId: string;
+  budgetScope?: string;
   parentTurnId: string;
   parentStepId: string;
   agentName: string;
@@ -93,6 +107,7 @@ export interface ChildRunDelegationRequest {
   lifecyclePolicy: ChildRunLifecyclePolicy;
   context: ChildRunContextReference;
   allocation: ChildRunBudgetAllocation;
+  hierarchyLimits?: ChildRunHierarchyLimits;
   permissions: ChildRunPermissionSnapshot;
   environment: ChildRunEnvironmentRequirement;
 }
@@ -138,6 +153,7 @@ export type ChildRunFact =
       parentRunId: string;
       childRunId: string;
       delegationId: string;
+      budgetScope?: string;
       parentTurnId: string;
       parentStepId: string;
       inputFingerprint: string;
@@ -171,6 +187,7 @@ interface ChildRunIdentityFact<TType extends string> {
   parentRunId: string;
   childRunId: string;
   delegationId: string;
+  budgetScope?: string;
   inputFingerprint: string;
   recordedAt: string;
 }
@@ -180,6 +197,8 @@ export interface ChildRunCoordinatorOptions {
   parentJournal: RunStateJournal;
   runStore: RunStore;
   parentPolicy: ChildRunPolicySnapshot;
+  delegationBudgetPools?: Readonly<Record<string, ChildRunBudgetAllocation>>;
+  delegationHierarchyLimits?: Readonly<Record<string, ChildRunCoordinatorHierarchyLimits>>;
   adapter: ChildRunExecutionAdapter;
   createChildRunId: () => string;
   reserveParentBudget?: (allocation: ChildRunBudgetAllocation) => () => void;
@@ -199,6 +218,7 @@ export type ChildRunPersistedLifecycleStatus =
 interface DelegationState {
   childRunId: string;
   delegationId: string;
+  budgetScope?: string;
   inputFingerprint: string;
   status: ChildRunPersistedLifecycleStatus | "terminalizing";
   result?: ChildRunResult;
@@ -217,13 +237,38 @@ interface DelegationState {
 export class ChildRunCoordinator {
   private readonly delegations = new Map<string, DelegationState>();
   private readonly now: () => string;
-  private readonly remainingBudget: ChildRunBudgetAllocation;
+  private readonly remainingBudgets = new Map<string, ChildRunBudgetAllocation>();
+  private readonly hierarchyLimits = new Map<string, ChildRunCoordinatorHierarchyLimits>();
   private readonly parentPolicy: NormalizedChildRunPolicySnapshot;
 
   private constructor(private readonly options: ChildRunCoordinatorOptions) {
     this.now = options.now ?? (() => new Date().toISOString());
     this.parentPolicy = normalizeParentPolicy(options.parentPolicy);
-    this.remainingBudget = structuredClone(this.parentPolicy.budget);
+    const configuredPools = Object.entries(options.delegationBudgetPools ?? {});
+    if (configuredPools.length === 0) {
+      this.remainingBudgets.set(DEFAULT_BUDGET_SCOPE, structuredClone(this.parentPolicy.budget));
+      this.hierarchyLimits.set(DEFAULT_BUDGET_SCOPE, hierarchyFromPolicy(this.parentPolicy));
+    } else {
+      for (const [scope, budget] of configuredPools) {
+        if (scope.length === 0) throw policyEscalation("Delegation Budget 作用域不能为空");
+        assertDelegationBudgetPool(this.parentPolicy, budget);
+        this.remainingBudgets.set(scope, structuredClone(budget));
+        this.hierarchyLimits.set(
+          scope,
+          normalizeScopeHierarchy(
+            this.parentPolicy,
+            budget,
+            options.delegationHierarchyLimits?.[scope],
+          ),
+        );
+      }
+      const unknownHierarchyScope = Object.keys(options.delegationHierarchyLimits ?? {}).find(
+        (scope) => !this.remainingBudgets.has(scope),
+      );
+      if (unknownHierarchyScope) {
+        throw policyEscalation(`Delegation 层级作用域 ${unknownHierarchyScope} 没有匹配的预算池`);
+      }
+    }
   }
 
   static async open(options: ChildRunCoordinatorOptions): Promise<ChildRunCoordinator> {
@@ -252,22 +297,26 @@ export class ChildRunCoordinator {
       return this.handleFor(existing);
     }
 
-    this.assertActiveChildLimit();
-    assertChildRunPolicyIsNarrower(this.parentPolicy, this.remainingBudget, request);
-    const childPolicy = effectiveChildPolicy(this.parentPolicy, request);
+    const scope = this.scopeFor(request.budgetScope);
+    this.assertActiveChildLimit(scope.key, scope.hierarchy.maxActiveChildren);
+    const scopedParentPolicy = { ...this.parentPolicy, ...scope.hierarchy };
+    assertChildRunPolicyIsNarrower(scopedParentPolicy, scope.remainingBudget, request);
+    const childPolicy = effectiveChildPolicy(scopedParentPolicy, request);
     const releaseParentBudget = this.options.reserveParentBudget?.(request.allocation);
 
     const childRunId = this.options.createChildRunId();
     const state: DelegationState = {
       childRunId,
       delegationId: request.delegationId,
+      budgetScope: request.budgetScope,
       inputFingerprint,
       status: "recorded",
       abortController: new AbortController(),
       releaseParentBudget,
     };
     this.delegations.set(request.delegationId, state);
-    reserveBudget(this.remainingBudget, request.allocation);
+    reserveBudget(scope.remainingBudget, request.allocation);
+    let delegationRecorded = false;
     state.initialization = (async () => {
       await this.options.parentJournal.appendFact(
         "delegation",
@@ -276,6 +325,7 @@ export class ChildRunCoordinator {
           parentRunId: this.options.parentRunId,
           childRunId,
           delegationId: request.delegationId,
+          budgetScope: request.budgetScope,
           parentTurnId: request.parentTurnId,
           parentStepId: request.parentStepId,
           inputFingerprint,
@@ -292,6 +342,7 @@ export class ChildRunCoordinator {
         } satisfies ChildRunFact,
         { durability: "critical" },
       );
+      delegationRecorded = true;
       await this.appendLifecycle(state, "child_created", "critical");
       state.completion = this.execute(state, request, childPolicy);
     })();
@@ -299,10 +350,28 @@ export class ChildRunCoordinator {
       await state.initialization;
       return this.handleFor(state);
     } catch (error) {
-      this.delegations.delete(request.delegationId);
-      releaseBudget(this.remainingBudget, request.allocation);
-      state.releaseParentBudget?.();
+      const definitelyNotRecorded =
+        !delegationRecorded && (await this.isDelegationDefinitelyAbsent(request.delegationId));
+      if (definitelyNotRecorded) {
+        this.delegations.delete(request.delegationId);
+        releaseBudget(scope.remainingBudget, request.allocation);
+        state.releaseParentBudget?.();
+      }
       throw error;
+    }
+  }
+
+  private async isDelegationDefinitelyAbsent(delegationId: string): Promise<boolean> {
+    try {
+      const records = await this.options.runStore.read(this.options.parentRunId);
+      return !records.some(
+        (record) =>
+          record.kind === "delegation" &&
+          isRecord(record.payload) &&
+          record.payload.delegationId === delegationId,
+      );
+    } catch {
+      return false;
     }
   }
 
@@ -373,17 +442,36 @@ export class ChildRunCoordinator {
     });
   }
 
-  private assertActiveChildLimit(): void {
+  private assertActiveChildLimit(scope: string, maxActiveChildren: number): void {
     const active = [...this.delegations.values()].filter(
       (state) =>
-        state.status === "recorded" || state.status === "created" || state.status === "running",
+        (state.budgetScope ?? DEFAULT_BUDGET_SCOPE) === scope &&
+        (state.status === "recorded" || state.status === "created" || state.status === "running"),
     ).length;
-    if (active >= this.parentPolicy.maxActiveChildren) {
+    if (active >= maxActiveChildren) {
       throw new CoreMindError(
         "child_run_concurrency_limit",
-        `父 Run 的活动 Child Run 已达到上限 ${this.parentPolicy.maxActiveChildren}`,
+        `父 Run 的活动 Child Run 已达到上限 ${maxActiveChildren}`,
       );
     }
+  }
+
+  private scopeFor(scope: string | undefined): {
+    key: string;
+    remainingBudget: ChildRunBudgetAllocation;
+    hierarchy: ChildRunCoordinatorHierarchyLimits;
+  } {
+    const key = scope ?? DEFAULT_BUDGET_SCOPE;
+    const remainingBudget = this.remainingBudgets.get(key);
+    const hierarchy = this.hierarchyLimits.get(key);
+    if (!remainingBudget || !hierarchy) {
+      throw policyEscalation(`父 Agent ${scope ?? "default"} 没有可用的 Delegation Budget 池`);
+    }
+    return { key, remainingBudget, hierarchy };
+  }
+
+  private remainingBudgetFor(scope: string | undefined): ChildRunBudgetAllocation {
+    return this.scopeFor(scope).remainingBudget;
   }
 
   private async auditRestoredOrphans(): Promise<void> {
@@ -523,6 +611,7 @@ export class ChildRunCoordinator {
       parentRunId: this.options.parentRunId,
       childRunId: state.childRunId,
       delegationId: state.delegationId,
+      ...(state.budgetScope ? { budgetScope: state.budgetScope } : {}),
       inputFingerprint: state.inputFingerprint,
       recordedAt: this.now(),
       ...extra,
@@ -544,12 +633,13 @@ export class ChildRunCoordinator {
         const restored: DelegationState = {
           childRunId: fact.childRunId,
           delegationId: fact.delegationId,
+          budgetScope: fact.budgetScope,
           inputFingerprint: fact.inputFingerprint,
           status: "recorded",
         };
         this.delegations.set(fact.delegationId, restored);
         try {
-          reserveBudget(this.remainingBudget, fact.requestedAllocation);
+          reserveBudget(this.remainingBudgetFor(fact.budgetScope), fact.requestedAllocation);
           restored.releaseParentBudget = this.options.reserveParentBudget?.(
             fact.requestedAllocation,
           );
@@ -602,6 +692,7 @@ function assertChildRunPolicyIsNarrower(
   if (parent.depth + 1 > parent.maxDepth) {
     throw policyEscalation("Child Run 深度超过父级允许上限");
   }
+  effectiveChildHierarchy(parent, request);
   if (canonicalJson(request.model) !== canonicalJson(parent.model)) {
     throw policyEscalation("Child Run 模型不在父级继承快照内");
   }
@@ -662,9 +753,6 @@ function normalizeParentPolicy(policy: ChildRunPolicySnapshot): NormalizedChildR
       throw policyEscalation(`Child Run 的 ${label} 必须是有限非负整数`);
     }
   }
-  if (maxActiveChildren === 0) {
-    throw policyEscalation("Child Run 的 maxActiveChildren 必须大于零");
-  }
   for (const [key, value] of Object.entries(policy.budget)) {
     if (!Number.isFinite(value) || value < 0) {
       throw policyEscalation(`Child Run 父级 ${key} 预算必须是有限非负数`);
@@ -681,10 +769,59 @@ function normalizeParentPolicy(policy: ChildRunPolicySnapshot): NormalizedChildR
   };
 }
 
+function assertDelegationBudgetPool(
+  parent: NormalizedChildRunPolicySnapshot,
+  budget: ChildRunBudgetAllocation,
+): void {
+  for (const key of Object.keys(parent.budget) as (keyof ChildRunBudgetAllocation)[]) {
+    const value = budget[key];
+    if (!Number.isFinite(value) || value < 0 || value > parent.budget[key]) {
+      throw policyEscalation(`Delegation Budget 池的 ${key} 不能超过父 Run 预算`);
+    }
+  }
+  if (budget.descendants > parent.maxDescendants) {
+    throw policyEscalation("Delegation Budget 池的 descendants 不能超过父级后代上限");
+  }
+}
+
+function hierarchyFromPolicy(
+  policy: NormalizedChildRunPolicySnapshot,
+): ChildRunCoordinatorHierarchyLimits {
+  return {
+    maxDepth: policy.maxDepth,
+    maxActiveChildren: policy.maxActiveChildren,
+    maxDescendants: policy.maxDescendants,
+  };
+}
+
+function normalizeScopeHierarchy(
+  parent: NormalizedChildRunPolicySnapshot,
+  budget: ChildRunBudgetAllocation,
+  configured: ChildRunCoordinatorHierarchyLimits | undefined,
+): ChildRunCoordinatorHierarchyLimits {
+  const maxDepth = checkedHierarchyLimit(
+    "maxDepth",
+    configured?.maxDepth ?? parent.maxDepth,
+    parent.maxDepth,
+  );
+  const maxActiveChildren = checkedHierarchyLimit(
+    "maxActiveChildren",
+    configured?.maxActiveChildren ?? parent.maxActiveChildren,
+    parent.maxActiveChildren,
+  );
+  const maxDescendants = checkedHierarchyLimit(
+    "maxDescendants",
+    configured?.maxDescendants ?? Math.min(parent.maxDescendants, budget.descendants),
+    Math.min(parent.maxDescendants, budget.descendants),
+  );
+  return { maxDepth, maxActiveChildren, maxDescendants };
+}
+
 function effectiveChildPolicy(
   parent: NormalizedChildRunPolicySnapshot,
   request: ChildRunDelegationRequest,
 ): ChildRunPolicySnapshot {
+  const hierarchy = effectiveChildHierarchy(parent, request);
   return {
     depth: parent.depth + 1,
     budget: structuredClone(request.allocation),
@@ -693,10 +830,37 @@ function effectiveChildPolicy(
     model: structuredClone(request.model),
     workspace: structuredClone(request.workspace),
     protectedContextReferences: [...new Set(request.context.references)],
-    maxDepth: parent.maxDepth,
-    maxActiveChildren: parent.maxActiveChildren,
-    maxDescendants: request.allocation.descendants,
+    ...hierarchy,
   };
+}
+
+function effectiveChildHierarchy(
+  parent: NormalizedChildRunPolicySnapshot,
+  request: ChildRunDelegationRequest,
+): Required<ChildRunHierarchyLimits> & { maxDescendants: number } {
+  const requested = request.hierarchyLimits ?? {};
+  const maxDepth = checkedHierarchyLimit(
+    "maxDepth",
+    requested.maxDepth ?? parent.maxDepth,
+    parent.maxDepth,
+  );
+  if (maxDepth < parent.depth + 1) {
+    throw policyEscalation("Child Run 的 maxDepth 不能小于当前子级深度");
+  }
+  const maxActiveChildren = checkedHierarchyLimit(
+    "maxActiveChildren",
+    requested.maxActiveChildren ?? parent.maxActiveChildren,
+    parent.maxActiveChildren,
+  );
+  const maxDescendants = request.allocation.descendants;
+  return { maxDepth, maxActiveChildren, maxDescendants };
+}
+
+function checkedHierarchyLimit(label: string, value: number, inherited: number): number {
+  if (!Number.isSafeInteger(value) || value < 0 || value > inherited) {
+    throw policyEscalation(`Child Run 的 ${label} 只能是有限非负整数且不能超过父级限制`);
+  }
+  return value;
 }
 
 function reserveBudget(
@@ -861,6 +1025,7 @@ export function isChildRunFact(value: unknown): value is ChildRunFact {
   ) {
     return false;
   }
+  if (value.budgetScope !== undefined && typeof value.budgetScope !== "string") return false;
   if (value.type === "delegation_recorded") {
     return (
       typeof value.parentTurnId === "string" &&

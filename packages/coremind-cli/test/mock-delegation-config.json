@@ -11,6 +11,14 @@
     "main": {
       "systemPrompt": "你是父 Agent。",
       "delegation": {
+        "budget": {
+          "tokens": 1000,
+          "toolCalls": 2,
+          "costUsd": 1,
+          "wallTimeMs": 5000,
+          "steps": 2,
+          "descendants": 1
+        },
         "targets": {
           "researcher": {
             "budget": {

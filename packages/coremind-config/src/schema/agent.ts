@@ -19,7 +19,16 @@ export const DelegationTargetConfigSchema = Type.Object({
   budget: DelegationBudgetSchema,
 });
 
+/** 父 Agent 对整个 Child Run 子树施加的结构上限；只能收紧内核默认值。 */
+export const DelegationHierarchyLimitsSchema = Type.Object({
+  maxDepth: Type.Optional(Type.Integer({ minimum: 0, maximum: 3 })),
+  maxActiveChildren: Type.Optional(Type.Integer({ minimum: 0, maximum: 4 })),
+  maxDescendants: Type.Optional(Type.Integer({ minimum: 0, maximum: 32 })),
+});
+
 export const AgentDelegationConfigSchema = Type.Object({
+  budget: DelegationBudgetSchema,
+  limits: Type.Optional(DelegationHierarchyLimitsSchema),
   targets: Type.Record(Type.String({ minLength: 1 }), DelegationTargetConfigSchema),
 });
 
@@ -47,6 +56,7 @@ export const AgentConfigSchema = Type.Object({
 });
 
 export type DelegationBudgetConfig = Static<typeof DelegationBudgetSchema>;
+export type DelegationHierarchyLimitsConfig = Static<typeof DelegationHierarchyLimitsSchema>;
 export type DelegationTargetConfig = Static<typeof DelegationTargetConfigSchema>;
 export type AgentDelegationConfig = Static<typeof AgentDelegationConfigSchema>;
 

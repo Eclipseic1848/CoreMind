@@ -305,6 +305,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
             <>
               <Text>任务：{delegationApproval.task}</Text>
               <Text>预算：{delegationApproval.budget}</Text>
+              <Text>层级：{delegationApproval.hierarchy}</Text>
               <Text>引用：{delegationApproval.references}</Text>
               <Text>授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批</Text>
             </>
