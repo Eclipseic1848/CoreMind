@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { afterEach, describe, expect, it } from "vitest";
+import { ChatSession } from "./chat-session.js";
 import { ProjectionEngine } from "./projection.js";
 import { FileRunStore } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
@@ -25,6 +26,14 @@ describe("Delegation Tool TypeScript happy path", () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-tool-"));
     temporaryDirectories.push(directory);
     const requests: Array<Record<string, unknown>> = [];
+    let markChildRequested = () => {};
+    const childRequested = new Promise<void>((resolve) => {
+      markChildRequested = resolve;
+    });
+    let releaseChildResponse = () => {};
+    const childResponseReleased = new Promise<void>((resolve) => {
+      releaseChildResponse = resolve;
+    });
     const server = createServer((request, response) => {
       let body = "";
       request.setEncoding("utf8");
@@ -45,7 +54,10 @@ describe("Delegation Tool TypeScript happy path", () => {
         } else if (hasDelegationTool) {
           sendSse(response, delegationResponse());
         } else {
-          sendSse(response, textResponse("child-final", "子任务完成"));
+          markChildRequested();
+          void childResponseReleased.then(() => {
+            sendSse(response, textResponse("child-final", "子任务完成"));
+          });
         }
       });
     });
@@ -102,7 +114,30 @@ describe("Delegation Tool TypeScript happy path", () => {
         runStore: store,
       });
 
-      const result = await runtime.run();
+      const chat = new ChatSession(runtime, "main");
+      const resultPromise = chat.chat("完成父任务");
+      const startup = await within(
+        Promise.race([
+          childRequested.then(() => ({ state: "child_requested" as const })),
+          resultPromise.then((result) => ({ state: "parent_finished" as const, result })),
+        ]),
+        "Child 请求未到达且父 Run 未结束",
+      );
+      if (startup.state === "parent_finished") {
+        throw new Error(`父 Run 提前结束：${JSON.stringify(startup.result.run.outcome)}`);
+      }
+      const activeProjection = await within(
+        chat.inspectCurrentRunProjection(),
+        "活动 Projection 查询阻塞",
+      );
+      expect(activeProjection?.childRuns).toMatchObject({
+        activeDescendants: 1,
+        unhandledDescendants: 1,
+        quiescent: false,
+        nodes: [expect.objectContaining({ agentName: "researcher", status: "running" })],
+      });
+      releaseChildResponse();
+      const { run: result } = await within(resultPromise, "Child 响应后父 Run 未收敛");
       const parentRecords = await store.read(result.runId);
       const projection = await ProjectionEngine.projectTree(store, result.runId);
       const delegation = parentRecords.find(
@@ -144,6 +179,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         ),
       ).toBe(true);
     } finally {
+      releaseChildResponse();
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );
@@ -325,6 +361,20 @@ describe("Delegation Tool TypeScript happy path", () => {
     });
   });
 });
+
+async function within<T>(promise: Promise<T>, label: string, timeoutMs = 3_000): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function baseConfig(port: number, agents: CoreMindConfig["agents"]): CoreMindConfig {
   return {

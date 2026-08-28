@@ -18,6 +18,11 @@ import {
   type ExecutionEnvironment,
   resolveExecutionEnvironment,
 } from "coremind-tools/internal";
+import {
+  bindActiveRun,
+  boundDelegationExecutor,
+  type DelegationExecutionOutput,
+} from "./active-run-binding.js";
 import type {
   AgentDriver,
   AgentDriverAfterToolCallContext,
@@ -124,7 +129,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
-import { type ChildRunTreeProjection, ProjectionEngine } from "./projection.js";
+import { type ChildRunTreeProjection, ProjectionEngine, type RunProjection } from "./projection.js";
 import { buildProviderRuntime, type ProviderRuntime, type SecretResolver } from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
@@ -284,6 +289,8 @@ export class CoreMindRuntime {
   private activeRunPromise?: Promise<RunResult>;
   /** 当前 run 的 journal（persistSession 的准入/abort 语义用） */
   private runJournal?: RunStateJournal;
+  /** 当前或最近一次 run 的 canonical store（只读 Projection 查询用）。 */
+  private activeRunStore?: RunStore;
   /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
   private activeSession?: CoreMindSession;
   /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
@@ -563,7 +570,27 @@ export class CoreMindRuntime {
       history.length,
       this.skillsByAgent,
     );
-    return turnRuntime.run();
+    const unbindActiveRun = bindActiveRun(this, {
+      inspectProjection: () => turnRuntime.inspectPersistedRunProjection(),
+      executeDelegation: (parentAgentName, rawArgs, callId) =>
+        turnRuntime.executeConfiguredDelegation(parentAgentName, rawArgs, callId),
+    });
+    try {
+      return await turnRuntime.run();
+    } finally {
+      unbindActiveRun();
+    }
+  }
+
+  /** 从已持久化 canonical Facts 重建当前运行视图。 */
+  private async inspectPersistedRunProjection(): Promise<RunProjection | undefined> {
+    const context = executionSlotFor(this).kernel?.currentContext();
+    const runId = context?.currentRunId();
+    if (!context || !runId || !this.activeRunStore) return undefined;
+    const records = await this.activeRunStore.read(runId);
+    return records.length > 0
+      ? ProjectionEngine.projectTree(this.activeRunStore, runId)
+      : undefined;
   }
 
   inspectCheckpoint(record: CheckpointRecord): Promise<CheckpointDiff> {
@@ -761,7 +788,9 @@ export class CoreMindRuntime {
     parentAgentName: string,
     rawArgs: unknown,
     callId: CallId,
-  ): Promise<{ content: Array<{ type: "text"; text: string }>; details: unknown }> {
+  ): Promise<DelegationExecutionOutput> {
+    const executeInActiveRun = boundDelegationExecutor(this);
+    if (executeInActiveRun) return executeInActiveRun(parentAgentName, rawArgs, callId);
     const context = executionSlotFor(this).kernel?.currentContext();
     const parentRunId = context?.currentRunId();
     const call = context?.toolCall(parentAgentName, callId);
@@ -851,6 +880,7 @@ export class CoreMindRuntime {
     const runStore =
       this.options.runStore ??
       new FileRunStore(path.join(this.options.configDir, ".coremind", "runs"));
+    this.activeRunStore = runStore;
     const configFingerprint = fingerprintRunConfig(this.config);
     const telemetryPolicy = telemetryPolicyFromConfig(this.config);
     const telemetryConfiguration = createTelemetryConfigurationFact(

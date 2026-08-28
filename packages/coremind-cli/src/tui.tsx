@@ -1,4 +1,10 @@
-import type { ChatSession, CoreMindEvent, RunResult } from "coremind-ai";
+import type {
+  ChatSession,
+  ChildRunNodeProjection,
+  ChildRunTreeProjection,
+  CoreMindEvent,
+  RunResult,
+} from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type ApprovalQueue, formatApprovalDisplay, type PendingApproval } from "./approval.js";
@@ -105,6 +111,23 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       setBusy(false);
       return;
     }
+    if (trimmed === "/children") {
+      try {
+        const run = busy ? await session.inspectCurrentRunProjection() : lastRun;
+        const text = run
+          ? formatChildRuns(run)
+          : busy
+            ? "当前运行尚未产生 Child Run Projection。"
+            : "尚未完成任何运行。";
+        setMessages((prev) => [
+          ...prev,
+          { id: idRef.current++, role: "assistant", text, tools: [] },
+        ]);
+      } catch (error) {
+        appendCommandError(error);
+      }
+      return;
+    }
     if (busy) return;
     if (trimmed === "/exit") {
       onExit();
@@ -133,11 +156,6 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       const text = lastRun
         ? formatObservabilityStatus(lastRun.observability)
         : "尚未完成任何运行。";
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
-      return;
-    }
-    if (trimmed === "/children") {
-      const text = formatChildRuns(lastRun);
       setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
       return;
     }
@@ -244,6 +262,9 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   const approvalDisplay = pendingApproval
     ? formatApprovalDisplay(pendingApproval.request)
     : undefined;
+  const delegationApproval = pendingApproval
+    ? formatDelegationApproval(pendingApproval.request)
+    : undefined;
 
   return (
     <Box flexDirection="column" height="100%">
@@ -270,12 +291,25 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       {pendingApproval && approvalDisplay && (
         <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
           <Text color="yellow" bold>
-            权限审批：{pendingApproval.request.tool}（{pendingApproval.request.risk}）
+            {delegationApproval
+              ? `Child Run 委派审批：${delegationApproval.target}`
+              : `权限审批：${pendingApproval.request.tool}（${pendingApproval.request.risk}）`}
           </Text>
-          <Text>副作用：{approvalDisplay.effect}</Text>
-          <Text>目标：{approvalDisplay.targets}</Text>
+          {delegationApproval ? (
+            <>
+              <Text>任务：{delegationApproval.task}</Text>
+              <Text>预算：{delegationApproval.budget}</Text>
+              <Text>引用：{delegationApproval.references}</Text>
+              <Text>授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批</Text>
+            </>
+          ) : (
+            <>
+              <Text>副作用：{approvalDisplay.effect}</Text>
+              <Text>目标：{approvalDisplay.targets}</Text>
+              <Text>参数：{approvalDisplay.arguments}</Text>
+            </>
+          )}
           <Text>原因：{approvalDisplay.reason}</Text>
-          <Text>参数：{approvalDisplay.arguments}</Text>
           <Text>[y] 允许 · [n/Enter] 拒绝</Text>
         </Box>
       )}
@@ -353,19 +387,118 @@ export function formatRunStatus(run: RunResult): string {
   const evaluation = run.releaseReadiness.ready
     ? `评测 ${run.evaluation.scenarioResults.length} · 可发布`
     : `评测 ${run.evaluation.scenarioResults.length} · 阻断 ${run.releaseReadiness.blockers.length}`;
-  const children = run.childRuns ? ` · Child Runs ${run.childRuns.nodes.length}` : "";
+  const children = run.childRuns
+    ? ` · Child Runs ${run.childRuns.nodes.length} · 活动 ${run.childRuns.activeDescendants} · 未处置 ${run.childRuns.unhandledDescendants}`
+    : "";
   return `${run.outcome.status} · operation ${run.operation.state} · ${recovery} · turn ${metrics.turns} · 工具 ${metrics.toolCalls} · ${tokens} · checkpoint ${run.checkpoints.length} · artifact ${artifacts.stored}/${artifacts.blocked} · 压缩 ${context?.compactions ?? 0}${children} · Telemetry ${run.observability.telemetry.mode} · ${evaluation}`;
 }
 
-export function formatChildRuns(run: RunResult | undefined): string {
+export function formatChildRuns(run: { childRuns?: ChildRunTreeProjection } | undefined): string {
   if (!run) return "尚未完成任何运行。";
   if (!run.childRuns || run.childRuns.nodes.length === 0) return "本轮没有 Child Run。";
-  return run.childRuns.nodes
-    .map(
-      (node) =>
-        `${node.delegationId} · ${node.childRunId} · ${node.status} · ${node.outcome?.finishReason ?? "等待结果"}`,
-    )
-    .join("\n");
+  const { nodes, activeDescendants, unhandledDescendants, quiescent } = run.childRuns;
+  const childIds = new Set(nodes.map((node) => node.childRunId));
+  const childrenByParent = new Map<string, ChildRunNodeProjection[]>();
+  for (const node of nodes) {
+    const children = childrenByParent.get(node.parentRunId) ?? [];
+    children.push(node);
+    childrenByParent.set(node.parentRunId, children);
+  }
+  const roots = nodes.filter((node) => !childIds.has(node.parentRunId));
+  const lines = [
+    `Child Runs ${nodes.length} · 活动 ${activeDescendants} · 未处置 ${unhandledDescendants} · ${quiescent ? "已静止" : "未静止"}`,
+  ];
+  const rendered = new Set<string>();
+  const appendNode = (node: ChildRunNodeProjection, depth: number, last: boolean) => {
+    if (rendered.has(node.childRunId)) return;
+    rendered.add(node.childRunId);
+    const prefix = "   ".repeat(depth);
+    const detailsPrefix = `${prefix}   `;
+    const outcome = node.outcome
+      ? `${node.outcome.status}/${compactChildRunText(node.outcome.finishReason)}`
+      : "等待结果";
+    const recovery = node.recovery;
+    lines.push(
+      `${prefix}${last ? "└─" : "├─"} 目标 ${compactChildRunText(node.agentName)} · ${node.status} · ${outcome}`,
+    );
+    lines.push(
+      `${detailsPrefix}身份 ${node.parentRunId} → ${node.childRunId} · ${node.delegationId}`,
+    );
+    lines.push(
+      `${detailsPrefix}预算 ${node.budget.tokens} tokens · 工具 ${node.budget.toolCalls} · $${node.budget.costUsd} · ${node.budget.wallTimeMs}ms · 步骤 ${node.budget.steps} · 后代 ${node.budget.descendants}`,
+    );
+    const recoverySummary = recovery
+      ? `${recovery.resumable ? "可恢复" : "不可恢复"} · ${recovery.requiresHuman ? "需要人工" : "无需人工"}`
+      : "等待投影";
+    lines.push(
+      `${detailsPrefix}Recovery ${recoverySummary} · 未决风险 ${node.result?.unresolvedRisks.length ?? 0}`,
+    );
+    for (const risk of node.result?.unresolvedRisks ?? []) {
+      lines.push(`${detailsPrefix}风险：${compactChildRunText(risk)}`);
+    }
+    const children = childrenByParent.get(node.childRunId) ?? [];
+    children.forEach((child, index) => {
+      appendNode(child, depth + 1, index === children.length - 1);
+    });
+  };
+  roots.forEach((node, index) => {
+    appendNode(node, 0, index === roots.length - 1);
+  });
+  nodes
+    .filter((node) => !rendered.has(node.childRunId))
+    .forEach((node, index, remaining) => {
+      appendNode(node, 0, index === remaining.length - 1);
+    });
+  return lines.join("\n");
+}
+
+function compactChildRunText(value: string, maxLength = 160): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength - 1)}…`;
+}
+
+function formatDelegationApproval(
+  request: PendingApproval["request"],
+): { target: string; task: string; budget: string; references: string } | undefined {
+  if (request.tool !== "delegate" || !isRecord(request.args)) return undefined;
+  const target = typeof request.args.target === "string" ? request.args.target : "未知目标";
+  const task = typeof request.args.task === "string" ? request.args.task : "未提供任务";
+  const limits = isRecord(request.args.limits) ? request.args.limits : {};
+  const budget = [
+    numericBudgetValue(limits.tokens, (value) => `${value} tokens`),
+    numericBudgetValue(limits.toolCalls, (value) => `工具 ${value}`),
+    numericBudgetValue(limits.costUsd, (value) => `$${value}`),
+    numericBudgetValue(limits.wallTimeMs, (value) => `${value}ms`),
+    numericBudgetValue(limits.steps, (value) => `步骤 ${value}`),
+    numericBudgetValue(limits.descendants, (value) => `后代 ${value}`),
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(" · ");
+  const references = Array.isArray(request.args.references)
+    ? request.args.references.filter((item): item is string => typeof item === "string").join("、")
+    : "";
+  return {
+    target: compactChildRunText(target),
+    task: summarizeDelegationTask(task),
+    budget: budget || "使用 Config 默认预算",
+    references: references || "无显式 Fact/Artifact 引用",
+  };
+}
+
+function summarizeDelegationTask(value: string): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length <= 160
+    ? compact
+    : `${compact.slice(0, 24)}…（任务 ${compact.length} 字符）`;
+}
+
+function numericBudgetValue(value: unknown, format: (value: number) => string): string | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return format(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function formatArtifacts(run: RunResult | undefined): string {

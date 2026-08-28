@@ -221,6 +221,7 @@ coremind chat coremind.yaml
 | 删除字符 | **退格键** |
 | 查看命令帮助 | 输入 `/help`（再输一次关闭） |
 | 查看本轮预算/质量 | 输入 `/status` |
+| 展开 Child Run tree | 输入 `/children` |
 | 查看 Artifact | 输入 `/artifacts` |
 | 查看 Context 预算与压缩 | 输入 `/context` |
 | 查看本地观测与 Telemetry 状态 | 输入 `/observability` |
@@ -230,7 +231,9 @@ coremind chat coremind.yaml
 | 中止当前回答 | 输入 `/abort`（停止生成，可继续提问） |
 | 退出对话 | 输入 `/exit`（**退出时自动保存会话**，下次可恢复） |
 
-审批卡片会显示副作用、完整路径或 URL、风险原因和脱敏后的参数。工具执行还会记录 started/committed/unknown Effect Receipt。恢复 checkpoint 时若文件在工具完成后又被修改，命令会报告冲突并保留当前内容，不会静默覆盖。
+默认运行摘要会显示 Child Run 数量、活动后代与未处置风险；运行中也可输入 `/children` 查询当前 canonical Facts。`/children` 只读取统一 Fact Projection，按父子层级展开目标、身份、预算、状态、Outcome、Recovery 和风险正文；它不会读取 Runtime 内部 Map，也不会提供独立 spawn/list/resume/detach。委派审批卡会优先显示目标、任务摘要、显式引用和本次收紧预算，并明确委派批准只允许创建 Child Run，子级工具与外部副作用仍需独立审批。当前可用的取消 authority 是 `/abort`：它中止父级当前回答，并由 Runtime 将取消传播到活动 Child Run；当前 Runtime 未授权的子级独立取消或失败处置控制不会显示或伪造执行。
+
+普通审批卡片会显示副作用、完整路径或 URL、风险原因和脱敏后的参数。工具执行还会记录 started/committed/unknown Effect Receipt。恢复 checkpoint 时若文件在工具完成后又被修改，命令会报告冲突并保留当前内容，不会静默覆盖。
 
 `/observability` 显示本地观测开关、Run/Call 耗时、Telemetry mode、脱敏 endpoint origin、内容级别、允许字段、持久授权范围、Exporter 是否装载，以及 queued/handed-off/failed/dropped。`handed-off` 只表示已交给 Exporter，不表示接收端已经保存；默认 `DISABLED` 不读取外传凭据或构造 Exporter。
 

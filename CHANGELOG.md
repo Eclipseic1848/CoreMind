@@ -12,6 +12,7 @@
 - 真实 Child Runtime Adapter 在执行前验证同一 authority、RunId、AbortSignal、任务、实际模型、canonical Workspace、权限、工具、环境探针和有限预算。
 - Protocol v2、Worker、TypeScript `RunResult`、CLI JSONL、TUI `/children` 与 Python bundled worker 共享同一 Fact Projection；1,000 个确定性交错种子覆盖兄弟并发、重复委派、取消、失败与 join。
 - 无头 CLI 现以人类摘要和稳定 `child_run` JSONL 事件展示 Child Run 的父子身份、目标、状态、Outcome 与 Recovery；Python SDK 通过 bundled Worker 的 v1 结构化结果及 v2 events/query 观察同一持久化父子树，不新增独立 spawn、list、resume 或 detach 入口。
+- TUI 默认摘要突出 Child Run 数量、活动后代与未处置风险；`/children` 通过只读 `ChatSession.inspectCurrentRunProjection()` 从已持久化 canonical Facts 展开当前或终态父子树、目标、预算、Outcome、Recovery 和风险正文。`delegate` 审批卡优先显示目标、任务摘要、显式引用和收紧预算，并明确该批准只允许创建 Child Run，不预先批准子级 Effect；当前 Runtime 未提供的独立子级处置控制不会伪造显示。
 - Windows 本地跨进程验收覆盖父进程崩溃后的 orphan audit、Child Worker 崩溃、父取消后无遗留子进程、Effect 不重放，以及父子 Workspace 竞争只有一个 Writer；当前不支持 durable detach，真实多 Agent 产品验收、远端 CI、合并和发布尚未完成。
 - Phase Gate 已同步双语 README 与安全策略；行为准则、贡献指南和 MIT License 的事实、流程与联系人未变化，因此保持不变。GitHub About 需在远端交付授权后同步，当前未改动。
 
