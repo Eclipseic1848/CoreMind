@@ -130,6 +130,8 @@ export type CoreMindEvent =
       agent: string;
       tool: string;
       args: unknown;
+      argumentsFingerprint?: string;
+      delegationInputFingerprint?: string;
       risk: "low" | "high";
       effect: ToolEffect;
       capability?: ResolvedToolCapability;
@@ -139,6 +141,8 @@ export type CoreMindEvent =
       approvalId: string;
       runId: string;
       decision: "allow" | "deny";
+      argumentsFingerprint?: string;
+      delegationInputFingerprint?: string;
     }
   | { type: "policy_denied"; agent: string; tool: string; reason: string }
   | {

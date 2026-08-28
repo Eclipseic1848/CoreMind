@@ -13,6 +13,9 @@ export const DelegationBudgetSchema = Type.Object({
 });
 
 export const DelegationTargetConfigSchema = Type.Object({
+  preapproved: Type.Optional(
+    Type.Boolean({ description: "assisted 模式是否可自动批准该固定 Delegation Target" }),
+  ),
   budget: DelegationBudgetSchema,
 });
 

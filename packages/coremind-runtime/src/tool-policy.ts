@@ -13,6 +13,8 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
+import { DELEGATION_TOOL_NAME } from "./delegation-tool.js";
+import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
 
 export type ToolRisk = "low" | "high";
@@ -32,6 +34,10 @@ export interface ToolApprovalRequest {
   agent: string;
   tool: string;
   args: unknown;
+  /** 绑定审批时看到的完整 canonical 参数；参数变化后不得复用批准。 */
+  argumentsFingerprint: string;
+  /** Delegation 专用：与实际 Child Run 创建 Fact 完全相同的输入指纹。 */
+  delegationInputFingerprint?: string;
   risk: ToolRisk;
   reason: string;
   effect: ToolEffect;
@@ -55,6 +61,7 @@ export interface ToolPolicyOptions {
   platform?: NodeJS.Platform;
   onApprovalRequired?: (request: ToolApprovalRequest) => void;
   onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
+  delegation?: { isAssistedPreapproved: (agent: string, target: string) => boolean };
 }
 
 const PATH_KEYS = new Set(["path", "file", "filepath", "cwd", "directory"]);
@@ -81,6 +88,7 @@ export class ToolPolicy {
     args: unknown,
     capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration,
     selectors?: ToolEffectDeclaration,
+    delegationInputFingerprint?: string,
   ): Promise<ToolPolicyDecision> {
     if (matchesAny(tool, this.permissions.deny)) {
       return { allowed: false, reason: `工具 ${tool} 在 permissions.deny 中` };
@@ -189,17 +197,38 @@ export class ToolPolicy {
       return { allowed: false, reason: `网络策略拒绝工具 ${tool}` };
     }
 
-    if (
-      matchesAny(tool, this.permissions.allow) ||
-      (networkTool && this.permissions.network === "allow")
-    ) {
-      return { allowed: true, reason: "配置已预先允许", approvedBy: "configuration" };
-    }
-    if (this.permissions.mode === "full" && !(networkTool && this.permissions.network === "ask")) {
-      return { allowed: true, reason: "完全访问模式", approvedBy: "mode" };
-    }
-    if (this.permissions.mode === "assisted" && isLowRisk(capability) && !networkTool) {
-      return { allowed: true, reason: "帮我批准模式的工作区内低风险工具", approvedBy: "mode" };
+    if (tool === DELEGATION_TOOL_NAME) {
+      const target = delegationTarget(args);
+      if (this.permissions.mode === "full") {
+        return { allowed: true, reason: "完全访问模式允许合规委派", approvedBy: "mode" };
+      }
+      if (
+        this.permissions.mode === "assisted" &&
+        target !== undefined &&
+        this.options.delegation?.isAssistedPreapproved(agent, target)
+      ) {
+        return {
+          allowed: true,
+          reason: `Config 已预批准 Delegation Target ${target}`,
+          approvedBy: "configuration",
+        };
+      }
+    } else {
+      if (
+        matchesAny(tool, this.permissions.allow) ||
+        (networkTool && this.permissions.network === "allow")
+      ) {
+        return { allowed: true, reason: "配置已预先允许", approvedBy: "configuration" };
+      }
+      if (
+        this.permissions.mode === "full" &&
+        !(networkTool && this.permissions.network === "ask")
+      ) {
+        return { allowed: true, reason: "完全访问模式", approvedBy: "mode" };
+      }
+      if (this.permissions.mode === "assisted" && isLowRisk(capability) && !networkTool) {
+        return { allowed: true, reason: "帮我批准模式的工作区内低风险工具", approvedBy: "mode" };
+      }
     }
 
     const risk: ToolRisk = isLowRisk(capability) && !networkTool ? "low" : "high";
@@ -209,8 +238,17 @@ export class ToolPolicy {
       agent,
       tool,
       args,
+      argumentsFingerprint: fingerprintEffectReceiptValue(args),
+      ...(tool === DELEGATION_TOOL_NAME && delegationInputFingerprint
+        ? { delegationInputFingerprint }
+        : {}),
       risk,
-      reason: risk === "high" ? "敏感工具需要批准" : "请求批准模式要求逐项确认",
+      reason:
+        tool === DELEGATION_TOOL_NAME
+          ? "当前权限模式要求批准该固定目标、任务和预算的委派"
+          : risk === "high"
+            ? "敏感工具需要批准"
+            : "请求批准模式要求逐项确认",
       effect,
       capability,
     };
@@ -266,6 +304,12 @@ export class ToolPolicy {
     }
     return undefined;
   }
+}
+
+function delegationTarget(args: unknown): string | undefined {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return undefined;
+  const target = (args as Record<string, unknown>).target;
+  return typeof target === "string" ? target : undefined;
 }
 
 function isOutside(root: string, target: string): boolean {

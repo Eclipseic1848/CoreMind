@@ -289,6 +289,128 @@ describe("ToolPolicy", () => {
     expect(requests.map((request) => request.tool)).toEqual(["bash"]);
   });
 
+  it("Delegation 严格遵守 ask、assisted 显式预批准与 full 矩阵", async () => {
+    const args = {
+      target: "researcher",
+      task: "核验事实",
+      references: ["fact:approved"],
+      limits: {
+        tokens: 800,
+        toolCalls: 2,
+        costUsd: 0.5,
+        wallTimeMs: 5_000,
+        steps: 3,
+        descendants: 0,
+      },
+    };
+    const requests: ToolApprovalRequest[] = [];
+    const approve = async (request: ToolApprovalRequest) => {
+      requests.push(request);
+      return "allow" as const;
+    };
+    const createDelegationPolicy = (
+      mode: "ask" | "assisted" | "full",
+      assistedPreapprovedTargets: string[],
+    ) =>
+      new ToolPolicy({
+        permissions: { mode, allow: ["delegate"] },
+        cwd: mkdtempSync(path.join(tmpdir(), "coremind-delegation-policy-")),
+        runId: "run-delegation",
+        approve,
+        createApprovalId: () => `approval-${requests.length + 1}`,
+        delegation: {
+          isAssistedPreapproved: (_agent, target) => assistedPreapprovedTargets.includes(target),
+        },
+      });
+
+    await expect(
+      createDelegationPolicy("ask", ["researcher"]).authorize(
+        "main",
+        "delegate",
+        args,
+        lowRiskDelegationCapability(),
+      ),
+    ).resolves.toMatchObject({ allowed: true, approvedBy: "user" });
+    await expect(
+      createDelegationPolicy("assisted", []).authorize(
+        "main",
+        "delegate",
+        args,
+        lowRiskDelegationCapability(),
+      ),
+    ).resolves.toMatchObject({ allowed: true, approvedBy: "user" });
+    await expect(
+      createDelegationPolicy("assisted", ["researcher"]).authorize(
+        "main",
+        "delegate",
+        args,
+        lowRiskDelegationCapability(),
+      ),
+    ).resolves.toMatchObject({ allowed: true, approvedBy: "configuration" });
+    await expect(
+      createDelegationPolicy("full", []).authorize(
+        "main",
+        "delegate",
+        args,
+        lowRiskDelegationCapability(),
+      ),
+    ).resolves.toMatchObject({ allowed: true, approvedBy: "mode" });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[0]).toMatchObject({
+      tool: "delegate",
+      args,
+      argumentsFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+  });
+
+  it("Delegation Approval 指纹绑定目标、任务与生效限制", async () => {
+    const requests: ToolApprovalRequest[] = [];
+    const policy = new ToolPolicy({
+      permissions: { mode: "ask" },
+      cwd: mkdtempSync(path.join(tmpdir(), "coremind-delegation-fingerprint-")),
+      runId: "run-delegation-fingerprint",
+      approve: async (request) => {
+        requests.push(request);
+        return "allow";
+      },
+      createApprovalId: () => `approval-${requests.length + 1}`,
+      delegation: { isAssistedPreapproved: () => false },
+    });
+    const base = {
+      target: "researcher",
+      task: "核验事实",
+      references: ["fact:approved"],
+      limits: {
+        tokens: 800,
+        toolCalls: 2,
+        costUsd: 0.5,
+        wallTimeMs: 5_000,
+        steps: 3,
+        descendants: 0,
+      },
+    };
+
+    await policy.authorize("main", "delegate", base, lowRiskDelegationCapability());
+    await policy.authorize("main", "delegate", { ...base }, lowRiskDelegationCapability());
+    await policy.authorize(
+      "main",
+      "delegate",
+      { ...base, task: "修改后的任务" },
+      lowRiskDelegationCapability(),
+    );
+    await policy.authorize(
+      "main",
+      "delegate",
+      { ...base, limits: { ...base.limits, tokens: 799 } },
+      lowRiskDelegationCapability(),
+    );
+
+    expect(requests[0]?.argumentsFingerprint).toBe(requests[1]?.argumentsFingerprint);
+    expect(requests[2]?.argumentsFingerprint).not.toBe(requests[0]?.argumentsFingerprint);
+    expect(requests[3]?.argumentsFingerprint).not.toBe(requests[0]?.argumentsFingerprint);
+  });
+
   it("需要审批但宿主未提供处理器时默认拒绝", async () => {
     const policy = createPolicy({ mode: "ask" });
     await expect(policy.authorize("main", "read", { path: "notes.txt" })).resolves.toMatchObject({
@@ -331,6 +453,20 @@ function createPolicy(
     approve,
     platform,
   );
+}
+
+function lowRiskDelegationCapability() {
+  return resolveToolCapability({
+    tool: "delegate",
+    source: "registered",
+    declaration: {
+      effect: "none",
+      replay: "safe",
+      concurrency: "run_serial",
+      checkpoint: "none",
+      durability: "critical",
+    },
+  });
 }
 
 function createPolicyAt(

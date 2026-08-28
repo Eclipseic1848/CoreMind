@@ -18,6 +18,8 @@ TUI、普通终端和 `--json-events` 都会显示相同的 `loop_state` 顺序�
 
 TUI 默认摘要会突出 Child Run 数量、活动后代和未处置风险；运行中也可用 `/children` 从当前 canonical Facts 的统一 Projection 展开多层父子身份、目标、预算、状态、Outcome、Recovery 和风险正文。`delegate` 审批卡只摘要显示目标、任务、显式引用和收紧预算，并明确委派批准不预先批准子级 Effect。当前取消 authority 只有 `/abort`，它中止父级回答并由 Runtime 传播到活动 Child Run；未授权的子级独立取消或失败处置不会显示。`/status`、`/artifacts`、`/context`、`/observability` 可继续核对恢复、评测、产物、缓存、压缩和本地观测；JSONL 的 `run_result.snapshot` 与 `run_result.observability` 和两个 SDK 使用同一 Fact Projection。观测视图显式区分本地状态与 Telemetry 外传，并声明 `handed-off` 不等于接收端 delivered。
 
+所有 CLI/TUI/TypeScript/Python 入口共享 Runtime 委派矩阵：`ask` 每次批准，`assisted` 只自动批准 Config 显式预批准的合规目标，`full` 也不能覆盖 deny、预算或其他硬边界。审批绑定目标、任务、引用和实际预算的指纹；Child Run 后续工具和外部 Effect 继续独立审批。
+
 ```bash
 npm install -g coremind-cli@next
 coremind help
@@ -42,6 +44,8 @@ Headless runs expose `0/1/2/3/124/130`; JSONL ends with `run_result`, and `--jso
 After a configured delegation completes, regular `run` output lists each Child Run ID, target agent, status, and result summary. Before the final `run_result`, `--json-events` emits stable `type: "child_run"` records with ParentRunId, ChildRunId, DelegationId, target, status, Outcome, and Recovery. Both views come from the same persisted Fact Projection; there are no standalone spawn, list, resume, or detach commands.
 
 The default TUI summary highlights Child Run count, active descendants, and unhandled risk. While a run is active, `/children` expands current canonical Facts through the unified Projection into a nested tree with identities, targets, budgets, status, Outcome, Recovery, and risk text. `delegate` approval cards summarize the target, task, explicit references, and tightened budget while stating that delegation approval does not pre-approve child Effects. The only current cancellation authority is `/abort`, which aborts the parent response and is propagated by Runtime to active Child Runs; unauthorized child-specific cancellation or failure disposition is not displayed. Use `/status`, `/artifacts`, `/context`, and `/observability` to inspect recovery, evaluation, artifacts, cache, compaction, and local observations. `run_result.snapshot` and `run_result.observability` share one Fact Projection with both SDKs. The view separates local state from Telemetry egress and states that `handed-off` does not mean receiver-side delivery.
+
+All CLI, TUI, TypeScript, and Python entry points share the Runtime delegation matrix: `ask` approves every request; `assisted` auto-approves only a compliant target explicitly pre-approved in Config; and `full` cannot override deny rules, budgets, or other hard boundaries. Approval binds the target, task, references, and effective limits by fingerprint, while child tools and external Effects remain independently approved.
 
 ```bash
 npm install -g coremind-cli@next

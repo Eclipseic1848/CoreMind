@@ -55,6 +55,35 @@ Proxy-Authorization, X-API-Key, and Cookie values must use `{ env: "NAME" }` or
 logs, errors, Facts, and persistence. Plaintext credentials fail with
 `execution_security_violation` at check and every execution entry point.
 
+## Config-driven Child Run delegation
+
+Delegation is disabled by default. A parent agent exposes the built-in `delegate` tool only for same-project named agents listed under `delegation.targets`:
+
+```yaml
+agents:
+  coordinator:
+    systemPrompt: Split tasks and combine verified results.
+    delegation:
+      targets:
+        researcher:
+          preapproved: true # assisted mode only
+          budget:
+            tokens: 2000
+            toolCalls: 4
+            costUsd: 0.5
+            wallTimeMs: 60000
+            steps: 6
+            descendants: 0
+  researcher:
+    systemPrompt: Complete only the delegated research task and return evidence.
+```
+
+All six budget fields are required. A call may provide only a fixed target, task, explicit `fact:` or `artifact:` references, and optional tighter limits. It cannot override the agent, provider, model, tools, permissions, paths, network, credentials, or workspace.
+
+Delegation has a stricter approval matrix than ordinary low-risk tools. `ask` approves every delegation; `assisted` auto-approves only a target explicitly marked `preapproved: true` when the complete request satisfies every hard boundary; `full` may create a compliant Child Run without a prompt. Explicit deny rules, the target allowlist, all six budget dimensions, non-expanding child tools, and path, network, and credential boundaries always win. Approval binds the fixed target, task, references, and effective limits and carries the exact Child Run input fingerprint later recorded as `delegation_recorded.inputFingerprint`, so any change requires a new approval.
+
+Delegation Approval authorizes only creation of that Child Run. The child retains an independent ToolPolicy, and its file, network, and external Effects are separately decided or approved and recorded in the child Run's own audit Facts.
+
 ## Permission modes
 
 | Mode | Meaning | Recommended use |

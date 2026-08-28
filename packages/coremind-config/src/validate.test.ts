@@ -27,6 +27,7 @@ describe("validateConfig", () => {
           delegation: {
             targets: {
               researcher: {
+                preapproved: true,
                 budget: {
                   tokens: 500,
                   toolCalls: 2,
@@ -47,6 +48,7 @@ describe("validateConfig", () => {
       delegation: {
         targets: {
           researcher: {
+            preapproved: true,
             budget: {
               tokens: 500,
               toolCalls: 2,

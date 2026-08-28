@@ -89,6 +89,7 @@ agents:
     delegation:
       targets:
         researcher:
+          preapproved: true # 仅 assisted 模式可据此自动批准合规委派
           budget:
             tokens: 2000
             toolCalls: 4
@@ -101,6 +102,10 @@ agents:
 ```
 
 六个预算字段必须完整声明。模型调用 `delegate` 时只能提交 `target`、`task`、显式 `fact:` / `artifact:` 引用，以及不超过 Config 上限的可选 `limits`；不能内联覆盖 Agent、Provider、model、tools、permissions、路径、网络、凭据或 workspace。工具只存在于活动父 Run 内，创建的 Child Run 继承项目 Provider 与 canonical Workspace，并以独立 RunId、Fact 和结构化结果参与同一 Projection。
+
+委派审批矩阵独立于普通低风险工具：`ask` 每次都要求批准；`assisted` 只有目标显式设置 `preapproved: true` 且请求满足全部硬边界时才自动批准；`full` 可免逐次批准创建合规 Child Run。显式 deny、allowlist、六维预算、父子工具不扩权、路径、网络和凭据边界在三种模式下都优先，不能被人工批准绕过。审批绑定固定目标、任务、引用和实际生效预算，并携带与 `delegation_recorded.inputFingerprint` 完全相同的 Child Run 输入指纹；任何变化都需要新批准。
+
+Delegation Approval 只允许创建该 Child Run，不批准子级后续操作。Child Run 使用自己的 ToolPolicy；其文件、网络或外部 Effect 仍按继承权限独立自动判断或申请批准，并在子 Run 中记录独立审批事实。
 
 启用 Delegation 时，父级 `runtime.maxTokens` 和 `runtime.maxCostUsd` 必须显式配置；其他父级预算也必须足以覆盖目标预算。省略 `delegation`（或没有任何 target）不会向模型暴露 `delegate`，也不会产生 Child Run Fact。
 

@@ -108,6 +108,81 @@ describe("CoreMind Protocol v2", () => {
     ).toBe(true);
   });
 
+  it("审批事件可携带绑定参数的 SHA-256 指纹", () => {
+    const envelope = {
+      protocolVersion: "2.0",
+      eventSchemaVersion: 1,
+      runId: "run-1",
+      sequence: 1,
+      eventId: "event-approval",
+      timestamp: "2026-08-28T00:00:00.000Z",
+      ignorable: false,
+      sensitivity: "local",
+    } as const;
+    const argumentsFingerprint = "a".repeat(64);
+    const delegationInputFingerprint = `sha256:${"b".repeat(64)}`;
+
+    expect(
+      Value.Check(ProtocolV2EventEnvelopeSchema, {
+        ...envelope,
+        eventType: "approval_required",
+        payload: {
+          type: "approval_required",
+          approvalId: "approval-1",
+          runId: "run-1",
+          agent: "main",
+          tool: "delegate",
+          args: { target: "researcher", task: "核验资料" },
+          argumentsFingerprint,
+          delegationInputFingerprint,
+          risk: "high",
+          effect: { operations: ["read"], paths: [], urls: [], reversible: true, declared: true },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2EventEnvelopeSchema, {
+        ...envelope,
+        eventType: "approval_resolved",
+        payload: {
+          type: "approval_resolved",
+          approvalId: "approval-1",
+          runId: "run-1",
+          decision: "allow",
+          argumentsFingerprint,
+          delegationInputFingerprint,
+        },
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2EventEnvelopeSchema, {
+        ...envelope,
+        eventType: "approval_resolved",
+        payload: {
+          type: "approval_resolved",
+          approvalId: "approval-1",
+          runId: "run-1",
+          decision: "allow",
+          argumentsFingerprint: "not-a-sha256",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      Value.Check(ProtocolV2EventEnvelopeSchema, {
+        ...envelope,
+        eventType: "approval_resolved",
+        payload: {
+          type: "approval_resolved",
+          approvalId: "approval-1",
+          runId: "run-1",
+          decision: "allow",
+          argumentsFingerprint,
+          delegationInputFingerprint: "b".repeat(64),
+        },
+      }),
+    ).toBe(false);
+  });
+
   it("解析显式版本范围与客户端能力的 initialize 请求", () => {
     const request = parseProtocolV2Request({
       jsonrpc: "2.0",

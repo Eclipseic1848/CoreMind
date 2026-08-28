@@ -41,12 +41,14 @@ import {
 } from "./checkpoint.js";
 import {
   CHILD_RUN_LIMIT_DEFAULTS,
+  type ChildRunBudgetAllocation,
   ChildRunCoordinator,
   type ChildRunCoordinatorOptions,
   type ChildRunDelegationRequest,
   type ChildRunExecutionInput,
   type ChildRunHandle,
   type ChildRunPolicySnapshot,
+  childRunInputFingerprint,
 } from "./child-run.js";
 import {
   type CoreMindChildRunAdapter,
@@ -82,6 +84,7 @@ import {
   DELEGATION_TOOL_CAPABILITY,
   DELEGATION_TOOL_EFFECT,
   DELEGATION_TOOL_NAME,
+  type DelegationToolArgs,
   parseDelegationToolArgs,
   resolveDelegationAllocation,
 } from "./delegation-tool.js";
@@ -791,6 +794,34 @@ export class CoreMindRuntime {
   ): Promise<DelegationExecutionOutput> {
     const executeInActiveRun = boundDelegationExecutor(this);
     if (executeInActiveRun) return executeInActiveRun(parentAgentName, rawArgs, callId);
+    const { context, childRuns, request } = await this.prepareConfiguredDelegationRequest(
+      parentAgentName,
+      rawArgs,
+      callId,
+    );
+    const inputFingerprint = childRunInputFingerprint(request);
+    const approvedInputFingerprint = context.consumeDelegationApproval(parentAgentName, callId);
+    if (approvedInputFingerprint !== inputFingerprint) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        "Delegation Approval 与实际 Child Run 输入指纹不一致",
+      );
+    }
+    const handle = await childRuns.delegate(request);
+    const result = await handle.join();
+    const output = { childRunId: handle.childRunId, result };
+    return {
+      content: [{ type: "text", text: JSON.stringify(output) }],
+      details: output,
+    };
+  }
+
+  /** 在审批和执行阶段生成同一份 Child Run 请求，不产生 Fact 或预留预算副作用。 */
+  private async prepareConfiguredDelegationRequest(
+    parentAgentName: string,
+    rawArgs: unknown,
+    callId: CallId,
+  ) {
     const context = executionSlotFor(this).kernel?.currentContext();
     const parentRunId = context?.currentRunId();
     const call = context?.toolCall(parentAgentName, callId);
@@ -801,25 +832,10 @@ export class CoreMindRuntime {
         "Delegation Tool 只能在已登记 Tool Call 的活动父 Run 内执行",
       );
     }
-    const args = parseDelegationToolArgs(rawArgs);
-    const target = this.agentConfigs.get(parentAgentName)?.delegation?.targets[args.target];
-    if (!target) {
-      throw new CoreMindError(
-        "child_run_policy_escalation",
-        `Agent ${parentAgentName} 未获准委派给 ${args.target}`,
-      );
-    }
-    const parentTools = new Set(this.toolCapabilitiesByAgent.get(parentAgentName)?.keys() ?? []);
-    const targetTools = [...(this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? [])].filter(
-      (tool) => tool !== DELEGATION_TOOL_NAME,
+    const { args, targetTools, allocation } = this.resolveDelegationAuthority(
+      parentAgentName,
+      rawArgs,
     );
-    const expandedTools = targetTools.filter((tool) => !parentTools.has(tool));
-    if (expandedTools.length > 0) {
-      throw new CoreMindError(
-        "child_run_policy_escalation",
-        `Delegation Target ${args.target} 的工具超出父 Agent authority：${expandedTools.join("、")}`,
-      );
-    }
     const permissions = this.config.permissions ?? {};
     const request: ChildRunDelegationRequest = {
       delegationId: `delegation:${call.turnId}:${call.callId}`,
@@ -850,7 +866,7 @@ export class CoreMindRuntime {
         }),
         references: args.references,
       },
-      allocation: resolveDelegationAllocation(target.budget, args.limits),
+      allocation,
       permissions: {
         mode: permissions.mode ?? "ask",
         workspaceOnly: permissions.workspaceOnly ?? true,
@@ -861,12 +877,53 @@ export class CoreMindRuntime {
       },
       environment: {},
     };
-    const handle = await childRuns.delegate(request);
-    const result = await handle.join();
-    const output = { childRunId: handle.childRunId, result };
+    return { context, childRuns, request };
+  }
+
+  /** 把用户批准绑定到固定目标、任务、引用和实际生效的六维预算。 */
+  private canonicalDelegationApprovalArgs(
+    request: ChildRunDelegationRequest,
+  ): DelegationToolArgs & { limits: ChildRunBudgetAllocation } {
     return {
-      content: [{ type: "text", text: JSON.stringify(output) }],
-      details: output,
+      target: request.agentName,
+      task: request.task,
+      references: [...request.context.references],
+      limits: request.allocation,
+    };
+  }
+
+  /** 审批前先执行不可被人工批准绕过的 Delegation authority 硬边界。 */
+  private resolveDelegationAuthority(
+    parentAgentName: string,
+    rawArgs: unknown,
+  ): {
+    args: DelegationToolArgs;
+    targetTools: string[];
+    allocation: ChildRunBudgetAllocation;
+  } {
+    const args = parseDelegationToolArgs(rawArgs);
+    const target = this.agentConfigs.get(parentAgentName)?.delegation?.targets[args.target];
+    if (!target) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        `Agent ${parentAgentName} 未获准委派给 ${args.target}`,
+      );
+    }
+    const parentTools = new Set(this.toolCapabilitiesByAgent.get(parentAgentName)?.keys() ?? []);
+    const targetTools = [...(this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? [])].filter(
+      (tool) => tool !== DELEGATION_TOOL_NAME,
+    );
+    const expandedTools = targetTools.filter((tool) => !parentTools.has(tool));
+    if (expandedTools.length > 0) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        `Delegation Target ${args.target} 的工具超出父 Agent authority：${expandedTools.join("、")}`,
+      );
+    }
+    return {
+      args,
+      targetTools,
+      allocation: resolveDelegationAllocation(target.budget, args.limits),
     };
   }
 
@@ -1331,6 +1388,7 @@ export class CoreMindRuntime {
     });
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
+    let delegationPolicyFailure: CoreMindError | undefined;
     const adapterFailures = new Map<string, CoreMindError>();
     const selectedAdapterFailure = (): CoreMindError | undefined =>
       [...adapterFailures.entries()].sort(([left], [right]) =>
@@ -1423,6 +1481,10 @@ export class CoreMindRuntime {
       runId: trace.runId,
       approve: this.options.approveTool,
       createApprovalId: randomUUID,
+      delegation: {
+        isAssistedPreapproved: (agent, target) =>
+          this.agentConfigs.get(agent)?.delegation?.targets[target]?.preapproved === true,
+      },
       onApprovalRequired: (request) =>
         emit({
           type: "approval_required",
@@ -1431,6 +1493,8 @@ export class CoreMindRuntime {
           agent: request.agent,
           tool: request.tool,
           args: request.args,
+          argumentsFingerprint: request.argumentsFingerprint,
+          delegationInputFingerprint: request.delegationInputFingerprint,
           risk: request.risk,
           effect: request.effect,
           capability: request.capability,
@@ -1441,6 +1505,8 @@ export class CoreMindRuntime {
           approvalId: request.approvalId,
           runId: request.runId,
           decision,
+          argumentsFingerprint: request.argumentsFingerprint,
+          delegationInputFingerprint: request.delegationInputFingerprint,
         }),
     });
     const deniedAgents = new Set<string>();
@@ -1722,12 +1788,56 @@ export class CoreMindRuntime {
             );
             return blockedByBudget;
           }
+          let authorizationArgs = context.toolCall.args;
+          let delegationInputFingerprint: string | undefined;
+          if (context.toolCall.tool === DELEGATION_TOOL_NAME) {
+            try {
+              const prepared = await this.prepareConfiguredDelegationRequest(
+                agentName,
+                context.toolCall.args,
+                context.toolCall.callId as CallId,
+              );
+              authorizationArgs = this.canonicalDelegationApprovalArgs(prepared.request);
+              delegationInputFingerprint = childRunInputFingerprint(prepared.request);
+            } catch (error) {
+              delegationPolicyFailure =
+                error instanceof CoreMindError
+                  ? error
+                  : new CoreMindError(
+                      "child_run_policy_escalation",
+                      error instanceof Error ? error.message : String(error),
+                    );
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "policy_resolved",
+                status: "completed",
+                result: { authorizationState: "denied" },
+              });
+              await toolExecutionEngine.advance(lifecycleIdentity, {
+                phase: "approval_resolved",
+                status: "skipped",
+                reason: "Delegation authority 硬边界在审批前拒绝 Call",
+              });
+              await toolExecutionEngine.blockBeforeExecution(
+                lifecycleIdentity,
+                delegationPolicyFailure.message,
+              );
+              emit({
+                type: "policy_denied",
+                agent: agentName,
+                tool: context.toolCall.tool,
+                reason: delegationPolicyFailure.message,
+              });
+              emit({ type: "error", message: delegationPolicyFailure.message, fatal: true });
+              return { block: true, reason: delegationPolicyFailure.message, terminate: true };
+            }
+          }
           const decision = await policy.authorize(
             agentName,
             context.toolCall.tool,
-            context.toolCall.args,
+            authorizationArgs,
             resolvedCapability,
             this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.tool),
+            delegationInputFingerprint,
           );
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
@@ -1817,6 +1927,13 @@ export class CoreMindRuntime {
             });
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
             return { block: true, reason, terminate: true };
+          }
+          if (delegationInputFingerprint) {
+            runContextFor(this).recordDelegationApproval(
+              agentName,
+              context.toolCall.callId as CallId,
+              delegationInputFingerprint,
+            );
           }
           if (resolvedCapability.concurrency === "parallel") {
             await toolExecutionEngine.advance(lifecycleIdentity, {
@@ -2248,13 +2365,19 @@ export class CoreMindRuntime {
         },
         (error) => activeLoopRunner?.interrupt(error),
       ));
+      if (delegationPolicyFailure) throw delegationPolicyFailure;
       if (capabilityFailure) throw capabilityFailure;
       const adapterFailure = selectedAdapterFailure();
       if (adapterFailure) throw adapterFailure;
       if (checkpointFailure) throw checkpointFailure;
       budget.throwIfExceeded();
     } catch (error) {
-      terminalError = checkpointFailure ?? capabilityFailure ?? selectedAdapterFailure() ?? error;
+      terminalError =
+        checkpointFailure ??
+        delegationPolicyFailure ??
+        capabilityFailure ??
+        selectedAdapterFailure() ??
+        error;
       try {
         if (!checkpointFailure) budget.throwIfExceeded();
       } catch (budgetError) {

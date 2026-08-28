@@ -404,6 +404,7 @@ describe("ProtocolHost", () => {
             agent: "main",
             tool: "write",
             args: { path: "result.md" },
+            argumentsFingerprint: "d".repeat(64),
             risk: "high",
             reason: "敏感工具需要批准",
             effect: {

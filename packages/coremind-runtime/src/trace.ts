@@ -51,6 +51,7 @@ export function sanitizeTraceEvent(event: CoreMindEvent): CoreMindEvent {
     return {
       ...event,
       args: redactSensitiveValue(event.args),
+      argumentsFingerprint: fingerprintEffectReceiptValue(event.args),
       effect: {
         ...event.effect,
         urls: event.effect.urls.map(redactUrl),
