@@ -215,7 +215,10 @@ describe("coremind CLI 端到端", () => {
     expect(created.code).toBe(0);
 
     const projectDir = path.join(dir, "checked-agent");
-    const checked = runCli(["check", "coremind.yaml"], { cwd: projectDir });
+    const checked = runCli(["check", "coremind.yaml"], {
+      cwd: projectDir,
+      env: { DASHSCOPE_API_KEY: "test-key" },
+    });
     expect(checked.code).toBe(0);
     expect(checked.stdout).toContain("质量门禁通过");
   }, 15_000);
