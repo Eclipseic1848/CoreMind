@@ -123,6 +123,7 @@ export interface ChildRunNodeProjection {
   parentRunId: string;
   childRunId: string;
   delegationId: string;
+  agentName: string;
   inputFingerprint: string;
   budget: ChildRunBudgetAllocation;
   permissions: ChildRunPermissionSnapshot;
@@ -132,6 +133,7 @@ export interface ChildRunNodeProjection {
   status: "recorded" | "created" | "running" | "terminal" | "paused" | "orphaned" | "joined";
   outcome?: RunOutcome;
   result?: ChildRunResult;
+  recovery?: RecoveryDecision;
 }
 
 export interface ChildRunTreeProjection {
@@ -294,9 +296,11 @@ export const ProjectionEngine = {
         visited.add(node.childRunId);
         const childRecords = await store.read(node.childRunId);
         if (childRecords.length === 0) continue;
+        const childProjection = this.project(childRecords);
+        node.recovery = structuredClone(childProjection.recovery);
         const workspaceLeases = projectWorkspaceLeasesFromRecords(childRecords);
         if (workspaceLeases.length > 0) node.workspaceLeases = workspaceLeases;
-        await collect(this.project(childRecords));
+        await collect(childProjection);
       }
     };
     await collect(root);
@@ -340,6 +344,7 @@ function projectChildRuns(
         parentRunId,
         childRunId: fact.childRunId,
         delegationId: fact.delegationId,
+        agentName: fact.agentName,
         inputFingerprint: fact.inputFingerprint,
         budget: structuredClone(fact.inheritedPolicy.budget),
         permissions: structuredClone(fact.inheritedPolicy.permissions),

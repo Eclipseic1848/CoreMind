@@ -18,5 +18,8 @@ export {
   resolveExecutionEnvironment,
   tightenExecutionEnvironmentRequirement,
 } from "./execution-environment.js";
-export { createPlatformExecutionEnvironment } from "./platform-execution-environment.js";
+export {
+  createPlatformExecutionEnvironment,
+  shutdownPlatformExecutionEnvironment,
+} from "./platform-execution-environment.js";
 export { buildToolsWithExecutionEnvironment } from "./registry.js";

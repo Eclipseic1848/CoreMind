@@ -753,6 +753,7 @@ describe("ProtocolHost", () => {
                   parentRunId: runId,
                   childRunId: "child-tree-child",
                   delegationId: "delegation-tree",
+                  agentName: "worker",
                   status: "joined",
                 }),
               ],

@@ -2,6 +2,7 @@ import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
+  type ChildRunNodeProjection,
   type CoreMindConfig,
   CoreMindRuntime,
   formatMetrics,
@@ -133,11 +134,17 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       );
     }
     if (jsonEvents) {
+      for (const node of result.childRuns?.nodes ?? []) {
+        process.stdout.write(`${JSON.stringify(toChildRunEvent(node))}\n`);
+      }
       process.stdout.write(`${JSON.stringify(toRunResultEvent(result))}\n`);
     }
     if (!printOnly && !jsonEvents) {
       console.log(dim(formatObservabilityStatus(result.observability)));
       if (result.childRuns) {
+        for (const node of result.childRuns.nodes) {
+          console.log(dim(formatChildRun(node)));
+        }
         console.log(
           dim(
             `Child Runs ${result.childRuns.nodes.length} · 活动 ${result.childRuns.activeDescendants} · 未处置 ${result.childRuns.unhandledDescendants}`,
@@ -168,6 +175,33 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     approvals.close();
     approvalReadline?.close();
   }
+}
+
+/** 将持久化 Child Run 投影压缩为稳定、可读的一行摘要。 */
+function formatChildRun(node: ChildRunNodeProjection): string {
+  const result = node.result;
+  const outcome = node.outcome
+    ? `${node.outcome.status} (${node.outcome.finishReason})`
+    : "等待结果";
+  const resultSummary = result
+    ? ` · 证据 ${result.evidence.length} · 产物 ${result.artifacts.length} · 未决风险 ${result.unresolvedRisks.length}`
+    : "";
+  return `Child Run ${node.childRunId} · 目标 ${node.agentName} · 状态 ${node.status} · 结果 ${outcome}${resultSummary}`;
+}
+
+/** JSONL 中由规范 Child Run 投影派生的稳定生命周期摘要。 */
+function toChildRunEvent(node: ChildRunNodeProjection): Record<string, unknown> {
+  return {
+    type: "child_run",
+    version: 1,
+    parentRunId: node.parentRunId,
+    childRunId: node.childRunId,
+    delegationId: node.delegationId,
+    target: node.agentName,
+    status: node.status,
+    ...(node.outcome ? { outcome: node.outcome } : {}),
+    ...(node.recovery ? { recovery: node.recovery } : {}),
+  };
 }
 
 export const RUN_EXIT_CODES: Readonly<Record<RunStatus, number>> = {

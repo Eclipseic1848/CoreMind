@@ -1,6 +1,7 @@
 import "../../../test/setup-env.js";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,11 +24,24 @@ const loopMockServerPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../python/tests/mock_loop_server.mjs",
 );
+const delegationMockServerPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "test",
+  "mock-delegation-server.mjs",
+);
+const delegationConfigFixturePath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "test",
+  "mock-delegation-config.json",
+);
 const mockProjectDirectory = mkdtempSync(path.join(tmpdir(), "coremind-cli-fixture-"));
 const mockConfigPath = path.join(mockProjectDirectory, "coremind.yaml");
 writeFileSync(mockConfigPath, readFileSync(mockConfigFixturePath, "utf8"), "utf8");
 const MOCK_PORT = 8799;
 const LOOP_MOCK_PORT = 8800;
+const DELEGATION_MOCK_PORT = 8801;
 
 function runCli(
   args: string[],
@@ -47,24 +61,132 @@ function runCli(
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? -1 };
 }
 
+function runCliAsync(
+  args: string[],
+  options: { cwd?: string; env?: Record<string, string> } = {},
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("node", [cliPath, ...args], {
+      cwd: options.cwd,
+      env: { ...minimalSubprocessEnv(), ...options.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("CLI 子进程在 60 秒内未结束"));
+    }, 60_000);
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      resolve({ stdout, stderr, code: code ?? -1 });
+    });
+  });
+}
+
+function minimalSubprocessEnv(): NodeJS.ProcessEnv {
+  const names = [
+    "PATH",
+    "Path",
+    "PATHEXT",
+    "SystemRoot",
+    "COMSPEC",
+    "HOME",
+    "USERPROFILE",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+  ];
+  return Object.fromEntries(
+    names.flatMap((name) => (process.env[name] === undefined ? [] : [[name, process.env[name]]])),
+  );
+}
+
 let mockServer: ReturnType<typeof spawn> | undefined;
 let loopMockServer: ReturnType<typeof spawn> | undefined;
+let delegationMockServer: ReturnType<typeof spawn> | undefined;
 
 beforeAll(async () => {
   mockServer = spawn("node", [mockServerPath, String(MOCK_PORT)], { stdio: "ignore" });
   loopMockServer = spawn("node", [loopMockServerPath, String(LOOP_MOCK_PORT)], {
     stdio: "ignore",
   });
-  // 等待 server 就绪
-  await new Promise((resolve) => setTimeout(resolve, 800));
-});
+  delegationMockServer = spawn("node", [delegationMockServerPath, String(DELEGATION_MOCK_PORT)], {
+    stdio: "ignore",
+  });
+  await Promise.all(
+    [MOCK_PORT, LOOP_MOCK_PORT, DELEGATION_MOCK_PORT].map((port) => waitForServer(port)),
+  );
+}, 30_000);
 
 afterAll(() => {
   mockServer?.kill();
   loopMockServer?.kill();
+  delegationMockServer?.kill();
 });
 
 describe("coremind CLI 端到端", () => {
+  it("run 人类输出展示 Child Run 目标、状态和成功结果摘要", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-run-"));
+    const yaml = path.join(dir, "coremind.yaml");
+    writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
+
+    const { stdout, stderr, code } = await runCliAsync(["run", yaml, "--prompt", "完成父任务"], {
+      cwd: dir,
+      env: { COREMIND_TEST_API_KEY: "test-only" },
+    });
+
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(stdout).toContain("Child Run");
+    expect(stdout).toContain("目标 researcher");
+    expect(stdout).toContain("状态 joined");
+    expect(stdout).toContain("结果 succeeded (completed)");
+    expect(stdout).toContain("未决风险 0");
+  }, 65_000);
+
+  it("run --json-events 输出稳定的 Child Run 身份、结果与恢复决策", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-json-"));
+    const yaml = path.join(dir, "coremind.yaml");
+    writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
+
+    const { stdout, stderr, code } = await runCliAsync(
+      ["run", yaml, "--prompt", "完成父任务", "--json-events"],
+      { cwd: dir, env: { COREMIND_TEST_API_KEY: "test-only" } },
+    );
+    const events = stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const child = events.find((event) => event.type === "child_run");
+
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(child).toMatchObject({
+      version: 1,
+      target: "researcher",
+      status: "joined",
+      outcome: { status: "succeeded", finishReason: "completed" },
+      recovery: { resumable: false, requiresHuman: false },
+    });
+    expect(child?.parentRunId).toEqual(expect.any(String));
+    expect(child?.childRunId).toEqual(expect.any(String));
+    expect(child?.delegationId).toEqual(expect.any(String));
+    expect(events.at(-1)?.type).toBe("run_result");
+  }, 65_000);
+
   it("--version 输出版本号（验证安装）", () => {
     const { stdout, code } = runCli(["--version"]);
     expect(code).toBe(0);
@@ -727,3 +849,30 @@ describe("coremind CLI 端到端", () => {
     expect(stderr).toContain("步骤数超过上限");
   });
 });
+
+function delegationConfig(port: number): string {
+  const config = JSON.parse(readFileSync(delegationConfigFixturePath, "utf8")) as {
+    provider: { baseUrl: string };
+  };
+  config.provider.baseUrl = `http://127.0.0.1:${port}/v1`;
+  return JSON.stringify(config);
+}
+
+async function waitForServer(port: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (await canConnect(port)) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`mock server 未在端口 ${port} 就绪`);
+}
+
+function canConnect(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ host: "127.0.0.1", port });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
