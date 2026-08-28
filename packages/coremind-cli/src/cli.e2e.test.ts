@@ -61,6 +61,41 @@ function runCli(
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? -1 };
 }
 
+function runCliAsync(
+  args: string[],
+  options: { cwd?: string; env?: Record<string, string> } = {},
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("node", [cliPath, ...args], {
+      cwd: options.cwd,
+      env: { ...process.env, ...options.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error("CLI 子进程在 60 秒内未结束"));
+    }, 60_000);
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      resolve({ stdout, stderr, code: code ?? -1 });
+    });
+  });
+}
+
 let mockServer: ReturnType<typeof spawn> | undefined;
 let loopMockServer: ReturnType<typeof spawn> | undefined;
 let delegationMockServer: ReturnType<typeof spawn> | undefined;
@@ -85,12 +120,12 @@ afterAll(() => {
 });
 
 describe("coremind CLI 端到端", () => {
-  it("run 人类输出展示 Child Run 目标、状态和成功结果摘要", () => {
+  it("run 人类输出展示 Child Run 目标、状态和成功结果摘要", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-run-"));
     const yaml = path.join(dir, "coremind.yaml");
     writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
 
-    const { stdout, stderr, code } = runCli(["run", yaml, "--prompt", "完成父任务"], {
+    const { stdout, stderr, code } = await runCliAsync(["run", yaml, "--prompt", "完成父任务"], {
       cwd: dir,
       env: { COREMIND_TEST_API_KEY: "test-only" },
     });
@@ -104,12 +139,12 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("未决风险 0");
   });
 
-  it("run --json-events 输出稳定的 Child Run 身份、结果与恢复决策", () => {
+  it("run --json-events 输出稳定的 Child Run 身份、结果与恢复决策", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-json-"));
     const yaml = path.join(dir, "coremind.yaml");
     writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
 
-    const { stdout, stderr, code } = runCli(
+    const { stdout, stderr, code } = await runCliAsync(
       ["run", yaml, "--prompt", "完成父任务", "--json-events"],
       { cwd: dir, env: { COREMIND_TEST_API_KEY: "test-only" } },
     );
