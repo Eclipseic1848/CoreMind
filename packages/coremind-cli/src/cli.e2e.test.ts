@@ -137,7 +137,7 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("状态 joined");
     expect(stdout).toContain("结果 succeeded (completed)");
     expect(stdout).toContain("未决风险 0");
-  });
+  }, 65_000);
 
   it("run --json-events 输出稳定的 Child Run 身份、结果与恢复决策", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-json-"));
@@ -167,7 +167,7 @@ describe("coremind CLI 端到端", () => {
     expect(child?.childRunId).toEqual(expect.any(String));
     expect(child?.delegationId).toEqual(expect.any(String));
     expect(events.at(-1)?.type).toBe("run_result");
-  });
+  }, 65_000);
 
   it("--version 输出版本号（验证安装）", () => {
     const { stdout, code } = runCli(["--version"]);

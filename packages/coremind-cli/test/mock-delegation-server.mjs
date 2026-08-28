@@ -79,7 +79,7 @@ function sendSse(response, chunks) {
   response.writeHead(200, {
     "content-type": "text/event-stream",
     "cache-control": "no-cache",
-    connection: "keep-alive",
+    connection: "close",
   });
   for (const chunk of chunks) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
   response.end("data: [DONE]\n\n");
