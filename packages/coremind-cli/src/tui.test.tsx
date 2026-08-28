@@ -266,6 +266,7 @@ describe("Windows TUI 交互验收", () => {
       agent: "assistant",
       tool: "write",
       args: { path: "result.txt" },
+      argumentsFingerprint: "a".repeat(64),
       risk: "high",
       reason: "验证高风险写入操作必须由用户批准",
       effect: {
@@ -304,6 +305,7 @@ describe("Windows TUI 交互验收", () => {
         references: ["fact:requirements"],
         limits: { tokens: 1000, toolCalls: 2, wallTimeMs: 5000, steps: 3 },
       },
+      argumentsFingerprint: "b".repeat(64),
       risk: "high",
       reason: "创建受限 Child Run",
       effect: { operations: ["read"], paths: [], urls: [], reversible: true, declared: true },
@@ -335,6 +337,7 @@ describe("Windows TUI 交互验收", () => {
       agent: "assistant",
       tool: "write",
       args: { content: "很长的正文".repeat(100), path: "reports/final-acceptance.md" },
+      argumentsFingerprint: "c".repeat(64),
       risk: "low",
       reason: "写入验收报告",
       effect: {

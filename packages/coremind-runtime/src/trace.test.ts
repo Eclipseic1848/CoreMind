@@ -94,6 +94,11 @@ describe("Trace 敏感信息保护", () => {
     };
 
     const entry = recorder.record(event);
+    const secondEntry = recorder.record({
+      ...event,
+      approvalId: "approval-2",
+      args: { ...event.args, content: "长度相同但内容不同" },
+    });
     const serialized = JSON.stringify(entry);
 
     expect(serialized).not.toContain("私密内容");
@@ -103,6 +108,13 @@ describe("Trace 敏感信息保护", () => {
     expect(serialized).not.toContain("url-secret");
     expect(serialized).toContain("reports/result.md");
     expect(serialized).toContain("mode=safe");
+    expect(entry.event).toMatchObject({
+      type: "approval_required",
+      argumentsFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+    });
+    expect((entry.event as { argumentsFingerprint?: string }).argumentsFingerprint).not.toBe(
+      (secondEntry.event as { argumentsFingerprint?: string }).argumentsFingerprint,
+    );
     expect(forward).toHaveBeenCalledWith(entry);
     expect(JSON.stringify(event)).toContain("api-secret-value");
   });

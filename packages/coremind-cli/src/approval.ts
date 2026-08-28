@@ -17,6 +17,13 @@ export interface ApprovalDisplay {
   arguments: string;
 }
 
+export interface DelegationApprovalDisplay {
+  target: string;
+  task: string;
+  budget: string;
+  references: string;
+}
+
 interface QueueEntry extends PendingApproval {
   resolve: (decision: ApprovalDecision) => void;
 }
@@ -90,6 +97,35 @@ export function formatApprovalDisplay(request: ToolApprovalRequest): ApprovalDis
   };
 }
 
+/** 委派批准在所有交互入口都显示固定目标、任务摘要、六维预算和显式引用。 */
+export function formatDelegationApproval(
+  request: ToolApprovalRequest,
+): DelegationApprovalDisplay | undefined {
+  if (request.tool !== "delegate" || !isRecord(request.args)) return undefined;
+  const target = typeof request.args.target === "string" ? request.args.target : "未知目标";
+  const task = typeof request.args.task === "string" ? request.args.task : "未提供任务";
+  const limits = isRecord(request.args.limits) ? request.args.limits : {};
+  const budget = [
+    numericBudgetValue(limits.tokens, (value) => `${value} tokens`),
+    numericBudgetValue(limits.toolCalls, (value) => `工具 ${value}`),
+    numericBudgetValue(limits.costUsd, (value) => `$${value}`),
+    numericBudgetValue(limits.wallTimeMs, (value) => `${value}ms`),
+    numericBudgetValue(limits.steps, (value) => `步骤 ${value}`),
+    numericBudgetValue(limits.descendants, (value) => `后代 ${value}`),
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(" · ");
+  const references = Array.isArray(request.args.references)
+    ? request.args.references.filter((item): item is string => typeof item === "string").join("、")
+    : "";
+  return {
+    target: compactChildRunText(target),
+    task: summarizeDelegationTask(task),
+    budget: budget || "使用 Config 默认预算",
+    references: references || "无显式 Fact/Artifact 引用",
+  };
+}
+
 /** 把审批队列接到已有 readline；同一时间只提出一个问题。 */
 export function bindReadlineApprovals(
   queue: ApprovalQueue,
@@ -103,8 +139,11 @@ export function bindReadlineApprovals(
     const pending = queue.current;
     try {
       const display = formatApprovalDisplay(pending.request);
+      const delegation = formatDelegationApproval(pending.request);
       const answer = await questioner.question(
-        `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
+        delegation
+          ? `\nChild Run 委派审批：${delegation.target}\n任务：${delegation.task}\n预算：${delegation.budget}\n引用：${delegation.references}\n授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批\n原因：${display.reason}\n允许？[y/N] `
+          : `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
       );
       queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");
     } catch {
@@ -119,6 +158,27 @@ export function bindReadlineApprovals(
     closed = true;
     unsubscribe();
   };
+}
+
+export function compactChildRunText(value: string, maxLength = 160): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength - 1)}…`;
+}
+
+function summarizeDelegationTask(value: string): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length <= 160
+    ? compact
+    : `${compact.slice(0, 24)}…（任务 ${compact.length} 字符）`;
+}
+
+function numericBudgetValue(value: unknown, format: (value: number) => string): string | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return format(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function summarizeArguments(value: unknown, key = "", depth = 0): unknown {

@@ -14,7 +14,7 @@ const config = await loadConfig("coremind.yaml");
 
 内置编码证据工具 `git_status`、`git_diff`、`git_log` 只执行固定只读 Git 操作，不提供任意子命令或仓库写入。
 
-Agent 的 `delegation.targets` 可显式允许同项目命名 Agent，并为每个目标固定 token、工具调用、费用、wall time、步骤和后代数六维预算。该字段默认关闭；未定义目标和委派给自身会在配置校验阶段失败。
+Agent 的 `delegation.targets` 可显式允许同项目命名 Agent，并为每个目标固定 token、工具调用、费用、wall time、步骤和后代数六维预算。可选的 `preapproved: true` 只允许 `assisted` 模式在完整请求满足全部硬边界时免去逐次委派批准；省略或 `false` 必须询问。该字段默认关闭；未定义目标和委派给自身会在配置校验阶段失败。
 
 显式 `loop` 支持 execute、verify、repair、可选 planning、最大迭代、最大修复、重复动作检测和失败/耗尽策略。它与静态 `workflow` 互斥，引用的每个 Agent 都必须存在；详见[配置指南](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/guide/02-configuration.md)。
 

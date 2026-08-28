@@ -10,6 +10,8 @@ CoreMind TypeScript 运行时与 Python SDK 共用的 JSON-RPC 协议、消息�
 
 Protocol v2 通过显式版本范围协商，在 `run`、`chat`、`resume` 接收客户端预生成的稳定 `runId` 并立即返回 `RunHandle`。客户端随后用 `events(afterSequence)` 续读 durable sequence、用 `query` 读取唯一 `ProjectionEngine` 投影，并把 Cancel、Approval、Steering、Follow-up 作为带稳定 `controlId` 的持久控制提交。重复 start/control 按指纹幂等；冲突、未知版本、混用 v1/v2 以及未知非 ignorable 事件均失败关闭。
 
+`approval_required` 与 `approval_resolved` 可携带同一 64 位小写十六进制 `argumentsFingerprint`，把批准和固定参数绑定；Delegation 审批还携带 `sha256:` 格式的 `delegationInputFingerprint`，其值必须与随后 `delegation_recorded.inputFingerprint` 相同。历史事件可省略这些字段，当前 Runtime 生成的新审批事实必须携带适用字段。
+
 `PROTOCOL_V2_SCHEMA_BUNDLE` 与 `PROTOCOL_V2_SCHEMA_FINGERPRINT` 同时锁定请求、初始化结果、RunHandle、事件信封、事件页、查询结果、控制回执和错误响应。v1 在整个 `0.4.x` 保留同步兼容入口，并返回非错误迁移提示；最早移除版本是 `0.5.0`，且仍需独立决策。
 
 `ERROR_CODES` 是跨 Config、Runtime、Protocol、Worker、CLI、TUI 与双 SDK 的类型化 Error Contract 唯一注册表，记录稳定字符串码、恢复分类、兼容 Run 输出、取消、重试和人工处置分类。`ErrorCodeSchema`、Protocol v1/v2 错误响应、Run Outcome 公共类型与 v2 schema fingerprint 都从该注册表派生；Config 自有错误由跨模块类型门校验，Python SDK 随包携带构建生成且逐项校验的只读分类 JSON。未知外部码只以脱敏审计值进入 Outcome 与持久 Fact，公开码固定收敛为 `unclassified_error`，对应暂停、人工处置和禁止自动重试。`terminality` 与 `runStatus` 分别表达错误是否可恢复和兼容 Run 投影，因此可能不同，不得静默改写。
@@ -17,6 +19,8 @@ Protocol v2 通过显式版本范围协商，在 `run`、`chat`、`resume` 接�
 ## English: Protocol v2
 
 Protocol v2 explicitly negotiates a version range, requires a stable client-generated Run ID for `run`, `chat`, and `resume`, and immediately returns a RunHandle. Clients then resume durable events by sequence, query the single ProjectionEngine, and submit durable controls with stable control IDs. Duplicate starts and controls are fingerprinted; conflicts, unknown versions, mixed v1/v2 envelopes, and unknown non-ignorable events fail closed.
+
+`approval_required` and `approval_resolved` may carry the same 64-character lowercase hexadecimal `argumentsFingerprint`, binding approval to fixed arguments. Delegation approvals also carry a `sha256:`-prefixed `delegationInputFingerprint` that must equal the subsequent `delegation_recorded.inputFingerprint`. Legacy events may omit these fields; new Runtime approval Facts include every applicable field.
 
 `PROTOCOL_V2_SCHEMA_BUNDLE` and its fingerprint cover requests, initialization results, RunHandles, event envelopes and pages, query results, control receipts, and error responses. The synchronous v1 compatibility entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
 

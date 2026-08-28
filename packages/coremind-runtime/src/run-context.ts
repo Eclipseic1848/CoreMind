@@ -29,6 +29,7 @@ export class RunContext<THarness> {
     string,
     { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId }
   >();
+  private readonly delegationApprovalBindings = new Map<string, string>();
   private terminationError?: unknown;
 
   registerAgent(name: string, agent: AgentDriver): void {
@@ -88,14 +89,25 @@ export class RunContext<THarness> {
   }
 
   recordToolCall(input: { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId }): void {
-    this.toolCalls.set(`${input.agent}\0${input.callId}`, input);
+    this.toolCalls.set(agentCallKey(input.agent, input.callId), input);
   }
 
   toolCall(
     agent: string,
     callId: CallId,
   ): { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId } | undefined {
-    return this.toolCalls.get(`${agent}\0${callId}`);
+    return this.toolCalls.get(agentCallKey(agent, callId));
+  }
+
+  recordDelegationApproval(agent: string, callId: CallId, inputFingerprint: string): void {
+    this.delegationApprovalBindings.set(agentCallKey(agent, callId), inputFingerprint);
+  }
+
+  consumeDelegationApproval(agent: string, callId: CallId): string | undefined {
+    const key = agentCallKey(agent, callId);
+    const inputFingerprint = this.delegationApprovalBindings.get(key);
+    this.delegationApprovalBindings.delete(key);
+    return inputFingerprint;
   }
 
   async cancelChildRuns(reason: string): Promise<void> {
@@ -182,4 +194,8 @@ export class RunContext<THarness> {
   extensions(): LifecycleExtensionReceipt[] {
     return this.extensionReceipts;
   }
+}
+
+function agentCallKey(agent: string, callId: CallId): string {
+  return `${agent}\0${callId}`;
 }

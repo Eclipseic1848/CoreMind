@@ -148,6 +148,8 @@ quality:
 - `assisted`：工作区内低风险文件操作自动批准，高风险操作询问。
 - `full`：不逐项询问，但显式 deny、审计、Trace 和 checkpoint 仍然生效；路径感知文件工具继续执行工作区策略。
 
+`delegate` 使用更严格的矩阵：`ask` 每次询问；`assisted` 仅对 Config 显式 `preapproved: true` 且满足全部限制的目标自动批准；`full` 也不能覆盖 deny、allowlist、预算、工具不扩权、路径、网络或凭据边界。委派批准绑定固定输入指纹且只创建 Child Run，子级工具与外部 Effect 继续独立审批。
+
 Linux 上的内置 `bash` 在 OS 级沙箱中运行，当前固定断网、只允许写工作区，并在沙箱不可用时关闭执行而不回退宿主 shell。Windows 一期没有 OS 级 shell 沙箱；宿主 Shell 只有在 full、`workspaceOnly: false`、`network: allow` 同时选择时开放，其他组合安全拒绝。Git Bash 发现只提供命令兼容性，不提供隔离。CoreMind 不会把 checkpoint 描述成任意副作用的完整恢复。
 
 Linux 沙箱依赖仍处于上游研究预览阶段，当前作为纵深防御能力使用；安全结论以完整权限策略、恢复机制和自动化测试证据为准。

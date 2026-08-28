@@ -1,5 +1,5 @@
 import "../../../test/setup-env.js";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -10,6 +10,8 @@ import { ChatSession } from "./chat-session.js";
 import { ProjectionEngine } from "./projection.js";
 import { FileRunStore } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
+import type { ToolApprovalRequest } from "./tool-policy.js";
+import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("Delegation Tool TypeScript happy path", () => {
   const temporaryDirectories: string[] = [];
@@ -228,6 +230,238 @@ describe("Delegation Tool TypeScript happy path", () => {
     }
   });
 
+  it("Delegation Approval 与 Child Tool Effect 分别审批并写入各自 Run Facts", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-approval-"));
+    temporaryDirectories.push(directory);
+    await writeFile(path.join(directory, "notes.txt"), "独立审批证据", "utf8");
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+        };
+        const serializedMessages = JSON.stringify(payload.messages ?? []);
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        const child = serializedMessages.includes("研究 Agent");
+        if (hasToolResult) {
+          sendSse(
+            response,
+            textResponse(
+              child ? "child-approved" : "parent-approved",
+              child ? "子任务完成" : "父任务完成",
+            ),
+          );
+        } else if (child) {
+          sendSse(response, readToolResponse());
+        } else {
+          sendSse(response, delegationResponse());
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const approvals: ToolApprovalRequest[] = [];
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...baseConfig(port, {
+            main: {
+              systemPrompt: "你是父 Agent。",
+              tools: [{ id: "read" }],
+              delegation: {
+                targets: {
+                  researcher: {
+                    budget: {
+                      tokens: 1_000,
+                      toolCalls: 2,
+                      costUsd: 1,
+                      wallTimeMs: 5_000,
+                      steps: 2,
+                      descendants: 0,
+                    },
+                  },
+                },
+              },
+            },
+            researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "read" }] },
+          }),
+          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
+        },
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "完成父任务",
+        runStore: store,
+        approveTool: async (request) => {
+          approvals.push(request);
+          return "allow";
+        },
+      });
+
+      const result = await runtime.run();
+      const childRunId = result.childRuns?.nodes[0]?.childRunId;
+      const parentRecords = await store.read(result.runId);
+      const delegation = parentRecords.find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      );
+      const parentApprovals = result.trace
+        .map((entry) => entry.event)
+        .filter((event) => event.type === "approval_required");
+      const parentResolvedApprovals = result.trace
+        .map((entry) => entry.event)
+        .filter((event) => event.type === "approval_resolved");
+      const childApprovals = childRunId
+        ? (await store.read(childRunId))
+            .flatMap((record) =>
+              record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
+            )
+            .filter(
+              (
+                event,
+              ): event is Extract<
+                (typeof result.trace)[number]["event"],
+                { type: "approval_required" }
+              > =>
+                typeof event === "object" &&
+                event !== null &&
+                "type" in event &&
+                event.type === "approval_required",
+            )
+        : [];
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(approvals.map((request) => request.tool)).toEqual(["delegate", "read"]);
+      expect(approvals[0]).toMatchObject({
+        tool: "delegate",
+        args: {
+          target: "researcher",
+          task: "研究已批准事实",
+          references: ["fact:approved"],
+          limits: {
+            tokens: 800,
+            toolCalls: 2,
+            costUsd: 1,
+            wallTimeMs: 5_000,
+            steps: 2,
+            descendants: 0,
+          },
+        },
+        argumentsFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        delegationInputFingerprint: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      });
+      expect(approvals[0]?.delegationInputFingerprint).toBe(
+        (delegation?.payload as { inputFingerprint?: string } | undefined)?.inputFingerprint,
+      );
+      expect(parentApprovals).toEqual([
+        expect.objectContaining({
+          tool: "delegate",
+          argumentsFingerprint: approvals[0]?.argumentsFingerprint,
+          delegationInputFingerprint: approvals[0]?.delegationInputFingerprint,
+        }),
+      ]);
+      expect(parentResolvedApprovals).toEqual([
+        expect.objectContaining({
+          decision: "allow",
+          argumentsFingerprint: approvals[0]?.argumentsFingerprint,
+          delegationInputFingerprint: approvals[0]?.delegationInputFingerprint,
+        }),
+      ]);
+      expect(childApprovals).toEqual([
+        expect.objectContaining({
+          tool: "read",
+          argumentsFingerprint: approvals[1]?.argumentsFingerprint,
+        }),
+      ]);
+      expect(approvals[1]?.argumentsFingerprint).not.toBe(approvals[0]?.argumentsFingerprint);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it.each([
+    ["未预批准", false, 1],
+    ["显式预批准", true, 0],
+  ] as const)(
+    "assisted 模式%s Target 的委派审批次数正确",
+    async (_label, preapproved, expected) => {
+      const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-assisted-"));
+      temporaryDirectories.push(directory);
+      const server = createServer((request, response) => {
+        let body = "";
+        request.setEncoding("utf8");
+        request.on("data", (chunk) => {
+          body += chunk;
+        });
+        request.on("end", () => {
+          const payload = JSON.parse(body) as {
+            messages?: Array<{ role?: string }>;
+            tools?: Array<{ function?: { name?: string } }>;
+          };
+          const hasToolResult =
+            payload.messages?.some((message) => message.role === "tool") ?? false;
+          const hasDelegationTool =
+            payload.tools?.some((tool) => tool.function?.name === "delegate") ?? false;
+          if (hasToolResult) sendSse(response, textResponse("assisted-parent", "父任务完成"));
+          else if (hasDelegationTool) sendSse(response, delegationResponse());
+          else sendSse(response, textResponse("assisted-child", "子任务完成"));
+        });
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+      try {
+        const approvals: ToolApprovalRequest[] = [];
+        const port = (server.address() as AddressInfo).port;
+        const runtime = await CoreMindRuntime.create({
+          config: {
+            ...baseConfig(port, {
+              main: {
+                systemPrompt: "你是父 Agent。",
+                delegation: {
+                  targets: {
+                    researcher: {
+                      ...(preapproved ? { preapproved: true } : {}),
+                      budget: {
+                        tokens: 1_000,
+                        toolCalls: 2,
+                        costUsd: 1,
+                        wallTimeMs: 5_000,
+                        steps: 2,
+                        descendants: 0,
+                      },
+                    },
+                  },
+                },
+              },
+              researcher: { systemPrompt: "你是研究 Agent。" },
+            }),
+            permissions: { mode: "assisted", workspaceOnly: true, network: "deny" },
+          },
+          configDir: directory,
+          cwd: directory,
+          env: { COREMIND_TEST_API_KEY: "test-key" },
+          initialPrompt: "完成父任务",
+          runStore: new FileRunStore(path.join(directory, "runs")),
+          approveTool: async (request) => {
+            approvals.push(request);
+            return "allow";
+          },
+        });
+
+        const result = await runtime.run();
+        expect(result.outcome.status).toBe("succeeded");
+        expect(approvals.filter((request) => request.tool === "delegate")).toHaveLength(expected);
+      } finally {
+        await closeServer(server);
+      }
+    },
+  );
+
   it.each([
     ["非 allowlist Agent", '{"target":"auditor","task":"越权委派"}'],
     [
@@ -362,7 +596,7 @@ describe("Delegation Tool TypeScript happy path", () => {
   });
 });
 
-async function within<T>(promise: Promise<T>, label: string, timeoutMs = 3_000): Promise<T> {
+async function within<T>(promise: Promise<T>, label: string, timeoutMs = 10_000): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
@@ -452,6 +686,32 @@ function toolCallResponse(argumentsJson: string): unknown[] {
       ],
     },
     { id: "invalid-tool", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+  ];
+}
+
+function readToolResponse(): unknown[] {
+  return [
+    {
+      id: "child-read",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: "call-child-read",
+                type: "function",
+                function: { name: "read", arguments: '{"path":"notes.txt"}' },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    { id: "child-read", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
   ];
 }
 

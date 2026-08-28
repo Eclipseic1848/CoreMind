@@ -64,7 +64,15 @@ export function checkInvariantFacts(
   const receiptStates = new Map<string, EffectReceiptStatus>();
   const receiptObservations = new Map<string, { runId: string; sequence: number }>();
   const eventsByRun = new Map<string, CoreMindEvent[]>();
-  const pendingApprovals = new Map<string, { runId: string; sequence: number }>();
+  const pendingApprovals = new Map<
+    string,
+    {
+      runId: string;
+      sequence: number;
+      argumentsFingerprint?: string;
+      delegationInputFingerprint?: string;
+    }
+  >();
   const operationChains = new Map<string, OperationStateRecord[]>();
   for (const record of facts.runRecords) {
     const sequenceKey = `${record.runId}:${record.sequence}`;
@@ -176,6 +184,12 @@ export function checkInvariantFacts(
         pendingApprovals.set(event.approvalId, {
           runId: event.runId,
           sequence: record.sequence,
+          ...(event.argumentsFingerprint
+            ? { argumentsFingerprint: event.argumentsFingerprint }
+            : {}),
+          ...(event.delegationInputFingerprint
+            ? { delegationInputFingerprint: event.delegationInputFingerprint }
+            : {}),
         });
       }
     }
@@ -189,6 +203,24 @@ export function checkInvariantFacts(
           sequence: record.sequence,
           approvalId: event.approvalId,
         });
+      } else if (required.argumentsFingerprint !== event.argumentsFingerprint) {
+        violations.push({
+          invariant: "I-9",
+          message: `ApprovalId ${event.approvalId} 的 required/resolved 参数指纹不匹配`,
+          runId: record.runId,
+          sequence: record.sequence,
+          approvalId: event.approvalId,
+        });
+        pendingApprovals.delete(event.approvalId);
+      } else if (required.delegationInputFingerprint !== event.delegationInputFingerprint) {
+        violations.push({
+          invariant: "I-9",
+          message: `ApprovalId ${event.approvalId} 的 required/resolved Delegation 输入指纹不匹配`,
+          runId: record.runId,
+          sequence: record.sequence,
+          approvalId: event.approvalId,
+        });
+        pendingApprovals.delete(event.approvalId);
       } else {
         pendingApprovals.delete(event.approvalId);
       }

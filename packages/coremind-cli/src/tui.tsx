@@ -7,7 +7,13 @@ import type {
 } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type ApprovalQueue, formatApprovalDisplay, type PendingApproval } from "./approval.js";
+import {
+  type ApprovalQueue,
+  compactChildRunText,
+  formatApprovalDisplay,
+  formatDelegationApproval,
+  type PendingApproval,
+} from "./approval.js";
 import { formatObservabilityStatus } from "./observability-format.js";
 import { loopStateText } from "./render.js";
 
@@ -450,55 +456,6 @@ export function formatChildRuns(run: { childRuns?: ChildRunTreeProjection } | un
       appendNode(node, 0, index === remaining.length - 1);
     });
   return lines.join("\n");
-}
-
-function compactChildRunText(value: string, maxLength = 160): string {
-  const compact = value.replace(/\s+/g, " ").trim();
-  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength - 1)}…`;
-}
-
-function formatDelegationApproval(
-  request: PendingApproval["request"],
-): { target: string; task: string; budget: string; references: string } | undefined {
-  if (request.tool !== "delegate" || !isRecord(request.args)) return undefined;
-  const target = typeof request.args.target === "string" ? request.args.target : "未知目标";
-  const task = typeof request.args.task === "string" ? request.args.task : "未提供任务";
-  const limits = isRecord(request.args.limits) ? request.args.limits : {};
-  const budget = [
-    numericBudgetValue(limits.tokens, (value) => `${value} tokens`),
-    numericBudgetValue(limits.toolCalls, (value) => `工具 ${value}`),
-    numericBudgetValue(limits.costUsd, (value) => `$${value}`),
-    numericBudgetValue(limits.wallTimeMs, (value) => `${value}ms`),
-    numericBudgetValue(limits.steps, (value) => `步骤 ${value}`),
-    numericBudgetValue(limits.descendants, (value) => `后代 ${value}`),
-  ]
-    .filter((part): part is string => part !== undefined)
-    .join(" · ");
-  const references = Array.isArray(request.args.references)
-    ? request.args.references.filter((item): item is string => typeof item === "string").join("、")
-    : "";
-  return {
-    target: compactChildRunText(target),
-    task: summarizeDelegationTask(task),
-    budget: budget || "使用 Config 默认预算",
-    references: references || "无显式 Fact/Artifact 引用",
-  };
-}
-
-function summarizeDelegationTask(value: string): string {
-  const compact = value.replace(/\s+/g, " ").trim();
-  return compact.length <= 160
-    ? compact
-    : `${compact.slice(0, 24)}…（任务 ${compact.length} 字符）`;
-}
-
-function numericBudgetValue(value: unknown, format: (value: number) => string): string | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
-  return format(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function formatArtifacts(run: RunResult | undefined): string {

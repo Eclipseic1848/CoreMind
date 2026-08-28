@@ -638,6 +638,95 @@ describe("关联不变量检查器", () => {
     );
   });
 
+  it("I-9：拒绝 ApprovalId 复用到不同参数指纹", () => {
+    const violations = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          eventRecord(2, {
+            type: "approval_required",
+            approvalId: "approval-bound",
+            runId: "run-1",
+            agent: "main",
+            tool: "delegate",
+            args: { target: "researcher" },
+            argumentsFingerprint: "a".repeat(64),
+            risk: "low",
+            effect: {
+              operations: ["read"],
+              paths: [],
+              urls: [],
+              reversible: true,
+              declared: true,
+            },
+          }),
+          eventRecord(3, {
+            type: "approval_resolved",
+            approvalId: "approval-bound",
+            runId: "run-1",
+            decision: "allow",
+            argumentsFingerprint: "b".repeat(64),
+          }),
+        ],
+      },
+      { mode: "eval" },
+    );
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        invariant: "I-9",
+        approvalId: "approval-bound",
+        message: expect.stringContaining("参数指纹不匹配"),
+      }),
+    );
+  });
+
+  it("I-9：拒绝 ApprovalId 复用到不同 Child Run 输入指纹", () => {
+    const argumentsFingerprint = "a".repeat(64);
+    const violations = checkInvariantFacts(
+      {
+        runRecords: [
+          record(1),
+          eventRecord(2, {
+            type: "approval_required",
+            approvalId: "approval-delegation-bound",
+            runId: "run-1",
+            agent: "main",
+            tool: "delegate",
+            args: { target: "researcher" },
+            argumentsFingerprint,
+            delegationInputFingerprint: `sha256:${"b".repeat(64)}`,
+            risk: "low",
+            effect: {
+              operations: ["read"],
+              paths: [],
+              urls: [],
+              reversible: true,
+              declared: true,
+            },
+          }),
+          eventRecord(3, {
+            type: "approval_resolved",
+            approvalId: "approval-delegation-bound",
+            runId: "run-1",
+            decision: "allow",
+            argumentsFingerprint,
+            delegationInputFingerprint: `sha256:${"c".repeat(64)}`,
+          }),
+        ],
+      },
+      { mode: "eval" },
+    );
+
+    expect(violations).toContainEqual(
+      expect.objectContaining({
+        invariant: "I-9",
+        approvalId: "approval-delegation-bound",
+        message: expect.stringContaining("Delegation 输入指纹不匹配"),
+      }),
+    );
+  });
+
   it("I-10：检出 Abort 分界点后的迟到终态事实", () => {
     const violations = checkInvariantFacts(
       {
