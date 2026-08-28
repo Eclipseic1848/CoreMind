@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { Model } from "@earendil-works/pi-ai";
 import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import {
@@ -47,6 +48,7 @@ import {
   type ChildRunDelegationRequest,
   type ChildRunExecutionInput,
   type ChildRunHandle,
+  type ChildRunModelSnapshot,
   type ChildRunPolicySnapshot,
   childRunInputFingerprint,
 } from "./child-run.js";
@@ -134,7 +136,13 @@ import {
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
 import { type ChildRunTreeProjection, ProjectionEngine, type RunProjection } from "./projection.js";
-import { buildProviderRuntime, type ProviderRuntime, type SecretResolver } from "./provider.js";
+import {
+  buildProviderRuntime,
+  contextCapabilityCandidatesForModel,
+  type ProviderRuntime,
+  resolveProviderModel,
+  type SecretResolver,
+} from "./provider.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { adaptCoreMindTool, type CoreMindToolDefinition } from "./public-tool.js";
 import { createProviderRequestReplayFact } from "./replay-kit.js";
@@ -305,6 +313,7 @@ export class CoreMindRuntime {
   private constructor(
     private readonly config: CoreMindConfig,
     private readonly agentConfigs: Map<string, AgentConfig>,
+    private readonly agentModels: Map<string, Model<any>>,
     private readonly driverBuilders: Map<string, AgentDriverBuilder>,
     private readonly toolEffectsByAgent: Map<string, Map<string, ToolEffectDeclaration>>,
     private readonly toolCapabilitiesByAgent: Map<string, Map<string, ResolvedToolCapability>>,
@@ -351,6 +360,7 @@ export class CoreMindRuntime {
 
     // 2. 每个 agent：构建工具与技能（Agent 实例按需创建，避免并发冲突）
     const agentConfigs = new Map<string, AgentConfig>();
+    const agentModels = new Map<string, Model<any>>();
     const driverBuilders = new Map<string, AgentDriverBuilder>();
     const toolEffectsByAgent = new Map<string, Map<string, ToolEffectDeclaration>>();
     const toolCapabilitiesByAgent = new Map<string, Map<string, ResolvedToolCapability>>();
@@ -367,6 +377,8 @@ export class CoreMindRuntime {
     // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
     const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
     for (const [name, agentCfg] of Object.entries(config.agents)) {
+      const agentModel = resolveProviderModel(providerRuntime, agentCfg.model);
+      agentModels.set(name, agentModel);
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
       const { tools, warnings, effects, capabilities } = await buildToolsWithExecutionEnvironment(
         toolConfigs ?? [],
@@ -449,7 +461,7 @@ export class CoreMindRuntime {
       driverBuilders.set(name, ({ onEvent, harness, sessionMessages }) =>
         buildAgentDriver(agentCfg, {
           models: providerRuntime.models,
-          model: providerRuntime.model,
+          model: agentModel,
           tools: driverTools,
           agentName: name,
           onEvent,
@@ -457,11 +469,14 @@ export class CoreMindRuntime {
           sessionMessages,
           skillsContent: allContents,
           stableFacts: {
-            provider: providerRuntime.model.provider,
-            model: providerRuntime.model.id,
-            contextWindow: providerRuntime.model.contextWindow,
+            provider: agentModel.provider,
+            model: agentModel.id,
+            contextWindow: agentModel.contextWindow,
           },
-          promptCacheStatus: providerRuntime.promptCacheStatus,
+          promptCacheStatus:
+            agentModel.cost.cacheRead > 0 || agentModel.cost.cacheWrite > 0
+              ? "available"
+              : "unavailable",
           harness,
         }),
       );
@@ -494,6 +509,7 @@ export class CoreMindRuntime {
     runtime = new CoreMindRuntime(
       config,
       agentConfigs,
+      agentModels,
       driverBuilders,
       toolEffectsByAgent,
       toolCapabilitiesByAgent,
@@ -527,6 +543,20 @@ export class CoreMindRuntime {
     return agent;
   }
 
+  /** 返回命名 Agent 在项目 Provider 内的固定模型与参数快照。 */
+  private modelSnapshotFor(agentName: string): ChildRunModelSnapshot {
+    const model = this.agentModels.get(agentName);
+    if (!model) {
+      throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
+    }
+    const options = this.agentConfigs.get(agentName)?.options;
+    return {
+      providerId: model.provider,
+      model: model.id,
+      ...(options ? { options: structuredClone(options) } : {}),
+    };
+  }
+
   /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
   hasAgent(name: string): boolean {
     return this.agentConfigs.has(name);
@@ -558,6 +588,7 @@ export class CoreMindRuntime {
     const turnRuntime = new CoreMindRuntime(
       turnConfig,
       this.agentConfigs,
+      this.agentModels,
       this.driverBuilders,
       this.toolEffectsByAgent,
       this.toolCapabilitiesByAgent,
@@ -634,7 +665,7 @@ export class CoreMindRuntime {
       this.options.childRunAuthority !== input ||
       this.options.runId !== input.childRunId ||
       this.options.signal !== input.signal ||
-      this.options.initialPrompt !== input.request.task
+      this.options.initialPrompt !== delegatedInitialPrompt(input.request)
     ) {
       throw new CoreMindError(
         "child_run_identity_mismatch",
@@ -644,7 +675,7 @@ export class CoreMindRuntime {
     await assertRuntimeChildPolicyAuthority({
       policy: input.inheritedPolicy,
       config: this.config,
-      provider: this.providerRuntime,
+      model: this.modelSnapshotFor(this.mainAgentName),
       executionEnvironment: this.executionEnvironment,
       workspaceRoot: this.options.cwd ?? process.cwd(),
       tools: new Set(this.runtimeAuthorityToolIds()),
@@ -767,12 +798,7 @@ export class CoreMindRuntime {
           credentials: [],
         } satisfies ChildRunPolicySnapshot["permissions"]),
       environment: inheritedPolicy?.environment ?? {},
-      model:
-        inheritedPolicy?.model ??
-        ({
-          providerId: this.providerRuntime.model.provider,
-          model: this.providerRuntime.model.id,
-        } satisfies ChildRunPolicySnapshot["model"]),
+      model: inheritedPolicy?.model ?? this.modelSnapshotFor(this.mainAgentName),
       workspace:
         inheritedPolicy?.workspace ??
         ({
@@ -826,7 +852,7 @@ export class CoreMindRuntime {
             cwd: this.options.cwd,
             env: this.options.env,
             secretResolver: this.options.secretResolver,
-            initialPrompt: authority.request.task,
+            initialPrompt: delegatedInitialPrompt(authority.request),
             events: this.options.events,
             trace: this.options.trace,
             approveTool: this.options.approveTool,
@@ -898,10 +924,7 @@ export class CoreMindRuntime {
       parentStepId: call.stepId ?? `step:${parentAgentName}:default`,
       agentName: args.target,
       task: args.task,
-      model: {
-        providerId: this.providerRuntime.model.provider,
-        model: this.providerRuntime.model.id,
-      },
+      model: this.modelSnapshotFor(args.target),
       workspace: {
         canonicalRoot: await canonicalizeWorkspace(this.options.cwd ?? process.cwd()),
         lease: "shared_canonical",
@@ -1421,7 +1444,7 @@ export class CoreMindRuntime {
       await assertRuntimeChildPolicyAuthority({
         policy: childRunOptions.parentPolicy,
         config: this.config,
-        provider: this.providerRuntime,
+        model: this.modelSnapshotFor(this.mainAgentName),
         executionEnvironment: this.executionEnvironment,
         workspaceRoot: this.options.cwd ?? process.cwd(),
         tools: new Set(this.runtimeAuthorityToolIds()),
@@ -1569,6 +1592,7 @@ export class CoreMindRuntime {
     });
     const deniedAgents = new Set<string>();
     context.setHarnessFactory((agentName, stepId) => {
+      const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
@@ -1677,10 +1701,13 @@ export class CoreMindRuntime {
           );
           try {
             const preparation = await contextLifecycleManager.prepare({
-              providerId: this.providerRuntime.model.provider,
-              modelId: this.providerRuntime.model.id,
+              providerId: agentModel.provider,
+              modelId: agentModel.id,
               resolvedAt: Date.now(),
-              capabilityCandidates: this.providerRuntime.contextCapabilityCandidates,
+              capabilityCandidates: contextCapabilityCandidatesForModel(
+                this.providerRuntime,
+                agentModel,
+              ),
               request: {
                 messages: effectiveMessages as unknown as CoreMindMessage[],
                 stablePrefix: contract.stablePrefix,
@@ -2288,7 +2315,7 @@ export class CoreMindRuntime {
           ) {
             recordContextFailure(
               new ContextLifecycleError(
-                `Provider 报告 ${this.providerRuntime.model.provider}/${this.providerRuntime.model.id} 超出 Context 窗口；相同请求不会重试`,
+                `Provider 报告 ${agentModel.provider}/${agentModel.id} 超出 Context 窗口；相同请求不会重试`,
                 "provider_overflow",
                 "context_budget_exhausted",
               ),
@@ -2924,11 +2951,8 @@ export class CoreMindRuntime {
     await cm.appendMessages(messages);
     // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
     if (session.compact) {
-      await cm.maybeCompact(
-        this.providerRuntime.models,
-        this.providerRuntime.model,
-        this.providerRuntime.model.contextWindow,
-      );
+      const mainModel = this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model;
+      await cm.maybeCompact(this.providerRuntime.models, mainModel, mainModel.contextWindow);
     }
     return cm.filePath;
   }
@@ -2971,6 +2995,17 @@ const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
 const QUIESCENCE_POLL_INTERVAL_MS = 10;
 
+/** 只把本次任务与显式引用标识符交给 Child；父 Session、文件和工具输出不参与构造。 */
+function delegatedInitialPrompt(request: ChildRunDelegationRequest): string {
+  if (request.context.references.length === 0) return request.task;
+  return [
+    request.task,
+    "",
+    "CoreMind Delegated Context（仅限本次获准的显式引用）：",
+    JSON.stringify([...request.context.references]),
+  ].join("\n");
+}
+
 function tightenDelegationBudget(
   configured: ChildRunBudgetAllocation,
   inherited: ChildRunBudgetAllocation,
@@ -2986,7 +3021,7 @@ function tightenDelegationBudget(
 async function assertRuntimeChildPolicyAuthority(input: {
   policy: ChildRunPolicySnapshot;
   config: CoreMindConfig;
-  provider: ProviderRuntime;
+  model: ChildRunModelSnapshot;
   executionEnvironment: ExecutionEnvironment;
   workspaceRoot: string;
   tools: ReadonlySet<string>;
@@ -2996,7 +3031,7 @@ async function assertRuntimeChildPolicyAuthority(input: {
   const {
     policy,
     config,
-    provider,
+    model,
     executionEnvironment,
     workspaceRoot,
     tools,
@@ -3004,10 +3039,7 @@ async function assertRuntimeChildPolicyAuthority(input: {
     enforceRuntimeBudget,
   } = input;
   const canonicalRoot = await canonicalizeWorkspace(workspaceRoot);
-  if (
-    policy.model.providerId !== provider.model.provider ||
-    policy.model.model !== provider.model.id
-  ) {
+  if (fingerprintEffectReceiptValue(policy.model) !== fingerprintEffectReceiptValue(model)) {
     throw new CoreMindError(
       "child_run_policy_escalation",
       "Child Run 父策略模型与当前 Runtime 的实际 Provider/model 不一致",

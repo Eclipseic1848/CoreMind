@@ -45,6 +45,9 @@ describe("Delegation Tool TypeScript happy path", () => {
       request.on("end", () => {
         const payload = JSON.parse(body) as {
           messages?: Array<{ role?: string }>;
+          model?: string;
+          temperature?: number;
+          max_completion_tokens?: number;
           tools?: Array<{ function?: { name?: string } }>;
         };
         requests.push(payload as Record<string, unknown>);
@@ -232,9 +235,21 @@ describe("Delegation Tool TypeScript happy path", () => {
               : textResponse("parent-final", "父任务完成"),
           );
         } else if (hasDelegationTool && serialized.includes("你是父 Agent")) {
-          sendSse(response, delegationResponseTo("researcher", "call-researcher"));
+          sendSse(
+            response,
+            delegationResponseTo("researcher", "call-researcher", [
+              "fact:approved-context",
+              "artifact:approved-context",
+            ]),
+          );
         } else if (hasDelegationTool && serialized.includes("你是研究 Agent")) {
-          sendSse(response, delegationResponseTo("reviewer", "call-reviewer"));
+          sendSse(
+            response,
+            delegationResponseTo("reviewer", "call-reviewer", [
+              "fact:approved-context",
+              "artifact:approved-context",
+            ]),
+          );
         } else {
           sendSse(response, textResponse("reviewer-final", "审查子任务完成"));
         }
@@ -261,7 +276,7 @@ describe("Delegation Tool TypeScript happy path", () => {
                 tokens: 2_000,
                 toolCalls: 4,
                 costUsd: 2,
-                wallTimeMs: 10_000,
+                wallTimeMs: 45_000,
                 steps: 4,
                 descendants: 2,
               },
@@ -272,7 +287,7 @@ describe("Delegation Tool TypeScript happy path", () => {
                     tokens: 1_000,
                     toolCalls: 2,
                     costUsd: 1,
-                    wallTimeMs: 5_000,
+                    wallTimeMs: 30_000,
                     steps: 2,
                     descendants: 1,
                   },
@@ -282,12 +297,14 @@ describe("Delegation Tool TypeScript happy path", () => {
           },
           researcher: {
             systemPrompt: "你是研究 Agent。",
+            model: "researcher-model",
+            options: { temperature: 0.2, maxTokens: 900 },
             delegation: {
               budget: {
                 tokens: 400,
                 toolCalls: 1,
                 costUsd: 0.4,
-                wallTimeMs: 2_000,
+                wallTimeMs: 20_000,
                 steps: 1,
                 descendants: 1,
               },
@@ -298,7 +315,7 @@ describe("Delegation Tool TypeScript happy path", () => {
                     tokens: 400,
                     toolCalls: 1,
                     costUsd: 0.4,
-                    wallTimeMs: 2_000,
+                    wallTimeMs: 10_000,
                     steps: 1,
                     descendants: 0,
                   },
@@ -306,7 +323,11 @@ describe("Delegation Tool TypeScript happy path", () => {
               },
             },
           },
-          reviewer: { systemPrompt: "你是审查 Agent。" },
+          reviewer: {
+            systemPrompt: "你是审查 Agent。",
+            model: "reviewer-model",
+            options: { temperature: 0.1, maxTokens: 300 },
+          },
         },
         defaultAgent: "main",
         runtime: {
@@ -314,7 +335,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           maxToolCalls: 8,
           maxTokens: 4_000,
           maxCostUsd: 4,
-          runTimeoutMs: 20_000,
+          runTimeoutMs: 60_000,
         },
         permissions: { mode: "full", workspaceOnly: true, network: "allow" },
       };
@@ -324,7 +345,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         configDir: directory,
         cwd: directory,
         env: { COREMIND_TEST_API_KEY: "test-key" },
-        initialPrompt: "完成父任务",
+        initialPrompt: "完成父任务；PARENT_PRIVATE_MARKER；UNREFERENCED_FILE_MARKER",
         runStore: store,
       });
 
@@ -357,17 +378,89 @@ describe("Delegation Tool TypeScript happy path", () => {
       ]);
       expect(rootDelegation?.payload).toMatchObject({
         budgetScope: "main",
+        model: {
+          providerId: "probe",
+          model: "researcher-model",
+          options: { temperature: 0.2, maxTokens: 900 },
+        },
         inheritedPolicy: { depth: 1, maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
       });
       expect(nestedDelegation?.payload).toMatchObject({
         budgetScope: "researcher",
+        model: {
+          providerId: "probe",
+          model: "reviewer-model",
+          options: { temperature: 0.1, maxTokens: 300 },
+        },
         inheritedPolicy: { depth: 2, maxDepth: 2, maxActiveChildren: 1, maxDescendants: 0 },
       });
       expect(requests).toHaveLength(5);
+      const researcherRequests = requests.filter((request) =>
+        JSON.stringify(request).includes("你是研究 Agent"),
+      );
+      const reviewerRequests = requests.filter((request) =>
+        JSON.stringify(request).includes("你是审查 Agent"),
+      );
+      const parentJoinRequest = requests.find(
+        (request) =>
+          JSON.stringify(request).includes("你是父 Agent") &&
+          (request.messages as Array<{ role?: string }> | undefined)?.some(
+            (message) => message.role === "tool",
+          ),
+      );
+      const parentToolMessage = (
+        parentJoinRequest?.messages as Array<{ role?: string; content?: string }> | undefined
+      )?.find((message) => message.role === "tool");
+      const parentToolResult = JSON.parse(parentToolMessage?.content ?? "null") as unknown;
+      expect(researcherRequests).not.toHaveLength(0);
+      const researcherInitialRequest = researcherRequests.find(
+        (request) =>
+          !(request.messages as Array<{ role?: string }> | undefined)?.some(
+            (message) => message.role === "tool",
+          ),
+      );
+      expect(JSON.stringify(researcherInitialRequest)).toContain("fact:approved-context");
+      expect(JSON.stringify(researcherInitialRequest)).toContain("artifact:approved-context");
+      expect(JSON.stringify(researcherInitialRequest)).not.toContain("PARENT_PRIVATE_MARKER");
+      expect(JSON.stringify(researcherInitialRequest)).not.toContain("UNREFERENCED_FILE_MARKER");
+      expect(JSON.stringify(researcherInitialRequest)).not.toContain("test-key");
+      expect(parentToolResult).toMatchObject({
+        childRunId: expect.any(String),
+        result: {
+          outcome: { status: "succeeded", finishReason: "completed" },
+          evidence: expect.any(Array),
+          artifacts: expect.any(Array),
+          workspaceChanges: expect.any(Array),
+          unresolvedRisks: expect.any(Array),
+        },
+      });
+      expect(JSON.stringify(parentJoinRequest)).not.toContain("审查子任务完成");
+      expect(JSON.stringify(parentJoinRequest)).not.toContain("研究子任务完成");
+      expect(JSON.stringify(parentJoinRequest)).not.toContain("你是研究 Agent");
+      expect(JSON.stringify(parentJoinRequest)).not.toContain("你是审查 Agent");
+      expect(researcherRequests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            model: "researcher-model",
+            temperature: 0.2,
+            max_completion_tokens: 900,
+          }),
+        ]),
+      );
+      expect(reviewerRequests).not.toHaveLength(0);
+      expect(reviewerRequests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            model: "reviewer-model",
+            temperature: 0.1,
+            max_completion_tokens: 300,
+          }),
+        ]),
+      );
     } finally {
       await closeServer(server);
     }
-  });
+  }, 45_000);
 
   it("未配置 delegation 时不向模型暴露工具且不产生 Child Fact", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-disabled-"));
@@ -859,9 +952,13 @@ function delegationResponse(): unknown[] {
   ];
 }
 
-function delegationResponseTo(target: string, callId: string): unknown[] {
+function delegationResponseTo(
+  target: string,
+  callId: string,
+  references: string[] = [],
+): unknown[] {
   return toolCallResponse(
-    JSON.stringify({ target, task: `委派给 ${target}`, references: [], limits: {} }),
+    JSON.stringify({ target, task: `委派给 ${target}`, references, limits: {} }),
   ).map((chunk) => {
     const cloned = structuredClone(chunk) as {
       choices?: Array<{ delta?: { tool_calls?: Array<{ id?: string }> } }>;

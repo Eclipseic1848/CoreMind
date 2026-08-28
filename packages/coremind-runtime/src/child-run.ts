@@ -81,6 +81,11 @@ export interface ChildRunContextReference {
 export interface ChildRunModelSnapshot {
   providerId: string;
   model: string;
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "xhigh";
+  };
 }
 
 export interface ChildRunWorkspaceSnapshot {
@@ -693,8 +698,8 @@ function assertChildRunPolicyIsNarrower(
     throw policyEscalation("Child Run 深度超过父级允许上限");
   }
   effectiveChildHierarchy(parent, request);
-  if (canonicalJson(request.model) !== canonicalJson(parent.model)) {
-    throw policyEscalation("Child Run 模型不在父级继承快照内");
+  if (request.model.providerId !== parent.model.providerId) {
+    throw policyEscalation("Child Run 模型必须使用父级项目 Provider");
   }
   if (canonicalJson(request.workspace) !== canonicalJson(parent.workspace)) {
     throw policyEscalation("Child Run Workspace 身份或租约要求与父级不一致");
@@ -1113,7 +1118,24 @@ function isChildRunPolicySnapshot(value: unknown): value is ChildRunPolicySnapsh
 }
 
 function isChildRunModelSnapshot(value: unknown): value is ChildRunModelSnapshot {
-  return isRecord(value) && typeof value.providerId === "string" && typeof value.model === "string";
+  if (!isRecord(value) || typeof value.providerId !== "string" || typeof value.model !== "string") {
+    return false;
+  }
+  if (value.options === undefined) return true;
+  if (!isRecord(value.options)) return false;
+  const { temperature, maxTokens, thinkingLevel } = value.options;
+  return (
+    (temperature === undefined ||
+      (typeof temperature === "number" && temperature >= 0 && temperature <= 2)) &&
+    (maxTokens === undefined ||
+      (typeof maxTokens === "number" && Number.isInteger(maxTokens) && maxTokens >= 1)) &&
+    (thinkingLevel === undefined ||
+      thinkingLevel === "off" ||
+      thinkingLevel === "low" ||
+      thinkingLevel === "medium" ||
+      thinkingLevel === "high" ||
+      thinkingLevel === "xhigh")
+  );
 }
 
 function isChildRunWorkspaceSnapshot(value: unknown): value is ChildRunWorkspaceSnapshot {
