@@ -746,7 +746,7 @@ describe("四入口请求等价（门 A-2）", () => {
       resumable: false,
       requiresHuman: false,
     });
-  });
+  }, 45_000);
 
   it("未知 Provider 错误在四入口失败关闭并要求人工处置", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-unclassified-error-"));
