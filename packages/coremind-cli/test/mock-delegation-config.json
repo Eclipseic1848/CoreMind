@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "name": "child-run-parity",
+  "provider": {
+    "id": "probe",
+    "baseUrl": "http://127.0.0.1:0/v1",
+    "model": "probe-model",
+    "apiKeyEnv": "COREMIND_TEST_API_KEY"
+  },
+  "agents": {
+    "main": {
+      "systemPrompt": "你是父 Agent。",
+      "delegation": {
+        "targets": {
+          "researcher": {
+            "budget": {
+              "tokens": 1000,
+              "toolCalls": 2,
+              "costUsd": 1,
+              "wallTimeMs": 5000,
+              "steps": 2,
+              "descendants": 0
+            }
+          }
+        }
+      }
+    },
+    "researcher": {
+      "systemPrompt": "你是研究 Agent。"
+    }
+  },
+  "defaultAgent": "main",
+  "runtime": {
+    "maxSteps": 4,
+    "maxToolCalls": 4,
+    "maxTokens": 2000,
+    "maxCostUsd": 2,
+    "runTimeoutMs": 10000
+  },
+  "permissions": {
+    "mode": "full",
+    "workspaceOnly": true,
+    "network": "allow"
+  }
+}

@@ -14,6 +14,8 @@ TUI、普通终端和 `--json-events` 都会显示相同的 `loop_state` 顺序�
 
 无头运行退出码为 `0/1/2/3/124/130`；`--json-events` 最后一行固定为 `run_result`，且不能与 `--print` 同时使用。
 
+配置驱动的委派完成后，普通 `run` 输出会逐个显示 Child Run 的 RunId、目标 Agent、状态和结果摘要。`--json-events` 会在最终 `run_result` 前输出 `type: "child_run"` 的稳定记录，包含 ParentRunId、ChildRunId、DelegationId、目标、状态、Outcome 和 Recovery；两种输出都来自同一持久化 Fact Projection，不提供独立 spawn、list、resume 或 detach 命令。
+
 TUI 可用 `/status`、`/artifacts`、`/context`、`/observability` 核对恢复、评测、产物、缓存、压缩和本地观测；JSONL 的 `run_result.snapshot` 与 `run_result.observability` 和两个 SDK 使用同一 Fact Projection。观测视图显式区分本地状态与 Telemetry 外传，并声明 `handed-off` 不等于接收端 delivered。
 
 ```bash
@@ -36,6 +38,8 @@ In ask mode, pressing Enter or `n` denies the tool and pauses the run without an
 `coremind eval` supports schemaVersion 1 text assertions and multi-evidence schemaVersion 2 scenarios covering outcome, trajectory, commands, files, Git diff, runtime state, and response.
 
 Headless runs expose `0/1/2/3/124/130`; JSONL ends with `run_result`, and `--json-events` is mutually exclusive with `--print`.
+
+After a configured delegation completes, regular `run` output lists each Child Run ID, target agent, status, and result summary. Before the final `run_result`, `--json-events` emits stable `type: "child_run"` records with ParentRunId, ChildRunId, DelegationId, target, status, Outcome, and Recovery. Both views come from the same persisted Fact Projection; there are no standalone spawn, list, resume, or detach commands.
 
 Use `/status`, `/artifacts`, `/context`, and `/observability` to inspect recovery, evaluation, artifacts, cache, compaction, and local observations. `run_result.snapshot` and `run_result.observability` share one Fact Projection with both SDKs. The view separates local state from Telemetry egress and states that `handed-off` does not mean receiver-side delivery.
 

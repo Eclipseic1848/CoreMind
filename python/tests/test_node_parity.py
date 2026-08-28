@@ -112,6 +112,93 @@ class NodeRuntimeParityTest(unittest.TestCase):
                 mock_server.kill()
                 mock_server.wait(timeout=2)
 
+    def test_bundled_worker_exposes_child_run_result_events_and_projection(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "测试需要 Node.js")
+        port = _free_port()
+        mock_server = subprocess.Popen(
+            [
+                node,
+                str(
+                    REPOSITORY_ROOT
+                    / "packages"
+                    / "coremind-cli"
+                    / "test"
+                    / "mock-delegation-server.mjs"
+                ),
+                str(port),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            _wait_for_port(port)
+            config = _delegation_config(port)
+            with tempfile.TemporaryDirectory(prefix="coremind-python-child-v1-") as directory:
+                with CoreMindClient(
+                    config,
+                    config_dir=directory,
+                    cwd=directory,
+                    request_timeout=20,
+                ) as client:
+                    result = client.run("完成父任务")
+
+            result_node = result["childRuns"]["nodes"][0]
+            self.assertEqual(result_node["agentName"], "researcher")
+            self.assertEqual(result_node["status"], "joined")
+            self.assertEqual(result_node["outcome"]["status"], "succeeded")
+            self.assertFalse(result_node["recovery"]["resumable"])
+            self.assertFalse(result_node["recovery"]["requiresHuman"])
+
+            with tempfile.TemporaryDirectory(prefix="coremind-python-child-v2-") as directory:
+                with CoreMindClient(
+                    config,
+                    protocol_version="2.0",
+                    config_dir=directory,
+                    cwd=directory,
+                    request_timeout=20,
+                ) as client:
+                    handle = client.run("完成父任务", run_id="python-child-v2")
+                    projection = None
+                    for _attempt in range(150):
+                        try:
+                            projection = client.query(handle["runId"])
+                        except ProtocolError:
+                            time.sleep(0.02)
+                            continue
+                        if projection["projection"]["status"] == "finished":
+                            break
+                        time.sleep(0.02)
+                    events = client.events(handle["runId"], after_sequence=0, limit=200)
+
+            self.assertIsNotNone(projection)
+            projected_node = projection["projection"]["childRuns"]["nodes"][0]
+            for field in ("agentName", "status", "outcome"):
+                self.assertEqual(projected_node[field], result_node[field])
+            for field in ("resumable", "requiresHuman"):
+                self.assertEqual(
+                    projected_node["recovery"][field], result_node["recovery"][field]
+                )
+            self.assertEqual(
+                projected_node["recovery"]["operation"]["state"],
+                result_node["recovery"]["operation"]["state"],
+            )
+            delegation_events = [
+                event for event in events["events"] if event["eventType"] == "fact.delegation"
+            ]
+            self.assertTrue(delegation_events)
+            for event in delegation_events:
+                self.assertEqual(event["parentRunId"], handle["runId"])
+                self.assertEqual(event["childRunId"], projected_node["childRunId"])
+                self.assertEqual(event["delegationId"], projected_node["delegationId"])
+        finally:
+            mock_server.terminate()
+            try:
+                mock_server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                mock_server.kill()
+                mock_server.wait(timeout=2)
+
     def test_typescript_and_python_share_outcome_and_event_contract(self) -> None:
         node = shutil.which("node")
         self.assertIsNotNone(node, "测试需要 Node.js")
@@ -355,6 +442,22 @@ def _wait_for_port(port: int) -> None:
                 return
         time.sleep(0.02)
     raise RuntimeError("mock server 启动超时")
+
+
+def _delegation_config(port: int) -> dict[str, object]:
+    fixture = (
+        REPOSITORY_ROOT
+        / "packages"
+        / "coremind-cli"
+        / "test"
+        / "mock-delegation-config.json"
+    )
+    config: dict[str, object] = json.loads(fixture.read_text(encoding="utf-8"))
+    provider = config["provider"]
+    if not isinstance(provider, dict):
+        raise AssertionError("Child Run fixture provider 必须是对象")
+    provider["baseUrl"] = f"http://127.0.0.1:{port}/v1"
+    return config
 
 
 if __name__ == "__main__":

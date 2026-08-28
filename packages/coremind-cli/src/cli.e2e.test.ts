@@ -23,11 +23,24 @@ const loopMockServerPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../python/tests/mock_loop_server.mjs",
 );
+const delegationMockServerPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "test",
+  "mock-delegation-server.mjs",
+);
+const delegationConfigFixturePath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "test",
+  "mock-delegation-config.json",
+);
 const mockProjectDirectory = mkdtempSync(path.join(tmpdir(), "coremind-cli-fixture-"));
 const mockConfigPath = path.join(mockProjectDirectory, "coremind.yaml");
 writeFileSync(mockConfigPath, readFileSync(mockConfigFixturePath, "utf8"), "utf8");
 const MOCK_PORT = 8799;
 const LOOP_MOCK_PORT = 8800;
+const DELEGATION_MOCK_PORT = 8801;
 
 function runCli(
   args: string[],
@@ -49,10 +62,14 @@ function runCli(
 
 let mockServer: ReturnType<typeof spawn> | undefined;
 let loopMockServer: ReturnType<typeof spawn> | undefined;
+let delegationMockServer: ReturnType<typeof spawn> | undefined;
 
 beforeAll(async () => {
   mockServer = spawn("node", [mockServerPath, String(MOCK_PORT)], { stdio: "ignore" });
   loopMockServer = spawn("node", [loopMockServerPath, String(LOOP_MOCK_PORT)], {
+    stdio: "ignore",
+  });
+  delegationMockServer = spawn("node", [delegationMockServerPath, String(DELEGATION_MOCK_PORT)], {
     stdio: "ignore",
   });
   // 等待 server 就绪
@@ -62,9 +79,59 @@ beforeAll(async () => {
 afterAll(() => {
   mockServer?.kill();
   loopMockServer?.kill();
+  delegationMockServer?.kill();
 });
 
 describe("coremind CLI 端到端", () => {
+  it("run 人类输出展示 Child Run 目标、状态和成功结果摘要", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-run-"));
+    const yaml = path.join(dir, "coremind.yaml");
+    writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
+
+    const { stdout, stderr, code } = runCli(["run", yaml, "--prompt", "完成父任务"], {
+      cwd: dir,
+      env: { COREMIND_TEST_API_KEY: "test-only" },
+    });
+
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(stdout).toContain("Child Run");
+    expect(stdout).toContain("目标 researcher");
+    expect(stdout).toContain("状态 joined");
+    expect(stdout).toContain("结果 succeeded (completed)");
+    expect(stdout).toContain("未决风险 0");
+  });
+
+  it("run --json-events 输出稳定的 Child Run 身份、结果与恢复决策", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-json-"));
+    const yaml = path.join(dir, "coremind.yaml");
+    writeFileSync(yaml, delegationConfig(DELEGATION_MOCK_PORT), "utf8");
+
+    const { stdout, stderr, code } = runCli(
+      ["run", yaml, "--prompt", "完成父任务", "--json-events"],
+      { cwd: dir, env: { COREMIND_TEST_API_KEY: "test-only" } },
+    );
+    const events = stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const child = events.find((event) => event.type === "child_run");
+
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(child).toMatchObject({
+      version: 1,
+      target: "researcher",
+      status: "joined",
+      outcome: { status: "succeeded", finishReason: "completed" },
+      recovery: { resumable: false, requiresHuman: false },
+    });
+    expect(child?.parentRunId).toEqual(expect.any(String));
+    expect(child?.childRunId).toEqual(expect.any(String));
+    expect(child?.delegationId).toEqual(expect.any(String));
+    expect(events.at(-1)?.type).toBe("run_result");
+  });
+
   it("--version 输出版本号（验证安装）", () => {
     const { stdout, code } = runCli(["--version"]);
     expect(code).toBe(0);
@@ -727,3 +794,11 @@ describe("coremind CLI 端到端", () => {
     expect(stderr).toContain("步骤数超过上限");
   });
 });
+
+function delegationConfig(port: number): string {
+  const config = JSON.parse(readFileSync(delegationConfigFixturePath, "utf8")) as {
+    provider: { baseUrl: string };
+  };
+  config.provider.baseUrl = `http://127.0.0.1:${port}/v1`;
+  return JSON.stringify(config);
+}

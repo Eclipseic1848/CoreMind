@@ -169,6 +169,7 @@ describe("ChildRunCoordinator", () => {
           parentRunId,
           childRunId: "run-child-1",
           delegationId: "delegation-review",
+          agentName: "reviewer",
           status: "joined",
           outcome: { status: "succeeded", finishReason: "reviewed" },
         }),
