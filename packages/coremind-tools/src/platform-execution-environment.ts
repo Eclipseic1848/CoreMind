@@ -13,6 +13,7 @@ import {
   buildLinuxSandboxConfig,
   ensureLinuxSandboxInitialized,
   sanitizeLinuxSandboxEnvironment,
+  shutdownLinuxSandbox,
 } from "./linux-sandbox.js";
 import { ProcessRunner, probeProcessTreeTermination } from "./process-runner.js";
 
@@ -42,6 +43,13 @@ export function createPlatformExecutionEnvironment(input: {
     platform,
     probeProcessControl: () => (processTreeProbe ??= probeProcessTreeTermination()),
   });
+}
+
+/** 关闭平台执行环境持有的进程级资源，避免 CLI 在业务完成后仍被 Linux bridge 占用。 */
+export async function shutdownPlatformExecutionEnvironment(): Promise<void> {
+  linuxProbeByWorkspace.clear();
+  processTreeProbe = undefined;
+  await shutdownLinuxSandbox();
 }
 
 async function cachedLinuxSandboxProbe(

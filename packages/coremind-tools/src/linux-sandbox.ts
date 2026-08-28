@@ -151,6 +151,15 @@ export async function ensureLinuxSandboxInitialized(): Promise<void> {
   await sandboxInitialization;
 }
 
+/** 释放进程级 Linux sandbox 代理与桥接资源，供正式进程入口在退出前调用。 */
+export async function shutdownLinuxSandbox(): Promise<void> {
+  try {
+    await SandboxManager.reset();
+  } finally {
+    sandboxInitialization = undefined;
+  }
+}
+
 export function sanitizeLinuxSandboxEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(env).filter(([name]) => !isSensitiveEnvironmentName(name)),
