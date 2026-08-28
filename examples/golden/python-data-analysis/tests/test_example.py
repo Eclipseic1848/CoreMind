@@ -11,6 +11,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from coremind import CoreMindClient
 
@@ -45,6 +46,7 @@ class PythonDataAnalysisGoldenTest(unittest.TestCase):
             saved = json.loads((root / "artifacts" / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(saved, result)
 
+    @mock.patch.dict("os.environ", {"GOLDEN_MOCK_API_KEY": "test-only"})
     def test_callable_runs_through_real_node_worker(self) -> None:
         module = _load_example_module()
         node = shutil.which("node")
@@ -77,7 +79,7 @@ class PythonDataAnalysisGoldenTest(unittest.TestCase):
                         "id": "golden-data",
                         "baseUrl": f"http://127.0.0.1:{port}/v1",
                         "model": "golden-mock",
-                        "apiKey": "offline-test",
+                        "apiKeyEnv": "GOLDEN_MOCK_API_KEY",
                     },
                     "agents": {"main": {"systemPrompt": "调用 analyze_sales"}},
                     "runtime": {"maxToolCalls": 1, "maxToolFailures": 0},
