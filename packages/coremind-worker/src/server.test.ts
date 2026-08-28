@@ -1,5 +1,7 @@
 // 测试只使用固定假值，避免依赖工作区外的测试夹具而越过 Worker rootDir。
 process.env.COREMIND_TEST_API_KEY = "test-only";
+process.env.DEEPSEEK_API_KEY = "test-only";
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -48,9 +50,70 @@ describe("WorkerServer", () => {
       },
     });
 
-    expect(response).toMatchObject({ error: { data: { coremindCode: "invalid_config" } } });
+    expect(response).toMatchObject({
+      error: { data: { coremindCode: "execution_security_violation" } },
+    });
     expect(runtimeFactoryCalls).toBe(0);
     expect(runStoreFactoryCalls).toBe(0);
+  });
+
+  it("SecretRef 缺少 resolver 时初始化失败且不泄漏引用", async () => {
+    const opaqueRef = "opaque/worker/key/never-log";
+    const server = new WorkerServer({ send: () => {} });
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "worker-secret-ref",
+          provider: {
+            id: "gateway",
+            baseUrl: "http://127.0.0.1:9/v1",
+            model: "probe",
+            apiKeySecretRef: { secretRef: opaqueRef },
+          },
+          agents: { main: {} },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(response).toMatchObject({
+      error: { data: { coremindCode: "secret_reference_unresolved" } },
+    });
+    expect(JSON.stringify(response)).not.toContain(opaqueRef);
+  });
+
+  it("宿主注入 resolver 时 Worker 初始化成功", async () => {
+    const server = new WorkerServer({
+      send: () => {},
+      secretResolver: { resolve: async () => "test-only" },
+    });
+    const response = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: PROTOCOL_VERSION,
+        config: {
+          schemaVersion: 2,
+          name: "worker-secret-ref",
+          provider: {
+            id: "gateway",
+            baseUrl: "http://127.0.0.1:9/v1",
+            model: "probe",
+            apiKeySecretRef: { secretRef: "opaque/worker/key" },
+          },
+          agents: { main: {} },
+        },
+        configDir: ".",
+      },
+    });
+
+    expect(response).toMatchObject({ result: { runtime: "node" } });
   });
 
   it("初始化后运行同一个 CoreMind Runtime，并把 Map 转为跨语言对象", async () => {

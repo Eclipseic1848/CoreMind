@@ -3,6 +3,11 @@ import path from "node:path";
 import type { CoreMindConfig, QualityConfig } from "coremind-config";
 import { CoreMindError } from "./errors.js";
 import { inspectExecutionSecurity } from "./execution-security.js";
+import {
+  buildProviderRuntime,
+  providerSecurityErrorPath,
+  type SecretResolver,
+} from "./provider.js";
 
 export type CheckSeverity = "error" | "warning" | "info";
 
@@ -31,6 +36,7 @@ export interface ProjectCheckOptions {
   config: CoreMindConfig;
   projectDir: string;
   env?: NodeJS.ProcessEnv;
+  secretResolver?: SecretResolver;
   profile?: QualityConfig["profile"];
   overrideReason?: string;
 }
@@ -58,15 +64,28 @@ export async function checkProject(options: ProjectCheckOptions): Promise<Projec
   const findings: CheckFinding[] = [];
   const env = options.env ?? process.env;
 
-  for (const finding of inspectExecutionSecurity(
-    options.config,
-    (name) => typeof env[name] === "string" && env[name]!.length > 0,
-  )) {
+  for (const finding of inspectExecutionSecurity(options.config)) {
     findings.push({
       code: finding.code,
       severity: "error",
       message: finding.message,
       path: finding.path,
+      overridable: false,
+    });
+  }
+  try {
+    await buildProviderRuntime(
+      options.config.provider ?? { id: "deepseek" },
+      env,
+      options.secretResolver,
+    );
+  } catch (error) {
+    if (!(error instanceof CoreMindError)) throw error;
+    findings.push({
+      code: error.code,
+      severity: "error",
+      message: error.message,
+      path: providerSecurityErrorPath(error) ?? "provider",
       overridable: false,
     });
   }

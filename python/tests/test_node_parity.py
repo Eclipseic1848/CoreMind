@@ -29,6 +29,28 @@ class NodeRuntimeParityTest(unittest.TestCase):
         else:
             os.environ["COREMIND_TEST_API_KEY"] = cls.previous_test_api_key
 
+    def test_bundled_worker_rejects_secret_ref_without_resolver_without_leakage(self) -> None:
+        opaque_ref = "opaque/python/key/never-log"
+        config = {
+            "schemaVersion": 2,
+            "name": "Python SecretRef 安全失败",
+            "provider": {
+                "id": "probe",
+                "baseUrl": "http://127.0.0.1:9/v1",
+                "model": "probe-model",
+                "apiKeySecretRef": {"secretRef": opaque_ref},
+            },
+            "agents": {"main": {}},
+        }
+        with tempfile.TemporaryDirectory(prefix="coremind-python-secret-ref-") as directory:
+            client = CoreMindClient(config, config_dir=directory, cwd=directory)
+            with self.assertRaises(ProtocolError) as captured:
+                client.start()
+            client.close()
+
+        self.assertEqual(captured.exception.coremind_code, "secret_reference_unresolved")
+        self.assertNotIn(opaque_ref, str(captured.exception))
+
     def test_protocol_v2_uses_bundled_node_worker(self) -> None:
         node = shutil.which("node")
         self.assertIsNotNone(node, "测试需要 Node.js")

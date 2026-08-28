@@ -251,7 +251,94 @@ describe("coremind CLI 端到端", () => {
       cwd: dir,
     });
     expect(checked.code).toBe(1);
-    expect(checked.stdout + checked.stderr).toContain("invalid_config");
+    expect(checked.stdout + checked.stderr).toContain("execution_security_violation");
+  });
+
+  it.each(["run", "chat", "eval"])("%s 对明文凭据通过同一安全门失败", (command) => {
+    const dir = mkdtempSync(path.join(tmpdir(), `coremind-${command}-security-e2e-`));
+    const configPath = path.join(dir, "coremind.yaml");
+    const suitePath = path.join(dir, "scenarios.yaml");
+    writeFileSync(
+      configPath,
+      [
+        "schemaVersion: 2",
+        "name: unsafe-entry",
+        "provider:",
+        "  id: unsafe",
+        "  baseUrl: http://127.0.0.1:9/v1",
+        "  model: probe",
+        "  apiKey: plaintext",
+        "agents:",
+        "  main: {}",
+      ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      suitePath,
+      [
+        "schemaVersion: 1",
+        "scenarios:",
+        "  - id: unsafe",
+        "    input: probe",
+        "    expected:",
+        "      contains:",
+        "        - never",
+      ].join("\n"),
+      "utf8",
+    );
+    const args =
+      command === "run"
+        ? ["run", configPath, "--prompt", "probe"]
+        : command === "eval"
+          ? ["eval", configPath, "--suite", suitePath, "--json"]
+          : ["chat", configPath];
+    const result = runCli(args, { cwd: dir, input: "" });
+
+    expect(result.code).not.toBe(0);
+    expect(result.stdout + result.stderr).toContain(
+      command === "eval" ? "execution_security_violation" : "配置中存在明文 apiKey",
+    );
+  });
+
+  it("CLI 对无 resolver 的 SecretRef 使用稳定错误且不泄漏引用", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-secret-ref-e2e-"));
+    const configPath = path.join(dir, "coremind.yaml");
+    const suitePath = path.join(dir, "scenarios.yaml");
+    const opaqueRef = "opaque/cli/key/never-log";
+    writeFileSync(
+      configPath,
+      [
+        "schemaVersion: 2",
+        "name: cli-secret-ref",
+        "provider:",
+        "  id: unsafe",
+        "  baseUrl: http://127.0.0.1:9/v1",
+        "  model: probe",
+        `  apiKeySecretRef: { secretRef: ${opaqueRef} }`,
+        "agents:",
+        "  main: {}",
+      ].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      suitePath,
+      [
+        "schemaVersion: 1",
+        "scenarios:",
+        "  - id: unsafe",
+        "    input: probe",
+        "    expected:",
+        "      contains:",
+        "        - never",
+      ].join("\n"),
+      "utf8",
+    );
+    const result = runCli(["eval", configPath, "--suite", suitePath, "--json"], { cwd: dir });
+    const output = result.stdout + result.stderr;
+
+    expect(result.code).not.toBe(0);
+    expect(output).toContain("secret_reference_unresolved");
+    expect(output).not.toContain(opaqueRef);
   });
 
   it("eval 使用真实 Runtime 运行场景并输出发布判断", () => {

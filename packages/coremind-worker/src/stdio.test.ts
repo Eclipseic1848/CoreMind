@@ -1,5 +1,7 @@
 // 测试只使用固定假值，避免依赖工作区外的测试夹具而越过 Worker rootDir。
 process.env.COREMIND_TEST_API_KEY = "test-only";
+process.env.DEEPSEEK_API_KEY = "test-only";
+
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";

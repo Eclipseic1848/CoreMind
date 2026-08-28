@@ -33,6 +33,7 @@ export function validateConfig(data: unknown): CoreMindConfig {
 
   validateCustomToolEffects(record);
   validateCustomProviderFields(record);
+  validateProviderHeaderReferences(record);
 
   if (!Value.Check(CoreMindConfigSchema, data)) {
     const details: string[] = [];
@@ -55,6 +56,33 @@ export function validateConfig(data: unknown): CoreMindConfig {
   validateLoopAgents(config);
   validateTelemetry(config);
   return config;
+}
+
+function validateProviderHeaderReferences(record: Record<string, unknown>): void {
+  const provider = record.provider;
+  if (provider === null || typeof provider !== "object" || Array.isArray(provider)) return;
+  const headers = (provider as Record<string, unknown>).headers;
+  if (headers === null || typeof headers !== "object" || Array.isArray(headers)) return;
+
+  const details: string[] = [];
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === "string") continue;
+    if (value === null || typeof value !== "object" || Array.isArray(value)) continue;
+    const reference = value as Record<string, unknown>;
+    const keys = Object.keys(reference);
+    const validEnv =
+      keys.length === 1 && typeof reference.env === "string" && reference.env.length > 0;
+    const validSecretRef =
+      keys.length === 1 &&
+      typeof reference.secretRef === "string" &&
+      reference.secretRef.length > 0;
+    if (!validEnv && !validSecretRef) {
+      details.push(`provider.headers.${name}：必须是非空 env 或 secretRef 引用`);
+    }
+  }
+  if (details.length > 0) {
+    throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
+  }
 }
 
 function validateCustomProviderFields(record: Record<string, unknown>): void {

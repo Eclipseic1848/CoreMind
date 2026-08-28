@@ -1,5 +1,23 @@
 import { Type } from "@sinclair/typebox";
 
+/** 后端无关的不透明秘密引用；解析由宿主注入的 resolver 完成。 */
+export const SecretRefSchema = Type.Object(
+  { secretRef: Type.String({ minLength: 1, description: "不透明秘密引用" }) },
+  { additionalProperties: false },
+);
+
+/** 环境变量引用；值只在 Provider Adapter 接缝解析。 */
+export const EnvironmentValueRefSchema = Type.Object(
+  { env: Type.String({ minLength: 1, description: "环境变量名" }) },
+  { additionalProperties: false },
+);
+
+export const HeaderValueSchema = Type.Union([
+  Type.String(),
+  EnvironmentValueRefSchema,
+  SecretRefSchema,
+]);
+
 /** 内置 provider 引用：只写 id，apiKey 默认按 id 推断环境变量名 */
 export const ProviderRefSchema = Type.Object({
   id: Type.String({
@@ -8,8 +26,12 @@ export const ProviderRefSchema = Type.Object({
   }),
   model: Type.Optional(Type.String({ description: "模型名，缺省按提供商取默认模型" })),
   apiKeyEnv: Type.Optional(
-    Type.String({ description: "API key 环境变量名，缺省按 id 推断（如 DEEPSEEK_API_KEY）" }),
+    Type.String({
+      minLength: 1,
+      description: "API key 环境变量名，缺省按 id 推断（如 DEEPSEEK_API_KEY）",
+    }),
   ),
+  apiKeySecretRef: Type.Optional(SecretRefSchema),
 });
 
 /** 自定义 OpenAI 兼容端点（Ollama / 本地模型 / 网关 / 私有部署） */
@@ -27,8 +49,11 @@ export const CustomProviderSchema = Type.Object({
     }),
   ),
   apiKey: Type.Optional(Type.String({ description: "直接写 API key（不建议，优先用 apiKeyEnv）" })),
-  apiKeyEnv: Type.Optional(Type.String({ description: "API key 环境变量名" })),
-  headers: Type.Optional(Type.Record(Type.String(), Type.String(), { description: "附加请求头" })),
+  apiKeyEnv: Type.Optional(Type.String({ minLength: 1, description: "API key 环境变量名" })),
+  apiKeySecretRef: Type.Optional(SecretRefSchema),
+  headers: Type.Optional(
+    Type.Record(Type.String(), HeaderValueSchema, { description: "附加请求头" }),
+  ),
   thinkingFormat: Type.Optional(
     Type.Literal("qwen", {
       description: "Qwen 思考控制格式；由 agent.options.thinkingLevel 决定 enable_thinking",

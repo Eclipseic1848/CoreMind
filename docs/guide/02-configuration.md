@@ -47,9 +47,17 @@ provider:
   # maxTokens: 8192             # 可选：最大输出（缺省 4096）
 ```
 
-API key 来源：`apiKeyEnv` 指定的环境变量 → 缺省按提供商推断（`DEEPSEEK_API_KEY` 等）。
+API key 来源可以是 `apiKeyEnv` 指定的环境变量，或后端无关的
+`apiKeySecretRef: { secretRef: "opaque-id" }`。嵌入 Runtime 的宿主通过
+`SecretResolver` 解析不透明引用；CLI、Python SDK 和标准 Worker 不注入 resolver，遇到
+SecretRef 会以 `secret_reference_unresolved` 安全失败，且不会回退到明文或其他凭据来源。
+显式 `apiKeyEnv` 缺失也使用同一错误码失败关闭。
 
-> ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。`coremind check` 会把它作为不可覆盖的安全错误。
+自定义 Provider 的普通 Header 可继续使用字面量；Authorization、Proxy-Authorization、
+X-API-Key、Cookie 等敏感 Header 必须使用 `{ env: "NAME" }` 或
+`{ secretRef: "opaque-id" }`。引用和值不会进入日志、错误、Fact 或持久化数据。
+
+> ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。`coremind check` 和所有执行入口都会以 `execution_security_violation` 将它作为不可覆盖的安全错误。
 
 ## agents：智能体定义
 

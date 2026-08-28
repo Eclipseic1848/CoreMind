@@ -28,6 +28,30 @@ export interface ProviderRuntime {
   contextCapabilityCandidates: ContextCapabilityCandidate[];
 }
 
+/** 宿主注入的后端无关秘密解析接缝；引用和值都不得离开 Provider Adapter。 */
+export interface SecretResolver {
+  resolve(ref: string): string | undefined | Promise<string | undefined>;
+}
+
+interface ResolvedProviderSecurity {
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+class ProviderSecurityError extends CoreMindError {
+  constructor(
+    code: "execution_security_violation" | "secret_reference_unresolved",
+    message: string,
+    readonly path: string,
+  ) {
+    super(code, message);
+  }
+}
+
+export function providerSecurityErrorPath(error: CoreMindError): string | undefined {
+  return error instanceof ProviderSecurityError ? error.path : undefined;
+}
+
 const DEFAULT_PROVIDER = "deepseek";
 const CORE_MIND_PROVIDER_IDS = ["alibaba-model-studio"] as const;
 
@@ -45,24 +69,33 @@ export function listSupportedProviders(): string[] {
 export async function buildProviderRuntime(
   providerCfg?: ProviderConfig,
   env: NodeJS.ProcessEnv = process.env,
+  secretResolver?: SecretResolver,
 ): Promise<ProviderRuntime> {
   const cfg = providerCfg ?? { id: DEFAULT_PROVIDER };
+  const security = await resolveProviderSecurity(cfg, env, secretResolver);
   if ("baseUrl" in cfg) {
-    return buildCustomRuntime(cfg, env);
+    return buildCustomRuntime(cfg, env, security);
   }
   if (cfg.id === "alibaba-model-studio") {
-    return buildAlibabaModelStudioRuntime(cfg, env);
+    return buildAlibabaModelStudioRuntime(cfg, env, security);
   }
-  return buildBuiltinRuntime(cfg, env);
+  return buildBuiltinRuntime(cfg, env, security.apiKey);
 }
 
 /** 阿里云模型服务的中国区试用域名；任意同区域工作区密钥均可调用。 */
 async function buildAlibabaModelStudioRuntime(
-  cfg: { id: string; model?: string; apiKeyEnv?: string },
+  cfg: {
+    id: string;
+    model?: string;
+    apiKeyEnv?: string;
+    apiKeySecretRef?: { secretRef: string };
+  },
   env: NodeJS.ProcessEnv,
+  security: ResolvedProviderSecurity,
 ): Promise<ProviderRuntime> {
   const modelId = cfg.model ?? "qwen-plus";
   const apiKeyEnv = cfg.apiKeyEnv ?? "DASHSCOPE_API_KEY";
+  if (!security.apiKey && !nonEmpty(env[apiKeyEnv])) throw unresolved("apiKeyEnv");
   return buildCustomRuntime(
     {
       id: cfg.id,
@@ -74,16 +107,20 @@ async function buildAlibabaModelStudioRuntime(
       maxTokens: 8192,
     },
     env,
+    security,
     { source: "locked_catalog", confidence: "verified" },
   );
 }
 
 /** 内置提供商：注册工厂，从目录解析模型（model 未命中时回退默认并告警） */
 async function buildBuiltinRuntime(
-  cfg: { id: string; model?: string; apiKeyEnv?: string },
+  cfg: { id: string; model?: string; apiKeyEnv?: string; apiKeySecretRef?: unknown },
   env: NodeJS.ProcessEnv,
+  resolvedApiKey?: string,
 ): Promise<ProviderRuntime> {
-  const models = builtinModels({ authContext: isolatedAuthContext(env, cfg.apiKeyEnv) });
+  const models = builtinModels({
+    authContext: isolatedAuthContext(env, cfg.apiKeyEnv, cfg.apiKeySecretRef !== undefined),
+  });
   const provider = models.getProvider(cfg.id);
   if (!provider) {
     throw new CoreMindError(
@@ -110,11 +147,9 @@ async function buildBuiltinRuntime(
       );
     }
   }
+  if (!resolvedApiKey && !(await models.getAuth(model))) throw unresolved("apiKeyEnv");
   // apiKeyEnv 覆盖：显式名称是唯一来源，不允许再回退到宿主机或提供商默认变量。
-  const apiKeyOverride = cfg.apiKeyEnv ? env[cfg.apiKeyEnv] : undefined;
-  if (cfg.apiKeyEnv && !apiKeyOverride) {
-    warnings.push(`配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在注入环境中找到`);
-  }
+  const apiKeyOverride = resolvedApiKey;
   return {
     models,
     model,
@@ -129,6 +164,7 @@ async function buildBuiltinRuntime(
 async function buildCustomRuntime(
   cfg: CustomProviderConfig,
   env: NodeJS.ProcessEnv,
+  security: ResolvedProviderSecurity,
   capabilityOrigin?: Pick<ContextCapabilityCandidate, "source" | "confidence">,
 ): Promise<ProviderRuntime> {
   const id = cfg.id ?? "custom";
@@ -147,18 +183,17 @@ async function buildCustomRuntime(
       id,
       name: cfg.name,
       baseUrl: cfg.baseUrl,
-      headers: cfg.headers,
+      headers: security.headers,
       auth: {
-        apiKey: cfg.apiKey ? staticKeyAuth(cfg.apiKey) : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]),
+        apiKey: security.apiKey
+          ? staticKeyAuth(security.apiKey)
+          : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]),
       },
       models: [model],
       api: openAICompletionsApi(),
     }),
   );
-  const apiKeyOverride = cfg.apiKey ? undefined : env[apiKeyEnv];
-  if (!cfg.apiKey && cfg.apiKeyEnv && !apiKeyOverride) {
-    warnings.push(`配置的 apiKeyEnv ${cfg.apiKeyEnv} 未在注入环境中找到`);
-  }
+  const apiKeyOverride = cfg.apiKey ? undefined : (security.apiKey ?? env[apiKeyEnv]);
   return {
     models,
     model,
@@ -174,6 +209,69 @@ async function buildCustomRuntime(
       ),
     ],
   };
+}
+
+/** 只在 Provider Adapter 边界把引用解析为短生命周期字符串。 */
+export async function resolveProviderSecurity(
+  cfg: ProviderConfig,
+  env: NodeJS.ProcessEnv,
+  secretResolver?: SecretResolver,
+): Promise<ResolvedProviderSecurity> {
+  if (cfg.apiKeyEnv && cfg.apiKeySecretRef) {
+    throw new ProviderSecurityError(
+      "execution_security_violation",
+      "apiKeyEnv 与 apiKeySecretRef 不能同时配置",
+      "provider",
+    );
+  }
+
+  let apiKey: string | undefined;
+  if (cfg.apiKeyEnv) {
+    apiKey = nonEmpty(env[cfg.apiKeyEnv]);
+    if (!apiKey) throw unresolved("apiKeyEnv");
+  } else if (cfg.apiKeySecretRef) {
+    apiKey = await resolveOpaqueSecret(secretResolver, cfg.apiKeySecretRef.secretRef);
+    if (!apiKey) throw unresolved("apiKeySecretRef");
+  }
+
+  if (!("headers" in cfg) || !cfg.headers) return apiKey ? { apiKey } : {};
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(cfg.headers)) {
+    if (typeof value === "string") {
+      headers[name] = value;
+      continue;
+    }
+    const resolved =
+      "env" in value
+        ? nonEmpty(env[value.env])
+        : await resolveOpaqueSecret(secretResolver, value.secretRef);
+    if (!resolved) throw unresolved(`headers.${name}`);
+    headers[name] = resolved;
+  }
+  return { ...(apiKey ? { apiKey } : {}), headers };
+}
+
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+async function resolveOpaqueSecret(
+  resolver: SecretResolver | undefined,
+  ref: string,
+): Promise<string | undefined> {
+  try {
+    return nonEmpty(await resolver?.resolve(ref));
+  } catch {
+    return undefined;
+  }
+}
+
+function unresolved(field: string): CoreMindError {
+  return new ProviderSecurityError(
+    "secret_reference_unresolved",
+    `${field} 引用无法解析`,
+    `provider.${field}`,
+  );
 }
 
 function contextCapability(
@@ -192,9 +290,16 @@ function contextCapability(
 }
 
 /** 只暴露调用方注入的环境；显式 apiKeyEnv 时仅允许读取该变量，禁止宿主凭据回退。 */
-function isolatedAuthContext(env: NodeJS.ProcessEnv, apiKeyEnv?: string): AuthContext {
+function isolatedAuthContext(
+  env: NodeJS.ProcessEnv,
+  apiKeyEnv?: string,
+  denyEnvironment = false,
+): AuthContext {
   return {
-    env: async (name) => (apiKeyEnv && name !== apiKeyEnv ? undefined : env[name]),
+    env: async (name) => {
+      if (denyEnvironment) return undefined;
+      return apiKeyEnv && name !== apiKeyEnv ? undefined : env[name];
+    },
     fileExists: async () => false,
   };
 }

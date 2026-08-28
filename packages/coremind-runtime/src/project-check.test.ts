@@ -24,7 +24,11 @@ describe("checkProject", () => {
       language: "typescript",
     });
 
-    const report = await checkProject({ config: baseConfig, projectDir });
+    const report = await checkProject({
+      config: baseConfig,
+      projectDir,
+      env: { DEEPSEEK_API_KEY: "test-only" },
+    });
 
     expect(report.passed).toBe(true);
     expect(report.findings.filter((finding) => finding.severity === "error")).toEqual([]);
@@ -43,12 +47,13 @@ describe("checkProject", () => {
         },
       },
       projectDir,
+      env: { DEEPSEEK_API_KEY: "test-only" },
       overrideReason: "我接受风险",
     });
 
     expect(report.passed).toBe(false);
     expect(report.findings).toContainEqual(
-      expect.objectContaining({ code: "invalid_config", overridable: false }),
+      expect.objectContaining({ code: "execution_security_violation", overridable: false }),
     );
   });
 
@@ -57,6 +62,7 @@ describe("checkProject", () => {
     const report = await checkProject({
       config: baseConfig,
       projectDir,
+      env: { DEEPSEEK_API_KEY: "test-only" },
       overrideReason: "临时原型，评审后补齐",
     });
 

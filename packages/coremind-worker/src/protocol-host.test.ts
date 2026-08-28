@@ -16,6 +16,8 @@ import { PROTOCOL_V2_VERSION } from "coremind-protocol";
 import { describe, expect, it } from "vitest";
 import { ProtocolHost } from "./index.js";
 
+process.env.DEEPSEEK_API_KEY = "test-only";
+
 describe("ProtocolHost", () => {
   it("v1 initialize 保留兼容入口并返回非错误迁移提示", async () => {
     const host = new ProtocolHost({ send: () => {} });

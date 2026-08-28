@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { CoreMindError } from "./errors.js";
 import { buildProviderRuntime } from "./provider.js";
 
+process.env.DEEPSEEK_API_KEY = "test-only";
+
 describe("buildProviderRuntime（内置提供商）", () => {
   it("缺省 provider 解析为 deepseek 默认模型", async () => {
     const runtime = await buildProviderRuntime();
@@ -48,7 +50,11 @@ describe("buildProviderRuntime（内置提供商）", () => {
 
   it("其他内置提供商可解析（moonshotai-cn / zai / minimax-cn）", async () => {
     for (const id of ["moonshotai-cn", "zai", "minimax-cn"]) {
-      const runtime = await buildProviderRuntime({ id });
+      const runtime = await buildProviderRuntime(
+        { id, apiKeySecretRef: { secretRef: `opaque/${id}` } },
+        {},
+        { resolve: async () => "test-only" },
+      );
       expect(runtime.model.provider).toBe(id);
       expect(runtime.model.id).toBeTruthy();
     }
@@ -59,7 +65,15 @@ describe("buildProviderRuntime（内置提供商）", () => {
     const providers = listInheritedProviders();
     expect(providers).toHaveLength(39);
     expect(providers).toContain("xiaomi");
-    expect((await buildProviderRuntime({ id: "xiaomi" })).model.provider).toBe("xiaomi");
+    expect(
+      (
+        await buildProviderRuntime(
+          { id: "xiaomi", apiKeySecretRef: { secretRef: "opaque/xiaomi" } },
+          {},
+          { resolve: async () => "test-only" },
+        )
+      ).model.provider,
+    ).toBe("xiaomi");
   });
 
   it("提供可认证的阿里云模型服务原生入口", async () => {
@@ -83,6 +97,18 @@ describe("buildProviderRuntime（内置提供商）", () => {
     });
   });
 
+  it("阿里云原生入口接受 SecretRef 且不读取默认环境变量", async () => {
+    const runtime = await buildProviderRuntime(
+      { id: "alibaba-model-studio", apiKeySecretRef: { secretRef: "opaque/alibaba" } },
+      { DASHSCOPE_API_KEY: "must-not-be-used" },
+      { resolve: async () => "resolved-alibaba" },
+    );
+    expect(runtime.apiKeyOverride).toBe("resolved-alibaba");
+    expect(await runtime.models.getAuth(runtime.model)).toMatchObject({
+      auth: { apiKey: "resolved-alibaba" },
+    });
+  });
+
   it("apiKeyEnv 配置时解析为 apiKeyOverride", async () => {
     const runtime = await buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
       MY_DS_KEY: "sk-test",
@@ -91,13 +117,10 @@ describe("buildProviderRuntime（内置提供商）", () => {
     expect(runtime.warnings).toEqual([]);
   });
 
-  it("apiKeyEnv 配置但 env 缺失时回退默认并告警", async () => {
-    const runtime = await buildProviderRuntime(
-      { id: "deepseek", apiKeyEnv: "NO_SUCH_KEY" },
-      {} as NodeJS.ProcessEnv,
-    );
-    expect(runtime.apiKeyOverride).toBeUndefined();
-    expect(runtime.warnings[0]).toContain("NO_SUCH_KEY");
+  it("apiKeyEnv 配置但 env 缺失时失败关闭", async () => {
+    await expect(
+      buildProviderRuntime({ id: "deepseek", apiKeyEnv: "NO_SUCH_KEY" }, {} as NodeJS.ProcessEnv),
+    ).rejects.toMatchObject({ code: "secret_reference_unresolved" });
   });
 
   it("显式注入 env 时不读取宿主机同名凭据", async () => {
@@ -110,8 +133,9 @@ describe("buildProviderRuntime（内置提供商）", () => {
       const auth = await runtime.models.getAuth(runtime.model);
       expect(auth?.auth.apiKey).toBe("injected-secret");
 
-      const isolated = await buildProviderRuntime({ id: "deepseek" }, {} as NodeJS.ProcessEnv);
-      expect(await isolated.models.getAuth(isolated.model)).toBeUndefined();
+      await expect(
+        buildProviderRuntime({ id: "deepseek" }, {} as NodeJS.ProcessEnv),
+      ).rejects.toMatchObject({ code: "secret_reference_unresolved" });
     } finally {
       if (original === undefined) delete process.env.DEEPSEEK_API_KEY;
       else process.env.DEEPSEEK_API_KEY = original;
@@ -119,20 +143,47 @@ describe("buildProviderRuntime（内置提供商）", () => {
   });
 
   it("显式 apiKeyEnv 缺失时不回退提供商默认变量", async () => {
-    const runtime = await buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
-      DEEPSEEK_API_KEY: "must-not-be-used",
-    } as NodeJS.ProcessEnv);
-    expect(runtime.apiKeyOverride).toBeUndefined();
-    expect(await runtime.models.getAuth(runtime.model)).toBeUndefined();
+    await expect(
+      buildProviderRuntime({ id: "deepseek", apiKeyEnv: "MY_DS_KEY" }, {
+        DEEPSEEK_API_KEY: "must-not-be-used",
+      } as NodeJS.ProcessEnv),
+    ).rejects.toMatchObject({ code: "secret_reference_unresolved" });
   });
 
   it("未配置 apiKeyEnv 时无 override", async () => {
     const runtime = await buildProviderRuntime({ id: "deepseek" });
     expect(runtime.apiKeyOverride).toBeUndefined();
   });
+
+  it("内置 Provider 显式 SecretRef 时不回退默认环境变量", async () => {
+    const runtime = await buildProviderRuntime(
+      { id: "deepseek", apiKeySecretRef: { secretRef: "opaque/deepseek" } },
+      { DEEPSEEK_API_KEY: "must-not-be-used" },
+      { resolve: async () => "resolved-deepseek" },
+    );
+    expect(runtime.apiKeyOverride).toBe("resolved-deepseek");
+    expect(await runtime.models.getAuth(runtime.model)).toBeUndefined();
+  });
 });
 
 describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
+  it("只在 Provider Adapter 接缝解析 SecretRef", async () => {
+    const resolved = "resolved-only-in-adapter";
+    const runtime = await buildProviderRuntime(
+      {
+        id: "gateway",
+        baseUrl: "http://127.0.0.1:8080/v1",
+        model: "m1",
+        apiKeySecretRef: { secretRef: "opaque/api-key" },
+        headers: { Authorization: { secretRef: "opaque/header" } },
+      },
+      {},
+      { resolve: async () => resolved },
+    );
+
+    expect(runtime.apiKeyOverride).toBe(resolved);
+    expect(runtime.models.getProvider("gateway")?.headers).toEqual({ Authorization: resolved });
+  });
   it("构造正确的模型与 provider", async () => {
     const runtime = await buildProviderRuntime(
       {

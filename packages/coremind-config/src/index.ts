@@ -11,11 +11,13 @@ export {
   type CoreMindConfig,
   CoreMindConfigSchema,
   type CustomProviderConfig,
+  type EnvironmentValueRef,
   type LoopConfig,
   type ModelOptionsConfig,
   type ProviderConfig,
   type ProviderRefConfig,
   type ScriptToolConfig,
+  type SecretRef,
   type SessionConfig,
   type ToolConfig,
   type ToolRefConfig,
@@ -36,7 +38,12 @@ export {
   type LoopVerificationConfig,
   LoopVerificationSchema,
 } from "./schema/loop.js";
-export { ModelOptionsSchema } from "./schema/provider.js";
+export {
+  EnvironmentValueRefSchema,
+  HeaderValueSchema,
+  ModelOptionsSchema,
+  SecretRefSchema,
+} from "./schema/provider.js";
 export {
   type TelemetryConfig,
   TelemetryConfigSchema,

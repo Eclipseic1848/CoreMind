@@ -16,6 +16,52 @@ const validYaml = {
 };
 
 describe("validateConfig", () => {
+  it("接受后端无关的 SecretRef 与 Header 引用", () => {
+    const { config } = parseAndValidate({
+      schemaVersion: 2,
+      name: "secret-ref-contract",
+      provider: {
+        id: "gateway",
+        baseUrl: "http://127.0.0.1:9/v1",
+        model: "probe",
+        apiKeySecretRef: { secretRef: "vault-neutral/key" },
+        headers: {
+          Authorization: { secretRef: "vault-neutral/header" },
+          "X-Tenant": { env: "TENANT_ID" },
+        },
+      },
+      agents: { main: {} },
+    });
+
+    expect(config.provider).toMatchObject({
+      apiKeySecretRef: { secretRef: "vault-neutral/key" },
+      headers: {
+        Authorization: { secretRef: "vault-neutral/header" },
+        "X-Tenant": { env: "TENANT_ID" },
+      },
+    });
+  });
+
+  it.each([
+    { apiKeyEnv: "" },
+    { apiKeySecretRef: { secretRef: "" } },
+    { headers: { Authorization: { env: "" } } },
+    { headers: { Authorization: { secretRef: "" } } },
+  ])("拒绝空凭据引用 %#", (credentialConfig) => {
+    expect(() =>
+      parseAndValidate({
+        schemaVersion: 2,
+        name: "empty-secret-reference",
+        provider: {
+          id: "gateway",
+          baseUrl: "http://127.0.0.1:9/v1",
+          model: "probe",
+          ...credentialConfig,
+        },
+        agents: { main: {} },
+      }),
+    ).toThrow();
+  });
   it("旧版 version 配置给出明确的 v2 迁移提示", () => {
     const { schemaVersion: _schemaVersion, ...oldConfig } = validYaml;
     expect(() => validateConfig({ ...oldConfig, version: 1 })).toThrow("schemaVersion: 2");

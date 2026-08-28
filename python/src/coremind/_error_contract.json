@@ -463,6 +463,20 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "execution_security_violation": {
+      "terminality": "terminal",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "humanAction": "required",
+      "runStatus": "failed"
+    },
+    "secret_reference_unresolved": {
+      "terminality": "terminal",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "humanAction": "required",
+      "runStatus": "failed"
+    },
     "invalid_tool": {
       "terminality": "terminal",
       "cancelClass": "corruption",

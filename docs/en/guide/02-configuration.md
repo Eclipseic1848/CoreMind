@@ -42,6 +42,19 @@ provider:
 
 Validation reports a missing variable before execution. Do not place fallback secrets in the file.
 
+Credentials may also use the backend-neutral
+`apiKeySecretRef: { secretRef: "opaque-id" }`. An embedding host supplies a
+`SecretResolver`; the CLI, Python SDK, and standard Worker do not, so SecretRef
+configuration fails closed with `secret_reference_unresolved` and never falls
+back to plaintext or another credential source. An explicitly configured but
+empty `apiKeyEnv` fails the same way.
+
+Ordinary custom headers may remain literal. Authorization,
+Proxy-Authorization, X-API-Key, and Cookie values must use `{ env: "NAME" }` or
+`{ secretRef: "opaque-id" }`. References and resolved values are excluded from
+logs, errors, Facts, and persistence. Plaintext credentials fail with
+`execution_security_violation` at check and every execution entry point.
+
 ## Permission modes
 
 | Mode | Meaning | Recommended use |
