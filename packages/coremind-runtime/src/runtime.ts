@@ -87,6 +87,7 @@ import {
   type DelegationToolArgs,
   parseDelegationToolArgs,
   resolveDelegationAllocation,
+  resolveDelegationHierarchyLimits,
 } from "./delegation-tool.js";
 import {
   createEffectReceiptBinding,
@@ -646,16 +647,27 @@ export class CoreMindRuntime {
       provider: this.providerRuntime,
       executionEnvironment: this.executionEnvironment,
       workspaceRoot: this.options.cwd ?? process.cwd(),
-      tools: new Set(
-        [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
-          ...capabilities.keys(),
-        ]),
-      ),
+      tools: new Set(this.runtimeAuthorityToolIds()),
       limits: resolveRuntimeLimits(this.config.runtime, {
         maxSteps: this.options.maxSteps,
         stepTimeoutMs: this.options.stepTimeoutMs,
       }),
+      enforceRuntimeBudget: true,
     });
+  }
+
+  private runtimeAuthorityToolIds(): string[] {
+    const activeAgent = this.options.childRunAuthority ? this.config.defaultAgent : undefined;
+    const capabilities = activeAgent
+      ? [this.toolCapabilitiesByAgent.get(activeAgent)]
+      : [...this.toolCapabilitiesByAgent.values()];
+    return [
+      ...new Set(
+        capabilities.flatMap((items) =>
+          items ? [...items.keys()].filter((tool) => tool !== DELEGATION_TOOL_NAME) : [],
+        ),
+      ),
+    ];
   }
 
   /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
@@ -685,10 +697,10 @@ export class CoreMindRuntime {
     limits: ResolvedRuntimeLimits,
     runStore: RunStore,
   ): Promise<CoreMindRuntimeOptions["childRuns"]> {
-    const delegationEnabled = [...this.agentConfigs.values()].some(
-      (agent) => Object.keys(agent.delegation?.targets ?? {}).length > 0,
+    const configuredDelegations = [...this.agentConfigs.entries()].filter(
+      ([, agent]) => agent.delegation && Object.keys(agent.delegation.targets).length > 0,
     );
-    if (!delegationEnabled) return undefined;
+    if (configuredDelegations.length === 0) return undefined;
     if (limits.maxTokens === undefined || limits.maxCostUsd === undefined) {
       throw new CoreMindError(
         "child_run_policy_escalation",
@@ -696,47 +708,90 @@ export class CoreMindRuntime {
       );
     }
     const permissions = this.config.permissions ?? {};
+    const inheritedPolicy = this.options.childRunAuthority?.inheritedPolicy;
+    const runtimeBudget: ChildRunBudgetAllocation = inheritedPolicy?.budget ?? {
+      tokens: limits.maxTokens,
+      toolCalls: limits.maxToolCalls,
+      costUsd: limits.maxCostUsd,
+      wallTimeMs: limits.runTimeoutMs,
+      steps: limits.maxSteps,
+      descendants: CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
+    };
+    const delegationBudgetPools = Object.fromEntries(
+      configuredDelegations.map(([agentName, agent]) => [
+        agentName,
+        tightenDelegationBudget(agent.delegation!.budget, runtimeBudget),
+      ]),
+    );
+    const delegationHierarchyLimits = Object.fromEntries(
+      configuredDelegations.map(([agentName, agent]) => {
+        const budget = delegationBudgetPools[agentName]!;
+        return [
+          agentName,
+          {
+            maxDepth: Math.min(
+              agent.delegation!.limits?.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
+              inheritedPolicy?.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
+            ),
+            maxActiveChildren: Math.min(
+              agent.delegation!.limits?.maxActiveChildren ??
+                CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
+              inheritedPolicy?.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
+            ),
+            maxDescendants: Math.min(
+              agent.delegation!.limits?.maxDescendants ?? CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
+              inheritedPolicy?.maxDescendants ?? CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
+              budget.descendants,
+            ),
+          },
+        ];
+      }),
+    );
     const parentPolicy: ChildRunPolicySnapshot = {
-      depth: this.options.childRunAuthority?.inheritedPolicy.depth ?? 0,
-      budget: {
-        tokens: limits.maxTokens,
-        toolCalls: limits.maxToolCalls,
-        costUsd: limits.maxCostUsd,
-        wallTimeMs: limits.runTimeoutMs,
-        steps: limits.maxSteps,
-        descendants: CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
-      },
-      permissions: {
-        mode: permissions.mode ?? "ask",
-        workspaceOnly: permissions.workspaceOnly ?? true,
-        network: permissions.network ?? "ask",
-        tools: [
-          ...new Set(
-            [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
-              ...capabilities.keys(),
-            ]),
-          ),
-        ],
-        paths: ["."],
-        credentials: [],
-      },
-      environment: {},
-      model: {
-        providerId: this.providerRuntime.model.provider,
-        model: this.providerRuntime.model.id,
-      },
-      workspace: {
-        canonicalRoot: await canonicalizeWorkspace(this.options.cwd ?? process.cwd()),
-        lease: "shared_canonical",
-      },
-      protectedContextReferences:
-        this.options.childRunAuthority?.inheritedPolicy.protectedContextReferences ?? [],
-      maxDepth: CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
-      maxActiveChildren: CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
-      maxDescendants: CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
+      depth: inheritedPolicy?.depth ?? 0,
+      budget: structuredClone(runtimeBudget),
+      permissions:
+        inheritedPolicy?.permissions ??
+        ({
+          mode: permissions.mode ?? "ask",
+          workspaceOnly: permissions.workspaceOnly ?? true,
+          network: permissions.network ?? "ask",
+          tools: [
+            ...new Set(
+              [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
+                ...capabilities.keys(),
+              ]),
+            ),
+          ],
+          paths: ["."],
+          credentials: [],
+        } satisfies ChildRunPolicySnapshot["permissions"]),
+      environment: inheritedPolicy?.environment ?? {},
+      model:
+        inheritedPolicy?.model ??
+        ({
+          providerId: this.providerRuntime.model.provider,
+          model: this.providerRuntime.model.id,
+        } satisfies ChildRunPolicySnapshot["model"]),
+      workspace:
+        inheritedPolicy?.workspace ??
+        ({
+          canonicalRoot: await canonicalizeWorkspace(this.options.cwd ?? process.cwd()),
+          lease: "shared_canonical",
+        } satisfies ChildRunPolicySnapshot["workspace"]),
+      protectedContextReferences: inheritedPolicy?.protectedContextReferences ?? [],
+      maxDepth: inheritedPolicy?.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
+      maxActiveChildren:
+        inheritedPolicy?.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
+      maxDescendants: Math.min(
+        inheritedPolicy?.maxDescendants ?? CHILD_RUN_LIMIT_DEFAULTS.maxDescendants,
+        runtimeBudget.descendants,
+      ),
     };
     return {
       parentPolicy,
+      delegationBudgetPools,
+      delegationHierarchyLimits,
       createChildRunId: () => randomUUID(),
       adapter: createCoreMindChildRunAdapter({
         createRuntime: async (authority) => {
@@ -747,11 +802,10 @@ export class CoreMindRuntime {
               `委派目标 Agent ${authority.request.agentName} 不存在`,
             );
           }
-          const { delegation: _delegation, ...childAgent } = target;
           const { workflow: _workflow, loop: _loop, ...baseConfig } = this.config;
           const childConfig: CoreMindConfig = {
             ...baseConfig,
-            agents: { [authority.request.agentName]: childAgent },
+            agents: structuredClone(this.config.agents),
             defaultAgent: authority.request.agentName,
             runtime: {
               ...baseConfig.runtime,
@@ -832,13 +886,14 @@ export class CoreMindRuntime {
         "Delegation Tool 只能在已登记 Tool Call 的活动父 Run 内执行",
       );
     }
-    const { args, targetTools, allocation } = this.resolveDelegationAuthority(
+    const { args, targetTools, allocation, hierarchyLimits } = this.resolveDelegationAuthority(
       parentAgentName,
       rawArgs,
     );
     const permissions = this.config.permissions ?? {};
     const request: ChildRunDelegationRequest = {
       delegationId: `delegation:${call.turnId}:${call.callId}`,
+      budgetScope: parentAgentName,
       parentTurnId: call.turnId,
       parentStepId: call.stepId ?? `step:${parentAgentName}:default`,
       agentName: args.target,
@@ -867,6 +922,7 @@ export class CoreMindRuntime {
         references: args.references,
       },
       allocation,
+      hierarchyLimits,
       permissions: {
         mode: permissions.mode ?? "ask",
         workspaceOnly: permissions.workspaceOnly ?? true,
@@ -883,12 +939,14 @@ export class CoreMindRuntime {
   /** 把用户批准绑定到固定目标、任务、引用和实际生效的六维预算。 */
   private canonicalDelegationApprovalArgs(
     request: ChildRunDelegationRequest,
-  ): DelegationToolArgs & { limits: ChildRunBudgetAllocation } {
+  ): DelegationToolArgs & {
+    limits: ChildRunBudgetAllocation & NonNullable<ChildRunDelegationRequest["hierarchyLimits"]>;
+  } {
     return {
       target: request.agentName,
       task: request.task,
       references: [...request.context.references],
-      limits: request.allocation,
+      limits: { ...request.allocation, ...request.hierarchyLimits },
     };
   }
 
@@ -900,9 +958,11 @@ export class CoreMindRuntime {
     args: DelegationToolArgs;
     targetTools: string[];
     allocation: ChildRunBudgetAllocation;
+    hierarchyLimits: NonNullable<ChildRunDelegationRequest["hierarchyLimits"]>;
   } {
     const args = parseDelegationToolArgs(rawArgs);
-    const target = this.agentConfigs.get(parentAgentName)?.delegation?.targets[args.target];
+    const delegation = this.agentConfigs.get(parentAgentName)?.delegation;
+    const target = delegation?.targets[args.target];
     if (!target) {
       throw new CoreMindError(
         "child_run_policy_escalation",
@@ -924,6 +984,7 @@ export class CoreMindRuntime {
       args,
       targetTools,
       allocation: resolveDelegationAllocation(target.budget, args.limits),
+      hierarchyLimits: resolveDelegationHierarchyLimits(delegation?.limits, args.limits),
     };
   }
 
@@ -1363,12 +1424,9 @@ export class CoreMindRuntime {
         provider: this.providerRuntime,
         executionEnvironment: this.executionEnvironment,
         workspaceRoot: this.options.cwd ?? process.cwd(),
-        tools: new Set(
-          [...this.toolCapabilitiesByAgent.values()].flatMap((capabilities) => [
-            ...capabilities.keys(),
-          ]),
-        ),
+        tools: new Set(this.runtimeAuthorityToolIds()),
         limits,
+        enforceRuntimeBudget: false,
       });
       context.attachChildRuns(
         await ChildRunCoordinator.open({
@@ -2913,6 +2971,18 @@ const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
 const QUIESCENCE_POLL_INTERVAL_MS = 10;
 
+function tightenDelegationBudget(
+  configured: ChildRunBudgetAllocation,
+  inherited: ChildRunBudgetAllocation,
+): ChildRunBudgetAllocation {
+  return Object.fromEntries(
+    (Object.keys(configured) as (keyof ChildRunBudgetAllocation)[]).map((key) => [
+      key,
+      Math.min(configured[key], inherited[key]),
+    ]),
+  ) as unknown as ChildRunBudgetAllocation;
+}
+
 async function assertRuntimeChildPolicyAuthority(input: {
   policy: ChildRunPolicySnapshot;
   config: CoreMindConfig;
@@ -2921,8 +2991,18 @@ async function assertRuntimeChildPolicyAuthority(input: {
   workspaceRoot: string;
   tools: ReadonlySet<string>;
   limits: ResolvedRuntimeLimits;
+  enforceRuntimeBudget: boolean;
 }): Promise<void> {
-  const { policy, config, provider, executionEnvironment, workspaceRoot, tools, limits } = input;
+  const {
+    policy,
+    config,
+    provider,
+    executionEnvironment,
+    workspaceRoot,
+    tools,
+    limits,
+    enforceRuntimeBudget,
+  } = input;
   const canonicalRoot = await canonicalizeWorkspace(workspaceRoot);
   if (
     policy.model.providerId !== provider.model.provider ||
@@ -2968,19 +3048,21 @@ async function assertRuntimeChildPolicyAuthority(input: {
       "启用 Child Run 前必须为父 Runtime 显式配置 maxTokens 与 maxCostUsd",
     );
   }
-  const budgetBounds = {
-    tokens: limits.maxTokens,
-    toolCalls: limits.maxToolCalls,
-    costUsd: limits.maxCostUsd,
-    wallTimeMs: limits.runTimeoutMs,
-    steps: limits.maxSteps,
-  };
-  for (const key of Object.keys(budgetBounds) as (keyof typeof budgetBounds)[]) {
-    if (budgetBounds[key] > policy.budget[key]) {
-      throw new CoreMindError(
-        "child_run_policy_escalation",
-        `Child Runtime 的 ${key} 实际上限超过父级划拨预算`,
-      );
+  if (enforceRuntimeBudget) {
+    const budgetBounds = {
+      tokens: limits.maxTokens,
+      toolCalls: limits.maxToolCalls,
+      costUsd: limits.maxCostUsd,
+      wallTimeMs: limits.runTimeoutMs,
+      steps: limits.maxSteps,
+    };
+    for (const key of Object.keys(budgetBounds) as (keyof typeof budgetBounds)[]) {
+      if (budgetBounds[key] > policy.budget[key]) {
+        throw new CoreMindError(
+          "child_run_policy_escalation",
+          `Child Runtime 的 ${key} 实际上限超过父级划拨预算`,
+        );
+      }
     }
   }
   try {

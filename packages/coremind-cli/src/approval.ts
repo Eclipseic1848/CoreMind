@@ -21,6 +21,7 @@ export interface DelegationApprovalDisplay {
   target: string;
   task: string;
   budget: string;
+  hierarchy: string;
   references: string;
 }
 
@@ -118,10 +119,17 @@ export function formatDelegationApproval(
   const references = Array.isArray(request.args.references)
     ? request.args.references.filter((item): item is string => typeof item === "string").join("、")
     : "";
+  const hierarchy = [
+    numericBudgetValue(limits.maxDepth, (value) => `最大深度 ${value}`),
+    numericBudgetValue(limits.maxActiveChildren, (value) => `活动子级 ${value}`),
+  ]
+    .filter((part): part is string => part !== undefined)
+    .join(" · ");
   return {
     target: compactChildRunText(target),
     task: summarizeDelegationTask(task),
     budget: budget || "使用 Config 默认预算",
+    hierarchy: hierarchy || "使用 Config 层级上限",
     references: references || "无显式 Fact/Artifact 引用",
   };
 }
@@ -142,7 +150,7 @@ export function bindReadlineApprovals(
       const delegation = formatDelegationApproval(pending.request);
       const answer = await questioner.question(
         delegation
-          ? `\nChild Run 委派审批：${delegation.target}\n任务：${delegation.task}\n预算：${delegation.budget}\n引用：${delegation.references}\n授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批\n原因：${display.reason}\n允许？[y/N] `
+          ? `\nChild Run 委派审批：${delegation.target}\n任务：${delegation.task}\n预算：${delegation.budget}\n层级：${delegation.hierarchy}\n引用：${delegation.references}\n授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批\n原因：${display.reason}\n允许？[y/N] `
           : `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
       );
       queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");

@@ -3,6 +3,7 @@ import {
   AgentConfigSchema,
   type AgentDelegationConfig,
   type DelegationBudgetConfig,
+  type DelegationHierarchyLimitsConfig,
   type DelegationTargetConfig,
   SessionConfigSchema,
 } from "./agent.js";
@@ -46,7 +47,12 @@ export const CoreMindConfigSchema = Type.Object({
 
 export type CoreMindConfig = Static<typeof CoreMindConfigSchema>;
 export type AgentConfig = Static<typeof AgentConfigSchema>;
-export type { AgentDelegationConfig, DelegationBudgetConfig, DelegationTargetConfig };
+export type {
+  AgentDelegationConfig,
+  DelegationBudgetConfig,
+  DelegationHierarchyLimitsConfig,
+  DelegationTargetConfig,
+};
 export type ProviderConfig = Static<typeof ProviderSchema>;
 export type ProviderRefConfig = Static<typeof ProviderRefSchema>;
 export type CustomProviderConfig = Static<typeof CustomProviderSchema>;

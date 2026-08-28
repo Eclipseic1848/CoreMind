@@ -87,6 +87,17 @@ agents:
   coordinator:
     systemPrompt: 负责拆解任务并汇总结果。
     delegation:
+      budget:                 # 该父 Agent 的六维委派总池
+        tokens: 4000
+        toolCalls: 8
+        costUsd: 1
+        wallTimeMs: 120000
+        steps: 12
+        descendants: 4
+      limits:                 # 可省略；默认分别为 3 / 4 / 32
+        maxDepth: 3
+        maxActiveChildren: 2
+        maxDescendants: 4
       targets:
         researcher:
           preapproved: true # 仅 assisted 模式可据此自动批准合规委派
@@ -101,13 +112,15 @@ agents:
     systemPrompt: 只完成收到的研究任务并返回证据。
 ```
 
-六个预算字段必须完整声明。模型调用 `delegate` 时只能提交 `target`、`task`、显式 `fact:` / `artifact:` 引用，以及不超过 Config 上限的可选 `limits`；不能内联覆盖 Agent、Provider、model、tools、permissions、路径、网络、凭据或 workspace。工具只存在于活动父 Run 内，创建的 Child Run 继承项目 Provider 与 canonical Workspace，并以独立 RunId、Fact 和结构化结果参与同一 Projection。
+父级 `delegation.budget` 和每个 Target 的 `budget` 都必须完整声明六个维度。父级预算池按父 Agent 隔离；Target 预算是该目标的固定默认值兼硬上限。模型调用 `delegate` 时只能提交 `target`、`task`、显式 `fact:` / `artifact:` 引用，以及可选的更小六维预算、`maxDepth` 或 `maxActiveChildren`；不能内联覆盖 Agent、Provider、model、tools、permissions、路径、网络、凭据或 workspace。工具只存在于活动父 Run 内，创建的 Child Run 继承项目 Provider 与 canonical Workspace，并以独立 RunId、Fact 和结构化结果参与同一 Projection。
+
+层级默认上限是最大深度 3、每个父 Agent 最多 4 个活动 Child Run、总后代数 32；Config 与单次委派都只能收紧。可证明发生在首个委派 Fact 持久化前的初始化失败会释放本次预留；一旦 `child_created` 已持久化，未使用的 token、工具调用、费用、wall time、步骤或后代额度都不会退款。若关键创建 Fact 的提交结果未知，系统会保留已记录的身份和预算，等待 orphan audit，而不会复用 DelegationId。相同 DelegationId 与相同规范化输入只返回原 ChildRunId；同 ID 不同输入以 `delegation_conflict` 失败，且不会产生第二次执行。
 
 委派审批矩阵独立于普通低风险工具：`ask` 每次都要求批准；`assisted` 只有目标显式设置 `preapproved: true` 且请求满足全部硬边界时才自动批准；`full` 可免逐次批准创建合规 Child Run。显式 deny、allowlist、六维预算、父子工具不扩权、路径、网络和凭据边界在三种模式下都优先，不能被人工批准绕过。审批绑定固定目标、任务、引用和实际生效预算，并携带与 `delegation_recorded.inputFingerprint` 完全相同的 Child Run 输入指纹；任何变化都需要新批准。
 
 Delegation Approval 只允许创建该 Child Run，不批准子级后续操作。Child Run 使用自己的 ToolPolicy；其文件、网络或外部 Effect 仍按继承权限独立自动判断或申请批准，并在子 Run 中记录独立审批事实。
 
-启用 Delegation 时，父级 `runtime.maxTokens` 和 `runtime.maxCostUsd` 必须显式配置；其他父级预算也必须足以覆盖目标预算。省略 `delegation`（或没有任何 target）不会向模型暴露 `delegate`，也不会产生 Child Run Fact。
+启用 Delegation 时，父级 `runtime.maxTokens` 和 `runtime.maxCostUsd` 必须显式配置；`delegation.budget` 不能超过 Runtime 实际剩余预算，每个 Target 预算也不能超过其父 Agent 的委派池。省略 `delegation`（或没有任何 target）不会向模型暴露 `delegate`，也不会产生 Child Run Fact。
 
 ## tools：工具
 

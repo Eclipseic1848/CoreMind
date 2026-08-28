@@ -1,6 +1,11 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import type { DelegationBudgetConfig, ToolEffectDeclaration } from "coremind-config";
+import type {
+  DelegationBudgetConfig,
+  DelegationHierarchyLimitsConfig,
+  ToolEffectDeclaration,
+} from "coremind-config";
 import { resolveToolCapability } from "coremind-tools";
+import { CHILD_RUN_LIMIT_DEFAULTS } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
 import type { CallId } from "./ids.js";
 
@@ -25,8 +30,12 @@ export interface DelegationToolArgs {
   target: string;
   task: string;
   references: string[];
-  limits?: Partial<DelegationBudgetConfig>;
+  limits?: DelegationToolLimits;
 }
+
+export type DelegationToolLimits = Partial<
+  DelegationBudgetConfig & Pick<DelegationHierarchyLimitsConfig, "maxDepth" | "maxActiveChildren">
+>;
 
 export function createDelegationAgentTool(
   targets: readonly string[],
@@ -54,6 +63,16 @@ export function createDelegationAgentTool(
             wallTimeMs: { type: "integer", minimum: 1 },
             steps: { type: "integer", minimum: 1 },
             descendants: { type: "integer", minimum: 0 },
+            maxDepth: {
+              type: "integer",
+              minimum: 0,
+              maximum: CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
+            },
+            maxActiveChildren: {
+              type: "integer",
+              minimum: 0,
+              maximum: CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
+            },
           },
           additionalProperties: true,
         },
@@ -109,10 +128,12 @@ export function parseDelegationToolArgs(value: unknown): DelegationToolArgs {
 
 export function resolveDelegationAllocation(
   configured: DelegationBudgetConfig,
-  requested: Partial<DelegationBudgetConfig> | undefined,
+  requested: DelegationToolLimits | undefined,
 ): DelegationBudgetConfig {
-  const allocation = { ...configured, ...requested };
+  const allocation = { ...configured };
   for (const key of Object.keys(configured) as (keyof DelegationBudgetConfig)[]) {
+    const requestedValue = requested?.[key];
+    if (requestedValue !== undefined) allocation[key] = requestedValue;
     if (allocation[key] > configured[key]) {
       throw new CoreMindError(
         "child_run_policy_escalation",
@@ -123,13 +144,44 @@ export function resolveDelegationAllocation(
   return allocation;
 }
 
-function parseDelegationLimits(value: unknown): Partial<DelegationBudgetConfig> | undefined {
+export function resolveDelegationHierarchyLimits(
+  configured: DelegationHierarchyLimitsConfig | undefined,
+  requested: DelegationToolLimits | undefined,
+): Pick<DelegationHierarchyLimitsConfig, "maxDepth" | "maxActiveChildren"> {
+  const limits = {
+    maxDepth: configured?.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
+    maxActiveChildren: configured?.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
+  };
+  for (const key of ["maxDepth", "maxActiveChildren"] as const) {
+    const requestedValue = requested?.[key];
+    if (requestedValue === undefined) continue;
+    if (requestedValue > limits[key]) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        `delegate.limits.${key} 不能超过 Config 层级上限`,
+      );
+    }
+    limits[key] = requestedValue;
+  }
+  return limits;
+}
+
+function parseDelegationLimits(value: unknown): DelegationToolLimits | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new CoreMindError("child_run_policy_escalation", "delegate.limits 必须是对象");
   }
   const record = value as Record<string, unknown>;
-  const keys = ["tokens", "toolCalls", "costUsd", "wallTimeMs", "steps", "descendants"] as const;
+  const keys = [
+    "tokens",
+    "toolCalls",
+    "costUsd",
+    "wallTimeMs",
+    "steps",
+    "descendants",
+    "maxDepth",
+    "maxActiveChildren",
+  ] as const;
   const extra = Object.keys(record).filter((key) => !keys.includes(key as (typeof keys)[number]));
   if (extra.length > 0) {
     throw new CoreMindError(
@@ -137,7 +189,7 @@ function parseDelegationLimits(value: unknown): Partial<DelegationBudgetConfig> 
       `delegate.limits 不接受字段：${extra.join("、")}`,
     );
   }
-  const limits: Partial<DelegationBudgetConfig> = {};
+  const limits: DelegationToolLimits = {};
   for (const key of keys) {
     const item = record[key];
     if (item === undefined) continue;

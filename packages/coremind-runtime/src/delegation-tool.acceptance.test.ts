@@ -80,6 +80,15 @@ describe("Delegation Tool TypeScript happy path", () => {
           main: {
             systemPrompt: "你是父 Agent。",
             delegation: {
+              budget: {
+                tokens: 1_000,
+                toolCalls: 2,
+                costUsd: 1,
+                wallTimeMs: 5_000,
+                steps: 2,
+                descendants: 1,
+              },
+              limits: { maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
               targets: {
                 researcher: {
                   budget: {
@@ -158,6 +167,11 @@ describe("Delegation Tool TypeScript happy path", () => {
         agentName: "researcher",
         context: { references: ["fact:approved"] },
         requestedAllocation: { tokens: 800, toolCalls: 2 },
+        inheritedPolicy: {
+          maxDepth: 1,
+          maxActiveChildren: 0,
+          maxDescendants: 0,
+        },
       });
       expect(joined?.payload).toMatchObject({
         type: "parent_joined",
@@ -174,6 +188,8 @@ describe("Delegation Tool TypeScript happy path", () => {
       expect(projection.childRuns).toEqual(result.childRuns);
       expect(requests).toHaveLength(3);
       expect(JSON.stringify(requests[0]?.tools)).toContain('"name":"delegate"');
+      expect(JSON.stringify(requests[0]?.tools)).toContain('"maxDepth"');
+      expect(JSON.stringify(requests[0]?.tools)).toContain('"maxActiveChildren"');
       expect(JSON.stringify(requests[1])).toContain("研究 Agent");
       expect(
         (requests[2]?.messages as Array<{ role?: string }> | undefined)?.some(
@@ -185,6 +201,171 @@ describe("Delegation Tool TypeScript happy path", () => {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );
+    }
+  });
+
+  it("正式产品路径保留命名 Agent 的后代委派并在任意深度维持收紧策略", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-tree-"));
+    temporaryDirectories.push(directory);
+    const requests: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          tools?: Array<{ function?: { name?: string } }>;
+        };
+        requests.push(payload as Record<string, unknown>);
+        const serialized = JSON.stringify(payload);
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        const hasDelegationTool =
+          payload.tools?.some((tool) => tool.function?.name === "delegate") ?? false;
+        if (hasToolResult) {
+          sendSse(
+            response,
+            serialized.includes("你是研究 Agent")
+              ? textResponse("researcher-final", "研究子任务完成")
+              : textResponse("parent-final", "父任务完成"),
+          );
+        } else if (hasDelegationTool && serialized.includes("你是父 Agent")) {
+          sendSse(response, delegationResponseTo("researcher", "call-researcher"));
+        } else if (hasDelegationTool && serialized.includes("你是研究 Agent")) {
+          sendSse(response, delegationResponseTo("reviewer", "call-reviewer"));
+        } else {
+          sendSse(response, textResponse("reviewer-final", "审查子任务完成"));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const config: CoreMindConfig = {
+        schemaVersion: 2,
+        name: "Delegation tree",
+        provider: {
+          id: "probe",
+          baseUrl: `http://127.0.0.1:${port}/v1`,
+          model: "probe-model",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
+        },
+        agents: {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            delegation: {
+              budget: {
+                tokens: 2_000,
+                toolCalls: 4,
+                costUsd: 2,
+                wallTimeMs: 10_000,
+                steps: 4,
+                descendants: 2,
+              },
+              limits: { maxDepth: 2, maxActiveChildren: 1, maxDescendants: 2 },
+              targets: {
+                researcher: {
+                  budget: {
+                    tokens: 1_000,
+                    toolCalls: 2,
+                    costUsd: 1,
+                    wallTimeMs: 5_000,
+                    steps: 2,
+                    descendants: 1,
+                  },
+                },
+              },
+            },
+          },
+          researcher: {
+            systemPrompt: "你是研究 Agent。",
+            delegation: {
+              budget: {
+                tokens: 400,
+                toolCalls: 1,
+                costUsd: 0.4,
+                wallTimeMs: 2_000,
+                steps: 1,
+                descendants: 1,
+              },
+              limits: { maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
+              targets: {
+                reviewer: {
+                  budget: {
+                    tokens: 400,
+                    toolCalls: 1,
+                    costUsd: 0.4,
+                    wallTimeMs: 2_000,
+                    steps: 1,
+                    descendants: 0,
+                  },
+                },
+              },
+            },
+          },
+          reviewer: { systemPrompt: "你是审查 Agent。" },
+        },
+        defaultAgent: "main",
+        runtime: {
+          maxSteps: 8,
+          maxToolCalls: 8,
+          maxTokens: 4_000,
+          maxCostUsd: 4,
+          runTimeoutMs: 20_000,
+        },
+        permissions: { mode: "full", workspaceOnly: true, network: "allow" },
+      };
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "完成父任务",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const tree = await ProjectionEngine.projectTree(store, result.runId);
+      const researcherNode = tree.childRuns?.nodes.find((node) => node.agentName === "researcher");
+      const rootDelegation = (await store.read(result.runId)).find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      );
+      const nestedDelegation = researcherNode
+        ? (await store.read(researcherNode.childRunId)).find(
+            (record) =>
+              record.kind === "delegation" && record.payload.type === "delegation_recorded",
+          )
+        : undefined;
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(tree.childRuns?.nodes).toEqual([
+        expect.objectContaining({
+          parentRunId: result.runId,
+          agentName: "researcher",
+          budget: expect.objectContaining({ tokens: 1_000, descendants: 1 }),
+          outcome: { status: "succeeded", finishReason: "completed" },
+        }),
+        expect.objectContaining({
+          agentName: "reviewer",
+          budget: expect.objectContaining({ tokens: 400, descendants: 0 }),
+          outcome: { status: "succeeded", finishReason: "completed" },
+        }),
+      ]);
+      expect(rootDelegation?.payload).toMatchObject({
+        budgetScope: "main",
+        inheritedPolicy: { depth: 1, maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
+      });
+      expect(nestedDelegation?.payload).toMatchObject({
+        budgetScope: "researcher",
+        inheritedPolicy: { depth: 2, maxDepth: 2, maxActiveChildren: 1, maxDescendants: 0 },
+      });
+      expect(requests).toHaveLength(5);
+    } finally {
+      await closeServer(server);
     }
   });
 
@@ -275,6 +456,7 @@ describe("Delegation Tool TypeScript happy path", () => {
               systemPrompt: "你是父 Agent。",
               tools: [{ id: "read" }],
               delegation: {
+                budget: parentDelegationBudget(),
                 targets: {
                   researcher: {
                     budget: {
@@ -423,6 +605,7 @@ describe("Delegation Tool TypeScript happy path", () => {
               main: {
                 systemPrompt: "你是父 Agent。",
                 delegation: {
+                  budget: parentDelegationBudget(),
                   targets: {
                     researcher: {
                       ...(preapproved ? { preapproved: true } : {}),
@@ -495,6 +678,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           main: {
             systemPrompt: "你是父 Agent。",
             delegation: {
+              budget: parentDelegationBudget(),
               targets: {
                 researcher: {
                   budget: {
@@ -543,6 +727,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           main: {
             systemPrompt: "你是父 Agent。",
             delegation: {
+              budget: parentDelegationBudget(),
               targets: {
                 researcher: {
                   budget: {
@@ -633,6 +818,17 @@ function baseConfig(port: number, agents: CoreMindConfig["agents"]): CoreMindCon
   };
 }
 
+function parentDelegationBudget() {
+  return {
+    tokens: 1_000,
+    toolCalls: 2,
+    costUsd: 1,
+    wallTimeMs: 5_000,
+    steps: 2,
+    descendants: 1,
+  };
+}
+
 function delegationResponse(): unknown[] {
   return [
     {
@@ -650,7 +846,7 @@ function delegationResponse(): unknown[] {
                 function: {
                   name: "delegate",
                   arguments:
-                    '{"target":"researcher","task":"研究已批准事实","references":["fact:approved"],"limits":{"tokens":800}}',
+                    '{"target":"researcher","task":"研究已批准事实","references":["fact:approved"],"limits":{"tokens":800,"maxDepth":1,"maxActiveChildren":0}}',
                 },
               },
             ],
@@ -661,6 +857,19 @@ function delegationResponse(): unknown[] {
     },
     { id: "parent-tool", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
   ];
+}
+
+function delegationResponseTo(target: string, callId: string): unknown[] {
+  return toolCallResponse(
+    JSON.stringify({ target, task: `委派给 ${target}`, references: [], limits: {} }),
+  ).map((chunk) => {
+    const cloned = structuredClone(chunk) as {
+      choices?: Array<{ delta?: { tool_calls?: Array<{ id?: string }> } }>;
+    };
+    const toolCall = cloned.choices?.[0]?.delta?.tool_calls?.[0];
+    if (toolCall) toolCall.id = callId;
+    return cloned;
+  });
 }
 
 function toolCallResponse(argumentsJson: string): unknown[] {

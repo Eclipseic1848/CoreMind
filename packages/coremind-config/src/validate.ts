@@ -63,12 +63,26 @@ function validateDelegationTargets(config: CoreMindConfig): void {
   const knownAgents = new Set(Object.keys(config.agents));
   const details: string[] = [];
   for (const [parentName, agent] of Object.entries(config.agents)) {
-    for (const targetName of Object.keys(agent.delegation?.targets ?? {})) {
+    const delegation = agent.delegation;
+    if (!delegation) continue;
+    const maxDescendants = delegation.limits?.maxDescendants ?? 32;
+    if (delegation.budget.descendants > maxDescendants) {
+      details.push(
+        `agents.${parentName}.delegation.budget.descendants：不能超过层级上限 ${maxDescendants}`,
+      );
+    }
+    for (const [targetName, target] of Object.entries(delegation.targets)) {
       const path = `agents.${parentName}.delegation.targets.${targetName}`;
       if (targetName === parentName) {
         details.push(`${path}：父 Agent 不能委派给自身`);
       } else if (!knownAgents.has(targetName)) {
         details.push(`${path}：引用了未定义的 Agent`);
+      }
+      for (const key of Object.keys(delegation.budget) as (keyof typeof delegation.budget)[]) {
+        const reserved = key === "descendants" ? target.budget[key] + 1 : target.budget[key];
+        if (reserved > delegation.budget[key]) {
+          details.push(`${path}.budget.${key}：不能超过父 Agent 的委派预算池`);
+        }
       }
     }
   }

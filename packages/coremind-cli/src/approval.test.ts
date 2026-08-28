@@ -61,6 +61,8 @@ describe("ApprovalQueue", () => {
           wallTimeMs: 5_000,
           steps: 3,
           descendants: 0,
+          maxDepth: 1,
+          maxActiveChildren: 0,
         },
       },
       argumentsFingerprint: "b".repeat(64),
@@ -80,6 +82,7 @@ describe("ApprovalQueue", () => {
     expect(prompts[0]).toContain("任务：核验资料并返回证据");
     expect(prompts[0]).not.toContain("很长的任务正文很长的任务正文很长的任务正文");
     expect(prompts[0]).toContain("预算：1000 tokens · 工具 2 · $0.5 · 5000ms · 步骤 3 · 后代 0");
+    expect(prompts[0]).toContain("最大深度 1 · 活动子级 0");
     expect(prompts[0]).toContain("引用：fact:requirements");
     expect(formatDelegationApproval(delegationRequest)?.target).toBe("researcher");
     unbind();

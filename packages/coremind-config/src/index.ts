@@ -13,6 +13,7 @@ export {
   CoreMindConfigSchema,
   type CustomProviderConfig,
   type DelegationBudgetConfig,
+  type DelegationHierarchyLimitsConfig,
   type DelegationTargetConfig,
   type EnvironmentValueRef,
   type LoopConfig,

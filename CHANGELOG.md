@@ -9,6 +9,7 @@
 - 新增后端无关的 `SecretRef` 与宿主注入 `SecretResolver`，仅在 Provider Adapter 边界解析 API key 和 Header 引用。明文凭据使用 `execution_security_violation`，缺失环境变量、resolver 或空解析结果使用 `secret_reference_unresolved`；check、Runtime、Worker、Python bundled Worker 与 Child Run 均在 Provider、Tool 或 Fact 副作用前失败关闭，不回退到其他凭据来源，也不在错误或持久化数据中暴露引用和值。
 - 新增由 Protocol 包拥有的类型化 Error Contract 唯一注册表，覆盖现有稳定自有错误码并统一终态、取消、重试和人工处置分类。Config、Runtime、Provider、Tool、Child Run、Evaluation、Protocol、Worker、CLI、TUI 与双 SDK 已迁移到该合同；Protocol v1/v2 schema、fingerprint 与公开 Outcome 类型从注册表派生，Python 包携带构建生成且逐项校验的只读分类。自定义工具通过 `ToolExecutionError` 显式声明可预期的 `tool_execution_failed`，裸 Adapter 异常与其他未知外部码仅以脱敏审计信息进入 Outcome 与持久 Fact，公开码收敛为暂停且禁止自动重试的 `unclassified_error`；未登记自有码由 TypeScript 类型门和 Python CI 门拒绝。
 - Subagent 统一建模为完整 Child Run，新增稳定父子身份、幂等委派、单调 authority、父预算划拨、结构化取消/join、orphan audit 与递归树投影。
+- Config 现为每个父 Agent 声明独立的六维 Delegation Budget 池，并以深度 3、活动子级 4、总后代 32 作为只可收紧的默认层级上限。可证明发生在首个委派 Fact 前的初始化失败会释放预留；一旦创建成功或关键创建 Fact 的提交结果未知，身份与预算都会保留，未使用额度不退款。相同 DelegationId 与相同输入只返回原 ChildRunId，不同输入以冲突失败且不重复执行。
 - 真实 Child Runtime Adapter 在执行前验证同一 authority、RunId、AbortSignal、任务、实际模型、canonical Workspace、权限、工具、环境探针和有限预算。
 - Protocol v2、Worker、TypeScript `RunResult`、CLI JSONL、TUI `/children` 与 Python bundled worker 共享同一 Fact Projection；1,000 个确定性交错种子覆盖兄弟并发、重复委派、取消、失败与 join。
 - 无头 CLI 现以人类摘要和稳定 `child_run` JSONL 事件展示 Child Run 的父子身份、目标、状态、Outcome 与 Recovery；Python SDK 通过 bundled Worker 的 v1 结构化结果及 v2 events/query 观察同一持久化父子树，不新增独立 spawn、list、resume 或 detach 入口。
