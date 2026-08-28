@@ -68,7 +68,7 @@ function runCliAsync(
   return new Promise((resolve, reject) => {
     const child = spawn("node", [cliPath, ...args], {
       cwd: options.cwd,
-      env: { ...process.env, ...options.env },
+      env: { ...minimalSubprocessEnv(), ...options.env },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -94,6 +94,24 @@ function runCliAsync(
       resolve({ stdout, stderr, code: code ?? -1 });
     });
   });
+}
+
+function minimalSubprocessEnv(): NodeJS.ProcessEnv {
+  const names = [
+    "PATH",
+    "Path",
+    "PATHEXT",
+    "SystemRoot",
+    "COMSPEC",
+    "HOME",
+    "USERPROFILE",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+  ];
+  return Object.fromEntries(
+    names.flatMap((name) => (process.env[name] === undefined ? [] : [[name, process.env[name]]])),
+  );
 }
 
 let mockServer: ReturnType<typeof spawn> | undefined;
