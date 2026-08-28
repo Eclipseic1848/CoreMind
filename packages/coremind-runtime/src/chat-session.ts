@@ -1,6 +1,8 @@
+import { inspectBoundRunProjection } from "./active-run-binding.js";
 import type { CheckpointDiff, CheckpointRecord } from "./checkpoint.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
+import type { RunProjection } from "./projection.js";
 import type { CoreMindMessage } from "./public-message.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
 
@@ -78,6 +80,11 @@ export class ChatSession {
   /** 中止当前轮 */
   abort(): void {
     this.activeController?.abort();
+  }
+
+  /** 查询当前一轮从 canonical Facts 重建的统一 Projection。 */
+  async inspectCurrentRunProjection(): Promise<RunProjection | undefined> {
+    return inspectBoundRunProjection(this.runtime);
   }
 
   /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */

@@ -164,7 +164,7 @@ coremind doctor [file]       Node、配置与 Provider 环境自检
 coremind templates           查看模板（兼容 list-templates）
 ```
 
-`run/chat/eval` 可用 `--permission ask|assisted|full` 临时选择批准强度，但不会关闭安全边界和审计。TUI 支持 `/status`、`/checkpoints`、`/diff <id>`、`/restore <id>`、`/abort` 和 `/exit`。
+`run/chat/eval` 可用 `--permission ask|assisted|full` 临时选择批准强度，但不会关闭安全边界和审计。TUI 支持 `/status`、`/children`、`/checkpoints`、`/diff <id>`、`/restore <id>`、`/abort` 和 `/exit`；`/children` 从统一 Projection 展开 Child Run 层级、预算、Outcome、Recovery 与未处置风险。
 
 `coremind run` 的退出码可直接用于 PowerShell、CI 和其他自动化：`0` 成功、`1` 失败、`2` 等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。使用 `--json-events` 时，stdout 只输出 JSONL，最后一行固定为 `type: "run_result"` 的完整终态；诊断信息写入 stderr。`--print` 与 `--json-events` 不能同时使用，避免机器输出混入普通文本。
 
