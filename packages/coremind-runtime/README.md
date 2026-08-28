@@ -6,6 +6,8 @@ CoreMind 的智能体运行时，提供模型供应商解析、会话、工具�
 
 Runtime、Provider、Tool、Child Run 与 Evaluation 入口共用 Protocol 的 Error Contract。已登记错误保留稳定分类；未知外部异常统一返回暂停且禁止自动重试的 `unclassified_error`，原始外部错误码只以脱敏 `audit.originalCode` 写入 Outcome 与持久 Fact，避免泄露凭据或重复副作用。恢复投影要求人工处置，不会把未知错误猜成瞬态。
 
+配置了 `agents.<parent>.delegation.targets` 后，Runtime 只在该父 Agent 的活动 Run 中注入内建 `delegate` 工具。调用只能选择 allowlist 目标、提交任务、显式 Fact/Artifact 引用和更严格的预算；Runtime 派生 Provider、Workspace、权限与生命周期，等待独立 Child Run 结束后返回带 `childRunId` 的结构化结果。未配置时工具不可见且不会产生 Child Run Fact。
+
 工具副作用记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不重复完整步骤和已提交副作用，未知副作用要求人工核对。文件恢复还会检查工具执行后的指纹，拒绝覆盖用户或并发进程的后续修改。
 
 Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_resolved` Fact，并让后续消费者复用同一份冻结 Capability。`projectToolCapabilities()` 为 CLI、TUI、TypeScript 和 Python 提供统一投影；读取 0.3.0/0.3.1 历史记录时，缺少该 Fact 的 Call 显式标记为 `legacy`、`unknown` 与 `requires_human`，不会根据旧工具名补写安全结论。
