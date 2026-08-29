@@ -2180,7 +2180,18 @@ describe("Delegation Tool TypeScript happy path", () => {
             )
         : [];
 
-      expect(result.outcome.status).toBe("succeeded");
+      expect(
+        result.outcome.status,
+        JSON.stringify(
+          {
+            outcome: result.outcome,
+            childRuns: result.childRuns?.nodes,
+            approvals: approvals.map((request) => request.tool),
+          },
+          null,
+          2,
+        ),
+      ).toBe("succeeded");
       expect(approvals.map((request) => request.tool)).toEqual(["delegate", "web-fetch"]);
       expect(approvals[0]).toMatchObject({
         tool: "delegate",
