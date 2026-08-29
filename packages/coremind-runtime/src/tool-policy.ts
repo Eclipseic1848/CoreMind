@@ -13,7 +13,7 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
-import { DELEGATION_TOOL_NAME } from "./delegation-tool.js";
+import { DELEGATION_DISPOSITION_TOOL_NAME, DELEGATION_TOOL_NAME } from "./delegation-tool.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
 
@@ -197,6 +197,13 @@ export class ToolPolicy {
       return { allowed: false, reason: `网络策略拒绝工具 ${tool}` };
     }
 
+    if (tool === DELEGATION_DISPOSITION_TOOL_NAME) {
+      return {
+        allowed: true,
+        reason: "Delegation Disposition 仅记录受 Coordinator 安全门约束的持久决定",
+        approvedBy: "configuration",
+      };
+    }
     if (tool === DELEGATION_TOOL_NAME) {
       const target = delegationTarget(args);
       if (this.permissions.mode === "full") {

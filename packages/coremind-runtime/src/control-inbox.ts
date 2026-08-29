@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { canonicalJson } from "./canonical-json.js";
+import type { DelegationDispositionAction } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
 import type { ApprovalId, ControlId, RunId } from "./ids.js";
 import type { RunStateJournal, RunStateRecord } from "./run-state.js";
@@ -18,7 +19,13 @@ export type RunControlCommand =
       decision: "allow" | "deny";
     })
   | (RunControlBase & { type: "steering"; message: string })
-  | (RunControlBase & { type: "follow_up"; message: string });
+  | (RunControlBase & { type: "follow_up"; message: string })
+  | (RunControlBase & {
+      type: "delegation_disposition";
+      delegationId: string;
+      action: DelegationDispositionAction;
+      reason: string;
+    });
 
 interface InternalRunControlBase {
   schemaVersion: 1;
@@ -34,7 +41,13 @@ export type InternalRunControlCommand =
       decision: "allow" | "deny";
     })
   | (InternalRunControlBase & { type: "steering"; message: string })
-  | (InternalRunControlBase & { type: "follow_up"; message: string });
+  | (InternalRunControlBase & { type: "follow_up"; message: string })
+  | (InternalRunControlBase & {
+      type: "delegation_disposition";
+      delegationId: string;
+      action: DelegationDispositionAction;
+      reason: string;
+    });
 
 export type ControlReceiptStatus = "accepted" | "applied" | "rejected" | "duplicate" | "conflict";
 
@@ -100,6 +113,9 @@ interface ControlFact {
 /** 持久控制收件箱；所有状态变化都复用当前 RunStateJournal 的单一 Fact writer。 */
 export class ControlInbox {
   private readonly controls: Map<ControlId, StoredControl>;
+  private readonly controlOperations = new Map<ControlId, Promise<void>>();
+  private runTransition: Promise<void> = Promise.resolve();
+  private terminalSealed = false;
 
   constructor(private readonly options: InternalControlInboxOptions) {
     if (options.journal.runId !== options.runId) {
@@ -111,37 +127,107 @@ export class ControlInbox {
   async accept(command: RunControlCommand): Promise<ControlReceipt> {
     const internalCommand = validateCommand(command, this.options.runId);
     const fingerprint = controlFingerprint(internalCommand);
-    const existing = this.controls.get(internalCommand.controlId);
-    if (existing) return duplicateOrConflict(internalCommand, fingerprint, existing);
+    return this.withRunTransition(async () => {
+      if (this.terminalSealed) {
+        throw new CoreMindError(
+          "control_unavailable",
+          `Run ${this.options.runId} 已进入终态封口，不能再接收控制`,
+        );
+      }
+      return this.withControlOperation(internalCommand.controlId, async () => {
+        const existing = this.controls.get(internalCommand.controlId);
+        if (existing) return duplicateOrConflict(internalCommand, fingerprint, existing);
 
-    const accepted = await this.options.journal.appendFact(
-      "control",
-      {
-        schemaVersion: 1,
-        controlId: internalCommand.controlId,
-        fingerprint,
-        state: "accepted",
-        command: structuredClone(internalCommand),
-      } satisfies ControlFact,
-      { durability: "critical" },
-    );
-    const stored: StoredControl = {
-      command: structuredClone(internalCommand),
-      fingerprint,
-      state: "accepted",
-      acceptedSequence: accepted.sequence,
-    };
-    this.controls.set(internalCommand.controlId, stored);
+        const accepted = await this.options.journal.appendFact(
+          "control",
+          {
+            schemaVersion: 1,
+            controlId: internalCommand.controlId,
+            fingerprint,
+            state: "accepted",
+            command: structuredClone(internalCommand),
+          } satisfies ControlFact,
+          { durability: "critical" },
+        );
+        const stored: StoredControl = {
+          command: structuredClone(internalCommand),
+          fingerprint,
+          state: "accepted",
+          acceptedSequence: accepted.sequence,
+        };
+        this.controls.set(internalCommand.controlId, stored);
 
-    return this.applyStored(stored);
+        return this.applyStored(stored);
+      });
+    });
   }
 
-  async applyPending(): Promise<ControlReceipt[]> {
-    const receipts: ControlReceipt[] = [];
-    for (const stored of this.controls.values()) {
-      if (stored.state === "accepted") receipts.push(await this.applyStored(stored));
+  /** 等待已进入收件箱的控制完成持久应用，并阻止父终态后的新控制写入。 */
+  async sealForTerminal(): Promise<void> {
+    await this.withRunTransition(async () => {
+      this.terminalSealed = true;
+    });
+  }
+
+  async applyPending(type?: RunControlCommand["type"]): Promise<ControlReceipt[]> {
+    return this.withRunTransition(async () => {
+      if (this.terminalSealed) {
+        throw new CoreMindError(
+          "control_unavailable",
+          `Run ${this.options.runId} 已进入终态封口，不能再应用待处理控制`,
+        );
+      }
+      const receipts: ControlReceipt[] = [];
+      for (const controlId of this.controls.keys()) {
+        const receipt = await this.withControlOperation(controlId, async () => {
+          const stored = this.controls.get(controlId);
+          if (
+            stored?.state !== "accepted" ||
+            (type !== undefined && stored.command.type !== type)
+          ) {
+            return undefined;
+          }
+          return this.applyStored(stored);
+        });
+        if (receipt) receipts.push(receipt);
+      }
+      return receipts;
+    });
+  }
+
+  private async withControlOperation<T>(
+    controlId: ControlId,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.controlOperations.get(controlId) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.controlOperations.set(controlId, current);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.controlOperations.get(controlId) === current) {
+        this.controlOperations.delete(controlId);
+      }
     }
-    return receipts;
+  }
+
+  private async withRunTransition<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.runTransition;
+    let release!: () => void;
+    this.runTransition = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 
   private async applyStored(stored: StoredControl): Promise<ControlReceipt> {
@@ -317,7 +403,9 @@ function validateCommand(command: RunControlCommand, runId: RunId): InternalRunC
     candidate.runId !== runId ||
     typeof candidate.controlId !== "string" ||
     candidate.controlId.trim().length === 0 ||
-    !["cancel", "approval", "steering", "follow_up"].includes(String(candidate.type))
+    !["cancel", "approval", "steering", "follow_up", "delegation_disposition"].includes(
+      String(candidate.type),
+    )
   ) {
     throw new CoreMindError("control_invalid", "Control 命令合同非法或 runId 不匹配");
   }
@@ -330,7 +418,16 @@ function validateCommand(command: RunControlCommand, runId: RunId): InternalRunC
       (candidate.decision === "allow" || candidate.decision === "deny")) ||
     ((candidate.type === "steering" || candidate.type === "follow_up") &&
       typeof candidate.message === "string" &&
-      candidate.message.length > 0);
+      candidate.message.length > 0) ||
+    (candidate.type === "delegation_disposition" &&
+      typeof candidate.delegationId === "string" &&
+      candidate.delegationId.length > 0 &&
+      (candidate.action === "accept_failure" ||
+        candidate.action === "choose_alternative" ||
+        candidate.action === "redelegate" ||
+        candidate.action === "propagate_terminal") &&
+      typeof candidate.reason === "string" &&
+      candidate.reason.length > 0);
   if (!validTypeSpecificFields) {
     throw new CoreMindError("control_invalid", "Control 命令类型专属字段非法");
   }

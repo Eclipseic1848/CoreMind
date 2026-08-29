@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { RecoveryDisposition } from "coremind-tools";
 import { tightenExecutionEnvironmentRequirement } from "coremind-tools/internal";
 import { canonicalJson } from "./canonical-json.js";
 import {
@@ -113,6 +114,7 @@ export interface ChildRunLifecyclePolicy {
 
 export interface ChildRunDelegationRequest {
   delegationId: string;
+  predecessorDelegationId?: string;
   budgetScope?: string;
   parentTurnId: string;
   parentStepId: string;
@@ -144,7 +146,67 @@ export interface ChildRunResult {
   artifacts: readonly string[];
   workspaceChanges: readonly ChildRunWorkspaceChange[];
   unresolvedRisks: readonly string[];
+  /** 由 Runtime/Adapter 根据实际 Tool lifecycle 聚合；历史结果缺失时按未知风险处理。 */
+  recovery?: ChildRunRecoveryAssessment;
 }
+
+export interface ChildRunRecoveryAssessment {
+  recoveryDisposition: RecoveryDisposition;
+  effectState: "none" | "not_started" | "started" | "committed" | "unknown";
+  quiescent: boolean;
+  executionOwnership: "released" | "unknown";
+  evidence: readonly string[];
+}
+
+export type DelegationDispositionAction =
+  | "accept_failure"
+  | "choose_alternative"
+  | "redelegate"
+  | "propagate_terminal";
+
+export type DelegationDispositionActor = "parent_agent" | "human";
+
+export interface DelegationDispositionRequest {
+  dispositionId: string;
+  delegationId: string;
+  action: DelegationDispositionAction;
+  decidedBy: DelegationDispositionActor;
+  reason: string;
+  evidence?: readonly string[];
+}
+
+export interface RecordedDelegationDisposition {
+  dispositionId: string;
+  delegationId: string;
+  action: DelegationDispositionAction;
+  decidedBy: DelegationDispositionActor;
+  reason: string;
+  evidence: readonly string[];
+  resultFingerprint: string;
+  recovery: ChildRunRecoveryAssessment;
+}
+
+export type ChildRunContinuationGate =
+  | { status: "allowed" }
+  | {
+      status: "disposition_required";
+      delegationId: string;
+      childRunId: string;
+      requiredActor: DelegationDispositionActor;
+      recovery: ChildRunRecoveryAssessment;
+    }
+  | {
+      status: "redelegation_required";
+      delegationId: string;
+      childRunId: string;
+      recovery: ChildRunRecoveryAssessment;
+    }
+  | {
+      status: "propagate_terminal";
+      delegationId: string;
+      childRunId: string;
+      result: ChildRunResult;
+    };
 
 export interface ChildRunExecutionInput {
   parentRunId: string;
@@ -179,6 +241,7 @@ export type ChildRunFact =
       parentRunId: string;
       childRunId: string;
       delegationId: string;
+      predecessorDelegationId?: string;
       budgetScope?: string;
       parentTurnId: string;
       parentStepId: string;
@@ -194,7 +257,26 @@ export type ChildRunFact =
       requestedEnvironment: ChildRunEnvironmentRequirement;
       recordedAt: string;
     }
+  | DelegationDispositionFact
+  | DelegationRedelegationCancelledFact
   | ChildRunLifecycleFact;
+
+export type DelegationDispositionFact = ChildRunIdentityFact<"delegation_disposition_recorded"> & {
+  dispositionId: string;
+  action: DelegationDispositionAction;
+  decidedBy: DelegationDispositionActor;
+  reason: string;
+  evidence: readonly string[];
+  resultFingerprint: string;
+  recovery: ChildRunRecoveryAssessment;
+};
+
+export type DelegationRedelegationCancelledFact =
+  ChildRunIdentityFact<"delegation_redelegation_cancelled"> & {
+    dispositionId: string;
+    parentTerminalCode: string;
+    reason: string;
+  };
 
 export type ChildRunLifecycleFact =
   | ChildRunIdentityFact<"child_created">
@@ -246,6 +328,8 @@ interface DelegationState {
   delegationId: string;
   budgetScope?: string;
   inputFingerprint: string;
+  predecessorDelegationId?: string;
+  successorDelegationId?: string;
   status: ChildRunPersistedLifecycleStatus | "terminalizing";
   result?: ChildRunResult;
   abortController?: AbortController;
@@ -254,6 +338,12 @@ interface DelegationState {
   initialization?: Promise<void>;
   releaseParentBudget?: () => void;
   joinPromise?: Promise<ChildRunResult>;
+  disposition?: RecordedDelegationDisposition;
+  dispositionPromise?: Promise<RecordedDelegationDisposition>;
+  redelegationCancellation?: {
+    parentTerminalCode: string;
+    reason: string;
+  };
 }
 
 /**
@@ -266,6 +356,9 @@ export class ChildRunCoordinator {
   private readonly remainingBudgets = new Map<string, ChildRunBudgetAllocation>();
   private readonly hierarchyLimits = new Map<string, ChildRunCoordinatorHierarchyLimits>();
   private readonly parentPolicy: NormalizedChildRunPolicySnapshot;
+  private delegationTransitionLocked = false;
+  private readonly delegationTransitionWaiters: Array<() => void> = [];
+  private terminalSealed = false;
 
   private constructor(private readonly options: ChildRunCoordinatorOptions) {
     this.now = options.now ?? (() => new Date().toISOString());
@@ -312,6 +405,30 @@ export class ChildRunCoordinator {
 
   async delegate(request: ChildRunDelegationRequest): Promise<ChildRunHandle> {
     const requestSnapshot = deepFreeze(structuredClone(request));
+    const existing = this.delegations.get(requestSnapshot.delegationId);
+    if (existing) {
+      if (existing.inputFingerprint !== childRunInputFingerprint(requestSnapshot)) {
+        throw new CoreMindError(
+          "delegation_conflict",
+          `DelegationId ${requestSnapshot.delegationId} 已绑定不同输入`,
+        );
+      }
+      return this.handleFor(existing);
+    }
+    return this.withDelegationTransition(async () => {
+      if (this.terminalSealed) {
+        throw new CoreMindError(
+          "child_run_unavailable",
+          "父 Run 已进入终态封口，不能再创建 Child Run",
+        );
+      }
+      return this.delegateWithinTransition(requestSnapshot);
+    });
+  }
+
+  private async delegateWithinTransition(
+    requestSnapshot: ChildRunDelegationRequest,
+  ): Promise<ChildRunHandle> {
     const inputFingerprint = childRunInputFingerprint(requestSnapshot);
     const existing = this.delegations.get(requestSnapshot.delegationId);
     if (existing) {
@@ -328,6 +445,7 @@ export class ChildRunCoordinator {
     this.assertActiveChildLimit(scope.key, scope.hierarchy.maxActiveChildren);
     const scopedParentPolicy = { ...this.parentPolicy, ...scope.hierarchy };
     assertChildRunPolicyIsNarrower(scopedParentPolicy, scope.remainingBudget, requestSnapshot);
+    const predecessor = this.assertRedelegationRequest(requestSnapshot);
     const childPolicy = effectiveChildPolicy(scopedParentPolicy, requestSnapshot);
     const releaseParentBudget = this.options.reserveParentBudget?.(requestSnapshot.allocation);
 
@@ -337,11 +455,13 @@ export class ChildRunCoordinator {
       delegationId: requestSnapshot.delegationId,
       budgetScope: requestSnapshot.budgetScope,
       inputFingerprint,
+      predecessorDelegationId: requestSnapshot.predecessorDelegationId,
       status: "recorded",
       abortController: new AbortController(),
       releaseParentBudget,
     };
     this.delegations.set(requestSnapshot.delegationId, state);
+    if (predecessor) predecessor.successorDelegationId = requestSnapshot.delegationId;
     reserveBudget(scope.remainingBudget, requestSnapshot.allocation);
     let delegationRecorded = false;
     state.initialization = (async () => {
@@ -352,6 +472,7 @@ export class ChildRunCoordinator {
           parentRunId: this.options.parentRunId,
           childRunId,
           delegationId: requestSnapshot.delegationId,
+          predecessorDelegationId: requestSnapshot.predecessorDelegationId,
           budgetScope: requestSnapshot.budgetScope,
           parentTurnId: requestSnapshot.parentTurnId,
           parentStepId: requestSnapshot.parentStepId,
@@ -382,6 +503,9 @@ export class ChildRunCoordinator {
         (await this.isDelegationDefinitelyAbsent(requestSnapshot.delegationId));
       if (definitelyNotRecorded) {
         this.delegations.delete(requestSnapshot.delegationId);
+        if (predecessor?.successorDelegationId === requestSnapshot.delegationId) {
+          predecessor.successorDelegationId = undefined;
+        }
         releaseBudget(scope.remainingBudget, requestSnapshot.allocation);
         state.releaseParentBudget?.();
       }
@@ -413,8 +537,274 @@ export class ChildRunCoordinator {
     );
   }
 
-  isQuiescent(): boolean {
+  isExecutionQuiescent(): boolean {
     return [...this.delegations.values()].every((state) => state.status === "joined");
+  }
+
+  isQuiescent(): boolean {
+    if (!this.isExecutionQuiescent()) return false;
+    return [...this.delegations.values()].every((state) => {
+      if (!state.result) return false;
+      if (!childRunResultRequiresDisposition(state.result)) return true;
+      if (!state.disposition) return false;
+      return (
+        state.disposition.action !== "redelegate" ||
+        state.successorDelegationId !== undefined ||
+        state.redelegationCancellation !== undefined
+      );
+    });
+  }
+
+  continuationGate(): ChildRunContinuationGate {
+    let pendingDisposition:
+      | Extract<ChildRunContinuationGate, { status: "disposition_required" }>
+      | undefined;
+    let propagatedTerminal:
+      | Extract<ChildRunContinuationGate, { status: "propagate_terminal" }>
+      | undefined;
+    let pendingRedelegation:
+      | Extract<ChildRunContinuationGate, { status: "redelegation_required" }>
+      | undefined;
+    for (const state of this.delegations.values()) {
+      if (state.status !== "joined" || !state.result) continue;
+      if (!childRunResultRequiresDisposition(state.result)) continue;
+      const recovery = childRunRecoveryAssessment(state.result);
+      if (!state.disposition) {
+        const requiredActor = requiredDispositionActor(state.result);
+        const gate = {
+          status: "disposition_required",
+          delegationId: state.delegationId,
+          childRunId: state.childRunId,
+          requiredActor,
+          recovery,
+        } satisfies Extract<ChildRunContinuationGate, { status: "disposition_required" }>;
+        if (requiredActor === "human") return gate;
+        pendingDisposition ??= gate;
+        continue;
+      }
+      if (
+        state.disposition.action === "redelegate" &&
+        !state.successorDelegationId &&
+        !state.redelegationCancellation
+      ) {
+        pendingRedelegation ??= {
+          status: "redelegation_required",
+          delegationId: state.delegationId,
+          childRunId: state.childRunId,
+          recovery,
+        };
+      }
+      if (state.disposition.action === "propagate_terminal") {
+        propagatedTerminal ??= {
+          status: "propagate_terminal",
+          delegationId: state.delegationId,
+          childRunId: state.childRunId,
+          result: structuredClone(state.result),
+        };
+      }
+    }
+    return pendingDisposition ?? propagatedTerminal ?? pendingRedelegation ?? { status: "allowed" };
+  }
+
+  async recordDisposition(
+    request: DelegationDispositionRequest,
+  ): Promise<RecordedDelegationDisposition> {
+    return this.withDelegationTransition(async () => {
+      if (this.terminalSealed) {
+        throw new CoreMindError(
+          "child_run_unavailable",
+          "父 Run 已进入终态封口，不能再记录 Child Run 处置",
+        );
+      }
+      return this.recordDispositionWithinTransition(request);
+    });
+  }
+
+  private async recordDispositionWithinTransition(
+    request: DelegationDispositionRequest,
+  ): Promise<RecordedDelegationDisposition> {
+    assertDispositionRequest(request);
+    const state = this.delegations.get(request.delegationId);
+    if (!state) {
+      throw new CoreMindError(
+        "delegation_disposition_conflict",
+        `DelegationId ${request.delegationId} 不存在，不能记录处置`,
+      );
+    }
+    if (state.dispositionPromise) {
+      await state.dispositionPromise;
+      return this.recordDispositionWithinTransition(request);
+    }
+    if (
+      state.status !== "joined" ||
+      !state.result ||
+      !childRunResultRequiresDisposition(state.result)
+    ) {
+      throw new CoreMindError(
+        "delegation_disposition_conflict",
+        `DelegationId ${request.delegationId} 尚无需要处置的 join 结果`,
+      );
+    }
+    const recovery = childRunRecoveryAssessment(state.result);
+    const recorded: RecordedDelegationDisposition = {
+      dispositionId: request.dispositionId,
+      delegationId: request.delegationId,
+      action: request.action,
+      decidedBy: request.decidedBy,
+      reason: redactSensitiveText(request.reason),
+      evidence: [...new Set((request.evidence ?? []).map(redactSensitiveText))],
+      resultFingerprint: childRunResultFingerprint(state.result),
+      recovery,
+    };
+    if (state.disposition) {
+      if (canonicalJson(state.disposition) === canonicalJson(recorded)) {
+        return structuredClone(state.disposition);
+      }
+      throw new CoreMindError(
+        "delegation_disposition_conflict",
+        `DelegationId ${request.delegationId} 已绑定不同处置`,
+      );
+    }
+    const semanticViolation = delegationDispositionViolation(
+      state.result,
+      request.action,
+      request.decidedBy,
+    );
+    if (semanticViolation === "human_required") {
+      throw new CoreMindError(
+        "delegation_disposition_required",
+        `DelegationId ${request.delegationId} 包含未知或未证明安全的 Effect，必须由人工处置`,
+      );
+    }
+    if (semanticViolation === "unsafe_redelegation") {
+      throw new CoreMindError(
+        "delegation_redelegation_unsafe",
+        `DelegationId ${request.delegationId} 的 RecoveryDisposition 未证明可安全重新委派`,
+      );
+    }
+    const write = (async () => {
+      await this.options.parentJournal.appendFact(
+        "delegation",
+        {
+          type: "delegation_disposition_recorded",
+          parentRunId: this.options.parentRunId,
+          childRunId: state.childRunId,
+          delegationId: state.delegationId,
+          ...(state.budgetScope ? { budgetScope: state.budgetScope } : {}),
+          inputFingerprint: state.inputFingerprint,
+          dispositionId: recorded.dispositionId,
+          action: recorded.action,
+          decidedBy: recorded.decidedBy,
+          reason: recorded.reason,
+          evidence: recorded.evidence,
+          resultFingerprint: recorded.resultFingerprint,
+          recovery: recorded.recovery,
+          recordedAt: this.now(),
+        } satisfies DelegationDispositionFact,
+        { durability: "critical" },
+      );
+      state.disposition = structuredClone(recorded);
+      return structuredClone(recorded);
+    })();
+    state.dispositionPromise = write;
+    try {
+      return await write;
+    } finally {
+      state.dispositionPromise = undefined;
+    }
+  }
+
+  /** 父 Run 已形成终态时，持久撤销尚未创建 successor 的重新委派意图。 */
+  async cancelPendingRedelegations(parentTerminalCode: string, reason: string): Promise<void> {
+    await this.withDelegationTransition(() =>
+      this.cancelPendingRedelegationsWithinTransition(parentTerminalCode, reason),
+    );
+  }
+
+  private async cancelPendingRedelegationsWithinTransition(
+    parentTerminalCode: string,
+    reason: string,
+  ): Promise<void> {
+    const sanitizedReason = redactSensitiveText(reason);
+    for (const state of this.delegations.values()) {
+      if (
+        state.disposition?.action !== "redelegate" ||
+        state.successorDelegationId ||
+        state.redelegationCancellation
+      ) {
+        continue;
+      }
+      await this.options.parentJournal.appendFact(
+        "delegation",
+        {
+          type: "delegation_redelegation_cancelled",
+          parentRunId: this.options.parentRunId,
+          childRunId: state.childRunId,
+          delegationId: state.delegationId,
+          ...(state.budgetScope ? { budgetScope: state.budgetScope } : {}),
+          inputFingerprint: state.inputFingerprint,
+          dispositionId: state.disposition.dispositionId,
+          parentTerminalCode,
+          reason: sanitizedReason,
+          recordedAt: this.now(),
+        } satisfies DelegationRedelegationCancelledFact,
+        { durability: "critical" },
+      );
+      state.redelegationCancellation = { parentTerminalCode, reason: sanitizedReason };
+    }
+  }
+
+  /** 等待已进入 Coordinator 的委派变更完成，并阻止父终态后的新变更。 */
+  async sealForTerminal(): Promise<void> {
+    await this.withDelegationTransition(async () => {
+      this.terminalSealed = true;
+    });
+  }
+
+  private async withDelegationTransition<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.delegationTransitionLocked) {
+      await new Promise<void>((resolve) => {
+        this.delegationTransitionWaiters.push(resolve);
+      });
+    } else {
+      this.delegationTransitionLocked = true;
+    }
+    try {
+      return await operation();
+    } finally {
+      const next = this.delegationTransitionWaiters.shift();
+      if (next) next();
+      else this.delegationTransitionLocked = false;
+    }
+  }
+
+  private assertRedelegationRequest(
+    request: ChildRunDelegationRequest,
+  ): DelegationState | undefined {
+    const gate = this.continuationGate();
+    if (!request.predecessorDelegationId) {
+      if (gate.status === "allowed") return undefined;
+      throw new CoreMindError(
+        "delegation_disposition_required",
+        `DelegationId ${gate.delegationId} 尚未完成允许父级继续的处置`,
+      );
+    }
+    const predecessor = this.delegations.get(request.predecessorDelegationId);
+    if (
+      gate.status !== "redelegation_required" ||
+      gate.delegationId !== request.predecessorDelegationId ||
+      !predecessor?.disposition ||
+      predecessor.disposition.action !== "redelegate" ||
+      predecessor.successorDelegationId ||
+      predecessor.delegationId === request.delegationId ||
+      !isChildRunRecoverySafeForRedelegation(predecessor.disposition.recovery)
+    ) {
+      throw new CoreMindError(
+        "delegation_redelegation_unsafe",
+        `DelegationId ${request.delegationId} 没有匹配的安全重新委派处置`,
+      );
+    }
+    return predecessor;
   }
 
   private async execute(
@@ -502,19 +892,29 @@ export class ChildRunCoordinator {
   }
 
   private async auditRestoredOrphans(): Promise<void> {
-    const orphaned = [...this.delegations.values()].filter(
-      (state) =>
-        state.status === "recorded" || state.status === "created" || state.status === "running",
-    );
-    for (const state of orphaned) {
-      const result = orphanedResult(state.childRunId);
-      await this.options.parentJournal.appendFact(
-        "delegation",
-        this.lifecycleFact(state, "child_orphaned", { result }),
-        { durability: "critical" },
-      );
-      state.status = "orphaned";
-      state.result = structuredClone(result);
+    for (const state of this.delegations.values()) {
+      if (state.status === "recorded" || state.status === "created" || state.status === "running") {
+        const result = normalizeChildRunResult(orphanedResult(state.childRunId));
+        await this.options.parentJournal.appendFact(
+          "delegation",
+          this.lifecycleFact(state, "child_orphaned", { result }),
+          { durability: "critical" },
+        );
+        state.status = "orphaned";
+        state.result = structuredClone(result);
+      }
+      if (
+        (state.status === "terminal" || state.status === "paused" || state.status === "orphaned") &&
+        state.result
+      ) {
+        const result = structuredClone(state.result);
+        await this.options.parentJournal.appendFact(
+          "delegation",
+          this.lifecycleFact(state, "parent_joined", { result }),
+          { durability: "critical" },
+        );
+        state.status = "joined";
+      }
     }
   }
 
@@ -663,8 +1063,24 @@ export class ChildRunCoordinator {
           delegationId: fact.delegationId,
           budgetScope: fact.budgetScope,
           inputFingerprint: fact.inputFingerprint,
+          predecessorDelegationId: fact.predecessorDelegationId,
           status: "recorded",
         };
+        if (fact.predecessorDelegationId) {
+          const predecessor = this.delegations.get(fact.predecessorDelegationId);
+          if (
+            predecessor?.disposition?.action !== "redelegate" ||
+            predecessor.successorDelegationId ||
+            predecessor.redelegationCancellation ||
+            !isChildRunRecoverySafeForRedelegation(predecessor.disposition.recovery)
+          ) {
+            throw new CoreMindError(
+              "run_state_corrupt",
+              "关联 Child Run 缺少匹配的安全重新委派处置",
+            );
+          }
+          predecessor.successorDelegationId = fact.delegationId;
+        }
         this.delegations.set(fact.delegationId, restored);
         try {
           reserveBudget(this.remainingBudgetFor(fact.budgetScope), fact.requestedAllocation);
@@ -686,6 +1102,53 @@ export class ChildRunCoordinator {
           "Child Run 生命周期缺少匹配的 Delegation Fact",
         );
       }
+      if (fact.type === "delegation_disposition_recorded") {
+        if (
+          existing.status !== "joined" ||
+          !existing.result ||
+          existing.result.outcome.status === "succeeded" ||
+          existing.disposition ||
+          childRunResultFingerprint(existing.result) !== fact.resultFingerprint ||
+          canonicalJson(childRunRecoveryAssessment(existing.result)) !==
+            canonicalJson(fact.recovery) ||
+          delegationDispositionViolation(existing.result, fact.action, fact.decidedBy) !== undefined
+        ) {
+          throw new CoreMindError(
+            "run_state_corrupt",
+            "Delegation Disposition 与已 join 的 Child Run 结果不匹配",
+          );
+        }
+        existing.disposition = {
+          dispositionId: fact.dispositionId,
+          delegationId: fact.delegationId,
+          action: fact.action,
+          decidedBy: fact.decidedBy,
+          reason: fact.reason,
+          evidence: [...fact.evidence],
+          resultFingerprint: fact.resultFingerprint,
+          recovery: structuredClone(fact.recovery),
+        };
+        continue;
+      }
+      if (fact.type === "delegation_redelegation_cancelled") {
+        if (
+          existing.status !== "joined" ||
+          existing.disposition?.action !== "redelegate" ||
+          existing.disposition.dispositionId !== fact.dispositionId ||
+          existing.successorDelegationId ||
+          existing.redelegationCancellation
+        ) {
+          throw new CoreMindError(
+            "run_state_corrupt",
+            "重新委派撤销 Fact 与待建立 successor 的处置不匹配",
+          );
+        }
+        existing.redelegationCancellation = {
+          parentTerminalCode: fact.parentTerminalCode,
+          reason: fact.reason,
+        };
+        continue;
+      }
       existing.status = foldChildRunLifecycleStatus(existing.status, fact.type);
       if (
         fact.type === "child_terminal" ||
@@ -693,7 +1156,7 @@ export class ChildRunCoordinator {
         fact.type === "child_orphaned" ||
         fact.type === "parent_joined"
       ) {
-        existing.result = structuredClone(fact.result);
+        existing.result = normalizeChildRunResult(fact.result);
       }
     }
   }
@@ -996,12 +1459,16 @@ function normalizeChildRunResult(result: ChildRunResult): ChildRunResult {
       path: redactSensitiveText(change.path),
     })),
     unresolvedRisks: result.unresolvedRisks.map(redactSensitiveText),
+    recovery: childRunRecoveryAssessment(result),
   };
   const error =
-    result.outcome.error ??
-    (result.outcome.status === "succeeded" || isChildLifecycleOutcomeWithoutError(result.outcome)
+    result.outcome.status === "succeeded" ||
+    isChildLifecycleOutcomeWithStableFinishReason(result.outcome)
       ? undefined
-      : { code: result.outcome.finishReason, message: result.outcome.finishReason });
+      : (result.outcome.error ?? {
+          code: result.outcome.finishReason,
+          message: result.outcome.finishReason,
+        });
   if (!error) return sanitized;
   const normalized = normalizeExecutionError(error);
   return {
@@ -1018,12 +1485,13 @@ function normalizeChildRunResult(result: ChildRunResult): ChildRunResult {
   };
 }
 
-function isChildLifecycleOutcomeWithoutError(outcome: RunOutcome): boolean {
+function isChildLifecycleOutcomeWithStableFinishReason(outcome: RunOutcome): boolean {
   return (
     (outcome.status === "aborted" &&
       (outcome.finishReason === "parent_cancelled" ||
         outcome.finishReason === "child_cancelled")) ||
-    (outcome.status === "timeout" && outcome.finishReason === "child_join_timeout")
+    (outcome.status === "timeout" && outcome.finishReason === "child_join_timeout") ||
+    (outcome.status === "paused" && outcome.finishReason === "child_run_orphaned")
   );
 }
 
@@ -1054,7 +1522,114 @@ function orphanedResult(childRunId: string): ChildRunResult {
     artifacts: [],
     workspaceChanges: [],
     unresolvedRisks: [message],
+    recovery: {
+      recoveryDisposition: "requires_human",
+      effectState: "unknown",
+      quiescent: false,
+      executionOwnership: "unknown",
+      evidence: [],
+    },
   };
+}
+
+export function childRunRecoveryAssessment(result: ChildRunResult): ChildRunRecoveryAssessment {
+  if (result.recovery && isChildRunRecoveryAssessment(result.recovery)) {
+    return {
+      ...structuredClone(result.recovery),
+      evidence: [...new Set(result.recovery.evidence.map(redactSensitiveText))],
+    };
+  }
+  if (result.outcome.status === "succeeded") {
+    return {
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: [],
+    };
+  }
+  return {
+    recoveryDisposition: "requires_human",
+    effectState: "unknown",
+    quiescent: true,
+    executionOwnership: "unknown",
+    evidence: [],
+  };
+}
+
+export function childRunResultRequiresDisposition(result: ChildRunResult): boolean {
+  if (result.outcome.status !== "succeeded") return true;
+  const recovery = childRunRecoveryAssessment(result);
+  const unresolvedRecoveryWithoutCommittedSuccess =
+    recovery.effectState !== "committed" &&
+    (recovery.recoveryDisposition === "requires_human" ||
+      recovery.recoveryDisposition === "forbidden");
+  return (
+    unresolvedRecoveryWithoutCommittedSuccess ||
+    recovery.effectState === "started" ||
+    recovery.effectState === "unknown" ||
+    !recovery.quiescent ||
+    recovery.executionOwnership !== "released"
+  );
+}
+
+export function childRunResultFingerprint(result: ChildRunResult): string {
+  return `sha256:${createHash("sha256")
+    .update(
+      canonicalJson({ ...structuredClone(result), recovery: childRunRecoveryAssessment(result) }),
+    )
+    .digest("hex")}`;
+}
+
+function requiredDispositionActor(result: ChildRunResult): DelegationDispositionActor {
+  const recovery = childRunRecoveryAssessment(result);
+  return isChildRunRecoverySafeForRedelegation(recovery) ? "parent_agent" : "human";
+}
+
+export function delegationDispositionViolation(
+  result: ChildRunResult,
+  action: DelegationDispositionAction,
+  decidedBy: DelegationDispositionActor,
+): "human_required" | "unsafe_redelegation" | undefined {
+  const recovery = childRunRecoveryAssessment(result);
+  if (requiredDispositionActor(result) === "human" && decidedBy !== "human") {
+    return "human_required";
+  }
+  if (action === "redelegate" && !isChildRunRecoverySafeForRedelegation(recovery)) {
+    return "unsafe_redelegation";
+  }
+  return undefined;
+}
+
+export function isChildRunRecoverySafeForRedelegation(
+  recovery: ChildRunRecoveryAssessment,
+): boolean {
+  return (
+    recovery.recoveryDisposition === "replay_safe" &&
+    recovery.quiescent &&
+    recovery.executionOwnership === "released" &&
+    (recovery.effectState === "none" || recovery.effectState === "not_started")
+  );
+}
+
+function assertDispositionRequest(request: DelegationDispositionRequest): void {
+  if (
+    request.dispositionId.trim().length === 0 ||
+    request.delegationId.trim().length === 0 ||
+    request.reason.trim().length === 0 ||
+    !["accept_failure", "choose_alternative", "redelegate", "propagate_terminal"].includes(
+      request.action,
+    ) ||
+    (request.decidedBy !== "parent_agent" && request.decidedBy !== "human") ||
+    (request.evidence !== undefined &&
+      (!Array.isArray(request.evidence) ||
+        request.evidence.some((item) => typeof item !== "string")))
+  ) {
+    throw new CoreMindError(
+      "delegation_disposition_conflict",
+      "Delegation Disposition 请求合同非法",
+    );
+  }
 }
 
 export function isChildRunFact(value: unknown): value is ChildRunFact {
@@ -1071,6 +1646,8 @@ export function isChildRunFact(value: unknown): value is ChildRunFact {
   if (value.budgetScope !== undefined && typeof value.budgetScope !== "string") return false;
   if (value.type === "delegation_recorded") {
     return (
+      (value.predecessorDelegationId === undefined ||
+        typeof value.predecessorDelegationId === "string") &&
       typeof value.parentTurnId === "string" &&
       typeof value.parentStepId === "string" &&
       typeof value.agentName === "string" &&
@@ -1082,6 +1659,32 @@ export function isChildRunFact(value: unknown): value is ChildRunFact {
       isChildRunBudgetAllocation(value.requestedAllocation) &&
       isChildRunPermissionSnapshot(value.requestedPermissions) &&
       isChildRunEnvironmentRequirement(value.requestedEnvironment)
+    );
+  }
+  if (value.type === "delegation_disposition_recorded") {
+    return (
+      typeof value.dispositionId === "string" &&
+      value.dispositionId.length > 0 &&
+      (value.action === "accept_failure" ||
+        value.action === "choose_alternative" ||
+        value.action === "redelegate" ||
+        value.action === "propagate_terminal") &&
+      (value.decidedBy === "parent_agent" || value.decidedBy === "human") &&
+      typeof value.reason === "string" &&
+      value.reason.length > 0 &&
+      isStringArray(value.evidence) &&
+      typeof value.resultFingerprint === "string" &&
+      isChildRunRecoveryAssessment(value.recovery)
+    );
+  }
+  if (value.type === "delegation_redelegation_cancelled") {
+    return (
+      typeof value.dispositionId === "string" &&
+      value.dispositionId.length > 0 &&
+      typeof value.parentTerminalCode === "string" &&
+      value.parentTerminalCode.length > 0 &&
+      typeof value.reason === "string" &&
+      value.reason.length > 0
     );
   }
   if (value.type === "child_created" || value.type === "child_running") return true;
@@ -1311,7 +1914,26 @@ function isChildRunResult(value: unknown): value is ChildRunResult {
     isStringArray(value.artifacts) &&
     Array.isArray(value.workspaceChanges) &&
     value.workspaceChanges.every(isChildRunWorkspaceChange) &&
-    isStringArray(value.unresolvedRisks)
+    isStringArray(value.unresolvedRisks) &&
+    (value.recovery === undefined || isChildRunRecoveryAssessment(value.recovery))
+  );
+}
+
+function isChildRunRecoveryAssessment(value: unknown): value is ChildRunRecoveryAssessment {
+  return (
+    isRecord(value) &&
+    (value.recoveryDisposition === "replay_safe" ||
+      value.recoveryDisposition === "requires_proof" ||
+      value.recoveryDisposition === "requires_human" ||
+      value.recoveryDisposition === "forbidden") &&
+    (value.effectState === "none" ||
+      value.effectState === "not_started" ||
+      value.effectState === "started" ||
+      value.effectState === "committed" ||
+      value.effectState === "unknown") &&
+    typeof value.quiescent === "boolean" &&
+    (value.executionOwnership === "released" || value.executionOwnership === "unknown") &&
+    isStringArray(value.evidence)
   );
 }
 

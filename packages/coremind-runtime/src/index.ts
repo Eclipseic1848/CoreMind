@@ -19,6 +19,7 @@ export {
   CHILD_RUN_LIMIT_DEFAULTS,
   type ChildRunBudgetAllocation,
   type ChildRunContextReference,
+  type ChildRunContinuationGate,
   ChildRunCoordinator,
   type ChildRunCoordinatorHierarchyLimits,
   type ChildRunCoordinatorOptions,
@@ -34,12 +35,21 @@ export {
   type ChildRunModelSnapshot,
   type ChildRunPermissionSnapshot,
   type ChildRunPolicySnapshot,
+  type ChildRunRecoveryAssessment,
   type ChildRunResult,
   type ChildRunWorkspaceChange,
   type ChildRunWorkspaceChangeKind,
   type ChildRunWorkspaceSnapshot,
   childRunInputFingerprint,
+  childRunRecoveryAssessment,
+  childRunResultFingerprint,
+  type DelegationDispositionAction,
+  type DelegationDispositionActor,
+  type DelegationDispositionFact,
+  type DelegationDispositionRequest,
+  type DelegationRedelegationCancelledFact,
   isChildRunFact,
+  type RecordedDelegationDisposition,
 } from "./child-run.js";
 export {
   type CoreMindChildRunAdapter,
@@ -263,6 +273,7 @@ export {
   type ProjectCheckReport,
 } from "./project-check.js";
 export {
+  type ChildRunDispositionProjection,
   type ChildRunNodeProjection,
   type ChildRunTreeProjection,
   ProjectionEngine,

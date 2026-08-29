@@ -1,14 +1,21 @@
 import path from "node:path";
+import type { RecoveryDisposition } from "coremind-tools";
 import type {
   ChildRunExecutionAdapter,
   ChildRunExecutionInput,
+  ChildRunRecoveryAssessment,
   ChildRunResult,
   ChildRunWorkspaceChange,
 } from "./child-run.js";
-import { childRunInputFingerprint } from "./child-run.js";
+import {
+  childRunInputFingerprint,
+  childRunRecoveryAssessment as normalizePersistedChildRunRecovery,
+} from "./child-run.js";
+import { validateEffectReceiptBindingsAgainstFacts } from "./effect-receipt-binding.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
 import { isRegisteredCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
+import { projectToolCapabilities } from "./tool-capability-projection.js";
 
 const CORE_MIND_CHILD_RUN_ADAPTER = Symbol("CoreMindChildRunAdapter");
 
@@ -83,7 +90,223 @@ function childRunResultFromRuntime(result: RunResult, canonicalRoot: string): Ch
     workspaceChanges: workspaceChangesFromCheckpoints(result, canonicalRoot),
     unresolvedRisks:
       result.outcome.error === undefined ? [] : [structuredClone(result.outcome.error.message)],
+    recovery: childRunRecoveryAssessment(result),
   };
+}
+
+function childRunRecoveryAssessment(result: RunResult): ChildRunRecoveryAssessment {
+  const direct = directChildRunRecoveryAssessment(result);
+  const tree = result.childRuns;
+  if (!tree) return direct;
+
+  const descendants = tree.nodes.map((node): ChildRunRecoveryAssessment => {
+    if (node.status !== "joined" || !node.result) {
+      return {
+        recoveryDisposition: "requires_human",
+        effectState: "unknown",
+        quiescent: false,
+        executionOwnership: "unknown",
+        evidence: [`child_run:${node.childRunId}:result_missing`],
+      };
+    }
+    if (!node.result.recovery) {
+      return {
+        recoveryDisposition: "requires_human",
+        effectState: "unknown",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: [`child_run:${node.childRunId}:recovery_missing`],
+      };
+    }
+    const recovery = normalizePersistedChildRunRecovery(node.result);
+    return {
+      ...recovery,
+      evidence: recovery.evidence.map((evidence) => `child_run:${node.childRunId}:${evidence}`),
+    };
+  });
+  const executionQuiescent =
+    tree.activeDescendants === 0 && descendants.every((assessment) => assessment.quiescent);
+  const executionOwnership =
+    descendants.every((assessment) => assessment.executionOwnership === "released") &&
+    direct.executionOwnership === "released"
+      ? "released"
+      : "unknown";
+  const assessments = [direct, ...descendants];
+  let recoveryDisposition = assessments.reduce<RecoveryDisposition>(
+    (current, assessment) =>
+      recoveryDispositionRank(assessment.recoveryDisposition) > recoveryDispositionRank(current)
+        ? assessment.recoveryDisposition
+        : current,
+    "replay_safe",
+  );
+  if (tree.unhandledDescendants > 0 || !executionQuiescent || executionOwnership === "unknown") {
+    if (recoveryDispositionRank("requires_human") > recoveryDispositionRank(recoveryDisposition)) {
+      recoveryDisposition = "requires_human";
+    }
+  }
+  const effectState = assessments.reduce<ChildRunRecoveryAssessment["effectState"]>(
+    (current, assessment) =>
+      effectStateRank(assessment.effectState) > effectStateRank(current)
+        ? assessment.effectState
+        : current,
+    "none",
+  );
+  return {
+    recoveryDisposition,
+    effectState,
+    quiescent: direct.quiescent && executionQuiescent,
+    executionOwnership,
+    evidence: [
+      ...new Set([
+        ...direct.evidence,
+        ...descendants.flatMap((assessment) => assessment.evidence),
+        ...(tree.unhandledDescendants > 0 ? ["child_run_tree:unhandled_descendants"] : []),
+      ]),
+    ],
+  };
+}
+
+function directChildRunRecoveryAssessment(result: RunResult): ChildRunRecoveryAssessment {
+  const events = result.trace.map((entry) => entry.event);
+  const hasToolEvidence = events.some((event) =>
+    [
+      "tool_call",
+      "tool_result",
+      "tool_attempt",
+      "capability_resolved",
+      "workspace_lease",
+      "effect_receipt",
+      "tool_lifecycle",
+    ].includes(event.type),
+  );
+  const hasToolCall = events.some((event) => event.type === "tool_call");
+  if (!hasToolEvidence) {
+    return {
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: ["trace:no_tool_calls", "runtime:quiescent", "execution_ownership:released"],
+    };
+  }
+  if (!hasToolCall) {
+    return {
+      recoveryDisposition: "requires_human",
+      effectState: "unknown",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: [
+        ...result.trace.map((entry) => `event:${entry.eventId}`),
+        "trace:tool_call_missing",
+        "runtime:quiescent",
+        "execution_ownership:released",
+      ],
+    };
+  }
+  const capabilities = projectToolCapabilities(events);
+  const receiptBindings = validateEffectReceiptBindingsAgainstFacts(result.runId, events);
+  const receiptByCall = new Map(
+    receiptBindings.flatMap((receipt) =>
+      receipt.provenance === "bound" && receipt.binding
+        ? [
+            [
+              toolCallKey(receipt.binding.agent, receipt.binding.stepId, receipt.binding.callId),
+              receipt,
+            ] as const,
+          ]
+        : [],
+    ),
+  );
+  const assessments: Array<
+    Pick<ChildRunRecoveryAssessment, "recoveryDisposition" | "effectState">
+  > = capabilities.map(({ agent, callId, stepId, capability, recoveryDisposition }) => {
+    const receipt =
+      callId === undefined ? undefined : receiptByCall.get(toolCallKey(agent, stepId, callId));
+    if (receipt?.status === "not_started") {
+      return { recoveryDisposition: "replay_safe" as const, effectState: "not_started" as const };
+    }
+    if (receipt !== undefined) {
+      return {
+        recoveryDisposition:
+          recoveryDisposition === "replay_safe" ? ("requires_human" as const) : recoveryDisposition,
+        effectState: receipt.status,
+      };
+    }
+    if (capability.effect === "none" && recoveryDisposition === "replay_safe") {
+      return { recoveryDisposition: "replay_safe" as const, effectState: "none" as const };
+    }
+    return {
+      recoveryDisposition,
+      effectState: "unknown" as const,
+    };
+  });
+  const hasUnboundReceipt = receiptBindings.some((receipt) => receipt.provenance === "legacy");
+  if (hasUnboundReceipt) {
+    assessments.push({ recoveryDisposition: "requires_human", effectState: "unknown" });
+  }
+  const recoveryDisposition = assessments.reduce<RecoveryDisposition>(
+    (current, assessment) =>
+      recoveryDispositionRank(assessment.recoveryDisposition) > recoveryDispositionRank(current)
+        ? assessment.recoveryDisposition
+        : current,
+    "replay_safe",
+  );
+  const effectState = assessments.reduce<ChildRunRecoveryAssessment["effectState"]>(
+    (current, assessment) =>
+      effectStateRank(assessment.effectState) > effectStateRank(current)
+        ? assessment.effectState
+        : current,
+    "none",
+  );
+  const boundReceiptIds = new Set(
+    receiptBindings.flatMap((receipt) =>
+      receipt.provenance === "bound" ? [receipt.idempotencyKey] : [],
+    ),
+  );
+  return {
+    recoveryDisposition,
+    effectState,
+    quiescent: true,
+    executionOwnership: "released",
+    evidence: [
+      ...result.trace
+        .filter((entry) => entry.event.type === "capability_resolved")
+        .map((entry) => `event:${entry.eventId}`),
+      ...result.trace
+        .filter(
+          (entry) =>
+            entry.event.type === "effect_receipt" &&
+            boundReceiptIds.has(entry.event.idempotencyKey),
+        )
+        .map((entry) => `event:${entry.eventId}`),
+      ...(hasUnboundReceipt ? ["trace:unbound_effect_receipt"] : []),
+      "runtime:quiescent",
+      "execution_ownership:released",
+    ],
+  };
+}
+
+function toolCallKey(agent: string, stepId: string | undefined, callId: string): string {
+  return `${agent}\u0000${stepId ?? ""}\u0000${callId}`;
+}
+
+function recoveryDispositionRank(disposition: RecoveryDisposition): number {
+  return {
+    replay_safe: 0,
+    requires_proof: 1,
+    requires_human: 2,
+    forbidden: 3,
+  }[disposition];
+}
+
+function effectStateRank(state: ChildRunRecoveryAssessment["effectState"]): number {
+  return {
+    none: 0,
+    not_started: 1,
+    committed: 2,
+    started: 3,
+    unknown: 4,
+  }[state];
 }
 
 function assertChildResultOwnership(result: RunResult): void {

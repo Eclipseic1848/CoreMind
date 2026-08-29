@@ -12,6 +12,7 @@ import {
   createCoreMindChildRunAdapter,
   isCoreMindChildRunAdapter,
 } from "./child-runtime-adapter.js";
+import { createEffectReceiptBinding } from "./effect-receipt-binding.js";
 import { CoreMindRuntime, type RunResult } from "./runtime.js";
 
 const temporaryDirectories: string[] = [];
@@ -67,6 +68,248 @@ describe("CoreMind Child Runtime Adapter", () => {
 
     await expect(adapter.execute(executionInput())).rejects.toMatchObject({
       code: "child_run_not_quiescent",
+    });
+  });
+
+  it("无 Tool Call 的静止 Child Run 由 Adapter 评估为可安全重新委派", async () => {
+    await expect(executeRuntimeTrace([])).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "replay_safe",
+        effectState: "none",
+        quiescent: true,
+        executionOwnership: "released",
+      },
+    });
+  });
+
+  it("后代 Child 已产生 committed Effect 时不能把当前 Child 判为 replay_safe", async () => {
+    await expect(
+      executeRuntimeTrace([], {
+        childRuns: descendantChildRuns({
+          recoveryDisposition: "requires_proof",
+          effectState: "committed",
+          quiescent: true,
+          executionOwnership: "released",
+          evidence: ["event:grandchild-effect-committed"],
+        }),
+      }),
+    ).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_proof",
+        effectState: "committed",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: expect.arrayContaining([
+          "child_run:run-grandchild:event:grandchild-effect-committed",
+        ]),
+      },
+    });
+  });
+
+  it("后代执行已静止但仍有未处置结果时要求人工且不谎报执行未静止", async () => {
+    const childRuns = descendantChildRuns({
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: [],
+    });
+    childRuns.unhandledDescendants = 1;
+    childRuns.quiescent = false;
+
+    await expect(executeRuntimeTrace([], { childRuns })).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_human",
+        effectState: "none",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: expect.arrayContaining(["child_run_tree:unhandled_descendants"]),
+      },
+    });
+  });
+
+  it("存在孤立 EffectReceipt 时不能按无 Tool Call 判为 replay_safe", async () => {
+    const trace = [
+      traceEntry("event-orphan-receipt", 1, {
+        type: "effect_receipt",
+        idempotencyKey: "run-child:call-missing",
+        tool: "write",
+        status: "not_started",
+      }),
+    ];
+    await expect(executeRuntimeTrace(trace)).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_human",
+        effectState: "unknown",
+      },
+    });
+  });
+
+  it("只有 replay_safe 且 effect none 的 Tool Call 时仍可安全重新委派", async () => {
+    await expect(executeRuntimeTrace(safeToolTrace())).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "replay_safe",
+        effectState: "none",
+        quiescent: true,
+        executionOwnership: "released",
+      },
+    });
+  });
+
+  it("Tool Call 缺少 Capability Fact 时失败关闭为人工处置", async () => {
+    await expect(
+      executeRuntimeTrace([
+        traceEntry("event-tool-call-without-capability", 1, {
+          type: "tool_call",
+          agent: "main",
+          tool: "write",
+          args: { path: "result.txt" },
+          callId: "call-without-capability",
+          idempotencyKey: "run-child:call-without-capability",
+          turnId: "turn-without-capability",
+        }),
+      ]),
+    ).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_human",
+        effectState: "unknown",
+        quiescent: true,
+        executionOwnership: "released",
+      },
+    });
+  });
+
+  it("绑定到非 replay-safe Call 的 not_started Receipt 可证明尚未执行", async () => {
+    const trace = effectfulToolTrace("unsafe", "forbidden", ["not_started"]);
+    await expect(executeRuntimeTrace(trace)).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "replay_safe",
+        effectState: "not_started",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: expect.arrayContaining(["event:event-receipt-not_started"]),
+      },
+    });
+  });
+
+  it("已 committed 的 idempotent Call 保留 requires_proof，不能判为 replay_safe", async () => {
+    const trace = effectfulToolTrace("idempotent", "requires_proof", ["started", "committed"]);
+    await expect(executeRuntimeTrace(trace)).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_proof",
+        effectState: "committed",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: expect.arrayContaining(["event:event-receipt-committed"]),
+      },
+    });
+  });
+
+  it("effect none Capability 与 started Receipt 冲突时失败关闭为 requires_human", async () => {
+    await expect(executeRuntimeTrace(safeToolTrace("started"))).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_human",
+        effectState: "started",
+      },
+    });
+  });
+
+  it("未绑定的 started Receipt 使 replay_safe Capability 失败关闭", async () => {
+    await expect(executeRuntimeTrace(safeToolTrace("started", false))).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "requires_human",
+        effectState: "unknown",
+      },
+    });
+  });
+
+  it.each([
+    {
+      name: "unsafe Call 停在 started",
+      replay: "unsafe" as const,
+      recoveryDisposition: "forbidden" as const,
+      receiptStatuses: ["started"] as const,
+      expectedDisposition: "forbidden",
+      expectedEffectState: "started",
+    },
+    {
+      name: "unknown Call 最终 Effect 状态未知",
+      replay: "unknown" as const,
+      recoveryDisposition: "requires_human" as const,
+      receiptStatuses: ["started", "unknown"] as const,
+      expectedDisposition: "requires_human",
+      expectedEffectState: "unknown",
+    },
+  ])(
+    "$name 时不能判为 replay_safe",
+    async ({
+      replay,
+      recoveryDisposition,
+      receiptStatuses,
+      expectedDisposition,
+      expectedEffectState,
+    }) => {
+      const trace = effectfulToolTrace(replay, recoveryDisposition, receiptStatuses);
+      await expect(executeRuntimeTrace(trace)).resolves.toMatchObject({
+        recovery: {
+          recoveryDisposition: expectedDisposition,
+          effectState: expectedEffectState,
+          quiescent: true,
+          executionOwnership: "released",
+        },
+      });
+    },
+  );
+
+  it("聚合整个 Child Run 时保留任一 Call 的最严格恢复约束", async () => {
+    const unsafeTrace = effectfulToolTrace("unsafe", "forbidden", ["started"]).map(
+      (entry, index) => ({
+        ...entry,
+        eventId: `mixed-${entry.eventId}`,
+        sequence: index + 3,
+      }),
+    );
+    await expect(executeRuntimeTrace([...safeToolTrace(), ...unsafeTrace])).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "forbidden",
+        effectState: "started",
+      },
+    });
+  });
+
+  it("未绑定的 not_started Receipt 不是充分证明", async () => {
+    const trace = effectfulToolTrace("unsafe", "forbidden", ["not_started"]).map((entry) =>
+      entry.event.type === "effect_receipt"
+        ? { ...entry, event: { ...entry.event, binding: undefined } }
+        : entry,
+    ) as RunResult["trace"];
+    await expect(executeRuntimeTrace(trace)).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "forbidden",
+        effectState: "unknown",
+      },
+    });
+  });
+
+  it("Child 输出不能覆盖 Adapter 从 Trace 生成的恢复评估", async () => {
+    await expect(
+      executeRuntimeTrace([], {
+        recovery: {
+          recoveryDisposition: "forbidden",
+          effectState: "committed",
+          quiescent: false,
+          executionOwnership: "unknown",
+          evidence: ["child:untrusted"],
+        },
+      }),
+    ).resolves.toMatchObject({
+      recovery: {
+        recoveryDisposition: "replay_safe",
+        effectState: "none",
+        quiescent: true,
+        executionOwnership: "released",
+        evidence: expect.not.arrayContaining(["child:untrusted"]),
+      },
     });
   });
 
@@ -418,4 +661,186 @@ async function createRegisteredRuntime(): Promise<CoreMindRuntime> {
     configDir,
     cwd: configDir,
   });
+}
+
+async function executeRuntimeTrace(
+  trace: RunResult["trace"],
+  extraResult: Readonly<Record<string, unknown>> = {},
+) {
+  const runtime = await createRegisteredRuntime();
+  runtime.verifyChildRunAuthority = async () => undefined;
+  runtime.run = async () =>
+    ({
+      runId: "run-child",
+      outcome: { status: "failed", finishReason: "error" },
+      artifacts: [],
+      checkpoints: [],
+      snapshot: { artifacts: [] },
+      ...extraResult,
+      trace,
+    }) as RunResult;
+  runtime.waitForQuiescence = async () => true;
+  return createCoreMindChildRunAdapter({ createRuntime: async () => runtime }).execute(
+    executionInput(),
+  );
+}
+
+function descendantChildRuns(
+  recovery: NonNullable<NonNullable<RunResult["childRuns"]>["nodes"][number]["result"]>["recovery"],
+): NonNullable<RunResult["childRuns"]> {
+  return {
+    nodes: [
+      {
+        status: "joined",
+        childRunId: "run-grandchild",
+        result: {
+          outcome: { status: "succeeded", finishReason: "completed" },
+          evidence: [],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: [],
+          recovery,
+        },
+      } as NonNullable<RunResult["childRuns"]>["nodes"][number],
+    ],
+    activeDescendants: 0,
+    unhandledDescendants: 0,
+    quiescent: true,
+  };
+}
+
+function traceEntry(
+  eventId: string,
+  sequence: number,
+  event: RunResult["trace"][number]["event"],
+): RunResult["trace"][number] {
+  return {
+    eventId,
+    runId: "run-child",
+    sequence,
+    timestamp: "2026-08-29T00:00:00.000Z",
+    event,
+  };
+}
+
+function safeToolTrace(
+  receiptStatus?: "not_started" | "started" | "committed" | "unknown",
+  bound = true,
+): RunResult["trace"] {
+  const args = { query: "status" };
+  const capability = {
+    tool: "inspect",
+    effect: "none" as const,
+    replay: "safe" as const,
+    concurrency: "parallel" as const,
+    checkpoint: "none" as const,
+    durability: "ordinary" as const,
+    source: "registered" as const,
+    resolution: "resolved" as const,
+    issues: [],
+  };
+  const trace: RunResult["trace"] = [
+    traceEntry("event-tool-call", 1, {
+      type: "tool_call",
+      agent: "main",
+      tool: "inspect",
+      args,
+      callId: "call-inspect",
+      idempotencyKey: "run-child:call-inspect",
+      turnId: "turn-inspect",
+    }),
+    traceEntry("event-capability", 2, {
+      type: "capability_resolved",
+      agent: "main",
+      tool: "inspect",
+      callId: "call-inspect",
+      capability,
+      recoveryDisposition: "replay_safe",
+    }),
+  ];
+  if (receiptStatus === undefined) return trace;
+  return [
+    ...trace,
+    traceEntry(`event-receipt-${receiptStatus}`, 3, {
+      type: "effect_receipt",
+      idempotencyKey: "run-child:call-inspect",
+      tool: "inspect",
+      status: receiptStatus,
+      agent: "main",
+      callId: "call-inspect",
+      turnId: "turn-inspect",
+      ...(bound
+        ? {
+            binding: createEffectReceiptBinding({
+              runId: "run-child",
+              turnId: "turn-inspect",
+              agent: "main",
+              callId: "call-inspect",
+              tool: "inspect",
+              args,
+              capability,
+            }),
+          }
+        : {}),
+    }),
+  ];
+}
+
+function effectfulToolTrace(
+  replay: "idempotent" | "unsafe" | "unknown",
+  recoveryDisposition: "requires_proof" | "forbidden" | "requires_human",
+  receiptStatuses: readonly ("not_started" | "started" | "committed" | "unknown")[],
+): RunResult["trace"] {
+  const args = { target: "external-resource" };
+  const capability = {
+    tool: "effectful",
+    effect: "external" as const,
+    replay,
+    concurrency: "run_serial" as const,
+    checkpoint: "unsupported" as const,
+    durability: "critical" as const,
+    source: "registered" as const,
+    resolution: "resolved" as const,
+    issues: [],
+  };
+  const binding = createEffectReceiptBinding({
+    runId: "run-child",
+    turnId: "turn-effectful",
+    agent: "main",
+    callId: "call-effectful",
+    tool: "effectful",
+    args,
+    capability,
+  });
+  return [
+    traceEntry("event-tool-call", 1, {
+      type: "tool_call",
+      agent: "main",
+      tool: "effectful",
+      args,
+      callId: "call-effectful",
+      idempotencyKey: "run-child:call-effectful",
+      turnId: "turn-effectful",
+    }),
+    traceEntry("event-capability", 2, {
+      type: "capability_resolved",
+      agent: "main",
+      tool: "effectful",
+      callId: "call-effectful",
+      capability,
+      recoveryDisposition,
+    }),
+    ...receiptStatuses.map((status, index) =>
+      traceEntry(`event-receipt-${status}`, index + 3, {
+        type: "effect_receipt",
+        idempotencyKey: "run-child:call-effectful",
+        tool: "effectful",
+        status,
+        agent: "main",
+        callId: "call-effectful",
+        turnId: "turn-effectful",
+        binding,
+      }),
+    ),
+  ];
 }

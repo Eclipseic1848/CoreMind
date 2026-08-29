@@ -57,12 +57,14 @@ describe("RunContext", () => {
     let cancelReason: string | undefined;
     context.attachChildRuns({
       isQuiescent: () => quiescent,
+      isExecutionQuiescent: () => true,
       cancelAll: async (reason: string) => {
         cancelReason = reason;
         quiescent = true;
       },
     } as ChildRunCoordinator);
 
+    expect(context.isExecutionQuiescent()).toBe(true);
     expect(context.isQuiescent()).toBe(false);
     await context.cancelChildRuns("父 Runtime 取消");
     expect(cancelReason).toBe("父 Runtime 取消");

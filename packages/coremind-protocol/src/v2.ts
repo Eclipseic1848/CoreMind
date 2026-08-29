@@ -116,6 +116,20 @@ export const ProtocolV2ControlCommandSchema = Type.Union([
     ProtocolV2ControlBaseSchema,
     Type.Object({ type: Type.Literal("follow_up"), message: Type.String({ minLength: 1 }) }),
   ]),
+  Type.Composite([
+    ProtocolV2ControlBaseSchema,
+    Type.Object({
+      type: Type.Literal("delegation_disposition"),
+      delegationId: Type.String({ minLength: 1 }),
+      action: Type.Union([
+        Type.Literal("accept_failure"),
+        Type.Literal("choose_alternative"),
+        Type.Literal("redelegate"),
+        Type.Literal("propagate_terminal"),
+      ]),
+      reason: Type.String({ minLength: 1 }),
+    }),
+  ]),
 ]);
 
 export const ProtocolV2ControlRequestSchema = Type.Object(
@@ -203,6 +217,7 @@ export const ProtocolV2RunHandleSchema = Type.Object(
         Type.Literal("approval"),
         Type.Literal("steering"),
         Type.Literal("follow_up"),
+        Type.Literal("delegation_disposition"),
       ]),
       { uniqueItems: true },
     ),

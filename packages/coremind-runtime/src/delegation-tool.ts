@@ -5,11 +5,12 @@ import type {
   ToolEffectDeclaration,
 } from "coremind-config";
 import { resolveToolCapability } from "coremind-tools";
-import { CHILD_RUN_LIMIT_DEFAULTS } from "./child-run.js";
+import { CHILD_RUN_LIMIT_DEFAULTS, type DelegationDispositionAction } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
 import type { CallId } from "./ids.js";
 
 export const DELEGATION_TOOL_NAME = "delegate";
+export const DELEGATION_DISPOSITION_TOOL_NAME = "dispose_delegation";
 export const DELEGATION_TOOL_EFFECT: ToolEffectDeclaration = {
   operations: ["read"],
   reversible: true,
@@ -25,12 +26,34 @@ export const DELEGATION_TOOL_CAPABILITY = resolveToolCapability({
     durability: "critical",
   },
 });
+export const DELEGATION_DISPOSITION_TOOL_EFFECT: ToolEffectDeclaration = {
+  operations: ["read"],
+  reversible: true,
+};
+export const DELEGATION_DISPOSITION_TOOL_CAPABILITY = resolveToolCapability({
+  tool: DELEGATION_DISPOSITION_TOOL_NAME,
+  source: "registered",
+  declaration: {
+    effect: "none",
+    replay: "safe",
+    concurrency: "run_serial",
+    checkpoint: "none",
+    durability: "critical",
+  },
+});
 
 export interface DelegationToolArgs {
   target: string;
   task: string;
   references: string[];
+  recoveryOf?: string;
   limits?: DelegationToolLimits;
+}
+
+export interface DelegationDispositionToolArgs {
+  delegationId: string;
+  action: DelegationDispositionAction;
+  reason: string;
 }
 
 export type DelegationToolLimits = Partial<
@@ -53,6 +76,11 @@ export function createDelegationAgentTool(
         references: {
           type: "array",
           items: { type: "string", pattern: "^(fact|artifact):" },
+        },
+        recoveryOf: {
+          type: "string",
+          minLength: 1,
+          description: "仅安全重新委派时填写的前一次 DelegationId。",
         },
         limits: {
           type: "object",
@@ -85,12 +113,38 @@ export function createDelegationAgentTool(
   } as AgentTool;
 }
 
+export function createDelegationDispositionAgentTool(
+  execute: (args: unknown, callId: CallId) => Promise<unknown>,
+): AgentTool {
+  return {
+    name: DELEGATION_DISPOSITION_TOOL_NAME,
+    label: "Dispose Delegation",
+    description:
+      "记录一个未自动接受的 Child Run 持久处置。安全门要求人工时本工具会失败关闭；重新委派仍需随后调用 delegate 并填写 recoveryOf。",
+    parameters: {
+      type: "object",
+      properties: {
+        delegationId: { type: "string", minLength: 1 },
+        action: {
+          type: "string",
+          enum: ["accept_failure", "choose_alternative", "redelegate", "propagate_terminal"],
+        },
+        reason: { type: "string", minLength: 1 },
+      },
+      required: ["delegationId", "action", "reason"],
+      additionalProperties: false,
+    },
+    execute: async (callId, args) =>
+      execute(args, callId as CallId) as ReturnType<AgentTool["execute"]>,
+  } as AgentTool;
+}
+
 export function parseDelegationToolArgs(value: unknown): DelegationToolArgs {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new CoreMindError("invalid_tool", "delegate 参数必须是对象");
   }
   const record = value as Record<string, unknown>;
-  const allowed = new Set(["target", "task", "references", "limits"]);
+  const allowed = new Set(["target", "task", "references", "recoveryOf", "limits"]);
   const extra = Object.keys(record).filter((key) => !allowed.has(key));
   if (extra.length > 0) {
     throw new CoreMindError(
@@ -118,11 +172,63 @@ export function parseDelegationToolArgs(value: unknown): DelegationToolArgs {
     );
   }
   const limits = parseDelegationLimits(record.limits);
+  if (
+    record.recoveryOf !== undefined &&
+    (typeof record.recoveryOf !== "string" || record.recoveryOf.trim().length === 0)
+  ) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "delegate.recoveryOf 必须是非空 DelegationId",
+    );
+  }
   return {
     target: record.target,
     task: record.task,
     references: [...references],
+    ...(typeof record.recoveryOf === "string" ? { recoveryOf: record.recoveryOf } : {}),
     ...(limits ? { limits } : {}),
+  };
+}
+
+export function parseDelegationDispositionToolArgs(value: unknown): DelegationDispositionToolArgs {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new CoreMindError("delegation_disposition_conflict", "dispose_delegation 参数必须是对象");
+  }
+  const record = value as Record<string, unknown>;
+  const allowed = new Set(["delegationId", "action", "reason"]);
+  if (Object.keys(record).some((key) => !allowed.has(key))) {
+    throw new CoreMindError(
+      "delegation_disposition_conflict",
+      "dispose_delegation 不接受安全证明或权限覆盖字段",
+    );
+  }
+  if (typeof record.delegationId !== "string" || record.delegationId.trim().length === 0) {
+    throw new CoreMindError(
+      "delegation_disposition_conflict",
+      "dispose_delegation.delegationId 必须是非空字符串",
+    );
+  }
+  if (
+    record.action !== "accept_failure" &&
+    record.action !== "choose_alternative" &&
+    record.action !== "redelegate" &&
+    record.action !== "propagate_terminal"
+  ) {
+    throw new CoreMindError(
+      "delegation_disposition_conflict",
+      "dispose_delegation.action 不是受支持的处置动作",
+    );
+  }
+  if (typeof record.reason !== "string" || record.reason.trim().length === 0) {
+    throw new CoreMindError(
+      "delegation_disposition_conflict",
+      "dispose_delegation.reason 必须是非空字符串",
+    );
+  }
+  return {
+    delegationId: record.delegationId,
+    action: record.action,
+    reason: record.reason,
   };
 }
 

@@ -253,6 +253,27 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "delegation_disposition_required": {
+      "terminality": "pausable",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "runStatus": "paused",
+      "humanAction": "required"
+    },
+    "delegation_disposition_conflict": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "delegation_redelegation_unsafe": {
+      "terminality": "pausable",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "runStatus": "paused",
+      "humanAction": "required"
+    },
     "run_state_corrupt": {
       "terminality": "terminal",
       "cancelClass": "corruption",

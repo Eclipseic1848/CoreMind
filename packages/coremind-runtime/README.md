@@ -8,6 +8,8 @@ Runtime、Provider、Tool、Child Run 与 Evaluation 入口共用 Protocol 的 E
 
 配置了 `agents.<parent>.delegation.targets` 后，Runtime 只在该父 Agent 的活动 Run 中注入内建 `delegate` 工具。调用只能选择 allowlist 目标、提交任务、显式 Fact/Artifact 引用和更严格的预算；Runtime 派生 Provider、Workspace、权限与生命周期，等待独立 Child Run 结束后返回带 `childRunId` 的结构化结果。未配置时工具不可见且不会产生 Child Run Fact。
 
+成功 Child Run 仅在执行静止、所有权释放且没有 started/unknown Effect 时于 join 后默认接受；committed Effect 可以随成功结果接受，但不能证明可安全重新委派。失败、取消、超时、预算耗尽或带未决风险的异常成功结果必须由 `dispose_delegation` 持久记录接受风险、替代方案、重新委派或传播终态，父 Run 才能继续或结束。重新委派只在 RecoveryDisposition 明确安全时允许，并要求新的 DelegationId、新预算和指向原尝试的 `recoveryOf`。恢复审计在任何新 Provider 请求前把失去所有权的活动子级持久化为 `child_orphaned → parent_joined`；orphan、started/unknown Effect、未静止和所有权不明要求人工处置。父级已有终态时会先暂停并保存该终态，处置完成后直接恢复，避免重复 Provider 请求。
+
 Delegation 使用独立批准矩阵：`ask` 每次询问，`assisted` 只自动批准 Config 显式 `preapproved: true` 且满足全部限制的目标，`full` 只对合规请求免询问。显式 deny、目标 allowlist、预算、工具不扩权、路径、网络和凭据边界在审批前失败关闭。审批请求及 required/resolved 事实携带参数指纹，以及与实际 `delegation_recorded` 完全相同的 Child Run 输入指纹；任何改变都不能复用原批准。委派批准只创建 Child Run，子级 ToolPolicy 与 Effect 审批独立执行并写入子 Run 事实。
 
 交互入口可在一轮运行期间调用 `ChatSession.inspectCurrentRunProjection()`，只读查询已经持久化的 canonical Facts，并通过唯一 `ProjectionEngine` 重建当前父子树。它不强制刷新 journal，也不暴露 Child Run Coordinator、内部 Map 或 Worker 私有状态；尚未产生持久 Fact 时返回 `undefined`。
@@ -26,15 +28,21 @@ Runtime 在 Policy 与 Checkpoint 前为每个 Call 记录一次 `capability_res
 
 `ControlInbox` 与当前 Run 的 `RunStateJournal` 共用单一 Fact writer。Cancel、Approval、Steering 和 Follow-up 先持久化为 accepted，再在可应用点写入 applied 或 rejected；相同 `controlId` 与相同指纹返回 duplicate，不同内容返回 conflict。ACK 只证明对应阶段已持久化，不把 Cancel ACK 冒充为 Quiescent。`ProjectionEngine` 从 Facts 重建 pending controls，Host 或连接重启后可以重试未决控制而不重复已应用副作用。
 
+Delegation Disposition 同样进入该持久 ControlInbox。Protocol Host 可在 Run 已暂停且 Runtime 不活动时先返回 `accepted`；恢复并重建 Child Coordinator 后才应用语义校验并写入 `applied` 或 `rejected`。
+
 ## English: Durable controls
 
 Runtime, Provider, Tool, Child Run, and Evaluation entry points share the Protocol Error Contract. Registered errors retain their stable classifications. Unknown external failures become the pausing, non-retryable `unclassified_error`; only a redacted `audit.originalCode` is retained in the Outcome and durable Fact. Recovery requires human disposition instead of guessing that an unknown failure is transient.
 
 Delegation uses a dedicated approval matrix: `ask` prompts for every request; `assisted` auto-approves only a Config target explicitly marked `preapproved: true` when every hard boundary passes; and `full` skips prompts only for compliant requests. Explicit deny rules, the target allowlist, budgets, non-expanding tools, paths, network, and credentials fail closed before approval. Required and resolved approval Facts carry both an argument fingerprint and the exact Child Run input fingerprint later persisted by `delegation_recorded`. Delegation Approval creates only the Child Run; the child's ToolPolicy and Effect approvals remain independent child Run Facts.
 
+A successful joined Child Run is accepted by default only when execution is quiescent, ownership is released, and no Effect is started or unknown. A committed Effect may accompany an accepted success, but it does not prove safe redelegation. Failure, cancellation, timeout, budget exhaustion, and anomalous success with unresolved risk require a durable disposition before the parent may continue or terminate. Redelegation requires an explicitly safe RecoveryDisposition, a new Delegation ID, a new budget, and a `recoveryOf` link. Before any new Provider request, recovery persists a lost-ownership active child as `child_orphaned → parent_joined`; orphaned execution, started or unknown effects, non-quiescence, and unclear ownership then require a human decision. If the parent already has a terminal error, Runtime pauses and preserves it until the Child disposition is complete, then restores it without another Provider request.
+
 During an interactive turn, `ChatSession.inspectCurrentRunProjection()` provides a read-only view of already persisted canonical Facts rebuilt by the single `ProjectionEngine`. It does not force a journal flush or expose the Child Run Coordinator, internal maps, or Worker-private state, and returns `undefined` before any durable Fact exists.
 
 `ControlInbox` shares the current RunStateJournal's single fact writer. Cancel, Approval, Steering, and Follow-up are persisted as accepted before an applicable point records applied or rejected. The same control ID and fingerprint returns duplicate; different content returns conflict. An acknowledgement proves only its persisted stage and never represents Cancel as Quiescent. ProjectionEngine rebuilds pending controls from facts, so a Host or connection restart can retry unresolved controls without repeating an applied effect.
+
+Delegation Disposition uses the same durable inbox. A Protocol Host may persist it as accepted while a Run is paused and no Runtime is active; only a resumed Runtime with a rebuilt Child Coordinator may record it as applied or rejected.
 
 ## English: Tool lifecycle
 

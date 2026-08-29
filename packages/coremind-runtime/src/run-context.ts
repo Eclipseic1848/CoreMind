@@ -115,13 +115,18 @@ export class RunContext<THarness> {
   }
 
   isQuiescent(): boolean {
+    if (!this.isExecutionQuiescent()) return false;
+    return this.childRuns === undefined || this.childRuns.isQuiescent();
+  }
+
+  isExecutionQuiescent(): boolean {
     for (const agent of this.agents.values()) {
       const status = agent.status();
       if (status.running || status.pendingToolCalls > 0 || status.queuedControls > 0) {
         return false;
       }
     }
-    if (this.childRuns && !this.childRuns.isQuiescent()) return false;
+    if (this.childRuns && !this.childRuns.isExecutionQuiescent()) return false;
     if (this.executionEnvironment && !this.executionEnvironment.isQuiescent()) return false;
     return this.journal === undefined || !hasPendingJournalFlush(this.journal);
   }

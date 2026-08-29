@@ -23,9 +23,11 @@ import {
 } from "coremind-ai";
 import {
   buildProviderRuntime,
+  ControlInbox,
   classifyExecutionError,
   enforceExecutionSecurity,
   ProjectionEngine,
+  type RunId,
 } from "coremind-ai/internal";
 import {
   createErrorResponse,
@@ -60,7 +62,13 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "controlInbox",
   "projectionQuery",
 ] as const;
-const PROTOCOL_V2_AVAILABLE_CONTROLS = ["cancel", "approval", "steering", "follow_up"] as const;
+const PROTOCOL_V2_AVAILABLE_CONTROLS = [
+  "cancel",
+  "approval",
+  "steering",
+  "follow_up",
+  "delegation_disposition",
+] as const;
 
 export type WorkerMessage =
   | ProtocolSuccessResponse
@@ -138,6 +146,8 @@ export class ProtocolHost {
       handle: ProtocolV2RunHandle;
     }
   >();
+  private readonly pausedControlInboxes = new Map<string, Promise<ControlInbox>>();
+  private readonly protocolV2RunTransitions = new Map<string, Promise<void>>();
   private activeController?: AbortController;
   private activeRuntime?: WorkerRuntime;
   private activeRunId?: string;
@@ -212,10 +222,20 @@ export class ProtocolHost {
     }
     try {
       if (request.method === "run" || request.method === "chat" || request.method === "resume") {
-        return createSuccessResponse(request.id, await this.beginProtocolV2Run(request));
+        return createSuccessResponse(
+          request.id,
+          await this.withProtocolV2RunTransition(request.params.runId, () =>
+            this.beginProtocolV2Run(request),
+          ),
+        );
       }
       if (request.method === "control") {
-        return createSuccessResponse(request.id, await this.acceptProtocolV2Control(request));
+        return createSuccessResponse(
+          request.id,
+          await this.withProtocolV2RunTransition(request.params.runId, () =>
+            this.acceptProtocolV2Control(request),
+          ),
+        );
       }
       if (request.method === "events") {
         return createSuccessResponse(request.id, await this.readProtocolV2Events(request));
@@ -231,6 +251,27 @@ export class ProtocolHost {
       );
     } catch (error) {
       return protocolError(request.id, error);
+    }
+  }
+
+  private async withProtocolV2RunTransition<T>(
+    runId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.protocolV2RunTransitions.get(runId) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.protocolV2RunTransitions.set(runId, current);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.protocolV2RunTransitions.get(runId) === current) {
+        this.protocolV2RunTransitions.delete(runId);
+      }
     }
   }
 
@@ -319,11 +360,57 @@ export class ProtocolHost {
   private async acceptProtocolV2Control(
     request: ProtocolV2ControlRequest,
   ): Promise<ControlReceipt> {
+    const activeRunId = this.activeRunId ?? this.requestedRunId;
+    if (
+      request.params.type === "delegation_disposition" &&
+      (!this.running || activeRunId !== request.params.runId)
+    ) {
+      try {
+        return await (await this.pausedControlInbox(request.params.runId)).accept(request.params);
+      } finally {
+        this.pausedControlInboxes.delete(request.params.runId);
+      }
+    }
     const runtime = await this.waitForActiveRuntime(request.params.runId);
     if (!runtime.acceptControl) {
       throw new CoreMindError("control_unavailable", "当前 Runtime 不支持持久 ControlInbox");
     }
     return runtime.acceptControl(request.params);
+  }
+
+  private async pausedControlInbox(runId: string): Promise<ControlInbox> {
+    const existing = this.pausedControlInboxes.get(runId);
+    if (existing) return existing;
+    const state = this.requireInitialized();
+    const created = (async () => {
+      const records = await state.runStore.read(runId);
+      if (records.length === 0) {
+        throw new CoreMindError("unknown_run", `未找到 runId：${runId}`);
+      }
+      const projection = ProjectionEngine.project(records);
+      if (projection.status !== "paused") {
+        throw new CoreMindError(
+          "control_unavailable",
+          `runId ${runId} 不处于可接收离线 Delegation Disposition 的暂停态`,
+        );
+      }
+      return new ControlInbox({
+        runId: runId as RunId,
+        journal: new RunStateJournal(runId, state.runStore, records.at(-1)!.sequence),
+        records,
+        // 离线 Host 只能持久接收；业务语义在恢复并重建 Child Coordinator 后应用。
+        apply: async () => "accepted",
+      });
+    })();
+    this.pausedControlInboxes.set(runId, created);
+    try {
+      return await created;
+    } catch (error) {
+      if (this.pausedControlInboxes.get(runId) === created) {
+        this.pausedControlInboxes.delete(runId);
+      }
+      throw error;
+    }
   }
 
   private async readProtocolV2Events(request: ProtocolV2EventsRequest): Promise<unknown> {
@@ -575,6 +662,8 @@ export class ProtocolHost {
   ): Promise<unknown> {
     const state = this.requireInitialized();
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
+    const runId = requestedRunId ?? resumeRunId;
+    if (runId) this.pausedControlInboxes.delete(runId);
     this.running = true;
     this.lastExecutionQuiescent = false;
     this.activeExecutionCompletion = new Promise<void>((resolve) => {
@@ -633,7 +722,10 @@ export class ProtocolHost {
       });
       this.activeRuntime = runtime;
       const result = await runtime.run();
-      this.lastExecutionQuiescent = result.childRuns?.quiescent !== false;
+      this.lastExecutionQuiescent =
+        result.childRuns === undefined ||
+        (result.childRuns.activeDescendants === 0 &&
+          result.childRuns.nodes.every((node) => node.status === "joined"));
       return serializeRunResult(result);
     } finally {
       this.running = false;

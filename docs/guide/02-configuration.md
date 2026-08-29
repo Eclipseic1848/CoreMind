@@ -116,6 +116,10 @@ agents:
 
 层级默认上限是最大深度 3、每个父 Agent 最多 4 个活动 Child Run、总后代数 32；Config 与单次委派都只能收紧。可证明发生在首个委派 Fact 持久化前的初始化失败会释放本次预留；一旦 `child_created` 已持久化，未使用的 token、工具调用、费用、wall time、步骤或后代额度都不会退款。若关键创建 Fact 的提交结果未知，系统会保留已记录的身份和预算，等待 orphan audit，而不会复用 DelegationId。相同 DelegationId 与相同规范化输入只返回原 ChildRunId；同 ID 不同输入以 `delegation_conflict` 失败，且不会产生第二次执行。
 
+成功且执行已静止、所有权已释放、没有 started/unknown Effect 的 Child Run 在 `parent_joined` 后默认接受；已完成的 committed Effect 不会把成功结果改成失败，但不能作为安全重新委派的证明。失败、主动取消、超时、预算耗尽，以及带有上述未决风险的异常成功结果会让父级进入持久处置门：父 Agent 必须调用 `dispose_delegation`，提交原 `delegationId`、`accept_failure` / `choose_alternative` / `redelegate` / `propagate_terminal` 之一和非空理由，才能继续或结束。恢复审计会在任何新 Provider 请求前把失去所有权的活动子级依次持久化为 `child_orphaned` 和 `parent_joined`，随后强制进入人工处置门；orphan、started/unknown Effect、未静止和执行所有权不明都不能由父 Agent 自行解封。Protocol v2 客户端可在父 Run 已暂停且 Runtime 不活动时提交 `delegation_disposition` 控制，该回执先是 `accepted`，恢复并重建 Child Coordinator 后才会成为 `applied` 或 `rejected`。
+
+`redelegate` 只记录重新委派意图，不自动重跑。只有持久 RecoveryDisposition 明确为安全重放时，后续 `delegate` 才能用新的 DelegationId、新预算并填写 `recoveryOf: <原 DelegationId>` 建立关联尝试；复用原身份、缺少关联或 Effect 状态不安全都会失败关闭。父级自身已经取消、超时或失败时，系统先暂停等待 Child Disposition，并持久保留原父级终态；处置完成后恢复原终态，不重新请求 Provider。父终态形成前已记录但尚未创建 successor 的 `redelegate` 会持久撤销；父终态形成后新提交的 `redelegate` 会被持久拒绝，必须改用不会创建新 Child 的处置。
+
 委派审批矩阵独立于普通低风险工具：`ask` 每次都要求批准；`assisted` 只有目标显式设置 `preapproved: true` 且请求满足全部硬边界时才自动批准；`full` 可免逐次批准创建合规 Child Run。显式 deny、allowlist、六维预算、父子工具不扩权、路径、网络和凭据边界在三种模式下都优先，不能被人工批准绕过。审批绑定固定目标、任务、引用和实际生效预算，并携带与 `delegation_recorded.inputFingerprint` 完全相同的 Child Run 输入指纹；任何变化都需要新批准。
 
 Delegation Approval 只允许创建该 Child Run，不批准子级后续操作。Child Run 使用自己的 ToolPolicy；其文件、网络或外部 Effect 仍按继承权限独立自动判断或申请批准，并在子 Run 中记录独立审批事实。

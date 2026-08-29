@@ -21,6 +21,7 @@ import {
   projectBranchMessages,
   projectRawBranchMessages,
 } from "./compaction-projection.js";
+import { ControlInbox } from "./control-inbox.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
@@ -588,6 +589,195 @@ describe("CoreMindRuntime", () => {
         code: "child_run_orphan_audit_required",
       });
       expect(providerCalls).toBe(0);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("Resume 自动 join orphan 并在任何 Provider 调用前等待人工处置", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-orphan-disposition-resume-"));
+    let providerCalls = 0;
+    const server = createServer((_request, response) => {
+      providerCalls += 1;
+      sendSse(response, [
+        {
+          id: `orphan-resume-${providerCalls}`,
+          choices: [
+            {
+              index: 0,
+              delta: { role: "assistant", content: "人工处置后继续完成" },
+              finish_reason: null,
+            },
+          ],
+        },
+        {
+          id: `orphan-resume-${providerCalls}`,
+          choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+        },
+      ]);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const childBudget = {
+        tokens: 100,
+        toolCalls: 1,
+        costUsd: 1,
+        wallTimeMs: 1_000,
+        steps: 2,
+        descendants: 0,
+      };
+      const config: CoreMindConfig = {
+        ...toolConfig((server.address() as AddressInfo).port, {
+          runtime: {
+            maxTokens: 1_000,
+            maxCostUsd: 10,
+            maxToolCalls: 10,
+            runTimeoutMs: 5_000,
+            maxSteps: 5,
+          },
+        }),
+        agents: {
+          main: {
+            systemPrompt: "等待 orphan 人工处置",
+            delegation: {
+              budget: { ...childBudget, tokens: 200, descendants: 1 },
+              limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+              targets: { worker: { budget: childBudget } },
+            },
+          },
+          worker: { systemPrompt: "不得在 orphan 恢复时自动运行" },
+        },
+      };
+      const store = new FileRunStore(path.join(dir, "runs"));
+      const runId = "run-orphan-disposition-resume";
+      const initialPrompt = "继续父任务";
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configFingerprint: fingerprintRunConfig(config), initialPrompt });
+      const identity = {
+        parentRunId: runId,
+        childRunId: "run-orphan-disposition-child",
+        delegationId: "delegation-orphan-disposition",
+        inputFingerprint: "sha256:orphan-disposition",
+      };
+      const childPolicy = {
+        depth: 1,
+        model: {
+          providerId: "probe",
+          model: "probe-model",
+          providerConfigFingerprint: "sha256:test-provider-config",
+          agentPromptFingerprint: "sha256:test-agent-prompt",
+          agentDelegationFingerprint: "sha256:test-agent-delegation",
+        },
+        workspace: { canonicalRoot: await canonicalizeWorkspace(dir), lease: "shared_canonical" },
+        protectedContextReferences: [],
+        budget: childBudget,
+        permissions: {
+          mode: "ask",
+          workspaceOnly: true,
+          network: "ask",
+          tools: ["read"],
+          paths: ["."],
+          credentials: [],
+        },
+        environment: { networkEgress: "controlled" },
+        maxDepth: 1,
+        maxActiveChildren: 0,
+        maxDescendants: 0,
+      } as const;
+      await journal.appendFact(
+        "delegation",
+        {
+          type: "delegation_recorded",
+          ...identity,
+          budgetScope: "main",
+          parentTurnId: "turn-parent",
+          parentStepId: "step-parent",
+          agentName: "worker",
+          model: childPolicy.model,
+          workspace: childPolicy.workspace,
+          lifecyclePolicy: {
+            join: "structured",
+            cancel: "propagate_parent",
+            orphan: "audit_pause",
+            detach: "forbidden",
+          },
+          context: { workingSetFingerprint: "sha256:context", references: [] },
+          inheritedPolicy: childPolicy,
+          requestedAllocation: childBudget,
+          requestedPermissions: childPolicy.permissions,
+          requestedEnvironment: childPolicy.environment,
+          recordedAt: "2026-08-27T00:00:00.000Z",
+        },
+        { durability: "critical" },
+      );
+      await journal.appendFact(
+        "delegation",
+        { type: "child_created", ...identity, recordedAt: "2026-08-27T00:00:01.000Z" },
+        { durability: "critical" },
+      );
+
+      const firstRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: dir,
+        cwd: dir,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        resumeRunId: runId,
+        runStore: store,
+      });
+      const paused = await firstRuntime.run();
+      const pausedRecords = await store.read(runId);
+
+      expect(paused.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
+      expect(providerCalls).toBe(0);
+      expect(
+        pausedRecords.flatMap((record) =>
+          record.kind === "delegation" ? [record.payload.type] : [],
+        ),
+      ).toEqual(expect.arrayContaining(["child_orphaned", "parent_joined"]));
+
+      await new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store, pausedRecords.at(-1)?.sequence ?? 0),
+        records: pausedRecords,
+        apply: async () => "accepted",
+      }).accept({
+        schemaVersion: 1,
+        controlId: "orphan-human-disposition",
+        runId,
+        type: "delegation_disposition",
+        delegationId: identity.delegationId,
+        action: "choose_alternative",
+        reason: "人工确认 orphan 后改走父级替代路径",
+      });
+      const resumedRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: dir,
+        cwd: dir,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        resumeRunId: runId,
+        runStore: store,
+      });
+      const resumed = await resumedRuntime.run();
+
+      expect(resumed.outcome.error).toBeUndefined();
+      expect(resumed.outcome).toMatchObject({ status: "succeeded" });
+      expect(resumed.transcript).toContain("人工处置后继续完成");
+      expect(providerCalls).toBe(1);
+      expect(
+        (await store.read(runId)).filter(
+          (record) =>
+            record.kind === "control" && record.payload.controlId === "orphan-human-disposition",
+        ),
+      ).toEqual([
+        expect.objectContaining({ payload: expect.objectContaining({ state: "accepted" }) }),
+        expect.objectContaining({ payload: expect.objectContaining({ state: "applied" }) }),
+      ]);
     } finally {
       await closeServer(server);
       rmSync(dir, { recursive: true, force: true });
