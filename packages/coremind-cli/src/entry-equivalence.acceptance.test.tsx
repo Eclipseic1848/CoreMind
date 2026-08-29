@@ -1,6 +1,6 @@
 import "../../../test/setup-env.js";
 import { spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -11,6 +11,7 @@ import {
   CoreMindRuntime,
   FileRunStore,
   type LocalObservabilityProjection,
+  parseAndValidate,
 } from "coremind-ai";
 import { ProjectionEngine } from "coremind-ai/internal";
 import { render } from "ink-testing-library";
@@ -19,9 +20,9 @@ import { ApprovalQueue } from "./approval.js";
 import { ChatTUI } from "./tui.js";
 
 /**
- * 四入口请求等价验收（Issue #39 / 规格 04 门 A-2）：
+ * 四入口请求等价验收（Issue #39 / #107，规格 04 门 A-2 / P0-12）：
  * CLI / TUI / TS SDK / Python SDK 对同一 fixture 连 mock provider，
- * 生成等价的规范化请求、同一 outcome 机器码、结构等价的 RunSnapshot。
+ * 生成等价的规范化请求、同一 outcome 机器码、结构等价的 RunSnapshot 与 Child Run tree。
  */
 
 const cliPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli.js");
@@ -32,6 +33,10 @@ const workerPath = path.resolve(
 const pythonSrcPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../python/src",
+);
+const delegationConfigPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../test/mock-delegation-config.json",
 );
 
 /** wire 消息的规范化签名（去掉时间戳/用量等易变字段） */
@@ -84,7 +89,7 @@ function wireSignatures(messages: unknown[]): WireSignature[] {
     if (message.role === "tool") {
       return {
         role: "tool",
-        text: textOf(message.content),
+        text: String(normalizeFact(textOf(message.content), "toolResult")),
         toolName: message.tool_call_id ? toolCallIds.get(message.tool_call_id) : undefined,
       };
     }
@@ -125,6 +130,7 @@ interface ResultFingerprint {
   outcome: unknown;
   recovery: unknown;
   context: unknown;
+  childRuns: unknown;
   providerRequests: unknown[];
 }
 
@@ -190,10 +196,11 @@ async function fingerprintFromFacts(
     outcome: normalizeFact(projection.outcome),
     recovery: normalizeFact(projection.recovery),
     context: normalizeFact(projection.context),
+    childRuns: normalizeFact(projection.childRuns),
     providerRequests: projection.trace.flatMap((entry) =>
       entry.event.type === "provider_request"
         ? [
-            {
+            normalizeFact({
               requestId: entry.event.requestId,
               providerId: entry.event.providerId,
               modelId: entry.event.modelId,
@@ -201,7 +208,7 @@ async function fingerprintFromFacts(
               toolSchemaFingerprint: entry.event.toolSchemaFingerprint,
               capabilityFingerprint: entry.event.capabilityFingerprint,
               contextWorkingSetFingerprint: entry.event.contextWorkingSetFingerprint,
-            },
+            }),
           ]
         : [],
     ),
@@ -214,12 +221,23 @@ function normalizeFact(value: unknown, key = ""): unknown {
     if (typeof value === "number" && key === "durationMs") return "<duration>";
     if (typeof value !== "string") return value;
     if (/^\d{4}-\d{2}-\d{2}T/u.test(value)) return "<timestamp>";
-    if (/Fingerprint$/u.test(key) && /^[0-9a-f]{64}$/iu.test(value)) return `<${key}>`;
+    if (
+      /^(?:inputFingerprint|workingSetFingerprint|contextWorkingSetFingerprint|messageFingerprint)$/u.test(
+        key,
+      ) &&
+      /^(?:sha256:)?[0-9a-f]{64}$/iu.test(value)
+    ) {
+      return `<${key}>`;
+    }
     if (key === "correlationId" || key === "idempotencyKey") return `<${key}>`;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(value)) {
       return `<${key || "uuid"}>`;
     }
     return value
+      .replace(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/giu,
+        "<uuid>",
+      )
       .replace(/[A-Z]:\\[^'"\r\n]*/giu, "<path>")
       .replace(/\/(?:tmp|var\/tmp)\/[^'"\r\n]*/gu, "<path>");
   }
@@ -241,7 +259,12 @@ function normalizeFact(value: unknown, key = ""): unknown {
 /** 假 Provider：记录每次请求的规范化签名，脚本化返回纯文本响应 */
 async function createEquivalenceServer(
   onRequest: (signatures: WireSignature[]) => void,
-  options: { port?: number; toolError?: boolean; providerFault?: ProviderFault } = {},
+  options: {
+    port?: number;
+    toolError?: boolean;
+    providerFault?: ProviderFault;
+    childRun?: "success" | "failure";
+  } = {},
 ): Promise<{ server: Server; port: number }> {
   const server = createServer((request, response) => {
     let body = "";
@@ -249,9 +272,15 @@ async function createEquivalenceServer(
       body += chunk.toString("utf8");
     });
     request.on("end", () => {
-      const parsed = JSON.parse(body) as { messages: unknown[] };
+      const parsed = JSON.parse(body) as {
+        messages: unknown[];
+        tools?: Array<{ function?: { name?: string } }>;
+      };
       const signatures = wireSignatures(parsed.messages);
       onRequest(signatures);
+      const hasToolResult = signatures.some((message) => message.role === "tool");
+      const hasDelegationTool =
+        parsed.tools?.some((tool) => tool.function?.name === "delegate") ?? false;
       if (options.providerFault) {
         response.writeHead(options.providerFault.status ?? 400, {
           "content-type": "application/json",
@@ -263,57 +292,39 @@ async function createEquivalenceServer(
         );
         return;
       }
+      if (options.childRun === "failure" && !hasToolResult && !hasDelegationTool) {
+        response.writeHead(401, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            error: { code: "vendor_auth_failure", message: "固定 Child Provider 未分类错误" },
+          }),
+        );
+        return;
+      }
       response.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         connection: "keep-alive",
       });
-      const chunks = signatures.some((message) => message.role === "tool")
-        ? [
-            {
-              id: "eq-final",
-              choices: [
-                {
-                  index: 0,
-                  delta: { role: "assistant", content: "读取完成" },
-                  finish_reason: null,
-                },
-              ],
-            },
-            {
-              id: "eq-final",
-              choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-            },
-          ]
-        : [
-            {
-              id: "eq-tool",
-              choices: [
-                {
-                  index: 0,
-                  delta: {
-                    role: "assistant",
-                    tool_calls: [
-                      {
-                        index: 0,
-                        id: "call-read-equivalence",
-                        type: "function",
-                        function: {
-                          name: options.toolError ? "fault_probe" : "read",
-                          arguments: options.toolError ? "{}" : '{"path":"notes.txt"}',
-                        },
-                      },
-                    ],
-                  },
-                  finish_reason: null,
-                },
-              ],
-            },
-            {
-              id: "eq-tool",
-              choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
-            },
-          ];
+      const chunks = options.childRun
+        ? hasToolResult
+          ? textResponse("parent-final", "父任务完成")
+          : hasDelegationTool
+            ? toolCallResponse(
+                "parent-tool",
+                "call-delegate",
+                "delegate",
+                '{"target":"researcher","task":"研究已批准事实","references":[],"limits":{"tokens":800}}',
+              )
+            : textResponse("child-final", "子任务完成")
+        : hasToolResult
+          ? textResponse("eq-final", "读取完成")
+          : toolCallResponse(
+              "eq-tool",
+              "call-read-equivalence",
+              options.toolError ? "fault_probe" : "read",
+              options.toolError ? "{}" : '{"path":"notes.txt"}',
+            );
       for (const chunk of chunks) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
       response.end("data: [DONE]\n\n");
     });
@@ -322,9 +333,67 @@ async function createEquivalenceServer(
   return { server, port: (server.address() as { port: number }).port };
 }
 
+function textResponse(id: string, content: string): Array<Record<string, unknown>> {
+  return [
+    {
+      id,
+      choices: [
+        {
+          index: 0,
+          delta: { role: "assistant", content },
+          finish_reason: null,
+        },
+      ],
+    },
+    { id, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+  ];
+}
+
+function toolCallResponse(
+  id: string,
+  callId: string,
+  name: string,
+  args: string,
+): Array<Record<string, unknown>> {
+  return [
+    {
+      id,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: callId,
+                type: "function",
+                function: { name, arguments: args },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    { id, choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+  ];
+}
+
 /** fixture 配置（指向指定 mock provider 端口） */
-function fixtureConfig(port: number, toolError = false): CoreMindConfig {
-  return {
+function fixtureConfig(
+  port: number,
+  toolError = false,
+  childRun?: "success" | "failure",
+): CoreMindConfig {
+  if (childRun) {
+    const fixture = JSON.parse(readFileSync(delegationConfigPath, "utf8")) as CoreMindConfig;
+    return parseAndValidate({
+      ...fixture,
+      provider: { ...fixture.provider!, baseUrl: `http://127.0.0.1:${port}/v1` },
+    }).config;
+  }
+  return parseAndValidate({
     schemaVersion: 2,
     name: "等价性验收",
     provider: {
@@ -334,6 +403,7 @@ function fixtureConfig(port: number, toolError = false): CoreMindConfig {
       apiKeyEnv: "COREMIND_TEST_API_KEY",
     },
     agents: { main: { systemPrompt: "助手" } },
+    defaultAgent: "main",
     tools: toolError
       ? [
           {
@@ -344,7 +414,7 @@ function fixtureConfig(port: number, toolError = false): CoreMindConfig {
         ]
       : [{ id: "read" }],
     permissions: { mode: "assisted", workspaceOnly: true, network: "deny" },
-  };
+  }).config;
 }
 
 function prepareFixtureFiles(directory: string, toolError: boolean): void {
@@ -374,6 +444,7 @@ async function captureTsSdk(
   fixedPort?: number,
   fixedDirectory?: string,
   providerFault?: ProviderFault,
+  childRun?: "success" | "failure",
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -382,19 +453,22 @@ async function captureTsSdk(
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
       providerFault,
+      childRun,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-ts-"));
   prepareFixtureFiles(dir, toolError);
   try {
     const runtime = await CoreMindRuntime.create({
-      config: fixtureConfig(port, toolError),
+      config: fixtureConfig(port, toolError, childRun),
       configDir: dir,
       cwd: dir,
       initialPrompt: "你好",
     });
     const result = await runtime.run();
-    expect(result.outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
+    expect(result.outcome.status).toBe(
+      childRun === "failure" ? "paused" : (providerFault?.expectedStatus ?? "succeeded"),
+    );
     const liveFingerprint = fingerprintOf(
       result.outcome.status,
       result.snapshot,
@@ -439,6 +513,7 @@ async function captureCli(
   fixedPort?: number,
   fixedDirectory?: string,
   providerFault?: ProviderFault,
+  childRun?: "success" | "failure",
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -447,20 +522,21 @@ async function captureCli(
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
       providerFault,
+      childRun,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-cli-"));
   const configPath = path.join(dir, "coremind.yaml");
   prepareFixtureFiles(dir, toolError);
   // 配置文件支持 JSON 格式（YAML/JSON 双格式）
-  writeFileSync(configPath, JSON.stringify(fixtureConfig(port, toolError)), "utf8");
+  writeFileSync(configPath, JSON.stringify(fixtureConfig(port, toolError, childRun)), "utf8");
   try {
     const { code, stdout, stderr } = await spawnAndWait(
       "node",
       [cliPath, "run", configPath, "--prompt", "你好", "--json-events"],
       { cwd: dir },
     );
-    expect(code, stderr).toBe(providerFault?.expectedExitCode ?? 0);
+    expect(code, stderr).toBe(childRun === "failure" ? 2 : (providerFault?.expectedExitCode ?? 0));
     expect(stderr).not.toContain("Error");
     // 解析 run_result 事件（含 outcome 与 snapshot）
     const runResult = stdout
@@ -481,7 +557,8 @@ async function captureCli(
       })
       .find((item) => item && item.type === "run_result");
     expect(runResult).toBeTruthy();
-    const expectedStatus = providerFault?.expectedStatus ?? "succeeded";
+    const expectedStatus =
+      childRun === "failure" ? "paused" : (providerFault?.expectedStatus ?? "succeeded");
     expect(runResult?.outcome?.status).toBe(expectedStatus);
     expect(runResult?.snapshot).toBeDefined();
     expect(runResult?.observability).toBeDefined();
@@ -543,6 +620,7 @@ async function captureTui(
   fixedPort?: number,
   fixedDirectory?: string,
   providerFault?: ProviderFault,
+  childRun?: "success" | "failure",
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -551,13 +629,14 @@ async function captureTui(
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
       providerFault,
+      childRun,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-tui-"));
   prepareFixtureFiles(dir, toolError);
   try {
     const runtime = await CoreMindRuntime.create({
-      config: fixtureConfig(port, toolError),
+      config: fixtureConfig(port, toolError, childRun),
       configDir: dir,
       cwd: dir,
     });
@@ -566,7 +645,9 @@ async function captureTui(
     let fingerprint: ResultFingerprint | undefined;
     vi.spyOn(session, "chat").mockImplementation(async (message) => {
       const turn = await chat(message);
-      expect(turn.run.outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
+      expect(turn.run.outcome.status).toBe(
+        childRun === "failure" ? "paused" : (providerFault?.expectedStatus ?? "succeeded"),
+      );
       const liveFingerprint = fingerprintOf(
         turn.run.outcome.status,
         turn.run.snapshot,
@@ -585,7 +666,7 @@ async function captureTui(
       />,
     );
     await typeCommand(app.stdin.write, "你好");
-    await waitForCapture(captured, providerFault ? 2 : 6);
+    await waitForCapture(captured, childRun ? 8 : providerFault ? 2 : 6);
     const resultFingerprint = await waitForTuiFingerprint(() => fingerprint);
     app.unmount();
     return { signatures: captured, fingerprint: resultFingerprint, port };
@@ -600,6 +681,7 @@ async function capturePython(
   fixedPort?: number,
   fixedDirectory?: string,
   providerFault?: ProviderFault,
+  childRun?: "success" | "failure",
 ): Promise<EntryCapture> {
   const captured: WireSignature[] = [];
   const { server, port } = await createEquivalenceServer(
@@ -608,12 +690,13 @@ async function capturePython(
       ...(fixedPort === undefined ? {} : { port: fixedPort }),
       toolError,
       providerFault,
+      childRun,
     },
   );
   const dir = fixedDirectory ?? mkdtempSync(path.join(tmpdir(), "coremind-eq-py-"));
   prepareFixtureFiles(dir, toolError);
   const scriptPath = path.join(dir, "capture.py");
-  const configJson = JSON.stringify(fixtureConfig(port, toolError));
+  const configJson = JSON.stringify(fixtureConfig(port, toolError, childRun));
   const script = [
     "import sys, json",
     `sys.path.insert(0, ${JSON.stringify(pythonSrcPath)})`,
@@ -623,7 +706,7 @@ async function capturePython(
       JSON.stringify(dir) +
       ", cwd=" +
       JSON.stringify(dir) +
-      ", request_timeout=60)",
+      ", request_timeout=30)",
     'result = client.run("你好")',
     'print("RUN_ID:" + result["runId"])',
     'print("OUTCOME:" + json.dumps(result["outcome"]))',
@@ -657,7 +740,9 @@ async function capturePython(
     const observability = JSON.parse(
       observabilityLine!.slice("OBSERVABILITY:".length),
     ) as LocalObservabilityProjection;
-    expect(outcome.status).toBe(providerFault?.expectedStatus ?? "succeeded");
+    expect(outcome.status).toBe(
+      childRun === "failure" ? "paused" : (providerFault?.expectedStatus ?? "succeeded"),
+    );
     expect(snapshot.schemaVersion).toBe(1);
     const liveFingerprint = fingerprintOf(outcome.status, snapshot, observability);
     const fingerprint = await fingerprintFromFacts(
@@ -706,6 +791,96 @@ describe("四入口请求等价（门 A-2）", () => {
       recoveryDisposition: "replay_safe",
     });
   });
+
+  it("TS SDK / CLI / TUI / Python 对同一正式 Child Run fixture 保持完整合同等价", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-child-run-"));
+    const tsCaptured = await captureTsSdk(false, undefined, directory, undefined, "success");
+    const cliCaptured = await captureCli(false, tsCaptured.port, directory, undefined, "success");
+    const tuiCaptured = await captureTui(false, tsCaptured.port, directory, undefined, "success");
+    const pyCaptured = await capturePython(false, tsCaptured.port, directory, undefined, "success");
+
+    expect(tsCaptured.signatures.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "system",
+      "user",
+      "system",
+      "user",
+      "assistant",
+      "tool",
+    ]);
+    expect(cliCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(tuiCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(pyCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tsCaptured.fingerprint.childRuns).toMatchObject({
+      activeDescendants: 0,
+      unhandledDescendants: 0,
+      quiescent: true,
+      nodes: [
+        {
+          parentRunId: "<parentRunId>",
+          childRunId: "<childRunId>",
+          delegationId: "delegation:<uuid>:call-delegate",
+          inputFingerprint: "<inputFingerprint>",
+          agentName: "researcher",
+          status: "joined",
+          budget: {
+            tokens: 800,
+            toolCalls: 2,
+            costUsd: 1,
+            wallTimeMs: 5_000,
+            steps: 2,
+            descendants: 0,
+          },
+          outcome: { status: "succeeded", finishReason: "completed" },
+          result: {
+            recovery: {
+              recoveryDisposition: "replay_safe",
+              effectState: "none",
+              quiescent: true,
+              executionOwnership: "released",
+            },
+          },
+          disposition: { state: "not_required" },
+        },
+      ],
+    });
+  }, 90_000);
+
+  it("四入口对同一 Child Run 失败保持错误、处置门与非静止语义等价", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-child-failure-"));
+    const tsCaptured = await captureTsSdk(false, undefined, directory, undefined, "failure");
+    const cliCaptured = await captureCli(false, tsCaptured.port, directory, undefined, "failure");
+    const tuiCaptured = await captureTui(false, tsCaptured.port, directory, undefined, "failure");
+    const pyCaptured = await capturePython(false, tsCaptured.port, directory, undefined, "failure");
+
+    expect(cliCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(tuiCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(pyCaptured.signatures).toEqual(tsCaptured.signatures);
+    expect(cliCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tuiCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(pyCaptured.fingerprint).toEqual(tsCaptured.fingerprint);
+    expect(tsCaptured.fingerprint.outcome).toMatchObject({
+      status: "paused",
+      error: { code: "delegation_disposition_required" },
+    });
+    expect(tsCaptured.fingerprint.childRuns).toMatchObject({
+      activeDescendants: 0,
+      unhandledDescendants: 1,
+      quiescent: false,
+      nodes: [
+        {
+          agentName: "researcher",
+          status: "joined",
+          outcome: { status: "paused", error: { code: "unclassified_error" } },
+          disposition: { state: "required", requiredActor: "parent_agent" },
+        },
+      ],
+    });
+  }, 90_000);
 
   it("Tool Error fault fixture 在四入口生成相同结果与 RecoveryDisposition", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-fault-"));
