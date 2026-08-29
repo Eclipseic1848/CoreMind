@@ -8,6 +8,7 @@ export default defineConfig({
     projects: [
       "packages/*",
       "packages/coremind-runtime/vitest.input-receipt-acceptance.config.ts",
+      "packages/coremind-runtime/vitest.race-matrix.config.ts",
       "packages/coremind-tools/vitest.host-shell.config.ts",
       "examples/golden/vitest.config.ts",
       "examples/coding-evals/vitest.config.ts",

@@ -43,7 +43,7 @@
     "maxToolCalls": 4,
     "maxTokens": 2000,
     "maxCostUsd": 2,
-    "runTimeoutMs": 10000
+    "runTimeoutMs": 30000
   },
   "permissions": {
     "mode": "full",

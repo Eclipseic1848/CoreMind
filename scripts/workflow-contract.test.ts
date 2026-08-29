@@ -51,6 +51,11 @@ describe("GitHub Actions 收口合同", () => {
     expect(commands).toContain("npm run security:audit");
     expect(commands).toContain("npm run check:docs");
     expect(commands).toContain("npm run test:engineering");
+    expect(
+      workflow.jobs.engineering.steps.find(
+        (step: { name?: string }) => step.name === "核心确定性测试",
+      ).run,
+    ).toBe("npm run test:engineering -- --maxWorkers=1");
     expect(commands).toContain("python -W error::ResourceWarning -m unittest discover");
     expect(commands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(commands).toContain("GITHUB_STEP_SUMMARY");
@@ -131,7 +136,7 @@ describe("GitHub Actions 收口合同", () => {
     expect(manifest.scripts["test:stability"]).toContain("scripts/test-stability.mjs");
     expect(manifest.scripts["test:engineering"]).toContain("vitest.engineering.config.ts");
     expect(engineeringConfig).toContain('"packages/*"');
-    expect(engineeringConfig).toContain("vitest.input-receipt-acceptance.config.ts");
+    expect(engineeringConfig).toContain("vitest.input-receipt-engineering.config.ts");
     expect(engineeringConfig).toContain("vitest.host-shell.config.ts");
     expect(engineeringConfig).toContain("examples/coding-evals/vitest.config.ts");
     expect(engineeringConfig).toContain("scripts/vitest.config.ts");
@@ -284,6 +289,7 @@ describe("GitHub Actions 收口合同", () => {
     for (const file of [
       "packages/coremind-runtime/vitest.config.ts",
       "packages/coremind-tools/vitest.config.ts",
+      "examples/golden/vitest.config.ts",
     ]) {
       const config = readFileSync(file, "utf8");
       expect(config).toContain("defineProject");
@@ -321,6 +327,30 @@ describe("GitHub Actions 收口合同", () => {
     expect(hostShellConfig).toContain("testTimeout: 60_000");
     expect(faultMatrixConfig).toContain("groupOrder: 2");
     expect(inputReceiptConfig).toContain("groupOrder: 3");
+  });
+
+  it("快速工程门排除候选级重型矩阵与严格时延门，完整门仍保留", () => {
+    const rootConfig = readFileSync("vitest.config.ts", "utf8");
+    const engineeringConfig = readFileSync("vitest.engineering.config.ts", "utf8");
+    const runtimeConfig = readFileSync("packages/coremind-runtime/vitest.config.ts", "utf8");
+    const raceMatrixConfig = readFileSync(
+      "packages/coremind-runtime/vitest.race-matrix.config.ts",
+      "utf8",
+    );
+    const engineeringReceiptConfig = readFileSync(
+      "packages/coremind-runtime/vitest.input-receipt-engineering.config.ts",
+      "utf8",
+    );
+
+    expect(rootConfig).toContain("packages/coremind-runtime/vitest.race-matrix.config.ts");
+    expect(engineeringConfig).not.toContain("vitest.race-matrix.config.ts");
+    expect(runtimeConfig).toContain("src/race-matrix.acceptance.test.ts");
+    expect(raceMatrixConfig).toContain('include: ["src/race-matrix.acceptance.test.ts"]');
+    expect(engineeringConfig).toContain(
+      "packages/coremind-runtime/vitest.input-receipt-engineering.config.ts",
+    );
+    expect(engineeringReceiptConfig).toContain("testNamePattern");
+    expect(engineeringReceiptConfig).toContain("Cancel → Quiescent p95");
   });
 
   it("正式产物基线采集在独立资源组运行", () => {

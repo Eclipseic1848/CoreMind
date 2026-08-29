@@ -32,6 +32,7 @@
     "release:bundle": "node scripts/release-artifacts.mjs",
     "release:publish-npm": "node scripts/publish-npm-artifacts.mjs --publish",
     "acceptance:rc": "node scripts/rc-acceptance.mjs",
+    "acceptance:p0": "node scripts/p0-acceptance.mjs",
     "acceptance:tty": "node scripts/tty-acceptance.mjs",
     "acceptance:workspace-lease": "node scripts/workspace-lease-process-probe.mjs",
     "security:audit": "node scripts/check-security-audit.mjs",
