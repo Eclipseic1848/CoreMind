@@ -2163,6 +2163,150 @@ describe("ChildRunCoordinator", () => {
     expect(coordinator.isQuiescent()).toBe(false);
   });
 
+  it("成功且已静止的 committed Effect 默认接受，但不能作为安全重委派证明", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-success-committed-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "success-committed" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          ...successfulChildResult(),
+          recovery: {
+            recoveryDisposition: "requires_human",
+            effectState: "committed",
+            quiescent: true,
+            executionOwnership: "released",
+            evidence: ["event:effect-committed"],
+          },
+        }),
+      },
+      createChildRunId: () => "run-success-committed-child",
+    });
+
+    await (
+      await coordinator.delegate(testDelegationRequest("delegation-success-committed"))
+    ).join();
+
+    expect(coordinator.continuationGate()).toEqual({ status: "allowed" });
+    expect(coordinator.isQuiescent()).toBe(true);
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      nodes: [
+        expect.objectContaining({
+          disposition: expect.objectContaining({
+            state: "not_required",
+            recoveryDisposition: "requires_human",
+          }),
+        }),
+      ],
+      unhandledDescendants: 0,
+      quiescent: true,
+    });
+  });
+
+  it.each([
+    {
+      id: "unknown-effect",
+      recovery: {
+        recoveryDisposition: "requires_human" as const,
+        effectState: "unknown" as const,
+        quiescent: true,
+        executionOwnership: "released" as const,
+        evidence: ["event:effect-unknown"],
+      },
+    },
+    {
+      id: "started-effect",
+      recovery: {
+        recoveryDisposition: "forbidden" as const,
+        effectState: "started" as const,
+        quiescent: true,
+        executionOwnership: "released" as const,
+        evidence: ["event:effect-started"],
+      },
+    },
+    {
+      id: "not-quiescent",
+      recovery: {
+        recoveryDisposition: "requires_human" as const,
+        effectState: "none" as const,
+        quiescent: false,
+        executionOwnership: "released" as const,
+        evidence: ["runtime:not-quiescent"],
+      },
+    },
+    {
+      id: "ownership-unknown",
+      recovery: {
+        recoveryDisposition: "requires_human" as const,
+        effectState: "none" as const,
+        quiescent: true,
+        executionOwnership: "unknown" as const,
+        evidence: ["execution_ownership:unknown"],
+      },
+    },
+  ])("成功 Child 的 $id 风险仍要求人工持久处置", async ({ id, recovery }) => {
+    const store = durableMemoryRunStore();
+    const parentRunId = `run-risky-success-${id}-parent`;
+    const delegationId = `delegation-risky-success-${id}`;
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: `risky-success-${id}` });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: { execute: async () => ({ ...successfulChildResult(), recovery }) },
+      createChildRunId: () => `run-risky-success-${id}-child`,
+    });
+
+    await (await coordinator.delegate(testDelegationRequest(delegationId))).join();
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId,
+      requiredActor: "human",
+    });
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      nodes: [
+        expect.objectContaining({
+          disposition: expect.objectContaining({ state: "required", requiredActor: "human" }),
+        }),
+      ],
+      unhandledDescendants: 1,
+      quiescent: false,
+    });
+
+    await coordinator.recordDisposition({
+      dispositionId: `disposition-risky-success-${id}`,
+      delegationId,
+      action: "accept_failure",
+      decidedBy: "human",
+      reason: "人工已核对异常成功结果并接受为已处理风险",
+    });
+    expect(coordinator.continuationGate()).toEqual({ status: "allowed" });
+    expect(coordinator.isQuiescent()).toBe(true);
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      nodes: [
+        expect.objectContaining({
+          disposition: expect.objectContaining({
+            state: "recorded",
+            action: "accept_failure",
+            decidedBy: "human",
+          }),
+        }),
+      ],
+      unhandledDescendants: 0,
+      quiescent: true,
+    });
+  });
+
   it("非成功 join 必须持久化明确处置，重启后仍保持已处理状态", async () => {
     const store = durableMemoryRunStore();
     const parentRunId = "run-disposition-parent";

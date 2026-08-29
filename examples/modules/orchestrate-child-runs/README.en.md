@@ -17,7 +17,7 @@ const adapter = createCoreMindChildRunAdapter({
 });
 ```
 
-After `delegateChildRun(request)`, the parent must call `handle.join()` at the structured join point. Inspect `result.childRuns`, Protocol v2 query, or TUI `/children`. Do not read internal maps or recreate an orphan automatically.
+After `delegateChildRun(request)`, the parent must call `handle.join()` at the structured join point. Inspect `result.childRuns`, Protocol v2 query, or TUI `/children`. Persist a `delegation_disposition` before continuing from a non-successful result or an anomalous success with a started/unknown Effect, non-quiescence, or uncertain ownership. Safe redelegation uses a new identity, a new budget, and `recoveryOf`. Do not read internal maps or recreate an orphan automatically.
 
 Run the focused acceptance tests:
 

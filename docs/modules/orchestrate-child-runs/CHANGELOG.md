@@ -6,3 +6,4 @@
 - Added a real CoreMind Runtime adapter with authority verification and parent budget reservation.
 - Added recursive tree and workspace lease projection across Runtime, Protocol v2, Worker, CLI JSONL, and TUI.
 - Added 1,000 deterministic interleaving seeds, real Runtime bridge coverage, recovery failure injection, and workspace single-writer evidence.
+- Added durable Delegation Disposition, offline Protocol v2 controls, safe linked redelegation, and fail-closed handling for anomalous successful results with unresolved execution risk.

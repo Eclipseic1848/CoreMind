@@ -2094,7 +2094,7 @@ export class CoreMindRuntime {
                 "delegation_disposition_required",
                 gate?.status === "redelegation_required"
                   ? `DelegationId ${gate.delegationId} 必须先通过带 recoveryOf 的新 delegate 建立关联尝试`
-                  : "非成功 Child Run 尚未完成持久处置，已阻断同批或后续工具调用",
+                  : "Child Run 尚未满足自动接受条件且未完成持久处置，已阻断同批或后续工具调用",
               );
               await toolExecutionEngine.blockBeforeExecution(
                 lifecycleIdentity,

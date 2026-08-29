@@ -11,7 +11,7 @@ Child Run 是由父 Run 委派的完整 Run，不是普通 Tool Call。它拥有
 - 默认最大深度 3、活动子级 4、总后代 32；无限或负值被拒绝。
 - 父取消传播并结构化 join；子取消不反向取消父级；join timeout 会取消并等待清理。
 - 恢复时无法确认所有权的子级会在任何新 Provider 请求前持久化 `child_orphaned → parent_joined` 并进入人工 orphan audit pause，不自动重启。
-- 成功 join 默认接受；其他终态必须记录接受失败、替代方案、重新委派或传播终态之一，父级才能继续或结束。
+- 成功 join 仅在执行静止、所有权释放且没有 started/unknown Effect 时默认接受；committed Effect 可以随成功结果接受，但不能证明可安全重新委派。其他终态或带未决风险的异常成功结果必须记录接受风险、替代方案、重新委派或传播终态之一，父级才能继续或结束。
 - 重新委派必须由安全 RecoveryDisposition 证明，并使用关联的新 DelegationId 与新预算；同一身份永不自动重跑。
 - 父 Run 在 successor 创建前形成自身终态时，会持久撤销待执行的重新委派，不再请求 Provider。
 - 暂停 Run 可离线持久接收人工 Disposition 控制，恢复并重建 Coordinator 后才应用。

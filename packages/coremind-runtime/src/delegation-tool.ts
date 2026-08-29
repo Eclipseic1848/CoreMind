@@ -120,7 +120,7 @@ export function createDelegationDispositionAgentTool(
     name: DELEGATION_DISPOSITION_TOOL_NAME,
     label: "Dispose Delegation",
     description:
-      "记录一个非成功 Child Run 的持久处置。安全门要求人工时本工具会失败关闭；重新委派仍需随后调用 delegate 并填写 recoveryOf。",
+      "记录一个未自动接受的 Child Run 持久处置。安全门要求人工时本工具会失败关闭；重新委派仍需随后调用 delegate 并填写 recoveryOf。",
     parameters: {
       type: "object",
       properties: {

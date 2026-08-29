@@ -14,6 +14,7 @@ import {
   type ChildRunWorkspaceSnapshot,
   childRunRecoveryAssessment,
   childRunResultFingerprint,
+  childRunResultRequiresDisposition,
   decodeChildRunFact,
   delegationDispositionViolation,
   foldChildRunLifecycleStatus,
@@ -405,7 +406,7 @@ function projectChildRuns(
       if (
         existing.status !== "joined" ||
         !existing.result ||
-        existing.result.outcome.status === "succeeded" ||
+        !childRunResultRequiresDisposition(existing.result) ||
         existing.disposition?.state !== "required" ||
         childRunResultFingerprint(existing.result) !== fact.resultFingerprint ||
         canonicalRecovery(existing.result) !== canonicalJson(fact.recovery) ||
@@ -459,16 +460,15 @@ function projectChildRuns(
       existing.outcome = structuredClone(fact.result.outcome);
       existing.result = structuredClone(fact.result);
       const recovery = childRunRecoveryAssessment(fact.result);
-      existing.disposition =
-        fact.result.outcome.status === "succeeded"
-          ? { state: "not_required", recoveryDisposition: recovery.recoveryDisposition }
-          : {
-              state: "required",
-              requiredActor: isChildRunRecoverySafeForRedelegation(recovery)
-                ? "parent_agent"
-                : "human",
-              recoveryDisposition: recovery.recoveryDisposition,
-            };
+      existing.disposition = !childRunResultRequiresDisposition(fact.result)
+        ? { state: "not_required", recoveryDisposition: recovery.recoveryDisposition }
+        : {
+            state: "required",
+            requiredActor: isChildRunRecoverySafeForRedelegation(recovery)
+              ? "parent_agent"
+              : "human",
+            recoveryDisposition: recovery.recoveryDisposition,
+          };
     }
   }
   if (nodes.size === 0) return undefined;

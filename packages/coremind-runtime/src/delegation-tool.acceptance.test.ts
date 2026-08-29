@@ -1745,7 +1745,18 @@ describe("Delegation Tool TypeScript happy path", () => {
           )
         : undefined;
 
-      expect(result.outcome.status).toBe("succeeded");
+      expect(
+        result.outcome.status,
+        JSON.stringify({
+          outcome: result.outcome,
+          childRuns: result.childRuns?.nodes.map((node) => ({
+            delegationId: node.delegationId,
+            outcome: node.outcome,
+            recovery: node.result?.recovery,
+            disposition: node.disposition,
+          })),
+        }),
+      ).toBe("succeeded");
       expect(tree.childRuns?.nodes).toEqual([
         expect.objectContaining({
           parentRunId: result.runId,

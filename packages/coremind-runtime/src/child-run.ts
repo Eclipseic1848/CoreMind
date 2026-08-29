@@ -545,7 +545,7 @@ export class ChildRunCoordinator {
     if (!this.isExecutionQuiescent()) return false;
     return [...this.delegations.values()].every((state) => {
       if (!state.result) return false;
-      if (state.result.outcome.status === "succeeded") return true;
+      if (!childRunResultRequiresDisposition(state.result)) return true;
       if (!state.disposition) return false;
       return (
         state.disposition.action !== "redelegate" ||
@@ -567,7 +567,7 @@ export class ChildRunCoordinator {
       | undefined;
     for (const state of this.delegations.values()) {
       if (state.status !== "joined" || !state.result) continue;
-      if (state.result.outcome.status === "succeeded") continue;
+      if (!childRunResultRequiresDisposition(state.result)) continue;
       const recovery = childRunRecoveryAssessment(state.result);
       if (!state.disposition) {
         const requiredActor = requiredDispositionActor(state.result);
@@ -635,10 +635,14 @@ export class ChildRunCoordinator {
       await state.dispositionPromise;
       return this.recordDispositionWithinTransition(request);
     }
-    if (state.status !== "joined" || !state.result || state.result.outcome.status === "succeeded") {
+    if (
+      state.status !== "joined" ||
+      !state.result ||
+      !childRunResultRequiresDisposition(state.result)
+    ) {
       throw new CoreMindError(
         "delegation_disposition_conflict",
-        `DelegationId ${request.delegationId} 尚无可处置的非成功 join 结果`,
+        `DelegationId ${request.delegationId} 尚无需要处置的 join 结果`,
       );
     }
     const recovery = childRunRecoveryAssessment(state.result);
@@ -1551,6 +1555,22 @@ export function childRunRecoveryAssessment(result: ChildRunResult): ChildRunReco
     executionOwnership: "unknown",
     evidence: [],
   };
+}
+
+export function childRunResultRequiresDisposition(result: ChildRunResult): boolean {
+  if (result.outcome.status !== "succeeded") return true;
+  const recovery = childRunRecoveryAssessment(result);
+  const unresolvedRecoveryWithoutCommittedSuccess =
+    recovery.effectState !== "committed" &&
+    (recovery.recoveryDisposition === "requires_human" ||
+      recovery.recoveryDisposition === "forbidden");
+  return (
+    unresolvedRecoveryWithoutCommittedSuccess ||
+    recovery.effectState === "started" ||
+    recovery.effectState === "unknown" ||
+    !recovery.quiescent ||
+    recovery.executionOwnership !== "released"
+  );
 }
 
 export function childRunResultFingerprint(result: ChildRunResult): string {
