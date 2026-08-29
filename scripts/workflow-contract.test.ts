@@ -106,6 +106,15 @@ describe("GitHub Actions 收口合同", () => {
     );
     expect(candidateUpload.uses).toContain("actions/upload-artifact@");
     expect(candidateUpload.with.path).toContain(".scratch/candidate-artifacts");
+    for (const name of [
+      "完整工程与发布前置门禁",
+      "安装并测试 Python SDK（离线）",
+      "构建并检查 PyPI wheel",
+    ]) {
+      expect(
+        workflow.jobs.candidate.steps.find((step: { name?: string }) => step.name === name).shell,
+      ).toBe("bash");
+    }
     expect(candidateCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(candidateCommands).toContain("GITHUB_STEP_SUMMARY");
     expect(candidateCommands.indexOf("npm run build")).toBeLessThan(

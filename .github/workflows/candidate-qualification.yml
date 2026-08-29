@@ -71,6 +71,7 @@ jobs:
           fi
 
       - name: 完整工程与发布前置门禁
+        shell: bash
         run: |
           npx biome check .
           npm run security:audit
@@ -100,12 +101,14 @@ jobs:
         run: npm run build:python-worker
 
       - name: 安装并测试 Python SDK（离线）
+        shell: bash
         run: |
           python -m pip install --disable-pip-version-check ./python
           python -W error::ResourceWarning -m unittest discover -s python/tests -p "test_*.py" -v
           python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
 
       - name: 构建并检查 PyPI wheel
+        shell: bash
         run: |
           python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
           python -m build --wheel python

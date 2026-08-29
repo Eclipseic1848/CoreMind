@@ -13,14 +13,18 @@ import { checkProject } from 'coremind-runtime';
 import { CHILD_RUN_LIMIT_DEFAULTS } from 'coremind-runtime';
 import { ChildRunBudgetAllocation } from 'coremind-runtime';
 import { ChildRunContextReference } from 'coremind-runtime';
+import { ChildRunContinuationGate } from 'coremind-runtime';
 import { ChildRunCoordinator } from 'coremind-runtime';
+import { ChildRunCoordinatorHierarchyLimits } from 'coremind-runtime';
 import { ChildRunCoordinatorOptions } from 'coremind-runtime';
 import { ChildRunDelegationRequest } from 'coremind-runtime';
+import { ChildRunDispositionProjection } from 'coremind-runtime';
 import { ChildRunEnvironmentRequirement } from 'coremind-runtime';
 import { ChildRunExecutionAdapter } from 'coremind-runtime';
 import { ChildRunExecutionInput } from 'coremind-runtime';
 import { ChildRunFact } from 'coremind-runtime';
 import { ChildRunHandle } from 'coremind-runtime';
+import { ChildRunHierarchyLimits } from 'coremind-runtime';
 import { childRunInputFingerprint } from 'coremind-runtime';
 import { ChildRunJoinOptions } from 'coremind-runtime';
 import { ChildRunLifecyclePolicy } from 'coremind-runtime';
@@ -28,7 +32,10 @@ import { ChildRunModelSnapshot } from 'coremind-runtime';
 import { ChildRunNodeProjection } from 'coremind-runtime';
 import { ChildRunPermissionSnapshot } from 'coremind-runtime';
 import { ChildRunPolicySnapshot } from 'coremind-runtime';
+import { ChildRunRecoveryAssessment } from 'coremind-runtime';
+import { childRunRecoveryAssessment } from 'coremind-runtime';
 import { ChildRunResult } from 'coremind-runtime';
+import { childRunResultFingerprint } from 'coremind-runtime';
 import { ChildRunTreeProjection } from 'coremind-runtime';
 import { ChildRunWorkspaceSnapshot } from 'coremind-runtime';
 import { CODING_TOOL_CONTRACTS } from 'coremind-runtime';
@@ -76,6 +83,11 @@ import { createUnifiedDiff } from 'coremind-tools';
 import { defineExperiment } from 'coremind-runtime';
 import { defineLifecycleExtension } from 'coremind-runtime';
 import { defineTool } from 'coremind-runtime';
+import { DelegationDispositionAction } from 'coremind-runtime';
+import { DelegationDispositionActor } from 'coremind-runtime';
+import { DelegationDispositionFact } from 'coremind-runtime';
+import { DelegationDispositionRequest } from 'coremind-runtime';
+import { DelegationRedelegationCancelledFact } from 'coremind-runtime';
 import { detectProjectLanguage } from 'coremind-templates';
 import { diffFiles } from 'coremind-tools';
 import { DiffGrader } from 'coremind-runtime';
@@ -225,6 +237,7 @@ import { ProviderRequestReplayFact } from 'coremind-runtime';
 import { ProviderRequestReplayFixture } from 'coremind-runtime';
 import { PythonToolCallNotification } from 'coremind-protocol';
 import { QualityConfig } from 'coremind-config';
+import { RecordedDelegationDisposition } from 'coremind-runtime';
 import { ReleaseReadiness } from 'coremind-runtime';
 import { ReplayFixture } from 'coremind-runtime';
 import { ReplayKit } from 'coremind-runtime';
@@ -256,6 +269,7 @@ import { RunStoreDurabilityBoundary } from 'coremind-runtime';
 import { RunStoreDurabilityMetrics } from 'coremind-runtime';
 import { RuntimeLimitsConfig } from 'coremind-config';
 import { scaffoldProjectGuidance } from 'coremind-templates';
+import { SecretResolver } from 'coremind-runtime';
 import { selectCodingEnvironment } from 'coremind-runtime';
 import { selectExperimentArm } from 'coremind-runtime';
 import { SkillMeta } from 'coremind-templates';
@@ -329,11 +343,17 @@ export { ChildRunBudgetAllocation }
 
 export { ChildRunContextReference }
 
+export { ChildRunContinuationGate }
+
 export { ChildRunCoordinator }
+
+export { ChildRunCoordinatorHierarchyLimits }
 
 export { ChildRunCoordinatorOptions }
 
 export { ChildRunDelegationRequest }
+
+export { ChildRunDispositionProjection }
 
 export { ChildRunEnvironmentRequirement }
 
@@ -344,6 +364,8 @@ export { ChildRunExecutionInput }
 export { ChildRunFact }
 
 export { ChildRunHandle }
+
+export { ChildRunHierarchyLimits }
 
 export { childRunInputFingerprint }
 
@@ -359,7 +381,13 @@ export { ChildRunPermissionSnapshot }
 
 export { ChildRunPolicySnapshot }
 
+export { ChildRunRecoveryAssessment }
+
+export { childRunRecoveryAssessment }
+
 export { ChildRunResult }
+
+export { childRunResultFingerprint }
 
 export { ChildRunTreeProjection }
 
@@ -454,6 +482,16 @@ export { defineExperiment }
 export { defineLifecycleExtension }
 
 export { defineTool }
+
+export { DelegationDispositionAction }
+
+export { DelegationDispositionActor }
+
+export { DelegationDispositionFact }
+
+export { DelegationDispositionRequest }
+
+export { DelegationRedelegationCancelledFact }
 
 export { detectProjectLanguage }
 
@@ -753,6 +791,8 @@ export { PythonToolCallNotification }
 
 export { QualityConfig }
 
+export { RecordedDelegationDisposition }
+
 export { ReleaseReadiness }
 
 export { ReplayFixture }
@@ -814,6 +854,8 @@ export { RunStoreDurabilityMetrics }
 export { RuntimeLimitsConfig }
 
 export { scaffoldProjectGuidance }
+
+export { SecretResolver }
 
 export { selectCodingEnvironment }
 
