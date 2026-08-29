@@ -10,6 +10,7 @@ import {
   type ChildRunDelegationRequest,
   type ChildRunExecutionAdapter,
   type ChildRunPolicySnapshot,
+  type ChildRunResult,
   childRunInputFingerprint,
   foldChildRunLifecycleStatus,
   isChildRunFact,
@@ -1794,6 +1795,96 @@ describe("ChildRunCoordinator", () => {
     ).toBe(false);
   });
 
+  it("旧版字符串 Workspace 变更 Fact 可迁移为证据并继续重建 Child tree", async () => {
+    const parentRunId = "run-legacy-workspace-change-parent";
+    const childRunId = "run-legacy-workspace-change-child";
+    const request = testDelegationRequest("delegation-legacy-workspace-change");
+    const inputFingerprint = childRunInputFingerprint(request);
+    const store = new MemoryRunStore();
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "legacy-workspace-change" });
+    const identity = {
+      parentRunId,
+      childRunId,
+      delegationId: request.delegationId,
+      inputFingerprint,
+      recordedAt: "2026-08-27T00:00:00.000Z",
+    };
+    const legacyResult = {
+      outcome: { status: "succeeded", finishReason: "completed" },
+      evidence: [],
+      artifacts: [],
+      workspaceChanges: ["checkpoint:legacy-workspace-change"],
+      unresolvedRisks: [],
+    };
+    await journal.appendFact("delegation", {
+      ...identity,
+      type: "delegation_recorded",
+      parentTurnId: request.parentTurnId,
+      parentStepId: request.parentStepId,
+      agentName: request.agentName,
+      model: request.model,
+      workspace: request.workspace,
+      lifecyclePolicy: request.lifecyclePolicy,
+      context: request.context,
+      inheritedPolicy: {
+        ...testParentPolicy(),
+        depth: 1,
+        budget: request.allocation,
+        permissions: request.permissions,
+        environment: request.environment,
+        maxDescendants: request.allocation.descendants,
+      },
+      requestedAllocation: request.allocation,
+      requestedPermissions: request.permissions,
+      requestedEnvironment: request.environment,
+    });
+    await journal.appendFact("delegation", { ...identity, type: "child_created" });
+    await journal.appendFact("delegation", { ...identity, type: "child_running" });
+    await journal.appendFact("delegation", {
+      ...identity,
+      type: "child_terminal",
+      result: legacyResult,
+    });
+    await journal.appendFact("delegation", {
+      ...identity,
+      type: "parent_joined",
+      result: legacyResult,
+    });
+
+    const projection = ProjectionEngine.project(await store.read(parentRunId));
+
+    expect(projection.childRuns?.nodes[0]?.result).toMatchObject({
+      evidence: ["checkpoint:legacy-workspace-change"],
+      workspaceChanges: [],
+      unresolvedRisks: [expect.stringContaining("历史 Child Run")],
+    });
+    let adapterExecutions = 0;
+    const restarted = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: new RunStateJournal(
+        parentRunId,
+        store,
+        (await store.read(parentRunId)).length,
+      ),
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          adapterExecutions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => "run-should-not-be-created",
+    });
+    const restored = await (await restarted.delegate(request)).join();
+    expect(restored).toMatchObject({
+      evidence: ["checkpoint:legacy-workspace-change"],
+      workspaceChanges: [],
+    });
+    expect(adapterExecutions).toBe(0);
+  });
+
   it("父进程崩溃后从持久 Child Facts 审计 orphan，且不重复子副作用", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-child-process-crash-"));
     temporaryDirectories.push(directory);
@@ -2083,13 +2174,13 @@ function testDelegationRequest(delegationId: string): ChildRunDelegationRequest 
   };
 }
 
-function successfulChildResult() {
+function successfulChildResult(): ChildRunResult {
   return {
     outcome: { status: "succeeded" as const, finishReason: "done" },
-    evidence: [] as string[],
-    artifacts: [] as string[],
-    workspaceChanges: [] as string[],
-    unresolvedRisks: [] as string[],
+    evidence: [],
+    artifacts: [],
+    workspaceChanges: [],
+    unresolvedRisks: [],
   };
 }
 

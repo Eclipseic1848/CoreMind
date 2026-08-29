@@ -1,22 +1,26 @@
 import "../../../test/setup-env.js";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
+import type { CoreMindToolDefinition } from "./external-tool.js";
 import { ProjectionEngine } from "./projection.js";
 import { FileRunStore } from "./run-state.js";
 import { CoreMindRuntime, delegatedToolEnvironment } from "./runtime.js";
+import { projectToolCallLifecycles } from "./tool-call-lifecycle.js";
 import type { ToolApprovalRequest } from "./tool-policy.js";
 import type { CoreMindTraceEvent } from "./trace.js";
+import { canonicalizeWorkspace, WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("Delegation Tool TypeScript happy path", () => {
   const temporaryDirectories: string[] = [];
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await Promise.all(
       temporaryDirectories
         .splice(0)
@@ -80,7 +84,6 @@ describe("Delegation Tool TypeScript happy path", () => {
       });
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-
     try {
       const port = (server.address() as AddressInfo).port;
       const config: CoreMindConfig = {
@@ -217,6 +220,560 @@ describe("Delegation Tool TypeScript happy path", () => {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );
+    }
+  });
+
+  it("Child Workspace 写入沿用父 canonical root，并保持 Checkpoint、Receipt 与 change summary 归属", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-workspace-"));
+    temporaryDirectories.push(directory);
+    const store = new FileRunStore(path.join(directory, "runs"));
+    const sharedCallId = "call-shared-writer";
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          model?: string;
+        };
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        if (payload.model === "writer-model") {
+          sendSse(
+            response,
+            hasToolResult
+              ? textResponse("child-workspace-final", "子级写入完成")
+              : writeToolResponse(sharedCallId, "shared.txt", "Child 写入内容"),
+          );
+          return;
+        }
+        sendSse(
+          response,
+          hasToolResult
+            ? textResponse("parent-workspace-final", "父任务完成")
+            : delegationResponseTo("writer", sharedCallId),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const config = baseConfig(port, {
+        main: {
+          systemPrompt: "你是父 Agent。",
+          tools: [{ id: "write" }],
+          delegation: {
+            budget: parentDelegationBudget(),
+            limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+            targets: {
+              writer: { budget: { ...parentDelegationBudget(), descendants: 0 } },
+            },
+          },
+        },
+        writer: {
+          systemPrompt: "你是写入 Agent。",
+          model: "writer-model",
+          tools: [{ id: "write" }],
+        },
+      });
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "委派写入任务",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      expect(result.outcome.error).toBeUndefined();
+      expect(result.outcome).toMatchObject({ status: "succeeded" });
+      const childRunId = result.childRuns?.nodes[0]?.childRunId;
+      expect(childRunId).toEqual(expect.any(String));
+      const parentRecords = await store.read(result.runId);
+      const childRecords = await store.read(childRunId!);
+      const delegation = parentRecords.find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      );
+      const joined = parentRecords.find(
+        (record) => record.kind === "delegation" && record.payload.type === "parent_joined",
+      );
+      const childCheckpoint = childRecords
+        .filter((record) => record.kind === "checkpoint")
+        .at(-1)?.payload;
+      const childEvents = childRecords.flatMap((record) =>
+        record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
+      );
+      const childReceipts = childEvents.filter((event) => event.type === "effect_receipt");
+      const parentReceipts = parentRecords
+        .flatMap((record) =>
+          record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
+        )
+        .filter((event) => event.type === "effect_receipt");
+      const canonicalRoot = await canonicalizeWorkspace(directory);
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(await readFile(path.join(directory, "shared.txt"), "utf8")).toBe("Child 写入内容");
+      expect(delegation?.payload).toMatchObject({
+        workspace: { canonicalRoot, lease: "shared_canonical" },
+      });
+      expect(childEvents).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "workspace_lease",
+            status: "acquired",
+            canonicalRoot,
+            owner: expect.objectContaining({ runId: childRunId, callId: sharedCallId }),
+          }),
+        ]),
+      );
+      expect(childCheckpoint).toMatchObject({
+        runId: childRunId,
+        toolCallId: sharedCallId,
+        existed: false,
+        afterExisted: true,
+        afterSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      });
+      expect(childReceipts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            status: "committed",
+            binding: expect.objectContaining({ runId: childRunId, callId: sharedCallId }),
+          }),
+        ]),
+      );
+      expect(parentRecords.some((record) => record.kind === "checkpoint")).toBe(false);
+      expect(
+        parentReceipts.every(
+          (receipt) => receipt.binding === undefined || receipt.binding.runId === result.runId,
+        ),
+      ).toBe(true);
+      expect(joined?.payload).toMatchObject({
+        result: {
+          workspaceChanges: [
+            {
+              checkpointId: (childCheckpoint as { checkpointId?: string } | undefined)
+                ?.checkpointId,
+              path: "shared.txt",
+              kind: "created",
+              afterSha256: (childCheckpoint as { afterSha256?: string } | undefined)?.afterSha256,
+            },
+          ],
+        },
+      });
+
+      await writeFile(path.join(directory, "shared.txt"), "用户后续修改", "utf8");
+      const reopenedStore = new FileRunStore(path.join(directory, "runs"));
+      const reopenedRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        runStore: reopenedStore,
+      });
+      const reopenedTree = await ProjectionEngine.projectTree(reopenedStore, result.runId);
+      const reopenedChildRunId = reopenedTree.childRuns?.nodes[0]?.childRunId;
+      expect(reopenedChildRunId).toEqual(expect.any(String));
+      const reopenedChildProjection = ProjectionEngine.project(
+        await reopenedStore.read(reopenedChildRunId!),
+      );
+      const persistedCheckpoint = reopenedChildProjection.checkpoints.at(-1);
+      expect(persistedCheckpoint).toMatchObject({
+        checkpointId: (childCheckpoint as { checkpointId?: string } | undefined)?.checkpointId,
+        afterExisted: true,
+      });
+      await expect(
+        reopenedRuntime.restoreCheckpoint(persistedCheckpoint as never),
+      ).rejects.toMatchObject({ code: "checkpoint_conflict" });
+      expect(await readFile(path.join(directory, "shared.txt"), "utf8")).toBe("用户后续修改");
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("父级持有写租约时 Child 写入失败关闭，取消后不覆盖用户修改或遗留租约", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-writer-race-"));
+    temporaryDirectories.push(directory);
+    await writeFile(path.join(directory, "protected.txt"), "用户已有内容", "utf8");
+    const store = new FileRunStore(path.join(directory, "runs"));
+    const controller = new AbortController();
+    let markParentWriterEntered = () => {};
+    const parentWriterEntered = new Promise<void>((resolve) => {
+      markParentWriterEntered = resolve;
+    });
+    const heldWriter: CoreMindToolDefinition = {
+      name: "held_write",
+      description: "持有父级 Workspace Lease，直到父 Run 被取消",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+      effect: { operations: ["write"], reversible: true, pathFields: ["path"] },
+      capability: {
+        effect: "workspace",
+        replay: "idempotent",
+        concurrency: "workspace_exclusive",
+        checkpoint: "required",
+        durability: "critical",
+      },
+      execute: async (_args, context) => {
+        markParentWriterEntered();
+        await new Promise<never>((_resolve, reject) => {
+          const cancel = () => reject(new Error("cancelled"));
+          if (context.signal?.aborted) cancel();
+          else context.signal?.addEventListener("abort", cancel, { once: true });
+        });
+      },
+    };
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          model?: string;
+        };
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        if (payload.model === "writer-model") {
+          sendSse(
+            response,
+            hasToolResult
+              ? textResponse("child-race-final", "子级结束")
+              : writeToolResponse("call-child-race", "protected.txt", "不应覆盖"),
+          );
+          return;
+        }
+        sendSse(
+          response,
+          hasToolResult
+            ? textResponse("parent-race-final", "父级结束")
+            : parentWriterAndDelegationResponse(),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let run: ReturnType<CoreMindRuntime["run"]> | undefined;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: baseConfig(port, {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            tools: [{ id: "write" }],
+            delegation: {
+              budget: parentDelegationBudget(),
+              limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+              targets: {
+                writer: { budget: { ...parentDelegationBudget(), descendants: 0 } },
+              },
+            },
+          },
+          writer: {
+            systemPrompt: "你是写入 Agent。",
+            model: "writer-model",
+            tools: [{ id: "write" }],
+          },
+        }),
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "并行执行父写入与委派",
+        runStore: store,
+        toolDefinitions: [heldWriter],
+        signal: controller.signal,
+      });
+
+      run = runtime.run();
+      await within(parentWriterEntered, "父级 Writer 未取得 Workspace Lease");
+      const parentRunId = await eventually(async () => {
+        const inspection = await new WorkspaceLeaseService().inspect(directory);
+        return inspection.state === "held" ? inspection.owner.runId : undefined;
+      }, "父级 Workspace Lease 未进入 held");
+      const childRunId = await eventually(async () => {
+        const delegation = (await store.read(parentRunId)).find(
+          (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+        );
+        return (delegation?.payload as { childRunId?: string } | undefined)?.childRunId;
+      }, "父级未持久化 ChildRunId");
+      await eventually(async () => {
+        const records = await store.read(childRunId);
+        return records.some((record) => record.kind === "finish") ? true : undefined;
+      }, "Child 写租约竞争未收敛");
+
+      controller.abort();
+      const result = await within(run, "取消后父 Run 未收敛");
+      const childRecords = await store.read(childRunId);
+
+      expect(result.outcome.status).toBe("aborted");
+      expect(result.childRuns?.nodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            childRunId,
+            outcome: expect.objectContaining({
+              status: "failed",
+              error: expect.objectContaining({ code: "workspace_busy" }),
+            }),
+          }),
+        ]),
+      );
+      expect(childRecords.some((record) => record.kind === "checkpoint")).toBe(false);
+      expect(await readFile(path.join(directory, "protected.txt"), "utf8")).toBe("用户已有内容");
+      await expect(readFile(path.join(directory, "parent.txt"), "utf8")).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      expect(await new WorkspaceLeaseService().inspect(directory)).toMatchObject({
+        state: "available",
+      });
+    } finally {
+      controller.abort();
+      await run?.catch(() => undefined);
+      await closeServer(server);
+    }
+  }, 45_000);
+
+  it("兄弟 Child 竞争真实 Lease 时父取消会在写入前收敛并释放租约", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-sibling-writers-"));
+    temporaryDirectories.push(directory);
+    const parentRunId = "sibling-writers-parent";
+    const controller = new AbortController();
+    let markWinnerStarted = () => {};
+    const winnerStarted = new Promise<void>((resolve) => {
+      markWinnerStarted = resolve;
+    });
+    let releaseWinner = () => {};
+    const winnerReleased = new Promise<void>((resolve) => {
+      releaseWinner = resolve;
+    });
+    let winnerRunId: string | undefined;
+    let winnerCallId: string | undefined;
+    const store = new FileRunStore(path.join(directory, "runs"), {
+      beforeBarrier: async ({ runId, record }) => {
+        const event =
+          record?.kind === "event" ? (record.payload as CoreMindTraceEvent).event : undefined;
+        if (
+          winnerRunId === undefined &&
+          runId !== parentRunId &&
+          event?.type === "effect_receipt" &&
+          event.status === "started" &&
+          event.tool === "write"
+        ) {
+          winnerRunId = runId;
+          winnerCallId = event.callId;
+          markWinnerStarted();
+          await winnerReleased;
+        }
+      },
+    });
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string; content?: string }>;
+          model?: string;
+        };
+        const serialized = JSON.stringify(payload);
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        if (payload.model === "writer-model") {
+          const isFirst = serialized.includes("写入 sibling-a.txt");
+          sendSse(
+            response,
+            hasToolResult
+              ? textResponse(isFirst ? "sibling-a-final" : "sibling-b-final", "子级结束")
+              : writeToolResponse(
+                  isFirst ? "call-sibling-a-write" : "call-sibling-b-write",
+                  isFirst ? "sibling-a.txt" : "sibling-b.txt",
+                  isFirst ? "Sibling A" : "Sibling B",
+                ),
+          );
+          return;
+        }
+        sendSse(
+          response,
+          hasToolResult
+            ? textResponse("sibling-parent-final", "父级完成")
+            : siblingDelegationResponse(),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let run: ReturnType<CoreMindRuntime["run"]> | undefined;
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: {
+          ...baseConfig(port, {
+            main: {
+              systemPrompt: "你是父 Agent。",
+              tools: [{ id: "write" }],
+              delegation: {
+                budget: {
+                  tokens: 2_000,
+                  toolCalls: 4,
+                  costUsd: 2,
+                  wallTimeMs: 10_000,
+                  steps: 4,
+                  descendants: 2,
+                },
+                limits: { maxDepth: 1, maxActiveChildren: 2, maxDescendants: 2 },
+                targets: {
+                  writer: {
+                    budget: {
+                      tokens: 800,
+                      toolCalls: 2,
+                      costUsd: 0.5,
+                      wallTimeMs: 5_000,
+                      steps: 2,
+                      descendants: 0,
+                    },
+                  },
+                },
+              },
+            },
+            writer: {
+              systemPrompt: "你是写入 Agent。",
+              model: "writer-model",
+              tools: [{ id: "write" }],
+            },
+          }),
+          runtime: {
+            maxSteps: 8,
+            maxToolCalls: 8,
+            maxTokens: 4_000,
+            maxCostUsd: 4,
+            runTimeoutMs: 20_000,
+          },
+        },
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "并行委派两个写入任务",
+        runStore: store,
+        runId: parentRunId,
+        signal: controller.signal,
+      });
+
+      run = runtime.run();
+      await within(winnerStarted, "首个 Child Writer 未进入 started durability barrier");
+      const childRunIds = await eventually(
+        async () => {
+          const ids = (await store.read(parentRunId)).flatMap((record) => {
+            if (record.kind !== "delegation" || record.payload.type !== "delegation_recorded") {
+              return [];
+            }
+            return [(record.payload as { childRunId: string }).childRunId];
+          });
+          return ids.length === 2 ? ids : undefined;
+        },
+        "父级未并行创建两个兄弟 Child",
+        3_000,
+      );
+      expect(winnerRunId).toEqual(expect.any(String));
+      expect(winnerCallId).toEqual(expect.any(String));
+      const blockedRunId = childRunIds.find((childRunId) => childRunId !== winnerRunId);
+      expect(blockedRunId).toEqual(expect.any(String));
+      await eventually(async () => {
+        const records = await store.read(blockedRunId!);
+        return records.some((record) => record.kind === "finish") ? true : undefined;
+      }, "竞争失败的兄弟 Child 未收敛");
+      controller.abort();
+      await eventually(async () => {
+        const records = await store.read(parentRunId);
+        return records.some(
+          (record) =>
+            record.kind === "delegation" &&
+            (record.payload as { type?: string; childRunId?: string }).type ===
+              "child_cancel_requested" &&
+            (record.payload as { childRunId?: string }).childRunId === winnerRunId,
+        )
+          ? true
+          : undefined;
+      }, "父取消未传播到持有 Lease 的 Child");
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      releaseWinner();
+      const result = await within(run, "父取消并释放 durability barrier 后 Run 未收敛");
+      const tree = await ProjectionEngine.projectTree(store, parentRunId);
+      const winnerRecords = await store.read(winnerRunId!);
+      const winnerEvents = winnerRecords.flatMap((record) =>
+        record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
+      );
+      const winnerLeaseEvents = winnerEvents.filter(
+        (event) => event.type === "workspace_lease" && event.owner.callId === winnerCallId,
+      );
+      const winnerLifecycle = projectToolCallLifecycles(
+        winnerEvents.filter((event) => event.type === "tool_lifecycle"),
+      ).find((state) => state.callId === winnerCallId);
+      const parentLifecycle = (await store.read(parentRunId)).flatMap((record) => {
+        if (
+          record.kind !== "delegation" ||
+          (record.payload as { childRunId?: string }).childRunId !== winnerRunId
+        ) {
+          return [];
+        }
+        return [(record.payload as { type: string }).type];
+      });
+      const fileReads = await Promise.allSettled([
+        readFile(path.join(directory, "sibling-a.txt"), "utf8"),
+        readFile(path.join(directory, "sibling-b.txt"), "utf8"),
+      ]);
+
+      expect(result.outcome.status).toBe("aborted");
+      expect(tree.childRuns?.nodes).toHaveLength(2);
+      expect(
+        tree.childRuns?.nodes.find((node) => node.childRunId === winnerRunId)?.outcome,
+      ).toMatchObject({ status: "aborted" });
+      expect(
+        tree.childRuns?.nodes.find((node) => node.childRunId === blockedRunId)?.outcome,
+      ).toMatchObject({
+        status: "failed",
+        error: { code: "workspace_busy" },
+      });
+      expect(fileReads.every((read) => read.status === "rejected")).toBe(true);
+      expect(winnerLifecycle).toMatchObject({
+        terminal: true,
+        currentPhase: "terminal",
+        result: { executionOutcome: "aborted" },
+      });
+      expect(winnerLeaseEvents).toEqual([
+        expect.objectContaining({
+          type: "workspace_lease",
+          status: "acquired",
+          owner: expect.objectContaining({ runId: winnerRunId, callId: winnerCallId }),
+        }),
+        expect.objectContaining({
+          type: "workspace_lease",
+          status: "released",
+          owner: expect.objectContaining({ runId: winnerRunId, callId: winnerCallId }),
+        }),
+      ]);
+      expect(parentLifecycle).toEqual(
+        expect.arrayContaining(["child_cancel_requested", "child_terminal", "parent_joined"]),
+      );
+      expect(parentLifecycle.indexOf("child_cancel_requested")).toBeLessThan(
+        parentLifecycle.indexOf("child_terminal"),
+      );
+      expect(parentLifecycle.indexOf("child_terminal")).toBeLessThan(
+        parentLifecycle.indexOf("parent_joined"),
+      );
+      expect(await new WorkspaceLeaseService().inspect(directory)).toMatchObject({
+        state: "available",
+      });
+    } finally {
+      controller.abort();
+      releaseWinner();
+      await run?.catch(() => undefined);
+      await closeServer(server);
     }
   });
 
@@ -1086,6 +1643,20 @@ async function within<T>(promise: Promise<T>, label: string, timeoutMs = 10_000)
   }
 }
 
+async function eventually<T>(
+  read: () => Promise<T | undefined>,
+  label: string,
+  timeoutMs = 10_000,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await read();
+    if (value !== undefined) return value;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(label);
+}
+
 function baseConfig(port: number, agents: CoreMindConfig["agents"]): CoreMindConfig {
   return {
     schemaVersion: 2,
@@ -1216,6 +1787,123 @@ function webFetchToolResponse(url: string): unknown[] {
       ],
     },
     { id: "child-web-fetch", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+  ];
+}
+
+function writeToolResponse(callId: string, targetPath: string, content: string): unknown[] {
+  return [
+    {
+      id: "child-workspace-write",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: callId,
+                type: "function",
+                function: {
+                  name: "write",
+                  arguments: JSON.stringify({ path: targetPath, content }),
+                },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "child-workspace-write",
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+    },
+  ];
+}
+
+function parentWriterAndDelegationResponse(): unknown[] {
+  return [
+    {
+      id: "parent-writer-race",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: "call-parent-held-write",
+                type: "function",
+                function: {
+                  name: "held_write",
+                  arguments: JSON.stringify({ path: "parent.txt", content: "不应写入" }),
+                },
+              },
+              {
+                index: 1,
+                id: "call-parent-delegate",
+                type: "function",
+                function: {
+                  name: "delegate",
+                  arguments: JSON.stringify({
+                    target: "writer",
+                    task: "尝试覆盖 protected.txt",
+                    references: [],
+                    limits: {},
+                  }),
+                },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "parent-writer-race",
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+    },
+  ];
+}
+
+function siblingDelegationResponse(): unknown[] {
+  const delegation = (index: number, callId: string, task: string) => ({
+    index,
+    id: callId,
+    type: "function",
+    function: {
+      name: "delegate",
+      arguments: JSON.stringify({
+        target: "writer",
+        task,
+        references: [],
+        limits: { tokens: 800, descendants: 0, maxDepth: 1, maxActiveChildren: 0 },
+      }),
+    },
+  });
+  return [
+    {
+      id: "sibling-delegations",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              delegation(0, "call-delegate-sibling-a", "写入 sibling-a.txt"),
+              delegation(1, "call-delegate-sibling-b", "写入 sibling-b.txt"),
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "sibling-delegations",
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+    },
   ];
 }
 
