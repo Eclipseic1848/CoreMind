@@ -146,8 +146,20 @@ export class FactLedger {
   }
 
   async flush(): Promise<void> {
-    await this.tail;
-    if (this.poison) throw this.poison.error;
+    await this.barrier(async () => undefined);
+  }
+
+  barrier<T>(operation: () => Promise<T>): Promise<T> {
+    const task = this.tail.then(async () => {
+      if (this.poison) throw this.poison.error;
+      return operation();
+    });
+    this.tail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    void task.catch(() => undefined);
+    return task;
   }
 
   status(): FactLedgerStatus {

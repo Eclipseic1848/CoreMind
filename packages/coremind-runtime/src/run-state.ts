@@ -667,11 +667,12 @@ export class RunStateJournal {
     durability: RunStoreDurability = "ordinary",
   ): Promise<RunStoreDurabilityAcknowledgement> {
     try {
-      await this.ledger.flush();
-      assertSupportedDurability(this.store, durability);
-      const acknowledgement = this.store.barrier
-        ? await this.store.barrier(this.runId, durability)
-        : legacyDurabilityAcknowledgement(this.store, durability);
+      const acknowledgement = await this.ledger.barrier(async () => {
+        assertSupportedDurability(this.store, durability);
+        return this.store.barrier
+          ? this.store.barrier(this.runId, durability)
+          : legacyDurabilityAcknowledgement(this.store, durability);
+      });
       validateDurabilityAcknowledgement(this.store, durability, acknowledgement);
       this.durabilityCounters[durability].succeeded += 1;
       return acknowledgement;

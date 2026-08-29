@@ -195,6 +195,29 @@ describe("RunState", () => {
     ]);
   });
 
+  it("critical flush 的 barrier 排在调用后追加的 Fact 之前", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-flush-order-"));
+    const order: string[] = [];
+    const store = new FileRunStore(dir, {
+      beforeCommit: ({ record }) => {
+        if (record?.sequence === 2) order.push("append");
+      },
+      beforeBarrier: ({ record }) => {
+        if (!record) order.push("barrier");
+      },
+    });
+    const journal = new RunStateJournal("run-flush-order", store);
+    journal.event({ order: 1 });
+    await journal.flush();
+
+    const critical = journal.flush("critical");
+    journal.event({ order: 2 });
+    await critical;
+    await journal.flush();
+
+    expect(order).toEqual(["barrier", "append"]);
+  });
+
   it("多个 File Store 争用同一 writer lock 时等待持有者释放后继续", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-lock-contention-"));
     const runId = "run-lock-contention";
