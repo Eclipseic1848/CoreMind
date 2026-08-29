@@ -2305,6 +2305,22 @@ describe("ChildRunCoordinator", () => {
       unhandledDescendants: 0,
       quiescent: true,
     });
+
+    const persisted = await store.read(parentRunId);
+    const restored = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: new RunStateJournal(parentRunId, store, persisted.at(-1)?.sequence ?? 0),
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          throw new Error("已处置的异常成功 Child 不得在 Resume 时重跑");
+        },
+      },
+      createChildRunId: () => `run-risky-success-${id}-unexpected`,
+    });
+    expect(restored.continuationGate()).toEqual({ status: "allowed" });
+    expect(restored.isQuiescent()).toBe(true);
   });
 
   it("非成功 join 必须持久化明确处置，重启后仍保持已处理状态", async () => {

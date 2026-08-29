@@ -2,6 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { rmSync } from "node:fs";
 import { mkdtemp, readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1541,6 +1542,164 @@ describe("ProtocolHost", () => {
       }
     }
   }, 15_000);
+
+  it("正式 Child Run 在 Host 崩溃后先 orphan audit，再从同一事实前缀重建 tree", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-child-crash-"));
+    const configPath = path.join(dir, "probe-config.json");
+    const effectMarker = path.join(dir, "effect-marker.log");
+    const runId = "protocol-child-crash-parent";
+    const probe = fileURLToPath(
+      new URL("../../../scripts/protocol-child-run-crash-probe.mjs", import.meta.url),
+    );
+    const child = spawn(process.execPath, [probe, dir, configPath, runId], {
+      stdio: "pipe",
+      windowsHide: true,
+    });
+    let observer: ReturnType<typeof createServer> | undefined;
+
+    try {
+      await waitForProbeReady(child);
+      await forceTerminateChild(child);
+      const config = JSON.parse(await readFile(configPath, "utf8")) as {
+        provider: { baseUrl: string };
+      };
+      const providerPort = Number(new URL(config.provider.baseUrl).port);
+      let providerRequests = 0;
+      observer = createServer((_request, response) => {
+        providerRequests += 1;
+        response.statusCode = 500;
+        response.end("Resume 不得重新请求 Provider");
+      });
+      await withTimeout(
+        new Promise<void>((resolve, reject) => {
+          const onError = (error: Error) => reject(error);
+          observer!.once("error", onError);
+          observer!.listen(providerPort, "127.0.0.1", () => {
+            observer!.off("error", onError);
+            resolve();
+          });
+        }),
+        5_000,
+        "等待 Provider observer 监听端口超时",
+      );
+
+      const restarted = new ProtocolHost({ send: () => {} });
+      await withTimeout(
+        initializeV2With(restarted, { config, configDir: dir, cwd: dir }),
+        5_000,
+        "等待重启 Host 初始化超时",
+      );
+      expect(
+        await withTimeout(
+          restarted.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "resume-child-after-host-crash",
+            method: "resume",
+            params: { runId, input: "启动 Child 并等待" },
+          }),
+          5_000,
+          "等待崩溃后 Resume 返回超时",
+        ),
+      ).toMatchObject({ result: { runId, selectedProtocol: "2.0" } });
+
+      let query: Awaited<ReturnType<ProtocolHost["handle"]>> | undefined;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        query = await withTimeout(
+          restarted.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: `query-child-after-crash-${attempt}`,
+            method: "query",
+            params: { runId },
+          }),
+          5_000,
+          `等待崩溃恢复 Projection query 超时：attempt=${attempt}`,
+        );
+        const childRuns = (
+          query as {
+            result?: {
+              projection?: {
+                childRuns?: {
+                  nodes?: Array<{
+                    status?: string;
+                    outcome?: { finishReason?: string };
+                    disposition?: { state?: string; requiredActor?: string };
+                  }>;
+                };
+              };
+            };
+          }
+        ).result?.projection?.childRuns;
+        if (
+          childRuns?.nodes?.some(
+            (node) =>
+              node.status === "joined" &&
+              node.outcome?.finishReason === "child_run_orphaned" &&
+              node.disposition?.state === "required" &&
+              node.disposition.requiredActor === "human",
+          )
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      const records = await new FileRunStore(path.join(dir, ".coremind", "runs")).read(runId);
+      const lifecycle = records.flatMap((record) =>
+        record.kind === "delegation" ? [(record.payload as { type: string }).type] : [],
+      );
+      const orphaned = lifecycle.indexOf("child_orphaned");
+      const joined = lifecycle.indexOf("parent_joined");
+
+      expect(child.exitCode !== null || child.signalCode !== null).toBe(true);
+      expect(providerRequests).toBe(0);
+      expect((await readFile(effectMarker, "utf8")).trim().split("\n")).toEqual(["child-effect"]);
+      expect(orphaned).toBeGreaterThanOrEqual(0);
+      expect(joined).toBeGreaterThan(orphaned);
+      expect(query).toMatchObject({
+        result: {
+          projection: {
+            childRuns: {
+              nodes: [
+                expect.objectContaining({
+                  parentRunId: runId,
+                  delegationId: expect.any(String),
+                  childRunId: expect.any(String),
+                  status: "joined",
+                  outcome: expect.objectContaining({
+                    status: "paused",
+                    finishReason: "child_run_orphaned",
+                  }),
+                  disposition: expect.objectContaining({
+                    state: "required",
+                    requiredActor: "human",
+                  }),
+                }),
+              ],
+              activeDescendants: 0,
+              unhandledDescendants: 1,
+              quiescent: false,
+            },
+          },
+        },
+      });
+      await withTimeout(restarted.shutdown(), 7_000, "等待重启 Host shutdown 超时");
+    } finally {
+      try {
+        await forceTerminateChild(child);
+      } finally {
+        if (observer) {
+          await withTimeout(
+            new Promise<void>((resolve) => observer!.close(() => resolve())),
+            2_000,
+            "等待 Provider observer 关闭超时",
+          );
+        }
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  }, 40_000);
 
   it("客户端断线导致 send 抛错时不取消或中断后台 Run", async () => {
     let continuedAfterTrace = false;

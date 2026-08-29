@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   isResolvedToolCapability,
@@ -358,11 +358,17 @@ export class FileRunStore implements RunStore {
     await mkdir(this.directory, { recursive: true });
     const lockPath = `${destination}.lock`;
     const deadline = Date.now() + (this.options.lockTimeoutMs ?? 2_000);
-    let handle: Awaited<ReturnType<typeof open>> | undefined;
+    const owner = {
+      pid: process.pid,
+      createdAt: new Date().toISOString(),
+      nonce: randomUUID(),
+    };
+    let acquired = false;
     let transientPermissionError: unknown;
-    while (!handle) {
+    while (!acquired) {
       try {
-        handle = await open(lockPath, "wx");
+        await publishWriterLock(lockPath, owner);
+        acquired = true;
       } catch (error) {
         const contention = await classifyWriterLockContention(error, lockPath);
         if (contention === "not_contention") throw error;
@@ -381,17 +387,8 @@ export class FileRunStore implements RunStore {
       }
     }
     try {
-      await handle.writeFile(
-        JSON.stringify({
-          pid: process.pid,
-          createdAt: new Date().toISOString(),
-          nonce: randomUUID(),
-        }),
-        "utf8",
-      );
       return await operation();
     } finally {
-      await handle.close();
       await rm(lockPath, { force: true });
     }
   }
@@ -431,6 +428,24 @@ export class FileRunStore implements RunStore {
       await rm(tombstonePath, { force: true }).catch(() => undefined);
       await rm(claimPath, { force: true }).catch(() => undefined);
     }
+  }
+}
+
+async function publishWriterLock(
+  lockPath: string,
+  owner: WriterLockOwner & { createdAt: string },
+): Promise<void> {
+  const candidatePath = `${lockPath}.candidate-${owner.nonce}`;
+  try {
+    // 先完整并持久化候选文件，再通过 hard link 原子发布，避免崩溃留下无 owner 的空锁。
+    await writeFile(candidatePath, JSON.stringify(owner), {
+      encoding: "utf8",
+      flag: "wx",
+      flush: true,
+    });
+    await link(candidatePath, lockPath);
+  } finally {
+    await rm(candidatePath, { force: true }).catch(() => undefined);
   }
 }
 

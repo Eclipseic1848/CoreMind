@@ -992,9 +992,22 @@ export class ChildRunCoordinator {
       return structuredClone(result);
     })().catch((error) => {
       state.joinPromise = undefined;
+      if (error instanceof CoreMindError && error.code === "child_run_not_quiescent") {
+        this.joinAfterLateCompletion(state);
+      }
       throw error;
     });
     return state.joinPromise;
+  }
+
+  /** grace 超时后 Adapter 若最终收敛，仍补齐结构化 join；永不收敛时保持非静止。 */
+  private joinAfterLateCompletion(state: DelegationState): void {
+    if (!state.completion) return;
+    void state.completion
+      .then(async () => {
+        await this.join(state);
+      })
+      .catch(() => undefined);
   }
 
   private async cancelState(
@@ -1106,7 +1119,7 @@ export class ChildRunCoordinator {
         if (
           existing.status !== "joined" ||
           !existing.result ||
-          existing.result.outcome.status === "succeeded" ||
+          !childRunResultRequiresDisposition(existing.result) ||
           existing.disposition ||
           childRunResultFingerprint(existing.result) !== fact.resultFingerprint ||
           canonicalJson(childRunRecoveryAssessment(existing.result)) !==
