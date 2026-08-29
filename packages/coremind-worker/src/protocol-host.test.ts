@@ -635,6 +635,13 @@ describe("ProtocolHost", () => {
         workspaceChanges: [],
         unresolvedRisks: [],
       };
+      const model = {
+        providerId: "test",
+        model: "test-model",
+        providerConfigFingerprint: "sha256:test-provider-config",
+        agentPromptFingerprint: "sha256:test-agent-prompt",
+        agentDelegationFingerprint: "sha256:test-agent-delegation",
+      };
       await journal.appendFact(
         "delegation",
         {
@@ -643,7 +650,7 @@ describe("ProtocolHost", () => {
           parentTurnId: "turn-parent",
           parentStepId: "step-parent",
           agentName: "worker",
-          model: { providerId: "test", model: "test-model" },
+          model,
           workspace: { canonicalRoot: dir, lease: "shared_canonical" },
           lifecyclePolicy: {
             join: "structured",
@@ -654,7 +661,7 @@ describe("ProtocolHost", () => {
           context: { workingSetFingerprint: "sha256:context", references: [] },
           inheritedPolicy: {
             depth: 1,
-            model: { providerId: "test", model: "test-model" },
+            model,
             workspace: { canonicalRoot: dir, lease: "shared_canonical" },
             protectedContextReferences: [],
             budget: {

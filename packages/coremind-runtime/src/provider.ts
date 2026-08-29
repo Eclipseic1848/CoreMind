@@ -26,6 +26,40 @@ export interface ProviderRuntime {
   promptCacheStatus: "available" | "unavailable";
   /** 每次请求重新解析的模型能力来源；不得从 Session 旧值或 UI Projection 反推。 */
   contextCapabilityCandidates: ContextCapabilityCandidate[];
+  /** 自定义兼容端点允许命名 Agent 在同一 Provider 内选择未列入单模型目录的模型。 */
+  acceptsUnlistedModels: boolean;
+}
+
+/** 从项目 Provider 的固定路由中解析命名 Agent 模型；内置目录不允许静默回退。 */
+export function resolveProviderModel(runtime: ProviderRuntime, modelId?: string): Model<any> {
+  if (!modelId || modelId === runtime.model.id) return runtime.model;
+  const matched = runtime.models
+    .getModels(runtime.model.provider)
+    .find((model) => model.id === modelId);
+  if (matched) return matched;
+  if (runtime.acceptsUnlistedModels) {
+    return { ...runtime.model, id: modelId, name: modelId };
+  }
+  throw new CoreMindError(
+    "no_models",
+    `命名 Agent 配置的模型 ${modelId} 不在 Provider ${runtime.model.provider} 的锁定目录中`,
+  );
+}
+
+/** 为实际 Agent 模型生成同源能力候选，避免用项目默认模型替代请求事实。 */
+export function contextCapabilityCandidatesForModel(
+  runtime: ProviderRuntime,
+  model: Model<any>,
+): ContextCapabilityCandidate[] {
+  if (model.id === runtime.model.id) return runtime.contextCapabilityCandidates;
+  const origin = runtime.contextCapabilityCandidates[0];
+  return [
+    contextCapability(
+      model,
+      origin?.source ?? "conservative_fallback",
+      origin?.confidence ?? "assumed",
+    ),
+  ];
 }
 
 /** 宿主注入的后端无关秘密解析接缝；引用和值都不得离开 Provider Adapter。 */
@@ -157,6 +191,7 @@ async function buildBuiltinRuntime(
     apiKeyOverride,
     promptCacheStatus: cacheStatus(model),
     contextCapabilityCandidates: [contextCapability(model, "locked_catalog", "verified")],
+    acceptsUnlistedModels: false,
   };
 }
 
@@ -208,6 +243,7 @@ async function buildCustomRuntime(
         capabilityOrigin?.confidence ?? (cfg.contextWindow === undefined ? "assumed" : "declared"),
       ),
     ],
+    acceptsUnlistedModels: true,
   };
 }
 

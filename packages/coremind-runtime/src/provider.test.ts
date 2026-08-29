@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { CoreMindError } from "./errors.js";
-import { buildProviderRuntime } from "./provider.js";
+import {
+  buildProviderRuntime,
+  contextCapabilityCandidatesForModel,
+  resolveProviderModel,
+} from "./provider.js";
 
 process.env.DEEPSEEK_API_KEY = "test-only";
 
@@ -37,6 +41,13 @@ describe("buildProviderRuntime（内置提供商）", () => {
     const runtime = await buildProviderRuntime({ id: "deepseek", model: "deepseek-chat" });
     expect(runtime.model.id).not.toBe("deepseek-chat");
     expect(runtime.warnings[0]).toContain("deepseek-chat");
+  });
+
+  it("命名 Agent 不能把内置 Provider 路由到目录外模型", async () => {
+    const runtime = await buildProviderRuntime({ id: "deepseek" });
+    expect(() => resolveProviderModel(runtime, "unknown-agent-model")).toThrowError(
+      expect.objectContaining({ code: "no_models" }),
+    );
   });
 
   it("未知内置提供商抛 CoreMindError", async () => {
@@ -290,6 +301,33 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
         source: "conservative_fallback",
         confidence: "assumed",
       },
+    ]);
+  });
+
+  it("自定义兼容端点允许命名 Agent 固定同 Provider 的独立模型", async () => {
+    const runtime = await buildProviderRuntime({
+      id: "gateway",
+      baseUrl: "http://127.0.0.1:8080/v1",
+      model: "default-model",
+      contextWindow: 65536,
+      maxTokens: 2048,
+    });
+    const targetModel = resolveProviderModel(runtime, "reviewer-model");
+
+    expect(targetModel).toMatchObject({
+      provider: "gateway",
+      id: "reviewer-model",
+      baseUrl: "http://127.0.0.1:8080/v1",
+      contextWindow: 65536,
+      maxTokens: 2048,
+    });
+    expect(contextCapabilityCandidatesForModel(runtime, targetModel)).toEqual([
+      expect.objectContaining({
+        providerId: "gateway",
+        modelId: "reviewer-model",
+        source: "explicit_config",
+        confidence: "declared",
+      }),
     ]);
   });
 });

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
-import type { ChildRunExecutionInput } from "./child-run.js";
+import { type ChildRunExecutionInput, childRunInputFingerprint } from "./child-run.js";
 import { createCoreMindChildRunAdapter } from "./child-runtime-adapter.js";
 import { checkProject } from "./project-check.js";
 import { defineTool } from "./public-tool.js";
@@ -324,9 +324,75 @@ describe("Execution Security Gate", () => {
         }),
     });
 
-    await expect(
-      adapter.execute({ childRunId: "child-security" } as ChildRunExecutionInput),
-    ).rejects.toMatchObject({ code: "execution_security_violation" });
+    await expect(adapter.execute(childExecutionInput(cwd))).rejects.toMatchObject({
+      code: "execution_security_violation",
+    });
     expect(factWrites).toBe(0);
   });
 });
+
+function childExecutionInput(cwd: string): ChildRunExecutionInput {
+  const model = {
+    providerId: "gateway",
+    model: "probe",
+    providerConfigFingerprint: "sha256:test-provider-config",
+    agentPromptFingerprint: "sha256:test-agent-prompt",
+    agentDelegationFingerprint: "sha256:test-agent-delegation",
+  };
+  const workspace = { canonicalRoot: cwd, lease: "shared_canonical" as const };
+  const permissions = {
+    mode: "ask" as const,
+    workspaceOnly: true,
+    network: "deny" as const,
+    tools: [],
+    paths: [],
+    credentials: [],
+  };
+  const allocation = {
+    tokens: 1,
+    toolCalls: 0,
+    costUsd: 0,
+    wallTimeMs: 1_000,
+    steps: 1,
+    descendants: 0,
+  };
+  const request = {
+    delegationId: "delegation-security",
+    parentTurnId: "turn-security",
+    parentStepId: "step-security",
+    agentName: "main",
+    task: "验证安全门",
+    model,
+    workspace,
+    lifecyclePolicy: {
+      join: "structured" as const,
+      cancel: "propagate_parent" as const,
+      orphan: "audit_pause" as const,
+      detach: "forbidden" as const,
+    },
+    context: { workingSetFingerprint: "sha256:security", references: [] },
+    allocation,
+    permissions,
+    environment: {},
+  };
+  return {
+    parentRunId: "run-parent-security",
+    childRunId: "child-security",
+    delegationId: request.delegationId,
+    inputFingerprint: childRunInputFingerprint(request),
+    request,
+    inheritedPolicy: {
+      depth: 1,
+      budget: allocation,
+      permissions,
+      environment: {},
+      model,
+      workspace,
+      protectedContextReferences: [],
+      maxDepth: 1,
+      maxActiveChildren: 1,
+      maxDescendants: 0,
+    },
+    signal: new AbortController().signal,
+  };
+}

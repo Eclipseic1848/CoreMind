@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { tightenExecutionEnvironmentRequirement } from "coremind-tools/internal";
 import { canonicalJson } from "./canonical-json.js";
+import {
+  isResolvedDelegatedContextReference,
+  type ResolvedDelegatedContextReference,
+} from "./delegated-context.js";
 import { CoreMindError, terminalStatusForCode } from "./errors.js";
 import { normalizeExecutionError } from "./execution-error.js";
 import type { RunOutcome } from "./result.js";
@@ -57,6 +61,9 @@ export interface ChildRunPolicySnapshot {
   model: ChildRunModelSnapshot;
   workspace: ChildRunWorkspaceSnapshot;
   protectedContextReferences: readonly string[];
+  protectedContextResolvedReferences?: readonly ResolvedDelegatedContextReference[];
+  /** 按父 Agent 预算作用域固定的命名 Delegation Target 路由。 */
+  delegationModelRoutes?: Readonly<Record<string, Readonly<Record<string, ChildRunModelSnapshot>>>>;
   maxDepth?: number;
   maxActiveChildren?: number;
   maxDescendants?: number;
@@ -76,11 +83,20 @@ export interface ChildRunCoordinatorHierarchyLimits {
 export interface ChildRunContextReference {
   workingSetFingerprint: string;
   references: readonly string[];
+  resolvedReferences?: readonly ResolvedDelegatedContextReference[];
 }
 
 export interface ChildRunModelSnapshot {
   providerId: string;
   model: string;
+  providerConfigFingerprint: string;
+  agentPromptFingerprint: string;
+  agentDelegationFingerprint: string;
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+    thinkingLevel?: "off" | "low" | "medium" | "high" | "xhigh";
+  };
 }
 
 export interface ChildRunWorkspaceSnapshot {
@@ -285,37 +301,38 @@ export class ChildRunCoordinator {
   }
 
   async delegate(request: ChildRunDelegationRequest): Promise<ChildRunHandle> {
-    const inputFingerprint = childRunInputFingerprint(request);
-    const existing = this.delegations.get(request.delegationId);
+    const requestSnapshot = deepFreeze(structuredClone(request));
+    const inputFingerprint = childRunInputFingerprint(requestSnapshot);
+    const existing = this.delegations.get(requestSnapshot.delegationId);
     if (existing) {
       if (existing.inputFingerprint !== inputFingerprint) {
         throw new CoreMindError(
           "delegation_conflict",
-          `DelegationId ${request.delegationId} 已绑定不同输入`,
+          `DelegationId ${requestSnapshot.delegationId} 已绑定不同输入`,
         );
       }
       return this.handleFor(existing);
     }
 
-    const scope = this.scopeFor(request.budgetScope);
+    const scope = this.scopeFor(requestSnapshot.budgetScope);
     this.assertActiveChildLimit(scope.key, scope.hierarchy.maxActiveChildren);
     const scopedParentPolicy = { ...this.parentPolicy, ...scope.hierarchy };
-    assertChildRunPolicyIsNarrower(scopedParentPolicy, scope.remainingBudget, request);
-    const childPolicy = effectiveChildPolicy(scopedParentPolicy, request);
-    const releaseParentBudget = this.options.reserveParentBudget?.(request.allocation);
+    assertChildRunPolicyIsNarrower(scopedParentPolicy, scope.remainingBudget, requestSnapshot);
+    const childPolicy = effectiveChildPolicy(scopedParentPolicy, requestSnapshot);
+    const releaseParentBudget = this.options.reserveParentBudget?.(requestSnapshot.allocation);
 
     const childRunId = this.options.createChildRunId();
     const state: DelegationState = {
       childRunId,
-      delegationId: request.delegationId,
-      budgetScope: request.budgetScope,
+      delegationId: requestSnapshot.delegationId,
+      budgetScope: requestSnapshot.budgetScope,
       inputFingerprint,
       status: "recorded",
       abortController: new AbortController(),
       releaseParentBudget,
     };
-    this.delegations.set(request.delegationId, state);
-    reserveBudget(scope.remainingBudget, request.allocation);
+    this.delegations.set(requestSnapshot.delegationId, state);
+    reserveBudget(scope.remainingBudget, requestSnapshot.allocation);
     let delegationRecorded = false;
     state.initialization = (async () => {
       await this.options.parentJournal.appendFact(
@@ -324,37 +341,38 @@ export class ChildRunCoordinator {
           type: "delegation_recorded",
           parentRunId: this.options.parentRunId,
           childRunId,
-          delegationId: request.delegationId,
-          budgetScope: request.budgetScope,
-          parentTurnId: request.parentTurnId,
-          parentStepId: request.parentStepId,
+          delegationId: requestSnapshot.delegationId,
+          budgetScope: requestSnapshot.budgetScope,
+          parentTurnId: requestSnapshot.parentTurnId,
+          parentStepId: requestSnapshot.parentStepId,
           inputFingerprint,
-          agentName: request.agentName,
-          model: request.model,
-          workspace: request.workspace,
-          lifecyclePolicy: request.lifecyclePolicy,
-          context: request.context,
+          agentName: requestSnapshot.agentName,
+          model: requestSnapshot.model,
+          workspace: requestSnapshot.workspace,
+          lifecyclePolicy: requestSnapshot.lifecyclePolicy,
+          context: requestSnapshot.context,
           inheritedPolicy: childPolicy,
-          requestedAllocation: request.allocation,
-          requestedPermissions: request.permissions,
-          requestedEnvironment: request.environment,
+          requestedAllocation: requestSnapshot.allocation,
+          requestedPermissions: requestSnapshot.permissions,
+          requestedEnvironment: requestSnapshot.environment,
           recordedAt: this.now(),
         } satisfies ChildRunFact,
         { durability: "critical" },
       );
       delegationRecorded = true;
       await this.appendLifecycle(state, "child_created", "critical");
-      state.completion = this.execute(state, request, childPolicy);
+      state.completion = this.execute(state, requestSnapshot, childPolicy);
     })();
     try {
       await state.initialization;
       return this.handleFor(state);
     } catch (error) {
       const definitelyNotRecorded =
-        !delegationRecorded && (await this.isDelegationDefinitelyAbsent(request.delegationId));
+        !delegationRecorded &&
+        (await this.isDelegationDefinitelyAbsent(requestSnapshot.delegationId));
       if (definitelyNotRecorded) {
-        this.delegations.delete(request.delegationId);
-        releaseBudget(scope.remainingBudget, request.allocation);
+        this.delegations.delete(requestSnapshot.delegationId);
+        releaseBudget(scope.remainingBudget, requestSnapshot.allocation);
         state.releaseParentBudget?.();
       }
       throw error;
@@ -401,17 +419,16 @@ export class ChildRunCoordinator {
       result = cancellationResult(state.cancellationFinishReason ?? "parent_cancelled");
     } else {
       try {
-        result = normalizeChildRunResult(
-          await this.options.adapter.execute({
-            parentRunId: this.options.parentRunId,
-            childRunId: state.childRunId,
-            delegationId: state.delegationId,
-            inputFingerprint: state.inputFingerprint,
-            request,
-            inheritedPolicy: childPolicy,
-            signal,
-          }),
-        );
+        const executionInput = Object.freeze({
+          parentRunId: this.options.parentRunId,
+          childRunId: state.childRunId,
+          delegationId: state.delegationId,
+          inputFingerprint: state.inputFingerprint,
+          request: deepFreeze(structuredClone(request)),
+          inheritedPolicy: deepFreeze(structuredClone(childPolicy)),
+          signal,
+        });
+        result = normalizeChildRunResult(await this.options.adapter.execute(executionInput));
       } catch (error) {
         result = signal.aborted
           ? cancellationResult(state.cancellationFinishReason ?? "parent_cancelled")
@@ -693,8 +710,15 @@ function assertChildRunPolicyIsNarrower(
     throw policyEscalation("Child Run 深度超过父级允许上限");
   }
   effectiveChildHierarchy(parent, request);
-  if (canonicalJson(request.model) !== canonicalJson(parent.model)) {
-    throw policyEscalation("Child Run 模型不在父级继承快照内");
+  const routeScope = request.budgetScope ?? DEFAULT_BUDGET_SCOPE;
+  const configuredModel = parent.delegationModelRoutes?.[routeScope]?.[request.agentName];
+  if (!configuredModel) {
+    throw policyEscalation("Child Run 缺少命名 Delegation Target 的固定模型路由");
+  }
+  if (
+    !matchesConfiguredDelegationModel(configuredModel, request.model, request.allocation.tokens)
+  ) {
+    throw policyEscalation("Child Run 模型与命名 Delegation Target 的固定路由不一致");
   }
   if (canonicalJson(request.workspace) !== canonicalJson(parent.workspace)) {
     throw policyEscalation("Child Run Workspace 身份或租约要求与父级不一致");
@@ -830,6 +854,11 @@ function effectiveChildPolicy(
     model: structuredClone(request.model),
     workspace: structuredClone(request.workspace),
     protectedContextReferences: [...new Set(request.context.references)],
+    ...((request.context.resolvedReferences?.length ?? 0) > 0
+      ? {
+          protectedContextResolvedReferences: structuredClone(request.context.resolvedReferences),
+        }
+      : {}),
     ...hierarchy,
   };
 }
@@ -1060,10 +1089,24 @@ export function isChildRunFact(value: unknown): value is ChildRunFact {
 }
 
 function isChildRunContextReference(value: unknown): value is ChildRunContextReference {
+  if (
+    !isRecord(value) ||
+    typeof value.workingSetFingerprint !== "string" ||
+    !isStringArray(value.references)
+  ) {
+    return false;
+  }
+  if (value.resolvedReferences === undefined) return true;
+  if (
+    !Array.isArray(value.resolvedReferences) ||
+    !value.resolvedReferences.every(isResolvedDelegatedContextReference)
+  ) {
+    return false;
+  }
+  const references = [...new Set(value.references)];
   return (
-    isRecord(value) &&
-    typeof value.workingSetFingerprint === "string" &&
-    isStringArray(value.references)
+    references.length === value.resolvedReferences.length &&
+    value.resolvedReferences.every((resolved, index) => resolved.reference === references[index])
   );
 }
 
@@ -1099,6 +1142,14 @@ function isChildRunPolicySnapshot(value: unknown): value is ChildRunPolicySnapsh
     isChildRunModelSnapshot(value.model) &&
     isChildRunWorkspaceSnapshot(value.workspace) &&
     isStringArray(value.protectedContextReferences) &&
+    (value.protectedContextResolvedReferences === undefined ||
+      (Array.isArray(value.protectedContextResolvedReferences) &&
+        value.protectedContextResolvedReferences.every(isResolvedDelegatedContextReference))) &&
+    (value.delegationModelRoutes === undefined ||
+      (isRecord(value.delegationModelRoutes) &&
+        Object.values(value.delegationModelRoutes).every(
+          (routes) => isRecord(routes) && Object.values(routes).every(isChildRunModelSnapshot),
+        ))) &&
     typeof value.maxDepth === "number" &&
     Number.isInteger(value.maxDepth) &&
     value.maxDepth >= 0 &&
@@ -1112,8 +1163,69 @@ function isChildRunPolicySnapshot(value: unknown): value is ChildRunPolicySnapsh
   );
 }
 
+function matchesConfiguredDelegationModel(
+  configured: ChildRunModelSnapshot,
+  requested: ChildRunModelSnapshot,
+  tokenAllocation: number,
+): boolean {
+  if (!isChildRunModelSnapshot(configured) || !isChildRunModelSnapshot(requested)) return false;
+  if (configured.providerId !== requested.providerId || configured.model !== requested.model) {
+    return false;
+  }
+  if (
+    configured.providerConfigFingerprint !== requested.providerConfigFingerprint ||
+    configured.agentPromptFingerprint !== requested.agentPromptFingerprint ||
+    configured.agentDelegationFingerprint !== requested.agentDelegationFingerprint
+  ) {
+    return false;
+  }
+  if (
+    configured.options?.temperature !== requested.options?.temperature ||
+    configured.options?.thinkingLevel !== requested.options?.thinkingLevel
+  ) {
+    return false;
+  }
+  const configuredMaxTokens = configured.options?.maxTokens;
+  if (configuredMaxTokens === undefined) {
+    return (
+      requested.options?.maxTokens === undefined || requested.options.maxTokens <= tokenAllocation
+    );
+  }
+  return requested.options?.maxTokens === Math.min(configuredMaxTokens, tokenAllocation);
+}
+
 function isChildRunModelSnapshot(value: unknown): value is ChildRunModelSnapshot {
-  return isRecord(value) && typeof value.providerId === "string" && typeof value.model === "string";
+  if (!isRecord(value) || typeof value.providerId !== "string" || typeof value.model !== "string") {
+    return false;
+  }
+  if (
+    typeof value.providerConfigFingerprint !== "string" ||
+    typeof value.agentPromptFingerprint !== "string" ||
+    typeof value.agentDelegationFingerprint !== "string"
+  ) {
+    return false;
+  }
+  if (value.options === undefined) return true;
+  if (!isRecord(value.options)) return false;
+  const { temperature, maxTokens, thinkingLevel } = value.options;
+  return (
+    (temperature === undefined ||
+      (typeof temperature === "number" && temperature >= 0 && temperature <= 2)) &&
+    (maxTokens === undefined ||
+      (typeof maxTokens === "number" && Number.isInteger(maxTokens) && maxTokens >= 1)) &&
+    (thinkingLevel === undefined ||
+      thinkingLevel === "off" ||
+      thinkingLevel === "low" ||
+      thinkingLevel === "medium" ||
+      thinkingLevel === "high" ||
+      thinkingLevel === "xhigh")
+  );
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+  return Object.freeze(value);
 }
 
 function isChildRunWorkspaceSnapshot(value: unknown): value is ChildRunWorkspaceSnapshot {
