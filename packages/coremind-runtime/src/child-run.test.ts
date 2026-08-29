@@ -10,6 +10,7 @@ import {
   type ChildRunDelegationRequest,
   type ChildRunExecutionAdapter,
   type ChildRunPolicySnapshot,
+  childRunInputFingerprint,
   foldChildRunLifecycleStatus,
   isChildRunFact,
 } from "./child-run.js";
@@ -22,13 +23,31 @@ import {
   type RunStoreDurability,
 } from "./run-state.js";
 
-const TEST_MODEL = { providerId: "test-provider", model: "test-model" };
+const TEST_MODEL = {
+  providerId: "test-provider",
+  model: "test-model",
+  providerConfigFingerprint: "sha256:test-provider-config",
+  agentPromptFingerprint: "sha256:test-agent-prompt",
+  agentDelegationFingerprint: "sha256:test-agent-delegation",
+};
 const TEST_WORKSPACE = {
   canonicalRoot: "C:/test-workspace",
   lease: "shared_canonical" as const,
 };
 const TEST_PARENT_POLICY_AUTHORITY = {
   model: TEST_MODEL,
+  delegationModelRoutes: {
+    __default__: {
+      worker: TEST_MODEL,
+      reviewer: TEST_MODEL,
+      child: TEST_MODEL,
+      grandchild: TEST_MODEL,
+      "seed-worker": TEST_MODEL,
+    },
+    planner: { worker: TEST_MODEL },
+    reviewer: { worker: TEST_MODEL },
+    disabled: { worker: TEST_MODEL },
+  },
   workspace: TEST_WORKSPACE,
   protectedContextReferences: [] as string[],
 };
@@ -234,6 +253,7 @@ describe("ChildRunCoordinator", () => {
     const parentPolicy = {
       depth: 1,
       ...TEST_PARENT_POLICY_AUTHORITY,
+      delegationModelRoutes: { planner: { worker: TEST_MODEL } },
       budget: {
         tokens: 2_000,
         toolCalls: 8,
@@ -331,7 +351,15 @@ describe("ChildRunCoordinator", () => {
         policy: parentPolicy,
         request: {
           ...baseRequest,
-          model: { providerId: "other-provider", model: "other-model" },
+          model: { ...TEST_MODEL, providerId: "other-provider", model: "other-model" },
+        },
+      },
+      {
+        name: "同 Provider 非命名目标模型",
+        policy: parentPolicy,
+        request: {
+          ...baseRequest,
+          model: { ...TEST_MODEL, model: "unapproved-model" },
         },
       },
       {
@@ -372,6 +400,172 @@ describe("ChildRunCoordinator", () => {
     expect(
       (await store.read(parentRunId)).filter((record) => record.kind === "delegation"),
     ).toEqual([]);
+  });
+
+  it("按发起 Agent 的预算作用域选择命名目标模型路由", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-model-scope-parent", store);
+    await journal.start({ configFingerprint: "model-scope-parent" });
+    const workerModel = { ...TEST_MODEL, model: "worker-model" };
+    const scopedBudget = testParentPolicy().budget;
+    const scopedHierarchy = { maxDepth: 3, maxActiveChildren: 1, maxDescendants: 4 };
+    let executions = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-model-scope-parent",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: {
+        ...testParentPolicy(),
+        delegationModelRoutes: { planner: { worker: workerModel } },
+      },
+      delegationBudgetPools: { planner: scopedBudget, "other-agent": scopedBudget },
+      delegationHierarchyLimits: {
+        planner: scopedHierarchy,
+        "other-agent": scopedHierarchy,
+      },
+      adapter: {
+        execute: async () => {
+          executions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => `run-model-scope-child-${executions}`,
+    });
+    const request = {
+      ...testDelegationRequest("delegation-model-scope"),
+      budgetScope: "planner",
+      model: workerModel,
+    };
+
+    await (await coordinator.delegate(request)).join();
+    await expect(
+      coordinator.delegate({
+        ...request,
+        delegationId: "delegation-wrong-model-scope",
+        budgetScope: "other-agent",
+      }),
+    ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    await expect(
+      coordinator.delegate({
+        ...request,
+        delegationId: "delegation-missing-model-route-fallback",
+        budgetScope: "other-agent",
+        model: testParentPolicy().model,
+      }),
+    ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    expect(executions).toBe(1);
+  });
+
+  it("命名路由与请求同时省略 provenance 指纹时在创建 Fact 前失败关闭", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-model-provenance-missing", store);
+    await journal.start({ configFingerprint: "model-provenance-missing" });
+    const unboundModel = {
+      providerId: TEST_MODEL.providerId,
+      model: TEST_MODEL.model,
+    } as typeof TEST_MODEL;
+    let executions = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-model-provenance-missing",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: {
+        ...testParentPolicy(),
+        delegationModelRoutes: { __default__: { worker: unboundModel } },
+      },
+      adapter: {
+        execute: async () => {
+          executions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => "run-model-provenance-missing-child",
+    });
+
+    await expect(
+      coordinator.delegate({
+        ...testDelegationRequest("delegation-model-provenance-missing"),
+        model: unboundModel,
+      }),
+    ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    expect(executions).toBe(0);
+    expect(
+      (await store.read("run-model-provenance-missing")).filter(
+        (record) => record.kind === "delegation",
+      ),
+    ).toEqual([]);
+  });
+
+  it("父策略缺少命名模型路由表时在创建 Fact 前失败关闭", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-model-routes-missing", store);
+    await journal.start({ configFingerprint: "model-routes-missing" });
+    const { delegationModelRoutes: _routes, ...routeLessPolicy } = testParentPolicy();
+    let executions = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-model-routes-missing",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: routeLessPolicy,
+      adapter: {
+        execute: async () => {
+          executions += 1;
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => "run-model-routes-missing-child",
+    });
+
+    await expect(
+      coordinator.delegate(testDelegationRequest("delegation-model-routes-missing")),
+    ).rejects.toMatchObject({ code: "child_run_policy_escalation" });
+    expect(executions).toBe(0);
+    expect(
+      (await store.read("run-model-routes-missing")).filter(
+        (record) => record.kind === "delegation",
+      ),
+    ).toEqual([]);
+  });
+
+  it("委派入口快照阻止调用方在 Fact 持久化前篡改 authority", async () => {
+    const store = durableMemoryRunStore();
+    const journal = new RunStateJournal("run-frozen-authority", store);
+    await journal.start({ configFingerprint: "frozen-authority" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId: "run-frozen-authority",
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async (input) => {
+          expect(Object.isFrozen(input)).toBe(true);
+          expect(Object.isFrozen(input.request)).toBe(true);
+          expect(Object.isFrozen(input.inheritedPolicy)).toBe(true);
+          expect(() => {
+            (input.request as { task: string }).task = "篡改任务";
+          }).toThrow(TypeError);
+          expect(input.request.task).toBe("执行确定性测试子任务");
+          expect(input.request.context.references).toEqual([]);
+          return successfulChildResult();
+        },
+      },
+      createChildRunId: () => "run-frozen-authority-child",
+    });
+
+    const request = testDelegationRequest("delegation-frozen-authority");
+    const expectedFingerprint = childRunInputFingerprint(request);
+    const pendingHandle = coordinator.delegate(request);
+    request.task = "Fact 持久化前篡改任务";
+    request.context.references.push("fact:unauthorized");
+    await (await pendingHandle).join();
+    const persisted = (await store.read("run-frozen-authority")).find(
+      (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+    )?.payload;
+    expect(persisted).toMatchObject({
+      inputFingerprint: expectedFingerprint,
+      context: { references: [] },
+    });
+    expect(persisted).not.toHaveProperty("task");
   });
 
   it("单次委派只能收紧后代深度、活动子级数与后代总数", async () => {
@@ -823,7 +1017,9 @@ describe("ChildRunCoordinator", () => {
     expect(inheritedPolicies).toEqual([
       {
         depth: 1,
-        ...TEST_PARENT_POLICY_AUTHORITY,
+        model: TEST_MODEL,
+        workspace: TEST_WORKSPACE,
+        protectedContextReferences: [],
         budget: firstRequest.allocation,
         permissions: firstRequest.permissions,
         environment: firstRequest.environment,
@@ -1232,7 +1428,10 @@ describe("ChildRunCoordinator", () => {
       parentRunId: "run-tree-child",
       parentJournal: childJournal,
       runStore: store,
-      parentPolicy: childPolicy!,
+      parentPolicy: {
+        ...childPolicy!,
+        delegationModelRoutes: { __default__: { grandchild: TEST_MODEL } },
+      },
       adapter: { execute: async () => result },
       createChildRunId: () => "run-tree-grandchild",
     });

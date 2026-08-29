@@ -20,6 +20,13 @@ const { ChildRunCoordinator, FileRunStore, RunStateJournal } = await import(
 const store = new FileRunStore(storeDirectory);
 const journal = new RunStateJournal("run-crash-parent", store);
 await journal.start({ configFingerprint: "child-crash-probe" });
+const model = {
+  providerId: "test-provider",
+  model: "test-model",
+  providerConfigFingerprint: "sha256:test-provider-config",
+  agentPromptFingerprint: "sha256:test-agent-prompt",
+  agentDelegationFingerprint: "sha256:test-agent-delegation",
+};
 const policy = {
   depth: 0,
   budget: {
@@ -39,7 +46,10 @@ const policy = {
     credentials: [],
   },
   environment: { networkEgress: "denied" },
-  model: { providerId: "test-provider", model: "test-model" },
+  model,
+  delegationModelRoutes: {
+    __default__: { worker: model },
+  },
   workspace: { canonicalRoot: "C:/test-workspace", lease: "shared_canonical" },
   protectedContextReferences: [],
 };

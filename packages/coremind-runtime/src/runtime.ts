@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { Model } from "@earendil-works/pi-ai";
-import type { AgentConfig, CoreMindConfig, ToolEffectDeclaration } from "coremind-config";
+import type {
+  AgentConfig,
+  CoreMindConfig,
+  ToolConfig,
+  ToolEffectDeclaration,
+} from "coremind-config";
 import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
 import {
   type ArtifactRecord,
@@ -81,6 +86,10 @@ import {
   type InternalRunControlCommand,
   type RunControlCommand,
 } from "./control-inbox.js";
+import {
+  buildDelegatedInitialPrompt,
+  resolveDelegatedContextReferences,
+} from "./delegated-context.js";
 import {
   createDelegationAgentTool,
   DELEGATION_TOOL_CAPABILITY,
@@ -198,6 +207,8 @@ export interface CoreMindRuntimeOptions {
   cwd?: string;
   /** 环境变量（默认 process.env） */
   env?: NodeJS.ProcessEnv;
+  /** 工具执行环境；缺省与 env 相同，Child Runtime 必须传入脱敏副本。 */
+  toolEnv?: NodeJS.ProcessEnv;
   /** Provider Adapter 使用的后端无关秘密解析器。 */
   secretResolver?: SecretResolver;
   /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
@@ -342,10 +353,20 @@ export class CoreMindRuntime {
     const { config, configDir } = options;
     const cwd = options.cwd ?? process.cwd();
     const env = options.env ?? process.env;
+    const requestedToolEnv = options.toolEnv ?? env;
+    const toolEnv = options.childRunAuthority
+      ? delegatedToolEnvironment(requestedToolEnv)
+      : requestedToolEnv;
     enforceExecutionSecurity(config);
     const emit = options.events ?? (() => {});
     if (options.toolDefinitions?.some((definition) => definition.name === DELEGATION_TOOL_NAME)) {
       throw new CoreMindError("invalid_tool", "自定义工具不得使用内建工具名 delegate");
+    }
+    if (options.childRunAuthority && (options.toolDefinitions?.length ?? 0) > 0) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        "Child Runtime 不接受缺少内建 provenance 的注入工具",
+      );
     }
 
     // 1. provider（解析模型，警告转发）
@@ -368,7 +389,7 @@ export class CoreMindRuntime {
     const artifactStore = new ArtifactStore({ cwd });
     const executionEnvironment = createPlatformExecutionEnvironment({
       workspaceRoot: cwd,
-      env,
+      env: toolEnv,
     });
     const externalTools = (options.toolDefinitions ?? []).map((definition) =>
       wrapToolWithArtifactCapture(adaptCoreMindTool(definition), artifactStore),
@@ -385,7 +406,7 @@ export class CoreMindRuntime {
         {
           cwd,
           configDir,
-          env,
+          env: toolEnv,
           artifactStore,
         },
         executionEnvironment,
@@ -544,17 +565,50 @@ export class CoreMindRuntime {
   }
 
   /** 返回命名 Agent 在项目 Provider 内的固定模型与参数快照。 */
-  private modelSnapshotFor(agentName: string): ChildRunModelSnapshot {
+  private modelSnapshotFor(agentName: string, tokenLimit?: number): ChildRunModelSnapshot {
     const model = this.agentModels.get(agentName);
     if (!model) {
       throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
     }
-    const options = this.agentConfigs.get(agentName)?.options;
+    const configuredOptions = this.agentConfigs.get(agentName)?.options;
+    const options =
+      tokenLimit === undefined
+        ? configuredOptions
+        : {
+            ...configuredOptions,
+            maxTokens: Math.min(configuredOptions?.maxTokens ?? tokenLimit, tokenLimit),
+          };
     return {
       providerId: model.provider,
       model: model.id,
+      providerConfigFingerprint: fingerprintEffectReceiptValue(this.config.provider ?? null),
+      agentPromptFingerprint: fingerprintEffectReceiptValue({
+        systemPrompt: this.agentConfigs.get(agentName)?.systemPrompt ?? "",
+        skillsContent: this.skillsByAgent.get(agentName) ?? [],
+      }),
+      agentDelegationFingerprint: fingerprintEffectReceiptValue(
+        this.agentConfigs.get(agentName)?.delegation ?? null,
+      ),
       ...(options ? { options: structuredClone(options) } : {}),
     };
+  }
+
+  /** 只从当前父 Agent 的 Config allowlist 构建可委派模型路由。 */
+  private delegationModelRoutesFor(agentName: string): Record<string, ChildRunModelSnapshot> {
+    const targets = this.agentConfigs.get(agentName)?.delegation?.targets ?? {};
+    return Object.fromEntries(
+      Object.keys(targets).map((targetName) => [targetName, this.modelSnapshotFor(targetName)]),
+    );
+  }
+
+  /** 为同一 Runtime 内所有可能发起委派的 Agent 固化二级模型路由。 */
+  private delegationModelRoutes(): Record<string, Record<string, ChildRunModelSnapshot>> {
+    return Object.fromEntries(
+      [...this.agentConfigs.keys()].map((agentName) => [
+        agentName,
+        this.delegationModelRoutesFor(agentName),
+      ]),
+    );
   }
 
   /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
@@ -672,6 +726,18 @@ export class CoreMindRuntime {
         "Child Runtime 未绑定原始委派输入、RunId、AbortSignal 或任务输入",
       );
     }
+    if (this.mainAgentName !== input.request.agentName) {
+      throw new CoreMindError(
+        "child_run_identity_mismatch",
+        "Child Runtime 默认 Agent 与持久化 Delegation Target 不一致",
+      );
+    }
+    if ((this.config.workflow?.length ?? 0) > 0 || this.config.loop) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        "Child Runtime 只能执行固定命名目标，不能通过 workflow 或 loop 切换 Agent",
+      );
+    }
     await assertRuntimeChildPolicyAuthority({
       policy: input.inheritedPolicy,
       config: this.config,
@@ -684,6 +750,7 @@ export class CoreMindRuntime {
         stepTimeoutMs: this.options.stepTimeoutMs,
       }),
       enforceRuntimeBudget: true,
+      enforceDelegatedToolBoundary: true,
     });
   }
 
@@ -806,6 +873,8 @@ export class CoreMindRuntime {
           lease: "shared_canonical",
         } satisfies ChildRunPolicySnapshot["workspace"]),
       protectedContextReferences: inheritedPolicy?.protectedContextReferences ?? [],
+      protectedContextResolvedReferences: inheritedPolicy?.protectedContextResolvedReferences ?? [],
+      delegationModelRoutes: this.delegationModelRoutes(),
       maxDepth: inheritedPolicy?.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth,
       maxActiveChildren:
         inheritedPolicy?.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren,
@@ -829,9 +898,22 @@ export class CoreMindRuntime {
             );
           }
           const { workflow: _workflow, loop: _loop, ...baseConfig } = this.config;
+          const childAgents = structuredClone(this.config.agents);
+          for (const agent of Object.values(childAgents)) {
+            if (agent.tools) agent.tools = agent.tools.filter(isDelegatedBuiltinToolConfig);
+          }
+          childAgents[authority.request.agentName] = {
+            ...target,
+            ...(target.tools ? { tools: target.tools.filter(isDelegatedBuiltinToolConfig) } : {}),
+            model: authority.request.model.model,
+            options: authority.request.model.options,
+          };
           const childConfig: CoreMindConfig = {
             ...baseConfig,
-            agents: structuredClone(this.config.agents),
+            ...(baseConfig.tools
+              ? { tools: baseConfig.tools.filter(isDelegatedBuiltinToolConfig) }
+              : {}),
+            agents: childAgents,
             defaultAgent: authority.request.agentName,
             runtime: {
               ...baseConfig.runtime,
@@ -851,6 +933,7 @@ export class CoreMindRuntime {
             configDir: this.options.configDir,
             cwd: this.options.cwd,
             env: this.options.env,
+            toolEnv: delegatedToolEnvironment(this.options.env ?? process.env),
             secretResolver: this.options.secretResolver,
             initialPrompt: delegatedInitialPrompt(authority.request),
             events: this.options.events,
@@ -858,7 +941,6 @@ export class CoreMindRuntime {
             approveTool: this.options.approveTool,
             runStore,
             runId: authority.childRunId,
-            toolDefinitions: this.options.toolDefinitions,
             childRunAuthority: authority,
             signal: authority.signal,
           });
@@ -917,6 +999,17 @@ export class CoreMindRuntime {
       rawArgs,
     );
     const permissions = this.config.permissions ?? {};
+    const activeRunStore = this.activeRunStore;
+    if (!activeRunStore) {
+      throw new CoreMindError("child_run_unavailable", "活动父 Run 缺少可解析 Fact 的 RunStore");
+    }
+    const resolvedReferences = resolveDelegatedContextReferences({
+      references: args.references,
+      parentFacts: await activeRunStore.read(parentRunId),
+      artifacts: context.artifactRecords(),
+      inheritedReferences:
+        this.options.childRunAuthority?.inheritedPolicy.protectedContextResolvedReferences,
+    });
     const request: ChildRunDelegationRequest = {
       delegationId: `delegation:${call.turnId}:${call.callId}`,
       budgetScope: parentAgentName,
@@ -924,7 +1017,7 @@ export class CoreMindRuntime {
       parentStepId: call.stepId ?? `step:${parentAgentName}:default`,
       agentName: args.target,
       task: args.task,
-      model: this.modelSnapshotFor(args.target),
+      model: this.modelSnapshotFor(args.target, allocation.tokens),
       workspace: {
         canonicalRoot: await canonicalizeWorkspace(this.options.cwd ?? process.cwd()),
         lease: "shared_canonical",
@@ -941,8 +1034,10 @@ export class CoreMindRuntime {
           parentTurnId: call.turnId,
           task: args.task,
           references: args.references,
+          resolvedReferences,
         }),
         references: args.references,
+        resolvedReferences,
       },
       allocation,
       hierarchyLimits,
@@ -994,7 +1089,7 @@ export class CoreMindRuntime {
     }
     const parentTools = new Set(this.toolCapabilitiesByAgent.get(parentAgentName)?.keys() ?? []);
     const targetTools = [...(this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? [])].filter(
-      (tool) => tool !== DELEGATION_TOOL_NAME,
+      (tool) => tool !== DELEGATION_TOOL_NAME && isDelegatedSafeToolName(tool),
     );
     const expandedTools = targetTools.filter((tool) => !parentTools.has(tool));
     if (expandedTools.length > 0) {
@@ -1450,6 +1545,7 @@ export class CoreMindRuntime {
         tools: new Set(this.runtimeAuthorityToolIds()),
         limits,
         enforceRuntimeBudget: false,
+        enforceDelegatedToolBoundary: false,
       });
       context.attachChildRuns(
         await ChildRunCoordinator.open({
@@ -2995,15 +3091,56 @@ const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
 const QUIESCENCE_POLL_INTERVAL_MS = 10;
 
+const DELEGATED_SAFE_BUILTIN_TOOLS = new Set(["web-fetch"]);
+
+/** Child 不加载脚本、进程、递归扫描或 Git 历史等可绕过有界 Context 的工具。 */
+function isDelegatedBuiltinToolConfig(tool: ToolConfig): boolean {
+  return !("path" in tool) && DELEGATED_SAFE_BUILTIN_TOOLS.has(tool.id);
+}
+
+function isDelegatedSafeToolName(tool: string): boolean {
+  return DELEGATED_SAFE_BUILTIN_TOOLS.has(tool);
+}
+
+const DELEGATED_TOOL_ENV_ALLOWLIST = new Set([
+  "PATH",
+  "PATHEXT",
+  "SYSTEMROOT",
+  "WINDIR",
+  "COMSPEC",
+  "TEMP",
+  "TMP",
+  "TMPDIR",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "TERM",
+  "COLORTERM",
+  "NO_COLOR",
+  "FORCE_COLOR",
+]);
+
+/** Provider 仍使用完整认证环境；Child 工具只取得平台运行必需变量。 */
+export function delegatedToolEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => DELEGATED_TOOL_ENV_ALLOWLIST.has(name.toUpperCase())),
+  );
+}
+
 /** 只把本次任务与显式引用标识符交给 Child；父 Session、文件和工具输出不参与构造。 */
 function delegatedInitialPrompt(request: ChildRunDelegationRequest): string {
-  if (request.context.references.length === 0) return request.task;
-  return [
-    request.task,
-    "",
-    "CoreMind Delegated Context（仅限本次获准的显式引用）：",
-    JSON.stringify([...request.context.references]),
-  ].join("\n");
+  const resolvedReferences = request.context.resolvedReferences ?? [];
+  const references = [...new Set(request.context.references)];
+  if (
+    resolvedReferences.length !== references.length ||
+    resolvedReferences.some((resolved, index) => resolved.reference !== references[index])
+  ) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      "Child Runtime 拒绝未解析或不完整的 Delegated Context 引用",
+    );
+  }
+  return buildDelegatedInitialPrompt(request.task, resolvedReferences);
 }
 
 function tightenDelegationBudget(
@@ -3027,6 +3164,7 @@ async function assertRuntimeChildPolicyAuthority(input: {
   tools: ReadonlySet<string>;
   limits: ResolvedRuntimeLimits;
   enforceRuntimeBudget: boolean;
+  enforceDelegatedToolBoundary: boolean;
 }): Promise<void> {
   const {
     policy,
@@ -3037,9 +3175,19 @@ async function assertRuntimeChildPolicyAuthority(input: {
     tools,
     limits,
     enforceRuntimeBudget,
+    enforceDelegatedToolBoundary,
   } = input;
+  const unsafeTool = enforceDelegatedToolBoundary
+    ? [...tools].find((tool) => !isDelegatedSafeToolName(tool))
+    : undefined;
+  if (unsafeTool) {
+    throw new CoreMindError(
+      "child_run_policy_escalation",
+      `Child Runtime 工具 ${unsafeTool} 不能证明不会扩展 Delegated Context`,
+    );
+  }
   const canonicalRoot = await canonicalizeWorkspace(workspaceRoot);
-  if (fingerprintEffectReceiptValue(policy.model) !== fingerprintEffectReceiptValue(model)) {
+  if (!matchesRuntimeChildModel(policy.model, model)) {
     throw new CoreMindError(
       "child_run_policy_escalation",
       "Child Run 父策略模型与当前 Runtime 的实际 Provider/model 不一致",
@@ -3105,6 +3253,21 @@ async function assertRuntimeChildPolicyAuthority(input: {
       error instanceof Error ? error.message : String(error),
     );
   }
+}
+
+function matchesRuntimeChildModel(
+  expected: ChildRunModelSnapshot,
+  actual: ChildRunModelSnapshot,
+): boolean {
+  return (
+    expected.providerId === actual.providerId &&
+    expected.model === actual.model &&
+    fingerprintEffectReceiptValue(expected.options ?? null) ===
+      fingerprintEffectReceiptValue(actual.options ?? null) &&
+    expected.providerConfigFingerprint === actual.providerConfigFingerprint &&
+    expected.agentPromptFingerprint === actual.agentPromptFingerprint &&
+    expected.agentDelegationFingerprint === actual.agentDelegationFingerprint
+  );
 }
 
 /**

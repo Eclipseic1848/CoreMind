@@ -3,6 +3,7 @@ import type {
   ChildRunExecutionInput,
   ChildRunResult,
 } from "./child-run.js";
+import { childRunInputFingerprint } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
 import { isRegisteredCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
@@ -28,6 +29,12 @@ export function createCoreMindChildRunAdapter(
   return Object.freeze({
     [CORE_MIND_CHILD_RUN_ADAPTER]: true as const,
     execute: async (input: ChildRunExecutionInput) => {
+      if (childRunInputFingerprint(input.request) !== input.inputFingerprint) {
+        throw new CoreMindError(
+          "child_run_identity_mismatch",
+          "Child Runtime authority 与持久化 Delegation 输入指纹不一致",
+        );
+      }
       const runtime = await options.createRuntime(input);
       if (!isRegisteredCoreMindRuntimeInstance(runtime)) {
         throw new CoreMindError(

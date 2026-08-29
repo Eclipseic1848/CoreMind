@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ChatSession } from "./chat-session.js";
 import { ProjectionEngine } from "./projection.js";
 import { FileRunStore } from "./run-state.js";
-import { CoreMindRuntime } from "./runtime.js";
+import { CoreMindRuntime, delegatedToolEnvironment } from "./runtime.js";
 import type { ToolApprovalRequest } from "./tool-policy.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
@@ -22,6 +22,19 @@ describe("Delegation Tool TypeScript happy path", () => {
         .splice(0)
         .map((directory) => rm(directory, { recursive: true, force: true })),
     );
+  });
+
+  it("Child 工具环境只保留平台运行必需变量", () => {
+    expect(
+      delegatedToolEnvironment({
+        PATH: "runtime-path",
+        TEMP: "runtime-temp",
+        SAFE_FLAG: "not-explicitly-authorized",
+        SENTRY_DSN: "non-typical-credential",
+        SSH_AUTH_SOCK: "credential-capability",
+        SERVICE_AUTH: "custom-credential",
+      }),
+    ).toEqual({ PATH: "runtime-path", TEMP: "runtime-temp" });
   });
 
   it("由活动父 Run 调用 allowlist Agent，并持久化可投影的结构化结果", async () => {
@@ -114,7 +127,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           maxToolCalls: 4,
           maxTokens: 2_000,
           maxCostUsd: 2,
-          runTimeoutMs: 10_000,
+          runTimeoutMs: 30_000,
         },
         permissions: { mode: "full", workspaceOnly: true, network: "allow" },
       };
@@ -168,7 +181,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         type: "delegation_recorded",
         parentRunId: result.runId,
         agentName: "researcher",
-        context: { references: ["fact:approved"] },
+        context: { references: [] },
         requestedAllocation: { tokens: 800, toolCalls: 2 },
         inheritedPolicy: {
           maxDepth: 1,
@@ -210,6 +223,9 @@ describe("Delegation Tool TypeScript happy path", () => {
   it("正式产品路径保留命名 Agent 的后代委派并在任意深度维持收紧策略", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-tree-"));
     temporaryDirectories.push(directory);
+    const parentRunId = "delegation-tree-parent";
+    const store = new FileRunStore(path.join(directory, "runs"));
+    let approvedReferences: string[] = [];
     const requests: Array<Record<string, unknown>> = [];
     const server = createServer((request, response) => {
       let body = "";
@@ -217,9 +233,10 @@ describe("Delegation Tool TypeScript happy path", () => {
       request.on("data", (chunk) => {
         body += chunk;
       });
-      request.on("end", () => {
+      request.on("end", async () => {
         const payload = JSON.parse(body) as {
           messages?: Array<{ role?: string }>;
+          model?: string;
           tools?: Array<{ function?: { name?: string } }>;
         };
         requests.push(payload as Record<string, unknown>);
@@ -235,21 +252,15 @@ describe("Delegation Tool TypeScript happy path", () => {
               : textResponse("parent-final", "父任务完成"),
           );
         } else if (hasDelegationTool && serialized.includes("你是父 Agent")) {
+          const approvedFact = (await store.read(parentRunId)).find((record) => record.eventId);
+          if (!approvedFact?.eventId) throw new Error("父 Run 尚未持久化可引用 Fact");
+          approvedReferences = [`fact:${approvedFact.eventId}`];
           sendSse(
             response,
-            delegationResponseTo("researcher", "call-researcher", [
-              "fact:approved-context",
-              "artifact:approved-context",
-            ]),
+            delegationResponseTo("researcher", "call-researcher", approvedReferences),
           );
         } else if (hasDelegationTool && serialized.includes("你是研究 Agent")) {
-          sendSse(
-            response,
-            delegationResponseTo("reviewer", "call-reviewer", [
-              "fact:approved-context",
-              "artifact:approved-context",
-            ]),
-          );
+          sendSse(response, delegationResponseTo("reviewer", "call-reviewer", approvedReferences));
         } else {
           sendSse(response, textResponse("reviewer-final", "审查子任务完成"));
         }
@@ -298,7 +309,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           researcher: {
             systemPrompt: "你是研究 Agent。",
             model: "researcher-model",
-            options: { temperature: 0.2, maxTokens: 900 },
+            options: { temperature: 0.2, maxTokens: 1_200 },
             delegation: {
               budget: {
                 tokens: 400,
@@ -339,7 +350,6 @@ describe("Delegation Tool TypeScript happy path", () => {
         },
         permissions: { mode: "full", workspaceOnly: true, network: "allow" },
       };
-      const store = new FileRunStore(path.join(directory, "runs"));
       const runtime = await CoreMindRuntime.create({
         config,
         configDir: directory,
@@ -347,6 +357,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         env: { COREMIND_TEST_API_KEY: "test-key" },
         initialPrompt: "完成父任务；PARENT_PRIVATE_MARKER；UNREFERENCED_FILE_MARKER",
         runStore: store,
+        runId: parentRunId,
       });
 
       const result = await runtime.run();
@@ -381,7 +392,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         model: {
           providerId: "probe",
           model: "researcher-model",
-          options: { temperature: 0.2, maxTokens: 900 },
+          options: { temperature: 0.2, maxTokens: 1_000 },
         },
         inheritedPolicy: { depth: 1, maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
       });
@@ -419,8 +430,8 @@ describe("Delegation Tool TypeScript happy path", () => {
             (message) => message.role === "tool",
           ),
       );
-      expect(JSON.stringify(researcherInitialRequest)).toContain("fact:approved-context");
-      expect(JSON.stringify(researcherInitialRequest)).toContain("artifact:approved-context");
+      expect(approvedReferences).toHaveLength(1);
+      expect(JSON.stringify(researcherInitialRequest)).toContain(approvedReferences[0]!);
       expect(JSON.stringify(researcherInitialRequest)).not.toContain("PARENT_PRIVATE_MARKER");
       expect(JSON.stringify(researcherInitialRequest)).not.toContain("UNREFERENCED_FILE_MARKER");
       expect(JSON.stringify(researcherInitialRequest)).not.toContain("test-key");
@@ -443,7 +454,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           expect.objectContaining({
             model: "researcher-model",
             temperature: 0.2,
-            max_completion_tokens: 900,
+            max_completion_tokens: 1_000,
           }),
         ]),
       );
@@ -457,6 +468,186 @@ describe("Delegation Tool TypeScript happy path", () => {
           }),
         ]),
       );
+    } finally {
+      await closeServer(server);
+    }
+  }, 45_000);
+
+  it("非默认工作流 Agent 使用自身命名路由且 Child 工具拿不到父环境或文件凭据", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-env-"));
+    temporaryDirectories.push(directory);
+    const store = new FileRunStore(path.join(directory, "runs"));
+    await writeFile(
+      path.join(directory, "leak-tool.mjs"),
+      [
+        "export default {",
+        '  name: "leak_env",',
+        '  description: "读取环境变量",',
+        '  parameters: { type: "object", properties: {} },',
+        "  execute: async () => ({",
+        '    content: [{ type: "text", text: process.env.COREMIND_PROVIDER_AUTH ?? "missing" }],',
+        "    details: {},",
+        "  }),",
+        "};",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(
+      path.join(directory, ".env"),
+      "WORKSPACE_SECRET=file-credential-value\n",
+      "utf8",
+    );
+    const requests: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          model?: string;
+          tools?: Array<{ function?: { name?: string } }>;
+        };
+        requests.push(payload as Record<string, unknown>);
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        const toolNames = payload.tools?.map((tool) => tool.function?.name) ?? [];
+        if (payload.model === "worker-model" && !hasToolResult) {
+          sendSse(response, delegationResponseTo("reviewer", "call-workflow-reviewer"));
+        } else if (payload.model === "reviewer-model" && !hasToolResult) {
+          expect(toolNames).not.toContain("read");
+          expect(toolNames).not.toContain("bash");
+          expect(toolNames).not.toContain("leak_env");
+          sendSse(response, textResponse("reviewer-env-final", "审查完成"));
+        } else {
+          sendSse(response, textResponse("worker-env-final", "工作流完成"));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const config: CoreMindConfig = {
+        schemaVersion: 2,
+        name: "Delegation workflow environment",
+        provider: {
+          id: "probe",
+          baseUrl: `http://127.0.0.1:${port}/v1`,
+          model: "probe-model",
+          apiKeyEnv: "COREMIND_PROVIDER_AUTH",
+        },
+        agents: {
+          main: { systemPrompt: "你是默认 Agent。" },
+          worker: {
+            systemPrompt: "你是工作 Agent。",
+            model: "worker-model",
+            tools: [
+              { id: "read" },
+              { id: "bash" },
+              {
+                path: "leak-tool.mjs",
+                name: "leak_env",
+                effect: { operations: ["read"], reversible: true },
+              },
+            ],
+            delegation: {
+              budget: { ...parentDelegationBudget(), wallTimeMs: 30_000, steps: 4 },
+              limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+              targets: {
+                reviewer: {
+                  budget: {
+                    tokens: 800,
+                    toolCalls: 2,
+                    costUsd: 1,
+                    wallTimeMs: 20_000,
+                    steps: 3,
+                    descendants: 0,
+                  },
+                },
+              },
+            },
+          },
+          reviewer: {
+            systemPrompt: "你是审查 Agent。",
+            model: "reviewer-model",
+            tools: [
+              { id: "read" },
+              { id: "bash" },
+              {
+                path: "leak-tool.mjs",
+                name: "leak_env",
+                effect: { operations: ["read"], reversible: true },
+              },
+            ],
+          },
+        },
+        defaultAgent: "main",
+        workflow: [
+          {
+            id: "worker-delegates",
+            type: "prompt",
+            agent: "worker",
+            input: "委派审查任务",
+            saveAs: "workerResult",
+          },
+        ],
+        runtime: {
+          maxSteps: 6,
+          maxToolCalls: 6,
+          maxTokens: 3_000,
+          maxCostUsd: 3,
+          runTimeoutMs: 45_000,
+        },
+        permissions: { mode: "full", workspaceOnly: false, network: "allow" },
+      };
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: {
+          COREMIND_PROVIDER_AUTH: "provider-credential-value",
+          UNRELATED_TOKEN: "unrelated-token-value",
+          SAFE_FLAG: "visible",
+          SENTRY_DSN: "sentry-credential-value",
+          SSH_AUTH_SOCK: "ssh-agent-capability-value",
+          SERVICE_AUTH: "custom-auth-value",
+          PATH: process.env.PATH,
+        },
+        initialPrompt: "执行工作流",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+      const serializedRequests = JSON.stringify(requests);
+      const workerDelegationResultRequest = requests.find(
+        (request) =>
+          request.model === "worker-model" &&
+          (request.messages as Array<{ role?: string }> | undefined)?.some(
+            (message) => message.role === "tool",
+          ),
+      );
+      const delegation = records.find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      );
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(delegation?.payload).toMatchObject({
+        budgetScope: "worker",
+        agentName: "reviewer",
+        model: { providerId: "probe", model: "reviewer-model" },
+      });
+      expect(JSON.stringify(workerDelegationResultRequest)).toContain(
+        '\\"status\\":\\"succeeded\\"',
+      );
+      expect(serializedRequests).not.toContain("provider-credential-value");
+      expect(serializedRequests).not.toContain("unrelated-token-value");
+      expect(serializedRequests).not.toContain("sentry-credential-value");
+      expect(serializedRequests).not.toContain("ssh-agent-capability-value");
+      expect(serializedRequests).not.toContain("custom-auth-value");
+      expect(serializedRequests).not.toContain("file-credential-value");
     } finally {
       await closeServer(server);
     }
@@ -508,7 +699,13 @@ describe("Delegation Tool TypeScript happy path", () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-approval-"));
     temporaryDirectories.push(directory);
     await writeFile(path.join(directory, "notes.txt"), "独立审批证据", "utf8");
+    let evidenceUrl = "";
     const server = createServer((request, response) => {
+      if (request.method === "GET") {
+        response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+        response.end("独立审批证据");
+        return;
+      }
       let body = "";
       request.setEncoding("utf8");
       request.on("data", (chunk) => {
@@ -530,13 +727,14 @@ describe("Delegation Tool TypeScript happy path", () => {
             ),
           );
         } else if (child) {
-          sendSse(response, readToolResponse());
+          sendSse(response, webFetchToolResponse(evidenceUrl));
         } else {
           sendSse(response, delegationResponse());
         }
       });
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    evidenceUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/evidence`;
 
     try {
       const approvals: ToolApprovalRequest[] = [];
@@ -547,7 +745,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           ...baseConfig(port, {
             main: {
               systemPrompt: "你是父 Agent。",
-              tools: [{ id: "read" }],
+              tools: [{ id: "web-fetch" }],
               delegation: {
                 budget: parentDelegationBudget(),
                 targets: {
@@ -564,9 +762,9 @@ describe("Delegation Tool TypeScript happy path", () => {
                 },
               },
             },
-            researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "read" }] },
+            researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "web-fetch" }] },
           }),
-          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
+          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
         },
         configDir: directory,
         cwd: directory,
@@ -611,13 +809,13 @@ describe("Delegation Tool TypeScript happy path", () => {
         : [];
 
       expect(result.outcome.status).toBe("succeeded");
-      expect(approvals.map((request) => request.tool)).toEqual(["delegate", "read"]);
+      expect(approvals.map((request) => request.tool)).toEqual(["delegate", "web-fetch"]);
       expect(approvals[0]).toMatchObject({
         tool: "delegate",
         args: {
           target: "researcher",
           task: "研究已批准事实",
-          references: ["fact:approved"],
+          references: [],
           limits: {
             tokens: 800,
             toolCalls: 2,
@@ -649,7 +847,7 @@ describe("Delegation Tool TypeScript happy path", () => {
       ]);
       expect(childApprovals).toEqual([
         expect.objectContaining({
-          tool: "read",
+          tool: "web-fetch",
           argumentsFingerprint: approvals[1]?.argumentsFingerprint,
         }),
       ]);
@@ -835,7 +1033,7 @@ describe("Delegation Tool TypeScript happy path", () => {
               },
             },
           },
-          researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "read" }] },
+          researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "web-fetch" }] },
         }),
         configDir: directory,
         cwd: directory,
@@ -939,7 +1137,7 @@ function delegationResponse(): unknown[] {
                 function: {
                   name: "delegate",
                   arguments:
-                    '{"target":"researcher","task":"研究已批准事实","references":["fact:approved"],"limits":{"tokens":800,"maxDepth":1,"maxActiveChildren":0}}',
+                    '{"target":"researcher","task":"研究已批准事实","references":[],"limits":{"tokens":800,"maxDepth":1,"maxActiveChildren":0}}',
                 },
               },
             ],
@@ -995,10 +1193,10 @@ function toolCallResponse(argumentsJson: string): unknown[] {
   ];
 }
 
-function readToolResponse(): unknown[] {
+function webFetchToolResponse(url: string): unknown[] {
   return [
     {
-      id: "child-read",
+      id: "child-web-fetch",
       choices: [
         {
           index: 0,
@@ -1007,9 +1205,9 @@ function readToolResponse(): unknown[] {
             tool_calls: [
               {
                 index: 0,
-                id: "call-child-read",
+                id: "call-child-web-fetch",
                 type: "function",
-                function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                function: { name: "web-fetch", arguments: JSON.stringify({ url }) },
               },
             ],
           },
@@ -1017,7 +1215,7 @@ function readToolResponse(): unknown[] {
         },
       ],
     },
-    { id: "child-read", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+    { id: "child-web-fetch", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
   ];
 }
 

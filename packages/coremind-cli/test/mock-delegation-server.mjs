@@ -52,7 +52,7 @@ function delegationResponse() {
                 function: {
                   name: "delegate",
                   arguments:
-                    '{"target":"researcher","task":"研究已批准事实","references":["fact:approved"],"limits":{"tokens":800}}',
+                    '{"target":"researcher","task":"研究已批准事实","references":[],"limits":{"tokens":800}}',
                 },
               },
             ],

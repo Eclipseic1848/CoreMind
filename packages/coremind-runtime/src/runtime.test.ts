@@ -14,13 +14,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it, vi } from "vitest";
-import type { ChildRunExecutionInput } from "./child-run.js";
+import { type ChildRunExecutionInput, childRunInputFingerprint } from "./child-run.js";
 import { createCoreMindChildRunAdapter } from "./child-runtime-adapter.js";
 import {
   applyCompaction,
   projectBranchMessages,
   projectRawBranchMessages,
 } from "./compaction-projection.js";
+import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
@@ -53,19 +54,33 @@ describe("CoreMindRuntime", () => {
     const server = createTextSequenceServer(["子任务完成"]);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {
-      const config = toolConfig((server.address() as AddressInfo).port, {
-        runtime: {
-          maxSteps: 2,
-          maxToolCalls: 2,
-          maxTokens: 1_000,
-          maxCostUsd: 10,
-          runTimeoutMs: 5_000,
-        },
-      });
+      const config = {
+        ...toolConfig((server.address() as AddressInfo).port, {
+          runtime: {
+            maxSteps: 2,
+            maxToolCalls: 2,
+            maxTokens: 1_000,
+            maxCostUsd: 10,
+            runTimeoutMs: 5_000,
+          },
+        }),
+        tools: [{ id: "web-fetch" as const }],
+      };
       const canonicalRoot = await canonicalizeWorkspace(dir);
       const policy = {
         depth: 1,
-        model: { providerId: "probe", model: "probe-model" },
+        model: {
+          providerId: "probe",
+          model: "probe-model",
+          providerConfigFingerprint: fingerprintEffectReceiptValue(config.provider ?? null),
+          agentPromptFingerprint: fingerprintEffectReceiptValue({
+            systemPrompt: config.agents.main?.systemPrompt ?? "",
+            skillsContent: [],
+          }),
+          agentDelegationFingerprint: fingerprintEffectReceiptValue(
+            config.agents.main?.delegation ?? null,
+          ),
+        },
         workspace: { canonicalRoot, lease: "shared_canonical" as const },
         protectedContextReferences: [],
         budget: {
@@ -80,7 +95,7 @@ describe("CoreMindRuntime", () => {
           mode: "ask" as const,
           workspaceOnly: true,
           network: "ask" as const,
-          tools: ["read"],
+          tools: ["web-fetch"],
           paths: ["."],
           credentials: [],
         },
@@ -113,7 +128,7 @@ describe("CoreMindRuntime", () => {
         parentRunId: "run-parent",
         childRunId: "run-real-child",
         delegationId: request.delegationId,
-        inputFingerprint: "sha256:real-child-input",
+        inputFingerprint: childRunInputFingerprint(request),
         request,
         inheritedPolicy: policy,
         signal: controller.signal,
@@ -137,6 +152,214 @@ describe("CoreMindRuntime", () => {
         outcome: { status: "succeeded" },
       });
       expect((await store.read("run-real-child")).at(-1)?.kind).toBe("finish");
+
+      const unsafePolicy = {
+        ...policy,
+        permissions: { ...policy.permissions, tools: ["read"] },
+      };
+      const unsafeInput: ChildRunExecutionInput = {
+        ...input,
+        request: { ...request, permissions: unsafePolicy.permissions },
+        inputFingerprint: childRunInputFingerprint({
+          ...request,
+          permissions: unsafePolicy.permissions,
+        }),
+        inheritedPolicy: unsafePolicy,
+      };
+      const unsafeAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: { ...config, tools: [{ id: "read" }] },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(unsafeAdapter.execute(unsafeInput)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const workflowBypassAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: {
+              ...config,
+              agents: {
+                main: { systemPrompt: "固定目标", tools: [{ id: "web-fetch" }] },
+                bypass: {
+                  systemPrompt: "不应执行",
+                  model: "bypass-model",
+                  tools: [{ id: "read" }],
+                },
+              },
+              defaultAgent: "main",
+              workflow: [{ id: "bypass", type: "prompt", agent: "bypass", input: "读取文件" }],
+            },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(workflowBypassAdapter.execute(input)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const targetBypassAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: {
+              ...config,
+              agents: {
+                main: { systemPrompt: "固定目标", tools: [{ id: "web-fetch" }] },
+                bypass: { systemPrompt: "冒用目标", tools: [{ id: "web-fetch" }] },
+              },
+              defaultAgent: "bypass",
+            },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(targetBypassAdapter.execute(input)).rejects.toMatchObject({
+        code: "child_run_identity_mismatch",
+      });
+
+      const providerBypassAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: {
+              ...config,
+              provider: {
+                ...config.provider!,
+                baseUrl: `${config.provider!.baseUrl}/alternate-origin`,
+              },
+            },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(providerBypassAdapter.execute(input)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      mkdirSync(path.join(dir, "skills", "mutable"), { recursive: true });
+      writeFileSync(path.join(dir, "skills", "mutable", "README.md"), "已漂移的技能内容", "utf8");
+      const skillsBypassAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: {
+              ...config,
+              agents: {
+                ...config.agents,
+                main: { ...config.agents.main, skills: ["mutable"] },
+              },
+            },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(skillsBypassAdapter.execute(input)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const delegationBypassAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config: {
+              ...config,
+              agents: {
+                ...config.agents,
+                main: {
+                  ...config.agents.main,
+                  delegation: {
+                    budget: {
+                      tokens: 100,
+                      toolCalls: 0,
+                      costUsd: 0,
+                      wallTimeMs: 1_000,
+                      steps: 1,
+                      descendants: 1,
+                    },
+                    limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+                    targets: {
+                      bypass: {
+                        budget: {
+                          tokens: 100,
+                          toolCalls: 0,
+                          costUsd: 0,
+                          wallTimeMs: 1_000,
+                          steps: 1,
+                          descendants: 0,
+                        },
+                      },
+                    },
+                  },
+                },
+                bypass: { systemPrompt: "未授权后代目标" },
+              },
+            },
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(delegationBypassAdapter.execute(input)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
+
+      const unboundModel = {
+        providerId: policy.model.providerId,
+        model: policy.model.model,
+      } as typeof policy.model;
+      const unboundRequest = { ...request, model: unboundModel };
+      const unboundInput: ChildRunExecutionInput = {
+        ...input,
+        request: unboundRequest,
+        inputFingerprint: childRunInputFingerprint(unboundRequest),
+        inheritedPolicy: { ...policy, model: unboundModel },
+      };
+      const unboundAdapter = createCoreMindChildRunAdapter({
+        createRuntime: (authority) =>
+          CoreMindRuntime.create({
+            config,
+            configDir: dir,
+            cwd: dir,
+            initialPrompt: authority.request.task,
+            runId: authority.childRunId,
+            runStore: store,
+            signal: authority.signal,
+            childRunAuthority: authority,
+          }),
+      });
+      await expect(unboundAdapter.execute(unboundInput)).rejects.toMatchObject({
+        code: "child_run_policy_escalation",
+      });
     } finally {
       await closeServer(server);
       rmSync(dir, { recursive: true, force: true });
@@ -152,7 +375,13 @@ describe("CoreMindRuntime", () => {
       const canonicalRoot = await canonicalizeWorkspace(dir);
       const basePolicy = {
         depth: 0,
-        model: { providerId: "probe", model: "probe-model" },
+        model: {
+          providerId: "probe",
+          model: "probe-model",
+          providerConfigFingerprint: "sha256:test-provider-config",
+          agentPromptFingerprint: "sha256:test-agent-prompt",
+          agentDelegationFingerprint: "sha256:test-agent-delegation",
+        },
         workspace: { canonicalRoot, lease: "shared_canonical" as const },
         protectedContextReferences: [],
         budget: {
@@ -195,7 +424,10 @@ describe("CoreMindRuntime", () => {
         cwd: dir,
         childRuns: {
           ...childRuns,
-          parentPolicy: { ...basePolicy, model: { providerId: "other", model: "other" } },
+          parentPolicy: {
+            ...basePolicy,
+            model: { ...basePolicy.model, providerId: "other", model: "other" },
+          },
         },
       });
       await expect(wrongModel.run()).rejects.toMatchObject({
@@ -277,7 +509,13 @@ describe("CoreMindRuntime", () => {
       });
       const policy = {
         depth: 1,
-        model: { providerId: "probe", model: "probe-model" },
+        model: {
+          providerId: "probe",
+          model: "probe-model",
+          providerConfigFingerprint: "sha256:test-provider-config",
+          agentPromptFingerprint: "sha256:test-agent-prompt",
+          agentDelegationFingerprint: "sha256:test-agent-delegation",
+        },
         workspace: { canonicalRoot: await canonicalizeWorkspace(dir), lease: "shared_canonical" },
         protectedContextReferences: [],
         budget: {
