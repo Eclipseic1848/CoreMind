@@ -14,6 +14,15 @@ import {
   validateStableSourceIdentity,
 } from "./p0-acceptance.mjs";
 
+const LIVE_PROVIDER_CHECKS = [
+  "parent-model-call",
+  "delegation-tool",
+  "child-model-call",
+  "child-tool-call",
+  "structured-result",
+  "cancel-quiescence",
+];
+
 describe("P0 顶层发布验收", () => {
   it("证据提交与目标提交不一致时失败关闭", () => {
     const report = createP0AcceptanceReport({
@@ -96,6 +105,42 @@ describe("P0 顶层发布验收", () => {
       "c".repeat(64),
       "d".repeat(64),
     ]);
+  });
+
+  it("所有证据绑定 Runtime 摘要且 live-provider 覆盖完整父子调用链", () => {
+    const sharedEvidence = [
+      evidence("P0-17", "repository-policy"),
+      ...["win32", "linux"].flatMap((platform) => [
+        evidence("P0-19", "dual-platform", { platform }),
+        evidence("P0-19", "candidate-package", { platform, channel: "npm" }),
+        evidence("P0-19", "candidate-package", { platform, channel: "pypi" }),
+      ]),
+    ];
+    const missingRuntime = createP0AcceptanceReport({
+      ...baseInput("candidate"),
+      evidence: [
+        evidence("P0-17", "repository-policy", { runtimeDigest: undefined }),
+        ...sharedEvidence.slice(1),
+        evidence("P0-20", "live-provider"),
+      ],
+    });
+
+    expect(missingRuntime.passed).toBe(false);
+    expect(missingRuntime.blockers).toContain("P0-17 Runtime 摘要不一致");
+
+    for (const missingCheck of LIVE_PROVIDER_CHECKS) {
+      const report = createP0AcceptanceReport({
+        ...baseInput("candidate"),
+        evidence: [
+          ...sharedEvidence,
+          evidence("P0-20", "live-provider", {
+            checks: LIVE_PROVIDER_CHECKS.filter((check) => check !== missingCheck),
+          }),
+        ],
+      });
+      expect(report.passed).toBe(false);
+      expect(report.blockers).toContain(`P0-20 live-provider 缺少检查：${missingCheck}`);
+    }
   });
 
   it("非法目标、缺失 manifest 与本地引用失败关闭", () => {
@@ -360,6 +405,7 @@ function evidence(checkId: string, evidenceLevel: string, overrides: Record<stri
     ref: `evidence/${checkId}-${evidenceLevel}.json`,
     sourceRef: `evidence/${checkId}-${evidenceLevel}.json`,
     sourceDigest: `sha256:${"f".repeat(64)}`,
+    ...(evidenceLevel === "live-provider" ? { checks: LIVE_PROVIDER_CHECKS } : {}),
     ...overrides,
   };
 }

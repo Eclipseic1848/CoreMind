@@ -154,6 +154,14 @@ const EVIDENCE_LEVELS = new Set([
   "public-release",
   "public-reinstall",
 ]);
+const LIVE_PROVIDER_CHECKS = [
+  "parent-model-call",
+  "delegation-tool",
+  "child-model-call",
+  "child-tool-call",
+  "structured-result",
+  "cancel-quiescence",
+];
 const EXTERNAL_REQUIREMENTS = {
   "P0-17": [{ level: "repository-policy", missing: "repository-policy 证据" }],
   "P0-19": [
@@ -541,11 +549,14 @@ function validateEvidence(evidence, expected) {
   }
   if (evidence.version !== expected.targetVersion) blockers.push(`${id} 证据版本不一致`);
   if (evidence.commit !== expected.commit) blockers.push(`${id} 证据提交不一致`);
-  if (["offline", "dual-platform", "live-provider"].includes(evidence.evidenceLevel)) {
-    if (evidence.runtimeDigest !== expected.runtimeDigest)
-      blockers.push(`${id} Runtime 摘要不一致`);
-  } else if (evidence.runtimeDigest && evidence.runtimeDigest !== expected.runtimeDigest) {
+  if (evidence.runtimeDigest !== expected.runtimeDigest) {
     blockers.push(`${id} Runtime 摘要不一致`);
+  }
+  if (evidence.evidenceLevel === "live-provider") {
+    const checks = new Set(Array.isArray(evidence.checks) ? evidence.checks : []);
+    for (const check of LIVE_PROVIDER_CHECKS) {
+      if (!checks.has(check)) blockers.push(`${id} live-provider 缺少检查：${check}`);
+    }
   }
   if (
     ["candidate-package", "public-release", "public-reinstall"].includes(evidence.evidenceLevel)
