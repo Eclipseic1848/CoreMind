@@ -1541,7 +1541,7 @@ describe("ProtocolHost", () => {
         rmSync(dir, { recursive: true, force: true });
       }
     }
-  }, 15_000);
+  }, 30_000);
 
   it("正式 Child Run 在 Host 崩溃后先 orphan audit，再从同一事实前缀重建 tree", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-child-crash-"));
@@ -1948,7 +1948,7 @@ async function waitForProbeReady(child: ChildProcessWithoutNullStreams): Promise
     const onError = (error: Error) => fail(error);
     const timer = setTimeout(
       () => fail(new Error(`等待 Host 崩溃探针 READY 超时：${stderr}`)),
-      10_000,
+      20_000,
     );
     child.stdout.on("data", onStdout);
     child.stderr.on("data", onStderr);

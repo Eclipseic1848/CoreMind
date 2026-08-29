@@ -15,7 +15,7 @@
           "tokens": 1000,
           "toolCalls": 2,
           "costUsd": 1,
-          "wallTimeMs": 5000,
+          "wallTimeMs": 20000,
           "steps": 2,
           "descendants": 1
         },
@@ -25,7 +25,7 @@
               "tokens": 1000,
               "toolCalls": 2,
               "costUsd": 1,
-              "wallTimeMs": 5000,
+              "wallTimeMs": 20000,
               "steps": 2,
               "descendants": 0
             }

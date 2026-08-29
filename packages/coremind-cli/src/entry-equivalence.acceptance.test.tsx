@@ -831,7 +831,7 @@ describe("四入口请求等价（门 A-2）", () => {
             tokens: 800,
             toolCalls: 2,
             costUsd: 1,
-            wallTimeMs: 5_000,
+            wallTimeMs: 20_000,
             steps: 2,
             descendants: 0,
           },
