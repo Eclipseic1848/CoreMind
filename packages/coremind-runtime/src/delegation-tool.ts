@@ -20,7 +20,7 @@ export const DELEGATION_TOOL_CAPABILITY = resolveToolCapability({
   declaration: {
     effect: "none",
     replay: "safe",
-    concurrency: "run_serial",
+    concurrency: "parallel",
     checkpoint: "none",
     durability: "critical",
   },

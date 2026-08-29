@@ -1,7 +1,9 @@
+import path from "node:path";
 import type {
   ChildRunExecutionAdapter,
   ChildRunExecutionInput,
   ChildRunResult,
+  ChildRunWorkspaceChange,
 } from "./child-run.js";
 import { childRunInputFingerprint } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
@@ -56,7 +58,7 @@ export function createCoreMindChildRunAdapter(
           `Child Run ${input.childRunId} 在终态后仍未静止`,
         );
       }
-      return childRunResultFromRuntime(result);
+      return childRunResultFromRuntime(result, input.request.workspace.canonicalRoot);
     },
   });
 }
@@ -67,7 +69,8 @@ export function isCoreMindChildRunAdapter(
   return (value as Partial<CoreMindChildRunAdapter>)[CORE_MIND_CHILD_RUN_ADAPTER] === true;
 }
 
-function childRunResultFromRuntime(result: RunResult): ChildRunResult {
+function childRunResultFromRuntime(result: RunResult, canonicalRoot: string): ChildRunResult {
+  assertChildResultOwnership(result);
   const checkpointReferences = result.checkpoints.map(
     (checkpoint) => `checkpoint:${checkpoint.checkpointId}`,
   );
@@ -77,8 +80,129 @@ function childRunResultFromRuntime(result: RunResult): ChildRunResult {
     artifacts: (result.artifacts ?? result.snapshot.artifacts).map(
       (artifact) => artifact.artifactId,
     ),
-    workspaceChanges: checkpointReferences,
+    workspaceChanges: workspaceChangesFromCheckpoints(result, canonicalRoot),
     unresolvedRisks:
       result.outcome.error === undefined ? [] : [structuredClone(result.outcome.error.message)],
   };
+}
+
+function assertChildResultOwnership(result: RunResult): void {
+  if (result.checkpoints.some((checkpoint) => checkpoint.runId !== result.runId)) {
+    throw new CoreMindError(
+      "child_run_identity_mismatch",
+      `Child Run ${result.runId} 返回了其他 Run 的 Checkpoint`,
+    );
+  }
+  const foreignReceipt = result.trace.find(
+    (entry) =>
+      entry.event.type === "effect_receipt" &&
+      entry.event.binding !== undefined &&
+      entry.event.binding.runId !== result.runId,
+  );
+  if (foreignReceipt) {
+    throw new CoreMindError(
+      "child_run_identity_mismatch",
+      `Child Run ${result.runId} 返回了其他 Run 的 EffectReceipt`,
+    );
+  }
+}
+
+function workspaceChangesFromCheckpoints(
+  result: RunResult,
+  canonicalRoot: string,
+): ChildRunWorkspaceChange[] {
+  const changes: ChildRunWorkspaceChange[] = [];
+  for (const checkpoint of result.checkpoints) {
+    if (!checkpoint.reversible || checkpointWasNotStarted(result, checkpoint)) continue;
+    if (!checkpoint.targetPath) {
+      throw new CoreMindError(
+        "checkpoint_failed",
+        `Child Run ${result.runId} 的可逆 Checkpoint ${checkpoint.checkpointId} 缺少目标路径`,
+      );
+    }
+    if (checkpoint.existed === undefined) {
+      throw new CoreMindError(
+        "checkpoint_failed",
+        `Child Run ${result.runId} 的可逆 Checkpoint ${checkpoint.checkpointId} 缺少写前状态`,
+      );
+    }
+    if (checkpoint.afterExisted === undefined) {
+      throw new CoreMindError(
+        "checkpoint_failed",
+        `Child Run ${result.runId} 的可逆 Checkpoint ${checkpoint.checkpointId} 缺少写后状态`,
+      );
+    }
+    const relativePath = path.relative(canonicalRoot, checkpoint.targetPath);
+    if (
+      relativePath.length === 0 ||
+      path.isAbsolute(relativePath) ||
+      relativePath === ".." ||
+      relativePath.startsWith(`..${path.sep}`)
+    ) {
+      throw new CoreMindError(
+        "child_run_identity_mismatch",
+        `Child Run ${result.runId} 返回了 Workspace 外的 Checkpoint`,
+      );
+    }
+    const kind = workspaceChangeKind(checkpoint);
+    if (!kind) continue;
+    changes.push({
+      checkpointId: checkpoint.checkpointId,
+      path: relativePath.split(path.sep).join("/"),
+      kind,
+      ...(checkpoint.beforeSha256 ? { beforeSha256: checkpoint.beforeSha256 } : {}),
+      ...(checkpoint.afterSha256 ? { afterSha256: checkpoint.afterSha256 } : {}),
+    });
+  }
+  return changes;
+}
+
+function checkpointWasNotStarted(
+  result: RunResult,
+  checkpoint: RunResult["checkpoints"][number],
+): boolean {
+  if (checkpoint.idempotencyKey === undefined || checkpoint.toolCallId === undefined) return false;
+  const receipts = result.trace.flatMap((entry) => {
+    if (entry.event.type !== "effect_receipt") return [];
+    if (
+      entry.event.idempotencyKey !== checkpoint.idempotencyKey ||
+      entry.event.callId !== checkpoint.toolCallId
+    ) {
+      return [];
+    }
+    return [entry.event];
+  });
+  return (
+    receipts.length > 0 &&
+    receipts.every((receipt) => {
+      const binding = receipt.binding;
+      return (
+        receipt.status === "not_started" &&
+        receipt.tool === checkpoint.tool &&
+        binding !== undefined &&
+        binding.runId === result.runId &&
+        binding.callId === checkpoint.toolCallId &&
+        binding.callId === receipt.callId &&
+        binding.tool === checkpoint.tool &&
+        binding.tool === receipt.tool &&
+        binding.agent === receipt.agent &&
+        binding.turnId === receipt.turnId
+      );
+    })
+  );
+}
+
+function workspaceChangeKind(
+  checkpoint: RunResult["checkpoints"][number],
+): ChildRunWorkspaceChange["kind"] | undefined {
+  if (!checkpoint.existed && checkpoint.afterExisted) return "created";
+  if (checkpoint.existed && !checkpoint.afterExisted) return "deleted";
+  if (
+    checkpoint.existed &&
+    checkpoint.afterExisted &&
+    checkpoint.beforeSha256 !== checkpoint.afterSha256
+  ) {
+    return "modified";
+  }
+  return undefined;
 }

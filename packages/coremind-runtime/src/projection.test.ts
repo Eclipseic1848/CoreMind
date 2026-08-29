@@ -462,6 +462,42 @@ describe("ProjectionEngine", () => {
       ]),
     ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
   });
+
+  it("Checkpoint 写后状态只能单调细化，并以最新状态参与 Projection", () => {
+    const runId = "run-checkpoint-refinement";
+    const initial: CheckpointRecord = {
+      version: 1,
+      checkpointId: "checkpoint-refinement",
+      runId,
+      operationId: "operation-refinement",
+      toolCallId: "call-refinement",
+      idempotencyKey: `${runId}:call-refinement`,
+      timestamp: "2026-08-29T00:00:00.000Z",
+      tool: "write",
+      reversible: true,
+      targetPath: "C:/workspace/result.txt",
+      existed: false,
+      snapshotFile: "checkpoint-refinement.json",
+    };
+    const applied: CheckpointRecord = {
+      ...initial,
+      afterExisted: true,
+      afterSha256: "a".repeat(64),
+    };
+    const facts = [
+      record(runId, 1, "start", { configName: "checkpoint-refinement" }),
+      record(runId, 2, "checkpoint", initial),
+      record(runId, 3, "checkpoint", applied),
+    ];
+
+    expect(ProjectionEngine.project(facts).checkpoints).toEqual([applied]);
+    expect(() =>
+      ProjectionEngine.project([
+        ...facts,
+        record(runId, 4, "checkpoint", { ...applied, targetPath: "C:/workspace/other.txt" }),
+      ]),
+    ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+  });
 });
 
 function record(

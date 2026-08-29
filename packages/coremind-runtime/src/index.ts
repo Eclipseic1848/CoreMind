@@ -35,6 +35,8 @@ export {
   type ChildRunPermissionSnapshot,
   type ChildRunPolicySnapshot,
   type ChildRunResult,
+  type ChildRunWorkspaceChange,
+  type ChildRunWorkspaceChangeKind,
   type ChildRunWorkspaceSnapshot,
   childRunInputFingerprint,
   isChildRunFact,

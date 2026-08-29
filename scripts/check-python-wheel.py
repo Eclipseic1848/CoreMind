@@ -105,12 +105,14 @@ def smoke_install(wheel: Path) -> None:
         )
         program = """
 import json
+import os
 import tempfile
 from importlib.metadata import version
 from coremind import ERROR_CODES, CoreMindClient, __version__
 
 assert __version__ == version("coremind-ai"), (__version__, version("coremind-ai"))
 assert ERROR_CODES["unclassified_error"]["humanAction"] == "required"
+os.environ["COREMIND_WHEEL_SMOKE_API_KEY"] = "test-key"
 config = {
     "schemaVersion": 2,
     "name": "wheel-smoke",
@@ -118,7 +120,7 @@ config = {
         "id": "probe",
         "baseUrl": "http://127.0.0.1:9/v1",
         "model": "probe-model",
-        "apiKey": "test-key",
+        "apiKeyEnv": "COREMIND_WHEEL_SMOKE_API_KEY",
     },
     "agents": {"main": {"systemPrompt": "离线安装冒烟"}},
 }

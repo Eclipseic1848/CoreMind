@@ -330,6 +330,7 @@ export class CoreMindRuntime {
     private readonly toolCapabilitiesByAgent: Map<string, Map<string, ResolvedToolCapability>>,
     private readonly providerRuntime: ProviderRuntime,
     private readonly executionEnvironment: ExecutionEnvironment,
+    private readonly workspaceLeaseService: WorkspaceLeaseService,
     private readonly options: CoreMindRuntimeOptions,
     sessionMessages: CoreMindMessage[] | undefined,
     resumedContextLength: number,
@@ -350,6 +351,14 @@ export class CoreMindRuntime {
 
   /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
   static async create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime> {
+    return CoreMindRuntime.createWithWorkspaceLease(options, new WorkspaceLeaseService());
+  }
+
+  /** 同一父子树复用一个 Lease 服务；跨进程一致性仍由 canonical lock file 提供。 */
+  private static async createWithWorkspaceLease(
+    options: CoreMindRuntimeOptions,
+    workspaceLeaseService: WorkspaceLeaseService,
+  ): Promise<CoreMindRuntime> {
     const { config, configDir } = options;
     const cwd = options.cwd ?? process.cwd();
     const env = options.env ?? process.env;
@@ -536,6 +545,7 @@ export class CoreMindRuntime {
       toolCapabilitiesByAgent,
       providerRuntime,
       executionEnvironment,
+      workspaceLeaseService,
       options,
       sessionMessages,
       resumedContextLength,
@@ -648,6 +658,7 @@ export class CoreMindRuntime {
       this.toolCapabilitiesByAgent,
       this.providerRuntime,
       this.executionEnvironment,
+      this.workspaceLeaseService,
       {
         ...this.options,
         config: turnConfig,
@@ -928,22 +939,25 @@ export class CoreMindRuntime {
               ),
             },
           };
-          return CoreMindRuntime.create({
-            config: childConfig,
-            configDir: this.options.configDir,
-            cwd: this.options.cwd,
-            env: this.options.env,
-            toolEnv: delegatedToolEnvironment(this.options.env ?? process.env),
-            secretResolver: this.options.secretResolver,
-            initialPrompt: delegatedInitialPrompt(authority.request),
-            events: this.options.events,
-            trace: this.options.trace,
-            approveTool: this.options.approveTool,
-            runStore,
-            runId: authority.childRunId,
-            childRunAuthority: authority,
-            signal: authority.signal,
-          });
+          return CoreMindRuntime.createWithWorkspaceLease(
+            {
+              config: childConfig,
+              configDir: this.options.configDir,
+              cwd: this.options.cwd,
+              env: this.options.env,
+              toolEnv: delegatedToolEnvironment(this.options.env ?? process.env),
+              secretResolver: this.options.secretResolver,
+              initialPrompt: delegatedInitialPrompt(authority.request),
+              events: this.options.events,
+              trace: this.options.trace,
+              approveTool: this.options.approveTool,
+              runStore,
+              runId: authority.childRunId,
+              childRunAuthority: authority,
+              signal: authority.signal,
+            },
+            this.workspaceLeaseService,
+          );
         },
       }),
     };
@@ -1402,7 +1416,7 @@ export class CoreMindRuntime {
         recordEvent(fact);
       },
     });
-    const workspaceLeaseService = new WorkspaceLeaseService();
+    const workspaceLeaseService = this.workspaceLeaseService;
     const workspaceLeaseByCall = new Map<
       string,
       { lease: WorkspaceLeaseHandle; identity: ToolCallIdentity }
@@ -1885,7 +1899,7 @@ export class CoreMindRuntime {
             return messages;
           }
         },
-        beforeToolCall: async (context: AgentDriverBeforeToolCallContext) => {
+        beforeToolCall: async (context: AgentDriverBeforeToolCallContext, signal?: AbortSignal) => {
           const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
           const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.callId);
           const argumentsFingerprint = fingerprintEffectReceiptValue(context.toolCall.args);
@@ -2301,6 +2315,7 @@ export class CoreMindRuntime {
               reason: "Pure Local Read 不需要 started Durability Barrier",
             });
           }
+          signal?.throwIfAborted();
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "executing",
             status: "completed",
@@ -2367,6 +2382,19 @@ export class CoreMindRuntime {
                   checkpointManager.markApplied(storedCheckpointId),
                 ),
               );
+              for (const storedCheckpointId of checkpointIds) {
+                const applied = checkpointManager.records.find(
+                  (candidate) => candidate.checkpointId === storedCheckpointId,
+                );
+                if (!applied) {
+                  throw new CoreMindError(
+                    "checkpoint_failed",
+                    `检查点 ${storedCheckpointId} 的写后状态不存在`,
+                  );
+                }
+                await journal.appendFact("checkpoint", applied, { durability: "critical" });
+              }
+              await journal.flush("critical");
             } catch (error) {
               checkpointFailure =
                 error instanceof CoreMindError
@@ -3091,9 +3119,9 @@ const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
 const QUIESCENCE_POLL_INTERVAL_MS = 10;
 
-const DELEGATED_SAFE_BUILTIN_TOOLS = new Set(["web-fetch"]);
+const DELEGATED_SAFE_BUILTIN_TOOLS = new Set(["web-fetch", "write"]);
 
-/** Child 不加载脚本、进程、递归扫描或 Git 历史等可绕过有界 Context 的工具。 */
+/** Child 只保留显式网络读取与受 Checkpoint/Lease 保护的写入，不加载脚本、进程或扫描工具。 */
 function isDelegatedBuiltinToolConfig(tool: ToolConfig): boolean {
   return !("path" in tool) && DELEGATED_SAFE_BUILTIN_TOOLS.has(tool.id);
 }

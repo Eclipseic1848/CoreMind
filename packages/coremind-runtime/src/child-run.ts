@@ -128,11 +128,21 @@ export interface ChildRunDelegationRequest {
   environment: ChildRunEnvironmentRequirement;
 }
 
+export type ChildRunWorkspaceChangeKind = "created" | "modified" | "deleted";
+
+export interface ChildRunWorkspaceChange {
+  checkpointId: string;
+  path: string;
+  kind: ChildRunWorkspaceChangeKind;
+  beforeSha256?: string;
+  afterSha256?: string;
+}
+
 export interface ChildRunResult {
   outcome: RunOutcome;
   evidence: readonly string[];
   artifacts: readonly string[];
-  workspaceChanges: readonly string[];
+  workspaceChanges: readonly ChildRunWorkspaceChange[];
   unresolvedRisks: readonly string[];
 }
 
@@ -637,8 +647,9 @@ export class ChildRunCoordinator {
 
   private restore(records: readonly RunStateRecord[]): void {
     for (const record of records) {
-      if (record.kind !== "delegation" || !isChildRunFact(record.payload)) continue;
-      const fact = record.payload;
+      if (record.kind !== "delegation") continue;
+      const fact = decodeChildRunFact(record.payload);
+      if (!fact) continue;
       if (fact.parentRunId !== this.options.parentRunId) {
         throw new CoreMindError("run_state_corrupt", "Delegation Fact 的父 Run 身份不一致");
       }
@@ -980,7 +991,10 @@ function normalizeChildRunResult(result: ChildRunResult): ChildRunResult {
     ...structuredClone(result),
     evidence: result.evidence.map(redactSensitiveText),
     artifacts: result.artifacts.map(redactSensitiveText),
-    workspaceChanges: result.workspaceChanges.map(redactSensitiveText),
+    workspaceChanges: result.workspaceChanges.map((change) => ({
+      ...structuredClone(change),
+      path: redactSensitiveText(change.path),
+    })),
     unresolvedRisks: result.unresolvedRisks.map(redactSensitiveText),
   };
   const error =
@@ -1085,6 +1099,50 @@ export function isChildRunFact(value: unknown): value is ChildRunFact {
       value.type === "child_orphaned" ||
       value.type === "parent_joined") &&
     isChildRunResult(value.result)
+  );
+}
+
+/** 读取历史 Child Fact；旧版字符串变更只能保留为证据，不能伪造结构化路径或变更类型。 */
+export function decodeChildRunFact(value: unknown): ChildRunFact | undefined {
+  if (isChildRunFact(value)) return structuredClone(value);
+  if (!isRecord(value) || !isChildRunResultFactType(value.type)) return undefined;
+  const result = decodeLegacyChildRunResult(value.result);
+  if (!result) return undefined;
+  const normalized = { ...structuredClone(value), result };
+  return isChildRunFact(normalized) ? normalized : undefined;
+}
+
+function decodeLegacyChildRunResult(value: unknown): ChildRunResult | undefined {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.outcome) ||
+    !isRunOutcome(value.outcome) ||
+    !isStringArray(value.evidence) ||
+    !isStringArray(value.artifacts) ||
+    !isStringArray(value.workspaceChanges) ||
+    !isStringArray(value.unresolvedRisks)
+  ) {
+    return undefined;
+  }
+  const legacyReferences = value.workspaceChanges;
+  return {
+    outcome: structuredClone(value.outcome) as unknown as ChildRunResult["outcome"],
+    evidence: [...new Set([...value.evidence, ...legacyReferences])],
+    artifacts: [...value.artifacts],
+    workspaceChanges: [],
+    unresolvedRisks: [
+      ...value.unresolvedRisks,
+      "历史 Child Run 的 Workspace 变更仅保留为证据引用，无法重建结构化 change summary",
+    ],
+  };
+}
+
+function isChildRunResultFactType(value: unknown): boolean {
+  return (
+    value === "child_terminal" ||
+    value === "child_paused" ||
+    value === "child_orphaned" ||
+    value === "parent_joined"
   );
 }
 
@@ -1251,8 +1309,20 @@ function isChildRunResult(value: unknown): value is ChildRunResult {
     isRunOutcome(value.outcome) &&
     isStringArray(value.evidence) &&
     isStringArray(value.artifacts) &&
-    isStringArray(value.workspaceChanges) &&
+    Array.isArray(value.workspaceChanges) &&
+    value.workspaceChanges.every(isChildRunWorkspaceChange) &&
     isStringArray(value.unresolvedRisks)
+  );
+}
+
+function isChildRunWorkspaceChange(value: unknown): value is ChildRunWorkspaceChange {
+  return (
+    isRecord(value) &&
+    typeof value.checkpointId === "string" &&
+    typeof value.path === "string" &&
+    (value.kind === "created" || value.kind === "modified" || value.kind === "deleted") &&
+    (value.beforeSha256 === undefined || typeof value.beforeSha256 === "string") &&
+    (value.afterSha256 === undefined || typeof value.afterSha256 === "string")
   );
 }
 

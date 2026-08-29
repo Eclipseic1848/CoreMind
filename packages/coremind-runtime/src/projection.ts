@@ -11,8 +11,8 @@ import {
   type ChildRunPermissionSnapshot,
   type ChildRunResult,
   type ChildRunWorkspaceSnapshot,
+  decodeChildRunFact,
   foldChildRunLifecycleStatus,
-  isChildRunFact,
 } from "./child-run.js";
 import { type PendingControlProjection, projectPendingControlFacts } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
@@ -328,10 +328,10 @@ function projectChildRuns(
   const nodes = new Map<string, ChildRunNodeProjection>();
   for (const record of records) {
     if (record.kind !== "delegation") continue;
-    if (!isChildRunFact(record.payload)) {
+    const fact = decodeChildRunFact(record.payload);
+    if (!fact) {
       throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 delegation payload");
     }
-    const fact = record.payload;
     if (fact.parentRunId !== parentRunId) {
       throw new CoreMindError("run_state_corrupt", "Delegation Fact 的父 Run 身份不一致");
     }
@@ -424,8 +424,9 @@ function projectSnapshot(input: {
 }
 
 function projectCheckpoints(records: readonly RunStateRecord[], runId: string): CheckpointRecord[] {
-  return records.flatMap((record) => {
-    if (record.kind !== "checkpoint") return [];
+  const checkpoints = new Map<string, CheckpointRecord>();
+  for (const record of records) {
+    if (record.kind !== "checkpoint") continue;
     if (!isRecord(record.payload)) {
       throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 checkpoint payload");
     }
@@ -451,8 +452,41 @@ function projectCheckpoints(records: readonly RunStateRecord[], runId: string): 
     ) {
       throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 checkpoint payload");
     }
-    return [checkpoint as unknown as CheckpointRecord];
-  });
+    const candidate = checkpoint as unknown as CheckpointRecord;
+    const previous = checkpoints.get(candidate.checkpointId);
+    if (previous && !isCheckpointRefinement(previous, candidate)) {
+      throw new CoreMindError(
+        "run_state_corrupt",
+        `Checkpoint ${candidate.checkpointId} 的写前身份或写后状态发生冲突`,
+      );
+    }
+    checkpoints.set(candidate.checkpointId, candidate);
+  }
+  return [...checkpoints.values()];
+}
+
+function isCheckpointRefinement(previous: CheckpointRecord, candidate: CheckpointRecord): boolean {
+  const immutableFields: ReadonlyArray<keyof CheckpointRecord> = [
+    "version",
+    "checkpointId",
+    "runId",
+    "operationId",
+    "toolCallId",
+    "idempotencyKey",
+    "timestamp",
+    "tool",
+    "reversible",
+    "targetPath",
+    "existed",
+    "beforeSha256",
+    "reason",
+    "snapshotFile",
+  ];
+  if (immutableFields.some((field) => previous[field] !== candidate[field])) return false;
+  if (previous.afterExisted !== undefined && previous.afterExisted !== candidate.afterExisted) {
+    return false;
+  }
+  return previous.afterSha256 === undefined || previous.afterSha256 === candidate.afterSha256;
 }
 
 function projectArtifacts(trace: readonly CoreMindTraceEvent[]): ArtifactProjection[] {
