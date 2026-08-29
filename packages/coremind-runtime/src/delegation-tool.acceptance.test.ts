@@ -7,9 +7,10 @@ import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
+import { ControlInbox } from "./control-inbox.js";
 import type { CoreMindToolDefinition } from "./external-tool.js";
 import { ProjectionEngine } from "./projection.js";
-import { FileRunStore } from "./run-state.js";
+import { FileRunStore, RunStateJournal } from "./run-state.js";
 import { CoreMindRuntime, delegatedToolEnvironment } from "./runtime.js";
 import { projectToolCallLifecycles } from "./tool-call-lifecycle.js";
 import type { ToolApprovalRequest } from "./tool-policy.js";
@@ -220,6 +221,812 @@ describe("Delegation Tool TypeScript happy path", () => {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       );
+    }
+  });
+
+  it("父 Agent 静默忽略非成功 Child 结果时不能形成成功终态", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-disposition-gate-"));
+    temporaryDirectories.push(directory);
+    let parentRequests = 0;
+    let childRequests = 0;
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          model?: string;
+          tools?: Array<{ function?: { name?: string } }>;
+        };
+        const parentRequest = payload.model === "probe-model";
+        if (!parentRequest) {
+          childRequests += 1;
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "模拟 Child Provider 失败" } }));
+          return;
+        }
+        parentRequests += 1;
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        sendSse(
+          response,
+          hasToolResult
+            ? textResponse("parent-ignored-failure", "忽略失败并宣称完成")
+            : delegationResponse(),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config: baseConfig((server.address() as AddressInfo).port, {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            delegation: {
+              budget: parentDelegationBudget(),
+              targets: {
+                researcher: {
+                  budget: { ...parentDelegationBudget(), descendants: 0 },
+                },
+              },
+            },
+          },
+          researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+        }),
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "执行会失败的委派",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+
+      expect({ outcome: result.outcome, parentRequests, childRequests }).toMatchObject({
+        outcome: {
+          status: "paused",
+          error: { code: "delegation_disposition_required" },
+        },
+        parentRequests: 2,
+      });
+      expect(childRequests).toBeGreaterThan(0);
+      expect(
+        records.some(
+          (record) =>
+            record.kind === "delegation" &&
+            record.payload.type === "delegation_disposition_recorded",
+        ),
+      ).toBe(false);
+      expect(result.childRuns).toMatchObject({
+        nodes: [
+          expect.objectContaining({
+            status: "joined",
+            disposition: expect.objectContaining({ state: "required" }),
+          }),
+        ],
+        unhandledDescendants: 1,
+        quiescent: false,
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it.each([
+    {
+      action: "choose_alternative" as const,
+      reason: "人工已处置 Child，允许父级形成原终态",
+    },
+    {
+      action: "propagate_terminal" as const,
+      reason: "人工传播 Child 终态，但父级原终态仍应优先",
+    },
+    {
+      action: "redelegate" as const,
+      reason: "父级已有原终态时不允许重新委派",
+    },
+  ])("父级主动取消后 $action 处置遵守原终态优先级", async ({ action, reason }) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-deferred-terminal-"));
+    temporaryDirectories.push(directory);
+    const runId = "deferred-parent-terminal";
+    let parentRequests = 0;
+    let markParentWaiting!: () => void;
+    const parentWaiting = new Promise<void>((resolve) => {
+      markParentWaiting = resolve;
+    });
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as { model?: string };
+        if (payload.model !== "probe-model") {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "模拟 Child Provider 失败" } }));
+          return;
+        }
+        parentRequests += 1;
+        if (parentRequests === 1) {
+          sendSse(response, delegationResponse());
+          return;
+        }
+        if (parentRequests === 2) {
+          markParentWaiting();
+          request.once("close", () => response.end());
+          return;
+        }
+        sendSse(response, textResponse("unexpected-parent-resume", "不应再次请求 Provider"));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const targetBudget = {
+        ...parentDelegationBudget(),
+        wallTimeMs: 500,
+        descendants: 0,
+      };
+      const config = baseConfig((server.address() as AddressInfo).port, {
+        main: {
+          systemPrompt: "你是父 Agent。",
+          delegation: {
+            budget: parentDelegationBudget(),
+            targets: { researcher: { budget: targetBudget } },
+          },
+        },
+        researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+      });
+      const initialPrompt = "父级失败前已经收到非成功 Child";
+      const controller = new AbortController();
+      const firstRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        runId,
+        runStore: store,
+        signal: controller.signal,
+      });
+
+      const firstRun = firstRuntime.run();
+      await parentWaiting;
+      controller.abort();
+      const paused = await firstRun;
+      const pausedRecords = await store.read(runId);
+      const delegationId = pausedRecords.find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      )?.payload.delegationId;
+      const pausePayload = [...pausedRecords].reverse().find((record) => record.kind === "pause")
+        ?.payload as
+        | { deferredTerminalError?: { schemaVersion: 1; code: string; message: string } }
+        | undefined;
+      const deferred = pausePayload?.deferredTerminalError;
+
+      expect(paused.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
+      expect(deferred).toMatchObject({
+        schemaVersion: 1,
+        code: "aborted",
+      });
+      expect(delegationId).toMatch(/^delegation:/u);
+
+      await new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store, pausedRecords.at(-1)!.sequence),
+        records: pausedRecords,
+        apply: async () => "accepted",
+      }).accept({
+        schemaVersion: 1,
+        controlId: "deferred-terminal-disposition",
+        runId,
+        type: "delegation_disposition",
+        delegationId: delegationId!,
+        action,
+        reason,
+      });
+      const requestsBeforeResume = parentRequests;
+      const resumedRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        resumeRunId: runId,
+        runStore: store,
+      });
+
+      const resumed = await resumedRuntime.run();
+      const finalRecords = await store.read(runId);
+      const redelegationRejected = action === "redelegate";
+
+      expect(resumed.outcome).toMatchObject({
+        status: redelegationRejected ? "paused" : "aborted",
+        error: redelegationRejected
+          ? { code: "delegation_disposition_required" }
+          : { code: deferred?.code, message: deferred?.message },
+      });
+      expect(parentRequests).toBe(requestsBeforeResume);
+      expect(finalRecords.at(-1)?.kind).toBe(redelegationRejected ? "pause" : "finish");
+      expect(
+        finalRecords.some(
+          (record) =>
+            record.kind === "delegation" &&
+            record.payload.type === "delegation_disposition_recorded" &&
+            record.payload.decidedBy === "human",
+        ),
+      ).toBe(!redelegationRejected);
+      expect(
+        [...finalRecords]
+          .reverse()
+          .find(
+            (record) =>
+              record.kind === "control" &&
+              (record.payload as { controlId?: string }).controlId ===
+                "deferred-terminal-disposition",
+          )?.payload,
+      ).toMatchObject(
+        redelegationRejected
+          ? {
+              state: "rejected",
+              reason: "父级已有待恢复终态，不能重新委派 Child Run",
+            }
+          : { state: "applied" },
+      );
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("父级终态持久撤销尚未建立 successor 的安全重新委派", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-redelegation-parent-terminal-"));
+    temporaryDirectories.push(directory);
+    const runId = "redelegation-parent-terminal";
+    let parentRequests = 0;
+    let markParentWaiting!: () => void;
+    const parentWaiting = new Promise<void>((resolve) => {
+      markParentWaiting = resolve;
+    });
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          model?: string;
+        };
+        if (payload.model !== "probe-model") {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "模拟 Child Provider 失败" } }));
+          return;
+        }
+        parentRequests += 1;
+        if (parentRequests === 1) {
+          sendSse(response, delegationResponse());
+          return;
+        }
+        if (parentRequests === 2) {
+          const delegationId = delegationIdsFromToolMessages(payload.messages)[0];
+          if (!delegationId) {
+            response.writeHead(500, { "content-type": "application/json" });
+            response.end(JSON.stringify({ error: { message: "缺少 DelegationId" } }));
+            return;
+          }
+          sendSse(
+            response,
+            namedToolCallResponse(
+              "dispose_delegation",
+              {
+                delegationId,
+                action: "redelegate",
+                reason: "Child 在任何 Effect 前失败，准备安全重新委派",
+              },
+              "call-dispose-before-parent-terminal",
+            ),
+          );
+          return;
+        }
+        if (parentRequests === 3) {
+          markParentWaiting();
+          request.once("close", () => response.end());
+          return;
+        }
+        sendSse(
+          response,
+          textResponse("unexpected-parent-after-terminal", "不应再次请求 Provider"),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const targetBudget = {
+        ...parentDelegationBudget(),
+        wallTimeMs: 500,
+        descendants: 0,
+      };
+      const config = baseConfig((server.address() as AddressInfo).port, {
+        main: {
+          systemPrompt: "你是父 Agent。",
+          delegation: {
+            budget: parentDelegationBudget(),
+            targets: { researcher: { budget: targetBudget } },
+          },
+        },
+        researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+      });
+      const controller = new AbortController();
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "安全重新委派前父级终止",
+        runId,
+        runStore: store,
+        signal: controller.signal,
+      });
+
+      const running = runtime.run();
+      await parentWaiting;
+      controller.abort();
+      const result = await running;
+      const records = await store.read(runId);
+
+      expect(result.outcome).toMatchObject({ status: "aborted", error: { code: "aborted" } });
+      expect(parentRequests).toBe(3);
+      expect(records.at(-1)?.kind).toBe("finish");
+      expect(
+        records.some(
+          (record) =>
+            record.kind === "delegation" &&
+            (record.payload as { type?: string }).type === "delegation_redelegation_cancelled",
+        ),
+      ).toBe(true);
+      expect(result.childRuns).toMatchObject({
+        nodes: [
+          expect.objectContaining({
+            disposition: expect.objectContaining({
+              state: "redelegation_cancelled",
+              action: "redelegate",
+            }),
+          }),
+        ],
+        unhandledDescendants: 0,
+        quiescent: true,
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("父 Agent 持久化替代方案处置后才允许继续并成功结束", async () => {
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "coremind-delegation-disposition-recorded-"),
+    );
+    temporaryDirectories.push(directory);
+    let parentRequests = 0;
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          model?: string;
+        };
+        if (payload.model !== "probe-model") {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "模拟 Child Provider 失败" } }));
+          return;
+        }
+        parentRequests += 1;
+        if (parentRequests === 1) {
+          sendSse(response, delegationResponse());
+          return;
+        }
+        if (parentRequests === 2) {
+          const delegationId = delegationIdsFromToolMessages(payload.messages)[0];
+          if (!delegationId) {
+            response.writeHead(500, { "content-type": "application/json" });
+            response.end(JSON.stringify({ error: { message: "缺少 DelegationId" } }));
+            return;
+          }
+          sendSse(
+            response,
+            namedToolCallResponse(
+              "dispose_delegation",
+              {
+                delegationId,
+                action: "choose_alternative",
+                reason: "Child 在任何 Effect 前失败，改走父级只读替代方案",
+              },
+              "call-dispose-delegation",
+            ),
+          );
+          return;
+        }
+        sendSse(response, textResponse("parent-after-disposition", "已按替代方案完成"));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const targetBudget = {
+        ...parentDelegationBudget(),
+        wallTimeMs: 500,
+        descendants: 0,
+      };
+      const runtime = await CoreMindRuntime.create({
+        config: baseConfig((server.address() as AddressInfo).port, {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            delegation: {
+              budget: parentDelegationBudget(),
+              targets: { researcher: { budget: targetBudget } },
+            },
+          },
+          researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+        }),
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "失败后明确选择替代方案",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+      const disposition = records.find(
+        (record) =>
+          record.kind === "delegation" && record.payload.type === "delegation_disposition_recorded",
+      );
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toContain("已按替代方案完成");
+      expect(parentRequests).toBe(3);
+      expect(disposition?.payload).toMatchObject({
+        action: "choose_alternative",
+        decidedBy: "parent_agent",
+        recovery: { recoveryDisposition: "replay_safe" },
+      });
+      expect(result.childRuns).toMatchObject({
+        nodes: [
+          expect.objectContaining({
+            disposition: expect.objectContaining({
+              state: "recorded",
+              action: "choose_alternative",
+            }),
+          }),
+        ],
+        unhandledDescendants: 0,
+        quiescent: true,
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("暂停后接受的人工处置在恢复并重建 Child Coordinator 后应用", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-human-control-"));
+    temporaryDirectories.push(directory);
+    const runId = "human-disposition-parent";
+    let parentRequests = 0;
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          model?: string;
+        };
+        if (payload.model !== "probe-model") {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "模拟 Child Provider 失败" } }));
+          return;
+        }
+        parentRequests += 1;
+        if (parentRequests === 1) {
+          sendSse(response, delegationResponse());
+          return;
+        }
+        sendSse(
+          response,
+          parentRequests === 2
+            ? textResponse("parent-before-human-control", "忽略失败并结束")
+            : textResponse("parent-after-human-control", "人工处置后继续完成"),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const targetBudget = {
+        ...parentDelegationBudget(),
+        wallTimeMs: 500,
+        descendants: 0,
+      };
+      const config = baseConfig((server.address() as AddressInfo).port, {
+        main: {
+          systemPrompt: "你是父 Agent。",
+          delegation: {
+            budget: parentDelegationBudget(),
+            targets: { researcher: { budget: targetBudget } },
+          },
+        },
+        researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+      });
+      const initialPrompt = "等待人工处置失败 Child";
+      const firstRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        runId,
+        runStore: store,
+      });
+
+      const paused = await firstRuntime.run();
+      const pausedRecords = await store.read(runId);
+      const failedDelegationId = pausedRecords.find(
+        (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
+      )?.payload.delegationId;
+      expect(paused.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
+      expect(failedDelegationId).toMatch(/^delegation:/u);
+
+      const receipt = await new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store, pausedRecords.at(-1)!.sequence),
+        records: pausedRecords,
+        apply: async () => "accepted",
+      }).accept({
+        schemaVersion: 1,
+        controlId: "human-disposition-control-1",
+        runId,
+        type: "delegation_disposition",
+        delegationId: failedDelegationId!,
+        action: "choose_alternative",
+        reason: "人工确认改走父级替代方案",
+      });
+      const resumedRuntime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt,
+        resumeRunId: runId,
+        runStore: store,
+      });
+
+      const result = await resumedRuntime.run();
+      const records = await store.read(runId);
+      const disposition = records.find(
+        (record) =>
+          record.kind === "delegation" && record.payload.type === "delegation_disposition_recorded",
+      );
+
+      expect(receipt).toMatchObject({
+        controlId: "human-disposition-control-1",
+        status: "accepted",
+      });
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toContain("人工处置后继续完成");
+      expect(parentRequests).toBe(3);
+      expect(disposition?.payload).toMatchObject({
+        delegationId: failedDelegationId,
+        action: "choose_alternative",
+        decidedBy: "human",
+      });
+      expect(
+        records.filter(
+          (record) =>
+            record.kind === "control" && record.payload.controlId === "human-disposition-control-1",
+        ),
+      ).toEqual([
+        expect.objectContaining({ payload: expect.objectContaining({ state: "accepted" }) }),
+        expect.objectContaining({ payload: expect.objectContaining({ state: "applied" }) }),
+      ]);
+      expect(result.childRuns).toMatchObject({ unhandledDescendants: 0, quiescent: true });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("安全重新委派必须创建关联的新尝试并重新划拨预算", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-redelegate-"));
+    temporaryDirectories.push(directory);
+    const attemptBudget = {
+      tokens: 400,
+      toolCalls: 0,
+      costUsd: 0.1,
+      wallTimeMs: 500,
+      steps: 1,
+      descendants: 0,
+    };
+    const parentBudget = {
+      tokens: 800,
+      toolCalls: 0,
+      costUsd: 0.2,
+      wallTimeMs: 1_000,
+      steps: 2,
+      descendants: 2,
+    };
+    let parentRequests = 0;
+    let recoveredChildRequests = 0;
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string; content?: unknown }>;
+          model?: string;
+        };
+        if (payload.model !== "probe-model") {
+          if (body.includes("安全重新委派第二次尝试")) {
+            recoveredChildRequests += 1;
+            sendSse(response, textResponse("child-redelegated", "第二次 Child 尝试成功"));
+          } else {
+            response.writeHead(500, { "content-type": "application/json" });
+            response.end(JSON.stringify({ error: { message: "第一次 Child 尝试失败" } }));
+          }
+          return;
+        }
+
+        parentRequests += 1;
+        const delegationIds = delegationIdsFromToolMessages(payload.messages);
+        const predecessorDelegationId = delegationIds[0];
+        if (parentRequests === 1) {
+          sendSse(
+            response,
+            namedToolCallResponse(
+              "delegate",
+              {
+                target: "researcher",
+                task: "会在任何 Effect 前失败的第一次尝试",
+                references: [],
+                limits: { ...attemptBudget, maxDepth: 1, maxActiveChildren: 0 },
+              },
+              "call-delegate-first",
+            ),
+          );
+          return;
+        }
+        if (!predecessorDelegationId) {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: { message: "缺少前序 DelegationId" } }));
+          return;
+        }
+        if (parentRequests === 2) {
+          sendSse(
+            response,
+            namedToolCallResponse(
+              "dispose_delegation",
+              {
+                delegationId: predecessorDelegationId,
+                action: "redelegate",
+                reason: "Trace 证明第一次尝试没有 Tool Call 或 Effect，可以建立新尝试",
+              },
+              "call-dispose-redelegate",
+            ),
+          );
+          return;
+        }
+        if (parentRequests === 3) {
+          sendSse(
+            response,
+            namedToolCallResponse(
+              "delegate",
+              {
+                target: "researcher",
+                task: "安全重新委派第二次尝试",
+                references: [],
+                recoveryOf: predecessorDelegationId,
+                limits: { ...attemptBudget, maxDepth: 1, maxActiveChildren: 0 },
+              },
+              "call-delegate-recovery",
+            ),
+          );
+          return;
+        }
+        sendSse(response, textResponse("parent-after-redelegation", "重新委派后完成"));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const store = new FileRunStore(path.join(directory, "runs"));
+      const runtime = await CoreMindRuntime.create({
+        config: baseConfig((server.address() as AddressInfo).port, {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            delegation: {
+              budget: parentBudget,
+              limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 2 },
+              targets: { researcher: { budget: attemptBudget } },
+            },
+          },
+          researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
+        }),
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "失败后按安全证明重新委派",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+      const delegations = records.flatMap((record) =>
+        record.kind === "delegation" && record.payload.type === "delegation_recorded"
+          ? [record.payload]
+          : [],
+      );
+      const disposition = records.find(
+        (record) =>
+          record.kind === "delegation" && record.payload.type === "delegation_disposition_recorded",
+      );
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toContain("重新委派后完成");
+      expect(parentRequests).toBe(4);
+      expect(recoveredChildRequests).toBe(1);
+      expect(delegations).toHaveLength(2);
+      const [firstAttempt, secondAttempt] = delegations;
+      expect(firstAttempt).toBeDefined();
+      expect(secondAttempt).toBeDefined();
+      expect(secondAttempt?.delegationId).not.toBe(firstAttempt?.delegationId);
+      expect(secondAttempt?.childRunId).not.toBe(firstAttempt?.childRunId);
+      expect(secondAttempt?.predecessorDelegationId).toBe(firstAttempt?.delegationId);
+      expect(firstAttempt?.inheritedPolicy.budget).toEqual(attemptBudget);
+      expect(secondAttempt?.inheritedPolicy.budget).toEqual(attemptBudget);
+      expect(disposition?.payload).toMatchObject({
+        delegationId: firstAttempt?.delegationId,
+        action: "redelegate",
+        recovery: { recoveryDisposition: "replay_safe", effectState: "none" },
+      });
+      expect(result.childRuns).toMatchObject({
+        nodes: expect.arrayContaining([
+          expect.objectContaining({
+            delegationId: firstAttempt?.delegationId,
+            disposition: expect.objectContaining({
+              state: "recorded",
+              action: "redelegate",
+              successorDelegationId: secondAttempt?.delegationId,
+            }),
+          }),
+          expect.objectContaining({
+            delegationId: secondAttempt?.delegationId,
+            predecessorDelegationId: firstAttempt?.delegationId,
+            disposition: expect.objectContaining({ state: "not_required" }),
+          }),
+        ]),
+        unhandledDescendants: 0,
+        quiescent: true,
+      });
+    } finally {
+      await closeServer(server);
     }
   });
 
@@ -511,7 +1318,10 @@ describe("Delegation Tool TypeScript happy path", () => {
       const result = await within(run, "取消后父 Run 未收敛");
       const childRecords = await store.read(childRunId);
 
-      expect(result.outcome.status).toBe("aborted");
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
       expect(result.childRuns?.nodes).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -523,6 +1333,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           }),
         ]),
       );
+      expect(result.childRuns).toMatchObject({ quiescent: false });
       expect(childRecords.some((record) => record.kind === "checkpoint")).toBe(false);
       expect(await readFile(path.join(directory, "protected.txt"), "utf8")).toBe("用户已有内容");
       await expect(readFile(path.join(directory, "parent.txt"), "utf8")).rejects.toMatchObject({
@@ -728,8 +1539,12 @@ describe("Delegation Tool TypeScript happy path", () => {
         readFile(path.join(directory, "sibling-b.txt"), "utf8"),
       ]);
 
-      expect(result.outcome.status).toBe("aborted");
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
       expect(tree.childRuns?.nodes).toHaveLength(2);
+      expect(tree.childRuns).toMatchObject({ quiescent: false });
       expect(
         tree.childRuns?.nodes.find((node) => node.childRunId === winnerRunId)?.outcome,
       ).toMatchObject({ status: "aborted" });
@@ -1762,6 +2577,60 @@ function toolCallResponse(argumentsJson: string): unknown[] {
     },
     { id: "invalid-tool", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
   ];
+}
+
+function namedToolCallResponse(
+  name: string,
+  args: Record<string, unknown>,
+  callId: string,
+): unknown[] {
+  return [
+    {
+      id: `tool-${callId}`,
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: callId,
+                type: "function",
+                function: { name, arguments: JSON.stringify(args) },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: `tool-${callId}`,
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+    },
+  ];
+}
+
+function delegationIdsFromToolMessages(
+  messages: Array<{ role?: string; content?: unknown }> | undefined,
+): string[] {
+  const delegationIds: string[] = [];
+  for (const message of messages ?? []) {
+    if (message.role !== "tool" || typeof message.content !== "string") continue;
+    try {
+      const result = JSON.parse(message.content) as {
+        delegationId?: unknown;
+        result?: unknown;
+      };
+      if (typeof result.delegationId === "string" && "result" in result) {
+        delegationIds.push(result.delegationId);
+      }
+    } catch {
+      // 其他工具结果不是结构化委派结果，忽略。
+    }
+  }
+  return delegationIds;
 }
 
 function webFetchToolResponse(url: string): unknown[] {

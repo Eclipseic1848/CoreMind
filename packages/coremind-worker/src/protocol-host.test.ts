@@ -247,7 +247,13 @@ describe("ProtocolHost", () => {
         acceptedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
         initialCursor: 0,
         selectedProtocol: "2.0",
-        availableControls: ["cancel", "approval", "steering", "follow_up"],
+        availableControls: [
+          "cancel",
+          "approval",
+          "steering",
+          "follow_up",
+          "delegation_disposition",
+        ],
       },
     });
   });
@@ -380,6 +386,395 @@ describe("ProtocolHost", () => {
       ],
       aborted: true,
     });
+  });
+
+  it("v2 Delegation Disposition 控制原样进入 Runtime ControlInbox", async () => {
+    let accepted: RunControlCommand | undefined;
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async () => ({
+        run: () => new Promise<never>(() => {}),
+        acceptControl: async (command) => {
+          accepted = command;
+          return {
+            schemaVersion: 1,
+            controlId: command.controlId,
+            runId: command.runId,
+            status: "applied",
+            appliedSequence: 4,
+          };
+        },
+      }),
+    });
+    await host.handle({
+      jsonrpc: "2.0",
+      id: "init-v2",
+      method: "initialize",
+      params: {
+        protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+    await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "start-disposition",
+      method: "run",
+      params: { runId: "disposition-run", input: "等待处置" },
+    });
+
+    const response = await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "apply-disposition",
+      method: "control",
+      params: {
+        schemaVersion: 1,
+        controlId: "disposition-control-1",
+        runId: "disposition-run",
+        type: "delegation_disposition",
+        delegationId: "delegation-failed-1",
+        action: "choose_alternative",
+        reason: "人工选择替代方案",
+      },
+    });
+
+    expect({ response, accepted }).toEqual({
+      response: {
+        jsonrpc: "2.0",
+        id: "apply-disposition",
+        result: {
+          schemaVersion: 1,
+          controlId: "disposition-control-1",
+          runId: "disposition-run",
+          status: "applied",
+          appliedSequence: 4,
+        },
+      },
+      accepted: {
+        schemaVersion: 1,
+        controlId: "disposition-control-1",
+        runId: "disposition-run",
+        type: "delegation_disposition",
+        delegationId: "delegation-failed-1",
+        action: "choose_alternative",
+        reason: "人工选择替代方案",
+      },
+    });
+  });
+
+  it("暂停 Run 在没有活动 Runtime 时持久接收 Delegation Disposition", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-paused-disposition-control-"));
+    const runId = "paused-disposition-run";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "paused-disposition" });
+      journal.pause({
+        outcome: {
+          status: "paused",
+          finishReason: "delegation_disposition_required",
+          error: {
+            code: "delegation_disposition_required",
+            message: "失败 Child Run 尚未处置",
+          },
+        },
+      });
+      await journal.flush();
+
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, dir);
+      const command = {
+        schemaVersion: 1 as const,
+        controlId: "paused-disposition-control-1",
+        runId,
+        type: "delegation_disposition" as const,
+        delegationId: "delegation-failed-1",
+        action: "choose_alternative" as const,
+        reason: "人工确认改走替代方案",
+      };
+
+      const accepted = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "accept-paused-disposition",
+        method: "control",
+        params: command,
+      });
+      const duplicate = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "duplicate-paused-disposition",
+        method: "control",
+        params: command,
+      });
+      const records = await store.read(runId);
+
+      expect(accepted).toMatchObject({
+        result: {
+          controlId: command.controlId,
+          runId,
+          status: "accepted",
+          acceptedSequence: 3,
+        },
+      });
+      expect(duplicate).toMatchObject({
+        result: {
+          controlId: command.controlId,
+          runId,
+          status: "duplicate",
+          duplicateOf: "accepted",
+          acceptedSequence: 3,
+        },
+      });
+      expect(
+        records.filter(
+          (record) =>
+            record.kind === "control" &&
+            (record.payload as { controlId?: string }).controlId === command.controlId,
+        ),
+      ).toEqual([
+        expect.objectContaining({ payload: expect.objectContaining({ state: "accepted" }) }),
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("离线处置写入后不缓存过期 Run 状态", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-paused-disposition-stale-cache-"));
+    const runId = "paused-disposition-stale-cache";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "paused-disposition-stale-cache" });
+      journal.pause({
+        outcome: {
+          status: "paused",
+          finishReason: "delegation_disposition_required",
+          error: {
+            code: "delegation_disposition_required",
+            message: "失败 Child Run 尚未处置",
+          },
+        },
+      });
+      await journal.flush();
+
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, dir);
+      await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "accept-before-terminal",
+        method: "control",
+        params: {
+          schemaVersion: 1,
+          controlId: "control-before-terminal",
+          runId,
+          type: "delegation_disposition",
+          delegationId: "delegation-failed-1",
+          action: "choose_alternative",
+          reason: "先持久接收处置",
+        },
+      });
+      const acceptedRecords = await store.read(runId);
+      const terminalJournal = new RunStateJournal(
+        runId,
+        store,
+        acceptedRecords.at(-1)?.sequence ?? 0,
+      );
+      terminalJournal.finish({ outcome: { status: "succeeded", finishReason: "completed" } });
+      await terminalJournal.flush();
+
+      await expect(
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "reject-after-terminal",
+          method: "control",
+          params: {
+            schemaVersion: 1,
+            controlId: "control-after-terminal",
+            runId,
+            type: "delegation_disposition",
+            delegationId: "delegation-failed-2",
+            action: "choose_alternative",
+            reason: "终态后不应继续接收",
+          },
+        }),
+      ).resolves.toMatchObject({
+        error: { data: { coremindCode: "control_unavailable" } },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("其他 Run 活动时暂停 Run 仍可持久接收离线 Delegation Disposition", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-paused-disposition-while-active-"));
+    const pausedRunId = "paused-disposition-while-active";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(pausedRunId, store);
+      await journal.start({ configName: "paused-disposition-while-active" });
+      journal.pause({
+        outcome: {
+          status: "paused",
+          finishReason: "delegation_disposition_required",
+          error: {
+            code: "delegation_disposition_required",
+            message: "失败 Child Run 尚未处置",
+          },
+        },
+      });
+      await journal.flush();
+
+      const host = new ProtocolHost({
+        send: () => {},
+        runtimeFactory: async () => ({ run: () => new Promise<never>(() => {}) }),
+      });
+      await initializeV2(host, dir);
+      await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "start-other-run",
+        method: "run",
+        params: { runId: "active-other-run", input: "保持活动" },
+      });
+
+      const response = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "accept-paused-disposition-while-active",
+        method: "control",
+        params: {
+          schemaVersion: 1,
+          controlId: "paused-disposition-control-while-active",
+          runId: pausedRunId,
+          type: "delegation_disposition",
+          delegationId: "delegation-failed-while-active",
+          action: "choose_alternative",
+          reason: "人工确认改走替代方案",
+        },
+      });
+
+      expect(response).toMatchObject({
+        result: {
+          controlId: "paused-disposition-control-while-active",
+          runId: pausedRunId,
+          status: "accepted",
+        },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("同一 Run 的离线处置写入完成后才允许 Resume 接管", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-control-resume-serialization-"));
+    const runId = "serialized-control-resume-run";
+    let releaseOfflineRead!: () => void;
+    let markOfflineReadCaptured!: () => void;
+    const offlineReadReleased = new Promise<void>((resolve) => {
+      releaseOfflineRead = resolve;
+    });
+    const offlineReadCaptured = new Promise<void>((resolve) => {
+      markOfflineReadCaptured = resolve;
+    });
+    let markRuntimeRecordsObserved!: () => void;
+    const runtimeRecordsObserved = new Promise<void>((resolve) => {
+      markRuntimeRecordsObserved = resolve;
+    });
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "serialized-control-resume" });
+      journal.pause({
+        outcome: {
+          status: "paused",
+          finishReason: "delegation_disposition_required",
+          error: {
+            code: "delegation_disposition_required",
+            message: "失败 Child Run 尚未处置",
+          },
+        },
+      });
+      await journal.flush();
+
+      const read = store.read.bind(store);
+      let delayNextRead = true;
+      store.read = async (requestedRunId) => {
+        const records = await read(requestedRunId);
+        if (delayNextRead) {
+          delayNextRead = false;
+          markOfflineReadCaptured();
+          await offlineReadReleased;
+        }
+        return records;
+      };
+      let runtimeCreations = 0;
+      let recordsAtResume: Awaited<ReturnType<FileRunStore["read"]>> = [];
+      const host = new ProtocolHost({
+        send: () => {},
+        runStoreFactory: () => store,
+        runtimeFactory: async (options) => {
+          runtimeCreations += 1;
+          recordsAtResume = await options.runStore!.read(runId);
+          markRuntimeRecordsObserved();
+          return { run: () => new Promise<never>(() => {}) };
+        },
+      });
+      await initializeV2(host, dir);
+      const controlPromise = host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "serialize-offline-control",
+        method: "control",
+        params: {
+          schemaVersion: 1,
+          controlId: "serialize-offline-control-1",
+          runId,
+          type: "delegation_disposition",
+          delegationId: "delegation-failed-1",
+          action: "choose_alternative",
+          reason: "人工确认替代方案",
+        },
+      });
+      await offlineReadCaptured;
+      const resumePromise = host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "serialize-resume",
+        method: "resume",
+        params: { runId, input: "继续执行" },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const creationsBeforeControlCommit = runtimeCreations;
+
+      releaseOfflineRead();
+      const [control, resume] = await Promise.all([controlPromise, resumePromise]);
+      await withTimeout(runtimeRecordsObserved, 1_000, "等待 Runtime 读取 Resume 记录超时");
+
+      expect(creationsBeforeControlCommit).toBe(0);
+      expect(control).toMatchObject({
+        result: { runId, controlId: "serialize-offline-control-1", status: "accepted" },
+      });
+      expect(resume).toMatchObject({ result: { runId, selectedProtocol: "2.0" } });
+      expect(runtimeCreations).toBe(1);
+      expect(
+        recordsAtResume.some(
+          (record) =>
+            record.kind === "control" &&
+            (record.payload as { controlId?: string; state?: string }).controlId ===
+              "serialize-offline-control-1" &&
+            (record.payload as { state?: string }).state === "accepted",
+        ),
+      ).toBe(true);
+    } finally {
+      releaseOfflineRead();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("先到达的审批控制在审批点出现后只重试应用一次", async () => {
@@ -1231,6 +1626,49 @@ describe("ProtocolHost", () => {
 
     expect(response).toMatchObject({ result: { childRuns: { quiescent: false } } });
     await expect(host.shutdown()).resolves.toEqual({ closed: true, quiescent: false });
+  });
+
+  it("父 Runtime 执行已静止但 Child 等待处置时 shutdown 按执行资源返回 quiescent", async () => {
+    const baseFactory = completedParityRuntimeFactory();
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async (options) => {
+        const base = await baseFactory({
+          ...options,
+          runId: options.runId ?? `disposition-pending-run-${Date.now()}`,
+        });
+        return {
+          run: async () => ({
+            ...(await base.run()),
+            childRuns: {
+              nodes: [{ status: "joined" }],
+              activeDescendants: 0,
+              unhandledDescendants: 1,
+              quiescent: false,
+            },
+          }),
+        } as never;
+      },
+    });
+    await host.handle({
+      jsonrpc: "2.0",
+      id: "init-disposition-pending",
+      method: "initialize",
+      params: {
+        protocolVersion: "1.0",
+        config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+        configDir: ".",
+      },
+    });
+    const response = await host.handle({
+      jsonrpc: "2.0",
+      id: "disposition-pending-run",
+      method: "run",
+      params: { input: "执行" },
+    });
+
+    expect(response).toMatchObject({ result: { childRuns: { quiescent: false } } });
+    await expect(host.shutdown()).resolves.toEqual({ closed: true, quiescent: true });
   });
 });
 

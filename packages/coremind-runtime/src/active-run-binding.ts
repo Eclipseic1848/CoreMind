@@ -13,6 +13,11 @@ interface ActiveRunBindings {
     rawArgs: unknown,
     callId: CallId,
   ) => Promise<DelegationExecutionOutput>;
+  executeDelegationDisposition: (
+    parentAgentName: string,
+    rawArgs: unknown,
+    callId: CallId,
+  ) => Promise<DelegationExecutionOutput>;
 }
 
 const activeBindings = new WeakMap<object, ActiveRunBindings>();
@@ -35,4 +40,11 @@ export function boundDelegationExecutor(
   owner: object,
 ): ActiveRunBindings["executeDelegation"] | undefined {
   return activeBindings.get(owner)?.executeDelegation;
+}
+
+/** 把创建期闭包收到的处置调用转交给真正拥有活动 RunContext 的 Turn Runtime。 */
+export function boundDelegationDispositionExecutor(
+  owner: object,
+): ActiveRunBindings["executeDelegationDisposition"] | undefined {
+  return activeBindings.get(owner)?.executeDelegationDisposition;
 }

@@ -7,6 +7,7 @@ import {
   PROTOCOL_V2_VERSION,
   ProtocolV2ErrorResponseSchema,
   ProtocolV2EventEnvelopeSchema,
+  ProtocolV2RunHandleSchema,
   parseProtocolV2Request,
 } from "./index.js";
 
@@ -240,6 +241,48 @@ describe("CoreMind Protocol v2", () => {
         params: { runId: "run-1" },
       }),
     ).toMatchObject({ method: "query", params: { runId: "run-1" } });
+  });
+
+  it("解析 Delegation Disposition 控制并在 RunHandle 中公开该能力", () => {
+    expect(
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "disposition-1",
+        method: "control",
+        params: {
+          schemaVersion: 1,
+          controlId: "disposition-control-1",
+          runId: "run-parent",
+          type: "delegation_disposition",
+          delegationId: "delegation-failed-1",
+          action: "choose_alternative",
+          reason: "人工选择替代方案",
+        },
+      }),
+    ).toMatchObject({
+      method: "control",
+      params: {
+        type: "delegation_disposition",
+        delegationId: "delegation-failed-1",
+        action: "choose_alternative",
+      },
+    });
+    expect(
+      Value.Check(ProtocolV2RunHandleSchema, {
+        runId: "run-parent",
+        acceptedAt: "2026-08-29T00:00:00.000Z",
+        initialCursor: 0,
+        selectedProtocol: "2.0",
+        availableControls: [
+          "cancel",
+          "approval",
+          "steering",
+          "follow_up",
+          "delegation_disposition",
+        ],
+      }),
+    ).toBe(true);
   });
 
   it("解析带稳定 RunId 的 chat 与 resume 启动请求", () => {

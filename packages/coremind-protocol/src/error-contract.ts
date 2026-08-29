@@ -204,6 +204,23 @@ export const ERROR_CODES = defineErrorCodes({
     cancelClass: "human",
     retryClass: "fatal",
   },
+  delegation_disposition_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+    runStatus: "paused",
+  },
+  delegation_disposition_conflict: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  delegation_redelegation_unsafe: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+    runStatus: "paused",
+  },
 
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },

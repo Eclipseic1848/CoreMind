@@ -15,6 +15,7 @@ import {
   foldChildRunLifecycleStatus,
   isChildRunFact,
 } from "./child-run.js";
+import { CoreMindError } from "./errors.js";
 import { ProjectionEngine } from "./projection.js";
 import {
   FileRunStore,
@@ -734,11 +735,12 @@ describe("ChildRunCoordinator", () => {
 
     await coordinator.cancelAll("父 Run 已取消");
     expect(childSignal?.aborted).toBe(true);
-    expect(coordinator.isQuiescent()).toBe(true);
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
     expect(await handle.join()).toMatchObject({
       outcome: { status: "aborted", finishReason: "parent_cancelled" },
     });
-    expect(coordinator.isQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
   });
 
   it("子取消不传播给父级，join timeout 会取消并等待子级清理", async () => {
@@ -819,6 +821,13 @@ describe("ChildRunCoordinator", () => {
     expect(await cancelled.join()).toMatchObject({
       outcome: { status: "aborted", finishReason: "child_cancelled" },
     });
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-child-cancel",
+      delegationId: request.delegationId,
+      action: "accept_failure",
+      decidedBy: "human",
+      reason: "测试已确认取消前没有发生 Effect",
+    });
 
     const timedOut = await coordinator.delegate({
       ...request,
@@ -828,7 +837,8 @@ describe("ChildRunCoordinator", () => {
     expect(await timedOut.join({ timeoutMs: 1 })).toMatchObject({
       outcome: { status: "timeout", finishReason: "child_join_timeout" },
     });
-    expect(coordinator.isQuiescent()).toBe(true);
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
   });
 
   it("恢复时把无法确认所有权的运行中子级标记为 orphan，且不自动重启", async () => {
@@ -917,6 +927,16 @@ describe("ChildRunCoordinator", () => {
       now: () => "2026-08-27T00:03:00.000Z",
     });
 
+    expect(resumed.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId: request.delegationId,
+      requiredActor: "human",
+    });
+    expect(
+      (await store.read(parentRunId)).flatMap((record) =>
+        record.kind === "delegation" ? [record.payload.type] : [],
+      ),
+    ).toEqual(expect.arrayContaining(["child_orphaned", "parent_joined"]));
     const orphanHandle = await resumed.delegate(request);
     expect(restartedExecutions).toBe(0);
     expect(await orphanHandle.join()).toMatchObject({
@@ -926,12 +946,19 @@ describe("ChildRunCoordinator", () => {
         error: { code: "child_run_orphan_audit_required" },
       },
     });
-    expect(resumed.isQuiescent()).toBe(true);
+    expect(resumed.isExecutionQuiescent()).toBe(true);
+    expect(resumed.isQuiescent()).toBe(false);
     expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
-      nodes: [expect.objectContaining({ childRunId: "run-child-orphan", status: "joined" })],
+      nodes: [
+        expect.objectContaining({
+          childRunId: "run-child-orphan",
+          status: "joined",
+          disposition: expect.objectContaining({ state: "required", requiredActor: "human" }),
+        }),
+      ],
       activeDescendants: 0,
-      unhandledDescendants: 0,
-      quiescent: true,
+      unhandledDescendants: 1,
+      quiescent: false,
     });
   });
 
@@ -1583,6 +1610,15 @@ describe("ChildRunCoordinator", () => {
             duplicate.join(),
           ]);
           expect(duplicateResult).toEqual(firstResult);
+          if (firstResult.outcome.status !== "succeeded") {
+            await coordinator.recordDisposition({
+              dispositionId: `disposition-seed-${seed}-${child}`,
+              delegationId: requests[child]!.delegationId,
+              action: "accept_failure",
+              decidedBy: "human",
+              reason: "属性测试已确认模拟 Adapter 不产生外部 Effect",
+            });
+          }
         }),
       );
       expect(new Set(childIds).size).toBe(childCount);
@@ -1927,7 +1963,8 @@ describe("ChildRunCoordinator", () => {
       });
       expect(reexecutions).toBe(0);
       expect((await readFile(effectMarker, "utf8")).trim().split("\n")).toEqual(["child-effect"]);
-      expect(coordinator.isQuiescent()).toBe(true);
+      expect(coordinator.isExecutionQuiescent()).toBe(true);
+      expect(coordinator.isQuiescent()).toBe(false);
     } finally {
       if (child.exitCode === null) child.kill();
     }
@@ -1973,7 +2010,8 @@ describe("ChildRunCoordinator", () => {
     expect(JSON.stringify(result)).not.toContain("child-secret");
     expect(worker?.exitCode).toBe(88);
     expect((await readFile(effectMarker, "utf8")).trim().split("\n")).toEqual(["effect"]);
-    expect(coordinator.isQuiescent()).toBe(true);
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
   });
 
   it("Child Adapter 返回的私有错误码在持久化前归一化并脱敏", async () => {
@@ -2121,7 +2159,566 @@ describe("ChildRunCoordinator", () => {
     await coordinator.cancelAll("父 Run 取消");
 
     expect(worker?.killed).toBe(true);
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
+  });
+
+  it("非成功 join 必须持久化明确处置，重启后仍保持已处理状态", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-disposition-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "disposition" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => safeFailedChildResult(),
+      },
+      createChildRunId: () => "run-disposition-child",
+    });
+
+    await (await coordinator.delegate(testDelegationRequest("delegation-disposition"))).join();
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId: "delegation-disposition",
+      requiredActor: "parent_agent",
+    });
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      nodes: [
+        expect.objectContaining({
+          status: "joined",
+          disposition: expect.objectContaining({
+            state: "required",
+            requiredActor: "parent_agent",
+            recoveryDisposition: "replay_safe",
+          }),
+        }),
+      ],
+      unhandledDescendants: 1,
+      quiescent: false,
+    });
+
+    const disposition = await coordinator.recordDisposition({
+      dispositionId: "disposition-1",
+      delegationId: "delegation-disposition",
+      action: "accept_failure",
+      decidedBy: "parent_agent",
+      reason: "父级已记录失败并改走无副作用路径",
+    });
+    expect(disposition).toMatchObject({
+      dispositionId: "disposition-1",
+      action: "accept_failure",
+      recovery: { recoveryDisposition: "replay_safe" },
+    });
+    expect(coordinator.continuationGate()).toEqual({ status: "allowed" });
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      nodes: [
+        expect.objectContaining({
+          disposition: expect.objectContaining({ state: "recorded", action: "accept_failure" }),
+        }),
+      ],
+      unhandledDescendants: 0,
+      quiescent: true,
+    });
+
+    expect(
+      await coordinator.recordDisposition({
+        dispositionId: "disposition-1",
+        delegationId: "delegation-disposition",
+        action: "accept_failure",
+        decidedBy: "parent_agent",
+        reason: "父级已记录失败并改走无副作用路径",
+      }),
+    ).toEqual(disposition);
+    await expect(
+      coordinator.recordDisposition({
+        dispositionId: "disposition-2",
+        delegationId: "delegation-disposition",
+        action: "propagate_terminal",
+        decidedBy: "parent_agent",
+        reason: "冲突处置",
+      }),
+    ).rejects.toMatchObject({ code: "delegation_disposition_conflict" });
+
+    const records = await store.read(parentRunId);
+    const reopened = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: new RunStateJournal(parentRunId, store, records.length),
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: { execute: async () => successfulChildResult() },
+      createChildRunId: () => "must-not-create",
+    });
+    expect(reopened.continuationGate()).toEqual({ status: "allowed" });
+  });
+
+  it("多个非成功 Child 必须全部处置后才能传播其中一个终态", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-multiple-dispositions-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "multiple-dispositions" });
+    let releaseChildren!: () => void;
+    const childrenMayFinish = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let childSequence = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          await childrenMayFinish;
+          return safeFailedChildResult();
+        },
+      },
+      createChildRunId: () => `run-multiple-dispositions-child-${++childSequence}`,
+    });
+
+    const propagated = await coordinator.delegate(testDelegationRequest("delegation-propagated"));
+    const unhandled = await coordinator.delegate(testDelegationRequest("delegation-unhandled"));
+    releaseChildren();
+    await Promise.all([propagated.join(), unhandled.join()]);
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-propagated",
+      delegationId: "delegation-propagated",
+      action: "propagate_terminal",
+      decidedBy: "parent_agent",
+      reason: "传播第一个 Child 的终态",
+    });
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId: "delegation-unhandled",
+    });
+  });
+
+  it("多个非成功 Child 的未处置与传播终态都优先于安全重新委派", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-global-disposition-priority-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "global-disposition-priority" });
+    let releaseChildren!: () => void;
+    const childrenMayFinish = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let childSequence = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => {
+          await childrenMayFinish;
+          return safeFailedChildResult();
+        },
+      },
+      createChildRunId: () => `run-global-disposition-priority-child-${++childSequence}`,
+    });
+
+    const redelegated = await coordinator.delegate(testDelegationRequest("delegation-redelegate"));
+    const terminal = await coordinator.delegate(testDelegationRequest("delegation-terminal"));
+    releaseChildren();
+    await Promise.all([redelegated.join(), terminal.join()]);
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-redelegate-priority",
+      delegationId: "delegation-redelegate",
+      action: "redelegate",
+      decidedBy: "parent_agent",
+      reason: "原尝试在任何 Effect 前失败",
+    });
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId: "delegation-terminal",
+    });
+
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-terminal-priority",
+      delegationId: "delegation-terminal",
+      action: "propagate_terminal",
+      decidedBy: "parent_agent",
+      reason: "传播 sibling 的终态并停止父级",
+    });
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "propagate_terminal",
+      delegationId: "delegation-terminal",
+    });
+    expect(coordinator.isExecutionQuiescent()).toBe(true);
+    expect(coordinator.isQuiescent()).toBe(false);
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      quiescent: false,
+      unhandledDescendants: 1,
+    });
+    const { cancelPendingRedelegationsBeforeTerminal } = await import("./runtime.js");
+    const gateAfterTerminal = await cancelPendingRedelegationsBeforeTerminal(
+      coordinator,
+      new CoreMindError("delegation_disposition_required", "传播 sibling 的同名真实终态"),
+    );
+    expect(gateAfterTerminal).toMatchObject({
+      status: "propagate_terminal",
+      delegationId: "delegation-terminal",
+    });
+    expect(
+      (await store.read(parentRunId)).some(
+        (record) =>
+          record.kind === "delegation" &&
+          record.payload.type === "delegation_redelegation_cancelled" &&
+          record.payload.delegationId === "delegation-redelegate",
+      ),
+    ).toBe(true);
     expect(coordinator.isQuiescent()).toBe(true);
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns).toMatchObject({
+      quiescent: true,
+      unhandledDescendants: 0,
+    });
+  });
+
+  it("多个未处置 Child 中需要人工处理的安全门优先于父 Agent 处置", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-human-disposition-priority-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "human-disposition-priority" });
+    let releaseChildren!: () => void;
+    const childrenMayFinish = new Promise<void>((resolve) => {
+      releaseChildren = resolve;
+    });
+    let childSequence = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async ({ delegationId }) => {
+          await childrenMayFinish;
+          return delegationId === "delegation-parent-agent-disposition"
+            ? safeFailedChildResult()
+            : {
+                ...safeFailedChildResult(),
+                recovery: {
+                  recoveryDisposition: "requires_human" as const,
+                  effectState: "unknown" as const,
+                  quiescent: true,
+                  executionOwnership: "released" as const,
+                  evidence: [],
+                },
+              };
+        },
+      },
+      createChildRunId: () => `run-human-disposition-priority-child-${++childSequence}`,
+    });
+
+    const parentAgentDisposition = await coordinator.delegate(
+      testDelegationRequest("delegation-parent-agent-disposition"),
+    );
+    const humanDisposition = await coordinator.delegate(
+      testDelegationRequest("delegation-human-disposition"),
+    );
+    releaseChildren();
+    await Promise.all([parentAgentDisposition.join(), humanDisposition.join()]);
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      delegationId: "delegation-human-disposition",
+      requiredActor: "human",
+    });
+  });
+
+  it("只有可证明 replay-safe 的处置才能建立使用新身份和新预算的关联尝试", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-redelegation-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "redelegation" });
+    let childSequence = 0;
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async ({ delegationId }) =>
+          delegationId === "delegation-attempt-1"
+            ? safeFailedChildResult()
+            : successfulChildResult(),
+      },
+      createChildRunId: () => `run-redelegation-child-${++childSequence}`,
+    });
+    const firstRequest = testDelegationRequest("delegation-attempt-1");
+    await (await coordinator.delegate(firstRequest)).join();
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-redelegate",
+      delegationId: firstRequest.delegationId,
+      action: "redelegate",
+      decidedBy: "parent_agent",
+      reason: "首次尝试在任何 Effect 前失败",
+    });
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "redelegation_required",
+      delegationId: firstRequest.delegationId,
+    });
+
+    await expect(coordinator.delegate(firstRequest)).resolves.toMatchObject({
+      childRunId: "run-redelegation-child-1",
+    });
+    const secondRequest = {
+      ...testDelegationRequest("delegation-attempt-2"),
+      predecessorDelegationId: firstRequest.delegationId,
+    };
+    await (await coordinator.delegate(secondRequest)).join();
+    expect(coordinator.continuationGate()).toEqual({ status: "allowed" });
+    expect(ProjectionEngine.project(await store.read(parentRunId)).childRuns?.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          delegationId: firstRequest.delegationId,
+          disposition: expect.objectContaining({
+            state: "recorded",
+            action: "redelegate",
+            successorDelegationId: secondRequest.delegationId,
+          }),
+        }),
+        expect.objectContaining({
+          delegationId: secondRequest.delegationId,
+          predecessorDelegationId: firstRequest.delegationId,
+        }),
+      ]),
+    );
+    await expect(
+      coordinator.delegate({
+        ...testDelegationRequest("delegation-attempt-3"),
+        predecessorDelegationId: firstRequest.delegationId,
+      }),
+    ).rejects.toMatchObject({ code: "delegation_redelegation_unsafe" });
+  });
+
+  it("父终态封口与撤销 Fact 之间不能并发建立重新委派 successor", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-terminal-sealed-redelegation-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "terminal-sealed-redelegation" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: { execute: async () => safeFailedChildResult() },
+      createChildRunId: () => "run-terminal-sealed-redelegation-child",
+    });
+    const firstRequest = testDelegationRequest("delegation-before-terminal-seal");
+    await (await coordinator.delegate(firstRequest)).join();
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-before-terminal-seal",
+      delegationId: firstRequest.delegationId,
+      action: "redelegate",
+      decidedBy: "parent_agent",
+      reason: "首次尝试可安全重放",
+    });
+    let cancellationEntered!: () => void;
+    let releaseCancellation!: () => void;
+    const cancellationStarted = new Promise<void>((resolve) => {
+      cancellationEntered = resolve;
+    });
+    const cancellationReleased = new Promise<void>((resolve) => {
+      releaseCancellation = resolve;
+    });
+    const appendFact = journal.appendFact.bind(journal);
+    journal.appendFact = async (kind, payload, options) => {
+      if (
+        kind === "delegation" &&
+        typeof payload === "object" &&
+        payload !== null &&
+        "type" in payload &&
+        payload.type === "delegation_redelegation_cancelled"
+      ) {
+        cancellationEntered();
+        await cancellationReleased;
+      }
+      return appendFact(kind, payload, options);
+    };
+
+    await coordinator.sealForTerminal();
+    const cancellation = coordinator.cancelPendingRedelegations(
+      "agent_failed",
+      "父 Run 失败并撤销待重委派意图",
+    );
+    await cancellationStarted;
+    const successor = coordinator.delegate({
+      ...testDelegationRequest("delegation-after-terminal-seal"),
+      predecessorDelegationId: firstRequest.delegationId,
+    });
+    releaseCancellation();
+
+    await expect(successor).rejects.toMatchObject({ code: "child_run_unavailable" });
+    await cancellation;
+    const records = await store.read(parentRunId);
+    expect(
+      records.some(
+        (record) =>
+          record.kind === "delegation" &&
+          record.payload.type === "delegation_recorded" &&
+          record.payload.delegationId === "delegation-after-terminal-seal",
+      ),
+    ).toBe(false);
+    expect(records.at(-1)).toMatchObject({
+      kind: "delegation",
+      payload: {
+        type: "delegation_redelegation_cancelled",
+        delegationId: firstRequest.delegationId,
+      },
+    });
+  });
+
+  it("orphan 与未知 Effect 强制等待人工处置，父 Agent 不能自行解封或重新委派", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-human-disposition-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "human-disposition" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          outcome: { status: "failed", finishReason: "agent_failed" },
+          evidence: [],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: ["Effect 状态未知"],
+          recovery: {
+            recoveryDisposition: "requires_human",
+            effectState: "unknown",
+            quiescent: true,
+            executionOwnership: "released",
+            evidence: [],
+          },
+        }),
+      },
+      createChildRunId: () => "run-human-disposition-child",
+    });
+    await (await coordinator.delegate(testDelegationRequest("delegation-human-required"))).join();
+
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "disposition_required",
+      requiredActor: "human",
+    });
+    await expect(
+      coordinator.recordDisposition({
+        dispositionId: "model-cannot-unblock",
+        delegationId: "delegation-human-required",
+        action: "accept_failure",
+        decidedBy: "parent_agent",
+        reason: "模型不能覆盖人工安全门",
+      }),
+    ).rejects.toMatchObject({ code: "delegation_disposition_required" });
+    await expect(
+      coordinator.recordDisposition({
+        dispositionId: "human-cannot-retry-unknown",
+        delegationId: "delegation-human-required",
+        action: "redelegate",
+        decidedBy: "human",
+        reason: "尚无安全证明",
+      }),
+    ).rejects.toMatchObject({ code: "delegation_redelegation_unsafe" });
+    await coordinator.recordDisposition({
+      dispositionId: "human-propagates",
+      delegationId: "delegation-human-required",
+      action: "propagate_terminal",
+      decidedBy: "human",
+      reason: "人工核对后传播原终态",
+    });
+    expect(coordinator.continuationGate()).toMatchObject({
+      status: "propagate_terminal",
+      delegationId: "delegation-human-required",
+    });
+  });
+
+  it("恢复与 Projection 拒绝绕过人工门或安全重委派门的处置 Fact", async () => {
+    const store = durableMemoryRunStore();
+    const parentRunId = "run-corrupt-disposition-parent";
+    const journal = new RunStateJournal(parentRunId, store);
+    await journal.start({ configFingerprint: "corrupt-disposition" });
+    const coordinator = await ChildRunCoordinator.open({
+      parentRunId,
+      parentJournal: journal,
+      runStore: store,
+      parentPolicy: testParentPolicy(),
+      adapter: {
+        execute: async () => ({
+          outcome: { status: "failed", finishReason: "agent_failed" },
+          evidence: [],
+          artifacts: [],
+          workspaceChanges: [],
+          unresolvedRisks: ["Effect 状态未知"],
+          recovery: {
+            recoveryDisposition: "requires_human",
+            effectState: "unknown",
+            quiescent: true,
+            executionOwnership: "released",
+            evidence: [],
+          },
+        }),
+      },
+      createChildRunId: () => "run-corrupt-disposition-child",
+    });
+    const delegationId = "delegation-corrupt-disposition";
+    await (await coordinator.delegate(testDelegationRequest(delegationId))).join();
+    await coordinator.recordDisposition({
+      dispositionId: "disposition-corrupt-source",
+      delegationId,
+      action: "accept_failure",
+      decidedBy: "human",
+      reason: "人工确认后接受失败",
+    });
+    const records = await store.read(parentRunId);
+    const corruptions = [{ decidedBy: "parent_agent" as const }, { action: "redelegate" as const }];
+
+    for (const corruption of corruptions) {
+      const corrupted = records.map((record) => {
+        if (
+          record.kind !== "delegation" ||
+          typeof record.payload !== "object" ||
+          record.payload === null ||
+          !("type" in record.payload) ||
+          record.payload.type !== "delegation_disposition_recorded"
+        ) {
+          return record;
+        }
+        return { ...record, payload: { ...record.payload, ...corruption } };
+      });
+      expect(() => ProjectionEngine.project(corrupted)).toThrowError(
+        expect.objectContaining({ code: "run_state_corrupt" }),
+      );
+
+      const corruptedStore = durableMemoryRunStore();
+      for (const record of corrupted) await corruptedStore.append(record);
+      let childExecutions = 0;
+      await expect(
+        ChildRunCoordinator.open({
+          parentRunId,
+          parentJournal: new RunStateJournal(
+            parentRunId,
+            corruptedStore,
+            corrupted.at(-1)?.sequence ?? 0,
+          ),
+          runStore: corruptedStore,
+          parentPolicy: testParentPolicy(),
+          adapter: {
+            execute: async () => {
+              childExecutions += 1;
+              return successfulChildResult();
+            },
+          },
+          createChildRunId: () => "must-not-create",
+        }),
+      ).rejects.toMatchObject({ code: "run_state_corrupt" });
+      expect(childExecutions).toBe(0);
+    }
   });
 });
 
@@ -2181,6 +2778,34 @@ function successfulChildResult(): ChildRunResult {
     artifacts: [],
     workspaceChanges: [],
     unresolvedRisks: [],
+    recovery: {
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: [],
+    },
+  };
+}
+
+function safeFailedChildResult(): ChildRunResult {
+  return {
+    outcome: {
+      status: "failed",
+      finishReason: "agent_failed",
+      error: { code: "agent_failed", message: "Child 在产生任何 Effect 前失败" },
+    },
+    evidence: [],
+    artifacts: [],
+    workspaceChanges: [],
+    unresolvedRisks: [],
+    recovery: {
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+      evidence: [],
+    },
   };
 }
 

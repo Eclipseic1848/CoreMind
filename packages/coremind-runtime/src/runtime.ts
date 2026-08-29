@@ -26,6 +26,7 @@ import {
 } from "coremind-tools/internal";
 import {
   bindActiveRun,
+  boundDelegationDispositionExecutor,
   boundDelegationExecutor,
   type DelegationExecutionOutput,
 } from "./active-run-binding.js";
@@ -48,6 +49,7 @@ import {
 import {
   CHILD_RUN_LIMIT_DEFAULTS,
   type ChildRunBudgetAllocation,
+  type ChildRunContinuationGate,
   ChildRunCoordinator,
   type ChildRunCoordinatorOptions,
   type ChildRunDelegationRequest,
@@ -55,6 +57,7 @@ import {
   type ChildRunHandle,
   type ChildRunModelSnapshot,
   type ChildRunPolicySnapshot,
+  type ChildRunResult,
   childRunInputFingerprint,
 } from "./child-run.js";
 import {
@@ -92,10 +95,15 @@ import {
 } from "./delegated-context.js";
 import {
   createDelegationAgentTool,
+  createDelegationDispositionAgentTool,
+  DELEGATION_DISPOSITION_TOOL_CAPABILITY,
+  DELEGATION_DISPOSITION_TOOL_EFFECT,
+  DELEGATION_DISPOSITION_TOOL_NAME,
   DELEGATION_TOOL_CAPABILITY,
   DELEGATION_TOOL_EFFECT,
   DELEGATION_TOOL_NAME,
   type DelegationToolArgs,
+  parseDelegationDispositionToolArgs,
   parseDelegationToolArgs,
   resolveDelegationAllocation,
   resolveDelegationHierarchyLimits,
@@ -105,7 +113,7 @@ import {
   type EffectReceiptBinding,
   fingerprintEffectReceiptValue,
 } from "./effect-receipt-binding.js";
-import { CoreMindError } from "./errors.js";
+import { CoreMindError, isErrorCode } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { normalizeExecutionError } from "./execution-error.js";
 import { enforceExecutionSecurity } from "./execution-security.js";
@@ -172,6 +180,7 @@ import {
   FileRunStore,
   fingerprintRunConfig,
   RunStateJournal,
+  type RunStateRecord,
   type RunStore,
   type RunStoreDurability,
 } from "./run-state.js";
@@ -434,12 +443,31 @@ export class CoreMindRuntime {
               return runtime.executeConfiguredDelegation(name, args, callId);
             })
           : undefined;
-      const driverTools = [...tools, ...externalTools, ...(delegationTool ? [delegationTool] : [])];
+      const delegationDispositionTool = delegationTool
+        ? createDelegationDispositionAgentTool(async (args, callId) => {
+            if (!runtime) {
+              throw new CoreMindError("child_run_unavailable", "Runtime 尚未完成初始化");
+            }
+            return runtime.executeConfiguredDelegationDisposition(name, args, callId);
+          })
+        : undefined;
+      const driverTools = [
+        ...tools,
+        ...externalTools,
+        ...(delegationTool ? [delegationTool] : []),
+        ...(delegationDispositionTool ? [delegationDispositionTool] : []),
+      ];
       const delegationEffects = delegationTool
-        ? ([[DELEGATION_TOOL_NAME, DELEGATION_TOOL_EFFECT]] as const)
+        ? ([
+            [DELEGATION_TOOL_NAME, DELEGATION_TOOL_EFFECT],
+            [DELEGATION_DISPOSITION_TOOL_NAME, DELEGATION_DISPOSITION_TOOL_EFFECT],
+          ] as const)
         : [];
       const delegationCapabilities = delegationTool
-        ? ([[DELEGATION_TOOL_NAME, DELEGATION_TOOL_CAPABILITY]] as const)
+        ? ([
+            [DELEGATION_TOOL_NAME, DELEGATION_TOOL_CAPABILITY],
+            [DELEGATION_DISPOSITION_TOOL_NAME, DELEGATION_DISPOSITION_TOOL_CAPABILITY],
+          ] as const)
         : [];
       toolEffectsByAgent.set(
         name,
@@ -674,6 +702,8 @@ export class CoreMindRuntime {
       inspectProjection: () => turnRuntime.inspectPersistedRunProjection(),
       executeDelegation: (parentAgentName, rawArgs, callId) =>
         turnRuntime.executeConfiguredDelegation(parentAgentName, rawArgs, callId),
+      executeDelegationDisposition: (parentAgentName, rawArgs, callId) =>
+        turnRuntime.executeConfiguredDelegationDisposition(parentAgentName, rawArgs, callId),
     });
     try {
       return await turnRuntime.run();
@@ -773,7 +803,12 @@ export class CoreMindRuntime {
     return [
       ...new Set(
         capabilities.flatMap((items) =>
-          items ? [...items.keys()].filter((tool) => tool !== DELEGATION_TOOL_NAME) : [],
+          items
+            ? [...items.keys()].filter(
+                (tool) =>
+                  tool !== DELEGATION_TOOL_NAME && tool !== DELEGATION_DISPOSITION_TOOL_NAME,
+              )
+            : [],
         ),
       ),
     ];
@@ -985,7 +1020,42 @@ export class CoreMindRuntime {
     }
     const handle = await childRuns.delegate(request);
     const result = await handle.join();
-    const output = { childRunId: handle.childRunId, result };
+    const output = {
+      childRunId: handle.childRunId,
+      delegationId: handle.delegationId,
+      result,
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(output) }],
+      details: output,
+    };
+  }
+
+  private async executeConfiguredDelegationDisposition(
+    parentAgentName: string,
+    rawArgs: unknown,
+    callId: CallId,
+  ): Promise<DelegationExecutionOutput> {
+    const executeInActiveRun = boundDelegationDispositionExecutor(this);
+    if (executeInActiveRun) return executeInActiveRun(parentAgentName, rawArgs, callId);
+    const context = executionSlotFor(this).kernel?.currentContext();
+    const call = context?.toolCall(parentAgentName, callId);
+    const childRuns = context?.currentChildRuns();
+    if (!context || !call || !childRuns) {
+      throw new CoreMindError(
+        "child_run_unavailable",
+        "Delegation Disposition 只能在已登记 Tool Call 的活动父 Run 内执行",
+      );
+    }
+    const args = parseDelegationDispositionToolArgs(rawArgs);
+    const disposition = await childRuns.recordDisposition({
+      dispositionId: `disposition:${call.turnId}:${call.callId}`,
+      delegationId: args.delegationId,
+      action: args.action,
+      decidedBy: "parent_agent",
+      reason: args.reason,
+    });
+    const output = { delegationId: args.delegationId, disposition };
     return {
       content: [{ type: "text", text: JSON.stringify(output) }],
       details: output,
@@ -1026,6 +1096,7 @@ export class CoreMindRuntime {
     });
     const request: ChildRunDelegationRequest = {
       delegationId: `delegation:${call.turnId}:${call.callId}`,
+      ...(args.recoveryOf ? { predecessorDelegationId: args.recoveryOf } : {}),
       budgetScope: parentAgentName,
       parentTurnId: call.turnId,
       parentStepId: call.stepId ?? `step:${parentAgentName}:default`,
@@ -1078,6 +1149,7 @@ export class CoreMindRuntime {
       target: request.agentName,
       task: request.task,
       references: [...request.context.references],
+      ...(request.predecessorDelegationId ? { recoveryOf: request.predecessorDelegationId } : {}),
       limits: { ...request.allocation, ...request.hierarchyLimits },
     };
   }
@@ -1159,7 +1231,13 @@ export class CoreMindRuntime {
     const resumeRecords = this.options.resumeRunId
       ? await runStore.read(this.options.resumeRunId)
       : undefined;
-    if (resumeRecords && resumeRecords.length > 0 && !this.options.childRuns) {
+    let deferredTerminalError = restoreDeferredTerminalError(resumeRecords);
+    const canRestoreChildRuns =
+      this.options.childRuns !== undefined ||
+      [...this.agentConfigs.values()].some(
+        (agent) => agent.delegation && Object.keys(agent.delegation.targets).length > 0,
+      );
+    if (resumeRecords && resumeRecords.length > 0 && !canRestoreChildRuns) {
       const childRuns = ProjectionEngine.project(resumeRecords).childRuns;
       if (childRuns && !childRuns.quiescent) {
         throw new CoreMindError(
@@ -1270,7 +1348,7 @@ export class CoreMindRuntime {
         runId,
         journal,
         records: await runStore.read(runId),
-        apply: (command) => this.applyRunControl(command, context),
+        apply: (command) => this.applyRunControl(command, context, deferredTerminalError),
       }),
     );
     const capabilityByCallId = new Map<
@@ -1571,6 +1649,7 @@ export class CoreMindRuntime {
             budget.reserveChild(allocation, performance.now() - started),
         }),
       );
+      await context.currentControlInbox()?.applyPending("delegation_disposition");
     }
     const checkpointManager = new CheckpointManager({
       cwd: this.options.cwd ?? process.cwd(),
@@ -1580,6 +1659,8 @@ export class CoreMindRuntime {
     let checkpointFailure: CoreMindError | undefined;
     let capabilityFailure: CoreMindError | undefined;
     let delegationPolicyFailure: CoreMindError | undefined;
+    let delegationDispositionFailure: CoreMindError | undefined;
+    const delegationDispositionTurns = new Set<string>();
     const adapterFailures = new Map<string, CoreMindError>();
     const selectedAdapterFailure = (): CoreMindError | undefined =>
       [...adapterFailures.entries()].sort(([left], [right]) =>
@@ -1605,6 +1686,14 @@ export class CoreMindRuntime {
     };
     const throwIfContextFailed = (): void => {
       if (contextFailure) throw new CoreMindError(contextFailure.code, contextFailure.message);
+    };
+    const throwIfDelegationBlocksModel = (): void => {
+      const gate = context.currentChildRuns()?.continuationGate();
+      if (gate?.status === "disposition_required" && gate.requiredActor === "human") {
+        delegationDispositionFailure ??= delegationDispositionRequiredError(gate.delegationId);
+        throw delegationDispositionFailure;
+      }
+      if (gate?.status === "propagate_terminal") throw propagatedChildRunError(gate.result);
     };
     const persistContextCompaction = async (
       preparation: ContextLifecyclePreparation,
@@ -1701,6 +1790,7 @@ export class CoreMindRuntime {
         }),
     });
     const deniedAgents = new Set<string>();
+    const activeRunContext = context;
     context.setHarnessFactory((agentName, stepId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
@@ -1709,7 +1799,10 @@ export class CoreMindRuntime {
       return {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(agentName, contract),
-        beforeModelRequest: throwIfContextFailed,
+        beforeModelRequest: () => {
+          throwIfContextFailed();
+          throwIfDelegationBlocksModel();
+        },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
           const contract = contextContracts.get(agentName);
           if (!contract || !pendingProviderCapabilityFingerprint) {
@@ -1970,6 +2063,56 @@ export class CoreMindRuntime {
             status: "completed",
             result: { recoveryDisposition: recoveryDispositionFor(resolvedCapability) },
           });
+          const registeredCall = activeRunContext.toolCall(
+            agentName,
+            context.toolCall.callId as CallId,
+          );
+          const turnId = registeredCall?.turnId;
+          if (context.toolCall.tool === DELEGATION_DISPOSITION_TOOL_NAME && turnId) {
+            delegationDispositionTurns.add(turnId);
+          } else {
+            const gate = activeRunContext.currentChildRuns()?.continuationGate();
+            const linkedRedelegation =
+              gate?.status === "redelegation_required" &&
+              context.toolCall.tool === DELEGATION_TOOL_NAME &&
+              (() => {
+                try {
+                  return (
+                    parseDelegationToolArgs(context.toolCall.args).recoveryOf === gate.delegationId
+                  );
+                } catch {
+                  return false;
+                }
+              })();
+            const blockedByDisposition =
+              (turnId !== undefined && delegationDispositionTurns.has(turnId)) ||
+              gate?.status === "disposition_required" ||
+              gate?.status === "propagate_terminal" ||
+              (gate?.status === "redelegation_required" && !linkedRedelegation);
+            if (blockedByDisposition) {
+              delegationDispositionFailure = new CoreMindError(
+                "delegation_disposition_required",
+                gate?.status === "redelegation_required"
+                  ? `DelegationId ${gate.delegationId} 必须先通过带 recoveryOf 的新 delegate 建立关联尝试`
+                  : "非成功 Child Run 尚未完成持久处置，已阻断同批或后续工具调用",
+              );
+              await toolExecutionEngine.blockBeforeExecution(
+                lifecycleIdentity,
+                delegationDispositionFailure.message,
+              );
+              emit({
+                type: "policy_denied",
+                agent: agentName,
+                tool: context.toolCall.tool,
+                reason: delegationDispositionFailure.message,
+              });
+              return {
+                block: true,
+                reason: delegationDispositionFailure.message,
+                terminate: true,
+              };
+            }
+          }
           if (deniedAgents.has(agentName)) {
             const reason = "同一工具批次已有请求被拒绝";
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
@@ -2462,6 +2605,20 @@ export class CoreMindRuntime {
         journal,
         () => knownTurnIdsFrom(collected),
         async () => {
+          if (deferredTerminalError) {
+            const childRuns = context.currentChildRuns();
+            const gate = childRuns?.continuationGate();
+            if (gate?.status === "disposition_required") {
+              throw delegationDispositionRequiredError(gate.delegationId);
+            }
+            if (gate?.status === "redelegation_required") {
+              await childRuns!.cancelPendingRedelegations(
+                deferredTerminalError.code,
+                `父 Run 已有待恢复终态 ${deferredTerminalError.code}，撤销尚未执行的重新委派`,
+              );
+            }
+            throw deferredTerminalError;
+          }
           if (loop) {
             let retryCount =
               resumePlan?.previousTrace.filter(
@@ -2574,6 +2731,7 @@ export class CoreMindRuntime {
         },
         (error) => activeLoopRunner?.interrupt(error),
       ));
+      if (delegationDispositionFailure) throw delegationDispositionFailure;
       if (delegationPolicyFailure) throw delegationPolicyFailure;
       if (capabilityFailure) throw capabilityFailure;
       const adapterFailure = selectedAdapterFailure();
@@ -2583,6 +2741,7 @@ export class CoreMindRuntime {
     } catch (error) {
       terminalError =
         checkpointFailure ??
+        delegationDispositionFailure ??
         delegationPolicyFailure ??
         capabilityFailure ??
         selectedAdapterFailure() ??
@@ -2640,7 +2799,10 @@ export class CoreMindRuntime {
 
     // 静止等待（规格 03 §5）：runWithGuard 收尾路径调用，等所有 agent 真正 idle、
     // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
+    await context.currentControlInbox()?.sealForTerminal();
+    await context.currentChildRuns()?.sealForTerminal();
     const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
+    let delegationGate = context.currentChildRuns()?.continuationGate();
     const environmentTerminationError = context.environmentTerminationError();
     if (environmentTerminationError) {
       terminalError = new CoreMindError(
@@ -2653,7 +2815,7 @@ export class CoreMindRuntime {
     const childRunsNotQuiescent =
       !runtimeQuiescent &&
       context.currentChildRuns() !== undefined &&
-      !context.currentChildRuns()?.isQuiescent();
+      !context.currentChildRuns()?.isExecutionQuiescent();
     if (childRunsNotQuiescent) {
       terminalError ??= new CoreMindError(
         "child_run_not_quiescent",
@@ -2679,6 +2841,33 @@ export class CoreMindRuntime {
                 );
         }
       }
+    }
+    if (terminalError === undefined && delegationGate?.status === "propagate_terminal") {
+      terminalError = propagatedChildRunError(delegationGate.result);
+    }
+    if (terminalError !== undefined && context.currentChildRuns()) {
+      try {
+        delegationGate = await cancelPendingRedelegationsBeforeTerminal(
+          context.currentChildRuns(),
+          terminalError,
+        );
+      } catch (error) {
+        terminalError = error;
+      }
+    }
+    if (
+      delegationGate?.status === "disposition_required" ||
+      delegationGate?.status === "redelegation_required"
+    ) {
+      if (terminalError !== undefined) {
+        const normalized = normalizeExecutionError(terminalError);
+        if (normalized.code !== "delegation_disposition_required") {
+          deferredTerminalError ??= normalized;
+        }
+      }
+      terminalError = delegationDispositionRequiredError(delegationGate.delegationId);
+    } else if (terminalError === undefined && deferredTerminalError) {
+      terminalError = deferredTerminalError;
     }
 
     let sessionFile: string | undefined;
@@ -2795,6 +2984,9 @@ export class CoreMindRuntime {
       artifacts: context.artifactRecords(),
       extensions: context.extensions(),
       ...(outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {}),
+      ...(outcome.status === "paused" && deferredTerminalError
+        ? { deferredTerminalError: serializeDeferredTerminalError(deferredTerminalError) }
+        : {}),
     };
     const terminalDurabilityFailure =
       journal.factStatus().state === "poisoned" ||
@@ -3010,7 +3202,33 @@ export class CoreMindRuntime {
   private async applyRunControl(
     command: InternalRunControlCommand,
     context: RunContext<RuntimeHarness>,
+    deferredTerminalError?: CoreMindError,
   ): Promise<ControlApplyResult> {
+    if (command.type === "delegation_disposition") {
+      const childRuns = context.currentChildRuns();
+      if (!childRuns) {
+        return { status: "rejected", reason: "当前 Run 没有可处置的 Child Run" };
+      }
+      if (deferredTerminalError && command.action === "redelegate") {
+        return {
+          status: "rejected",
+          reason: "父级已有待恢复终态，不能重新委派 Child Run",
+        };
+      }
+      try {
+        await childRuns.recordDisposition({
+          dispositionId: command.controlId,
+          delegationId: command.delegationId,
+          action: command.action,
+          decidedBy: "human",
+          reason: command.reason,
+        });
+        return "applied";
+      } catch (error) {
+        const normalized = normalizeExecutionError(error);
+        return { status: "rejected", reason: normalized.message };
+      }
+    }
     if (command.type === "steering" || command.type === "follow_up") {
       const agent = context.agent(this.mainAgentName);
       if (!agent) return "accepted";
@@ -3039,7 +3257,7 @@ export class CoreMindRuntime {
     const context = runContextFor(this);
     const deadline = performance.now() + timeoutMs;
     for (;;) {
-      if (context.isQuiescent()) return true;
+      if (context.isExecutionQuiescent()) return true;
       if (performance.now() >= deadline) {
         this.options.events?.({ type: "quiescence_timeout", timeoutMs });
         return false;
@@ -3156,6 +3374,96 @@ export function delegatedToolEnvironment(env: NodeJS.ProcessEnv): NodeJS.Process
 }
 
 /** 只把本次任务与显式引用标识符交给 Child；父 Session、文件和工具输出不参与构造。 */
+function propagatedChildRunError(result: ChildRunResult): CoreMindError {
+  return normalizeExecutionError(
+    result.outcome.error ?? {
+      code: result.outcome.finishReason,
+      message: `Child Run 终态已由 Delegation Disposition 传播：${result.outcome.finishReason}`,
+    },
+  );
+}
+
+/** 父级形成任何真实终态前，撤销所有尚未建立 successor 的重新委派意图。 */
+export async function cancelPendingRedelegationsBeforeTerminal(
+  childRuns:
+    | Pick<ChildRunCoordinator, "cancelPendingRedelegations" | "continuationGate">
+    | undefined,
+  terminalError: unknown,
+): Promise<ChildRunContinuationGate | undefined> {
+  if (!childRuns) return undefined;
+  const normalized = normalizeExecutionError(terminalError);
+  const gateBeforeTerminal = childRuns.continuationGate();
+  if (
+    normalized.code !== "delegation_disposition_required" ||
+    gateBeforeTerminal.status === "propagate_terminal"
+  ) {
+    await childRuns.cancelPendingRedelegations(
+      normalized.code,
+      `父 Run 以 ${normalized.code} 形成终态，撤销尚未执行的重新委派`,
+    );
+  }
+  return childRuns.continuationGate();
+}
+
+interface DeferredTerminalErrorPayload {
+  schemaVersion: 1;
+  code: string;
+  message: string;
+  audit?: { originalCode: string };
+}
+
+function delegationDispositionRequiredError(delegationId: string): CoreMindError {
+  return new CoreMindError(
+    "delegation_disposition_required",
+    `DelegationId ${delegationId} 尚未完成持久处置，父 Run 不能继续或形成终态`,
+  );
+}
+
+function serializeDeferredTerminalError(error: unknown): DeferredTerminalErrorPayload {
+  const normalized = normalizeExecutionError(error);
+  return {
+    schemaVersion: 1,
+    code: normalized.code,
+    message: normalized.message,
+    ...(normalized.audit ? { audit: structuredClone(normalized.audit) } : {}),
+  };
+}
+
+function restoreDeferredTerminalError(
+  records: readonly RunStateRecord[] | undefined,
+): CoreMindError | undefined {
+  const pause = records
+    ? [...records].reverse().find((record) => record.kind === "pause")
+    : undefined;
+  if (!pause || pause.payload === null || typeof pause.payload !== "object") return undefined;
+  const candidate = (pause.payload as { deferredTerminalError?: unknown }).deferredTerminalError;
+  if (candidate === undefined) return undefined;
+  if (candidate === null || typeof candidate !== "object") {
+    throw new CoreMindError("run_state_corrupt", "暂停记录的父级延迟终态不是对象");
+  }
+  const payload = candidate as Partial<DeferredTerminalErrorPayload>;
+  const audit = payload.audit;
+  if (
+    payload.schemaVersion !== 1 ||
+    typeof payload.code !== "string" ||
+    !isErrorCode(payload.code) ||
+    typeof payload.message !== "string" ||
+    payload.message.length === 0 ||
+    (audit !== undefined &&
+      (audit === null ||
+        typeof audit !== "object" ||
+        typeof audit.originalCode !== "string" ||
+        audit.originalCode.length === 0))
+  ) {
+    throw new CoreMindError("run_state_corrupt", "暂停记录的父级延迟终态合同非法");
+  }
+  return new CoreMindError(
+    payload.code,
+    payload.message,
+    audit ? { originalCode: audit.originalCode } : undefined,
+  );
+}
+
 function delegatedInitialPrompt(request: ChildRunDelegationRequest): string {
   const resolvedReferences = request.context.resolvedReferences ?? [];
   const references = [...new Set(request.context.references)];

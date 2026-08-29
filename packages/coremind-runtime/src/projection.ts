@@ -4,6 +4,7 @@ import {
   RECOVERY_DISPOSITIONS,
   recoveryDispositionFor,
 } from "coremind-tools";
+import { canonicalJson } from "./canonical-json.js";
 import type { CheckpointRecord } from "./checkpoint.js";
 import {
   type ChildRunBudgetAllocation,
@@ -11,8 +12,12 @@ import {
   type ChildRunPermissionSnapshot,
   type ChildRunResult,
   type ChildRunWorkspaceSnapshot,
+  childRunRecoveryAssessment,
+  childRunResultFingerprint,
   decodeChildRunFact,
+  delegationDispositionViolation,
   foldChildRunLifecycleStatus,
+  isChildRunRecoverySafeForRedelegation,
 } from "./child-run.js";
 import { type PendingControlProjection, projectPendingControlFacts } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
@@ -123,6 +128,7 @@ export interface ChildRunNodeProjection {
   parentRunId: string;
   childRunId: string;
   delegationId: string;
+  predecessorDelegationId?: string;
   agentName: string;
   inputFingerprint: string;
   budget: ChildRunBudgetAllocation;
@@ -134,6 +140,24 @@ export interface ChildRunNodeProjection {
   outcome?: RunOutcome;
   result?: ChildRunResult;
   recovery?: RecoveryDecision;
+  disposition?: ChildRunDispositionProjection;
+}
+
+export interface ChildRunDispositionProjection {
+  state:
+    | "not_required"
+    | "required"
+    | "recorded"
+    | "awaiting_redelegation"
+    | "redelegation_cancelled";
+  requiredActor?: "parent_agent" | "human";
+  action?: "accept_failure" | "choose_alternative" | "redelegate" | "propagate_terminal";
+  decidedBy?: "parent_agent" | "human";
+  reason?: string;
+  recoveryDisposition: "replay_safe" | "requires_proof" | "requires_human" | "forbidden";
+  successorDelegationId?: string;
+  parentTerminalCode?: string;
+  cancellationReason?: string;
 }
 
 export interface ChildRunTreeProjection {
@@ -308,7 +332,7 @@ export const ProjectionEngine = {
     const activeDescendants = nodes.filter(
       (node) => node.status === "created" || node.status === "running",
     ).length;
-    const unhandledDescendants = nodes.filter((node) => node.status !== "joined").length;
+    const unhandledDescendants = nodes.filter(childRunNodeIsUnhandled).length;
     return {
       ...root,
       childRuns: {
@@ -340,10 +364,26 @@ function projectChildRuns(
       if (existing) {
         throw new CoreMindError("run_state_corrupt", "同一 DelegationId 存在重复 recorded Fact");
       }
+      if (fact.predecessorDelegationId) {
+        const predecessor = nodes.get(fact.predecessorDelegationId);
+        if (
+          predecessor?.disposition?.state !== "awaiting_redelegation" ||
+          predecessor.disposition.action !== "redelegate" ||
+          predecessor.disposition.successorDelegationId !== undefined ||
+          predecessor.disposition.recoveryDisposition !== "replay_safe"
+        ) {
+          throw new CoreMindError("run_state_corrupt", "关联 Child Run 缺少匹配的安全重新委派处置");
+        }
+        predecessor.disposition.state = "recorded";
+        predecessor.disposition.successorDelegationId = fact.delegationId;
+      }
       nodes.set(fact.delegationId, {
         parentRunId,
         childRunId: fact.childRunId,
         delegationId: fact.delegationId,
+        ...(fact.predecessorDelegationId
+          ? { predecessorDelegationId: fact.predecessorDelegationId }
+          : {}),
         agentName: fact.agentName,
         inputFingerprint: fact.inputFingerprint,
         budget: structuredClone(fact.inheritedPolicy.budget),
@@ -361,6 +401,47 @@ function projectChildRuns(
     ) {
       throw new CoreMindError("run_state_corrupt", "Child Run 生命周期缺少匹配的 Delegation Fact");
     }
+    if (fact.type === "delegation_disposition_recorded") {
+      if (
+        existing.status !== "joined" ||
+        !existing.result ||
+        existing.result.outcome.status === "succeeded" ||
+        existing.disposition?.state !== "required" ||
+        childRunResultFingerprint(existing.result) !== fact.resultFingerprint ||
+        canonicalRecovery(existing.result) !== canonicalJson(fact.recovery) ||
+        delegationDispositionViolation(existing.result, fact.action, fact.decidedBy) !== undefined
+      ) {
+        throw new CoreMindError(
+          "run_state_corrupt",
+          "Delegation Disposition 与已 join 的 Child Run 结果不匹配",
+        );
+      }
+      existing.disposition = {
+        state: fact.action === "redelegate" ? "awaiting_redelegation" : "recorded",
+        action: fact.action,
+        decidedBy: fact.decidedBy,
+        reason: fact.reason,
+        recoveryDisposition: fact.recovery.recoveryDisposition,
+      };
+      continue;
+    }
+    if (fact.type === "delegation_redelegation_cancelled") {
+      if (
+        existing.status !== "joined" ||
+        existing.disposition?.state !== "awaiting_redelegation" ||
+        existing.disposition.action !== "redelegate" ||
+        existing.disposition.successorDelegationId !== undefined
+      ) {
+        throw new CoreMindError(
+          "run_state_corrupt",
+          "重新委派撤销 Fact 与待建立 successor 的处置不匹配",
+        );
+      }
+      existing.disposition.state = "redelegation_cancelled";
+      existing.disposition.parentTerminalCode = fact.parentTerminalCode;
+      existing.disposition.cancellationReason = fact.reason;
+      continue;
+    }
     existing.status = foldChildRunLifecycleStatus(existing.status, fact.type);
     if (fact.type === "child_terminal") {
       existing.outcome = structuredClone(fact.result.outcome);
@@ -377,6 +458,17 @@ function projectChildRuns(
     if (fact.type === "parent_joined") {
       existing.outcome = structuredClone(fact.result.outcome);
       existing.result = structuredClone(fact.result);
+      const recovery = childRunRecoveryAssessment(fact.result);
+      existing.disposition =
+        fact.result.outcome.status === "succeeded"
+          ? { state: "not_required", recoveryDisposition: recovery.recoveryDisposition }
+          : {
+              state: "required",
+              requiredActor: isChildRunRecoverySafeForRedelegation(recovery)
+                ? "parent_agent"
+                : "human",
+              recoveryDisposition: recovery.recoveryDisposition,
+            };
     }
   }
   if (nodes.size === 0) return undefined;
@@ -384,13 +476,25 @@ function projectChildRuns(
   const activeDescendants = projected.filter(
     (node) => node.status === "created" || node.status === "running",
   ).length;
-  const unhandledDescendants = projected.filter((node) => node.status !== "joined").length;
+  const unhandledDescendants = projected.filter(childRunNodeIsUnhandled).length;
   return {
     nodes: structuredClone(projected),
     activeDescendants,
     unhandledDescendants,
     quiescent: unhandledDescendants === 0,
   };
+}
+
+function childRunNodeIsUnhandled(node: ChildRunNodeProjection): boolean {
+  return (
+    node.status !== "joined" ||
+    node.disposition?.state === "required" ||
+    node.disposition?.state === "awaiting_redelegation"
+  );
+}
+
+function canonicalRecovery(result: ChildRunResult): string {
+  return canonicalJson(childRunRecoveryAssessment(result));
 }
 
 function projectSnapshot(input: {
