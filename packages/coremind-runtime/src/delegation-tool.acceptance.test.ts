@@ -2161,24 +2161,23 @@ describe("Delegation Tool TypeScript happy path", () => {
       const parentResolvedApprovals = result.trace
         .map((entry) => entry.event)
         .filter((event) => event.type === "approval_resolved");
-      const childApprovals = childRunId
-        ? (await store.read(childRunId))
-            .flatMap((record) =>
-              record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
-            )
-            .filter(
-              (
-                event,
-              ): event is Extract<
-                (typeof result.trace)[number]["event"],
-                { type: "approval_required" }
-              > =>
-                typeof event === "object" &&
-                event !== null &&
-                "type" in event &&
-                event.type === "approval_required",
-            )
+      const childEvents = childRunId
+        ? (await store.read(childRunId)).flatMap((record) =>
+            record.kind === "event" ? [(record.payload as CoreMindTraceEvent).event] : [],
+          )
         : [];
+      const childApprovals = childEvents.filter(
+        (
+          event,
+        ): event is Extract<
+          (typeof result.trace)[number]["event"],
+          { type: "approval_required" }
+        > =>
+          typeof event === "object" &&
+          event !== null &&
+          "type" in event &&
+          event.type === "approval_required",
+      );
 
       expect(
         result.outcome.status,
@@ -2187,6 +2186,7 @@ describe("Delegation Tool TypeScript happy path", () => {
             outcome: result.outcome,
             childRuns: result.childRuns?.nodes,
             approvals: approvals.map((request) => request.tool),
+            childEvents,
           },
           null,
           2,
