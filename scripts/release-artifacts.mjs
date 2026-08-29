@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { validateReleaseVersion } from "./release-version.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const artifactRoot = path.join(repositoryRoot, "release-artifacts");
+const releaseArtifactRoot = path.join(repositoryRoot, "release-artifacts");
+const candidateArtifactRoot = path.join(repositoryRoot, ".scratch", "candidate-artifacts");
 const publintCli = path.join(repositoryRoot, "node_modules", "publint", "src", "cli.js");
 const attwCli = path.join(
   repositoryRoot,
@@ -38,6 +39,10 @@ export function evaluateReleaseIdentity({ version, requestedTag, headSha, tagSha
   return blockers;
 }
 
+export function evaluateCandidateIdentity({ dirty }) {
+  return dirty ? ["Git 工作区不干净"] : [];
+}
+
 export function selectNpmDistTag(version) {
   return version.includes("-") ? "next" : "latest";
 }
@@ -56,25 +61,34 @@ export async function createArtifactRecords(rootDirectory, files) {
   return records.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-async function buildReleaseArtifacts(tag) {
+export async function buildReleaseArtifacts(tag) {
+  return buildArtifacts({ tag, artifactRoot: releaseArtifactRoot, candidate: false });
+}
+
+export async function buildCandidateArtifacts() {
+  return buildArtifacts({ artifactRoot: candidateArtifactRoot, candidate: true });
+}
+
+async function buildArtifacts({ tag, artifactRoot, candidate }) {
   const versionReport = await validateReleaseVersion(repositoryRoot);
   if (!versionReport.ready) {
     throw new Error(`发布版本不一致：\n- ${versionReport.blockers.join("\n- ")}`);
   }
   const version = versionReport.npmVersion;
   const headSha = git(["rev-parse", "HEAD"]).stdout.trim();
-  const tagShaResult = git(["rev-list", "-n", "1", tag], { allowFailure: true });
   const dirty = git(["status", "--porcelain", "--untracked-files=all"]).stdout.trim().length > 0;
-  const blockers = evaluateReleaseIdentity({
-    version,
-    requestedTag: tag,
-    headSha,
-    tagSha: tagShaResult.status === 0 ? tagShaResult.stdout.trim() : "",
-    dirty,
-  });
-  if (blockers.length > 0) throw new Error(`发布身份检查失败：\n- ${blockers.join("\n- ")}`);
+  const blockers = candidate
+    ? evaluateCandidateIdentity({ dirty })
+    : evaluateReleaseIdentity({
+        version,
+        requestedTag: tag,
+        headSha,
+        tagSha: git(["rev-list", "-n", "1", tag], { allowFailure: true }).stdout.trim(),
+        dirty,
+      });
+  if (blockers.length > 0) throw new Error(`产物身份检查失败：\n- ${blockers.join("\n- ")}`);
 
-  await resetArtifactDirectory();
+  await resetArtifactDirectory(artifactRoot, candidate);
   const npmDirectory = path.join(artifactRoot, "npm");
   const pythonDirectory = path.join(artifactRoot, "python");
   const sourceDirectory = path.join(artifactRoot, "source");
@@ -89,7 +103,12 @@ async function buildReleaseArtifacts(tag) {
   if (generatedDiff) {
     throw new Error(`构建改变了候选提交内容，拒绝发布：\n${generatedDiff}`);
   }
-  runNpm(["run", "release:preflight"], repositoryRoot);
+  runNpm(
+    candidate
+      ? ["run", "release:preflight", "--", "--defer-provider-certification"]
+      : ["run", "release:preflight"],
+    repositoryRoot,
+  );
 
   const npmArtifacts = [];
   for (const packageName of NPM_PUBLISH_ORDER) {
@@ -124,6 +143,11 @@ async function buildReleaseArtifacts(tag) {
       repositoryRoot,
     );
   }
+  run(
+    process.execPath,
+    ["scripts/validate-npm-tarballs.mjs", "--directory", npmDirectory],
+    repositoryRoot,
+  );
 
   runPython(["-m", "build", "--wheel", "--outdir", pythonDirectory, "python"]);
   const wheels = (await readdir(pythonDirectory))
@@ -167,7 +191,7 @@ async function buildReleaseArtifacts(tag) {
     version,
     pythonVersion: versionReport.pythonVersion,
     npmDistTag: selectNpmDistTag(version),
-    tag,
+    ...(candidate ? { candidate: true } : { tag }),
     commit: headSha,
     builtAt: new Date().toISOString(),
     artifacts: metadata,
@@ -183,13 +207,15 @@ async function buildReleaseArtifacts(tag) {
     "utf8",
   );
   console.log(
-    `发布物构建完成：${version}，${metadata.length} 个文件，提交 ${headSha.slice(0, 12)}`,
+    `${candidate ? "候选" : "发布"}产物构建完成：${version}，${metadata.length} 个文件，提交 ${headSha.slice(0, 12)}`,
   );
+  return { artifactRoot, manifest };
 }
 
-async function resetArtifactDirectory() {
+async function resetArtifactDirectory(artifactRoot, candidate) {
   const resolved = path.resolve(artifactRoot);
-  if (resolved !== path.join(repositoryRoot, "release-artifacts")) {
+  const expected = candidate ? candidateArtifactRoot : releaseArtifactRoot;
+  if (resolved !== expected) {
     throw new Error(`拒绝清理非预期目录：${resolved}`);
   }
   await rm(resolved, { recursive: true, force: true });

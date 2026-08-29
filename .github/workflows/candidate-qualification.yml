@@ -137,6 +137,17 @@ jobs:
       - name: Release Candidate 离线验收矩阵
         run: npm run acceptance:rc -- --defer-provider-certification
 
+      - name: 构建无 Tag 候选产物
+        run: npm run candidate:bundle
+
+      - name: 保存候选产物与 SHA-256 清单
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: candidate-artifacts-${{ runner.os }}-${{ github.sha }}
+          path: .scratch/candidate-artifacts
+          if-no-files-found: error
+          retention-days: 30
+
       - name: 记录实际运行时间
         if: always()
         shell: bash

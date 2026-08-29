@@ -59,6 +59,18 @@ describe("统一发布版本", () => {
     expect(report.blockers.join("\n")).toContain("facade");
   });
 
+  it("拒绝缺失当前稳定版记录或仍使用 dev 叙事", async () => {
+    const root = createFixture();
+    writeFileSync(path.join(root, "CHANGELOG.md"), "# Changelog\n\n## 0.7.0-dev\n", "utf8");
+    writeFileSync(path.join(root, "README.md"), "当前候选为 0.7.0-dev。\n", "utf8");
+
+    const report = await validateReleaseVersion(root);
+
+    expect(report.ready).toBe(false);
+    expect(report.blockers.join("\n")).toContain("CHANGELOG.md");
+    expect(report.blockers.join("\n")).toContain("0.7.0-dev");
+  });
+
   it("预发布模块记录不能冒充稳定版记录", async () => {
     const root = createFixture();
     const changelogPath = path.join(root, "docs", "modules", "demo", "CHANGELOG.md");

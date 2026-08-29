@@ -1,13 +1,13 @@
 # Provider Support and Certification Matrix
 
-> Generated on 2026-08-26 from the static runtime catalog and the human-maintained evidence ledger. Do not edit the table manually.
+> Generated on 2026-08-26 for candidate `0.7.0` from the static runtime catalog and the human-maintained evidence ledger. Do not edit the table manually.
 
-CoreMind currently supports configuration for **40** built-in providers. Complete real-call evidence exists for **1**, while **39** are catalog-only. **Configurable does not mean certified.**
+CoreMind currently supports configuration for **40** built-in providers. Complete real-call evidence exists for **0**, while **40** are catalog-only. **Configurable does not mean certified.**
 
 ## Status definitions
 
 - **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks with auditable evidence.
-- **Configurable, unverified**: configuration and model catalog resolution work, but complete real-call evidence is not available.
+- **Configurable, unverified**: configuration and model catalog resolution work, but the current candidate lacks complete real-call evidence; older evidence is historical only.
 - **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every check in the current seven-check standard.
 - Custom OpenAI-compatible endpoints are deployment-specific and must be accepted by each project.
 
@@ -15,7 +15,7 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 0.7.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 114 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
 | `anthropic` | `claude-fable-5` | — | 13 | Configurable, unverified | — |

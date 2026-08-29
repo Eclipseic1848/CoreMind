@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createArtifactRecords,
+  evaluateCandidateIdentity,
   evaluateReleaseIdentity,
   selectNpmDistTag,
 } from "./release-artifacts.mjs";
@@ -29,6 +30,11 @@ describe("同提交发布物", () => {
         dirty: true,
       }).join("\n"),
     ).toContain("标签");
+  });
+
+  it("候选产物不要求 Tag，但仍拒绝脏工作区", () => {
+    expect(evaluateCandidateIdentity({ dirty: false })).toEqual([]);
+    expect(evaluateCandidateIdentity({ dirty: true })).toEqual(["Git 工作区不干净"]);
   });
 
   it("预发布版本使用 next，稳定版本使用 latest", () => {

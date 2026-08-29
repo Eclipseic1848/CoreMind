@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateReleaseVersion } from "./release-version.mjs";
 
 const REQUIRED_FILES = [
   "README.md",
@@ -88,6 +89,7 @@ export async function inspectRepository(
   rootDirectory,
   { allowDirty = false, deferProviderCertification = false } = {},
 ) {
+  const versionReport = await validateReleaseVersion(rootDirectory);
   const packageDirectories = await readdir(path.join(rootDirectory, "packages"), {
     withFileTypes: true,
   });
@@ -142,9 +144,13 @@ export async function inspectRepository(
     packages,
     pythonVersion,
     requiredFilesMissing: missing,
-    providerMatrixCurrent: matrix.generatedAt === ledger.updatedAt && matrix.providers.length >= 38,
+    providerMatrixCurrent:
+      matrix.generatedAt === ledger.updatedAt &&
+      matrix.targetVersion === normalizePythonVersion(pythonVersion) &&
+      matrix.providers.length >= 38,
     providerCertificationCurrent: deferProviderCertification || Boolean(currentCertification),
   });
+  report.blockers.unshift(...versionReport.blockers);
 
   const warnings = [];
   if (allowDirty) {

@@ -22,19 +22,19 @@ This public roadmap describes product boundaries and intended directions. It del
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
-## `0.3.2`: merged candidate (unpublished)
+## `0.7.0`: stable candidate (unpublished)
 
-The `0.3.2` candidate is merged into `main` and collects the completed `0.3.x-B/C` source work: unified Tool Capability and lifecycle handling, tiered durability and Workspace leasing, Context lifecycle, ReplayKit, always-visible local Observability, and explicit default-off Telemetry egress boundaries. Custom Qwen-compatible endpoints add `thinkingFormat: qwen`, allowing an Agent's `thinkingLevel: off` to send `enable_thinking: false` through a controlled contract while arbitrary request fields remain rejected.
+The current source candidate aligns the root package, eight npm packages, Python SDK, bundled Worker, module contracts, and release metadata on stable `0.7.0`. It combines the 0.3.x-B/C work with Protocol v2, one Error Contract, the Execution Security Gate, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python.
 
-This candidate has completed its current Node 22 both-platform CI, seven-check live Provider certification, and RC acceptance, but it has no tag, registry artifact, GitHub Release, or post-release documentation synchronization. `0.3.1` therefore remains the only public stable release. Protocol v2, AgentDriver, and ExecutionEnvironment changes merged later belong to unreleased `0.4.x` source and do not expand the `0.3.2` candidate scope retroactively.
+The merged P0 implementation passes Node 22 engineering CI on both platforms. Candidate npm tarballs, the Python wheel, bundled Worker, TTY, and Child Run must still pass isolated acceptance on one exact commit; live parent-child Provider certification, the tag, registries, GitHub Release, and public reinstall are later independent gates. `0.3.1` therefore remains the only public stable release, while `0.3.2` evidence is historical only.
 
-## `0.3.x`: stabilization hardening (in progress)
+## `0.3.x`: historical stabilization line
 
 The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) through compatibility-first evolution. It does not create a second Runtime or pull Web, Jobs, or subagents forward. Config v2, Protocol v1, the three permission modes, and existing successful paths remain compatible; new fail-closed states that prevent silent loss, duplicate effects, or privilege expansion must be explicit, migratable, reversible, and maintainer-confirmed:
 
 - **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete and publicly released in `0.3.1`.
-- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results. The source work is complete and included in the merged `0.3.2` candidate; Windows isolation experiments remain separately authorized spikes.
-- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, per-file quality gates for critical modules, provider certification hardening, and an observability baseline that is locally visible with explicit egress. Source, both-platform CI, live Provider, and RC evidence gates are complete in the merged `0.3.2` candidate; tag, registries, and Release remain undone.
+- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results. The completed source work is part of the `0.7.0` candidate.
+- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, critical-module gates, provider certification hardening, and locally visible observability with explicit egress. The completed source work is part of the `0.7.0` candidate, whose evidence must be rebound to the current version.
 
 Version numbers and dates are not promised; each batch proceeds only after its acceptance gates pass and the maintainer confirms. A provider that has not passed live verification remains configurable but is not marked as officially certified.
 
@@ -42,9 +42,9 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 After the `0.3.x` hardening line, work proceeds in the following directions (scope and acceptance are confirmed by the maintainer before each phase starts):
 
-- **0.4.x**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams is merged as source on `main`, while a v1 migration entry remains throughout `0.4.x`. Merged source is not a published `0.4.0`; a version candidate and release gates remain required.
+- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams are included in the `0.7.0` candidate; the Protocol v1 migration entry remains.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.x**: Goals, Jobs, and subagents — an unpublished Child Run source candidate now has independent facts, actual-Runtime authority checks, parent budget reservation, parent-child cancellation, orphan audit, workspace lease projection, an explicit tree, and local cross-process crash and single-Writer acceptance. Goals, Jobs, durable detach, real product acceptance, and release gates remain incomplete.
+- **0.7.0**: this release delivers Child Run productization and the stable Release Closure only; Goals, Jobs, durable detach, and Web are out of scope. Child Run already has independent facts, Runtime authority checks, parent budget reservation, parent-child cancellation, orphan audit, Workspace Lease, and an explicit tree. Candidate-package, live Provider, and public-release acceptance remain.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
 - **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
 

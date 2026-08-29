@@ -4,9 +4,11 @@ import argparse
 import json
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 
@@ -103,7 +105,20 @@ def smoke_install(wheel: Path) -> None:
             ],
             "在干净虚拟环境安装 wheel 失败",
         )
-        program = """
+        port = free_port()
+        repository_root = Path(__file__).resolve().parents[1]
+        server = subprocess.Popen(
+            [
+                "node",
+                str(repository_root / "packages" / "coremind-cli" / "test" / "mock-delegation-server.mjs"),
+                str(port),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            wait_for_port(port)
+            program = f"""
 import json
 import os
 import tempfile
@@ -113,39 +128,69 @@ from coremind import ERROR_CODES, CoreMindClient, __version__
 assert __version__ == version("coremind-ai"), (__version__, version("coremind-ai"))
 assert ERROR_CODES["unclassified_error"]["humanAction"] == "required"
 os.environ["COREMIND_WHEEL_SMOKE_API_KEY"] = "test-key"
-config = {
+config = {{
     "schemaVersion": 2,
     "name": "wheel-smoke",
-    "provider": {
+    "provider": {{
         "id": "probe",
-        "baseUrl": "http://127.0.0.1:9/v1",
+        "baseUrl": "http://127.0.0.1:{port}/v1",
         "model": "probe-model",
         "apiKeyEnv": "COREMIND_WHEEL_SMOKE_API_KEY",
-    },
-    "agents": {"main": {"systemPrompt": "离线安装冒烟"}},
-}
+    }},
+    "agents": {{
+        "main": {{
+            "systemPrompt": "离线安装冒烟",
+            "delegation": {{
+                "budget": {{"tokens": 1000, "toolCalls": 2, "costUsd": 1, "wallTimeMs": 5000, "steps": 2, "descendants": 1}},
+                "targets": {{"researcher": {{"budget": {{"tokens": 1000, "toolCalls": 2, "costUsd": 1, "wallTimeMs": 5000, "steps": 2, "descendants": 0}}}}}},
+            }},
+        }},
+        "researcher": {{"systemPrompt": "你是研究 Agent。"}},
+    }},
+    "defaultAgent": "main",
+    "runtime": {{"maxSteps": 4, "maxToolCalls": 4, "maxTokens": 2000, "maxCostUsd": 2, "runTimeoutMs": 30000}},
+    "permissions": {{"mode": "full", "workspaceOnly": True, "network": "allow"}},
+}}
 with tempfile.TemporaryDirectory(prefix="coremind-wheel-runtime-") as directory:
-    client = CoreMindClient(
-        config,
-        config_dir=directory,
-        cwd=directory,
-        request_timeout=20,
-    )
-    try:
-        client.start()
+    with CoreMindClient(config, config_dir=directory, cwd=directory, request_timeout=30) as client:
         assert client.pid is not None
-        print(json.dumps({"version": __version__, "workerStarted": True}))
-    finally:
-        client.close()
+        result = client.run("完成父任务")
+node = result["childRuns"]["nodes"][0]
+assert node["agentName"] == "researcher", node
+assert node["status"] == "joined", node
+assert node["outcome"]["status"] == "succeeded", node
+print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": True}}))
 """
-        completed = run(
-            [str(python), "-X", "utf8", "-c", program],
-            "wheel 导入或内置 Worker 启动失败",
-        )
-        payload = json.loads(completed.stdout.strip().splitlines()[-1])
-        if payload.get("workerStarted") is not True:
-            raise SystemExit("wheel 内置 Worker 未成功启动")
-        print(f"wheel 干净安装与内置 Worker 冒烟通过：Python {payload['version']}")
+            completed = run(
+                [str(python), "-X", "utf8", "-c", program],
+                "wheel 导入、内置 Worker 或 Child Run 冒烟失败",
+            )
+            payload = json.loads(completed.stdout.strip().splitlines()[-1])
+            if payload.get("workerStarted") is not True or payload.get("childRun") is not True:
+                raise SystemExit("wheel 内置 Worker 或 Child Run 未成功")
+            print(f"wheel 干净安装与内置 Worker 冒烟通过；Child Run 冒烟通过：Python {payload['version']}")
+        finally:
+            server.terminate()
+            try:
+                server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                server.kill()
+                server.wait(timeout=2)
+
+
+def free_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+def wait_for_port(port: int) -> None:
+    for _attempt in range(250):
+        with socket.socket() as probe:
+            if probe.connect_ex(("127.0.0.1", port)) == 0:
+                return
+        time.sleep(0.02)
+    raise SystemExit("mock Child Run server 启动超时")
 
 
 def run(command: list[str], message: str) -> subprocess.CompletedProcess[str]:

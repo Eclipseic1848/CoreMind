@@ -21,4 +21,4 @@ __all__ = [
     "error_code_info",
 ]
 
-__version__ = "0.3.2"  # x-release-please-version
+__version__ = "0.7.0"  # x-release-please-version

@@ -97,9 +97,15 @@ describe("GitHub Actions 收口合同", () => {
       "npm run release:test-npm",
       "npm run release:test-source",
       "npm run acceptance:rc -- --defer-provider-certification",
+      "npm run candidate:bundle",
     ]) {
       expect(candidateCommands).toContain(command);
     }
+    const candidateUpload = workflow.jobs.candidate.steps.find(
+      (step: { name?: string }) => step.name === "保存候选产物与 SHA-256 清单",
+    );
+    expect(candidateUpload.uses).toContain("actions/upload-artifact@");
+    expect(candidateUpload.with.path).toContain(".scratch/candidate-artifacts");
     expect(candidateCommands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(candidateCommands).toContain("GITHUB_STEP_SUMMARY");
     expect(candidateCommands.indexOf("npm run build")).toBeLessThan(

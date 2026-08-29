@@ -3,7 +3,7 @@ id: recover-durable-runs
 name:
   zh-CN: "持久运行与故障恢复"
   en: "Durable Runs and Recovery"
-version: 0.3.2
+version: 0.7.0
 sourcePaths:
   - "packages/coremind-runtime/src/operation-state.ts"
   - "packages/coremind-runtime/src/run-state.ts"

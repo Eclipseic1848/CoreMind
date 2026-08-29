@@ -206,6 +206,33 @@ export async function validateReleaseVersion(rootDirectory) {
     blockers.push(`Python 运行时版本 ${runtimePythonVersion} 与包版本 ${pythonVersion} 不一致`);
   }
 
+  blockers.push(...(await validateReleaseNarratives(rootDirectory, npmVersion)));
+
+  const releaseManifestPath = path.join(rootDirectory, ".release-please-manifest.json");
+  if (existsSync(releaseManifestPath)) {
+    const releaseManifest = await readJson(releaseManifestPath);
+    if (releaseManifest["."] !== npmVersion) {
+      blockers.push(`.release-please-manifest.json 版本应为 ${npmVersion}`);
+    }
+  }
+
+  const workerManifestPath = path.join(
+    rootDirectory,
+    "python",
+    "src",
+    "coremind",
+    "_worker",
+    "manifest.json",
+  );
+  if (existsSync(workerManifestPath)) {
+    const workerManifest = await readJson(workerManifestPath);
+    if (workerManifest.version !== pythonVersion) {
+      blockers.push(
+        `bundled Worker 版本 ${workerManifest.version} 与 Python ${pythonVersion} 不一致`,
+      );
+    }
+  }
+
   return {
     ready: blockers.length === 0,
     npmVersion,
@@ -213,6 +240,35 @@ export async function validateReleaseVersion(rootDirectory) {
     npmPackages: packages.length,
     blockers,
   };
+}
+
+async function validateReleaseNarratives(rootDirectory, npmVersion) {
+  const blockers = [];
+  const files = [
+    "CHANGELOG.md",
+    "CHANGELOG.en.md",
+    "README.md",
+    "README.en.md",
+    "docs/index.md",
+    "docs/en/index.md",
+    "docs/roadmap.zh-CN.md",
+    "docs/roadmap.en.md",
+  ];
+  for (const file of files) {
+    const filePath = path.join(rootDirectory, file);
+    if (!existsSync(filePath)) continue;
+    const content = await readFile(filePath, "utf8");
+    const devVersion = /\b\d+\.\d+\.\d+-dev\b/u.exec(content)?.[0];
+    if (devVersion) blockers.push(`${file} 仍包含开发版本叙事 ${devVersion}`);
+    if (!content.includes(npmVersion)) blockers.push(`${file} 缺少当前版本 ${npmVersion}`);
+    if (file.startsWith("CHANGELOG")) {
+      const currentHeading = /^##\s+([^\s—(]+)/mu.exec(content)?.[1];
+      if (currentHeading !== npmVersion) {
+        blockers.push(`${file} 当前变更记录应为 ${npmVersion}，实际为 ${currentHeading ?? "缺失"}`);
+      }
+    }
+  }
+  return blockers;
 }
 
 async function readPublicPackages(rootDirectory) {
