@@ -84,7 +84,7 @@ jobs:
           git diff --exit-code -- docs/providers
 
       - name: 核心确定性测试
-        run: npm run test:engineering -- --maxWorkers=2
+        run: npm run test:engineering -- --maxWorkers=1
 
       - name: 构建 Python worker
         run: npm run build:python-worker

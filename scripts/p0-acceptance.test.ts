@@ -303,7 +303,7 @@ describe("P0 顶层发布验收", () => {
     ]);
     expect(
       P0_EXECUTION_PLAN.engineering.find((item) => item.name === "engineeringTests")?.args,
-    ).toContain("--maxWorkers=2");
+    ).toContain("--maxWorkers=1");
     expect(P0_EXECUTION_PLAN.candidate.at(-1)?.args).toContain("--defer-provider-certification");
     expect(P0_EXECUTION_PLAN.release.at(-1)?.args).not.toContain("--defer-provider-certification");
     const seams = await inspectOfflineSeams(process.cwd());

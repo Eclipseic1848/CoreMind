@@ -48,7 +48,7 @@ const ENGINEERING_PLAN = [
   commandStep("docs", "npm", ["run", "docs:build"]),
   commandStep("providerMatrix", "npm", ["run", "providers:matrix"]),
   commandStep("providerMatrixClean", "git", ["diff", "--exit-code", "--", "docs/providers"]),
-  commandStep("engineeringTests", "npm", ["run", "test:engineering", "--", "--maxWorkers=2"]),
+  commandStep("engineeringTests", "npm", ["run", "test:engineering", "--", "--maxWorkers=1"]),
   commandStep("pythonWorker", "npm", ["run", "build:python-worker"]),
   commandStep("pythonSdk", "python", [
     "-W",

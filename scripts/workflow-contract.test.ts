@@ -55,7 +55,7 @@ describe("GitHub Actions 收口合同", () => {
       workflow.jobs.engineering.steps.find(
         (step: { name?: string }) => step.name === "核心确定性测试",
       ).run,
-    ).toBe("npm run test:engineering -- --maxWorkers=2");
+    ).toBe("npm run test:engineering -- --maxWorkers=1");
     expect(commands).toContain("python -W error::ResourceWarning -m unittest discover");
     expect(commands).toContain("COREMIND_JOB_STARTED_EPOCH");
     expect(commands).toContain("GITHUB_STEP_SUMMARY");
