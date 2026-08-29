@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "issue": 109,
+  "repository": "Eclipseic1848/CoreMind",
+  "branch": "main",
+  "baselineHead": "2546d6b361fb2bd76da6851c1980200b7ea99d7d",
+  "before": {
+    "capturedAt": "2026-08-29T15:22:08.8629182Z",
+    "branchProtectionApiStatus": 404,
+    "rulesets": []
+  },
+  "after": {
+    "capturedAt": "2026-08-29T15:23:16.8675707Z",
+    "ruleset": {
+      "id": 21807589,
+      "name": "Protect main with Engineering CI",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "refName": {
+          "include": ["refs/heads/main"],
+          "exclude": []
+        }
+      },
+      "bypassActors": [
+        {
+          "actorId": 237380389,
+          "actorType": "User",
+          "bypassMode": "pull_request"
+        }
+      ],
+      "currentUserCanBypass": "pull_requests_only",
+      "rules": [
+        { "type": "deletion" },
+        { "type": "non_fast_forward" },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "requiredApprovingReviewCount": 0,
+            "requiredReviewThreadResolution": true
+          }
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strictRequiredStatusChecksPolicy": true,
+            "requiredStatusChecks": [
+              {
+                "context": "Engineering (ubuntu-latest, Node 22.x)",
+                "integrationId": 15368
+              },
+              {
+                "context": "Engineering (windows-latest, Node 22.x)",
+                "integrationId": 15368
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "validationPlan": {
+    "method": "Merge this evidence through a pull request after both required Engineering CI checks pass.",
+    "excludedGates": ["real Provider", "candidate packages", "release credentials"]
+  }
+}
