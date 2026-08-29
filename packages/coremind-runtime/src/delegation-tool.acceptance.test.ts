@@ -7,7 +7,9 @@ import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
+import { createCoreMindChildRunAdapter } from "./child-runtime-adapter.js";
 import { ControlInbox } from "./control-inbox.js";
+import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindToolDefinition } from "./external-tool.js";
 import { ProjectionEngine } from "./projection.js";
 import { FileRunStore, RunStateJournal } from "./run-state.js";
@@ -223,6 +225,179 @@ describe("Delegation Tool TypeScript happy path", () => {
       );
     }
   });
+
+  it("正式 Delegation Tool 按 Child wall time 有界取消未及时收敛的 Adapter", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-join-timeout-"));
+    temporaryDirectories.push(directory);
+    const server = createServer((request, response) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => {
+        const payload = JSON.parse(body) as {
+          messages?: Array<{ role?: string }>;
+          tools?: Array<{ function?: { name?: string } }>;
+        };
+        const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
+        const hasDelegationTool =
+          payload.tools?.some((tool) => tool.function?.name === "delegate") ?? false;
+        sendSse(
+          response,
+          hasDelegationTool
+            ? delegationResponse()
+            : hasToolResult
+              ? textResponse("parent-after-timeout", "父级收到结构化超时结果")
+              : textResponse("unexpected-child-provider", "不应创建 Child Runtime"),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const childBudget = {
+        tokens: 800,
+        toolCalls: 1,
+        costUsd: 0.5,
+        wallTimeMs: 20,
+        steps: 1,
+        descendants: 0,
+      };
+      const delegation = {
+        budget: {
+          tokens: 1_000,
+          toolCalls: 2,
+          costUsd: 1,
+          wallTimeMs: 10_000,
+          steps: 2,
+          descendants: 1,
+        },
+        limits: { maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
+        targets: { researcher: { budget: childBudget } },
+      };
+      const config: CoreMindConfig = {
+        ...baseConfig(port, {
+          main: { systemPrompt: "你是父 Agent。", delegation },
+          researcher: { systemPrompt: "你是研究 Agent。" },
+        }),
+        runtime: {
+          maxSteps: 4,
+          maxToolCalls: 4,
+          maxTokens: 2_000,
+          maxCostUsd: 2,
+          runTimeoutMs: 20_000,
+        },
+      };
+      const canonicalRoot = await canonicalizeWorkspace(directory);
+      const modelSnapshot = (agentName: "main" | "researcher") => ({
+        providerId: "probe",
+        model: "probe-model",
+        providerConfigFingerprint: fingerprintEffectReceiptValue(config.provider ?? null),
+        agentPromptFingerprint: fingerprintEffectReceiptValue({
+          systemPrompt: config.agents[agentName]?.systemPrompt ?? "",
+          skillsContent: [],
+        }),
+        agentDelegationFingerprint: fingerprintEffectReceiptValue(
+          config.agents[agentName]?.delegation ?? null,
+        ),
+      });
+      let adapterAbortObserved = false;
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: directory,
+        cwd: directory,
+        env: { COREMIND_TEST_API_KEY: "test-key" },
+        initialPrompt: "委派一个必须有界结束的任务",
+        childRuns: {
+          parentPolicy: {
+            depth: 0,
+            budget: {
+              tokens: 2_000,
+              toolCalls: 4,
+              costUsd: 2,
+              wallTimeMs: 20_000,
+              steps: 4,
+              descendants: 32,
+            },
+            permissions: {
+              mode: "full",
+              workspaceOnly: true,
+              network: "allow",
+              tools: ["delegate", "delegation_disposition"],
+              paths: ["."],
+              credentials: [],
+            },
+            environment: {},
+            model: modelSnapshot("main"),
+            workspace: { canonicalRoot, lease: "shared_canonical" },
+            protectedContextReferences: [],
+            protectedContextResolvedReferences: [],
+            delegationModelRoutes: {
+              main: { researcher: modelSnapshot("researcher") },
+              researcher: {},
+            },
+            maxDepth: 3,
+            maxActiveChildren: 4,
+            maxDescendants: 32,
+          },
+          delegationBudgetPools: { main: delegation.budget },
+          delegationHierarchyLimits: {
+            main: { maxDepth: 2, maxActiveChildren: 1, maxDescendants: 1 },
+          },
+          adapter: createCoreMindChildRunAdapter({
+            createRuntime: (input) =>
+              new Promise((_resolve, reject) => {
+                const settle = () => {
+                  adapterAbortObserved = true;
+                  setTimeout(() => reject(new Error("Adapter 延迟清理完成")), 50);
+                };
+                if (input.signal.aborted) settle();
+                else input.signal.addEventListener("abort", settle, { once: true });
+              }),
+          }),
+          createChildRunId: () => "run-delegation-timeout-child",
+          cancellationGraceMs: 5,
+        },
+      });
+
+      const result = await within(runtime.run(), "正式 Delegation Tool 未有界结束", 8_000);
+      const lifecycle = (
+        await new FileRunStore(path.join(directory, ".coremind", "runs")).read(result.runId)
+      ).flatMap((record) =>
+        record.kind === "delegation"
+          ? [record.payload as { type: string; requestedBy?: string }]
+          : [],
+      );
+
+      expect(adapterAbortObserved).toBe(true);
+      expect(lifecycle).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "child_cancel_requested", requestedBy: "join_timeout" }),
+          expect.objectContaining({ type: "child_terminal" }),
+          expect.objectContaining({ type: "parent_joined" }),
+        ]),
+      );
+      expect(result.childRuns?.nodes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            childRunId: "run-delegation-timeout-child",
+            outcome: expect.objectContaining({
+              status: "timeout",
+              finishReason: "child_join_timeout",
+            }),
+          }),
+        ]),
+      );
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        error: { code: "delegation_disposition_required" },
+      });
+    } finally {
+      await closeServer(server);
+    }
+  }, 10_000);
 
   it("父 Agent 静默忽略非成功 Child 结果时不能形成成功终态", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-disposition-gate-"));

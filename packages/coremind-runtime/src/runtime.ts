@@ -1019,7 +1019,7 @@ export class CoreMindRuntime {
       );
     }
     const handle = await childRuns.delegate(request);
-    const result = await handle.join();
+    const result = await handle.join({ timeoutMs: request.allocation.wallTimeMs });
     const output = {
       childRunId: handle.childRunId,
       delegationId: handle.delegationId,
