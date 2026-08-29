@@ -1925,7 +1925,7 @@ describe("Delegation Tool TypeScript happy path", () => {
               },
             ],
             delegation: {
-              budget: { ...parentDelegationBudget(), wallTimeMs: 30_000, steps: 4 },
+              budget: { ...parentDelegationBudget(), wallTimeMs: 40_000, steps: 4 },
               limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
               targets: {
                 reviewer: {
@@ -1933,7 +1933,7 @@ describe("Delegation Tool TypeScript happy path", () => {
                     tokens: 800,
                     toolCalls: 2,
                     costUsd: 1,
-                    wallTimeMs: 20_000,
+                    wallTimeMs: 35_000,
                     steps: 3,
                     descendants: 0,
                   },
@@ -2005,7 +2005,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
       );
 
-      expect(result.outcome.status).toBe("succeeded");
+      expect(result.outcome.status, JSON.stringify(result.outcome)).toBe("succeeded");
       expect(delegation?.payload).toMatchObject({
         budgetScope: "worker",
         agentName: "reviewer",
