@@ -2070,14 +2070,8 @@ describe("Delegation Tool TypeScript happy path", () => {
   it("Delegation Approval 与 Child Tool Effect 分别审批并写入各自 Run Facts", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-approval-"));
     temporaryDirectories.push(directory);
-    await writeFile(path.join(directory, "notes.txt"), "独立审批证据", "utf8");
-    let evidenceUrl = "";
+    const childOutputPath = "child-approval.txt";
     const server = createServer((request, response) => {
-      if (request.method === "GET") {
-        response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
-        response.end("独立审批证据");
-        return;
-      }
       let body = "";
       request.setEncoding("utf8");
       request.on("data", (chunk) => {
@@ -2099,14 +2093,16 @@ describe("Delegation Tool TypeScript happy path", () => {
             ),
           );
         } else if (child) {
-          sendSse(response, webFetchToolResponse(evidenceUrl));
+          sendSse(
+            response,
+            writeToolResponse("call-child-approval-write", childOutputPath, "独立审批证据"),
+          );
         } else {
           sendSse(response, delegationResponse());
         }
       });
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    evidenceUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/evidence`;
 
     try {
       const approvals: ToolApprovalRequest[] = [];
@@ -2117,7 +2113,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           ...baseConfig(port, {
             main: {
               systemPrompt: "你是父 Agent。",
-              tools: [{ id: "web-fetch" }],
+              tools: [{ id: "write" }],
               delegation: {
                 budget: parentDelegationBudget(),
                 targets: {
@@ -2134,9 +2130,9 @@ describe("Delegation Tool TypeScript happy path", () => {
                 },
               },
             },
-            researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "web-fetch" }] },
+            researcher: { systemPrompt: "你是研究 Agent。", tools: [{ id: "write" }] },
           }),
-          permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
+          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
         },
         configDir: directory,
         cwd: directory,
@@ -2192,7 +2188,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           2,
         ),
       ).toBe("succeeded");
-      expect(approvals.map((request) => request.tool)).toEqual(["delegate", "web-fetch"]);
+      expect(approvals.map((request) => request.tool)).toEqual(["delegate", "write"]);
       expect(approvals[0]).toMatchObject({
         tool: "delegate",
         args: {
@@ -2230,11 +2226,14 @@ describe("Delegation Tool TypeScript happy path", () => {
       ]);
       expect(childApprovals).toEqual([
         expect.objectContaining({
-          tool: "web-fetch",
+          tool: "write",
           argumentsFingerprint: approvals[1]?.argumentsFingerprint,
         }),
       ]);
       expect(approvals[1]?.argumentsFingerprint).not.toBe(approvals[0]?.argumentsFingerprint);
+      await expect(readFile(path.join(directory, childOutputPath), "utf8")).resolves.toBe(
+        "独立审批证据",
+      );
     } finally {
       await closeServer(server);
     }
@@ -2642,32 +2641,6 @@ function delegationIdsFromToolMessages(
     }
   }
   return delegationIds;
-}
-
-function webFetchToolResponse(url: string): unknown[] {
-  return [
-    {
-      id: "child-web-fetch",
-      choices: [
-        {
-          index: 0,
-          delta: {
-            role: "assistant",
-            tool_calls: [
-              {
-                index: 0,
-                id: "call-child-web-fetch",
-                type: "function",
-                function: { name: "web-fetch", arguments: JSON.stringify({ url }) },
-              },
-            ],
-          },
-          finish_reason: null,
-        },
-      ],
-    },
-    { id: "child-web-fetch", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
-  ];
 }
 
 function writeToolResponse(callId: string, targetPath: string, content: string): unknown[] {
