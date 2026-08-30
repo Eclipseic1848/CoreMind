@@ -166,9 +166,9 @@ describe("GitHub Actions 收口合同", () => {
     const directory = mkdtempSync(join(tmpdir(), "coremind-stability-contract-"));
     const callsPath = join(directory, "calls.txt");
     const npmCliPath = join(directory, "npm-cli.mjs");
-    const latency = "coremind-runtime-input-receipt-acceptance";
-    const faultMatrix = "trusted-tool-fault-matrix";
-    const remaining = `!${latency},!${faultMatrix}`;
+    const latency = "isolated-input-receipt-acceptance";
+    const faultMatrix = "isolated-trusted-tool-fault-matrix";
+    const remaining = "!isolated-*";
     writeFileSync(
       npmCliPath,
       `import { appendFileSync } from "node:fs";
@@ -217,6 +217,19 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }
+  });
+
+  it("候选其余项目选择器不会重新包含两个隔离项目", () => {
+    const result = spawnSync(
+      process.execPath,
+      ["node_modules/vitest/vitest.mjs", "list", "--project=!isolated-*", "--filesOnly"],
+      { encoding: "utf8" },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("race-matrix.acceptance.test.ts");
+    expect(result.stdout).not.toContain("input-receipt.acceptance.test.ts");
+    expect(result.stdout).not.toContain("trusted-tool-fault-matrix.test.ts");
   });
 
   it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
