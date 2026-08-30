@@ -294,7 +294,7 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
     expect(report.axisIsolationPasses).toBe(5 * FAULT_MATRIX_SCENARIO_COUNT);
     expect(report.actualEffectExecutions).toBeGreaterThan(0);
     expect(JSON.stringify(report)).not.toContain("不得出现在证据里的用户正文");
-  }, 900_000);
+  });
 
   it("单 seed 回放报告包含身份、切点与最小 Fact 前缀", async () => {
     const report = await runTrustedToolFaultMatrix({ seedStart: 417, seedEnd: 418 });

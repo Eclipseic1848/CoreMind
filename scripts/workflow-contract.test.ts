@@ -399,6 +399,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
       "scripts/vitest.trusted-tool-fault-matrix.config.ts",
       "utf8",
     );
+    const faultMatrixTest = readFileSync("scripts/trusted-tool-fault-matrix.test.ts", "utf8");
     const inputReceiptConfig = readFileSync(
       "packages/coremind-runtime/vitest.input-receipt-acceptance.config.ts",
       "utf8",
@@ -414,6 +415,8 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(hostShellConfig).toContain("groupOrder: 2");
     expect(hostShellConfig).toContain("testTimeout: 60_000");
     expect(faultMatrixConfig).toContain("groupOrder: 2");
+    expect(faultMatrixConfig).toContain("testTimeout: 1_200_000");
+    expect(faultMatrixTest).not.toContain("}, 900_000);");
     expect(inputReceiptConfig).toContain("groupOrder: 3");
   });
 
