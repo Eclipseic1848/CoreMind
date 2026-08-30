@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0 - 2026-08-29
+
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+
 ## 0.7.0-dev - 2026-08-27
 
 - Added typed Child Run identity, idempotency, monotonic policy inheritance, finite limits, structured cancellation and join, orphan audit pause, and deterministic lifecycle folding.

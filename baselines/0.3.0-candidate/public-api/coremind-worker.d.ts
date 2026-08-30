@@ -8,6 +8,7 @@ import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
 import { RunControlCommand } from 'coremind-ai';
 import { RunStateRecord } from 'coremind-ai';
+import { SecretResolver } from 'coremind-ai';
 
 declare type ProtocolEventRunStore = FileRunStore & {
     readEventWindow?: (options: {
@@ -33,6 +34,8 @@ declare class ProtocolHost {
     private readonly pendingApprovals;
     private readonly pendingToolCalls;
     private readonly protocolV2Starts;
+    private readonly pausedControlInboxes;
+    private readonly protocolV2RunTransitions;
     private activeController?;
     private activeRuntime?;
     private activeRunId?;
@@ -50,8 +53,10 @@ declare class ProtocolHost {
     accept(value: unknown): void;
     handle(value: unknown): Promise<ProtocolSuccessResponse | ProtocolErrorResponse>;
     private handleProtocolV2;
+    private withProtocolV2RunTransition;
     private beginProtocolV2Run;
     private acceptProtocolV2Control;
+    private pausedControlInbox;
     private readProtocolV2Events;
     private queryProtocolV2Projection;
     private waitForActiveRuntime;
@@ -94,6 +99,7 @@ export declare interface WorkerServerOptions {
     send: (message: WorkerMessage) => void;
     runtimeFactory?: WorkerRuntimeFactory;
     runStoreFactory?: (directory: string) => ProtocolEventRunStore;
+    secretResolver?: SecretResolver;
 }
 
 export { }

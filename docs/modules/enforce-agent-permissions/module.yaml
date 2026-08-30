@@ -3,7 +3,7 @@ id: enforce-agent-permissions
 name:
   zh-CN: "权限与安全"
   en: "Permissions and Security"
-version: 0.3.2
+version: 0.7.0
 sourcePaths:
   - "packages/coremind-runtime/src/tool-policy.ts"
   - "packages/coremind-runtime/src/runtime.ts"

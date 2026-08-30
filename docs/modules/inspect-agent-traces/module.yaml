@@ -3,7 +3,7 @@ id: inspect-agent-traces
 name:
   zh-CN: "Trace、RunState 与调试"
   en: "Trace, RunState, and Debugging"
-version: 0.3.2
+version: 0.7.0
 sourcePaths:
   - "packages/coremind-runtime/src/trace.ts"
   - "packages/coremind-runtime/src/run-state.ts"

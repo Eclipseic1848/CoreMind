@@ -1,23 +1,26 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-08-26",
+  "targetVersion": "0.7.0",
   "summary": {
     "supported": 40,
-    "certified": 1,
-    "unverified": 39
+    "certified": 0,
+    "unverified": 40
   },
   "providers": [
     {
       "id": "alibaba-model-studio",
       "defaultModel": "qwen-plus",
       "modelCount": 1,
-      "status": "certified",
-      "testedVersion": "0.3.2",
-      "testedAt": "2026-08-26T07:02:53.028Z",
-      "testedModel": "qwen-plus",
-      "testedCommit": "d75be51b10079a1231bf4b76f900d3511f2e3ff3",
-      "runtimeArtifactSha256": "5e3f90a4cd44818a9b1d8133ecb3c7e714fa30ea87082085990c4b03f214d93b",
-      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json"
+      "status": "inherited-unverified",
+      "previousCertification": {
+        "version": "0.3.2",
+        "testedAt": "2026-08-26T07:02:53.028Z",
+        "testedModel": "qwen-plus",
+        "testedCommit": "d75be51b10079a1231bf4b76f900d3511f2e3ff3",
+        "runtimeArtifactSha256": "5e3f90a4cd44818a9b1d8133ecb3c7e714fa30ea87082085990c4b03f214d93b",
+        "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json"
+      }
     },
     {
       "id": "amazon-bedrock",

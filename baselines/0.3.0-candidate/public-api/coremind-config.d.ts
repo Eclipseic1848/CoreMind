@@ -38,6 +38,61 @@ thinkingLevel: TOptional<TUnion<[TLiteral<"off">, TLiteral<"low">, TLiteral<"med
 }>>;
 description: TOptional<TString>;
 skills: TOptional<TArray<TString>>;
+delegation: TOptional<TObject<    {
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+limits: TOptional<TObject<    {
+maxDepth: TOptional<TInteger>;
+maxActiveChildren: TOptional<TInteger>;
+maxDescendants: TOptional<TInteger>;
+}>>;
+targets: TRecord<TString, TObject<    {
+preapproved: TOptional<TBoolean>;
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+}>>;
+}>>;
+}>;
+
+export declare type AgentDelegationConfig = Static<typeof AgentDelegationConfigSchema>;
+
+declare const AgentDelegationConfigSchema: TObject<    {
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+limits: TOptional<TObject<    {
+maxDepth: TOptional<TInteger>;
+maxActiveChildren: TOptional<TInteger>;
+maxDescendants: TOptional<TInteger>;
+}>>;
+targets: TRecord<TString, TObject<    {
+preapproved: TOptional<TBoolean>;
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+}>>;
 }>;
 
 /** 唯一内置工具能力注册表；旧 effect 视图由此派生。 */
@@ -86,7 +141,14 @@ model: TString;
 api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
-headers: TOptional<TRecord<TString, TString>>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
 thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
@@ -94,6 +156,9 @@ maxTokens: TOptional<TInteger>;
 id: TString;
 model: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
 }>]>>;
 tools: TOptional<TArray<TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
@@ -136,6 +201,32 @@ thinkingLevel: TOptional<TUnion<[TLiteral<"off">, TLiteral<"low">, TLiteral<"med
 }>>;
 description: TOptional<TString>;
 skills: TOptional<TArray<TString>>;
+delegation: TOptional<TObject<    {
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+limits: TOptional<TObject<    {
+maxDepth: TOptional<TInteger>;
+maxActiveChildren: TOptional<TInteger>;
+maxDescendants: TOptional<TInteger>;
+}>>;
+targets: TRecord<TString, TObject<    {
+preapproved: TOptional<TBoolean>;
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+}>>;
+}>>;
 }>>;
 defaultAgent: TOptional<TString>;
 workflow: TOptional<TArray<TRecursive<TUnion<[TObject<    {
@@ -254,10 +345,59 @@ model: TString;
 api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
-headers: TOptional<TRecord<TString, TString>>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
 thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
+}>;
+
+export declare type DelegationBudgetConfig = Static<typeof DelegationBudgetSchema>;
+
+/** 单个 Delegation Target 的固定六维预算。 */
+declare const DelegationBudgetSchema: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+
+export declare type DelegationHierarchyLimitsConfig = Static<typeof DelegationHierarchyLimitsSchema>;
+
+/** 父 Agent 对整个 Child Run 子树施加的结构上限；只能收紧内核默认值。 */
+declare const DelegationHierarchyLimitsSchema: TObject<    {
+maxDepth: TOptional<TInteger>;
+maxActiveChildren: TOptional<TInteger>;
+maxDescendants: TOptional<TInteger>;
+}>;
+
+export declare type DelegationTargetConfig = Static<typeof DelegationTargetConfigSchema>;
+
+declare const DelegationTargetConfigSchema: TObject<    {
+preapproved: TOptional<TBoolean>;
+budget: TObject<    {
+tokens: TInteger;
+toolCalls: TInteger;
+costUsd: TNumber;
+wallTimeMs: TInteger;
+steps: TInteger;
+descendants: TInteger;
+}>;
+}>;
+
+export declare type EnvironmentValueRef = Static<typeof EnvironmentValueRefSchema>;
+
+/** 环境变量引用；值只在 Provider Adapter 接缝解析。 */
+export declare const EnvironmentValueRefSchema: TObject<    {
+env: TString;
 }>;
 
 /**
@@ -265,6 +405,12 @@ maxTokens: TOptional<TInteger>;
  * 供调用方以告警形式提示（不阻断执行，对新手友好）。
  */
 export declare function findUnknownKeys(data: unknown): string[];
+
+export declare const HeaderValueSchema: TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>;
 
 /** 读取并解析配置文件（.yaml/.yml/.json 均支持） */
 export declare function loadConfigFile(filePath: string): Promise<unknown>;
@@ -366,6 +512,9 @@ declare const ProviderRefSchema: TObject<    {
 id: TString;
 model: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
 }>;
 
 /**
@@ -381,7 +530,14 @@ model: TString;
 api: TOptional<TLiteral<"openai-completions">>;
 apiKey: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
-headers: TOptional<TRecord<TString, TString>>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
 thinkingFormat: TOptional<TLiteral<"qwen">>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
@@ -389,6 +545,9 @@ maxTokens: TOptional<TInteger>;
 id: TString;
 model: TOptional<TString>;
 apiKeyEnv: TOptional<TString>;
+apiKeySecretRef: TOptional<TObject<    {
+secretRef: TString;
+}>>;
 }>]>;
 
 export declare type QualityConfig = Static<typeof QualityConfigSchema>;
@@ -427,6 +586,13 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+}>;
+
+export declare type SecretRef = Static<typeof SecretRefSchema>;
+
+/** 后端无关的不透明秘密引用；解析由宿主注入的 resolver 完成。 */
+export declare const SecretRefSchema: TObject<    {
+secretRef: TString;
 }>;
 
 export declare type SessionConfig = Static<typeof SessionConfigSchema>;

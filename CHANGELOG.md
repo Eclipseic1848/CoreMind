@@ -4,7 +4,7 @@
 
 [English](CHANGELOG.en.md)
 
-## 0.7.0-dev — 2026-08-27（未发布源码候选）
+## 0.7.0 — 2026-08-29（未发布稳定候选）
 
 - 新增后端无关的 `SecretRef` 与宿主注入 `SecretResolver`，仅在 Provider Adapter 边界解析 API key 和 Header 引用。明文凭据使用 `execution_security_violation`，缺失环境变量、resolver 或空解析结果使用 `secret_reference_unresolved`；check、Runtime、Worker、Python bundled Worker 与 Child Run 均在 Provider、Tool 或 Fact 副作用前失败关闭，不回退到其他凭据来源，也不在错误或持久化数据中暴露引用和值。
 - 新增由 Protocol 包拥有的类型化 Error Contract 唯一注册表，覆盖现有稳定自有错误码并统一终态、取消、重试和人工处置分类。Config、Runtime、Provider、Tool、Child Run、Evaluation、Protocol、Worker、CLI、TUI 与双 SDK 已迁移到该合同；Protocol v1/v2 schema、fingerprint 与公开 Outcome 类型从注册表派生，Python 包携带构建生成且逐项校验的只读分类。自定义工具通过 `ToolExecutionError` 显式声明可预期的 `tool_execution_failed`，裸 Adapter 异常与其他未知外部码仅以脱敏审计信息进入 Outcome 与持久 Fact，公开码收敛为暂停且禁止自动重试的 `unclassified_error`；未登记自有码由 TypeScript 类型门和 Python CI 门拒绝。
@@ -15,7 +15,8 @@
 - 无头 CLI 现以人类摘要和稳定 `child_run` JSONL 事件展示 Child Run 的父子身份、目标、状态、Outcome 与 Recovery；Python SDK 通过 bundled Worker 的 v1 结构化结果及 v2 events/query 观察同一持久化父子树，不新增独立 spawn、list、resume 或 detach 入口。
 - TUI 默认摘要突出 Child Run 数量、活动后代与未处置风险；`/children` 通过只读 `ChatSession.inspectCurrentRunProjection()` 从已持久化 canonical Facts 展开当前或终态父子树、目标、预算、Outcome、Recovery 和风险正文。`delegate` 审批卡优先显示目标、任务摘要、显式引用和收紧预算，并明确该批准只允许创建 Child Run，不预先批准子级 Effect；当前 Runtime 未提供的独立子级处置控制不会伪造显示。
 - 委派批准矩阵现由所有 Runtime 入口统一执行：`ask` 每次批准，`assisted` 只自动批准 Config 显式 `preapproved: true` 且满足全部限制的目标，`full` 也不能覆盖 deny、allowlist、预算、工具不扩权、路径、网络或凭据硬边界。CLI/readline 与 TUI 都明确显示固定目标、任务摘要、六维预算和限制；批准事实携带参数指纹及与实际创建 Fact 相同的 Child Run 输入指纹。Child Run 的 ToolPolicy 与 Effect 审批仍独立并写入各自 Run 事实。
-- Windows 本地跨进程验收覆盖正式 Delegation Tool 按 Child wall time 有界取消并最终 join、Host 崩溃后先完成 orphan audit 再从同一事实前缀恢复 Protocol v2 tree、Child Worker 崩溃、父取消后无遗留子进程、Provider/Effect 不重放，以及父子 Workspace 竞争只有一个 Writer；当前不支持 durable detach，真实多 Agent 产品验收、远端 CI、合并和发布尚未完成。
+- 跨进程验收覆盖正式 Delegation Tool 按 Child wall time 有界取消并最终 join、Host 崩溃后先完成 orphan audit 再从同一事实前缀恢复 Protocol v2 tree、Child Worker 崩溃、父取消后无遗留子进程、Provider/Effect 不重放，以及父子 Workspace 竞争只有一个 Writer；已合入的 P0 实现通过 Node 22 双平台工程 CI。当前不支持 durable detach，候选包双平台验收、真实多 Agent Provider 认证和公开发布仍未完成。
+- 根版本、8 个 npm 包、内部精确依赖、Python SDK、bundled Worker、模块合同、候选文档和 Release Please 元数据统一为稳定版 `0.7.0`。新增无需 Tag 的候选产物入口，从同一干净提交构建 npm tarball、Python wheel 和源码 ZIP，并记录大小与 SHA-256；真实 Provider 认证、Tag、GitHub Release、npm 和 PyPI 发布仍是后续独立门禁。
 - Phase Gate 已同步双语 README 与安全策略；行为准则、贡献指南和 MIT License 的事实、流程与联系人未变化，因此保持不变。GitHub About 需在远端交付授权后同步，当前未改动。
 
 ## 0.3.2 — 2026-08-26（已合并候选，尚未发布）

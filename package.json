@@ -1,6 +1,6 @@
 {
   "name": "coremind-monorepo",
-  "version": "0.3.2",
+  "version": "0.7.0",
   "private": true,
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
@@ -30,6 +30,7 @@
     "release:check-wheel": "python -X utf8 scripts/check-python-wheel.py",
     "release:sync-version": "node scripts/release-version.mjs",
     "release:bundle": "node scripts/release-artifacts.mjs",
+    "candidate:bundle": "node scripts/candidate-artifacts.mjs",
     "release:publish-npm": "node scripts/publish-npm-artifacts.mjs --publish",
     "acceptance:rc": "node scripts/rc-acceptance.mjs",
     "acceptance:p0": "node scripts/p0-acceptance.mjs",

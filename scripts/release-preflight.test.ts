@@ -126,6 +126,7 @@ describe("发布元数据预检", () => {
 async function createUncertifiedRepositoryFixture() {
   const sourceRoot = process.cwd();
   const fixtureRoot = await mkdtemp(path.join(tmpdir(), "coremind-release-preflight-"));
+  await cp(path.join(sourceRoot, "package.json"), path.join(fixtureRoot, "package.json"));
   await mkdir(path.join(fixtureRoot, "packages"), { recursive: true });
   for (const entry of await readdir(path.join(sourceRoot, "packages"), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
@@ -139,6 +140,11 @@ async function createUncertifiedRepositoryFixture() {
   await cp(
     path.join(sourceRoot, "python", "pyproject.toml"),
     path.join(fixtureRoot, "python", "pyproject.toml"),
+  );
+  await mkdir(path.join(fixtureRoot, "python", "src", "coremind"), { recursive: true });
+  await cp(
+    path.join(sourceRoot, "python", "src", "coremind", "__init__.py"),
+    path.join(fixtureRoot, "python", "src", "coremind", "__init__.py"),
   );
   await mkdir(path.join(fixtureRoot, "docs", "providers"), { recursive: true });
   for (const file of ["certifications.json", "matrix.json"]) {

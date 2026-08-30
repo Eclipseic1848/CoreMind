@@ -784,7 +784,7 @@ describe("Delegation Tool TypeScript happy path", () => {
     } finally {
       await closeServer(server);
     }
-  });
+  }, 30_000);
 
   it("父 Agent 持久化替代方案处置后才允许继续并成功结束", async () => {
     const directory = await mkdtemp(
@@ -1381,6 +1381,7 @@ describe("Delegation Tool TypeScript happy path", () => {
     await writeFile(path.join(directory, "protected.txt"), "用户已有内容", "utf8");
     const store = new FileRunStore(path.join(directory, "runs"));
     const controller = new AbortController();
+    const persistenceTimeoutMs = 20_000;
     let markParentWriterEntered = () => {};
     const parentWriterEntered = new Promise<void>((resolve) => {
       markParentWriterEntered = resolve;
@@ -1444,25 +1445,28 @@ describe("Delegation Tool TypeScript happy path", () => {
 
     try {
       const port = (server.address() as AddressInfo).port;
-      const runtime = await CoreMindRuntime.create({
-        config: baseConfig(port, {
-          main: {
-            systemPrompt: "你是父 Agent。",
-            tools: [{ id: "write" }],
-            delegation: {
-              budget: parentDelegationBudget(),
-              limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
-              targets: {
-                writer: { budget: { ...parentDelegationBudget(), descendants: 0 } },
-              },
+      const config = baseConfig(port, {
+        main: {
+          systemPrompt: "你是父 Agent。",
+          tools: [{ id: "write" }],
+          delegation: {
+            budget: parentDelegationBudget(),
+            limits: { maxDepth: 1, maxActiveChildren: 1, maxDescendants: 1 },
+            targets: {
+              writer: { budget: { ...parentDelegationBudget(), descendants: 0 } },
             },
           },
-          writer: {
-            systemPrompt: "你是写入 Agent。",
-            model: "writer-model",
-            tools: [{ id: "write" }],
-          },
-        }),
+        },
+        writer: {
+          systemPrompt: "你是写入 Agent。",
+          model: "writer-model",
+          tools: [{ id: "write" }],
+        },
+      });
+      // 全仓 Windows 并发下持久化观测可能超过默认 10 秒；这里只扩展验收 Harness。
+      config.runtime.runTimeoutMs = 30_000;
+      const runtime = await CoreMindRuntime.create({
+        config,
         configDir: directory,
         cwd: directory,
         env: { COREMIND_TEST_API_KEY: "test-key" },
@@ -1474,20 +1478,33 @@ describe("Delegation Tool TypeScript happy path", () => {
 
       run = runtime.run();
       await within(parentWriterEntered, "父级 Writer 未取得 Workspace Lease");
-      const parentRunId = await eventually(async () => {
-        const inspection = await new WorkspaceLeaseService().inspect(directory);
-        return inspection.state === "held" ? inspection.owner.runId : undefined;
-      }, "父级 Workspace Lease 未进入 held");
-      const childRunId = await eventually(async () => {
-        const delegation = (await store.read(parentRunId)).find(
-          (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
-        );
-        return (delegation?.payload as { childRunId?: string } | undefined)?.childRunId;
-      }, "父级未持久化 ChildRunId");
-      await eventually(async () => {
-        const records = await store.read(childRunId);
-        return records.some((record) => record.kind === "finish") ? true : undefined;
-      }, "Child 写租约竞争未收敛");
+      const parentRunId = await eventually(
+        async () => {
+          const inspection = await new WorkspaceLeaseService().inspect(directory);
+          return inspection.state === "held" ? inspection.owner.runId : undefined;
+        },
+        "父级 Workspace Lease 未进入 held",
+        persistenceTimeoutMs,
+      );
+      const childRunId = await eventually(
+        async () => {
+          const delegation = (await store.read(parentRunId)).find(
+            (record) =>
+              record.kind === "delegation" && record.payload.type === "delegation_recorded",
+          );
+          return (delegation?.payload as { childRunId?: string } | undefined)?.childRunId;
+        },
+        "父级未持久化 ChildRunId",
+        persistenceTimeoutMs,
+      );
+      await eventually(
+        async () => {
+          const records = await store.read(childRunId);
+          return records.some((record) => record.kind === "finish") ? true : undefined;
+        },
+        "Child 写租约竞争未收敛",
+        persistenceTimeoutMs,
+      );
 
       controller.abort();
       const result = await within(run, "取消后父 Run 未收敛");

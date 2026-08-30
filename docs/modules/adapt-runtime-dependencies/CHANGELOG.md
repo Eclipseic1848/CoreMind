@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0 - 2026-08-29
+
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+
 ## Unreleased
 
 - Added bilingual dependency-upgrade spike templates covering exact identity, private seams, protocol and recovery compatibility, four-entry and dual-platform evidence, Provider boundaries, supply chain, rollback, and independent authorization gates.

@@ -73,6 +73,8 @@ export declare class ChatSession {
     chat(message: string): Promise<ChatTurnResult>;
     /** 中止当前轮 */
     abort(): void;
+    /** 查询当前一轮从 canonical Facts 重建的统一 Projection。 */
+    inspectCurrentRunProjection(): Promise<RunProjection | undefined>;
     /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */
     persist(): Promise<string | undefined>;
     listCheckpoints(): CheckpointRecord[];
@@ -191,7 +193,28 @@ export declare interface ChildRunBudgetAllocation {
 export declare interface ChildRunContextReference {
     workingSetFingerprint: string;
     references: readonly string[];
+    resolvedReferences?: readonly ResolvedDelegatedContextReference[];
 }
+
+export declare type ChildRunContinuationGate = {
+    status: "allowed";
+} | {
+    status: "disposition_required";
+    delegationId: string;
+    childRunId: string;
+    requiredActor: DelegationDispositionActor;
+    recovery: ChildRunRecoveryAssessment;
+} | {
+    status: "redelegation_required";
+    delegationId: string;
+    childRunId: string;
+    recovery: ChildRunRecoveryAssessment;
+} | {
+    status: "propagate_terminal";
+    delegationId: string;
+    childRunId: string;
+    result: ChildRunResult;
+};
 
 /**
  * Child Run 深模块：把幂等身份、持久生命周期和结构化 join 隐藏在一个委派接口后。
@@ -201,22 +224,49 @@ export declare class ChildRunCoordinator {
     private readonly options;
     private readonly delegations;
     private readonly now;
-    private readonly remainingBudget;
+    private readonly remainingBudgets;
+    private readonly hierarchyLimits;
     private readonly parentPolicy;
+    private delegationTransitionLocked;
+    private readonly delegationTransitionWaiters;
+    private terminalSealed;
     private constructor();
     static open(options: ChildRunCoordinatorOptions): Promise<ChildRunCoordinator>;
     delegate(request: ChildRunDelegationRequest): Promise<ChildRunHandle>;
+    private delegateWithinTransition;
+    private isDelegationDefinitelyAbsent;
     cancelAll(reason: string): Promise<void>;
+    isExecutionQuiescent(): boolean;
     isQuiescent(): boolean;
+    continuationGate(): ChildRunContinuationGate;
+    recordDisposition(request: DelegationDispositionRequest): Promise<RecordedDelegationDisposition>;
+    private recordDispositionWithinTransition;
+    /** 父 Run 已形成终态时，持久撤销尚未创建 successor 的重新委派意图。 */
+    cancelPendingRedelegations(parentTerminalCode: string, reason: string): Promise<void>;
+    private cancelPendingRedelegationsWithinTransition;
+    /** 等待已进入 Coordinator 的委派变更完成，并阻止父终态后的新变更。 */
+    sealForTerminal(): Promise<void>;
+    private withDelegationTransition;
+    private assertRedelegationRequest;
     private execute;
     private handleFor;
     private assertActiveChildLimit;
+    private scopeFor;
+    private remainingBudgetFor;
     private auditRestoredOrphans;
     private join;
+    /** grace 超时后 Adapter 若最终收敛，仍补齐结构化 join；永不收敛时保持非静止。 */
+    private joinAfterLateCompletion;
     private cancelState;
     private appendLifecycle;
     private lifecycleFact;
     private restore;
+}
+
+export declare interface ChildRunCoordinatorHierarchyLimits {
+    maxDepth: number;
+    maxActiveChildren: number;
+    maxDescendants: number;
 }
 
 export declare interface ChildRunCoordinatorOptions {
@@ -224,6 +274,8 @@ export declare interface ChildRunCoordinatorOptions {
     parentJournal: RunStateJournal;
     runStore: RunStore;
     parentPolicy: ChildRunPolicySnapshot;
+    delegationBudgetPools?: Readonly<Record<string, ChildRunBudgetAllocation>>;
+    delegationHierarchyLimits?: Readonly<Record<string, ChildRunCoordinatorHierarchyLimits>>;
     adapter: ChildRunExecutionAdapter;
     createChildRunId: () => string;
     reserveParentBudget?: (allocation: ChildRunBudgetAllocation) => () => void;
@@ -233,6 +285,8 @@ export declare interface ChildRunCoordinatorOptions {
 
 export declare interface ChildRunDelegationRequest {
     delegationId: string;
+    predecessorDelegationId?: string;
+    budgetScope?: string;
     parentTurnId: string;
     parentStepId: string;
     agentName: string;
@@ -242,8 +296,21 @@ export declare interface ChildRunDelegationRequest {
     lifecyclePolicy: ChildRunLifecyclePolicy;
     context: ChildRunContextReference;
     allocation: ChildRunBudgetAllocation;
+    hierarchyLimits?: ChildRunHierarchyLimits;
     permissions: ChildRunPermissionSnapshot;
     environment: ChildRunEnvironmentRequirement;
+}
+
+export declare interface ChildRunDispositionProjection {
+    state: "not_required" | "required" | "recorded" | "awaiting_redelegation" | "redelegation_cancelled";
+    requiredActor?: "parent_agent" | "human";
+    action?: "accept_failure" | "choose_alternative" | "redelegate" | "propagate_terminal";
+    decidedBy?: "parent_agent" | "human";
+    reason?: string;
+    recoveryDisposition: "replay_safe" | "requires_proof" | "requires_human" | "forbidden";
+    successorDelegationId?: string;
+    parentTerminalCode?: string;
+    cancellationReason?: string;
 }
 
 export declare interface ChildRunEnvironmentRequirement {
@@ -281,6 +348,8 @@ export declare type ChildRunFact = {
     parentRunId: string;
     childRunId: string;
     delegationId: string;
+    predecessorDelegationId?: string;
+    budgetScope?: string;
     parentTurnId: string;
     parentStepId: string;
     inputFingerprint: string;
@@ -294,7 +363,7 @@ export declare type ChildRunFact = {
     requestedPermissions: ChildRunPermissionSnapshot;
     requestedEnvironment: ChildRunEnvironmentRequirement;
     recordedAt: string;
-} | ChildRunLifecycleFact;
+} | DelegationDispositionFact | DelegationRedelegationCancelledFact | ChildRunLifecycleFact;
 
 export declare interface ChildRunHandle {
     readonly parentRunId: string;
@@ -305,11 +374,17 @@ export declare interface ChildRunHandle {
     join(options?: ChildRunJoinOptions): Promise<ChildRunResult>;
 }
 
+export declare interface ChildRunHierarchyLimits {
+    maxDepth?: number;
+    maxActiveChildren?: number;
+}
+
 declare interface ChildRunIdentityFact<TType extends string> {
     type: TType;
     parentRunId: string;
     childRunId: string;
     delegationId: string;
+    budgetScope?: string;
     inputFingerprint: string;
     recordedAt: string;
 }
@@ -343,12 +418,22 @@ export declare interface ChildRunLifecyclePolicy {
 export declare interface ChildRunModelSnapshot {
     providerId: string;
     model: string;
+    providerConfigFingerprint: string;
+    agentPromptFingerprint: string;
+    agentDelegationFingerprint: string;
+    options?: {
+        temperature?: number;
+        maxTokens?: number;
+        thinkingLevel?: "off" | "low" | "medium" | "high" | "xhigh";
+    };
 }
 
 export declare interface ChildRunNodeProjection {
     parentRunId: string;
     childRunId: string;
     delegationId: string;
+    predecessorDelegationId?: string;
+    agentName: string;
     inputFingerprint: string;
     budget: ChildRunBudgetAllocation;
     permissions: ChildRunPermissionSnapshot;
@@ -358,6 +443,8 @@ export declare interface ChildRunNodeProjection {
     status: "recorded" | "created" | "running" | "terminal" | "paused" | "orphaned" | "joined";
     outcome?: RunOutcome;
     result?: ChildRunResult;
+    recovery?: RecoveryDecision;
+    disposition?: ChildRunDispositionProjection;
 }
 
 export declare interface ChildRunPermissionSnapshot {
@@ -377,18 +464,35 @@ export declare interface ChildRunPolicySnapshot {
     model: ChildRunModelSnapshot;
     workspace: ChildRunWorkspaceSnapshot;
     protectedContextReferences: readonly string[];
+    protectedContextResolvedReferences?: readonly ResolvedDelegatedContextReference[];
+    /** 按父 Agent 预算作用域固定的命名 Delegation Target 路由。 */
+    delegationModelRoutes?: Readonly<Record<string, Readonly<Record<string, ChildRunModelSnapshot>>>>;
     maxDepth?: number;
     maxActiveChildren?: number;
     maxDescendants?: number;
 }
 
+export declare interface ChildRunRecoveryAssessment {
+    recoveryDisposition: RecoveryDisposition;
+    effectState: "none" | "not_started" | "started" | "committed" | "unknown";
+    quiescent: boolean;
+    executionOwnership: "released" | "unknown";
+    evidence: readonly string[];
+}
+
+export declare function childRunRecoveryAssessment(result: ChildRunResult): ChildRunRecoveryAssessment;
+
 export declare interface ChildRunResult {
     outcome: RunOutcome;
     evidence: readonly string[];
     artifacts: readonly string[];
-    workspaceChanges: readonly string[];
+    workspaceChanges: readonly ChildRunWorkspaceChange[];
     unresolvedRisks: readonly string[];
+    /** 由 Runtime/Adapter 根据实际 Tool lifecycle 聚合；历史结果缺失时按未知风险处理。 */
+    recovery?: ChildRunRecoveryAssessment;
 }
+
+export declare function childRunResultFingerprint(result: ChildRunResult): string;
 
 export declare interface ChildRunTreeProjection {
     nodes: ChildRunNodeProjection[];
@@ -396,6 +500,16 @@ export declare interface ChildRunTreeProjection {
     unhandledDescendants: number;
     quiescent: boolean;
 }
+
+export declare interface ChildRunWorkspaceChange {
+    checkpointId: string;
+    path: string;
+    kind: ChildRunWorkspaceChangeKind;
+    beforeSha256?: string;
+    afterSha256?: string;
+}
+
+export declare type ChildRunWorkspaceChangeKind = "created" | "modified" | "deleted";
 
 export declare interface ChildRunWorkspaceSnapshot {
     canonicalRoot: string;
@@ -753,6 +867,8 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     agent: string;
     tool: string;
     args: unknown;
+    argumentsFingerprint?: string;
+    delegationInputFingerprint?: string;
     risk: "low" | "high";
     effect: ToolEffect;
     capability?: ResolvedToolCapability;
@@ -761,6 +877,8 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     approvalId: string;
     runId: string;
     decision: "allow" | "deny";
+    argumentsFingerprint?: string;
+    delegationInputFingerprint?: string;
 } | {
     type: "policy_denied";
     agent: string;
@@ -958,11 +1076,13 @@ export declare type CoreMindMessageContent = {
 export declare class CoreMindRuntime {
     private readonly config;
     private readonly agentConfigs;
+    private readonly agentModels;
     private readonly driverBuilders;
     private readonly toolEffectsByAgent;
     private readonly toolCapabilitiesByAgent;
     private readonly providerRuntime;
     private readonly executionEnvironment;
+    private readonly workspaceLeaseService;
     private readonly options;
     /** 最近创建的每个 agent 实例（收集最终消息/落盘用） */
     private readonly lastAgents;
@@ -979,6 +1099,8 @@ export declare class CoreMindRuntime {
     private activeRunPromise?;
     /** 当前 run 的 journal（persistSession 的准入/abort 语义用） */
     private runJournal?;
+    /** 当前或最近一次 run 的 canonical store（只读 Projection 查询用）。 */
+    private activeRunStore?;
     /** 本次 run 打开的会话（压缩条目落盘与 persist 复用同一句柄） */
     private activeSession?;
     /** 会话树已落盘视图消息 + 来源条目 id（压缩替换范围的桥接） */
@@ -988,8 +1110,16 @@ export declare class CoreMindRuntime {
     private constructor();
     /** 由配置构建运行时（注册 provider、构建工具与全部 agent 定义） */
     static create(options: CoreMindRuntimeOptions): Promise<CoreMindRuntime>;
+    /** 同一父子树复用一个 Lease 服务；跨进程一致性仍由 canonical lock file 提供。 */
+    private static createWithWorkspaceLease;
     /** 按名字创建独立 Driver 实例（每次新实例，消息历史独立） */
     private createAgent;
+    /** 返回命名 Agent 在项目 Provider 内的固定模型与参数快照。 */
+    private modelSnapshotFor;
+    /** 只从当前父 Agent 的 Config allowlist 构建可委派模型路由。 */
+    private delegationModelRoutesFor;
+    /** 为同一 Runtime 内所有可能发起委派的 Agent 固化二级模型路由。 */
+    private delegationModelRoutes;
     /** 查询配置中是否存在 Agent，供交互会话在首轮前快速失败。 */
     hasAgent(name: string): boolean;
     /** 返回交互会话应继承的恢复消息副本。 */
@@ -999,6 +1129,8 @@ export declare class CoreMindRuntime {
      * 因此 chat/TUI 与无头 run 共用预算、权限、checkpoint、Trace 和失败语义。
      */
     runAgentTurn(agentName: string, message: string, history: CoreMindMessage[], events: (event: CoreMindEvent) => void, signal?: AbortSignal): Promise<RunResult>;
+    /** 从已持久化 canonical Facts 重建当前运行视图。 */
+    private inspectPersistedRunProjection;
     inspectCheckpoint(record: CheckpointRecord): Promise<CheckpointDiff>;
     restoreCheckpoint(record: CheckpointRecord): Promise<void>;
     /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
@@ -1007,11 +1139,21 @@ export declare class CoreMindRuntime {
     delegateChildRun(request: ChildRunDelegationRequest): Promise<ChildRunHandle>;
     /** Adapter 执行前验证工厂没有丢失或放宽 Child Run 身份、取消与策略。 */
     verifyChildRunAuthority(input: ChildRunExecutionInput): Promise<void>;
+    private runtimeAuthorityToolIds;
     /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
     acceptControl(command: RunControlCommand): Promise<ControlReceipt>;
     /** 当新的可应用点出现时，重试仍处于 accepted 的持久控制。 */
     applyPendingControls(): Promise<ControlReceipt[]>;
     private currentControlInbox;
+    private createConfiguredChildRunOptions;
+    private executeConfiguredDelegation;
+    private executeConfiguredDelegationDisposition;
+    /** 在审批和执行阶段生成同一份 Child Run 请求，不产生 Fact 或预留预算副作用。 */
+    private prepareConfiguredDelegationRequest;
+    /** 把用户批准绑定到固定目标、任务、引用和实际生效的六维预算。 */
+    private canonicalDelegationApprovalArgs;
+    /** 审批前先执行不可被人工批准绕过的 Delegation authority 硬边界。 */
+    private resolveDelegationAuthority;
     /** run() 主体（并发检测由外层 run() 包装） */
     private executeRunBody;
     private runWithGuard;
@@ -1039,6 +1181,10 @@ export declare interface CoreMindRuntimeOptions {
     cwd?: string;
     /** 环境变量（默认 process.env） */
     env?: NodeJS.ProcessEnv;
+    /** 工具执行环境；缺省与 env 相同，Child Runtime 必须传入脱敏副本。 */
+    toolEnv?: NodeJS.ProcessEnv;
+    /** Provider Adapter 使用的后端无关秘密解析器。 */
+    secretResolver?: SecretResolver;
     /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
     initialPrompt?: string;
     /** 事件回调（CLI 渲染 / Web 面板共用） */
@@ -1192,6 +1338,35 @@ export declare function defineExperiment(definition: ExperimentDefinition): Expe
 export declare function defineLifecycleExtension(extension: LifecycleExtension): LifecycleExtension;
 
 export declare function defineTool<TArgs>(definition: CoreMindToolDefinition<TArgs>): CoreMindToolDefinition<TArgs>;
+
+export declare type DelegationDispositionAction = "accept_failure" | "choose_alternative" | "redelegate" | "propagate_terminal";
+
+export declare type DelegationDispositionActor = "parent_agent" | "human";
+
+export declare type DelegationDispositionFact = ChildRunIdentityFact<"delegation_disposition_recorded"> & {
+    dispositionId: string;
+    action: DelegationDispositionAction;
+    decidedBy: DelegationDispositionActor;
+    reason: string;
+    evidence: readonly string[];
+    resultFingerprint: string;
+    recovery: ChildRunRecoveryAssessment;
+};
+
+export declare interface DelegationDispositionRequest {
+    dispositionId: string;
+    delegationId: string;
+    action: DelegationDispositionAction;
+    decidedBy: DelegationDispositionActor;
+    reason: string;
+    evidence?: readonly string[];
+}
+
+export declare type DelegationRedelegationCancelledFact = ChildRunIdentityFact<"delegation_redelegation_cancelled"> & {
+    dispositionId: string;
+    parentTerminalCode: string;
+    reason: string;
+};
 
 export declare interface DiffGrader extends GraderBase {
     type: "diff";
@@ -2077,6 +2252,8 @@ export declare function prepareRunResume(records: RunStateRecord[], configFinger
 export declare interface ProjectCheckOptions {
     config: CoreMindConfig;
     projectDir: string;
+    env?: NodeJS.ProcessEnv;
+    secretResolver?: SecretResolver;
     profile?: QualityConfig["profile"];
     overrideReason?: string;
 }
@@ -2170,6 +2347,17 @@ export declare interface ProviderRequestReplayFixture {
 /** 事件序列中某输入的最新收据状态（折叠查询的便捷封装） */
 export declare function receiptStatusOf(events: readonly CoreMindEvent[], inputId: InputId): InputReceiptStatus | undefined;
 
+export declare interface RecordedDelegationDisposition {
+    dispositionId: string;
+    delegationId: string;
+    action: DelegationDispositionAction;
+    decidedBy: DelegationDispositionActor;
+    reason: string;
+    evidence: readonly string[];
+    resultFingerprint: string;
+    recovery: ChildRunRecoveryAssessment;
+}
+
 declare interface RecoveryDecision {
     resumable: boolean;
     requiresHuman: boolean;
@@ -2219,6 +2407,23 @@ export declare interface RepositoryMapEntry {
     kind: "manifest" | "source" | "test" | "documentation" | "configuration" | "other";
     language?: CodingLanguage;
 }
+
+declare type ResolvedDelegatedContextReference = {
+    reference: string;
+    type: "fact";
+    eventId: string;
+    sequence: number;
+    factKind: RunStateRecord["kind"];
+    timestamp: string;
+    payloadFingerprint: string;
+} | {
+    reference: string;
+    type: "artifact";
+    artifactId: string;
+    sizeBytes: number;
+    sha256: string;
+    mediaType: string;
+};
 
 export declare interface ResolvedRuntimeLimits {
     maxTurns: number;
@@ -2309,6 +2514,11 @@ export declare type RunControlCommand = (RunControlBase & {
 }) | (RunControlBase & {
     type: "follow_up";
     message: string;
+}) | (RunControlBase & {
+    type: "delegation_disposition";
+    delegationId: string;
+    action: DelegationDispositionAction;
+    reason: string;
 });
 
 export declare interface RunEvaluationOptions {
@@ -2596,6 +2806,11 @@ export declare interface ScenarioResult {
     reason?: string;
 }
 
+/** 宿主注入的后端无关秘密解析接缝；引用和值都不得离开 Provider Adapter。 */
+export declare interface SecretResolver {
+    resolve(ref: string): string | undefined | Promise<string | undefined>;
+}
+
 export declare function selectCodingEnvironment(inspection: CodingRepositoryInspection, choice: CodingEnvironmentChoice): Promise<CodingEnvironmentSelection>;
 
 export declare function selectExperimentArm(definition: ExperimentDefinition, inputFingerprint: string): ExperimentSelection;
@@ -2783,6 +2998,10 @@ export declare interface ToolApprovalRequest {
     agent: string;
     tool: string;
     args: unknown;
+    /** 绑定审批时看到的完整 canonical 参数；参数变化后不得复用批准。 */
+    argumentsFingerprint: string;
+    /** Delegation 专用：与实际 Child Run 创建 Fact 完全相同的输入指纹。 */
+    delegationInputFingerprint?: string;
     risk: ToolRisk;
     reason: string;
     effect: ToolEffect;
@@ -2902,7 +3121,7 @@ export declare class ToolPolicy {
     private readonly options;
     private readonly permissions;
     constructor(options: ToolPolicyOptions);
-    authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration): Promise<ToolPolicyDecision>;
+    authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;
 }
@@ -2924,6 +3143,9 @@ declare interface ToolPolicyOptions {
     platform?: NodeJS.Platform;
     onApprovalRequired?: (request: ToolApprovalRequest) => void;
     onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
+    delegation?: {
+        isAssistedPreapproved: (agent: string, target: string) => boolean;
+    };
 }
 
 export declare interface ToolReplayCandidate {

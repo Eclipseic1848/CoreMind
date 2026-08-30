@@ -3,7 +3,7 @@ id: orchestrate-child-runs
 name:
   zh-CN: "编排 Child Run"
   en: "Orchestrate Child Runs"
-version: 0.7.0-dev
+version: 0.7.0
 sourcePaths:
   - "packages/coremind-runtime/src/child-run.ts"
   - "packages/coremind-runtime/src/child-runtime-adapter.ts"

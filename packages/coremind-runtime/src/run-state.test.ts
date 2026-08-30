@@ -17,6 +17,7 @@ import {
   prepareRunResume,
   RunStateJournal,
   type RunStateRecord,
+  type RunStoreDurability,
 } from "./run-state.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
@@ -193,6 +194,49 @@ describe("RunState", () => {
       { order: 1 },
       { order: 2 },
     ]);
+  });
+
+  it("critical flush 的 barrier 排在调用后追加的 Fact 之前", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-flush-order-"));
+    const order: string[] = [];
+    const store = new FileRunStore(dir, {
+      beforeCommit: ({ record }) => {
+        if (record?.sequence === 2) order.push("append");
+      },
+      beforeBarrier: ({ record }) => {
+        if (!record) order.push("barrier");
+      },
+    });
+    const journal = new RunStateJournal("run-flush-order", store);
+    journal.event({ order: 1 });
+    await journal.flush();
+
+    const critical = journal.flush("critical");
+    journal.event({ order: 2 });
+    await critical;
+    await journal.flush();
+
+    expect(order).toEqual(["barrier", "append"]);
+  });
+
+  it("并发 flush 各自保留 durability acknowledgement", async () => {
+    const calls: RunStoreDurability[] = [];
+    const store = {
+      supportedDurability: ["ordinary", "critical"] as const,
+      durabilityBoundary: "process_crash" as const,
+      append: async (_record: RunStateRecord) => undefined,
+      read: async (_runId: string) => [],
+      barrier: async (_runId: string, requested: RunStoreDurability) => {
+        calls.push(requested);
+        return { requested, achieved: requested, boundary: "process_crash" as const };
+      },
+    };
+    const journal = new RunStateJournal("run-concurrent-flush", store);
+
+    const [ordinary, critical] = await Promise.all([journal.flush(), journal.flush("critical")]);
+
+    expect([ordinary.requested, critical.requested]).toEqual(["ordinary", "critical"]);
+    expect(calls).toEqual(["ordinary", "critical"]);
   });
 
   it("多个 File Store 争用同一 writer lock 时等待持有者释放后继续", async () => {

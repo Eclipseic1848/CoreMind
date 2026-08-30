@@ -16,6 +16,7 @@ import {
   FactLedger,
   type FactLedgerMetrics,
   type FactLedgerStatus,
+  flushFactLedgerWith,
 } from "./fact-ledger.js";
 import { foldInputReceipts, inputFingerprint } from "./input-receipt.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
@@ -667,11 +668,12 @@ export class RunStateJournal {
     durability: RunStoreDurability = "ordinary",
   ): Promise<RunStoreDurabilityAcknowledgement> {
     try {
-      await this.ledger.flush();
-      assertSupportedDurability(this.store, durability);
-      const acknowledgement = this.store.barrier
-        ? await this.store.barrier(this.runId, durability)
-        : legacyDurabilityAcknowledgement(this.store, durability);
+      const acknowledgement = await flushFactLedgerWith(this.ledger, async () => {
+        assertSupportedDurability(this.store, durability);
+        return this.store.barrier
+          ? this.store.barrier(this.runId, durability)
+          : legacyDurabilityAcknowledgement(this.store, durability);
+      });
       validateDurabilityAcknowledgement(this.store, durability, acknowledgement);
       this.durabilityCounters[durability].succeeded += 1;
       return acknowledgement;

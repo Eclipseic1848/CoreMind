@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0 - 2026-08-29
+
+- Added a versioned worker manifest with protocol, package-version, and SHA-256 validation before Python launches the bundled worker.
+
 ## 0.3.2 - 2026-08-26
 
 - Added a versioned worker manifest with protocol, package-version, and SHA-256 validation before Python launches the bundled worker.

@@ -9,13 +9,15 @@ const REQUIRED_CERTIFICATION_CHECKS = [
 ];
 
 /** 用运行时目录和人工证据台账生成认证矩阵，未提供完整证据时绝不自动认证。 */
-export function buildProviderMatrix({ providers, certifications, generatedAt }) {
+export function buildProviderMatrix({ providers, certifications, generatedAt, targetVersion }) {
   const certificationById = new Map(certifications.map((item) => [item.id, item]));
   const rows = [...providers]
     .sort((left, right) => left.id.localeCompare(right.id))
     .map((provider) => {
       const certification = certificationById.get(provider.id);
-      const certified = certification ? hasCompleteEvidence(certification) : false;
+      const certified = certification
+        ? hasCompleteEvidence(certification) && certification.version === targetVersion
+        : false;
       const missingChecks = certification ? missingCertificationChecks(certification) : [];
       return {
         ...provider,
@@ -28,6 +30,18 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
               testedCommit: certification.commit,
               runtimeArtifactSha256: certification.runtimeArtifactSha256,
               evidence: certification.evidence,
+            }
+          : {}),
+        ...(!certified && certification && hasCompleteEvidence(certification)
+          ? {
+              previousCertification: {
+                version: certification.version,
+                testedAt: certification.testedAt,
+                testedModel: certification.model,
+                testedCommit: certification.commit,
+                runtimeArtifactSha256: certification.runtimeArtifactSha256,
+                evidence: certification.evidence,
+              },
             }
           : {}),
         ...(certification && missingChecks.length > 0 ? { certificationGap: missingChecks } : {}),
@@ -43,6 +57,7 @@ export function buildProviderMatrix({ providers, certifications, generatedAt }) 
   return {
     schemaVersion: 1,
     generatedAt,
+    targetVersion,
     summary: {
       supported: rows.length,
       certified: rows.filter((item) => item.status === "certified").length,

@@ -41,6 +41,19 @@ export type FactLedgerStatus =
   | { state: "healthy"; nextSequence: number; terminal: boolean }
   | { state: "poisoned"; failedSequence: number; reason: string };
 
+const flushOperations = new WeakMap<FactLedger, () => Promise<void>>();
+
+export function flushFactLedgerWith<T>(
+  ledger: FactLedger,
+  operation: () => Promise<T>,
+): Promise<T> {
+  let result: T;
+  flushOperations.set(ledger, async () => {
+    result = await operation();
+  });
+  return ledger.flush().then(() => result);
+}
+
 /**
  * 单个 Run 的权威 Fact 提交队列。
  *
@@ -146,8 +159,18 @@ export class FactLedger {
   }
 
   async flush(): Promise<void> {
-    await this.tail;
-    if (this.poison) throw this.poison.error;
+    const operation = flushOperations.get(this) ?? (async () => undefined);
+    flushOperations.delete(this);
+    const task = this.tail.then(async () => {
+      if (this.poison) throw this.poison.error;
+      await operation();
+    });
+    this.tail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    void task.catch(() => undefined);
+    await task;
   }
 
   status(): FactLedgerStatus {

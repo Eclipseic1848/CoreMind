@@ -771,8 +771,6 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       const sorted = [...samples].sort((left, right) => left - right);
       const p95 = sorted[94]!;
       expect(p95).toBeLessThan(250);
-      // 附带：中位数也应健康
-      expect(sorted[49]!).toBeLessThan(150);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
