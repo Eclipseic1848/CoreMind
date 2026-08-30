@@ -13,7 +13,7 @@ import subprocess
 import threading
 import uuid
 from collections import deque
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
 from typing import Any, Callable, Mapping, Sequence, Union, get_args, get_origin
 from urllib.parse import urlsplit
@@ -906,16 +906,13 @@ def _validate_checkpoint_result(
 ) -> dict[str, Any]:
     result = dict(value)
     valid = result.get("schemaVersion") == 1 and result.get("action") == action
-    valid = (
-        valid
-        and result.get("runId") == run_id
-        and not _contains_key(result, "snapshotFile")
-        and not _contains_key(result, "unifiedDiff")
-    )
+    valid = valid and result.get("runId") == run_id
     if action == "list":
         checkpoints = result.get("checkpoints")
         valid = (
             valid
+            and set(result)
+            == {"schemaVersion", "action", "runId", "derivedFromSequence", "checkpoints"}
             and isinstance(result.get("derivedFromSequence"), int)
             and isinstance(checkpoints, list)
             and all(_valid_public_checkpoint(item, run_id) for item in checkpoints)
@@ -923,6 +920,8 @@ def _validate_checkpoint_result(
     elif action == "create":
         valid = (
             valid
+            and set(result)
+            == {"schemaVersion", "action", "operationId", "status", "runId", "checkpoint"}
             and result.get("operationId") == operation_id
             and result.get("status") in {"applied", "duplicate"}
             and _valid_public_checkpoint(result.get("checkpoint"), run_id)
@@ -930,14 +929,42 @@ def _validate_checkpoint_result(
     elif action == "diff":
         valid = (
             valid
+            and _valid_keys(
+                result,
+                {
+                    "schemaVersion",
+                    "action",
+                    "runId",
+                    "checkpointId",
+                    "checkpointVersion",
+                    "changed",
+                    "current",
+                    "reversible",
+                },
+                {"path", "before", "reason"},
+            )
             and result.get("checkpointId") == checkpoint_id
             and result.get("checkpointVersion") == 1
             and isinstance(result.get("changed"), bool)
+            and isinstance(result.get("reversible"), bool)
+            and ("path" not in result or _valid_public_path(result.get("path")))
+            and ("before" not in result or _valid_file_state(result.get("before")))
+            and ("reason" not in result or isinstance(result.get("reason"), str))
             and _valid_file_state(result.get("current"))
         )
     elif action == "restore":
         valid = (
             valid
+            and set(result)
+            == {
+                "schemaVersion",
+                "action",
+                "operationId",
+                "status",
+                "runId",
+                "checkpointId",
+                "checkpointVersion",
+            }
             and result.get("operationId") == operation_id
             and result.get("checkpointId") == checkpoint_id
             and result.get("checkpointVersion") == 1
@@ -956,19 +983,30 @@ def _valid_public_checkpoint(value: object, run_id: str) -> bool:
     if not isinstance(value, Mapping):
         return False
     return (
-        value.get("checkpointVersion") == 1
+        _valid_keys(
+            value,
+            {"checkpointVersion", "checkpointId", "runId", "createdAt", "reversible"},
+            {"operationId", "path", "before", "after", "reason"},
+        )
+        and value.get("checkpointVersion") == 1
         and isinstance(value.get("checkpointId"), str)
         and value.get("runId") == run_id
         and isinstance(value.get("createdAt"), str)
         and isinstance(value.get("reversible"), bool)
-        and (value.get("before") is None or _valid_file_state(value.get("before")))
-        and (value.get("after") is None or _valid_file_state(value.get("after")))
-        and "snapshotFile" not in value
+        and ("operationId" not in value or _valid_branded_id(value.get("operationId")))
+        and ("path" not in value or _valid_public_path(value.get("path")))
+        and ("before" not in value or _valid_file_state(value.get("before")))
+        and ("after" not in value or _valid_file_state(value.get("after")))
+        and ("reason" not in value or isinstance(value.get("reason"), str))
     )
 
 
 def _valid_file_state(value: object) -> bool:
-    if not isinstance(value, Mapping) or not isinstance(value.get("existed"), bool):
+    if (
+        not isinstance(value, Mapping)
+        or not _valid_keys(value, {"existed"}, {"sha256"})
+        or not isinstance(value.get("existed"), bool)
+    ):
         return False
     sha256 = value.get("sha256")
     return (
@@ -980,12 +1018,23 @@ def _valid_file_state(value: object) -> bool:
     )
 
 
-def _contains_key(value: object, key: str) -> bool:
-    if isinstance(value, Mapping):
-        return key in value or any(_contains_key(item, key) for item in value.values())
-    if isinstance(value, list):
-        return any(_contains_key(item, key) for item in value)
-    return False
+def _valid_keys(value: Mapping[str, Any], required: set[str], optional: set[str]) -> bool:
+    keys = set(value)
+    return required <= keys <= required | optional
+
+
+def _valid_public_path(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    posix = PurePosixPath(value)
+    windows = PureWindowsPath(value)
+    return (
+        not posix.is_absolute()
+        and not windows.is_absolute()
+        and not windows.drive
+        and ".." not in posix.parts
+        and ".." not in windows.parts
+    )
 
 
 def _validate_tool_registration_receipt(
@@ -993,7 +1042,9 @@ def _validate_tool_registration_receipt(
 ) -> dict[str, Any]:
     result = dict(value)
     if (
-        result.get("schemaVersion") != 1
+        set(result)
+        != {"schemaVersion", "registrationId", "toolId", "definitionFingerprint", "status"}
+        or result.get("schemaVersion") != 1
         or result.get("registrationId") != definition.get("registrationId")
         or result.get("toolId") != definition.get("toolId")
         or result.get("status") not in {"registered", "duplicate", "conflict"}
@@ -1073,7 +1124,9 @@ def _validate_tool_result_receipt(
 ) -> dict[str, Any]:
     result = dict(value)
     if (
-        result.get("schemaVersion") != 1
+        set(result)
+        != {"schemaVersion", "resultId", "runId", "callId", "registrationId", "status"}
+        or result.get("schemaVersion") != 1
         or any(result.get(key) != request.get(key) for key in ("resultId", "runId", "callId", "registrationId"))
         or result.get("status") not in {"accepted", "duplicate", "conflict", "unknown", "late"}
     ):

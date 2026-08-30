@@ -6,6 +6,8 @@ import { createPythonToolCallNotification } from 'coremind-protocol';
 import { FileRunStore } from 'coremind-ai';
 import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
+import { ProtocolV2ToolCallNotification } from 'coremind-protocol';
+import { ProtocolV2ToolCancelNotification } from 'coremind-protocol';
 import { RunControlCommand } from 'coremind-ai';
 import { RunStateRecord } from 'coremind-ai';
 import { SecretResolver } from 'coremind-ai';
@@ -31,8 +33,11 @@ declare class ProtocolHost {
     private initialized?;
     private selectedProtocol?;
     private readonly toolSpecs;
+    private readonly protocolV2ToolRegistrations;
     private readonly pendingApprovals;
     private readonly pendingToolCalls;
+    private readonly settledProtocolV2ToolResults;
+    private readonly closedProtocolV2ToolCalls;
     private readonly protocolV2Starts;
     private readonly pausedControlInboxes;
     private readonly protocolV2RunTransitions;
@@ -59,15 +64,20 @@ declare class ProtocolHost {
     private pausedControlInbox;
     private readProtocolV2Events;
     private queryProtocolV2Projection;
+    private handleProtocolV2Checkpoint;
     private waitForActiveRuntime;
     private handleProtocolV2Initialize;
     private dispatch;
     private initialize;
     private registerTool;
+    private registerProtocolV2Tool;
     private executeRun;
     private createPythonToolDefinitions;
+    private invokeProtocolV2Tool;
     private invokePythonTool;
     private resolveToolCall;
+    private resolveProtocolV2ToolCall;
+    private classifyPersistedProtocolV2ToolCall;
     private resolveApproval;
     private applyWorkerControl;
     private inspectRun;
@@ -86,7 +96,7 @@ declare class ProtocolHost {
 export { ProtocolHost }
 export { ProtocolHost as WorkerServer }
 
-export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
+export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
 
 export declare type WorkerRuntime = Pick<CoreMindRuntime, "run"> & {
     acceptControl?: (command: RunControlCommand) => Promise<ControlReceipt>;

@@ -8,6 +8,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
+from coremind.client import (
+    _validate_checkpoint_result,
+    _validate_tool_registration_receipt,
+    _validate_tool_result_receipt,
+)
 
 
 class CoreMindClientTest(unittest.TestCase):
@@ -291,6 +296,56 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(client.received_tool_calls, [])
         self.assertIn("ToolCall 非法", client._stderr_tail[-1])
         self.assertEqual(client.received_tool_cancellations[0]["callId"], "call-1")
+
+    def test_protocol_v2_receipts_reject_unknown_fields_and_non_relative_paths(self) -> None:
+        checkpoint = {
+            "checkpointVersion": 1,
+            "checkpointId": "checkpoint-1",
+            "runId": "python-v2-run",
+            "createdAt": "2026-08-30T00:00:00.000Z",
+            "reversible": True,
+        }
+        for invalid in (
+            {**checkpoint, "unknown": True},
+            {**checkpoint, "path": "../secret.txt"},
+            {**checkpoint, "path": "C:/secret.txt"},
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ProtocolError):
+                _validate_checkpoint_result(
+                    {
+                        "schemaVersion": 1,
+                        "action": "list",
+                        "runId": "python-v2-run",
+                        "derivedFromSequence": 1,
+                        "checkpoints": [invalid],
+                    },
+                    action="list",
+                    run_id="python-v2-run",
+                )
+
+        definition = {"registrationId": "registration-1", "toolId": "tool-1"}
+        with self.assertRaises(ProtocolError):
+            _validate_tool_registration_receipt(
+                {
+                    "schemaVersion": 1,
+                    **definition,
+                    "definitionFingerprint": f"sha256:{'a' * 64}",
+                    "status": "registered",
+                    "unknown": True,
+                },
+                definition,
+            )
+        request = {
+            "resultId": "result-1",
+            "runId": "python-v2-run",
+            "callId": "call-1",
+            "registrationId": "registration-1",
+        }
+        with self.assertRaises(ProtocolError):
+            _validate_tool_result_receipt(
+                {"schemaVersion": 1, **request, "status": "accepted", "unknown": True},
+                request,
+            )
 
     def test_registration_failure_closes_worker(self) -> None:
         @self.client.tool(

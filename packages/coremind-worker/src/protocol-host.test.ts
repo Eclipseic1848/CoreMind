@@ -186,21 +186,18 @@ describe("ProtocolHost", () => {
   it("v2 Checkpoint 公开 list/create/diff/restore 且写操作按 operationId 幂等", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-checkpoint-"));
     const runId = "checkpoint-run";
-    const actual = path.join(dir, "actual");
-    const target = path.join(actual, "result.txt");
+    const workspace = path.join(dir, "workspace");
+    const alias = path.join(dir, "alias");
+    const target = path.join(workspace, "result.txt");
     try {
-      await mkdir(actual);
-      await symlink(
-        actual,
-        path.join(dir, "alias"),
-        process.platform === "win32" ? "junction" : "dir",
-      );
+      await mkdir(workspace);
+      await symlink(workspace, alias, process.platform === "win32" ? "junction" : "dir");
       await writeFile(target, "修改前", "utf8");
-      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const store = new FileRunStore(path.join(workspace, ".coremind", "runs"));
       const journal = new RunStateJournal(runId, store);
       await journal.start({ configName: "checkpoint" });
       const host = new ProtocolHost({ send: () => {} });
-      await initializeV2(host, dir);
+      await initializeV2(host, alias);
       const request = (id: string, params: Record<string, unknown>) =>
         host.handle({
           jsonrpc: "2.0",
@@ -213,12 +210,12 @@ describe("ProtocolHost", () => {
       const created = await request("create", {
         action: "create",
         operationId: "create-1",
-        path: "actual/result.txt",
+        path: "result.txt",
       });
       const duplicateCreate = await request("create-duplicate", {
         action: "create",
         operationId: "create-1",
-        path: "alias/result.txt",
+        path: target,
       });
       const checkpointId = (created as { result: { checkpoint: { checkpointId: string } } }).result
         .checkpoint.checkpointId;
@@ -262,7 +259,7 @@ describe("ProtocolHost", () => {
           action: "create",
           operationId: "create-1",
           status: "applied",
-          checkpoint: { checkpointVersion: 1, runId, path: "actual/result.txt" },
+          checkpoint: { checkpointVersion: 1, runId, path: "result.txt" },
         },
       });
       expect(duplicateCreate).toMatchObject({ result: { status: "duplicate" } });
@@ -271,7 +268,7 @@ describe("ProtocolHost", () => {
         result: {
           action: "list",
           runId,
-          checkpoints: [{ checkpointId, path: "actual/result.txt" }],
+          checkpoints: [{ checkpointId, path: "result.txt" }],
         },
       });
       expect(diff).toMatchObject({
@@ -292,7 +289,7 @@ describe("ProtocolHost", () => {
       expect(duplicateRestore).toMatchObject({ result: { status: "duplicate" } });
       expect(await readFile(target, "utf8")).toBe("修改前");
       await writeFile(
-        path.join(dir, ".coremind", "checkpoints", runId, `${checkpointId}.json`),
+        path.join(workspace, ".coremind", "checkpoints", runId, `${checkpointId}.json`),
         "损坏的快照",
         "utf8",
       );
@@ -300,7 +297,7 @@ describe("ProtocolHost", () => {
         request("create-corrupt-duplicate", {
           action: "create",
           operationId: "create-1",
-          path: "alias/result.txt",
+          path: target,
         }),
       ).resolves.toMatchObject({
         error: { data: { coremindCode: "checkpoint_corrupt" } },

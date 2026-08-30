@@ -544,6 +544,12 @@ export class ProtocolHost {
       throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
     }
     const projection = ProjectionEngine.project(records);
+    const manager = new CheckpointManager({
+      cwd: state.cwd,
+      rootDir: path.join(state.configDir, ".coremind", "checkpoints"),
+      runId: request.params.runId,
+    });
+    const checkpointCwd = await manager.canonicalTargetPath(".");
     if (request.params.action === "list") {
       await Promise.all(
         projection.checkpoints.map((record) => inspectCheckpoint(record, state.cwd)),
@@ -553,7 +559,9 @@ export class ProtocolHost {
         action: "list",
         runId: request.params.runId,
         derivedFromSequence: records.at(-1)!.sequence,
-        checkpoints: projection.checkpoints.map((record) => publicCheckpoint(record, state.cwd)),
+        checkpoints: projection.checkpoints.map((record) =>
+          publicCheckpoint(record, checkpointCwd),
+        ),
       };
     }
     if (request.params.action === "diff") {
@@ -569,7 +577,7 @@ export class ProtocolHost {
         runId: request.params.runId,
         checkpointId: record.checkpointId,
         checkpointVersion: record.version,
-        ...(record.targetPath ? { path: publicPath(state.cwd, record.targetPath) } : {}),
+        ...(record.targetPath ? { path: publicPath(checkpointCwd, record.targetPath) } : {}),
         changed: diff.changed,
         ...(record.existed !== undefined
           ? {
@@ -597,11 +605,6 @@ export class ProtocolHost {
       const existing = projection.checkpoints.find(
         (record) => record.checkpointId === checkpointId,
       );
-      const manager = new CheckpointManager({
-        cwd: state.cwd,
-        rootDir: path.join(state.configDir, ".coremind", "checkpoints"),
-        runId: params.runId,
-      });
       if (existing) {
         const targetPath = await manager.canonicalTargetPath(params.path);
         if (
@@ -620,7 +623,7 @@ export class ProtocolHost {
           operationId: params.operationId,
           status: "duplicate",
           runId: params.runId,
-          checkpoint: publicCheckpoint(existing, state.cwd),
+          checkpoint: publicCheckpoint(existing, checkpointCwd),
         };
       }
       const checkpoint = await manager.capturePath(params.path, {
@@ -634,7 +637,7 @@ export class ProtocolHost {
         operationId: params.operationId,
         status: "applied",
         runId: params.runId,
-        checkpoint: publicCheckpoint(checkpoint, state.cwd),
+        checkpoint: publicCheckpoint(checkpoint, checkpointCwd),
       };
     }
     const params = request.params;
