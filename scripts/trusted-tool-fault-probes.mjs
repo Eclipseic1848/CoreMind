@@ -208,7 +208,7 @@ export async function runEntryProjectionParityProbe(repositoryRoot, tracker) {
       args,
       cwd: repositoryRoot,
       env: { ...process.env, COREMIND_FAULT_MATRIX_ENTRY_PROBE: "1" },
-      timeoutMs: 60_000,
+      timeoutMs: ENTRY_PROJECTION_PROBE_TIMEOUT_MS,
       maxOutputBytes: 2 * 1024 * 1024,
     }),
   );
@@ -452,6 +452,9 @@ const OWNED_CRASH_POINT_ORDER = [
 
 // 真实崩溃探针包含 Node 子进程与 Worker 冷启动；验收预算独立于产品工具执行超时。
 const OWNED_CRASH_PROBE_TIMEOUT_MS = 30_000;
+
+// 四入口验收包含 CLI、TUI、Python 与 Child Run 冷启动；预算独立于产品工具执行超时。
+const ENTRY_PROJECTION_PROBE_TIMEOUT_MS = 120_000;
 
 const LIFECYCLE_VISIBLE_BEFORE_DURABILITY = new Set([
   "call_fact",
