@@ -95,6 +95,16 @@ v2 查询只调用 ProjectionEngine，至少覆盖：
 - cursor 早于可用保留范围时返回 `cursor_expired`，并提供从 Projection snapshot + 新 cursor 继续的受控路径。
 - 重连不能重新应用已经 `applied` 的 Control，也不能丢失 pending Control。
 
+### 7.1 Checkpoint 操作
+
+v2 的 `checkpoint` 能力提供 `list/create/diff/restore`。公开结果只包含工作区相对路径、内容摘要、版本与可逆性，不暴露快照文件位置。`create` 与 `restore` 使用稳定 OperationId；重复请求按完整指纹返回 `duplicate`，冲突或崩溃后的未知结果失败关闭。`restore` 还必须携带调用方从 `diff` 获得的预期当前文件身份，Host 仅在身份仍匹配时恢复。
+
+### 7.2 受控动态工具桥
+
+v2 客户端只能用 `tool_register` 提交 JSON Schema、Effect 与 Tool Capability 声明，不能向 Node Runtime 注入宿主 callable。Runtime 仍通过同一 Policy、Approval、Checkpoint、ToolExecutionEngine 与 EffectReceipt 执行工具；Host 用带 RunId、CallId、RegistrationId、ToolId 与参数指纹的 `tool_call` 通知向客户端请求结果，并在执行被中止时发送同身份的 `tool_cancel`。`tool_result` 在同一 Host 生命周期内明确返回 `accepted/duplicate/conflict`；Worker 重启后按持久 Fact 与当前 Registration 身份返回 `unknown/late/conflict`，不得把结果当作新调用重放。
+
+Python SDK 只实现上述协议客户端，不读取私有 Run 数据库，也不复制工具执行状态机。随包清单固定 Protocol v2 Schema 指纹；初始化时指纹、Node Runtime 身份或 v1 迁移窗口不匹配即失败关闭。
+
 ## 8. v1 兼容 Adapter
 
 - 整个 `0.4.x` 提供 v1 入口；内部立即映射到同一 RunKernel/ProjectionEngine。

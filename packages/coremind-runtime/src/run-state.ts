@@ -58,6 +58,7 @@ export type RunStateKind =
   | "delegation"
   | "event"
   | "checkpoint"
+  | "checkpoint_restore"
   | "loop"
   | "operation"
   | "pause"
@@ -1311,6 +1312,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
       "delegation",
       "event",
       "checkpoint",
+      "checkpoint_restore",
       "loop",
       "operation",
       "pause",

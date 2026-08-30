@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 sys.stdin.reconfigure(encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
 
 pending_run_id: int | None = None
 selected_protocol = "1.0"
+MANIFEST = json.loads(
+    (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "coremind"
+        / "_worker"
+        / "manifest.json"
+    ).read_text(encoding="utf-8")
+)
 
 
 def send(value: object) -> None:
@@ -142,11 +152,25 @@ for line in sys.stdin:
                         "selectedProtocol": "2.0",
                         "serverCapabilities": [
                             "runHandle",
+                            "typedEvents",
                             "cursorResume",
                             "controlInbox",
                             "projectionQuery",
+                            "checkpointOperations",
+                            "dynamicTools",
                         ],
-                        "schemaFingerprint": "sha256:" + "0" * 64,
+                        "schemaFingerprint": (
+                            "sha256:" + "0" * 64
+                            if params.get("config", {}).get("name") == "bad-fingerprint"
+                            else MANIFEST["protocolV2SchemaFingerprint"]
+                        ),
+                        "runtime": "node",
+                        "warnings": [],
+                        "migration": {
+                            "v1Supported": True,
+                            "v1SupportedThrough": "0.4.x",
+                            "earliestRemoval": "0.5.0",
+                        },
                     },
                 }
             )
@@ -254,6 +278,104 @@ for line in sys.stdin:
                     "runId": params["runId"],
                     "status": "applied",
                     "appliedSequence": 2,
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method == "checkpoint":
+        action = params["action"]
+        checkpoint = {
+            "checkpointVersion": 1,
+            "checkpointId": "checkpoint-1",
+            "runId": params["runId"],
+            "createdAt": "2026-08-30T00:00:00.000Z",
+            "reversible": True,
+            "path": "result.txt",
+            "before": {"existed": True, "sha256": "b" * 64},
+        }
+        if action == "list":
+            result = {
+                "schemaVersion": 1,
+                "action": "list",
+                "runId": params["runId"],
+                "derivedFromSequence": 1,
+                "checkpoints": [checkpoint],
+            }
+        elif action == "create":
+            result = {
+                "schemaVersion": 1,
+                "action": "create",
+                "operationId": params["operationId"],
+                "status": "applied",
+                "runId": params["runId"],
+                "checkpoint": checkpoint,
+            }
+        elif action == "diff":
+            result = {
+                "schemaVersion": 1,
+                "action": "diff",
+                "runId": params["runId"],
+                "checkpointId": params["checkpointId"],
+                "checkpointVersion": 1,
+                "path": "result.txt",
+                "changed": True,
+                "before": {"existed": True, "sha256": "b" * 64},
+                "current": {"existed": True, "sha256": "a" * 64},
+                "reversible": True,
+            }
+        else:
+            result = {
+                "schemaVersion": 1,
+                "action": "restore",
+                "operationId": params["operationId"],
+                "status": "applied",
+                "runId": params["runId"],
+                "checkpointId": params["checkpointId"],
+                "checkpointVersion": 1,
+            }
+        send({"jsonrpc": "2.0", "id": request_id, "result": result})
+    elif selected_protocol == "2.0" and method == "tool_register":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "schemaVersion": 1,
+                    "registrationId": params["registrationId"],
+                    "toolId": params["toolId"],
+                    "definitionFingerprint": "sha256:" + "c" * 64,
+                    "status": "registered",
+                },
+            }
+        )
+        send(
+            {
+                "jsonrpc": "2.0",
+                "protocolVersion": "2.0",
+                "method": "tool_call",
+                "params": {
+                    "schemaVersion": 1,
+                    "runId": "python-v2-run",
+                    "callId": "call-python-1",
+                    "registrationId": params["registrationId"],
+                    "toolId": params["toolId"],
+                    "name": params["name"],
+                    "argumentsFingerprint": "sha256:" + "d" * 64,
+                    "args": {"id": "42"},
+                },
+            }
+        )
+    elif selected_protocol == "2.0" and method == "tool_result":
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "schemaVersion": 1,
+                    "resultId": params["resultId"],
+                    "runId": params["runId"],
+                    "callId": params["callId"],
+                    "registrationId": params["registrationId"],
+                    "status": "accepted",
                 },
             }
         )

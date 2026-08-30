@@ -29,6 +29,10 @@ class ReleaseMetadataTest(unittest.TestCase):
         )
         self.assertEqual(manifest["version"], coremind.__version__)
         self.assertEqual(manifest["protocolVersion"], "1.0")
+        self.assertEqual(manifest["protocolV2Version"], "2.0")
+        self.assertRegex(
+            manifest["protocolV2SchemaFingerprint"], r"^sha256:[0-9a-f]{64}$"
+        )
         self.assertEqual(
             manifest["bundleSha256"], hashlib.sha256(worker.read_bytes()).hexdigest()
         )

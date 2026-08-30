@@ -33,17 +33,22 @@ await writeFile(workerOutput, normalizedBundle, "utf8");
 const pythonProject = await readFile(path.join(repositoryRoot, "python", "pyproject.toml"), "utf8");
 const pythonVersion = /^version\s*=\s*"([^"]+)"/m.exec(pythonProject)?.[1];
 if (!pythonVersion) throw new Error("python/pyproject.toml 缺少 project.version");
+const protocolModule = await import(
+  pathToFileURL(path.join(repositoryRoot, "packages", "coremind-protocol", "dist", "index.js")).href
+);
+if (!/^sha256:[0-9a-f]{64}$/.test(protocolModule.PROTOCOL_V2_SCHEMA_FINGERPRINT)) {
+  throw new Error("coremind-protocol 未导出有效 PROTOCOL_V2_SCHEMA_FINGERPRINT");
+}
 const workerManifest = {
   schemaVersion: 1,
   version: pythonVersion,
   protocolVersion: "1.0",
+  protocolV2Version: "2.0",
+  protocolV2SchemaFingerprint: protocolModule.PROTOCOL_V2_SCHEMA_FINGERPRINT,
   bundleSha256: createHash("sha256").update(normalizedBundle, "utf8").digest("hex"),
 };
 await writeFile(workerManifestOutput, `${JSON.stringify(workerManifest, null, 2)}\n`, "utf8");
 
-const protocolModule = await import(
-  pathToFileURL(path.join(repositoryRoot, "packages", "coremind-protocol", "dist", "index.js")).href
-);
 if (
   protocolModule.ERROR_CODES === null ||
   typeof protocolModule.ERROR_CODES !== "object" ||

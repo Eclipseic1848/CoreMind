@@ -5,9 +5,14 @@ import {
   PROTOCOL_V2_SCHEMA_BUNDLE,
   PROTOCOL_V2_SCHEMA_FINGERPRINT,
   PROTOCOL_V2_VERSION,
+  ProtocolV2CheckpointResultSchema,
   ProtocolV2ErrorResponseSchema,
   ProtocolV2EventEnvelopeSchema,
   ProtocolV2RunHandleSchema,
+  ProtocolV2ToolCallNotificationSchema,
+  ProtocolV2ToolCancelNotificationSchema,
+  ProtocolV2ToolRegistrationReceiptSchema,
+  ProtocolV2ToolResultReceiptSchema,
   parseProtocolV2Request,
 } from "./index.js";
 
@@ -21,6 +26,11 @@ describe("CoreMind Protocol v2", () => {
       "eventPage",
       "queryResult",
       "controlReceipt",
+      "checkpointResult",
+      "toolCallNotification",
+      "toolCancelNotification",
+      "toolRegistrationReceipt",
+      "toolResultReceipt",
       "errorResponse",
     ]);
     expect(PROTOCOL_V2_SCHEMA_FINGERPRINT).toMatch(/^sha256:[0-9a-f]{64}$/);
@@ -137,7 +147,13 @@ describe("CoreMind Protocol v2", () => {
           argumentsFingerprint,
           delegationInputFingerprint,
           risk: "high",
-          effect: { operations: ["read"], paths: [], urls: [], reversible: true, declared: true },
+          effect: {
+            operations: ["read"],
+            paths: [],
+            urls: [],
+            reversible: true,
+            declared: true,
+          },
         },
       }),
     ).toBe(true);
@@ -241,6 +257,231 @@ describe("CoreMind Protocol v2", () => {
         params: { runId: "run-1" },
       }),
     ).toMatchObject({ method: "query", params: { runId: "run-1" } });
+  });
+
+  it("在协议边界拒绝空白与控制字符 Branded ID", () => {
+    expect(() =>
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "run-invalid",
+        method: "run",
+        params: { runId: " \t" },
+      }),
+    ).toThrowError(/无效的 CoreMind Protocol v2 请求/);
+    expect(() =>
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "checkpoint-invalid",
+        method: "checkpoint",
+        params: {
+          schemaVersion: 1,
+          action: "create",
+          operationId: "operation\ninvalid",
+          runId: "run-1",
+          path: "result.txt",
+        },
+      }),
+    ).toThrowError(/无效的 CoreMind Protocol v2 请求/);
+    expect(() =>
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "tool-result-invalid",
+        method: "tool_result",
+        params: {
+          schemaVersion: 1,
+          resultId: "result-1",
+          runId: "run-1",
+          callId: "call\0invalid",
+          registrationId: "registration-1",
+          result: null,
+        },
+      }),
+    ).toThrowError(/无效的 CoreMind Protocol v2 请求/);
+  });
+
+  it("解析带身份、版本与显式恢复预期的 Checkpoint 操作", () => {
+    expect(
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "checkpoint-create-1",
+        method: "checkpoint",
+        params: {
+          schemaVersion: 1,
+          action: "create",
+          operationId: "checkpoint-operation-1",
+          runId: "run-1",
+          path: "result.txt",
+        },
+      }),
+    ).toMatchObject({ method: "checkpoint", params: { action: "create" } });
+    expect(
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "checkpoint-restore-1",
+        method: "checkpoint",
+        params: {
+          schemaVersion: 1,
+          action: "restore",
+          operationId: "checkpoint-operation-2",
+          runId: "run-1",
+          checkpointId: "checkpoint-1",
+          checkpointVersion: 1,
+          confirm: true,
+          expectedCurrent: { existed: true, sha256: "a".repeat(64) },
+        },
+      }),
+    ).toMatchObject({ method: "checkpoint", params: { action: "restore", confirm: true } });
+    expect(() =>
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "checkpoint-restore-unconfirmed",
+        method: "checkpoint",
+        params: {
+          schemaVersion: 1,
+          action: "restore",
+          operationId: "checkpoint-operation-3",
+          runId: "run-1",
+          checkpointId: "checkpoint-1",
+          checkpointVersion: 1,
+          confirm: false,
+          expectedCurrent: { existed: false, sha256: "a".repeat(64) },
+        },
+      }),
+    ).toThrowError(/无效的 CoreMind Protocol v2 请求/);
+    expect(
+      Value.Check(ProtocolV2CheckpointResultSchema, {
+        schemaVersion: 1,
+        action: "list",
+        runId: "run-1",
+        derivedFromSequence: 7,
+        checkpoints: [
+          {
+            checkpointVersion: 1,
+            checkpointId: "checkpoint-1",
+            runId: "run-1",
+            createdAt: "2026-08-30T00:00:00.000Z",
+            reversible: true,
+            path: "result.txt",
+            before: { existed: true, sha256: "a".repeat(64) },
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(JSON.stringify(ProtocolV2CheckpointResultSchema)).not.toMatch(
+      /snapshotFile|unifiedDiff/,
+    );
+    expect(
+      Value.Check(ProtocolV2CheckpointResultSchema, {
+        schemaVersion: 1,
+        action: "diff",
+        runId: "run-1",
+        checkpointId: "checkpoint-1",
+        checkpointVersion: 1,
+        changed: false,
+        reversible: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("解析声明式动态工具与绑定完整身份的结果桥", () => {
+    expect(
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "tool-register-1",
+        method: "tool_register",
+        params: {
+          schemaVersion: 1,
+          registrationId: "registration-1",
+          definitionVersion: 1,
+          toolId: "lookup-record",
+          name: "lookup_record",
+          description: "读取一条记录",
+          parameters: { type: "object", properties: { id: { type: "string" } } },
+          effect: { operations: ["read"], reversible: true },
+          capability: {
+            effect: "none",
+            replay: "safe",
+            concurrency: "parallel",
+            checkpoint: "none",
+            durability: "ordinary",
+          },
+        },
+      }),
+    ).toMatchObject({ method: "tool_register", params: { registrationId: "registration-1" } });
+    expect(
+      parseProtocolV2Request({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "tool-result-1",
+        method: "tool_result",
+        params: {
+          schemaVersion: 1,
+          resultId: "result-1",
+          runId: "run-1",
+          callId: "call-1",
+          registrationId: "registration-1",
+          result: { value: 42 },
+        },
+      }),
+    ).toMatchObject({ method: "tool_result", params: { resultId: "result-1" } });
+    expect(
+      Value.Check(ProtocolV2ToolCallNotificationSchema, {
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        method: "tool_call",
+        params: {
+          schemaVersion: 1,
+          runId: "run-1",
+          callId: "call-1",
+          registrationId: "registration-1",
+          toolId: "lookup-record",
+          name: "lookup_record",
+          argumentsFingerprint: `sha256:${"b".repeat(64)}`,
+          args: { id: "42" },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2ToolCancelNotificationSchema, {
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        method: "tool_cancel",
+        params: {
+          schemaVersion: 1,
+          runId: "run-1",
+          callId: "call-1",
+          registrationId: "registration-1",
+          toolId: "lookup-record",
+          reason: "aborted",
+        },
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2ToolRegistrationReceiptSchema, {
+        schemaVersion: 1,
+        registrationId: "registration-1",
+        toolId: "lookup-record",
+        definitionFingerprint: `sha256:${"c".repeat(64)}`,
+        status: "registered",
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(ProtocolV2ToolResultReceiptSchema, {
+        schemaVersion: 1,
+        resultId: "result-1",
+        runId: "run-1",
+        callId: "call-1",
+        registrationId: "registration-1",
+        status: "duplicate",
+      }),
+    ).toBe(true);
   });
 
   it("解析 Delegation Disposition 控制并在 RunHandle 中公开该能力", () => {

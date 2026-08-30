@@ -7,6 +7,10 @@ export const PROTOCOL_V2_VERSION = "2.0" as const;
 
 const RpcIdSchema = Type.Union([Type.String(), Type.Number()]);
 const VersionSchema = Type.String({ pattern: "^[0-9]+\\.[0-9]+$" });
+const BrandedIdSchema = Type.String({
+  maxLength: 256,
+  pattern: "^[^\\s\\u0000-\\u001f\\u007f]+$",
+});
 
 export const ProtocolV2InitializeRequestSchema = Type.Object(
   {
@@ -29,7 +33,7 @@ export const ProtocolV2InitializeRequestSchema = Type.Object(
         configPath: Type.Optional(Type.String({ minLength: 1 })),
         configDir: Type.Optional(Type.String({ minLength: 1 })),
         cwd: Type.Optional(Type.String({ minLength: 1 })),
-        sessionId: Type.Optional(Type.String({ minLength: 1 })),
+        sessionId: Type.Optional(BrandedIdSchema),
       },
       { additionalProperties: false },
     ),
@@ -45,7 +49,7 @@ export const ProtocolV2RunRequestSchema = Type.Object(
     method: Type.Literal("run"),
     params: Type.Object(
       {
-        runId: Type.String({ minLength: 1 }),
+        runId: BrandedIdSchema,
         input: Type.Optional(Type.String()),
       },
       { additionalProperties: false },
@@ -62,7 +66,7 @@ export const ProtocolV2ChatRequestSchema = Type.Object(
     method: Type.Literal("chat"),
     params: Type.Object(
       {
-        runId: Type.String({ minLength: 1 }),
+        runId: BrandedIdSchema,
         agent: Type.String({ minLength: 1 }),
         message: Type.String(),
       },
@@ -80,7 +84,7 @@ export const ProtocolV2ResumeRequestSchema = Type.Object(
     method: Type.Literal("resume"),
     params: Type.Object(
       {
-        runId: Type.String({ minLength: 1 }),
+        runId: BrandedIdSchema,
         input: Type.Optional(Type.String()),
       },
       { additionalProperties: false },
@@ -91,8 +95,8 @@ export const ProtocolV2ResumeRequestSchema = Type.Object(
 
 const ProtocolV2ControlBaseSchema = Type.Object({
   schemaVersion: Type.Literal(1),
-  controlId: Type.String({ minLength: 1 }),
-  runId: Type.String({ minLength: 1 }),
+  controlId: BrandedIdSchema,
+  runId: BrandedIdSchema,
 });
 
 export const ProtocolV2ControlCommandSchema = Type.Union([
@@ -104,7 +108,7 @@ export const ProtocolV2ControlCommandSchema = Type.Union([
     ProtocolV2ControlBaseSchema,
     Type.Object({
       type: Type.Literal("approval"),
-      approvalId: Type.String({ minLength: 1 }),
+      approvalId: BrandedIdSchema,
       decision: Type.Union([Type.Literal("allow"), Type.Literal("deny")]),
     }),
   ]),
@@ -120,7 +124,7 @@ export const ProtocolV2ControlCommandSchema = Type.Union([
     ProtocolV2ControlBaseSchema,
     Type.Object({
       type: Type.Literal("delegation_disposition"),
-      delegationId: Type.String({ minLength: 1 }),
+      delegationId: BrandedIdSchema,
       action: Type.Union([
         Type.Literal("accept_failure"),
         Type.Literal("choose_alternative"),
@@ -151,7 +155,7 @@ export const ProtocolV2EventsRequestSchema = Type.Object(
     method: Type.Literal("events"),
     params: Type.Object(
       {
-        runId: Type.String({ minLength: 1 }),
+        runId: BrandedIdSchema,
         afterSequence: Type.Integer({ minimum: 0 }),
         limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 1_000 })),
       },
@@ -167,7 +171,160 @@ export const ProtocolV2QueryRequestSchema = Type.Object(
     protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
     id: RpcIdSchema,
     method: Type.Literal("query"),
-    params: Type.Object({ runId: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
+    params: Type.Object({ runId: BrandedIdSchema }, { additionalProperties: false }),
+  },
+  { additionalProperties: false },
+);
+
+const ProtocolV2CheckpointBaseSchema = Type.Object({
+  schemaVersion: Type.Literal(1),
+  runId: BrandedIdSchema,
+});
+
+const ProtocolV2FileStateSchema = Type.Object(
+  {
+    existed: Type.Boolean(),
+    sha256: Type.Optional(Type.String({ pattern: "^[0-9a-f]{64}$" })),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2CheckpointRequestSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    id: RpcIdSchema,
+    method: Type.Literal("checkpoint"),
+    params: Type.Union([
+      Type.Composite([
+        ProtocolV2CheckpointBaseSchema,
+        Type.Object({ action: Type.Literal("list") }),
+      ]),
+      Type.Composite([
+        ProtocolV2CheckpointBaseSchema,
+        Type.Object({
+          action: Type.Literal("create"),
+          operationId: BrandedIdSchema,
+          path: Type.String({ minLength: 1 }),
+        }),
+      ]),
+      Type.Composite([
+        ProtocolV2CheckpointBaseSchema,
+        Type.Object({
+          action: Type.Literal("diff"),
+          checkpointId: BrandedIdSchema,
+          checkpointVersion: Type.Literal(1),
+        }),
+      ]),
+      Type.Composite([
+        ProtocolV2CheckpointBaseSchema,
+        Type.Object({
+          action: Type.Literal("restore"),
+          operationId: BrandedIdSchema,
+          checkpointId: BrandedIdSchema,
+          checkpointVersion: Type.Literal(1),
+          confirm: Type.Literal(true),
+          expectedCurrent: ProtocolV2FileStateSchema,
+        }),
+      ]),
+    ]),
+  },
+  { additionalProperties: false },
+);
+
+const ProtocolV2ToolEffectSchema = Type.Object(
+  {
+    operations: Type.Array(
+      Type.Union([
+        Type.Literal("read"),
+        Type.Literal("write"),
+        Type.Literal("process"),
+        Type.Literal("network"),
+        Type.Literal("external"),
+      ]),
+      { minItems: 1, uniqueItems: true },
+    ),
+    reversible: Type.Boolean(),
+    pathFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    urlFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+  },
+  { additionalProperties: false },
+);
+
+const ProtocolV2ToolCapabilitySchema = Type.Object(
+  {
+    effect: Type.Union([
+      Type.Literal("none"),
+      Type.Literal("workspace"),
+      Type.Literal("process"),
+      Type.Literal("network"),
+      Type.Literal("external"),
+      Type.Literal("unknown"),
+    ]),
+    replay: Type.Union([
+      Type.Literal("safe"),
+      Type.Literal("idempotent"),
+      Type.Literal("unsafe"),
+      Type.Literal("unknown"),
+    ]),
+    concurrency: Type.Union([
+      Type.Literal("parallel"),
+      Type.Literal("run_serial"),
+      Type.Literal("workspace_exclusive"),
+    ]),
+    checkpoint: Type.Union([
+      Type.Literal("none"),
+      Type.Literal("required"),
+      Type.Literal("unsupported"),
+    ]),
+    durability: Type.Union([Type.Literal("ordinary"), Type.Literal("critical")]),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2ToolRegisterRequestSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    id: RpcIdSchema,
+    method: Type.Literal("tool_register"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        registrationId: BrandedIdSchema,
+        definitionVersion: Type.Literal(1),
+        toolId: BrandedIdSchema,
+        name: Type.String({ minLength: 1 }),
+        label: Type.Optional(Type.String({ minLength: 1 })),
+        description: Type.String({ minLength: 1 }),
+        parameters: Type.Object({ type: Type.Literal("object") }, { additionalProperties: true }),
+        effect: ProtocolV2ToolEffectSchema,
+        capability: ProtocolV2ToolCapabilitySchema,
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2ToolResultRequestSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    id: RpcIdSchema,
+    method: Type.Literal("tool_result"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        resultId: BrandedIdSchema,
+        runId: BrandedIdSchema,
+        callId: BrandedIdSchema,
+        registrationId: BrandedIdSchema,
+        result: Type.Optional(Type.Unknown()),
+        error: Type.Optional(Type.String({ minLength: 1 })),
+      },
+      { additionalProperties: false },
+    ),
   },
   { additionalProperties: false },
 );
@@ -180,6 +337,9 @@ export const ProtocolV2RequestSchema = Type.Union([
   ProtocolV2ControlRequestSchema,
   ProtocolV2EventsRequestSchema,
   ProtocolV2QueryRequestSchema,
+  ProtocolV2CheckpointRequestSchema,
+  ProtocolV2ToolRegisterRequestSchema,
+  ProtocolV2ToolResultRequestSchema,
 ]);
 
 const ProtocolV2TimestampSchema = Type.String({
@@ -207,7 +367,7 @@ export const ProtocolV2InitializeResultSchema = Type.Object(
 
 export const ProtocolV2RunHandleSchema = Type.Object(
   {
-    runId: Type.String({ minLength: 1 }),
+    runId: BrandedIdSchema,
     acceptedAt: ProtocolV2TimestampSchema,
     initialCursor: Type.Literal(0),
     selectedProtocol: Type.Literal(PROTOCOL_V2_VERSION),
@@ -229,18 +389,18 @@ const ProtocolV2EventEnvelopeBaseSchema = Type.Object(
   {
     protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
     eventSchemaVersion: Type.Literal(1),
-    runId: Type.String({ minLength: 1 }),
+    runId: BrandedIdSchema,
     sequence: Type.Integer({ minimum: 1 }),
-    eventId: Type.String({ minLength: 1 }),
+    eventId: BrandedIdSchema,
     timestamp: ProtocolV2TimestampSchema,
-    turnId: Type.Optional(Type.String({ minLength: 1 })),
-    stepId: Type.Optional(Type.String({ minLength: 1 })),
-    callId: Type.Optional(Type.String({ minLength: 1 })),
-    approvalId: Type.Optional(Type.String({ minLength: 1 })),
-    receiptId: Type.Optional(Type.String({ minLength: 1 })),
-    parentRunId: Type.Optional(Type.String({ minLength: 1 })),
-    childRunId: Type.Optional(Type.String({ minLength: 1 })),
-    delegationId: Type.Optional(Type.String({ minLength: 1 })),
+    turnId: Type.Optional(BrandedIdSchema),
+    stepId: Type.Optional(BrandedIdSchema),
+    callId: Type.Optional(BrandedIdSchema),
+    approvalId: Type.Optional(BrandedIdSchema),
+    receiptId: Type.Optional(BrandedIdSchema),
+    parentRunId: Type.Optional(BrandedIdSchema),
+    childRunId: Type.Optional(BrandedIdSchema),
+    delegationId: Type.Optional(BrandedIdSchema),
     ignorable: Type.Boolean(),
     sensitivity: Type.Literal("local"),
   },
@@ -248,6 +408,7 @@ const ProtocolV2EventEnvelopeBaseSchema = Type.Object(
 );
 
 const OptionalString = Type.Optional(Type.String());
+const OptionalBrandedId = Type.Optional(BrandedIdSchema);
 const OptionalNumber = Type.Optional(Type.Number());
 const OptionalBoolean = Type.Optional(Type.Boolean());
 const StringArray = Type.Array(Type.String());
@@ -321,11 +482,11 @@ const ToolEffectSchema = Type.Object(
 const EffectReceiptBindingSchema = Type.Object(
   {
     version: Type.Literal(1),
-    runId: Type.String(),
-    turnId: Type.String(),
+    runId: BrandedIdSchema,
+    turnId: BrandedIdSchema,
     agent: Type.String(),
-    stepId: OptionalString,
-    callId: Type.String(),
+    stepId: OptionalBrandedId,
+    callId: BrandedIdSchema,
     tool: Type.String(),
     argumentsFingerprint: Type.String(),
     capabilityFingerprint: Type.String(),
@@ -418,8 +579,8 @@ const ProtocolV2EventPayloadSchemas = [
     {
       type: Type.Literal("agent_start"),
       agent: Type.String(),
-      stepId: OptionalString,
-      turnId: OptionalString,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
@@ -427,8 +588,8 @@ const ProtocolV2EventPayloadSchemas = [
     {
       type: Type.Literal("turn_end"),
       agent: Type.String(),
-      stepId: OptionalString,
-      turnId: OptionalString,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
       tokens: OptionalNumber,
       inputTokens: OptionalNumber,
       outputTokens: OptionalNumber,
@@ -447,7 +608,7 @@ const ProtocolV2EventPayloadSchemas = [
       type: Type.Literal("text_delta"),
       agent: Type.String(),
       delta: Type.String(),
-      stepId: OptionalString,
+      stepId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
@@ -458,10 +619,10 @@ const ProtocolV2EventPayloadSchemas = [
       tool: Type.String(),
       args: Type.Unknown(),
       argumentsFingerprint: OptionalString,
-      callId: OptionalString,
-      idempotencyKey: OptionalString,
-      stepId: OptionalString,
-      turnId: OptionalString,
+      callId: OptionalBrandedId,
+      idempotencyKey: OptionalBrandedId,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
@@ -471,23 +632,23 @@ const ProtocolV2EventPayloadSchemas = [
       agent: Type.String(),
       tool: Type.String(),
       isError: Type.Boolean(),
-      callId: OptionalString,
-      idempotencyKey: OptionalString,
-      stepId: OptionalString,
-      turnId: OptionalString,
+      callId: OptionalBrandedId,
+      idempotencyKey: OptionalBrandedId,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
   Type.Object(
     {
       type: Type.Literal("tool_attempt"),
-      attemptId: Type.String(),
-      previousReceiptId: Type.String(),
+      attemptId: BrandedIdSchema,
+      previousReceiptId: BrandedIdSchema,
       attempt: Type.Integer({ minimum: 1 }),
       agent: Type.String(),
       tool: Type.String(),
-      callId: Type.String(),
-      stepId: OptionalString,
+      callId: BrandedIdSchema,
+      stepId: OptionalBrandedId,
       argumentsFingerprint: Type.String(),
     },
     { additionalProperties: false },
@@ -497,8 +658,8 @@ const ProtocolV2EventPayloadSchemas = [
       type: Type.Literal("capability_resolved"),
       agent: Type.String(),
       tool: Type.String(),
-      callId: Type.String(),
-      stepId: OptionalString,
+      callId: BrandedIdSchema,
+      stepId: OptionalBrandedId,
       capability: ResolvedToolCapabilitySchema,
       recoveryDisposition: RecoveryDispositionSchema,
     },
@@ -519,19 +680,19 @@ const ProtocolV2EventPayloadSchemas = [
         Type.Literal("workspace_exclusive"),
       ]),
       owner: Type.Object(
-        { runId: Type.String(), callId: Type.String(), pid: Type.Integer() },
+        { runId: BrandedIdSchema, callId: BrandedIdSchema, pid: Type.Integer() },
         { additionalProperties: false },
       ),
       agent: Type.String(),
-      callId: Type.String(),
-      stepId: OptionalString,
+      callId: BrandedIdSchema,
+      stepId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
   Type.Object(
     {
       type: Type.Literal("effect_receipt"),
-      idempotencyKey: Type.String(),
+      idempotencyKey: BrandedIdSchema,
       tool: Type.String(),
       status: Type.Union([
         Type.Literal("not_started"),
@@ -540,21 +701,21 @@ const ProtocolV2EventPayloadSchemas = [
         Type.Literal("unknown"),
       ]),
       agent: OptionalString,
-      callId: OptionalString,
-      stepId: OptionalString,
-      turnId: OptionalString,
+      callId: OptionalBrandedId,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
       binding: Type.Optional(EffectReceiptBindingSchema),
     },
     { additionalProperties: false },
   ),
   Type.Object(
-    { type: Type.Literal("step_start"), stepId: Type.String(), kind: Type.String() },
+    { type: Type.Literal("step_start"), stepId: BrandedIdSchema, kind: Type.String() },
     { additionalProperties: false },
   ),
   Type.Object(
     {
       type: Type.Literal("step_output"),
-      stepId: Type.String(),
+      stepId: BrandedIdSchema,
       agent: Type.String(),
       text: Type.String(),
       saveAs: OptionalString,
@@ -562,11 +723,11 @@ const ProtocolV2EventPayloadSchemas = [
     { additionalProperties: false },
   ),
   Type.Object(
-    { type: Type.Literal("step_resumed"), stepId: Type.String() },
+    { type: Type.Literal("step_resumed"), stepId: BrandedIdSchema },
     { additionalProperties: false },
   ),
   Type.Object(
-    { type: Type.Literal("step_end"), stepId: Type.String(), ok: Type.Boolean() },
+    { type: Type.Literal("step_end"), stepId: BrandedIdSchema, ok: Type.Boolean() },
     { additionalProperties: false },
   ),
   Type.Object(
@@ -610,15 +771,15 @@ const ProtocolV2EventPayloadSchemas = [
       type: Type.Literal("retry"),
       scope: Type.Union([Type.Literal("provider"), Type.Literal("workflow")]),
       attempt: Type.Integer({ minimum: 1 }),
-      stepId: OptionalString,
+      stepId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
   Type.Object(
     {
       type: Type.Literal("approval_required"),
-      approvalId: Type.String(),
-      runId: Type.String(),
+      approvalId: BrandedIdSchema,
+      runId: BrandedIdSchema,
       agent: Type.String(),
       tool: Type.String(),
       args: Type.Unknown(),
@@ -633,8 +794,8 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("approval_resolved"),
-      approvalId: Type.String(),
-      runId: Type.String(),
+      approvalId: BrandedIdSchema,
+      runId: BrandedIdSchema,
       decision: Type.Union([Type.Literal("allow"), Type.Literal("deny")]),
       argumentsFingerprint: Type.Optional(Type.String({ pattern: "^[a-f0-9]{64}$" })),
       delegationInputFingerprint: Type.Optional(Type.String({ pattern: "^sha256:[a-f0-9]{64}$" })),
@@ -759,7 +920,7 @@ const ProtocolV2EventPayloadSchemas = [
       type: Type.Literal("provider_request"),
       requestId: Type.String(),
       agent: Type.String(),
-      stepId: OptionalString,
+      stepId: OptionalBrandedId,
       providerId: Type.String(),
       modelId: Type.String(),
       messageFingerprint: Type.String(),
@@ -773,7 +934,7 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("artifact_created"),
-      artifactId: Type.String(),
+      artifactId: BrandedIdSchema,
       status: Type.Union([Type.Literal("stored"), Type.Literal("blocked")]),
       sizeBytes: Type.Number(),
       relativePath: OptionalString,
@@ -781,14 +942,14 @@ const ProtocolV2EventPayloadSchemas = [
       mediaType: Type.String(),
       redaction: Type.Union([Type.Literal("none"), Type.Literal("blocked-secret")]),
       tool: Type.String(),
-      callId: OptionalString,
+      callId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
   Type.Object(
     {
       type: Type.Literal("extension_lifecycle"),
-      extensionId: Type.String(),
+      extensionId: BrandedIdSchema,
       extensionVersion: Type.String(),
       lifecycle: Type.Union([
         Type.Literal("before-model"),
@@ -810,10 +971,10 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("checkpoint_created"),
-      checkpointId: Type.String(),
+      checkpointId: BrandedIdSchema,
       tool: Type.String(),
-      callId: OptionalString,
-      idempotencyKey: OptionalString,
+      callId: OptionalBrandedId,
+      idempotencyKey: OptionalBrandedId,
       targetPath: OptionalString,
       reversible: Type.Boolean(),
     },
@@ -824,8 +985,8 @@ const ProtocolV2EventPayloadSchemas = [
       type: Type.Literal("tool_execution_evidence"),
       agent: Type.String(),
       tool: Type.String(),
-      callId: Type.String(),
-      stepId: OptionalString,
+      callId: BrandedIdSchema,
+      stepId: OptionalBrandedId,
       execution: Type.Object(
         {
           durationMs: Type.Number(),
@@ -841,7 +1002,7 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("engineering_evidence"),
-      stepId: Type.String(),
+      stepId: BrandedIdSchema,
       textPassed: Type.Boolean(),
       passed: Type.Boolean(),
       successfulTestCommands: Type.Integer({ minimum: 0 }),
@@ -856,8 +1017,8 @@ const ProtocolV2EventPayloadSchemas = [
     {
       type: Type.Literal("agent_end"),
       agent: Type.String(),
-      stepId: OptionalString,
-      turnId: OptionalString,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
     },
     { additionalProperties: false },
   ),
@@ -868,7 +1029,7 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("input_receipt"),
-      inputId: Type.String(),
+      inputId: BrandedIdSchema,
       status: Type.Literal("pending"),
       contentFingerprint: Type.String(),
       timestamp: ProtocolV2TimestampSchema,
@@ -878,9 +1039,9 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("input_claimed"),
-      inputId: Type.String(),
+      inputId: BrandedIdSchema,
       status: Type.Literal("claimed"),
-      turnId: Type.String(),
+      turnId: BrandedIdSchema,
       timestamp: ProtocolV2TimestampSchema,
     },
     { additionalProperties: false },
@@ -888,7 +1049,7 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("input_completed"),
-      inputId: Type.String(),
+      inputId: BrandedIdSchema,
       status: Type.Literal("completed"),
       timestamp: ProtocolV2TimestampSchema,
     },
@@ -897,7 +1058,7 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("input_discarded"),
-      inputId: Type.String(),
+      inputId: BrandedIdSchema,
       status: Type.Literal("discarded"),
       timestamp: ProtocolV2TimestampSchema,
     },
@@ -911,10 +1072,10 @@ const ProtocolV2EventPayloadSchemas = [
     {
       type: Type.Literal("tool_lifecycle"),
       agent: Type.String(),
-      callId: Type.String(),
+      callId: BrandedIdSchema,
       tool: Type.String(),
-      stepId: OptionalString,
-      turnId: OptionalString,
+      stepId: OptionalBrandedId,
+      turnId: OptionalBrandedId,
       resolution: ToolCallPhaseResolutionSchema,
     },
     { additionalProperties: false },
@@ -949,7 +1110,7 @@ export const ProtocolV2EventEnvelopeSchema = Type.Union([
 export const ProtocolV2EventPageSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
-    runId: Type.String({ minLength: 1 }),
+    runId: BrandedIdSchema,
     afterSequence: Type.Integer({ minimum: 0 }),
     nextCursor: Type.Integer({ minimum: 0 }),
     hasMore: Type.Boolean(),
@@ -961,7 +1122,7 @@ export const ProtocolV2EventPageSchema = Type.Object(
 export const ProtocolV2QueryResultSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
-    runId: Type.String({ minLength: 1 }),
+    runId: BrandedIdSchema,
     derivedFromSequence: Type.Integer({ minimum: 1 }),
     projection: Type.Unknown(),
   },
@@ -971,8 +1132,8 @@ export const ProtocolV2QueryResultSchema = Type.Object(
 export const ProtocolV2ControlReceiptSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
-    controlId: Type.String({ minLength: 1 }),
-    runId: Type.String({ minLength: 1 }),
+    controlId: BrandedIdSchema,
+    runId: BrandedIdSchema,
     status: Type.Union([
       Type.Literal("accepted"),
       Type.Literal("applied"),
@@ -987,6 +1148,149 @@ export const ProtocolV2ControlReceiptSchema = Type.Object(
       Type.Union([Type.Literal("accepted"), Type.Literal("applied"), Type.Literal("rejected")]),
     ),
     reason: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2PublicCheckpointSchema = Type.Object(
+  {
+    checkpointVersion: Type.Literal(1),
+    checkpointId: BrandedIdSchema,
+    runId: BrandedIdSchema,
+    operationId: Type.Optional(BrandedIdSchema),
+    createdAt: ProtocolV2TimestampSchema,
+    reversible: Type.Boolean(),
+    path: Type.Optional(Type.String({ minLength: 1 })),
+    before: Type.Optional(ProtocolV2FileStateSchema),
+    after: Type.Optional(ProtocolV2FileStateSchema),
+    reason: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2CheckpointResultSchema = Type.Union([
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("list"),
+      runId: BrandedIdSchema,
+      derivedFromSequence: Type.Integer({ minimum: 1 }),
+      checkpoints: Type.Array(ProtocolV2PublicCheckpointSchema),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("create"),
+      operationId: BrandedIdSchema,
+      status: Type.Union([Type.Literal("applied"), Type.Literal("duplicate")]),
+      runId: BrandedIdSchema,
+      checkpoint: ProtocolV2PublicCheckpointSchema,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("diff"),
+      runId: BrandedIdSchema,
+      checkpointId: BrandedIdSchema,
+      checkpointVersion: Type.Literal(1),
+      path: Type.Optional(Type.String({ minLength: 1 })),
+      changed: Type.Boolean(),
+      before: Type.Optional(ProtocolV2FileStateSchema),
+      current: ProtocolV2FileStateSchema,
+      reversible: Type.Boolean(),
+      reason: Type.Optional(Type.String()),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("restore"),
+      operationId: BrandedIdSchema,
+      status: Type.Union([Type.Literal("applied"), Type.Literal("duplicate")]),
+      runId: BrandedIdSchema,
+      checkpointId: BrandedIdSchema,
+      checkpointVersion: Type.Literal(1),
+    },
+    { additionalProperties: false },
+  ),
+]);
+
+export const ProtocolV2ToolCallNotificationSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    method: Type.Literal("tool_call"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        runId: BrandedIdSchema,
+        callId: BrandedIdSchema,
+        registrationId: BrandedIdSchema,
+        toolId: BrandedIdSchema,
+        name: Type.String({ minLength: 1 }),
+        argumentsFingerprint: Type.String({ pattern: "^sha256:[0-9a-f]{64}$" }),
+        args: Type.Unknown(),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2ToolCancelNotificationSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    method: Type.Literal("tool_cancel"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        runId: BrandedIdSchema,
+        callId: BrandedIdSchema,
+        registrationId: BrandedIdSchema,
+        toolId: BrandedIdSchema,
+        reason: Type.Literal("aborted"),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2ToolRegistrationReceiptSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    registrationId: BrandedIdSchema,
+    toolId: BrandedIdSchema,
+    definitionFingerprint: Type.String({ pattern: "^sha256:[0-9a-f]{64}$" }),
+    status: Type.Union([
+      Type.Literal("registered"),
+      Type.Literal("duplicate"),
+      Type.Literal("conflict"),
+    ]),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2ToolResultReceiptSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    resultId: BrandedIdSchema,
+    runId: BrandedIdSchema,
+    callId: BrandedIdSchema,
+    registrationId: BrandedIdSchema,
+    status: Type.Union([
+      Type.Literal("accepted"),
+      Type.Literal("duplicate"),
+      Type.Literal("conflict"),
+      Type.Literal("unknown"),
+      Type.Literal("late"),
+    ]),
   },
   { additionalProperties: false },
 );
@@ -1024,6 +1328,11 @@ export const PROTOCOL_V2_SCHEMA_BUNDLE = {
   eventPage: ProtocolV2EventPageSchema,
   queryResult: ProtocolV2QueryResultSchema,
   controlReceipt: ProtocolV2ControlReceiptSchema,
+  checkpointResult: ProtocolV2CheckpointResultSchema,
+  toolCallNotification: ProtocolV2ToolCallNotificationSchema,
+  toolCancelNotification: ProtocolV2ToolCancelNotificationSchema,
+  toolRegistrationReceipt: ProtocolV2ToolRegistrationReceiptSchema,
+  toolResultReceipt: ProtocolV2ToolResultReceiptSchema,
   errorResponse: ProtocolV2ErrorResponseSchema,
 } as const;
 
@@ -1043,6 +1352,9 @@ export type ProtocolV2ControlCommand = Static<typeof ProtocolV2ControlCommandSch
 export type ProtocolV2ControlRequest = Static<typeof ProtocolV2ControlRequestSchema>;
 export type ProtocolV2EventsRequest = Static<typeof ProtocolV2EventsRequestSchema>;
 export type ProtocolV2QueryRequest = Static<typeof ProtocolV2QueryRequestSchema>;
+export type ProtocolV2CheckpointRequest = Static<typeof ProtocolV2CheckpointRequestSchema>;
+export type ProtocolV2ToolRegisterRequest = Static<typeof ProtocolV2ToolRegisterRequestSchema>;
+export type ProtocolV2ToolResultRequest = Static<typeof ProtocolV2ToolResultRequestSchema>;
 export type ProtocolV2Request = Static<typeof ProtocolV2RequestSchema>;
 export type ProtocolV2InitializeResult = Static<typeof ProtocolV2InitializeResultSchema>;
 export type ProtocolV2RunHandle = Static<typeof ProtocolV2RunHandleSchema>;
@@ -1050,6 +1362,16 @@ export type ProtocolV2EventEnvelope = Static<typeof ProtocolV2EventEnvelopeSchem
 export type ProtocolV2EventPage = Static<typeof ProtocolV2EventPageSchema>;
 export type ProtocolV2QueryResult = Static<typeof ProtocolV2QueryResultSchema>;
 export type ProtocolV2ControlReceipt = Static<typeof ProtocolV2ControlReceiptSchema>;
+export type ProtocolV2PublicCheckpoint = Static<typeof ProtocolV2PublicCheckpointSchema>;
+export type ProtocolV2CheckpointResult = Static<typeof ProtocolV2CheckpointResultSchema>;
+export type ProtocolV2ToolCallNotification = Static<typeof ProtocolV2ToolCallNotificationSchema>;
+export type ProtocolV2ToolCancelNotification = Static<
+  typeof ProtocolV2ToolCancelNotificationSchema
+>;
+export type ProtocolV2ToolRegistrationReceipt = Static<
+  typeof ProtocolV2ToolRegistrationReceiptSchema
+>;
+export type ProtocolV2ToolResultReceipt = Static<typeof ProtocolV2ToolResultReceiptSchema>;
 export type ProtocolVersionRange = ProtocolV2InitializeRequest["params"]["protocolRange"];
 
 export class ProtocolV2ValidationError extends Error {
@@ -1100,6 +1422,21 @@ export function parseProtocolV2Request(value: unknown): ProtocolV2Request {
     const hasConfigPath = parsed.params.configPath !== undefined;
     if (hasConfig === hasConfigPath) {
       throw new ProtocolV2ValidationError("initialize 必须且只能提供 config 或 configPath 之一");
+    }
+  }
+  if (parsed.method === "checkpoint" && parsed.params.action === "restore") {
+    const expected = parsed.params.expectedCurrent;
+    if (expected.existed !== (expected.sha256 !== undefined)) {
+      throw new ProtocolV2ValidationError(
+        "checkpoint restore 的 expectedCurrent.sha256 必须且只能在文件存在时提供",
+      );
+    }
+  }
+  if (parsed.method === "tool_result") {
+    const hasResult = parsed.params.result !== undefined;
+    const hasError = parsed.params.error !== undefined;
+    if (hasResult === hasError) {
+      throw new ProtocolV2ValidationError("tool_result 必须且只能提供 result 或 error 之一");
     }
   }
   return parsed;

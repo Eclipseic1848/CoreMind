@@ -1,11 +1,19 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { Ajv } from "ajv";
 import {
   BUILTIN_TOOL_IDS,
   TOOL_EFFECT_OPERATIONS,
   type ToolEffectDeclaration,
+  toolEffectOperationsForCapability,
 } from "coremind-config";
-import type { ToolCapabilityDeclaration } from "coremind-tools";
+import {
+  inferLegacyToolCapability,
+  resolveToolCapability,
+  type ToolCapabilityDeclaration,
+} from "coremind-tools";
 import { CoreMindError } from "./errors.js";
+
+const JSON_SCHEMA_VALIDATOR = new Ajv({ logger: false, strict: false });
 
 export interface JsonObjectSchema extends Record<string, unknown> {
   type: "object";
@@ -53,10 +61,13 @@ export function defineTool<TArgs>(
   if (definition.description.trim().length === 0) {
     throw new CoreMindError("invalid_tool", `工具 ${definition.name} 的 description 不能为空`);
   }
-  if (definition.parameters.type !== "object") {
+  if (
+    definition.parameters.type !== "object" ||
+    !JSON_SCHEMA_VALIDATOR.validateSchema(definition.parameters)
+  ) {
     throw new CoreMindError(
       "invalid_tool",
-      `工具 ${definition.name} 的 parameters.type 必须为 object`,
+      `工具 ${definition.name} 的 parameters 必须为有效的 object JSON Schema`,
     );
   }
   if (
@@ -71,6 +82,32 @@ export function defineTool<TArgs>(
       "invalid_tool",
       `工具 ${definition.name} 必须提供有效 effect 副作用声明`,
     );
+  }
+  if (definition.capability) {
+    const declared = resolveToolCapability({
+      tool: definition.name,
+      source: "registered",
+      declaration: definition.capability,
+    });
+    const inferred = inferLegacyToolCapability(definition.name, definition.effect);
+    const capabilityBaseline = inferLegacyToolCapability(definition.name, {
+      operations: toolEffectOperationsForCapability(declared.effect),
+      reversible: definition.effect.reversible,
+    });
+    if (
+      declared.resolution !== "resolved" ||
+      (declared.effect !== inferred.effect && declared.effect !== "unknown") ||
+      (declared.effect !== "none" && declared.durability !== "critical") ||
+      (declared.effect !== "none" && declared.checkpoint !== capabilityBaseline.checkpoint) ||
+      (definition.effect.reversible &&
+        declared.replay !== "safe" &&
+        declared.replay !== "idempotent")
+    ) {
+      throw new CoreMindError(
+        "invalid_tool",
+        `工具 ${definition.name} 的 effect 与 capability 不一致`,
+      );
+    }
   }
   return definition;
 }

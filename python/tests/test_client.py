@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
 
@@ -103,6 +105,83 @@ class CoreMindClientTest(unittest.TestCase):
         finally:
             client.close()
 
+    def test_protocol_v2_rejects_schema_fingerprint_drift(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "bad-fingerprint", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            with self.assertRaisesRegex(ProtocolError, "Schema 指纹不匹配"):
+                client.start()
+        finally:
+            client.close()
+
+    def test_protocol_v2_checkpoint_and_declaration_only_tool_bridge(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "demo-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            listed = client.checkpoint_list("python-v2-run")
+            created = client.checkpoint_create(
+                "python-v2-run", "result.txt", operation_id="create-python-1"
+            )
+            diff = client.checkpoint_diff("python-v2-run", "checkpoint-1")
+            restored = client.checkpoint_restore(
+                "python-v2-run",
+                "checkpoint-1",
+                confirm=True,
+                operation_id="restore-python-1",
+                expected_current=diff["current"],
+            )
+            registered = client.register_tool_definition(
+                {
+                    "schemaVersion": 1,
+                    "registrationId": "registration-python-1",
+                    "definitionVersion": 1,
+                    "toolId": "lookup-record",
+                    "name": "lookup_record",
+                    "description": "读取一条记录",
+                    "parameters": {"type": "object"},
+                    "effect": {"operations": ["read"], "reversible": True},
+                    "capability": {
+                        "effect": "none",
+                        "replay": "safe",
+                        "concurrency": "parallel",
+                        "checkpoint": "none",
+                        "durability": "ordinary",
+                    },
+                }
+            )
+            for _ in range(100):
+                if client.received_tool_calls:
+                    break
+                time.sleep(0.01)
+            call = client.received_tool_calls[0]
+            receipt = client.submit_tool_result(
+                call["runId"],
+                call["callId"],
+                call["registrationId"],
+                result={"value": 42},
+                result_id="result-python-1",
+            )
+
+            self.assertEqual(listed["checkpoints"][0]["path"], "result.txt")
+            self.assertNotIn("snapshotFile", json.dumps(listed))
+            self.assertEqual(created["status"], "applied")
+            self.assertEqual(restored["status"], "applied")
+            self.assertEqual(registered["status"], "registered")
+            self.assertEqual(call["toolId"], "lookup-record")
+            self.assertEqual(receipt["status"], "accepted")
+        finally:
+            client.close()
+
     def test_protocol_v2_cursor_expired_exposes_recovery_details(self) -> None:
         worker = Path(__file__).with_name("fake_worker.py")
         client = CoreMindClient(
@@ -119,6 +198,99 @@ class CoreMindClientTest(unittest.TestCase):
             self.assertEqual(captured.exception.details["recovery"]["newCursor"], 7)
         finally:
             client.close()
+
+    def test_protocol_v2_answers_approval_with_control(self) -> None:
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "approval-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+            approval_handler=lambda _event: "allow",
+        )
+        approval_id = "approval-python-v2"
+        command = {
+            "schemaVersion": 1,
+            "controlId": "19f7682c0637eab457591784742b05adb30be7e67e51049c4e4a49f598efc2cf",
+            "runId": "python-v2-run",
+            "type": "approval",
+            "approvalId": approval_id,
+            "decision": "allow",
+        }
+        with patch.object(
+            client,
+            "_request_raw",
+            return_value={**command, "status": "applied"},
+        ) as request:
+            client._answer_approval({"runId": "python-v2-run"}, {"approvalId": approval_id})
+
+        request.assert_called_once_with("control", command)
+
+    def test_protocol_v2_rejects_invalid_tool_call_id(self) -> None:
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "tool-call-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+        )
+        client._handle_notification(
+            {
+                "jsonrpc": "2.0",
+                "protocolVersion": "2.0",
+                "method": "tool_call",
+                "params": {
+                    "schemaVersion": 1,
+                    "runId": "python-v2-run",
+                    "callId": " \t",
+                    "registrationId": "registration-1",
+                    "toolId": "lookup-record",
+                    "name": "lookup_record",
+                    "argumentsFingerprint": f"sha256:{'a' * 64}",
+                    "args": {"id": "42"},
+                },
+            }
+        )
+
+        self.assertEqual(client.received_tool_calls, [])
+        self.assertIn("ToolCall 非法", client._stderr_tail[-1])
+
+    def test_protocol_v2_rejects_unknown_tool_call_fields_and_records_cancel(self) -> None:
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "tool-call-v2", "agents": {"main": {}}},
+            protocol_version="2.0",
+        )
+        params = {
+            "schemaVersion": 1,
+            "runId": "python-v2-run",
+            "callId": "call-1",
+            "registrationId": "registration-1",
+            "toolId": "lookup-record",
+            "name": "lookup_record",
+            "argumentsFingerprint": f"sha256:{'a' * 64}",
+            "args": {"id": "42"},
+        }
+        client._handle_notification(
+            {
+                "jsonrpc": "2.0",
+                "protocolVersion": "2.0",
+                "method": "tool_call",
+                "params": {**params, "unknown": True},
+            }
+        )
+        client._handle_notification(
+            {
+                "jsonrpc": "2.0",
+                "protocolVersion": "2.0",
+                "method": "tool_cancel",
+                "params": {
+                    "schemaVersion": 1,
+                    "runId": "python-v2-run",
+                    "callId": "call-1",
+                    "registrationId": "registration-1",
+                    "toolId": "lookup-record",
+                    "reason": "aborted",
+                },
+            }
+        )
+
+        self.assertEqual(client.received_tool_calls, [])
+        self.assertIn("ToolCall 非法", client._stderr_tail[-1])
+        self.assertEqual(client.received_tool_cancellations[0]["callId"], "call-1")
 
     def test_registration_failure_closes_worker(self) -> None:
         @self.client.tool(

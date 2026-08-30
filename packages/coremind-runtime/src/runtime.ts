@@ -268,6 +268,12 @@ export interface ProtocolStartIdentity {
   method: "run" | "chat" | "resume";
   fingerprint: string;
   acceptedAt: string;
+  toolRegistrations?: Array<{
+    registrationId: string;
+    toolId: string;
+    name: string;
+    definitionFingerprint: string;
+  }>;
 }
 
 export interface RunResult {

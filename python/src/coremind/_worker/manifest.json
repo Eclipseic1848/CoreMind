@@ -2,5 +2,7 @@
   "schemaVersion": 1,
   "version": "0.7.0",
   "protocolVersion": "1.0",
-  "bundleSha256": "ac8b0e6c034288eaaa9bf40b7d04c995c655d9f09c3ca161eca6f485ff19ba7d"
+  "protocolV2Version": "2.0",
+  "protocolV2SchemaFingerprint": "sha256:dba1fd217c8c0b1d02e3520a3e74ed8aa6beb9caceb20089ebe25960a8bcc67a",
+  "bundleSha256": "5f12f734d31e254fd550ae1bfbd22a20681f8c1d2138d9d7180720f5efece1e8"
 }
