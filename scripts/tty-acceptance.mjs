@@ -172,15 +172,25 @@ async function openTerminal(configPath, cwd, sessionId) {
     exit: async () => {
       await typeCommand(terminal, "/exit");
       let result;
+      let exitTimeout;
       try {
         result = await Promise.race([
           exitPromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("真实 TTY 未在退出命令后结束")), 5_000),
-          ),
+          new Promise((_, reject) => {
+            exitTimeout = setTimeout(
+              () => reject(new Error("真实 TTY 未在退出命令后结束")),
+              15_000,
+            );
+          }),
         ]);
       } finally {
-        terminal.kill();
+        clearTimeout(exitTimeout);
+        if (process.platform === "win32" && exitResult) {
+          // node-pty 1.1.0 在已退出 ConPTY 上调用 kill 会触发 AttachConsole 竞态；只释放遗留输入句柄。
+          terminal._agent?.inSocket?.destroy();
+        } else {
+          terminal.kill();
+        }
       }
       if (result.exitCode !== 0) throw new Error(`CLI 退出码应为 0，实际为 ${result.exitCode}`);
     },
