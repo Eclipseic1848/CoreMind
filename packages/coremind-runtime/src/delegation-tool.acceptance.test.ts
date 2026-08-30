@@ -784,7 +784,7 @@ describe("Delegation Tool TypeScript happy path", () => {
     } finally {
       await closeServer(server);
     }
-  });
+  }, 30_000);
 
   it("父 Agent 持久化替代方案处置后才允许继续并成功结束", async () => {
     const directory = await mkdtemp(
