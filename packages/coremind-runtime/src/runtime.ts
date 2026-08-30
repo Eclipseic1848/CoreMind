@@ -3341,7 +3341,7 @@ export async function buildAgentFromConfig(
 const DEFAULT_QUIESCENCE_TIMEOUT_MS = 5_000;
 
 /** 静止轮询间隔：兼顾及时性（Cancel → Quiescent p95 < 250ms）与避免忙等 */
-const QUIESCENCE_POLL_INTERVAL_MS = 10;
+const QUIESCENCE_POLL_INTERVAL_MS = 1;
 
 const DELEGATED_SAFE_BUILTIN_TOOLS = new Set(["web-fetch", "write"]);
 
