@@ -1,4 +1,7 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
@@ -157,6 +160,63 @@ describe("GitHub Actions 收口合同", () => {
     expect(engineeringConfig).toContain("scripts/vitest.config.ts");
     expect(engineeringConfig).not.toContain("trusted-tool-fault-matrix");
     expect(engineeringConfig).not.toContain("phase2-baseline");
+  });
+
+  it("候选稳定性三连按段执行，任一段失败立即停止", () => {
+    const directory = mkdtempSync(join(tmpdir(), "coremind-stability-contract-"));
+    const callsPath = join(directory, "calls.txt");
+    const npmCliPath = join(directory, "npm-cli.mjs");
+    const latency = "coremind-runtime-input-receipt-acceptance";
+    const faultMatrix = "trusted-tool-fault-matrix";
+    const remaining = `!${latency},!${faultMatrix}`;
+    writeFileSync(
+      npmCliPath,
+      `import { appendFileSync } from "node:fs";
+const projects = process.argv.filter((value) => value.startsWith("--project=")).map((value) => value.slice(10));
+const selector = projects.join(",");
+appendFileSync(process.env.COREMIND_TEST_CALLS, process.env.COREMIND_STABILITY_RUN + ":" + selector + "\\n", "utf8");
+if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
+`,
+      "utf8",
+    );
+
+    const run = (failSelector = "") => {
+      writeFileSync(callsPath, "", "utf8");
+      const env = Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "npm_execpath"),
+      );
+      const result = spawnSync(process.execPath, ["scripts/test-stability.mjs"], {
+        encoding: "utf8",
+        env: {
+          ...env,
+          COREMIND_TEST_CALLS: callsPath,
+          COREMIND_TEST_FAIL_SELECTOR: failSelector,
+          npm_execpath: npmCliPath,
+        },
+      });
+      const calls = readFileSync(callsPath, "utf8").trim().split("\n");
+      return { calls, status: result.status };
+    };
+
+    try {
+      expect(run()).toEqual({
+        calls: [1, 2, 3].flatMap((iteration) =>
+          [latency, faultMatrix, remaining].map((selector) => `${iteration}:${selector}`),
+        ),
+        status: 0,
+      });
+      expect(run(latency)).toEqual({ calls: [`1:${latency}`], status: 1 });
+      expect(run(faultMatrix)).toEqual({
+        calls: [`1:${latency}`, `1:${faultMatrix}`],
+        status: 1,
+      });
+      expect(run(remaining)).toEqual({
+        calls: [`1:${latency}`, `1:${faultMatrix}`, `1:${remaining}`],
+        status: 1,
+      });
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
   });
 
   it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
