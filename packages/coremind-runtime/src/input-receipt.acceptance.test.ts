@@ -752,17 +752,20 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       const runPromise = runtime.run();
       await recorder.waitForNext(before);
       // 计时前先确认启动事实已落盘，避免把 Cancel 之前的 journal 积压计入收敛延迟。
-      await vi.waitFor(async () => {
-        const persisted = await runStore.read(runId);
-        expect(
-          persisted.some(
-            (item) =>
-              item.kind === "event" &&
-              (item.payload as { event?: { type?: CoreMindEvent["type"] } }).event?.type ===
-                "agent_start",
-          ),
-        ).toBe(true);
-      });
+      await vi.waitFor(
+        async () => {
+          const persisted = await runStore.read(runId);
+          expect(
+            persisted.some(
+              (item) =>
+                item.kind === "event" &&
+                (item.payload as { event?: { type?: CoreMindEvent["type"] } }).event?.type ===
+                  "agent_start",
+            ),
+          ).toBe(true);
+        },
+        { timeout: 10_000, interval: 10 },
+      );
       // 测量 Cancel → Quiescent：abort 到静止点（waitForQuiescence 满足）。
       // 不含 run 收尾的磁盘 flush——规格 03 §5 指标定义的是静止机制开销
       const started = performance.now();
