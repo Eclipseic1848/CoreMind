@@ -4,10 +4,10 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CoreMindEvent } from "./events.js";
 import { foldInputReceipts, type InputId, inputFingerprint } from "./input-receipt.js";
-import { prepareRunResume, type RunStateRecord } from "./run-state.js";
+import { FileRunStore, prepareRunResume, type RunStateRecord } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 
 /**
@@ -722,9 +722,12 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       responseDelayMs: 300,
     });
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-receipt-p95-"));
+    const runStore = new FileRunStore(path.join(dir, "runs"));
     const samples: number[] = [];
+    let runSequence = 0;
     const runOnce = async (label: string, record: boolean): Promise<number> => {
       const controller = new AbortController();
+      const runId = `run-p95-${runSequence++}`;
       const runtime = await CoreMindRuntime.create({
         config: {
           schemaVersion: 2,
@@ -741,11 +744,25 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
         cwd: dir,
         initialPrompt: label,
         signal: controller.signal,
+        runStore,
+        runId,
       });
       // 等本轮请求真正发出（录制数在 run 启动前捕获，等待递增到新的一轮）
       const before = recorder.count();
       const runPromise = runtime.run();
       await recorder.waitForNext(before);
+      // 计时前先确认启动事实已落盘，避免把 Cancel 之前的 journal 积压计入收敛延迟。
+      await vi.waitFor(async () => {
+        const persisted = await runStore.read(runId);
+        expect(
+          persisted.some(
+            (item) =>
+              item.kind === "event" &&
+              (item.payload as { event?: { type?: CoreMindEvent["type"] } }).event?.type ===
+                "agent_start",
+          ),
+        ).toBe(true);
+      });
       // 测量 Cancel → Quiescent：abort 到静止点（waitForQuiescence 满足）。
       // 不含 run 收尾的磁盘 flush——规格 03 §5 指标定义的是静止机制开销
       const started = performance.now();
