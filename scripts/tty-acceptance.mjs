@@ -33,6 +33,7 @@ try {
   await basic.command("/help", "/artifacts");
   await basic.command("/status", "尚未完成任何运行。");
   await basic.command("TTY验收", "mock回复：TTY验收");
+  await basic.waitFor("succeeded · operation completed");
   await basic.exit();
   if (!existsSync(path.join(workspace, "sessions", "tty-session.jsonl"))) {
     throw new Error("成功运行后没有保存会话");
@@ -47,6 +48,7 @@ try {
   await denied.waitFor("权限审批：write");
   await denied.key("n");
   await denied.waitFor("运行暂停");
+  await denied.waitFor("paused · operation paused");
   if (existsSync(target)) throw new Error("拒绝审批后仍产生文件副作用");
   await denied.command("/checkpoints", "当前没有 checkpoint。");
   await denied.exit();
@@ -56,6 +58,7 @@ try {
   await allowed.waitFor("权限审批：write");
   await allowed.key("y");
   await allowed.waitFor("工具完成");
+  await allowed.waitFor("succeeded · operation completed");
   if (!existsSync(target)) throw new Error("批准审批后没有产生目标文件");
   await allowed.command("/checkpoints", "write · 可恢复");
   const checkpointId = allowed
@@ -72,6 +75,7 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await aborted.write("/abort");
   await aborted.waitFor("运行中止");
+  await aborted.waitFor("aborted · operation failed");
   await aborted.exit();
 
   const evidence = {
@@ -125,7 +129,6 @@ async function openTerminal(configPath, cwd, sessionId) {
     },
     ...(process.platform === "win32" ? { useConpty: true } : {}),
   });
-  const windowsConpty = process.platform === "win32" ? terminal._agent : undefined;
   let output = "";
   let rawOutput = "";
   let exitResult;
@@ -172,22 +175,10 @@ async function openTerminal(configPath, cwd, sessionId) {
     },
     exit: async () => {
       await typeCommand(terminal, "/exit");
-      let result;
       let exitTimeout;
-      let exitProbe;
       try {
-        result = await Promise.race([
+        const result = await Promise.race([
           exitPromise,
-          ...(windowsConpty
-            ? [
-                new Promise((resolve) => {
-                  exitProbe = setInterval(() => {
-                    const exitCode = windowsConpty.exitCode;
-                    if (exitCode !== undefined) resolve({ exitCode, signal: 0 });
-                  }, 25);
-                }),
-              ]
-            : []),
           new Promise((_, reject) => {
             exitTimeout = setTimeout(
               () => reject(new Error("真实 TTY 未在退出命令后结束")),
@@ -195,18 +186,11 @@ async function openTerminal(configPath, cwd, sessionId) {
             );
           }),
         ]);
+        if (result.exitCode !== 0) throw new Error(`CLI 退出码应为 0，实际为 ${result.exitCode}`);
       } finally {
         clearTimeout(exitTimeout);
-        clearInterval(exitProbe);
-        if (windowsConpty && (exitResult || result)) {
-          // node-pty 1.1.0 可能已收到进程退出码但未关闭 ConPTY 管道；直接释放遗留句柄。
-          windowsConpty.inSocket?.destroy();
-          windowsConpty.outSocket?.destroy();
-        } else {
-          terminal.kill();
-        }
+        if (!exitResult) process.kill(terminal.pid);
       }
-      if (result.exitCode !== 0) throw new Error(`CLI 退出码应为 0，实际为 ${result.exitCode}`);
     },
   };
 }
