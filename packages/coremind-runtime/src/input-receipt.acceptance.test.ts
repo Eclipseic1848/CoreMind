@@ -86,8 +86,17 @@ function createMockServer(
       });
       request.on("end", () => {
         const parsed = JSON.parse(body) as { messages: unknown[] };
+        if (options.hangResponse) {
+          response.writeHead(200, {
+            "content-type": "text/event-stream",
+            "cache-control": "no-cache",
+            connection: "keep-alive",
+          });
+          response.flushHeaders();
+          recorder.record(parsed.messages);
+          return; // SSE 已建立但永不结束：agent 一直等待流（isStreaming 恒 true）
+        }
         recorder.record(parsed.messages);
-        if (options.hangResponse) return; // 永不响应：agent 一直等待流（isStreaming 恒 true）
         const reply = () => {
           const result = script(parsed.messages, recorder.count());
           if (result !== null && typeof result === "object" && "error" in result) {
@@ -751,7 +760,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       const before = recorder.count();
       const runPromise = runtime.run();
       await recorder.waitForNext(before);
-      // 计时前先确认启动事实已落盘，避免把 Cancel 之前的 journal 积压计入收敛延迟。
+      // 计时前先确认输入认领事实已落盘，避免把 Cancel 之前的 journal 积压计入收敛延迟。
       await vi.waitFor(
         async () => {
           const persisted = await runStore.read(runId);
@@ -760,7 +769,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
               (item) =>
                 item.kind === "event" &&
                 (item.payload as { event?: { type?: CoreMindEvent["type"] } }).event?.type ===
-                  "agent_start",
+                  "input_claimed",
             ),
           ).toBe(true);
         },
