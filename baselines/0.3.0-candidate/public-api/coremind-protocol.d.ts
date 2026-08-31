@@ -1155,10 +1155,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     checkpointId: TString;
     checkpointVersion: TLiteral<1>;
     confirm: TLiteral<true>;
-    expectedCurrent: TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>;
+    expectedCurrent: TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>;
     }>]>;
     }>, TObject<    {
     jsonrpc: TLiteral<"2.0">;
@@ -2057,14 +2060,20 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     createdAt: TString;
     reversible: TBoolean;
     path: TOptional<TString>;
-    before: TOptional<TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>>;
-    after: TOptional<TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>>;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    after: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
     reason: TOptional<TString>;
     }>>;
     }>, TObject<    {
@@ -2081,14 +2090,20 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     createdAt: TString;
     reversible: TBoolean;
     path: TOptional<TString>;
-    before: TOptional<TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>>;
-    after: TOptional<TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>>;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    after: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
     reason: TOptional<TString>;
     }>;
     }>, TObject<    {
@@ -2099,14 +2114,20 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     checkpointVersion: TLiteral<1>;
     path: TOptional<TString>;
     changed: TBoolean;
-    before: TOptional<TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>>;
-    current: TObject<    {
-    existed: TBoolean;
-    sha256: TOptional<TString>;
-    }>;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    current: TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>;
     reversible: TBoolean;
     reason: TOptional<TString>;
     }>, TObject<    {
@@ -2377,10 +2398,13 @@ operationId: TString;
 checkpointId: TString;
 checkpointVersion: TLiteral<1>;
 confirm: TLiteral<true>;
-expectedCurrent: TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>;
+expectedCurrent: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
 }>]>;
 }>;
 
@@ -2399,14 +2423,20 @@ operationId: TOptional<TString>;
 createdAt: TString;
 reversible: TBoolean;
 path: TOptional<TString>;
-before: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
-after: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
 reason: TOptional<TString>;
 }>>;
 }>, TObject<    {
@@ -2423,14 +2453,20 @@ operationId: TOptional<TString>;
 createdAt: TString;
 reversible: TBoolean;
 path: TOptional<TString>;
-before: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
-after: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
 reason: TOptional<TString>;
 }>;
 }>, TObject<    {
@@ -2441,14 +2477,20 @@ checkpointId: TString;
 checkpointVersion: TLiteral<1>;
 path: TOptional<TString>;
 changed: TBoolean;
-before: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
-current: TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+current: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
 reversible: TBoolean;
 reason: TOptional<TString>;
 }>, TObject<    {
@@ -3434,14 +3476,20 @@ operationId: TOptional<TString>;
 createdAt: TString;
 reversible: TBoolean;
 path: TOptional<TString>;
-before: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
-after: TOptional<TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
 reason: TOptional<TString>;
 }>;
 
@@ -3598,10 +3646,13 @@ operationId: TString;
 checkpointId: TString;
 checkpointVersion: TLiteral<1>;
 confirm: TLiteral<true>;
-expectedCurrent: TObject<    {
-existed: TBoolean;
-sha256: TOptional<TString>;
-}>;
+expectedCurrent: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
 }>]>;
 }>, TObject<    {
 jsonrpc: TLiteral<"2.0">;
