@@ -397,6 +397,30 @@ describe("CoreMind Protocol v2", () => {
         ],
       }),
     ).toBe(true);
+    for (const before of [
+      { existed: true },
+      { existed: false, sha256: "a".repeat(64) },
+      { existed: false, sha256: null },
+    ]) {
+      expect(
+        Value.Check(ProtocolV2CheckpointResultSchema, {
+          schemaVersion: 1,
+          action: "list",
+          runId: "run-1",
+          derivedFromSequence: 7,
+          checkpoints: [
+            {
+              checkpointVersion: 1,
+              checkpointId: "checkpoint-1",
+              runId: "run-1",
+              createdAt: "2026-08-30T00:00:00.000Z",
+              reversible: true,
+              before,
+            },
+          ],
+        }),
+      ).toBe(false);
+    }
     expect(JSON.stringify(ProtocolV2CheckpointResultSchema)).not.toMatch(
       /snapshotFile|unifiedDiff/,
     );

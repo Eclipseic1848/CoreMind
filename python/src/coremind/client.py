@@ -1015,14 +1015,10 @@ def _valid_file_state(value: object) -> bool:
         or not isinstance(value.get("existed"), bool)
     ):
         return False
+    if not value["existed"]:
+        return "sha256" not in value
     sha256 = value.get("sha256")
-    return (
-        isinstance(sha256, str)
-        and len(sha256) == 64
-        and all(character in "0123456789abcdef" for character in sha256)
-        if value["existed"]
-        else sha256 is None
-    )
+    return isinstance(sha256, str) and re.fullmatch(r"[0-9a-f]{64}", sha256) is not None
 
 
 def _valid_keys(value: Mapping[str, Any], required: set[str], optional: set[str]) -> bool:

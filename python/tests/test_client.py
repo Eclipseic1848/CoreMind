@@ -362,6 +362,9 @@ class CoreMindClientTest(unittest.TestCase):
                 "checkpoint-sequence-bool",
                 "checkpoint-empty-id",
                 "checkpoint-invalid-time",
+                "checkpoint-existing-without-sha",
+                "checkpoint-missing-with-sha",
+                "checkpoint-missing-with-null-sha",
             ):
                 with self.subTest(run_id=run_id), self.assertRaises(ProtocolError):
                     client.checkpoint_list(run_id)

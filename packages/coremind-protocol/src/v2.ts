@@ -181,13 +181,22 @@ const ProtocolV2CheckpointBaseSchema = Type.Object({
   runId: BrandedIdSchema,
 });
 
-const ProtocolV2FileStateSchema = Type.Object(
-  {
-    existed: Type.Boolean(),
-    sha256: Type.Optional(Type.String({ pattern: "^[0-9a-f]{64}$" })),
-  },
-  { additionalProperties: false },
-);
+const ProtocolV2FileStateSchema = Type.Union([
+  Type.Object(
+    {
+      existed: Type.Literal(true),
+      sha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      existed: Type.Literal(false),
+      sha256: Type.Optional(Type.Never()),
+    },
+    { additionalProperties: false },
+  ),
+]);
 
 export const ProtocolV2CheckpointRequestSchema = Type.Object(
   {
@@ -1436,14 +1445,6 @@ export function parseProtocolV2Request(value: unknown): ProtocolV2Request {
     const hasConfigPath = parsed.params.configPath !== undefined;
     if (hasConfig === hasConfigPath) {
       throw new ProtocolV2ValidationError("initialize 必须且只能提供 config 或 configPath 之一");
-    }
-  }
-  if (parsed.method === "checkpoint" && parsed.params.action === "restore") {
-    const expected = parsed.params.expectedCurrent;
-    if (expected.existed !== (expected.sha256 !== undefined)) {
-      throw new ProtocolV2ValidationError(
-        "checkpoint restore 的 expectedCurrent.sha256 必须且只能在文件存在时提供",
-      );
     }
   }
   return parsed;

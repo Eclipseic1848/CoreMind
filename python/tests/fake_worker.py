@@ -311,6 +311,19 @@ for line in sys.stdin:
                 checkpoint["checkpointId"] = ""
             elif params["runId"] == "checkpoint-invalid-time":
                 checkpoint["createdAt"] = "not-a-timestamp"
+            invalid_file_states = {
+                "checkpoint-existing-without-sha": {"existed": True},
+                "checkpoint-missing-with-sha": {
+                    "existed": False,
+                    "sha256": "a" * 64,
+                },
+                "checkpoint-missing-with-null-sha": {
+                    "existed": False,
+                    "sha256": None,
+                },
+            }
+            if params["runId"] in invalid_file_states:
+                checkpoint["before"] = invalid_file_states[params["runId"]]
         elif action == "create":
             result = {
                 "schemaVersion": 1,
