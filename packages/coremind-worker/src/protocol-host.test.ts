@@ -243,7 +243,7 @@ describe("ProtocolHost", () => {
         checkpointId,
         checkpointVersion: 1,
         confirm: true,
-        expectedCurrent: { existed: true, sha256: currentSha256 },
+        expectedCurrent: { sha256: currentSha256, existed: true },
       });
       const duplicateRestore = await request("restore-duplicate", {
         action: "restore",
@@ -472,12 +472,32 @@ describe("ProtocolHost", () => {
         method: "tool_register",
         params,
       });
+    const withReverseLocaleCompare = async <T>(operation: () => Promise<T>): Promise<T> => {
+      const original = String.prototype.localeCompare;
+      String.prototype.localeCompare = function (this: string, other: string): number {
+        const left = String(this);
+        return left < other ? 1 : left > other ? -1 : 0;
+      };
+      try {
+        return await operation();
+      } finally {
+        String.prototype.localeCompare = original;
+      }
+    };
 
     const registered = await register("register", definition);
-    const duplicateRegistration = await register("register-duplicate", definition);
+    const duplicateRegistration = await withReverseLocaleCompare(() =>
+      register("register-duplicate", definition),
+    );
     const conflictingRegistration = await register("register-conflict", {
       ...definition,
       description: "不同定义",
+    });
+    const secondRegistration = await register("register-second", {
+      ...definition,
+      registrationId: "0-registration",
+      toolId: "other-record",
+      name: "other_record",
     });
     const invalidRegistration = await register("register-invalid", {
       ...definition,
@@ -486,13 +506,15 @@ describe("ProtocolHost", () => {
       name: "unsafe_network",
       effect: { operations: ["network"], reversible: false },
     });
-    const started = await host.handle({
-      jsonrpc: "2.0",
-      protocolVersion: "2.0",
-      id: "start-tools",
-      method: "run",
-      params: { runId: "tool-run", input: "执行工具" },
-    });
+    const started = await withReverseLocaleCompare(() =>
+      host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "start-tools",
+        method: "run",
+        params: { runId: "tool-run", input: "执行工具" },
+      }),
+    );
     expect(started).toMatchObject({ result: { runId: "tool-run" } });
     const tool = await activeTool();
     const call = Promise.resolve(tool.execute({ id: "42" }, { callId: "call-1" }));
@@ -550,9 +572,13 @@ describe("ProtocolHost", () => {
     expect(registered).toMatchObject({ result: { status: "registered" } });
     expect(duplicateRegistration).toMatchObject({ result: { status: "duplicate" } });
     expect(conflictingRegistration).toMatchObject({ result: { status: "conflict" } });
+    expect(secondRegistration).toMatchObject({ result: { status: "registered" } });
     expect(invalidRegistration).toMatchObject({
       error: { data: { coremindCode: "invalid_tool" } },
     });
+    expect(
+      runtimeOptions?.protocolStart?.toolRegistrations?.map(({ registrationId }) => registrationId),
+    ).toEqual(["0-registration", "registration-1"]);
     expect(sent).toContainEqual(
       expect.objectContaining({
         protocolVersion: "2.0",
@@ -732,7 +758,14 @@ describe("ProtocolHost", () => {
         result: { status: "conflict" },
       });
 
-      const changedIdentityHost = new ProtocolHost({ send: () => {} });
+      let changedRuntimeCreations = 0;
+      const changedIdentityHost = new ProtocolHost({
+        send: () => {},
+        runtimeFactory: async () => {
+          changedRuntimeCreations += 1;
+          return { run: async () => Promise.reject(new Error("不应恢复身份漂移的 Run")) };
+        },
+      });
       await initializeV2(changedIdentityHost, dir);
       await changedIdentityHost.handle({
         jsonrpc: "2.0",
@@ -763,6 +796,16 @@ describe("ProtocolHost", () => {
           },
         }),
       ).resolves.toMatchObject({ result: { status: "conflict" } });
+      await expect(
+        changedIdentityHost.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "resume:changed-identity",
+          method: "resume",
+          params: { runId: "tool-unknown-run", input: "恢复执行" },
+        }),
+      ).resolves.toMatchObject({ error: { data: { coremindCode: "run_id_conflict" } } });
+      expect(changedRuntimeCreations).toBe(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

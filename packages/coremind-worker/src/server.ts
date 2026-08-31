@@ -341,6 +341,30 @@ export class ProtocolHost {
     const state = this.requireInitialized();
     const records = await state.runStore.read(request.params.runId);
     const persisted = persistedProtocolV2Start(records);
+    const toolRegistrations = [...this.protocolV2ToolRegistrations.entries()]
+      .map(([registrationId, spec]) => ({
+        registrationId,
+        toolId: spec.toolId!,
+        name: spec.name,
+        definitionFingerprint: spec.definitionFingerprint!,
+      }))
+      .sort((left, right) =>
+        left.registrationId < right.registrationId
+          ? -1
+          : left.registrationId > right.registrationId
+            ? 1
+            : 0,
+      );
+    if (
+      persisted &&
+      request.method === "resume" &&
+      sha256Canonical(persisted.toolRegistrations ?? []) !== sha256Canonical(toolRegistrations)
+    ) {
+      throw new CoreMindError(
+        "run_id_conflict",
+        `runId ${request.params.runId} 的动态工具身份与持久记录不一致`,
+      );
+    }
     if (persisted) {
       if (persisted.fingerprint === fingerprint) {
         if (ProjectionEngine.project(records).status === "interrupted") {
@@ -380,14 +404,7 @@ export class ProtocolHost {
       method: request.method,
       fingerprint,
       acceptedAt: handle.acceptedAt,
-      toolRegistrations: [...this.protocolV2ToolRegistrations.entries()]
-        .map(([registrationId, spec]) => ({
-          registrationId,
-          toolId: spec.toolId!,
-          name: spec.name,
-          definitionFingerprint: spec.definitionFingerprint!,
-        }))
-        .sort((left, right) => left.registrationId.localeCompare(right.registrationId)),
+      toolRegistrations,
     };
     this.protocolV2Starts.set(request.params.runId, {
       method: request.method,
@@ -1471,16 +1488,12 @@ function protocolV2StartFingerprint(request: ProtocolV2StartRequest): string {
 function checkpointRestoreFingerprint(
   params: Extract<ProtocolV2CheckpointRequest["params"], { action: "restore" }>,
 ): string {
-  return createHash("sha256")
-    .update(
-      JSON.stringify({
-        runId: params.runId,
-        checkpointId: params.checkpointId,
-        checkpointVersion: params.checkpointVersion,
-        expectedCurrent: params.expectedCurrent,
-      }),
-    )
-    .digest("hex");
+  return sha256Canonical({
+    runId: params.runId,
+    checkpointId: params.checkpointId,
+    checkpointVersion: params.checkpointVersion,
+    expectedCurrent: params.expectedCurrent,
+  });
 }
 
 function protocolV2ToolDefinitionFingerprint(
@@ -1525,7 +1538,7 @@ function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   return `{${Object.entries(value as Record<string, unknown>)
     .filter(([, item]) => item !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
     .join(",")}}`;
 }

@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -913,7 +914,8 @@ def _validate_checkpoint_result(
             valid
             and set(result)
             == {"schemaVersion", "action", "runId", "derivedFromSequence", "checkpoints"}
-            and isinstance(result.get("derivedFromSequence"), int)
+            and _is_nonnegative_int(result.get("derivedFromSequence"))
+            and result["derivedFromSequence"] > 0
             and isinstance(checkpoints, list)
             and all(_valid_public_checkpoint(item, run_id) for item in checkpoints)
         )
@@ -989,9 +991,14 @@ def _valid_public_checkpoint(value: object, run_id: str) -> bool:
             {"operationId", "path", "before", "after", "reason"},
         )
         and value.get("checkpointVersion") == 1
-        and isinstance(value.get("checkpointId"), str)
+        and _valid_branded_id(value.get("checkpointId"))
         and value.get("runId") == run_id
         and isinstance(value.get("createdAt"), str)
+        and re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z",
+            value["createdAt"],
+        )
+        is not None
         and isinstance(value.get("reversible"), bool)
         and ("operationId" not in value or _valid_branded_id(value.get("operationId")))
         and ("path" not in value or _valid_public_path(value.get("path")))

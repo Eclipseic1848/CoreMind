@@ -347,6 +347,27 @@ class CoreMindClientTest(unittest.TestCase):
                 request,
             )
 
+    def test_protocol_v2_checkpoint_list_rejects_schema_drift(self) -> None:
+        worker = Path(__file__).with_name("fake_worker.py")
+        client = CoreMindClient(
+            {"schemaVersion": 2, "name": "checkpoint-validation", "agents": {"main": {}}},
+            protocol_version="2.0",
+            worker_command=[sys.executable, str(worker)],
+            request_timeout=5,
+        )
+        try:
+            for run_id in (
+                "checkpoint-sequence-negative",
+                "checkpoint-sequence-zero",
+                "checkpoint-sequence-bool",
+                "checkpoint-empty-id",
+                "checkpoint-invalid-time",
+            ):
+                with self.subTest(run_id=run_id), self.assertRaises(ProtocolError):
+                    client.checkpoint_list(run_id)
+        finally:
+            client.close()
+
     def test_registration_failure_closes_worker(self) -> None:
         @self.client.tool(
             name="reject_registration",

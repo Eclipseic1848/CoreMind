@@ -300,6 +300,17 @@ for line in sys.stdin:
                 "derivedFromSequence": 1,
                 "checkpoints": [checkpoint],
             }
+            invalid_sequences = {
+                "checkpoint-sequence-negative": -1,
+                "checkpoint-sequence-zero": 0,
+                "checkpoint-sequence-bool": False,
+            }
+            if params["runId"] in invalid_sequences:
+                result["derivedFromSequence"] = invalid_sequences[params["runId"]]
+            elif params["runId"] == "checkpoint-empty-id":
+                checkpoint["checkpointId"] = ""
+            elif params["runId"] == "checkpoint-invalid-time":
+                checkpoint["createdAt"] = "not-a-timestamp"
         elif action == "create":
             result = {
                 "schemaVersion": 1,
