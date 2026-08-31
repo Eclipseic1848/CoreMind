@@ -125,6 +125,7 @@ async function openTerminal(configPath, cwd, sessionId) {
     },
     ...(process.platform === "win32" ? { useConpty: true } : {}),
   });
+  const windowsConpty = process.platform === "win32" ? terminal._agent : undefined;
   let output = "";
   let rawOutput = "";
   let exitResult;
@@ -173,9 +174,20 @@ async function openTerminal(configPath, cwd, sessionId) {
       await typeCommand(terminal, "/exit");
       let result;
       let exitTimeout;
+      let exitProbe;
       try {
         result = await Promise.race([
           exitPromise,
+          ...(windowsConpty
+            ? [
+                new Promise((resolve) => {
+                  exitProbe = setInterval(() => {
+                    const exitCode = windowsConpty.exitCode;
+                    if (exitCode !== undefined) resolve({ exitCode, signal: 0 });
+                  }, 25);
+                }),
+              ]
+            : []),
           new Promise((_, reject) => {
             exitTimeout = setTimeout(
               () => reject(new Error("真实 TTY 未在退出命令后结束")),
@@ -185,9 +197,11 @@ async function openTerminal(configPath, cwd, sessionId) {
         ]);
       } finally {
         clearTimeout(exitTimeout);
-        if (process.platform === "win32" && exitResult) {
-          // node-pty 1.1.0 在已退出 ConPTY 上调用 kill 会触发 AttachConsole 竞态；只释放遗留输入句柄。
-          terminal._agent?.inSocket?.destroy();
+        clearInterval(exitProbe);
+        if (windowsConpty && (exitResult || result)) {
+          // node-pty 1.1.0 可能已收到进程退出码但未关闭 ConPTY 管道；直接释放遗留句柄。
+          windowsConpty.inSocket?.destroy();
+          windowsConpty.outSocket?.destroy();
         } else {
           terminal.kill();
         }
