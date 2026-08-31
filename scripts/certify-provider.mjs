@@ -17,6 +17,7 @@ import {
   inspectCandidateManifest,
   upsertCertificationRecord,
   validateCertificationApproval,
+  verifyCandidateArtifact,
 } from "./provider-certification.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,12 +32,19 @@ const runtimeArtifactSha256 = hash(
 );
 const candidateManifestPath = process.env.COREMIND_CERT_CANDIDATE_MANIFEST;
 if (!candidateManifestPath) throw new Error("缺少候选制品清单：COREMIND_CERT_CANDIDATE_MANIFEST");
-const candidateManifestRaw = await readFile(path.resolve(root, candidateManifestPath), "utf8");
+const candidateManifestAbsolute = path.resolve(root, candidateManifestPath);
+const candidateManifestRaw = await readFile(candidateManifestAbsolute, "utf8");
 const candidate = inspectCandidateManifest(candidateManifestRaw, {
   version,
   commit,
   runtimeArtifactSha256: process.env.COREMIND_CERT_EXPECTED_RUNTIME_SHA256,
 });
+verifyCandidateArtifact(
+  await readFile(
+    path.join(path.dirname(candidateManifestAbsolute), candidate.candidateArtifactPath),
+  ),
+  candidate.candidateArtifactSha256,
+);
 const approval = validateCertificationApproval(
   {
     provider: process.env.COREMIND_CERT_PROVIDER,
@@ -371,7 +379,7 @@ async function certifyChildRunCancellation() {
     parentOutcome: result.outcome.status,
     childOutcome: node.outcome.status,
     activeDescendants: result.childRuns.activeDescendants,
-    executionQuiescent: result.childRuns.activeDescendants === 0,
+    executionConverged: result.childRuns.activeDescendants === 0,
     convergenceMs,
     maxConvergenceMs,
   };
@@ -387,11 +395,7 @@ async function createDelegationRuntime({
   signal,
   onEvent,
 }) {
-  const remainingMs = approval.maxDurationMs - (Date.now() - startedAtMs);
-  const remainingCostUsd = approval.maxCostUsd - accumulatedCostUsd;
-  if (remainingMs <= 0 || remainingCostUsd <= 0 || deadline.signal.aborted) {
-    throw new Error("Provider 认证已达到人工批准边界");
-  }
+  const { remainingMs, remainingCostUsd } = remainingApprovalBudget();
   const wallTimeMs = Math.min(120_000, remainingMs);
   const { config } = parseAndValidate({
     schemaVersion: 2,
@@ -469,11 +473,7 @@ function hasToolEvent(events, type, agent, tool) {
 }
 
 async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {
-  const remainingMs = approval.maxDurationMs - (Date.now() - startedAtMs);
-  const remainingCostUsd = approval.maxCostUsd - accumulatedCostUsd;
-  if (remainingMs <= 0 || remainingCostUsd <= 0 || deadline.signal.aborted) {
-    throw new Error("Provider 认证已达到人工批准边界");
-  }
+  const { remainingMs, remainingCostUsd } = remainingApprovalBudget();
   const { config } = parseAndValidate({
     schemaVersion: 2,
     name: "provider-certification",
@@ -505,6 +505,15 @@ async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {
     env: process.env,
     runStore,
   });
+}
+
+function remainingApprovalBudget() {
+  const remainingMs = approval.maxDurationMs - (Date.now() - startedAtMs);
+  const remainingCostUsd = approval.maxCostUsd - accumulatedCostUsd;
+  if (remainingMs <= 0 || remainingCostUsd <= 0 || deadline.signal.aborted) {
+    throw new Error("Provider 认证已达到人工批准边界");
+  }
+  return { remainingMs, remainingCostUsd };
 }
 
 function certificationEventSink(local) {

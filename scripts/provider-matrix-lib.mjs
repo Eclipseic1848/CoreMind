@@ -12,7 +12,7 @@ const CHILD_RUN_CERTIFICATION_CHECKS = [
   "delegation-tool",
   "child-model-call",
   "child-tool-call",
-  "cancel-quiescence",
+  "cancel-convergence",
 ];
 
 /** 用运行时目录和人工证据台账生成认证矩阵，未提供完整证据时绝不自动认证。 */

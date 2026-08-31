@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   assertCertificationSucceeded,
@@ -5,6 +6,7 @@ import {
   inspectCandidateManifest,
   upsertCertificationRecord,
   validateCertificationApproval,
+  verifyCandidateArtifact,
 } from "./provider-certification.mjs";
 
 describe("Provider 认证批准边界", () => {
@@ -44,6 +46,8 @@ describe("Provider 认证批准边界", () => {
   });
 
   it("候选清单必须绑定批准提交、版本与 Runtime 包摘要", () => {
+    const artifact = Buffer.from("candidate runtime artifact", "utf8");
+    const artifactSha256 = createHash("sha256").update(artifact).digest("hex");
     const raw = `${JSON.stringify({
       schemaVersion: 1,
       version: "0.7.0",
@@ -53,7 +57,8 @@ describe("Provider 认证批准边界", () => {
           kind: "npm",
           name: "coremind-runtime",
           version: "0.7.0",
-          sha256: "b".repeat(64),
+          path: "coremind-runtime-0.7.0.tgz",
+          sha256: artifactSha256,
         },
       ],
     })}\n`;
@@ -62,12 +67,17 @@ describe("Provider 认证批准边界", () => {
       inspectCandidateManifest(raw, {
         version: "0.7.0",
         commit: "a".repeat(40),
-        runtimeArtifactSha256: "b".repeat(64),
+        runtimeArtifactSha256: artifactSha256,
       }),
     ).toMatchObject({
-      candidateArtifactSha256: "b".repeat(64),
+      candidateArtifactPath: "coremind-runtime-0.7.0.tgz",
+      candidateArtifactSha256: artifactSha256,
       artifactManifestDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
     });
+    expect(() => verifyCandidateArtifact(artifact, artifactSha256)).not.toThrow();
+    expect(() => verifyCandidateArtifact(Buffer.from("replaced"), artifactSha256)).toThrow(
+      "候选 Runtime Artifact 实际摘要与清单不一致",
+    );
     expect(() =>
       inspectCandidateManifest(raw, {
         version: "0.7.0",
@@ -75,6 +85,13 @@ describe("Provider 认证批准边界", () => {
         runtimeArtifactSha256: "c".repeat(64),
       }),
     ).toThrow("候选 Runtime Artifact 与批准值不一致");
+    expect(() =>
+      inspectCandidateManifest(raw.replace("coremind-runtime-0.7.0.tgz", "../runtime.tgz"), {
+        version: "0.7.0",
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: artifactSha256,
+      }),
+    ).toThrow("候选 Runtime Artifact 路径无效");
   });
 });
 
@@ -127,7 +144,7 @@ describe("Provider 认证诊断", () => {
       commit: "a".repeat(40),
       runtimeArtifactSha256: "b".repeat(64),
       details: { multiTurn: { passed: true, turns: 3 } },
-      checks: expect.arrayContaining(["abort", "long-context"]),
+      checks: expect.arrayContaining(["abort", "long-context", "cancel-convergence"]),
       secretsRecorded: false,
     });
   });
@@ -303,7 +320,7 @@ function completeDetails(turns: number) {
       parentOutcome: "paused",
       childOutcome: "aborted",
       activeDescendants: 0,
-      executionQuiescent: true,
+      executionConverged: true,
       convergenceMs: 120,
       maxConvergenceMs: 5_000,
     },

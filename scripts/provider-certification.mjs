@@ -32,10 +32,26 @@ export function inspectCandidateManifest(raw, expected) {
   if (runtime.sha256 !== expected.runtimeArtifactSha256) {
     throw new Error("候选 Runtime Artifact 与批准值不一致");
   }
+  if (
+    typeof runtime.path !== "string" ||
+    runtime.path.length === 0 ||
+    /^(?:[A-Za-z]:)?[\\/]/u.test(runtime.path) ||
+    runtime.path.split(/[\\/]/u).includes("..")
+  ) {
+    throw new Error("候选 Runtime Artifact 路径无效");
+  }
   return {
+    candidateArtifactPath: runtime.path,
     candidateArtifactSha256: runtime.sha256,
     artifactManifestDigest: `sha256:${createHash("sha256").update(raw, "utf8").digest("hex")}`,
   };
+}
+
+export function verifyCandidateArtifact(content, expectedSha256) {
+  const actualSha256 = createHash("sha256").update(content).digest("hex");
+  if (actualSha256 !== expectedSha256) {
+    throw new Error("候选 Runtime Artifact 实际摘要与清单不一致");
+  }
 }
 
 /** 在读取凭据或调用 Provider 前固定本次人工批准与候选身份。 */
@@ -145,7 +161,7 @@ export function createCertificationEvidence({
     details.childRunCancel.abortTriggeredAt !== "child_text_delta" ||
     details.childRunCancel.childOutcome !== "aborted" ||
     details.childRunCancel.activeDescendants !== 0 ||
-    details.childRunCancel.executionQuiescent !== true ||
+    details.childRunCancel.executionConverged !== true ||
     !Number.isFinite(details.childRunCancel.convergenceMs) ||
     details.childRunCancel.convergenceMs < 0 ||
     details.childRunCancel.convergenceMs > details.childRunCancel.maxConvergenceMs
@@ -228,7 +244,7 @@ export function createCertificationEvidence({
       "delegation-tool",
       "child-model-call",
       "child-tool-call",
-      "cancel-quiescence",
+      "cancel-convergence",
     ],
     approval,
     usage,

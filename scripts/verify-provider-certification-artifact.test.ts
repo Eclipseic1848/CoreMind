@@ -116,7 +116,7 @@ function completeDetails() {
       parentOutcome: "paused",
       childOutcome: "aborted",
       activeDescendants: 0,
-      executionQuiescent: true,
+      executionConverged: true,
       convergenceMs: 120,
       maxConvergenceMs: 5_000,
     },

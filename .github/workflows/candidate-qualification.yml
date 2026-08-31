@@ -235,6 +235,7 @@ jobs:
           npm ci
           npm run build
           npm run providers:certify
+          npm run providers:matrix
 
       - name: 严格发布元数据预检
         run: npm run release:preflight -- --allow-dirty

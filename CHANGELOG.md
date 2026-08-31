@@ -6,6 +6,7 @@
 
 ## 0.7.0 — 2026-08-29（未发布稳定候选）
 
+- Provider 认证现绑定受保护 main 的同次候选 Runtime 包与实际 SHA-256，并在人工批准的 Provider、模型、凭据来源、费用和时限内，以零自动重试完成父模型、Delegation Tool、Child Run、受控子级 Tool、结构化结果与取消收敛检查；失败、超限、未知 Effect 或证据不完整时不写入成功台账。
 - 新增后端无关的 `SecretRef` 与宿主注入 `SecretResolver`，仅在 Provider Adapter 边界解析 API key 和 Header 引用。明文凭据使用 `execution_security_violation`，缺失环境变量、resolver 或空解析结果使用 `secret_reference_unresolved`；check、Runtime、Worker、Python bundled Worker 与 Child Run 均在 Provider、Tool 或 Fact 副作用前失败关闭，不回退到其他凭据来源，也不在错误或持久化数据中暴露引用和值。
 - 新增由 Protocol 包拥有的类型化 Error Contract 唯一注册表，覆盖现有稳定自有错误码并统一终态、取消、重试和人工处置分类。Config、Runtime、Provider、Tool、Child Run、Evaluation、Protocol、Worker、CLI、TUI 与双 SDK 已迁移到该合同；Protocol v1/v2 schema、fingerprint 与公开 Outcome 类型从注册表派生，Python 包携带构建生成且逐项校验的只读分类。自定义工具通过 `ToolExecutionError` 显式声明可预期的 `tool_execution_failed`，裸 Adapter 异常与其他未知外部码仅以脱敏审计信息进入 Outcome 与持久 Fact，公开码收敛为暂停且禁止自动重试的 `unclassified_error`；未登记自有码由 TypeScript 类型门和 Python CI 门拒绝。
 - Subagent 统一建模为完整 Child Run，新增稳定父子身份、幂等委派、单调 authority、父预算划拨、结构化取消/join、orphan audit 与递归树投影。

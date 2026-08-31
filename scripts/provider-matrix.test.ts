@@ -109,7 +109,7 @@ describe("Provider 认证矩阵", () => {
         "delegation-tool",
         "child-model-call",
         "child-tool-call",
-        "cancel-quiescence",
+        "cancel-convergence",
       ]),
     });
   });

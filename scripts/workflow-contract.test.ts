@@ -160,6 +160,13 @@ describe("GitHub Actions 收口合同", () => {
     expect(candidateDownload.uses).toContain("actions/download-artifact@");
     expect(candidateDownload.with.name).toContain("candidate-artifacts-Linux-");
     expect(providerCommands).toContain("npm run providers:certify");
+    expect(providerCommands).toContain("npm run providers:matrix");
+    expect(providerCommands.indexOf("npm run providers:certify")).toBeLessThan(
+      providerCommands.indexOf("npm run providers:matrix"),
+    );
+    expect(providerCommands.indexOf("npm run providers:matrix")).toBeLessThan(
+      providerCommands.indexOf("npm run release:preflight -- --allow-dirty"),
+    );
     expect(providerCommands).toContain("npm run release:preflight -- --allow-dirty");
     expect(providerCommands).not.toContain("--defer-provider-certification");
     const evidenceUpload = workflow.jobs["provider-certification"].steps.find(
