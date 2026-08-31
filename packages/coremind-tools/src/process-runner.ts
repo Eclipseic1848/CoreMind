@@ -203,7 +203,10 @@ export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeRes
         evidence: [`process-tree:${process.platform}:cancel-contract-failed`],
       };
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const exitDeadline = performance.now() + 2_000;
+    while (isProcessAlive(childPid) && performance.now() < exitDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
     const available = !isProcessAlive(childPid);
     return {
       available,
