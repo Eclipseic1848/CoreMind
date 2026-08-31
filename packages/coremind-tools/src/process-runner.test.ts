@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFakeExecutionEnvironment } from "./execution-environment.js";
 import {
   createSupervisedProcessRunner,
@@ -80,6 +80,23 @@ describe("ProcessRunner", () => {
       available: true,
       evidence: [expect.stringContaining(`process-tree:${process.platform}:verified`)],
     });
+  });
+
+  it("平台终止 probe 等待已取消后代完成退出", async () => {
+    const originalKill = process.kill.bind(process);
+    let aliveChecks = 0;
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, signal) => {
+      if (signal === 0 && aliveChecks++ < 2) return true;
+      return originalKill(pid, signal);
+    });
+    try {
+      await expect(probeProcessTreeTermination()).resolves.toMatchObject({
+        available: true,
+        evidence: [expect.stringContaining(`process-tree:${process.platform}:verified`)],
+      });
+    } finally {
+      killSpy.mockRestore();
+    }
   });
 
   it("调用方取消后返回稳定错误码", async () => {
