@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "01d4411eaba8bc90f0499bc829bf7d7b1a6879a7",
+    "developmentCommit": "9b749c63242d7fa585c15003c885d35aa327bc44",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -16,7 +16,7 @@
       "coremind-ai": "41524b263cac50b04a9636d5745aaa0e6a45d68d7ffb265eec0a6bf15fdf47f7",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "5922a5bffdb6685bc5b3059d80c26c567113d44bc3c4bea23593691a3417748d",
-      "coremind-protocol": "3ba3ff16163a8782da711e382813723e09218bcc49afe50684e1a13d06dc9140",
+      "coremind-protocol": "0473db50bbad593e08dfd392a502eda352cad5ffdbab56096474b800b639d5a2",
       "coremind-runtime": "6eff36110b3d3b4f4f5a84262e4f3d417d4a2e6c8a39df01e8ebacf838aa5e85",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "34cb516b703372f5aa1c37e5777eafd3ca7259a4ac5444569186432d97134061",
@@ -25,7 +25,7 @@
     "schemas": {
       "config": "29e1cc99f275612f0178ffa9248e603bdbedb7868bc9a2ce9ebde947e89d339e",
       "protocol": "16b7284ffb4c0c2804e922ecfd1c17939fdceaae837f71e4ac862f8de44bd205",
-      "protocolV2": "dba1fd217c8c0b1d02e3520a3e74ed8aa6beb9caceb20089ebe25960a8bcc67a"
+      "protocolV2": "ae1ad6ce4e88958de09c4f51b7485cbe99ece39780605bd35529796b5d029834"
     }
   },
   "dependencies": {
@@ -283,9 +283,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-30T16:49:02.202Z",
+    "capturedAt": "2026-08-31T03:13:28.760Z",
     "capturePlatform": "win32",
-    "updateReason": "Mangrove_ai issue 96: approved Protocol v2 checkpoint and controlled declarative tool bridge; v1 retained through 0.4.x; rollback restores the prior candidate baseline and disables v2 capabilities",
+    "updateReason": "Mangrove Issue 96 Protocol v2 tool_result XOR schema alignment; valid payloads stay compatible; rollback restores prior candidate baseline",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "3993c7402007d2d4384306f188c14529a885decc4e3bc038e7c1fe52efcbdd2f",
     "codingEvalFixtureSha256": "9ba7477bc71f4a1f6865e3fb8d68c58f628dd1835b526354c3f76152242be35a",
@@ -293,11 +293,11 @@
       "coremind-ai": "f1b8be0d43b92a7f5263c73cd6b09c87edc4561b4eb8615487a03dbac7d39dcf",
       "coremind-cli": "ffc2010a114e060bac461d4f0b5d3829f78aedf13b05f6810302fdc597ac0c0e",
       "coremind-config": "856494a59b6b5c4e826eb7be1cf52ef5835bc6dce8113b32eaee26931f693efb",
-      "coremind-protocol": "0c2f0b0430248d279bc076ad5ebab0aff02b771f164aa99bfe2ce28c2365f432",
-      "coremind-runtime": "cb0197a45da64c0ae2b564a43ffaa88fba98e229c0871ad1cd814ea734ba8ee6",
+      "coremind-protocol": "5891a710dda748a39544d403d4dbd0e25f1f808fc154fa878a73e49b92a02d92",
+      "coremind-runtime": "2cfc6e9d95de702cd9b1fc4fbc1fd0ed4ad9cee86b2a1a7def51e1a68eb19bda",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "83193fce3bde2a1aed3faa225888799f049a9923fbdd92ccce1e349edd5625a0",
-      "coremind-worker": "ebee179db14fedadd7ab5155c36e4a58f4936ca2350b19f9b3a1925714fe8f14"
+      "coremind-worker": "143c9e9df24f73bfa57116dd93b0b503b5276fc8672c62fbe800b53e89840999"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

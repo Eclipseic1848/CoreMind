@@ -3,6 +3,7 @@ import { TArray } from '@sinclair/typebox';
 import { TBoolean } from '@sinclair/typebox';
 import { TInteger } from '@sinclair/typebox';
 import { TLiteral } from '@sinclair/typebox';
+import { TNever } from '@sinclair/typebox';
 import { TNull } from '@sinclair/typebox';
 import { TNumber } from '@sinclair/typebox';
 import { TObject } from '@sinclair/typebox';
@@ -1194,15 +1195,23 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     protocolVersion: TLiteral<"2.0">;
     id: TUnion<[TString, TNumber]>;
     method: TLiteral<"tool_result">;
-    params: TObject<    {
+    params: TUnion<[TObject<    {
+    result: TUnknown;
+    error: TOptional<TNever>;
     schemaVersion: TLiteral<1>;
     resultId: TString;
     runId: TString;
     callId: TString;
     registrationId: TString;
-    result: TOptional<TUnknown>;
-    error: TOptional<TString>;
-    }>;
+    }>, TObject<    {
+    result: TOptional<TNever>;
+    error: TString;
+    schemaVersion: TLiteral<1>;
+    resultId: TString;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    }>]>;
     }>]>;
     readonly initializeResult: TObject<    {
     selectedProtocol: TLiteral<"2.0">;
@@ -3629,15 +3638,23 @@ jsonrpc: TLiteral<"2.0">;
 protocolVersion: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
 method: TLiteral<"tool_result">;
-params: TObject<    {
+params: TUnion<[TObject<    {
+result: TUnknown;
+error: TOptional<TNever>;
 schemaVersion: TLiteral<1>;
 resultId: TString;
 runId: TString;
 callId: TString;
 registrationId: TString;
-result: TOptional<TUnknown>;
-error: TOptional<TString>;
-}>;
+}>, TObject<    {
+result: TOptional<TNever>;
+error: TString;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>]>;
 }>]>;
 
 export declare type ProtocolV2ResumeRequest = Static<typeof ProtocolV2ResumeRequestSchema>;
@@ -3774,15 +3791,23 @@ jsonrpc: TLiteral<"2.0">;
 protocolVersion: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
 method: TLiteral<"tool_result">;
-params: TObject<    {
+params: TUnion<[TObject<    {
+result: TUnknown;
+error: TOptional<TNever>;
 schemaVersion: TLiteral<1>;
 resultId: TString;
 runId: TString;
 callId: TString;
 registrationId: TString;
-result: TOptional<TUnknown>;
-error: TOptional<TString>;
-}>;
+}>, TObject<    {
+result: TOptional<TNever>;
+error: TString;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>]>;
 }>;
 
 export declare class ProtocolV2ValidationError extends Error {
