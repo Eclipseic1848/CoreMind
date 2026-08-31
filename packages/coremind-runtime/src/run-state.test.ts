@@ -239,7 +239,7 @@ describe("RunState", () => {
     expect(calls).toEqual(["ordinary", "critical"]);
   });
 
-  it("多个 File Store 争用同一 writer lock 时等待持有者释放后继续", async () => {
+  it("多个 File Store 争用同一 writer lock 时等待短暂 I/O 抖动后继续", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-lock-contention-"));
     const runId = "run-lock-contention";
     let releaseHolder!: () => void;
@@ -270,8 +270,13 @@ describe("RunState", () => {
     });
     await new Promise<void>((resolve) => setImmediate(resolve));
     expect(contenderSettled).toBe(false);
-    releaseHolder();
-    await Promise.all([holding, waiting]);
+    const releaseTimer = setTimeout(releaseHolder, 2_100);
+    try {
+      await Promise.all([holding, waiting]);
+    } finally {
+      clearTimeout(releaseTimer);
+      releaseHolder();
+    }
 
     expect(await contender.read(runId)).toHaveLength(1);
   });

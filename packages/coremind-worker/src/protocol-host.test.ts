@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { rmSync } from "node:fs";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -170,6 +170,8 @@ describe("ProtocolHost", () => {
           "cursorResume",
           "controlInbox",
           "projectionQuery",
+          "checkpointOperations",
+          "dynamicTools",
         ],
         schemaFingerprint: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         migration: {
@@ -179,6 +181,648 @@ describe("ProtocolHost", () => {
         },
       },
     });
+  });
+
+  it("v2 Checkpoint 公开 list/create/diff/restore 且写操作按 operationId 幂等", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-checkpoint-"));
+    const runId = "checkpoint-run";
+    const workspace = path.join(dir, "workspace");
+    const alias = path.join(dir, "alias");
+    const target = path.join(workspace, "result.txt");
+    try {
+      await mkdir(workspace);
+      await symlink(workspace, alias, process.platform === "win32" ? "junction" : "dir");
+      await writeFile(target, "修改前", "utf8");
+      const store = new FileRunStore(path.join(workspace, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "checkpoint" });
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, alias);
+      const request = (id: string, params: Record<string, unknown>) =>
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id,
+          method: "checkpoint",
+          params: { schemaVersion: 1, runId, ...params },
+        });
+
+      const created = await request("create", {
+        action: "create",
+        operationId: "create-1",
+        path: "result.txt",
+      });
+      const duplicateCreate = await request("create-duplicate", {
+        action: "create",
+        operationId: "create-1",
+        path: target,
+      });
+      const checkpointId = (created as { result: { checkpoint: { checkpointId: string } } }).result
+        .checkpoint.checkpointId;
+      const listed = await request("list", { action: "list" });
+
+      await writeFile(target, Buffer.alloc(10 * 1024 * 1024 + 1));
+      const listedAfterTargetGrew = await request("list-grown-target", { action: "list" });
+      const oversizedDiff = await request("diff-grown-target", {
+        action: "diff",
+        checkpointId,
+        checkpointVersion: 1,
+      });
+
+      await writeFile(target, "修改后", "utf8");
+      const currentSha256 = createHash("sha256").update("修改后").digest("hex");
+      const diff = await request("diff", {
+        action: "diff",
+        checkpointId,
+        checkpointVersion: 1,
+      });
+      expect(diff).not.toHaveProperty("result.unifiedDiff");
+      const rejectedRestore = await request("restore-mismatch", {
+        action: "restore",
+        operationId: "restore-mismatch",
+        checkpointId,
+        checkpointVersion: 1,
+        confirm: true,
+        expectedCurrent: { existed: true, sha256: "0".repeat(64) },
+      });
+      const restored = await request("restore", {
+        action: "restore",
+        operationId: "restore-1",
+        checkpointId,
+        checkpointVersion: 1,
+        confirm: true,
+        expectedCurrent: { sha256: currentSha256, existed: true },
+      });
+      const duplicateRestore = await request("restore-duplicate", {
+        action: "restore",
+        operationId: "restore-1",
+        checkpointId,
+        checkpointVersion: 1,
+        confirm: true,
+        expectedCurrent: { existed: true, sha256: currentSha256 },
+      });
+
+      expect(created).toMatchObject({
+        result: {
+          action: "create",
+          operationId: "create-1",
+          status: "applied",
+          checkpoint: { checkpointVersion: 1, runId, path: "result.txt" },
+        },
+      });
+      expect(duplicateCreate).toMatchObject({ result: { status: "duplicate" } });
+      expect(JSON.stringify(listed)).not.toContain("snapshotFile");
+      expect(listed).toMatchObject({
+        result: {
+          action: "list",
+          runId,
+          checkpoints: [{ checkpointId, path: "result.txt" }],
+        },
+      });
+      expect(listedAfterTargetGrew).toMatchObject({
+        result: { action: "list", runId, checkpoints: [{ checkpointId }] },
+      });
+      expect(oversizedDiff).toMatchObject({
+        error: { data: { coremindCode: "checkpoint_too_large" } },
+      });
+      expect(diff).toMatchObject({
+        result: {
+          action: "diff",
+          runId,
+          checkpointId,
+          changed: true,
+          current: { existed: true, sha256: currentSha256 },
+        },
+      });
+      expect(rejectedRestore).toMatchObject({
+        error: { data: { coremindCode: "checkpoint_conflict" } },
+      });
+      expect(restored).toMatchObject({
+        result: { action: "restore", operationId: "restore-1", status: "applied" },
+      });
+      expect(duplicateRestore).toMatchObject({ result: { status: "duplicate" } });
+      expect(await readFile(target, "utf8")).toBe("修改前");
+      await writeFile(
+        path.join(workspace, ".coremind", "checkpoints", runId, `${checkpointId}.json`),
+        "损坏的快照",
+        "utf8",
+      );
+      await expect(
+        request("create-corrupt-duplicate", {
+          action: "create",
+          operationId: "create-1",
+          path: target,
+        }),
+      ).resolves.toMatchObject({
+        error: { data: { coremindCode: "checkpoint_corrupt" } },
+      });
+      await expect(request("list-corrupt", { action: "list" })).resolves.toMatchObject({
+        error: { data: { coremindCode: "checkpoint_corrupt" } },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("v2 Checkpoint 写与不同 Run start 共用 Worker 单写者 transition", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-checkpoint-race-"));
+    const checkpointRunId = "checkpoint-race-run";
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const journal = new RunStateJournal(checkpointRunId, store);
+    await journal.start({ configName: "checkpoint-race" });
+    await journal.flush();
+    await writeFile(path.join(dir, "result.txt"), "原始内容", "utf8");
+
+    let releaseCheckpointRead = () => {};
+    const checkpointReadGate = new Promise<void>((resolve) => {
+      releaseCheckpointRead = resolve;
+    });
+    let markCheckpointRead = () => {};
+    const checkpointReadStarted = new Promise<void>((resolve) => {
+      markCheckpointRead = resolve;
+    });
+    const read = store.read.bind(store);
+    let delayCheckpointRead = true;
+    store.read = async (runId) => {
+      if (runId === checkpointRunId && delayCheckpointRead) {
+        delayCheckpointRead = false;
+        markCheckpointRead();
+        await checkpointReadGate;
+      }
+      return read(runId);
+    };
+
+    let runtimeCreations = 0;
+    let markRuntimeCreated = () => {};
+    const runtimeCreated = new Promise<void>((resolve) => {
+      markRuntimeCreated = resolve;
+    });
+    let completeRun = () => {};
+    const runGate = new Promise<void>((resolve) => {
+      completeRun = resolve;
+    });
+    const baseRuntimeFactory = completedParityRuntimeFactory();
+    const host = new ProtocolHost({
+      send: () => {},
+      runStoreFactory: () => store,
+      runtimeFactory: async (options) => {
+        runtimeCreations += 1;
+        markRuntimeCreated();
+        const base = await baseRuntimeFactory(options);
+        return {
+          run: async () => {
+            await runGate;
+            return base.run();
+          },
+        };
+      },
+    });
+
+    try {
+      await initializeV2With(host, {
+        config: { schemaVersion: 2, name: "checkpoint-race", agents: { main: {} } },
+        configDir: dir,
+        cwd: dir,
+      });
+      const checkpoint = host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "checkpoint-race",
+        method: "checkpoint",
+        params: {
+          schemaVersion: 1,
+          action: "create",
+          operationId: "checkpoint-race-operation",
+          runId: checkpointRunId,
+          path: "result.txt",
+        },
+      });
+      await checkpointReadStarted;
+      const start = host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "start-race",
+        method: "run",
+        params: { runId: "competing-run", input: "不能与 Checkpoint 写重叠" },
+      });
+
+      await expect(
+        Promise.race([
+          runtimeCreated.then(() => "started"),
+          new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 50)),
+        ]),
+      ).resolves.toBe("blocked");
+      expect(runtimeCreations).toBe(0);
+
+      releaseCheckpointRead();
+      await expect(checkpoint).resolves.toMatchObject({ result: { status: "applied" } });
+      await expect(start).resolves.toMatchObject({ result: { runId: "competing-run" } });
+      expect(runtimeCreations).toBe(1);
+      completeRun();
+      await waitForFinishedProjection(host, "competing-run");
+    } finally {
+      releaseCheckpointRead();
+      completeRun();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("v2 动态工具只注册声明，并显式区分结果 duplicate/conflict/unknown/late", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-tools-"));
+    const sent: unknown[] = [];
+    let runtimeOptions: CoreMindRuntimeOptions | undefined;
+    let completeRun = () => {};
+    const baseRuntimeFactory = completedParityRuntimeFactory();
+    const activeTool = async () => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const tool = runtimeOptions?.toolDefinitions?.[0];
+        if (tool) return tool;
+        await new Promise((resolve) => setTimeout(resolve, 1));
+      }
+      throw new Error("等待 v2 动态工具注册到 Runtime 超时");
+    };
+    const host = new ProtocolHost({
+      send: (message) => sent.push(message),
+      runtimeFactory: async (options) => {
+        runtimeOptions = options;
+        const base = await baseRuntimeFactory(options);
+        return {
+          run: async () => {
+            await new Promise<void>((resolve) => {
+              completeRun = resolve;
+            });
+            return base.run();
+          },
+        };
+      },
+    });
+    await initializeV2With(host, {
+      config: { schemaVersion: 2, name: "tools", agents: { main: {} } },
+      configDir: dir,
+      cwd: dir,
+    });
+    const definition = {
+      schemaVersion: 1,
+      registrationId: "registration-1",
+      definitionVersion: 1,
+      toolId: "lookup-record",
+      name: "lookup_record",
+      description: "读取一条记录",
+      parameters: { type: "object", properties: { id: { type: "string" } } },
+      effect: { operations: ["read"], reversible: true },
+      capability: {
+        effect: "none",
+        replay: "safe",
+        concurrency: "parallel",
+        checkpoint: "none",
+        durability: "ordinary",
+      },
+    } as const;
+    const register = (id: string, params: unknown) =>
+      host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id,
+        method: "tool_register",
+        params,
+      });
+    const withReverseLocaleCompare = async <T>(operation: () => Promise<T>): Promise<T> => {
+      const original = String.prototype.localeCompare;
+      String.prototype.localeCompare = function (this: string, other: string): number {
+        const left = String(this);
+        return left < other ? 1 : left > other ? -1 : 0;
+      };
+      try {
+        return await operation();
+      } finally {
+        String.prototype.localeCompare = original;
+      }
+    };
+
+    const registered = await register("register", definition);
+    const duplicateRegistration = await withReverseLocaleCompare(() =>
+      register("register-duplicate", definition),
+    );
+    const conflictingRegistration = await register("register-conflict", {
+      ...definition,
+      description: "不同定义",
+    });
+    const secondRegistration = await register("register-second", {
+      ...definition,
+      registrationId: "0-registration",
+      toolId: "other-record",
+      name: "other_record",
+    });
+    const invalidRegistration = await register("register-invalid", {
+      ...definition,
+      registrationId: "registration-invalid",
+      toolId: "unsafe-network",
+      name: "unsafe_network",
+      effect: { operations: ["network"], reversible: false },
+    });
+    const started = await withReverseLocaleCompare(() =>
+      host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "start-tools",
+        method: "run",
+        params: { runId: "tool-run", input: "执行工具" },
+      }),
+    );
+    expect(started).toMatchObject({ result: { runId: "tool-run" } });
+    const tool = await activeTool();
+    const call = Promise.resolve(tool.execute({ id: "42" }, { callId: "call-1" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const result = (id: string, params: Record<string, unknown>) =>
+      host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id,
+        method: "tool_result",
+        params: {
+          schemaVersion: 1,
+          resultId: "result-1",
+          runId: "tool-run",
+          callId: "call-1",
+          registrationId: "registration-1",
+          ...params,
+        },
+      });
+    const accepted = await result("result", { result: { value: 42 } });
+    const duplicate = await result("result-duplicate", { result: { value: 42 } });
+    const conflict = await result("result-conflict", { result: { value: 43 } });
+    const unknown = await result("result-unknown", {
+      resultId: "result-unknown",
+      callId: "call-unknown",
+      result: null,
+    });
+
+    const controller = new AbortController();
+    const cancelledCall = Promise.resolve(
+      tool.execute({ id: "late" }, { callId: "call-late", signal: controller.signal }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+    await expect(cancelledCall).rejects.toThrow(/中止/);
+    expect(sent).toContainEqual({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      method: "tool_cancel",
+      params: {
+        schemaVersion: 1,
+        runId: "tool-run",
+        callId: "call-late",
+        registrationId: "registration-1",
+        toolId: "lookup-record",
+        reason: "aborted",
+      },
+    });
+    const cancelledConflict = await result("result-cancelled", {
+      resultId: "result-late",
+      callId: "call-late",
+      result: null,
+    });
+
+    expect(registered).toMatchObject({ result: { status: "registered" } });
+    expect(duplicateRegistration).toMatchObject({ result: { status: "duplicate" } });
+    expect(conflictingRegistration).toMatchObject({ result: { status: "conflict" } });
+    expect(secondRegistration).toMatchObject({ result: { status: "registered" } });
+    expect(invalidRegistration).toMatchObject({
+      error: { data: { coremindCode: "invalid_tool" } },
+    });
+    expect(
+      runtimeOptions?.protocolStart?.toolRegistrations?.map(({ registrationId }) => registrationId),
+    ).toEqual(["0-registration", "registration-1"]);
+    expect(sent).toContainEqual(
+      expect.objectContaining({
+        protocolVersion: "2.0",
+        method: "tool_call",
+        params: expect.objectContaining({
+          runId: "tool-run",
+          callId: "call-1",
+          registrationId: "registration-1",
+          toolId: "lookup-record",
+          argumentsFingerprint: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+        }),
+      }),
+    );
+    expect(accepted).toMatchObject({ result: { status: "accepted" } });
+    expect(duplicate).toMatchObject({ result: { status: "duplicate" } });
+    expect(conflict).toMatchObject({ result: { status: "conflict" } });
+    expect(unknown).toMatchObject({ result: { status: "unknown" } });
+    expect(cancelledConflict).toMatchObject({ result: { status: "conflict" } });
+    await expect(call).resolves.toEqual({ value: 42 });
+
+    completeRun();
+    await waitForFinishedProjection(host, "tool-run");
+    runtimeOptions = undefined;
+    await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "start-tools-second-run",
+      method: "run",
+      params: { runId: "tool-run-second", input: "复用上游 CallId" },
+    });
+    const secondTool = await activeTool();
+    const secondCall = Promise.resolve(secondTool.execute({ id: "43" }, { callId: "call-1" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const secondResult = await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "result-second-run",
+      method: "tool_result",
+      params: {
+        schemaVersion: 1,
+        resultId: "result-second-run",
+        runId: "tool-run-second",
+        callId: "call-1",
+        registrationId: "registration-1",
+        result: { value: 43 },
+      },
+    });
+    expect(secondResult).toMatchObject({ result: { status: "accepted" } });
+    await expect(secondCall).resolves.toEqual({ value: 43 });
+    completeRun();
+    await waitForFinishedProjection(host, "tool-run-second");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("v2 工具结果在 Worker 重启后区分 unknown 与 late", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-tool-recovery-"));
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    try {
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, dir);
+      const definition = {
+        schemaVersion: 1,
+        definitionVersion: 1,
+        description: "恢复后的声明式工具",
+        parameters: { type: "object" },
+        effect: { operations: ["read"], reversible: true },
+        capability: {
+          effect: "none",
+          replay: "safe",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "ordinary",
+        },
+      } as const;
+      const registered = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "register:registration-1",
+        method: "tool_register",
+        params: {
+          ...definition,
+          registrationId: "registration-1",
+          toolId: "lookup-record",
+          name: "lookup_record",
+        },
+      });
+      const definitionFingerprint = (registered as { result?: { definitionFingerprint?: string } })
+        .result?.definitionFingerprint;
+      expect(definitionFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+      await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "register:registration-wrong",
+        method: "tool_register",
+        params: {
+          ...definition,
+          registrationId: "registration-wrong",
+          toolId: "other-record",
+          name: "other_record",
+        },
+      });
+      for (const [runId, committed] of [
+        ["tool-unknown-run", false],
+        ["tool-late-run", true],
+      ] as const) {
+        const journal = new RunStateJournal(runId, store);
+        await journal.start({
+          configName: "tool-recovery",
+          protocolStart: {
+            protocolVersion: "2.0",
+            method: "run",
+            fingerprint: `${runId}:start`,
+            acceptedAt: "2026-08-30T00:00:00.000Z",
+            toolRegistrations: [
+              {
+                registrationId: "registration-1",
+                toolId: "lookup-record",
+                name: "lookup_record",
+                definitionFingerprint: definitionFingerprint!,
+              },
+            ],
+          },
+        });
+        journal.event({
+          eventId: `${runId}:call`,
+          runId,
+          sequence: 1,
+          timestamp: "2026-08-30T00:00:00.000Z",
+          event: {
+            type: "tool_call",
+            agent: "main",
+            tool: "lookup_record",
+            args: { id: "42" },
+            callId: "persisted-call",
+            idempotencyKey: `${runId}:persisted-call`,
+          },
+        });
+        if (committed) {
+          journal.event({
+            eventId: `${runId}:receipt`,
+            runId,
+            sequence: 2,
+            timestamp: "2026-08-30T00:00:01.000Z",
+            event: {
+              type: "effect_receipt",
+              tool: "lookup_record",
+              idempotencyKey: `${runId}:persisted-call`,
+              status: "committed",
+            },
+          });
+        }
+        await journal.flush();
+      }
+      const result = (runId: string, registrationId = "registration-1") =>
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: runId,
+          method: "tool_result",
+          params: {
+            schemaVersion: 1,
+            resultId: `${runId}:result`,
+            runId,
+            callId: "persisted-call",
+            registrationId,
+            result: null,
+          },
+        });
+
+      await expect(result("tool-unknown-run")).resolves.toMatchObject({
+        result: { status: "unknown" },
+      });
+      await expect(result("tool-late-run")).resolves.toMatchObject({
+        result: { status: "late" },
+      });
+      await expect(result("tool-late-run", "registration-wrong")).resolves.toMatchObject({
+        result: { status: "conflict" },
+      });
+
+      let changedRuntimeCreations = 0;
+      const changedIdentityHost = new ProtocolHost({
+        send: () => {},
+        runtimeFactory: async () => {
+          changedRuntimeCreations += 1;
+          return { run: async () => Promise.reject(new Error("不应恢复身份漂移的 Run")) };
+        },
+      });
+      await initializeV2(changedIdentityHost, dir);
+      await changedIdentityHost.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "register:changed-identity",
+        method: "tool_register",
+        params: {
+          ...definition,
+          registrationId: "registration-1",
+          toolId: "lookup-record-v2",
+          name: "lookup_record",
+          parameters: { type: "object", properties: { key: { type: "string" } } },
+        },
+      });
+      await expect(
+        changedIdentityHost.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "changed-identity-result",
+          method: "tool_result",
+          params: {
+            schemaVersion: 1,
+            resultId: "changed-identity-result",
+            runId: "tool-late-run",
+            callId: "persisted-call",
+            registrationId: "registration-1",
+            result: null,
+          },
+        }),
+      ).resolves.toMatchObject({ result: { status: "conflict" } });
+      await expect(
+        changedIdentityHost.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "resume:changed-identity",
+          method: "resume",
+          params: { runId: "tool-unknown-run", input: "恢复执行" },
+        }),
+      ).resolves.toMatchObject({ error: { data: { coremindCode: "run_id_conflict" } } });
+      expect(changedRuntimeCreations).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("v2 连接拒绝混用 v1 request envelope", async () => {
@@ -280,18 +924,19 @@ describe("ProtocolHost", () => {
         configDir: ".",
       },
     });
-    const start = (id: string) =>
+    const start = (id: string, runId = "stable-run", input = "同一任务") =>
       host.handle({
         jsonrpc: "2.0",
         protocolVersion: "2.0",
         id,
         method: "run",
-        params: { runId: "stable-run", input: "同一任务" },
+        params: { runId, input },
       });
 
     const first = await start("start-1");
     await new Promise((resolve) => setTimeout(resolve, 10));
     const duplicate = await start("start-2");
+    const competing = await start("start-competing", "competing-run", "另一个任务");
 
     expect({ first: (first as { result?: unknown }).result, duplicate, starts }).toEqual({
       first: (duplicate as { result?: unknown }).result,
@@ -301,6 +946,9 @@ describe("ProtocolHost", () => {
         result: (first as { result?: unknown }).result,
       },
       starts: 1,
+    });
+    expect(competing).toMatchObject({
+      error: { data: { coremindCode: "worker_busy" } },
     });
   });
 
@@ -1380,6 +2028,27 @@ describe("ProtocolHost", () => {
         params: { runId: "method-conflict", agent: "main", message: "聊天" },
       }),
     ).toMatchObject({ error: { data: { coremindCode: "run_id_conflict" } } });
+  });
+
+  it("合法 RunId 不与 Worker 内部 transition 身份冲突", async () => {
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async () => ({ run: () => new Promise<never>(() => {}) }),
+    });
+    await initializeV2(host);
+
+    await expect(
+      withTimeout(
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "worker-key-run",
+          method: "run",
+          params: { runId: "__worker__", input: "执行" },
+        }),
+        200,
+      ),
+    ).resolves.toMatchObject({ result: { runId: "__worker__" } });
   });
 
   it("同一 Host 中首个运行结束后允许 resume 承接同一 RunId", async () => {

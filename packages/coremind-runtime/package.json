@@ -40,6 +40,7 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.84.1",
     "@earendil-works/pi-ai": "0.84.1",
+    "ajv": "8.18.0",
     "coremind-config": "0.7.0",
     "coremind-protocol": "0.7.0",
     "coremind-templates": "0.7.0",

@@ -9,6 +9,7 @@ export {
 export { ChatSession, type ChatTurnResult } from "./chat-session.js";
 export {
   type CheckpointDiff,
+  type CheckpointFileState,
   CheckpointManager,
   type CheckpointManagerOptions,
   type CheckpointRecord,

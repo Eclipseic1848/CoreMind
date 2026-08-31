@@ -58,6 +58,7 @@ export type RunStateKind =
   | "delegation"
   | "event"
   | "checkpoint"
+  | "checkpoint_restore"
   | "loop"
   | "operation"
   | "pause"
@@ -358,7 +359,7 @@ export class FileRunStore implements RunStore {
   private async withWriterLock<T>(destination: string, operation: () => Promise<T>): Promise<T> {
     await mkdir(this.directory, { recursive: true });
     const lockPath = `${destination}.lock`;
-    const deadline = Date.now() + (this.options.lockTimeoutMs ?? 2_000);
+    const deadline = Date.now() + (this.options.lockTimeoutMs ?? 10_000);
     const owner = {
       pid: process.pid,
       createdAt: new Date().toISOString(),
@@ -1311,6 +1312,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
       "delegation",
       "event",
       "checkpoint",
+      "checkpoint_restore",
       "loop",
       "operation",
       "pause",

@@ -241,4 +241,30 @@ describe("CheckpointManager", () => {
     await restoreCheckpoint(checkpoint!, cwd);
     expect(readFileSync(file, "utf8")).toBe("原始");
   });
+
+  it("保留空文件快照并在内容身份损坏时失败关闭", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-integrity-"));
+    writeFileSync(path.join(cwd, "empty.txt"), "", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind", "checkpoints"),
+      runId: "run-integrity",
+    });
+    const checkpoint = await manager.capturePath("empty.txt", { checkpointId: "empty-file" });
+
+    await expect(manager.diff(checkpoint.checkpointId)).resolves.toMatchObject({
+      changed: false,
+      beforeSha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    });
+    const stored = JSON.parse(readFileSync(checkpoint.snapshotFile, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    stored.contentBase64 = Buffer.from("篡改", "utf8").toString("base64");
+    writeFileSync(checkpoint.snapshotFile, `${JSON.stringify(stored)}\n`, "utf8");
+
+    await expect(manager.diff(checkpoint.checkpointId)).rejects.toMatchObject({
+      code: "checkpoint_corrupt",
+    });
+  });
 });

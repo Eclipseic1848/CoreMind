@@ -33,7 +33,32 @@ describe("CoreMind 公共工具契约", () => {
         effect: { operations: ["read"], reversible: true },
         execute: async () => "x",
       }),
-    ).toThrow("parameters.type 必须为 object");
+    ).toThrow("有效的 object JSON Schema");
+  });
+
+  it("拒绝结构损坏的 JSON Schema", () => {
+    expect(() =>
+      defineTool({
+        name: "bad_schema",
+        description: "错误 Schema",
+        parameters: {
+          type: "object",
+          properties: { value: { type: "invalid" } },
+          required: ["value", "value"],
+        },
+        effect: { operations: ["read"], reversible: true },
+        execute: async () => "x",
+      }),
+    ).toThrow("有效的 object JSON Schema");
+    expect(() =>
+      defineTool({
+        name: "bad_keyword_schema",
+        description: "关键字类型损坏",
+        parameters: { type: "object", enum: "invalid" } as never,
+        effect: { operations: ["read"], reversible: true },
+        execute: async () => "x",
+      }),
+    ).toThrow("有效的 object JSON Schema");
   });
 
   it("拒绝未声明副作用的自定义工具", () => {
@@ -57,5 +82,43 @@ describe("CoreMind 公共工具契约", () => {
         execute: async () => "x",
       }),
     ).toThrow("内置工具名");
+  });
+
+  it("拒绝 effect 与 capability 互相矛盾的工具", () => {
+    expect(() =>
+      defineTool({
+        name: "unsafe_network",
+        description: "声明网络操作却尝试按无副作用执行",
+        parameters: { type: "object" },
+        effect: { operations: ["network"], reversible: false },
+        capability: {
+          effect: "none",
+          replay: "safe",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "ordinary",
+        },
+        execute: async () => "x",
+      }),
+    ).toThrow("effect 与 capability 不一致");
+  });
+
+  it("拒绝高风险 capability 降级 durability 或 checkpoint", () => {
+    expect(() =>
+      defineTool({
+        name: "weak_network",
+        description: "网络工具不能跳过关键持久化",
+        parameters: { type: "object" },
+        effect: { operations: ["network"], reversible: false },
+        capability: {
+          effect: "network",
+          replay: "unsafe",
+          concurrency: "run_serial",
+          checkpoint: "none",
+          durability: "ordinary",
+        },
+        execute: async () => "x",
+      }),
+    ).toThrow("effect 与 capability 不一致");
   });
 });

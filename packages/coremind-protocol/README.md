@@ -10,6 +10,8 @@ CoreMind TypeScript 运行时与 Python SDK 共用的 JSON-RPC 协议、消息�
 
 Protocol v2 通过显式版本范围协商，在 `run`、`chat`、`resume` 接收客户端预生成的稳定 `runId` 并立即返回 `RunHandle`。客户端随后用 `events(afterSequence)` 续读 durable sequence、用 `query` 读取唯一 `ProjectionEngine` 投影，并把 Cancel、Approval、Steering、Follow-up 和 Delegation Disposition 作为带稳定 `controlId` 的持久控制提交。暂停 Run 的 Disposition 可先离线持久为 `accepted`，即使同一 Worker 正在执行另一个 Run；恢复并重建 Child Coordinator 后才成为 `applied` 或 `rejected`。重复 start/control 按指纹幂等；冲突、未知版本、混用 v1/v2 以及未知非 ignorable 事件均失败关闭。
 
+v2 还定义脱敏的 Checkpoint `list/create/diff/restore` 与声明式动态工具 `tool_register/tool_call/tool_result`。恢复使用 OperationId 和当前文件摘要做幂等/CAS 保护；动态工具继续由 Node Runtime 的 Policy、Approval、Checkpoint 与 EffectReceipt 权威链执行，结果状态明确区分 duplicate、conflict、unknown 和 late。`PROTOCOL_V2_SCHEMA_FINGERPRINT` 固定全部公开 v2 Schema。
+
 `approval_required` 与 `approval_resolved` 可携带同一 64 位小写十六进制 `argumentsFingerprint`，把批准和固定参数绑定；Delegation 审批还携带 `sha256:` 格式的 `delegationInputFingerprint`，其值必须与随后 `delegation_recorded.inputFingerprint` 相同。历史事件可省略这些字段，当前 Runtime 生成的新审批事实必须携带适用字段。
 
 `PROTOCOL_V2_SCHEMA_BUNDLE` 与 `PROTOCOL_V2_SCHEMA_FINGERPRINT` 同时锁定请求、初始化结果、RunHandle、事件信封、事件页、查询结果、控制回执和错误响应。v1 在整个 `0.4.x` 保留同步兼容入口，并返回非错误迁移提示；最早移除版本是 `0.5.0`，且仍需独立决策。
@@ -19,6 +21,8 @@ Protocol v2 通过显式版本范围协商，在 `run`、`chat`、`resume` 接�
 ## English: Protocol v2
 
 Protocol v2 explicitly negotiates a version range, requires a stable client-generated Run ID for `run`, `chat`, and `resume`, and immediately returns a RunHandle. Clients then resume durable events by sequence, query the single ProjectionEngine, and submit durable controls with stable control IDs, including Delegation Disposition. A paused Run may persist that control as accepted even while the same Worker executes another Run; only resume with a rebuilt Child Coordinator can record it as applied or rejected. Duplicate starts and controls are fingerprinted; conflicts, unknown versions, mixed v1/v2 envelopes, and unknown non-ignorable events fail closed.
+
+Protocol v2 also defines redacted Checkpoint `list/create/diff/restore` operations and a declarative `tool_register/tool_call/tool_result` bridge. Restore uses operation identity plus a file-state compare-and-swap guard. Dynamic tools remain governed by the Node runtime's policy, approval, checkpoint, and effect-receipt chain; result receipts distinguish duplicate, conflict, unknown, and late states.
 
 `approval_required` and `approval_resolved` may carry the same 64-character lowercase hexadecimal `argumentsFingerprint`, binding approval to fixed arguments. Delegation approvals also carry a `sha256:`-prefixed `delegationInputFingerprint` that must equal the subsequent `delegation_recorded.inputFingerprint`. Legacy events may omit these fields; new Runtime approval Facts include every applicable field.
 

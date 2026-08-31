@@ -8,12 +8,13 @@ import inspect
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import threading
 import uuid
 from collections import deque
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
 from typing import Any, Callable, Mapping, Sequence, Union, get_args, get_origin
 from urllib.parse import urlsplit
@@ -24,6 +25,7 @@ PROTOCOL_VERSION = "1.0"
 PROTOCOL_V2_VERSION = "2.0"
 ApprovalHandler = Callable[[Mapping[str, Any]], str]
 EventHandler = Callable[[Mapping[str, Any]], None]
+_MISSING = object()
 
 
 class CoreMindClient:
@@ -67,6 +69,8 @@ class CoreMindClient:
         self._capabilities: frozenset[str] = frozenset()
         self._tools: dict[str, tuple[Callable[..., Any], dict[str, Any]]] = {}
         self.received_events: list[Mapping[str, Any]] = []
+        self.received_tool_calls: list[Mapping[str, Any]] = []
+        self.received_tool_cancellations: list[Mapping[str, Any]] = []
 
     @property
     def pid(self) -> int | None:
@@ -127,16 +131,29 @@ class CoreMindClient:
                         rpc_code=-32000,
                         coremind_code="protocol_version_mismatch",
                     )
+                if self._protocol_version == PROTOCOL_V2_VERSION:
+                    _validate_v2_initialize_result(result)
                 capabilities = result.get(
                     "serverCapabilities" if self._protocol_version == PROTOCOL_V2_VERSION else "capabilities",
                     [],
                 )
-                required_capability = (
-                    "runHandle" if self._protocol_version == PROTOCOL_V2_VERSION else "runSnapshot"
+                required_capabilities = (
+                    {
+                        "runHandle",
+                        "typedEvents",
+                        "cursorResume",
+                        "controlInbox",
+                        "projectionQuery",
+                        "checkpointOperations",
+                        "dynamicTools",
+                    }
+                    if self._protocol_version == PROTOCOL_V2_VERSION
+                    else {"runSnapshot"}
                 )
-                if required_capability not in capabilities:
+                missing_capabilities = required_capabilities.difference(capabilities)
+                if missing_capabilities:
                     raise ProtocolError(
-                        f"worker 不支持当前 SDK 要求的 {required_capability} 能力",
+                        f"worker 缺少当前 SDK 要求的能力：{', '.join(sorted(missing_capabilities))}",
                         rpc_code=-32000,
                         coremind_code="protocol_capability_missing",
                     )
@@ -165,7 +182,7 @@ class CoreMindClient:
         if run_id is not None or self._protocol_version == PROTOCOL_V2_VERSION:
             params["runId"] = run_id or uuid.uuid4().hex
         if self._protocol_version == PROTOCOL_V2_VERSION:
-            return _validate_run_handle(self._request_raw("run", params))
+            return _validate_run_handle(self._request_raw("run", params), str(params["runId"]))
         return _validate_run_result(
             self._request_raw("run", params),
             require_observability="localObservability" in self._capabilities,
@@ -180,7 +197,7 @@ class CoreMindClient:
         params = {"agent": agent, "message": message}
         if self._protocol_version == PROTOCOL_V2_VERSION:
             params["runId"] = run_id or uuid.uuid4().hex
-            return _validate_run_handle(self._request_raw("chat", params))
+            return _validate_run_handle(self._request_raw("chat", params), str(params["runId"]))
         return _validate_run_result(
             self._request_raw("chat", params),
             require_observability="localObservability" in self._capabilities,
@@ -221,16 +238,74 @@ class CoreMindClient:
         if input is not None:
             params["input"] = input
         if self._protocol_version == PROTOCOL_V2_VERSION:
-            return _validate_run_handle(self._request_raw("resume", params))
+            return _validate_run_handle(self._request_raw("resume", params), run_id)
         return _validate_run_result(
             self._request_raw("resume_run", params),
             require_observability="localObservability" in self._capabilities,
+        )
+
+    def checkpoint_list(self, run_id: str) -> dict[str, Any]:
+        """列出脱敏后的 Protocol v2 Checkpoint。"""
+
+        self.start()
+        self._require_v2_method("checkpoint_list")
+        return _validate_checkpoint_result(
+            self._request_raw(
+                "checkpoint",
+                {"schemaVersion": 1, "action": "list", "runId": run_id},
+            ),
+            action="list",
+            run_id=run_id,
+        )
+
+    def checkpoint_create(
+        self,
+        run_id: str,
+        path: str,
+        *,
+        operation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """为工作区路径显式创建 Protocol v2 Checkpoint。"""
+
+        self.start()
+        self._require_v2_method("checkpoint_create")
+        identity = operation_id or uuid.uuid4().hex
+        return _validate_checkpoint_result(
+            self._request_raw(
+                "checkpoint",
+                {
+                    "schemaVersion": 1,
+                    "action": "create",
+                    "operationId": identity,
+                    "runId": run_id,
+                    "path": path,
+                },
+            ),
+            action="create",
+            run_id=run_id,
+            operation_id=identity,
         )
 
     def checkpoint_diff(self, run_id: str, checkpoint_id: str) -> dict[str, Any]:
         """比较 checkpoint 前内容与当前工作区文件。"""
 
         self.start()
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            return _validate_checkpoint_result(
+                self._request_raw(
+                    "checkpoint",
+                    {
+                        "schemaVersion": 1,
+                        "action": "diff",
+                        "runId": run_id,
+                        "checkpointId": checkpoint_id,
+                        "checkpointVersion": 1,
+                    },
+                ),
+                action="diff",
+                run_id=run_id,
+                checkpoint_id=checkpoint_id,
+            )
         self._require_v1_method("checkpoint_diff")
         return dict(
             self._request_raw(
@@ -239,13 +314,42 @@ class CoreMindClient:
         )
 
     def checkpoint_restore(
-        self, run_id: str, checkpoint_id: str, *, confirm: bool
+        self,
+        run_id: str,
+        checkpoint_id: str,
+        *,
+        confirm: bool,
+        operation_id: str | None = None,
+        expected_current: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """在调用方显式 confirm=True 后恢复可逆 checkpoint。"""
 
         if confirm is not True:
             raise CoreMindError("恢复 checkpoint 必须显式传入 confirm=True")
         self.start()
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            if not isinstance(expected_current, Mapping):
+                raise CoreMindError("Protocol v2 恢复 checkpoint 必须提供 diff 返回的 expected_current")
+            identity = operation_id or uuid.uuid4().hex
+            return _validate_checkpoint_result(
+                self._request_raw(
+                    "checkpoint",
+                    {
+                        "schemaVersion": 1,
+                        "action": "restore",
+                        "operationId": identity,
+                        "runId": run_id,
+                        "checkpointId": checkpoint_id,
+                        "checkpointVersion": 1,
+                        "confirm": True,
+                        "expectedCurrent": dict(expected_current),
+                    },
+                ),
+                action="restore",
+                run_id=run_id,
+                operation_id=identity,
+                checkpoint_id=checkpoint_id,
+            )
         self._require_v1_method("checkpoint_restore")
         return dict(
             self._request_raw(
@@ -290,6 +394,13 @@ class CoreMindClient:
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """把同步或异步 Python callable 注册为 Agent 工具。"""
 
+        if self._protocol_version == PROTOCOL_V2_VERSION:
+            raise ProtocolError(
+                "Protocol v2 只接受声明式工具；不得注册宿主 Python callable",
+                rpc_code=-32601,
+                coremind_code="protocol_capability_missing",
+            )
+
         def decorator(function: Callable[..., Any]) -> Callable[..., Any]:
             tool_name = name or function.__name__
             if tool_name in self._tools:
@@ -306,6 +417,45 @@ class CoreMindClient:
             return function
 
         return decorator
+
+    def register_tool_definition(self, definition: Mapping[str, Any]) -> dict[str, Any]:
+        """注册声明式 v2 工具定义；不接收或执行 Python callable。"""
+
+        self.start()
+        self._require_v2_method("tool_register")
+        try:
+            json.dumps(definition, ensure_ascii=False)
+        except (TypeError, ValueError) as error:
+            raise CoreMindError("工具定义必须是可序列化的 JSON 声明") from error
+        result = self._request_raw("tool_register", dict(definition))
+        return _validate_tool_registration_receipt(result, definition)
+
+    def submit_tool_result(
+        self,
+        run_id: str,
+        call_id: str,
+        registration_id: str,
+        *,
+        result: Any = _MISSING,
+        error: str | None = None,
+        result_id: str | None = None,
+    ) -> dict[str, Any]:
+        """显式提交 v2 工具结果；结果不会在 Python SDK 内自动执行。"""
+
+        self.start()
+        self._require_v2_method("tool_result")
+        if (result is _MISSING) == (error is None):
+            raise CoreMindError("工具结果必须且只能提供 result 或 error 之一")
+        identity = result_id or uuid.uuid4().hex
+        params: dict[str, Any] = {
+            "schemaVersion": 1,
+            "resultId": identity,
+            "runId": run_id,
+            "callId": call_id,
+            "registrationId": registration_id,
+        }
+        params["error" if error is not None else "result"] = error if error is not None else result
+        return _validate_tool_result_receipt(self._request_raw("tool_result", params), params)
 
     def close(self) -> None:
         """关闭 worker；可重复调用。"""
@@ -357,9 +507,12 @@ class CoreMindClient:
         }
         params["capabilities"] = [
             "runHandle",
+            "typedEvents",
             "cursorResume",
             "controlInbox",
             "projectionQuery",
+            "checkpointOperations",
+            "dynamicTools",
         ]
         return params
 
@@ -487,6 +640,36 @@ class CoreMindClient:
                 ).start()
         elif method == "python_tool_call":
             threading.Thread(target=self._execute_python_tool, args=(params,), daemon=True).start()
+        elif method == "tool_call" and self._protocol_version == PROTOCOL_V2_VERSION:
+            try:
+                if (
+                    set(message) != {"jsonrpc", "protocolVersion", "method", "params"}
+                    or message.get("jsonrpc") != "2.0"
+                    or message.get("protocolVersion") != PROTOCOL_V2_VERSION
+                ):
+                    raise ProtocolError(
+                        "worker 返回的 v2 ToolCall 版本非法",
+                        rpc_code=-32600,
+                        coremind_code="protocol_validation_failed",
+                    )
+                self.received_tool_calls.append(_validate_tool_call(params))
+            except ProtocolError as error:
+                self._stderr_tail.append(str(error))
+        elif method == "tool_cancel" and self._protocol_version == PROTOCOL_V2_VERSION:
+            try:
+                if (
+                    set(message) != {"jsonrpc", "protocolVersion", "method", "params"}
+                    or message.get("jsonrpc") != "2.0"
+                    or message.get("protocolVersion") != PROTOCOL_V2_VERSION
+                ):
+                    raise ProtocolError(
+                        "worker 返回的 v2 ToolCancel 版本非法",
+                        rpc_code=-32600,
+                        coremind_code="protocol_validation_failed",
+                    )
+                self.received_tool_cancellations.append(_validate_tool_cancel(params))
+            except ProtocolError as error:
+                self._stderr_tail.append(str(error))
 
     def _answer_approval(
         self,
@@ -497,16 +680,28 @@ class CoreMindClient:
             decision = self._approval_handler(event) if self._approval_handler else "deny"
             if decision not in {"allow", "deny"}:
                 decision = "deny"
+            approval_id = str(event["approvalId"])
+            if self._protocol_version == PROTOCOL_V2_VERSION:
+                command = {
+                    "schemaVersion": 1,
+                    "controlId": hashlib.sha256(approval_id.encode("utf-8")).hexdigest(),
+                    "runId": params["runId"],
+                    "type": "approval",
+                    "approvalId": approval_id,
+                    "decision": decision,
+                }
+                _validate_control_receipt(self._request_raw("control", command), command)
+                return
             self._request_raw(
                 "approve",
                 {
                     "runId": params["runId"],
-                    "approvalId": event["approvalId"],
+                    "approvalId": approval_id,
                     "decision": decision,
                 },
             )
-        except CoreMindError:
-            return
+        except CoreMindError as error:
+            self._stderr_tail.append(str(error))
 
     def _execute_python_tool(self, params: Mapping[str, Any]) -> None:
         call_id = str(params.get("callId", ""))
@@ -603,14 +798,58 @@ class AsyncCoreMindClient:
     async def checkpoint_diff(self, run_id: str, checkpoint_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.checkpoint_diff, run_id, checkpoint_id)
 
+    async def checkpoint_list(self, run_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.checkpoint_list, run_id)
+
+    async def checkpoint_create(
+        self, run_id: str, path: str, *, operation_id: str | None = None
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self._client.checkpoint_create,
+            run_id,
+            path,
+            operation_id=operation_id,
+        )
+
     async def checkpoint_restore(
-        self, run_id: str, checkpoint_id: str, *, confirm: bool
+        self,
+        run_id: str,
+        checkpoint_id: str,
+        *,
+        confirm: bool,
+        operation_id: str | None = None,
+        expected_current: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         return await asyncio.to_thread(
             self._client.checkpoint_restore,
             run_id,
             checkpoint_id,
             confirm=confirm,
+            operation_id=operation_id,
+            expected_current=expected_current,
+        )
+
+    async def register_tool_definition(self, definition: Mapping[str, Any]) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.register_tool_definition, definition)
+
+    async def submit_tool_result(
+        self,
+        run_id: str,
+        call_id: str,
+        registration_id: str,
+        *,
+        result: Any = _MISSING,
+        error: str | None = None,
+        result_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(
+            self._client.submit_tool_result,
+            run_id,
+            call_id,
+            registration_id,
+            result=result,
+            error=error,
+            result_id=result_id,
         )
 
     async def events(
@@ -639,11 +878,11 @@ class AsyncCoreMindClient:
         await self.close()
 
 
-def _validate_run_handle(value: Mapping[str, Any]) -> dict[str, Any]:
+def _validate_run_handle(value: Mapping[str, Any], expected_run_id: str) -> dict[str, Any]:
     result = dict(value)
     controls = result.get("availableControls")
     if (
-        not isinstance(result.get("runId"), str)
+        result.get("runId") != expected_run_id
         or not isinstance(result.get("acceptedAt"), str)
         or result.get("initialCursor") != 0
         or result.get("selectedProtocol") != PROTOCOL_V2_VERSION
@@ -656,6 +895,259 @@ def _validate_run_handle(value: Mapping[str, Any]) -> dict[str, Any]:
             coremind_code="invalid_run_handle",
         )
     return result
+
+
+def _validate_checkpoint_result(
+    value: Mapping[str, Any],
+    *,
+    action: str,
+    run_id: str,
+    operation_id: str | None = None,
+    checkpoint_id: str | None = None,
+) -> dict[str, Any]:
+    result = dict(value)
+    valid = result.get("schemaVersion") == 1 and result.get("action") == action
+    valid = valid and result.get("runId") == run_id
+    if action == "list":
+        checkpoints = result.get("checkpoints")
+        valid = (
+            valid
+            and set(result)
+            == {"schemaVersion", "action", "runId", "derivedFromSequence", "checkpoints"}
+            and _is_nonnegative_int(result.get("derivedFromSequence"))
+            and result["derivedFromSequence"] > 0
+            and isinstance(checkpoints, list)
+            and all(_valid_public_checkpoint(item, run_id) for item in checkpoints)
+        )
+    elif action == "create":
+        valid = (
+            valid
+            and set(result)
+            == {"schemaVersion", "action", "operationId", "status", "runId", "checkpoint"}
+            and result.get("operationId") == operation_id
+            and result.get("status") in {"applied", "duplicate"}
+            and _valid_public_checkpoint(result.get("checkpoint"), run_id)
+        )
+    elif action == "diff":
+        valid = (
+            valid
+            and _valid_keys(
+                result,
+                {
+                    "schemaVersion",
+                    "action",
+                    "runId",
+                    "checkpointId",
+                    "checkpointVersion",
+                    "changed",
+                    "current",
+                    "reversible",
+                },
+                {"path", "before", "reason"},
+            )
+            and result.get("checkpointId") == checkpoint_id
+            and result.get("checkpointVersion") == 1
+            and isinstance(result.get("changed"), bool)
+            and isinstance(result.get("reversible"), bool)
+            and ("path" not in result or _valid_public_path(result.get("path")))
+            and ("before" not in result or _valid_file_state(result.get("before")))
+            and ("reason" not in result or isinstance(result.get("reason"), str))
+            and _valid_file_state(result.get("current"))
+        )
+    elif action == "restore":
+        valid = (
+            valid
+            and set(result)
+            == {
+                "schemaVersion",
+                "action",
+                "operationId",
+                "status",
+                "runId",
+                "checkpointId",
+                "checkpointVersion",
+            }
+            and result.get("operationId") == operation_id
+            and result.get("checkpointId") == checkpoint_id
+            and result.get("checkpointVersion") == 1
+            and result.get("status") in {"applied", "duplicate"}
+        )
+    if not valid:
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 CheckpointResult 非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
+    return result
+
+
+def _valid_public_checkpoint(value: object, run_id: str) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    return (
+        _valid_keys(
+            value,
+            {"checkpointVersion", "checkpointId", "runId", "createdAt", "reversible"},
+            {"operationId", "path", "before", "after", "reason"},
+        )
+        and value.get("checkpointVersion") == 1
+        and _valid_branded_id(value.get("checkpointId"))
+        and value.get("runId") == run_id
+        and isinstance(value.get("createdAt"), str)
+        and re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z",
+            value["createdAt"],
+        )
+        is not None
+        and isinstance(value.get("reversible"), bool)
+        and ("operationId" not in value or _valid_branded_id(value.get("operationId")))
+        and ("path" not in value or _valid_public_path(value.get("path")))
+        and ("before" not in value or _valid_file_state(value.get("before")))
+        and ("after" not in value or _valid_file_state(value.get("after")))
+        and ("reason" not in value or isinstance(value.get("reason"), str))
+    )
+
+
+def _valid_file_state(value: object) -> bool:
+    if (
+        not isinstance(value, Mapping)
+        or not _valid_keys(value, {"existed"}, {"sha256"})
+        or not isinstance(value.get("existed"), bool)
+    ):
+        return False
+    if not value["existed"]:
+        return "sha256" not in value
+    sha256 = value.get("sha256")
+    return isinstance(sha256, str) and re.fullmatch(r"[0-9a-f]{64}", sha256) is not None
+
+
+def _valid_keys(value: Mapping[str, Any], required: set[str], optional: set[str]) -> bool:
+    keys = set(value)
+    return required <= keys <= required | optional
+
+
+def _valid_public_path(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    posix = PurePosixPath(value)
+    windows = PureWindowsPath(value)
+    return (
+        not posix.is_absolute()
+        and not windows.is_absolute()
+        and not windows.drive
+        and ".." not in posix.parts
+        and ".." not in windows.parts
+    )
+
+
+def _validate_tool_registration_receipt(
+    value: Mapping[str, Any], definition: Mapping[str, Any]
+) -> dict[str, Any]:
+    result = dict(value)
+    if (
+        set(result)
+        != {"schemaVersion", "registrationId", "toolId", "definitionFingerprint", "status"}
+        or result.get("schemaVersion") != 1
+        or result.get("registrationId") != definition.get("registrationId")
+        or result.get("toolId") != definition.get("toolId")
+        or result.get("status") not in {"registered", "duplicate", "conflict"}
+        or not _valid_prefixed_sha256(result.get("definitionFingerprint"))
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 ToolRegistrationReceipt 非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
+    return result
+
+
+def _validate_tool_call(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    if (
+        set(value)
+        != {
+            "schemaVersion",
+            "runId",
+            "callId",
+            "registrationId",
+            "toolId",
+            "name",
+            "argumentsFingerprint",
+            "args",
+        }
+        or value.get("schemaVersion") != 1
+        or not all(
+            _valid_branded_id(value.get(key))
+            for key in ("runId", "callId", "registrationId", "toolId")
+        )
+        or not isinstance(value.get("name"), str)
+        or not value.get("name")
+        or not _valid_prefixed_sha256(value.get("argumentsFingerprint"))
+        or "args" not in value
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 ToolCall 非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
+    return dict(value)
+
+
+def _validate_tool_cancel(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    if (
+        set(value)
+        != {"schemaVersion", "runId", "callId", "registrationId", "toolId", "reason"}
+        or value.get("schemaVersion") != 1
+        or not all(
+            _valid_branded_id(value.get(key))
+            for key in ("runId", "callId", "registrationId", "toolId")
+        )
+        or value.get("reason") != "aborted"
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 ToolCancel 非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
+    return dict(value)
+
+
+def _valid_branded_id(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and 0 < len(value) <= 256
+        and not any(
+            character.isspace() or ord(character) < 32 or ord(character) == 127
+            for character in value
+        )
+    )
+
+
+def _validate_tool_result_receipt(
+    value: Mapping[str, Any], request: Mapping[str, Any]
+) -> dict[str, Any]:
+    result = dict(value)
+    if (
+        set(result)
+        != {"schemaVersion", "resultId", "runId", "callId", "registrationId", "status"}
+        or result.get("schemaVersion") != 1
+        or any(result.get(key) != request.get(key) for key in ("resultId", "runId", "callId", "registrationId"))
+        or result.get("status") not in {"accepted", "duplicate", "conflict", "unknown", "late"}
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 ToolResultReceipt 非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
+    return result
+
+
+def _valid_prefixed_sha256(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and value.startswith("sha256:")
+        and len(value) == 71
+        and all(character in "0123456789abcdef" for character in value[7:])
+    )
 
 
 def _validate_events_page(value: Mapping[str, Any], run_id: str) -> dict[str, Any]:
@@ -1142,6 +1634,40 @@ def _verify_bundled_worker(command: Sequence[str]) -> None:
         )
     if manifest.get("bundleSha256") != actual_sha256:
         raise WorkerNotFoundError("随包 Worker 内容摘要不匹配；请重新安装 coremind-ai")
+
+
+def _validate_v2_initialize_result(value: Mapping[str, Any]) -> None:
+    """校验 Node Runtime 身份、迁移窗口与精确 v2 Schema 指纹。"""
+
+    manifest_path = Path(__file__).resolve().parent / "_worker" / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise WorkerNotFoundError(f"无法读取随包 Worker 清单：{error}") from error
+    expected = manifest.get("protocolV2SchemaFingerprint")
+    if value.get("schemaFingerprint") != expected:
+        raise ProtocolError(
+            "Protocol v2 Schema 指纹不匹配",
+            rpc_code=-32000,
+            coremind_code="protocol_version_mismatch",
+        )
+    migration = value.get("migration")
+    warnings = value.get("warnings")
+    if (
+        manifest.get("protocolV2Version") != PROTOCOL_V2_VERSION
+        or value.get("runtime") != "node"
+        or not isinstance(warnings, list)
+        or not all(isinstance(warning, str) for warning in warnings)
+        or not isinstance(migration, Mapping)
+        or migration.get("v1Supported") is not True
+        or migration.get("v1SupportedThrough") != "0.4.x"
+        or migration.get("earliestRemoval") != "0.5.0"
+    ):
+        raise ProtocolError(
+            "worker 返回的 Protocol v2 初始化身份或迁移窗口非法",
+            rpc_code=-32600,
+            coremind_code="protocol_validation_failed",
+        )
 
 
 def _schema_from_callable(function: Callable[..., Any]) -> dict[str, Any]:

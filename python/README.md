@@ -8,7 +8,7 @@ Python SDK 通过本地 stdio JSON-RPC 调用与 TypeScript/CLI 相同的 Node R
 
 配置驱动的委派通过同一个 bundled Node Worker 执行：v1 `run` 的结构化结果包含 `childRuns`，v2 的 `events()` 返回带父子身份的 `fact.delegation`，`query()` 返回同源 Child Run tree 与 Recovery。Python SDK 不提供脱离活动父 Run 的 spawn、list、resume 或 detach 入口。
 
-Protocol v2 当前不开放 Python callable 注册，也不暴露 v1 的 checkpoint diff/restore RPC；这些组合会返回 `protocol_capability_missing`，不会静默退回 v1。v1 在整个 `0.4.x` 保留，最早移除版本为 `0.5.0` 且需要独立决策。
+Protocol v2 不开放 Python callable 注册；改用 `register_tool_definition()` 注册声明式 Schema/Effect/Capability，从 `received_tool_calls` 读取调用、从 `received_tool_cancellations` 读取取消，再用 `submit_tool_result()` 显式回传。Checkpoint 使用 `checkpoint_list/create/diff/restore`，恢复必须提交 `diff` 返回的当前文件身份。两类能力都由随包 Node Runtime 执行，Python 不读取私有数据库或复制状态机。v1 在整个 `0.4.x` 保留，最早移除版本为 `0.5.0` 且需要独立决策。
 
 Python 包随 bundled worker 一起携带由 TypeScript 唯一 Error Contract 生成的只读 `ERROR_CODES`。可用 `error_code_info(code)` 查询终态、取消、重试、人工处置和兼容 Run 状态；`ProtocolError.error_info` 自动提供同一分类。未登记的 Python SDK 自有码会在仓库 CI 中失败，未知外部错误仍收敛为 `unclassified_error`。
 
@@ -22,7 +22,7 @@ Current source can opt into Protocol v2 with `CoreMindClient(..., protocol_versi
 
 Configured delegation runs through that same bundled Node Worker. A v1 `run` result includes structured `childRuns`; v2 `events()` exposes identity-bearing `fact.delegation` records, while `query()` returns the same-source Child Run tree and Recovery. The Python SDK does not add standalone spawn, list, resume, or detach entry points.
 
-Protocol v2 does not currently support Python callable registration or expose the v1 checkpoint diff/restore RPCs. These combinations return `protocol_capability_missing` instead of silently falling back to v1. The v1 entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
+Protocol v2 does not accept Python callable registration. Use `register_tool_definition()` for declarative tools, consume `received_tool_calls` and `received_tool_cancellations`, and return results explicitly with `submit_tool_result()`. Checkpoint operations are exposed through `checkpoint_list/create/diff/restore`, with compare-and-swap file identity required for restore. Both paths remain authoritative in the bundled Node runtime. The v1 entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
 
 The Python package ships a read-only `ERROR_CODES` artifact generated from the single TypeScript Error Contract. Use `error_code_info(code)` for terminality, cancellation, retry, human-action, and compatibility Run classifications; `ProtocolError.error_info` exposes the same entry. CI rejects unregistered Python-owned codes, and unknown external failures still converge to `unclassified_error`.
 

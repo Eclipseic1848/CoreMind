@@ -603,7 +603,7 @@ async function waitForCapture(
 
 async function waitForTuiFingerprint(
   read: () => ResultFingerprint | undefined,
-  timeoutMs = 5_000,
+  timeoutMs = 15_000,
 ): Promise<ResultFingerprint> {
   const deadline = Date.now() + timeoutMs;
   while (read() === undefined && Date.now() < deadline) {

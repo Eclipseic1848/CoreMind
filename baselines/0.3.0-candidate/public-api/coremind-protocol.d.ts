@@ -3,6 +3,7 @@ import { TArray } from '@sinclair/typebox';
 import { TBoolean } from '@sinclair/typebox';
 import { TInteger } from '@sinclair/typebox';
 import { TLiteral } from '@sinclair/typebox';
+import { TNever } from '@sinclair/typebox';
 import { TNull } from '@sinclair/typebox';
 import { TNumber } from '@sinclair/typebox';
 import { TObject } from '@sinclair/typebox';
@@ -1125,6 +1126,95 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     params: TObject<    {
     runId: TString;
     }>;
+    }>, TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    id: TUnion<[TString, TNumber]>;
+    method: TLiteral<"checkpoint">;
+    params: TUnion<[TObject<    {
+    runId: TString;
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"list">;
+    }>, TObject<    {
+    runId: TString;
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"create">;
+    operationId: TString;
+    path: TString;
+    }>, TObject<    {
+    runId: TString;
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"diff">;
+    checkpointId: TString;
+    checkpointVersion: TLiteral<1>;
+    }>, TObject<    {
+    runId: TString;
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"restore">;
+    operationId: TString;
+    checkpointId: TString;
+    checkpointVersion: TLiteral<1>;
+    confirm: TLiteral<true>;
+    expectedCurrent: TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>;
+    }>]>;
+    }>, TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    id: TUnion<[TString, TNumber]>;
+    method: TLiteral<"tool_register">;
+    params: TObject<    {
+    schemaVersion: TLiteral<1>;
+    registrationId: TString;
+    definitionVersion: TLiteral<1>;
+    toolId: TString;
+    name: TString;
+    label: TOptional<TString>;
+    description: TString;
+    parameters: TObject<    {
+    type: TLiteral<"object">;
+    }>;
+    effect: TObject<    {
+    operations: TArray<TUnion<[TLiteral<"read">, TLiteral<"write">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">]>>;
+    reversible: TBoolean;
+    pathFields: TOptional<TArray<TString>>;
+    urlFields: TOptional<TArray<TString>>;
+    }>;
+    capability: TObject<    {
+    effect: TUnion<[TLiteral<"none">, TLiteral<"workspace">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">, TLiteral<"unknown">]>;
+    replay: TUnion<[TLiteral<"safe">, TLiteral<"idempotent">, TLiteral<"unsafe">, TLiteral<"unknown">]>;
+    concurrency: TUnion<[TLiteral<"parallel">, TLiteral<"run_serial">, TLiteral<"workspace_exclusive">]>;
+    checkpoint: TUnion<[TLiteral<"none">, TLiteral<"required">, TLiteral<"unsupported">]>;
+    durability: TUnion<[TLiteral<"ordinary">, TLiteral<"critical">]>;
+    }>;
+    }>;
+    }>, TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    id: TUnion<[TString, TNumber]>;
+    method: TLiteral<"tool_result">;
+    params: TUnion<[TObject<    {
+    result: TUnknown;
+    error: TOptional<TNever>;
+    schemaVersion: TLiteral<1>;
+    resultId: TString;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    }>, TObject<    {
+    result: TOptional<TNever>;
+    error: TString;
+    schemaVersion: TLiteral<1>;
+    resultId: TString;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    }>]>;
     }>]>;
     readonly initializeResult: TObject<    {
     selectedProtocol: TLiteral<"2.0">;
@@ -1150,19 +1240,19 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
+    callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
     sequence: TInteger;
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
     stepId: TOptional<TString>;
-    callId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -1524,13 +1614,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
+    callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
     sequence: TInteger;
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
     stepId: TOptional<TString>;
-    callId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
@@ -1550,19 +1640,19 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
+    callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
     sequence: TInteger;
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
     stepId: TOptional<TString>;
-    callId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -1924,13 +2014,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
+    callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
     sequence: TInteger;
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
     stepId: TOptional<TString>;
-    callId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
@@ -1956,6 +2046,141 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     rejectedSequence: TOptional<TInteger>;
     duplicateOf: TOptional<TUnion<[TLiteral<"accepted">, TLiteral<"applied">, TLiteral<"rejected">]>>;
     reason: TOptional<TString>;
+    }>;
+    readonly checkpointResult: TUnion<[TObject<    {
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"list">;
+    runId: TString;
+    derivedFromSequence: TInteger;
+    checkpoints: TArray<TObject<    {
+    checkpointVersion: TLiteral<1>;
+    checkpointId: TString;
+    runId: TString;
+    operationId: TOptional<TString>;
+    createdAt: TString;
+    reversible: TBoolean;
+    path: TOptional<TString>;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    after: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    reason: TOptional<TString>;
+    }>>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"create">;
+    operationId: TString;
+    status: TUnion<[TLiteral<"applied">, TLiteral<"duplicate">]>;
+    runId: TString;
+    checkpoint: TObject<    {
+    checkpointVersion: TLiteral<1>;
+    checkpointId: TString;
+    runId: TString;
+    operationId: TOptional<TString>;
+    createdAt: TString;
+    reversible: TBoolean;
+    path: TOptional<TString>;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    after: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    reason: TOptional<TString>;
+    }>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"diff">;
+    runId: TString;
+    checkpointId: TString;
+    checkpointVersion: TLiteral<1>;
+    path: TOptional<TString>;
+    changed: TBoolean;
+    before: TOptional<TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>>;
+    current: TUnion<[TObject<    {
+    existed: TLiteral<true>;
+    sha256: TString;
+    }>, TObject<    {
+    existed: TLiteral<false>;
+    sha256: TOptional<TNever>;
+    }>]>;
+    reversible: TBoolean;
+    reason: TOptional<TString>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    action: TLiteral<"restore">;
+    operationId: TString;
+    status: TUnion<[TLiteral<"applied">, TLiteral<"duplicate">]>;
+    runId: TString;
+    checkpointId: TString;
+    checkpointVersion: TLiteral<1>;
+    }>]>;
+    readonly toolCallNotification: TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    method: TLiteral<"tool_call">;
+    params: TObject<    {
+    schemaVersion: TLiteral<1>;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    toolId: TString;
+    name: TString;
+    argumentsFingerprint: TString;
+    args: TUnknown;
+    }>;
+    }>;
+    readonly toolCancelNotification: TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    method: TLiteral<"tool_cancel">;
+    params: TObject<    {
+    schemaVersion: TLiteral<1>;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    toolId: TString;
+    reason: TLiteral<"aborted">;
+    }>;
+    }>;
+    readonly toolRegistrationReceipt: TObject<    {
+    schemaVersion: TLiteral<1>;
+    registrationId: TString;
+    toolId: TString;
+    definitionFingerprint: TString;
+    status: TUnion<[TLiteral<"registered">, TLiteral<"duplicate">, TLiteral<"conflict">]>;
+    }>;
+    readonly toolResultReceipt: TObject<    {
+    schemaVersion: TLiteral<1>;
+    resultId: TString;
+    runId: TString;
+    callId: TString;
+    registrationId: TString;
+    status: TUnion<[TLiteral<"accepted">, TLiteral<"duplicate">, TLiteral<"conflict">, TLiteral<"unknown">, TLiteral<"late">]>;
     }>;
     readonly errorResponse: TObject<    {
     jsonrpc: TLiteral<"2.0">;
@@ -2142,6 +2367,142 @@ message: TString;
 }>;
 }>;
 
+export declare type ProtocolV2CheckpointRequest = Static<typeof ProtocolV2CheckpointRequestSchema>;
+
+export declare const ProtocolV2CheckpointRequestSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"checkpoint">;
+params: TUnion<[TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"list">;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"create">;
+operationId: TString;
+path: TString;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"diff">;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"restore">;
+operationId: TString;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+confirm: TLiteral<true>;
+expectedCurrent: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
+}>]>;
+}>;
+
+export declare type ProtocolV2CheckpointResult = Static<typeof ProtocolV2CheckpointResultSchema>;
+
+export declare const ProtocolV2CheckpointResultSchema: TUnion<[TObject<    {
+schemaVersion: TLiteral<1>;
+action: TLiteral<"list">;
+runId: TString;
+derivedFromSequence: TInteger;
+checkpoints: TArray<TObject<    {
+checkpointVersion: TLiteral<1>;
+checkpointId: TString;
+runId: TString;
+operationId: TOptional<TString>;
+createdAt: TString;
+reversible: TBoolean;
+path: TOptional<TString>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+reason: TOptional<TString>;
+}>>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+action: TLiteral<"create">;
+operationId: TString;
+status: TUnion<[TLiteral<"applied">, TLiteral<"duplicate">]>;
+runId: TString;
+checkpoint: TObject<    {
+checkpointVersion: TLiteral<1>;
+checkpointId: TString;
+runId: TString;
+operationId: TOptional<TString>;
+createdAt: TString;
+reversible: TBoolean;
+path: TOptional<TString>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+reason: TOptional<TString>;
+}>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+action: TLiteral<"diff">;
+runId: TString;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+path: TOptional<TString>;
+changed: TBoolean;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+current: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
+reversible: TBoolean;
+reason: TOptional<TString>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+action: TLiteral<"restore">;
+operationId: TString;
+status: TUnion<[TLiteral<"applied">, TLiteral<"duplicate">]>;
+runId: TString;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+}>]>;
+
 export declare type ProtocolV2ControlCommand = Static<typeof ProtocolV2ControlCommandSchema>;
 
 export declare const ProtocolV2ControlCommandSchema: TUnion<[TObject<    {
@@ -2257,19 +2618,19 @@ runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
+callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
 sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
 stepId: TOptional<TString>;
-callId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;
@@ -2631,13 +2992,13 @@ runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
+callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
 sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
 stepId: TOptional<TString>;
-callId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
@@ -2660,19 +3021,19 @@ runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
+callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
 sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
 stepId: TOptional<TString>;
-callId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"budget_exceeded" | "policy_denied" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_result" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "error" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;
@@ -3034,13 +3395,13 @@ runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
+callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
 sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
 stepId: TOptional<TString>;
-callId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
@@ -3104,6 +3465,33 @@ export declare class ProtocolV2NegotiationError extends Error {
     readonly code: "protocol_version_unsupported";
     constructor(range: ProtocolVersionRange);
 }
+
+export declare type ProtocolV2PublicCheckpoint = Static<typeof ProtocolV2PublicCheckpointSchema>;
+
+export declare const ProtocolV2PublicCheckpointSchema: TObject<    {
+checkpointVersion: TLiteral<1>;
+checkpointId: TString;
+runId: TString;
+operationId: TOptional<TString>;
+createdAt: TString;
+reversible: TBoolean;
+path: TOptional<TString>;
+before: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+after: TOptional<TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>>;
+reason: TOptional<TString>;
+}>;
 
 export declare type ProtocolV2QueryRequest = Static<typeof ProtocolV2QueryRequestSchema>;
 
@@ -3229,6 +3617,95 @@ method: TLiteral<"query">;
 params: TObject<    {
 runId: TString;
 }>;
+}>, TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"checkpoint">;
+params: TUnion<[TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"list">;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"create">;
+operationId: TString;
+path: TString;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"diff">;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+}>, TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+action: TLiteral<"restore">;
+operationId: TString;
+checkpointId: TString;
+checkpointVersion: TLiteral<1>;
+confirm: TLiteral<true>;
+expectedCurrent: TUnion<[TObject<    {
+existed: TLiteral<true>;
+sha256: TString;
+}>, TObject<    {
+existed: TLiteral<false>;
+sha256: TOptional<TNever>;
+}>]>;
+}>]>;
+}>, TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"tool_register">;
+params: TObject<    {
+schemaVersion: TLiteral<1>;
+registrationId: TString;
+definitionVersion: TLiteral<1>;
+toolId: TString;
+name: TString;
+label: TOptional<TString>;
+description: TString;
+parameters: TObject<    {
+type: TLiteral<"object">;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<[TLiteral<"read">, TLiteral<"write">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<[TLiteral<"none">, TLiteral<"workspace">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">, TLiteral<"unknown">]>;
+replay: TUnion<[TLiteral<"safe">, TLiteral<"idempotent">, TLiteral<"unsafe">, TLiteral<"unknown">]>;
+concurrency: TUnion<[TLiteral<"parallel">, TLiteral<"run_serial">, TLiteral<"workspace_exclusive">]>;
+checkpoint: TUnion<[TLiteral<"none">, TLiteral<"required">, TLiteral<"unsupported">]>;
+durability: TUnion<[TLiteral<"ordinary">, TLiteral<"critical">]>;
+}>;
+}>;
+}>, TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"tool_result">;
+params: TUnion<[TObject<    {
+result: TUnknown;
+error: TOptional<TNever>;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>, TObject<    {
+result: TOptional<TNever>;
+error: TString;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>]>;
 }>]>;
 
 export declare type ProtocolV2ResumeRequest = Static<typeof ProtocolV2ResumeRequestSchema>;
@@ -3268,6 +3745,121 @@ input: TOptional<TString>;
 }>;
 
 export declare type ProtocolV2StartRequest = ProtocolV2RunRequest | ProtocolV2ChatRequest | ProtocolV2ResumeRequest;
+
+export declare type ProtocolV2ToolCallNotification = Static<typeof ProtocolV2ToolCallNotificationSchema>;
+
+export declare const ProtocolV2ToolCallNotificationSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+method: TLiteral<"tool_call">;
+params: TObject<    {
+schemaVersion: TLiteral<1>;
+runId: TString;
+callId: TString;
+registrationId: TString;
+toolId: TString;
+name: TString;
+argumentsFingerprint: TString;
+args: TUnknown;
+}>;
+}>;
+
+export declare type ProtocolV2ToolCancelNotification = Static<typeof ProtocolV2ToolCancelNotificationSchema>;
+
+export declare const ProtocolV2ToolCancelNotificationSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+method: TLiteral<"tool_cancel">;
+params: TObject<    {
+schemaVersion: TLiteral<1>;
+runId: TString;
+callId: TString;
+registrationId: TString;
+toolId: TString;
+reason: TLiteral<"aborted">;
+}>;
+}>;
+
+export declare type ProtocolV2ToolRegisterRequest = Static<typeof ProtocolV2ToolRegisterRequestSchema>;
+
+export declare const ProtocolV2ToolRegisterRequestSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"tool_register">;
+params: TObject<    {
+schemaVersion: TLiteral<1>;
+registrationId: TString;
+definitionVersion: TLiteral<1>;
+toolId: TString;
+name: TString;
+label: TOptional<TString>;
+description: TString;
+parameters: TObject<    {
+type: TLiteral<"object">;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<[TLiteral<"read">, TLiteral<"write">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<[TLiteral<"none">, TLiteral<"workspace">, TLiteral<"process">, TLiteral<"network">, TLiteral<"external">, TLiteral<"unknown">]>;
+replay: TUnion<[TLiteral<"safe">, TLiteral<"idempotent">, TLiteral<"unsafe">, TLiteral<"unknown">]>;
+concurrency: TUnion<[TLiteral<"parallel">, TLiteral<"run_serial">, TLiteral<"workspace_exclusive">]>;
+checkpoint: TUnion<[TLiteral<"none">, TLiteral<"required">, TLiteral<"unsupported">]>;
+durability: TUnion<[TLiteral<"ordinary">, TLiteral<"critical">]>;
+}>;
+}>;
+}>;
+
+export declare type ProtocolV2ToolRegistrationReceipt = Static<typeof ProtocolV2ToolRegistrationReceiptSchema>;
+
+export declare const ProtocolV2ToolRegistrationReceiptSchema: TObject<    {
+schemaVersion: TLiteral<1>;
+registrationId: TString;
+toolId: TString;
+definitionFingerprint: TString;
+status: TUnion<[TLiteral<"registered">, TLiteral<"duplicate">, TLiteral<"conflict">]>;
+}>;
+
+export declare type ProtocolV2ToolResultReceipt = Static<typeof ProtocolV2ToolResultReceiptSchema>;
+
+export declare const ProtocolV2ToolResultReceiptSchema: TObject<    {
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+status: TUnion<[TLiteral<"accepted">, TLiteral<"duplicate">, TLiteral<"conflict">, TLiteral<"unknown">, TLiteral<"late">]>;
+}>;
+
+export declare type ProtocolV2ToolResultRequest = Static<typeof ProtocolV2ToolResultRequestSchema>;
+
+export declare const ProtocolV2ToolResultRequestSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"tool_result">;
+params: TUnion<[TObject<    {
+result: TUnknown;
+error: TOptional<TNever>;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>, TObject<    {
+result: TOptional<TNever>;
+error: TString;
+schemaVersion: TLiteral<1>;
+resultId: TString;
+runId: TString;
+callId: TString;
+registrationId: TString;
+}>]>;
+}>;
 
 export declare class ProtocolV2ValidationError extends Error {
     constructor(message: string);

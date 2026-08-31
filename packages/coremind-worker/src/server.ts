@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {
+  CheckpointManager,
   type CheckpointRecord,
   type ControlApplyResult,
   type ControlReceipt,
@@ -9,6 +10,7 @@ import {
   CoreMindRuntime,
   type CoreMindRuntimeOptions,
   type CoreMindToolDefinition,
+  defineTool,
   FileRunStore,
   inspectCheckpoint,
   loadConfigFile,
@@ -40,6 +42,7 @@ import {
   type ProtocolErrorResponse,
   type ProtocolRequest,
   type ProtocolSuccessResponse,
+  type ProtocolV2CheckpointRequest,
   type ProtocolV2ControlRequest,
   type ProtocolV2EventsRequest,
   type ProtocolV2InitializeRequest,
@@ -48,6 +51,10 @@ import {
   type ProtocolV2Request,
   type ProtocolV2RunHandle,
   type ProtocolV2StartRequest,
+  type ProtocolV2ToolCallNotification,
+  type ProtocolV2ToolCancelNotification,
+  type ProtocolV2ToolRegisterRequest,
+  type ProtocolV2ToolResultRequest,
   ProtocolV2ValidationError,
   ProtocolValidationError,
   parseProtocolRequest,
@@ -61,6 +68,8 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "cursorResume",
   "controlInbox",
   "projectionQuery",
+  "checkpointOperations",
+  "dynamicTools",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -69,10 +78,13 @@ const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "follow_up",
   "delegation_disposition",
 ] as const;
+const PROTOCOL_V2_WORKER_TRANSITION = Symbol("worker-transition");
 
 export type WorkerMessage =
   | ProtocolSuccessResponse
   | ProtocolErrorResponse
+  | ProtocolV2ToolCallNotification
+  | ProtocolV2ToolCancelNotification
   | ReturnType<typeof createEventNotification>
   | ReturnType<typeof createPythonToolCallNotification>;
 
@@ -119,6 +131,28 @@ interface PendingApproval {
 interface PendingToolCall {
   resolve: (result: unknown) => void;
   reject: (error: Error) => void;
+  protocolV2?: { runId: string; registrationId: string; toolId: string };
+  cleanup?: () => void;
+}
+
+interface RegisteredToolSpec {
+  name: string;
+  label?: string;
+  description: string;
+  parameters: unknown;
+  effect: CoreMindToolDefinition["effect"];
+  capability?: CoreMindToolDefinition["capability"];
+  registrationId?: string;
+  toolId?: string;
+  definitionFingerprint?: string;
+}
+
+interface CheckpointRestoreFact {
+  schemaVersion: 1;
+  operationId: string;
+  checkpointId: string;
+  fingerprint: string;
+  state: "started" | "committed";
 }
 
 /** 常驻 Node Protocol Host；stdio 只是它的传输适配器。 */
@@ -126,18 +160,15 @@ export class ProtocolHost {
   private readonly runtimeFactory: WorkerRuntimeFactory;
   private initialized?: InitializedState;
   private selectedProtocol?: typeof PROTOCOL_VERSION | "2.0";
-  private readonly toolSpecs = new Map<
-    string,
-    {
-      name: string;
-      label?: string;
-      description: string;
-      parameters: unknown;
-      effect: CoreMindToolDefinition["effect"];
-    }
-  >();
+  private readonly toolSpecs = new Map<string, RegisteredToolSpec>();
+  private readonly protocolV2ToolRegistrations = new Map<string, RegisteredToolSpec>();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
+  private readonly settledProtocolV2ToolResults = new Map<string, string>();
+  private readonly closedProtocolV2ToolCalls = new Map<
+    string,
+    { runId: string; registrationId: string; toolId: string }
+  >();
   private readonly protocolV2Starts = new Map<
     string,
     {
@@ -147,7 +178,10 @@ export class ProtocolHost {
     }
   >();
   private readonly pausedControlInboxes = new Map<string, Promise<ControlInbox>>();
-  private readonly protocolV2RunTransitions = new Map<string, Promise<void>>();
+  private readonly protocolV2RunTransitions = new Map<
+    string | typeof PROTOCOL_V2_WORKER_TRANSITION,
+    Promise<void>
+  >();
   private activeController?: AbortController;
   private activeRuntime?: WorkerRuntime;
   private activeRunId?: string;
@@ -224,8 +258,10 @@ export class ProtocolHost {
       if (request.method === "run" || request.method === "chat" || request.method === "resume") {
         return createSuccessResponse(
           request.id,
-          await this.withProtocolV2RunTransition(request.params.runId, () =>
-            this.beginProtocolV2Run(request),
+          await this.withProtocolV2RunTransition(PROTOCOL_V2_WORKER_TRANSITION, () =>
+            this.withProtocolV2RunTransition(request.params.runId, () =>
+              this.beginProtocolV2Run(request),
+            ),
           ),
         );
       }
@@ -243,6 +279,24 @@ export class ProtocolHost {
       if (request.method === "query") {
         return createSuccessResponse(request.id, await this.queryProtocolV2Projection(request));
       }
+      if (request.method === "checkpoint") {
+        const result =
+          request.params.action === "create" || request.params.action === "restore"
+            ? await this.withProtocolV2RunTransition(PROTOCOL_V2_WORKER_TRANSITION, () =>
+                this.handleProtocolV2Checkpoint(request),
+              )
+            : await this.handleProtocolV2Checkpoint(request);
+        return createSuccessResponse(request.id, result);
+      }
+      if (request.method === "tool_register") {
+        return createSuccessResponse(request.id, this.registerProtocolV2Tool(request));
+      }
+      if (request.method === "tool_result") {
+        return createSuccessResponse(
+          request.id,
+          await this.resolveProtocolV2ToolCall(request.params),
+        );
+      }
       return createErrorResponse(
         request.id,
         -32_601,
@@ -255,22 +309,22 @@ export class ProtocolHost {
   }
 
   private async withProtocolV2RunTransition<T>(
-    runId: string,
+    transitionKey: string | typeof PROTOCOL_V2_WORKER_TRANSITION,
     operation: () => Promise<T>,
   ): Promise<T> {
-    const previous = this.protocolV2RunTransitions.get(runId) ?? Promise.resolve();
+    const previous = this.protocolV2RunTransitions.get(transitionKey) ?? Promise.resolve();
     let release!: () => void;
     const current = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.protocolV2RunTransitions.set(runId, current);
+    this.protocolV2RunTransitions.set(transitionKey, current);
     await previous;
     try {
       return await operation();
     } finally {
       release();
-      if (this.protocolV2RunTransitions.get(runId) === current) {
-        this.protocolV2RunTransitions.delete(runId);
+      if (this.protocolV2RunTransitions.get(transitionKey) === current) {
+        this.protocolV2RunTransitions.delete(transitionKey);
       }
     }
   }
@@ -290,6 +344,30 @@ export class ProtocolHost {
     const state = this.requireInitialized();
     const records = await state.runStore.read(request.params.runId);
     const persisted = persistedProtocolV2Start(records);
+    const toolRegistrations = [...this.protocolV2ToolRegistrations.entries()]
+      .map(([registrationId, spec]) => ({
+        registrationId,
+        toolId: spec.toolId!,
+        name: spec.name,
+        definitionFingerprint: spec.definitionFingerprint!,
+      }))
+      .sort((left, right) =>
+        left.registrationId < right.registrationId
+          ? -1
+          : left.registrationId > right.registrationId
+            ? 1
+            : 0,
+      );
+    if (
+      persisted &&
+      request.method === "resume" &&
+      sha256Canonical(persisted.toolRegistrations ?? []) !== sha256Canonical(toolRegistrations)
+    ) {
+      throw new CoreMindError(
+        "run_id_conflict",
+        `runId ${request.params.runId} 的动态工具身份与持久记录不一致`,
+      );
+    }
     if (persisted) {
       if (persisted.fingerprint === fingerprint) {
         if (ProjectionEngine.project(records).status === "interrupted") {
@@ -329,6 +407,7 @@ export class ProtocolHost {
       method: request.method,
       fingerprint,
       acceptedAt: handle.acceptedAt,
+      toolRegistrations,
     };
     this.protocolV2Starts.set(request.params.runId, {
       method: request.method,
@@ -475,6 +554,160 @@ export class ProtocolHost {
       runId: request.params.runId,
       derivedFromSequence: records.at(-1)!.sequence,
       projection: await ProjectionEngine.projectTree(state.runStore, request.params.runId),
+    };
+  }
+
+  private async handleProtocolV2Checkpoint(request: ProtocolV2CheckpointRequest): Promise<unknown> {
+    const state = this.requireInitialized();
+    const records = await state.runStore.read(request.params.runId);
+    if (records.length === 0) {
+      throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
+    }
+    const projection = ProjectionEngine.project(records);
+    const manager = new CheckpointManager({
+      cwd: state.cwd,
+      rootDir: path.join(state.configDir, ".coremind", "checkpoints"),
+      runId: request.params.runId,
+    });
+    const checkpointCwd = await manager.canonicalTargetPath(".");
+    if (request.params.action === "list") {
+      await Promise.all(projection.checkpoints.map((record) => manager.verifyRecord(record)));
+      return {
+        schemaVersion: 1,
+        action: "list",
+        runId: request.params.runId,
+        derivedFromSequence: records.at(-1)!.sequence,
+        checkpoints: projection.checkpoints.map((record) =>
+          publicCheckpoint(record, checkpointCwd),
+        ),
+      };
+    }
+    if (request.params.action === "diff") {
+      const record = await this.findCheckpoint(
+        state.runStore,
+        request.params.runId,
+        request.params.checkpointId,
+      );
+      const diff = await inspectCheckpoint(record, state.cwd);
+      return {
+        schemaVersion: 1,
+        action: "diff",
+        runId: request.params.runId,
+        checkpointId: record.checkpointId,
+        checkpointVersion: record.version,
+        ...(record.targetPath ? { path: publicPath(checkpointCwd, record.targetPath) } : {}),
+        changed: diff.changed,
+        ...(record.existed !== undefined
+          ? {
+              before: {
+                existed: record.existed,
+                ...(record.beforeSha256 ? { sha256: record.beforeSha256 } : {}),
+              },
+            }
+          : {}),
+        current: {
+          existed: diff.afterSha256 !== undefined,
+          ...(diff.afterSha256 ? { sha256: diff.afterSha256 } : {}),
+        },
+        reversible: diff.reversible,
+        ...(diff.reason !== undefined ? { reason: diff.reason } : {}),
+      };
+    }
+    if (this.running) throw new CoreMindError("worker_busy", "运行期间不能修改 checkpoint");
+    if (request.params.action === "create") {
+      const params = request.params;
+      const checkpointId = createHash("sha256")
+        .update(`${params.runId}\0${params.operationId}`)
+        .digest("hex")
+        .slice(0, 32);
+      const existing = projection.checkpoints.find(
+        (record) => record.checkpointId === checkpointId,
+      );
+      if (existing) {
+        const targetPath = await manager.canonicalTargetPath(params.path);
+        if (
+          !existing.targetPath ||
+          path.resolve(existing.targetPath) !== path.resolve(targetPath)
+        ) {
+          throw new CoreMindError(
+            "checkpoint_conflict",
+            `operationId ${params.operationId} 已绑定不同的 Checkpoint 创建请求`,
+          );
+        }
+        await inspectCheckpoint(existing, state.cwd);
+        return {
+          schemaVersion: 1,
+          action: "create",
+          operationId: params.operationId,
+          status: "duplicate",
+          runId: params.runId,
+          checkpoint: publicCheckpoint(existing, checkpointCwd),
+        };
+      }
+      const checkpoint = await manager.capturePath(params.path, {
+        checkpointId,
+      });
+      const journal = new RunStateJournal(params.runId, state.runStore, records.at(-1)!.sequence);
+      await journal.appendFact("checkpoint", checkpoint, { durability: "critical" });
+      return {
+        schemaVersion: 1,
+        action: "create",
+        operationId: params.operationId,
+        status: "applied",
+        runId: params.runId,
+        checkpoint: publicCheckpoint(checkpoint, checkpointCwd),
+      };
+    }
+    const params = request.params;
+    const fingerprint = checkpointRestoreFingerprint(params);
+    const attempt = checkpointRestoreAttempt(records, params.runId, params.operationId);
+    if (attempt) {
+      if (attempt.fingerprint !== fingerprint) {
+        throw new CoreMindError(
+          "checkpoint_conflict",
+          `operationId ${params.operationId} 已绑定不同的 Checkpoint 恢复请求`,
+        );
+      }
+      if (attempt.state === "committed") {
+        return {
+          schemaVersion: 1,
+          action: "restore",
+          operationId: params.operationId,
+          status: "duplicate",
+          runId: params.runId,
+          checkpointId: params.checkpointId,
+          checkpointVersion: 1,
+        };
+      }
+      throw new CoreMindError(
+        "checkpoint_conflict",
+        `Checkpoint 恢复 ${params.operationId} 的结果未知，需要人工核验`,
+      );
+    }
+    const checkpoint = await this.findCheckpoint(state.runStore, params.runId, params.checkpointId);
+    const journal = new RunStateJournal(params.runId, state.runStore, records.at(-1)!.sequence);
+    const started: CheckpointRestoreFact = {
+      schemaVersion: 1,
+      operationId: params.operationId,
+      checkpointId: params.checkpointId,
+      fingerprint,
+      state: "started",
+    };
+    await journal.appendFact("checkpoint_restore", started, { durability: "critical" });
+    await restoreCheckpoint(checkpoint, state.cwd, params.expectedCurrent);
+    await journal.appendFact(
+      "checkpoint_restore",
+      { ...started, state: "committed" },
+      { durability: "critical" },
+    );
+    return {
+      schemaVersion: 1,
+      action: "restore",
+      operationId: params.operationId,
+      status: "applied",
+      runId: params.runId,
+      checkpointId: params.checkpointId,
+      checkpointVersion: 1,
     };
   }
 
@@ -652,6 +885,60 @@ export class ProtocolHost {
     return { registered: params.name };
   }
 
+  private registerProtocolV2Tool(request: ProtocolV2ToolRegisterRequest): unknown {
+    this.requireInitialized();
+    if (this.running) throw new CoreMindError("worker_busy", "运行期间不能注册工具");
+    const params = request.params;
+    const definitionFingerprint = protocolV2ToolDefinitionFingerprint(params);
+    const existing = this.protocolV2ToolRegistrations.get(params.registrationId);
+    if (existing) {
+      return {
+        schemaVersion: 1,
+        registrationId: params.registrationId,
+        toolId: params.toolId,
+        definitionFingerprint,
+        status: existing.definitionFingerprint === definitionFingerprint ? "duplicate" : "conflict",
+      };
+    }
+    const identityConflict = [...this.protocolV2ToolRegistrations.values()].some(
+      (spec) => spec.name === params.name || spec.toolId === params.toolId,
+    );
+    if (identityConflict || this.toolSpecs.has(params.name)) {
+      return {
+        schemaVersion: 1,
+        registrationId: params.registrationId,
+        toolId: params.toolId,
+        definitionFingerprint,
+        status: "conflict",
+      };
+    }
+    const spec: RegisteredToolSpec = {
+      name: params.name,
+      ...(params.label ? { label: params.label } : {}),
+      description: params.description,
+      parameters: params.parameters,
+      effect: params.effect,
+      capability: params.capability,
+      registrationId: params.registrationId,
+      toolId: params.toolId,
+      definitionFingerprint,
+    };
+    defineTool({
+      ...spec,
+      parameters: spec.parameters as CoreMindToolDefinition["parameters"],
+      execute: async () => undefined,
+    });
+    this.toolSpecs.set(params.name, spec);
+    this.protocolV2ToolRegistrations.set(params.registrationId, spec);
+    return {
+      schemaVersion: 1,
+      registrationId: params.registrationId,
+      toolId: params.toolId,
+      definitionFingerprint,
+      status: "registered",
+    };
+  }
+
   private async executeRun(
     input: string | undefined,
     agent?: string,
@@ -728,6 +1015,19 @@ export class ProtocolHost {
           result.childRuns.nodes.every((node) => node.status === "joined"));
       return serializeRunResult(result);
     } finally {
+      const completedRunId = this.activeRunId ?? this.requestedRunId;
+      for (const [callId, pending] of this.pendingToolCalls) {
+        if (!pending.protocolV2 || pending.protocolV2.runId !== completedRunId) continue;
+        this.pendingToolCalls.delete(callId);
+        pending.cleanup?.();
+        this.closedProtocolV2ToolCalls.set(
+          protocolV2CallKey(pending.protocolV2.runId, callId),
+          pending.protocolV2,
+        );
+        pending.reject(
+          new CoreMindError("run_already_finished", `运行结束前工具调用 ${callId} 未返回`),
+        );
+      }
       this.running = false;
       this.activeController = undefined;
       this.activeRuntime = undefined;
@@ -748,8 +1048,83 @@ export class ProtocolHost {
       description: spec.description,
       parameters: spec.parameters as CoreMindToolDefinition["parameters"],
       effect: spec.effect,
-      execute: (args, context) => this.invokePythonTool(spec.name, context.callId, args),
+      ...(spec.capability ? { capability: spec.capability } : {}),
+      execute: (args, context) =>
+        spec.registrationId && spec.toolId
+          ? this.invokeProtocolV2Tool(spec, context.callId, args, context.signal)
+          : this.invokePythonTool(spec.name, context.callId, args),
     }));
+  }
+
+  private invokeProtocolV2Tool(
+    spec: RegisteredToolSpec,
+    callId: string,
+    args: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const runId = this.activeRunId ?? this.requestedRunId;
+    const registrationId = spec.registrationId;
+    const toolId = spec.toolId;
+    if (!runId || !registrationId || !toolId) {
+      throw new CoreMindError("run_state_failed", "v2 工具调用缺少稳定身份");
+    }
+    if (
+      this.pendingToolCalls.has(callId) ||
+      this.closedProtocolV2ToolCalls.has(protocolV2CallKey(runId, callId))
+    ) {
+      throw new CoreMindError("duplicate_tool_call", `重复的 v2 工具 callId：${callId}`);
+    }
+    return new Promise((resolve, reject) => {
+      const close = () => {
+        const pending = this.pendingToolCalls.get(callId);
+        if (!pending?.protocolV2) return;
+        this.pendingToolCalls.delete(callId);
+        pending.cleanup?.();
+        this.closedProtocolV2ToolCalls.set(
+          protocolV2CallKey(pending.protocolV2.runId, callId),
+          pending.protocolV2,
+        );
+        this.send({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          method: "tool_cancel",
+          params: {
+            schemaVersion: 1,
+            ...pending.protocolV2,
+            callId,
+            reason: "aborted",
+          },
+        });
+        reject(new CoreMindError("aborted", `工具调用 ${callId} 已中止`));
+      };
+      const cleanup = () => signal?.removeEventListener("abort", close);
+      this.pendingToolCalls.set(callId, {
+        resolve,
+        reject,
+        protocolV2: { runId, registrationId, toolId },
+        cleanup,
+      });
+      if (signal?.aborted) {
+        close();
+        return;
+      }
+      signal?.addEventListener("abort", close, { once: true });
+      this.send({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        method: "tool_call",
+        params: {
+          schemaVersion: 1,
+          runId,
+          callId,
+          registrationId,
+          toolId,
+          name: spec.name,
+          argumentsFingerprint: `sha256:${sha256Canonical(args)}`,
+          args,
+        },
+      });
+    });
   }
 
   private invokePythonTool(tool: string, callId: string, args: unknown): Promise<unknown> {
@@ -778,6 +1153,96 @@ export class ProtocolHost {
       pending.resolve(params.result);
     }
     return { accepted: true };
+  }
+
+  private async resolveProtocolV2ToolCall(
+    params: ProtocolV2ToolResultRequest["params"],
+  ): Promise<unknown> {
+    const fingerprint = sha256Canonical(params);
+    const settled = this.settledProtocolV2ToolResults.get(params.resultId);
+    if (settled)
+      return protocolV2ToolResultReceipt(
+        params,
+        settled === fingerprint ? "duplicate" : "conflict",
+      );
+    const pending = this.pendingToolCalls.get(params.callId);
+    if (!pending?.protocolV2) {
+      const closed = this.closedProtocolV2ToolCalls.get(
+        protocolV2CallKey(params.runId, params.callId),
+      );
+      if (closed?.runId === params.runId && closed.registrationId === params.registrationId) {
+        return protocolV2ToolResultReceipt(params, "conflict");
+      }
+      return protocolV2ToolResultReceipt(
+        params,
+        await this.classifyPersistedProtocolV2ToolCall(
+          params.runId,
+          params.callId,
+          params.registrationId,
+        ),
+      );
+    }
+    if (
+      pending.protocolV2.runId !== params.runId ||
+      pending.protocolV2.registrationId !== params.registrationId
+    ) {
+      return protocolV2ToolResultReceipt(params, "conflict");
+    }
+    this.pendingToolCalls.delete(params.callId);
+    pending.cleanup?.();
+    this.closedProtocolV2ToolCalls.set(
+      protocolV2CallKey(pending.protocolV2.runId, params.callId),
+      pending.protocolV2,
+    );
+    this.settledProtocolV2ToolResults.set(params.resultId, fingerprint);
+    if (params.error !== undefined) {
+      pending.reject(new CoreMindError("python_tool_failed", params.error));
+    } else {
+      pending.resolve(params.result);
+    }
+    return protocolV2ToolResultReceipt(params, "accepted");
+  }
+
+  private async classifyPersistedProtocolV2ToolCall(
+    runId: string,
+    callId: string,
+    registrationId: string,
+  ): Promise<"unknown" | "late" | "conflict"> {
+    const state = this.requireInitialized();
+    const records = await state.runStore.read(runId);
+    if (records.length === 0) return "unknown";
+    const events = records.flatMap((record) => {
+      const trace = record.kind === "event" ? asRecord(record.payload) : undefined;
+      const event = trace ? asRecord(trace.event) : undefined;
+      return event ? [event] : [];
+    });
+    const knownCall = events.find((event) => event.type === "tool_call" && event.callId === callId);
+    if (!knownCall) return "unknown";
+    const registered = this.protocolV2ToolRegistrations.get(registrationId);
+    if (!registered) return "unknown";
+    const persistedRegistrations = persistedProtocolV2Start(records)?.toolRegistrations;
+    if (!Array.isArray(persistedRegistrations)) return "unknown";
+    const persistedRegistration = persistedRegistrations.find(
+      (registration) => registration.registrationId === registrationId,
+    );
+    if (
+      !persistedRegistration ||
+      persistedRegistration.name !== knownCall.tool ||
+      registered.name !== persistedRegistration.name ||
+      registered.toolId !== persistedRegistration.toolId ||
+      registered.definitionFingerprint !== persistedRegistration.definitionFingerprint
+    ) {
+      return "conflict";
+    }
+    const receipt = [...events]
+      .reverse()
+      .find(
+        (event) =>
+          event.type === "effect_receipt" && event.idempotencyKey === knownCall.idempotencyKey,
+      );
+    if (receipt?.status === "committed" || receipt?.status === "unknown") return "late";
+    const status = ProjectionEngine.project(records).status;
+    return status === "interrupted" ? "unknown" : "late";
   }
 
   private resolveApproval(
@@ -1021,6 +1486,101 @@ function protocolV2StartFingerprint(request: ProtocolV2StartRequest): string {
     .digest("hex");
 }
 
+function checkpointRestoreFingerprint(
+  params: Extract<ProtocolV2CheckpointRequest["params"], { action: "restore" }>,
+): string {
+  return sha256Canonical({
+    runId: params.runId,
+    checkpointId: params.checkpointId,
+    checkpointVersion: params.checkpointVersion,
+    expectedCurrent: params.expectedCurrent,
+  });
+}
+
+function protocolV2ToolDefinitionFingerprint(
+  params: ProtocolV2ToolRegisterRequest["params"],
+): string {
+  return `sha256:${sha256Canonical({
+    definitionVersion: params.definitionVersion,
+    toolId: params.toolId,
+    name: params.name,
+    label: params.label,
+    description: params.description,
+    parameters: params.parameters,
+    effect: params.effect,
+    capability: params.capability,
+  })}`;
+}
+
+function protocolV2ToolResultReceipt(
+  params: ProtocolV2ToolResultRequest["params"],
+  status: "accepted" | "duplicate" | "conflict" | "unknown" | "late",
+): unknown {
+  return {
+    schemaVersion: 1,
+    resultId: params.resultId,
+    runId: params.runId,
+    callId: params.callId,
+    registrationId: params.registrationId,
+    status,
+  };
+}
+
+function protocolV2CallKey(runId: string, callId: string): string {
+  return `${runId}\0${callId}`;
+}
+
+function sha256Canonical(value: unknown): string {
+  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .filter(([, item]) => item !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+    .join(",")}}`;
+}
+
+function publicCheckpoint(record: CheckpointRecord, cwd: string): unknown {
+  return {
+    checkpointVersion: record.version,
+    checkpointId: record.checkpointId,
+    runId: record.runId,
+    ...(record.operationId ? { operationId: record.operationId } : {}),
+    createdAt: record.timestamp,
+    reversible: record.reversible,
+    ...(record.targetPath ? { path: publicPath(cwd, record.targetPath) } : {}),
+    ...(record.existed !== undefined
+      ? {
+          before: {
+            existed: record.existed,
+            ...(record.beforeSha256 ? { sha256: record.beforeSha256 } : {}),
+          },
+        }
+      : {}),
+    ...(record.afterExisted !== undefined
+      ? {
+          after: {
+            existed: record.afterExisted,
+            ...(record.afterSha256 ? { sha256: record.afterSha256 } : {}),
+          },
+        }
+      : {}),
+    ...(record.reason !== undefined ? { reason: record.reason } : {}),
+  };
+}
+
+function publicPath(cwd: string, targetPath: string): string {
+  const relative = path.relative(path.resolve(cwd), path.resolve(targetPath));
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new CoreMindError("checkpoint_corrupt", "Checkpoint 目标路径超出工作区");
+  }
+  return (relative || path.basename(targetPath)).split(path.sep).join("/");
+}
+
 function protocolV2RunHandle(runId: string, acceptedAt: string): ProtocolV2RunHandle {
   return {
     runId,
@@ -1097,6 +1657,44 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+function checkpointRestoreAttempt(
+  records: readonly RunStateRecord[],
+  runId: string,
+  operationId: string,
+): CheckpointRestoreFact | undefined {
+  const attempts = records.flatMap((record) => {
+    if (record.kind !== "checkpoint_restore") return [];
+    const payload = asRecord(record.payload);
+    if (
+      record.runId !== runId ||
+      payload?.schemaVersion !== 1 ||
+      typeof payload.operationId !== "string" ||
+      typeof payload.checkpointId !== "string" ||
+      typeof payload.fingerprint !== "string" ||
+      (payload.state !== "started" && payload.state !== "committed")
+    ) {
+      throw new CoreMindError("run_state_corrupt", "Checkpoint 恢复 Fact 损坏");
+    }
+    return [payload as unknown as CheckpointRestoreFact];
+  });
+  const matching = attempts.filter((attempt) => attempt.operationId === operationId);
+  if (matching.length === 0) return undefined;
+  const first = matching[0]!;
+  if (
+    first.state !== "started" ||
+    matching.length > 2 ||
+    matching.some(
+      (attempt, index) =>
+        attempt.fingerprint !== first.fingerprint ||
+        attempt.checkpointId !== first.checkpointId ||
+        (index === 1 && attempt.state !== "committed"),
+    )
+  ) {
+    throw new CoreMindError("run_state_corrupt", "Checkpoint 恢复 Fact 状态链损坏");
+  }
+  return matching.at(-1);
 }
 
 export { ProtocolHost as WorkerServer };

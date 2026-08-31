@@ -18,7 +18,7 @@ import { RecoveryDisposition } from 'coremind-tools';
 import { ResolvedToolCapability } from 'coremind-tools';
 import type { RuntimeLimitsConfig } from 'coremind-config';
 import type { ToolCapabilityConcurrency } from 'coremind-config';
-import type { ToolCapabilityDeclaration } from 'coremind-tools';
+import { ToolCapabilityDeclaration } from 'coremind-tools';
 import { ToolEffectDeclaration } from 'coremind-config';
 import { ToolEffectOperation } from 'coremind-config';
 
@@ -122,6 +122,11 @@ export declare interface CheckpointDiff {
     reason?: string;
 }
 
+export declare interface CheckpointFileState {
+    existed: boolean;
+    sha256?: string;
+}
+
 /** 修改工具的本地快照、diff 与显式恢复入口。 */
 export declare class CheckpointManager {
     private readonly options;
@@ -129,6 +134,10 @@ export declare class CheckpointManager {
     private readonly maxFileBytes;
     constructor(options: CheckpointManagerOptions);
     capture(tool: string, args: unknown, correlation?: CheckpointCorrelation): Promise<CheckpointRecord | undefined>;
+    /** Protocol 显式创建检查点；身份由调用方稳定提供。 */
+    capturePath(target: string, identity: {
+        checkpointId: string;
+    }): Promise<CheckpointRecord>;
     captureAll(tool: string, args: unknown, correlation?: CheckpointCorrelation & {
         pathFields?: readonly string[];
     }): Promise<CheckpointRecord[]>;
@@ -137,11 +146,12 @@ export declare class CheckpointManager {
     /** 工具执行结束后记录预期文件状态，供恢复时识别后续人工或并发修改。 */
     markApplied(checkpointId: string): Promise<void>;
     /** 仅在调用方显式请求时恢复单个目标文件。 */
-    restore(checkpointId: string): Promise<void>;
+    restore(checkpointId: string, expectedCurrent?: CheckpointFileState): Promise<void>;
     private persist;
     private load;
     private pathFor;
-    private safeTargetPath;
+    verifyRecord(record: CheckpointRecord): Promise<void>;
+    canonicalTargetPath(input: string): Promise<string>;
 }
 
 export declare interface CheckpointManagerOptions {
@@ -2321,6 +2331,12 @@ export declare interface ProtocolStartIdentity {
     method: "run" | "chat" | "resume";
     fingerprint: string;
     acceptedAt: string;
+    toolRegistrations?: Array<{
+        registrationId: string;
+        toolId: string;
+        name: string;
+        definitionFingerprint: string;
+    }>;
 }
 
 export declare interface ProviderRequestReplayFact {
@@ -2447,7 +2463,7 @@ export declare interface ResponseGrader extends GraderBase {
 }
 
 /** 使用 RunResult 中的记录显式恢复目标文件。 */
-export declare function restoreCheckpoint(record: CheckpointRecord, cwd: string): Promise<void>;
+export declare function restoreCheckpoint(record: CheckpointRecord, cwd: string, expectedCurrent?: CheckpointFileState): Promise<void>;
 
 export declare function restoreDurableOperation(records: readonly OperationStateRecord[]): DurableOperation;
 
@@ -2726,7 +2742,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;
