@@ -75,6 +75,45 @@ describe("Provider 认证矩阵", () => {
     expect(matrix.summary.certified).toBe(0);
   });
 
+  it("0.7.0 的旧七项证据不能替代真实父子 Agent 产品链", () => {
+    const matrix = buildProviderMatrix({
+      providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],
+      certifications: [
+        {
+          id: "alpha",
+          version: "0.7.0",
+          testedAt: "2026-08-31",
+          model: "a1",
+          commit: "a".repeat(40),
+          runtimeArtifactSha256: "b".repeat(64),
+          evidence: "artifacts/providers/alpha.json",
+          checks: [
+            "streaming",
+            "tool-call",
+            "structured-result",
+            "multi-turn",
+            "abort",
+            "error",
+            "long-context",
+          ],
+        },
+      ],
+      generatedAt: "2026-08-31",
+      targetVersion: "0.7.0",
+    });
+
+    expect(matrix.providers[0]).toMatchObject({
+      status: "inherited-unverified",
+      certificationGap: expect.arrayContaining([
+        "parent-model-call",
+        "delegation-tool",
+        "child-model-call",
+        "child-tool-call",
+        "cancel-quiescence",
+      ]),
+    });
+  });
+
   it("完整旧版证据不能冒充当前候选认证", () => {
     const matrix = buildProviderMatrix({
       providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],

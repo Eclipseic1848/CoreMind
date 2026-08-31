@@ -16,12 +16,34 @@ on:
       provider:
         description: "严格认证使用的 Provider ID"
         required: true
-        default: alibaba-model-studio
         type: string
       model:
         description: "严格认证使用的模型"
         required: true
-        default: qwen-plus
+        type: string
+      credential_env:
+        description: "批准的凭据环境变量名；GitHub Secret 使用 COREMIND_CERT_API_KEY"
+        required: true
+        type: string
+      max_cost_usd:
+        description: "本次真实认证的最高费用（USD）"
+        required: true
+        type: string
+      max_duration_minutes:
+        description: "本次真实认证的最长运行时间（1-60 分钟）"
+        required: true
+        type: string
+      expected_version:
+        description: "批准认证的 CoreMind 版本"
+        required: true
+        type: string
+      expected_commit:
+        description: "批准认证的 40 位 main commit"
+        required: true
+        type: string
+      expected_runtime_sha256:
+        description: "同次候选制品中 coremind-runtime npm 包的 SHA-256"
+        required: true
         type: string
 
 permissions:
@@ -168,13 +190,23 @@ jobs:
   provider-certification:
     name: Provider certification
     needs: candidate
-    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider'
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && inputs.credential_env == 'COREMIND_CERT_API_KEY' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(inputs.max_duration_minutes) }}
+    permissions:
+      actions: read
+      contents: read
     env:
       COREMIND_CERT_PROVIDER: ${{ inputs.provider }}
       COREMIND_CERT_MODEL: ${{ inputs.model }}
-      COREMIND_CERT_API_KEY_ENV: COREMIND_CERT_API_KEY
+      COREMIND_CERT_API_KEY_ENV: ${{ inputs.credential_env }}
       COREMIND_CERT_API_KEY: ${{ secrets.COREMIND_CERT_API_KEY }}
+      COREMIND_CERT_MAX_COST_USD: ${{ inputs.max_cost_usd }}
+      COREMIND_CERT_MAX_DURATION_MINUTES: ${{ inputs.max_duration_minutes }}
+      COREMIND_CERT_EXPECTED_VERSION: ${{ inputs.expected_version }}
+      COREMIND_CERT_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+      COREMIND_CERT_EXPECTED_RUNTIME_SHA256: ${{ inputs.expected_runtime_sha256 }}
+      COREMIND_CERT_CANDIDATE_MANIFEST: .scratch/candidate-artifacts/release-manifest.json
     steps:
       - name: 开始记录实际运行时间
         shell: bash
@@ -185,6 +217,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+
+      - name: 下载同次 Linux 候选制品
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: candidate-artifacts-Linux-${{ github.sha }}
+          path: .scratch/candidate-artifacts
 
       - name: 安装 Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7

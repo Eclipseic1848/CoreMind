@@ -6,9 +6,9 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 
 ## Status definitions
 
-- **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks with auditable evidence.
+- **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, long-context, and parent/child Agent product-chain checks with auditable evidence.
 - **Configurable, unverified**: configuration and model catalog resolution work, but the current candidate lacks complete real-call evidence; older evidence is historical only.
-- **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every check in the current seven-check standard.
+- **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every current required check.
 - Custom OpenAI-compatible endpoints are deployment-specific and must be accepted by each project.
 
 ## Current matrix

@@ -2,8 +2,81 @@ import { describe, expect, it } from "vitest";
 import {
   assertCertificationSucceeded,
   createCertificationEvidence,
+  inspectCandidateManifest,
   upsertCertificationRecord,
+  validateCertificationApproval,
 } from "./provider-certification.mjs";
+
+describe("Provider 认证批准边界", () => {
+  it("五项批准不完整或候选身份不一致时在联网前失败", () => {
+    const approved = {
+      provider: "alibaba-model-studio",
+      model: "qwen-plus",
+      credentialEnv: "COREMIND_CERT_API_KEY",
+      maxCostUsd: "0.5",
+      maxDurationMinutes: "15",
+      expectedVersion: "0.7.0",
+      expectedCommit: "a".repeat(40),
+      expectedRuntimeArtifactSha256: "b".repeat(64),
+    };
+    const actual = {
+      version: "0.7.0",
+      commit: "a".repeat(40),
+      runtimeArtifactSha256: "b".repeat(64),
+    };
+
+    for (const key of ["provider", "model", "credentialEnv", "maxCostUsd", "maxDurationMinutes"]) {
+      expect(() => validateCertificationApproval({ ...approved, [key]: "" }, actual)).toThrow(
+        `认证批准边界不完整：${key}`,
+      );
+    }
+    expect(() =>
+      validateCertificationApproval({ ...approved, expectedCommit: "c".repeat(40) }, actual),
+    ).toThrow("认证候选提交与批准值不一致");
+    expect(validateCertificationApproval(approved, actual)).toMatchObject({
+      provider: "alibaba-model-studio",
+      model: "qwen-plus",
+      credentialEnv: "COREMIND_CERT_API_KEY",
+      maxCostUsd: 0.5,
+      maxDurationMs: 900_000,
+      maxRetries: 0,
+    });
+  });
+
+  it("候选清单必须绑定批准提交、版本与 Runtime 包摘要", () => {
+    const raw = `${JSON.stringify({
+      schemaVersion: 1,
+      version: "0.7.0",
+      commit: "a".repeat(40),
+      artifacts: [
+        {
+          kind: "npm",
+          name: "coremind-runtime",
+          version: "0.7.0",
+          sha256: "b".repeat(64),
+        },
+      ],
+    })}\n`;
+
+    expect(
+      inspectCandidateManifest(raw, {
+        version: "0.7.0",
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: "b".repeat(64),
+      }),
+    ).toMatchObject({
+      candidateArtifactSha256: "b".repeat(64),
+      artifactManifestDigest: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u),
+    });
+    expect(() =>
+      inspectCandidateManifest(raw, {
+        version: "0.7.0",
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: "c".repeat(64),
+      }),
+    ).toThrow("候选 Runtime Artifact 与批准值不一致");
+  });
+});
 
 describe("Provider 认证诊断", () => {
   it("失败时保留终态、错误码和上游诊断", () => {
@@ -19,6 +92,19 @@ describe("Provider 认证诊断", () => {
         "流式场景",
       ),
     ).toThrow("流式场景失败：agent_failed / agent_failed / 403 AccessDenied.Unpurchased");
+    expect(() =>
+      assertCertificationSucceeded(
+        {
+          outcome: {
+            status: "failed",
+            finishReason: "agent_failed",
+            error: { code: "agent_failed", message: "upstream leaked sk-cert-secret" },
+          },
+        },
+        "父子场景",
+        ["sk-cert-secret"],
+      ),
+    ).toThrow("父子场景失败：agent_failed / agent_failed / upstream leaked [REDACTED]");
   });
 
   it("只为包含版本且三轮会话通过的完整结果生成证据", () => {
@@ -32,6 +118,7 @@ describe("Provider 认证诊断", () => {
       platform: "win32-x64",
       node: "v22.22.1",
       details: completeDetails(3),
+      ...completeBoundEvidence(),
     });
 
     expect(evidence).toMatchObject({
@@ -71,6 +158,61 @@ describe("Provider 认证诊断", () => {
       }),
     ).toThrow("至少需要三轮");
   });
+
+  it("拒绝缺少完整父子产品链或取消收敛的证据", () => {
+    const details = completeDetails(3);
+    delete details.childRunCancel;
+
+    expect(() =>
+      createCertificationEvidence({
+        provider: "alibaba-model-studio",
+        model: "qwen-plus",
+        version: "0.7.0",
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: "b".repeat(64),
+        testedAt: "2026-08-31T20:00:00.000Z",
+        platform: "linux-x64",
+        node: "v22.22.1",
+        details,
+        ...completeBoundEvidence(),
+      }),
+    ).toThrow("Provider 认证检查未通过：childRunCancel");
+  });
+
+  it("拒绝缺少候选制品、零重试用量或超出人工费用上限的证据", () => {
+    const input = {
+      provider: "alibaba-model-studio",
+      model: "qwen-plus",
+      version: "0.7.0",
+      commit: "a".repeat(40),
+      runtimeArtifactSha256: "b".repeat(64),
+      testedAt: "2026-08-31T20:00:00.000Z",
+      platform: "linux-x64",
+      node: "v22.22.1",
+      details: completeDetails(3),
+      ...completeBoundEvidence(),
+    };
+
+    expect(() => createCertificationEvidence({ ...input, candidateArtifactSha256: "" })).toThrow(
+      "缺少候选 Runtime Artifact SHA-256",
+    );
+    expect(() =>
+      createCertificationEvidence({ ...input, usage: { ...input.usage, retries: 1 } }),
+    ).toThrow("Provider 认证禁止自动重试");
+    expect(() =>
+      createCertificationEvidence({ ...input, usage: { ...input.usage, costUsd: 0.6 } }),
+    ).toThrow("Provider 认证用量超过批准边界");
+
+    expect(createCertificationEvidence(input)).toMatchObject({
+      checkId: "P0-20",
+      evidenceLevel: "live-provider",
+      runtimeDigest: `sha256:${"d".repeat(64)}`,
+      artifactManifestDigest: `sha256:${"e".repeat(64)}`,
+      candidateArtifactSha256: "f".repeat(64),
+      approval: { maxRetries: 0 },
+      usage: { providerCalls: 10, retries: 0 },
+    });
+  });
 });
 
 describe("Provider 认证台账", () => {
@@ -85,6 +227,7 @@ describe("Provider 认证台账", () => {
       platform: "win32-x64",
       node: "v22.22.1",
       details: completeDetails(3),
+      ...completeBoundEvidence(),
     });
     const ledger = upsertCertificationRecord(
       {
@@ -107,6 +250,32 @@ describe("Provider 认证台账", () => {
   });
 });
 
+function completeBoundEvidence() {
+  return {
+    candidateArtifactSha256: "f".repeat(64),
+    runtimeDigest: `sha256:${"d".repeat(64)}`,
+    artifactManifestDigest: `sha256:${"e".repeat(64)}`,
+    ref: "https://github.com/Eclipseic1848/CoreMind/actions/runs/1",
+    approval: {
+      provider: "alibaba-model-studio",
+      model: "qwen-plus",
+      credentialEnv: "COREMIND_CERT_API_KEY",
+      maxCostUsd: 0.5,
+      maxDurationMs: 900_000,
+      maxRetries: 0,
+    },
+    usage: {
+      providerCalls: 10,
+      inputTokens: 800,
+      outputTokens: 200,
+      totalTokens: 1_000,
+      costUsd: 0.1,
+      durationMs: 120_000,
+      retries: 0,
+    },
+  };
+}
+
 function completeDetails(turns: number) {
   return {
     streaming: { passed: true },
@@ -116,5 +285,27 @@ function completeDetails(turns: number) {
     abort: { passed: true },
     error: { passed: true },
     longContext: { passed: true },
+    childRun: {
+      passed: true,
+      parentProviderCalls: 2,
+      delegationToolCalled: true,
+      childProviderCalls: 2,
+      childTool: "write",
+      childToolCompleted: true,
+      childOutcome: "succeeded",
+      joined: true,
+      quiescent: true,
+      structuredResultSha256: "c".repeat(64),
+    },
+    childRunCancel: {
+      passed: true,
+      abortTriggeredAt: "child_text_delta",
+      parentOutcome: "paused",
+      childOutcome: "aborted",
+      activeDescendants: 0,
+      executionQuiescent: true,
+      convergenceMs: 120,
+      maxConvergenceMs: 5_000,
+    },
   };
 }

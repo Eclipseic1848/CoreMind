@@ -72,9 +72,9 @@ CoreMind 当前可配置 **${data.summary.supported}** 个内置 Provider，其�
 
 ## 状态定义
 
-- **已认证**：同一模型完成真实流式输出、工具调用、结构化结果、多轮会话、中止、错误映射和长上下文检查，并保存可审计证据。
+- **已认证**：同一模型完成真实流式输出、工具调用、结构化结果、多轮会话、中止、错误映射、长上下文与父子 Agent 产品链检查，并保存可审计证据。
 - **可配置，未认证**：配置和模型目录可解析，但当前候选尚无完整真实调用证据；旧版证据只用于追溯。
-- **可配置，未完成当前认证**：保留旧版证据，但缺少当前七项标准中的一项或多项，不计入已认证。
+- **可配置，未完成当前认证**：保留旧版证据，但缺少当前强制检查中的一项或多项，不计入已认证。
 - 自定义 OpenAI 兼容端点不进入静态认证表，必须由项目针对实际部署单独验收。
 
 ## 当前矩阵
@@ -112,9 +112,9 @@ CoreMind currently supports configuration for **${data.summary.supported}** buil
 
 ## Status definitions
 
-- **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context checks with auditable evidence.
+- **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, long-context, and parent/child Agent product-chain checks with auditable evidence.
 - **Configurable, unverified**: configuration and model catalog resolution work, but the current candidate lacks complete real-call evidence; older evidence is historical only.
-- **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every check in the current seven-check standard.
+- **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every current required check.
 - Custom OpenAI-compatible endpoints are deployment-specific and must be accepted by each project.
 
 ## Current matrix
