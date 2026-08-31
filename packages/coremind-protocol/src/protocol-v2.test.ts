@@ -13,6 +13,7 @@ import {
   ProtocolV2ToolCancelNotificationSchema,
   ProtocolV2ToolRegistrationReceiptSchema,
   ProtocolV2ToolResultReceiptSchema,
+  ProtocolV2ToolResultRequestSchema,
   parseProtocolV2Request,
 } from "./index.js";
 
@@ -300,6 +301,29 @@ describe("CoreMind Protocol v2", () => {
         },
       }),
     ).toThrowError(/无效的 CoreMind Protocol v2 请求/);
+  });
+
+  it("tool_result 必须且只能提供 result 或 error", () => {
+    const identity = {
+      schemaVersion: 1,
+      resultId: "result-1",
+      runId: "run-1",
+      callId: "call-1",
+      registrationId: "registration-1",
+    } as const;
+    for (const params of [identity, { ...identity, result: null, error: "失败" }]) {
+      const request = {
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "invalid-tool-result",
+        method: "tool_result",
+        params,
+      } as const;
+      expect(Value.Check(ProtocolV2ToolResultRequestSchema, request)).toBe(false);
+      expect(() => parseProtocolV2Request(request)).toThrowError(
+        /无效的 CoreMind Protocol v2 请求/,
+      );
+    }
   });
 
   it("解析带身份、版本与显式恢复预期的 Checkpoint 操作", () => {

@@ -717,9 +717,9 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
   it("本地假 Provider 下取消到静止 p95 < 250ms", async () => {
     // 100 次采样在全量并发下约 15s+，显式放宽测试超时（vitest 默认 15s 不够）
     const recorder = new RequestRecorder();
-    // 响应延迟：确保 abort 发生时 run 仍在进行（否则 aborted 终态不可达）
+    // 永不响应：确保慢盘或高负载下 abort 发生时 run 仍在进行。
     const { server, port } = await createMockServer(() => textScript("回答"), recorder, {
-      responseDelayMs: 300,
+      hangResponse: true,
     });
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-receipt-p95-"));
     const runStore = new FileRunStore(path.join(dir, "runs"));
@@ -789,6 +789,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       const p95 = sorted[94]!;
       expect(p95).toBeLessThan(250);
     } finally {
+      server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   }, 90_000);

@@ -307,24 +307,38 @@ export const ProtocolV2ToolRegisterRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const ProtocolV2ToolResultIdentityProperties = {
+  schemaVersion: Type.Literal(1),
+  resultId: BrandedIdSchema,
+  runId: BrandedIdSchema,
+  callId: BrandedIdSchema,
+  registrationId: BrandedIdSchema,
+} as const;
+
 export const ProtocolV2ToolResultRequestSchema = Type.Object(
   {
     jsonrpc: Type.Literal("2.0"),
     protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
     id: RpcIdSchema,
     method: Type.Literal("tool_result"),
-    params: Type.Object(
-      {
-        schemaVersion: Type.Literal(1),
-        resultId: BrandedIdSchema,
-        runId: BrandedIdSchema,
-        callId: BrandedIdSchema,
-        registrationId: BrandedIdSchema,
-        result: Type.Optional(Type.Unknown()),
-        error: Type.Optional(Type.String({ minLength: 1 })),
-      },
-      { additionalProperties: false },
-    ),
+    params: Type.Union([
+      Type.Object(
+        {
+          ...ProtocolV2ToolResultIdentityProperties,
+          result: Type.Unknown(),
+          error: Type.Optional(Type.Never()),
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          ...ProtocolV2ToolResultIdentityProperties,
+          result: Type.Optional(Type.Never()),
+          error: Type.String({ minLength: 1 }),
+        },
+        { additionalProperties: false },
+      ),
+    ]),
   },
   { additionalProperties: false },
 );
@@ -1430,13 +1444,6 @@ export function parseProtocolV2Request(value: unknown): ProtocolV2Request {
       throw new ProtocolV2ValidationError(
         "checkpoint restore 的 expectedCurrent.sha256 必须且只能在文件存在时提供",
       );
-    }
-  }
-  if (parsed.method === "tool_result") {
-    const hasResult = parsed.params.result !== undefined;
-    const hasError = parsed.params.error !== undefined;
-    if (hasResult === hasError) {
-      throw new ProtocolV2ValidationError("tool_result 必须且只能提供 result 或 error 之一");
     }
   }
   return parsed;

@@ -78,7 +78,7 @@ const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "follow_up",
   "delegation_disposition",
 ] as const;
-const PROTOCOL_V2_WORKER_TRANSITION = "__worker__";
+const PROTOCOL_V2_WORKER_TRANSITION = Symbol("worker-transition");
 
 export type WorkerMessage =
   | ProtocolSuccessResponse
@@ -178,7 +178,10 @@ export class ProtocolHost {
     }
   >();
   private readonly pausedControlInboxes = new Map<string, Promise<ControlInbox>>();
-  private readonly protocolV2RunTransitions = new Map<string, Promise<void>>();
+  private readonly protocolV2RunTransitions = new Map<
+    string | typeof PROTOCOL_V2_WORKER_TRANSITION,
+    Promise<void>
+  >();
   private activeController?: AbortController;
   private activeRuntime?: WorkerRuntime;
   private activeRunId?: string;
@@ -306,22 +309,22 @@ export class ProtocolHost {
   }
 
   private async withProtocolV2RunTransition<T>(
-    runId: string,
+    transitionKey: string | typeof PROTOCOL_V2_WORKER_TRANSITION,
     operation: () => Promise<T>,
   ): Promise<T> {
-    const previous = this.protocolV2RunTransitions.get(runId) ?? Promise.resolve();
+    const previous = this.protocolV2RunTransitions.get(transitionKey) ?? Promise.resolve();
     let release!: () => void;
     const current = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.protocolV2RunTransitions.set(runId, current);
+    this.protocolV2RunTransitions.set(transitionKey, current);
     await previous;
     try {
       return await operation();
     } finally {
       release();
-      if (this.protocolV2RunTransitions.get(runId) === current) {
-        this.protocolV2RunTransitions.delete(runId);
+      if (this.protocolV2RunTransitions.get(transitionKey) === current) {
+        this.protocolV2RunTransitions.delete(transitionKey);
       }
     }
   }

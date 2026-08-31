@@ -2016,6 +2016,27 @@ describe("ProtocolHost", () => {
     ).toMatchObject({ error: { data: { coremindCode: "run_id_conflict" } } });
   });
 
+  it("合法 RunId 不与 Worker 内部 transition 身份冲突", async () => {
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async () => ({ run: () => new Promise<never>(() => {}) }),
+    });
+    await initializeV2(host);
+
+    await expect(
+      withTimeout(
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "worker-key-run",
+          method: "run",
+          params: { runId: "__worker__", input: "执行" },
+        }),
+        200,
+      ),
+    ).resolves.toMatchObject({ result: { runId: "__worker__" } });
+  });
+
   it("同一 Host 中首个运行结束后允许 resume 承接同一 RunId", async () => {
     const starts: CoreMindRuntimeOptions[] = [];
     const host = new ProtocolHost({
