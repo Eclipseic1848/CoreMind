@@ -221,6 +221,14 @@ describe("ProtocolHost", () => {
         .checkpoint.checkpointId;
       const listed = await request("list", { action: "list" });
 
+      await writeFile(target, Buffer.alloc(10 * 1024 * 1024 + 1));
+      const listedAfterTargetGrew = await request("list-grown-target", { action: "list" });
+      const oversizedDiff = await request("diff-grown-target", {
+        action: "diff",
+        checkpointId,
+        checkpointVersion: 1,
+      });
+
       await writeFile(target, "修改后", "utf8");
       const currentSha256 = createHash("sha256").update("修改后").digest("hex");
       const diff = await request("diff", {
@@ -270,6 +278,12 @@ describe("ProtocolHost", () => {
           runId,
           checkpoints: [{ checkpointId, path: "result.txt" }],
         },
+      });
+      expect(listedAfterTargetGrew).toMatchObject({
+        result: { action: "list", runId, checkpoints: [{ checkpointId }] },
+      });
+      expect(oversizedDiff).toMatchObject({
+        error: { data: { coremindCode: "checkpoint_too_large" } },
       });
       expect(diff).toMatchObject({
         result: {

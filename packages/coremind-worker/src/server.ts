@@ -571,9 +571,7 @@ export class ProtocolHost {
     });
     const checkpointCwd = await manager.canonicalTargetPath(".");
     if (request.params.action === "list") {
-      await Promise.all(
-        projection.checkpoints.map((record) => inspectCheckpoint(record, state.cwd)),
-      );
+      await Promise.all(projection.checkpoints.map((record) => manager.verifyRecord(record)));
       return {
         schemaVersion: 1,
         action: "list",
