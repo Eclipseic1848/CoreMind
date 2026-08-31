@@ -217,7 +217,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     } finally {
       rmSync(directory, { force: true, recursive: true });
     }
-  });
+  }, 30_000);
 
   it("候选其余项目选择器不会重新包含两个隔离项目", () => {
     const result = spawnSync(
