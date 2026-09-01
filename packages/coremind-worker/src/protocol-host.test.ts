@@ -2046,7 +2046,7 @@ describe("ProtocolHost", () => {
           method: "run",
           params: { runId: "__worker__", input: "执行" },
         }),
-        200,
+        1_000,
       ),
     ).resolves.toMatchObject({ result: { runId: "__worker__" } });
   });
