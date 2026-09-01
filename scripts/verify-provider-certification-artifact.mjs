@@ -27,7 +27,10 @@ export async function verifyProviderCertificationArtifact(directory, expectedCom
         !record ||
         record.model !== evidence.model ||
         record.commit !== evidence.commit ||
-        record.runtimeArtifactSha256 !== evidence.runtimeArtifactSha256
+        record.runtimeArtifactSha256 !== evidence.runtimeArtifactSha256 ||
+        record.candidateArtifactSha256 !== evidence.candidateArtifactSha256 ||
+        record.runtimeDigest !== evidence.runtimeDigest ||
+        record.artifactManifestDigest !== evidence.artifactManifestDigest
       ) {
         throw new Error("认证台账与证据不一致");
       }
@@ -37,6 +40,9 @@ export async function verifyProviderCertificationArtifact(directory, expectedCom
         version: validated.version,
         commit: validated.commit,
         runtimeArtifactSha256: validated.runtimeArtifactSha256,
+        candidateArtifactSha256: validated.candidateArtifactSha256,
+        runtimeDigest: validated.runtimeDigest,
+        artifactManifestDigest: validated.artifactManifestDigest,
       };
     }
   }

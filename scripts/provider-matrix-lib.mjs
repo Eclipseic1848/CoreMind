@@ -7,6 +7,13 @@ const REQUIRED_CERTIFICATION_CHECKS = [
   "error",
   "long-context",
 ];
+const CHILD_RUN_CERTIFICATION_CHECKS = [
+  "parent-model-call",
+  "delegation-tool",
+  "child-model-call",
+  "child-tool-call",
+  "cancel-convergence",
+];
 
 /** 用运行时目录和人工证据台账生成认证矩阵，未提供完整证据时绝不自动认证。 */
 export function buildProviderMatrix({ providers, certifications, generatedAt, targetVersion }) {
@@ -16,9 +23,12 @@ export function buildProviderMatrix({ providers, certifications, generatedAt, ta
     .map((provider) => {
       const certification = certificationById.get(provider.id);
       const certified = certification
-        ? hasCompleteEvidence(certification) && certification.version === targetVersion
+        ? hasCompleteEvidence(certification, targetVersion) &&
+          certification.version === targetVersion
         : false;
-      const missingChecks = certification ? missingCertificationChecks(certification) : [];
+      const missingChecks = certification
+        ? missingCertificationChecks(certification, targetVersion)
+        : [];
       return {
         ...provider,
         status: certified ? "certified" : "inherited-unverified",
@@ -32,7 +42,7 @@ export function buildProviderMatrix({ providers, certifications, generatedAt, ta
               evidence: certification.evidence,
             }
           : {}),
-        ...(!certified && certification && hasCompleteEvidence(certification)
+        ...(!certified && certification && hasCompleteEvidence(certification, certification.version)
           ? {
               previousCertification: {
                 version: certification.version,
@@ -67,7 +77,7 @@ export function buildProviderMatrix({ providers, certifications, generatedAt, ta
   };
 }
 
-function hasCompleteEvidence(certification) {
+function hasCompleteEvidence(certification, version) {
   if (
     !certification.version ||
     !certification.testedAt ||
@@ -78,12 +88,15 @@ function hasCompleteEvidence(certification) {
   ) {
     return false;
   }
-  return missingCertificationChecks(certification).length === 0;
+  return missingCertificationChecks(certification, version).length === 0;
 }
 
-function missingCertificationChecks(certification) {
+function missingCertificationChecks(certification, version) {
   const checks = new Set(certification.checks ?? []);
-  const missing = REQUIRED_CERTIFICATION_CHECKS.filter((check) => !checks.has(check));
+  const required = requiresChildRunCertification(version)
+    ? [...REQUIRED_CERTIFICATION_CHECKS, ...CHILD_RUN_CERTIFICATION_CHECKS]
+    : REQUIRED_CERTIFICATION_CHECKS;
+  const missing = required.filter((check) => !checks.has(check));
   if (!certification.version) missing.push("version");
   if (!certification.testedAt) missing.push("testedAt");
   if (!certification.model) missing.push("model");
@@ -93,4 +106,9 @@ function missingCertificationChecks(certification) {
   }
   if (!certification.evidence) missing.push("evidence");
   return missing;
+}
+
+function requiresChildRunCertification(version) {
+  const match = /^(\d+)\.(\d+)\./u.exec(version ?? "");
+  return match ? Number(match[1]) > 0 || Number(match[2]) >= 7 : false;
 }

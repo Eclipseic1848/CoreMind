@@ -20,7 +20,7 @@ const LIVE_PROVIDER_CHECKS = [
   "child-model-call",
   "child-tool-call",
   "structured-result",
-  "cancel-quiescence",
+  "cancel-convergence",
 ];
 
 describe("P0 顶层发布验收", () => {

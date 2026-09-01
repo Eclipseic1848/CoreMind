@@ -91,6 +91,18 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.on.workflow_dispatch.inputs.qualification_mode.default).toBe(
       "offline-rehearsal",
     );
+    for (const input of [
+      "provider",
+      "model",
+      "credential_env",
+      "max_cost_usd",
+      "max_duration_minutes",
+      "expected_version",
+      "expected_commit",
+      "expected_runtime_sha256",
+    ]) {
+      expect(workflow.on.workflow_dispatch.inputs[input].required).toBe(true);
+    }
     expect(workflow.jobs.candidate.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
     for (const command of [
       "npm run test:stability",
@@ -126,7 +138,35 @@ describe("GitHub Actions 收口合同", () => {
     expect(candidateCommands).not.toContain("npm run providers:certify");
     expect(workflow.jobs["provider-certification"].if).toContain("workflow_dispatch");
     expect(workflow.jobs["provider-certification"].if).toContain("strict-provider");
+    expect(workflow.jobs["provider-certification"].if).toContain("refs/heads/main");
+    expect(workflow.jobs["provider-certification"].if).toContain("inputs.expected_commit");
+    expect(workflow.jobs["provider-certification"].if).toContain(
+      "inputs.credential_env == 'COREMIND_CERT_API_KEY'",
+    );
+    expect(workflow.jobs["provider-certification"]["timeout-minutes"]).toContain(
+      "inputs.max_duration_minutes",
+    );
+    expect(workflow.jobs["provider-certification"].env).toMatchObject({
+      COREMIND_CERT_API_KEY_ENV: `\${{ inputs.credential_env }}`,
+      COREMIND_CERT_MAX_COST_USD: `\${{ inputs.max_cost_usd }}`,
+      COREMIND_CERT_MAX_DURATION_MINUTES: `\${{ inputs.max_duration_minutes }}`,
+      COREMIND_CERT_EXPECTED_VERSION: `\${{ inputs.expected_version }}`,
+      COREMIND_CERT_EXPECTED_COMMIT: `\${{ inputs.expected_commit }}`,
+      COREMIND_CERT_EXPECTED_RUNTIME_SHA256: `\${{ inputs.expected_runtime_sha256 }}`,
+    });
+    const candidateDownload = workflow.jobs["provider-certification"].steps.find(
+      (step: { name?: string }) => step.name === "下载同次 Linux 候选制品",
+    );
+    expect(candidateDownload.uses).toContain("actions/download-artifact@");
+    expect(candidateDownload.with.name).toContain("candidate-artifacts-Linux-");
     expect(providerCommands).toContain("npm run providers:certify");
+    expect(providerCommands).toContain("npm run providers:matrix");
+    expect(providerCommands.indexOf("npm run providers:certify")).toBeLessThan(
+      providerCommands.indexOf("npm run providers:matrix"),
+    );
+    expect(providerCommands.indexOf("npm run providers:matrix")).toBeLessThan(
+      providerCommands.indexOf("npm run release:preflight -- --allow-dirty"),
+    );
     expect(providerCommands).toContain("npm run release:preflight -- --allow-dirty");
     expect(providerCommands).not.toContain("--defer-provider-certification");
     const evidenceUpload = workflow.jobs["provider-certification"].steps.find(

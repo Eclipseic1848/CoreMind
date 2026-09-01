@@ -160,7 +160,7 @@ const LIVE_PROVIDER_CHECKS = [
   "child-model-call",
   "child-tool-call",
   "structured-result",
-  "cancel-quiescence",
+  "cancel-convergence",
 ];
 const EXTERNAL_REQUIREMENTS = {
   "P0-17": [{ level: "repository-policy", missing: "repository-policy 证据" }],
