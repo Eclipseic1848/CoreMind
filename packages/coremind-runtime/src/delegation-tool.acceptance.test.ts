@@ -229,6 +229,8 @@ describe("Delegation Tool TypeScript happy path", () => {
   it("正式 Delegation Tool 按 Child wall time 有界取消未及时收敛的 Adapter", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-join-timeout-"));
     temporaryDirectories.push(directory);
+    const cleanupAbort = new AbortController();
+    let runtime: CoreMindRuntime | undefined;
     const server = createServer((request, response) => {
       let body = "";
       request.setEncoding("utf8");
@@ -304,12 +306,13 @@ describe("Delegation Tool TypeScript happy path", () => {
         ),
       });
       let adapterAbortObserved = false;
-      const runtime = await CoreMindRuntime.create({
+      runtime = await CoreMindRuntime.create({
         config,
         configDir: directory,
         cwd: directory,
         env: { COREMIND_TEST_API_KEY: "test-key" },
         initialPrompt: "委派一个必须有界结束的任务",
+        signal: cleanupAbort.signal,
         childRuns: {
           parentPolicy: {
             depth: 0,
@@ -395,9 +398,11 @@ describe("Delegation Tool TypeScript happy path", () => {
         error: { code: "delegation_disposition_required" },
       });
     } finally {
+      cleanupAbort.abort("测试清理");
+      await runtime?.waitForQuiescence(5_000);
       await closeServer(server);
     }
-  }, 10_000);
+  }, 15_000);
 
   it("父 Agent 静默忽略非成功 Child 结果时不能形成成功终态", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-disposition-gate-"));
