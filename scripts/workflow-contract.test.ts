@@ -221,7 +221,8 @@ describe("GitHub Actions 收口合同", () => {
       `import { appendFileSync } from "node:fs";
 const projects = process.argv.filter((value) => value.startsWith("--project=")).map((value) => value.slice(10));
 const selector = projects.join(",");
-appendFileSync(process.env.COREMIND_TEST_CALLS, process.env.COREMIND_STABILITY_RUN + ":" + selector + "\\n", "utf8");
+const maxWorkers = process.argv.find((value) => value.startsWith("--maxWorkers="))?.slice(13) ?? "default";
+appendFileSync(process.env.COREMIND_TEST_CALLS, process.env.COREMIND_STABILITY_RUN + ":" + selector + ":" + maxWorkers + "\\n", "utf8");
 if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
 `,
       "utf8",
@@ -247,18 +248,20 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
 
     try {
       expect(run()).toEqual({
-        calls: [1, 2, 3].flatMap((iteration) =>
-          [latency, faultMatrix, remaining].map((selector) => `${iteration}:${selector}`),
-        ),
+        calls: [1, 2, 3].flatMap((iteration) => [
+          `${iteration}:${latency}:default`,
+          `${iteration}:${faultMatrix}:default`,
+          `${iteration}:${remaining}:1`,
+        ]),
         status: 0,
       });
-      expect(run(latency)).toEqual({ calls: [`1:${latency}`], status: 1 });
+      expect(run(latency)).toEqual({ calls: [`1:${latency}:default`], status: 1 });
       expect(run(faultMatrix)).toEqual({
-        calls: [`1:${latency}`, `1:${faultMatrix}`],
+        calls: [`1:${latency}:default`, `1:${faultMatrix}:default`],
         status: 1,
       });
       expect(run(remaining)).toEqual({
-        calls: [`1:${latency}`, `1:${faultMatrix}`, `1:${remaining}`],
+        calls: [`1:${latency}:default`, `1:${faultMatrix}:default`, `1:${remaining}:1`],
         status: 1,
       });
     } finally {

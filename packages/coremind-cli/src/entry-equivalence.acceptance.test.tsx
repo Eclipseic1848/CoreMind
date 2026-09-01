@@ -740,7 +740,7 @@ async function capturePython(
     const observability = JSON.parse(
       observabilityLine!.slice("OBSERVABILITY:".length),
     ) as LocalObservabilityProjection;
-    expect(outcome.status).toBe(
+    expect(outcome.status, JSON.stringify(outcome)).toBe(
       childRun === "failure" ? "paused" : (providerFault?.expectedStatus ?? "succeeded"),
     );
     expect(snapshot.schemaVersion).toBe(1);

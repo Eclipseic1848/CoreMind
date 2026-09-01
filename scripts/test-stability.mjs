@@ -7,7 +7,12 @@ const faultMatrixProject = "isolated-trusted-tool-fault-matrix";
 const remainingProjects = "!isolated-*";
 
 function runTests(project, env) {
-  const args = ["test", "--", `--project=${project}`];
+  const args = [
+    "test",
+    "--",
+    `--project=${project}`,
+    ...(project === remainingProjects ? ["--maxWorkers=1"] : []),
+  ];
   return npmCli
     ? spawnSync(process.execPath, [npmCli, ...args], { stdio: "inherit", env })
     : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", args, {
