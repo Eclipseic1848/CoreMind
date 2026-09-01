@@ -146,6 +146,13 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs["provider-certification"]["timeout-minutes"]).toContain(
       "inputs.max_duration_minutes",
     );
+    const candidateSandboxSetup = workflow.jobs.candidate.steps.find(
+      (step: { name?: string }) => step.name === "安装 Linux sandbox 依赖",
+    );
+    const providerSandboxSetup = workflow.jobs["provider-certification"].steps.find(
+      (step: { name?: string }) => step.name === "安装 Linux sandbox 依赖",
+    );
+    expect(providerSandboxSetup?.run).toBe(candidateSandboxSetup?.run);
     expect(workflow.jobs["provider-certification"].env).toMatchObject({
       COREMIND_CERT_API_KEY_ENV: `\${{ inputs.credential_env }}`,
       COREMIND_CERT_MAX_COST_USD: `\${{ inputs.max_cost_usd }}`,
