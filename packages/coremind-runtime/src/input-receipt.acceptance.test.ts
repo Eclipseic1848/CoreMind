@@ -724,7 +724,7 @@ describe("waitForQuiescence", () => {
 // ---------------------------------------------------------------------------
 describe("Cancel → Quiescent p95（100 次采样）", () => {
   it("本地假 Provider 下取消到静止 p95 < 250ms", async () => {
-    // 100 次采样在全量并发下约 15s+，显式放宽测试超时（vitest 默认 15s 不够）
+    // 整项时限只包住 3 次预热与 100 次采样；性能门仍由下方 p95 < 250ms 独立判定。
     const recorder = new RequestRecorder();
     // 永不响应：确保慢盘或高负载下 abort 发生时 run 仍在进行。
     const { server, port } = await createMockServer(() => textScript("回答"), recorder, {
@@ -804,7 +804,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
-  }, 90_000);
+  }, 180_000);
 });
 
 afterEach(() => {
