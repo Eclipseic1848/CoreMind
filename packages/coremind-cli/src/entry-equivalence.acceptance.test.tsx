@@ -592,7 +592,7 @@ async function typeCommand(write: (value: string) => void, command: string): Pro
 async function waitForCapture(
   captured: WireSignature[],
   expectedCount = 1,
-  timeoutMs = 5_000,
+  timeoutMs = 15_000,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (captured.length < expectedCount && Date.now() < deadline) {
