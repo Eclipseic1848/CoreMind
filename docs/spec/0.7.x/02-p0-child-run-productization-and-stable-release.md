@@ -150,13 +150,19 @@ P0 只新增一个顶层发布验收入口，并复用三类现有高层测试�
 | P0-17 | `main` 保护规则与 ADR 一致 | GitHub ruleset/branch protection 只读导出和一次受控 PR 验证 |
 | P0-18 | 所有版本声明、文档和发布元数据一致为 `0.7.0` | 版本同步检查、Changelog、Provider 矩阵与发布预检 |
 | P0-19 | Windows/Linux、npm tarball、Python wheel、Worker、TTY 全部通过候选包验证 | 双平台 CI、干净隔离安装、产物 SHA-256 与 TTY 证据 |
-| P0-20 | 至少一个真实 Provider 完成父子调用、工具、结果和取消 | 绑定候选提交、版本与 Runtime 摘要的脱敏认证报告 |
+| P0-20 | 至少一个真实 Provider 完成父子调用、工具、结果和取消；`0.7.0` 仅允许下述维护者网络例外 | 绑定候选提交、版本与 Runtime 摘要的脱敏认证报告，或精确绑定失败运行、Runtime 摘要与维护者裁决的一次性网络豁免 |
 | P0-21 | Tag、GitHub Release、npm、PyPI 来自同一候选提交 | 提交、Tag、产物摘要、Registry 元数据和不可覆盖检查 |
 | P0-22 | 公开 npm/PyPI 包回装后版本正确且基本 Child Run 可用 | 发布后全新环境安装日志、版本输出和产品冒烟报告 |
 
 快速工程门必须至少覆盖 P0-01、P0-03、P0-05、P0-09、P0-10、P0-12、P0-14、P0-15 的确定性代表场景，以及构建、类型、安全和文档合同。候选资格门覆盖 P0-01～P0-20；发布流程覆盖 P0-21；发布后验证覆盖 P0-22。任何必需证据缺失、提交不一致、版本不一致或人工证据未绑定候选提交时，顶层报告必须失败。
 
 测试数据使用假 Provider、临时 Workspace 和无真实秘密的环境变量引用。真实 Provider 只出现在独立批准的候选资格运行中。所有跨平台、候选包和真实 Provider 证据都必须记录证据级别，避免把离线绿测描述为产品验收或发布完成。
+
+### 0.7.0 Provider 网络例外
+
+严格候选运行 `33582995518` 的 Windows 与 Ubuntu 候选矩阵成功；`alibaba-model-studio/qwen-plus` 的首个真实请求在获得 HTTP 响应前以 `provider_transient / Request timed out` 失败，自动重试为零，未生成 Provider 成功证据。维护者在 [Issue #113 裁决](https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678)中将其作为网络例外验收通过。
+
+该例外只适用于 `v0.7.0`，只接受原始提交 `8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3`、失败运行 `33582995518`、失败 Job `100134811632` 与候选 Runtime 包摘要 `16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea`。发布提交仍须通过同提交双平台工程门、离线候选包与真实 TTY 门禁，并保持 Runtime 制品等价。该裁决不构成 live-provider 认证，不更新 Provider 成功台账，也不能被后续版本复用。
 
 ## Out of Scope
 

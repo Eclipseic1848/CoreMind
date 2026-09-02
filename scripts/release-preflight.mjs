@@ -36,6 +36,16 @@ const REQUIRED_FILES = [
 ];
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PROVIDER_NETWORK_WAIVER = {
+  path: path.join("docs", "release", "evidence", "v0.7.0-provider-network-waiver.json"),
+  version: "0.7.0",
+  decision: "provider-network-timeout-waived",
+  strictRunId: 33582995518,
+  strictCommit: "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+  failedJobId: 100134811632,
+  candidateRuntimePackageSha256: "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+  decisionRef: "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+};
 
 export function normalizePythonVersion(version) {
   return version
@@ -87,7 +97,11 @@ export function evaluateReleaseMetadata({
 
 export async function inspectRepository(
   rootDirectory,
-  { allowDirty = false, deferProviderCertification = false } = {},
+  {
+    allowDirty = false,
+    deferProviderCertification = false,
+    allowProviderNetworkWaiver = false,
+  } = {},
 ) {
   const versionReport = await validateReleaseVersion(rootDirectory);
   const packageDirectories = await readdir(path.join(rootDirectory, "packages"), {
@@ -140,6 +154,13 @@ export async function inspectRepository(
       /^[0-9a-f]{40}$/.test(item.commit ?? "") &&
       item.runtimeArtifactSha256 === runtimeArtifactSha256,
   );
+  const providerNetworkWaiverCurrent =
+    allowProviderNetworkWaiver &&
+    (await hasCurrentProviderNetworkWaiver(
+      rootDirectory,
+      normalizePythonVersion(pythonVersion),
+      runtimeArtifactSha256,
+    ));
   const report = evaluateReleaseMetadata({
     packages,
     pythonVersion,
@@ -148,7 +169,8 @@ export async function inspectRepository(
       matrix.generatedAt === ledger.updatedAt &&
       matrix.targetVersion === normalizePythonVersion(pythonVersion) &&
       matrix.providers.length >= 38,
-    providerCertificationCurrent: deferProviderCertification || Boolean(currentCertification),
+    providerCertificationCurrent:
+      deferProviderCertification || Boolean(currentCertification) || providerNetworkWaiverCurrent,
   });
   report.blockers.unshift(...versionReport.blockers);
 
@@ -166,8 +188,42 @@ export async function inspectRepository(
   if (deferProviderCertification) {
     warnings.push("开发分支已延后当前 Runtime 的 Provider 认证；发布候选必须移除此选项");
   }
+  if (providerNetworkWaiverCurrent) {
+    warnings.push("0.7.0 使用维护者批准的 Provider 网络超时豁免；这不是 live-provider 认证成功");
+  }
   report.ready = report.blockers.length === 0;
   return { ...report, warnings };
+}
+
+async function hasCurrentProviderNetworkWaiver(rootDirectory, version, runtimeArtifactSha256) {
+  try {
+    const waiver = JSON.parse(
+      await readFile(path.join(rootDirectory, PROVIDER_NETWORK_WAIVER.path), "utf8"),
+    );
+    return (
+      waiver.schemaVersion === 1 &&
+      waiver.version === PROVIDER_NETWORK_WAIVER.version &&
+      version === PROVIDER_NETWORK_WAIVER.version &&
+      waiver.decision === PROVIDER_NETWORK_WAIVER.decision &&
+      waiver.strictRunId === PROVIDER_NETWORK_WAIVER.strictRunId &&
+      waiver.strictCommit === PROVIDER_NETWORK_WAIVER.strictCommit &&
+      waiver.failedJobId === PROVIDER_NETWORK_WAIVER.failedJobId &&
+      waiver.provider === "alibaba-model-studio" &&
+      waiver.model === "qwen-plus" &&
+      waiver.failureCode === "provider_transient" &&
+      waiver.failureMessage === "Request timed out." &&
+      waiver.candidateRuntimePackageSha256 ===
+        PROVIDER_NETWORK_WAIVER.candidateRuntimePackageSha256 &&
+      waiver.maxRetries === 0 &&
+      waiver.scope === "v0.7.0-only" &&
+      waiver.claim === "maintainer-approved-network-exception-not-live-provider-certification" &&
+      waiver.decisionRef === PROVIDER_NETWORK_WAIVER.decisionRef &&
+      /^[0-9a-f]{64}$/u.test(runtimeArtifactSha256 ?? "") &&
+      waiver.runtimeArtifactSha256 === runtimeArtifactSha256
+    );
+  } catch {
+    return false;
+  }
 }
 
 function normalizeMetadataUrl(value) {
@@ -179,10 +235,12 @@ function normalizeMetadataUrl(value) {
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const allowDirty = process.argv.includes("--allow-dirty");
   const deferProviderCertification = process.argv.includes("--defer-provider-certification");
+  const allowProviderNetworkWaiver = process.argv.includes("--allow-provider-network-waiver");
   const json = process.argv.includes("--json");
   const report = await inspectRepository(repositoryRoot, {
     allowDirty,
     deferProviderCertification,
+    allowProviderNetworkWaiver,
   });
   if (json) console.log(JSON.stringify(report, null, 2));
   else {

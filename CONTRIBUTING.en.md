@@ -13,7 +13,7 @@ Thank you for helping CoreMind become safer and easier to learn. Code, tests, do
 
 ## Development setup
 
-Use Windows or Linux, Node.js 22.19+, npm 10+, and Python 3.10+ for Python SDK work.
+Use Windows or Linux, Node.js 22.19+, npm 11.5.1+, and Python 3.10+ for Python SDK work.
 
 ```bash
 git clone https://github.com/Eclipseic1848/CoreMind.git

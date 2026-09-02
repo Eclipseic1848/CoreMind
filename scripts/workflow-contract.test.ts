@@ -50,6 +50,7 @@ describe("GitHub Actions 收口合同", () => {
       "windows-latest",
     ]);
     expect(checkout.with["fetch-depth"]).toBe(0);
+    expect(commands).toContain("npm install --global npm@11.5.1");
     expect(commands).toContain("npm run typecheck");
     expect(commands).toContain("npm run security:audit");
     expect(commands).toContain("npm run check:docs");
@@ -91,6 +92,7 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.on.workflow_dispatch.inputs.qualification_mode.default).toBe(
       "offline-rehearsal",
     );
+    expect(candidateCommands).toContain("npm install --global npm@11.5.1");
     for (const input of [
       "provider",
       "model",
@@ -360,6 +362,10 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     const bundleIndex = buildCommands.indexOf("npm run release:bundle");
 
     expect(workflow.on.workflow_dispatch.inputs.tag.required).toBe(true);
+    expect(workflow.on.workflow_dispatch.inputs.artifact_run_id.required).toBe(false);
+    expect(workflow.on.workflow_dispatch.inputs.artifact_run_id.default).toBe("");
+    expect(workflow.concurrency.group).toContain("inputs.tag");
+    expect(workflow.concurrency["cancel-in-progress"]).toBe(false);
     expect(workspaceBuildIndex).toBeGreaterThanOrEqual(0);
     expect(checkIndex).toBeGreaterThan(workspaceBuildIndex);
     expect(bundleIndex).toBeGreaterThan(checkIndex);
@@ -379,20 +385,65 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
     expect(releaseCommands).toContain("gh workflow run docs.yml --ref main");
+    expect(releaseCommands).toContain("p0-acceptance.mjs --stage release");
+    expect(releaseCommands).toContain("--verified-workflow-run");
     expect(releaseCommands).toContain("cmp --silent");
+    expect(releaseCommands).toContain("release_status");
+    expect(releaseCommands).toContain("GitHub Release 状态未知；停止发布");
     expect(releaseCommands).not.toContain("--clobber");
     expect(workflow.jobs.build.needs).toBe("candidate");
+    expect(workflow.jobs.build.permissions.actions).toBe("read");
+    const resumeStep = workflow.jobs.build.steps.find(
+      (step: { name?: string }) => step.name === "恢复既有已验证发布物",
+    );
+    expect(resumeStep.if).toContain("artifact_run_id != ''");
+    expect(resumeStep.run).toContain("actions/runs/");
+    expect(resumeStep.run).toContain("COREMIND_SOURCE_RUN_ID");
+    expect(resumeStep.run).toContain("coremind-release-bundle");
+    expect(resumeStep.run).toContain("sha256sum --check SHA256SUMS.txt");
+    expect(resumeStep.run).toContain("Build release bundle");
+    const freshBuildStep = workflow.jobs.build.steps.find(
+      (step: { name?: string }) => step.name === "构建并验证同提交发布物",
+    );
+    expect(freshBuildStep.if).toContain("artifact_run_id == ''");
+    const freshStateStep = workflow.jobs.build.steps.find(
+      (step: { name?: string }) => step.name === "拒绝在未知或部分发布状态下重新构建",
+    );
+    expect(freshStateStep.if).toContain("artifact_run_id == ''");
+    expect(freshStateStep.run).toContain("publish-pypi.yml/runs");
+    expect(freshStateStep.run).toContain("--paginate");
+    expect(freshStateStep.run).not.toContain("status=completed");
+    expect(freshStateStep.run).toContain("既有发布 run 状态未知；拒绝重新构建");
+    expect(freshStateStep.run).toContain("registry.npmjs.org");
+    expect(freshStateStep.run).toContain("pypi.org/pypi/coremind-ai");
+    expect(freshStateStep.run).toContain("状态未知；拒绝重新构建");
     const candidateCommands = workflow.jobs.candidate.steps
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
     expect(candidateCommands).toContain("git fetch origin main --no-tags");
     expect(candidateCommands).toContain("git rev-parse FETCH_HEAD");
+    expect(candidateCommands).toContain(`rulesets/\${ruleset_id}`);
+    expect(candidateCommands).toContain("required_approving_review_count");
+    expect(candidateCommands).toContain("integration_id");
+    expect(candidateCommands).toContain("strict_required_status_checks_policy");
+    expect(candidateCommands).toContain("COREMIND_REPOSITORY_RULESET_ID");
     expect(candidateCommands).toContain("actions/workflows/ci.yml/runs");
     expect(candidateCommands).toContain("actions/workflows/candidate-qualification.yml/runs");
     expect(candidateCommands).toContain("Candidate qualified");
     expect(candidateCommands).toContain("provider-certification-*");
     expect(candidateCommands).toContain("verify-provider-certification-artifact.mjs");
     expect(candidateCommands).toContain("--verify-manual-only");
+    expect(candidateCommands).toContain("p0-acceptance.mjs --stage candidate");
+    expect(candidateCommands).toContain("--verified-workflow-run");
+    expect(candidateCommands).toContain("v0.7.0-provider-network-waiver.json");
+    expect(candidateCommands).toContain("33582995518");
+    expect(candidateCommands).toContain("5505065678");
+    expect(candidateCommands).toContain('Provider certification" and .conclusion == "skipped');
+    expect(candidateCommands).toContain('Candidate qualified" and .conclusion == "skipped');
+    expect(candidateCommands).not.toContain(".inputs.qualification_mode");
+    expect(buildCommands).toContain(
+      `if [ "\${COREMIND_PROVIDER_EVIDENCE_MODE}" = "provider-network-waiver" ]`,
+    );
     expect(serialized).not.toContain("NODE_AUTH_TOKEN");
     expect(serialized).toContain("npm@11.5.1");
     expect(serialized).toContain("build==1.5.0");
@@ -402,6 +453,24 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
         .map((step: { run?: string }) => step.run ?? "")
         .join("\n");
       expect(commands).toContain("sha256sum --check SHA256SUMS.txt");
+    }
+    const publicCommands = workflow.jobs["verify-public"].steps
+      .map((step: { run?: string }) => step.run ?? "")
+      .join("\n");
+    expect(workflow.jobs["verify-public"].needs).toEqual(
+      expect.arrayContaining(["candidate", "release"]),
+    );
+    expect(publicCommands).toContain("npm pack");
+    expect(publicCommands).toContain("validate-npm-tarballs.mjs --directory");
+    expect(publicCommands).toContain("pip download");
+    expect(publicCommands).toContain("check-python-wheel.py");
+    expect(publicCommands).not.toContain("coremind_ai-0.7.0-py3-none-any.whl");
+    expect(publicCommands).toContain("p0-acceptance.mjs --stage post-release");
+    for (const jobName of ["candidate", "release", "verify-public"]) {
+      const p0Steps = workflow.jobs[jobName].steps.filter((step: { name?: string }) =>
+        step.name?.startsWith("形成 P0"),
+      );
+      expect(p0Steps.every((step: { if?: string }) => step.if?.includes("v0.7.0"))).toBe(true);
     }
   });
 

@@ -43,6 +43,14 @@ describe("全仓 Markdown 审计", () => {
     const report = await auditMarkdownTree(root);
 
     expect(report.files).toBe(3);
+    expect(report.auditedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "docs/README.md",
+          sha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+        }),
+      ]),
+    );
     expect(report.blockers).toHaveLength(1);
     expect(report.blockers[0]).toMatchObject({
       code: "broken-local-link",

@@ -89,8 +89,14 @@ export const P0_EXECUTION_PLAN = {
     ...CANDIDATE_PLAN,
     commandStep("rc", "npm", ["run", "acceptance:rc", "--", "--defer-provider-certification"]),
   ],
-  release: [...CANDIDATE_PLAN, commandStep("rc", "npm", ["run", "acceptance:rc"])],
-  "post-release": [...CANDIDATE_PLAN, commandStep("rc", "npm", ["run", "acceptance:rc"])],
+  release: [
+    ...CANDIDATE_PLAN,
+    commandStep("rc", "npm", ["run", "acceptance:rc", "--", "--allow-provider-network-waiver"]),
+  ],
+  "post-release": [
+    ...CANDIDATE_PLAN,
+    commandStep("rc", "npm", ["run", "acceptance:rc", "--", "--allow-provider-network-waiver"]),
+  ],
 };
 
 const ENGINEERING_CHECKS = new Set([
@@ -151,6 +157,7 @@ const EVIDENCE_LEVELS = new Set([
   "dual-platform",
   "candidate-package",
   "live-provider",
+  "provider-network-waiver",
   "public-release",
   "public-reinstall",
 ]);
@@ -162,6 +169,96 @@ const LIVE_PROVIDER_CHECKS = [
   "structured-result",
   "cancel-convergence",
 ];
+
+export function createWorkflowEvidence({
+  stage,
+  version,
+  commit,
+  runtimeDigest,
+  artifactManifestDigest,
+  candidateRuntimePackageSha256,
+  candidateRunId,
+  providerEvidenceMode,
+  repositoryRulesetId,
+  workflowRunId,
+  releaseTag,
+}) {
+  if (String(repositoryRulesetId) !== "21807589") {
+    throw new Error("GitHub main ruleset 未经过当前发布 Workflow 验证");
+  }
+  const generatedAt = new Date().toISOString();
+  const common = { version, commit, runtimeDigest, artifactManifestDigest, generatedAt };
+  const passed = (checkId, evidenceLevel, ref, extra = {}) => ({
+    checkId,
+    status: "passed",
+    evidenceLevel,
+    ref,
+    ...common,
+    ...extra,
+  });
+  const evidence = [
+    passed("P0-17", "repository-policy", `github:ruleset:${repositoryRulesetId}`),
+    ...["win32", "linux"].flatMap((platform) => [
+      passed("P0-19", "dual-platform", `github-actions:${candidateRunId}:${platform}`, {
+        platform,
+      }),
+      ...["npm", "pypi"].map((channel) =>
+        passed(
+          "P0-19",
+          "candidate-package",
+          `github-actions:${candidateRunId}:${platform}:${channel}`,
+          { platform, channel },
+        ),
+      ),
+    ]),
+  ];
+  if (providerEvidenceMode === "strict-provider") {
+    evidence.push(
+      passed("P0-20", "live-provider", `github-actions:${candidateRunId}:provider`, {
+        platform: "linux",
+        checks: LIVE_PROVIDER_CHECKS,
+      }),
+    );
+  } else if (providerEvidenceMode === "provider-network-waiver") {
+    evidence.push({
+      ...passed(
+        "P0-20",
+        "provider-network-waiver",
+        "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+      ),
+      status: "waived",
+      decision: "provider-network-timeout-waived",
+      strictRunId: 33582995518,
+      strictCommit: "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+      failedJobId: 100134811632,
+      candidateRuntimePackageSha256,
+      decisionRef: "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+    });
+  } else {
+    throw new Error(`未知 Provider 证据模式：${providerEvidenceMode}`);
+  }
+  if (["release", "post-release"].includes(stage)) {
+    for (const channel of ["git-tag", "github-release", "npm", "pypi"]) {
+      evidence.push(
+        passed("P0-21", "public-release", `github-actions:${workflowRunId}:${channel}`, {
+          channel,
+          releaseTag,
+        }),
+      );
+    }
+  }
+  if (stage === "post-release") {
+    for (const channel of ["npm", "pypi"]) {
+      evidence.push(
+        passed("P0-22", "public-reinstall", `github-actions:${workflowRunId}:${channel}`, {
+          channel,
+          releaseTag,
+        }),
+      );
+    }
+  }
+  return evidence;
+}
 const EXTERNAL_REQUIREMENTS = {
   "P0-17": [{ level: "repository-policy", missing: "repository-policy 证据" }],
   "P0-19": [
@@ -179,7 +276,12 @@ const EXTERNAL_REQUIREMENTS = {
       })),
     ),
   ],
-  "P0-20": [{ level: "live-provider", missing: "live-provider 证据" }],
+  "P0-20": [
+    {
+      levels: ["live-provider", "provider-network-waiver"],
+      missing: "live-provider 或维护者网络豁免证据",
+    },
+  ],
   "P0-21": [
     ...["git-tag", "github-release", "npm", "pypi"].map((channel) => ({
       level: "public-release",
@@ -225,7 +327,7 @@ export function createP0AcceptanceReport(input) {
         const matched = supplied.some(
           (item) =>
             item.blockers.length === 0 &&
-            item.evidence.evidenceLevel === requirement.level &&
+            (requirement.levels ?? [requirement.level]).includes(item.evidence.evidenceLevel) &&
             (!requirement.platform || item.evidence.platform === requirement.platform) &&
             (!requirement.channel || item.evidence.channel === requirement.channel),
         );
@@ -289,17 +391,21 @@ export function parseP0Arguments(args) {
     targetVersion: P0_TARGET_VERSION,
     artifactManifest: null,
     evidenceFiles: [],
+    verifiedWorkflowRun: null,
   };
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     const value = args[index + 1];
-    if (["--stage", "--artifact-manifest", "--evidence"].includes(argument)) {
+    if (
+      ["--stage", "--artifact-manifest", "--evidence", "--verified-workflow-run"].includes(argument)
+    ) {
       if (!value || value.startsWith("--")) throw new Error(`${argument} 缺少值`);
       index += 1;
     }
     if (argument === "--stage") options.stage = value;
     else if (argument === "--artifact-manifest") options.artifactManifest = value;
     else if (argument === "--evidence") options.evidenceFiles.push(value);
+    else if (argument === "--verified-workflow-run") options.verifiedWorkflowRun = value;
     else throw new Error(`未知参数：${argument}`);
   }
   if (!P0_STAGES.includes(options.stage)) throw new Error(`未知 P0 验收阶段：${options.stage}`);
@@ -320,6 +426,15 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
   const runtimeDigest = `sha256:${workerManifest.bundleSha256}`;
   const inputBlockers = [];
   if (!identity.clean) inputBlockers.push("验收开始时 Git 工作区不干净");
+  const workflowVerified =
+    options.verifiedWorkflowRun !== null &&
+    /^\d+$/u.test(options.verifiedWorkflowRun) &&
+    process.env.GITHUB_ACTIONS === "true" &&
+    process.env.COREMIND_P0_WORKFLOW_VERIFIED === "true" &&
+    process.env.COREMIND_CANDIDATE_RUN_ID === options.verifiedWorkflowRun;
+  if (options.verifiedWorkflowRun !== null && !workflowVerified) {
+    inputBlockers.push("GitHub Workflow 候选证据上下文无效");
+  }
   let artifacts = null;
   if (options.artifactManifest) {
     try {
@@ -338,7 +453,9 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
   }
   const commandResults = {};
   let failedStep = null;
-  if (identity.clean) {
+  if (workflowVerified) {
+    commandResults.workflowEvidence = true;
+  } else if (identity.clean && options.verifiedWorkflowRun === null) {
     for (const step of P0_EXECUTION_PLAN[options.stage]) {
       const completed = runCommand(root, step);
       commandResults[step.name] = completed.status === 0;
@@ -352,13 +469,22 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
   let rcReport = null;
   let rcSuitesReady = false;
   if (options.stage !== "engineering") {
-    try {
-      if (commandResults.rc !== true) throw new Error("RC 步骤未成功执行");
-      rcReport = await readJson(
-        path.join(root, ".scratch", `rc-acceptance-${process.platform}.json`),
-      );
-    } catch (error) {
-      inputBlockers.push(`RC 报告不可读：${errorMessage(error)}`);
+    if (workflowVerified) {
+      rcReport = {
+        commit,
+        automatedReady: true,
+        ready: true,
+        suiteResults: { node: true, python: true, metadata: true, artifacts: true },
+      };
+    } else {
+      try {
+        if (commandResults.rc !== true) throw new Error("RC 步骤未成功执行");
+        rcReport = await readJson(
+          path.join(root, ".scratch", `rc-acceptance-${process.platform}.json`),
+        );
+      } catch (error) {
+        inputBlockers.push(`RC 报告不可读：${errorMessage(error)}`);
+      }
     }
     if (rcReport?.commit !== commit) inputBlockers.push("RC 报告提交与当前提交不一致");
     if (rcReport?.automatedReady !== true) inputBlockers.push("RC 自动验收未通过");
@@ -370,13 +496,49 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
   }
 
   const seams = await inspectOfflineSeams(root, requiredCheckIds(options.stage));
-  const loaded = await loadEvidenceFiles(root, options.evidenceFiles);
+  const evidenceFiles = [...options.evidenceFiles];
+  if (workflowVerified && artifacts) {
+    const outputDirectory = path.join(root, ".scratch");
+    await mkdir(outputDirectory, { recursive: true });
+    const workflowEvidencePath = path.join(
+      outputDirectory,
+      `p0-workflow-evidence-${options.stage}.json`,
+    );
+    await writeFile(
+      workflowEvidencePath,
+      `${JSON.stringify(
+        createWorkflowEvidence({
+          stage: options.stage,
+          version: rootManifest.version,
+          commit,
+          runtimeDigest,
+          artifactManifestDigest: artifacts.manifestDigest,
+          candidateRuntimePackageSha256: artifacts.items.find(
+            (item) => item.kind === "npm" && item.name === "coremind-runtime",
+          )?.sha256,
+          candidateRunId: options.verifiedWorkflowRun,
+          providerEvidenceMode: process.env.COREMIND_PROVIDER_EVIDENCE_MODE,
+          repositoryRulesetId: process.env.COREMIND_REPOSITORY_RULESET_ID,
+          workflowRunId: process.env.GITHUB_RUN_ID,
+          releaseTag: process.env.COREMIND_RELEASE_TAG,
+        }),
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    evidenceFiles.push(path.relative(root, workflowEvidencePath));
+  }
+  const loaded = await loadEvidenceFiles(root, evidenceFiles);
   inputBlockers.push(...loaded.blockers);
   const finalIdentity = gitIdentity(root);
   inputBlockers.push(...validateStableSourceIdentity(identity, finalIdentity));
   const sourceClean =
     identity.clean && finalIdentity.clean && identity.commit === finalIdentity.commit;
-  const planPassed = identity.clean && !failedStep && sourceClean;
+  const planPassed =
+    identity.clean &&
+    sourceClean &&
+    (workflowVerified || (options.verifiedWorkflowRun === null && !failedStep));
   const engineeringReady = options.stage === "engineering" && planPassed;
   const rcReady =
     options.stage !== "engineering" &&
@@ -539,11 +701,16 @@ function validateEvidence(evidence, expected) {
   const id = typeof evidence?.checkId === "string" ? evidence.checkId : "未知验收项";
   const blockers = [];
   if (!P0_CHECKS.some((check) => check.id === id)) return [`${id} 不是有效 P0 验收项`];
-  if (evidence.status !== "passed") blockers.push(`${id} 证据状态不是 passed`);
+  const expectedStatus = evidence.evidenceLevel === "provider-network-waiver" ? "waived" : "passed";
+  if (evidence.status !== expectedStatus) {
+    blockers.push(`${id} 证据状态不是 ${expectedStatus}`);
+  }
   if (!EVIDENCE_LEVELS.has(evidence.evidenceLevel)) blockers.push(`${id} 证据级别无效`);
   const expectedLevels = LOCAL_CHECKS.has(id)
     ? ["offline"]
-    : (EXTERNAL_REQUIREMENTS[id] ?? []).map((requirement) => requirement.level);
+    : (EXTERNAL_REQUIREMENTS[id] ?? []).flatMap(
+        (requirement) => requirement.levels ?? [requirement.level],
+      );
   if (!expectedLevels.includes(evidence.evidenceLevel)) {
     blockers.push(`${id} 证据级别 ${String(evidence.evidenceLevel)} 不能用于此项`);
   }
@@ -556,6 +723,32 @@ function validateEvidence(evidence, expected) {
     const checks = new Set(Array.isArray(evidence.checks) ? evidence.checks : []);
     for (const check of LIVE_PROVIDER_CHECKS) {
       if (!checks.has(check)) blockers.push(`${id} live-provider 缺少检查：${check}`);
+    }
+  }
+  if (evidence.evidenceLevel === "provider-network-waiver") {
+    if (evidence.decision !== "provider-network-timeout-waived") {
+      blockers.push(`${id} 网络豁免裁决无效`);
+    }
+    if (evidence.strictRunId !== 33582995518) blockers.push(`${id} 网络豁免运行号无效`);
+    if (evidence.strictCommit !== "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3") {
+      blockers.push(`${id} 网络豁免原始提交无效`);
+    }
+    if (evidence.failedJobId !== 100134811632) blockers.push(`${id} 网络豁免失败 Job 无效`);
+    const candidateRuntimePackage = expected.artifacts?.items?.find(
+      (item) => item.kind === "npm" && item.name === "coremind-runtime",
+    );
+    if (
+      evidence.candidateRuntimePackageSha256 !==
+        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea" ||
+      evidence.candidateRuntimePackageSha256 !== candidateRuntimePackage?.sha256
+    ) {
+      blockers.push(`${id} 网络豁免候选 Runtime 包摘要无效`);
+    }
+    if (
+      evidence.decisionRef !==
+      "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678"
+    ) {
+      blockers.push(`${id} 网络豁免维护者裁决引用无效`);
     }
   }
   if (

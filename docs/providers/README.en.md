@@ -9,6 +9,7 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 - **Certified**: the same model passed real streaming, tool-call, structured-result, multi-turn, abort, error-mapping, long-context, and parent/child Agent product-chain checks with auditable evidence.
 - **Configurable, unverified**: configuration and model catalog resolution work, but the current candidate lacks complete real-call evidence; older evidence is historical only.
 - **Configurable, incomplete current certification**: earlier evidence is retained but does not cover every current required check.
+- A maintainer-approved network exception is not counted as certification and cannot enter the success ledger; disclose its version boundary in [Known limitations](../release/KNOWN-LIMITATIONS.en.md).
 - Custom OpenAI-compatible endpoints are deployment-specific and must be accepted by each project.
 
 ## Current matrix

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -26,12 +27,17 @@ const ENGLISH_TO_CHINESE_SENTENCE =
 export async function auditMarkdownTree(root) {
   const blockers = [];
   const files = await collectMarkdownFiles(root);
+  const auditedFiles = [];
 
   for (const file of files) {
     const relative = normalizePath(path.relative(root, file));
     let content;
     try {
       const bytes = await readFile(file);
+      auditedFiles.push({
+        path: relative,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
       content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     } catch (error) {
       blockers.push({
@@ -102,7 +108,7 @@ export async function auditMarkdownTree(root) {
     }
   }
 
-  return { files: files.length, blockers };
+  return { files: files.length, auditedFiles, blockers };
 }
 
 function extractParagraphs(content) {

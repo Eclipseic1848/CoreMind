@@ -47,6 +47,17 @@ export function selectNpmDistTag(version) {
   return version.includes("-") ? "next" : "latest";
 }
 
+export function validateWaivedRuntimePackage(artifacts, approvedSha256) {
+  const runtime = artifacts.find(
+    (artifact) => artifact.kind === "npm" && artifact.name === "coremind-runtime",
+  );
+  if (!runtime) return ["网络豁免发布物缺少 coremind-runtime npm 包"];
+  if (runtime.sha256 !== approvedSha256) {
+    return ["coremind-runtime npm 包摘要与维护者批准的候选摘要不一致"];
+  }
+  return [];
+}
+
 export async function createArtifactRecords(rootDirectory, files) {
   const records = [];
   for (const file of files) {
@@ -61,15 +72,25 @@ export async function createArtifactRecords(rootDirectory, files) {
   return records.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-export async function buildReleaseArtifacts(tag) {
-  return buildArtifacts({ tag, artifactRoot: releaseArtifactRoot, candidate: false });
+export async function buildReleaseArtifacts(tag, { allowProviderNetworkWaiver = false } = {}) {
+  return buildArtifacts({
+    tag,
+    artifactRoot: releaseArtifactRoot,
+    candidate: false,
+    allowProviderNetworkWaiver,
+  });
 }
 
 export async function buildCandidateArtifacts() {
   return buildArtifacts({ artifactRoot: candidateArtifactRoot, candidate: true });
 }
 
-async function buildArtifacts({ tag, artifactRoot, candidate }) {
+async function buildArtifacts({
+  tag,
+  artifactRoot,
+  candidate,
+  allowProviderNetworkWaiver = false,
+}) {
   const versionReport = await validateReleaseVersion(repositoryRoot);
   if (!versionReport.ready) {
     throw new Error(`发布版本不一致：\n- ${versionReport.blockers.join("\n- ")}`);
@@ -106,7 +127,11 @@ async function buildArtifacts({ tag, artifactRoot, candidate }) {
   runNpm(
     candidate
       ? ["run", "release:preflight", "--", "--defer-provider-certification"]
-      : ["run", "release:preflight"],
+      : [
+          "run",
+          "release:preflight",
+          ...(allowProviderNetworkWaiver ? ["--", "--allow-provider-network-waiver"] : []),
+        ],
     repositoryRoot,
   );
 
@@ -186,6 +211,27 @@ async function buildArtifacts({ tag, artifactRoot, candidate }) {
     );
     return { ...record, kind: sourceItem.kind, name: sourceItem.name, version };
   });
+  if (allowProviderNetworkWaiver) {
+    const waiver = JSON.parse(
+      await readFile(
+        path.join(
+          repositoryRoot,
+          "docs",
+          "release",
+          "evidence",
+          "v0.7.0-provider-network-waiver.json",
+        ),
+        "utf8",
+      ),
+    );
+    const waiverBlockers = validateWaivedRuntimePackage(
+      metadata,
+      waiver.candidateRuntimePackageSha256,
+    );
+    if (waiverBlockers.length > 0) {
+      throw new Error(`Provider 网络豁免发布物检查失败：\n- ${waiverBlockers.join("\n- ")}`);
+    }
+  }
   const manifest = {
     schemaVersion: 1,
     version,
@@ -270,5 +316,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const tagIndex = process.argv.indexOf("--tag");
   const tag = tagIndex >= 0 ? process.argv[tagIndex + 1] : process.env.COREMIND_RELEASE_TAG;
   if (!tag) throw new Error("请通过 --tag vX.Y.Z 或 COREMIND_RELEASE_TAG 指定发布标签");
-  await buildReleaseArtifacts(tag);
+  await buildReleaseArtifacts(tag, {
+    allowProviderNetworkWaiver: process.argv.includes("--allow-provider-network-waiver"),
+  });
 }

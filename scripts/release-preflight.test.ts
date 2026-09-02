@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -43,6 +43,74 @@ describe("发布元数据预检", () => {
     } finally {
       if (original === undefined) delete process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION;
       else process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION = original;
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("只接受与 0.7.0 Runtime 摘要一致的一次性 Provider 网络豁免", async () => {
+    const fixtureRoot = await createUncertifiedRepositoryFixture();
+    try {
+      await mkdir(path.join(fixtureRoot, "packages", "coremind-runtime", "dist"), {
+        recursive: true,
+      });
+      await writeFile(
+        path.join(fixtureRoot, "packages", "coremind-runtime", "dist", "index.js"),
+        "waiver-runtime\n",
+        "utf8",
+      );
+      await mkdir(path.join(fixtureRoot, "docs", "release", "evidence"), { recursive: true });
+      await writeFile(
+        path.join(
+          fixtureRoot,
+          "docs",
+          "release",
+          "evidence",
+          "v0.7.0-provider-network-waiver.json",
+        ),
+        `${JSON.stringify({
+          schemaVersion: 1,
+          version: "0.7.0",
+          decision: "provider-network-timeout-waived",
+          strictRunId: 33582995518,
+          strictCommit: "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+          failedJobId: 100134811632,
+          provider: "alibaba-model-studio",
+          model: "qwen-plus",
+          failureCode: "provider_transient",
+          failureMessage: "Request timed out.",
+          runtimeArtifactSha256: "4f8d7676cbfb5e81d25210c7fbfffe0970674f986b83df79079816c9d9a76728",
+          candidateRuntimePackageSha256:
+            "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+          maxRetries: 0,
+          scope: "v0.7.0-only",
+          claim: "maintainer-approved-network-exception-not-live-provider-certification",
+          decisionRef:
+            "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+        })}\n`,
+        "utf8",
+      );
+
+      const accepted = await inspectRepository(fixtureRoot, {
+        allowDirty: true,
+        allowProviderNetworkWaiver: true,
+      });
+      expect(accepted.blockers).not.toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+      expect(accepted.warnings.join("\n")).toContain("Provider 网络超时豁免");
+
+      await writeFile(
+        path.join(fixtureRoot, "packages", "coremind-runtime", "dist", "index.js"),
+        "changed-runtime\n",
+        "utf8",
+      );
+      const rejected = await inspectRepository(fixtureRoot, {
+        allowDirty: true,
+        allowProviderNetworkWaiver: true,
+      });
+      expect(rejected.ready).toBe(false);
+      expect(rejected.blockers.join("\n")).toContain(
+        "Provider 认证证据未绑定当前版本与 Runtime 摘要",
+      );
+    } finally {
       await rm(fixtureRoot, { recursive: true, force: true });
     }
   });

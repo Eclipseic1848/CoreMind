@@ -20,13 +20,13 @@ This public roadmap describes product boundaries and intended directions. It del
 
 `0.3.1` is publicly released. All eight npm packages, the PyPI wheel, standalone source package, provenance, and bilingual documentation site were published from one commit. The seven-check live-provider revalidation, both-platform automated gates, exact-main identity, P01-P20, real pseudoterminals, and Release Readiness are complete.
 
-It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
+It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Except for the one-time `0.7.0` decision below, every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
 ## `0.7.0`: stable candidate (unpublished)
 
 The current source candidate aligns the root package, eight npm packages, Python SDK, bundled Worker, module contracts, and release metadata on stable `0.7.0`. It combines the 0.3.x-B/C work with Protocol v2, one Error Contract, the Execution Security Gate, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python.
 
-The merged P0 implementation passes Node 22 engineering CI on both platforms. Candidate npm tarballs, the Python wheel, bundled Worker, TTY, and Child Run must still pass isolated acceptance on one exact commit; live parent-child Provider certification, the tag, registries, GitHub Release, and public reinstall are later independent gates. `0.3.1` therefore remains the only public stable release, while `0.3.2` evidence is historical only.
+The P0 implementation, Node 22 engineering checks, candidate npm tarballs, Python wheel, bundled Worker, TTY, and Child Run gates pass on both platforms. The strict Provider request timed out before an HTTP response; the maintainer accepted an exactly bound, `0.7.0`-only network exception, which is not a live-provider certification. The tag, registries, GitHub Release, and public reinstall remain independent gates. `0.3.1` therefore remains the only public stable release, while `0.3.2` evidence is historical only.
 
 ## `0.3.x`: historical stabilization line
 
@@ -44,7 +44,7 @@ After the `0.3.x` hardening line, work proceeds in the following directions (sco
 
 - **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams are included in the `0.7.0` candidate; the Protocol v1 migration entry remains.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.0**: this release delivers Child Run productization and the stable Release Closure only; Goals, Jobs, durable detach, and Web are out of scope. Child Run already has independent facts, Runtime authority checks, parent budget reservation, parent-child cancellation, orphan audit, Workspace Lease, and an explicit tree. Candidate-package, live Provider, and public-release acceptance remain.
+- **0.7.0**: this release delivers Child Run productization and the stable Release Closure only; Goals, Jobs, durable detach, and Web are out of scope. Child Run, both-platform engineering, candidate packages, and real TTY are complete; the Provider network exception is audited, while the tag, registries, GitHub Release, and public reinstall remain.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
 - **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
 

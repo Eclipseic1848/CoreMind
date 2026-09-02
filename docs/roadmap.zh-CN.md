@@ -20,13 +20,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 `0.3.1` 已公开发布。8 个 npm 包、PyPI wheel、独立源码包、来源证明和双语文档站已从同一提交发布；Provider 七项真实复验、双平台自动门禁、精确 main、P01～P20、真实伪终端和 Release Readiness 均已完成。
 
-它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、真实 Provider 复验和最终文档审计后才能同步发布。
+它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。除下述仅限 `0.7.0` 的一次性裁决外，每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、当前真实 Provider 复验和最终文档审计后才能同步发布。
 
 ## `0.7.0`：稳定候选（尚未发布）
 
 当前源码候选把根包、8 个 npm 包、Python SDK、bundled Worker、模块合同和发布元数据统一为稳定版 `0.7.0`。它汇总 `0.3.x-B/C` 与 Protocol v2，并增加唯一 Error Contract、Execution Security Gate，以及由 Config v2 门控、贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。
 
-已合入的 P0 实现通过 Node 22 双平台工程 CI。候选 npm tarball、Python wheel、bundled Worker、TTY 与 Child Run 仍需绑定同一提交完成双平台隔离验收；真实 Provider 父子 Agent 认证、Tag、Registry、GitHub Release 与公开回装属于后续独立门禁。因此 `0.3.1` 仍是唯一公开稳定版，`0.3.2` 证据只作历史追溯。
+P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundled Worker、TTY 与 Child Run 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者接受了精确绑定且仅限 `0.7.0` 的网络例外；它不是 live-provider 认证。Tag、Registry、GitHub Release 与公开回装仍是后续独立门禁，因此 `0.3.1` 仍是唯一公开稳定版，`0.3.2` 证据只作历史追溯。
 
 ## `0.3.x`：历史稳定性加固线
 
@@ -44,7 +44,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 - **0.4.x 能力**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已进入 `0.7.0` 候选；Protocol v1 迁移入口保留。
 - **0.5.x～0.6.x**：Web 开发环境——运行与控制面先行，再建设在线编辑、测试与评测闭环；始终复用同一 Protocol 与 Runtime。
-- **0.7.0**：本期只交付 Child Run 产品化与稳定发布闭环；Goals、Jobs、durable detach 和 Web 不在本期范围。Child Run 已实现独立事实、Runtime authority 校验、父预算划拨、父子取消、孤儿审计、Workspace Lease 与显性树，剩余门禁是候选包、真实 Provider 和公开发布验收。
+- **0.7.0**：本期只交付 Child Run 产品化与稳定发布闭环；Goals、Jobs、durable detach 和 Web 不在本期范围。Child Run、双平台工程、候选包与真实 TTY 已完成；Provider 网络例外已审计，剩余门禁是 Tag、Registry、GitHub Release 与公开回装。
 - **0.8.x**：MCP/LSP 接入、受控第三方插件、远程执行环境与平台生态。
 - **0.9.x～1.0.0**：功能冻结、兼容与安全收口，经过正式候选后发布稳定合同。
 

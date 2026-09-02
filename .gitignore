@@ -45,6 +45,7 @@ npm-debug.log*
 sessions/
 /.coremind/
 .scratch/
+/release-artifacts/
 
 # 编辑器/系统
 .DS_Store
