@@ -15,7 +15,7 @@
 
 - Windows 或 Linux
 - Node.js 22.19 或更高版本
-- npm 10 或更高版本
+- npm 11.5.1 或更高版本
 - Python 3.10 或更高版本（仅 Python SDK / Wheel 相关改动需要）
 
 ```bash

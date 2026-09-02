@@ -22,7 +22,7 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 > `0.3.1` completed the Windows/Linux automated matrix, real pseudoterminal acceptance (Windows ConPTY / Linux PTY), a current live-provider recheck, the final documentation audit, and explicit maintainer publication authorization on one commit. The tag, eight npm packages, PyPI wheel, standalone source ZIP, manifest, and checksums bind to that release; the [bilingual documentation site](https://eclipseic1848.github.io/CoreMind/en/) reflects the `0.3.1` publication state.
 
-> The current source candidate consistently declares stable `0.7.0`. It includes Protocol v2, the Execution Security Gate, one Error Contract, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python. The merged P0 implementation passes Node 22 engineering CI on both platforms; candidate-package acceptance, live parent-child Provider certification, the tag, GitHub Release, and registry publication remain incomplete, so `0.3.1` is still the installable stable release.
+> The current source candidate consistently declares stable `0.7.0`. It includes Protocol v2, the Execution Security Gate, one Error Contract, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python. The P0 implementation, Node 22 engineering checks, candidate packages, and real TTY gates pass on both platforms. The strict Provider request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; this is not a live-provider certification. The tag, GitHub Release, and registries remain incomplete, so `0.3.1` is still the installable stable release.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
@@ -34,7 +34,7 @@ The `0.3.1` stable release and later source keep CLI/TUI, TypeScript, and Python
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and no current-version live certification yet for the `0.7.0` candidate; older `0.3.2` evidence is historical only; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and no successful current-version live certification for `0.7.0`; it has a one-time maintainer network exception, while older `0.3.2` evidence remains historical only; see the [provider matrix](docs/providers/README.en.md) |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Protocol and control | The stable release uses Protocol v1; current source can opt into Protocol v2 RunHandles, cursor resume, Projection queries, and durable control receipts, while v1 remains throughout `0.4.x` |
@@ -44,7 +44,7 @@ The `0.3.1` stable release and later source keep CLI/TUI, TypeScript, and Python
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
 | Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 21 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
-| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix, real pseudoterminal acceptance on both platforms, and a live-provider recheck on the same source commit; Releases and registries remain authoritative for installation |
+| Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix and real pseudoterminal acceptance on both platforms, plus either a live-provider recheck or an explicit, version-limited, auditable maintainer decision; Releases and registries remain authoritative for installation |
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
@@ -53,7 +53,7 @@ The current version does not include a complete Web development environment, an 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
 | Published `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
-| Unpublished stable `0.7.0` candidate | Combines 0.3.x-B/C, Protocol v2, unified security and error contracts, and a Child Run product path across all four formal entries | Engineering CI passed; packages, live Provider evidence, tag, Release, and registries remain separate gates |
+| Unpublished stable `0.7.0` candidate | Combines 0.3.x-B/C, Protocol v2, unified security and error contracts, and a Child Run product path across all four formal entries | Engineering, candidate packages, and real TTY passed; the Provider network exception is audited, while the tag, Release, registries, and public reinstall remain separate gates |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
@@ -75,7 +75,7 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Node.js 22.19 or newer is required. `0.3.1` is available from the npm registry, so the stable installation command below can be used directly.
+Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer. `0.3.1` is available from the npm registry, so the stable installation command below can be used directly.
 
 ```bash
 npm install -g coremind-cli@0.3.1
@@ -129,7 +129,7 @@ Custom tools must declare `effect.operations` and `effect.reversible`. The permi
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. `0.7.0` has not yet run live parent-child Provider certification; older `0.3.2` evidence remains traceable but does not count for this candidate.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. The `0.7.0` live parent-child request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; it does not count as certification. Older `0.3.2` evidence remains traceable but also does not count for this candidate.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

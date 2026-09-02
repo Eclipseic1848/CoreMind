@@ -2,9 +2,9 @@
 
 > This file records the capability boundary of the unpublished `0.7.0` candidate. `0.3.1` remains the public stable release, and Releases and registries remain authoritative for installation.
 
-- All 40 provider entries are configurable, but `0.7.0` has not completed live parent-child Agent certification. Evidence for `0.3.2` and earlier versions is historical only and does not count for this candidate.
+- All 40 provider entries are configurable, but `0.7.0` has no successful live parent-child Agent certification. The first Provider request in strict run `33582995518` timed out before an HTTP response; the maintainer accepted this as a version-specific network exception. It is not a live-provider success, and evidence for `0.3.2` or earlier remains historical only.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
-- Candidate packages, both-platform TTY, live Provider, and public-release evidence for `0.7.0` must bind to one commit. No partial green check establishes public availability.
+- Candidate packages, both-platform TTY, the Runtime digest, the network exception, and public-release evidence for `0.7.0` must remain exactly correlated. No partial green check establishes public availability.
 - The non-regression coverage gate passes, but repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.
 - Lifecycle extensions are controlled in-process extensions, not an operating-system sandbox. Only four events are exposed, and unknown project extensions are not loaded by default.
 - Windows host-shell safety depends on the permission, workspace, and network combination. Only the built-in Linux shell uses the additional network-disabled isolation; the two are not equivalent sandboxes.

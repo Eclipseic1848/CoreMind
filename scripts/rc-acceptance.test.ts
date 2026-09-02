@@ -93,6 +93,16 @@ describe("Release Candidate 验收矩阵", () => {
     expect(deferredMetadata?.commands[0][1]).toContain("--defer-provider-certification");
   });
 
+  it("只有显式 0.7.0 发布模式才向元数据套件传递 Provider 网络豁免", () => {
+    const strictMetadata = resolveRcSuites().find((suite) => suite.name === "metadata");
+    const waivedMetadata = resolveRcSuites({ allowProviderNetworkWaiver: true }).find(
+      (suite) => suite.name === "metadata",
+    );
+
+    expect(strictMetadata?.commands[0][1]).not.toContain("--allow-provider-network-waiver");
+    expect(waivedMetadata?.commands[0][1]).toContain("--allow-provider-network-waiver");
+  });
+
   it("真实伪终端证据必须绑定候选版本、提交和全部交互检查", () => {
     const evidence = {
       schemaVersion: 1,

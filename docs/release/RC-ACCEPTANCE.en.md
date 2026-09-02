@@ -1,6 +1,6 @@
 # Release Candidate Acceptance Guide
 
-This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another.
+This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
 > `0.3.0` completed final acceptance with this guide and was [published](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0) from commit `dc6e45489b06f3c28da1934f063fbfbc671c05ef`. The guide remains applicable to later candidates and does not imply that a later version has passed automatically.
 
@@ -73,6 +73,8 @@ npm run providers:certify
 
 Certification covers seven checks: streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
 
+For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict run `33582995518` and the fixed Runtime digest. It does not update the certification ledger, and every later release returns to the strict live-provider requirement.
+
 ## Completion
 
-The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, at least one provider passes the current live recheck, both platform gates pass, and the final repository-wide Markdown audit passes. Tagging and publishing still follow the [Release SOP](README.en.md).
+The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider either passes the current live recheck or satisfies the exact `0.7.0` network exception, both platform gates pass, and the final repository-wide Markdown audit passes. Tagging and publishing still follow the [Release SOP](README.en.md).

@@ -22,7 +22,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 > `0.3.1` 已从同一提交完成 Windows/Linux 自动矩阵、双平台真实伪终端（Windows ConPTY / Linux PTY）、真实 Provider 复验、最终文档审计和维护者发布授权。Tag、8 个 npm 包、PyPI wheel、独立源码 ZIP、Manifest 和哈希清单均绑定该发布；[双语文档站](https://eclipseic1848.github.io/CoreMind/)同步反映 `0.3.1` 发布状态。
 
-> 当前源码候选统一声明稳定版 `0.7.0`，包含 Protocol v2、Execution Security Gate、统一 Error Contract，以及由 Config v2 门控并贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。已合入的 P0 实现通过 Node 22 双平台工程 CI；候选包双平台验收、真实 Provider 父子 Agent 认证、Tag、GitHub Release 与 Registry 发布仍未完成，因此可安装稳定版仍是 `0.3.1`。
+> 当前源码候选统一声明稳定版 `0.7.0`，包含 Protocol v2、Execution Security Gate、统一 Error Contract，以及由 Config v2 门控并贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。P0 实现、Node 22 双平台工程、候选包与真实 TTY 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者将其作为仅限本版本的网络例外通过；这不是 live-provider 认证。Tag、GitHub Release 与 Registry 发布仍未完成，因此可安装稳定版仍是 `0.3.1`。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
@@ -34,7 +34,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.7.0` 候选尚无当前版本真实认证，旧 `0.3.2` 证据仅供追溯；真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.7.0` 没有当前版本真实成功认证，仅有维护者批准的一次性网络例外，旧 `0.3.2` 证据仅供追溯；真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 协议与控制 | 稳定版使用 Protocol v1；当前源码可显式启用 Protocol v2 的 RunHandle、cursor 续订、Projection query 与持久控制回执，v1 在整个 `0.4.x` 保留 |
@@ -44,7 +44,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
 | 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、21 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
-| 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI、双平台真实伪终端和真实 Provider 复验，安装状态以 Release 与 Registry 为准 |
+| 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI 与双平台真实伪终端，并完成真实 Provider 复验或明确、限版本、可审计的维护者裁决；安装状态以 Release 与 Registry 为准 |
 
 当前不包含完整 Web 开发环境、官方托管 API、官方 Docker 镜像、纯 Python Runtime 和 macOS 正式支持。详见[公开路线图](docs/roadmap.zh-CN.md)。
 
@@ -53,7 +53,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
 | `0.3.1` 稳定版（已发布） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
-| `0.7.0` 稳定候选（未发布） | 汇总 0.3.x-B/C、Protocol v2、统一安全与错误合同，并把 Child Run 产品化到四个正式入口 | 工程 CI 已通过；候选包、真实 Provider、Tag、Release 与 Registry 仍是独立门禁 |
+| `0.7.0` 稳定候选（未发布） | 汇总 0.3.x-B/C、Protocol v2、统一安全与错误合同，并把 Child Run 产品化到四个正式入口 | 工程、候选包与真实 TTY 已通过；Provider 网络例外已审计，Tag、Release、Registry 与公开回装仍是独立门禁 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
@@ -85,7 +85,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-需要 Node.js ≥ 22.19。`0.3.1` 已在 npm Registry 公开，可执行下面的稳定版安装命令。
+使用源码开发需要 Node.js ≥ 22.19 与 npm ≥ 11.5.1。`0.3.1` 已在 npm Registry 公开，可执行下面的稳定版安装命令。
 
 ```bash
 npm install -g coremind-cli@0.3.1
@@ -241,7 +241,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`0.7.0` 尚未执行真实 Provider 父子 Agent 认证；`0.3.2` 旧证据继续保留用于追溯，但不计为当前候选认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`0.7.0` 的真实父子 Agent 请求在 HTTP 响应前网络超时，维护者接受了仅限本版本的网络例外；它不计为认证。`0.3.2` 旧证据继续保留用于追溯，也不计为当前认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

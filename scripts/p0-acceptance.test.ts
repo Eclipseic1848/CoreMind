@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createP0AcceptanceReport,
+  createWorkflowEvidence,
   inspectOfflineSeams,
   inspectReleaseManifest,
   loadEvidenceFiles,
@@ -80,7 +81,7 @@ describe("P0 顶层发布验收", () => {
     expect(report.passed).toBe(false);
     expect(report.blockers.join("\n")).toContain("P0-19 缺少 linux 双平台证据");
     expect(report.blockers.join("\n")).toContain("P0-19 缺少 win32/pypi 候选包证据");
-    expect(report.blockers.join("\n")).toContain("P0-20 缺少 live-provider 证据");
+    expect(report.blockers.join("\n")).toContain("P0-20 缺少 live-provider 或维护者网络豁免证据");
   });
 
   it("完整 candidate 证据通过但不会冒充发布和公开回装", () => {
@@ -103,8 +104,40 @@ describe("P0 顶层发布验收", () => {
     expect(report.checks.find((check) => check.id === "P0-22")?.status).toBe("not_required");
     expect(report.artifacts.items.map((item) => item.sha256)).toEqual([
       "c".repeat(64),
+      "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
       "d".repeat(64),
     ]);
+  });
+
+  it("0.7.0 只接受维护者已记录的一次性 Provider 网络豁免", () => {
+    const report = createP0AcceptanceReport({
+      ...baseInput("candidate"),
+      evidence: [
+        evidence("P0-17", "repository-policy"),
+        ...["win32", "linux"].flatMap((platform) => [
+          evidence("P0-19", "dual-platform", { platform }),
+          evidence("P0-19", "candidate-package", { platform, channel: "npm" }),
+          evidence("P0-19", "candidate-package", { platform, channel: "pypi" }),
+        ]),
+        evidence("P0-20", "provider-network-waiver", {
+          status: "waived",
+          decision: "provider-network-timeout-waived",
+          strictRunId: 33582995518,
+          strictCommit: "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+          failedJobId: 100134811632,
+          candidateRuntimePackageSha256:
+            "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+          decisionRef:
+            "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+        }),
+      ],
+    });
+
+    expect(report.passed).toBe(true);
+    expect(report.checks.find((check) => check.id === "P0-20")).toMatchObject({
+      status: "passed",
+      evidenceLevels: expect.arrayContaining(["provider-network-waiver"]),
+    });
   });
 
   it("所有证据绑定 Runtime 摘要且 live-provider 覆盖完整父子调用链", () => {
@@ -306,12 +339,63 @@ describe("P0 顶层发布验收", () => {
     ).toContain("--maxWorkers=1");
     expect(P0_EXECUTION_PLAN.candidate.at(-1)?.args).toContain("--defer-provider-certification");
     expect(P0_EXECUTION_PLAN.release.at(-1)?.args).not.toContain("--defer-provider-certification");
+    expect(P0_EXECUTION_PLAN.release.at(-1)?.args).toContain("--allow-provider-network-waiver");
     const seams = await inspectOfflineSeams(process.cwd());
     expect(seams).toMatchObject({
       entryEquivalence: true,
       runtimeWorkerFaults: true,
     });
     expect(Object.values(seams.localRefs).every(Boolean)).toBe(true);
+  });
+
+  it("把已验证 Workflow 事实转换为候选、发布和回装证据", () => {
+    const common = {
+      version: "0.7.0",
+      commit: "a".repeat(40),
+      runtimeDigest: `sha256:${"b".repeat(64)}`,
+      artifactManifestDigest: `sha256:${"e".repeat(64)}`,
+      candidateRuntimePackageSha256:
+        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+      candidateRunId: "123",
+      policySnapshotSha256: "9".repeat(64),
+      providerEvidenceMode: "provider-network-waiver",
+      repositoryRulesetId: "21807589",
+      workflowRunId: "456",
+      releaseTag: "v0.7.0",
+    };
+
+    const candidate = createWorkflowEvidence({ ...common, stage: "candidate" });
+    expect(candidate).toHaveLength(8);
+    expect(candidate.find((item) => item.checkId === "P0-20")).toMatchObject({
+      status: "waived",
+      strictRunId: 33582995518,
+      candidateRuntimePackageSha256:
+        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+    });
+    const release = createWorkflowEvidence({ ...common, stage: "release" });
+    expect(release.filter((item) => item.checkId === "P0-21")).toHaveLength(4);
+    const postRelease = createWorkflowEvidence({ ...common, stage: "post-release" });
+    expect(postRelease.filter((item) => item.checkId === "P0-22")).toHaveLength(2);
+    expect(() => createWorkflowEvidence({ ...common, repositoryRulesetId: "" })).toThrow(
+      "GitHub main ruleset 未经过当前发布 Workflow 验证",
+    );
+    expect(() => createWorkflowEvidence({ ...common, policySnapshotSha256: "" })).toThrow(
+      "main ruleset 只读快照摘要无效",
+    );
+
+    const invalidWaiver = createP0AcceptanceReport({
+      ...baseInput("candidate"),
+      evidence: createWorkflowEvidence({
+        ...common,
+        stage: "candidate",
+        candidateRuntimePackageSha256: "0".repeat(64),
+      }).map((item) => ({
+        ...item,
+        sourceRef: "workflow.json",
+        sourceDigest: `sha256:${"f".repeat(64)}`,
+      })),
+    });
+    expect(invalidWaiver.blockers).toContain("P0-20 网络豁免候选 Runtime 包摘要无效");
   });
 
   it("把外部证据绑定到实际输入文件及其 SHA-256", async () => {
@@ -351,7 +435,18 @@ describe("P0 顶层发布验收", () => {
       targetVersion: "0.7.0",
       artifactManifest: "artifacts/release-manifest.json",
       evidenceFiles: ["windows.json", "linux.json"],
+      verifiedWorkflowRun: null,
     });
+    expect(
+      parseP0Arguments([
+        "--stage",
+        "candidate",
+        "--artifact-manifest",
+        "artifacts/release-manifest.json",
+        "--verified-workflow-run",
+        "123",
+      ]).verifiedWorkflowRun,
+    ).toBe("123");
     expect(() => parseP0Arguments(["--stage", "unknown"])).toThrow("未知 P0 验收阶段");
     expect(() => parseP0Arguments([])).toThrow("candidate 阶段必须提供 --artifact-manifest");
     expect(() => parseP0Arguments(["--target-version", "0.8.0"])).toThrow("未知参数");
@@ -406,6 +501,12 @@ function evidence(checkId: string, evidenceLevel: string, overrides: Record<stri
     sourceRef: `evidence/${checkId}-${evidenceLevel}.json`,
     sourceDigest: `sha256:${"f".repeat(64)}`,
     ...(evidenceLevel === "live-provider" ? { checks: LIVE_PROVIDER_CHECKS } : {}),
+    ...(evidenceLevel === "repository-policy"
+      ? {
+          policySnapshotRef: "docs/release/evidence/v0.7.0-main-ruleset.json",
+          policySnapshotSha256: "9".repeat(64),
+        }
+      : {}),
     ...overrides,
   };
 }
@@ -422,6 +523,14 @@ function artifactSummary() {
         version: "0.7.0",
         size: 100,
         sha256: "c".repeat(64),
+      },
+      {
+        path: "npm/coremind-runtime.tgz",
+        kind: "npm",
+        name: "coremind-runtime",
+        version: "0.7.0",
+        size: 300,
+        sha256: "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
       },
       {
         path: "python/coremind_ai.whl",

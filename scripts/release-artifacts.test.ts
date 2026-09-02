@@ -8,6 +8,7 @@ import {
   evaluateCandidateIdentity,
   evaluateReleaseIdentity,
   selectNpmDistTag,
+  validateWaivedRuntimePackage,
 } from "./release-artifacts.mjs";
 
 describe("同提交发布物", () => {
@@ -58,5 +59,19 @@ describe("同提交发布物", () => {
         sha256: createHash("sha256").update("artifact").digest("hex"),
       },
     ]);
+  });
+
+  it("网络豁免只接受获批的 coremind-runtime 包摘要", () => {
+    const approved = "a".repeat(64);
+    const artifacts = [
+      { kind: "npm", name: "coremind-runtime", sha256: approved },
+      { kind: "npm", name: "coremind-cli", sha256: "b".repeat(64) },
+    ];
+
+    expect(validateWaivedRuntimePackage(artifacts, approved)).toEqual([]);
+    expect(validateWaivedRuntimePackage(artifacts, "c".repeat(64)).join("\n")).toContain(
+      "摘要不一致",
+    );
+    expect(validateWaivedRuntimePackage([], approved).join("\n")).toContain("缺少");
   });
 });

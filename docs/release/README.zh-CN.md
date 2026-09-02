@@ -2,7 +2,7 @@
 
 本 SOP 把同一提交的 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。任一渠道成功都不能替代整体验收。
 
-> `0.3.0` 已于 2026-08-14 按本 SOP 从提交 `dc6e45489b06f3c28da1934f063fbfbc671c05ef` [正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)。以下步骤继续作为后续版本的发布要求。
+> `0.3.1` 已于 2026-08-21 按本 SOP [正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1)。以下步骤继续作为 `0.7.0` 与后续版本的发布要求。
 
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 
@@ -14,7 +14,7 @@
 - npm 与 PyPI 使用 GitHub OIDC 可信发布；仓库和工作流不得保存长期 Registry Token。
 - 外部 GitHub Action 固定到完整提交 SHA，Dependabot 每周创建 Action、npm 和 Python 依赖升级 PR；升级必须通过完整门禁后合并。
 - 发布物只构建一次，后续 npm、PyPI、来源证明和 GitHub Release 都下载同一份构建产物。
-- 真实 Provider、Windows ConPTY、Linux PTY、双平台 CI、全仓 Markdown 审计任一失败都停止发布。
+- 真实 Provider、Windows ConPTY、Linux PTY、双平台 CI、全仓 Markdown 审计任一失败都停止发布；唯一例外是下述 `0.7.0` 维护者网络裁决。
 
 ## 1. 发布账号与环境只配置一次
 
@@ -30,10 +30,10 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.3.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.7.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 ```powershell
-npm run release:sync-version -- 0.3.0
+npm run release:sync-version -- 0.7.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
@@ -45,6 +45,14 @@ npm run release:preflight -- --allow-dirty
 ```
 
 普通功能分支的双平台 CI 可在 `release:preflight` 和嵌套 `acceptance:rc` 命令中显式使用 `--defer-provider-certification`，只延后“当前开发中 Runtime 已完成真实 Provider 认证”这一项。该模式必须输出警告，不能用于发布候选、Tag、`release:bundle` 或正式发布工作流；这些路径继续要求版本与 Runtime SHA-256 精确绑定的真实认证。环境变量不能启用延后模式。
+
+`0.7.0` 有且只有一个维护者批准的 Provider 网络例外：严格运行 `33582995518` 的双平台候选矩阵成功，但 `alibaba-model-studio/qwen-plus` 首个真实请求在 HTTP 响应前超时。发布工作流只在 `v0.7.0`、Runtime 摘要未漂移、Issue #113 裁决仍有效、原运行与失败 Job 仍匹配，并且发布提交有新的双平台离线候选资格时接受 `--allow-provider-network-waiver`。该参数不能通过环境变量启用，不写入 Provider 成功台账，也不适用于其他版本。
+
+本版本使用网络例外时，发布前的严格命令为：
+
+```powershell
+npm run release:preflight -- --allow-dirty --allow-provider-network-waiver
+```
 
 草稿 PR 未通过全部检查前不得标记 ready；不得从普通功能分支直接创建发布 Tag。
 
@@ -64,6 +72,8 @@ npm run acceptance:rc
 
 必须记录真实数字，而不是只写“测试通过”：测试文件/Case 数、条件跳过原因、覆盖率基线与目标差距、Python 测试、模块合同、黄金示例和依赖审计结果。
 
+P0-17 使用 [`v0.7.0-main-ruleset.json`](evidence/v0.7.0-main-ruleset.json) 保存维护者只读导出的 `main` ruleset 与 bypass actor；发布工作流再查询当前 ruleset 的目标、强制规则、审批数、检查名和 GitHub App integration ID。该证据所在 PR 仍须经过两项必需工程检查后合入，不能用静态快照代替受控 PR 验证。
+
 属性测试必须使用仓库固定种子，受宿主能力影响的探测必须通过可注入依赖构造确定性用例；同一提交在重复执行或不同 Runner 上出现覆盖率漂移时，先修复测试不确定性，不得直接降低基线。
 
 `docs:audit` 检查仓库维护的全部 Markdown 是否为严格 UTF-8、本地链接是否存在，以及文档标识边界是否合规。依赖、缓存、构建和覆盖率目录不属于项目文档，不进入扫描。
@@ -75,13 +85,13 @@ npm run acceptance:rc
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
 - Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
-- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验。
+- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`0.7.0` 可使用上文精确绑定的一次性网络例外，但必须明确记录为 waived 而不是 certified。
 - Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
 
 ```powershell
-npm run acceptance:rc -- --require-manual
+npm run acceptance:rc -- --require-manual --allow-provider-network-waiver
 ```
 
 ## 5. 合并候选并创建 Tag
@@ -89,7 +99,7 @@ npm run acceptance:rc -- --require-manual
 1. 最终全仓 Markdown 审计通过后，将草稿发布 PR 标记 ready。
 2. 确认 PR 只包含本版本内容，双平台 CI 全绿后合并到 `main`。
 3. 在合并提交上创建受保护 Tag `v<版本>`；Tag 必须与根 `package.json` 版本完全一致。
-4. Tag 后工作区必须干净，重新执行 `npm run release:preflight`。
+4. Tag 后工作区必须干净，重新执行 `npm run release:preflight`；`v0.7.0` 使用 `npm run release:preflight -- --allow-provider-network-waiver`。
 
 Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `Publish CoreMind Release` 并输入已存在的 Tag。
 
@@ -105,23 +115,24 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
 7. 受保护 `pypi` 环境批准后，以 OIDC 发布同一个 wheel。
 8. npm、PyPI 与来源证明都成功后，创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
-9. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
+9. 候选、发布和公开回装阶段分别生成 P0-01～P0-20、P0-01～P0-21 与 P0-01～P0-22 顶层报告；任一证据缺失都会失败关闭。
+10. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
 
-发布支持安全断点续传：npm、PyPI 或 GitHub Release 已存在的同名同版本资产只有在哈希一致时才跳过；缺失资产继续上传，哈希冲突立即失败。发布版本不可覆盖，冲突时必须修复并使用更高版本。
+发布支持安全断点续传：首次运行将 `artifact_run_id` 留空；此路径会先确认同提交没有既有成功 Build，且 GitHub Release、8 个 npm 包与 PyPI 的目标版本都明确不存在，任何已存在或状态未知都会拒绝重新构建。若发生部分发布或网络不确定，后续运行必须填写原发布 run ID。工作流只复用同一工作流、同一提交、Build 已成功且 Tag/版本/清单/哈希全部一致的已保存 bundle，不会重新构建。npm、PyPI 或 GitHub Release 已存在的同名同版本资产只有在哈希一致时才跳过；缺失资产继续上传，哈希冲突立即失败。发布版本不可覆盖，冲突时必须修复并使用更高版本。
 
 ## 7. 发布后公共 Registry 验证
 
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@0.3.0
+npm install -g coremind-cli@0.7.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent
 coremind check coremind.yaml
 ```
 
-另建全新 Python 虚拟环境，从 PyPI 安装目标版本，验证 `coremind.__version__`、Node Worker 启动、一次 TypeScript/Python parity 和 Python callable 工具往返。最后检查 GitHub Release 哈希、双语文档站导航、下载链接与版本说明。
+发布工作流还会从 npm 与 PyPI 重新下载全部目标产物，逐项比对发布 bundle 的 SHA-256，并在全新环境验证 8 个 npm 入口、CLI、bundled Worker 与基本 Child Run。维护者随后另建本地 Python 虚拟环境复核 `coremind.__version__`、Node Worker 启动、一次 TypeScript/Python parity 和 Python callable 工具往返，最后检查双语文档站导航、下载链接与版本说明。
 
 ## 8. 失败、停止与恢复
 

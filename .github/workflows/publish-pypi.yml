@@ -7,13 +7,28 @@ on:
         description: "已存在且指向候选提交的标签，例如 v0.2.0-rc.1"
         required: true
         type: string
+      artifact_run_id:
+        description: "仅在部分发布续传时填写：复用同提交、同标签且 Build 已成功的既有发布 run ID"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: publish-${{ github.repository }}-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   candidate:
     runs-on: ubuntu-latest
+    outputs:
+      candidate_run_id: ${{ steps.selection.outputs.candidate_run_id }}
+      provider_evidence_mode: ${{ steps.selection.outputs.provider_evidence_mode }}
+      policy_snapshot_sha256: ${{ steps.selection.outputs.policy_snapshot_sha256 }}
+      repository_ruleset_id: ${{ steps.selection.outputs.repository_ruleset_id }}
+      tag_sha: ${{ steps.selection.outputs.tag_sha }}
     permissions:
       actions: read
       contents: read
@@ -24,16 +39,33 @@ jobs:
           fetch-depth: 0
 
       - name: 验证标签、main 与严格候选资格属于同一提交
+        id: selection
         env:
           GH_TOKEN: ${{ github.token }}
+          COREMIND_REQUESTED_TAG: ${{ inputs.tag }}
         run: |
           tag_sha="$(git rev-parse HEAD)"
           git fetch origin main --no-tags
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
+          ruleset_id="21807589"
+          ruleset="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
+          test "$(jq -r '.target' <<<"${ruleset}")" = "branch"
+          test "$(jq -r '.enforcement' <<<"${ruleset}")" = "active"
+          test "$(jq -r '[.conditions.ref_name.include[]] | contains(["refs/heads/main"])' <<<"${ruleset}")" = "true"
+          test "$(jq -r '[.rules[].type] | contains(["deletion", "non_fast_forward", "pull_request", "required_status_checks"])' <<<"${ruleset}")" = "true"
+          test "$(jq -r '.rules[] | select(.type == "pull_request") | .parameters.required_review_thread_resolution' <<<"${ruleset}")" = "true"
+          test "$(jq -r '.rules[] | select(.type == "pull_request") | .parameters.required_approving_review_count' <<<"${ruleset}")" = "0"
+          test "$(jq -r '.rules[] | select(.type == "required_status_checks") | .parameters.strict_required_status_checks_policy' <<<"${ruleset}")" = "true"
+          test "$(jq -r '.rules[] | select(.type == "required_status_checks") | [.parameters.required_status_checks[] | "\(.context):\(.integration_id)"] | sort | join("|")' <<<"${ruleset}")" = "Engineering (ubuntu-latest, Node 22.x):15368|Engineering (windows-latest, Node 22.x):15368"
+          policy_file="docs/release/evidence/v0.7.0-main-ruleset.json"
+          test "$(jq -r '.ruleset.id' "${policy_file}")" = "${ruleset_id}"
+          test "$(jq -r '[.ruleset.bypassActors[] | "\(.actorType):\(.actorId):\(.bypassMode)"] | join("|")' "${policy_file}")" = "User:237380389:pull_request"
+          policy_snapshot_sha256="$(sha256sum "${policy_file}" | cut -d ' ' -f 1)"
           engineering_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
           test "${engineering_conclusion}" = "success"
           run_id=""
+          evidence_mode="strict-provider"
           for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
             qualified="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "success")] | length')"
             if [ "${qualified}" -gt 0 ]; then
@@ -41,8 +73,46 @@ jobs:
               break
             fi
           done
+          if [ -z "${run_id}" ]; then
+            waiver_file="docs/release/evidence/v0.7.0-provider-network-waiver.json"
+            test "${COREMIND_REQUESTED_TAG}" = "v0.7.0"
+            test -f "${waiver_file}"
+            test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(f.strictRunId))" "${waiver_file}")" = "33582995518"
+            test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(f.decisionRef)" "${waiver_file}")" = "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/113" --jq '.state')" = "closed"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5505065678" --jq '.user.login')" = "Eclipseic1848"
+            comment_body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5505065678" --jq '.body')"
+            case "${comment_body}" in
+              *"网络例外通过"*"33582995518"*"16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea"*) ;;
+              *) exit 1 ;;
+            esac
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518" --jq '.head_sha')" = "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518" --jq '.conclusion')" = "failure"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/jobs" --jq '[.jobs[] | select(.id == 100134811632 and .name == "Provider certification" and .conclusion == "failure")] | length')" = "1"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/jobs" --jq '[.jobs[] | select(.name | startswith("Candidate rehearsal (")) | select(.conclusion == "success")] | length')" = "2"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/artifacts" --jq '[.artifacts[] | select(.name | startswith("provider-certification-"))] | length')" = "0"
+            for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
+              rehearsals="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name | startswith("Candidate rehearsal (")) | select(.conclusion == "success")] | length')"
+              provider_skipped="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Provider certification" and .conclusion == "skipped")] | length')"
+              qualified_skipped="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "skipped")] | length')"
+              if [ "${rehearsals}" = "2" ] && [ "${provider_skipped}" = "1" ] && [ "${qualified_skipped}" = "1" ]; then
+                run_id="${candidate_run_id}"
+                evidence_mode="provider-network-waiver"
+                break
+              fi
+            done
+          fi
           test -n "${run_id}"
+          echo "candidate_run_id=${run_id}" >> "${GITHUB_OUTPUT}"
+          echo "provider_evidence_mode=${evidence_mode}" >> "${GITHUB_OUTPUT}"
+          echo "policy_snapshot_sha256=${policy_snapshot_sha256}" >> "${GITHUB_OUTPUT}"
+          echo "repository_ruleset_id=${ruleset_id}" >> "${GITHUB_OUTPUT}"
+          echo "tag_sha=${tag_sha}" >> "${GITHUB_OUTPUT}"
           echo "COREMIND_CANDIDATE_RUN_ID=${run_id}" >> "${GITHUB_ENV}"
+          echo "COREMIND_PROVIDER_EVIDENCE_MODE=${evidence_mode}" >> "${GITHUB_ENV}"
+          echo "COREMIND_POLICY_SNAPSHOT_SHA256=${policy_snapshot_sha256}" >> "${GITHUB_ENV}"
+          echo "COREMIND_REPOSITORY_RULESET_ID=${ruleset_id}" >> "${GITHUB_ENV}"
+          echo "COREMIND_TAG_SHA=${tag_sha}" >> "${GITHUB_ENV}"
 
       - name: 下载同提交双平台真实伪终端证据
         env:
@@ -50,21 +120,51 @@ jobs:
         run: |
           mkdir -p .scratch/rc-evidence/downloads .scratch/rc-evidence/final
           gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'rc-tty-*' --dir .scratch/rc-evidence/downloads
-          gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'provider-certification-*' --dir .scratch/provider-certification
+          gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --name "candidate-artifacts-Linux-${COREMIND_TAG_SHA}" --dir .scratch/candidate-artifacts
+          if [ "${COREMIND_PROVIDER_EVIDENCE_MODE}" = "strict-provider" ]; then
+            gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --pattern 'provider-certification-*' --dir .scratch/provider-certification
+          fi
           find .scratch/rc-evidence/downloads -type f -name 'rc-tty-*.json' -exec cp {} .scratch/rc-evidence/final/ \;
           rm -rf .scratch/rc-evidence/downloads
           mv .scratch/rc-evidence/final/*.json .scratch/rc-evidence/
           rmdir .scratch/rc-evidence/final
 
       - name: 校验同提交 Provider 认证证据
+        if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'strict-provider'
         run: node scripts/verify-provider-certification-artifact.mjs .scratch/provider-certification --commit "$(git rev-parse HEAD)"
+
+      - name: 校验 0.7.0 Provider 网络超时豁免
+        if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'provider-network-waiver'
+        run: node scripts/release-preflight.mjs --allow-dirty --allow-provider-network-waiver
 
       - name: 校验 P20 证据绑定与候选完整性
         run: node scripts/rc-acceptance.mjs --verify-manual-only
 
+      - name: 形成 P0-01 至 P0-20 顶层候选报告
+        if: inputs.tag == 'v0.7.0'
+        env:
+          COREMIND_P0_WORKFLOW_VERIFIED: "true"
+        run: node scripts/p0-acceptance.mjs --stage candidate --artifact-manifest .scratch/candidate-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
+
+      - name: 保存 P0 候选报告与双平台证据
+        if: inputs.tag == 'v0.7.0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coremind-p0-candidate-evidence
+          path: |
+            .scratch/p0-acceptance-candidate-*.json
+            .scratch/p0-workflow-evidence-candidate.json
+            .scratch/rc-evidence/*.json
+          if-no-files-found: error
+          retention-days: 90
+
   build:
+    name: Build release bundle
     needs: candidate
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -72,30 +172,109 @@ jobs:
           fetch-depth: 0
 
       - name: 安装 Node
+        if: inputs.artifact_run_id == ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
           package-manager-cache: false
 
+      - name: 拒绝在未知或部分发布状态下重新构建
+        if: inputs.artifact_run_id == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COREMIND_RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version="${COREMIND_RELEASE_TAG#v}"
+          tag_sha="$(git rev-parse HEAD)"
+          if [ "${GITHUB_RUN_ATTEMPT}" != "1" ]; then
+            echo "Re-run all jobs 不得重新构建；请新建 run 并填写 artifact_run_id=${GITHUB_RUN_ID}" >&2
+            exit 1
+          fi
+          prior_runs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-pypi.yml/runs?head_sha=${tag_sha}&per_page=100" --jq '.workflow_runs[].id')" || {
+            echo "既有发布 run 状态未知；拒绝重新构建" >&2
+            exit 1
+          }
+          for run_id in ${prior_runs}; do
+            [ "${run_id}" = "${GITHUB_RUN_ID}" ] && continue
+            successful_builds="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?filter=all&per_page=100" --jq '.jobs[] | select(.name == "Build release bundle" and .conclusion == "success") | .id')" || {
+              echo "发布 run ${run_id} 的 Build 状态未知；拒绝重新构建" >&2
+              exit 1
+            }
+            if [ -n "${successful_builds}" ]; then
+              echo "提交已有已验证发布 bundle；必须用 artifact_run_id=${run_id} 续传" >&2
+              exit 1
+            fi
+          done
+          check_absent() {
+            label="$1"
+            url="$2"
+            auth="${3:-}"
+            curl_args=(--silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --output /dev/null --write-out '%{http_code}')
+            if [ -n "${auth}" ]; then
+              curl_args+=(--header "Authorization: Bearer ${auth}" --header 'Accept: application/vnd.github+json')
+            fi
+            status="$(curl "${curl_args[@]}" "${url}")" || {
+              echo "${label} 状态未知；拒绝重新构建" >&2
+              exit 1
+            }
+            case "${status}" in
+              404) ;;
+              200) echo "${label} 已存在；必须复用原发布 run，拒绝重新构建" >&2; exit 1 ;;
+              *) echo "${label} 返回 HTTP ${status}；状态未知，拒绝重新构建" >&2; exit 1 ;;
+            esac
+          }
+          check_absent "GitHub Release ${COREMIND_RELEASE_TAG}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${COREMIND_RELEASE_TAG}" "${GH_TOKEN}"
+          for package in coremind-config coremind-protocol coremind-tools coremind-templates coremind-runtime coremind-ai coremind-worker coremind-cli; do
+            check_absent "npm ${package}@${version}" "https://registry.npmjs.org/${package}/${version}"
+          done
+          check_absent "PyPI coremind-ai==${version}" "https://pypi.org/pypi/coremind-ai/${version}/json"
+
       - name: 安装 Python
+        if: inputs.artifact_run_id == ''
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: 固定发布工具链
+        if: inputs.artifact_run_id == ''
         run: |
           npm install --global npm@11.5.1
           python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
 
       - name: 构建并验证同提交发布物
+        if: inputs.artifact_run_id == ''
         env:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
+          COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
         run: |
           npm ci
           npm run build
           npm run check
           npm run security:audit
-          npm run release:bundle -- --tag "${COREMIND_RELEASE_TAG}"
+          release_args=(--tag "${COREMIND_RELEASE_TAG}")
+          if [ "${COREMIND_PROVIDER_EVIDENCE_MODE}" = "provider-network-waiver" ]; then
+            release_args+=(--allow-provider-network-waiver)
+          fi
+          npm run release:bundle -- "${release_args[@]}"
+
+      - name: 恢复既有已验证发布物
+        if: inputs.artifact_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COREMIND_SOURCE_RUN_ID: ${{ inputs.artifact_run_id }}
+          COREMIND_RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          case "${COREMIND_SOURCE_RUN_ID}" in
+            *[!0-9]*|'') echo "artifact_run_id 必须是 GitHub Actions run ID" >&2; exit 1 ;;
+          esac
+          tag_sha="$(git rev-parse HEAD)"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.path')" = ".github/workflows/publish-pypi.yml"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.event')" = "workflow_dispatch"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.head_sha')" = "${tag_sha}"
+          test -n "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}/jobs?filter=all&per_page=100" --jq '.jobs[] | select(.name == "Build release bundle" and .conclusion == "success") | .id')"
+          gh run download "${COREMIND_SOURCE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --name coremind-release-bundle --dir release-artifacts
+          (cd release-artifacts && sha256sum --check SHA256SUMS.txt)
+          node --input-type=module -e 'import { readFileSync } from "node:fs"; const m=JSON.parse(readFileSync("release-artifacts/release-manifest.json", "utf8")); const version=process.env.COREMIND_RELEASE_TAG.replace(/^v/u, ""); if (m.commit !== process.argv[1] || m.tag !== process.env.COREMIND_RELEASE_TAG || m.version !== version) process.exit(1)' "${tag_sha}"
 
       - name: 保存一次构建的全部发布物
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -201,17 +380,29 @@ jobs:
           packages-dir: release-artifacts/python
 
   release:
-    needs: [npm, pypi, attest]
+    needs: [candidate, npm, pypi, attest]
     runs-on: ubuntu-latest
     permissions:
       actions: write
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
       - name: 下载已验证发布物
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
+
+      - name: 下载 P0 候选报告与双平台证据
+        if: inputs.tag == 'v0.7.0'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-p0-candidate-evidence
+          path: .scratch
 
       - name: 校验已验证发布物哈希
         run: |
@@ -225,7 +416,24 @@ jobs:
         run: |
           prerelease=""
           if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
-          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          release_state="$(mktemp)"
+          release_status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --header "Authorization: Bearer ${GH_TOKEN}" --header 'Accept: application/vnd.github+json' --output "${release_state}" --write-out '%{http_code}' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")" || {
+            echo "GitHub Release 状态未知；停止发布" >&2
+            exit 1
+          }
+          if [ "${release_status}" = "200" ]; then
+            test "$(jq -r '.draft' "${release_state}")" = "false"
+            expected_prerelease="false"
+            if [[ "${RELEASE_TAG}" == *-* ]]; then expected_prerelease="true"; fi
+            test "$(jq -r '.prerelease' "${release_state}")" = "${expected_prerelease}"
+            expected_source="$(basename release-artifacts/source/*.zip)"
+            for asset_name in $(jq -r '.assets[].name' "${release_state}"); do
+              case "${asset_name}" in
+                "${expected_source}"|SHA256SUMS.txt|release-manifest.json) ;;
+                *) echo "GitHub Release 包含未验证资产：${asset_name}" >&2; exit 1 ;;
+              esac
+            done
+            rm -f "${release_state}"
             mkdir -p existing-release
             gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --dir existing-release
             for asset in release-artifacts/source/*.zip release-artifacts/SHA256SUMS.txt release-artifacts/release-manifest.json; do
@@ -241,6 +449,11 @@ jobs:
             done
             exit 0
           fi
+          if [ "${release_status}" != "404" ]; then
+            echo "GitHub Release 查询返回 HTTP ${release_status}；停止发布" >&2
+            exit 1
+          fi
+          rm -f "${release_state}"
           gh release create "${RELEASE_TAG}" \
             release-artifacts/source/*.zip \
             release-artifacts/SHA256SUMS.txt \
@@ -251,7 +464,108 @@ jobs:
             --title "CoreMind ${RELEASE_TAG#v}" \
             ${prerelease}
 
+      - name: 形成 P0-01 至 P0-21 顶层发布报告
+        if: inputs.tag == 'v0.7.0'
+        env:
+          COREMIND_P0_WORKFLOW_VERIFIED: "true"
+          COREMIND_CANDIDATE_RUN_ID: ${{ needs.candidate.outputs.candidate_run_id }}
+          COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_POLICY_SNAPSHOT_SHA256: ${{ needs.candidate.outputs.policy_snapshot_sha256 }}
+          COREMIND_REPOSITORY_RULESET_ID: ${{ needs.candidate.outputs.repository_ruleset_id }}
+          COREMIND_RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/p0-acceptance.mjs --stage release --artifact-manifest release-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
+
+      - name: 保存 P0 发布报告
+        if: inputs.tag == 'v0.7.0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coremind-p0-release-evidence
+          path: |
+            .scratch/p0-acceptance-release-*.json
+            .scratch/p0-workflow-evidence-release.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: 派发双语文档部署
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run docs.yml --ref main --repo "${GITHUB_REPOSITORY}"
+
+  verify-public:
+    name: Verify public reinstall
+    needs: [candidate, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: 安装 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      - name: 下载已验证发布物与候选证据
+        if: inputs.tag == 'v0.7.0'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: coremind-*-evidence
+          path: .scratch
+          merge-multiple: true
+
+      - name: 下载发布 bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 从公开 Registry 下载同版本产物
+        env:
+          COREMIND_VERSION: ${{ inputs.tag }}
+        run: |
+          npm install --global npm@11.5.1
+          npm ci
+          version="${COREMIND_VERSION#v}"
+          mkdir -p .scratch/public/npm .scratch/public/python
+          for package in coremind-config coremind-protocol coremind-tools coremind-templates coremind-runtime coremind-ai coremind-worker coremind-cli; do
+            npm pack "${package}@${version}" --pack-destination .scratch/public/npm
+          done
+          python -m pip download --disable-pip-version-check --no-deps --only-binary=:all: "coremind-ai==${version}" --dest .scratch/public/python
+
+      - name: 核对公开摘要并执行 npm 与 PyPI Child Run 冒烟
+        run: |
+          node --input-type=module -e 'import { createHash } from "node:crypto"; import { readdirSync, readFileSync } from "node:fs"; import path from "node:path"; const manifest=JSON.parse(readFileSync("release-artifacts/release-manifest.json", "utf8")); for (const kind of ["npm", "python"]) { const directory=`.scratch/public/${kind}`; const files=readdirSync(directory); for (const artifact of manifest.artifacts.filter((item) => item.kind === kind)) { const name=path.basename(artifact.path); if (!files.includes(name)) throw new Error(`公开渠道缺少 ${name}`); const actual=createHash("sha256").update(readFileSync(path.join(directory, name))).digest("hex"); if (actual !== artifact.sha256) throw new Error(`公开摘要不一致：${name}`); } }'
+          node scripts/validate-npm-tarballs.mjs --directory .scratch/public/npm
+          wheel="$(node -e 'const m=JSON.parse(require("node:fs").readFileSync("release-artifacts/release-manifest.json", "utf8")); const a=m.artifacts.filter((item) => item.kind === "python"); if (a.length !== 1) process.exit(1); process.stdout.write(require("node:path").basename(a[0].path))')"
+          python -X utf8 scripts/check-python-wheel.py ".scratch/public/python/${wheel}"
+
+      - name: 形成 P0-01 至 P0-22 顶层闭环报告
+        if: inputs.tag == 'v0.7.0'
+        env:
+          COREMIND_P0_WORKFLOW_VERIFIED: "true"
+          COREMIND_CANDIDATE_RUN_ID: ${{ needs.candidate.outputs.candidate_run_id }}
+          COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_POLICY_SNAPSHOT_SHA256: ${{ needs.candidate.outputs.policy_snapshot_sha256 }}
+          COREMIND_REPOSITORY_RULESET_ID: ${{ needs.candidate.outputs.repository_ruleset_id }}
+          COREMIND_RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/p0-acceptance.mjs --stage post-release --artifact-manifest release-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
+
+      - name: 保存 P0 发布闭环报告
+        if: inputs.tag == 'v0.7.0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coremind-p0-post-release-evidence
+          path: |
+            .scratch/p0-acceptance-post-release-*.json
+            .scratch/p0-workflow-evidence-post-release.json
+          if-no-files-found: error
+          retention-days: 90

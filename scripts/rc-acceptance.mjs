@@ -203,16 +203,22 @@ export const RC_SUITES = [
   },
 ];
 
-export function resolveRcSuites({ deferProviderCertification = false } = {}) {
-  if (!deferProviderCertification) return RC_SUITES;
+export function resolveRcSuites({
+  deferProviderCertification = false,
+  allowProviderNetworkWaiver = false,
+} = {}) {
+  if (deferProviderCertification && allowProviderNetworkWaiver) {
+    throw new Error("Provider 认证延后与网络豁免不能同时启用");
+  }
+  if (!deferProviderCertification && !allowProviderNetworkWaiver) return RC_SUITES;
+  const option = deferProviderCertification
+    ? "--defer-provider-certification"
+    : "--allow-provider-network-waiver";
   return RC_SUITES.map((suite) =>
     suite.name === "metadata"
       ? {
           ...suite,
-          commands: suite.commands.map(([command, args]) => [
-            command,
-            [...args, "--defer-provider-certification"],
-          ]),
+          commands: suite.commands.map(([command, args]) => [command, [...args, option]]),
         }
       : suite,
   );
@@ -310,9 +316,16 @@ function runtimeEntries() {
   return ["headless-cli", "typescript-sdk", "python-sdk"];
 }
 
-async function runAcceptance({ requireManual, deferProviderCertification = false }) {
+async function runAcceptance({
+  requireManual,
+  deferProviderCertification = false,
+  allowProviderNetworkWaiver = false,
+}) {
   const suiteResults = {};
-  for (const suite of resolveRcSuites({ deferProviderCertification })) {
+  for (const suite of resolveRcSuites({
+    deferProviderCertification,
+    allowProviderNetworkWaiver,
+  })) {
     suiteResults[suite.name] = suite.commands.every(([command, args]) => run(command, args));
     if (!suiteResults[suite.name]) break;
   }
@@ -414,6 +427,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     await runAcceptance({
       requireManual: process.argv.includes("--require-manual"),
       deferProviderCertification: process.argv.includes("--defer-provider-certification"),
+      allowProviderNetworkWaiver: process.argv.includes("--allow-provider-network-waiver"),
     });
   }
 }

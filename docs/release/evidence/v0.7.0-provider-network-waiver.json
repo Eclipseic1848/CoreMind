@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "version": "0.7.0",
+  "decision": "provider-network-timeout-waived",
+  "provider": "alibaba-model-studio",
+  "model": "qwen-plus",
+  "strictRunId": 33582995518,
+  "strictCommit": "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+  "failedJobId": 100134811632,
+  "failureCode": "provider_transient",
+  "failureMessage": "Request timed out.",
+  "runtimeArtifactSha256": "384e9fabb8b03210d9999e87cd19db6bc0636f44971aef6ab9780c987d3d5567",
+  "candidateRuntimePackageSha256": "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+  "candidatePlatforms": [
+    "ubuntu-latest",
+    "windows-latest"
+  ],
+  "candidatePlatformResult": "success",
+  "providerResult": "network-timeout-before-http-response",
+  "providerEvidenceArtifact": "absent",
+  "maxRetries": 0,
+  "decisionRef": "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+  "scope": "v0.7.0-only",
+  "claim": "maintainer-approved-network-exception-not-live-provider-certification"
+}

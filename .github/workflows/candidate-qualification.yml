@@ -81,7 +81,9 @@ jobs:
           python-version: "3.11"
 
       - name: 安装依赖
-        run: npm ci
+        run: |
+          npm install --global npm@11.5.1
+          npm ci
 
       - name: 安装 Linux sandbox 依赖
         if: runner.os == 'Linux'
