@@ -1069,7 +1069,7 @@ describe("Delegation Tool TypeScript happy path", () => {
             recoveredChildRequests += 1;
             sendSse(response, textResponse("child-redelegated", "第二次 Child 尝试成功"));
           } else {
-            response.writeHead(500, { "content-type": "application/json" });
+            response.writeHead(400, { "content-type": "application/json" });
             response.end(JSON.stringify({ error: { message: "第一次 Child 尝试失败" } }));
           }
           return;
