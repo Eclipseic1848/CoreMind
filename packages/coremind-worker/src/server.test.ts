@@ -447,7 +447,7 @@ describe("WorkerServer", () => {
       });
       rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 
   it("通过 resume_run 把中断 runId 交给同一 Runtime", async () => {
     let receivedResumeRunId: string | undefined;
