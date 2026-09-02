@@ -404,6 +404,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(resumeStep.run).toContain("coremind-release-bundle");
     expect(resumeStep.run).toContain("sha256sum --check SHA256SUMS.txt");
     expect(resumeStep.run).toContain("Build release bundle");
+    expect(resumeStep.run).toContain("filter=all&per_page=100");
     const freshBuildStep = workflow.jobs.build.steps.find(
       (step: { name?: string }) => step.name === "构建并验证同提交发布物",
     );

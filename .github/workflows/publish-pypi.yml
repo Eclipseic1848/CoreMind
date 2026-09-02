@@ -271,7 +271,7 @@ jobs:
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.path')" = ".github/workflows/publish-pypi.yml"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.event')" = "workflow_dispatch"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}" --jq '.head_sha')" = "${tag_sha}"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}/jobs" --jq '[.jobs[] | select(.name == "Build release bundle" and .conclusion == "success")] | length')" = "1"
+          test -n "$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_SOURCE_RUN_ID}/jobs?filter=all&per_page=100" --jq '.jobs[] | select(.name == "Build release bundle" and .conclusion == "success") | .id')"
           gh run download "${COREMIND_SOURCE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --name coremind-release-bundle --dir release-artifacts
           (cd release-artifacts && sha256sum --check SHA256SUMS.txt)
           node --input-type=module -e 'import { readFileSync } from "node:fs"; const m=JSON.parse(readFileSync("release-artifacts/release-manifest.json", "utf8")); const version=process.env.COREMIND_RELEASE_TAG.replace(/^v/u, ""); if (m.commit !== process.argv[1] || m.tag !== process.env.COREMIND_RELEASE_TAG || m.version !== version) process.exit(1)' "${tag_sha}"
