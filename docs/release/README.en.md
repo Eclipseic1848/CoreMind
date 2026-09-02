@@ -57,6 +57,8 @@ npm run acceptance:rc
 
 Record concrete counts, conditional-skip reasons, coverage floors and target gaps, Python results, module contracts, golden examples, and audit results. `docs:audit` checks every project-maintained Markdown file for strict UTF-8, existing local links, and the documentation identifier boundary while excluding dependencies, caches, coverage, and build output.
 
+P0-17 stores the maintainer's read-only `main` ruleset export and bypass actor in [`v0.7.0-main-ruleset.json`](evidence/v0.7.0-main-ruleset.json). The publication workflow separately queries the current ruleset target, mandatory rules, approval count, check names, and GitHub App integration IDs. The pull request containing that evidence must still merge through both required Engineering checks; the snapshot does not replace the controlled-PR proof.
+
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
 Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized provider must normally pass streaming, tool, structured-result, multi-turn, and error-path rechecks. The exact `0.7.0` exception above must be recorded as waived, never certified. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "version": "0.7.0",
+  "repository": "Eclipseic1848/CoreMind",
+  "branch": "main",
+  "capturedAt": "2026-09-02T09:54:52.4935162Z",
+  "capturedBy": "Eclipseic1848",
+  "baselineHead": "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
+  "source": "GET /repos/Eclipseic1848/CoreMind/rulesets/21807589",
+  "ruleset": {
+    "id": 21807589,
+    "name": "Protect main with Engineering CI",
+    "target": "branch",
+    "enforcement": "active",
+    "conditions": {
+      "refName": {
+        "include": ["refs/heads/main"],
+        "exclude": []
+      }
+    },
+    "bypassActors": [
+      {
+        "actorId": 237380389,
+        "actorType": "User",
+        "bypassMode": "pull_request"
+      }
+    ],
+    "rules": [
+      { "type": "deletion" },
+      { "type": "non_fast_forward" },
+      {
+        "type": "pull_request",
+        "parameters": {
+          "requiredApprovingReviewCount": 0,
+          "requiredReviewThreadResolution": true
+        }
+      },
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "strictRequiredStatusChecksPolicy": true,
+          "requiredStatusChecks": [
+            {
+              "context": "Engineering (ubuntu-latest, Node 22.x)",
+              "integrationId": 15368
+            },
+            {
+              "context": "Engineering (windows-latest, Node 22.x)",
+              "integrationId": 15368
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "validationPlan": "Merge this snapshot through a pull request after both required Engineering checks pass; emergency administrator bypasses still require a recorded reason."
+}

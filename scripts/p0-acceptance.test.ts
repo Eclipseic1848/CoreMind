@@ -357,6 +357,7 @@ describe("P0 顶层发布验收", () => {
       candidateRuntimePackageSha256:
         "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
       candidateRunId: "123",
+      policySnapshotSha256: "9".repeat(64),
       providerEvidenceMode: "provider-network-waiver",
       repositoryRulesetId: "21807589",
       workflowRunId: "456",
@@ -377,6 +378,9 @@ describe("P0 顶层发布验收", () => {
     expect(postRelease.filter((item) => item.checkId === "P0-22")).toHaveLength(2);
     expect(() => createWorkflowEvidence({ ...common, repositoryRulesetId: "" })).toThrow(
       "GitHub main ruleset 未经过当前发布 Workflow 验证",
+    );
+    expect(() => createWorkflowEvidence({ ...common, policySnapshotSha256: "" })).toThrow(
+      "main ruleset 只读快照摘要无效",
     );
 
     const invalidWaiver = createP0AcceptanceReport({
@@ -497,6 +501,12 @@ function evidence(checkId: string, evidenceLevel: string, overrides: Record<stri
     sourceRef: `evidence/${checkId}-${evidenceLevel}.json`,
     sourceDigest: `sha256:${"f".repeat(64)}`,
     ...(evidenceLevel === "live-provider" ? { checks: LIVE_PROVIDER_CHECKS } : {}),
+    ...(evidenceLevel === "repository-policy"
+      ? {
+          policySnapshotRef: "docs/release/evidence/v0.7.0-main-ruleset.json",
+          policySnapshotSha256: "9".repeat(64),
+        }
+      : {}),
     ...overrides,
   };
 }

@@ -178,6 +178,7 @@ export function createWorkflowEvidence({
   artifactManifestDigest,
   candidateRuntimePackageSha256,
   candidateRunId,
+  policySnapshotSha256,
   providerEvidenceMode,
   repositoryRulesetId,
   workflowRunId,
@@ -185,6 +186,9 @@ export function createWorkflowEvidence({
 }) {
   if (String(repositoryRulesetId) !== "21807589") {
     throw new Error("GitHub main ruleset 未经过当前发布 Workflow 验证");
+  }
+  if (!/^[0-9a-f]{64}$/u.test(policySnapshotSha256 ?? "")) {
+    throw new Error("main ruleset 只读快照摘要无效");
   }
   const generatedAt = new Date().toISOString();
   const common = { version, commit, runtimeDigest, artifactManifestDigest, generatedAt };
@@ -197,7 +201,10 @@ export function createWorkflowEvidence({
     ...extra,
   });
   const evidence = [
-    passed("P0-17", "repository-policy", `github:ruleset:${repositoryRulesetId}`),
+    passed("P0-17", "repository-policy", `github:ruleset:${repositoryRulesetId}`, {
+      policySnapshotRef: "docs/release/evidence/v0.7.0-main-ruleset.json",
+      policySnapshotSha256,
+    }),
     ...["win32", "linux"].flatMap((platform) => [
       passed("P0-19", "dual-platform", `github-actions:${candidateRunId}:${platform}`, {
         platform,
@@ -517,6 +524,7 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
             (item) => item.kind === "npm" && item.name === "coremind-runtime",
           )?.sha256,
           candidateRunId: options.verifiedWorkflowRun,
+          policySnapshotSha256: process.env.COREMIND_POLICY_SNAPSHOT_SHA256,
           providerEvidenceMode: process.env.COREMIND_PROVIDER_EVIDENCE_MODE,
           repositoryRulesetId: process.env.COREMIND_REPOSITORY_RULESET_ID,
           workflowRunId: process.env.GITHUB_RUN_ID,
@@ -723,6 +731,14 @@ function validateEvidence(evidence, expected) {
     const checks = new Set(Array.isArray(evidence.checks) ? evidence.checks : []);
     for (const check of LIVE_PROVIDER_CHECKS) {
       if (!checks.has(check)) blockers.push(`${id} live-provider 缺少检查：${check}`);
+    }
+  }
+  if (evidence.evidenceLevel === "repository-policy") {
+    if (evidence.policySnapshotRef !== "docs/release/evidence/v0.7.0-main-ruleset.json") {
+      blockers.push(`${id} main ruleset 快照引用无效`);
+    }
+    if (!/^[0-9a-f]{64}$/u.test(evidence.policySnapshotSha256 ?? "")) {
+      blockers.push(`${id} main ruleset 快照摘要无效`);
     }
   }
   if (evidence.evidenceLevel === "provider-network-waiver") {

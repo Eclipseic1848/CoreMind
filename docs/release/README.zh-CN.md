@@ -72,6 +72,8 @@ npm run acceptance:rc
 
 必须记录真实数字，而不是只写“测试通过”：测试文件/Case 数、条件跳过原因、覆盖率基线与目标差距、Python 测试、模块合同、黄金示例和依赖审计结果。
 
+P0-17 使用 [`v0.7.0-main-ruleset.json`](evidence/v0.7.0-main-ruleset.json) 保存维护者只读导出的 `main` ruleset 与 bypass actor；发布工作流再查询当前 ruleset 的目标、强制规则、审批数、检查名和 GitHub App integration ID。该证据所在 PR 仍须经过两项必需工程检查后合入，不能用静态快照代替受控 PR 验证。
+
 属性测试必须使用仓库固定种子，受宿主能力影响的探测必须通过可注入依赖构造确定性用例；同一提交在重复执行或不同 Runner 上出现覆盖率漂移时，先修复测试不确定性，不得直接降低基线。
 
 `docs:audit` 检查仓库维护的全部 Markdown 是否为严格 UTF-8、本地链接是否存在，以及文档标识边界是否合规。依赖、缓存、构建和覆盖率目录不属于项目文档，不进入扫描。

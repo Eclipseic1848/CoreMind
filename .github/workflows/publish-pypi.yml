@@ -26,6 +26,7 @@ jobs:
     outputs:
       candidate_run_id: ${{ steps.selection.outputs.candidate_run_id }}
       provider_evidence_mode: ${{ steps.selection.outputs.provider_evidence_mode }}
+      policy_snapshot_sha256: ${{ steps.selection.outputs.policy_snapshot_sha256 }}
       repository_ruleset_id: ${{ steps.selection.outputs.repository_ruleset_id }}
       tag_sha: ${{ steps.selection.outputs.tag_sha }}
     permissions:
@@ -41,6 +42,7 @@ jobs:
         id: selection
         env:
           GH_TOKEN: ${{ github.token }}
+          COREMIND_REQUESTED_TAG: ${{ inputs.tag }}
         run: |
           tag_sha="$(git rev-parse HEAD)"
           git fetch origin main --no-tags
@@ -56,6 +58,10 @@ jobs:
           test "$(jq -r '.rules[] | select(.type == "pull_request") | .parameters.required_approving_review_count' <<<"${ruleset}")" = "0"
           test "$(jq -r '.rules[] | select(.type == "required_status_checks") | .parameters.strict_required_status_checks_policy' <<<"${ruleset}")" = "true"
           test "$(jq -r '.rules[] | select(.type == "required_status_checks") | [.parameters.required_status_checks[] | "\(.context):\(.integration_id)"] | sort | join("|")' <<<"${ruleset}")" = "Engineering (ubuntu-latest, Node 22.x):15368|Engineering (windows-latest, Node 22.x):15368"
+          policy_file="docs/release/evidence/v0.7.0-main-ruleset.json"
+          test "$(jq -r '.ruleset.id' "${policy_file}")" = "${ruleset_id}"
+          test "$(jq -r '[.ruleset.bypassActors[] | "\(.actorType):\(.actorId):\(.bypassMode)"] | join("|")' "${policy_file}")" = "User:237380389:pull_request"
+          policy_snapshot_sha256="$(sha256sum "${policy_file}" | cut -d ' ' -f 1)"
           engineering_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
           test "${engineering_conclusion}" = "success"
           run_id=""
@@ -69,7 +75,7 @@ jobs:
           done
           if [ -z "${run_id}" ]; then
             waiver_file="docs/release/evidence/v0.7.0-provider-network-waiver.json"
-            test "${{ inputs.tag }}" = "v0.7.0"
+            test "${COREMIND_REQUESTED_TAG}" = "v0.7.0"
             test -f "${waiver_file}"
             test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(f.strictRunId))" "${waiver_file}")" = "33582995518"
             test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(f.decisionRef)" "${waiver_file}")" = "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678"
@@ -99,10 +105,12 @@ jobs:
           test -n "${run_id}"
           echo "candidate_run_id=${run_id}" >> "${GITHUB_OUTPUT}"
           echo "provider_evidence_mode=${evidence_mode}" >> "${GITHUB_OUTPUT}"
+          echo "policy_snapshot_sha256=${policy_snapshot_sha256}" >> "${GITHUB_OUTPUT}"
           echo "repository_ruleset_id=${ruleset_id}" >> "${GITHUB_OUTPUT}"
           echo "tag_sha=${tag_sha}" >> "${GITHUB_OUTPUT}"
           echo "COREMIND_CANDIDATE_RUN_ID=${run_id}" >> "${GITHUB_ENV}"
           echo "COREMIND_PROVIDER_EVIDENCE_MODE=${evidence_mode}" >> "${GITHUB_ENV}"
+          echo "COREMIND_POLICY_SNAPSHOT_SHA256=${policy_snapshot_sha256}" >> "${GITHUB_ENV}"
           echo "COREMIND_REPOSITORY_RULESET_ID=${ruleset_id}" >> "${GITHUB_ENV}"
           echo "COREMIND_TAG_SHA=${tag_sha}" >> "${GITHUB_ENV}"
 
@@ -178,17 +186,21 @@ jobs:
         run: |
           version="${COREMIND_RELEASE_TAG#v}"
           tag_sha="$(git rev-parse HEAD)"
+          if [ "${GITHUB_RUN_ATTEMPT}" != "1" ]; then
+            echo "Re-run all jobs 不得重新构建；请新建 run 并填写 artifact_run_id=${GITHUB_RUN_ID}" >&2
+            exit 1
+          fi
           prior_runs="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-pypi.yml/runs?head_sha=${tag_sha}&per_page=100" --jq '.workflow_runs[].id')" || {
             echo "既有发布 run 状态未知；拒绝重新构建" >&2
             exit 1
           }
           for run_id in ${prior_runs}; do
             [ "${run_id}" = "${GITHUB_RUN_ID}" ] && continue
-            successful_builds="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs" --jq '[.jobs[] | select(.name == "Build release bundle" and .conclusion == "success")] | length')" || {
+            successful_builds="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?filter=all&per_page=100" --jq '.jobs[] | select(.name == "Build release bundle" and .conclusion == "success") | .id')" || {
               echo "发布 run ${run_id} 的 Build 状态未知；拒绝重新构建" >&2
               exit 1
             }
-            if [ "${successful_builds}" -gt 0 ]; then
+            if [ -n "${successful_builds}" ]; then
               echo "提交已有已验证发布 bundle；必须用 artifact_run_id=${run_id} 续传" >&2
               exit 1
             fi
@@ -196,7 +208,12 @@ jobs:
           check_absent() {
             label="$1"
             url="$2"
-            status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --output /dev/null --write-out '%{http_code}' "${url}")" || {
+            auth="${3:-}"
+            curl_args=(--silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --output /dev/null --write-out '%{http_code}')
+            if [ -n "${auth}" ]; then
+              curl_args+=(--header "Authorization: Bearer ${auth}" --header 'Accept: application/vnd.github+json')
+            fi
+            status="$(curl "${curl_args[@]}" "${url}")" || {
               echo "${label} 状态未知；拒绝重新构建" >&2
               exit 1
             }
@@ -206,7 +223,7 @@ jobs:
               *) echo "${label} 返回 HTTP ${status}；状态未知，拒绝重新构建" >&2; exit 1 ;;
             esac
           }
-          check_absent "GitHub Release ${COREMIND_RELEASE_TAG}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${COREMIND_RELEASE_TAG}"
+          check_absent "GitHub Release ${COREMIND_RELEASE_TAG}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${COREMIND_RELEASE_TAG}" "${GH_TOKEN}"
           for package in coremind-config coremind-protocol coremind-tools coremind-templates coremind-runtime coremind-ai coremind-worker coremind-cli; do
             check_absent "npm ${package}@${version}" "https://registry.npmjs.org/${package}/${version}"
           done
@@ -399,11 +416,24 @@ jobs:
         run: |
           prerelease=""
           if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
-          release_status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --header "Authorization: Bearer ${GH_TOKEN}" --header 'Accept: application/vnd.github+json' --output /dev/null --write-out '%{http_code}' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")" || {
+          release_state="$(mktemp)"
+          release_status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --header "Authorization: Bearer ${GH_TOKEN}" --header 'Accept: application/vnd.github+json' --output "${release_state}" --write-out '%{http_code}' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")" || {
             echo "GitHub Release 状态未知；停止发布" >&2
             exit 1
           }
           if [ "${release_status}" = "200" ]; then
+            test "$(jq -r '.draft' "${release_state}")" = "false"
+            expected_prerelease="false"
+            if [[ "${RELEASE_TAG}" == *-* ]]; then expected_prerelease="true"; fi
+            test "$(jq -r '.prerelease' "${release_state}")" = "${expected_prerelease}"
+            expected_source="$(basename release-artifacts/source/*.zip)"
+            for asset_name in $(jq -r '.assets[].name' "${release_state}"); do
+              case "${asset_name}" in
+                "${expected_source}"|SHA256SUMS.txt|release-manifest.json) ;;
+                *) echo "GitHub Release 包含未验证资产：${asset_name}" >&2; exit 1 ;;
+              esac
+            done
+            rm -f "${release_state}"
             mkdir -p existing-release
             gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --dir existing-release
             for asset in release-artifacts/source/*.zip release-artifacts/SHA256SUMS.txt release-artifacts/release-manifest.json; do
@@ -423,6 +453,7 @@ jobs:
             echo "GitHub Release 查询返回 HTTP ${release_status}；停止发布" >&2
             exit 1
           fi
+          rm -f "${release_state}"
           gh release create "${RELEASE_TAG}" \
             release-artifacts/source/*.zip \
             release-artifacts/SHA256SUMS.txt \
@@ -439,6 +470,7 @@ jobs:
           COREMIND_P0_WORKFLOW_VERIFIED: "true"
           COREMIND_CANDIDATE_RUN_ID: ${{ needs.candidate.outputs.candidate_run_id }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_POLICY_SNAPSHOT_SHA256: ${{ needs.candidate.outputs.policy_snapshot_sha256 }}
           COREMIND_REPOSITORY_RULESET_ID: ${{ needs.candidate.outputs.repository_ruleset_id }}
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/p0-acceptance.mjs --stage release --artifact-manifest release-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
@@ -522,6 +554,7 @@ jobs:
           COREMIND_P0_WORKFLOW_VERIFIED: "true"
           COREMIND_CANDIDATE_RUN_ID: ${{ needs.candidate.outputs.candidate_run_id }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_POLICY_SNAPSHOT_SHA256: ${{ needs.candidate.outputs.policy_snapshot_sha256 }}
           COREMIND_REPOSITORY_RULESET_ID: ${{ needs.candidate.outputs.repository_ruleset_id }}
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
         run: node scripts/p0-acceptance.mjs --stage post-release --artifact-manifest release-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
