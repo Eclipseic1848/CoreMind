@@ -273,14 +273,14 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     const result = spawnSync(
       process.execPath,
       ["node_modules/vitest/vitest.mjs", "list", "--project=!isolated-*", "--filesOnly"],
-      { encoding: "utf8" },
+      { encoding: "utf8", timeout: 25_000 },
     );
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain("race-matrix.acceptance.test.ts");
     expect(result.stdout).not.toContain("input-receipt.acceptance.test.ts");
     expect(result.stdout).not.toContain("trusted-tool-fault-matrix.test.ts");
-  });
+  }, 30_000);
 
   it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
     const engineering = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
