@@ -133,10 +133,6 @@ jobs:
         if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'strict-provider'
         run: node scripts/verify-provider-certification-artifact.mjs .scratch/provider-certification --commit "$(git rev-parse HEAD)"
 
-      - name: 校验 0.7.0 Provider 网络超时豁免
-        if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'provider-network-waiver'
-        run: node scripts/release-preflight.mjs --allow-dirty --allow-provider-network-waiver
-
       - name: 校验 P20 证据绑定与候选完整性
         run: node scripts/rc-acceptance.mjs --verify-manual-only
 
