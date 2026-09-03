@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,6 +26,12 @@ const LIVE_PROVIDER_CHECKS = [
 ];
 
 describe("P0 顶层发布验收", () => {
+  it("CLI 失败时逐条输出具体 blocker", () => {
+    const source = readFileSync("scripts/p0-acceptance.mjs", "utf8");
+    expect(source).toContain("for (const blocker of report.blockers)");
+    expect(source).toMatch(/console\.error\(`阻断：\$\{blocker\}`\)/u);
+  });
+
   it("证据提交与目标提交不一致时失败关闭", () => {
     const report = createP0AcceptanceReport({
       stage: "engineering",

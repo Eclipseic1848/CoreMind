@@ -384,6 +384,17 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs.attest.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.release.needs).toEqual(expect.arrayContaining(["npm", "pypi", "attest"]));
     expect(workflow.jobs.release.permissions.actions).toBe("write");
+    expect(workflow.jobs.release.outputs.public_release_ready).toContain(
+      "steps.public-release.outputs.ready",
+    );
+    const publicReleaseStep = workflow.jobs.release.steps.find(
+      (step: { id?: string }) => step.id === "public-release",
+    );
+    expect(publicReleaseStep.run).toContain("ready=true");
+    const releaseEvidenceStep = workflow.jobs.release.steps.find(
+      (step: { name?: string }) => step.name === "保存 P0 发布报告",
+    );
+    expect(releaseEvidenceStep.if).toContain("always()");
     const releaseCommands = workflow.jobs.release.steps
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
@@ -498,7 +509,12 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs["verify-public"].needs).toEqual(
       expect.arrayContaining(["candidate", "release"]),
     );
-    expect(workflow.jobs["verify-public"].if).toContain("reuse_candidate_run_id == ''");
+    expect(workflow.jobs["verify-public"].if).toContain("always()");
+    expect(workflow.jobs["verify-public"].if).toContain("needs.candidate.result == 'success'");
+    expect(workflow.jobs["verify-public"].if).toContain(
+      "needs.release.outputs.public_release_ready == 'true'",
+    );
+    expect(workflow.jobs["verify-public"].if).not.toContain("reuse_candidate_run_id");
     expect(publicCommands).toContain("npm pack");
     expect(publicCommands).toContain("validate-npm-tarballs.mjs --directory");
     expect(publicCommands).toContain("pip download");

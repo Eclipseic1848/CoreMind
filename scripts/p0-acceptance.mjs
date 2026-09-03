@@ -969,7 +969,10 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     const { report, output } = await runP0Acceptance(options);
     console.log(report.passed ? "P0 顶层验收通过" : "P0 顶层验收失败");
     console.log(`证据：${path.relative(repositoryRoot, output)}`);
-    if (!report.passed) process.exitCode = 1;
+    if (!report.passed) {
+      for (const blocker of report.blockers) console.error(`阻断：${blocker}`);
+      process.exitCode = 1;
+    }
   } catch (error) {
     console.error(errorMessage(error));
     process.exitCode = 1;
