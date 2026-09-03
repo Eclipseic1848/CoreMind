@@ -412,6 +412,8 @@ jobs:
   release:
     needs: [candidate, npm, pypi, attest]
     runs-on: ubuntu-latest
+    outputs:
+      public_release_ready: ${{ steps.public-release.outputs.ready }}
     permissions:
       actions: write
       contents: write
@@ -494,6 +496,10 @@ jobs:
             --title "CoreMind ${RELEASE_TAG#v}" \
             ${prerelease}
 
+      - name: 标记公开 Release 已就绪
+        id: public-release
+        run: echo "ready=true" >> "${GITHUB_OUTPUT}"
+
       - name: 形成 P0-01 至 P0-21 顶层发布报告
         if: inputs.tag == 'v0.7.0'
         env:
@@ -506,7 +512,7 @@ jobs:
         run: node scripts/p0-acceptance.mjs --stage release --artifact-manifest release-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
 
       - name: 保存 P0 发布报告
-        if: inputs.tag == 'v0.7.0'
+        if: always() && inputs.tag == 'v0.7.0'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coremind-p0-release-evidence
@@ -525,7 +531,7 @@ jobs:
   verify-public:
     name: Verify public reinstall
     needs: [candidate, release]
-    if: inputs.reuse_candidate_run_id == ''
+    if: always() && needs.candidate.result == 'success' && needs.release.outputs.public_release_ready == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
