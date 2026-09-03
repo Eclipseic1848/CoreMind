@@ -58,6 +58,8 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       return;
     }
     if (key.return) {
+      const command = input.trim();
+      if (busy && command !== "/abort" && command !== "/children") return;
       void handleSubmit(input);
       setInput("");
     } else if (key.backspace) {
