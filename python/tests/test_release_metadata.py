@@ -21,6 +21,13 @@ class ReleaseMetadataTest(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(coremind.__version__, match.group(1))
 
+    def test_pyproject_declares_production_stable_maturity(self) -> None:
+        pyproject = (REPOSITORY_ROOT / "python" / "pyproject.toml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Development Status :: 5 - Production/Stable", pyproject)
+        self.assertNotIn("Development Status :: 4 - Beta", pyproject)
+
     def test_bundled_worker_manifest_matches_sdk_and_bundle(self) -> None:
         package_root = REPOSITORY_ROOT / "python" / "src" / "coremind"
         worker = package_root / "_worker" / "coremind-worker.mjs"
