@@ -40,7 +40,7 @@ import {
   prepareRunResume,
   RunStateJournal,
 } from "./run-state.js";
-import { CoreMindRuntime } from "./runtime.js";
+import { CoreMindRuntime, prepareProtocolToolResultFact } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
 import {
   canonicalizeWorkspace,
@@ -2156,16 +2156,33 @@ describe("CoreMindRuntime", () => {
     const server = createToolCallingServer();
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const approvals: string[] = [];
+    const runStore = new FileRunStore(path.join(dir, "runs"));
+    let runtime!: CoreMindRuntime;
+    let protocolToolResultPersisted: Promise<void> | undefined;
 
     try {
       const port = (server.address() as AddressInfo).port;
-      const runtime = await CoreMindRuntime.create({
+      runtime = await CoreMindRuntime.create({
         config: toolConfig(port, {
           permissions: { mode: "ask", workspaceOnly: true, network: "ask" },
         }),
         configDir: dir,
         cwd: dir,
         initialPrompt: "读取 notes.txt",
+        runStore,
+        runId: "protocol-tool-result-run",
+        events: (event) => {
+          if (event.type === "tool_call" && event.callId === "call-read") {
+            protocolToolResultPersisted = prepareProtocolToolResultFact(runtime, {
+              schemaVersion: 1,
+              resultId: "result-read",
+              runId: "protocol-tool-result-run",
+              callId: "call-read",
+              registrationId: "registration-read",
+              requestFingerprint: "a".repeat(64),
+            });
+          }
+        },
         approveTool: async (request) => {
           approvals.push(request.tool);
           return "allow";
@@ -2173,6 +2190,7 @@ describe("CoreMindRuntime", () => {
       });
 
       const result = await runtime.run();
+      await expect(protocolToolResultPersisted).resolves.toBeUndefined();
 
       expect(approvals).toEqual(["read"]);
       expect(result.metrics.toolCalls).toBe(1);
@@ -2216,6 +2234,41 @@ describe("CoreMindRuntime", () => {
           capabilityFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/u),
         }),
       ]);
+      const records = await runStore.read(result.runId);
+      expect(
+        records.find(
+          (record) =>
+            record.kind === "event" &&
+            (record.payload as { protocolToolResult?: unknown }).protocolToolResult !== undefined,
+        )?.payload,
+      ).toMatchObject({
+        protocolToolResult: {
+          schemaVersion: 1,
+          resultId: "result-read",
+          runId: result.runId,
+          callId: "call-read",
+          registrationId: "registration-read",
+          requestFingerprint: "a".repeat(64),
+        },
+      });
+      const projection = ProjectionEngine.project(records);
+      expect(projection.trace).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ protocolToolResult: expect.anything() }),
+        ]),
+      );
+      expect(projection.records).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({ protocolToolResult: expect.anything() }),
+          }),
+        ]),
+      );
+      expect(result.trace).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ protocolToolResult: expect.anything() }),
+        ]),
+      );
       expect(receiptEvents[1]?.binding).toEqual(receiptEvents[0]?.binding);
       expect(
         result.trace

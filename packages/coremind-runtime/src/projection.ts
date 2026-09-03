@@ -188,7 +188,7 @@ export const ProjectionEngine = {
       if (!isTraceEvent(record.payload, runId)) {
         throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 event payload");
       }
-      return [record.payload];
+      return [publicTraceEvent(record.payload)];
     });
     const lastResumeSequence = [...ordered]
       .reverse()
@@ -279,7 +279,7 @@ export const ProjectionEngine = {
       pendingControls,
       ...(childRuns ? { childRuns } : {}),
       observability,
-      records: ordered,
+      records: ordered.map(publicRunStateRecord),
       ...(snapshot ? { snapshot } : {}),
     });
   },
@@ -766,6 +766,18 @@ function isTraceEvent(value: unknown, runId: string): value is CoreMindTraceEven
     typeof value.event.type === "string" &&
     isProjectionEventValid(value.event, runId)
   );
+}
+
+function publicTraceEvent(entry: CoreMindTraceEvent): CoreMindTraceEvent {
+  const { protocolToolResult: _internal, ...publicEntry } = entry as CoreMindTraceEvent & {
+    protocolToolResult?: unknown;
+  };
+  return publicEntry;
+}
+
+function publicRunStateRecord(record: RunStateRecord): RunStateRecord {
+  if (record.kind !== "event") return record;
+  return { ...record, payload: publicTraceEvent(record.payload as CoreMindTraceEvent) };
 }
 
 function isProjectionEventValid(event: Record<string, unknown>, runId: string): boolean {

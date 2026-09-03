@@ -8,6 +8,8 @@ export {
   type InternalRunControlCommand,
   type PendingApprovalControl,
   ProjectionEngine,
+  type ProtocolToolResultFact,
+  prepareProtocolToolResultFact,
   type RecoveryDecision,
   RunContext,
   type RunId,

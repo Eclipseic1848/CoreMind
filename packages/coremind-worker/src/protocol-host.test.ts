@@ -432,6 +432,10 @@ describe("ProtocolHost", () => {
     const sent: unknown[] = [];
     let runtimeOptions: CoreMindRuntimeOptions | undefined;
     let completeRun = () => {};
+    let releaseFirstPersistence = () => {};
+    const firstPersistence = new Promise<void>((resolve) => {
+      releaseFirstPersistence = resolve;
+    });
     const baseRuntimeFactory = completedParityRuntimeFactory();
     const activeTool = async () => {
       for (let attempt = 0; attempt < 100; attempt++) {
@@ -447,6 +451,7 @@ describe("ProtocolHost", () => {
         runtimeOptions = options;
         const base = await baseRuntimeFactory(options);
         return {
+          persistProtocolToolResultFact: async () => firstPersistence,
           run: async () => {
             await new Promise<void>((resolve) => {
               completeRun = resolve;
@@ -548,7 +553,15 @@ describe("ProtocolHost", () => {
           ...params,
         },
       });
-    const accepted = await result("result", { result: { value: 42 } });
+    const acceptedRequest = result("result", { result: { value: 42 } });
+    await expect(
+      Promise.race([
+        acceptedRequest.then(() => "accepted"),
+        new Promise<string>((resolve) => setTimeout(() => resolve("blocked"), 25)),
+      ]),
+    ).resolves.toBe("blocked");
+    releaseFirstPersistence();
+    const accepted = await acceptedRequest;
     const duplicate = await result("result-duplicate", { result: { value: 42 } });
     const conflict = await result("result-conflict", { result: { value: 43 } });
     const unknown = await result("result-unknown", {
@@ -615,6 +628,7 @@ describe("ProtocolHost", () => {
 
     completeRun();
     await waitForFinishedProjection(host, "tool-run");
+    expect(protocolV2IdempotencySizes(host)).toEqual({ starts: 0, calls: 0, results: 0 });
     runtimeOptions = undefined;
     await host.handle({
       jsonrpc: "2.0",
@@ -644,6 +658,7 @@ describe("ProtocolHost", () => {
     await expect(secondCall).resolves.toEqual({ value: 43 });
     completeRun();
     await waitForFinishedProjection(host, "tool-run-second");
+    expect(protocolV2IdempotencySizes(host)).toEqual({ starts: 0, calls: 0, results: 0 });
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -697,6 +712,7 @@ describe("ProtocolHost", () => {
       for (const [runId, committed] of [
         ["tool-unknown-run", false],
         ["tool-late-run", true],
+        ["tool-duplicate-run", true],
       ] as const) {
         const journal = new RunStateJournal(runId, store);
         await journal.start({
@@ -744,6 +760,38 @@ describe("ProtocolHost", () => {
             },
           });
         }
+        if (runId === "tool-duplicate-run") {
+          const params = {
+            schemaVersion: 1 as const,
+            resultId: `${runId}:result`,
+            runId,
+            callId: "persisted-call",
+            registrationId: "registration-1",
+            result: null,
+          };
+          journal.event({
+            eventId: `${runId}:result`,
+            runId,
+            sequence: committed ? 3 : 2,
+            timestamp: "2026-08-30T00:00:02.000Z",
+            event: {
+              type: "tool_result",
+              agent: "main",
+              tool: "lookup_record",
+              isError: false,
+              callId: "persisted-call",
+              idempotencyKey: `${runId}:persisted-call`,
+            },
+            protocolToolResult: {
+              schemaVersion: 1,
+              resultId: params.resultId,
+              runId,
+              callId: params.callId,
+              registrationId: params.registrationId,
+              requestFingerprint: canonicalSha256(params),
+            },
+          });
+        }
         await journal.flush();
       }
       const result = (runId: string, registrationId = "registration-1") =>
@@ -771,6 +819,25 @@ describe("ProtocolHost", () => {
       await expect(result("tool-late-run", "registration-wrong")).resolves.toMatchObject({
         result: { status: "conflict" },
       });
+      await expect(result("tool-duplicate-run")).resolves.toMatchObject({
+        result: { status: "duplicate" },
+      });
+      await expect(
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "tool-duplicate-run:conflict",
+          method: "tool_result",
+          params: {
+            schemaVersion: 1,
+            resultId: "tool-duplicate-run:result",
+            runId: "tool-duplicate-run",
+            callId: "persisted-call",
+            registrationId: "registration-1",
+            result: { changed: true },
+          },
+        }),
+      ).resolves.toMatchObject({ result: { status: "conflict" } });
 
       let changedRuntimeCreations = 0;
       const changedIdentityHost = new ProtocolHost({
@@ -804,6 +871,22 @@ describe("ProtocolHost", () => {
             schemaVersion: 1,
             resultId: "changed-identity-result",
             runId: "tool-late-run",
+            callId: "persisted-call",
+            registrationId: "registration-1",
+            result: null,
+          },
+        }),
+      ).resolves.toMatchObject({ result: { status: "conflict" } });
+      await expect(
+        changedIdentityHost.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "changed-identity-duplicate-result",
+          method: "tool_result",
+          params: {
+            schemaVersion: 1,
+            resultId: "tool-duplicate-run:result",
+            runId: "tool-duplicate-run",
             callId: "persisted-call",
             registrationId: "registration-1",
             result: null,
@@ -2577,6 +2660,36 @@ function completedParityRuntimeFactory() {
       };
     },
   });
+}
+
+function protocolV2IdempotencySizes(host: ProtocolHost): {
+  starts: number;
+  calls: number;
+  results: number;
+} {
+  const state = host as unknown as {
+    protocolV2Starts: Map<unknown, unknown>;
+    closedProtocolV2ToolCalls: Map<unknown, unknown>;
+    settledProtocolV2ToolResults: Map<unknown, unknown>;
+  };
+  return {
+    starts: state.protocolV2Starts.size,
+    calls: state.closedProtocolV2ToolCalls.size,
+    results: state.settledProtocolV2ToolResults.size,
+  };
+}
+
+function canonicalSha256(value: unknown): string {
+  return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
+    .join(",")}}`;
 }
 
 async function waitForProbeReady(child: ChildProcessWithoutNullStreams): Promise<void> {
