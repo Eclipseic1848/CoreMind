@@ -5,6 +5,7 @@ import {
   openSync,
   readFileSync,
   statSync,
+  symlinkSync,
   writeFileSync,
   writeSync,
 } from "node:fs";
@@ -107,6 +108,7 @@ describe("ArtifactStore", () => {
     expect(record?.status).toBe("stored");
     expect(text).toContain("critical-tail");
     expect(text).not.toContain(source);
+    expect(existsSync(source)).toBe(false);
   });
 
   it("拒绝读取工具伪造的任意完整输出路径", async () => {
@@ -130,6 +132,67 @@ describe("ArtifactStore", () => {
     const result = await tool.execute("call-2", {});
     expect(existsSync(source)).toBe(true);
     expect(JSON.stringify(result)).not.toContain(source);
+  });
+
+  it.skipIf(process.platform === "win32")("拒绝工具临时文件符号链接", async () => {
+    const cwd = workspace();
+    const target = path.join(cwd, "outside.log");
+    const source = path.join(tmpdir(), `pi-output-${path.basename(cwd)}.log`);
+    writeFileSync(target, "outside-content", "utf8");
+    symlinkSync(target, source, "file");
+    const tool = wrapToolWithArtifactCapture(
+      {
+        name: "custom",
+        label: "custom",
+        description: "test",
+        parameters: { type: "object", properties: {} } as never,
+        execute: async () => ({
+          content: [{ type: "text", text: source }],
+          details: { fullOutputPath: source },
+        }),
+      },
+      new ArtifactStore({ cwd }),
+    );
+
+    const result = await tool.execute("call-symlink", {});
+    expect(extractArtifactRecord(result.details)).toBeUndefined();
+    expect(readFileSync(target, "utf8")).toBe("outside-content");
+    expect(JSON.stringify(result)).not.toContain(source);
+    expect(JSON.stringify(result)).not.toContain("outside-content");
+  });
+
+  it("拒绝通过临时目录链接读取非直接子文件", async () => {
+    const cwd = workspace();
+    const targetDirectory = workspace();
+    const linkedDirectory = path.join(tmpdir(), `coremind-artifact-link-${path.basename(cwd)}`);
+    const basename = `pi-output-${path.basename(cwd)}.log`;
+    const target = path.join(targetDirectory, basename);
+    const source = path.join(linkedDirectory, basename);
+    writeFileSync(target, "linked-directory-content", "utf8");
+    symlinkSync(
+      targetDirectory,
+      linkedDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const tool = wrapToolWithArtifactCapture(
+      {
+        name: "custom",
+        label: "custom",
+        description: "test",
+        parameters: { type: "object", properties: {} } as never,
+        execute: async () => ({
+          content: [{ type: "text", text: source }],
+          details: { fullOutputPath: source },
+        }),
+      },
+      new ArtifactStore({ cwd }),
+    );
+
+    const result = await tool.execute("call-directory-link", {});
+    expect(extractArtifactRecord(result.details)).toBeUndefined();
+    expect(readFileSync(target, "utf8")).toBe("linked-directory-content");
+    expect(JSON.stringify(result)).not.toContain(source);
+    expect(JSON.stringify(result)).not.toContain("linked-directory-content");
   });
 
   it("50MB 输出保持有界模型预览并保留完整哈希文件", async () => {
