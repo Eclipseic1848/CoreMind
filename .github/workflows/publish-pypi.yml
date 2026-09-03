@@ -152,6 +152,7 @@ jobs:
             .scratch/p0-workflow-evidence-candidate.json
             .scratch/rc-evidence/*.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90
 
   build:
@@ -480,6 +481,7 @@ jobs:
             .scratch/p0-acceptance-release-*.json
             .scratch/p0-workflow-evidence-release.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90
 
       - name: 派发双语文档部署
@@ -564,4 +566,5 @@ jobs:
             .scratch/p0-acceptance-post-release-*.json
             .scratch/p0-workflow-evidence-post-release.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90
