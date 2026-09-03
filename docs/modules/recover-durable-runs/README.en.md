@@ -22,7 +22,7 @@ LoopController remains the owner of planning, execution, verification, and repai
 - `RunResult.operation` is the authoritative operation snapshot shared by CLI, TUI, TypeScript, and Python.
 - `RunResult.snapshot` is the shared pure-JSON terminal envelope for operation, outcome, metrics, evaluation, trace, checkpoints, artifacts, extension receipts, and resumability.
 - `DurableOperation` validates transitions, duplicate events, and restoration.
-- `FileRunStore` provides a single-writer lock, consecutive sequences, atomic publication, and bounded tail repair.
+- `FileRunStore` provides a single-writer lock, consecutive sequences, per-Fact ordinary append, atomic critical synchronization, and bounded tail repair.
 - `prepareRunResume()` checks the configuration fingerprint, terminal state, stable steps, and effect receipts.
 - `CoreMindSession` preserves a stable public path, backend conformance, and versioned migration.
 

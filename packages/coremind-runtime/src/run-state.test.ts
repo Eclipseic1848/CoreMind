@@ -422,6 +422,71 @@ describe("RunState", () => {
     expect(await readFile(store.pathFor("run-1"), "utf8")).toContain('"kind":"finish"');
   });
 
+  it("长 Run 每次 append 只准备新增记录，不重复写入完整历史", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-linear-"));
+    const preparedLineCounts: number[] = [];
+    const store = new FileRunStore(dir, {
+      beforeCommit: async ({ temporary }) => {
+        preparedLineCounts.push(
+          (await readFile(temporary, "utf8")).split("\n").filter((line) => line.length > 0).length,
+        );
+      },
+    });
+
+    for (let sequence = 1; sequence <= 128; sequence += 1) {
+      await store.append(record(sequence, sequence === 1 ? "start" : "event", { sequence }));
+    }
+
+    expect(preparedLineCounts).toEqual(Array.from({ length: 128 }, () => 1));
+    expect((await store.read("run-restore")).map((item) => item.sequence)).toEqual(
+      Array.from({ length: 128 }, (_, index) => index + 1),
+    );
+  });
+
+  it("旧 sequence 重试保持幂等，不同内容仍然冲突", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-old-duplicate-"));
+    const store = new FileRunStore(dir);
+    const second = record(2, "event", { value: "same" });
+    await store.append(record(1, "start", { configFingerprint: "same" }));
+    await store.append(second);
+    await store.append(record(3, "event", { value: "later" }));
+
+    await expect(store.append(structuredClone(second))).resolves.toBeUndefined();
+    await expect(
+      store.append({ ...second, payload: { value: "different" } }),
+    ).rejects.toMatchObject({ code: "run_state_conflict" });
+    expect(await store.read(second.runId)).toHaveLength(3);
+  });
+
+  it("目标文件被外部改写后重新全量复核，不信任旧游标", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-cursor-invalidated-"));
+    const store = new FileRunStore(dir);
+    const first = record(1, "start", { configFingerprint: "same" });
+    const second = record(2, "event", { value: "same" });
+    await store.append(first);
+    await store.append(second);
+    writeFileSync(
+      store.pathFor(first.runId),
+      `${JSON.stringify(first)}\n${JSON.stringify({ ...second, sequence: 9 })}\n`,
+      "utf8",
+    );
+
+    await expect(store.append(record(10, "event", { value: "later" }))).rejects.toMatchObject({
+      code: "run_state_corrupt",
+    });
+  });
+
+  it("调用方修改 read 返回值不会污染后续 append 游标", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-read-copy-"));
+    const store = new FileRunStore(dir);
+    await store.append(record(1, "start", { configFingerprint: "same" }));
+    const loaded = await store.read("run-restore");
+    loaded[0]!.sequence = 99;
+
+    await expect(store.append(record(2, "event", { value: "later" }))).resolves.toBeUndefined();
+    expect((await store.read("run-restore")).map((item) => item.sequence)).toEqual([1, 2]);
+  });
+
   it("损坏的 RunState 明确报错，不静默丢弃", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-run-state-broken-"));
     const store = new FileRunStore(dir);

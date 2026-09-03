@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("FileRunStore Windows 原子发布重试", () => {
-  it("连续七次 rename 返回 EPERM 时有界重试并只提交一次", async () => {
+  it("首条记录连续七次 rename 返回 EPERM 时有界重试并只提交一次", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-run-state-rename-retry-"));
     temporaryDirectories.push(directory);
     const store = new FileRunStore(directory);
