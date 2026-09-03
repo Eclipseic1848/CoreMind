@@ -164,6 +164,8 @@ P0 只新增一个顶层发布验收入口，并复用三类现有高层测试�
 
 该例外只适用于 `v0.7.0`，只接受原始提交 `8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3`、失败运行 `33582995518`、失败 Job `100134811632` 与候选 Runtime 包摘要 `16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea`。发布提交仍须通过同提交双平台工程门、离线候选包与真实 TTY 门禁，并保持 Runtime 制品等价。该裁决不构成 live-provider 认证，不更新 Provider 成功台账，也不能被后续版本复用。
 
+最终公开 Runtime 包因稳定版 README 更新而具有摘要 `6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18`；维护者已在 [最终制品裁决](https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893)确认该值。P0 报告必须保留原候选摘要及其原裁决，同时用最终摘要和最终裁决绑定发布与回装阶段，不能用其中一个值覆盖另一个。
+
 ## Out of Scope
 
 - Web 产品面与任何 Web UI 修改。

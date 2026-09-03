@@ -354,8 +354,7 @@ describe("P0 顶层发布验收", () => {
       commit: "a".repeat(40),
       runtimeDigest: `sha256:${"b".repeat(64)}`,
       artifactManifestDigest: `sha256:${"e".repeat(64)}`,
-      candidateRuntimePackageSha256:
-        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+      runtimePackageSha256: "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
       candidateRunId: "123",
       policySnapshotSha256: "9".repeat(64),
       providerEvidenceMode: "provider-network-waiver",
@@ -372,9 +371,47 @@ describe("P0 顶层发布验收", () => {
       candidateRuntimePackageSha256:
         "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
     });
-    const release = createWorkflowEvidence({ ...common, stage: "release" });
+    const finalRuntimePackageSha256 =
+      "6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18";
+    const release = createWorkflowEvidence({
+      ...common,
+      stage: "release",
+      runtimePackageSha256: finalRuntimePackageSha256,
+    });
     expect(release.filter((item) => item.checkId === "P0-21")).toHaveLength(4);
-    const postRelease = createWorkflowEvidence({ ...common, stage: "post-release" });
+    expect(release.find((item) => item.checkId === "P0-20")).toMatchObject({
+      candidateRuntimePackageSha256:
+        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+      finalRuntimePackageSha256,
+      finalDecisionRef:
+        "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893",
+    });
+    const releaseReport = createP0AcceptanceReport({
+      ...baseInput("release"),
+      artifacts: artifactSummary(finalRuntimePackageSha256),
+      evidence: release.map((item) => ({
+        ...item,
+        sourceRef: "workflow.json",
+        sourceDigest: `sha256:${"f".repeat(64)}`,
+      })),
+    });
+    expect(releaseReport.passed).toBe(true);
+    const invalidFinalDigest = createP0AcceptanceReport({
+      ...baseInput("release"),
+      artifacts: artifactSummary(finalRuntimePackageSha256),
+      evidence: release.map((item) => ({
+        ...item,
+        ...(item.checkId === "P0-20" ? { finalRuntimePackageSha256: "0".repeat(64) } : {}),
+        sourceRef: "workflow.json",
+        sourceDigest: `sha256:${"f".repeat(64)}`,
+      })),
+    });
+    expect(invalidFinalDigest.blockers).toContain("P0-20 网络豁免最终 Runtime 包摘要无效");
+    const postRelease = createWorkflowEvidence({
+      ...common,
+      stage: "post-release",
+      runtimePackageSha256: finalRuntimePackageSha256,
+    });
     expect(postRelease.filter((item) => item.checkId === "P0-22")).toHaveLength(2);
     expect(() => createWorkflowEvidence({ ...common, repositoryRulesetId: "" })).toThrow(
       "GitHub main ruleset 未经过当前发布 Workflow 验证",
@@ -388,9 +425,10 @@ describe("P0 顶层发布验收", () => {
       evidence: createWorkflowEvidence({
         ...common,
         stage: "candidate",
-        candidateRuntimePackageSha256: "0".repeat(64),
+        runtimePackageSha256: "0".repeat(64),
       }).map((item) => ({
         ...item,
+        ...(item.checkId === "P0-20" ? { candidateRuntimePackageSha256: "0".repeat(64) } : {}),
         sourceRef: "workflow.json",
         sourceDigest: `sha256:${"f".repeat(64)}`,
       })),
@@ -511,7 +549,9 @@ function evidence(checkId: string, evidenceLevel: string, overrides: Record<stri
   };
 }
 
-function artifactSummary() {
+function artifactSummary(
+  runtimePackageSha256 = "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+) {
   return {
     ref: "artifacts/release-manifest.json",
     manifestDigest: `sha256:${"e".repeat(64)}`,
@@ -530,7 +570,7 @@ function artifactSummary() {
         name: "coremind-runtime",
         version: "0.7.0",
         size: 300,
-        sha256: "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+        sha256: runtimePackageSha256,
       },
       {
         path: "python/coremind_ai.whl",
