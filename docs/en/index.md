@@ -33,6 +33,6 @@ features:
 
 ## Project status
 
-The `v0.7.0` tag exists and includes Protocol v2, unified security and error contracts, and a Child Run product path across CLI/TUI/TypeScript/Python. The GitHub Release, npm and PyPI packages, and public reinstall are not yet complete; `0.3.1` remains the public stable release. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+The current stable release is `0.7.0`, including Protocol v2, unified security and error contracts, and a Child Run product path across CLI/TUI/TypeScript/Python. GitHub Release, npm, and PyPI are published at the same version. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
 
 Both-platform engineering, candidate-package, and real-TTY gates pass. The strict Provider request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; this is not a live-provider certification. Maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

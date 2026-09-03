@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19。
 
-`coremind-cli@0.3.0` 已在 npm 公开，可直接安装稳定版。
+`coremind-cli@0.7.0` 已在 npm 公开，可直接安装稳定版。
 
 ```bash
-npm install -g coremind-cli@0.3.0
+npm install -g coremind-cli@0.7.0
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
@@ -33,7 +33,7 @@ copy .env.example .env          # Windows；Linux 用 cp
 
 `.env` 会被**自动加载**（前提：在你运行命令的目录下，见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)）。
 
-交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择当前认证的阿里云百炼入口；其他提供商见[配置指南](02-configuration.md#provider)。
+交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；可配置不等于当前版本已认证，实际证据见[供应商矩阵](../providers/README.zh-CN.md)。
 
 ## 4. 运行
 

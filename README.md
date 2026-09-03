@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-v0.7.0%20tagged-f59e0b)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-stable%200.7.0-22c55e)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> `v0.7.0` Tag 已从受保护的 `main` 创建，包含 Protocol v2、Execution Security Gate、统一 Error Contract，以及由 Config v2 门控并贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。GitHub Release、8 个 npm 包、PyPI 与公开回装尚未完成；当前公开稳定版仍是 [`0.3.1`](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1)。
+> 当前稳定版为 `0.7.0`，包含 Protocol v2、Execution Security Gate、统一 Error Contract，以及由 Config v2 门控并贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。可从 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.7.0) 与 [PyPI](https://pypi.org/project/coremind-ai/0.7.0/) 获取。
 
 > P0 实现、Node 22 双平台工程、候选包与真实 TTY 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者将其作为仅限本版本的网络例外通过；这不是 live-provider 认证。
 
@@ -26,7 +26,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 ## 当前仓库具备什么能力
 
-已标记的 `0.7.0` 源码坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
+稳定版 `0.7.0` 坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
 
 | 能力域 | 当前支持 |
 |---|---|
@@ -50,8 +50,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 | 阶段 | 计划能力 | 不变原则 |
 |---|---|---|
-| 当前公开 `0.3.1` 稳定版 | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
-| 已创建 Tag 的 `0.7.0` 候选 | 汇总 0.3.x-B/C、Protocol v2、统一安全与错误合同，并把 Child Run 产品化到四个正式入口 | GitHub Release、Registry 与公开回装待完成；Provider 网络例外不等于 live-provider 认证 |
+| `0.3.1` 稳定版（历史） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
+| `0.7.0` 稳定版 | 汇总 0.3.x-B/C、Protocol v2、统一安全与错误合同，并把 Child Run 产品化到四个正式入口 | Provider 网络例外已审计；真实认证仍是后续版本的独立门禁 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
@@ -83,7 +83,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-使用源码开发需要 Node.js ≥ 22.19 与 npm ≥ 11.5.1。npm 公开 `0.7.0` 后可执行下面的稳定版安装命令；发布完成前请以 Registry 页面为准。
+使用源码开发需要 Node.js ≥ 22.19 与 npm ≥ 11.5.1。安装稳定版 CLI：
 
 ```bash
 npm install -g coremind-cli@0.7.0
@@ -247,7 +247,7 @@ CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 Op
 
 ## 学习与验证材料
 
-- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块已进入 `v0.7.0` Tag，待公开发布。
+- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块随 `0.7.0` 稳定版交付。
 - [5 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查与验证修复 Loop，均可用本地 mock Provider 离线运行。
 - [2 个编码智能体真实缺陷仓库](examples/coding-evals/README.zh-CN.md)：TypeScript 与 Python 均验证复现、最小修复、目标/回归测试、只读 Git 证据和脏工作区保护。
 - [配置指南](docs/guide/02-configuration.md)、[Skill 指南](docs/guide/03-skills.md)、[质量指南](docs/guide/04-quality.md)、[CLI 指南](docs/guide/05-cli-usage.md)。

@@ -1,6 +1,6 @@
 # Session 与 Context
 
-状态：已进入 `v0.7.0` Tag，公开发布待完成。支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：随 `0.7.0` 稳定版发布。支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

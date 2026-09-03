@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-v0.7.0%20tagged-f59e0b)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-stable%200.7.0-22c55e)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The `v0.7.0` tag has been created from protected `main`. It includes Protocol v2, the Execution Security Gate, one Error Contract, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python. The GitHub Release, eight npm packages, PyPI package, and public reinstall are not yet complete; [`0.3.1`](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.1) remains the public stable release.
+> The current stable release is `0.7.0`. It includes Protocol v2, the Execution Security Gate, one Error Contract, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python. Install it from the [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0), [npm](https://www.npmjs.com/package/coremind-cli/v/0.7.0), or [PyPI](https://pypi.org/project/coremind-ai/0.7.0/).
 
 > The P0 implementation, Node 22 engineering checks, candidate packages, and real TTY gates pass on both platforms. The strict Provider request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; this is not a live-provider certification.
 
@@ -26,7 +26,7 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 ## What the current repository supports
 
-The tagged `0.7.0` source keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
+Stable `0.7.0` keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
 
 | Capability | Current support |
 |---|---|
@@ -50,8 +50,8 @@ The current version does not include a complete Web development environment, an 
 
 | Stage | Planned capabilities | Constraint that remains |
 |---|---|---|
-| Current public `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
-| Tagged `0.7.0` candidate | Combines 0.3.x-B/C, Protocol v2, unified security and error contracts, and a Child Run product path across all four formal entries | GitHub Release, registries, and public reinstall remain pending; the Provider exception is not live certification |
+| Historical `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
+| `0.7.0` stable release | Combines 0.3.x-B/C, Protocol v2, unified security and error contracts, and a Child Run product path across all four formal entries | The Provider network exception is audited; live certification remains an independent gate for later releases |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
@@ -73,7 +73,7 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer. Once npm publishes `0.7.0`, use the stable installation command below; until then, verify registry availability first.
+Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer. Install the stable CLI with:
 
 ```bash
 npm install -g coremind-cli@0.7.0
@@ -135,7 +135,7 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module is included in the `v0.7.0` tag and awaits public publication.
+- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module ships in stable `0.7.0`.
 - [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
 - [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.

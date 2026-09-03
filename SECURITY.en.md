@@ -8,8 +8,8 @@ Security issues must be handled privately. This page describes responsible repor
 
 | Version | Security updates |
 | --- | --- |
-| Tagged `v0.7.0` candidate | Handled before publication according to severity and reproducibility |
-| Current public stable `0.3.1` | Supported according to severity and reproducibility |
+| Latest stable `0.7.x` | Supported according to severity and reproducibility |
+| `0.3.1` | Critical security issues only; upgrade to the latest stable release |
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
 

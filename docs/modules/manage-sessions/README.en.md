@@ -1,6 +1,6 @@
 # Sessions and Context
 
-Status: included in the `v0.7.0` tag; public publication is pending. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: published with stable `0.7.0`. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

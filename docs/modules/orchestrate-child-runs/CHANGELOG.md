@@ -2,7 +2,7 @@
 
 ## 0.7.0 - 2026-08-29
 
-- Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate.
+- Synchronized the module contract, bilingual guidance, examples, and release metadata with the stable release.
 
 ## 0.7.0-dev - 2026-08-27
 

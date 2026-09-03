@@ -1,6 +1,6 @@
 # Coding Agents
 
-Status: published `0.3.0` stable release. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: published with stable `0.7.0`. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

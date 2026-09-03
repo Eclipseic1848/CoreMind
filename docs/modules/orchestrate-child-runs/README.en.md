@@ -1,6 +1,6 @@
 # Orchestrate Child Runs
 
-Status: included in the `v0.7.0` tag; public publication is pending. Supported platforms: Windows and Linux.
+Status: published with stable `0.7.0` for Windows and Linux.
 
 A Child Run is a complete Run delegated by a parent Run, not an ordinary tool call. It owns an independent RunId, facts, budget, permissions, result, and quiescence state, linked through ParentRunId, ChildRunId, and DelegationId.
 

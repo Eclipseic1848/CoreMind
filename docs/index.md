@@ -33,6 +33,6 @@ features:
 
 ## 当前阶段
 
-`v0.7.0` Tag 已创建，包含 Protocol v2、统一安全与错误合同，以及贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。GitHub Release、npm、PyPI 与公开回装尚未完成，当前公开稳定版仍是 `0.3.1`。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
+CoreMind 当前稳定版为 `0.7.0`，包含 Protocol v2、统一安全与错误合同，以及贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路；GitHub Release、npm 与 PyPI 已同步发布。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
 
 双平台工程、候选包和真实 TTY 门禁已通过。严格 Provider 请求在 HTTP 响应前超时，维护者已接受仅限本版本的网络例外，但这不是 live-provider 认证。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。
