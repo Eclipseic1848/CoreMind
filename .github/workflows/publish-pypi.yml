@@ -12,6 +12,11 @@ on:
         required: false
         default: ""
         type: string
+      reuse_candidate_run_id:
+        description: "仅在当前提交相对既有候选只修改 Markdown 与发布工作流时填写"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -43,11 +48,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           COREMIND_REQUESTED_TAG: ${{ inputs.tag }}
+          COREMIND_REUSED_CANDIDATE_RUN_ID: ${{ inputs.reuse_candidate_run_id }}
         run: |
           tag_sha="$(git rev-parse HEAD)"
           git fetch origin main --no-tags
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
+          candidate_sha="${tag_sha}"
+          if [ -n "${COREMIND_REUSED_CANDIDATE_RUN_ID}" ]; then
+            case "${COREMIND_REUSED_CANDIDATE_RUN_ID}" in
+              *[!0-9]*) echo "reuse_candidate_run_id 必须是 GitHub Actions run ID" >&2; exit 1 ;;
+            esac
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.event')" = "workflow_dispatch"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.path')" = ".github/workflows/candidate-qualification.yml"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.conclusion')" = "success"
+            candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.head_sha')"
+            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^scripts/workflow-contract\.test\.ts$)' || true)"
+            test -z "${unsafe_changes}" || { echo "复用候选后存在产品代码改动：${unsafe_changes}" >&2; exit 1; }
+          fi
           ruleset_id="21807589"
           ruleset="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
           test "$(jq -r '.target' <<<"${ruleset}")" = "branch"
@@ -62,11 +80,13 @@ jobs:
           test "$(jq -r '.ruleset.id' "${policy_file}")" = "${ruleset_id}"
           test "$(jq -r '[.ruleset.bypassActors[] | "\(.actorType):\(.actorId):\(.bypassMode)"] | join("|")' "${policy_file}")" = "User:237380389:pull_request"
           policy_snapshot_sha256="$(sha256sum "${policy_file}" | cut -d ' ' -f 1)"
-          engineering_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
+          engineering_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${candidate_sha}&status=completed&per_page=20" --jq '.workflow_runs | map(select(.event == "push" and .conclusion == "success")) | first | .conclusion // ""')"
           test "${engineering_conclusion}" = "success"
           run_id=""
           evidence_mode="strict-provider"
-          for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
+          candidate_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${candidate_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id')"
+          if [ -n "${COREMIND_REUSED_CANDIDATE_RUN_ID}" ]; then candidate_runs="${COREMIND_REUSED_CANDIDATE_RUN_ID}"; fi
+          for candidate_run_id in ${candidate_runs}; do
             qualified="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "success")] | length')"
             if [ "${qualified}" -gt 0 ]; then
               run_id="${candidate_run_id}"
@@ -91,7 +111,7 @@ jobs:
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/jobs" --jq '[.jobs[] | select(.id == 100134811632 and .name == "Provider certification" and .conclusion == "failure")] | length')" = "1"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/jobs" --jq '[.jobs[] | select(.name | startswith("Candidate rehearsal (")) | select(.conclusion == "success")] | length')" = "2"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518/artifacts" --jq '[.artifacts[] | select(.name | startswith("provider-certification-"))] | length')" = "0"
-            for candidate_run_id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${tag_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id'); do
+            for candidate_run_id in ${candidate_runs}; do
               rehearsals="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name | startswith("Candidate rehearsal (")) | select(.conclusion == "success")] | length')"
               provider_skipped="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Provider certification" and .conclusion == "skipped")] | length')"
               qualified_skipped="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${candidate_run_id}/jobs" --jq '[.jobs[] | select(.name == "Candidate qualified" and .conclusion == "skipped")] | length')"
@@ -115,6 +135,7 @@ jobs:
           echo "COREMIND_TAG_SHA=${tag_sha}" >> "${GITHUB_ENV}"
 
       - name: 下载同提交双平台真实伪终端证据
+        if: inputs.reuse_candidate_run_id == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -130,20 +151,21 @@ jobs:
           rmdir .scratch/rc-evidence/final
 
       - name: 校验同提交 Provider 认证证据
-        if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'strict-provider'
+        if: inputs.reuse_candidate_run_id == '' && env.COREMIND_PROVIDER_EVIDENCE_MODE == 'strict-provider'
         run: node scripts/verify-provider-certification-artifact.mjs .scratch/provider-certification --commit "$(git rev-parse HEAD)"
 
       - name: 校验 P20 证据绑定与候选完整性
+        if: inputs.reuse_candidate_run_id == ''
         run: node scripts/rc-acceptance.mjs --verify-manual-only
 
       - name: 形成 P0-01 至 P0-20 顶层候选报告
-        if: inputs.tag == 'v0.7.0'
+        if: inputs.tag == 'v0.7.0' && inputs.reuse_candidate_run_id == ''
         env:
           COREMIND_P0_WORKFLOW_VERIFIED: "true"
         run: node scripts/p0-acceptance.mjs --stage candidate --artifact-manifest .scratch/candidate-artifacts/release-manifest.json --verified-workflow-run "${COREMIND_CANDIDATE_RUN_ID}"
 
       - name: 保存 P0 候选报告与双平台证据
-        if: inputs.tag == 'v0.7.0'
+        if: inputs.tag == 'v0.7.0' && inputs.reuse_candidate_run_id == ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coremind-p0-candidate-evidence
@@ -243,11 +265,14 @@ jobs:
         env:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_REUSED_CANDIDATE_RUN_ID: ${{ inputs.reuse_candidate_run_id }}
         run: |
           npm ci
           npm run build
-          npm run check
-          npm run security:audit
+          if [ -z "${COREMIND_REUSED_CANDIDATE_RUN_ID}" ]; then
+            npm run check
+            npm run security:audit
+          fi
           release_args=(--tag "${COREMIND_RELEASE_TAG}")
           if [ "${COREMIND_PROVIDER_EVIDENCE_MODE}" = "provider-network-waiver" ]; then
             release_args+=(--allow-provider-network-waiver)
@@ -395,7 +420,7 @@ jobs:
           path: release-artifacts
 
       - name: 下载 P0 候选报告与双平台证据
-        if: inputs.tag == 'v0.7.0'
+        if: inputs.tag == 'v0.7.0' && inputs.reuse_candidate_run_id == ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: coremind-p0-candidate-evidence
@@ -492,6 +517,7 @@ jobs:
   verify-public:
     name: Verify public reinstall
     needs: [candidate, release]
+    if: inputs.reuse_candidate_run_id == ''
     runs-on: ubuntu-latest
     permissions:
       contents: read

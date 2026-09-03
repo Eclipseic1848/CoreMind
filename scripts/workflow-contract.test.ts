@@ -409,6 +409,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
       (step: { name?: string }) => step.name === "构建并验证同提交发布物",
     );
     expect(freshBuildStep.if).toContain("artifact_run_id == ''");
+    expect(freshBuildStep.run).toContain("COREMIND_REUSED_CANDIDATE_RUN_ID");
     const freshStateStep = workflow.jobs.build.steps.find(
       (step: { name?: string }) => step.name === "拒绝在未知或部分发布状态下重新构建",
     );
@@ -426,6 +427,10 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     const candidateCommands = workflow.jobs.candidate.steps
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
+    expect(workflow.on.workflow_dispatch.inputs.reuse_candidate_run_id.default).toBe("");
+    expect(candidateCommands).toContain("reuse_candidate_run_id 必须是 GitHub Actions run ID");
+    expect(candidateCommands).toContain("git diff --name-only");
+    expect(candidateCommands).toContain("复用候选后存在产品代码改动");
     expect(candidateCommands).toContain("git fetch origin main --no-tags");
     expect(candidateCommands).toContain("git rev-parse FETCH_HEAD");
     expect(candidateCommands).toContain(`rulesets/\${ruleset_id}`);
@@ -470,6 +475,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs["verify-public"].needs).toEqual(
       expect.arrayContaining(["candidate", "release"]),
     );
+    expect(workflow.jobs["verify-public"].if).toContain("reuse_candidate_run_id == ''");
     expect(publicCommands).toContain("npm pack");
     expect(publicCommands).toContain("validate-npm-tarballs.mjs --directory");
     expect(publicCommands).toContain("pip download");
