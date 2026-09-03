@@ -10,7 +10,8 @@
   "failureCode": "provider_transient",
   "failureMessage": "Request timed out.",
   "runtimeArtifactSha256": "384e9fabb8b03210d9999e87cd19db6bc0636f44971aef6ab9780c987d3d5567",
-  "candidateRuntimePackageSha256": "6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18",
+  "candidateRuntimePackageSha256": "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+  "finalRuntimePackageSha256": "6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18",
   "candidatePlatforms": [
     "ubuntu-latest",
     "windows-latest"
@@ -19,7 +20,8 @@
   "providerResult": "network-timeout-before-http-response",
   "providerEvidenceArtifact": "absent",
   "maxRetries": 0,
-  "decisionRef": "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893",
+  "decisionRef": "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+  "finalDecisionRef": "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893",
   "scope": "v0.7.0-only",
   "claim": "maintainer-approved-network-exception-not-live-provider-certification"
 }
