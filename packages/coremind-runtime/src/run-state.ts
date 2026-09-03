@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { link, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   isResolvedToolCapability,
@@ -126,7 +126,7 @@ export interface RunResumePlan {
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
 export interface FileRunStoreOptions {
-  /** 仅供故障注入测试：临时文件完成后、原子发布前调用。 */
+  /** 仅供故障注入测试：新增记录临时文件完成后、发布前调用。 */
   beforeCommit?: (context: {
     destination: string;
     temporary: string;
@@ -143,9 +143,27 @@ export interface FileRunStoreOptions {
   lockTimeoutMs?: number;
 }
 
+interface RunFileIdentity {
+  dev: number;
+  ino: number;
+  size: number;
+  mtimeMs: number;
+  ctimeMs: number;
+}
+
+interface RunFileCursor {
+  identity?: RunFileIdentity;
+  lastRecord?: RunStateRecord;
+  needsSeparator: boolean;
+}
+
+// ponytail: 只缓存父 Run 与默认 32 个子 Run 的近期游标；淘汰后全量复核，不牺牲正确性。
+const MAX_RUN_FILE_CURSORS = 64;
+
 export class FileRunStore implements RunStore {
   readonly supportedDurability = ["ordinary", "critical"] as const;
   readonly durabilityBoundary = "process_crash" as const;
+  private readonly cursors = new Map<string, RunFileCursor>();
 
   constructor(
     readonly directory: string,
@@ -228,6 +246,11 @@ export class FileRunStore implements RunStore {
         if (parsed.repairedText !== undefined) {
           await this.publishAtomically(destination, parsed.repairedText);
         }
+        await this.rememberCursor(
+          destination,
+          parsed.records.at(-1),
+          parsed.needsSeparator ?? false,
+        );
         return parsed.records;
       });
     } catch (error) {
@@ -242,7 +265,7 @@ export class FileRunStore implements RunStore {
   private async readUnlocked(
     runId: string,
     destination: string,
-  ): Promise<{ records: RunStateRecord[]; repairedText?: string }> {
+  ): Promise<{ records: RunStateRecord[]; repairedText?: string; needsSeparator?: boolean }> {
     let text: string;
     try {
       text = await readFile(destination, "utf8");
@@ -278,7 +301,7 @@ export class FileRunStore implements RunStore {
       }
       records.push(record);
     }
-    return { records };
+    return { records, needsSeparator: text.length > 0 && !terminated };
   }
 
   private async publishAtomically(
@@ -312,12 +335,96 @@ export class FileRunStore implements RunStore {
     }
   }
 
+  private async prepareAppend(
+    destination: string,
+    record: RunStateRecord,
+    text: string,
+  ): Promise<void> {
+    if (!this.options.beforeCommit) return;
+    const temporary = `${destination}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
+      await this.options.beforeCommit({ destination, temporary, record });
+    } finally {
+      await rm(temporary, { force: true }).catch(() => undefined);
+    }
+  }
+
+  private async fileIdentity(destination: string): Promise<RunFileIdentity | undefined> {
+    try {
+      const current = await stat(destination);
+      return {
+        dev: current.dev,
+        ino: current.ino,
+        size: current.size,
+        mtimeMs: current.mtimeMs,
+        ctimeMs: current.ctimeMs,
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    }
+  }
+
+  private async rememberCursor(
+    destination: string,
+    lastRecord: RunStateRecord | undefined,
+    needsSeparator: boolean,
+    identity?: RunFileIdentity,
+  ): Promise<void> {
+    const resolvedIdentity = identity ?? (await this.fileIdentity(destination));
+    this.cursors.delete(destination);
+    this.cursors.set(destination, {
+      identity: resolvedIdentity,
+      lastRecord: lastRecord ? structuredClone(lastRecord) : undefined,
+      needsSeparator,
+    });
+    if (this.cursors.size > MAX_RUN_FILE_CURSORS) {
+      this.cursors.delete(this.cursors.keys().next().value!);
+    }
+  }
+
+  private sameIdentity(
+    left: RunFileIdentity | undefined,
+    right: RunFileIdentity | undefined,
+  ): boolean {
+    if (!left || !right) return left === right;
+    return (
+      left.dev === right.dev &&
+      left.ino === right.ino &&
+      left.size === right.size &&
+      left.mtimeMs === right.mtimeMs &&
+      left.ctimeMs === right.ctimeMs
+    );
+  }
+
   private async writeRecord(record: RunStateRecord, durability: RunStoreDurability): Promise<void> {
     const destination = this.pathFor(record.runId);
     validateRecord(record, record.runId);
     await this.withWriterLock(destination, async () => {
-      const parsed = await this.readUnlocked(record.runId, destination);
-      const duplicate = parsed.records.find((item) => item.sequence === record.sequence);
+      const currentIdentity = await this.fileIdentity(destination);
+      const cached = this.cursors.get(destination);
+      let records: RunStateRecord[] | undefined;
+      let tail =
+        cached && this.sameIdentity(cached.identity, currentIdentity)
+          ? { record: cached.lastRecord, needsSeparator: cached.needsSeparator }
+          : undefined;
+      if (!tail || (tail.record && record.sequence < tail.record.sequence)) {
+        const parsed = await this.readUnlocked(record.runId, destination);
+        records = parsed.records;
+        if (parsed.repairedText !== undefined) {
+          await this.publishAtomically(destination, parsed.repairedText);
+        }
+        tail = {
+          record: parsed.records.at(-1),
+          needsSeparator: parsed.repairedText === undefined && (parsed.needsSeparator ?? false),
+        };
+        await this.rememberCursor(destination, tail.record, tail.needsSeparator);
+      }
+      const duplicate =
+        tail.record?.sequence === record.sequence
+          ? tail.record
+          : records?.find((item) => item.sequence === record.sequence);
       if (duplicate) {
         if (stableJson(duplicate) === stableJson(record)) {
           if (durability === "critical") {
@@ -342,17 +449,43 @@ export class FileRunStore implements RunStore {
           `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
         );
       }
-      const expectedSequence = (parsed.records.at(-1)?.sequence ?? 0) + 1;
+      const expectedSequence = (tail.record?.sequence ?? records?.at(-1)?.sequence ?? 0) + 1;
       if (record.sequence !== expectedSequence) {
         throw new CoreMindError(
           "run_state_conflict",
           `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
         );
       }
-      const text = `${parsed.records.map((item) => JSON.stringify(item)).join("\n")}${
-        parsed.records.length > 0 ? "\n" : ""
-      }${JSON.stringify(record)}\n`;
-      await this.publishAtomically(destination, text, record, durability);
+      const serializedRecord = JSON.stringify(record);
+      if (durability === "critical" || record.sequence === 1) {
+        if (!records) {
+          const parsed = await this.readUnlocked(record.runId, destination);
+          records = parsed.records;
+          if (parsed.repairedText !== undefined) {
+            await this.publishAtomically(destination, parsed.repairedText);
+          }
+        }
+        const text = `${records.map((item) => JSON.stringify(item)).join("\n")}${
+          records.length > 0 ? "\n" : ""
+        }${serializedRecord}\n`;
+        await this.publishAtomically(destination, text, record, durability);
+        await this.rememberCursor(
+          destination,
+          JSON.parse(serializedRecord) as RunStateRecord,
+          false,
+        );
+        return;
+      }
+      const text = `${tail.needsSeparator ? "\n" : ""}${serializedRecord}\n`;
+      await this.prepareAppend(destination, record, text);
+      let handle: Awaited<ReturnType<typeof open>> | undefined;
+      try {
+        handle = await open(destination, "a");
+        await handle.writeFile(text, "utf8");
+      } finally {
+        await handle?.close().catch(() => undefined);
+      }
+      await this.rememberCursor(destination, JSON.parse(serializedRecord) as RunStateRecord, false);
     });
   }
 

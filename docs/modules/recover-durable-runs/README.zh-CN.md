@@ -22,7 +22,7 @@ LoopController 继续管理 planning、execute、verify、repair 等业务阶段
 - `RunResult.operation`：CLI、TUI、TypeScript SDK 与 Python SDK 共享的 operation 权威快照。
 - `RunResult.snapshot`：四个入口共享的纯 JSON 终态信封，统一 operation、outcome、指标、评测、Trace、Checkpoint、Artifact、扩展收据和恢复判断。
 - `DurableOperation`：合法迁移、重复事件幂等和恢复校验。
-- `FileRunStore`：单 writer 锁、连续序号、原子发布和可控尾部修复。
+- `FileRunStore`：单 writer 锁、连续序号、ordinary 逐 Fact 追加、critical 原子同步和可控尾部修复。
 - `prepareRunResume()`：恢复前检查配置指纹、终态、稳定步骤和 Effect Receipt。
 - `CoreMindSession`：稳定公开路径、双后端合同与旧 schema 迁移。
 
