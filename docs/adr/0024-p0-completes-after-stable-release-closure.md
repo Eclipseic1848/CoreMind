@@ -5,3 +5,5 @@ P0 的完成条件是同一个 `0.7.0` 候选提交已通过 PR 合入受保护�
 ## 2026-09-01 修订：0.7.0 一次性网络例外
 
 严格候选运行 `33582995518` 的双平台候选矩阵成功，但 Provider 首个请求在 HTTP 响应前网络超时。维护者在 [Issue #113](https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678)明确接受该网络例外。因此 `0.7.0` 的 P0-20 可由精确绑定原运行、失败 Job、候选 Runtime 包摘要与维护者裁决的 `provider-network-waiver` 满足；它不等于 live-provider 成功，不写入认证台账，也不得用于任何其他版本。其余同提交候选、发布、公开回装和不可覆盖门禁不变。
+
+发布闭环随后只更新了 Runtime 包内的稳定版 README，最终公开包摘要变为 `6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18`，并由维护者在 [最终制品裁决](https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893)确认。原候选摘要继续绑定严格 Provider 运行，最终摘要绑定公开发布制品；两者不得相互替代，且不改变网络例外的范围或证据等级。

@@ -7,6 +7,12 @@ import { createArtifactRecords } from "./release-artifacts.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const P0_TARGET_VERSION = "0.7.0";
+const PROVIDER_NETWORK_WAIVER = {
+  candidateRuntimePackageSha256: "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea",
+  finalRuntimePackageSha256: "6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18",
+  decisionRef: "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+  finalDecisionRef: "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893",
+};
 
 const CHECK_TITLES = [
   "委派默认关闭与创建前拒绝",
@@ -39,6 +45,7 @@ export const P0_CHECKS = CHECK_TITLES.map((title, index) => ({
 }));
 
 export const P0_STAGES = ["engineering", "candidate", "release", "post-release"];
+const FINAL_RELEASE_STAGES = new Set(["release", "post-release"]);
 const ENGINEERING_PLAN = [
   commandStep("quality", "npm", ["run", "check"]),
   commandStep("security", "npm", ["run", "security:audit"]),
@@ -176,7 +183,7 @@ export function createWorkflowEvidence({
   commit,
   runtimeDigest,
   artifactManifestDigest,
-  candidateRuntimePackageSha256,
+  runtimePackageSha256,
   candidateRunId,
   policySnapshotSha256,
   providerEvidenceMode,
@@ -228,23 +235,25 @@ export function createWorkflowEvidence({
     );
   } else if (providerEvidenceMode === "provider-network-waiver") {
     evidence.push({
-      ...passed(
-        "P0-20",
-        "provider-network-waiver",
-        "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
-      ),
+      ...passed("P0-20", "provider-network-waiver", PROVIDER_NETWORK_WAIVER.decisionRef),
       status: "waived",
       decision: "provider-network-timeout-waived",
       strictRunId: 33582995518,
       strictCommit: "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3",
       failedJobId: 100134811632,
-      candidateRuntimePackageSha256,
-      decisionRef: "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678",
+      candidateRuntimePackageSha256: PROVIDER_NETWORK_WAIVER.candidateRuntimePackageSha256,
+      decisionRef: PROVIDER_NETWORK_WAIVER.decisionRef,
+      ...(FINAL_RELEASE_STAGES.has(stage)
+        ? {
+            finalRuntimePackageSha256: runtimePackageSha256,
+            finalDecisionRef: PROVIDER_NETWORK_WAIVER.finalDecisionRef,
+          }
+        : {}),
     });
   } else {
     throw new Error(`未知 Provider 证据模式：${providerEvidenceMode}`);
   }
-  if (["release", "post-release"].includes(stage)) {
+  if (FINAL_RELEASE_STAGES.has(stage)) {
     for (const channel of ["git-tag", "github-release", "npm", "pypi"]) {
       evidence.push(
         passed("P0-21", "public-release", `github-actions:${workflowRunId}:${channel}`, {
@@ -520,7 +529,7 @@ export async function runP0Acceptance(options, root = repositoryRoot) {
           commit,
           runtimeDigest,
           artifactManifestDigest: artifacts.manifestDigest,
-          candidateRuntimePackageSha256: artifacts.items.find(
+          runtimePackageSha256: artifacts.items.find(
             (item) => item.kind === "npm" && item.name === "coremind-runtime",
           )?.sha256,
           candidateRunId: options.verifiedWorkflowRun,
@@ -750,21 +759,32 @@ function validateEvidence(evidence, expected) {
       blockers.push(`${id} 网络豁免原始提交无效`);
     }
     if (evidence.failedJobId !== 100134811632) blockers.push(`${id} 网络豁免失败 Job 无效`);
-    const candidateRuntimePackage = expected.artifacts?.items?.find(
+    const runtimePackage = expected.artifacts?.items?.find(
       (item) => item.kind === "npm" && item.name === "coremind-runtime",
     );
     if (
       evidence.candidateRuntimePackageSha256 !==
-        "16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea" ||
-      evidence.candidateRuntimePackageSha256 !== candidateRuntimePackage?.sha256
+        PROVIDER_NETWORK_WAIVER.candidateRuntimePackageSha256 ||
+      (expected.stage === "candidate" &&
+        evidence.candidateRuntimePackageSha256 !== runtimePackage?.sha256)
     ) {
       blockers.push(`${id} 网络豁免候选 Runtime 包摘要无效`);
     }
     if (
-      evidence.decisionRef !==
-      "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678"
+      FINAL_RELEASE_STAGES.has(expected.stage) &&
+      (evidence.finalRuntimePackageSha256 !== PROVIDER_NETWORK_WAIVER.finalRuntimePackageSha256 ||
+        evidence.finalRuntimePackageSha256 !== runtimePackage?.sha256)
     ) {
+      blockers.push(`${id} 网络豁免最终 Runtime 包摘要无效`);
+    }
+    if (evidence.decisionRef !== PROVIDER_NETWORK_WAIVER.decisionRef) {
       blockers.push(`${id} 网络豁免维护者裁决引用无效`);
+    }
+    if (
+      FINAL_RELEASE_STAGES.has(expected.stage) &&
+      evidence.finalDecisionRef !== PROVIDER_NETWORK_WAIVER.finalDecisionRef
+    ) {
+      blockers.push(`${id} 网络豁免最终维护者裁决引用无效`);
     }
   }
   if (
