@@ -405,6 +405,27 @@ describe("Windows TUI 交互验收", () => {
     app.unmount();
   });
 
+  it("忙碌生成期间保留尚未发送的普通输入", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockImplementation(() => new Promise(() => {}));
+    const app = render(
+      <ChatTUI
+        title="输入保留验收"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+
+    await typeCommand(app.stdin.write, "生成长回答");
+    await typeCommand(app.stdin.write, "下一条消息");
+    await settle();
+
+    expect(session.chat).toHaveBeenCalledOnce();
+    expect(app.lastFrame()).toContain("下一条消息");
+    app.unmount();
+  });
+
   it("忙碌期间显示 Loop 的当前验证与修复进度", async () => {
     let listener: Parameters<ChatSession["onEvent"]>[0] | undefined;
     const session = createSession();
