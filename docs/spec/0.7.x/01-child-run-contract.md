@@ -1,8 +1,7 @@
 # 0.7.x 规格：Child Run 合同
 
 > 配套 ADR：[0008-subagents-as-child-runs](../../adr/0008-subagents-as-child-runs.md)
-> 状态：accepted；未发布源码候选已实现（2026-08-27）
-> 本实现仍属于 `0.7.x`，没有改写 `0.3.x`/`0.4.x` 的公开发布状态
+> 状态：accepted；已进入 `v0.7.0` Tag，公开发布待完成
 
 ## 1. 定义与非目标
 
@@ -82,4 +81,4 @@ delegation_recorded
 - Effect 不重复、无孤儿进程、无悬挂 Child Run、父级 Quiescent 判定正确。
 - CLI/TUI/TS/Python/未来 Web 从同一 ProjectionEngine 得到等价 Child Run tree。
 
-本地源码候选已经实现并通过离线 Runtime、1,000 个调度种子、Windows 父/子跨进程崩溃、Workspace 双 Writer 竞争、Effect 不重放、取消后无遗留子进程及 Python bundled worker 一致性验证。真实多 Agent 产品验收、远端 CI、合并、版本候选与发布仍是独立门禁。当前不支持 `parent_detached_by_policy`，只有 `detach: forbidden` 可执行。
+`0.7.0` 已通过离线 Runtime、1,000 个调度种子、父/子跨进程崩溃、Workspace 双 Writer 竞争、Effect 不重放、取消后无遗留子进程、Python bundled worker 一致性、双平台 CI 与候选包验证。该版本的 Provider 网络例外不构成 live-provider 认证。当前不支持 `parent_detached_by_policy`，只有 `detach: forbidden` 可执行。

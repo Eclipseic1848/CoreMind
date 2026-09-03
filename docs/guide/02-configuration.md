@@ -266,7 +266,7 @@ telemetry:
 - `content` 还需要独立的 content consent，并绑定同一 `runId`、目标 origin、字段范围、保留目的和撤销方式；只在 YAML 写 `content` 或 `allowedFields` 不构成授权。
 - 本地状态只显示 endpoint 的 origin，不显示 query、userinfo 或凭据。`handed_off` 表示交给 Exporter，不表示接收端已经保存。
 
-当前源码提供可注入 Exporter seam 与离线故障测试，不自带 OTel Adapter，也未授权真实 OTLP endpoint、凭据或网络测试。启用模式必须同时配置 `endpoint`；没有 Adapter 时运行结果不受影响，但本地交付投影会显示 `exporter_unavailable`。受信任 Adapter 必须在有界超时内执行精确 origin、DNS 解析、禁止 redirect/proxy 和严格 TLS 策略，再把解析地址与策略收据交给 Core；Core 只校验收据结构和指纹，不能证明网络策略确实执行。`createTelemetryEgressAuthorization` 只是收据构造器，不是 DNS/TLS 认证。
+CoreMind 提供可注入 Exporter seam 与离线故障测试，不自带 OTel Adapter，也未授权真实 OTLP endpoint、凭据或网络测试。启用模式必须同时配置 `endpoint`；没有 Adapter 时运行结果不受影响，但本地交付投影会显示 `exporter_unavailable`。受信任 Adapter 必须在有界超时内执行精确 origin、DNS 解析、禁止 redirect/proxy 和严格 TLS 策略，再把解析地址与策略收据交给 Core；Core 只校验收据结构和指纹，不能证明网络策略确实执行。`createTelemetryEgressAuthorization` 只是收据构造器，不是 DNS/TLS 认证。
 
 恢复运行时可以更改 Telemetry 配置而不改变运行身份；Runtime 会先 critical 持久化新的 `telemetry_configuration` Fact，`FULL` 只从该 Fact 的生效 sequence 向后投影，不回填此前事实。
 

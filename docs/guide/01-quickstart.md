@@ -69,4 +69,4 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 - 想让 agent 更专业（按 SOP 干活）？→ [技能指南](03-skills.md)
 - 跑完不知道好不好？→ [质量与调优](04-quality.md)
 - 看看经过完整材料与离线评测的实现？→ [5 个黄金示例](../../examples/golden/README.zh-CN.md)
-- 按模块学习？→ [21 个能力模块](../modules/README.zh-CN.md)
+- 按模块学习？→ [22 个能力模块](../modules/README.zh-CN.md)

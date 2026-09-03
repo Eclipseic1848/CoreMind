@@ -450,6 +450,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(candidateCommands).toContain('Provider certification" and .conclusion == "skipped');
     expect(candidateCommands).toContain('Candidate qualified" and .conclusion == "skipped');
     expect(candidateCommands).not.toContain(".inputs.qualification_mode");
+    expect(candidateCommands).not.toContain("release-preflight.mjs");
     expect(buildCommands).toContain(
       `if [ "\${COREMIND_PROVIDER_EVIDENCE_MODE}" = "provider-network-waiver" ]`,
     );

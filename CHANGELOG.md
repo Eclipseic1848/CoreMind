@@ -4,7 +4,7 @@
 
 [English](CHANGELOG.en.md)
 
-## 0.7.0 — 2026-09-02（未发布稳定候选）
+## 0.7.0 — 2026-09-02（已创建 Tag，公开发布待完成）
 
 - Provider 认证现绑定受保护 main 的同次候选 Runtime 包与实际 SHA-256，并在人工批准的 Provider、模型、凭据来源、费用和时限内，以零自动重试完成父模型、Delegation Tool、Child Run、受控子级 Tool、结构化结果与取消收敛检查；失败、超限、未知 Effect 或证据不完整时不写入成功台账。
 - 严格候选运行 `33582995518` 的 Ubuntu/Windows 候选矩阵成功；`alibaba-model-studio/qwen-plus` 的首个真实请求在获得 HTTP 响应前以 `provider_transient / Request timed out` 失败，未自动重试、未生成 Provider 成功证据。维护者在 Issue #113 接受仅限 `0.7.0`、精确绑定运行、失败 Job 与 Runtime 摘要的网络例外；该裁决不是 live-provider 认证，后续版本不得复用。
@@ -18,8 +18,8 @@
 - TUI 默认摘要突出 Child Run 数量、活动后代与未处置风险；`/children` 通过只读 `ChatSession.inspectCurrentRunProjection()` 从已持久化 canonical Facts 展开当前或终态父子树、目标、预算、Outcome、Recovery 和风险正文。`delegate` 审批卡优先显示目标、任务摘要、显式引用和收紧预算，并明确该批准只允许创建 Child Run，不预先批准子级 Effect；当前 Runtime 未提供的独立子级处置控制不会伪造显示。
 - 委派批准矩阵现由所有 Runtime 入口统一执行：`ask` 每次批准，`assisted` 只自动批准 Config 显式 `preapproved: true` 且满足全部限制的目标，`full` 也不能覆盖 deny、allowlist、预算、工具不扩权、路径、网络或凭据硬边界。CLI/readline 与 TUI 都明确显示固定目标、任务摘要、六维预算和限制；批准事实携带参数指纹及与实际创建 Fact 相同的 Child Run 输入指纹。Child Run 的 ToolPolicy 与 Effect 审批仍独立并写入各自 Run 事实。
 - 跨进程验收覆盖正式 Delegation Tool 按 Child wall time 有界取消并最终 join、Host 崩溃后先完成 orphan audit 再从同一事实前缀恢复 Protocol v2 tree、Child Worker 崩溃、父取消后无遗留子进程、Provider/Effect 不重放，以及父子 Workspace 竞争只有一个 Writer；已合入的 P0 实现和严格候选的 Node 22 双平台工程、候选包及真实 TTY 门禁通过。当前不支持 durable detach。
-- 根版本、8 个 npm 包、内部精确依赖、Python SDK、bundled Worker、模块合同、候选文档和 Release Please 元数据统一为稳定版 `0.7.0`。源码开发与 CI 固定 npm `11.5.1`，避免已退役的旧审计接口误拒绝有效 workspace 树。新增无需 Tag 的候选产物入口，从同一干净提交构建 npm tarball、Python wheel 和源码 ZIP，并记录大小与 SHA-256；Tag、GitHub Release、npm、PyPI 与公开回装仍是发布闭环的独立门禁。
-- Phase Gate 已同步双语 README 与安全策略；行为准则、贡献指南和 MIT License 的事实、流程与联系人未变化，因此保持不变。GitHub About 需在远端交付授权后同步，当前未改动。
+- 根版本、8 个 npm 包、内部精确依赖、Python SDK、bundled Worker、模块合同、文档和 Release Please 元数据统一为 `0.7.0`。源码开发与 CI 固定 npm `11.5.1`，避免已退役的旧审计接口误拒绝有效 workspace 树。`v0.7.0` Tag 已创建；GitHub Release、npm、PyPI 与公开回装尚未完成。
+- Phase Gate 已同步双语 README 与安全策略；行为准则、贡献指南和 MIT License 的事实、流程与联系人未变化，因此保持不变。
 
 ## 0.3.2 — 2026-08-26（已合并候选，尚未发布）
 

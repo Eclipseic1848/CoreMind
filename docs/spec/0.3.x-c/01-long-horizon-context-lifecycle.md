@@ -2,7 +2,7 @@
 
 > 配套 ADR：[0005-long-horizon-context-lifecycle](../../adr/0005-long-horizon-context-lifecycle.md)
 > 目标版本：`0.3.3`；版本号不是发布日期或发布授权
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 
 ## 1. 当前基线与补强边界
 

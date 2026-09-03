@@ -2,9 +2,9 @@
 
 Python SDK 通过本地 stdio JSON-RPC 调用与 TypeScript/CLI 相同的 Node Runtime，不维护第二套 Agent Loop。
 
-当前稳定包为已发布的 `coremind-ai==0.3.1`；完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
+源码与 `v0.7.0` Tag 声明 `coremind-ai==0.7.0`，但 PyPI 尚未发布该版本；当前公开稳定包仍是 [`coremind-ai==0.3.1`](https://pypi.org/project/coremind-ai/0.3.1/)。完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
 
-当前源码可用 `CoreMindClient(..., protocol_version="2.0")` 显式启用 Protocol v2；默认仍为 v1。v2 的 `run`、`chat` 和 `resume_run` 返回 `RunHandle`，调用方必须提供或由 SDK 预生成稳定 `run_id`；随后使用 `events(run_id, after_sequence=...)`、`query(run_id)` 与 `control(command)` 读取事件、投影和提交持久控制。`cursor_expired` 的 Projection snapshot 与新 cursor 可从 `ProtocolError.details` 读取。同步与异步客户端使用相同合同。
+可用 `CoreMindClient(..., protocol_version="2.0")` 显式启用 Protocol v2；默认仍为 v1。v2 的 `run`、`chat` 和 `resume_run` 返回 `RunHandle`，调用方必须提供或由 SDK 预生成稳定 `run_id`；随后使用 `events(run_id, after_sequence=...)`、`query(run_id)` 与 `control(command)` 读取事件、投影和提交持久控制。`cursor_expired` 的 Projection snapshot 与新 cursor 可从 `ProtocolError.details` 读取。同步与异步客户端使用相同合同。
 
 配置驱动的委派通过同一个 bundled Node Worker 执行：v1 `run` 的结构化结果包含 `childRuns`，v2 的 `events()` 返回带父子身份的 `fact.delegation`，`query()` 返回同源 Child Run tree 与 Recovery。Python SDK 不提供脱离活动父 Run 的 spawn、list、resume 或 detach 入口。
 
@@ -18,7 +18,7 @@ The Python SDK talks to the same Node runtime over local stdio JSON-RPC; it does
 
 Both clients expose `resume_run(run_id, input=None)`. It resumes only paused or interrupted runs that pass the shared runtime checks, including configuration fingerprints and effect reconciliation. Explicit Loop state order and terminal results match the TypeScript SDK.
 
-Current source can opt into Protocol v2 with `CoreMindClient(..., protocol_version="2.0")`; v1 remains the default. v2 returns a `RunHandle` and exposes cursor-based `events`, Projection `query`, and durable `control` calls through the same bundled Node runtime. Controlled cursor recovery details are available on `ProtocolError.details`.
+Use `CoreMindClient(..., protocol_version="2.0")` to opt into Protocol v2; v1 remains the default. v2 returns a `RunHandle` and exposes cursor-based `events`, Projection `query`, and durable `control` calls through the same bundled Node runtime. Controlled cursor recovery details are available on `ProtocolError.details`.
 
 Configured delegation runs through that same bundled Node Worker. A v1 `run` result includes structured `childRuns`; v2 `events()` exposes identity-bearing `fact.delegation` records, while `query()` returns the same-source Child Run tree and Recovery. The Python SDK does not add standalone spawn, list, resume, or detach entry points.
 
@@ -30,9 +30,9 @@ The Python package ships a read-only `ERROR_CODES` artifact generated from the s
 
 Every `run`, `chat`, and `resume_run` response includes the same pure-JSON `snapshot` used by CLI JSONL and the TypeScript SDK. The client rejects schemaVersion, runId, or outcome mismatches with `invalid_run_snapshot`.
 
-当前源码的相同响应还包含 `observability`；`inspect_run()` 可从持久 Facts 重建该结构。Worker 宣告 `localObservability` 能力后，Python SDK 会校验 schema、Telemetry 模式、脱敏 origin、交付语义、非负计数和 consent 范围，损坏数据返回 `invalid_observability`。默认 `DISABLED` 的本地观测仍然可用，且不会构造 Exporter 或读取外传凭据。
+相同响应还包含 `observability`；`inspect_run()` 可从持久 Facts 重建该结构。Worker 宣告 `localObservability` 能力后，Python SDK 会校验 schema、Telemetry 模式、脱敏 origin、交付语义、非负计数和 consent 范围，损坏数据返回 `invalid_observability`。默认 `DISABLED` 的本地观测仍然可用，且不会构造 Exporter 或读取外传凭据。
 
-Current source responses also include `observability`, and `inspect_run()` rebuilds it from persisted Facts. Once the Worker advertises `localObservability`, the Python SDK validates its schema, Telemetry mode, redacted origin, delivery semantics, non-negative counters, and consent scopes; malformed data returns `invalid_observability`. Local observations remain available in the default `DISABLED` mode without constructing an Exporter or reading egress credentials.
+Responses also include `observability`, and `inspect_run()` rebuilds it from persisted Facts. Once the Worker advertises `localObservability`, the Python SDK validates its schema, Telemetry mode, redacted origin, delivery semantics, non-negative counters, and consent scopes; malformed data returns `invalid_observability`. Local observations remain available in the default `DISABLED` mode without constructing an Exporter or reading egress credentials.
 
 编码智能体使用同一 Node Runtime 的工具、Checkpoint、Trace 和终态。Python 项目可通过共享评测入口验证目标测试、回归测试、文件和差异；SDK 不在 Python 内重写另一套进程或 Git 执行语义。
 

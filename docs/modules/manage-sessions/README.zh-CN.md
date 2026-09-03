@@ -1,6 +1,6 @@
 # Session 与 Context
 
-状态：已发布的 `0.3.1` 稳定版；本文同时记录当前未发布源码中的模型感知 Context 生命周期合同。支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：已进入 `v0.7.0` Tag，公开发布待完成。支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

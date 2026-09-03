@@ -133,10 +133,6 @@ jobs:
         if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'strict-provider'
         run: node scripts/verify-provider-certification-artifact.mjs .scratch/provider-certification --commit "$(git rev-parse HEAD)"
 
-      - name: 校验 0.7.0 Provider 网络超时豁免
-        if: env.COREMIND_PROVIDER_EVIDENCE_MODE == 'provider-network-waiver'
-        run: node scripts/release-preflight.mjs --allow-dirty --allow-provider-network-waiver
-
       - name: 校验 P20 证据绑定与候选完整性
         run: node scripts/rc-acceptance.mjs --verify-manual-only
 
@@ -156,6 +152,7 @@ jobs:
             .scratch/p0-workflow-evidence-candidate.json
             .scratch/rc-evidence/*.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90
 
   build:
@@ -484,6 +481,7 @@ jobs:
             .scratch/p0-acceptance-release-*.json
             .scratch/p0-workflow-evidence-release.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90
 
       - name: 派发双语文档部署
@@ -568,4 +566,5 @@ jobs:
             .scratch/p0-acceptance-post-release-*.json
             .scratch/p0-workflow-evidence-post-release.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90

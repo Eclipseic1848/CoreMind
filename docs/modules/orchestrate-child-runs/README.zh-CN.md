@@ -1,6 +1,6 @@
 # 编排 Child Run
 
-状态：`0.7.x` 未发布源码候选；支持平台：Windows、Linux。它不是当前公开稳定版 `0.3.1` 的能力。
+状态：已进入 `v0.7.0` Tag，公开发布待完成；支持平台：Windows、Linux。
 
 Child Run 是由父 Run 委派的完整 Run，不是普通 Tool Call。它拥有独立 RunId、事实、预算、权限、结果和静止状态，并通过 ParentRunId、ChildRunId、DelegationId 与父级关联。
 
@@ -35,4 +35,4 @@ Runtime 会用实际 Provider/model、canonical cwd、权限、工具集合、�
 - [运维 SOP](SOP.zh-CN.md)
 - [示例](../../../examples/modules/orchestrate-child-runs/README.zh-CN.md)
 
-测试证明离线合同和本地 Runtime 行为，不替代真实多 Agent 产品验收、跨进程崩溃演练、远端 CI、真实 Provider 认证或发布授权。
+发布证据覆盖离线合同、本地 Runtime、跨进程故障、双平台 CI 与候选包；`0.7.0` 的 Provider 网络例外不构成 live-provider 认证。

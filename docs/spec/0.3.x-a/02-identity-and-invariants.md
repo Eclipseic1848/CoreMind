@@ -1,7 +1,7 @@
 # 0.3.x-A 规格：类型化身份与关联不变量
 
 > 配套 ADR：[0002-typed-identity-and-correlation](../../adr/0002-typed-identity-and-correlation.md)
-> 状态：accepted（2026-08-16 用户确认）
+> 状态：accepted（2026-08-16）
 
 ## 1. 身份层级
 
@@ -63,6 +63,6 @@ Run (RunId)
 - `turn_end` 事件新增 `turnId`；新事件 `input_receipt`（见规格 03）携带输入 ID 与状态
 - 全部为**可选追加字段**，schemaVersion 保持 1，0.3.0 数据零迁移（符合"0.3.x 不破坏公共合同"）
 
-## 5. 已决决策（2026-08-16 用户确认）
+## 5. 已决决策（2026-08-16）
 
 - **D-5（公共 API 面）**：品牌 ID 仅 TS 内部使用，SDK 公共导出面保持 string，公共合同零变化；错误码码表同样不承诺为公共 API（内部单一事实源，公共面仍为字符串码）。

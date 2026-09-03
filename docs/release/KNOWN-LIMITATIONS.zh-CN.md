@@ -1,6 +1,6 @@
 # 0.7.0 稳定候选已知限制
 
-> 本文件描述未发布 `0.7.0` 候选的能力边界；当前公开稳定版仍是 `0.3.1`，安装可用性以 Release 与 Registry 为准。
+> 本文件描述已创建 Tag、尚未公开发布的 `0.7.0` 候选能力边界；当前公开稳定版仍是 `0.3.1`，安装可用性以 Release 与 Registry 为准。
 
 - 当前 40 个 Provider 均可配置，但 `0.7.0` 没有真实父子 Agent 成功认证。严格运行 `33582995518` 的首个 Provider 请求在 HTTP 响应前超时；维护者将其作为仅限本版本的网络例外通过。该裁决不是 live-provider 成功，`0.3.2` 及更早证据也只供追溯。
 - 二期真实外部同题模型评测尚未执行，离线 Coding Eval 不能替代真实模型质量结论。
@@ -13,4 +13,4 @@
 - 默认压缩是本地确定性策略，不自动创建项目 Memory；实验策略不会自动切换为默认。
 - Child Run 不支持 durable detach、独立 spawn/list/resume 命令、Goals 或 Jobs；本期不包含 Web。
 - 当前不提供官方托管 API、多租户 SaaS、官方 Docker 镜像、macOS 正式支持或扩展市场。
-- GitHub Release、npm 与 PyPI 是安装可用性的最终依据；`0.7.0` 尚未出现在任何公开渠道。
+- `v0.7.0` Tag 已创建，但 GitHub Release、npm 与 PyPI 尚未发布；这些公开渠道是安装可用性的最终依据。

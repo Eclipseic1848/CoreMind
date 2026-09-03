@@ -1,6 +1,6 @@
 # 0.7.0 Stable Candidate Known Limitations
 
-> This file records the capability boundary of the unpublished `0.7.0` candidate. `0.3.1` remains the public stable release, and Releases and registries remain authoritative for installation.
+> This file records the capability boundary of the tagged but unpublished `0.7.0` candidate. `0.3.1` remains the public stable release, and Releases and registries remain authoritative for installation.
 
 - All 40 provider entries are configurable, but `0.7.0` has no successful live parent-child Agent certification. The first Provider request in strict run `33582995518` timed out before an HTTP response; the maintainer accepted this as a version-specific network exception. It is not a live-provider success, and evidence for `0.3.2` or earlier remains historical only.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
@@ -13,4 +13,4 @@
 - Local deterministic compaction remains the default and project Memory is not created automatically. Experimental strategies never switch themselves on.
 - Child Run does not support durable detach, standalone spawn/list/resume commands, Goals, or Jobs; Web is out of scope for this release.
 - The candidate does not provide a hosted API, multi-tenant SaaS, official Docker image, formal macOS support, or extension marketplace.
-- GitHub Releases, npm, and PyPI are authoritative for installable availability. `0.7.0` is not yet present in any public channel.
+- The `v0.7.0` tag exists, but the GitHub Release, npm packages, and PyPI package are not yet published. Those public channels remain authoritative for installable availability.

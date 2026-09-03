@@ -7,11 +7,11 @@
 
 ## Problem Statement
 
-CoreMind 当前的公开稳定版本、仓库版本声明和源码实际能力已经不再一致。仓库已经具有 Child Run 内核合同、父子身份、预算单调性、取消传播、孤儿审计、Workspace Lease 与 Protocol v2 Projection，但配置驱动用户没有正式的 Delegation Tool，CLI、TUI、TypeScript SDK 与 Python SDK 也没有形成完整且一致的 Child Run 产品流程。因此，现有能力只能视为未发布的工程内核，不能作为稳定产品承诺。
+本规格建立时，CoreMind 的公开稳定版本、仓库版本声明和源码实际能力并不一致。仓库已有 Child Run 内核合同、父子身份、预算单调性、取消传播、孤儿审计、Workspace Lease 与 Protocol v2 Projection，但配置驱动用户尚无正式 Delegation Tool，CLI、TUI、TypeScript SDK 与 Python SDK 也未形成完整且一致的 Child Run 产品流程。因此，当时的能力只能视为工程内核，不能作为稳定产品承诺。
 
 与此同时，日常 CI 把快速工程检查、重型稳定性测试、完整 Coverage、打包、真实 TTY、Provider 认证和发布资格放在同一个双平台矩阵中。普通 PR 会承担发布候选级成本，并可能因缺少人工凭据或 Provider 证据而失败；`main` 又没有对应的强制保护规则。错误码由多个入口分别解释，实际执行入口与 `check` 命令没有共享同一套配置安全边界，导致含明文凭据的配置可能绕过预检进入 Provider 请求。
 
-用户需要的不是又一批互不相连的内核功能，而是一条可信的稳定发布路径：把 Child Run 变成默认关闭、显式授权、可观察、可恢复的正式产品能力；把错误、安全、CI、分支治理、候选验收和公开包安装证据收敛到同一个 `0.7.0` Release Closure。
+产品目标不是又一批互不相连的内核功能，而是一条可信的稳定发布路径：把 Child Run 变成默认关闭、显式授权、可观察、可恢复的正式产品能力；把错误、安全、CI、分支治理、候选验收和公开包安装证据收敛到同一个 `0.7.0` Release Closure。
 
 ## Solution
 
@@ -180,7 +180,7 @@ P0 只新增一个顶层发布验收入口，并复用三类现有高层测试�
 
 ### 已验证事实
 
-- 澄清阶段开始时，公开稳定版为 `0.3.1`，仓库根版本为 `0.3.2`，源码已经包含后续 0.4.x 与 0.7.x 合同。
+- 规格基线建立时，公开稳定版为 `0.3.1`，仓库根版本为 `0.3.2`，源码已经包含后续 0.4.x 与 0.7.x 合同。
 - Child Run 内核已有身份、预算、取消、孤儿审计、Workspace Lease、Protocol v2 Projection 和跨进程故障测试，但正式非测试产品路径尚未通过 Config 门控的 Delegation Tool 发起。
 - Config 现有安全检查会拒绝明文 `apiKey`，但 run/chat/eval 等实际执行入口没有全部复用该检查，任意 Header 也缺少敏感名称处理。
 - 现有 CI 在每个 PR/main 的双平台矩阵中同时运行工程、稳定性、Coverage、TTY、打包与发布候选检查。
@@ -192,7 +192,7 @@ P0 只新增一个顶层发布验收入口，并复用三类现有高层测试�
 - 一个顶层 P0 验收入口可以统一现有证据并减少重复框架，但具体任务拆分仍应在规格确认后依据模块 owner 和依赖顺序完成。
 - 当前四入口等价 fixture 使用测试用明文 key；实施 Execution Security Gate 时需要改为无秘密的环境变量或 SecretRef fixture，否则测试自身会违反新合同。
 
-### 尚未验证的建议与执行门
+### 后续执行门
 
 - 快速工程门的 20～30 分钟目标需要在拆分后的真实 GitHub Actions 运行中测量，不能由本地估计证明。
 - 真实 Provider 的具体供应商、模型、凭据、费用上限和执行时间仍由维护者在认证前确认。

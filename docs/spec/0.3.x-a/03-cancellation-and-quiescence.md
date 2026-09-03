@@ -1,7 +1,7 @@
 # 0.3.x-A 规格：取消收敛、输入收据与静止
 
 > 配套 ADR：[0003-cancellation-quiescence-and-input-receipts](../../adr/0003-cancellation-quiescence-and-input-receipts.md)
-> 状态：accepted（2026-08-16 用户确认）
+> 状态：accepted（2026-08-16）
 
 ## 1. 取消词汇契约（单一事实源）
 
@@ -102,7 +102,7 @@ quiescent ⇔ 所有 agent 已 idle
 | R9 | 恢复输入校验 | 与输入收据联动（§4） |
 | R10 | 重复 operation 事件 | 现状 eventId 幂等，保留 |
 
-## 7. 已决决策（2026-08-16 用户确认）
+## 7. 已决决策（2026-08-16）
 
 - **D-1（协议扩展）**：run/chat 请求增加可选 `runId` 字段（客户端预生成），解决首事件前无法取消；向后兼容，旧客户端行为不变。
 - **D-4（abort 后会话树写入）**：方案 A——只写已确认部分，竞态赢家文本丢弃（见 §3）。

@@ -4,7 +4,7 @@ Protocol v1 适合当前同步 run/chat 与事件通知，但无法在不继续�
 
 ## Status
 
-accepted（2026-08-22 用户确认）
+accepted（2026-08-22）
 
 ## Considered Options
 
