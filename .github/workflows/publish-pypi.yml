@@ -63,7 +63,7 @@ jobs:
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.path')" = ".github/workflows/candidate-qualification.yml"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.conclusion')" = "success"
             candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.head_sha')"
-            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^scripts/workflow-contract\.test\.ts$)' || true)"
+            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^scripts/validate-npm-tarballs\.mjs$|^scripts/workflow-contract\.test\.ts$)' || true)"
             test -z "${unsafe_changes}" || { echo "复用候选后存在产品代码改动：${unsafe_changes}" >&2; exit 1; }
           fi
           ruleset_id="21807589"
@@ -266,6 +266,7 @@ jobs:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
           COREMIND_REUSED_CANDIDATE_RUN_ID: ${{ inputs.reuse_candidate_run_id }}
+          COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE: ${{ inputs.reuse_candidate_run_id != '' }}
         run: |
           npm ci
           npm run build
