@@ -4,37 +4,37 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前稳定版：`0.3.1`（已发布）
+## 当前发布状态：`v0.7.0` Tag 已创建
 
-`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `0.3.1` 稳定版完整继承 `0.3.0`，并增加以下稳定性能力：
+`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前公开稳定版仍是 `0.3.1`。已创建 Tag 的 `0.7.0` 候选完整继承 `0.3.1`，并增加以下能力：
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
 - Config v2、40 个可配置模型供应商及自定义兼容端点。
 - `ask`、`assisted`、`full` 三档权限，以及路径策略、审批、审计、checkpoint、diff 和恢复。
 - 明确的运行结果、预算、Trace、Session、Context 保护、测试、评测和发布门禁。
-- 8 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 21 个能力模块。
+- 8 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 22 个能力模块。
 - 每个能力模块配套测试、SOP、Skill、中英文指南和示例。
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`0.3.1` 已公开发布。8 个 npm 包、PyPI wheel、独立源码包、来源证明和双语文档站已从同一提交发布；Provider 七项真实复验、双平台自动门禁、精确 main、P01～P20、真实伪终端和 Release Readiness 均已完成。
+`v0.7.0` Tag 已创建；GitHub Release、8 个 npm 包、PyPI 与公开回装尚未完成。`0.3.1` 发布证据继续作为当前公开稳定版记录保留。
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。除下述仅限 `0.7.0` 的一次性裁决外，每个候选都要在同一提交完成自动质量门禁、双平台 P01～P20、当前真实 Provider 复验和最终文档审计后才能同步发布。
 
-## `0.7.0`：稳定候选（尚未发布）
+## `0.7.0`：已创建 Tag 的稳定候选
 
-当前源码候选把根包、8 个 npm 包、Python SDK、bundled Worker、模块合同和发布元数据统一为稳定版 `0.7.0`。它汇总 `0.3.x-B/C` 与 Protocol v2，并增加唯一 Error Contract、Execution Security Gate，以及由 Config v2 门控、贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。
+该版本把根包、8 个 npm 包、Python SDK、bundled Worker、模块合同和发布元数据统一为 `0.7.0`。它汇总 `0.3.x-B/C` 与 Protocol v2，并增加唯一 Error Contract、Execution Security Gate，以及由 Config v2 门控、贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。
 
-P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundled Worker、TTY 与 Child Run 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者接受了精确绑定且仅限 `0.7.0` 的网络例外；它不是 live-provider 认证。Tag、Registry、GitHub Release 与公开回装仍是后续独立门禁，因此 `0.3.1` 仍是唯一公开稳定版，`0.3.2` 证据只作历史追溯。
+P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundled Worker、TTY 与 Child Run 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者接受了精确绑定且仅限 `0.7.0` 的网络例外；它不是 live-provider 认证。Tag 已创建，但 GitHub Release、Registry 发布与公开回装仍是未完成的发布闭环；`0.3.2` 证据只作历史追溯。
 
 ## `0.3.x`：历史稳定性加固线
 
 `0.3.x` 按 A → B → C 三批加固运行时语义，以兼容演进为主，不建设第二 Runtime，也不前移 Web、Jobs 或 Subagent。Config v2、Protocol v1、三档权限和现有成功路径保持兼容；为防止静默丢失、重复副作用或越权而新增的失败关闭状态必须显式、可迁移、可回滚，并通过维护者确认：
 
 - **0.3.x-A：事实、身份与取消收敛**——声明唯一事实与派生投影（Session / Run / Workspace 三个事实域）、类型化身份与关联不变量、取消收敛与输入收据。设计与 Issues [#35～#42](https://github.com/Eclipseic1848/CoreMind/issues/35) 已完成，并随 `0.3.1` 公开发布。
-- **0.3.x-B：工具与恢复**——统一 Tool Capability、显式工具阶段图与单调安全、分级 Durability Barrier、Workspace 单写者租约、持久化故障契约与正交错误结果；源码工作已完成并进入 `0.7.0` 候选。
-- **0.3.x-C：证据系统**——事件回放与真实入口测试、跨模型长程 Context 生命周期、关键模块质量门、Provider 认证矩阵加固，以及“本地显性、外传明确”的可观测性基线；源码工作已完成并进入 `0.7.0` 候选，当前版本证据必须重新绑定。
+- **0.3.x-B：工具与恢复**——统一 Tool Capability、显式工具阶段图与单调安全、分级 Durability Barrier、Workspace 单写者租约、持久化故障契约与正交错误结果；已进入 `v0.7.0` Tag，待公开发布。
+- **0.3.x-C：证据系统**——事件回放与真实入口测试、跨模型长程 Context 生命周期、关键模块质量门、Provider 认证矩阵加固，以及“本地显性、外传明确”的可观测性基线；已进入 `v0.7.0` Tag，待公开发布。
 
 版本号与日期不承诺；每批只有验收通过且维护者确认后才进入下一批。未经过真实测试的能力只标记为可配置，不标记为官方认证。
 
@@ -42,9 +42,9 @@ P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundle
 
 在 `0.3.x` 加固线之后，按以下方向推进（具体范围与验收在每期开始前由维护者确认）：
 
-- **0.4.x 能力**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已进入 `0.7.0` 候选；Protocol v1 迁移入口保留。
+- **0.4.x 能力**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已进入 `v0.7.0` Tag；Protocol v1 迁移入口保留。
 - **0.5.x～0.6.x**：Web 开发环境——运行与控制面先行，再建设在线编辑、测试与评测闭环；始终复用同一 Protocol 与 Runtime。
-- **0.7.0**：本期只交付 Child Run 产品化与稳定发布闭环；Goals、Jobs、durable detach 和 Web 不在本期范围。Child Run、双平台工程、候选包与真实 TTY 已完成；Provider 网络例外已审计，剩余门禁是 Tag、Registry、GitHub Release 与公开回装。
+- **0.7.0**：目标是交付 Child Run 产品化与稳定发布；Goals、Jobs、durable detach 和 Web 不在该版本范围。Tag 已创建，GitHub Release、Registry 与公开回装待完成；Provider 网络例外已审计，但不构成 live-provider 认证。
 - **0.8.x**：MCP/LSP 接入、受控第三方插件、远程执行环境与平台生态。
 - **0.9.x～1.0.0**：功能冻结、兼容与安全收口，经过正式候选后发布稳定合同。
 

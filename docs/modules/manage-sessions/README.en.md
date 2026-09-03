@@ -1,6 +1,6 @@
 # Sessions and Context
 
-Status: published `0.3.1` stable release. This document also records the model-aware context-lifecycle contract in the current unreleased source. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: included in the `v0.7.0` tag; public publication is pending. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

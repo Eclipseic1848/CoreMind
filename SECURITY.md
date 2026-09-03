@@ -8,7 +8,8 @@
 
 | 版本 | 安全更新 |
 | --- | --- |
-| 最新预发布分支 | 支持，按风险和可复现性处理 |
+| `v0.7.0` 已标记候选 | 发布前按风险和可复现性处理 |
+| `0.3.1` 当前公开稳定版 | 支持，按风险和可复现性处理 |
 | 更早的 Alpha/Beta/RC 版本 | 不保证；通常要求升级后复测 |
 | 未发布分支或个人 Fork | 不在项目支持范围内 |
 
@@ -36,13 +37,13 @@
 
 ### 执行环境能力证据
 
-当前源码通过 ExecutionEnvironment probe 观测实际能力；平台名、Adapter 名称、配置字段或历史测试不能替代当前进程证据。Linux sandbox 首次使用时负向验证工作区外写入、敏感环境变量隐藏和网络阻断，并同时验证完整进程树终止；任一 probe 缺失、虚报或不满足调用要求都失败关闭。Windows Trusted Host 如实报告无 sandbox、路径与网络不受限，不能满足隔离或受控 egress 的任务必须拒绝或转移到另行验证的环境。
+CoreMind 通过 ExecutionEnvironment probe 观测实际能力；平台名、Adapter 名称、配置字段或历史测试不能替代当前进程证据。Linux sandbox 首次使用时负向验证工作区外写入、敏感环境变量隐藏和网络阻断，并同时验证完整进程树终止；任一 probe 缺失、虚报或不满足调用要求都失败关闭。Windows Trusted Host 如实报告无 sandbox、路径与网络不受限，不能满足隔离或受控 egress 的任务必须拒绝或转移到另行验证的环境。
 
 AgentDriver 只隔离模型 reactive loop，不能直接写权威 Fact、决定恢复或绕过唯一 ToolExecutionEngine。进程、网络和临时资源都参与 Quiescent；取消后的清理失败不能伪装成成功静止。
 
 ### Protocol v2 控制边界
 
-当前源码的 Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已调用、工具已授权或运行成功。`accepted` 控制回执也不等于 `applied`；Cancel ACK 不等于 Abort、终态或 Quiescent。控制先进入持久 ControlInbox，再由 Runtime 产生权威 Fact。客户端断线默认不取消运行，重连按 `(runId, sequence, eventId)` 去重；Projection query 可重建但不能写回成为事实或授权。v1 在整个 `0.4.x` 保留迁移入口。
+Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已调用、工具已授权或运行成功。`accepted` 控制回执也不等于 `applied`；Cancel ACK 不等于 Abort、终态或 Quiescent。控制先进入持久 ControlInbox，再由 Runtime 产生权威 Fact。客户端断线默认不取消运行，重连按 `(runId, sequence, eventId)` 去重；Projection query 可重建但不能写回成为事实或授权。v1 在整个 `0.4.x` 保留迁移入口。
 
 ### 密钥与数据
 
@@ -72,4 +73,4 @@ Loop 内部状态机只负责状态迁移；CoreMind 的配置指纹、权限、
 4. 记录版本、配置摘要和审计证据。
 5. 定期执行依赖审计；运行时依赖问题与开发工具依赖问题分别评估。
 
-公开支持不替代业务侧安全评审。当前版本是预发布软件，请根据业务风险增加进程、主机或基础设施层的隔离。
+公开支持不替代业务侧安全评审。请根据业务风险增加进程、主机或基础设施层的隔离。

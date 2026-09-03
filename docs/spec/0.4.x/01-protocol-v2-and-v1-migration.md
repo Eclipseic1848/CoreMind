@@ -2,7 +2,7 @@
 
 > 配套 ADR：[0006-protocol-v2-with-v1-migration](../../adr/0006-protocol-v2-with-v1-migration.md)
 > 目标：`0.4.0` 引入 v2；整个 `0.4.x` 保留 v1 兼容入口
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 > 实现状态：#71 已合入 `main` 并通过 Ubuntu/Windows CI；尚不代表 `0.4.0` 发布或真实远程 Host 认证
 
 ## 1. 目标

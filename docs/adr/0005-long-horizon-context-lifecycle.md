@@ -4,7 +4,7 @@ CoreMind 已在每次 Provider 请求前执行确定性压缩，并把压缩产�
 
 ## Status
 
-accepted（2026-08-22 用户确认）
+accepted（2026-08-22）
 
 ## Considered Options
 

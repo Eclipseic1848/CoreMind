@@ -1,7 +1,7 @@
 # 0.3.x-C 规格：上下文、观测与重放验收矩阵
 
 > 配套规格：[长程上下文](01-long-horizon-context-lifecycle.md)、[可观测性与外传](02-observability-and-egress.md)
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 > 本文件定义未来实现门，不声称门已经通过
 
 ## 1. Context Capability 与预算

@@ -4,7 +4,7 @@
 
 ## Status
 
-accepted（2026-08-22 用户确认）
+accepted（2026-08-22）
 
 ## Considered Options
 

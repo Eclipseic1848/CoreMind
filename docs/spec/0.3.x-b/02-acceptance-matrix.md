@@ -1,10 +1,10 @@
 # 0.3.x-B 规格：故障注入与验收矩阵
 
 > 配套规格：[可信工具执行](01-trusted-tool-execution.md)
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 > 本文件定义未来实现门，不声称门已经通过
 
-修订记录（2026-08-23，Issue #67）：本次仅更正与主规格“不引入 MCP、Subagent”及后续版本路线冲突的验收表述，并区分当前 Runtime/OS 进程证据与未来 Worker/Child Run 证据；不改变 Config、Protocol、权限、安全边界或 0.3.x-B 已承诺的实现范围。
+修订记录（2026-08-23，Issue #67）：更正与主规格“不引入 MCP、Subagent”及后续版本路线冲突的验收表述，并区分 Runtime/OS 进程证据与后续 Worker/Child Run 证据；不改变 Config、Protocol、权限、安全边界或 0.3.x-B 已承诺的实现范围。
 
 ## 1. 必测写入与执行切点
 

@@ -4,7 +4,7 @@
 
 ## Status
 
-accepted；未发布源码候选已实现（2026-08-27），尚未完成远端交付与产品验收
+accepted；已进入 `v0.7.0` Tag，公开发布待完成
 
 ## Considered Options
 

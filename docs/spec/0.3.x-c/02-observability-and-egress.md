@@ -1,7 +1,7 @@
 # 0.3.x-C 规格：本地可观测性与遥测外传
 
 > 配套 ADR：[0007-local-observability-and-explicit-egress](../../adr/0007-local-observability-and-explicit-egress.md)
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 
 ## 1. 两个独立能力
 

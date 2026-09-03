@@ -1,6 +1,6 @@
 # Orchestrate Child Runs
 
-Status: unreleased `0.7.x` source candidate for Windows and Linux. This is not a capability of the current public stable `0.3.1` release.
+Status: included in the `v0.7.0` tag; public publication is pending. Supported platforms: Windows and Linux.
 
 A Child Run is a complete Run delegated by a parent Run, not an ordinary tool call. It owns an independent RunId, facts, budget, permissions, result, and quiescence state, linked through ParentRunId, ChildRunId, and DelegationId.
 
@@ -35,4 +35,4 @@ Durable detach is not supported. `detach: forbidden` is the only executable poli
 - [SOP](SOP.en.md)
 - [Example](../../../examples/modules/orchestrate-child-runs/README.en.md)
 
-Offline tests and local Runtime evidence do not replace real multi-agent product acceptance, cross-process crash drills, remote CI, real-provider certification, or release authorization.
+Release evidence covers offline contracts, the local Runtime, cross-process faults, both-platform CI, and candidate packages. The `0.7.0` Provider network exception is not live-provider certification.

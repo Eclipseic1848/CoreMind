@@ -1,7 +1,7 @@
 # 0.3.x-B 规格：可信工具执行
 
 > 配套 ADR：[0004-trusted-tool-effects-and-durability](../../adr/0004-trusted-tool-effects-and-durability.md)
-> 状态：accepted（2026-08-22 用户确认）
+> 状态：accepted（2026-08-22）
 > 本规格只冻结内部语义，不授权实现、依赖升级、Issue、真实外部调用或发布
 
 ## 1. 目标与非目标
