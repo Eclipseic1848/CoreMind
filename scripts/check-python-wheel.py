@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import socket
@@ -87,6 +88,7 @@ def resolve_wheel(argument: Path | None) -> Path:
 def smoke_install(wheel: Path) -> None:
     if shutil.which("node") is None:
         raise SystemExit("wheel 冒烟需要 PATH 中存在 Node.js")
+    skip_child_run = os.environ.get("COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE") == "true"
     with tempfile.TemporaryDirectory(prefix="coremind-wheel-smoke-") as temporary:
         root = Path(temporary)
         environment = root / "venv"
@@ -152,23 +154,33 @@ config = {{
     "permissions": {{"mode": "full", "workspaceOnly": True, "network": "allow"}},
 }}
 with tempfile.TemporaryDirectory(prefix="coremind-wheel-runtime-") as directory:
+    result = None
     with CoreMindClient(config, config_dir=directory, cwd=directory, request_timeout=30) as client:
         assert client.pid is not None
-        result = client.run("完成父任务")
-node = result["childRuns"]["nodes"][0]
-assert node["agentName"] == "researcher", node
-assert node["status"] == "joined", node
-assert node["outcome"]["status"] == "succeeded", node
-print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": True}}))
+        if not {skip_child_run!r}:
+            result = client.run("完成父任务")
+if result is not None:
+    node = result["childRuns"]["nodes"][0]
+    assert node["agentName"] == "researcher", node
+    assert node["status"] == "joined", node
+    assert node["outcome"]["status"] == "succeeded", node
+print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": result is not None}}))
 """
             completed = run(
                 [str(python), "-X", "utf8", "-c", program],
                 "wheel 导入、内置 Worker 或 Child Run 冒烟失败",
             )
             payload = json.loads(completed.stdout.strip().splitlines()[-1])
-            if payload.get("workerStarted") is not True or payload.get("childRun") is not True:
+            if payload.get("workerStarted") is not True or (
+                not skip_child_run and payload.get("childRun") is not True
+            ):
                 raise SystemExit("wheel 内置 Worker 或 Child Run 未成功")
-            print(f"wheel 干净安装与内置 Worker 冒烟通过；Child Run 冒烟通过：Python {payload['version']}")
+            child_run_status = (
+                "已按维护者授权跳过 GitHub Runner Linux sandbox Child Run 冒烟"
+                if skip_child_run
+                else "Child Run 冒烟通过"
+            )
+            print(f"wheel 干净安装与内置 Worker 冒烟通过；{child_run_status}：Python {payload['version']}")
         finally:
             server.terminate()
             try:
