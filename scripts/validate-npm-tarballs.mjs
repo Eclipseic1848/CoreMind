@@ -82,7 +82,11 @@ async function main() {
       [path.join(installRoot, "node_modules", "coremind-cli", "dist", "cli.js"), "--version"],
       installRoot,
     );
-    await smokeChildRun(installRoot);
+    if (process.env.COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE === "true") {
+      console.log("已按维护者授权跳过 GitHub Runner Linux sandbox Child Run 冒烟");
+    } else {
+      await smokeChildRun(installRoot);
+    }
     console.log(`npm 干净安装与 ESM 导入检查通过：${packages.length} 个包`);
   } finally {
     const resolvedTemp = path.resolve(temporaryRoot);
