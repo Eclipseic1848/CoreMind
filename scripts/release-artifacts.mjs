@@ -53,7 +53,7 @@ export function validateWaivedRuntimePackage(artifacts, approvedSha256) {
   );
   if (!runtime) return ["网络豁免发布物缺少 coremind-runtime npm 包"];
   if (runtime.sha256 !== approvedSha256) {
-    return ["coremind-runtime npm 包摘要与维护者批准的候选摘要不一致"];
+    return ["coremind-runtime npm 包摘要与维护者批准的最终摘要不一致"];
   }
   return [];
 }
@@ -226,7 +226,7 @@ async function buildArtifacts({
     );
     const waiverBlockers = validateWaivedRuntimePackage(
       metadata,
-      waiver.candidateRuntimePackageSha256,
+      waiver.finalRuntimePackageSha256,
     );
     if (waiverBlockers.length > 0) {
       throw new Error(`Provider 网络豁免发布物检查失败：\n- ${waiverBlockers.join("\n- ")}`);
