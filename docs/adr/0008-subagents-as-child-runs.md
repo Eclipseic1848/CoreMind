@@ -4,7 +4,7 @@
 
 ## Status
 
-accepted；已进入 `v0.7.0` Tag，公开发布待完成
+accepted；已随 `0.7.0` 稳定版交付
 
 ## Considered Options
 

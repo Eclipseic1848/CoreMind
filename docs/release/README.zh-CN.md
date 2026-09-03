@@ -2,7 +2,7 @@
 
 本 SOP 把同一提交的 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。任一渠道成功都不能替代整体验收。
 
-> `v0.7.0` Tag 已创建，GitHub Release、npm、PyPI 与公开回装尚待完成。以下步骤仍是 `0.7.0` 与后续版本的发布及恢复标准流程。
+> `0.7.0` 已按本 SOP 同步发布 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/0.7.0/)。以下步骤继续作为后续版本的发布及恢复标准流程。
 
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 

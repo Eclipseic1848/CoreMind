@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release status: `v0.7.0` tagged
+## Current stable release: `0.7.0`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. `0.3.1` remains the public stable release. The tagged `0.7.0` candidate retains `0.3.1` and adds these capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.7.0` stable release retains `0.3.1` and adds these capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,23 +18,23 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v0.7.0` tag exists. The GitHub Release, eight npm packages, PyPI package, and public reinstall are not yet complete. The `0.3.1` evidence remains the current public stable-release record.
+The `v0.7.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/0.7.0/) are published at the same version. The `0.3.1` release evidence remains as historical record.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Except for the one-time `0.7.0` decision below, every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
 
-## `0.7.0`: tagged stable candidate
+## `0.7.0`: Child Run stable release
 
 This release aligns the root package, eight npm packages, Python SDK, bundled Worker, module contracts, and release metadata on `0.7.0`. It combines the 0.3.x-B/C work with Protocol v2, one Error Contract, the Execution Security Gate, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python.
 
-The P0 implementation, Node 22 engineering checks, candidate npm tarballs, Python wheel, bundled Worker, TTY, and Child Run gates pass on both platforms. The strict Provider request timed out before an HTTP response; the maintainer accepted an exactly bound, `0.7.0`-only network exception, which is not a live-provider certification. The tag exists, but the GitHub Release, registry publication, and public reinstall remain incomplete Release Closure gates. `0.3.2` evidence remains historical only.
+The P0 implementation, Node 22 engineering checks, candidate npm tarballs, Python wheel, bundled Worker, TTY, and Child Run gates pass on both platforms. The strict Provider request timed out before an HTTP response; the maintainer accepted an exactly bound, `0.7.0`-only network exception, which is not a live-provider certification. Tag, GitHub Release, and registry publication are complete. `0.3.2` evidence remains historical only.
 
 ## `0.3.x`: historical stabilization line
 
 The `0.3.x` line hardens runtime semantics in three approved batches (A → B → C) through compatibility-first evolution. It does not create a second Runtime or pull Web, Jobs, or subagents forward. Config v2, Protocol v1, the three permission modes, and existing successful paths remain compatible; new fail-closed states that prevent silent loss, duplicate effects, or privilege expansion must be explicit, migratable, reversible, and maintainer-confirmed:
 
 - **0.3.x-A: facts, identity, and cancellation convergence** — a single source of truth with derived projections (three fact domains: Session / Run / Workspace), typed identity and correlation invariants, and cancellation convergence with input receipts. The design and implementation issues [#35–#42](https://github.com/Eclipseic1848/CoreMind/issues/35) are complete and publicly released in `0.3.1`.
-- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results. It is included in the `v0.7.0` tag and awaits public publication.
-- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, critical-module gates, provider certification hardening, and locally visible observability with explicit egress. It is included in the `v0.7.0` tag and awaits public publication.
+- **0.3.x-B: tools and recovery** — one resolved Tool Capability, an explicit stage graph with monotonic security, tiered Durability Barriers, a single-writer Workspace lease, persistence failure contracts, and orthogonal error results. It ships in `0.7.0`.
+- **0.3.x-C: evidence system** — event replay and real-entry testing, a cross-model long-horizon Context lifecycle, critical-module gates, provider certification hardening, and locally visible observability with explicit egress. It ships in `0.7.0`.
 
 Version numbers and dates are not promised; each batch proceeds only after its acceptance gates pass and the maintainer confirms. A provider that has not passed live verification remains configurable but is not marked as officially certified.
 
@@ -42,9 +42,9 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 After the `0.3.x` hardening line, work proceeds in the following directions (scope and acceptance are confirmed by the maintainer before each phase starts):
 
-- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams are included in the `v0.7.0` tag; the Protocol v1 migration entry remains.
+- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams ship in `0.7.0`; the Protocol v1 migration entry remains.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.0**: targets Child Run productization and a stable release. Goals, Jobs, durable detach, and Web remain out of scope. The tag exists, while the GitHub Release, registries, and public reinstall remain pending. The Provider network exception is audited but is not live-provider certification.
+- **0.7.0**: delivers Child Run productization and a stable release. Goals, Jobs, durable detach, and Web remain out of scope. The Provider network exception is audited but is not live-provider certification.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
 - **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
 

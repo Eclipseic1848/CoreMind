@@ -21,7 +21,7 @@ TUI 默认摘要会突出 Child Run 数量、活动后代和未处置风险；�
 所有 CLI/TUI/TypeScript/Python 入口共享 Runtime 委派矩阵：`ask` 每次批准，`assisted` 只自动批准 Config 显式预批准的合规目标，`full` 也不能覆盖 deny、预算或其他硬边界。审批绑定目标、任务、引用和实际预算的指纹；Child Run 后续工具和外部 Effect 继续独立审批。
 
 ```bash
-npm install -g coremind-cli@next
+npm install -g coremind-cli@0.7.0
 coremind help
 ```
 
@@ -48,7 +48,7 @@ The default TUI summary highlights Child Run count, active descendants, and unha
 All CLI, TUI, TypeScript, and Python entry points share the Runtime delegation matrix: `ask` approves every request; `assisted` auto-approves only a compliant target explicitly pre-approved in Config; and `full` cannot override deny rules, budgets, or other hard boundaries. Approval binds the target, task, references, and effective limits by fingerprint, while child tools and external Effects remain independently approved.
 
 ```bash
-npm install -g coremind-cli@next
+npm install -g coremind-cli@0.7.0
 coremind help
 ```
 

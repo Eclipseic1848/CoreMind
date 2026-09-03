@@ -2,7 +2,7 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site from one commit and at one stability level.
 
-> The `v0.7.0` tag exists, while the GitHub Release, npm, PyPI, and public reinstall remain pending. The steps below remain the standard publication and recovery process for `0.7.0` and later releases.
+> `0.7.0` has been published through this SOP as a [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0), eight npm packages, and a [PyPI package](https://pypi.org/project/coremind-ai/0.7.0/). The steps below remain the standard publication and recovery process for later releases.
 
 [简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 

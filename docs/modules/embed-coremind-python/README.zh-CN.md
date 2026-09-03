@@ -1,6 +1,6 @@
 # Python SDK 与工具桥
 
-状态：已发布的 `0.3.0` 稳定版；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：随 `0.7.0` 稳定版发布；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

@@ -8,12 +8,12 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 ## 2. Install and create a project
 
-`coremind-cli@0.3.0` is published on npm and can be installed directly as the stable release.
+`coremind-cli@0.7.0` is published on npm and can be installed directly as the stable release.
 
 ```bash
-npm install coremind-ai@0.3.0 coremind-cli@0.3.0
-npx coremind-cli@0.3.0 providers
-npx coremind-cli@0.3.0 create my-agent --provider alibaba-model-studio
+npm install coremind-ai@0.7.0 coremind-cli@0.7.0
+npx coremind-cli@0.7.0 providers
+npx coremind-cli@0.7.0 create my-agent --provider alibaba-model-studio
 cd my-agent
 ```
 

@@ -1,7 +1,7 @@
 # 0.7.x 规格：Child Run 合同
 
 > 配套 ADR：[0008-subagents-as-child-runs](../../adr/0008-subagents-as-child-runs.md)
-> 状态：accepted；已进入 `v0.7.0` Tag，公开发布待完成
+> 状态：accepted；已随 `0.7.0` 稳定版交付
 
 ## 1. 定义与非目标
 

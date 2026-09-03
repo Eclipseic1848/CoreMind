@@ -2,7 +2,7 @@
 
 Python SDK 通过本地 stdio JSON-RPC 调用与 TypeScript/CLI 相同的 Node Runtime，不维护第二套 Agent Loop。
 
-源码与 `v0.7.0` Tag 声明 `coremind-ai==0.7.0`，但 PyPI 尚未发布该版本；当前公开稳定包仍是 [`coremind-ai==0.3.1`](https://pypi.org/project/coremind-ai/0.3.1/)。完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
+当前稳定包为已发布的 [`coremind-ai==0.7.0`](https://pypi.org/project/coremind-ai/0.7.0/)；完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
 
 可用 `CoreMindClient(..., protocol_version="2.0")` 显式启用 Protocol v2；默认仍为 v1。v2 的 `run`、`chat` 和 `resume_run` 返回 `RunHandle`，调用方必须提供或由 SDK 预生成稳定 `run_id`；随后使用 `events(run_id, after_sequence=...)`、`query(run_id)` 与 `control(command)` 读取事件、投影和提交持久控制。`cursor_expired` 的 Projection snapshot 与新 cursor 可从 `ProtocolError.details` 读取。同步与异步客户端使用相同合同。
 
