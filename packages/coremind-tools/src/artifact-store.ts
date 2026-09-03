@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, open, readdir, realpath, rename, rm, stat } from "node:fs/promises";
+import { type BigIntStats, createWriteStream } from "node:fs";
+import { lstat, mkdir, open, readdir, realpath, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Transform } from "node:stream";
@@ -64,8 +64,10 @@ export class ArtifactStore {
     options: { deleteSource?: boolean; mediaType?: string } = {},
   ): Promise<ArtifactImportResult> {
     const source = path.resolve(sourcePath);
-    const sourceStat = await stat(source);
-    if (!sourceStat.isFile()) throw new Error("Artifact 来源必须是普通文件");
+    const sourceStat = await lstat(source, { bigint: true });
+    if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) {
+      throw new Error("Artifact 来源必须是普通文件");
+    }
     const artifactId = this.idFactory();
     if (!/^[A-Za-z0-9_-]+$/.test(artifactId)) {
       throw new Error("Artifact id 只能包含字母、数字、下划线和连字符");
@@ -77,6 +79,8 @@ export class ArtifactStore {
     let containsSecret = false;
     let scanCarry = "";
     let sizeBytes = 0;
+    let consumed = false;
+    const sourceHandle = await open(source, "r");
     const scanner = new Transform({
       transform(chunk: Buffer, _encoding, callback) {
         sizeBytes += chunk.length;
@@ -89,11 +93,16 @@ export class ArtifactStore {
     });
 
     try {
+      const openedStat = await sourceHandle.stat({ bigint: true });
+      if (!openedStat.isFile() || !sameFileIdentity(sourceStat, openedStat)) {
+        throw new Error("Artifact 来源在读取前发生变化");
+      }
       await pipeline(
-        createReadStream(source),
+        sourceHandle.createReadStream({ autoClose: false }),
         scanner,
         createWriteStream(staging, { flags: "wx" }),
       );
+      consumed = true;
       if (containsSecret) {
         await rm(staging, { force: true });
         return {
@@ -126,9 +135,17 @@ export class ArtifactStore {
       };
       return { record, preview: await this.buildPreview(destination, record) };
     } finally {
+      await sourceHandle.close().catch(() => {});
       await rm(staging, { force: true }).catch(() => {});
-      if (options.deleteSource && source !== destination) {
-        await rm(source, { force: true }).catch(() => {});
+      if (options.deleteSource && consumed && source !== destination) {
+        const currentStat = await lstat(source, { bigint: true }).catch(() => undefined);
+        if (
+          currentStat?.isFile() &&
+          !currentStat.isSymbolicLink() &&
+          sameFileIdentity(sourceStat, currentStat)
+        ) {
+          await rm(source, { force: true }).catch(() => {});
+        }
       }
     }
   }
@@ -204,7 +221,7 @@ export function wrapToolWithArtifactCapture(tool: AgentTool, store: ArtifactStor
       const result = await execute(toolCallId, params, signal, safeUpdate);
       const fullOutputPath = readFullOutputPath(result.details);
       if (!fullOutputPath) return sanitizeResult(result);
-      if (!isTrustedTemporaryOutputPath(fullOutputPath)) {
+      if (!(await isTrustedTemporaryOutputPath(fullOutputPath))) {
         const sanitized = sanitizeResult(result);
         return {
           ...sanitized,
@@ -306,14 +323,36 @@ function isStrictChild(parent: string, candidate: string): boolean {
   return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-function isTrustedTemporaryOutputPath(candidate: string): boolean {
+async function isTrustedTemporaryOutputPath(candidate: string): Promise<boolean> {
   const resolved = path.resolve(candidate);
   const temporaryRoot = path.resolve(tmpdir());
   const basename = path.basename(resolved);
-  return (
-    isStrictChild(temporaryRoot, resolved) &&
-    /^(?:pi-bash|pi-output)-[A-Za-z0-9_-]+\.log$/.test(basename)
-  );
+  const relative = path.relative(temporaryRoot, resolved);
+  if (
+    path.dirname(relative) !== "." ||
+    path.isAbsolute(relative) ||
+    !/^(?:pi-bash|pi-output)-[A-Za-z0-9_-]+\.log$/.test(basename)
+  ) {
+    return false;
+  }
+  try {
+    const [temporaryRootReal, sourceReal, sourceStat] = await Promise.all([
+      realpath(temporaryRoot),
+      realpath(resolved),
+      lstat(resolved),
+    ]);
+    return (
+      sourceStat.isFile() &&
+      !sourceStat.isSymbolicLink() &&
+      path.dirname(path.relative(temporaryRootReal, sourceReal)) === "."
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sameFileIdentity(left: BigIntStats, right: BigIntStats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
 }
 
 function toPortablePath(value: string): string {
