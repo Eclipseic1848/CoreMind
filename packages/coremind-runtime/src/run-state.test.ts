@@ -467,11 +467,11 @@ describe("RunState", () => {
     await store.append(second);
     writeFileSync(
       store.pathFor(first.runId),
-      `${JSON.stringify(first)}\n${JSON.stringify({ ...second, sequence: 9 })}\n`,
+      `${JSON.stringify(first)}\n${JSON.stringify({ ...second, sequence: 99 })}\n`,
       "utf8",
     );
 
-    await expect(store.append(record(10, "event", { value: "later" }))).rejects.toMatchObject({
+    await expect(store.append(record(100, "event", { value: "later" }))).rejects.toMatchObject({
       code: "run_state_corrupt",
     });
   });
