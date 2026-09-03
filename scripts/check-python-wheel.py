@@ -34,6 +34,8 @@ def main() -> int:
             metadata = archive.read(metadata_name).decode("utf-8", errors="strict")
             if "License-Expression: MIT" not in metadata:
                 blockers.append("METADATA 缺少 MIT License-Expression")
+            if "Classifier: Development Status :: 5 - Production/Stable" not in metadata:
+                blockers.append("METADATA 缺少 Production/Stable classifier")
         if worker_name not in names:
             blockers.append("缺少内置 Node worker")
         if error_contract_name not in names:
