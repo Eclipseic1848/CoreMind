@@ -85,32 +85,39 @@ describe("Execution Security Gate", () => {
     }
   });
 
-  it.each(["Authorization", "proxy-authorization", "X-Api-Key", "COOKIE"])(
-    "check 与 Runtime 以同一码拒绝敏感 Header %s 的字面量",
-    async (header) => {
-      const cwd = mkdtempSync(path.join(tmpdir(), "coremind-security-header-"));
-      const config: CoreMindConfig = {
-        ...unsafeConfig,
-        provider: {
-          id: "gateway",
-          baseUrl: "http://127.0.0.1:9/v1",
-          model: "probe",
-          headers: { [header]: "literal-secret" },
-        },
-      };
+  it.each([
+    "Authorization",
+    "proxy-authorization",
+    "X-Api-Key",
+    "COOKIE",
+    "api-key",
+    "X-Auth-Token",
+    "x-access-token",
+    "X-Goog-Api-Key",
+    "x-amz-security-token",
+  ])("check 与 Runtime 以同一码拒绝敏感 Header %s 的字面量", async (header) => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-security-header-"));
+    const config: CoreMindConfig = {
+      ...unsafeConfig,
+      provider: {
+        id: "gateway",
+        baseUrl: "http://127.0.0.1:9/v1",
+        model: "probe",
+        headers: { [header]: "literal-secret" },
+      },
+    };
 
-      const report = await checkProject({ config, projectDir: cwd });
-      expect(report.findings).toContainEqual(
-        expect.objectContaining({
-          code: "execution_security_violation",
-          path: `provider.headers.${header}`,
-        }),
-      );
-      await expect(
-        CoreMindRuntime.create({ config, configDir: cwd, cwd, env: {} }),
-      ).rejects.toMatchObject({ code: "execution_security_violation" });
-    },
-  );
+    const report = await checkProject({ config, projectDir: cwd });
+    expect(report.findings).toContainEqual(
+      expect.objectContaining({
+        code: "execution_security_violation",
+        path: `provider.headers.${header}`,
+      }),
+    );
+    await expect(
+      CoreMindRuntime.create({ config, configDir: cwd, cwd, env: {} }),
+    ).rejects.toMatchObject({ code: "execution_security_violation" });
+  });
 
   it("显式 apiKeyEnv 缺失时 check 与 Runtime 在执行前失败", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-security-env-"));

@@ -11,6 +11,11 @@ const SENSITIVE_HEADER_NAMES = new Set([
   "authorization",
   "proxy-authorization",
   "x-api-key",
+  "api-key",
+  "x-auth-token",
+  "x-access-token",
+  "x-goog-api-key",
+  "x-amz-security-token",
   "cookie",
 ]);
 
