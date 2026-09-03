@@ -438,6 +438,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.on.workflow_dispatch.inputs.reuse_candidate_run_id.default).toBe("");
     expect(candidateCommands).toContain("reuse_candidate_run_id 必须是 GitHub Actions run ID");
     expect(candidateCommands).toContain("git diff --name-only");
+    expect(candidateCommands).toContain("scripts/check-python-wheel\\.py");
     expect(candidateCommands).toContain("scripts/validate-npm-tarballs\\.mjs");
     expect(candidateCommands).toContain("复用候选后存在产品代码改动");
     expect(candidateCommands).toContain("git fetch origin main --no-tags");
@@ -489,6 +490,9 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(publicCommands).toContain("validate-npm-tarballs.mjs --directory");
     expect(publicCommands).toContain("pip download");
     expect(publicCommands).toContain("check-python-wheel.py");
+    expect(readFileSync("scripts/check-python-wheel.py", "utf8")).toContain(
+      "COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE",
+    );
     expect(publicCommands).not.toContain("coremind_ai-0.7.0-py3-none-any.whl");
     expect(publicCommands).toContain("p0-acceptance.mjs --stage post-release");
     for (const jobName of ["candidate", "release", "verify-public"]) {
