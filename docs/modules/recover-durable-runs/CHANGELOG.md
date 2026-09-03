@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Appended ordinary FileRunStore Facts incrementally and recovered Protocol v2 duplicate/conflict decisions from durable Facts after terminal-state memory reclamation.
+
 ## 0.7.0 - 2026-08-29
 
 - Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.

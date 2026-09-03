@@ -1,6 +1,6 @@
 # Python SDK 与工具桥
 
-状态：随 `0.7.0` 稳定版发布；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：合同与文档已对齐 `0.7.1` 稳定版发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -15,12 +15,15 @@
 - `inspect_run`
 - `checkpoint_diff`
 - `checkpoint_restore`
-- `CoreMind Protocol v1`
+- `CoreMind Protocol v1`（`0.7.1` 默认值）
+- 显式协商 `CoreMind Protocol v2`
 - `result["snapshot"]` 纯 JSON 运行快照
 
 ## 错误与边界
 
 - 协议错误映射为类型化 Python 异常
+- `0.7.1` 继续支持 Protocol v1，且尚无批准的移除时间表；Protocol v2 必须显式选择。
+- Python callable 仍属于 v1 工具桥；Protocol v2 只接受声明式工具定义和显式工具结果，不执行宿主 Python callable。
 - worker 常驻复用，不为每次请求创建进程
 - 工具结果跨语言保持 JSON 可序列化
 - `@client.tool` 必须提供 `effect`；Protocol 注册会校验副作用声明

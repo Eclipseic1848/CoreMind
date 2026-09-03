@@ -33,7 +33,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：动态继承锁定运行时依赖的全部 Provider。`0.2.0-rc.1` 为 37 个继承入口；从 `0.3.0-rc.2` 到当前 `0.7.0` 稳定版均为 39 个继承入口，加上 CoreMind 原生入口共 40 个可配置 Provider。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的准确清单。继承支持不等于真实认证；没有当前版本的真实密钥和证据时只能称为可选 Provider。
+**内置提供商**：动态继承锁定运行时依赖的全部 Provider。`0.2.0-rc.1` 为 37 个继承入口；从 `0.3.0-rc.2` 到当前 `0.7.1` 稳定版均为 39 个继承入口，加上 CoreMind 原生入口共 40 个可配置 Provider。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的准确清单。继承支持不等于真实认证；仓库台账未收录 `0.7.1` 静态认证记录，正式发布必须另有同版本 strict-provider 工作流 Artifact。没有当前部署的真实密钥和证据时，只能称为可选 Provider。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 
@@ -54,7 +54,8 @@ SecretRef 会以 `secret_reference_unresolved` 安全失败，且不会回退到
 显式 `apiKeyEnv` 缺失也使用同一错误码失败关闭。
 
 自定义 Provider 的普通 Header 可继续使用字面量；Authorization、Proxy-Authorization、
-X-API-Key、Cookie 等敏感 Header 必须使用 `{ env: "NAME" }` 或
+X-API-Key、API-Key、X-Auth-Token、X-Access-Token、X-Goog-API-Key、
+X-Amz-Security-Token、Cookie 等敏感 Header 必须使用 `{ env: "NAME" }` 或
 `{ secretRef: "opaque-id" }`。引用和值不会进入日志、错误、Fact 或持久化数据。
 
 > ⚠️ **不要用 `apiKey` 直填密钥**——会随配置文件进入版本库/分享链路。`coremind check` 和所有执行入口都会以 `execution_security_violation` 将它作为不可覆盖的安全错误。

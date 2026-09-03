@@ -3,7 +3,7 @@ id: manage-sessions
 name:
   zh-CN: "Session 与 Context"
   en: "Sessions and Context"
-version: 0.7.0
+version: 0.7.1
 sourcePaths:
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/chat-session.ts"

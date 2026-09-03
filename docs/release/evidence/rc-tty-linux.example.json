@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "platform": "linux",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "commit": "replace-with-full-candidate-commit",
   "testedAt": "replace-with-ISO-8601-timestamp",
   "terminal": "GitHub Codespaces browser terminal",

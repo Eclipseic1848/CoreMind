@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Rejected linked files, linked directories, canonical path escapes, and open-file identity changes during tool Artifact import.
+
 ## 0.7.0 - 2026-08-29
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the stable release.

@@ -14,7 +14,8 @@ description: "Operate or diagnose CoreMind create, run, chat, check, eval, docto
 7. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
 8. For explicit Loops, compare ordered state events across TUI, readline, and JSONL; resume the same run ID without replaying completed steps or committed effects.
 9. Compare TUI `/status`, `/artifacts`, and `/context` with the final JSONL `snapshot`; recovery, evaluation, artifact, cache, and compaction evidence must match.
-10. Run the tests listed in [module.yaml](../../docs/modules/operate-coremind-cli/module.yaml) and `npm run check:modules`.
-11. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
+10. While a TUI run is busy, verify ordinary Enter input is rejected instead of queued into a later turn, while `/abort` and `/children` remain immediately available.
+11. Run the tests listed in [module.yaml](../../docs/modules/operate-coremind-cli/module.yaml) and `npm run check:modules`.
+12. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint、Effect Receipt 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

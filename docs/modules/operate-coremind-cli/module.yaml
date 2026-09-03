@@ -3,7 +3,7 @@ id: operate-coremind-cli
 name:
   zh-CN: "CLI 与 TUI"
   en: "CLI and TUI"
-version: 0.7.0
+version: 0.7.1
 sourcePaths:
   - "packages/coremind-cli/src"
   - "packages/coremind-runtime/src/run-terminalizer.ts"

@@ -1,6 +1,6 @@
 # 编排 Child Run
 
-状态：随 `0.7.0` 稳定版发布；支持平台：Windows、Linux。
+状态：合同与文档已对齐 `0.7.1` 稳定版发布线；支持平台：Windows、Linux。
 
 Child Run 是由父 Run 委派的完整 Run，不是普通 Tool Call。它拥有独立 RunId、事实、预算、权限、结果和静止状态，并通过 ParentRunId、ChildRunId、DelegationId 与父级关联。
 

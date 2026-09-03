@@ -4,6 +4,17 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+## 0.7.1 — 2026-09-03
+
+- Release and documentation workflows now use pinned npm `11.5.1`. P0 network waivers bind candidate and final Runtime digests separately, preventing toolchain drift or digest reuse from producing an incorrect deployment or reinstall result.
+- The Execution Security Gate recognizes additional sensitive Header aliases. Credential Headers such as `api-key`, `x-auth-token`, `x-access-token`, `x-goog-api-key`, and `x-amz-security-token`, like the existing authentication Headers, reject literals and require an environment reference or host `SecretRef`.
+- Artifact import validates symlinks, canonical paths, and file identity before reading, then rechecks identity before deleting a temporary source. Valid ordinary temporary files retain the existing redaction, preview, storage, and cleanup behavior.
+- Normal `FileRunStore` append writes only the new JSONL Fact instead of rewriting the full history. Incomplete-tail repair, sequence conflicts, Writer locking, and critical-sync semantics remain unchanged.
+- Protocol v2 start and tool-result idempotency state is reclaimed after terminal completion and duplicate/conflict decisions can be rebuilt from the authoritative Runtime journal. The wire contract is unchanged; Protocol v1 remains supported with no approved removal plan.
+- The TUI preserves unsent ordinary input while a Run is busy, while `/abort` and `/children` remain available and idle submission is unchanged.
+- Release failures print concrete P0 blockers, always upload the failed report, and still run public npm/PyPI reinstall verification after public artifacts exist. The final workflow remains failed when qualification fails. Python package metadata now declares `Production/Stable` maturity.
+- The `v0.7.1` release line unifies the GitHub Release, eight npm packages, and PyPI package; each live channel remains authoritative for public availability. The checked-in ledger has no same-version static Provider record, but formal publication requires a strict-provider workflow Artifact bound to the candidate commit and Runtime digest and cannot reuse the one-time `0.7.0` network exception.
+
 ## 0.7.0 — 2026-09-02
 
 - Provider certification now binds the same protected-main candidate Runtime package and its actual SHA-256, then runs parent-model, Delegation Tool, Child Run, controlled child Tool, structured-result, and cancellation-convergence checks with zero automatic retries inside explicitly approved provider, model, credential-source, cost, and duration bounds. Failures, exceeded bounds, unknown Effects, or incomplete evidence cannot update the success ledger.

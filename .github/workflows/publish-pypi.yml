@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       candidate_run_id: ${{ steps.selection.outputs.candidate_run_id }}
+      candidate_sha: ${{ steps.selection.outputs.candidate_sha }}
       provider_evidence_mode: ${{ steps.selection.outputs.provider_evidence_mode }}
       policy_snapshot_sha256: ${{ steps.selection.outputs.policy_snapshot_sha256 }}
       repository_ruleset_id: ${{ steps.selection.outputs.repository_ruleset_id }}
@@ -76,7 +77,7 @@ jobs:
           test "$(jq -r '.rules[] | select(.type == "pull_request") | .parameters.required_approving_review_count' <<<"${ruleset}")" = "0"
           test "$(jq -r '.rules[] | select(.type == "required_status_checks") | .parameters.strict_required_status_checks_policy' <<<"${ruleset}")" = "true"
           test "$(jq -r '.rules[] | select(.type == "required_status_checks") | [.parameters.required_status_checks[] | "\(.context):\(.integration_id)"] | sort | join("|")' <<<"${ruleset}")" = "Engineering (ubuntu-latest, Node 22.x):15368|Engineering (windows-latest, Node 22.x):15368"
-          policy_file="docs/release/evidence/v0.7.0-main-ruleset.json"
+          policy_file="docs/release/evidence/v0.7.1-main-ruleset.json"
           test "$(jq -r '.ruleset.id' "${policy_file}")" = "${ruleset_id}"
           test "$(jq -r '[.ruleset.bypassActors[] | "\(.actorType):\(.actorId):\(.bypassMode)"] | join("|")' "${policy_file}")" = "User:237380389:pull_request"
           policy_snapshot_sha256="$(sha256sum "${policy_file}" | cut -d ' ' -f 1)"
@@ -131,6 +132,7 @@ jobs:
           fi
           test -n "${run_id}"
           echo "candidate_run_id=${run_id}" >> "${GITHUB_OUTPUT}"
+          echo "candidate_sha=${candidate_sha}" >> "${GITHUB_OUTPUT}"
           echo "provider_evidence_mode=${evidence_mode}" >> "${GITHUB_OUTPUT}"
           echo "policy_snapshot_sha256=${policy_snapshot_sha256}" >> "${GITHUB_OUTPUT}"
           echo "repository_ruleset_id=${ruleset_id}" >> "${GITHUB_OUTPUT}"
@@ -267,11 +269,22 @@ jobs:
           npm install --global npm@11.5.1
           python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
 
+      - name: 下载严格 Provider 认证证据
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode == 'strict-provider'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COREMIND_CANDIDATE_RUN_ID: ${{ needs.candidate.outputs.candidate_run_id }}
+          COREMIND_CANDIDATE_SHA: ${{ needs.candidate.outputs.candidate_sha }}
+        run: |
+          mkdir -p .scratch/provider-certification
+          gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --name "provider-certification-${COREMIND_CANDIDATE_SHA}" --dir .scratch/provider-certification
+
       - name: 构建并验证同提交发布物
         if: inputs.artifact_run_id == ''
         env:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
+          COREMIND_CANDIDATE_SHA: ${{ needs.candidate.outputs.candidate_sha }}
           COREMIND_REUSED_CANDIDATE_RUN_ID: ${{ inputs.reuse_candidate_run_id }}
           COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE: ${{ inputs.reuse_candidate_run_id != '' }}
         run: |
@@ -284,6 +297,8 @@ jobs:
           release_args=(--tag "${COREMIND_RELEASE_TAG}")
           if [ "${COREMIND_PROVIDER_EVIDENCE_MODE}" = "provider-network-waiver" ]; then
             release_args+=(--allow-provider-network-waiver)
+          elif [ "${COREMIND_PROVIDER_EVIDENCE_MODE}" = "strict-provider" ]; then
+            release_args+=(--provider-certification-directory .scratch/provider-certification --provider-certification-commit "${COREMIND_CANDIDATE_SHA}")
           fi
           npm run release:bundle -- "${release_args[@]}"
 

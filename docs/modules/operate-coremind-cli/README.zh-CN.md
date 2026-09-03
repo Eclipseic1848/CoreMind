@@ -1,6 +1,6 @@
 # CLI 与 TUI
 
-状态：随 `0.7.0` 稳定版发布；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：合同与文档已对齐 `0.7.1` 稳定版发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -23,6 +23,7 @@
 - `--print` 与 `--json-events` 互斥，防止自然语言污染机器输出
 - 非 TTY 审批安全拒绝
 - TUI 与 readline 使用同一 ChatSession Harness；失败终态会显示原因，不会静默结束
+- TUI 正在运行一轮时，Enter 不会提交普通缓冲输入；`/abort` 与 `/children` 仍可使用。
 - TUI 审批先显示副作用、完整目标与原因；长正文摘要，凭据字段隐藏
 - TUI、readline 和 JSONL 显示相同的 `loop_state` 顺序；暂停以退出码 `2` 返回且可恢复
 - 不安全或已结束的 runId 恢复会明确失败

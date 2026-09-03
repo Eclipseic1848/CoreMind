@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Rejected plaintext credentials in common custom Provider header aliases while preserving ordinary headers, environment references, and host-resolved SecretRef values.
+
 ## 0.7.0 - 2026-08-29
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the stable release.

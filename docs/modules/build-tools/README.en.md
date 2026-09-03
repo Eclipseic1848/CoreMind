@@ -1,6 +1,6 @@
 # Tools and Business Capabilities
 
-Status: published with stable `0.7.0`. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the stable `0.7.1` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

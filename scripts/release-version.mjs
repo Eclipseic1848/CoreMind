@@ -55,6 +55,20 @@ export async function synchronizeReleaseVersion(rootDirectory, npmVersion) {
     "utf8",
   );
 
+  const workerManifestPath = path.join(
+    rootDirectory,
+    "python",
+    "src",
+    "coremind",
+    "_worker",
+    "manifest.json",
+  );
+  if (existsSync(workerManifestPath)) {
+    const workerManifest = await readJson(workerManifestPath);
+    workerManifest.version = pythonVersion;
+    await writeJson(workerManifestPath, workerManifest);
+  }
+
   await synchronizeModuleManifestVersions(rootDirectory, npmVersion);
   await synchronizeModuleChangelogs(rootDirectory, npmVersion);
   await synchronizeTtyEvidenceTemplates(rootDirectory, npmVersion);
@@ -92,27 +106,8 @@ async function synchronizeModuleChangelogs(rootDirectory, npmVersion) {
   }
 }
 
-function moduleReleaseSummary(moduleId) {
-  const summaries = {
-    "build-coding-agents":
-      "Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.",
-    "contribute-coremind":
-      "Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.",
-    "embed-coremind-python":
-      "Added a versioned worker manifest with protocol, package-version, and SHA-256 validation before Python launches the bundled worker.",
-    "extend-runtime-lifecycle":
-      "Applied shared recursive credential redaction to lifecycle payloads, including cookies, private keys, URLs, and command arguments.",
-    "manage-providers":
-      "Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.",
-    "operate-coremind-cli":
-      "Added provider discovery, explicit project scaffolding choices, and automated real ConPTY/pseudoterminal acceptance evidence.",
-    "recover-durable-runs":
-      "Recorded denied effects as not started, rejected semantic or out-of-order state corruption, and aligned resumable snapshots with the actual recovery preflight.",
-  };
-  return (
-    summaries[moduleId] ??
-    "Synchronized the module contract, bilingual guidance, examples, and release metadata with the current release candidate."
-  );
+function moduleReleaseSummary() {
+  return "Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.";
 }
 
 async function synchronizeTtyEvidenceTemplates(rootDirectory, npmVersion) {
@@ -313,7 +308,10 @@ function refreshPackageLock(rootDirectory) {
   const args = ["install", "--package-lock-only", "--ignore-scripts", "--no-audit", "--no-fund"];
   const npmCli = process.env.npm_execpath;
   const completed = npmCli
-    ? spawnSync(process.execPath, [npmCli, ...args], { cwd: rootDirectory, encoding: "utf8" })
+    ? spawnSync(process.execPath, [npmCli, ...args], {
+        cwd: rootDirectory,
+        encoding: "utf8",
+      })
     : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", args, {
         cwd: rootDirectory,
         encoding: "utf8",

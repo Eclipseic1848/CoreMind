@@ -1,6 +1,6 @@
 # CoreMind SOP and Skill Index
 
-All 22 modules are synchronized to the published `0.7.0` stable release. New users should follow README for boundaries, Guide for onboarding, SOP for execution, Skill for reuse, and Example for verification.
+All 22 module contracts and documentation are synchronized with the stable `0.7.1` release line. New users should follow README for boundaries, Guide for onboarding, SOP for execution, Skill for reuse, and Example for verification.
 
 | Capability | README | SOP | Skill | Example |
 |---|---|---|---|---|

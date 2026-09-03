@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Classified the stable Python package as Production/Stable and synchronized the bundled Worker manifest with the Python package version.
+
 ## 0.7.0 - 2026-08-29
 
 - Added a versioned worker manifest with protocol, package-version, and SHA-256 validation before Python launches the bundled worker.

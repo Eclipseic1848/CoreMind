@@ -3,7 +3,7 @@ id: scaffold-coremind-projects
 name:
   zh-CN: "模板与项目文档"
   en: "Templates and Project Guidance"
-version: 0.7.0
+version: 0.7.1
 sourcePaths:
   - "packages/coremind-templates/src/project-scaffold.ts"
   - "packages/coremind-templates/templates"

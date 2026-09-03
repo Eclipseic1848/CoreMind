@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19。
 
-`coremind-cli@0.7.0` 已在 npm 公开，可直接安装稳定版。
+`coremind-cli@0.7.1` 是本发布线的稳定包；安装前以 npm 实时页面确认公开可用性。
 
 ```bash
-npm install -g coremind-cli@0.7.0
+npm install -g coremind-cli@0.7.1
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
@@ -32,6 +32,8 @@ copy .env.example .env          # Windows；Linux 用 cp
 ```
 
 `.env` 会被**自动加载**（前提：在你运行命令的目录下，见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)）。
+
+凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
 交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；可配置不等于当前版本已认证，实际证据见[供应商矩阵](../providers/README.zh-CN.md)。
 

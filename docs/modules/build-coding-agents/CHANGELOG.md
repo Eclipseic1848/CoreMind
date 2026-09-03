@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## 0.7.0 - 2026-08-29
 
 - Bound Runtime verification to observed test commands, checkpoints, and diff evidence so a textual PASS cannot satisfy the engineering gate.

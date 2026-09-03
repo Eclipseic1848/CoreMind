@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Preserved release failure evidence and public reinstall checks, separated Candidate and final Runtime digests, and bound strict Provider evidence into the release bundle.
+
 ## 0.7.0 - 2026-08-29
 
 - Added restart-safe registry publishing, tag/main/CI identity checks, and automated Windows/Linux real-pseudoterminal evidence.

@@ -33,6 +33,6 @@ features:
 
 ## 当前阶段
 
-CoreMind 当前稳定版为 `0.7.0`，包含 Protocol v2、统一安全与错误合同，以及贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路；GitHub Release、npm 与 PyPI 已同步发布。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
+CoreMind `0.7.1` 稳定版发布线已完成代码与文档准备，在 Protocol v2、统一安全与错误合同和 Child Run 产品链路之上，补强凭据 Header、Artifact 导入、增量 Fact 持久化、长驻 Worker、TUI 输入与发布失败证据；公开可安装性以 GitHub Release、npm 与 PyPI 实时页面为准。请阅读[公开路线图](/roadmap.zh-CN)、[安全边界](/guide/04-quality)和[供应商认证矩阵](/providers/README.zh-CN)。
 
-双平台工程、候选包和真实 TTY 门禁已通过。严格 Provider 请求在 HTTP 响应前超时，维护者已接受仅限本版本的网络例外，但这不是 live-provider 认证。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。
+仓库内 Provider 台账当前未收录 `0.7.1` 静态认证记录；正式发布必须通过绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact。可配置不等于认证，生产评估必须同时核对供应商矩阵与本版本工作流证据。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。

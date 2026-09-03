@@ -8,6 +8,8 @@ import {
   evaluateCandidateIdentity,
   evaluateReleaseIdentity,
   selectNpmDistTag,
+  validateCertifiedRuntimeIdentity,
+  validateCertifiedRuntimePackage,
   validateWaivedRuntimePackage,
 } from "./release-artifacts.mjs";
 
@@ -73,5 +75,40 @@ describe("同提交发布物", () => {
       "摘要不一致",
     );
     expect(validateWaivedRuntimePackage([], approved).join("\n")).toContain("缺少");
+  });
+
+  it("严格 Provider 证据必须绑定当前版本、提交与最终 Runtime", () => {
+    const certification = {
+      version: "0.7.1",
+      commit: "a".repeat(40),
+      runtimeArtifactSha256: "b".repeat(64),
+      candidateArtifactSha256: "c".repeat(64),
+      runtimeDigest: `sha256:${"d".repeat(64)}`,
+    };
+    expect(
+      validateCertifiedRuntimeIdentity(certification, {
+        version: "0.7.1",
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: "b".repeat(64),
+        runtimeDigest: `sha256:${"d".repeat(64)}`,
+      }),
+    ).toEqual([]);
+    expect(
+      validateCertifiedRuntimeIdentity(certification, {
+        version: "0.7.1",
+        commit: "e".repeat(40),
+        runtimeArtifactSha256: "b".repeat(64),
+        runtimeDigest: `sha256:${"d".repeat(64)}`,
+      }).join("\n"),
+    ).toContain("提交");
+    expect(
+      validateCertifiedRuntimePackage(
+        [{ kind: "npm", name: "coremind-runtime", sha256: "c".repeat(64) }],
+        certification.candidateArtifactSha256,
+      ),
+    ).toEqual([]);
+    expect(validateCertifiedRuntimePackage([], certification.candidateArtifactSha256)).toHaveLength(
+      1,
+    );
   });
 });

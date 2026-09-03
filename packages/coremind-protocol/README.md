@@ -14,7 +14,7 @@ v2 还定义脱敏的 Checkpoint `list/create/diff/restore` 与声明式动态�
 
 `approval_required` 与 `approval_resolved` 可携带同一 64 位小写十六进制 `argumentsFingerprint`，把批准和固定参数绑定；Delegation 审批还携带 `sha256:` 格式的 `delegationInputFingerprint`，其值必须与随后 `delegation_recorded.inputFingerprint` 相同。历史事件可省略这些字段，当前 Runtime 生成的新审批事实必须携带适用字段。
 
-`PROTOCOL_V2_SCHEMA_BUNDLE` 与 `PROTOCOL_V2_SCHEMA_FINGERPRINT` 同时锁定请求、初始化结果、RunHandle、事件信封、事件页、查询结果、控制回执和错误响应。v1 在整个 `0.4.x` 保留同步兼容入口，并返回非错误迁移提示；最早移除版本是 `0.5.0`，且仍需独立决策。
+`PROTOCOL_V2_SCHEMA_BUNDLE` 与 `PROTOCOL_V2_SCHEMA_FINGERPRINT` 同时锁定请求、初始化结果、RunHandle、事件信封、事件页、查询结果、控制回执和错误响应。`0.7.1` 继续保留 v1 同步兼容入口，并返回非错误迁移提示；当前没有批准的移除时间表。任何移除都必须经过独立、版本化的弃用决策，并同步更新 TypeScript、Python、Worker 与迁移文档。
 
 `ERROR_CODES` 是跨 Config、Runtime、Protocol、Worker、CLI、TUI 与双 SDK 的类型化 Error Contract 唯一注册表，记录稳定字符串码、恢复分类、兼容 Run 输出、取消、重试和人工处置分类。`ErrorCodeSchema`、Protocol v1/v2 错误响应、Run Outcome 公共类型与 v2 schema fingerprint 都从该注册表派生；Config 自有错误由跨模块类型门校验，Python SDK 随包携带构建生成且逐项校验的只读分类 JSON。未知外部码只以脱敏审计值进入 Outcome 与持久 Fact，公开码固定收敛为 `unclassified_error`，对应暂停、人工处置和禁止自动重试。`terminality` 与 `runStatus` 分别表达错误是否可恢复和兼容 Run 投影，因此可能不同，不得静默改写。
 
@@ -26,7 +26,7 @@ Protocol v2 also defines redacted Checkpoint `list/create/diff/restore` operatio
 
 `approval_required` and `approval_resolved` may carry the same 64-character lowercase hexadecimal `argumentsFingerprint`, binding approval to fixed arguments. Delegation approvals also carry a `sha256:`-prefixed `delegationInputFingerprint` that must equal the subsequent `delegation_recorded.inputFingerprint`. Legacy events may omit these fields; new Runtime approval Facts include every applicable field.
 
-`PROTOCOL_V2_SCHEMA_BUNDLE` and its fingerprint cover requests, initialization results, RunHandles, event envelopes and pages, query results, control receipts, and error responses. The synchronous v1 compatibility entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
+`PROTOCOL_V2_SCHEMA_BUNDLE` and its fingerprint cover requests, initialization results, RunHandles, event envelopes and pages, query results, control receipts, and error responses. Version `0.7.1` continues to provide the synchronous v1 compatibility entry, and no removal schedule is approved. Any removal requires a separate, versioned deprecation decision plus coordinated TypeScript, Python, Worker, and migration updates.
 
 `ERROR_CODES` is the single typed Error Contract registry shared by Config, Runtime, Protocol, Worker, CLI, TUI, and both SDKs. `ErrorCodeSchema`, Protocol v1/v2 error responses, public Run Outcome types, and the v2 schema fingerprint are derived from it. Cross-module type checks cover Config-owned codes, while the Python package ships a generated, read-only classification JSON that is checked entry-for-entry against the registry. Unknown external codes enter Outcomes and durable Facts only as redacted audit data and converge publicly to the pausing, human-handled, non-retryable `unclassified_error`. `terminality` and compatibility `runStatus` remain separate dimensions and must not be changed silently.
 
