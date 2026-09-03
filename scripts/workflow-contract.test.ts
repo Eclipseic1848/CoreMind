@@ -438,6 +438,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.on.workflow_dispatch.inputs.reuse_candidate_run_id.default).toBe("");
     expect(candidateCommands).toContain("reuse_candidate_run_id 必须是 GitHub Actions run ID");
     expect(candidateCommands).toContain("git diff --name-only");
+    expect(candidateCommands).toContain("docs/release/evidence/v0\\.7\\.0-provider-network-waiver\\.json");
     expect(candidateCommands).toContain("scripts/check-python-wheel\\.py");
     expect(candidateCommands).toContain("scripts/validate-npm-tarballs\\.mjs");
     expect(candidateCommands).toContain("复用候选后存在产品代码改动");
@@ -461,7 +462,11 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(candidateCommands).toContain("--verified-workflow-run");
     expect(candidateCommands).toContain("v0.7.0-provider-network-waiver.json");
     expect(candidateCommands).toContain("33582995518");
-    expect(candidateCommands).toContain("5505065678");
+    const waiver = JSON.parse(
+      readFileSync("docs/release/evidence/v0.7.0-provider-network-waiver.json", "utf8"),
+    );
+    expect(candidateCommands).toContain(waiver.decisionRef);
+    expect(candidateCommands).toContain(waiver.candidateRuntimePackageSha256);
     expect(candidateCommands).toContain('Provider certification" and .conclusion == "skipped');
     expect(candidateCommands).toContain('Candidate qualified" and .conclusion == "skipped');
     expect(candidateCommands).not.toContain(".inputs.qualification_mode");

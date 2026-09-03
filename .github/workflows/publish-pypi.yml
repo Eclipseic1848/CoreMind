@@ -63,7 +63,7 @@ jobs:
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.path')" = ".github/workflows/candidate-qualification.yml"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.conclusion')" = "success"
             candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.head_sha')"
-            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^scripts/check-python-wheel\.py$|^scripts/validate-npm-tarballs\.mjs$|^scripts/workflow-contract\.test\.ts$)' || true)"
+            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^docs/release/evidence/v0\.7\.0-provider-network-waiver\.json$|^scripts/check-python-wheel\.py$|^scripts/validate-npm-tarballs\.mjs$|^scripts/workflow-contract\.test\.ts$)' || true)"
             test -z "${unsafe_changes}" || { echo "复用候选后存在产品代码改动：${unsafe_changes}" >&2; exit 1; }
           fi
           ruleset_id="21807589"
@@ -98,12 +98,12 @@ jobs:
             test "${COREMIND_REQUESTED_TAG}" = "v0.7.0"
             test -f "${waiver_file}"
             test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(f.strictRunId))" "${waiver_file}")" = "33582995518"
-            test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(f.decisionRef)" "${waiver_file}")" = "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5505065678"
+            test "$(node -e "const f=JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')); process.stdout.write(f.decisionRef)" "${waiver_file}")" = "https://github.com/Eclipseic1848/CoreMind/issues/113#issuecomment-5523505893"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/113" --jq '.state')" = "closed"
-            test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5505065678" --jq '.user.login')" = "Eclipseic1848"
-            comment_body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5505065678" --jq '.body')"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5523505893" --jq '.user.login')" = "Eclipseic1848"
+            comment_body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/5523505893" --jq '.body')"
             case "${comment_body}" in
-              *"网络例外通过"*"33582995518"*"16fd6fea9ea0e316cd14d9907ee22454ab0d2e1e3e4dca629151733f1d2f58ea"*) ;;
+              *"维护者确认 v0.7.0 最终发布制品"*"6bea6efd0132978300fcd3d11094ce72ff9b70484f1b671e039861f3ea366b18"*) ;;
               *) exit 1 ;;
             esac
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33582995518" --jq '.head_sha')" = "8a3fa98b09d3fdfd8fe92ae864bea213f34f17e3"
