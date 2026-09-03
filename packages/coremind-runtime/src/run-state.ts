@@ -1367,7 +1367,10 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
       throw new CoreMindError("run_state_corrupt", "RunState 包含非法 tool_lifecycle");
     }
   }
-  return trace as CoreMindTraceEvent;
+  const { protocolToolResult: _internal, ...publicTrace } = trace as typeof trace & {
+    protocolToolResult?: unknown;
+  };
+  return publicTrace as CoreMindTraceEvent;
 }
 
 const LOOP_PHASES = new Set<LoopPhase>([

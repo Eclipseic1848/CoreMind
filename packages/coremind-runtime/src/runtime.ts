@@ -276,6 +276,24 @@ export interface ProtocolStartIdentity {
   }>;
 }
 
+export interface ProtocolToolResultFact {
+  schemaVersion: 1;
+  resultId: string;
+  runId: string;
+  callId: string;
+  registrationId: string;
+  requestFingerprint: string;
+}
+
+interface PendingProtocolToolResultFact {
+  fact: ProtocolToolResultFact;
+  fingerprint: string;
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+  appendStarted: boolean;
+}
+
 export interface RunResult {
   runId: string;
   /** 通用 durable operation 的权威外围状态；Workflow/Loop 细节仍由各自快照负责。 */
@@ -741,7 +759,11 @@ export class CoreMindRuntime {
   async run(): Promise<RunResult> {
     const slot = executionSlotFor(this);
     slot.kernel ??= new RunKernel({ execute: (context) => this.executeRunBody(context) });
-    return slot.kernel.run();
+    try {
+      return await slot.kernel.run();
+    } finally {
+      await settleProtocolToolResultFacts(this);
+    }
   }
 
   /** 在活动父 Run 上创建类型化 Child Run；未配置或尚未启动时失败关闭。 */
@@ -1364,10 +1386,36 @@ export class CoreMindRuntime {
     const trace = new TraceRecorder(
       runId,
       (entry) => {
-        void journal.appendFact("event", entry, {
+        const toolResultCallId =
+          entry.event.type === "tool_result" ? entry.event.callId : undefined;
+        const pendingProtocolToolResult = toolResultCallId
+          ? executionSlotFor(this).protocolToolResultFacts?.get(
+              protocolToolResultKey(entry.runId, toolResultCallId),
+            )
+          : undefined;
+        const payload = pendingProtocolToolResult
+          ? {
+              ...entry,
+              protocolToolResult: structuredClone(pendingProtocolToolResult.fact),
+            }
+          : entry;
+        const persisted = journal.appendFact("event", payload, {
           durability: traceFactDurability(entry.event, capabilityByCallId),
           eventId: entry.eventId,
         });
+        if (pendingProtocolToolResult) {
+          pendingProtocolToolResult.appendStarted = true;
+          void persisted
+            .then(
+              () => pendingProtocolToolResult.resolve(),
+              (error) => pendingProtocolToolResult.reject(error),
+            )
+            .finally(() => {
+              const facts = executionSlotFor(this).protocolToolResultFacts;
+              const key = protocolToolResultKey(entry.runId, toolResultCallId!);
+              if (facts?.get(key) === pendingProtocolToolResult) facts.delete(key);
+            });
+        }
         this.options.trace?.(entry);
       },
       resumePlan?.previousTrace,
@@ -3310,6 +3358,7 @@ export class CoreMindRuntime {
 interface RuntimeExecutionSlot {
   kernel?: RunKernel<RuntimeHarness, RunResult>;
   context?: RunContext<RuntimeHarness>;
+  protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;
 }
 
 const runtimeExecutionSlots = new WeakMap<CoreMindRuntime, RuntimeExecutionSlot>();
@@ -3320,6 +3369,67 @@ function executionSlotFor(runtime: CoreMindRuntime): RuntimeExecutionSlot {
   const created: RuntimeExecutionSlot = {};
   runtimeExecutionSlots.set(runtime, created);
   return created;
+}
+
+/** 仅供同仓库 ProtocolHost：结果已写入 Runtime 的同一 journal 后才确认 accepted。 */
+export function prepareProtocolToolResultFact(
+  runtime: CoreMindRuntime,
+  fact: ProtocolToolResultFact,
+): Promise<void> {
+  const slot = executionSlotFor(runtime);
+  const runId = slot.kernel?.currentContext()?.currentRunId();
+  if (!runId || runId !== fact.runId) {
+    throw new CoreMindError("run_state_failed", "Protocol v2 工具结果没有匹配的活动 Run");
+  }
+  const validated = validateProtocolToolResultFact(fact, fact.runId, fact.callId);
+  const key = protocolToolResultKey(fact.runId, fact.callId);
+  slot.protocolToolResultFacts ??= new Map();
+  const facts = slot.protocolToolResultFacts;
+  const fingerprint = fingerprintEffectReceiptValue(validated);
+  const existing = facts.get(key);
+  if (existing) {
+    if (existing.fingerprint !== fingerprint) {
+      throw new CoreMindError("run_state_conflict", "Protocol v2 工具结果身份冲突");
+    }
+    return existing.promise;
+  }
+  let resolve!: () => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<void>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  void promise.catch(() => undefined);
+  facts.set(key, {
+    fact: validated,
+    fingerprint,
+    promise,
+    resolve,
+    reject,
+    appendStarted: false,
+  });
+  return promise;
+}
+
+async function settleProtocolToolResultFacts(runtime: CoreMindRuntime): Promise<void> {
+  const facts = executionSlotFor(runtime).protocolToolResultFacts;
+  if (!facts || facts.size === 0) return;
+  const unfinished = [...facts.values()];
+  for (const pending of unfinished) {
+    if (!pending.appendStarted) {
+      pending.reject(
+        new CoreMindError("run_state_failed", "Run 结束前未持久化 Protocol v2 工具结果 Fact"),
+      );
+    }
+  }
+  await Promise.allSettled(
+    unfinished.filter((pending) => pending.appendStarted).map((p) => p.promise),
+  );
+  facts.clear();
+}
+
+function protocolToolResultKey(runId: string, callId: string): string {
+  return `${runId}\u0000${callId}`;
 }
 
 function runContextFor(runtime: CoreMindRuntime): RunContext<RuntimeHarness> {
@@ -3643,6 +3753,24 @@ function toolCallIdentity(
   callId: string,
 ): ToolCallIdentity {
   return { agent, callId, ...(stepId ? { stepId } : {}) };
+}
+
+function validateProtocolToolResultFact(
+  fact: ProtocolToolResultFact,
+  runId: string,
+  callId: string,
+): ProtocolToolResultFact {
+  if (
+    fact.schemaVersion !== 1 ||
+    fact.runId !== runId ||
+    fact.callId !== callId ||
+    fact.resultId.trim().length === 0 ||
+    fact.registrationId.trim().length === 0 ||
+    !/^[0-9a-f]{64}$/u.test(fact.requestFingerprint)
+  ) {
+    throw new CoreMindError("run_state_failed", "Protocol v2 工具结果 Fact 身份非法");
+  }
+  return structuredClone(fact);
 }
 
 /** 分界前已启动的活动集合（R3 判定用）：从已收集事件的 turnId 提取 */

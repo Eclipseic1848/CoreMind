@@ -29,6 +29,8 @@ import {
   classifyExecutionError,
   enforceExecutionSecurity,
   ProjectionEngine,
+  type ProtocolToolResultFact,
+  prepareProtocolToolResultFact,
   type RunId,
 } from "coremind-ai/internal";
 import {
@@ -164,10 +166,20 @@ export class ProtocolHost {
   private readonly protocolV2ToolRegistrations = new Map<string, RegisteredToolSpec>();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
-  private readonly settledProtocolV2ToolResults = new Map<string, string>();
+  private readonly settledProtocolV2ToolResults = new Map<
+    string,
+    { runId: string; requestFingerprint: string; persisted: Promise<void> }
+  >();
   private readonly closedProtocolV2ToolCalls = new Map<
     string,
-    { runId: string; registrationId: string; toolId: string }
+    {
+      runId: string;
+      registrationId: string;
+      toolId: string;
+      resultId?: string;
+      requestFingerprint?: string;
+      persisted?: Promise<void>;
+    }
   >();
   private readonly protocolV2Starts = new Map<
     string,
@@ -380,11 +392,6 @@ export class ProtocolHost {
           await journal.flush();
         }
         const handle = protocolV2RunHandle(request.params.runId, persisted.acceptedAt);
-        this.protocolV2Starts.set(request.params.runId, {
-          method: request.method,
-          fingerprint,
-          handle,
-        });
         return handle;
       }
       // 第一次 resume 合法地承接既有 run/chat；重复 resume 则仍由指纹约束。
@@ -1028,6 +1035,15 @@ export class ProtocolHost {
           new CoreMindError("run_already_finished", `运行结束前工具调用 ${callId} 未返回`),
         );
       }
+      if (completedRunId) {
+        this.protocolV2Starts.delete(completedRunId);
+        for (const [key, call] of this.closedProtocolV2ToolCalls) {
+          if (call.runId === completedRunId) this.closedProtocolV2ToolCalls.delete(key);
+        }
+        for (const [resultId, result] of this.settledProtocolV2ToolResults) {
+          if (result.runId === completedRunId) this.settledProtocolV2ToolResults.delete(resultId);
+        }
+      }
       this.running = false;
       this.activeController = undefined;
       this.activeRuntime = undefined;
@@ -1160,26 +1176,29 @@ export class ProtocolHost {
   ): Promise<unknown> {
     const fingerprint = sha256Canonical(params);
     const settled = this.settledProtocolV2ToolResults.get(params.resultId);
-    if (settled)
+    if (settled) {
+      if (settled.runId === params.runId && settled.requestFingerprint === fingerprint) {
+        await settled.persisted;
+      }
       return protocolV2ToolResultReceipt(
         params,
-        settled === fingerprint ? "duplicate" : "conflict",
+        settled.runId === params.runId && settled.requestFingerprint === fingerprint
+          ? "duplicate"
+          : "conflict",
       );
+    }
     const pending = this.pendingToolCalls.get(params.callId);
     if (!pending?.protocolV2) {
       const closed = this.closedProtocolV2ToolCalls.get(
         protocolV2CallKey(params.runId, params.callId),
       );
       if (closed?.runId === params.runId && closed.registrationId === params.registrationId) {
+        await closed.persisted;
         return protocolV2ToolResultReceipt(params, "conflict");
       }
       return protocolV2ToolResultReceipt(
         params,
-        await this.classifyPersistedProtocolV2ToolCall(
-          params.runId,
-          params.callId,
-          params.registrationId,
-        ),
+        await this.classifyPersistedProtocolV2ToolCall(params, fingerprint),
       );
     }
     if (
@@ -1188,42 +1207,59 @@ export class ProtocolHost {
     ) {
       return protocolV2ToolResultReceipt(params, "conflict");
     }
+    const fact: ProtocolToolResultFact = {
+      schemaVersion: 1,
+      resultId: params.resultId,
+      runId: params.runId,
+      callId: params.callId,
+      registrationId: params.registrationId,
+      requestFingerprint: fingerprint,
+    };
+    const persisted = this.persistProtocolV2ToolResultFact(fact);
     this.pendingToolCalls.delete(params.callId);
     pending.cleanup?.();
-    this.closedProtocolV2ToolCalls.set(
-      protocolV2CallKey(pending.protocolV2.runId, params.callId),
-      pending.protocolV2,
-    );
-    this.settledProtocolV2ToolResults.set(params.resultId, fingerprint);
+    this.closedProtocolV2ToolCalls.set(protocolV2CallKey(pending.protocolV2.runId, params.callId), {
+      ...pending.protocolV2,
+      resultId: params.resultId,
+      requestFingerprint: fingerprint,
+      persisted,
+    });
+    this.settledProtocolV2ToolResults.set(params.resultId, {
+      runId: params.runId,
+      requestFingerprint: fingerprint,
+      persisted,
+    });
     if (params.error !== undefined) {
       pending.reject(new CoreMindError("python_tool_failed", params.error));
     } else {
       pending.resolve(params.result);
     }
+    await persisted;
     return protocolV2ToolResultReceipt(params, "accepted");
   }
 
   private async classifyPersistedProtocolV2ToolCall(
-    runId: string,
-    callId: string,
-    registrationId: string,
-  ): Promise<"unknown" | "late" | "conflict"> {
+    params: ProtocolV2ToolResultRequest["params"],
+    requestFingerprint: string,
+  ): Promise<"duplicate" | "unknown" | "late" | "conflict"> {
     const state = this.requireInitialized();
-    const records = await state.runStore.read(runId);
+    const records = await state.runStore.read(params.runId);
     if (records.length === 0) return "unknown";
     const events = records.flatMap((record) => {
       const trace = record.kind === "event" ? asRecord(record.payload) : undefined;
       const event = trace ? asRecord(trace.event) : undefined;
       return event ? [event] : [];
     });
-    const knownCall = events.find((event) => event.type === "tool_call" && event.callId === callId);
+    const knownCall = events.find(
+      (event) => event.type === "tool_call" && event.callId === params.callId,
+    );
     if (!knownCall) return "unknown";
-    const registered = this.protocolV2ToolRegistrations.get(registrationId);
+    const registered = this.protocolV2ToolRegistrations.get(params.registrationId);
     if (!registered) return "unknown";
     const persistedRegistrations = persistedProtocolV2Start(records)?.toolRegistrations;
     if (!Array.isArray(persistedRegistrations)) return "unknown";
     const persistedRegistration = persistedRegistrations.find(
-      (registration) => registration.registrationId === registrationId,
+      (registration) => registration.registrationId === params.registrationId,
     );
     if (
       !persistedRegistration ||
@@ -1234,6 +1270,12 @@ export class ProtocolHost {
     ) {
       return "conflict";
     }
+    const persistedResult = persistedProtocolV2ToolResultStatus(
+      records,
+      params,
+      requestFingerprint,
+    );
+    if (persistedResult) return persistedResult;
     const receipt = [...events]
       .reverse()
       .find(
@@ -1243,6 +1285,25 @@ export class ProtocolHost {
     if (receipt?.status === "committed" || receipt?.status === "unknown") return "late";
     const status = ProjectionEngine.project(records).status;
     return status === "interrupted" ? "unknown" : "late";
+  }
+
+  private persistProtocolV2ToolResultFact(fact: ProtocolToolResultFact): Promise<void> {
+    const runtime = this.activeRuntime;
+    if (!runtime) {
+      throw new CoreMindError("run_state_failed", "Protocol v2 工具结果没有活动 Runtime");
+    }
+    if (runtime instanceof CoreMindRuntime) {
+      return prepareProtocolToolResultFact(runtime, fact);
+    }
+    const persist = (
+      runtime as WorkerRuntime & {
+        persistProtocolToolResultFact?: (value: ProtocolToolResultFact) => Promise<void>;
+      }
+    ).persistProtocolToolResultFact;
+    if (!persist) {
+      throw new CoreMindError("run_state_failed", "自定义 Runtime 未实现工具结果 Fact 持久化");
+    }
+    return persist(fact);
   }
 
   private resolveApproval(
@@ -1510,6 +1571,43 @@ function protocolV2ToolDefinitionFingerprint(
     effect: params.effect,
     capability: params.capability,
   })}`;
+}
+
+function persistedProtocolV2ToolResultStatus(
+  records: readonly RunStateRecord[],
+  params: ProtocolV2ToolResultRequest["params"],
+  requestFingerprint: string,
+): "duplicate" | "conflict" | undefined {
+  for (const record of records) {
+    if (record.kind !== "event") continue;
+    const payload = asRecord(record.payload);
+    const fact = payload ? asRecord(payload.protocolToolResult) : undefined;
+    if (!fact) continue;
+    const event = payload ? asRecord(payload.event) : undefined;
+    if (
+      fact.schemaVersion !== 1 ||
+      fact.runId !== record.runId ||
+      typeof fact.resultId !== "string" ||
+      fact.resultId.length === 0 ||
+      typeof fact.callId !== "string" ||
+      fact.callId.length === 0 ||
+      typeof fact.registrationId !== "string" ||
+      fact.registrationId.length === 0 ||
+      typeof fact.requestFingerprint !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(fact.requestFingerprint) ||
+      event?.type !== "tool_result" ||
+      event.callId !== fact.callId
+    ) {
+      throw new CoreMindError("run_state_corrupt", "RunState 包含非法 Protocol v2 工具结果 Fact");
+    }
+    if (fact.resultId === params.resultId) {
+      return fact.requestFingerprint === requestFingerprint ? "duplicate" : "conflict";
+    }
+    if (fact.callId === params.callId && fact.registrationId === params.registrationId) {
+      return "conflict";
+    }
+  }
+  return undefined;
 }
 
 function protocolV2ToolResultReceipt(

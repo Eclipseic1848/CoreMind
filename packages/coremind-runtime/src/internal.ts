@@ -46,3 +46,7 @@ export {
 export { buildProviderRuntime, resolveProviderSecurity } from "./provider.js";
 export { RunContext } from "./run-context.js";
 export { RunKernel, type RunKernelDependency } from "./run-kernel.js";
+export {
+  type ProtocolToolResultFact,
+  prepareProtocolToolResultFact,
+} from "./runtime.js";
