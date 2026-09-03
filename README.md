@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-stable%200.7.0-22c55e)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-stable%200.7.1-22c55e)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -18,24 +18,24 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 当前稳定版为 `0.7.0`，包含 Protocol v2、Execution Security Gate、统一 Error Contract，以及由 Config v2 门控并贯通 CLI/TUI/TypeScript/Python 的 Child Run 产品链路。可从 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.7.0) 与 [PyPI](https://pypi.org/project/coremind-ai/0.7.0/) 获取。
+> `0.7.1` 稳定版发布线已完成代码与文档准备，在 Protocol v2、Execution Security Gate、统一 Error Contract 与 Child Run 产品链路之上，补强凭据 Header、Artifact 导入、增量 Fact 持久化、Protocol v2 长驻 Host、TUI 输入和发布失败证据。公开可安装性以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.7.1) 与 [PyPI](https://pypi.org/project/coremind-ai/0.7.1/) 实时页面为准。
 
-> P0 实现、Node 22 双平台工程、候选包与真实 TTY 门禁已通过。严格 Provider 请求在 HTTP 响应前网络超时，维护者将其作为仅限本版本的网络例外通过；这不是 live-provider 认证。
+> 仓库内 Provider 台账当前未收录 `0.7.1` 静态认证记录。正式发布必须通过绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact；可配置不等于认证，投产前应同时核对供应商矩阵与本版本工作流证据。
 
 [5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [版本迁移指南](docs/migrations/0.2-to-0.3.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-稳定版 `0.7.0` 坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
+稳定版 `0.7.1` 坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
 
 | 能力域 | 当前支持 |
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；`0.7.0` 没有当前版本真实成功认证，仅有维护者批准的一次性网络例外，旧 `0.3.2` 证据仅供追溯；真实状态以[供应商矩阵](docs/providers/README.zh-CN.md)为准 |
+| 配置与模型 | Config v2；40 个可配置 Provider；自定义 OpenAI-compatible 端点；仓库台账未收录 `0.7.1` 静态记录，旧版本证据只供追溯；发布资格还须核对同版本 strict-provider 工作流 Artifact |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
-| 协议与控制 | Protocol v2 提供 RunHandle、cursor 续订、Projection query 与持久控制回执；v1 在整个 `0.4.x` 保留兼容入口 |
+| 协议与控制 | Protocol v2 提供 RunHandle、cursor 续订、Projection query 与持久控制回执；v1 继续受支持，当前没有经批准的移除计划 |
 | 执行环境 | AgentDriver 隔离 reactive loop，ExecutionEnvironment probe 验证进程树、网络、凭据与隔离能力；Windows Trusted Host 不伪装成 sandbox，Linux sandbox 能力不足时失败关闭 |
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
 | 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
@@ -52,12 +52,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 |---|---|---|
 | `0.3.1` 稳定版（历史） | 在 `0.3.0` 基础上完成事实域关联、类型化身份、不变量检查、请求重建、输入收据与取消收敛 | 保持 Config、Protocol、终态、权限、副作用和恢复合同由 CoreMind 持有 |
 | `0.7.0` 稳定版 | 汇总 0.3.x-B/C、Protocol v2、统一安全与错误合同，并把 Child Run 产品化到四个正式入口 | Provider 网络例外已审计；真实认证仍是后续版本的独立门禁 |
+| `0.7.1` 稳定版 | 修复凭据 Header、Artifact 路径与身份、Fact 追加、Protocol v2 幂等状态、TUI 输入及发布证据问题 | 不改变 wire contract；Protocol v1 继续支持；Provider 认证必须按本版本重新取得 |
 | 三期 Web 开发环境 | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
 `0.3.x` 将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-`0.3.2` 的历史候选证据继续保留用于追溯，但不能替代 `0.7.0` 的发布证据。
+旧版本候选与 Provider 证据继续保留用于追溯，但不能替代 `0.7.1` 的发布或认证证据。
 
 ## CoreMind 解决什么问题
 
@@ -86,7 +87,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 使用源码开发需要 Node.js ≥ 22.19 与 npm ≥ 11.5.1。安装稳定版 CLI：
 
 ```bash
-npm install -g coremind-cli@0.7.0
+npm install -g coremind-cli@0.7.1
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -198,7 +199,7 @@ console.log(result.outcome, result.metrics, result.transcript);
 
 ## Python SDK
 
-Python SDK 启动一个常驻 Node worker，并使用相同的 Runtime 和结果语义；默认使用 Protocol v1，也可显式启用 Protocol v2，且 v1 在整个 `0.4.x` 保留。它不是第二套 Python Agent Loop。
+Python SDK 启动一个常驻 Node worker，并使用相同的 Runtime 和结果语义；默认使用 Protocol v1，也可显式启用 Protocol v2。v1 继续受支持，当前没有经批准的移除计划。它不是第二套 Python Agent Loop。
 
 ```python
 from coremind import CoreMindClient
@@ -226,6 +227,8 @@ print(result["outcome"], result["transcript"])
 - ask/assisted/full 三档权限，deny、路径和网络策略优先。
 - ask 模式下人工拒绝任一工具审批后，被拒绝项和本批次尚未审批的后续工具都会被阻断；本批结果归并后返回 `paused`，不会继续请求模型或重复弹出审批。顺序工作流中的拒绝步骤不会保存输出，后续步骤不会启动。
 - edit/write 前 checkpoint，运行后 diff 与显式恢复；恢复前检查工具完成后的文件指纹，检测到人工或并发修改时拒绝覆盖。
+- Artifact 只从允许的 canonical 临时普通文件导入；符号链接、越界真实路径或读取前身份变化都会被拒绝，删除临时源文件前还会再次核对身份。
+- Provider API key 与敏感 Header 必须使用环境变量引用或宿主 `SecretRef`；常见 Header 别名同样拒绝明文，解析失败时在任何 Provider、工具或 Fact 副作用前关闭执行。
 - 自定义工具必须声明 `effect.operations` 与 `effect.reversible`；权限层递归检查嵌套路径和 URL，未知副作用在受约束模式下安全拒绝。
 - Windows 宿主 Shell 只有在 full、关闭工作区限制、允许网络同时选择时开放，其他组合安全拒绝；Git Bash 不等于隔离；Linux Shell 继续使用操作系统级隔离。
 - 带 runId、eventId、sequence、timestamp 的 Trace 与 append-only RunState。
@@ -239,7 +242,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`0.7.0` 的真实父子 Agent 请求在 HTTP 响应前网络超时，维护者接受了仅限本版本的网络例外；它不计为认证。`0.3.2` 旧证据继续保留用于追溯，也不计为当前认证。
+CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。仓库台账未收录 `0.7.1` 静态记录；正式发布必须另有绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact。`0.7.0` 的一次性网络例外与更早证据只供追溯，均不计为本版本认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 
@@ -247,7 +250,7 @@ CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 Op
 
 ## 学习与验证材料
 
-- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块随 `0.7.0` 稳定版交付。
+- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块自 `0.7.0` 起稳定交付。
 - [5 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查与验证修复 Loop，均可用本地 mock Provider 离线运行。
 - [2 个编码智能体真实缺陷仓库](examples/coding-evals/README.zh-CN.md)：TypeScript 与 Python 均验证复现、最小修复、目标/回归测试、只读 Git 证据和脏工作区保护。
 - [配置指南](docs/guide/02-configuration.md)、[Skill 指南](docs/guide/03-skills.md)、[质量指南](docs/guide/04-quality.md)、[CLI 指南](docs/guide/05-cli-usage.md)。

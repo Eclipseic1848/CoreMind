@@ -8,7 +8,7 @@ body:
       value: "感谢反馈。安全漏洞请勿在此公开，请使用仓库 Security 页面的私密报告入口。"
   - type: input
     id: version
-    attributes: { label: CoreMind 版本, placeholder: "例如 0.1.0-alpha.2" }
+    attributes: { label: CoreMind 版本, placeholder: "例如 0.7.1" }
     validations: { required: true }
   - type: input
     id: environment

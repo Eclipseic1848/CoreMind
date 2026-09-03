@@ -8,6 +8,7 @@ import {
   inspectRepository,
   normalizePythonVersion,
 } from "./release-preflight.mjs";
+import { synchronizeReleaseVersion } from "./release-version.mjs";
 
 describe("发布元数据预检", () => {
   it("普通开发检查可以延后当前 Runtime 的 Provider 认证", () => {
@@ -50,6 +51,7 @@ describe("发布元数据预检", () => {
   it("只接受与 0.7.0 Runtime 摘要一致的一次性 Provider 网络豁免", async () => {
     const fixtureRoot = await createUncertifiedRepositoryFixture();
     try {
+      await synchronizeReleaseVersion(fixtureRoot, "0.7.0");
       await mkdir(path.join(fixtureRoot, "packages", "coremind-runtime", "dist"), {
         recursive: true,
       });
@@ -97,6 +99,14 @@ describe("发布元数据预检", () => {
       expect(accepted.blockers).not.toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
       expect(accepted.warnings.join("\n")).toContain("Provider 网络超时豁免");
 
+      await synchronizeReleaseVersion(fixtureRoot, "0.7.1");
+      const rejectedVersion = await inspectRepository(fixtureRoot, {
+        allowDirty: true,
+        allowProviderNetworkWaiver: true,
+      });
+      expect(rejectedVersion.blockers).toContain("Provider 认证证据未绑定当前版本与 Runtime 摘要");
+
+      await synchronizeReleaseVersion(fixtureRoot, "0.7.0");
       await writeFile(
         path.join(fixtureRoot, "packages", "coremind-runtime", "dist", "index.js"),
         "changed-runtime\n",

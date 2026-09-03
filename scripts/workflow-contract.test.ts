@@ -260,7 +260,10 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
         ]),
         status: 0,
       });
-      expect(run(latency)).toEqual({ calls: [`1:${latency}:default`], status: 1 });
+      expect(run(latency)).toEqual({
+        calls: [`1:${latency}:default`],
+        status: 1,
+      });
       expect(run(faultMatrix)).toEqual({
         calls: [`1:${latency}:default`, `1:${faultMatrix}:default`],
         status: 1,
@@ -432,6 +435,15 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(freshBuildStep.env.COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE).toContain(
       "reuse_candidate_run_id",
     );
+    expect(freshBuildStep.run).toContain("--provider-certification-directory");
+    const providerEvidenceStep = workflow.jobs.build.steps.find(
+      (step: { name?: string }) => step.name === "下载严格 Provider 认证证据",
+    );
+    expect(providerEvidenceStep.if).toContain("provider_evidence_mode == 'strict-provider'");
+    expect(providerEvidenceStep.run).toContain("provider-certification-");
+    expect(providerEvidenceStep.env.COREMIND_CANDIDATE_RUN_ID).toContain("candidate_run_id");
+    expect(providerEvidenceStep.env.COREMIND_CANDIDATE_SHA).toContain("candidate_sha");
+    expect(freshBuildStep.run).toContain("--provider-certification-commit");
     const freshStateStep = workflow.jobs.build.steps.find(
       (step: { name?: string }) => step.name === "拒绝在未知或部分发布状态下重新构建",
     );
@@ -450,6 +462,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
     expect(workflow.on.workflow_dispatch.inputs.reuse_candidate_run_id.default).toBe("");
+    expect(workflow.jobs.candidate.outputs.candidate_sha).toContain("candidate_sha");
     expect(candidateCommands).toContain("reuse_candidate_run_id 必须是 GitHub Actions run ID");
     expect(candidateCommands).toContain("git diff --name-only");
     expect(candidateCommands).toContain(
@@ -464,7 +477,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(candidateCommands).toContain(`rulesets/\${ruleset_id}`);
     expect(candidateCommands).toContain("required_approving_review_count");
     expect(candidateCommands).toContain("integration_id");
-    expect(candidateCommands).toContain("v0.7.0-main-ruleset.json");
+    expect(candidateCommands).toContain("v0.7.1-main-ruleset.json");
     expect(candidateCommands).toContain("COREMIND_POLICY_SNAPSHOT_SHA256");
     expect(candidateCommands).not.toContain(`\${{ inputs.tag }}`);
     expect(candidateCommands).toContain("strict_required_status_checks_policy");
@@ -530,6 +543,15 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
       );
       expect(p0Steps.every((step: { if?: string }) => step.if?.includes("v0.7.0"))).toBe(true);
     }
+  });
+
+  it("Markdown 审计报告跟随根包版本", () => {
+    const source = readFileSync("scripts/audit-markdown.mjs", "utf8");
+
+    expect(source).toContain('readFile(path.join(root, "package.json"), "utf8")');
+    expect(source).toMatch(/markdown-audit-\$\{version\}\.json/u);
+    expect(source).not.toContain("markdown-audit-v0.7.0.json");
+    expect(source).not.toContain('release: "0.7.0"');
   });
 
   it("所有外部 Action 固定完整 SHA，并由 Dependabot 维护", () => {

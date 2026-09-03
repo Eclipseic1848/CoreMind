@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current stable release: `0.7.0`
+## Current stable release: `0.7.1`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.7.0` stable release retains `0.3.1` and adds these capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.7.1` stable release retains `0.7.0` and these capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,9 +18,15 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v0.7.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/0.7.0/) are published at the same version. The `0.3.1` release evidence remains as historical record.
+The `v0.7.1` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/0.7.1/) must bind the same version and commit. Live channel pages remain authoritative for public availability, and older release evidence remains as historical record.
 
-It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Except for the one-time `0.7.0` decision below, every candidate must complete the automated quality gates, both-platform P01-P20, a current live-provider recheck, and the final documentation audit on the same commit before synchronized publication.
+It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. The checked-in ledger has no static `0.7.1` certification record, while formal publication also requires a same-version strict-provider workflow Artifact.
+
+## `0.7.1`: stability and release-evidence hardening
+
+This release does not change the Protocol wire contract. It expands sensitive Header alias checks so custom Providers cannot store plaintext credentials; Artifact import rejects symlinks, canonical-path escapes, and file-identity races; normal RunStore append writes only the new Fact; and long-lived Protocol v2 hosts reclaim terminal idempotency caches while rebuilding duplicate/conflict decisions from the authoritative journal. Protocol v1 remains supported with no approved removal plan.
+
+The TUI no longer clears unsent ordinary input while a Run is busy. Release failures print P0 blockers, retain reports, and continue Registry reinstall verification after public artifacts exist. Python package metadata now matches stable-release maturity. No Provider has same-version live certification, and older network exceptions or certification evidence cannot be reused.
 
 ## `0.7.0`: Child Run stable release
 
@@ -42,7 +48,7 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 After the `0.3.x` hardening line, work proceeds in the following directions (scope and acceptance are confirmed by the maintainer before each phase starts):
 
-- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams ship in `0.7.0`; the Protocol v1 migration entry remains.
+- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams ship in `0.7.0`; Protocol v1 remains supported with no approved removal plan.
 - **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
 - **0.7.0**: delivers Child Run productization and a stable release. Goals, Jobs, durable detach, and Web remain out of scope. The Provider network exception is audited but is not live-provider certification.
 - **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.

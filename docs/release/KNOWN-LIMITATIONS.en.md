@@ -1,10 +1,10 @@
-# 0.7.0 Known Limitations
+# 0.7.1 Known Limitations
 
-> This file records the capability boundary of stable `0.7.0`. GitHub Release, npm, and PyPI are published at the same version and remain authoritative for installation.
+> This file records the capability boundary of the stable `0.7.1` release line. The live GitHub Release, npm, and PyPI pages are the only authority for installable availability.
 
-- All 40 provider entries are configurable, but `0.7.0` has no successful live parent-child Agent certification. The first Provider request in strict run `33582995518` timed out before an HTTP response; the maintainer accepted this as a version-specific network exception. It is not a live-provider success, and evidence for `0.3.2` or earlier remains historical only.
+- All 40 Provider entries are configurable, but a static catalog entry is not live certification. Publication of `0.7.1` accepts only strict Provider qualification evidence bound to the exact version, full commit, and Runtime SHA-256; ledger evidence that does not cover this version remains historical only.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
-- Candidate packages, both-platform TTY, the Runtime digest, the network exception, and public-release evidence for `0.7.0` must remain exactly correlated. No partial green check establishes public availability.
+- Candidate packages, both-platform TTY, the Runtime digest, Provider qualification, and public-release evidence for `0.7.1` must remain exactly correlated. No partial green check establishes public availability. The one-time `0.7.0` network exception cannot be reused for this version.
 - The non-regression coverage gate passes, but repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.
 - Lifecycle extensions are controlled in-process extensions, not an operating-system sandbox. Only four events are exposed, and unknown project extensions are not loaded by default.
 - Windows host-shell safety depends on the permission, workspace, and network combination. Only the built-in Linux shell uses the additional network-disabled isolation; the two are not equivalent sandboxes.
@@ -13,4 +13,4 @@
 - Local deterministic compaction remains the default and project Memory is not created automatically. Experimental strategies never switch themselves on.
 - Child Run does not support durable detach, standalone spawn/list/resume commands, Goals, or Jobs; Web is out of scope for this release.
 - The candidate does not provide a hosted API, multi-tenant SaaS, official Docker image, formal macOS support, or extension marketplace.
-- The `v0.7.0` tag, GitHub Release, eight npm packages, and PyPI package are published at the same version. Those public channels remain authoritative for installable availability.
+- The `v0.7.1` tag, GitHub Release, eight npm packages, and PyPI package must resolve to the same version and commit. Those public channels remain authoritative for installable availability.

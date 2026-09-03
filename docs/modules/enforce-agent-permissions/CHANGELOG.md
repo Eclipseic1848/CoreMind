@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Extended credential-boundary enforcement to common custom Provider header aliases without changing non-sensitive header behavior.
+
 ## 0.7.0 - 2026-08-29
 
 - Synchronized the module contract, bilingual guidance, examples, and release metadata with the stable release.

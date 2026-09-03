@@ -1,6 +1,6 @@
 # CLI and TUI
 
-Status: published with stable `0.7.0`. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the stable `0.7.1` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -23,6 +23,7 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 - `--print` and `--json-events` are mutually exclusive so prose cannot contaminate machine output
 - Non-TTY approvals deny safely
 - TUI and readline share the same ChatSession harness, and failed terminal states display their reason
+- While a TUI turn is running, Enter does not submit ordinary buffered input; `/abort` and `/children` remain available.
 - TUI approvals show effects, complete targets, and reasons first; long bodies are summarized and credential fields redacted
 - TUI, readline, and JSONL expose the same ordered `loop_state` events; pause exits with code `2` and remains resumable
 - Unsafe or already-finished run IDs fail resume explicitly

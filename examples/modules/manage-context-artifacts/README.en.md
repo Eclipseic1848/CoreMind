@@ -6,7 +6,7 @@
 npx vitest run packages/coremind-runtime/src/context.test.ts packages/coremind-runtime/src/result.test.ts packages/coremind-tools/src/artifact-store.test.ts --maxWorkers=1
 ```
 
-The tests verify byte-stable prefixes, summaries that retain critical state, a bounded preview for 50 MB output, verifiable full-file size and hash, secret blocking, and rejection of forged paths.
+The tests verify byte-stable prefixes, summaries that retain critical state, a bounded preview for 50 MB output, verifiable full-file size and hash, secret blocking, and rejection of forged paths, symbolic links, linked directories, and files replaced after validation.
 
 ## Compare strategies in the embedded SDK
 

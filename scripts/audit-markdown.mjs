@@ -1,16 +1,17 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditMarkdownTree } from "./markdown-audit-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const version = JSON.parse(await readFile(path.join(root, "package.json"), "utf8")).version;
 const report = await auditMarkdownTree(root);
 if (process.argv.includes("--write-report")) {
-  const output = path.join(root, ".scratch", "markdown-audit-v0.7.0.json");
+  const output = path.join(root, ".scratch", `markdown-audit-${version}.json`);
   await mkdir(path.dirname(output), { recursive: true });
   await writeFile(
     output,
-    `${JSON.stringify({ schemaVersion: 1, release: "0.7.0", ...report }, null, 2)}\n`,
+    `${JSON.stringify({ schemaVersion: 1, release: version, ...report }, null, 2)}\n`,
     "utf8",
   );
   console.log(`Markdown 逐文件证据：${path.relative(root, output)}`);

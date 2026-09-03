@@ -1,6 +1,6 @@
 # Context and Artifact Governance
 
-Status: published with stable `0.7.0`. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the stable `0.7.1` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## What this module solves
 
@@ -21,6 +21,7 @@ The summary preserves goals, constraints, approvals, changed files, test state, 
 
 - The resolved artifact root must remain inside the workspace and names are framework-generated.
 - Only trusted tool temporary-output paths can be imported; forged paths are neither read nor deleted.
+- Imports reject symbolic links and linked directories, require the canonical source to remain directly under the system temporary directory, and verify that the open file is still the validated file before copying.
 - Suspected API keys, tokens, passwords, or private keys remove the model preview and delete both temporary and staged artifacts.
 - Artifacts are local evidence. They are never uploaded or converted into cross-project memory automatically.
 - Full permission mode does not disable path or credential protection.

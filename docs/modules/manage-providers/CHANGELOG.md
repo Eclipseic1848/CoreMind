@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Required strict Provider evidence for `0.7.1` and bound its version, commit, Runtime build, bundled Worker, and final npm package into the release bundle.
+
 ## 0.7.0 - 2026-08-29
 
 - Made injected environments authoritative, added explicit CLI provider selection, and bound certification to a source commit and Runtime artifact digest.

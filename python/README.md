@@ -2,13 +2,13 @@
 
 Python SDK 通过本地 stdio JSON-RPC 调用与 TypeScript/CLI 相同的 Node Runtime，不维护第二套 Agent Loop。
 
-当前稳定包为已发布的 [`coremind-ai==0.7.0`](https://pypi.org/project/coremind-ai/0.7.0/)；完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
+本发布线的稳定 Python 包为 [`coremind-ai==0.7.1`](https://pypi.org/project/coremind-ai/0.7.1/)；公开可安装性以 PyPI 实时页面为准，完整中英文指南见仓库 `docs/modules/embed-coremind-python/`。
 
 可用 `CoreMindClient(..., protocol_version="2.0")` 显式启用 Protocol v2；默认仍为 v1。v2 的 `run`、`chat` 和 `resume_run` 返回 `RunHandle`，调用方必须提供或由 SDK 预生成稳定 `run_id`；随后使用 `events(run_id, after_sequence=...)`、`query(run_id)` 与 `control(command)` 读取事件、投影和提交持久控制。`cursor_expired` 的 Projection snapshot 与新 cursor 可从 `ProtocolError.details` 读取。同步与异步客户端使用相同合同。
 
 配置驱动的委派通过同一个 bundled Node Worker 执行：v1 `run` 的结构化结果包含 `childRuns`，v2 的 `events()` 返回带父子身份的 `fact.delegation`，`query()` 返回同源 Child Run tree 与 Recovery。Python SDK 不提供脱离活动父 Run 的 spawn、list、resume 或 detach 入口。
 
-Protocol v2 不开放 Python callable 注册；改用 `register_tool_definition()` 注册声明式 Schema/Effect/Capability，从 `received_tool_calls` 读取调用、从 `received_tool_cancellations` 读取取消，再用 `submit_tool_result()` 显式回传。Checkpoint 使用 `checkpoint_list/create/diff/restore`，恢复必须提交 `diff` 返回的当前文件身份。两类能力都由随包 Node Runtime 执行，Python 不读取私有数据库或复制状态机。v1 在整个 `0.4.x` 保留，最早移除版本为 `0.5.0` 且需要独立决策。
+Protocol v2 不开放 Python callable 注册；改用 `register_tool_definition()` 注册声明式 Schema/Effect/Capability，从 `received_tool_calls` 读取调用、从 `received_tool_cancellations` 读取取消，再用 `submit_tool_result()` 显式回传。Checkpoint 使用 `checkpoint_list/create/diff/restore`，恢复必须提交 `diff` 返回的当前文件身份。两类能力都由随包 Node Runtime 执行，Python 不读取私有数据库或复制状态机。`0.7.1` 仍默认使用 v1，并显式支持 v2；当前没有批准的 v1 移除时间表，任何移除都需要独立、版本化的弃用决策。
 
 Python 包随 bundled worker 一起携带由 TypeScript 唯一 Error Contract 生成的只读 `ERROR_CODES`。可用 `error_code_info(code)` 查询终态、取消、重试、人工处置和兼容 Run 状态；`ProtocolError.error_info` 自动提供同一分类。未登记的 Python SDK 自有码会在仓库 CI 中失败，未知外部错误仍收敛为 `unclassified_error`。
 
@@ -22,7 +22,7 @@ Use `CoreMindClient(..., protocol_version="2.0")` to opt into Protocol v2; v1 re
 
 Configured delegation runs through that same bundled Node Worker. A v1 `run` result includes structured `childRuns`; v2 `events()` exposes identity-bearing `fact.delegation` records, while `query()` returns the same-source Child Run tree and Recovery. The Python SDK does not add standalone spawn, list, resume, or detach entry points.
 
-Protocol v2 does not accept Python callable registration. Use `register_tool_definition()` for declarative tools, consume `received_tool_calls` and `received_tool_cancellations`, and return results explicitly with `submit_tool_result()`. Checkpoint operations are exposed through `checkpoint_list/create/diff/restore`, with compare-and-swap file identity required for restore. Both paths remain authoritative in the bundled Node runtime. The v1 entry remains available throughout `0.4.x`; removal cannot be considered before `0.5.0` and still requires a separate decision.
+Protocol v2 does not accept Python callable registration. Use `register_tool_definition()` for declarative tools, consume `received_tool_calls` and `received_tool_cancellations`, and return results explicitly with `submit_tool_result()`. Checkpoint operations are exposed through `checkpoint_list/create/diff/restore`, with compare-and-swap file identity required for restore. Both paths remain authoritative in the bundled Node runtime. Version `0.7.1` keeps v1 as the default and supports explicit v2 opt-in. No v1 removal schedule is approved; removal requires a separate, versioned deprecation decision.
 
 The Python package ships a read-only `ERROR_CODES` artifact generated from the single TypeScript Error Contract. Use `error_code_info(code)` for terminality, cancellation, retry, human-action, and compatibility Run classifications; `ProtocolError.error_info` exposes the same entry. CI rejects unregistered Python-owned codes, and unknown external failures still converge to `unclassified_error`.
 

@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-stable%200.7.0-22c55e)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-stable%200.7.1-22c55e)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -18,24 +18,24 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The current stable release is `0.7.0`. It includes Protocol v2, the Execution Security Gate, one Error Contract, and a Config-v2-gated Child Run product path shared by CLI/TUI/TypeScript/Python. Install it from the [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.0), [npm](https://www.npmjs.com/package/coremind-cli/v/0.7.0), or [PyPI](https://pypi.org/project/coremind-ai/0.7.0/).
+> The `0.7.1` stable release line has completed code and documentation preparation. It hardens credential Headers, Artifact import, incremental Fact persistence, long-lived Protocol v2 hosts, TUI input, and release-failure evidence on top of Protocol v2, the Execution Security Gate, one Error Contract, and Child Runs. Use the live [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1), [npm](https://www.npmjs.com/package/coremind-cli/v/0.7.1), and [PyPI](https://pypi.org/project/coremind-ai/0.7.1/) pages as the source of truth for public installability.
 
-> The P0 implementation, Node 22 engineering checks, candidate packages, and real TTY gates pass on both platforms. The strict Provider request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; this is not a live-provider certification.
+> The checked-in Provider ledger currently has no static `0.7.1` certification record. Formal publication requires a strict-provider workflow Artifact bound to the candidate commit and Runtime digest. Configurability is not certification; production evaluation must check both the provider matrix and the version's workflow evidence.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [Migration guide](docs/migrations/0.2-to-0.3.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-Stable `0.7.0` keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
+Stable `0.7.1` keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
 
 | Capability | Current support |
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Config v2, 40 configurable providers, custom OpenAI-compatible endpoints, and no successful current-version live certification for `0.7.0`; it has a one-time maintainer network exception, while older `0.3.2` evidence remains historical only; see the [provider matrix](docs/providers/README.en.md) |
+| Configuration and models | Config v2, 40 configurable providers, and custom OpenAI-compatible endpoints; the checked-in ledger has no static `0.7.1` record, older evidence is historical only, and release qualification also requires a same-version strict-provider workflow Artifact |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
-| Protocol and control | Protocol v2 provides RunHandles, cursor resume, Projection queries, and durable control receipts; v1 remains as a compatibility entry throughout `0.4.x` |
+| Protocol and control | Protocol v2 provides RunHandles, cursor resume, Projection queries, and durable control receipts; v1 remains supported with no approved removal plan |
 | Execution environment | AgentDriver isolates the reactive loop, while ExecutionEnvironment probes verify process-tree, network, credential, and isolation capabilities; Windows Trusted Host is not presented as a sandbox, and Linux fails closed when probes are insufficient |
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
@@ -52,12 +52,13 @@ The current version does not include a complete Web development environment, an 
 |---|---|---|
 | Historical `0.3.1` stable release | Adds fact-domain correlation, typed identity, invariant checks, request rebuilding, input receipts, and cancellation convergence over `0.3.0` | CoreMind continues to own Config, Protocol, outcomes, permissions, effects, and recovery contracts |
 | `0.7.0` stable release | Combines 0.3.x-B/C, Protocol v2, unified security and error contracts, and a Child Run product path across all four formal entries | The Provider network exception is audited; live certification remains an independent gate for later releases |
+| `0.7.1` stable release | Fixes credential Headers, Artifact path and identity checks, Fact append, Protocol v2 idempotency state, TUI input, and release evidence | The wire contract is unchanged; Protocol v1 remains supported; Provider certification must be earned again for this version |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 `0.3.x` will continue to evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-Historical `0.3.2` candidate evidence remains available for audit but cannot replace the `0.7.0` release evidence.
+Historical candidate and Provider evidence remains available for audit but cannot replace `0.7.1` release or certification evidence.
 
 ## Product boundary
 
@@ -76,7 +77,7 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer. Install the stable CLI with:
 
 ```bash
-npm install -g coremind-cli@0.7.0
+npm install -g coremind-cli@0.7.1
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -123,11 +124,13 @@ Before every provider call, CoreMind resolves a budget for the actual model and 
 
 Custom tools must declare `effect.operations` and `effect.reversible`. The permission layer recursively inspects nested paths and URLs, and fails closed for undeclared effects under workspace or network restrictions. In ask mode, a human denial blocks that tool and later unapproved calls in the same batch. The run returns `paused` after batch reconciliation without another model request or approval prompt. In a sequential workflow, the denied step saves no output and no later step starts. File restore also checks the post-tool fingerprint and refuses to overwrite a file changed later by a user or concurrent process.
 
+Artifact import accepts only canonical ordinary files under the allowed temporary root; symlinks, canonical-path escapes, and file-identity changes are rejected, and deletion requires a final matching identity check. Provider API keys and sensitive Header aliases require environment references or a host `SecretRef`, and resolution fails before Provider, Tool, or Fact side effects without falling back to another source.
+
 `delegate` uses a stricter matrix: `ask` prompts every time; `assisted` auto-approves only a Config target explicitly marked `preapproved: true` when all limits pass; and `full` still cannot override deny rules, the target allowlist, budgets, non-expanding tools, paths, network, or credentials. Delegation Approval binds a fixed input fingerprint and creates only the Child Run; child tools and external Effects remain independently approved.
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. The `0.7.0` live parent-child request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; it does not count as certification. Older `0.3.2` evidence remains traceable but also does not count for this candidate.
+CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. The checked-in ledger has no static `0.7.1` record; formal publication requires a strict-provider workflow Artifact bound to the candidate commit and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
@@ -135,7 +138,7 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module ships in stable `0.7.0`.
+- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module has shipped as stable since `0.7.0`.
 - [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
 - [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.

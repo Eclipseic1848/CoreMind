@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateReleaseVersion } from "./release-version.mjs";
+import { verifyProviderCertificationArtifact } from "./verify-provider-certification-artifact.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const releaseArtifactRoot = path.join(repositoryRoot, "release-artifacts");
@@ -58,6 +59,29 @@ export function validateWaivedRuntimePackage(artifacts, approvedSha256) {
   return [];
 }
 
+export function validateCertifiedRuntimeIdentity(certification, actual) {
+  const blockers = [];
+  if (certification.version !== actual.version) blockers.push("Provider 认证版本不一致");
+  if (certification.commit !== actual.commit) blockers.push("Provider 认证提交不一致");
+  if (certification.runtimeArtifactSha256 !== actual.runtimeArtifactSha256) {
+    blockers.push("Provider 认证 Runtime 构建摘要不一致");
+  }
+  if (certification.runtimeDigest !== actual.runtimeDigest) {
+    blockers.push("Provider 认证 bundled Worker 摘要不一致");
+  }
+  return blockers;
+}
+
+export function validateCertifiedRuntimePackage(artifacts, approvedSha256) {
+  const runtime = artifacts.find(
+    (artifact) => artifact.kind === "npm" && artifact.name === "coremind-runtime",
+  );
+  if (!runtime) return ["Provider 认证发布物缺少 coremind-runtime npm 包"];
+  return runtime.sha256 === approvedSha256
+    ? []
+    : ["最终 coremind-runtime npm 包摘要与 Provider 认证候选不一致"];
+}
+
 export async function createArtifactRecords(rootDirectory, files) {
   const records = [];
   for (const file of files) {
@@ -72,17 +96,29 @@ export async function createArtifactRecords(rootDirectory, files) {
   return records.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-export async function buildReleaseArtifacts(tag, { allowProviderNetworkWaiver = false } = {}) {
+export async function buildReleaseArtifacts(
+  tag,
+  {
+    allowProviderNetworkWaiver = false,
+    providerCertificationDirectory,
+    providerCertificationCommit,
+  } = {},
+) {
   return buildArtifacts({
     tag,
     artifactRoot: releaseArtifactRoot,
     candidate: false,
     allowProviderNetworkWaiver,
+    providerCertificationDirectory,
+    providerCertificationCommit,
   });
 }
 
 export async function buildCandidateArtifacts() {
-  return buildArtifacts({ artifactRoot: candidateArtifactRoot, candidate: true });
+  return buildArtifacts({
+    artifactRoot: candidateArtifactRoot,
+    candidate: true,
+  });
 }
 
 async function buildArtifacts({
@@ -90,6 +126,8 @@ async function buildArtifacts({
   artifactRoot,
   candidate,
   allowProviderNetworkWaiver = false,
+  providerCertificationDirectory,
+  providerCertificationCommit,
 }) {
   const versionReport = await validateReleaseVersion(repositoryRoot);
   if (!versionReport.ready) {
@@ -104,7 +142,9 @@ async function buildArtifacts({
         version,
         requestedTag: tag,
         headSha,
-        tagSha: git(["rev-list", "-n", "1", tag], { allowFailure: true }).stdout.trim(),
+        tagSha: git(["rev-list", "-n", "1", tag], {
+          allowFailure: true,
+        }).stdout.trim(),
         dirty,
       });
   if (blockers.length > 0) throw new Error(`产物身份检查失败：\n- ${blockers.join("\n- ")}`);
@@ -124,14 +164,47 @@ async function buildArtifacts({
   if (generatedDiff) {
     throw new Error(`构建改变了候选提交内容，拒绝发布：\n${generatedDiff}`);
   }
+  let providerCertification;
+  if (!candidate && providerCertificationDirectory) {
+    if (!providerCertificationCommit) {
+      throw new Error("严格 Provider 认证缺少候选提交");
+    }
+    providerCertification = await verifyProviderCertificationArtifact(
+      providerCertificationDirectory,
+      providerCertificationCommit,
+    );
+    const workerManifest = JSON.parse(
+      await readFile(
+        path.join(repositoryRoot, "python", "src", "coremind", "_worker", "manifest.json"),
+        "utf8",
+      ),
+    );
+    const certifiedIdentityBlockers = validateCertifiedRuntimeIdentity(providerCertification, {
+      version,
+      commit: providerCertificationCommit,
+      runtimeArtifactSha256: createHash("sha256")
+        .update(
+          await readFile(
+            path.join(repositoryRoot, "packages", "coremind-runtime", "dist", "index.js"),
+          ),
+        )
+        .digest("hex"),
+      runtimeDigest: `sha256:${workerManifest.bundleSha256}`,
+    });
+    if (certifiedIdentityBlockers.length > 0) {
+      throw new Error(`Provider 认证身份检查失败：\n- ${certifiedIdentityBlockers.join("\n- ")}`);
+    }
+  }
   runNpm(
     candidate
       ? ["run", "release:preflight", "--", "--defer-provider-certification"]
-      : [
-          "run",
-          "release:preflight",
-          ...(allowProviderNetworkWaiver ? ["--", "--allow-provider-network-waiver"] : []),
-        ],
+      : providerCertification
+        ? ["run", "release:preflight", "--", "--defer-provider-certification"]
+        : [
+            "run",
+            "release:preflight",
+            ...(allowProviderNetworkWaiver ? ["--", "--allow-provider-network-waiver"] : []),
+          ],
     repositoryRoot,
   );
 
@@ -229,6 +302,15 @@ async function buildArtifacts({
       throw new Error(`Provider 网络豁免发布物检查失败：\n- ${waiverBlockers.join("\n- ")}`);
     }
   }
+  if (providerCertification) {
+    const certificationBlockers = validateCertifiedRuntimePackage(
+      metadata,
+      providerCertification.candidateArtifactSha256,
+    );
+    if (certificationBlockers.length > 0) {
+      throw new Error(`Provider 认证发布物检查失败：\n- ${certificationBlockers.join("\n- ")}`);
+    }
+  }
   const manifest = {
     schemaVersion: 1,
     version,
@@ -313,7 +395,15 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   const tagIndex = process.argv.indexOf("--tag");
   const tag = tagIndex >= 0 ? process.argv[tagIndex + 1] : process.env.COREMIND_RELEASE_TAG;
   if (!tag) throw new Error("请通过 --tag vX.Y.Z 或 COREMIND_RELEASE_TAG 指定发布标签");
+  const providerCertificationIndex = process.argv.indexOf("--provider-certification-directory");
+  const providerCertificationCommitIndex = process.argv.indexOf("--provider-certification-commit");
   await buildReleaseArtifacts(tag, {
     allowProviderNetworkWaiver: process.argv.includes("--allow-provider-network-waiver"),
+    providerCertificationDirectory:
+      providerCertificationIndex >= 0 ? process.argv[providerCertificationIndex + 1] : undefined,
+    providerCertificationCommit:
+      providerCertificationCommitIndex >= 0
+        ? process.argv[providerCertificationCommitIndex + 1]
+        : undefined,
   });
 }

@@ -1,6 +1,6 @@
 # Provider Support and Certification Matrix
 
-> This table was generated from the 2026-08-26 static runtime catalog and human-maintained evidence ledger and now corresponds to stable `0.7.0`. Do not edit the table manually.
+> This table was generated from the 2026-08-26 static runtime catalog and human-maintained evidence ledger and now corresponds to stable `0.7.1`. Do not edit the table manually.
 
 CoreMind currently supports configuration for **40** built-in providers. Complete real-call evidence exists for **0**, while **40** are catalog-only. **Configurable does not mean certified.**
 
@@ -16,7 +16,7 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 0.7.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 0.7.1 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 114 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
 | `anthropic` | `claude-fable-5` | — | 13 | Configurable, unverified | — |

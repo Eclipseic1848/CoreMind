@@ -43,11 +43,12 @@ AgentDriver 只隔离模型 reactive loop，不能直接写权威 Fact、决定�
 
 ### Protocol v2 控制边界
 
-Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已调用、工具已授权或运行成功。`accepted` 控制回执也不等于 `applied`；Cancel ACK 不等于 Abort、终态或 Quiescent。控制先进入持久 ControlInbox，再由 Runtime 产生权威 Fact。客户端断线默认不取消运行，重连按 `(runId, sequence, eventId)` 去重；Projection query 可重建但不能写回成为事实或授权。v1 在整个 `0.4.x` 保留迁移入口。
+Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已调用、工具已授权或运行成功。`accepted` 控制回执也不等于 `applied`；Cancel ACK 不等于 Abort、终态或 Quiescent。控制先进入持久 ControlInbox，再由 Runtime 产生权威 Fact。客户端断线默认不取消运行，重连按 `(runId, sequence, eventId)` 去重；Projection query 可重建但不能写回成为事实或授权。Protocol v1 继续受支持，当前没有经批准的移除计划。
 
 ### 密钥与数据
 
-- 密钥只通过环境变量注入，不写入 YAML、源码、日志、Trace、截图或测试样例。
+- 密钥只通过环境变量引用或嵌入式宿主提供的 `SecretRef` resolver 注入，不写入 YAML、源码、日志、Trace、截图或测试样例。CLI、Python SDK 与标准 Worker 不注入 resolver；无法解析时失败关闭且不回退其他来源。
+- 自定义 Provider 的敏感 Header 必须使用环境变量引用或 `SecretRef`。除 Authorization、Proxy-Authorization、X-API-Key 与 Cookie 外，`api-key`、`x-auth-token`、`x-access-token`、`x-goog-api-key`、`x-amz-security-token` 等常见别名也拒绝明文字面量。
 - Trace 在写入 RunState 和转发给观察者前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥与凭据字段；URL 凭据/敏感查询参数及命令中的敏感值也会替换。普通测试命令保留可审查性，正文类字段只保留长度标记。
 - 本地 Observability 默认显性可见，但只从 canonical facts 生成本机 Projection；启用本地视图不等于同意外传，Projection 也不能写回并成为恢复权威。
 - Telemetry 默认为 `DISABLED`：不构造 Exporter、不读取外传凭据、不发送网络请求。`FEEDBACK_ONLY` 只允许发送持久 consent 覆盖的有界事实前缀；`FULL` 也只允许发送配置生效后的 allowlist 字段。
@@ -60,6 +61,8 @@ Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已�
 Child Run 是独立 Run，不是普通 Tool Call。父策略必须绑定实际 Provider/model、canonical Workspace、权限、工具、执行环境探针和有限 Runtime 预算；子级只能收紧。父取消必须等全部子级终止或暂停、关键 Fact flush 并结构化 join 后才能 Quiescent。恢复发现不明所有权时进入 orphan audit pause，不自动重启。Windows Trusted Host 不能证明 sandbox 或 controlled egress；当前也不支持 durable detach。
 
 Checkpoint 可以恢复框架记录的文件状态；RunState 和 Loop 快照可以从完整稳定边界继续。恢复前会验证记录顺序、配置指纹、输入一致性和工具副作用，文件恢复还会比较工具完成后的指纹，用户或并发进程后来修改过文件时会拒绝覆盖。
+
+Artifact 只从允许的临时根目录导入 canonical 普通文件。导入会拒绝符号链接、父目录链接、真实路径越界和打开前文件身份变化；只有读取消费完成且删除前身份仍匹配时，才清理对应临时源文件。
 
 工具调用会记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复不会自动重放已提交副作用；`started` 或 `unknown` 要求人工核对。该机制不等于通用的“恰好一次执行”，也不能自动撤销邮件、付款、数据库写入或其他外部副作用。业务工具仍应在自己的持久层实现幂等、收据或补偿流程。
 

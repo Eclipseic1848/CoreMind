@@ -33,6 +33,6 @@ features:
 
 ## Project status
 
-The current stable release is `0.7.0`, including Protocol v2, unified security and error contracts, and a Child Run product path across CLI/TUI/TypeScript/Python. GitHub Release, npm, and PyPI are published at the same version. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
+The `0.7.1` stable release line has completed code and documentation preparation. It hardens credential Headers, Artifact import, incremental Fact persistence, long-lived Workers, TUI input, and release-failure evidence on top of Protocol v2, unified security and error contracts, and Child Runs. Use the live GitHub Release, npm, and PyPI pages as the source of truth for public installability. Review the [public roadmap](/roadmap.en), [quality guide](/en/guide/04-quality), and [provider matrix](/providers/README.en) before adoption.
 
-Both-platform engineering, candidate-package, and real-TTY gates pass. The strict Provider request timed out before an HTTP response, and the maintainer accepted a version-specific network exception; this is not a live-provider certification. Maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).
+The checked-in Provider ledger currently has no static `0.7.1` certification record. Formal publication requires a strict-provider workflow Artifact bound to the candidate commit and Runtime digest. Configurability is not certification; production evaluation must check both the provider matrix and this version's workflow evidence. Maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

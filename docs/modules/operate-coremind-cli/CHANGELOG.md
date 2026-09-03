@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 - 2026-09-03
+
+- Preserved ordinary input submitted while a Run is busy while keeping `/abort` and `/children` immediately available.
+
 ## 0.7.0 - 2026-08-29
 
 - Added provider discovery, explicit project scaffolding choices, and automated real ConPTY/pseudoterminal acceptance evidence.

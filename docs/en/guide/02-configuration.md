@@ -25,7 +25,7 @@ permissions:
 
 Keep the first configuration small. Add tools, workflow stages, or an explicit Loop only when a verified requirement needs them.
 
-Providers are inherited dynamically from the locked runtime family. `0.2.0-rc.1` contains 37 inherited entries; releases from `0.3.0-rc.2` through the current stable `0.7.0` contain 39 inherited entries plus one CoreMind-native entry, for 40 configurable Providers. Use `listInheritedProviders()` to inspect the exact installed catalog. Configurability is not current-version live certification.
+Providers are inherited dynamically from the locked runtime family. `0.2.0-rc.1` contains 37 inherited entries; releases from `0.3.0-rc.2` through the current stable `0.7.1` contain 39 inherited entries plus one CoreMind-native entry, for 40 configurable Providers. Use `listInheritedProviders()` to inspect the exact installed catalog. Configurability is not live certification; the checked-in ledger has no static `0.7.1` record, while formal publication also requires a same-version strict-provider workflow Artifact. Without real credentials and evidence for the current deployment, an entry remains configurable only.
 
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 
@@ -50,7 +50,8 @@ back to plaintext or another credential source. An explicitly configured but
 empty `apiKeyEnv` fails the same way.
 
 Ordinary custom headers may remain literal. Authorization,
-Proxy-Authorization, X-API-Key, and Cookie values must use `{ env: "NAME" }` or
+Proxy-Authorization, X-API-Key, API-Key, X-Auth-Token, X-Access-Token,
+X-Goog-API-Key, X-Amz-Security-Token, and Cookie values must use `{ env: "NAME" }` or
 `{ secretRef: "opaque-id" }`. References and resolved values are excluded from
 logs, errors, Facts, and persistence. Plaintext credentials fail with
 `execution_security_violation` at check and every execution entry point.

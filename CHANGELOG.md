@@ -4,6 +4,17 @@
 
 [English](CHANGELOG.en.md)
 
+## 0.7.1 — 2026-09-03
+
+- 发布与文档工作流统一使用固定的 npm `11.5.1`，并把 P0 网络例外分别绑定候选 Runtime 与最终 Runtime 摘要，避免文档部署或发布回装因工具链漂移、摘要混用而给出错误结论。
+- Execution Security Gate 扩展敏感 Header 别名识别；`api-key`、`x-auth-token`、`x-access-token`、`x-goog-api-key`、`x-amz-security-token` 等凭据 Header 与既有认证头一样，禁止字面量并要求使用环境变量引用或宿主 `SecretRef`。
+- Artifact 导入在读取前校验符号链接、canonical path 与文件身份，并在删除临时源文件前再次核对身份；合法普通临时文件仍按原行为脱敏、摘要、存储和清理。
+- `FileRunStore` 正常追加只写入新增 JSONL Fact，不再为每条记录重写完整历史；不完整尾行修复、sequence 冲突、Writer 锁和关键同步语义保持不变。
+- Protocol v2 的 start 与 tool-result 幂等状态在终态后回收，并可从权威 Runtime journal 重建 duplicate/conflict 判断；wire contract 不变，Protocol v1 继续受支持，当前没有经批准的移除计划。
+- TUI 在 Run 忙碌时保留未发送的普通输入，同时继续允许 `/abort` 与 `/children`；空闲提交行为不变。
+- 发布失败时会输出具体 P0 blockers、始终上传失败报告，并在公开制品已创建时继续执行 npm/PyPI 回装验证；最终工作流仍如实保持失败状态。Python 包元数据现标记为 `Production/Stable`。
+- `v0.7.1` 发布线统一 GitHub Release、8 个 npm 包与 PyPI；公开可用性以各渠道实时页面为准。仓库台账未收录同版本静态 Provider 记录，但正式发布必须使用绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact，且不能复用 `0.7.0` 的一次性网络例外。
+
 ## 0.7.0 — 2026-09-02
 
 - Provider 认证现绑定受保护 main 的同次候选 Runtime 包与实际 SHA-256，并在人工批准的 Provider、模型、凭据来源、费用和时限内，以零自动重试完成父模型、Delegation Tool、Child Run、受控子级 Tool、结构化结果与取消收敛检查；失败、超限、未知 Effect 或证据不完整时不写入成功台账。
