@@ -224,10 +224,7 @@ async function buildArtifacts({
         "utf8",
       ),
     );
-    const waiverBlockers = validateWaivedRuntimePackage(
-      metadata,
-      waiver.finalRuntimePackageSha256,
-    );
+    const waiverBlockers = validateWaivedRuntimePackage(metadata, waiver.finalRuntimePackageSha256);
     if (waiverBlockers.length > 0) {
       throw new Error(`Provider 网络豁免发布物检查失败：\n- ${waiverBlockers.join("\n- ")}`);
     }

@@ -438,7 +438,9 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.on.workflow_dispatch.inputs.reuse_candidate_run_id.default).toBe("");
     expect(candidateCommands).toContain("reuse_candidate_run_id 必须是 GitHub Actions run ID");
     expect(candidateCommands).toContain("git diff --name-only");
-    expect(candidateCommands).toContain("docs/release/evidence/v0\\.7\\.0-provider-network-waiver\\.json");
+    expect(candidateCommands).toContain(
+      "docs/release/evidence/v0\\.7\\.0-provider-network-waiver\\.json",
+    );
     expect(candidateCommands).toContain("scripts/check-python-wheel\\.py");
     expect(candidateCommands).toContain("scripts/release-artifacts\\.mjs");
     expect(candidateCommands).toContain("scripts/validate-npm-tarballs\\.mjs");
