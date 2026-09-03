@@ -30,6 +30,9 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs["trigger-release"].steps[0].run).toContain("--ref main");
     expect(workflow.jobs.deploy.if).toContain("workflow_dispatch");
     expect(workflow.jobs.deploy.environment.name).toBe("github-pages");
+    expect(
+      workflow.jobs.deploy.steps.map((step: { run?: string }) => step.run).join("\n"),
+    ).toContain("npm install --global npm@11.5.1");
   });
 
   it("双平台工程 CI 为 PR 与 main 提供稳定快速门禁", () => {

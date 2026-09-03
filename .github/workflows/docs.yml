@@ -41,6 +41,7 @@ jobs:
         with:
           node-version: 22.x
           cache: npm
+      - run: npm install --global npm@11.5.1
       - run: npm ci
       - run: npm run docs:build
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
