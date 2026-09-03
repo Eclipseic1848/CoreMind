@@ -395,6 +395,11 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(releaseCommands).not.toContain("--clobber");
     expect(workflow.jobs.build.needs).toBe("candidate");
     expect(workflow.jobs.build.permissions.actions).toBe("read");
+    expect(
+      workflow.jobs.build.steps.find((step: { name?: string }) => step.name === "安装 Node").with[
+        "node-version"
+      ],
+    ).toBe("22");
     const resumeStep = workflow.jobs.build.steps.find(
       (step: { name?: string }) => step.name === "恢复既有已验证发布物",
     );
