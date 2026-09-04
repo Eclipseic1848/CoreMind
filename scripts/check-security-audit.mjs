@@ -72,7 +72,7 @@ function runAudit(arguments_, allowFailure = false) {
   const findings = Object.values(report.vulnerabilities);
   if (
     report.metadata?.vulnerabilities?.total !== findings.length ||
-    result.status !== (findings.length > 0 ? 1 : 0) ||
+    (result.status !== 0 && findings.length === 0) ||
     findings.some((finding) => !severityOrder.includes(finding?.severity))
   ) {
     fail(`npm audit 报告与退出状态不一致或风险等级无效：${result.stdout}`);

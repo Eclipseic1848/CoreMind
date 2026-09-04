@@ -76,6 +76,13 @@ describe("安全审计结果边界", () => {
     },
   );
 
+  it("npm 审计等级改变退出码时仍允许完整的已登记风险报告", async () => {
+    vi.mocked(spawnSync)
+      .mockReturnValueOnce(result())
+      .mockReturnValueOnce(result(report({ vite: "high" }), 0));
+    await expect(check()).resolves.toBeUndefined();
+  });
+
   it("生产漏洞不可由开发依赖登记放行", async () => {
     vi.mocked(spawnSync).mockReturnValueOnce(result(report({ vite: "high" }), 1));
     await expect(check()).rejects.toThrow("audit rejected");
