@@ -9,7 +9,7 @@
 1. 先写 schemaVersion、name 和 agents。
 2. 显式选择 runtime、permissions 和 quality。
 3. 固定步骤选择 `workflow`；只有独立验证与有界修复场景才选择 `loop`，两者不得并存。
-4. 为 Loop 设置 passIf、最大迭代、最大修复、重复动作和失败/耗尽策略。
+4. 为 Loop 设置最大迭代、最大修复、重复动作和失败/耗尽策略。Agent 验证设置 passIf；开发构建的 host 验证禁止 passIf，按[宿主接入说明](../../../examples/host-verification/README.md)绑定持久回复，不把未知视为通过；公开 0.7.1 尚无此模式。
 5. 为每个自定义工具列出真实副作用，填写 `effect.operations`、`effect.reversible`，并用 `pathFields`、`urlFields` 指向嵌套目标字段。
 6. 确认自定义工具名不与内置工具冲突。
 7. 运行 `coremind check`，再处理全部错误与告警。

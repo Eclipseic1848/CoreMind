@@ -37,7 +37,7 @@ agents:
 
 `pathFields` and `urlFields` accept dotted paths and must identify real fields in tool-call arguments. Never mark an external, non-reversible operation as `reversible: true`. Custom tools must not reuse built-in names such as `read`, `write`, or `bash`.
 
-For independent verification and bounded repair, add `loop.execute`, `loop.verify.passIf`, `loop.repair`, and every boundary field. Do not configure `workflow` at the same time. See the [explicit Loop guide](../design-workflows/GUIDE.en.md).
+For independent verification and bounded repair, add `loop.execute`, `loop.verify`, `loop.repair`, and every boundary field. Do not configure `workflow` at the same time. Agent verification requires `passIf`; see the [explicit Loop guide](../design-workflows/GUIDE.en.md). Development builds also support `verify.mode: host`, which forbids `passIf` and requires a durable host reply; see [host integration](../../../examples/host-verification/README.en.md). Published 0.7.1 does not provide this new mode.
 
 ## Verification
 

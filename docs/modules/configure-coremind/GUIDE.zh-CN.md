@@ -37,7 +37,7 @@ agents:
 
 `pathFields` 和 `urlFields` 支持点号路径。它们必须指向调用参数中的真实字段；不可逆的外部系统操作不要标记为 `reversible: true`。自定义工具不得使用 `read`、`write`、`bash` 等内置工具名。
 
-需要独立验证与有限修复时，增加 `loop.execute`、`loop.verify.passIf`、`loop.repair` 和所有边界字段；不要同时配置 `workflow`。完整配置见[显式 Loop 指南](../design-workflows/GUIDE.zh-CN.md)。
+需要独立验证与有限修复时，增加 `loop.execute`、`loop.verify`、`loop.repair` 和所有边界字段；不要同时配置 `workflow`。Agent 验证要求 `passIf`，配置见[显式 Loop 指南](../design-workflows/GUIDE.zh-CN.md)。当前开发构建另支持 `verify.mode: host`，不接受 `passIf`，必须由宿主持久回复；见[宿主验收接入](../../../examples/host-verification/README.md)。公开 0.7.1 尚不提供此新增模式。
 
 ## 验证
 

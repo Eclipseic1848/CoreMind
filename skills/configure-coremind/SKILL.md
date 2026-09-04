@@ -9,7 +9,7 @@ description: "Describe agents, tools, a Workflow or explicit bounded Loop, budge
 2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.
 3. Follow [the SOP](../../docs/modules/configure-coremind/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Select `workflow` for fixed dependencies and `loop` only for independent verification with bounded repair; reject configurations containing both.
-5. For every Loop, require passIf and explicit iteration, repair, repeated-action, failure, and exhaustion bounds.
+5. For every Loop, require explicit iteration, repair, repeated-action, failure, and exhaustion bounds. Agent verification requires passIf. Development builds also support `verify.mode: host`, which forbids passIf and requires a durable host response; follow the [host integration example](../../examples/host-verification/README.en.md). Do not assume published 0.7.1 provides this new mode.
 6. Require every custom tool to declare `effect.operations` and `effect.reversible`; map nested targets with `pathFields` or `urlFields`, and reject names reserved by built-in tools.
 7. Add or update a failing test before implementation, then make the smallest change that passes it.
 8. Inspect RunOutcome, ordered Loop states, Trace, budgets, approvals, effect receipts, and checkpoints. Treat a fluent answer without evidence as unverified.

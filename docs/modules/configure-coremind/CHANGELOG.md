@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added explicit host verification with durable decisions and existing bounded Loop repair; distinguished it from agent passIf configuration in guides, SOPs, and the Skill. Not part of published 0.7.1.
+
 ## 0.7.1 - 2026-09-03
 
 - Rejected plaintext credentials in common custom Provider header aliases while preserving ordinary headers, environment references, and host-resolved SecretRef values.
