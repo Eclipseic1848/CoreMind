@@ -19,22 +19,22 @@ for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
   }
 }
 
+const severityOrder = ["info", "low", "moderate", "high", "critical"];
 const production = runAudit(["audit", "--omit=dev", "--json"]);
-const productionNames = Object.keys(production.vulnerabilities ?? {});
+const productionNames = Object.keys(production.vulnerabilities);
 if (productionNames.length > 0) {
   fail(`生产依赖存在漏洞：${productionNames.join("、")}`);
 }
 
 const complete = runAudit(["audit", "--json"], true);
-const findings = complete.vulnerabilities ?? {};
+const findings = complete.vulnerabilities;
 const allowed = policy.allowedDevelopmentOnlyPackages ?? {};
 const findingNames = Object.keys(findings).sort();
-const allowedNames = Object.keys(allowed).sort();
-if (JSON.stringify(findingNames) !== JSON.stringify(allowedNames)) {
-  fail(`开发依赖发现与已审查清单不一致：发现 ${findingNames.join("、") || "无"}`);
+const unreviewedNames = findingNames.filter((name) => !Object.hasOwn(allowed, name));
+if (unreviewedNames.length > 0) {
+  fail(`开发依赖存在未审查风险：${unreviewedNames.join("、")}`);
 }
 
-const severityOrder = ["info", "low", "moderate", "high", "critical"];
 for (const [name, finding] of Object.entries(findings)) {
   const maximum = allowed[name].maximumSeverity;
   if (severityOrder.indexOf(finding.severity) > severityOrder.indexOf(maximum)) {
@@ -52,13 +52,32 @@ function runAudit(arguments_, allowFailure = false) {
   const commandArguments = npmCli ? [npmCli, ...arguments_] : arguments_;
   const result = spawnSync(command, commandArguments, { cwd: root, encoding: "utf8" });
   if (result.error) fail(`无法执行 npm audit：${result.error.message}`);
-  if (!allowFailure && result.status !== 0)
+  if (result.status !== 0 && !(allowFailure && result.status === 1))
     fail(result.stdout || result.stderr || "npm audit 失败");
+  let report;
   try {
-    return JSON.parse(result.stdout);
+    report = JSON.parse(result.stdout);
   } catch {
     fail(`npm audit 未返回合法 JSON：${result.stderr}`);
   }
+  if (
+    report?.auditReportVersion !== 2 ||
+    Object.hasOwn(report, "error") ||
+    !report.vulnerabilities ||
+    typeof report.vulnerabilities !== "object" ||
+    Array.isArray(report.vulnerabilities)
+  ) {
+    fail(`npm audit 未返回完整审计报告：${result.stdout || result.stderr}`);
+  }
+  const findings = Object.values(report.vulnerabilities);
+  if (
+    report.metadata?.vulnerabilities?.total !== findings.length ||
+    result.status !== (findings.length > 0 ? 1 : 0) ||
+    findings.some((finding) => !severityOrder.includes(finding?.severity))
+  ) {
+    fail(`npm audit 报告与退出状态不一致或风险等级无效：${result.stdout}`);
+  }
+  return report;
 }
 
 function fail(message) {
