@@ -242,6 +242,7 @@ jobs:
 
       - name: 构建并执行真实 Provider 认证
         run: |
+          npm install --global npm@11.5.1
           npm ci
           npm run build
           npm run providers:certify

@@ -95,7 +95,12 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.on.workflow_dispatch.inputs.qualification_mode.default).toBe(
       "offline-rehearsal",
     );
-    expect(candidateCommands).toContain("npm install --global npm@11.5.1");
+    for (const commands of [candidateCommands, providerCommands]) {
+      expect(commands).toContain("npm install --global npm@11.5.1");
+      expect(commands.indexOf("npm install --global npm@11.5.1")).toBeLessThan(
+        commands.indexOf("npm ci"),
+      );
+    }
     for (const input of [
       "provider",
       "model",
