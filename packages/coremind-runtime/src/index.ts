@@ -170,6 +170,7 @@ export {
   type FactLedgerMetrics,
   type FactLedgerStatus,
 } from "./fact-ledger.js";
+export type { HostVerificationRequest } from "./host-verification.js";
 export {
   claimInput,
   completeInput,

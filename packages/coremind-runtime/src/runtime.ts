@@ -117,6 +117,7 @@ import { CoreMindError, isErrorCode } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { normalizeExecutionError } from "./execution-error.js";
 import { enforceExecutionSecurity } from "./execution-security.js";
+import { HostVerificationGate, type HostVerificationRequest } from "./host-verification.js";
 import { type CallId, type RunId, receiptId, type StepId, type TurnId } from "./ids.js";
 import {
   claimInput,
@@ -208,6 +209,8 @@ type AgentDriverBuilder = (input: {
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
+  /** 宿主模式的持久验证请求通知；通过 acceptControl 回复，返回值不代表通过。 */
+  onVerification?: (request: HostVerificationRequest) => void;
   /** 已校验的配置 */
   config: CoreMindConfig;
   /** 配置文件所在目录（脚本工具相对路径、会话目录基准） */
@@ -696,6 +699,12 @@ export class CoreMindRuntime {
     events: (event: CoreMindEvent) => void,
     signal?: AbortSignal,
   ): Promise<RunResult> {
+    if (this.config.loop?.verify.mode === "host") {
+      throw new CoreMindError(
+        "loop_config_invalid",
+        "宿主验收模式须通过 run() 与绑定该 Run 的控制接口执行",
+      );
+    }
     if (!this.agentConfigs.has(agentName)) {
       throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
     }
@@ -844,6 +853,9 @@ export class CoreMindRuntime {
 
   /** 接收已类型化控制；ACK 只由当前 Run 的持久 ControlInbox 产生。 */
   async acceptControl(command: RunControlCommand): Promise<ControlReceipt> {
+    if (command.type === "verification" && !this.currentControlInbox()) {
+      throw new CoreMindError("control_unavailable", "当前没有可接收宿主验收回复的 Run");
+    }
     for (let attempt = 0; attempt < 5_000; attempt++) {
       const inbox = this.currentControlInbox();
       if (inbox) return inbox.accept(command);
@@ -1371,12 +1383,39 @@ export class CoreMindRuntime {
       );
     }
     await journal.flush();
+    const hostVerification =
+      this.config.loop?.verify.mode === "host"
+        ? new HostVerificationGate({
+            runId,
+            journal,
+            records: await runStore.read(runId),
+            timeoutMs: this.config.loop.verify.timeoutMs ?? 60_000,
+            notify: this.options.onVerification,
+            applyPending: () => context.currentControlInbox()!.applyPending("verification"),
+          })
+        : undefined;
     context.attachControlInbox(
       new ControlInbox({
         runId,
         journal,
         records: await runStore.read(runId),
-        apply: (command) => this.applyRunControl(command, context, deferredTerminalError),
+        apply: (command) => {
+          if (command.type === "verification") {
+            return Promise.resolve(
+              hostVerification?.apply(command) ?? {
+                status: "rejected",
+                reason: "当前 Run 未启用宿主验证",
+              },
+            );
+          }
+          if (
+            hostVerification?.waiting &&
+            (command.type === "steering" || command.type === "follow_up")
+          ) {
+            return Promise.resolve({ status: "rejected", reason: "宿主验收期间不能改变候选输入" });
+          }
+          return this.applyRunControl(command, context, deferredTerminalError);
+        },
       }),
     );
     const capabilityByCallId = new Map<
@@ -2674,6 +2713,8 @@ export class CoreMindRuntime {
             throw deferredTerminalError;
           }
           if (loop) {
+            const engineeringEvidence =
+              loop.verify.mode === "host" ? undefined : loop.verify.evidence;
             let retryCount =
               resumePlan?.previousTrace.filter(
                 (entry) => entry.event.type === "retry" && entry.event.scope === "provider",
@@ -2691,11 +2732,22 @@ export class CoreMindRuntime {
                 journal.loop(snapshot);
                 await journal.flush();
               },
-              verifyEvidence: loop.verify.evidence
+              verifyHost: hostVerification
+                ? async (request) => {
+                    if (journal.isAborted())
+                      throw new CoreMindError("aborted", "验收前 Run 已中止");
+                    await journal.flush("critical");
+                    const decision = await hostVerification.verify(request);
+                    if (journal.isAborted())
+                      throw new CoreMindError("aborted", "验收期间 Run 已中止");
+                    return decision;
+                  }
+                : undefined,
+              verifyEvidence: engineeringEvidence
                 ? ({ stepId, textPassed }) => {
                     const report = assessRuntimeEngineeringEvidence(
                       collected,
-                      loop.verify.evidence!,
+                      engineeringEvidence,
                       stepId,
                     );
                     emit({ type: "engineering_evidence", stepId, textPassed, ...report });
@@ -2783,7 +2835,10 @@ export class CoreMindRuntime {
           transcript = extractText(messages.slice(messageCursor));
           return { outputs: new Map<string, StepOutput>(), transcript };
         },
-        (error) => activeLoopRunner?.interrupt(error),
+        (error) => {
+          hostVerification?.interrupt(error);
+          return activeLoopRunner?.interrupt(error);
+        },
       ));
       if (delegationDispositionFailure) throw delegationDispositionFailure;
       if (delegationPolicyFailure) throw delegationPolicyFailure;
@@ -2837,6 +2892,7 @@ export class CoreMindRuntime {
         }
       }
     } finally {
+      hostVerification?.interrupt(new CoreMindError("run_already_finished", "Run 已结束验收等待"));
       context.setHarnessFactory(undefined);
     }
 

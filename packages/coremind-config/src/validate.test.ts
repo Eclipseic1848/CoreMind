@@ -440,6 +440,36 @@ describe("validateConfig", () => {
     ).toThrow("workflow 与 loop 只能选择一种");
   });
 
+  it("宿主验证不要求 Agent 并填充有界等待默认值", () => {
+    const config = validateConfig({
+      ...validYaml,
+      loop: {
+        execute: { agent: "main", input: "执行" },
+        verify: { mode: "host" },
+        repair: { agent: "main", input: "修复" },
+      },
+    });
+    expect(config.loop?.verify).toEqual({ mode: "host", timeoutMs: 60000 });
+  });
+
+  it.each([
+    { mode: "host", timeoutMs: 0 },
+    { mode: "host", timeoutMs: 3600001 },
+    { mode: "host", passIf: "true" },
+    { mode: "host", agent: "main", input: "通过", passIf: "true" },
+  ])("拒绝宿主验证的无界等待与 Agent 条件混用 %o", (verify) => {
+    expect(() =>
+      validateConfig({
+        ...validYaml,
+        loop: {
+          execute: { agent: "main", input: "执行" },
+          verify,
+          repair: { agent: "main", input: "修复" },
+        },
+      }),
+    ).toThrow(ConfigValidationError);
+  });
+
   it("Runtime 证据门会填充安全默认值", () => {
     const config = validateConfig({
       ...validYaml,
@@ -455,7 +485,7 @@ describe("validateConfig", () => {
       },
     });
 
-    expect(config.loop?.verify.evidence).toEqual({
+    expect(config.loop?.verify.mode !== "host" && config.loop?.verify.evidence).toEqual({
       mode: "runtime",
       regressionCommand: "npm test",
       minSuccessfulTestCommands: 2,

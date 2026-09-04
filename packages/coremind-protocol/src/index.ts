@@ -74,6 +74,8 @@ export {
   type ProtocolV2ToolResultRequest,
   ProtocolV2ToolResultRequestSchema,
   ProtocolV2ValidationError,
+  type ProtocolV2VerificationRequestNotification,
+  ProtocolV2VerificationRequestNotificationSchema,
   type ProtocolVersionRange,
   parseProtocolV2Request,
 } from "./v2.js";

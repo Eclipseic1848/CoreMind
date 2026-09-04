@@ -7,7 +7,8 @@ export const LoopActionSchema = Type.Object({
 });
 
 /** 验证动作以 passIf 明确决定是否完成，不能只依赖流畅的最终文字。 */
-export const LoopVerificationSchema = Type.Object({
+const AgentVerificationSchema = Type.Object({
+  mode: Type.Optional(Type.Literal("agent")),
   agent: Type.String({ minLength: 1 }),
   input: Type.String({ minLength: 1 }),
   passIf: Type.String({
@@ -32,6 +33,17 @@ export const LoopVerificationSchema = Type.Object({
     ),
   ),
 });
+
+export const LoopVerificationSchema = Type.Union([
+  AgentVerificationSchema,
+  Type.Object(
+    {
+      mode: Type.Literal("host"),
+      timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 3600000, default: 60000 })),
+    },
+    { additionalProperties: false },
+  ),
+]);
 
 /** 显式验证—修复 Loop；状态机实现属于 Runtime 内部细节。 */
 export const LoopConfigSchema = Type.Object({

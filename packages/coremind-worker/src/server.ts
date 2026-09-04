@@ -58,6 +58,7 @@ import {
   type ProtocolV2ToolRegisterRequest,
   type ProtocolV2ToolResultRequest,
   ProtocolV2ValidationError,
+  type ProtocolV2VerificationRequestNotification,
   ProtocolValidationError,
   parseProtocolRequest,
   parseProtocolV2Request,
@@ -72,6 +73,7 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "projectionQuery",
   "checkpointOperations",
   "dynamicTools",
+  "hostVerification",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -79,6 +81,7 @@ const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "steering",
   "follow_up",
   "delegation_disposition",
+  "verification",
 ] as const;
 const PROTOCOL_V2_WORKER_TRANSITION = Symbol("worker-transition");
 
@@ -87,6 +90,7 @@ export type WorkerMessage =
   | ProtocolErrorResponse
   | ProtocolV2ToolCallNotification
   | ProtocolV2ToolCancelNotification
+  | ProtocolV2VerificationRequestNotification
   | ReturnType<typeof createEventNotification>
   | ReturnType<typeof createPythonToolCallNotification>;
 
@@ -448,7 +452,8 @@ export class ProtocolHost {
   ): Promise<ControlReceipt> {
     const activeRunId = this.activeRunId ?? this.requestedRunId;
     if (
-      request.params.type === "delegation_disposition" &&
+      (request.params.type === "delegation_disposition" ||
+        request.params.type === "verification") &&
       (!this.running || activeRunId !== request.params.runId)
     ) {
       try {
@@ -477,14 +482,14 @@ export class ProtocolHost {
       if (projection.status !== "paused") {
         throw new CoreMindError(
           "control_unavailable",
-          `runId ${runId} 不处于可接收离线 Delegation Disposition 的暂停态`,
+          `runId ${runId} 不处于可接收离线控制的暂停态`,
         );
       }
       return new ControlInbox({
         runId: runId as RunId,
         journal: new RunStateJournal(runId, state.runStore, records.at(-1)!.sequence),
         records,
-        // 离线 Host 只能持久接收；业务语义在恢复并重建 Child Coordinator 后应用。
+        // 离线 Host 只能持久接收；身份与业务语义在恢复后由 Runtime 验证和应用。
         apply: async () => "accepted",
       });
     })();
@@ -745,7 +750,7 @@ export class ProtocolHost {
     }
     try {
       const selectedProtocol = negotiateProtocolV2(request.params.protocolRange);
-      const initialized = (await this.initialize(toV1InitializeParams(request.params))) as {
+      const initialized = (await this.initialize(toV1InitializeParams(request.params), true)) as {
         warnings: string[];
       };
       this.selectedProtocol = selectedProtocol;
@@ -812,6 +817,7 @@ export class ProtocolHost {
 
   private async initialize(
     params: Extract<ProtocolRequest, { method: "initialize" }>["params"],
+    protocolV2 = false,
   ): Promise<unknown> {
     if (this.initialized) throw new CoreMindError("already_initialized", "worker 已初始化");
     let rawConfig: unknown;
@@ -825,6 +831,12 @@ export class ProtocolHost {
       configDir = path.resolve(params.configDir ?? process.cwd());
     }
     const { config, warnings } = parseAndValidate(rawConfig);
+    if (!protocolV2 && config.loop?.verify.mode === "host") {
+      throw new CoreMindError(
+        "protocol_capability_missing",
+        "宿主验收需要 Protocol v2；v1 不支持 verification 控制",
+      );
+    }
     enforceExecutionSecurity(config);
     await buildProviderRuntime(
       config.provider ?? { id: "deepseek" },
@@ -993,6 +1005,18 @@ export class ProtocolHost {
         resumeRunId,
         runId: requestedRunId,
         protocolStart,
+        ...(this.selectedProtocol === "2.0"
+          ? {
+              onVerification: (request: ProtocolV2VerificationRequestNotification["params"]) => {
+                this.send({
+                  jsonrpc: "2.0",
+                  protocolVersion: "2.0",
+                  method: "verification_request",
+                  params: request,
+                });
+              },
+            }
+          : {}),
         toolDefinitions: this.createPythonToolDefinitions(),
         approveTool: async (request) => {
           const decision = new Promise<"allow" | "deny">((resolve) => {

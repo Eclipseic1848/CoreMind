@@ -4,6 +4,10 @@ This file records user-facing changes. Versions follow Semantic Versioning; prer
 
 [简体中文](CHANGELOG.md)
 
+### Unreleased development changes
+
+- Added explicit host verification: durable independent decisions before Run success and bounded repair within the same Run. Protocol v2 and Python support preserve fail-closed unknown, cancellation, and recovery semantics. Published 0.7.1 artifacts do not contain this capability; see the host-verification example.
+
 ## 0.7.1 — 2026-09-03
 
 - Release and documentation workflows now use pinned npm `11.5.1`. P0 network waivers bind candidate and final Runtime digests separately, preventing toolchain drift or digest reuse from producing an incorrect deployment or reinstall result.

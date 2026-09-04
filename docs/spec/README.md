@@ -30,6 +30,7 @@
 
 - [Child Run 合同](0.7.x/01-child-run-contract.md)
 - [0.7.0 P0：Child Run 产品化与稳定发布](0.7.x/02-p0-child-run-productization-and-stable-release.md)
+- [宿主验收与同 Run 有限修正（开发中，未发布）](0.7.x/03-host-verification.md)
 
 ## 状态口径
 

@@ -20,6 +20,147 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it("重启 Host 对暂停 Run 验收持久接收并去重，拒绝未知及完成 Run", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-paused-verification-"));
+    const runId = "paused-verification";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      await journal.start({ configName: "host-verification" });
+      journal.pause({ outcome: { status: "paused", finishReason: "verification_required" } });
+      await journal.flush();
+      const command = {
+        schemaVersion: 1,
+        type: "verification",
+        controlId: "verify-control",
+        runId,
+        requestId: "request-1",
+        candidateSha256: "a".repeat(64),
+        decision: "accept",
+        feedback: "",
+      };
+      const first = new ProtocolHost({ send: () => {} });
+      await initializeV2(first, dir);
+      const control = (host: ProtocolHost, params: unknown) =>
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "verify",
+          method: "control",
+          params,
+        });
+      expect(await control(first, command)).toMatchObject({ result: { status: "accepted" } });
+      const restarted = new ProtocolHost({ send: () => {} });
+      await initializeV2(restarted, dir);
+      expect(await control(restarted, command)).toMatchObject({
+        result: { status: "duplicate", duplicateOf: "accepted" },
+      });
+      expect(await control(restarted, { ...command, feedback: "不同指纹" })).toMatchObject({
+        result: { status: "conflict" },
+      });
+      expect(await control(restarted, { ...command, runId: "unknown-run" })).toMatchObject({
+        error: { data: { coremindCode: "unknown_run" } },
+      });
+      const finished = new RunStateJournal("finished-verification", store);
+      await finished.start({ configName: "host-verification" });
+      finished.finish({ outcome: { status: "succeeded", finishReason: "completed" } });
+      await finished.flush();
+      expect(
+        await control(restarted, { ...command, runId: "finished-verification" }),
+      ).toMatchObject({ error: { data: { coremindCode: "control_unavailable" } } });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it("v1 初始化明确拒绝宿主验收配置", async () => {
+    const host = new ProtocolHost({ send: () => {} });
+    const response = await host.handle({
+      jsonrpc: "2.0",
+      id: "v1",
+      method: "initialize",
+      params: {
+        protocolVersion: "1.0",
+        config: {
+          schemaVersion: 2,
+          name: "host",
+          agents: { main: {} },
+          loop: {
+            execute: { agent: "main", input: "任务" },
+            repair: { agent: "main", input: "修复" },
+            verify: { mode: "host" },
+          },
+        },
+        configDir: ".",
+      },
+    });
+    expect(response).toMatchObject({
+      error: { data: { coremindCode: "protocol_capability_missing" } },
+    });
+  });
+  it.each(["run", "chat"] as const)(
+    "v2 %s 保留宿主验收配置并转发专用通知，不进入普通 trace",
+    async (method) => {
+      const messages: unknown[] = [];
+      const request = {
+        schemaVersion: 1 as const,
+        runId: "verify-run",
+        requestId: "verify-1",
+        stepId: "step-1",
+        iteration: 1,
+        candidateSha256: "a".repeat(64),
+        candidate: "私有候选",
+      };
+      const host = new ProtocolHost({
+        send: (message) => messages.push(message),
+        runtimeFactory: async (options) => ({
+          run: () => {
+            expect(options.config.loop?.verify.mode).toBe("host");
+            options.onVerification?.(request);
+            return new Promise<never>(() => {});
+          },
+        }),
+      });
+      const initialized = await host.handle({
+        jsonrpc: "2.0",
+        id: "init",
+        method: "initialize",
+        params: {
+          protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
+          config: {
+            schemaVersion: 2,
+            name: "verify",
+            agents: { main: {} },
+            loop: {
+              execute: { agent: "main", input: "任务" },
+              repair: { agent: "main", input: "修复" },
+              verify: { mode: "host" },
+            },
+          },
+          configDir: ".",
+        },
+      });
+      expect(initialized).toMatchObject({
+        result: { serverCapabilities: expect.arrayContaining(["hostVerification"]) },
+      });
+      const handle = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "run",
+        method,
+        params: {
+          runId: request.runId,
+          ...(method === "chat" ? { agent: "main", message: "任务" } : {}),
+        },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(handle).toMatchObject({
+        result: { availableControls: expect.arrayContaining(["verification"]) },
+      });
+      expect(messages).toEqual([
+        { jsonrpc: "2.0", protocolVersion: "2.0", method: "verification_request", params: request },
+      ]);
+    },
+  );
   it("v1 initialize 保留兼容入口并返回非错误迁移提示", async () => {
     const host = new ProtocolHost({ send: () => {} });
 
@@ -172,6 +313,7 @@ describe("ProtocolHost", () => {
           "projectionQuery",
           "checkpointOperations",
           "dynamicTools",
+          "hostVerification",
         ],
         schemaFingerprint: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         migration: {
@@ -981,6 +1123,7 @@ describe("ProtocolHost", () => {
           "steering",
           "follow_up",
           "delegation_disposition",
+          "verification",
         ],
       },
     });

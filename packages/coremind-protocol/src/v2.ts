@@ -100,6 +100,21 @@ const ProtocolV2ControlBaseSchema = Type.Object({
 });
 
 export const ProtocolV2ControlCommandSchema = Type.Union([
+  ...(["accept", "reject"] as const).map((decision) =>
+    Type.Composite(
+      [
+        ProtocolV2ControlBaseSchema,
+        Type.Object({
+          type: Type.Literal("verification"),
+          requestId: BrandedIdSchema,
+          candidateSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+          decision: Type.Literal(decision),
+          feedback: Type.String(decision === "reject" ? { pattern: "\\S" } : {}),
+        }),
+      ],
+      { additionalProperties: false },
+    ),
+  ),
   Type.Composite([
     ProtocolV2ControlBaseSchema,
     Type.Object({ type: Type.Literal("cancel"), reason: Type.Optional(Type.String()) }),
@@ -401,6 +416,7 @@ export const ProtocolV2RunHandleSchema = Type.Object(
         Type.Literal("steering"),
         Type.Literal("follow_up"),
         Type.Literal("delegation_disposition"),
+        Type.Literal("verification"),
       ]),
       { uniqueItems: true },
     ),
@@ -1243,6 +1259,27 @@ export const ProtocolV2CheckpointResultSchema = Type.Union([
   ),
 ]);
 
+export const ProtocolV2VerificationRequestNotificationSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    method: Type.Literal("verification_request"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        runId: BrandedIdSchema,
+        requestId: BrandedIdSchema,
+        stepId: BrandedIdSchema,
+        iteration: Type.Integer({ minimum: 1 }),
+        candidateSha256: Type.String({ pattern: "^[0-9a-f]{64}$" }),
+        candidate: Type.String(),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
 export const ProtocolV2ToolCallNotificationSchema = Type.Object(
   {
     jsonrpc: Type.Literal("2.0"),
@@ -1356,6 +1393,7 @@ export const PROTOCOL_V2_SCHEMA_BUNDLE = {
   toolCancelNotification: ProtocolV2ToolCancelNotificationSchema,
   toolRegistrationReceipt: ProtocolV2ToolRegistrationReceiptSchema,
   toolResultReceipt: ProtocolV2ToolResultReceiptSchema,
+  verificationRequestNotification: ProtocolV2VerificationRequestNotificationSchema,
   errorResponse: ProtocolV2ErrorResponseSchema,
 } as const;
 
@@ -1388,6 +1426,9 @@ export type ProtocolV2ControlReceipt = Static<typeof ProtocolV2ControlReceiptSch
 export type ProtocolV2PublicCheckpoint = Static<typeof ProtocolV2PublicCheckpointSchema>;
 export type ProtocolV2CheckpointResult = Static<typeof ProtocolV2CheckpointResultSchema>;
 export type ProtocolV2ToolCallNotification = Static<typeof ProtocolV2ToolCallNotificationSchema>;
+export type ProtocolV2VerificationRequestNotification = Static<
+  typeof ProtocolV2VerificationRequestNotificationSchema
+>;
 export type ProtocolV2ToolCancelNotification = Static<
   typeof ProtocolV2ToolCancelNotificationSchema
 >;

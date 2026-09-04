@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -158,7 +159,7 @@ for line in sys.stdin:
                             "projectionQuery",
                             "checkpointOperations",
                             "dynamicTools",
-                        ],
+                        ] + ([] if params.get("config", {}).get("name") == "no-host-verification" else ["hostVerification"]),
                         "schemaFingerprint": (
                             "sha256:" + "0" * 64
                             if params.get("config", {}).get("name") == "bad-fingerprint"
@@ -186,6 +187,16 @@ for line in sys.stdin:
             }
         )
     elif selected_protocol == "2.0" and method in {"run", "chat", "resume"}:
+        if params["runId"].startswith("verify-"):
+            verification = {"schemaVersion": 1, "runId": params["runId"], "requestId": "request-1",
+                            "stepId": "step-1", "iteration": 1, "candidate": "候选原文",
+                            "candidateSha256": hashlib.sha256("候选原文".encode("utf-8")).hexdigest()}
+            if params["runId"] == "verify-bad-sha":
+                verification["candidateSha256"] = "a" * 64
+            if params["runId"] == "verify-bad-id":
+                verification["requestId"] = ""
+            send({"jsonrpc": "2.0", "protocolVersion": "2.0",
+                  "method": "verification_request", "params": verification})
         send(
             {
                 "jsonrpc": "2.0",

@@ -76,6 +76,7 @@ export {
   parseRunSnapshot,
   RunSnapshotSchema,
 } from "coremind-protocol";
+export type { HostVerificationRequest } from "coremind-runtime";
 export {
   type ApprovalDecision,
   buildAgentFromConfig,

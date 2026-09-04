@@ -27,6 +27,7 @@ function createRunner(
     restoredSnapshot?: ConstructorParameters<typeof LoopRunner>[0]["restoredSnapshot"];
     completedSteps?: ReadonlyMap<string, CompletedWorkflowStep>;
     verifyEvidence?: ConstructorParameters<typeof LoopRunner>[0]["verifyEvidence"];
+    verifyHost?: ConstructorParameters<typeof LoopRunner>[0]["verifyHost"];
   } = {},
 ) {
   const events: CoreMindEvent[] = [];
@@ -51,11 +52,105 @@ function createRunner(
     restoredSnapshot: options.restoredSnapshot,
     completedSteps: options.completedSteps,
     verifyEvidence: options.verifyEvidence,
+    verifyHost: options.verifyHost,
   });
   return { runner, events, snapshots, requests, executeStep };
 }
 
 describe("LoopRunner", () => {
+  it("恢复宿主拒绝后的暂停时从持久反馈重建修复输入", async () => {
+    const loop: LoopConfig = { ...baseLoop, verify: { mode: "host" }, onFailure: "pause" };
+    const first = createRunner(["初稿"], {
+      loop,
+      verifyHost: async () => ({ decision: "reject", feedback: "缺少标题" }),
+    });
+    const paused = await first.runner.run();
+    const completedSteps = new Map<string, CompletedWorkflowStep>();
+    for (const event of first.events) {
+      if (event.type === "step_output") {
+        completedSteps.set(event.stepId, {
+          saveAs: event.saveAs,
+          output: { text: event.text, metadata: { agent: event.agent, stepId: event.stepId } },
+        });
+      }
+    }
+    const resumed = createRunner(["标题与正文"], {
+      loop,
+      restoredSnapshot: paused.snapshot,
+      completedSteps,
+      verifyHost: async () => ({ decision: "accept", feedback: "通过" }),
+    });
+    const result = await resumed.runner.run();
+    expect(result.snapshot.phase).toBe("succeeded");
+    expect(resumed.requests[0]?.input).toBe("根据 缺少标题 修复 初稿");
+  });
+
+  it("宿主持续拒绝仍受原生修复次数限制", async () => {
+    const { runner, requests } = createRunner(["初稿", "修订稿"], {
+      loop: { ...baseLoop, verify: { mode: "host" }, maxRepairs: 1 },
+      verifyHost: async () => ({ decision: "reject", feedback: "未通过" }),
+    });
+    const result = await runner.run();
+    expect(result.error).toMatchObject({ code: "loop_exhausted" });
+    expect(result.snapshot).toMatchObject({ phase: "failed", repairCount: 1 });
+    expect(requests.map((request) => request.kind)).toEqual(["execute", "repair"]);
+  });
+
+  it("取消后迟到的宿主拒绝不能写入反馈或再次推进验证", async () => {
+    let reply!: (value: { decision: "reject"; feedback: string }) => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const { runner, events, requests } = createRunner(["PASS"], {
+      loop: { ...baseLoop, verify: { mode: "host" } },
+      verifyHost: () => {
+        entered();
+        return new Promise((resolve) => {
+          reply = resolve;
+        });
+      },
+    });
+    const running = runner.run();
+    await waiting;
+    await runner.interrupt(new CoreMindError("aborted", "用户取消"));
+    const eventCount = events.length;
+    reply({ decision: "reject", feedback: "迟到反馈" });
+    const result = await running;
+    expect(result.snapshot.phase).toBe("aborted");
+    expect(events).toHaveLength(eventCount);
+    expect(result.outputs.has("verification")).toBe(false);
+    expect(requests.map((request) => request.kind)).toEqual(["execute"]);
+  });
+
+  it("未提供宿主验收入口时失败关闭并保持可恢复暂停", async () => {
+    const { runner } = createRunner(["PASS"], {
+      loop: { ...baseLoop, verify: { mode: "host" } },
+    });
+    const result = await runner.run();
+    expect(result.snapshot).toMatchObject({ phase: "paused", resumePhase: "verifying" });
+    expect(result.error).toMatchObject({ code: "loop_paused" });
+  });
+
+  it("宿主拒绝后的反馈驱动修复，只有宿主接受才能成功", async () => {
+    const candidates: string[] = [];
+    const { runner, requests } = createRunner(["PASS", "已修复"], {
+      loop: { ...baseLoop, verify: { mode: "host" } },
+      verifyHost: async ({ candidate }) => {
+        candidates.push(candidate);
+        return candidate === "PASS"
+          ? { decision: "reject", feedback: "缺少验收证据" }
+          : { decision: "accept", feedback: "验收通过" };
+      },
+    });
+    const result = await runner.run();
+    expect(result.snapshot.phase).toBe("succeeded");
+    expect(candidates).toEqual(["PASS", "已修复"]);
+    expect(requests.map((request) => request.kind)).toEqual(["execute", "repair"]);
+    expect(requests[1]?.input).toBe("根据 缺少验收证据 修复 PASS");
+    expect(result.outputs.get("verification")?.text).toBe("验收通过");
+  });
+
   it("Runtime 证据门可否决模型输出的 PASS", async () => {
     const { runner } = createRunner(["candidate", "PASS"], {
       loop: { ...baseLoop, maxIterations: 1, maxRepairs: 0 },
