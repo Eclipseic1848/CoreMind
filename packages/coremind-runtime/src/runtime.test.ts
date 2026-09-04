@@ -121,6 +121,33 @@ describe("CoreMindRuntime", () => {
     });
   });
 
+  it("宿主验收冷恢复拒绝自洽但与实际迭代错位的请求", async () => {
+    await withHostVerification(["固定候选"], async (options) => {
+      const first = await CoreMindRuntime.create(options);
+      expect((await first.run()).outcome.status).toBe("paused");
+      const recoveredStore = new FileRunStore(path.join(options.configDir, "shifted-runs"));
+      for (const record of await options.runStore!.read(options.runId!)) {
+        await recoveredStore.append(
+          record.kind === "verification"
+            ? {
+                ...record,
+                payload: { ...(record.payload as object), stepId: "loop-verify:2", iteration: 2 },
+              }
+            : record,
+        );
+      }
+      const notify = vi.fn();
+      const recovered = await CoreMindRuntime.create({
+        ...options,
+        runStore: recoveredStore,
+        resumeRunId: options.runId,
+        onVerification: notify,
+      });
+      await expect(recovered.run()).rejects.toMatchObject({ code: "run_state_corrupt" });
+      expect(notify).not.toHaveBeenCalled();
+    });
+  });
+
   it("宿主验收未知结果暂停，冷恢复重发相同对象而不重新执行模型", async () => {
     await withHostVerification(["等待独立验收"], async (options) => {
       let original: HostVerificationRequest | undefined;

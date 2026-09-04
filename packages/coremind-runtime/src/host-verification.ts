@@ -5,6 +5,7 @@ import {
   type RunControlCommand,
 } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
+import type { LoopControllerSnapshot } from "./loop-controller.js";
 import type { RunStateJournal, RunStateRecord } from "./run-state.js";
 
 /** 候选正文只交给显式宿主接口；持久请求仅记录身份与内容摘要。 */
@@ -44,7 +45,9 @@ export class HostVerificationGate {
 
   constructor(private readonly options: GateOptions) {
     const requestSequences = new Map<string, number>();
+    let loop: LoopControllerSnapshot | undefined;
     for (const record of options.records) {
+      if (record.kind === "loop") loop = record.payload as LoopControllerSnapshot;
       if (record.kind !== "verification") continue;
       const request = record.payload as RequestIdentity;
       if (
@@ -56,6 +59,9 @@ export class HostVerificationGate {
         !request.stepId ||
         !Number.isInteger(request.iteration) ||
         request.iteration < 1 ||
+        loop?.phase !== "verifying" ||
+        loop.runId !== options.runId ||
+        loop.iteration !== request.iteration ||
         typeof request.candidateSha256 !== "string" ||
         !/^[a-f0-9]{64}$/.test(request.candidateSha256) ||
         this.requests.has(request.stepId) ||
