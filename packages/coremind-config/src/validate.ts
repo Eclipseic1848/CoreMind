@@ -157,7 +157,7 @@ function validateLoopAgents(config: CoreMindConfig): void {
     ["repair", config.loop.repair],
   ] as const;
   const details = actions.flatMap(([name, action]) =>
-    action && !knownAgents.has(action.agent)
+    action && "agent" in action && !knownAgents.has(action.agent)
       ? [`loop.${name}.agent 引用了未定义的 Agent：${action.agent}`]
       : [],
   );

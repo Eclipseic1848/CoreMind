@@ -1,6 +1,6 @@
 """CoreMind Python SDK 公共入口。"""
 
-from .client import AsyncCoreMindClient, CoreMindClient
+from .client import AsyncCoreMindClient, CoreMindClient, parse_verification_request
 from .errors import (
     ERROR_CODES,
     CoreMindError,
@@ -19,6 +19,7 @@ __all__ = [
     "WorkerExitedError",
     "WorkerNotFoundError",
     "error_code_info",
+    "parse_verification_request",
 ]
 
 __version__ = "0.7.1"  # x-release-please-version

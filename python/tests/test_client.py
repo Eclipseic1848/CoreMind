@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import asyncio
 import sys
 import time
 import unittest
@@ -16,6 +17,53 @@ from coremind.client import (
 
 
 class CoreMindClientTest(unittest.TestCase):
+    def test_host_verification_requires_capability_and_async_parity(self) -> None:
+        worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py"))]
+        with CoreMindClient({"schemaVersion": 2, "name": "no-host-verification", "agents": {"main": {}}},
+                            worker_command=worker, protocol_version="2.0") as client:
+            with self.assertRaises(ProtocolError) as caught:
+                client.submit_verification("run-1", "request-1", "a" * 64, decision="accept")
+            self.assertEqual(caught.exception.coremind_code, "protocol_capability_missing")
+
+        async def verify() -> None:
+            async with AsyncCoreMindClient({"schemaVersion": 2, "name": "host-verification", "agents": {"main": {}}},
+                                           worker_command=worker, protocol_version="2.0") as client:
+                await client.run(run_id="verify-async")
+                request = client.sync_client.received_verification_requests[0]
+                receipt = await client.submit_verification(request["runId"], request["requestId"],
+                    request["candidateSha256"], decision="accept", control_id="async-verification")
+                self.assertEqual(receipt["controlId"], "async-verification")
+        asyncio.run(verify())
+
+    def test_host_verification_notification_keeps_only_valid_local_request(self) -> None:
+        with CoreMindClient(
+            {"schemaVersion": 2, "name": "host-verification", "agents": {"main": {}}},
+            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+            protocol_version="2.0",
+        ) as client:
+            for run_id in ("verify-good", "verify-bad-sha", "verify-bad-id"):
+                client.run(run_id=run_id)
+            self.assertEqual(len(client.received_verification_requests), 1)
+            self.assertEqual(client.received_verification_requests[0]["candidate"], "候选原文")
+            self.assertEqual(client.received_events, [])
+
+    def test_host_verification_control_checks_identity_and_capability(self) -> None:
+        with CoreMindClient(
+            {"schemaVersion": 2, "name": "host-verification", "agents": {"main": {}}},
+            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+            protocol_version="2.0",
+        ) as client:
+            receipt = client.submit_verification("run-1", "request-1", "a" * 64,
+                decision="reject", feedback="缺少来源", control_id="control-1")
+            self.assertEqual(receipt["controlId"], "control-1")
+            self.assertEqual(receipt["status"], "applied")
+            for overrides in ({"request_id": ""}, {"candidate_sha256": "bad"},
+                              {"decision": "reject", "feedback": " "}):
+                args = {"run_id": "run-1", "request_id": "request-1", "candidate_sha256": "a" * 64,
+                        "decision": "accept", "feedback": "", **overrides}
+                with self.assertRaises(ValueError):
+                    client.submit_verification(**args)
+
     def setUp(self) -> None:
         worker = Path(__file__).with_name("fake_worker.py")
         self.events: list[dict] = []

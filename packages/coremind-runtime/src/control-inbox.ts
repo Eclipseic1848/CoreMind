@@ -12,6 +12,13 @@ interface RunControlBase {
 }
 
 export type RunControlCommand =
+  | (RunControlBase & {
+      type: "verification";
+      requestId: string;
+      candidateSha256: string;
+      decision: "accept" | "reject";
+      feedback: string;
+    })
   | (RunControlBase & { type: "cancel"; reason?: string })
   | (RunControlBase & {
       type: "approval";
@@ -34,6 +41,13 @@ interface InternalRunControlBase {
 }
 
 export type InternalRunControlCommand =
+  | (InternalRunControlBase & {
+      type: "verification";
+      requestId: string;
+      candidateSha256: string;
+      decision: "accept" | "reject";
+      feedback: string;
+    })
   | (InternalRunControlBase & { type: "cancel"; reason?: string })
   | (InternalRunControlBase & {
       type: "approval";
@@ -330,6 +344,16 @@ function duplicateOrConflict(
   });
 }
 
+/** 恢复已稳定应用的控制；复用同一 Fact 校验，不能信任尚未 applied 的回复。 */
+export function projectAppliedControlCommands(
+  runId: string,
+  records: readonly RunStateRecord[],
+): RunControlCommand[] {
+  return [...restoreControls(runId as RunId, records).values()]
+    .filter((stored) => stored.state === "applied")
+    .map((stored) => structuredClone(stored.command));
+}
+
 function restoreControls(
   runId: RunId,
   records: readonly RunStateRecord[],
@@ -403,13 +427,29 @@ function validateCommand(command: RunControlCommand, runId: RunId): InternalRunC
     candidate.runId !== runId ||
     typeof candidate.controlId !== "string" ||
     candidate.controlId.trim().length === 0 ||
-    !["cancel", "approval", "steering", "follow_up", "delegation_disposition"].includes(
-      String(candidate.type),
-    )
+    ![
+      "cancel",
+      "approval",
+      "steering",
+      "follow_up",
+      "delegation_disposition",
+      "verification",
+    ].includes(String(candidate.type))
   ) {
     throw new CoreMindError("control_invalid", "Control 命令合同非法或 runId 不匹配");
   }
   const validTypeSpecificFields =
+    (candidate.type === "verification" &&
+      typeof candidate.requestId === "string" &&
+      candidate.requestId.length > 0 &&
+      candidate.requestId.length <= 256 &&
+      !/[\p{Cc}\s]/u.test(candidate.requestId) &&
+      typeof candidate.candidateSha256 === "string" &&
+      /^[a-f0-9]{64}$/.test(candidate.candidateSha256) &&
+      (candidate.decision === "accept" || candidate.decision === "reject") &&
+      typeof candidate.feedback === "string" &&
+      candidate.feedback.length <= 65_536 &&
+      (candidate.decision === "accept" || candidate.feedback.trim().length > 0)) ||
     (candidate.type === "cancel" &&
       (candidate.reason === undefined || typeof candidate.reason === "string")) ||
     (candidate.type === "approval" &&

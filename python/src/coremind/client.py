@@ -71,6 +71,7 @@ class CoreMindClient:
         self.received_events: list[Mapping[str, Any]] = []
         self.received_tool_calls: list[Mapping[str, Any]] = []
         self.received_tool_cancellations: list[Mapping[str, Any]] = []
+        self.received_verification_requests: list[Mapping[str, Any]] = []
 
     @property
     def pid(self) -> int | None:
@@ -382,7 +383,25 @@ class CoreMindClient:
 
         self.start()
         self._require_v2_method("control")
+        if command.get("type") == "verification":
+            if "hostVerification" not in self._capabilities:
+                raise ProtocolError("worker 不支持宿主验收", rpc_code=-32601,
+                                    coremind_code="protocol_capability_missing")
+            _validate_verification_control(command)
         return _validate_control_receipt(self._request_raw("control", command), command)
+
+    def submit_verification(
+        self, run_id: str, request_id: str, candidate_sha256: str, *,
+        decision: str, feedback: str = "", control_id: str | None = None,
+    ) -> dict[str, Any]:
+        """提交宿主验收决定；重复发送时应复用同一个 control_id。"""
+
+        command = {"schemaVersion": 1, "type": "verification", "runId": run_id,
+                   "requestId": request_id, "candidateSha256": candidate_sha256,
+                   "decision": decision, "feedback": feedback,
+                   "controlId": control_id if control_id is not None else uuid.uuid4().hex}
+        _validate_verification_control(command)
+        return self.control(command)
 
     def tool(
         self,
@@ -513,6 +532,7 @@ class CoreMindClient:
             "projectionQuery",
             "checkpointOperations",
             "dynamicTools",
+            "hostVerification",
         ]
         return params
 
@@ -625,6 +645,15 @@ class CoreMindClient:
     def _handle_notification(self, message: Mapping[str, Any]) -> None:
         method = message.get("method")
         params = message.get("params")
+        if method == "verification_request":
+            try:
+                if self._protocol_version != PROTOCOL_V2_VERSION or "hostVerification" not in self._capabilities:
+                    raise ProtocolError("未协商宿主验收能力", rpc_code=-32601,
+                                        coremind_code="protocol_capability_missing")
+                self.received_verification_requests.append(parse_verification_request(message))
+            except ProtocolError as error:
+                self._stderr_tail.append(str(error))
+            return
         if not isinstance(params, Mapping):
             return
         if method == "event":
@@ -868,6 +897,13 @@ class AsyncCoreMindClient:
     async def control(self, command: Mapping[str, Any]) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.control, command)
 
+    async def submit_verification(
+        self, run_id: str, request_id: str, candidate_sha256: str, *,
+        decision: str, feedback: str = "", control_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.submit_verification, run_id, request_id,
+            candidate_sha256, decision=decision, feedback=feedback, control_id=control_id)
+
     async def close(self) -> None:
         await asyncio.to_thread(self._client.close)
 
@@ -876,6 +912,48 @@ class AsyncCoreMindClient:
 
     async def __aexit__(self, _type: object, _value: object, _traceback: object) -> None:
         await self.close()
+
+
+def parse_verification_request(message: Mapping[str, Any]) -> dict[str, Any]:
+    """校验专用本地通知的身份与候选内容摘要，返回宿主可验收的请求。"""
+
+    params = message.get("params")
+    candidate = params.get("candidate") if isinstance(params, Mapping) else None
+    try:
+        candidate_sha256 = hashlib.sha256(candidate.encode("utf-8")).hexdigest() if isinstance(candidate, str) else None
+    except UnicodeEncodeError:
+        candidate_sha256 = None
+    if (
+        set(message) != {"jsonrpc", "protocolVersion", "method", "params"}
+        or message.get("jsonrpc") != "2.0" or message.get("protocolVersion") != PROTOCOL_V2_VERSION
+        or message.get("method") != "verification_request"
+        or not isinstance(params, Mapping)
+        or set(params) != {"schemaVersion", "runId", "requestId", "stepId", "iteration", "candidateSha256", "candidate"}
+        or type(params.get("schemaVersion")) is not int or params["schemaVersion"] != 1
+        or not all(_valid_branded_id(params.get(key)) for key in ("runId", "requestId", "stepId"))
+        or type(params.get("iteration")) is not int or params["iteration"] < 1
+        or candidate_sha256 is None
+        or params.get("candidateSha256") != candidate_sha256
+    ):
+        raise ProtocolError("宿主验收通知的身份或候选摘要非法", rpc_code=-32600,
+                            coremind_code="protocol_validation_failed")
+    return dict(params)
+
+
+def _validate_verification_control(command: Mapping[str, Any]) -> None:
+    if (
+        set(command) != {"schemaVersion", "type", "runId", "controlId", "requestId",
+                         "candidateSha256", "decision", "feedback"}
+        or type(command.get("schemaVersion")) is not int or command["schemaVersion"] != 1
+        or command.get("type") != "verification"
+        or not all(_valid_branded_id(command.get(key)) for key in ("runId", "requestId", "controlId"))
+        or not isinstance(command.get("candidateSha256"), str)
+        or re.fullmatch(r"[0-9a-f]{64}", command["candidateSha256"]) is None
+        or command.get("decision") not in ("accept", "reject")
+        or not isinstance(command.get("feedback"), str)
+        or (command["decision"] == "reject" and not command["feedback"].strip())
+    ):
+        raise ValueError("宿主验收控制的身份、摘要或决定非法")
 
 
 def _validate_run_handle(value: Mapping[str, Any], expected_run_id: str) -> dict[str, Any]:

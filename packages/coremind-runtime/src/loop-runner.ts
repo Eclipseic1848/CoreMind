@@ -37,6 +37,12 @@ export interface LoopRunnerOptions {
     stepId: string;
     textPassed: boolean;
   }) => boolean | Promise<boolean>;
+  /** 宿主独立验收候选；持久身份与决策重放由 Runtime 负责。 */
+  verifyHost?: (request: {
+    iteration: number;
+    stepId: string;
+    candidate: string;
+  }) => Promise<{ decision: "accept" | "reject"; feedback: string }>;
 }
 
 export interface LoopRunResult {
@@ -166,6 +172,32 @@ export class LoopRunner {
     const verification = this.options.loop.verify;
     const iteration = this.controller.getSnapshot().iteration;
     this.variables.set("iteration", String(iteration));
+    if (verification.mode === "host") {
+      if (!this.options.verifyHost) {
+        await this.sendAndPersist({ type: "PAUSE", reason: "loop_paused" });
+        return;
+      }
+      const stepId = `loop-verify:${iteration}`;
+      const decision = await this.options.verifyHost({
+        iteration,
+        stepId,
+        candidate: this.outputs.get("candidate")?.text ?? "",
+      });
+      if (this.controller.phase !== "verifying") return;
+      this.saveOutput("verification", {
+        text: decision.feedback,
+        metadata: { agent: "host", stepId },
+      });
+      this.options.emit({
+        type: "step_output",
+        stepId,
+        agent: "host",
+        text: decision.feedback,
+        saveAs: "verification",
+      });
+      await this.sendAndPersist({ type: "VERIFIED", passed: decision.decision === "accept" });
+      return;
+    }
     const output = await this.runStep(
       "verify",
       `loop-verify:${iteration}`,

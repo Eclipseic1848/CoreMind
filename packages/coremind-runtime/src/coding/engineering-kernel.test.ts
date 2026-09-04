@@ -132,7 +132,7 @@ describe("Engineering Kernel contracts", () => {
       "deliver",
     ]);
     expect(kernel.loop).toMatchObject({ maxIterations: 3, maxRepairs: 2, maxRepeatedAction: 2 });
-    expect(kernel.loop.verify.evidence).toEqual({
+    expect(kernel.loop.verify.mode !== "host" && kernel.loop.verify.evidence).toEqual({
       mode: "runtime",
       regressionCommand: "npm test",
       minSuccessfulTestCommands: 2,

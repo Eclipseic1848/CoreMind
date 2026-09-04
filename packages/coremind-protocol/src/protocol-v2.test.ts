@@ -14,10 +14,79 @@ import {
   ProtocolV2ToolRegistrationReceiptSchema,
   ProtocolV2ToolResultReceiptSchema,
   ProtocolV2ToolResultRequestSchema,
+  ProtocolV2VerificationRequestNotificationSchema,
   parseProtocolV2Request,
 } from "./index.js";
 
 describe("CoreMind Protocol v2", () => {
+  it("宿主验收通知携带独立身份及候选原文，不接受未知字段", () => {
+    expect(
+      Value.Check(ProtocolV2RunHandleSchema, {
+        runId: "run-1",
+        acceptedAt: "2026-09-04T00:00:00.000Z",
+        initialCursor: 0,
+        selectedProtocol: "2.0",
+        availableControls: ["verification"],
+      }),
+    ).toBe(true);
+    const notification = {
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      method: "verification_request",
+      params: {
+        schemaVersion: 1,
+        runId: "run-1",
+        requestId: "request-1",
+        stepId: "step-1",
+        iteration: 1,
+        candidateSha256: "a".repeat(64),
+        candidate: "候选原文",
+      },
+    };
+    expect(Value.Check(ProtocolV2VerificationRequestNotificationSchema, notification)).toBe(true);
+    for (const change of [
+      { stepId: "" },
+      { iteration: 0 },
+      { candidateSha256: "bad" },
+      { extra: true },
+    ]) {
+      expect(
+        Value.Check(ProtocolV2VerificationRequestNotificationSchema, {
+          ...notification,
+          params: { ...notification.params, ...change },
+        }),
+      ).toBe(false);
+    }
+  });
+  it("宿主验收控制绑定请求和候选摘要，拒绝空拒绝理由", () => {
+    const command = {
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "verify",
+      method: "control",
+      params: {
+        schemaVersion: 1,
+        controlId: "control-1",
+        runId: "run-1",
+        type: "verification",
+        requestId: "request-1",
+        candidateSha256: "a".repeat(64),
+        decision: "accept",
+        feedback: "",
+      },
+    };
+    expect(parseProtocolV2Request(command)).toEqual(command);
+    for (const change of [
+      { requestId: "" },
+      { candidateSha256: "wrong" },
+      { decision: "reject" },
+      { unexpected: true },
+    ]) {
+      expect(() =>
+        parseProtocolV2Request({ ...command, params: { ...command.params, ...change } }),
+      ).toThrow();
+    }
+  });
   it("schema fingerprint 覆盖请求、响应、事件与错误合同", () => {
     expect(Object.keys(PROTOCOL_V2_SCHEMA_BUNDLE)).toEqual([
       "request",
@@ -32,6 +101,7 @@ describe("CoreMind Protocol v2", () => {
       "toolCancelNotification",
       "toolRegistrationReceipt",
       "toolResultReceipt",
+      "verificationRequestNotification",
       "errorResponse",
     ]);
     expect(PROTOCOL_V2_SCHEMA_FINGERPRINT).toMatch(/^sha256:[0-9a-f]{64}$/);

@@ -24,6 +24,7 @@ import {
 import { ControlInbox } from "./control-inbox.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
+import type { HostVerificationRequest } from "./host-verification.js";
 import { checkInvariantFacts } from "./invariant-checker.js";
 import { createDenyPolicyExtension, defineLifecycleExtension } from "./lifecycle-extension.js";
 import {
@@ -40,7 +41,11 @@ import {
   prepareRunResume,
   RunStateJournal,
 } from "./run-state.js";
-import { CoreMindRuntime, prepareProtocolToolResultFact } from "./runtime.js";
+import {
+  CoreMindRuntime,
+  type CoreMindRuntimeOptions,
+  prepareProtocolToolResultFact,
+} from "./runtime.js";
 import { CoreMindSession } from "./session.js";
 import {
   canonicalizeWorkspace,
@@ -50,6 +55,256 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("宿主验收回复落盘后崩溃，恢复沿用拒绝反馈且只消费一次修正额度", async () => {
+    await withHostVerification(["原始候选", "首进程修正", "恢复进程修正"], async (options) => {
+      const store = options.runStore as FileRunStore;
+      const commit = store.commit.bind(store);
+      let crashPrefix: Awaited<ReturnType<FileRunStore["read"]>> | undefined;
+      store.commit = async (record, durability) => {
+        const receipt = await commit(record, durability);
+        if (
+          !crashPrefix &&
+          record.kind === "control" &&
+          (record.payload as { state?: string }).state === "applied"
+        ) {
+          crashPrefix = await store.read(record.runId);
+        }
+        return receipt;
+      };
+      const config = { ...options.config, loop: { ...options.config.loop!, maxRepairs: 1 } };
+      let count = 0;
+      const first = await CoreMindRuntime.create({
+        ...options,
+        config,
+        onVerification: (request) => {
+          count++;
+          void first.acceptControl({
+            ...verificationReply(request),
+            decision: count === 1 ? "reject" : "accept",
+            feedback: count === 1 ? "补充独立核验项" : "",
+          });
+        },
+      });
+      expect((await first.run()).outcome.status).toBe("succeeded");
+      // 以真实存储的稳定前缀模拟恰在 applied 后进程退出，不构造批准事实。
+      const recoveredStore = new FileRunStore(path.join(options.configDir, "recovered-runs"));
+      for (const record of crashPrefix!) await recoveredStore.append(record);
+      const recovered = await CoreMindRuntime.create({
+        ...options,
+        config,
+        runStore: recoveredStore,
+        resumeRunId: options.runId,
+        onVerification: (request) => {
+          void recovered.acceptControl(verificationReply(request));
+        },
+      });
+      const result = await recovered.run();
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toBe("恢复进程修正");
+      expect(JSON.stringify([...result.messages.values()])).toContain("补充独立核验项");
+    });
+  });
+
+  it("宿主验收冷恢复拒绝重复请求身份的损坏事实", async () => {
+    await withHostVerification(["固定候选"], async (options) => {
+      const first = await CoreMindRuntime.create(options);
+      expect((await first.run()).outcome.status).toBe("paused");
+      const records = await options.runStore!.read(options.runId!);
+      const original = records.find((record) => record.kind === "verification")!;
+      await options.runStore!.append({
+        ...original,
+        sequence: records.at(-1)!.sequence + 1,
+        payload: { ...(original.payload as object), stepId: "loop-verify:2", iteration: 2 },
+      });
+      const recovered = await CoreMindRuntime.create({ ...options, resumeRunId: options.runId });
+      await expect(recovered.run()).rejects.toMatchObject({ code: "run_state_corrupt" });
+    });
+  });
+
+  it("宿主验收未知结果暂停，冷恢复重发相同对象而不重新执行模型", async () => {
+    await withHostVerification(["等待独立验收"], async (options) => {
+      let original: HostVerificationRequest | undefined;
+      const first = await CoreMindRuntime.create({
+        ...options,
+        config: {
+          ...options.config,
+          loop: { ...options.config.loop!, verify: { mode: "host", timeoutMs: 50 } },
+        },
+        onVerification: (request) => {
+          original = request;
+        },
+      });
+      const paused = await first.run();
+      expect(paused.outcome.status).toBe("paused");
+      let recovered: HostVerificationRequest | undefined;
+      const resumed = await CoreMindRuntime.create({
+        ...options,
+        config: {
+          ...options.config,
+          loop: { ...options.config.loop!, verify: { mode: "host", timeoutMs: 50 } },
+        },
+        resumeRunId: paused.runId,
+        onVerification: (request) => {
+          recovered = request;
+          void resumed.acceptControl(verificationReply(request));
+        },
+      });
+      expect((await resumed.run()).outcome.status).toBe("succeeded");
+      expect(recovered).toEqual(original);
+    });
+  });
+
+  it("宿主验收缺失或抛错不能误报成功，交互入口不能绕过", async () => {
+    await withHostVerification(["模型声称 PASS"], async (options) => {
+      const runtime = await CoreMindRuntime.create(options);
+      const paused = await runtime.run();
+      expect(paused.outcome.status).toBe("paused");
+      await expect(runtime.runAgentTurn("coder", "绕过验收", [], () => {})).rejects.toMatchObject({
+        code: "loop_config_invalid",
+      });
+      const resumed = await CoreMindRuntime.create({
+        ...options,
+        resumeRunId: paused.runId,
+        onVerification: () => {
+          throw new Error("宿主服务不可用");
+        },
+      });
+      expect((await resumed.run()).outcome.status).toBe("paused");
+    });
+  });
+
+  it("宿主验收校验 Run 和候选身份，重复与冲突不能覆盖首个决定", async () => {
+    await withHostVerification(["初稿", "第二稿"], async (options) => {
+      const checks: Promise<void>[] = [];
+      let iteration = 0;
+      const runtime = await CoreMindRuntime.create({
+        ...options,
+        onVerification: (request) => {
+          iteration++;
+          const check = (async () => {
+            const reply = verificationReply(request);
+            if (iteration === 1) {
+              await expect(
+                runtime.acceptControl({ ...reply, runId: "other-run" }),
+              ).rejects.toMatchObject({ code: "control_invalid" });
+              expect(
+                await runtime.acceptControl({
+                  ...reply,
+                  controlId: "wrong-digest",
+                  candidateSha256: "0".repeat(64),
+                }),
+              ).toMatchObject({ status: "rejected" });
+              const rejected = { ...reply, decision: "reject" as const, feedback: "需要第二稿" };
+              expect(await runtime.acceptControl(rejected)).toMatchObject({ status: "applied" });
+              expect(await runtime.acceptControl(rejected)).toMatchObject({
+                status: "duplicate",
+                duplicateOf: "applied",
+              });
+              expect(await runtime.acceptControl(reply)).toMatchObject({ status: "conflict" });
+              expect(
+                await runtime.acceptControl({ ...reply, controlId: "new-id-same-request" }),
+              ).toMatchObject({ status: "rejected" });
+            } else {
+              expect(await runtime.acceptControl(reply)).toMatchObject({ status: "applied" });
+            }
+          })();
+          checks.push(check);
+          return check;
+        },
+      });
+      const result = await runtime.run();
+      await Promise.all(checks);
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toBe("第二稿");
+    });
+  });
+
+  it("宿主验收等待中取消收敛，迟到接受不能改写终态", async () => {
+    await withHostVerification(["未验收候选"], async (options) => {
+      const controller = new AbortController();
+      let pending: HostVerificationRequest | undefined;
+      const runtime = await CoreMindRuntime.create({
+        ...options,
+        signal: controller.signal,
+        onVerification: (request) => {
+          pending = request;
+          controller.abort();
+        },
+      });
+      const result = await runtime.run();
+      expect(result.outcome.status).toBe("aborted");
+      expect(await runtime.waitForQuiescence()).toBe(true);
+      await expect(runtime.acceptControl(verificationReply(pending!))).rejects.toMatchObject({
+        code: "control_unavailable",
+      });
+    });
+  });
+
+  it("宿主验收拒绝遵循原生修正额度，不能无限继续", async () => {
+    await withHostVerification(["第一稿", "第二稿"], async (options) => {
+      const runtime = await CoreMindRuntime.create({
+        ...options,
+        config: { ...options.config, loop: { ...options.config.loop!, maxRepairs: 1 } },
+        onVerification: (request) => {
+          void runtime.acceptControl({
+            ...verificationReply(request),
+            decision: "reject",
+            feedback: "仍不符合要求",
+          });
+        },
+      });
+      expect((await runtime.run()).outcome).toMatchObject({
+        status: "failed",
+        finishReason: "loop_exhausted",
+      });
+    });
+  });
+
+  it("宿主验收拒绝后在同一 Run 修正，只有持久接受才能成功", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-host-verify-"));
+    const server = createTextSequenceServer(["初稿", "修正稿"]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const requests: Array<{ runId: string; candidate: string }> = [];
+    const replies: Promise<unknown>[] = [];
+    try {
+      const runtime = await CoreMindRuntime.create({
+        config: loopConfig((server.address() as AddressInfo).port, {
+          verify: { mode: "host", timeoutMs: 1_000 },
+        }),
+        configDir: dir,
+        cwd: dir,
+        runId: "host-verification-run",
+        initialPrompt: "写一份结果",
+        onVerification: (request) => {
+          requests.push(request);
+          replies.push(
+            runtime.acceptControl({
+              schemaVersion: 1,
+              controlId: `answer-${request.requestId}`,
+              runId: request.runId,
+              type: "verification",
+              requestId: request.requestId,
+              candidateSha256: request.candidateSha256,
+              decision: requests.length === 1 ? "reject" : "accept",
+              feedback: requests.length === 1 ? "修正缺失内容" : "",
+            }),
+          );
+        },
+      });
+      const result = await runtime.run();
+      await Promise.all(replies);
+      expect(result.outcome.status).toBe("succeeded");
+      expect(result.transcript).toBe("修正稿");
+      expect(requests).toMatchObject([
+        { runId: "host-verification-run", candidate: "初稿" },
+        { runId: "host-verification-run", candidate: "修正稿" },
+      ]);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("真实 Child Runtime Adapter 绑定 authority、执行独立 Run 并等待 Quiescent", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-real-child-"));
     const server = createTextSequenceServer(["子任务完成"]);
@@ -4660,6 +4915,44 @@ function createTextSequenceServer(responses: string[]) {
       },
     ]);
   });
+}
+
+function verificationReply(request: HostVerificationRequest) {
+  return {
+    schemaVersion: 1 as const,
+    type: "verification" as const,
+    controlId: `reply-${request.requestId}`,
+    runId: request.runId,
+    requestId: request.requestId,
+    candidateSha256: request.candidateSha256,
+    decision: "accept" as const,
+    feedback: "",
+  };
+}
+
+async function withHostVerification(
+  responses: string[],
+  check: (options: CoreMindRuntimeOptions) => Promise<void>,
+): Promise<void> {
+  const dir = mkdtempSync(path.join(tmpdir(), "coremind-host-check-"));
+  const server = createTextSequenceServer(responses);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    await check({
+      config: loopConfig((server.address() as AddressInfo).port, {
+        verify: { mode: "host", timeoutMs: 2_000 },
+      }),
+      configDir: dir,
+      cwd: dir,
+      runId: "host-check",
+      initialPrompt: "生成候选",
+      runStore: new FileRunStore(path.join(dir, "runs")),
+    });
+  } finally {
+    server.closeAllConnections();
+    await closeServer(server);
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 function loopConfig(
