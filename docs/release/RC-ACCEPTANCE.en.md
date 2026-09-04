@@ -6,6 +6,8 @@ This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and 
 
 [简体中文](RC-ACCEPTANCE.zh-CN.md)
 
+> The separate simplified `0.7.1` decision in the [Release SOP](README.en.md) promotes a fixed candidate and reuses its successful both-platform offline checks without repeating this guide. The Provider job failed during npm setup before calling the model, so this does not claim complete strict RC qualification or reuse the `0.7.0` network waiver. The procedure below still defines full strict qualification.
+
 ## Automated matrix
 
 Run at the candidate repository root:
@@ -73,7 +75,7 @@ npm run providers:certify
 
 Certification covers seven checks: streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
 
-For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict run `33582995518` and the fixed Runtime digest. It does not update the certification ledger, and every later release returns to the strict live-provider requirement.
+For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict run `33582995518` and the fixed Runtime digest. It does not update the certification ledger. The separate simplified `0.7.1` decision is recorded in the SOP; other versions retain the strict live-provider requirement.
 
 ## Completion
 

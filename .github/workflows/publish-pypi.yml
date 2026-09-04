@@ -56,15 +56,28 @@ jobs:
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
           candidate_sha="${tag_sha}"
+          approved_offline_v071="false"
+          if [ "${COREMIND_REQUESTED_TAG}" = "v0.7.1" ] && [ "${COREMIND_REUSED_CANDIDATE_RUN_ID}" = "33838498153" ]; then
+            approved_offline_v071="true"
+          fi
           if [ -n "${COREMIND_REUSED_CANDIDATE_RUN_ID}" ]; then
             case "${COREMIND_REUSED_CANDIDATE_RUN_ID}" in
               *[!0-9]*) echo "reuse_candidate_run_id 必须是 GitHub Actions run ID" >&2; exit 1 ;;
             esac
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.event')" = "workflow_dispatch"
             test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.path')" = ".github/workflows/candidate-qualification.yml"
-            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.conclusion')" = "success"
+            if [ "${approved_offline_v071}" = "true" ]; then
+              test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/33838498153" --jq '.status + ":" + .conclusion')" = "completed:failure"
+            else
+              test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.conclusion')" = "success"
+            fi
             candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${COREMIND_REUSED_CANDIDATE_RUN_ID}" --jq '.head_sha')"
-            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev '(\.md$|^\.github/workflows/publish-pypi\.yml$|^docs/release/evidence/v0\.7\.0-provider-network-waiver\.json$|^scripts/check-python-wheel\.py$|^scripts/release-artifacts\.mjs$|^scripts/validate-npm-tarballs\.mjs$|^scripts/workflow-contract\.test\.ts$)' || true)"
+            git merge-base --is-ancestor "${candidate_sha}" "${tag_sha}"
+            allowed_changes='(\.md$|^\.github/workflows/publish-pypi\.yml$|^docs/release/evidence/v0\.7\.0-provider-network-waiver\.json$|^scripts/check-python-wheel\.py$|^scripts/release-artifacts\.mjs$|^scripts/validate-npm-tarballs\.mjs$|^scripts/workflow-contract\.test\.ts$)'
+            if [ "${approved_offline_v071}" = "true" ]; then
+              allowed_changes="${allowed_changes}|^\.github/workflows/candidate-qualification\.yml$|^scripts/promote-v071-candidate\.(mjs|test\.ts)$"
+            fi
+            unsafe_changes="$(git diff --name-only "${candidate_sha}" "${tag_sha}" | grep -Ev "${allowed_changes}" || true)"
             test -z "${unsafe_changes}" || { echo "复用候选后存在产品代码改动：${unsafe_changes}" >&2; exit 1; }
           fi
           ruleset_id="21807589"
@@ -85,6 +98,17 @@ jobs:
           test "${engineering_conclusion}" = "success"
           run_id=""
           evidence_mode="strict-provider"
+          if [ "${approved_offline_v071}" = "true" ]; then
+            test "${candidate_sha}" = "7585b5b68d75ce86ea9393d78a50e3ce4020734f"
+            jobs="$(gh api 'repos/'"${GITHUB_REPOSITORY}"'/actions/runs/33838498153/attempts/1/jobs?per_page=100')"
+            test "$(jq '[.jobs[] | select((.id == 100915780318 or .id == 100915780557) and .conclusion == "success")] | length' <<<"${jobs}")" = "2"
+            test "$(jq '[.jobs[] | select(.id == 100952817495 and .name == "Provider certification" and .conclusion == "failure")] | length' <<<"${jobs}")" = "1"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9926272323" --jq '.expired')" = "false"
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/9926272323" --jq '.digest')" = "sha256:a0f2f45d46b2a9532b8dabc7e52fd969d299f6bed0284e3887c11d25993feb71"
+            run_id="33838498153"
+            evidence_mode="approved-offline-v071"
+            echo 'v0.7.1：复用双平台离线候选，真实 Provider 认证未执行；不重跑 Candidate 或重建 npm/wheel。' >> "${GITHUB_STEP_SUMMARY}"
+          fi
           candidate_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/candidate-qualification.yml/runs?head_sha=${candidate_sha}&status=completed&per_page=20" --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id')"
           if [ -n "${COREMIND_REUSED_CANDIDATE_RUN_ID}" ]; then candidate_runs="${COREMIND_REUSED_CANDIDATE_RUN_ID}"; fi
           for candidate_run_id in ${candidate_runs}; do
@@ -258,13 +282,13 @@ jobs:
           check_absent "PyPI coremind-ai==${version}" "https://pypi.org/pypi/coremind-ai/${version}/json"
 
       - name: 安装 Python
-        if: inputs.artifact_run_id == ''
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode != 'approved-offline-v071'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
 
       - name: 固定发布工具链
-        if: inputs.artifact_run_id == ''
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode != 'approved-offline-v071'
         run: |
           npm install --global npm@11.5.1
           python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
@@ -280,7 +304,7 @@ jobs:
           gh run download "${COREMIND_CANDIDATE_RUN_ID}" --repo "${GITHUB_REPOSITORY}" --name "provider-certification-${COREMIND_CANDIDATE_SHA}" --dir .scratch/provider-certification
 
       - name: 构建并验证同提交发布物
-        if: inputs.artifact_run_id == ''
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode != 'approved-offline-v071'
         env:
           COREMIND_RELEASE_TAG: ${{ inputs.tag }}
           COREMIND_PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
@@ -301,6 +325,20 @@ jobs:
             release_args+=(--provider-certification-directory .scratch/provider-certification --provider-certification-commit "${COREMIND_CANDIDATE_SHA}")
           fi
           npm run release:bundle -- "${release_args[@]}"
+
+      - name: 下载已批准的 v0.7.1 离线候选
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode == 'approved-offline-v071'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: 33838498153
+          artifact-ids: 9926272323
+          merge-multiple: true
+          path: .scratch/approved-v071-candidate
+
+      - name: 原样晋升 npm 与 wheel，仅更新源码 ZIP 和清单
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode == 'approved-offline-v071'
+        run: node scripts/promote-v071-candidate.mjs .scratch/approved-v071-candidate
 
       - name: 恢复既有已验证发布物
         if: inputs.artifact_run_id != ''
@@ -460,9 +498,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
+          PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
         run: |
           prerelease=""
           if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
+          notes_args=()
+          if [ "${PROVIDER_EVIDENCE_MODE}" = "approved-offline-v071" ]; then
+            notes_args=(--notes 'v0.7.1 reuses the exact npm and PyPI artifacts from Candidate 33838498153 (Ubuntu and Windows offline checks passed). Source ZIP reflects the release tag. Live Provider certification was not run: the certification job failed during npm setup. This approved simplified release does not claim live Provider certification success. See release-manifest.json for source provenance and artifact hashes.')
+          fi
           release_state="$(mktemp)"
           release_status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --header "Authorization: Bearer ${GH_TOKEN}" --header 'Accept: application/vnd.github+json' --output "${release_state}" --write-out '%{http_code}' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")" || {
             echo "GitHub Release 状态未知；停止发布" >&2
@@ -508,6 +551,7 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --verify-tag \
             --generate-notes \
+            "${notes_args[@]}" \
             --title "CoreMind ${RELEASE_TAG#v}" \
             ${prerelease}
 
@@ -595,6 +639,8 @@ jobs:
           python -m pip download --disable-pip-version-check --no-deps --only-binary=:all: "coremind-ai==${version}" --dest .scratch/public/python
 
       - name: 核对公开摘要并执行 npm 与 PyPI Child Run 冒烟
+        env:
+          COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE: ${{ needs.candidate.outputs.provider_evidence_mode == 'approved-offline-v071' }}
         run: |
           node --input-type=module -e 'import { createHash } from "node:crypto"; import { readdirSync, readFileSync } from "node:fs"; import path from "node:path"; const manifest=JSON.parse(readFileSync("release-artifacts/release-manifest.json", "utf8")); for (const kind of ["npm", "python"]) { const directory=`.scratch/public/${kind}`; const files=readdirSync(directory); for (const artifact of manifest.artifacts.filter((item) => item.kind === kind)) { const name=path.basename(artifact.path); if (!files.includes(name)) throw new Error(`公开渠道缺少 ${name}`); const actual=createHash("sha256").update(readFileSync(path.join(directory, name))).digest("hex"); if (actual !== artifact.sha256) throw new Error(`公开摘要不一致：${name}`); } }'
           node scripts/validate-npm-tarballs.mjs --directory .scratch/public/npm

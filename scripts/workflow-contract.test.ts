@@ -550,6 +550,49 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     }
   });
 
+  it("0.7.1 简化发布只晋升固定候选，不重建包或冒充真实认证", () => {
+    const workflow = parse(readFileSync(".github/workflows/publish-pypi.yml", "utf8"));
+    const selection = workflow.jobs.candidate.steps.find(
+      (step: { id?: string }) => step.id === "selection",
+    ).run;
+    expect(selection).toContain(`"\${COREMIND_REQUESTED_TAG}" = "v0.7.1"`);
+    expect(selection).toContain(`"\${COREMIND_REUSED_CANDIDATE_RUN_ID}" = "33838498153"`);
+    for (const identity of [
+      "7585b5b68d75ce86ea9393d78a50e3ce4020734f",
+      "100915780318",
+      "100915780557",
+      "100952817495",
+    ]) {
+      expect(selection).toContain(identity);
+    }
+    expect(selection).toContain("git merge-base --is-ancestor");
+    const steps = workflow.jobs.build.steps;
+    for (const name of ["安装 Python", "固定发布工具链", "构建并验证同提交发布物"]) {
+      expect(steps.find((step: { name?: string }) => step.name === name).if).toContain(
+        "provider_evidence_mode != 'approved-offline-v071'",
+      );
+    }
+    const download = steps.find(
+      (step: { name?: string }) => step.name === "下载已批准的 v0.7.1 离线候选",
+    );
+    expect(download.with["run-id"]).toBe(33838498153);
+    expect(download.with["artifact-ids"]).toBe(9926272323);
+    expect(download.if).toContain("artifact_run_id == ''");
+    expect(download.if).toContain("provider_evidence_mode == 'approved-offline-v071'");
+    const promote = steps.find(
+      (step: { name?: string }) => step.name === "原样晋升 npm 与 wheel，仅更新源码 ZIP 和清单",
+    );
+    expect(promote.if).toBe(download.if);
+    expect(promote.run).toBe(
+      "node scripts/promote-v071-candidate.mjs .scratch/approved-v071-candidate",
+    );
+    const helper = readFileSync("scripts/promote-v071-candidate.mjs", "utf8");
+    expect(helper).toContain("0e8799587fdb7fb5fbd1ac401a3a75522827bb9d23d91d9c6cf90188ce53835f");
+    expect(helper).toContain('providerCertification: "not-run"');
+    expect(helper).not.toContain("npm run");
+    expect(helper).not.toContain("recursive: true");
+  });
+
   it("Markdown 审计报告跟随根包版本", () => {
     const source = readFileSync("scripts/audit-markdown.mjs", "utf8");
 
