@@ -78,6 +78,7 @@ declare class ProtocolHost {
     private resolveToolCall;
     private resolveProtocolV2ToolCall;
     private classifyPersistedProtocolV2ToolCall;
+    private persistProtocolV2ToolResultFact;
     private resolveApproval;
     private applyWorkerControl;
     private inspectRun;

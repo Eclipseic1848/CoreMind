@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "928affd10e261af940306763383dfecf8e659905",
+    "developmentCommit": "a6fa3305f9ed74da65b190f265c090e6f32fef6f",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,10 +17,10 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "5922a5bffdb6685bc5b3059d80c26c567113d44bc3c4bea23593691a3417748d",
       "coremind-protocol": "b1cbed5524deec65a7cf18c08cd8ef8df4439eb81b2a1dc4fe0058079e810b34",
-      "coremind-runtime": "6eff36110b3d3b4f4f5a84262e4f3d417d4a2e6c8a39df01e8ebacf838aa5e85",
+      "coremind-runtime": "1705037ea74b2c40b730286d5a5892d720a80b039e3e070669be9a138c435f19",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "34cb516b703372f5aa1c37e5777eafd3ca7259a4ac5444569186432d97134061",
-      "coremind-worker": "42ae9951d6e655a9cf86107935cd3cda1d0beaca078495acc9a4f77b34d515e4"
+      "coremind-worker": "dd4bf97e076672f7d922e1cbf03c2df5254e0914fc951e95a58359fb4f1aa0be"
     },
     "schemas": {
       "config": "29e1cc99f275612f0178ffa9248e603bdbedb7868bc9a2ce9ebde947e89d339e",
@@ -283,21 +283,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-08-31T03:33:08.233Z",
+    "capturedAt": "2026-09-04T02:38:19.121Z",
     "capturePlatform": "win32",
-    "updateReason": "Mangrove Issue 96 Protocol v2 file-state XOR alignment across TypeScript and Python; valid payloads stay compatible; rollback restores prior candidate baseline",
+    "updateReason": "同步 v0.7.1 已审查修复中的 FileRunStore 追加游标私有成员与 ProtocolHost 幂等结果持久化私有方法；公开方法签名、Schema、依赖和验收门禁均不变。",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "3993c7402007d2d4384306f188c14529a885decc4e3bc038e7c1fe52efcbdd2f",
+    "dependencyLockSha256": "3a9114b7e9f611e1f16a99e09d4afdb51473da40a84d580d557db9a46a3010bb",
     "codingEvalFixtureSha256": "9ba7477bc71f4a1f6865e3fb8d68c58f628dd1835b526354c3f76152242be35a",
     "packageDistSha256": {
-      "coremind-ai": "f1b8be0d43b92a7f5263c73cd6b09c87edc4561b4eb8615487a03dbac7d39dcf",
-      "coremind-cli": "ffc2010a114e060bac461d4f0b5d3829f78aedf13b05f6810302fdc597ac0c0e",
+      "coremind-ai": "4dbcb5231c403c4f7e45dba91a58dc6d742b3df6b03b8c06a32bb27ee994659d",
+      "coremind-cli": "3270ab7281d953e10fb9acd45eedf6f370d264801c8bf13bf96abc71eae5ba42",
       "coremind-config": "856494a59b6b5c4e826eb7be1cf52ef5835bc6dce8113b32eaee26931f693efb",
       "coremind-protocol": "f5a386406eb5d8eb11f3e9a1a41420bfbfb6ff75ba3987bd0f0744aed9e74fbe",
-      "coremind-runtime": "2cfc6e9d95de702cd9b1fc4fbc1fd0ed4ad9cee86b2a1a7def51e1a68eb19bda",
+      "coremind-runtime": "4cb6eebee44212592e518c6a9df7907a4ffef8131d4b96cb464a0485ebe4fa64",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
-      "coremind-tools": "83193fce3bde2a1aed3faa225888799f049a9923fbdd92ccce1e349edd5625a0",
-      "coremind-worker": "143c9e9df24f73bfa57116dd93b0b503b5276fc8672c62fbe800b53e89840999"
+      "coremind-tools": "4d44d6f5e7d231e045f66ec2aedb305a278a25b7362ad3f563bcf0d1442c82b6",
+      "coremind-worker": "845412a76b7a275ffe27caa9348d2c3751907397a9a1cc009067e3be45bdc9fc"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

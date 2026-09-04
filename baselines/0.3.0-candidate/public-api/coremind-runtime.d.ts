@@ -1771,6 +1771,7 @@ export declare class FileRunStore implements RunStore {
     private readonly options;
     readonly supportedDurability: readonly ["ordinary", "critical"];
     readonly durabilityBoundary: "process_crash";
+    private readonly cursors;
     constructor(directory: string, options?: FileRunStoreOptions);
     pathFor(runId: string): string;
     append(record: RunStateRecord): Promise<void>;
@@ -1779,6 +1780,10 @@ export declare class FileRunStore implements RunStore {
     read(runId: string): Promise<RunStateRecord[]>;
     private readUnlocked;
     private publishAtomically;
+    private prepareAppend;
+    private fileIdentity;
+    private rememberCursor;
+    private sameIdentity;
     private writeRecord;
     private withWriterLock;
     private reclaimStaleWriterLock;
@@ -1786,7 +1791,7 @@ export declare class FileRunStore implements RunStore {
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
 declare interface FileRunStoreOptions {
-    /** 仅供故障注入测试：临时文件完成后、原子发布前调用。 */
+    /** 仅供故障注入测试：新增记录临时文件完成后、发布前调用。 */
     beforeCommit?: (context: {
         destination: string;
         temporary: string;
