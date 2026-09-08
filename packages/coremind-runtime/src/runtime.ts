@@ -705,6 +705,9 @@ export class CoreMindRuntime {
         "宿主验收模式须通过 run() 与绑定该 Run 的控制接口执行",
       );
     }
+    if (executionSlotFor(this).running) {
+      throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发 run() 与交互 Turn");
+    }
     if (!this.agentConfigs.has(agentName)) {
       throw new CoreMindError("unknown_agent", `配置中没有可用的 agent：${agentName}`);
     }
@@ -767,11 +770,19 @@ export class CoreMindRuntime {
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
     const slot = executionSlotFor(this);
+    if (slot.running || boundDelegationExecutor(this)) {
+      throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发执行");
+    }
+    slot.running = true;
     slot.kernel ??= new RunKernel({ execute: (context) => this.executeRunBody(context) });
     try {
       return await slot.kernel.run();
     } finally {
-      await settleProtocolToolResultFacts(this);
+      try {
+        await settleProtocolToolResultFacts(this);
+      } finally {
+        slot.running = false;
+      }
     }
   }
 
@@ -3413,6 +3424,7 @@ export class CoreMindRuntime {
 
 // 类内旧执行字段仅为冻结声明布局保留；真实执行态由每个 Runtime 的 Kernel/Context 隔离持有。
 interface RuntimeExecutionSlot {
+  running?: boolean;
   kernel?: RunKernel<RuntimeHarness, RunResult>;
   context?: RunContext<RuntimeHarness>;
   protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;

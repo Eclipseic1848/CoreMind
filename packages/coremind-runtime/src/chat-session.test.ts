@@ -10,6 +10,36 @@ import { ChatSession } from "./chat-session.js";
 import { CoreMindRuntime } from "./runtime.js";
 
 describe("ChatSession", () => {
+  it("同一 Runtime 的普通执行和交互执行双向互斥", async () => {
+    const controller = new AbortController();
+    const runtime = await CoreMindRuntime.create({
+      configDir: mkdtempSync(path.join(tmpdir(), "coremind-mixed-binding-")),
+      signal: controller.signal,
+      initialPrompt: "first",
+      config: {
+        schemaVersion: 2,
+        name: "mixed",
+        provider: {
+          id: "probe",
+          baseUrl: "http://127.0.0.1:1/v1",
+          model: "probe",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
+        },
+        agents: { main: {} },
+      },
+    });
+    const first = runtime.run();
+    await expect(runtime.runAgentTurn("main", "overlap", [], () => {})).rejects.toMatchObject({
+      code: "concurrent_run",
+    });
+    controller.abort();
+    await first;
+    const turnController = new AbortController();
+    const turn = runtime.runAgentTurn("main", "turn", [], () => {}, turnController.signal);
+    await expect(runtime.run()).rejects.toMatchObject({ code: "concurrent_run" });
+    turnController.abort();
+    await turn;
+  });
   it("重叠对话被拒绝且不覆盖原取消目标，结束后可继续", async () => {
     let finish!: (value: Awaited<ReturnType<CoreMindRuntime["runAgentTurn"]>>) => void;
     let signal: AbortSignal | undefined;
