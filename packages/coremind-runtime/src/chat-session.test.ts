@@ -5,11 +5,78 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
 import { CoreMindRuntime } from "./runtime.js";
 
 describe("ChatSession", () => {
+  it("重叠对话被拒绝且不覆盖原取消目标，结束后可继续", async () => {
+    let finish!: (value: Awaited<ReturnType<CoreMindRuntime["runAgentTurn"]>>) => void;
+    let signal: AbortSignal | undefined;
+    const runAgentTurn = vi.fn<CoreMindRuntime["runAgentTurn"]>(
+      (_agent, _message, _history, _events, currentSignal) => {
+        signal = currentSignal;
+        return new Promise((resolve) => {
+          finish = resolve;
+        });
+      },
+    );
+    const runtime = {
+      hasAgent: () => true,
+      initialMessagesFor: () => [],
+      runAgentTurn,
+    } as unknown as CoreMindRuntime;
+    const session = new ChatSession(runtime, "main");
+    const first = session.chat("first");
+    await expect(session.chat("overlap")).rejects.toMatchObject({ code: "concurrent_run" });
+    session.abort();
+    expect(signal?.aborted).toBe(true);
+    expect(runAgentTurn).toHaveBeenCalledTimes(1);
+    const result = { transcript: "done", messages: new Map() } as Awaited<
+      ReturnType<CoreMindRuntime["runAgentTurn"]>
+    >;
+    finish(result);
+    await first;
+    const next = session.chat("next");
+    expect(signal?.aborted).toBe(false);
+    finish(result);
+    await next;
+  });
+
+  it("直接交互 Runtime 调用也拒绝重叠绑定", async () => {
+    const runtime = await CoreMindRuntime.create({
+      configDir: mkdtempSync(path.join(tmpdir(), "coremind-chat-binding-")),
+      config: {
+        schemaVersion: 2,
+        name: "binding",
+        provider: {
+          id: "probe",
+          baseUrl: "http://127.0.0.1:1/v1",
+          model: "probe",
+          apiKeyEnv: "COREMIND_TEST_API_KEY",
+        },
+        agents: { main: {} },
+      },
+    });
+    let finish!: (value: Awaited<ReturnType<CoreMindRuntime["run"]>>) => void;
+    const run = vi.spyOn(CoreMindRuntime.prototype, "run").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    try {
+      const first = runtime.runAgentTurn("main", "first", [], () => {});
+      await expect(runtime.runAgentTurn("main", "overlap", [], () => {})).rejects.toMatchObject({
+        code: "concurrent_run",
+      });
+      expect(run).toHaveBeenCalledOnce();
+      finish({} as Awaited<ReturnType<CoreMindRuntime["run"]>>);
+      await first;
+    } finally {
+      run.mockRestore();
+    }
+  });
   it("模型执行失败时向调用方报告失败", async () => {
     const config: CoreMindConfig = {
       schemaVersion: 2,

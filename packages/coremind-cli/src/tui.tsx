@@ -116,7 +116,6 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
     if (!trimmed) return;
     if (trimmed === "/abort") {
       session.abort();
-      setBusy(false);
       return;
     }
     if (trimmed === "/children") {

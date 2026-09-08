@@ -51,6 +51,9 @@ export class ChatSession {
 
   /** 发送一轮消息：返回最终文本与本轮事件 */
   async chat(message: string): Promise<ChatTurnResult> {
+    if (this.activeController) {
+      throw new CoreMindError("concurrent_run", "同一 ChatSession 不支持并发 chat()");
+    }
     const events: CoreMindEvent[] = [];
     const controller = new AbortController();
     this.activeController = controller;

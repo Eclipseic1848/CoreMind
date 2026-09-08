@@ -402,6 +402,9 @@ describe("Windows TUI 交互验收", () => {
     await typeCommand(app.stdin.write, "/abort");
     await settle();
     expect(session.abort).toHaveBeenCalledOnce();
+    await typeCommand(app.stdin.write, "下一轮");
+    await settle();
+    expect(session.chat).toHaveBeenCalledOnce();
     app.unmount();
   });
 
