@@ -44,7 +44,12 @@ describe("Delegation Tool TypeScript happy path", () => {
     ).toEqual({ PATH: "runtime-path", TEMP: "runtime-temp" });
   });
 
-  it("由活动父 Run 调用 allowlist Agent，并持久化可投影的结构化结果", async () => {
+  it.each([
+    { childTokens: 800, configuredMax: undefined, expectedMax: 800 },
+    { childTokens: 30_000, configuredMax: undefined, expectedMax: 4_096 },
+    { childTokens: 30_000, configuredMax: 512, expectedMax: 512 },
+  ])("Child 输出上限 $expectedMax", async (testCase) => {
+    const { childTokens, configuredMax, expectedMax } = testCase;
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-delegation-tool-"));
     temporaryDirectories.push(directory);
     const requests: Array<Record<string, unknown>> = [];
@@ -77,7 +82,17 @@ describe("Delegation Tool TypeScript happy path", () => {
         if (hasToolResult) {
           sendSse(response, textResponse("parent-final", "父任务完成"));
         } else if (hasDelegationTool) {
-          sendSse(response, delegationResponse());
+          sendSse(
+            response,
+            toolCallResponse(
+              JSON.stringify({
+                target: "researcher",
+                task: "研究已批准事实",
+                references: [],
+                limits: { tokens: childTokens, maxDepth: 1, maxActiveChildren: 0 },
+              }),
+            ),
+          );
         } else {
           markChildRequested();
           void childResponseReleased.then(() => {
@@ -103,7 +118,7 @@ describe("Delegation Tool TypeScript happy path", () => {
             systemPrompt: "你是父 Agent。",
             delegation: {
               budget: {
-                tokens: 1_000,
+                tokens: childTokens,
                 toolCalls: 2,
                 costUsd: 1,
                 wallTimeMs: 5_000,
@@ -114,7 +129,7 @@ describe("Delegation Tool TypeScript happy path", () => {
               targets: {
                 researcher: {
                   budget: {
-                    tokens: 1_000,
+                    tokens: childTokens,
                     toolCalls: 2,
                     costUsd: 1,
                     wallTimeMs: 5_000,
@@ -125,13 +140,16 @@ describe("Delegation Tool TypeScript happy path", () => {
               },
             },
           },
-          researcher: { systemPrompt: "你是研究 Agent。" },
+          researcher: {
+            systemPrompt: "你是研究 Agent。",
+            ...(configuredMax === undefined ? {} : { options: { maxTokens: configuredMax } }),
+          },
         },
         defaultAgent: "main",
         runtime: {
           maxSteps: 4,
           maxToolCalls: 4,
-          maxTokens: 2_000,
+          maxTokens: childTokens * 2,
           maxCostUsd: 2,
           runTimeoutMs: 30_000,
         },
@@ -188,7 +206,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         parentRunId: result.runId,
         agentName: "researcher",
         context: { references: [] },
-        requestedAllocation: { tokens: 800, toolCalls: 2 },
+        requestedAllocation: { tokens: childTokens, toolCalls: 2 },
         inheritedPolicy: {
           maxDepth: 1,
           maxActiveChildren: 0,
@@ -209,6 +227,7 @@ describe("Delegation Tool TypeScript happy path", () => {
       ]);
       expect(projection.childRuns).toEqual(result.childRuns);
       expect(requests).toHaveLength(3);
+      expect(requests[1]?.max_completion_tokens).toBe(expectedMax);
       expect(JSON.stringify(requests[0]?.tools)).toContain('"name":"delegate"');
       expect(JSON.stringify(requests[0]?.tools)).toContain('"maxDepth"');
       expect(JSON.stringify(requests[0]?.tools)).toContain('"maxActiveChildren"');
