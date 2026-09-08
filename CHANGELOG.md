@@ -1,19 +1,31 @@
 # CoreMind 变更日志
 
-本文件记录面向用户的重要变化。版本遵循语义化版本；预发布版本允许在发布说明中明确标注的接口调整。
+本文件记录面向用户的重要变化。历史版本记录保持不变。
 
 [English](CHANGELOG.en.md)
 
-### 未发布开发变更
+## 0.8.0 — 2026-09-08
 
-- 新增显式宿主验收：Run 成功前持久接收独立决定，拒绝后复用同 Run 的有界 Loop 修正；支持 Protocol v2 与 Python，未知暂停、取消和恢复保持失败关闭。此能力尚不在公开 0.7.1 制品中，接入见宿主验收示例。
+### 新增
 
-## [0.8.0](https://github.com/Eclipseic1848/CoreMind/compare/v0.7.1...v0.8.0) (2026-09-08)
+- 宿主可在 Run 成功前独立验收候选。验收请求与决定持久化；reject 后由同一个 Run 的有界 Loop 修正，accept 应用后才允许成功。支持 Protocol v2 和 Python SDK；未知结果暂停，取消与冷恢复保持失败关闭。
 
+### 修复
 
-### Features
+- Child Run 的读取工具省略路径时，按实际工作区根目标检查权限，避免默认路径超出允许范围。
+- Checkpoint Restore 使用工作区独占写租约，拒绝与其他运行争用文件，并保留人工修改冲突检查。
+- 同一 ChatSession/Runtime 拒绝重叠执行，取消收尾完成后才能开始下一轮。
+- Run 的 maxTurns 在模型请求前共享计数，覆盖顺序工作流、质量重试和并行步骤；HTTP transport retry 仍受既有 maxRetries 约束。
+- Python 普通事件回调异常不再中断协议读取；诊断仅保留异常类型。
+- 自定义脚本工具使用配置名称，多个别名不会修改同一个导入缓存对象。
+- TUI 使用不可变消息状态，工具结果按 callId 对齐，同名乱序结果和未知身份不会污染其他调用。
+- web-fetch 按实际响应字节限制为2 MiB，超限取消读取，保留跨块 UTF-8 解码与取消收尾。
+- Windows 会话打开锁容忍短暂 EPERM/EACCES，仍须成功独占创建；持续权限错误有界返回。
+- 文档发布回退明确指定仓库；宿主验收与 Windows CLI 测试调整等待预算，不改变生产超时。
 
-* **runtime:** durable host verification before Run success ([#179](https://github.com/Eclipseic1848/CoreMind/issues/179)) ([bd72bc6](https://github.com/Eclipseic1848/CoreMind/commit/bd72bc6ba9dccd157c3b48a3db4490eabd1aff17))
+### 能力与资格边界
+
+本版本不包含 MCP/LSP、新远程执行环境、durable detach 或消费者项目改动。40个可配置 Provider 不等于40个已认证 Provider。0.7.0/0.7.1 的历史发布豁免不适用于0.8.0；正式发布需绑定当前版本、提交与 Runtime 摘要的严格认证，以及双平台 Candidate/PTY 和公开制品回装。
 
 ## 0.7.1 — 2026-09-03
 

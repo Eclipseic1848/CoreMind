@@ -2,20 +2,13 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site at one version and stability level. When reusing a candidate, the manifest distinguishes the package build commit from the release commit.
 
-> `0.7.1` has completed the code and documentation preparation required by this SOP. Use the live [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1), eight npm package pages, and [PyPI package](https://pypi.org/project/coremind-ai/0.7.1/) as the source of truth for public availability. The steps below are the formal publication and recovery process.
+> The current publication target is `0.8.0`. This page describes strict release qualification and recovery. Source code, engineering checks, and synchronized documentation do not establish public availability; GitHub Release, npm, and PyPI remain authoritative.
 
 [简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 
-## Approved simplified publication for 0.7.1
+## Historical release decisions
 
-This version promotes a fixed candidate without repeating the complete Candidate suite, calling a live Provider, or rebuilding npm packages or the wheel. The repeated work in the general strict procedure below does not apply to this promotion:
-
-1. Reuse both successful Ubuntu/Windows offline matrices and the Linux artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), built at `7585b5b68d75ce86ea9393d78a50e3ce4020734f`. The Provider job failed during npm setup before calling the model; strict certification remains incomplete, not passed.
-2. Only documentation and release-tooling changes are allowed after that candidate, with no product-code drift. Merge through a PR into `main`, tag that commit `v0.7.1`, then dispatch `Publish CoreMind Release` with `tag=v0.7.1` and `reuse_candidate_run_id=33838498153`. Leave `artifact_run_id` empty on the first run.
-3. Pin the candidate manifest SHA-256 and verify every file's size and digest. Preserve all eight npm tarballs and the wheel byte-for-byte; regenerate only the release-commit source ZIP, manifest, and checksums. `promotedFrom` records the original build commit, run ID, and `providerCertification: not-run`.
-4. Preserve OIDC identities, immutable-publication and resume guards, plus public-registry digest checks and installation-entry, CLI, and Worker smoke tests. Reuse the successful Child Run evidence for these exact packages instead of repeating it.
-
-This is a separate `0.7.1` release decision, not reuse of the `0.7.0` network waiver, not successful live Provider certification, and not permission for later versions.
+Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `0.8.0`. Do not restart those releases or overwrite their artifacts.
 
 ## Principles
 
@@ -25,7 +18,7 @@ This is a separate `0.7.1` release decision, not reuse of the `0.7.0` network wa
 - npm and PyPI use GitHub OIDC trusted publishing; the repository and workflow do not store long-lived registry tokens.
 - External GitHub Actions are pinned to full commit SHAs. Dependabot opens weekly update pull requests for Actions, npm, and Python dependencies, and those updates must pass the complete gate before merge.
 - Artifacts are built once. npm, PyPI, attestations, and the GitHub Release all download that same build.
-- Under the general strict procedure, a failed live Provider, Windows TTY, Linux TTY, platform CI, or repository-wide Markdown audit stops publication. The simplified `0.7.1` path is limited to the section above; the network decision below applies only to historical `0.7.0` recovery.
+- Under the general strict procedure, a failed live Provider, Windows TTY, Linux TTY, platform CI, or repository-wide Markdown audit stops publication. Historical decisions do not replace current-version strict qualification.
 
 ## One-time account configuration
 
@@ -33,10 +26,10 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `0.7.1`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `0.8.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 0.7.1
+npm run release:sync-version -- 0.8.0
 npm run release:preflight -- --allow-dirty
 ```
 
@@ -44,11 +37,6 @@ Both-platform CI on an ordinary feature branch may explicitly use `--defer-provi
 
 `0.7.0` has one maintainer-approved Provider network exception. Both candidate platforms passed in strict run `33582995518`, but the first `alibaba-model-studio/qwen-plus` request timed out before an HTTP response. The publication workflow accepts `--allow-provider-network-waiver` only for `v0.7.0` when the Runtime digest is unchanged, the Issue #113 decision is still valid, the original run and failed job still match, and a new both-platform offline candidate run exists for the release commit. The flag cannot be enabled through an environment variable, does not update the successful Provider ledger, and is invalid for every other version.
 
-Version `0.7.1` does not use that waiver. Separately obtaining strict certification still uses the following command; this simplified publication does not repeat it:
-
-```powershell
-npm run release:preflight -- --allow-dirty
-```
 
 The synchronizer updates the root manifest, all eight public npm packages, exact internal dependencies, the lockfile, Python PEP 440 metadata, and `coremind.__version__`. Update both changelogs, READMEs, migration guidance, provider state, third-party notices, and roadmaps before marking the PR ready.
 
@@ -72,7 +60,7 @@ P0-17 stores the maintainer's read-only `main` ruleset export and bypass actor i
 
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `0.7.1` cannot reuse the `0.7.0` exception. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `0.8.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -80,9 +68,9 @@ npm run acceptance:rc -- --require-manual
 
 ## Merge, tag, and publish
 
-After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Create `v<version>` on the merge commit; the tag must equal the root manifest version. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
+After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit before creating `v<version>` on that commit; the tag must equal the root manifest version. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
 
-Except for the fixed `0.7.1` promotion above, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; `0.7.1` does not rerun these reports. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
+For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
 
 The Release attaches only the independent source ZIP, checksums, and manifest in addition to GitHub's unavoidable automatic source zip/tar.gz links. Leave `artifact_run_id` empty for the first run. That path first proves the same commit has no earlier successful Build and that the target version is explicitly absent from the GitHub Release, all eight npm packages, and PyPI; any existing or unknown state refuses a rebuild. After a partial publication or uncertain network result, pass the original publication run ID: the workflow accepts only a saved bundle from the same workflow and commit with a successful Build and matching tag, version, manifest, and checksums; it never rebuilds that continuation. Existing same-name, same-version npm, PyPI, or GitHub Release assets are skipped only when their hashes match; missing assets are uploaded and hash conflicts fail immediately. Published versions remain immutable, so conflicts require a higher repaired version.
 
@@ -91,3 +79,7 @@ The Release attaches only the independent source ZIP, checksums, and manifest in
 The workflow downloads every target artifact again from npm and PyPI, compares each SHA-256 with the saved release bundle, and validates all eight npm entries, the CLI, bundled Worker, and a basic Child Run in clean environments. Maintainers should additionally verify the CLI from a fresh global install, create a new project, run `coremind check`, and use a new Python virtual environment to verify `coremind.__version__`, Worker startup, TypeScript/Python parity, and a Python callable round trip. Confirm bilingual documentation navigation and download links.
 
 Stop on any build, acceptance, OIDC, registry, attestation, or Release failure. Published npm/PyPI files are never overwritten; deprecate or withdraw the affected version and publish a higher corrected version. If registry publication succeeds but the Release step fails, resume from the saved artifact bundle rather than rebuilding. Restore the same provider entitlement before rerunning a failed certification; never substitute a provider or model silently.
+
+## Current candidate sequencing
+
+Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 0.8.0.

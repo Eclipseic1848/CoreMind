@@ -1,12 +1,31 @@
 # CoreMind Changelog
 
-This file records user-facing changes. Versions follow Semantic Versioning; prereleases may include explicitly documented interface changes.
+This file records user-facing changes. Historical release records remain unchanged.
 
 [简体中文](CHANGELOG.md)
 
-### Unreleased development changes
+## 0.8.0 — 2026-09-08
 
-- Added explicit host verification: durable independent decisions before Run success and bounded repair within the same Run. Protocol v2 and Python support preserve fail-closed unknown, cancellation, and recovery semantics. Published 0.7.1 artifacts do not contain this capability; see the host-verification example.
+### Added
+
+- Hosts can independently verify a candidate before its Run succeeds. Verification requests and decisions are durable. Rejection uses the same Run's bounded Loop repair; success requires an applied acceptance. Protocol v2 and the Python SDK support the flow, with fail-closed pause, cancellation, and cold recovery.
+
+### Fixed
+
+- Child Run read tools now check the actual workspace-root target when a path is omitted, preserving the allowed path scope.
+- Checkpoint Restore acquires an exclusive workspace write lease and retains checks against overwriting subsequent edits.
+- Overlapping ChatSession and Runtime execution is rejected until the active operation, including cancellation cleanup, settles.
+- Run-level maxTurns is reserved before model requests across sequential workflows, quality retries, and parallel steps. Existing maxRetries semantics for HTTP transport retries remain unchanged.
+- Python event-handler exceptions no longer interrupt protocol reading; diagnostics retain only the exception type.
+- Script tools use configured names without mutating a shared imported object when loaded under multiple aliases.
+- TUI message state is immutable and tool results match callId, preventing out-of-order or unknown results from changing unrelated calls.
+- web-fetch limits actual response bytes to 2 MiB, cancels oversized responses, and preserves streaming UTF-8 decoding and cancellation cleanup.
+- Windows session-open locks tolerate transient EPERM/EACCES while still requiring exclusive creation; persistent permission errors fail within a bounded wait.
+- The documentation release fallback specifies its repository. Host-verification and Windows CLI tests allow disk/startup time without changing production timeouts.
+
+### Scope and qualification
+
+This version does not add MCP/LSP, a new remote execution environment, durable detach, or consumer-project changes. Configurability of 40 providers does not certify them. The historical 0.7.0/0.7.1 exceptions do not apply to 0.8.0. Publication requires current-version, commit, and Runtime-bound strict certification, both-platform Candidate/PTY checks, and public artifact reinstallation.
 
 ## 0.7.1 — 2026-09-03
 

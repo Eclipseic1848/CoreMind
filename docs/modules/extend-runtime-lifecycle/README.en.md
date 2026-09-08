@@ -1,6 +1,6 @@
 # Runtime Lifecycle Extensions
 
-Status: contract and documentation aligned with the stable `0.7.1` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the `0.8.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 

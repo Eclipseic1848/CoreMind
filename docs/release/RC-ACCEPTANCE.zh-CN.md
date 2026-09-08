@@ -1,12 +1,12 @@
 # Release Candidate 验收指南
 
+当前目标为0.8.0。历史0.7.0网络例外与0.7.1离线晋升均不可复用；本版本须完成全部严格检查。
+
 本指南用于验证同一候选提交上的 CLI/TUI、无头 CLI、TypeScript SDK、Python SDK 与发布物。自动测试、真实终端和真实 Provider 是三类独立证据，不能互相替代；`0.7.0` 的维护者网络例外必须单独标为 waived，不能冒充真实 Provider 成功。
 
-> `0.3.0` 已使用本指南完成最终验收，并从提交 `dc6e45489b06f3c28da1934f063fbfbc671c05ef` [正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0)。本指南继续用于后续候选，不表示后续版本已自动通过。
 
 [English](RC-ACCEPTANCE.en.md)
 
-> `0.7.1` 按[正式发布 SOP](README.zh-CN.md)的独立简化决定晋升固定候选：复用已通过的双平台离线验证，不重跑本指南。真实 Provider 作业在 npm 安装阶段失败、未调用模型，因此不宣称本指南的严格 RC 全部完成，也不复用 `0.7.0` 网络豁免。以下仍是取得完整严格资格的流程。
 
 ## 1. 自动矩阵
 

@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current stable release: `0.7.1`
+## Current release line: `0.8.0`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.7.1` stable release retains `0.7.0` and these capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `0.8.0` release line retains `0.7.1` and these capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,9 +18,13 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v0.7.1` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/0.7.1/) must bind the same version and commit. Live channel pages remain authoritative for public availability, and older release evidence remains as historical record.
+The `v0.8.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/0.8.0/) must bind the same version and commit. Live channel pages remain authoritative for public availability, and older release evidence remains as historical record.
 
-It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. The checked-in ledger has no static `0.7.1` certification record, while formal publication also requires a same-version strict-provider workflow Artifact.
+It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. The checked-in ledger has no static `0.8.0` certification record, while formal publication also requires a same-version strict-provider workflow Artifact.
+
+## `0.8.0`: host verification and audit fixes
+
+Runs durably receive independent host verification before success, with rejection using the same Run for bounded repair. Fixes and regressions cover default tool paths, Restore write leases, session exclusion, Run turn budgets, Python callbacks, script aliases, TUI result identity, response-byte limits, and Windows lock stability. Release qualification still requires current-candidate evidence from both platforms, a live Provider, and public artifacts. MCP/LSP and remote execution environments are outside this release.
 
 ## `0.7.1`: stability and release-evidence hardening
 

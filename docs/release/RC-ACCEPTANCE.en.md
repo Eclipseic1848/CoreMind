@@ -1,12 +1,12 @@
 # Release Candidate Acceptance Guide
 
+The current target is 0.8.0. Neither the historical 0.7.0 network exception nor the 0.7.1 offline promotion applies; this version requires every strict check.
+
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
-> `0.3.0` completed final acceptance with this guide and was [published](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.3.0) from commit `dc6e45489b06f3c28da1934f063fbfbc671c05ef`. The guide remains applicable to later candidates and does not imply that a later version has passed automatically.
 
 [简体中文](RC-ACCEPTANCE.zh-CN.md)
 
-> The separate simplified `0.7.1` decision in the [Release SOP](README.en.md) promotes a fixed candidate and reuses its successful both-platform offline checks without repeating this guide. The Provider job failed during npm setup before calling the model, so this does not claim complete strict RC qualification or reuse the `0.7.0` network waiver. The procedure below still defines full strict qualification.
 
 ## Automated matrix
 

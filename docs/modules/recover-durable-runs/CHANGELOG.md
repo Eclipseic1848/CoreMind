@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 - 2026-09-08
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the 0.8.0 release line.
+
 ## 0.7.1 - 2026-09-03
 
 - Appended ordinary FileRunStore Facts incrementally and recovered Protocol v2 duplicate/conflict decisions from durable Facts after terminal-state memory reclamation.

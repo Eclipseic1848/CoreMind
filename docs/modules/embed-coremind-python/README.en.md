@@ -1,6 +1,6 @@
 # Python SDK and Tool Bridge
 
-Status: contract and documentation aligned with the stable `0.7.1` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the `0.8.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -15,14 +15,14 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - `inspect_run`
 - `checkpoint_diff`
 - `checkpoint_restore`
-- `CoreMind Protocol v1` (the `0.7.1` default)
+- `CoreMind Protocol v1` (the `0.8.0` default)
 - Explicit `CoreMind Protocol v2` negotiation
 - Pure-JSON `result["snapshot"]`
 
 ## Errors and boundaries
 
 - Protocol errors map to typed Python exceptions
-- Protocol v1 remains supported in `0.7.1`; no removal schedule is approved. Protocol v2 must be selected explicitly.
+- Protocol v1 remains supported in `0.8.0`; no removal schedule is approved. Protocol v2 must be selected explicitly.
 - Python callables remain a v1 bridge. Protocol v2 accepts declarative tool definitions and explicit tool results; it does not execute host Python callables.
 - The worker stays alive instead of spawning per request
 - Tool results remain JSON-serializable across languages
