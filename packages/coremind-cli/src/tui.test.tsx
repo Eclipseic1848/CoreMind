@@ -383,6 +383,62 @@ describe("Windows TUI 交互验收", () => {
     app.unmount();
   });
 
+  it("工具行随事件更新并按 callId 对齐乱序结果", async () => {
+    let listener: Parameters<ChatSession["onEvent"]>[0] | undefined;
+    const session = createSession();
+    session.onEvent = (handler) => {
+      listener = handler;
+      return () => {};
+    };
+    const app = render(
+      <ChatTUI
+        title="工具状态"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+    try {
+      await settle();
+      listener?.({ type: "agent_start", agent: "assistant" });
+      await settle();
+      for (const callId of ["first", "second"]) {
+        listener?.({ type: "tool_call", agent: "assistant", tool: "read", args: {}, callId });
+        await settle();
+      }
+      expect(app.lastFrame()?.match(/read …/g)).toHaveLength(2);
+      listener?.({
+        type: "tool_result",
+        agent: "assistant",
+        tool: "read",
+        callId: "unknown",
+        isError: true,
+      });
+      await settle();
+      expect(app.lastFrame()).not.toContain("read ✗");
+      listener?.({
+        type: "tool_result",
+        agent: "assistant",
+        tool: "read",
+        callId: "second",
+        isError: true,
+      });
+      await settle();
+      expect(app.lastFrame()).toMatch(/read …[\s\S]*read ✗/);
+      listener?.({
+        type: "tool_result",
+        agent: "assistant",
+        tool: "read",
+        callId: "first",
+        isError: false,
+      });
+      await settle();
+      expect(app.lastFrame()).toMatch(/read ✓[\s\S]*read ✗/);
+    } finally {
+      app.unmount();
+    }
+  });
+
   it("忙碌生成期间输入 /abort 会中止当前回答", async () => {
     const session = createSession();
     vi.mocked(session.chat).mockImplementation(() => new Promise(() => {}));
