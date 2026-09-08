@@ -13,6 +13,7 @@ import {
 } from "../packages/coremind-runtime/dist/index.js";
 import {
   assertCertificationSucceeded,
+  certificationChildBudget,
   createCertificationEvidence,
   inspectCandidateManifest,
   upsertCertificationRecord,
@@ -420,8 +421,7 @@ async function createDelegationRuntime({
               budget: {
                 tokens: 30_000,
                 toolCalls: withWrite ? 1 : 0,
-                costUsd: remainingCostUsd,
-                wallTimeMs,
+                ...certificationChildBudget({ wallTimeMs, costUsd: remainingCostUsd }),
                 steps: 4,
                 descendants: 0,
               },
