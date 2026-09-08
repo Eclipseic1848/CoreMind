@@ -1074,7 +1074,16 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     protocolVersion: TLiteral<"2.0">;
     id: TUnion<[TString, TNumber]>;
     method: TLiteral<"control">;
-    params: TUnion<[TObject<    {
+    params: TUnion<[...TObject<    {
+    runId: TString;
+    schemaVersion: TLiteral<1>;
+    controlId: TString;
+    type: TLiteral<"verification">;
+    requestId: TString;
+    candidateSha256: TString;
+    decision: TLiteral<"accept" | "reject">;
+    feedback: TString;
+    }>[], TObject<    {
     runId: TString;
     schemaVersion: TLiteral<1>;
     controlId: TString;
@@ -1085,8 +1094,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     schemaVersion: TLiteral<1>;
     controlId: TString;
     type: TLiteral<"approval">;
-    approvalId: TString;
     decision: TUnion<[TLiteral<"allow">, TLiteral<"deny">]>;
+    approvalId: TString;
     }>, TObject<    {
     runId: TString;
     schemaVersion: TLiteral<1>;
@@ -1233,7 +1242,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     acceptedAt: TString;
     initialCursor: TLiteral<0>;
     selectedProtocol: TLiteral<"2.0">;
-    availableControls: TArray<TUnion<[TLiteral<"cancel">, TLiteral<"approval">, TLiteral<"steering">, TLiteral<"follow_up">, TLiteral<"delegation_disposition">]>>;
+    availableControls: TArray<TUnion<[TLiteral<"cancel">, TLiteral<"approval">, TLiteral<"steering">, TLiteral<"follow_up">, TLiteral<"delegation_disposition">, TLiteral<"verification">]>>;
     }>;
     readonly eventEnvelope: TUnion<[...TObject<    {
     runId: TString;
@@ -2182,6 +2191,20 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     registrationId: TString;
     status: TUnion<[TLiteral<"accepted">, TLiteral<"duplicate">, TLiteral<"conflict">, TLiteral<"unknown">, TLiteral<"late">]>;
     }>;
+    readonly verificationRequestNotification: TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    method: TLiteral<"verification_request">;
+    params: TObject<    {
+    schemaVersion: TLiteral<1>;
+    runId: TString;
+    requestId: TString;
+    stepId: TString;
+    iteration: TInteger;
+    candidateSha256: TString;
+    candidate: TString;
+    }>;
+    }>;
     readonly errorResponse: TObject<    {
     jsonrpc: TLiteral<"2.0">;
     id: TUnion<[TString, TNumber]>;
@@ -2505,7 +2528,16 @@ checkpointVersion: TLiteral<1>;
 
 export declare type ProtocolV2ControlCommand = Static<typeof ProtocolV2ControlCommandSchema>;
 
-export declare const ProtocolV2ControlCommandSchema: TUnion<[TObject<    {
+export declare const ProtocolV2ControlCommandSchema: TUnion<[...TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+controlId: TString;
+type: TLiteral<"verification">;
+requestId: TString;
+candidateSha256: TString;
+decision: TLiteral<"accept" | "reject">;
+feedback: TString;
+}>[], TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
@@ -2516,8 +2548,8 @@ runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"approval">;
-approvalId: TString;
 decision: TUnion<[TLiteral<"allow">, TLiteral<"deny">]>;
+approvalId: TString;
 }>, TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
@@ -2561,7 +2593,16 @@ jsonrpc: TLiteral<"2.0">;
 protocolVersion: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
 method: TLiteral<"control">;
-params: TUnion<[TObject<    {
+params: TUnion<[...TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+controlId: TString;
+type: TLiteral<"verification">;
+requestId: TString;
+candidateSha256: TString;
+decision: TLiteral<"accept" | "reject">;
+feedback: TString;
+}>[], TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
@@ -2572,8 +2613,8 @@ runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"approval">;
-approvalId: TString;
 decision: TUnion<[TLiteral<"allow">, TLiteral<"deny">]>;
+approvalId: TString;
 }>, TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
@@ -3565,7 +3606,16 @@ jsonrpc: TLiteral<"2.0">;
 protocolVersion: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
 method: TLiteral<"control">;
-params: TUnion<[TObject<    {
+params: TUnion<[...TObject<    {
+runId: TString;
+schemaVersion: TLiteral<1>;
+controlId: TString;
+type: TLiteral<"verification">;
+requestId: TString;
+candidateSha256: TString;
+decision: TLiteral<"accept" | "reject">;
+feedback: TString;
+}>[], TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
@@ -3576,8 +3626,8 @@ runId: TString;
 schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"approval">;
-approvalId: TString;
 decision: TUnion<[TLiteral<"allow">, TLiteral<"deny">]>;
+approvalId: TString;
 }>, TObject<    {
 runId: TString;
 schemaVersion: TLiteral<1>;
@@ -3728,7 +3778,7 @@ runId: TString;
 acceptedAt: TString;
 initialCursor: TLiteral<0>;
 selectedProtocol: TLiteral<"2.0">;
-availableControls: TArray<TUnion<[TLiteral<"cancel">, TLiteral<"approval">, TLiteral<"steering">, TLiteral<"follow_up">, TLiteral<"delegation_disposition">]>>;
+availableControls: TArray<TUnion<[TLiteral<"cancel">, TLiteral<"approval">, TLiteral<"steering">, TLiteral<"follow_up">, TLiteral<"delegation_disposition">, TLiteral<"verification">]>>;
 }>;
 
 export declare type ProtocolV2RunRequest = Static<typeof ProtocolV2RunRequestSchema>;
@@ -3864,6 +3914,23 @@ registrationId: TString;
 export declare class ProtocolV2ValidationError extends Error {
     constructor(message: string);
 }
+
+export declare type ProtocolV2VerificationRequestNotification = Static<typeof ProtocolV2VerificationRequestNotificationSchema>;
+
+export declare const ProtocolV2VerificationRequestNotificationSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+method: TLiteral<"verification_request">;
+params: TObject<    {
+schemaVersion: TLiteral<1>;
+runId: TString;
+requestId: TString;
+stepId: TString;
+iteration: TInteger;
+candidateSha256: TString;
+candidate: TString;
+}>;
+}>;
 
 export declare class ProtocolValidationError extends Error {
     constructor(message: string);

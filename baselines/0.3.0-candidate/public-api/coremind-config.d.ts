@@ -276,7 +276,8 @@ execute: TObject<    {
 agent: TString;
 input: TString;
 }>;
-verify: TObject<    {
+verify: TUnion<[TObject<    {
+mode: TOptional<TLiteral<"agent">>;
 agent: TString;
 input: TString;
 passIf: TString;
@@ -287,7 +288,10 @@ minSuccessfulTestCommands: TOptional<TInteger>;
 requireCheckpoint: TOptional<TBoolean>;
 requireDiffReview: TOptional<TBoolean>;
 }>>;
-}>;
+}>, TObject<    {
+mode: TLiteral<"host">;
+timeoutMs: TOptional<TInteger>;
+}>]>;
 repair: TObject<    {
 agent: TString;
 input: TString;
@@ -435,7 +439,8 @@ execute: TObject<    {
 agent: TString;
 input: TString;
 }>;
-verify: TObject<    {
+verify: TUnion<[TObject<    {
+mode: TOptional<TLiteral<"agent">>;
 agent: TString;
 input: TString;
 passIf: TString;
@@ -446,7 +451,10 @@ minSuccessfulTestCommands: TOptional<TInteger>;
 requireCheckpoint: TOptional<TBoolean>;
 requireDiffReview: TOptional<TBoolean>;
 }>>;
-}>;
+}>, TObject<    {
+mode: TLiteral<"host">;
+timeoutMs: TOptional<TInteger>;
+}>]>;
 repair: TObject<    {
 agent: TString;
 input: TString;
@@ -460,8 +468,8 @@ onExhausted: TOptional<TUnion<[TLiteral<"pause">, TLiteral<"fail">]>>;
 
 export declare type LoopVerificationConfig = Static<typeof LoopVerificationSchema>;
 
-/** 验证动作以 passIf 明确决定是否完成，不能只依赖流畅的最终文字。 */
-export declare const LoopVerificationSchema: TObject<    {
+export declare const LoopVerificationSchema: TUnion<[TObject<    {
+mode: TOptional<TLiteral<"agent">>;
 agent: TString;
 input: TString;
 passIf: TString;
@@ -472,7 +480,10 @@ minSuccessfulTestCommands: TOptional<TInteger>;
 requireCheckpoint: TOptional<TBoolean>;
 requireDiffReview: TOptional<TBoolean>;
 }>>;
-}>;
+}>, TObject<    {
+mode: TLiteral<"host">;
+timeoutMs: TOptional<TInteger>;
+}>]>;
 
 export declare type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;
 

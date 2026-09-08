@@ -8,6 +8,7 @@ import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
 import { ProtocolV2ToolCallNotification } from 'coremind-protocol';
 import { ProtocolV2ToolCancelNotification } from 'coremind-protocol';
+import { ProtocolV2VerificationRequestNotification } from 'coremind-protocol';
 import { RunControlCommand } from 'coremind-ai';
 import { RunStateRecord } from 'coremind-ai';
 import { SecretResolver } from 'coremind-ai';
@@ -97,7 +98,7 @@ declare class ProtocolHost {
 export { ProtocolHost }
 export { ProtocolHost as WorkerServer }
 
-export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
+export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ProtocolV2VerificationRequestNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
 
 export declare type WorkerRuntime = Pick<CoreMindRuntime, "run"> & {
     acceptControl?: (command: RunControlCommand) => Promise<ControlReceipt>;

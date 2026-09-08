@@ -134,6 +134,7 @@ import { GitAdapterOptions } from 'coremind-tools';
 import { GitDiffOptions } from 'coremind-tools';
 import { GitLogOptions } from 'coremind-tools';
 import { GitStatusEntry } from 'coremind-tools';
+import { HostVerificationRequest } from 'coremind-runtime';
 import { inspectCheckpoint } from 'coremind-runtime';
 import { inspectCodingRepository } from 'coremind-runtime';
 import { inspectRuntimeCompatibility } from 'coremind-runtime';
@@ -584,6 +585,8 @@ export { GitDiffOptions }
 export { GitLogOptions }
 
 export { GitStatusEntry }
+
+export { HostVerificationRequest }
 
 export { inspectCheckpoint }
 
