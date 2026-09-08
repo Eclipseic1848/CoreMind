@@ -1895,6 +1895,7 @@ export class CoreMindRuntime {
         beforeModelRequest: () => {
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
+          budget.beforeModelRequest();
         },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
           const contract = contextContracts.get(agentName);

@@ -51,6 +51,7 @@ export function resolveRuntimeLimits(
 /** 一次 Run 独占的多维预算计数器。 */
 export class RunBudgetController {
   private turns = 0;
+  private requestedTurns = 0;
   private toolCalls = 0;
   private toolFailures = 0;
   private steps = 0;
@@ -77,6 +78,7 @@ export class RunBudgetController {
     if (event.type === "tool_result" && event.isError) this.toolFailures += 1;
     if (event.type === "turn_end") {
       this.turns += 1;
+      this.requestedTurns += 1;
       this.tokens += event.tokens ?? 0;
       this.costUsd += event.costUsd ?? 0;
     }
@@ -93,6 +95,21 @@ export class RunBudgetController {
       );
     }
     return undefined;
+  }
+
+  /** 请求前同步占用额度，避免跨步骤和并行 Agent 绕过已完成轮数检查。 */
+  beforeModelRequest(): void {
+    this.throwIfExceeded();
+    if (this.requestedTurns >= this.limits.maxTurns) {
+      this.fail(
+        "turns",
+        this.limits.maxTurns,
+        this.requestedTurns + 1,
+        `Agent turn 将超过上限（${this.limits.maxTurns} 轮）`,
+      );
+      this.throwIfExceeded();
+    }
+    this.requestedTurns += 1;
   }
 
   afterToolCall(isError: boolean): { terminate: true } | undefined {

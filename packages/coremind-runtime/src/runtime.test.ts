@@ -55,6 +55,44 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("工作流不能通过独立 Agent 绕过 Run 的 maxTurns", async () => {
+    const server = createTextSequenceServer(["完成", "不应请求", "不应请求"]);
+    let requests = 0;
+    server.on("request", () => {
+      requests += 1;
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-workflow-turns-"));
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        config: {
+          schemaVersion: 2,
+          name: "轮数预算",
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          agents: { main: {} },
+          runtime: { maxTurns: 1 },
+          workflow: [1, 2, 3].map((index) => ({
+            id: `s${index}`,
+            type: "prompt" as const,
+            agent: "main",
+            input: "任务",
+          })),
+        },
+      });
+      const result = await runtime.run();
+      expect(requests).toBe(1);
+      expect(result.outcome).toMatchObject({ status: "budget_exceeded" });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
   it("宿主验收回复落盘后崩溃，恢复沿用拒绝反馈且只消费一次修正额度", async () => {
     await withHostVerification(["原始候选", "首进程修正", "恢复进程修正"], async (options) => {
       const store = options.runStore as FileRunStore;
