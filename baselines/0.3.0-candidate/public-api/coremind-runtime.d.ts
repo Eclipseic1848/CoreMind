@@ -147,6 +147,7 @@ export declare class CheckpointManager {
     markApplied(checkpointId: string): Promise<void>;
     /** 仅在调用方显式请求时恢复单个目标文件。 */
     restore(checkpointId: string, expectedCurrent?: CheckpointFileState): Promise<void>;
+    private restoreUnderLease;
     private persist;
     private load;
     private pathFor;
@@ -1183,6 +1184,8 @@ export declare class CoreMindRuntime {
 }
 
 export declare interface CoreMindRuntimeOptions {
+    /** 宿主模式的持久验证请求通知；通过 acceptControl 回复，返回值不代表通过。 */
+    onVerification?: (request: HostVerificationRequest) => void;
     /** 已校验的配置 */
     config: CoreMindConfig;
     /** 配置文件所在目录（脚本工具相对路径、会话目录基准） */
@@ -1824,6 +1827,17 @@ declare interface GraderBase {
     id?: string;
 }
 
+/** 候选正文只交给显式宿主接口；持久请求仅记录身份与内容摘要。 */
+export declare interface HostVerificationRequest {
+    schemaVersion: 1;
+    runId: string;
+    requestId: string;
+    stepId: string;
+    iteration: number;
+    candidateSha256: string;
+    candidate: string;
+}
+
 /** 输入正文的稳定短指纹（sha256 前 16 位）：Trace 只保存摘要，不落原文 */
 export declare function inputFingerprint(content: string): string;
 
@@ -2148,6 +2162,15 @@ export declare interface LoopRunnerOptions {
         stepId: string;
         textPassed: boolean;
     }) => boolean | Promise<boolean>;
+    /** 宿主独立验收候选；持久身份与决策重放由 Runtime 负责。 */
+    verifyHost?: (request: {
+        iteration: number;
+        stepId: string;
+        candidate: string;
+    }) => Promise<{
+        decision: "accept" | "reject";
+        feedback: string;
+    }>;
 }
 
 export declare interface LoopRunResult {
@@ -2485,6 +2508,7 @@ export declare class RunBudgetController {
     readonly limits: ResolvedRuntimeLimits;
     private readonly emit;
     private turns;
+    private requestedTurns;
     private toolCalls;
     private toolFailures;
     private steps;
@@ -2499,6 +2523,8 @@ export declare class RunBudgetController {
         block: true;
         reason: string;
     } | undefined;
+    /** 请求前同步占用额度，避免跨步骤和并行 Agent 绕过已完成轮数检查。 */
+    beforeModelRequest(): void;
     afterToolCall(isError: boolean): {
         terminate: true;
     } | undefined;
@@ -2523,6 +2549,12 @@ declare interface RunControlBase {
 }
 
 export declare type RunControlCommand = (RunControlBase & {
+    type: "verification";
+    requestId: string;
+    candidateSha256: string;
+    decision: "accept" | "reject";
+    feedback: string;
+}) | (RunControlBase & {
     type: "cancel";
     reason?: string;
 }) | (RunControlBase & {
@@ -2747,7 +2779,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "verification" | "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;
