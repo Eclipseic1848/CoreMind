@@ -119,6 +119,31 @@ describe("Provider 认证批准边界", () => {
 });
 
 describe("Provider 认证诊断", () => {
+  it("父级处置错误保留 Child 根因并对整条诊断脱敏", () => {
+    expect(() =>
+      assertCertificationSucceeded(
+        {
+          outcome: { status: "paused", finishReason: "delegation_disposition_required" },
+          childRuns: {
+            nodes: [
+              {
+                agentName: "worker",
+                outcome: {
+                  status: "paused",
+                  finishReason: "context_capability_conflict",
+                  error: { message: "maxTokens 30000 超过模型输出上限 4096 sk-secret" },
+                },
+              },
+            ],
+          },
+        },
+        "父子场景",
+        ["sk-secret"],
+      ),
+    ).toThrow(
+      "Child worker: context_capability_conflict / maxTokens 30000 超过模型输出上限 4096 [REDACTED]",
+    );
+  });
   it("失败时保留终态、错误码和上游诊断", () => {
     expect(() =>
       assertCertificationSucceeded(

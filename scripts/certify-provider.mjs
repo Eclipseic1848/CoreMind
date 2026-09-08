@@ -431,6 +431,8 @@ async function createDelegationRuntime({
       },
       worker: {
         systemPrompt: workerPrompt,
+        // 单次输出与 Child 总 token 预算分开，避免超过模型输出上限。
+        options: { maxTokens: 1_024 },
         ...(withWrite ? { tools: [{ id: "write" }] } : {}),
       },
     },
