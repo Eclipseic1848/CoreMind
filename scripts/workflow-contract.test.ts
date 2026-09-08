@@ -28,6 +28,10 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs["trigger-release"].if).toContain("release");
     expect(workflow.jobs["trigger-release"].permissions.actions).toBe("write");
     expect(workflow.jobs["trigger-release"].steps[0].run).toContain("--ref main");
+    expect(workflow.jobs["trigger-release"].steps[0].run).toContain(
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 检查 shell 原文变量，不是 JavaScript 插值。
+      '--repo "${GITHUB_REPOSITORY}"',
+    );
     expect(workflow.jobs.deploy.if).toContain("workflow_dispatch");
     expect(workflow.jobs.deploy.environment.name).toBe("github-pages");
     expect(

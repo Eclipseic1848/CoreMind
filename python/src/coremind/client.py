@@ -659,7 +659,11 @@ class CoreMindClient:
         if method == "event":
             self.received_events.append(params)
             if self._event_handler:
-                self._event_handler(params)
+                try:
+                    self._event_handler(params)
+                except Exception as error:
+                    # 用户回调失败不能中断协议读取，也不记录可能含敏感数据的异常正文。
+                    self._stderr_tail.append(f"event_handler 回调失败：{type(error).__name__}")
             event = params.get("event")
             if isinstance(event, Mapping) and event.get("type") == "approval_required":
                 threading.Thread(

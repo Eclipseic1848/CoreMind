@@ -112,6 +112,13 @@ export class ToolPolicy {
       capability,
       selectors ?? legacySelectors(capabilityOrDeclaration),
     );
+    // 内置读取工具省略 path 时读取整个工作区；无关字段不能缩小其真实目标。
+    if (["ls", "grep", "find", "git_diff", "git_log", "git_status"].includes(tool)) {
+      const target = (args as { path?: unknown } | null)?.path;
+      if (tool === "git_status" || typeof target !== "string" || target.length === 0) {
+        effect.paths.push(".");
+      }
+    }
     const hasRestrictedChildPathScope =
       this.options.allowedPaths !== undefined &&
       !this.options.allowedPaths.some(

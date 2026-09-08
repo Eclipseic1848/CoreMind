@@ -176,8 +176,23 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
 
 /** 生产 Adapter：把 P3 Agent 生命周期收敛到 CoreMind 私有 AgentDriver seam。 */
 export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext): AgentDriver {
-  const agent = buildAgent(agentCfg, ctx);
-  return new PiAgentDriver(agent, ctx.harness);
+  let requestFailure: unknown;
+  const agent = buildAgent(agentCfg, {
+    ...ctx,
+    harness: {
+      ...ctx.harness,
+      beforeModelRequest: () => {
+        try {
+          ctx.harness?.beforeModelRequest?.();
+        } catch (error) {
+          // 上游会把请求前的异常转为模型消息；保留本地拒绝的类型化原因。
+          requestFailure = error;
+          throw error;
+        }
+      },
+    },
+  });
+  return new PiAgentDriver(agent, ctx.harness, () => requestFailure);
 }
 
 class PiAgentDriver implements AgentDriver {
@@ -186,6 +201,7 @@ class PiAgentDriver implements AgentDriver {
   constructor(
     private readonly agent: Agent,
     private readonly harness: AgentDriverHarness | undefined,
+    private readonly requestFailure: () => unknown,
   ) {
     agent.subscribe((event) => {
       if (event.type === "agent_end") this.queuedControls = 0;
@@ -198,6 +214,8 @@ class PiAgentDriver implements AgentDriver {
 
   async waitForIdle(): Promise<void> {
     await this.agent.waitForIdle();
+    const failure = this.requestFailure();
+    if (failure !== undefined) throw failure;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
   }

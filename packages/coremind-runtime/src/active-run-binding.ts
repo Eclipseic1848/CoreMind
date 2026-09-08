@@ -1,3 +1,4 @@
+import { CoreMindError } from "./errors.js";
 import type { CallId } from "./ids.js";
 import type { RunProjection } from "./projection.js";
 
@@ -24,6 +25,9 @@ const activeBindings = new WeakMap<object, ActiveRunBindings>();
 
 /** 把隔离 Turn Runtime 的最小能力绑定到创建它的会话 Runtime。 */
 export function bindActiveRun(owner: object, bindings: ActiveRunBindings): () => void {
+  if (activeBindings.has(owner)) {
+    throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发交互 Turn");
+  }
   activeBindings.set(owner, bindings);
   return () => {
     if (activeBindings.get(owner) === bindings) activeBindings.delete(owner);

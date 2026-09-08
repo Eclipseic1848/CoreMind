@@ -49,5 +49,5 @@ export async function loadScriptTool(cfg: ScriptToolConfig, configDir: string): 
     throw new ScriptToolError(`脚本工具 ${cfg.path} 缺少 description 描述`);
   }
 
-  return tool as unknown as AgentTool;
+  return { ...tool, name } as unknown as AgentTool;
 }

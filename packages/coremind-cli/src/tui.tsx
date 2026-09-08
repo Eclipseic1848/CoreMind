@@ -22,7 +22,7 @@ interface MessageView {
   id: number;
   role: "user" | "assistant";
   text: string;
-  tools: Array<{ tool: string; args: unknown; isError?: boolean }>;
+  tools: Array<{ tool: string; args: unknown; callId?: string; isError?: boolean }>;
 }
 
 export interface ChatTUIProps {
@@ -86,20 +86,42 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
           }
           case "text_delta": {
             const last = next[next.length - 1];
-            if (last && last.role === "assistant") last.text += event.delta;
+            if (last && last.role === "assistant") {
+              next[next.length - 1] = { ...last, text: last.text + event.delta };
+            }
             break;
           }
           case "tool_call": {
             const last = next[next.length - 1];
             if (last && last.role === "assistant") {
-              last.tools.push({ tool: event.tool, args: event.args });
+              next[next.length - 1] = {
+                ...last,
+                tools: [
+                  ...last.tools,
+                  { tool: event.tool, args: event.args, callId: event.callId },
+                ],
+              };
             }
             break;
           }
           case "tool_result": {
-            const last = next[next.length - 1];
-            const tool = last?.tools.find((t) => t.isError === undefined) ?? last?.tools.at(-1);
-            if (tool) tool.isError = event.isError;
+            // 带身份的结果可晚于其他消息到达；旧事件仅匹配同名未完成调用。
+            for (let index = next.length - 1; index >= 0; index--) {
+              const message = next[index]!;
+              const toolIndex = message.tools.findIndex((tool) =>
+                event.callId !== undefined
+                  ? tool.callId === event.callId
+                  : tool.tool === event.tool && tool.isError === undefined,
+              );
+              if (toolIndex < 0) continue;
+              next[index] = {
+                ...message,
+                tools: message.tools.map((tool, i) =>
+                  i === toolIndex ? { ...tool, isError: event.isError } : tool,
+                ),
+              };
+              break;
+            }
             break;
           }
           default:
@@ -116,7 +138,6 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
     if (!trimmed) return;
     if (trimmed === "/abort") {
       session.abort();
-      setBusy(false);
       return;
     }
     if (trimmed === "/children") {

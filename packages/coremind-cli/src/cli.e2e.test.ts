@@ -853,8 +853,11 @@ describe("coremind CLI 端到端", () => {
 function delegationConfig(port: number): string {
   const config = JSON.parse(readFileSync(delegationConfigFixturePath, "utf8")) as {
     provider: { baseUrl: string };
+    runtime: { runTimeoutMs: number };
   };
   config.provider.baseUrl = `http://127.0.0.1:${port}/v1`;
+  // CLI 成功输出验收为慢速 Windows 留出父级启动余量，不改变 Child 的 20 秒预算。
+  config.runtime.runTimeoutMs = 50_000;
   return JSON.stringify(config);
 }
 

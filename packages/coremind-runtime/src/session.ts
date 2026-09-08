@@ -345,8 +345,13 @@ async function withSessionOpenLock<T>(publicPath: string, action: () => Promise<
     try {
       handle = await open(lockPath, "wx");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const code = (error as NodeJS.ErrnoException).code;
+      // Windows 删除中的锁文件可能暂报权限错误；仍须成功独占创建后才能进入临界区。
+      const transientWindowsLock =
+        process.platform === "win32" && (code === "EPERM" || code === "EACCES");
+      if (code !== "EEXIST" && !transientWindowsLock) throw error;
       if (Date.now() >= deadline) {
+        if (code !== "EEXIST") throw error;
         throw new CoreMindError(
           "session_open_locked",
           `会话 ${path.basename(publicPath)} 正由另一进程打开`,

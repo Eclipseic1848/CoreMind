@@ -25,7 +25,7 @@ export function createWebFetchToolForEnvironment(
     name: "web-fetch",
     label: "网页抓取",
     description:
-      "抓取指定 URL 的网页内容并转为纯文本。用于获取公开网页、文档、文章信息。返回前 maxChars 字符。",
+      "抓取指定 URL 的网页内容并转为纯文本。用于获取公开网页、文档、文章信息。响应最多 2 MiB，返回前 maxChars 字符。",
     parameters: WebFetchParams,
     execute: async (_toolCallId, params, signal) => {
       try {
@@ -37,7 +37,28 @@ export function createWebFetchToolForEnvironment(
           if (!res.ok) {
             throw new Error(`HTTP ${res.status} ${res.statusText}`);
           }
-          const html = await res.text();
+          let html = "";
+          const reader = res.body?.getReader();
+          if (reader) {
+            const decoder = new TextDecoder();
+            let bytes = 0;
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                // 按实际解压后的字节计量，不能信任 Content-Length 或输出截断。
+                bytes += value.byteLength;
+                if (bytes > 2 * 1024 * 1024) {
+                  await reader.cancel();
+                  throw new Error("响应超过 2 MiB 限制");
+                }
+                html += decoder.decode(value, { stream: true });
+              }
+              html += decoder.decode();
+            } finally {
+              reader.releaseLock();
+            }
+          }
           const text = stripHtml(html).slice(0, params.maxChars ?? 8000);
           if (text.trim().length === 0) {
             throw new Error("页面内容为空或无法解析");
