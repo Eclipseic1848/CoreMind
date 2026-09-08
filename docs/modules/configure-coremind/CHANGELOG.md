@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 - 2026-09-08
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the 0.8.0 release line.
+
 ## Unreleased
 
 - Added explicit host verification with durable decisions and existing bounded Loop repair; distinguished it from agent passIf configuration in guides, SOPs, and the Skill. Not part of published 0.7.1.

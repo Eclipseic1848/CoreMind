@@ -33,7 +33,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：动态继承锁定运行时依赖的全部 Provider。`0.2.0-rc.1` 为 37 个继承入口；从 `0.3.0-rc.2` 到当前 `0.7.1` 稳定版均为 39 个继承入口，加上 CoreMind 原生入口共 40 个可配置 Provider。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的准确清单。继承支持不等于真实认证；仓库台账未收录 `0.7.1` 静态认证记录，正式发布必须另有同版本 strict-provider 工作流 Artifact。没有当前部署的真实密钥和证据时，只能称为可选 Provider。
+**内置提供商**：动态继承锁定运行时依赖的全部 Provider。`0.2.0-rc.1` 为 37 个继承入口；从 `0.3.0-rc.2` 到当前 `0.8.0` 稳定版均为 39 个继承入口，加上 CoreMind 原生入口共 40 个可配置 Provider。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的准确清单。继承支持不等于真实认证；仓库台账未收录 `0.8.0` 静态认证记录，正式发布必须另有同版本 strict-provider 工作流 Artifact。没有当前部署的真实密钥和证据时，只能称为可选 Provider。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 

@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-This capability is under development on this branch. The published 0.7.1 packages do not provide it. Build this source checkout first:
+This capability is part of the 0.8.0 release line and is absent from public 0.7.1 artifacts. Use a build of this branch, or install 0.8.0 after it is publicly available.
 
 ```sh
 npm run build

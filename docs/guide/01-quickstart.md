@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19。
 
-`coremind-cli@0.7.1` 是本发布线的稳定包；安装前以 npm 实时页面确认公开可用性。
+`coremind-cli@0.8.0` 是本发布线的稳定包；安装前以 npm 实时页面确认公开可用性。
 
 ```bash
-npm install -g coremind-cli@0.7.1
+npm install -g coremind-cli@0.8.0
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```

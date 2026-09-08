@@ -4,9 +4,9 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前稳定版：`0.7.1`
+## 当前发布线：`0.8.0`
 
-`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `0.7.1` 稳定版完整继承 `0.7.0`，并保留以下能力：
+`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `0.8.0` 发布线继承 `0.7.1`，并保留以下能力：
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
@@ -18,9 +18,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`v0.7.1` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.7.1)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/0.7.1/) 必须绑定同一版本与提交；公开可用性以实时页面为准，旧版本发布证据继续作为历史记录保留。
+`v0.8.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/0.8.0/) 必须绑定同一版本与提交；公开可用性以实时页面为准，旧版本发布证据继续作为历史记录保留。
 
-它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；仓库台账未收录 `0.7.1` 静态认证记录，正式发布还必须有同版本 strict-provider 工作流 Artifact。
+它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；仓库台账未收录 `0.8.0` 静态认证记录，正式发布还必须有同版本 strict-provider 工作流 Artifact。
+
+## `0.8.0`：宿主验收与审查修复
+
+Run 在成功前持久接收宿主的独立验收，拒绝后复用同 Run 的有界修正。默认工具路径、Restore 写租约、会话互斥、Run 轮数预算、Python 回调、脚本别名、TUI 结果身份、网页字节上限及 Windows 锁稳定性均已补充修复与回归。发布资格仍需当前候选的双平台、真实 Provider 与公开制品证据。MCP/LSP 与远程执行环境不属于本次交付。
 
 ## `0.7.1`：稳定性与发布证据加固
 
@@ -44,15 +48,13 @@ P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundle
 
 版本号与日期不承诺；每批只有验收通过且维护者确认后才进入下一批。未经过真实测试的能力只标记为可配置，不标记为官方认证。
 
-## 长期路线：0.4 到 1.0
+## 后续路线（版本范围待确认）
 
-在 `0.3.x` 加固线之后，按以下方向推进（具体范围与验收在每期开始前由维护者确认）：
+0.8.0聚焦宿主验收与工程审查修复。以下方向尚未交付，不再沿用早期规划中已经失效的版本分配；具体范围和验收由维护者在启动时确认：
 
-- **0.4.x 能力**：Protocol v2、RunHandle/续订/持久控制回执、AgentDriver 与 ExecutionEnvironment seam 已随 `0.7.0` 交付；Protocol v1 继续受支持，当前没有经批准的移除计划。
-- **0.5.x～0.6.x**：Web 开发环境——运行与控制面先行，再建设在线编辑、测试与评测闭环；始终复用同一 Protocol 与 Runtime。
-- **0.7.0**：交付 Child Run 产品化与稳定发布；Goals、Jobs、durable detach 和 Web 不在该版本范围。Provider 网络例外已审计，但不构成 live-provider 认证。
-- **0.8.x**：MCP/LSP 接入、受控第三方插件、远程执行环境与平台生态。
-- **0.9.x～1.0.0**：功能冻结、兼容与安全收口，经过正式候选后发布稳定合同。
+- Web开发环境：先运行与控制面，再在线编辑、测试与评测，复用现有Protocol与Runtime。
+- MCP/LSP、受控第三方插件、远程执行环境与平台生态：分别确认安全合同和兼容门禁后推进。
+- 1.0目标：功能冻结、兼容与安全收口，完成正式候选和可审计发布；当前没有承诺日期。
 
 ## `0.3.0`：二期内核与工程闭环
 

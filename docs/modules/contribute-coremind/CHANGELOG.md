@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 - 2026-09-08
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the 0.8.0 release line.
+
 ## 0.7.1 - 2026-09-03
 
 - Preserved release failure evidence and public reinstall checks, separated Candidate and final Runtime digests, and bound strict Provider evidence into the release bundle.
