@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 
+// 为父模型请求和汇总保留预算，不能把父 Run 的全部额度交给 Child。
+export function certificationChildBudget({ wallTimeMs, costUsd }) {
+  return { wallTimeMs: Math.floor(wallTimeMs / 2), costUsd: costUsd / 2 };
+}
+
 export function assertCertificationSucceeded(result, label, secrets = []) {
   if (result.outcome.status === "succeeded") return;
   const error = result.outcome.error;

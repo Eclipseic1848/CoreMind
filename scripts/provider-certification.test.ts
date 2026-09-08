@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  RunBudgetController,
+  resolveRuntimeLimits,
+} from "../packages/coremind-runtime/src/budget.js";
+import {
   assertCertificationSucceeded,
+  certificationChildBudget,
   createCertificationEvidence,
   inspectCandidateManifest,
   upsertCertificationRecord,
@@ -10,6 +15,24 @@ import {
 } from "./provider-certification.mjs";
 
 describe("Provider 认证批准边界", () => {
+  it("父模型消耗时间和费用后仍能划拨认证 Child，且不扩大批准上限", () => {
+    const budget = new RunBudgetController(
+      resolveRuntimeLimits({ runTimeoutMs: 120_000, maxCostUsd: 1, maxTokens: 80_000 }, {}),
+      () => {},
+    );
+    budget.restore({ type: "turn_end", agent: "parent", costUsd: 0.1, tokens: 100 });
+    const other = { tokens: 30_000, toolCalls: 1, steps: 4 };
+    expect(() => budget.reserveChild({ ...other, wallTimeMs: 120_000, costUsd: 1 }, 1_000)).toThrow(
+      "wallTimeMs",
+    );
+    expect(() => budget.reserveChild({ ...other, wallTimeMs: 60_000, costUsd: 1 }, 1_000)).toThrow(
+      "costUsd",
+    );
+    const child = certificationChildBudget({ wallTimeMs: 120_000, costUsd: 1 });
+    expect(() => budget.reserveChild({ ...other, ...child }, 1_000)).not.toThrow();
+    expect(child.wallTimeMs).toBeLessThanOrEqual(120_000 - 1_000);
+    expect(child.costUsd).toBeLessThanOrEqual(1 - 0.1);
+  });
   it("五项批准不完整或候选身份不一致时在联网前失败", () => {
     const approved = {
       provider: "alibaba-model-studio",
