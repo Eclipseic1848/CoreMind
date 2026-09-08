@@ -12,6 +12,7 @@ This file records user-facing changes. Historical release records remain unchang
 
 ### Fixed
 
+- Child Runs without an explicit output limit use the selected model's output limit, capped by the child token budget, instead of treating the cumulative budget as model output capacity.
 - Child Run read tools now check the actual workspace-root target when a path is omitted, preserving the allowed path scope.
 - Checkpoint Restore acquires an exclusive workspace write lease and retains checks against overwriting subsequent edits.
 - Overlapping ChatSession and Runtime execution is rejected until the active operation, including cancellation cleanup, settles.

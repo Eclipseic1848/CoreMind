@@ -641,7 +641,7 @@ export class CoreMindRuntime {
         ? configuredOptions
         : {
             ...configuredOptions,
-            maxTokens: Math.min(configuredOptions?.maxTokens ?? tokenLimit, tokenLimit),
+            maxTokens: Math.min(configuredOptions?.maxTokens ?? model.maxTokens, tokenLimit),
           };
     return {
       providerId: model.provider,

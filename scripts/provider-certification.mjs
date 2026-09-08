@@ -9,6 +9,14 @@ export function assertCertificationSucceeded(result, label, secrets = []) {
   if (result.outcome.status === "succeeded") return;
   const error = result.outcome.error;
   const details = [result.outcome.finishReason, error?.code, error?.message]
+    .concat(
+      (result.childRuns?.nodes ?? [])
+        .filter((node) => node.outcome && node.outcome.status !== "succeeded")
+        .map(
+          (node) =>
+            `Child ${node.agentName}: ${node.outcome.finishReason} / ${node.outcome.error?.message ?? ""}`,
+        ),
+    )
     .filter(Boolean)
     .join(" / ");
   const redacted = secrets
