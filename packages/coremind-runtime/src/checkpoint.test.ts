@@ -4,8 +4,45 @@ import path from "node:path";
 import { resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { CheckpointManager, inspectCheckpoint, restoreCheckpoint } from "./checkpoint.js";
+import { WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("CheckpointManager", () => {
+  it("公开 Restore 尊重其他 Run 的写租约并在失败后释放自己的租约", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-restore-lease-"));
+    const file = path.join(cwd, "notes.txt");
+    writeFileSync(file, "before", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind/checkpoints"),
+      runId: "restore-run",
+    });
+    const record = (await manager.capture("edit", { path: "notes.txt" }))!;
+    writeFileSync(file, "after", "utf8");
+    await manager.markApplied(record.checkpointId);
+    const leases = new WorkspaceLeaseService();
+    const lease = await leases.acquire({
+      workspaceRoot: cwd,
+      lane: "workspace_exclusive",
+      owner: { runId: "other", callId: "write" },
+    });
+    try {
+      await expect(restoreCheckpoint(record, cwd)).rejects.toMatchObject({
+        code: "workspace_busy",
+      });
+      expect(readFileSync(file, "utf8")).toBe("after");
+    } finally {
+      await lease.release({ activeTools: 0, activeProcesses: 0, pendingCriticalFacts: 0 });
+    }
+    writeFileSync(file, "conflict", "utf8");
+    await expect(manager.restore(record.checkpointId)).rejects.toMatchObject({
+      code: "checkpoint_conflict",
+    });
+    expect((await leases.inspect(cwd)).state).toBe("available");
+    writeFileSync(file, "after", "utf8");
+    await restoreCheckpoint(record, cwd);
+    expect(readFileSync(file, "utf8")).toBe("before");
+    expect((await leases.inspect(cwd)).state).toBe("available");
+  });
   it("将 operation、工具调用与副作用幂等键写入同一检查点记录", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-correlation-"));
     const manager = new CheckpointManager({

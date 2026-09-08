@@ -97,6 +97,27 @@ class CoreMindClientTest(unittest.TestCase):
         self.assertEqual(self.client.pid, pid)
         self.assertEqual(self.events[0]["event"]["type"], "agent_start")
 
+    def test_event_callback_failure_does_not_stop_protocol_reader(self) -> None:
+        def failing_handler(event: object) -> None:
+            raise ValueError("不应进入诊断的敏感内容")
+
+        with CoreMindClient(
+            {"schemaVersion": 2, "name": "callback-failure", "agents": {"main": {}}},
+            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+            event_handler=failing_handler,
+            request_timeout=5,
+        ) as client:
+            first = client.run("第一次")
+            pid = client.pid
+            second = client.run("第二次")
+            self.assertEqual(first["outcome"]["status"], "succeeded")
+            self.assertEqual(second["outcome"]["status"], "succeeded")
+            self.assertEqual(client.pid, pid)
+            self.assertTrue(client._reader and client._reader.is_alive())
+            self.assertTrue(client.received_events)
+            self.assertIn("event_handler 回调失败：ValueError", client._stderr_tail)
+            self.assertNotIn("敏感内容", "\n".join(client._stderr_tail))
+
     def test_python_callable_round_trip(self) -> None:
         @self.client.tool(
             description="查询订单",

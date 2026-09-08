@@ -4,6 +4,14 @@ import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import type { CoreMindEvent } from "./events.js";
 
 describe("RunBudgetController", () => {
+  it("请求前同步限制并行和恢复后的轮数", () => {
+    const budget = new RunBudgetController(resolveRuntimeLimits({ maxTurns: 1 }, {}), () => {});
+    budget.beforeModelRequest();
+    expect(() => budget.beforeModelRequest()).toThrow("turn 将超过上限");
+    const restored = new RunBudgetController(resolveRuntimeLimits({ maxTurns: 1 }, {}), () => {});
+    restored.restore({ type: "turn_end", agent: "main" });
+    expect(() => restored.beforeModelRequest()).toThrow("turn 将超过上限");
+  });
   it("maxToolCalls=0 时第一次调用即触发硬失败", () => {
     const events: CoreMindEvent[] = [];
     const budget = new RunBudgetController(resolveRuntimeLimits({ maxToolCalls: 0 }, {}), (event) =>

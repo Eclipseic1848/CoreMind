@@ -119,6 +119,46 @@ describe("buildTools", () => {
     expect(result.content[0]).toMatchObject({ type: "text", text: "2026-01-01" });
   });
 
+  it.each(["exported_name", undefined])("脚本工具采用配置名称（模块名称：%s）", async (name) => {
+    const configDir = makeConfigDir();
+    writeFileSync(
+      path.join(configDir, "named-tool.mjs"),
+      `export default {
+        ${name ? `name: "${name}",` : ""}
+        description: "名称回归测试",
+        parameters: {},
+        execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} }),
+      };`,
+      "utf8",
+    );
+    const { tools, effects, capabilities, warnings } = await buildTools(
+      [
+        {
+          path: "named-tool.mjs",
+          name: "configured_name",
+          effect: { operations: ["read"], reversible: true },
+        },
+      ],
+      { cwd: configDir, configDir },
+    );
+    expect(warnings).toEqual([]);
+    expect(tools[0]?.name).toBe("configured_name");
+    expect(effects.has("configured_name")).toBe(true);
+    expect(capabilities.get("configured_name")?.tool).toBe("configured_name");
+    const reloaded = await buildTools(
+      [
+        {
+          path: "named-tool.mjs",
+          name: "second_name",
+          effect: { operations: ["read"], reversible: true },
+        },
+      ],
+      { cwd: configDir, configDir },
+    );
+    expect(reloaded.tools[0]?.name).toBe("second_name");
+    expect(tools[0]?.name).toBe("configured_name");
+  });
+
   it("内置 Bash 非零退出显式返回已登记工具失败", async () => {
     const configDir = makeConfigDir();
     const { tools } = await buildTools([{ id: "bash" }], { cwd: configDir, configDir });
