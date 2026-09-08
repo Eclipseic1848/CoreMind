@@ -188,13 +188,15 @@ describe("CoreMindRuntime", () => {
 
   it("宿主验收未知结果暂停，冷恢复重发相同对象而不重新执行模型", async () => {
     await withHostVerification(["等待独立验收"], async (options) => {
+      // 恢复后的批准需要真实落盘；两阶段使用同一配置，避免 50ms 与磁盘调度竞速。
+      const config = {
+        ...options.config,
+        loop: { ...options.config.loop!, verify: { mode: "host" as const, timeoutMs: 2_000 } },
+      };
       let original: HostVerificationRequest | undefined;
       const first = await CoreMindRuntime.create({
         ...options,
-        config: {
-          ...options.config,
-          loop: { ...options.config.loop!, verify: { mode: "host", timeoutMs: 50 } },
-        },
+        config,
         onVerification: (request) => {
           original = request;
         },
@@ -204,10 +206,7 @@ describe("CoreMindRuntime", () => {
       let recovered: HostVerificationRequest | undefined;
       const resumed = await CoreMindRuntime.create({
         ...options,
-        config: {
-          ...options.config,
-          loop: { ...options.config.loop!, verify: { mode: "host", timeoutMs: 50 } },
-        },
+        config,
         resumeRunId: paused.runId,
         onVerification: (request) => {
           recovered = request;
