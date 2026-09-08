@@ -48,15 +48,13 @@ The `0.3.x` line hardens runtime semantics in three approved batches (A → B �
 
 Version numbers and dates are not promised; each batch proceeds only after its acceptance gates pass and the maintainer confirms. A provider that has not passed live verification remains configurable but is not marked as officially certified.
 
-## Long-term roadmap: 0.4 through 1.0
+## Future roadmap (version scope to be confirmed)
 
-After the `0.3.x` hardening line, work proceeds in the following directions (scope and acceptance are confirmed by the maintainer before each phase starts):
+Version 0.8.0 focuses on host verification and engineering audit fixes. The following work is not yet delivered; obsolete version assignments from early plans no longer define its schedule. Maintainers confirm scope and acceptance when each effort starts:
 
-- **0.4.x capabilities**: Protocol v2 with RunHandle, resumable events, durable control receipts, AgentDriver, and ExecutionEnvironment seams ship in `0.7.0`; Protocol v1 remains supported with no approved removal plan.
-- **0.5.x–0.6.x**: the Web development environment — run and control surface first, then online editing, testing, and evaluation; always reusing the same Protocol and Runtime.
-- **0.7.0**: delivers Child Run productization and a stable release. Goals, Jobs, durable detach, and Web remain out of scope. The Provider network exception is audited but is not live-provider certification.
-- **0.8.x**: MCP/LSP adapters, controlled third-party plugins, remote execution environments, and the platform ecosystem.
-- **0.9.x–1.0.0**: feature freeze, compatibility and security closure, and a stable contract after a formal release candidate.
+- Web development environment: run and control surfaces first, followed by editing, testing, and evaluation, reusing the existing Protocol and Runtime.
+- MCP/LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.
+- The 1.0 target: feature freeze, compatibility and security closure, formal qualification, and auditable publication, with no committed date.
 
 ## `0.3.0`: phase-two kernel and engineering loop
 
