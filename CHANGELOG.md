@@ -8,6 +8,13 @@
 
 - 新增显式宿主验收：Run 成功前持久接收独立决定，拒绝后复用同 Run 的有界 Loop 修正；支持 Protocol v2 与 Python，未知暂停、取消和恢复保持失败关闭。此能力尚不在公开 0.7.1 制品中，接入见宿主验收示例。
 
+## [0.8.0](https://github.com/Eclipseic1848/CoreMind/compare/v0.7.1...v0.8.0) (2026-09-08)
+
+
+### Features
+
+* **runtime:** durable host verification before Run success ([#179](https://github.com/Eclipseic1848/CoreMind/issues/179)) ([bd72bc6](https://github.com/Eclipseic1848/CoreMind/commit/bd72bc6ba9dccd157c3b48a3db4490eabd1aff17))
+
 ## 0.7.1 — 2026-09-03
 
 - 发布与文档工作流统一使用固定的 npm `11.5.1`，并把 P0 网络例外分别绑定候选 Runtime 与最终 Runtime 摘要，避免文档部署或发布回装因工具链漂移、摘要混用而给出错误结论。
