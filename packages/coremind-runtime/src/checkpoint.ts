@@ -9,6 +9,7 @@ import {
 } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
+import { WorkspaceLeaseService } from "./workspace-lease.js";
 
 export interface CheckpointRecord {
   version: 1;
@@ -242,6 +243,22 @@ export class CheckpointManager {
 
   /** 仅在调用方显式请求时恢复单个目标文件。 */
   async restore(checkpointId: string, expectedCurrent?: CheckpointFileState): Promise<void> {
+    const lease = await new WorkspaceLeaseService().acquire({
+      workspaceRoot: this.options.cwd,
+      lane: "workspace_exclusive",
+      owner: { runId: this.options.runId, callId: `restore:${checkpointId}` },
+    });
+    try {
+      await this.restoreUnderLease(checkpointId, expectedCurrent);
+    } finally {
+      await lease.release({ activeTools: 0, activeProcesses: 0, pendingCriticalFacts: 0 });
+    }
+  }
+
+  private async restoreUnderLease(
+    checkpointId: string,
+    expectedCurrent?: CheckpointFileState,
+  ): Promise<void> {
     const stored = await this.load(checkpointId);
     if (!stored.reversible || !stored.targetPath) {
       throw new CoreMindError(
