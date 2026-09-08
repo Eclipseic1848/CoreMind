@@ -80,6 +80,31 @@ describe("ToolPolicy", () => {
     ).resolves.toMatchObject({ allowed: false });
   });
 
+  it("Child Run 检查内置读取工具的默认工作区目标", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-policy-default-paths-"));
+    mkdirSync(path.join(cwd, "src"));
+    const policy = new ToolPolicy({
+      permissions: { mode: "assisted", workspaceOnly: true },
+      allowedPaths: ["src"],
+      cwd,
+      runId: "child-default-paths",
+      createApprovalId: () => "approval-default-paths",
+    });
+    for (const tool of ["ls", "grep", "find", "git_diff", "git_log"]) {
+      for (const args of [{}, { path: "" }, { directory: "src" }]) {
+        await expect(policy.authorize("main", tool, args)).resolves.toMatchObject({
+          allowed: false,
+        });
+      }
+      await expect(policy.authorize("main", tool, { path: "src" })).resolves.toMatchObject({
+        allowed: true,
+      });
+    }
+    await expect(policy.authorize("main", "git_status", { path: "src" })).resolves.toMatchObject({
+      allowed: false,
+    });
+  });
+
   it("network deny 拒绝嵌套 URL，即使工具名不是内置网络工具", async () => {
     const policy = createPolicy({ mode: "full", workspaceOnly: false, network: "deny" });
     await expect(
