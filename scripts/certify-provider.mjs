@@ -11,6 +11,7 @@ import {
   defineTool,
   FileRunStore,
 } from "../packages/coremind-runtime/dist/index.js";
+import { shutdownPlatformExecutionEnvironment } from "../packages/coremind-tools/dist/internal.js";
 import {
   assertCertificationSucceeded,
   certificationChildBudget,
@@ -253,7 +254,11 @@ try {
   process.env[apiKeyEnv] = originalKey;
   clearTimeout(deadlineTimer);
   deadline.abort();
-  await rm(certificationRoot, { recursive: true, force: true });
+  try {
+    await shutdownPlatformExecutionEnvironment();
+  } finally {
+    await rm(certificationRoot, { recursive: true, force: true });
+  }
 }
 
 async function certifyChildRunSuccess() {
