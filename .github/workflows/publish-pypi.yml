@@ -293,6 +293,15 @@ jobs:
           npm install --global npm@11.5.1
           python -m pip install --disable-pip-version-check build==1.5.0 twine==7.0.0
 
+      - name: 安装 Linux sandbox 依赖
+        if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode != 'approved-offline-v071'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
       - name: 下载严格 Provider 认证证据
         if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode == 'strict-provider'
         env:
@@ -610,6 +619,14 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"
+
+      - name: 安装 Linux sandbox 依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       - name: 下载已验证发布物与候选证据
         if: inputs.tag == 'v0.7.0'

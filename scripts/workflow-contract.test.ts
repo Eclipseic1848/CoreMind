@@ -453,6 +453,15 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(providerEvidenceStep.env.COREMIND_CANDIDATE_RUN_ID).toContain("candidate_run_id");
     expect(providerEvidenceStep.env.COREMIND_CANDIDATE_SHA).toContain("candidate_sha");
     expect(freshBuildStep.run).toContain("--provider-certification-commit");
+    const buildSandboxSetup = workflow.jobs.build.steps.find(
+      (step: { name?: string }) => step.name === "安装 Linux sandbox 依赖",
+    );
+    const publicSandboxSetup = workflow.jobs["verify-public"].steps.find(
+      (step: { name?: string }) => step.name === "安装 Linux sandbox 依赖",
+    );
+    expect(buildSandboxSetup.if).toContain("artifact_run_id == ''");
+    expect(buildSandboxSetup.run).toContain("bubblewrap socat ripgrep");
+    expect(publicSandboxSetup.run).toBe(buildSandboxSetup.run);
     const freshStateStep = workflow.jobs.build.steps.find(
       (step: { name?: string }) => step.name === "拒绝在未知或部分发布状态下重新构建",
     );
