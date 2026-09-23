@@ -7,12 +7,12 @@
 ## 执行步骤
 
 1. 画出输入、候选结果、验证结果、修复结果和终态；固定依赖优先使用 Workflow。
-2. 把确定性判断写进普通代码、工具或 `passIf`，不要让模型临时发明验收标准。
+2. 把确定性判断写进普通代码、工具或 Agent 验证的 `passIf`；宿主验收则由宿主独立核对并提交持久决定，不让模型临时发明验收标准。
 3. 为 `loop` 配置 `maxIterations`、`maxRepairs`、`maxRepeatedAction`、`onFailure` 和 `onExhausted`。
 4. 为所有工具声明副作用、可逆性和目标字段；外部副作用还要有业务幂等键、收据或补偿流程。
 5. 先写失败用例，再实现或修改：verify 失败、无进展、耗尽、预算、审批拒绝、超时、中止和瞬态错误都必须有确定终态。
 6. 验证每次稳定状态迁移都会持久化；恢复同一 runId 时不重复完整步骤和 committed 副作用。
-7. 分别从 CLI/TUI、TypeScript SDK 和 Python SDK 检查相同状态序列与终态。
+7. 分别从 CLI/TUI、TypeScript SDK 和 Python SDK 检查相同状态序列与终态；使用宿主验收时，另外验证请求身份、候选摘要、拒绝后同 Run 修复，以及 `accepted` 不等于最终成功。
 8. 运行模块测试、黄金示例、覆盖率和 `npm run check:modules`，保存 Trace 与人工结论。
 
 ## 必跑命令

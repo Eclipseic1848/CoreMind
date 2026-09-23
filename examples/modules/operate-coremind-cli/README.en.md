@@ -2,12 +2,18 @@
 
 This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
 
-```text
+```powershell
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
-coremind check my-agent/coremind.yaml
-coremind eval my-agent/coremind.yaml
-coremind run my-agent/coremind.yaml --prompt "acceptance" --json-events
+Set-Location my-agent
+coremind check coremind.yaml
+```
+
+In the project directory, copy `.env.example` to `.env` and fill in `DASHSCOPE_API_KEY`, then run:
+
+```powershell
+coremind eval coremind.yaml
+coremind run coremind.yaml --prompt "acceptance" --json-events
 ```
 
 ## Verification

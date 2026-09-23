@@ -17,6 +17,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - `checkpoint_restore`
 - `CoreMind Protocol v1` (the `0.8.0` default)
 - Explicit `CoreMind Protocol v2` negotiation
+- Protocol v2 `query`, `events`, and `submit_verification` for host verification
 - Pure-JSON `result["snapshot"]`
 
 ## Errors and boundaries
@@ -24,11 +25,12 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - Protocol errors map to typed Python exceptions
 - Protocol v1 remains supported in `0.8.0`; no removal schedule is approved. Protocol v2 must be selected explicitly.
 - Python callables remain a v1 bridge. Protocol v2 accepts declarative tool definitions and explicit tool results; it does not execute host Python callables.
+- In v2, `run()` first returns a RunHandle. An `accepted` control receipt does not prove the decision was applied or the Run succeeded; read the Projection outcome with `query(runId)`.
 - The worker stays alive instead of spawning per request
 - Tool results remain JSON-serializable across languages
 - `@client.tool` requires `effect`, and protocol registration validates the declaration
 - Initialization or tool-registration failures close the worker immediately instead of leaving a partially started process
-- `run` and `chat` return the same success, failure, pause, abort, timeout, and budget-exhaustion terminal states as TypeScript
+- V1 `run` and `chat` results use the same six terminal states as TypeScript; v2 first returns a RunHandle and exposes the terminal state through Projection queries
 - resume_run reuses the same safe-resume decision for paused or interrupted runs in the Node runtime
 - Python and TypeScript preserve identical `loop_state` order, Loop terminals, stable snapshots, and effect receipts
 - Protocol performs complete nested validation for operation, outcome, metrics, evaluation, release readiness, trace, checkpoints, artifacts, and extension receipts; any drift fails closed with `invalid_run_snapshot`

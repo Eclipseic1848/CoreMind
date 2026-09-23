@@ -36,6 +36,8 @@ quality:
   profile: standard
 ```
 
+DeepSeek is a configuration example here, not a claim of `0.8.0` live certification for that provider/model. See the [Provider module](../manage-providers/README.en.md) for the release candidate's certification scope.
+
 On Windows, constrained modes do not execute test commands through the host shell. Run tests manually, or select the open host-process, workspace, and network boundaries only after accepting them explicitly. Linux can use the built-in shell when its isolation prerequisites are satisfied.
 
 ## TypeScript SDK: establish the engineering loop
@@ -78,10 +80,8 @@ scenarios:
       - { id: outcome, type: outcome, status: succeeded }
       - type: trajectory
         sequence:
-          - { tool: bash, result: failed }
           - { tool: read, result: succeeded }
           - { tool: edit, result: succeeded }
-          - { tool: bash, result: succeeded }
       - type: command
         command: python
         args: ["-m", "unittest", "discover", "-s", "tests"]
@@ -94,6 +94,8 @@ scenarios:
       - type: response
         contains: ["tests", "src/pricing.py"]
 ```
+
+The minimal configuration above does not enable `bash`; the trajectory checks only configured tools, while the `command` grader independently checks the tests.
 
 ## Verification
 

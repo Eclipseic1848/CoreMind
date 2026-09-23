@@ -22,6 +22,8 @@ if (result.outcome.status !== 'succeeded') {
 
 Create `lookupOrder` with `defineTool` and a truthful declaration such as `effect: { operations: ['read'], reversible: true }`. Normal run terminal states are returned, while `catch` remains for configuration loading, runtime creation, or caller-side failures.
 
+For independent business acceptance, use `loop.verify.mode: host`. `onVerification` only notifies the candidate; after checking the Run, requestId, candidateSha256, and business object, submit the decision with `runtime.acceptControl`. `accepted` only acknowledges receipt; inspect `result.outcome` for the terminal state. See the [offline host verification example](../../../examples/host-verification/README.en.md).
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

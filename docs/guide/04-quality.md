@@ -57,6 +57,8 @@ Ubuntu/Debian 需要安装 `bubblewrap`、`socat` 和 `ripgrep`。Ubuntu 24.04 �
 - Provider 调用前按 turn 边界做确定性 Context 保护，并产生 `context_compacted` 事件。
 - `session.compact` 是持久会话的可选 LLM 摘要；Loop 内 Context 保护不依赖它。压缩失败会发出 `context_compaction_failed`，不会静默退化；摘要固定保留目标、约束、权限、已修改文件、测试状态和下一步。
 
+默认的确定性 Context 保护不自动创建项目 Memory。大段工具输出可以保存为 `.coremind/artifacts/` 中的 Artifact；模型只得到有界预览、引用和摘要。`retention=run` 是保留意图，审计或验收仍引用的文件不能因 Run 结束就立即清理。TypeScript SDK 可从 `result.metrics.context`、`result.metrics.artifacts` 和 `result.artifacts` 查看运行结果。
+
 ## 5. 三档质量级别
 
 ```yaml
@@ -69,6 +71,8 @@ quality:
 - `development`：基础检查，缺失开发材料记为告警。
 - `standard`：默认；配置、安全、权限和项目材料作为发布前错误。
 - `strict`：每个评测场景至少重复 3 次，暴露不稳定结果。
+
+`coremind check --profile strict` 只影响这次静态检查，不会改写 `coremind.yaml`。需要严格评测时，把配置中的 `quality.profile` 设为 `strict`，或在场景中显式设置 `repetitions`。
 
 安全错误（例如明文 API key、关闭工作区边界）不可覆盖。非安全错误只有在 `allowOverride: true` 且提供 `--override-reason` 时才能覆盖，并把原因、时间、质量档和错误码追加写入 `.coremind/quality-overrides.jsonl`。审计文件写入失败时，覆盖本身失败。
 
@@ -182,6 +186,12 @@ loop:
 
 Provider/网络错误只有经统一分类确认为瞬态时才重试。第一次人工审批拒绝会阻断被拒绝项和本批次尚未审批的后续工具，本批结果归并后暂停运行，不会回灌模型继续请求审批；顺序工作流不会保存拒绝步骤的输出，也不会进入后续步骤。安全策略拒绝同样暂停。参数错误与确定性业务失败直接失败；中止和超时会传播到 Loop 控制器并留下同名终态。TUI、无头 CLI、TypeScript SDK 和 Python SDK 观察同一状态序列。
 
+### 0.8.0 宿主验收
+
+需要由应用服务、确定性测试或人工独立验收候选时，可使用 `loop.verify.mode: host`。它沿用当前 Loop 的 `execute`、`repair`、迭代与超时上限，验证配置不使用 `passIf`；具体 YAML 与完整离线演示见[配置指南](02-configuration.md)和[宿主验收示例](../../examples/host-verification/README.md)。
+
+TypeScript 的 `onVerification` 仅通知候选，返回 `true` 或 `PASS` 不会放行；宿主通过 `acceptControl` 持久提交与 RunId、requestId、candidateSha256 绑定的决定。Python 需显式选择 Protocol v2，再用 `submit_verification` 回复。拒绝时反馈应非空，并由**同一 Run** 继续有限修复。`accepted` 表示收件，`applied` 表示决定已经应用，业务交付仍要以 Projection 的最终 outcome 和宿主自己的验收为准；暂停、未知或超时均不能当作通过。
+
 ## 10. 中断、暂停恢复与 Effect Receipt
 
 每个运行把事件、Loop 稳定快照和完整步骤输出追加写入 `.coremind/runs/<runId>.jsonl`。进程意外中断或 Loop 显式暂停后，可以从最后一个完整稳定边界继续：
@@ -198,6 +208,8 @@ coremind run coremind.yaml --resume <runId>
 - 未完成步骤存在 `unknown` 副作用，尚未由人工完成核对。
 
 工具调用生成稳定幂等关联标识，并记录 `started`、`committed` 或 `unknown` Effect Receipt。恢复时，完整步骤与已提交副作用不会自动重放；`started` 或 `unknown` 会进入人工核对，而不是猜测执行结果。这仍不是通用的“恰好一次执行”承诺。涉及订单、支付、消息发送等外部副作用时，业务工具必须在自己的持久层实现幂等、收据或补偿流程，并为重复调用写测试。
+
+嵌入式 Python SDK 默认仍使用 Protocol v1；显式选择 v2 时，`run()` 先返回 RunHandle，需要使用 `query(runId)` 读取 Projection、`events(runId, after_sequence=...)` 补读事件，并用持久 `control` 提交授权决定。RunHandle 和控制回执都不代表最终成功；事件消费者应按 RunId 与 sequence 去重。v2 不执行宿主 Python callable，旧版 `@client.tool` 用法属于 v1。
 
 ## 11. 源码与发布物门禁
 
@@ -216,6 +228,8 @@ npm run release:check-wheel
 npm run acceptance:rc
 npm run docs:audit
 ```
+
+构建 wheel 前需要在执行该命令的 Python 环境中预先安装 `build` 和 `twine`。这些源码及发布物门禁面向框架维护者；业务智能体项目应按自身风险执行配置检查、场景评测、目标平台验证和真实 Provider 复验。
 
 `test:stability` 连续运行三次全量测试，任何一轮失败立即阻断。Vitest 多项目模式不会把根级超时可靠下传到每个独立项目，因此长链路 Runtime 测试在自身项目配置中显式使用 15 秒 Harness 上限，CLI 子进程测试使用 30 秒；两者都不改变产品运行预算。`test:coverage` 使用 V8 记录全仓和关键 Runtime 文件的真实覆盖率。Windows 与 Linux 会运行不同的平台安全测试，因此分别锁定全仓不下降基线：Windows 为 lines 72.82%、statements 70.80%、functions 80.32%、branches 63.30%；Linux 为 lines 73.26%、statements 71.19%、functions 81.00%、branches 63.23%，均来自对应目标平台的候选实测。通用回退基线取两种正式平台的逐项最小值，不能比任一正式平台更宽松。关键 Runtime 文件继续使用跨平台共同底线，其中 ToolPolicy 分支底线为 86.23%。Windows Shell 能力探测使用注入式确定性用例，集成测试显式传入最小环境，属性测试固定随机种子，并以独立回归覆盖关键权限分支，避免机器环境和随机样本造成覆盖率漂移。当前仍低于全仓 80% 与关键分支 90% 长期目标，因此门禁持续报告差距，不把基线写成目标已达成。
 

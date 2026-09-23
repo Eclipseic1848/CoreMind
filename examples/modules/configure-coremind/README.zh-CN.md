@@ -31,6 +31,8 @@ agents:
           pathFields: [output.path]
 ```
 
+公开 `0.8.0` 的 Loop 也支持 `verify.mode: host`，由宿主持久提交验收决定，不设置 `passIf`；配置和离线演示见[宿主验收示例](../../host-verification/README.md)。
+
 ## 验证步骤
 
 1. 从仓库根目录运行模块清单中的测试。

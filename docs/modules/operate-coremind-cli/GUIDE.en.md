@@ -6,12 +6,14 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 
 ## Minimal example
 
-```text
+```powershell
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
-coremind check my-agent/coremind.yaml
-coremind eval my-agent/coremind.yaml
+Set-Location my-agent
+coremind check coremind.yaml
 ```
+
+In the project directory, copy `.env.example` to `.env` and fill in `DASHSCOPE_API_KEY` before running `coremind eval coremind.yaml`. The CLI loads `.env` from the current working directory.
 
 ## Verification
 
@@ -27,13 +29,15 @@ coremind eval my-agent/coremind.yaml
 
 ## Automation contract
 
+This example uses PowerShell 7's UTF-8 redirection; machine consumers should preserve stdout JSONL and stderr diagnostics separately.
+
 ```powershell
-coremind run coremind.yaml --prompt "acceptance run" --json-events *> run-output.txt
+coremind run coremind.yaml --prompt "acceptance run" --json-events 1> run-events.jsonl 2> run-errors.log
 $LASTEXITCODE
-Get-Content -LiteralPath run-output.txt -Encoding utf8 | Select-Object -Last 1
+Get-Content -LiteralPath run-events.jsonl -Encoding utf8 | Select-Object -Last 1
 ```
 
-Production scripts should redirect stdout and stderr separately; the example combines them only for manual inspection. Use `0/1/2/3/124/130` as terminal exit codes, and require the final JSONL line to parse as `type: "run_result"`. Never infer success by searching human-readable text.
+Use `0/1/2/3/124/130` as terminal exit codes, require the final JSONL line to parse as `type: "run_result"`, and preserve stderr separately for diagnostics. Never infer success by searching human-readable text.
 
 Machine consumers should prefer the final `snapshot`. Compatibility fields remain at the top level, while `snapshot` is the common pure-JSON terminal envelope for CLI, Worker, and both SDKs.
 

@@ -22,6 +22,8 @@ Inherit the provider catalog from the locked runtime dependency while keeping av
 - Earlier evidence with missing current checks is retained with gaps but automatically downgraded to configurable and incomplete
 - Current-version certification records the full Git commit and Runtime artifact SHA-256, so evidence is bound to the build that was actually tested
 
+The `0.8.0` release candidate passed strict live certification for `alibaba-model-studio/qwen-plus`; see the [Candidate workflow](https://github.com/Eclipseic1848/CoreMind/actions/runs/34315391159). The [static provider matrix](../../providers/README.en.md) has not incorporated that result. It does not certify other providers or deployment environments.
+
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
 ## Source, tests, and examples

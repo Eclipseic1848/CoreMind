@@ -6,6 +6,8 @@
 
 ## 步骤
 
+以下是已配置写入工具和人工审批的业务项目中的操作片段；本示例目录没有独立的 `coremind.yaml`，不能在此直接运行。
+
 ```powershell
 coremind run coremind.yaml --prompt "把验收文字写入 result.md" --json-events
 ```

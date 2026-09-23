@@ -9,16 +9,18 @@
 
 ## 快速开始
 
-```bash
-coremind create my-reviewer --template contract-reviewer --provider alibaba-model-studio
+以下以 PowerShell 为例；Linux 将 `Copy-Item` 换为 `cp`。运行前请在复制出的 `.env` 中填入 `DASHSCOPE_API_KEY`。
+
+```powershell
+coremind create my-reviewer --template contract-reviewer --provider alibaba-model-studio --language typescript
 cd my-reviewer
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
+Copy-Item .env.example .env
 coremind run coremind.yaml --prompt "请审查：<合同内容粘贴到这里，或提供文件路径>"
 ```
 
 ## 配置要点
 
-- 单步工作流完成审查与保存，只请求一次 `write` 审批
+- 单步工作流要求 Agent 只调用一次 `write` 保存；`ask` 模式会对实际工具调用逐次请求批准
 - 审查维度内置：责任/赔偿/知识产权/保密/解约/争议解决
 
 ## 调优提示

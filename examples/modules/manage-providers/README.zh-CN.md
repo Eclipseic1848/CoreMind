@@ -4,10 +4,12 @@
 
 ```text
 provider:
-  id: deepseek
-  model: deepseek-chat
-  apiKeyEnv: DEEPSEEK_API_KEY
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 ```
+
+这是 `0.8.0` 发布候选完成真实认证的 Provider/模型组合；部署到其他凭据或环境仍需复验，证据范围见[Provider 模块](../../../docs/modules/manage-providers/README.zh-CN.md)。
 
 ## 验证步骤
 

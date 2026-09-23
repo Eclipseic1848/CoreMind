@@ -6,13 +6,13 @@
 
 ### 前置条件：Node.js
 
-CoreMind 需要 **Node.js ≥ 22.19**。先确认你装了没有：
+CoreMind 需要 **Node.js ≥ 22.19.0**。先确认你装了没有：
 
 ```bash
 node --version
 ```
 
-- 能显示 `v22.x.x` 以上 → 直接进入下一步
+- 版本不低于 `v22.19.0` → 直接进入下一步；`v22.0`～`v22.18` 仍需升级
 - 提示"无法识别"→ 去 [nodejs.org](https://nodejs.org) 下载安装（选 LTS 版，一路下一步即可）
 
 ### 全局安装（推荐）
@@ -27,16 +27,19 @@ npm install -g coremind-cli@0.8.0
 
 ```bash
 coremind --version        # 0.8.0 显示 coremind v0.8.0
-coremind doctor           # 环境自检：Node 版本 / API key 是否就位
+coremind doctor           # 环境自检；检查项目密钥时传入 coremind.yaml
 ```
 
-看到版本号或"全部正常 ✅"就说明装好了。
+看到 `coremind v0.8.0` 表示 CLI 已安装；进入项目后再运行 `coremind doctor coremind.yaml` 检查配置和所需环境变量。`doctor` 不会向 Provider 发送真实请求。
 
-### 更新到最新版
+### 更新到已验证的版本
 
 ```bash
-npm update -g coremind-cli
+npm view coremind-cli version     # 查询 Registry 当前版本
+npm install -g coremind-cli@0.8.0 # 本文对应的已发布版本
 ```
+
+升级到将来的版本时，先查看该版本的 Release 和迁移说明，再把安装命令中的版本号换成已验证的目标版本。
 
 ### 卸载
 
@@ -77,9 +80,9 @@ coremind eval coremind.yaml --suite evals/scenarios.yaml --json
 
 ### run 自动化终态
 
-`coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 的最后一条 `run_result`，诊断信息从 stderr 保存。`run_result.observability` 与 TypeScript/Python/Worker 使用同一 Fact Projection；即使 Telemetry 为 `DISABLED`，本地 Run、Context、Call、错误和交付状态仍存在。
+`coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 最后一条 `run_result.snapshot` 的 `outcome`、评测与发布判断，诊断信息从 stderr 保存。`run_result.observability` 与 TypeScript/Python/Worker 使用同一 Fact Projection；即使 Telemetry 为 `DISABLED`，本地 Run、Context、Call、错误和交付状态仍存在。
 
-`--print` 用于普通文本管道，`--json-events` 用于 JSONL 自动化，两者不能同时使用。
+`--print` 用于阅读最终文本，但 `0.8.0` 某些运行提示仍可能出现在 stdout；要求纯机器输入时使用 `--json-events`，两者不能同时使用。
 
 ## 3. 在哪里运行：目录规则（新手最容易困惑的部分）
 
@@ -119,7 +122,7 @@ coremind chat agent-b/coremind.yaml
 | 路径类型 | 解析基准 | 举例 |
 |---|---|---|
 | 配置里的相对路径（自定义工具 `./my-tool.mjs`、`skills/` 目录、`session.dir`） | **配置文件所在目录** | 配置文件在 `D:\a\coremind.yaml`，`skills/` 就在 `D:\a\skills/` |
-| `.env` 文件、bash 工具的工作目录 | **当前终端所在目录（cwd）** | 你在 `D:\b` 敲命令，`.env` 就找 `D:\b\.env` |
+| `.env`、内置文件工具与 bash 的工作目录 | **当前终端所在目录（cwd）** | 你在 `D:\b` 敲命令，`.env` 就找 `D:\b\.env`；内置文件工具也以 `D:\b` 为工作区 |
 
 含义：**用方式一（cd 进项目）时所有规则自动对齐**——这也是为什么推荐方式一。
 
@@ -127,10 +130,10 @@ coremind chat agent-b/coremind.yaml
 
 ## 4. API key 管理
 
-模型提供商需要密钥（API key）才能调用。CoreMind 从三个地方找 key，按优先级：
+模型提供商需要密钥（API key）才能调用。以本指南的百炼示例为例，CLI 按以下顺序找 `DASHSCOPE_API_KEY`：
 
 1. **系统/终端环境变量**（最高优先）
-2. **项目目录下的 `.env` 文件**（推荐新手）
+2. **当前工作目录下的 `.env` 文件**（推荐先进入项目目录）
 3. 都不存在 → 运行时报错提示缺少 key
 
 ### 方式一：.env 文件（推荐）
@@ -139,8 +142,8 @@ coremind chat agent-b/coremind.yaml
 
 ```powershell
 cd "D:\projects\my-agent"
-copy .env.example .env          # macOS/Linux 用：cp .env.example .env
-# 用记事本/编辑器打开 .env，把 DEEPSEEK_API_KEY= 后面填上你的 key
+Copy-Item .env.example .env     # Linux 用：cp .env.example .env
+# 用记事本/编辑器打开 .env，填写 DASHSCOPE_API_KEY
 ```
 
 **CoreMind 启动时会自动读取当前目录下的 `.env`**——不用额外设置什么，直接运行即可：
@@ -153,7 +156,7 @@ coremind run coremind.yaml --prompt "你好"
 
 ```
 # 每个提供商一行：KEY 名=你的密钥
-DEEPSEEK_API_KEY=sk-xxxxxxxx
+DASHSCOPE_API_KEY=<你的密钥>
 ```
 
 **三个提醒**：
@@ -165,20 +168,27 @@ DEEPSEEK_API_KEY=sk-xxxxxxxx
 
 每次打开新终端都要重新设置，关掉窗口就没了：
 
+PowerShell：
+
 ```powershell
-# PowerShell（Windows 默认）
-$env:DEEPSEEK_API_KEY = "sk-xxxxxxxx"
+$env:DASHSCOPE_API_KEY = "你的真实密钥"
+```
 
-# cmd（老式命令提示符）
-set DEEPSEEK_API_KEY=sk-xxxxxxxx
+Windows cmd：
 
-# bash / zsh（macOS、Linux、Git Bash）
-export DEEPSEEK_API_KEY="sk-xxxxxxxx"
+```bat
+set "DASHSCOPE_API_KEY=你的真实密钥"
+```
+
+Linux Bash：
+
+```bash
+export DASHSCOPE_API_KEY="你的真实密钥"
 ```
 
 ### 方式三：永久环境变量（系统级）
 
-Windows：设置 → 系统 → 关于 → 高级系统设置 → 环境变量 → 新建 `DEEPSEEK_API_KEY`。设置后**需要重新打开终端**才生效。适合"就一个项目、一个 key"的用户。
+Windows：设置 → 系统 → 关于 → 高级系统设置 → 环境变量 → 新建 `DASHSCOPE_API_KEY`。设置后**需要重新打开终端**才生效。适合"就一个项目、一个 key"的用户。
 
 ### 不确定 key 配好没有？
 
@@ -229,7 +239,7 @@ coremind chat coremind.yaml
 | 查看变更 | 输入 `/diff <checkpointId>` |
 | 显式恢复文件 | 输入 `/restore <checkpointId>` |
 | 中止当前回答 | 输入 `/abort`（停止生成，可继续提问） |
-| 退出对话 | 输入 `/exit`（**退出时自动保存会话**，下次可恢复） |
+| 退出对话 | 输入 `/exit`（已启用 session 并使用 `--session <id>` 时，下次可恢复） |
 
 默认运行摘要会显示 Child Run 数量、活动后代与未处置风险；运行中也可输入 `/children` 查询当前 canonical Facts。`/children` 只读取统一 Fact Projection，按父子层级展开目标、身份、预算、状态、Outcome、Recovery 和风险正文；它不会读取 Runtime 内部 Map，也不会提供独立 spawn/list/resume/detach。委派审批卡会优先显示目标、任务摘要、显式引用和本次收紧预算，并明确委派批准只允许创建 Child Run，子级工具与外部副作用仍需独立审批。当前可用的取消 authority 是 `/abort`：它中止父级当前回答，并由 Runtime 将取消传播到活动 Child Run；当前 Runtime 未授权的子级独立取消或失败处置控制不会显示或伪造执行。
 
@@ -300,8 +310,10 @@ D:\projects\
 切换项目就是换个目录：
 
 ```powershell
-cd "D:\projects\agent-a" && coremind chat coremind.yaml
-cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什么"
+Set-Location "D:\projects\agent-a"
+coremind chat coremind.yaml
+Set-Location "D:\projects\agent-b"
+coremind run coremind.yaml --prompt "本周干了什么"
 ```
 
 每个项目独立的：配置文件、.env、技能、会话记录，全部互不污染。
@@ -311,12 +323,12 @@ cd "D:\projects\agent-b" && coremind run coremind.yaml --prompt "本周干了什
 | 现象 | 原因与解决 |
 |---|---|
 | `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@0.8.0`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
-| 提示缺少 API key | ① `.env` 没填或填错（检查变量名是否 `DEEPSEEK_API_KEY`、等号后无空格）；② `.env` 不在**你敲命令的目录**（见 3 节铁律）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
+| 提示缺少 API key | ① 本例检查 `.env` 中的 `DASHSCOPE_API_KEY`（其他 Provider 以其配置中的 `apiKeyEnv` 为准）；② `.env` 不在**你敲命令的目录**（见 3 节）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
-| 运行很久没反应 / 超时 | 模型服务慢或网络问题；步骤超时上限是 5 分钟，重试一次；用 `coremind doctor` 确认 key 存在 |
+| 运行很久没反应 / 超时 | 查看运行事件与 `runTimeoutMs`、`stepTimeoutMs`、Provider 和工具状态；`doctor` 只检查密钥存在，不验证 Provider 连接，不要在副作用结果未知时盲目重试 |
 | chat 没有全屏界面 | 环境不是 TTY（如某些终端模拟器/脚本管道），自动回退单行模式，属正常 |
 | 怎么知道 key 配好没有 | `coremind doctor`——所有环境类问题先跑它 |
-| 上次对话丢了 | chat 退出时会自动保存；`--session <id>` 再运行可恢复；没给 id 的临时会话不会保留 |
+| 上次对话丢了 | 先确认 `session.enabled: true` 且使用相同 `--session <id>`；未指定 id 的临时对话不能按该 id 恢复 |
 
 ## 9. 效率技巧
 

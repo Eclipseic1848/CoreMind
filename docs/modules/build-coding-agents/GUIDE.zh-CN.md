@@ -36,6 +36,8 @@ quality:
   profile: standard
 ```
 
+这里的 DeepSeek 仅是配置示例，不代表该 Provider/模型已通过 `0.8.0` 真实认证；当前发布候选的认证范围见[Provider 模块](../manage-providers/README.zh-CN.md)。
+
 在 Windows 的受约束模式下，测试命令不会通过宿主 Shell 自动执行。开发者可先手工运行测试，或在明确接受宿主进程、工作区与网络边界后选择开放条件。Linux 可在隔离前置条件满足时使用内置 Shell。
 
 ## TypeScript SDK：建立工程闭环
@@ -78,10 +80,8 @@ scenarios:
       - { id: outcome, type: outcome, status: succeeded }
       - type: trajectory
         sequence:
-          - { tool: bash, result: failed }
           - { tool: read, result: succeeded }
           - { tool: edit, result: succeeded }
-          - { tool: bash, result: succeeded }
       - type: command
         command: python
         args: ["-m", "unittest", "discover", "-s", "tests"]
@@ -94,6 +94,8 @@ scenarios:
       - type: response
         contains: ["测试", "src/pricing.py"]
 ```
+
+上面的最小配置没有启用 `bash`；轨迹只检查已配置的工具，测试结果由 `command` grader 独立核对。
 
 ## 验证
 

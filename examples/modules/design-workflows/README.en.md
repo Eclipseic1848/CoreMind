@@ -23,6 +23,8 @@ loop:
 
 See the runnable [verified repair golden example](../../golden/verified-repair-loop/README.en.md). It deliberately fails the first verification and asserts repair success, pause-resume, and exhaustion failure.
 
+Published `0.8.0` also supports host verification: replace `verify` with `{ mode: host, timeoutMs: 30000 }`, omit `passIf`, and submit a durable host decision. See the [host verification example](../../host-verification/README.en.md).
+
 ## Verification
 
 1. Run `coremind check coremind.yaml`.

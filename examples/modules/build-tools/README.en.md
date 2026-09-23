@@ -18,7 +18,7 @@ const lookupOrder = defineTool({
 2. Run `coremind check` for configuration examples.
 3. Add scenarios and run `coremind eval` for business outputs.
 4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
-5. Try a nested `../secret.txt` path or URL and confirm workspace or network policy rejects it before execution.
+5. With a separate test tool declaring `pathFields` or `urlFields`, pass an outside `../secret.txt` path or forbidden URL and confirm workspace or network policy rejects it before execution. The `lookup_order` above has only an `id` parameter and does not test paths or URLs.
 6. Temporarily rename the tool to `read` and confirm definition or registration rejects it before execution; then restore a business-specific name.
 7. Run the ProcessRunner, GitAdapter, and unified-diff tests; confirm timeout, cancellation, output limits, read-only Git, and oversized files all fail closed.
 

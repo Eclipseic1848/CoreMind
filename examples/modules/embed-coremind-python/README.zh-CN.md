@@ -14,6 +14,8 @@ with CoreMindClient(config_path='coremind.yaml') as client:
     print(result['snapshot'])
 ```
 
+以上是默认 Protocol v1 的 callable 工具桥。宿主验收使用 `protocol_version="2.0"`，`run()` 返回 RunHandle，宿主通过 `submit_verification` 回复，再用 `query(runId)` 读取最终结果；v2 不执行 Python callable。见[宿主验收示例](../../host-verification/README.md)。
+
 ## 验证步骤
 
 1. 从仓库根目录运行模块清单中的测试。

@@ -4,10 +4,12 @@ This is the smallest module example. Ask the business owner to confirm fields an
 
 ```text
 provider:
-  id: deepseek
-  model: deepseek-chat
-  apiKeyEnv: DEEPSEEK_API_KEY
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 ```
+
+This provider/model pair passed live certification in the `0.8.0` release candidate. Reverify other credentials or environments; see the [Provider module](../../../docs/modules/manage-providers/README.en.md) for the evidence scope.
 
 ## Verification
 

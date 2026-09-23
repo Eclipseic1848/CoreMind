@@ -14,6 +14,8 @@ console.log(JSON.stringify(result.snapshot));
 if (result.outcome.status !== 'succeeded') throw new Error(result.outcome.finishReason);
 ```
 
+宿主验收时，`onVerification` 只通知候选，业务宿主通过 `runtime.acceptControl` 回复并检查最终 `result.outcome`；见[离线示例](../../host-verification/README.md)。
+
 ## 验证步骤
 
 1. 从仓库根目录运行模块清单中的测试。

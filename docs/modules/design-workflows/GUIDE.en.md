@@ -9,6 +9,8 @@
 ## Step 2: write the smallest Loop configuration
 
 ```yaml
+schemaVersion: 2
+name: verified-loop
 agents:
   coder:
     systemPrompt: Generate or repair the candidate
@@ -34,6 +36,8 @@ loop:
 ```
 
 `passIf` must be deterministic and testable. Use `onFailure: pause` when a human must decide before repair, and `onFailure: fail` when automatic repair is forbidden.
+
+For host acceptance in `0.8.0`, replace the example's `verify` with `verify: { mode: host, timeoutMs: 30000 }`. The host then submits an `acceptControl` decision bound to the request identity and candidate hash; this mode does not use `passIf`. `accepted` only acknowledges receipt, so inspect the final Run outcome. See the [host verification example](../../../examples/host-verification/README.en.md).
 
 ## Step 3: run and observe
 

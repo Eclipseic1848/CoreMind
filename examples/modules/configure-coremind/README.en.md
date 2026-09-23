@@ -31,6 +31,8 @@ agents:
           pathFields: [output.path]
 ```
 
+Published `0.8.0` Loops also support `verify.mode: host`: the host submits a durable decision and does not configure `passIf`. See the [host verification example](../../host-verification/README.en.md) for configuration and an offline demo.
+
 ## Verification
 
 1. Run the tests listed in the module manifest from the repository root.

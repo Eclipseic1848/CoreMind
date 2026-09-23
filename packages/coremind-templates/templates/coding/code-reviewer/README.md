@@ -9,11 +9,13 @@
 
 ## 快速开始
 
-```bash
-coremind create my-reviewer --template code-reviewer --provider alibaba-model-studio
+以下以 PowerShell 为例；Linux 将 `Copy-Item` 换为 `cp`。运行前请在复制出的 `.env` 中填入 `DASHSCOPE_API_KEY`。
+
+```powershell
+coremind create my-reviewer --template code-reviewer --provider alibaba-model-studio --language typescript
 cd my-reviewer
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
-coremind run coremind.yaml --prompt "审查 src/main.ts"
+Copy-Item .env.example .env
+coremind run coremind.yaml --prompt "审查 src/tools/example.ts"
 ```
 
 ## 配置要点

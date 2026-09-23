@@ -4,6 +4,8 @@
 
 ## 离线运行
 
+启动 mock Provider 和运行示例要使用两个终端；两个终端都须进入本示例目录，并各自设置 `GOLDEN_MOCK_API_KEY=offline`（PowerShell 用 `$env:GOLDEN_MOCK_API_KEY="offline"`）。
+
 1. 在仓库根目录构建：`npm run build:python-worker`。
 2. 进入本目录并设置仅用于本地 mock 的环境变量：PowerShell `$env:GOLDEN_MOCK_API_KEY="offline"`；Linux `export GOLDEN_MOCK_API_KEY=offline`。
 3. 启动 Provider：`node ../_shared/mock-provider.mjs contract 8812`。

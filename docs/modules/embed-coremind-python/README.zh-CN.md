@@ -17,6 +17,7 @@
 - `checkpoint_restore`
 - `CoreMind Protocol v1`（`0.8.0` 默认值）
 - 显式协商 `CoreMind Protocol v2`
+- Protocol v2 的 `query`、`events` 与 `submit_verification` 宿主验收入口
 - `result["snapshot"]` 纯 JSON 运行快照
 
 ## 错误与边界
@@ -24,11 +25,12 @@
 - 协议错误映射为类型化 Python 异常
 - `0.8.0` 继续支持 Protocol v1，且尚无批准的移除时间表；Protocol v2 必须显式选择。
 - Python callable 仍属于 v1 工具桥；Protocol v2 只接受声明式工具定义和显式工具结果，不执行宿主 Python callable。
+- v2 的 `run()` 先返回 RunHandle；`accepted` 控制回执不代表候选已应用或 Run 已成功，最终读取 `query(runId)` 的 Projection outcome。
 - worker 常驻复用，不为每次请求创建进程
 - 工具结果跨语言保持 JSON 可序列化
 - `@client.tool` 必须提供 `effect`；Protocol 注册会校验副作用声明
 - 初始化或工具注册失败时客户端立即关闭 worker，不遗留半启动进程
-- `run`/`chat` 与 TypeScript 返回同一套成功、失败、暂停、中止、超时和预算耗尽终态
+- v1 的 `run`/`chat` 结果与 TypeScript 使用同一套六种终态；v2 先返回 RunHandle，再通过 Projection 查询终态
 - resume_run 复用 Node Runtime 的同一安全恢复判定，可继续暂停或意外中断运行
 - Python 与 TypeScript 对 `loop_state` 顺序、Loop 终态、稳定快照和 Effect Receipt 保持一致
 - Protocol 对 operation、outcome、metrics、evaluation、releaseReadiness、Trace、Checkpoint、Artifact 和扩展收据执行完整嵌套校验；任意字段漂移都以 `invalid_run_snapshot` 失败关闭

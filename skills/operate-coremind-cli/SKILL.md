@@ -7,7 +7,7 @@ description: "Operate or diagnose CoreMind create, run, chat, check, eval, docto
 
 1. Read [the module contract](../../docs/modules/operate-coremind-cli/README.en.md) and the language-matched guide only when implementation details are needed.
 2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.
-3. Follow [the SOP](../../docs/modules/operate-coremind-cli/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
+3. Follow [the SOP](../../docs/modules/operate-coremind-cli/SOP.en.md) in order. After `create`, enter the project directory and fill the configured `apiKeyEnv` in `.env` before `doctor`, `eval`, or `run`; the CLI uses the current directory as its workspace. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. For automation, require the stable exit code and the final JSONL `run_result`; keep diagnostics on stderr, reject `--print` plus `--json-events`, and never infer success from prose.
 6. For TUI approval, verify the effect, complete target, reason, and redacted argument summary remain visible with long content.

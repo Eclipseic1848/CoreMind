@@ -22,6 +22,8 @@ if (result.outcome.status !== 'succeeded') {
 
 `lookupOrder` 必须由 `defineTool` 创建，并包含例如 `effect: { operations: ['read'], reversible: true }` 的真实副作用声明。`run()` 的正常终态都通过返回值表达；只把配置加载、Runtime 创建或调用方自身错误放进 `catch`。
 
+需要业务宿主独立验收时，使用 `loop.verify.mode: host`；`onVerification` 仅通知候选，宿主核对 Run、requestId、candidateSha256 和业务对象后，通过 `runtime.acceptControl` 提交决定。`accepted` 仅表示收件，最终检查 `result.outcome`；完整离线代码见[宿主验收示例](../../../examples/host-verification/README.md)。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

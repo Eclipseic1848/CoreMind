@@ -15,6 +15,7 @@ Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node a
 - `runEvaluationSuite`
 - `LoopConfig` / `LoopPhase`
 - `RunSnapshot` / `createRunSnapshot`
+- `onVerification` candidate notifications and durable host decisions via `runtime.acceptControl`
 - Public lifecycle-extension and lightweight-experiment contracts
 
 ## Errors and boundaries
@@ -25,6 +26,7 @@ Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node a
 - `loop_state`, RunOutcome, stable snapshots, and effect receipts share the same runtime semantics as CLI and Python
 - The facade only re-exports and never duplicates business logic
 - `RunResult.snapshot` is pure JSON. Protocol fully validates terminal state, metrics, trace, checkpoints, artifacts, and extension receipts to reject cross-language structural drift
+- In host verification, returning from `onVerification` does not accept a candidate; `accepted` or `applied` control receipts do not replace the final Run outcome
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

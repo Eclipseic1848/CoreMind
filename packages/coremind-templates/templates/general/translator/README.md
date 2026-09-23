@@ -1,6 +1,6 @@
 # 中英翻译助手（translator）
 
-中英互译，保持术语一致性，支持任意长文本分段处理。
+中英互译，保持术语一致性；长文本需按模型上下文窗口分段输入。
 
 ## 适用场景
 
@@ -9,10 +9,12 @@
 
 ## 快速开始
 
-```bash
-coremind create my-translator --template translator --provider alibaba-model-studio
+以下以 PowerShell 为例；Linux 将 `Copy-Item` 换为 `cp`。运行前请在复制出的 `.env` 中填入 `DASHSCOPE_API_KEY`。
+
+```powershell
+coremind create my-translator --template translator --provider alibaba-model-studio --language typescript
 cd my-translator
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
+Copy-Item .env.example .env
 coremind run coremind.yaml --prompt "翻译：你好，世界"
 ```
 

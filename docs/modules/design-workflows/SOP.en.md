@@ -7,12 +7,12 @@ Confirm the business owner, success criteria, verification rule, allowed repair 
 ## Procedure
 
 1. Map input, candidate, verification, repair, and terminal results. Prefer a Workflow for fixed dependencies.
-2. Put deterministic decisions in normal code, a tool, or `passIf`; do not let the model invent acceptance rules at runtime.
+2. Put deterministic decisions in normal code, a tool, or agent verification's `passIf`. For host verification, have the host check the candidate independently and submit a durable decision; never let the model invent acceptance rules.
 3. Configure `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted` for every `loop`.
 4. Declare every tool effect, reversibility, and target field. External effects also need a business idempotency key, receipt, or compensation process.
 5. Write failure tests first. Verification failure, no progress, exhaustion, budget limits, denied approval, timeout, abort, and transient errors each need an explicit terminal result.
 6. Verify that every stable transition persists and that resuming the same run ID does not replay completed steps or committed effects.
-7. Compare the same state sequence and terminal result across CLI/TUI, TypeScript SDK, and Python SDK.
+7. Compare the same state sequence and terminal result across CLI/TUI, TypeScript SDK, and Python SDK. For host verification, also check request identity, candidate hash, repair within the same Run after rejection, and that `accepted` is not final success.
 8. Run module tests, the golden example, coverage, and `npm run check:modules`; preserve traces and human conclusions.
 
 ## Required commands
