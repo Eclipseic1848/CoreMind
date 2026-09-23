@@ -7,13 +7,13 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 ## Procedure
 
 1. Create and reuse one client.
-2. Initialize before registering Python tools.
-3. Annotate callable parameters and provide truthful `effect.operations` and `effect.reversible`.
-4. Subscribe to events, handle approvals, and exhaustively consume all six RunOutcome terminal states.
+2. With default Protocol v1, initialize before registering Python tools. Negotiate Protocol v2 explicitly and do not register Python callables there.
+3. For v1 callables, annotate parameters and provide truthful `effect.operations` and `effect.reversible`.
+4. Subscribe to events and handle approvals. Exhaustively consume all six v1 RunOutcome terminal states; in v2, read the final Projection with `query(runId)`.
 5. Use resume_run only for paused or interrupted runs deemed safe.
-6. Compare explicit Loop state order, pause-resume, exhaustion, and effect receipts with TypeScript.
-7. Inject one tool-registration failure and confirm the client terminates the partially started worker; still close normal runs in a context manager or finally block.
-8. Compare the Python snapshot with a TypeScript sample. Tampering with operation, outcome, metrics, trace, checkpoint, or artifact fields must produce stable `invalid_run_snapshot` failure.
+6. Compare explicit Loop state order, pause-resume, exhaustion, and effect receipts with TypeScript. For host verification, also check request identity, candidate hash, durable decision, and final Projection outcome.
+7. For the v1 tool bridge, inject a registration failure and confirm the client terminates the partially started worker; still close normal runs in a context manager or finally block.
+8. Compare a v1 Python snapshot with a TypeScript sample. Tampering with operation, outcome, metrics, trace, checkpoint, or artifact fields must produce stable `invalid_run_snapshot` failure.
 9. Run the listed module tests and `npm run check:modules`.
 10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 

@@ -22,6 +22,7 @@
 - ConfigParseError：文件或 YAML/JSON 语法无效
 - ConfigValidationError：配置不符合 v2 Schema
 - `workflow` 与 `loop` 同时出现、Loop 引用未知 Agent 或边界参数无效时，在运行前拒绝
+- `loop.verify.mode: host` 在 `0.8.0` 已公开；它不使用 `passIf`，由宿主提交持久验收决定
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

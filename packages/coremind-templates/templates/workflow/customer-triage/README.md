@@ -9,10 +9,12 @@
 
 ## 快速开始
 
-```bash
-coremind create my-triage --template customer-triage --provider alibaba-model-studio
+以下以 PowerShell 为例；Linux 将 `Copy-Item` 换为 `cp`。运行前请在复制出的 `.env` 中填入 `DASHSCOPE_API_KEY`。
+
+```powershell
+coremind create my-triage --template customer-triage --provider alibaba-model-studio --language typescript
 cd my-triage
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
+Copy-Item .env.example .env
 coremind run coremind.yaml --prompt "我的订单 3 天没发货，客服电话打不通，我要投诉！"
 ```
 

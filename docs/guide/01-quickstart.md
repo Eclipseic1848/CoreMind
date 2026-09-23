@@ -4,7 +4,7 @@
 
 ## 1. 安装
 
-需要 Node.js ≥ 22.19。
+需要 Node.js ≥ 22.19.0。
 
 `coremind-cli@0.8.0` 是本发布线的稳定包；安装前以 npm 实时页面确认公开可用性。
 
@@ -26,16 +26,19 @@ cd my-agent
 
 ## 3. 配置 API key
 
-```bash
-copy .env.example .env          # Windows；Linux 用 cp
-# 编辑 .env，填入 DASHSCOPE_API_KEY=<你的 key>
+```powershell
+Copy-Item .env.example .env     # Windows PowerShell
 ```
 
-`.env` 会被**自动加载**（前提：在你运行命令的目录下，见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)）。
+```bash
+cp .env.example .env           # Linux
+```
+
+编辑 `.env`，填入 `DASHSCOPE_API_KEY=<你的 key>`。CLI 会自动加载**当前工作目录**下的 `.env`，因此先进入刚创建的 `my-agent`；详见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)。
 
 凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
-交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；可配置不等于当前版本已认证，实际证据见[供应商矩阵](../providers/README.zh-CN.md)。
+交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；`0.8.0` 发布候选完成了 `alibaba-model-studio/qwen-plus` 的严格真实调用认证，其他可配置 Provider 不因此自动获得认证。[供应商矩阵](../providers/README.zh-CN.md)是较早的静态台账，发布证据见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0)。
 
 ## 4. 运行
 
@@ -56,7 +59,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 | 命令 | 用途 |
 |---|---|
 | `coremind create <name>` | 新建或接入项目（`--template`、`--language`） |
-| `coremind run <file>` | 运行一次（`--prompt` 首条输入 / `--print` 只输出结果 / `--session <id>` 保存会话） |
+| `coremind run <file>` | 运行一次（`--prompt` 首条输入 / `--json-events` 输出机器可读事件 / 启用 session 后以 `--session <id>` 保存会话） |
 | `coremind chat <file>` | 多轮 TUI（审批、预算、Trace、checkpoint/diff/恢复） |
 | `coremind check [file]` | 检查配置、安全、项目材料和质量档 |
 | `coremind eval [file]` | 重复运行 `evals/scenarios.yaml` |

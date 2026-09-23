@@ -9,11 +9,11 @@
 
 ## 快速开始
 
+请在待修复的代码仓库根目录使用具备 Shell 隔离能力的 Linux 终端运行；`create .` 会向当前仓库添加 CoreMind 文件。复制后先在 `.env` 中填入 `DASHSCOPE_API_KEY`。模板依赖 `bash`；Windows 默认权限组合不允许执行该步骤。
+
 ```bash
-coremind create my-squasher --template bug-squasher --provider alibaba-model-studio
-cd my-squasher
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
-# 在出问题的项目目录运行：
+coremind create . --template bug-squasher --provider alibaba-model-studio
+cp .env.example .env
 coremind run coremind.yaml --prompt "运行 npm test 报错：TypeError: xxx is not a function"
 ```
 
@@ -25,4 +25,4 @@ coremind run coremind.yaml --prompt "运行 npm test 报错：TypeError: xxx is 
 ## 调优提示
 
 - 修复质量取决于测试命令的准确性：在 prompt 中给出精确的复现命令
-- 需要自动验证修复时，在 workflow 末尾追加一步"运行测试并确认通过"
+- patcher 的提示词要求运行验证；交付前仍需核对实际工具轨迹和测试结果，不能只凭摘要认定修复通过

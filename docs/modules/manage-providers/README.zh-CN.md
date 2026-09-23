@@ -22,6 +22,8 @@
 - 旧证据缺少当前检查时保留缺口，但自动降级为“可配置、未完成当前认证”
 - 当前版本认证必须保存完整 Git commit 与 Runtime Artifact SHA-256；证据只能绑定已实际测试的构建
 
+`0.8.0` 发布候选对 `alibaba-model-studio/qwen-plus` 的严格真实调用认证已通过，证据见 [Candidate 工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/34315391159)。[静态供应商矩阵](../../providers/README.zh-CN.md)尚未收录该次认证；其他 Provider 或部署环境不能据此声称已认证。
+
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 
 ## 源码、测试与示例

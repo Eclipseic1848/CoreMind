@@ -15,6 +15,7 @@
 - `runEvaluationSuite`
 - `LoopConfig` / `LoopPhase`
 - `RunSnapshot` / `createRunSnapshot`
+- `onVerification` 候选通知与 `runtime.acceptControl` 持久宿主验收
 - 生命周期扩展与轻量实验公共接口
 
 ## 错误与边界
@@ -25,6 +26,7 @@
 - `loop_state`、RunOutcome、稳定快照和 Effect Receipt 与 CLI/Python 共用同一 Runtime 语义
 - 库门面只 re-export，不复制业务逻辑
 - `RunResult.snapshot` 是纯 JSON；Protocol 会对终态、指标、Trace、Checkpoint、Artifact 和扩展收据执行完整嵌套校验，拒绝跨语言结构漂移
+- 宿主验收中 `onVerification` 的返回值不会放行；控制回执 `accepted` 或 `applied` 都不能替代最终 Run outcome
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 

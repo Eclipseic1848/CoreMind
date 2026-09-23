@@ -27,7 +27,7 @@ npm install -g coremind-cli@0.8.0
 coremind help
 ```
 
-[完整文档](https://github.com/Eclipseic1848/CoreMind)
+[完整文档（需仓库访问权限）](https://github.com/Eclipseic1848/CoreMind)
 
 ## English
 
@@ -56,4 +56,4 @@ npm install -g coremind-cli@0.8.0
 coremind help
 ```
 
-[Full documentation](https://github.com/Eclipseic1848/CoreMind)
+[Full documentation (repository access required)](https://github.com/Eclipseic1848/CoreMind)

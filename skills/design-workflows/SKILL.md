@@ -9,7 +9,7 @@ description: "Design, implement, test, or diagnose fixed workflows and explicit 
 2. Confirm the owner, success rule, verification rule, allowed repair scope, permissions, budgets, and irreversible effects before selecting an architecture.
 3. Use ordinary code for deterministic logic, `workflow` for fixed dependencies, and `loop` only for a genuine generate-verify-repair cycle.
 4. Write failing contracts before implementation for verification failure, exhaustion, no progress, approval denial, timeout, abort, transient errors, and resume.
-5. Set `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted`; never solve a defect by silently raising bounds.
+5. Set `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted`; never solve a defect by silently raising bounds. Agent verification requires `passIf`; published `0.8.0` host verification omits it and requires a durable host decision. An `accepted` control receipt is not a passing verification or final Run outcome.
 6. Inspect RunOutcome, ordered `loop_state` events, budgets, checkpoints, and effect receipts. A fluent answer without a passing verifier is not success.
 7. Resume only from a persisted stable CoreMind state. Do not replay committed effects, and pause for human reconciliation when an effect is unknown.
 8. Run the tests and commands listed in [module.yaml](../../docs/modules/design-workflows/module.yaml) and the [development SOP](../../docs/modules/design-workflows/SOP.en.md).

@@ -26,6 +26,7 @@ The internal state-machine dependency stays behind `LoopController` and is not p
 ## Reliability and effect boundaries
 
 - A failed verification must repair, pause, or fail; it cannot return success.
+- `0.8.0` supports agent and host verification. A durable host control accepts or rejects the candidate; `onVerification` only notifies the host.
 - `maxIterations`, `maxRepairs`, `maxRepeatedAction`, global budgets, and timeouts bound execution.
 - Only confirmed transient provider or network errors retry. Approval denials, security denials, invalid arguments, and deterministic business failures do not retry blindly.
 - Tool effects receive `started`, `committed`, or `unknown` receipts. Resume does not replay committed effects, while unknown effects pause for human reconciliation.

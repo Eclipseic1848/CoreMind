@@ -16,7 +16,7 @@ console.log(report.dependencyFamily, report.adapterVersion);
 
 1. Run `npm run dependencies:check` and confirm the three critical packages use one exact version.
 2. Run the adapter, Provider, tool, and Session tests in the module manifest.
-3. Run `coremind doctor .\coremind.yaml` and confirm compatibility is observable.
+3. In a project that has `coremind.yaml`, run `coremind doctor coremind.yaml` and confirm compatibility is observable; this example directory is not a standalone project.
 4. Inject one Provider failure and one abort, then verify outcome semantics do not drift.
 
 A business adapter should accept CoreMind-owned inputs and return CoreMind-owned results. If it must expose low-level objects to application callers, the seam is misplaced.

@@ -26,6 +26,7 @@
 ## 可靠性与副作用边界
 
 - verify 未通过时只能进入 repair、pause 或 fail，不能返回成功。
+- `0.8.0` 支持 Agent 验证和宿主验收两种模式；宿主模式由持久控制决定接受或拒绝，`onVerification` 回调仅通知候选。
 - `maxIterations`、`maxRepairs`、`maxRepeatedAction`、总预算和超时共同限制运行。
 - 只有确认的 Provider/网络瞬态错误会重试；审批拒绝、安全拒绝、参数错误和确定性业务失败不盲目重试。
 - 每次工具副作用记录 `started`、`committed` 或 `unknown` 收据。恢复时已提交副作用不重复执行，未知副作用先暂停并要求人工核对。

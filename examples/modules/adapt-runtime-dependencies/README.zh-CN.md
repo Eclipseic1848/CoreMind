@@ -16,7 +16,7 @@ console.log(report.dependencyFamily, report.adapterVersion);
 
 1. 运行 `npm run dependencies:check`，确认三个核心包只有一个精确版本。
 2. 运行模块清单中的 Adapter、Provider、工具和 Session 测试。
-3. 运行 `coremind doctor .\coremind.yaml`，确认兼容层可观察。
+3. 进入已有 `coremind.yaml` 的项目目录，运行 `coremind doctor coremind.yaml`，确认兼容层可观察；本示例目录不是独立项目。
 4. 注入一次 Provider 错误和一次 abort，确认终态没有语义漂移。
 
 自定义业务 Adapter 应接受 CoreMind 自有输入并返回 CoreMind 自有结果；如果必须把底层对象暴露给业务调用方，说明 seam 位置错误。

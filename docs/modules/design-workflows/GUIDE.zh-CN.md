@@ -9,6 +9,8 @@
 ## 第二步：写最小 Loop 配置
 
 ```yaml
+schemaVersion: 2
+name: verified-loop
 agents:
   coder:
     systemPrompt: 生成或修复候选结果
@@ -34,6 +36,8 @@ loop:
 ```
 
 `passIf` 必须是可验证的确定性条件。`onFailure: pause` 适合必须先由人工确认的业务；`onFailure: fail` 适合禁止自动修复的任务。
+
+`0.8.0` 中若由业务宿主验收，把上例的 `verify` 改为 `verify: { mode: host, timeoutMs: 30000 }`，并由宿主提交与请求身份和候选摘要绑定的 `acceptControl` 决定；此模式不使用 `passIf`。`accepted` 仅表示收件，最终仍需读取 Run 的 outcome。接入和离线演示见[宿主验收示例](../../../examples/host-verification/README.md)。
 
 ## 第三步：运行与观察
 

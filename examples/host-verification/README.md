@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-该能力从0.8.0发布线提供；公开0.7.1制品不包含此接口。请使用本分支构建产物，或在0.8.0公开发布后安装对应版本。
+宿主验收已随公开稳定版 `0.8.0` 提供；`0.7.1` 不包含此接口。本仓库示例使用当前源码构建，也可用同版本发布包接入。
 
 在仓库根目录构建后运行：
 
@@ -19,7 +19,7 @@ node examples/host-verification/demo.mjs
 
 ## Python 宿主接入
 
-使用同一开发提交构建的 Python 包和 bundled Worker，并以 `protocol_version="2.0"` 创建 `CoreMindClient`。配置中启用 `loop.verify.mode="host"`；execute、repair、maxIterations、maxRepairs 仍由原 Loop 配置控制。
+使用同版本的 Python 包与随包 bundled Worker（公开包为 `coremind-ai==0.8.0`），并以 `protocol_version="2.0"` 创建 `CoreMindClient`。配置中启用 `loop.verify.mode="host"`；execute、repair、maxIterations、maxRepairs 仍由原 Loop 配置控制。
 
 `client.run(...)` 返回 RunHandle 后，由宿主事件处理逻辑读取 `client.received_verification_requests`。SDK 已校验通知结构与文本摘要。以下片段处理一个请求；`accepted` 与 `feedback` 必须来自宿主独立验证，不来自模型自报 PASS：
 

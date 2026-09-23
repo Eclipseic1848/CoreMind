@@ -6,6 +6,8 @@ Verify resume after pause and non-replay of committed effects without creating a
 
 ## Procedure
 
+These commands are for an application project with a configured write tool and human approval. This example directory has no standalone `coremind.yaml` and cannot run them directly.
+
 ```text
 coremind run coremind.yaml --prompt "write acceptance text to result.md" --json-events
 ```

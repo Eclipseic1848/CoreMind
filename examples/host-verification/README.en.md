@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-This capability is part of the 0.8.0 release line and is absent from public 0.7.1 artifacts. Use a build of this branch, or install 0.8.0 after it is publicly available.
+Host verification is available in the published stable `0.8.0` release; `0.7.1` does not include this interface. This repository example runs from the current source build, and applications may use matching published packages.
 
 ```sh
 npm run build
@@ -17,7 +17,7 @@ In a consumer application, replace the example's string comparison with independ
 
 ## Python host integration
 
-Use the Python package and bundled Worker built from the same development commit. Create `CoreMindClient` with `protocol_version="2.0"` and configure `loop.verify.mode="host"`. The existing Loop configuration still owns execute, repair, maxIterations and maxRepairs.
+Use a Python package and bundled Worker from the same version (the published package is `coremind-ai==0.8.0`). Create `CoreMindClient` with `protocol_version="2.0"` and configure `loop.verify.mode="host"`. The existing Loop configuration still owns execute, repair, maxIterations and maxRepairs.
 
 After `client.run(...)` returns a RunHandle, the host event handler reads `client.received_verification_requests`. The SDK validates the notification structure and text digest. This fragment handles one request; `accepted` and `feedback` must come from independent host validation, not a model-generated PASS:
 

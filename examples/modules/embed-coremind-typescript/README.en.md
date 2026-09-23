@@ -14,6 +14,8 @@ console.log(JSON.stringify(result.snapshot));
 if (result.outcome.status !== 'succeeded') throw new Error(result.outcome.finishReason);
 ```
 
+For host verification, `onVerification` only notifies the candidate. The application replies through `runtime.acceptControl` and checks the final `result.outcome`; see the [offline example](../../host-verification/README.en.md).
+
 ## Verification
 
 1. Run the tests listed in the module manifest from the repository root.

@@ -33,7 +33,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：动态继承锁定运行时依赖的全部 Provider。`0.2.0-rc.1` 为 37 个继承入口；从 `0.3.0-rc.2` 到当前 `0.8.0` 稳定版均为 39 个继承入口，加上 CoreMind 原生入口共 40 个可配置 Provider。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的准确清单。继承支持不等于真实认证；仓库台账未收录 `0.8.0` 静态认证记录，正式发布必须另有同版本 strict-provider 工作流 Artifact。没有当前部署的真实密钥和证据时，只能称为可选 Provider。
+**内置提供商**：`0.8.0` 共提供 40 个可配置入口，包括 39 个继承入口和 1 个 CoreMind 原生入口；可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)尚未收录 `0.8.0` 认证记录；本次发布的 `alibaba-model-studio/qwen-plus` 严格认证证据保存在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0) 对应的 Candidate 工作流中。部署到其他模型、凭据或环境仍需单独复验。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 
@@ -200,7 +200,7 @@ loop:
   verify:
     agent: reviewer
     input: "验证：{{candidate.text}}"
-    passIf: "{{text}} == PASS"      # 必填：确定、可测试的通过条件
+    passIf: "{{text}} == PASS"      # Agent 验证模式必填
   repair:
     agent: coder
     input: "根据 {{verification.text}} 修复 {{candidate.text}}"
@@ -216,6 +216,23 @@ loop:
 Loop 在每个稳定状态保存版本化快照。使用 `coremind run coremind.yaml --resume <runId>` 可从暂停或意外中断的稳定边界继续。工具副作用同时记录 `started`、`committed` 或 `unknown` 收据：已提交副作用不自动重放，未知副作用要求人工核对。
 
 完整的失败注入、暂停恢复和耗尽处理见[验证修复黄金示例](../../examples/golden/verified-repair-loop/README.zh-CN.md)。
+
+### 宿主验收模式（0.8.0）
+
+业务应用需要自己验收候选时，可在原 Loop 中改用宿主验证。下面是 `loop` 配置片段，仍需在 `agents` 中定义 `coder`；`execute`、`repair` 和迭代上限仍由 Loop 管理：
+
+```yaml
+loop:
+  execute: { agent: coder, input: "{{prompt}}" }
+  verify: { mode: host, timeoutMs: 30000 }
+  repair: { agent: coder, input: "按宿主反馈修正：{{verification.text}}" }
+  maxIterations: 3
+  maxRepairs: 2
+  onFailure: repair
+  onExhausted: pause
+```
+
+宿主模式不设置 `verify.agent` 或 `passIf`。TypeScript 的 `onVerification` 只通知候选；宿主必须独立核对 Run、请求身份、候选摘要及业务对象，并用 `acceptControl` 提交接受或拒绝。Python 宿主显式启用 Protocol v2 后，用 `submit_verification` 回复。`accepted` 仅表示收件，`applied` 也不等于运行成功；最终读取 Projection outcome。拒绝后在**同一 Run** 内有界修复，未知结果和暂停状态不能作为验收通过。可运行的离线示例及恢复规则见[宿主验收示例](../../examples/host-verification/README.md)。
 
 ## runtime：多维预算
 
@@ -233,6 +250,8 @@ runtime:
 ```
 
 超限会产生结构化 `budget_exceeded` 事件并明确结束，不能伪装成成功。
+
+`provider.contextWindow` 是上下文容量，`provider.maxTokens` 是单次模型输出上限，`runtime.maxTokens` 是累计 Run 预算；启用 Child Run 时还要分别声明父级和目标的六维委派预算，不能互换这些数值。
 
 ## permissions：三档权限
 
@@ -288,7 +307,7 @@ strict 会让每个评测场景至少运行 3 次。安全门禁不可覆盖；�
 session:
   enabled: true             # 开启会话落盘
   dir: ./sessions           # 可选：存储目录（缺省为配置目录下 sessions）
-  compact: true             # 可选：上下文超预算时自动压缩（LLM 摘要，消耗 token）
+  compact: false            # 可选：默认关闭；设为 true 会额外请求模型生成摘要
 ```
 
 配合 `--session <id>`：保存本轮对话；再次运行同一 id 时**自动恢复历史**（重启后上下文不丢）。

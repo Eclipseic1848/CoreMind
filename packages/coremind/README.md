@@ -8,7 +8,7 @@ CoreMind 的 TypeScript/JavaScript 统一 SDK 门面。请只从 `coremind-ai` �
 
 `RunResult.snapshot` 是 CLI、Worker、TypeScript 与 Python 共用的纯 JSON 运行快照；门面同时导出受控生命周期扩展与可追踪轻量实验接口。
 
-[完整文档](https://github.com/Eclipseic1848/CoreMind)
+[完整文档（需仓库访问权限）](https://github.com/Eclipseic1848/CoreMind)
 
 ## English
 
@@ -18,4 +18,4 @@ Run results use six terminal states; the facade exports `LoopConfig`, `LoopPhase
 
 `RunResult.snapshot` is the shared pure-JSON run envelope, and the facade also exports bounded lifecycle-extension and traceable lightweight-experiment contracts.
 
-[Full documentation](https://github.com/Eclipseic1848/CoreMind)
+[Full documentation (repository access required)](https://github.com/Eclipseic1848/CoreMind)

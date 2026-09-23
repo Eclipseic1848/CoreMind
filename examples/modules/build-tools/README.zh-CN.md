@@ -18,7 +18,7 @@ const lookupOrder = defineTool({
 2. 配置类示例运行 `coremind check`。
 3. 业务输出类示例补充场景后运行 `coremind eval`。
 4. 主动注入一次失败，确认 RunOutcome 或退出码明确失败。
-5. 把参数改成嵌套的 `../secret.txt` 或 URL，并确认工作区/网络策略在执行前拒绝。
+5. 另用声明了 `pathFields` 或 `urlFields` 的测试工具传入工作区外的 `../secret.txt` 或禁止访问的 URL，确认工作区/网络策略在执行前拒绝；上面的 `lookup_order` 只有 `id` 参数，不承担路径或 URL 检查。
 6. 把工具名临时改为 `read`，确认定义或注册在执行前被拒绝；随后恢复业务专用名称。
 7. 运行 ProcessRunner、GitAdapter 与统一 Diff 的测试，确认超时、中止、输出上限、只读 Git 和超大文件均失败关闭。
 

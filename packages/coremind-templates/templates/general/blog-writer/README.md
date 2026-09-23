@@ -9,17 +9,18 @@
 
 ## 快速开始
 
-```bash
-coremind create my-blog --template blog-writer --provider alibaba-model-studio
+以下以 PowerShell 为例；Linux 将 `Copy-Item` 换为 `cp`。运行前请在复制出的 `.env` 中填入 `DASHSCOPE_API_KEY`。
+
+```powershell
+coremind create my-blog --template blog-writer --provider alibaba-model-studio --language typescript
 cd my-blog
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
-# 填入创建时所选 Provider 对应的环境变量
+Copy-Item .env.example .env
 coremind run coremind.yaml --prompt "写一篇关于 AI 入门的高中生活应用文章"
 ```
 
 ## 配置要点
 
-- 单步工作流完成撰写与保存，只请求一次 `write` 审批
+- 单步工作流要求 Agent 只调用一次 `write` 保存；`ask` 模式会对实际工具调用逐次请求批准
 - writer 只配备 `write` 工具；不得虚构用户未提供的产品功能、价格、网址或试用政策
 
 ## 调优提示

@@ -14,6 +14,8 @@ with CoreMindClient(config_path='coremind.yaml') as client:
     print(result['snapshot'])
 ```
 
+The example above uses the default Protocol v1 callable bridge. Host verification uses `protocol_version="2.0"`: `run()` returns a RunHandle, the host replies with `submit_verification`, and `query(runId)` reads the final result. V2 does not execute Python callables. See the [host verification example](../../host-verification/README.en.md).
+
 ## Verification
 
 1. Run the tests listed in the module manifest from the repository root.

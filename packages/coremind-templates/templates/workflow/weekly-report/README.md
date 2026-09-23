@@ -9,17 +9,17 @@
 
 ## 快速开始
 
+请在待汇总的 Node 代码仓库根目录使用 Linux 终端运行；仓库需提供 `npm run build` 和 `npm test`。`create .` 会向当前仓库添加 CoreMind 文件。复制后先在 `.env` 中填入 `DASHSCOPE_API_KEY`。模板依赖 `bash`；Windows 默认权限组合不允许执行该步骤。
+
 ```bash
-coremind create my-report --template weekly-report --provider alibaba-model-studio
-cd my-report
-Copy-Item .env.example .env   # Windows；Linux 使用 cp .env.example .env
-cd 你的代码仓库目录
+coremind create . --template weekly-report --provider alibaba-model-studio
+cp .env.example .env
 coremind run coremind.yaml
 ```
 
 ## 配置要点
 
-- 三个角色：collector（收集事实）、writer（撰写，已配置 `skills: [weekly-report]` 技能）
+- 两个角色：collector（收集事实）、writer（撰写，已配置 `skills: [weekly-report]` 技能）
 - 工作流：收集 git 历史 → `if` 判断有无变更 → `parallel` 并行跑构建/测试 → 一次生成并写入周报
 - 周报结构（技能约束）：本周工作 / 风险与阻塞 / 下周计划
 

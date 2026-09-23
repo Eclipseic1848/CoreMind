@@ -6,12 +6,14 @@
 
 ## 最小示例
 
-```text
+```powershell
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
-coremind check my-agent/coremind.yaml
-coremind eval my-agent/coremind.yaml
+Set-Location my-agent
+coremind check coremind.yaml
 ```
+
+在项目目录把 `.env.example` 复制为 `.env`，填入 `DASHSCOPE_API_KEY` 后，再运行 `coremind eval coremind.yaml`。CLI 从当前工作目录加载 `.env`。
 
 ## 验证
 
@@ -27,13 +29,15 @@ coremind eval my-agent/coremind.yaml
 
 ## 自动化契约
 
+以下示例使用 PowerShell 7 的 UTF-8 重定向；机器消费时分别保存 stdout JSONL 与 stderr 诊断。
+
 ```powershell
-coremind run coremind.yaml --prompt "执行验收" --json-events *> run-output.txt
+coremind run coremind.yaml --prompt "执行验收" --json-events 1> run-events.jsonl 2> run-errors.log
 $LASTEXITCODE
-Get-Content -LiteralPath run-output.txt -Encoding utf8 | Select-Object -Last 1
+Get-Content -LiteralPath run-events.jsonl -Encoding utf8 | Select-Object -Last 1
 ```
 
-正式脚本应分别重定向 stdout 与 stderr；上例只用于人工观察。退出码按 `0/1/2/3/124/130` 判断终态，JSONL 最后一行必须能解析为 `type: "run_result"`。不要通过搜索自然语言“成功”来判断执行结果。
+退出码按 `0/1/2/3/124/130` 判断终态，JSONL 最后一行必须能解析为 `type: "run_result"`；stderr 单独保存诊断。不要通过搜索自然语言“成功”来判断执行结果。
 
 机器调用应优先读取最后一行的 `snapshot`。顶层兼容字段仍保留，但 `snapshot` 是 CLI、Worker 和两个 SDK 的同一纯 JSON 终态信封。
 

@@ -8,10 +8,12 @@ Inherit the provider catalog from the locked runtime dependency while keeping av
 
 ```text
 provider:
-  id: deepseek
-  model: deepseek-chat
-  apiKeyEnv: DEEPSEEK_API_KEY
+  id: alibaba-model-studio
+  model: qwen-plus
+  apiKeyEnv: DASHSCOPE_API_KEY
 ```
+
+This is the provider/model pair certified in the `0.8.0` release candidate; reverify it with your credentials and deployment environment. See the [module overview](README.en.md) for the difference between Candidate evidence and the static matrix.
 
 ## Verification
 

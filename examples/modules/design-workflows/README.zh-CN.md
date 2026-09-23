@@ -23,6 +23,8 @@ loop:
 
 完整可运行项目见[验证修复黄金示例](../../golden/verified-repair-loop/README.zh-CN.md)。它会故意让第一次验证失败，并断言修复成功、暂停恢复和耗尽失败三条路径。
 
+公开 `0.8.0` 也支持宿主验收：把 `verify` 改为 `{ mode: host, timeoutMs: 30000 }`，不使用 `passIf`，由宿主持久提交决定；接入和离线演示见[宿主验收示例](../../host-verification/README.md)。
+
 ## 验证步骤
 
 1. 运行 `coremind check coremind.yaml`。
