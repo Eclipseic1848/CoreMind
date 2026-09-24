@@ -188,6 +188,7 @@ import {
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
 import { CoreMindSession } from "./session.js";
+import { compactSessionInRun } from "./session-maintenance.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
@@ -2924,6 +2925,69 @@ export class CoreMindRuntime {
       context.setHarnessFactory(undefined);
     }
 
+    let sessionFile: string | undefined;
+    let sessionPersisted = false;
+    if (terminalError === undefined && this.config.session?.enabled && this.options.sessionId) {
+      try {
+        sessionFile = await this.persistSession();
+        sessionPersisted = true;
+        const session = context.sessionHandle();
+        const remainingMs =
+          limits.runTimeoutMs > 0
+            ? Math.floor(limits.runTimeoutMs - (performance.now() - started))
+            : 0;
+        if (this.options.signal?.aborted || journal.isAborted()) {
+          journal.markAborted(knownTurnIdsFrom(collected));
+          this.abortAll();
+          throw new CoreMindError("aborted", "会话维护前运行已取消");
+        }
+        if (
+          session &&
+          this.config.session.compact &&
+          !this.options.signal?.aborted &&
+          (limits.runTimeoutMs === 0 || remainingMs > 0)
+        ) {
+          await this.runWithGuard(
+            remainingMs,
+            journal,
+            () => knownTurnIdsFrom(collected),
+            async () => {
+              const activity = this.executionEnvironment.beginActivity({
+                id: `session-maintenance:${runId}`,
+                kind: "network",
+              });
+              const signal = this.options.signal
+                ? AbortSignal.any([activity.signal, this.options.signal])
+                : activity.signal;
+              try {
+                await compactSessionInRun({
+                  runId,
+                  agent: this.mainAgentName,
+                  session,
+                  models: this.providerRuntime.models,
+                  model: this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model,
+                  budget,
+                  journal,
+                  signal,
+                  emit,
+                });
+              } finally {
+                activity.settle();
+              }
+            },
+          );
+        } else if (session && this.config.session.compact) {
+          await session.appendMaintenanceRecord({
+            runId,
+            status: "skipped",
+            reason: "deadline_exhausted",
+          });
+        }
+      } catch (error) {
+        terminalError = error;
+      }
+    }
+
     while (lifecycleFinalizers.size > 0) {
       await Promise.allSettled([...lifecycleFinalizers]);
     }
@@ -3008,13 +3072,15 @@ export class CoreMindRuntime {
       terminalError = deferredTerminalError;
     }
 
-    let sessionFile: string | undefined;
     // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）；
     // 审批拒绝等 paused（loop_paused）是可在用户处置后继续的暂停态，同样应落盘已确认部分，
     // 使持久事实可重建该 Run 的请求（规格 01 §2 请求重建契约的适用范围）
     const terminalCode = terminalError instanceof CoreMindError ? terminalError.code : undefined;
     context.setSessionPersistPaused(terminalCode === "loop_paused");
-    if (terminalError === undefined || journal.isAborted() || context.shouldTrimRejectedTrail()) {
+    if (
+      !sessionPersisted &&
+      (terminalError === undefined || journal.isAborted() || context.shouldTrimRejectedTrail())
+    ) {
       try {
         sessionFile = await this.persistSession();
       } catch (error) {
@@ -3419,6 +3485,8 @@ export class CoreMindRuntime {
         sessionId,
         cwd: this.options.cwd ?? process.cwd(),
       }));
+    if (!context.sessionHandle())
+      context.attachSession(cm, projectBranchMessages(await cm.branchEntries()));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
     let messages = mains.flatMap((main) =>
       main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
@@ -3431,11 +3499,6 @@ export class CoreMindRuntime {
       messages = trimRejectedTrail(messages);
     }
     await cm.appendMessages(messages);
-    // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
-    if (session.compact) {
-      const mainModel = this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model;
-      await cm.maybeCompact(this.providerRuntime.models, mainModel, mainModel.contextWindow);
-    }
     return cm.filePath;
   }
 }
