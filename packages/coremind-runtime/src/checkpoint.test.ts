@@ -1,11 +1,5 @@
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  realpathSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildTools, resolveToolCapability } from "coremind-tools";
@@ -49,7 +43,7 @@ describe("CheckpointManager", () => {
       runId: "target",
     });
     const record = (await manager.capture("write", args))!;
-    expect(record.targetPath).toBe(realpathSync(target));
+    expect(record.targetPath).toBe(await realpath(target));
     const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
     await tools[0]!.execute("call", args, undefined);
     expect(readFileSync(target, "utf8")).toBe("after");
