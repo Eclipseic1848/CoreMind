@@ -30,6 +30,7 @@
 ### Shell 与工具隔离
 
 - Linux：内置 `bash` 在操作系统级隔离中运行，固定禁止网络、仅允许写工作区，并在隔离不可用时拒绝执行，不回退宿主 Shell。该能力的关键依赖仍处于研究预览阶段。
+- Linux 的 `web-fetch` / `web-search` 使用单独声明的宿主网络域；仍受工具授权与 network 策略控制，不声称受到 Shell 的断网沙箱保护。Child Run 只要启用这些工具，就必须另外满足该网络域的实际能力要求。取消会等待父环境与网络活动共同收尾。
 - Windows：一期没有与 Linux 对等的操作系统级 Shell 隔离。宿主 Shell 只有在 `mode: full`、`workspaceOnly: false`、`network: allow` 三项同时明确选择时开放；其他组合全部拒绝并提示改用路径感知文件工具或隔离的 Linux 环境。发现 Git Bash 只解决命令解释器兼容性，不提供隔离。即使开放 Shell，显式 deny、Trace、Checkpoint、Diff、审计和恢复仍然生效。
 - 自定义 TypeScript/Python/脚本工具：必须声明 `effect.operations`、`effect.reversible` 和非标准目标字段；不会自动获得操作系统隔离。工具作者仍负责输入校验、最小权限、超时、幂等和副作用控制。
 
@@ -49,7 +50,7 @@ Protocol v2 `RunHandle` 只表示启动请求已接受，不表示 Provider 已�
 
 - 密钥只通过环境变量引用或嵌入式宿主提供的 `SecretRef` resolver 注入，不写入 YAML、源码、日志、Trace、截图或测试样例。CLI、Python SDK 与标准 Worker 不注入 resolver；无法解析时失败关闭且不回退其他来源。
 - 自定义 Provider 的敏感 Header 必须使用环境变量引用或 `SecretRef`。除 Authorization、Proxy-Authorization、X-API-Key 与 Cookie 外，`api-key`、`x-auth-token`、`x-access-token`、`x-goog-api-key`、`x-amz-security-token` 等常见别名也拒绝明文字面量。
-- Trace 在写入 RunState 和转发给观察者前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥与凭据字段；URL 凭据/敏感查询参数及命令中的敏感值也会替换。普通测试命令保留可审查性，正文类字段只保留长度标记。
+- Trace 在写入 RunState 和转发给观察者前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥与凭据字段；URL 凭据/敏感查询参数及命令中的敏感值也会替换。普通测试命令保留可审查性；工具参数正文只保留长度，恢复所需步骤输出保留非敏感正文，含可识别凭据时在落盘及宿主验收前返回 `redaction_failed`。流式输出会缓冲未闭合片段，可能延迟到本轮结束；安全缓冲上限为 65,536 字符，超限失败关闭。
 - 本地 Observability 默认显性可见，但只从 canonical facts 生成本机 Projection；启用本地视图不等于同意外传，Projection 也不能写回并成为恢复权威。
 - Telemetry 默认为 `DISABLED`：不构造 Exporter、不读取外传凭据、不发送网络请求。`FEEDBACK_ONLY` 只允许发送持久 consent 覆盖的有界事实前缀；`FULL` 也只允许发送配置生效后的 allowlist 字段。
 - 默认内容级别是 `metrics_only`。提示词、回复、工具参数/结果、命令、文件正文、完整路径、环境变量值和凭据不得外传；`content` 必须另行明确授权，不能从 `FULL` 模式推断。

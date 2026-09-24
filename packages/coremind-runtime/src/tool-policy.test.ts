@@ -6,6 +6,64 @@ import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
 describe("ToolPolicy", () => {
+  it("网络授权不会预批准含 URL 的写入或外部副作用", async () => {
+    const requests: ToolApprovalRequest[] = [];
+    const policy = new ToolPolicy({
+      cwd: process.cwd(),
+      runId: "network-scope",
+      createApprovalId: () => "approval",
+      permissions: { mode: "ask", workspaceOnly: false, network: "allow" },
+      approve: async (request) => {
+        requests.push(request);
+        return "deny";
+      },
+    });
+    for (const content of ["普通正文", "https://example.invalid"]) {
+      expect(await policy.authorize("main", "write", { path: "note.txt", content })).toMatchObject({
+        allowed: false,
+      });
+    }
+    expect(
+      await policy.authorize(
+        "main",
+        "send",
+        {},
+        {
+          operations: ["external"],
+          reversible: false,
+        },
+      ),
+    ).toMatchObject({ allowed: false });
+    expect(requests).toHaveLength(3);
+    expect(
+      await policy.authorize(
+        "main",
+        "fetch",
+        {},
+        {
+          operations: ["network"],
+          reversible: true,
+        },
+      ),
+    ).toMatchObject({ allowed: true, approvedBy: "configuration" });
+  });
+
+  it("Windows Shell 必须同时满足 full、非工作区限制和网络允许", async () => {
+    for (const mode of ["ask", "assisted", "full"] as const) {
+      for (const workspaceOnly of [true, false]) {
+        for (const network of ["ask", "deny", "allow"] as const) {
+          const policy = createPolicy(
+            { mode, workspaceOnly, network, allow: ["bash"] },
+            undefined,
+            "win32",
+          );
+          expect((await policy.authorize("main", "bash", { command: "echo test" })).allowed).toBe(
+            mode === "full" && !workspaceOnly && network === "allow",
+          );
+        }
+      }
+    }
+  });
   it("工作区目录别名与真实目标一致，Child allowlist 仍拒绝越界", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "coremind-policy-alias-"));
     const actual = path.join(root, "actual");

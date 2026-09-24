@@ -37,6 +37,8 @@ declare class ProtocolHost {
     private readonly protocolV2ToolRegistrations;
     private readonly pendingApprovals;
     private readonly pendingToolCalls;
+    /** 取消只能停止等待；收到迟到结果前不能宣称宿主 callable 已静止。 */
+    private readonly unsettledPythonCalls;
     private readonly settledProtocolV2ToolResults;
     private readonly closedProtocolV2ToolCalls;
     private readonly protocolV2Starts;

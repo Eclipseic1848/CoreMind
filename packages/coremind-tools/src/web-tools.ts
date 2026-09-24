@@ -160,11 +160,12 @@ async function withNetworkActivity<T>(
   signal: AbortSignal | undefined,
   invoke: (signal: AbortSignal | undefined) => Promise<T>,
 ): Promise<T> {
-  if (environment) {
-    const resolved = await resolveExecutionEnvironment(environment, {});
+  const networkEnvironment = environment?.hostNetwork ?? environment;
+  if (networkEnvironment) {
+    const resolved = await resolveExecutionEnvironment(networkEnvironment, {});
     if (resolved.capabilities.networkEgress !== "unrestricted") {
       throw new Error(
-        `执行环境 ${environment.id} 声明 ${resolved.capabilities.networkEgress}，host fetch 不在该控制边界内`,
+        `执行环境 ${networkEnvironment.id} 声明 ${resolved.capabilities.networkEgress}，host fetch 不在该控制边界内`,
       );
     }
   }
@@ -172,14 +173,21 @@ async function withNetworkActivity<T>(
     id: `network:${randomUUID()}`,
     kind: "network",
   });
-  const executionSignal = activity
-    ? signal
-      ? AbortSignal.any([signal, activity.signal])
-      : activity.signal
-    : signal;
+  let networkActivity: ReturnType<ExecutionEnvironment["beginActivity"]> | undefined;
   try {
+    if (networkEnvironment && networkEnvironment !== environment) {
+      networkActivity = networkEnvironment.beginActivity({
+        id: `host-network:${randomUUID()}`,
+        kind: "network",
+      });
+    }
+    const signals = [signal, activity?.signal, networkActivity?.signal].filter(
+      (item): item is AbortSignal => item !== undefined,
+    );
+    const executionSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
     return await invoke(executionSignal);
   } finally {
+    networkActivity?.settle();
     activity?.settle();
   }
 }

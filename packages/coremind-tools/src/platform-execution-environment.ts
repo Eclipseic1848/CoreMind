@@ -31,11 +31,18 @@ export function createPlatformExecutionEnvironment(input: {
 }): ExecutionEnvironment {
   const platform = input.platform ?? process.platform;
   if (platform === "linux") {
-    return createLinuxSandboxExecutionEnvironment({
+    const sandbox = createLinuxSandboxExecutionEnvironment({
       workspaceRoot: input.workspaceRoot,
       platform,
       probeSandbox: () => cachedLinuxSandboxProbe(input.workspaceRoot, input.env ?? process.env),
       probeProcessControl: () => (processTreeProbe ??= probeProcessTreeTermination()),
+    });
+    return Object.assign(sandbox, {
+      hostNetwork: createTrustedHostExecutionEnvironment({
+        workspaceRoot: input.workspaceRoot,
+        platform,
+        probeProcessControl: () => (processTreeProbe ??= probeProcessTreeTermination()),
+      }),
     });
   }
   return createTrustedHostExecutionEnvironment({

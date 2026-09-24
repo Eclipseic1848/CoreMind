@@ -125,32 +125,72 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
 }
 
 /** readline 模式（非交互终端回退）：单行输入 + 流式输出 + 工具行 */
-async function runReadlineChat(session: ChatSession, approvals: ApprovalQueue): Promise<void> {
-  const rl = createInterface({ input, output });
-  const unbindApprovals = bindReadlineApprovals(approvals, rl);
+export async function runReadlineChat(
+  session: ChatSession,
+  approvals: ApprovalQueue,
+  streams: { input: NodeJS.ReadableStream; output: NodeJS.WritableStream } = { input, output },
+): Promise<void> {
+  const rl = createInterface(streams);
+  let answerApproval: ((answer: string) => void) | undefined;
+  let activeChat: Promise<void> | undefined;
+  const unbindApprovals = bindReadlineApprovals(approvals, {
+    question: (prompt) => {
+      streams.output.write(prompt);
+      return new Promise<string>((resolve) => {
+        answerApproval = resolve;
+      });
+    },
+  });
   try {
-    while (true) {
-      const line = await rl.question(cyan("\n你 > "));
+    streams.output.write(cyan("\n你 > "));
+    for await (const line of rl) {
       const text = line.trim();
-      if (text === "") continue;
-      if (text === "/exit" || text === "!exit") break;
+      if (text === "/exit" || text === "!exit") {
+        session.abort();
+        break;
+      }
       if (text === "/abort" || text === "!abort") {
         session.abort();
-        console.log(dim("已中止，可继续提问"));
+        while (approvals.current) approvals.resolve("deny");
+        answerApproval?.("n");
+        answerApproval = undefined;
+        streams.output.write(dim("已请求中止，收尾后可继续提问\n"));
         continue;
       }
+      if (answerApproval) {
+        const answer = answerApproval;
+        answerApproval = undefined;
+        answer(text);
+        continue;
+      }
+      if (!text) continue;
       if (text === "/help") {
         printChatHelp();
         continue;
       }
-      process.stdout.write(`${dim("[assistant] ")}`);
-      await session.chat(text);
-      process.stdout.write("\n");
+      if (activeChat) {
+        streams.output.write(dim("当前回答尚未结束，可使用 /abort\n"));
+        continue;
+      }
+      streams.output.write(dim("[assistant] "));
+      activeChat = Promise.resolve()
+        .then(() => session.chat(text))
+        .then(() => {
+          streams.output.write("\n");
+        })
+        .catch((error: unknown) => {
+          console.error(errorLine(error instanceof Error ? error.message : String(error)));
+        })
+        .finally(() => {
+          activeChat = undefined;
+          streams.output.write(cyan("\n你 > "));
+        });
     }
-  } catch (error) {
-    console.error(errorLine(error instanceof Error ? error.message : String(error)));
   } finally {
     unbindApprovals();
+    answerApproval?.("n");
+    approvals.close();
+    await activeChat;
     rl.close();
   }
 }

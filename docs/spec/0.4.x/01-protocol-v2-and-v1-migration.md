@@ -141,3 +141,7 @@ Python SDK 只实现上述协议客户端，不读取私有 Run 数据库，也�
 #71 合并候选已验证真实 stdio Worker、Python 捆绑 Worker 与 Ubuntu/Windows CI；真实远程 Host、网络部署与 `0.4.0` 发布仍是独立门禁。
 
 这里的“v1/v2 × 四入口”是共享 Runtime 的语义矩阵，不要求本地 CLI/TUI 增加协议选择开关：#70 的四入口验收固定 CLI、TUI、TypeScript 与 Python 的共同 Fact、Outcome、RecoveryDecision；#71 的 ProtocolHost 验收再固定 v1/v2 对同一 Runtime 输入与完成态共同 Fact、Outcome、RecoveryDecision 的等价。两段证据都通过才关闭该矩阵，v2 专属 RunHandle、start identity、cursor 与 query 元数据不参与 v1 共同能力比较。
+
+### v1 Python 工具的 Run 结果归属补充
+
+Worker 在 v1 初始化能力中声明 `scopedToolResults` 时，SDK 在 `tool_result` 中回传通知原有的 `runId` 与 `callId`。未声明该能力的旧 Worker 仍接收原字段。Worker 对缺少 `runId` 且存在多个同名未收尾调用的结果失败关闭，不猜测归属。取消只停止本地等待；外部 Python 函数未返回前，关闭结果不得声称 `quiescent: true`。迟到结果只确认原调用收尾，不能完成另一 Run 的调用。

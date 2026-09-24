@@ -125,3 +125,7 @@ Windows 本地通过不能替代 Linux CI；离线 faux Provider 不能替代真
 - 实现 WSL/remote environment、MCP、Subagent/Child Run；
 - 新增第二 Runtime；
 - 自动提交、推送、PR、合并、tag、发布或真实外部 Provider 调用。
+
+### 默认 Linux Web 网络域
+
+默认 Linux 环境的 `deny_all`、路径和凭据隔离描述 Shell 域。可选 `ExecutionEnvironment.hostNetwork` 显式声明 Web 工具实际使用的宿主网络域，单独执行能力 probe；不把 Shell 的隔离能力借给宿主 fetch。启用 Web 工具的 Child Run 必须同时满足两个域的完整 environment 约束。网络活动同时登记到父域和宿主域，父域取消必须等待网络请求及响应体读取实际收尾。未显式声明宿主域的受控环境不能绕过自身 egress 限制。

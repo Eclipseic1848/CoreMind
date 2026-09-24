@@ -249,3 +249,7 @@ Release Candidate 另按[RC 验收指南](../release/RC-ACCEPTANCE.zh-CN.md)执�
 6. 由业务负责人确认结果；只有 `ReleaseReadiness.ready` 且人工门禁完成后才进入发布。
 
 可直接参考 [评测模块](../modules/evaluate-agents/README.zh-CN.md)、[5 个黄金示例](../../examples/golden/README.zh-CN.md)与[编码智能体真实缺陷评测](../../examples/coding-evals/README.zh-CN.md)。
+
+### Trace 凭据与流式输出
+
+Trace 在持久化及转发前清除可识别凭据。跨分块文本保留未闭合片段后再转发；连续无空白文本可能延迟到本轮结束，单片段安全缓冲上限为 65,536 字符，超限返回 `redaction_failed`。步骤候选正文若含可识别凭据，同样明确失败，不静默修改宿主验收依赖的原文或哈希。该保护不能识别任意格式的业务秘密，调用方仍应避免把敏感原文发送给模型。

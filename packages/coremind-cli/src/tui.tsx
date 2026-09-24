@@ -6,7 +6,7 @@ import type {
   RunResult,
 } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type ApprovalQueue,
   compactChildRunText,
@@ -22,7 +22,13 @@ interface MessageView {
   id: number;
   role: "user" | "assistant";
   text: string;
-  tools: Array<{ tool: string; args: unknown; callId?: string; isError?: boolean }>;
+  tools: Array<{
+    tool: string;
+    args: unknown;
+    callId?: string;
+    isError?: boolean;
+    ended?: boolean;
+  }>;
 }
 
 export interface ChatTUIProps {
@@ -41,7 +47,19 @@ const MAX_VISIBLE = 30;
  * 与 readline 模式共用同一 ChatSession 与事件流。
  */
 export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
-  const [messages, setMessages] = useState<MessageView[]>([]);
+  const [messages, updateMessages] = useState<MessageView[]>([]);
+  const setMessages = useCallback((update: (previous: MessageView[]) => MessageView[]) => {
+    updateMessages((previous) => {
+      const next = update(previous);
+      if (next === previous || next.length <= MAX_VISIBLE) return next;
+      // 仅额外保留尚未收到结果的工具消息，避免迟到结果失去显示绑定。
+      return next.filter(
+        (message, index) =>
+          index >= next.length - MAX_VISIBLE ||
+          message.tools.some((tool) => tool.isError === undefined && !tool.ended),
+      );
+    });
+  }, []);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -77,6 +95,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       if (event.type === "loop_state") {
         setLoopStatus(loopStateText(event.to, event.iteration, event.repairs));
       }
+      if (!["agent_start", "text_delta", "tool_call", "tool_result"].includes(event.type)) return;
       setMessages((prev) => {
         const next = [...prev];
         switch (event.type) {
@@ -131,7 +150,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       });
     };
     return session.onEvent(pushEvent);
-  }, [session]);
+  }, [session, setMessages]);
 
   const handleSubmit = async (text: string) => {
     const trimmed = text.trim();
@@ -271,6 +290,14 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         },
       ]);
     } finally {
+      setMessages((previous) =>
+        previous.map((message) => ({
+          ...message,
+          tools: message.tools.map((tool) =>
+            tool.isError === undefined ? { ...tool, ended: true } : tool,
+          ),
+        })),
+      );
       setBusy(false);
     }
   };
@@ -377,7 +404,13 @@ function MessageRow({ msg }: { msg: MessageView }) {
             {toolViews.map(({ tool, key }) => (
               <Text key={key} dimColor>
                 ⚙ {tool.tool}
-                {tool.isError === undefined ? " …" : tool.isError ? " ✗" : " ✓"}
+                {tool.isError === undefined
+                  ? tool.ended
+                    ? " ?"
+                    : " …"
+                  : tool.isError
+                    ? " ✗"
+                    : " ✓"}
               </Text>
             ))}
           </Box>

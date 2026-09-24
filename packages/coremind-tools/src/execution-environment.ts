@@ -44,6 +44,8 @@ export interface ExecutionEnvironmentProbe {
 }
 
 export interface ExecutionEnvironment {
+  /** 平台显式提供的宿主网络域；不继承 Shell 沙箱的隔离或断网声明。 */
+  readonly hostNetwork?: ExecutionEnvironment;
   readonly id: string;
   readonly claimedCapabilities: ExecutionEnvironmentCapabilities;
   probe(): Promise<ExecutionEnvironmentProbe>;

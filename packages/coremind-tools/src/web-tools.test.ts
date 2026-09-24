@@ -168,6 +168,31 @@ describe("createWebFetchTool", () => {
     },
   );
 
+  it("显式宿主网络域允许抓取，父环境取消等待两个域收尾", async () => {
+    const hostNetwork = createFakeExecutionEnvironment({
+      claimed: { networkEgress: "unrestricted" },
+      observed: { networkEgress: "unrestricted" },
+    });
+    const environment = Object.assign(
+      createFakeExecutionEnvironment({
+        claimed: { networkEgress: "deny_all" },
+        observed: { networkEgress: "deny_all" },
+      }),
+      { hostNetwork },
+    );
+    const tool = createWebFetchToolForEnvironment(environment);
+    const result = await tool.execute("page", { url: `http://127.0.0.1:${port}/page` }, undefined);
+    expect(JSON.stringify(result)).toContain("测试页");
+    const fetching = tool.execute("slow", { url: `http://127.0.0.1:${port}/slow-body` }, undefined);
+    await waitUntil(() => !hostNetwork.isQuiescent());
+    expect(environment.isQuiescent()).toBe(false);
+    const terminated = environment.terminate("测试取消");
+    await expect(fetching).rejects.toThrow();
+    await terminated;
+    expect(environment.isQuiescent()).toBe(true);
+    expect(hostNetwork.isQuiescent()).toBe(true);
+  });
+
   it("受控或拒绝 egress 的环境不能由 host fetch 绕过", async () => {
     const environment = createFakeExecutionEnvironment({
       claimed: { networkEgress: "deny_all" },

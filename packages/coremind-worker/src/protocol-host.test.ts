@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import {
   type CoreMindRuntimeOptions,
   FileRunStore,
+  fingerprintRunConfig,
+  parseAndValidate,
   type RunControlCommand,
   RunStateJournal,
 } from "coremind-ai";
@@ -20,6 +22,116 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it("并发追加事实时查询水位与返回投影来自同一快照", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-query-snapshot-"));
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const journal = new RunStateJournal("query", store);
+    await journal.start({ configName: "demo" });
+    await journal.flush();
+    const read = store.read.bind(store);
+    let reads = 0;
+    store.read = async (runId) => {
+      const records = await read(runId);
+      if (++reads === 1) {
+        journal.pause({ reason: "approval" });
+        await journal.flush();
+      }
+      return records;
+    };
+    const host = new ProtocolHost({ send: () => {}, runStoreFactory: () => store });
+    await initializeV2(host, dir);
+    const response = await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "query",
+      method: "query",
+      params: { runId: "query" },
+    });
+    expect(response).toMatchObject({
+      result: { derivedFromSequence: 2, projection: { status: "paused" } },
+    });
+  });
+
+  it("错误恢复输入不会写终态，正确输入仍可恢复", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-resume-precheck-"));
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const journal = new RunStateJournal("paused", store);
+    await journal.start({ configFingerprint: demoFingerprint(), initialPrompt: "original" });
+    journal.pause({ reason: "approval" });
+    await journal.flush();
+    const before = await store.read("paused");
+    const factory = vi.fn(async () => ({ run: () => new Promise<never>(() => {}) }));
+    const host = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+    await initializeV2(host, dir);
+    const resume = (input: string) =>
+      host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: input,
+        method: "resume",
+        params: { runId: "paused", input },
+      });
+    expect(await resume("wrong")).toMatchObject({
+      error: { data: { coremindCode: "resume_input_mismatch" } },
+    });
+    expect(await store.read("paused")).toEqual(before);
+    expect(factory).not.toHaveBeenCalled();
+    expect(await resume("original")).toMatchObject({ result: { runId: "paused" } });
+  });
+
+  it("关闭等待准入屏障，并阻止准入中的 Runtime 启动", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-shutdown-admission-"));
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const barrier = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const factory = vi.fn(async () => ({ run: () => new Promise<never>(() => {}) }));
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: factory,
+      runStoreFactory: (directory) =>
+        new FileRunStore(directory, {
+          beforeBarrier: async () => {
+            entered();
+            await gate;
+          },
+        }),
+    });
+    await initializeV2(host, dir);
+    const request = {
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "start",
+      method: "run",
+      params: { runId: "closing" },
+    };
+    const starting = host.handle(request);
+    await withTimeout(barrier, 2000);
+    const closing = host.shutdown();
+    release();
+    expect(await starting).toMatchObject({ error: { data: { coremindCode: "worker_closed" } } });
+    expect(await closing).toEqual({ closed: true, quiescent: true });
+    const reopened = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+    await initializeV2(reopened, dir);
+    expect(await reopened.handle(request)).toMatchObject({ result: { runId: "closing" } });
+    expect(await reopened.handle({ ...request, method: "query" })).toMatchObject({
+      result: {
+        projection: {
+          status: "finished",
+          outcome: { status: "failed", finishReason: "worker_closed" },
+        },
+      },
+    });
+    expect(await host.handle(request)).toMatchObject({
+      error: { data: { coremindCode: "worker_closed" } },
+    });
+    expect(factory).not.toHaveBeenCalled();
+  });
+
   it("失败终态持久化完成前保持 Worker busy，拒绝新运行抢占收尾", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-failure-finalization-"));
     let release!: () => void;
@@ -146,13 +258,13 @@ describe("ProtocolHost", () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-resume-operations-"));
     const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
     const journal = new RunStateJournal("repeated-resume", store);
-    await journal.start({ configName: "demo" });
+    await journal.start({ configName: "demo", configFingerprint: demoFingerprint() });
     journal.pause({ reason: "approval" });
     await journal.flush();
     let starts = 0;
     const factory = async (options: CoreMindRuntimeOptions) => {
       starts++;
-      const runtime = await completedParityRuntimeFactory()(options);
+      const runtime = await completedParityRuntimeFactory(false)(options);
       return {
         run: async () => {
           const result = await runtime.run();
@@ -1744,7 +1856,11 @@ describe("ProtocolHost", () => {
     try {
       const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
       const journal = new RunStateJournal(runId, store);
-      await journal.start({ configName: "serialized-control-resume" });
+      await journal.start({
+        configName: "serialized-control-resume",
+        configFingerprint: demoFingerprint(),
+        initialPrompt: "继续执行",
+      });
       journal.pause({
         outcome: {
           status: "paused",
@@ -2456,7 +2572,15 @@ describe("ProtocolHost", () => {
         return { run: () => new Promise<never>(() => {}) };
       },
     });
-    await initializeV2(resumeHost);
+    const resumeDir = await mkdtemp(path.join(tmpdir(), "coremind-valid-resume-"));
+    const resumeJournal = new RunStateJournal(
+      "paused-run",
+      new FileRunStore(path.join(resumeDir, ".coremind", "runs")),
+    );
+    await resumeJournal.start({ configFingerprint: demoFingerprint(), initialPrompt: "继续执行" });
+    resumeJournal.pause({ reason: "approval" });
+    await resumeJournal.flush();
+    await initializeV2(resumeHost, resumeDir);
     const resume = await resumeHost.handle({
       jsonrpc: "2.0",
       protocolVersion: "2.0",
@@ -2532,7 +2656,7 @@ describe("ProtocolHost", () => {
       send: () => {},
       runtimeFactory: async (options) => {
         starts.push(options);
-        const runtime = await completedParityRuntimeFactory()(options);
+        const runtime = await completedParityRuntimeFactory(!!options.resumeRunId)(options);
         return {
           run: async () => {
             const result = await runtime.run();
@@ -2576,7 +2700,7 @@ describe("ProtocolHost", () => {
       protocolVersion: "2.0",
       id: "resume-after-run",
       method: "resume",
-      params: { runId: "same-host-resume", input: "恢复执行" },
+      params: { runId: "same-host-resume", input: "初次执行" },
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -2587,7 +2711,7 @@ describe("ProtocolHost", () => {
     expect(starts[1]).toMatchObject({
       runId: "same-host-resume",
       resumeRunId: "same-host-resume",
-      initialPrompt: "恢复执行",
+      initialPrompt: "初次执行",
       protocolStart: { method: "resume" },
     });
   });
@@ -3002,7 +3126,7 @@ describe("ProtocolHost", () => {
   });
 });
 
-function completedParityRuntimeFactory() {
+function completedParityRuntimeFactory(finish = true) {
   return async (options: CoreMindRuntimeOptions) => ({
     run: async () => {
       const runId = options.runId!;
@@ -3021,10 +3145,12 @@ function completedParityRuntimeFactory() {
       );
       await journal.start({
         configName: "parity",
+        configFingerprint: fingerprintRunConfig(options.config),
+        initialPrompt: options.initialPrompt,
         ...(options.protocolStart ? { protocolStart: options.protocolStart } : {}),
       });
       journal.event(entry);
-      journal.finish({ outcome: { status: "succeeded", finishReason: "completed" } });
+      if (finish) journal.finish({ outcome: { status: "succeeded", finishReason: "completed" } });
       await journal.flush();
       const operation = {
         schemaVersion: 1 as const,
@@ -3301,4 +3427,10 @@ async function withTimeout<T>(
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+function demoFingerprint(): string {
+  return fingerprintRunConfig(
+    parseAndValidate({ schemaVersion: 2, name: "demo", agents: { main: {} } }).config,
+  );
 }
