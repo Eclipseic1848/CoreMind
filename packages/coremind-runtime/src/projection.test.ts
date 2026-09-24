@@ -201,6 +201,11 @@ describe("ProjectionEngine", () => {
     });
     expect(projection.snapshot?.artifacts).toEqual(projection.artifacts);
     expect(projection.snapshot?.extensions).toEqual(projection.extensions);
+    // 调用方修改投影不能污染作为唯一事实来源的输入。
+    projection.trace[0]!.event.type = "agent_end";
+    projection.checkpoints[0]!.reversible = false;
+    expect(trace[0]!.event.type).toBe("approval_required");
+    expect(checkpoint.reversible).toBe(true);
   });
 
   it("legacy 前缀只按已知 Facts 降级，混入其他 runId 时失败关闭", () => {

@@ -32,6 +32,7 @@ import {
   type ProtocolToolResultFact,
   prepareProtocolToolResultFact,
   type RunId,
+  validateRunFacts,
 } from "coremind-ai/internal";
 import {
   createErrorResponse,
@@ -539,7 +540,7 @@ export class ProtocolHost {
     if (records.length === 0) {
       throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
     }
-    const projection = ProjectionEngine.project(records);
+    validateRunFacts(records);
     const latestSequence = records.at(-1)!.sequence;
     if (request.params.afterSequence > latestSequence) {
       throw new CoreMindError(
@@ -567,7 +568,7 @@ export class ProtocolHost {
         runId: request.params.runId,
         newCursor: window.retainedFromSequence - 1,
         derivedFromSequence: latestSequence,
-        projection,
+        projection: ProjectionEngine.project(records),
       });
     }
     const page = window.records

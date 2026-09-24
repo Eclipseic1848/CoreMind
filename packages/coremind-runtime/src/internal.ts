@@ -42,6 +42,7 @@ export {
   type RecoveryDecision,
   type RunProjection,
   type RunProjectionStatus,
+  validateRunFacts,
 } from "./projection.js";
 export { buildProviderRuntime, resolveProviderSecurity } from "./provider.js";
 export { RunContext } from "./run-context.js";

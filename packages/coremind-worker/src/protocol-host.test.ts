@@ -2281,6 +2281,75 @@ describe("ProtocolHost", () => {
     }
   });
 
+  it("分页与空页都拒绝页外的损坏事实，不能只校验返回事件", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-events-prefix-validation-"));
+    const runId = "invalid-prefix-run";
+    try {
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      await mkdir(path.dirname(store.pathFor(runId)), { recursive: true });
+      const host = new ProtocolHost({ send: () => {} });
+      await initializeV2(host, dir);
+      const badFacts = [
+        {
+          kind: "event",
+          payload: {
+            eventId: "bad-event",
+            runId,
+            sequence: 1,
+            timestamp: "2026-09-23T00:00:00.000Z",
+            event: { type: "agent_start" },
+          },
+        },
+        { kind: "finish", payload: { outcome: { status: "invalid" } } },
+        { kind: "checkpoint", payload: { checkpointId: "incomplete" } },
+        { kind: "control", payload: {} },
+        { kind: "delegation", payload: {} },
+        { kind: "telemetry_consent", payload: {} },
+      ];
+      for (const badFact of badFacts) {
+        const records = [
+          { kind: "start", payload: { configName: "prefix-validation" } },
+          badFact,
+          {
+            kind: "event",
+            payload: {
+              eventId: "good-event",
+              runId,
+              sequence: 2,
+              timestamp: "2026-09-23T00:00:01.000Z",
+              event: { type: "agent_start", agent: "main" },
+            },
+          },
+        ].map((fact, index) => ({
+          version: 1,
+          runId,
+          sequence: index + 1,
+          timestamp: "2026-09-23T00:00:00.000Z",
+          ...fact,
+        }));
+        await writeFile(
+          store.pathFor(runId),
+          `${records.map((record) => JSON.stringify(record)).join("\n")}\n`,
+          "utf8",
+        );
+        for (const afterSequence of [0, 2, 3]) {
+          const response = await host.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "page",
+            method: "events",
+            params: { runId, afterSequence, limit: 1 },
+          });
+          expect(response, `${badFact.kind}, cursor=${afterSequence}`).toMatchObject({
+            error: { data: { coremindCode: "run_state_corrupt" } },
+          });
+        }
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("持久前缀中的未知事件类型失败关闭", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-protocol-v2-unknown-event-"));
     const runId = "unknown-event-run";

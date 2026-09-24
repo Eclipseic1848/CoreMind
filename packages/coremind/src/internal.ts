@@ -18,4 +18,5 @@ export {
   type RunProjection,
   type RunProjectionStatus,
   resolveProviderSecurity,
+  validateRunFacts,
 } from "coremind-runtime/internal";
