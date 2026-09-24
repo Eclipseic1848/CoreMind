@@ -119,3 +119,7 @@ The [Coding Agent module](../../modules/build-coding-agents/README.en.md) and [r
 ## Release-candidate acceptance
 
 Follow the [RC acceptance guide](../../release/RC-ACCEPTANCE.en.md) for P01-P20. P01-P19 require both the automated suite and exact test-title evidence anchors. P20 requires real Windows and Linux TTY records bound to the same version and commit. A current live-provider recheck and target-platform CI are independent gates and cannot be inferred from the automated matrix.
+
+### Trace credentials and streaming output
+
+Trace removes recognizable credentials before persistence and forwarding. Streaming text retains incomplete fragments until they can be redacted; text without whitespace may wait until the turn ends. An unclosed fragment exceeding 65,536 characters fails with `redaction_failed`. Step candidates containing recognizable credentials also fail explicitly, rather than silently changing the text or hash used for host verification. This protection cannot recognize arbitrary business secrets; callers should still avoid sending sensitive source text to a model.
