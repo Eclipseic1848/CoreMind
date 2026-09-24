@@ -301,7 +301,8 @@ export class ToolPolicy {
     const canonicalCwd = await canonicalize(lexicalCwd);
     for (const candidate of candidates) {
       const addressed = path.resolve(lexicalCwd, candidate);
-      if (isOutside(lexicalCwd, addressed)) return candidate;
+      // 已绑定的文件目标可能使用短路径或目录链接对应的真实根。
+      if (isOutside(lexicalCwd, addressed) && isOutside(canonicalCwd, addressed)) return candidate;
       const canonicalTarget = await canonicalize(addressed);
       if (isOutside(canonicalCwd, canonicalTarget)) return candidate;
     }
@@ -322,7 +323,8 @@ export class ToolPolicy {
       const canonicalTarget = await canonicalize(lexicalTarget);
       const allowed = allowedRoots.some(
         (root) =>
-          !isOutside(root.lexical, lexicalTarget) && !isOutside(root.canonical, canonicalTarget),
+          (!isOutside(root.lexical, lexicalTarget) || !isOutside(root.canonical, lexicalTarget)) &&
+          !isOutside(root.canonical, canonicalTarget),
       );
       if (!allowed) return candidate;
     }
