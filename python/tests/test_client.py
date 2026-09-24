@@ -4,6 +4,8 @@ import json
 import asyncio
 import sys
 import time
+import threading
+import queue
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +19,61 @@ from coremind.client import (
 
 
 class CoreMindClientTest(unittest.TestCase):
+    def test_event_handler_can_call_client_without_blocking_reader(self) -> None:
+        done = threading.Event()
+        errors = []
+        def callback(event):
+            try:
+                client.inspect_run("run-1")
+            except Exception as error:
+                errors.append(error)
+            finally:
+                done.set()
+        with CoreMindClient({"schemaVersion": 2, "name": "demo", "agents": {"main": {}}},
+                            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+                            event_handler=callback, request_timeout=0.5) as client:
+            client.run("回调重入")
+            self.assertTrue(done.wait(2))
+            self.assertEqual(errors, [])
+
+    def test_slow_callback_overflow_is_visible_and_does_not_block_requests(self) -> None:
+        entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+        seen = []
+        def callback(event):
+            seen.append(event["index"])
+            entered.set()
+            release.wait(3)
+            if len(seen) == 3:
+                finished.set()
+        with CoreMindClient({"schemaVersion": 2, "name": "demo", "agents": {"main": {}}},
+                            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+                            event_handler=callback) as client:
+            client._event_queue = queue.Queue(maxsize=2)
+            client._handle_notification({"method": "event", "params": {"index": 0}})
+            self.assertTrue(entered.wait(2))
+            try:
+                for index in range(1, 5):
+                    client._handle_notification({"method": "event", "params": {"index": index}})
+                self.assertIsNotNone(client.event_handler_error)
+                self.assertEqual(len(client.received_events), 5)
+                client.inspect_run("run-1")
+            finally:
+                release.set()
+            self.assertTrue(finished.wait(2))
+            self.assertEqual(seen, [0, 1, 2])
+
+    def test_callback_can_close_client(self) -> None:
+        done = threading.Event()
+        def callback(event):
+            client.close()
+            done.set()
+        with CoreMindClient({"schemaVersion": 2, "name": "demo", "agents": {"main": {}}},
+                            worker_command=[sys.executable, str(Path(__file__).with_name("fake_worker.py"))],
+                            event_handler=callback) as client:
+            client._handle_notification({"method": "event", "params": {}})
+            self.assertTrue(done.wait(3))
+            self.assertFalse(client._reader.is_alive())
+
     def test_resume_operation_reuses_unknown_request_and_advances_after_acceptance(self) -> None:
         worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py"))]
         with CoreMindClient({"schemaVersion": 2, "name": "resume-sdk", "agents": {"main": {}}},
@@ -85,10 +142,14 @@ class CoreMindClientTest(unittest.TestCase):
     def setUp(self) -> None:
         worker = Path(__file__).with_name("fake_worker.py")
         self.events: list[dict] = []
+        self.event_received = threading.Event()
+        def on_event(event):
+            self.events.append(dict(event))
+            self.event_received.set()
         self.client = CoreMindClient(
             {"schemaVersion": 2, "name": "demo", "agents": {"main": {}}},
             worker_command=[sys.executable, str(worker)],
-            event_handler=lambda event: self.events.append(dict(event)),
+            event_handler=on_event,
             request_timeout=5,
         )
 
@@ -113,6 +174,7 @@ class CoreMindClientTest(unittest.TestCase):
         )
         self.assertEqual(second["transcript"], "完成")
         self.assertEqual(self.client.pid, pid)
+        self.assertTrue(self.event_received.wait(2))
         self.assertEqual(self.events[0]["event"]["type"], "agent_start")
 
     def test_event_callback_failure_does_not_stop_protocol_reader(self) -> None:
@@ -133,6 +195,9 @@ class CoreMindClientTest(unittest.TestCase):
             self.assertEqual(client.pid, pid)
             self.assertTrue(client._reader and client._reader.is_alive())
             self.assertTrue(client.received_events)
+            deadline = time.monotonic() + 2
+            while "event_handler 回调失败：ValueError" not in client._stderr_tail and time.monotonic() < deadline:
+                time.sleep(0.01)
             self.assertIn("event_handler 回调失败：ValueError", client._stderr_tail)
             self.assertNotIn("敏感内容", "\n".join(client._stderr_tail))
 

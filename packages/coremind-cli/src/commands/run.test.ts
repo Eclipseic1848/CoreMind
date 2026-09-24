@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { CoreMindRuntime } from "coremind-ai";
+import { describe, expect, it, vi } from "vitest";
 import { formatObservabilityStatus } from "../observability-format.js";
-import { exitCodeForRunStatus } from "./run.js";
+import { cmdRun, exitCodeForRunStatus } from "./run.js";
 
 describe("run 终态退出码", () => {
   it.each([
@@ -97,4 +101,53 @@ describe("本地观测状态", () => {
       "queue 0 / handed-off 0 / failed 0 / dropped 0 / duplicates 0 / shutdown-timeout false",
     );
   });
+});
+
+it("--print 在工具事件和恢复会话时仅输出最终正文", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "coremind-print-"));
+  const file = path.join(dir, "config.json");
+  await writeFile(
+    file,
+    JSON.stringify({
+      schemaVersion: 2,
+      name: "print-test",
+      agents: { main: { model: "openai/gpt-4o-mini" } },
+    }),
+    "utf8",
+  );
+  const chunks: string[] = [];
+  const stdout = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    chunks.push(String(chunk));
+    return true;
+  });
+  const logs = vi.spyOn(console, "log").mockImplementation((...args) => {
+    chunks.push(args.join(" "));
+  });
+  const create = vi.spyOn(CoreMindRuntime, "create").mockImplementation(async (options) => {
+    options.events?.({ type: "agent_start", agent: "main", timestamp: Date.now() } as never);
+    options.events?.({
+      type: "text_delta",
+      agent: "main",
+      text: "增量",
+      timestamp: Date.now(),
+    } as never);
+    return {
+      resumedContextLength: 2,
+      run: async () => ({
+        transcript: "最终正文",
+        sessionFile: "session.jsonl",
+        outcome: { status: "succeeded" },
+      }),
+    } as unknown as CoreMindRuntime;
+  });
+  try {
+    expect(await cmdRun({ flags: new Map([["print", true]]), positionals: [file] }, [file])).toBe(
+      0,
+    );
+    expect(chunks.join("")).toBe("最终正文\n");
+  } finally {
+    create.mockRestore();
+    stdout.mockRestore();
+    logs.mockRestore();
+  }
 });

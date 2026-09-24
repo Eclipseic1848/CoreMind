@@ -52,6 +52,10 @@ class CoreMindClient:
         self._session_id = session_id
         self._worker_command = list(worker_command) if worker_command else None
         self._event_handler = event_handler
+        self._event_queue: queue.Queue[Mapping[str, Any]] = queue.Queue(maxsize=1024)
+        self._event_dispatcher: threading.Thread | None = None
+        self._event_stop = threading.Event()
+        self.event_handler_error: CoreMindError | None = None
         self._approval_handler = approval_handler
         self._request_timeout = request_timeout
         self._protocol_version = protocol_version
@@ -172,6 +176,10 @@ class CoreMindClient:
                 self._process = None
                 raise
             self._started = True
+            self._event_stop.clear()
+            if self._event_handler and self._event_dispatcher is None:
+                self._event_dispatcher = threading.Thread(target=self._event_loop, daemon=True)
+                self._event_dispatcher.start()
             return self
 
     def run(self, input: str | None = None, *, run_id: str | None = None) -> dict[str, Any]:
@@ -664,6 +672,19 @@ class CoreMindClient:
                 except queue.Full:
                     pass
 
+    def _event_loop(self) -> None:
+        while not self._event_stop.is_set():
+            try:
+                params = self._event_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            try:
+                if self._event_handler:
+                    self._event_handler(params)
+            except Exception as error:
+                # 用户异常不能中断协议读取，也不记录可能含敏感数据的正文。
+                self._stderr_tail.append(f"event_handler 回调失败：{type(error).__name__}")
+
     def _stderr_loop(self) -> None:
         process = self._process
         if not process or not process.stderr:
@@ -687,12 +708,6 @@ class CoreMindClient:
             return
         if method == "event":
             self.received_events.append(params)
-            if self._event_handler:
-                try:
-                    self._event_handler(params)
-                except Exception as error:
-                    # 用户回调失败不能中断协议读取，也不记录可能含敏感数据的异常正文。
-                    self._stderr_tail.append(f"event_handler 回调失败：{type(error).__name__}")
             event = params.get("event")
             if isinstance(event, Mapping) and event.get("type") == "approval_required":
                 threading.Thread(
@@ -700,6 +715,14 @@ class CoreMindClient:
                     args=(params, event),
                     daemon=True,
                 ).start()
+            if self._event_handler and self.event_handler_error is None:
+                try:
+                    self._event_queue.put_nowait(params)
+                except queue.Full:
+                    self.event_handler_error = CoreMindError(
+                        "event_handler 队列已满，停止投递回调；完整通知仍保留在 received_events"
+                    )
+                    self._stderr_tail.append(str(self.event_handler_error))
         elif method == "python_tool_call":
             threading.Thread(target=self._execute_python_tool, args=(params,), daemon=True).start()
         elif method == "tool_call" and self._protocol_version == PROTOCOL_V2_VERSION:
@@ -794,6 +817,9 @@ class CoreMindClient:
         return WorkerExitedError(f"CoreMind worker 已退出{suffix}")
 
     def _terminate_process(self) -> None:
+        self._event_stop.set()
+        if self._event_dispatcher and self._event_dispatcher is not threading.current_thread():
+            self._event_dispatcher.join(timeout=1)
         process = self._process
         if not process:
             return
