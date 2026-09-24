@@ -16,6 +16,7 @@ export async function compactSessionInRun(options: {
   session: CoreMindSession;
   models: Models;
   model: Model<any>;
+  apiKeyOverride?: string;
   budget: RunBudgetController;
   journal: RunStateJournal;
   signal: AbortSignal;
@@ -71,6 +72,7 @@ export async function compactSessionInRun(options: {
     try {
       const response = await models.completeSimple(requestModel, requestContext, {
         ...requestOptions,
+        ...(options.apiKeyOverride ? { apiKey: options.apiKeyOverride } : {}),
         signal,
         maxRetries: 0,
       });
@@ -115,5 +117,6 @@ export async function compactSessionInRun(options: {
     { enabled: true, maxRetries: budget.limits.maxRetries, baseDelayMs: 250 },
   );
   signal.throwIfAborted();
+  budget.throwIfExceeded();
   await session.appendMaintenanceRecord({ runId, status: compacted ? "compacted" : "unchanged" });
 }

@@ -3223,9 +3223,11 @@ export declare class TraceRecorder {
     readonly runId: string;
     private readonly forward?;
     private sequence;
+    private readonly pendingText;
     readonly entries: CoreMindTraceEvent[];
     constructor(runId: string, forward?: ((entry: CoreMindTraceEvent) => void) | undefined, initialEntries?: CoreMindTraceEvent[]);
     record(event: CoreMindEvent): CoreMindTraceEvent;
+    private append;
 }
 
 export declare interface TrajectoryGrader extends GraderBase {

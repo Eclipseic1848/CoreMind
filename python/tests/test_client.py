@@ -19,6 +19,30 @@ from coremind.client import (
 
 
 class CoreMindClientTest(unittest.TestCase):
+    def test_chat_preserves_explicit_run_id_in_both_protocols(self) -> None:
+        for version in ("1.0", "2.0"):
+            client = CoreMindClient({"schemaVersion": 2, "name": "demo", "agents": {"main": {}}},
+                                    protocol_version=version)
+            with patch.object(client, "start"), patch.object(client, "_request_raw", return_value={}) as request, \
+                 patch("coremind.client._validate_run_result", return_value={}), \
+                 patch("coremind.client._validate_run_handle", return_value={}):
+                client.chat("hello", run_id="caller-stable-id")
+                self.assertEqual(request.call_args.args[1]["runId"], "caller-stable-id")
+
+    def test_python_tool_results_scope_run_only_when_negotiated(self) -> None:
+        for scoped in (False, True):
+            client = CoreMindClient({"schemaVersion": 2, "name": "demo", "agents": {"main": {}}})
+            client._capabilities = frozenset({"scopedToolResults"} if scoped else ())
+            client._tools["probe"] = (lambda: "ok", {})
+            with patch.object(client, "_request_raw", return_value={}) as request:
+                client._execute_python_tool({"runId": "run", "callId": "call", "tool": "probe", "args": {}})
+                expected = {"callId": "call", "result": "ok"}
+                if scoped:
+                    expected["runId"] = "run"
+                self.assertEqual(request.call_args.args, ("tool_result", expected))
+                client._execute_python_tool({"runId": "run", "callId": "call", "tool": "missing"})
+                self.assertEqual("runId" in request.call_args.args[1], scoped)
+
     def test_event_handler_can_call_client_without_blocking_reader(self) -> None:
         done = threading.Event()
         errors = []

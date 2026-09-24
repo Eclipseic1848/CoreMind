@@ -150,7 +150,9 @@ export class ToolPolicy {
     if (
       tool === "bash" &&
       (this.options.platform ?? process.platform) === "win32" &&
-      (this.permissions.workspaceOnly || this.permissions.network !== "allow")
+      (this.permissions.mode !== "full" ||
+        this.permissions.workspaceOnly ||
+        this.permissions.network !== "allow")
     ) {
       return {
         allowed: false,
@@ -240,7 +242,7 @@ export class ToolPolicy {
     } else {
       if (
         matchesAny(tool, this.permissions.allow) ||
-        (networkTool && this.permissions.network === "allow")
+        (capability.effect === "network" && this.permissions.network === "allow")
       ) {
         return { allowed: true, reason: "配置已预先允许", approvedBy: "configuration" };
       }

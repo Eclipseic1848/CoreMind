@@ -153,9 +153,10 @@ export function bindReadlineApprovals(
           ? `\nChild Run 委派审批：${delegation.target}\n任务：${delegation.task}\n预算：${delegation.budget}\n层级：${delegation.hierarchy}\n引用：${delegation.references}\n授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批\n原因：${display.reason}\n允许？[y/N] `
           : `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
       );
-      queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");
+      if (queue.current?.request === pending.request)
+        queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");
     } catch {
-      queue.resolve("deny");
+      if (queue.current?.request === pending.request) queue.resolve("deny");
     } finally {
       asking = false;
       if (queue.current) void askCurrent();

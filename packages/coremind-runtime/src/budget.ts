@@ -111,6 +111,15 @@ export class RunBudgetController {
 
   beforeModelRequest(): void {
     this.throwIfExceeded();
+    for (const [dimension, limit, actual] of [
+      ["tokens", this.limits.maxTokens, this.tokens + this.reserved.tokens],
+      ["costUsd", this.limits.maxCostUsd, this.costUsd + this.reserved.costUsd],
+    ] as const) {
+      if (limit !== undefined && actual >= limit) {
+        this.fail(dimension, limit, actual, `模型请求剩余 ${dimension} 预算不足`);
+        this.throwIfExceeded();
+      }
+    }
     if (this.requestedTurns >= this.limits.maxTurns) {
       this.fail(
         "turns",

@@ -2328,6 +2328,7 @@ id: TUnion<[TString, TNumber]>;
 method: TLiteral<"tool_result">;
 params: TObject<    {
 callId: TString;
+runId: TOptional<TString>;
 result: TOptional<TUnknown>;
 error: TOptional<TString>;
 }>;
@@ -4152,6 +4153,7 @@ id: TUnion<[TString, TNumber]>;
 method: TLiteral<"tool_result">;
 params: TObject<    {
 callId: TString;
+runId: TOptional<TString>;
 result: TOptional<TUnknown>;
 error: TOptional<TString>;
 }>;

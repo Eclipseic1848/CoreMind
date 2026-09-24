@@ -4,6 +4,16 @@ import { RunBudgetController, resolveRuntimeLimits } from "./budget.js";
 import type { CoreMindEvent } from "./events.js";
 
 describe("RunBudgetController", () => {
+  it("恰好用满 Token 或费用后不得发出新请求，但已完成请求仍可成功", () => {
+    for (const limits of [{ maxTokens: 10 }, { maxCostUsd: 1 }]) {
+      const budget = new RunBudgetController(resolveRuntimeLimits(limits, {}), () => {});
+      budget.beforeModelRequest();
+      budget.observeAgentEvent(turnEndEvent({ totalTokens: 10, cost: 1 }));
+      expect(() => budget.throwIfExceeded()).not.toThrow();
+      expect(budget.canRequestModel()).toBe(false);
+      expect(() => budget.beforeModelRequest()).toThrow("预算不足");
+    }
+  });
   it("请求前同步限制并行和恢复后的轮数", () => {
     const budget = new RunBudgetController(resolveRuntimeLimits({ maxTurns: 1 }, {}), () => {});
     budget.beforeModelRequest();

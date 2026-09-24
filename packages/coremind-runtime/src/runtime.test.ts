@@ -158,6 +158,84 @@ describe("CoreMindRuntime", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+  it("步骤凭据输出明确失败且不进入持久事实", async () => {
+    const secret = "sk-syntheticcredential123456";
+    const server = createTextSequenceServer([secret]);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-output-redaction-"));
+    const store = new FileRunStore(path.join(cwd, "runs"));
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        runId: "secret-output",
+        runStore: store,
+        initialPrompt: "生成结果",
+        config: {
+          schemaVersion: 2,
+          name: "脱敏",
+          agents: { main: {} },
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          workflow: [{ id: "output", type: "prompt", agent: "main", input: "生成结果" }],
+        },
+      });
+      const result = await runtime.run();
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "redaction_failed" },
+      });
+      expect(JSON.stringify(await store.read("secret-output"))).not.toContain(secret);
+    } finally {
+      server.closeAllConnections();
+      await closeServer(server);
+    }
+  });
+
+  it("摘要累计 Token 超预算时返回 budget_exceeded", async () => {
+    const server = createTextSequenceServer(["正文", "摘要"], 10);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-summary-cap-"));
+    const compact = vi
+      .spyOn(CoreMindSession.prototype, "maybeCompact")
+      .mockImplementation(async (models, model) => {
+        await models.completeSimple(model, {
+          systemPrompt: "生成摘要",
+          messages: [{ role: "user", content: "摘要", timestamp: Date.now() }],
+        });
+        return true;
+      });
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        initialPrompt: "正文",
+        sessionId: "budget",
+        config: {
+          schemaVersion: 2,
+          name: "摘要限额",
+          agents: { main: {} },
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          runtime: { maxTokens: 15 },
+          session: { enabled: true, compact: true },
+        },
+      });
+      expect((await runtime.run()).outcome.status).toBe("budget_exceeded");
+    } finally {
+      compact.mockRestore();
+      server.closeAllConnections();
+      await closeServer(server);
+    }
+  });
   it("同名并行 Agent 取消时关闭全部 Provider 请求", async () => {
     const responses: ServerResponse[] = [];
     const controller = new AbortController();
@@ -5132,7 +5210,7 @@ async function closeServer(server: ReturnType<typeof createServer>): Promise<voi
   });
 }
 
-function createTextSequenceServer(responses: string[]) {
+function createTextSequenceServer(responses: string[], totalTokens?: number) {
   return createServer((_request, response) => {
     const text = responses.shift();
     if (text === undefined) {
@@ -5148,6 +5226,15 @@ function createTextSequenceServer(responses: string[]) {
       {
         id: `loop-${responses.length}`,
         choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+        ...(totalTokens === undefined
+          ? {}
+          : {
+              usage: {
+                prompt_tokens: 0,
+                completion_tokens: totalTokens,
+                total_tokens: totalTokens,
+              },
+            }),
       },
     ]);
   });

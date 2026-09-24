@@ -354,6 +354,66 @@ describe("WorkerServer", () => {
     expect(response).toMatchObject({ result: { transcript: '{"status":"paid"}' } });
   });
 
+  it.each([false, true])("取消 Python 等待后隔离 Run，外部收尾确认：%s", async (acknowledged) => {
+    const sent: Array<any> = [];
+    const factory: WorkerRuntimeFactory = async (options) => ({
+      run: async () => {
+        const entry = {
+          eventId: "start",
+          runId: options.runId!,
+          sequence: 1,
+          timestamp: "2026-08-07T00:00:00.000Z",
+          event: { type: "agent_start" as const, agent: "main" },
+        };
+        options.trace?.(entry);
+        const value = await options.toolDefinitions![0]!.execute(
+          {},
+          { callId: "same", signal: options.signal },
+        );
+        return { ...successfulResult(entry), transcript: JSON.stringify(value) };
+      },
+    });
+    const server = new WorkerServer({
+      send: (message) => sent.push(message),
+      runtimeFactory: factory,
+    });
+    let id = 0;
+    const call = (method: string, params: unknown) =>
+      server.handle({ jsonrpc: "2.0", id: ++id, method, params });
+    await call("initialize", {
+      protocolVersion: PROTOCOL_VERSION,
+      config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+      configDir: ".",
+    });
+    await call("register_tool", {
+      name: "probe",
+      description: "测试",
+      parameters: { type: "object", properties: {} },
+      effect: { operations: ["read"], reversible: true },
+    });
+    const first = call("run", { runId: "old", input: "first" });
+    await waitUntil(() => sent.some((message) => message.method === "python_tool_call"));
+    await call("cancel", { runId: "old" });
+    await withTimeout(first, 1000, "取消未释放 Python 等待");
+    if (!acknowledged) {
+      expect(await server.shutdown()).toEqual({ closed: true, quiescent: false });
+      return;
+    }
+    const second = call("run", { runId: "new", input: "second" });
+    await waitUntil(
+      () => sent.filter((message) => message.method === "python_tool_call").length === 2,
+    );
+    expect(await call("tool_result", { callId: "same", result: "ambiguous" })).toMatchObject({
+      error: { data: { coremindCode: "unknown_tool_call" } },
+    });
+    expect(
+      await call("tool_result", { runId: "old", callId: "same", result: "late" }),
+    ).toMatchObject({ result: { accepted: true } });
+    await call("tool_result", { runId: "new", callId: "same", result: "current" });
+    expect(await second).toMatchObject({ result: { transcript: '"current"' } });
+    expect(await server.shutdown()).toEqual({ closed: true, quiescent: true });
+  });
+
   it("Python 工具经真实 Runtime Harness 后才进入 Worker Adapter", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-worker-python-harness-"));
     const provider = createPythonToolCallingServer();

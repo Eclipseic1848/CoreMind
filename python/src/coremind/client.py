@@ -205,8 +205,9 @@ class CoreMindClient:
 
         self.start()
         params = {"agent": agent, "message": message}
-        if self._protocol_version == PROTOCOL_V2_VERSION:
+        if run_id is not None or self._protocol_version == PROTOCOL_V2_VERSION:
             params["runId"] = run_id or uuid.uuid4().hex
+        if self._protocol_version == PROTOCOL_V2_VERSION:
             return _validate_run_handle(self._request_raw("chat", params), str(params["runId"]))
         return _validate_run_result(
             self._request_raw("chat", params),
@@ -792,10 +793,11 @@ class CoreMindClient:
 
     def _execute_python_tool(self, params: Mapping[str, Any]) -> None:
         call_id = str(params.get("callId", ""))
+        run_id = str(params.get("runId", "")) if "scopedToolResults" in self._capabilities else None
         tool_name = str(params.get("tool", ""))
         registered = self._tools.get(tool_name)
         if not registered:
-            self._send_tool_error(call_id, f"Python 工具 {tool_name} 未注册")
+            self._send_tool_error(call_id, f"Python 工具 {tool_name} 未注册", run_id)
             return
         function, _spec = registered
         args = params.get("args")
@@ -803,13 +805,15 @@ class CoreMindClient:
             value = function(**dict(args)) if isinstance(args, Mapping) else function(args)
             if inspect.isawaitable(value):
                 value = asyncio.run(value)
-            self._request_raw("tool_result", {"callId": call_id, "result": value})
+            self._request_raw("tool_result", {"callId": call_id, "result": value,
+                                               **({"runId": run_id} if run_id else {})})
         except Exception as error:  # 工具异常必须跨协议返回
-            self._send_tool_error(call_id, str(error))
+            self._send_tool_error(call_id, str(error), run_id)
 
-    def _send_tool_error(self, call_id: str, message: str) -> None:
+    def _send_tool_error(self, call_id: str, message: str, run_id: str | None = None) -> None:
         try:
-            self._request_raw("tool_result", {"callId": call_id, "error": message})
+            self._request_raw("tool_result", {"callId": call_id, "error": message,
+                                               **({"runId": run_id} if run_id else {})})
         except CoreMindError:
             return
 

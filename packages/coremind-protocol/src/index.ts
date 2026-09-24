@@ -487,6 +487,7 @@ export const ToolResultRequestSchema = Type.Object(
     params: Type.Object(
       {
         callId: Type.String({ minLength: 1 }),
+        runId: Type.Optional(Type.String({ minLength: 1 })),
         result: Type.Optional(Type.Unknown()),
         error: Type.Optional(Type.String({ minLength: 1 })),
       },

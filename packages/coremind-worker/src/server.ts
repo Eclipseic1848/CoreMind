@@ -12,6 +12,7 @@ import {
   type CoreMindToolDefinition,
   defineTool,
   FileRunStore,
+  fingerprintRunConfig,
   inspectCheckpoint,
   loadConfigFile,
   type ProtocolStartIdentity,
@@ -140,6 +141,7 @@ interface PendingToolCall {
   resolve: (result: unknown) => void;
   reject: (error: Error) => void;
   protocolV2?: { runId: string; registrationId: string; toolId: string };
+  python?: { runId: string; callId: string };
   cleanup?: () => void;
 }
 
@@ -172,6 +174,8 @@ export class ProtocolHost {
   private readonly protocolV2ToolRegistrations = new Map<string, RegisteredToolSpec>();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
   private readonly pendingToolCalls = new Map<string, PendingToolCall>();
+  /** 取消只能停止等待；收到迟到结果前不能宣称宿主 callable 已静止。 */
+  private readonly unsettledPythonCalls = new Map<string, { runId: string; callId: string }>();
   private readonly settledProtocolV2ToolResults = new Map<
     string,
     { runId: string; requestFingerprint: string; persisted: Promise<void> }
@@ -230,6 +234,17 @@ export class ProtocolHost {
   }
 
   async handle(value: unknown): Promise<ProtocolSuccessResponse | ProtocolErrorResponse> {
+    if (
+      this.closed &&
+      !(
+        typeof value === "object" &&
+        value !== null &&
+        "method" in value &&
+        value.method === "close"
+      )
+    ) {
+      return protocolError(rpcIdFrom(value), new CoreMindError("worker_closed", "worker 已关闭"));
+    }
     if (isProtocolV2Initialize(value)) return this.handleProtocolV2Initialize(value);
     if (this.selectedProtocol === "2.0") {
       return isProtocolV2Envelope(value)
@@ -348,6 +363,7 @@ export class ProtocolHost {
   }
 
   private async beginProtocolV2Run(request: ProtocolV2StartRequest): Promise<ProtocolV2RunHandle> {
+    if (this.closed) throw new CoreMindError("worker_closed", "worker 已关闭");
     const fingerprint = protocolV2StartFingerprint(request);
     const resumeOperation =
       request.method === "resume" ? request.params.resumeOperation : undefined;
@@ -434,6 +450,13 @@ export class ProtocolHost {
       );
     }
     if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
+    if (request.method === "resume") {
+      ProjectionEngine.prepareResume(
+        records,
+        fingerprintRunConfig(state.config),
+        request.params.input,
+      );
+    }
     const handle = protocolV2RunHandle(request.params.runId, new Date().toISOString());
     const protocolStart: ProtocolStartIdentity = {
       protocolVersion: "2.0",
@@ -449,6 +472,19 @@ export class ProtocolHost {
       records.at(-1)?.sequence ?? 0,
     );
     await admission.appendFact("admission", { protocolStart }, { durability: "critical" });
+    if (this.closed) {
+      if (request.method === "resume") admission.pause({ reason: "worker_closed" });
+      else
+        admission.finish({
+          outcome: {
+            status: "failed",
+            finishReason: "worker_closed",
+            error: { code: "worker_closed", message: "worker 在准入期间关闭" },
+          },
+        });
+      await admission.flush();
+      throw new CoreMindError("worker_closed", "worker 已关闭");
+    }
     this.protocolV2Starts.set(request.params.runId, {
       method: request.method,
       fingerprint,
@@ -591,11 +627,12 @@ export class ProtocolHost {
     if (records.length === 0) {
       throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
     }
+    const projection = await ProjectionEngine.projectTree(state.runStore, request.params.runId);
     return {
       schemaVersion: 1,
       runId: request.params.runId,
-      derivedFromSequence: records.at(-1)!.sequence,
-      projection: await ProjectionEngine.projectTree(state.runStore, request.params.runId),
+      derivedFromSequence: projection.records.at(-1)!.sequence,
+      projection,
     };
   }
 
@@ -898,6 +935,7 @@ export class ProtocolHost {
         "approval",
         "cancel",
         "pythonTools",
+        "scopedToolResults",
         "runState",
         "checkpoint",
         "inspectRun",
@@ -1104,6 +1142,15 @@ export class ProtocolHost {
     } finally {
       const completedRunId = this.activeRunId ?? this.requestedRunId;
       for (const [callId, pending] of this.pendingToolCalls) {
+        if (pending.python && pending.python.runId === completedRunId) {
+          this.pendingToolCalls.delete(callId);
+          pending.cleanup?.();
+          this.unsettledPythonCalls.set(callId, pending.python);
+          pending.reject(
+            new CoreMindError("run_already_finished", "运行已结束，Python 工具仍未返回"),
+          );
+          continue;
+        }
         if (!pending.protocolV2 || pending.protocolV2.runId !== completedRunId) continue;
         this.pendingToolCalls.delete(callId);
         pending.cleanup?.();
@@ -1148,7 +1195,7 @@ export class ProtocolHost {
       execute: (args, context) =>
         spec.registrationId && spec.toolId
           ? this.invokeProtocolV2Tool(spec, context.callId, args, context.signal)
-          : this.invokePythonTool(spec.name, context.callId, args),
+          : this.invokePythonTool(spec.name, context.callId, args, context.signal),
     }));
   }
 
@@ -1223,26 +1270,69 @@ export class ProtocolHost {
     });
   }
 
-  private invokePythonTool(tool: string, callId: string, args: unknown): Promise<unknown> {
+  private invokePythonTool(
+    tool: string,
+    callId: string,
+    args: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     const runId = this.activeRunId;
     if (!runId) {
       throw new CoreMindError("run_state_failed", "Python 工具调用前尚未建立 runId");
     }
-    if (this.pendingToolCalls.has(callId)) {
+    if (
+      [...this.pendingToolCalls.values()].some(
+        (pending) => pending.python?.runId === runId && pending.python.callId === callId,
+      ) ||
+      this.unsettledPythonCalls.has(JSON.stringify([runId, callId]))
+    ) {
       throw new CoreMindError("duplicate_tool_call", `重复的 Python 工具 callId：${callId}`);
     }
-    this.send(createPythonToolCallNotification({ runId, callId, tool, args }));
+    const callKey = JSON.stringify([runId, callId]);
     return new Promise((resolve, reject) => {
-      this.pendingToolCalls.set(callId, { resolve, reject });
+      if (signal?.aborted) {
+        reject(new CoreMindError("aborted", "Python 工具在发送前已取消"));
+        return;
+      }
+      const cancel = () => {
+        this.pendingToolCalls.delete(callKey);
+        this.unsettledPythonCalls.set(callKey, { runId, callId });
+        cleanup();
+        reject(new CoreMindError("aborted", "Python 工具等待已取消，外部执行尚未确认结束"));
+      };
+      const cleanup = () => signal?.removeEventListener("abort", cancel);
+      this.pendingToolCalls.set(callKey, {
+        resolve,
+        reject,
+        cleanup,
+        python: { runId, callId },
+      });
+      signal?.addEventListener("abort", cancel, { once: true });
+      this.send(createPythonToolCallNotification({ runId, callId, tool, args }));
     });
   }
 
   private resolveToolCall(
     params: Extract<ProtocolRequest, { method: "tool_result" }>["params"],
   ): unknown {
-    const pending = this.pendingToolCalls.get(params.callId);
+    const candidates = [
+      ...[...this.pendingToolCalls].flatMap(([key, pending]) =>
+        pending.python ? [[key, pending.python] as const] : [],
+      ),
+      ...this.unsettledPythonCalls,
+    ].filter(
+      ([, identity]) =>
+        identity.callId === params.callId &&
+        (params.runId === undefined || identity.runId === params.runId),
+    );
+    if (candidates.length !== 1)
+      throw new CoreMindError("unknown_tool_call", "工具结果缺少唯一 Run/Call 身份");
+    const key = candidates[0]![0];
+    if (this.unsettledPythonCalls.delete(key)) return { accepted: true };
+    const pending = this.pendingToolCalls.get(key);
     if (!pending) throw new CoreMindError("unknown_tool_call", `未知工具调用：${params.callId}`);
-    this.pendingToolCalls.delete(params.callId);
+    this.pendingToolCalls.delete(key);
+    pending.cleanup?.();
     if (params.error !== undefined) {
       pending.reject(new CoreMindError("python_tool_failed", params.error));
     } else {
@@ -1481,20 +1571,24 @@ export class ProtocolHost {
 
   /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
   async shutdown(timeoutMs = 5_000): Promise<{ closed: true; quiescent: boolean }> {
+    this.closed = true;
     this.activeController?.abort();
     for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
-    for (const pending of this.pendingToolCalls.values()) {
+    for (const [callId, pending] of this.pendingToolCalls) {
+      if (pending.python) this.unsettledPythonCalls.set(callId, pending.python);
+      pending.cleanup?.();
       pending.reject(new CoreMindError("worker_closed", "worker 已关闭"));
     }
     this.pendingApprovals.clear();
     this.pendingToolCalls.clear();
-    this.closed = true;
-    const active = this.activeExecutionCompletion;
-    if (!active) return { closed: true, quiescent: this.lastExecutionQuiescent };
+    const active = Promise.all([...this.protocolV2RunTransitions.values()]).then(async () => {
+      this.activeController?.abort();
+      await this.activeExecutionCompletion;
+    });
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const quiescent = await Promise.race([
-        active.then(() => this.lastExecutionQuiescent),
+        active.then(() => this.lastExecutionQuiescent && this.unsettledPythonCalls.size === 0),
         new Promise<false>((resolve) => {
           timer = setTimeout(() => resolve(false), timeoutMs);
         }),

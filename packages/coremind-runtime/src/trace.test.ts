@@ -1,7 +1,59 @@
 import { describe, expect, it, vi } from "vitest";
-import { TraceRecorder } from "./trace.js";
+import { redactSensitiveText, TraceRecorder } from "./trace.js";
 
 describe("Trace 敏感信息保护", () => {
+  it.each([
+    "正文 sk-testcredential123456 尾部 普通 内容",
+    "正文 Bearer testcredential123456 尾部 普通 内容",
+    "正文 token = testcredential123456 尾部 普通 内容",
+    '正文 {"password":"testcredential123456"} 尾部 普通 内容',
+    '正文 password="testcredential123456" 尾部 普通 内容',
+    "Cookie: session=testcredential123456; other=value\n正文",
+    "正文 https://user:password@example.invalid/?token=testcredential123456 尾部 普通 内容",
+    "正文 -----BEGIN PRIVATE KEY-----\ntestcredential123456\n-----END PRIVATE KEY----- 尾部",
+  ])("逐字符流式凭据不会进入 Trace：%s", (text) => {
+    const recorder = new TraceRecorder("stream");
+    for (const delta of text) recorder.record({ type: "text_delta", agent: "main", delta });
+    const end = recorder.record({
+      type: "turn_end",
+      agent: "main",
+      tokens: 12,
+      inputTokens: 7,
+      outputTokens: 5,
+    });
+    const joined = recorder.entries
+      .flatMap(({ event }) => (event.type === "text_delta" ? [event.delta] : []))
+      .join("");
+    expect(joined).toBe(redactSensitiveText(text));
+    expect(JSON.stringify(recorder.entries)).not.toContain("testcredential123456");
+    expect(end.event).toMatchObject({ tokens: 12, inputTokens: 7, outputTokens: 5 });
+  });
+
+  it("保留普通正文与 URL，文本错误及步骤正文清除凭据", () => {
+    const recorder = new TraceRecorder("text");
+    const text = "普通正文 https://example.invalid 保持不变";
+    expect(redactSensitiveText(text)).toBe(text);
+    expect(redactSensitiveText("Please change your password before continuing.")).toBe(
+      "Please change your password before continuing.",
+    );
+    expect(
+      recorder.record({ type: "step_output", agent: "main", stepId: "step", text }).event,
+    ).toMatchObject({ text });
+    expect(
+      JSON.stringify(
+        recorder.record({ type: "error", fatal: true, message: "Bearer private-value" }),
+      ),
+    ).not.toContain("private-value");
+  });
+  it.each([
+    "https://example.invalid/sk-markerSECRET0123456789",
+    "https://example.invalid/#password=markerSECRET",
+  ])("纯 URL 错误文本不会绕过脱敏：%s", (message) => {
+    expect(
+      JSON.stringify(new TraceRecorder("url").record({ type: "error", fatal: true, message })),
+    ).not.toContain("markerSECRET");
+  });
+
   it("循环参数可安全脱敏并生成稳定指纹", () => {
     const firstArgs: Record<string, unknown> = { path: "result.md" };
     firstArgs.self = firstArgs;

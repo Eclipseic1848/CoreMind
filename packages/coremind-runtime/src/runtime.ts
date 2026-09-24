@@ -193,7 +193,7 @@ import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
-import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
+import { type CoreMindTraceEvent, redactSensitiveText, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
 import {
   canonicalizeWorkspace,
@@ -1591,6 +1591,9 @@ export class CoreMindRuntime {
       }
       // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
       if (!journal.admitEvent(enriched)) return;
+      if (enriched.type === "step_output" && redactSensitiveText(enriched.text) !== enriched.text) {
+        throw new CoreMindError("redaction_failed", "步骤输出包含凭据，已阻止持久化与候选验收");
+      }
       collected.push(enriched);
       trace.record(enriched);
       userEvents(enriched);
@@ -2975,6 +2978,7 @@ export class CoreMindRuntime {
                   session,
                   models: this.providerRuntime.models,
                   model: this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model,
+                  apiKeyOverride: this.providerRuntime.apiKeyOverride,
                   budget,
                   journal,
                   signal,
@@ -3858,6 +3862,9 @@ async function assertRuntimeChildPolicyAuthority(input: {
   }
   try {
     await resolveExecutionEnvironment(executionEnvironment, policy.environment);
+    if (executionEnvironment.hostNetwork && (tools.has("web-fetch") || tools.has("web-search"))) {
+      await resolveExecutionEnvironment(executionEnvironment.hostNetwork, policy.environment);
+    }
   } catch (error) {
     throw new CoreMindError(
       "child_run_policy_escalation",
