@@ -194,107 +194,117 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
     expect(generateTrustedToolFaultScenario(731)).toEqual(generateTrustedToolFaultScenario(731));
   });
 
-  it("每个 seed 独立检查 B-1～B-10，失败报告不包含输入正文", async () => {
-    const report = await runTrustedToolFaultMatrix({
-      seedStart: 0,
-      seedEnd: FAULT_MATRIX_SCENARIO_COUNT,
-      batchSize: 20,
-      secretInput: "不得出现在证据里的用户正文",
-      runEntryParityProbe: true,
-    });
+  it.each(FAULT_TIMINGS)(
+    "%s：每个 seed 独立检查 B-1～B-10，失败报告不包含输入正文",
+    async (timing) => {
+      const scenarioCount = FAULT_MATRIX_SCENARIO_COUNT / FAULT_TIMINGS.length;
+      const seedStart = FAULT_TIMINGS.indexOf(timing) * scenarioCount;
+      const scenarios = Array.from({ length: scenarioCount }, (_, index) =>
+        generateTrustedToolFaultScenario(seedStart + index),
+      );
+      const report = await runTrustedToolFaultMatrix({
+        seedStart,
+        seedEnd: seedStart + scenarioCount,
+        batchSize: 20,
+        secretInput: "不得出现在证据里的用户正文",
+        runEntryParityProbe: timing === "before",
+      });
 
-    expect(report.failures, JSON.stringify(report.failures)).toEqual([]);
-    expect(report.status).toBe("passed");
-    expect(report.scenarioCount).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.invariantPasses).toEqual({
-      ...Object.fromEntries(
-        Array.from({ length: 9 }, (_, index) => [`B-${index + 1}`, FAULT_MATRIX_SCENARIO_COUNT]),
-      ),
-      "B-10": 1,
-    });
-    expect(report.bindingConflictRejections).toBe(5 * FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.capabilityConflictRejections).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.externalResumeBlocks).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.unsafeResumeBlocks).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.projectionRebuilds).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.parallelBatchCount).toBeGreaterThan(1);
-    expect(report.faultInjectionCounts).toEqual(
-      Object.fromEntries(
-        FAULT_KINDS.map((kind) => [
-          kind,
-          Array.from({ length: FAULT_MATRIX_SCENARIO_COUNT }, (_, seed) =>
-            generateTrustedToolFaultScenario(seed),
-          ).filter((scenario) => scenario.kind === kind).length,
-        ]),
-      ),
-    );
-    expect(report.actualFaultProbes).toMatchObject({
-      workerExits: expect.any(Number),
-      cancellations: expect.any(Number),
-      timeouts: expect.any(Number),
-      storeFailures: expect.any(Number),
-      lateResults: expect.any(Number),
-      ownedCrashes: expect.any(Number),
-    });
-    expect(report.actualFaultProbes.workerExits).toBeGreaterThan(0);
-    expect(report.actualFaultProbes.ownedCrashes).toBe(
-      2 * FAULT_POINTS.length * FAULT_TIMINGS.length * TOOL_EFFECTS.length,
-    );
-    expect(new Set(report.ownedCrashCoverage)).toEqual(
-      new Set(
-        ["process_crash", "owner_exit"].flatMap((kind) =>
-          FAULT_POINTS.flatMap((point) =>
-            FAULT_TIMINGS.flatMap((timing) =>
-              TOOL_EFFECTS.map((effect) => [kind, point, timing, effect].join(":")),
+      expect(report.failures, JSON.stringify(report.failures)).toEqual([]);
+      expect(report.status).toBe("passed");
+      expect(report.scenarioCount).toBe(scenarioCount);
+      expect(report.invariantPasses).toEqual({
+        ...Object.fromEntries(
+          Array.from({ length: 9 }, (_, index) => [`B-${index + 1}`, scenarioCount]),
+        ),
+        "B-10": timing === "before" ? 1 : 0,
+      });
+      expect(report.bindingConflictRejections).toBe(5 * scenarioCount);
+      expect(report.capabilityConflictRejections).toBe(scenarioCount);
+      expect(report.externalResumeBlocks).toBe(scenarioCount);
+      expect(report.unsafeResumeBlocks).toBe(scenarioCount);
+      expect(report.projectionRebuilds).toBe(scenarioCount);
+      expect(report.parallelBatchCount).toBeGreaterThan(1);
+      expect(report.faultInjectionCounts).toEqual(
+        Object.fromEntries(
+          FAULT_KINDS.map((kind) => [
+            kind,
+            scenarios.filter((scenario) => scenario.kind === kind).length,
+          ]),
+        ),
+      );
+      expect(report.actualFaultProbes).toMatchObject({
+        workerExits: expect.any(Number),
+        cancellations: expect.any(Number),
+        timeouts: expect.any(Number),
+        storeFailures: expect.any(Number),
+        lateResults: expect.any(Number),
+        ownedCrashes: expect.any(Number),
+      });
+      expect(report.actualFaultProbes.workerExits).toBeGreaterThan(0);
+      expect(report.actualFaultProbes.ownedCrashes).toBe(
+        2 * FAULT_POINTS.length * TOOL_EFFECTS.length,
+      );
+      expect(new Set(report.ownedCrashCoverage)).toEqual(
+        new Set(
+          ["process_crash", "owner_exit"].flatMap((kind) =>
+            FAULT_POINTS.flatMap((point) =>
+              [timing].flatMap((timing) =>
+                TOOL_EFFECTS.map((effect) => [kind, point, timing, effect].join(":")),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    expect(new Set(report.actualBoundaryCoverage)).toEqual(
-      new Set(
-        FAULT_KINDS.flatMap((kind) =>
-          FAULT_POINTS.flatMap((point) =>
-            FAULT_TIMINGS.flatMap((timing) =>
-              TOOL_EFFECTS.map((effect) => [kind, point, timing, effect].join(":")),
+      );
+      expect(new Set(report.actualBoundaryCoverage)).toEqual(
+        new Set(
+          FAULT_KINDS.flatMap((kind) =>
+            FAULT_POINTS.flatMap((point) =>
+              [timing].flatMap((timing) =>
+                TOOL_EFFECTS.map((effect) => [kind, point, timing, effect].join(":")),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    expect(report.ownedProcessConcurrency).toEqual({
-      limit: 4,
-      peak: 4,
-      active: 0,
-      waiting: 0,
-    });
-    expect(report.entryProjectionProbe).toEqual({
-      status: "passed",
-      entries: ["cli", "tui", "typescript", "python"],
-      fixtures: ["success", "tool_error"],
-      source: "packages/coremind-cli/src/entry-equivalence.acceptance.test.tsx",
-    });
-    expect(report.resourceSummary).toEqual({
-      pendingPromises: 0,
-      liveWorkers: 0,
-      liveProcesses: 0,
-      heldLeases: 0,
-    });
-    const workspaceScenarioCount = Array.from({ length: FAULT_MATRIX_SCENARIO_COUNT }, (_, seed) =>
-      generateTrustedToolFaultScenario(seed),
-    ).filter((scenario) => scenario.effect === "workspace").length;
-    expect(report.leaseConflictRejections).toBe(workspaceScenarioCount);
-    expect(report.nonQuiescentReleaseRejections).toBe(workspaceScenarioCount);
-    expect(report.lateTerminalRejections).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.invariantGatePasses).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.adapterBypassRejections).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.integratedFaultInjections).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.invariantFactPrefixChecks).toBe(FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.invariantFactsSource).toBe("tool_execution_engine");
-    expect(report.axisIsolationPasses).toBe(5 * FAULT_MATRIX_SCENARIO_COUNT);
-    expect(report.actualEffectExecutions).toBeGreaterThan(0);
-    expect(JSON.stringify(report)).not.toContain("不得出现在证据里的用户正文");
-  });
+      );
+      expect(report.ownedProcessConcurrency).toEqual({
+        limit: 4,
+        peak: 4,
+        active: 0,
+        waiting: 0,
+      });
+      expect(report.entryProjectionProbe).toEqual(
+        timing === "before"
+          ? {
+              status: "passed",
+              entries: ["cli", "tui", "typescript", "python"],
+              fixtures: ["success", "tool_error"],
+              source: "packages/coremind-cli/src/entry-equivalence.acceptance.test.tsx",
+            }
+          : { status: "not_run" },
+      );
+      expect(report.resourceSummary).toEqual({
+        pendingPromises: 0,
+        liveWorkers: 0,
+        liveProcesses: 0,
+        heldLeases: 0,
+      });
+      const workspaceScenarioCount = scenarios.filter(
+        (scenario) => scenario.effect === "workspace",
+      ).length;
+      expect(report.leaseConflictRejections).toBe(workspaceScenarioCount);
+      expect(report.nonQuiescentReleaseRejections).toBe(workspaceScenarioCount);
+      expect(report.lateTerminalRejections).toBe(scenarioCount);
+      expect(report.invariantGatePasses).toBe(scenarioCount);
+      expect(report.adapterBypassRejections).toBe(scenarioCount);
+      expect(report.integratedFaultInjections).toBe(scenarioCount);
+      expect(report.invariantFactPrefixChecks).toBe(scenarioCount);
+      expect(report.invariantFactsSource).toBe("tool_execution_engine");
+      expect(report.axisIsolationPasses).toBe(5 * scenarioCount);
+      expect(report.actualEffectExecutions).toBeGreaterThan(0);
+      expect(JSON.stringify(report)).not.toContain("不得出现在证据里的用户正文");
+    },
+  );
 
   it("单 seed 回放报告包含身份、切点与最小 Fact 前缀", async () => {
     const report = await runTrustedToolFaultMatrix({ seedStart: 417, seedEnd: 418 });
