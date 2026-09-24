@@ -1,10 +1,10 @@
-# 0.8.0 Known Limitations
+# 1.0.0 Known Limitations
 
-> This file records the capability boundary of the `0.8.0` release line. The live GitHub Release, npm, and PyPI pages are the only authority for installable availability.
+> This file records the capability boundary of the `1.0.0` release line. The live GitHub Release, npm, and PyPI pages are the only authority for installable availability.
 
-- All 40 providers are configurable; this is not live certification. Version 0.8.0 requires strict-provider evidence bound to its candidate version, commit, and Runtime digest. Older certification and release exceptions do not substitute for it.
+- All 40 providers are configurable; this is not live certification. Version 1.0.0 requires strict-provider evidence bound to its candidate version, commit, and Runtime digest. Older certification and release exceptions do not substitute for it.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
-- The non-regression coverage gate passes, but repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.
+- Publication requires the non-regression coverage gate; repository lines, statements, and branches remain below the long-term 80% target, and selected safety-critical branches remain below 90%.
 - Lifecycle extensions are controlled in-process extensions, not an operating-system sandbox. Only four events are exposed, and unknown project extensions are not loaded by default.
 - Windows host-shell safety depends on the permission, workspace, and network combination. Only the built-in Linux shell uses the additional network-disabled isolation; the two are not equivalent sandboxes.
 - The Python SDK uses its bundled Node Worker and still requires Node.js `>=22.19`; there is no independent pure-Python Runtime.
@@ -12,4 +12,7 @@
 - Local deterministic compaction remains the default and project Memory is not created automatically. Experimental strategies never switch themselves on.
 - Child Run does not support durable detach, standalone spawn/list/resume commands, Goals, or Jobs; Web is out of scope for this release.
 - The candidate does not provide a hosted API, multi-tenant SaaS, official Docker image, formal macOS support, or extension marketplace.
-- The `v0.8.0` tag, GitHub Release, eight npm packages, and PyPI package must share one version. The manifest separately records the package build commit and source ZIP release commit, with no product-code changes between them. Public channels remain authoritative for installable availability.
+- The `v1.0.0` tag, GitHub Release, eight npm packages, and PyPI package must share one version. The manifest separately records the package build commit and source ZIP release commit, with no product-code changes between them. Public channels remain authoritative for installable availability.
+
+- Trace fragments without whitespace may wait until the turn ends; an unclosed fragment has a 65,536-character safety limit. Credential-bearing step candidates fail explicitly without silently changing verification hashes.
+- v1 Python cancellation ends local waiting, not unconfirmed external execution. Linux Web host networking does not inherit Shell sandbox isolation.

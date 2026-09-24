@@ -61,7 +61,7 @@ Linux can provide operating-system isolation for the built-in shell when its pre
 
 Runtime, CLI, and both SDKs share six terminal outcomes: `succeeded`, `failed`, `paused`, `aborted`, `timeout`, and `budget_exceeded`. Checkpoint restore compares the post-tool fingerprint and refuses to overwrite later user or concurrent edits.
 
-Trace events are recursively sanitized before persistence or observer delivery. Secret fields, sensitive URL values, and secret values inside commands do not enter RunState; body-like content keeps only a length marker, while ordinary test commands remain reviewable. This defense does not replace operating-system access controls or a business-data retention policy.
+Trace events are recursively sanitized before persistence or observer delivery. Secret fields, sensitive URL values, and secret values inside commands do not enter RunState; tool argument bodies keep only length markers, while ordinary test commands remain reviewable. This defense does not replace operating-system access controls or a business-data retention policy.
 
 ## Evaluation
 

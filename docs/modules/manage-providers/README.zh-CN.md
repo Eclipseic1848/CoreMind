@@ -1,6 +1,6 @@
 # Provider 与模型
 
-状态：合同与文档已对齐 `0.8.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：合同与文档已对齐 `1.0.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -35,3 +35,5 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [模块示例](../../../examples/modules/manage-providers/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-providers/README.en.md)
 - [Agent Skill](../../../skills/manage-providers/SKILL.md)
+
+`0.8.0` 的认证只供历史追溯；`1.0.0` 必须使用本版本 strict-provider 工作流证据。

@@ -1,6 +1,6 @@
 # Python SDK 与工具桥
 
-状态：合同与文档已对齐 `0.8.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：合同与文档已对齐 `1.0.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
 
 ## 目的
 

@@ -4,6 +4,25 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## 1.0.0 — 2026-09-24
+
+### Fixes and hardening
+
+- File approval, Checkpoints, and execution share frozen targets. Git disables external helpers and bounds reads. Parallel Drivers retain distinct cancellation and fact identities.
+- Run admission and independent resume operations are durable. Invalid resume is rejected before admission; shutdown races produce a queryable terminal result or preserve the original pause. Projection watermarks share the returned snapshot; event pagination avoids an unused full projection copy.
+- Network permission no longer preapproves writes or external effects. Windows Shell requires full, workspaceOnly=false, and network=allow together. Linux Web tools declare a separate host network environment, with Child policy checks and cancellation settlement, without inheriting Shell sandbox claims.
+- Trace redacts recognizable credentials in structured events and chunked text while preserving numeric and authorization contracts. Credential-bearing step candidates fail before persistence and host verification; ordinary candidate text and hashes stay unchanged.
+- Summaries use resolved Provider credentials and the original Run budget, deadline, and cancellation. Exhausted token/cost budgets reject the next model request; over-budget summaries no longer report success.
+- v1 Python tools correlate Run/Call identity, release local waits on cancellation, isolate late results, and do not claim quiescence while external functions remain unsettled. v1 chat preserves caller run_id. Ordered user callbacks run outside protocol reading to prevent reentrant deadlocks.
+- CLI --print emits only the body. Readline handles /abort during a reply and drains stale approvals; /exit still waits for the current reply. TUI bounds retained history without losing unsettled tool identities.
+
+### Upgrade and capability boundaries
+
+- Config v2, Protocol v1/v2, and the unified Node Runtime remain. Python requires Node.js >=22.19; Git tools require Git >=2.36. v1 adds negotiated scopedToolResults and optional tool_result.runId; older Workers receive no unnegotiated field.
+- SDK and bundled Worker must match strict Schema fingerprints. New versions read old journals; old programs cannot continue writing journals containing admission facts. Back up persistent state before upgrading; rollback requires matching programs and backups.
+- Streaming fragments without whitespace may wait until the turn ends. An unclosed fragment exceeding 65,536 characters, or a step containing recognizable credentials, fails with redaction_failed.
+- This release adds no hosted API, multi-tenant service, pure Python Runtime, MCP/LSP, durable detach, or official macOS support. Forty configurable Providers are not forty certified Providers. Publication requires strict-provider evidence bound to this version, final commit, and Runtime digest, plus both-platform Candidate/PTY and public artifact reinstall checks. Older release exceptions do not apply.
+
 ## 0.8.0 — 2026-09-08
 
 ### Added

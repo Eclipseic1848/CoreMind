@@ -2,13 +2,13 @@
 
 本 SOP 把 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。候选复用时，清单分别记录包的构建提交和发布提交。任一渠道成功都不能替代整体验收。
 
-> 当前发布目标为 `0.8.0`。本页描述严格发布与断点恢复流程；源码、工程检查和文档同步不代表公开发布完成。公开状态以 GitHub Release、npm 与 PyPI 为准。
+> 当前发布目标为 `1.0.0`。本页描述严格发布与断点恢复流程；源码、工程检查和文档同步不代表公开发布完成。公开状态以 GitHub Release、npm 与 PyPI 为准。
 
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 
 ## 历史发布决定
 
-`0.7.1` 已按独立批准复用 [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153) 的固定包；清单记录原构建来源与 `providerCertification: not-run`。`0.7.0` 的网络例外和 `0.7.1` 的离线晋升只解释历史制品，均不适用于 `0.8.0`。不恢复这些旧发布任务，不覆盖旧版本。
+`0.7.1` 已按独立批准复用 [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153) 的固定包；清单记录原构建来源与 `providerCertification: not-run`。`0.7.0` 的网络例外和 `0.7.1` 的离线晋升只解释历史制品，均不适用于 `1.0.0`。不恢复这些旧发布任务，不覆盖旧版本。
 
 ## 发布原则
 
@@ -34,10 +34,10 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `0.8.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `1.0.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 ```powershell
-npm run release:sync-version -- 0.8.0
+npm run release:sync-version -- 1.0.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
@@ -84,7 +84,7 @@ P0-17 使用 [`v0.7.1-main-ruleset.json`](evidence/v0.7.1-main-ruleset.json) 保
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
 - Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
-- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`0.8.0` 不接受旧版本的网络或离线晋升例外。
+- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`1.0.0` 不接受旧版本的网络或离线晋升例外。
 - Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
@@ -124,7 +124,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@0.8.0
+npm install -g coremind-cli@1.0.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent

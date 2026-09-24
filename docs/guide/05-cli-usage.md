@@ -18,25 +18,25 @@ node --version
 ### 全局安装（推荐）
 
 ```bash
-npm install -g coremind-cli@0.8.0
+npm install -g coremind-cli@1.0.0
 ```
 
-`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。`0.8.0` 已在 Registry 公开；后续版本仍以 Release 或 Registry 当前列出的版本为准。
+`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。本文对应 `1.0.0` 发布线；安装前以 Release 或 Registry 当前列出的版本确认公开可用性。
 
 ### 验证安装成功
 
 ```bash
-coremind --version        # 0.8.0 显示 coremind v0.8.0
+coremind --version        # 1.0.0 显示 coremind v1.0.0
 coremind doctor           # 环境自检；检查项目密钥时传入 coremind.yaml
 ```
 
-看到 `coremind v0.8.0` 表示 CLI 已安装；进入项目后再运行 `coremind doctor coremind.yaml` 检查配置和所需环境变量。`doctor` 不会向 Provider 发送真实请求。
+看到 `coremind v1.0.0` 表示 CLI 已安装；进入项目后再运行 `coremind doctor coremind.yaml` 检查配置和所需环境变量。`doctor` 不会向 Provider 发送真实请求。
 
 ### 更新到已验证的版本
 
 ```bash
 npm view coremind-cli version     # 查询 Registry 当前版本
-npm install -g coremind-cli@0.8.0 # 本文对应的已发布版本
+npm install -g coremind-cli@1.0.0 # 本文目标版本，安装前核对 Registry
 ```
 
 升级到将来的版本时，先查看该版本的 Release 和迁移说明，再把安装命令中的版本号换成已验证的目标版本。
@@ -50,7 +50,7 @@ npm uninstall -g coremind-cli
 ### 不想安装？临时体验（不推荐日常用）
 
 ```bash
-npx -y coremind-cli@0.8.0 doctor
+npx -y coremind-cli@1.0.0 doctor
 ```
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
@@ -82,7 +82,7 @@ coremind eval coremind.yaml --suite evals/scenarios.yaml --json
 
 `coremind run` 使用稳定退出码：`0` 成功、`1` 失败、`2` 暂停等待人工处理、`3` 预算耗尽、`124` 超时、`130` 中止。自动化应同时检查退出码和 `--json-events` 最后一条 `run_result.snapshot` 的 `outcome`、评测与发布判断，诊断信息从 stderr 保存。`run_result.observability` 与 TypeScript/Python/Worker 使用同一 Fact Projection；即使 Telemetry 为 `DISABLED`，本地 Run、Context、Call、错误和交付状态仍存在。
 
-`--print` 用于阅读最终文本，但 `0.8.0` 某些运行提示仍可能出现在 stdout；要求纯机器输入时使用 `--json-events`，两者不能同时使用。
+`--print` 的 stdout 仅输出最终正文；提示、审批与诊断走 stderr。需要结构化事件流时使用 `--json-events`，两者不能同时使用。
 
 ## 3. 在哪里运行：目录规则（新手最容易困惑的部分）
 
@@ -322,7 +322,7 @@ coremind run coremind.yaml --prompt "本周干了什么"
 
 | 现象 | 原因与解决 |
 |---|---|
-| `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@0.8.0`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
+| `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@1.0.0`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
 | 提示缺少 API key | ① 本例检查 `.env` 中的 `DASHSCOPE_API_KEY`（其他 Provider 以其配置中的 `apiKeyEnv` 为准）；② `.env` 不在**你敲命令的目录**（见 3 节）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
 | 运行很久没反应 / 超时 | 查看运行事件与 `runTimeoutMs`、`stepTimeoutMs`、Provider 和工具状态；`doctor` 只检查密钥存在，不验证 Provider 连接，不要在副作用结果未知时盲目重试 |

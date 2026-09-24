@@ -4,13 +4,24 @@
 
 [English](CHANGELOG.en.md)
 
-## [1.0.0](https://github.com/Eclipseic1848/CoreMind/compare/v0.8.0...v1.0.0) (2026-09-24)
+## 1.0.0 — 2026-09-24
 
+### 修复与加固
 
-### Bug Fixes
+- 文件审批、Checkpoint 与实际执行共用冻结目标；Git 默认禁用外部辅助执行并限制读取范围。保留全部并行 Driver，取消与事实身份覆盖每个实例。
+- Run 接受与独立恢复操作持久化；非法恢复在准入前拒绝，关闭竞争写入可查询终态或保留原暂停。查询水位与投影快照一致，事件分页减少不必要的整份投影复制。
+- 网络允许不再隐式批准写入或外部副作用；Windows Shell 必须同时明确选择 full、workspaceOnly=false 和 network=allow。Linux Web 使用显式宿主网络域，保留 Child 权限校验与取消收尾，不借用 Shell 沙箱的隔离声明。
+- Trace 清除结构化及跨分块文本中的可识别凭据，保留数值与授权合同字段。含凭据的步骤候选在持久化及宿主验收前明确失败；普通候选正文与哈希保持不变。
+- 摘要复用解析后的 Provider 凭据，并受原 Run 预算、deadline 和取消约束。耗尽 token 或费用后不得发起下一次模型请求；摘要超预算不再报告成功。
+- v1 Python 工具按 Run/Call 隔离，取消释放本地等待，迟到结果不串运行；外部函数未返回时不声称 quiescent。v1 chat 保留调用方 run_id；用户事件回调按序隔离，避免协议读取重入死锁。
+- CLI --print 保持纯正文；readline 在飞处理 /abort 并清空旧审批，/exit 保留等待本轮结束语义。TUI 限制历史保留并保持未结工具身份。
 
-* 修复授权、运行恢复与 SDK 缺陷并优化事件分页 ([#209](https://github.com/Eclipseic1848/CoreMind/issues/209)) ([aebec61](https://github.com/Eclipseic1848/CoreMind/commit/aebec619f7083552add0ed71e0370f6f83a007c6))
-* 修复运行时权限、恢复与 Worker 生命周期审查问题 ([#224](https://github.com/Eclipseic1848/CoreMind/issues/224)) ([6e6b985](https://github.com/Eclipseic1848/CoreMind/commit/6e6b9858bf5f6b424383fdca116c13e52ab6ed93))
+### 升级与能力边界
+
+- Config v2、Protocol v1/v2 和统一 Node Runtime 保持；Python SDK 仍依赖 Node.js >=22.19，Git 工具最低要求 Git 2.36。v1 新增协商能力 scopedToolResults 及可选 tool_result.runId，旧 Worker 不会收到未协商字段。
+- SDK 与 bundled Worker 必须匹配 Schema 指纹。新版本可读旧日志；旧程序不能继续写入含 admission 的新日志。升级前备份持久状态，回滚使用匹配的程序与备份。
+- 无空白流式片段可能延迟到轮次结束，未闭合安全缓冲上限 65,536 字符，超限或步骤包含可识别凭据时返回 redaction_failed。
+- 不新增托管 API、多租户服务、纯 Python Runtime、MCP/LSP、durable detach 或 macOS 正式支持。40 个可配置 Provider 不代表均已认证；正式发布必须取得本版本、最终提交及 Runtime 摘要绑定的 strict-provider、双平台 Candidate/PTY 和公开制品回装证据，旧版本例外不适用。
 
 ## 0.8.0 — 2026-09-08
 
