@@ -81,12 +81,15 @@ class CoreMindClientTest(unittest.TestCase):
             handle = client.run(run_id="resume-sdk")
             client._capabilities |= {"resumeOperations"}
             with patch.object(client, "query", return_value={"derivedFromSequence": 5}) as query:
-                with patch.object(client, "_request_raw", side_effect=[CoreMindError("超时"), handle, handle]) as request:
+                with patch.object(client, "_request_raw", side_effect=[CoreMindError("超时"), {}, handle, handle]) as request:
                     with self.assertRaises(CoreMindError):
+                        client.resume_run("resume-sdk")
+                    with self.assertRaises(ProtocolError):
                         client.resume_run("resume-sdk")
                     client.resume_run("resume-sdk")
                     client.resume_run("resume-sdk")
-                    first, retry, following = [call.args[1] for call in request.call_args_list]
+                    first, malformed, retry, following = [call.args[1] for call in request.call_args_list]
+                    self.assertEqual(first, malformed)
                     self.assertEqual(first, retry)
                     self.assertNotEqual(first["resumeOperation"]["operationId"], following["resumeOperation"]["operationId"])
                     self.assertEqual(first["resumeOperation"]["expectedSequence"], 5)

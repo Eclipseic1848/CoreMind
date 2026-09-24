@@ -268,10 +268,12 @@ class CoreMindClient:
             elif operation_id is not None:
                 raise ProtocolError("Worker 不支持恢复操作身份", rpc_code=-32000, coremind_code="protocol_capability_missing")
             try:
-                handle = _validate_run_handle(self._request_raw("resume", params), run_id)
+                response = self._request_raw("resume", params)
             except ProtocolError:
                 self._pending_resumes.pop(run_id, None)
                 raise
+            # 无效 Handle 不能证明操作未接受；保留原身份供重试。
+            handle = _validate_run_handle(response, run_id)
             self._pending_resumes.pop(run_id, None)
             return handle
         if operation_id is not None:
