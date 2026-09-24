@@ -20,6 +20,68 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it("失败终态持久化完成前保持 Worker busy，拒绝新运行抢占收尾", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-failure-finalization-"));
+    let release!: () => void;
+    let entered!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const writing = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const host = new ProtocolHost({
+      send: () => {},
+      runStoreFactory: (directory) =>
+        new FileRunStore(directory, {
+          beforeCommit: async ({ record }) => {
+            if (record?.kind === "finish") {
+              entered();
+              await gate;
+            }
+          },
+        }),
+      runtimeFactory: async () => {
+        throw new Error("synthetic startup failure");
+      },
+    });
+    await initializeV2(host, dir);
+    await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "start",
+      method: "run",
+      params: { runId: "finalizing" },
+    });
+    await withTimeout(writing, 2000, "未进入失败落盘");
+    const nextRun = host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "next-run",
+      method: "run",
+      params: { runId: "next-run" },
+    });
+    try {
+      expect(await withTimeout(nextRun, 2_000, "新运行请求未及时拒绝")).toMatchObject({
+        error: { data: { coremindCode: "worker_busy" } },
+      });
+    } finally {
+      release();
+      await nextRun;
+    }
+    await vi.waitFor(async () => {
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "query",
+          method: "query",
+          params: { runId: "finalizing" },
+        }),
+      ).toMatchObject({ result: { projection: { outcome: { status: "failed" } } } });
+    });
+  });
+
   it("准入持久屏障失败时不返回 Handle，也不创建 Runtime", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-admission-barrier-"));
     let creations = 0;
@@ -2395,13 +2457,29 @@ describe("ProtocolHost", () => {
     ).resolves.toMatchObject({ result: { runId: "__worker__" } });
   });
 
-  it("同一 Host 中首个运行结束后允许 resume 承接同一 RunId", async () => {
+  it("同一 Host 中首个运行持久暂停后允许 resume 承接同一 RunId", async () => {
     const starts: CoreMindRuntimeOptions[] = [];
     const host = new ProtocolHost({
       send: () => {},
       runtimeFactory: async (options) => {
         starts.push(options);
-        return { run: async () => Promise.reject(new Error("模拟运行已中断")) };
+        const runtime = await completedParityRuntimeFactory()(options);
+        return {
+          run: async () => {
+            const result = await runtime.run();
+            if (!options.resumeRunId) {
+              const records = await options.runStore!.read(options.runId!);
+              const journal = new RunStateJournal(
+                options.runId!,
+                options.runStore!,
+                records.at(-1)!.sequence,
+              );
+              journal.pause({ reason: "approval" });
+              await journal.flush();
+            }
+            return result;
+          },
+        };
       },
     });
     await initializeV2(host);
@@ -2412,7 +2490,17 @@ describe("ProtocolHost", () => {
       method: "run",
       params: { runId: "same-host-resume", input: "初次执行" },
     });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(async () => {
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "query-paused",
+          method: "query",
+          params: { runId: "same-host-resume" },
+        }),
+      ).toMatchObject({ result: { projection: { status: "paused" } } });
+    });
 
     const resumed = await host.handle({
       jsonrpc: "2.0",

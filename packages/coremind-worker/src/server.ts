@@ -471,29 +471,8 @@ export class ProtocolHost {
             request.params.runId,
             protocolStart,
           );
-    void completion
-      .catch(async () => {
-        const failedRecords = await state.runStore.read(request.params.runId);
-        if (failedRecords.at(-1)?.kind === "finish") return;
-        const journal = new RunStateJournal(
-          request.params.runId,
-          state.runStore,
-          failedRecords.at(-1)?.sequence ?? 0,
-        );
-        journal.finish({
-          outcome: {
-            status: "failed",
-            finishReason: "agent_failed",
-            error: { code: "agent_failed", message: "Runtime 初始化或后台执行失败" },
-          },
-        });
-        await journal.flush("critical");
-      })
-      .catch(() => {
-        process.stderr.write(
-          `CoreMind run_state_failed: 已接受运行 ${request.params.runId} 的失败结果无法持久化\n`,
-        );
-      });
+    // 后台错误已由 executeRun 在释放运行状态前持久化；Handle 调用方通过 query 读取。
+    void completion.catch(() => {});
     return handle;
   }
 
@@ -1095,6 +1074,32 @@ export class ProtocolHost {
         (result.childRuns.activeDescendants === 0 &&
           result.childRuns.nodes.every((node) => node.status === "joined"));
       return serializeRunResult(result);
+    } catch (error) {
+      if (protocolStart && runId) {
+        try {
+          const failedRecords = await state.runStore.read(runId);
+          if (failedRecords.at(-1)?.kind !== "finish") {
+            const journal = new RunStateJournal(
+              runId,
+              state.runStore,
+              failedRecords.at(-1)?.sequence ?? 0,
+            );
+            journal.finish({
+              outcome: {
+                status: "failed",
+                finishReason: "agent_failed",
+                error: { code: "agent_failed", message: "Runtime 初始化或后台执行失败" },
+              },
+            });
+            await journal.flush("critical");
+          }
+        } catch {
+          process.stderr.write(
+            `CoreMind run_state_failed: 已接受运行 ${runId} 的失败结果无法持久化\n`,
+          );
+        }
+      }
+      throw error;
     } finally {
       const completedRunId = this.activeRunId ?? this.requestedRunId;
       for (const [callId, pending] of this.pendingToolCalls) {
