@@ -49,3 +49,11 @@ Protocol v1 `@client.tool` requires an `effect` declaration. Initialization or r
 发布前执行 `npm run build:python-worker`、`python -X utf8 -m build --wheel python`、Twine 和 `npm run release:check-wheel`。最后一项会在全新虚拟环境中安装 wheel，核对 `coremind.__version__` 与包元数据，并实际启动内置 Worker。
 
 Before release, build the bundled Worker and wheel, run Twine, and run `npm run release:check-wheel`. The final gate installs the wheel in a clean virtual environment, compares `coremind.__version__` with package metadata, and starts the bundled Worker.
+
+## 当前源码修复说明（尚未发布）
+
+新 Worker 协商 `resumeOperations` 后，SDK 自动为每次恢复生成操作身份，并在请求结果未知时保留身份供重试。跨进程重试时同时传入 `operation_id` 和 `expected_sequence`；同一次操作必须保留相同参数。详见 [Protocol 合同](../docs/spec/0.4.x/01-protocol-v2-and-v1-migration.md)。SDK 与 bundled Worker 必须来自同一次构建，协议指纹不匹配会被拒绝。
+
+`event_handler` 在独立单线程中按接收顺序执行，可以调用 SDK。请求返回不保证回调已全部完成，调用方需要自行同步。最多排队 1024 条；过载后 `event_handler_error` 非空并停止接收新的用户回调，已排队回调继续处理，`received_events` 仍保留完整通知，审批及协议响应读取不受阻塞。关闭客户端停止回调投递，不保证排空队列；已进入的用户回调无法强制终止，应自行使用有界等待。
+
+These source fixes are not yet published. A negotiated `resumeOperations` capability enables per-operation identity; preserve both `operation_id` and `expected_sequence` for retries across client processes. Use a matching SDK and bundled Worker. Event callbacks run in order on a separate thread; request completion does not imply callback completion. The 1024-entry queue reports overload via `event_handler_error` and stops new callback deliveries while retaining notifications in `received_events`. Closing does not drain callbacks or forcibly terminate user code.

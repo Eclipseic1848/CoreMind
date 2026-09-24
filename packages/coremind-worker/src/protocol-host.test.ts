@@ -2541,6 +2541,7 @@ describe("ProtocolHost", () => {
       expect(runtimeCreations).toBe(0);
       expect(effects).toEqual(["provider", "tool"]);
       expect(records).toEqual([
+        expect.objectContaining({ kind: "admission" }),
         expect.objectContaining({ kind: "start" }),
         expect.objectContaining({
           kind: "pause",

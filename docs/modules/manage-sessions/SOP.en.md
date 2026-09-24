@@ -20,3 +20,5 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.
+
+Unpublished source fix: end-of-run session summaries consume the same Run turn/token/cost budget and remaining deadline, and obey cancellation. Insufficient budget skips compaction while preserving history. Compare actual provider calls with persisted request facts; unknown usage on failure is not zero usage.

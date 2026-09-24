@@ -50,3 +50,5 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [模块示例](../../../examples/modules/embed-coremind-python/README.zh-CN.md)
 - [Module example](../../../examples/modules/embed-coremind-python/README.en.md)
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
+
+当前源码的恢复操作身份、回调异步顺序和队列过载边界见 [Python SDK 修复说明](../../../python/README.md#当前源码修复说明尚未发布)。这些修复尚未发布，不能据此认定既有 0.8.0 wheel 已具备新行为。

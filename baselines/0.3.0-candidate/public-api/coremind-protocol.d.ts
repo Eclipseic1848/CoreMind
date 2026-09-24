@@ -1068,6 +1068,10 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     params: TObject<    {
     runId: TString;
     input: TOptional<TString>;
+    resumeOperation: TOptional<TObject<    {
+    operationId: TString;
+    expectedSequence: TInteger;
+    }>>;
     }>;
     }>, TObject<    {
     jsonrpc: TLiteral<"2.0">;
@@ -3600,6 +3604,10 @@ method: TLiteral<"resume">;
 params: TObject<    {
 runId: TString;
 input: TOptional<TString>;
+resumeOperation: TOptional<TObject<    {
+operationId: TString;
+expectedSequence: TInteger;
+}>>;
 }>;
 }>, TObject<    {
 jsonrpc: TLiteral<"2.0">;
@@ -3768,6 +3776,10 @@ method: TLiteral<"resume">;
 params: TObject<    {
 runId: TString;
 input: TOptional<TString>;
+resumeOperation: TOptional<TObject<    {
+operationId: TString;
+expectedSequence: TInteger;
+}>>;
 }>;
 }>;
 
