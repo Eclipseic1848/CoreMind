@@ -268,6 +268,7 @@ export interface CoreMindRuntimeOptions {
 }
 
 export interface ProtocolStartIdentity {
+  resumeOperation?: { operationId: string; expectedSequence: number };
   protocolVersion: "2.0";
   method: "run" | "chat" | "resume";
   fingerprint: string;
@@ -1318,7 +1319,15 @@ export class CoreMindRuntime {
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
-    const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
+    const admissionRecords =
+      !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
+    if (admissionRecords.some((record) => record.kind !== "admission"))
+      throw new CoreMindError("run_id_conflict", "新 Run 已存在执行事实");
+    const journal = new RunStateJournal(
+      runId,
+      runStore,
+      resumePlan?.nextJournalSequence ?? admissionRecords.at(-1)?.sequence ?? 0,
+    );
     context.attachJournal(journal);
     const operation =
       resumePlan && resumePlan.operationRecords.length > 0

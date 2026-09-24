@@ -192,7 +192,7 @@ export const ProjectionEngine = {
     });
     const lastResumeSequence = [...ordered]
       .reverse()
-      .find((record) => record.kind === "resume")?.sequence;
+      .find((record) => record.kind === "resume" || record.kind === "admission")?.sequence;
     const terminal = [...ordered]
       .reverse()
       .find(

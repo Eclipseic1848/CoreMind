@@ -67,6 +67,7 @@ class CoreMindClient:
         self._started = False
         self._closed = False
         self._capabilities: frozenset[str] = frozenset()
+        self._pending_resumes: dict[str, dict[str, Any]] = {}
         self._tools: dict[str, tuple[Callable[..., Any], dict[str, Any]]] = {}
         self.received_events: list[Mapping[str, Any]] = []
         self.received_tool_calls: list[Mapping[str, Any]] = []
@@ -231,15 +232,42 @@ class CoreMindClient:
             _validate_observability(result.get("observability"))
         return result
 
-    def resume_run(self, run_id: str, *, input: str | None = None) -> dict[str, Any]:
-        """从意外中断或显式暂停运行的最近稳定边界继续执行。"""
+    def resume_run(
+        self, run_id: str, *, input: str | None = None,
+        operation_id: str | None = None, expected_sequence: int | None = None,
+    ) -> dict[str, Any]:
+        """恢复当前暂停；显式操作标识和快照序号可跨进程重试同一操作。"""
 
         self.start()
         params: dict[str, Any] = {"runId": run_id}
         if input is not None:
             params["input"] = input
+        if (operation_id is None) != (expected_sequence is None):
+            raise ValueError("operation_id 与 expected_sequence 必须同时提供")
         if self._protocol_version == PROTOCOL_V2_VERSION:
-            return _validate_run_handle(self._request_raw("resume", params), run_id)
+            if "resumeOperations" in self._capabilities:
+                if operation_id is not None:
+                    params["resumeOperation"] = {"operationId": operation_id, "expectedSequence": expected_sequence}
+                elif run_id in self._pending_resumes:
+                    pending = self._pending_resumes[run_id]
+                    if pending.get("input") != input:
+                        raise ValueError("尚有结果未知的恢复操作，请使用原参数重试")
+                    params = dict(pending)
+                else:
+                    snapshot = self.query(run_id)
+                    params["resumeOperation"] = {"operationId": uuid.uuid4().hex, "expectedSequence": snapshot["derivedFromSequence"]}
+                self._pending_resumes[run_id] = dict(params)
+            elif operation_id is not None:
+                raise ProtocolError("Worker 不支持恢复操作身份", rpc_code=-32000, coremind_code="protocol_capability_missing")
+            try:
+                handle = _validate_run_handle(self._request_raw("resume", params), run_id)
+            except ProtocolError:
+                self._pending_resumes.pop(run_id, None)
+                raise
+            self._pending_resumes.pop(run_id, None)
+            return handle
+        if operation_id is not None:
+            raise ProtocolError("Protocol v1 不支持恢复操作身份", rpc_code=-32000, coremind_code="protocol_capability_missing")
         return _validate_run_result(
             self._request_raw("resume_run", params),
             require_observability="localObservability" in self._capabilities,
@@ -526,6 +554,7 @@ class CoreMindClient:
         }
         params["capabilities"] = [
             "runHandle",
+            "resumeOperations",
             "typedEvents",
             "cursorResume",
             "controlInbox",
@@ -825,8 +854,12 @@ class AsyncCoreMindClient:
     async def inspect_run(self, run_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.inspect_run, run_id)
 
-    async def resume_run(self, run_id: str, *, input: str | None = None) -> dict[str, Any]:
-        return await asyncio.to_thread(self._client.resume_run, run_id, input=input)
+    async def resume_run(
+        self, run_id: str, *, input: str | None = None,
+        operation_id: str | None = None, expected_sequence: int | None = None,
+    ) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.resume_run, run_id, input=input,
+                                       operation_id=operation_id, expected_sequence=expected_sequence)
 
     async def checkpoint_diff(self, run_id: str, checkpoint_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.checkpoint_diff, run_id, checkpoint_id)

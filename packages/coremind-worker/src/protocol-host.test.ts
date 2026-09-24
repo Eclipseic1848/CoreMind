@@ -14,12 +14,128 @@ import {
 } from "coremind-ai";
 import { ControlInbox, type RunId } from "coremind-ai/internal";
 import { PROTOCOL_V2_VERSION } from "coremind-protocol";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ProtocolHost } from "./index.js";
 
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it("准入持久屏障失败时不返回 Handle，也不创建 Runtime", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-admission-barrier-"));
+    let creations = 0;
+    const host = new ProtocolHost({
+      send: () => {},
+      runStoreFactory: (directory) =>
+        new FileRunStore(directory, {
+          beforeBarrier: async () => {
+            throw new Error("synthetic barrier failure");
+          },
+        }),
+      runtimeFactory: async () => {
+        creations++;
+        throw new Error("不得执行");
+      },
+    });
+    await initializeV2(host, dir);
+    expect(
+      await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "start",
+        method: "run",
+        params: { runId: "barrier-failure" },
+      }),
+    ).toMatchObject({ error: { data: { coremindCode: "durability_barrier_failed" } } });
+    expect(creations).toBe(0);
+  });
+  it("已接受的 Run 即使 Runtime 创建失败仍可查询失败终态", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-admission-failure-"));
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: async () => {
+        throw new Error("synthetic startup failure");
+      },
+    });
+    await initializeV2(host, dir);
+    const started = await host.handle({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "start",
+      method: "run",
+      params: { runId: "startup-failure", input: "执行" },
+    });
+    expect(started).toMatchObject({ result: { runId: "startup-failure" } });
+    await vi.waitFor(async () => {
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "query",
+          method: "query",
+          params: { runId: "startup-failure" },
+        }),
+      ).toMatchObject({
+        result: { projection: { status: "finished", outcome: { status: "failed" } } },
+      });
+    });
+  });
+
+  it("独立恢复操作支持多次暂停并在 Host 重启后去重", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-resume-operations-"));
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const journal = new RunStateJournal("repeated-resume", store);
+    await journal.start({ configName: "demo" });
+    journal.pause({ reason: "approval" });
+    await journal.flush();
+    let starts = 0;
+    const factory = async (options: CoreMindRuntimeOptions) => {
+      starts++;
+      const runtime = await completedParityRuntimeFactory()(options);
+      return {
+        run: async () => {
+          const result = await runtime.run();
+          const records = await store.read("repeated-resume");
+          const paused = new RunStateJournal("repeated-resume", store, records.at(-1)!.sequence);
+          paused.pause({ reason: "approval" });
+          await paused.flush();
+          return result;
+        },
+      };
+    };
+    const host = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+    await initializeV2(host, dir);
+    const request = (operationId: string, expectedSequence: number) => ({
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: operationId,
+      method: "resume",
+      params: { runId: "repeated-resume", resumeOperation: { operationId, expectedSequence } },
+    });
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const records = await store.read("repeated-resume");
+      const message = request(`resume-${attempt}`, records.at(-1)!.sequence);
+      const concurrent = await Promise.all([host.handle(message), host.handle(message)]);
+      expect(concurrent).toEqual([
+        expect.objectContaining({ result: expect.objectContaining({ runId: "repeated-resume" }) }),
+        expect.objectContaining({ result: expect.objectContaining({ runId: "repeated-resume" }) }),
+      ]);
+      await vi.waitFor(async () => {
+        expect((await store.read("repeated-resume")).at(-1)?.kind).toBe("pause");
+        expect(starts).toBe(attempt);
+      });
+      expect(await host.handle(message)).toMatchObject({ result: { runId: "repeated-resume" } });
+      expect(starts).toBe(attempt);
+      expect(
+        await host.handle({ ...message, params: { ...message.params, input: "参数变化" } }),
+      ).toMatchObject({ error: { data: { coremindCode: "run_id_conflict" } } });
+      const restarted = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+      await initializeV2(restarted, dir);
+      expect(await restarted.handle(message)).toMatchObject({
+        result: { runId: "repeated-resume" },
+      });
+      expect(starts).toBe(attempt);
+    }
+  });
   it("重启 Host 对暂停 Run 验收持久接收并去重，拒绝未知及完成 Run", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-paused-verification-"));
     const runId = "paused-verification";
@@ -90,7 +206,7 @@ describe("ProtocolHost", () => {
             verify: { mode: "host" },
           },
         },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     expect(response).toMatchObject({
@@ -136,7 +252,7 @@ describe("ProtocolHost", () => {
               verify: { mode: "host" },
             },
           },
-          configDir: ".",
+          configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
         },
       });
       expect(initialized).toMatchObject({
@@ -171,7 +287,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolVersion: "1.0",
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
 
@@ -189,6 +305,7 @@ describe("ProtocolHost", () => {
   });
 
   it("v1 与 v2 run 映射到同一 Runtime 核心输入", async () => {
+    const parityDir = await mkdtemp(path.join(tmpdir(), "coremind-input-parity-"));
     const captured: CoreMindRuntimeOptions[] = [];
     const runtimeFactory = async (options: CoreMindRuntimeOptions) => {
       captured.push(options);
@@ -201,9 +318,9 @@ describe("ProtocolHost", () => {
       jsonrpc: "2.0",
       id: "init-v1-parity",
       method: "initialize",
-      params: { protocolVersion: "1.0", config, configDir: ".", cwd: "." },
+      params: { protocolVersion: "1.0", config, configDir: parityDir, cwd: "." },
     });
-    await initializeV2With(v2, { config, configDir: ".", cwd: "." });
+    await initializeV2With(v2, { config, configDir: parityDir, cwd: "." });
 
     v1.accept({
       jsonrpc: "2.0",
@@ -294,7 +411,7 @@ describe("ProtocolHost", () => {
         },
         capabilities: ["typedEvents", "controlInbox", "projectionQuery"],
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
 
@@ -307,6 +424,7 @@ describe("ProtocolHost", () => {
         warnings: [],
         serverCapabilities: [
           "runHandle",
+          "resumeOperations",
           "typedEvents",
           "cursorResume",
           "controlInbox",
@@ -1059,7 +1177,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
 
@@ -1094,7 +1212,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
 
@@ -1147,7 +1265,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     const start = (id: string, runId = "stable-run", input = "同一任务") =>
@@ -1213,7 +1331,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     await host.handle({
@@ -1288,7 +1406,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     await host.handle({
@@ -1717,7 +1835,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolRange: { minVersion: "2.0", maxVersion: "2.0" },
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     await host.handle({
@@ -2668,7 +2786,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolVersion: "1.0",
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     const response = await host.handle({
@@ -2711,7 +2829,7 @@ describe("ProtocolHost", () => {
       params: {
         protocolVersion: "1.0",
         config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
-        configDir: ".",
+        configDir: await mkdtemp(path.join(tmpdir(), "coremind-host-config-")),
       },
     });
     const response = await host.handle({
@@ -2738,7 +2856,11 @@ function completedParityRuntimeFactory() {
         timestamp,
         event: { type: "agent_start" as const, agent: "main" },
       };
-      const journal = new RunStateJournal(runId, options.runStore!);
+      const journal = new RunStateJournal(
+        runId,
+        options.runStore!,
+        (await options.runStore!.read(runId)).at(-1)?.sequence ?? 0,
+      );
       await journal.start({
         configName: "parity",
         ...(options.protocolStart ? { protocolStart: options.protocolStart } : {}),
@@ -2968,7 +3090,8 @@ function commonProtocolFacts(records: Awaited<ReturnType<FileRunStore["read"]>>)
   });
 }
 
-async function initializeV2(host: ProtocolHost, configDir = "."): Promise<void> {
+async function initializeV2(host: ProtocolHost, configDir?: string): Promise<void> {
+  configDir ??= await mkdtemp(path.join(tmpdir(), "coremind-host-isolated-"));
   await initializeV2With(host, {
     config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
     configDir,

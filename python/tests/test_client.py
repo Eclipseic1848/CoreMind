@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
+from coremind import AsyncCoreMindClient, CoreMindClient, CoreMindError, ProtocolError
 from coremind.client import (
     _validate_checkpoint_result,
     _validate_tool_registration_receipt,
@@ -17,6 +17,24 @@ from coremind.client import (
 
 
 class CoreMindClientTest(unittest.TestCase):
+    def test_resume_operation_reuses_unknown_request_and_advances_after_acceptance(self) -> None:
+        worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py"))]
+        with CoreMindClient({"schemaVersion": 2, "name": "resume-sdk", "agents": {"main": {}}},
+                            worker_command=worker, protocol_version="2.0") as client:
+            handle = client.run(run_id="resume-sdk")
+            client._capabilities |= {"resumeOperations"}
+            with patch.object(client, "query", return_value={"derivedFromSequence": 5}) as query:
+                with patch.object(client, "_request_raw", side_effect=[CoreMindError("超时"), handle, handle]) as request:
+                    with self.assertRaises(CoreMindError):
+                        client.resume_run("resume-sdk")
+                    client.resume_run("resume-sdk")
+                    client.resume_run("resume-sdk")
+                    first, retry, following = [call.args[1] for call in request.call_args_list]
+                    self.assertEqual(first, retry)
+                    self.assertNotEqual(first["resumeOperation"]["operationId"], following["resumeOperation"]["operationId"])
+                    self.assertEqual(first["resumeOperation"]["expectedSequence"], 5)
+                    self.assertEqual(query.call_count, 2)
+
     def test_host_verification_requires_capability_and_async_parity(self) -> None:
         worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py"))]
         with CoreMindClient({"schemaVersion": 2, "name": "no-host-verification", "agents": {"main": {}}},

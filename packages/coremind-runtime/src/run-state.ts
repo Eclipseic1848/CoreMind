@@ -50,6 +50,7 @@ export interface ToolReplayCandidate {
 }
 
 export type RunStateKind =
+  | "admission"
   | "verification"
   | "start"
   | "resume"
@@ -1445,6 +1446,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
       "resume",
       "telemetry_configuration",
       "telemetry_consent",
+      "admission",
       "verification",
       "control",
       "delegation",

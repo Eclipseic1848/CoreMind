@@ -67,6 +67,7 @@ import {
 
 const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "runHandle",
+  "resumeOperations",
   "typedEvents",
   "cursorResume",
   "controlInbox",
@@ -347,10 +348,12 @@ export class ProtocolHost {
 
   private async beginProtocolV2Run(request: ProtocolV2StartRequest): Promise<ProtocolV2RunHandle> {
     const fingerprint = protocolV2StartFingerprint(request);
+    const resumeOperation =
+      request.method === "resume" ? request.params.resumeOperation : undefined;
     const existing = this.protocolV2Starts.get(request.params.runId);
     if (existing) {
       if (existing.fingerprint === fingerprint) return existing.handle;
-      if (request.method !== "resume" || existing.method === "resume") {
+      if (!resumeOperation && (request.method !== "resume" || existing.method === "resume")) {
         throw new CoreMindError(
           "run_id_conflict",
           `runId ${request.params.runId} 已绑定不同的 start 请求`,
@@ -360,6 +363,24 @@ export class ProtocolHost {
     const state = this.requireInitialized();
     const records = await state.runStore.read(request.params.runId);
     const persisted = persistedProtocolV2Start(records);
+    if (resumeOperation) {
+      const prior = records
+        .map((record) => persistedProtocolV2Start([record]))
+        .find((identity) => identity?.resumeOperation?.operationId === resumeOperation.operationId);
+      if (prior) {
+        if (prior.fingerprint !== fingerprint)
+          throw new CoreMindError("run_id_conflict", "恢复操作标识已绑定不同参数");
+        return protocolV2RunHandle(request.params.runId, prior.acceptedAt);
+      }
+      if (records.length === 0) throw new CoreMindError("unknown_run", "恢复操作引用未知 Run");
+      if (
+        records.at(-1)!.sequence !== resumeOperation.expectedSequence ||
+        ProjectionEngine.project(records).status === "finished"
+      ) {
+        throw new CoreMindError("run_id_conflict", "恢复操作必须引用当前暂停或中断快照序号");
+      }
+    }
+
     const toolRegistrations = [...this.protocolV2ToolRegistrations.entries()]
       .map(([registrationId, spec]) => ({
         registrationId,
@@ -384,7 +405,7 @@ export class ProtocolHost {
         `runId ${request.params.runId} 的动态工具身份与持久记录不一致`,
       );
     }
-    if (persisted) {
+    if (persisted && !resumeOperation) {
       if (persisted.fingerprint === fingerprint) {
         if (ProjectionEngine.project(records).status === "interrupted") {
           const journal = new RunStateJournal(
@@ -405,7 +426,7 @@ export class ProtocolHost {
           `runId ${request.params.runId} 已绑定不同的 start 请求`,
         );
       }
-    } else if (records.length > 0 && request.method !== "resume") {
+    } else if (!persisted && records.length > 0 && request.method !== "resume") {
       throw new CoreMindError(
         "run_id_conflict",
         `runId ${request.params.runId} 已存在但缺少可验证的 v2 start 身份`,
@@ -419,7 +440,14 @@ export class ProtocolHost {
       fingerprint,
       acceptedAt: handle.acceptedAt,
       toolRegistrations,
+      ...(resumeOperation ? { resumeOperation } : {}),
     };
+    const admission = new RunStateJournal(
+      request.params.runId,
+      state.runStore,
+      records.at(-1)?.sequence ?? 0,
+    );
+    await admission.appendFact("admission", { protocolStart }, { durability: "critical" });
     this.protocolV2Starts.set(request.params.runId, {
       method: request.method,
       fingerprint,
@@ -443,7 +471,29 @@ export class ProtocolHost {
             request.params.runId,
             protocolStart,
           );
-    void completion.catch(() => undefined);
+    void completion
+      .catch(async () => {
+        const failedRecords = await state.runStore.read(request.params.runId);
+        if (failedRecords.at(-1)?.kind === "finish") return;
+        const journal = new RunStateJournal(
+          request.params.runId,
+          state.runStore,
+          failedRecords.at(-1)?.sequence ?? 0,
+        );
+        journal.finish({
+          outcome: {
+            status: "failed",
+            finishReason: "agent_failed",
+            error: { code: "agent_failed", message: "Runtime 初始化或后台执行失败" },
+          },
+        });
+        await journal.flush("critical");
+      })
+      .catch(() => {
+        process.stderr.write(
+          `CoreMind run_state_failed: 已接受运行 ${request.params.runId} 的失败结果无法持久化\n`,
+        );
+      });
     return handle;
   }
 
@@ -1716,7 +1766,8 @@ function protocolV2RunHandle(runId: string, acceptedAt: string): ProtocolV2RunHa
 function persistedProtocolV2Start(records: RunStateRecord[]): ProtocolStartIdentity | undefined {
   for (let index = records.length - 1; index >= 0; index--) {
     const record = records[index]!;
-    if (record.kind !== "start" && record.kind !== "resume") continue;
+    if (record.kind !== "start" && record.kind !== "resume" && record.kind !== "admission")
+      continue;
     const payload = asRecord(record.payload);
     const identity = payload ? asRecord(payload.protocolStart) : undefined;
     if (
