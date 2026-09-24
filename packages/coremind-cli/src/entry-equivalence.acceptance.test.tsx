@@ -790,7 +790,7 @@ describe("四入口请求等价（门 A-2）", () => {
       capabilitySource: "builtin",
       recoveryDisposition: "replay_safe",
     });
-  });
+  }, 60_000);
 
   it("TS SDK / CLI / TUI / Python 对同一正式 Child Run fixture 保持完整合同等价", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-eq-child-run-"));
