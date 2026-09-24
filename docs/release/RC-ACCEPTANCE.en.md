@@ -1,6 +1,6 @@
 # Release Candidate Acceptance Guide
 
-The current target is 0.8.0. Neither the historical 0.7.0 network exception nor the 0.7.1 offline promotion applies; this version requires every strict check.
+The current target is 1.0.0. Neither the historical 0.7.0 network exception nor the 0.7.1 offline promotion applies; this version requires every strict check.
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 

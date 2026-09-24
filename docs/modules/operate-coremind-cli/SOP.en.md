@@ -10,7 +10,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 2. Check the local environment with doctor.
 3. Develop with run or chat.
 4. Accept with check and eval.
-5. Use TUI or `--print` for reading results. In `0.8.0`, `--print` stdout may contain run notices; use `--json-events` for machine consumers, and never pass both options together.
+5. Use TUI or `--print` for reading results. In `1.0.0`, `--print` stdout contains only the body; run notices and approvals use stderr; use `--json-events` for machine consumers, and never pass both options together.
 6. Automation must check both the exit code and final `run_result`, while preserving stderr diagnostics.
 7. Inject denial, budget exhaustion, timeout, and abort, then verify `2/3/124/130` respectively.
 8. For an explicit Loop, inject verification failure, pause-resume, and exhaustion; compare TUI, readline, and JSONL state order.

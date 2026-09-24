@@ -40,7 +40,7 @@ runtime:
 
 每个 Trace 事件包含 `runId`、`eventId`、严格递增的 `sequence` 和时间戳。RunState 使用 append-only JSONL 保存开始、事件、checkpoint 与结束证据。
 
-Trace 事件在持久化或转发前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥、URL 敏感参数和命令中的敏感值；正文只留长度标记，普通测试命令仍可审查。这不代替操作系统访问控制，会话与非敏感 Trace 上下文仍应按业务数据管理。
+Trace 事件在持久化或转发前会递归脱敏密钥、Token、口令、认证头、Cookie、私钥、URL 敏感参数和命令中的敏感值；工具参数正文只留长度标记，普通测试命令仍可审查。这不代替操作系统访问控制，会话与非敏感 Trace 上下文仍应按业务数据管理。
 
 `edit/write` 在修改前保存文件快照，可计算 diff 并显式恢复。恢复时还会比较工具完成后的文件指纹；用户或并发进程后来修改过文件时，CoreMind 会报告 `checkpoint_conflict` 并拒绝覆盖。Linux 的内置 `bash` 使用 OS 级沙箱，当前固定断网、只允许写工作区，初始化失败时关闭执行且不回退宿主 shell。Windows 没有 OS 级 shell 沙箱；宿主 Shell 只有在 full、`workspaceOnly: false`、`network: allow` 同时选择时开放，其他组合失败关闭。Git Bash 发现不改变这一安全边界。
 

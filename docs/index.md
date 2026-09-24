@@ -33,6 +33,6 @@ features:
 
 ## 当前阶段
 
-> `0.8.0` 发布线新增同 Run 宿主验收，并修复默认工具路径、Restore 写租约、会话并发、轮数预算、Python 回调、脚本别名、TUI 工具状态与网页响应上限。公开安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0)、[npm](https://www.npmjs.com/package/coremind-cli/v/0.8.0) 和 [PyPI](https://pypi.org/project/coremind-ai/0.8.0/) 为准；源码与工程 CI 通过不等于已经发布。
+> `1.0.0` 发布线完成权限、恢复、Trace、预算与 Worker 生命周期加固，并改善 Python 集成和终端交互。公开安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.0)、[npm](https://www.npmjs.com/package/coremind-cli/v/1.0.0) 和 [PyPI](https://pypi.org/project/coremind-ai/1.0.0/) 为准；源码与工程 CI 通过不等于已经发布。
 
-仓库内 Provider 台账当前未收录 `0.8.0` 静态认证记录；正式发布必须通过绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact。可配置不等于认证，生产评估必须同时核对供应商矩阵与本版本工作流证据。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。
+仓库内 Provider 台账当前未收录 `1.0.0` 静态认证记录；正式发布必须通过绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact。可配置不等于认证，生产评估必须同时核对供应商矩阵与本版本工作流证据。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。

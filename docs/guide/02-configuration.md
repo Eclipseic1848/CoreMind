@@ -33,7 +33,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：`0.8.0` 共提供 40 个可配置入口，包括 39 个继承入口和 1 个 CoreMind 原生入口；可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)尚未收录 `0.8.0` 认证记录；本次发布的 `alibaba-model-studio/qwen-plus` 严格认证证据保存在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v0.8.0) 对应的 Candidate 工作流中。部署到其他模型、凭据或环境仍需单独复验。
+**内置提供商**：`1.0.0` 共提供 40 个可配置入口，包括 39 个继承入口和 1 个 CoreMind 原生入口；可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)尚未收录 `1.0.0` 认证记录；正式发布必须使用绑定最终提交和 Runtime 摘要的严格认证证据，可在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.0) 对应的 Candidate 工作流中核对。部署到其他模型、凭据或环境仍需单独复验。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 

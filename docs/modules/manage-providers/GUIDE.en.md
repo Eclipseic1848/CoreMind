@@ -30,3 +30,5 @@ This is the provider/model pair certified in the `0.8.0` release candidate; reve
 - Do not use full mode to bypass configured deny rules, audit, checkpoints, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
 - Do not describe inherited providers as genuinely certified.
 - Do not reuse older evidence that lacks abort or long-context checks. The matrix reports those gaps explicitly.
+
+The `0.8.0` certification is historical only; `1.0.0` requires its own strict-provider workflow evidence.

@@ -15,15 +15,15 @@ coremind list-templates
 coremind providers
 ```
 
-Use `npx coremind-cli@0.8.0` before global installation, or invoke `coremind` after installing `coremind-cli@0.8.0` globally. Releases and registries are the source of truth for public availability and later versions.
+Use `npx coremind-cli@1.0.0` before global installation, or invoke `coremind` after installing `coremind-cli@1.0.0` globally. Releases and registries are the source of truth for public availability and later versions.
 
 ## Recommended first run
 
 ```bash
-npx coremind-cli@0.8.0 doctor
-npx coremind-cli@0.8.0 check coremind.yaml
-npx coremind-cli@0.8.0 run coremind.yaml --dry-run
-npx coremind-cli@0.8.0 chat coremind.yaml
+npx coremind-cli@1.0.0 doctor
+npx coremind-cli@1.0.0 check coremind.yaml
+npx coremind-cli@1.0.0 run coremind.yaml --dry-run
+npx coremind-cli@1.0.0 chat coremind.yaml
 ```
 
 This sequence separates environment, configuration, resolution, and live execution failures.
@@ -48,7 +48,7 @@ Validates configuration and project contracts without contacting a model. Use it
 
 Executes a single request and exits with a structured result. Use `--dry-run` to inspect resolved settings without model traffic. Use `--resume <runId>` to continue a paused or interrupted run from a persisted stable boundary. Automation should consume documented result fields and the process exit code rather than decorative terminal text.
 
-Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `run_result.observability` is the same Fact Projection used by TypeScript, Python, and Worker consumers. Local Run, Context, Call, error, and delivery state remains available when Telemetry is `DISABLED`. `--print` and `--json-events` are mutually exclusive.
+Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `run_result.observability` is the same Fact Projection used by TypeScript, Python, and Worker consumers. Local Run, Context, Call, error, and delivery state remains available when Telemetry is `DISABLED`. `--print` stdout contains only the final body; notices, approvals, and diagnostics use stderr. `--print` and `--json-events` are mutually exclusive.
 
 ## `chat`
 
