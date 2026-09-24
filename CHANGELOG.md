@@ -4,6 +4,14 @@
 
 [English](CHANGELOG.en.md)
 
+## [1.0.0](https://github.com/Eclipseic1848/CoreMind/compare/v0.8.0...v1.0.0) (2026-09-24)
+
+
+### Bug Fixes
+
+* 修复授权、运行恢复与 SDK 缺陷并优化事件分页 ([#209](https://github.com/Eclipseic1848/CoreMind/issues/209)) ([aebec61](https://github.com/Eclipseic1848/CoreMind/commit/aebec619f7083552add0ed71e0370f6f83a007c6))
+* 修复运行时权限、恢复与 Worker 生命周期审查问题 ([#224](https://github.com/Eclipseic1848/CoreMind/issues/224)) ([6e6b985](https://github.com/Eclipseic1848/CoreMind/commit/6e6b9858bf5f6b424383fdca116c13e52ab6ed93))
+
 ## 0.8.0 — 2026-09-08
 
 ### 新增
