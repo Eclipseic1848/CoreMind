@@ -49,6 +49,7 @@ export interface GitStatusEntry {
 export class GitAdapter {
   private readonly runner: ProcessRunner;
   private readonly maxOutputBytes: number;
+  private versionChecked = false;
 
   constructor(private readonly options: GitAdapterOptions) {
     this.runner = options.runner ?? new ProcessRunner();
@@ -56,11 +57,14 @@ export class GitAdapter {
   }
 
   async status(signal?: AbortSignal): Promise<string> {
-    return this.execute(["status", "--short", "--untracked-files=all"], signal);
+    return this.execute(["status", "--short", "--untracked-files=all", "--", "."], signal);
   }
 
   async statusEntries(signal?: AbortSignal): Promise<GitStatusEntry[]> {
-    const output = await this.execute(["status", "--short", "--untracked-files=all", "-z"], signal);
+    const output = await this.execute(
+      ["status", "--short", "--untracked-files=all", "-z", "--", "."],
+      signal,
+    );
     return parsePorcelainStatus(output);
   }
 
@@ -68,7 +72,7 @@ export class GitAdapter {
     const args = ["diff", "--no-ext-diff", "--no-textconv", "--unified=3"];
     if (options.staged) args.push("--cached");
     args.push("--");
-    if (options.path !== undefined) args.push(await this.safePath(options.path));
+    args.push(await this.safePath(options.path ?? "."));
     return this.execute(args, options.signal);
   }
 
@@ -78,15 +82,51 @@ export class GitAdapter {
       throw new GitAdapterError("git_invalid_request", "git_log 的 limit 必须是 1 到 50 的整数");
     }
     const args = ["log", `-n${limit}`, "--date=iso-strict", "--format=%h%x09%ad%x09%s", "--"];
-    if (options.path !== undefined) args.push(await this.safePath(options.path));
+    args.push(await this.safePath(options.path ?? "."));
     return this.execute(args, options.signal);
   }
 
   private async execute(args: string[], signal?: AbortSignal): Promise<string> {
     try {
+      if (!this.versionChecked) {
+        const version = await this.runner.run({
+          command: "git",
+          args: ["--version"],
+          env: gitEnvironment(),
+          signal,
+        });
+        const match = /^git version (\d+)\.(\d+)/.exec(version.stdout);
+        if (
+          version.exitCode !== 0 ||
+          !match ||
+          Number(match[1]) < 2 ||
+          (Number(match[1]) === 2 && Number(match[2]) < 36)
+        ) {
+          throw new GitAdapterError(
+            "git_command_failed",
+            "安全 Git 查询要求 Git >= 2.36，以禁用 fsmonitor 可执行配置",
+          );
+        }
+        this.versionChecked = true;
+      }
       const result = await this.runner.run({
         command: "git",
-        args: ["--no-pager", "-c", "color.ui=false", ...args],
+        args: [
+          "--no-pager",
+          "--literal-pathspecs",
+          "--no-optional-locks",
+          "-c",
+          "color.ui=false",
+          "-c",
+          "core.fsmonitor=false",
+          "-c",
+          "submodule.recurse=false",
+          "-c",
+          "diff.renames=false",
+          "-c",
+          "status.renames=false",
+          ...args,
+        ],
         cwd: this.options.cwd,
         env: gitEnvironment(),
         signal,
@@ -246,6 +286,10 @@ function gitEnvironment(): NodeJS.ProcessEnv {
     ),
     GIT_PAGER: "cat",
     GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_ALLOW_PROTOCOL: "",
+    GIT_NO_LAZY_FETCH: "1",
     NO_COLOR: "1",
   };
 }

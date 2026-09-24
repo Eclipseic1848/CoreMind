@@ -7,6 +7,7 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
+import { resolveFileToolTarget } from "coremind-tools/internal";
 import { CoreMindError } from "./errors.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
 import { WorkspaceLeaseService } from "./workspace-lease.js";
@@ -120,7 +121,11 @@ export class CheckpointManager {
       ];
     }
 
-    const targets = unique(collectDeclaredStringFields(args, correlation.pathFields ?? ["path"]));
+    const fileTarget = await resolveFileToolTarget(tool, args, this.options.cwd);
+    const targets =
+      fileTarget === undefined
+        ? unique(collectDeclaredStringFields(args, correlation.pathFields ?? ["path"]))
+        : [fileTarget];
     if (targets.length === 0) {
       throw new CoreMindError("checkpoint_failed", `工具 ${tool} 缺少可识别的 path 参数`);
     }

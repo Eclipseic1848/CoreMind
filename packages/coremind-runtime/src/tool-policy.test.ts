@@ -6,6 +6,14 @@ import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
 describe("ToolPolicy", () => {
+  it("文件工具按实际路径语义拒绝 @ 前缀目录穿越", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: true });
+    for (const tool of ["read", "write", "edit", "ls", "grep", "find"]) {
+      await expect(
+        policy.authorize("main", tool, { path: "@../secret.txt" }),
+      ).resolves.toMatchObject({ allowed: false });
+    }
+  });
   it("显式 deny 在 full 模式下仍然优先", async () => {
     const policy = createPolicy({ mode: "full", deny: ["bash"] });
     await expect(policy.authorize("main", "bash", { command: "npm test" })).resolves.toMatchObject({

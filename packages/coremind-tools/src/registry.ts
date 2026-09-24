@@ -20,6 +20,7 @@ import {
   resolveToolCapability,
 } from "./capability.js";
 import type { ExecutionEnvironment } from "./execution-environment.js";
+import { bindFileToolTarget } from "./file-target.js";
 import {
   createGitDiffToolWithRunner,
   createGitLogToolWithRunner,
@@ -139,7 +140,7 @@ export async function buildToolsWithExecutionEnvironment(
       warnings.push(`工具 ${cfg.id} 需要额外配置（如 API key），已跳过`);
       continue;
     }
-    tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
+    tools.push(wrapToolWithArtifactCapture(bindFileToolTarget(tool, opts.cwd), artifactStore));
     effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
     capabilities.set(tool.name, resolveToolCapability({ tool: tool.name }));
   }

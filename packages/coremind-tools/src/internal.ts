@@ -18,6 +18,7 @@ export {
   resolveExecutionEnvironment,
   tightenExecutionEnvironmentRequirement,
 } from "./execution-environment.js";
+export { resolveFileToolTarget } from "./file-target.js";
 export {
   createPlatformExecutionEnvironment,
   shutdownPlatformExecutionEnvironment,
