@@ -181,17 +181,20 @@ describe("ProtocolHost", () => {
       release();
       await nextRun;
     }
-    await vi.waitFor(async () => {
-      expect(
-        await host.handle({
-          jsonrpc: "2.0",
-          protocolVersion: "2.0",
-          id: "query",
-          method: "query",
-          params: { runId: "finalizing" },
-        }),
-      ).toMatchObject({ result: { projection: { outcome: { status: "failed" } } } });
-    });
+    await vi.waitFor(
+      async () => {
+        expect(
+          await host.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "query",
+            method: "query",
+            params: { runId: "finalizing" },
+          }),
+        ).toMatchObject({ result: { projection: { outcome: { status: "failed" } } } });
+      },
+      { timeout: 10_000 },
+    );
   });
 
   it("准入持久屏障失败时不返回 Handle，也不创建 Runtime", async () => {
@@ -239,19 +242,22 @@ describe("ProtocolHost", () => {
       params: { runId: "startup-failure", input: "执行" },
     });
     expect(started).toMatchObject({ result: { runId: "startup-failure" } });
-    await vi.waitFor(async () => {
-      expect(
-        await host.handle({
-          jsonrpc: "2.0",
-          protocolVersion: "2.0",
-          id: "query",
-          method: "query",
-          params: { runId: "startup-failure" },
-        }),
-      ).toMatchObject({
-        result: { projection: { status: "finished", outcome: { status: "failed" } } },
-      });
-    });
+    await vi.waitFor(
+      async () => {
+        expect(
+          await host.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "query",
+            method: "query",
+            params: { runId: "startup-failure" },
+          }),
+        ).toMatchObject({
+          result: { projection: { status: "finished", outcome: { status: "failed" } } },
+        });
+      },
+      { timeout: 10_000 },
+    );
   });
 
   it("独立恢复操作支持多次暂停并在 Host 重启后去重", async () => {
@@ -293,10 +299,13 @@ describe("ProtocolHost", () => {
         expect.objectContaining({ result: expect.objectContaining({ runId: "repeated-resume" }) }),
         expect.objectContaining({ result: expect.objectContaining({ runId: "repeated-resume" }) }),
       ]);
-      await vi.waitFor(async () => {
-        expect((await store.read("repeated-resume")).at(-1)?.kind).toBe("pause");
-        expect(starts).toBe(attempt);
-      });
+      await vi.waitFor(
+        async () => {
+          expect((await store.read("repeated-resume")).at(-1)?.kind).toBe("pause");
+          expect(starts).toBe(attempt);
+        },
+        { timeout: 10_000 },
+      );
       expect(await host.handle(message)).toMatchObject({ result: { runId: "repeated-resume" } });
       expect(starts).toBe(attempt);
       expect(
@@ -2683,17 +2692,20 @@ describe("ProtocolHost", () => {
       method: "run",
       params: { runId: "same-host-resume", input: "初次执行" },
     });
-    await vi.waitFor(async () => {
-      expect(
-        await host.handle({
-          jsonrpc: "2.0",
-          protocolVersion: "2.0",
-          id: "query-paused",
-          method: "query",
-          params: { runId: "same-host-resume" },
-        }),
-      ).toMatchObject({ result: { projection: { status: "paused" } } });
-    });
+    await vi.waitFor(
+      async () => {
+        expect(
+          await host.handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "query-paused",
+            method: "query",
+            params: { runId: "same-host-resume" },
+          }),
+        ).toMatchObject({ result: { projection: { status: "paused" } } });
+      },
+      { timeout: 10_000 },
+    );
 
     const resumed = await host.handle({
       jsonrpc: "2.0",

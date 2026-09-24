@@ -62,7 +62,7 @@ describe("0.3.x-B 独立可信工具故障矩阵", () => {
             kind: "owner_exit",
             effect: "workspace",
             timing: "before",
-            probeStartupDelayMs: 15_100,
+            probeStartupDelayMs: 30_100,
           },
           workspaceRoot,
           tracker,
