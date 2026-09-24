@@ -145,10 +145,7 @@ export async function runReadlineChat(
     streams.output.write(cyan("\n你 > "));
     for await (const line of rl) {
       const text = line.trim();
-      if (text === "/exit" || text === "!exit") {
-        session.abort();
-        break;
-      }
+      if (text === "/exit" || text === "!exit") break;
       if (text === "/abort" || text === "!abort") {
         session.abort();
         while (approvals.current) approvals.resolve("deny");
