@@ -1,5 +1,5 @@
 import path from "node:path";
-import { stdin as input, stdout as output } from "node:process";
+import { stdin as input, stderr as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   type ChildRunNodeProjection,
@@ -118,11 +118,11 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
           process.stdout.write(`${JSON.stringify(event)}\n`);
           return;
         }
-        if (printOnly && event.type === "text_delta") return;
+        if (printOnly) return;
         renderEvent(event);
       },
     });
-    if (runtime.resumedContextLength > 0 && !jsonEvents) {
+    if (runtime.resumedContextLength > 0 && !jsonEvents && !printOnly) {
       console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
     }
 
@@ -152,7 +152,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         );
       }
     }
-    if (result.sessionFile && !jsonEvents) {
+    if (result.sessionFile && !jsonEvents && !printOnly) {
       console.log(dim(`会话已保存：${result.sessionFile}`));
     }
     // 质量摘要（管道/机器模式不打印，保持 --print/--json-events 纯净）

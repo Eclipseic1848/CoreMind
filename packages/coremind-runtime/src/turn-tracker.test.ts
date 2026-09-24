@@ -3,6 +3,29 @@ import type { CoreMindEvent } from "./events.js";
 import { TurnTracker } from "./turn-tracker.js";
 
 describe("TurnTracker：Turn 身份分配（规格 02）", () => {
+  it("同名并行步骤与迟到工具结果保留各自 Turn", () => {
+    const tracker = new TurnTracker();
+    const first = tracker.withTurnId({ type: "agent_start", agent: "main", stepId: "a" });
+    tracker.withTurnId({
+      type: "tool_call",
+      agent: "main",
+      stepId: "a",
+      tool: "read",
+      callId: "call-a",
+      args: {},
+    });
+    tracker.withTurnId({ type: "agent_start", agent: "main", stepId: "b" });
+    tracker.withTurnId({ type: "agent_end", agent: "main", stepId: "b" });
+    const result = tracker.withTurnId({
+      type: "tool_result",
+      agent: "main",
+      stepId: "a",
+      tool: "read",
+      callId: "call-a",
+      isError: false,
+    });
+    expect(result.turnId).toBe(first.turnId);
+  });
   it("agent_start 开启 Turn，turn_end 带同一 TurnId 并关闭", () => {
     const tracker = new TurnTracker();
     const start = tracker.withTurnId({ type: "agent_start", agent: "coder" });

@@ -5,6 +5,26 @@ import type { ChildRunCoordinator } from "./child-run.js";
 import { RunContext } from "./run-context.js";
 
 describe("RunContext", () => {
+  it("同名并行实例全部取消，任一实例仍运行时不能报告静止", () => {
+    const context = new RunContext<never>();
+    const aborted: string[] = [];
+    const make = (id: string): AgentDriver => ({
+      prompt: async () => {},
+      waitForIdle: async () => {},
+      abort: () => {
+        aborted.push(id);
+      },
+      messages: () => [{ role: "assistant", content: id }],
+      status: () => ({ running: id === "first", pendingToolCalls: 0, queuedControls: 0 }),
+      queueControl: () => {},
+    });
+    context.registerAgent("main", make("first"));
+    context.registerAgent("main", make("second"));
+    expect(context.isExecutionQuiescent()).toBe(false);
+    context.abortAgents();
+    expect(aborted).toEqual(["first", "second"]);
+    expect(context.collectMessages().get("main")).toHaveLength(2);
+  });
   it("两个实例的 agent、harness 与会话持久化决策互不串扰", () => {
     const first = new RunContext<{ owner: string }>();
     const second = new RunContext<{ owner: string }>();

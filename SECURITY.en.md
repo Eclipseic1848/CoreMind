@@ -8,7 +8,7 @@ Security issues must be handled privately. This page describes responsible repor
 
 | Version | Security updates |
 | --- | --- |
-| Latest stable `0.7.x` | Supported according to severity and reproducibility |
+| Latest stable `0.8.x` | Supported according to severity and reproducibility |
 | `0.3.1` | Critical security issues only; upgrade to the latest stable release |
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
@@ -42,3 +42,5 @@ If no private entry point is available, open a public issue without technical de
 - The internal state machine controls transitions only. CoreMind configuration fingerprints, permissions, budgets, traces, terminal semantics, and resume validation remain authoritative. Corrupt, unknown-version, or mismatched snapshots are rejected.
 
 Redaction is not data isolation. Sessions, checkpoints, quality override logs, and non-secret trace fields may still contain business context. Protect local state with operating-system access controls and an appropriate retention policy. Before production use, add infrastructure isolation, threat modeling, live-provider retesting, and business evaluations.
+
+Unpublished source hardening: built-in file approval, checkpoints, and execution share a resolved target and recheck before execution. This is not an OS sandbox and cannot eliminate filesystem races from a malicious host process. Git tools require Git 2.36+, disable fsmonitor and external diff/textconv execution, and restrict default reads to the working directory; repository configuration is not trusted code.

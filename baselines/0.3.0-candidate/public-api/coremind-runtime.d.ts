@@ -2355,6 +2355,10 @@ export declare function projectWorkspaceLeasesFromRecords(records: readonly RunS
 export declare function protectContext(messages: CoreMindMessage[], options: ContextProtectionOptions): ContextProtectionResult;
 
 export declare interface ProtocolStartIdentity {
+    resumeOperation?: {
+        operationId: string;
+        expectedSequence: number;
+    };
     protocolVersion: "2.0";
     method: "run" | "chat" | "resume";
     fingerprint: string;
@@ -2524,6 +2528,7 @@ export declare class RunBudgetController {
         reason: string;
     } | undefined;
     /** 请求前同步占用额度，避免跨步骤和并行 Agent 绕过已完成轮数检查。 */
+    canRequestModel(): boolean;
     beforeModelRequest(): void;
     afterToolCall(isError: boolean): {
         terminate: true;
@@ -2779,7 +2784,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "verification" | "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "admission" | "verification" | "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;

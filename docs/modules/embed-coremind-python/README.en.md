@@ -50,3 +50,5 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [模块示例](../../../examples/modules/embed-coremind-python/README.zh-CN.md)
 - [Module example](../../../examples/modules/embed-coremind-python/README.en.md)
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
+
+For unpublished source changes to resume operation identity, ordered asynchronous callbacks, and queue overload handling, see the [Python SDK README](../../../python/README.md). Existing 0.8.0 wheels do not thereby acquire these changes.

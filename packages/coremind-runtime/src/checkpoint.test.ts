@@ -1,12 +1,57 @@
 import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { resolveToolCapability } from "coremind-tools";
+import { buildTools, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { CheckpointManager, inspectCheckpoint, restoreCheckpoint } from "./checkpoint.js";
+import { ToolPolicy } from "./tool-policy.js";
 import { WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("CheckpointManager", () => {
+  it("批准后替换参数不能改写另一文件", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-change-"));
+    const args = { path: "allowed.txt", content: "after" };
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "target",
+      permissions: { mode: "ask" },
+      createApprovalId: () => "approval",
+      approve: async () => "allow",
+    });
+    expect((await policy.authorize("main", "write", args)).allowed).toBe(true);
+    args.path = "changed.txt";
+    const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
+    await expect(tools[0]!.execute("call", args, undefined)).rejects.toThrow("目标");
+    expect(existsSync(path.join(cwd, "changed.txt"))).toBe(false);
+  });
+  it("带 @ 别名的批准、实际写入和 Checkpoint 使用同一目标", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-"));
+    const target = path.join(cwd, "value.txt");
+    writeFileSync(target, "before", "utf8");
+    const args = { path: "@value.txt", content: "after" };
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "target",
+      permissions: { mode: "full", workspaceOnly: true },
+      createApprovalId: () => "approval",
+    });
+    expect((await policy.authorize("main", "write", args)).allowed).toBe(true);
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, ".coremind/checkpoints"),
+      runId: "target",
+    });
+    const record = (await manager.capture("write", args))!;
+    expect(record.targetPath).toBe(await realpath(target));
+    const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
+    await tools[0]!.execute("call", args, undefined);
+    expect(readFileSync(target, "utf8")).toBe("after");
+    expect(existsSync(path.join(cwd, "@value.txt"))).toBe(false);
+    await manager.markApplied(record.checkpointId);
+    await manager.restore(record.checkpointId);
+    expect(readFileSync(target, "utf8")).toBe("before");
+  });
   it("公开 Restore 尊重其他 Run 的写租约并在失败后释放自己的租约", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-restore-lease-"));
     const file = path.join(cwd, "notes.txt");

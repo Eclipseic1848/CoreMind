@@ -188,6 +188,7 @@ import {
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
 import { CoreMindSession } from "./session.js";
+import { compactSessionInRun } from "./session-maintenance.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
@@ -267,6 +268,7 @@ export interface CoreMindRuntimeOptions {
 }
 
 export interface ProtocolStartIdentity {
+  resumeOperation?: { operationId: string; expectedSequence: number };
   protocolVersion: "2.0";
   method: "run" | "chat" | "resume";
   fingerprint: string;
@@ -618,14 +620,16 @@ export class CoreMindRuntime {
     const buildDriver = this.driverBuilders.get(name);
     if (!buildDriver) return undefined;
     const context = runContextFor(this);
-    const harness = context.harnessFor(name, stepId);
+    const executionId = randomUUID();
+    const turnTracker = new TurnTracker();
+    const harness = context.harnessFor(name, stepId, executionId);
     const agent = buildDriver({
-      onEvent,
+      onEvent: (event) => onEvent(turnTracker.withTurnId(event)),
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       harness,
     });
-    context.registerAgent(name, agent);
+    context.registerAgent(name, agent, executionId);
     return agent;
   }
 
@@ -1315,7 +1319,15 @@ export class CoreMindRuntime {
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
-    const journal = new RunStateJournal(runId, runStore, resumePlan?.nextJournalSequence ?? 0);
+    const admissionRecords =
+      !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
+    if (admissionRecords.some((record) => record.kind !== "admission"))
+      throw new CoreMindError("run_id_conflict", "新 Run 已存在执行事实");
+    const journal = new RunStateJournal(
+      runId,
+      runStore,
+      resumePlan?.nextJournalSequence ?? admissionRecords.at(-1)?.sequence ?? 0,
+    );
     context.attachJournal(journal);
     const operation =
       resumePlan && resumePlan.operationRecords.length > 0
@@ -1510,6 +1522,15 @@ export class CoreMindRuntime {
     };
     const recordEvent = (event: CoreMindEvent) => {
       let enriched = turnTracker.withTurnId(event);
+      if (
+        (enriched.type === "tool_result" || enriched.type === "tool_lifecycle") &&
+        enriched.callId
+      ) {
+        const call = effectBindingByCall.get(
+          toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId),
+        );
+        if (call) enriched = { ...enriched, turnId: call.turnId };
+      }
       if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
         context.recordToolCall({
           agent: enriched.agent,
@@ -1547,7 +1568,7 @@ export class CoreMindRuntime {
         }
         const binding = createEffectReceiptBinding({
           runId,
-          turnId: enriched.turnId,
+          turnId: call.turnId,
           agent: enriched.agent,
           ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
           callId: enriched.callId,
@@ -1566,7 +1587,7 @@ export class CoreMindRuntime {
           );
         }
         effectBindingByReceipt.set(enriched.idempotencyKey, binding);
-        enriched = { ...enriched, binding };
+        enriched = { ...enriched, turnId: call.turnId, binding };
       }
       // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
       if (!journal.admitEvent(enriched)) return;
@@ -1895,21 +1916,21 @@ export class CoreMindRuntime {
     });
     const deniedAgents = new Set<string>();
     const activeRunContext = context;
-    context.setHarnessFactory((agentName, stepId) => {
+    context.setHarnessFactory((agentName, stepId, executionId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
       return {
         maxRetries: loop ? 0 : limits.maxRetries,
-        registerContextContract: (contract) => contextContracts.set(agentName, contract),
+        registerContextContract: (contract) => contextContracts.set(executionId!, contract),
         beforeModelRequest: () => {
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           budget.beforeModelRequest();
         },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
-          const contract = contextContracts.get(agentName);
+          const contract = contextContracts.get(executionId!);
           if (!contract || !pendingProviderCapabilityFingerprint) {
             throw new ContextLifecycleError(
               "Provider 请求缺少已解析的 Context Working Set",
@@ -1964,7 +1985,7 @@ export class CoreMindRuntime {
             stepId,
             messageCount: messages.length,
           });
-          const contract = contextContracts.get(agentName);
+          const contract = contextContracts.get(executionId!);
           if (!contract) {
             recordContextFailure(
               new ContextLifecycleError(
@@ -2171,6 +2192,7 @@ export class CoreMindRuntime {
           const registeredCall = activeRunContext.toolCall(
             agentName,
             context.toolCall.callId as CallId,
+            stepId as StepId | undefined,
           );
           const turnId = registeredCall?.turnId;
           if (context.toolCall.tool === DELEGATION_DISPOSITION_TOOL_NAME && turnId) {
@@ -2218,7 +2240,7 @@ export class CoreMindRuntime {
               };
             }
           }
-          if (deniedAgents.has(agentName)) {
+          if (deniedAgents.has(executionId!)) {
             const reason = "同一工具批次已有请求被拒绝";
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
             return { block: true, reason, terminate: true };
@@ -2318,7 +2340,7 @@ export class CoreMindRuntime {
               }
             }
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, decision.reason);
-            deniedAgents.add(agentName);
+            deniedAgents.add(executionId!);
             emit({
               type: "policy_denied",
               agent: agentName,
@@ -2360,7 +2382,7 @@ export class CoreMindRuntime {
             approvalAllowed: true,
           });
           if (extensionDecision?.denied) {
-            deniedAgents.add(agentName);
+            deniedAgents.add(executionId!);
             const reason = extensionDecision.denied.reason;
             emit({
               type: "policy_denied",
@@ -2481,7 +2503,7 @@ export class CoreMindRuntime {
             );
             if (checkpoints.length > 0) {
               checkpointByCallId.set(
-                context.toolCall.callId,
+                callKey,
                 checkpoints.map((checkpoint) => checkpoint.checkpointId),
               );
               for (const checkpoint of checkpoints) {
@@ -2620,9 +2642,13 @@ export class CoreMindRuntime {
               callId: context.toolCall.callId,
             });
           }
-          const checkpointIds = checkpointByCallId.get(context.toolCall.callId);
+          const checkpointIds = checkpointByCallId.get(
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
+          );
           const checkpointId = checkpointIds?.[0];
-          checkpointByCallId.delete(context.toolCall.callId);
+          checkpointByCallId.delete(
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
+          );
           if (checkpointIds) {
             try {
               await Promise.all(
@@ -2667,9 +2693,9 @@ export class CoreMindRuntime {
           });
           return checkpointFailure || adapterFailures.size > 0 ? { terminate: true } : budgetResult;
         },
-        shouldStopAfterTurn: () => deniedAgents.has(agentName),
+        shouldStopAfterTurn: () => deniedAgents.has(executionId!),
         throwIfDenied: () => {
-          if (deniedAgents.has(agentName)) {
+          if (deniedAgents.has(executionId!)) {
             throw new CoreMindError(
               "loop_paused",
               stepId
@@ -2679,7 +2705,7 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
-          const driver = context.agent(agentName);
+          const driver = context.agent(agentName, executionId);
           if (
             observation.type === "turn_end" &&
             "contextOverflow" in observation &&
@@ -2908,6 +2934,69 @@ export class CoreMindRuntime {
       context.setHarnessFactory(undefined);
     }
 
+    let sessionFile: string | undefined;
+    let sessionPersisted = false;
+    if (terminalError === undefined && this.config.session?.enabled && this.options.sessionId) {
+      try {
+        sessionFile = await this.persistSession();
+        sessionPersisted = true;
+        const session = context.sessionHandle();
+        const remainingMs =
+          limits.runTimeoutMs > 0
+            ? Math.floor(limits.runTimeoutMs - (performance.now() - started))
+            : 0;
+        if (this.options.signal?.aborted || journal.isAborted()) {
+          journal.markAborted(knownTurnIdsFrom(collected));
+          this.abortAll();
+          throw new CoreMindError("aborted", "会话维护前运行已取消");
+        }
+        if (
+          session &&
+          this.config.session.compact &&
+          !this.options.signal?.aborted &&
+          (limits.runTimeoutMs === 0 || remainingMs > 0)
+        ) {
+          await this.runWithGuard(
+            remainingMs,
+            journal,
+            () => knownTurnIdsFrom(collected),
+            async () => {
+              const activity = this.executionEnvironment.beginActivity({
+                id: `session-maintenance:${runId}`,
+                kind: "network",
+              });
+              const signal = this.options.signal
+                ? AbortSignal.any([activity.signal, this.options.signal])
+                : activity.signal;
+              try {
+                await compactSessionInRun({
+                  runId,
+                  agent: this.mainAgentName,
+                  session,
+                  models: this.providerRuntime.models,
+                  model: this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model,
+                  budget,
+                  journal,
+                  signal,
+                  emit,
+                });
+              } finally {
+                activity.settle();
+              }
+            },
+          );
+        } else if (session && this.config.session.compact) {
+          await session.appendMaintenanceRecord({
+            runId,
+            status: "skipped",
+            reason: "deadline_exhausted",
+          });
+        }
+      } catch (error) {
+        terminalError = error;
+      }
+    }
+
     while (lifecycleFinalizers.size > 0) {
       await Promise.allSettled([...lifecycleFinalizers]);
     }
@@ -2992,13 +3081,15 @@ export class CoreMindRuntime {
       terminalError = deferredTerminalError;
     }
 
-    let sessionFile: string | undefined;
     // D-4 方案 A：abort 后也写会话树（只写已确认部分，竞态赢家文本丢弃）；
     // 审批拒绝等 paused（loop_paused）是可在用户处置后继续的暂停态，同样应落盘已确认部分，
     // 使持久事实可重建该 Run 的请求（规格 01 §2 请求重建契约的适用范围）
     const terminalCode = terminalError instanceof CoreMindError ? terminalError.code : undefined;
     context.setSessionPersistPaused(terminalCode === "loop_paused");
-    if (terminalError === undefined || journal.isAborted() || context.shouldTrimRejectedTrail()) {
+    if (
+      !sessionPersisted &&
+      (terminalError === undefined || journal.isAborted() || context.shouldTrimRejectedTrail())
+    ) {
       try {
         sessionFile = await this.persistSession();
       } catch (error) {
@@ -3394,8 +3485,8 @@ export class CoreMindRuntime {
     const session = this.config.session;
     if (!sessionId || !session?.enabled) return undefined;
     const context = runContextFor(this);
-    const main = context.agent(this.mainAgentName);
-    if (!main) return undefined;
+    const mains = context.agentsNamed(this.mainAgentName);
+    if (mains.length === 0) return undefined;
     const cm =
       context.sessionHandle() ??
       (await CoreMindSession.open({
@@ -3403,8 +3494,12 @@ export class CoreMindRuntime {
         sessionId,
         cwd: this.options.cwd ?? process.cwd(),
       }));
+    if (!context.sessionHandle())
+      context.attachSession(cm, projectBranchMessages(await cm.branchEntries()));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
-    let messages = main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength);
+    let messages = mains.flatMap((main) =>
+      main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
+    );
     if (context.currentJournal()?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
       messages = trimUnconfirmedTail(messages);
@@ -3413,11 +3508,6 @@ export class CoreMindRuntime {
       messages = trimRejectedTrail(messages);
     }
     await cm.appendMessages(messages);
-    // P2b：配置 session.compact 时，上下文超预算自动压缩（LLM 摘要，消耗 token）
-    if (session.compact) {
-      const mainModel = this.agentModels.get(this.mainAgentName) ?? this.providerRuntime.model;
-      await cm.maybeCompact(this.providerRuntime.models, mainModel, mainModel.contextWindow);
-    }
     return cm.filePath;
   }
 }

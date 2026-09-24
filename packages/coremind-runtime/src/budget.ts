@@ -98,6 +98,17 @@ export class RunBudgetController {
   }
 
   /** 请求前同步占用额度，避免跨步骤和并行 Agent 绕过已完成轮数检查。 */
+  canRequestModel(): boolean {
+    return (
+      !this.violation &&
+      this.requestedTurns < this.limits.maxTurns &&
+      (this.limits.maxTokens === undefined ||
+        this.tokens + this.reserved.tokens < this.limits.maxTokens) &&
+      (this.limits.maxCostUsd === undefined ||
+        this.costUsd + this.reserved.costUsd < this.limits.maxCostUsd)
+    );
+  }
+
   beforeModelRequest(): void {
     this.throwIfExceeded();
     if (this.requestedTurns >= this.limits.maxTurns) {

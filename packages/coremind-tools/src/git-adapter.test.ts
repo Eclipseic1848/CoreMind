@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -12,6 +12,28 @@ import {
 } from "./git-adapter.js";
 
 describe("GitAdapter", () => {
+  it("子目录工作区的默认查询和 magic pathspec 不泄露仓库外层文件", async () => {
+    const cwd = createRepository();
+    writeFileSync(path.join(cwd, "outside.txt"), "外层秘密\n", "utf8");
+    git(cwd, "add", "outside.txt");
+    git(cwd, "commit", "-m", "outside-only");
+    writeFileSync(path.join(cwd, "outside.txt"), "外层修改\n", "utf8");
+    writeFileSync(path.join(cwd, "src", "value.ts"), "内部修改\n", "utf8");
+    const adapter = new GitAdapter({ cwd: path.join(cwd, "src") });
+    expect(await adapter.status()).not.toContain("outside.txt");
+    expect(await adapter.diff()).not.toContain("外层");
+    expect(await adapter.diff({ path: ":(top)outside.txt" })).not.toContain("外层");
+    expect(await adapter.log()).not.toContain("outside-only");
+    expect(await adapter.diff()).toContain("内部修改");
+  });
+
+  it("只读查询不执行仓库 fsmonitor 配置", async () => {
+    const cwd = createRepository();
+    const marker = path.join(cwd, "fsmonitor-ran");
+    git(cwd, "config", "core.fsmonitor", "echo unsafe > fsmonitor-ran");
+    await new GitAdapter({ cwd }).status();
+    expect(existsSync(marker)).toBe(false);
+  });
   it("只读返回状态、统一 diff 和日志", async () => {
     const cwd = createRepository();
     writeFileSync(path.join(cwd, "src", "value.ts"), "export const value = 2;\n", "utf8");

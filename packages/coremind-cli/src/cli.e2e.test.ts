@@ -769,7 +769,8 @@ describe("coremind CLI 端到端", () => {
       env,
     });
     expect(first.code).toBe(0);
-    expect(first.stdout).toContain("会话已保存");
+    expect(first.stdout).not.toContain("会话已保存");
+    expect(first.stdout.trim()).not.toBe("");
     expect(existsSync(path.join(dir, "sessions", "s1.jsonl"))).toBe(true);
 
     const second = runCli(["run", yaml, "--prompt", "第二轮", "--session", "s1", "--print"], {
@@ -777,7 +778,11 @@ describe("coremind CLI 端到端", () => {
       env,
     });
     expect(second.code).toBe(0);
-    expect(second.stdout).toContain("已恢复会话 s1");
+    expect(second.stdout).not.toContain("已恢复会话 s1");
+    expect(second.stdout.trim()).not.toBe("");
+    const session = readFileSync(path.join(dir, "sessions", "s1.jsonl"), "utf8");
+    expect(session).toContain("第一轮");
+    expect(session).toContain("第二轮");
   });
 
   it("chat 交互：对话回复 + /exit 命令退出", () => {

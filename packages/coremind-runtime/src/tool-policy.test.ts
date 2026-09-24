@@ -6,6 +6,42 @@ import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
 describe("ToolPolicy", () => {
+  it("工作区目录别名与真实目标一致，Child allowlist 仍拒绝越界", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "coremind-policy-alias-"));
+    const actual = path.join(root, "actual");
+    const alias = path.join(root, "alias");
+    mkdirSync(path.join(actual, "allowed"), { recursive: true });
+    symlinkSync(actual, alias, process.platform === "win32" ? "junction" : "dir");
+    const options = {
+      cwd: alias,
+      runId: "alias-run",
+      createApprovalId: () => "approval",
+      permissions: { mode: "full" as const, workspaceOnly: true },
+    };
+    const policy = new ToolPolicy(options);
+    await expect(
+      policy.authorize("main", "write", { path: "allowed/note.txt" }),
+    ).resolves.toMatchObject({ allowed: true });
+    await expect(
+      policy.authorize("main", "write", { path: "../outside.txt" }),
+    ).resolves.toMatchObject({ allowed: false });
+    const child = new ToolPolicy({ ...options, allowedPaths: ["allowed"] });
+    await expect(
+      child.authorize("main", "write", { path: "allowed/note.txt" }),
+    ).resolves.toMatchObject({ allowed: true });
+    await expect(child.authorize("main", "write", { path: "other.txt" })).resolves.toMatchObject({
+      allowed: false,
+    });
+  });
+
+  it("文件工具按实际路径语义拒绝 @ 前缀目录穿越", async () => {
+    const policy = createPolicy({ mode: "full", workspaceOnly: true });
+    for (const tool of ["read", "write", "edit", "ls", "grep", "find"]) {
+      await expect(
+        policy.authorize("main", tool, { path: "@../secret.txt" }),
+      ).resolves.toMatchObject({ allowed: false });
+    }
+  });
   it("显式 deny 在 full 模式下仍然优先", async () => {
     const policy = createPolicy({ mode: "full", deny: ["bash"] });
     await expect(policy.authorize("main", "bash", { command: "npm test" })).resolves.toMatchObject({

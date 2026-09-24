@@ -197,6 +197,7 @@ export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext):
 
 class PiAgentDriver implements AgentDriver {
   private queuedControls = 0;
+  private promptRunning = false;
 
   constructor(
     private readonly agent: Agent,
@@ -208,8 +209,14 @@ class PiAgentDriver implements AgentDriver {
     });
   }
 
-  prompt(input: string): Promise<void> {
-    return this.agent.prompt(input);
+  async prompt(input: string): Promise<void> {
+    this.promptRunning = true;
+    try {
+      await this.agent.prompt(input);
+      await this.agent.waitForIdle();
+    } finally {
+      this.promptRunning = false;
+    }
   }
 
   async waitForIdle(): Promise<void> {
@@ -226,7 +233,7 @@ class PiAgentDriver implements AgentDriver {
 
   status(): AgentDriverStatus {
     return {
-      running: this.agent.state.isStreaming,
+      running: this.promptRunning || this.agent.state.isStreaming,
       pendingToolCalls: this.agent.state.pendingToolCalls.size,
       queuedControls: this.queuedControls,
     };

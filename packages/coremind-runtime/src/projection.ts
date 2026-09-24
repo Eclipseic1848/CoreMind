@@ -171,117 +171,7 @@ export interface ChildRunTreeProjection {
 /** 从 append-only Run Facts 生成可删除、可重建的唯一运行投影。 */
 export const ProjectionEngine = {
   project(records: readonly RunStateRecord[]): RunProjection {
-    if (records.length === 0) {
-      throw new CoreMindError("unknown_run", "没有可投影的 Run Facts");
-    }
-    const ordered = [...records].sort((left, right) => left.sequence - right.sequence);
-    const runId = ordered[0]!.runId;
-    for (const [index, record] of ordered.entries()) {
-      if (record.runId !== runId || record.sequence !== index + 1) {
-        throw new CoreMindError("run_state_corrupt", "Run Facts 身份或 sequence 不连续");
-      }
-      if (record.kind === "telemetry_consent") validateTelemetryConsentFact(record.payload);
-    }
-
-    const trace = ordered.flatMap((record) => {
-      if (record.kind !== "event") return [];
-      if (!isTraceEvent(record.payload, runId)) {
-        throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 event payload");
-      }
-      return [publicTraceEvent(record.payload)];
-    });
-    const lastResumeSequence = [...ordered]
-      .reverse()
-      .find((record) => record.kind === "resume")?.sequence;
-    const terminal = [...ordered]
-      .reverse()
-      .find(
-        (record) =>
-          (lastResumeSequence === undefined || record.sequence > lastResumeSequence) &&
-          (record.kind === "finish" || record.kind === "pause"),
-      );
-    const status: RunProjectionStatus =
-      terminal?.kind === "finish"
-        ? "finished"
-        : terminal?.kind === "pause"
-          ? "paused"
-          : "interrupted";
-    if (terminal && !isRecord(terminal.payload)) {
-      throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 terminal payload");
-    }
-    const terminalPayload = terminal?.payload as Record<string, unknown> | undefined;
-    const terminalOperation = terminalField(terminalPayload, "operation", (value) =>
-      asOperation(value, runId),
-    );
-    const operation = terminalOperation ?? operationSnapshotFromRecords(ordered);
-    const outcome = terminalField(terminalPayload, "outcome", asRunOutcome);
-    const metrics = terminalField(terminalPayload, "metrics", asRunMetrics);
-    const evaluation = terminalField(terminalPayload, "evaluation", asEvaluationReport);
-    const releaseReadiness = terminalField(terminalPayload, "releaseReadiness", asReleaseReadiness);
-    const checkpoints = projectCheckpoints(ordered, runId);
-    const exactArtifacts = terminalField(terminalPayload, "artifacts", asArtifactRecords);
-    const artifacts = exactArtifacts ?? projectArtifacts(trace);
-    const extensions =
-      terminalField(terminalPayload, "extensions", asExtensionReceipts) ?? projectExtensions(trace);
-    const requiresHuman = outcome?.error?.code === "unclassified_error";
-    const recovery: RecoveryDecision = {
-      resumable: isRunStateResumable(ordered) && !requiresHuman,
-      requiresHuman,
-      ...(operation ? { operation } : {}),
-    };
-    const snapshot = projectSnapshot({
-      runId,
-      operation,
-      outcome,
-      metrics,
-      evaluation,
-      releaseReadiness,
-      trace,
-      checkpoints,
-      artifacts: exactArtifacts ?? (artifacts.length === 0 ? [] : undefined),
-      extensions,
-    });
-    const context = projectContext(trace);
-    const pendingControls = [
-      ...projectPendingApprovals(trace),
-      ...projectPendingControlFacts(runId, ordered),
-    ];
-    const childRuns = projectChildRuns(ordered, runId);
-    const observability = projectLocalObservability(ordered, {
-      runStatus: status,
-      resumable: recovery.resumable,
-      ...(operation ? { operationState: operation.state } : {}),
-      context: {
-        budgets: context.budgets.length,
-        compactions: context.compactions.length,
-        failures: context.failures.length + context.lifecycleFailures.length,
-      },
-      artifacts: {
-        stored: artifacts.filter((artifact) => artifact.status === "stored").length,
-        blocked: artifacts.filter((artifact) => artifact.status === "blocked").length,
-      },
-      pendingControls: pendingControls.length,
-    });
-
-    return structuredClone({
-      schemaVersion: 1 as const,
-      runId,
-      status,
-      resumable: recovery.resumable,
-      ...(operation ? { operation } : {}),
-      ...(outcome ? { outcome } : {}),
-      recovery,
-      trace,
-      checkpoints,
-      artifacts,
-      extensions,
-      context,
-      pendingControls,
-      ...(childRuns ? { childRuns } : {}),
-      observability,
-      records: ordered.map(publicRunStateRecord),
-      ...(snapshot ? { snapshot } : {}),
-    });
+    return structuredClone(projectRunFacts(records));
   },
 
   prepareResume(
@@ -345,6 +235,125 @@ export const ProjectionEngine = {
     };
   },
 };
+
+/** 分页校验复用完整投影折叠；不创建仅供调用方隔离修改的深拷贝。 */
+export function validateRunFacts(records: readonly RunStateRecord[]): void {
+  projectRunFacts(records);
+}
+
+function projectRunFacts(records: readonly RunStateRecord[]): RunProjection {
+  if (records.length === 0) {
+    throw new CoreMindError("unknown_run", "没有可投影的 Run Facts");
+  }
+  const ordered = [...records].sort((left, right) => left.sequence - right.sequence);
+  const runId = ordered[0]!.runId;
+  for (const [index, record] of ordered.entries()) {
+    if (record.runId !== runId || record.sequence !== index + 1) {
+      throw new CoreMindError("run_state_corrupt", "Run Facts 身份或 sequence 不连续");
+    }
+    if (record.kind === "telemetry_consent") validateTelemetryConsentFact(record.payload);
+  }
+
+  const trace = ordered.flatMap((record) => {
+    if (record.kind !== "event") return [];
+    if (!isTraceEvent(record.payload, runId)) {
+      throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 event payload");
+    }
+    return [publicTraceEvent(record.payload)];
+  });
+  const lastResumeSequence = [...ordered]
+    .reverse()
+    .find((record) => record.kind === "resume" || record.kind === "admission")?.sequence;
+  const terminal = [...ordered]
+    .reverse()
+    .find(
+      (record) =>
+        (lastResumeSequence === undefined || record.sequence > lastResumeSequence) &&
+        (record.kind === "finish" || record.kind === "pause"),
+    );
+  const status: RunProjectionStatus =
+    terminal?.kind === "finish"
+      ? "finished"
+      : terminal?.kind === "pause"
+        ? "paused"
+        : "interrupted";
+  if (terminal && !isRecord(terminal.payload)) {
+    throw new CoreMindError("run_state_corrupt", "Run Fact 包含损坏的 terminal payload");
+  }
+  const terminalPayload = terminal?.payload as Record<string, unknown> | undefined;
+  const terminalOperation = terminalField(terminalPayload, "operation", (value) =>
+    asOperation(value, runId),
+  );
+  const operation = terminalOperation ?? operationSnapshotFromRecords(ordered);
+  const outcome = terminalField(terminalPayload, "outcome", asRunOutcome);
+  const metrics = terminalField(terminalPayload, "metrics", asRunMetrics);
+  const evaluation = terminalField(terminalPayload, "evaluation", asEvaluationReport);
+  const releaseReadiness = terminalField(terminalPayload, "releaseReadiness", asReleaseReadiness);
+  const checkpoints = projectCheckpoints(ordered, runId);
+  const exactArtifacts = terminalField(terminalPayload, "artifacts", asArtifactRecords);
+  const artifacts = exactArtifacts ?? projectArtifacts(trace);
+  const extensions =
+    terminalField(terminalPayload, "extensions", asExtensionReceipts) ?? projectExtensions(trace);
+  const requiresHuman = outcome?.error?.code === "unclassified_error";
+  const recovery: RecoveryDecision = {
+    resumable: isRunStateResumable(ordered) && !requiresHuman,
+    requiresHuman,
+    ...(operation ? { operation } : {}),
+  };
+  const snapshot = projectSnapshot({
+    runId,
+    operation,
+    outcome,
+    metrics,
+    evaluation,
+    releaseReadiness,
+    trace,
+    checkpoints,
+    artifacts: exactArtifacts ?? (artifacts.length === 0 ? [] : undefined),
+    extensions,
+  });
+  const context = projectContext(trace);
+  const pendingControls = [
+    ...projectPendingApprovals(trace),
+    ...projectPendingControlFacts(runId, ordered),
+  ];
+  const childRuns = projectChildRuns(ordered, runId);
+  const observability = projectLocalObservability(ordered, {
+    runStatus: status,
+    resumable: recovery.resumable,
+    ...(operation ? { operationState: operation.state } : {}),
+    context: {
+      budgets: context.budgets.length,
+      compactions: context.compactions.length,
+      failures: context.failures.length + context.lifecycleFailures.length,
+    },
+    artifacts: {
+      stored: artifacts.filter((artifact) => artifact.status === "stored").length,
+      blocked: artifacts.filter((artifact) => artifact.status === "blocked").length,
+    },
+    pendingControls: pendingControls.length,
+  });
+
+  return {
+    schemaVersion: 1 as const,
+    runId,
+    status,
+    resumable: recovery.resumable,
+    ...(operation ? { operation } : {}),
+    ...(outcome ? { outcome } : {}),
+    recovery,
+    trace,
+    checkpoints,
+    artifacts,
+    extensions,
+    context,
+    pendingControls,
+    ...(childRuns ? { childRuns } : {}),
+    observability,
+    records: ordered.map(publicRunStateRecord),
+    ...(snapshot ? { snapshot } : {}),
+  };
+}
 
 function projectChildRuns(
   records: readonly RunStateRecord[],

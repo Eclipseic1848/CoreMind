@@ -55,6 +55,167 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it.each(["cancel", "timeout"])("摘要期间 %s 会终止请求且不会报告成功", async (mode) => {
+    const server = createTextSequenceServer(["正文", "摘要"]);
+    let requests = 0;
+    server.on("request", () => {
+      requests += 1;
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-summary-stop-"));
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | undefined;
+    const compact = vi
+      .spyOn(CoreMindSession.prototype, "maybeCompact")
+      .mockImplementation(async (_models, _model, _window, _settings, signal) => {
+        receivedSignal = signal;
+        if (mode === "cancel") controller.abort();
+        await new Promise<void>((resolve) => {
+          if (signal?.aborted) resolve();
+          else signal?.addEventListener("abort", () => resolve(), { once: true });
+        });
+        return false;
+      });
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        initialPrompt: "正文",
+        sessionId: "summary-stop",
+        signal: controller.signal,
+        config: {
+          schemaVersion: 2,
+          name: "摘要取消",
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          agents: { main: {} },
+          runtime: { maxTurns: 3, runTimeoutMs: 1000 },
+          session: { enabled: true, compact: true },
+        },
+      });
+      const result = await runtime.run();
+      expect(receivedSignal?.aborted).toBe(true);
+      expect(result.outcome.status).toBe(mode === "cancel" ? "aborted" : "timeout");
+      expect(await runtime.waitForQuiescence()).toBe(true);
+      expect(requests).toBe(1);
+    } finally {
+      compact.mockRestore();
+      controller.abort();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+  it.each([1, 3])("会话摘要遵守 maxTurns 并记录实际请求：%s", async (maxTurns) => {
+    const server = createTextSequenceServer(["正文", "摘要"]);
+    let requests = 0;
+    server.on("request", () => {
+      requests += 1;
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-summary-budget-"));
+    const compact = vi
+      .spyOn(CoreMindSession.prototype, "maybeCompact")
+      .mockImplementation(async (models, model) => {
+        await models.completeSimple(model, {
+          systemPrompt: "生成会话摘要",
+          messages: [{ role: "user", content: "摘要", timestamp: Date.now() }],
+        });
+        return true;
+      });
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        initialPrompt: "正文",
+        sessionId: "summary-budget",
+        config: {
+          schemaVersion: 2,
+          name: "摘要预算",
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          agents: { main: {} },
+          runtime: { maxTurns },
+          session: { enabled: true, compact: true },
+        },
+      });
+      const result = await runtime.run();
+      expect(requests, JSON.stringify(result.outcome)).toBe(maxTurns === 1 ? 1 : 2);
+      expect(result.trace.filter((entry) => entry.event.type === "provider_request")).toHaveLength(
+        requests,
+      );
+      expect(result.outcome.status).toBe("succeeded");
+    } finally {
+      compact.mockRestore();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+  it("同名并行 Agent 取消时关闭全部 Provider 请求", async () => {
+    const responses: ServerResponse[] = [];
+    const controller = new AbortController();
+    let bothStarted!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      bothStarted = resolve;
+    });
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write(": waiting\n\n");
+      responses.push(res);
+      if (responses.length === 2) bothStarted();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-parallel-cancel-"));
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        signal: controller.signal,
+        config: {
+          schemaVersion: 2,
+          name: "并行取消",
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          agents: { main: {} },
+          runtime: { maxTurns: 4, runTimeoutMs: 10000 },
+          workflow: [
+            {
+              id: "parallel",
+              type: "parallel",
+              steps: ["a", "b"].map((id) => ({
+                id,
+                type: "prompt" as const,
+                agent: "main",
+                input: id,
+              })),
+            },
+          ],
+        },
+      });
+      const running = runtime.run();
+      await ready;
+      controller.abort();
+      const result = await running;
+      expect(result.outcome.status).toBe("aborted");
+      await vi.waitFor(() => expect(responses.every((res) => res.destroyed)).toBe(true));
+      expect(await runtime.waitForQuiescence()).toBe(true);
+    } finally {
+      controller.abort();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
   it.each(["顺序步骤", "质量重试", "并行步骤"])(
     "工作流不能通过独立 Agent 绕过 Run 的 maxTurns：%s",
     async (mode) => {

@@ -26,7 +26,7 @@ import {
   shouldCompact,
 } from "@earendil-works/pi-agent-core";
 import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
-import type { Model, Models } from "@earendil-works/pi-ai";
+import type { Model, Models, RetryPolicy } from "@earendil-works/pi-ai";
 import type { CoremindCompactionDetails } from "./compaction-projection.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindMessage } from "./public-message.js";
@@ -168,6 +168,11 @@ export class CoreMindSession {
     }
   }
 
+  /** 维护请求保留在 Session 事实域，不注入正常对话上下文。 */
+  async appendMaintenanceRecord(data: Record<string, unknown>): Promise<void> {
+    await this.session.appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data));
+  }
+
   /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
   async buildContext(): Promise<SessionContext> {
     return buildSessionContext(await this.session.findEntriesOnBranch({ order: "oldestFirst" }));
@@ -220,7 +225,10 @@ export class CoreMindSession {
       reserveTokens: number;
       keepRecentTokens: number;
     }> = {},
+    signal?: AbortSignal,
+    retry?: RetryPolicy,
   ): Promise<boolean> {
+    signal?.throwIfAborted();
     const merged = { ...DEFAULT_COMPACTION_SETTINGS, ...settings };
     if (!merged.enabled) return false;
     const entries = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
@@ -229,8 +237,16 @@ export class CoreMindSession {
     if (!shouldCompact(tokens, contextWindow, merged)) return false;
     const prep = prepareCompaction(entries, merged);
     if (!prep.ok || !prep.value) return false;
-    const result = await compact(prep.value, models, model);
+    const result = await compact(prep.value, models, model, undefined, signal, undefined, retry);
+    signal?.throwIfAborted();
     if (!result.ok) return false;
+    const current = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    const identities = (items: typeof entries) =>
+      items
+        .filter((entry) => entry.type !== "custom")
+        .map((entry) => entry.id)
+        .join("\0");
+    if (identities(current) !== identities(entries)) return false;
     await this.session.appendEntry(
       {
         type: "compaction",

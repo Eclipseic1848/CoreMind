@@ -13,6 +13,7 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
+import { resolveFileToolTarget } from "coremind-tools/internal";
 import { DELEGATION_DISPOSITION_TOOL_NAME, DELEGATION_TOOL_NAME } from "./delegation-tool.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
@@ -112,6 +113,15 @@ export class ToolPolicy {
       capability,
       selectors ?? legacySelectors(capabilityOrDeclaration),
     );
+    try {
+      const target = await resolveFileToolTarget(tool, args, this.options.cwd);
+      if (target !== undefined) effect.paths = [target];
+    } catch (error) {
+      return {
+        allowed: false,
+        reason: `无法确认文件目标：${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
     // 内置读取工具省略 path 时读取整个工作区；无关字段不能缩小其真实目标。
     if (["ls", "grep", "find", "git_diff", "git_log", "git_status"].includes(tool)) {
       const target = (args as { path?: unknown } | null)?.path;
@@ -291,7 +301,8 @@ export class ToolPolicy {
     const canonicalCwd = await canonicalize(lexicalCwd);
     for (const candidate of candidates) {
       const addressed = path.resolve(lexicalCwd, candidate);
-      if (isOutside(lexicalCwd, addressed)) return candidate;
+      // 已绑定的文件目标可能使用短路径或目录链接对应的真实根。
+      if (isOutside(lexicalCwd, addressed) && isOutside(canonicalCwd, addressed)) return candidate;
       const canonicalTarget = await canonicalize(addressed);
       if (isOutside(canonicalCwd, canonicalTarget)) return candidate;
     }
@@ -312,7 +323,8 @@ export class ToolPolicy {
       const canonicalTarget = await canonicalize(lexicalTarget);
       const allowed = allowedRoots.some(
         (root) =>
-          !isOutside(root.lexical, lexicalTarget) && !isOutside(root.canonical, canonicalTarget),
+          (!isOutside(root.lexical, lexicalTarget) || !isOutside(root.canonical, lexicalTarget)) &&
+          !isOutside(root.canonical, canonicalTarget),
       );
       if (!allowed) return candidate;
     }

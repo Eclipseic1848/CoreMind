@@ -148,6 +148,7 @@ export declare class GitAdapter {
     private readonly options;
     private readonly runner;
     private readonly maxOutputBytes;
+    private versionChecked;
     constructor(options: GitAdapterOptions);
     status(signal?: AbortSignal): Promise<string>;
     statusEntries(signal?: AbortSignal): Promise<GitStatusEntry[]>;

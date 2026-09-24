@@ -45,7 +45,17 @@ RunHandle = RunId
 
 同一 RunId 的重复 start 请求必须通过输入指纹决定幂等返回或 `run_id_conflict`；不得启动第二个 Run。
 
-首次 run/chat 结束后，resume 可以用同一 RunId 承接；resume 自身的重复请求仍按完整 start 指纹幂等或冲突。
+首次 run/chat 暂停或意外中断后，resume 可以用同一 RunId 承接；成功或失败的终态不能恢复。
+
+### 当前源码修订：恢复操作身份与持久接受（#205，尚未发布）
+
+- Host 宣告 `resumeOperations` 时，resume 可携带 `resumeOperation: { operationId, expectedSequence }`。`expectedSequence` 为调用前 query 的 `derivedFromSequence`；每次新的恢复使用新的 operationId。
+- 相同 operationId 与完整参数重试返回已有 Handle，不重复执行；同一 operationId 改参或新操作使用过期 sequence 返回冲突。网络响应未知时必须保留原操作身份，不能盲目生成新身份。
+- 未携带该字段的请求保留旧的完整 start 指纹行为，不具备区分多次同参恢复的能力。Python SDK 在协商到能力后自动生成身份；跨进程恢复重试可显式传入 `operation_id` 与 `expected_sequence`。
+- Handle 返回前必须成功写入 critical `admission` Fact；不能持久化时拒绝接受。接受后后台创建或执行失败写入 failed 终态，可通过 query/events 查询。持久存储再次失败时只能报告诊断，不能承诺终态已落盘。
+- schema fingerprint 校验保持严格：使用同一次构建的 SDK 与 bundled Worker。新旧指纹不匹配必须明确拒绝，不因协议主版本都是 2.0 就放宽校验。
+- 新程序可读取旧日志。旧程序不认识新 `admission` Fact，不能用旧程序写入已经升级的日志；回滚时保留新日志备份，使用升级前备份及匹配版本的 SDK/Worker，不能删除新 Fact 伪造兼容。
+- 以上是当前修复分支合同，不表示既有 0.8.0 Registry 制品已包含这些修复。
 
 ## 4. 类型化事件 envelope
 

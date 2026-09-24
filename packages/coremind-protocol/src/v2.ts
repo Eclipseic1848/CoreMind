@@ -86,6 +86,12 @@ export const ProtocolV2ResumeRequestSchema = Type.Object(
       {
         runId: BrandedIdSchema,
         input: Type.Optional(Type.String()),
+        resumeOperation: Type.Optional(
+          Type.Object(
+            { operationId: BrandedIdSchema, expectedSequence: Type.Integer({ minimum: 1 }) },
+            { additionalProperties: false },
+          ),
+        ),
       },
       { additionalProperties: false },
     ),

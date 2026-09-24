@@ -33,7 +33,12 @@ const host = new ProtocolHost({
   send: () => {},
   runtimeFactory: async (options) => ({
     run: async () => {
-      const journal = new RunStateJournal(options.runId, options.runStore);
+      const records = await options.runStore.read(options.runId);
+      const journal = new RunStateJournal(
+        options.runId,
+        options.runStore,
+        records.at(-1)?.sequence ?? 0,
+      );
       await journal.start({ protocolStart: options.protocolStart });
       await appendFile(effectMarker, "provider\ntool\n", "utf8");
       process.stdout.write("READY\n");
