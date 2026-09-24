@@ -55,6 +55,64 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("同名并行 Agent 取消时关闭全部 Provider 请求", async () => {
+    const responses: ServerResponse[] = [];
+    const controller = new AbortController();
+    let bothStarted!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      bothStarted = resolve;
+    });
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write(": waiting\n\n");
+      responses.push(res);
+      if (responses.length === 2) bothStarted();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-parallel-cancel-"));
+    try {
+      const runtime = await CoreMindRuntime.create({
+        cwd,
+        configDir: cwd,
+        signal: controller.signal,
+        config: {
+          schemaVersion: 2,
+          name: "并行取消",
+          provider: {
+            id: "probe",
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+          },
+          agents: { main: {} },
+          runtime: { maxTurns: 4, runTimeoutMs: 10000 },
+          workflow: [
+            {
+              id: "parallel",
+              type: "parallel",
+              steps: ["a", "b"].map((id) => ({
+                id,
+                type: "prompt" as const,
+                agent: "main",
+                input: id,
+              })),
+            },
+          ],
+        },
+      });
+      const running = runtime.run();
+      await ready;
+      controller.abort();
+      const result = await running;
+      expect(result.outcome.status).toBe("aborted");
+      await vi.waitFor(() => expect(responses.every((res) => res.destroyed)).toBe(true));
+      expect(await runtime.waitForQuiescence()).toBe(true);
+    } finally {
+      controller.abort();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
   it.each(["顺序步骤", "质量重试", "并行步骤"])(
     "工作流不能通过独立 Agent 绕过 Run 的 maxTurns：%s",
     async (mode) => {

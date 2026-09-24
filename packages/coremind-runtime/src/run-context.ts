@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { ArtifactRecord } from "coremind-tools";
 import type { ExecutionEnvironment } from "coremind-tools/internal";
 import type { AgentDriver } from "./agent-driver.js";
@@ -12,8 +13,8 @@ import type { CoreMindSession } from "./session.js";
 
 /** 单次 Run 的可变资源所有者；Runtime 门面只负责创建与切换实例。 */
 export class RunContext<THarness> {
-  private readonly agents = new Map<string, AgentDriver>();
-  private harnessFactory?: (agentName: string, stepId?: string) => THarness;
+  private readonly agents = new Map<string, { name: string; driver: AgentDriver }>();
+  private harnessFactory?: (agentName: string, stepId?: string, executionId?: string) => THarness;
   private journal?: RunStateJournal;
   private controlInbox?: ControlInbox;
   private session?: CoreMindSession;
@@ -32,28 +33,44 @@ export class RunContext<THarness> {
   private readonly delegationApprovalBindings = new Map<string, string>();
   private terminationError?: unknown;
 
-  registerAgent(name: string, agent: AgentDriver): void {
-    this.agents.set(name, agent);
+  registerAgent(name: string, agent: AgentDriver, executionId = randomUUID()): void {
+    this.agents.set(executionId, { name, driver: agent });
   }
 
-  agent(name: string): AgentDriver | undefined {
-    return this.agents.get(name);
+  agent(name: string, executionId?: string): AgentDriver | undefined {
+    if (executionId !== undefined) return this.agents.get(executionId)?.driver;
+    const candidates = this.agentsNamed(name);
+    const running = candidates.filter((driver) => driver.status().running);
+    // 控制没有指定实例时，不把并行歧义静默路由到最后一个实例。
+    return running.length > 1 ? undefined : (running[0] ?? candidates.at(-1));
+  }
+
+  agentsNamed(name: string): AgentDriver[] {
+    return [...this.agents.values()]
+      .filter((entry) => entry.name === name)
+      .map((entry) => entry.driver);
   }
 
   abortAgents(): void {
-    for (const agent of this.agents.values()) agent.abort();
+    for (const { driver } of this.agents.values()) driver.abort();
   }
 
   collectMessages(): Map<string, CoreMindMessage[]> {
-    return new Map([...this.agents].map(([name, agent]) => [name, agent.messages()]));
+    const messages = new Map<string, CoreMindMessage[]>();
+    for (const { name, driver } of this.agents.values()) {
+      messages.set(name, [...(messages.get(name) ?? []), ...driver.messages()]);
+    }
+    return messages;
   }
 
-  setHarnessFactory(factory?: (agentName: string, stepId?: string) => THarness): void {
+  setHarnessFactory(
+    factory?: (agentName: string, stepId?: string, executionId?: string) => THarness,
+  ): void {
     this.harnessFactory = factory;
   }
 
-  harnessFor(agentName: string, stepId?: string): THarness | undefined {
-    return this.harnessFactory?.(agentName, stepId);
+  harnessFor(agentName: string, stepId?: string, executionId?: string): THarness | undefined {
+    return this.harnessFactory?.(agentName, stepId, executionId);
   }
 
   attachJournal(journal?: RunStateJournal): void {
@@ -89,14 +106,21 @@ export class RunContext<THarness> {
   }
 
   recordToolCall(input: { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId }): void {
-    this.toolCalls.set(agentCallKey(input.agent, input.callId), input);
+    this.toolCalls.set(`${agentCallKey(input.agent, input.callId)}\0${input.stepId ?? ""}`, input);
   }
 
   toolCall(
     agent: string,
     callId: CallId,
+    stepId?: StepId,
   ): { agent: string; callId: CallId; turnId: TurnId; stepId?: StepId } | undefined {
-    return this.toolCalls.get(agentCallKey(agent, callId));
+    const calls = [...this.toolCalls.values()].filter(
+      (call) =>
+        call.agent === agent &&
+        call.callId === callId &&
+        (stepId === undefined || call.stepId === stepId),
+    );
+    return calls.length === 1 ? calls[0] : undefined;
   }
 
   recordDelegationApproval(agent: string, callId: CallId, inputFingerprint: string): void {
@@ -120,8 +144,8 @@ export class RunContext<THarness> {
   }
 
   isExecutionQuiescent(): boolean {
-    for (const agent of this.agents.values()) {
-      const status = agent.status();
+    for (const { driver } of this.agents.values()) {
+      const status = driver.status();
       if (status.running || status.pendingToolCalls > 0 || status.queuedControls > 0) {
         return false;
       }

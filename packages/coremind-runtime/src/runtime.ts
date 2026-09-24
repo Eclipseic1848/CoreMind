@@ -618,14 +618,16 @@ export class CoreMindRuntime {
     const buildDriver = this.driverBuilders.get(name);
     if (!buildDriver) return undefined;
     const context = runContextFor(this);
-    const harness = context.harnessFor(name, stepId);
+    const executionId = randomUUID();
+    const turnTracker = new TurnTracker();
+    const harness = context.harnessFor(name, stepId, executionId);
     const agent = buildDriver({
-      onEvent,
+      onEvent: (event) => onEvent(turnTracker.withTurnId(event)),
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       harness,
     });
-    context.registerAgent(name, agent);
+    context.registerAgent(name, agent, executionId);
     return agent;
   }
 
@@ -1510,6 +1512,15 @@ export class CoreMindRuntime {
     };
     const recordEvent = (event: CoreMindEvent) => {
       let enriched = turnTracker.withTurnId(event);
+      if (
+        (enriched.type === "tool_result" || enriched.type === "tool_lifecycle") &&
+        enriched.callId
+      ) {
+        const call = effectBindingByCall.get(
+          toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId),
+        );
+        if (call) enriched = { ...enriched, turnId: call.turnId };
+      }
       if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
         context.recordToolCall({
           agent: enriched.agent,
@@ -1547,7 +1558,7 @@ export class CoreMindRuntime {
         }
         const binding = createEffectReceiptBinding({
           runId,
-          turnId: enriched.turnId,
+          turnId: call.turnId,
           agent: enriched.agent,
           ...(enriched.stepId ? { stepId: enriched.stepId } : {}),
           callId: enriched.callId,
@@ -1566,7 +1577,7 @@ export class CoreMindRuntime {
           );
         }
         effectBindingByReceipt.set(enriched.idempotencyKey, binding);
-        enriched = { ...enriched, binding };
+        enriched = { ...enriched, turnId: call.turnId, binding };
       }
       // 事件准入（规格 03 §3）：abort 后的迟到终态事实不入 trace/collected/回调（ADR：不入 Trace 或 journal）
       if (!journal.admitEvent(enriched)) return;
@@ -1895,21 +1906,21 @@ export class CoreMindRuntime {
     });
     const deniedAgents = new Set<string>();
     const activeRunContext = context;
-    context.setHarnessFactory((agentName, stepId) => {
+    context.setHarnessFactory((agentName, stepId, executionId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
       return {
         maxRetries: loop ? 0 : limits.maxRetries,
-        registerContextContract: (contract) => contextContracts.set(agentName, contract),
+        registerContextContract: (contract) => contextContracts.set(executionId!, contract),
         beforeModelRequest: () => {
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           budget.beforeModelRequest();
         },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
-          const contract = contextContracts.get(agentName);
+          const contract = contextContracts.get(executionId!);
           if (!contract || !pendingProviderCapabilityFingerprint) {
             throw new ContextLifecycleError(
               "Provider 请求缺少已解析的 Context Working Set",
@@ -1964,7 +1975,7 @@ export class CoreMindRuntime {
             stepId,
             messageCount: messages.length,
           });
-          const contract = contextContracts.get(agentName);
+          const contract = contextContracts.get(executionId!);
           if (!contract) {
             recordContextFailure(
               new ContextLifecycleError(
@@ -2171,6 +2182,7 @@ export class CoreMindRuntime {
           const registeredCall = activeRunContext.toolCall(
             agentName,
             context.toolCall.callId as CallId,
+            stepId as StepId | undefined,
           );
           const turnId = registeredCall?.turnId;
           if (context.toolCall.tool === DELEGATION_DISPOSITION_TOOL_NAME && turnId) {
@@ -2218,7 +2230,7 @@ export class CoreMindRuntime {
               };
             }
           }
-          if (deniedAgents.has(agentName)) {
+          if (deniedAgents.has(executionId!)) {
             const reason = "同一工具批次已有请求被拒绝";
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, reason);
             return { block: true, reason, terminate: true };
@@ -2318,7 +2330,7 @@ export class CoreMindRuntime {
               }
             }
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, decision.reason);
-            deniedAgents.add(agentName);
+            deniedAgents.add(executionId!);
             emit({
               type: "policy_denied",
               agent: agentName,
@@ -2360,7 +2372,7 @@ export class CoreMindRuntime {
             approvalAllowed: true,
           });
           if (extensionDecision?.denied) {
-            deniedAgents.add(agentName);
+            deniedAgents.add(executionId!);
             const reason = extensionDecision.denied.reason;
             emit({
               type: "policy_denied",
@@ -2481,7 +2493,7 @@ export class CoreMindRuntime {
             );
             if (checkpoints.length > 0) {
               checkpointByCallId.set(
-                context.toolCall.callId,
+                callKey,
                 checkpoints.map((checkpoint) => checkpoint.checkpointId),
               );
               for (const checkpoint of checkpoints) {
@@ -2620,9 +2632,13 @@ export class CoreMindRuntime {
               callId: context.toolCall.callId,
             });
           }
-          const checkpointIds = checkpointByCallId.get(context.toolCall.callId);
+          const checkpointIds = checkpointByCallId.get(
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
+          );
           const checkpointId = checkpointIds?.[0];
-          checkpointByCallId.delete(context.toolCall.callId);
+          checkpointByCallId.delete(
+            toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
+          );
           if (checkpointIds) {
             try {
               await Promise.all(
@@ -2667,9 +2683,9 @@ export class CoreMindRuntime {
           });
           return checkpointFailure || adapterFailures.size > 0 ? { terminate: true } : budgetResult;
         },
-        shouldStopAfterTurn: () => deniedAgents.has(agentName),
+        shouldStopAfterTurn: () => deniedAgents.has(executionId!),
         throwIfDenied: () => {
-          if (deniedAgents.has(agentName)) {
+          if (deniedAgents.has(executionId!)) {
             throw new CoreMindError(
               "loop_paused",
               stepId
@@ -2679,7 +2695,7 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
-          const driver = context.agent(agentName);
+          const driver = context.agent(agentName, executionId);
           if (
             observation.type === "turn_end" &&
             "contextOverflow" in observation &&
@@ -3394,8 +3410,8 @@ export class CoreMindRuntime {
     const session = this.config.session;
     if (!sessionId || !session?.enabled) return undefined;
     const context = runContextFor(this);
-    const main = context.agent(this.mainAgentName);
-    if (!main) return undefined;
+    const mains = context.agentsNamed(this.mainAgentName);
+    if (mains.length === 0) return undefined;
     const cm =
       context.sessionHandle() ??
       (await CoreMindSession.open({
@@ -3404,7 +3420,9 @@ export class CoreMindRuntime {
         cwd: this.options.cwd ?? process.cwd(),
       }));
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
-    let messages = main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength);
+    let messages = mains.flatMap((main) =>
+      main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
+    );
     if (context.currentJournal()?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
       messages = trimUnconfirmedTail(messages);

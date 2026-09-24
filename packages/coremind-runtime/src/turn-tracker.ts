@@ -12,7 +12,22 @@ export class TurnTracker {
   /** 最近结束的 Turn（工具执行归属） */
   private openTurnId: string | undefined;
 
+  private readonly scopes = new Map<string, TurnTracker>();
+
   withTurnId(event: CoreMindEvent): CoreMindEvent {
+    if ("turnId" in event && event.turnId) return event;
+    const key = `${"agent" in event ? (event.agent ?? "") : ""}\0${"stepId" in event ? (event.stepId ?? "") : ""}`;
+    // 无主体的旧事件沿用最后一个作用域，保持旧事实读取兼容。
+    if (key === "\0") return [...this.scopes.values()].at(-1)?.withLocalTurnId(event) ?? event;
+    let tracker = this.scopes.get(key);
+    if (!tracker) {
+      tracker = new TurnTracker();
+      this.scopes.set(key, tracker);
+    }
+    return tracker.withLocalTurnId(event);
+  }
+
+  private withLocalTurnId(event: CoreMindEvent): CoreMindEvent {
     switch (event.type) {
       case "agent_start": {
         const turnId = randomUUID();
