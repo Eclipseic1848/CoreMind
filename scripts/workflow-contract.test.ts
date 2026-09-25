@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -245,7 +245,9 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     const run = (failSelector = "") => {
       writeFileSync(callsPath, "", "utf8");
       const env = Object.fromEntries(
-        Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "npm_execpath"),
+        Object.entries(process.env).filter(
+          ([name]) => name.toLowerCase() !== "npm_execpath" && !name.startsWith("GITHUB_"),
+        ),
       );
       const result = spawnSync(process.execPath, ["scripts/test-stability.mjs"], {
         encoding: "utf8",
@@ -286,6 +288,57 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     }
   }, 30_000);
 
+  it("仅完整三轮通过时写入当前 GitHub 运行证据，失败清除旧证据", () => {
+    const directory = mkdtempSync(join(tmpdir(), "coremind-stability-evidence-"));
+    const scripts = join(directory, "scripts");
+    const npmCliPath = join(directory, "npm-cli.mjs");
+    const evidencePath = join(directory, ".scratch", `stability-node-${process.platform}.json`);
+    mkdirSync(scripts);
+    writeFileSync(
+      join(scripts, "test-stability.mjs"),
+      readFileSync("scripts/test-stability.mjs", "utf8"),
+      "utf8",
+    );
+    writeFileSync(
+      npmCliPath,
+      'if (process.env.COREMIND_TEST_FAIL === "1") process.exitCode = 1;\n',
+      "utf8",
+    );
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "npm_execpath"),
+      ),
+      npm_execpath: npmCliPath,
+      GITHUB_RUN_ID: "123",
+      GITHUB_RUN_ATTEMPT: "2",
+      GITHUB_JOB: "candidate",
+      GITHUB_SHA: "a".repeat(40),
+    };
+    try {
+      const run = (fail: boolean) =>
+        spawnSync(process.execPath, [join(scripts, "test-stability.mjs")], {
+          cwd: directory,
+          encoding: "utf8",
+          env: { ...env, COREMIND_TEST_FAIL: fail ? "1" : "0" },
+        });
+      const passed = run(false);
+      expect(passed.status, `${passed.error?.message ?? ""}\n${passed.stderr}`).toBe(0);
+      expect(JSON.parse(readFileSync(evidencePath, "utf8"))).toMatchObject({
+        outcome: "passed",
+        completedRuns: 3,
+        platform: process.platform,
+        runId: "123",
+        runAttempt: "2",
+        job: "candidate",
+        commit: "a".repeat(40),
+      });
+      expect(run(true).status).toBe(1);
+      expect(() => readFileSync(evidencePath, "utf8")).toThrow();
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+
   it("候选其余项目选择器不会重新包含两个隔离项目", () => {
     const result = spawnSync(
       process.execPath,
@@ -298,6 +351,16 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(result.stdout).not.toContain("input-receipt.acceptance.test.ts");
     expect(result.stdout).not.toContain("trusted-tool-fault-matrix.test.ts");
   }, 30_000);
+
+  it("RC 仅在同任务稳定性门成功之后复用 Node 证据", () => {
+    const workflow = parse(readFileSync(".github/workflows/candidate-qualification.yml", "utf8"));
+    const steps = workflow.jobs.candidate.steps as Array<{ name?: string; run?: string }>;
+    const stability = steps.findIndex((step) => step.name === "测试三连跑（离线）");
+    const rc = steps.findIndex((step) => step.name === "Release Candidate 离线验收矩阵");
+    expect(stability).toBeGreaterThan(-1);
+    expect(rc).toBeGreaterThan(stability);
+    expect(steps[rc]?.run).toContain("--reuse-stability-node");
+  });
 
   it("工程门与候选门并集保留拆分前的全部门禁命令", () => {
     const engineering = parse(readFileSync(".github/workflows/ci.yml", "utf8"));

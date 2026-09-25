@@ -162,7 +162,7 @@ jobs:
         run: npm run release:test-source
 
       - name: Release Candidate 离线验收矩阵
-        run: npm run acceptance:rc -- --defer-provider-certification
+        run: npm run acceptance:rc -- --defer-provider-certification --reuse-stability-node
 
       - name: 构建无 Tag 候选产物
         run: npm run candidate:bundle

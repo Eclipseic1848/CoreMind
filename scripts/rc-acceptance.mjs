@@ -308,6 +308,21 @@ export function validateTtyEvidence(evidence, expected) {
   return blockers;
 }
 
+export function validateStabilityEvidence(evidence, expected) {
+  if (!evidence || typeof evidence !== "object") return false;
+  if (!expected.runId || !expected.runAttempt || !expected.job || !expected.commit) return false;
+  return (
+    evidence.schemaVersion === 1 &&
+    evidence.outcome === "passed" &&
+    evidence.completedRuns === 3 &&
+    evidence.platform === expected.platform &&
+    evidence.runId === expected.runId &&
+    evidence.runAttempt === expected.runAttempt &&
+    evidence.job === expected.job &&
+    evidence.commit === expected.commit
+  );
+}
+
 function allEntries() {
   return ["tui", "headless-cli", "typescript-sdk", "python-sdk"];
 }
@@ -320,16 +335,37 @@ async function runAcceptance({
   requireManual,
   deferProviderCertification = false,
   allowProviderNetworkWaiver = false,
+  reuseStabilityNode = false,
 }) {
   const suiteResults = {};
+  let nodeEvidence;
+  const commit = gitValue(["rev-parse", "HEAD"]);
   for (const suite of resolveRcSuites({
     deferProviderCertification,
     allowProviderNetworkWaiver,
   })) {
+    if (suite.name === "node" && reuseStabilityNode) {
+      if (commit !== process.env.GITHUB_SHA) {
+        throw new Error("候选检出提交与当前工作流提交不一致");
+      }
+      const expected = {
+        platform: process.platform,
+        runId: process.env.GITHUB_RUN_ID,
+        runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+        job: process.env.GITHUB_JOB,
+        commit,
+      };
+      const file = path.join(repositoryRoot, ".scratch", `stability-node-${process.platform}.json`);
+      nodeEvidence = JSON.parse(await readFile(file, "utf8"));
+      if (!validateStabilityEvidence(nodeEvidence, expected)) {
+        throw new Error("同次候选三连跑 Node 证据缺失或绑定不一致");
+      }
+      suiteResults.node = true;
+      continue;
+    }
     suiteResults[suite.name] = suite.commands.every(([command, args]) => run(command, args));
     if (!suiteResults[suite.name]) break;
   }
-  const commit = gitValue(["rev-parse", "HEAD"]);
   const rootManifest = JSON.parse(
     await readFile(path.join(repositoryRoot, "package.json"), "utf8"),
   );
@@ -341,6 +377,7 @@ async function runAcceptance({
     platform: process.platform,
     commit,
     suiteResults,
+    nodeSuiteEvidence: nodeEvidence ?? { source: "npm test" },
     evidenceBlockers: evidenceVerification.blockers,
     manualEvidenceBlockers: manual.blockers,
     ...evaluateRcAcceptance({
@@ -428,6 +465,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
       requireManual: process.argv.includes("--require-manual"),
       deferProviderCertification: process.argv.includes("--defer-provider-certification"),
       allowProviderNetworkWaiver: process.argv.includes("--allow-provider-network-waiver"),
+      reuseStabilityNode: process.argv.includes("--reuse-stability-node"),
     });
   }
 }
