@@ -4,13 +4,11 @@
 
 [English](CHANGELOG.en.md)
 
-## [1.0.1](https://github.com/Eclipseic1848/CoreMind/compare/v1.0.0...v1.0.1) (2026-09-25)
+## 1.0.1 — 2026-09-25
 
+### 修复
 
-### Bug Fixes
-
-* **protocol:** preserve v2 tool JSON schemas ([#234](https://github.com/Eclipseic1848/CoreMind/issues/234)) ([2bb734e](https://github.com/Eclipseic1848/CoreMind/commit/2bb734ecd7ea84c302b3de4a6227c2d3a480f647))
-* **protocol:** preserve v2 tool JSON schemas ([#234](https://github.com/Eclipseic1848/CoreMind/issues/234)) ([82e4748](https://github.com/Eclipseic1848/CoreMind/commit/82e4748cff7cd11024ea55ea7bdc4bf4742fd2d3))
+- 修复 Protocol v2 注册工具时丢弃 `parameters` JSON Schema 的 `properties`、`required` 等字段，导致 Python SDK 注册的工具无法被模型正确调用的问题（[#234](https://github.com/Eclipseic1848/CoreMind/issues/234)）。同步重建 Python SDK 内置 Worker，并增加协议与真实 SDK→Worker→模型请求回归。
 
 ## 1.0.0 — 2026-09-24
 

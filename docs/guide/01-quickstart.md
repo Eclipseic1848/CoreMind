@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19.0。
 
-`coremind-cli@1.0.0` 是本发布线的稳定包；安装前以 npm 实时页面确认公开可用性。
+`coremind-cli@1.0.1` 是本发布线的目标包；安装前以 npm 实时页面确认公开可用性。
 
 ```bash
-npm install -g coremind-cli@1.0.0
+npm install -g coremind-cli@1.0.1
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
@@ -38,7 +38,7 @@ cp .env.example .env           # Linux
 
 凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
-交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；`1.0.0` 正式发布必须取得绑定本次候选的严格真实调用认证，其他可配置 Provider 不因此自动获得认证。[供应商矩阵](../providers/README.zh-CN.md)是较早的静态台账，发布证据见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.0)。
+交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；`1.0.1` 正式发布必须取得绑定本次候选的严格真实调用认证，其他可配置 Provider 不因此自动获得认证。[供应商矩阵](../providers/README.zh-CN.md)是较早的静态台账，发布证据见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1)。
 
 ## 4. 运行
 

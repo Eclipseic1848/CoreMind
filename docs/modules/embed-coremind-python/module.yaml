@@ -3,7 +3,7 @@ id: embed-coremind-python
 name:
   zh-CN: "Python SDK 与工具桥"
   en: "Python SDK and Tool Bridge"
-version: 1.0.0
+version: 1.0.1
 sourcePaths:
   - "python/src/coremind"
   - "packages/coremind-worker/src"

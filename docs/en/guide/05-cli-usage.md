@@ -15,15 +15,15 @@ coremind list-templates
 coremind providers
 ```
 
-Use `npx coremind-cli@1.0.0` before global installation, or invoke `coremind` after installing `coremind-cli@1.0.0` globally. Releases and registries are the source of truth for public availability and later versions.
+Use `npx coremind-cli@1.0.1` before global installation, or invoke `coremind` after installing `coremind-cli@1.0.1` globally. Releases and registries are the source of truth for public availability and later versions.
 
 ## Recommended first run
 
 ```bash
-npx coremind-cli@1.0.0 doctor
-npx coremind-cli@1.0.0 check coremind.yaml
-npx coremind-cli@1.0.0 run coremind.yaml --dry-run
-npx coremind-cli@1.0.0 chat coremind.yaml
+npx coremind-cli@1.0.1 doctor
+npx coremind-cli@1.0.1 check coremind.yaml
+npx coremind-cli@1.0.1 run coremind.yaml --dry-run
+npx coremind-cli@1.0.1 chat coremind.yaml
 ```
 
 This sequence separates environment, configuration, resolution, and live execution failures.

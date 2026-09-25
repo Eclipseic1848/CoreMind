@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-08-26",
-  "targetVersion": "1.0.0",
+  "targetVersion": "1.0.1",
   "summary": {
     "supported": 40,
     "certified": 0,

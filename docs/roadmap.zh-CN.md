@@ -4,9 +4,9 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前发布线：`1.0.0`
+## 当前发布线：`1.0.1`
 
-`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `1.0.0` 发布线继承 `0.8.0`，并保留以下能力：
+`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `1.0.1` 发布线继承 `0.8.0`，并保留以下能力：
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
@@ -18,11 +18,11 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`v1.0.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.0)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/1.0.0/) 必须绑定同一版本与提交；公开可用性以实时页面为准，旧版本发布证据继续作为历史记录保留。
+`v1.0.1` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/1.0.1/) 必须绑定同一版本与提交；公开可用性以实时页面为准，旧版本发布证据继续作为历史记录保留。
 
-它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；仓库台账未收录 `1.0.0` 静态认证记录，正式发布还必须有同版本 strict-provider 工作流 Artifact。
+它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；仓库台账未收录 `1.0.1` 静态认证记录，正式发布还必须有同版本 strict-provider 工作流 Artifact。
 
-## `1.0.0`：运行时安全与集成加固
+## `1.0.1`：运行时安全与集成加固
 
 统一修复授权目标、网络预授权、Trace 凭据、预算与摘要认证、恢复准入、关闭竞争、Python 工具身份和终端取消；保留 Config v2、Protocol v1/v2 与同一 Node Runtime。详见[升级指南](migrations/0.8-to-1.0.zh-CN.md)和[变更日志](../CHANGELOG.md)。发布资格仍由本版本严格候选与公开制品证据决定。
 

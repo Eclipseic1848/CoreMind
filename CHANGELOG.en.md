@@ -4,6 +4,12 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## 1.0.1 — 2026-09-25
+
+### Fix
+
+- Preserve `properties`, `required`, and other JSON Schema fields in Protocol v2 tool registration so Python SDK tools reach model requests intact ([#234](https://github.com/Eclipseic1848/CoreMind/issues/234)). Rebuild the bundled Worker and cover the protocol and SDK-to-Worker-to-model path with regression tests.
+
 ## 1.0.0 — 2026-09-24
 
 ### Fixes and hardening
