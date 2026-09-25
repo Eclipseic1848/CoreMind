@@ -18,25 +18,25 @@ node --version
 ### 全局安装（推荐）
 
 ```bash
-npm install -g coremind-cli@1.0.0
+npm install -g coremind-cli@1.0.1
 ```
 
-`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。本文对应 `1.0.0` 发布线；安装前以 Release 或 Registry 当前列出的版本确认公开可用性。
+`-g` 表示**全局安装**——装一次，之后在任何目录都能用 `coremind` 命令。本文对应 `1.0.1` 发布线；安装前以 Release 或 Registry 当前列出的版本确认公开可用性。
 
 ### 验证安装成功
 
 ```bash
-coremind --version        # 1.0.0 显示 coremind v1.0.0
+coremind --version        # 1.0.1 显示 coremind v1.0.1
 coremind doctor           # 环境自检；检查项目密钥时传入 coremind.yaml
 ```
 
-看到 `coremind v1.0.0` 表示 CLI 已安装；进入项目后再运行 `coremind doctor coremind.yaml` 检查配置和所需环境变量。`doctor` 不会向 Provider 发送真实请求。
+看到 `coremind v1.0.1` 表示 CLI 已安装；进入项目后再运行 `coremind doctor coremind.yaml` 检查配置和所需环境变量。`doctor` 不会向 Provider 发送真实请求。
 
 ### 更新到已验证的版本
 
 ```bash
 npm view coremind-cli version     # 查询 Registry 当前版本
-npm install -g coremind-cli@1.0.0 # 本文目标版本，安装前核对 Registry
+npm install -g coremind-cli@1.0.1 # 本文目标版本，安装前核对 Registry
 ```
 
 升级到将来的版本时，先查看该版本的 Release 和迁移说明，再把安装命令中的版本号换成已验证的目标版本。
@@ -50,7 +50,7 @@ npm uninstall -g coremind-cli
 ### 不想安装？临时体验（不推荐日常用）
 
 ```bash
-npx -y coremind-cli@1.0.0 doctor
+npx -y coremind-cli@1.0.1 doctor
 ```
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
@@ -322,7 +322,7 @@ coremind run coremind.yaml --prompt "本周干了什么"
 
 | 现象 | 原因与解决 |
 |---|---|
-| `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@1.0.0`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
+| `coremind 无法识别` / `command not found` | 没装成功。确认 Registry 已公开目标版本后运行 `npm install -g coremind-cli@1.0.1`；装了还不行 → 重开终端（PATH 刷新）；Windows 上检查 npm 全局目录是否在 PATH |
 | 提示缺少 API key | ① 本例检查 `.env` 中的 `DASHSCOPE_API_KEY`（其他 Provider 以其配置中的 `apiKeyEnv` 为准）；② `.env` 不在**你敲命令的目录**（见 3 节）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
 | 运行很久没反应 / 超时 | 查看运行事件与 `runTimeoutMs`、`stepTimeoutMs`、Provider 和工具状态；`doctor` 只检查密钥存在，不验证 Provider 连接，不要在副作用结果未知时盲目重试 |

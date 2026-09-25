@@ -66,7 +66,7 @@ function renderChinese(data) {
   });
   return `# Provider 支持与认证矩阵
 
-> 表格基于 ${data.generatedAt} 的运行时静态目录和人工证据台账生成，当前对应稳定版 \`${data.targetVersion}\`。不应手工修改表格。
+> 表格基于 ${data.generatedAt} 的运行时静态目录和人工证据台账生成，当前对应目标版本 \`${data.targetVersion}\`。不应手工修改表格。
 
 CoreMind 当前可配置 **${data.summary.supported}** 个内置 Provider，其中 **${data.summary.certified}** 个具有完整真实调用证据，**${data.summary.unverified}** 个仅代表运行时目录可识别。**可配置不等于通过真实认证。**
 
@@ -107,7 +107,7 @@ function renderEnglish(data) {
   });
   return `# Provider Support and Certification Matrix
 
-> This table was generated from the ${data.generatedAt} static runtime catalog and human-maintained evidence ledger and now corresponds to stable \`${data.targetVersion}\`. Do not edit the table manually.
+> This table was generated from the ${data.generatedAt} static runtime catalog and human-maintained evidence ledger and corresponds to target version \`${data.targetVersion}\`. Do not edit the table manually.
 
 CoreMind currently supports configuration for **${data.summary.supported}** built-in providers. Complete real-call evidence exists for **${data.summary.certified}**, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified.**
 

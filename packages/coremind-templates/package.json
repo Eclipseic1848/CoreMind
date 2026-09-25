@@ -1,6 +1,6 @@
 {
   "name": "coremind-templates",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CoreMind 模板库：场景模板与元数据索引",
   "license": "MIT",
   "repository": {
@@ -36,6 +36,6 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "coremind-config": "1.0.0"
+    "coremind-config": "1.0.1"
   }
 }

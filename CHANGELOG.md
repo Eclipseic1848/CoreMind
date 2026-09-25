@@ -4,6 +4,12 @@
 
 [English](CHANGELOG.en.md)
 
+## 1.0.1 — 2026-09-25
+
+### 修复
+
+- 修复 Protocol v2 注册工具时丢弃 `parameters` JSON Schema 的 `properties`、`required` 等字段，导致 Python SDK 注册的工具无法被模型正确调用的问题（[#234](https://github.com/Eclipseic1848/CoreMind/issues/234)）。同步重建 Python SDK 内置 Worker，并增加协议与真实 SDK→Worker→模型请求回归。
+
 ## 1.0.0 — 2026-09-24
 
 ### 修复与加固

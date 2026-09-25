@@ -2,13 +2,13 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site at one version and stability level. When reusing a candidate, the manifest distinguishes the package build commit from the release commit.
 
-> The current publication target is `1.0.0`. This page describes strict release qualification and recovery. Source code, engineering checks, and synchronized documentation do not establish public availability; GitHub Release, npm, and PyPI remain authoritative.
+> The current publication target is `1.0.1`. This page describes strict release qualification and recovery. Source code, engineering checks, and synchronized documentation do not establish public availability; GitHub Release, npm, and PyPI remain authoritative.
 
 [简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 
 ## Historical release decisions
 
-Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `1.0.0`. Do not restart those releases or overwrite their artifacts.
+Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `1.0.1`. Do not restart those releases or overwrite their artifacts.
 
 ## Principles
 
@@ -26,10 +26,10 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `1.0.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `1.0.1`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 1.0.0
+npm run release:sync-version -- 1.0.1
 npm run release:preflight -- --allow-dirty
 ```
 
@@ -60,7 +60,7 @@ P0-17 stores the maintainer's read-only `main` ruleset export and bypass actor i
 
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.0.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.0.1` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -82,4 +82,4 @@ Stop on any build, acceptance, OIDC, registry, attestation, or Release failure. 
 
 ## Current candidate sequencing
 
-Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.0.0.
+Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.0.1.
