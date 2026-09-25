@@ -22,6 +22,8 @@ type Fixture = {
   repair: string;
 };
 
+const commandTimeoutMs = 30_000;
+
 const fixtures: Fixture[] = [
   {
     language: "typescript",
@@ -43,74 +45,79 @@ const fixtures: Fixture[] = [
 ];
 
 describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => {
-  it("保留失败证据，写前建 checkpoint，修复后验证，并可完整恢复", async () => {
-    const root = createFixture(fixture.language);
-    const inspection = await inspectCodingRepository(root);
-    const selection = await selectCodingEnvironment(inspection, {
-      language: fixture.language,
-      testCommand: commandText(fixture.regressionCommand),
-    });
-    const repoMap = buildRepositoryMap(inspection, selection);
-    const plan = createEngineeringTaskPlan({
-      task: "修复跨文件价格计算",
-      acceptanceCriteria: ["目标测试通过", "完整回归通过", "恢复后回到缺陷基线"],
-      selection,
-    });
-    const ledger = new EngineeringEvidenceLedger({ plan, repoMap });
+  it(
+    "保留失败证据，写前建 checkpoint，修复后验证，并可完整恢复",
+    async () => {
+      const root = createFixture(fixture.language);
+      const inspection = await inspectCodingRepository(root);
+      const selection = await selectCodingEnvironment(inspection, {
+        language: fixture.language,
+        testCommand: commandText(fixture.regressionCommand),
+      });
+      const repoMap = buildRepositoryMap(inspection, selection);
+      const plan = createEngineeringTaskPlan({
+        task: "修复跨文件价格计算",
+        acceptanceCriteria: ["目标测试通过", "完整回归通过", "恢复后回到缺陷基线"],
+        selection,
+      });
+      const ledger = new EngineeringEvidenceLedger({ plan, repoMap });
 
-    const failing = run(root, fixture.targetCommand);
-    expect(failing.exitCode).not.toBe(0);
-    ledger.recordVerification({
-      kind: "reproduction",
-      command: commandText(fixture.targetCommand),
-      exitCode: failing.exitCode,
-      durationMs: failing.durationMs,
-    });
+      const failing = run(root, fixture.targetCommand);
+      expect(failing.exitCode).toBe(1);
+      ledger.recordVerification({
+        kind: "reproduction",
+        command: commandText(fixture.targetCommand),
+        exitCode: failing.exitCode,
+        durationMs: failing.durationMs,
+      });
 
-    const checkpoints = new CheckpointManager({
-      cwd: root,
-      rootDir: path.join(root, ".coremind", "checkpoints"),
-      runId: `kernel-${fixture.language}`,
-    });
-    const checkpoint = await checkpoints.capture("write", { path: fixture.source });
-    expect(checkpoint?.reversible).toBe(true);
-    writeFileSync(path.join(root, fixture.source), fixture.repair, "utf8");
-    const diff = await inspectCheckpoint(checkpoint as NonNullable<typeof checkpoint>, root);
-    expect(diff.changed).toBe(true);
-    expect(diff.unifiedDiff?.replaceAll("\\", "/")).toContain(fixture.source);
-    await checkpoints.markApplied(checkpoint?.checkpointId ?? "");
+      const checkpoints = new CheckpointManager({
+        cwd: root,
+        rootDir: path.join(root, ".coremind", "checkpoints"),
+        runId: `kernel-${fixture.language}`,
+      });
+      const checkpoint = await checkpoints.capture("write", { path: fixture.source });
+      expect(checkpoint?.reversible).toBe(true);
+      writeFileSync(path.join(root, fixture.source), fixture.repair, "utf8");
+      const diff = await inspectCheckpoint(checkpoint as NonNullable<typeof checkpoint>, root);
+      expect(diff.changed).toBe(true);
+      expect(diff.unifiedDiff?.replaceAll("\\", "/")).toContain(fixture.source);
+      await checkpoints.markApplied(checkpoint?.checkpointId ?? "");
 
-    ledger.recordToolCall("write");
-    ledger.recordChange({
-      path: fixture.source,
-      reason: "修正跨文件税率常量",
-      checkpointId: checkpoint?.checkpointId ?? "",
-      diff: diff.unifiedDiff ?? "",
-    });
-    const target = run(root, fixture.targetCommand);
-    const regression = run(root, fixture.regressionCommand);
-    ledger.recordVerification({
-      kind: "target-test",
-      command: commandText(fixture.targetCommand),
-      exitCode: target.exitCode,
-      durationMs: target.durationMs,
-    });
-    ledger.recordVerification({
-      kind: "regression-test",
-      command: commandText(fixture.regressionCommand),
-      exitCode: regression.exitCode,
-      durationMs: regression.durationMs,
-    });
-    ledger.markDiffReviewed();
+      ledger.recordToolCall("write");
+      ledger.recordChange({
+        path: fixture.source,
+        reason: "修正跨文件税率常量",
+        checkpointId: checkpoint?.checkpointId ?? "",
+        diff: diff.unifiedDiff ?? "",
+      });
+      const target = run(root, fixture.targetCommand);
+      const regression = run(root, fixture.regressionCommand);
+      ledger.recordVerification({
+        kind: "target-test",
+        command: commandText(fixture.targetCommand),
+        exitCode: target.exitCode,
+        durationMs: target.durationMs,
+      });
+      ledger.recordVerification({
+        kind: "regression-test",
+        command: commandText(fixture.regressionCommand),
+        exitCode: regression.exitCode,
+        durationMs: regression.durationMs,
+      });
+      ledger.markDiffReviewed();
 
-    expect(ledger.finalize({ claimTestsPassed: true, outcome: "succeeded" })).toMatchObject({
-      testsPassed: true,
-      changedFiles: [fixture.source],
-    });
+      expect(ledger.finalize({ claimTestsPassed: true, outcome: "succeeded" })).toMatchObject({
+        testsPassed: true,
+        changedFiles: [fixture.source],
+      });
 
-    await restoreCheckpoint(checkpoint as NonNullable<typeof checkpoint>, root);
-    expect(run(root, fixture.targetCommand).exitCode).not.toBe(0);
-  });
+      await restoreCheckpoint(checkpoint as NonNullable<typeof checkpoint>, root);
+      expect(run(root, fixture.targetCommand).exitCode).toBe(1);
+      // 四次串行命令各有独立上限，另给 checkpoint 与仓库检查留出时间。
+    },
+    4 * commandTimeoutMs + 30_000,
+  );
 
   it("错误命令、审批拒绝和中止都不能伪装成成功", async () => {
     const root = createFixture(fixture.language);
@@ -200,7 +207,7 @@ function run(
     cwd,
     encoding: "utf8",
     stdio: "pipe",
-    timeout: 30_000,
+    timeout: commandTimeoutMs,
   });
   return { exitCode: result.status, durationMs: Date.now() - startedAt };
 }
