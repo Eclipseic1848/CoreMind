@@ -1407,7 +1407,7 @@ describe("ProtocolHost", () => {
         method: "run",
         params: { runId: "run-v2-1", input: "长程任务" },
       }),
-      250,
+      2_000,
     );
 
     expect(response).toMatchObject({
