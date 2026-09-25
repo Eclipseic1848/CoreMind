@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "aebec619f7083552add0ed71e0370f6f83a007c6",
+    "developmentCommit": "19d94991617cb63b5bd7645b2739dbe52c3ef500",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -25,7 +25,7 @@
     "schemas": {
       "config": "8d2f0b26b9a7c0c7fd9de3b7f490e63339fea3f503863f4659ac6c5fb9c13c51",
       "protocol": "2eba6757fc48fc2d1e5b8bf246487cc7e3db3ef6eab302661d0b1ebf5ca33682",
-      "protocolV2": "3500bfab99998ad58dfbb76b6e4059f76ad8a21599ee79c7235cd2b22e8c5f55"
+      "protocolV2": "361f45aed17f48b7bae2dab77f4c5acc5838833236c895455a07c1fdefe97e60"
     }
   },
   "dependencies": {
@@ -283,21 +283,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-09-24T08:36:56.205Z",
+    "capturedAt": "2026-09-25T11:05:14.238Z",
     "capturePlatform": "win32",
-    "updateReason": "v1.0.0 audit fixes: explicit host network scope and negotiated v1 tool result run identity",
+    "updateReason": "v1.0.1 Protocol v2 tool_register JSON Schema preservation (Issue #234); upgrade or roll back SDK and bundled Worker together",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "933b0694b581eda9a4f3bea8e7aabf500250876017990f2d90a95e27c5b738d3",
-    "codingEvalFixtureSha256": "9ba7477bc71f4a1f6865e3fb8d68c58f628dd1835b526354c3f76152242be35a",
+    "dependencyLockSha256": "fd4c0310d73f3c1689dc83e62f7f76c5044a72fb1e765b4a7e645e4236442d02",
+    "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
       "coremind-ai": "eb416aaddd09637d3d0db96421b237dbb59d028d0841e94de503979d54630985",
-      "coremind-cli": "4bca02853d3c5c38ca698aa5705958f080de6ee9f1bb968b0c3cbf7c7ac0f3d6",
+      "coremind-cli": "3490b82534bc0bf3724dcc5cc5b3522cb6e4f5cdecf9dabda971ebaa38ea56f5",
       "coremind-config": "52c8f4aaaf779278386a63d73d1c63253260baf902ca9e8aaa3dace47c78cf57",
-      "coremind-protocol": "ba5979e8c5468c408f7ca6737846f9e001aa990b6a92c67ca18d3afbf1b50aae",
+      "coremind-protocol": "38fac3aa17f7754b51296107cc6d43fee7d41950e12f6fa3dc7076701b2023aa",
       "coremind-runtime": "4443dc8b929727c8176fd6f2e1127e5bd650a75d9802ff6d67ccb50a02e0965f",
       "coremind-templates": "b4e6b571b286fe2277d055fda3c7b5687a7e41659acb95cf36e2cc2ebbf83242",
       "coremind-tools": "ce5cda17a9d876af6505ed9f39dd06ced74d404afc2f2914c1b47d780469206b",
-      "coremind-worker": "c365a94ddd008afcb8bd106b2c9b2eae6d77e9777675a259e38714d1015a202f"
+      "coremind-worker": "5ee733fe74650a2db6ebff6f49a6999eae5a0a41622f527a4f40f1ad3b10f159"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }
