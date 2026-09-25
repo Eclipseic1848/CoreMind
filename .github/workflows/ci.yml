@@ -71,6 +71,7 @@ jobs:
       - name: 核心依赖锁步与模块合同
         run: |
           npm run dependencies:check
+          node scripts/phase2-baseline.mjs
           npm run check:modules
 
       - name: 双语文档与文档站
