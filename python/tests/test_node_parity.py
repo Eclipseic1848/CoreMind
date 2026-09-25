@@ -8,7 +8,9 @@ import subprocess
 import tempfile
 import time
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Event, Thread
 
 from coremind import CoreMindClient, ProtocolError
 
@@ -111,6 +113,102 @@ class NodeRuntimeParityTest(unittest.TestCase):
             except subprocess.TimeoutExpired:
                 mock_server.kill()
                 mock_server.wait(timeout=2)
+
+    def test_protocol_v2_sends_complete_registered_tool_schemas_to_model(self) -> None:
+        requests: list[dict[str, object]] = []
+        received = Event()
+
+        class ModelHandler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:
+                size = int(self.headers["Content-Length"])
+                requests.append(json.loads(self.rfile.read(size)))
+                received.set()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+                for chunk in (
+                    {"id": "schema", "choices": [{"index": 0, "delta": {"role": "assistant", "content": "ok"}, "finish_reason": None}]},
+                    {"id": "schema", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
+                ):
+                    self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode("utf-8"))
+                self.wfile.write(b"data: [DONE]\n\n")
+
+            def log_message(self, _format: str, *_args: object) -> None:
+                pass
+
+        model = ThreadingHTTPServer(("127.0.0.1", 0), ModelHandler)
+        thread = Thread(target=model.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory(prefix="coremind-v2-tool-schema-") as directory:
+                config = {
+                    "schemaVersion": 2,
+                    "name": "v2 工具 Schema",
+                    "provider": {
+                        "id": "probe",
+                        "baseUrl": f"http://127.0.0.1:{model.server_port}/v1",
+                        "model": "probe-model",
+                        "apiKeyEnv": "COREMIND_TEST_API_KEY",
+                    },
+                    "agents": {"main": {"systemPrompt": "验证工具参数"}},
+                }
+                read_schema = {
+                    "type": "object",
+                    "properties": {"source_id": {"type": "string"}},
+                    "required": ["source_id"],
+                    "additionalProperties": False,
+                }
+                write_schema = {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string"},
+                        "options": {
+                            "type": "object",
+                            "properties": {"overwrite": {"type": "boolean"}},
+                            "required": ["overwrite"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "required": ["target", "options"],
+                    "additionalProperties": False,
+                }
+                definitions = (
+                    ("read_source", "read", "none", "parallel", "none", "ordinary", read_schema),
+                    ("write_target", "write", "workspace", "workspace_exclusive", "required", "critical", write_schema),
+                )
+                with CoreMindClient(
+                    config, protocol_version="2.0", config_dir=directory, cwd=directory,
+                    request_timeout=20,
+                ) as client:
+                    for name, operation, effect, concurrency, checkpoint, durability, schema in definitions:
+                        receipt = client.register_tool_definition({
+                            "schemaVersion": 1,
+                            "registrationId": f"registration-{name}",
+                            "definitionVersion": 1,
+                            "toolId": name,
+                            "name": name,
+                            "description": name,
+                            "parameters": schema,
+                            "effect": {"operations": [operation], "reversible": True},
+                            "capability": {
+                                "effect": effect,
+                                "replay": "safe",
+                                "concurrency": concurrency,
+                                "checkpoint": checkpoint,
+                                "durability": durability,
+                            },
+                        })
+                        self.assertEqual(receipt["status"], "registered")
+                    client.run("检查工具合同", run_id="tool-schema-run")
+                    self.assertTrue(received.wait(10), "模型未收到工具请求")
+
+            tools = {item["function"]["name"]: item["function"]["parameters"] for item in requests[0]["tools"]}
+            self.assertEqual(tools["read_source"], read_schema)
+            self.assertEqual(tools["write_target"], write_schema)
+        finally:
+            model.shutdown()
+            model.server_close()
+            thread.join(timeout=5)
 
     def test_bundled_worker_exposes_child_run_result_events_and_projection(self) -> None:
         node = shutil.which("node")

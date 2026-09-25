@@ -327,7 +327,10 @@ export const ProtocolV2ToolRegisterRequestSchema = Type.Object(
         name: Type.String({ minLength: 1 }),
         label: Type.Optional(Type.String({ minLength: 1 })),
         description: Type.String({ minLength: 1 }),
-        parameters: Type.Object({ type: Type.Literal("object") }, { additionalProperties: true }),
+        parameters: Type.Object(
+          { type: Type.Literal("object") },
+          { additionalProperties: Type.Unknown() },
+        ),
         effect: ProtocolV2ToolEffectSchema,
         capability: ProtocolV2ToolCapabilitySchema,
       },
