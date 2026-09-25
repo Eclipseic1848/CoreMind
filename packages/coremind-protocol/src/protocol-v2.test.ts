@@ -508,31 +508,53 @@ describe("CoreMind Protocol v2", () => {
   });
 
   it("解析声明式动态工具与绑定完整身份的结果桥", () => {
-    expect(
-      parseProtocolV2Request({
-        jsonrpc: "2.0",
-        protocolVersion: "2.0",
-        id: "tool-register-1",
-        method: "tool_register",
-        params: {
-          schemaVersion: 1,
-          registrationId: "registration-1",
-          definitionVersion: 1,
-          toolId: "lookup-record",
-          name: "lookup_record",
-          description: "读取一条记录",
-          parameters: { type: "object", properties: { id: { type: "string" } } },
-          effect: { operations: ["read"], reversible: true },
-          capability: {
-            effect: "none",
-            replay: "safe",
-            concurrency: "parallel",
-            checkpoint: "none",
-            durability: "ordinary",
-          },
+    const parameters = {
+      type: "object",
+      properties: {
+        source_id: { type: "string" },
+        options: {
+          type: "object",
+          properties: { retries: { type: "integer", minimum: 0 } },
+          required: ["retries"],
+          additionalProperties: false,
         },
+      },
+      required: ["source_id"],
+      additionalProperties: false,
+    };
+    const registration = {
+      jsonrpc: "2.0",
+      protocolVersion: "2.0",
+      id: "tool-register-1",
+      method: "tool_register",
+      params: {
+        schemaVersion: 1,
+        registrationId: "registration-1",
+        definitionVersion: 1,
+        toolId: "lookup-record",
+        name: "lookup_record",
+        description: "读取一条记录",
+        parameters,
+        effect: { operations: ["read"], reversible: true },
+        capability: {
+          effect: "none",
+          replay: "safe",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "ordinary",
+        },
+      },
+    };
+    expect(parseProtocolV2Request(registration)).toMatchObject({
+      method: "tool_register",
+      params: { parameters },
+    });
+    expect(() =>
+      parseProtocolV2Request({
+        ...registration,
+        params: { ...registration.params, unexpected: true },
       }),
-    ).toMatchObject({ method: "tool_register", params: { registrationId: "registration-1" } });
+    ).toThrow();
     expect(
       parseProtocolV2Request({
         jsonrpc: "2.0",
