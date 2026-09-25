@@ -8,11 +8,35 @@ import {
   resolveRcSuites,
   TTY_CHECKS,
   TTY_EVIDENCE_RELATIVE_DIRECTORY,
+  validateStabilityEvidence,
   validateTtyEvidence,
   verifyRcCaseEvidence,
 } from "./rc-acceptance.mjs";
 
 describe("Release Candidate 验收矩阵", () => {
+  it("复用三连跑证据必须绑定同一提交、运行、重试、任务与平台", () => {
+    const expected = {
+      platform: "win32",
+      runId: "123",
+      runAttempt: "2",
+      job: "candidate",
+      commit: "a".repeat(40),
+    };
+    const evidence = {
+      schemaVersion: 1,
+      outcome: "passed",
+      completedRuns: 3,
+      ...expected,
+    };
+    expect(validateStabilityEvidence(evidence, expected)).toBe(true);
+    for (const key of ["platform", "runId", "runAttempt", "job", "commit"]) {
+      expect(validateStabilityEvidence({ ...evidence, [key]: "other" }, expected)).toBe(false);
+    }
+    expect(validateStabilityEvidence({ ...evidence, completedRuns: 2 }, expected)).toBe(false);
+    expect(validateStabilityEvidence({ ...evidence, outcome: "failed" }, expected)).toBe(false);
+    expect(validateStabilityEvidence(evidence, { ...expected, runId: undefined })).toBe(false);
+  });
+
   it("P01 到 P20 无缺号且一期四入口都在合同中", () => {
     expect(RC_CASES.map((item) => item.id)).toEqual(
       Array.from({ length: 20 }, (_, index) => `P${String(index + 1).padStart(2, "0")}`),
