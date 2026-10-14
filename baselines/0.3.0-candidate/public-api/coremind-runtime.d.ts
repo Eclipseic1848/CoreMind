@@ -52,6 +52,12 @@ export declare function buildStableContextPrefix(input: StableContextPrefixInput
 /** 解析相对路径、symlink/junction 与 Windows 大小写后的 Workspace 身份。 */
 export declare function canonicalizeWorkspace(workspaceRoot: string): Promise<string>;
 
+/** 固定重试身份或预期 Run；省略时只针对调用瞬间的活动运行。 */
+export declare interface ChatControlOptions {
+    controlId?: string;
+    runId?: string;
+}
+
 /**
  * 交互式会话（库 API）：多轮对话循环，供 CLI chat 与自定义 UI 复用。
  * - 同一 agent 实例持续对话（上下文延续）
@@ -73,6 +79,10 @@ export declare class ChatSession {
     chat(message: string): Promise<ChatTurnResult>;
     /** 中止当前轮 */
     abort(): void;
+    /** 在后续可用 Turn 追加指令；回执不代表模型已经消费。 */
+    steer(message: string, options?: ChatControlOptions): Promise<ControlReceipt>;
+    /** 当前活动自然结束后再处理后续输入，不创建第二个 Run。 */
+    followUp(message: string, options?: ChatControlOptions): Promise<ControlReceipt>;
     /** 查询当前一轮从 canonical Facts 重建的统一 Projection。 */
     inspectCurrentRunProjection(): Promise<RunProjection | undefined>;
     /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */

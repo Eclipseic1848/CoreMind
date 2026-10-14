@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 1.1 development
+
+- Added active-Run ChatSession steering/follow-up guidance, stable retry identities, and separate control versus input receipts.
+- Documented commit-before-delivery, explicit discard, cold recovery, and unchanged permission, Session, and original-input boundaries.
+- Registered the control binding, native Driver, input identity, and real Runtime regression paths.
+
 ## 1.0.1 - 2026-09-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

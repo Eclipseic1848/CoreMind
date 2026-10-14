@@ -58,6 +58,16 @@ Use `/status` for the terminal summary, `/children` for the expanded Child Run t
 
 The observation view includes Run/Call timing, mode, redacted endpoint origin, content level, allowed fields, persisted authorization scopes, Exporter loading, and queued/handed-off/failed/dropped counts. `handed-off` means passed to the Exporter, not stored by the receiver. The default `DISABLED` mode neither reads egress credentials nor constructs an Exporter.
 
+The 1.1 development line adds `/steer text` and `/follow-up text` to both TUI and readline (`--no-tui`). Steering enters a later available Turn; follow-up waits until the agent would naturally stop, within the same Run. Neither starts a concurrent Run nor changes permissions, Provider, or budgets. Empty commands show usage. Missing, unready, or sealed active Runs reject controls rather than retaining them for a later Run.
+
+During tool approval, readline recognizes explicit control commands before approval answers. In TUI, `/` enters a separate command mode: Enter submits and Esc returns to approval. Letters y/n inside commands cannot approve a tool. Ordinary approval still uses y to allow and n/Enter/Esc to deny; non-TTY approval denies safely. Controls do not grant permissions, and full mode retains existing deny rules. Additional input is rejected while independent host verification waits, so it cannot change the candidate under review.
+
+Ordinary busy input remains one draft and never runs automatically or becomes a control. TUI retains its editable buffer until Enter is pressed again after the Run becomes idle. Readline keeps the first submitted busy draft and reports later submissions as unsaved without overwriting it. Once idle, a terminal can prefill the draft for editing and Enter confirmation; without prefill, a blank line confirms the saved draft. A late control receipt displays its original Run/controlId without clearing a newer draft.
+
+Control receipts are `accepted`, `applied`, `rejected`, `duplicate`, or `conflict`. Accepted means durably received; applied means the applied fact committed before delivery to the agent queue. Neither proves model consumption. Separate `input_receipt`, `input_claimed`, `input_completed`, and `input_discarded` events show input identity and lifecycle. Check the Run outcome for business completion.
+
+On cold recovery, accepted controls apply with their original identity once the agent is ready. Applied controls without confirmed consumption are discarded explicitly instead of automatically redelivered. The durable-commit/in-memory-delivery crash window remains; this is not an absolute exactly-once guarantee. Paused original inputs retain their existing recovery path, while discarded ordinary inputs still block recovery. A discarded control does not invalidate an otherwise resumable pause. Control facts do not replace Session messages or expand full-conversation reconstruction.
+
 Use `/abort` to stop the active response. To persist a named session, enable it in `coremind.yaml` before passing `--session`:
 
 ```yaml

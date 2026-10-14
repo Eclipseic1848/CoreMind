@@ -2,11 +2,189 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ControlInbox } from "./control-inbox.js";
+import {
+  ControlInbox,
+  projectPendingControlFacts,
+  type RunControlCommand,
+} from "./control-inbox.js";
 import type { RunId } from "./ids.js";
 import { FileRunStore, RunStateJournal } from "./index.js";
 
 describe("ControlInbox", () => {
+  it("未封口不能拒绝待交付输入；暂停封口仍保留 accepted 供恢复", async () => {
+    const runId = "control-input-pause" as RunId;
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-control-input-pause-"));
+    const store = new FileRunStore(directory);
+    const command = {
+      schemaVersion: 1 as const,
+      runId,
+      controlId: "pending-steer",
+      type: "steering" as const,
+      message: "暂停后继续",
+    };
+    try {
+      const inbox = new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store),
+        records: [],
+        apply: async () => "accepted",
+      });
+      await inbox.accept(command);
+      const accepted = await store.read(runId);
+      await expect(inbox.rejectPendingInputs()).rejects.toMatchObject({
+        code: "control_unavailable",
+      });
+      expect(await store.read(runId)).toEqual(accepted);
+      await inbox.sealForTerminal();
+      expect(projectPendingControlFacts(runId, await store.read(runId))).toMatchObject([
+        { controlId: command.controlId },
+      ]);
+      const restored = new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store, accepted.at(-1)!.sequence),
+        records: accepted,
+        apply: async () => "applied",
+      });
+      expect(await restored.applyPending()).toMatchObject([
+        { controlId: command.controlId, status: "applied" },
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("终态只拒绝尚未应用的两类输入，保留其他控制并幂等恢复", async () => {
+    const runId = "control-input-terminal" as RunId;
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-control-input-terminal-"));
+    const store = new FileRunStore(directory);
+    const commands: RunControlCommand[] = [
+      {
+        schemaVersion: 1,
+        runId,
+        controlId: "pending-steer",
+        type: "steering",
+        message: "尚未交付",
+      },
+      {
+        schemaVersion: 1,
+        runId,
+        controlId: "pending-follow",
+        type: "follow_up",
+        message: "尚未交付",
+      },
+      {
+        schemaVersion: 1,
+        runId,
+        controlId: "applied-steer",
+        type: "steering",
+        message: "已经交付",
+      },
+      {
+        schemaVersion: 1,
+        runId,
+        controlId: "rejected-follow",
+        type: "follow_up",
+        message: "已经拒绝",
+      },
+      { schemaVersion: 1, runId, controlId: "pending-cancel", type: "cancel" },
+    ];
+    try {
+      const inbox = new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store),
+        records: [],
+        apply: async (command) =>
+          command.controlId === "applied-steer"
+            ? "applied"
+            : command.controlId === "rejected-follow"
+              ? { status: "rejected", reason: "原拒绝原因" }
+              : "accepted",
+      });
+      for (const command of commands) await inbox.accept(command);
+      const before = await store.read(runId);
+      await inbox.sealForTerminal();
+      const receipts = await inbox.rejectPendingInputs();
+      expect(receipts.map((receipt) => [receipt.controlId, receipt.status])).toEqual([
+        ["pending-steer", "rejected"],
+        ["pending-follow", "rejected"],
+      ]);
+      for (const receipt of receipts) {
+        expect(receipt.reason).toContain("终态");
+        expect(receipt.reason).toContain("未交付");
+        expect(receipt.rejectedSequence).toBeGreaterThan(before.length);
+      }
+      const records = await store.read(runId);
+      expect(records.slice(0, before.length)).toEqual(before);
+      expect(records.slice(before.length).map((record) => record.payload)).toMatchObject([
+        { controlId: "pending-steer", state: "rejected" },
+        { controlId: "pending-follow", state: "rejected" },
+      ]);
+      expect(await inbox.rejectPendingInputs()).toEqual([]);
+      expect(await store.read(runId)).toEqual(records);
+      const restored = new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store, records.at(-1)!.sequence),
+        records,
+        apply: async () => "applied",
+      });
+      expect(await restored.accept(commands[0]!)).toMatchObject({
+        status: "duplicate",
+        duplicateOf: "rejected",
+        reason: receipts[0]!.reason,
+      });
+      expect(projectPendingControlFacts(runId, records).map((item) => item.controlId)).toEqual([
+        "pending-cancel",
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("终态拒绝的关键提交失败会原样失败，不伪造已拒绝收据", async () => {
+    const runId = "control-input-terminal-failure" as RunId;
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-control-input-failure-"));
+    const failure = new Error("拒绝收据提交失败");
+    const store = new FileRunStore(directory, {
+      beforeCommit: ({ record }) => {
+        if (
+          record?.kind === "control" &&
+          (record.payload as { state?: string }).state === "rejected"
+        )
+          throw failure;
+      },
+    });
+    const command = {
+      schemaVersion: 1 as const,
+      runId,
+      controlId: "pending-input",
+      type: "follow_up" as const,
+      message: "不得伪造提交",
+    };
+    try {
+      const inbox = new ControlInbox({
+        runId,
+        journal: new RunStateJournal(runId, store),
+        records: [],
+        apply: async () => "accepted",
+      });
+      await inbox.accept(command);
+      await inbox.sealForTerminal();
+      await expect(inbox.rejectPendingInputs()).rejects.toMatchObject({
+        code: "durability_barrier_failed",
+        message: `RunState ${runId} 的 critical commit 失败：${failure.message}`,
+      });
+      const records = await store.read(runId);
+      expect(records).toHaveLength(1);
+      expect(records[0]!.payload).toMatchObject({
+        state: "accepted",
+        controlId: command.controlId,
+      });
+      expect(projectPendingControlFacts(runId, records)).toHaveLength(1);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("已应用控制在重启后幂等返回 duplicate，且不会重复应用", async () => {
     const runId = "control-run" as RunId;
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-control-inbox-"));

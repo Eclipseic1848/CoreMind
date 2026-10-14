@@ -24,6 +24,27 @@ Create `lookupOrder` with `defineTool` and a truthful declaration such as `effec
 
 For independent business acceptance, use `loop.verify.mode: host`. `onVerification` only notifies the candidate; after checking the Run, requestId, candidateSha256, and business object, submit the decision with `runtime.acceptControl`. `accepted` only acknowledges receipt; inspect `result.outcome` for the terminal state. See the [offline host verification example](../../../examples/host-verification/README.en.md).
 
+## Input during a Run (1.1 development)
+
+Create a session with `new ChatSession(runtime, agentName)`. Once its current Run is ready, a UI action can call:
+
+```typescript
+const receipt = await session.steer('Check test results first', {
+  controlId: 'review-tests-1',
+  runId: activeRunId,
+});
+const followUp = await session.followUp('Summarize risks after the agent stops', {
+  controlId: 'summarize-1',
+  runId: activeRunId,
+});
+```
+
+The host owns `session` and `activeRunId`; calling `chat()` does not itself prove inbox readiness. Steering enters a later available Turn; follow-up continues after the agent would naturally stop, within the same Run. Both capture the active owner instead of looking up a later Run after awaiting. Unbound, unready, sealed, or mismatched Runs reject controls. Omitting controlId creates a new ID per call; retain the original ID for retries. Identical content returns duplicate, conflicting content returns conflict.
+
+Accepted means durably received; applied means the applied fact committed before delivery to the native agent queue. Other receipts are rejected, duplicate, and conflict. Observe `input_receipt/input_claimed/input_completed/input_discarded` through `session.onEvent`, matching inputId and TurnId. Controls do not approve tools or change budgets, permissions, or Provider. Additional input is rejected while independent host verification waits for a decision.
+
+Accepted controls apply with their original identity after the recovered agent is ready. Applied controls without confirmed consumption are explicitly discarded, never automatically redelivered; the durable-commit/in-memory-delivery crash window remains. Paused original inputs retain their recovery gates; discarded ordinary inputs remain non-resumable. This is not absolute exactly-once delivery or a substitute for Session and compaction records in full request reconstruction.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
@@ -33,6 +54,7 @@ For independent business acceptance, use `loop.verify.mode: host`. `onVerificati
 5. Add caller-branch tests for `failed`, `paused`, `aborted`, `timeout`, and `budget_exceeded`.
 6. With `config.loop`, collect ordered `loop_state` events and verify resume does not replay completed steps or committed effects.
 7. Send `result.snapshot` across boundaries instead of directly serializing the `outputs` or `messages` maps.
+8. For controls, verify the target Run, duplicate/conflict, commit failure, approval waits, cancellation discard, and cold recovery. Receipts do not replace actual request content or input-event evidence.
 
 ## Common mistakes
 

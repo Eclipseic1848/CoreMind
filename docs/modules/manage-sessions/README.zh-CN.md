@@ -10,6 +10,7 @@
 
 - `CoreMindSession`
 - `ChatSession`
+- `ChatSession.steer/followUp(message, options?)`（1.1 开发线，`options` 为 `{ controlId?, runId? }`）
 - `ContextProtector`
 
 `ContextLifecycleManager`、`ContextWorkingSetBuilder` 和 `ContextTaskState` 通过 `coremind-runtime/internal` 供同仓库受控组件复用，不属于主公共入口。调用方通过 Runtime 事件、`RunOutcome`、Trace 与 Snapshot 观察其结果。
@@ -29,6 +30,9 @@
 - 模型感知压缩必须绑定启用的持久化 Session；没有 Session 时只有无需压缩的请求可以继续，需要压缩的请求返回 `paused` 且不调用 Provider
 - 成功解析预算发出 `context_budget_resolved`；成功压缩发出带 capability 指纹、lineage 深度、触发原因和 Session 条目引用的 `context_compacted`
 - 摘要固定保留目标、约束、权限、已修改文件、测试状态和下一步
+- 运行控制固定当前活动 Run；未绑定、收件箱未就绪、封口或 Run 身份错误会拒绝，不转投下一轮。同一 Run 的相同 controlId 重试不重复交付，冲突内容明确报告
+- 控制五态回执与 `input_*` 消费/丢弃事实独立；applied 不等于已消费。仅 accepted 的控制可在冷恢复就绪后应用，applied 未确认消费者明确 discarded，不自动重投
+- 暂停原输入继续遵守原恢复门；普通原输入已 discarded 仍不可恢复。控制丢弃不单独阻断安全暂停恢复，也不消除崩溃窗口或代替 Session/压缩正文，不能据此宣称恢复完整对话
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 
@@ -45,6 +49,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-runtime/src/context-lifecycle.test.ts](../../../packages/coremind-runtime/src/context-lifecycle.test.ts)
 - [packages/coremind-runtime/src/context-task-state.test.ts](../../../packages/coremind-runtime/src/context-task-state.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
+- [运行控制真实恢复回归](../../../packages/coremind-runtime/src/control-runtime.acceptance.test.ts)
 - [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-sessions/README.en.md)
 - [Agent Skill](../../../skills/manage-sessions/SKILL.md)

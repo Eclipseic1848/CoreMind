@@ -3,10 +3,27 @@ import { createServer } from "node:http";
 const port = Number(process.argv[2]);
 if (!Number.isInteger(port) || port <= 0) throw new Error("必须提供有效端口");
 const manualPaced = process.argv.includes("--manual-paced");
+const controlScenarios = new Map();
 
 createServer((request, response) => {
   if (request.method === "GET" && request.url === "/health") {
     response.writeHead(204).end();
+    return;
+  }
+  const controlRoute = /^\/control\/(status|release)\/(tui|readline)$/u.exec(request.url ?? "");
+  if (controlRoute) {
+    const state = controlScenarios.get(controlRoute[2]);
+    if (request.method === "GET" && controlRoute[1] === "status") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({ requests: state?.requests ?? [], waiting: Boolean(state?.release) }),
+      );
+    } else if (request.method === "POST" && controlRoute[1] === "release" && state?.release) {
+      const release = state.release;
+      state.release = undefined;
+      release();
+      response.writeHead(204).end();
+    } else response.writeHead(409).end();
     return;
   }
   if (request.method !== "POST" || !request.url?.includes("/chat/completions")) {
@@ -21,6 +38,47 @@ createServer((request, response) => {
   });
   request.on("end", () => {
     const messages = JSON.parse(body).messages ?? [];
+    const scenario = messages.find(
+      (message) =>
+        message.role === "user" &&
+        /^控制验收-(?:tui|readline)：/u.test(extractText(message.content)),
+    );
+    if (scenario) {
+      const mode = /^控制验收-(tui|readline)：/u.exec(extractText(scenario.content))[1];
+      const state = controlScenarios.get(mode) ?? { requests: [] };
+      controlScenarios.set(mode, state);
+      state.requests.push(messages);
+      const lastUser = [...messages].reverse().find((message) => message.role === "user");
+      const prompt = extractText(lastUser?.content);
+      const ordinal = state.requests.length;
+      if (
+        ordinal === 1 ||
+        (ordinal === 2 && prompt === `追加标记-${mode} y n`) ||
+        (ordinal === 3 && prompt === `后续标记-${mode} y n`) ||
+        (ordinal === 4 && prompt === `保留草稿-${mode}`)
+      ) {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        if (ordinal === 1) sendToolCall(response);
+        else if (ordinal === 2) {
+          state.release = () => sendText(response, `追加指令已消费：${mode}`);
+          response.on("close", () => {
+            state.release = undefined;
+          });
+        } else if (ordinal === 3) sendText(response, `后续输入已消费：${mode}`);
+        else sendText(response, `草稿已显式发送：${mode}`);
+      } else {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            error: {
+              code: "invalid_request_error",
+              message: `控制夹具顺序不匹配：${mode}/${ordinal}`,
+            },
+          }),
+        );
+      }
+      return;
+    }
     const toolResult = manualPaced
       ? messages.at(-1)?.role === "tool"
         ? messages.at(-1)

@@ -13,6 +13,14 @@ import {
   verifyRcCaseEvidence,
 } from "./rc-acceptance.mjs";
 
+const CONTROL_TTY_CHECKS = [
+  "control-tui",
+  "control-readline",
+  "control-approval-isolation",
+  "draft-explicit-send",
+  "control-input-facts",
+] as const;
+
 describe("Release Candidate 验收矩阵", () => {
   it("复用三连跑证据必须绑定同一提交、运行、重试、任务与平台", () => {
     const expected = {
@@ -137,7 +145,9 @@ describe("Release Candidate 验收矩阵", () => {
       terminal: "Windows Terminal / PowerShell 7",
       passed: true,
       evidenceLevel: "automated-real-tty",
-      checks: Object.fromEntries(TTY_CHECKS.map((check) => [check, true])),
+      checks: Object.fromEntries(
+        [...TTY_CHECKS, ...CONTROL_TTY_CHECKS].map((check) => [check, true]),
+      ),
     };
 
     expect(
@@ -147,6 +157,30 @@ describe("Release Candidate 验收矩阵", () => {
         commit: "abc123",
       }),
     ).toEqual([]);
+  });
+
+  it.each(
+    CONTROL_TTY_CHECKS.flatMap((check) =>
+      (["missing", "false"] as const).map((state) => [check, state] as const),
+    ),
+  )("控制伪终端检查 %s 为 %s 时不能通过", (check, state) => {
+    const expected = { platform: "windows", version: "1.0.1", commit: "candidate" };
+    const checks = Object.fromEntries(
+      [...TTY_CHECKS, ...CONTROL_TTY_CHECKS].map((name) => [name, true]),
+    );
+    const evidence = {
+      schemaVersion: 1,
+      ...expected,
+      testedAt: "2026-10-14T00:00:00.000Z",
+      terminal: "Windows ConPTY",
+      passed: true,
+      evidenceLevel: "automated-real-tty",
+      checks,
+    };
+    expect(validateTtyEvidence(evidence, expected)).toEqual([]);
+    if (state === "missing") delete checks[check];
+    else checks[check] = false;
+    expect(validateTtyEvidence(evidence, expected)).toContain(`checks.${check} 必须为 true`);
   });
 
   it("缺少状态检查或绑定到其他提交的伪终端证据不能通过", () => {
@@ -176,7 +210,7 @@ describe("Release Candidate 验收矩阵", () => {
     expect(TTY_EVIDENCE_RELATIVE_DIRECTORY.replaceAll("\\", "/")).toBe(".scratch/rc-evidence");
   });
 
-  it("双平台 TTY 模板版本与根版本保持一致", async () => {
+  it("双平台 TTY 模板版本与必需检查保持一致，全部检查默认未通过", async () => {
     const root = process.cwd();
     const manifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
     for (const platform of ["windows", "linux"]) {
@@ -187,6 +221,9 @@ describe("Release Candidate 验收矩阵", () => {
         ),
       );
       expect(template.version).toBe(manifest.version);
+      expect(template.checks).toEqual(
+        Object.fromEntries([...TTY_CHECKS, ...CONTROL_TTY_CHECKS].map((check) => [check, false])),
+      );
     }
   });
 });

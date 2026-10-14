@@ -1,3 +1,4 @@
+import type { ControlReceipt } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
 import type { CallId } from "./ids.js";
 import type { RunProjection } from "./projection.js";
@@ -7,7 +8,15 @@ export interface DelegationExecutionOutput {
   details: unknown;
 }
 
+export interface BoundInputControl {
+  type: "steering" | "follow_up";
+  message: string;
+  controlId: string;
+  runId?: string;
+}
+
 interface ActiveRunBindings {
+  acceptInputControl: (command: BoundInputControl) => Promise<ControlReceipt>;
   inspectProjection: () => Promise<RunProjection | undefined>;
   executeDelegation: (
     parentAgentName: string,
@@ -22,6 +31,17 @@ interface ActiveRunBindings {
 }
 
 const activeBindings = new WeakMap<object, ActiveRunBindings>();
+
+/** 同步选定本轮闭包；等待回执期间不会重新查找后续绑定。 */
+export function acceptBoundInputControl(
+  owner: object,
+  command: BoundInputControl,
+): Promise<ControlReceipt> {
+  const accept = activeBindings.get(owner)?.acceptInputControl;
+  return accept
+    ? accept(command)
+    : Promise.reject(new CoreMindError("control_unavailable", "当前没有可接收输入控制的活动 Run"));
+}
 
 /** 把隔离 Turn Runtime 的最小能力绑定到创建它的会话 Runtime。 */
 export function bindActiveRun(owner: object, bindings: ActiveRunBindings): () => void {

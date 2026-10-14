@@ -10,6 +10,7 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 
 - `CoreMindSession`
 - `ChatSession`
+- `ChatSession.steer/followUp(message, options?)` (1.1 development; `options` is `{ controlId?, runId? }`)
 - `ContextProtector`
 
 `ContextLifecycleManager`, `ContextWorkingSetBuilder`, and `ContextTaskState` are available to controlled in-repository components through `coremind-runtime/internal`; they are not part of the main public entry point. Callers observe their results through Runtime events, `RunOutcome`, traces, and snapshots.
@@ -29,6 +30,9 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 - Model-aware compaction requires an enabled durable session. Without one, requests that fit may continue, but a request that needs compaction returns `paused` without calling the provider
 - Successful resolution emits `context_budget_resolved`; successful compaction emits `context_compacted` with the capability fingerprint, lineage depth, trigger, and session-entry reference
 - Summaries preserve goals, constraints, permissions, modified files, test status, and next steps
+- Controls capture the current active Run. Unbound, unready, sealed, or mismatched Runs reject them without redirecting to a later Run. Retrying the same controlId within the same Run does not redeliver; conflicting content is reported explicitly
+- The five control receipt states are separate from `input_*` consumption/discard facts. Applied does not mean consumed. Accepted controls can apply after cold recovery readiness; applied controls without confirmed consumption are explicitly discarded rather than automatically redelivered
+- Paused original inputs retain existing recovery gates; discarded ordinary inputs remain non-resumable. A discarded control alone does not block a safe pause recovery, remove the crash window, or replace Session/compaction content. It does not establish full conversation recovery
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
@@ -45,6 +49,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-runtime/src/context-lifecycle.test.ts](../../../packages/coremind-runtime/src/context-lifecycle.test.ts)
 - [packages/coremind-runtime/src/context-task-state.test.ts](../../../packages/coremind-runtime/src/context-task-state.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
+- [Real control recovery regressions](../../../packages/coremind-runtime/src/control-runtime.acceptance.test.ts)
 - [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-sessions/README.en.md)
 - [Agent Skill](../../../skills/manage-sessions/SKILL.md)

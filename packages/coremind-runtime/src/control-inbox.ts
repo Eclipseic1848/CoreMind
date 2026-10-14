@@ -183,6 +183,29 @@ export class ControlInbox {
     });
   }
 
+  /** 非暂停终态只拒绝尚未交付的输入；已应用事实与其他控制保持原样。 */
+  async rejectPendingInputs(): Promise<ControlReceipt[]> {
+    return this.withRunTransition(async () => {
+      if (!this.terminalSealed) {
+        throw new CoreMindError("control_unavailable", "必须先封口，才能收尾未交付控制输入");
+      }
+      const receipts: ControlReceipt[] = [];
+      for (const stored of this.controls.values()) {
+        if (
+          stored.state !== "accepted" ||
+          (stored.command.type !== "steering" && stored.command.type !== "follow_up")
+        )
+          continue;
+        const reason = "本 Run 已进入终态，控制输入尚未交付";
+        const rejected = await this.appendResolution(stored, "rejected", reason);
+        receipts.push(
+          receiptFor(stored.command, "rejected", { rejectedSequence: rejected.sequence, reason }),
+        );
+      }
+      return receipts;
+    });
+  }
+
   async applyPending(type?: RunControlCommand["type"]): Promise<ControlReceipt[]> {
     return this.withRunTransition(async () => {
       if (this.terminalSealed) {

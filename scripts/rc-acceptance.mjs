@@ -17,6 +17,11 @@ export const TTY_CHECKS = [
   "streaming",
   "status",
   "exit",
+  "control-tui",
+  "control-readline",
+  "control-approval-isolation",
+  "draft-explicit-send",
+  "control-input-facts",
 ];
 
 export const TTY_EVIDENCE_RELATIVE_DIRECTORY = path.join(".scratch", "rc-evidence");

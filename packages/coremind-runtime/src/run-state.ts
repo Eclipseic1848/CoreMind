@@ -18,7 +18,7 @@ import {
   type FactLedgerStatus,
   flushFactLedgerWith,
 } from "./fact-ledger.js";
-import { foldInputReceipts, inputFingerprint } from "./input-receipt.js";
+import { foldInputReceipts, inputFingerprint, isControlInputId } from "./input-receipt.js";
 import type { LoopControllerSnapshot, LoopPhase } from "./loop-controller.js";
 import {
   type DurableOperationSnapshot,
@@ -1267,7 +1267,9 @@ export function prepareRunResume(
 function inputReceiptsAreResumable(trace: readonly CoreMindTraceEvent[]): boolean {
   try {
     const statuses = foldInputReceipts(trace.map((entry) => entry.event));
-    return [...statuses.values()].every((status) => status === "pending" || status === "claimed");
+    return [...statuses].every(
+      ([id, status]) => isControlInputId(id) || status === "pending" || status === "claimed",
+    );
   } catch (error) {
     throw new CoreMindError(
       "run_state_corrupt",
@@ -1480,9 +1482,12 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
 function findInputReceiptFingerprint(records: readonly RunStateRecord[]): string | undefined {
   for (const record of records) {
     if (record.kind !== "event") continue;
-    const trace = record.payload as { event?: { type?: unknown; contentFingerprint?: unknown } };
+    const trace = record.payload as {
+      event?: { type?: unknown; inputId?: unknown; contentFingerprint?: unknown };
+    };
     if (
       trace?.event?.type === "input_receipt" &&
+      !(typeof trace.event.inputId === "string" && isControlInputId(trace.event.inputId)) &&
       typeof trace.event.contentFingerprint === "string"
     ) {
       return trace.event.contentFingerprint;

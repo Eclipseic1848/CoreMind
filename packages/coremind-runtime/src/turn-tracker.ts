@@ -14,6 +14,20 @@ export class TurnTracker {
 
   private readonly scopes = new Map<string, TurnTracker>();
 
+  /** 控制输入进入上下文时复用当前 Turn，或为下一轮分配与工具相同的身份。 */
+  ensureCurrentTurn(agent: string, stepId?: string): string {
+    const key = `${agent}\0${stepId ?? ""}`;
+    let tracker = this.scopes.get(key);
+    if (!tracker) {
+      tracker = new TurnTracker();
+      this.scopes.set(key, tracker);
+    }
+    const turnId = tracker.currentTurnId ?? randomUUID();
+    tracker.currentTurnId = turnId;
+    tracker.openTurnId = turnId;
+    return turnId;
+  }
+
   withTurnId(event: CoreMindEvent): CoreMindEvent {
     if ("turnId" in event && event.turnId) return event;
     const key = `${"agent" in event ? (event.agent ?? "") : ""}\0${"stepId" in event ? (event.stepId ?? "") : ""}`;

@@ -3,6 +3,38 @@ import type { CoreMindEvent } from "./events.js";
 import { TurnTracker } from "./turn-tracker.js";
 
 describe("TurnTracker：Turn 身份分配（规格 02）", () => {
+  it("控制消费确保当前或下一 Turn，工具归属与后续 turn_end 使用同一身份", () => {
+    const tracker = new TurnTracker();
+    const start = tracker.withTurnId({ type: "agent_start", agent: "main", stepId: "step" });
+    expect(tracker.ensureCurrentTurn("main", "step")).toBe(start.turnId);
+    tracker.withTurnId({ type: "turn_end", agent: "main", stepId: "step" });
+    const next = tracker.ensureCurrentTurn("main", "step");
+    expect(next).not.toBe(start.turnId);
+    expect(tracker.ensureCurrentTurn("main", "step")).toBe(next);
+    expect(
+      tracker.withTurnId({
+        type: "tool_call",
+        agent: "main",
+        stepId: "step",
+        tool: "read",
+        args: {},
+      }).turnId,
+    ).toBe(next);
+    expect(tracker.withTurnId({ type: "turn_end", agent: "main", stepId: "step" }).turnId).toBe(
+      next,
+    );
+  });
+
+  it("确保 Turn 不混淆同名 Agent 的步骤，结束后创建新身份", () => {
+    const tracker = new TurnTracker();
+    const first = tracker.ensureCurrentTurn("main", "first");
+    const second = tracker.ensureCurrentTurn("main", "second");
+    expect(second).not.toBe(first);
+    tracker.withTurnId({ type: "agent_end", agent: "main", stepId: "second" });
+    expect(tracker.ensureCurrentTurn("main", "first")).toBe(first);
+    expect(tracker.ensureCurrentTurn("main", "second")).not.toBe(second);
+  });
+
   it("同名并行步骤与迟到工具结果保留各自 Turn", () => {
     const tracker = new TurnTracker();
     const first = tracker.withTurnId({ type: "agent_start", agent: "main", stepId: "a" });

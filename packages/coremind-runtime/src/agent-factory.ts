@@ -24,6 +24,7 @@ import type {
 import { buildStableContextPrefix } from "./context.js";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
+import type { InputId } from "./input-receipt.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { convertToLlm, type AgentMessage as SessionMessage } from "./session-v4/index.js";
 
@@ -194,10 +195,15 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
 /** 生产 Adapter：把 P3 Agent 生命周期收敛到 CoreMind 私有 AgentDriver seam。 */
 export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext): AgentDriver {
   let requestFailure: unknown;
+  let driver: ModelAgentDriver | undefined;
   const agent = buildAgent(agentCfg, {
     ...ctx,
     harness: {
       ...ctx.harness,
+      onObservation: (observation) => {
+        if (observation.type === "agent_end") driver?.endControlAdmission();
+        ctx.harness?.onObservation?.(observation);
+      },
       beforeModelRequest: () => {
         try {
           ctx.harness?.beforeModelRequest?.();
@@ -209,7 +215,8 @@ export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext):
       },
     },
   });
-  return new ModelAgentDriver(agent, ctx.harness, () => requestFailure);
+  driver = new ModelAgentDriver(agent, ctx.harness, () => requestFailure, ctx.onObservation);
+  return driver;
 }
 
 function withoutAdapterPrefix<T>(messages: T[], prefix: T): T[] {
@@ -218,7 +225,9 @@ function withoutAdapterPrefix<T>(messages: T[], prefix: T): T[] {
 }
 
 class ModelAgentDriver implements AgentDriver {
-  private queuedControls = 0;
+  private acceptingControls = true;
+  private readonly controlIds = new Set<InputId>();
+  private readonly pendingControls = new Map<AgentMessage, InputId>();
   private promptRunning = false;
   private readonly prefix: AgentMessage;
 
@@ -226,19 +235,27 @@ class ModelAgentDriver implements AgentDriver {
     private readonly agent: Agent,
     private readonly harness: AgentDriverHarness | undefined,
     private readonly requestFailure: () => unknown,
+    private readonly onObservation: AgentBuildContext["onObservation"],
   ) {
     this.prefix = agent.state.messages[0]!;
     agent.subscribe((event) => {
-      if (event.type === "agent_end") this.queuedControls = 0;
+      if (event.type !== "message_end" || event.message.role !== "user") return;
+      const inputId = this.pendingControls.get(event.message);
+      if (inputId === undefined) return;
+      this.pendingControls.delete(event.message);
+      this.observeControl({ type: "control_consumed", inputId });
     });
   }
 
   async prompt(input: string): Promise<void> {
     this.promptRunning = true;
+    this.acceptingControls = true;
     try {
+      if (this.harness?.beforePrompt) await this.harness.beforePrompt();
       await this.agent.prompt(input);
       await this.agent.waitForIdle();
     } finally {
+      this.acceptingControls = false;
       this.promptRunning = false;
     }
   }
@@ -262,7 +279,7 @@ class ModelAgentDriver implements AgentDriver {
     return {
       running: this.promptRunning || this.agent.state.isStreaming,
       pendingToolCalls: this.agent.state.pendingToolCalls.size,
-      queuedControls: this.queuedControls,
+      queuedControls: this.pendingControls.size,
     };
   }
 
@@ -270,15 +287,37 @@ class ModelAgentDriver implements AgentDriver {
     this.agent.abort();
   }
 
+  canAcceptControl(): boolean {
+    return this.acceptingControls;
+  }
+
+  endControlAdmission(): void {
+    this.acceptingControls = false;
+  }
+
   queueControl(control: AgentDriverControl): void {
+    if (this.controlIds.has(control.inputId)) return;
     const message: AgentMessage = {
       role: "user",
       content: control.message,
       timestamp: Date.now(),
     };
-    this.queuedControls += 1;
+    this.controlIds.add(control.inputId);
+    this.pendingControls.set(message, control.inputId);
     if (control.type === "steering") this.agent.steer(message);
     else this.agent.followUp(message);
+  }
+
+  clearQueuedControls(): void {
+    this.agent.clearAllQueues();
+    const discarded = [...this.pendingControls.values()];
+    this.pendingControls.clear();
+    for (const inputId of discarded) this.observeControl({ type: "control_discarded", inputId });
+  }
+
+  private observeControl(observation: AgentDriverObservation): void {
+    this.harness?.onObservation?.(observation);
+    this.onObservation?.(observation);
   }
 }
 

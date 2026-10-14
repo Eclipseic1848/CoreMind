@@ -6,6 +6,7 @@ import path from "node:path";
 import { recoveryDispositionFor, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { createEffectReceiptBinding } from "./effect-receipt-binding.js";
+import { controlInputId, inputFingerprint } from "./input-receipt.js";
 import type { LoopControllerSnapshot } from "./loop-controller.js";
 import { DurableOperation } from "./operation-state.js";
 import {
@@ -13,6 +14,7 @@ import {
   findUnsafeToolCall,
   fingerprintRunConfig,
   isRejectedAfterAbort,
+  isRunStateResumable,
   MemoryRunStore,
   prepareRunResume,
   RunStateJournal,
@@ -22,6 +24,67 @@ import {
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("RunState", () => {
+  it.each(["completed", "discarded"] as const)("控制输入已 %s 不阻止原已认领输入恢复", (status) => {
+    const controlId = controlInputId("run-restore", "done-control");
+    const records = [
+      record(1, "start", { configFingerprint: "fingerprint", initialPrompt: "原输入" }),
+      traceRecord(2, 1, {
+        type: "input_receipt",
+        inputId: controlId,
+        status: "pending",
+        contentFingerprint: inputFingerprint("控制正文"),
+      }),
+      ...(status === "completed"
+        ? [
+            traceRecord(3, 2, {
+              type: "input_claimed",
+              inputId: controlId,
+              status: "claimed",
+              turnId: "control-turn",
+            }),
+          ]
+        : []),
+    ];
+    records.push(
+      traceRecord(records.length + 1, records.length, {
+        type: status === "completed" ? "input_completed" : "input_discarded",
+        inputId: controlId,
+        status,
+      }),
+    );
+    records.push(
+      traceRecord(records.length + 1, records.length, {
+        type: "input_receipt",
+        inputId: "original-input",
+        status: "pending",
+        contentFingerprint: inputFingerprint("原输入"),
+      }),
+    );
+    records.push(
+      traceRecord(records.length + 1, records.length, {
+        type: "input_claimed",
+        inputId: "original-input",
+        status: "claimed",
+        turnId: "original-turn",
+      }),
+    );
+    records.push(record(records.length + 1, "pause", { reason: "tool_approval_denied" }));
+    expect(isRunStateResumable(records)).toBe(true);
+    expect(prepareRunResume(records, "fingerprint", "原输入").initialPrompt).toBe("原输入");
+    const originalDiscarded = [
+      ...records.slice(0, -1),
+      traceRecord(records.length, records.length - 1, {
+        type: "input_discarded",
+        inputId: "original-input",
+        status: "discarded",
+      }),
+    ];
+    expect(isRunStateResumable(originalDiscarded)).toBe(false);
+    expect(() => prepareRunResume(originalDiscarded, "fingerprint", "原输入")).toThrowError(
+      expect.objectContaining({ code: "run_already_finished" }),
+    );
+  });
+
   it("Telemetry 配置不参与 Resume 身份指纹", () => {
     const base = { schemaVersion: 2, name: "resume", agents: { main: { systemPrompt: "x" } } };
 

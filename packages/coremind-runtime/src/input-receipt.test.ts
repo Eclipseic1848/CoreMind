@@ -1,17 +1,46 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { CoreMindEvent } from "./events.js";
 import {
   claimInput,
   completeInput,
+  controlInputId,
   createInputReceipt,
   discardInput,
   foldInputReceipts,
   type InputId,
   type InputReceiptStatus,
   inputFingerprint,
+  isControlInputId,
   isInputReceiptEvent,
   isValidTransition,
 } from "./input-receipt.js";
+
+describe("控制输入身份", () => {
+  it("使用无歧义 JSON 二元组的 UTF-8 SHA，正文不参与身份", () => {
+    const runId = "运行🙂";
+    const controlId = "控制".repeat(500);
+    const expected = `control:${createHash("sha256")
+      .update(JSON.stringify([runId, controlId]), "utf8")
+      .digest("hex")}`;
+    expect(controlInputId(runId, controlId)).toBe(expected);
+    expect(controlInputId(runId, controlId)).toHaveLength(72);
+    expect(controlInputId("ab", "c")).not.toBe(controlInputId("a", "bc"));
+    expect(controlInputId("other-run", controlId)).not.toBe(expected);
+  });
+
+  it("只识别完整控制摘要身份，旧普通输入 ID 保持独立", () => {
+    expect(isControlInputId(controlInputId("run", "control"))).toBe(true);
+    for (const value of [
+      "ordinary-input",
+      "control:short",
+      `control:${"A".repeat(64)}`,
+      `xcontrol:${"a".repeat(64)}`,
+    ]) {
+      expect(isControlInputId(value)).toBe(false);
+    }
+  });
+});
 
 describe("inputFingerprint", () => {
   it("对同一内容生成稳定指纹，不同内容不同", () => {

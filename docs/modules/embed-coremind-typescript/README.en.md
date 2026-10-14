@@ -10,6 +10,7 @@ Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node a
 
 - `CoreMindRuntime`
 - `ChatSession`
+- `ChatSession.steer(message, options?)` / `followUp(message, options?)` (1.1 development; `options` is `{ controlId?, runId? }`)
 - `defineTool`
 - `checkProject`
 - `runEvaluationSuite`
@@ -27,6 +28,9 @@ Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node a
 - The facade only re-exports and never duplicates business logic
 - `RunResult.snapshot` is pure JSON. Protocol fully validates terminal state, metrics, trace, checkpoints, artifacts, and extension receipts to reject cross-language structural drift
 - In host verification, returning from `onVerification` does not accept a candidate; `accepted` or `applied` control receipts do not replace the final Run outcome
+- Session controls capture the actual active Turn Runtime at call time. Unbound, unready, sealed, or mismatched Runs reject controls without redirecting to a later Run. Retain the same controlId for retries within the same Run: identical content returns duplicate, different content returns conflict
+- `accepted/applied/rejected/duplicate/conflict` are control receipts; separate `input_*` events describe consumption and discard. Controls grant no permissions and start no concurrent Run
+- Cold recovery can apply accepted controls. Applied controls without confirmed consumption are explicitly discarded rather than automatically redelivered. Paused original inputs retain existing recovery gates; discarded ordinary inputs remain non-resumable. This does not promise absolute exactly-once delivery or full conversation recovery
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
@@ -36,6 +40,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-runtime/src/public-tool.ts](../../../packages/coremind-runtime/src/public-tool.ts)
 - [packages/coremind/src/index.test.ts](../../../packages/coremind/src/index.test.ts)
 - [packages/coremind-runtime/src/public-tool.test.ts](../../../packages/coremind-runtime/src/public-tool.test.ts)
+- [ChatSession controls](../../../packages/coremind-runtime/src/chat-session.ts), [active binding](../../../packages/coremind-runtime/src/active-run-binding.ts), and [real control recovery regressions](../../../packages/coremind-runtime/src/control-runtime.acceptance.test.ts)
 - [模块示例](../../../examples/modules/embed-coremind-typescript/README.zh-CN.md)
 - [Module example](../../../examples/modules/embed-coremind-typescript/README.en.md)
 - [Agent Skill](../../../skills/embed-coremind-typescript/SKILL.md)
