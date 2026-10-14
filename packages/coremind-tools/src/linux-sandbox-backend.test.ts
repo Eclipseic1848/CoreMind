@@ -274,7 +274,7 @@ describe("Linux helper 进程所有权", () => {
       import assert from "node:assert/strict";
       import { execFileSync } from "node:child_process";
       import { createHash } from "node:crypto";
-      import { existsSync, mkdirSync, readFileSync } from "node:fs";
+      import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
       import path from "node:path";
       const [entry, workspace] = process.argv.slice(1);
       const backend = await import(entry);
@@ -286,6 +286,9 @@ describe("Linux helper 进程所有权", () => {
       mkdirSync(other);
       const hash = () => createHash("sha256").update(readFileSync(helper)).digest("hex");
       const before = hash();
+      // 执行中的 ELF 可能先报 ETXTBSY；未执行的同目录文件单独证明只读保护。
+      const canary = path.join(directory, "permission-canary");
+      writeFileSync(canary, "unchanged", "utf8");
       const quote = (value) => "'" + value.replaceAll("'", "'\"'\"'") + "'";
       async function execute(command) {
         const wrapped = await backend.wrapLinuxSandboxCommand(command, buildLinuxSandboxConfig(workspace, process.env));
@@ -303,20 +306,22 @@ describe("Linux helper 进程所有权", () => {
         const path = require("node:path");
         const helper = process.argv[1];
         assert.equal(fs.statSync(helper).isFile(), true);
-        function denied(operation) {
+        function denied(operation, codes = ["EROFS", "EACCES", "EPERM"]) {
           try { operation(); }
           catch (error) {
-            assert.ok(["EROFS", "EACCES", "EPERM"].includes(error.code), String(error));
+            assert.ok(codes.includes(error.code), String(error));
             return error.code;
           }
           throw new Error("自有执行资产仍可写入");
         }
-        const file = denied(() => { const fd = fs.openSync(helper, "r+"); fs.closeSync(fd); });
+        const file = denied(() => { const fd = fs.openSync(path.join(path.dirname(helper), "permission-canary"), "r+"); fs.closeSync(fd); });
+        const executable = denied(() => { const fd = fs.openSync(helper, "r+"); fs.closeSync(fd); }, ["EROFS", "EACCES", "EPERM", "ETXTBSY"]);
         const directory = denied(() => fs.mkdirSync(path.join(path.dirname(helper), "forbidden-probe")));
-        process.stdout.write(JSON.stringify({ file, directory }));
+        process.stdout.write(JSON.stringify({ file, directory, executable }));
       }
       const checked = JSON.parse(await execute(quote(process.execPath) + " -e " + quote("(" + probe.toString() + ")()") + " " + quote(helper)));
       assert.equal(hash(), before);
+      assert.equal(readFileSync(canary, "utf8"), "unchanged");
       await backend.shutdownLinuxSandboxBackend();
       assert.equal(existsSync(directory), false);
       assert.equal(existsSync(other), true);
@@ -342,6 +347,7 @@ describe("Linux helper 进程所有权", () => {
       expect(existsSync(result.other)).toBe(true);
       expect(["EROFS", "EACCES", "EPERM"]).toContain(result.checked.file);
       expect(["EROFS", "EACCES", "EPERM"]).toContain(result.checked.directory);
+      expect(["EROFS", "EACCES", "EPERM", "ETXTBSY"]).toContain(result.checked.executable);
     },
   );
 });
