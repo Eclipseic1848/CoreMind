@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added optional Agent-scoped local stdio tools through the existing Run authorization, budget, durability, and lifecycle boundaries, with static diagnostics and owned-process cleanup.
+
 ## 1.0.1 - 2026-09-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

@@ -21,7 +21,11 @@ export interface OrchestratorOptions {
    * 每个步骤使用独立实例执行——步骤之间通过 {{变量}} 传递结果，
    * 避免并发冲突，同时天然防止共享消息状态的竞态。
    */
-  createAgent: (name: string, stepId?: string) => AgentDriver | undefined;
+  createAgent: (
+    name: string,
+    stepId?: string,
+    signal?: AbortSignal,
+  ) => AgentDriver | undefined | Promise<AgentDriver | undefined>;
   /** 事件转发 */
   events: (event: CoreMindEvent) => void;
   /** 首条用户输入，注册为 {{prompt}} 变量 */
@@ -50,7 +54,7 @@ const INTERPOLATE_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
  * - 护栏：嵌套深度与总步骤数硬上限，防止多 agent 互相调用死循环
  */
 export class Orchestrator {
-  private readonly createAgent: (name: string, stepId?: string) => AgentDriver | undefined;
+  private readonly createAgent: OrchestratorOptions["createAgent"];
   private readonly events: (event: CoreMindEvent) => void;
   private readonly initialPrompt?: string;
   private readonly signal?: AbortSignal;
@@ -140,16 +144,9 @@ export class Orchestrator {
     this.events({ type: "step_start", stepId: step.id, kind: step.type });
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const agent = this.createAgent(step.agent, step.id);
-      if (!agent) {
-        throw new CoreMindError(
-          "unknown_agent",
-          `workflow 引用了未定义的 agent：${step.agent}（第 ${step.id} 步）`,
-        );
-      }
       try {
         const input = this.interpolate(step.input);
-        const text = await this.promptWithTimeout(agent, input, step.id);
+        const text = await this.promptWithTimeout(step.agent, input, step.id);
         const output: StepOutput = { text, metadata: { agent: step.agent, stepId: step.id } };
 
         const retryNeeded =
@@ -205,42 +202,55 @@ export class Orchestrator {
     throw new CoreMindError("step_limit", `步骤 ${step.id} 重试次数异常`);
   }
 
-  /** 单步执行 + 超时护栏：超时中止 agent 并抛 step_timeout */
+  /** 同一步骤的准备与模型执行共用期限；迟到工厂不能越过取消边界。 */
   private async promptWithTimeout(
-    agent: AgentDriver,
+    agentName: string,
     input: string,
     stepId: string,
   ): Promise<string> {
     const timeoutMs = this.stepTimeoutMs;
-    if (timeoutMs <= 0) {
+    const controller = new AbortController();
+    const signal = this.signal
+      ? AbortSignal.any([this.signal, controller.signal])
+      : controller.signal;
+    let agent: AgentDriver | undefined;
+    let timer: NodeJS.Timeout | undefined;
+    const run = (async () => {
+      signal.throwIfAborted();
+      agent = await this.createAgent(agentName, stepId, signal);
+      if (signal.aborted) {
+        agent?.abort();
+        signal.throwIfAborted();
+      }
+      if (!agent) {
+        throw new CoreMindError(
+          "unknown_agent",
+          `workflow 引用了未定义的 agent：${agentName}（第 ${stepId} 步）`,
+        );
+      }
       await agent.prompt(input);
       await agent.waitForIdle();
       return extractSuccessfulText(agent);
-    }
-    let timer: NodeJS.Timeout | undefined;
-    const run = (async () => {
-      await agent.prompt(input);
-      await agent.waitForIdle();
     })();
     try {
-      await Promise.race([
+      if (timeoutMs <= 0) return await run;
+      return await Promise.race([
         run,
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
-            agent.abort();
-            reject(
-              new CoreMindError(
-                "step_timeout",
-                `步骤 ${stepId} 执行超时（${timeoutMs}ms），已中止`,
-              ),
+            const failure = new CoreMindError(
+              "step_timeout",
+              `步骤 ${stepId} 执行超时（${timeoutMs}ms），已中止`,
             );
+            controller.abort(failure);
+            agent?.abort();
+            reject(failure);
           }, timeoutMs);
         }),
       ]);
     } finally {
       if (timer) clearTimeout(timer);
     }
-    return extractSuccessfulText(agent);
   }
 
   /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */

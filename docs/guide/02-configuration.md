@@ -253,6 +253,50 @@ runtime:
 
 `provider.contextWindow` 是上下文容量，`provider.maxTokens` 是单次模型输出上限，`runtime.maxTokens` 是累计 Run 预算；启用 Child Run 时还要分别声明父级和目标的六维委派预算，不能互换这些数值。
 
+## mcp：按 Agent 选择本地工具
+
+本地 stdio 服务仅在真实 Run 内、获准后启动。`command` 和 `cwd` 必须为绝对路径，`args` 是固定参数数组，不经过 Shell，也不会自动安装程序。将下面的路径和原始工具名替换为已经审核的本地服务：
+
+```yaml
+mcp:
+  servers:
+    local:
+      transport: stdio
+      command: /absolute/path/to/node
+      args: [/absolute/path/to/server.mjs]
+      cwd: /absolute/path/to/workspace
+      env:
+        SERVICE_TOKEN:
+          env: LOCAL_SERVICE_TOKEN
+agents:
+  assistant:
+    tools:
+      - mcp:
+          server: local
+          tool: echo
+        effect:
+          operations: [external]
+          reversible: false
+        capability:
+          effect: external
+          replay: unknown
+          concurrency: run_serial
+          checkpoint: unsupported
+          durability: critical
+permissions:
+  mode: ask
+  workspaceOnly: false
+  network: allow
+```
+
+Windows 使用绝对 Windows 路径；YAML 中可用单引号保留反斜杠。环境字段只能引用 `{env: 名称}` 或 `{secretRef: 引用}`，后者需要 SDK 的 `secretResolver`。CoreMind 只传递有限的平台运行变量和显式引用，不透传整个宿主环境。不要在配置、参数或工具描述中填写秘密。
+
+Agent 的非空 `tools` 精确选择工具；省略或空列表沿用全局 `tools`。内部短名绑定服务、原名、完整 schema 和执行能力，审批展示真实命令、目录与身份摘要。连接、读取目录、每次业务调用分别通过同一审批、预算、租约及持久化链，因此连接加目录读取先消耗两次工具预算。原始 schema 的 `$defs/$ref` 保留到首次模型请求。服务的 annotations 不会自动降低权限。
+
+这是受信任宿主程序，具有当前账户权限；`roots` 或工具白名单不构成操作系统沙箱。`workspaceOnly: true` 或 `network: deny/ask` 会在启动前拒绝，`full` 也不豁免。`doctor` 只检查静态条件，不启动或握手服务；既有 `coremind check` 仍拒绝 `workspaceOnly: false`，本配置不满足受限项目的发布基线。当前 Child Run 不接受 MCP 服务、工具或凭据。
+
+默认 `protocolVersion: legacy` 不进行额外进程探测；只有确认服务支持时，才显式设置 `2026-07-28`。文本与 JSON 结果保持语义，较大结果存为本地 Artifact；远端提供的文件路径不会触发宿主读取。连接属于本次 Run 的执行，结束或取消时关闭；已启动的 process/external 效果可能无法撤销，现有冷恢复门会要求人工审计，不自动重放。该配置需要支持 MCP 引用的 Worker，旧 Worker 会拒绝选中的新工具配置；没有选中 MCP 的旧配置保留原行为。
+
 ## permissions：三档权限
 
 ```yaml

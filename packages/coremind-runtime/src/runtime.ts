@@ -38,6 +38,7 @@ import type {
   AgentDriverBeforeToolCallContext,
   AgentDriverContextContract,
   AgentDriverHarness,
+  AgentDriverToolResult,
 } from "./agent-driver.js";
 import { buildAgentDriver } from "./agent-factory.js";
 import { type ResolvedRuntimeLimits, RunBudgetController, resolveRuntimeLimits } from "./budget.js";
@@ -140,6 +141,7 @@ import {
   type LifecycleExtensionReceipt,
 } from "./lifecycle-extension.js";
 import { LoopRunner, type LoopStepRequest } from "./loop-runner.js";
+import { createMcpRun, type McpHostOperation } from "./mcp-runtime.js";
 import {
   createTelemetryConfigurationFact,
   type LocalObservabilityProjection,
@@ -219,13 +221,16 @@ import {
   WorkspaceLeaseService,
 } from "./workspace-lease.js";
 
-type RuntimeHarness = AgentDriverHarness;
+type RuntimeHarness = AgentDriverHarness & {
+  prepareMcpTools?: (signal?: AbortSignal) => Promise<AgentTool[]>;
+};
 
 type AgentDriverBuilder = (input: {
   onEvent: (event: CoreMindEvent) => void;
   harness?: RuntimeHarness;
   sessionMessages?: CoreMindMessage[];
   skillTool?: AgentTool;
+  mcpTools?: AgentTool[];
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
@@ -435,6 +440,19 @@ export class CoreMindRuntime {
         "Child Runtime 不接受缺少内建 provenance 的注入工具",
       );
     }
+    if (
+      options.childRunAuthority &&
+      (config.mcp !== undefined ||
+        [
+          config.tools ?? [],
+          ...Object.values(config.agents).map((agent) => agent.tools ?? []),
+        ].some((tools) => tools.some((tool) => "mcp" in tool)))
+    ) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        "Child Runtime 不接受宿主本地服务工具",
+      );
+    }
 
     // 1. provider（解析模型，警告转发）
     const providerRuntime = await buildProviderRuntime(
@@ -503,7 +521,7 @@ export class CoreMindRuntime {
       }
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
       const { tools, warnings, effects, capabilities } = await buildToolsWithExecutionEnvironment(
-        toolConfigs ?? [],
+        (toolConfigs ?? []).filter((tool) => !("mcp" in tool)),
         {
           cwd,
           configDir,
@@ -600,11 +618,11 @@ export class CoreMindRuntime {
         });
       }
       skillsByAgent.set(name, allContents);
-      driverBuilders.set(name, ({ onEvent, harness, sessionMessages, skillTool }) =>
+      driverBuilders.set(name, ({ onEvent, harness, sessionMessages, skillTool, mcpTools }) =>
         buildAgentDriver(agentCfg, {
           models: providerRuntime.models,
           model: agentModel,
-          tools: [...driverTools, ...(skillTool ? [skillTool] : [])],
+          tools: [...driverTools, ...(mcpTools ?? []), ...(skillTool ? [skillTool] : [])],
           agentName: name,
           onEvent,
           apiKeyOverride: providerRuntime.apiKeyOverride,
@@ -668,17 +686,21 @@ export class CoreMindRuntime {
   }
 
   /** 按名字创建独立 Driver 实例（每次新实例，消息历史独立） */
-  private createAgent(
+  private async createAgent(
     name: string,
     onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
     stepId?: string,
-  ): AgentDriver | undefined {
+    signal?: AbortSignal,
+  ): Promise<AgentDriver | undefined> {
     const buildDriver = this.driverBuilders.get(name);
     if (!buildDriver) return undefined;
     const context = runContextFor(this);
     const executionId = randomUUID();
     const turnTracker = new TurnTracker();
     const originalHarness = context.harnessFor(name, stepId, executionId);
+    signal?.throwIfAborted();
+    const mcpTools = await originalHarness?.prepareMcpTools?.(signal);
+    signal?.throwIfAborted();
     const harness: RuntimeHarness = {
       ...originalHarness,
       beforePrompt: async () => {
@@ -703,6 +725,7 @@ export class CoreMindRuntime {
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       harness,
+      mcpTools,
       skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
     });
     context.registerAgent(name, agent, executionId);
@@ -1089,7 +1112,7 @@ export class CoreMindRuntime {
               `委派目标 Agent ${authority.request.agentName} 不存在`,
             );
           }
-          const { workflow: _workflow, loop: _loop, ...baseConfig } = this.config;
+          const { workflow: _workflow, loop: _loop, mcp: _mcp, ...baseConfig } = this.config;
           const childAgents = structuredClone(this.config.agents);
           for (const agent of Object.values(childAgents)) {
             if (agent.tools) agent.tools = agent.tools.filter(isDelegatedBuiltinToolConfig);
@@ -1321,6 +1344,15 @@ export class CoreMindRuntime {
       );
     }
     const parentTools = new Set(this.toolCapabilitiesByAgent.get(parentAgentName)?.keys() ?? []);
+    const targetAgent = this.agentConfigs.get(args.target);
+    const configuredTools =
+      (targetAgent?.tools?.length ?? 0) > 0 ? targetAgent!.tools! : (this.config.tools ?? []);
+    if (configuredTools.some((tool) => "mcp" in tool)) {
+      throw new CoreMindError(
+        "child_run_policy_escalation",
+        "Child Run 不继承宿主本地服务、工具或凭据",
+      );
+    }
     const targetTools = [...(this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? [])].filter(
       (tool) => tool !== DELEGATION_TOOL_NAME && isDelegatedSafeToolName(tool),
     );
@@ -1619,7 +1651,12 @@ export class CoreMindRuntime {
     let onToolResultRecorded:
       | ((event: Extract<CoreMindEvent, { type: "tool_result" }>) => void)
       | undefined;
-    const lifecycleFinalizers = new Set<Promise<void>>();
+    const lifecycleFinalizers = new Map<string, Promise<void>>();
+    const mcpAuthorizations = new Map<string, Readonly<Record<string, unknown>>>();
+    const bindMcpArguments = (agent: string, tool: string, args: unknown): unknown => {
+      const authorization = mcpAuthorizations.get(JSON.stringify([agent, tool]));
+      return authorization ? { mcp: authorization, arguments: args } : args;
+    };
     let lifecycleFailure: CoreMindError | undefined;
     const emitInputEvent = (event: CoreMindEvent): void => {
       collected.push(event);
@@ -1696,6 +1733,12 @@ export class CoreMindRuntime {
     }
     const recordEvent = (event: CoreMindEvent) => {
       let enriched = turnTracker.withTurnId(event);
+      if (enriched.type === "tool_call") {
+        enriched = {
+          ...enriched,
+          args: bindMcpArguments(enriched.agent, enriched.tool, enriched.args),
+        };
+      }
       if (
         (enriched.type === "tool_result" || enriched.type === "tool_lifecycle") &&
         enriched.callId
@@ -1857,40 +1900,42 @@ export class CoreMindRuntime {
         ...toolCallIdentity(event.agent, event.stepId, event.callId!),
       });
       if (!recorded || recorded.tool !== event.tool) return;
-      queueMicrotask(() => {
-        const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
-        const finalizer = (async () => {
-          try {
-            await journal.flush();
-            await toolExecutionEngine.finalizeResult(identity);
-            await releaseWorkspaceLease(identity);
-          } catch (error) {
-            const failure =
-              error instanceof CoreMindError
-                ? error
-                : new CoreMindError(
-                    "durability_barrier_failed",
-                    error instanceof Error ? error.message : String(error),
-                  );
-            if (toolExecutionEngine.inspect(identity)?.currentPhase === "observed") {
-              await toolExecutionEngine.failResultDurability(identity, failure.message);
-            }
-            throw failure;
+      const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
+      const callKey = toolCapabilityCallKey(event.agent, event.stepId, event.callId!);
+      // 仍在结果事件之后的微任务提交；宿主准备只等待同一个 Call 的结果屏障。
+      const finalizer = Promise.resolve().then(async () => {
+        try {
+          await journal.flush();
+          await toolExecutionEngine.finalizeResult(identity);
+          await releaseWorkspaceLease(identity);
+        } catch (error) {
+          const failure =
+            error instanceof CoreMindError
+              ? error
+              : new CoreMindError(
+                  "durability_barrier_failed",
+                  error instanceof Error ? error.message : String(error),
+                );
+          if (toolExecutionEngine.inspect(identity)?.currentPhase === "observed") {
+            await toolExecutionEngine.failResultDurability(identity, failure.message);
           }
-        })();
-        lifecycleFinalizers.add(finalizer);
-        void finalizer
-          .catch((error) => {
-            lifecycleFailure =
-              error instanceof CoreMindError
-                ? error
-                : new CoreMindError(
-                    "tool_lifecycle_invalid",
-                    error instanceof Error ? error.message : String(error),
-                  );
-          })
-          .finally(() => lifecycleFinalizers.delete(finalizer));
+          throw failure;
+        }
       });
+      lifecycleFinalizers.set(callKey, finalizer);
+      void finalizer
+        .catch((error) => {
+          lifecycleFailure =
+            error instanceof CoreMindError
+              ? error
+              : new CoreMindError(
+                  "tool_lifecycle_invalid",
+                  error instanceof Error ? error.message : String(error),
+                );
+        })
+        .finally(() => {
+          if (lifecycleFinalizers.get(callKey) === finalizer) lifecycleFinalizers.delete(callKey);
+        });
     };
     const dispatchLifecycle = async (
       lifecycle: Parameters<LifecycleExtensionHost["dispatch"]>[0],
@@ -1997,6 +2042,18 @@ export class CoreMindRuntime {
       }
       if (gate?.status === "propagate_terminal") throw propagatedChildRunError(gate.result);
     };
+    const mcpRun = this.config.mcp
+      ? createMcpRun({
+          config: this.config,
+          configDir: this.options.configDir,
+          cwd: this.options.cwd ?? process.cwd(),
+          env: this.options.toolEnv ?? this.options.env ?? process.env,
+          secretResolver: this.options.secretResolver,
+          environment: this.executionEnvironment,
+          signal: this.options.signal,
+          artifactStore: new ArtifactStore({ cwd: this.options.cwd ?? process.cwd() }),
+        })
+      : undefined;
     const persistContextCompaction = async (
       preparation: ContextLifecyclePreparation,
       sourceMessages: CoreMindMessage[],
@@ -2102,7 +2159,9 @@ export class CoreMindRuntime {
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
-      return {
+      const executionEffects = new Map(this.toolEffectsByAgent.get(agentName));
+      const executionCapabilities = new Map(this.toolCapabilitiesByAgent.get(agentName));
+      const harness: RuntimeHarness = {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(executionId!, contract),
         beforeModelRequest: () => {
@@ -2164,7 +2223,7 @@ export class CoreMindRuntime {
         transformContext: async (messages) => {
           if (contextFailure) return messages;
           while (lifecycleFinalizers.size > 0) {
-            await Promise.allSettled([...lifecycleFinalizers]);
+            await Promise.allSettled([...lifecycleFinalizers.values()]);
           }
           if (lifecycleFailure) throw lifecycleFailure;
           await dispatchLifecycle("before-model", {
@@ -2307,7 +2366,21 @@ export class CoreMindRuntime {
             return messages;
           }
         },
-        beforeToolCall: async (context: AgentDriverBeforeToolCallContext, signal?: AbortSignal) => {
+        beforeToolCall: async (
+          driverContext: AgentDriverBeforeToolCallContext,
+          signal?: AbortSignal,
+        ) => {
+          const context = {
+            ...driverContext,
+            toolCall: {
+              ...driverContext.toolCall,
+              args: bindMcpArguments(
+                agentName,
+                driverContext.toolCall.tool,
+                driverContext.toolCall.args,
+              ),
+            },
+          };
           const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
           const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.callId);
           const argumentsFingerprint = fingerprintEffectReceiptValue(context.toolCall.args);
@@ -2350,7 +2423,7 @@ export class CoreMindRuntime {
           let capability = existingCapability?.capability;
           if (!existingCapability) {
             capability =
-              this.toolCapabilitiesByAgent.get(agentName)?.get(context.toolCall.tool) ??
+              executionCapabilities.get(context.toolCall.tool) ??
               resolveToolCapability({ tool: context.toolCall.tool });
             capabilityByCallId.set(callKey, {
               tool: context.toolCall.tool,
@@ -2490,7 +2563,7 @@ export class CoreMindRuntime {
             context.toolCall.tool,
             authorizationArgs,
             resolvedCapability,
-            this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.tool),
+            executionEffects.get(context.toolCall.tool),
             delegationInputFingerprint,
           );
           await toolExecutionEngine.advance(lifecycleIdentity, {
@@ -2686,8 +2759,7 @@ export class CoreMindRuntime {
                 toolCallId: context.toolCall.callId,
                 idempotencyKey,
                 capability: resolvedCapability,
-                pathFields: this.toolEffectsByAgent.get(agentName)?.get(context.toolCall.tool)
-                  ?.pathFields,
+                pathFields: executionEffects.get(context.toolCall.tool)?.pathFields,
               },
             );
             if (checkpoints.length > 0) {
@@ -2781,7 +2853,18 @@ export class CoreMindRuntime {
           });
           return undefined;
         },
-        afterToolCall: async (context: AgentDriverAfterToolCallContext) => {
+        afterToolCall: async (driverContext: AgentDriverAfterToolCallContext) => {
+          const context = {
+            ...driverContext,
+            toolCall: {
+              ...driverContext.toolCall,
+              args: bindMcpArguments(
+                agentName,
+                driverContext.toolCall.tool,
+                driverContext.toolCall.args,
+              ),
+            },
+          };
           const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
           const capability = capabilityByCallId.get(
             toolCapabilityCallKey(agentName, stepId, context.toolCall.callId),
@@ -2940,6 +3023,140 @@ export class CoreMindRuntime {
           if (budget.observeAgentEvent(observation)) driver?.abort();
         },
       };
+      if (mcpRun) {
+        harness.prepareMcpTools = async (signal) => {
+          const prepared = await mcpRun.prepare({
+            agentName,
+            executionId: executionId!,
+            signal,
+            reservedToolNames: [...executionCapabilities.keys()],
+            executeHost: async (operation: McpHostOperation) => {
+              if (executionCapabilities.has(operation.name)) {
+                throw new CoreMindError("invalid_tool", "本地服务准备操作与已有工具重名");
+              }
+              executionEffects.set(operation.name, operation.effect);
+              executionCapabilities.set(
+                operation.name,
+                resolveToolCapability({
+                  tool: operation.name,
+                  source: "registered",
+                  declaration: operation.capability,
+                }),
+              );
+              const call = { callId: randomUUID(), tool: operation.name, args: operation.args };
+              const callKey = toolCapabilityCallKey(agentName, stepId, call.callId);
+              const turnId = randomUUID();
+              emit({
+                type: "tool_call",
+                agent: agentName,
+                ...call,
+                ...(stepId ? { stepId } : {}),
+                turnId,
+              });
+              const blocked = await harness.beforeToolCall!({ toolCall: call }, signal);
+              if (blocked?.block) {
+                emit({
+                  type: "tool_result",
+                  agent: agentName,
+                  tool: call.tool,
+                  callId: call.callId,
+                  isError: true,
+                  ...(stepId ? { stepId } : {}),
+                  turnId,
+                });
+                await lifecycleFinalizers.get(callKey);
+                if (checkpointFailure) throw checkpointFailure;
+                harness.throwIfDenied?.();
+                throw new CoreMindError(
+                  "tool_execution_failed",
+                  blocked.reason ?? "本地服务准备未获准",
+                );
+              }
+              let output: Awaited<ReturnType<McpHostOperation["invoke"]>> | undefined;
+              let failure: unknown;
+              let result: AgentDriverToolResult = {
+                content: [{ type: "text", text: "本地服务准备失败" }],
+                details: { mcp: { operation: operation.name } },
+              };
+              try {
+                result = await harness.executeTool!({
+                  call,
+                  signal,
+                  invoke: async () => {
+                    output = await operation.invoke();
+                    return {
+                      content: [{ type: "text", text: output.text }],
+                      details: output.details,
+                    };
+                  },
+                });
+              } catch (error) {
+                failure = error;
+              }
+              let isError = failure !== undefined || output?.isError === true;
+              try {
+                await harness.afterToolCall!({ toolCall: call, result, isError }, signal);
+              } catch (error) {
+                failure ??= error;
+                isError = true;
+              } finally {
+                emit({
+                  type: "tool_result",
+                  agent: agentName,
+                  tool: call.tool,
+                  callId: call.callId,
+                  isError,
+                  ...(stepId ? { stepId } : {}),
+                  turnId,
+                });
+                await lifecycleFinalizers.get(callKey);
+              }
+              if (failure) throw failure;
+              if (lifecycleFailure) throw lifecycleFailure;
+              if (checkpointFailure) throw checkpointFailure;
+              budget.throwIfExceeded();
+              if (!output || output.isError)
+                throw new CoreMindError("tool_execution_failed", "本地服务准备失败");
+              return output;
+            },
+          });
+          for (const tool of prepared) {
+            const { definition, authorization } = tool;
+            const key = JSON.stringify([agentName, definition.name]);
+            const previous = mcpAuthorizations.get(key);
+            if (
+              previous &&
+              fingerprintEffectReceiptValue(previous) !==
+                fingerprintEffectReceiptValue(authorization)
+            ) {
+              throw new CoreMindError(
+                "tool_capability_conflict",
+                "本 Run 的本地工具授权身份发生变化",
+              );
+            }
+            mcpAuthorizations.set(key, authorization);
+            executionEffects.set(definition.name, {
+              ...definition.effect,
+              ...(definition.effect.pathFields
+                ? { pathFields: definition.effect.pathFields.map((field) => `arguments.${field}`) }
+                : {}),
+              ...(definition.effect.urlFields
+                ? { urlFields: definition.effect.urlFields.map((field) => `arguments.${field}`) }
+                : {}),
+            });
+            executionCapabilities.set(
+              definition.name,
+              resolveToolCapability({
+                tool: definition.name,
+                source: "registered",
+                declaration: definition.capability!,
+              }),
+            );
+          }
+          return prepared.map(({ definition }) => adaptCoreMindTool(definition));
+        };
+      }
+      return harness;
     });
 
     let outputs = new Map<string, StepOutput>();
@@ -3037,11 +3254,12 @@ export class CoreMindRuntime {
           }
           if (workflow && workflow.length > 0) {
             const orchestrator = new Orchestrator(workflow, {
-              createAgent: (name, stepId) =>
+              createAgent: (name, stepId, signal) =>
                 this.createAgent(
                   name,
                   (event) => emit(stepId ? ({ ...event, stepId } as CoreMindEvent) : event),
                   stepId,
+                  signal,
                 ),
               events: emit,
               initialPrompt: effectiveInitialPrompt,
@@ -3071,7 +3289,7 @@ export class CoreMindRuntime {
               "未提供输入：单 agent 模式需要 --prompt 参数，或配置 workflow 步骤",
             );
           }
-          const agent = this.createAgent(name, emit);
+          const agent = await this.createAgent(name, emit);
           if (!agent) {
             throw new CoreMindError("unknown_agent", `默认 agent ${name} 不存在`);
           }
@@ -3216,7 +3434,7 @@ export class CoreMindRuntime {
     }
 
     while (lifecycleFinalizers.size > 0) {
-      await Promise.allSettled([...lifecycleFinalizers]);
+      await Promise.allSettled([...lifecycleFinalizers.values()]);
     }
     if (
       lifecycleFailure &&
@@ -3232,6 +3450,16 @@ export class CoreMindRuntime {
     await context.currentChildRuns()?.sealForTerminal();
     for (const name of this.agentConfigs.keys()) {
       for (const driver of context.agentsNamed(name)) driver.clearQueuedControls();
+    }
+    try {
+      await mcpRun?.close();
+    } catch {
+      const failure = new CoreMindError(
+        "environment_terminate_failed",
+        "本 Run 的本地服务未能完成资源回收",
+      );
+      terminalError ??= failure;
+      emit({ type: "error", message: failure.message, fatal: true });
     }
     const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
     let delegationGate = context.currentChildRuns()?.continuationGate();
@@ -3594,20 +3822,28 @@ export class CoreMindRuntime {
     collected: CoreMindEvent[],
   ): Promise<string> {
     const eventCursor = collected.length;
-    const agent = this.createAgent(
-      request.agent,
-      (event) => emit({ ...event, stepId: request.stepId } as CoreMindEvent),
-      request.stepId,
-    );
-    if (!agent) {
-      throw new CoreMindError(
-        "unknown_agent",
-        `Loop 引用了未定义的 agent：${request.agent}（${request.stepId}）`,
-      );
-    }
-    const messageCursor = agent.messages().length;
+    const controller = new AbortController();
+    const signal = this.options.signal
+      ? AbortSignal.any([this.options.signal, controller.signal])
+      : controller.signal;
+    let agent: AgentDriver | undefined;
+    let messageCursor = 0;
     let timer: NodeJS.Timeout | undefined;
     const operation = (async () => {
+      agent = await this.createAgent(
+        request.agent,
+        (event) => emit({ ...event, stepId: request.stepId } as CoreMindEvent),
+        request.stepId,
+        signal,
+      );
+      signal.throwIfAborted();
+      if (!agent) {
+        throw new CoreMindError(
+          "unknown_agent",
+          `Loop 引用了未定义的 agent：${request.agent}（${request.stepId}）`,
+        );
+      }
+      messageCursor = agent.messages().length;
       await agent.prompt(request.input);
       await agent.waitForIdle();
     })();
@@ -3617,13 +3853,13 @@ export class CoreMindRuntime {
           operation,
           new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => {
-              agent.abort();
-              reject(
-                new CoreMindError(
-                  "step_timeout",
-                  `步骤 ${request.stepId} 执行超时（${timeoutMs}ms），已中止`,
-                ),
+              const failure = new CoreMindError(
+                "step_timeout",
+                `步骤 ${request.stepId} 执行超时（${timeoutMs}ms），已中止`,
               );
+              controller.abort(failure);
+              agent?.abort();
+              reject(failure);
             }, timeoutMs);
           }),
         ]);
@@ -3641,7 +3877,7 @@ export class CoreMindRuntime {
     if (stepEvents.some((event) => event.type === "policy_denied")) {
       throw new CoreMindError("loop_paused", `步骤 ${request.stepId} 的工具请求未获批准`);
     }
-    const messages = agent.messages();
+    const messages = agent!.messages();
     const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
     if (lastAssistant?.stopReason === "aborted") {
       throw new CoreMindError("aborted", `步骤 ${request.stepId} 已中止`);
@@ -3876,7 +4112,7 @@ const DELEGATED_SAFE_BUILTIN_TOOLS = new Set(["web-fetch", "write"]);
 
 /** Child 只保留显式网络读取与受 Checkpoint/Lease 保护的写入，不加载脚本、进程或扫描工具。 */
 function isDelegatedBuiltinToolConfig(tool: ToolConfig): boolean {
-  return !("path" in tool) && DELEGATED_SAFE_BUILTIN_TOOLS.has(tool.id);
+  return "id" in tool && DELEGATED_SAFE_BUILTIN_TOOLS.has(tool.id);
 }
 
 function isDelegatedSafeToolName(tool: string): boolean {

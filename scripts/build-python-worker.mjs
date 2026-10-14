@@ -31,6 +31,7 @@ execFileSync(
   [path.join(repositoryRoot, "scripts", "build-linux-sandbox-backend.mjs"), "--python-assets"],
   { cwd: repositoryRoot, stdio: "inherit" },
 );
+await copyMcpLicenseAssets();
 
 // 第三方内联文本可能保留空白行缩进；发布前统一清理，保证 Git 格式门禁可重复通过。
 const workerBundle = await readFile(workerOutput, "utf8");
@@ -73,3 +74,83 @@ await cp(
   path.join(pythonPackage, "skills"),
   { recursive: true, force: true },
 );
+
+async function copyMcpLicenseAssets() {
+  const sources = [
+    ["@modelcontextprotocol/client", "LICENSE", "modelcontextprotocol-LICENSE"],
+    ["@modelcontextprotocol/core", "LICENSE", "modelcontextprotocol-LICENSE"],
+    ["eventsource", "LICENSE", "eventsource-LICENSE"],
+    ["eventsource-parser", "LICENSE", "eventsource-parser-LICENSE"],
+    ["jose", "LICENSE.md", "jose-LICENSE.md"],
+    ["pkce-challenge", "LICENSE", "pkce-challenge-LICENSE"],
+    ["zod", "LICENSE", "zod-LICENSE"],
+  ];
+  const lock = JSON.parse(await readFile(path.join(repositoryRoot, "package-lock.json"), "utf8"));
+  const manifest = { schemaVersion: 1, sources: {}, artifacts: {} };
+  const artifacts = new Map();
+  const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  for (const [name, licenseFile, licenseArtifact] of sources) {
+    let directory = path.dirname(fileURLToPath(import.meta.resolve(name)));
+    let metadata;
+    // 这七个固定包均从公开入口定位，避免依赖未导出的 package.json 子路径。
+    for (let depth = 0; depth < 4; depth++) {
+      try {
+        const candidate = JSON.parse(await readFile(path.join(directory, "package.json"), "utf8"));
+        if (candidate.name === name) {
+          metadata = candidate;
+          break;
+        }
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      directory = path.dirname(directory);
+    }
+    const locked = lock.packages[`node_modules/${name}`];
+    if (
+      !metadata ||
+      !locked ||
+      metadata.version !== locked.version ||
+      metadata.license !== locked.license ||
+      typeof locked.integrity !== "string"
+    ) {
+      throw new Error(`MCP 许可来源与锁定身份不一致：${name}`);
+    }
+    const files = {};
+    for (const filename of [licenseFile, "NOTICE"]) {
+      let bytes;
+      try {
+        bytes = await readFile(path.join(directory, filename));
+      } catch (error) {
+        if (filename === "NOTICE" && error.code === "ENOENT") continue;
+        throw error;
+      }
+      const artifact =
+        filename === licenseFile
+          ? licenseArtifact
+          : `${name.replace("@", "").replaceAll("/", "-")}-NOTICE`;
+      const previous = artifacts.get(artifact);
+      if (previous && !previous.equals(bytes)) {
+        throw new Error(`共用 MCP 许可原文不一致，必须分别保留：${name}`);
+      }
+      artifacts.set(artifact, bytes);
+      const sha256 = digest(bytes);
+      files[filename] = { artifact, sha256 };
+      manifest.artifacts[artifact] = sha256;
+    }
+    manifest.sources[name] = {
+      version: metadata.version,
+      license: metadata.license,
+      integrity: locked.integrity,
+      files,
+    };
+  }
+  const target = path.join(workerDirectory, "vendor", "mcp");
+  await mkdir(target, { recursive: true });
+  // 逐字节保留上游许可，包括许可过渡说明；不按 package.json 的 SPDX 字段重写正文。
+  for (const [filename, bytes] of artifacts) await writeFile(path.join(target, filename), bytes);
+  await writeFile(
+    path.join(target, "manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+}

@@ -20,6 +20,14 @@ export {
 } from "./execution-environment.js";
 export { resolveFileToolTarget } from "./file-target.js";
 export {
+  createMcpStdioClient,
+  type McpListedTool,
+  type McpStdioClient,
+  type McpStdioClientOptions,
+  type McpStdioDomainSummary,
+  type McpStdioToolResult,
+} from "./mcp-stdio-client.js";
+export {
   createPlatformExecutionEnvironment,
   shutdownPlatformExecutionEnvironment,
 } from "./platform-execution-environment.js";

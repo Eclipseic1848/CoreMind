@@ -22,4 +22,10 @@ const lookupOrder = defineTool({
 6. Temporarily rename the tool to `read` and confirm definition or registration rejects it before execution; then restore a business-specific name.
 7. Run the ProcessRunner, GitAdapter, and unified-diff tests; confirm timeout, cancellation, output limits, read-only Git, and oversized files all fail closed.
 
+## Local MCP verification
+
+Use the [full configuration](../../../docs/en/guide/02-configuration.md#agent-scoped-local-mcp-tools) with an audited local stdio program. Run `coremind doctor coremind.yaml` and verify it starts no service, then `coremind run coremind.yaml --prompt "Call the approved tool"`. Approve connection, listing, and business execution separately. Inspect three independent Calls/EffectReceipts, the actual raw tool arguments, and process exit after completion.
+
+Safe defaults must reject startup. The explicit trusted-host example opens workspace and network authority, so the existing `coremind check` workspace gate must fail; it does not qualify as a constrained-project release. Run the repository's real MCP regressions before integrating your program. Those offline regressions require no real model credentials.
+
 Return to the [English guide](../../../docs/modules/build-tools/GUIDE.en.md).

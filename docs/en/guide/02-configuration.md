@@ -29,6 +29,50 @@ Providers are inherited dynamically from the locked runtime family. `0.2.0-rc.1`
 
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 
+## Agent-scoped local MCP tools
+
+Explicit stdio services start inside an authorized Run. Use absolute `command` and `cwd` paths and a fixed `args` array. CoreMind does not evaluate a shell or install programs. Replace these paths and the raw tool name with an audited local service:
+
+```yaml
+mcp:
+  servers:
+    local:
+      transport: stdio
+      command: /absolute/path/to/node
+      args: [/absolute/path/to/server.mjs]
+      cwd: /absolute/path/to/workspace
+      env:
+        SERVICE_TOKEN:
+          env: LOCAL_SERVICE_TOKEN
+agents:
+  assistant:
+    tools:
+      - mcp:
+          server: local
+          tool: echo
+        effect:
+          operations: [external]
+          reversible: false
+        capability:
+          effect: external
+          replay: unknown
+          concurrency: run_serial
+          checkpoint: unsupported
+          durability: critical
+permissions:
+  mode: ask
+  workspaceOnly: false
+  network: allow
+```
+
+On Windows, use absolute Windows paths; YAML single quotes preserve backslashes. Environment entries accept only `{env: NAME}` or `{secretRef: reference}`; SecretRef requires the embedding SDK's `secretResolver`. Only a finite set of platform variables and explicit references reach the service. Do not place secrets in configuration, arguments, or tool descriptions.
+
+A nonempty agent `tools` list selects exact raw tools; omitted or empty lists inherit global `tools`. Internal aliases bind the server, raw name, full schema, and declared execution capability. Approval includes the actual command, directory, and identity digest. Connection, catalog listing, and each business call use the same approval, budget, lease, and durable-result chain. Connection plus listing consume two tool calls before business execution. The first model request retains the full selected schema, including `$defs/$ref`; server annotations never lower authority.
+
+This is trusted host code with the current account's authority. Roots and tool allowlists provide no OS sandbox. `workspaceOnly: true` or `network: deny/ask` rejects startup even in `full` mode. `doctor` checks static conditions without starting or handshaking a service. The existing `coremind check` gate still rejects `workspaceOnly: false`; this configuration does not satisfy the constrained-project release baseline. Child Runs currently accept no MCP services, tools, or credentials.
+
+The default `protocolVersion: legacy` performs no extra process probing. Set `2026-07-28` only for a service known to support it. Text and JSON values retain their meaning; large results become local Artifacts, and remote file paths never authorize host reads. Connections belong to this Run execution and close on completion or cancellation. Started process/external effects can be irreversible, so the existing cold-resume gate requires human review rather than automatically replaying them. An old Worker rejects selected MCP tool configuration; existing configurations without selected MCP retain their behavior.
+
 ## Environment substitution
 
 Secrets belong in environment variables, not YAML:

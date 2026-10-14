@@ -20,6 +20,14 @@ const lookupOrder = defineTool({
 
 工具名必须是业务专用名称，不能使用内置 `read`、`write`、`bash` 等保留名。SDK 定义和脚本注册都会在执行前拒绝冲突。
 
+## 本地 MCP 服务
+
+按[配置指南](../../guide/02-configuration.md#mcp按-agent-选择本地工具)声明已审核程序及每个 Agent 的原始工具引用。CLI、TypeScript 和 Python 共用 Node Runtime；Python 不另建客户端。不要通过全局 SDK `toolDefinitions` 注入远端目录。
+
+先用 `coremind doctor coremind.yaml` 做静态检查，再在明确开放的 `workspaceOnly: false`、`network: allow` 条件下运行。`ask` 会分别询问连接、目录与业务动作；显式 deny 仍优先。连接和目录先消耗两次工具预算，业务工具必须如实声明完整 Effect/Capability。受信程序不是沙箱，既有项目质量门对无限工作区仍失败，Child Run 不继承该能力。
+
+在仓库根目录运行 `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`，核对审批拒绝时对应 I/O 为零、首次模型 schema、真实进程回收、秘密输出阻断和未知效果不重发。协议错误与业务 `isError` 分开处理，未经证明的写效果不能靠重试恢复。
+
 ## 编码工具边界
 
 ```ts

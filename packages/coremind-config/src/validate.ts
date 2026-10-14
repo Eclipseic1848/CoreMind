@@ -1,7 +1,14 @@
+import path from "node:path";
 import type { TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { type CoreMindConfig, CoreMindConfigSchema, type WorkflowStep } from "./schema/config.js";
+import {
+  type CoreMindConfig,
+  CoreMindConfigSchema,
+  type McpToolConfig,
+  type WorkflowStep,
+} from "./schema/config.js";
 import { CustomProviderSchema } from "./schema/provider.js";
+import { toolEffectOperationsForCapability } from "./schema/tools.js";
 
 export type ConfigValidationErrorCode = "invalid_config";
 
@@ -31,7 +38,7 @@ export function validateConfig(data: unknown): CoreMindConfig {
     throw new ConfigValidationError(`配置格式已升级：${details[0]}`, details);
   }
 
-  validateCustomToolEffects(record);
+  validateRawToolDeclarations(record);
   validateCustomProviderFields(record);
   validateProviderHeaderReferences(record);
 
@@ -47,7 +54,12 @@ export function validateConfig(data: unknown): CoreMindConfig {
     );
   }
 
+  validateMcpConfiguration(data as CoreMindConfig);
   const config = Value.Parse(CoreMindConfigSchema, data) as CoreMindConfig;
+  // TypeBox 不遍历没有自身 default 的 Record 值，单独补齐服务协议。
+  for (const server of Object.values(config.mcp?.servers ?? {})) {
+    server.protocolVersion ??= "legacy";
+  }
   if (config.workflow && config.loop) {
     const detail = "workflow 与 loop 只能选择一种，不能同时配置";
     throw new ConfigValidationError(detail, [detail]);
@@ -166,7 +178,9 @@ function validateLoopAgents(config: CoreMindConfig): void {
   }
 }
 
-function validateCustomToolEffects(record: Record<string, unknown>): void {
+function configuredToolLists(
+  record: Record<string, unknown>,
+): Array<{ prefix: string; tools: unknown }> {
   const locations: Array<{ prefix: string; tools: unknown }> = [
     { prefix: "tools", tools: record.tools },
   ];
@@ -184,20 +198,75 @@ function validateCustomToolEffects(record: Record<string, unknown>): void {
       }
     }
   }
-  for (const location of locations) {
+  return locations;
+}
+
+function validateRawToolDeclarations(record: Record<string, unknown>): void {
+  for (const location of configuredToolLists(record)) {
     if (!Array.isArray(location.tools)) continue;
     for (const [index, tool] of location.tools.entries()) {
-      if (
-        tool !== null &&
-        typeof tool === "object" &&
-        !Array.isArray(tool) &&
-        "path" in tool &&
-        !("effect" in tool)
-      ) {
+      if (tool === null || typeof tool !== "object" || Array.isArray(tool)) continue;
+      if ("mcp" in tool && ("id" in tool || "path" in tool)) {
+        // 旧分支允许额外字段，必须在清理前阻断混合引用。
+        const detail = `${location.prefix}.${index}：MCP 引用不能同时包含 id 或 path`;
+        throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
+      }
+      if ("path" in tool && !("effect" in tool)) {
         const detail = `${location.prefix}.${index}.effect：自定义工具必须声明副作用`;
         throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
       }
     }
+  }
+}
+
+function validateMcpConfiguration(config: CoreMindConfig): void {
+  const servers = config.mcp?.servers ?? {};
+  const details: string[] = [];
+  for (const [name, server] of Object.entries(servers)) {
+    const prefix = `mcp.servers.${name}`;
+    if (!path.isAbsolute(server.command)) details.push(`${prefix}.command：必须是固定绝对路径`);
+    if (!path.isAbsolute(server.cwd)) details.push(`${prefix}.cwd：必须是固定绝对路径`);
+    if (process.platform === "win32") {
+      const keys = new Set<string>();
+      for (const key of Object.keys(server.env ?? {})) {
+        const folded = key.toUpperCase();
+        if (keys.has(folded)) details.push(`${prefix}.env：Windows 环境键不能仅大小写不同`);
+        keys.add(folded);
+      }
+    }
+  }
+
+  for (const location of configuredToolLists(config)) {
+    if (!Array.isArray(location.tools)) continue;
+    const selected = new Set<string>();
+    for (const [index, tool] of location.tools.entries()) {
+      if (tool === null || typeof tool !== "object" || !("mcp" in tool)) continue;
+      const ref = tool as McpToolConfig;
+      const prefix = `${location.prefix}.${index}`;
+      if (!Object.hasOwn(servers, ref.mcp.server)) {
+        details.push(`${prefix}.mcp.server：引用了未声明的 MCP 服务`);
+      }
+      const identity = JSON.stringify([ref.mcp.server, ref.mcp.tool]);
+      if (selected.has(identity)) details.push(`${prefix}.mcp：不能重复选择同一服务工具`);
+      selected.add(identity);
+
+      const boundary = toolEffectOperationsForCapability(ref.capability.effect)[0];
+      const mutable = ref.effect.operations.filter((operation) => operation !== "read");
+      const consistent =
+        ref.capability.effect === "none"
+          ? mutable.length === 0
+          : mutable.length === 1 && mutable[0] === boundary;
+      if (!consistent) details.push(`${prefix}.effect：副作用必须与 capability.effect 一致`);
+      if (
+        (ref.capability.effect === "workspace" || ref.capability.effect === "unknown") &&
+        ref.capability.checkpoint === "none"
+      ) {
+        details.push(`${prefix}.capability.checkpoint：workspace/unknown 不能声明 none`);
+      }
+    }
+  }
+  if (details.length > 0) {
+    throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
   }
 }
 

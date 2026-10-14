@@ -42,6 +42,16 @@ WORKSTATION_PATH = re.compile(
     r"|(?<![A-Za-z0-9_])/(?:home|Users)/[^/\s]+/"
 )
 
+MCP_LICENSE_SOURCES = (
+    ("@modelcontextprotocol/client", "LICENSE", "modelcontextprotocol-LICENSE"),
+    ("@modelcontextprotocol/core", "LICENSE", "modelcontextprotocol-LICENSE"),
+    ("eventsource", "LICENSE", "eventsource-LICENSE"),
+    ("eventsource-parser", "LICENSE", "eventsource-parser-LICENSE"),
+    ("jose", "LICENSE.md", "jose-LICENSE.md"),
+    ("pkce-challenge", "LICENSE", "pkce-challenge-LICENSE"),
+    ("zod", "LICENSE", "zod-LICENSE"),
+)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="检查 CoreMind Python wheel 发布内容")
@@ -70,6 +80,7 @@ def main() -> int:
         else:
             blockers.extend(check_worker_bundle(archive.read(worker_name).decode("utf-8")))
         blockers.extend(check_linux_sandbox_assets(archive))
+        blockers.extend(check_mcp_license_assets(archive))
         blockers.extend(check_skill_assets(
             archive, Path(__file__).resolve().parents[1] / "packages" / "coremind-templates" / "skills"
         ))
@@ -170,6 +181,70 @@ def check_linux_sandbox_assets(archive: zipfile.ZipFile) -> list[str]:
 
 def valid_sha256(value: object) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
+def check_mcp_license_assets(archive: zipfile.ZipFile, source_root: Path | None = None) -> list[str]:
+    prefix = "coremind/_worker/vendor/mcp/"
+    repository_root = Path(__file__).resolve().parents[1]
+    source_root = source_root if source_root is not None else repository_root / "node_modules"
+    try:
+        manifest = json.loads(archive.read(prefix + "manifest.json").decode("utf-8"))
+        lock = json.loads((repository_root / "package-lock.json").read_text(encoding="utf-8"))
+    except (KeyError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ["MCP 许可缺少有效 manifest 或锁定来源"]
+    if not isinstance(manifest, dict) or type(manifest.get("schemaVersion")) is not int:
+        return ["MCP 许可 manifest 格式无效"]
+
+    sources: dict[str, object] = {}
+    artifacts: dict[str, str] = {}
+    for name, license_file, license_artifact in MCP_LICENSE_SOURCES:
+        directory = source_root.joinpath(*name.split("/"))
+        try:
+            metadata = json.loads((directory / "package.json").read_text(encoding="utf-8"))
+            locked = lock["packages"]["node_modules/" + name]
+            if (
+                not isinstance(metadata, dict)
+                or not isinstance(locked, dict)
+                or metadata.get("name") != name
+                or metadata.get("version") != locked.get("version")
+                or metadata.get("license") != locked.get("license")
+                or not isinstance(locked.get("integrity"), str)
+            ):
+                return [f"MCP 许可本地来源身份与 lock 不一致：{name}"]
+            files: dict[str, object] = {}
+            for filename in (license_file, "NOTICE"):
+                source = directory / filename
+                if filename == "NOTICE" and not source.exists():
+                    continue
+                artifact = license_artifact if filename == license_file else name.replace("@", "").replace("/", "-") + "-NOTICE"
+                sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
+                if artifact in artifacts and artifacts[artifact] != sha256:
+                    return ["共用 MCP 许可的来源原文不一致"]
+                artifacts[artifact] = sha256
+                files[filename] = {"artifact": artifact, "sha256": sha256}
+            sources[name] = {
+                "version": metadata["version"],
+                "license": metadata["license"],
+                "integrity": locked["integrity"],
+                "files": files,
+            }
+        except (KeyError, OSError, TypeError, UnicodeDecodeError, json.JSONDecodeError):
+            return [f"MCP 许可缺少有效的本地锁定来源：{name}"]
+    if manifest != {"schemaVersion": 1, "sources": sources, "artifacts": artifacts}:
+        return ["MCP 许可 manifest 与本地锁定来源及原文摘要不一致"]
+
+    packed = [name for name in archive.namelist() if name.startswith(prefix) and not name.endswith("/")]
+    expected = {prefix + name for name in artifacts} | {prefix + "manifest.json"}
+    blockers: list[str] = []
+    if set(packed) != expected:
+        blockers.append("MCP 许可资产缺失或包含未知文件")
+    for name in sorted(set(packed)):
+        if packed.count(name) != 1:
+            blockers.append(f"MCP 许可包含重复资产：{name}")
+        relative = name.removeprefix(prefix)
+        if relative in artifacts and hashlib.sha256(archive.read(name)).hexdigest() != artifacts[relative]:
+            blockers.append(f"MCP 许可资产与来源摘要不匹配：{relative}")
+    return blockers
 
 
 def check_skill_assets(archive: zipfile.ZipFile, source_root: Path) -> list[str]:

@@ -82,7 +82,9 @@ describe("模板配置合法", () => {
   it("blog-writer 一次生成并一次写入，不提供无关命令工具", () => {
     const config = parsed.get("blog-writer")!;
     expect(config.workflow).toHaveLength(1);
-    expect(config.agents.writer?.tools?.map((tool) => tool.id)).toEqual(["write"]);
+    expect(
+      config.agents.writer?.tools?.map((tool) => ("id" in tool ? tool.id : undefined)),
+    ).toEqual(["write"]);
     expect(config.agents.writer?.systemPrompt).toContain("不得虚构");
     expect(JSON.stringify(config.workflow)).toContain("只调用一次 write");
   });
