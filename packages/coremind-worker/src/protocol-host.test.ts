@@ -22,6 +22,113 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it.each(["v1", "query", "events", "expired"] as const)(
+    "%s 公开出口剥离技能私有数据，保留原始 Store、事实身份和普通字段",
+    async (outlet) => {
+      const dir = await mkdtemp(path.join(tmpdir(), "coremind-skill-privacy-"));
+      const runId = "private-skills";
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      const journal = new RunStateJournal(runId, store);
+      const publicTrace = {
+        eventId: "private-skills-result",
+        runId,
+        sequence: 1,
+        timestamp: "2026-10-14T00:00:00.000Z",
+        event: {
+          type: "tool_result" as const,
+          agent: "main",
+          tool: "load_skill",
+          callId: "skill-call",
+          isError: false,
+        },
+      };
+      await journal.start({
+        configName: "privacy",
+        skillSnapshot: { body: "未加载的技能私有正文" },
+      });
+      const privateTrace = {
+        ...publicTrace,
+        skillLoad: { id: "private-load-marker", delivery: "reference" },
+      };
+      await journal.appendFact("event", privateTrace, { eventId: publicTrace.eventId });
+      journal.pause({ reason: "process_interrupted", note: "保留普通字段" });
+      await journal.flush();
+      const original = await store.read(runId);
+      const windowedStore = Object.assign(store, {
+        readEventWindow: async () => ({
+          retainedFromSequence: outlet === "expired" ? 3 : 1,
+          latestSequence: 3,
+          records: original.filter((record) => outlet !== "expired" || record.sequence === 3),
+        }),
+      });
+      const host = new ProtocolHost({ send: () => {}, runStoreFactory: () => windowedStore });
+      try {
+        if (outlet === "v1") {
+          await host.handle({
+            jsonrpc: "2.0",
+            id: "initialize",
+            method: "initialize",
+            params: {
+              protocolVersion: "1.0",
+              config: { schemaVersion: 2, name: "privacy", agents: { main: {} } },
+              configDir: dir,
+            },
+          });
+        } else {
+          await initializeV2(host, dir);
+        }
+        const response = await host.handle({
+          jsonrpc: "2.0",
+          ...(outlet === "v1" ? {} : { protocolVersion: "2.0" }),
+          id: "inspect",
+          method: outlet === "v1" ? "inspect_run" : outlet === "query" ? "query" : "events",
+          params: outlet === "v1" || outlet === "query" ? { runId } : { runId, afterSequence: 0 },
+        });
+        const expectedProjection = {
+          records: [
+            { ...original[0], payload: { configName: "privacy" } },
+            { ...original[1], payload: publicTrace },
+            original[2],
+          ],
+          trace: [publicTrace],
+        };
+        if (outlet === "v1") {
+          expect(response).toMatchObject({ result: expectedProjection });
+        } else if (outlet === "query") {
+          expect(response).toMatchObject({
+            result: { derivedFromSequence: 3, projection: expectedProjection },
+          });
+        } else if (outlet === "expired") {
+          expect(response).toMatchObject({
+            error: {
+              data: {
+                coremindCode: "cursor_expired",
+                details: { recovery: { derivedFromSequence: 3, projection: expectedProjection } },
+              },
+            },
+          });
+        } else {
+          expect(response).toMatchObject({
+            result: {
+              nextCursor: 3,
+              events: [
+                { sequence: 1, payload: { configName: "privacy" } },
+                { sequence: 2, eventId: publicTrace.eventId, payload: publicTrace.event },
+                { sequence: 3, payload: original[2]?.payload },
+              ],
+            },
+          });
+        }
+        expect(JSON.stringify(response)).not.toContain("未加载的技能私有正文");
+        expect(JSON.stringify(response)).not.toContain("private-load-marker");
+        expect(await store.read(runId)).toEqual(original);
+      } finally {
+        await host.shutdown();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("并发追加事实时查询水位与返回投影来自同一快照", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-query-snapshot-"));
     const store = new FileRunStore(path.join(dir, ".coremind", "runs"));

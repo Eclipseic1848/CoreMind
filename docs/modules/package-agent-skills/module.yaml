@@ -6,7 +6,12 @@ name:
 version: 1.0.1
 sourcePaths:
   - "packages/coremind-templates/src/skills.ts"
+  - "packages/coremind-templates/src/standard-skills.ts"
+  - "packages/coremind-templates/src/internal.ts"
   - "packages/coremind-templates/skills"
+  - "packages/coremind-runtime/src/skill-runtime.ts"
+  - "packages/coremind-runtime/src/skill-privacy.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
 documents:
   readme:
     zh-CN: docs/modules/package-agent-skills/README.zh-CN.md
@@ -24,6 +29,13 @@ examplePaths:
   - examples/modules/package-agent-skills/README.en.md
 testPaths:
   - "packages/coremind-templates/src/skills.test.ts"
+  - "packages/coremind-templates/src/standard-skills.test.ts"
+  - "packages/coremind-runtime/src/skill-runtime.test.ts"
+  - "packages/coremind-runtime/src/skill-privacy.test.ts"
+  - "packages/coremind-runtime/src/skills-runtime.acceptance.test.ts"
+  - "packages/coremind-cli/src/entry-equivalence.acceptance.test.tsx"
+  - "packages/coremind-worker/src/protocol-host.test.ts"
+  - "python/tests/test_skill_assets_wheel.py"
 supportedPlatforms:
   - "windows"
   - "linux"

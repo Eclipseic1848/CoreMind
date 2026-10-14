@@ -38,6 +38,7 @@ import {
   type RunStateRecord,
   type RunStore,
 } from "./run-state.js";
+import { stripPrivateSkillPayload } from "./skill-privacy.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { validateToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import type { CoreMindTraceEvent } from "./trace.js";
@@ -778,14 +779,20 @@ function isTraceEvent(value: unknown, runId: string): value is CoreMindTraceEven
 }
 
 function publicTraceEvent(entry: CoreMindTraceEvent): CoreMindTraceEvent {
-  const { protocolToolResult: _internal, ...publicEntry } = entry as CoreMindTraceEvent & {
+  const { protocolToolResult: _internal, ...publicEntry } = stripPrivateSkillPayload(
+    "event",
+    entry,
+  ) as CoreMindTraceEvent & {
     protocolToolResult?: unknown;
   };
   return publicEntry;
 }
 
 function publicRunStateRecord(record: RunStateRecord): RunStateRecord {
-  if (record.kind !== "event") return record;
+  if (record.kind !== "event") {
+    const payload = stripPrivateSkillPayload(record.kind, record.payload);
+    return payload === record.payload ? record : { ...record, payload };
+  }
   return { ...record, payload: publicTraceEvent(record.payload as CoreMindTraceEvent) };
 }
 

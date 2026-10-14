@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
 import type {
   AgentConfig,
@@ -7,7 +8,8 @@ import type {
   ToolConfig,
   ToolEffectDeclaration,
 } from "coremind-config";
-import { loadDirectorySkills, resolveSkills, SKILLS } from "coremind-templates";
+import { SKILLS } from "coremind-templates";
+import { resolveSelectedSkills } from "coremind-templates/internal";
 import {
   type ArtifactRecord,
   ArtifactStore,
@@ -189,6 +191,19 @@ import { RunTerminalizer } from "./run-terminalizer.js";
 import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
 import { CoreMindSession } from "./session.js";
 import { compactSessionInRun } from "./session-maintenance.js";
+import {
+  assertSkillSnapshotSize,
+  freezeSkillSnapshot,
+  restoreSkillSnapshot,
+  SKILL_TOOL_CAPABILITY,
+  SKILL_TOOL_EFFECT,
+  SKILL_TOOL_NAME,
+  SkillExecution,
+  type SkillLoadFact,
+  type SkillSelection,
+  type SkillSnapshot,
+  skillPrefixContents,
+} from "./skill-runtime.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
@@ -207,6 +222,7 @@ type AgentDriverBuilder = (input: {
   onEvent: (event: CoreMindEvent) => void;
   harness?: RuntimeHarness;
   sessionMessages?: CoreMindMessage[];
+  skillTool?: AgentTool;
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
@@ -396,6 +412,7 @@ export class CoreMindRuntime {
   private static async createWithWorkspaceLease(
     options: CoreMindRuntimeOptions,
     workspaceLeaseService: WorkspaceLeaseService,
+    frozenSkills?: SkillSnapshot,
   ): Promise<CoreMindRuntime> {
     const { config, configDir } = options;
     const cwd = options.cwd ?? process.cwd();
@@ -443,10 +460,44 @@ export class CoreMindRuntime {
     );
     let runtime: CoreMindRuntime | undefined;
     // 自定义技能（生态机制）：配置文件所在目录的 skills/ 下，每个子目录的 README.md 即一个技能
-    const customSkills = await loadDirectorySkills(path.join(configDir, "skills"));
+    const restoredSkills =
+      frozenSkills ??
+      (options.resumeRunId
+        ? restoreSkillSnapshot(
+            await (
+              options.runStore ?? new FileRunStore(path.join(configDir, ".coremind", "runs"))
+            ).read(options.resumeRunId),
+            config.agents,
+          )
+        : undefined);
+    const selectedSkills: Record<string, SkillSelection> = Object.create(null);
     for (const [name, agentCfg] of Object.entries(config.agents)) {
       const agentModel = resolveProviderModel(providerRuntime, agentCfg.model);
       agentModels.set(name, agentModel);
+      const selected = restoredSkills
+        ? { ...restoredSkills.agents[name]!, missing: [], warnings: [] }
+        : await resolveSelectedSkills(agentCfg.skills ?? [], configDir);
+      if (options.resumeRunId && !restoredSkills && selected.standard.length > 0) {
+        throw new CoreMindError("context_capability_conflict", "恢复标准技能缺少原 Run 冻结快照");
+      }
+      selectedSkills[name] = {
+        legacyContents: selected.legacyContents,
+        standard: selected.standard,
+      };
+      if (Object.values(selectedSkills).some((selection) => selection.standard.length > 0)) {
+        assertSkillSnapshotSize({ version: 1, agents: selectedSkills });
+      }
+      for (const warning of selected.warnings)
+        emit({ type: "error", message: warning, fatal: false });
+      if (
+        selected.standard.length > 0 &&
+        externalTools.some((tool) => tool.name === SKILL_TOOL_NAME)
+      ) {
+        throw new CoreMindError(
+          "invalid_tool",
+          "标准技能启用时，自定义工具不得使用 load_skill 名称",
+        );
+      }
       const toolConfigs = (agentCfg.tools?.length ?? 0) > 0 ? agentCfg.tools : config.tools;
       const { tools, warnings, effects, capabilities } = await buildToolsWithExecutionEnvironment(
         toolConfigs ?? [],
@@ -458,6 +509,9 @@ export class CoreMindRuntime {
         },
         executionEnvironment,
       );
+      if (selected.standard.length > 0 && tools.some((tool) => tool.name === SKILL_TOOL_NAME)) {
+        throw new CoreMindError("invalid_tool", "标准技能启用时，脚本工具不得使用 load_skill 名称");
+      }
       for (const warning of warnings) {
         emit({ type: "error", message: warning, fatal: false });
       }
@@ -506,6 +560,7 @@ export class CoreMindRuntime {
             (definition) => [definition.name, definition.effect] as const,
           ),
           ...delegationEffects,
+          ...(selected.standard.length > 0 ? [[SKILL_TOOL_NAME, SKILL_TOOL_EFFECT] as const] : []),
         ]),
       );
       toolCapabilitiesByAgent.set(
@@ -526,30 +581,27 @@ export class CoreMindRuntime {
               ] as const,
           ),
           ...delegationCapabilities,
+          ...(selected.standard.length > 0
+            ? [[SKILL_TOOL_NAME, SKILL_TOOL_CAPABILITY] as const]
+            : []),
         ]),
       );
 
       // 技能：内置优先，未命中的查自定义目录，仍缺失才告警（不阻断）
-      const { contents, missing } = resolveSkills(agentCfg.skills ?? []);
-      const allContents = [...contents];
-      for (const id of missing) {
-        const custom = customSkills.get(id);
-        if (custom) {
-          allContents.push(custom);
-        } else {
-          emit({
-            type: "error",
-            message: `技能 ${id} 不存在（内置：${SKILLS.map((s) => s.id).join("、")}；自定义：放配置目录的 skills/${id}/README.md），已忽略`,
-            fatal: false,
-          });
-        }
+      const allContents = skillPrefixContents(selectedSkills[name]!);
+      for (const id of selected.missing) {
+        emit({
+          type: "error",
+          message: `技能 ${id} 不存在（内置：${SKILLS.map((s) => s.id).join("、")}；自定义：放配置目录的 skills/${id}/README.md），已忽略`,
+          fatal: false,
+        });
       }
       skillsByAgent.set(name, allContents);
-      driverBuilders.set(name, ({ onEvent, harness, sessionMessages }) =>
+      driverBuilders.set(name, ({ onEvent, harness, sessionMessages, skillTool }) =>
         buildAgentDriver(agentCfg, {
           models: providerRuntime.models,
           model: agentModel,
-          tools: driverTools,
+          tools: [...driverTools, ...(skillTool ? [skillTool] : [])],
           agentName: name,
           onEvent,
           apiKeyOverride: providerRuntime.apiKeyOverride,
@@ -608,6 +660,7 @@ export class CoreMindRuntime {
       resumedContextLength,
       skillsByAgent,
     );
+    executionSlotFor(runtime).skills = restoredSkills ?? freezeSkillSnapshot(selectedSkills);
     return runtime;
   }
 
@@ -628,6 +681,7 @@ export class CoreMindRuntime {
       // 恢复视图只注入主 agent（会话归属者）
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
       harness,
+      skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
     });
     context.registerAgent(name, agent, executionId);
     return agent;
@@ -738,6 +792,7 @@ export class CoreMindRuntime {
       history.length,
       this.skillsByAgent,
     );
+    executionSlotFor(turnRuntime).skills = executionSlotFor(this).skills;
     const unbindActiveRun = bindActiveRun(this, {
       inspectProjection: () => turnRuntime.inspectPersistedRunProjection(),
       executeDelegation: (parentAgentName, rawArgs, callId) =>
@@ -844,6 +899,9 @@ export class CoreMindRuntime {
       }),
       enforceRuntimeBudget: true,
       enforceDelegatedToolBoundary: true,
+      trustedSkillLoader:
+        this.toolCapabilitiesByAgent.get(this.mainAgentName)?.get(SKILL_TOOL_NAME) ===
+        SKILL_TOOL_CAPABILITY,
     });
   }
 
@@ -1047,6 +1105,7 @@ export class CoreMindRuntime {
               signal: authority.signal,
             },
             this.workspaceLeaseService,
+            executionSlotFor(this).skills,
           );
         },
       }),
@@ -1232,7 +1291,15 @@ export class CoreMindRuntime {
     const targetTools = [...(this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? [])].filter(
       (tool) => tool !== DELEGATION_TOOL_NAME && isDelegatedSafeToolName(tool),
     );
-    const expandedTools = targetTools.filter((tool) => !parentTools.has(tool));
+    const frozenSkillAuthority = needsFrozenSkillAuthority(
+      this.config.agents,
+      executionSlotFor(this).skills,
+      args.target,
+    );
+    if (frozenSkillAuthority) targetTools.push(SKILL_TOOL_NAME);
+    const expandedTools = targetTools.filter(
+      (tool) => !parentTools.has(tool) && !(frozenSkillAuthority && tool === SKILL_TOOL_NAME),
+    );
     if (expandedTools.length > 0) {
       throw new CoreMindError(
         "child_run_policy_escalation",
@@ -1286,6 +1353,19 @@ export class CoreMindRuntime {
     const resumeRecords = this.options.resumeRunId
       ? await runStore.read(this.options.resumeRunId)
       : undefined;
+    const skillSnapshot = executionSlotFor(this).skills;
+    if (
+      resumeRecords &&
+      restoreSkillSnapshot(resumeRecords, this.config.agents)?.sha256 !== skillSnapshot?.sha256
+    ) {
+      throw new CoreMindError("context_capability_conflict", "原技能快照在恢复准入前已变化");
+    }
+    executionSlotFor(this).skillExecutions = skillSnapshot ? new Map() : undefined;
+    const skillFactDurability: RunStoreDurability = runStore.supportedDurability?.includes(
+      "critical",
+    )
+      ? "critical"
+      : "ordinary";
     let deferredTerminalError = restoreDeferredTerminalError(resumeRecords);
     const canRestoreChildRuns =
       this.options.childRuns !== undefined ||
@@ -1367,19 +1447,24 @@ export class CoreMindRuntime {
         durability: "critical",
       });
     } else {
-      await journal.start({
-        configName: this.config.name,
-        schemaVersion: this.config.schemaVersion,
-        configFingerprint,
-        initialPrompt: this.options.initialPrompt,
-        sessionId: this.options.sessionId,
-        ...(sessionSeqStart !== undefined
-          ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
-          : {}),
-        operationId: operation.snapshot().operationId,
-        telemetry: telemetryConfiguration,
-        ...(this.options.protocolStart ? { protocolStart: this.options.protocolStart } : {}),
-      });
+      await journal.appendFact(
+        "start",
+        {
+          configName: this.config.name,
+          schemaVersion: this.config.schemaVersion,
+          configFingerprint,
+          initialPrompt: this.options.initialPrompt,
+          sessionId: this.options.sessionId,
+          ...(sessionSeqStart !== undefined
+            ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
+            : {}),
+          operationId: operation.snapshot().operationId,
+          telemetry: telemetryConfiguration,
+          ...(this.options.protocolStart ? { protocolStart: this.options.protocolStart } : {}),
+          ...(skillSnapshot ? { skillSnapshot } : {}),
+        },
+        { durability: skillSnapshot ? skillFactDurability : "ordinary" },
+      );
     }
     for (const consent of telemetryConsents) {
       validateTelemetryConsentBinding(consent, await runStore.read(runId));
@@ -1445,6 +1530,7 @@ export class CoreMindRuntime {
       string,
       { tool: string; capability: ResolvedToolCapability }
     >();
+    const skillLoadsByCall = new Map<string, SkillLoadFact>();
     const trace = new TraceRecorder(
       runId,
       (entry) => {
@@ -1455,14 +1541,23 @@ export class CoreMindRuntime {
               protocolToolResultKey(entry.runId, toolResultCallId),
             )
           : undefined;
-        const payload = pendingProtocolToolResult
-          ? {
-              ...entry,
-              protocolToolResult: structuredClone(pendingProtocolToolResult.fact),
-            }
-          : entry;
+        const skillCallKey =
+          toolResultCallId && entry.event.type === "tool_result"
+            ? toolCapabilityCallKey(entry.event.agent, entry.event.stepId, toolResultCallId)
+            : undefined;
+        const skillLoad = skillCallKey ? skillLoadsByCall.get(skillCallKey) : undefined;
+        const payload = {
+          ...entry,
+          ...(pendingProtocolToolResult
+            ? { protocolToolResult: structuredClone(pendingProtocolToolResult.fact) }
+            : {}),
+          ...(skillLoad ? { skillLoad } : {}),
+        };
+        if (skillCallKey) skillLoadsByCall.delete(skillCallKey);
         const persisted = journal.appendFact("event", payload, {
-          durability: traceFactDurability(entry.event, capabilityByCallId),
+          durability: skillLoad
+            ? skillFactDurability
+            : traceFactDurability(entry.event, capabilityByCallId),
           eventId: entry.eventId,
         });
         if (pendingProtocolToolResult) {
@@ -1483,6 +1578,8 @@ export class CoreMindRuntime {
       resumePlan?.previousTrace,
     );
     const collected: CoreMindEvent[] = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
+    // 历史拒绝保留审计与预算，但不决定本次恢复执行的终态。
+    const terminalEventCursor = collected.length;
     const toolReplayCandidates = [...(resumePlan?.toolReplayCandidates ?? [])];
     const userEvents = this.options.events ?? (() => {});
     const turnTracker = new TurnTracker();
@@ -1921,6 +2018,10 @@ export class CoreMindRuntime {
     const activeRunContext = context;
     context.setHarnessFactory((agentName, stepId, executionId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
+      const skillExecution = skillSnapshot?.agents[agentName]?.standard.length
+        ? new SkillExecution(skillSnapshot, agentName, resumeRecords, stepId)
+        : undefined;
+      if (skillExecution) executionSlotFor(this).skillExecutions!.set(executionId!, skillExecution);
       let contextWorkingSet: { sourceLength: number; messages: CoreMindMessage[] } | undefined;
       let providerRequestOrdinal = 0;
       let pendingProviderCapabilityFingerprint: string | undefined;
@@ -2090,6 +2191,7 @@ export class CoreMindRuntime {
               sourceLength: messages.length,
               messages: [...preparation.workingSet.messages],
             };
+            skillExecution?.refresh(preparation.workingSet.messages);
             pendingProviderCapabilityFingerprint = preparation.capability.configFingerprint;
             if (preparation.compaction) {
               emit({
@@ -2708,6 +2810,14 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          if (observation.type === "tool_execution_end") {
+            const fact = skillExecution?.observe(observation);
+            if (fact)
+              skillLoadsByCall.set(
+                toolCapabilityCallKey(agentName, stepId, observation.call.callId),
+                fact,
+              );
+          }
           const driver = context.agent(agentName, executionId);
           if (
             observation.type === "turn_end" &&
@@ -3118,7 +3228,10 @@ export class CoreMindRuntime {
       transcript.length,
       journal.rejectedAfterAbort(),
     );
-    let outcome = new RunTerminalizer().terminalize(collected, terminalError);
+    let outcome = new RunTerminalizer().terminalize(
+      collected.slice(terminalEventCursor),
+      terminalError,
+    );
     // 输入收据终态（规格 03 §4）：succeeded → completed；abort/超时/预算/失败 → discarded
     // （未消费输入）；paused（审批拒绝等）保持 claimed，resume 继续同一输入
     if (inputReceiptState !== undefined && inputReceiptState !== "completed") {
@@ -3187,7 +3300,10 @@ export class CoreMindRuntime {
       await journal.flush();
     } catch (error) {
       terminalError = durabilityFailure(error);
-      outcome = new RunTerminalizer().terminalize(collected, terminalError);
+      outcome = new RunTerminalizer().terminalize(
+        collected.slice(terminalEventCursor),
+        terminalError,
+      );
       evaluation = createEvaluationReport(this.config.quality, metrics);
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     }
@@ -3220,7 +3336,10 @@ export class CoreMindRuntime {
         const finalDurabilityFailure = durabilityFailure(error);
         terminalError = finalDurabilityFailure;
         userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
-        outcome = new RunTerminalizer().terminalize(collected, terminalError);
+        outcome = new RunTerminalizer().terminalize(
+          collected.slice(terminalEventCursor),
+          terminalError,
+        );
         evaluation = createEvaluationReport(this.config.quality, metrics);
         releaseReadiness = assessReleaseReadiness(outcome, evaluation);
       }
@@ -3522,6 +3641,8 @@ interface RuntimeExecutionSlot {
   kernel?: RunKernel<RuntimeHarness, RunResult>;
   context?: RunContext<RuntimeHarness>;
   protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;
+  skills?: SkillSnapshot;
+  skillExecutions?: Map<string, SkillExecution>;
 }
 
 const runtimeExecutionSlots = new WeakMap<CoreMindRuntime, RuntimeExecutionSlot>();
@@ -3625,6 +3746,22 @@ function isDelegatedBuiltinToolConfig(tool: ToolConfig): boolean {
 
 function isDelegatedSafeToolName(tool: string): boolean {
   return DELEGATED_SAFE_BUILTIN_TOOLS.has(tool);
+}
+
+function needsFrozenSkillAuthority(
+  agents: Record<string, AgentConfig>,
+  snapshot: SkillSnapshot | undefined,
+  name: string,
+  seen = new Set<string>(),
+): boolean {
+  if (!snapshot || seen.has(name) || !Object.hasOwn(agents, name)) return false;
+  seen.add(name);
+  return (
+    (snapshot.agents[name]?.standard.length ?? 0) > 0 ||
+    Object.keys(agents[name]!.delegation?.targets ?? {}).some((target) =>
+      needsFrozenSkillAuthority(agents, snapshot, target, seen),
+    )
+  );
 }
 
 const DELEGATED_TOOL_ENV_ALLOWLIST = new Set([
@@ -3780,6 +3917,7 @@ async function assertRuntimeChildPolicyAuthority(input: {
   limits: ResolvedRuntimeLimits;
   enforceRuntimeBudget: boolean;
   enforceDelegatedToolBoundary: boolean;
+  trustedSkillLoader?: boolean;
 }): Promise<void> {
   const {
     policy,
@@ -3791,9 +3929,13 @@ async function assertRuntimeChildPolicyAuthority(input: {
     limits,
     enforceRuntimeBudget,
     enforceDelegatedToolBoundary,
+    trustedSkillLoader,
   } = input;
   const unsafeTool = enforceDelegatedToolBoundary
-    ? [...tools].find((tool) => !isDelegatedSafeToolName(tool))
+    ? [...tools].find(
+        (tool) =>
+          !isDelegatedSafeToolName(tool) && !(trustedSkillLoader && tool === SKILL_TOOL_NAME),
+      )
     : undefined;
   if (unsafeTool) {
     throw new CoreMindError(

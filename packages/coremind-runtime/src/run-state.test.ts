@@ -644,6 +644,40 @@ describe("RunState", () => {
     });
   });
 
+  it("公开恢复计划不返回技能私有旁挂，原始 Store 仍保留完整快照", async () => {
+    const store = new MemoryRunStore();
+    const entry = traceEntry(1, {
+      type: "tool_result",
+      agent: "main",
+      tool: "load_skill",
+      callId: "skill-call",
+      isError: false,
+    });
+    const records = [
+      record(1, "start", {
+        configFingerprint: "fingerprint",
+        initialPrompt: "开始",
+        skillSnapshot: { body: "未加载的技能私有正文" },
+      }),
+      record(2, "event", {
+        ...entry,
+        skillLoad: { id: "private-load-marker", delivery: "reference" },
+      }),
+      record(3, "pause", { reason: "process_interrupted" }),
+    ];
+    for (const fact of records) await store.append(fact);
+
+    const plan = prepareRunResume(await store.read("run-restore"), "fingerprint");
+
+    expect(plan.previousTrace).toEqual([entry]);
+    expect(plan.initialPrompt).toBe("开始");
+    expect(plan.nextJournalSequence).toBe(3);
+    expect(plan).not.toHaveProperty("skillSnapshot");
+    expect(JSON.stringify(plan)).not.toContain("private-load-marker");
+    expect(JSON.stringify(plan)).not.toContain("未加载的技能私有正文");
+    expect(await store.read("run-restore")).toEqual(records);
+  });
+
   it("恢复计划按实际落盘顺序校验，拒绝被重新排列的记录", () => {
     const records: RunStateRecord[] = [
       record(2, "event", { type: "agent_start" }),

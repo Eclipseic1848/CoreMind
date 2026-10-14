@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 1.1 development
+
+- Added explicit SKILL.md selection, metadata indexes, and policy-controlled body loading while retaining built-in and README prefix behavior.
+- Documented source and snapshot limits, frozen Runtime/Child/recovery identities, reload after compaction, and trusted Store versus public projection boundaries.
+- Registered parser, helper, Runtime, cross-entry, Worker, and Python asset regression paths.
+
 ## 1.0.1 - 2026-09-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

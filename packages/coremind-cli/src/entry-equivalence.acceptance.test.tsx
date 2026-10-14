@@ -1,6 +1,7 @@
 import "../../../test/setup-env.js";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -951,4 +952,167 @@ describe("四入口请求等价（门 A-2）", () => {
     });
     expect(JSON.stringify(tsCaptured.fingerprint)).not.toContain("provider-secret");
   });
+});
+
+describe("外部配置目录的标准技能", () => {
+  it.each(["typescript", "cli", "python-v1", "python-v2"])(
+    "%s 使用同一冻结正文完成索引、加载和重复引用",
+    async (entry) => {
+      const directory = mkdtempSync(path.join(tmpdir(), "coremind-skill-entry-"));
+      const configDir = path.join(directory, "configuration");
+      const cwd = path.join(directory, "workspace");
+      const skillId = "entry-skill";
+      const name = "跨入口标准技能";
+      const description = "验证外部配置目录中的技能身份";
+      const body = "只属于冻结技能的正文：中文🙂。\n保持这一行及末尾换行。\n";
+      const sha256 = createHash("sha256").update(body, "utf8").digest("hex");
+      const frontmatter = `---\nname: ${name}\ndescription: ${description}\n---\n`;
+      for (const root of [configDir, cwd]) {
+        mkdirSync(path.join(root, "skills", skillId), { recursive: true });
+      }
+      const skillFile = path.join(configDir, "skills", skillId, "SKILL.md");
+      writeFileSync(skillFile, frontmatter + body, "utf8");
+      writeFileSync(
+        path.join(cwd, "skills", skillId, "SKILL.md"),
+        frontmatter + "工作目录诱饵正文，禁止使用。\n",
+        "utf8",
+      );
+      const requests: Array<{
+        messages: Array<{ role: string; content?: unknown; tool_call_id?: string }>;
+        tools?: Array<{ function?: { name?: string } }>;
+      }> = [];
+      const server = createServer((request, response) => {
+        let payload = "";
+        request.setEncoding("utf8");
+        request.on("data", (chunk: string) => {
+          payload += chunk;
+        });
+        request.on("end", () => {
+          requests.push(JSON.parse(payload));
+          // 首次请求已经形成后改写磁盘，后续加载必须复用本 Run 的冻结字节。
+          if (requests.length === 1) {
+            writeFileSync(skillFile, frontmatter + "加载前已改写的正文，禁止使用。\n", "utf8");
+          }
+          const chunks =
+            requests.length <= 2
+              ? toolCallResponse(
+                  `skill-${requests.length}`,
+                  `skill-call-${requests.length}`,
+                  "load_skill",
+                  JSON.stringify({ id: skillId }),
+                )
+              : textResponse("skill-final", "标准技能验收完成");
+          response.writeHead(200, { "content-type": "text/event-stream" });
+          for (const chunk of chunks) response.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          response.end("data: [DONE]\n\n");
+        });
+      });
+      try {
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+        const port = (server.address() as { port: number }).port;
+        const config = parseAndValidate({
+          schemaVersion: 2,
+          name: "标准技能跨入口验收",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${port}/v1`,
+            model: "probe-model",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+          },
+          agents: { main: { systemPrompt: "遵循技能索引", skills: [skillId] } },
+          permissions: {
+            mode: "ask",
+            allow: ["load_skill"],
+            workspaceOnly: true,
+            network: "deny",
+          },
+          runtime: { maxTurns: 4, maxRetries: 0, runTimeoutMs: 20_000 },
+        }).config;
+        const configPath = path.join(configDir, "coremind.yaml");
+        writeFileSync(configPath, JSON.stringify(config), "utf8");
+        if (entry === "typescript") {
+          const runtime = await CoreMindRuntime.create({
+            config,
+            configDir,
+            cwd,
+            initialPrompt: "使用已授权技能",
+          });
+          expect((await runtime.run()).outcome.status).toBe("succeeded");
+        } else if (entry === "cli") {
+          const result = await spawnAndWait(
+            process.execPath,
+            [cliPath, "run", configPath, "--prompt", "使用已授权技能", "--json-events"],
+            { cwd },
+          );
+          expect(result.code, result.stderr).toBe(0);
+          const final = result.stdout
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line))
+            .find((event) => event.type === "run_result");
+          expect(final?.outcome.status).toBe("succeeded");
+        } else {
+          const scriptPath = path.join(directory, "skill-entry.py");
+          writeFileSync(
+            scriptPath,
+            [
+              "import json, os, sys, time",
+              `sys.path.insert(0, ${JSON.stringify(pythonSrcPath)})`,
+              'os.environ.pop("COREMIND_WORKER_PATH", None)',
+              "from coremind import CoreMindClient",
+              `config = json.loads(${JSON.stringify(JSON.stringify(config))})`,
+              `with CoreMindClient(config, config_dir=${JSON.stringify(configDir)}, cwd=${JSON.stringify(cwd)}, protocol_version=${JSON.stringify(entry === "python-v2" ? "2.0" : "1.0")}, request_timeout=25) as client:`,
+              '    result = client.run("使用已授权技能")',
+              '    if "outcome" not in result:',
+              '        run_id = result["runId"]',
+              "        deadline = time.monotonic() + 20",
+              "        while True:",
+              '            events = client.events(run_id, after_sequence=0, limit=100)["events"]',
+              '            if any(event["eventType"] == "fact.finish" for event in events):',
+              '                result = client.query(run_id)["projection"]',
+              "                break",
+              '            assert time.monotonic() < deadline, "技能 Run 未结束"',
+              "            time.sleep(0.01)",
+              '    assert result["outcome"]["status"] == "succeeded", result',
+            ].join("\n"),
+            "utf8",
+          );
+          const result = await spawnAndWait("python", ["-X", "utf8", scriptPath], { cwd });
+          expect(result.code, result.stderr).toBe(0);
+        }
+        expect(requests).toHaveLength(3);
+        const firstText = requests[0].messages.map((message) => textOf(message.content)).join("\n");
+        for (const value of [skillId, name, description, sha256])
+          expect(firstText).toContain(value);
+        expect(firstText).not.toContain(body);
+        expect(requests[0].tools?.map((tool) => tool.function?.name)).toEqual(["load_skill"]);
+        const renderedBody = `# 技能 ${skillId} · ${name}\n正文 SHA-256: ${sha256}\n\n${body}`;
+        const reference = `技能 ${skillId} 已在当前上下文中（SHA-256: ${sha256}），请复用已加载正文。`;
+        expect(
+          requests[1].messages
+            .filter((message) => message.role === "tool")
+            .map((message) => textOf(message.content)),
+        ).toEqual([renderedBody]);
+        expect(
+          requests[2].messages
+            .filter((message) => message.role === "tool")
+            .map((message) => textOf(message.content)),
+        ).toEqual([renderedBody, reference]);
+        for (const captured of requests) {
+          const text = captured.messages.map((message) => textOf(message.content)).join("\n");
+          expect(text).not.toContain("工作目录诱饵正文");
+          expect(text).not.toContain("加载前已改写的正文");
+        }
+        expect(config.permissions).toMatchObject({
+          mode: "ask",
+          allow: ["load_skill"],
+          workspaceOnly: true,
+          network: "deny",
+        });
+      } finally {
+        await closeServer(server);
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
 });

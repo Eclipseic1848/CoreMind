@@ -7,7 +7,9 @@ import {
   TelemetryEgressController,
   type TelemetryExporter,
   TelemetryExporterError,
+  type TelemetryExportRecord,
   telemetryFactPrefixFingerprint,
+  validateTelemetryConsentBinding,
 } from "./observability.js";
 import type { RunStateRecord } from "./run-state.js";
 
@@ -272,6 +274,7 @@ describe("Telemetry Egress", () => {
       record(1, "start", {
         ...telemetryStart("FULL"),
         initialPrompt: "绝密提示正文",
+        skillSnapshot: { body: "未加载的技能私有正文" },
       }),
       eventRecord(2, 1, { type: "text_delta", agent: "main", delta: "绝密回复正文" }),
       eventRecord(3, 2, {
@@ -298,6 +301,7 @@ describe("Telemetry Egress", () => {
     expect(result.handedOff).toBe(3);
     expect(serialized).not.toContain("绝密提示正文");
     expect(serialized).not.toContain("绝密回复正文");
+    expect(serialized).not.toContain("未加载的技能私有正文");
     expect(serialized).not.toContain("private.txt");
     expect(serialized).not.toContain("sk-secret");
     expect(exported).toEqual(
@@ -310,6 +314,94 @@ describe("Telemetry Egress", () => {
       ]),
     );
   });
+
+  it.each(["FULL", "FEEDBACK_ONLY"] as const)(
+    "%s 使用原始事实校验授权，但 content 精确路径不能导出技能私有快照",
+    async (mode) => {
+      const allowedFields = [
+        "event.tool_result.tool",
+        "start.initialPrompt",
+        "start.skillSnapshot",
+        "start.skillSnapshot.body",
+      ];
+      const resultFact = eventRecord(2, 1, {
+        type: "tool_result",
+        agent: "main",
+        tool: "load_skill",
+        callId: "skill-call",
+        isError: false,
+      });
+      resultFact.payload = {
+        ...(resultFact.payload as Record<string, unknown>),
+        skillLoad: { id: "private-load-marker", delivery: "reference" },
+      };
+      const prefix = [
+        record(1, "start", {
+          ...telemetryStart(mode, "content", allowedFields),
+          initialPrompt: "明确授权公开的提示",
+          skillSnapshot: { body: "未加载的技能私有正文" },
+        }),
+        resultFact,
+      ];
+      const original = structuredClone(prefix);
+      const prefixHash = telemetryFactPrefixFingerprint(prefix, 2);
+      const feedback = createTelemetryConsentFact({
+        runId: "run-observability",
+        consentId: "private-skills-feedback",
+        kind: "feedback",
+        targetOrigin: "https://telemetry.example",
+        contentLevel: "content",
+        allowedFields,
+        throughSequence: 2,
+        factPrefixFingerprint: prefixHash,
+        grantedAt: "2026-08-24T00:00:02.000Z",
+      });
+      const content = createTelemetryConsentFact({
+        runId: "run-observability",
+        consentId: "private-skills-content",
+        kind: "content",
+        targetOrigin: "https://telemetry.example",
+        contentLevel: "content",
+        allowedFields,
+        retentionPurpose: "测试明确授权的诊断字段",
+        revocationMethod: "撤销本次授权",
+        grantedAt: "2026-08-24T00:00:03.000Z",
+      });
+      const exported: TelemetryExportRecord[] = [];
+      const controller = new TelemetryEgressController({
+        policy: { ...telemetryPolicy(mode), contentLevel: "content", allowedFields },
+        authorizeEgress,
+        redact: (value) => value,
+        createExporter: () => ({
+          export: (item) => {
+            exported.push(item);
+          },
+        }),
+      });
+
+      const result = await controller.export([
+        ...prefix,
+        record(3, "telemetry_consent", feedback),
+        record(4, "telemetry_consent", content),
+      ]);
+
+      expect(result).toMatchObject({ handedOff: 2, failed: 0 });
+      expect(exported[0]?.fields).toEqual({ "start.initialPrompt": "明确授权公开的提示" });
+      expect(exported[1]?.fields).toEqual({
+        isError: false,
+        "event.tool_result.tool": "load_skill",
+      });
+      expect(JSON.stringify(exported)).not.toContain("未加载的技能私有正文");
+      expect(JSON.stringify(exported)).not.toContain("private-load-marker");
+      expect(prefix).toEqual(original);
+      expect(telemetryFactPrefixFingerprint(prefix, 2)).toBe(prefixHash);
+      const tampered = structuredClone(prefix);
+      (tampered[0]!.payload as { skillSnapshot: { body: string } }).skillSnapshot.body = "已篡改";
+      expect(() => validateTelemetryConsentBinding(feedback, tampered)).toThrowError(
+        expect.objectContaining({ code: "run_state_corrupt" }),
+      );
+    },
+  );
 
   it("脱敏器失败时记录失败关闭，不把原始字段交给 Exporter", async () => {
     const send = vi.fn();

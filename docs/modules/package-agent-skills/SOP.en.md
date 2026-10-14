@@ -6,12 +6,13 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 ## Procedure
 
-1. Describe trigger contexts in frontmatter.
-2. Keep only non-obvious procedure in the body.
-3. Move detailed material into one-level references.
-4. Validate the format and exercise it on a real task.
-5. Run the listed module tests and `npm run check:modules`.
-6. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
+1. Choose legacy README text or SKILL.md with YAML `name` and `description` under the configuration directory's `skills/<id>/`. List the directory ID explicitly in the agent's `skills`. Standard names and descriptions must be non-empty strings; names are not call aliases.
+2. Keep necessary procedures and business evidence in the body. Limit each source, including frontmatter, to 256 KiB. Resolver results and snapshots across all agents are separately limited to 2 MiB of serialized UTF-8 JSON. CoreMind does not automatically read references or execute adjacent scripts.
+3. Verify built-in precedence, warned SKILL precedence over README, and failure without fallback for invalid standard files. Unselected IDs, arbitrary paths, escaping links, and permission errors must not bypass boundaries.
+4. Exercise a real task: the first request contains only the index, then ToolPolicy-approved `load_skill` results enter the request. Compare actual body UTF-8 bytes and raw 64-character SHA values. Check repeated loads and reload after compaction against the final working set.
+5. Verify frozen standard-skill identities in Runtime and Children. Resume after editing or removing source files must use the original start snapshot and existing configuration and recovery gates. Current files must not replace a missing or invalid snapshot.
+6. Run the listed parser, helper, and Runtime regressions plus `npm run check:modules`. Complete request reconstruction also requires normal Session entries and compaction records; skill facts do not replace the conversation.
+7. Check body storage in the raw Store and private-field stripping in public projections, events, and telemetry. Preserve traces, evaluations, and owner approval; do not publish without authorization. SHA checks are not signatures against arbitrary host rewrites.
 
 ## Stop conditions
 
