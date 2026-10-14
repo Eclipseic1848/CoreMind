@@ -33,6 +33,7 @@ import {
   type ProtocolToolResultFact,
   prepareProtocolToolResultFact,
   type RunId,
+  stripPrivateSkillPayload,
   validateRunFacts,
 } from "coremind-ai/internal";
 import {
@@ -1929,7 +1930,7 @@ function persistedProtocolV2Start(records: RunStateRecord[]): ProtocolStartIdent
 function toProtocolV2Event(record: RunStateRecord): unknown {
   const trace = record.kind === "event" ? asRecord(record.payload) : undefined;
   const event = trace ? asRecord(trace.event) : undefined;
-  const payload = event ?? record.payload;
+  const payload = event ?? stripPrivateSkillPayload(record.kind, record.payload);
   const identity = event ?? asRecord(record.payload);
   return {
     protocolVersion: "2.0" as const,

@@ -9,6 +9,44 @@ import type { RunStateRecord } from "./run-state.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 describe("ProjectionEngine", () => {
+  it("公开投影剥离技能快照和加载旁挂，保留原始 Facts 与普通字段", () => {
+    const runId = "private-skills";
+    const event = {
+      ...traceEntry(runId, 1, {
+        type: "tool_result",
+        agent: "main",
+        tool: "load_skill",
+        callId: "skill-call",
+        isError: false,
+      }),
+      skillLoad: { id: "private-load-marker", delivery: "reference" },
+    };
+    const records = [
+      record(runId, 1, "start", {
+        configName: "privacy",
+        skillSnapshot: { body: "未加载的技能私有正文" },
+      }),
+      record(runId, 2, "event", event),
+      record(runId, 3, "pause", { reason: "process_interrupted" }),
+    ];
+    const original = structuredClone(records);
+    const projection = ProjectionEngine.project(records);
+
+    expect(projection.records[0]?.payload).toEqual({ configName: "privacy" });
+    expect(projection.trace[0]).toEqual({
+      eventId: "event-1",
+      runId,
+      sequence: 1,
+      timestamp: event.timestamp,
+      event: event.event,
+    });
+    expect(projection.records[1]?.payload).toEqual(projection.trace[0]);
+    expect(projection.records[2]).toEqual(original[2]);
+    expect(JSON.stringify(projection)).not.toContain("未加载的技能私有正文");
+    expect(JSON.stringify(projection)).not.toContain("private-load-marker");
+    expect(records).toEqual(original);
+  });
+
   it("只从同一 Fact 前缀重建终态、恢复、资源、控制与观测投影", () => {
     const runId = "run-projection";
     const trace: CoreMindTraceEvent[] = [

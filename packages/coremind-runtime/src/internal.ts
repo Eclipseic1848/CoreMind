@@ -51,3 +51,4 @@ export {
   type ProtocolToolResultFact,
   prepareProtocolToolResultFact,
 } from "./runtime.js";
+export { stripPrivateSkillPayload } from "./skill-privacy.js";

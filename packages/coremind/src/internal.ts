@@ -18,5 +18,6 @@ export {
   type RunProjection,
   type RunProjectionStatus,
   resolveProviderSecurity,
+  stripPrivateSkillPayload,
   validateRunFacts,
 } from "coremind-runtime/internal";

@@ -70,6 +70,9 @@ def main() -> int:
         else:
             blockers.extend(check_worker_bundle(archive.read(worker_name).decode("utf-8")))
         blockers.extend(check_linux_sandbox_assets(archive))
+        blockers.extend(check_skill_assets(
+            archive, Path(__file__).resolve().parents[1] / "packages" / "coremind-templates" / "skills"
+        ))
         if error_contract_name not in names:
             blockers.append("缺少 Python Error Contract")
         else:
@@ -169,6 +172,30 @@ def valid_sha256(value: object) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
 
+def check_skill_assets(archive: zipfile.ZipFile, source_root: Path) -> list[str]:
+    if not source_root.is_dir():
+        return ["缺少技能资源源目录"]
+    expected = {
+        "coremind/skills/" + source.relative_to(source_root).as_posix(): source.read_bytes()
+        for source in sorted(source_root.glob("*/*"))
+        if source.is_file() and source.name in {"README.md", "SKILL.md"}
+    }
+    if not expected:
+        return ["技能资源源目录为空"]
+    packed = [name for name in archive.namelist() if name.startswith("coremind/skills/") and not name.endswith("/")]
+    blockers: list[str] = []
+    for name in sorted(set(expected) - set(packed)):
+        blockers.append(f"wheel 缺少技能资源：{name}")
+    for name in sorted(set(packed) - set(expected)):
+        blockers.append(f"wheel 包含来源不明的技能资源：{name}")
+    for name in sorted(set(packed)):
+        if packed.count(name) != 1:
+            blockers.append(f"wheel 包含重复技能资源：{name}")
+        if name in expected and hashlib.sha256(archive.read(name)).digest() != hashlib.sha256(expected[name]).digest():
+            blockers.append(f"wheel 技能资源摘要不匹配：{name}")
+    return blockers
+
+
 def resolve_wheel(argument: Path | None) -> Path:
     if argument is not None:
         return argument.resolve()
@@ -227,12 +254,17 @@ def smoke_install(wheel: Path) -> None:
             program = f"""
 import json
 import os
+import sys
 import tempfile
+from pathlib import Path
 from importlib.metadata import version
+import coremind
 from coremind import ERROR_CODES, CoreMindClient, __version__
 
+assert Path(coremind.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 assert __version__ == version("coremind-ai"), (__version__, version("coremind-ai"))
 assert ERROR_CODES["unclassified_error"]["humanAction"] == "required"
+os.environ.pop("COREMIND_WORKER_PATH", None)
 os.environ["COREMIND_WHEEL_SMOKE_API_KEY"] = "test-key"
 config = {{
     "schemaVersion": 2,
@@ -271,7 +303,7 @@ if result is not None:
 print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": result is not None}}))
 """
             completed = run(
-                [str(python), "-X", "utf8", "-c", program],
+                [str(python), "-I", "-X", "utf8", "-c", program],
                 "wheel 导入、内置 Worker 或 Child Run 冒烟失败",
             )
             payload = json.loads(completed.stdout.strip().splitlines()[-1])
@@ -285,6 +317,13 @@ print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": re
                 else "Child Run 冒烟通过"
             )
             print(f"wheel 干净安装与内置 Worker 冒烟通过；{child_run_status}：Python {payload['version']}")
+            skill_smoke = run(
+                [str(python), "-I", "-X", "utf8", str(repository_root / "scripts" / "wheel-skill-smoke.py")],
+                "wheel 外部标准技能冒烟失败",
+            )
+            if json.loads(skill_smoke.stdout.strip().splitlines()[-1]).get("skillLoaded") is not True:
+                raise SystemExit("wheel 外部标准技能未成功加载")
+            print("wheel 外部标准技能、冻结正文与重复引用冒烟通过")
         finally:
             server.terminate()
             try:

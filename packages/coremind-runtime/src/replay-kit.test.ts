@@ -7,6 +7,35 @@ import {
 import type { RunStateRecord } from "./run-state.js";
 
 describe("ReplayKit", () => {
+  it("重放结果复用公开投影，不输出输入 Facts 中的技能私有数据", () => {
+    const facts = replayFacts();
+    facts[0]!.payload = {
+      ...(facts[0]!.payload as Record<string, unknown>),
+      skillSnapshot: { body: "未加载的技能私有正文" },
+    };
+    facts[1]!.payload = {
+      ...(facts[1]!.payload as Record<string, unknown>),
+      event: {
+        type: "tool_result",
+        agent: "main",
+        tool: "load_skill",
+        callId: "skill-call",
+        isError: false,
+      },
+      skillLoad: { id: "private-load-marker" },
+    };
+    const original = structuredClone(facts);
+
+    const result = ReplayKit.replay({ facts, providerRequests: [requestFixture()] });
+
+    expect(JSON.stringify(result)).not.toContain("未加载的技能私有正文");
+    expect(JSON.stringify(result)).not.toContain("private-load-marker");
+    expect(result.projection.records[0]?.payload).not.toHaveProperty("skillSnapshot");
+    expect(result.projection.trace[0]).not.toHaveProperty("skillLoad");
+    expect(result.providerRequests).toEqual([createProviderRequestReplayFact(requestFixture())]);
+    expect(facts).toEqual(original);
+  });
+
   it("同一固定 Fact 与 Provider request fixture 可重复得到同一投影和指纹", () => {
     const fixture = {
       facts: replayFacts(),

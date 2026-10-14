@@ -75,6 +75,7 @@ async function main() {
     const importProgram = `
     const names = ${JSON.stringify(packages.map((item) => item.name))};
     for (const name of names) await import(name);
+    await import("coremind-templates/internal");
     console.log(JSON.stringify({ imported: names }));
   `;
     runNode(["--input-type=module", "--eval", importProgram], installRoot);

@@ -487,13 +487,12 @@ describe("审批拒绝 paused 与 resume 收据继承", () => {
         resumeRunId: firstResult.runId,
       });
       const secondResult = await second.run();
-      // 现状语义：resume 恢复 previousTrace（含 policy_denied）→ 终态仍 paused
-      // （等待用户继续处置；输入收据保持 claimed，可再次恢复）
-      expect(secondResult.outcome.status).toBe("paused");
+      // 历史拒绝保留审计；当前执行没有新拒绝，恢复应成功。
+      expect(secondResult.outcome.status).toBe("succeeded");
       const secondReceipts = receiptEvents(secondEvents);
-      // resume 沿用原 inputId（收据链连续）：本 run 不重复登记 pending、不重复 claim。
-      // 若 inputId 未继承会新发 input_receipt——此断言即继承生效的证据
-      expect(secondReceipts).toEqual([]);
+      // 沿用原 inputId，只新增一次完成收据，不重复登记 pending 或 claimed。
+      expect(secondReceipts.map((event) => event.type)).toEqual(["input_completed"]);
+      expect(secondReceipts[0]!.inputId).toBe(firstReceipts[0]!.inputId);
       recorder.take(1);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));

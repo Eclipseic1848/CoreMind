@@ -4,6 +4,7 @@ import { canonicalJson } from "./canonical-json.js";
 import { CoreMindError } from "./errors.js";
 import type { RunProjectionStatus } from "./projection.js";
 import type { RunStateKind, RunStateRecord } from "./run-state.js";
+import { stripPrivateSkillPayload } from "./skill-privacy.js";
 import { projectToolCallLifecycles, type ToolCallLifecycleState } from "./tool-call-lifecycle.js";
 import { redactSensitiveValue } from "./trace.js";
 
@@ -745,11 +746,15 @@ function projectExportRecord(
   policy: ReturnType<typeof normalizePolicy>,
   redact: ((value: unknown) => unknown) | undefined,
 ): TelemetryExportRecord {
-  const event = traceEventOf(record);
-  const fields: Record<string, unknown> = metricsFields(record, event);
+  const publicRecord = {
+    ...record,
+    payload: stripPrivateSkillPayload(record.kind, record.payload),
+  };
+  const event = traceEventOf(publicRecord);
+  const fields: Record<string, unknown> = metricsFields(publicRecord, event);
   if (policy.contentLevel === "content") {
     for (const field of policy.allowedFields) {
-      const value = contentField(record, event, field);
+      const value = contentField(publicRecord, event, field);
       if (value !== undefined) fields[field] = value;
     }
   }

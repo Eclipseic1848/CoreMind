@@ -26,6 +26,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import type { CompletedWorkflowStep } from "./orchestrator.js";
+import { stripPrivateSkillPayload } from "./skill-privacy.js";
 import { projectToolCallLifecycles, validateToolCallLifecycleFact } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import { projectToolCapabilities } from "./tool-capability-projection.js";
@@ -1369,7 +1370,10 @@ function tracePayload(payload: unknown, expectedRunId: string): CoreMindTraceEve
       throw new CoreMindError("run_state_corrupt", "RunState 包含非法 tool_lifecycle");
     }
   }
-  const { protocolToolResult: _internal, ...publicTrace } = trace as typeof trace & {
+  const { protocolToolResult: _internal, ...publicTrace } = stripPrivateSkillPayload(
+    "event",
+    trace,
+  ) as typeof trace & {
     protocolToolResult?: unknown;
   };
   return publicTrace as CoreMindTraceEvent;
