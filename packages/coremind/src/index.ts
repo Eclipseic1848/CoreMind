@@ -82,6 +82,7 @@ export {
   buildAgentFromConfig,
   buildRepositoryMap,
   CHILD_RUN_LIMIT_DEFAULTS,
+  type ChatControlOptions,
   ChatSession,
   type ChatTurnResult,
   type CheckpointDiff,

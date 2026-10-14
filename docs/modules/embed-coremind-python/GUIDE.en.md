@@ -26,6 +26,27 @@ In v1, `effect` travels with `register_tool` to the shared runtime. Use `pathFie
 
 If initialization or any tool registration fails, the client closes the started worker before returning the exception. Continue to use a context manager or `finally` for the normal lifecycle.
 
+## Controls during a Run (1.1 development)
+
+Python retains existing Protocol v2 `control`, `events`, and `query` methods without a new convenience API or protocol version. Select `protocol_version="2.0"` explicitly. The default Worker comes from the installed package, not a source checkout. For a ready active Run, take `run_id` from its RunHandle:
+
+```python
+receipt = client.control({
+    'schemaVersion': 1,
+    'runId': run_id,
+    'controlId': 'review-tests-1',
+    'type': 'steering',
+    'message': 'Check test results first',
+})
+page = client.events(run_id, after_sequence=0)
+```
+
+Type can be `steering` or `follow_up`; follow-up continues in the same Run after the agent would naturally stop. Await the corresponding AsyncCoreMindClient methods for the same contract. Every `events` call requires explicit `after_sequence`. Save the last read sequence and advance it for catch-up; an empty page is not a terminal result. Use events or `query` to check the final outcome.
+
+Retain controlId for retries: identical content returns duplicate, different content returns conflict. Other receipts are accepted, applied, and rejected. Accepted means durably received; applied means the applied fact committed before delivery to the agent queue. Neither proves model consumption. Match independent `input_receipt/input_claimed/input_completed/input_discarded` events by inputId. Wrong, unready, or sealed Runs reject controls. Controls neither approve tools nor change permissions or budgets, and they start no concurrent Run.
+
+Cold recovery may apply accepted controls. Applied controls without confirmed consumption are explicitly discarded rather than automatically redelivered; the durable-commit/in-memory-delivery crash window remains. Paused original inputs remain resumable under existing gates; discarded ordinary inputs do not. Control receipts do not replace Session content or full conversation reconstruction. Default v1 clients and the tool bridge retain their existing contract. See the [bundled Worker regressions](../../../python/tests/test_runtime_controls.py).
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
@@ -37,6 +58,7 @@ If initialization or any tool registration fails, the client closes the started 
 7. For an explicit Loop, compare Python and TypeScript `loop_state` order, then call `resume_run` after pause and confirm committed effects do not replay.
 8. For v1, verify `result['snapshot']` matches top-level runId, outcome, operation, metrics, and trace. Stop using a Worker that reports `invalid_run_snapshot`.
 9. For v2 host verification, catch up with `events` by RunId and sequence, confirm rejection repairs within the same Run, and distinguish control receipts from the final outcome.
+10. For v2 input controls, verify sync/async, duplicate/conflict, cancellation discard, and no queue leakage into the next Run, retaining real request and input-event evidence.
 
 ## Common mistakes
 

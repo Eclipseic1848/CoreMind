@@ -32,6 +32,9 @@ function printChatHelp(): void {
   console.log(dim("  /help            显示本帮助"));
   console.log(dim("  /exit            退出对话"));
   console.log(dim("  /abort           中止当前回答（可继续提问）"));
+  console.log(dim("  /steer 文本      向当前运行追加指令"));
+  console.log(dim("  /follow-up 文本  当前任务自然结束后继续输入"));
+  console.log(dim("忙时普通输入仅保留为草稿，空闲后按 Enter 确认发送。"));
 }
 
 /**
@@ -133,6 +136,10 @@ export async function runReadlineChat(
   const rl = createInterface(streams);
   let answerApproval: ((answer: string) => void) | undefined;
   let activeChat: Promise<void> | undefined;
+  let draft: string | undefined;
+  let draftPrefilled = false;
+  const terminal = "isTTY" in streams.input && streams.input.isTTY === true;
+  const controls = new Set<Promise<void>>();
   const unbindApprovals = bindReadlineApprovals(approvals, {
     question: (prompt) => {
       streams.output.write(prompt);
@@ -145,6 +152,8 @@ export async function runReadlineChat(
     streams.output.write(cyan("\n你 > "));
     for await (const line of rl) {
       const text = line.trim();
+      const editedDraft = draftPrefilled;
+      draftPrefilled = false;
       if (text === "/exit" || text === "!exit") break;
       if (text === "/abort" || text === "!abort") {
         session.abort();
@@ -154,24 +163,68 @@ export async function runReadlineChat(
         streams.output.write(dim("已请求中止，收尾后可继续提问\n"));
         continue;
       }
+      const control = /^\/(steer|follow-up)(?:\s+([\s\S]*))?$/u.exec(text);
+      if (control) {
+        const message = control[2]?.trim();
+        if (!message) {
+          streams.output.write(`用法：/${control[1]} 文本\n`);
+          continue;
+        }
+        // 调用时立即固定活动 Run；仅等待回执的部分并发，不占用输入循环。
+        const operation = (async () => {
+          try {
+            const receipt = await (control[1] === "steer"
+              ? session.steer(message)
+              : session.followUp(message));
+            streams.output.write(
+              `控制 ${receipt.controlId} · Run ${receipt.runId} · ${receipt.status}${receipt.duplicateOf ? ` (${receipt.duplicateOf})` : ""}${receipt.reason ? `：${receipt.reason}` : ""}\n`,
+            );
+          } catch (error) {
+            streams.output.write(
+              `控制失败：${error instanceof Error ? error.message : String(error)}\n`,
+            );
+          }
+        })();
+        controls.add(operation);
+        void operation.finally(() => controls.delete(operation));
+        continue;
+      }
+      if (text === "/help" || (answerApproval && text.startsWith("/"))) {
+        if (text === "/help") printChatHelp();
+        else streams.output.write(`未知命令：${text}\n`);
+        continue;
+      }
       if (answerApproval) {
         const answer = answerApproval;
         answerApproval = undefined;
         answer(text);
         continue;
       }
-      if (!text) continue;
-      if (text === "/help") {
-        printChatHelp();
-        continue;
-      }
       if (activeChat) {
-        streams.output.write(dim("当前回答尚未结束，可使用 /abort\n"));
+        if (!text) continue;
+        if (draft === undefined) {
+          draft = text;
+          streams.output.write(
+            `草稿已保留：${draft}\n空闲后按 Enter 确认发送；当前可用 /steer、/follow-up 或 /abort。\n`,
+          );
+        } else {
+          streams.output.write(`已有草稿，未替换：${draft}\n本次输入未保存：${text}\n`);
+        }
         continue;
       }
+      if (!text && draft === undefined) continue;
+      if (draft !== undefined && text && !editedDraft) {
+        streams.output.write(
+          `已有草稿，未替换：${draft}\n本次输入未保存：${text}\n空行确认发送原草稿。\n`,
+        );
+        continue;
+      }
+      const message = editedDraft ? text : (draft ?? text);
+      draft = undefined;
+      if (!message) continue;
       streams.output.write(dim("[assistant] "));
       activeChat = Promise.resolve()
-        .then(() => session.chat(text))
+        .then(() => session.chat(message))
         .then(() => {
           streams.output.write("\n");
         })
@@ -181,6 +234,13 @@ export async function runReadlineChat(
         .finally(() => {
           activeChat = undefined;
           streams.output.write(cyan("\n你 > "));
+          if (draft !== undefined) {
+            streams.output.write(`草稿待确认：${draft}\n按 Enter 发送草稿。\n`);
+            if (terminal && !rl.line) {
+              rl.write(draft);
+              draftPrefilled = true;
+            }
+          }
         });
     }
   } finally {
@@ -188,24 +248,36 @@ export async function runReadlineChat(
     answerApproval?.("n");
     approvals.close();
     await activeChat;
+    await Promise.allSettled(controls);
     rl.close();
   }
 }
 
 /** 对话事件渲染（工具调用可视化 + 流式文本） */
-function renderChatEvent(event: CoreMindEvent): void {
+export function renderChatEvent(
+  event: CoreMindEvent,
+  stream: NodeJS.WritableStream = output,
+): void {
   switch (event.type) {
     case "text_delta":
-      process.stdout.write(event.delta);
+      stream.write(event.delta);
       break;
     case "tool_call":
-      process.stdout.write(`\n${toolLine(event.tool, event.args)}`);
+      stream.write(`\n${toolLine(event.tool, event.args)}`);
       break;
     case "tool_result":
-      process.stdout.write(` ${toolResultLine(event.isError)}`);
+      stream.write(` ${toolResultLine(event.isError)}`);
       break;
     case "loop_state":
-      process.stdout.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
+      stream.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
+      break;
+    case "input_receipt":
+    case "input_claimed":
+    case "input_completed":
+    case "input_discarded":
+      stream.write(
+        `\n输入 ${event.inputId} · ${event.status}${event.type === "input_claimed" ? ` · Turn ${event.turnId}` : ""}\n`,
+      );
       break;
     default:
       break;

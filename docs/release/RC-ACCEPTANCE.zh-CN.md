@@ -62,7 +62,14 @@ CI 在两个目标平台分别执行同一命令，保存绑定版本与提交�
 5. `abort`：生成期间可中止，中止后仍能继续对话。
 6. `session-resume`：保存并重新进入后能恢复会话。
 7. `checkpoint-diff-restore`：可查看 diff，并恢复到写入前状态。
-8. `exit`：正常退出并返回宿主终端。
+8. `streaming`：真实终端持续显示模型增量输出。
+9. `status`：状态命令展示当前运行事实。
+10. `exit`：正常退出并返回宿主终端。
+11. `control-tui`：TUI 的 `/steer` 与 `/follow-up` 在同一个 Run 内生效。
+12. `control-readline`：readline 的两条控制命令在同一个 Run 内生效。
+13. `control-approval-isolation`：审批期间控制正文中的 `y`、`n` 不消费原审批；只有明确批准才产生写入副作用。
+14. `draft-explicit-send`：忙碌期间普通草稿保持可见，运行结束后仅在用户明确确认时发送。
+15. `control-input-facts`：两个控制保持独立身份，持久化的输入认领、完成事实绑定到实际 Turn，不能用 `applied` 回执代替消费事实。
 
 自动脚本根据对应模板生成证据：
 

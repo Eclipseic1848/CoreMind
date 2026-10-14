@@ -8,6 +8,14 @@ sourcePaths:
   - "packages/coremind/src/index.ts"
   - "packages/coremind-runtime/src/public-tool.ts"
   - "packages/coremind-runtime/src/snapshot.ts"
+  - "packages/coremind-runtime/src/chat-session.ts"
+  - "packages/coremind-runtime/src/active-run-binding.ts"
+  - "packages/coremind-runtime/src/control-inbox.ts"
+  - "packages/coremind-runtime/src/agent-driver.ts"
+  - "packages/coremind-runtime/src/agent-factory.ts"
+  - "packages/coremind-runtime/src/input-receipt.ts"
+  - "packages/coremind-runtime/src/turn-tracker.ts"
+  - "packages/coremind-runtime/src/runtime.ts"
 documents:
   readme:
     zh-CN: docs/modules/embed-coremind-typescript/README.zh-CN.md
@@ -27,6 +35,13 @@ testPaths:
   - "packages/coremind/src/index.test.ts"
   - "packages/coremind-runtime/src/public-tool.test.ts"
   - "packages/coremind-runtime/src/snapshot.test.ts"
+  - "packages/coremind-runtime/src/chat-session.test.ts"
+  - "packages/coremind-runtime/src/active-run-binding.test.ts"
+  - "packages/coremind-runtime/src/control-inbox.test.ts"
+  - "packages/coremind-runtime/src/agent-driver.test.ts"
+  - "packages/coremind-runtime/src/input-receipt.test.ts"
+  - "packages/coremind-runtime/src/turn-tracker.test.ts"
+  - "packages/coremind-runtime/src/control-runtime.acceptance.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

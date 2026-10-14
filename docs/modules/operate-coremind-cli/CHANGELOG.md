@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 1.1 development
+
+- Documented `/steer` and `/follow-up` in TUI/readline, including approval command mode and unchanged permission boundaries.
+- Clarified one retained busy draft, explicit idle confirmation, unsaved later submissions, and late receipts that preserve newer drafts.
+- Linked native input lifecycle and real terminal regression evidence without treating applied receipts as consumption or business completion.
+
 ## 1.0.1 - 2026-09-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

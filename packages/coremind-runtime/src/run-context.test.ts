@@ -17,6 +17,8 @@ describe("RunContext", () => {
       messages: () => [{ role: "assistant", content: id }],
       status: () => ({ running: id === "first", pendingToolCalls: 0, queuedControls: 0 }),
       queueControl: () => {},
+      canAcceptControl: () => false,
+      clearQueuedControls: () => {},
     });
     context.registerAgent("main", make("first"));
     context.registerAgent("main", make("second"));
@@ -35,6 +37,8 @@ describe("RunContext", () => {
       messages: () => [{ role: "assistant", content: "first" }],
       status: () => ({ running: false, pendingToolCalls: 0, queuedControls: 0 }),
       queueControl: () => {},
+      canAcceptControl: () => false,
+      clearQueuedControls: () => {},
     } satisfies AgentDriver;
 
     first.registerAgent("main", firstAgent);

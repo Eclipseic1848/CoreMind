@@ -223129,10 +223129,16 @@ function buildAgent(agentCfg, ctx) {
 }
 function buildAgentDriver(agentCfg, ctx) {
   let requestFailure;
+  let driver;
   const agent = buildAgent(agentCfg, {
     ...ctx,
     harness: {
       ...ctx.harness,
+      onObservation: (observation) => {
+        if (observation.type === "agent_end")
+          driver?.endControlAdmission();
+        ctx.harness?.onObservation?.(observation);
+      },
       beforeModelRequest: () => {
         try {
           ctx.harness?.beforeModelRequest?.();
@@ -223143,7 +223149,8 @@ function buildAgentDriver(agentCfg, ctx) {
       }
     }
   });
-  return new ModelAgentDriver(agent, ctx.harness, () => requestFailure);
+  driver = new ModelAgentDriver(agent, ctx.harness, () => requestFailure, ctx.onObservation);
+  return driver;
 }
 function withoutAdapterPrefix(messages, prefix) {
   if (messages[0] !== prefix)
@@ -223154,25 +223161,38 @@ var ModelAgentDriver = class {
   agent;
   harness;
   requestFailure;
-  queuedControls = 0;
+  onObservation;
+  acceptingControls = true;
+  controlIds = /* @__PURE__ */ new Set();
+  pendingControls = /* @__PURE__ */ new Map();
   promptRunning = false;
   prefix;
-  constructor(agent, harness, requestFailure) {
+  constructor(agent, harness, requestFailure, onObservation) {
     this.agent = agent;
     this.harness = harness;
     this.requestFailure = requestFailure;
+    this.onObservation = onObservation;
     this.prefix = agent.state.messages[0];
     agent.subscribe((event) => {
-      if (event.type === "agent_end")
-        this.queuedControls = 0;
+      if (event.type !== "message_end" || event.message.role !== "user")
+        return;
+      const inputId = this.pendingControls.get(event.message);
+      if (inputId === void 0)
+        return;
+      this.pendingControls.delete(event.message);
+      this.observeControl({ type: "control_consumed", inputId });
     });
   }
   async prompt(input) {
     this.promptRunning = true;
+    this.acceptingControls = true;
     try {
+      if (this.harness?.beforePrompt)
+        await this.harness.beforePrompt();
       await this.agent.prompt(input);
       await this.agent.waitForIdle();
     } finally {
+      this.acceptingControls = false;
       this.promptRunning = false;
     }
   }
@@ -223191,23 +223211,43 @@ var ModelAgentDriver = class {
     return {
       running: this.promptRunning || this.agent.state.isStreaming,
       pendingToolCalls: this.agent.state.pendingToolCalls.size,
-      queuedControls: this.queuedControls
+      queuedControls: this.pendingControls.size
     };
   }
   abort() {
     this.agent.abort();
   }
+  canAcceptControl() {
+    return this.acceptingControls;
+  }
+  endControlAdmission() {
+    this.acceptingControls = false;
+  }
   queueControl(control) {
+    if (this.controlIds.has(control.inputId))
+      return;
     const message = {
       role: "user",
       content: control.message,
       timestamp: Date.now()
     };
-    this.queuedControls += 1;
+    this.controlIds.add(control.inputId);
+    this.pendingControls.set(message, control.inputId);
     if (control.type === "steering")
       this.agent.steer(message);
     else
       this.agent.followUp(message);
+  }
+  clearQueuedControls() {
+    this.agent.clearAllQueues();
+    const discarded = [...this.pendingControls.values()];
+    this.pendingControls.clear();
+    for (const inputId of discarded)
+      this.observeControl({ type: "control_discarded", inputId });
+  }
+  observeControl(observation) {
+    this.harness?.onObservation?.(observation);
+    this.onObservation?.(observation);
   }
 };
 function normalizeDriverObservation(event, contextWindow, activeCalls) {
@@ -224009,6 +224049,23 @@ var ControlInbox = class {
       this.terminalSealed = true;
     });
   }
+  /** 非暂停终态只拒绝尚未交付的输入；已应用事实与其他控制保持原样。 */
+  async rejectPendingInputs() {
+    return this.withRunTransition(async () => {
+      if (!this.terminalSealed) {
+        throw new CoreMindError("control_unavailable", "\u5FC5\u987B\u5148\u5C01\u53E3\uFF0C\u624D\u80FD\u6536\u5C3E\u672A\u4EA4\u4ED8\u63A7\u5236\u8F93\u5165");
+      }
+      const receipts = [];
+      for (const stored of this.controls.values()) {
+        if (stored.state !== "accepted" || stored.command.type !== "steering" && stored.command.type !== "follow_up")
+          continue;
+        const reason = "\u672C Run \u5DF2\u8FDB\u5165\u7EC8\u6001\uFF0C\u63A7\u5236\u8F93\u5165\u5C1A\u672A\u4EA4\u4ED8";
+        const rejected = await this.appendResolution(stored, "rejected", reason);
+        receipts.push(receiptFor(stored.command, "rejected", { rejectedSequence: rejected.sequence, reason }));
+      }
+      return receipts;
+    });
+  }
   async applyPending(type) {
     return this.withRunTransition(async () => {
       if (this.terminalSealed) {
@@ -224615,6 +224672,13 @@ function inputFingerprint(content) {
 }
 function newInputId() {
   return randomUUID12();
+}
+function controlInputId(runId, controlId) {
+  const digest = createHash16("sha256").update(JSON.stringify([runId, controlId]), "utf8").digest("hex");
+  return `control:${digest}`;
+}
+function isControlInputId(value) {
+  return /^control:[0-9a-f]{64}$/u.test(value);
 }
 function isValidTransition(from, to) {
   if (from === void 0)
@@ -229961,7 +230025,7 @@ function prepareRunResume(records, configFingerprint, requestedPrompt) {
 function inputReceiptsAreResumable(trace) {
   try {
     const statuses = foldInputReceipts(trace.map((entry) => entry.event));
-    return [...statuses.values()].every((status) => status === "pending" || status === "claimed");
+    return [...statuses].every(([id, status]) => isControlInputId(id) || status === "pending" || status === "claimed");
   } catch (error) {
     throw new CoreMindError("run_state_corrupt", `\u8F93\u5165\u6536\u636E\u65E0\u6CD5\u5B89\u5168\u6298\u53E0\uFF1A${error instanceof Error ? error.message : String(error)}`);
   }
@@ -230078,7 +230142,7 @@ function findInputReceiptFingerprint(records) {
     if (record.kind !== "event")
       continue;
     const trace = record.payload;
-    if (trace?.event?.type === "input_receipt" && typeof trace.event.contentFingerprint === "string") {
+    if (trace?.event?.type === "input_receipt" && !(typeof trace.event.inputId === "string" && isControlInputId(trace.event.inputId)) && typeof trace.event.contentFingerprint === "string") {
       return trace.event.contentFingerprint;
     }
   }
@@ -232615,6 +232679,19 @@ var TurnTracker = class _TurnTracker {
   /** 最近结束的 Turn（工具执行归属） */
   openTurnId;
   scopes = /* @__PURE__ */ new Map();
+  /** 控制输入进入上下文时复用当前 Turn，或为下一轮分配与工具相同的身份。 */
+  ensureCurrentTurn(agent, stepId) {
+    const key = `${agent}\0${stepId ?? ""}`;
+    let tracker = this.scopes.get(key);
+    if (!tracker) {
+      tracker = new _TurnTracker();
+      this.scopes.set(key, tracker);
+    }
+    const turnId = tracker.currentTurnId ?? randomUUID18();
+    tracker.currentTurnId = turnId;
+    tracker.openTurnId = turnId;
+    return turnId;
+  }
   withTurnId(event) {
     if ("turnId" in event && event.turnId)
       return event;
@@ -232900,7 +232977,22 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const context = runContextFor(this);
     const executionId = randomUUID19();
     const turnTracker = new TurnTracker();
-    const harness = context.harnessFor(name, stepId, executionId);
+    const originalHarness = context.harnessFor(name, stepId, executionId);
+    const harness = {
+      ...originalHarness,
+      beforePrompt: async () => {
+        if (originalHarness?.beforePrompt)
+          await originalHarness.beforePrompt();
+        if (name === this.mainAgentName) {
+          await context.currentControlInbox()?.applyPending("steering");
+          await context.currentControlInbox()?.applyPending("follow_up");
+        }
+        if (this.options.signal?.aborted || context.currentJournal()?.isAborted()) {
+          throw new CoreMindError("aborted", "\u63A7\u5236\u6062\u590D\u5B8C\u6210\u524D\u8FD0\u884C\u5DF2\u53D6\u6D88");
+        }
+      },
+      onObservation: (observation) => originalHarness?.onObservation?.(observation.type === "control_consumed" ? { ...observation, turnId: turnTracker.ensureCurrentTurn(name) } : observation)
+    };
     const agent = buildDriver({
       onEvent: (event) => onEvent(turnTracker.withTurnId(event)),
       // 恢复视图只注入主 agent（会话归属者）
@@ -232979,6 +233071,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }, history, history.length, this.skillsByAgent);
     executionSlotFor(turnRuntime).skills = executionSlotFor(this).skills;
     const unbindActiveRun = bindActiveRun(this, {
+      acceptInputControl: (command) => {
+        const context = executionSlotFor(turnRuntime).kernel?.currentContext();
+        const inbox = context?.currentControlInbox();
+        const runId = context?.currentRunId();
+        if (!inbox || !runId) {
+          return Promise.reject(new CoreMindError("control_unavailable", "\u6D3B\u52A8 Run \u7684\u63A7\u5236\u6536\u4EF6\u7BB1\u5C1A\u672A\u5C31\u7EEA"));
+        }
+        return inbox.accept({ schemaVersion: 1, ...command, runId: command.runId ?? runId });
+      },
       inspectProjection: () => turnRuntime.inspectPersistedRunProjection(),
       executeDelegation: (parentAgentName, rawArgs, callId) => turnRuntime.executeConfiguredDelegation(parentAgentName, rawArgs, callId),
       executeDelegationDisposition: (parentAgentName, rawArgs, callId) => turnRuntime.executeConfiguredDelegationDisposition(parentAgentName, rawArgs, callId)
@@ -233478,23 +233579,6 @@ var CoreMindRuntime = class _CoreMindRuntime {
       notify: this.options.onVerification,
       applyPending: () => context.currentControlInbox().applyPending("verification")
     }) : void 0;
-    context.attachControlInbox(new ControlInbox({
-      runId,
-      journal,
-      records: await runStore.read(runId),
-      apply: (command) => {
-        if (command.type === "verification") {
-          return Promise.resolve(hostVerification?.apply(command) ?? {
-            status: "rejected",
-            reason: "\u5F53\u524D Run \u672A\u542F\u7528\u5BBF\u4E3B\u9A8C\u8BC1"
-          });
-        }
-        if (hostVerification?.waiting && (command.type === "steering" || command.type === "follow_up")) {
-          return Promise.resolve({ status: "rejected", reason: "\u5BBF\u4E3B\u9A8C\u6536\u671F\u95F4\u4E0D\u80FD\u6539\u53D8\u5019\u9009\u8F93\u5165" });
-        }
-        return this.applyRunControl(command, context, deferredTerminalError);
-      }
-    }));
     const capabilityByCallId = /* @__PURE__ */ new Map();
     const skillLoadsByCall = /* @__PURE__ */ new Map();
     const trace = new TraceRecorder(runId, (entry) => {
@@ -233543,6 +233627,61 @@ var CoreMindRuntime = class _CoreMindRuntime {
       trace.record(event);
       userEvents(event);
     };
+    const prepareControlInput = (command) => {
+      const id = controlInputId(runId, command.controlId);
+      if (receiptStatusOf(collected, id) === void 0) {
+        emitInputEvent(createInputReceipt({
+          inputId: id,
+          contentFingerprint: inputFingerprint(command.message)
+        }));
+      }
+      return id;
+    };
+    context.attachControlInbox(new ControlInbox({
+      runId,
+      journal,
+      records: await runStore.read(runId),
+      apply: (command) => {
+        if (command.type === "verification") {
+          return Promise.resolve(hostVerification?.apply(command) ?? {
+            status: "rejected",
+            reason: "\u5F53\u524D Run \u672A\u542F\u7528\u5BBF\u4E3B\u9A8C\u8BC1"
+          });
+        }
+        if (command.type === "steering" || command.type === "follow_up") {
+          const id = prepareControlInput(command);
+          if (hostVerification?.waiting) {
+            const state3 = receiptStatusOf(collected, id);
+            if (state3 === "pending" || state3 === "claimed")
+              emitInputEvent(discardInput({ inputId: id }));
+            return Promise.resolve({
+              status: "rejected",
+              reason: "\u5BBF\u4E3B\u9A8C\u6536\u671F\u95F4\u4E0D\u80FD\u6539\u53D8\u5019\u9009\u8F93\u5165"
+            });
+          }
+        }
+        return this.applyRunControl(command, context, deferredTerminalError);
+      }
+    }));
+    const previousInputControls = /* @__PURE__ */ new Map();
+    const previouslyApplied = /* @__PURE__ */ new Set();
+    for (const record of resumeRecords ?? []) {
+      if (record.kind !== "control")
+        continue;
+      const fact = record.payload;
+      if (fact.command?.type === "steering" || fact.command?.type === "follow_up")
+        previousInputControls.set(fact.controlId, fact.command);
+      if (fact.state === "applied")
+        previouslyApplied.add(fact.controlId);
+    }
+    for (const id of previouslyApplied) {
+      const command = previousInputControls.get(id);
+      if (!command)
+        continue;
+      const input = prepareControlInput(command);
+      if (receiptStatusOf(collected, input) === "pending")
+        emitInputEvent(discardInput({ inputId: input }));
+    }
     const recordEvent = (event) => {
       let enriched = turnTracker.withTurnId(event);
       if ((enriched.type === "tool_result" || enriched.type === "tool_lifecycle") && enriched.callId) {
@@ -233882,6 +234021,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(executionId, contract),
         beforeModelRequest: () => {
+          const facts = journal.factStatus();
+          if (facts.state === "poisoned") {
+            throw new CoreMindError("fact_ledger_poisoned", `\u4E8B\u5B9E\u8D26\u672C\u5DF2\u5931\u6548\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6A21\u578B\u8BF7\u6C42\uFF1A${facts.reason}`);
+          }
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           budget.beforeModelRequest();
@@ -234474,6 +234617,17 @@ var CoreMindRuntime = class _CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          if (observation.type === "control_consumed" || observation.type === "control_discarded") {
+            const state3 = receiptStatusOf(collected, observation.inputId);
+            if (observation.type === "control_consumed" && state3 === "pending" && !journal.isAborted()) {
+              if (!observation.turnId)
+                throw new CoreMindError("control_unavailable", "\u63A7\u5236\u6D88\u8D39\u7F3A\u5C11\u672C\u6267\u884C\u7684 Turn \u8EAB\u4EFD");
+              emitInputEvent(claimInput({ inputId: observation.inputId, turnId: observation.turnId }));
+            } else if ((observation.type === "control_discarded" || journal.isAborted()) && (state3 === "pending" || state3 === "claimed")) {
+              emitInputEvent(discardInput({ inputId: observation.inputId }));
+            }
+            return;
+          }
           if (observation.type === "tool_execution_end") {
             const fact = skillExecution?.observe(observation);
             if (fact)
@@ -234696,6 +234850,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     await context.currentControlInbox()?.sealForTerminal();
     await context.currentChildRuns()?.sealForTerminal();
+    for (const name of this.agentConfigs.keys()) {
+      for (const driver of context.agentsNamed(name))
+        driver.clearQueuedControls();
+    }
     const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
     let delegationGate = context.currentChildRuns()?.continuationGate();
     const environmentTerminationError = context.environmentTerminationError();
@@ -234758,6 +234916,22 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     const metrics = analyzeRunMetrics(collected, allMessages, performance.now() - started, transcript.length, journal.rejectedAfterAbort());
     let outcome = new RunTerminalizer().terminalize(collected.slice(terminalEventCursor), terminalError2);
+    if (outcome.status !== "paused") {
+      try {
+        await context.currentControlInbox()?.rejectPendingInputs();
+      } catch (error) {
+        terminalError2 = durabilityFailure(error);
+        outcome = new RunTerminalizer().terminalize(collected.slice(terminalEventCursor), terminalError2);
+      }
+    }
+    for (const [id, state3] of foldInputReceipts(collected)) {
+      if (!isControlInputId(id))
+        continue;
+      if (state3 === "claimed" && outcome.status === "succeeded")
+        emitInputEvent(completeInput({ inputId: id }));
+      else if (outcome.status !== "paused" && (state3 === "pending" || state3 === "claimed"))
+        emitInputEvent(discardInput({ inputId: id }));
+    }
     if (inputReceiptState !== void 0 && inputReceiptState !== "completed") {
       if (outcome.status === "succeeded") {
         inputReceiptState = "completed";
@@ -235027,11 +235201,18 @@ var CoreMindRuntime = class _CoreMindRuntime {
       }
     }
     if (command.type === "steering" || command.type === "follow_up") {
-      const agent = context.agent(this.mainAgentName);
-      if (!agent)
+      const candidates = context.agentsNamed(this.mainAgentName).filter((driver) => driver.canAcceptControl());
+      if (candidates.length !== 1)
         return "accepted";
-      agent.queueControl({ type: command.type, message: command.message });
-      return "applied";
+      const agent = candidates[0];
+      return {
+        status: "applied",
+        afterDurable: () => agent.queueControl({
+          inputId: controlInputId(command.runId, command.controlId),
+          type: command.type,
+          message: command.message
+        })
+      };
     }
     return this.options.applyControl?.(command) ?? {
       status: "rejected",
@@ -235304,7 +235485,7 @@ function durabilityFailure(error) {
 }
 function resumedInputId(events) {
   for (const event of events) {
-    if (event.type === "input_receipt")
+    if (event.type === "input_receipt" && !isControlInputId(event.inputId))
       return event.inputId;
   }
   return void 0;

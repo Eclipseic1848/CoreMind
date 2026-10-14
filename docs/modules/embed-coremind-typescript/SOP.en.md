@@ -16,6 +16,8 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 8. Run the listed module tests and `npm run check:modules`.
 9. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
+For 1.1 development controls, first establish active Run readiness, retain controlId, optionally pin the expected runId, then call `ChatSession.steer/followUp`. Check the five control receipt states separately from input consumption/discard events. Inject accepted/applied commit failures, terminal races, and cold recovery; verify no delivery to a later Run, no automatic redelivery of applied controls without confirmed consumption, and no permission expansion. Preserve Session, original-input, and effect-recovery gates. Applied does not mean consumed, and the crash window remains.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

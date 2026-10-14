@@ -1,3 +1,4 @@
+import type { InputId } from "./input-receipt.js";
 import type { CoreMindMessage, CoreMindMessageContent } from "./public-message.js";
 
 export interface AgentDriverStatus {
@@ -9,6 +10,8 @@ export interface AgentDriverStatus {
 export type AgentDriverObservation =
   | { type: "agent_start" }
   | { type: "agent_end" }
+  | { type: "control_consumed"; inputId: InputId; turnId?: string }
+  | { type: "control_discarded"; inputId: InputId }
   | { type: "text_delta"; delta: string }
   | { type: "turn_end"; message: CoreMindMessage }
   | { type: "tool_execution_start"; call: AgentDriverToolCall }
@@ -75,6 +78,8 @@ export interface AgentDriverTurnObservation {
 
 /** Runtime 注入的 Harness 只使用 CoreMind 类型；P3 类型在 Adapter 内终止。 */
 export interface AgentDriverHarness {
+  /** 原生 prompt 开始前完成已持久控制的就绪重放。 */
+  beforePrompt?: () => Promise<void>;
   maxRetries?: number;
   registerContextContract?: (contract: AgentDriverContextContract) => void;
   beforeModelRequest?: () => void;
@@ -103,6 +108,7 @@ export interface AgentDriverHarness {
 }
 
 export interface AgentDriverControl {
+  inputId: InputId;
   type: "steering" | "follow_up";
   message: string;
 }
@@ -114,7 +120,9 @@ export interface AgentDriver {
   messages(): CoreMindMessage[];
   status(): AgentDriverStatus;
   abort(): void;
+  canAcceptControl(): boolean;
   queueControl(control: AgentDriverControl): void;
+  clearQueuedControls(): void;
 }
 
 export type FakeAgentDriverStep =
@@ -135,13 +143,16 @@ export class FakeAgentDriver implements AgentDriver {
   private pendingToolCalls = 0;
   private active: Promise<void> = Promise.resolve();
   private activeController?: AbortController;
-  private readonly steeringQueue: string[] = [];
-  private readonly followUpQueue: string[] = [];
+  private acceptingControls = true;
+  private readonly controlIds = new Set<InputId>();
+  private readonly steeringQueue: AgentDriverControl[] = [];
+  private readonly followUpQueue: AgentDriverControl[] = [];
 
   constructor(private readonly options: FakeAgentDriverOptions) {}
 
   async prompt(input: string): Promise<void> {
     if (this.running) throw new Error("AgentDriver 已在运行");
+    this.acceptingControls = true;
     this.running = true;
     this.activeController = new AbortController();
     this.transcript.push({ role: "user", content: input, timestamp: 0 });
@@ -168,13 +179,26 @@ export class FakeAgentDriver implements AgentDriver {
 
   abort(): void {
     this.activeController?.abort();
-    this.steeringQueue.length = 0;
-    this.followUpQueue.length = 0;
+  }
+
+  canAcceptControl(): boolean {
+    return this.acceptingControls;
   }
 
   queueControl(control: AgentDriverControl): void {
+    if (this.controlIds.has(control.inputId)) return;
+    this.controlIds.add(control.inputId);
     const queue = control.type === "steering" ? this.steeringQueue : this.followUpQueue;
-    queue.push(control.message);
+    queue.push(control);
+  }
+
+  clearQueuedControls(): void {
+    const discarded = [...this.steeringQueue, ...this.followUpQueue];
+    this.steeringQueue.length = 0;
+    this.followUpQueue.length = 0;
+    for (const control of discarded) {
+      this.options.onObservation?.({ type: "control_discarded", inputId: control.inputId });
+    }
   }
 
   private async runScript(): Promise<void> {
@@ -212,6 +236,7 @@ export class FakeAgentDriver implements AgentDriver {
         this.options.onObservation?.({ type: "turn_end", message });
       }
     } finally {
+      this.acceptingControls = false;
       this.running = false;
       this.options.onObservation?.({ type: "agent_end" });
     }
@@ -256,9 +281,12 @@ export class FakeAgentDriver implements AgentDriver {
     );
   }
 
-  private drainControls(queue: string[]): void {
+  private drainControls(queue: AgentDriverControl[]): void {
+    if (this.activeController?.signal.aborted) return;
     while (queue.length > 0) {
-      this.transcript.push({ role: "user", content: queue.shift()!, timestamp: 2 });
+      const control = queue.shift()!;
+      this.transcript.push({ role: "user", content: control.message, timestamp: 2 });
+      this.options.onObservation?.({ type: "control_consumed", inputId: control.inputId });
     }
   }
 }

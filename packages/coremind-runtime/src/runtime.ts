@@ -124,10 +124,13 @@ import { type CallId, type RunId, receiptId, type StepId, type TurnId } from "./
 import {
   claimInput,
   completeInput,
+  controlInputId,
   createInputReceipt,
   discardInput,
+  foldInputReceipts,
   type InputId,
   inputFingerprint,
+  isControlInputId,
   newInputId,
   receiptStatusOf,
 } from "./input-receipt.js";
@@ -675,7 +678,26 @@ export class CoreMindRuntime {
     const context = runContextFor(this);
     const executionId = randomUUID();
     const turnTracker = new TurnTracker();
-    const harness = context.harnessFor(name, stepId, executionId);
+    const originalHarness = context.harnessFor(name, stepId, executionId);
+    const harness: RuntimeHarness = {
+      ...originalHarness,
+      beforePrompt: async () => {
+        if (originalHarness?.beforePrompt) await originalHarness.beforePrompt();
+        if (name === this.mainAgentName) {
+          await context.currentControlInbox()?.applyPending("steering");
+          await context.currentControlInbox()?.applyPending("follow_up");
+        }
+        if (this.options.signal?.aborted || context.currentJournal()?.isAborted()) {
+          throw new CoreMindError("aborted", "控制恢复完成前运行已取消");
+        }
+      },
+      onObservation: (observation) =>
+        originalHarness?.onObservation?.(
+          observation.type === "control_consumed"
+            ? { ...observation, turnId: turnTracker.ensureCurrentTurn(name) }
+            : observation,
+        ),
+    };
     const agent = buildDriver({
       onEvent: (event) => onEvent(turnTracker.withTurnId(event)),
       // 恢复视图只注入主 agent（会话归属者）
@@ -794,6 +816,17 @@ export class CoreMindRuntime {
     );
     executionSlotFor(turnRuntime).skills = executionSlotFor(this).skills;
     const unbindActiveRun = bindActiveRun(this, {
+      acceptInputControl: (command) => {
+        const context = executionSlotFor(turnRuntime).kernel?.currentContext();
+        const inbox = context?.currentControlInbox();
+        const runId = context?.currentRunId();
+        if (!inbox || !runId) {
+          return Promise.reject(
+            new CoreMindError("control_unavailable", "活动 Run 的控制收件箱尚未就绪"),
+          );
+        }
+        return inbox.accept({ schemaVersion: 1, ...command, runId: command.runId ?? runId });
+      },
       inspectProjection: () => turnRuntime.inspectPersistedRunProjection(),
       executeDelegation: (parentAgentName, rawArgs, callId) =>
         turnRuntime.executeConfiguredDelegation(parentAgentName, rawArgs, callId),
@@ -1502,30 +1535,6 @@ export class CoreMindRuntime {
             applyPending: () => context.currentControlInbox()!.applyPending("verification"),
           })
         : undefined;
-    context.attachControlInbox(
-      new ControlInbox({
-        runId,
-        journal,
-        records: await runStore.read(runId),
-        apply: (command) => {
-          if (command.type === "verification") {
-            return Promise.resolve(
-              hostVerification?.apply(command) ?? {
-                status: "rejected",
-                reason: "当前 Run 未启用宿主验证",
-              },
-            );
-          }
-          if (
-            hostVerification?.waiting &&
-            (command.type === "steering" || command.type === "follow_up")
-          ) {
-            return Promise.resolve({ status: "rejected", reason: "宿主验收期间不能改变候选输入" });
-          }
-          return this.applyRunControl(command, context, deferredTerminalError);
-        },
-      }),
-    );
     const capabilityByCallId = new Map<
       string,
       { tool: string; capability: ResolvedToolCapability }
@@ -1617,6 +1626,74 @@ export class CoreMindRuntime {
       trace.record(event);
       userEvents(event);
     };
+    const prepareControlInput = (
+      command: Extract<RunControlCommand, { type: "steering" | "follow_up" }>,
+    ): InputId => {
+      const id = controlInputId(runId, command.controlId);
+      if (receiptStatusOf(collected, id) === undefined) {
+        emitInputEvent(
+          createInputReceipt({
+            inputId: id,
+            contentFingerprint: inputFingerprint(command.message),
+          }),
+        );
+      }
+      return id;
+    };
+    context.attachControlInbox(
+      new ControlInbox({
+        runId,
+        journal,
+        records: await runStore.read(runId),
+        apply: (command) => {
+          if (command.type === "verification") {
+            return Promise.resolve(
+              hostVerification?.apply(command) ?? {
+                status: "rejected",
+                reason: "当前 Run 未启用宿主验证",
+              },
+            );
+          }
+          if (command.type === "steering" || command.type === "follow_up") {
+            const id = prepareControlInput(command);
+            if (hostVerification?.waiting) {
+              const state = receiptStatusOf(collected, id);
+              if (state === "pending" || state === "claimed")
+                emitInputEvent(discardInput({ inputId: id }));
+              return Promise.resolve({
+                status: "rejected",
+                reason: "宿主验收期间不能改变候选输入",
+              });
+            }
+          }
+          return this.applyRunControl(command, context, deferredTerminalError);
+        },
+      }),
+    );
+    // applied 与内存交付间可能中断；没有消费事实时只明确丢弃，不能自动重投。
+    const previousInputControls = new Map<
+      string,
+      Extract<RunControlCommand, { type: "steering" | "follow_up" }>
+    >();
+    const previouslyApplied = new Set<string>();
+    for (const record of resumeRecords ?? []) {
+      if (record.kind !== "control") continue;
+      const fact = record.payload as {
+        controlId: string;
+        state: string;
+        command?: RunControlCommand;
+      };
+      if (fact.command?.type === "steering" || fact.command?.type === "follow_up")
+        previousInputControls.set(fact.controlId, fact.command);
+      if (fact.state === "applied") previouslyApplied.add(fact.controlId);
+    }
+    for (const id of previouslyApplied) {
+      const command = previousInputControls.get(id);
+      if (!command) continue;
+      const input = prepareControlInput(command);
+      if (receiptStatusOf(collected, input) === "pending")
+        emitInputEvent(discardInput({ inputId: input }));
+    }
     const recordEvent = (event: CoreMindEvent) => {
       let enriched = turnTracker.withTurnId(event);
       if (
@@ -2029,6 +2106,13 @@ export class CoreMindRuntime {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(executionId!, contract),
         beforeModelRequest: () => {
+          const facts = journal.factStatus();
+          if (facts.state === "poisoned") {
+            throw new CoreMindError(
+              "fact_ledger_poisoned",
+              `事实账本已失效，不能继续模型请求：${facts.reason}`,
+            );
+          }
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           budget.beforeModelRequest();
@@ -2810,6 +2894,26 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          if (observation.type === "control_consumed" || observation.type === "control_discarded") {
+            const state = receiptStatusOf(collected, observation.inputId);
+            if (
+              observation.type === "control_consumed" &&
+              state === "pending" &&
+              !journal.isAborted()
+            ) {
+              if (!observation.turnId)
+                throw new CoreMindError("control_unavailable", "控制消费缺少本执行的 Turn 身份");
+              emitInputEvent(
+                claimInput({ inputId: observation.inputId, turnId: observation.turnId }),
+              );
+            } else if (
+              (observation.type === "control_discarded" || journal.isAborted()) &&
+              (state === "pending" || state === "claimed")
+            ) {
+              emitInputEvent(discardInput({ inputId: observation.inputId }));
+            }
+            return;
+          }
           if (observation.type === "tool_execution_end") {
             const fact = skillExecution?.observe(observation);
             if (fact)
@@ -3126,6 +3230,9 @@ export class CoreMindRuntime {
     // pending 工具结束、journal 落盘队列清空；超时记录 quiescence_timeout 事件不改变终态
     await context.currentControlInbox()?.sealForTerminal();
     await context.currentChildRuns()?.sealForTerminal();
+    for (const name of this.agentConfigs.keys()) {
+      for (const driver of context.agentsNamed(name)) driver.clearQueuedControls();
+    }
     const runtimeQuiescent = await this.waitForQuiescence(DEFAULT_QUIESCENCE_TIMEOUT_MS);
     let delegationGate = context.currentChildRuns()?.continuationGate();
     const environmentTerminationError = context.environmentTerminationError();
@@ -3232,6 +3339,24 @@ export class CoreMindRuntime {
       collected.slice(terminalEventCursor),
       terminalError,
     );
+    if (outcome.status !== "paused") {
+      try {
+        await context.currentControlInbox()?.rejectPendingInputs();
+      } catch (error) {
+        terminalError = durabilityFailure(error);
+        outcome = new RunTerminalizer().terminalize(
+          collected.slice(terminalEventCursor),
+          terminalError,
+        );
+      }
+    }
+    for (const [id, state] of foldInputReceipts(collected)) {
+      if (!isControlInputId(id)) continue;
+      if (state === "claimed" && outcome.status === "succeeded")
+        emitInputEvent(completeInput({ inputId: id }));
+      else if (outcome.status !== "paused" && (state === "pending" || state === "claimed"))
+        emitInputEvent(discardInput({ inputId: id }));
+    }
     // 输入收据终态（规格 03 §4）：succeeded → completed；abort/超时/预算/失败 → discarded
     // （未消费输入）；paused（审批拒绝等）保持 claimed，resume 继续同一输入
     if (inputReceiptState !== undefined && inputReceiptState !== "completed") {
@@ -3566,10 +3691,20 @@ export class CoreMindRuntime {
       }
     }
     if (command.type === "steering" || command.type === "follow_up") {
-      const agent = context.agent(this.mainAgentName);
-      if (!agent) return "accepted";
-      agent.queueControl({ type: command.type, message: command.message });
-      return "applied";
+      const candidates = context
+        .agentsNamed(this.mainAgentName)
+        .filter((driver) => driver.canAcceptControl());
+      if (candidates.length !== 1) return "accepted";
+      const agent = candidates[0]!;
+      return {
+        status: "applied",
+        afterDurable: () =>
+          agent.queueControl({
+            inputId: controlInputId(command.runId, command.controlId),
+            type: command.type,
+            message: command.message,
+          }),
+      };
     }
     return (
       this.options.applyControl?.(command) ?? {
@@ -4050,7 +4185,8 @@ function durabilityFailure(error: unknown): CoreMindError {
  */
 function resumedInputId(events: readonly CoreMindEvent[]): InputId | undefined {
   for (const event of events) {
-    if (event.type === "input_receipt") return event.inputId as InputId;
+    if (event.type === "input_receipt" && !isControlInputId(event.inputId))
+      return event.inputId as InputId;
   }
   return undefined;
 }

@@ -239,7 +239,19 @@ coremind chat coremind.yaml
 | 查看变更 | 输入 `/diff <checkpointId>` |
 | 显式恢复文件 | 输入 `/restore <checkpointId>` |
 | 中止当前回答 | 输入 `/abort`（停止生成，可继续提问） |
+| 运行中追加指令 | 输入 `/steer 文本`（1.1 开发线） |
+| 自然停止后继续输入 | 输入 `/follow-up 文本`（1.1 开发线，同一 Run） |
 | 退出对话 | 输入 `/exit`（已启用 session 并使用 `--session <id>` 时，下次可恢复） |
+
+### 运行中控制与忙时草稿（1.1 开发线）
+
+TUI 和 `--no-tui` 的 readline 均支持 `/steer 文本` 与 `/follow-up 文本`。前者在后续可用 Turn 介入，后者等当前 Agent 自然停止后继续；都不新开并发 Run，不修改本轮权限、Provider 或预算。缺少文本只显示用法。未启动、控制收件箱尚未就绪或已封口时会拒绝，不把输入留给下一 Run。
+
+工具审批期间，readline 会先识别这两个显式命令；TUI 输入 `/` 进入独立命令模式，Enter 提交，Esc 返回审批。命令正文里的 y/n 不会批准工具，控制也不代替审批；普通审批仍用 y 允许、n/Enter/Esc 拒绝。非 TTY 审批仍安全拒绝，full 模式也不取消既有 deny 等边界。独立宿主验收等待期间，追加输入会被拒绝，避免改变待验收候选。
+
+忙时普通文字只保留为**一份草稿**，不会自动执行或变成控制。TUI 保留可编辑输入框，忙时 Enter 不发送，空闲后再次 Enter 确认；readline 保留第一份忙时提交，后续提交明确提示未保存，不覆盖原稿。空闲后，TTY 可预填原稿供编辑并按 Enter 确认；未预填时用空行确认原稿。控制回执迟到只显示其原 Run/controlId，不清除后来输入的新草稿。
+
+控制回执有 `accepted`、`applied`、`rejected`、`duplicate`、`conflict` 五态：`accepted` 表示已持久接收，`applied` 表示应用事实提交后已交付 Agent 队列；两者都不代表模型已消费。界面另显 `input_receipt`、`input_claimed`、`input_completed`、`input_discarded` 的输入身份与状态；最终业务结果仍看 Run outcome。
 
 默认运行摘要会显示 Child Run 数量、活动后代与未处置风险；运行中也可输入 `/children` 查询当前 canonical Facts。`/children` 只读取统一 Fact Projection，按父子层级展开目标、身份、预算、状态、Outcome、Recovery 和风险正文；它不会读取 Runtime 内部 Map，也不会提供独立 spawn/list/resume/detach。委派审批卡会优先显示目标、任务摘要、显式引用和本次收紧预算，并明确委派批准只允许创建 Child Run，子级工具与外部副作用仍需独立审批。当前可用的取消 authority 是 `/abort`：它中止父级当前回答，并由 Runtime 将取消传播到活动 Child Run；当前 Runtime 未授权的子级独立取消或失败处置控制不会显示或伪造执行。
 
@@ -289,6 +301,8 @@ coremind run coremind.yaml --resume <runId>
 通常不要再次传 `--prompt`，Runtime 会使用原始输入；如果传入，内容必须与原输入完全一致。恢复会延续原 runId、Trace sequence、预算、重试计数和 Loop 快照，并直接复用已经完整持久化的 Workflow/Loop 步骤输出。
 
 以下情况是有意拒绝，不是命令故障：运行已经正常结束、配置发生变化、RunState 损坏或断序、输入不同，或者未完成步骤留下 `started`/`unknown` 副作用。CoreMind 的恢复边界是可验证的稳定业务状态；`committed` 副作用不会自动重放，未知副作用必须先由人工核对。
+
+1.1 开发线的控制恢复仍使用上述安全门：仅 `accepted` 的持久控制在 Agent 就绪后按原身份应用；已 `applied` 但没有确认消费事实的控制不自动重投，而明确记为 `input_discarded`。这保留了持久提交与内存投递之间的崩溃窗口，不承诺绝对 exactly-once。暂停的原输入仍可恢复，普通原输入已经 discarded 时仍拒绝恢复；控制的 discarded 不会把原本可恢复的暂停 Run 一并作废。控制事实不代替 Session 正文，也不扩大完整对话的重建范围。
 
 ## 7. 多项目工作流
 

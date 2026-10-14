@@ -4,6 +4,7 @@ import { buildAgentFromConfig } from 'coremind-runtime';
 import { buildRepositoryMap } from 'coremind-runtime';
 import { buildTools } from 'coremind-tools';
 import { BuildToolsOptions } from 'coremind-tools';
+import { ChatControlOptions } from 'coremind-runtime';
 import { ChatSession } from 'coremind-runtime';
 import { ChatTurnResult } from 'coremind-runtime';
 import { CheckpointDiff } from 'coremind-runtime';
@@ -325,6 +326,8 @@ export { buildRepositoryMap }
 export { buildTools }
 
 export { BuildToolsOptions }
+
+export { ChatControlOptions }
 
 export { ChatSession }
 

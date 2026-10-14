@@ -16,7 +16,12 @@
     "checkpoint-diff-restore": false,
     "exit": false,
     "streaming": false,
-    "status": false
+    "status": false,
+    "control-tui": false,
+    "control-readline": false,
+    "control-approval-isolation": false,
+    "draft-explicit-send": false,
+    "control-input-facts": false
   },
   "notes": "Replace every placeholder only after observing the result in a real terminal.",
   "evidenceLevel": "automated-real-tty"

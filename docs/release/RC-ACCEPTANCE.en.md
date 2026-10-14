@@ -53,7 +53,17 @@ npm run acceptance:tty
 
 CI executes this command on both target platforms and uploads version- and commit-bound evidence artifacts. The release workflow downloads and validates both artifacts. If the script cannot start the platform pseudoterminal, terminal rendering is abnormal, or users report a real-experience discrepancy, fall back to manual terminal acceptance instead of skipping P20.
 
-Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, `streaming`, `status`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step. The script generates evidence from the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json) under `.scratch/rc-evidence/`. Version and commit must match the candidate, `evidenceLevel` must be `automated-real-tty`, and every check must be `true`. `.scratch` stays outside Git to avoid a commit-SHA self-reference. Archive both JSON files with the workflow run identifier, without business content or secrets.
+Each platform must confirm `launch`, `help`, `approval-deny`, `approval-allow`, `abort`, `session-resume`, `checkpoint-diff-restore`, `streaming`, `status`, and `exit`. For `approval-deny`, deny the first write request and confirm that the same run opens no further approval, creates no file, and returns `paused`. The P03 automated anchor separately proves that a sequential workflow saves no output for the denied step and starts no later step.
+
+The following control checks are also required on both platforms:
+
+- `control-tui`: `/steer` and `/follow-up` take effect within the same Run through the TUI.
+- `control-readline`: both control commands take effect within the same Run through readline.
+- `control-approval-isolation`: `y` and `n` in control bodies do not answer the pending approval; only explicit approval permits the write.
+- `draft-explicit-send`: ordinary input remains a visible draft while busy and is sent only after explicit confirmation when the run finishes.
+- `control-input-facts`: each control has a distinct identity, and durable input claims and completions bind to actual Turns. An `applied` receipt cannot replace consumption evidence.
+
+The script generates evidence from the [Windows template](evidence/rc-tty-windows.example.json) or [Linux template](evidence/rc-tty-linux.example.json) under `.scratch/rc-evidence/`. Version and commit must match the candidate, `evidenceLevel` must be `automated-real-tty`, and all fifteen checks must be `true`. `.scratch` stays outside Git to avoid a commit-SHA self-reference. Archive both JSON files with the workflow run identifier, without business content or secrets.
 
 The existing [Windows TUI maintainer acceptance guide](WINDOWS-TUI-MAINTAINER-ACCEPTANCE.zh-CN.md) records historical manual experience evidence for `0.3.0-rc.2`. `0.3.0` received a separate final maintainer acceptance run against the exact candidate artifact; later candidates still require independent acceptance. Historical manual results and the automated evidence in this section cannot substitute for one another.
 

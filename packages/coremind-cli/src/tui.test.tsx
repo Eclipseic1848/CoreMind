@@ -1,6 +1,7 @@
-import type { ChatSession, ChildRunNodeProjection, RunResult } from "coremind-ai";
+import type { ChatSession, ChildRunNodeProjection, ControlReceipt, RunResult } from "coremind-ai";
 import { render } from "ink-testing-library";
 import { describe, expect, it, vi } from "vitest";
+import { controlInputId } from "../../coremind-runtime/src/input-receipt.js";
 import { ApprovalQueue } from "./approval.js";
 import { ChatTUI, formatChildRuns, formatRunStatus } from "./tui.js";
 
@@ -12,6 +13,8 @@ function createSession(): ChatSession {
     diffCheckpoint: vi.fn(),
     restoreCheckpoint: vi.fn(),
     chat: vi.fn(),
+    steer: vi.fn().mockResolvedValue(controlReceipt("applied")),
+    followUp: vi.fn().mockResolvedValue(controlReceipt("applied")),
   } as unknown as ChatSession;
 }
 
@@ -622,6 +625,175 @@ describe("Windows TUI 交互验收", () => {
     app.unmount();
   });
 });
+
+describe("运行中控制与普通草稿", () => {
+  it.each(["steer", "follow-up"])(
+    "审批期间的 /%s 不消费 y/n，迟到回执保留新草稿",
+    async (command) => {
+      const session = createSession();
+      const approvals = new ApprovalQueue(true);
+      const turn = { text: "完成", events: [], run: createRun() };
+      let finishChat!: (value: typeof turn) => void;
+      let finishControl!: (value: ControlReceipt) => void;
+      let rejectControl!: (error: Error) => void;
+      const firstChat = new Promise<typeof turn>((resolve) => {
+        finishChat = resolve;
+      });
+      const response = new Promise<ControlReceipt>((resolve, reject) => {
+        finishControl = resolve;
+        rejectControl = reject;
+      });
+      vi.mocked(session.chat).mockReturnValueOnce(firstChat).mockResolvedValue(turn);
+      vi.mocked(command === "steer" ? session.steer : session.followUp).mockReturnValue(response);
+      const app = render(
+        <ChatTUI title="控制草稿" session={session} approvals={approvals} onExit={() => {}} />,
+      );
+      try {
+        await typeCommand(app.stdin.write, "开始");
+        await typeCommand(app.stdin.write, "原普通草稿");
+        const decision = approvals.request(controlApproval());
+        await settle();
+        await typeCommand(app.stdin.write, `/${command} y n 仍需批准`);
+        await vi.waitFor(() =>
+          expect(command === "steer" ? session.steer : session.followUp).toHaveBeenCalledWith(
+            "y n 仍需批准",
+          ),
+        );
+        expect(approvals.current?.request.approvalId).toBe("control-approval");
+        expect(app.lastFrame()).toContain("原普通草稿");
+        app.stdin.write("n");
+        await expect(decision).resolves.toBe("deny");
+        await settle();
+        await typeCommand(app.stdin.write, "新草稿");
+        if (command === "follow-up") rejectControl(new Error("control_unavailable"));
+        else finishControl(controlReceipt("applied"));
+        await vi.waitFor(() =>
+          expect(app.lastFrame()).toContain(
+            command === "follow-up"
+              ? "命令失败：control_unavailable"
+              : "控制 control-original · Run run-original · applied",
+          ),
+        );
+        expect(app.lastFrame()).toContain("原普通草稿新草稿");
+        expect(session.chat).toHaveBeenCalledOnce();
+        finishChat(turn);
+        await vi.waitFor(() => expect(app.lastFrame()).toContain("succeeded"));
+        app.stdin.write("\r");
+        await vi.waitFor(() => expect(session.chat).toHaveBeenNthCalledWith(2, "原普通草稿新草稿"));
+      } finally {
+        finishControl(controlReceipt("applied"));
+        finishChat(turn);
+        approvals.close();
+        app.unmount();
+      }
+    },
+  );
+
+  it("审批命令模式 Esc 返回原审批，空控制命令不批准或拒绝", async () => {
+    const session = createSession();
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="审批命令" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    try {
+      app.stdin.write("保留草稿");
+      await settle();
+      const decision = approvals.request(controlApproval());
+      await settle();
+      await typeCommand(app.stdin.write, "/steer");
+      await settle();
+      expect(app.lastFrame()).toContain("用法：/steer 文本");
+      expect(approvals.current).toBeDefined();
+      for (const character of "/follow-up y n") {
+        app.stdin.write(character);
+        await settle();
+      }
+      app.stdin.write("\u001b");
+      await settle();
+      expect(approvals.current).toBeDefined();
+      expect(app.lastFrame()).toContain("保留草稿");
+      expect(session.steer).not.toHaveBeenCalled();
+      expect(session.followUp).not.toHaveBeenCalled();
+      app.stdin.write("\r");
+      await expect(decision).resolves.toBe("deny");
+    } finally {
+      approvals.close();
+      app.unmount();
+    }
+  });
+
+  it("五态控制回执保持 Run/Control 身份，输入消费事实单独显示", async () => {
+    const session = createSession();
+    const inputId = controlInputId("run-original", "control-original");
+    const discardedInputId = controlInputId("run-original", "control-discarded");
+    let listener: Parameters<ChatSession["onEvent"]>[0] | undefined;
+    session.onEvent = (handler) => {
+      listener = handler;
+      return () => {};
+    };
+    const app = render(
+      <ChatTUI
+        title="控制事实"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+    try {
+      for (const status of ["accepted", "applied", "rejected", "duplicate", "conflict"] as const) {
+        vi.mocked(session.steer).mockResolvedValueOnce(controlReceipt(status));
+        await typeCommand(app.stdin.write, `/steer ${status}`);
+        await vi.waitFor(() => expect(app.lastFrame()).toContain(`Run run-original · ${status}`));
+      }
+      listener?.({ type: "agent_start", agent: "main" });
+      listener?.({ type: "text_delta", agent: "main", delta: "流式开头" });
+      listener?.({
+        type: "input_claimed",
+        inputId,
+        turnId: "turn-control",
+        status: "claimed",
+        timestamp: "2026-10-14T00:00:00Z",
+      });
+      listener?.({ type: "text_delta", agent: "main", delta: "和末尾" });
+      listener?.({
+        type: "input_discarded",
+        inputId: discardedInputId,
+        status: "discarded",
+        timestamp: "2026-10-14T00:00:01Z",
+      });
+      await vi.waitFor(() =>
+        expect(app.lastFrame()?.replace(/\s/gu, "")).toContain(
+          `输入 ${inputId} · claimed · Turn turn-control`.replace(/\s/gu, ""),
+        ),
+      );
+      expect(app.lastFrame()?.replace(/\s/gu, "")).toContain(
+        `输入 ${discardedInputId} · discarded`.replace(/\s/gu, ""),
+      );
+      expect(app.lastFrame()).toContain("流式开头和末尾");
+      expect(session.chat).not.toHaveBeenCalled();
+    } finally {
+      app.unmount();
+    }
+  });
+});
+
+function controlReceipt(status: ControlReceipt["status"]): ControlReceipt {
+  return { schemaVersion: 1, controlId: "control-original", runId: "run-original", status };
+}
+
+function controlApproval(): Parameters<ApprovalQueue["request"]>[0] {
+  return {
+    approvalId: "control-approval",
+    runId: "run-original",
+    agent: "main",
+    tool: "write",
+    args: {},
+    argumentsFingerprint: "a".repeat(64),
+    risk: "high",
+    reason: "保留原审批",
+    effect: { operations: ["write"], paths: [], urls: [], reversible: true, declared: true },
+  };
+}
 
 function createRun(overrides: Partial<Omit<RunResult, "snapshot">> = {}): RunResult {
   const base: Omit<RunResult, "snapshot"> = {

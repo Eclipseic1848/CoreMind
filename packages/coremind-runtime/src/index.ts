@@ -6,7 +6,7 @@ export {
   RunBudgetController,
   resolveRuntimeLimits,
 } from "./budget.js";
-export { ChatSession, type ChatTurnResult } from "./chat-session.js";
+export { type ChatControlOptions, ChatSession, type ChatTurnResult } from "./chat-session.js";
 export {
   type CheckpointDiff,
   type CheckpointFileState,

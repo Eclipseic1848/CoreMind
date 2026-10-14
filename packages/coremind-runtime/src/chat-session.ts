@@ -1,5 +1,7 @@
-import { inspectBoundRunProjection } from "./active-run-binding.js";
+import { randomUUID } from "node:crypto";
+import { acceptBoundInputControl, inspectBoundRunProjection } from "./active-run-binding.js";
 import type { CheckpointDiff, CheckpointRecord } from "./checkpoint.js";
+import type { ControlReceipt } from "./control-inbox.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import type { RunProjection } from "./projection.js";
@@ -14,6 +16,12 @@ export interface ChatTurnResult {
   events: CoreMindEvent[];
   /** 本轮完整 Harness 结果，可用于预算、Trace、checkpoint 和质量 UI。 */
   run: RunResult;
+}
+
+/** 固定重试身份或预期 Run；省略时只针对调用瞬间的活动运行。 */
+export interface ChatControlOptions {
+  controlId?: string;
+  runId?: string;
 }
 
 /**
@@ -83,6 +91,26 @@ export class ChatSession {
   /** 中止当前轮 */
   abort(): void {
     this.activeController?.abort();
+  }
+
+  /** 在后续可用 Turn 追加指令；回执不代表模型已经消费。 */
+  steer(message: string, options?: ChatControlOptions): Promise<ControlReceipt> {
+    return acceptBoundInputControl(this.runtime, {
+      type: "steering",
+      message,
+      controlId: options?.controlId ?? randomUUID(),
+      ...(options?.runId !== undefined ? { runId: options.runId } : {}),
+    });
+  }
+
+  /** 当前活动自然结束后再处理后续输入，不创建第二个 Run。 */
+  followUp(message: string, options?: ChatControlOptions): Promise<ControlReceipt> {
+    return acceptBoundInputControl(this.runtime, {
+      type: "follow_up",
+      message,
+      controlId: options?.controlId ?? randomUUID(),
+      ...(options?.runId !== undefined ? { runId: options.runId } : {}),
+    });
   }
 
   /** 查询当前一轮从 canonical Facts 重建的统一 Projection。 */

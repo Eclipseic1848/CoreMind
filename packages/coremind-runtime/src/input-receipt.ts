@@ -47,6 +47,19 @@ export function newInputId(): InputId {
   return randomUUID() as InputId;
 }
 
+/** 控制身份只绑定 Run 与控制 ID；JSON 二元组避免分隔符歧义，不写入消息正文。 */
+export function controlInputId(runId: string, controlId: string): InputId {
+  const digest = createHash("sha256")
+    .update(JSON.stringify([runId, controlId]), "utf8")
+    .digest("hex");
+  return `control:${digest}` as InputId;
+}
+
+/** 区分控制输入与原首输入；仅识别完整的保留格式。 */
+export function isControlInputId(value: string): boolean {
+  return /^control:[0-9a-f]{64}$/u.test(value);
+}
+
 /** 转移合法性：undefined（未登记）只能到 pending（登记）；否则按转移表 */
 export function isValidTransition(
   from: InputReceiptStatus | undefined,

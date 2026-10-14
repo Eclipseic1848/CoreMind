@@ -20,7 +20,7 @@ import { loopStateText } from "./render.js";
 /** 消息视图（会话渲染用） */
 interface MessageView {
   id: number;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "notice";
   text: string;
   tools: Array<{
     tool: string;
@@ -61,6 +61,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
     });
   }, []);
   const [input, setInput] = useState("");
+  const [approvalCommand, setApprovalCommand] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>();
@@ -70,14 +71,39 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
 
   // 键盘输入（受控输入框：字符累积 / 退格 / 回车发送）
   useInput((inputStr, key) => {
+    if (approvalCommand !== undefined) {
+      if (key.escape) setApprovalCommand(undefined);
+      else if (key.return) {
+        const command = approvalCommand.trim();
+        if (/^\/(?:steer|follow-up)(?:\s|$)/u.test(command) || command === "/abort") {
+          void handleSubmit(command);
+          setApprovalCommand(undefined);
+        } else
+          appendCommandError(
+            new Error("审批期间使用 /steer 文本、/follow-up 文本或 /abort；Esc 返回审批"),
+          );
+      } else if (key.backspace) setApprovalCommand((value) => value?.slice(0, -1));
+      else if (inputStr) setApprovalCommand((value) => (value ?? "") + inputStr);
+      return;
+    }
     if (pendingApproval) {
+      if (inputStr.startsWith("/")) {
+        setApprovalCommand(inputStr);
+        return;
+      }
       if (inputStr.toLowerCase() === "y") approvals.resolve("allow");
       if (inputStr.toLowerCase() === "n" || key.return || key.escape) approvals.resolve("deny");
       return;
     }
     if (key.return) {
       const command = input.trim();
-      if (busy && command !== "/abort" && command !== "/children") return;
+      if (
+        busy &&
+        command !== "/abort" &&
+        command !== "/children" &&
+        !/^\/(?:steer|follow-up)(?:\s|$)/u.test(command)
+      )
+        return;
       void handleSubmit(input);
       setInput("");
     } else if (key.backspace) {
@@ -95,7 +121,19 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       if (event.type === "loop_state") {
         setLoopStatus(loopStateText(event.to, event.iteration, event.repairs));
       }
-      if (!["agent_start", "text_delta", "tool_call", "tool_result"].includes(event.type)) return;
+      if (
+        ![
+          "agent_start",
+          "text_delta",
+          "tool_call",
+          "tool_result",
+          "input_receipt",
+          "input_claimed",
+          "input_completed",
+          "input_discarded",
+        ].includes(event.type)
+      )
+        return;
       setMessages((prev) => {
         const next = [...prev];
         switch (event.type) {
@@ -104,16 +142,18 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
             break;
           }
           case "text_delta": {
-            const last = next[next.length - 1];
+            const index = next.map((message) => message.role).lastIndexOf("assistant");
+            const last = next[index];
             if (last && last.role === "assistant") {
-              next[next.length - 1] = { ...last, text: last.text + event.delta };
+              next[index] = { ...last, text: last.text + event.delta };
             }
             break;
           }
           case "tool_call": {
-            const last = next[next.length - 1];
+            const index = next.map((message) => message.role).lastIndexOf("assistant");
+            const last = next[index];
             if (last && last.role === "assistant") {
-              next[next.length - 1] = {
+              next[index] = {
                 ...last,
                 tools: [
                   ...last.tools,
@@ -143,6 +183,18 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
             }
             break;
           }
+          case "input_receipt":
+          case "input_claimed":
+          case "input_completed":
+          case "input_discarded": {
+            next.push({
+              id: idRef.current++,
+              role: "notice",
+              text: `输入 ${event.inputId} · ${event.status}${event.type === "input_claimed" ? ` · Turn ${event.turnId}` : ""}`,
+              tools: [],
+            });
+            break;
+          }
           default:
             break;
         }
@@ -157,6 +209,32 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
     if (!trimmed) return;
     if (trimmed === "/abort") {
       session.abort();
+      while (approvals.current) approvals.resolve("deny");
+      return;
+    }
+    const control = /^\/(steer|follow-up)(?:\s+([\s\S]*))?$/u.exec(trimmed);
+    if (control) {
+      const message = control[2]?.trim();
+      if (!message) {
+        appendCommandError(new Error(`用法：/${control[1]} 文本`));
+        return;
+      }
+      try {
+        const receipt = await (control[1] === "steer"
+          ? session.steer(message)
+          : session.followUp(message));
+        setMessages((previous) => [
+          ...previous,
+          {
+            id: idRef.current++,
+            role: "notice",
+            text: `控制 ${receipt.controlId} · Run ${receipt.runId} · ${receipt.status}${receipt.duplicateOf ? ` (${receipt.duplicateOf})` : ""}${receipt.reason ? `：${receipt.reason}` : ""}`,
+            tools: [],
+          },
+        ]);
+      } catch (error) {
+        appendCommandError(error);
+      }
       return;
     }
     if (trimmed === "/children") {
@@ -307,7 +385,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       ...prev,
       {
         id: idRef.current++,
-        role: "assistant",
+        role: "notice",
         text: `命令失败：${error instanceof Error ? error.message : String(error)}`,
         tools: [],
       },
@@ -336,6 +414,8 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
             <Text color="yellow">
               /status 状态 · /children 子运行 · /artifacts 产物 · /context 上下文 · /observability
               观测 · /checkpoints 列表 · /diff ID · /restore ID · /exit · /abort
+              {"\n"}/steer 文本：追加指令 · /follow-up 文本：任务自然结束后继续
+              {"\n"}applied 仅表示已交队列；输入的 claimed/completed/discarded 单独显示。
             </Text>
           </Box>
         )}
@@ -367,7 +447,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
             </>
           )}
           <Text>原因：{approvalDisplay.reason}</Text>
-          <Text>[y] 允许 · [n/Enter] 拒绝</Text>
+          <Text>[y] 允许 · [n/Enter] 拒绝 · [/] 输入控制命令，Esc 返回审批</Text>
         </Box>
       )}
       {lastRun && (
@@ -379,6 +459,17 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         <Text color="green">你 &gt; </Text>
         <Text>{input}</Text>
       </Box>
+      {approvalCommand !== undefined && (
+        <Box paddingX={1}>
+          <Text>控制命令 &gt; {approvalCommand}</Text>
+        </Box>
+      )}
+      {busy && (
+        <Text dimColor>
+          普通输入保留为草稿；/steer 追加指令 · /follow-up 后续输入 · /abort 中止
+        </Text>
+      )}
+      {!busy && <Text dimColor>输入就绪{input ? "，按 Enter 发送草稿" : ""}</Text>}
     </Box>
   );
 }
@@ -396,6 +487,8 @@ function MessageRow({ msg }: { msg: MessageView }) {
     <Box flexDirection="column" marginBottom={0}>
       {msg.role === "user" ? (
         <Text color="green">你 &gt; {msg.text}</Text>
+      ) : msg.role === "notice" ? (
+        <Text dimColor>{msg.text}</Text>
       ) : (
         <Box flexDirection="column">
           <Text color="cyan">[assistant]</Text>
