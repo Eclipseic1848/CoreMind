@@ -64,12 +64,31 @@ describe("CoreMindRuntime", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-summary-stop-"));
     const controller = new AbortController();
+    // 本轮独用 1001ms 预算；只捕获该定时器，进入摘要后触发，其他定时器保持真实。
+    const runTimeoutMs = mode === "cancel" ? 0 : 1001;
+    const clock = mode === "timeout" ? vi.spyOn(performance, "now").mockReturnValue(0) : undefined;
+    let triggerTimeout: (() => void) | undefined;
+    const realSetTimeout = globalThis.setTimeout;
+    const timer =
+      mode === "timeout"
+        ? vi.spyOn(globalThis, "setTimeout").mockImplementation((callback, delay, ...args) => {
+            if (delay === runTimeoutMs) {
+              triggerTimeout = () => callback(...args);
+              return realSetTimeout(() => {}, delay);
+            }
+            return realSetTimeout(callback, delay, ...args);
+          })
+        : undefined;
     let receivedSignal: AbortSignal | undefined;
     const compact = vi
       .spyOn(CoreMindSession.prototype, "maybeCompact")
       .mockImplementation(async (_models, _model, _window, _settings, signal) => {
         receivedSignal = signal;
         if (mode === "cancel") controller.abort();
+        else {
+          expect(triggerTimeout).toBeTypeOf("function");
+          triggerTimeout!();
+        }
         await new Promise<void>((resolve) => {
           if (signal?.aborted) resolve();
           else signal?.addEventListener("abort", () => resolve(), { once: true });
@@ -93,17 +112,20 @@ describe("CoreMindRuntime", () => {
             baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
           },
           agents: { main: {} },
-          runtime: { maxTurns: 3, runTimeoutMs: 1000 },
+          runtime: { maxTurns: 3, runTimeoutMs },
           session: { enabled: true, compact: true },
         },
       });
       const result = await runtime.run();
       expect(receivedSignal?.aborted).toBe(true);
       expect(result.outcome.status).toBe(mode === "cancel" ? "aborted" : "timeout");
+      expect(result.outcome.finishReason).toBe(mode === "cancel" ? "aborted" : "run_timeout");
       expect(await runtime.waitForQuiescence()).toBe(true);
       expect(requests).toBe(1);
     } finally {
       compact.mockRestore();
+      timer?.mockRestore();
+      clock?.mockRestore();
       controller.abort();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -3522,7 +3544,8 @@ describe("CoreMindRuntime", () => {
     }
   });
 
-  it("Loop 暂停后从稳定快照继续，不重复执行已完成步骤", async () => {
+  // 每步文件操作延迟 35ms 时需 35.7 秒；保留真实持久化，仅放宽本用例上限。
+  it("Loop 暂停后从稳定快照继续，不重复执行已完成步骤", { timeout: 60_000 }, async () => {
     const server = createTextSequenceServer(["candidate-a", "FAIL", "candidate-b", "PASS"]);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {
@@ -3559,7 +3582,8 @@ describe("CoreMindRuntime", () => {
     }
   });
 
-  it("Loop 修复次数耗尽后返回失败，不能接受不合格输出", async () => {
+  // 每步文件操作延迟 35ms 时需约 18 秒；保留真实持久化，仅放宽本用例上限。
+  it("Loop 修复次数耗尽后返回失败，不能接受不合格输出", { timeout: 60_000 }, async () => {
     const server = createTextSequenceServer(["candidate-a", "FAIL"]);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     try {

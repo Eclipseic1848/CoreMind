@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -24,6 +25,24 @@ export interface LinuxSandboxConfig {
 let initialization: Promise<string> | undefined;
 let helperDirectory: string | undefined;
 
+/** 删除成功后才归还所有权；失败时仍可显式重试。 */
+function releaseOwnedHelper(): void {
+  if (!helperDirectory) return;
+  rmSync(helperDirectory, { recursive: true, force: true });
+  helperDirectory = undefined;
+  process.removeListener("exit", releaseOnExit);
+}
+
+function releaseOnExit(): void {
+  try {
+    releaseOwnedHelper();
+  } catch (error) {
+    console.error(
+      `Linux helper 退出清理失败：${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 /** 原生资产在私有目录执行；不依赖安装器保留 wheel 的可执行位。 */
 async function initialize(): Promise<string> {
   if (process.platform !== "linux" || !["x64", "arm64"].includes(process.arch)) {
@@ -38,6 +57,8 @@ async function initialize(): Promise<string> {
   const actual = createHash("sha256").update(bytes).digest("hex");
   if (actual !== manifest.artifacts[asset]) throw new Error("Linux seccomp 资产摘要不匹配");
   const directory = await mkdtemp(path.join(tmpdir(), "coremind-seccomp-"));
+  helperDirectory = directory;
+  process.once("exit", releaseOnExit);
   const helper = path.join(directory, "apply-seccomp");
   try {
     await chmod(directory, 0o700);
@@ -52,17 +73,24 @@ async function initialize(): Promise<string> {
         ].join("；"),
       );
     }
-    helperDirectory = directory;
     return helper;
   } catch (error) {
-    await rm(directory, { recursive: true, force: true });
+    try {
+      releaseOwnedHelper();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        `${error instanceof Error ? error.message : String(error)}；Linux helper 清理失败：${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+        { cause: error },
+      );
+    }
     throw error;
   }
 }
 
 export function initializeLinuxSandboxBackend(): Promise<string> {
   initialization ??= initialize().catch((error) => {
-    initialization = undefined;
+    if (!helperDirectory) initialization = undefined;
     throw new Error(
       `Linux sandbox 初始化失败，已拒绝执行 bash：${error instanceof Error ? error.message : String(error)}`,
       { cause: error },
@@ -99,7 +127,7 @@ export async function wrapLinuxSandboxCommand(
     },
     writeConfig: {
       allowOnly: [...getDefaultWritePaths(), ...config.filesystem.allowWrite],
-      denyWithinAllow: config.filesystem.denyWrite,
+      denyWithinAllow: [...config.filesystem.denyWrite, path.dirname(helper)],
     },
     unsetEnvVars: config.credentials.envVars.map((entry) => entry.name),
     enableWeakerNestedSandbox: false,
@@ -117,10 +145,10 @@ export function cleanupLinuxSandboxCommand(): void {
 }
 
 export async function shutdownLinuxSandboxBackend(): Promise<void> {
-  await initialization?.catch(() => {});
+  const pending = initialization;
+  await pending?.catch(() => {});
+  if (initialization !== pending) return;
   cleanupBwrapMountPoints({ force: true });
+  releaseOwnedHelper();
   initialization = undefined;
-  const directory = helperDirectory;
-  helperDirectory = undefined;
-  if (directory) await rm(directory, { recursive: true, force: true });
 }
