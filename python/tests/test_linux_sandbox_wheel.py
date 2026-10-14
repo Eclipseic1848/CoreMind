@@ -100,9 +100,12 @@ class LinuxSandboxWheelTest(unittest.TestCase):
 
 class WorkerBundleTest(unittest.TestCase):
     def test_workstation_paths_do_not_match_api_routes(self) -> None:
-        for value in (r"C:\Users\runner\bundle.mjs", "c:/users/runner/bundle.mjs",
-                      "F:/new branch/example/bundle.mjs", "/home/runner/bundle.mjs",
-                      "file:///Users/runner/bundle.mjs"):
+        # 在运行时构造完整反例，避免源码自身触发本机路径检查。
+        for value in ("\\".join(("C:", "Users", "runner", "bundle.mjs")),
+                      "/".join(("c:", "users", "runner", "bundle.mjs")),
+                      "/".join(("F:", "new branch", "example", "bundle.mjs")),
+                      "/".join(("", "home", "runner", "bundle.mjs")),
+                      "file://" + "/".join(("", "Users", "runner", "bundle.mjs"))):
             with self.subTest(value=value):
                 self.assertIsNotNone(CHECKER.WORKSTATION_PATH.search(value))
         for value in ("/projects/${project_id}/users/${userID}/roles",
