@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
-import { type AgentMessage, estimateTokens } from "@earendil-works/pi-agent-core";
 import { canonicalJson } from "./canonical-json.js";
 import type { CoreMindMessage } from "./public-message.js";
+import { type AgentMessage, estimateTokens } from "./session-v4/index.js";
 
 export type ContextCapabilitySource =
   | "locked_catalog"

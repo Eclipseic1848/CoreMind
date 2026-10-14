@@ -3,6 +3,8 @@ import { CoreMindError } from "./errors.js";
 import {
   buildProviderRuntime,
   contextCapabilityCandidatesForModel,
+  listInheritedProviders,
+  listSupportedProviders,
   resolveProviderModel,
 } from "./provider.js";
 
@@ -71,10 +73,16 @@ describe("buildProviderRuntime（内置提供商）", () => {
     }
   });
 
-  it("完整继承锁定 pi-agent 版本的 37 个静态 Provider", async () => {
-    const { listInheritedProviders } = await import("./provider.js");
+  it("内置目录包含 42 个提供商，兼容别名单独作为配置入口", async () => {
     const providers = listInheritedProviders();
-    expect(providers).toHaveLength(39);
+    expect(providers).toHaveLength(42);
+    expect(providers).toContain("azure");
+    expect(providers).toContain("typesafe");
+    expect(providers).not.toContain("azure-openai-responses");
+    expect(listSupportedProviders()).toHaveLength(43);
+    expect(new Set(listSupportedProviders()).size).toBe(43);
+    expect(listSupportedProviders()).toContain("azure-openai-responses");
+    expect(listSupportedProviders()).not.toContain("typesafe");
     expect(providers).toContain("xiaomi");
     expect(
       (
@@ -86,6 +94,71 @@ describe("buildProviderRuntime（内置提供商）", () => {
       ).model.provider,
     ).toBe("xiaomi");
   });
+
+  it("仅有非聊天模型的提供商不能作为 Agent 聊天入口", async () => {
+    await expect(buildProviderRuntime({ id: "typesafe" }, {})).rejects.toMatchObject({
+      code: "no_models",
+    });
+  });
+
+  it("Azure 新旧配置入口解析为相同模型，且不改写原始配置", async () => {
+    const env = { AZURE_OPENAI_API_KEY: "azure-test-key" };
+    const canonical = await buildProviderRuntime({ id: "azure" }, env);
+    const legacyConfig = Object.freeze({
+      id: "azure-openai-responses",
+      model: canonical.model.id,
+    });
+    const legacy = await buildProviderRuntime(legacyConfig, env);
+    expect(legacyConfig.id).toBe("azure-openai-responses");
+    expect(legacy.model).toEqual(canonical.model);
+    expect(legacy.contextCapabilityCandidates).toEqual(canonical.contextCapabilityCandidates);
+    expect(legacy.warnings).toEqual([expect.stringContaining("实际路由为 azure")]);
+  });
+
+  it.each(["azure", "azure-openai-responses"])("%s 保留默认 Azure 环境变量鉴权", async (id) => {
+    const runtime = await buildProviderRuntime({ id }, { AZURE_OPENAI_API_KEY: "default-key" });
+    expect(runtime.apiKeyOverride).toBeUndefined();
+    expect(await runtime.models.getAuth(runtime.model)).toMatchObject({
+      auth: { apiKey: "default-key" },
+    });
+    await expect(buildProviderRuntime({ id }, {})).rejects.toMatchObject({
+      code: "secret_reference_unresolved",
+    });
+  });
+
+  it.each(["azure", "azure-openai-responses"])(
+    "%s 显式环境变量是唯一密钥来源，缺失时不回退",
+    async (id) => {
+      const runtime = await buildProviderRuntime(
+        { id, apiKeyEnv: "MY_AZURE_KEY" },
+        { MY_AZURE_KEY: "explicit-key", AZURE_OPENAI_API_KEY: "must-not-be-used" },
+      );
+      expect(runtime.apiKeyOverride).toBe("explicit-key");
+      expect(await runtime.models.getAuth(runtime.model)).toBeUndefined();
+      await expect(
+        buildProviderRuntime(
+          { id, apiKeyEnv: "MY_AZURE_KEY" },
+          { AZURE_OPENAI_API_KEY: "must-not-be-used" },
+        ),
+      ).rejects.toMatchObject({ code: "secret_reference_unresolved" });
+    },
+  );
+
+  it.each(["azure", "azure-openai-responses"])(
+    "%s 显式秘密引用是唯一密钥来源，无法解析时不回退",
+    async (id) => {
+      const cfg = { id, apiKeySecretRef: { secretRef: "opaque/azure" } };
+      const env = { AZURE_OPENAI_API_KEY: "must-not-be-used" };
+      const runtime = await buildProviderRuntime(cfg, env, {
+        resolve: async (ref) => (ref === "opaque/azure" ? "resolved-key" : undefined),
+      });
+      expect(runtime.apiKeyOverride).toBe("resolved-key");
+      expect(await runtime.models.getAuth(runtime.model)).toBeUndefined();
+      await expect(
+        buildProviderRuntime(cfg, env, { resolve: async () => undefined }),
+      ).rejects.toMatchObject({ code: "secret_reference_unresolved" });
+    },
+  );
 
   it("提供可认证的阿里云模型服务原生入口", async () => {
     const { listSupportedProviders } = await import("./provider.js");
@@ -178,6 +251,36 @@ describe("buildProviderRuntime（内置提供商）", () => {
 });
 
 describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
+  it.each(["azure", "azure-openai-responses"])(
+    "自定义 %s 同名入口保留自己的路由、模型与秘密引用",
+    async (id) => {
+      const cfg = Object.freeze({
+        id,
+        baseUrl: "https://gateway.example/v1",
+        model: "custom-model",
+        apiKeySecretRef: { secretRef: "opaque/custom-azure" },
+        headers: { "X-Gateway": "custom" },
+      });
+      const runtime = await buildProviderRuntime(
+        cfg,
+        { AZURE_OPENAI_API_KEY: "must-not-be-used" },
+        { resolve: async () => "custom-key" },
+      );
+      expect(runtime.model).toMatchObject({
+        provider: id,
+        id: "custom-model",
+        baseUrl: cfg.baseUrl,
+      });
+      expect(runtime.models.getProvider(id)?.headers).toEqual(cfg.headers);
+      expect(await runtime.models.getAuth(runtime.model)).toMatchObject({
+        auth: { apiKey: "custom-key" },
+      });
+      expect(runtime.apiKeyOverride).toBe("custom-key");
+      expect(runtime.warnings).toEqual([]);
+      expect(cfg.id).toBe(id);
+    },
+  );
+
   it("只在 Provider Adapter 接缝解析 SecretRef", async () => {
     const resolved = "resolved-only-in-adapter";
     const runtime = await buildProviderRuntime(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -12,6 +13,34 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+
+
+MIT_LICENSE_NOTICE = '''MIT License
+
+Copyright (c) 2025 Mario Zechner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.'''
+
+WORKSTATION_PATH = re.compile(
+    r"(?i:[A-Za-z]:[\\/](?:Users|home|new branch)[\\/])"
+    r"|(?<![A-Za-z0-9_])/(?:home|Users)/[^/\s]+/"
+)
 
 
 def main() -> int:
@@ -38,6 +67,9 @@ def main() -> int:
                 blockers.append("METADATA 缺少 Production/Stable classifier")
         if worker_name not in names:
             blockers.append("缺少内置 Node worker")
+        else:
+            blockers.extend(check_worker_bundle(archive.read(worker_name).decode("utf-8")))
+        blockers.extend(check_linux_sandbox_assets(archive))
         if error_contract_name not in names:
             blockers.append("缺少 Python Error Contract")
         else:
@@ -50,14 +82,10 @@ def main() -> int:
         if bad_entries:
             blockers.append(f"包含不应发布的文件：{', '.join(bad_entries)}")
 
-        workstation_path = re.compile(
-            r"(?:[A-Za-z]:[\\/](?:Users|home|new branch)[\\/]|/(?:home|Users)/[^/\s]+/)",
-            re.I,
-        )
         for name in names:
             if name.endswith((".md", ".mjs", ".py", "METADATA")):
                 text = archive.read(name).decode("utf-8", errors="strict")
-                if workstation_path.search(text):
+                if WORKSTATION_PATH.search(text):
                     blockers.append(f"{name} 包含本机绝对路径")
 
     if blockers:
@@ -65,6 +93,80 @@ def main() -> int:
     print(f"wheel 预检通过：{wheel.name}，{len(names)} 个条目")
     smoke_install(wheel)
     return 0
+
+
+def check_worker_bundle(bundle: str) -> list[str]:
+    blockers: list[str] = []
+    if " ".join(MIT_LICENSE_NOTICE.split()) not in " ".join(bundle.split()):
+        blockers.append("内置 Worker 缺少必要的完整版权许可")
+    removed_backend = re.compile(
+        r"node_modules[\\/](?:node-forge[\\/]|@anthropic-ai[\\/]sandbox-runtime[\\/]dist[\\/]sandbox[\\/]"
+        r"(?:mitm-(?:ca|leaf)|(?:tls-terminate|http|socks|parent|mux)-proxy)\.js)",
+        re.I,
+    )
+    if removed_backend.search(bundle):
+        blockers.append("内置 Worker 仍包含已移除的加密或流量拦截后端")
+    return blockers
+
+
+def check_linux_sandbox_assets(archive: zipfile.ZipFile) -> list[str]:
+    prefix = "coremind/_worker/vendor/linux-sandbox/"
+    names = set(archive.namelist())
+    try:
+        manifest = json.loads(archive.read(prefix + "manifest.json").decode("utf-8"))
+    except (KeyError, UnicodeDecodeError, json.JSONDecodeError):
+        return ["Linux 安全后端缺少有效 manifest.json"]
+
+    artifacts = {"backend.mjs", "LICENSE", "metafile.json", "bin/x64/apply-seccomp", "bin/arm64/apply-seccomp"}
+    if (
+        not isinstance(manifest, dict)
+        or type(manifest.get("schemaVersion")) is not int
+        or manifest["schemaVersion"] != 1
+    ):
+        return ["Linux 安全后端 manifest 格式无效"]
+    source = manifest.get("source")
+    build = manifest.get("build")
+    hashes = manifest.get("artifacts")
+    if (
+        not isinstance(source, dict)
+        or not all(isinstance(source.get(key), str) and source[key] for key in ("package", "version", "license"))
+        or not isinstance(source.get("files"), dict)
+        or not source["files"]
+        or not all(isinstance(key, str) and key and valid_sha256(value) for key, value in source["files"].items())
+        or not isinstance(build, dict)
+        or not all(isinstance(build.get(key), str) and build[key] for key in ("esbuild", "entry"))
+        or build.get("network") != "denied"
+        or build.get("proxies") is not False
+        or not isinstance(hashes, dict)
+        or set(hashes) != artifacts
+        or not all(valid_sha256(value) for value in hashes.values())
+    ):
+        return ["Linux 安全后端 manifest 来源、构建边界或资产摘要格式无效"]
+
+    blockers: list[str] = []
+    if prefix + "backend.d.mts" not in names:
+        blockers.append("Linux 安全后端缺少 backend.d.mts")
+    for relative in sorted(artifacts):
+        name = prefix + relative
+        if name not in names:
+            blockers.append(f"Linux 安全后端缺少资产：{relative}")
+            continue
+        content = archive.read(name)
+        if hashlib.sha256(content).hexdigest() != hashes[relative]:
+            blockers.append(f"Linux 安全后端资产摘要不匹配：{relative}")
+        if relative.startswith("bin/"):
+            machine = 62 if relative == "bin/x64/apply-seccomp" else 183
+            if (
+                len(content) < 64
+                or content[:6] != b"\x7fELF\x02\x01"
+                or int.from_bytes(content[18:20], "little") != machine
+            ):
+                blockers.append(f"Linux 安全后端 helper 架构无效：{relative}")
+    return blockers
+
+
+def valid_sha256(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
 
 def resolve_wheel(argument: Path | None) -> Path:

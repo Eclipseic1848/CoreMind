@@ -1985,10 +1985,10 @@ export declare interface LifecycleExtensionReceipt {
 
 export declare type LifecycleExtensionReceiptStatus = "succeeded" | "failed" | "timed_out";
 
-/** 锁定 pi-ai 版本提供的完整静态 Provider 清单。 */
+/** 锁定运行目录提供的完整静态 Provider 清单。 */
 export declare function listInheritedProviders(): string[];
 
-/** CoreMind 可直接配置的完整 Provider 清单，包括继承入口与原生认证入口。 */
+/** CoreMind 可直接配置的聊天 Provider 清单，包括内置目录、原生入口与兼容别名。 */
 export declare function listSupportedProviders(): string[];
 
 export declare function loadEvaluationSuite(file: string): Promise<EvaluationSuite>;

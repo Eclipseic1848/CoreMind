@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,11 +21,16 @@ await build({
   format: "esm",
   target: "node22",
   sourcemap: false,
-  legalComments: "none",
+  legalComments: "inline",
   banner: {
     js: 'import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);',
   },
 });
+execFileSync(
+  process.execPath,
+  [path.join(repositoryRoot, "scripts", "build-linux-sandbox-backend.mjs"), "--python-assets"],
+  { cwd: repositoryRoot, stdio: "inherit" },
+);
 
 // 第三方内联文本可能保留空白行缩进；发布前统一清理，保证 Git 格式门禁可重复通过。
 const workerBundle = await readFile(workerOutput, "utf8");

@@ -1,12 +1,12 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { JsonlSessionRepo } from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
 import { createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { describe, expect, it } from "vitest";
 import { CoreMindSession, migrateLegacySession } from "./session.js";
+import { SessionFileSystem } from "./session-v4/file-system.js";
+import { JsonlSessionRepo } from "./session-v4/index.js";
 
 function makeDir(): string {
   return mkdtempSync(path.join(tmpdir(), "coremind-session-"));
@@ -145,7 +145,7 @@ describe("CoreMindSession（二期会话树存储）", () => {
     const sessionId = "legacy-crash";
     const file = writeLegacySession(dir, sessionId, [legacyMessage("old-1", null, "保留我")]);
     const original = readFileSync(file, "utf8");
-    const env = new NodeExecutionEnv({ cwd });
+    const env = new SessionFileSystem({ cwd });
     const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: dir });
 
     await expect(

@@ -38,8 +38,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "0.84.1",
-    "@earendil-works/pi-ai": "0.84.1",
+    "@earendil-works/pi-agent-core": "1.2.0",
+    "@earendil-works/pi-ai": "1.2.0",
     "ajv": "8.18.0",
     "coremind-config": "1.0.1",
     "coremind-protocol": "1.0.1",

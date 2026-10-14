@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { type AgentMessage, estimateTokens } from "@earendil-works/pi-agent-core";
 import type { CoreMindMessage } from "./public-message.js";
+import { type AgentMessage, estimateTokens } from "./session-v4/index.js";
 
 export interface ContextProtectionOptions {
   contextWindow: number;

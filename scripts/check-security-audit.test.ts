@@ -6,16 +6,35 @@ vi.mock("node:child_process", () => ({ spawnSync: vi.fn() }));
 vi.mock("node:fs/promises", () => ({ readFile: vi.fn() }));
 
 const allowed = {
-  vite: { maximumSeverity: "high" },
-  vitepress: { maximumSeverity: "moderate" },
-  esbuild: { maximumSeverity: "moderate" },
+  vite: {
+    maximumSeverity: "high",
+    versions: ["1.0.0"],
+    advisories: ["https://github.com/advisories/GHSA-reviewed-vite"],
+  },
+  vitepress: {
+    maximumSeverity: "moderate",
+    versions: ["1.0.0"],
+    advisories: ["https://github.com/advisories/GHSA-reviewed-vitepress"],
+  },
+  esbuild: {
+    maximumSeverity: "moderate",
+    versions: ["1.0.0"],
+    advisories: ["https://github.com/advisories/GHSA-reviewed-esbuild"],
+  },
 };
 
 function report(findings: Record<string, string> = {}) {
   return {
     auditReportVersion: 2,
     vulnerabilities: Object.fromEntries(
-      Object.entries(findings).map(([name, severity]) => [name, { severity }]),
+      Object.entries(findings).map(([name, severity]) => [
+        name,
+        {
+          severity,
+          nodes: [`node_modules/${name}`],
+          via: [{ url: `https://github.com/advisories/GHSA-reviewed-${name}` }],
+        },
+      ]),
     ),
     metadata: { vulnerabilities: { total: Object.keys(findings).length } },
   };
@@ -43,7 +62,14 @@ beforeEach(() => {
     .mockResolvedValueOnce(
       JSON.stringify({ expiresAt: "2999-09-30", allowedDevelopmentOnlyPackages: allowed }),
     )
-    .mockResolvedValueOnce(JSON.stringify({ scripts: {} }));
+    .mockResolvedValueOnce(JSON.stringify({ scripts: {} }))
+    .mockResolvedValueOnce(
+      JSON.stringify({
+        packages: Object.fromEntries(
+          Object.keys(allowed).map((name) => [`node_modules/${name}`, { version: "1.0.0" }]),
+        ),
+      }),
+    );
   vi.mocked(spawnSync).mockReset().mockReturnValue(result());
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -97,6 +123,28 @@ describe("安全审计结果边界", () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("network timeout"));
   });
 
+  it.each(["version", "advisory", "missing-source"])(
+    "拒绝已登记包的未审查变化：%s",
+    async (change) => {
+      const changed = report({ vite: "high" });
+      if (change === "version")
+        changed.vulnerabilities.vite.nodes = ["node_modules/unreviewed-vite"];
+      if (change === "advisory")
+        changed.vulnerabilities.vite.via = [{ url: "https://github.com/advisories/GHSA-new-risk" }];
+      if (change === "missing-source") changed.vulnerabilities.vite.via = [];
+      vi.mocked(spawnSync).mockReturnValueOnce(result()).mockReturnValueOnce(result(changed, 1));
+      await expect(check()).rejects.toThrow("audit rejected");
+    },
+  );
+
+  it("递归核对传递风险公告，不能只凭外层包名放行", async () => {
+    const transitive = report({ vite: "high", esbuild: "moderate" });
+    Object.assign(transitive.vulnerabilities.vite, { via: ["esbuild"] });
+    vi.mocked(spawnSync).mockReturnValueOnce(result()).mockReturnValueOnce(result(transitive, 1));
+    await expect(check()).rejects.toThrow("audit rejected");
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("未审查的安全公告"));
+  });
+
   it.each([
     null,
     {},
@@ -119,6 +167,8 @@ describe("安全审计结果边界", () => {
   it("继续拒绝过期策略和开发服务器入口", async () => {
     for (const [expiresAt, scripts] of [
       ["2000-01-01", {}],
+      ["not-a-date", {}],
+      ["2999-02-30", {}],
       ["2999-09-30", { "docs:dev": "vitepress" }],
       ["2999-09-30", { "docs:preview": "vitepress" }],
     ] as const) {

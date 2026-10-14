@@ -1,19 +1,103 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-08",
-  "expiresAt": "2026-09-30",
+  "reviewedAt": "2026-10-14",
+  "expiresAt": "2026-11-14",
   "allowedDevelopmentOnlyPackages": {
+    "@anthropic-ai/sandbox-runtime": {
+      "maximumSeverity": "high",
+      "versions": [
+        "0.0.71"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-86w9-cpqp-85rv"
+      ],
+      "reason": "仅作为固定 Linux 后端再生成的开发源；构建只解析低层模块，不执行根入口、证书或代理。scripts/build-linux-sandbox-backend.mjs 的受检闭包与生产制品排除 node-forge。"
+    },
+    "node-forge": {
+      "maximumSeverity": "high",
+      "versions": [
+        "1.4.0"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-86w9-cpqp-85rv"
+      ],
+      "reason": "仅由构建源包传递引入开发树，不加载其证书/RSA功能；现无正式修复。生产审计、私有构建依赖图和 Worker 制品回归共同阻止重新引入。"
+    },
+    "@microsoft/api-extractor": {
+      "maximumSeverity": "moderate",
+      "versions": [
+        "7.58.12"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+      ],
+      "reason": "scripts/phase2-baseline.mjs 仅使用 Extractor.invoke 程序 API 离线采集类型基线，不运行 CLI，不接收外部格式字符串；不进入消费者生产依赖。"
+    },
+    "@rushstack/ts-command-line": {
+      "maximumSeverity": "moderate",
+      "versions": [
+        "5.3.12"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+      ],
+      "reason": "仅为 API 基线工具的开发传递依赖，当前不运行 CLI/help 路径；帮助字符串另经 escapeSprintf 转义。新增 CLI 或外部 help 输入须重审。"
+    },
+    "argparse": {
+      "maximumSeverity": "moderate",
+      "versions": [
+        "1.0.10"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+      ],
+      "reason": "仅为 API 基线工具的开发传递依赖；格式化入口属于未使用的 CLI 帮助路径，不传入外部格式字符串。"
+    },
+    "sprintf-js": {
+      "maximumSeverity": "moderate",
+      "versions": [
+        "1.0.3"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
+      ],
+      "reason": "格式精度异常可导致拒绝服务，现无正式修复；当前仅开发 CLI 链持有，不使用其格式化入口或外部格式字符串，不进入生产安装。"
+    },
     "vite": {
       "maximumSeverity": "high",
-      "reason": "仅由静态文档构建工具使用；仓库不提供或启动开发服务器命令。"
+      "versions": [
+        "5.4.21"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
+        "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+        "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+        "https://github.com/advisories/GHSA-v6wh-96g9-6wx3"
+      ],
+      "reason": "仅由 VitePress 1 静态构建使用；package.json 和文档工作流只运行 build，Pages 仅部署静态产物，不启动 dev/preview/editor middleware。localhost 不能作为安全边界；新增服务器或监听插件须重审。"
     },
     "vitepress": {
       "maximumSeverity": "moderate",
-      "reason": "稳定版本暂无修复版；仅在 CI 和本地执行静态构建。"
+      "versions": [
+        "1.6.4"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
+        "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+        "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+        "https://github.com/advisories/GHSA-v6wh-96g9-6wx3"
+      ],
+      "reason": "当前稳定系列的传递开发服务器风险；仅构建预渲染文档，禁止 dev/preview，没有服务端进程或本地文件 HTTP 入口。强制跨主版本覆盖不属于兼容修复。"
     },
     "esbuild": {
       "maximumSeverity": "moderate",
-      "reason": "仅是文档工具的传递开发依赖，不启动其开发服务器。"
+      "versions": [
+        "0.21.5"
+      ],
+      "advisories": [
+        "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
+      ],
+      "reason": "仅 VitePress 内部开发依赖受影响；静态文档调用 build/transform，不调用 serve。根构建器 0.28.1 不受该公告影响。"
     }
   }
 }

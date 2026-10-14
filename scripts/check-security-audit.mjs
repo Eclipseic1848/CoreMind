@@ -9,7 +9,16 @@ const policy = JSON.parse(
 );
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 
-if (Date.parse(`${policy.expiresAt}T23:59:59Z`) < Date.now()) {
+const expiry = Date.parse(`${policy.expiresAt}T23:59:59Z`);
+if (
+  typeof policy.expiresAt !== "string" ||
+  !/^\d{4}-\d{2}-\d{2}$/.test(policy.expiresAt) ||
+  !Number.isFinite(expiry) ||
+  new Date(expiry).toISOString().slice(0, 10) !== policy.expiresAt
+) {
+  fail("开发依赖风险处置缺少有效的到期日");
+}
+if (expiry < Date.now()) {
   fail(`开发依赖风险处置已过期：${policy.expiresAt}`);
 }
 
@@ -20,7 +29,7 @@ for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
 }
 
 const severityOrder = ["info", "low", "moderate", "high", "critical"];
-const production = runAudit(["audit", "--omit=dev", "--json"]);
+const production = runAudit(["audit", "--omit=dev", "--json"], true);
 const productionNames = Object.keys(production.vulnerabilities);
 if (productionNames.length > 0) {
   fail(`生产依赖存在漏洞：${productionNames.join("、")}`);
@@ -28,6 +37,7 @@ if (productionNames.length > 0) {
 
 const complete = runAudit(["audit", "--json"], true);
 const findings = complete.vulnerabilities;
+const lock = JSON.parse(await readFile(path.join(root, "package-lock.json"), "utf8"));
 const allowed = policy.allowedDevelopmentOnlyPackages ?? {};
 const findingNames = Object.keys(findings).sort();
 const unreviewedNames = findingNames.filter((name) => !Object.hasOwn(allowed, name));
@@ -36,9 +46,27 @@ if (unreviewedNames.length > 0) {
 }
 
 for (const [name, finding] of Object.entries(findings)) {
-  const maximum = allowed[name].maximumSeverity;
+  const disposition = allowed[name];
+  const maximum = disposition.maximumSeverity;
+  if (!severityOrder.includes(maximum)) fail(`${name} 缺少有效的审查风险上限`);
   if (severityOrder.indexOf(finding.severity) > severityOrder.indexOf(maximum)) {
     fail(`${name} 风险等级 ${finding.severity} 超出已审查上限 ${maximum}`);
+  }
+  if (
+    !Array.isArray(disposition.versions) ||
+    !Array.isArray(finding.nodes) ||
+    finding.nodes.length === 0 ||
+    finding.nodes.some((node) => !disposition.versions.includes(lock.packages?.[node]?.version))
+  ) {
+    fail(`${name} 安装版本不在已审查范围`);
+  }
+  const advisories = collectAdvisories(name);
+  if (
+    !Array.isArray(disposition.advisories) ||
+    advisories.size === 0 ||
+    [...advisories].some((url) => !disposition.advisories.includes(url))
+  ) {
+    fail(`${name} 存在未审查的安全公告`);
   }
 }
 
@@ -78,6 +106,28 @@ function runAudit(arguments_, allowFailure = false) {
     fail(`npm audit 报告与退出状态不一致或风险等级无效：${result.stdout}`);
   }
   return report;
+}
+
+/** 传递风险按真实公告追溯，包名相同不能放行后来新增的公告。 */
+function collectAdvisories(name, visited = new Set()) {
+  if (visited.has(name)) return new Set();
+  visited.add(name);
+  const via = findings[name]?.via;
+  if (!Array.isArray(via) || via.length === 0) fail(`${name} 缺少可审查的安全公告来源`);
+  const urls = new Set();
+  for (const item of via) {
+    if (typeof item === "string") {
+      for (const url of collectAdvisories(item, visited)) urls.add(url);
+    } else if (
+      typeof item?.url === "string" &&
+      item.url.startsWith("https://github.com/advisories/GHSA-")
+    ) {
+      urls.add(item.url);
+    } else {
+      fail(`${name} 包含无法识别的安全公告来源`);
+    }
+  }
+  return urls;
 }
 
 function fail(message) {

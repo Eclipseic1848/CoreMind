@@ -8,7 +8,11 @@ import {
   type Models,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
-import { builtinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
+import {
+  builtinModels,
+  getBuiltinModels,
+  getBuiltinProviders,
+} from "@earendil-works/pi-ai/providers/all";
 import type { CustomProviderConfig, ProviderConfig } from "coremind-config";
 import type { ContextCapabilityCandidate } from "./context-lifecycle.js";
 import { CoreMindError } from "./errors.js";
@@ -88,15 +92,20 @@ export function providerSecurityErrorPath(error: CoreMindError): string | undefi
 
 const DEFAULT_PROVIDER = "deepseek";
 const CORE_MIND_PROVIDER_IDS = ["alibaba-model-studio"] as const;
+const BUILTIN_PROVIDER_ALIASES = new Map([["azure-openai-responses", "azure"]]);
 
-/** 锁定 pi-ai 版本提供的完整静态 Provider 清单。 */
+/** 锁定运行目录提供的完整静态 Provider 清单。 */
 export function listInheritedProviders(): string[] {
   return [...getBuiltinProviders()];
 }
 
-/** CoreMind 可直接配置的完整 Provider 清单，包括继承入口与原生认证入口。 */
+/** CoreMind 可直接配置的聊天 Provider 清单，包括内置目录、原生入口与兼容别名。 */
 export function listSupportedProviders(): string[] {
-  return [...listInheritedProviders(), ...CORE_MIND_PROVIDER_IDS];
+  return [
+    ...getBuiltinProviders().filter((id) => getBuiltinModels(id).length > 0),
+    ...CORE_MIND_PROVIDER_IDS,
+    ...BUILTIN_PROVIDER_ALIASES.keys(),
+  ];
 }
 
 /** 构建运行时：注册 provider 并解析模型 */
@@ -152,10 +161,11 @@ async function buildBuiltinRuntime(
   env: NodeJS.ProcessEnv,
   resolvedApiKey?: string,
 ): Promise<ProviderRuntime> {
+  const providerId = BUILTIN_PROVIDER_ALIASES.get(cfg.id) ?? cfg.id;
   const models = builtinModels({
     authContext: isolatedAuthContext(env, cfg.apiKeyEnv, cfg.apiKeySecretRef !== undefined),
   });
-  const provider = models.getProvider(cfg.id);
+  const provider = models.getProvider(providerId);
   if (!provider) {
     throw new CoreMindError(
       "unknown_provider",
@@ -163,14 +173,15 @@ async function buildBuiltinRuntime(
     );
   }
 
-  const catalog = models.getModels(cfg.id);
+  const catalog = models.getModels(providerId);
   const fallback = catalog[0];
   if (!fallback) {
     throw new CoreMindError("no_models", `提供商 ${cfg.id} 没有可用的模型目录`);
   }
 
   let model = fallback;
-  const warnings: string[] = [];
+  const warnings: string[] =
+    providerId === cfg.id ? [] : [`内置提供商 ${cfg.id} 使用兼容入口，实际路由为 ${providerId}`];
   if (cfg.model) {
     const matched = catalog.find((m) => m.id === cfg.model);
     if (matched) {

@@ -4,13 +4,13 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { AgentMessage, CompactionEntry } from "@earendil-works/pi-agent-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildStableContextPrefix } from "./context.js";
 import type { CoreMindEvent } from "./events.js";
 import { type RequestMessage, rebuildRunRequest } from "./rebuild-request.js";
 import { CoreMindRuntime } from "./runtime.js";
 import { CoreMindSession } from "./session.js";
+import type { AgentMessage, CompactionEntry } from "./session-v4/index.js";
 
 /**
  * 请求重建验收套件（Issue #39 / 规格 04 门 A-1）：

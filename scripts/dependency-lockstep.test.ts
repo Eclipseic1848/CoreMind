@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const LOCKSTEP_VERSION = "0.84.1";
+const LOCKSTEP_VERSION = "1.2.0";
 const dependencyNames = [
   "@earendil-works/pi-agent-core",
   "@earendil-works/pi-ai",

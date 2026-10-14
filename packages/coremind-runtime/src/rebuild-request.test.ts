@@ -1,6 +1,15 @@
-import type { AgentMessage, CompactionEntry, Entry } from "@earendil-works/pi-agent-core";
+import { createModels } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { describe, expect, it } from "vitest";
+import { buildAgentDriver } from "./agent-factory.js";
+import { buildStableContextPrefix } from "./context.js";
 import { rebuildRunRequest } from "./rebuild-request.js";
+import {
+  type AgentMessage,
+  type CompactionEntry,
+  createCompactionSummaryMessage,
+  type Entry,
+} from "./session-v4/index.js";
 
 describe("rebuildRunRequest", () => {
   it("把稳定前缀作为 system，历史与压缩应用后的消息按序重建，末尾最终回复剔除", () => {
@@ -113,6 +122,71 @@ describe("rebuildRunRequest", () => {
     expect(rebuilt.map((message) => message.role)).toEqual(["system", "user", "user", "user"]);
     expect(rebuilt[1]).toMatchObject({ role: "user", content: "本地摘要" });
     expect(rebuilt.at(-1)).toMatchObject({ role: "user", content: "本轮提问" });
+  });
+
+  it("无 details 的历史压缩重建与真实模型请求一致，且不改写会话条目", async () => {
+    const compaction: CompactionEntry = {
+      type: "compaction",
+      id: "legacy-compaction",
+      seq: 2,
+      parentId: "m1",
+      timestamp: 10,
+      summary: "必须保留的历史结论",
+      tokensBefore: 900,
+      retainedTail: [user("保留的问题")],
+    };
+    const history = [
+      createCompactionSummaryMessage(
+        compaction.summary,
+        compaction.tokensBefore,
+        compaction.timestamp,
+      ),
+      ...compaction.retainedTail,
+    ];
+    const originalHistory = structuredClone(history);
+    const models = createModels();
+    const faux = fauxProvider();
+    models.setProvider(faux.provider);
+    faux.setResponses([fauxAssistantMessage("本轮回复")]);
+    const requests: Array<Parameters<typeof models.streamSimple>[1]> = [];
+    const stream = models.streamSimple.bind(models);
+    models.streamSimple = (model, context, options) => {
+      requests.push(structuredClone(context));
+      return stream(model, context, options);
+    };
+    const projectInstructions = "历史摘要恢复";
+    const driver = buildAgentDriver(
+      { systemPrompt: projectInstructions },
+      {
+        models,
+        model: faux.getModel(),
+        tools: [],
+        agentName: "main",
+        onEvent: () => {},
+        sessionMessages: history,
+      },
+    );
+    await driver.prompt("继续");
+    await driver.waitForIdle();
+    expect(requests).toHaveLength(1);
+    const request = requests[0]!;
+    const entries = [
+      messageEntry("m1", null, user("已压缩的旧输入"), 1),
+      compaction,
+      messageEntry("m3", compaction.id, request.messages.at(-1)!, 3),
+      messageEntry("m4", "m3", assistant("本轮回复"), 4),
+    ];
+    const originalEntries = structuredClone(entries);
+    const rebuilt = rebuildRunRequest({
+      entries,
+      compactions: [compaction],
+      stablePrefix: buildStableContextPrefix({ projectInstructions, tools: [] }),
+    });
+    expect(entries).toEqual(originalEntries);
+    expect(history).toEqual(originalHistory);
+    expect(driver.messages()[0]).toEqual(originalHistory[0]);
+    expect(rebuilt.filter((message) => message.role === "system")).toHaveLength(1);
+    expect(rebuilt).toEqual(request.messages);
   });
 
   it("压缩后的后续轮次消息由本轮拼接补回（规格 §2.1 三项公式）", () => {
