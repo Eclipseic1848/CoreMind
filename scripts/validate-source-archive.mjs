@@ -8,6 +8,13 @@ import { unzipSync } from "fflate";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+export function containsWorkstationPath(text) {
+  return (
+    /[A-Za-z]:[\\/](?:Users|home|new branch)[\\/]/i.test(text) ||
+    /(?<![A-Za-z0-9_])\/(?:home|Users)\/[^/\s]+\//.test(text)
+  );
+}
+
 export function evaluateSourceArchiveEntries(entries) {
   const blockers = [];
   for (const entry of entries) {
@@ -149,8 +156,6 @@ function readArchiveArgument() {
 }
 
 async function rejectWorkstationPaths(root) {
-  const workstationPath =
-    /(?:[A-Za-z]:[\\/](?:Users|home|new branch)[\\/]|\/(?:home|Users)\/[^/\s]+\/)/i;
   const extensions = new Set([
     ".md",
     ".mjs",
@@ -175,7 +180,7 @@ async function rejectWorkstationPaths(root) {
       }
       if (!extensions.has(path.extname(entry.name).toLowerCase())) continue;
       const content = await readFile(fullPath, "utf8");
-      if (workstationPath.test(content)) {
+      if (containsWorkstationPath(content)) {
         throw new Error(`${path.relative(root, fullPath)} 包含本机绝对路径`);
       }
     }

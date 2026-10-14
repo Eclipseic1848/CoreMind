@@ -45,6 +45,7 @@
     "test:coverage": "vitest run --maxWorkers=1 --coverage --project=!phase2-baseline && node scripts/check-coverage.mjs",
     "test:coding-evals": "vitest run --project coding-evals",
     "eval:coding-real": "node scripts/run-coding-evals.mjs",
+    "eval:paired": "node scripts/run-paired-evaluation.mjs",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check": "biome check . && npm run typecheck && npm run check:modules && npm run check:docs && npm run docs:audit",

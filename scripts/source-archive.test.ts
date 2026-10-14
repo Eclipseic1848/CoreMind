@@ -1,12 +1,36 @@
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import {
+  containsWorkstationPath,
   decodeSourceArchive,
   evaluateSourceArchiveEntries,
   extractSourceArchive,
 } from "./validate-source-archive.mjs";
 
 describe("源码 ZIP 内容门禁", () => {
+  it("拒绝真实 Windows、Unix 和 file URL 本机路径", () => {
+    // 运行时拼接反例，避免源码自身包含待拒绝的本机路径。
+    for (const value of [
+      ["C:", "Users", "runner", "bundle.mjs"].join("\\"),
+      ["c:", "users", "runner", "bundle.mjs"].join("/"),
+      ["F:", "new branch", "example", "bundle.mjs"].join("/"),
+      ["", "home", "runner", "bundle.mjs"].join("/"),
+      `file://${["", "Users", "runner", "bundle.mjs"].join("/")}`,
+    ]) {
+      expect(containsWorkstationPath(value), value).toBe(true);
+    }
+  });
+
+  it("允许现有 API 用户路由", () => {
+    for (const value of [
+      `/projects/\${project_id}/users/\${userID}/roles`,
+      `/organization/users/\${userID}/roles`,
+      "/api/Users/account/roles",
+    ]) {
+      expect(containsWorkstationPath(value), value).toBe(false);
+    }
+  });
+
   it("允许公开源码、测试和环境变量示例", () => {
     const result = evaluateSourceArchiveEntries([
       "coremind-source/package.json",
