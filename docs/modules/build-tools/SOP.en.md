@@ -18,6 +18,10 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 10. Run the listed module tests and `npm run check:modules`.
 11. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
+## Additional acceptance for local MCP
+
+Confirm the program, directory, arguments, and environment references using the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools). Run static diagnostics with zero startup, then verify denial and approval independently for connection, listing, and business execution. Check full schema, approval identity, blocked secrets, unknown effects, and actual process cleanup. Preserve the constrained-project quality gate without a trusted-host exemption.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

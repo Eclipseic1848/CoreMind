@@ -113,6 +113,9 @@ export async function buildToolsWithExecutionEnvironment(
   const artifactStore = opts.artifactStore ?? new ArtifactStore({ cwd: opts.cwd });
 
   for (const cfg of configs) {
+    if ("mcp" in cfg) {
+      throw new Error("MCP 工具必须在 Run 内完成授权与目录准备，不能通过静态注册表构造");
+    }
     if ("path" in cfg) {
       try {
         const tool = await loadScriptTool(cfg, opts.configDir);

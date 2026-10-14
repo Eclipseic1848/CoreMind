@@ -30,6 +30,24 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+}>, TObject<    {
+mcp: TObject<    {
+server: TString;
+tool: TString;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "external">[]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<TLiteral<"none" | "workspace" | "process" | "network" | "external" | "unknown">[]>;
+replay: TUnion<TLiteral<"unknown" | "safe" | "idempotent" | "unsafe">[]>;
+concurrency: TUnion<TLiteral<"parallel" | "run_serial" | "workspace_exclusive">[]>;
+checkpoint: TUnion<TLiteral<"none" | "required" | "unsupported">[]>;
+durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
+}>;
 }>]>>>;
 options: TOptional<TObject<    {
 temperature: TOptional<TNumber>;
@@ -172,7 +190,39 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+}>, TObject<    {
+mcp: TObject<    {
+server: TString;
+tool: TString;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "external">[]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<TLiteral<"none" | "workspace" | "process" | "network" | "external" | "unknown">[]>;
+replay: TUnion<TLiteral<"unknown" | "safe" | "idempotent" | "unsafe">[]>;
+concurrency: TUnion<TLiteral<"parallel" | "run_serial" | "workspace_exclusive">[]>;
+checkpoint: TUnion<TLiteral<"none" | "required" | "unsupported">[]>;
+durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
+}>;
 }>]>>>;
+mcp: TOptional<TObject<    {
+servers: TRecord<TString, TObject<    {
+transport: TLiteral<"stdio">;
+command: TString;
+args: TArray<TString>;
+cwd: TString;
+env: TOptional<TRecord<TString, TUnion<[TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>>;
+}>>;
 options: TOptional<TObject<    {
 temperature: TOptional<TNumber>;
 maxTokens: TOptional<TInteger>;
@@ -192,6 +242,24 @@ operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "e
 reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
+}>;
+}>, TObject<    {
+mcp: TObject<    {
+server: TString;
+tool: TString;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "external">[]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<TLiteral<"none" | "workspace" | "process" | "network" | "external" | "unknown">[]>;
+replay: TUnion<TLiteral<"unknown" | "safe" | "idempotent" | "unsafe">[]>;
+concurrency: TUnion<TLiteral<"parallel" | "run_serial" | "workspace_exclusive">[]>;
+checkpoint: TUnion<TLiteral<"none" | "required" | "unsupported">[]>;
+durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
 }>;
 }>]>>>;
 options: TOptional<TObject<    {
@@ -485,6 +553,62 @@ mode: TLiteral<"host">;
 timeoutMs: TOptional<TInteger>;
 }>]>;
 
+export declare type McpConfig = Static<typeof McpConfigSchema>;
+
+export declare const McpConfigSchema: TObject<    {
+servers: TRecord<TString, TObject<    {
+transport: TLiteral<"stdio">;
+command: TString;
+args: TArray<TString>;
+cwd: TString;
+env: TOptional<TRecord<TString, TUnion<[TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>>;
+}>;
+
+export declare type McpStdioServerConfig = Static<typeof McpStdioServerConfigSchema>;
+
+/** 本地服务只使用固定 stdio 命令；凭据值由宿主在授权后解析。 */
+export declare const McpStdioServerConfigSchema: TObject<    {
+transport: TLiteral<"stdio">;
+command: TString;
+args: TArray<TString>;
+cwd: TString;
+env: TOptional<TRecord<TString, TUnion<[TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>;
+
+export declare type McpToolConfig = Static<typeof McpToolSchema>;
+
+/** MCP 工具不能从服务注解或旧 effect 声明推断完整能力。 */
+export declare const McpToolSchema: TObject<    {
+mcp: TObject<    {
+server: TString;
+tool: TString;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "external">[]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<TLiteral<"none" | "workspace" | "process" | "network" | "external" | "unknown">[]>;
+replay: TUnion<TLiteral<"unknown" | "safe" | "idempotent" | "unsafe">[]>;
+concurrency: TUnion<TLiteral<"parallel" | "run_serial" | "workspace_exclusive">[]>;
+checkpoint: TUnion<TLiteral<"none" | "required" | "unsupported">[]>;
+durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
+}>;
+}>;
+
 export declare type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;
 
 /** 模型选项（temperature / maxTokens / thinkingLevel） */
@@ -665,7 +789,7 @@ export declare type ToolCapabilityReplay = (typeof TOOL_CAPABILITY_REPLAYS)[numb
 
 export declare type ToolConfig = Static<typeof ToolConfigSchema>;
 
-/** 单个工具配置：内置引用或脚本工具 */
+/** 单个工具配置：内置引用、脚本工具或显式 MCP 引用。 */
 export declare const ToolConfigSchema: TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
@@ -677,6 +801,24 @@ operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "e
 reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
+}>;
+}>, TObject<    {
+mcp: TObject<    {
+server: TString;
+tool: TString;
+}>;
+effect: TObject<    {
+operations: TArray<TUnion<TLiteral<"read" | "write" | "process" | "network" | "external">[]>>;
+reversible: TBoolean;
+pathFields: TOptional<TArray<TString>>;
+urlFields: TOptional<TArray<TString>>;
+}>;
+capability: TObject<    {
+effect: TUnion<TLiteral<"none" | "workspace" | "process" | "network" | "external" | "unknown">[]>;
+replay: TUnion<TLiteral<"unknown" | "safe" | "idempotent" | "unsafe">[]>;
+concurrency: TUnion<TLiteral<"parallel" | "run_serial" | "workspace_exclusive">[]>;
+checkpoint: TUnion<TLiteral<"none" | "required" | "unsupported">[]>;
+durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
 }>;
 }>]>;
 

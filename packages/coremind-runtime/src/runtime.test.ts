@@ -775,6 +775,59 @@ describe("CoreMindRuntime", () => {
         code: "child_run_policy_escalation",
       });
 
+      const mcpMarker = path.join(dir, "child-mcp-started");
+      const mcp = {
+        servers: {
+          local: {
+            transport: "stdio" as const,
+            command: process.execPath,
+            args: [
+              "-e",
+              "require('node:fs').writeFileSync(process.argv[1], 'started', 'utf8')",
+              mcpMarker,
+            ],
+            cwd: dir,
+          },
+        },
+      };
+      const mcpTool = {
+        mcp: { server: "local", tool: "echo" },
+        effect: { operations: ["external" as const], reversible: false },
+        capability: {
+          effect: "external" as const,
+          replay: "unknown" as const,
+          concurrency: "run_serial" as const,
+          checkpoint: "unsupported" as const,
+          durability: "critical" as const,
+        },
+      };
+      for (const scope of ["global", "agent", "unselected"] as const) {
+        const mcpAdapter = createCoreMindChildRunAdapter({
+          createRuntime: (authority) =>
+            CoreMindRuntime.create({
+              config: {
+                ...config,
+                mcp,
+                ...(scope === "global" ? { tools: [mcpTool] } : {}),
+                ...(scope === "agent"
+                  ? { agents: { main: { ...config.agents.main, tools: [mcpTool] } } }
+                  : {}),
+              },
+              configDir: dir,
+              cwd: dir,
+              initialPrompt: authority.request.task,
+              runId: authority.childRunId,
+              runStore: store,
+              signal: authority.signal,
+              childRunAuthority: authority,
+            }),
+        });
+        await expect(mcpAdapter.execute(input)).rejects.toMatchObject({
+          code: "child_run_policy_escalation",
+        });
+        expect(existsSync(mcpMarker)).toBe(false);
+      }
+
       const workflowBypassAdapter = createCoreMindChildRunAdapter({
         createRuntime: (authority) =>
           CoreMindRuntime.create({

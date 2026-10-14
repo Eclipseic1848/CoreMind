@@ -20,6 +20,14 @@ const lookupOrder = defineTool({
 
 Use a business-specific tool name rather than a reserved built-in name such as `read`, `write`, or `bash`. SDK definitions and script registration reject collisions before execution.
 
+## Local MCP services
+
+Use the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools) to declare audited programs and exact per-agent raw tool references. CLI, TypeScript, and Python share the Node Runtime; Python does not create a second MCP client. Do not inject a remote catalog through global SDK `toolDefinitions`.
+
+Run `coremind doctor coremind.yaml` for static diagnostics, then execute only with explicit `workspaceOnly: false` and `network: allow`. `ask` approves connection, listing, and business calls separately; explicit deny always wins. The two preparation operations consume tool budget. Declare complete, truthful Effect/Capability metadata. Trusted host code is not sandboxed; the existing project quality gate still rejects an unbounded workspace, and Child Runs inherit no MCP authority.
+
+From the repository root run `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`. Verify zero corresponding I/O on denial, the first model schema, real process cleanup, blocked secret output, and no retry of unknown effects. Protocol errors and business `isError` remain distinct; retries cannot establish that an unproven write is safe.
+
 ## Coding-tool boundaries
 
 ```ts

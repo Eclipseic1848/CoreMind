@@ -9,6 +9,7 @@ import {
 } from "./agent.js";
 import { PermissionsConfigSchema, QualityConfigSchema, RuntimeLimitsSchema } from "./harness.js";
 import { type LoopConfig, LoopConfigSchema } from "./loop.js";
+import { McpConfigSchema } from "./mcp.js";
 import {
   type CustomProviderSchema,
   type EnvironmentValueRefSchema,
@@ -18,7 +19,12 @@ import {
   type SecretRefSchema,
 } from "./provider.js";
 import { TelemetryConfigSchema } from "./telemetry.js";
-import { type ScriptToolSchema, ToolConfigSchema, type ToolRefSchema } from "./tools.js";
+import {
+  type McpToolSchema,
+  type ScriptToolSchema,
+  ToolConfigSchema,
+  type ToolRefSchema,
+} from "./tools.js";
 import { WorkflowStepSchema } from "./workflow.js";
 
 /**
@@ -31,6 +37,7 @@ export const CoreMindConfigSchema = Type.Object({
   description: Type.Optional(Type.String()),
   provider: Type.Optional(ProviderSchema),
   tools: Type.Optional(Type.Array(ToolConfigSchema, { default: [], description: "全局默认工具" })),
+  mcp: Type.Optional(McpConfigSchema),
   options: Type.Optional(ModelOptionsSchema),
   agents: Type.Record(Type.String({ minLength: 1 }), AgentConfigSchema, {
     description: "多 agent 按名字定义",
@@ -62,6 +69,8 @@ export type ModelOptionsConfig = Static<typeof ModelOptionsSchema>;
 export type ToolConfig = Static<typeof ToolConfigSchema>;
 export type ToolRefConfig = Static<typeof ToolRefSchema>;
 export type ScriptToolConfig = Static<typeof ScriptToolSchema>;
+export type McpToolConfig = Static<typeof McpToolSchema>;
+export type { McpConfig, McpStdioServerConfig } from "./mcp.js";
 export type WorkflowStep = Static<typeof WorkflowStepSchema>;
 export type { LoopConfig };
 export type SessionConfig = Static<typeof SessionConfigSchema>;

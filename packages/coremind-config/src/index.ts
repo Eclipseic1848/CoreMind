@@ -17,6 +17,9 @@ export {
   type DelegationTargetConfig,
   type EnvironmentValueRef,
   type LoopConfig,
+  type McpConfig,
+  type McpStdioServerConfig,
+  type McpToolConfig,
   type ModelOptionsConfig,
   type ProviderConfig,
   type ProviderRefConfig,
@@ -42,6 +45,7 @@ export {
   type LoopVerificationConfig,
   LoopVerificationSchema,
 } from "./schema/loop.js";
+export { McpConfigSchema, McpStdioServerConfigSchema } from "./schema/mcp.js";
 export {
   EnvironmentValueRefSchema,
   HeaderValueSchema,
@@ -61,6 +65,7 @@ export {
   BUILTIN_TOOL_EFFECTS,
   BUILTIN_TOOL_IDS,
   type BuiltinToolId,
+  McpToolSchema,
   ScriptToolSchema,
   TOOL_CAPABILITY_CHECKPOINTS,
   TOOL_CAPABILITY_CONCURRENCY,

@@ -36,4 +36,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-coremind = ["py.typed", "_error_contract.json", "_worker/*.mjs", "_worker/manifest.json", "_worker/vendor/linux-sandbox/*", "_worker/vendor/linux-sandbox/bin/*/apply-seccomp", "skills/*/README.md", "skills/*/SKILL.md"]
+coremind = ["py.typed", "_error_contract.json", "_worker/*.mjs", "_worker/manifest.json", "_worker/vendor/linux-sandbox/*", "_worker/vendor/linux-sandbox/bin/*/apply-seccomp", "_worker/vendor/mcp/*", "skills/*/README.md", "skills/*/SKILL.md"]

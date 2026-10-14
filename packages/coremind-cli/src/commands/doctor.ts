@@ -56,6 +56,23 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
         ok: true,
         detail: result.warnings.length > 0 ? `${result.warnings.length} 条告警` : "校验通过",
       });
+      const selectedMcp = Object.values(result.config.agents).some((agent) =>
+        ((agent.tools?.length ?? 0) > 0 ? agent.tools! : (result.config.tools ?? [])).some(
+          (tool) => "mcp" in tool,
+        ),
+      );
+      if (selectedMcp) {
+        const supported =
+          result.config.permissions?.workspaceOnly === false &&
+          result.config.permissions?.network === "allow";
+        checks.push({
+          name: "本地 MCP 执行条件",
+          ok: supported,
+          detail: supported
+            ? "已显式配置 trusted_host 权限；仅静态检查，未启动服务或验证握手"
+            : "本地 MCP 仅支持 trusted_host：必须显式配置 workspaceOnly=false 和 network=allow；未启动服务，不会自动降低权限",
+        });
+      }
       // 3. provider 构建可用性
       try {
         const _runtime = await CoreMindRuntime.create({

@@ -5,3 +5,7 @@
 
 # Python SDK 随包分发的编译产物，不计入 GitHub 源码语言比例
 python/src/coremind/_worker/coremind-worker.mjs linguist-generated=true
+
+# 原样保留上游许可行尾，其他源码仍执行原有空白检查
+python/src/coremind/_worker/vendor/mcp/* -text
+python/src/coremind/_worker/vendor/mcp/pkce-challenge-LICENSE whitespace=-blank-at-eol

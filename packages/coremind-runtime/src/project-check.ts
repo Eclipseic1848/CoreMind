@@ -116,6 +116,25 @@ export async function checkProject(options: ProjectCheckOptions): Promise<Projec
       overridable: false,
     });
   }
+  const selectedMcp = Object.values(options.config.agents).some((agent) =>
+    ((agent.tools?.length ?? 0) > 0 ? agent.tools! : (options.config.tools ?? [])).some(
+      (tool) => "mcp" in tool,
+    ),
+  );
+  if (
+    selectedMcp &&
+    (options.config.permissions?.workspaceOnly !== false ||
+      options.config.permissions?.network !== "allow")
+  ) {
+    findings.push({
+      code: "MCP_TRUSTED_HOST_REQUIRED",
+      severity: "error",
+      message:
+        "选中的本地 MCP 仅支持 trusted_host：必须显式配置 workspaceOnly=false 和 network=allow；静态检查未启动服务，不会自动降低权限",
+      path: "permissions",
+      overridable: false,
+    });
+  }
 
   for (const relative of REQUIRED_PROJECT_FILES) {
     if (await exists(path.join(options.projectDir, relative))) continue;

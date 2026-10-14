@@ -209,5 +209,27 @@ export const ScriptToolSchema = Type.Object({
   effect: ToolEffectDeclarationSchema,
 });
 
-/** 单个工具配置：内置引用或脚本工具 */
-export const ToolConfigSchema = Type.Union([ToolRefSchema, ScriptToolSchema]);
+/** MCP 工具不能从服务注解或旧 effect 声明推断完整能力。 */
+export const McpToolSchema = Type.Object(
+  {
+    mcp: Type.Object(
+      { server: Type.String({ minLength: 1 }), tool: Type.String({ minLength: 1 }) },
+      { additionalProperties: false },
+    ),
+    effect: ToolEffectDeclarationSchema,
+    capability: Type.Object(
+      {
+        effect: Type.Union(TOOL_CAPABILITY_EFFECTS.map((value) => Type.Literal(value))),
+        replay: Type.Union(TOOL_CAPABILITY_REPLAYS.map((value) => Type.Literal(value))),
+        concurrency: Type.Union(TOOL_CAPABILITY_CONCURRENCY.map((value) => Type.Literal(value))),
+        checkpoint: Type.Union(TOOL_CAPABILITY_CHECKPOINTS.map((value) => Type.Literal(value))),
+        durability: Type.Union(TOOL_CAPABILITY_DURABILITY.map((value) => Type.Literal(value))),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+/** 单个工具配置：内置引用、脚本工具或显式 MCP 引用。 */
+export const ToolConfigSchema = Type.Union([ToolRefSchema, ScriptToolSchema, McpToolSchema]);

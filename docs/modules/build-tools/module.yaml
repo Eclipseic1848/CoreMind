@@ -11,6 +11,7 @@ sourcePaths:
   - "packages/coremind-tools/src/git-adapter.ts"
   - "packages/coremind-tools/src/unified-diff.ts"
   - "packages/coremind-runtime/src/public-tool.ts"
+  - "packages/coremind-runtime/src/mcp-runtime.ts"
 documents:
   readme:
     zh-CN: docs/modules/build-tools/README.zh-CN.md
@@ -33,6 +34,12 @@ testPaths:
   - "packages/coremind-tools/src/git-adapter.test.ts"
   - "packages/coremind-tools/src/unified-diff.test.ts"
   - "packages/coremind-runtime/src/public-tool.test.ts"
+  - "packages/coremind-config/src/mcp.test.ts"
+  - "packages/coremind-tools/src/mcp-stdio-client.test.ts"
+  - "packages/coremind-tools/src/mcp-stdio-transport.test.ts"
+  - "packages/coremind-runtime/src/mcp-runtime.test.ts"
+  - "packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts"
+  - "python/tests/test_mcp_stdio.py"
 supportedPlatforms:
   - "windows"
   - "linux"

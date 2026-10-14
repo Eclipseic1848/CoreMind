@@ -29,6 +29,7 @@ Connect deterministic business actions through built-in tools, script tools, or 
 - `GitAdapter` exposes fixed read-only status/diff/log operations without arbitrary subcommands, mutations, or path escape
 - Unified diff limits input, output, and computational complexity to prevent oversized files from exhausting the process
 - The Windows host shell opens only with full mode, disabled workspace restriction, and allowed network. This is an explicit risk choice, not an isolation claim
+- Local MCP tools are selected per agent and authorize connection, listing, and business calls inside the Run. They require explicitly trusted host execution; Child Runs inherit none, and static doctor never starts a service. See the [guide](GUIDE.en.md#local-mcp-services).
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 
