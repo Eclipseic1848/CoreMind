@@ -7,6 +7,7 @@ import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
+import type { ChildRunResult } from "./child-run.js";
 import { createCoreMindChildRunAdapter } from "./child-runtime-adapter.js";
 import { ControlInbox } from "./control-inbox.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
@@ -558,7 +559,14 @@ describe("Delegation Tool TypeScript happy path", () => {
       const runId = "deferred-parent-terminal";
       let parentRequests = 0;
       const controller = new AbortController();
+      const resumeController = new AbortController();
+      let firstRuntime: CoreMindRuntime | undefined;
+      let resumedRuntime: CoreMindRuntime | undefined;
       let firstRun: ReturnType<CoreMindRuntime["run"]> | undefined;
+      let resumedRun: ReturnType<CoreMindRuntime["run"]> | undefined;
+      let releaseSlowCommit: (() => void) | undefined;
+      let slowCommitTimer: ReturnType<typeof setTimeout> | undefined;
+      let slowChildStart = false;
       let markParentWaiting!: () => void;
       const parentWaiting = new Promise<void>((resolve) => {
         markParentWaiting = resolve;
@@ -583,18 +591,35 @@ describe("Delegation Tool TypeScript happy path", () => {
           }
           if (parentRequests === 2) {
             markParentWaiting();
-            request.once("close", () => response.end());
             return;
           }
           sendSse(response, textResponse("unexpected-parent-resume", "不应再次请求 Provider"));
         });
       });
       await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const childDeadline = controlDispositionChildDeadline();
       try {
-        const store = new FileRunStore(path.join(directory, "runs"));
+        const store = new FileRunStore(path.join(directory, "runs"), {
+          beforeCommit: async ({ record }) => {
+            if (
+              action !== "propagate_terminal" ||
+              slowChildStart ||
+              record?.kind !== "start" ||
+              record.runId === runId
+            ) {
+              return;
+            }
+            // 保留超过旧 join/grace 边界的慢准备，验证父取消语义不受它抢先改变。
+            slowChildStart = true;
+            await new Promise<void>((resolve) => {
+              releaseSlowCommit = resolve;
+              slowCommitTimer = setTimeout(resolve, 6_000);
+            });
+          },
+        });
         const targetBudget = {
           ...parentDelegationBudget(),
-          wallTimeMs: 500,
+          wallTimeMs: childDeadline.wallTimeMs,
           descendants: 0,
         };
         const config = baseConfig(
@@ -611,8 +636,9 @@ describe("Delegation Tool TypeScript happy path", () => {
           },
           45_000,
         );
+        config.runtime!.maxRetries = 0;
         const initialPrompt = "父级失败前已经收到非成功 Child";
-        const firstRuntime = await CoreMindRuntime.create({
+        firstRuntime = await CoreMindRuntime.create({
           config,
           configDir: directory,
           cwd: directory,
@@ -627,15 +653,26 @@ describe("Delegation Tool TypeScript happy path", () => {
         await within(
           Promise.race([
             parentWaiting,
-            firstRun.then((result) => {
-              throw new Error(`父级未进入等待就结束：${JSON.stringify(result.outcome)}`);
+            firstRun.then(async (result) => {
+              if (parentRequests >= 2) return;
+              throw await delegationStageFailure(
+                store,
+                runId,
+                parentRequests,
+                result.outcome,
+                "父级第二次 Provider 请求前结束",
+              );
             }),
           ]),
           "父级第二次 Provider 请求未到达",
           30_000,
         );
+        expect(parentRequests).toBe(2);
+        expect(slowChildStart).toBe(action === "propagate_terminal");
+        expect(childDeadline.timers.size).toBeGreaterThanOrEqual(2);
+        await expectSafeJoinedChild(store, runId);
         controller.abort();
-        const paused = await firstRun;
+        const paused = await within(firstRun, "父级取消后未返回暂停结果");
         const pausedRecords = await store.read(runId);
         const delegationId = pausedRecords.find(
           (record) => record.kind === "delegation" && record.payload.type === "delegation_recorded",
@@ -671,7 +708,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           reason,
         });
         const requestsBeforeResume = parentRequests;
-        const resumedRuntime = await CoreMindRuntime.create({
+        resumedRuntime = await CoreMindRuntime.create({
           config,
           configDir: directory,
           cwd: directory,
@@ -679,9 +716,11 @@ describe("Delegation Tool TypeScript happy path", () => {
           initialPrompt,
           resumeRunId: runId,
           runStore: store,
+          signal: resumeController.signal,
         });
 
-        const resumed = await resumedRuntime.run();
+        resumedRun = resumedRuntime.run();
+        const resumed = await within(resumedRun, "人工处置后恢复未收敛");
         const finalRecords = await store.read(runId);
         const redelegationRejected = action === "redelegate";
 
@@ -720,8 +759,27 @@ describe("Delegation Tool TypeScript happy path", () => {
         );
       } finally {
         controller.abort("测试清理");
-        await firstRun?.catch(() => undefined);
-        await closeServer(server);
+        resumeController.abort("测试清理");
+        releaseSlowCommit?.();
+        if (slowCommitTimer) clearTimeout(slowCommitTimer);
+        for (const timer of childDeadline.timers) clearTimeout(timer);
+        try {
+          await within(
+            Promise.all([firstRun?.catch(() => undefined), resumedRun?.catch(() => undefined)]),
+            "清理父级 Run 未收敛",
+          ).finally(async () => {
+            const quiet = await within(
+              Promise.all([firstRuntime?.waitForQuiescence(), resumedRuntime?.waitForQuiescence()]),
+              "清理父级执行资源未静止",
+              7_000,
+            );
+            expect(quiet.every((value) => value === undefined || value)).toBe(true);
+          });
+        } finally {
+          childDeadline.restore();
+          server.closeAllConnections();
+          await within(closeServer(server), "关闭父取消夹具服务超时", 2_000);
+        }
       }
     },
     60_000,
@@ -732,6 +790,9 @@ describe("Delegation Tool TypeScript happy path", () => {
     temporaryDirectories.push(directory);
     const runId = "redelegation-parent-terminal";
     let parentRequests = 0;
+    const controller = new AbortController();
+    let runtime: CoreMindRuntime | undefined;
+    let running: ReturnType<CoreMindRuntime["run"]> | undefined;
     let markParentWaiting!: () => void;
     const parentWaiting = new Promise<void>((resolve) => {
       markParentWaiting = resolve;
@@ -780,7 +841,6 @@ describe("Delegation Tool TypeScript happy path", () => {
         }
         if (parentRequests === 3) {
           markParentWaiting();
-          request.once("close", () => response.end());
           return;
         }
         sendSse(
@@ -790,25 +850,30 @@ describe("Delegation Tool TypeScript happy path", () => {
       });
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const childDeadline = controlDispositionChildDeadline();
     try {
       const store = new FileRunStore(path.join(directory, "runs"));
       const targetBudget = {
         ...parentDelegationBudget(),
-        wallTimeMs: 500,
+        wallTimeMs: childDeadline.wallTimeMs,
         descendants: 0,
       };
-      const config = baseConfig((server.address() as AddressInfo).port, {
-        main: {
-          systemPrompt: "你是父 Agent。",
-          delegation: {
-            budget: parentDelegationBudget(),
-            targets: { researcher: { budget: targetBudget } },
+      const config = baseConfig(
+        (server.address() as AddressInfo).port,
+        {
+          main: {
+            systemPrompt: "你是父 Agent。",
+            delegation: {
+              budget: parentDelegationBudget(),
+              targets: { researcher: { budget: targetBudget } },
+            },
           },
+          researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
         },
-        researcher: { systemPrompt: "你是研究 Agent。", model: "child-model" },
-      });
-      const controller = new AbortController();
-      const runtime = await CoreMindRuntime.create({
+        45_000,
+      );
+      config.runtime!.maxRetries = 0;
+      runtime = await CoreMindRuntime.create({
         config,
         configDir: directory,
         cwd: directory,
@@ -819,10 +884,29 @@ describe("Delegation Tool TypeScript happy path", () => {
         signal: controller.signal,
       });
 
-      const running = runtime.run();
-      await parentWaiting;
+      running = runtime.run();
+      await within(
+        Promise.race([
+          parentWaiting,
+          running.then(async (result) => {
+            if (parentRequests >= 3) return;
+            throw await delegationStageFailure(
+              store,
+              runId,
+              parentRequests,
+              result.outcome,
+              "父级第三次 Provider 请求前结束",
+            );
+          }),
+        ]),
+        "父级第三次 Provider 请求未到达",
+        20_000,
+      );
+      expect(parentRequests).toBe(3);
+      expect(childDeadline.timers.size).toBeGreaterThanOrEqual(2);
+      await expectSafeJoinedChild(store, runId);
       controller.abort();
-      const result = await running;
+      const result = await within(running, "撤销重新委派后父级未收敛");
       const records = await store.read(runId);
 
       expect(result.outcome).toMatchObject({ status: "aborted", error: { code: "aborted" } });
@@ -848,7 +932,24 @@ describe("Delegation Tool TypeScript happy path", () => {
         quiescent: true,
       });
     } finally {
-      await closeServer(server);
+      controller.abort("测试清理");
+      for (const timer of childDeadline.timers) clearTimeout(timer);
+      try {
+        await within(
+          running?.catch(() => undefined) ?? Promise.resolve(),
+          "清理父级 Run 未收敛",
+        ).finally(async () => {
+          if (runtime) {
+            expect(await within(runtime.waitForQuiescence(), "清理父级执行资源未静止", 7_000)).toBe(
+              true,
+            );
+          }
+        });
+      } finally {
+        childDeadline.restore();
+        server.closeAllConnections();
+        await within(closeServer(server), "关闭重新委派夹具服务超时", 2_000);
+      }
     }
   }, 30_000);
 
@@ -2726,6 +2827,89 @@ describe("Delegation Tool TypeScript happy path", () => {
     });
   });
 });
+
+function controlDispositionChildDeadline() {
+  const wallTimeMs = 509;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  const realSetTimeout = globalThis.setTimeout;
+  // 本组只验父取消与处置；仅保留专用 Child deadline 的句柄，不自动触发其回调。
+  const timer = vi
+    .spyOn(globalThis, "setTimeout")
+    .mockImplementation((callback, delay, ...args) => {
+      if (delay === wallTimeMs) {
+        const handle = realSetTimeout(() => {}, delay);
+        timers.add(handle);
+        return handle;
+      }
+      return realSetTimeout(callback, delay, ...args);
+    });
+  return {
+    wallTimeMs,
+    timers,
+    restore: () => {
+      for (const handle of timers) clearTimeout(handle);
+      timer.mockRestore();
+    },
+  };
+}
+
+async function expectSafeJoinedChild(store: FileRunStore, runId: string): Promise<void> {
+  const records = await store.read(runId);
+  const joined = records.filter(
+    (record) =>
+      record.kind === "delegation" &&
+      (record.payload as { type?: string }).type === "parent_joined",
+  );
+  expect(joined).toHaveLength(1);
+  const result = (joined[0]!.payload as { result: ChildRunResult }).result;
+  expect(result.outcome.status).toBe("failed");
+  expect(result).toMatchObject({
+    workspaceChanges: [],
+    recovery: {
+      recoveryDisposition: "replay_safe",
+      effectState: "none",
+      quiescent: true,
+      executionOwnership: "released",
+    },
+  });
+  expect(
+    records.some(
+      (record) =>
+        record.kind === "delegation" &&
+        (record.payload as { type?: string }).type === "child_cancel_requested",
+    ),
+  ).toBe(false);
+}
+
+async function delegationStageFailure(
+  store: FileRunStore,
+  runId: string,
+  parentRequests: number,
+  outcome: unknown,
+  stage: string,
+): Promise<Error> {
+  const records = await store.read(runId);
+  const childFacts = records
+    .filter(
+      (record) =>
+        record.kind === "delegation" &&
+        ["child_cancel_requested", "child_terminal", "parent_joined"].includes(
+          (record.payload as { type: string }).type,
+        ),
+    )
+    .map((record) => ({ sequence: record.sequence, payload: record.payload }));
+  const pause = [...records].reverse().find((record) => record.kind === "pause");
+  const deferredTerminalError = (pause?.payload as { deferredTerminalError?: unknown } | undefined)
+    ?.deferredTerminalError;
+  return new Error(
+    `${stage}：${JSON.stringify({
+      outcome,
+      parentRequests,
+      childFacts,
+      deferredTerminalError: deferredTerminalError ?? null,
+    })}`,
+  );
+}
 
 async function within<T>(promise: Promise<T>, label: string, timeoutMs = 10_000): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
