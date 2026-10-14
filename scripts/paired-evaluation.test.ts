@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as releaseArtifacts from "./release-artifacts.mjs";
 import {
   executeProbe,
   fingerprintTree,
@@ -43,6 +44,82 @@ afterEach(async () => {
 });
 
 describe("双版本配对评测", () => {
+  it("多路完整读取保持冻结树金样，并检测非首批文件的字节变化", async () => {
+    const root = await temporaryRoot();
+    await mkdir(path.join(root, "nested"));
+    for (let index = 0; index < 17; index++) {
+      await writeFile(
+        path.join(root, index % 2 ? "nested" : "", `file-${String(index).padStart(2, "0")}.txt`),
+        `文件${index}\n`,
+        "utf8",
+      );
+    }
+    const golden = "f65ce00ab3db577de0cb01ab8ab13bdcbf2d477c20594f74f8465915eca3a327";
+    expect(await fingerprintTree(root)).toBe(golden);
+    expect(await fingerprintTree(root)).toBe(golden);
+    await writeFile(path.join(root, "file-16.txt"), "文件已变化\n", "utf8");
+    expect(await fingerprintTree(root)).not.toBe(golden);
+  });
+
+  it("一路失败后等待其他读取收敛，再抛出原始原因", async () => {
+    const root = await temporaryRoot();
+    await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        writeFile(path.join(root, `file-${index}.txt`), "asset", "utf8"),
+      ),
+    );
+    const cause = new Error("读取失败的原始原因");
+    let release!: () => void;
+    let notifyStarted!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      notifyStarted = resolve;
+    });
+    const original = releaseArtifacts.createArtifactRecords;
+    const lanes: ReturnType<typeof original>[] = [];
+    const spy = vi
+      .spyOn(releaseArtifacts, "createArtifactRecords")
+      .mockImplementation((directory, files) => {
+        const lane = (async () => {
+          if (path.basename(files[0]) === "file-0.txt") throw cause;
+          if (path.basename(files[0]) === "file-1.txt") {
+            notifyStarted();
+            await blocked;
+          }
+          return original(directory, files);
+        })();
+        lanes.push(lane);
+        return lane;
+      });
+    let settled = false;
+    let operation: Promise<{ error: unknown }> | undefined;
+    try {
+      operation = fingerprintTree(root).then(
+        () => {
+          settled = true;
+          return { error: undefined };
+        },
+        (error: unknown) => {
+          settled = true;
+          return { error };
+        },
+      );
+      await Promise.race([started, operation]);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(spy).toHaveBeenCalledTimes(8);
+      expect(settled).toBe(false);
+      release();
+      expect((await operation).error).toBe(cause);
+    } finally {
+      release();
+      await Promise.allSettled(lanes);
+      await operation;
+      spy.mockRestore();
+    }
+  });
+
   it("冻结完整两场景、两臂、三次计划，并在全部配对间交替 AB/BA", async () => {
     const plan = freezePairedPlan(planInput(await temporaryRoot()));
 

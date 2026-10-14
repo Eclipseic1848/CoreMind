@@ -132,7 +132,17 @@ async function inspectTree(root) {
     }
   }
   await visit(canonical);
-  const records = await createArtifactRecords(canonical, files);
+  // 固定八路完整读取，避免安装树的小文件校验被串行 I/O 放大。
+  const lanes = Array.from({ length: Math.min(8, files.length) }, () => []);
+  for (const [index, file] of files.entries()) lanes[index % lanes.length].push(file);
+  const settled = await Promise.allSettled(
+    lanes.map((lane) => createArtifactRecords(canonical, lane)),
+  );
+  const records = [];
+  for (const result of settled) {
+    if (result.status === "rejected") throw result.reason;
+    records.push(...result.value);
+  }
   entries.push(...records.map((record) => ({ ...record, type: "file" })));
   entries.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
   return {
