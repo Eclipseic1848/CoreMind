@@ -235387,6 +235387,11 @@ var ProtocolHost = class {
     };
     validateProtocolEventWindow(window2, latestSequence);
     if (request.params.afterSequence < window2.retainedFromSequence - 1) {
+      await waitForPublishedTerminal(
+        records,
+        this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+        this.activeExecutionCompletion
+      );
       throw new ProtocolCursorExpiredError({
         runId: request.params.runId,
         newCursor: window2.retainedFromSequence - 1,
@@ -235396,6 +235401,12 @@ var ProtocolHost = class {
     }
     const page = window2.records.filter((record) => record.sequence > request.params.afterSequence).slice(0, limit3);
     const nextCursor = page.at(-1)?.sequence ?? request.params.afterSequence;
+    await waitForPublishedTerminal(
+      records,
+      this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+      this.activeExecutionCompletion,
+      page
+    );
     return {
       schemaVersion: 1,
       runId: request.params.runId,
@@ -235412,6 +235423,11 @@ var ProtocolHost = class {
       throw new CoreMindError("unknown_run", `\u672A\u627E\u5230 runId\uFF1A${request.params.runId}`);
     }
     const projection = await ProjectionEngine.projectTree(state3.runStore, request.params.runId);
+    await waitForPublishedTerminal(
+      projection.records,
+      this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+      this.activeExecutionCompletion
+    );
     return {
       schemaVersion: 1,
       runId: request.params.runId,
@@ -236451,6 +236467,21 @@ function protocolV2RunHandle(runId, acceptedAt) {
     selectedProtocol: "2.0",
     availableControls: [...PROTOCOL_V2_AVAILABLE_CONTROLS]
   };
+}
+async function waitForPublishedTerminal(records, activeFingerprint, completion, publishedRecords = records) {
+  if (!completion || !activeFingerprint || persistedProtocolV2Start(records)?.fingerprint !== activeFingerprint) {
+    return;
+  }
+  for (let index3 = records.length - 1; index3 >= 0; index3--) {
+    const record = records[index3];
+    if (record.kind === "resume" || record.kind === "admission") return;
+    if (record.kind === "pause" || record.kind === "finish") {
+      if (publishedRecords.some((published) => published.sequence === record.sequence)) {
+        await completion;
+      }
+      return;
+    }
+  }
 }
 function persistedProtocolV2Start(records) {
   for (let index3 = records.length - 1; index3 >= 0; index3--) {
