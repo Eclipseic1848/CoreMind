@@ -197,6 +197,28 @@ describe("历史会话固定金样", () => {
       const reopened = await CoreMindSession.open({ dir, sessionId: "golden-v4", cwd: dir });
       expect(await reopened.branchEntries()).toEqual(await opened.branchEntries());
       expect(readFileSync(metadata.path, "utf8")).toBe(original);
+      const previousEntries = await reopened.branchEntries();
+      const appended = user("恢复后继续的输入");
+      await reopened.appendMessages([appended]);
+      const continued = await CoreMindSession.open({ dir, sessionId: "golden-v4", cwd: dir });
+      expect(await continued.currentSeq()).toBe(9);
+      expect(await continued.branchEntries()).toEqual([
+        ...previousEntries,
+        expect.objectContaining({
+          type: "message",
+          seq: 9,
+          parentId: "current",
+          message: appended,
+        }),
+      ]);
+      const originalBytes = Buffer.from(original, "utf8");
+      expect(readFileSync(metadata.path).subarray(0, originalBytes.length)).toEqual(originalBytes);
+      expect((await continued.buildContext()).messages).toEqual([
+        createCompactionSummaryMessage("固定摘要", 500, 5),
+        retained,
+        current,
+        appended,
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -251,8 +273,26 @@ describe("历史会话固定金样", () => {
         toolResult,
       ]);
       const migrated = readFileSync(file, "utf8");
-      await CoreMindSession.open({ dir, sessionId: "golden-v3", cwd: dir });
+      const reopened = await CoreMindSession.open({ dir, sessionId: "golden-v3", cwd: dir });
       expect(readFileSync(file, "utf8")).toBe(migrated);
+      const previousEntries = await reopened.branchEntries();
+      const appended = user("迁移后继续的输入");
+      await reopened.appendMessages([appended]);
+      const continued = await CoreMindSession.open({ dir, sessionId: "golden-v3", cwd: dir });
+      expect(await continued.currentSeq()).toBe(4);
+      expect(await continued.branchEntries()).toEqual([
+        ...previousEntries,
+        expect.objectContaining({ type: "message", seq: 4, parentId: "result", message: appended }),
+      ]);
+      const migratedBytes = Buffer.from(migrated, "utf8");
+      expect(readFileSync(file).subarray(0, migratedBytes.length)).toEqual(migratedBytes);
+      expect(readFileSync(`${file}.v3.backup`)).toEqual(Buffer.from(original, "utf8"));
+      expect((await continued.buildContext()).messages).toEqual([
+        user("原始输入"),
+        toolMessage,
+        toolResult,
+        appended,
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
