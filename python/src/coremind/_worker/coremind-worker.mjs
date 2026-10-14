@@ -105488,7 +105488,7 @@ var require_bignumber = __commonJS({
             return arr.reverse();
           }
           return function(str2, baseIn, baseOut, sign, callerIsToString) {
-            var alphabet, d, e2, k2, r2, x3, xc, y2, i3 = str2.indexOf("."), dp = DECIMAL_PLACES, rm8 = ROUNDING_MODE;
+            var alphabet, d, e2, k2, r2, x3, xc, y2, i3 = str2.indexOf("."), dp = DECIMAL_PLACES, rm7 = ROUNDING_MODE;
             if (i3 >= 0) {
               k2 = POW_PRECISION;
               POW_PRECISION = 0;
@@ -105514,7 +105514,7 @@ var require_bignumber = __commonJS({
               x3.c = xc;
               x3.e = e2;
               x3.s = sign;
-              x3 = div(x3, y2, dp, rm8, baseOut);
+              x3 = div(x3, y2, dp, rm7, baseOut);
               xc = x3.c;
               r2 = x3.r;
               e2 = x3.e;
@@ -105523,7 +105523,7 @@ var require_bignumber = __commonJS({
             i3 = xc[d];
             k2 = baseOut / 2;
             r2 = r2 || d < 0 || xc[d + 1] != null;
-            r2 = rm8 < 4 ? (i3 != null || r2) && (rm8 == 0 || rm8 == (x3.s < 0 ? 3 : 2)) : i3 > k2 || i3 == k2 && (rm8 == 4 || r2 || rm8 == 6 && xc[d - 1] & 1 || rm8 == (x3.s < 0 ? 8 : 7));
+            r2 = rm7 < 4 ? (i3 != null || r2) && (rm7 == 0 || rm7 == (x3.s < 0 ? 3 : 2)) : i3 > k2 || i3 == k2 && (rm7 == 4 || r2 || rm7 == 6 && xc[d - 1] & 1 || rm7 == (x3.s < 0 ? 8 : 7));
             if (d < 1 || !xc[0]) {
               str2 = r2 ? toFixedPoint(alphabet.charAt(1), -dp, alphabet.charAt(0)) : alphabet.charAt(0);
             } else {
@@ -105581,7 +105581,7 @@ var require_bignumber = __commonJS({
             }
             for (; !a2[0] && a2.length > 1; a2.splice(0, 1)) ;
           }
-          return function(x3, y2, dp, rm8, base) {
+          return function(x3, y2, dp, rm7, base) {
             var cmp, e2, i3, more, n2, prod, prodL, q2, qc, rem, remL, rem0, xi, xL, yc0, yL, yz, s2 = x3.s == y2.s ? 1 : -1, xc = x3.c, yc = y2.c;
             if (!xc || !xc[0] || !yc || !yc[0]) {
               return new BigNumber2(
@@ -105678,7 +105678,7 @@ var require_bignumber = __commonJS({
             }
             if (base == BASE) {
               for (i3 = 1, s2 = qc[0]; s2 >= 10; s2 /= 10, i3++) ;
-              round(q2, dp + (q2.e = i3 + e2 * LOG_BASE - 1) + 1, rm8, more);
+              round(q2, dp + (q2.e = i3 + e2 * LOG_BASE - 1) + 1, rm7, more);
             } else {
               q2.e = e2;
               q2.r = +more;
@@ -105686,10 +105686,10 @@ var require_bignumber = __commonJS({
             return q2;
           };
         })();
-        function format2(n2, i3, rm8, id) {
+        function format2(n2, i3, rm7, id) {
           var c0, e2, ne, len, str2;
-          if (rm8 == null) rm8 = ROUNDING_MODE;
-          else intCheck(rm8, 0, 8);
+          if (rm7 == null) rm7 = ROUNDING_MODE;
+          else intCheck(rm7, 0, 8);
           if (!n2.c) return n2.toString();
           c0 = n2.c[0];
           ne = n2.e;
@@ -105697,7 +105697,7 @@ var require_bignumber = __commonJS({
             str2 = coeffToString(n2.c);
             str2 = id == 1 || id == 2 && (ne <= TO_EXP_NEG || ne >= TO_EXP_POS) ? toExponential(str2, ne) : toFixedPoint(str2, ne, "0");
           } else {
-            n2 = round(new BigNumber2(n2), i3, rm8);
+            n2 = round(new BigNumber2(n2), i3, rm7);
             e2 = n2.e;
             str2 = coeffToString(n2.c);
             len = str2.length;
@@ -105770,7 +105770,7 @@ var require_bignumber = __commonJS({
             x3.c = x3.e = null;
           };
         })();
-        function round(x3, sd, rm8, r2) {
+        function round(x3, sd, rm7, r2) {
           var d, i3, j2, k2, n2, ni, rd, xc = x3.c, pows10 = POWS_TEN;
           if (xc) {
             out: {
@@ -105805,8 +105805,8 @@ var require_bignumber = __commonJS({
               // The expression  n % pows10[d - j - 1]  returns all digits of n to the right
               // of the digit at j, e.g. if n is 908714 and j is 2, the expression gives 714.
               xc[ni + 1] != null || (j2 < 0 ? n2 : n2 % pows10[d - j2 - 1]);
-              r2 = rm8 < 4 ? (rd || r2) && (rm8 == 0 || rm8 == (x3.s < 0 ? 3 : 2)) : rd > 5 || rd == 5 && (rm8 == 4 || r2 || rm8 == 6 && // Check whether the digit to the left of the rounding digit is odd.
-              (i3 > 0 ? j2 > 0 ? n2 / pows10[d - j2] : 0 : xc[ni - 1]) % 10 & 1 || rm8 == (x3.s < 0 ? 8 : 7));
+              r2 = rm7 < 4 ? (rd || r2) && (rm7 == 0 || rm7 == (x3.s < 0 ? 3 : 2)) : rd > 5 || rd == 5 && (rm7 == 4 || r2 || rm7 == 6 && // Check whether the digit to the left of the rounding digit is odd.
+              (i3 > 0 ? j2 > 0 ? n2 / pows10[d - j2] : 0 : xc[ni - 1]) % 10 & 1 || rm7 == (x3.s < 0 ? 8 : 7));
               if (sd < 1 || !xc[0]) {
                 xc.length = 0;
                 if (r2) {
@@ -105871,13 +105871,13 @@ var require_bignumber = __commonJS({
         P2.comparedTo = function(y2, b2) {
           return compare2(this, new BigNumber2(y2, b2));
         };
-        P2.decimalPlaces = P2.dp = function(dp, rm8) {
+        P2.decimalPlaces = P2.dp = function(dp, rm7) {
           var c4, n2, v2, x3 = this;
           if (dp != null) {
             intCheck(dp, 0, MAX);
-            if (rm8 == null) rm8 = ROUNDING_MODE;
-            else intCheck(rm8, 0, 8);
-            return round(new BigNumber2(x3), dp + x3.e + 1, rm8);
+            if (rm7 == null) rm7 = ROUNDING_MODE;
+            else intCheck(rm7, 0, 8);
+            return round(new BigNumber2(x3), dp + x3.e + 1, rm7);
           }
           if (!(c4 = x3.c)) return null;
           n2 = ((v2 = c4.length - 1) - bitFloor(this.e / LOG_BASE)) * LOG_BASE;
@@ -105960,11 +105960,11 @@ var require_bignumber = __commonJS({
           if (nIsNeg) y2 = ONE.div(y2);
           return m3 ? y2.mod(m3) : k2 ? round(y2, POW_PRECISION, ROUNDING_MODE, more) : y2;
         };
-        P2.integerValue = function(rm8) {
+        P2.integerValue = function(rm7) {
           var n2 = new BigNumber2(this);
-          if (rm8 == null) rm8 = ROUNDING_MODE;
-          else intCheck(rm8, 0, 8);
-          return round(n2, n2.e + 1, rm8);
+          if (rm7 == null) rm7 = ROUNDING_MODE;
+          else intCheck(rm7, 0, 8);
+          return round(n2, n2.e + 1, rm7);
         };
         P2.isEqualTo = P2.eq = function(y2, b2) {
           return compare2(this, new BigNumber2(y2, b2)) === 0;
@@ -106191,13 +106191,13 @@ var require_bignumber = __commonJS({
           }
           return normalise(y2, xc, ye2);
         };
-        P2.precision = P2.sd = function(sd, rm8) {
+        P2.precision = P2.sd = function(sd, rm7) {
           var c4, n2, v2, x3 = this;
           if (sd != null && sd !== !!sd) {
             intCheck(sd, 1, MAX);
-            if (rm8 == null) rm8 = ROUNDING_MODE;
-            else intCheck(rm8, 0, 8);
-            return round(new BigNumber2(x3), sd, rm8);
+            if (rm7 == null) rm7 = ROUNDING_MODE;
+            else intCheck(rm7, 0, 8);
+            return round(new BigNumber2(x3), sd, rm7);
           }
           if (!(c4 = x3.c)) return null;
           v2 = c4.length - 1;
@@ -106267,36 +106267,36 @@ var require_bignumber = __commonJS({
           }
           return round(r2, r2.e + DECIMAL_PLACES + 1, ROUNDING_MODE, m3);
         };
-        P2.toExponential = function(dp, rm8) {
+        P2.toExponential = function(dp, rm7) {
           if (dp != null) {
             intCheck(dp, 0, MAX);
             dp++;
           }
-          return format2(this, dp, rm8, 1);
+          return format2(this, dp, rm7, 1);
         };
-        P2.toFixed = function(dp, rm8) {
+        P2.toFixed = function(dp, rm7) {
           if (dp != null) {
             intCheck(dp, 0, MAX);
             dp = dp + this.e + 1;
           }
-          return format2(this, dp, rm8);
+          return format2(this, dp, rm7);
         };
-        P2.toFormat = function(dp, rm8, format3) {
+        P2.toFormat = function(dp, rm7, format3) {
           var str2, x3 = this;
           if (format3 == null) {
-            if (dp != null && rm8 && typeof rm8 == "object") {
-              format3 = rm8;
-              rm8 = null;
+            if (dp != null && rm7 && typeof rm7 == "object") {
+              format3 = rm7;
+              rm7 = null;
             } else if (dp && typeof dp == "object") {
               format3 = dp;
-              dp = rm8 = null;
+              dp = rm7 = null;
             } else {
               format3 = FORMAT;
             }
           } else if (typeof format3 != "object") {
             throw Error(bignumberError + "Argument not an object: " + format3);
           }
-          str2 = x3.toFixed(dp, rm8);
+          str2 = x3.toFixed(dp, rm7);
           if (x3.c) {
             var i3, arr = str2.split("."), g1 = +format3.groupSize, g2 = +format3.secondaryGroupSize, groupSeparator = format3.groupSeparator || "", intPart = arr[0], fractionPart = arr[1], isNeg = x3.s < 0, intDigits = isNeg ? intPart.slice(1) : intPart, len = intDigits.length;
             if (g2) {
@@ -106364,9 +106364,9 @@ var require_bignumber = __commonJS({
         P2.toNumber = function() {
           return +valueOf(this);
         };
-        P2.toPrecision = function(sd, rm8) {
+        P2.toPrecision = function(sd, rm7) {
           if (sd != null) intCheck(sd, 1, MAX);
-          return format2(this, sd, rm8, 2);
+          return format2(this, sd, rm7, 2);
         };
         P2.toString = function(b2) {
           var str2, n2 = this, s2 = n2.s, e2 = n2.e;
@@ -214151,7 +214151,8 @@ import path26 from "node:path";
 
 // packages/coremind-tools/dist/linux-sandbox-backend.js
 import { createHash as createHash5 } from "node:crypto";
-import { chmod, mkdtemp, readFile as readFile5, rm as rm2, writeFile as writeFile3 } from "node:fs/promises";
+import { rmSync as rmSync2 } from "node:fs";
+import { chmod, mkdtemp, readFile as readFile5, writeFile as writeFile3 } from "node:fs/promises";
 import { tmpdir as tmpdir5 } from "node:os";
 import path25 from "node:path";
 
@@ -215423,6 +215424,20 @@ async function wrapCommandWithSandboxLinux(params) {
 // packages/coremind-tools/dist/linux-sandbox-backend.js
 var initialization;
 var helperDirectory;
+function releaseOwnedHelper() {
+  if (!helperDirectory)
+    return;
+  rmSync2(helperDirectory, { recursive: true, force: true });
+  helperDirectory = void 0;
+  process.removeListener("exit", releaseOnExit);
+}
+function releaseOnExit() {
+  try {
+    releaseOwnedHelper();
+  } catch (error) {
+    console.error(`Linux helper \u9000\u51FA\u6E05\u7406\u5931\u8D25\uFF1A${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 async function initialize() {
   if (process.platform !== "linux" || !["x64", "arm64"].includes(process.arch)) {
     throw new Error("\u5F53\u524D\u5E73\u53F0\u4E0D\u652F\u6301 Linux \u5B89\u5168\u540E\u7AEF");
@@ -215435,6 +215450,8 @@ async function initialize() {
   if (actual !== manifest.artifacts[asset])
     throw new Error("Linux seccomp \u8D44\u4EA7\u6458\u8981\u4E0D\u5339\u914D");
   const directory = await mkdtemp(path25.join(tmpdir5(), "coremind-seccomp-"));
+  helperDirectory = directory;
+  process.once("exit", releaseOnExit);
   const helper = path25.join(directory, "apply-seccomp");
   try {
     await chmod(directory, 448);
@@ -215447,16 +215464,20 @@ async function initialize() {
         ...!hasRipgrepSync() ? ["ripgrep \u4E0D\u53EF\u7528"] : []
       ].join("\uFF1B"));
     }
-    helperDirectory = directory;
     return helper;
   } catch (error) {
-    await rm2(directory, { recursive: true, force: true });
+    try {
+      releaseOwnedHelper();
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], `${error instanceof Error ? error.message : String(error)}\uFF1BLinux helper \u6E05\u7406\u5931\u8D25\uFF1A${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`, { cause: error });
+    }
     throw error;
   }
 }
 function initializeLinuxSandboxBackend() {
   initialization ??= initialize().catch((error) => {
-    initialization = void 0;
+    if (!helperDirectory)
+      initialization = void 0;
     throw new Error(`Linux sandbox \u521D\u59CB\u5316\u5931\u8D25\uFF0C\u5DF2\u62D2\u7EDD\u6267\u884C bash\uFF1A${error instanceof Error ? error.message : String(error)}`, { cause: error });
   });
   return initialization;
@@ -215483,7 +215504,7 @@ async function wrapLinuxSandboxCommand(command, config, signal, commandId) {
     },
     writeConfig: {
       allowOnly: [...getDefaultWritePaths(), ...config.filesystem.allowWrite],
-      denyWithinAllow: config.filesystem.denyWrite
+      denyWithinAllow: [...config.filesystem.denyWrite, path25.dirname(helper)]
     },
     unsetEnvVars: config.credentials.envVars.map((entry) => entry.name),
     enableWeakerNestedSandbox: false,
@@ -216480,7 +216501,7 @@ function safeHeader(value) {
 
 // packages/coremind-tools/dist/platform-execution-environment.js
 import { randomUUID as randomUUID7 } from "node:crypto";
-import { rm as rm3 } from "node:fs/promises";
+import { rm as rm2 } from "node:fs/promises";
 import { createServer as createServer2 } from "node:http";
 import { tmpdir as tmpdir6 } from "node:os";
 import path29 from "node:path";
@@ -216571,7 +216592,7 @@ async function probeLinuxSandbox(workspaceRoot, env2) {
     };
   } finally {
     cleanupLinuxSandboxCommand();
-    await rm3(outsidePath, { force: true });
+    await rm2(outsidePath, { force: true });
     server.closeAllConnections();
     await new Promise((resolve9) => server.close(() => resolve9()));
   }
@@ -216610,7 +216631,7 @@ function collectDeclaredStringFields(value, fields) {
 
 // packages/coremind-runtime/dist/workspace-lease.js
 import { randomUUID as randomUUID8 } from "node:crypto";
-import { link, mkdir as mkdir4, readFile as readFile6, realpath as realpath6, rename as rename2, rm as rm4, writeFile as writeFile4 } from "node:fs/promises";
+import { link, mkdir as mkdir4, readFile as readFile6, realpath as realpath6, rename as rename2, rm as rm3, writeFile as writeFile4 } from "node:fs/promises";
 import path30 from "node:path";
 
 // packages/coremind-runtime/dist/tool-capability-identity.js
@@ -216674,7 +216695,7 @@ var WorkspaceLeaseService = class {
       }
       throw new CoreMindError("workspace_lease_recovery_required", `Workspace ${canonicalRoot} \u5B58\u5728\u9057\u7559\u6216\u635F\u574F\u79DF\u7EA6\uFF0C\u5FC5\u987B\u5148\u5B8C\u6210\u6062\u590D\u5BA1\u8BA1`);
     } finally {
-      await rm4(candidatePath, { force: true }).catch(() => void 0);
+      await rm3(candidatePath, { force: true }).catch(() => void 0);
     }
     return this.fileLease(owner, lockPath);
   }
@@ -216690,8 +216711,8 @@ var WorkspaceLeaseService = class {
     const lockPath = workspaceLeasePath(canonicalRoot);
     const tombstone = `${lockPath}.recovered-${expectedOwnerNonce}`;
     await rename2(lockPath, tombstone);
-    await rm4(tombstone, { force: true });
-    await rm4(workspaceLeaseCandidatePath(canonicalRoot, expectedOwnerNonce), { force: true }).catch(() => void 0);
+    await rm3(tombstone, { force: true });
+    await rm3(workspaceLeaseCandidatePath(canonicalRoot, expectedOwnerNonce), { force: true }).catch(() => void 0);
     return {
       state: "recovered",
       canonicalRoot,
@@ -216746,7 +216767,7 @@ var WorkspaceLeaseService = class {
         }
         const tombstone = `${lockPath}.released-${owner.nonce}`;
         await rename2(lockPath, tombstone);
-        await rm4(tombstone, { force: true });
+        await rm3(tombstone, { force: true });
         released = true;
       },
       rollbackBeforeExecution: async () => {
@@ -216759,7 +216780,7 @@ var WorkspaceLeaseService = class {
         }
         const tombstone = `${lockPath}.rolled-back-${owner.nonce}`;
         await rename2(lockPath, tombstone);
-        await rm4(tombstone, { force: true });
+        await rm3(tombstone, { force: true });
         released = true;
       }
     };
@@ -218350,7 +218371,7 @@ ${TURN_PREFIX_SUMMARIZATION_PROMPT}`;
 }
 
 // packages/coremind-runtime/dist/session-v4/file-system.js
-import { appendFile, lstat as lstat2, mkdir as mkdir6, readdir as readdir3, readFile as readFile8, rename as rename3, rm as rm5, writeFile as writeFile6 } from "node:fs/promises";
+import { appendFile, lstat as lstat2, mkdir as mkdir6, readdir as readdir3, readFile as readFile8, rename as rename3, rm as rm4, writeFile as writeFile6 } from "node:fs/promises";
 import { homedir as homedir9 } from "node:os";
 import { basename as basename7, isAbsolute as isAbsolute6, join as join19, resolve as resolve8 } from "node:path";
 import { fileURLToPath as fileURLToPath10 } from "node:url";
@@ -218559,7 +218580,7 @@ var SessionFileSystem = class {
   async remove(path41, options) {
     const resolved = resolvePath5(this.cwd, path41);
     try {
-      await rm5(resolved, {
+      await rm4(resolved, {
         recursive: options?.recursive ?? false,
         force: options?.force ?? false
       });
@@ -228854,7 +228875,7 @@ function validTimestamp(value) {
 
 // packages/coremind-runtime/dist/run-state.js
 import { createHash as createHash17, randomUUID as randomUUID14 } from "node:crypto";
-import { link as link2, mkdir as mkdir7, open as open5, readFile as readFile10, rename as rename4, rm as rm6, stat as stat6, writeFile as writeFile7 } from "node:fs/promises";
+import { link as link2, mkdir as mkdir7, open as open5, readFile as readFile10, rename as rename4, rm as rm5, stat as stat6, writeFile as writeFile7 } from "node:fs/promises";
 import path36 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
@@ -229145,7 +229166,7 @@ var FileRunStore = class {
       }
       await renameAtomically(temporary, destination);
     } finally {
-      await rm6(temporary, { force: true }).catch(() => void 0);
+      await rm5(temporary, { force: true }).catch(() => void 0);
     }
   }
   async prepareAppend(destination, record, text2) {
@@ -229156,7 +229177,7 @@ var FileRunStore = class {
       await writeFile7(temporary, text2, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit({ destination, temporary, record });
     } finally {
-      await rm6(temporary, { force: true }).catch(() => void 0);
+      await rm5(temporary, { force: true }).catch(() => void 0);
     }
   }
   async fileIdentity(destination) {
@@ -229301,7 +229322,7 @@ var FileRunStore = class {
     try {
       return await operation();
     } finally {
-      await rm6(lockPath, { force: true });
+      await rm5(lockPath, { force: true });
     }
   }
   async reclaimStaleWriterLock(lockPath) {
@@ -229328,8 +229349,8 @@ var FileRunStore = class {
       return true;
     } finally {
       await claimHandle.close().catch(() => void 0);
-      await rm6(tombstonePath, { force: true }).catch(() => void 0);
-      await rm6(claimPath, { force: true }).catch(() => void 0);
+      await rm5(tombstonePath, { force: true }).catch(() => void 0);
+      await rm5(claimPath, { force: true }).catch(() => void 0);
     }
   }
 };
@@ -229343,7 +229364,7 @@ async function publishWriterLock(lockPath, owner) {
     });
     await link2(candidatePath, lockPath);
   } finally {
-    await rm6(candidatePath, { force: true }).catch(() => void 0);
+    await rm5(candidatePath, { force: true }).catch(() => void 0);
   }
 }
 var ATOMIC_RENAME_RETRY_DELAYS_MS = [5, 10, 20, 40, 80, 160, 320, 640, 1280];
@@ -231305,7 +231326,7 @@ function outcomeFromError(error) {
 
 // packages/coremind-runtime/dist/session.js
 import { createHash as createHash19, randomUUID as randomUUID16 } from "node:crypto";
-import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open6, readFile as readFile11, rename as rename5, rm as rm7, stat as stat7, unlink as unlink2, writeFile as writeFile8 } from "node:fs/promises";
+import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open6, readFile as readFile11, rename as rename5, rm as rm6, stat as stat7, unlink as unlink2, writeFile as writeFile8 } from "node:fs/promises";
 import path37 from "node:path";
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
 function assertValidSessionId2(sessionId) {
@@ -231518,7 +231539,7 @@ async function withSessionOpenLock(publicPath2, action) {
     return await action();
   } finally {
     await handle.close();
-    await rm7(lockPath, { force: true });
+    await rm6(lockPath, { force: true });
   }
 }
 async function parseLegacySession(file, expectedSessionId) {
@@ -231758,7 +231779,7 @@ async function ensureLegacyBackup(backupPath, source) {
     await writeFile8(temporary, source, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, backupPath);
   } finally {
-    await rm7(temporary, { force: true }).catch(() => void 0);
+    await rm6(temporary, { force: true }).catch(() => void 0);
   }
 }
 async function writeTextAtomically(destination, text2) {
@@ -231767,7 +231788,7 @@ async function writeTextAtomically(destination, text2) {
     await writeFile8(temporary, text2, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, destination);
   } finally {
-    await rm7(temporary, { force: true }).catch(() => void 0);
+    await rm6(temporary, { force: true }).catch(() => void 0);
   }
 }
 async function publishPublicAlias(storagePath, publicPath2) {
@@ -231789,7 +231810,7 @@ async function publishPublicAlias(storagePath, publicPath2) {
     }
     throw new CoreMindError("session_alias_failed", `\u65E0\u6CD5\u53D1\u5E03\u7A33\u5B9A\u4F1A\u8BDD\u8DEF\u5F84 ${publicPath2}\uFF1A${error instanceof Error ? error.message : String(error)}`);
   } finally {
-    await rm7(temporary, { force: true }).catch(() => void 0);
+    await rm6(temporary, { force: true }).catch(() => void 0);
   }
 }
 function parseJsonObject(line, file, lineNumber) {
