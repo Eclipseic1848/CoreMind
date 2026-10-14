@@ -222857,15 +222857,12 @@ function buildAgent(agentCfg, ctx) {
     agent: ctx.agentName,
     fingerprint: stablePrefix.fingerprint
   });
+  const toolSchemas = tools.map(toToolDeclaration);
   ctx.harness?.registerContextContract?.({
     stablePrefix: stablePrefix.text,
-    toolSchemas: tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters
-    }))
+    toolSchemas
   });
-  const prefix = createInitialSystemMessage(stablePrefix.text, tools.map(({ name, description, parameters }) => ({ name, description, parameters })));
+  const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas);
   const agent = new Agent({
     initialState: {
       systemPrompt: stablePrefix.text,

@@ -9,6 +9,7 @@ import {
   isContextOverflow,
   type Model,
   type Models,
+  toToolDeclaration,
 } from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
 import type {
@@ -82,19 +83,13 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     agent: ctx.agentName,
     fingerprint: stablePrefix.fingerprint,
   });
+  const toolSchemas = tools.map(toToolDeclaration);
   ctx.harness?.registerContextContract?.({
     stablePrefix: stablePrefix.text,
-    toolSchemas: tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    })),
+    toolSchemas,
   });
   // 执行依赖把系统合同放进消息首部；会话、预算和回放仍只处理独立的历史正文。
-  const prefix = createInitialSystemMessage(
-    stablePrefix.text,
-    tools.map(({ name, description, parameters }) => ({ name, description, parameters })),
-  )!;
+  const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas)!;
   const agent = new Agent({
     initialState: {
       systemPrompt: stablePrefix.text,

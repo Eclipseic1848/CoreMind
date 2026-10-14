@@ -1,9 +1,10 @@
-import { createModels, Type } from "@earendil-works/pi-ai";
+import { createModels, getCurrentTools, Type, toToolDeclaration } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
+import { createReadTool } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import { buildAgentDriver } from "./agent-factory.js";
 import type { CoreMindMessage } from "./public-message.js";
@@ -60,6 +61,43 @@ describe("模型执行消息与会话正文兼容", () => {
       "user",
       "assistant",
     ]);
+  });
+
+  it("真实读取工具的完整声明不产生系统增量，且请求与预算合同一致", async () => {
+    const fixture = modelFixture();
+    const tool = createReadTool(process.cwd());
+    const schemas = [toToolDeclaration(tool)];
+    expect(schemas[0]?.constrainedSampling).toEqual({ type: "json_schema", strict: "prefer" });
+    const contracts: Array<{ toolSchemas: unknown[] }> = [];
+    const driver = buildAgentDriver(
+      { systemPrompt: "读取工具合同" },
+      {
+        ...fixture,
+        tools: [tool],
+        agentName: "main",
+        onEvent: () => undefined,
+        harness: { registerContextContract: (contract) => contracts.push(contract) },
+      },
+    );
+    const bodies = [driver.messages()];
+    for (const prompt of ["第一轮", "第二轮"]) {
+      await driver.prompt(prompt);
+      await driver.waitForIdle();
+      bodies.push(driver.messages());
+    }
+    expect(bodies.map((messages) => messages.map((message) => message.role))).toEqual([
+      [],
+      ["user", "assistant"],
+      ["user", "assistant", "user", "assistant"],
+    ]);
+    expect(bodies.flat().some((message) => "toolsAdded" in message)).toBe(false);
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0]?.toolSchemas).toEqual(schemas);
+    expect(fixture.requests).toHaveLength(2);
+    for (const request of fixture.requests) {
+      expect(request.messages.filter((message) => message.role === "system")).toHaveLength(1);
+      expect(getCurrentTools(request.messages)).toEqual(contracts[0]?.toolSchemas);
+    }
   });
 
   it("恢复后的历史摘要仍发给模型且不覆盖存储中的原始摘要消息", async () => {
