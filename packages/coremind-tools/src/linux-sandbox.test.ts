@@ -81,8 +81,19 @@ describe("Linux bash sandbox", () => {
         tool.execute("deny-write", { command: "printf forbidden > .git/protected.txt" }, undefined),
       ).rejects.toThrow();
       expect(readFileSync(protectedFile, "utf8")).toBe("unchanged");
-      const result = await tool.execute("deny-read", { command: "cat .env" }, undefined);
-      expect(JSON.stringify(result)).not.toContain("sandbox-test-secret");
+      await tool.execute("deny-read", { command: "cat .env" }, undefined).then(
+        (result) => {
+          expect(JSON.stringify(result)).not.toContain("sandbox-test-secret");
+          expect(result.content).toEqual([{ type: "text", text: "(no output)" }]);
+        },
+        (error) => {
+          expect(`${String(error)} ${JSON.stringify(error)}`).not.toContain("sandbox-test-secret");
+          expect(error).toMatchObject({
+            code: "tool_execution_failed",
+            message: expect.stringMatching(/Permission denied|Operation (?:not permitted|denied)/i),
+          });
+        },
+      );
     },
   );
 
