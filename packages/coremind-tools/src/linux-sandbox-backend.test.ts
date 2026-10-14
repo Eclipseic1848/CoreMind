@@ -133,6 +133,29 @@ describe("Linux helper 进程所有权", () => {
     expect(ownedListeners()).toHaveLength(1);
   });
 
+  it("旧代的排队关闭不得清空中间新建的初始化 owner", async () => {
+    for (const defer of [false, true]) {
+      const first = await initializeLinuxSandboxBackend();
+      const closingA = shutdownLinuxSandboxBackend();
+      let resuming: Promise<string> | undefined;
+      const resume = () => {
+        resuming = initializeLinuxSandboxBackend();
+      };
+      // catch 的派生 Promise 会多排一轮；双层微任务将新初始化放到两个关闭续体之间。
+      queueMicrotask(() => (defer ? queueMicrotask(resume) : resume()));
+      const closingB = shutdownLinuxSandboxBackend();
+      await Promise.all([closingA, closingB]);
+      expect(resuming).toBeDefined();
+      const current = await resuming!;
+      expect(current === first).toBe(!defer);
+      const next = await initializeLinuxSandboxBackend();
+      expect(ownedDirectories()).toHaveLength(1);
+      expect(ownedListeners()).toHaveLength(1);
+      if (defer) expect(next).toBe(current);
+      await shutdownLinuxSandboxBackend();
+    }
+  });
+
   it.each(["write", "dependency"])(
     "初始化 %s 失败保留原始原因且不遗留目录或监听",
     async (stage) => {

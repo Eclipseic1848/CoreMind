@@ -145,7 +145,9 @@ export function cleanupLinuxSandboxCommand(): void {
 }
 
 export async function shutdownLinuxSandboxBackend(): Promise<void> {
-  await initialization?.catch(() => {});
+  const pending = initialization;
+  await pending?.catch(() => {});
+  if (initialization !== pending) return;
   cleanupBwrapMountPoints({ force: true });
   releaseOwnedHelper();
   initialization = undefined;
