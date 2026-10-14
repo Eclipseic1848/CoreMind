@@ -14,6 +14,8 @@
       "!CoreMind使用手册.html",
       "!**/*.json",
       "!python/build",
+      "!packages/coremind-tools/src/vendor/linux-sandbox",
+      "!python/src/coremind/_worker/vendor/linux-sandbox",
       "!python/src/coremind/_worker/*.mjs"
     ]
   },

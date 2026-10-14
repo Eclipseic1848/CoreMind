@@ -51,7 +51,12 @@
     "lint": "biome check .",
     "format": "biome format --write ."
   },
+  "overrides": {
+    "brace-expansion": "5.0.12",
+    "undici": "8.10.2"
+  },
   "devDependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.71",
     "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "^2.3.0",
     "@microsoft/api-extractor": "7.58.12",

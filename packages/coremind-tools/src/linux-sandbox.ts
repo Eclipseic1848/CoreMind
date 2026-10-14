@@ -2,10 +2,16 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import { SandboxManager, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
 import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
+import {
+  cleanupLinuxSandboxCommand,
+  initializeLinuxSandboxBackend,
+  type LinuxSandboxConfig,
+  shutdownLinuxSandboxBackend,
+  wrapLinuxSandboxCommand,
+} from "./linux-sandbox-backend.js";
 import { createSupervisedProcessRunner, ProcessRunnerError } from "./process-runner.js";
 import { commandExecutionError } from "./tool-error.js";
 
@@ -13,8 +19,6 @@ export interface LinuxSandboxedBashOptions {
   cwd: string;
   env?: NodeJS.ProcessEnv;
 }
-
-let sandboxInitialization: Promise<void> | undefined;
 
 /** Linux bash 使用真实 OS 隔离；初始化或依赖缺失时失败关闭，不回退到宿主 shell。 */
 export function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions): AgentTool {
@@ -52,13 +56,11 @@ export function createLinuxSandboxedBashToolForEnvironment(
           : cleanupActivity.signal
         : execution.signal;
       try {
-        const wrapped = await SandboxManager.wrapWithSandboxArgv(
+        const wrapped = await wrapLinuxSandboxCommand(
           command,
-          "/bin/bash",
           buildLinuxSandboxConfig(cwd, env),
           signal,
-          cwd,
-          { commandId, commandText: command },
+          commandId,
         );
         return await spawnSandboxed(
           wrapped.argv,
@@ -72,7 +74,7 @@ export function createLinuxSandboxedBashToolForEnvironment(
           executionEnvironment,
         );
       } finally {
-        SandboxManager.cleanupAfterCommand();
+        cleanupLinuxSandboxCommand();
         cleanupActivity?.settle();
       }
     },
@@ -86,7 +88,7 @@ export function createLinuxSandboxedBashToolForEnvironment(
 }
 
 /** 默认拒绝网络和凭据，只允许写工作区；权限审批与 sandbox 是两条独立防线。 */
-export function buildLinuxSandboxConfig(cwd: string, env: NodeJS.ProcessEnv): SandboxRuntimeConfig {
+export function buildLinuxSandboxConfig(cwd: string, env: NodeJS.ProcessEnv): LinuxSandboxConfig {
   const workspace = path.resolve(cwd);
   const userHome = homedir();
   const credentialFiles = [
@@ -134,30 +136,12 @@ export function isSensitiveEnvironmentName(name: string): boolean {
 }
 
 export async function ensureLinuxSandboxInitialized(): Promise<void> {
-  sandboxInitialization ??= SandboxManager.initialize(
-    {
-      network: { allowedDomains: [], deniedDomains: [] },
-      filesystem: { denyRead: [], allowWrite: [], denyWrite: [] },
-      enableWeakerNestedSandbox: false,
-    },
-    undefined,
-    true,
-  ).catch((error) => {
-    sandboxInitialization = undefined;
-    throw new Error(
-      `Linux sandbox 初始化失败，已拒绝执行 bash：${error instanceof Error ? error.message : String(error)}`,
-    );
-  });
-  await sandboxInitialization;
+  await initializeLinuxSandboxBackend();
 }
 
 /** 释放进程级 Linux sandbox 代理与桥接资源，供正式进程入口在退出前调用。 */
 export async function shutdownLinuxSandbox(): Promise<void> {
-  try {
-    await SandboxManager.reset();
-  } finally {
-    sandboxInitialization = undefined;
-  }
+  await shutdownLinuxSandboxBackend();
 }
 
 export function sanitizeLinuxSandboxEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {

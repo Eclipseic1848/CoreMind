@@ -2,7 +2,7 @@
 
 > This table was generated from the 2026-08-26 static runtime catalog and human-maintained evidence ledger and corresponds to target version `1.0.1`. Do not edit the table manually.
 
-CoreMind currently supports configuration for **40** built-in providers. Complete real-call evidence exists for **0**, while **40** are catalog-only. **Configurable does not mean certified.**
+CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **0** entries, while **43** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
 ## Status definitions
 
@@ -17,45 +17,48 @@ CoreMind currently supports configuration for **40** built-in providers. Complet
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
 | `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 1.0.1 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
-| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 114 | Configurable, unverified | — |
+| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 193 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
-| `anthropic` | `claude-fable-5` | — | 13 | Configurable, unverified | — |
-| `azure-openai-responses` | `gpt-4` | — | 38 | Configurable, unverified | — |
-| `baseten` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 16 | Configurable, unverified | — |
-| `cerebras` | `gemma-4-31b` | — | 3 | Configurable, unverified | — |
-| `cloudflare-ai-gateway` | `claude-3-5-haiku` | — | 43 | Configurable, unverified | — |
-| `cloudflare-workers-ai` | `@cf/google/gemma-4-26b-a4b-it` | — | 13 | Configurable, unverified | — |
-| `deepseek` | `deepseek-v4-flash` | — | 2 | Configurable, unverified | — |
-| `fireworks` | `accounts/fireworks/models/deepseek-v4-flash` | — | 17 | Configurable, unverified | — |
-| `github-copilot` | `claude-haiku-4.5` | — | 30 | Configurable, unverified | — |
-| `google` | `deep-research-max-preview-04-2026` | — | 24 | Configurable, unverified | — |
-| `google-vertex` | `gemini-2.5-flash` | — | 12 | Configurable, unverified | — |
-| `groq` | `llama-3.1-8b-instant` | — | 6 | Configurable, unverified | — |
-| `huggingface` | `MiniMaxAI/MiniMax-M2` | — | 58 | Configurable, unverified | — |
+| `anthropic` | `claude-fable-5` | — | 17 | Configurable, unverified | — |
+| `azure` | `gpt-4` | — | 45 | Configurable, unverified | — |
+| `azure-openai-responses` (compatibility alias of `azure`) | `gpt-4` | — | 45 | Configurable, unverified | — |
+| `baseten` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 22 | Configurable, unverified | — |
+| `cerebras` | `gpt-oss-120b` | — | 2 | Configurable, unverified | — |
+| `cloudflare-ai-gateway` | `claude-fable-5` | — | 57 | Configurable, unverified | — |
+| `cloudflare-workers-ai` | `@cf/deepseek-ai/deepseek-v4-flash-0731` | — | 18 | Configurable, unverified | — |
+| `deepseek` | `deepseek-flash` | — | 2 | Configurable, unverified | — |
+| `fireworks` | `accounts/fireworks/models/deepseek-v4p1-flash` | — | 22 | Configurable, unverified | — |
+| `github-copilot` | `claude-fable-5` | — | 35 | Configurable, unverified | — |
+| `google` | `deep-research-max-preview-04-2026` | — | 22 | Configurable, unverified | — |
+| `google-vertex` | `gemini-2.5-flash` | — | 13 | Configurable, unverified | — |
+| `groq` | `llama-3.1-8b-instant` | — | 7 | Configurable, unverified | — |
+| `huggingface` | `deepseek-ai/DeepSeek-R1` | — | 78 | Configurable, unverified | — |
 | `kimi-coding` | `k3` | — | 4 | Configurable, unverified | — |
+| `meta` | `muse-spark-1.1` | — | 6 | Configurable, unverified | — |
 | `minimax` | `MiniMax-M2.7` | — | 3 | Configurable, unverified | — |
 | `minimax-cn` | `MiniMax-M2.7` | — | 3 | Configurable, unverified | — |
-| `mistral` | `codestral-latest` | — | 31 | Configurable, unverified | — |
-| `moonshotai` | `kimi-k2-0711-preview` | — | 10 | Configurable, unverified | — |
-| `moonshotai-cn` | `kimi-k2-0711-preview` | — | 10 | Configurable, unverified | — |
-| `nvidia` | `google/gemma-3-12b-it` | — | 30 | Configurable, unverified | — |
-| `openai` | `gpt-4` | — | 38 | Configurable, unverified | — |
-| `openai-codex` | `gpt-5.3-codex-spark` | — | 7 | Configurable, unverified | — |
-| `opencode` | `claude-fable-5` | — | 59 | Configurable, unverified | — |
-| `opencode-go` | `minimax-m3` | — | 18 | Configurable, unverified | — |
-| `openrouter` | `ai21/jamba-large-1.7` | — | 335 | Configurable, unverified | — |
-| `qwen-token-plan` | `MiniMax-M2.5` | — | 16 | Configurable, unverified | — |
-| `qwen-token-plan-cn` | `MiniMax-M2.5` | — | 16 | Configurable, unverified | — |
-| `qwen-token-plan-individual` | `deepseek-v4-flash-0731` | — | 7 | Configurable, unverified | — |
-| `together` | `MiniMaxAI/MiniMax-M2.7` | — | 18 | Configurable, unverified | — |
-| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | — | 197 | Configurable, unverified | — |
-| `xai` | `grok-4.3` | — | 3 | Configurable, unverified | — |
-| `xiaomi` | `mimo-v2-flash` | — | 6 | Configurable, unverified | — |
-| `xiaomi-token-plan-ams` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
-| `xiaomi-token-plan-cn` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
-| `xiaomi-token-plan-sgp` | `mimo-v2-pro` | — | 3 | Configurable, unverified | — |
-| `zai` | `glm-4.7` | — | 4 | Configurable, unverified | — |
-| `zai-coding-cn` | `glm-4.7` | — | 4 | Configurable, unverified | — |
+| `mistral` | `codestral-2508` | — | 40 | Configurable, unverified | — |
+| `moonshotai` | `kimi-k2.6` | — | 4 | Configurable, unverified | — |
+| `moonshotai-cn` | `kimi-k2.6` | — | 4 | Configurable, unverified | — |
+| `nvidia` | `deepseek-ai/deepseek-v4.1-flash` | — | 21 | Configurable, unverified | — |
+| `openai` | `gpt-4` | — | 44 | Configurable, unverified | — |
+| `openai-codex` | `gpt-5.3-codex-spark` | — | 9 | Configurable, unverified | — |
+| `opencode` | `claude-fable-5` | — | 83 | Configurable, unverified | — |
+| `opencode-go` | `claude-haiku-5-5` | — | 31 | Configurable, unverified | — |
+| `openrouter` | `anthropic/claude-fable-5` | — | 393 | Configurable, unverified | — |
+| `qwen-token-plan` | `deepseek-v3.2` | — | 20 | Configurable, unverified | — |
+| `qwen-token-plan-cn` | `deepseek-v3.2` | — | 20 | Configurable, unverified | — |
+| `qwen-token-plan-individual` | `deepseek-v4-flash-0731` | — | 9 | Configurable, unverified | — |
+| `radius` | `balanced` | — | 29 | Configurable, unverified | — |
+| `together` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 17 | Configurable, unverified | — |
+| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | — | 245 | Configurable, unverified | — |
+| `xai` | `grok-4.3` | — | 4 | Configurable, unverified | — |
+| `xiaomi` | `mimo-v2.5` | — | 6 | Configurable, unverified | — |
+| `xiaomi-token-plan-ams` | `mimo-v2.5` | — | 4 | Configurable, unverified | — |
+| `xiaomi-token-plan-cn` | `mimo-v2.5` | — | 4 | Configurable, unverified | — |
+| `xiaomi-token-plan-sgp` | `mimo-v2.5` | — | 4 | Configurable, unverified | — |
+| `zai` | `glm-4.7` | — | 7 | Configurable, unverified | — |
+| `zai-coding-cn` | `glm-4.6v` | — | 4 | Configurable, unverified | — |
 
 ## Adding a certification
 

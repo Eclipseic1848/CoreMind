@@ -1,10 +1,10 @@
+import type { ContextCompactionLedgerEntry } from "./context-lifecycle.js";
 import {
   type AgentMessage,
   type CompactionEntry,
   createCompactionSummaryMessage,
   type Entry,
-} from "@earendil-works/pi-agent-core";
-import type { ContextCompactionLedgerEntry } from "./context-lifecycle.js";
+} from "./session-v4/index.js";
 
 /** 视图消息 + 来源条目 id（压缩替换范围按条目 id 定位） */
 export interface BranchMessage {

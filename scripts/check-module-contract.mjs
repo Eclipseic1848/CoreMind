@@ -193,7 +193,10 @@ async function checkMarkdownBrandBoundary() {
 async function collectMarkdownFiles(directory) {
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && [".git", "node_modules", ".venv", "venv"].includes(entry.name)) {
+    if (
+      entry.isDirectory() &&
+      [".git", ".scratch", "node_modules", ".venv", "venv"].includes(entry.name)
+    ) {
       continue;
     }
     const target = path.join(directory, entry.name);

@@ -1,9 +1,9 @@
-import { calculateContextTokens } from "@earendil-works/pi-agent-core";
 import {
   type AssistantMessage,
   isRetryableAssistantError,
   type Usage,
 } from "@earendil-works/pi-ai";
+import { calculateContextTokens } from "./session-v4/index.js";
 
 /** CoreMind 对低层运行依赖的唯一能力说明；调用方无需理解依赖包结构。 */
 export interface RuntimeCompatibilityReport {
@@ -28,8 +28,8 @@ export interface NormalizedDependencyUsage {
 
 export function inspectRuntimeCompatibility(): RuntimeCompatibilityReport {
   return {
-    dependencyFamily: "0.84.1",
-    adapterVersion: 1,
+    dependencyFamily: "1.2.0",
+    adapterVersion: 2,
     errorMappingVersion: 1,
     capabilities: {
       streaming: true,

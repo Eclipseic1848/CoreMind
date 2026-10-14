@@ -13,6 +13,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+import type { Model, Models, RetryPolicy } from "@earendil-works/pi-ai";
+import type { CoremindCompactionDetails } from "./compaction-projection.js";
+import { CoreMindError } from "./errors.js";
+import type { CoreMindMessage } from "./public-message.js";
+import { SessionFileSystem } from "./session-v4/file-system.js";
 import {
   type AgentMessage,
   buildSessionContext,
@@ -24,12 +29,7 @@ import {
   type Session,
   type SessionContext,
   shouldCompact,
-} from "@earendil-works/pi-agent-core";
-import { NodeExecutionEnv } from "@earendil-works/pi-agent-core/node";
-import type { Model, Models, RetryPolicy } from "@earendil-works/pi-ai";
-import type { CoremindCompactionDetails } from "./compaction-projection.js";
-import { CoreMindError } from "./errors.js";
-import type { CoreMindMessage } from "./public-message.js";
+} from "./session-v4/index.js";
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -114,7 +114,7 @@ export class CoreMindSession {
     assertValidSessionId(opts.sessionId);
     const publicPath = path.resolve(opts.dir, `${opts.sessionId}.jsonl`);
     return withSessionOpenLock(publicPath, async () => {
-      const env = new NodeExecutionEnv({ cwd: opts.cwd });
+      const env = new SessionFileSystem({ cwd: opts.cwd });
       const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: path.resolve(opts.dir) });
       let metadata = (await repository.list({ cwd: opts.cwd })).find(
         (candidate) => candidate.id === opts.sessionId,
@@ -156,7 +156,7 @@ export class CoreMindSession {
   static async exists(dir: string, sessionId: string, cwd: string): Promise<boolean> {
     assertValidSessionId(sessionId);
     if (await fileExists(path.resolve(dir, `${sessionId}.jsonl`))) return true;
-    const env = new NodeExecutionEnv({ cwd });
+    const env = new SessionFileSystem({ cwd });
     const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: path.resolve(dir) });
     return (await repository.list({ cwd })).some((candidate) => candidate.id === sessionId);
   }

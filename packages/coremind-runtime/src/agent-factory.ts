@@ -4,7 +4,13 @@ import {
   type AgentMessage,
   type AgentTool,
 } from "@earendil-works/pi-agent-core";
-import { isContextOverflow, type Model, type Models } from "@earendil-works/pi-ai";
+import {
+  createInitialSystemMessage,
+  isContextOverflow,
+  type Model,
+  type Models,
+  toToolDeclaration,
+} from "@earendil-works/pi-ai";
 import type { AgentConfig } from "coremind-config";
 import type {
   AgentDriver,
@@ -19,6 +25,7 @@ import { buildStableContextPrefix } from "./context.js";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
 import type { CoreMindMessage } from "./public-message.js";
+import { convertToLlm, type AgentMessage as SessionMessage } from "./session-v4/index.js";
 
 export interface AgentBuildContext {
   /** 共享模型集合（所有 agent 同一实例，streamFn 绑定） */
@@ -76,20 +83,19 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
     agent: ctx.agentName,
     fingerprint: stablePrefix.fingerprint,
   });
+  const toolSchemas = tools.map(toToolDeclaration);
   ctx.harness?.registerContextContract?.({
     stablePrefix: stablePrefix.text,
-    toolSchemas: tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    })),
+    toolSchemas,
   });
+  // 执行依赖把系统合同放进消息首部；会话、预算和回放仍只处理独立的历史正文。
+  const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas)!;
   const agent = new Agent({
     initialState: {
       systemPrompt: stablePrefix.text,
       model: ctx.model,
       tools,
-      messages: (ctx.sessionMessages ?? []) as unknown as AgentMessage[],
+      messages: [prefix, ...((ctx.sessionMessages ?? []) as unknown as AgentMessage[])],
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
@@ -106,17 +112,23 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       ctx.harness?.onModelRequestDispatched?.({
         providerId: m.provider,
         modelId: m.id,
-        messages: c.messages,
+        messages: withoutAdapterPrefix(c.messages, prefix),
       });
       return response;
     },
     toolExecution: "parallel",
+    convertToLlm: (messages) => [
+      prefix,
+      ...convertToLlm(withoutAdapterPrefix(messages, prefix) as SessionMessage[]),
+    ],
     transformContext: ctx.harness?.transformContext
-      ? async (messages, signal) =>
-          (await ctx.harness!.transformContext!(
-            messages as unknown as CoreMindMessage[],
+      ? async (messages, signal) => [
+          prefix,
+          ...((await ctx.harness!.transformContext!(
+            withoutAdapterPrefix(messages, prefix) as unknown as CoreMindMessage[],
             signal,
-          )) as unknown as AgentMessage[]
+          )) as unknown as AgentMessage[]),
+        ]
       : undefined,
     beforeToolCall: ctx.harness?.beforeToolCall
       ? (context, signal) =>
@@ -131,7 +143,12 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
             signal,
           )
       : undefined,
-    shouldStopAfterTurn: ctx.harness?.shouldStopAfterTurn,
+    finishTurn: ctx.harness?.shouldStopAfterTurn
+      ? async ({ message }) => {
+          if (message.stopReason === "error" || message.stopReason === "aborted") return;
+          if (await ctx.harness!.shouldStopAfterTurn!()) return { action: "end" };
+        }
+      : undefined,
     afterToolCall: ctx.harness?.afterToolCall
       ? async (context, signal) =>
           (await ctx.harness!.afterToolCall!(
@@ -192,18 +209,25 @@ export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext):
       },
     },
   });
-  return new PiAgentDriver(agent, ctx.harness, () => requestFailure);
+  return new ModelAgentDriver(agent, ctx.harness, () => requestFailure);
 }
 
-class PiAgentDriver implements AgentDriver {
+function withoutAdapterPrefix<T>(messages: T[], prefix: T): T[] {
+  if (messages[0] !== prefix) throw new Error("模型执行上下文缺少已注册的系统首部");
+  return messages.slice(1);
+}
+
+class ModelAgentDriver implements AgentDriver {
   private queuedControls = 0;
   private promptRunning = false;
+  private readonly prefix: AgentMessage;
 
   constructor(
     private readonly agent: Agent,
     private readonly harness: AgentDriverHarness | undefined,
     private readonly requestFailure: () => unknown,
   ) {
+    this.prefix = agent.state.messages[0]!;
     agent.subscribe((event) => {
       if (event.type === "agent_end") this.queuedControls = 0;
     });
@@ -228,7 +252,10 @@ class PiAgentDriver implements AgentDriver {
   }
 
   messages(): CoreMindMessage[] {
-    return [...this.agent.state.messages] as unknown as CoreMindMessage[];
+    return withoutAdapterPrefix(
+      this.agent.state.messages,
+      this.prefix,
+    ) as unknown as CoreMindMessage[];
   }
 
   status(): AgentDriverStatus {

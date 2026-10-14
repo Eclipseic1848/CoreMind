@@ -3,7 +3,6 @@ import { rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SandboxManager } from "@anthropic-ai/sandbox-runtime";
 import {
   createLinuxSandboxExecutionEnvironment,
   createTrustedHostExecutionEnvironment,
@@ -15,6 +14,7 @@ import {
   sanitizeLinuxSandboxEnvironment,
   shutdownLinuxSandbox,
 } from "./linux-sandbox.js";
+import { cleanupLinuxSandboxCommand, wrapLinuxSandboxCommand } from "./linux-sandbox-backend.js";
 import { ProcessRunner, probeProcessTreeTermination } from "./process-runner.js";
 
 const linuxProbeByWorkspace = new Map<
@@ -100,13 +100,11 @@ async function probeLinuxSandbox(
   const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
   const commandId = randomUUID();
   try {
-    const wrapped = await SandboxManager.wrapWithSandboxArgv(
+    const wrapped = await wrapLinuxSandboxCommand(
       command,
-      "/bin/bash",
       buildLinuxSandboxConfig(workspaceRoot, probeEnvironment),
       undefined,
-      workspaceRoot,
-      { commandId, commandText: "CoreMind Linux sandbox negative probe" },
+      commandId,
     );
     const executable = wrapped.argv[0];
     if (!executable) throw new Error("Linux sandbox probe 未生成可执行命令");
@@ -131,7 +129,7 @@ async function probeLinuxSandbox(
       ],
     };
   } finally {
-    SandboxManager.cleanupAfterCommand();
+    cleanupLinuxSandboxCommand();
     await rm(outsidePath, { force: true });
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

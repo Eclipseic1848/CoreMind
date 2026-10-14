@@ -1,15 +1,15 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { describe, expect, it } from "vitest";
+import { CoreMindSession } from "./session.js";
 import {
   type AgentMessage,
   buildSessionContext,
   InMemorySessionRepo,
   type Session,
   type SessionContext,
-} from "@earendil-works/pi-agent-core";
-import { describe, expect, it } from "vitest";
-import { CoreMindSession } from "./session.js";
+} from "./session-v4/index.js";
 
 interface ContractSession {
   readonly isNew: boolean;

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "package": "@anthropic-ai/sandbox-runtime",
+    "version": "0.0.71",
+    "license": "Apache-2.0",
+    "files": {
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/shell-quote.js": "40898decd1babc4bffdc2a43cc0bbe6e655fe891194379c0ef441df3df621225",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/debug.js": "4627c2d75a97335cd99db609bb48c9d097c0d384b3cc41ac7bfef51624083265",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/which.js": "150f2f55dbb6e74a22a3638732a26bb017dc2559ba6462c630b62d6b0d509076",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/ripgrep.js": "0142f717da11addff98bbad8d44b5dcc8181a2fd77c8f4298ce43cc03a205292",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/platform.js": "742c524a6c8589ef7de019fb4f7aa069b00215bcecd9d5fa0b77f1868f5177bf",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/sandbox/sandbox-utils.js": "851a1031d156aaca5c235ade26d8bfd99cdcd6db1f5b24af9495b5aae0b746e1",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/sandbox/generate-seccomp-filter.js": "a7ae9341424b79d40f4125e76cea861598674c4ed62cab7799c6d01a855fc412",
+      "node_modules/@anthropic-ai/sandbox-runtime/dist/sandbox/linux-sandbox-utils.js": "44a8e3b2c896c3be0ddcfe6ebbe1416e4c64b8300d305ee41f771fc7cad7717b"
+    }
+  },
+  "build": {
+    "esbuild": "0.28.1",
+    "entry": "export { wrapCommandWithSandboxLinux, checkLinuxDependencies, cleanupBwrapMountPoints } from \"./dist/sandbox/linux-sandbox-utils.js\";\nexport { getDefaultWritePaths } from \"./dist/sandbox/sandbox-utils.js\";\nexport { hasRipgrepSync } from \"./dist/utils/ripgrep.js\";",
+    "network": "denied",
+    "proxies": false
+  },
+  "artifacts": {
+    "backend.mjs": "0f429675ddfb6cf62f77b654c8e570563c4f2680ba2debf85cf34b3291bdeea0",
+    "LICENSE": "1210bc93eb85dd786c33192d5bcb7153a93922fa99fbc1512af6a7199cb41080",
+    "metafile.json": "07efd8d7d45abaa702d7e11426c14d9340b102678c5518a684cece6146325939",
+    "bin/x64/apply-seccomp": "5c92b0f369a626f5d7cb27d7912cfa882dc26a3690f17cc0016480c5b8b01df7",
+    "bin/arm64/apply-seccomp": "bfa3450c76d9a929663ea924ec0dedce908905e9e8124105c74547e8e5b748ef"
+  }
+}

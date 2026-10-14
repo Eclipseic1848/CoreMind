@@ -24,7 +24,8 @@ for (const id of listSupportedProviders()) {
   providers.push({
     id,
     defaultModel: runtime.model.id,
-    modelCount: runtime.models.getModels(id).length,
+    modelCount: runtime.models.getModels(runtime.model.provider).length,
+    ...(runtime.model.provider === id ? {} : { aliasOf: runtime.model.provider }),
   });
 }
 
@@ -62,13 +63,13 @@ function renderChinese(data) {
           : item.certificationGap?.length
             ? `可配置，未完成当前认证（缺 ${item.certificationGap.join("、")}）`
             : "可配置，未认证";
-    return `| \`${item.id}\` | \`${item.defaultModel}\` | ${version ? `\`${version}\`` : "—"} | ${item.modelCount} | ${status} | ${evidence ? `[证据](${evidence})` : "—"} |`;
+    return `| \`${item.id}\`${item.aliasOf ? `（\`${item.aliasOf}\` 的兼容别名）` : ""} | \`${item.defaultModel}\` | ${version ? `\`${version}\`` : "—"} | ${item.modelCount} | ${status} | ${evidence ? `[证据](${evidence})` : "—"} |`;
   });
   return `# Provider 支持与认证矩阵
 
 > 表格基于 ${data.generatedAt} 的运行时静态目录和人工证据台账生成，当前对应目标版本 \`${data.targetVersion}\`。不应手工修改表格。
 
-CoreMind 当前可配置 **${data.summary.supported}** 个内置 Provider，其中 **${data.summary.certified}** 个具有完整真实调用证据，**${data.summary.unverified}** 个仅代表运行时目录可识别。**可配置不等于通过真实认证。**
+CoreMind 当前有 **${data.providers.filter((item) => !item.aliasOf).length}** 个内置聊天 Provider，含兼容别名共 **${data.summary.supported}** 个可配置入口。其中 **${data.summary.certified}** 个入口具有完整真实调用证据，**${data.summary.unverified}** 个仅代表运行时目录可识别。**可配置不等于通过真实认证，别名不重复计为独立提供商。**
 
 ## 状态定义
 
@@ -103,13 +104,13 @@ function renderEnglish(data) {
           : item.certificationGap?.length
             ? `Configurable, incomplete current certification (missing ${item.certificationGap.join(", ")})`
             : "Configurable, unverified";
-    return `| \`${item.id}\` | \`${item.defaultModel}\` | ${version ? `\`${version}\`` : "—"} | ${item.modelCount} | ${status} | ${evidence ? `[Evidence](${evidence})` : "—"} |`;
+    return `| \`${item.id}\`${item.aliasOf ? ` (compatibility alias of \`${item.aliasOf}\`)` : ""} | \`${item.defaultModel}\` | ${version ? `\`${version}\`` : "—"} | ${item.modelCount} | ${status} | ${evidence ? `[Evidence](${evidence})` : "—"} |`;
   });
   return `# Provider Support and Certification Matrix
 
 > This table was generated from the ${data.generatedAt} static runtime catalog and human-maintained evidence ledger and corresponds to target version \`${data.targetVersion}\`. Do not edit the table manually.
 
-CoreMind currently supports configuration for **${data.summary.supported}** built-in providers. Complete real-call evidence exists for **${data.summary.certified}**, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified.**
+CoreMind has **${data.providers.filter((item) => !item.aliasOf).length}** built-in chat providers and **${data.summary.supported}** configurable entries including compatibility aliases. Complete real-call evidence exists for **${data.summary.certified}** entries, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
 ## Status definitions
 

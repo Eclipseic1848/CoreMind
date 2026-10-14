@@ -1,6 +1,11 @@
-import type { AgentMessage, CompactionEntry, Entry } from "@earendil-works/pi-agent-core";
 import { applyCompaction, projectRawBranchMessages } from "./compaction-projection.js";
 import type { StableContextPrefix } from "./context.js";
+import {
+  type AgentMessage,
+  type CompactionEntry,
+  convertToLlm,
+  type Entry,
+} from "./session-v4/index.js";
 
 /** 请求消息 = 内部 LLM 消息 + system 稳定前缀（与 wire 发送对齐） */
 export type RequestMessage = AgentMessage | SystemRequestMessage;
@@ -47,7 +52,7 @@ export function rebuildRunRequest(input: RebuildRunRequestInput): RequestMessage
   }
   return [
     { role: "system", content: input.stablePrefix.text, timestamp: 0 },
-    ...dropUnsentTrailing(messages),
+    ...convertToLlm(dropUnsentTrailing(messages)),
   ];
 }
 

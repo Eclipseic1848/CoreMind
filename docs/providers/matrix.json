@@ -3,9 +3,9 @@
   "generatedAt": "2026-08-26",
   "targetVersion": "1.0.1",
   "summary": {
-    "supported": 40,
+    "supported": 43,
     "certified": 0,
-    "unverified": 40
+    "unverified": 43
   },
   "providers": [
     {
@@ -32,7 +32,7 @@
     {
       "id": "amazon-bedrock",
       "defaultModel": "amazon.nova-2-lite-v1:0",
-      "modelCount": 114,
+      "modelCount": 193,
       "status": "inherited-unverified"
     },
     {
@@ -44,85 +44,98 @@
     {
       "id": "anthropic",
       "defaultModel": "claude-fable-5",
-      "modelCount": 13,
+      "modelCount": 17,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "azure",
+      "defaultModel": "gpt-4",
+      "modelCount": 45,
       "status": "inherited-unverified"
     },
     {
       "id": "azure-openai-responses",
       "defaultModel": "gpt-4",
-      "modelCount": 38,
+      "modelCount": 45,
+      "aliasOf": "azure",
       "status": "inherited-unverified"
     },
     {
       "id": "baseten",
       "defaultModel": "deepseek-ai/DeepSeek-V4-Flash-0731",
-      "modelCount": 16,
+      "modelCount": 22,
       "status": "inherited-unverified"
     },
     {
       "id": "cerebras",
-      "defaultModel": "gemma-4-31b",
-      "modelCount": 3,
+      "defaultModel": "gpt-oss-120b",
+      "modelCount": 2,
       "status": "inherited-unverified"
     },
     {
       "id": "cloudflare-ai-gateway",
-      "defaultModel": "claude-3-5-haiku",
-      "modelCount": 43,
+      "defaultModel": "claude-fable-5",
+      "modelCount": 57,
       "status": "inherited-unverified"
     },
     {
       "id": "cloudflare-workers-ai",
-      "defaultModel": "@cf/google/gemma-4-26b-a4b-it",
-      "modelCount": 13,
+      "defaultModel": "@cf/deepseek-ai/deepseek-v4-flash-0731",
+      "modelCount": 18,
       "status": "inherited-unverified"
     },
     {
       "id": "deepseek",
-      "defaultModel": "deepseek-v4-flash",
+      "defaultModel": "deepseek-flash",
       "modelCount": 2,
       "status": "inherited-unverified"
     },
     {
       "id": "fireworks",
-      "defaultModel": "accounts/fireworks/models/deepseek-v4-flash",
-      "modelCount": 17,
+      "defaultModel": "accounts/fireworks/models/deepseek-v4p1-flash",
+      "modelCount": 22,
       "status": "inherited-unverified"
     },
     {
       "id": "github-copilot",
-      "defaultModel": "claude-haiku-4.5",
-      "modelCount": 30,
+      "defaultModel": "claude-fable-5",
+      "modelCount": 35,
       "status": "inherited-unverified"
     },
     {
       "id": "google",
       "defaultModel": "deep-research-max-preview-04-2026",
-      "modelCount": 24,
+      "modelCount": 22,
       "status": "inherited-unverified"
     },
     {
       "id": "google-vertex",
       "defaultModel": "gemini-2.5-flash",
-      "modelCount": 12,
+      "modelCount": 13,
       "status": "inherited-unverified"
     },
     {
       "id": "groq",
       "defaultModel": "llama-3.1-8b-instant",
-      "modelCount": 6,
+      "modelCount": 7,
       "status": "inherited-unverified"
     },
     {
       "id": "huggingface",
-      "defaultModel": "MiniMaxAI/MiniMax-M2",
-      "modelCount": 58,
+      "defaultModel": "deepseek-ai/DeepSeek-R1",
+      "modelCount": 78,
       "status": "inherited-unverified"
     },
     {
       "id": "kimi-coding",
       "defaultModel": "k3",
       "modelCount": 4,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "meta",
+      "defaultModel": "muse-spark-1.1",
+      "modelCount": 6,
       "status": "inherited-unverified"
     },
     {
@@ -139,127 +152,133 @@
     },
     {
       "id": "mistral",
-      "defaultModel": "codestral-latest",
-      "modelCount": 31,
+      "defaultModel": "codestral-2508",
+      "modelCount": 40,
       "status": "inherited-unverified"
     },
     {
       "id": "moonshotai",
-      "defaultModel": "kimi-k2-0711-preview",
-      "modelCount": 10,
+      "defaultModel": "kimi-k2.6",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "moonshotai-cn",
-      "defaultModel": "kimi-k2-0711-preview",
-      "modelCount": 10,
+      "defaultModel": "kimi-k2.6",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "nvidia",
-      "defaultModel": "google/gemma-3-12b-it",
-      "modelCount": 30,
+      "defaultModel": "deepseek-ai/deepseek-v4.1-flash",
+      "modelCount": 21,
       "status": "inherited-unverified"
     },
     {
       "id": "openai",
       "defaultModel": "gpt-4",
-      "modelCount": 38,
+      "modelCount": 44,
       "status": "inherited-unverified"
     },
     {
       "id": "openai-codex",
       "defaultModel": "gpt-5.3-codex-spark",
-      "modelCount": 7,
+      "modelCount": 9,
       "status": "inherited-unverified"
     },
     {
       "id": "opencode",
       "defaultModel": "claude-fable-5",
-      "modelCount": 59,
+      "modelCount": 83,
       "status": "inherited-unverified"
     },
     {
       "id": "opencode-go",
-      "defaultModel": "minimax-m3",
-      "modelCount": 18,
+      "defaultModel": "claude-haiku-5-5",
+      "modelCount": 31,
       "status": "inherited-unverified"
     },
     {
       "id": "openrouter",
-      "defaultModel": "ai21/jamba-large-1.7",
-      "modelCount": 335,
+      "defaultModel": "anthropic/claude-fable-5",
+      "modelCount": 393,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan",
-      "defaultModel": "MiniMax-M2.5",
-      "modelCount": 16,
+      "defaultModel": "deepseek-v3.2",
+      "modelCount": 20,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan-cn",
-      "defaultModel": "MiniMax-M2.5",
-      "modelCount": 16,
+      "defaultModel": "deepseek-v3.2",
+      "modelCount": 20,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan-individual",
       "defaultModel": "deepseek-v4-flash-0731",
-      "modelCount": 7,
+      "modelCount": 9,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "radius",
+      "defaultModel": "balanced",
+      "modelCount": 29,
       "status": "inherited-unverified"
     },
     {
       "id": "together",
-      "defaultModel": "MiniMaxAI/MiniMax-M2.7",
-      "modelCount": 18,
+      "defaultModel": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "modelCount": 17,
       "status": "inherited-unverified"
     },
     {
       "id": "vercel-ai-gateway",
       "defaultModel": "alibaba/qwen-3-14b",
-      "modelCount": 197,
+      "modelCount": 245,
       "status": "inherited-unverified"
     },
     {
       "id": "xai",
       "defaultModel": "grok-4.3",
-      "modelCount": 3,
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "xiaomi",
-      "defaultModel": "mimo-v2-flash",
+      "defaultModel": "mimo-v2.5",
       "modelCount": 6,
       "status": "inherited-unverified"
     },
     {
       "id": "xiaomi-token-plan-ams",
-      "defaultModel": "mimo-v2-pro",
-      "modelCount": 3,
+      "defaultModel": "mimo-v2.5",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "xiaomi-token-plan-cn",
-      "defaultModel": "mimo-v2-pro",
-      "modelCount": 3,
+      "defaultModel": "mimo-v2.5",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "xiaomi-token-plan-sgp",
-      "defaultModel": "mimo-v2-pro",
-      "modelCount": 3,
+      "defaultModel": "mimo-v2.5",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "zai",
       "defaultModel": "glm-4.7",
-      "modelCount": 4,
+      "modelCount": 7,
       "status": "inherited-unverified"
     },
     {
       "id": "zai-coding-cn",
-      "defaultModel": "glm-4.7",
+      "defaultModel": "glm-4.6v",
       "modelCount": 4,
       "status": "inherited-unverified"
     }

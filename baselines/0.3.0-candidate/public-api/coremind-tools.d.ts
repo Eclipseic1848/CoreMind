@@ -1,6 +1,5 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { BUILTIN_TOOL_CAPABILITIES } from 'coremind-config';
-import { SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import type { ScriptToolConfig } from 'coremind-config';
 import { TOOL_CAPABILITY_CHECKPOINTS } from 'coremind-config';
 import { TOOL_CAPABILITY_CONCURRENCY } from 'coremind-config';
@@ -66,7 +65,7 @@ export declare interface ArtifactStoreOptions {
 }
 
 /** 默认拒绝网络和凭据，只允许写工作区；权限审批与 sandbox 是两条独立防线。 */
-export declare function buildLinuxSandboxConfig(cwd: string, env: NodeJS.ProcessEnv): SandboxRuntimeConfig;
+export declare function buildLinuxSandboxConfig(cwd: string, env: NodeJS.ProcessEnv): LinuxSandboxConfig;
 
 /**
  * 按配置构建工具列表：
@@ -216,6 +215,32 @@ export declare function inferLegacyToolCapability(tool: string, declaration: Too
 export declare function isResolvedToolCapability(value: unknown, expectedTool?: string): value is ResolvedToolCapability;
 
 export declare function isSensitiveEnvironmentName(name: string): boolean;
+
+declare interface LinuxSandboxConfig {
+    network: {
+        allowedDomains: string[];
+        deniedDomains: string[];
+    };
+    filesystem: {
+        denyRead: string[];
+        allowWrite: string[];
+        denyWrite: string[];
+    };
+    credentials: {
+        files: Array<{
+            path: string;
+            mode: "deny";
+        }>;
+        envVars: Array<{
+            name: string;
+            mode: "deny";
+        }>;
+    };
+    enableWeakerNestedSandbox: false;
+    git: {
+        safeDirectories: string[];
+    };
+}
 
 export declare interface LinuxSandboxedBashOptions {
     cwd: string;

@@ -1,4 +1,3 @@
-import type { AgentMessage, CompactionEntry, Entry } from "@earendil-works/pi-agent-core";
 import { describe, expect, it } from "vitest";
 import {
   applyCompaction,
@@ -7,6 +6,7 @@ import {
   projectContextCompactionLedger,
   projectRawBranchMessages,
 } from "./compaction-projection.js";
+import type { AgentMessage, CompactionEntry, Entry } from "./session-v4/index.js";
 
 describe("projectBranchMessages", () => {
   it("无压缩条目时输出全部消息与来源条目 id", () => {
