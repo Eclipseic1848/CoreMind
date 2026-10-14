@@ -10,6 +10,8 @@ sourcePaths:
   - "packages/coremind-runtime/src/project-check.ts"
   - "packages/coremind-runtime/src/result.ts"
   - "packages/coremind-runtime/src/experiment.ts"
+  - "scripts/run-paired-evaluation.mjs"
+  - "scripts/paired-evaluation-probe.mjs"
 documents:
   readme:
     zh-CN: docs/modules/evaluate-agents/README.zh-CN.md
@@ -32,6 +34,7 @@ testPaths:
   - "packages/coremind-runtime/src/quality.test.ts"
   - "examples/coding-evals/coding-evals.test.ts"
   - "packages/coremind-runtime/src/experiment.test.ts"
+  - "scripts/paired-evaluation.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

@@ -78,6 +78,43 @@ const record = await runExperiment({
 
 `ExperimentRecord` retains the assignment hash, arm, environment, terminal state, metrics, complete trace, and graders. Fingerprint real inputs first; never place sensitive source text in the experiment ledger.
 
+## Paired version evaluation (repository maintainers)
+
+Obtain the complete trusted stable-release bundle, then run `npm run candidate:bundle` on a clean, fixed candidate commit. Retain every artifact referenced by each `release-manifest.json`. A version string alone does not identify an artifact; rebuilding old source does not recreate its published package.
+
+Hash the actual manifest bytes and freeze the common fixtures with the coordinator's own algorithm:
+
+```sh
+node --input-type=module -e "import {readFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; console.log(createHash('sha256').update(readFileSync('/absolute/bundle/release-manifest.json')).digest('hex'))"
+node --input-type=module -e "import {fingerprintTree} from './scripts/run-paired-evaluation.mjs'; console.log(await fingerprintTree('examples/coding-evals'))"
+```
+
+Replace the placeholders below with real absolute paths, manifest digests, and commits, then save `paired-input.json`. Use a new `outputDirectory`.
+
+```json
+{
+  "schemaVersion": 1,
+  "arms": [
+    { "id": "baseline", "artifactRoot": "/absolute/stable-bundle", "manifestSha256": "<actual 64-character manifest SHA-256>", "commit": "<actual stable commit>" },
+    { "id": "candidate", "artifactRoot": "/absolute/candidate-bundle", "manifestSha256": "<actual 64-character manifest SHA-256>", "commit": "<actual candidate commit>" }
+  ],
+  "fixtures": { "root": "/absolute/CoreMind/examples/coding-evals", "sha256": "<fixture digest above>" },
+  "cases": ["typescript-defect", "python-defect"],
+  "repetitions": 3,
+  "outputDirectory": "/absolute/new-paired-report"
+}
+```
+
+```sh
+npm run eval:paired -- --input paired-input.json
+```
+
+The coordinator freezes the complete two-case × two-arm × three-repetition plan before execution, alternating AB/BA order. Each arm installs all eight npm tarballs together in an isolated directory and records its actual lockfile, installation-tree, and entry digests. Every cell has its own process and workspace and reuses the existing graders. Installation preparation requires a trusted Registry or cache; evaluation uses local mock services and needs no paid Provider.
+
+`plan.json`, `results.jsonl`, and `report.json` retain the plan, individual terminal results, and aggregate report. Preparation failures, abnormal exits, malformed output, and timeouts remain in the ledger. Missing cells, duplicates, identity mismatches, or safety failures prevent qualification. Incomplete pairs and failure-placeholder zeros cannot win performance comparisons; missing metrics remain `null` / unavailable.
+
+Import, CLI light-entry startup, Worker initialization, normal EOF, stream consumption, and cancellation are recorded separately. A new process has an empty module cache, not necessarily a cold operating-system disk cache. Warm measurements use an independent new Run in the same warmed Worker and stay separate. Stream probes disable Session persistence except for the cancellation-session check. Slow consumption acts on the real Worker output pipe and does not establish end-to-end Provider backpressure. Local SSE latency and synthetic usage do not establish real-model TTFT, cost, cache savings, or business quality. Retain inconclusive results honestly and do not generate automatic review approval.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

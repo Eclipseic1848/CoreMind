@@ -78,6 +78,43 @@ const record = await runExperiment({
 
 `ExperimentRecord` 保存分配哈希、arm、环境、运行终态、指标、完整 Trace 和 grader。真实输入应先生成不可逆指纹；不要把敏感原文写入实验台账。
 
+## 双版本配对评测（仓库维护者入口）
+
+先取得可信的稳定版完整发布 bundle，并在清洁的固定候选提交上运行 `npm run candidate:bundle`。两者都必须保留 `release-manifest.json` 引用的全部制品；不能只凭版本号选择产物，也不能重建旧源码冒充原发布包。
+
+用实际清单字节计算 SHA-256，并用协调器本身的算法固定共同夹具：
+
+```sh
+node --input-type=module -e "import {readFileSync} from 'node:fs'; import {createHash} from 'node:crypto'; console.log(createHash('sha256').update(readFileSync('/absolute/bundle/release-manifest.json')).digest('hex'))"
+node --input-type=module -e "import {fingerprintTree} from './scripts/run-paired-evaluation.mjs'; console.log(await fingerprintTree('examples/coding-evals'))"
+```
+
+将以下占位内容替换为实际绝对路径、清单摘要和提交，保存为 `paired-input.json`。`outputDirectory` 使用新的输出目录。
+
+```json
+{
+  "schemaVersion": 1,
+  "arms": [
+    { "id": "baseline", "artifactRoot": "/absolute/stable-bundle", "manifestSha256": "<实际64位清单SHA-256>", "commit": "<稳定版实际提交>" },
+    { "id": "candidate", "artifactRoot": "/absolute/candidate-bundle", "manifestSha256": "<实际64位清单SHA-256>", "commit": "<候选实际提交>" }
+  ],
+  "fixtures": { "root": "/absolute/CoreMind/examples/coding-evals", "sha256": "<上述夹具摘要>" },
+  "cases": ["typescript-defect", "python-defect"],
+  "repetitions": 3,
+  "outputDirectory": "/absolute/new-paired-report"
+}
+```
+
+```sh
+npm run eval:paired -- --input paired-input.json
+```
+
+协调器先固定两场景×两臂×三次的完整计划，按 AB/BA 顺序交替执行。每臂将清单中的八个 npm 包一次安装到独立目录，记录真实锁文件、安装树及入口摘要；每格使用独立进程与工作区，复用现有 grader。安装准备需要可信 Registry 或缓存；评测使用本地模拟服务，不需要付费 Provider。
+
+输出的 `plan.json`、`results.jsonl`、`report.json` 分别保留计划、逐格终态和聚合结果。准备失败、异常退出、非法输出和超时也入账；缺格、重复、身份不符或安全失败不能得到合格结论。不完整配对及失败占位 0 不参与性能胜负，缺失指标保留 `null` / unavailable。
+
+导入、CLI 轻入口启动、Worker 初始化、正常 EOF、流消费与取消分别记录。新进程的模块冷启动不代表操作系统磁盘冷缓存；热态测同一已预热 Worker 内的独立新 Run，单列观测。流探针除取消会话验证外关闭 Session 持久化。慢消费作用于真实 Worker 输出管道，不表示模型服务被逐级反压。本地 SSE 延迟、合成用量不能充当真实模型 TTFT、费用、缓存收益或业务质量证明；没有明确收益时如实保留结果，不生成自动通过复核。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

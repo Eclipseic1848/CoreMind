@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added artifact-verified paired evaluation with isolated cells, complete failure accounting, and separate startup, stream, cancellation, and size measurements.
+- Documented immutable inputs, unavailable metrics, local fixture limits, and reproducible raw reports without automatic review approval.
+
 ## 1.0.1 - 2026-09-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
