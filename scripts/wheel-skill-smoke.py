@@ -109,7 +109,7 @@ def main() -> None:
 
 
 def message_text(message: dict) -> str:
-    content = message.get("content", "")
+    content = message.get("content") or ""
     if isinstance(content, str):
         return content
     return "".join(part["text"] for part in content if part.get("type") == "text")
