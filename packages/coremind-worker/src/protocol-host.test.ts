@@ -197,6 +197,343 @@ describe("ProtocolHost", () => {
     );
   });
 
+  it.each(["query", "events", "expired"] as const)(
+    "%s 公开当前终态前等待旧收尾，响应后立即复用且保留新 owner",
+    async (outlet) => {
+      const dir = await mkdtemp(path.join(tmpdir(), "coremind-terminal-reuse-"));
+      const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+      let releaseFirst!: () => void;
+      let releaseSecond!: () => void;
+      let markFinished!: () => void;
+      let markSecondRunning!: () => void;
+      let markTerminalRead!: () => void;
+      const firstGate = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      const secondGate = new Promise<void>((resolve) => {
+        releaseSecond = resolve;
+      });
+      const finished = new Promise<void>((resolve) => {
+        markFinished = resolve;
+      });
+      const secondRunning = new Promise<void>((resolve) => {
+        markSecondRunning = resolve;
+      });
+      const terminalRead = new Promise<void>((resolve) => {
+        markTerminalRead = resolve;
+      });
+      const read = store.read.bind(store);
+      let observing = false;
+      let queryReads = 0;
+      store.read = async (runId) => {
+        const records = await read(runId);
+        if (observing && outlet === "query" && runId === "previous-owner" && ++queryReads === 2) {
+          markTerminalRead();
+        }
+        return records;
+      };
+      const windowedStore = Object.assign(store, {
+        readEventWindow: async (options: {
+          runId: string;
+          afterSequence: number;
+          limit: number;
+        }) => {
+          const records = await read(options.runId);
+          const latestSequence = records.at(-1)!.sequence;
+          const retainedFromSequence =
+            observing && outlet === "expired" && options.runId === "previous-owner"
+              ? latestSequence
+              : 1;
+          if (observing && outlet !== "query" && options.runId === "previous-owner") {
+            markTerminalRead();
+          }
+          return {
+            retainedFromSequence,
+            latestSequence,
+            records: records
+              .filter((record) => record.sequence >= retainedFromSequence)
+              .filter((record) => record.sequence > options.afterSequence)
+              .slice(0, options.limit),
+          };
+        },
+      });
+      let secondSignal: AbortSignal | undefined;
+      let historicalPauseSequence = 0;
+      const factory = vi.fn(async (options: CoreMindRuntimeOptions) => ({
+        run: async () => {
+          const first = options.runId === "previous-owner";
+          const runtime = await completedParityRuntimeFactory(first)(options);
+          const result = await runtime.run();
+          if (first) {
+            markFinished();
+            await firstGate;
+          } else {
+            const records = await read("next-owner");
+            historicalPauseSequence = records.at(-1)!.sequence + 1;
+            const journal = new RunStateJournal("next-owner", store, records.at(-1)!.sequence);
+            journal.pause({ reason: "approval" });
+            await journal.flush();
+            const resumedJournal = new RunStateJournal(
+              "next-owner",
+              store,
+              historicalPauseSequence,
+            );
+            if (outlet === "events") {
+              await resumedJournal.appendFact("admission", {
+                protocolStart: options.protocolStart,
+              });
+            } else {
+              resumedJournal.resume({ protocolStart: options.protocolStart });
+            }
+            await resumedJournal.flush();
+            secondSignal = options.signal;
+            markSecondRunning();
+            await secondGate;
+          }
+          return result;
+        },
+      }));
+      const host = new ProtocolHost({
+        send: () => {},
+        runtimeFactory: factory,
+        runStoreFactory: () => windowedStore,
+      });
+      const start = (id: string, runId: string, input = "执行") =>
+        host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id,
+          method: "run",
+          params: { runId, input },
+        });
+      let reading: ReturnType<ProtocolHost["handle"]> | undefined;
+      let closing: ReturnType<ProtocolHost["shutdown"]> | undefined;
+      try {
+        await initializeV2(host, dir);
+        expect(await start("first", "previous-owner")).toMatchObject({
+          result: { runId: "previous-owner" },
+        });
+        await withTimeout(finished, 2_000, "旧 Run 未持久化终态");
+        expect((await read("previous-owner")).at(-1)?.kind).toBe("finish");
+        expect(await withTimeout(start("premature", "premature-owner"), 2_000)).toMatchObject({
+          error: { data: { coremindCode: "worker_busy" } },
+        });
+        expect(await read("premature-owner")).toEqual([]);
+        expect(
+          await withTimeout(
+            host.handle({
+              jsonrpc: "2.0",
+              protocolVersion: "2.0",
+              id: "early-page",
+              method: "events",
+              params: { runId: "previous-owner", afterSequence: 0, limit: 1 },
+            }),
+            2_000,
+            "不含当前终态的早期页被阻塞",
+          ),
+        ).toMatchObject({ result: { nextCursor: 1, hasMore: true } });
+        let settled = false;
+        observing = true;
+        reading = host
+          .handle({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            id: "terminal",
+            method: outlet === "query" ? "query" : "events",
+            params:
+              outlet === "query"
+                ? { runId: "previous-owner" }
+                : { runId: "previous-owner", afterSequence: 0 },
+          })
+          .then((response) => {
+            settled = true;
+            return response;
+          });
+        await withTimeout(terminalRead, 2_000, "终态响应未读取完整快照");
+        // 最后一次响应读取完成后再做真实 I/O，让响应续体执行到发布屏障。
+        await read("previous-owner");
+        expect(settled).toBe(false);
+        expect(factory).toHaveBeenCalledTimes(1);
+        expect(await read("next-owner")).toEqual([]);
+        releaseFirst();
+        const published = await withTimeout(reading, 2_000, "旧收尾完成后未交付终态响应");
+        const accepted = await withTimeout(start("next", "next-owner"), 2_000);
+        expect(accepted).toMatchObject({ result: { runId: "next-owner" } });
+        if (outlet === "query") {
+          expect(published).toMatchObject({
+            result: { projection: { status: "finished", outcome: { status: "succeeded" } } },
+          });
+        } else if (outlet === "expired") {
+          expect(published).toMatchObject({
+            error: {
+              data: {
+                coremindCode: "cursor_expired",
+                details: { recovery: { projection: { status: "finished" } } },
+              },
+            },
+          });
+        } else {
+          expect(published).toMatchObject({
+            result: {
+              events: expect.arrayContaining([
+                expect.objectContaining({ eventType: "fact.finish" }),
+              ]),
+            },
+          });
+        }
+        await withTimeout(secondRunning, 2_000, "新 owner 未开始运行");
+        expect((await read("next-owner")).at(-1)).toMatchObject({
+          sequence: historicalPauseSequence + 1,
+          kind: outlet === "events" ? "admission" : "resume",
+        });
+        expect(
+          await withTimeout(
+            host.handle({
+              jsonrpc: "2.0",
+              protocolVersion: "2.0",
+              id: "historical-pause",
+              method: "events",
+              params: { runId: "next-owner", afterSequence: historicalPauseSequence - 1, limit: 1 },
+            }),
+            2_000,
+            "最新恢复或准入前的历史 pause 阻塞了当前事件页",
+          ),
+        ).toMatchObject({
+          result: { events: [expect.objectContaining({ eventType: "fact.pause" })] },
+        });
+        expect(await start("duplicate", "next-owner")).toEqual({ ...accepted, id: "duplicate" });
+        expect(await start("conflict", "next-owner", "不同输入")).toMatchObject({
+          error: { data: { coremindCode: "run_id_conflict" } },
+        });
+        expect(await start("competing", "third-owner")).toMatchObject({
+          error: { data: { coremindCode: "worker_busy" } },
+        });
+        expect(await read("third-owner")).toEqual([]);
+        expect(factory).toHaveBeenCalledTimes(2);
+        closing = host.shutdown();
+        let closed = false;
+        void closing.then(() => {
+          closed = true;
+        });
+        expect(secondSignal?.aborted).toBe(true);
+        await read("next-owner");
+        expect(closed).toBe(false);
+        releaseSecond();
+        await expect(withTimeout(closing, 2_000)).resolves.toEqual({
+          closed: true,
+          quiescent: true,
+        });
+      } finally {
+        releaseFirst();
+        releaseSecond();
+        if (reading) await reading;
+        if (closing) await closing;
+        await host.shutdown();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("关闭与终态查询同时等待旧收尾，收敛后拒绝新准入", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-terminal-reuse-close-"));
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    let release!: () => void;
+    let markFinished!: () => void;
+    let markTerminalRead!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const finished = new Promise<void>((resolve) => {
+      markFinished = resolve;
+    });
+    const terminalRead = new Promise<void>((resolve) => {
+      markTerminalRead = resolve;
+    });
+    const read = store.read.bind(store);
+    let observing = false;
+    let queryReads = 0;
+    store.read = async (runId) => {
+      const records = await read(runId);
+      if (observing && runId === "closing-previous" && ++queryReads === 2) markTerminalRead();
+      return records;
+    };
+    const factory = vi.fn(async (options: CoreMindRuntimeOptions) => ({
+      run: async () => {
+        const runtime = await completedParityRuntimeFactory()(options);
+        const result = await runtime.run();
+        markFinished();
+        await gate;
+        return result;
+      },
+    }));
+    const host = new ProtocolHost({
+      send: () => {},
+      runtimeFactory: factory,
+      runStoreFactory: () => store,
+    });
+    let reading: ReturnType<ProtocolHost["handle"]> | undefined;
+    let closing: ReturnType<ProtocolHost["shutdown"]> | undefined;
+    try {
+      await initializeV2(host, dir);
+      await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "first",
+        method: "run",
+        params: { runId: "closing-previous" },
+      });
+      await withTimeout(finished, 2_000, "旧 Run 未持久化终态");
+      let settled = false;
+      observing = true;
+      reading = host
+        .handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "query",
+          method: "query",
+          params: { runId: "closing-previous" },
+        })
+        .then((response) => {
+          settled = true;
+          return response;
+        });
+      await withTimeout(terminalRead, 2_000, "终态查询未读取完整快照");
+      await read("closing-previous");
+      expect(settled).toBe(false);
+      closing = host.shutdown();
+      let closed = false;
+      void closing.then(() => {
+        closed = true;
+      });
+      await read("closing-previous");
+      expect(closed).toBe(false);
+      expect(settled).toBe(false);
+      expect(factory).toHaveBeenCalledTimes(1);
+      release();
+      expect(await withTimeout(reading, 2_000)).toMatchObject({
+        result: { projection: { status: "finished", outcome: { status: "succeeded" } } },
+      });
+      await expect(withTimeout(closing, 2_000)).resolves.toEqual({ closed: true, quiescent: true });
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "next",
+          method: "run",
+          params: { runId: "closing-next" },
+        }),
+      ).toMatchObject({ error: { data: { coremindCode: "worker_closed" } } });
+      expect(await read("closing-next")).toEqual([]);
+      expect(factory).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      if (reading) await reading;
+      if (closing) await closing;
+      await host.shutdown();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("准入持久屏障失败时不返回 Handle，也不创建 Runtime", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "coremind-admission-barrier-"));
     let creations = 0;

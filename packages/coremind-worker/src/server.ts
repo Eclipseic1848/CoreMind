@@ -600,6 +600,11 @@ export class ProtocolHost {
         };
     validateProtocolEventWindow(window, latestSequence);
     if (request.params.afterSequence < window.retainedFromSequence - 1) {
+      await waitForPublishedTerminal(
+        records,
+        this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+        this.activeExecutionCompletion,
+      );
       throw new ProtocolCursorExpiredError({
         runId: request.params.runId,
         newCursor: window.retainedFromSequence - 1,
@@ -611,6 +616,12 @@ export class ProtocolHost {
       .filter((record) => record.sequence > request.params.afterSequence)
       .slice(0, limit);
     const nextCursor = page.at(-1)?.sequence ?? request.params.afterSequence;
+    await waitForPublishedTerminal(
+      records,
+      this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+      this.activeExecutionCompletion,
+      page,
+    );
     return {
       schemaVersion: 1,
       runId: request.params.runId,
@@ -628,6 +639,11 @@ export class ProtocolHost {
       throw new CoreMindError("unknown_run", `未找到 runId：${request.params.runId}`);
     }
     const projection = await ProjectionEngine.projectTree(state.runStore, request.params.runId);
+    await waitForPublishedTerminal(
+      projection.records,
+      this.protocolV2Starts.get(request.params.runId)?.fingerprint,
+      this.activeExecutionCompletion,
+    );
     return {
       schemaVersion: 1,
       runId: request.params.runId,
@@ -1861,6 +1877,32 @@ function protocolV2RunHandle(runId: string, acceptedAt: string): ProtocolV2RunHa
     selectedProtocol: "2.0",
     availableControls: [...PROTOCOL_V2_AVAILABLE_CONTROLS],
   };
+}
+
+async function waitForPublishedTerminal(
+  records: RunStateRecord[],
+  activeFingerprint: string | undefined,
+  completion: Promise<void> | undefined,
+  publishedRecords = records,
+): Promise<void> {
+  if (
+    !completion ||
+    !activeFingerprint ||
+    persistedProtocolV2Start(records)?.fingerprint !== activeFingerprint
+  ) {
+    return;
+  }
+  // 仅交付当前执行的终态时等待旧 owner，历史暂停和早期分页不阻塞新执行。
+  for (let index = records.length - 1; index >= 0; index--) {
+    const record = records[index]!;
+    if (record.kind === "resume" || record.kind === "admission") return;
+    if (record.kind === "pause" || record.kind === "finish") {
+      if (publishedRecords.some((published) => published.sequence === record.sequence)) {
+        await completion;
+      }
+      return;
+    }
+  }
 }
 
 function persistedProtocolV2Start(records: RunStateRecord[]): ProtocolStartIdentity | undefined {
