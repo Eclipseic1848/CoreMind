@@ -9,13 +9,17 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const FORBIDDEN_PATHS = [
   /(^|\/)[^/]*\.(test|spec)(\.[^/]+)+$/i,
   /(^|\/)(__tests__|tests?|fixtures?)(\/|$)/i,
-  /(^|\/)(docs\/analysis|\.coremind|sessions?|checkpoints?|runs?)(\/|$)/i,
+  /(^|\/)(docs\/analysis|\.coremind|checkpoints?|runs?)(\/|$)/i,
   /(^|\/)(\.scratch|tmp|temp)(\/|$)/i,
   /(^|\/)(PLAN|handoff|CLAUDE)\.md$/i,
   /(^|\/)\.env(?:$|\.(?!example$)[^/]+$)/i,
   /(^|\/)(\.npmrc|\.pypirc|npm-debug\.log)$/i,
   /\.tsbuildinfo$/i,
 ];
+const SESSION_DATA_PATH = /(^|\/)sessions?(\/|$)/i;
+// 仅豁免现有会话实现的编译产物，真实会话数据继续拒绝。
+const RUNTIME_SESSION_MODULE =
+  /^dist\/session-v4\/session\/(context|jsonl|memory|session|state|types|jsonl\/(codec|errors|repo|storage|types)|testing\/(conformance|types))\.(js|d\.ts)(\.map)?$/;
 
 export function evaluatePackageFiles({ packageName, declaredFiles, packedFiles, requiredFiles }) {
   const blockers = [];
@@ -23,7 +27,12 @@ export function evaluatePackageFiles({ packageName, declaredFiles, packedFiles, 
   const normalizedPacked = packedFiles.map(normalizePackagePath);
 
   for (const file of normalizedPacked) {
-    if (FORBIDDEN_PATHS.some((pattern) => pattern.test(file))) {
+    const runtimeSessionModule =
+      packageName === "coremind-runtime" && RUNTIME_SESSION_MODULE.test(file);
+    if (
+      FORBIDDEN_PATHS.some((pattern) => pattern.test(file)) ||
+      (SESSION_DATA_PATH.test(file) && !runtimeSessionModule)
+    ) {
       blockers.push(`${packageName} 包含禁止发布的文件：${file}`);
       continue;
     }
