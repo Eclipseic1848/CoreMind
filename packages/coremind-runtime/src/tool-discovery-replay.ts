@@ -32,7 +32,7 @@ export function resolveToolDiscoveryRequestDeclaration(
     if (event.agent !== input.owner.agent || event.stepId !== input.owner.stepId) throw corrupt();
     if (event.toolDiscovery === undefined) return undefined;
     const summary = object(event.toolDiscovery);
-    if (!summary) throw corrupt();
+    if (!summary || !text(input.owner.executionId)) throw corrupt();
 
     const records = input.records
       .filter((record) => record.runId === input.owner.runId && record.sequence <= request.sequence)

@@ -17,6 +17,7 @@ export interface ToolDiscoveryOwner {
   readonly runId: string;
   readonly agent: string;
   readonly stepId?: string;
+  readonly executionId: string;
 }
 
 export interface ToolDiscoveryEntry {
@@ -452,6 +453,41 @@ export function restoreToolDiscovery(
   return restored;
 }
 
+/** 只沿最终明确暂停的执行绑定恢复；崩溃前缀不能猜测旧 activation。 */
+export function restoreToolDiscoveryContinuations(
+  records: readonly RunStateRecord[],
+  runId: string,
+): readonly ToolDiscoveryOwner[] {
+  const last = records.at(-1);
+  if (last?.kind !== "pause" || !object(last.payload)) return [];
+  const value = last.payload.toolDiscoveryContinuations;
+  if (value === undefined) return [];
+  if (
+    last.runId !== runId ||
+    !object(value) ||
+    !keys(value, ["version", "owners"]) ||
+    value.version !== 1 ||
+    !Array.isArray(value.owners)
+  )
+    throw corrupt();
+  const scopes = new Set<string>();
+  const executions = new Set<string>();
+  const owners: ToolDiscoveryOwner[] = [];
+  for (const candidate of value.owners) {
+    validateOwner(candidate as ToolDiscoveryOwner);
+    const owner = candidate as ToolDiscoveryOwner;
+    const scope = JSON.stringify([owner.agent, owner.stepId]);
+    if (owner.runId !== runId || scopes.has(scope) || executions.has(owner.executionId))
+      throw corrupt();
+    scopes.add(scope);
+    executions.add(owner.executionId);
+    const restored = restoreToolDiscovery(records, owner);
+    if (!restored?.selections.length) throw corrupt();
+    owners.push(owner);
+  }
+  return freeze(copy(owners));
+}
+
 function invalid() {
   return new CoreMindError("invalid_tool", "工具不在当前声明集合");
 }
@@ -572,8 +608,9 @@ function validateOwner(owner: ToolDiscoveryOwner): void {
     !object(owner) ||
     !nonempty(owner.runId) ||
     !nonempty(owner.agent) ||
+    !nonempty(owner.executionId) ||
     (owner.stepId !== undefined && !nonempty(owner.stepId)) ||
-    Object.keys(owner).some((key) => !["runId", "agent", "stepId"].includes(key))
+    Object.keys(owner).some((key) => !["runId", "agent", "stepId", "executionId"].includes(key))
   )
     throw corrupt();
 }
@@ -586,7 +623,12 @@ function owned(value: unknown, owner: ToolDiscoveryOwner): boolean {
 }
 
 function sameOwner(left: ToolDiscoveryOwner, right: ToolDiscoveryOwner): boolean {
-  return left.runId === right.runId && left.agent === right.agent && left.stepId === right.stepId;
+  return (
+    left.runId === right.runId &&
+    left.agent === right.agent &&
+    left.stepId === right.stepId &&
+    left.executionId === right.executionId
+  );
 }
 function equal(left: unknown, right: unknown): boolean {
   return fingerprintEffectReceiptValue(left) === fingerprintEffectReceiptValue(right);

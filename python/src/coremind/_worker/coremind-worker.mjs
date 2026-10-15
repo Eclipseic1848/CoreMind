@@ -252466,7 +252466,7 @@ import { isIP as isIP4 } from "node:net";
 
 // packages/coremind-runtime/dist/skill-privacy.js
 function stripPrivateSkillPayload(kind, payload) {
-  const fields = kind === "start" ? ["skillSnapshot", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : kind === "event" ? ["skillLoad", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : [];
+  const fields = kind === "start" ? ["skillSnapshot", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : kind === "event" ? ["skillLoad", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : kind === "pause" ? ["toolDiscoveryContinuations"] : [];
   if (fields.length === 0 || payload === null || typeof payload !== "object" || Array.isArray(payload) || !fields.some((field2) => Object.hasOwn(payload, field2))) {
     return payload;
   }
@@ -254108,6 +254108,7 @@ var ModelAgentDriver = class {
   controlIds = /* @__PURE__ */ new Set();
   pendingControls = /* @__PURE__ */ new Map();
   promptRunning = false;
+  promptCompleted = false;
   constructor(agent, harness, requestFailure, onObservation) {
     this.agent = agent;
     this.harness = harness;
@@ -254125,12 +254126,14 @@ var ModelAgentDriver = class {
   }
   async prompt(input) {
     this.promptRunning = true;
+    this.promptCompleted = false;
     this.acceptingControls = true;
     try {
       if (this.harness?.beforePrompt)
         await this.harness.beforePrompt();
       await this.agent.prompt(input);
       await this.agent.waitForIdle();
+      this.promptCompleted = true;
     } finally {
       this.acceptingControls = false;
       this.promptRunning = false;
@@ -254143,6 +254146,14 @@ var ModelAgentDriver = class {
       throw failure3;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
+    if (!this.promptCompleted || !this.harness?.onPromptCompleted)
+      return;
+    const messages = this.messages();
+    const lastAssistant = [...messages].reverse().find((message2) => message2.role === "assistant");
+    if (!extractAgentError(messages) && (lastAssistant?.stopReason === "stop" || lastAssistant?.stopReason === "length")) {
+      this.promptCompleted = false;
+      this.harness.onPromptCompleted();
+    }
   }
   messages() {
     return adapterHistories.get(this.agent)();
@@ -264051,6 +264062,33 @@ function restoreToolDiscovery(records, owner) {
   restoredStates.add(restored);
   return restored;
 }
+function restoreToolDiscoveryContinuations(records, runId) {
+  const last = records.at(-1);
+  if (last?.kind !== "pause" || !object3(last.payload))
+    return [];
+  const value = last.payload.toolDiscoveryContinuations;
+  if (value === void 0)
+    return [];
+  if (last.runId !== runId || !object3(value) || !keys(value, ["version", "owners"]) || value.version !== 1 || !Array.isArray(value.owners))
+    throw corrupt();
+  const scopes = /* @__PURE__ */ new Set();
+  const executions = /* @__PURE__ */ new Set();
+  const owners = [];
+  for (const candidate of value.owners) {
+    validateOwner(candidate);
+    const owner = candidate;
+    const scope = JSON.stringify([owner.agent, owner.stepId]);
+    if (owner.runId !== runId || scopes.has(scope) || executions.has(owner.executionId))
+      throw corrupt();
+    scopes.add(scope);
+    executions.add(owner.executionId);
+    const restored = restoreToolDiscovery(records, owner);
+    if (!restored?.selections.length)
+      throw corrupt();
+    owners.push(owner);
+  }
+  return freeze(copy(owners));
+}
 function invalid3() {
   return new CoreMindError("invalid_tool", "\u5DE5\u5177\u4E0D\u5728\u5F53\u524D\u58F0\u660E\u96C6\u5408");
 }
@@ -264136,7 +264174,7 @@ function compare2(left, right) {
   return a2.length - b2.length;
 }
 function validateOwner(owner) {
-  if (!object3(owner) || !nonempty(owner.runId) || !nonempty(owner.agent) || owner.stepId !== void 0 && !nonempty(owner.stepId) || Object.keys(owner).some((key) => !["runId", "agent", "stepId"].includes(key)))
+  if (!object3(owner) || !nonempty(owner.runId) || !nonempty(owner.agent) || !nonempty(owner.executionId) || owner.stepId !== void 0 && !nonempty(owner.stepId) || Object.keys(owner).some((key) => !["runId", "agent", "stepId", "executionId"].includes(key)))
     throw corrupt();
 }
 function owned(value, owner) {
@@ -264148,7 +264186,7 @@ function owned(value, owner) {
   return sameOwner2(value.owner, owner);
 }
 function sameOwner2(left, right) {
-  return left.runId === right.runId && left.agent === right.agent && left.stepId === right.stepId;
+  return left.runId === right.runId && left.agent === right.agent && left.stepId === right.stepId && left.executionId === right.executionId;
 }
 function equal(left, right) {
   return fingerprintEffectReceiptValue(left) === fingerprintEffectReceiptValue(right);
@@ -264220,25 +264258,42 @@ var ToolPolicy = class {
   }
   /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
   allowsDeclaration(tool, capability) {
-    return !matchesAny(tool, this.permissions.deny) && capability.resolution !== "fallback" && !(capability.effect === "unknown" && capability.checkpoint === "unsupported") && !(capability.effect === "network" && this.permissions.network === "deny");
+    return this.staticDenial(tool, capability) === void 0;
   }
-  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint) {
-    if (matchesAny(tool, this.permissions.deny)) {
-      return { allowed: false, reason: `\u5DE5\u5177 ${tool} \u5728 permissions.deny \u4E2D` };
-    }
-    const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
+  hasRestrictedChildPaths() {
+    return this.options.allowedPaths !== void 0 && !this.options.allowedPaths.some((allowedPath) => path42.resolve(this.options.cwd, allowedPath) === path42.resolve(this.options.cwd));
+  }
+  staticDenial(tool, capability) {
+    if (matchesAny(tool, this.permissions.deny))
+      return `\u5DE5\u5177 ${tool} \u5728 permissions.deny \u4E2D`;
     if (capability.resolution === "fallback") {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\u6216\u5B8C\u6574 Capability\uFF0C\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF1A${capability.issues.join("\u3001")}`
-      };
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\u6216\u5B8C\u6574 Capability\uFF0C\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF1A${capability.issues.join("\u3001")}`;
     }
     if (capability.effect === "unknown" && capability.checkpoint === "unsupported") {
-      return {
-        allowed: false,
-        reason: `\u5DE5\u5177 ${tool} \u7684 Effect \u672A\u77E5\u4E14\u65E0\u6CD5\u5EFA\u7ACB\u5FC5\u8981 Checkpoint\uFF0C\u5DF2\u5728\u6267\u884C\u524D\u963B\u65AD`
-      };
+      return `\u5DE5\u5177 ${tool} \u7684 Effect \u672A\u77E5\u4E14\u65E0\u6CD5\u5EFA\u7ACB\u5FC5\u8981 Checkpoint\uFF0C\u5DF2\u5728\u6267\u884C\u524D\u963B\u65AD`;
     }
+    if (this.hasRestrictedChildPaths() && ["process", "external", "unknown"].includes(capability.effect)) {
+      return `\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u9A8C\u8BC1\u7684 Child Run allowlist \u5185\u76EE\u6807\u8DEF\u5F84`;
+    }
+    if (tool === "bash" && (this.options.platform ?? process.platform) === "win32" && (this.permissions.mode !== "full" || this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return "Windows \u4E3B\u673A Shell \u65E0\u6CD5\u8BC1\u660E\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F\uFF0C\u5DF2\u62D2\u7EDD\uFF1B\u8BF7\u6539\u7528\u6587\u4EF6\u5DE5\u5177\uFF0C\u6216\u5728 WSL2 \u4E2D\u8FD0\u884C CoreMind";
+    }
+    if (capability.effect === "unknown" && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`;
+    }
+    if (capability.source !== "builtin" && ["process", "external", "unknown"].includes(capability.effect) && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u7684 process/external \u526F\u4F5C\u7528\u65E0\u6CD5\u8BC1\u660E\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`;
+    }
+    if (["network", "external"].includes(capability.effect) && this.permissions.network === "deny") {
+      return `\u7F51\u7EDC\u7B56\u7565\u62D2\u7EDD\u5DE5\u5177 ${tool}`;
+    }
+    return void 0;
+  }
+  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint) {
+    const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
+    const staticDenial = this.staticDenial(tool, capability);
+    if (staticDenial)
+      return { allowed: false, reason: staticDenial };
     const effect = resolveToolEffect(args, capability, selectors ?? legacySelectors(capabilityOrDeclaration));
     try {
       const target = await resolveFileToolTarget(tool, args, this.options.cwd);
@@ -264256,23 +264311,10 @@ var ToolPolicy = class {
         effect.paths.push(".");
       }
     }
-    const hasRestrictedChildPathScope = this.options.allowedPaths !== void 0 && !this.options.allowedPaths.some((allowedPath) => path42.resolve(this.options.cwd, allowedPath) === path42.resolve(this.options.cwd));
-    if (hasRestrictedChildPathScope && (effect.operations.includes("process") || effect.operations.includes("external") || capability.effect === "workspace" && effect.paths.length === 0)) {
+    if (this.hasRestrictedChildPaths() && capability.effect === "workspace" && effect.paths.length === 0) {
       return {
         allowed: false,
         reason: `\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u9A8C\u8BC1\u7684 Child Run allowlist \u5185\u76EE\u6807\u8DEF\u5F84`
-      };
-    }
-    if (tool === "bash" && (this.options.platform ?? process.platform) === "win32" && (this.permissions.mode !== "full" || this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: "Windows \u4E3B\u673A Shell \u65E0\u6CD5\u8BC1\u660E\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F\uFF0C\u5DF2\u62D2\u7EDD\uFF1B\u8BF7\u6539\u7528\u6587\u4EF6\u5DE5\u5177\uFF0C\u6216\u5728 WSL2 \u4E2D\u8FD0\u884C CoreMind"
-      };
-    }
-    if (capability.effect === "unknown" && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`
       };
     }
     const customTool = capability.source !== "builtin";
@@ -264280,12 +264322,6 @@ var ToolPolicy = class {
       return {
         allowed: false,
         reason: `\u81EA\u5B9A\u4E49\u5199\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u68C0\u67E5\u7684\u76EE\u6807\u8DEF\u5F84\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u4EC5\u4FEE\u6539\u5DE5\u4F5C\u533A`
-      };
-    }
-    if (customTool && (effect.operations.includes("process") || effect.operations.includes("external")) && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u7684 process/external \u526F\u4F5C\u7528\u65E0\u6CD5\u8BC1\u660E\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`
       };
     }
     if (this.permissions.workspaceOnly) {
@@ -265372,6 +265408,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
       }
     }
     const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID23();
+    const admission = resumeRecords?.at(-1);
+    const discoveryResumeRecords = admission?.kind === "admission" && this.options.protocolStart?.method === "resume" && fingerprintEffectReceiptValue(admission.payload.protocolStart) === fingerprintEffectReceiptValue(this.options.protocolStart) ? resumeRecords.slice(0, -1) : resumeRecords ?? [];
+    const discoveryContinuations = restoreToolDiscoveryContinuations(discoveryResumeRecords, runId);
+    const consumedDiscoveryContinuations = /* @__PURE__ */ new Set();
+    const liveDiscoveryExecutions = /* @__PURE__ */ new Map();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords = !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
@@ -265985,7 +266026,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
             ...stepId ? { stepId } : {},
             ...discovery?.current ? { toolDiscovery: discoverySummary(discovery.current) } : {},
             ...createProviderRequestReplayFact({
-              requestId: `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
+              requestId: discovery ? `${discovery.catalog.owner.executionId}:${providerRequestOrdinal}` : `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
               providerId,
               modelId,
               messages,
@@ -266674,7 +266715,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
           sourceIdentity: fingerprintEffectReceiptValue(source ?? { source: "host", name })
         });
         harness.registerDeclarationCatalog = (entries) => {
-          const owner = { runId, agent: agentName, ...stepId ? { stepId } : {} };
+          const continuation = discoveryContinuations.find((owner2) => owner2.agent === agentName && owner2.stepId === stepId && !consumedDiscoveryContinuations.has(owner2.executionId));
+          if (continuation)
+            consumedDiscoveryContinuations.add(continuation.executionId);
+          const owner = continuation ?? {
+            runId,
+            agent: agentName,
+            executionId,
+            ...stepId ? { stepId } : {}
+          };
           const catalog = entries.filter((entry) => entry.name !== DISCOVER_TOOLS_NAME).filter((entry) => policy2.allowsDeclaration(entry.name, executionCapabilities.get(entry.name) ?? resolveToolCapability({ tool: entry.name }))).map((entry) => ({
             ...entry,
             declaration: entry.declaration,
@@ -266688,8 +266737,14 @@ var CoreMindRuntime = class _CoreMindRuntime {
           discovery = new ToolDiscoveryExecution({
             owner,
             entries: catalog,
-            restored: resumeRecords ? restoreToolDiscovery(resumeRecords, owner) : void 0
+            restored: continuation ? restoreToolDiscovery(resumeRecords, owner) : void 0
           });
+          for (const [id, previous] of liveDiscoveryExecutions) {
+            if (previous.catalog.owner.agent === agentName && previous.catalog.owner.stepId === stepId)
+              liveDiscoveryExecutions.delete(id);
+          }
+          liveDiscoveryExecutions.set(executionId, discovery);
+          providerRequestOrdinal = resumePlan?.previousTrace.filter((entry) => entry.event.type === "provider_request" && entry.event.toolDiscovery?.catalogFingerprint === discovery.catalog.fingerprint).length ?? 0;
           for (const source of withdrawnSources)
             discovery.withdraw(source);
           initialDiscovery = discovery.prepare([]);
@@ -266730,6 +266785,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
           }
         };
       }
+      harness.onPromptCompleted = () => liveDiscoveryExecutions.delete(executionId);
       if (mcpRun) {
         harness.prepareMcpTools = async (signal) => {
           const prepared = await mcpRun.prepare({
@@ -267218,6 +267274,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     }
     const terminalKind = outcome.status === "paused" ? "pause" : "finish";
+    const pausedDiscoveryOwners = [
+      ...discoveryContinuations.filter((owner) => !consumedDiscoveryContinuations.has(owner.executionId)),
+      ...[...liveDiscoveryExecutions.values()].filter((execution) => execution.current).map((execution) => execution.catalog.owner)
+    ];
     const terminalPayload = {
       operation: operation.snapshot(),
       outcome,
@@ -267227,6 +267287,12 @@ var CoreMindRuntime = class _CoreMindRuntime {
       artifacts: context.artifactRecords(),
       extensions: context.extensions(),
       ...outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {},
+      ...outcome.status === "paused" && pausedDiscoveryOwners.length > 0 ? {
+        toolDiscoveryContinuations: {
+          version: 1,
+          owners: pausedDiscoveryOwners
+        }
+      } : {},
       ...outcome.status === "paused" && deferredTerminalError ? { deferredTerminalError: serializeDeferredTerminalError(deferredTerminalError) } : {}
     };
     const terminalDurabilityFailure = journal.factStatus().state === "poisoned" || terminalError2 instanceof CoreMindError && (terminalError2.code === "durability_unsupported" || terminalError2.code === "durability_barrier_failed" || terminalError2.code === "fact_ledger_poisoned");

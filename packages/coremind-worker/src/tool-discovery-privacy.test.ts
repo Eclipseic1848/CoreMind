@@ -14,7 +14,15 @@ it.each(["v1", "query", "events", "expired"] as const)(
     const runId = "discovery-privacy";
     const store = new FileRunStore(path.join(directory, ".coremind", "runs"));
     const journal = new RunStateJournal(runId, store);
-    const ordinary = { toolDiscoveryCatalog: "用户普通嵌套字段" };
+    const ordinary = {
+      toolDiscoveryCatalog: "用户普通嵌套字段",
+      toolDiscoveryContinuations: "用户普通嵌套字段",
+    };
+    const publicPause = { reason: "process_interrupted", note: "保留普通字段" };
+    const continuations = {
+      version: 1,
+      owners: [{ runId, agent: "main", executionId: "private-continuation-canary" }],
+    };
     const publicTrace = {
       eventId: "discovery-prefix",
       runId,
@@ -47,7 +55,7 @@ it.each(["v1", "query", "events", "expired"] as const)(
       },
       { eventId: publicTrace.eventId },
     );
-    journal.pause({ reason: "process_interrupted", note: "保留普通字段" });
+    journal.pause({ ...publicPause, toolDiscoveryContinuations: continuations });
     await journal.flush();
     const original = await store.read(runId);
     const windowedStore = Object.assign(store, {
@@ -84,7 +92,7 @@ it.each(["v1", "query", "events", "expired"] as const)(
         records: [
           { ...original[0], payload: { configName: "privacy", ordinary } },
           { ...original[1], payload: publicTrace },
-          original[2],
+          { ...original[2], payload: publicPause },
         ],
         trace: [publicTrace],
       };
@@ -102,15 +110,21 @@ it.each(["v1", "query", "events", "expired"] as const)(
             events: [
               { sequence: 1, payload: { configName: "privacy", ordinary } },
               { sequence: 2, eventId: publicTrace.eventId, payload: publicTrace.event },
-              { sequence: 3, payload: original[2]?.payload },
+              { sequence: 3, payload: publicPause },
             ],
           },
         });
-      expect(JSON.stringify(response)).not.toMatch(/private-(?:catalog|selection|search)-canary/);
+      expect(JSON.stringify(response)).not.toMatch(
+        /private-(?:catalog|selection|search|continuation)-canary/,
+      );
       expect(await store.read(runId)).toEqual(original);
       expect(JSON.stringify(original)).toContain("private-catalog-canary");
       expect(JSON.stringify(original)).toContain("private-selection-canary");
       expect(JSON.stringify(original)).toContain("private-search-canary");
+      expect(original[2]?.payload).toEqual({
+        ...publicPause,
+        toolDiscoveryContinuations: continuations,
+      });
     } finally {
       await host.shutdown();
       await rm(directory, { recursive: true, force: true });

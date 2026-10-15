@@ -49,6 +49,8 @@ Search itself performs no network access, script reads, or process creation. Exi
 
 Each new Run builds declarations from its current configuration instead of inheriting activation from old Runs, Sessions, or parents. Resuming the same Run retains the configuration-fingerprint hard gate; old search results cannot grant new authority. Skills, delegation, resource-derived tools, and host-injected tools remain direct. Public `context_prefix` and `provider_request` events add only an optional summary containing version, catalog fingerprint, generation, selection fingerprint, and tool count. Complete catalogs and schemas remain private Run Facts and are stripped from public projections and Worker events.
 
+Declarations belong to one execution: a quality retry starts with fresh deferred declarations even when Run, Agent, and Step are unchanged. Only an exact continuation binding in the latest authoritative pause may reuse that execution's durable selection generation; completed executions are not continuation candidates. A crash without that binding never borrows the latest activation for the same Agent or Step. If the existing resume gates allow continuation, it starts with fresh deferred declarations. This rule governs tool declarations, not complete message or request recovery, and does not relax resume admission.
+
 ## Agent-scoped local MCP tools
 
 Explicit stdio services start inside an authorized Run. Use absolute `command` and `cwd` paths and a fixed `args` array. CoreMind does not evaluate a shell or install programs. Replace these paths and the raw tool name with an audited local service:

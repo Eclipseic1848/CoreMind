@@ -79,6 +79,8 @@ with CoreMindClient(config, protocol_version='2.0',
 
 搜索命中不代表工具已获执行批准。下一请求完成持久安装后仍执行原审批与 deny；新 Run 重新建立声明，同一 Run 恢复仍受配置指纹约束。`context_prefix` 和 `provider_request` 的可选 `toolDiscovery` 只含五字段安全摘要，Python 对出现的摘要做封闭校验；完整目录和参数 schema 不经公开事件传输。本节说明协议与使用合同，不代表外部服务互通或本版本发布资格已通过。
 
+`resume_run` 只有在最后权威暂停记录精确绑定待续 execution 时，才沿用该执行的已安装工具集合。质量重试建立新 execution；崩溃没有该绑定时，在原恢复门准入后从新的 deferred 声明开始，不借同 Run/Agent/Step 的旧激活。此绑定由 Node 的私有事实管理，不增加 Python 目录、公开 owners 字段或消息恢复承诺；原配置指纹、输入、审批和副作用检查仍适用。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

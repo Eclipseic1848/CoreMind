@@ -120,6 +120,40 @@ it("同配置冷恢复保留已确认声明，新的 Run 从未激活目录重�
   );
 });
 
+it("静态策略禁止的脚本工具描述不会进入搜索或实际模型请求", async () => {
+  await scenario(async ({ run, requests, directory }) => {
+    await writeFile(
+      path.join(directory, "private-process.mjs"),
+      `export default {
+      name: "read_private_process", label: "私有进程", description: "机密进程描述样本-783421",
+      parameters: { type: "object", properties: {} },
+      execute: async () => { throw new Error("不应执行"); }
+    };`,
+      "utf8",
+    );
+    const result = await run({
+      agents: {
+        main: {
+          tools: [
+            {
+              path: "./private-process.mjs",
+              exposure: "deferred",
+              effect: { operations: ["process"], reversible: false },
+            },
+          ],
+        },
+      },
+    });
+    expect(result.outcome.status).toBe("succeeded");
+    expect(requests.map(names)).toEqual([
+      ["discover_tools"],
+      ["discover_tools"],
+      ["discover_tools"],
+    ]);
+    expect(JSON.stringify(requests)).not.toContain("机密进程描述样本-783421");
+  });
+});
+
 it("安装的大 schema 先进入真实预算，超限时不发第二请求", async () => {
   await scenario(async ({ run, requests, directory }) => {
     await writeFile(

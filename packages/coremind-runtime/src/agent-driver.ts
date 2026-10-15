@@ -87,6 +87,8 @@ export interface AgentDriverTurnObservation {
 export interface AgentDriverHarness {
   /** 原生 prompt 开始前完成已持久控制的就绪重放。 */
   beforePrompt?: () => Promise<void>;
+  /** 本次 prompt 正常完成且通过原拒绝门后通知一次。 */
+  onPromptCompleted?: () => void;
   maxRetries?: number;
   registerContextContract?: (contract: AgentDriverContextContract) => void;
   registerDeclarationCatalog?: (

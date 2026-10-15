@@ -34,7 +34,12 @@ import {
 import { TOOL_DISCOVERY_DECLARATION } from "./tool-discovery-declaration.js";
 import { resolveToolDiscoveryRequestDeclaration } from "./tool-discovery-replay.js";
 
-const owner = { runId: "discovery-replay-golden", agent: "main", stepId: "step-1" };
+const owner = {
+  runId: "discovery-replay-golden",
+  agent: "main",
+  stepId: "step-1",
+  executionId: "native-execution-1",
+};
 const prefixInput = {
   projectInstructions: "逐次发现并读取工具",
   stableFacts: { fixture: "native" },
@@ -182,16 +187,19 @@ it.each([
   ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
 });
 
-it.each(["runId", "agent", "stepId"] as const)("目标请求不能由另一 %s 的目录恢复", (key) => {
-  expect(() =>
-    resolveToolDiscoveryRequestDeclaration({
-      records: fixture.records,
-      owner: { ...owner, [key]: "another-owner" },
-      requestId: fixture.requests[1]!.requestId,
-      prefixInput,
-    }),
-  ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
-});
+it.each(["runId", "agent", "stepId", "executionId"] as const)(
+  "目标请求不能由另一 %s 的目录恢复",
+  (key) => {
+    expect(() =>
+      resolveToolDiscoveryRequestDeclaration({
+        records: fixture.records,
+        owner: { ...owner, [key]: "another-owner" },
+        requestId: fixture.requests[1]!.requestId,
+        prefixInput,
+      }),
+    ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+  },
+);
 
 it("重复或缺失的目标 requestId 明确拒绝", () => {
   const records = structuredClone(fixture.records);
@@ -422,7 +430,7 @@ async function captureNativeRequests() {
             );
           },
           onModelRequestDispatched: ({ providerId, modelId, messages }) => {
-            const requestId = `${owner.agent}:${owner.stepId}:${requests.length + 1}`;
+            const requestId = `${owner.agent}:${owner.stepId}:${owner.executionId}:${requests.length + 1}`;
             const replay = {
               requestId,
               providerId,

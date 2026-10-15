@@ -85,12 +85,62 @@ export class ToolPolicy {
 
   /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
   allowsDeclaration(tool: string, capability: ResolvedToolCapability): boolean {
+    return this.staticDenial(tool, capability) === undefined;
+  }
+
+  private hasRestrictedChildPaths(): boolean {
     return (
-      !matchesAny(tool, this.permissions.deny) &&
-      capability.resolution !== "fallback" &&
-      !(capability.effect === "unknown" && capability.checkpoint === "unsupported") &&
-      !(capability.effect === "network" && this.permissions.network === "deny")
+      this.options.allowedPaths !== undefined &&
+      !this.options.allowedPaths.some(
+        (allowedPath) =>
+          path.resolve(this.options.cwd, allowedPath) === path.resolve(this.options.cwd),
+      )
     );
+  }
+
+  private staticDenial(tool: string, capability: ResolvedToolCapability): string | undefined {
+    if (matchesAny(tool, this.permissions.deny)) return `工具 ${tool} 在 permissions.deny 中`;
+    if (capability.resolution === "fallback") {
+      return `自定义工具 ${tool} 未声明副作用或完整 Capability，无法安全解析：${capability.issues.join("、")}`;
+    }
+    if (capability.effect === "unknown" && capability.checkpoint === "unsupported") {
+      return `工具 ${tool} 的 Effect 未知且无法建立必要 Checkpoint，已在执行前阻断`;
+    }
+    if (
+      this.hasRestrictedChildPaths() &&
+      ["process", "external", "unknown"].includes(capability.effect)
+    ) {
+      return `工具 ${tool} 未暴露可验证的 Child Run allowlist 内目标路径`;
+    }
+    if (
+      tool === "bash" &&
+      (this.options.platform ?? process.platform) === "win32" &&
+      (this.permissions.mode !== "full" ||
+        this.permissions.workspaceOnly ||
+        this.permissions.network !== "allow")
+    ) {
+      return "Windows 主机 Shell 无法证明工作区或网络约束，已拒绝；请改用文件工具，或在 WSL2 中运行 CoreMind";
+    }
+    if (
+      capability.effect === "unknown" &&
+      (this.permissions.workspaceOnly || this.permissions.network !== "allow")
+    ) {
+      return `自定义工具 ${tool} 未声明副作用，无法证明其满足工作区或网络约束`;
+    }
+    if (
+      capability.source !== "builtin" &&
+      ["process", "external", "unknown"].includes(capability.effect) &&
+      (this.permissions.workspaceOnly || this.permissions.network !== "allow")
+    ) {
+      return `自定义工具 ${tool} 的 process/external 副作用无法证明满足工作区或网络约束`;
+    }
+    if (
+      ["network", "external"].includes(capability.effect) &&
+      this.permissions.network === "deny"
+    ) {
+      return `网络策略拒绝工具 ${tool}`;
+    }
+    return undefined;
   }
 
   async authorize(
@@ -101,23 +151,9 @@ export class ToolPolicy {
     selectors?: ToolEffectDeclaration,
     delegationInputFingerprint?: string,
   ): Promise<ToolPolicyDecision> {
-    if (matchesAny(tool, this.permissions.deny)) {
-      return { allowed: false, reason: `工具 ${tool} 在 permissions.deny 中` };
-    }
-
     const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
-    if (capability.resolution === "fallback") {
-      return {
-        allowed: false,
-        reason: `自定义工具 ${tool} 未声明副作用或完整 Capability，无法安全解析：${capability.issues.join("、")}`,
-      };
-    }
-    if (capability.effect === "unknown" && capability.checkpoint === "unsupported") {
-      return {
-        allowed: false,
-        reason: `工具 ${tool} 的 Effect 未知且无法建立必要 Checkpoint，已在执行前阻断`,
-      };
-    }
+    const staticDenial = this.staticDenial(tool, capability);
+    if (staticDenial) return { allowed: false, reason: staticDenial };
     const effect = resolveToolEffect(
       args,
       capability,
@@ -139,45 +175,14 @@ export class ToolPolicy {
         effect.paths.push(".");
       }
     }
-    const hasRestrictedChildPathScope =
-      this.options.allowedPaths !== undefined &&
-      !this.options.allowedPaths.some(
-        (allowedPath) =>
-          path.resolve(this.options.cwd, allowedPath) === path.resolve(this.options.cwd),
-      );
     if (
-      hasRestrictedChildPathScope &&
-      (effect.operations.includes("process") ||
-        effect.operations.includes("external") ||
-        (capability.effect === "workspace" && effect.paths.length === 0))
+      this.hasRestrictedChildPaths() &&
+      capability.effect === "workspace" &&
+      effect.paths.length === 0
     ) {
       return {
         allowed: false,
         reason: `工具 ${tool} 未暴露可验证的 Child Run allowlist 内目标路径`,
-      };
-    }
-
-    if (
-      tool === "bash" &&
-      (this.options.platform ?? process.platform) === "win32" &&
-      (this.permissions.mode !== "full" ||
-        this.permissions.workspaceOnly ||
-        this.permissions.network !== "allow")
-    ) {
-      return {
-        allowed: false,
-        reason:
-          "Windows 主机 Shell 无法证明工作区或网络约束，已拒绝；请改用文件工具，或在 WSL2 中运行 CoreMind",
-      };
-    }
-
-    if (
-      capability.effect === "unknown" &&
-      (this.permissions.workspaceOnly || this.permissions.network !== "allow")
-    ) {
-      return {
-        allowed: false,
-        reason: `自定义工具 ${tool} 未声明副作用，无法证明其满足工作区或网络约束`,
       };
     }
 
@@ -193,17 +198,6 @@ export class ToolPolicy {
         reason: `自定义写工具 ${tool} 未暴露可检查的目标路径，无法证明其仅修改工作区`,
       };
     }
-    if (
-      customTool &&
-      (effect.operations.includes("process") || effect.operations.includes("external")) &&
-      (this.permissions.workspaceOnly || this.permissions.network !== "allow")
-    ) {
-      return {
-        allowed: false,
-        reason: `自定义工具 ${tool} 的 process/external 副作用无法证明满足工作区或网络约束`,
-      };
-    }
-
     if (this.permissions.workspaceOnly) {
       const escaped = await this.findEscapedPath(effect.paths);
       if (escaped) {

@@ -8,13 +8,20 @@ import type { RunStateRecord } from "./run-state.js";
 import {
   DISCOVER_TOOLS_NAME,
   restoreToolDiscovery,
+  restoreToolDiscoveryContinuations,
   type ToolDiscoveryEntry,
   ToolDiscoveryExecution,
+  type ToolDiscoveryOwner,
   type ToolDiscoveryPrepared,
   type ToolDiscoverySearchFact,
 } from "./tool-discovery.js";
 
-const owner = { runId: "run-discovery", agent: "main", stepId: "step-1" };
+const owner = {
+  runId: "run-discovery",
+  agent: "main",
+  stepId: "step-1",
+  executionId: "execution-1",
+};
 
 it("真正调用本地目录支持中文和英文查询，稳定同分排序且不提前返回参数 schema", () => {
   const discovery = create();
@@ -334,6 +341,178 @@ it("新 Run 不从其他 owner 事实恢复激活；同 Run 真实 schema 漂移
       }),
   ).toThrowError(expect.objectContaining({ code: "tool_capability_conflict" }));
 });
+
+it("同 run/agent/step 的不同 execution 独立折叠目录、搜索和 generation，不复用旧调用绑定", () => {
+  const first = create();
+  const initial = prepare(first);
+  first.commit(initial, receipt(initial));
+  const binding = first.assertCallable("direct_read");
+  const fact = successfulSearch(first, "search-shared-call", { query: "订单" });
+  const installed = prepare(first, [fact]);
+  first.commit(installed, receipt(installed));
+  const secondOwner = { ...owner, executionId: "execution-2" };
+  const second = new ToolDiscoveryExecution({ owner: secondOwner, entries: first.catalog.entries });
+  const secondInitial = prepare(second);
+  second.commit(secondInitial, receipt(secondInitial));
+  expect(secondInitial.selection.names).toEqual(["direct_read"]);
+  expect(() => second.assertCallable("direct_read", binding)).toThrowError(
+    expect.objectContaining({ code: "tool_capability_conflict" }),
+  );
+  expect(() => second.prepare([fact])).toThrowError(
+    expect.objectContaining({ code: "run_state_corrupt" }),
+  );
+  const records = [
+    record(1, { toolDiscoveryCatalog: initial.catalog, toolDiscoverySelection: initial.selection }),
+    record(2, {
+      event: {
+        type: "tool_result",
+        agent: owner.agent,
+        stepId: owner.stepId,
+        callId: fact.callId,
+        tool: DISCOVER_TOOLS_NAME,
+        isError: false,
+      },
+      toolDiscoverySearch: fact,
+    }),
+    record(3, { toolDiscoverySelection: installed.selection }),
+    record(4, {
+      toolDiscoveryCatalog: secondInitial.catalog,
+      toolDiscoverySelection: secondInitial.selection,
+    }),
+  ];
+  expect(restoreToolDiscovery(records, owner)?.selections).toEqual([
+    initial.selection,
+    installed.selection,
+  ]);
+  expect(restoreToolDiscovery(records, secondOwner)?.selections).toEqual([secondInitial.selection]);
+  expect(restoreToolDiscovery(records, secondOwner)?.searches).toEqual([]);
+  expect(
+    restoreToolDiscovery(records, { ...owner, executionId: "execution-missing" }),
+  ).toBeUndefined();
+});
+
+it("最终明确 pause 才恢复其精确 execution，并复制冻结 continuation owner", () => {
+  const facts = initialFacts(owner);
+  const owners = [{ ...owner }];
+  const records = [...facts, pause(2, { version: 1, owners })];
+  const original = structuredClone(records);
+  const restored = restoreToolDiscoveryContinuations(records, owner.runId);
+  expect(restored).toEqual([owner]);
+  expect(Object.isFrozen(restored)).toBe(true);
+  expect(Object.isFrozen(restored[0])).toBe(true);
+  owners[0]!.executionId = "rewritten-after-restore";
+  expect(restored[0]!.executionId).toBe(owner.executionId);
+  expect(records.slice(0, 1)).toEqual(original.slice(0, 1));
+});
+
+it("缺少绑定或最后记录不是 pause 时不回找较早暂停，也不猜旧激活", () => {
+  const facts = initialFacts(owner);
+  const bound = pause(2, { version: 1, owners: [owner] });
+  expect(restoreToolDiscoveryContinuations([], owner.runId)).toEqual([]);
+  expect(restoreToolDiscoveryContinuations(facts, owner.runId)).toEqual([]);
+  expect(restoreToolDiscoveryContinuations([...facts, pause(2)], owner.runId)).toEqual([]);
+  expect(
+    restoreToolDiscoveryContinuations(
+      [...facts, bound, record(3, { event: { type: "agent_start" } })],
+      owner.runId,
+    ),
+  ).toEqual([]);
+  expect(
+    restoreToolDiscoveryContinuations(
+      [...facts, bound, { ...record(3, {}), kind: "finish" }],
+      owner.runId,
+    ),
+  ).toEqual([]);
+});
+
+it.each([
+  null,
+  {},
+  { version: 2, owners: [owner] },
+  { version: 1, owners: null },
+  { version: 1, owners: [owner], extra: true },
+  { version: 1, owners: [{ runId: owner.runId, agent: owner.agent, stepId: owner.stepId }] },
+  { version: 1, owners: [{ ...owner, executionId: "" }] },
+  { version: 1, owners: [{ ...owner, extra: true }] },
+  { version: 1, owners: [{ ...owner, runId: "other-run" }] },
+  { version: 1, owners: [owner, owner] },
+])("continuation 严格拒绝损坏版本、字段和执行身份：%j", (value) => {
+  expect(() =>
+    restoreToolDiscoveryContinuations([...initialFacts(owner), pause(2, value)], owner.runId),
+  ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+});
+
+it.each(["scope", "execution"])("continuation 不接受两个有效目录冲突的 %s 身份", (mode) => {
+  const another =
+    mode === "scope"
+      ? { ...owner, executionId: "execution-2" }
+      : { ...owner, agent: "another-agent" };
+  const records = [
+    ...initialFacts(owner),
+    ...initialFacts(another, 2),
+    pause(3, { version: 1, owners: [owner, another] }),
+  ];
+  expect(() => restoreToolDiscoveryContinuations(records, owner.runId)).toThrowError(
+    expect.objectContaining({ code: "run_state_corrupt" }),
+  );
+});
+
+it.each(["catalog", "selection"])(
+  "continuation 引用缺少 %s 的 execution 必须失败关闭",
+  (missing) => {
+    const discovery = create();
+    const initial = prepare(discovery);
+    const records = [
+      record(
+        1,
+        missing === "catalog"
+          ? { toolDiscoverySelection: initial.selection }
+          : { toolDiscoveryCatalog: initial.catalog },
+      ),
+      pause(2, { version: 1, owners: [owner] }),
+    ];
+    expect(() => restoreToolDiscoveryContinuations(records, owner.runId)).toThrowError(
+      expect.objectContaining({ code: "run_state_corrupt" }),
+    );
+  },
+);
+
+it("continuation 不把其他 Run 的最终 pause 误作本 Run 绑定", () => {
+  expect(() =>
+    restoreToolDiscoveryContinuations(
+      [
+        ...initialFacts(owner),
+        { ...pause(2, { version: 1, owners: [owner] }), runId: "other-run" },
+      ],
+      owner.runId,
+    ),
+  ).toThrowError(expect.objectContaining({ code: "run_state_corrupt" }));
+});
+
+function initialFacts(boundOwner: ToolDiscoveryOwner, sequence = 1) {
+  const discovery = new ToolDiscoveryExecution({
+    owner: boundOwner,
+    entries: [entry("orders_read", "订单读取")],
+  });
+  const initial = prepare(discovery);
+  return [
+    record(sequence, {
+      toolDiscoveryCatalog: initial.catalog,
+      toolDiscoverySelection: initial.selection,
+    }),
+  ];
+}
+
+function pause(sequence: number, continuations?: unknown): RunStateRecord {
+  return {
+    ...record(sequence, {}),
+    kind: "pause",
+    payload: {
+      reason: "tool_approval_denied",
+      ...(continuations !== undefined ? { toolDiscoveryContinuations: continuations } : {}),
+    },
+  };
+}
 
 function entry(
   name: string,

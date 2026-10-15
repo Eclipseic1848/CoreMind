@@ -60,9 +60,29 @@ describe("ToolPolicy", () => {
           expect((await policy.authorize("main", "bash", { command: "echo test" })).allowed).toBe(
             mode === "full" && !workspaceOnly && network === "allow",
           );
+          expect(policy.allowsDeclaration("bash", resolveToolCapability({ tool: "bash" }))).toBe(
+            mode === "full" && !workspaceOnly && network === "allow",
+          );
         }
       }
     }
+  });
+  it.each(["process", "external"] as const)("目录不暴露静态禁止的 %s 工具", async (effect) => {
+    const tool = `private_${effect}`;
+    const capability = resolveToolCapability({
+      tool,
+      source: "registered",
+      declaration: {
+        effect,
+        replay: "unknown",
+        concurrency: "run_serial",
+        checkpoint: "unsupported",
+        durability: "critical",
+      },
+    });
+    const policy = createPolicy({ mode: "full", workspaceOnly: true, network: "deny" });
+    expect((await policy.authorize("main", tool, {}, capability)).allowed).toBe(false);
+    expect(policy.allowsDeclaration(tool, capability)).toBe(false);
   });
   it("工作区目录别名与真实目标一致，Child allowlist 仍拒绝越界", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "coremind-policy-alias-"));

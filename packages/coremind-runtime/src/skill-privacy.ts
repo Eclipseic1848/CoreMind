@@ -5,7 +5,9 @@ export function stripPrivateSkillPayload<T>(kind: string, payload: T): T {
       ? ["skillSnapshot", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"]
       : kind === "event"
         ? ["skillLoad", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"]
-        : [];
+        : kind === "pause"
+          ? ["toolDiscoveryContinuations"]
+          : [];
   if (
     fields.length === 0 ||
     payload === null ||

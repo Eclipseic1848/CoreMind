@@ -28,6 +28,8 @@ coremind run coremind.yaml --resume <runId> --json-events
 
 Config 3 的 deferred 工具仍受同一恢复门约束：同一 Run 必须匹配原配置指纹，不能改配置后借旧选择集合扩权。目录快照、成功搜索与声明代次保存在私有追加事实中；公开 `context_prefix` 和 `provider_request` 只引用安全摘要。新 Run 根据当前配置重新建立声明，旧 Session、父级或上次 Run 的激活不构成授权。没有工具发现事实的旧 Run 沿原路径恢复，不推测历史工具集合。
 
+同一 Run 内还须区分 execution。质量重试是新的 execution，即使 Agent 和 Step 相同也不复用旧激活。只有最后的权威暂停记录精确绑定待续 execution，才恢复该执行的目录与选择代次；已经成功完成的执行不成为待续项。崩溃没有精确绑定时，若原准入允许恢复，则从新的 deferred 声明开始，不猜最近同 Agent/Step 的旧状态。该私有绑定不会出现在公开投影或 Worker 事件中；它也不证明完整会话消息已经恢复。
+
 从冷启动 Worker 读取同一批 Facts 并重投影，不等于已获准继续执行。继续执行仍须通过原输入、步骤边界、Effect Receipt 与所有权检查；搜索成功也不免除后续工具审批。
 
 ## 旧 Session

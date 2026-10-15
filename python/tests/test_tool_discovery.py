@@ -17,7 +17,7 @@ from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
 
 
 CONTENT = "工具发现真实文件正文-739027"
-PRIVATE_FIELDS = ("toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch")
+PRIVATE_FIELDS = ("toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch", "toolDiscoveryContinuations")
 
 
 class ToolDiscoveryTest(unittest.TestCase):
@@ -164,7 +164,7 @@ class ToolDiscoveryTest(unittest.TestCase):
                         await self._invoke(client, asynchronous, "resume_run", "discovery-primary")
                         resumed = await self._finished(client, asynchronous, "discovery-primary", after_sequence=before_events[-1]["sequence"])
                         projection = (await self._invoke(client, asynchronous, "query", "discovery-primary"))["projection"]
-                        self.assertEqual(projection["outcome"]["status"], "succeeded")
+                        self.assertEqual(projection["outcome"]["status"], "succeeded", projection["outcome"])
                         self.assertEqual(len(requests), 4)
                         self.assertEqual({tool["function"]["name"] for tool in requests[2]["tools"]}, {"read", "discover_tools"})
                         self.assertFalse(any(item["eventType"] == "tool_call" and item["payload"].get("tool") == "discover_tools" for item in resumed))

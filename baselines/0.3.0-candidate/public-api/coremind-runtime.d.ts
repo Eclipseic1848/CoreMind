@@ -3234,6 +3234,8 @@ export declare class ToolPolicy {
     constructor(options: ToolPolicyOptions);
     /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
     allowsDeclaration(tool: string, capability: ResolvedToolCapability): boolean;
+    private hasRestrictedChildPaths;
+    private staticDenial;
     authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;

@@ -26,7 +26,7 @@ import type {
 import { buildStableContextPrefix } from "./context.js";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
 import { CoreMindError } from "./errors.js";
-import { type CoreMindEvent, normalizeEvent } from "./events.js";
+import { type CoreMindEvent, extractAgentError, normalizeEvent } from "./events.js";
 import type { InputId } from "./input-receipt.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { convertToLlm, type AgentMessage as SessionMessage } from "./session-v4/index.js";
@@ -342,6 +342,7 @@ class ModelAgentDriver implements AgentDriver {
   private readonly controlIds = new Set<InputId>();
   private readonly pendingControls = new Map<AgentMessage, InputId>();
   private promptRunning = false;
+  private promptCompleted = false;
 
   constructor(
     private readonly agent: Agent,
@@ -360,11 +361,13 @@ class ModelAgentDriver implements AgentDriver {
 
   async prompt(input: string): Promise<void> {
     this.promptRunning = true;
+    this.promptCompleted = false;
     this.acceptingControls = true;
     try {
       if (this.harness?.beforePrompt) await this.harness.beforePrompt();
       await this.agent.prompt(input);
       await this.agent.waitForIdle();
+      this.promptCompleted = true;
     } finally {
       this.acceptingControls = false;
       this.promptRunning = false;
@@ -377,6 +380,16 @@ class ModelAgentDriver implements AgentDriver {
     if (failure !== undefined) throw failure;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
+    if (!this.promptCompleted || !this.harness?.onPromptCompleted) return;
+    const messages = this.messages();
+    const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+    if (
+      !extractAgentError(messages) &&
+      (lastAssistant?.stopReason === "stop" || lastAssistant?.stopReason === "length")
+    ) {
+      this.promptCompleted = false;
+      this.harness.onPromptCompleted();
+    }
   }
 
   messages(): CoreMindMessage[] {

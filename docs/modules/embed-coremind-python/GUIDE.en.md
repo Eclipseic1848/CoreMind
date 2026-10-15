@@ -79,6 +79,8 @@ Default v1 retains its original first initialize packet with no `capabilities` f
 
 A search match does not approve execution. Durable installation at the next request still preserves approval and deny rules. New Runs rebuild declarations; the same Run retains its configuration-fingerprint resume gate. Optional `toolDiscovery` fields on `context_prefix` and `provider_request` carry only the five-field safe summary, which Python validates as a closed object. Complete catalogs and schemas never travel through public events. These are usage and protocol contracts, not claims of external interoperability or completed release qualification.
 
+`resume_run` reuses an installed tool set only when the latest authoritative pause exactly binds the execution to continue. Quality retries start new executions. After a crash without that binding, existing resume admission may allow a fresh deferred declaration, never activation borrowed from the same Run/Agent/Step. Node manages this binding in private facts; it adds no Python catalog, public owners field, or complete-message-recovery promise. Configuration fingerprints, input, approval, and effect checks still apply.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

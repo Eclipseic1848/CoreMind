@@ -218,6 +218,7 @@ import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import {
   DISCOVER_TOOLS_NAME,
   restoreToolDiscovery,
+  restoreToolDiscoveryContinuations,
   type ToolDiscoveryCallBinding,
   ToolDiscoveryExecution,
   type ToolDiscoveryPrepared,
@@ -1501,6 +1502,19 @@ export class CoreMindRuntime {
     }
     // 预生成 runId（D-1）：resume 时以恢复记录为准，否则优先使用调用方预生成值
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
+    const admission = resumeRecords?.at(-1);
+    // 当前 Worker 的明确 resume 准入不取代它刚验证过的暂停绑定。
+    const discoveryResumeRecords =
+      admission?.kind === "admission" &&
+      this.options.protocolStart?.method === "resume" &&
+      fingerprintEffectReceiptValue(
+        (admission.payload as { protocolStart?: unknown }).protocolStart,
+      ) === fingerprintEffectReceiptValue(this.options.protocolStart)
+        ? resumeRecords!.slice(0, -1)
+        : (resumeRecords ?? []);
+    const discoveryContinuations = restoreToolDiscoveryContinuations(discoveryResumeRecords, runId);
+    const consumedDiscoveryContinuations = new Set<string>();
+    const liveDiscoveryExecutions = new Map<string, ToolDiscoveryExecution>();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords =
@@ -2321,7 +2335,9 @@ export class CoreMindRuntime {
             ...(stepId ? { stepId } : {}),
             ...(discovery?.current ? { toolDiscovery: discoverySummary(discovery.current) } : {}),
             ...createProviderRequestReplayFact({
-              requestId: `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
+              requestId: discovery
+                ? `${discovery.catalog.owner.executionId}:${providerRequestOrdinal}`
+                : `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
               providerId,
               modelId,
               messages,
@@ -3243,7 +3259,19 @@ export class CoreMindRuntime {
             sourceIdentity: fingerprintEffectReceiptValue(source ?? { source: "host", name }),
           });
         harness.registerDeclarationCatalog = (entries) => {
-          const owner = { runId, agent: agentName, ...(stepId ? { stepId } : {}) };
+          const continuation = discoveryContinuations.find(
+            (owner) =>
+              owner.agent === agentName &&
+              owner.stepId === stepId &&
+              !consumedDiscoveryContinuations.has(owner.executionId),
+          );
+          if (continuation) consumedDiscoveryContinuations.add(continuation.executionId);
+          const owner = continuation ?? {
+            runId,
+            agent: agentName,
+            executionId: executionId!,
+            ...(stepId ? { stepId } : {}),
+          };
           const catalog = entries
             .filter((entry) => entry.name !== DISCOVER_TOOLS_NAME)
             .filter((entry) =>
@@ -3266,8 +3294,22 @@ export class CoreMindRuntime {
           discovery = new ToolDiscoveryExecution({
             owner,
             entries: catalog,
-            restored: resumeRecords ? restoreToolDiscovery(resumeRecords, owner) : undefined,
+            restored: continuation ? restoreToolDiscovery(resumeRecords!, owner) : undefined,
           });
+          for (const [id, previous] of liveDiscoveryExecutions) {
+            if (
+              previous.catalog.owner.agent === agentName &&
+              previous.catalog.owner.stepId === stepId
+            )
+              liveDiscoveryExecutions.delete(id);
+          }
+          liveDiscoveryExecutions.set(executionId!, discovery);
+          providerRequestOrdinal =
+            resumePlan?.previousTrace.filter(
+              (entry) =>
+                entry.event.type === "provider_request" &&
+                entry.event.toolDiscovery?.catalogFingerprint === discovery!.catalog.fingerprint,
+            ).length ?? 0;
           for (const source of withdrawnSources) discovery.withdraw(source);
           initialDiscovery = discovery.prepare([]);
           return adapterSelection(initialDiscovery?.selection ?? discovery.current!);
@@ -3307,6 +3349,7 @@ export class CoreMindRuntime {
           }
         };
       }
+      harness.onPromptCompleted = () => liveDiscoveryExecutions.delete(executionId!);
       if (mcpRun) {
         harness.prepareMcpTools = async (signal) => {
           const prepared = await mcpRun.prepare({
@@ -3953,6 +3996,14 @@ export class CoreMindRuntime {
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     }
     const terminalKind = outcome.status === "paused" ? "pause" : "finish";
+    const pausedDiscoveryOwners = [
+      ...discoveryContinuations.filter(
+        (owner) => !consumedDiscoveryContinuations.has(owner.executionId),
+      ),
+      ...[...liveDiscoveryExecutions.values()]
+        .filter((execution) => execution.current)
+        .map((execution) => execution.catalog.owner),
+    ];
     const terminalPayload = {
       operation: operation.snapshot(),
       outcome,
@@ -3962,6 +4013,14 @@ export class CoreMindRuntime {
       artifacts: context.artifactRecords(),
       extensions: context.extensions(),
       ...(outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {}),
+      ...(outcome.status === "paused" && pausedDiscoveryOwners.length > 0
+        ? {
+            toolDiscoveryContinuations: {
+              version: 1,
+              owners: pausedDiscoveryOwners,
+            },
+          }
+        : {}),
       ...(outcome.status === "paused" && deferredTerminalError
         ? { deferredTerminalError: serializeDeferredTerminalError(deferredTerminalError) }
         : {}),

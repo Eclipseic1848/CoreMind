@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "f8ec7c6bb0ce42e4117a174cbdce2dd17b9e6add",
+    "developmentCommit": "2b221ee6f93bc70da38082a30af709205c8e5248",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,7 +17,7 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
       "coremind-protocol": "43710b26ab4300e0bcce303b287162f569822efa9dd91487a1eb3c2e59200a04",
-      "coremind-runtime": "a9e61095df3c7d842d5a46b06c61a0f46af0ca0a066347f00145f9c87bb6aa6a",
+      "coremind-runtime": "3a341366c3030c825365e79207ba2fae2b90a33f056d3ee2c27daadc806ea604",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "ef99c6ff5dfc2ca8423113d2df43002020bee0d98e2d6d1c0e0ffd74946167b2",
       "coremind-worker": "5b228bdd8b5b06fc4f9c81fd8ca60604eb0766f6d57db52623eaf7372e2234f1"
@@ -283,9 +283,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-15T04:12:44.243Z",
+    "capturedAt": "2026-10-15T04:40:22.009Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #252：新增显式 Config 3 工具按需曝光、受限初始化能力协商和版本化声明摘要；目录声明沿原持久化及权限门，保留 Config 2 默认解析及旧初始化首包。同步自有 Trace 事件身份与目录准入接口。",
+    "updateReason": "Issue #252：新增可选 Driver 成功完成通知，隔离质量重试与明确暂停恢复的工具声明身份；复用静态策略防止目录泄漏。私有辅助成员和可选回调同步公共类型报告，旧配置和协议保持兼容。",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "34ed753c9a68b689623fa78b212c2ba0fcd0a41badfb8363b7313ac9d6f77d21",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
@@ -294,10 +294,10 @@
       "coremind-cli": "c45f6237b88e5ae1bfa1e1a8fd84f143234323c193da268eb99efe7d73b2bdf8",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
       "coremind-protocol": "2c3a2538a26741751e4a86684258d4ff66dc6421b98dcdfe9548a6e975217b29",
-      "coremind-runtime": "85391dd18befd9604b164fdfd8a4aae2842c7ed6f3b05897769b362394e56b32",
+      "coremind-runtime": "a2708591e7281c94f04dc5d47d2860d7d144048240eaf075e27c71238876d797",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
       "coremind-tools": "8e09cb15ca6eefe830a0b5582f0f67bd359b83b6acb0cfc2e4f0cd78a07eee4d",
-      "coremind-worker": "dbe7df86176f3a919b52e8c023435f444ae3b0179526233e914baf19910d6b3f"
+      "coremind-worker": "4f1e9b97dea17bb7c8f2dce04d830ff37454cde4582dd4b8cfc1e17bdf31db14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }
