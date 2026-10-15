@@ -16,6 +16,8 @@ This file records user-facing changes. Historical release records remain unchang
 - Explicit Config v3 `deferred` tools support Chinese and English lexical discovery. Declarations are isolated per execution; durable installation takes effect on subsequent requests, and generation and selection facts are rebuildable. Discovery grants no execution authority.
 - The terminal correlates approvals, results, durations, and Effects by actual Run/Agent/Step/Call and distinguishes stored and blocked Artifacts. Coalesced Chinese input, grapheme deletion, paste-as-draft, and exit settlement retain explicit semantics.
 - Restore documentation navigation and theme titles while preserving literal configuration and release-note placeholders.
+- Remove redundant disk synchronization of temporary FileRunStore locks while preserving atomic publication of complete owners, critical Fact synchronization, and cancellation quiescence conditions.
+- Establish a dedicated Windows Job before starting a local MCP service; shutdown requires confirmation that all descendants exited. Cleanup failure never reports quiescence, and policies that block the helper or Job reject the service before execution.
 
 ### Upgrade, compatibility, and release qualification
 

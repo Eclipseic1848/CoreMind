@@ -661,6 +661,18 @@ async function withTerminal(
     });
     try {
       await waitFor(() => compact().includes("你 >"), "真实 TUI 输入框未就绪");
+      // 首帧可能早于 Ink 的输入 effect，发送前须确认原生模式确已开启。
+      await waitFor(
+        async () =>
+          (await readJsonLines(inputLog)).some(
+            (entry) =>
+              entry.type === "input_ready" &&
+              entry.isRaw === true &&
+              typeof entry.readableListeners === "number" &&
+              entry.readableListeners > 0,
+          ),
+        "真实 TUI 原始输入未就绪",
+      );
       await action({
         workspace,
         requests,

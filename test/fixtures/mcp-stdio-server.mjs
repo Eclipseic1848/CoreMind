@@ -16,6 +16,7 @@ const childScript = [
 ].join(";");
 const child = spawn(process.execPath, ["-e", childScript], {
   stdio: ["ignore", "ignore", "ignore", "ipc"],
+  detached: process.platform === "win32" && mode === "orphan",
   windowsHide: true,
 });
 const childReady = new Promise((resolve, reject) => {

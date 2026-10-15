@@ -1,0 +1,3894 @@
+{
+  "inputs": {
+    "node_modules/is-plain-obj/index.js": {
+      "bytes": 344,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/file-url.js": {
+      "bytes": 960,
+      "imports": [
+        {
+          "path": "node:url",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/parameters.js": {
+      "bytes": 1464,
+      "imports": [
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/file-url.js",
+          "kind": "import-statement",
+          "original": "../arguments/file-url.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/utils/uint-array.js": {
+      "bytes": 2308,
+      "imports": [
+        {
+          "path": "node:string_decoder",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/template.js": {
+      "bytes": 5002,
+      "imports": [
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/utils/standard-stream.js": {
+      "bytes": 367,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/specific.js": {
+      "bytes": 3865,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/values.js": {
+      "bytes": 1649,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "../arguments/specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/escape.js": {
+      "bytes": 3728,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/is-unicode-supported/index.js": {
+      "bytes": 657,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/figures/index.js": {
+      "bytes": 7366,
+      "imports": [
+        {
+          "path": "node_modules/is-unicode-supported/index.js",
+          "kind": "import-statement",
+          "original": "is-unicode-supported"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/yoctocolors/base.js": {
+      "bytes": 4401,
+      "imports": [
+        {
+          "path": "node:tty",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/yoctocolors/index.js": {
+      "bytes": 65,
+      "imports": [
+        {
+          "path": "node_modules/yoctocolors/base.js",
+          "kind": "import-statement",
+          "original": "./base.js"
+        },
+        {
+          "path": "node_modules/yoctocolors/base.js",
+          "kind": "import-statement",
+          "original": "./base.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/default.js": {
+      "bytes": 1406,
+      "imports": [
+        {
+          "path": "node_modules/figures/index.js",
+          "kind": "import-statement",
+          "original": "figures"
+        },
+        {
+          "path": "node_modules/yoctocolors/index.js",
+          "kind": "import-statement",
+          "original": "yoctocolors"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/custom.js": {
+      "bytes": 869,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/log.js": {
+      "bytes": 2093,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/escape.js",
+          "kind": "import-statement",
+          "original": "../arguments/escape.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/default.js",
+          "kind": "import-statement",
+          "original": "./default.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/custom.js",
+          "kind": "import-statement",
+          "original": "./custom.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/start.js": {
+      "bytes": 335,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/log.js",
+          "kind": "import-statement",
+          "original": "./log.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/info.js": {
+      "bytes": 1511,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/duration.js": {
+      "bytes": 313,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/command.js": {
+      "bytes": 777,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/start.js",
+          "kind": "import-statement",
+          "original": "../verbose/start.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/info.js",
+          "kind": "import-statement",
+          "original": "../verbose/info.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/duration.js",
+          "kind": "import-statement",
+          "original": "../return/duration.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/escape.js",
+          "kind": "import-statement",
+          "original": "./escape.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "./specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/path-key/index.js": {
+      "bytes": 263,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/unicorn-magic/default.js": {
+      "bytes": 388,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/unicorn-magic/node.js": {
+      "bytes": 1251,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:url",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/unicorn-magic/default.js",
+          "kind": "import-statement",
+          "original": "./default.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/npm-run-path/index.js": {
+      "bytes": 1470,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/path-key/index.js",
+          "kind": "import-statement",
+          "original": "path-key"
+        },
+        {
+          "path": "node_modules/unicorn-magic/node.js",
+          "kind": "import-statement",
+          "original": "unicorn-magic"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/final-error.js": {
+      "bytes": 1758,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/human-signals/build/src/realtime.js": {
+      "bytes": 352,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/human-signals/build/src/core.js": {
+      "bytes": 4126,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/human-signals/build/src/signals.js": {
+      "bytes": 601,
+      "imports": [
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/human-signals/build/src/core.js",
+          "kind": "import-statement",
+          "original": "./core.js"
+        },
+        {
+          "path": "node_modules/human-signals/build/src/realtime.js",
+          "kind": "import-statement",
+          "original": "./realtime.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/human-signals/build/src/main.js": {
+      "bytes": 1208,
+      "imports": [
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/human-signals/build/src/realtime.js",
+          "kind": "import-statement",
+          "original": "./realtime.js"
+        },
+        {
+          "path": "node_modules/human-signals/build/src/signals.js",
+          "kind": "import-statement",
+          "original": "./signals.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/signal.js": {
+      "bytes": 2507,
+      "imports": [
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/human-signals/build/src/main.js",
+          "kind": "import-statement",
+          "original": "human-signals"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/kill.js": {
+      "bytes": 2922,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "../return/final-error.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/signal.js",
+          "kind": "import-statement",
+          "original": "./signal.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/utils/abort-signal.js": {
+      "bytes": 303,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/cancel.js": {
+      "bytes": 883,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/abort-signal.js",
+          "kind": "import-statement",
+          "original": "../utils/abort-signal.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/validation.js": {
+      "bytes": 5710,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/utils/deferred.js": {
+      "bytes": 205,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/utils/max-listeners.js": {
+      "bytes": 533,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/reference.js": {
+      "bytes": 1797,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/incoming.js": {
+      "bytes": 3544,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/outgoing.js",
+          "kind": "import-statement",
+          "original": "./outgoing.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/reference.js",
+          "kind": "import-statement",
+          "original": "./reference.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/strict.js",
+          "kind": "import-statement",
+          "original": "./strict.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/graceful.js",
+          "kind": "import-statement",
+          "original": "./graceful.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/forward.js": {
+      "bytes": 1963,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/incoming.js",
+          "kind": "import-statement",
+          "original": "./incoming.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/reference.js",
+          "kind": "import-statement",
+          "original": "./reference.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/strict.js": {
+      "bytes": 3318,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/utils/deferred.js",
+          "kind": "import-statement",
+          "original": "../utils/deferred.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/max-listeners.js",
+          "kind": "import-statement",
+          "original": "../utils/max-listeners.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/send.js",
+          "kind": "import-statement",
+          "original": "./send.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/validation.js",
+          "kind": "import-statement",
+          "original": "./validation.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/forward.js",
+          "kind": "import-statement",
+          "original": "./forward.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/outgoing.js",
+          "kind": "import-statement",
+          "original": "./outgoing.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/outgoing.js": {
+      "bytes": 2458,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/deferred.js",
+          "kind": "import-statement",
+          "original": "../utils/deferred.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "../arguments/specific.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/strict.js",
+          "kind": "import-statement",
+          "original": "./strict.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/send.js": {
+      "bytes": 2379,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/validation.js",
+          "kind": "import-statement",
+          "original": "./validation.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/outgoing.js",
+          "kind": "import-statement",
+          "original": "./outgoing.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/strict.js",
+          "kind": "import-statement",
+          "original": "./strict.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/graceful.js": {
+      "bytes": 1938,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/send.js",
+          "kind": "import-statement",
+          "original": "./send.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/forward.js",
+          "kind": "import-statement",
+          "original": "./forward.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/validation.js",
+          "kind": "import-statement",
+          "original": "./validation.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/graceful.js": {
+      "bytes": 1945,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/abort-signal.js",
+          "kind": "import-statement",
+          "original": "../utils/abort-signal.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/graceful.js",
+          "kind": "import-statement",
+          "original": "../ipc/graceful.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/kill.js",
+          "kind": "import-statement",
+          "original": "./kill.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/timeout.js": {
+      "bytes": 819,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "../return/final-error.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/node.js": {
+      "bytes": 1836,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/file-url.js",
+          "kind": "import-statement",
+          "original": "../arguments/file-url.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/ipc-input.js": {
+      "bytes": 1207,
+      "imports": [
+        {
+          "path": "node:v8",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/send.js",
+          "kind": "import-statement",
+          "original": "./send.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/encoding-option.js": {
+      "bytes": 1481,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/which-command/index.js": {
+      "bytes": 5177,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/command-file.js": {
+      "bytes": 8838,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/which-command/index.js",
+          "kind": "import-statement",
+          "original": "which-command"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/cwd.js": {
+      "bytes": 1012,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/file-url.js",
+          "kind": "import-statement",
+          "original": "./file-url.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/options.js": {
+      "bytes": 3484,
+      "imports": [
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/npm-run-path/index.js",
+          "kind": "import-statement",
+          "original": "npm-run-path"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/kill.js",
+          "kind": "import-statement",
+          "original": "../terminate/kill.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/signal.js",
+          "kind": "import-statement",
+          "original": "../terminate/signal.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/cancel.js",
+          "kind": "import-statement",
+          "original": "../terminate/cancel.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/graceful.js",
+          "kind": "import-statement",
+          "original": "../terminate/graceful.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/timeout.js",
+          "kind": "import-statement",
+          "original": "../terminate/timeout.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/node.js",
+          "kind": "import-statement",
+          "original": "../methods/node.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/ipc-input.js",
+          "kind": "import-statement",
+          "original": "../ipc/ipc-input.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "./encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/command-file.js",
+          "kind": "import-statement",
+          "original": "./command-file.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/cwd.js",
+          "kind": "import-statement",
+          "original": "./cwd.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/file-url.js",
+          "kind": "import-statement",
+          "original": "./file-url.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "./specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/shell.js": {
+      "bytes": 926,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/strip-final-newline/index.js": {
+      "bytes": 681,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/is-stream/index.js": {
+      "bytes": 1328,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/@sec-ant/readable-stream/dist/ponyfill/asyncIterator.js": {
+      "bytes": 1725,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/@sec-ant/readable-stream/dist/ponyfill/fromAnyIterable.js": {
+      "bytes": 749,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/@sec-ant/readable-stream/dist/ponyfill/index.js": {
+      "bytes": 175,
+      "imports": [
+        {
+          "path": "node_modules/@sec-ant/readable-stream/dist/ponyfill/asyncIterator.js",
+          "kind": "import-statement",
+          "original": "./asyncIterator.js"
+        },
+        {
+          "path": "node_modules/@sec-ant/readable-stream/dist/ponyfill/fromAnyIterable.js",
+          "kind": "import-statement",
+          "original": "./fromAnyIterable.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/stream.js": {
+      "bytes": 1945,
+      "imports": [
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/@sec-ant/readable-stream/dist/ponyfill/index.js",
+          "kind": "import-statement",
+          "original": "@sec-ant/readable-stream/ponyfill"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/contents.js": {
+      "bytes": 2764,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/stream.js",
+          "kind": "import-statement",
+          "original": "./stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/utils.js": {
+      "bytes": 343,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/array.js": {
+      "bytes": 733,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/contents.js",
+          "kind": "import-statement",
+          "original": "./contents.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/utils.js",
+          "kind": "import-statement",
+          "original": "./utils.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/array-buffer.js": {
+      "bytes": 3333,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/contents.js",
+          "kind": "import-statement",
+          "original": "./contents.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/utils.js",
+          "kind": "import-statement",
+          "original": "./utils.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/buffer.js": {
+      "bytes": 555,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/array-buffer.js",
+          "kind": "import-statement",
+          "original": "./array-buffer.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/string.js": {
+      "bytes": 1162,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/contents.js",
+          "kind": "import-statement",
+          "original": "./contents.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/utils.js",
+          "kind": "import-statement",
+          "original": "./utils.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/exports.js": {
+      "bytes": 254,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/array.js",
+          "kind": "import-statement",
+          "original": "./array.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/array-buffer.js",
+          "kind": "import-statement",
+          "original": "./array-buffer.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/buffer.js",
+          "kind": "import-statement",
+          "original": "./buffer.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/string.js",
+          "kind": "import-statement",
+          "original": "./string.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/contents.js",
+          "kind": "import-statement",
+          "original": "./contents.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/get-stream/source/index.js": {
+      "bytes": 289,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/get-stream/source/stream.js",
+          "kind": "import-statement",
+          "original": "./stream.js"
+        },
+        {
+          "path": "node_modules/get-stream/source/exports.js",
+          "kind": "import-statement",
+          "original": "./exports.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/max-buffer.js": {
+      "bytes": 2894,
+      "imports": [
+        {
+          "path": "node_modules/get-stream/source/index.js",
+          "kind": "import-statement",
+          "original": "get-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "../arguments/specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/message.js": {
+      "bytes": 4238,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/strip-final-newline/index.js",
+          "kind": "import-statement",
+          "original": "strip-final-newline"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/cwd.js",
+          "kind": "import-statement",
+          "original": "../arguments/cwd.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/escape.js",
+          "kind": "import-statement",
+          "original": "../arguments/escape.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "../io/max-buffer.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/signal.js",
+          "kind": "import-statement",
+          "original": "../terminate/signal.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "./final-error.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/result.js": {
+      "bytes": 3690,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/terminate/signal.js",
+          "kind": "import-statement",
+          "original": "../terminate/signal.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/duration.js",
+          "kind": "import-statement",
+          "original": "./duration.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "./final-error.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/message.js",
+          "kind": "import-statement",
+          "original": "./message.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/parse-ms/index.js": {
+      "bytes": 1159,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/pretty-ms/index.js": {
+      "bytes": 4471,
+      "imports": [
+        {
+          "path": "node_modules/parse-ms/index.js",
+          "kind": "import-statement",
+          "original": "parse-ms"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/error.js": {
+      "bytes": 306,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/log.js",
+          "kind": "import-statement",
+          "original": "./log.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/complete.js": {
+      "bytes": 611,
+      "imports": [
+        {
+          "path": "node_modules/pretty-ms/index.js",
+          "kind": "import-statement",
+          "original": "pretty-ms"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/log.js",
+          "kind": "import-statement",
+          "original": "./log.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/error.js",
+          "kind": "import-statement",
+          "original": "./error.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/reject.js": {
+      "bytes": 302,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/complete.js",
+          "kind": "import-statement",
+          "original": "../verbose/complete.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/type.js": {
+      "bytes": 6754,
+      "imports": [
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/object-mode.js": {
+      "bytes": 1881,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/normalize.js": {
+      "bytes": 3284,
+      "imports": [
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "../arguments/encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/object-mode.js",
+          "kind": "import-statement",
+          "original": "./object-mode.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/direction.js": {
+      "bytes": 3671,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/array.js": {
+      "bytes": 165,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/stdio-option.js": {
+      "bytes": 3649,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/array.js",
+          "kind": "import-statement",
+          "original": "../ipc/array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "../verbose/values.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/arguments/fd-options.js": {
+      "bytes": 4071,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "./specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/native.js": {
+      "bytes": 3771,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:tty",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/input-option.js": {
+      "bytes": 1302,
+      "imports": [
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/duplicate.js": {
+      "bytes": 4150,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/handle.js": {
+      "bytes": 8249,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/normalize.js",
+          "kind": "import-statement",
+          "original": "../transform/normalize.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/object-mode.js",
+          "kind": "import-statement",
+          "original": "../transform/object-mode.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/direction.js",
+          "kind": "import-statement",
+          "original": "./direction.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/stdio-option.js",
+          "kind": "import-statement",
+          "original": "./stdio-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/native.js",
+          "kind": "import-statement",
+          "original": "./native.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/input-option.js",
+          "kind": "import-statement",
+          "original": "./input-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/duplicate.js",
+          "kind": "import-statement",
+          "original": "./duplicate.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/handle-sync.js": {
+      "bytes": 2503,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/handle.js",
+          "kind": "import-statement",
+          "original": "./handle.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/strip-newline.js": {
+      "bytes": 708,
+      "imports": [
+        {
+          "path": "node_modules/strip-final-newline/index.js",
+          "kind": "import-statement",
+          "original": "strip-final-newline"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/split.js": {
+      "bytes": 3324,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/validate.js": {
+      "bytes": 1711,
+      "imports": [
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/encoding-transform.js": {
+      "bytes": 1624,
+      "imports": [
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:string_decoder",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/run-async.js": {
+      "bytes": 1739,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/run-sync.js": {
+      "bytes": 1355,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/transform/generator.js": {
+      "bytes": 3752,
+      "imports": [
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/split.js",
+          "kind": "import-statement",
+          "original": "./split.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/validate.js",
+          "kind": "import-statement",
+          "original": "./validate.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/encoding-transform.js",
+          "kind": "import-statement",
+          "original": "./encoding-transform.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/run-async.js",
+          "kind": "import-statement",
+          "original": "./run-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/run-sync.js",
+          "kind": "import-statement",
+          "original": "./run-sync.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/input-sync.js": {
+      "bytes": 1948,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/transform/generator.js",
+          "kind": "import-statement",
+          "original": "../transform/generator.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/output.js": {
+      "bytes": 2721,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "../arguments/encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/log.js",
+          "kind": "import-statement",
+          "original": "./log.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/output-sync.js": {
+      "bytes": 3930,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/output.js",
+          "kind": "import-statement",
+          "original": "../verbose/output.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/generator.js",
+          "kind": "import-statement",
+          "original": "../transform/generator.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/split.js",
+          "kind": "import-statement",
+          "original": "../transform/split.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "./max-buffer.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/all-sync.js": {
+      "bytes": 751,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/strip-newline.js",
+          "kind": "import-statement",
+          "original": "../io/strip-newline.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/exit-async.js": {
+      "bytes": 1867,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "../return/final-error.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/exit-sync.js": {
+      "bytes": 796,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "../return/final-error.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "../io/max-buffer.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/exit-async.js",
+          "kind": "import-statement",
+          "original": "./exit-async.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/main-sync.js": {
+      "bytes": 4799,
+      "imports": [
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/command.js",
+          "kind": "import-statement",
+          "original": "../arguments/command.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/options.js",
+          "kind": "import-statement",
+          "original": "../arguments/options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/shell.js",
+          "kind": "import-statement",
+          "original": "../arguments/shell.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/result.js",
+          "kind": "import-statement",
+          "original": "../return/result.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/reject.js",
+          "kind": "import-statement",
+          "original": "../return/reject.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/handle-sync.js",
+          "kind": "import-statement",
+          "original": "../stdio/handle-sync.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/strip-newline.js",
+          "kind": "import-statement",
+          "original": "../io/strip-newline.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/input-sync.js",
+          "kind": "import-statement",
+          "original": "../io/input-sync.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/output-sync.js",
+          "kind": "import-statement",
+          "original": "../io/output-sync.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "../io/max-buffer.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/all-sync.js",
+          "kind": "import-statement",
+          "original": "../resolve/all-sync.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/exit-sync.js",
+          "kind": "import-statement",
+          "original": "../resolve/exit-sync.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/get-one.js": {
+      "bytes": 2416,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/validation.js",
+          "kind": "import-statement",
+          "original": "./validation.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/forward.js",
+          "kind": "import-statement",
+          "original": "./forward.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/reference.js",
+          "kind": "import-statement",
+          "original": "./reference.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/get-each.js": {
+      "bytes": 3028,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/validation.js",
+          "kind": "import-statement",
+          "original": "./validation.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/forward.js",
+          "kind": "import-statement",
+          "original": "./forward.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/reference.js",
+          "kind": "import-statement",
+          "original": "./reference.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/methods.js": {
+      "bytes": 1336,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/send.js",
+          "kind": "import-statement",
+          "original": "./send.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/get-one.js",
+          "kind": "import-statement",
+          "original": "./get-one.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/get-each.js",
+          "kind": "import-statement",
+          "original": "./get-each.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/graceful.js",
+          "kind": "import-statement",
+          "original": "./graceful.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/return/early-error.js": {
+      "bytes": 2134,
+      "imports": [
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/handle.js",
+          "kind": "import-statement",
+          "original": "../stdio/handle.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/result.js",
+          "kind": "import-statement",
+          "original": "./result.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/reject.js",
+          "kind": "import-statement",
+          "original": "./reject.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/stdio/handle-async.js": {
+      "bytes": 2228,
+      "imports": [
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/transform/generator.js",
+          "kind": "import-statement",
+          "original": "../transform/generator.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/handle.js",
+          "kind": "import-statement",
+          "original": "./handle.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "./type.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/@sindresorhus/merge-streams/index.js": {
+      "bytes": 6685,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/pipeline.js": {
+      "bytes": 1319,
+      "imports": [
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/output-async.js": {
+      "bytes": 3105,
+      "imports": [
+        {
+          "path": "node_modules/@sindresorhus/merge-streams/index.js",
+          "kind": "import-statement",
+          "original": "@sindresorhus/merge-streams"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/max-listeners.js",
+          "kind": "import-statement",
+          "original": "../utils/max-listeners.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/pipeline.js",
+          "kind": "import-statement",
+          "original": "./pipeline.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/kill-descendants.js": {
+      "bytes": 3094,
+      "imports": [
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path/win32",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/node_modules/signal-exit/dist/mjs/signals.js": {
+      "bytes": 1438,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/node_modules/signal-exit/dist/mjs/index.js": {
+      "bytes": 9090,
+      "imports": [
+        {
+          "path": "node_modules/execa/node_modules/signal-exit/dist/mjs/signals.js",
+          "kind": "import-statement",
+          "original": "./signals.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/terminate/cleanup.js": {
+      "bytes": 411,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/node_modules/signal-exit/dist/mjs/index.js",
+          "kind": "import-statement",
+          "original": "signal-exit"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/concurrent.js": {
+      "bytes": 1155,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/utils/deferred.js",
+          "kind": "import-statement",
+          "original": "../utils/deferred.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/iterate.js": {
+      "bytes": 3692,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/transform/encoding-transform.js",
+          "kind": "import-statement",
+          "original": "../transform/encoding-transform.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/split.js",
+          "kind": "import-statement",
+          "original": "../transform/split.js"
+        },
+        {
+          "path": "node_modules/execa/lib/transform/run-sync.js",
+          "kind": "import-statement",
+          "original": "../transform/run-sync.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/iterable.js": {
+      "bytes": 951,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "../arguments/encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/iterate.js",
+          "kind": "import-statement",
+          "original": "../io/iterate.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/wait-stream.js": {
+      "bytes": 5109,
+      "imports": [
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/shared.js": {
+      "bytes": 1201,
+      "imports": [
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/wait-stream.js",
+          "kind": "import-statement",
+          "original": "../resolve/wait-stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/readable.js": {
+      "bytes": 4237,
+      "imports": [
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "../arguments/encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/iterate.js",
+          "kind": "import-statement",
+          "original": "../io/iterate.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/deferred.js",
+          "kind": "import-statement",
+          "original": "../utils/deferred.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/concurrent.js",
+          "kind": "import-statement",
+          "original": "./concurrent.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/shared.js",
+          "kind": "import-statement",
+          "original": "./shared.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/web.js": {
+      "bytes": 614,
+      "imports": [
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/pipe-arguments.js": {
+      "bytes": 3317,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/methods/parameters.js",
+          "kind": "import-statement",
+          "original": "../methods/parameters.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/duration.js",
+          "kind": "import-statement",
+          "original": "../return/duration.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/file-url.js",
+          "kind": "import-statement",
+          "original": "../arguments/file-url.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/throw.js": {
+      "bytes": 1504,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/return/result.js",
+          "kind": "import-statement",
+          "original": "../return/result.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/pipeline.js",
+          "kind": "import-statement",
+          "original": "../io/pipeline.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/sequence.js": {
+      "bytes": 950,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/streaming.js": {
+      "bytes": 2410,
+      "imports": [
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/@sindresorhus/merge-streams/index.js",
+          "kind": "import-statement",
+          "original": "@sindresorhus/merge-streams"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/max-listeners.js",
+          "kind": "import-statement",
+          "original": "../utils/max-listeners.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/pipeline.js",
+          "kind": "import-statement",
+          "original": "../io/pipeline.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/abort.js": {
+      "bytes": 746,
+      "imports": [
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/throw.js",
+          "kind": "import-statement",
+          "original": "./throw.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/pipe/setup.js": {
+      "bytes": 7961,
+      "imports": [
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/concurrent.js",
+          "kind": "import-statement",
+          "original": "../convert/concurrent.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/iterable.js",
+          "kind": "import-statement",
+          "original": "../convert/iterable.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/readable.js",
+          "kind": "import-statement",
+          "original": "../convert/readable.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/web.js",
+          "kind": "import-statement",
+          "original": "../convert/web.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/get-one.js",
+          "kind": "import-statement",
+          "original": "../ipc/get-one.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/get-each.js",
+          "kind": "import-statement",
+          "original": "../ipc/get-each.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/pipe-arguments.js",
+          "kind": "import-statement",
+          "original": "./pipe-arguments.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/throw.js",
+          "kind": "import-statement",
+          "original": "./throw.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/sequence.js",
+          "kind": "import-statement",
+          "original": "./sequence.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/streaming.js",
+          "kind": "import-statement",
+          "original": "./streaming.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/abort.js",
+          "kind": "import-statement",
+          "original": "./abort.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/io/contents.js": {
+      "bytes": 3244,
+      "imports": [
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/get-stream/source/index.js",
+          "kind": "import-statement",
+          "original": "get-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/uint-array.js",
+          "kind": "import-statement",
+          "original": "../utils/uint-array.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/output.js",
+          "kind": "import-statement",
+          "original": "../verbose/output.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/iterate.js",
+          "kind": "import-statement",
+          "original": "./iterate.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "./max-buffer.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/strip-newline.js",
+          "kind": "import-statement",
+          "original": "./strip-newline.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/stdio.js": {
+      "bytes": 1279,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/io/contents.js",
+          "kind": "import-statement",
+          "original": "../io/contents.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/wait-stream.js",
+          "kind": "import-statement",
+          "original": "./wait-stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/all-async.js": {
+      "bytes": 1728,
+      "imports": [
+        {
+          "path": "node_modules/@sindresorhus/merge-streams/index.js",
+          "kind": "import-statement",
+          "original": "@sindresorhus/merge-streams"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/stdio.js",
+          "kind": "import-statement",
+          "original": "./stdio.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/verbose/ipc.js": {
+      "bytes": 458,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/verbose/log.js",
+          "kind": "import-statement",
+          "original": "./log.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/values.js",
+          "kind": "import-statement",
+          "original": "./values.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/ipc/buffer-messages.js": {
+      "bytes": 1147,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/io/max-buffer.js",
+          "kind": "import-statement",
+          "original": "../io/max-buffer.js"
+        },
+        {
+          "path": "node_modules/execa/lib/verbose/ipc.js",
+          "kind": "import-statement",
+          "original": "../verbose/ipc.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "../arguments/specific.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/get-each.js",
+          "kind": "import-statement",
+          "original": "./get-each.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/resolve/wait-subprocess.js": {
+      "bytes": 4317,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/is-stream/index.js",
+          "kind": "import-statement",
+          "original": "is-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/timeout.js",
+          "kind": "import-statement",
+          "original": "../terminate/timeout.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/cancel.js",
+          "kind": "import-statement",
+          "original": "../terminate/cancel.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/graceful.js",
+          "kind": "import-statement",
+          "original": "../terminate/graceful.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/standard-stream.js",
+          "kind": "import-statement",
+          "original": "../utils/standard-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/type.js",
+          "kind": "import-statement",
+          "original": "../stdio/type.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/contents.js",
+          "kind": "import-statement",
+          "original": "../io/contents.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/buffer-messages.js",
+          "kind": "import-statement",
+          "original": "../ipc/buffer-messages.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/ipc-input.js",
+          "kind": "import-statement",
+          "original": "../ipc/ipc-input.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/all-async.js",
+          "kind": "import-statement",
+          "original": "./all-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/stdio.js",
+          "kind": "import-statement",
+          "original": "./stdio.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/exit-async.js",
+          "kind": "import-statement",
+          "original": "./exit-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/wait-stream.js",
+          "kind": "import-statement",
+          "original": "./wait-stream.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/writable.js": {
+      "bytes": 4043,
+      "imports": [
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/wait-stream.js",
+          "kind": "import-statement",
+          "original": "../resolve/wait-stream.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/concurrent.js",
+          "kind": "import-statement",
+          "original": "./concurrent.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/shared.js",
+          "kind": "import-statement",
+          "original": "./shared.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/duplex.js": {
+      "bytes": 2274,
+      "imports": [
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/encoding-option.js",
+          "kind": "import-statement",
+          "original": "../arguments/encoding-option.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/readable.js",
+          "kind": "import-statement",
+          "original": "./readable.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/writable.js",
+          "kind": "import-statement",
+          "original": "./writable.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/convert/add.js": {
+      "bytes": 1215,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/convert/concurrent.js",
+          "kind": "import-statement",
+          "original": "./concurrent.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/readable.js",
+          "kind": "import-statement",
+          "original": "./readable.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/writable.js",
+          "kind": "import-statement",
+          "original": "./writable.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/duplex.js",
+          "kind": "import-statement",
+          "original": "./duplex.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/web.js",
+          "kind": "import-statement",
+          "original": "./web.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/iterable.js",
+          "kind": "import-statement",
+          "original": "./iterable.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/promise.js": {
+      "bytes": 161,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/main-async.js": {
+      "bytes": 7036,
+      "imports": [
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/get-stream/source/index.js",
+          "kind": "import-statement",
+          "original": "get-stream"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/command.js",
+          "kind": "import-statement",
+          "original": "../arguments/command.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/options.js",
+          "kind": "import-statement",
+          "original": "../arguments/options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/fd-options.js",
+          "kind": "import-statement",
+          "original": "../arguments/fd-options.js"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/shell.js",
+          "kind": "import-statement",
+          "original": "../arguments/shell.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/methods.js",
+          "kind": "import-statement",
+          "original": "../ipc/methods.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/outgoing.js",
+          "kind": "import-statement",
+          "original": "../ipc/outgoing.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/result.js",
+          "kind": "import-statement",
+          "original": "../return/result.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/reject.js",
+          "kind": "import-statement",
+          "original": "../return/reject.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/early-error.js",
+          "kind": "import-statement",
+          "original": "../return/early-error.js"
+        },
+        {
+          "path": "node_modules/execa/lib/stdio/handle-async.js",
+          "kind": "import-statement",
+          "original": "../stdio/handle-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/strip-newline.js",
+          "kind": "import-statement",
+          "original": "../io/strip-newline.js"
+        },
+        {
+          "path": "node_modules/execa/lib/io/output-async.js",
+          "kind": "import-statement",
+          "original": "../io/output-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/kill.js",
+          "kind": "import-statement",
+          "original": "../terminate/kill.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/kill-descendants.js",
+          "kind": "import-statement",
+          "original": "../terminate/kill-descendants.js"
+        },
+        {
+          "path": "node_modules/execa/lib/terminate/cleanup.js",
+          "kind": "import-statement",
+          "original": "../terminate/cleanup.js"
+        },
+        {
+          "path": "node_modules/execa/lib/pipe/setup.js",
+          "kind": "import-statement",
+          "original": "../pipe/setup.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/all-async.js",
+          "kind": "import-statement",
+          "original": "../resolve/all-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/resolve/wait-subprocess.js",
+          "kind": "import-statement",
+          "original": "../resolve/wait-subprocess.js"
+        },
+        {
+          "path": "node_modules/execa/lib/convert/add.js",
+          "kind": "import-statement",
+          "original": "../convert/add.js"
+        },
+        {
+          "path": "node_modules/execa/lib/utils/deferred.js",
+          "kind": "import-statement",
+          "original": "../utils/deferred.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/promise.js",
+          "kind": "import-statement",
+          "original": "./promise.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/bind.js": {
+      "bytes": 964,
+      "imports": [
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/arguments/specific.js",
+          "kind": "import-statement",
+          "original": "../arguments/specific.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/create.js": {
+      "bytes": 2371,
+      "imports": [
+        {
+          "path": "node_modules/is-plain-obj/index.js",
+          "kind": "import-statement",
+          "original": "is-plain-obj"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/parameters.js",
+          "kind": "import-statement",
+          "original": "./parameters.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/template.js",
+          "kind": "import-statement",
+          "original": "./template.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/main-sync.js",
+          "kind": "import-statement",
+          "original": "./main-sync.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/main-async.js",
+          "kind": "import-statement",
+          "original": "./main-async.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/bind.js",
+          "kind": "import-statement",
+          "original": "./bind.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/script.js": {
+      "bytes": 1015,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/lib/methods/command.js": {
+      "bytes": 813,
+      "imports": [],
+      "format": "esm"
+    },
+    "node_modules/execa/index.js": {
+      "bytes": 786,
+      "imports": [
+        {
+          "path": "node_modules/execa/lib/methods/create.js",
+          "kind": "import-statement",
+          "original": "./lib/methods/create.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/node.js",
+          "kind": "import-statement",
+          "original": "./lib/methods/node.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/script.js",
+          "kind": "import-statement",
+          "original": "./lib/methods/script.js"
+        },
+        {
+          "path": "node_modules/execa/lib/ipc/methods.js",
+          "kind": "import-statement",
+          "original": "./lib/ipc/methods.js"
+        },
+        {
+          "path": "node_modules/execa/lib/methods/command.js",
+          "kind": "import-statement",
+          "original": "./lib/methods/command.js"
+        },
+        {
+          "path": "node_modules/execa/lib/return/final-error.js",
+          "kind": "import-statement",
+          "original": "./lib/return/final-error.js"
+        }
+      ],
+      "format": "esm"
+    },
+    "packages/coremind-tools/src/windows-mcp-service.mts": {
+      "bytes": 3842,
+      "imports": [
+        {
+          "path": "node:fs/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:net",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node_modules/execa/index.js",
+          "kind": "import-statement",
+          "original": "execa"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "service.mjs": {
+      "imports": [
+        {
+          "path": "node:fs/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:net",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:url",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:string_decoder",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:tty",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:url",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:os",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:v8",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:tty",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:string_decoder",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:buffer",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path/win32",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:timers/promises",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:events",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:stream",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "exports": [],
+      "entryPoint": "packages/coremind-tools/src/windows-mcp-service.mts",
+      "inputs": {
+        "packages/coremind-tools/src/windows-mcp-service.mts": {
+          "bytesInOutput": 3338
+        },
+        "node_modules/is-plain-obj/index.js": {
+          "bytesInOutput": 334
+        },
+        "node_modules/execa/lib/arguments/file-url.js": {
+          "bytesInOutput": 593
+        },
+        "node_modules/execa/lib/methods/parameters.js": {
+          "bytesInOutput": 1146
+        },
+        "node_modules/execa/lib/methods/template.js": {
+          "bytesInOutput": 4120
+        },
+        "node_modules/execa/lib/utils/uint-array.js": {
+          "bytesInOutput": 2229
+        },
+        "node_modules/execa/lib/methods/main-sync.js": {
+          "bytesInOutput": 3923
+        },
+        "node_modules/execa/lib/arguments/specific.js": {
+          "bytesInOutput": 3190
+        },
+        "node_modules/execa/lib/utils/standard-stream.js": {
+          "bytesInOutput": 338
+        },
+        "node_modules/execa/lib/verbose/values.js": {
+          "bytesInOutput": 789
+        },
+        "node_modules/execa/lib/verbose/log.js": {
+          "bytesInOutput": 1318
+        },
+        "node_modules/execa/lib/arguments/escape.js": {
+          "bytesInOutput": 1679
+        },
+        "node_modules/is-unicode-supported/index.js": {
+          "bytesInOutput": 547
+        },
+        "node_modules/figures/index.js": {
+          "bytesInOutput": 7954
+        },
+        "node_modules/yoctocolors/base.js": {
+          "bytesInOutput": 3035
+        },
+        "node_modules/execa/lib/verbose/default.js": {
+          "bytesInOutput": 1219
+        },
+        "node_modules/execa/lib/verbose/custom.js": {
+          "bytesInOutput": 757
+        },
+        "node_modules/execa/lib/verbose/start.js": {
+          "bytesInOutput": 198
+        },
+        "node_modules/execa/lib/verbose/info.js": {
+          "bytesInOutput": 969
+        },
+        "node_modules/execa/lib/return/duration.js": {
+          "bytesInOutput": 159
+        },
+        "node_modules/execa/lib/arguments/command.js": {
+          "bytesInOutput": 449
+        },
+        "node_modules/execa/lib/arguments/options.js": {
+          "bytesInOutput": 2377
+        },
+        "node_modules/npm-run-path/index.js": {
+          "bytesInOutput": 1375
+        },
+        "node_modules/path-key/index.js": {
+          "bytesInOutput": 271
+        },
+        "node_modules/unicorn-magic/node.js": {
+          "bytesInOutput": 779
+        },
+        "node_modules/execa/lib/terminate/kill.js": {
+          "bytesInOutput": 2435
+        },
+        "node_modules/execa/lib/return/final-error.js": {
+          "bytesInOutput": 1053
+        },
+        "node_modules/execa/lib/terminate/signal.js": {
+          "bytesInOutput": 2320
+        },
+        "node_modules/human-signals/build/src/main.js": {
+          "bytesInOutput": 1356
+        },
+        "node_modules/human-signals/build/src/realtime.js": {
+          "bytesInOutput": 374
+        },
+        "node_modules/human-signals/build/src/signals.js": {
+          "bytesInOutput": 596
+        },
+        "node_modules/human-signals/build/src/core.js": {
+          "bytesInOutput": 5233
+        },
+        "node_modules/execa/lib/utils/abort-signal.js": {
+          "bytesInOutput": 191
+        },
+        "node_modules/execa/lib/terminate/cancel.js": {
+          "bytesInOutput": 670
+        },
+        "node_modules/execa/lib/ipc/graceful.js": {
+          "bytesInOutput": 1326
+        },
+        "node_modules/execa/lib/ipc/send.js": {
+          "bytesInOutput": 1835
+        },
+        "node_modules/execa/lib/ipc/validation.js": {
+          "bytesInOutput": 4043
+        },
+        "node_modules/execa/lib/utils/deferred.js": {
+          "bytesInOutput": 204
+        },
+        "node_modules/execa/lib/ipc/strict.js": {
+          "bytesInOutput": 2564
+        },
+        "node_modules/execa/lib/utils/max-listeners.js": {
+          "bytesInOutput": 459
+        },
+        "node_modules/execa/lib/ipc/forward.js": {
+          "bytesInOutput": 1109
+        },
+        "node_modules/execa/lib/ipc/incoming.js": {
+          "bytesInOutput": 1456
+        },
+        "node_modules/execa/lib/ipc/reference.js": {
+          "bytesInOutput": 669
+        },
+        "node_modules/execa/lib/ipc/outgoing.js": {
+          "bytesInOutput": 1607
+        },
+        "node_modules/execa/lib/terminate/graceful.js": {
+          "bytesInOutput": 1542
+        },
+        "node_modules/execa/lib/terminate/timeout.js": {
+          "bytesInOutput": 684
+        },
+        "node_modules/execa/lib/methods/node.js": {
+          "bytesInOutput": 1434
+        },
+        "node_modules/execa/lib/ipc/ipc-input.js": {
+          "bytesInOutput": 1052
+        },
+        "node_modules/execa/lib/arguments/encoding-option.js": {
+          "bytesInOutput": 1486
+        },
+        "node_modules/execa/lib/arguments/command-file.js": {
+          "bytesInOutput": 5670
+        },
+        "node_modules/which-command/index.js": {
+          "bytesInOutput": 2804
+        },
+        "node_modules/execa/lib/arguments/cwd.js": {
+          "bytesInOutput": 859
+        },
+        "node_modules/execa/lib/arguments/shell.js": {
+          "bytesInOutput": 197
+        },
+        "node_modules/execa/lib/return/message.js": {
+          "bytesInOutput": 3824
+        },
+        "node_modules/strip-final-newline/index.js": {
+          "bytesInOutput": 652
+        },
+        "node_modules/get-stream/source/index.js": {
+          "bytesInOutput": 129
+        },
+        "node_modules/is-stream/index.js": {
+          "bytesInOutput": 1127
+        },
+        "node_modules/@sec-ant/readable-stream/dist/ponyfill/asyncIterator.js": {
+          "bytesInOutput": 1741
+        },
+        "node_modules/get-stream/source/stream.js": {
+          "bytesInOutput": 1284
+        },
+        "node_modules/get-stream/source/contents.js": {
+          "bytesInOutput": 2825
+        },
+        "node_modules/get-stream/source/utils.js": {
+          "bytesInOutput": 301
+        },
+        "node_modules/get-stream/source/array.js": {
+          "bytesInOutput": 631
+        },
+        "node_modules/get-stream/source/exports.js": {
+          "bytesInOutput": 0
+        },
+        "node_modules/get-stream/source/array-buffer.js": {
+          "bytesInOutput": 2210
+        },
+        "node_modules/get-stream/source/string.js": {
+          "bytesInOutput": 1043
+        },
+        "node_modules/execa/lib/io/max-buffer.js": {
+          "bytesInOutput": 2031
+        },
+        "node_modules/execa/lib/return/result.js": {
+          "bytesInOutput": 3376
+        },
+        "node_modules/parse-ms/index.js": {
+          "bytesInOutput": 1155
+        },
+        "node_modules/pretty-ms/index.js": {
+          "bytesInOutput": 4403
+        },
+        "node_modules/execa/lib/verbose/error.js": {
+          "bytesInOutput": 193
+        },
+        "node_modules/execa/lib/verbose/complete.js": {
+          "bytesInOutput": 382
+        },
+        "node_modules/execa/lib/return/reject.js": {
+          "bytesInOutput": 167
+        },
+        "node_modules/execa/lib/stdio/handle-sync.js": {
+          "bytesInOutput": 1974
+        },
+        "node_modules/execa/lib/stdio/type.js": {
+          "bytesInOutput": 6001
+        },
+        "node_modules/execa/lib/transform/object-mode.js": {
+          "bytesInOutput": 1148
+        },
+        "node_modules/execa/lib/transform/normalize.js": {
+          "bytesInOutput": 3082
+        },
+        "node_modules/execa/lib/stdio/direction.js": {
+          "bytesInOutput": 2156
+        },
+        "node_modules/execa/lib/ipc/array.js": {
+          "bytesInOutput": 93
+        },
+        "node_modules/execa/lib/stdio/stdio-option.js": {
+          "bytesInOutput": 2921
+        },
+        "node_modules/execa/lib/stdio/native.js": {
+          "bytesInOutput": 2497
+        },
+        "node_modules/execa/lib/arguments/fd-options.js": {
+          "bytesInOutput": 3892
+        },
+        "node_modules/execa/lib/stdio/input-option.js": {
+          "bytesInOutput": 1079
+        },
+        "node_modules/execa/lib/stdio/duplicate.js": {
+          "bytesInOutput": 2923
+        },
+        "node_modules/execa/lib/stdio/handle.js": {
+          "bytesInOutput": 6062
+        },
+        "node_modules/execa/lib/io/strip-newline.js": {
+          "bytesInOutput": 376
+        },
+        "node_modules/execa/lib/transform/generator.js": {
+          "bytesInOutput": 2329
+        },
+        "node_modules/execa/lib/transform/split.js": {
+          "bytesInOutput": 2981
+        },
+        "node_modules/execa/lib/transform/validate.js": {
+          "bytesInOutput": 1495
+        },
+        "node_modules/execa/lib/transform/encoding-transform.js": {
+          "bytesInOutput": 1065
+        },
+        "node_modules/execa/lib/transform/run-async.js": {
+          "bytesInOutput": 1413
+        },
+        "node_modules/execa/lib/transform/run-sync.js": {
+          "bytesInOutput": 1226
+        },
+        "node_modules/execa/lib/io/input-sync.js": {
+          "bytesInOutput": 1661
+        },
+        "node_modules/execa/lib/io/output-sync.js": {
+          "bytesInOutput": 3371
+        },
+        "node_modules/execa/lib/verbose/output.js": {
+          "bytesInOutput": 1115
+        },
+        "node_modules/execa/lib/resolve/all-sync.js": {
+          "bytesInOutput": 573
+        },
+        "node_modules/execa/lib/resolve/exit-async.js": {
+          "bytesInOutput": 1177
+        },
+        "node_modules/execa/lib/resolve/exit-sync.js": {
+          "bytesInOutput": 560
+        },
+        "node_modules/execa/lib/methods/main-async.js": {
+          "bytesInOutput": 5599
+        },
+        "node_modules/execa/lib/ipc/methods.js": {
+          "bytesInOutput": 1008
+        },
+        "node_modules/execa/lib/ipc/get-one.js": {
+          "bytesInOutput": 2224
+        },
+        "node_modules/execa/lib/ipc/get-each.js": {
+          "bytesInOutput": 2642
+        },
+        "node_modules/execa/lib/return/early-error.js": {
+          "bytesInOutput": 1947
+        },
+        "node_modules/execa/lib/stdio/handle-async.js": {
+          "bytesInOutput": 1951
+        },
+        "node_modules/@sindresorhus/merge-streams/index.js": {
+          "bytesInOutput": 6613
+        },
+        "node_modules/execa/lib/io/pipeline.js": {
+          "bytesInOutput": 985
+        },
+        "node_modules/execa/lib/io/output-async.js": {
+          "bytesInOutput": 2046
+        },
+        "node_modules/execa/lib/terminate/kill-descendants.js": {
+          "bytesInOutput": 1611
+        },
+        "node_modules/execa/lib/terminate/cleanup.js": {
+          "bytesInOutput": 313
+        },
+        "node_modules/execa/node_modules/signal-exit/dist/mjs/signals.js": {
+          "bytesInOutput": 462
+        },
+        "node_modules/execa/node_modules/signal-exit/dist/mjs/index.js": {
+          "bytesInOutput": 6295
+        },
+        "node_modules/execa/lib/convert/concurrent.js": {
+          "bytesInOutput": 819
+        },
+        "node_modules/execa/lib/io/iterate.js": {
+          "bytesInOutput": 2934
+        },
+        "node_modules/execa/lib/convert/iterable.js": {
+          "bytesInOutput": 736
+        },
+        "node_modules/execa/lib/convert/readable.js": {
+          "bytesInOutput": 3510
+        },
+        "node_modules/execa/lib/convert/shared.js": {
+          "bytesInOutput": 1039
+        },
+        "node_modules/execa/lib/resolve/wait-stream.js": {
+          "bytesInOutput": 2096
+        },
+        "node_modules/execa/lib/convert/web.js": {
+          "bytesInOutput": 433
+        },
+        "node_modules/execa/lib/pipe/pipe-arguments.js": {
+          "bytesInOutput": 2746
+        },
+        "node_modules/execa/lib/pipe/throw.js": {
+          "bytesInOutput": 1166
+        },
+        "node_modules/execa/lib/pipe/sequence.js": {
+          "bytesInOutput": 587
+        },
+        "node_modules/execa/lib/pipe/streaming.js": {
+          "bytesInOutput": 1407
+        },
+        "node_modules/execa/lib/pipe/abort.js": {
+          "bytesInOutput": 564
+        },
+        "node_modules/execa/lib/pipe/setup.js": {
+          "bytesInOutput": 6007
+        },
+        "node_modules/execa/lib/io/contents.js": {
+          "bytesInOutput": 2461
+        },
+        "node_modules/execa/lib/resolve/stdio.js": {
+          "bytesInOutput": 1113
+        },
+        "node_modules/execa/lib/resolve/all-async.js": {
+          "bytesInOutput": 1061
+        },
+        "node_modules/execa/lib/resolve/wait-subprocess.js": {
+          "bytesInOutput": 3323
+        },
+        "node_modules/execa/lib/verbose/ipc.js": {
+          "bytesInOutput": 275
+        },
+        "node_modules/execa/lib/ipc/buffer-messages.js": {
+          "bytesInOutput": 892
+        },
+        "node_modules/execa/lib/convert/writable.js": {
+          "bytesInOutput": 3034
+        },
+        "node_modules/execa/lib/convert/duplex.js": {
+          "bytesInOutput": 1983
+        },
+        "node_modules/execa/lib/convert/add.js": {
+          "bytesInOutput": 800
+        },
+        "node_modules/execa/lib/methods/promise.js": {
+          "bytesInOutput": 80
+        },
+        "node_modules/execa/lib/methods/bind.js": {
+          "bytesInOutput": 694
+        },
+        "node_modules/execa/lib/methods/create.js": {
+          "bytesInOutput": 1750
+        },
+        "node_modules/execa/lib/methods/script.js": {
+          "bytesInOutput": 616
+        },
+        "node_modules/execa/index.js": {
+          "bytesInOutput": 364
+        }
+      },
+      "bytes": 252863
+    }
+  }
+}

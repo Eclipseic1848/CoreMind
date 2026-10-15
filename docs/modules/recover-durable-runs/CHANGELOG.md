@@ -2,6 +2,7 @@
 
 ## 1.1.0 - 2026-10-15
 
+- Removed redundant temporary-lock synchronization while preserving complete atomic owners and critical Fact durability at the process-crash boundary.
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
 
 ## 1.0.1 - 2026-09-25

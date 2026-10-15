@@ -8,24 +8,17 @@ import {
   resolveExecutionEnvironment,
 } from "./execution-environment.js";
 import type { McpStdioClientOptions, McpStdioDomainSummary } from "./mcp-stdio-client.js";
+import { McpStdioError } from "./mcp-stdio-error.js";
 import { probeProcessTreeTermination } from "./process-runner.js";
+import { launchWindowsMcpJob, type WindowsMcpJob } from "./windows-mcp-job.js";
+
+export { McpStdioError } from "./mcp-stdio-error.js";
 
 export const MCP_MAX_FRAME_BYTES = 8 * 1024 * 1024;
 const MAX_STDERR_BYTES = 64 * 1024;
 const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
 const MAX_PENDING_WRITE_BYTES = 1024 * 1024;
 type ManagedProcess = Subprocess<{ encoding: "buffer"; buffer: false; reject: false }>;
-
-/** 稳定错误不携带 SDK、进程环境、stderr 或远端原文。 */
-export class McpStdioError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "McpStdioError";
-  }
-}
 
 /** 私有传输只管理本次连接；权限准入由调用方在 connect 前完成。 */
 export class McpStdioTransport implements Transport {
@@ -34,6 +27,7 @@ export class McpStdioTransport implements Transport {
   onmessage?: Transport["onmessage"];
   environmentSummary: McpStdioDomainSummary | undefined;
   private process?: ManagedProcess;
+  private windowsJob?: WindowsMcpJob;
   private reader?: ReadBuffer;
   private serialize?: typeof import("@modelcontextprotocol/client").serializeMessage;
   private readonly decoder = new TextDecoder("utf-8", { fatal: true });
@@ -41,6 +35,8 @@ export class McpStdioTransport implements Transport {
   private readonly activities: ExecutionEnvironmentActivity[] = [];
   private readonly writes = new Set<(error: Error) => void>();
   private finished?: Promise<void>;
+  private starting?: Promise<void>;
+  private removeCancellationListener?: () => void;
   private closing?: Promise<void>;
   private started = false;
   private notified = false;
@@ -55,97 +51,122 @@ export class McpStdioTransport implements Transport {
     if (this.started || this.closing) throw failure("连接不能重复启动");
     this.started = true;
     this.throwIfAborted();
+    // 启动阶段独立于异常关闭，避免 close 等待 start、start 又等待 close 的互锁。
+    this.starting = this.startOwned();
     try {
-      const domain = createTrustedHostExecutionEnvironment({
-        workspaceRoot: this.options.cwd,
-        probeProcessControl: probeProcessTreeTermination,
-      });
-      this.activities.push(
-        this.options.runEnvironment.beginActivity({
-          id: `mcp-run:${randomUUID()}`,
-          kind: "process",
-        }),
-      );
-      const resolved = await resolveExecutionEnvironment(domain, {
-        processControl: "process_tree",
-        termination: { kill: "process_tree", timeout: true },
-      });
-      this.throwIfAborted();
-      if (this.activities.some((activity) => activity.signal.aborted))
-        throw failure("连接启动前已取消");
-      this.environmentSummary = Object.freeze({
-        isolation: "trusted_host",
-        processControl: "process_tree",
-        networkEgress: "unrestricted",
-        credentialIsolation: "none",
-        platform: resolved.capabilities.identity.platform,
-        evidence: Object.freeze([...resolved.evidence]),
-      });
-      this.activities.push(
-        domain.beginActivity({ id: `mcp-process:${randomUUID()}`, kind: "process" }),
-      );
-      const signal = AbortSignal.any([
-        this.controller.signal,
-        ...this.activities.map((activity) => activity.signal),
-        ...(this.options.signal ? [this.options.signal] : []),
-      ]);
-      if (signal.aborted) throw failure("连接启动前已取消");
-      const { ReadBuffer: BufferReader, serializeMessage } = await import(
-        "@modelcontextprotocol/client"
-      );
-      if (signal.aborted) throw failure("连接启动前已取消");
-      this.reader = new BufferReader({ maxBufferSize: MCP_MAX_FRAME_BYTES });
-      this.serialize = serializeMessage;
-      const env: Record<string, string> = {};
-      const keys = new Set<string>();
-      for (const [name, value] of Object.entries(this.options.env)) {
-        const key = process.platform === "win32" ? name.toUpperCase() : name;
-        if (keys.has(key) || name.includes("\0") || value.includes("\0"))
-          throw failure("服务环境键无效或重复");
-        keys.add(key);
-        env[name] = value;
-      }
-      const subprocess = execa(this.options.command, [...this.options.args], {
-        cwd: this.options.cwd,
-        env,
-        extendEnv: false,
-        shell: false,
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "pipe",
-        encoding: "buffer",
-        buffer: false,
-        stripFinalNewline: false,
-        reject: false,
-        cancelSignal: signal,
-        killDescendants: true,
-        forceKillAfterDelay: 1_000,
-        windowsHide: true,
-      });
-      this.process = subprocess;
-      this.finished = subprocess.then(
-        () => this.notifyClosed(),
-        () => this.notifyClosed(),
-      );
-      subprocess.stdout?.on("data", (chunk: Buffer) => this.read(chunk));
-      subprocess.stderr?.on("data", (chunk: Buffer) => {
-        this.stderrBytes += chunk.length;
-        if (this.stderrBytes > MAX_STDERR_BYTES) this.fail("服务诊断输出超过上限");
-      });
-      subprocess.stdin?.on("error", () => this.fail("服务输入管道已关闭"));
-      subprocess.stdout?.on("error", () => this.fail("服务输出管道失败"));
-      subprocess.stderr?.on("error", () => this.fail("服务诊断管道失败"));
-      subprocess.nodeChildProcess.once("exit", () => {
-        if (!this.closing) void this.close().catch(() => {});
-      });
-      await new Promise<void>((resolve, reject) => {
-        subprocess.nodeChildProcess.once("spawn", resolve);
-        subprocess.nodeChildProcess.once("error", () => reject(failure("无法启动本地服务")));
-      });
+      await this.starting;
     } catch (error) {
       await this.close();
       throw error instanceof McpStdioError ? error : failure("本地服务启动失败");
     }
+  }
+
+  private async startOwned(): Promise<void> {
+    const domain = createTrustedHostExecutionEnvironment({
+      workspaceRoot: this.options.cwd,
+      probeProcessControl: probeProcessTreeTermination,
+    });
+    this.activities.push(
+      this.options.runEnvironment.beginActivity({
+        id: `mcp-run:${randomUUID()}`,
+        kind: "process",
+      }),
+    );
+    this.activities.push(
+      domain.beginActivity({ id: `mcp-process:${randomUUID()}`, kind: "process" }),
+    );
+    const signal = AbortSignal.any([
+      this.controller.signal,
+      ...this.activities.map((activity) => activity.signal),
+      ...(this.options.signal ? [this.options.signal] : []),
+    ]);
+    const closeOnAbort = () => {
+      void this.close().catch(() => {});
+    };
+    signal.addEventListener("abort", closeOnAbort, { once: true });
+    this.removeCancellationListener = () => signal.removeEventListener("abort", closeOnAbort);
+    if (signal.aborted) throw failure("连接启动前已取消");
+    const resolved = await resolveExecutionEnvironment(domain, {
+      processControl: "process_tree",
+      termination: { kill: "process_tree", timeout: true },
+    });
+    this.throwIfAborted();
+    if (this.activities.some((activity) => activity.signal.aborted))
+      throw failure("连接启动前已取消");
+    this.environmentSummary = Object.freeze({
+      isolation: "trusted_host",
+      processControl: "process_tree",
+      networkEgress: "unrestricted",
+      credentialIsolation: "none",
+      platform: resolved.capabilities.identity.platform,
+      evidence: Object.freeze([...resolved.evidence]),
+    });
+    const { ReadBuffer: BufferReader, serializeMessage } = await import(
+      "@modelcontextprotocol/client"
+    );
+    if (signal.aborted) throw failure("连接启动前已取消");
+    this.reader = new BufferReader({ maxBufferSize: MCP_MAX_FRAME_BYTES });
+    this.serialize = serializeMessage;
+    const env: Record<string, string> = {};
+    const keys = new Set<string>();
+    for (const [name, value] of Object.entries(this.options.env)) {
+      const key = process.platform === "win32" ? name.toUpperCase() : name;
+      if (keys.has(key) || name.includes("\0") || value.includes("\0"))
+        throw failure("服务环境键无效或重复");
+      keys.add(key);
+      env[name] = value;
+    }
+    if (process.platform === "win32") {
+      this.windowsJob = await launchWindowsMcpJob(
+        {
+          command: this.options.command,
+          args: this.options.args,
+          cwd: this.options.cwd,
+          env,
+        },
+        signal,
+      );
+    }
+    const spawnOptions = {
+      cwd: this.options.cwd,
+      env,
+      extendEnv: false,
+      shell: false,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      encoding: "buffer",
+      buffer: false,
+      stripFinalNewline: false,
+      reject: false,
+      killDescendants: true,
+      forceKillAfterDelay: 1_000,
+      windowsHide: true,
+    } as const;
+    const subprocess =
+      this.windowsJob?.process ?? execa(this.options.command, [...this.options.args], spawnOptions);
+    this.process = subprocess;
+    this.finished = subprocess.then(
+      () => {},
+      () => {},
+    );
+    subprocess.stdout?.on("data", (chunk: Buffer) => this.read(chunk));
+    subprocess.stderr?.on("data", (chunk: Buffer) => {
+      this.stderrBytes += chunk.length;
+      if (this.stderrBytes > MAX_STDERR_BYTES) this.fail("服务诊断输出超过上限");
+    });
+    subprocess.stdin?.on("error", () => this.fail("服务输入管道已关闭"));
+    subprocess.stdout?.on("error", () => this.fail("服务输出管道失败"));
+    subprocess.stderr?.on("error", () => this.fail("服务诊断管道失败"));
+    subprocess.nodeChildProcess.once("exit", () => {
+      if (!this.closing) void this.close().catch(() => {});
+    });
+    await (this.windowsJob?.ready ??
+      new Promise<void>((resolve, reject) => {
+        subprocess.nodeChildProcess.once("spawn", resolve);
+        subprocess.nodeChildProcess.once("error", () => reject(failure("无法启动本地服务")));
+      }));
+    if (signal.aborted) throw failure("连接启动前已取消");
   }
 
   async send(message: JSONRPCMessage): Promise<void> {
@@ -174,7 +195,8 @@ export class McpStdioTransport implements Transport {
   }
 
   close(): Promise<void> {
-    if (!this.closing) this.closing = this.closeOwned();
+    // 先登记唯一 owner，再触发自身 abort；同步取消 listener 只能取得同一个 Promise。
+    this.closing ??= Promise.resolve().then(() => this.closeOwned());
     return this.closing;
   }
 
@@ -182,31 +204,43 @@ export class McpStdioTransport implements Transport {
     this.controller.abort();
     for (const reject of this.writes) reject(failure("本地服务连接已关闭"));
     this.writes.clear();
-    // 在根仍存活时终止整树，避免先 EOF 退出根再丢失后代关系。
-    this.process?.kill();
+    const deadline = performance.now() + 5_000;
     let timeout: NodeJS.Timeout | undefined;
     try {
-      if (this.finished) {
-        await Promise.race([
-          this.finished,
-          new Promise<never>((_resolve, reject) => {
-            timeout = setTimeout(
-              () => reject(new McpStdioError("mcp_cleanup_failed", "本地服务未在期限内完成关闭")),
-              5_000,
-            );
-          }),
-        ]);
-      }
+      const joinOwned = async () => {
+        await this.starting?.catch(() => {});
+        const subprocess = this.process;
+        if (!subprocess) return;
+        if (performance.now() >= deadline) throw cleanupFailure();
+        if (this.windowsJob) {
+          await Promise.all([this.windowsJob.close(), this.finished]);
+        } else {
+          if (process.platform !== "win32") subprocess.kill();
+          await this.finished;
+        }
+      };
+      await Promise.race([
+        joinOwned(),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => reject(cleanupFailure()), 5_000);
+        }),
+      ]);
       this.process?.stdin?.destroy();
       this.process?.stdout?.destroy();
       this.process?.stderr?.destroy();
       this.reader?.clear();
       this.process = undefined;
+      this.windowsJob = undefined;
       for (const activity of this.activities) activity.settle();
       this.activities.length = 0;
       this.notifyClosed();
+    } catch {
+      // 失败不结算活动，也不透出命令、环境或系统诊断；上层静止门仍然保持关闭。
+      throw cleanupFailure();
     } finally {
       if (timeout) clearTimeout(timeout);
+      this.removeCancellationListener?.();
+      this.removeCancellationListener = undefined;
     }
   }
 
@@ -254,6 +288,10 @@ export class McpStdioTransport implements Transport {
     }
     this.onclose?.();
   }
+}
+
+function cleanupFailure(): McpStdioError {
+  return new McpStdioError("mcp_cleanup_failed", "本地服务未在期限内完成关闭");
 }
 
 function failure(message: string): McpStdioError {

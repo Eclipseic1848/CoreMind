@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, it, vi } from "vitest";
@@ -8,6 +8,95 @@ import { createFakeExecutionEnvironment } from "./execution-environment.js";
 import { createMcpStdioClient } from "./mcp-stdio-client.js";
 
 const fixture = path.resolve(process.cwd(), "test/fixtures/mcp-stdio-server.mjs");
+
+it.skipIf(process.platform !== "win32")("原始 orphan 夹具在父退出后仍产生新心跳", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "coremind-mcp-orphan-calibration-"));
+  const recordPath = path.join(directory, "records.jsonl");
+  const records = async () =>
+    (await readFile(recordPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+  const root = spawn(process.execPath, [fixture, recordPath, "orphan"], {
+    cwd: directory,
+    stdio: ["pipe", "ignore", "ignore"],
+    windowsHide: true,
+  });
+  let spawnError: Error | undefined;
+  root.on("error", (error) => {
+    spawnError = error;
+  });
+  let childPid: number | undefined;
+  try {
+    await vi.waitFor(
+      async () => {
+        if (spawnError) throw spawnError;
+        const current = await records();
+        const started = current.find((record) => record.type === "started");
+        expect(started?.pid).toBe(root.pid);
+        expect(started?.childPid).toBeTypeOf("number");
+        childPid = started.childPid;
+        expect(current).toContainEqual({ type: "child-ready", pid: childPid });
+        expect(
+          current.some((record) => record.type === "heartbeat" && record.pid === childPid),
+        ).toBe(true);
+      },
+      { timeout: 5_000, interval: 20 },
+    );
+    root.stdin.write(
+      `${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "echo", arguments: { value: "orphan 校准" } },
+      })}\n`,
+    );
+    await vi.waitFor(
+      () => {
+        expect(root.exitCode).toBe(0);
+        expect(alive(root.pid!)).toBe(false);
+      },
+      { timeout: 3_000, interval: 20 },
+    );
+    const heartbeatCount = (await records()).filter(
+      (record) => record.type === "heartbeat" && record.pid === childPid,
+    ).length;
+    await vi.waitFor(
+      async () => {
+        expect(alive(childPid!)).toBe(true);
+        expect(
+          (await records()).filter(
+            (record) => record.type === "heartbeat" && record.pid === childPid,
+          ).length,
+        ).toBeGreaterThanOrEqual(heartbeatCount + 2);
+      },
+      { timeout: 2_000, interval: 20 },
+    );
+  } finally {
+    // 校准清理只回收本格自有 PID，不作为产品关闭通过的证据。
+    try {
+      if (root.pid !== undefined) cleanup(root.pid);
+    } finally {
+      try {
+        childPid ??= (await records()).find((record) => record.type === "started")?.childPid;
+        if (childPid !== undefined) cleanup(childPid);
+        await vi.waitFor(
+          () => {
+            if (root.pid !== undefined) expect(alive(root.pid)).toBe(false);
+            if (childPid !== undefined) expect(alive(childPid)).toBe(false);
+          },
+          { timeout: 3_000, interval: 20 },
+        );
+      } finally {
+        root.stdin.destroy();
+        const target = await realpath(directory);
+        expect(path.dirname(target).toLowerCase()).toBe((await realpath(tmpdir())).toLowerCase());
+        expect(path.basename(target)).toMatch(/^coremind-mcp-orphan-calibration-/u);
+        await rm(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+      }
+    }
+  }
+});
 
 it.each(["normal", "orphan", "bad-init", "cancel", "close"])(
   "%s 生命周期关闭必须清理真实服务及其子进程",
@@ -133,6 +222,8 @@ function alive(pid: number): boolean {
 }
 
 function cleanup(pid: number): void {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid)
+    throw new Error("夹具自有 PID 无效");
   if (!alive(pid)) return;
   if (process.platform === "win32") {
     spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
