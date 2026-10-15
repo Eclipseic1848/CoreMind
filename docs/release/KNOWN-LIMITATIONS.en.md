@@ -2,7 +2,7 @@
 
 > This file records the capability boundary of the `1.1.0` release line. Live GitHub Release, npm, and PyPI pages and same-commit qualification evidence determine public availability; source CI does not establish publication.
 
-- All 40 providers are configurable; this is not live certification. Version 1.1.0 requires strict-provider evidence bound to its candidate version, final commit, and Runtime digest. Older certification and release exceptions do not substitute for it.
+- All 43 catalog entries (42 built-in chat providers, including compatibility aliases) are configurable; this is not live certification. Version 1.1.0 requires strict-provider evidence bound to its candidate version, final commit, and Runtime digest. Older certification and release exceptions do not substitute for it.
 - The phase-two live external same-task model evaluation has not run. Offline Coding Eval does not establish live-model quality.
 - Publication requires the non-regression coverage gate. The `1.0.1` record places repository lines, statements, and branches below the long-term 80% target and selected safety-critical branches below 90%. Actual `1.1.0` values require its same-commit coverage report; older values do not describe the current run.
 - Lifecycle extensions are controlled in-process extensions, not an operating-system sandbox. Only four events are exposed, and unknown project extensions are not loaded by default.

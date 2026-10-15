@@ -32,7 +32,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 |---|---|
 | 开发入口 | CLI/TUI、TypeScript SDK、Python SDK、完整源码 |
 | 智能体编排 | 单 Agent、多 Agent、顺序/并行/条件 Workflow、公开 verify/repair Loop、无进展检测、暂停恢复与耗尽策略 |
-| 配置与模型 | Config v2 保持兼容，显式 Config v3 支持 deferred 工具；40 个可配置 Provider 和自定义 OpenAI-compatible 端点；认证须核同版本 strict-provider 工作流证据 |
+| 配置与模型 | Config v2 保持兼容，显式 Config v3 支持 deferred 工具；43 个可配置 Provider 入口（含兼容别名）和自定义 OpenAI-compatible 端点；认证须核同版本 strict-provider 工作流证据 |
 | 工具与权限 | 内置文件、搜索、网页和脚本工具；TypeScript/Python 自定义工具；受控进程、只读 Git 与有上限的统一 Diff；`ask`、`assisted`、`full` 三档权限 |
 | 可靠运行 | 明确的成功/失败/暂停/中止语义；turn/step/token/费用/工具预算；Trace、RunState、Session、Context 保护和安全恢复 |
 | 协议与控制 | Protocol v2 提供 RunHandle、cursor 续订、Projection query 与持久控制回执；v1 继续受支持，当前没有经批准的移除计划 |
@@ -259,7 +259,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 40 个可配置 Provider 入口，也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`1.1.0` 正式发布必须另有绑定最终提交、版本与 Runtime 摘要的 strict-provider 工作流证据。`0.7.0` 的一次性网络例外与更早证据只供追溯，均不计为本版本认证。
+CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`1.1.0` 正式发布必须另有绑定最终提交、版本与 Runtime 摘要的 strict-provider 工作流证据。`0.7.0` 的一次性网络例外与更早证据只供追溯，均不计为本版本认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

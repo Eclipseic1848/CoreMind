@@ -32,7 +32,7 @@ The `1.1.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime an
 |---|---|
 | Development paths | CLI/TUI, TypeScript SDK, Python SDK, and full source |
 | Agent orchestration | Single-agent and multi-agent runs, sequential/parallel/conditional workflows, public verify-repair Loops, no-progress detection, pause-resume, and exhaustion policies |
-| Configuration and models | Compatible Config v2, explicit Config v3 for deferred tools, 40 configurable providers, and custom OpenAI-compatible endpoints; certification requires same-version strict-provider workflow evidence |
+| Configuration and models | Compatible Config v2, explicit Config v3 for deferred tools, 43 configurable provider entries including compatibility aliases, and custom OpenAI-compatible endpoints; certification requires same-version strict-provider workflow evidence |
 | Tools and permissions | Built-in file, search, web, and script tools; TypeScript/Python custom tools; controlled processes, read-only Git, and bounded unified diffs; `ask`, `assisted`, and `full` permission modes |
 | Reliable execution | Explicit success/failure/pause/abort outcomes; turn, step, token, cost, and tool budgets; trace, run state, sessions, context protection, and safe resume |
 | Protocol and control | Protocol v2 provides RunHandles, cursor resume, Projection queries, and durable control receipts; v1 remains supported with no approved removal plan |
@@ -147,7 +147,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 40 configurable providers and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `1.1.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
+CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `1.1.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

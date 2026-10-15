@@ -10,7 +10,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
-- Config v2 兼容与显式 Config v3、40 个可配置模型供应商及自定义兼容端点。
+- Config v2 兼容与显式 Config v3、43 个可配置 Provider 入口（含兼容别名）及自定义兼容端点。
 - `ask`、`assisted`、`full` 三档权限，以及路径策略、审批、审计、checkpoint、diff 和恢复。
 - 明确的运行结果、预算、Trace、Session、Context 保护、测试、评测和发布门禁。
 - 8 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 22 个能力模块。

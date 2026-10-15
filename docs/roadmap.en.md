@@ -10,7 +10,7 @@ This public roadmap describes product boundaries and intended directions. It del
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
-- Compatible Config v2, explicit Config v3, 40 configurable model providers, and custom compatible endpoints.
+- Compatible Config v2, explicit Config v3, 43 configurable provider entries including compatibility aliases, and custom compatible endpoints.
 - `ask`, `assisted`, and `full` permission modes with path policy, approvals, audit, checkpoints, diffs, and recovery.
 - Explicit outcomes, budgets, traces, sessions, context protection, tests, evaluations, and release gates.
 - Eight project templates, five offline golden examples, two real-defect coding-agent repositories, and 22 capability modules.
