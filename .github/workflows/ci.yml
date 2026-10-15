@@ -102,6 +102,16 @@ jobs:
         run: |
           node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
 
+      - name: 安装 Python 3.14 认证回归环境
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+
+      - name: Python 3.14 认证取消与真实错误传播（离线）
+        run: |
+          python -X utf8 -m pip install --disable-pip-version-check ./python
+          python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_mcp_auth.py" -v
+
       - name: 记录实际运行时间
         if: always()
         shell: bash

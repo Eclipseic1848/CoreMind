@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import traceback
 import unittest
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -122,6 +123,49 @@ class McpAuthenticationTest(unittest.TestCase):
             self.assertEqual((await invoke("mcp_cancel_auth", "async-cancel"))["status"], "not_found")
             self.assertEqual(client._mcp_auth_waiters, {})
             self.assertFalse(any(item["type"] == "token" for item in fixture.command({"action": "inspect"})["records"]))
+        async def observed():
+            loop = asyncio.get_running_loop()
+            previous = loop.get_exception_handler()
+            contexts = []
+            loop.set_exception_handler(lambda _loop, context: contexts.append(context))
+            try:
+                # 连同客户端完整关闭和下一轮回调一起观察，不筛选后台异常。
+                await self._with_client(True, execute)
+                await asyncio.sleep(0)
+                self.assertEqual(len(contexts), 0, "正常认证取消不得报告事件循环后台异常")
+            finally:
+                loop.set_exception_handler(previous)
+        asyncio.run(observed())
+
+    def test_async_handler_failure_reaches_caller_without_secret_leak(self) -> None:
+        async def execute(invoke, client, fixture):
+            secret = "python-auth-handler-private-canary"
+            transactions = []
+            async def handler(request):
+                transactions.append(request["transactionId"])
+                await asyncio.sleep(0)
+                raise RuntimeError(secret)
+            client._mcp_auth_handler = handler
+            formatted = ""
+            with self.assertRaises(ProtocolError) as caught:
+                try:
+                    await invoke("mcp_login", "remote", transaction_id="async-handler-failed")
+                except ProtocolError as error:
+                    # 在 assertRaises 清理 traceback 前检查调用方真正收到的错误链。
+                    formatted = "".join(traceback.format_exception(error))
+                    raise
+            error = caught.exception
+            self.assertEqual(error.rpc_code, -32000)
+            self.assertEqual(error.coremind_code, "mcp_auth_failed")
+            self.assertEqual(transactions, ["async-handler-failed"])
+            self.assertEqual((await invoke("mcp_cancel_auth", "async-handler-failed"))["status"], "not_found")
+            self.assertEqual(client._mcp_auth_waiters, {})
+            self.assertFalse(any(item["type"] == "token" for item in fixture.command({"action": "inspect"})["records"]))
+            diagnostics = {"str": str(error), "repr": repr(error), "details": error.details,
+                           "traceback": formatted, "events": client.received_events,
+                           "stderr": list(client._stderr_tail)}
+            self.assertNotIn(secret, json.dumps(diagnostics, ensure_ascii=False))
+            self.assertFalse(any("authorizationUrl" in json.dumps(event) for event in client.received_events))
         asyncio.run(self._with_client(True, execute))
 
     async def _with_client(self, asynchronous, execute):
