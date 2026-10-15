@@ -163,6 +163,8 @@ export interface ProcessTreeProbeResult {
 
 /** 用真实父子进程验证取消能否收敛完整进程树；结果供平台环境 Adapter 缓存。 */
 export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeResult> {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+  startupTrace?.("process_probe_begin");
   const controller = new AbortController();
   let output = "";
   let childPid: number | undefined;
@@ -191,13 +193,20 @@ export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeRes
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
     if (childPid === undefined) {
+      startupTrace?.("process_probe_no_pid");
+      startupTrace?.("process_probe_abort");
       controller.abort();
       await running;
+      startupTrace?.("process_probe_joined");
       return { available: false, evidence: [`process-tree:${process.platform}:no-child-pid`] };
     }
+    startupTrace?.("process_probe_pid_seen");
+    startupTrace?.("process_probe_abort");
     controller.abort();
     const outcome = await running;
+    startupTrace?.("process_probe_joined");
     if (!(outcome instanceof ProcessRunnerError) || outcome.code !== "process_aborted") {
+      startupTrace?.("process_probe_bad_cancel");
       return {
         available: false,
         evidence: [`process-tree:${process.platform}:cancel-contract-failed`],
@@ -208,6 +217,9 @@ export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeRes
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     const available = !isProcessAlive(childPid);
+    startupTrace?.(
+      available ? "process_probe_descendants_gone" : "process_probe_descendant_survived",
+    );
     return {
       available,
       evidence: [
@@ -215,6 +227,7 @@ export async function probeProcessTreeTermination(): Promise<ProcessTreeProbeRes
       ],
     };
   } finally {
+    startupTrace?.("process_probe_finally");
     controller.abort();
     if (childPid !== undefined && isProcessAlive(childPid)) terminateProcessTree(childPid);
   }

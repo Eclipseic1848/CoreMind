@@ -62,6 +62,8 @@ export class McpStdioTransport implements Transport {
   }
 
   private async startOwned(): Promise<void> {
+    const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.(this);
+    startupTrace?.("transport_domain_begin");
     const domain = createTrustedHostExecutionEnvironment({
       workspaceRoot: this.options.cwd,
       probeProcessControl: probeProcessTreeTermination,
@@ -80,16 +82,19 @@ export class McpStdioTransport implements Transport {
       ...this.activities.map((activity) => activity.signal),
       ...(this.options.signal ? [this.options.signal] : []),
     ]);
+    Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.(this, signal);
     const closeOnAbort = () => {
       void this.close().catch(() => {});
     };
     signal.addEventListener("abort", closeOnAbort, { once: true });
     this.removeCancellationListener = () => signal.removeEventListener("abort", closeOnAbort);
     if (signal.aborted) throw failure("连接启动前已取消");
+    startupTrace?.("domain_resolve_begin");
     const resolved = await resolveExecutionEnvironment(domain, {
       processControl: "process_tree",
       termination: { kill: "process_tree", timeout: true },
     });
+    startupTrace?.("domain_resolve_done");
     this.throwIfAborted();
     if (this.activities.some((activity) => activity.signal.aborted))
       throw failure("连接启动前已取消");
@@ -101,9 +106,11 @@ export class McpStdioTransport implements Transport {
       platform: resolved.capabilities.identity.platform,
       evidence: Object.freeze([...resolved.evidence]),
     });
+    startupTrace?.("transport_sdk_begin");
     const { ReadBuffer: BufferReader, serializeMessage } = await import(
       "@modelcontextprotocol/client"
     );
+    startupTrace?.("transport_sdk_done");
     if (signal.aborted) throw failure("连接启动前已取消");
     this.reader = new BufferReader({ maxBufferSize: MCP_MAX_FRAME_BYTES });
     this.serialize = serializeMessage;
@@ -117,6 +124,7 @@ export class McpStdioTransport implements Transport {
       env[name] = value;
     }
     if (process.platform === "win32") {
+      startupTrace?.("job_launch_begin");
       this.windowsJob = await launchWindowsMcpJob(
         {
           command: this.options.command,
@@ -126,6 +134,7 @@ export class McpStdioTransport implements Transport {
         },
         signal,
       );
+      startupTrace?.("job_launch_done");
     }
     const spawnOptions = {
       cwd: this.options.cwd,
@@ -161,11 +170,13 @@ export class McpStdioTransport implements Transport {
     subprocess.nodeChildProcess.once("exit", () => {
       if (!this.closing) void this.close().catch(() => {});
     });
+    startupTrace?.("job_ready_wait");
     await (this.windowsJob?.ready ??
       new Promise<void>((resolve, reject) => {
         subprocess.nodeChildProcess.once("spawn", resolve);
         subprocess.nodeChildProcess.once("error", () => reject(failure("无法启动本地服务")));
       }));
+    startupTrace?.("job_ready_done");
     if (signal.aborted) throw failure("连接启动前已取消");
   }
 

@@ -171,15 +171,22 @@ export function createMcpRun(options: McpRunOptions) {
             },
             approvalDescription: describeTarget(target, "建立连接"),
             invoke: async () => {
+              const startupTrace = Reflect.get(
+                globalThis,
+                Symbol.for("coremind.mcpStartup.capture"),
+              )?.();
+              startupTrace?.("runtime_invoke_begin");
               assertOpen(signal);
               if (server.transport === "stdio" && "command" in target) {
                 const { env, sensitiveValues } = await resolveEnvironment(server, options);
+                startupTrace?.("runtime_env_done");
                 assertOpen(signal);
                 if ((await identifyServer(serverName, server)).sha256 !== identity.sha256)
                   throw new CoreMindError(
                     "tool_capability_conflict",
                     "本地服务目标在批准后发生变化",
                   );
+                startupTrace?.("runtime_identity_done");
                 assertOpen(signal);
                 client = createMcpStdioClient({
                   command: target.command,

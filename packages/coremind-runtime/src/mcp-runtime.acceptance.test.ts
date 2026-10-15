@@ -44,6 +44,7 @@ type FixtureRecord = Record<string, unknown> & { type?: string; method?: string 
 describe("本地 MCP 真实 Runtime 准入", () => {
   it("connect/list/call 均在真实 critical barrier 后执行，首个模型使用冻结目录与真实批准目标", async () => {
     await withProject(async (project) => {
+      const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
       const gates = Array.from({ length: 3 }, () => ({
         entered: deferred<void>(),
         release: deferred<void>(),
@@ -58,6 +59,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           if (event?.type !== "effect_receipt" || event.status !== "started") return;
           const gate = gates[stage++];
           if (!gate) throw new Error("夹具收到了额外的 started 屏障");
+          if (stage === 2) startupTrace?.("list_gate_enter");
           gate.entered.resolve();
           await gate.release.promise;
         },
@@ -76,7 +78,13 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           approvals.push(request);
           return "allow";
         },
-        events: (event) => observed.push(event),
+        events: (event) => {
+          observed.push(event);
+          if (event.type === "tool_lifecycle" && event.resolution.phase === "executing")
+            startupTrace?.("runtime_executing");
+          if (event.type === "tool_lifecycle" && event.resolution.phase === "observed")
+            startupTrace?.("observed");
+        },
       });
       expect(existsSync(project.recordFile)).toBe(false);
       expect(project.requests).toEqual([]);
@@ -85,6 +93,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         await waitForBarrier("connect", gates[0]!.entered.promise, project.running, observed);
         expect(existsSync(project.recordFile)).toBe(false);
         expect(project.requests).toHaveLength(0);
+        startupTrace?.("connect_gate_release");
         gates[0]!.release.resolve();
 
         await waitForBarrier("list", gates[1]!.entered.promise, project.running, observed);
@@ -860,6 +869,8 @@ function orchestratedConfig(config: CoreMindConfig, mode: "workflow" | "loop"): 
 }
 
 async function withProject(action: (project: Project) => Promise<void>) {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+  startupTrace?.("fixture_enter");
   const directory = await mkdtemp(path.join(tmpdir(), "coremind-mcp-acceptance-"));
   const recordFile = path.join(directory, "service.jsonl");
   const requests: WireRequest[] = [];
@@ -958,13 +969,19 @@ async function withProject(action: (project: Project) => Promise<void>) {
     },
   };
   const failures: unknown[] = [];
+  startupTrace?.("fixture_ready");
   try {
-    await action(project);
+    await (startupTrace ? startupTrace.run(() => action(project)) : action(project));
   } catch (error) {
     failures.push(error);
   }
+  startupTrace?.("fixture_abort");
   project.controller.abort();
   if (project.running) {
+    void project.running.then(
+      () => startupTrace?.("run_settled"),
+      () => startupTrace?.("run_settled"),
+    );
     try {
       await bounded(project.running, "cleanup 取消 join");
     } catch (error) {
@@ -1003,6 +1020,7 @@ async function withProject(action: (project: Project) => Promise<void>) {
   } catch (error) {
     failures.push(error);
   }
+  startupTrace?.("cleanup_done");
   failures.push(...errors);
   if (failures.length) throw new AggregateError(failures, "MCP 真实 Runtime 主流程与资源清理");
 }

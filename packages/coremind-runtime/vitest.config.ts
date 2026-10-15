@@ -1,8 +1,10 @@
+import path from "node:path";
 import { defineProject } from "vitest/config";
 
 export default defineProject({
   test: {
     name: "coremind-runtime",
+    setupFiles: [path.resolve(process.cwd(), "test/probes/mcp-startup-timing-setup.mjs")],
     exclude: ["src/input-receipt.acceptance.test.ts", "src/race-matrix.acceptance.test.ts"],
     // 评测与宿主 Shell 用例会启动真实子进程；上限需覆盖产品最长 10 秒的受控进程超时。
     testTimeout: 15_000,

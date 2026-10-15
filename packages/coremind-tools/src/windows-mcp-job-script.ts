@@ -5,10 +5,12 @@ $pipe = $null
 $status = 1
 $compiled = $false
 try {
+  [Console]::Error.WriteLine('[CM_MCP_STAGE:ps_begin]')
   $name = [Environment]::GetEnvironmentVariable('COREMIND_MCP_OWNER_PIPE')
   if ($name -cnotmatch '^coremind-mcp-owner-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') { throw 'control' }
   $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $name, [IO.Pipes.PipeDirection]::InOut, [IO.Pipes.PipeOptions]::Asynchronous)
   $pipe.Connect(5000)
+  [Console]::Error.WriteLine('[CM_MCP_STAGE:owner_connected]')
   # 预取消不编译；逐字节读取，避免预读下一条关闭帧。
   $bytes = [byte[]]::new(1048576)
   $count = 0
@@ -17,12 +19,14 @@ try {
     $bytes[$count++] = [byte]$next
   }
   $line = [Text.UTF8Encoding]::new($false, $true).GetString($bytes, 0, $count)
+  [Console]::Error.WriteLine('[CM_MCP_STAGE:frame_read]')
   if ($line -ceq '{"cancel":true}') {
     $bytes = [Text.Encoding]::UTF8.GetBytes('{"type":"closed","activeProcesses":0}' + [char]10)
     $pipe.Write($bytes, 0, $bytes.Length)
     $pipe.Flush()
   } else {
   Import-Module ($PSHOME+'\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
+  [Console]::Error.WriteLine('[CM_MCP_STAGE:utility_ready]')
   Add-Type -WarningAction SilentlyContinue -TypeDefinition @'
 using System;
 using System.Collections.Generic;
@@ -194,6 +198,7 @@ public static class CoreMindMcpJob {
 }
 '@
   $compiled = $true
+  [Console]::Error.WriteLine('[CM_MCP_STAGE:native_compiled]')
   if ($null -eq $line -or $line -notmatch '^\s*\{') { throw 'control' }
   $config = ConvertFrom-Json -InputObject $line
   $keys = @($config.PSObject.Properties.Name)
@@ -210,6 +215,7 @@ public static class CoreMindMcpJob {
       $hostEnv.Add($property.Name, $property.Value)
     }
     [CoreMindMcpJob]::Start($config.nodePath, $config.launcherPath, $config.cwd, $config.servicePipeName, $hostEnv)
+    [Console]::Error.WriteLine('[CM_MCP_STAGE:job_spawned]')
     [CoreMindMcpJob]::Send($pipe, '{"type":"job_ready"}')
     $line = [CoreMindMcpJob]::AwaitCommand($pipe)
     if ($null -ne $line) {
