@@ -22,6 +22,16 @@
 
 按[配置指南](../../guide/02-configuration.md#mcp按-agent-选择本地工具)确认程序、目录、参数和环境引用。先做零启动的静态诊断，再验证连接、目录、业务三个阶段各自拒绝与允许，检查完整 schema、审批身份、秘密阻断、未知效果和真实进程回收。保持受限项目质量门；不为受信宿主程序增加豁免。
 
+## 受控 HTTP MCP 的附加验收
+
+1. 按[HTTP 配置](../../guide/02-configuration.md#mcp受控-http-与精确资源授权)固定 URL 和 Header 引用。确认认证环境变量含完整 Header 值；凭据缺失、401/403 不回退身份，不进入 OAuth 或刷新。
+2. 分别验证默认公网 HTTPS、非空 `allowedAddresses` 对全部地址的精确约束、显式 loopback HTTP、非法地址拒绝、DNS 与实际 socket 绑定。重定向和环境代理不得带出凭据；静态诊断不联网。
+3. 对 HTTP 网络元操作分别测 `network: allow` 的配置批准、`network: ask` 的原审批和 deny 的零发送。业务 Effect/Capability、工作区限制、预算、关键 barrier 和收据保持同一 Harness。
+4. 资源按 Agent 精确原 URI 授权，覆盖默认/空集合不继承、仅 HTTP、list/templates/read、分页、猜 URI 和响应夹带 URI。仅资源首模型前零 HTTP，仅工具零资源请求；不解引用本地文件或链接，不接受 blob。
+5. 在真实请求已进入后注入取消、断流、401/403/408/429/5xx、坏正文和限额故障。覆盖 8 MiB body、64 MiB owner、32 页/256 条、30 秒总期限及 owner 最多 3 GET/30 秒；取消单请求不能关闭其他合法调用，写后丢响应不能重发业务 POST。
+6. 检查模型请求、Facts/query/events、Artifact、CLI 和 Worker JSON 都没有凭据原文。Run 结束须先验证本地 body/socket/dispatcher 已收敛，再做测试夹具兜底清理；远端 session 由服务租约管理，不发送 DELETE。
+7. 运行清单中的 TypeScript、CLI、Python 同步/异步及旧 Worker 拒绝回归；保留原 stdio 测试。分别记录工作区、安装制品、平台和真实外部互通证据，未运行的形态不得标为通过。
+
 ## 停止条件
 
 遇到未确认业务规则、不可逆副作用、工作区外访问、真实密钥缺失或安全门禁失败时停止，向负责人请求决定。不要自行扩大业务范围。

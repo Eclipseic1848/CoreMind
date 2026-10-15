@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "d137c7d6b536da4f65e856fcfb9f79cb11993137",
+    "developmentCommit": "4e124409920397d1769a478e3d213a2693449245",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -15,7 +15,7 @@
     "apiReports": {
       "coremind-ai": "5b9109a19d856a993d700358f0f054abfc70f50ae8be28e1aa6b7d26a4260ebe",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
-      "coremind-config": "88dcb458d7a88584554a9bf56cb2c4d18a9e9a0daeeaeeacb902ae632a856890",
+      "coremind-config": "41fbbec207f66d6ed535df50cc2c2290578d24b1038d92da637da21e1a44945a",
       "coremind-protocol": "0f4c3f8c27a2ac34cb08e5ea2b066bc6e9acbbebb827a57a8881f1b09c21e2d2",
       "coremind-runtime": "9647f638538f327c0b16b1a34a10d753ec1ab226f843257e8231e75d42824f2a",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
@@ -23,7 +23,7 @@
       "coremind-worker": "79470afe4d9dc909a4d51068fcf530f976e4e49e40de1d1900ee51e1d573db8d"
     },
     "schemas": {
-      "config": "c07730c9158447331ab9234ec2ee6fbe6b6684e3e8e6bb4fe26bbbf85c16e3a4",
+      "config": "05fdbc74308da7f16d7d43dc6e636c4951024736038df8eaa18565284351f04c",
       "protocol": "2eba6757fc48fc2d1e5b8bf246487cc7e3db3ef6eab302661d0b1ebf5ca33682",
       "protocolV2": "361f45aed17f48b7bae2dab77f4c5acc5838833236c895455a07c1fdefe97e60"
     }
@@ -283,20 +283,20 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-14T16:36:47.026Z",
+    "capturedAt": "2026-10-15T01:50:38.493Z",
     "capturePlatform": "win32",
-    "updateReason": "#249：仅追加可选 MCP 配置、工具引用及自有配置类型；保留无 MCP 默认行为、协议指纹、Runtime/CLI/Worker 公共接口与原覆盖门。配置变更已通过 50 项解析与真实准入回归。",
+    "updateReason": "Issue #250: add fixed HTTP MCP server configuration and per-agent exact resource URI authorization; preserve existing protocol, events and public Runtime APIs.",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "9292e972c93fa2f60a50262b1613c52334395b19d6408c5a097a04df3759f5bb",
+    "dependencyLockSha256": "34ed753c9a68b689623fa78b212c2ba0fcd0a41badfb8363b7313ac9d6f77d21",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
       "coremind-ai": "de439c2b8a7ddc2f1a93b0c0e45fa39158bd3a86a15f95697969299477dfc99c",
-      "coremind-cli": "21033c824d3f8ddd3dafdfc8cae9be2228a3619fa1c8866ed66a34b69c328b57",
-      "coremind-config": "bef986afa20dc5d1d7e2c2746b6cc6667040f027ec3a5ccea28eff8566dac960",
+      "coremind-cli": "a200affc0b859437ef4a46b2539d2ecbdc1c77e363991f942e93a204556bd3cc",
+      "coremind-config": "e321da1ea30653ec641d5dd8dcfc23c8f356628de21252b2cbe69ede58c2971f",
       "coremind-protocol": "38fac3aa17f7754b51296107cc6d43fee7d41950e12f6fa3dc7076701b2023aa",
-      "coremind-runtime": "1e6d8b644bff73da9a8e73abfddaed163a776be5d64391616c3b5716fd096e7d",
+      "coremind-runtime": "f3a6715e57cca63f9c72f7cbb2d93bcbf177345deb469dcdf0bec69caba42601",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "44960f850a9ae474d778e6d1bd3328ff15ee9b5f8d21ac035e278e20c816a812",
+      "coremind-tools": "0ff24468ee2d2a984226a13560014b128d6767c5678cc9e8727dd1f22b0e6e75",
       "coremind-worker": "e470601944d6d659efeac980e07c71e72a9bd8addd3d6b9a7eda139d47ca802e"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"

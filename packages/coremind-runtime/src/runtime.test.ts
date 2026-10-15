@@ -801,16 +801,26 @@ describe("CoreMindRuntime", () => {
           durability: "critical" as const,
         },
       };
-      for (const scope of ["global", "agent", "unselected"] as const) {
+      for (const scope of ["global", "agent", "unselected", "resource-only"] as const) {
         const mcpAdapter = createCoreMindChildRunAdapter({
           createRuntime: (authority) =>
             CoreMindRuntime.create({
               config: {
                 ...config,
-                mcp,
+                ...(scope !== "resource-only" ? { mcp } : {}),
                 ...(scope === "global" ? { tools: [mcpTool] } : {}),
                 ...(scope === "agent"
                   ? { agents: { main: { ...config.agents.main, tools: [mcpTool] } } }
+                  : {}),
+                ...(scope === "resource-only"
+                  ? {
+                      agents: {
+                        main: {
+                          ...config.agents.main,
+                          mcpResources: { remote: ["note://private"] },
+                        },
+                      },
+                    }
                   : {}),
               },
               configDir: dir,

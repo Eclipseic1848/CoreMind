@@ -73,6 +73,49 @@ This is trusted host code with the current account's authority. Roots and tool a
 
 The default `protocolVersion: legacy` performs no extra process probing. Set `2026-07-28` only for a service known to support it. Text and JSON values retain their meaning; large results become local Artifacts, and remote file paths never authorize host reads. Connections belong to this Run execution and close on completion or cancellation. Started process/external effects can be irreversible, so the existing cold-resume gate requires human review rather than automatically replaying them. An old Worker rejects selected MCP tool configuration; existing configurations without selected MCP retain their behavior.
 
+## Controlled HTTP MCP and exact resource authorization
+
+HTTP services use a fixed `streamable-http` endpoint. This resource-only configuration fragment requires an audited service URL and resource URI:
+
+```yaml
+mcp:
+  servers:
+    remote:
+      transport: streamable-http
+      url: https://mcp.example.com/mcp
+      headers:
+        Authorization:
+          env: MCP_AUTHORIZATION
+agents:
+  assistant:
+    mcpResources:
+      remote: ['fixture://first']
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: allow
+```
+
+`MCP_AUTHORIZATION` must contain the complete Header value, such as `Bearer <service-token>`; CoreMind does not add `Bearer`. Use `{secretRef: reference}` with an SDK `secretResolver` when appropriate. Sensitive Headers reject literal credentials. Missing, blank, or unresolved references fail explicitly without falling back to anonymous access or another Provider's key. The URL must have no userinfo, query, or fragment. Credentials reach only the fixed endpoint and never enter model context, Facts, or Worker JSON. A 401/403 fails without OAuth, token refresh, or business retries. Interactive authentication is outside this capability.
+
+Public HTTPS allows verified public addresses by default. `allowedAddresses` is an exact IP-literal set for this endpoint; when present, every resolved address must match. Private addresses require explicit entries; CIDRs and hostnames are not accepted. Plain HTTP requires a loopback IP literal in both the URL and the allowlist:
+
+```yaml
+transport: streamable-http
+url: http://127.0.0.1:8765/mcp
+allowedAddresses: ['127.0.0.1']
+```
+
+`http://localhost` does not meet that boundary. Unspecified, multicast, link-local, and other invalid targets remain rejected even when listed. Each authorized connection verifies DNS answers and pins the actual socket address while preserving HTTPS hostname/TLS/SNI checks. All redirects are rejected, and host proxy environment variables are ignored. Static `doctor` performs no DNS lookup, network access, or handshake.
+
+Select tools with the preceding section's exact `tools[].mcp` service/raw-name references and truthful Effect/Capability declarations. Tool and resource selection are independent. HTTP connection, tool listing, and resource operations use network authorization: `network: allow` is configuration approval even under `mode: ask`; `network: ask` retains the existing network approval, and explicit deny takes precedence. Business tools keep their actual `external` or other effects and existing workspace hard gates; the HTTP transport does not downgrade side effects to read-only network access.
+
+`agent.mcpResources` matches complete URI strings exactly, without decoding, normalization, or prefix expansion. Omission, `{}`, and `remote: []` grant nothing and inherit nothing from global configuration, parents, or other agents. Resources currently require HTTP; stdio resources are explicitly unsupported. A nonempty set exposes list, templates, and read tools lazily. Lists contain authorized URIs; template matching only filters display and never broadens read access. Every returned content URI is checked too. Resource URIs go only to the fixed MCP endpoint: `file:`, links, and HTML trigger no host file reads, extra requests, or execution, and binary blobs are rejected.
+
+Tool-only selection does not implicitly list resources. With only resources selected and no inherited MCP tools, the first model request occurs before any HTTP request; an explicit resource call establishes the connection. Operations retain the existing Run Harness, budgets, critical durability, and receipts. Child Runs inherit no MCP services, tools, resources, or credentials. HTTP/resource configuration requires a capable Worker; older Workers must reject it explicitly.
+
+Each response body is limited to 8 MiB and each owner to 64 MiB total. Directories allow at most 32 pages and 256 entries, with a 30-second total request/directory deadline. GET recovery is bounded to three requests per owner within 30 seconds and never resends business POSTs. Cancelling one request preserves other authorized requests; Run shutdown waits for owned local bodies, sockets, and the dispatcher. No remote DELETE is sent, so remote session cleanup relies on the service's lease. Text/JSON and large Artifacts retain the existing result boundary; unknown remote writes are never replayed automatically.
+
 ## Environment substitution
 
 Secrets belong in environment variables, not YAML:

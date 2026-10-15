@@ -114,7 +114,7 @@ it.each(["normal", "orphan", "bad-init", "cancel", "close"])(
       if ((cause as NodeJS.ErrnoException).code !== "ENOENT") failures.push(cause);
     }
     try {
-      await rm(directory, { recursive: true, force: true });
+      await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
     } catch (cause) {
       failures.push(new Error(`本格临时目录清理失败：${directory}`, { cause }));
     }

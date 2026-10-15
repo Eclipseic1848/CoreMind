@@ -30,6 +30,7 @@
 - 统一 Diff 同时限制输入、输出和计算复杂度，避免超大文件拖垮进程
 - Windows 宿主 Shell 只有在 full、关闭工作区限制且允许网络时才开放；这是显式风险选择，不是隔离承诺
 - 本地 MCP 按 Agent 精确选择，在 Run 内分别审批连接、目录和业务调用；仅支持明确开放的受信宿主程序，Child Run 不继承，静态 doctor 不启动服务。详见[指南](GUIDE.zh-CN.md#本地-mcp-服务)。
+- HTTP MCP 使用固定 URL、Header 凭据引用和实际 socket 地址核验，拒绝重定向和环境代理；可选精确 IP 集合约束该目标的全部地址。HTTP 网络操作遵守既有网络审批，业务副作用声明不降级。资源仅支持 HTTP，按 Agent 的精确 URI 集合授权，空集合不继承；目录与读取按需，不自动解引用链接或宿主文件。取消单请求不关闭其他合法调用，Run 关闭只回收本地连接，远端 session 依赖服务租约；无 OAuth/刷新或业务自动重发。详见[HTTP 指南](GUIDE.zh-CN.md#受控-http-mcp-与资源)。
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 
@@ -41,6 +42,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-tools/src/git-adapter.ts](../../../packages/coremind-tools/src/git-adapter.ts)
 - [packages/coremind-tools/src/unified-diff.ts](../../../packages/coremind-tools/src/unified-diff.ts)
 - [packages/coremind-runtime/src/public-tool.ts](../../../packages/coremind-runtime/src/public-tool.ts)
+- [packages/coremind-runtime/src/mcp-runtime.ts](../../../packages/coremind-runtime/src/mcp-runtime.ts)
 - [packages/coremind-tools/src/registry.test.ts](../../../packages/coremind-tools/src/registry.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
 - [packages/coremind-tools/src/process-runner.test.ts](../../../packages/coremind-tools/src/process-runner.test.ts)
@@ -48,6 +50,13 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-tools/src/git-adapter.test.ts](../../../packages/coremind-tools/src/git-adapter.test.ts)
 - [packages/coremind-tools/src/unified-diff.test.ts](../../../packages/coremind-tools/src/unified-diff.test.ts)
 - [packages/coremind-runtime/src/public-tool.test.ts](../../../packages/coremind-runtime/src/public-tool.test.ts)
+- [HTTP 目标与网络边界测试](../../../packages/coremind-tools/src/mcp-http-fetch.test.ts)
+- [HTTP 协议传输测试](../../../packages/coremind-tools/src/mcp-http-transport.test.ts)
+- [HTTP 资源与结果测试](../../../packages/coremind-tools/src/mcp-http-client.test.ts)
+- [HTTP Runtime 授权测试](../../../packages/coremind-runtime/src/mcp-http-runtime.test.ts)
+- [HTTP Runtime 真实验收](../../../packages/coremind-runtime/src/mcp-http-runtime.acceptance.test.ts)
+- [HTTP CLI 真实验收](../../../packages/coremind-cli/src/mcp-http-cli.acceptance.test.ts)
+- [HTTP Python 同步/异步验收](../../../python/tests/test_mcp_http.py)
 - [模块示例](../../../examples/modules/build-tools/README.zh-CN.md)
 - [Module example](../../../examples/modules/build-tools/README.en.md)
 - [Agent Skill](../../../skills/build-tools/SKILL.md)

@@ -83,6 +83,7 @@ async function copyMcpLicenseAssets() {
     ["eventsource-parser", "LICENSE", "eventsource-parser-LICENSE"],
     ["jose", "LICENSE.md", "jose-LICENSE.md"],
     ["pkce-challenge", "LICENSE", "pkce-challenge-LICENSE"],
+    ["undici", "LICENSE", "undici-LICENSE"],
     ["zod", "LICENSE", "zod-LICENSE"],
   ];
   const lock = JSON.parse(await readFile(path.join(repositoryRoot, "package-lock.json"), "utf8"));

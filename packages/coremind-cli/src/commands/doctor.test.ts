@@ -1,4 +1,6 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -136,6 +138,88 @@ describe("doctor Provider 凭据检查", () => {
       } finally {
         output.mockRestore();
         vi.unstubAllEnvs();
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(
+    (["allow", "ask", "deny"] as const).flatMap((network) =>
+      (["tool", "resource"] as const).map((selection) => ({ network, selection })),
+    ),
+  )(
+    "HTTP $selection/network=$network：真实 doctor 不建立连接也不要求解除工作区限制",
+    async ({ network, selection }) => {
+      const directory = mkdtempSync(path.join(tmpdir(), "coremind-doctor-http-mcp-"));
+      const file = path.join(directory, "coremind.json");
+      let connections = 0;
+      let requests = 0;
+      const service = createServer((_request, response) => {
+        requests += 1;
+        response.writeHead(500).end();
+      });
+      service.on("connection", () => {
+        connections += 1;
+      });
+      await new Promise<void>((resolve) => service.listen(0, "127.0.0.1", resolve));
+      const port = (service.address() as AddressInfo).port;
+      const output = vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.stubEnv("DEEPSEEK_API_KEY", "doctor-test-only");
+      try {
+        writeFileSync(
+          file,
+          JSON.stringify({
+            schemaVersion: 2,
+            name: "doctor-http-mcp",
+            provider: { id: "deepseek" },
+            permissions: { mode: "ask", workspaceOnly: true, network },
+            agents: {
+              main:
+                selection === "resource"
+                  ? { mcpResources: { remote: ["inventory://item/1"] } }
+                  : {
+                      tools: [
+                        {
+                          mcp: { server: "remote", tool: "lookup" },
+                          effect: { operations: ["network"], reversible: false },
+                          capability: {
+                            effect: "network",
+                            replay: "unknown",
+                            concurrency: "parallel",
+                            checkpoint: "none",
+                            durability: "critical",
+                          },
+                        },
+                      ],
+                    },
+            },
+            mcp: {
+              servers: {
+                remote: {
+                  transport: "streamable-http",
+                  url: `http://127.0.0.1:${port}/mcp`,
+                  allowedAddresses: ["127.0.0.1"],
+                  headers: { Authorization: { env: "UNSET_STATIC_MCP_TOKEN" } },
+                },
+              },
+            },
+          }),
+          "utf8",
+        );
+        const code = await cmdDoctor({ flags: new Map(), positionals: [] }, [file]);
+        const text = output.mock.calls.flat().join("\n");
+        expect(code).toBe(network === "deny" ? 1 : 0);
+        expect(text).toContain("HTTP MCP 执行条件");
+        expect(text).toContain("未连接服务");
+        expect(text).not.toContain("本地 MCP 执行条件");
+        expect(text).not.toContain("workspaceOnly=false");
+        if (network === "ask") expect(text).toContain("审批");
+        expect({ connections, requests }).toEqual({ connections: 0, requests: 0 });
+      } finally {
+        output.mockRestore();
+        vi.unstubAllEnvs();
+        service.closeAllConnections();
+        await new Promise<void>((resolve) => service.close(() => resolve()));
         rmSync(directory, { recursive: true, force: true });
       }
     },

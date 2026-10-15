@@ -28,4 +28,18 @@ Use the [full configuration](../../../docs/en/guide/02-configuration.md#agent-sc
 
 Safe defaults must reject startup. The explicit trusted-host example opens workspace and network authority, so the existing `coremind check` workspace gate must fail; it does not qualify as a constrained-project release. Run the repository's real MCP regressions before integrating your program. Those offline regressions require no real model credentials.
 
+## HTTP MCP resource verification
+
+Use the [HTTP configuration fragment](../../../docs/en/guide/02-configuration.md#controlled-http-mcp-and-exact-resource-authorization). Replace `https://mcp.example.com/mcp` with your audited fixed endpoint and `fixture://first` with a complete resource URI that service actually provides and this agent may read. Set `MCP_AUTHORIZATION` to the complete `Bearer <service-token>` Header value instead of placing a token in YAML. The fragment is not a callable public demonstration service.
+
+Use `http://127.0.0.1:8765/mcp` with `allowedAddresses: ['127.0.0.1']` only for your local HTTP fixture. Default public HTTPS permits verified public addresses. A nonempty allowlist constrains every resolved endpoint address rather than adding exceptions. URLs omit query, userinfo, and fragment; all redirects are rejected, environment proxies are ignored, and static `doctor` never connects.
+
+1. Select only resources without selecting or inheriting MCP tools. Confirm zero service requests before the first model request and a handshake only after an explicit resource call. Tool-only selection must not list resources.
+2. Call list, templates, and exact read. Missing/empty `mcpResources` inherits nothing. Guessed URIs, template expansions outside scope, and unauthorized response URIs must fail. Never read host `file:` content, follow links, execute HTML, or accept blobs.
+3. With `network: allow`, verify configuration approval of network operations even under `mode: ask`; separately cover the existing approval with `network: ask` and zero sends under deny. Keep truthful business `external` effects and workspace hard gates rather than changing declarations to obtain authority.
+4. Use repository HTTP regressions for pagination, 8 MiB bodies/64 MiB owners, 32 pages/256 entries, 30-second total deadlines, and at most three recovery GETs in 30 seconds. Cancelled resource requests must preserve other authorized calls; lost write responses must not resend business POSTs. Run shutdown closes local bodies/sockets/the dispatcher, sends no DELETE, and relies on service leases for remote sessions.
+5. Cover TS, CLI, and Python sync/async success, missing credentials, 401/403, and cancellation after sending. Credentials must stay out of model input, Facts, Artifacts, and Worker JSON. A 401/403 never starts OAuth or refresh. Old Workers reject unsupported configuration, and Child Runs inherit no MCP/resources/credentials.
+
+These steps define acceptance methods rather than claiming all tests, installed artifacts, or real external interoperability have passed. Preserve separate evidence for each executed form.
+
 Return to the [English guide](../../../docs/modules/build-tools/GUIDE.en.md).

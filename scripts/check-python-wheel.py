@@ -49,6 +49,7 @@ MCP_LICENSE_SOURCES = (
     ("eventsource-parser", "LICENSE", "eventsource-parser-LICENSE"),
     ("jose", "LICENSE.md", "jose-LICENSE.md"),
     ("pkce-challenge", "LICENSE", "pkce-challenge-LICENSE"),
+    ("undici", "LICENSE", "undici-LICENSE"),
     ("zod", "LICENSE", "zod-LICENSE"),
 )
 

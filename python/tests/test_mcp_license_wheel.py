@@ -61,7 +61,7 @@ class McpLicenseWheelTest(unittest.TestCase):
             return CHECKER.check_mcp_license_assets(archive, self.source)
 
     def test_shared_sdk_license_and_real_notice_mapping_pass(self) -> None:
-        self.assertEqual(len(self.manifest["sources"]), 7)
+        self.assertEqual(len(self.manifest["sources"]), 8)
         self.assertEqual(self.check(self.assets), [])
 
     def test_missing_manifest_license_or_notice_is_rejected(self) -> None:

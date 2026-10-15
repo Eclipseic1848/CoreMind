@@ -28,6 +28,20 @@ const lookupOrder = defineTool({
 
 在仓库根目录运行 `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`，核对审批拒绝时对应 I/O 为零、首次模型 schema、真实进程回收、秘密输出阻断和未知效果不重发。协议错误与业务 `isError` 分开处理，未经证明的写效果不能靠重试恢复。
 
+## 受控 HTTP MCP 与资源
+
+按[HTTP 配置](../../guide/02-configuration.md#mcp受控-http-与精确资源授权)固定 `streamable-http` URL，URL 不含 userinfo、query 或 fragment。`headers.Authorization.env` 引用的值必须完整包含 `Bearer ` 等认证前缀；也可复用 `secretRef`，不得把令牌写入配置。401/403、缺失或无法解析的凭据明确失败，不自动 OAuth、刷新或更换身份。
+
+无 `allowedAddresses` 时，HTTPS 只允许核验后的公网地址；非空列表是该 endpoint 全部地址的精确 IP 约束，私网也须显式列入。明文 HTTP 必须同时使用 loopback IP 字面 URL 和匹配的允许地址。DNS 答案与实际 socket 地址保持绑定，TLS 主机名校验保留；所有重定向拒绝，不读取环境代理。`doctor` 不联网。
+
+HTTP 连接、目录、资源读取走原网络权限。`network: allow` 已构成配置批准，`mode: ask` 不会再次询问；`network: ask` 仍按原网络审批。真实业务 `external`、显式 deny 和工作区硬门保持不变。Child Run 不继承 MCP、资源或凭据。
+
+按 Agent 显式选择完整 URI，例如 `mcpResources: {remote: ['fixture://first']}`。缺省和空集合都不授权、不继承；只支持 HTTP 资源。list、templates、read 按需调用，模板不会扩权，读取响应也不得夹带未授权 URI。不要把 `file:` 当宿主文件接口；链接与 HTML 不会被解引用或执行，blob 明确不支持。只用资源且未继承 MCP 工具时，首个模型请求前没有 HTTP I/O；只用工具时不隐式请求资源目录。
+
+单 body 8 MiB、owner 累计 64 MiB、目录 32 页/256 条、请求及目录总期限 30 秒；owner 的 GET 恢复最多 3 次/30 秒，业务 POST 不自动重发。取消单请求不应关闭其他合法调用。Run 关闭等待本地 body/socket/dispatcher，不发送远端 DELETE；远端 session 依赖服务租约清理。秘密不得进入 prompt、Facts、异常或 Worker JSON，较大安全正文沿用 Artifact。
+
+按 [module.yaml](module.yaml) 中的 HTTP fetch/transport/client、Runtime、CLI 和 Python 测试逐项验收允许、拒绝、取消与未知效果，并保留原 stdio 回归。这里是执行合同和验收步骤，不代表全部测试或真实外部服务互通已经通过。
+
 ## 编码工具边界
 
 ```ts

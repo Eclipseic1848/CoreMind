@@ -10,8 +10,10 @@ import {
 } from "coremind-config";
 import type { ArtifactStore, ToolCapabilityDeclaration } from "coremind-tools";
 import {
+  createMcpHttpClient,
   createMcpStdioClient,
   type ExecutionEnvironment,
+  type McpHttpClient,
   type McpListedTool,
   type McpStdioClient,
   type McpStdioToolResult,
@@ -87,7 +89,7 @@ const HOST_CAPABILITY: ToolCapabilityDeclaration = {
 /** 仅持有本 Run 的私有连接；连接与目录动作仍须由宿主完整 Harness 准入。 */
 export function createMcpRun(options: McpRunOptions) {
   const controller = new AbortController();
-  const owners = new Set<McpStdioClient>();
+  const owners = new Set<McpStdioClient | McpHttpClient>();
   const executions = new Map<string, { agentName: string; promise: Promise<PreparedMcpTool[]> }>();
   let closed = false;
   let closing: Promise<void> | undefined;
@@ -122,8 +124,19 @@ export function createMcpRun(options: McpRunOptions) {
     }
     const reserved = new Set<string>([...BUILTIN_TOOL_IDS, ...(request.reservedToolNames ?? [])]);
     const prepared: PreparedMcpTool[] = [];
-    for (const [serverName, selections] of grouped) {
-      const server = structuredClone(options.config.mcp!.servers[serverName]!);
+    const resources = agent.mcpResources ?? {};
+    const serverNames = new Set([
+      ...grouped.keys(),
+      ...Object.keys(resources).filter((name) => resources[name]!.length > 0),
+    ]);
+    for (const serverName of serverNames) {
+      const selections = grouped.get(serverName) ?? [];
+      const resourceUris = [...(resources[serverName] ?? [])];
+      const configuredServer = options.config.mcp?.servers[serverName];
+      if (!configuredServer) throw new CoreMindError("invalid_tool", "MCP 引用了未知服务");
+      const server = structuredClone(configuredServer);
+      if (resourceUris.length > 0 && server.transport !== "streamable-http")
+        throw new CoreMindError("invalid_tool", "资源授权仅支持 Streamable HTTP 服务");
       const identity = await identifyServer(serverName, server);
       assertOpen(signal);
       const target = freezeJson({ ...identity.target, serverIdentity: identity.sha256 });
@@ -134,112 +147,225 @@ export function createMcpRun(options: McpRunOptions) {
           throw new CoreMindError("invalid_tool", "本地服务操作与已有工具冲突");
         reserved.add(name);
       }
-      let client: McpStdioClient | undefined;
-      await request.executeHost({
-        name: connectName,
-        args: { ...target, operation: "connect" },
-        effect: { operations: ["process"], reversible: false },
-        capability: { ...HOST_CAPABILITY },
-        approvalDescription: describeTarget(target, "建立连接"),
-        invoke: async () => {
-          assertOpen(signal);
-          const { env, sensitiveValues } = await resolveEnvironment(server, options);
-          assertOpen(signal);
-          if ((await identifyServer(serverName, server)).sha256 !== identity.sha256)
-            throw new CoreMindError("tool_capability_conflict", "本地服务目标在批准后发生变化");
-          assertOpen(signal);
-          client = createMcpStdioClient({
-            command: target.command,
-            args: target.argv,
-            cwd: target.cwd,
-            env,
-            runEnvironment: options.environment,
-            signal,
-            protocolVersion: server.protocolVersion ?? "legacy",
-            sensitiveValues,
-            artifactStore: options.artifactStore,
+      let client: McpStdioClient | McpHttpClient | undefined;
+      let connection: Promise<McpStdioClient | McpHttpClient> | undefined;
+      const connect = (): Promise<McpStdioClient | McpHttpClient> => {
+        if (connection) return connection;
+        connection = (async () => {
+          await request.executeHost({
+            name: connectName,
+            args: { ...target, operation: "connect" },
+            effect: {
+              operations: [server.transport === "stdio" ? "process" : "network"],
+              reversible: false,
+            },
+            capability: {
+              ...HOST_CAPABILITY,
+              effect: server.transport === "stdio" ? "process" : "network",
+              concurrency: server.transport === "stdio" ? "run_serial" : "parallel",
+              checkpoint: server.transport === "stdio" ? "unsupported" : "none",
+            },
+            approvalDescription: describeTarget(target, "建立连接"),
+            invoke: async () => {
+              assertOpen(signal);
+              if (server.transport === "stdio" && "command" in target) {
+                const { env, sensitiveValues } = await resolveEnvironment(server, options);
+                assertOpen(signal);
+                if ((await identifyServer(serverName, server)).sha256 !== identity.sha256)
+                  throw new CoreMindError(
+                    "tool_capability_conflict",
+                    "本地服务目标在批准后发生变化",
+                  );
+                assertOpen(signal);
+                client = createMcpStdioClient({
+                  command: target.command,
+                  args: target.argv,
+                  cwd: target.cwd,
+                  env,
+                  runEnvironment: options.environment,
+                  signal,
+                  protocolVersion: server.protocolVersion ?? "legacy",
+                  sensitiveValues,
+                  artifactStore: options.artifactStore,
+                });
+              } else if (server.transport === "streamable-http" && "url" in target) {
+                const { headers, sensitiveValues } = await resolveHeaders(server, options);
+                assertOpen(signal);
+                client = createMcpHttpClient({
+                  url: server.url,
+                  headers,
+                  allowedAddresses: server.allowedAddresses,
+                  allowedResourceUris: resourceUris,
+                  runEnvironment: options.environment,
+                  signal,
+                  protocolVersion: server.protocolVersion ?? "legacy",
+                  sensitiveValues,
+                  artifactStore: options.artifactStore,
+                });
+              } else throw new CoreMindError("invalid_tool", "MCP 服务类型与身份不一致");
+              // 在第一个连接 await 前登记，初始化失败和并发关闭也能找到自有资源。
+              owners.add(client);
+              await client.connect(signal);
+              assertOpen(signal);
+              return {
+                text: "本地服务连接已建立",
+                details: {
+                  mcp: {
+                    server: serverName,
+                    serverIdentity: identity.sha256,
+                    status: "connected",
+                    environment: client.environmentSummary,
+                  },
+                },
+              };
+            },
           });
-          // 在第一个连接 await 前登记，初始化失败和并发关闭也能找到自有资源。
-          owners.add(client);
-          await client.connect(signal);
           assertOpen(signal);
-          return {
-            text: "本地服务连接已建立",
-            details: {
-              mcp: {
-                server: serverName,
-                serverIdentity: identity.sha256,
-                status: "connected",
-                environment: client.environmentSummary,
+          if (!client)
+            throw new CoreMindError("tool_execution_failed", "宿主没有执行已准入的连接动作");
+          return client;
+        })();
+        return connection;
+      };
+      if (selections.length > 0) {
+        const connectedClient = await connect();
+        let catalog: readonly McpListedTool[] | undefined;
+        await request.executeHost({
+          name: listName,
+          args: { ...target, operation: "list", tools: selections.map((tool) => tool.mcp.tool) },
+          effect: {
+            operations: [server.transport === "stdio" ? "external" : "network"],
+            reversible: false,
+          },
+          capability: {
+            ...HOST_CAPABILITY,
+            effect: server.transport === "stdio" ? "external" : "network",
+            concurrency: server.transport === "stdio" ? "run_serial" : "parallel",
+            checkpoint: server.transport === "stdio" ? "unsupported" : "none",
+          },
+          approvalDescription: describeTarget(target, "读取工具目录"),
+          invoke: async () => {
+            assertOpen(signal);
+            catalog = await connectedClient.listTools(signal);
+            assertOpen(signal);
+            return {
+              text: "本地工具目录已读取",
+              details: {
+                mcp: {
+                  server: serverName,
+                  serverIdentity: identity.sha256,
+                  toolCount: catalog.length,
+                },
               },
-            },
-          };
-        },
-      });
-      assertOpen(signal);
-      if (!client) throw new CoreMindError("tool_execution_failed", "宿主没有执行已准入的连接动作");
-      const connectedClient: McpStdioClient = client;
-      let catalog: readonly McpListedTool[] | undefined;
-      await request.executeHost({
-        name: listName,
-        args: { ...target, operation: "list", tools: selections.map((tool) => tool.mcp.tool) },
-        effect: { operations: ["external"], reversible: false },
-        capability: { ...HOST_CAPABILITY, effect: "external" },
-        approvalDescription: describeTarget(target, "读取工具目录"),
-        invoke: async () => {
-          assertOpen(signal);
-          catalog = await connectedClient.listTools(signal);
-          assertOpen(signal);
-          return {
-            text: "本地工具目录已读取",
-            details: {
-              mcp: {
-                server: serverName,
-                serverIdentity: identity.sha256,
-                toolCount: catalog.length,
-              },
-            },
-          };
-        },
-      });
-      assertOpen(signal);
-      if (!catalog)
-        throw new CoreMindError("tool_execution_failed", "宿主没有执行已准入的目录动作");
-      const listedTools: readonly McpListedTool[] = catalog;
-      for (const selection of selections) {
-        const matches = listedTools.filter((tool) => tool.name === selection.mcp.tool);
-        if (matches.length !== 1)
-          throw new CoreMindError("invalid_tool", "本地服务目录缺少唯一的已选择工具");
-        const listed = matches[0]!;
-        const authorization = freezeJson({
-          ...target,
-          tool: listed.name,
-          schemaSha256: listed.schemaSha256,
-          definitionSha256: fingerprintEffectReceiptValue(listed.definition),
-          effect: selection.effect,
-          capability: selection.capability,
+            };
+          },
         });
-        const name = alias(serverName, listed.name, fingerprintEffectReceiptValue(authorization));
-        if (reserved.has(name))
-          throw new CoreMindError("invalid_tool", "本地工具别名与已有工具冲突");
-        reserved.add(name);
-        const approvalDescription = describeTarget(authorization, `调用原始工具 ${listed.name}`);
-        prepared.push({
-          authorization,
-          approvalDescription,
-          definition: {
-            name,
-            description: `${listed.description || listed.name}（本地服务 ${serverName} / ${listed.name}）`,
-            parameters: structuredClone(listed.inputSchema) as JsonObjectSchema,
+        assertOpen(signal);
+        if (!catalog)
+          throw new CoreMindError("tool_execution_failed", "宿主没有执行已准入的目录动作");
+        const listedTools: readonly McpListedTool[] = catalog;
+        for (const selection of selections) {
+          const matches = listedTools.filter((tool) => tool.name === selection.mcp.tool);
+          if (matches.length !== 1)
+            throw new CoreMindError("invalid_tool", "本地服务目录缺少唯一的已选择工具");
+          const listed = matches[0]!;
+          const authorization = freezeJson({
+            ...target,
+            tool: listed.name,
+            schemaSha256: listed.schemaSha256,
+            definitionSha256: fingerprintEffectReceiptValue(listed.definition),
             effect: selection.effect,
             capability: selection.capability,
+          });
+          const name = alias(serverName, listed.name, fingerprintEffectReceiptValue(authorization));
+          if (reserved.has(name))
+            throw new CoreMindError("invalid_tool", "本地工具别名与已有工具冲突");
+          reserved.add(name);
+          const approvalDescription = describeTarget(authorization, `调用原始工具 ${listed.name}`);
+          prepared.push({
+            authorization,
+            approvalDescription,
+            definition: {
+              name,
+              description: `${listed.description || listed.name}（本地服务 ${serverName} / ${listed.name}）`,
+              parameters: structuredClone(listed.inputSchema) as JsonObjectSchema,
+              effect: selection.effect,
+              capability: selection.capability,
+              execute: async (args, context) => {
+                const callSignal = AbortSignal.any([
+                  signal,
+                  ...(context.signal ? [context.signal] : []),
+                ]);
+                assertOpen(callSignal);
+                return connectedClient.callTool(listed, args, callSignal);
+              },
+            },
+          });
+        }
+      }
+      for (const operation of [
+        "resources/list",
+        "resources/templates/list",
+        "resources/read",
+      ] as const) {
+        if (resourceUris.length === 0) break;
+        const capability: ToolCapabilityDeclaration = {
+          effect: "network",
+          replay: "unknown",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "critical",
+        };
+        const authorization = freezeJson({ ...target, operation, resourceUris, capability });
+        const name = alias(
+          serverName,
+          operation.replaceAll("/", "_"),
+          fingerprintEffectReceiptValue(authorization),
+        );
+        if (reserved.has(name)) throw new CoreMindError("invalid_tool", "MCP 资源工具别名冲突");
+        reserved.add(name);
+        const read = operation === "resources/read";
+        prepared.push({
+          authorization,
+          approvalDescription: describeTarget(authorization, `资源操作 ${operation}`),
+          definition: {
+            name,
+            description: `MCP 资源 ${operation}（服务 ${serverName}；仅当前 Agent 精确授权 URI）`,
+            parameters: {
+              type: "object",
+              properties: read ? { uri: { type: "string", enum: resourceUris } } : {},
+              ...(read ? { required: ["uri"] } : {}),
+              additionalProperties: false,
+            },
+            effect: { operations: ["network"], reversible: false },
+            capability,
             execute: async (args, context) => {
               const callSignal = AbortSignal.any([
                 signal,
                 ...(context.signal ? [context.signal] : []),
               ]);
               assertOpen(callSignal);
-              return connectedClient.callTool(listed, args, callSignal);
+              if (
+                args === null ||
+                typeof args !== "object" ||
+                Array.isArray(args) ||
+                Object.keys(args).some((key) => !read || key !== "uri") ||
+                (read && (typeof args.uri !== "string" || !resourceUris.includes(args.uri)))
+              )
+                throw new CoreMindError(
+                  "invalid_tool",
+                  "MCP 资源参数不在当前 Agent 的精确授权范围内",
+                );
+              // 连接属于执行；单个调用取消只结束自己的等待，不撤销其他合法调用。
+              const resourceClient = (await waitForMcpConnection(
+                connect(),
+                callSignal,
+              )) as McpHttpClient;
+              assertOpen(callSignal);
+              if (operation === "resources/list") return resourceClient.listResources(callSignal);
+              if (operation === "resources/templates/list")
+                return resourceClient.listResourceTemplates(callSignal);
+              return resourceClient.readResource(args.uri as string, callSignal);
             },
           },
         });
@@ -288,6 +414,36 @@ export function createMcpRun(options: McpRunOptions) {
 }
 
 async function identifyServer(serverName: string, server: McpServerConfig) {
+  if (server.transport === "streamable-http") {
+    let url: URL;
+    try {
+      url = new URL(server.url);
+    } catch {
+      throw new CoreMindError("invalid_tool", "MCP HTTP URL 无效");
+    }
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    )
+      throw new CoreMindError(
+        "invalid_tool",
+        "MCP HTTP URL 必须是无凭据、查询和片段的固定 HTTP(S) 目标",
+      );
+    const target = {
+      server: serverName,
+      transport: server.transport,
+      url: url.href,
+      headerReferences: Object.fromEntries(
+        Object.entries(server.headers ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      ),
+      allowedAddresses: [...(server.allowedAddresses ?? [])].sort(),
+      protocolVersion: server.protocolVersion ?? "legacy",
+    };
+    return { target, sha256: fingerprintEffectReceiptValue(target) };
+  }
   if (!path.isAbsolute(server.command) || !path.isAbsolute(server.cwd))
     throw new CoreMindError("invalid_tool", "本地服务命令与工作目录必须为绝对路径");
   const command = await realpath(server.command);
@@ -329,7 +485,10 @@ async function hashFile(file: string): Promise<string> {
   return hash.digest("hex");
 }
 
-async function resolveEnvironment(server: McpServerConfig, options: McpRunOptions) {
+async function resolveEnvironment(
+  server: Extract<McpServerConfig, { transport: "stdio" }>,
+  options: McpRunOptions,
+) {
   const env: Record<string, string> = Object.create(null);
   const hostValue = (name: string) =>
     process.platform === "win32"
@@ -362,6 +521,57 @@ async function resolveEnvironment(server: McpServerConfig, options: McpRunOption
   return { env, sensitiveValues };
 }
 
+async function resolveHeaders(
+  server: Extract<McpServerConfig, { transport: "streamable-http" }>,
+  options: McpRunOptions,
+) {
+  const headers: Record<string, string> = Object.create(null);
+  const sensitiveValues: string[] = [];
+  for (const [name, reference] of Object.entries(server.headers ?? {})) {
+    let value: string | undefined;
+    try {
+      value =
+        typeof reference === "string"
+          ? reference
+          : "env" in reference
+            ? options.env[reference.env]
+            : await options.secretResolver?.resolve(reference.secretRef);
+    } catch {
+      throw new CoreMindError("secret_reference_unresolved", "MCP HTTP Header 引用无法解析");
+    }
+    if (
+      typeof value !== "string" ||
+      value.trim().length === 0 ||
+      /[\r\n]/u.test(value) ||
+      value.includes("\0")
+    )
+      throw new CoreMindError(
+        "secret_reference_unresolved",
+        "MCP HTTP Header 引用为空、无效或无法解析",
+      );
+    const headerValue = value.trim();
+    headers[name] = headerValue;
+    if (typeof reference !== "string") {
+      sensitiveValues.push(value, headerValue);
+      const token =
+        name.toLowerCase() === "authorization"
+          ? /^(?:Bearer|Basic)\s+(.+)$/iu.exec(headerValue)?.[1]
+          : undefined;
+      if (token) sensitiveValues.push(token);
+    }
+  }
+  return { headers, sensitiveValues };
+}
+
+function waitForMcpConnection<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+  });
+}
+
 function alias(server: string, tool: string, sha256: string): string {
   const short = (value: string, length: number) =>
     value.replace(/[^A-Za-z0-9_-]/gu, "_").slice(0, length);
@@ -369,6 +579,8 @@ function alias(server: string, tool: string, sha256: string): string {
 }
 
 function describeTarget(target: Record<string, unknown>, action: string): string {
+  if (typeof target.url === "string")
+    return `${action}：${String(target.server)}；HTTP ${target.url}；身份 ${String(target.serverIdentity)}`;
   return `${action}：${String(target.server)}；程序 ${String(target.command)}；目录 ${String(target.cwd)}；身份 ${String(target.serverIdentity)}`;
 }
 

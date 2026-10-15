@@ -297,6 +297,49 @@ Agent 的非空 `tools` 精确选择工具；省略或空列表沿用全局 `too
 
 默认 `protocolVersion: legacy` 不进行额外进程探测；只有确认服务支持时，才显式设置 `2026-07-28`。文本与 JSON 结果保持语义，较大结果存为本地 Artifact；远端提供的文件路径不会触发宿主读取。连接属于本次 Run 的执行，结束或取消时关闭；已启动的 process/external 效果可能无法撤销，现有冷恢复门会要求人工审计，不自动重放。该配置需要支持 MCP 引用的 Worker，旧 Worker 会拒绝选中的新工具配置；没有选中 MCP 的旧配置保留原行为。
 
+## MCP：受控 HTTP 与精确资源授权
+
+HTTP 服务使用固定的 `streamable-http` 目标。下面是仅选择资源的配置片段；将服务 URL 和资源 URI 替换为已审核服务实际提供的值：
+
+```yaml
+mcp:
+  servers:
+    remote:
+      transport: streamable-http
+      url: https://mcp.example.com/mcp
+      headers:
+        Authorization:
+          env: MCP_AUTHORIZATION
+agents:
+  assistant:
+    mcpResources:
+      remote: ['fixture://first']
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: allow
+```
+
+`MCP_AUTHORIZATION` 的值必须是完整 Header 值，例如 `Bearer <服务令牌>`；CoreMind 不自动添加 `Bearer`。凭据也可使用 `{secretRef: 引用}`，由 SDK 的 `secretResolver` 解析。敏感 Header 不接受明文配置，引用缺失、空值或解析失败会明确拒绝；不会退回匿名身份或其他 Provider 的密钥。URL 不允许 userinfo、query 或 fragment。Header 凭据只用于该固定目标，不进入模型上下文、Facts 或 Worker JSON；401/403 明确失败，不触发 OAuth、刷新或业务重试。交互认证不在本项能力内。
+
+公网 HTTPS 默认只允许核验后的公网地址。`allowedAddresses` 是该目标的精确 IP 字面量集合；配置后，解析出的全部地址都必须命中，私网地址也必须显式列入，不支持 CIDR 或主机名。明文 HTTP 只允许 URL 本身为 loopback IP 字面量且地址同时显式允许，例如：
+
+```yaml
+transport: streamable-http
+url: http://127.0.0.1:8765/mcp
+allowedAddresses: ['127.0.0.1']
+```
+
+`http://localhost` 不满足这一边界；unspecified、multicast、link-local 等非法目标也不能通过允许表放开。每次获准连接均核验 DNS 答案，并固定实际 socket 使用的地址；HTTPS 保留原主机名的 TLS/SNI 校验。所有重定向均拒绝，不读取宿主代理环境变量。`doctor` 仍只做静态检查，不解析 DNS、联网或握手。
+
+工具选择继续使用前一节的 `tools[].mcp` 原始服务名/工具名与完整 Effect/Capability 声明，和资源选择相互独立。HTTP 连接、工具目录和资源操作按 `network` 准入；`network: allow` 是配置批准，即使 `mode: ask` 也不会重复询问，`network: ask` 仍走原网络审批，显式 deny 始终优先。业务工具的实际 `external` 等声明和工作区硬门保持不变；HTTP 传输不会把副作用工具降级为只读网络调用。
+
+`agent.mcpResources` 只认完整 URI 原字符串，不解码、规范化或按前缀扩权。省略、`{}` 或 `remote: []` 都不授权，也不从全局、父级或其他 Agent 继承。资源目前仅支持 HTTP，stdio 资源明确不支持。非空集合才暴露 list、templates、read 三个资源工具：列表只返回允许 URI，模板仅作过滤展示，读取仍须精确命中集合，响应中的附带 URI 同样受检验。URI 只发往固定 MCP 目标；`file:`、链接或 HTML 不会引发宿主文件读取、额外网络请求或执行，二进制 blob 明确拒绝。
+
+只选择工具时不会隐式列出资源；仅选择资源且没有继承 MCP 工具时，首个模型请求前 HTTP 次数为零，明确调用资源工具后才连接。连接和操作继续经过同一 Run Harness、预算、关键持久化与收据链。Child Run 不继承 MCP 服务、工具、资源授权或凭据；新 HTTP/资源配置需要相应 Worker 能力，旧 Worker 必须明确拒绝。
+
+每个响应 body 最多 8 MiB，同 owner 累计最多 64 MiB；目录最多 32 页、256 条，单次请求及目录操作总期限为 30 秒。每个 owner 的 GET 恢复最多 3 次、总窗口 30 秒，不重发业务 POST。单请求取消不关闭其他合法请求；Run 关闭等待本地 body、socket 和 dispatcher 收敛。不会发送远端 DELETE，服务端 session 的最终清理由服务租约负责。文本/JSON 和较大 Artifact 沿用既有结果边界，未知远端写效果不自动重放。
+
 ## permissions：三档权限
 
 ```yaml

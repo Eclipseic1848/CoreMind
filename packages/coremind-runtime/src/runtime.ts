@@ -443,6 +443,7 @@ export class CoreMindRuntime {
     if (
       options.childRunAuthority &&
       (config.mcp !== undefined ||
+        Object.values(config.agents).some((agent) => agent.mcpResources !== undefined) ||
         [
           config.tools ?? [],
           ...Object.values(config.agents).map((agent) => agent.tools ?? []),
@@ -1116,9 +1117,10 @@ export class CoreMindRuntime {
           const childAgents = structuredClone(this.config.agents);
           for (const agent of Object.values(childAgents)) {
             if (agent.tools) agent.tools = agent.tools.filter(isDelegatedBuiltinToolConfig);
+            delete agent.mcpResources;
           }
           childAgents[authority.request.agentName] = {
-            ...target,
+            ...childAgents[authority.request.agentName]!,
             ...(target.tools ? { tools: target.tools.filter(isDelegatedBuiltinToolConfig) } : {}),
             model: authority.request.model.model,
             options: authority.request.model.options,
@@ -1347,7 +1349,7 @@ export class CoreMindRuntime {
     const targetAgent = this.agentConfigs.get(args.target);
     const configuredTools =
       (targetAgent?.tools?.length ?? 0) > 0 ? targetAgent!.tools! : (this.config.tools ?? []);
-    if (configuredTools.some((tool) => "mcp" in tool)) {
+    if (configuredTools.some((tool) => "mcp" in tool) || targetAgent?.mcpResources !== undefined) {
       throw new CoreMindError(
         "child_run_policy_escalation",
         "Child Run 不继承宿主本地服务、工具或凭据",
@@ -2666,7 +2668,7 @@ export class CoreMindRuntime {
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "lease_acquired",
               status: "skipped",
-              reason: "Pure Local Read 不需要 Workspace Lease",
+              reason: "该工具声明允许并行执行，不需要 Workspace Lease",
             });
           } else {
             try {

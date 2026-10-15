@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added fixed-target Streamable HTTP MCP with referenced credentials, DNS-to-socket address validation, bounded transport recovery, and independent request cancellation through the existing Run lifecycle.
+- Added lazy HTTP resource list/templates/read tools with exact per-agent URI authorization, bounded text/JSON results and Artifacts, no implicit host dereferencing, and no Child inheritance. Interactive OAuth and token refresh are outside this change.
 - Added optional Agent-scoped local stdio tools through the existing Run authorization, budget, durability, and lifecycle boundaries, with static diagnostics and owned-process cleanup.
 
 ## 1.0.1 - 2026-09-25

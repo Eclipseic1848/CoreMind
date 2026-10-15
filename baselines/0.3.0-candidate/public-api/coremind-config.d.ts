@@ -56,6 +56,7 @@ thinkingLevel: TOptional<TUnion<[TLiteral<"off">, TLiteral<"low">, TLiteral<"med
 }>>;
 description: TOptional<TString>;
 skills: TOptional<TArray<TString>>;
+mcpResources: TOptional<TRecord<TString, TArray<TString>>>;
 delegation: TOptional<TObject<    {
 budget: TObject<    {
 tokens: TInteger;
@@ -210,7 +211,7 @@ durability: TUnion<TLiteral<"ordinary" | "critical">[]>;
 }>;
 }>]>>>;
 mcp: TOptional<TObject<    {
-servers: TRecord<TString, TObject<    {
+servers: TRecord<TString, TUnion<[TObject<    {
 transport: TLiteral<"stdio">;
 command: TString;
 args: TArray<TString>;
@@ -221,7 +222,17 @@ env: TString;
 secretRef: TString;
 }>]>>>;
 protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
-}>>;
+}>, TObject<    {
+transport: TLiteral<"streamable-http">;
+url: TString;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+allowedAddresses: TOptional<TArray<TString>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>]>>;
 }>>;
 options: TOptional<TObject<    {
 temperature: TOptional<TNumber>;
@@ -269,6 +280,7 @@ thinkingLevel: TOptional<TUnion<[TLiteral<"off">, TLiteral<"low">, TLiteral<"med
 }>>;
 description: TOptional<TString>;
 skills: TOptional<TArray<TString>>;
+mcpResources: TOptional<TRecord<TString, TArray<TString>>>;
 delegation: TOptional<TObject<    {
 budget: TObject<    {
 tokens: TInteger;
@@ -556,7 +568,7 @@ timeoutMs: TOptional<TInteger>;
 export declare type McpConfig = Static<typeof McpConfigSchema>;
 
 export declare const McpConfigSchema: TObject<    {
-servers: TRecord<TString, TObject<    {
+servers: TRecord<TString, TUnion<[TObject<    {
 transport: TLiteral<"stdio">;
 command: TString;
 args: TArray<TString>;
@@ -567,7 +579,32 @@ env: TString;
 secretRef: TString;
 }>]>>>;
 protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
-}>>;
+}>, TObject<    {
+transport: TLiteral<"streamable-http">;
+url: TString;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+allowedAddresses: TOptional<TArray<TString>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>]>>;
+}>;
+
+export declare type McpHttpServerConfig = Static<typeof McpHttpServerConfigSchema>;
+
+/** 固定 HTTP 目标；地址与 Header 的语义边界由无 I/O 校验和实际出站共同检查。 */
+export declare const McpHttpServerConfigSchema: TObject<    {
+transport: TLiteral<"streamable-http">;
+url: TString;
+headers: TOptional<TRecord<TString, TUnion<[TString, TObject<    {
+env: TString;
+}>, TObject<    {
+secretRef: TString;
+}>]>>>;
+allowedAddresses: TOptional<TArray<TString>>;
+protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
 }>;
 
 export declare type McpStdioServerConfig = Static<typeof McpStdioServerConfigSchema>;

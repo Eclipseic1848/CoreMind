@@ -116,13 +116,18 @@ export async function checkProject(options: ProjectCheckOptions): Promise<Projec
       overridable: false,
     });
   }
-  const selectedMcp = Object.values(options.config.agents).some((agent) =>
-    ((agent.tools?.length ?? 0) > 0 ? agent.tools! : (options.config.tools ?? [])).some(
-      (tool) => "mcp" in tool,
-    ),
+  const selectedTransports = Object.values(options.config.agents).flatMap((agent) =>
+    [
+      ...((agent.tools?.length ?? 0) > 0 ? agent.tools! : (options.config.tools ?? [])).flatMap(
+        (tool) => ("mcp" in tool ? [tool.mcp.server] : []),
+      ),
+      ...Object.entries(agent.mcpResources ?? {}).flatMap(([name, uris]) =>
+        uris.length > 0 ? [name] : [],
+      ),
+    ].map((name) => options.config.mcp?.servers[name]?.transport),
   );
   if (
-    selectedMcp &&
+    selectedTransports.includes("stdio") &&
     (options.config.permissions?.workspaceOnly !== false ||
       options.config.permissions?.network !== "allow")
   ) {
@@ -132,6 +137,18 @@ export async function checkProject(options: ProjectCheckOptions): Promise<Projec
       message:
         "选中的本地 MCP 仅支持 trusted_host：必须显式配置 workspaceOnly=false 和 network=allow；静态检查未启动服务，不会自动降低权限",
       path: "permissions",
+      overridable: false,
+    });
+  }
+  if (
+    selectedTransports.includes("streamable-http") &&
+    options.config.permissions?.network === "deny"
+  ) {
+    findings.push({
+      code: "MCP_HTTP_NETWORK_DENIED",
+      severity: "error",
+      message: "选中的 HTTP MCP 受 network=deny 拒绝；仅静态检查，未连接服务或解析目标地址",
+      path: "permissions.network",
       overridable: false,
     });
   }
