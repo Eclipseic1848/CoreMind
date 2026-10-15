@@ -8,7 +8,7 @@ let execa;
 
 // 一次性预取消诊断；不启动业务，不把诊断通过当作生产验收。
 const prefix = "COREMIND_MCP_STARTUP_STAGE:";
-const stages = new Set(["ps_begin", "owner_connected", "compiled", "config_received", "closed_sent"]);
+const stages = new Set(["ps_begin", "name_valid", "pipe_created", "owner_connected", "compiled", "config_received", "closed_sent"]);
 const report = { diagnosticOnly: true, passed: false, code: "bootstrap_failed", events: [], nonMarkerStderrBytes: 0, stdoutBytes: 0, recordsTruncated: false };
 let started = performance.now();
 const mark = (stage, exitCode) => {
@@ -63,6 +63,8 @@ try {
   };
   const marker = (stage) => "[Console]::Error.WriteLine('" + prefix + stage + "')";
   insert("$status = 1\ntry {", "$status = 1\n" + marker("ps_begin") + "\ntry {");
+  insert("  $pipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream", "  " + marker("name_valid") + "\n  $pipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream");
+  insert("  $pipe.Connect(5000)\n", "  " + marker("pipe_created") + "\n  $pipe.Connect(5000)\n");
   insert("  $pipe.Connect(5000)\n", "  $pipe.Connect(5000)\n  " + marker("owner_connected") + "\n");
   insert("'@\n  $line = [CoreMindMcpJob]::ReadFrame($pipe)", "'@\n  " + marker("compiled") + "\n  $line = [CoreMindMcpJob]::ReadFrame($pipe)");
   insert("  $config = ConvertFrom-Json -InputObject $line\n", "  $config = ConvertFrom-Json -InputObject $line\n  " + marker("config_received") + "\n");
