@@ -221,7 +221,7 @@ jobs:
           fetch-depth: 0
 
       - name: 下载同次 Linux 候选制品
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: candidate-artifacts-Linux-${{ github.sha }}
           path: .scratch/candidate-artifacts
