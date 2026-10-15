@@ -1,4 +1,6 @@
 import type { ApprovalDecision, CoreMindConfig, ToolApprovalRequest } from "coremind-ai";
+import { redactSensitiveValue } from "coremind-ai/internal";
+import { summarizeTerminalArguments, terminalText } from "./render.js";
 
 export type PermissionMode = "ask" | "assisted" | "full";
 
@@ -89,12 +91,15 @@ export function applyPermissionMode(config: CoreMindConfig, mode: PermissionMode
 
 /** 审批信息的单一格式化入口：目标优先，长正文摘要，凭据字段隐藏。 */
 export function formatApprovalDisplay(request: ToolApprovalRequest): ApprovalDisplay {
-  const targets = [...request.effect.paths, ...request.effect.urls];
+  const safe = redactSensitiveValue(request) as ToolApprovalRequest;
+  const targets = [...safe.effect.paths, ...safe.effect.urls];
   return {
-    effect: `${request.effect.operations.join("+")} · ${request.effect.reversible ? "可回退" : "不可自动回退"}`,
-    targets: targets.length > 0 ? targets.join("、") : "未提供具体路径或 URL",
-    reason: request.reason,
-    arguments: JSON.stringify(summarizeArguments(request.args), null, 2) ?? String(request.args),
+    effect: terminalText(
+      `${safe.effect.operations.join("+")} · ${safe.effect.reversible ? "可回退" : "不可自动回退"}`,
+    ),
+    targets: targets.length > 0 ? terminalText(targets.join("、")) : "未提供具体路径或 URL",
+    reason: terminalText(safe.reason),
+    arguments: summarizeTerminalArguments(safe.args),
   };
 }
 
@@ -103,9 +108,13 @@ export function formatDelegationApproval(
   request: ToolApprovalRequest,
 ): DelegationApprovalDisplay | undefined {
   if (request.tool !== "delegate" || !isRecord(request.args)) return undefined;
-  const target = typeof request.args.target === "string" ? request.args.target : "未知目标";
-  const task = typeof request.args.task === "string" ? request.args.task : "未提供任务";
-  const limits = isRecord(request.args.limits) ? request.args.limits : {};
+  const args = redactSensitiveValue(request.args, { redactBodies: false }) as Record<
+    string,
+    unknown
+  >;
+  const target = typeof args.target === "string" ? args.target : "未知目标";
+  const task = typeof args.task === "string" ? args.task : "未提供任务";
+  const limits = isRecord(args.limits) ? args.limits : {};
   const budget = [
     numericBudgetValue(limits.tokens, (value) => `${value} tokens`),
     numericBudgetValue(limits.toolCalls, (value) => `工具 ${value}`),
@@ -116,8 +125,8 @@ export function formatDelegationApproval(
   ]
     .filter((part): part is string => part !== undefined)
     .join(" · ");
-  const references = Array.isArray(request.args.references)
-    ? request.args.references.filter((item): item is string => typeof item === "string").join("、")
+  const references = Array.isArray(args.references)
+    ? args.references.filter((item): item is string => typeof item === "string").join("、")
     : "";
   const hierarchy = [
     numericBudgetValue(limits.maxDepth, (value) => `最大深度 ${value}`),
@@ -130,7 +139,7 @@ export function formatDelegationApproval(
     task: summarizeDelegationTask(task),
     budget: budget || "使用 Config 默认预算",
     hierarchy: hierarchy || "使用 Config 层级上限",
-    references: references || "无显式 Fact/Artifact 引用",
+    references: references ? terminalText(references) : "无显式 Fact/Artifact 引用",
   };
 }
 
@@ -151,7 +160,7 @@ export function bindReadlineApprovals(
       const answer = await questioner.question(
         delegation
           ? `\nChild Run 委派审批：${delegation.target}\n任务：${delegation.task}\n预算：${delegation.budget}\n层级：${delegation.hierarchy}\n引用：${delegation.references}\n授权：仅创建 Child Run；子级工具与外部副作用仍需独立审批\n原因：${display.reason}\n允许？[y/N] `
-          : `\n工具 ${pending.request.tool} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
+          : `\n工具 ${terminalText(pending.request.tool, 512)} 请求${pending.request.risk === "high" ? "高风险" : ""}权限\n副作用：${display.effect}\n目标：${display.targets}\n原因：${display.reason}\n参数：${display.arguments}\n允许？[y/N] `,
       );
       if (queue.current?.request === pending.request)
         queue.resolve(answer.trim().toLowerCase() === "y" ? "allow" : "deny");
@@ -170,15 +179,14 @@ export function bindReadlineApprovals(
 }
 
 export function compactChildRunText(value: string, maxLength = 160): string {
-  const compact = value.replace(/\s+/g, " ").trim();
-  return compact.length <= maxLength ? compact : `${compact.slice(0, maxLength - 1)}…`;
+  return terminalText(value.replace(/\s+/g, " ").trim(), maxLength);
 }
 
 function summarizeDelegationTask(value: string): string {
-  const compact = value.replace(/\s+/g, " ").trim();
+  const compact = terminalText(value.replace(/\s+/g, " ").trim());
   return compact.length <= 160
     ? compact
-    : `${compact.slice(0, 24)}…（任务 ${compact.length} 字符）`;
+    : `${terminalText(compact, 24)}…（任务 ${compact.length} 字符）`;
 }
 
 function numericBudgetValue(value: unknown, format: (value: number) => string): string | undefined {
@@ -188,27 +196,4 @@ function numericBudgetValue(value: unknown, format: (value: number) => string): 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function summarizeArguments(value: unknown, key = "", depth = 0): unknown {
-  if (depth > 8) return "<嵌套过深，已省略>";
-  if (typeof value === "string") {
-    if (/token|secret|password|api[_-]?key|authorization/i.test(key)) return "<已隐藏>";
-    if (/content|body|text|patch/i.test(key) && value.length > 160) {
-      return `<正文 ${value.length} 字符，审批后写入>`;
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => summarizeArguments(item, key, depth + 1));
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([childKey, item]) => [
-        childKey,
-        summarizeArguments(item, childKey, depth + 1),
-      ]),
-    );
-  }
-  return value;
 }

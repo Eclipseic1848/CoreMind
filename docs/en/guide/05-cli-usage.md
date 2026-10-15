@@ -84,6 +84,12 @@ Both `chat` and `run` fail with a configuration hint if `--session` is provided 
 
 Approval panels show effects, complete paths or URLs, risk reasons, and redacted arguments. Tool execution records started, committed, or unknown effect receipts. Checkpoint restore refuses to overwrite a file changed after the tool completed. Resume does not replay committed effects and pauses for human reconciliation of unknown effects. On Windows, host shell execution requires full mode, `workspaceOnly: false`, and `network: allow`; every other combination is denied. Git Bash discovery provides compatibility, not isolation.
 
+On the 1.1 development line, tool rows use the current Run, Agent, optional Step, and callId as their identity. Matching names, arguments, or argument fingerprints cannot identify a call. Approval requests may carry callId/stepId; decisions still link through Run and approvalId. Legacy requests without call identity appear as separate approval records explicitly marked as unbound. Approval waits, denial, execution phases, results, and effects remain distinct. Missing execution duration is shown as unrecorded; locally observed waiting is not execution time. Ending a Run does not turn a missing tool result into success or cancellation.
+
+The optional second argument of `ChatSession.onEvent` reuses the original Trace entry, retaining the event's own Run, eventId, and sequence. Existing single-argument listeners remain compatible; a missing source never implies a Run identity.
+
+Artifacts show their actual stored/blocked state and controlled references. Blocked items have no openable path, and the interface does not read or open arbitrary output paths. Loading Skill instructions does not change permissions. Tool discovery preparation and the catalog actually used by a Provider request are displayed separately. Installed tools become available in subsequent requests and retain the existing approval checks.
+
 ## `eval`
 
 Runs declared evaluation cases and reports gate results. schemaVersion 1 supports compatible text assertions; schemaVersion 2 adds outcome, trajectory, command, file, diff, state, and response graders. Coding tasks should use the second form to prove target and regression tests, allowed files, dirty-worktree preservation, and final evidence.

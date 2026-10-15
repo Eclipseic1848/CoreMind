@@ -3,6 +3,7 @@ import { canonicalJson } from "./canonical-json.js";
 import type { DelegationDispositionAction } from "./child-run.js";
 import { CoreMindError } from "./errors.js";
 import type { ApprovalId, ControlId, RunId } from "./ids.js";
+import { redactSensitiveText } from "./redaction.js";
 import type { RunStateJournal, RunStateRecord } from "./run-state.js";
 
 interface RunControlBase {
@@ -199,7 +200,10 @@ export class ControlInbox {
         const reason = "本 Run 已进入终态，控制输入尚未交付";
         const rejected = await this.appendResolution(stored, "rejected", reason);
         receipts.push(
-          receiptFor(stored.command, "rejected", { rejectedSequence: rejected.sequence, reason }),
+          receiptFor(stored.command, "rejected", {
+            rejectedSequence: rejected.sequence,
+            reason: stored.reason,
+          }),
         );
       }
       return receipts;
@@ -289,7 +293,7 @@ export class ControlInbox {
     const rejected = await this.appendResolution(stored, "rejected", result.reason);
     return receiptFor(command, "rejected", {
       rejectedSequence: rejected.sequence,
-      reason: result.reason,
+      reason: stored.reason,
     });
   }
 
@@ -298,6 +302,7 @@ export class ControlInbox {
     state: "applied" | "rejected",
     reason?: string,
   ) {
+    const safeReason = reason === undefined ? undefined : redactSensitiveText(reason);
     const receipt = await this.options.journal.appendFact(
       "control",
       {
@@ -305,7 +310,7 @@ export class ControlInbox {
         controlId: stored.command.controlId,
         fingerprint: stored.fingerprint,
         state,
-        ...(reason ? { reason } : {}),
+        ...(safeReason ? { reason: safeReason } : {}),
       } satisfies ControlFact,
       { durability: "critical" },
     );
@@ -313,7 +318,7 @@ export class ControlInbox {
     if (state === "applied") stored.appliedSequence = receipt.sequence;
     else {
       stored.rejectedSequence = receipt.sequence;
-      stored.reason = reason;
+      stored.reason = safeReason;
     }
     return receipt;
   }
@@ -416,7 +421,7 @@ function restoreControls(
     if (fact.state === "applied") existing.appliedSequence = record.sequence;
     else {
       existing.rejectedSequence = record.sequence;
-      existing.reason = fact.reason;
+      existing.reason = fact.reason === undefined ? undefined : redactSensitiveText(fact.reason);
     }
   }
   return controls;

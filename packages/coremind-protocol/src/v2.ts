@@ -957,6 +957,8 @@ const ProtocolV2EventPayloadSchemas = [
       runId: BrandedIdSchema,
       agent: Type.String(),
       tool: Type.String(),
+      callId: OptionalBrandedId,
+      stepId: OptionalBrandedId,
       args: Type.Unknown(),
       argumentsFingerprint: Type.Optional(Type.String({ pattern: "^[a-f0-9]{64}$" })),
       delegationInputFingerprint: Type.Optional(Type.String({ pattern: "^sha256:[a-f0-9]{64}$" })),
@@ -1115,6 +1117,8 @@ const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
       type: Type.Literal("artifact_created"),
+      agent: Type.Optional(Type.String()),
+      stepId: OptionalBrandedId,
       artifactId: BrandedIdSchema,
       status: Type.Union([Type.Literal("stored"), Type.Literal("blocked")]),
       sizeBytes: Type.Number(),

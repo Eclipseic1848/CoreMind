@@ -81,7 +81,7 @@ export declare class ChatSession {
     private latestRun?;
     constructor(runtime: CoreMindRuntime, agentName: string);
     /** 订阅会话事件（返回取消函数） */
-    onEvent(listener: (event: CoreMindEvent) => void): () => void;
+    onEvent(listener: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void): () => void;
     /** 发送一轮消息：返回最终文本与本轮事件 */
     chat(message: string): Promise<ChatTurnResult>;
     /** 中止当前轮 */
@@ -894,6 +894,8 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     runId: string;
     agent: string;
     tool: string;
+    callId?: string;
+    stepId?: string;
     args: unknown;
     argumentsFingerprint?: string;
     delegationInputFingerprint?: string;
@@ -982,6 +984,8 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     toolDiscovery?: ToolDiscoverySummary;
 } | {
     type: "artifact_created";
+    agent?: string;
+    stepId?: string;
     artifactId: string;
     status: "stored" | "blocked";
     sizeBytes: number;
@@ -1158,7 +1162,7 @@ export declare class CoreMindRuntime {
      * 把一轮交互对话作为完整 Run 执行。
      * 因此 chat/TUI 与无头 run 共用预算、权限、checkpoint、Trace 和失败语义。
      */
-    runAgentTurn(agentName: string, message: string, history: CoreMindMessage[], events: (event: CoreMindEvent) => void, signal?: AbortSignal): Promise<RunResult>;
+    runAgentTurn(agentName: string, message: string, history: CoreMindMessage[], events: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void, signal?: AbortSignal): Promise<RunResult>;
     /** 从已持久化 canonical Facts 重建当前运行视图。 */
     private inspectPersistedRunProjection;
     inspectCheckpoint(record: CheckpointRecord): Promise<CheckpointDiff>;
@@ -1221,8 +1225,8 @@ export declare interface CoreMindRuntimeOptions {
     mcpAuthentication?: McpAuthentication;
     /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
     initialPrompt?: string;
-    /** 事件回调（CLI 渲染 / Web 面板共用） */
-    events?: (event: CoreMindEvent) => void;
+    /** 事件回调；持久轨迹事件附带原 Run 来源，旁路通知可能没有来源。 */
+    events?: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void;
     /** 带运行标识、顺序和时间戳的结构化轨迹回调。 */
     trace?: (entry: CoreMindTraceEvent) => void;
     /** ask/assisted 模式下由宿主实现的人类审批回调。 */
@@ -3099,6 +3103,8 @@ export declare interface ToolApprovalRequest {
     runId: string;
     agent: string;
     tool: string;
+    callId?: string;
+    stepId?: string;
     args: unknown;
     /** 绑定审批时看到的完整 canonical 参数；参数变化后不得复用批准。 */
     argumentsFingerprint: string;
@@ -3236,7 +3242,10 @@ export declare class ToolPolicy {
     allowsDeclaration(tool: string, capability: ResolvedToolCapability): boolean;
     private hasRestrictedChildPaths;
     private staticDenial;
-    authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string): Promise<ToolPolicyDecision>;
+    authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string, identity?: {
+        callId?: string;
+        stepId?: string;
+    }): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;
 }

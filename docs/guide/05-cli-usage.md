@@ -257,6 +257,12 @@ TUI 和 `--no-tui` 的 readline 均支持 `/steer 文本` 与 `/follow-up 文本
 
 普通审批卡片会显示副作用、完整路径或 URL、风险原因和脱敏后的参数。工具执行还会记录 started/committed/unknown Effect Receipt。恢复 checkpoint 时若文件在工具完成后又被修改，命令会报告冲突并保留当前内容，不会静默覆盖。
 
+1.1 开发线的工具行按本次 Run、Agent、可选 Step 和 callId 关联；同名、同参数或同参数指纹不能代替调用身份。审批请求可携带 callId/stepId，审批结果仍按 Run 与 approvalId 回连。旧请求缺少身份时只显示独立审批记录，并明确未绑定工具调用。等待审批、拒绝、执行阶段、结果和副作用状态分别展示；缺少执行耗时时显示“未记录”，本地观察等待不当作执行耗时，Run 结束也不把缺失的工具结果自动标为成功或取消。
+
+`ChatSession.onEvent` 的可选第二参数复用原 Trace 来源，保留事件自身的 Run、eventId 和 sequence；旧单参数监听器可继续使用，缺少来源时不推断所属 Run。
+
+Artifact 仅展示真实 stored/blocked 状态与受控引用；blocked 项不提供可打开路径，界面不会读取或打开任意输出路径。加载 Skill 说明不改变权限；工具发现的准备摘要与实际 Provider 请求使用的目录摘要分开显示，目录安装仍从后续请求生效，执行继续经过原审批。
+
 `/observability` 显示本地观测开关、Run/Call 耗时、Telemetry mode、脱敏 endpoint origin、内容级别、允许字段、持久授权范围、Exporter 是否装载，以及 queued/handed-off/failed/dropped。`handed-off` 只表示已交给 Exporter，不表示接收端已经保存；默认 `DISABLED` 不读取外传凭据或构造 Exporter。
 
 ### 从任意目录启动

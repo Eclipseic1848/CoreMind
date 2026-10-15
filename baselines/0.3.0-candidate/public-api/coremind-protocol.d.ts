@@ -1446,6 +1446,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     agent: TString;
     tool: TString;
+    callId: TOptional<TString>;
+    stepId: TOptional<TString>;
     args: TUnknown;
     argumentsFingerprint: TOptional<TString>;
     delegationInputFingerprint: TOptional<TString>;
@@ -1561,6 +1563,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     }>>;
     }> | TObject<    {
     type: TLiteral<"artifact_created">;
+    agent: TOptional<TString>;
+    stepId: TOptional<TString>;
     artifactId: TString;
     status: TUnion<[TLiteral<"stored">, TLiteral<"blocked">]>;
     sizeBytes: TNumber;
@@ -1860,6 +1864,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     agent: TString;
     tool: TString;
+    callId: TOptional<TString>;
+    stepId: TOptional<TString>;
     args: TUnknown;
     argumentsFingerprint: TOptional<TString>;
     delegationInputFingerprint: TOptional<TString>;
@@ -1975,6 +1981,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     }>>;
     }> | TObject<    {
     type: TLiteral<"artifact_created">;
+    agent: TOptional<TString>;
+    stepId: TOptional<TString>;
     artifactId: TString;
     status: TUnion<[TLiteral<"stored">, TLiteral<"blocked">]>;
     sizeBytes: TNumber;
@@ -2921,6 +2929,8 @@ approvalId: TString;
 runId: TString;
 agent: TString;
 tool: TString;
+callId: TOptional<TString>;
+stepId: TOptional<TString>;
 args: TUnknown;
 argumentsFingerprint: TOptional<TString>;
 delegationInputFingerprint: TOptional<TString>;
@@ -3036,6 +3046,8 @@ toolCount: TInteger;
 }>>;
 }> | TObject<    {
 type: TLiteral<"artifact_created">;
+agent: TOptional<TString>;
+stepId: TOptional<TString>;
 artifactId: TString;
 status: TUnion<[TLiteral<"stored">, TLiteral<"blocked">]>;
 sizeBytes: TNumber;
@@ -3338,6 +3350,8 @@ approvalId: TString;
 runId: TString;
 agent: TString;
 tool: TString;
+callId: TOptional<TString>;
+stepId: TOptional<TString>;
 args: TUnknown;
 argumentsFingerprint: TOptional<TString>;
 delegationInputFingerprint: TOptional<TString>;
@@ -3453,6 +3467,8 @@ toolCount: TInteger;
 }>>;
 }> | TObject<    {
 type: TLiteral<"artifact_created">;
+agent: TOptional<TString>;
+stepId: TOptional<TString>;
 artifactId: TString;
 status: TUnion<[TLiteral<"stored">, TLiteral<"blocked">]>;
 sizeBytes: TNumber;

@@ -22,11 +22,12 @@ import {
   cyan,
   dim,
   errorLine,
+  formatTerminalRow,
   loopStateLine,
-  toolLine,
-  toolResultLine,
+  terminalText,
   yellow,
 } from "../render.js";
+import { createTerminalView, foldTerminalView } from "../terminal-view.js";
 import { formatMcpAuthenticationError, type McpChatAuthentication, runChatTUI } from "../tui.js";
 
 function printChatHelp(): void {
@@ -129,7 +130,9 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
       await runChatTUI(session, config.name, approvals, mcp);
     } else {
       if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
-      const unsubscribe = session.onEvent(renderChatEvent);
+      const unsubscribe = session.onEvent((event, entry) =>
+        renderChatEvent(event, output, entry?.runId),
+      );
       try {
         await runReadlineChat(session, approvals, undefined, mcp);
       } finally {
@@ -362,29 +365,47 @@ export async function runReadlineChat(
 export function renderChatEvent(
   event: CoreMindEvent,
   stream: NodeJS.WritableStream = output,
+  runId?: string,
 ): void {
   switch (event.type) {
     case "text_delta":
-      stream.write(event.delta);
-      break;
-    case "tool_call":
-      stream.write(`\n${toolLine(event.tool, event.args)}`);
-      break;
-    case "tool_result":
-      stream.write(` ${toolResultLine(event.isError)}`);
+      stream.write(terminalText(event.delta));
       break;
     case "loop_state":
       stream.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
       break;
-    case "input_receipt":
-    case "input_claimed":
-    case "input_completed":
-    case "input_discarded":
-      stream.write(
-        `\n输入 ${event.inputId} · ${event.status}${event.type === "input_claimed" ? ` · Turn ${event.turnId}` : ""}\n`,
-      );
+    default: {
+      // readline 逐事件输出真实身份，不跨 Run 缓存或猜测调用顺序。
+      const view = foldTerminalView(createTerminalView(), {
+        type: "event",
+        epoch: 0,
+        event,
+        observedAtMs: 0,
+        ...(runId ? { runId } : {}),
+      });
+      for (const row of view.rows) {
+        const text = formatTerminalRow(row.kind === "tool" ? { ...row, detached: false } : row);
+        if (!text) continue;
+        const source = event as CoreMindEvent & {
+          agent?: string;
+          stepId?: string;
+          callId?: string;
+        };
+        const partial =
+          row.kind === "text" || (row.kind === "artifact" && !row.call)
+            ? [
+                source.agent && `Agent ${source.agent}`,
+                source.stepId && `Step ${source.stepId}`,
+                source.callId && `Call ${source.callId}`,
+              ]
+                .filter((part): part is string => Boolean(part))
+                .map((part) =>
+                  Buffer.byteLength(part, "utf8") <= 4096 ? terminalText(part) : "身份超出显示上限",
+                )
+            : [];
+        stream.write(`\n${text}${partial.length ? ` · ${partial.join(" · ")}` : ""}\n`);
+      }
       break;
-    default:
-      break;
+    }
   }
 }

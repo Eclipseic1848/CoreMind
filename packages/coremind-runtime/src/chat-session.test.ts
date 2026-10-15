@@ -7,9 +7,127 @@ import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it, vi } from "vitest";
 import { ChatSession } from "./chat-session.js";
+import type { CoreMindEvent } from "./events.js";
 import { CoreMindRuntime } from "./runtime.js";
+import { type CoreMindTraceEvent, TraceRecorder } from "./trace.js";
 
 describe("ChatSession", () => {
+  it("原 Trace 来源随事件转发，旧单参数监听器仍接收脱敏事件", async () => {
+    const canary = "chat-source-private-canary-739027";
+    const recorder = new TraceRecorder("child-source-run");
+    const canonical = recorder.record(
+      {
+        type: "tool_call",
+        agent: "worker",
+        tool: "write",
+        callId: "same-call",
+        args: { path: "notes.txt", token: canary },
+      },
+      "child-source-event",
+    );
+    const source = structuredClone(canonical);
+    const runAgentTurn = vi.fn<CoreMindRuntime["runAgentTurn"]>(
+      async (_agent, _message, _history, events) => {
+        // 只在本测试局部表达待新增的可选来源，不预先修改公共 Runtime 类型。
+        const emit: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void = events;
+        emit(source.event, source);
+        return {
+          runId: "parent-chat-run",
+          transcript: "done",
+          messages: new Map(),
+          trace: [],
+        } as unknown as Awaited<ReturnType<CoreMindRuntime["runAgentTurn"]>>;
+      },
+    );
+    const runtime = {
+      hasAgent: () => true,
+      initialMessagesFor: () => [],
+      runAgentTurn,
+    } as unknown as CoreMindRuntime;
+    const session = new ChatSession(runtime, "main");
+    const listener = vi.fn((_event: CoreMindEvent, _entry?: CoreMindTraceEvent) => {});
+    const legacy = vi.fn((_event: CoreMindEvent) => {});
+    session.onEvent(listener);
+    session.onEvent(legacy);
+
+    const result = await session.chat("读取来源");
+
+    expect(listener).toHaveBeenCalledExactlyOnceWith(canonical.event, canonical);
+    expect(listener.mock.calls[0]![1]).toMatchObject({
+      runId: "child-source-run",
+      eventId: "child-source-event",
+      sequence: 1,
+    });
+    expect(listener.mock.calls[0]![1]?.event).toEqual(listener.mock.calls[0]![0]);
+    expect(legacy).toHaveBeenCalledOnce();
+    expect(legacy.mock.calls[0]![0]).toEqual(canonical.event);
+    expect(result.events).toEqual([canonical.event]);
+    expect(result.run.runId).toBe("parent-chat-run");
+    expect(
+      JSON.stringify({
+        listener: listener.mock.calls,
+        legacy: legacy.mock.calls,
+        events: result.events,
+      }),
+    ).not.toContain(canary);
+  });
+
+  it("每个监听器独立持有 event 和 Trace 副本，不污染后续监听器、本轮事件或 canonical", async () => {
+    const recorder = new TraceRecorder("chat-source-run");
+    const canonical = recorder.record(
+      {
+        type: "tool_call",
+        agent: "main",
+        tool: "read",
+        callId: "same-call",
+        args: { path: "notes.txt" },
+      },
+      "chat-source-event",
+    );
+    const before = structuredClone(canonical);
+    const source = structuredClone(canonical);
+    const runAgentTurn = vi.fn<CoreMindRuntime["runAgentTurn"]>(
+      async (_agent, _message, _history, events) => {
+        const emit: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void = events;
+        emit(source.event, source);
+        return {
+          runId: canonical.runId,
+          transcript: "done",
+          messages: new Map(),
+          trace: recorder.entries,
+        } as Awaited<ReturnType<CoreMindRuntime["runAgentTurn"]>>;
+      },
+    );
+    const runtime = {
+      hasAgent: () => true,
+      initialMessagesFor: () => [],
+      runAgentTurn,
+    } as unknown as CoreMindRuntime;
+    const session = new ChatSession(runtime, "main");
+    session.onEvent((event: CoreMindEvent, entry?: CoreMindTraceEvent) => {
+      if (event.type === "tool_call") {
+        event.agent = "polluted-agent";
+        (event.args as { path: string }).path = "polluted-path";
+      }
+      if (entry) {
+        entry.runId = "polluted-run";
+        entry.eventId = "polluted-event";
+        entry.sequence = 999;
+        if (entry.event.type === "tool_call") entry.event.tool = "polluted-tool";
+      }
+    });
+    const listener = vi.fn((_event: CoreMindEvent, _entry?: CoreMindTraceEvent) => {});
+    session.onEvent(listener);
+
+    const result = await session.chat("测试监听器隔离");
+
+    expect(listener).toHaveBeenCalledExactlyOnceWith(before.event, before);
+    expect(result.events).toEqual([before.event]);
+    expect(result.run.trace).toEqual([before]);
+    expect(source).toEqual(before);
+    expect(canonical).toEqual(before);
+  });
+
   it("同一 Runtime 的普通执行和交互执行双向互斥", async () => {
     const controller = new AbortController();
     const runtime = await CoreMindRuntime.create({

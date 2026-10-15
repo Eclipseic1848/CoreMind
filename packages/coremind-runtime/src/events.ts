@@ -138,6 +138,8 @@ export type CoreMindEvent =
       runId: string;
       agent: string;
       tool: string;
+      callId?: string;
+      stepId?: string;
       args: unknown;
       argumentsFingerprint?: string;
       delegationInputFingerprint?: string;
@@ -242,6 +244,8 @@ export type CoreMindEvent =
     }
   | {
       type: "artifact_created";
+      agent?: string;
+      stepId?: string;
       artifactId: string;
       status: "stored" | "blocked";
       sizeBytes: number;

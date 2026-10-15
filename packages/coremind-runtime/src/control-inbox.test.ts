@@ -11,6 +11,57 @@ import type { RunId } from "./ids.js";
 import { FileRunStore, RunStateJournal } from "./index.js";
 
 describe("ControlInbox", () => {
+  it.each(["throw", "return"] as const)(
+    "%s 的拒绝原因在当前回执、事实、重复和冷恢复中保持同一脱敏值",
+    async (mode) => {
+      const runId = "terminal-control-privacy" as RunId;
+      const directory = await mkdtemp(path.join(tmpdir(), "coremind-terminal-control-"));
+      const store = new FileRunStore(directory);
+      const reason =
+        "Authorization: Bearer terminal-control-canary\nhttps://example.invalid/?token=terminal-query-canary&ordinary=keep";
+      const command = {
+        schemaVersion: 1 as const,
+        runId,
+        controlId: "privacy-control",
+        type: "cancel" as const,
+      };
+      try {
+        const inbox = new ControlInbox({
+          runId,
+          journal: new RunStateJournal(runId, store),
+          records: [],
+          apply: async () => {
+            if (mode === "throw") throw new Error(reason);
+            return { status: "rejected", reason };
+          },
+        });
+        const receipt = await inbox.accept(command);
+        expect(receipt).toMatchObject({ status: "rejected" });
+        expect(receipt.reason).not.toContain("terminal-control-canary");
+        expect(receipt.reason).not.toContain("terminal-query-canary");
+        expect(receipt.reason).toContain("https://example.invalid/");
+        const records = await store.read(runId);
+        expect(JSON.stringify(records)).not.toMatch(/terminal-(?:control|query)-canary/);
+        expect(await inbox.accept(command)).toMatchObject({
+          status: "duplicate",
+          reason: receipt.reason,
+        });
+        const restored = new ControlInbox({
+          runId,
+          journal: new RunStateJournal(runId, store, records.at(-1)!.sequence),
+          records,
+          apply: async () => "applied",
+        });
+        expect(await restored.accept(command)).toMatchObject({
+          status: "duplicate",
+          reason: receipt.reason,
+        });
+        expect(await store.read(runId)).toEqual(records);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );
   it("未封口不能拒绝待交付输入；暂停封口仍保留 accepted 供恢复", async () => {
     const runId = "control-input-pause" as RunId;
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-control-input-pause-"));
@@ -431,7 +482,11 @@ describe("ControlInbox", () => {
       expect(
         (await store.read(runId)).filter(
           (record) =>
-            record.kind === "control" && record.payload.controlId === "redelegate-after-terminal",
+            record.kind === "control" &&
+            record.payload !== null &&
+            typeof record.payload === "object" &&
+            "controlId" in record.payload &&
+            record.payload.controlId === "redelegate-after-terminal",
         ),
       ).toEqual([]);
     } finally {
