@@ -1064,7 +1064,9 @@ class AsyncCoreMindClient:
             self._mcp_auth_tasks.add(current)
         pending = asyncio.create_task(asyncio.to_thread(login))
         try:
-            return await asyncio.shield(pending)
+            # 取消外层等待时保留线程任务，由既有收尾路径回收。
+            await asyncio.wait({pending})
+            return pending.result()
         except asyncio.CancelledError:
             # 与同步 RPC 的登记共用锁：取消后不得迟到登记，也不得取消其他调用的同名事务。
             with self._client._pending_lock:
