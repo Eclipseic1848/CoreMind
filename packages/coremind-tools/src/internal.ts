@@ -19,6 +19,13 @@ export {
   tightenExecutionEnvironmentRequirement,
 } from "./execution-environment.js";
 export { resolveFileToolTarget } from "./file-target.js";
+export {
+  bindMcpAuthentication,
+  createMcpAuthenticationEngine,
+  type McpAuthenticationBinding,
+  type McpAuthenticationEngineOptions,
+  type McpAuthenticationServer,
+} from "./mcp-authentication.js";
 export type { McpClient, McpToolResult } from "./mcp-client.js";
 export {
   createMcpHttpClient,

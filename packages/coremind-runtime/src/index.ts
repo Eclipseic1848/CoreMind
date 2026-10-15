@@ -223,6 +223,17 @@ export {
   type LoopStepRequest,
 } from "./loop-runner.js";
 export {
+  createMcpAuthentication,
+  type McpAuthentication,
+  type McpAuthenticationOptions,
+  type McpAuthenticationResult,
+  type McpAuthorizationHandler,
+  type McpAuthorizationRequest,
+  type McpLoginOptions,
+  type McpTokenRecord,
+  type McpTokenStore,
+} from "./mcp-authentication.js";
+export {
   createTelemetryConfigurationFact,
   createTelemetryConsentFact,
   createTelemetryEgressAuthorization,

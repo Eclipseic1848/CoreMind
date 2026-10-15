@@ -5,8 +5,10 @@ import {
   type ChildRunNodeProjection,
   type CoreMindConfig,
   CoreMindRuntime,
+  createMcpAuthentication,
   formatMetrics,
   loadConfigFile,
+  type McpAuthentication,
   parseAndValidate,
   type RunResult,
   type RunStatus,
@@ -73,6 +75,15 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     console.error(errorLine("--print 与 --json-events 不能同时使用"));
     return 1;
   }
+  const loginServer = flagString(parsed, "mcp-login");
+  if (flagBool(parsed, "mcp-login") && !loginServer?.trim()) {
+    console.error(errorLine("--mcp-login 需要指定已配置的服务名"));
+    return 1;
+  }
+  if (loginServer && (process.stdin.isTTY !== true || printOnly || jsonEvents)) {
+    console.error(errorLine("交互登录需要 TTY，且不能与 --print 或 --json-events 同用"));
+    return 1;
+  }
   const initialPrompt = flagString(parsed, "prompt") ?? flagString(parsed, "p");
   const sessionId = flagString(parsed, "session");
   if (sessionId && !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
@@ -102,8 +113,28 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
   const onSigint = () => controller.abort();
   process.once("SIGINT", onSigint);
   approvalReadline?.on("SIGINT", onSigint);
+  if (loginServer) approvalReadline?.on("close", onSigint);
+  let authentication: McpAuthentication | undefined;
 
   try {
+    if (loginServer) {
+      const server = config.mcp?.servers[loginServer];
+      if (server?.transport !== "streamable-http" || !server.oauth) {
+        console.error(errorLine("指定服务没有配置 OAuth 登录"));
+        return 1;
+      }
+      console.error(
+        `登录 ${loginServer}：${server.url}；授权方 ${server.oauth.issuer}；范围 ${server.oauth.scopes.join("、")}（仅当前进程保存）`,
+      );
+      authentication = await createMcpAuthentication({ config });
+      await authentication.login(loginServer, {
+        signal: controller.signal,
+        onAuthorization: (request, signal) => {
+          signal.throwIfAborted();
+          console.error(`请手动打开授权链接；Ctrl+C 取消：\n${request.authorizationUrl}`);
+        },
+      });
+    }
     const runtime = await CoreMindRuntime.create({
       config,
       configDir,
@@ -113,6 +144,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       resumeRunId,
       maxSteps,
       signal: controller.signal,
+      ...(authentication ? { mcpAuthentication: authentication } : {}),
       approveTool: (request) => approvals.request(request),
       events: (event) => {
         if (jsonEvents) {
@@ -168,14 +200,23 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     }
     return exitCodeForRunStatus(result.outcome.status);
   } catch (error) {
+    if (
+      controller.signal.aborted ||
+      (error && typeof error === "object" && "code" in error && error.code === "aborted")
+    ) {
+      console.error(errorLine("运行已取消"));
+      return RUN_EXIT_CODES.aborted;
+    }
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
   } finally {
     process.off("SIGINT", onSigint);
     approvalReadline?.off("SIGINT", onSigint);
+    approvalReadline?.off("close", onSigint);
     unbindApprovals?.();
     approvals.close();
     approvalReadline?.close();
+    await authentication?.close();
   }
 }
 

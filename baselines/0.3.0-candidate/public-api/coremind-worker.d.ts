@@ -6,6 +6,7 @@ import { createPythonToolCallNotification } from 'coremind-protocol';
 import { FileRunStore } from 'coremind-ai';
 import { ProtocolErrorResponse } from 'coremind-protocol';
 import { ProtocolSuccessResponse } from 'coremind-protocol';
+import { ProtocolV2McpAuthRequestNotification } from 'coremind-protocol';
 import { ProtocolV2ToolCallNotification } from 'coremind-protocol';
 import { ProtocolV2ToolCancelNotification } from 'coremind-protocol';
 import { ProtocolV2VerificationRequestNotification } from 'coremind-protocol';
@@ -54,6 +55,10 @@ declare class ProtocolHost {
     private activeExecutionCompletion?;
     private resolveActiveExecution?;
     private lastExecutionQuiescent;
+    private mcpAuthentication?;
+    private mcpAuthenticationNegotiated;
+    private readonly mcpAuthTransactions;
+    private readonly cancelledMcpAuthTransactions;
     constructor(options: WorkerServerOptions);
     /** 传输断开只影响交付，不得反向污染 Runtime 或权威 Fact。 */
     private send;
@@ -61,6 +66,7 @@ declare class ProtocolHost {
     accept(value: unknown): void;
     handle(value: unknown): Promise<ProtocolSuccessResponse | ProtocolErrorResponse>;
     private handleProtocolV2;
+    private handleMcpAuthentication;
     private withProtocolV2RunTransition;
     private beginProtocolV2Run;
     private acceptProtocolV2Control;
@@ -100,7 +106,7 @@ declare class ProtocolHost {
 export { ProtocolHost }
 export { ProtocolHost as WorkerServer }
 
-export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ProtocolV2VerificationRequestNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
+export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ProtocolV2VerificationRequestNotification | ProtocolV2McpAuthRequestNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
 
 export declare type WorkerRuntime = Pick<CoreMindRuntime, "run"> & {
     acceptControl?: (command: RunControlCommand) => Promise<ControlReceipt>;

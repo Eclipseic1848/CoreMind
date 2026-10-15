@@ -93,6 +93,14 @@ export const ERROR_CODES = defineErrorCodes({
   tool_approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   tool_execution_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   policy_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
+  mcp_auth_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+    runStatus: "paused",
+  },
+  mcp_auth_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  mcp_auth_store_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   loop_paused: {
     terminality: "pausable",
     cancelClass: "human",

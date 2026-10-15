@@ -12,6 +12,7 @@ sourcePaths:
   - "packages/coremind-tools/src/unified-diff.ts"
   - "packages/coremind-runtime/src/public-tool.ts"
   - "packages/coremind-runtime/src/mcp-runtime.ts"
+  - "packages/coremind-runtime/src/mcp-authentication.ts"
 documents:
   readme:
     zh-CN: docs/modules/build-tools/README.zh-CN.md
@@ -50,6 +51,13 @@ testPaths:
   - "packages/coremind-cli/src/mcp-http-cli.acceptance.test.ts"
   - "python/tests/test_mcp_stdio.py"
   - "python/tests/test_mcp_http.py"
+  - "packages/coremind-tools/src/mcp-authentication.test.ts"
+  - "packages/coremind-tools/src/mcp-authentication-lifecycle.test.ts"
+  - "packages/coremind-tools/src/mcp-authentication-security.test.ts"
+  - "packages/coremind-tools/src/mcp-authentication-boundaries.test.ts"
+  - "packages/coremind-tools/src/mcp-authentication-errors.test.ts"
+  - "packages/coremind-runtime/src/mcp-auth-runtime.acceptance.test.ts"
+  - "python/tests/test_mcp_auth.py"
 supportedPlatforms:
   - "windows"
   - "linux"

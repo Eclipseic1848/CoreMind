@@ -30,6 +30,10 @@ testPaths:
   - "packages/coremind-worker/src/server.test.ts"
   - "packages/coremind-protocol/src/protocol.test.ts"
   - "python/tests/test_release_metadata.py"
+  - "python/tests/test_mcp_auth.py"
+  - "python/tests/test_mcp_auth_protocol.py"
+  - "packages/coremind-protocol/src/mcp-auth.test.ts"
+  - "packages/coremind-worker/src/mcp-auth.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

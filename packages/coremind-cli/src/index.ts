@@ -70,7 +70,9 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
       --resume <runId>  从意外中断或显式暂停运行的稳定边界继续
       --max-steps <n>   工作流总步骤上限（默认 100）
       --permission <m>  临时选择 ask、assisted 或 full
+      --mcp-login <s>   在当前进程登录 MCP 服务后运行（仅 TTY；不兼容机器输出）
   ${cyan("chat <file>")}            交互式对话（多轮上下文）
+      /mcp login 服务 · /mcp cancel · /mcp logout 服务（不自动打开浏览器）
   ${cyan("check [file]")}           配置、安全、项目材料与质量门禁
       --profile <level> development、standard 或 strict
       --override-reason  覆盖非安全门禁并留痕

@@ -3,6 +3,6 @@
   "version": "1.0.1",
   "protocolVersion": "1.0",
   "protocolV2Version": "2.0",
-  "protocolV2SchemaFingerprint": "sha256:361f45aed17f48b7bae2dab77f4c5acc5838833236c895455a07c1fdefe97e60",
-  "bundleSha256": "621e92d081afd4b003a331e819346c53993dea183b3fc17e37848da8ae7cd73d"
+  "protocolV2SchemaFingerprint": "sha256:7aa9405ca764dca04b71a518aa84a5805a1b43c4f65496c96907244a1a728f70",
+  "bundleSha256": "39ae178b64b95f09f0f2d0554c0a002af0b7f0b448fe02f73d9410b501ab3332"
 }

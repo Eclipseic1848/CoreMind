@@ -259,6 +259,61 @@ export declare interface LinuxSandboxedBashOptions {
  */
 export declare function loadScriptTool(cfg: ScriptToolConfig, configDir: string): Promise<AgentTool>;
 
+export declare interface McpAuthentication {
+    login(server: string, options?: McpLoginOptions): Promise<McpAuthenticationResult>;
+    logout(server: string): Promise<void>;
+    close(): Promise<void>;
+}
+
+export declare interface McpAuthenticationResult {
+    readonly status: "authorized";
+    readonly transactionId: string;
+    readonly server: string;
+    readonly serverIdentity: string;
+}
+
+export declare type McpAuthorizationHandler = (request: McpAuthorizationRequest, signal: AbortSignal) => void | Promise<void>;
+
+/** 临时授权交互；标准 state/challenge 仅存在于授权 URL，凭据不进入此合同。 */
+export declare interface McpAuthorizationRequest {
+    readonly transactionId: string;
+    readonly server: string;
+    readonly serverIdentity: string;
+    readonly authorizationUrl: string;
+    readonly expiresAt: string;
+    readonly issuer: string;
+    readonly clientId: string;
+    readonly resource: string;
+    readonly scopes: readonly string[];
+}
+
+export declare interface McpLoginOptions {
+    transactionId?: string;
+    signal?: AbortSignal;
+    onAuthorization?: McpAuthorizationHandler;
+}
+
+/** 仅供明确注入的宿主安全存储使用；禁止通过 Worker、事件或日志序列化。 */
+export declare interface McpTokenRecord {
+    readonly schemaVersion: 1;
+    readonly namespace: string;
+    readonly serverIdentity: string;
+    readonly resource: string;
+    readonly issuer: string;
+    readonly clientId: string;
+    readonly scopes: readonly string[];
+    readonly tokenType: "Bearer";
+    readonly accessToken: string;
+    readonly refreshToken?: string;
+    readonly expiresAt?: number;
+}
+
+export declare interface McpTokenStore {
+    load(key: string, signal?: AbortSignal): Promise<McpTokenRecord | undefined>;
+    save(key: string, record: McpTokenRecord, signal?: AbortSignal): Promise<void>;
+    delete(key: string, signal?: AbortSignal): Promise<void>;
+}
+
 /** 使用无 shell 的参数数组执行进程；需要 shell 语义时由上层显式选择解释器。 */
 export declare class ProcessRunner {
     run(request: ProcessRunRequest): Promise<ProcessRunResult>;

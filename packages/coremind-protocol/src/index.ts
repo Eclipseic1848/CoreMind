@@ -45,6 +45,12 @@ export {
   ProtocolV2InitializeRequestSchema,
   type ProtocolV2InitializeResult,
   ProtocolV2InitializeResultSchema,
+  type ProtocolV2McpAuthRequest,
+  type ProtocolV2McpAuthRequestNotification,
+  ProtocolV2McpAuthRequestNotificationSchema,
+  ProtocolV2McpAuthRequestSchema,
+  type ProtocolV2McpAuthResult,
+  ProtocolV2McpAuthResultSchema,
   ProtocolV2NegotiationError,
   type ProtocolV2PublicCheckpoint,
   ProtocolV2PublicCheckpointSchema,
@@ -77,6 +83,8 @@ export {
   type ProtocolV2VerificationRequestNotification,
   ProtocolV2VerificationRequestNotificationSchema,
   type ProtocolVersionRange,
+  parseProtocolV2McpAuthRequestNotification,
+  parseProtocolV2McpAuthResult,
   parseProtocolV2Request,
 } from "./v2.js";
 

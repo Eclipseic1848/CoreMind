@@ -2,7 +2,9 @@ import type {
   ChatSession,
   ChildRunNodeProjection,
   ChildRunTreeProjection,
+  CoreMindConfig,
   CoreMindEvent,
+  McpAuthentication,
   RunResult,
 } from "coremind-ai";
 import { Box, render, Text, useInput } from "ink";
@@ -37,6 +39,23 @@ export interface ChatTUIProps {
   approvals: ApprovalQueue;
   /** 退出回调（外部负责 unmount 与收尾） */
   onExit: () => void;
+  mcp?: McpChatAuthentication;
+}
+
+/** 认证会话由命令入口持有，视图只发起或取消事务。 */
+export interface McpChatAuthentication {
+  authentication: McpAuthentication;
+  config: CoreMindConfig;
+}
+
+/** 认证错误不回显外部响应或原始异常，避免授权信息落入消息流。 */
+export function formatMcpAuthenticationError(error: unknown): string {
+  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+  if (code === "aborted") return "登录已取消";
+  if (code === "run_timeout") return "登录已超时，请重新发起";
+  if (code === "mcp_auth_required") return "服务需要显式登录";
+  if (code === "mcp_auth_store_failed") return "凭据存储失败";
+  return "认证失败，请检查服务配置后重试";
 }
 
 /** 消息流中最多渲染的条数（全屏滚动近似） */
@@ -46,7 +65,7 @@ const MAX_VISIBLE = 30;
  * 全屏交互终端（ink）：顶部标题栏 + 消息流（流式文本/工具调用可视化）+ 底部输入框。
  * 与 readline 模式共用同一 ChatSession 与事件流。
  */
-export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
+export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps) {
   const [messages, updateMessages] = useState<MessageView[]>([]);
   const setMessages = useCallback((update: (previous: MessageView[]) => MessageView[]) => {
     updateMessages((previous) => {
@@ -68,6 +87,24 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   const [lastRun, setLastRun] = useState<RunResult>();
   const [loopStatus, setLoopStatus] = useState<string>();
   const idRef = useRef(0);
+  const login = useRef<{ controller: AbortController; operation: Promise<void> } | undefined>(
+    undefined,
+  );
+  const mounted = useRef(true);
+  const [authorization, setAuthorization] = useState<{
+    target: string;
+    issuer: string;
+    scopes: string;
+    url?: string;
+  }>();
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      login.current?.controller.abort();
+    };
+  }, []);
 
   // 键盘输入（受控输入框：字符累积 / 退格 / 回车发送）
   useInput((inputStr, key) => {
@@ -75,7 +112,11 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
       if (key.escape) setApprovalCommand(undefined);
       else if (key.return) {
         const command = approvalCommand.trim();
-        if (/^\/(?:steer|follow-up)(?:\s|$)/u.test(command) || command === "/abort") {
+        if (
+          /^\/(?:steer|follow-up)(?:\s|$)/u.test(command) ||
+          command === "/abort" ||
+          /^\/mcp\s+logout\s+\S+$/u.test(command)
+        ) {
           void handleSubmit(command);
           setApprovalCommand(undefined);
         } else
@@ -101,6 +142,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         busy &&
         command !== "/abort" &&
         command !== "/children" &&
+        !/^\/mcp\s+logout\s+\S+$/u.test(command) &&
         !/^\/(?:steer|follow-up)(?:\s|$)/u.test(command)
       )
         return;
@@ -207,6 +249,83 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
   const handleSubmit = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (/^\/mcp(?:\s|$)/u.test(trimmed)) {
+      if (trimmed === "/mcp cancel") {
+        login.current?.controller.abort();
+        setAuthorization(undefined);
+        return;
+      }
+      const command = /^\/mcp\s+(login|logout)\s+(\S+)$/u.exec(trimmed);
+      if (!command) {
+        appendCommandError(new Error("用法：/mcp login 服务、/mcp cancel、/mcp logout 服务"));
+        return;
+      }
+      const serverName = command[2]!;
+      const server = mcp?.config.mcp?.servers[serverName];
+      if (!mcp || server?.transport !== "streamable-http" || !server.oauth) {
+        appendCommandError(new Error("指定服务没有配置 OAuth 登录"));
+        return;
+      }
+      if (command[1] === "logout") {
+        login.current?.controller.abort();
+        setAuthorization(undefined);
+        try {
+          await mcp.authentication.logout(serverName);
+          appendAuthenticationNotice("已清除当前进程的服务凭据");
+        } catch (error) {
+          appendCommandError(new Error(formatMcpAuthenticationError(error)));
+        }
+        return;
+      }
+      if (busy || pendingApproval || login.current) {
+        appendCommandError(new Error("请等待当前运行、审批或登录结束后再登录"));
+        return;
+      }
+      const controller = new AbortController();
+      setAuthorization({
+        target: `${serverName}：${server.url}`,
+        issuer: server.oauth.issuer,
+        scopes: server.oauth.scopes.join("、"),
+      });
+      const operation = mcp.authentication
+        .login(serverName, {
+          signal: controller.signal,
+          onAuthorization: (request, signal) => {
+            signal.throwIfAborted();
+            if (mounted.current)
+              setAuthorization((previous) =>
+                previous ? { ...previous, url: request.authorizationUrl } : previous,
+              );
+          },
+        })
+        .then(
+          () => {
+            if (mounted.current) appendAuthenticationNotice("登录成功，可继续提问");
+          },
+          (error: unknown) => {
+            if (mounted.current) appendAuthenticationNotice(formatMcpAuthenticationError(error));
+          },
+        )
+        .finally(() => {
+          if (login.current?.controller === controller) {
+            login.current = undefined;
+            if (mounted.current) setAuthorization(undefined);
+          }
+        });
+      login.current = { controller, operation };
+      return;
+    }
+    if (trimmed === "/exit" && login.current) {
+      login.current.controller.abort();
+      setAuthorization(undefined);
+      await login.current.operation;
+      onExit();
+      return;
+    }
+    if (login.current) {
+      appendAuthenticationNotice("登录等待中；使用 /mcp cancel 取消，或 /exit 退出");
+      return;
+    }
     if (trimmed === "/abort") {
       session.abort();
       while (approvals.current) approvals.resolve("deny");
@@ -392,6 +511,13 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
     ]);
   };
 
+  const appendAuthenticationNotice = (text: string) => {
+    setMessages((previous) => [
+      ...previous,
+      { id: idRef.current++, role: "notice", text, tools: [] },
+    ]);
+  };
+
   const visible = messages.slice(-MAX_VISIBLE);
   const approvalDisplay = pendingApproval
     ? formatApprovalDisplay(pendingApproval.request)
@@ -415,6 +541,7 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
               /status 状态 · /children 子运行 · /artifacts 产物 · /context 上下文 · /observability
               观测 · /checkpoints 列表 · /diff ID · /restore ID · /exit · /abort
               {"\n"}/steer 文本：追加指令 · /follow-up 文本：任务自然结束后继续
+              {"\n"}/mcp login 服务 · /mcp cancel · /mcp logout 服务（凭据仅当前进程保存）
               {"\n"}applied 仅表示已交队列；输入的 claimed/completed/discarded 单独显示。
             </Text>
           </Box>
@@ -424,6 +551,16 @@ export function ChatTUI({ title, session, approvals, onExit }: ChatTUIProps) {
         ))}
         {busy && <Text dimColor>{loopStatus ? `↻ ${loopStatus}` : "…"}</Text>}
       </Box>
+      {authorization && (
+        <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
+          <Text>登录 {authorization.target}</Text>
+          <Text>
+            授权方：{authorization.issuer} · 范围：{authorization.scopes}
+          </Text>
+          <Text>{authorization.url ?? "正在准备授权链接…"}</Text>
+          <Text>请手动打开链接；/mcp cancel 取消 · /exit 退出；凭据仅当前进程保存</Text>
+        </Box>
+      )}
       {pendingApproval && approvalDisplay && (
         <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
           <Text color="yellow" bold>
@@ -518,19 +655,29 @@ export function runChatTUI(
   session: ChatSession,
   title: string,
   approvals: ApprovalQueue,
+  mcp?: McpChatAuthentication,
 ): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const app = render(
       <ChatTUI
         title={title}
         session={session}
         approvals={approvals}
+        mcp={mcp}
         onExit={() => {
           app.unmount();
           resolve();
         }}
       />,
     );
+    const onEnd = () => app.unmount();
+    process.stdin.once("end", onEnd);
+    void app
+      .waitUntilExit()
+      .then(() => resolve(), reject)
+      .finally(() => {
+        process.stdin.off("end", onEnd);
+      });
   });
 }
 

@@ -801,13 +801,20 @@ describe("CoreMindRuntime", () => {
           durability: "critical" as const,
         },
       };
-      for (const scope of ["global", "agent", "unselected", "resource-only"] as const) {
+      const authentication = { login: vi.fn(), logout: vi.fn(), close: vi.fn() };
+      for (const scope of [
+        "global",
+        "agent",
+        "unselected",
+        "resource-only",
+        "authentication-only",
+      ] as const) {
         const mcpAdapter = createCoreMindChildRunAdapter({
           createRuntime: (authority) =>
             CoreMindRuntime.create({
               config: {
                 ...config,
-                ...(scope !== "resource-only" ? { mcp } : {}),
+                ...(scope !== "resource-only" && scope !== "authentication-only" ? { mcp } : {}),
                 ...(scope === "global" ? { tools: [mcpTool] } : {}),
                 ...(scope === "agent"
                   ? { agents: { main: { ...config.agents.main, tools: [mcpTool] } } }
@@ -830,12 +837,16 @@ describe("CoreMindRuntime", () => {
               runStore: store,
               signal: authority.signal,
               childRunAuthority: authority,
+              ...(scope === "authentication-only" ? { mcpAuthentication: authentication } : {}),
             }),
         });
         await expect(mcpAdapter.execute(input)).rejects.toMatchObject({
           code: "child_run_policy_escalation",
         });
         expect(existsSync(mcpMarker)).toBe(false);
+        expect(authentication.login).not.toHaveBeenCalled();
+        expect(authentication.logout).not.toHaveBeenCalled();
+        expect(authentication.close).not.toHaveBeenCalled();
       }
 
       const workflowBypassAdapter = createCoreMindChildRunAdapter({

@@ -12,12 +12,14 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 import uuid
 from collections import deque
+from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
-from typing import Any, Callable, Mapping, Sequence, Union, get_args, get_origin
-from urllib.parse import urlsplit
+from typing import Any, Awaitable, Callable, Mapping, Sequence, Union, get_args, get_origin
+from urllib.parse import parse_qsl, urlsplit
 
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
 
@@ -25,6 +27,7 @@ PROTOCOL_VERSION = "1.0"
 PROTOCOL_V2_VERSION = "2.0"
 ApprovalHandler = Callable[[Mapping[str, Any]], str]
 EventHandler = Callable[[Mapping[str, Any]], None]
+McpAuthHandler = Callable[[Mapping[str, Any]], None | Awaitable[None]]
 _MISSING = object()
 
 
@@ -41,6 +44,7 @@ class CoreMindClient:
         worker_command: Sequence[str] | None = None,
         event_handler: EventHandler | None = None,
         approval_handler: ApprovalHandler | None = None,
+        mcp_auth_handler: McpAuthHandler | None = None,
         request_timeout: float = 300.0,
         protocol_version: str = PROTOCOL_VERSION,
     ) -> None:
@@ -57,6 +61,8 @@ class CoreMindClient:
         self._event_stop = threading.Event()
         self.event_handler_error: CoreMindError | None = None
         self._approval_handler = approval_handler
+        self._mcp_auth_handler = mcp_auth_handler
+        self._mcp_auth_waiters: dict[str, dict[str, Any]] = {}
         self._request_timeout = request_timeout
         self._protocol_version = protocol_version
         self._process: subprocess.Popen[str] | None = None
@@ -229,6 +235,58 @@ class CoreMindClient:
             )
             return
         self._request_raw("cancel", {"runId": run_id})
+
+    def mcp_login(self, server: str, *, transaction_id: str | None = None) -> dict[str, Any]:
+        """显式登录；安全授权请求仅在本调用线程交给专用 handler。"""
+        return self._mcp_login(server, transaction_id, self._mcp_auth_handler)
+
+    def _mcp_login(self, server: str, transaction_id: str | None,
+                   handler: McpAuthHandler | None, *,
+                   _ownership: dict[str, bool] | None = None) -> dict[str, Any]:
+        self._require_v2_method("mcp_login")
+        if handler is None:
+            raise ProtocolError("交互认证需要显式专用 handler", rpc_code=-32000,
+                                coremind_code="mcp_auth_required")
+        self.start()
+        self._require_mcp_auth()
+        transaction_id = transaction_id or uuid.uuid4().hex
+        _validate_auth_id(transaction_id)
+        _validate_auth_id(server)
+        params = {"schemaVersion": 1, "action": "login", "transactionId": transaction_id, "server": server}
+        ownership = _ownership if _ownership is not None else {"registered": False}
+        try:
+            return _validate_mcp_auth_result(
+                self._request_raw("mcp_auth", params, _auth=(transaction_id, server, ownership), _auth_handler=handler), params)
+        except BaseException:
+            if ownership["registered"]:
+                try:
+                    self.mcp_cancel_auth(transaction_id)
+                except (CoreMindError, OSError):
+                    pass
+            raise
+
+    def mcp_cancel_auth(self, transaction_id: str) -> dict[str, Any]:
+        """取消并等待本 Worker 的指定认证事务收敛。"""
+        self._require_v2_method("mcp_cancel_auth")
+        self.start()
+        self._require_mcp_auth()
+        _validate_auth_id(transaction_id)
+        params = {"schemaVersion": 1, "action": "cancel", "transactionId": transaction_id}
+        return _validate_mcp_auth_result(self._request_raw("mcp_auth", params, timeout=5.0), params)
+
+    def mcp_logout(self, server: str) -> dict[str, Any]:
+        """撤销 Node 宿主保存的本地使用权，不接收任何 Token。"""
+        self._require_v2_method("mcp_logout")
+        self.start()
+        self._require_mcp_auth()
+        _validate_auth_id(server)
+        params = {"schemaVersion": 1, "action": "logout", "server": server}
+        return _validate_mcp_auth_result(self._request_raw("mcp_auth", params), params)
+
+    def _require_mcp_auth(self) -> None:
+        if "mcpAuthentication" not in self._capabilities:
+            raise ProtocolError("未协商 MCP 认证能力", rpc_code=-32601,
+                                coremind_code="protocol_capability_missing")
 
     def inspect_run(self, run_id: str) -> dict[str, Any]:
         """读取 append-only RunState、完成状态与 checkpoint 列表。"""
@@ -574,6 +632,8 @@ class CoreMindClient:
             "dynamicTools",
             "hostVerification",
         ]
+        if self._mcp_auth_handler is not None:
+            params["capabilities"].append("mcpAuthentication")
         return params
 
     def _require_v1_method(self, method: str) -> None:
@@ -601,6 +661,8 @@ class CoreMindClient:
         params: Mapping[str, Any],
         *,
         timeout: float | None = None,
+        _auth: tuple[str, str, dict[str, bool]] | None = None,
+        _auth_handler: McpAuthHandler | None = None,
     ) -> Mapping[str, Any]:
         process = self._process
         if not process or process.poll() is not None or not process.stdin:
@@ -608,7 +670,15 @@ class CoreMindClient:
         with self._pending_lock:
             request_id = self._next_id
             self._next_id += 1
-            response_queue: queue.Queue[Mapping[str, Any] | BaseException] = queue.Queue(maxsize=1)
+            response_queue: queue.Queue[Mapping[str, Any] | BaseException] = queue.Queue(maxsize=2 if _auth else 1)
+            if _auth:
+                if _auth[2].get("stopped", False):
+                    raise CoreMindError("认证等待已取消")
+                if _auth[0] in self._mcp_auth_waiters or len(self._mcp_auth_waiters) >= 8:
+                    raise ProtocolError("认证事务重复或达到上限", rpc_code=-32600,
+                                        coremind_code="protocol_validation_failed")
+                self._mcp_auth_waiters[_auth[0]] = {"server": _auth[1], "queue": response_queue, "notified": False}
+                _auth[2]["registered"] = True
             self._pending[request_id] = response_queue
         request = {
             "jsonrpc": "2.0",
@@ -625,12 +695,29 @@ class CoreMindClient:
             with self._write_lock:
                 process.stdin.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
                 process.stdin.flush()
-            response = response_queue.get(timeout=timeout or self._request_timeout)
+            deadline = time.monotonic() + (timeout or self._request_timeout)
+            while True:
+                response = response_queue.get(timeout=max(0, deadline - time.monotonic()))
+                if not _auth or isinstance(response, BaseException) or response.get("method") != "mcp_auth_request":
+                    break
+                try:
+                    if _auth_handler is None:
+                        raise RuntimeError("缺少专用认证 handler")
+                    handled = _auth_handler(response["params"])
+                    if inspect.isawaitable(handled):
+                        if inspect.iscoroutine(handled):
+                            handled.close()
+                        raise RuntimeError("协程认证 handler 需要 AsyncCoreMindClient")
+                except BaseException:
+                    raise ProtocolError("专用认证 handler 执行失败", rpc_code=-32000,
+                                        coremind_code="mcp_auth_failed") from None
         except queue.Empty as error:
             raise CoreMindError(f"协议请求 {method} 超时") from error
         finally:
             with self._pending_lock:
                 self._pending.pop(request_id, None)
+                if _auth:
+                    self._mcp_auth_waiters.pop(_auth[0], None)
         if isinstance(response, BaseException):
             raise response
         if "error" in response:
@@ -654,7 +741,7 @@ class CoreMindClient:
                 try:
                     message = json.loads(line)
                 except json.JSONDecodeError:
-                    self._stderr_tail.append(f"worker 输出了非法 JSON：{line.rstrip()}")
+                    self._stderr_tail.append("worker 输出了非法 JSON")
                     continue
                 if isinstance(message, Mapping) and "method" in message:
                     self._handle_notification(message)
@@ -698,6 +785,31 @@ class CoreMindClient:
     def _handle_notification(self, message: Mapping[str, Any]) -> None:
         method = message.get("method")
         params = message.get("params")
+        if method == "mcp_auth_request":
+            try:
+                self._require_v2_method("mcp_auth_request")
+                self._require_mcp_auth()
+                request = parse_mcp_auth_request(message)
+                with self._pending_lock:
+                    waiter = self._mcp_auth_waiters.get(request["transactionId"])
+                    if waiter is None or waiter["server"] != request["server"] or waiter["notified"]:
+                        raise ProtocolError("认证通知身份非法或重复", rpc_code=-32600,
+                                            coremind_code="protocol_validation_failed")
+                    waiter["notified"] = True
+                    waiter["queue"].put_nowait({"method": method, "params": request})
+            except (ProtocolError, queue.Full):
+                error = ProtocolError("认证通知校验失败", rpc_code=-32600,
+                                      coremind_code="protocol_validation_failed")
+                with self._pending_lock:
+                    for waiter in self._mcp_auth_waiters.values():
+                        pending = waiter["queue"]
+                        while not pending.empty():
+                            try:
+                                pending.get_nowait()
+                            except queue.Empty:
+                                break
+                        pending.put_nowait(error)
+            return
         if method == "verification_request":
             try:
                 if self._protocol_version != PROTOCOL_V2_VERSION or "hostVerification" not in self._capabilities:
@@ -858,6 +970,8 @@ class AsyncCoreMindClient:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._client = CoreMindClient(*args, **kwargs)
+        self._mcp_auth_tasks: set[asyncio.Task[Any]] = set()
+        self._mcp_auth_ids: set[str] = set()
 
     @property
     def sync_client(self) -> CoreMindClient:
@@ -882,6 +996,87 @@ class AsyncCoreMindClient:
 
     async def cancel(self, run_id: str) -> None:
         await asyncio.to_thread(self._client.cancel, run_id)
+
+    async def mcp_login(self, server: str, *, transaction_id: str | None = None) -> dict[str, Any]:
+        """协程 handler 留在当前 loop；Task 取消同时取消并 join Node 事务。"""
+        handler = self._client._mcp_auth_handler
+        if handler is None:
+            return await asyncio.to_thread(self._client.mcp_login, server, transaction_id=transaction_id)
+        await self.start()
+        self._client._require_v2_method("mcp_login")
+        self._client._require_mcp_auth()
+        loop = asyncio.get_running_loop()
+        transaction_id = transaction_id or uuid.uuid4().hex
+        _validate_auth_id(transaction_id)
+        if transaction_id in self._mcp_auth_ids:
+            raise _auth_validation_error()
+        self._mcp_auth_ids.add(transaction_id)
+        stopped = threading.Event()
+        ownership = {"registered": False, "stopped": False}
+        futures: set[Any] = set()
+        lock = threading.Lock()
+
+        async def invoke_handler(request: Mapping[str, Any]) -> None:
+            result = handler(request)
+            if inspect.isawaitable(result):
+                await result
+
+        def dispatch(request: Mapping[str, Any]) -> None:
+            with lock:
+                if stopped.is_set():
+                    raise RuntimeError("认证等待已取消")
+                future = asyncio.run_coroutine_threadsafe(invoke_handler(request), loop)
+                futures.add(future)
+            try:
+                future.result(timeout=min(180.0, self._client._request_timeout))
+            finally:
+                with lock:
+                    futures.discard(future)
+                if not future.done():
+                    future.cancel()
+
+        def login() -> dict[str, Any]:
+            if stopped.is_set():
+                raise CoreMindError("认证等待已取消")
+            return self._client._mcp_login(server, transaction_id, dispatch, _ownership=ownership)
+
+        current = asyncio.current_task()
+        if current is not None:
+            self._mcp_auth_tasks.add(current)
+        pending = asyncio.create_task(asyncio.to_thread(login))
+        try:
+            return await asyncio.shield(pending)
+        except asyncio.CancelledError:
+            # 与同步 RPC 的登记共用锁：取消后不得迟到登记，也不得取消其他调用的同名事务。
+            with self._client._pending_lock:
+                stopped.set()
+                ownership["stopped"] = True
+                registered = ownership["registered"]
+            with lock:
+                for future in futures:
+                    future.cancel()
+            try:
+                if registered:
+                    await asyncio.shield(asyncio.to_thread(self._client.mcp_cancel_auth, transaction_id))
+            except CoreMindError:
+                pass
+            finally:
+                try:
+                    await asyncio.wait_for(asyncio.shield(pending), timeout=5.0)
+                except (CoreMindError, asyncio.TimeoutError):
+                    pass
+            raise
+        finally:
+            stopped.set()
+            self._mcp_auth_ids.discard(transaction_id)
+            if current is not None:
+                self._mcp_auth_tasks.discard(current)
+
+    async def mcp_cancel_auth(self, transaction_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.mcp_cancel_auth, transaction_id)
+
+    async def mcp_logout(self, server: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.mcp_logout, server)
 
     async def inspect_run(self, run_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.inspect_run, run_id)
@@ -974,6 +1169,12 @@ class AsyncCoreMindClient:
             candidate_sha256, decision=decision, feedback=feedback, control_id=control_id)
 
     async def close(self) -> None:
+        current = asyncio.current_task()
+        pending = [task for task in self._mcp_auth_tasks if task is not current]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
         await asyncio.to_thread(self._client.close)
 
     async def __aenter__(self) -> "AsyncCoreMindClient":
@@ -981,6 +1182,92 @@ class AsyncCoreMindClient:
 
     async def __aexit__(self, _type: object, _value: object, _traceback: object) -> None:
         await self.close()
+
+
+def _auth_validation_error() -> ProtocolError:
+    return ProtocolError("认证专用消息格式或身份非法", rpc_code=-32600,
+                         coremind_code="protocol_validation_failed")
+
+
+def _validate_auth_id(value: object) -> None:
+    if not isinstance(value, str) or not 1 <= len(value) <= 256 or re.search(r"[\s\x00-\x1f\x7f]", value):
+        raise _auth_validation_error()
+
+
+def parse_mcp_auth_request(message: Mapping[str, Any]) -> dict[str, Any]:
+    """只解析专用临时授权通知；不记录 URL 或独立 state、code、Token。"""
+    if not isinstance(message, Mapping):
+        raise _auth_validation_error()
+    params = message.get("params")
+    keys = {"schemaVersion", "transactionId", "server", "serverIdentity", "authorizationUrl",
+            "expiresAt", "issuer", "clientId", "resource", "scopes"}
+    if (set(message) != {"jsonrpc", "protocolVersion", "method", "params"}
+            or message.get("jsonrpc") != "2.0" or message.get("protocolVersion") != "2.0"
+            or message.get("method") != "mcp_auth_request" or not isinstance(params, Mapping)
+            or set(params) != keys or type(params.get("schemaVersion")) is not int
+            or params.get("schemaVersion") != 1):
+        raise _auth_validation_error()
+    for key in ("transactionId", "server"):
+        _validate_auth_id(params.get(key))
+    if not isinstance(params.get("serverIdentity"), str) or not re.fullmatch(r"[0-9a-f]{64}", params["serverIdentity"]):
+        raise _auth_validation_error()
+    client = params.get("clientId")
+    if not isinstance(client, str) or not 1 <= len(client) <= 1024 or re.search(r"[\s\x00-\x1f\x7f]", client):
+        raise _auth_validation_error()
+    scopes = params.get("scopes")
+    if (not isinstance(scopes, list) or len(scopes) > 32
+            or any(not isinstance(scope, str) or not 1 <= len(scope) <= 256
+                   or not re.fullmatch(r"[\x21\x23-\x5b\x5d-\x7e]+", scope) for scope in scopes)
+            or len(set(scopes)) != len(scopes)):
+        raise _auth_validation_error()
+    for key in ("authorizationUrl", "issuer", "resource"):
+        raw = params.get(key)
+        if not isinstance(raw, str) or not 1 <= len(raw) <= 16384 or re.search(r"[\s\x00-\x1f\x7f#@\\]", raw):
+            raise _auth_validation_error()
+        try:
+            url = urlsplit(raw)
+            if url.scheme not in {"https", "http"} or not url.hostname or url.username is not None or url.password is not None:
+                raise ValueError()
+            _ = url.port
+            if any(key.lower() in {"code", "access_token", "refresh_token", "id_token", "token", "code_verifier", "client_secret"}
+                   for key, _value in parse_qsl(url.query)):
+                raise ValueError()
+        except ValueError:
+            raise _auth_validation_error() from None
+    expires = params.get("expiresAt")
+    try:
+        if not isinstance(expires, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", expires):
+            raise ValueError()
+        datetime.fromisoformat(expires.replace("Z", "+00:00"))
+    except ValueError:
+        raise _auth_validation_error() from None
+    return {**params, "scopes": list(scopes)}
+
+
+def _validate_mcp_auth_result(value: Mapping[str, Any], request: Mapping[str, Any]) -> dict[str, Any]:
+    action = request["action"]
+    keys = {"schemaVersion", "action", "status"}
+    if action == "login":
+        keys |= {"transactionId", "server", "serverIdentity"}
+    elif action == "cancel":
+        keys.add("transactionId")
+    else:
+        keys.add("server")
+    if (set(value) != keys or type(value.get("schemaVersion")) is not int
+            or value.get("schemaVersion") != 1 or value.get("action") != action):
+        raise _auth_validation_error()
+    for key in ("transactionId", "server"):
+        if key in keys and value.get(key) != request.get(key):
+            raise _auth_validation_error()
+    if action == "login":
+        if value.get("status") != "authorized" or not isinstance(value.get("serverIdentity"), str) or not re.fullmatch(r"[0-9a-f]{64}", value["serverIdentity"]):
+            raise _auth_validation_error()
+    elif action == "cancel":
+        if value.get("status") not in {"cancelled", "not_found"}:
+            raise _auth_validation_error()
+    elif value.get("status") != "logged_out":
+        raise _auth_validation_error()
+    return dict(value)
 
 
 def parse_verification_request(message: Mapping[str, Any]) -> dict[str, Any]:

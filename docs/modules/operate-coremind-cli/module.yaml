@@ -31,6 +31,8 @@ testPaths:
   - "packages/coremind-cli/src/commands/run.test.ts"
   - "packages/coremind-cli/src/tui.test.tsx"
   - "packages/coremind-runtime/src/run-terminalizer.test.ts"
+  - "packages/coremind-cli/src/mcp-auth-cli.test.tsx"
+  - "packages/coremind-cli/src/mcp-auth-cli.acceptance.test.tsx"
 supportedPlatforms:
   - "windows"
   - "linux"

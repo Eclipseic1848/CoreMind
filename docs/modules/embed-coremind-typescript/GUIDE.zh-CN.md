@@ -45,6 +45,40 @@ const followUp = await session.followUp('自然停止后汇总风险', {
 
 accepted 控制在冷恢复的 Agent 就绪后按原身份应用。applied 已提交但未确认消费时不自动重投，只补明确 discarded；持久提交与内存交付的崩溃窗口仍存在。暂停的原输入可按原门恢复，普通已 discarded 输入仍不可恢复；这不是绝对 exactly-once，也不替代普通 Session 与压缩记录的完整请求重建。
 
+## 显式 MCP 认证（1.1 开发线）
+
+对配置了 `mcp.servers.remote.oauth` 的服务，由宿主持有认证会话：
+
+```typescript
+import { CoreMindRuntime, createMcpAuthentication } from 'coremind-ai';
+
+const authentication = await createMcpAuthentication({ config });
+try {
+  await authentication.login('remote', {
+    signal: controller.signal,
+    onAuthorization: (request, signal) => {
+      signal.throwIfAborted();
+      showTemporaryAuthorizationLink(request.authorizationUrl);
+    },
+  });
+  const runtime = await CoreMindRuntime.create({
+    config,
+    configDir: process.cwd(),
+    initialPrompt: '读取已授权资源',
+    mcpAuthentication: authentication,
+  });
+  const result = await runtime.run();
+  console.log(result.outcome.status);
+  await authentication.logout('remote');
+} finally {
+  await authentication.close();
+}
+```
+
+示例中的 `config` 是已加载的配置，`controller` 和 `showTemporaryAuthorizationLink` 由宿主提供；UI 自行展示链接，不自动打开浏览器、不持久记录。缺 handler 的 login 在任何认证 I/O 前返回 typed `mcp_auth_required`。普通 Run 没有认证会话时也明确暂停；它不会隐式登录。Run 不拥有会话关闭权，可在同一宿主跨 Run 复用，Child Run 不接受认证引用。
+
+默认内存模式重启需重登。安全持久化由显式 `tokenStore` 和稳定隔离的 `namespace` 提供，接口只有 `load/save/delete`，接缝含凭据，不可序列化到 Worker、事件或日志。存储需原子保存并响应取消，错误关闭本地授权，不回退旧 Token。logout 删除记录并撤销本地使用；close 清理本地事务但保留显式存储。远端撤销、跨 origin 认证、动态注册不在当前支持范围；真实外部服务互通未验证，配置边界见[配置指南](../../guide/02-configuration.md)。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

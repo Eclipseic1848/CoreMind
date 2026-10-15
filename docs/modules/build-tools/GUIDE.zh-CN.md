@@ -42,6 +42,12 @@ HTTP 连接、目录、资源读取走原网络权限。`network: allow` 已构�
 
 按 [module.yaml](module.yaml) 中的 HTTP fetch/transport/client、Runtime、CLI 和 Python 测试逐项验收允许、拒绝、取消与未知效果，并保留原 stdio 回归。这里是执行合同和验收步骤，不代表全部测试或真实外部服务互通已经通过。
 
+## MCP 认证所有权（1.1 开发线）
+
+HTTP 服务的可选 `oauth` 与 Authorization Header 互斥。认证由显式宿主 session 拥有，工具只借用私有绑定，不把 Token 交给模型或协议。复用同一完整 serverIdentity 的刷新仍按调用独立取消，最后等待者取消才中止共享刷新；注销先撤销使用权，迟到结果不能发布。HTTP 401 不重发业务 POST。秘密过滤跟随当前与在飞旧 Token，覆盖 Header、分块、解析结果、拼接和 Artifact。
+
+默认内存、显式安全 TokenStore、网络准入、服务支持限制及真实外部服务未验证范围，见[配置指南](../../guide/02-configuration.md)。TypeScript、CLI、Python 的入口调用同一 Node 引擎；不能在工具实现中隐式弹浏览器或新建认证会话。按 module.yaml 新增认证测试覆盖完整授权与反例，不把本地夹具当作外部认证。
+
 ## 编码工具边界
 
 ```ts

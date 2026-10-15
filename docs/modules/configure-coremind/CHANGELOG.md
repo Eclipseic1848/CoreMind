@@ -14,6 +14,8 @@
 
 ## Unreleased
 
+- Added pre-registered public-client HTTP OAuth configuration, explicit scope limits, independent issuer address authorization, and Authorization Header exclusion without credential files.
+
 - Added explicit host verification with durable decisions and existing bounded Loop repair; distinguished it from agent passIf configuration in guides, SOPs, and the Skill. Not part of published 0.7.1.
 
 ## 0.7.1 - 2026-09-03

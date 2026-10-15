@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Client, Tool, Transport } from "@modelcontextprotocol/client";
 import type { ArtifactStore } from "./artifact-store.js";
+import type { McpAuthenticationBinding } from "./mcp-authentication.js";
 import { MCP_MAX_FRAME_BYTES, McpStdioError } from "./mcp-stdio-transport.js";
 
 /** 仅供同仓 Runtime 使用；快照保留原目录字段，不暴露 SDK 类型。 */
@@ -41,6 +42,7 @@ interface ManagedClientOptions<Summary> {
   signal?: AbortSignal;
   protocolVersion?: "legacy" | "2026-07-28";
   sensitiveValues?: readonly string[];
+  authentication?: McpAuthenticationBinding;
   artifactStore: ArtifactStore;
   allowedResourceUris?: readonly string[];
   isFatalTransportError?: (cause: unknown) => boolean;
@@ -60,6 +62,7 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
   private connected?: Promise<void>;
   private closed?: Promise<void>;
   private invalidated = false;
+  private fatalError?: McpStdioError;
   private ready = false;
   private tools?: readonly McpListedTool[];
 
@@ -117,6 +120,10 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
           this.client = client;
           client.onerror = (cause) => {
             if (this.options.mode === "stdio" || this.isFatal(cause)) {
+              this.fatalError ??=
+                cause instanceof McpStdioError
+                  ? cause
+                  : error("mcp_protocol_error", "工具协议连接失效");
               this.invalidated = true;
               void this.close().catch(() => {});
             }
@@ -324,7 +331,7 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
   close(): Promise<void> {
     if (!this.closed) {
       this.closed = this.options.transport.close();
-      this.owner.abort();
+      this.owner.abort(this.fatalError);
       this.options.signal?.removeEventListener("abort", this.ownerCancelled);
     }
     return this.closed;
@@ -336,10 +343,12 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
   }
 
   private assertSafe(value: unknown): number {
+    this.options.authentication?.assertActive();
     const visit = (item: unknown, depth: number): void => {
       if (depth > 64) throw error("mcp_output_limit", "本地工具数据嵌套超过上限");
       if (typeof item === "string" && this.secrets.some((secret) => item.includes(secret)))
         throw error("mcp_secret_blocked", "本地工具数据包含本次服务秘密，已阻断输出");
+      if (typeof item === "string") this.options.authentication?.assertSafe(item);
       if (Array.isArray(item)) for (const child of item) visit(child, depth + 1);
       else if (item !== null && typeof item === "object")
         for (const [key, child] of Object.entries(item)) {
@@ -408,6 +417,16 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
       (value): value is AbortSignal => value !== undefined,
     );
     const executionSignal = AbortSignal.any(signals);
+    const callerSignal = AbortSignal.any(
+      [signal, this.options.signal, deadline.signal].filter(
+        (value): value is AbortSignal => value !== undefined,
+      ),
+    );
+    let callerCancelledFirst = callerSignal.aborted;
+    const rememberCancellation = () => {
+      if (!this.fatalError) callerCancelledFirst = true;
+    };
+    callerSignal.addEventListener("abort", rememberCancellation, { once: true });
     const cancel = () => {
       void this.close().catch(() => {});
     };
@@ -416,19 +435,25 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
         throw error("mcp_connection_unavailable", "工具连接已关闭或调用已取消");
       if (this.options.mode === "stdio")
         executionSignal.addEventListener("abort", cancel, { once: true });
-      return await action(executionSignal);
+      this.options.authentication?.assertActive();
+      const result = await action(executionSignal);
+      this.options.authentication?.assertActive();
+      return result;
     } catch (cause) {
-      if (this.options.mode === "stdio" || this.isFatal(cause)) {
+      // 致命检查主动关闭连接产生的取消不能覆盖原错误；用户先取消时仍保留取消语义。
+      const failure = !callerCancelledFirst && this.fatalError ? this.fatalError : cause;
+      if (this.options.mode === "stdio" || this.isFatal(failure)) {
         this.invalidated = true;
         await this.close();
       }
-      if (cause instanceof McpStdioError) throw cause;
+      if (failure instanceof McpStdioError) throw failure;
       if (this.options.mode === "http" && executionSignal.aborted)
         throw error("mcp_request_cancelled", "工具请求已取消或超过本次期限；不自动重试");
       throw error("mcp_protocol_error", "工具协议调用失败；远端效果可能未知，不自动重试");
     } finally {
       if (timer !== undefined) clearTimeout(timer);
       executionSignal.removeEventListener("abort", cancel);
+      callerSignal.removeEventListener("abort", rememberCancellation);
     }
   }
 }

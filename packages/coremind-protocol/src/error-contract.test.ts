@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { ERROR_CODES, normalizeExternalErrorCode } from "./index.js";
 
 describe("Error Contract", () => {
+  it.each([
+    ["mcp_auth_required", "pausable", "human", "human", "paused"],
+    ["mcp_auth_failed", "terminal", "other", "fatal", "failed"],
+    ["mcp_auth_store_failed", "terminal", "other", "fatal", "failed"],
+  ])("%s 保留跨语言可处理的认证分类", (code, terminality, cancelClass, retryClass, runStatus) => {
+    expect((ERROR_CODES as Record<string, unknown>)[code!]).toMatchObject({
+      terminality,
+      cancelClass,
+      retryClass,
+      runStatus,
+    });
+  });
   it("每个登记码都有稳定名称和完整分类", () => {
     for (const [code, info] of Object.entries(ERROR_CODES)) {
       expect(code).toMatch(/^[a-z][a-z0-9_]*$/);

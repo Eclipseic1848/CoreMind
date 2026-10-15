@@ -71,6 +71,7 @@ import { createEngineeringKernelDefinition } from 'coremind-runtime';
 import { createEngineeringTaskPlan } from 'coremind-runtime';
 import { createErrorResponse } from 'coremind-protocol';
 import { createEventNotification } from 'coremind-protocol';
+import { createMcpAuthentication } from 'coremind-runtime';
 import { createProviderRequestReplayFact } from 'coremind-runtime';
 import { createPythonToolCallNotification } from 'coremind-protocol';
 import { createRunSnapshot } from 'coremind-runtime';
@@ -162,6 +163,14 @@ import { LoopActionConfig } from 'coremind-config';
 import { LoopConfig } from 'coremind-config';
 import { LoopPhase } from 'coremind-runtime';
 import { LoopVerificationConfig } from 'coremind-config';
+import { McpAuthentication } from 'coremind-runtime';
+import { McpAuthenticationOptions } from 'coremind-runtime';
+import { McpAuthenticationResult } from 'coremind-runtime';
+import { McpAuthorizationHandler } from 'coremind-runtime';
+import { McpAuthorizationRequest } from 'coremind-runtime';
+import { McpLoginOptions } from 'coremind-runtime';
+import { McpTokenRecord } from 'coremind-runtime';
+import { McpTokenStore } from 'coremind-runtime';
 import { MemoryRunStore } from 'coremind-runtime';
 import { negotiateProtocolV2 } from 'coremind-protocol';
 import { OperationEvent } from 'coremind-runtime';
@@ -461,6 +470,8 @@ export { createErrorResponse }
 
 export { createEventNotification }
 
+export { createMcpAuthentication }
+
 export { createProviderRequestReplayFact }
 
 export { createPythonToolCallNotification }
@@ -642,6 +653,22 @@ export { LoopConfig }
 export { LoopPhase }
 
 export { LoopVerificationConfig }
+
+export { McpAuthentication }
+
+export { McpAuthenticationOptions }
+
+export { McpAuthenticationResult }
+
+export { McpAuthorizationHandler }
+
+export { McpAuthorizationRequest }
+
+export { McpLoginOptions }
+
+export { McpTokenRecord }
+
+export { McpTokenStore }
 
 export { MemoryRunStore }
 
