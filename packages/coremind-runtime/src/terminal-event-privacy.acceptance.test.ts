@@ -12,8 +12,8 @@ import { FileRunStore } from "./run-state.js";
 import { CoreMindRuntime } from "./runtime.js";
 
 const privateMessage =
-  "Authorization: Bearer terminal-auth-canary\nCookie: id=terminal-cookie-canary\nhttps://example.invalid/?token=terminal-query-canary&ordinary=keep";
-const canaries = /terminal-(?:auth|cookie|query|audit|arg)-canary/;
+  "Authorization: Bearer terminal-auth-canary\nCookie: id=terminal-cookie-canary\nhttps://example.invalid/?token=terminal-query-canary&ordinary=keep\npassword=\x1b[31mterminal-color-canary\x1b[0m";
+const canaries = /terminal-(?:auth|cookie|query|audit|arg|color)-canary/;
 
 it("真实跨片段文本的 live 回调与原始 Facts 均不泄漏 Header 或 URL 凭据", async () => {
   await scenario(false, false, ({ result, events, records, requests }) => {
@@ -114,7 +114,9 @@ async function scenario(
             "rer terminal-auth-",
             "canary\nCookie: id=terminal-cookie-",
             "canary\nhttps://example.invalid/?token=terminal-",
-            "query-canary&ordinary=keep",
+            "query-canary&ordinary=keep\npass\x1b[31m",
+            "word\x1b[0m=\x1b[31mterminal-color-",
+            "canary\x1b[0m",
           ].map((content) => ({ role: "assistant", content }));
       for (const delta of deltas) {
         response.write(

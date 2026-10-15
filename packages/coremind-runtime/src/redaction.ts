@@ -1,11 +1,20 @@
+import { stripVTControlCharacters } from "node:util";
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: 移除不可打印控制字符，保留 tab、CR 与 LF 原文分隔。
+const nonPrintingControls = /[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]/gu;
+
+function normalize(value: string): string {
+  return stripVTControlCharacters(value).replace(nonPrintingControls, "");
+}
+
 export function isSecretKey(key: string): boolean {
   return /api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret/iu.test(
-    key,
+    normalize(key),
   );
 }
 
 export function redactSensitiveText(value: string): string {
-  return value
+  return normalize(value)
     .replace(
       /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/gu,
       "private-key-hidden",
@@ -27,8 +36,9 @@ export function redactSensitiveText(value: string): string {
 }
 
 export function redactUrl(value: string): string {
+  const normalized = normalize(value);
   try {
-    const url = new URL(value);
+    const url = new URL(normalized);
     let sensitive = Boolean(url.username || url.password);
     if (url.username) url.username = "hidden";
     if (url.password) url.password = "hidden";
@@ -38,8 +48,8 @@ export function redactUrl(value: string): string {
         url.searchParams.set(key, "hidden");
       }
     }
-    return sensitive ? url.toString() : value;
+    return sensitive ? url.toString() : normalized;
   } catch {
-    return value;
+    return normalized;
   }
 }

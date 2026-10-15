@@ -314,6 +314,18 @@ it("真实 PTY 逐 Call 核对耗时和真实 stored/blocked Artifact，下一 R
             file.endsWith(".log"),
           ),
         ).toEqual([path.basename(stored.relativePath)]);
+        // Facts 落盘早于会话收尾；产物查询须等待当前 Run 的真实界面就绪。
+        await terminal.waitFor(() => {
+          const output = terminal.compact().replace(/\s/gu, "");
+          const source = output.lastIndexOf(firstProjection.runId!);
+          const ready = output.lastIndexOf("输入就绪");
+          return (
+            source >= 0 &&
+            ready > source &&
+            ready > output.lastIndexOf("普通输入保留为草稿") &&
+            !output.slice(ready).startsWith("输入就绪，按Enter发送草稿")
+          );
+        }, "当前 Run 已落盘，但界面尚未完成收尾并就绪");
         const listing = terminal.outputOffset();
         terminal.send("/artifacts\r");
         assert(firstProjection.snapshot);

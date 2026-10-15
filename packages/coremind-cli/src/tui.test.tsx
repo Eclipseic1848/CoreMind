@@ -75,6 +75,82 @@ describe("Windows TUI 交互验收", () => {
     }
   });
 
+  it("忙碌时单次合并退出会中止运行，等待真实收尾后只退出一次", async () => {
+    const session = createSession();
+    let finish!: () => void;
+    vi.mocked(session.chat).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ text: "完成", events: [], run: createRun() });
+        }),
+    );
+    const onExit = vi.fn();
+    const app = render(
+      <ChatTUI
+        title="忙碌退出"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={onExit}
+      />,
+    );
+    try {
+      app.stdin.write("开始运行\r");
+      await settle();
+      expect(session.chat).toHaveBeenCalledExactlyOnceWith("开始运行");
+      app.stdin.write("/exit\r");
+      await settle();
+      expect(session.abort).toHaveBeenCalledOnce();
+      expect(onExit).not.toHaveBeenCalled();
+      finish();
+      await settle();
+      expect(onExit).toHaveBeenCalledOnce();
+      expect(session.chat).toHaveBeenCalledTimes(1);
+    } finally {
+      finish?.();
+      await settle();
+      app.unmount();
+    }
+  });
+
+  it("审批期间退出拒绝当前工具，收尾前重复输入不会再次退出或发起运行", async () => {
+    const session = createSession();
+    const approvals = new ApprovalQueue(true);
+    let finish!: () => void;
+    vi.mocked(session.chat).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ text: "已取消", events: [], run: createRun() });
+        }),
+    );
+    const onExit = vi.fn();
+    const app = render(
+      <ChatTUI title="审批退出" session={session} approvals={approvals} onExit={onExit} />,
+    );
+    try {
+      app.stdin.write("开始运行\r");
+      await settle();
+      const decision = approvals.request(controlApproval());
+      await settle();
+      app.stdin.write("/exit\r");
+      await expect(decision).resolves.toBe("deny");
+      expect(session.abort).toHaveBeenCalledOnce();
+      expect(onExit).not.toHaveBeenCalled();
+      app.stdin.write("/exit\r");
+      app.stdin.write("新任务\r");
+      await settle();
+      expect(session.chat).toHaveBeenCalledTimes(1);
+      finish();
+      await settle();
+      expect(onExit).toHaveBeenCalledOnce();
+      expect(session.abort).toHaveBeenCalledOnce();
+    } finally {
+      approvals.close();
+      finish?.();
+      await settle();
+      app.unmount();
+    }
+  });
+
   it("bracketed 多行粘贴保留完整草稿，只由后续独立 Enter 发送", async () => {
     const session = createSession();
     vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });

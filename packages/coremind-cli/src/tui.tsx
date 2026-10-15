@@ -73,6 +73,8 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
   const approvalCommand = editing.approvalCommand?.text;
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const running = useRef<Promise<void> | undefined>(undefined);
+  const exiting = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>();
   const [lastRun, setLastRun] = useState<RunResult>();
@@ -98,6 +100,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
   }, []);
 
   const dispatchInput = (action: TerminalInputAction) => {
+    if (exiting.current) return;
     const current = { approvalId: approvals.current?.request.approvalId };
     const next = reduceTerminalInput(editingRef.current, action, current);
     editingRef.current = next.state;
@@ -112,10 +115,11 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
         const control =
           /^\/(?:steer|follow-up)(?:\s|$)/u.test(command) ||
           command === "/abort" ||
+          command === "/exit" ||
           /^\/mcp\s+logout\s+\S+$/u.test(command);
         if (effect.target === "approval-command" && !control) {
           appendCommandError(
-            new Error("审批期间使用 /steer 文本、/follow-up 文本或 /abort；Esc 返回审批"),
+            new Error("审批期间使用 /steer 文本、/follow-up 文本、/abort 或 /exit；Esc 返回审批"),
           );
           continue;
         }
@@ -133,7 +137,8 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
         );
         editingRef.current = submitted.state;
         setEditing(submitted.state);
-        void handleSubmit(effect.text);
+        const operation = handleSubmit(effect.text);
+        if (busyRef.current && !control && command !== "/children") running.current = operation;
       }
     }
   };
@@ -163,6 +168,18 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
   const handleSubmit = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (trimmed === "/exit") {
+      exiting.current = true;
+      login.current?.controller.abort();
+      setAuthorization(undefined);
+      if (busyRef.current) session.abort();
+      while (approvals.current) approvals.resolve("deny");
+      await login.current?.operation;
+      // 运行错误由原提交处理；视图退出前仍须等待该次运行完成收尾。
+      await running.current?.catch(() => {});
+      onExit();
+      return;
+    }
     if (/^\/mcp(?:\s|$)/u.test(trimmed)) {
       if (trimmed === "/mcp cancel") {
         login.current?.controller.abort();
@@ -229,13 +246,6 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
       login.current = { controller, operation };
       return;
     }
-    if (trimmed === "/exit" && login.current) {
-      login.current.controller.abort();
-      setAuthorization(undefined);
-      await login.current.operation;
-      onExit();
-      return;
-    }
     if (login.current) {
       appendAuthenticationNotice("登录等待中；使用 /mcp cancel 取消，或 /exit 退出");
       return;
@@ -280,10 +290,6 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
       return;
     }
     if (busyRef.current) return;
-    if (trimmed === "/exit") {
-      onExit();
-      return;
-    }
     if (trimmed === "/help") {
       setShowHelp((v) => !v);
       return;
@@ -370,6 +376,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
         `运行失败：${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
+      running.current = undefined;
       setView((previous) =>
         foldTerminalView(previous, { type: "end", epoch: runEpoch, ...(runId ? { runId } : {}) }),
       );

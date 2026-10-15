@@ -204786,8 +204786,8 @@ var init_ajvProvider_97rDpkRx = __esm({
         }
         return count2;
       }
-      function getFullPath(resolver, id = "", normalize3) {
-        if (normalize3 !== false) id = normalizeId(id);
+      function getFullPath(resolver, id = "", normalize4) {
+        if (normalize4 !== false) id = normalizeId(id);
         return _getFullPath(resolver, resolver.parse(id));
       }
       exports.getFullPath = getFullPath;
@@ -205882,7 +205882,7 @@ var init_ajvProvider_97rDpkRx = __esm({
     require_fast_uri = /* @__PURE__ */ __commonJSMin(((exports, module) => {
       const { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizeComponentEncoding, isIPv4, nonSimpleDomain } = require_utils2();
       const { SCHEMES, getSchemeHandler } = require_schemes();
-      function normalize3(uri, options) {
+      function normalize4(uri, options) {
         if (typeof uri === "string") uri = serialize2(parse3(uri, options), options);
         else if (typeof uri === "object") uri = parse3(serialize2(uri, options), options);
         return uri;
@@ -206060,7 +206060,7 @@ var init_ajvProvider_97rDpkRx = __esm({
       }
       const fastUri = {
         SCHEMES,
-        normalize: normalize3,
+        normalize: normalize4,
         resolve: resolve9,
         resolveComponent,
         equal: equal2,
@@ -220275,8 +220275,8 @@ var require_resolve2 = __commonJS({
       }
       return count2;
     }
-    function getFullPath(resolver, id = "", normalize3) {
-      if (normalize3 !== false)
+    function getFullPath(resolver, id = "", normalize4) {
+      if (normalize4 !== false)
         id = normalizeId(id);
       const p = resolver.parse(id);
       return _getFullPath(resolver, p);
@@ -221871,7 +221871,7 @@ var require_fast_uri2 = __commonJS({
       }
       return decodedScheme;
     }
-    function normalize3(uri, options) {
+    function normalize4(uri, options) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
         normalizeString(uri, options);
@@ -222249,7 +222249,7 @@ var require_fast_uri2 = __commonJS({
     }
     var fastUri = {
       SCHEMES,
-      normalize: normalize3,
+      normalize: normalize4,
       resolve: resolve9,
       resolveComponent,
       equal: equal2,
@@ -234143,15 +234143,21 @@ function parseAndValidate(data) {
 }
 
 // packages/coremind-runtime/dist/redaction.js
+import { stripVTControlCharacters } from "node:util";
+var nonPrintingControls = /[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]/gu;
+function normalize(value) {
+  return stripVTControlCharacters(value).replace(nonPrintingControls, "");
+}
 function isSecretKey(key) {
-  return /api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret/iu.test(key);
+  return /api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret/iu.test(normalize(key));
 }
 function redactSensitiveText(value) {
-  return value.replace(/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/gu, "private-key-hidden").replace(/https?:\/\/[^\s"']+/giu, (url2) => redactUrl(url2)).replace(/(\b(?:Cookie|Set-Cookie|Authorization|Proxy-Authorization)[ \t]*:)[ \t]*[^ \t\r\n][^\r\n]*/giu, "$1 hidden").replace(/((?:["']?(?:api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret)["']?\s*[:=]\s*|--?(?:api[_-]?key|token|secret|password|authorization)\s+))(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s"',;{}[\]]+)/giu, "$1hidden").replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden").replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16})\b/gu, "credential-hidden");
+  return normalize(value).replace(/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/gu, "private-key-hidden").replace(/https?:\/\/[^\s"']+/giu, (url2) => redactUrl(url2)).replace(/(\b(?:Cookie|Set-Cookie|Authorization|Proxy-Authorization)[ \t]*:)[ \t]*[^ \t\r\n][^\r\n]*/giu, "$1 hidden").replace(/((?:["']?(?:api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret)["']?\s*[:=]\s*|--?(?:api[_-]?key|token|secret|password|authorization)\s+))(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s"',;{}[\]]+)/giu, "$1hidden").replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden").replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16})\b/gu, "credential-hidden");
 }
 function redactUrl(value) {
+  const normalized = normalize(value);
   try {
-    const url2 = new URL(value);
+    const url2 = new URL(normalized);
     let sensitive = Boolean(url2.username || url2.password);
     if (url2.username)
       url2.username = "hidden";
@@ -234163,9 +234169,9 @@ function redactUrl(value) {
         url2.searchParams.set(key, "hidden");
       }
     }
-    return sensitive ? url2.toString() : value;
+    return sensitive ? url2.toString() : normalized;
   } catch {
-    return value;
+    return normalized;
   }
 }
 
@@ -235138,14 +235144,14 @@ import { inspect } from "node:util";
 
 // node_modules/execa/lib/arguments/escape.js
 import { platform } from "node:process";
-import { stripVTControlCharacters } from "node:util";
+import { stripVTControlCharacters as stripVTControlCharacters2 } from "node:util";
 var joinCommand = (filePath, rawArguments) => {
   const fileAndArguments = [filePath, ...rawArguments];
   const command = fileAndArguments.join(" ");
   const escapedCommand = fileAndArguments.map((fileAndArgument) => quoteString(escapeControlCharacters(fileAndArgument))).join(" ");
   return { command, escapedCommand };
 };
-var escapeLines = (lines) => stripVTControlCharacters(lines).split("\n").map((line) => escapeControlCharacters(line)).join("\n");
+var escapeLines = (lines) => stripVTControlCharacters2(lines).split("\n").map((line) => escapeControlCharacters(line)).join("\n");
 var escapeControlCharacters = (line) => line.replaceAll(SPECIAL_CHAR_REGEXP, (character) => escapeControlCharacter2(character));
 var escapeControlCharacter2 = (character) => {
   const commonEscape = COMMON_ESCAPES[character];
@@ -263874,7 +263880,7 @@ var ToolDiscoveryExecution = class {
         throw changed();
       return previous.result;
     }
-    const query = normalize2(args.query.trim());
+    const query = normalize3(args.query.trim());
     const terms = tokenize5(query);
     const declared = new Set(this.selection?.names ?? []);
     const ranked = this.catalog.entries.filter((entry) => entry.exposure === "deferred" && !declared.has(entry.name) && !this.withdrawn.has(entry.sourceIdentity)).map((entry) => ({ entry, score: score(entry, query, terms) })).filter((match3) => match3.score > 0).sort((left, right) => right.score - left.score || compare2(left.entry.name, right.entry.name));
@@ -264150,7 +264156,7 @@ function render(matches2, truncated) {
   const details = { matches: matches2, truncated };
   return { content: [{ type: "text", text: JSON.stringify(details) }], details };
 }
-function normalize2(value) {
+function normalize3(value) {
   return value.normalize("NFKC").toLowerCase();
 }
 function tokenize5(value) {
@@ -264169,8 +264175,8 @@ function tokenize5(value) {
   return [...terms];
 }
 function score(entry, query, terms) {
-  const name = normalize2(entry.name);
-  const description = normalize2(entry.description);
+  const name = normalize3(entry.name);
+  const description = normalize3(entry.description);
   return (name === query ? 1e6 : 0) + (name.startsWith(query) ? 1e5 : 0) + (name.includes(query) ? 1e4 : 0) + terms.reduce((total, term) => total + (name.includes(term) ? 100 : 0) + (description.includes(term) ? 1 : 0), 0) + (description.includes(query) ? 10 : 0);
 }
 function compare2(left, right) {

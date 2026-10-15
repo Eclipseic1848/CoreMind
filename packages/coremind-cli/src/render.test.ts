@@ -1,5 +1,6 @@
 import { Writable } from "node:stream";
 import { describe, expect, it } from "vitest";
+import { CoreMindError } from "../../coremind-runtime/src/errors.js";
 import { renderChatEvent } from "./commands/chat.js";
 import {
   errorLine,
@@ -20,6 +21,16 @@ describe("Loop 终端渲染", () => {
 });
 
 describe("终端安全格式器", () => {
+  it("已注册的彩色凭据异常经过共享脱敏后，终端再次展示仍无秘密", () => {
+    const error = new CoreMindError(
+      "agent_failed",
+      "password=\x1b[31mterminal-typed-color-canary\x1b[0m",
+    );
+    expect(error.code).toBe("agent_failed");
+    expect(error.message).toBe("password=hidden");
+    expect(terminalText(error.message)).toBe("password=hidden");
+    expect(errorLine(error.message)).not.toContain("terminal-typed-color-canary");
+  });
   it.each(["api_\x1b[31mkey", "pass\x1b[0mword", "to\x01ken"])(
     "移除控制码后形成的凭据标签仍完整脱敏：%j",
     (label) => {
