@@ -102,6 +102,8 @@ describe("CoreMind Protocol v2", () => {
       "toolRegistrationReceipt",
       "toolResultReceipt",
       "verificationRequestNotification",
+      "mcpAuthRequestNotification",
+      "mcpAuthResult",
       "errorResponse",
     ]);
     expect(PROTOCOL_V2_SCHEMA_FINGERPRINT).toMatch(/^sha256:[0-9a-f]{64}$/);

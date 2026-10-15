@@ -71,6 +71,27 @@
       "humanAction": "required",
       "runStatus": "failed"
     },
+    "mcp_auth_required": {
+      "terminality": "pausable",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "runStatus": "paused",
+      "humanAction": "required"
+    },
+    "mcp_auth_failed": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "mcp_auth_store_failed": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
     "loop_paused": {
       "terminality": "pausable",
       "cancelClass": "human",

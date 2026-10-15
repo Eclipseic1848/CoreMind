@@ -47,6 +47,30 @@ page = client.events(run_id, after_sequence=0)
 
 冷恢复可继续 accepted 控制；applied 但未确认消费者不自动重投，只明确 discarded，不能宣称消除了提交与内存交付的崩溃窗口。暂停原输入仍可恢复，普通原输入已 discarded 时仍不能恢复；控制收据不代替普通 Session 正文或完整对话重建。默认 v1 客户端与工具桥保持原合同。真实随包路径回归见 [test_runtime_controls.py](../../../python/tests/test_runtime_controls.py)。
 
+## MCP 显式登录（1.1 开发线）
+
+交互认证需要新 Worker 协商 `mcpAuthentication`，显式选择 v2 并提供专用 handler：
+
+```python
+from coremind import CoreMindClient
+
+def show_authorization(request):
+    show_temporary_link(request['authorizationUrl'])
+
+with CoreMindClient(config, protocol_version='2.0',
+                    mcp_auth_handler=show_authorization) as client:
+    client.mcp_login('remote', transaction_id='login-1')
+    handle = client.run('读取已授权资源')
+    # 按 handle 的 runId 补读 events/query，直到真实终态。
+    client.mcp_logout('remote')
+```
+
+`config` 和临时链接 UI 由宿主提供；先等待 Run 终态再 logout。reader 线程只校验并投递有界队列，sync handler 在发起登录的线程执行，可通过另一线程的 `mcp_cancel_auth('login-1')` 取消并等待 Node 收尾。handler 抛错同样取消原事务。handler 应有界返回，不应无限阻塞。
+
+`AsyncCoreMindClient` 使用同样参数；对 `mcp_login/mcp_logout/mcp_cancel_auth` 使用 await。async handler 在原事件循环执行，取消登录 Task 会取消该 handler，向 Node 发送原事务 cancel 并等待收尾，不仅停止 Python 等待。不要复用活动事务 ID，取消必须属于自己的登录。
+
+默认 v1 或缺少 handler 时，在认证请求前明确返回 `protocol_capability_missing` 或 `mcp_auth_required`。新 SDK 遇到旧 v2 Worker 仍执行精确 schema 指纹检查；不能降级伪报交互成功。授权请求仅进入专用 handler，不进入 `received_events`；Token、callback code 与 verifier 留在 Node。Python 不接收 TokenStore，不默认写明文文件。同一客户端跨 Run 复用内存凭据，关闭后需重登；远端撤销不在本地 logout 合同内。真实外部服务互通未验证，完整边界见[配置指南](../../guide/02-configuration.md)。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

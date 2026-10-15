@@ -42,6 +42,12 @@ Limits are 8 MiB per body, 64 MiB per owner, 32 pages/256 directory entries, and
 
 Follow the HTTP fetch/transport/client, Runtime, CLI, and Python tests in [module.yaml](module.yaml) for allowed, denied, cancelled, and unknown-effect cases while preserving stdio regressions. These are execution and acceptance instructions, not a claim that all tests or real external service interoperability have passed.
 
+## MCP authentication ownership (1.1 development line)
+
+HTTP `oauth` is mutually exclusive with an Authorization Header. An explicit host session owns authentication; tools borrow a private binding without exposing tokens to models or protocol messages. Refresh is shared by complete serverIdentity with independently cancellable calls; only the last departing waiter aborts it. Logout revokes local use before late results can publish. HTTP 401 never resends a business POST. Secret checks follow current and in-flight old tokens through headers, chunks, parsed/joined results, and Artifacts.
+
+See the [configuration guide](../../en/guide/02-configuration.md) for memory mode, explicit secure TokenStore, network authorization, supported services, and unverified external interoperability. TypeScript, CLI, and Python use one Node engine; tools must not open a browser or implicitly create sessions. Registered authentication tests cover full local authorization and rejection; fixtures are not external provider certification.
+
 ## Coding-tool boundaries
 
 ```ts

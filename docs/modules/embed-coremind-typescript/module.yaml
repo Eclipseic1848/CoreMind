@@ -16,6 +16,7 @@ sourcePaths:
   - "packages/coremind-runtime/src/input-receipt.ts"
   - "packages/coremind-runtime/src/turn-tracker.ts"
   - "packages/coremind-runtime/src/runtime.ts"
+  - "packages/coremind-runtime/src/mcp-authentication.ts"
 documents:
   readme:
     zh-CN: docs/modules/embed-coremind-typescript/README.zh-CN.md
@@ -42,6 +43,7 @@ testPaths:
   - "packages/coremind-runtime/src/input-receipt.test.ts"
   - "packages/coremind-runtime/src/turn-tracker.test.ts"
   - "packages/coremind-runtime/src/control-runtime.acceptance.test.ts"
+  - "packages/coremind-runtime/src/mcp-auth-runtime.acceptance.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

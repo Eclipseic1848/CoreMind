@@ -376,6 +376,48 @@ export const ProtocolV2ToolResultRequestSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const McpAuthNameSchema = Type.String({
+  minLength: 1,
+  maxLength: 256,
+  pattern: "^[^\\s\\u0000-\\u001f\\u007f]+$",
+});
+export const ProtocolV2McpAuthRequestSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    id: RpcIdSchema,
+    method: Type.Literal("mcp_auth"),
+    params: Type.Union([
+      Type.Object(
+        {
+          schemaVersion: Type.Literal(1),
+          action: Type.Literal("login"),
+          transactionId: McpAuthNameSchema,
+          server: McpAuthNameSchema,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          schemaVersion: Type.Literal(1),
+          action: Type.Literal("cancel"),
+          transactionId: McpAuthNameSchema,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          schemaVersion: Type.Literal(1),
+          action: Type.Literal("logout"),
+          server: McpAuthNameSchema,
+        },
+        { additionalProperties: false },
+      ),
+    ]),
+  },
+  { additionalProperties: false },
+);
+
 export const ProtocolV2RequestSchema = Type.Union([
   ProtocolV2InitializeRequestSchema,
   ProtocolV2RunRequestSchema,
@@ -387,11 +429,85 @@ export const ProtocolV2RequestSchema = Type.Union([
   ProtocolV2CheckpointRequestSchema,
   ProtocolV2ToolRegisterRequestSchema,
   ProtocolV2ToolResultRequestSchema,
+  ProtocolV2McpAuthRequestSchema,
 ]);
 
 const ProtocolV2TimestampSchema = Type.String({
   pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$",
 });
+
+const McpAuthUrlSchema = Type.String({
+  minLength: 1,
+  maxLength: 16384,
+  pattern: "^https?://[^\\s\\u0000-\\u001f\\u007f#@\\\\]+$",
+});
+const McpAuthIdentitySchema = Type.String({ pattern: "^[0-9a-f]{64}$" });
+export const ProtocolV2McpAuthRequestNotificationSchema = Type.Object(
+  {
+    jsonrpc: Type.Literal("2.0"),
+    protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+    method: Type.Literal("mcp_auth_request"),
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        transactionId: McpAuthNameSchema,
+        server: McpAuthNameSchema,
+        serverIdentity: McpAuthIdentitySchema,
+        authorizationUrl: McpAuthUrlSchema,
+        expiresAt: ProtocolV2TimestampSchema,
+        issuer: McpAuthUrlSchema,
+        clientId: Type.String({
+          minLength: 1,
+          maxLength: 1024,
+          pattern: "^[^\\s\\u0000-\\u001f\\u007f]+$",
+        }),
+        resource: McpAuthUrlSchema,
+        scopes: Type.Array(
+          Type.String({
+            minLength: 1,
+            maxLength: 256,
+            pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$",
+          }),
+          { uniqueItems: true, maxItems: 32 },
+        ),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const ProtocolV2McpAuthResultSchema = Type.Union([
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("login"),
+      transactionId: McpAuthNameSchema,
+      server: McpAuthNameSchema,
+      serverIdentity: McpAuthIdentitySchema,
+      status: Type.Literal("authorized"),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("cancel"),
+      transactionId: McpAuthNameSchema,
+      status: Type.Union([Type.Literal("cancelled"), Type.Literal("not_found")]),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("logout"),
+      server: McpAuthNameSchema,
+      status: Type.Literal("logged_out"),
+    },
+    { additionalProperties: false },
+  ),
+]);
 
 export const ProtocolV2InitializeResultSchema = Type.Object(
   {
@@ -1403,6 +1519,8 @@ export const PROTOCOL_V2_SCHEMA_BUNDLE = {
   toolRegistrationReceipt: ProtocolV2ToolRegistrationReceiptSchema,
   toolResultReceipt: ProtocolV2ToolResultReceiptSchema,
   verificationRequestNotification: ProtocolV2VerificationRequestNotificationSchema,
+  mcpAuthRequestNotification: ProtocolV2McpAuthRequestNotificationSchema,
+  mcpAuthResult: ProtocolV2McpAuthResultSchema,
   errorResponse: ProtocolV2ErrorResponseSchema,
 } as const;
 
@@ -1411,6 +1529,51 @@ export const PROTOCOL_V2_SCHEMA_FINGERPRINT = `sha256:${createHash("sha256")
   .digest("hex")}` as const;
 
 export type ProtocolV2InitializeRequest = Static<typeof ProtocolV2InitializeRequestSchema>;
+export type ProtocolV2McpAuthRequest = Static<typeof ProtocolV2McpAuthRequestSchema>;
+export type ProtocolV2McpAuthRequestNotification = Static<
+  typeof ProtocolV2McpAuthRequestNotificationSchema
+>;
+export type ProtocolV2McpAuthResult = Static<typeof ProtocolV2McpAuthResultSchema>;
+
+/** 专用临时通知在发送前闭合校验，绝不进入 Run 事实。 */
+export function parseProtocolV2McpAuthRequestNotification(
+  value: unknown,
+): ProtocolV2McpAuthRequestNotification {
+  if (!Value.Check(ProtocolV2McpAuthRequestNotificationSchema, value))
+    throw new ProtocolV2ValidationError("认证专用通知格式非法");
+  const request = value as ProtocolV2McpAuthRequestNotification;
+  for (const raw of [
+    request.params.authorizationUrl,
+    request.params.issuer,
+    request.params.resource,
+  ]) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new ProtocolV2ValidationError("认证导航目标非法");
+    }
+    if (!url.hostname || url.username || url.password || url.hash)
+      throw new ProtocolV2ValidationError("认证导航目标非法");
+    if (
+      [...url.searchParams.keys()].some((key) =>
+        /^(?:code|access_token|refresh_token|id_token|token|code_verifier|client_secret)$/iu.test(
+          key,
+        ),
+      )
+    )
+      throw new ProtocolV2ValidationError("认证专用通知不能携带凭据");
+  }
+  if (!Number.isFinite(Date.parse(request.params.expiresAt)))
+    throw new ProtocolV2ValidationError("认证截止时间非法");
+  return request;
+}
+
+export function parseProtocolV2McpAuthResult(value: unknown): ProtocolV2McpAuthResult {
+  if (!Value.Check(ProtocolV2McpAuthResultSchema, value))
+    throw new ProtocolV2ValidationError("认证结果格式非法");
+  return value as ProtocolV2McpAuthResult;
+}
 export type ProtocolV2RunRequest = Static<typeof ProtocolV2RunRequestSchema>;
 export type ProtocolV2ChatRequest = Static<typeof ProtocolV2ChatRequestSchema>;
 export type ProtocolV2ResumeRequest = Static<typeof ProtocolV2ResumeRequestSchema>;

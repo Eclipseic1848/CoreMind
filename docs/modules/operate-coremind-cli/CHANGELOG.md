@@ -2,6 +2,8 @@
 
 ## Unreleased — 1.1 development
 
+- Added explicit TTY MCP login before run and single-owner chat login/cancel/logout, including cancellation and local revocation during tool approval; machine-output modes reject interaction.
+
 - Documented `/steer` and `/follow-up` in TUI/readline, including approval command mode and unchanged permission boundaries.
 - Clarified one retained busy draft, explicit idle confirmation, unsaved later submissions, and late receipts that preserve newer drafts.
 - Linked native input lifecycle and real terminal regression evidence without treating applied receipts as consumption or business completion.

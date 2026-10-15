@@ -10,6 +10,7 @@ import {
   type ExecutionEnvironmentActivity,
   resolveExecutionEnvironment,
 } from "./execution-environment.js";
+import type { McpAuthenticationBinding } from "./mcp-authentication.js";
 import { McpStdioError } from "./mcp-stdio-transport.js";
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
@@ -44,6 +45,7 @@ export interface McpHttpTransportOptions {
   readonly runEnvironment: ExecutionEnvironment;
   readonly signal?: AbortSignal;
   readonly sensitiveValues?: readonly string[];
+  readonly authentication?: McpAuthenticationBinding;
 }
 
 export interface McpHttpDomainSummary {
@@ -191,6 +193,7 @@ export class McpHttpFetchOwner {
     const signal = AbortSignal.any([
       this.controller.signal,
       requestController.signal,
+      ...(this.options.authentication ? [this.options.authentication.signal] : []),
       ...(this.options.signal ? [this.options.signal] : []),
       ...(init.signal ? [init.signal] : []),
     ]);
@@ -255,6 +258,13 @@ export class McpHttpFetchOwner {
       if (resolved.capabilities.networkEgress !== "unrestricted") throw policy();
       this.checkOpen();
       if (signal.aborted) throw cancelled();
+      if (this.options.authentication) {
+        if (headers.has("authorization")) throw policy();
+        const token = await this.options.authentication.authorize(signal);
+        this.checkOpen();
+        if (signal.aborted) throw cancelled();
+        headers.set("authorization", `Bearer ${token}`);
+      }
       this.environmentSummary = Object.freeze({
         isolation: "trusted_host",
         processControl: "none",
@@ -297,7 +307,9 @@ export class McpHttpFetchOwner {
         await response.body?.cancel();
         throw new McpStdioError(
           response.status === 401 || response.status === 403
-            ? "mcp_http_auth_required"
+            ? this.options.authentication
+              ? "mcp_auth_required"
+              : "mcp_http_auth_required"
             : "mcp_http_status_error",
           response.status === 401 || response.status === 403
             ? "远程服务拒绝当前凭证"
@@ -321,7 +333,12 @@ export class McpHttpFetchOwner {
       let previousCr = false;
       let tail = "";
       const decoder = new TextDecoder("utf-8", { fatal: true });
-      const overlap = Math.max(0, ...this.secrets.map((value) => value.length - 1));
+      const overlap = Math.max(
+        0,
+        ...this.secrets.map((value) => value.length - 1),
+        // 在飞响应也须认识之后轮换的新令牌，保留有界的最大重叠长度。
+        (this.options.authentication?.maxSecretLength ?? 1) - 1,
+      );
       const sse =
         response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() ===
         "text/event-stream";
@@ -442,12 +459,14 @@ export class McpHttpFetchOwner {
   };
 
   private checkOpen(): void {
+    this.options.authentication?.assertActive();
     if (this.fatal) throw this.fatal;
     if (this.closing || this.controller.signal.aborted || this.options.signal?.aborted)
       throw cancelled();
   }
 
   private assertSafe(text: string): void {
+    this.options.authentication?.assertSafe(text);
     if (this.secrets.some((secret) => text.includes(secret)))
       throw new McpStdioError("mcp_secret_blocked", "远程响应包含受保护凭证");
   }

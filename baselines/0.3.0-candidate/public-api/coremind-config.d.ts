@@ -230,6 +230,12 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
+oauth: TOptional<TObject<    {
+issuer: TString;
+clientId: TString;
+scopes: TArray<TString>;
+allowedAddresses: TOptional<TArray<TString>>;
+}>>;
 allowedAddresses: TOptional<TArray<TString>>;
 protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
 }>]>>;
@@ -587,6 +593,12 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
+oauth: TOptional<TObject<    {
+issuer: TString;
+clientId: TString;
+scopes: TArray<TString>;
+allowedAddresses: TOptional<TArray<TString>>;
+}>>;
 allowedAddresses: TOptional<TArray<TString>>;
 protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
 }>]>>;
@@ -603,8 +615,24 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
+oauth: TOptional<TObject<    {
+issuer: TString;
+clientId: TString;
+scopes: TArray<TString>;
+allowedAddresses: TOptional<TArray<TString>>;
+}>>;
 allowedAddresses: TOptional<TArray<TString>>;
 protocolVersion: TOptional<TUnion<[TLiteral<"legacy">, TLiteral<"2026-07-28">]>>;
+}>;
+
+export declare type McpOAuthConfig = Static<typeof McpOAuthConfigSchema>;
+
+/** 预注册公开客户端；凭据只由宿主认证会话持有，不进入配置。 */
+export declare const McpOAuthConfigSchema: TObject<    {
+issuer: TString;
+clientId: TString;
+scopes: TArray<TString>;
+allowedAddresses: TOptional<TArray<TString>>;
 }>;
 
 export declare type McpStdioServerConfig = Static<typeof McpStdioServerConfigSchema>;

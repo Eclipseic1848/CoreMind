@@ -6,7 +6,9 @@ import {
   type CoreMindConfig,
   type CoreMindEvent,
   CoreMindRuntime,
+  createMcpAuthentication,
   loadConfigFile,
+  type McpAuthentication,
   parseAndValidate,
 } from "coremind-ai";
 import {
@@ -25,7 +27,7 @@ import {
   toolResultLine,
   yellow,
 } from "../render.js";
-import { runChatTUI } from "../tui.js";
+import { formatMcpAuthenticationError, type McpChatAuthentication, runChatTUI } from "../tui.js";
 
 function printChatHelp(): void {
   console.log(dim("命令："));
@@ -34,6 +36,9 @@ function printChatHelp(): void {
   console.log(dim("  /abort           中止当前回答（可继续提问）"));
   console.log(dim("  /steer 文本      向当前运行追加指令"));
   console.log(dim("  /follow-up 文本  当前任务自然结束后继续输入"));
+  console.log(dim("  /mcp login 服务  登录已配置的 MCP 服务（仅当前进程保存）"));
+  console.log(dim("  /mcp cancel      取消当前登录"));
+  console.log(dim("  /mcp logout 服务 清除当前进程的服务凭据"));
   console.log(dim("忙时普通输入仅保留为草稿，空闲后按 Enter 确认发送。"));
 }
 
@@ -84,47 +89,60 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     return 1;
   }
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
-  const runtime = await CoreMindRuntime.create({
-    config,
-    configDir,
-    cwd: process.cwd(),
-    sessionId,
-    approveTool: (request) => approvals.request(request),
-    // 非对话事件（配置告警等）由 runtime 回调处理；对话事件走 ChatSession
-    events: (event) => {
-      if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
-    },
-  });
-
-  const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
-  let session: ChatSession;
+  let authentication: McpAuthentication | undefined;
   try {
-    session = new ChatSession(runtime, agentName ?? "");
-  } catch (error) {
-    console.error(errorLine(error instanceof Error ? error.message : String(error)));
-    return 1;
-  }
-  if (runtime.resumedContextLength > 0) {
-    console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
-  }
+    if (
+      Object.values(config.mcp?.servers ?? {}).some(
+        (server) => server.transport === "streamable-http" && server.oauth,
+      )
+    )
+      authentication = await createMcpAuthentication({ config });
+    const mcp = authentication ? { authentication, config } : undefined;
+    const runtime = await CoreMindRuntime.create({
+      config,
+      configDir,
+      cwd: process.cwd(),
+      sessionId,
+      ...(authentication ? { mcpAuthentication: authentication } : {}),
+      approveTool: (request) => approvals.request(request),
+      // 非对话事件（配置告警等）由 runtime 回调处理；对话事件走 ChatSession
+      events: (event) => {
+        if (event.type === "error" && !event.fatal) console.warn(yellow(`⚠ ${event.message}`));
+      },
+    });
 
-  const quiet = flagBool(parsed, "quiet");
-  // 交互终端（TTY）默认全屏 TUI；非 TTY（管道/脚本）或 --no-tui 回退 readline
-  if (process.stdin.isTTY === true && !flagBool(parsed, "no-tui")) {
-    await runChatTUI(session, config.name, approvals);
-  } else {
-    if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
-    const unsubscribe = session.onEvent(renderChatEvent);
+    const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
+    let session: ChatSession;
     try {
-      await runReadlineChat(session, approvals);
-    } finally {
-      unsubscribe();
+      session = new ChatSession(runtime, agentName ?? "");
+    } catch (error) {
+      console.error(errorLine(error instanceof Error ? error.message : String(error)));
+      return 1;
     }
+    if (runtime.resumedContextLength > 0) {
+      console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+    }
+
+    const quiet = flagBool(parsed, "quiet");
+    // 交互终端（TTY）默认全屏 TUI；非 TTY（管道/脚本）或 --no-tui 回退 readline
+    if (process.stdin.isTTY === true && !flagBool(parsed, "no-tui")) {
+      await runChatTUI(session, config.name, approvals, mcp);
+    } else {
+      if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
+      const unsubscribe = session.onEvent(renderChatEvent);
+      try {
+        await runReadlineChat(session, approvals, undefined, mcp);
+      } finally {
+        unsubscribe();
+      }
+    }
+    const sessionFile = await session.persist();
+    if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
+    return 0;
+  } finally {
+    approvals.close();
+    await authentication?.close();
   }
-  const sessionFile = await session.persist();
-  if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
-  approvals.close();
-  return 0;
 }
 
 /** readline 模式（非交互终端回退）：单行输入 + 流式输出 + 工具行 */
@@ -132,6 +150,7 @@ export async function runReadlineChat(
   session: ChatSession,
   approvals: ApprovalQueue,
   streams: { input: NodeJS.ReadableStream; output: NodeJS.WritableStream } = { input, output },
+  mcp?: McpChatAuthentication,
 ): Promise<void> {
   const rl = createInterface(streams);
   let answerApproval: ((answer: string) => void) | undefined;
@@ -140,6 +159,17 @@ export async function runReadlineChat(
   let draftPrefilled = false;
   const terminal = "isTTY" in streams.input && streams.input.isTTY === true;
   const controls = new Set<Promise<void>>();
+  let login: { controller: AbortController; operation: Promise<void> } | undefined;
+  const cancelLogin = () => login?.controller.abort();
+  const onSigint = () => {
+    cancelLogin();
+    session.abort();
+    rl.close();
+  };
+  if (mcp) {
+    process.on("SIGINT", onSigint);
+    rl.on("SIGINT", onSigint);
+  }
   const unbindApprovals = bindReadlineApprovals(approvals, {
     question: (prompt) => {
       streams.output.write(prompt);
@@ -155,6 +185,73 @@ export async function runReadlineChat(
       const editedDraft = draftPrefilled;
       draftPrefilled = false;
       if (text === "/exit" || text === "!exit") break;
+      if (/^\/mcp(?:\s|$)/u.test(text)) {
+        const command = /^\/mcp\s+(login|logout)\s+(\S+)$/u.exec(text);
+        if (text === "/mcp cancel") {
+          cancelLogin();
+          streams.output.write("已请求取消登录\n");
+          continue;
+        }
+        if (!command) {
+          streams.output.write("用法：/mcp login 服务、/mcp cancel、/mcp logout 服务\n");
+          continue;
+        }
+        const serverName = command[2]!;
+        const server = mcp?.config.mcp?.servers[serverName];
+        if (!mcp || server?.transport !== "streamable-http" || !server.oauth) {
+          streams.output.write("指定服务没有配置 OAuth 登录\n");
+          continue;
+        }
+        if (command[1] === "logout") {
+          cancelLogin();
+          const operation = mcp.authentication.logout(serverName).then(
+            () => {
+              streams.output.write("已清除当前进程的服务凭据\n");
+            },
+            (error: unknown) => {
+              streams.output.write(`${formatMcpAuthenticationError(error)}\n`);
+            },
+          );
+          controls.add(operation);
+          void operation.finally(() => controls.delete(operation));
+          continue;
+        }
+        if (!terminal) {
+          streams.output.write("交互登录需要 TTY\n");
+          continue;
+        }
+        if (login || activeChat || answerApproval) {
+          streams.output.write("请等待当前运行、审批或登录结束后再登录\n");
+          continue;
+        }
+        streams.output.write(
+          `登录 ${serverName}：${server.url}；授权方 ${server.oauth.issuer}；范围 ${server.oauth.scopes.join("、")}（仅当前进程保存）\n`,
+        );
+        const controller = new AbortController();
+        const operation = mcp.authentication
+          .login(serverName, {
+            signal: controller.signal,
+            onAuthorization: (request, signal) => {
+              signal.throwIfAborted();
+              streams.output.write(
+                `请手动打开授权链接；/mcp cancel 取消：\n${request.authorizationUrl}\n`,
+              );
+            },
+          })
+          .then(
+            () => {
+              streams.output.write("登录成功，可继续提问\n");
+            },
+            (error: unknown) => {
+              streams.output.write(`${formatMcpAuthenticationError(error)}\n`);
+            },
+          )
+          .finally(() => {
+            if (login?.controller === controller) login = undefined;
+          });
+        login = { controller, operation };
+        continue;
+      }
       if (text === "/abort" || text === "!abort") {
         session.abort();
         while (approvals.current) approvals.resolve("deny");
@@ -198,6 +295,10 @@ export async function runReadlineChat(
         const answer = answerApproval;
         answerApproval = undefined;
         answer(text);
+        continue;
+      }
+      if (login) {
+        streams.output.write("登录等待中；使用 /mcp cancel 取消，或 /exit 退出\n");
         continue;
       }
       if (activeChat) {
@@ -244,9 +345,13 @@ export async function runReadlineChat(
         });
     }
   } finally {
+    process.off("SIGINT", onSigint);
+    rl.off("SIGINT", onSigint);
+    cancelLogin();
     unbindApprovals();
     answerApproval?.("n");
     approvals.close();
+    await login?.operation;
     await activeChat;
     await Promise.allSettled(controls);
     rl.close();

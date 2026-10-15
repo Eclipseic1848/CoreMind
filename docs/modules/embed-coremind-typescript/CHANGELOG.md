@@ -2,6 +2,8 @@
 
 ## Unreleased — 1.1 development
 
+- Added the public host-owned MCP authentication session, temporary authorization handler, optional secure TokenStore, and Runtime borrowing without Child inheritance.
+
 - Added active-Run ChatSession steering/follow-up guidance, stable retry identities, and separate control versus input receipts.
 - Documented commit-before-delivery, explicit discard, cold recovery, and unchanged permission, Session, and original-input boundaries.
 - Registered the control binding, native Driver, input identity, and real Runtime regression paths.

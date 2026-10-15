@@ -8,8 +8,9 @@ import {
   type ToolConfig,
   type ToolEffectDeclaration,
 } from "coremind-config";
-import type { ArtifactStore, ToolCapabilityDeclaration } from "coremind-tools";
+import type { ArtifactStore, McpAuthentication, ToolCapabilityDeclaration } from "coremind-tools";
 import {
+  bindMcpAuthentication,
   createMcpHttpClient,
   createMcpStdioClient,
   type ExecutionEnvironment,
@@ -47,6 +48,7 @@ export interface McpRunOptions {
   cwd: string;
   env: NodeJS.ProcessEnv;
   secretResolver?: SecretResolver;
+  mcpAuthentication?: McpAuthentication;
   environment: ExecutionEnvironment;
   signal?: AbortSignal;
   artifactStore: ArtifactStore;
@@ -189,10 +191,21 @@ export function createMcpRun(options: McpRunOptions) {
                   artifactStore: options.artifactStore,
                 });
               } else if (server.transport === "streamable-http" && "url" in target) {
+                if (server.oauth && !options.mcpAuthentication)
+                  throw new CoreMindError("mcp_auth_required", "需要宿主显式发起 MCP 授权");
+                const authentication = server.oauth
+                  ? bindMcpAuthentication(
+                      options.mcpAuthentication!,
+                      serverName,
+                      identity.sha256,
+                      options.environment,
+                    )
+                  : undefined;
                 const { headers, sensitiveValues } = await resolveHeaders(server, options);
                 assertOpen(signal);
                 client = createMcpHttpClient({
                   url: server.url,
+                  authentication,
                   headers,
                   allowedAddresses: server.allowedAddresses,
                   allowedResourceUris: resourceUris,
@@ -413,7 +426,7 @@ export function createMcpRun(options: McpRunOptions) {
   };
 }
 
-async function identifyServer(serverName: string, server: McpServerConfig) {
+export async function identifyServer(serverName: string, server: McpServerConfig) {
   if (server.transport === "streamable-http") {
     let url: URL;
     try {
@@ -441,6 +454,16 @@ async function identifyServer(serverName: string, server: McpServerConfig) {
       ),
       allowedAddresses: [...(server.allowedAddresses ?? [])].sort(),
       protocolVersion: server.protocolVersion ?? "legacy",
+      ...(server.oauth
+        ? {
+            oauth: {
+              issuer: server.oauth.issuer,
+              clientId: server.oauth.clientId,
+              scopes: [...server.oauth.scopes].sort(),
+              allowedAddresses: [...(server.oauth.allowedAddresses ?? [])].sort(),
+            },
+          }
+        : {}),
     };
     return { target, sha256: fingerprintEffectReceiptValue(target) };
   }

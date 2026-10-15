@@ -24,12 +24,33 @@ export const McpStdioServerConfigSchema = Type.Object(
   { additionalProperties: false },
 );
 
+/** 预注册公开客户端；凭据只由宿主认证会话持有，不进入配置。 */
+export const McpOAuthConfigSchema = Type.Object(
+  {
+    issuer: Type.String({ minLength: 1, maxLength: 2048 }),
+    clientId: Type.String({
+      minLength: 1,
+      maxLength: 1024,
+      pattern: "^[^\\u0000-\\u0020\\u007f]+$",
+    }),
+    scopes: Type.Array(
+      Type.String({ minLength: 1, maxLength: 256, pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$" }),
+      { uniqueItems: true, maxItems: 32 },
+    ),
+    allowedAddresses: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
 /** 固定 HTTP 目标；地址与 Header 的语义边界由无 I/O 校验和实际出站共同检查。 */
 export const McpHttpServerConfigSchema = Type.Object(
   {
     transport: Type.Literal("streamable-http"),
     url: Type.String({ minLength: 1 }),
     headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
+    oauth: Type.Optional(McpOAuthConfigSchema),
     allowedAddresses: Type.Optional(
       Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }),
     ),
@@ -54,3 +75,4 @@ export const McpConfigSchema = Type.Object(
 export type McpConfig = Static<typeof McpConfigSchema>;
 export type McpStdioServerConfig = Static<typeof McpStdioServerConfigSchema>;
 export type McpHttpServerConfig = Static<typeof McpHttpServerConfigSchema>;
+export type McpOAuthConfig = Static<typeof McpOAuthConfigSchema>;

@@ -115,6 +115,14 @@ v2 客户端只能用 `tool_register` 提交 JSON Schema、Effect 与 Tool Capab
 
 Python SDK 只实现上述协议客户端，不读取私有 Run 数据库，也不复制工具执行状态机。随包清单固定 Protocol v2 Schema 指纹；初始化时指纹、Node Runtime 身份或 v1 迁移窗口不匹配即失败关闭。
 
+### 7.3 MCP 宿主认证（1.1 开发线）
+
+只有 v2 双方能力交集包含 `mcpAuthentication` 时，客户端才发送 `mcp_auth`。封闭请求 `schemaVersion: 1` 支持 login（server、transactionId）、cancel（transactionId）、logout（server）。login 最终仅返回 authorized 与安全身份；失败通过统一 typed error。cancel 等待指定原事务收尾，不是新 Run，也不批准业务工具。重复活动 transactionId 明确拒绝，不能覆盖或取消另一所有者。
+
+Node 用专用 `mcp_auth_request` 临时通知发送 server、serverIdentity、transactionId、authorizationUrl、expiresAt、issuer、clientId、resource、scopes；标准 URL 中可有 state 和 S256 challenge，但禁止 token、refresh token、callback code、verifier、client secret。通知不写 RunEvent、Facts、Projection 或 Python `received_events`。Node 自有 loopback callback 接收授权码，客户端不能提交授权码绕过 state/issuer/PKCE 检查。
+
+ProtocolHost 持有跨 Run 的认证会话，Run 只借用；shutdown/EOF 取消并关闭其事务与监听。Python reader 只校验并排队，sync handler 在请求线程、async handler 在原 loop 执行，Task 取消须发送 Node cancel 并 join。缺 handler、默认 v1、缺能力或旧 v2 指纹不匹配均明确失败；不放宽既有精确指纹门，也不默认创建明文 Token 文件。真实外部服务互通未验证。
+
 ## 8. v1 兼容 Adapter
 
 - 整个 `0.4.x` 提供 v1 入口；内部立即映射到同一 RunKernel/ProjectionEngine。

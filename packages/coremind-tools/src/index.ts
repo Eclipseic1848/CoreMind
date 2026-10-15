@@ -60,6 +60,15 @@ export {
   isSensitiveEnvironmentName,
   type LinuxSandboxedBashOptions,
 } from "./linux-sandbox.js";
+export type {
+  McpAuthentication,
+  McpAuthenticationResult,
+  McpAuthorizationHandler,
+  McpAuthorizationRequest,
+  McpLoginOptions,
+  McpTokenRecord,
+  McpTokenStore,
+} from "./mcp-authentication-types.js";
 export {
   ProcessRunner,
   ProcessRunnerError,

@@ -13,9 +13,10 @@ const workerManifestOutput = path.join(workerDirectory, "manifest.json");
 const errorContractOutput = path.join(pythonPackage, "_error_contract.json");
 
 await mkdir(workerDirectory, { recursive: true });
-await build({
+const workerBuild = await build({
   entryPoints: [path.join(repositoryRoot, "packages", "coremind-worker", "src", "stdio.ts")],
   outfile: workerOutput,
+  write: false,
   bundle: true,
   platform: "node",
   format: "esm",
@@ -34,7 +35,7 @@ execFileSync(
 await copyMcpLicenseAssets();
 
 // 第三方内联文本可能保留空白行缩进；发布前统一清理，保证 Git 格式门禁可重复通过。
-const workerBundle = await readFile(workerOutput, "utf8");
+const workerBundle = workerBuild.outputFiles[0].text;
 const normalizedBundle = workerBundle.replace(/[ \t]+$/gm, "");
 await writeFile(workerOutput, normalizedBundle, "utf8");
 const pythonProject = await readFile(path.join(repositoryRoot, "python", "pyproject.toml"), "utf8");

@@ -10,11 +10,13 @@ import {
   CoreMindRuntime,
   type CoreMindRuntimeOptions,
   type CoreMindToolDefinition,
+  createMcpAuthentication,
   defineTool,
   FileRunStore,
   fingerprintRunConfig,
   inspectCheckpoint,
   loadConfigFile,
+  type McpAuthentication,
   type ProtocolStartIdentity,
   parseAndValidate,
   type RunControlCommand,
@@ -51,6 +53,9 @@ import {
   type ProtocolV2ControlRequest,
   type ProtocolV2EventsRequest,
   type ProtocolV2InitializeRequest,
+  type ProtocolV2McpAuthRequest,
+  type ProtocolV2McpAuthRequestNotification,
+  type ProtocolV2McpAuthResult,
   ProtocolV2NegotiationError,
   type ProtocolV2QueryRequest,
   type ProtocolV2Request,
@@ -64,6 +69,8 @@ import {
   type ProtocolV2VerificationRequestNotification,
   ProtocolValidationError,
   parseProtocolRequest,
+  parseProtocolV2McpAuthRequestNotification,
+  parseProtocolV2McpAuthResult,
   parseProtocolV2Request,
   parseRunSnapshot,
 } from "coremind-protocol";
@@ -78,6 +85,7 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "checkpointOperations",
   "dynamicTools",
   "hostVerification",
+  "mcpAuthentication",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -95,6 +103,7 @@ export type WorkerMessage =
   | ProtocolV2ToolCallNotification
   | ProtocolV2ToolCancelNotification
   | ProtocolV2VerificationRequestNotification
+  | ProtocolV2McpAuthRequestNotification
   | ReturnType<typeof createEventNotification>
   | ReturnType<typeof createPythonToolCallNotification>;
 
@@ -215,6 +224,19 @@ export class ProtocolHost {
   private activeExecutionCompletion?: Promise<void>;
   private resolveActiveExecution?: () => void;
   private lastExecutionQuiescent = true;
+  private mcpAuthentication?: McpAuthentication;
+  private mcpAuthenticationNegotiated = false;
+  private readonly mcpAuthTransactions = new Map<
+    string,
+    {
+      server: string;
+      controller: AbortController;
+      pending: boolean;
+      notified: boolean;
+      promise: Promise<ProtocolV2McpAuthResult>;
+    }
+  >();
+  private readonly cancelledMcpAuthTransactions = new Set<string>();
 
   constructor(private readonly options: WorkerServerOptions) {
     this.runtimeFactory = options.runtimeFactory ?? CoreMindRuntime.create;
@@ -331,6 +353,8 @@ export class ProtocolHost {
           await this.resolveProtocolV2ToolCall(request.params),
         );
       }
+      if (request.method === "mcp_auth")
+        return createSuccessResponse(request.id, await this.handleMcpAuthentication(request));
       return createErrorResponse(
         request.id,
         -32_601,
@@ -340,6 +364,110 @@ export class ProtocolHost {
     } catch (error) {
       return protocolError(request.id, error);
     }
+  }
+
+  private async handleMcpAuthentication(
+    request: ProtocolV2McpAuthRequest,
+  ): Promise<ProtocolV2McpAuthResult> {
+    this.requireInitialized();
+    if (!this.mcpAuthenticationNegotiated)
+      throw new CoreMindError("protocol_capability_missing", "未协商 MCP 认证能力");
+    const params = request.params;
+    if (params.action === "cancel") {
+      const transaction = this.mcpAuthTransactions.get(params.transactionId);
+      const wasPending = transaction?.pending === true;
+      if (transaction?.pending) {
+        transaction.controller.abort();
+        await Promise.allSettled([transaction.promise]);
+      } else if (!transaction) {
+        if (this.cancelledMcpAuthTransactions.size >= 256)
+          throw new CoreMindError("mcp_auth_failed", "认证事务数量超过上限");
+        this.cancelledMcpAuthTransactions.add(params.transactionId);
+      }
+      return parseProtocolV2McpAuthResult({
+        schemaVersion: 1,
+        action: "cancel",
+        transactionId: params.transactionId,
+        status: wasPending ? "cancelled" : "not_found",
+      });
+    }
+    if (!this.mcpAuthentication)
+      throw new CoreMindError("mcp_auth_required", "当前配置没有可交互认证的 MCP 服务");
+    if (params.action === "logout") {
+      for (const transaction of this.mcpAuthTransactions.values())
+        if (transaction.server === params.server && transaction.pending)
+          transaction.controller.abort();
+      await this.mcpAuthentication.logout(params.server);
+      await Promise.allSettled(
+        [...this.mcpAuthTransactions.values()]
+          .filter((transaction) => transaction.server === params.server && transaction.pending)
+          .map((transaction) => transaction.promise),
+      );
+      return parseProtocolV2McpAuthResult({
+        schemaVersion: 1,
+        action: "logout",
+        server: params.server,
+        status: "logged_out",
+      });
+    }
+    if (this.cancelledMcpAuthTransactions.has(params.transactionId))
+      throw new CoreMindError("aborted", "认证事务在开始前已取消");
+    const existing = this.mcpAuthTransactions.get(params.transactionId);
+    if (existing) {
+      if (existing.server !== params.server)
+        throw new CoreMindError("mcp_auth_failed", "认证事务不能改绑服务");
+      return existing.promise;
+    }
+    if (this.mcpAuthTransactions.size >= 256)
+      throw new CoreMindError("mcp_auth_failed", "认证事务数量超过上限");
+    const transaction = {
+      server: params.server,
+      controller: new AbortController(),
+      pending: true,
+      notified: false,
+      promise: undefined as unknown as Promise<ProtocolV2McpAuthResult>,
+    };
+    this.mcpAuthTransactions.set(params.transactionId, transaction);
+    transaction.promise = Promise.resolve()
+      .then(async () => {
+        if (this.closed || transaction.controller.signal.aborted)
+          throw new CoreMindError("aborted", "认证事务已取消");
+        const result = await this.mcpAuthentication!.login(params.server, {
+          transactionId: params.transactionId,
+          signal: transaction.controller.signal,
+          onAuthorization: (authorization, signal) => {
+            if (
+              this.closed ||
+              signal.aborted ||
+              transaction.notified ||
+              authorization.transactionId !== params.transactionId ||
+              authorization.server !== params.server
+            )
+              throw new CoreMindError("mcp_auth_failed", "认证通知身份冲突");
+            transaction.notified = true;
+            const message = parseProtocolV2McpAuthRequestNotification({
+              jsonrpc: "2.0",
+              protocolVersion: "2.0",
+              method: "mcp_auth_request",
+              params: { schemaVersion: 1, ...authorization },
+            });
+            // 交互出口发送失败必须立即中止，不能吞错后继续等待用户。
+            try {
+              this.options.send(message);
+            } catch {
+              transaction.controller.abort();
+              throw new CoreMindError("aborted", "认证交互出口已关闭");
+            }
+          },
+        });
+        if (this.closed || transaction.controller.signal.aborted)
+          throw new CoreMindError("aborted", "认证事务已取消");
+        return parseProtocolV2McpAuthResult({ schemaVersion: 1, action: "login", ...result });
+      })
+      .finally(() => {
+        transaction.pending = false;
+      });
+    return transaction.promise;
   }
 
   private async withProtocolV2RunTransition<T>(
@@ -838,11 +966,15 @@ export class ProtocolHost {
         warnings: string[];
       };
       this.selectedProtocol = selectedProtocol;
+      this.mcpAuthenticationNegotiated =
+        request.params.capabilities?.includes("mcpAuthentication") === true;
       return createSuccessResponse(request.id, {
         selectedProtocol,
         runtime: "node",
         warnings: initialized.warnings,
-        serverCapabilities: [...PROTOCOL_V2_SERVER_CAPABILITIES],
+        serverCapabilities: PROTOCOL_V2_SERVER_CAPABILITIES.filter(
+          (capability) => capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated,
+        ),
         schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
         migration: {
           v1Supported: true,
@@ -927,6 +1059,18 @@ export class ProtocolHost {
       process.env,
       this.options.secretResolver,
     );
+    if (
+      Object.values(config.mcp?.servers ?? {}).some(
+        (server) => server.transport === "streamable-http" && server.oauth,
+      )
+    ) {
+      const authentication = await createMcpAuthentication({ config });
+      if (this.closed) {
+        await authentication.close();
+        throw new CoreMindError("worker_closed", "worker 已关闭");
+      }
+      this.mcpAuthentication = authentication;
+    }
     this.initialized = {
       config,
       configDir,
@@ -1083,6 +1227,7 @@ export class ProtocolHost {
         configDir: state.configDir,
         cwd: state.cwd,
         secretResolver: this.options.secretResolver,
+        ...(this.mcpAuthentication ? { mcpAuthentication: this.mcpAuthentication } : {}),
         sessionId: persistentChat ? (state.sessionId ?? "python-default") : state.sessionId,
         initialPrompt: input,
         signal: this.activeController.signal,
@@ -1589,6 +1734,13 @@ export class ProtocolHost {
   /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
   async shutdown(timeoutMs = 5_000): Promise<{ closed: true; quiescent: boolean }> {
     this.closed = true;
+    for (const transaction of this.mcpAuthTransactions.values()) transaction.controller.abort();
+    const authenticationClosed = Promise.resolve()
+      .then(() => this.mcpAuthentication?.close())
+      .then(
+        () => true,
+        () => false,
+      );
     this.activeController?.abort();
     for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
     for (const [callId, pending] of this.pendingToolCalls) {
@@ -1601,11 +1753,19 @@ export class ProtocolHost {
     const active = Promise.all([...this.protocolV2RunTransitions.values()]).then(async () => {
       this.activeController?.abort();
       await this.activeExecutionCompletion;
+      await Promise.allSettled(
+        [...this.mcpAuthTransactions.values()].map((transaction) => transaction.promise),
+      );
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const quiescent = await Promise.race([
-        active.then(() => this.lastExecutionQuiescent && this.unsettledPythonCalls.size === 0),
+        active.then(
+          async () =>
+            (await authenticationClosed) &&
+            this.lastExecutionQuiescent &&
+            this.unsettledPythonCalls.size === 0,
+        ),
         new Promise<false>((resolve) => {
           timer = setTimeout(() => resolve(false), timeoutMs);
         }),

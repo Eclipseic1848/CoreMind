@@ -308,10 +308,11 @@ const MCP_RESERVED_HEADERS = new Set([
 ]);
 
 /** 这里只检查静态语法与固定目标，不解析 DNS、Header 引用或建立连接。 */
-function validateMcpHttpServer(
-  server: McpHttpServerConfig,
+function validateMcpHttpTarget(
+  server: Pick<McpHttpServerConfig, "url" | "allowedAddresses">,
   prefix: string,
   details: string[],
+  urlField = "url",
 ): void {
   const addresses = new Set<string>();
   for (const [index, address] of (server.allowedAddresses ?? []).entries()) {
@@ -327,7 +328,7 @@ function validateMcpHttpServer(
   try {
     url = new URL(server.url);
   } catch {
-    details.push(`${prefix}.url：必须是固定 HTTP(S) URL`);
+    details.push(`${prefix}.${urlField}：必须是固定 HTTP(S) URL`);
   }
   if (url) {
     const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
@@ -344,7 +345,9 @@ function validateMcpHttpServer(
       server.url.includes("?") ||
       server.url.includes("#")
     ) {
-      details.push(`${prefix}.url：仅允许无凭据、query、fragment 或控制字符的固定 HTTP(S) URL`);
+      details.push(
+        `${prefix}.${urlField}：仅允许无凭据、query、fragment 或控制字符的固定 HTTP(S) URL`,
+      );
     }
     if (url.protocol === "http:") {
       // 使用原始主机部分拒绝整数、缩写等会被 URL 自动改写的隐式 loopback。
@@ -357,9 +360,29 @@ function validateMcpHttpServer(
         (address !== "::1" && !address.startsWith("127.")) ||
         !addresses.has(address)
       ) {
-        details.push(`${prefix}.url：HTTP 仅支持显式 allowedAddresses 中的 loopback IP 字面目标`);
+        details.push(
+          `${prefix}.${urlField}：HTTP 仅支持显式 allowedAddresses 中的 loopback IP 字面目标`,
+        );
       }
     }
+  }
+}
+
+function validateMcpHttpServer(
+  server: McpHttpServerConfig,
+  prefix: string,
+  details: string[],
+): void {
+  validateMcpHttpTarget(server, prefix, details);
+  if (server.oauth) {
+    validateMcpHttpTarget(
+      { url: server.oauth.issuer, allowedAddresses: server.oauth.allowedAddresses },
+      `${prefix}.oauth`,
+      details,
+      "issuer",
+    );
+    if (Object.keys(server.headers ?? {}).some((name) => name.toLowerCase() === "authorization"))
+      details.push(`${prefix}.oauth：不能同时配置 OAuth 与 Authorization Header`);
   }
   const headerNames = new Set<string>();
   for (const [name, value] of Object.entries(server.headers ?? {})) {

@@ -1,6 +1,6 @@
 """CoreMind Python SDK 公共入口。"""
 
-from .client import AsyncCoreMindClient, CoreMindClient, parse_verification_request
+from .client import AsyncCoreMindClient, CoreMindClient, McpAuthHandler, parse_mcp_auth_request, parse_verification_request
 from .errors import (
     ERROR_CODES,
     CoreMindError,
@@ -20,6 +20,8 @@ __all__ = [
     "WorkerNotFoundError",
     "error_code_info",
     "parse_verification_request",
+    "parse_mcp_auth_request",
+    "McpAuthHandler",
 ]
 
 __version__ = "1.0.1"  # x-release-please-version

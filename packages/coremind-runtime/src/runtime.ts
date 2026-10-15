@@ -248,6 +248,8 @@ export interface CoreMindRuntimeOptions {
   toolEnv?: NodeJS.ProcessEnv;
   /** Provider Adapter 使用的后端无关秘密解析器。 */
   secretResolver?: SecretResolver;
+  /** 宿主显式拥有的 MCP 认证会话；Run 只借用，Child 不继承。 */
+  mcpAuthentication?: import("coremind-tools").McpAuthentication;
   /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
   initialPrompt?: string;
   /** 事件回调（CLI 渲染 / Web 面板共用） */
@@ -442,7 +444,8 @@ export class CoreMindRuntime {
     }
     if (
       options.childRunAuthority &&
-      (config.mcp !== undefined ||
+      (options.mcpAuthentication !== undefined ||
+        config.mcp !== undefined ||
         Object.values(config.agents).some((agent) => agent.mcpResources !== undefined) ||
         [
           config.tools ?? [],
@@ -2051,6 +2054,7 @@ export class CoreMindRuntime {
           cwd: this.options.cwd ?? process.cwd(),
           env: this.options.toolEnv ?? this.options.env ?? process.env,
           secretResolver: this.options.secretResolver,
+          mcpAuthentication: this.options.mcpAuthentication,
           environment: this.executionEnvironment,
           signal: this.options.signal,
           artifactStore: new ArtifactStore({ cwd: this.options.cwd ?? process.cwd() }),

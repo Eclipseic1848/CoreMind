@@ -27,6 +27,20 @@ In the project directory, copy `.env.example` to `.env` and fill in `DASHSCOPE_A
 8. With `coremind doctor coremind.yaml`, verify that credential checks follow that config's `provider.apiKeyEnv` and do not fail on unrelated Provider keys.
 9. In the TUI, run `/status`, `/artifacts`, and `/context`, then verify recovery, evaluation, artifact references, and context-compaction evidence.
 
+## Interactive MCP authentication (1.1 development line)
+
+After configuring HTTP `oauth`, login and run in the same process:
+
+```powershell
+coremind run coremind.yaml --mcp-login remote --prompt 'Read authorized resources'
+```
+
+The CLI displays the fixed service, issuer, and scopes, then a temporary link for the user to open manually. It never launches a browser. Ctrl+C while awaiting authorization cancels and exits naturally with 130; EOF also cancels. Interaction requires a TTY and rejects `--print` and `--json-events`.
+
+Ink and readline chat keep one input owner: `/mcp login remote`, `/mcp cancel`, and `/mcp logout remote` start, cancel, and revoke local use. Authentication commands never approve tools; cancellation and logout remain available during approval. One chat reuses credentials across Runs and cleans up transactions/listeners on exit. Default memory credentials disappear on restart; no standalone login command pretends to persist them.
+
+Authorization links are temporary interaction, never Run Facts. Do not publish interactive terminal recordings as business logs. External-service interoperability is unverified; see the [configuration boundary](../../en/guide/02-configuration.md).
+
 ## Automation contract
 
 This example uses PowerShell 7's UTF-8 redirection; machine consumers should preserve stdout JSONL and stderr diagnostics separately.

@@ -27,6 +27,20 @@ coremind check coremind.yaml
 8. 使用 `coremind doctor coremind.yaml` 时确认只检查该配置的 `provider.apiKeyEnv`，不会把无关 Provider 的密钥缺失当成失败。
 9. 在 TUI 中依次运行 `/status`、`/artifacts`、`/context`，核对恢复、评测、完整产物引用和上下文压缩证据。
 
+## MCP 交互认证（1.1 开发线）
+
+为 HTTP 服务配置 `oauth` 后，可在同一进程登录并执行：
+
+```powershell
+coremind run coremind.yaml --mcp-login remote --prompt '读取已授权资源'
+```
+
+CLI 先显示固定服务、授权方和 scope，再展示临时链接，由用户自行打开，不自动启动浏览器。Ctrl+C 在等待授权时取消并自然退出 130；EOF 同样取消。此模式需要 TTY，不能与 `--print`、`--json-events` 同用，避免混入机器输出或等待不存在的输入。
+
+chat 的 Ink 与 readline 共用原输入所有者：`/mcp login remote` 开始、`/mcp cancel` 取消待定登录、`/mcp logout remote` 撤销本地使用权。认证命令不批准工具，待审批期间仍可取消或撤权。登录跨同一次 chat 的多个 Run 复用，退出会清理事务和监听；默认内存凭据重启即失效。没有独立的、退出即丢凭据的登录子命令。
+
+认证链接只属于临时交互，不进入 Run Facts；不要将交互终端录制发布为业务日志。真实外部服务互通尚未验证；服务和存储限制见[配置指南](../../guide/02-configuration.md)。
+
 ## 自动化契约
 
 以下示例使用 PowerShell 7 的 UTF-8 重定向；机器消费时分别保存 stdout JSONL 与 stderr 诊断。

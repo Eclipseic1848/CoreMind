@@ -47,6 +47,30 @@ Retain controlId for retries: identical content returns duplicate, different con
 
 Cold recovery may apply accepted controls. Applied controls without confirmed consumption are explicitly discarded rather than automatically redelivered; the durable-commit/in-memory-delivery crash window remains. Paused original inputs remain resumable under existing gates; discarded ordinary inputs do not. Control receipts do not replace Session content or full conversation reconstruction. Default v1 clients and the tool bridge retain their existing contract. See the [bundled Worker regressions](../../../python/tests/test_runtime_controls.py).
 
+## Explicit MCP login (1.1 development line)
+
+Interaction requires a new Worker negotiating `mcpAuthentication`, explicit v2, and a dedicated handler:
+
+```python
+from coremind import CoreMindClient
+
+def show_authorization(request):
+    show_temporary_link(request['authorizationUrl'])
+
+with CoreMindClient(config, protocol_version='2.0',
+                    mcp_auth_handler=show_authorization) as client:
+    client.mcp_login('remote', transaction_id='login-1')
+    handle = client.run('Read authorized resources')
+    # 按 handle 的 runId 补读 events/query，直到真实终态。
+    client.mcp_logout('remote')
+```
+
+The host supplies `config` and the temporary link UI. Wait for the Run's actual terminal state before logout. The reader only validates and queues; sync handlers run on the login caller's thread. Another thread can call `mcp_cancel_auth('login-1')` and wait for Node cleanup. Handler errors also cancel that transaction. Handlers must return within a bounded time.
+
+Use the same constructor arguments with `AsyncCoreMindClient` and await the three authentication methods. Async handlers run on the original event loop. Cancelling the login Task cancels its handler, sends cancellation for the owned Node transaction, and joins cleanup instead of merely abandoning Python's wait. Never reuse an active transaction ID or cancel another login's transaction.
+
+Default v1 or a missing handler fails before authentication requests with `protocol_capability_missing` or `mcp_auth_required`. Old v2 Workers still fail the exact schema fingerprint check; interaction is never silently downgraded. Dedicated authorization notifications do not enter `received_events`. Tokens, callback codes, and verifiers remain in Node. Python has no TokenStore seam and creates no default plaintext files. Memory credentials span Runs in one client and disappear on close; local logout does not promise remote revocation. External-service interoperability remains unverified; see the [configuration boundary](../../en/guide/02-configuration.md).
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

@@ -1,5 +1,5 @@
 import { ArtifactRecord } from 'coremind-tools';
-import type { CoreMindConfig } from 'coremind-config';
+import { CoreMindConfig } from 'coremind-config';
 import { ERROR_CODES } from 'coremind-protocol';
 import { ErrorCancelClass } from 'coremind-protocol';
 import { ErrorCode } from 'coremind-protocol';
@@ -10,6 +10,13 @@ import { ErrorRunStatus } from 'coremind-protocol';
 import { ErrorTerminality } from 'coremind-protocol';
 import { isErrorCode } from 'coremind-protocol';
 import type { LoopConfig } from 'coremind-config';
+import { McpAuthentication } from 'coremind-tools';
+import { McpAuthenticationResult } from 'coremind-tools';
+import { McpAuthorizationHandler } from 'coremind-tools';
+import { McpAuthorizationRequest } from 'coremind-tools';
+import { McpLoginOptions } from 'coremind-tools';
+import { McpTokenRecord } from 'coremind-tools';
+import { McpTokenStore } from 'coremind-tools';
 import { NormalizedExternalErrorCode } from 'coremind-protocol';
 import { normalizeExternalErrorCode } from 'coremind-protocol';
 import { PermissionsConfig } from 'coremind-config';
@@ -1208,6 +1215,8 @@ export declare interface CoreMindRuntimeOptions {
     toolEnv?: NodeJS.ProcessEnv;
     /** Provider Adapter 使用的后端无关秘密解析器。 */
     secretResolver?: SecretResolver;
+    /** 宿主显式拥有的 MCP 认证会话；Run 只借用，Child 不继承。 */
+    mcpAuthentication?: McpAuthentication;
     /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
     initialPrompt?: string;
     /** 事件回调（CLI 渲染 / Web 面板共用） */
@@ -1325,6 +1334,9 @@ export declare function createInputReceipt(options: CreateInputReceiptOptions): 
 declare interface CreateInputReceiptOptions extends InputReceiptEventOptions {
     contentFingerprint: string;
 }
+
+/** 宿主显式拥有认证会话；创建不出站，单次 Run 不负责注销或关闭它。 */
+export declare function createMcpAuthentication(options: McpAuthenticationOptions): Promise<McpAuthentication>;
 
 /** 从实际 Working Set 输入生成可持久化、无正文的 Provider 请求证据。 */
 export declare function createProviderRequestReplayFact(fixture: ProviderRequestReplayFixture): ProviderRequestReplayFact;
@@ -2206,6 +2218,26 @@ export declare interface LoopTransition {
     to: LoopPhase;
     snapshot: LoopControllerSnapshot;
 }
+
+export { McpAuthentication }
+
+export declare interface McpAuthenticationOptions {
+    config: CoreMindConfig;
+    tokenStore?: McpTokenStore;
+    namespace?: string;
+}
+
+export { McpAuthenticationResult }
+
+export { McpAuthorizationHandler }
+
+export { McpAuthorizationRequest }
+
+export { McpLoginOptions }
+
+export { McpTokenRecord }
+
+export { McpTokenStore }
 
 export declare class MemoryRunStore implements RunStore {
     readonly supportedDurability: readonly ["ordinary"];

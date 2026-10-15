@@ -45,6 +45,40 @@ Accepted means durably received; applied means the applied fact committed before
 
 Accepted controls apply with their original identity after the recovered agent is ready. Applied controls without confirmed consumption are explicitly discarded, never automatically redelivered; the durable-commit/in-memory-delivery crash window remains. Paused original inputs retain their recovery gates; discarded ordinary inputs remain non-resumable. This is not absolute exactly-once delivery or a substitute for Session and compaction records in full request reconstruction.
 
+## Explicit MCP authentication (1.1 development line)
+
+For a service with `mcp.servers.remote.oauth`, the host owns the authentication session:
+
+```typescript
+import { CoreMindRuntime, createMcpAuthentication } from 'coremind-ai';
+
+const authentication = await createMcpAuthentication({ config });
+try {
+  await authentication.login('remote', {
+    signal: controller.signal,
+    onAuthorization: (request, signal) => {
+      signal.throwIfAborted();
+      showTemporaryAuthorizationLink(request.authorizationUrl);
+    },
+  });
+  const runtime = await CoreMindRuntime.create({
+    config,
+    configDir: process.cwd(),
+    initialPrompt: 'Read authorized resources',
+    mcpAuthentication: authentication,
+  });
+  const result = await runtime.run();
+  console.log(result.outcome.status);
+  await authentication.logout('remote');
+} finally {
+  await authentication.close();
+}
+```
+
+The host supplies loaded `config`, `controller`, and its temporary link UI. No browser is opened automatically; do not persist the URL. Missing handlers fail with typed `mcp_auth_required` before authentication I/O. A Run without a session pauses explicitly and never starts implicit login. Runs borrow the session, allowing reuse across Runs; Child Runs reject it.
+
+Default memory credentials require login after restart. Node hosts may supply `tokenStore` and a stable isolated `namespace`. Its `load/save/delete` records contain credentials and must never enter Worker JSON, events, or logs. Saves must be atomic and operations bounded/cancellable. Failures revoke local authorization without old-token fallback. Logout deletes the record; close clears local transactions while preserving explicit persistence. Remote revocation, cross-origin endpoints, and dynamic registration are unsupported. External-service interoperability remains unverified; see the [configuration boundary](../../en/guide/02-configuration.md#explicit-host-owned-mcp-authentication-1-1-development-line).
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

@@ -8479,8 +8479,8 @@ var init_properties = __esm({
 // node_modules/typebox/build/type/types/object.mjs
 function _Object_2(properties, options = {}) {
   const requiredKeys = RequiredArray2(properties);
-  const required2 = requiredKeys.length > 0 ? { required: requiredKeys } : {};
-  return memory_exports.Create({ "~kind": "Object" }, { type: "object", ...required2, properties }, options);
+  const required3 = requiredKeys.length > 0 ? { required: requiredKeys } : {};
+  return memory_exports.Create({ "~kind": "Object" }, { type: "object", ...required3, properties }, options);
 }
 function IsObject7(value) {
   return IsKind3(value, "Object");
@@ -15949,24 +15949,24 @@ function assertClassifierInputSupported(model, context) {
     throw new ModelsError("provider", `Model ${model.provider}/${model.id} does not accept image input`);
   }
 }
-function imageErrorResult(model, error3, aborted3 = false) {
+function imageErrorResult(model, error3, aborted4 = false) {
   return {
     api: model.api,
     provider: model.provider,
     model: model.id,
     output: [],
-    stopReason: aborted3 ? "aborted" : "error",
+    stopReason: aborted4 ? "aborted" : "error",
     errorMessage: error3 instanceof Error ? error3.message : String(error3),
     timestamp: Date.now()
   };
 }
-function classifierErrorResult(model, error3, aborted3 = false) {
+function classifierErrorResult(model, error3, aborted4 = false) {
   return {
     api: model.api,
     provider: model.provider,
     model: model.id,
     answers: {},
-    stopReason: aborted3 ? "aborted" : "error",
+    stopReason: aborted4 ? "aborted" : "error",
     errorMessage: error3 instanceof Error ? error3.message : String(error3),
     timestamp: Date.now()
   };
@@ -18451,7 +18451,7 @@ function ErrorAllOf(stack, context, schemaPath, instancePath, schema, value) {
   }, []);
   const isAllOf = guard_exports.IsEqual(results.length, schema.allOf.length) && context.Merge(results);
   if (!isAllOf)
-    failedContexts.forEach((failed) => failed.GetErrors().forEach((error3) => context.AddError(error3)));
+    failedContexts.forEach((failed2) => failed2.GetErrors().forEach((error3) => context.AddError(error3)));
   return isAllOf;
 }
 var init_allOf2 = __esm({
@@ -18492,7 +18492,7 @@ function ErrorAnyOf(stack, context, schemaPath, instancePath, schema, value) {
   }, []);
   const isAnyOf = guard_exports.IsGreaterThan(results.length, 0) && context.Merge(results);
   if (!isAnyOf)
-    failedContexts.forEach((failed) => failed.GetErrors().forEach((error3) => context.AddError(error3)));
+    failedContexts.forEach((failed2) => failed2.GetErrors().forEach((error3) => context.AddError(error3)));
   return isAnyOf || context.AddError({
     keyword: "anyOf",
     schemaPath,
@@ -20070,7 +20070,7 @@ function ErrorOneOf(stack, context, schemaPath, instancePath, schema, value) {
   }, []);
   const isOneOf = guard_exports.IsEqual(passedContexts.length, 1) && context.Merge(passedContexts);
   if (!isOneOf && guard_exports.IsEqual(passingSchemas.length, 0))
-    failedContexts.forEach((failed) => failed.GetErrors().forEach((error3) => context.AddError(error3)));
+    failedContexts.forEach((failed2) => failed2.GetErrors().forEach((error3) => context.AddError(error3)));
   return isOneOf || context.AddError({
     keyword: "oneOf",
     schemaPath,
@@ -20184,8 +20184,8 @@ var init_prefixItems2 = __esm({
 });
 
 // node_modules/typebox/build/schema/engine/_exact_optional.mjs
-function IsExactOptional(required2, key) {
-  return required2.includes(key) || settings_exports.Get().exactOptionalPropertyTypes;
+function IsExactOptional(required3, key) {
+  return required3.includes(key) || settings_exports.Get().exactOptionalPropertyTypes;
 }
 function InexactOptionalBuild(value, key) {
   return emit_exports.IsUndefined(emit_exports.Member(value, key));
@@ -20202,32 +20202,32 @@ var init_exact_optional = __esm({
 
 // node_modules/typebox/build/schema/engine/properties.mjs
 function BuildProperties(stack, context, schema, value) {
-  const required2 = IsRequired(schema) ? schema.required : [];
+  const required3 = IsRequired(schema) ? schema.required : [];
   const everyKey = guard_exports.Entries(schema.properties).map(([key, schema2]) => {
     const notKey = emit_exports.Not(emit_exports.HasPropertyKey(value, emit_exports.Constant(key)));
     const isSchema = BuildSchemaPushStack(stack, context, schema2, emit_exports.Member(value, key));
     const addKey = context.AddKey(emit_exports.Constant(key));
     const guarded = context.UseUnevaluated() ? emit_exports.And(isSchema, addKey) : isSchema;
-    const isProperty = required2.includes(key) ? guarded : emit_exports.Or(notKey, guarded);
-    return IsExactOptional(required2, key) ? isProperty : emit_exports.Or(InexactOptionalBuild(value, key), isProperty);
+    const isProperty = required3.includes(key) ? guarded : emit_exports.Or(notKey, guarded);
+    return IsExactOptional(required3, key) ? isProperty : emit_exports.Or(InexactOptionalBuild(value, key), isProperty);
   });
   return emit_exports.ReduceAnd(everyKey);
 }
 function CheckProperties(stack, context, schema, value) {
-  const required2 = IsRequired(schema) ? schema.required : [];
+  const required3 = IsRequired(schema) ? schema.required : [];
   const isProperties = guard_exports.Every(guard_exports.Entries(schema.properties), 0, ([key, schema2]) => {
     const isProperty = !guard_exports.HasPropertyKey(value, key) || CheckSchemaPushStack(stack, context, schema2, value[key]) && context.AddKey(key);
-    return IsExactOptional(required2, key) ? isProperty : InexactOptionalCheck(value, key) || isProperty;
+    return IsExactOptional(required3, key) ? isProperty : InexactOptionalCheck(value, key) || isProperty;
   });
   return isProperties;
 }
 function ErrorProperties(stack, context, schemaPath, instancePath, schema, value) {
-  const required2 = IsRequired(schema) ? schema.required : [];
+  const required3 = IsRequired(schema) ? schema.required : [];
   const isProperties = guard_exports.EveryAll(guard_exports.Entries(schema.properties), 0, ([key, schema2]) => {
     const nextSchemaPath = `${schemaPath}/properties/${key}`;
     const nextInstancePath = `${instancePath}/${key}`;
     const isProperty = () => !guard_exports.HasPropertyKey(value, key) || ErrorSchemaPushStack(stack, context, nextSchemaPath, nextInstancePath, schema2, value[key]) && context.AddKey(key);
-    return IsExactOptional(required2, key) ? isProperty() : InexactOptionalCheck(value, key) || isProperty();
+    return IsExactOptional(required3, key) ? isProperty() : InexactOptionalCheck(value, key) || isProperty();
   });
   return isProperties;
 }
@@ -23381,8 +23381,8 @@ var init_from_number2 = __esm({
 
 // node_modules/typebox/build/value/create/from_object.mjs
 function FromObject34(context, type) {
-  const required2 = guard_exports.IsUndefined(type.required) ? [] : type.required;
-  return required2.reduce((result, key) => {
+  const required3 = guard_exports.IsUndefined(type.required) ? [] : type.required;
+  return required3.reduce((result, key) => {
     return { ...result, [key]: FromType27(context, type.properties[key]) };
   }, {});
 }
@@ -23909,10 +23909,10 @@ function FromObject36(context, type, value) {
     return value;
   if (!guard_exports.IsObjectNotArray(value))
     return Create4(context, type);
-  const required2 = new Set(guard_exports.IsUndefined(type.required) ? [] : type.required);
+  const required3 = new Set(guard_exports.IsUndefined(type.required) ? [] : type.required);
   const result = {};
   for (const [key, schema] of guard_exports.Entries(type.properties)) {
-    if (!required2.has(key) && guard_exports.IsUndefined(value[key]))
+    if (!required3.has(key) && guard_exports.IsUndefined(value[key]))
       continue;
     result[key] = key in value ? FromType28(context, schema, value[key]) : Create4(context, schema);
   }
@@ -24577,11 +24577,11 @@ function normalizeOptionalNulls(value, schema) {
   if (typeof value !== "object" || value === null || !schema.properties)
     return;
   const object3 = value;
-  const required2 = new Set(schema.required ?? []);
+  const required3 = new Set(schema.required ?? []);
   for (const [key, propertySchema] of Object.entries(schema.properties)) {
     if (!(key in object3))
       continue;
-    if (object3[key] === null && !required2.has(key) && typeof propertySchema.$ref !== "string" && getSubSchemaValidator(propertySchema)?.Check(null) === false) {
+    if (object3[key] === null && !required3.has(key) && typeof propertySchema.$ref !== "string" && getSubSchemaValidator(propertySchema)?.Check(null) === false) {
       delete object3[key];
     } else {
       normalizeOptionalNulls(object3[key], propertySchema);
@@ -31576,8 +31576,8 @@ var require_webidl = __commonJS({
           });
         }
         for (const options of converters) {
-          const { key, defaultValue, required: required2, converter } = options;
-          if (required2 === true) {
+          const { key, defaultValue, required: required3, converter } = options;
+          if (required3 === true) {
             if (dictionary == null || !Object.hasOwn(dictionary, key)) {
               throw webidl.errors.exception({
                 header: prefix,
@@ -31590,7 +31590,7 @@ var require_webidl = __commonJS({
           if (hasDefault && value === void 0) {
             value = defaultValue();
           }
-          if (required2 || hasDefault || value !== void 0) {
+          if (required3 || hasDefault || value !== void 0) {
             value = converter(value, prefix, `${argument}.${key}`);
             if (options.allowedValues && !options.allowedValues.includes(value)) {
               throw webidl.errors.exception({
@@ -40945,7 +40945,7 @@ var require_mock_utils = __commonJS({
         handler.onResponseError(null, response.error);
         return true;
       }
-      let aborted3 = false;
+      let aborted4 = false;
       let timer = null;
       const controller = {
         paused: false,
@@ -40958,10 +40958,10 @@ var require_mock_utils = __commonJS({
           this.paused = false;
         },
         abort: (reason) => {
-          if (aborted3) {
+          if (aborted4) {
             return;
           }
-          aborted3 = true;
+          aborted4 = true;
           if (timer !== null) {
             clearTimeout(timer);
             timer = null;
@@ -40972,10 +40972,10 @@ var require_mock_utils = __commonJS({
       let replyOpts = opts;
       const dispatches = mockDispatches;
       handler.onRequestStart?.(controller, null);
-      if (aborted3) {
+      if (aborted4) {
         return true;
       }
-      const requestBody = dispatchRequestBody(opts.body, handler, controller, () => aborted3);
+      const requestBody = dispatchRequestBody(opts.body, handler, controller, () => aborted4);
       if (isPromise(requestBody)) {
         requestBody.then((body) => {
           if (body === requestAborted) {
@@ -41037,7 +41037,7 @@ var require_mock_utils = __commonJS({
         }
       }
       function handleReply(mockDispatches2, _response = response) {
-        if (aborted3) {
+        if (aborted4) {
           return;
         }
         const { statusCode, data, headers, trailers } = _response;
@@ -41046,7 +41046,7 @@ var require_mock_utils = __commonJS({
         if (isPromise(body)) {
           return body.then((newData) => handleReply(mockDispatches2, { ..._response, data: newData }));
         }
-        if (aborted3) {
+        if (aborted4) {
           return;
         }
         const responseData2 = getResponseData(body);
@@ -45728,7 +45728,7 @@ var require_cache2 = __commonJS({
     }
     function handleUncachedResponse(dispatch, globalOpts, cacheKey, handler, opts, reqCacheControl) {
       if (reqCacheControl?.["only-if-cached"]) {
-        let aborted3 = false;
+        let aborted4 = false;
         const controller = {
           paused: false,
           rawHeaders: [],
@@ -45740,17 +45740,17 @@ var require_cache2 = __commonJS({
             this.paused = false;
           },
           abort: (reason) => {
-            aborted3 = true;
+            aborted4 = true;
             handler.onResponseError?.(controller, reason ?? new AbortError2());
           }
         };
         try {
           handler.onRequestStart?.(controller, null);
-          if (aborted3) {
+          if (aborted4) {
             return;
           }
           handler.onResponseStart?.(controller, 504, {}, "Gateway Timeout");
-          if (aborted3) {
+          if (aborted4) {
             return;
           }
           handler.onResponseEnd?.(controller, {});
@@ -55414,7 +55414,7 @@ var init_agent = __esm({
           this.finishRun();
         }
       }
-      async handleRunFailure(error3, aborted3) {
+      async handleRunFailure(error3, aborted4) {
         const failureMessage = {
           role: "assistant",
           content: [{ type: "text", text: "" }],
@@ -55422,7 +55422,7 @@ var init_agent = __esm({
           provider: this._state.model.provider,
           model: this._state.model.id,
           usage: EMPTY_USAGE,
-          stopReason: aborted3 ? "aborted" : "error",
+          stopReason: aborted4 ? "aborted" : "error",
           errorMessage: error3 instanceof Error ? error3.message : String(error3),
           timestamp: Date.now()
         };
@@ -59966,13 +59966,13 @@ var require_timing_safe_equal = __commonJS({
   "node_modules/standardwebhooks/dist/timing_safe_equal.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.timingSafeEqual = timingSafeEqual2;
+    exports.timingSafeEqual = timingSafeEqual3;
     function assert2(expr, msg = "") {
       if (!expr) {
         throw new Error(msg);
       }
     }
-    function timingSafeEqual2(a2, b2) {
+    function timingSafeEqual3(a2, b2) {
       if (a2.byteLength !== b2.byteLength) {
         return false;
       }
@@ -60501,10 +60501,10 @@ var init_poller = __esm({
                   log2.error("poll failed permanently, stopping poller", { error: String(e2) });
                   throw e2;
                 }
-                const wait = applyJitter(backoff2(attempt));
-                log2.warn("poll failed, backing off", { error: String(e2), backoff_ms: wait });
+                const wait2 = applyJitter(backoff2(attempt));
+                log2.warn("poll failed, backing off", { error: String(e2), backoff_ms: wait2 });
                 attempt++;
-                await sleep2(wait, __classPrivateFieldGet3(this, _WorkPoller_controller, "f").signal);
+                await sleep2(wait2, __classPrivateFieldGet3(this, _WorkPoller_controller, "f").signal);
                 continue;
               }
               attempt = 0;
@@ -62073,14 +62073,14 @@ async function settledOrAborted(p, signal) {
     return;
   }
   let onAbort;
-  const aborted3 = new Promise((resolve9) => {
+  const aborted4 = new Promise((resolve9) => {
     onAbort = resolve9;
     if (signal.aborted)
       resolve9();
   });
   signal.addEventListener("abort", onAbort, { once: true });
   try {
-    await Promise.race([p, aborted3]);
+    await Promise.race([p, aborted4]);
   } finally {
     signal.removeEventListener("abort", onAbort);
   }
@@ -73002,13 +73002,13 @@ function makeJsonSchemaNodeStrict(schema, isUnsupportedKeyword) {
   }
   const properties = schema.properties ?? {};
   const propertyNames = Object.keys(properties);
-  const required2 = new Set(Array.isArray(schema.required) ? schema.required : []);
-  if ([...required2].some((key) => !propertyNames.includes(key))) {
+  const required3 = new Set(Array.isArray(schema.required) ? schema.required : []);
+  if ([...required3].some((key) => !propertyNames.includes(key))) {
     throw new UnsupportedStrictJsonSchemaError("required contains an unknown property");
   }
   for (const [key, property] of Object.entries(properties)) {
     makeJsonSchemaNodeStrict(property, isUnsupportedKeyword);
-    if (!required2.has(key) && !schemaAllowsNull(property)) {
+    if (!required3.has(key) && !schemaAllowsNull(property)) {
       properties[key] = { anyOf: [property, { type: "null" }] };
     }
   }
@@ -75592,9 +75592,9 @@ function createAbortableSSESource(body, signal) {
       if (signal.aborted) {
         return ended;
       }
-      const aborted3 = waitForAbort().then(() => ended);
+      const aborted4 = waitForAbort().then(() => ended);
       try {
-        const result = await Promise.race([source.next(), aborted3]);
+        const result = await Promise.race([source.next(), aborted4]);
         if (signal.aborted) {
           return ended;
         }
@@ -75615,10 +75615,10 @@ function createAbortableSSESource(body, signal) {
     async return() {
       const pending = cancel2();
       if (pending && !signal.aborted) {
-        const aborted3 = waitForAbort();
+        const aborted4 = waitForAbort();
         try {
           if (!signal.aborted) {
-            await Promise.race([pending, aborted3]);
+            await Promise.race([pending, aborted4]);
           }
         } finally {
           interrupt = void 0;
@@ -75638,7 +75638,7 @@ function createAbortableSSESource(body, signal) {
         abort();
       }
     },
-    async cleanup(failed) {
+    async cleanup(failed2) {
       let cleanupError;
       try {
         signal.removeEventListener("abort", abort);
@@ -75647,7 +75647,7 @@ function createAbortableSSESource(body, signal) {
       }
       if (!closed) {
         const pending = cancel2();
-        if (pending && !failed && !signal.aborted) {
+        if (pending && !failed2 && !signal.aborted) {
           try {
             await pending;
           } catch (error3) {
@@ -75662,7 +75662,7 @@ function createAbortableSSESource(body, signal) {
           cleanupError ?? (cleanupError = error3);
         }
       }
-      if (cleanupError !== void 0 && !failed && !signal.aborted) {
+      if (cleanupError !== void 0 && !failed2 && !signal.aborted) {
         throw cleanupError;
       }
     }
@@ -75680,7 +75680,7 @@ async function* _iterSSEMessages2(response, controller) {
   const lineDecoder = new LineDecoder2();
   const { signal } = controller;
   const source = createAbortableSSESource(response.body, signal);
-  let failed = false;
+  let failed2 = false;
   try {
     source.start();
     for await (const sseChunk of iterSSEChunks(source.iterator)) {
@@ -75717,12 +75717,12 @@ async function* _iterSSEMessages2(response, controller) {
       yield pending;
     }
   } catch (error3) {
-    failed = true;
+    failed2 = true;
     if (!signal.aborted || !isAbortError3(error3) && error3 !== signal.reason) {
       throw error3;
     }
   } finally {
-    await source.cleanup(failed);
+    await source.cleanup(failed2);
   }
 }
 async function* iterSSEChunks(iterator) {
@@ -79945,12 +79945,12 @@ var init_EventStream = __esm({
       }
       _run(executor) {
         setTimeout(() => {
-          let failed = false;
+          let failed2 = false;
           Promise.resolve().then(executor).catch((error3) => {
-            failed = true;
+            failed2 = true;
             __classPrivateFieldGet4(this, _EventStream_instances, "m", _EventStream_handleError).call(this, error3);
           }).then(() => {
-            if (failed) {
+            if (failed2) {
               return;
             }
             try {
@@ -86428,14 +86428,14 @@ var init_agent_session_stream = __esm({
       return error3;
     }, _AgentSessionStream_wait = async function _AgentSessionStream_wait2(action) {
       let onAbort;
-      const aborted3 = new Promise((_resolve, reject) => {
+      const aborted4 = new Promise((_resolve, reject) => {
         onAbort = () => reject(__classPrivateFieldGet4(this, _AgentSessionStream_instances, "m", _AgentSessionStream_abortError).call(this));
         this.controller.signal.addEventListener("abort", onAbort, { once: true });
       });
       try {
         __classPrivateFieldGet4(this, _AgentSessionStream_instances, "m", _AgentSessionStream_checkAbort).call(this);
         const invoke = async () => await action();
-        return await Promise.race([invoke(), aborted3]);
+        return await Promise.race([invoke(), aborted4]);
       } finally {
         if (onAbort) {
           this.controller.signal.removeEventListener("abort", onAbort);
@@ -104626,7 +104626,7 @@ var require_gaxios = __commonJS({
     var retry_js_1 = require_retry6();
     var stream_1 = __require("stream");
     var interceptor_js_1 = require_interceptor();
-    var randomUUID22 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
+    var randomUUID23 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
     var HTTP_STATUS_NO_CONTENT = 204;
     var Gaxios = class {
       agentCache = /* @__PURE__ */ new Map();
@@ -104899,7 +104899,7 @@ var require_gaxios = __commonJS({
          */
         ["Blob", "File", "FormData"].includes(opts.data?.constructor?.name || "");
         if (opts.multipart?.length) {
-          const boundary = await randomUUID22();
+          const boundary = await randomUUID23();
           preparedHeaders.set("content-type", `multipart/related; boundary=${boundary}`);
           opts.body = stream_1.Readable.from(this.getMultipartRequest(opts.multipart, boundary));
         } else if (shouldDirectlyPassData) {
@@ -109709,12 +109709,12 @@ var require_jwa = __commonJS({
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto5 ? function timingSafeEqual3(a2, b2) {
+    var timingSafeEqual3 = "timingSafeEqual" in crypto5 ? function timingSafeEqual4(a2, b2) {
       if (a2.byteLength !== b2.byteLength) {
         return false;
       }
       return crypto5.timingSafeEqual(a2, b2);
-    } : function timingSafeEqual3(a2, b2) {
+    } : function timingSafeEqual4(a2, b2) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
       }
@@ -109723,7 +109723,7 @@ var require_jwa = __commonJS({
     function createHmacVerifier(bits) {
       return function verify(thing, signature, secret) {
         var computedSig = createHmacSigner(bits)(thing, secret);
-        return timingSafeEqual2(Buffer8.from(signature), Buffer8.from(computedSig));
+        return timingSafeEqual3(Buffer8.from(signature), Buffer8.from(computedSig));
       };
     }
     function createKeySigner(bits) {
@@ -117043,7 +117043,7 @@ var require_websocket2 = __commonJS({
     var http3 = __require("http");
     var net = __require("net");
     var tls = __require("tls");
-    var { randomBytes: randomBytes2, createHash: createHash25 } = __require("crypto");
+    var { randomBytes: randomBytes3, createHash: createHash26 } = __require("crypto");
     var { Duplex: Duplex5, Readable: Readable7 } = __require("stream");
     var { URL: URL2 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate2();
@@ -117581,7 +117581,7 @@ var require_websocket2 = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes2(16).toString("base64");
+      const key = randomBytes3(16).toString("base64");
       const request = isSecure ? https2.request : http3.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -117711,7 +117711,7 @@ var require_websocket2 = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest2 = createHash25("sha1").update(key + GUID).digest("base64");
+        const digest2 = createHash26("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest2) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -118080,7 +118080,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter2 = __require("events");
     var http3 = __require("http");
     var { Duplex: Duplex5 } = __require("stream");
-    var { createHash: createHash25 } = __require("crypto");
+    var { createHash: createHash26 } = __require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate2();
     var subprotocol2 = require_subprotocol();
@@ -118387,7 +118387,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest2 = createHash25("sha1").update(key + GUID).digest("base64");
+        const digest2 = createHash26("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -143913,7 +143913,7 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
   const queue = [];
   let pending = null;
   let done = false;
-  let failed = null;
+  let failed2 = null;
   let sawCompletion = false;
   const wake = () => {
     if (!pending)
@@ -143940,7 +143940,7 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
         queue.push(parsed);
         wake();
       } catch (cause) {
-        failed = new CodexProtocolError(`Invalid Codex WebSocket JSON: ${formatThrownValue(cause)}`, {
+        failed2 = new CodexProtocolError(`Invalid Codex WebSocket JSON: ${formatThrownValue(cause)}`, {
           cause,
           payload: text2
         });
@@ -143950,7 +143950,7 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
     })();
   };
   const onError = (event) => {
-    failed = extractWebSocketError(event);
+    failed2 = extractWebSocketError(event);
     done = true;
     wake();
   };
@@ -143960,14 +143960,14 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
       wake();
       return;
     }
-    if (!failed) {
-      failed = extractWebSocketCloseError(event);
+    if (!failed2) {
+      failed2 = extractWebSocketCloseError(event);
     }
     done = true;
     wake();
   };
   const onAbort = () => {
-    failed = new Error("Request was aborted");
+    failed2 = new Error("Request was aborted");
     done = true;
     wake();
   };
@@ -143992,7 +143992,7 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
         if (idleTimeoutMs !== void 0 && idleTimeoutMs > 0) {
           timeout = setTimeout(() => {
             const error3 = new Error(`WebSocket idle timeout after ${idleTimeoutMs}ms`);
-            failed = error3;
+            failed2 = error3;
             done = true;
             pending = null;
             closeWebSocketSilently(socket, 1e3, "idle_timeout");
@@ -144005,8 +144005,8 @@ async function* parseWebSocket(socket, signal, idleTimeoutMs) {
         }
       });
     }
-    if (failed) {
-      throw failed;
+    if (failed2) {
+      throw failed2;
     }
     if (!sawCompletion) {
       throw new Error("WebSocket stream closed before response.completed");
@@ -144314,18 +144314,18 @@ var init_openai_codex_responses = __esm({
                 stream12.end();
                 return;
               } catch (error3) {
-                const aborted3 = options?.signal?.aborted;
+                const aborted4 = options?.signal?.aborted;
                 const connectionLimitBeforeStart = !websocketStarted && isWebSocketConnectionLimitReachedError(error3);
                 const previousResponseNotFound = isPreviousResponseNotFoundError(error3);
-                if (!aborted3 && previousResponseNotFound && !retriedMissingWebSocketContinuation) {
+                if (!aborted4 && previousResponseNotFound && !retriedMissingWebSocketContinuation) {
                   retriedMissingWebSocketContinuation = true;
                   continue;
                 }
-                if (!aborted3 && connectionLimitBeforeStart && !retriedWebSocketConnectionLimit) {
+                if (!aborted4 && connectionLimitBeforeStart && !retriedWebSocketConnectionLimit) {
                   retriedWebSocketConnectionLimit = true;
                   continue;
                 }
-                if (aborted3 || isCodexNonTransportError(error3) && !connectionLimitBeforeStart) {
+                if (aborted4 || isCodexNonTransportError(error3) && !connectionLimitBeforeStart) {
                   throw error3;
                 }
                 appendAssistantMessageDiagnostic(output, createAssistantMessageDiagnostic("provider_transport_failure", error3, {
@@ -146174,8 +146174,8 @@ function parsePiMessagesEvent(raw) {
   const data = raw.split("\n").find((line) => line.startsWith("data:"))?.slice(5).trim();
   return data && data !== "[DONE]" ? JSON.parse(data) : void 0;
 }
-function createErrorEvent(model, error3, aborted3) {
-  const reason = aborted3 ? "aborted" : "error";
+function createErrorEvent(model, error3, aborted4) {
+  const reason = aborted4 ? "aborted" : "error";
   const assistantMessage = {
     role: "assistant",
     content: [],
@@ -146187,7 +146187,7 @@ function createErrorEvent(model, error3, aborted3) {
     errorMessage: error3 instanceof Error ? error3.message : String(error3),
     timestamp: Date.now()
   };
-  if (!aborted3 && error3 instanceof PiMessagesResponseError) {
+  if (!aborted4 && error3 instanceof PiMessagesResponseError) {
     appendAssistantMessageDiagnostic(assistantMessage, createAssistantMessageDiagnostic("pi_messages_response_failure", error3, error3.diagnosticDetails));
   }
   return { type: "error", reason, error: assistantMessage };
@@ -169796,11 +169796,11 @@ var require_ignore = __commonJS({
         //   given, so asking first costs a search and saves a rewrite. Ten of the
         //   fifteen passes never fire for a typical .gitignore line, and between
         //   them they were 45% of this chain.
-        (prev, [matcher, replacer, required2]) => {
+        (prev, [matcher, replacer, required3]) => {
           if (matcher === DIRECT) {
             return replacer(prev, pattern);
           }
-          if (required2 !== UNDEFINED && prev.indexOf(required2) < 0) {
+          if (required3 !== UNDEFINED && prev.indexOf(required3) < 0) {
             return prev;
           }
           return matcher.test(prev) ? prev.replace(matcher, replacer.bind(pattern)) : prev;
@@ -173605,7 +173605,7 @@ function createGrepToolDefinition(cwd, options) {
             let matchCount = 0;
             let matchLimitReached = false;
             let linesTruncated = false;
-            let aborted3 = false;
+            let aborted4 = false;
             let killedDueToLimit = false;
             const outputLines = [];
             const cleanup = () => {
@@ -173619,7 +173619,7 @@ function createGrepToolDefinition(cwd, options) {
               }
             };
             const onAbort = () => {
-              aborted3 = true;
+              aborted4 = true;
               stopChild2();
             };
             signal?.addEventListener("abort", onAbort, { once: true });
@@ -173677,7 +173677,7 @@ function createGrepToolDefinition(cwd, options) {
             });
             child.on("close", async (code) => {
               cleanup();
-              if (aborted3) {
+              if (aborted4) {
                 settle2(() => reject(new Error("Operation aborted")));
                 return;
               }
@@ -174238,19 +174238,19 @@ function createReadToolDefinition(cwd, options) {
           reject(new Error("Operation aborted"));
           return;
         }
-        let aborted3 = false;
+        let aborted4 = false;
         const onAbort = () => {
-          aborted3 = true;
+          aborted4 = true;
           reject(new Error("Operation aborted"));
         };
         signal?.addEventListener("abort", onAbort, { once: true });
         (async () => {
           try {
             const absolutePath = await resolveReadPathAsync(path45, ctx?.cwd || cwd);
-            if (aborted3)
+            if (aborted4)
               return;
             await ops.access(absolutePath);
-            if (aborted3)
+            if (aborted4)
               return;
             const mimeType = ops.detectImageMimeType ? await ops.detectImageMimeType(absolutePath) : void 0;
             let content;
@@ -174332,13 +174332,13 @@ ${nonVisionImageNote}`;
               }
               content = [{ type: "text", text: outputText }];
             }
-            if (aborted3)
+            if (aborted4)
               return;
             signal?.removeEventListener("abort", onAbort);
             resolve9({ content, details });
           } catch (error3) {
             signal?.removeEventListener("abort", onAbort);
-            if (!aborted3)
+            if (!aborted4)
               reject(error3);
           }
         })();
@@ -180770,10 +180770,10 @@ function constraintTags(schema) {
 }
 function objectType(schema, context) {
   const properties = typeof schema.properties === "object" && schema.properties !== null && !Array.isArray(schema.properties) ? schema.properties : {};
-  const required2 = new Set(Array.isArray(schema.required) ? schema.required : []);
+  const required3 = new Set(Array.isArray(schema.required) ? schema.required : []);
   const names2 = Object.keys(properties).sort();
   const members2 = names2.map((name) => {
-    const optional2 = required2.has(name) ? "" : "?";
+    const optional2 = required3.has(name) ? "" : "?";
     return `${propertyKey(name)}${optional2}: ${toType(properties[name], context)};`;
   });
   const additional = schema.additionalProperties;
@@ -183025,10 +183025,10 @@ ${description}` : ""}`);
 function describeFields(schema, depth) {
   if (typeof schema !== "object" || schema === null)
     return void 0;
-  const { type, properties, required: required2 } = schema;
+  const { type, properties, required: required3 } = schema;
   if (type !== "object" || typeof properties !== "object" || properties === null)
     return void 0;
-  const requiredNames = new Set(Array.isArray(required2) ? required2 : []);
+  const requiredNames = new Set(Array.isArray(required3) ? required3 : []);
   const fields = Object.entries(properties).map(([name, field2]) => {
     const nested = depth > 0 ? describeFields(field2, depth - 1) : void 0;
     return `${name}${requiredNames.has(name) ? "" : "?"}${nested ? `: ${nested}` : ""}`;
@@ -186164,7 +186164,7 @@ async function waitForAuthorizationResponse(callback, state3, redirectUrl, promp
     fromUser.catch(() => void 0);
   }
 }
-async function listenForCallback(settings2, extraPaths, port, required2) {
+async function listenForCallback(settings2, extraPaths, port, required3) {
   const options = {
     host: settings2.host,
     redirectHost: settings2.redirectHost,
@@ -186175,7 +186175,7 @@ async function listenForCallback(settings2, extraPaths, port, required2) {
   try {
     return await OAuthCallbackServer.listen({ ...options, port: port ?? 0 });
   } catch (error3) {
-    if (required2 || port === void 0)
+    if (required3 || port === void 0)
       throw error3;
     return OAuthCallbackServer.listen(options);
   }
@@ -187674,9 +187674,9 @@ Run /mcp to fix.`, "warning");
       }
     };
     const setEnabled = async (server, enabled, inProject = false) => {
-      const failed = saveConfig(server, { enabled }, inProject);
-      if (failed)
-        return failed;
+      const failed2 = saveConfig(server, { enabled }, inProject);
+      if (failed2)
+        return failed2;
       if (!enabled) {
         const connection = server.connection;
         server.attempt = void 0;
@@ -187699,9 +187699,9 @@ Run /mcp to fix.`, "warning");
       return void 0;
     };
     const setExposure = (server, exposure) => {
-      const failed = saveConfig(server, { exposure });
-      if (failed)
-        return failed;
+      const failed2 = saveConfig(server, { exposure });
+      if (failed2)
+        return failed2;
       if (server.connection?.state === "connected")
         registerTools(server.connection);
       syncResourceTools();
@@ -194405,7 +194405,7 @@ function foldObjects(members2) {
     objects.push(member);
   }
   const properties = {};
-  const required2 = /* @__PURE__ */ new Set();
+  const required3 = /* @__PURE__ */ new Set();
   for (const object3 of objects) {
     for (const key in object3.properties) {
       if (Object.prototype.hasOwnProperty.call(properties, key))
@@ -194422,11 +194422,11 @@ function foldObjects(members2) {
       assignProp(properties, key, merged);
     }
     for (const key of object3.required ?? [])
-      required2.add(key);
+      required3.add(key);
   }
   const folded = { type: "object", properties };
-  if (required2.size)
-    folded.required = [...required2];
+  if (required3.size)
+    folded.required = [...required3];
   if (objects.every((object3) => object3.additionalProperties === false)) {
     folded.additionalProperties = false;
   } else {
@@ -208131,8 +208131,8 @@ var init_ajvProvider_97rDpkRx = __esm({
             }
             if (!tagRequired) throw new Error(`discriminator: "${tagName}" must be required`);
             return oneOfMapping;
-            function hasRequired({ required: required2 }) {
-              return Array.isArray(required2) && required2.includes(tagName);
+            function hasRequired({ required: required3 }) {
+              return Array.isArray(required3) && required3.includes(tagName);
             }
             function addMappings(sch, i3) {
               if (sch.const) addMapping(sch.const, i3);
@@ -209858,8 +209858,8 @@ async function random(size) {
   const evenDistCutoff = Math.pow(2, 8) - Math.pow(2, 8) % mask.length;
   let result = "";
   while (result.length < size) {
-    const randomBytes2 = await getRandomValues(size - result.length);
-    for (const randomByte of randomBytes2) {
+    const randomBytes3 = await getRandomValues(size - result.length);
+    for (const randomByte of randomBytes3) {
       if (randomByte < evenDistCutoff) {
         result += mask[randomByte % mask.length];
       }
@@ -212025,9 +212025,9 @@ function validateAudienceClaim(value) {
 function numericDate(value, label) {
   return typeof value == "number" ? validateInput(label, value) : value instanceof Date ? validateInput(label, epoch(value)) : epoch(/* @__PURE__ */ new Date()) + secs(value);
 }
-function validateNumericDate(payload, claim2, required2 = false) {
+function validateNumericDate(payload, claim2, required3 = false) {
   const value = payload[claim2];
-  if (!(value === void 0 && !required2)) {
+  if (!(value === void 0 && !required3)) {
     if (typeof value != "number")
       throw new JWTClaimValidationFailed(`"${claim2}" claim must be a number`, payload, claim2, "invalid");
     return value;
@@ -224668,8 +224668,8 @@ var require_discriminator2 = __commonJS({
           if (!tagRequired)
             throw new Error(`discriminator: "${tagName}" must be required`);
           return oneOfMapping;
-          function hasRequired({ required: required2 }) {
-            return Array.isArray(required2) && required2.includes(tagName);
+          function hasRequired({ required: required3 }) {
+            return Array.isArray(required3) && required3.includes(tagName);
           }
           function addMappings(sch, i3) {
             if (sch.const) {
@@ -226168,8 +226168,8 @@ function RequiredArray(properties) {
   return globalThis.Object.keys(properties).filter((key) => !IsOptional(properties[key]));
 }
 function _Object_(properties, options) {
-  const required2 = RequiredArray(properties);
-  const schema = required2.length > 0 ? { [Kind]: "Object", type: "object", required: required2, properties } : { [Kind]: "Object", type: "object", properties };
+  const required3 = RequiredArray(properties);
+  const schema = required3.length > 0 ? { [Kind]: "Object", type: "object", required: required3, properties } : { [Kind]: "Object", type: "object", properties };
   return CreateType(schema, options);
 }
 var Object2 = _Object_;
@@ -229216,10 +229216,10 @@ function FromObject11(schema, references) {
   if (HasPropertyKey2(schema, "default")) {
     return FromDefault(schema.default);
   } else {
-    const required2 = new Set(schema.required);
+    const required3 = new Set(schema.required);
     const Acc = {};
     for (const [key, subschema] of Object.entries(schema.properties)) {
-      if (!required2.has(key))
+      if (!required3.has(key))
         continue;
       Acc[key] = Visit7(subschema, references);
     }
@@ -229512,11 +229512,11 @@ function FromArray11(schema, references, value) {
 function FromConstructor7(schema, references, value) {
   if (Check(schema, references, value))
     return Create2(schema, references);
-  const required2 = new Set(schema.returns.required || []);
+  const required3 = new Set(schema.returns.required || []);
   const result = function() {
   };
   for (const [key, property] of Object.entries(schema.returns.properties)) {
-    if (!required2.has(key) && value.prototype[key] === void 0)
+    if (!required3.has(key) && value.prototype[key] === void 0)
       continue;
     result.prototype[key] = Visit8(property, references, value.prototype[key]);
   }
@@ -229552,10 +229552,10 @@ function FromObject12(schema, references, value) {
     return value;
   if (value === null || typeof value !== "object")
     return Create2(schema, references);
-  const required2 = new Set(schema.required || []);
+  const required3 = new Set(schema.required || []);
   const result = {};
   for (const [key, property] of Object.entries(schema.properties)) {
-    if (!required2.has(key) && value[key] === void 0)
+    if (!required3.has(key) && value[key] === void 0)
       continue;
     result[key] = Visit8(property, references, value[key]);
   }
@@ -231044,6 +231044,14 @@ var ERROR_CODES = defineErrorCodes({
   tool_approval_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
   tool_execution_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   policy_denied: { terminality: "pausable", cancelClass: "human", retryClass: "human" },
+  mcp_auth_required: {
+    terminality: "pausable",
+    cancelClass: "human",
+    retryClass: "human",
+    runStatus: "paused"
+  },
+  mcp_auth_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  mcp_auth_store_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   loop_paused: {
     terminality: "pausable",
     cancelClass: "human",
@@ -231868,6 +231876,35 @@ var ProtocolV2ToolResultRequestSchema = Type.Object({
     }, { additionalProperties: false })
   ])
 }, { additionalProperties: false });
+var McpAuthNameSchema = Type.String({
+  minLength: 1,
+  maxLength: 256,
+  pattern: "^[^\\s\\u0000-\\u001f\\u007f]+$"
+});
+var ProtocolV2McpAuthRequestSchema = Type.Object({
+  jsonrpc: Type.Literal("2.0"),
+  protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+  id: RpcIdSchema,
+  method: Type.Literal("mcp_auth"),
+  params: Type.Union([
+    Type.Object({
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("login"),
+      transactionId: McpAuthNameSchema,
+      server: McpAuthNameSchema
+    }, { additionalProperties: false }),
+    Type.Object({
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("cancel"),
+      transactionId: McpAuthNameSchema
+    }, { additionalProperties: false }),
+    Type.Object({
+      schemaVersion: Type.Literal(1),
+      action: Type.Literal("logout"),
+      server: McpAuthNameSchema
+    }, { additionalProperties: false })
+  ])
+}, { additionalProperties: false });
 var ProtocolV2RequestSchema = Type.Union([
   ProtocolV2InitializeRequestSchema,
   ProtocolV2RunRequestSchema,
@@ -231878,11 +231915,65 @@ var ProtocolV2RequestSchema = Type.Union([
   ProtocolV2QueryRequestSchema,
   ProtocolV2CheckpointRequestSchema,
   ProtocolV2ToolRegisterRequestSchema,
-  ProtocolV2ToolResultRequestSchema
+  ProtocolV2ToolResultRequestSchema,
+  ProtocolV2McpAuthRequestSchema
 ]);
 var ProtocolV2TimestampSchema = Type.String({
   pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
 });
+var McpAuthUrlSchema = Type.String({
+  minLength: 1,
+  maxLength: 16384,
+  pattern: "^https?://[^\\s\\u0000-\\u001f\\u007f#@\\\\]+$"
+});
+var McpAuthIdentitySchema = Type.String({ pattern: "^[0-9a-f]{64}$" });
+var ProtocolV2McpAuthRequestNotificationSchema = Type.Object({
+  jsonrpc: Type.Literal("2.0"),
+  protocolVersion: Type.Literal(PROTOCOL_V2_VERSION),
+  method: Type.Literal("mcp_auth_request"),
+  params: Type.Object({
+    schemaVersion: Type.Literal(1),
+    transactionId: McpAuthNameSchema,
+    server: McpAuthNameSchema,
+    serverIdentity: McpAuthIdentitySchema,
+    authorizationUrl: McpAuthUrlSchema,
+    expiresAt: ProtocolV2TimestampSchema,
+    issuer: McpAuthUrlSchema,
+    clientId: Type.String({
+      minLength: 1,
+      maxLength: 1024,
+      pattern: "^[^\\s\\u0000-\\u001f\\u007f]+$"
+    }),
+    resource: McpAuthUrlSchema,
+    scopes: Type.Array(Type.String({
+      minLength: 1,
+      maxLength: 256,
+      pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$"
+    }), { uniqueItems: true, maxItems: 32 })
+  }, { additionalProperties: false })
+}, { additionalProperties: false });
+var ProtocolV2McpAuthResultSchema = Type.Union([
+  Type.Object({
+    schemaVersion: Type.Literal(1),
+    action: Type.Literal("login"),
+    transactionId: McpAuthNameSchema,
+    server: McpAuthNameSchema,
+    serverIdentity: McpAuthIdentitySchema,
+    status: Type.Literal("authorized")
+  }, { additionalProperties: false }),
+  Type.Object({
+    schemaVersion: Type.Literal(1),
+    action: Type.Literal("cancel"),
+    transactionId: McpAuthNameSchema,
+    status: Type.Union([Type.Literal("cancelled"), Type.Literal("not_found")])
+  }, { additionalProperties: false }),
+  Type.Object({
+    schemaVersion: Type.Literal(1),
+    action: Type.Literal("logout"),
+    server: McpAuthNameSchema,
+    status: Type.Literal("logged_out")
+  }, { additionalProperties: false })
+]);
 var ProtocolV2InitializeResultSchema = Type.Object({
   selectedProtocol: Type.Literal(PROTOCOL_V2_VERSION),
   runtime: Type.Literal("node"),
@@ -232634,9 +232725,40 @@ var PROTOCOL_V2_SCHEMA_BUNDLE = {
   toolRegistrationReceipt: ProtocolV2ToolRegistrationReceiptSchema,
   toolResultReceipt: ProtocolV2ToolResultReceiptSchema,
   verificationRequestNotification: ProtocolV2VerificationRequestNotificationSchema,
+  mcpAuthRequestNotification: ProtocolV2McpAuthRequestNotificationSchema,
+  mcpAuthResult: ProtocolV2McpAuthResultSchema,
   errorResponse: ProtocolV2ErrorResponseSchema
 };
 var PROTOCOL_V2_SCHEMA_FINGERPRINT = `sha256:${createHash("sha256").update(canonicalJson(PROTOCOL_V2_SCHEMA_BUNDLE)).digest("hex")}`;
+function parseProtocolV2McpAuthRequestNotification(value) {
+  if (!value_exports2.Check(ProtocolV2McpAuthRequestNotificationSchema, value))
+    throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u4E13\u7528\u901A\u77E5\u683C\u5F0F\u975E\u6CD5");
+  const request = value;
+  for (const raw of [
+    request.params.authorizationUrl,
+    request.params.issuer,
+    request.params.resource
+  ]) {
+    let url2;
+    try {
+      url2 = new URL(raw);
+    } catch {
+      throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u5BFC\u822A\u76EE\u6807\u975E\u6CD5");
+    }
+    if (!url2.hostname || url2.username || url2.password || url2.hash)
+      throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u5BFC\u822A\u76EE\u6807\u975E\u6CD5");
+    if ([...url2.searchParams.keys()].some((key) => /^(?:code|access_token|refresh_token|id_token|token|code_verifier|client_secret)$/iu.test(key)))
+      throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u4E13\u7528\u901A\u77E5\u4E0D\u80FD\u643A\u5E26\u51ED\u636E");
+  }
+  if (!Number.isFinite(Date.parse(request.params.expiresAt)))
+    throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u622A\u6B62\u65F6\u95F4\u975E\u6CD5");
+  return request;
+}
+function parseProtocolV2McpAuthResult(value) {
+  if (!value_exports2.Check(ProtocolV2McpAuthResultSchema, value))
+    throw new ProtocolV2ValidationError("\u8BA4\u8BC1\u7ED3\u679C\u683C\u5F0F\u975E\u6CD5");
+  return value;
+}
 var ProtocolV2ValidationError = class extends Error {
   constructor(message2) {
     super(message2);
@@ -233125,7 +233247,7 @@ function createPythonToolCallNotification(params) {
 }
 
 // packages/coremind-worker/src/server.ts
-import { createHash as createHash24 } from "node:crypto";
+import { createHash as createHash25 } from "node:crypto";
 import path44 from "node:path";
 
 // packages/coremind-config/dist/parse.js
@@ -233493,10 +233615,21 @@ var McpStdioServerConfigSchema = Type.Object({
   env: Type.Optional(Type.Record(Type.String({ pattern: "^[^=\\u0000]+$" }), Type.Union([EnvironmentValueRefSchema, SecretRefSchema]), { additionalProperties: false })),
   protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
 }, { additionalProperties: false });
+var McpOAuthConfigSchema = Type.Object({
+  issuer: Type.String({ minLength: 1, maxLength: 2048 }),
+  clientId: Type.String({
+    minLength: 1,
+    maxLength: 1024,
+    pattern: "^[^\\u0000-\\u0020\\u007f]+$"
+  }),
+  scopes: Type.Array(Type.String({ minLength: 1, maxLength: 256, pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$" }), { uniqueItems: true, maxItems: 32 }),
+  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }))
+}, { additionalProperties: false });
 var McpHttpServerConfigSchema = Type.Object({
   transport: Type.Literal("streamable-http"),
   url: Type.String({ minLength: 1 }),
   headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
+  oauth: Type.Optional(McpOAuthConfigSchema),
   allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true })),
   protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
 }, { additionalProperties: false });
@@ -233844,7 +233977,7 @@ var MCP_RESERVED_HEADERS = /* @__PURE__ */ new Set([
   "accept",
   "content-type"
 ]);
-function validateMcpHttpServer(server, prefix, details) {
+function validateMcpHttpTarget(server, prefix, details, urlField = "url") {
   const addresses = /* @__PURE__ */ new Set();
   for (const [index3, address] of (server.allowedAddresses ?? []).entries()) {
     const normalized = normalizeMcpAddress(address);
@@ -233860,20 +233993,28 @@ function validateMcpHttpServer(server, prefix, details) {
   try {
     url2 = new URL(server.url);
   } catch {
-    details.push(`${prefix}.url\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A HTTP(S) URL`);
+    details.push(`${prefix}.${urlField}\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A HTTP(S) URL`);
   }
   if (url2) {
     const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
     if (!/^https?:\/\//iu.test(server.url) || [...server.url].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\") || url2.protocol !== "https:" && url2.protocol !== "http:" || url2.username !== "" || url2.password !== "" || authority.includes("@") || server.url.includes("?") || server.url.includes("#")) {
-      details.push(`${prefix}.url\uFF1A\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u3001query\u3001fragment \u6216\u63A7\u5236\u5B57\u7B26\u7684\u56FA\u5B9A HTTP(S) URL`);
+      details.push(`${prefix}.${urlField}\uFF1A\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u3001query\u3001fragment \u6216\u63A7\u5236\u5B57\u7B26\u7684\u56FA\u5B9A HTTP(S) URL`);
     }
     if (url2.protocol === "http:") {
       const rawHost = /^[a-z][a-z0-9+.-]*:\/\/(\[[^\]]+\]|[^:/?#]+)(?::[0-9]+)?(?:\/|$)/iu.exec(server.url)?.[1];
       const address = rawHost ? normalizeMcpAddress(rawHost.replace(/^\[|\]$/gu, "")) : void 0;
       if (address === void 0 || address !== "::1" && !address.startsWith("127.") || !addresses.has(address)) {
-        details.push(`${prefix}.url\uFF1AHTTP \u4EC5\u652F\u6301\u663E\u5F0F allowedAddresses \u4E2D\u7684 loopback IP \u5B57\u9762\u76EE\u6807`);
+        details.push(`${prefix}.${urlField}\uFF1AHTTP \u4EC5\u652F\u6301\u663E\u5F0F allowedAddresses \u4E2D\u7684 loopback IP \u5B57\u9762\u76EE\u6807`);
       }
     }
+  }
+}
+function validateMcpHttpServer(server, prefix, details) {
+  validateMcpHttpTarget(server, prefix, details);
+  if (server.oauth) {
+    validateMcpHttpTarget({ url: server.oauth.issuer, allowedAddresses: server.oauth.allowedAddresses }, `${prefix}.oauth`, details, "issuer");
+    if (Object.keys(server.headers ?? {}).some((name) => name.toLowerCase() === "authorization"))
+      details.push(`${prefix}.oauth\uFF1A\u4E0D\u80FD\u540C\u65F6\u914D\u7F6E OAuth \u4E0E Authorization Header`);
   }
   const headerNames = /* @__PURE__ */ new Set();
   for (const [name, value] of Object.entries(server.headers ?? {})) {
@@ -234182,7 +234323,7 @@ function boundDelegationDispositionExecutor(owner) {
 }
 
 // packages/coremind-runtime/dist/checkpoint.js
-import { createHash as createHash7, randomUUID as randomUUID11 } from "node:crypto";
+import { createHash as createHash8, randomUUID as randomUUID12 } from "node:crypto";
 import { mkdir as mkdir5, readFile as readFile7, realpath as realpath7, unlink, writeFile as writeFile6 } from "node:fs/promises";
 import path33 from "node:path";
 
@@ -235360,18 +235501,18 @@ var defaultVerboseFunction = ({
   timestamp,
   piped,
   commandId,
-  result: { failed = false } = {},
+  result: { failed: failed2 = false } = {},
   options: { reject = true }
 }) => {
   const timestampString = serializeTimestamp(timestamp);
-  const icon = ICONS[type]({ failed, reject, piped });
+  const icon = ICONS[type]({ failed: failed2, reject, piped });
   const color = COLORS[type]({ reject });
   return `${gray(`[${timestampString}]`)} ${gray(`[${commandId}]`)} ${color(icon)} ${color(message2)}`;
 };
 var serializeTimestamp = (timestamp) => `${padField(timestamp.getHours(), 2)}:${padField(timestamp.getMinutes(), 2)}:${padField(timestamp.getSeconds(), 2)}.${padField(timestamp.getMilliseconds(), 3)}`;
 var padField = (field2, padding) => String(field2).padStart(padding, "0");
-var getFinalIcon = ({ failed, reject }) => {
-  if (!failed) {
+var getFinalIcon = ({ failed: failed2, reject }) => {
+  if (!failed2) {
     return figures_default.tick;
   }
   return reject ? figures_default.cross : figures_default.warning;
@@ -240002,7 +240143,7 @@ var validateStream = (stream12) => {
     throw new TypeError(`Expected a readable stream, got: \`${typeof stream12}\`.`);
   }
 };
-var endWhenStreamsDone = async ({ passThroughStream, stream: stream12, streams, ended, aborted: aborted3, onFinished, unpipeEvent }) => {
+var endWhenStreamsDone = async ({ passThroughStream, stream: stream12, streams, ended, aborted: aborted4, onFinished, unpipeEvent }) => {
   updateMaxListeners(passThroughStream, PASSTHROUGH_LISTENERS_PER_STREAM);
   const controller = new AbortController();
   try {
@@ -240013,14 +240154,14 @@ var endWhenStreamsDone = async ({ passThroughStream, stream: stream12, streams, 
         stream: stream12,
         streams,
         ended,
-        aborted: aborted3,
+        aborted: aborted4,
         controller
       }),
       onInputStreamUnpipe({
         stream: stream12,
         streams,
         ended,
-        aborted: aborted3,
+        aborted: aborted4,
         unpipeEvent,
         controller
       })
@@ -240029,8 +240170,8 @@ var endWhenStreamsDone = async ({ passThroughStream, stream: stream12, streams, 
     controller.abort();
     updateMaxListeners(passThroughStream, -PASSTHROUGH_LISTENERS_PER_STREAM);
   }
-  if (streams.size > 0 && streams.size === ended.size + aborted3.size) {
-    if (ended.size === 0 && aborted3.size > 0) {
+  if (streams.size > 0 && streams.size === ended.size + aborted4.size) {
+    if (ended.size === 0 && aborted4.size > 0) {
       abortStream(passThroughStream);
     } else {
       endStream(passThroughStream);
@@ -240049,7 +240190,7 @@ var afterMergedStreamFinished = async (onFinished, stream12, { signal }) => {
     }
   }
 };
-var onInputStreamEnd = async ({ passThroughStream, stream: stream12, streams, ended, aborted: aborted3, controller: { signal } }) => {
+var onInputStreamEnd = async ({ passThroughStream, stream: stream12, streams, ended, aborted: aborted4, controller: { signal } }) => {
   try {
     await finished2(stream12, {
       signal,
@@ -240065,20 +240206,20 @@ var onInputStreamEnd = async ({ passThroughStream, stream: stream12, streams, en
       return;
     }
     if (isAbortError(error3)) {
-      aborted3.add(stream12);
+      aborted4.add(stream12);
     } else {
       errorStream(passThroughStream, error3);
     }
   }
 };
-var onInputStreamUnpipe = async ({ stream: stream12, streams, ended, aborted: aborted3, unpipeEvent, controller: { signal } }) => {
+var onInputStreamUnpipe = async ({ stream: stream12, streams, ended, aborted: aborted4, unpipeEvent, controller: { signal } }) => {
   await once7(stream12, unpipeEvent, { signal });
   if (!stream12.readable) {
     return once7(signal, "abort", { signal });
   }
   streams.delete(stream12);
   ended.delete(stream12);
-  aborted3.delete(stream12);
+  aborted4.delete(stream12);
 };
 var endStream = (stream12) => {
   if (stream12.writable) {
@@ -245177,11 +245318,16 @@ function safeHeader(value) {
   return value.replace(/[\r\n\t]/g, "_");
 }
 
-// packages/coremind-tools/dist/mcp-client.js
-import { createHash as createHash6 } from "node:crypto";
-import { mkdtemp as mkdtemp2, rm as rm2, writeFile as writeFile4 } from "node:fs/promises";
-import { tmpdir as tmpdir6 } from "node:os";
-import path30 from "node:path";
+// packages/coremind-tools/dist/mcp-authentication.js
+import { createHash as createHash6, randomBytes as randomBytes2, randomUUID as randomUUID10, timingSafeEqual as timingSafeEqual2 } from "node:crypto";
+import { createServer as createServer3 } from "node:http";
+
+// packages/coremind-tools/dist/mcp-http-fetch.js
+import { randomUUID as randomUUID8 } from "node:crypto";
+import dns from "node:dns/promises";
+import { isIP as isIP3 } from "node:net";
+import { ReadableStream as ReadableStream2 } from "node:stream/web";
+import { TextDecoder as TextDecoder3 } from "node:util";
 
 // packages/coremind-tools/dist/mcp-stdio-transport.js
 import { randomUUID as randomUUID7 } from "node:crypto";
@@ -245428,357 +245574,7 @@ function failure2(message2) {
   return new McpStdioError("mcp_transport_error", message2);
 }
 
-// packages/coremind-tools/dist/mcp-client.js
-var MAX_LIST_PAGES2 = 32;
-var MAX_TOOLS = 256;
-var MAX_DESCRIPTION_BYTES = 4096;
-var INLINE_RESULT_BYTES = 16 * 1024;
-var REQUEST_TIMEOUT_MS = 3e4;
-var ManagedMcpClient = class {
-  options;
-  definitions = /* @__PURE__ */ new WeakMap();
-  secrets;
-  client;
-  connected;
-  closed;
-  invalidated = false;
-  ready = false;
-  tools;
-  owner = new AbortController();
-  allowedResourceUris;
-  isNonFatalSdkError = () => false;
-  ownerCancelled = () => {
-    void this.close().catch(() => {
-    });
-  };
-  constructor(options) {
-    this.options = options;
-    this.secrets = [...new Set(options.sensitiveValues ?? [])].filter((value) => value.length > 0);
-    this.allowedResourceUris = new Set(options.allowedResourceUris ?? []);
-    if (options.mode === "http")
-      options.signal?.addEventListener("abort", this.ownerCancelled, { once: true });
-  }
-  get environmentSummary() {
-    return this.options.transport.environmentSummary;
-  }
-  connect(signal) {
-    if (this.options.mode === "http" && signal?.aborted)
-      return Promise.reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
-    if (!this.connected) {
-      this.connected = this.perform(this.options.mode === "http" ? void 0 : signal, async (executionSignal) => {
-        const { Client: SdkClient, SdkError: SdkError2, SdkErrorCode: SdkErrorCode2, SdkHttpError: SdkHttpError2, ProtocolError: ProtocolError3 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
-        this.isNonFatalSdkError = (cause) => cause instanceof ProtocolError3 || cause instanceof SdkHttpError2 || cause instanceof SdkError2 && (cause.code === SdkErrorCode2.RequestTimeout || cause.code === SdkErrorCode2.CapabilityNotSupported);
-        const client = new SdkClient({ name: "coremind", version: "1" }, {
-          capabilities: {},
-          enforceStrictCapabilities: true,
-          versionNegotiation: {
-            mode: this.options.protocolVersion === "2026-07-28" ? { pin: "2026-07-28" } : "legacy"
-          },
-          inputRequired: { autoFulfill: false }
-        });
-        this.client = client;
-        client.onerror = (cause) => {
-          if (this.options.mode === "stdio" || this.isFatal(cause)) {
-            this.invalidated = true;
-            void this.close().catch(() => {
-            });
-          }
-        };
-        client.setNotificationHandler("notifications/tools/list_changed", () => {
-          this.invalidated = true;
-        });
-        await client.connect(this.options.transport, requestOptions(executionSignal));
-        this.assertSafe(client.getServerVersion());
-        this.assertSafe(client.getInstructions());
-        this.ready = true;
-      });
-    }
-    return this.options.mode === "http" ? waitFor(this.connected, signal) : this.connected;
-  }
-  async listTools(signal) {
-    return this.perform(signal, async (executionSignal) => {
-      this.assertReady();
-      if (this.tools)
-        return this.tools;
-      const tools = [];
-      const names2 = /* @__PURE__ */ new Set();
-      const cursors = /* @__PURE__ */ new Set();
-      let cursor;
-      let totalBytes = 0;
-      for (let page = 0; page < MAX_LIST_PAGES2; page++) {
-        const result = await this.client.request({ method: "tools/list", ...cursor === void 0 ? {} : { params: { cursor } } }, requestOptions(executionSignal));
-        totalBytes += this.assertSafe(result);
-        if (totalBytes > MCP_MAX_FRAME_BYTES)
-          throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
-        for (const definition of result.tools) {
-          if (names2.has(definition.name) || Buffer.byteLength(definition.description ?? "", "utf8") > MAX_DESCRIPTION_BYTES)
-            throw error2("mcp_invalid_directory", "\u5DE5\u5177\u540D\u91CD\u590D\u6216\u63CF\u8FF0\u8D85\u8FC7\u4E0A\u9650");
-          names2.add(definition.name);
-          if (tools.length >= MAX_TOOLS)
-            throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
-          const frozen = freezeJson(structuredClone(definition));
-          const snapshot = Object.freeze({
-            name: frozen.name,
-            description: frozen.description ?? "",
-            inputSchema: frozen.inputSchema,
-            ...frozen.outputSchema !== void 0 ? { outputSchema: frozen.outputSchema } : {},
-            schemaSha256: createHash6("sha256").update(canonical({
-              inputSchema: frozen.inputSchema,
-              ...frozen.outputSchema !== void 0 ? { outputSchema: frozen.outputSchema } : {}
-            }), "utf8").digest("hex"),
-            definition: frozen
-          });
-          this.definitions.set(snapshot, frozen);
-          tools.push(snapshot);
-        }
-        if (result.nextCursor === void 0) {
-          this.tools = Object.freeze(tools);
-          return this.tools;
-        }
-        if (cursors.has(result.nextCursor))
-          throw error2("mcp_invalid_directory", "\u5DE5\u5177\u76EE\u5F55\u5206\u9875\u6E38\u6807\u672A\u6536\u655B");
-        cursors.add(result.nextCursor);
-        cursor = result.nextCursor;
-      }
-      throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u9875\u6570\u8D85\u8FC7\u4E0A\u9650");
-    });
-  }
-  callTool(tool, args, signal) {
-    return this.perform(signal, async (executionSignal) => {
-      this.assertReady();
-      const definition = this.definitions.get(tool);
-      if (!definition)
-        throw error2("mcp_invalid_tool", "\u5DE5\u5177\u5FEB\u7167\u4E0D\u5C5E\u4E8E\u5F53\u524D\u8FDE\u63A5");
-      this.assertSafe(args);
-      const result = await this.client.callTool({ name: definition.name, arguments: args }, {
-        ...requestOptions(executionSignal),
-        toolDefinition: definition
-      });
-      this.assertSafe(result);
-      if (result.content.some((item) => item.type !== "text"))
-        throw error2("mcp_unsupported_content", "\u672C\u5730\u5DE5\u5177\u8FD4\u56DE\u4E86\u4E0D\u652F\u6301\u7684\u5185\u5BB9\u7C7B\u578B");
-      const content = result.content.map((item) => item.type === "text" ? item.text : "").join("\n");
-      const text2 = result.structuredContent !== void 0 ? [content, JSON.stringify(result.structuredContent)].filter((part) => part.length > 0).join("\n") : content;
-      return this.packageResult(result, text2, result.isError);
-    });
-  }
-  async listResources(signal) {
-    this.assertResourceScope();
-    return this.perform(signal, async (executionSignal) => {
-      const resources = await this.resourceDirectory("resources", executionSignal);
-      const selected = resources.filter((item) => this.allowedResourceUris.has(String(item.uri)));
-      const value = { resources: selected };
-      return this.packageResult(value, JSON.stringify(value));
-    });
-  }
-  async listResourceTemplates(signal) {
-    this.assertResourceScope();
-    return this.perform(signal, async (executionSignal) => {
-      const templates = await this.resourceDirectory("resourceTemplates", executionSignal);
-      const { UriTemplate: UriTemplate4 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
-      const selected = templates.filter((item) => {
-        const template = new UriTemplate4(String(item.uriTemplate));
-        return [...this.allowedResourceUris].some((uri) => template.match(uri) !== null);
-      });
-      const value = { resourceTemplates: selected };
-      return this.packageResult(value, JSON.stringify(value));
-    });
-  }
-  async readResource(uri, signal) {
-    this.assertResourceScope(uri);
-    return this.perform(signal, async (executionSignal) => {
-      this.assertReady();
-      const result = await this.client.request({ method: "resources/read", params: { uri } }, requestOptions(executionSignal));
-      this.assertSafe(result);
-      for (const item of result.contents) {
-        if (!this.allowedResourceUris.has(item.uri))
-          throw error2("mcp_protocol_error", "\u8D44\u6E90\u54CD\u5E94\u5305\u542B\u6388\u6743\u96C6\u5408\u5916\u7684 URI");
-        if ("blob" in item || !("text" in item) || typeof item.text !== "string")
-          throw error2("mcp_unsupported_content", "\u4EC5\u652F\u6301\u8D44\u6E90\u6587\u672C\u548C JSON \u6B63\u6587");
-      }
-      return this.packageResult(result, result.contents.map((item) => "text" in item ? item.text : "").join("\n"));
-    });
-  }
-  assertResourceScope(uri) {
-    if (this.options.mode !== "http" || this.allowedResourceUris.size === 0 || uri !== void 0 && !this.allowedResourceUris.has(uri))
-      throw error2("mcp_resource_not_allowed", "\u8D44\u6E90\u4E0D\u5728\u672C\u6B21 HTTP \u8FDE\u63A5\u7684\u7CBE\u786E\u6388\u6743\u96C6\u5408\u4E2D");
-  }
-  async resourceDirectory(kind, signal) {
-    this.assertReady();
-    const items = [];
-    const cursors = /* @__PURE__ */ new Set();
-    let cursor;
-    let totalBytes = 0;
-    for (let page = 0; page < MAX_LIST_PAGES2; page++) {
-      const params = cursor === void 0 ? {} : { params: { cursor } };
-      const result = kind === "resources" ? await this.client.request({ method: "resources/list", ...params }, requestOptions(signal)) : await this.client.request({ method: "resources/templates/list", ...params }, requestOptions(signal));
-      totalBytes += this.assertSafe(result);
-      if (totalBytes > MCP_MAX_FRAME_BYTES)
-        throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
-      const entries = kind === "resources" ? result.resources : result.resourceTemplates;
-      if (!Array.isArray(entries))
-        throw error2("mcp_protocol_error", "\u8D44\u6E90\u76EE\u5F55\u7F3A\u5C11\u9884\u671F\u96C6\u5408");
-      for (const item of entries) {
-        if (items.length >= MAX_TOOLS)
-          throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
-        items.push(item);
-      }
-      if (result.nextCursor === void 0)
-        return items;
-      if (cursors.has(result.nextCursor))
-        throw error2("mcp_invalid_directory", "\u8D44\u6E90\u76EE\u5F55\u5206\u9875\u6E38\u6807\u672A\u6536\u655B");
-      cursors.add(result.nextCursor);
-      cursor = result.nextCursor;
-    }
-    throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u9875\u6570\u8D85\u8FC7\u4E0A\u9650");
-  }
-  close() {
-    if (!this.closed) {
-      this.closed = this.options.transport.close();
-      this.owner.abort();
-      this.options.signal?.removeEventListener("abort", this.ownerCancelled);
-    }
-    return this.closed;
-  }
-  assertReady() {
-    if (!this.client || !this.ready || this.closed || this.invalidated)
-      throw error2("mcp_connection_unavailable", "\u672C\u5730\u5DE5\u5177\u8FDE\u63A5\u5C1A\u672A\u5C31\u7EEA\u3001\u5DF2\u5173\u95ED\u6216\u76EE\u5F55\u5DF2\u53D8\u5316");
-  }
-  assertSafe(value) {
-    const visit = (item, depth) => {
-      if (depth > 64)
-        throw error2("mcp_output_limit", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u5D4C\u5957\u8D85\u8FC7\u4E0A\u9650");
-      if (typeof item === "string" && this.secrets.some((secret) => item.includes(secret)))
-        throw error2("mcp_secret_blocked", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u5305\u542B\u672C\u6B21\u670D\u52A1\u79D8\u5BC6\uFF0C\u5DF2\u963B\u65AD\u8F93\u51FA");
-      if (Array.isArray(item))
-        for (const child of item)
-          visit(child, depth + 1);
-      else if (item !== null && typeof item === "object")
-        for (const [key, child] of Object.entries(item)) {
-          visit(key, depth + 1);
-          visit(child, depth + 1);
-        }
-    };
-    visit(value, 0);
-    const serialized = JSON.stringify(value) ?? "";
-    visit(serialized, 0);
-    const bytes = Buffer.byteLength(serialized, "utf8");
-    if (bytes > MCP_MAX_FRAME_BYTES)
-      throw error2("mcp_output_limit", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
-    return bytes;
-  }
-  async packageResult(result, text2, isError) {
-    this.assertSafe(result);
-    this.assertSafe(text2);
-    const value = { mcp: structuredClone(result) };
-    const serialized = JSON.stringify(value);
-    let details = value;
-    if (Buffer.byteLength(serialized, "utf8") > INLINE_RESULT_BYTES) {
-      const directory = await mkdtemp2(path30.join(tmpdir6(), "coremind-mcp-result-"));
-      try {
-        const file = path30.join(directory, "result.json");
-        await writeFile4(file, serialized, { encoding: "utf8", flag: "wx", mode: 384 });
-        const imported = await this.options.artifactStore.importFile(file, {
-          deleteSource: true,
-          mediaType: "application/json; charset=utf-8"
-        });
-        text2 = imported.preview;
-        details = { mcp: { output: "artifact" }, artifact: imported.record };
-      } finally {
-        await rm2(directory, { recursive: true, force: true });
-      }
-    }
-    return { text: text2, details, ...isError !== void 0 ? { isError } : {} };
-  }
-  isFatal(cause) {
-    if (this.options.isFatalTransportError?.(cause))
-      return true;
-    if (cause instanceof McpStdioError)
-      return [
-        "mcp_output_limit",
-        "mcp_secret_blocked",
-        "mcp_invalid_directory",
-        "mcp_protocol_error"
-      ].includes(cause.code);
-    return !this.isNonFatalSdkError(cause);
-  }
-  async perform(signal, action) {
-    const deadline = new AbortController();
-    const timer = this.options.mode === "http" ? setTimeout(() => deadline.abort(), REQUEST_TIMEOUT_MS) : void 0;
-    const signals2 = [signal, this.options.signal, this.owner.signal, deadline.signal].filter((value) => value !== void 0);
-    const executionSignal = AbortSignal.any(signals2);
-    const cancel2 = () => {
-      void this.close().catch(() => {
-      });
-    };
-    try {
-      if (this.closed || executionSignal.aborted)
-        throw error2("mcp_connection_unavailable", "\u5DE5\u5177\u8FDE\u63A5\u5DF2\u5173\u95ED\u6216\u8C03\u7528\u5DF2\u53D6\u6D88");
-      if (this.options.mode === "stdio")
-        executionSignal.addEventListener("abort", cancel2, { once: true });
-      return await action(executionSignal);
-    } catch (cause) {
-      if (this.options.mode === "stdio" || this.isFatal(cause)) {
-        this.invalidated = true;
-        await this.close();
-      }
-      if (cause instanceof McpStdioError)
-        throw cause;
-      if (this.options.mode === "http" && executionSignal.aborted)
-        throw error2("mcp_request_cancelled", "\u5DE5\u5177\u8BF7\u6C42\u5DF2\u53D6\u6D88\u6216\u8D85\u8FC7\u672C\u6B21\u671F\u9650\uFF1B\u4E0D\u81EA\u52A8\u91CD\u8BD5");
-      throw error2("mcp_protocol_error", "\u5DE5\u5177\u534F\u8BAE\u8C03\u7528\u5931\u8D25\uFF1B\u8FDC\u7AEF\u6548\u679C\u53EF\u80FD\u672A\u77E5\uFF0C\u4E0D\u81EA\u52A8\u91CD\u8BD5");
-    } finally {
-      if (timer !== void 0)
-        clearTimeout(timer);
-      executionSignal.removeEventListener("abort", cancel2);
-    }
-  }
-};
-function requestOptions(signal) {
-  return {
-    signal,
-    timeout: REQUEST_TIMEOUT_MS,
-    maxTotalTimeout: REQUEST_TIMEOUT_MS,
-    resetTimeoutOnProgress: false
-  };
-}
-function error2(code, message2) {
-  return new McpStdioError(code, message2);
-}
-function canonical(value) {
-  if (Array.isArray(value))
-    return `[${value.map(canonical).join(",")}]`;
-  if (value !== null && typeof value === "object")
-    return `{${Object.entries(value).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`).join(",")}}`;
-  return JSON.stringify(value) ?? "null";
-}
-function freezeJson(value) {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value))
-      freezeJson(child);
-    Object.freeze(value);
-  }
-  return value;
-}
-function waitFor(pending, signal) {
-  if (!signal)
-    return pending;
-  return new Promise((resolve9, reject) => {
-    const cancelled3 = () => reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
-    if (signal.aborted)
-      cancelled3();
-    else
-      signal.addEventListener("abort", cancelled3, { once: true });
-    pending.then(resolve9, reject).finally(() => signal.removeEventListener("abort", cancelled3));
-  });
-}
-
 // packages/coremind-tools/dist/mcp-http-fetch.js
-import { randomUUID as randomUUID8 } from "node:crypto";
-import dns from "node:dns/promises";
-import { isIP as isIP3 } from "node:net";
-import { ReadableStream as ReadableStream2 } from "node:stream/web";
-import { TextDecoder as TextDecoder3 } from "node:util";
 var MAX_BODY_BYTES = 8 * 1024 * 1024;
 var MAX_OWNER_BYTES = 64 * 1024 * 1024;
 var MAX_GETS = 3;
@@ -245918,6 +245714,7 @@ var McpHttpFetchOwner = class {
     const signal = AbortSignal.any([
       this.controller.signal,
       requestController.signal,
+      ...this.options.authentication ? [this.options.authentication.signal] : [],
       ...this.options.signal ? [this.options.signal] : [],
       ...init.signal ? [init.signal] : []
     ]);
@@ -245932,7 +245729,7 @@ var McpHttpFetchOwner = class {
       if (finished8)
         return;
       finished8 = true;
-      signal.removeEventListener("abort", aborted3);
+      signal.removeEventListener("abort", aborted4);
       for (const activity of activities)
         activity.settle();
       this.requests.delete(owned);
@@ -245949,7 +245746,7 @@ var McpHttpFetchOwner = class {
       }
     };
     const owned = { controller: requestController, done, cancel: cancel2 };
-    const aborted3 = () => {
+    const aborted4 = () => {
       try {
         output?.error(this.fatal ?? cancelled());
       } catch {
@@ -245958,7 +245755,7 @@ var McpHttpFetchOwner = class {
         void cancel2();
     };
     this.requests.add(owned);
-    signal.addEventListener("abort", aborted3, { once: true });
+    signal.addEventListener("abort", aborted4, { once: true });
     try {
       const domain = this.options.runEnvironment.hostNetwork ?? this.options.runEnvironment;
       activities.push(this.options.runEnvironment.beginActivity({
@@ -245982,6 +245779,15 @@ var McpHttpFetchOwner = class {
       this.checkOpen();
       if (signal.aborted)
         throw cancelled();
+      if (this.options.authentication) {
+        if (headers.has("authorization"))
+          throw policy();
+        const token = await this.options.authentication.authorize(signal);
+        this.checkOpen();
+        if (signal.aborted)
+          throw cancelled();
+        headers.set("authorization", `Bearer ${token}`);
+      }
       this.environmentSummary = Object.freeze({
         isolation: "trusted_host",
         processControl: "none",
@@ -246023,7 +245829,7 @@ var McpHttpFetchOwner = class {
       }
       if (!response.ok) {
         await response.body?.cancel();
-        throw new McpStdioError(response.status === 401 || response.status === 403 ? "mcp_http_auth_required" : "mcp_http_status_error", response.status === 401 || response.status === 403 ? "\u8FDC\u7A0B\u670D\u52A1\u62D2\u7EDD\u5F53\u524D\u51ED\u8BC1" : "\u8FDC\u7A0B\u670D\u52A1\u8FD4\u56DE\u5931\u8D25\u72B6\u6001");
+        throw new McpStdioError(response.status === 401 || response.status === 403 ? this.options.authentication ? "mcp_auth_required" : "mcp_http_auth_required" : "mcp_http_status_error", response.status === 401 || response.status === 403 ? "\u8FDC\u7A0B\u670D\u52A1\u62D2\u7EDD\u5F53\u524D\u51ED\u8BC1" : "\u8FDC\u7A0B\u670D\u52A1\u8FD4\u56DE\u5931\u8D25\u72B6\u6001");
       }
       this.assertSafe(JSON.stringify([...response.headers]));
       for (const [name, value] of response.headers) {
@@ -246043,7 +245849,12 @@ var McpHttpFetchOwner = class {
       let previousCr = false;
       let tail = "";
       const decoder3 = new TextDecoder3("utf-8", { fatal: true });
-      const overlap = Math.max(0, ...this.secrets.map((value) => value.length - 1));
+      const overlap = Math.max(
+        0,
+        ...this.secrets.map((value) => value.length - 1),
+        // 在飞响应也须认识之后轮换的新令牌，保留有界的最大重叠长度。
+        (this.options.authentication?.maxSecretLength ?? 1) - 1
+      );
       const sse2 = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() === "text/event-stream";
       const body = new ReadableStream2({
         start: (controller) => {
@@ -246160,12 +245971,14 @@ var McpHttpFetchOwner = class {
     });
   };
   checkOpen() {
+    this.options.authentication?.assertActive();
     if (this.fatal)
       throw this.fatal;
     if (this.closing || this.controller.signal.aborted || this.options.signal?.aborted)
       throw cancelled();
   }
   assertSafe(text2) {
+    this.options.authentication?.assertSafe(text2);
     if (this.secrets.some((secret) => text2.includes(secret)))
       throw new McpStdioError("mcp_secret_blocked", "\u8FDC\u7A0B\u54CD\u5E94\u5305\u542B\u53D7\u4FDD\u62A4\u51ED\u8BC1");
   }
@@ -246291,6 +246104,1114 @@ function invalidUtf8() {
   return new McpStdioError("mcp_protocol_error", "\u8FDC\u7A0B\u54CD\u5E94\u4E0D\u662F\u6709\u6548 UTF-8");
 }
 
+// packages/coremind-tools/dist/platform-execution-environment.js
+import { randomUUID as randomUUID9 } from "node:crypto";
+import { rm as rm2 } from "node:fs/promises";
+import { createServer as createServer2 } from "node:http";
+import { tmpdir as tmpdir6 } from "node:os";
+import path30 from "node:path";
+var linuxProbeByWorkspace = /* @__PURE__ */ new Map();
+var processTreeProbe;
+function createPlatformExecutionEnvironment(input) {
+  const platform4 = input.platform ?? process.platform;
+  if (platform4 === "linux") {
+    const sandbox = createLinuxSandboxExecutionEnvironment({
+      workspaceRoot: input.workspaceRoot,
+      platform: platform4,
+      probeSandbox: () => cachedLinuxSandboxProbe(input.workspaceRoot, input.env ?? process.env),
+      probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
+    });
+    return Object.assign(sandbox, {
+      hostNetwork: createTrustedHostExecutionEnvironment({
+        workspaceRoot: input.workspaceRoot,
+        platform: platform4,
+        probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
+      })
+    });
+  }
+  return createTrustedHostExecutionEnvironment({
+    workspaceRoot: input.workspaceRoot,
+    platform: platform4,
+    probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
+  });
+}
+async function cachedLinuxSandboxProbe(workspaceRoot, env2) {
+  const root = path30.resolve(workspaceRoot);
+  const existing = linuxProbeByWorkspace.get(root);
+  if (existing)
+    return existing;
+  const created = probeLinuxSandbox(root, env2).catch((error3) => ({
+    available: false,
+    evidence: [
+      `linux-sandbox-probe-error:${error3 instanceof Error ? error3.message : String(error3)}`
+    ]
+  }));
+  linuxProbeByWorkspace.set(root, created);
+  return created;
+}
+async function probeLinuxSandbox(workspaceRoot, env2) {
+  if (process.platform !== "linux") {
+    return { available: false, evidence: ["platform-not-linux"] };
+  }
+  await ensureLinuxSandboxInitialized();
+  const probeEnvironment = {
+    ...env2,
+    COREMIND_SANDBOX_PROBE_SECRET: randomUUID9()
+  };
+  const outsidePath = path30.join(tmpdir6(), `coremind-sandbox-probe-${randomUUID9()}`);
+  const server = createServer2((_request, response) => response.end("reachable"));
+  await new Promise((resolve9, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve9);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string")
+    throw new Error("\u65E0\u6CD5\u521B\u5EFA\u672C\u5730\u7F51\u7EDC\u8D1F\u5411\u63A2\u9488");
+  const probeScript = buildLinuxSandboxProbeScript(outsidePath, address.port);
+  const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
+  const commandId = randomUUID9();
+  try {
+    const wrapped = await wrapLinuxSandboxCommand(command, buildLinuxSandboxConfig(workspaceRoot, probeEnvironment), void 0, commandId);
+    const executable = wrapped.argv[0];
+    if (!executable)
+      throw new Error("Linux sandbox probe \u672A\u751F\u6210\u53EF\u6267\u884C\u547D\u4EE4");
+    const result = await new ProcessRunner().run({
+      command: executable,
+      args: wrapped.argv.slice(1),
+      cwd: workspaceRoot,
+      env: {
+        ...sanitizeLinuxSandboxEnvironment(probeEnvironment),
+        PATH: env2.PATH ?? process.env.PATH
+      },
+      timeoutMs: 5e3,
+      maxOutputBytes: 64 * 1024
+    });
+    const available = result.exitCode === 0;
+    return {
+      available,
+      evidence: [
+        `linux-sandbox:outside-write:${available ? "blocked" : "unverified"}`,
+        `linux-sandbox:network:${available ? "blocked" : "unverified"}`,
+        `linux-sandbox:credential-env:${available ? "hidden" : "unverified"}`
+      ]
+    };
+  } finally {
+    cleanupLinuxSandboxCommand();
+    await rm2(outsidePath, { force: true });
+    server.closeAllConnections();
+    await new Promise((resolve9) => server.close(() => resolve9()));
+  }
+}
+function buildLinuxSandboxProbeScript(outsidePath, port) {
+  return [
+    "const fs = require('node:fs')",
+    `let outsideBlocked = false; try { fs.writeFileSync(${JSON.stringify(outsidePath)}, 'x') } catch { outsideBlocked = true }`,
+    "const credentialHidden = process.env.COREMIND_SANDBOX_PROBE_SECRET === undefined",
+    `fetch(${JSON.stringify(`http://127.0.0.1:${port}`)})`,
+    ".then(() => process.exit(3))",
+    ".catch(() => process.exit(outsideBlocked && credentialHidden ? 0 : 4))"
+  ].join("\n");
+}
+function shellQuote(value) {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+// packages/coremind-tools/dist/mcp-authentication.js
+var LOGIN_MS = 18e4;
+var REQUEST_MS = 3e4;
+var CLOSE_MS = 5e3;
+var MAX_JSON = 64 * 1024;
+var MCP_AUTH_MAX_SECRET_LENGTH = 16 * 1024;
+var engines = /* @__PURE__ */ new WeakMap();
+function createMcpAuthenticationEngine(options) {
+  const engine = new AuthenticationEngine(options);
+  const session = Object.freeze({
+    login: (server, login) => engine.login(server, login),
+    logout: (server) => engine.logout(server),
+    close: () => engine.close()
+  });
+  engines.set(session, engine);
+  return session;
+}
+function bindMcpAuthentication(session, server, identity3, _environment) {
+  const engine = engines.get(session);
+  if (!engine)
+    throw failed();
+  return engine.bind(server, identity3);
+}
+var AuthenticationEngine = class {
+  options;
+  states = /* @__PURE__ */ new Map();
+  namespace;
+  store;
+  memory = /* @__PURE__ */ new Map();
+  controller = new AbortController();
+  owners = /* @__PURE__ */ new Set();
+  callbacks = /* @__PURE__ */ new Set();
+  pending = /* @__PURE__ */ new Set();
+  transactions = /* @__PURE__ */ new Set();
+  environment;
+  closing;
+  constructor(options) {
+    this.options = options;
+    if (options.tokenStore && (!options.namespace?.trim() || options.namespace.length > 256))
+      throw failed();
+    this.namespace = options.namespace ?? randomUUID10();
+    this.store = options.tokenStore ?? {
+      load: async (key) => this.memory.get(key),
+      save: async (key, record2) => {
+        this.memory.set(key, structuredClone(record2));
+      },
+      delete: async (key) => {
+        this.memory.delete(key);
+      }
+    };
+    for (const entry of options.servers) {
+      if (this.states.has(entry.server) || !entry.config.oauth)
+        throw failed();
+      const snapshot = structuredClone(entry);
+      const oauth = snapshot.config.oauth;
+      const key = createHash6("sha256").update(JSON.stringify([
+        this.namespace,
+        entry.serverIdentity,
+        new URL(entry.config.url).href,
+        oauth.issuer,
+        oauth.clientId,
+        [...oauth.scopes].sort()
+      ]), "utf8").digest("hex");
+      this.states.set(entry.server, {
+        entry: snapshot,
+        key,
+        epoch: 0,
+        controller: new AbortController(),
+        loaded: false,
+        queue: Promise.resolve(),
+        generations: 0,
+        secrets: /* @__PURE__ */ new Set()
+      });
+    }
+  }
+  bind(server, identity3) {
+    const state3 = this.state(server);
+    if (state3.entry.serverIdentity !== identity3)
+      throw failed();
+    const epoch2 = state3.epoch;
+    const signal = state3.controller.signal;
+    const assertActive = () => this.active(state3, epoch2);
+    return {
+      signal,
+      assertActive,
+      maxSecretLength: MCP_AUTH_MAX_SECRET_LENGTH,
+      authorize: (caller) => this.authorize(state3, epoch2, caller),
+      assertSafe: (text2) => {
+        assertActive();
+        if ([...state3.secrets].some((value) => text2.includes(value)))
+          throw new McpStdioError("mcp_secret_blocked", "MCP \u54CD\u5E94\u5305\u542B\u53D7\u4FDD\u62A4\u51ED\u636E");
+      }
+    };
+  }
+  login(server, options = {}) {
+    if (typeof options.onAuthorization !== "function")
+      return Promise.reject(required2());
+    if (this.options.network === "deny")
+      return Promise.reject(failed());
+    if (options.signal?.aborted)
+      return Promise.reject(aborted3());
+    let state3;
+    try {
+      state3 = this.state(server);
+    } catch (error3) {
+      return Promise.reject(error3);
+    }
+    const transactionId = options.transactionId ?? randomUUID10();
+    if (!/^[A-Za-z0-9_-]{1,128}$/u.test(transactionId) || this.transactions.has(transactionId) || this.transactions.size >= 256 || state3.login)
+      return Promise.reject(failed());
+    this.transactions.add(transactionId);
+    this.revoke(state3);
+    state3.generations = 0;
+    state3.secrets.clear();
+    const epoch2 = state3.epoch;
+    const transaction = new AbortController();
+    const signal = AbortSignal.any([
+      transaction.signal,
+      this.controller.signal,
+      state3.controller.signal,
+      ...options.signal ? [options.signal] : []
+    ]);
+    const expiresAt = Date.now() + LOGIN_MS;
+    const timer = setTimeout(() => transaction.abort(new McpStdioError("run_timeout", "MCP \u6388\u6743\u4E8B\u52A1\u8D85\u65F6")), LOGIN_MS);
+    const promise = this.track((async () => {
+      try {
+        const metadata = await this.discover(state3, signal);
+        const callback = await this.callback(state3, metadata, signal);
+        try {
+          const { startAuthorization: startAuthorization3, exchangeAuthorization: exchangeAuthorization2 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+          const oauth = state3.entry.config.oauth;
+          const authorization = await startAuthorization3(oauth.issuer, {
+            metadata,
+            clientInformation: { client_id: oauth.clientId, token_endpoint_auth_method: "none" },
+            redirectUrl: callback.url,
+            state: callback.state,
+            scope: oauth.scopes.join(" "),
+            resource: new URL(state3.entry.config.url).href
+          });
+          if (signal.aborted)
+            throw safeError(void 0, signal);
+          this.active(state3, epoch2);
+          const request = Object.freeze({
+            transactionId,
+            server,
+            serverIdentity: state3.entry.serverIdentity,
+            authorizationUrl: authorization.authorizationUrl.href,
+            expiresAt: new Date(expiresAt).toISOString(),
+            issuer: oauth.issuer,
+            clientId: oauth.clientId,
+            resource: new URL(state3.entry.config.url).href,
+            scopes: Object.freeze([...oauth.scopes])
+          });
+          const handler = this.track(Promise.resolve().then(() => {
+            if (signal.aborted)
+              throw safeError(void 0, signal);
+            this.active(state3, epoch2);
+            return options.onAuthorization(request, signal);
+          }));
+          const [code] = await Promise.all([wait(callback.code, signal), wait(handler, signal)]);
+          this.active(state3, epoch2);
+          const tokens = await exchangeAuthorization2(oauth.issuer, {
+            metadata,
+            clientInformation: { client_id: oauth.clientId, token_endpoint_auth_method: "none" },
+            authorizationCode: code.code,
+            iss: code.issuer,
+            codeVerifier: authorization.codeVerifier,
+            redirectUri: callback.url,
+            resource: new URL(state3.entry.config.url).href,
+            fetchFn: (input, init) => this.request(state3, String(input), init, signal, true)
+          });
+          await this.publish(state3, epoch2, this.tokenRecord(state3, tokens), signal);
+          return {
+            status: "authorized",
+            transactionId,
+            server,
+            serverIdentity: state3.entry.serverIdentity
+          };
+        } finally {
+          await callback.close();
+        }
+      } catch (cause) {
+        const error3 = safeError(cause, signal);
+        if (state3.epoch === epoch2)
+          this.revoke(state3);
+        throw error3;
+      } finally {
+        clearTimeout(timer);
+        transaction.abort();
+      }
+    })());
+    state3.login = promise;
+    void promise.finally(() => {
+      if (state3.login === promise)
+        state3.login = void 0;
+    }).catch(() => {
+    });
+    return promise;
+  }
+  async logout(server) {
+    const state3 = this.state(server);
+    const transactions = [state3.login, state3.refresh?.promise].filter((value) => value !== void 0);
+    this.revoke(state3);
+    await this.storage(state3, () => this.store.delete(state3.key, this.controller.signal), this.controller.signal);
+    try {
+      await wait(Promise.allSettled(transactions), AbortSignal.timeout(CLOSE_MS));
+    } catch {
+      throw storeFailed();
+    }
+  }
+  close() {
+    if (this.closing)
+      return this.closing;
+    this.controller.abort();
+    for (const state3 of this.states.values())
+      this.revoke(state3);
+    this.memory.clear();
+    this.closing = (async () => {
+      const timer = new AbortController();
+      const timeout = setTimeout(() => timer.abort(), CLOSE_MS);
+      try {
+        const cleanup = await wait(Promise.allSettled([
+          ...[...this.owners].map((owner) => owner.close()),
+          ...[...this.callbacks].map((close) => close())
+        ]), timer.signal);
+        if (cleanup.some((item) => item.status === "rejected"))
+          throw storeFailed();
+        await wait(Promise.allSettled([...this.pending]), timer.signal);
+        if (this.pending.size)
+          throw storeFailed();
+      } catch {
+        throw storeFailed();
+      } finally {
+        clearTimeout(timeout);
+      }
+      for (const state3 of this.states.values())
+        state3.secrets.clear();
+    })();
+    return this.closing;
+  }
+  state(server) {
+    if (this.closing || this.controller.signal.aborted)
+      throw required2();
+    const state3 = this.states.get(server);
+    if (!state3)
+      throw failed();
+    return state3;
+  }
+  active(state3, epoch2) {
+    if (this.controller.signal.aborted || state3.epoch !== epoch2 || state3.controller.signal.aborted)
+      throw required2();
+  }
+  revoke(state3) {
+    state3.controller.abort();
+    state3.epoch++;
+    state3.controller = new AbortController();
+    state3.record = void 0;
+    state3.loaded = true;
+    state3.loading = void 0;
+    state3.refresh = void 0;
+  }
+  async authorize(state3, epoch2, caller) {
+    if (caller?.aborted)
+      throw aborted3();
+    this.active(state3, epoch2);
+    if (this.options.network === "deny")
+      throw failed();
+    if (!state3.loaded) {
+      state3.loading ??= this.track((async () => {
+        const value = await this.storage(state3, () => this.store.load(state3.key, state3.controller.signal), state3.controller.signal);
+        this.active(state3, epoch2);
+        if (value !== void 0) {
+          state3.record = this.checkRecord(state3, value);
+          this.remember(state3, state3.record);
+        }
+        state3.loaded = true;
+      })());
+      await wait(state3.loading, caller);
+    }
+    this.active(state3, epoch2);
+    if (caller?.aborted)
+      throw aborted3();
+    const record2 = state3.record;
+    if (!record2)
+      throw required2();
+    if (record2.expiresAt === void 0 || record2.expiresAt > Date.now())
+      return record2.accessToken;
+    if (!record2.refreshToken) {
+      this.revoke(state3);
+      throw required2();
+    }
+    if (!state3.refresh) {
+      const controller = new AbortController();
+      const signal = AbortSignal.any([
+        this.controller.signal,
+        state3.controller.signal,
+        controller.signal
+      ]);
+      const refresh = this.track((async () => {
+        try {
+          const metadata = state3.metadata ?? await this.discover(state3, signal);
+          const { refreshAuthorization: refreshAuthorization3 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+          const oauth = state3.entry.config.oauth;
+          const tokens = await refreshAuthorization3(oauth.issuer, {
+            metadata,
+            clientInformation: { client_id: oauth.clientId, token_endpoint_auth_method: "none" },
+            refreshToken: record2.refreshToken,
+            resource: new URL(state3.entry.config.url).href,
+            fetchFn: (input, init) => this.request(state3, String(input), init, signal, true)
+          });
+          const next = this.tokenRecord(state3, tokens);
+          await this.publish(state3, epoch2, next, signal);
+          return next.accessToken;
+        } catch (cause) {
+          const error3 = safeError(cause, signal);
+          if (state3.epoch === epoch2)
+            this.revoke(state3);
+          throw error3;
+        }
+      })());
+      const flight2 = { controller, promise: refresh, waiters: 0 };
+      state3.refresh = flight2;
+      void refresh.finally(() => {
+        if (state3.refresh === flight2)
+          state3.refresh = void 0;
+      }).catch(() => {
+      });
+    }
+    const flight = state3.refresh;
+    flight.waiters++;
+    try {
+      const token = await wait(flight.promise, caller);
+      if (caller?.aborted)
+        throw aborted3();
+      this.active(state3, epoch2);
+      return token;
+    } finally {
+      flight.waiters--;
+      if (flight.waiters === 0 && state3.refresh === flight)
+        flight.controller.abort();
+    }
+  }
+  async publish(state3, epoch2, record2, signal) {
+    this.active(state3, epoch2);
+    this.remember(state3, record2);
+    await this.storage(state3, () => {
+      this.active(state3, epoch2);
+      return this.store.save(state3.key, structuredClone(record2), signal);
+    }, signal);
+    this.active(state3, epoch2);
+    state3.record = record2;
+    state3.loaded = true;
+  }
+  storage(state3, action, signal) {
+    const operation = this.track(state3.queue.then(action));
+    state3.queue = operation.catch(() => {
+    });
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), REQUEST_MS);
+    return wait(operation, AbortSignal.any([signal, deadline.signal])).catch((cause) => {
+      if (signal.aborted)
+        throw safeError(cause, signal);
+      this.revoke(state3);
+      throw storeFailed();
+    }).finally(() => clearTimeout(timer));
+  }
+  fields(state3) {
+    const oauth = state3.entry.config.oauth;
+    return {
+      schemaVersion: 1,
+      namespace: this.namespace,
+      serverIdentity: state3.entry.serverIdentity,
+      resource: new URL(state3.entry.config.url).href,
+      issuer: oauth.issuer,
+      clientId: oauth.clientId,
+      scopes: [...oauth.scopes].sort()
+    };
+  }
+  tokenRecord(state3, tokens) {
+    const scope = tokens.scope === void 0 ? state3.entry.config.oauth.scopes : tokens.scope.split(" ").filter(Boolean);
+    if (new Set(scope).size !== scope.length || scope.some((value) => !state3.entry.config.oauth.scopes.includes(value)) || tokens.token_type.toLowerCase() !== "bearer" || !validSecret(tokens.access_token) || tokens.refresh_token !== void 0 && !validSecret(tokens.refresh_token) || tokens.expires_in !== void 0 && (!Number.isFinite(tokens.expires_in) || tokens.expires_in < 0 || !Number.isFinite(Date.now() + tokens.expires_in * 1e3)))
+      throw failed();
+    return {
+      ...this.fields(state3),
+      scopes: [...scope].sort(),
+      tokenType: "Bearer",
+      accessToken: tokens.access_token,
+      ...tokens.refresh_token !== void 0 ? { refreshToken: tokens.refresh_token } : {},
+      ...tokens.expires_in !== void 0 ? { expiresAt: Date.now() + tokens.expires_in * 1e3 } : {}
+    };
+  }
+  checkRecord(state3, record2) {
+    const expected = this.fields(state3);
+    if (!record2 || typeof record2 !== "object" || record2.schemaVersion !== 1 || record2.namespace !== expected.namespace || record2.serverIdentity !== expected.serverIdentity || record2.resource !== expected.resource || record2.issuer !== expected.issuer || record2.clientId !== expected.clientId || !Array.isArray(record2.scopes) || new Set(record2.scopes).size !== record2.scopes.length || record2.scopes.some((scope) => !expected.scopes.includes(scope)) || record2.tokenType !== "Bearer" || !validSecret(record2.accessToken) || record2.refreshToken !== void 0 && !validSecret(record2.refreshToken) || record2.expiresAt !== void 0 && (!Number.isFinite(record2.expiresAt) || record2.expiresAt < 0)) {
+      this.revoke(state3);
+      throw storeFailed();
+    }
+    return structuredClone(record2);
+  }
+  remember(state3, record2) {
+    if (state3.generations >= 32) {
+      this.revoke(state3);
+      throw required2();
+    }
+    state3.generations++;
+    state3.secrets.add(record2.accessToken);
+    if (record2.refreshToken)
+      state3.secrets.add(record2.refreshToken);
+  }
+  async discover(state3, signal) {
+    const { discoverOAuthProtectedResourceMetadata: discoverOAuthProtectedResourceMetadata2, discoverAuthorizationServerMetadata: discoverAuthorizationServerMetadata3, buildDiscoveryUrls: buildDiscoveryUrls2 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+    const config2 = state3.entry.config;
+    const oauth = config2.oauth;
+    const resource = new URL(config2.url);
+    const resourceMetadataUrl = new URL("/.well-known/oauth-protected-resource" + (resource.pathname === "/" ? "" : resource.pathname), resource.origin).href;
+    const resourceMetadata = await discoverOAuthProtectedResourceMetadata2(config2.url, { resourceMetadataUrl }, (input, init) => {
+      if (new URL(String(input)).href !== resourceMetadataUrl)
+        throw failed();
+      return this.request(state3, String(input), init, signal, false);
+    });
+    if (resourceMetadata.resource !== resource.href || !resourceMetadata.authorization_servers?.includes(oauth.issuer))
+      throw failed();
+    const allowed = new Set(buildDiscoveryUrls2(oauth.issuer).map(({ url: url2 }) => url2.href));
+    const metadata = await discoverAuthorizationServerMetadata3(oauth.issuer, {
+      fetchFn: (input, init) => {
+        if (!allowed.has(new URL(String(input)).href))
+          throw failed();
+        return this.request(state3, String(input), init, signal, true);
+      }
+    });
+    if (!metadata || metadata.issuer !== oauth.issuer || !metadata.code_challenge_methods_supported?.includes("S256"))
+      throw failed();
+    for (const endpoint of [metadata.authorization_endpoint, metadata.token_endpoint]) {
+      if (!endpoint)
+        throw failed();
+      this.endpoint(state3, endpoint, true);
+    }
+    state3.metadata = metadata;
+    return metadata;
+  }
+  endpoint(state3, value, as) {
+    const url2 = new URL(value);
+    const origin = new URL(as ? state3.entry.config.oauth.issuer : state3.entry.config.url).origin;
+    if (url2.origin !== origin || url2.username || url2.password || url2.search || url2.hash || /[\s\\]/u.test(value))
+      throw failed();
+    return url2.href;
+  }
+  async request(state3, url2, init, signal, as) {
+    const fixed = this.endpoint(state3, url2, as);
+    this.environment ??= createPlatformExecutionEnvironment({ workspaceRoot: process.cwd() });
+    const owner = createMcpHttpFetch({
+      url: fixed,
+      headers: {},
+      allowedAddresses: as ? state3.entry.config.oauth.allowedAddresses : state3.entry.config.allowedAddresses,
+      runEnvironment: this.environment.hostNetwork ?? this.environment,
+      signal
+    });
+    this.owners.add(owner);
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), REQUEST_MS);
+    try {
+      const response = await owner.fetch(fixed, {
+        ...init,
+        ...init?.body !== void 0 ? { body: String(init.body) } : {},
+        signal: AbortSignal.any([signal, deadline.signal])
+      });
+      const reader = response.body?.getReader();
+      const chunks = [];
+      let bytes = 0;
+      if (reader)
+        for (; ; ) {
+          const result = await reader.read();
+          if (result.done)
+            break;
+          bytes += result.value.byteLength;
+          if (bytes > MAX_JSON) {
+            await reader.cancel();
+            throw failed();
+          }
+          chunks.push(result.value);
+        }
+      return new Response(Buffer.concat(chunks), {
+        status: response.status,
+        headers: response.headers
+      });
+    } finally {
+      clearTimeout(timer);
+      await owner.close();
+      this.owners.delete(owner);
+    }
+  }
+  async callback(state3, metadata, signal) {
+    const expectedState = randomBytes2(32).toString("base64url");
+    const callbackPath = `/callback/${randomUUID10()}`;
+    const sockets = /* @__PURE__ */ new Set();
+    let callbackUrl = "";
+    let consumed = false;
+    let accept;
+    let reject;
+    const code = new Promise((resolve9, fail2) => {
+      accept = resolve9;
+      reject = fail2;
+    });
+    void code.catch(() => {
+    });
+    const listener = createServer3({ maxHeaderSize: 8 * 1024, requestTimeout: REQUEST_MS }, (request, response) => {
+      try {
+        const target = new URL(request.url ?? "", callbackUrl);
+        const params = target.searchParams;
+        const seen = /* @__PURE__ */ new Set();
+        if (consumed || signal.aborted || request.method !== "GET" || request.headers.host !== new URL(callbackUrl).host || target.origin !== new URL(callbackUrl).origin || target.pathname !== callbackPath || (request.url?.length ?? 0) > 8192)
+          throw failed();
+        for (const key of params.keys()) {
+          if (seen.has(key))
+            throw failed();
+          seen.add(key);
+        }
+        const actual = Buffer.from(params.get("state") ?? "", "utf8");
+        const expected = Buffer.from(expectedState, "utf8");
+        if (actual.length !== expected.length || !timingSafeEqual2(actual, expected))
+          throw failed();
+        const issuer = params.get("iss");
+        if (issuer !== null && issuer !== state3.entry.config.oauth.issuer || metadata.authorization_response_iss_parameter_supported === true && issuer === null)
+          throw failed();
+        if (params.has("error") || !params.get("code"))
+          throw failed();
+        consumed = true;
+        response.writeHead(200, {
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store"
+        }).end("\u6388\u6743\u5DF2\u63A5\u6536\uFF0C\u53EF\u4EE5\u5173\u95ED\u6B64\u9875\u9762\u3002");
+        accept({ code: params.get("code"), ...issuer !== null ? { issuer } : {} });
+      } catch {
+        consumed = true;
+        response.writeHead(400).end("\u6388\u6743\u54CD\u5E94\u65E0\u6548");
+        reject(failed());
+      }
+    });
+    listener.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.once("close", () => sockets.delete(socket));
+    });
+    await new Promise((resolve9, fail2) => {
+      listener.once("error", fail2);
+      listener.listen(0, "127.0.0.1", resolve9);
+    });
+    const address = listener.address();
+    if (!address || typeof address === "string")
+      throw failed();
+    callbackUrl = `http://127.0.0.1:${address.port}${callbackPath}`;
+    let closing;
+    const cancel2 = () => reject(safeError(void 0, signal));
+    signal.addEventListener("abort", cancel2, { once: true });
+    const close = () => {
+      if (closing)
+        return closing;
+      signal.removeEventListener("abort", cancel2);
+      for (const socket of sockets)
+        socket.destroy();
+      closing = new Promise((resolve9, fail2) => listener.close((error3) => error3 ? fail2(failed()) : resolve9()));
+      this.callbacks.delete(close);
+      return closing;
+    };
+    this.callbacks.add(close);
+    if (signal.aborted) {
+      await close();
+      throw aborted3();
+    }
+    return { url: callbackUrl, state: expectedState, code, close };
+  }
+  track(promise) {
+    this.pending.add(promise);
+    void promise.finally(() => this.pending.delete(promise)).catch(() => {
+    });
+    return promise;
+  }
+};
+function validSecret(value) {
+  return typeof value === "string" && value.length > 0 && value.length <= MCP_AUTH_MAX_SECRET_LENGTH && // biome-ignore lint/suspicious/noControlCharactersInRegex: 拒绝控制字符与空白，防止 Token 注入 Header。
+  !/[\u0000-\u0020\u007f]/u.test(value);
+}
+function wait(promise, signal) {
+  if (!signal)
+    return promise;
+  if (signal.aborted)
+    return Promise.reject(safeError(void 0, signal));
+  return new Promise((resolve9, reject) => {
+    const cancel2 = () => reject(safeError(void 0, signal));
+    signal.addEventListener("abort", cancel2, { once: true });
+    promise.then(resolve9, reject).finally(() => signal.removeEventListener("abort", cancel2));
+  });
+}
+function safeError(cause, signal) {
+  const knownCause = cause instanceof McpStdioError && [
+    "mcp_auth_required",
+    "mcp_auth_failed",
+    "mcp_auth_store_failed",
+    "aborted",
+    "run_timeout"
+  ].includes(cause.code);
+  const source = knownCause ? cause : signal?.aborted ? signal.reason : void 0;
+  if (source instanceof McpStdioError) {
+    switch (source.code) {
+      case "mcp_auth_required":
+        return required2();
+      case "mcp_auth_failed":
+        return failed();
+      case "mcp_auth_store_failed":
+        return storeFailed();
+      case "aborted":
+        return aborted3();
+      case "run_timeout":
+        return new McpStdioError("run_timeout", "MCP \u6388\u6743\u4E8B\u52A1\u8D85\u65F6");
+    }
+  }
+  return signal?.aborted ? aborted3() : failed();
+}
+function required2() {
+  return new McpStdioError("mcp_auth_required", "\u9700\u8981\u663E\u5F0F MCP \u6388\u6743\u6216\u91CD\u65B0\u767B\u5F55");
+}
+function failed() {
+  return new McpStdioError("mcp_auth_failed", "MCP \u8BA4\u8BC1\u5931\u8D25\uFF0C\u672A\u81EA\u52A8\u91CD\u8BD5\u6216\u66F4\u6362\u8EAB\u4EFD");
+}
+function storeFailed() {
+  return new McpStdioError("mcp_auth_store_failed", "MCP \u5B89\u5168\u5B58\u50A8\u6216\u8BA4\u8BC1\u5173\u95ED\u672A\u5B8C\u6210");
+}
+function aborted3() {
+  return new McpStdioError("aborted", "MCP \u6388\u6743\u6216\u7B49\u5F85\u5DF2\u53D6\u6D88");
+}
+
+// packages/coremind-tools/dist/mcp-client.js
+import { createHash as createHash7 } from "node:crypto";
+import { mkdtemp as mkdtemp2, rm as rm3, writeFile as writeFile4 } from "node:fs/promises";
+import { tmpdir as tmpdir7 } from "node:os";
+import path31 from "node:path";
+var MAX_LIST_PAGES2 = 32;
+var MAX_TOOLS = 256;
+var MAX_DESCRIPTION_BYTES = 4096;
+var INLINE_RESULT_BYTES = 16 * 1024;
+var REQUEST_TIMEOUT_MS = 3e4;
+var ManagedMcpClient = class {
+  options;
+  definitions = /* @__PURE__ */ new WeakMap();
+  secrets;
+  client;
+  connected;
+  closed;
+  invalidated = false;
+  fatalError;
+  ready = false;
+  tools;
+  owner = new AbortController();
+  allowedResourceUris;
+  isNonFatalSdkError = () => false;
+  ownerCancelled = () => {
+    void this.close().catch(() => {
+    });
+  };
+  constructor(options) {
+    this.options = options;
+    this.secrets = [...new Set(options.sensitiveValues ?? [])].filter((value) => value.length > 0);
+    this.allowedResourceUris = new Set(options.allowedResourceUris ?? []);
+    if (options.mode === "http")
+      options.signal?.addEventListener("abort", this.ownerCancelled, { once: true });
+  }
+  get environmentSummary() {
+    return this.options.transport.environmentSummary;
+  }
+  connect(signal) {
+    if (this.options.mode === "http" && signal?.aborted)
+      return Promise.reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
+    if (!this.connected) {
+      this.connected = this.perform(this.options.mode === "http" ? void 0 : signal, async (executionSignal) => {
+        const { Client: SdkClient, SdkError: SdkError2, SdkErrorCode: SdkErrorCode2, SdkHttpError: SdkHttpError2, ProtocolError: ProtocolError3 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+        this.isNonFatalSdkError = (cause) => cause instanceof ProtocolError3 || cause instanceof SdkHttpError2 || cause instanceof SdkError2 && (cause.code === SdkErrorCode2.RequestTimeout || cause.code === SdkErrorCode2.CapabilityNotSupported);
+        const client = new SdkClient({ name: "coremind", version: "1" }, {
+          capabilities: {},
+          enforceStrictCapabilities: true,
+          versionNegotiation: {
+            mode: this.options.protocolVersion === "2026-07-28" ? { pin: "2026-07-28" } : "legacy"
+          },
+          inputRequired: { autoFulfill: false }
+        });
+        this.client = client;
+        client.onerror = (cause) => {
+          if (this.options.mode === "stdio" || this.isFatal(cause)) {
+            this.fatalError ??= cause instanceof McpStdioError ? cause : error2("mcp_protocol_error", "\u5DE5\u5177\u534F\u8BAE\u8FDE\u63A5\u5931\u6548");
+            this.invalidated = true;
+            void this.close().catch(() => {
+            });
+          }
+        };
+        client.setNotificationHandler("notifications/tools/list_changed", () => {
+          this.invalidated = true;
+        });
+        await client.connect(this.options.transport, requestOptions(executionSignal));
+        this.assertSafe(client.getServerVersion());
+        this.assertSafe(client.getInstructions());
+        this.ready = true;
+      });
+    }
+    return this.options.mode === "http" ? waitFor(this.connected, signal) : this.connected;
+  }
+  async listTools(signal) {
+    return this.perform(signal, async (executionSignal) => {
+      this.assertReady();
+      if (this.tools)
+        return this.tools;
+      const tools = [];
+      const names2 = /* @__PURE__ */ new Set();
+      const cursors = /* @__PURE__ */ new Set();
+      let cursor;
+      let totalBytes = 0;
+      for (let page = 0; page < MAX_LIST_PAGES2; page++) {
+        const result = await this.client.request({ method: "tools/list", ...cursor === void 0 ? {} : { params: { cursor } } }, requestOptions(executionSignal));
+        totalBytes += this.assertSafe(result);
+        if (totalBytes > MCP_MAX_FRAME_BYTES)
+          throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
+        for (const definition of result.tools) {
+          if (names2.has(definition.name) || Buffer.byteLength(definition.description ?? "", "utf8") > MAX_DESCRIPTION_BYTES)
+            throw error2("mcp_invalid_directory", "\u5DE5\u5177\u540D\u91CD\u590D\u6216\u63CF\u8FF0\u8D85\u8FC7\u4E0A\u9650");
+          names2.add(definition.name);
+          if (tools.length >= MAX_TOOLS)
+            throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
+          const frozen = freezeJson(structuredClone(definition));
+          const snapshot = Object.freeze({
+            name: frozen.name,
+            description: frozen.description ?? "",
+            inputSchema: frozen.inputSchema,
+            ...frozen.outputSchema !== void 0 ? { outputSchema: frozen.outputSchema } : {},
+            schemaSha256: createHash7("sha256").update(canonical({
+              inputSchema: frozen.inputSchema,
+              ...frozen.outputSchema !== void 0 ? { outputSchema: frozen.outputSchema } : {}
+            }), "utf8").digest("hex"),
+            definition: frozen
+          });
+          this.definitions.set(snapshot, frozen);
+          tools.push(snapshot);
+        }
+        if (result.nextCursor === void 0) {
+          this.tools = Object.freeze(tools);
+          return this.tools;
+        }
+        if (cursors.has(result.nextCursor))
+          throw error2("mcp_invalid_directory", "\u5DE5\u5177\u76EE\u5F55\u5206\u9875\u6E38\u6807\u672A\u6536\u655B");
+        cursors.add(result.nextCursor);
+        cursor = result.nextCursor;
+      }
+      throw error2("mcp_output_limit", "\u5DE5\u5177\u76EE\u5F55\u9875\u6570\u8D85\u8FC7\u4E0A\u9650");
+    });
+  }
+  callTool(tool, args, signal) {
+    return this.perform(signal, async (executionSignal) => {
+      this.assertReady();
+      const definition = this.definitions.get(tool);
+      if (!definition)
+        throw error2("mcp_invalid_tool", "\u5DE5\u5177\u5FEB\u7167\u4E0D\u5C5E\u4E8E\u5F53\u524D\u8FDE\u63A5");
+      this.assertSafe(args);
+      const result = await this.client.callTool({ name: definition.name, arguments: args }, {
+        ...requestOptions(executionSignal),
+        toolDefinition: definition
+      });
+      this.assertSafe(result);
+      if (result.content.some((item) => item.type !== "text"))
+        throw error2("mcp_unsupported_content", "\u672C\u5730\u5DE5\u5177\u8FD4\u56DE\u4E86\u4E0D\u652F\u6301\u7684\u5185\u5BB9\u7C7B\u578B");
+      const content = result.content.map((item) => item.type === "text" ? item.text : "").join("\n");
+      const text2 = result.structuredContent !== void 0 ? [content, JSON.stringify(result.structuredContent)].filter((part) => part.length > 0).join("\n") : content;
+      return this.packageResult(result, text2, result.isError);
+    });
+  }
+  async listResources(signal) {
+    this.assertResourceScope();
+    return this.perform(signal, async (executionSignal) => {
+      const resources = await this.resourceDirectory("resources", executionSignal);
+      const selected = resources.filter((item) => this.allowedResourceUris.has(String(item.uri)));
+      const value = { resources: selected };
+      return this.packageResult(value, JSON.stringify(value));
+    });
+  }
+  async listResourceTemplates(signal) {
+    this.assertResourceScope();
+    return this.perform(signal, async (executionSignal) => {
+      const templates = await this.resourceDirectory("resourceTemplates", executionSignal);
+      const { UriTemplate: UriTemplate4 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+      const selected = templates.filter((item) => {
+        const template = new UriTemplate4(String(item.uriTemplate));
+        return [...this.allowedResourceUris].some((uri) => template.match(uri) !== null);
+      });
+      const value = { resourceTemplates: selected };
+      return this.packageResult(value, JSON.stringify(value));
+    });
+  }
+  async readResource(uri, signal) {
+    this.assertResourceScope(uri);
+    return this.perform(signal, async (executionSignal) => {
+      this.assertReady();
+      const result = await this.client.request({ method: "resources/read", params: { uri } }, requestOptions(executionSignal));
+      this.assertSafe(result);
+      for (const item of result.contents) {
+        if (!this.allowedResourceUris.has(item.uri))
+          throw error2("mcp_protocol_error", "\u8D44\u6E90\u54CD\u5E94\u5305\u542B\u6388\u6743\u96C6\u5408\u5916\u7684 URI");
+        if ("blob" in item || !("text" in item) || typeof item.text !== "string")
+          throw error2("mcp_unsupported_content", "\u4EC5\u652F\u6301\u8D44\u6E90\u6587\u672C\u548C JSON \u6B63\u6587");
+      }
+      return this.packageResult(result, result.contents.map((item) => "text" in item ? item.text : "").join("\n"));
+    });
+  }
+  assertResourceScope(uri) {
+    if (this.options.mode !== "http" || this.allowedResourceUris.size === 0 || uri !== void 0 && !this.allowedResourceUris.has(uri))
+      throw error2("mcp_resource_not_allowed", "\u8D44\u6E90\u4E0D\u5728\u672C\u6B21 HTTP \u8FDE\u63A5\u7684\u7CBE\u786E\u6388\u6743\u96C6\u5408\u4E2D");
+  }
+  async resourceDirectory(kind, signal) {
+    this.assertReady();
+    const items = [];
+    const cursors = /* @__PURE__ */ new Set();
+    let cursor;
+    let totalBytes = 0;
+    for (let page = 0; page < MAX_LIST_PAGES2; page++) {
+      const params = cursor === void 0 ? {} : { params: { cursor } };
+      const result = kind === "resources" ? await this.client.request({ method: "resources/list", ...params }, requestOptions(signal)) : await this.client.request({ method: "resources/templates/list", ...params }, requestOptions(signal));
+      totalBytes += this.assertSafe(result);
+      if (totalBytes > MCP_MAX_FRAME_BYTES)
+        throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
+      const entries = kind === "resources" ? result.resources : result.resourceTemplates;
+      if (!Array.isArray(entries))
+        throw error2("mcp_protocol_error", "\u8D44\u6E90\u76EE\u5F55\u7F3A\u5C11\u9884\u671F\u96C6\u5408");
+      for (const item of entries) {
+        if (items.length >= MAX_TOOLS)
+          throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
+        items.push(item);
+      }
+      if (result.nextCursor === void 0)
+        return items;
+      if (cursors.has(result.nextCursor))
+        throw error2("mcp_invalid_directory", "\u8D44\u6E90\u76EE\u5F55\u5206\u9875\u6E38\u6807\u672A\u6536\u655B");
+      cursors.add(result.nextCursor);
+      cursor = result.nextCursor;
+    }
+    throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u9875\u6570\u8D85\u8FC7\u4E0A\u9650");
+  }
+  close() {
+    if (!this.closed) {
+      this.closed = this.options.transport.close();
+      this.owner.abort(this.fatalError);
+      this.options.signal?.removeEventListener("abort", this.ownerCancelled);
+    }
+    return this.closed;
+  }
+  assertReady() {
+    if (!this.client || !this.ready || this.closed || this.invalidated)
+      throw error2("mcp_connection_unavailable", "\u672C\u5730\u5DE5\u5177\u8FDE\u63A5\u5C1A\u672A\u5C31\u7EEA\u3001\u5DF2\u5173\u95ED\u6216\u76EE\u5F55\u5DF2\u53D8\u5316");
+  }
+  assertSafe(value) {
+    this.options.authentication?.assertActive();
+    const visit = (item, depth) => {
+      if (depth > 64)
+        throw error2("mcp_output_limit", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u5D4C\u5957\u8D85\u8FC7\u4E0A\u9650");
+      if (typeof item === "string" && this.secrets.some((secret) => item.includes(secret)))
+        throw error2("mcp_secret_blocked", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u5305\u542B\u672C\u6B21\u670D\u52A1\u79D8\u5BC6\uFF0C\u5DF2\u963B\u65AD\u8F93\u51FA");
+      if (typeof item === "string")
+        this.options.authentication?.assertSafe(item);
+      if (Array.isArray(item))
+        for (const child of item)
+          visit(child, depth + 1);
+      else if (item !== null && typeof item === "object")
+        for (const [key, child] of Object.entries(item)) {
+          visit(key, depth + 1);
+          visit(child, depth + 1);
+        }
+    };
+    visit(value, 0);
+    const serialized = JSON.stringify(value) ?? "";
+    visit(serialized, 0);
+    const bytes = Buffer.byteLength(serialized, "utf8");
+    if (bytes > MCP_MAX_FRAME_BYTES)
+      throw error2("mcp_output_limit", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
+    return bytes;
+  }
+  async packageResult(result, text2, isError) {
+    this.assertSafe(result);
+    this.assertSafe(text2);
+    const value = { mcp: structuredClone(result) };
+    const serialized = JSON.stringify(value);
+    let details = value;
+    if (Buffer.byteLength(serialized, "utf8") > INLINE_RESULT_BYTES) {
+      const directory = await mkdtemp2(path31.join(tmpdir7(), "coremind-mcp-result-"));
+      try {
+        const file = path31.join(directory, "result.json");
+        await writeFile4(file, serialized, { encoding: "utf8", flag: "wx", mode: 384 });
+        const imported = await this.options.artifactStore.importFile(file, {
+          deleteSource: true,
+          mediaType: "application/json; charset=utf-8"
+        });
+        text2 = imported.preview;
+        details = { mcp: { output: "artifact" }, artifact: imported.record };
+      } finally {
+        await rm3(directory, { recursive: true, force: true });
+      }
+    }
+    return { text: text2, details, ...isError !== void 0 ? { isError } : {} };
+  }
+  isFatal(cause) {
+    if (this.options.isFatalTransportError?.(cause))
+      return true;
+    if (cause instanceof McpStdioError)
+      return [
+        "mcp_output_limit",
+        "mcp_secret_blocked",
+        "mcp_invalid_directory",
+        "mcp_protocol_error"
+      ].includes(cause.code);
+    return !this.isNonFatalSdkError(cause);
+  }
+  async perform(signal, action) {
+    const deadline = new AbortController();
+    const timer = this.options.mode === "http" ? setTimeout(() => deadline.abort(), REQUEST_TIMEOUT_MS) : void 0;
+    const signals2 = [signal, this.options.signal, this.owner.signal, deadline.signal].filter((value) => value !== void 0);
+    const executionSignal = AbortSignal.any(signals2);
+    const callerSignal = AbortSignal.any([signal, this.options.signal, deadline.signal].filter((value) => value !== void 0));
+    let callerCancelledFirst = callerSignal.aborted;
+    const rememberCancellation = () => {
+      if (!this.fatalError)
+        callerCancelledFirst = true;
+    };
+    callerSignal.addEventListener("abort", rememberCancellation, { once: true });
+    const cancel2 = () => {
+      void this.close().catch(() => {
+      });
+    };
+    try {
+      if (this.closed || executionSignal.aborted)
+        throw error2("mcp_connection_unavailable", "\u5DE5\u5177\u8FDE\u63A5\u5DF2\u5173\u95ED\u6216\u8C03\u7528\u5DF2\u53D6\u6D88");
+      if (this.options.mode === "stdio")
+        executionSignal.addEventListener("abort", cancel2, { once: true });
+      this.options.authentication?.assertActive();
+      const result = await action(executionSignal);
+      this.options.authentication?.assertActive();
+      return result;
+    } catch (cause) {
+      const failure3 = !callerCancelledFirst && this.fatalError ? this.fatalError : cause;
+      if (this.options.mode === "stdio" || this.isFatal(failure3)) {
+        this.invalidated = true;
+        await this.close();
+      }
+      if (failure3 instanceof McpStdioError)
+        throw failure3;
+      if (this.options.mode === "http" && executionSignal.aborted)
+        throw error2("mcp_request_cancelled", "\u5DE5\u5177\u8BF7\u6C42\u5DF2\u53D6\u6D88\u6216\u8D85\u8FC7\u672C\u6B21\u671F\u9650\uFF1B\u4E0D\u81EA\u52A8\u91CD\u8BD5");
+      throw error2("mcp_protocol_error", "\u5DE5\u5177\u534F\u8BAE\u8C03\u7528\u5931\u8D25\uFF1B\u8FDC\u7AEF\u6548\u679C\u53EF\u80FD\u672A\u77E5\uFF0C\u4E0D\u81EA\u52A8\u91CD\u8BD5");
+    } finally {
+      if (timer !== void 0)
+        clearTimeout(timer);
+      executionSignal.removeEventListener("abort", cancel2);
+      callerSignal.removeEventListener("abort", rememberCancellation);
+    }
+  }
+};
+function requestOptions(signal) {
+  return {
+    signal,
+    timeout: REQUEST_TIMEOUT_MS,
+    maxTotalTimeout: REQUEST_TIMEOUT_MS,
+    resetTimeoutOnProgress: false
+  };
+}
+function error2(code, message2) {
+  return new McpStdioError(code, message2);
+}
+function canonical(value) {
+  if (Array.isArray(value))
+    return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object")
+    return `{${Object.entries(value).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`).join(",")}}`;
+  return JSON.stringify(value) ?? "null";
+}
+function freezeJson(value) {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value))
+      freezeJson(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+function waitFor(pending, signal) {
+  if (!signal)
+    return pending;
+  return new Promise((resolve9, reject) => {
+    const cancelled3 = () => reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
+    if (signal.aborted)
+      cancelled3();
+    else
+      signal.addEventListener("abort", cancelled3, { once: true });
+    pending.then(resolve9, reject).finally(() => signal.removeEventListener("abort", cancelled3));
+  });
+}
+
 // packages/coremind-tools/dist/mcp-http-transport.js
 function createMcpHttpTransport(options) {
   return new McpHttpTransport(options);
@@ -246367,7 +247288,7 @@ var McpHttpTransport = class {
         this.requests.get(message2.id)?.release();
       this.onmessage?.(message2);
     };
-    this.transport.onerror = (error3) => this.onerror?.(safeError(error3));
+    this.transport.onerror = (error3) => this.onerror?.(safeError2(error3));
     await this.transport.start();
   }
   async send(message2, options) {
@@ -246418,7 +247339,7 @@ var McpHttpTransport = class {
       request?.release();
       if (cancelling && error3 instanceof McpStdioError && !isMcpHttpFatalError(error3))
         return;
-      throw error3 instanceof McpStdioError ? error3 : signal?.aborted ? cancelled2() : safeError(error3);
+      throw error3 instanceof McpStdioError ? error3 : signal?.aborted ? cancelled2() : safeError2(error3);
     }
   }
   close() {
@@ -246450,7 +247371,7 @@ var McpHttpTransport = class {
     this.onclose?.();
   }
 };
-function safeError(error3) {
+function safeError2(error3) {
   return error3 instanceof McpStdioError ? error3 : protocolFailure();
 }
 function protocolFailure() {
@@ -246492,118 +247413,6 @@ function createMcpStdioClient(options) {
   });
 }
 
-// packages/coremind-tools/dist/platform-execution-environment.js
-import { randomUUID as randomUUID9 } from "node:crypto";
-import { rm as rm3 } from "node:fs/promises";
-import { createServer as createServer2 } from "node:http";
-import { tmpdir as tmpdir7 } from "node:os";
-import path31 from "node:path";
-var linuxProbeByWorkspace = /* @__PURE__ */ new Map();
-var processTreeProbe;
-function createPlatformExecutionEnvironment(input) {
-  const platform4 = input.platform ?? process.platform;
-  if (platform4 === "linux") {
-    const sandbox = createLinuxSandboxExecutionEnvironment({
-      workspaceRoot: input.workspaceRoot,
-      platform: platform4,
-      probeSandbox: () => cachedLinuxSandboxProbe(input.workspaceRoot, input.env ?? process.env),
-      probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
-    });
-    return Object.assign(sandbox, {
-      hostNetwork: createTrustedHostExecutionEnvironment({
-        workspaceRoot: input.workspaceRoot,
-        platform: platform4,
-        probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
-      })
-    });
-  }
-  return createTrustedHostExecutionEnvironment({
-    workspaceRoot: input.workspaceRoot,
-    platform: platform4,
-    probeProcessControl: () => processTreeProbe ??= probeProcessTreeTermination()
-  });
-}
-async function cachedLinuxSandboxProbe(workspaceRoot, env2) {
-  const root = path31.resolve(workspaceRoot);
-  const existing = linuxProbeByWorkspace.get(root);
-  if (existing)
-    return existing;
-  const created = probeLinuxSandbox(root, env2).catch((error3) => ({
-    available: false,
-    evidence: [
-      `linux-sandbox-probe-error:${error3 instanceof Error ? error3.message : String(error3)}`
-    ]
-  }));
-  linuxProbeByWorkspace.set(root, created);
-  return created;
-}
-async function probeLinuxSandbox(workspaceRoot, env2) {
-  if (process.platform !== "linux") {
-    return { available: false, evidence: ["platform-not-linux"] };
-  }
-  await ensureLinuxSandboxInitialized();
-  const probeEnvironment = {
-    ...env2,
-    COREMIND_SANDBOX_PROBE_SECRET: randomUUID9()
-  };
-  const outsidePath = path31.join(tmpdir7(), `coremind-sandbox-probe-${randomUUID9()}`);
-  const server = createServer2((_request, response) => response.end("reachable"));
-  await new Promise((resolve9, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve9);
-  });
-  const address = server.address();
-  if (!address || typeof address === "string")
-    throw new Error("\u65E0\u6CD5\u521B\u5EFA\u672C\u5730\u7F51\u7EDC\u8D1F\u5411\u63A2\u9488");
-  const probeScript = buildLinuxSandboxProbeScript(outsidePath, address.port);
-  const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
-  const commandId = randomUUID9();
-  try {
-    const wrapped = await wrapLinuxSandboxCommand(command, buildLinuxSandboxConfig(workspaceRoot, probeEnvironment), void 0, commandId);
-    const executable = wrapped.argv[0];
-    if (!executable)
-      throw new Error("Linux sandbox probe \u672A\u751F\u6210\u53EF\u6267\u884C\u547D\u4EE4");
-    const result = await new ProcessRunner().run({
-      command: executable,
-      args: wrapped.argv.slice(1),
-      cwd: workspaceRoot,
-      env: {
-        ...sanitizeLinuxSandboxEnvironment(probeEnvironment),
-        PATH: env2.PATH ?? process.env.PATH
-      },
-      timeoutMs: 5e3,
-      maxOutputBytes: 64 * 1024
-    });
-    const available = result.exitCode === 0;
-    return {
-      available,
-      evidence: [
-        `linux-sandbox:outside-write:${available ? "blocked" : "unverified"}`,
-        `linux-sandbox:network:${available ? "blocked" : "unverified"}`,
-        `linux-sandbox:credential-env:${available ? "hidden" : "unverified"}`
-      ]
-    };
-  } finally {
-    cleanupLinuxSandboxCommand();
-    await rm3(outsidePath, { force: true });
-    server.closeAllConnections();
-    await new Promise((resolve9) => server.close(() => resolve9()));
-  }
-}
-function buildLinuxSandboxProbeScript(outsidePath, port) {
-  return [
-    "const fs = require('node:fs')",
-    `let outsideBlocked = false; try { fs.writeFileSync(${JSON.stringify(outsidePath)}, 'x') } catch { outsideBlocked = true }`,
-    "const credentialHidden = process.env.COREMIND_SANDBOX_PROBE_SECRET === undefined",
-    `fetch(${JSON.stringify(`http://127.0.0.1:${port}`)})`,
-    ".then(() => process.exit(3))",
-    ".catch(() => process.exit(outsideBlocked && credentialHidden ? 0 : 4))"
-  ].join("\n");
-}
-function shellQuote(value) {
-  return `'${value.replace(/'/g, `'"'"'`)}'`;
-}
-
 // packages/coremind-runtime/dist/tool-effect-selectors.js
 function collectDeclaredStringFields(value, fields) {
   const values = [];
@@ -246623,7 +247432,7 @@ function collectDeclaredStringFields(value, fields) {
 }
 
 // packages/coremind-runtime/dist/workspace-lease.js
-import { randomUUID as randomUUID10 } from "node:crypto";
+import { randomUUID as randomUUID11 } from "node:crypto";
 import { link, mkdir as mkdir4, readFile as readFile6, realpath as realpath6, rename as rename2, rm as rm4, writeFile as writeFile5 } from "node:fs/promises";
 import path32 from "node:path";
 
@@ -246650,7 +247459,7 @@ var WorkspaceLeaseService = class {
       runId: options.owner.runId,
       callId: options.owner.callId,
       pid: process.pid,
-      nonce: randomUUID10(),
+      nonce: randomUUID11(),
       acquiredAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     if (options.lane === "parallel")
@@ -247085,7 +247894,7 @@ var CheckpointManager = class {
     }
   }
   async persist(value) {
-    const { checkpointId = randomUUID11(), ...payload } = value;
+    const { checkpointId = randomUUID12(), ...payload } = value;
     if (!/^[a-zA-Z0-9_-]+$/.test(checkpointId)) {
       throw new CoreMindError("invalid_checkpoint_id", `\u975E\u6CD5 checkpointId\uFF1A${checkpointId}`);
     }
@@ -247214,7 +248023,7 @@ function checkpointIdentity(record2) {
   });
 }
 function sha256(content) {
-  return createHash7("sha256").update(content).digest("hex");
+  return createHash8("sha256").update(content).digest("hex");
 }
 async function canonicalize3(input) {
   let current = path33.resolve(input);
@@ -247235,7 +248044,7 @@ async function canonicalize3(input) {
 }
 
 // packages/coremind-runtime/dist/child-run.js
-import { createHash as createHash9 } from "node:crypto";
+import { createHash as createHash10 } from "node:crypto";
 
 // packages/coremind-runtime/dist/canonical-json.js
 function canonicalJson2(value) {
@@ -247260,7 +248069,7 @@ function escapePathSegment(value) {
 }
 
 // packages/coremind-runtime/dist/effect-receipt-binding.js
-import { createHash as createHash8 } from "node:crypto";
+import { createHash as createHash9 } from "node:crypto";
 
 // packages/coremind-runtime/dist/ids.js
 function receiptId(runId, stepId, callId) {
@@ -247276,7 +248085,7 @@ function legacyStepId(stepId) {
 
 // packages/coremind-runtime/dist/effect-receipt-binding.js
 function fingerprintEffectReceiptValue(value) {
-  return createHash8("sha256").update(canonicalJson2(value)).digest("hex");
+  return createHash9("sha256").update(canonicalJson2(value)).digest("hex");
 }
 function createEffectReceiptBinding(input) {
   return {
@@ -248471,9 +249280,9 @@ var SessionFileSystem = class {
   }
   async readTextFile(path45, abortSignal) {
     const resolved = resolvePath5(this.cwd, path45);
-    const aborted3 = abortResult(abortSignal, resolved);
-    if (aborted3)
-      return aborted3;
+    const aborted4 = abortResult(abortSignal, resolved);
+    if (aborted4)
+      return aborted4;
     try {
       return ok(await readFile8(resolved, { encoding: "utf8", signal: abortSignal }));
     } catch (error3) {
@@ -248482,9 +249291,9 @@ var SessionFileSystem = class {
   }
   async writeFile(path45, content, abortSignal) {
     const resolved = resolvePath5(this.cwd, path45);
-    const aborted3 = abortResult(abortSignal, resolved);
-    if (aborted3)
-      return aborted3;
+    const aborted4 = abortResult(abortSignal, resolved);
+    if (aborted4)
+      return aborted4;
     try {
       await mkdir6(resolve8(resolved, ".."), { recursive: true });
       const afterMkdirAbort = abortResult(abortSignal, resolved);
@@ -248509,9 +249318,9 @@ var SessionFileSystem = class {
   async renameFile(sourcePath, destinationPath, abortSignal) {
     const source = resolvePath5(this.cwd, sourcePath);
     const destination = resolvePath5(this.cwd, destinationPath);
-    const aborted3 = abortResult(abortSignal, destination);
-    if (aborted3)
-      return aborted3;
+    const aborted4 = abortResult(abortSignal, destination);
+    if (aborted4)
+      return aborted4;
     try {
       await rename3(source, destination);
       return ok(void 0);
@@ -248529,9 +249338,9 @@ var SessionFileSystem = class {
   }
   async listDir(path45, abortSignal) {
     const resolved = resolvePath5(this.cwd, path45);
-    const aborted3 = abortResult(abortSignal, resolved);
-    if (aborted3)
-      return aborted3;
+    const aborted4 = abortResult(abortSignal, resolved);
+    if (aborted4)
+      return aborted4;
     try {
       const entries = await readdir3(resolved, { withFileTypes: true });
       const infos = [];
@@ -249839,7 +250648,7 @@ function isRetryableDependencyAssistantError(message2) {
 }
 
 // packages/coremind-runtime/dist/trace.js
-import { randomUUID as randomUUID12 } from "node:crypto";
+import { randomUUID as randomUUID13 } from "node:crypto";
 var TraceRecorder = class {
   runId;
   forward;
@@ -249884,7 +250693,7 @@ var TraceRecorder = class {
   }
   append(event) {
     const entry = {
-      eventId: randomUUID12(),
+      eventId: randomUUID13(),
       runId: this.runId,
       sequence: ++this.sequence,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -250710,7 +251519,7 @@ var ChildRunCoordinator = class _ChildRunCoordinator {
 };
 function childRunInputFingerprint(request) {
   const { delegationId: _delegationId, ...input } = request;
-  return `sha256:${createHash9("sha256").update(canonicalJson2(input)).digest("hex")}`;
+  return `sha256:${createHash10("sha256").update(canonicalJson2(input)).digest("hex")}`;
 }
 function assertChildRunPolicyIsNarrower(parent, remainingBudget, request) {
   if (request.lifecyclePolicy.join !== "structured" || request.lifecyclePolicy.cancel !== "propagate_parent" || request.lifecyclePolicy.orphan !== "audit_pause" || request.lifecyclePolicy.detach !== "forbidden") {
@@ -251003,7 +251812,7 @@ function childRunResultRequiresDisposition(result) {
   return unresolvedRecoveryWithoutCommittedSuccess || recovery.effectState === "started" || recovery.effectState === "unknown" || !recovery.quiescent || recovery.executionOwnership !== "released";
 }
 function childRunResultFingerprint(result) {
-  return `sha256:${createHash9("sha256").update(canonicalJson2({ ...structuredClone(result), recovery: childRunRecoveryAssessment(result) })).digest("hex")}`;
+  return `sha256:${createHash10("sha256").update(canonicalJson2({ ...structuredClone(result), recovery: childRunRecoveryAssessment(result) })).digest("hex")}`;
 }
 function requiredDispositionActor(result) {
   const recovery = childRunRecoveryAssessment(result);
@@ -251584,7 +252393,7 @@ function workspaceChangeKind(checkpoint) {
 }
 
 // packages/coremind-runtime/dist/context.js
-import { createHash as createHash10 } from "node:crypto";
+import { createHash as createHash11 } from "node:crypto";
 function buildStableContextPrefix(input) {
   const tools = [...input.tools].sort((left, right) => left.name.localeCompare(right.name, "en")).map((tool) => `- ${tool.name}: ${tool.description}`).join("\n");
   const facts = Object.entries(input.stableFacts ?? {}).sort(([left], [right]) => left.localeCompare(right, "en")).map(([key, value]) => `- ${key}: ${String(value)}`).join("\n");
@@ -251605,11 +252414,11 @@ ${skills || "- \u65E0"}`
   return { text: text2, fingerprint: fingerprint(text2) };
 }
 function fingerprint(value) {
-  return createHash10("sha256").update(value, "utf8").digest("hex");
+  return createHash11("sha256").update(value, "utf8").digest("hex");
 }
 
 // packages/coremind-runtime/dist/observability.js
-import { createHash as createHash11 } from "node:crypto";
+import { createHash as createHash12 } from "node:crypto";
 import { isIP as isIP4 } from "node:net";
 
 // packages/coremind-runtime/dist/skill-privacy.js
@@ -251964,7 +252773,7 @@ function canTransitionEffectState(previous, next) {
 
 // packages/coremind-runtime/dist/observability.js
 function telemetryConsentScopeFingerprint(input) {
-  return createHash11("sha256").update(canonicalJson2({
+  return createHash12("sha256").update(canonicalJson2({
     runId: input.runId,
     kind: input.kind,
     targetOrigin: input.targetOrigin,
@@ -252500,7 +253309,7 @@ function telemetryFactPrefixFingerprint(records, throughSequence) {
   if (!Number.isInteger(throughSequence) || throughSequence < 1 || throughSequence > ordered2.length) {
     throw new CoreMindError("run_state_corrupt", "Telemetry feedback \u524D\u7F00\u8D85\u51FA\u5DF2\u6301\u4E45\u5316 Fact \u9AD8\u6C34\u4F4D");
   }
-  return createHash11("sha256").update(canonicalJson2(ordered2.slice(0, throughSequence)), "utf8").digest("hex");
+  return createHash12("sha256").update(canonicalJson2(ordered2.slice(0, throughSequence)), "utf8").digest("hex");
 }
 function validateTelemetryConsentForRecords(value, consentRecord, records) {
   const consent = validateTelemetryConsentFact(value);
@@ -252545,7 +253354,7 @@ function createTelemetryEgressAuthorization(input) {
   };
   return {
     ...value,
-    policyFingerprint: createHash11("sha256").update(canonicalJson2(value), "utf8").digest("hex")
+    policyFingerprint: createHash12("sha256").update(canonicalJson2(value), "utf8").digest("hex")
   };
 }
 function validateTelemetryEgressAuthorization(value, endpointOrigin) {
@@ -252613,7 +253422,7 @@ function isRecord9(value) {
 }
 
 // packages/coremind-runtime/dist/runtime.js
-import { randomUUID as randomUUID21 } from "node:crypto";
+import { randomUUID as randomUUID22 } from "node:crypto";
 import path43 from "node:path";
 
 // packages/coremind-templates/dist/index.js
@@ -252718,7 +253527,7 @@ var TEMPLATES = [
 ];
 
 // packages/coremind-templates/dist/standard-skills.js
-import { createHash as createHash12 } from "node:crypto";
+import { createHash as createHash13 } from "node:crypto";
 import { constants as constants12 } from "node:fs";
 import { lstat as lstat3, open as open6, realpath as realpath8, stat as stat5 } from "node:fs/promises";
 import path37 from "node:path";
@@ -252897,7 +253706,7 @@ function parseStandardSkill(id, content) {
     id,
     name,
     description,
-    bodySha256: createHash12("sha256").update(body, "utf8").digest("hex"),
+    bodySha256: createHash13("sha256").update(body, "utf8").digest("hex"),
     body
   };
 }
@@ -253294,7 +254103,7 @@ function normalizeDriverObservation(event, contextWindow, activeCalls) {
 }
 
 // packages/coremind-runtime/dist/coding/runtime-engineering-evidence.js
-import { createHash as createHash13 } from "node:crypto";
+import { createHash as createHash14 } from "node:crypto";
 function createToolExecutionEvidence(input) {
   const command = input.tool === "bash" ? commandArgument(input.args) : void 0;
   return {
@@ -253350,7 +254159,7 @@ function assessRuntimeEngineeringEvidence(events, policy2, verificationStepId) {
   };
 }
 function commandFingerprint(command) {
-  return createHash13("sha256").update(command.replaceAll("\r\n", "\n").trim()).digest("hex");
+  return createHash14("sha256").update(command.replaceAll("\r\n", "\n").trim()).digest("hex");
 }
 function commandArgument(args) {
   if (!args || typeof args !== "object" || Array.isArray(args))
@@ -253430,7 +254239,7 @@ function projectContextCompactionLedger(entries) {
 }
 
 // packages/coremind-runtime/dist/context-lifecycle.js
-import { createHash as createHash14 } from "node:crypto";
+import { createHash as createHash15 } from "node:crypto";
 import { createReadStream as createReadStream4 } from "node:fs";
 import { realpath as realpath9, stat as stat6 } from "node:fs/promises";
 import path38 from "node:path";
@@ -253698,7 +254507,7 @@ function compareCandidateIdentity(left, right) {
   return canonicalJson2(left).localeCompare(canonicalJson2(right), "en");
 }
 function fingerprint2(value) {
-  return createHash14("sha256").update(canonicalJson2(value), "utf8").digest("hex");
+  return createHash15("sha256").update(canonicalJson2(value), "utf8").digest("hex");
 }
 function estimateTextTokens2(value) {
   if (value.length === 0)
@@ -253810,7 +254619,7 @@ function isStrictChild2(parent, candidate) {
   return relative3.length > 0 && !relative3.startsWith("..") && !path38.isAbsolute(relative3);
 }
 async function hashFile2(filePath) {
-  const hash = createHash14("sha256");
+  const hash = createHash15("sha256");
   for await (const chunk of createReadStream4(filePath))
     hash.update(chunk);
   return hash.digest("hex");
@@ -253993,7 +254802,7 @@ function pushUnique(values, value) {
 }
 
 // packages/coremind-runtime/dist/control-inbox.js
-import { createHash as createHash15 } from "node:crypto";
+import { createHash as createHash16 } from "node:crypto";
 var ControlInbox = class {
   options;
   controls;
@@ -254259,7 +255068,7 @@ function validateCommand(command, runId) {
   return command;
 }
 function controlFingerprint(command) {
-  return createHash15("sha256").update(canonicalJson2(command)).digest("hex");
+  return createHash16("sha256").update(canonicalJson2(command)).digest("hex");
 }
 function receiptFor(command, status, details = {}) {
   return {
@@ -254546,7 +255355,7 @@ function enforceExecutionSecurity(config2) {
 }
 
 // packages/coremind-runtime/dist/host-verification.js
-import { createHash as createHash16, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID14 } from "node:crypto";
 var HostVerificationGate = class {
   options;
   requests = /* @__PURE__ */ new Map();
@@ -254587,7 +255396,7 @@ var HostVerificationGate = class {
   }
   async verify(input) {
     this.throwIfInterrupted();
-    const candidateSha256 = createHash16("sha256").update(input.candidate, "utf8").digest("hex");
+    const candidateSha256 = createHash17("sha256").update(input.candidate, "utf8").digest("hex");
     let request = this.requests.get(input.stepId);
     if (request && (request.candidateSha256 !== candidateSha256 || request.iteration !== input.iteration)) {
       throw new CoreMindError("loop_snapshot_mismatch", "\u6062\u590D\u5019\u9009\u4E0E\u539F\u5BBF\u4E3B\u9A8C\u8BC1\u5BF9\u8C61\u4E0D\u4E00\u81F4");
@@ -254596,7 +255405,7 @@ var HostVerificationGate = class {
       request = {
         schemaVersion: 1,
         runId: this.options.runId,
-        requestId: randomUUID13(),
+        requestId: randomUUID14(),
         stepId: input.stepId,
         iteration: input.iteration,
         candidateSha256
@@ -254662,7 +255471,7 @@ var HostVerificationGate = class {
 };
 
 // packages/coremind-runtime/dist/input-receipt.js
-import { createHash as createHash17, randomUUID as randomUUID14 } from "node:crypto";
+import { createHash as createHash18, randomUUID as randomUUID15 } from "node:crypto";
 var TRANSITIONS = {
   pending: ["claimed", "discarded"],
   claimed: ["completed", "discarded"],
@@ -254670,13 +255479,13 @@ var TRANSITIONS = {
   discarded: []
 };
 function inputFingerprint(content) {
-  return createHash17("sha256").update(content, "utf8").digest("hex").slice(0, 16);
+  return createHash18("sha256").update(content, "utf8").digest("hex").slice(0, 16);
 }
 function newInputId() {
-  return randomUUID14();
+  return randomUUID15();
 }
 function controlInputId(runId, controlId) {
-  const digest2 = createHash17("sha256").update(JSON.stringify([runId, controlId]), "utf8").digest("hex");
+  const digest2 = createHash18("sha256").update(JSON.stringify([runId, controlId]), "utf8").digest("hex");
   return `control:${digest2}`;
 }
 function isControlInputId(value) {
@@ -254824,7 +255633,7 @@ var LifecycleExtensionHost = class {
           event: type,
           status: timedOut ? "timed_out" : "failed",
           durationMs: performance.now() - startedAt,
-          error: timedOut ? `\u8D85\u8FC7 ${this.timeoutMs}ms` : safeError2(error3)
+          error: timedOut ? `\u8D85\u8FC7 ${this.timeoutMs}ms` : safeError3(error3)
         });
       }
     }
@@ -254882,13 +255691,13 @@ function withTimeout2(promise, timeoutMs) {
     });
   });
 }
-function safeError2(error3) {
+function safeError3(error3) {
   const value = error3 instanceof Error ? error3.message : String(error3);
   return value.replace(/(?:sk-|key-|token-)[a-z0-9_-]+/gi, "<redacted>");
 }
 
 // packages/coremind-runtime/dist/loop-runner.js
-import { createHash as createHash18 } from "node:crypto";
+import { createHash as createHash19 } from "node:crypto";
 
 // node_modules/xstate/dist/xstate-dev.esm.js
 function getGlobal() {
@@ -258971,11 +259780,11 @@ function errorForCaller(error3, snapshot) {
 }
 function progressFingerprint(text2) {
   const normalized = text2.replace(/\r\n/g, "\n").trim();
-  return createHash18("sha256").update(normalized).digest("hex");
+  return createHash19("sha256").update(normalized).digest("hex");
 }
 
 // packages/coremind-runtime/dist/mcp-runtime.js
-import { createHash as createHash19 } from "node:crypto";
+import { createHash as createHash20 } from "node:crypto";
 import { createReadStream as createReadStream5 } from "node:fs";
 import { realpath as realpath10, stat as stat7 } from "node:fs/promises";
 import path39 from "node:path";
@@ -259103,10 +259912,14 @@ function createMcpRun(options) {
                   artifactStore: options.artifactStore
                 });
               } else if (server.transport === "streamable-http" && "url" in target) {
+                if (server.oauth && !options.mcpAuthentication)
+                  throw new CoreMindError("mcp_auth_required", "\u9700\u8981\u5BBF\u4E3B\u663E\u5F0F\u53D1\u8D77 MCP \u6388\u6743");
+                const authentication = server.oauth ? bindMcpAuthentication(options.mcpAuthentication, serverName, identity3.sha256, options.environment) : void 0;
                 const { headers, sensitiveValues } = await resolveHeaders(server, options);
                 assertOpen(signal);
                 client = createMcpHttpClient({
                   url: server.url,
+                  authentication,
                   headers,
                   allowedAddresses: server.allowedAddresses,
                   allowedResourceUris: resourceUris,
@@ -259315,7 +260128,15 @@ async function identifyServer(serverName, server) {
       url: url2.href,
       headerReferences: Object.fromEntries(Object.entries(server.headers ?? {}).sort(([a2], [b2]) => a2 < b2 ? -1 : a2 > b2 ? 1 : 0)),
       allowedAddresses: [...server.allowedAddresses ?? []].sort(),
-      protocolVersion: server.protocolVersion ?? "legacy"
+      protocolVersion: server.protocolVersion ?? "legacy",
+      ...server.oauth ? {
+        oauth: {
+          issuer: server.oauth.issuer,
+          clientId: server.oauth.clientId,
+          scopes: [...server.oauth.scopes].sort(),
+          allowedAddresses: [...server.oauth.allowedAddresses ?? []].sort()
+        }
+      } : {}
     };
     return { target: target2, sha256: fingerprintEffectReceiptValue(target2) };
   }
@@ -259348,7 +260169,7 @@ async function identifyServer(serverName, server) {
   return { target, sha256: fingerprintEffectReceiptValue(target) };
 }
 async function hashFile3(file) {
-  const hash = createHash19("sha256");
+  const hash = createHash20("sha256");
   for await (const chunk of createReadStream5(file))
     hash.update(chunk);
   return hash.digest("hex");
@@ -259573,12 +260394,12 @@ function validTimestamp(value) {
 }
 
 // packages/coremind-runtime/dist/run-state.js
-import { createHash as createHash20, randomUUID as randomUUID16 } from "node:crypto";
+import { createHash as createHash21, randomUUID as randomUUID17 } from "node:crypto";
 import { link as link2, mkdir as mkdir7, open as open7, readFile as readFile9, rename as rename4, rm as rm6, stat as stat8, writeFile as writeFile8 } from "node:fs/promises";
 import path40 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
-import { randomUUID as randomUUID15 } from "node:crypto";
+import { randomUUID as randomUUID16 } from "node:crypto";
 var flushOperations = /* @__PURE__ */ new WeakMap();
 function flushFactLedgerWith(ledger, operation) {
   let result;
@@ -259615,7 +260436,7 @@ var FactLedger = class {
     const durability = options.durability ?? "ordinary";
     const sequence2 = this.nextSequence;
     this.nextSequence += 1;
-    const eventId = options.eventId ?? randomUUID15();
+    const eventId = options.eventId ?? randomUUID16();
     const record2 = {
       version: 1,
       runId: this.runId,
@@ -259844,7 +260665,7 @@ var FileRunStore = class {
     return { records, needsSeparator: text2.length > 0 && !terminated };
   }
   async publishAtomically(destination, text2, record2, durability = "ordinary") {
-    const temporary = `${destination}.${process.pid}.${randomUUID16()}.tmp`;
+    const temporary = `${destination}.${process.pid}.${randomUUID17()}.tmp`;
     try {
       await writeFile8(temporary, text2, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit?.({ destination, temporary, record: record2 });
@@ -259871,7 +260692,7 @@ var FileRunStore = class {
   async prepareAppend(destination, record2, text2) {
     if (!this.options.beforeCommit)
       return;
-    const temporary = `${destination}.${process.pid}.${randomUUID16()}.tmp`;
+    const temporary = `${destination}.${process.pid}.${randomUUID17()}.tmp`;
     try {
       await writeFile8(temporary, text2, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit({ destination, temporary, record: record2 });
@@ -259993,7 +260814,7 @@ var FileRunStore = class {
     const owner = {
       pid: process.pid,
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-      nonce: randomUUID16()
+      nonce: randomUUID17()
     };
     let acquired = false;
     let transientPermissionError;
@@ -260029,7 +260850,7 @@ var FileRunStore = class {
     if (inspected.state !== "valid" || isProcessAlive3(inspected.owner.pid))
       return false;
     const claimPath = `${lockPath}.reclaim-${inspected.owner.nonce}`;
-    const tombstonePath = `${claimPath}.tombstone-${randomUUID16()}`;
+    const tombstonePath = `${claimPath}.tombstone-${randomUUID17()}`;
     let claimHandle;
     try {
       claimHandle = await open7(claimPath, "wx");
@@ -260501,7 +261322,7 @@ function operationSnapshotFromRecords(records) {
 }
 function fingerprintRunConfig(config2) {
   const resumeConfig = config2 !== null && typeof config2 === "object" && !Array.isArray(config2) ? Object.fromEntries(Object.entries(config2).filter(([key]) => key !== "telemetry")) : config2;
-  return createHash20("sha256").update(canonicalJson2(resumeConfig)).digest("hex");
+  return createHash21("sha256").update(canonicalJson2(resumeConfig)).digest("hex");
 }
 function tracePayload(payload, expectedRunId) {
   if (payload === null || typeof payload !== "object") {
@@ -261533,7 +262354,7 @@ function isToolOutput(value) {
 }
 
 // packages/coremind-runtime/dist/replay-kit.js
-import { createHash as createHash21 } from "node:crypto";
+import { createHash as createHash22 } from "node:crypto";
 function createProviderRequestReplayFact(fixture) {
   validateProviderRequestFixture(fixture);
   const messages = normalizeMessages(fixture.messages);
@@ -261574,7 +262395,7 @@ function removeVolatileTimestamps(value) {
   return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "timestamp").map(([key, item]) => [key, removeVolatileTimestamps(item)]));
 }
 function fingerprint3(value) {
-  return createHash21("sha256").update(canonicalJson2(value), "utf8").digest("hex");
+  return createHash22("sha256").update(canonicalJson2(value), "utf8").digest("hex");
 }
 function isNonBlankString3(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -261729,7 +262550,7 @@ function assessReleaseReadiness(outcome, evaluation) {
 }
 
 // packages/coremind-runtime/dist/run-context.js
-import { randomUUID as randomUUID17 } from "node:crypto";
+import { randomUUID as randomUUID18 } from "node:crypto";
 var RunContext = class {
   agents = /* @__PURE__ */ new Map();
   harnessFactory;
@@ -261747,7 +262568,7 @@ var RunContext = class {
   toolCalls = /* @__PURE__ */ new Map();
   delegationApprovalBindings = /* @__PURE__ */ new Map();
   terminationError;
-  registerAgent(name, agent, executionId = randomUUID17()) {
+  registerAgent(name, agent, executionId = randomUUID18()) {
     this.agents.set(executionId, { name, driver: agent });
   }
   agent(name, executionId) {
@@ -262026,7 +262847,7 @@ function outcomeFromError(error3) {
 }
 
 // packages/coremind-runtime/dist/session.js
-import { createHash as createHash22, randomUUID as randomUUID18 } from "node:crypto";
+import { createHash as createHash23, randomUUID as randomUUID19 } from "node:crypto";
 import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open8, readFile as readFile10, rename as rename5, rm as rm7, stat as stat9, unlink as unlink2, writeFile as writeFile9 } from "node:fs/promises";
 import path41 from "node:path";
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -262273,7 +263094,7 @@ async function parseLegacySession(file, expectedSessionId) {
     header: headerValue2,
     entries,
     source,
-    sourceSha256: createHash22("sha256").update(source, "utf8").digest("hex")
+    sourceSha256: createHash23("sha256").update(source, "utf8").digest("hex")
   };
 }
 function convertLegacySession(legacy, createdAt, cwd, backupPath) {
@@ -262475,7 +263296,7 @@ async function ensureLegacyBackup(backupPath, source) {
     }
     return;
   }
-  const temporary = `${backupPath}.${process.pid}.${randomUUID18()}.tmp`;
+  const temporary = `${backupPath}.${process.pid}.${randomUUID19()}.tmp`;
   try {
     await writeFile9(temporary, source, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, backupPath);
@@ -262484,7 +263305,7 @@ async function ensureLegacyBackup(backupPath, source) {
   }
 }
 async function writeTextAtomically(destination, text2) {
-  const temporary = `${destination}.${process.pid}.${randomUUID18()}.tmp`;
+  const temporary = `${destination}.${process.pid}.${randomUUID19()}.tmp`;
   try {
     await writeFile9(temporary, text2, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, destination);
@@ -262495,7 +263316,7 @@ async function writeTextAtomically(destination, text2) {
 async function publishPublicAlias(storagePath, publicPath2) {
   if (await pathsReferToSameFile(storagePath, publicPath2))
     return;
-  const temporary = `${publicPath2}.${process.pid}.${randomUUID18()}.alias`;
+  const temporary = `${publicPath2}.${process.pid}.${randomUUID19()}.alias`;
   try {
     await link3(storagePath, temporary);
     await unlink2(publicPath2).catch((error3) => {
@@ -262552,7 +263373,7 @@ function stripUndefined(value) {
 }
 
 // packages/coremind-runtime/dist/session-maintenance.js
-import { randomUUID as randomUUID19 } from "node:crypto";
+import { randomUUID as randomUUID20 } from "node:crypto";
 async function compactSessionInRun(options) {
   const { session, models, model, budget, journal, signal, emit: emit2, runId, agent } = options;
   signal.throwIfAborted();
@@ -262570,9 +263391,9 @@ async function compactSessionInRun(options) {
     if (!budget.canRequestModel())
       throw new CoreMindError("budget_exceeded", "\u6458\u8981\u5269\u4F59\u9884\u7B97\u4E0D\u8DB3");
     budget.beforeModelRequest();
-    const requestId = randomUUID19();
+    const requestId = randomUUID20();
     const stepId = `session-compaction:${requestId}`;
-    const turnId = randomUUID19();
+    const turnId = randomUUID20();
     await session.appendMaintenanceRecord({
       runId,
       requestId,
@@ -262648,7 +263469,7 @@ async function compactSessionInRun(options) {
 }
 
 // packages/coremind-runtime/dist/skill-runtime.js
-import { createHash as createHash23 } from "node:crypto";
+import { createHash as createHash24 } from "node:crypto";
 var SKILL_TOOL_NAME = "load_skill";
 var SKILL_TOOL_EFFECT = { operations: ["read"], reversible: true };
 var SKILL_TOOL_CAPABILITY = resolveToolCapability({
@@ -262699,7 +263520,7 @@ function restoreSkillSnapshot(records, agents) {
       throw invalid3();
     const seen = /* @__PURE__ */ new Set();
     for (const skill of selection.standard) {
-      if (!isObject8(skill) || typeof skill.id !== "string" || !(config2.skills ?? []).includes(skill.id) || findSkill(skill.id) !== void 0 || seen.has(skill.id) || typeof skill.name !== "string" || !skill.name.trim() || typeof skill.description !== "string" || !skill.description.trim() || typeof skill.body !== "string" || typeof skill.bodySha256 !== "string" || createHash23("sha256").update(skill.body, "utf8").digest("hex") !== skill.bodySha256)
+      if (!isObject8(skill) || typeof skill.id !== "string" || !(config2.skills ?? []).includes(skill.id) || findSkill(skill.id) !== void 0 || seen.has(skill.id) || typeof skill.name !== "string" || !skill.name.trim() || typeof skill.description !== "string" || !skill.description.trim() || typeof skill.body !== "string" || typeof skill.bodySha256 !== "string" || createHash24("sha256").update(skill.body, "utf8").digest("hex") !== skill.bodySha256)
         throw invalid3();
       seen.add(skill.id);
     }
@@ -263137,7 +263958,7 @@ async function canonicalize4(input) {
 }
 
 // packages/coremind-runtime/dist/turn-tracker.js
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 var TurnTracker = class _TurnTracker {
   /** 进行中的 Turn（流式期间） */
   currentTurnId;
@@ -263152,7 +263973,7 @@ var TurnTracker = class _TurnTracker {
       tracker = new _TurnTracker();
       this.scopes.set(key, tracker);
     }
-    const turnId = tracker.currentTurnId ?? randomUUID20();
+    const turnId = tracker.currentTurnId ?? randomUUID21();
     tracker.currentTurnId = turnId;
     tracker.openTurnId = turnId;
     return turnId;
@@ -263173,18 +263994,18 @@ var TurnTracker = class _TurnTracker {
   withLocalTurnId(event) {
     switch (event.type) {
       case "agent_start": {
-        const turnId = randomUUID20();
+        const turnId = randomUUID21();
         this.currentTurnId = turnId;
         this.openTurnId = turnId;
         return { ...event, turnId };
       }
       case "text_delta": {
         if (this.currentTurnId === void 0)
-          this.currentTurnId = randomUUID20();
+          this.currentTurnId = randomUUID21();
         return event;
       }
       case "turn_end": {
-        const turnId = this.currentTurnId ?? randomUUID20();
+        const turnId = this.currentTurnId ?? randomUUID21();
         this.openTurnId = turnId;
         this.currentTurnId = void 0;
         return { ...event, turnId };
@@ -263194,7 +264015,7 @@ var TurnTracker = class _TurnTracker {
       case "tool_lifecycle":
       case "effect_receipt": {
         if (this.openTurnId === void 0)
-          this.openTurnId = randomUUID20();
+          this.openTurnId = randomUUID21();
         return { ...event, turnId: this.openTurnId };
       }
       case "agent_end": {
@@ -263286,7 +264107,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (options.childRunAuthority && (options.toolDefinitions?.length ?? 0) > 0) {
       throw new CoreMindError("child_run_policy_escalation", "Child Runtime \u4E0D\u63A5\u53D7\u7F3A\u5C11\u5185\u5EFA provenance \u7684\u6CE8\u5165\u5DE5\u5177");
     }
-    if (options.childRunAuthority && (config2.mcp !== void 0 || Object.values(config2.agents).some((agent) => agent.mcpResources !== void 0) || [
+    if (options.childRunAuthority && (options.mcpAuthentication !== void 0 || config2.mcp !== void 0 || Object.values(config2.agents).some((agent) => agent.mcpResources !== void 0) || [
       config2.tools ?? [],
       ...Object.values(config2.agents).map((agent) => agent.tools ?? [])
     ].some((tools) => tools.some((tool) => "mcp" in tool)))) {
@@ -263446,7 +264267,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (!buildDriver)
       return void 0;
     const context = runContextFor(this);
-    const executionId = randomUUID21();
+    const executionId = randomUUID22();
     const turnTracker = new TurnTracker();
     const originalHarness = context.harnessFor(name, stepId, executionId);
     signal?.throwIfAborted();
@@ -263730,7 +264551,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       parentPolicy,
       delegationBudgetPools,
       delegationHierarchyLimits,
-      createChildRunId: () => randomUUID21(),
+      createChildRunId: () => randomUUID22(),
       adapter: createCoreMindChildRunAdapter({
         createRuntime: async (authority) => {
           const target = this.config.agents[authority.request.agentName];
@@ -263983,7 +264804,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throw new CoreMindError("tool_capability_conflict", `\u6062\u590D\u8C03\u7528 ${candidate.previousCallId} \u7684 Tool Capability \u5DF2\u6F02\u79FB\uFF0C\u4E0D\u80FD\u81EA\u52A8\u91CD\u653E`);
       }
     }
-    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID21();
+    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID22();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords = !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
@@ -263993,8 +264814,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     context.attachJournal(journal);
     const operation = resumePlan && resumePlan.operationRecords.length > 0 ? restoreDurableOperation(resumePlan.operationRecords) : DurableOperation.create({
       runId,
-      operationId: randomUUID21(),
-      eventId: randomUUID21()
+      operationId: randomUUID22(),
+      eventId: randomUUID22()
     });
     const persistOperation = (event) => {
       const transition = operation.transition(event);
@@ -264039,15 +264860,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (operation.snapshot().state === "running") {
       persistOperation({
-        eventId: randomUUID21(),
+        eventId: randomUUID22(),
         type: "PAUSE",
         reason: "process_interrupted"
       });
     }
     if (operation.snapshot().state === "accepted") {
-      persistOperation({ eventId: randomUUID21(), type: "START" });
+      persistOperation({ eventId: randomUUID22(), type: "START" });
     } else if (operation.snapshot().state === "paused") {
-      persistOperation({ eventId: randomUUID21(), type: "RESUME" });
+      persistOperation({ eventId: randomUUID22(), type: "RESUME" });
     } else {
       throw new CoreMindError("operation_not_resumable", `\u64CD\u4F5C ${operation.snapshot().operationId} \u5904\u4E8E ${operation.snapshot().state}\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6267\u884C`);
     }
@@ -264435,6 +265256,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       cwd: this.options.cwd ?? process.cwd(),
       env: this.options.toolEnv ?? this.options.env ?? process.env,
       secretResolver: this.options.secretResolver,
+      mcpAuthentication: this.options.mcpAuthentication,
       environment: this.executionEnvironment,
       signal: this.options.signal,
       artifactStore: new ArtifactStore({ cwd: this.options.cwd ?? process.cwd() })
@@ -264485,7 +265307,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
-      createApprovalId: randomUUID21,
+      createApprovalId: randomUUID22,
       delegation: {
         isAssistedPreapproved: (agent, target) => this.agentConfigs.get(agent)?.delegation?.targets[target]?.preapproved === true
       },
@@ -265178,9 +266000,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
                 source: "registered",
                 declaration: operation2.capability
               }));
-              const call = { callId: randomUUID21(), tool: operation2.name, args: operation2.args };
+              const call = { callId: randomUUID22(), tool: operation2.name, args: operation2.args };
               const callKey = toolCapabilityCallKey(agentName, stepId, call.callId);
-              const turnId = randomUUID21();
+              const turnId = randomUUID22();
               emit2({
                 type: "tool_call",
                 agent: agentName,
@@ -265596,27 +266418,27 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (outcome.status === "paused") {
       persistOperation({
-        eventId: randomUUID21(),
+        eventId: randomUUID22(),
         type: "PAUSE",
         reason: outcome.finishReason
       });
     } else {
       if (outcome.status === "aborted") {
         persistOperation({
-          eventId: randomUUID21(),
+          eventId: randomUUID22(),
           type: "REQUEST_ABORT",
           reason: outcome.finishReason
         });
         persistOperation({
-          eventId: randomUUID21(),
+          eventId: randomUUID22(),
           type: "FAIL",
           reason: outcome.finishReason
         });
       } else if (outcome.status === "succeeded") {
-        persistOperation({ eventId: randomUUID21(), type: "COMPLETE" });
+        persistOperation({ eventId: randomUUID22(), type: "COMPLETE" });
       } else {
         persistOperation({
-          eventId: randomUUID21(),
+          eventId: randomUUID22(),
           type: "FAIL",
           reason: outcome.finishReason
         });
@@ -265733,7 +266555,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     let timer;
     let rejectAbort;
     let guardTriggered = false;
-    const aborted3 = new Promise((_resolve, reject) => {
+    const aborted4 = new Promise((_resolve, reject) => {
       rejectAbort = reject;
     });
     const triggerGuard = (error3, reject) => {
@@ -265757,7 +266579,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }) : new Promise(() => {
     });
     try {
-      return await Promise.race([operation(), aborted3, timedOut]);
+      return await Promise.race([operation(), aborted4, timedOut]);
     } finally {
       if (timer)
         clearTimeout(timer);
@@ -266249,6 +267071,26 @@ function firstKey(record2) {
   return Object.keys(record2)[0];
 }
 
+// packages/coremind-runtime/dist/mcp-authentication.js
+async function createMcpAuthentication(options) {
+  const config2 = validateConfig(options.config);
+  enforceExecutionSecurity(config2);
+  const servers = [];
+  for (const [server, configured] of Object.entries(config2.mcp?.servers ?? {})) {
+    if (configured.transport !== "streamable-http" || !configured.oauth)
+      continue;
+    const selected = structuredClone(configured);
+    const identity3 = await identifyServer(server, selected);
+    servers.push({ server, config: selected, serverIdentity: identity3.sha256 });
+  }
+  return createMcpAuthenticationEngine({
+    servers,
+    network: config2.permissions?.network ?? "ask",
+    tokenStore: options.tokenStore,
+    namespace: options.namespace
+  });
+}
+
 // packages/coremind-worker/src/server.ts
 var PROTOCOL_V2_SERVER_CAPABILITIES = [
   "runHandle",
@@ -266259,7 +267101,8 @@ var PROTOCOL_V2_SERVER_CAPABILITIES = [
   "projectionQuery",
   "checkpointOperations",
   "dynamicTools",
-  "hostVerification"
+  "hostVerification",
+  "mcpAuthentication"
 ];
 var PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -266300,6 +267143,10 @@ var ProtocolHost = class {
   activeExecutionCompletion;
   resolveActiveExecution;
   lastExecutionQuiescent = true;
+  mcpAuthentication;
+  mcpAuthenticationNegotiated = false;
+  mcpAuthTransactions = /* @__PURE__ */ new Map();
+  cancelledMcpAuthTransactions = /* @__PURE__ */ new Set();
   /** 传输断开只影响交付，不得反向污染 Runtime 或权威 Fact。 */
   send(message2) {
     try {
@@ -266396,6 +267243,8 @@ var ProtocolHost = class {
           await this.resolveProtocolV2ToolCall(request.params)
         );
       }
+      if (request.method === "mcp_auth")
+        return createSuccessResponse(request.id, await this.handleMcpAuthentication(request));
       return createErrorResponse(
         request.id,
         -32601,
@@ -266405,6 +267254,96 @@ var ProtocolHost = class {
     } catch (error3) {
       return protocolError(request.id, error3);
     }
+  }
+  async handleMcpAuthentication(request) {
+    this.requireInitialized();
+    if (!this.mcpAuthenticationNegotiated)
+      throw new CoreMindError("protocol_capability_missing", "\u672A\u534F\u5546 MCP \u8BA4\u8BC1\u80FD\u529B");
+    const params = request.params;
+    if (params.action === "cancel") {
+      const transaction2 = this.mcpAuthTransactions.get(params.transactionId);
+      const wasPending = transaction2?.pending === true;
+      if (transaction2?.pending) {
+        transaction2.controller.abort();
+        await Promise.allSettled([transaction2.promise]);
+      } else if (!transaction2) {
+        if (this.cancelledMcpAuthTransactions.size >= 256)
+          throw new CoreMindError("mcp_auth_failed", "\u8BA4\u8BC1\u4E8B\u52A1\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
+        this.cancelledMcpAuthTransactions.add(params.transactionId);
+      }
+      return parseProtocolV2McpAuthResult({
+        schemaVersion: 1,
+        action: "cancel",
+        transactionId: params.transactionId,
+        status: wasPending ? "cancelled" : "not_found"
+      });
+    }
+    if (!this.mcpAuthentication)
+      throw new CoreMindError("mcp_auth_required", "\u5F53\u524D\u914D\u7F6E\u6CA1\u6709\u53EF\u4EA4\u4E92\u8BA4\u8BC1\u7684 MCP \u670D\u52A1");
+    if (params.action === "logout") {
+      for (const transaction2 of this.mcpAuthTransactions.values())
+        if (transaction2.server === params.server && transaction2.pending)
+          transaction2.controller.abort();
+      await this.mcpAuthentication.logout(params.server);
+      await Promise.allSettled(
+        [...this.mcpAuthTransactions.values()].filter((transaction2) => transaction2.server === params.server && transaction2.pending).map((transaction2) => transaction2.promise)
+      );
+      return parseProtocolV2McpAuthResult({
+        schemaVersion: 1,
+        action: "logout",
+        server: params.server,
+        status: "logged_out"
+      });
+    }
+    if (this.cancelledMcpAuthTransactions.has(params.transactionId))
+      throw new CoreMindError("aborted", "\u8BA4\u8BC1\u4E8B\u52A1\u5728\u5F00\u59CB\u524D\u5DF2\u53D6\u6D88");
+    const existing = this.mcpAuthTransactions.get(params.transactionId);
+    if (existing) {
+      if (existing.server !== params.server)
+        throw new CoreMindError("mcp_auth_failed", "\u8BA4\u8BC1\u4E8B\u52A1\u4E0D\u80FD\u6539\u7ED1\u670D\u52A1");
+      return existing.promise;
+    }
+    if (this.mcpAuthTransactions.size >= 256)
+      throw new CoreMindError("mcp_auth_failed", "\u8BA4\u8BC1\u4E8B\u52A1\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
+    const transaction = {
+      server: params.server,
+      controller: new AbortController(),
+      pending: true,
+      notified: false,
+      promise: void 0
+    };
+    this.mcpAuthTransactions.set(params.transactionId, transaction);
+    transaction.promise = Promise.resolve().then(async () => {
+      if (this.closed || transaction.controller.signal.aborted)
+        throw new CoreMindError("aborted", "\u8BA4\u8BC1\u4E8B\u52A1\u5DF2\u53D6\u6D88");
+      const result = await this.mcpAuthentication.login(params.server, {
+        transactionId: params.transactionId,
+        signal: transaction.controller.signal,
+        onAuthorization: (authorization, signal) => {
+          if (this.closed || signal.aborted || transaction.notified || authorization.transactionId !== params.transactionId || authorization.server !== params.server)
+            throw new CoreMindError("mcp_auth_failed", "\u8BA4\u8BC1\u901A\u77E5\u8EAB\u4EFD\u51B2\u7A81");
+          transaction.notified = true;
+          const message2 = parseProtocolV2McpAuthRequestNotification({
+            jsonrpc: "2.0",
+            protocolVersion: "2.0",
+            method: "mcp_auth_request",
+            params: { schemaVersion: 1, ...authorization }
+          });
+          try {
+            this.options.send(message2);
+          } catch {
+            transaction.controller.abort();
+            throw new CoreMindError("aborted", "\u8BA4\u8BC1\u4EA4\u4E92\u51FA\u53E3\u5DF2\u5173\u95ED");
+          }
+        }
+      });
+      if (this.closed || transaction.controller.signal.aborted)
+        throw new CoreMindError("aborted", "\u8BA4\u8BC1\u4E8B\u52A1\u5DF2\u53D6\u6D88");
+      return parseProtocolV2McpAuthResult({ schemaVersion: 1, action: "login", ...result });
+    }).finally(() => {
+      transaction.pending = false;
+    });
+    return transaction.promise;
   }
   async withProtocolV2RunTransition(transitionKey, operation) {
     const previous = this.protocolV2RunTransitions.get(transitionKey) ?? Promise.resolve();
@@ -266732,7 +267671,7 @@ var ProtocolHost = class {
     if (this.running) throw new CoreMindError("worker_busy", "\u8FD0\u884C\u671F\u95F4\u4E0D\u80FD\u4FEE\u6539 checkpoint");
     if (request.params.action === "create") {
       const params2 = request.params;
-      const checkpointId = createHash24("sha256").update(`${params2.runId}\0${params2.operationId}`).digest("hex").slice(0, 32);
+      const checkpointId = createHash25("sha256").update(`${params2.runId}\0${params2.operationId}`).digest("hex").slice(0, 32);
       const existing = projection.checkpoints.find(
         (record2) => record2.checkpointId === checkpointId
       );
@@ -266846,11 +267785,14 @@ var ProtocolHost = class {
       const selectedProtocol = negotiateProtocolV2(request.params.protocolRange);
       const initialized = await this.initialize(toV1InitializeParams(request.params), true);
       this.selectedProtocol = selectedProtocol;
+      this.mcpAuthenticationNegotiated = request.params.capabilities?.includes("mcpAuthentication") === true;
       return createSuccessResponse(request.id, {
         selectedProtocol,
         runtime: "node",
         warnings: initialized.warnings,
-        serverCapabilities: [...PROTOCOL_V2_SERVER_CAPABILITIES],
+        serverCapabilities: PROTOCOL_V2_SERVER_CAPABILITIES.filter(
+          (capability) => capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated
+        ),
         schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
         migration: {
           v1Supported: true,
@@ -266930,6 +267872,16 @@ var ProtocolHost = class {
       process.env,
       this.options.secretResolver
     );
+    if (Object.values(config2.mcp?.servers ?? {}).some(
+      (server) => server.transport === "streamable-http" && server.oauth
+    )) {
+      const authentication = await createMcpAuthentication({ config: config2 });
+      if (this.closed) {
+        await authentication.close();
+        throw new CoreMindError("worker_closed", "worker \u5DF2\u5173\u95ED");
+      }
+      this.mcpAuthentication = authentication;
+    }
     this.initialized = {
       config: config2,
       configDir,
@@ -267063,6 +268015,7 @@ var ProtocolHost = class {
         configDir: state3.configDir,
         cwd: state3.cwd,
         secretResolver: this.options.secretResolver,
+        ...this.mcpAuthentication ? { mcpAuthentication: this.mcpAuthentication } : {},
         sessionId: persistentChat ? state3.sessionId ?? "python-default" : state3.sessionId,
         initialPrompt: input,
         signal: this.activeController.signal,
@@ -267496,6 +268449,11 @@ var ProtocolHost = class {
   /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
   async shutdown(timeoutMs = 5e3) {
     this.closed = true;
+    for (const transaction of this.mcpAuthTransactions.values()) transaction.controller.abort();
+    const authenticationClosed = Promise.resolve().then(() => this.mcpAuthentication?.close()).then(
+      () => true,
+      () => false
+    );
     this.activeController?.abort();
     for (const approval of this.pendingApprovals.values()) approval.resolve("deny");
     for (const [callId, pending] of this.pendingToolCalls) {
@@ -267508,11 +268466,16 @@ var ProtocolHost = class {
     const active = Promise.all([...this.protocolV2RunTransitions.values()]).then(async () => {
       this.activeController?.abort();
       await this.activeExecutionCompletion;
+      await Promise.allSettled(
+        [...this.mcpAuthTransactions.values()].map((transaction) => transaction.promise)
+      );
     });
     let timer;
     try {
       const quiescent = await Promise.race([
-        active.then(() => this.lastExecutionQuiescent && this.unsettledPythonCalls.size === 0),
+        active.then(
+          async () => await authenticationClosed && this.lastExecutionQuiescent && this.unsettledPythonCalls.size === 0
+        ),
         new Promise((resolve9) => {
           timer = setTimeout(() => resolve9(false), timeoutMs);
         })
@@ -267601,7 +268564,7 @@ function toV1InitializeParams(params) {
   };
 }
 function protocolV2StartFingerprint(request) {
-  return createHash24("sha256").update(
+  return createHash25("sha256").update(
     JSON.stringify({
       method: request.method,
       params: request.params
@@ -267661,7 +268624,7 @@ function protocolV2CallKey(runId, callId) {
   return `${runId}\0${callId}`;
 }
 function sha256Canonical(value) {
-  return createHash24("sha256").update(canonicalJson3(value)).digest("hex");
+  return createHash25("sha256").update(canonicalJson3(value)).digest("hex");
 }
 function canonicalJson3(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);

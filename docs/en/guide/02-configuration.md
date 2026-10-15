@@ -96,7 +96,7 @@ permissions:
   network: allow
 ```
 
-`MCP_AUTHORIZATION` must contain the complete Header value, such as `Bearer <service-token>`; CoreMind does not add `Bearer`. Use `{secretRef: reference}` with an SDK `secretResolver` when appropriate. Sensitive Headers reject literal credentials. Missing, blank, or unresolved references fail explicitly without falling back to anonymous access or another Provider's key. The URL must have no userinfo, query, or fragment. Credentials reach only the fixed endpoint and never enter model context, Facts, or Worker JSON. A 401/403 fails without OAuth, token refresh, or business retries. Interactive authentication is outside this capability.
+`MCP_AUTHORIZATION` must contain the complete Header value, such as `Bearer <service-token>`; CoreMind does not add `Bearer`. Use `{secretRef: reference}` with an SDK `secretResolver` when appropriate. Sensitive Headers reject literal credentials. Missing, blank, or unresolved references fail explicitly without falling back to anonymous access or another Provider's key. The URL must have no userinfo, query, or fragment. Credentials reach only the fixed endpoint and never enter model context, Facts, or Worker JSON. Header-mode 401/403 responses fail without starting login, refreshing tokens, or retrying business calls. Interactive services use the separate OAuth configuration below.
 
 Public HTTPS allows verified public addresses by default. `allowedAddresses` is an exact IP-literal set for this endpoint; when present, every resolved address must match. Private addresses require explicit entries; CIDRs and hostnames are not accepted. Plain HTTP requires a loopback IP literal in both the URL and the allowlist:
 
@@ -115,6 +115,34 @@ Select tools with the preceding section's exact `tools[].mcp` service/raw-name r
 Tool-only selection does not implicitly list resources. With only resources selected and no inherited MCP tools, the first model request occurs before any HTTP request; an explicit resource call establishes the connection. Operations retain the existing Run Harness, budgets, critical durability, and receipts. Child Runs inherit no MCP services, tools, resources, or credentials. HTTP/resource configuration requires a capable Worker; older Workers must reject it explicitly.
 
 Each response body is limited to 8 MiB and each owner to 64 MiB total. Directories allow at most 32 pages and 256 entries, with a 30-second total request/directory deadline. GET recovery is bounded to three requests per owner within 30 seconds and never resends business POSTs. Cancelling one request preserves other authorized requests; Run shutdown waits for owned local bodies, sockets, and the dispatcher. No remote DELETE is sent, so remote session cleanup relies on the service's lease. Text/JSON and large Artifacts retain the existing result boundary; unknown remote writes are never replayed automatically.
+
+## Explicit host-owned MCP authentication (1.1 development line)
+
+HTTP services support Authorization Code with S256 and a preregistered public/native client. Replace that service's `headers.Authorization` with this configuration; both credential sources cannot coexist:
+
+```yaml
+mcp:
+  servers:
+    remote:
+      transport: streamable-http
+      url: https://mcp.example.com/mcp
+      oauth:
+        issuer: https://identity.example.com
+        clientId: registered-native-client
+        scopes: ['mcp:read']
+```
+
+Scopes are explicit and bounded, including an empty set; additional granted scopes are rejected. Resource metadata must bind the fixed resource and configured issuer. Authorization and Token endpoints must share the issuer's origin; cross-origin endpoints and redirects are rejected. MCP and issuer addresses are checked independently; use `oauth.allowedAddresses` for the issuer's own exact private-IP allowance. Plain HTTP still requires an explicitly allowed loopback IP. Dynamic client registration, client secrets, client credentials, and cross-origin authorization endpoints are unsupported.
+
+`createMcpAuthentication({config})` performs no network I/O. Explicit `login(server, {onAuthorization, signal})` starts discovery and provides a URL for the user to open manually. No handler returns `mcp_auth_required` before discovery or callback creation. Network deny always wins; explicit login under ask approves only this fixed authentication transaction, leaving subsequent business policy unchanged. The 180-second login deadline starts before discovery. Node binds a random `127.0.0.1` port for a single callback with state, issuer, and PKCE validation.
+
+Credentials stay in host memory by default and disappear on restart. One session can be injected into multiple Runtimes; each Run closes only its own connections. `logout(server)` revokes local use and deletes the stored record; `close()` cancels transactions and refresh, closes listeners, and clears memory while retaining explicitly persisted records. Neither calls a remote revocation endpoint. Node hosts may supply a secure `McpTokenStore` with a stable isolated `namespace`; the host owns atomic saves, bounded cancellation, and secure storage. No plaintext file is created by default, and SecretResolver remains read-only. Store failure returns `mcp_auth_store_failed` without falling back to an old credential.
+
+Refresh is shared per complete server identity with independently cancellable waiters; the last cancellation stops the flight. Authorization and cancellation are checked before each request. A business POST is never resent after 401. Tokens, refresh state, and callback codes never enter model input, Facts, logs, Artifacts, or Worker messages. The standard authorization URL belongs only to temporary host interaction and should not be persisted.
+
+See the [TypeScript guide](../../modules/embed-coremind-typescript/GUIDE.en.md). CLI supports `coremind run coremind.yaml --mcp-login remote --prompt 'Read resources'` in a human-output TTY, rejecting `--print` and `--json-events`. Chat uses `/mcp login remote`, `/mcp cancel`, and `/mcp logout remote`. [Python interaction](../../modules/embed-coremind-python/GUIDE.en.md) requires explicit Protocol v2 and `mcp_auth_handler`. Default v1, old Workers, and missing negotiated capability reject interaction explicitly.
+
+The complete chain is tested with a local real HTTP authorization-server fixture. External-service interoperability remains unverified; this is not external provider certification. The user's browser must reach Node's callback; remote-container browser callback deployment is unverified.
 
 ## Environment substitution
 

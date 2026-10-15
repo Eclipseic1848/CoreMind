@@ -24,6 +24,7 @@ examplePaths:
 testPaths:
   - "packages/coremind-config/src/parse.test.ts"
   - "packages/coremind-config/src/validate.test.ts"
+  - "packages/coremind-config/src/mcp-auth.test.ts"
 supportedPlatforms:
   - "windows"
   - "linux"

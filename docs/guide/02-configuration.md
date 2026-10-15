@@ -320,7 +320,7 @@ permissions:
   network: allow
 ```
 
-`MCP_AUTHORIZATION` 的值必须是完整 Header 值，例如 `Bearer <服务令牌>`；CoreMind 不自动添加 `Bearer`。凭据也可使用 `{secretRef: 引用}`，由 SDK 的 `secretResolver` 解析。敏感 Header 不接受明文配置，引用缺失、空值或解析失败会明确拒绝；不会退回匿名身份或其他 Provider 的密钥。URL 不允许 userinfo、query 或 fragment。Header 凭据只用于该固定目标，不进入模型上下文、Facts 或 Worker JSON；401/403 明确失败，不触发 OAuth、刷新或业务重试。交互认证不在本项能力内。
+`MCP_AUTHORIZATION` 的值必须是完整 Header 值，例如 `Bearer <服务令牌>`；CoreMind 不自动添加 `Bearer`。凭据也可使用 `{secretRef: 引用}`，由 SDK 的 `secretResolver` 解析。敏感 Header 不接受明文配置，引用缺失、空值或解析失败会明确拒绝；不会退回匿名身份或其他 Provider 的密钥。URL 不允许 userinfo、query 或 fragment。Header 凭据只用于该固定目标，不进入模型上下文、Facts 或 Worker JSON；Header 模式的 401/403 明确失败，不触发登录、刷新或业务重试。需要交互认证的服务使用下方独立的 OAuth 配置。
 
 公网 HTTPS 默认只允许核验后的公网地址。`allowedAddresses` 是该目标的精确 IP 字面量集合；配置后，解析出的全部地址都必须命中，私网地址也必须显式列入，不支持 CIDR 或主机名。明文 HTTP 只允许 URL 本身为 loopback IP 字面量且地址同时显式允许，例如：
 
@@ -339,6 +339,34 @@ allowedAddresses: ['127.0.0.1']
 只选择工具时不会隐式列出资源；仅选择资源且没有继承 MCP 工具时，首个模型请求前 HTTP 次数为零，明确调用资源工具后才连接。连接和操作继续经过同一 Run Harness、预算、关键持久化与收据链。Child Run 不继承 MCP 服务、工具、资源授权或凭据；新 HTTP/资源配置需要相应 Worker 能力，旧 Worker 必须明确拒绝。
 
 每个响应 body 最多 8 MiB，同 owner 累计最多 64 MiB；目录最多 32 页、256 条，单次请求及目录操作总期限为 30 秒。每个 owner 的 GET 恢复最多 3 次、总窗口 30 秒，不重发业务 POST。单请求取消不关闭其他合法请求；Run 关闭等待本地 body、socket 和 dispatcher 收敛。不会发送远端 DELETE，服务端 session 的最终清理由服务租约负责。文本/JSON 和较大 Artifact 沿用既有结果边界，未知远端写效果不自动重放。
+
+## MCP：宿主显式交互认证（1.1 开发线）
+
+HTTP 服务可使用预注册 public/native client 的 Authorization Code + S256。以下配置替换同一服务的 `headers.Authorization`，两种凭据来源不能同时配置：
+
+```yaml
+mcp:
+  servers:
+    remote:
+      transport: streamable-http
+      url: https://mcp.example.com/mcp
+      oauth:
+        issuer: https://identity.example.com
+        clientId: registered-native-client
+        scopes: ['mcp:read']
+```
+
+`scopes` 是显式有限集合，可以为空；返回额外 scope 会被拒绝。`issuer` 是唯一受信授权方，资源元数据必须绑定固定 MCP URL 与该 issuer；授权、Token 端点必须与 issuer 同 origin，不接受跨目标端点或重定向。MCP 与授权方分别核验网络地址；授权方如需私网精确 IP 许可，使用 `oauth.allowedAddresses`，不会继承 MCP 的地址许可。明文 HTTP 同样仅支持显式允许的 loopback IP。当前不支持动态客户端注册、client secret、客户端凭据模式或跨 origin 授权端点。
+
+宿主调用 `createMcpAuthentication({config})` 创建认证会话，创建本身不联网。显式 `login(server, {onAuthorization, signal})` 才开始发现并提供授权 URL，用户自行打开；CoreMind 不自动启动浏览器。缺少 handler 时立即返回 `mcp_auth_required`，不创建监听或发现请求。`network: deny` 始终阻止认证；`ask` 下显式 login 仅同意本次固定服务认证事务，不批准后续业务调用。登录整体期限为 180 秒，自发现前开始；Node 只在 `127.0.0.1` 随机端口接收一次有 state、issuer 与 PKCE 校验的回调。
+
+默认凭据只存在当前宿主内存，重启需要重新登录。同一会话可注入多次 Runtime，Run 结束只关闭自己的连接。`logout(server)` 先撤销本地使用权并删除宿主存储记录；`close()` 取消事务和刷新、清理监听与内存，但保留显式持久化记录。两者不调用远端撤销接口。只有 Node 宿主可以注入 `McpTokenStore` 和稳定隔离的 `namespace`；存储实现负责安全、原子保存和有界取消，不默认产生明文文件，不把 SecretResolver 当作可写存储。存储失败明确返回 `mcp_auth_store_failed`，不回退旧凭据。
+
+刷新按完整服务身份单飞，每位调用方独立取消；所有等待者取消后停止该刷新。每次真实出站前重新检查授权与调用取消，401 不会触发业务 POST 重发。Token、刷新状态和 callback code 不进入模型、Facts、日志、Artifact 或 Worker 消息；标准授权 URL 仅供临时宿主交互，不应持久记录。
+
+TypeScript 用法见 [SDK 指南](../modules/embed-coremind-typescript/GUIDE.zh-CN.md)。CLI 使用同进程的 `coremind run coremind.yaml --mcp-login remote --prompt '读取资源'`，仅支持 TTY 人类输出，拒绝与 `--print`、`--json-events` 同用；chat 使用 `/mcp login remote`、`/mcp cancel`、`/mcp logout remote`。Python 交互须显式选择 Protocol v2 并提供 `mcp_auth_handler`，详见 [Python 指南](../modules/embed-coremind-python/GUIDE.zh-CN.md)。默认 v1 保持无交互，旧 Worker 或未协商能力明确拒绝，不降级伪报成功。
+
+目前完整认证链由本地真实 HTTP 授权服务器夹具验证；真实外部服务互通尚未验证，不能据此宣称外部服务认证。Node callback 必须能从用户浏览器访问，远程容器的浏览器回调部署不在当前验证范围。
 
 ## permissions：三档权限
 

@@ -49,6 +49,8 @@ export {
   McpConfigSchema,
   type McpHttpServerConfig,
   McpHttpServerConfigSchema,
+  type McpOAuthConfig,
+  McpOAuthConfigSchema,
   McpStdioServerConfigSchema,
 } from "./schema/mcp.js";
 export {
