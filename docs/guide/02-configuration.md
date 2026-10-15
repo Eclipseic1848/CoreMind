@@ -313,6 +313,8 @@ permissions:
 
 Windows 使用绝对 Windows 路径；YAML 中可用单引号保留反斜杠。环境字段只能引用 `{env: 名称}` 或 `{secretRef: 引用}`，后者需要 SDK 的 `secretResolver`。CoreMind 只传递有限的平台运行变量和显式引用，不透传整个宿主环境。不要在配置、参数或工具描述中填写秘密。
 
+Windows 本地服务在执行前加入连接专属 Job；服务退出、取消和关闭都要确认整个 Job 的后代进程已经退出，才能结算活动。系统策略禁止 Windows PowerShell 辅助程序或 Job 分配时，服务不会执行。Job 只负责进程树所有权，不提供工作区、网络或凭据隔离。
+
 Agent 的非空 `tools` 精确选择工具；省略或空列表沿用全局 `tools`。内部短名绑定服务、原名、完整 schema 和执行能力，审批展示真实命令、目录与身份摘要。连接、读取目录、每次业务调用分别通过同一审批、预算、租约及持久化链，因此连接加目录读取先消耗两次工具预算。默认 direct 工具的原始 schema（含 `$defs/$ref`）进入首次模型请求；deferred 工具在发现并持久安装后的请求中保留同样完整的 schema。服务的 annotations 不会自动降低权限。
 
 这是受信任宿主程序，具有当前账户权限；`roots` 或工具白名单不构成操作系统沙箱。`workspaceOnly: true` 或 `network: deny/ask` 会在启动前拒绝，`full` 也不豁免。`doctor` 只检查静态条件，不启动或握手服务；既有 `coremind check` 仍拒绝 `workspaceOnly: false`，本配置不满足受限项目的发布基线。当前 Child Run 不接受 MCP 服务、工具或凭据。

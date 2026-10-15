@@ -33,6 +33,11 @@ execFileSync(
   { cwd: repositoryRoot, stdio: "inherit" },
 );
 await copyMcpLicenseAssets();
+execFileSync(
+  process.execPath,
+  [path.join(repositoryRoot, "scripts", "build-windows-mcp-service.mjs"), "--python-assets"],
+  { cwd: repositoryRoot, stdio: "inherit" },
+);
 
 // 第三方内联文本可能保留空白行缩进；发布前统一清理，保证 Git 格式门禁可重复通过。
 const workerBundle = workerBuild.outputFiles[0].text;

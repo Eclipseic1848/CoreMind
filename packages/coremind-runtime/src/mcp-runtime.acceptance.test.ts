@@ -105,7 +105,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         expect(alive(started.childPid)).toBe(true);
         gates[2]!.release.resolve();
 
-        const result = await bounded(project.running);
+        const result = await bounded(project.running, "Run 完成");
         expect(result.outcome.status, runSummary(result, observed)).toBe("succeeded");
         expect(stage).toBe(3);
         expect(project.requests).toHaveLength(2);
@@ -235,7 +235,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         },
       });
       project.running = runtime.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(result.outcome).toMatchObject({
         status: "paused",
         finishReason: "tool_approval_denied",
@@ -284,7 +284,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         },
       });
       project.running = runtime.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(result.outcome).toMatchObject({
         status: "budget_exceeded",
         error: { code: "budget_exceeded" },
@@ -345,7 +345,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         approveTool: async () => "allow",
       });
       project.running = runtime.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(failures).toBe(1);
       expect(result.outcome).toMatchObject({
         status: "failed",
@@ -412,7 +412,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           ),
         ).toBe(false);
         release.resolve();
-        const result = await bounded(project.running);
+        const result = await bounded(project.running, "connect-result 释放后 Run 完成");
         expect(result.outcome.status, runSummary(result, observed)).toBe("succeeded");
         expect(barriers).toBe(1);
         expect(approvals).toHaveLength(3);
@@ -444,7 +444,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           },
         });
         project.running = runtime.run();
-        const result = await bounded(project.running);
+        const result = await bounded(project.running, "Run 完成");
         expect(result.outcome.status, runSummary(result, [])).toBe("succeeded");
         expect(project.requests).toHaveLength(mode === "workflow" ? 2 : 3);
         expect(project.requests[0]!.tools).toHaveLength(1);
@@ -534,7 +534,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           expect(project.requests).toHaveLength(0);
           callbacks[0]!();
           release.resolve();
-          const result = await bounded(project.running);
+          const result = await bounded(project.running, "Run 完成");
           expect(result.outcome, runSummary(result, observed)).toMatchObject({
             status: "timeout",
             finishReason: "step_timeout",
@@ -584,7 +584,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           : {}),
       });
       project.running = runtime.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(result.outcome.status).not.toBe("succeeded");
       expect(existsSync(project.recordFile)).toBe(false);
       expect(project.requests).toHaveLength(0);
@@ -611,7 +611,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         initialPrompt: "直接完成，不使用工具",
       });
       project.running = runtime.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(result.outcome.status).toBe("succeeded");
       expect(project.requests).toHaveLength(1);
       expect(existsSync(project.recordFile)).toBe(false);
@@ -639,7 +639,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         approveTool: async () => "allow",
       });
       project.running = authorized.run();
-      expect((await bounded(project.running)).outcome.status).toBe("succeeded");
+      expect((await bounded(project.running, "Run 完成")).outcome.status).toBe("succeeded");
       const knownAlias = project.requests[0]!.tools![0]!.function.name;
       expect(knownAlias).toMatch(/^mcp_[A-Za-z0-9_-]+$/u);
       const recordsBefore = await serviceRecords(project.recordFile);
@@ -670,7 +670,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         },
       });
       project.running = unauthorized.run();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       const requests = project.requests.slice(requestOffset);
       expect(requests.length).toBeGreaterThan(0);
       expect(
@@ -758,7 +758,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         }),
       );
       project.controller.abort();
-      const result = await bounded(project.running);
+      const result = await bounded(project.running, "Run 完成");
       expect(result.outcome).toMatchObject({ status: "aborted", finishReason: "aborted" });
       expect(await runtime.waitForQuiescence()).toBe(true);
       const persisted = await store.read(result.runId);
@@ -966,7 +966,7 @@ async function withProject(action: (project: Project) => Promise<void>) {
   project.controller.abort();
   if (project.running) {
     try {
-      await bounded(project.running);
+      await bounded(project.running, "cleanup 取消 join");
     } catch (error) {
       failures.push(error);
     }
@@ -1114,13 +1114,13 @@ function safeMessage(value: unknown): string {
   return redactSensitiveText(message).replaceAll(serviceSecret, "<已隐藏>").slice(0, 400);
 }
 
-async function bounded<T>(promise: Promise<T>): Promise<T> {
+async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("MCP 真实验收阶段超时")), 15_000);
+        timer = setTimeout(() => reject(new Error(`MCP 真实验收阶段超时（${label}）`)), 15_000);
       }),
     ]);
   } finally {

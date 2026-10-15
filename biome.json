@@ -16,6 +16,8 @@
       "!python/build",
       "!packages/coremind-tools/src/vendor/linux-sandbox",
       "!python/src/coremind/_worker/vendor/linux-sandbox",
+      "!packages/coremind-tools/src/vendor/windows-mcp",
+      "!python/src/coremind/_worker/vendor/windows-mcp",
       "!python/src/coremind/_worker/*.mjs"
     ]
   },

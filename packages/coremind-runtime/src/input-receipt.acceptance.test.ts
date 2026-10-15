@@ -759,7 +759,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
       const before = recorder.count();
       const runPromise = runtime.run();
       await recorder.waitForNext(before);
-      // 计时前先确认输入认领事实已落盘，避免把 Cancel 之前的 journal 积压计入收敛延迟。
+      // 计时前确认输入认领已落盘；后续未提交的事实仍须计入取消收敛。
       await vi.waitFor(
         async () => {
           const persisted = await runStore.read(runId);
@@ -775,7 +775,7 @@ describe("Cancel → Quiescent p95（100 次采样）", () => {
         { timeout: 10_000, interval: 10 },
       );
       // 测量 Cancel → Quiescent：abort 到静止点（waitForQuiescence 满足）。
-      // 不含 run 收尾的磁盘 flush——规格 03 §5 指标定义的是静止机制开销
+      // 静止包含 journal 队列排空与事实落盘，runPromise 的其余收尾不计入。
       const started = performance.now();
       controller.abort();
       const quiescent = await runtime.waitForQuiescence(5_000);

@@ -575,11 +575,10 @@ async function publishWriterLock(
 ): Promise<void> {
   const candidatePath = `${lockPath}.candidate-${owner.nonce}`;
   try {
-    // 先完整并持久化候选文件，再通过 hard link 原子发布，避免崩溃留下无 owner 的空锁。
+    // 锁只要求完整写完后原子可见；关键 Fact 的磁盘同步由 commit/barrier 保证。
     await writeFile(candidatePath, JSON.stringify(owner), {
       encoding: "utf8",
       flag: "wx",
-      flush: true,
     });
     await link(candidatePath, lockPath);
   } finally {

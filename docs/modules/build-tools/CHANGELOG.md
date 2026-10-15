@@ -2,6 +2,8 @@
 
 ## 1.1.0 - 2026-10-15
 
+- Windows 本地 MCP 在服务执行前绑定专属 Job，关闭时确认整树退出；npm 与 Python 默认 Worker 携带并校验同一私有启动器及完整依赖许可。
+
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
 
 ## Unreleased

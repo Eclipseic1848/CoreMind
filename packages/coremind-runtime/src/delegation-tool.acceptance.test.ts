@@ -17,7 +17,7 @@ import { FileRunStore, RunStateJournal } from "./run-state.js";
 import { CoreMindRuntime, delegatedToolEnvironment } from "./runtime.js";
 import { projectToolCallLifecycles } from "./tool-call-lifecycle.js";
 import type { ToolApprovalRequest } from "./tool-policy.js";
-import type { CoreMindTraceEvent } from "./trace.js";
+import { type CoreMindTraceEvent, redactSensitiveText } from "./trace.js";
 import { canonicalizeWorkspace, WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("Delegation Tool TypeScript happy path", () => {
@@ -1330,7 +1330,15 @@ describe("Delegation Tool TypeScript happy path", () => {
           record.kind === "delegation" && record.payload.type === "delegation_disposition_recorded",
       );
 
-      expect(result.outcome.status).toBe("succeeded");
+      const diagnostic = {
+        parent: outcomeSummary(result.outcome),
+        children: result.childRuns?.nodes.map((node) => outcomeSummary(node.outcome)),
+        parentRequests,
+        recoveredChildRequests,
+      };
+      expect(result.outcome.status, redactSensitiveText(JSON.stringify(diagnostic))).toBe(
+        "succeeded",
+      );
       expect(result.transcript).toContain("重新委派后完成");
       expect(parentRequests).toBe(4);
       expect(recoveredChildRequests).toBe(1);
@@ -1723,6 +1731,7 @@ describe("Delegation Tool TypeScript happy path", () => {
     });
     let winnerRunId: string | undefined;
     let winnerCallId: string | undefined;
+    let requests = 0;
     const store = new FileRunStore(path.join(directory, "runs"), {
       beforeBarrier: async ({ runId, record }) => {
         const event =
@@ -1752,6 +1761,7 @@ describe("Delegation Tool TypeScript happy path", () => {
           messages?: Array<{ role?: string; content?: string }>;
           model?: string;
         };
+        requests++;
         const serialized = JSON.stringify(payload);
         const hasToolResult = payload.messages?.some((message) => message.role === "tool") ?? false;
         if (payload.model === "writer-model") {
@@ -1914,7 +1924,23 @@ describe("Delegation Tool TypeScript happy path", () => {
         error: { code: "workspace_busy" },
       });
       expect(fileReads.every((read) => read.status === "rejected")).toBe(true);
-      expect(winnerLifecycle).toMatchObject({
+      const diagnostic = {
+        parent: outcomeSummary(result.outcome),
+        winner: outcomeSummary(
+          tree.childRuns?.nodes.find((node) => node.childRunId === winnerRunId)?.outcome,
+        ),
+        requests,
+        lifecycle: winnerRecords
+          .flatMap((record) => {
+            if (record.kind !== "event") return [];
+            const { timestamp, event } = record.payload as CoreMindTraceEvent;
+            return event.type === "tool_lifecycle" && event.callId === winnerCallId
+              ? [{ timestamp, phase: event.resolution.phase }]
+              : [];
+          })
+          .slice(-6),
+      };
+      expect(winnerLifecycle, redactSensitiveText(JSON.stringify(diagnostic))).toMatchObject({
         terminal: true,
         currentPhase: "terminal",
         result: { executionOutcome: "aborted" },
@@ -2909,6 +2935,10 @@ async function delegationStageFailure(
       deferredTerminalError: deferredTerminalError ?? null,
     })}`,
   );
+}
+
+function outcomeSummary(outcome: ChildRunResult["outcome"] | undefined) {
+  return { status: outcome?.status, reason: outcome?.finishReason, code: outcome?.error?.code };
 }
 
 async function within<T>(promise: Promise<T>, label: string, timeoutMs = 10_000): Promise<T> {

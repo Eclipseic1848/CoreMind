@@ -27,6 +27,8 @@ CoreMind 的运行时底座直接依赖以下 npm 包（MIT 协议，Copyright 2
 
 Linux CI 与目标系统还需要 Bubblewrap 作为系统级沙箱依赖（GNU Library General Public License 2.0）。它不随 npm 包复制发布，由操作系统包管理器安装。
 
+Windows MCP 私有启动器内联锁定的 Execa 及其实际依赖。npm 的 `dist/vendor/windows-mcp/` 与 Python 的 `_worker/vendor/windows-mcp/` 随包保留完整 `THIRD-PARTY-LICENSES.txt`、来源清单及资产摘要；运行时核验固定启动器身份。
+
 ## 内容借鉴
 
 - **模板库组织方式**借鉴自 agency-agents-zh（开源 AI 角色库，其角色人设内容经 CoreMind 重新编排为结构化配置，未直接复制原文）。

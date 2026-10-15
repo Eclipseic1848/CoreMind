@@ -98,6 +98,16 @@ function runNpmPackDryRun(rootDirectory, packageName) {
 
 function collectRequiredEntries(manifest) {
   const entries = new Set();
+  if (manifest.name === "coremind-tools") {
+    for (const filename of [
+      "service.mjs",
+      "manifest.json",
+      "metafile.json",
+      "THIRD-PARTY-LICENSES.txt",
+    ]) {
+      entries.add(`dist/vendor/windows-mcp/${filename}`);
+    }
+  }
   collectEntry(manifest.main, entries);
   collectEntry(manifest.types, entries);
   collectEntry(manifest.bin, entries);

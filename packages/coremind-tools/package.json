@@ -33,7 +33,7 @@
     "node": ">=22.19.0"
   },
   "scripts": {
-    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p tsconfig.build.json && node ../../scripts/build-linux-sandbox-backend.mjs --copy-only",
+    "build": "node ../../scripts/clean-package-dist.mjs && tsc -p tsconfig.build.json && node ../../scripts/build-linux-sandbox-backend.mjs --copy-only && node ../../scripts/build-windows-mcp-service.mjs --copy-only",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

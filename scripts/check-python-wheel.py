@@ -82,6 +82,7 @@ def main() -> int:
             blockers.extend(check_worker_bundle(archive.read(worker_name).decode("utf-8")))
         blockers.extend(check_linux_sandbox_assets(archive))
         blockers.extend(check_mcp_license_assets(archive))
+        blockers.extend(check_windows_mcp_assets(archive))
         blockers.extend(check_skill_assets(
             archive, Path(__file__).resolve().parents[1] / "packages" / "coremind-templates" / "skills"
         ))
@@ -121,6 +122,28 @@ def check_worker_bundle(bundle: str) -> list[str]:
     )
     if removed_backend.search(bundle):
         blockers.append("内置 Worker 仍包含已移除的加密或流量拦截后端")
+    return blockers
+
+
+def check_windows_mcp_assets(archive: zipfile.ZipFile) -> list[str]:
+    prefix = "coremind/_worker/vendor/windows-mcp/"
+    vendor = Path(__file__).resolve().parents[1] / "packages/coremind-tools/src/vendor/windows-mcp"
+    expected_names = {"service.mjs", "manifest.json", "metafile.json", "THIRD-PARTY-LICENSES.txt"}
+    blockers: list[str] = []
+    # 逐字节核对同一冻结源码的资产，拒绝把同步伪造的 manifest 当可信身份。
+    for relative in sorted(expected_names):
+        if archive.namelist().count(prefix + relative) > 1:
+            blockers.append(f"Windows MCP 启动器存在重复资产：{relative}")
+        try:
+            content = archive.read(prefix + relative)
+        except KeyError:
+            blockers.append(f"Windows MCP 启动器缺少资产：{relative}")
+            continue
+        if content != (vendor / relative).read_bytes():
+            blockers.append(f"Windows MCP 启动器资产与冻结源码不一致：{relative}")
+    unexpected = {name.removeprefix(prefix) for name in archive.namelist() if name.startswith(prefix)} - expected_names
+    if unexpected:
+        blockers.append("Windows MCP 启动器包含未审查资产")
     return blockers
 
 
