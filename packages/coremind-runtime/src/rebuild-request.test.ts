@@ -1,4 +1,4 @@
-import { createModels } from "@earendil-works/pi-ai";
+import { createInitialSystemMessage, createModels } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { describe, expect, it } from "vitest";
 import { buildAgentDriver } from "./agent-factory.js";
@@ -12,6 +12,43 @@ import {
 } from "./session-v4/index.js";
 
 describe("rebuildRunRequest", () => {
+  it("可选当前声明合同重建完整工具首部，旧裸前缀不会污染新请求或历史", () => {
+    const entries = [messageEntry("m1", null, user("发现后的本轮请求"), 1)];
+    const original = structuredClone(entries);
+    const requestDeclaration = {
+      stablePrefix: "第二代完整工具前缀",
+      toolSchemas: [
+        {
+          name: "real_tool",
+          description: "真实声明",
+          parameters: {
+            type: "object",
+            properties: { value: { type: "boolean" } },
+            required: ["value"],
+            additionalProperties: false,
+          },
+        },
+      ],
+      toolDiscovery: { generation: 1, fingerprint: "b".repeat(64) },
+    };
+    const input = {
+      entries,
+      compactions: [],
+      stablePrefix: { text: "不应发送的旧前缀", fingerprint: "old" },
+      requestDeclaration,
+    };
+
+    const rebuilt = rebuildRunRequest(input);
+
+    expect(rebuilt[0]).toEqual(
+      createInitialSystemMessage(requestDeclaration.stablePrefix, requestDeclaration.toolSchemas),
+    );
+    expect(rebuilt.filter((message) => message.role === "system")).toHaveLength(1);
+    expect(rebuilt.at(-1)).toMatchObject({ role: "user", content: "发现后的本轮请求" });
+    expect(JSON.stringify(rebuilt)).not.toContain("不应发送的旧前缀");
+    expect(entries).toEqual(original);
+  });
+
   it("把稳定前缀作为 system，历史与压缩应用后的消息按序重建，末尾最终回复剔除", () => {
     // 历史：[m1 用户, m2 助手回复]；本轮：[m3 用户提问, m4 助手最终回复]
     const entries = [

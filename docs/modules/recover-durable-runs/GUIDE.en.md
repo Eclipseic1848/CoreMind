@@ -26,6 +26,12 @@ coremind run coremind.yaml --resume <runId> --json-events
 
 Automatic resume stops for a changed configuration fingerprint, a terminal operation, a `started` or `unknown` effect receipt, a committed effect outside a stable completed step, or corrupt RunState. A tool denied before execution uses `not_started` and is not mistaken for an uncertain side effect.
 
+Config 3 deferred tools retain the same resume gate: the same Run must match its original configuration fingerprint, and an old selection cannot authorize a changed configuration. Catalog snapshots, successful searches, and declaration generations remain private append-only facts; public `context_prefix` and `provider_request` events carry only safe summaries. Each new Run builds declarations from its current configuration. Sessions, parents, and previous Runs grant no activation. Runs without discovery facts follow the existing recovery path without inventing a historical tool set.
+
+Executions within one Run remain distinct. A quality retry starts a new execution even for the same Agent and Step, without inheriting activation. Only an exact continuation binding in the latest authoritative pause may restore that execution's catalog and selection generation; completed executions are excluded. A crash without that binding starts with fresh deferred declarations if the existing admission gates allow resume, rather than guessing the latest state for that Agent and Step. The binding stays private and is stripped from public projections and Worker events. It does not prove complete conversation-message recovery.
+
+Reading and reprojecting the same Facts in a cold Worker does not authorize continued execution. Resume still checks the original input, stable step boundary, Effect Receipts, and ownership. Successful discovery never replaces subsequent tool approval.
+
 ## Legacy sessions
 
 The framework creates `.v3.backup` before migration. Supported messages, model changes, active tool changes, compactions, branch summaries, labels, and names migrate. An entry that cannot be represented losslessly returns an explicit error and preserves the source. Follow the [SOP](SOP.en.md) to retain the old version or export its effective context.

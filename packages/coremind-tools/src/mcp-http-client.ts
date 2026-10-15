@@ -13,6 +13,7 @@ export interface McpHttpClientOptions extends McpHttpTransportOptions {
   protocolVersion?: "legacy" | "2026-07-28";
   artifactStore: ArtifactStore;
   allowedResourceUris?: readonly string[];
+  onToolsChanged?: () => void;
 }
 
 export interface McpHttpClient extends McpClient<McpHttpDomainSummary> {

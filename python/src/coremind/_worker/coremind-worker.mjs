@@ -286,9 +286,9 @@ var require_directives = __commonJS({
         this.tags = Object.assign({}, _Directives.defaultTags, tags);
       }
       clone() {
-        const copy = new _Directives(this.yaml, this.tags);
-        copy.docStart = this.docStart;
-        return copy;
+        const copy2 = new _Directives(this.yaml, this.tags);
+        copy2.docStart = this.docStart;
+        return copy2;
       }
       /**
        * During parsing, get a Directives instance for the current document and
@@ -597,10 +597,10 @@ var require_Node = __commonJS({
       }
       /** Create a copy of this node.  */
       clone() {
-        const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
+        const copy2 = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
         if (this.range)
-          copy.range = this.range.slice();
-        return copy;
+          copy2.range = this.range.slice();
+        return copy2;
       }
       /** A plain JavaScript representation of this node. */
       toJS(doc, { mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
@@ -892,13 +892,13 @@ var require_Collection = __commonJS({
        * @param schema - If defined, overwrites the original's schema
        */
       clone(schema) {
-        const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
+        const copy2 = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
         if (schema)
-          copy.schema = schema;
-        copy.items = copy.items.map((it2) => identity3.isNode(it2) || identity3.isPair(it2) ? it2.clone(schema) : it2);
+          copy2.schema = schema;
+        copy2.items = copy2.items.map((it2) => identity3.isNode(it2) || identity3.isPair(it2) ? it2.clone(schema) : it2);
         if (this.range)
-          copy.range = this.range.slice();
-        return copy;
+          copy2.range = this.range.slice();
+        return copy2;
       }
       /**
        * Adds a value to the collection. For `!!map` and `!!omap` the value must
@@ -2714,12 +2714,12 @@ ${cn.comment}` : item.comment;
             } else
               throw new TypeError(`Expected [key, value] tuple: ${it2}`);
           } else if (it2 && it2 instanceof Object) {
-            const keys = Object.keys(it2);
-            if (keys.length === 1) {
-              key = keys[0];
+            const keys2 = Object.keys(it2);
+            if (keys2.length === 1) {
+              key = keys2[0];
               value = it2[key];
             } else {
-              throw new TypeError(`Expected tuple with one key, not ${keys.length} keys`);
+              throw new TypeError(`Expected tuple with one key, not ${keys2.length} keys`);
             }
           } else {
             key = it2;
@@ -3265,8 +3265,8 @@ var require_tags = __commonJS({
         if (Array.isArray(customTags))
           tags = [];
         else {
-          const keys = Array.from(schemas.keys()).filter((key) => key !== "yaml11").map((key) => JSON.stringify(key)).join(", ");
-          throw new Error(`Unknown schema "${schemaName}"; use one of ${keys} or define customTags array`);
+          const keys2 = Array.from(schemas.keys()).filter((key) => key !== "yaml11").map((key) => JSON.stringify(key)).join(", ");
+          throw new Error(`Unknown schema "${schemaName}"; use one of ${keys2} or define customTags array`);
         }
       }
       if (Array.isArray(customTags)) {
@@ -3281,8 +3281,8 @@ var require_tags = __commonJS({
         const tagObj = typeof tag2 === "string" ? tagsByName[tag2] : tag2;
         if (!tagObj) {
           const tagName = JSON.stringify(tag2);
-          const keys = Object.keys(tagsByName).map((key) => JSON.stringify(key)).join(", ");
-          throw new Error(`Unknown custom tag ${tagName}; use one of ${keys}`);
+          const keys2 = Object.keys(tagsByName).map((key) => JSON.stringify(key)).join(", ");
+          throw new Error(`Unknown custom tag ${tagName}; use one of ${keys2}`);
         }
         if (!tags2.includes(tagObj))
           tags2.push(tagObj);
@@ -3317,9 +3317,9 @@ var require_Schema = __commonJS({
         this.sortMapEntries = typeof sortMapEntries === "function" ? sortMapEntries : sortMapEntries === true ? sortMapEntriesByKey : null;
       }
       clone() {
-        const copy = Object.create(_Schema.prototype, Object.getOwnPropertyDescriptors(this));
-        copy.tags = this.tags.slice();
-        return copy;
+        const copy2 = Object.create(_Schema.prototype, Object.getOwnPropertyDescriptors(this));
+        copy2.tags = this.tags.slice();
+        return copy2;
       }
     };
     exports.Schema = Schema;
@@ -3462,21 +3462,21 @@ var require_Document = __commonJS({
        * Custom Node values that inherit from `Object` still refer to their original instances.
        */
       clone() {
-        const copy = Object.create(_Document.prototype, {
+        const copy2 = Object.create(_Document.prototype, {
           [identity3.NODE_TYPE]: { value: identity3.DOC }
         });
-        copy.commentBefore = this.commentBefore;
-        copy.comment = this.comment;
-        copy.errors = this.errors.slice();
-        copy.warnings = this.warnings.slice();
-        copy.options = Object.assign({}, this.options);
+        copy2.commentBefore = this.commentBefore;
+        copy2.comment = this.comment;
+        copy2.errors = this.errors.slice();
+        copy2.warnings = this.warnings.slice();
+        copy2.options = Object.assign({}, this.options);
         if (this.directives)
-          copy.directives = this.directives.clone();
-        copy.schema = this.schema.clone();
-        copy.contents = identity3.isNode(this.contents) ? this.contents.clone(copy.schema) : this.contents;
+          copy2.directives = this.directives.clone();
+        copy2.schema = this.schema.clone();
+        copy2.contents = identity3.isNode(this.contents) ? this.contents.clone(copy2.schema) : this.contents;
         if (this.range)
-          copy.range = this.range.slice();
-        return copy;
+          copy2.range = this.range.slice();
+        return copy2;
       }
       /** Adds a value to the document. */
       add(value) {
@@ -7687,8 +7687,8 @@ function Values(value) {
 function DeepEqualObject(left, right) {
   if (!IsObject5(right))
     return false;
-  const keys = Keys(left);
-  return IsEqual(keys.length, Keys(right).length) && keys.every((key) => IsDeepEqual(left[key], right[key]));
+  const keys2 = Keys(left);
+  return IsEqual(keys2.length, Keys(right).length) && keys2.every((key) => IsDeepEqual(left[key], right[key]));
 }
 function DeepEqualArray(left, right) {
   return IsArray5(right) && IsEqual(left.length, right.length) && left.every((_2, index3) => IsDeepEqual(left[index3], right[index3]));
@@ -8606,8 +8606,8 @@ function IsTypeScriptEnumLike(value) {
   return guard_exports.IsObjectNotArray(value);
 }
 function TypeScriptEnumToEnumValues(type) {
-  const keys = guard_exports.Keys(type).filter((key) => isNaN(key));
-  return keys.reduce((result, key) => [...result, type[key]], []);
+  const keys2 = guard_exports.Keys(type).filter((key) => isNaN(key));
+  return keys2.reduce((result, key) => [...result, type[key]], []);
 }
 var init_typescript_enum_to_enum_values = __esm({
   "node_modules/typebox/build/type/engine/enum/typescript_enum_to_enum_values.mjs"() {
@@ -9833,8 +9833,8 @@ function CompositePropertyKey(left, right, key) {
   return key in left ? key in right ? CompositeProperty2(left[key], right[key]) : left[key] : key in right ? right[key] : Never2();
 }
 function CompositeProperties2(left, right) {
-  const keys = /* @__PURE__ */ new Set([...guard_exports.Keys(left), ...guard_exports.Keys(right)]);
-  const result = [...keys].reduce((result2, key) => {
+  const keys2 = /* @__PURE__ */ new Set([...guard_exports.Keys(left), ...guard_exports.Keys(right)]);
+  const result = [...keys2].reduce((result2, key) => {
     return { ...result2, [key]: CompositePropertyKey(left, right, key) };
   }, {});
   return result;
@@ -11851,8 +11851,8 @@ function ExtendsProperty(inferred, left, right) {
     IsInfer(right) && IsNever3(right.extends) ? ExtendsFalse() : Match3(ExtendsLeft(inferred, left, right), (inferred2) => ExtendsPropertyOptional(inferred2, left, right), () => ExtendsFalse())
   );
 }
-function ExtractInferredProperties(keys, properties) {
-  return keys.reduce((result, key) => {
+function ExtractInferredProperties(keys2, properties) {
+  return keys2.reduce((result, key) => {
     return key in properties ? IsExtendsTrueLike(properties[key]) ? { ...result, ...properties[key].inferred } : Unreachable() : Unreachable();
   }, {});
 }
@@ -11880,12 +11880,12 @@ function RecordMergeInferred(left, right) {
     };
   }, left);
 }
-function ExtendsRecordComparer(properties, keys, type, result) {
-  return guard_exports.ShiftLeft(keys, (left, right) => Match3(ExtendsLeft({}, properties[left], type), (inferred) => ExtendsRecordComparer(properties, right, type, RecordMergeInferred(result, inferred)), () => ExtendsFalse()), () => ExtendsTrue(result));
+function ExtendsRecordComparer(properties, keys2, type, result) {
+  return guard_exports.ShiftLeft(keys2, (left, right) => Match3(ExtendsLeft({}, properties[left], type), (inferred) => ExtendsRecordComparer(properties, right, type, RecordMergeInferred(result, inferred)), () => ExtendsFalse()), () => ExtendsTrue(result));
 }
 function ExtendsObjectToRecord(inferred, properties, _pattern, value) {
-  const keys = guard_exports.Keys(properties);
-  const result = ExtendsRecordComparer(properties, keys, value, inferred);
+  const keys2 = guard_exports.Keys(properties);
+  const result = ExtendsRecordComparer(properties, keys2, value, inferred);
   return result;
 }
 function ExtendsObject(inferred, left, right) {
@@ -12261,14 +12261,14 @@ var init_check = __esm({
 });
 
 // node_modules/typebox/build/type/engine/cyclic/candidates.mjs
-function ResolveCandidateKeys(context, keys) {
-  return keys.reduce((result, left) => {
+function ResolveCandidateKeys(context, keys2) {
+  return keys2.reduce((result, left) => {
     return CyclicCheck([left], context, context[left]) ? [...result, left] : result;
   }, []);
 }
 function CyclicCandidates(context) {
-  const keys = PropertyKeys(context);
-  const result = ResolveCandidateKeys(context, keys);
+  const keys2 = PropertyKeys(context);
+  const result = ResolveCandidateKeys(context, keys2);
   return result;
 }
 var init_candidates = __esm({
@@ -12363,8 +12363,8 @@ function CyclicInterface(context, heritage, properties) {
   return evaluatedInterface;
 }
 function CyclicDefinitions(context, dependencies) {
-  const keys = guard_exports.Keys(context).filter((key) => dependencies.includes(key));
-  return keys.reduce((result, key) => {
+  const keys2 = guard_exports.Keys(context).filter((key) => dependencies.includes(key));
+  return keys2.reduce((result, key) => {
     const type = context[key];
     const instantiatedType = IsInterfaceDeferred(type) ? CyclicInterface(context, type.parameters[0], type.parameters[1]) : type;
     return { ...result, [key]: instantiatedType };
@@ -12463,8 +12463,8 @@ var init_compare = __esm({
 // node_modules/typebox/build/type/engine/evaluate/broaden.mjs
 function BroadenFilter(type, types4, result = [], all = types4) {
   return guard_exports.ShiftLeft(types4, (left, right) => {
-    const compare2 = Compare(type, left);
-    return guard_exports.IsEqual(compare2, CompareResultLeftInside) || guard_exports.IsEqual(compare2, CompareResultEqual) ? all : guard_exports.IsEqual(compare2, CompareResultDisjoint) ? BroadenFilter(type, right, [...result, left], all) : BroadenFilter(type, right, result, all);
+    const compare3 = Compare(type, left);
+    return guard_exports.IsEqual(compare3, CompareResultLeftInside) || guard_exports.IsEqual(compare3, CompareResultEqual) ? all : guard_exports.IsEqual(compare3, CompareResultDisjoint) ? BroadenFilter(type, right, [...result, left], all) : BroadenFilter(type, right, result, all);
   }, () => [...result, type]);
 }
 function BroadenType(type, types4, result) {
@@ -13107,13 +13107,13 @@ var init_instantiate11 = __esm({
 });
 
 // node_modules/typebox/build/type/engine/helpers/keys_to_indexer.mjs
-function KeysToLiterals(keys) {
-  return keys.reduce((result, left) => {
+function KeysToLiterals(keys2) {
+  return keys2.reduce((result, left) => {
     return IsLiteralValue3(left) ? [...result, Literal2(left)] : result;
   }, []);
 }
-function KeysToIndexer(keys) {
-  const literals = KeysToLiterals(keys);
+function KeysToIndexer(keys2) {
+  const literals = KeysToLiterals(keys2);
   const result = Union3(literals);
   return result;
 }
@@ -13204,8 +13204,8 @@ var init_from_object = __esm({
 
 // node_modules/typebox/build/type/engine/object/from_tuple.mjs
 function FromTuple16(types4) {
-  const object3 = TupleToObject(Tuple2(types4));
-  const result = FromType10(object3);
+  const object4 = TupleToObject(Tuple2(types4));
+  const result = FromType10(object4);
   return result;
 }
 var init_from_tuple = __esm({
@@ -13475,24 +13475,24 @@ function IndexProperty(properties, key) {
   const result = ExpandThis(properties, selectedType);
   return result;
 }
-function IndexProperties(properties, keys) {
-  return keys.reduce((result, left) => {
+function IndexProperties(properties, keys2) {
+  return keys2.reduce((result, left) => {
     return [...result, IndexProperty(properties, left)];
   }, []);
 }
 function FromIndexer(properties, indexer) {
-  const keys = ToIndexableKeys(indexer);
-  const variants = IndexProperties(properties, keys);
+  const keys2 = ToIndexableKeys(indexer);
+  const variants = IndexProperties(properties, keys2);
   const result = EvaluateUnion(variants);
   return result;
 }
-function NumericKeys(keys) {
-  const result = keys.filter((key) => NumericKeyPattern.test(key));
+function NumericKeys(keys2) {
+  const result = keys2.filter((key) => NumericKeyPattern.test(key));
   return result;
 }
 function FromIndexerNumber(properties) {
-  const keys = PropertyKeys(properties);
-  const numericKeys = NumericKeys(keys);
+  const keys2 = PropertyKeys(properties);
+  const numericKeys = NumericKeys(keys2);
   const variants = IndexProperties(properties, numericKeys);
   const result = EvaluateUnion(variants);
   return result;
@@ -13685,8 +13685,8 @@ var init_from_array2 = __esm({
 });
 
 // node_modules/typebox/build/type/engine/keyof/from_object.mjs
-function FromPropertyKeys4(keys) {
-  const result = keys.reduce((result2, left) => {
+function FromPropertyKeys4(keys2) {
+  const result = keys2.reduce((result2, left) => {
     return IsLiteralValue3(left) ? [...result2, Literal2(ConvertToIntegerKey(left))] : Unreachable();
   }, []);
   return result;
@@ -13998,9 +13998,9 @@ var init_to_indexable = __esm({
 });
 
 // node_modules/typebox/build/type/engine/omit/from_type.mjs
-function FromKeys(properties, keys) {
+function FromKeys(properties, keys2) {
   const result = guard_exports.Keys(properties).reduce((result2, key) => {
-    return keys.includes(key) ? result2 : { ...result2, [key]: properties[key] };
+    return keys2.includes(key) ? result2 : { ...result2, [key]: properties[key] };
   }, {});
   return result;
 }
@@ -14219,16 +14219,16 @@ var init_pick = __esm({
 });
 
 // node_modules/typebox/build/type/engine/pick/from_type.mjs
-function FromKeys2(properties, keys) {
+function FromKeys2(properties, keys2) {
   const result = guard_exports.Keys(properties).reduce((result2, key) => {
-    return keys.includes(key) ? memory_exports.Assign(result2, { [key]: properties[key] }) : result2;
+    return keys2.includes(key) ? memory_exports.Assign(result2, { [key]: properties[key] }) : result2;
   }, {});
   return result;
 }
 function FromType18(type, indexer) {
   const indexable = ToIndexable(type);
-  const keys = ToIndexableKeys(indexer);
-  const applied = FromKeys2(indexable, keys);
+  const keys2 = ToIndexableKeys(indexer);
+  const applied = FromKeys2(indexable, keys2);
   const result = _Object_2(applied);
   return result;
 }
@@ -18154,16 +18154,16 @@ var init_context2 = __esm({
     CheckContext = class {
       constructor() {
         const indices = /* @__PURE__ */ new Set();
-        const keys = /* @__PURE__ */ new Set();
-        this.stack = [{ indices, keys }];
+        const keys2 = /* @__PURE__ */ new Set();
+        this.stack = [{ indices, keys: keys2 }];
       }
       // ----------------------------------------------------------------
       // Stack
       // ----------------------------------------------------------------
       Push() {
         const indices = /* @__PURE__ */ new Set();
-        const keys = /* @__PURE__ */ new Set();
-        this.stack.push({ indices, keys });
+        const keys2 = /* @__PURE__ */ new Set();
+        this.stack.push({ indices, keys: keys2 });
         return true;
       }
       Pop() {
@@ -18638,28 +18638,28 @@ var init_dependencies3 = __esm({
 // node_modules/typebox/build/schema/engine/dependentRequired.mjs
 function BuildDependentRequired(_stack, _context, schema, value) {
   const isLength = emit_exports.IsEqual(emit_exports.Member(emit_exports.Keys(value), "length"), emit_exports.Constant(0));
-  const isEvery = emit_exports.ReduceAnd(guard_exports.Entries(schema.dependentRequired).map(([key, keys]) => {
+  const isEvery = emit_exports.ReduceAnd(guard_exports.Entries(schema.dependentRequired).map(([key, keys2]) => {
     const notKey = emit_exports.Not(emit_exports.HasPropertyKey(value, emit_exports.Constant(key)));
-    const everyKey = emit_exports.ReduceAnd(keys.map((key2) => emit_exports.HasPropertyKey(value, emit_exports.Constant(key2))));
+    const everyKey = emit_exports.ReduceAnd(keys2.map((key2) => emit_exports.HasPropertyKey(value, emit_exports.Constant(key2))));
     return emit_exports.Or(notKey, everyKey);
   }));
   return emit_exports.Or(isLength, isEvery);
 }
 function CheckDependentRequired(_stack, _context, schema, value) {
   const isLength = guard_exports.IsEqual(guard_exports.Keys(value).length, 0);
-  const isEvery = guard_exports.Every(guard_exports.Entries(schema.dependentRequired), 0, ([key, keys]) => {
-    return !guard_exports.HasPropertyKey(value, key) || keys.every((key2) => guard_exports.HasPropertyKey(value, key2));
+  const isEvery = guard_exports.Every(guard_exports.Entries(schema.dependentRequired), 0, ([key, keys2]) => {
+    return !guard_exports.HasPropertyKey(value, key) || keys2.every((key2) => guard_exports.HasPropertyKey(value, key2));
   });
   return isLength || isEvery;
 }
 function ErrorDependentRequired(_stack, context, schemaPath, instancePath, schema, value) {
   const isLength = guard_exports.IsEqual(guard_exports.Keys(value).length, 0);
-  const isEveryEntry = guard_exports.EveryAll(guard_exports.Entries(schema.dependentRequired), 0, ([key, keys]) => {
-    return !guard_exports.HasPropertyKey(value, key) || guard_exports.EveryAll(keys, 0, (dependency) => guard_exports.HasPropertyKey(value, dependency) || context.AddError({
+  const isEveryEntry = guard_exports.EveryAll(guard_exports.Entries(schema.dependentRequired), 0, ([key, keys2]) => {
+    return !guard_exports.HasPropertyKey(value, key) || guard_exports.EveryAll(keys2, 0, (dependency) => guard_exports.HasPropertyKey(value, dependency) || context.AddError({
       keyword: "dependentRequired",
       schemaPath,
       instancePath,
-      params: { property: key, dependencies: keys }
+      params: { property: key, dependencies: keys2 }
     }));
   });
   return isLength || isEveryEntry;
@@ -20462,28 +20462,28 @@ var init_unevaluatedItems2 = __esm({
 // node_modules/typebox/build/schema/engine/unevaluatedProperties.mjs
 function BuildUnevaluatedProperties(stack, context, schema, value) {
   const [key, prop] = [Unique(), Unique()];
-  const keys = emit_exports.Call(emit_exports.Member("context", "GetKeys"), []);
+  const keys2 = emit_exports.Call(emit_exports.Member("context", "GetKeys"), []);
   const hasKey = emit_exports.Call(emit_exports.Member("keys", "has"), [key]);
   const addKey = emit_exports.Call(emit_exports.Member("context", "AddKey"), [key]);
   const isSchema = BuildSchema(stack, context, schema.unevaluatedProperties, prop);
   const isEvery = emit_exports.Every(emit_exports.Entries(value), emit_exports.Constant(0), [`[${key}, ${prop}]`, "_"], emit_exports.Or(hasKey, emit_exports.And(isSchema, addKey)));
   return emit_exports.Call(emit_exports.ArrowFunction(["context"], emit_exports.Statements([
-    emit_exports.ConstDeclaration("keys", keys),
+    emit_exports.ConstDeclaration("keys", keys2),
     emit_exports.Return(isEvery)
   ])), ["context"]);
 }
 function CheckUnevaluatedProperties(stack, context, schema, value) {
-  const keys = context.GetKeys();
+  const keys2 = context.GetKeys();
   return guard_exports.Every(guard_exports.Entries(value), 0, ([key, prop]) => {
-    return keys.has(key) || CheckSchema(stack, context, schema.unevaluatedProperties, prop) && context.AddKey(key);
+    return keys2.has(key) || CheckSchema(stack, context, schema.unevaluatedProperties, prop) && context.AddKey(key);
   });
 }
 function ErrorUnevaluatedProperties(stack, context, schemaPath, instancePath, schema, value) {
-  const keys = context.GetKeys();
+  const keys2 = context.GetKeys();
   const unevaluatedProperties = [];
   const isUnevaluatedProperties = guard_exports.EveryAll(guard_exports.Entries(value), 0, ([key, prop]) => {
     const nextContext = new ErrorContext();
-    const isEvaluatedProperty = keys.has(key) || ErrorSchema(stack, nextContext, schemaPath, instancePath, schema.unevaluatedProperties, prop) && context.AddKey(key);
+    const isEvaluatedProperty = keys2.has(key) || ErrorSchema(stack, nextContext, schemaPath, instancePath, schema.unevaluatedProperties, prop) && context.AddKey(key);
     if (!isEvaluatedProperty)
       unevaluatedProperties.push(key);
     return isEvaluatedProperty;
@@ -20527,10 +20527,10 @@ function ErrorUniqueItems(_stack, context, schemaPath, instancePath, schema, val
     return true;
   const set = /* @__PURE__ */ new Set();
   const duplicateItems = value.reduce((result, value2, index3) => {
-    const hash = hash_exports.Hash(value2);
-    if (set.has(hash))
+    const hash2 = hash_exports.Hash(value2);
+    if (set.has(hash2))
       return [...result, index3];
-    set.add(hash);
+    set.add(hash2);
     return result;
   }, []);
   const isUniqueItems = guard_exports.IsEqual(duplicateItems.length, 0);
@@ -22339,9 +22339,9 @@ var init_from_number = __esm({
 
 // node_modules/typebox/build/value/convert/from_additional.mjs
 function FromAdditionalProperties(context, entries, additionalProperties, value) {
-  const keys = guard_exports.Keys(value);
+  const keys2 = guard_exports.Keys(value);
   for (const [regexp, _2] of entries) {
-    for (const key of keys) {
+    for (const key of keys2) {
       if (!regexp.test(key)) {
         value[key] = FromType23(context, additionalProperties, value[key]);
       }
@@ -22370,9 +22370,9 @@ var init_optional_undefined = __esm({
 // node_modules/typebox/build/value/convert/from_object.mjs
 function FromProperties24(context, type, value) {
   const entries = guard_exports.EntriesRegExp(type.properties);
-  const keys = guard_exports.Keys(value);
+  const keys2 = guard_exports.Keys(value);
   for (const [regexp, property] of entries) {
-    for (const key of keys) {
+    for (const key of keys2) {
       if (!regexp.test(key) || IsOptionalUndefined(property, key, value))
         continue;
       value[key] = FromType23(context, property, value[key]);
@@ -22395,9 +22395,9 @@ var init_from_object8 = __esm({
 // node_modules/typebox/build/value/convert/from_record.mjs
 function FromPatternProperties2(context, type, value) {
   const entries = guard_exports.EntriesRegExp(type.patternProperties);
-  const keys = guard_exports.Keys(value);
+  const keys2 = guard_exports.Keys(value);
   for (const [regexp, schema] of entries) {
-    for (const key of keys) {
+    for (const key of keys2) {
       if (regexp.test(key)) {
         value[key] = FromType23(context, schema, value[key]);
       }
@@ -23845,10 +23845,10 @@ var init_error2 = __esm({
 function MakeUnique(values) {
   const [hashes, result] = [/* @__PURE__ */ new Set(), []];
   for (const value of values) {
-    const hash = Hash3(value);
-    if (hashes.has(hash))
+    const hash2 = Hash3(value);
+    if (hashes.has(hash2))
       continue;
-    hashes.add(hash);
+    hashes.add(hash2);
     result.push(value);
   }
   return result;
@@ -24024,12 +24024,12 @@ function Deref2(context, type, value) {
 function ScoreVariant(context, type, value) {
   if (!(IsObject7(type) && guard_exports.IsObject(value)))
     return 0;
-  const keys = guard_exports.Keys(value);
+  const keys2 = guard_exports.Keys(value);
   const entries = guard_exports.Entries(type.properties);
   return entries.reduce((result, [key, schema]) => {
     const literal2 = IsLiteral3(schema) && guard_exports.IsEqual(schema.const, value[key]) ? 100 : 0;
     const checks = Check3(context, schema, value[key]) ? 10 : 0;
-    const exists2 = keys.includes(key) ? 1 : 0;
+    const exists2 = keys2.includes(key) ? 1 : 0;
     return result + (literal2 + checks + exists2);
   }, 0);
 }
@@ -24037,10 +24037,10 @@ function UnionScoreSelect(context, type, value) {
   const schemas = type.anyOf.map((schema) => Deref2(context, schema, value));
   let [select, best] = [schemas[0], 0];
   for (const schema of schemas) {
-    const score = ScoreVariant(context, schema, value);
-    if (score > best) {
+    const score2 = ScoreVariant(context, schema, value);
+    if (score2 > best) {
       select = schema;
-      best = score;
+      best = score2;
     }
   }
   return select;
@@ -24576,15 +24576,15 @@ function normalizeOptionalNulls(value, schema) {
   }
   if (typeof value !== "object" || value === null || !schema.properties)
     return;
-  const object3 = value;
+  const object4 = value;
   const required3 = new Set(schema.required ?? []);
   for (const [key, propertySchema] of Object.entries(schema.properties)) {
-    if (!(key in object3))
+    if (!(key in object4))
       continue;
-    if (object3[key] === null && !required3.has(key) && typeof propertySchema.$ref !== "string" && getSubSchemaValidator(propertySchema)?.Check(null) === false) {
-      delete object3[key];
+    if (object4[key] === null && !required3.has(key) && typeof propertySchema.$ref !== "string" && getSubSchemaValidator(propertySchema)?.Check(null) === false) {
+      delete object4[key];
     } else {
-      normalizeOptionalNulls(object3[key], propertySchema);
+      normalizeOptionalNulls(object4[key], propertySchema);
     }
   }
 }
@@ -25749,9 +25749,9 @@ var require_legacy_streams = __commonJS({
         this.mode = 438;
         this.bufferSize = 64 * 1024;
         options = options || {};
-        var keys = Object.keys(options);
-        for (var index3 = 0, length = keys.length; index3 < length; index3++) {
-          var key = keys[index3];
+        var keys2 = Object.keys(options);
+        for (var index3 = 0, length = keys2.length; index3 < length; index3++) {
+          var key = keys2[index3];
           this[key] = options[key];
         }
         if (this.encoding) this.setEncoding(this.encoding);
@@ -25797,9 +25797,9 @@ var require_legacy_streams = __commonJS({
         this.mode = 438;
         this.bytesWritten = 0;
         options = options || {};
-        var keys = Object.keys(options);
-        for (var index3 = 0, length = keys.length; index3 < length; index3++) {
-          var key = keys[index3];
+        var keys2 = Object.keys(options);
+        for (var index3 = 0, length = keys2.length; index3 < length; index3++) {
+          var key = keys2[index3];
           this[key] = options[key];
         }
         if (this.start !== void 0) {
@@ -25835,13 +25835,13 @@ var require_clone = __commonJS({
       if (obj === null || typeof obj !== "object")
         return obj;
       if (obj instanceof Object)
-        var copy = { __proto__: getPrototypeOf(obj) };
+        var copy2 = { __proto__: getPrototypeOf(obj) };
       else
-        var copy = /* @__PURE__ */ Object.create(null);
+        var copy2 = /* @__PURE__ */ Object.create(null);
       Object.getOwnPropertyNames(obj).forEach(function(key) {
-        Object.defineProperty(copy, key, Object.getOwnPropertyDescriptor(obj, key));
+        Object.defineProperty(copy2, key, Object.getOwnPropertyDescriptor(obj, key));
       });
-      return copy;
+      return copy2;
     }
   }
 });
@@ -28070,8 +28070,8 @@ var require_util = __commonJS({
     function isStream2(obj) {
       return obj && typeof obj === "object" && typeof obj.pipe === "function" && typeof obj.on === "function";
     }
-    function isBlobLike3(object3) {
-      return object3 instanceof Blob;
+    function isBlobLike3(object4) {
+      return object4 instanceof Blob;
     }
     function pathHasQueryOrFragment(url2) {
       return url2.includes("?") || url2.includes("#");
@@ -28392,8 +28392,8 @@ var require_util = __commonJS({
         }
       );
     }
-    function isFormDataLike(object3) {
-      return object3 && typeof object3 === "object" && typeof object3.append === "function" && typeof object3.delete === "function" && typeof object3.get === "function" && typeof object3.getAll === "function" && typeof object3.has === "function" && typeof object3.set === "function" && object3[Symbol.toStringTag] === "FormData";
+    function isFormDataLike(object4) {
+      return object4 && typeof object4 === "object" && typeof object4.append === "function" && typeof object4.delete === "function" && typeof object4.get === "function" && typeof object4.getAll === "function" && typeof object4.has === "function" && typeof object4.set === "function" && object4[Symbol.toStringTag] === "FormData";
     }
     function addAbortListener3(signal, listener) {
       if (!signal || "aborted" in signal) {
@@ -29333,9 +29333,9 @@ var require_request = __commonJS({
               processHeader(this, header[0], header[1]);
             }
           } else {
-            const keys = Object.keys(headers);
-            for (let i3 = 0; i3 < keys.length; ++i3) {
-              processHeader(this, keys[i3], headers[keys[i3]]);
+            const keys2 = Object.keys(headers);
+            for (let i3 = 0; i3 < keys2.length; ++i3) {
+              processHeader(this, keys2[i3], headers[keys2[i3]]);
             }
           }
         } else if (headers != null) {
@@ -31533,8 +31533,8 @@ var require_webidl = __commonJS({
         }
         const result = {};
         if (!types4.isProxy(O)) {
-          const keys2 = [...Object.getOwnPropertyNames(O), ...Object.getOwnPropertySymbols(O)];
-          for (const key of keys2) {
+          const keys3 = [...Object.getOwnPropertyNames(O), ...Object.getOwnPropertySymbols(O)];
+          for (const key of keys3) {
             const keyName = webidl.util.Stringify(key);
             const typedKey = keyConverter(key, prefix, `Key ${keyName} in ${argument}`);
             const typedValue = valueConverter(O[key], prefix, `${argument}[${keyName}]`);
@@ -31542,8 +31542,8 @@ var require_webidl = __commonJS({
           }
           return result;
         }
-        const keys = Reflect.ownKeys(O);
-        for (const key of keys) {
+        const keys2 = Reflect.ownKeys(O);
+        for (const key of keys2) {
           const desc = Reflect.getOwnPropertyDescriptor(O, key);
           if (desc?.enumerable) {
             const typedKey = keyConverter(key, prefix, argument);
@@ -31936,8 +31936,8 @@ var require_util2 = __commonJS({
       }
       return "allowed";
     }
-    function isErrorLike(object3) {
-      return object3 instanceof Error || (object3?.constructor?.name === "Error" || object3?.constructor?.name === "DOMException");
+    function isErrorLike(object4) {
+      return object4 instanceof Error || (object4?.constructor?.name === "Error" || object4?.constructor?.name === "DOMException");
     }
     function isValidReasonPhrase(statusText) {
       for (let i3 = 0; i3 < statusText.length; ++i3) {
@@ -32283,15 +32283,15 @@ var require_util2 = __commonJS({
         return new FastIterableIterator(target, kind);
       };
     }
-    function iteratorMixin(name, object3, kInternalIterator, keyIndex = 0, valueIndex = 1) {
+    function iteratorMixin(name, object4, kInternalIterator, keyIndex = 0, valueIndex = 1) {
       const makeIterator = createIterator(name, kInternalIterator, keyIndex, valueIndex);
       const properties = {
         keys: {
           writable: true,
           enumerable: true,
           configurable: true,
-          value: function keys() {
-            webidl.brandCheck(this, object3);
+          value: function keys2() {
+            webidl.brandCheck(this, object4);
             return makeIterator(this, "key");
           }
         },
@@ -32300,7 +32300,7 @@ var require_util2 = __commonJS({
           enumerable: true,
           configurable: true,
           value: function values() {
-            webidl.brandCheck(this, object3);
+            webidl.brandCheck(this, object4);
             return makeIterator(this, "value");
           }
         },
@@ -32309,7 +32309,7 @@ var require_util2 = __commonJS({
           enumerable: true,
           configurable: true,
           value: function entries() {
-            webidl.brandCheck(this, object3);
+            webidl.brandCheck(this, object4);
             return makeIterator(this, "key+value");
           }
         },
@@ -32318,7 +32318,7 @@ var require_util2 = __commonJS({
           enumerable: true,
           configurable: true,
           value: function forEach(callbackfn, thisArg = globalThis) {
-            webidl.brandCheck(this, object3);
+            webidl.brandCheck(this, object4);
             webidl.argumentLengthCheck(arguments, 1, `${name}.forEach`);
             if (typeof callbackfn !== "function") {
               throw new TypeError(
@@ -32331,7 +32331,7 @@ var require_util2 = __commonJS({
           }
         }
       };
-      return Object.defineProperties(object3.prototype, {
+      return Object.defineProperties(object4.prototype, {
         ...properties,
         [Symbol.iterator]: {
           writable: true,
@@ -33257,13 +33257,13 @@ var require_body = __commonJS({
         stream12.cancel("Response object has been garbage collected").catch(noop7);
       }
     });
-    function extractBody2(object3, keepalive = false) {
+    function extractBody2(object4, keepalive = false) {
       let stream12 = null;
       let controller = null;
-      if (webidl.is.ReadableStream(object3)) {
-        stream12 = object3;
-      } else if (webidl.is.Blob(object3)) {
-        stream12 = object3.stream();
+      if (webidl.is.ReadableStream(object4)) {
+        stream12 = object4;
+      } else if (webidl.is.Blob(object4)) {
+        stream12 = object4.stream();
       } else {
         stream12 = new ReadableStream({
           pull() {
@@ -33281,16 +33281,16 @@ var require_body = __commonJS({
       let source = null;
       let length = null;
       let type = null;
-      if (typeof object3 === "string") {
-        source = object3;
+      if (typeof object4 === "string") {
+        source = object4;
         type = "text/plain;charset=UTF-8";
-      } else if (webidl.is.URLSearchParams(object3)) {
-        source = object3.toString();
+      } else if (webidl.is.URLSearchParams(object4)) {
+        source = object4.toString();
         type = "application/x-www-form-urlencoded;charset=UTF-8";
-      } else if (webidl.is.BufferSource(object3)) {
-        source = webidl.util.getCopyOfBytesHeldByBufferSource(object3);
-      } else if (webidl.is.FormData(object3)) {
-        const boundary = getFormDataBoundary(object3);
+      } else if (webidl.is.BufferSource(object4)) {
+        source = webidl.util.getCopyOfBytesHeldByBufferSource(object4);
+      } else if (webidl.is.FormData(object4)) {
+        const boundary = getFormDataBoundary(object4);
         const prefix = `--${boundary}\r
 Content-Disposition: form-data`;
         /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */
@@ -33300,7 +33300,7 @@ Content-Disposition: form-data`;
         const rn2 = new Uint8Array([13, 10]);
         length = 0;
         let hasUnknownSizeValue = false;
-        for (const [name, value] of object3) {
+        for (const [name, value] of object4) {
           if (typeof value === "string") {
             const chunk2 = textEncoder3.encode(prefix + `; name="${formdataEscape(normalizeLinefeeds(name))}"\r
 \r
@@ -33328,7 +33328,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         if (hasUnknownSizeValue) {
           length = null;
         }
-        source = object3;
+        source = object4;
         action = async function* () {
           for (const part of blobParts) {
             if (part.stream) {
@@ -33339,22 +33339,22 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           }
         };
         type = `multipart/form-data; boundary=${boundary}`;
-      } else if (webidl.is.Blob(object3)) {
-        source = object3;
-        length = object3.size;
-        if (object3.type) {
-          type = object3.type;
+      } else if (webidl.is.Blob(object4)) {
+        source = object4;
+        length = object4.size;
+        if (object4.type) {
+          type = object4.type;
         }
-      } else if (typeof object3[Symbol.asyncIterator] === "function") {
+      } else if (typeof object4[Symbol.asyncIterator] === "function") {
         if (keepalive) {
           throw new TypeError("keepalive");
         }
-        if (util2.isDisturbed(object3) || object3.locked) {
+        if (util2.isDisturbed(object4) || object4.locked) {
           throw new TypeError(
             "Response body object should not be disturbed or locked"
           );
         }
-        stream12 = webidl.is.ReadableStream(object3) ? object3 : ReadableStreamFrom3(object3);
+        stream12 = webidl.is.ReadableStream(object4) ? object4 : ReadableStreamFrom3(object4);
       }
       if (typeof source === "string" || isUint8Array2(source)) {
         action = () => {
@@ -33383,12 +33383,12 @@ Content-Type: ${value.type || "application/octet-stream"}\r
       const body = { stream: stream12, source, length };
       return [body, type];
     }
-    function safelyExtractBody(object3, keepalive = false) {
-      if (webidl.is.ReadableStream(object3)) {
-        assert2(!util2.isDisturbed(object3), "The body has already been consumed.");
-        assert2(!object3.locked, "The stream is locked.");
+    function safelyExtractBody(object4, keepalive = false) {
+      if (webidl.is.ReadableStream(object4)) {
+        assert2(!util2.isDisturbed(object4), "The body has already been consumed.");
+        assert2(!object4.locked, "The stream is locked.");
       }
-      return extractBody2(object3, keepalive);
+      return extractBody2(object4, keepalive);
     }
     function cloneBody(body) {
       const { 0: out1, 1: out2 } = ReadableStreamTee?.(body.stream, true) ?? body.stream.tee();
@@ -33483,14 +33483,14 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     function mixinBody(prototype, getInternalState) {
       Object.assign(prototype.prototype, bodyMixinMethods(prototype, getInternalState));
     }
-    function consumeBody2(object3, convertBytesToJSValue, instance, getInternalState) {
+    function consumeBody2(object4, convertBytesToJSValue, instance, getInternalState) {
       try {
-        webidl.brandCheck(object3, instance);
+        webidl.brandCheck(object4, instance);
       } catch (e2) {
         return Promise.reject(e2);
       }
-      object3 = getInternalState(object3);
-      if (bodyUnusable(object3)) {
+      object4 = getInternalState(object4);
+      if (bodyUnusable(object4)) {
         return Promise.reject(new TypeError("Body is unusable: Body has already been read"));
       }
       const promise = Promise.withResolvers();
@@ -33502,15 +33502,15 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           errorSteps(e2);
         }
       };
-      if (object3.body == null) {
+      if (object4.body == null) {
         successSteps(Buffer.allocUnsafe(0));
         return promise.promise;
       }
-      fullyReadBody(object3.body, successSteps, errorSteps);
+      fullyReadBody(object4.body, successSteps, errorSteps);
       return promise.promise;
     }
-    function bodyUnusable(object3) {
-      const body = object3.body;
+    function bodyUnusable(object4) {
+      const body = object4.body;
       return body != null && (body.stream.locked || util2.isDisturbed(body.stream));
     }
     function bodyMimeType(requestOrResponse) {
@@ -40877,10 +40877,10 @@ var require_mock_utils = __commonJS({
       };
     }
     function generateKeyValues(data) {
-      const keys = Object.keys(data);
+      const keys2 = Object.keys(data);
       const result = [];
-      for (let i3 = 0; i3 < keys.length; ++i3) {
-        const key = keys[i3];
+      for (let i3 = 0; i3 < keys2.length; ++i3) {
+        const key = keys2[i3];
         const value = data[key];
         const name = Buffer.from(`${key}`);
         if (Array.isArray(value)) {
@@ -42179,7 +42179,7 @@ var require_snapshot_recorder = __commonJS({
           return;
         }
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash = createRequestHash(request);
+        const hash2 = createRequestHash(request);
         const normalizedHeaders = normalizeHeaders2(response.headers);
         const responseData = {
           statusCode: response.statusCode,
@@ -42187,16 +42187,16 @@ var require_snapshot_recorder = __commonJS({
           body: Buffer.isBuffer(response.body) ? response.body.toString("base64") : Buffer.from(String(response.body || "")).toString("base64"),
           trailers: response.trailers
         };
-        if (this.#snapshots.size >= this.#maxSnapshots && !this.#snapshots.has(hash)) {
+        if (this.#snapshots.size >= this.#maxSnapshots && !this.#snapshots.has(hash2)) {
           const oldestKey = this.#snapshots.keys().next().value;
           this.#snapshots.delete(oldestKey);
         }
-        const existingSnapshot = this.#snapshots.get(hash);
+        const existingSnapshot = this.#snapshots.get(hash2);
         if (existingSnapshot && existingSnapshot.responses) {
           existingSnapshot.responses.push(responseData);
           existingSnapshot.timestamp = (/* @__PURE__ */ new Date()).toISOString();
         } else {
-          this.#snapshots.set(hash, {
+          this.#snapshots.set(hash2, {
             request,
             responses: [responseData],
             // Always store as array for consistency
@@ -42232,8 +42232,8 @@ var require_snapshot_recorder = __commonJS({
           return void 0;
         }
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash = createRequestHash(request);
-        const snapshot = this.#snapshots.get(hash);
+        const hash2 = createRequestHash(request);
+        const snapshot = this.#snapshots.get(hash2);
         if (!snapshot) return void 0;
         const currentCallCount = snapshot.callCount || 0;
         const responseIndex = Math.min(currentCallCount, snapshot.responses.length - 1);
@@ -42258,8 +42258,8 @@ var require_snapshot_recorder = __commonJS({
           const parsed = JSON.parse(data);
           if (Array.isArray(parsed)) {
             this.#snapshots.clear();
-            for (const { hash, snapshot } of parsed) {
-              this.#snapshots.set(hash, snapshot);
+            for (const { hash: hash2, snapshot } of parsed) {
+              this.#snapshots.set(hash2, snapshot);
             }
           } else {
             this.#snapshots = new Map(Object.entries(parsed));
@@ -42285,8 +42285,8 @@ var require_snapshot_recorder = __commonJS({
         }
         const resolvedPath = resolve9(path45);
         await mkdir9(dirname12(resolvedPath), { recursive: true });
-        const data = Array.from(this.#snapshots.entries()).map(([hash, snapshot]) => ({
-          hash,
+        const data = Array.from(this.#snapshots.entries()).map(([hash2, snapshot]) => ({
+          hash: hash2,
           snapshot
         }));
         await writeFile10(resolvedPath, JSON.stringify(data, null, 2), { flush: true });
@@ -42328,8 +42328,8 @@ var require_snapshot_recorder = __commonJS({
        */
       deleteSnapshot(requestOpts) {
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash = createRequestHash(request);
-        return this.#snapshots.delete(hash);
+        const hash2 = createRequestHash(request);
+        return this.#snapshots.delete(hash2);
       }
       /**
        * Gets information about a specific snapshot
@@ -42338,11 +42338,11 @@ var require_snapshot_recorder = __commonJS({
        */
       getSnapshotInfo(requestOpts) {
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash = createRequestHash(request);
-        const snapshot = this.#snapshots.get(hash);
+        const hash2 = createRequestHash(request);
+        const snapshot = this.#snapshots.get(hash2);
         if (!snapshot) return null;
         return {
-          hash,
+          hash: hash2,
           request: snapshot.request,
           responseCount: snapshot.responses ? snapshot.responses.length : snapshot.response ? 1 : 0,
           // .response for legacy snapshots
@@ -42358,8 +42358,8 @@ var require_snapshot_recorder = __commonJS({
       replaceSnapshots(snapshotData) {
         this.#snapshots.clear();
         if (Array.isArray(snapshotData)) {
-          for (const { hash, snapshot } of snapshotData) {
-            this.#snapshots.set(hash, snapshot);
+          for (const { hash: hash2, snapshot } of snapshotData) {
+            this.#snapshots.set(hash2, snapshot);
           }
         } else if (snapshotData && typeof snapshotData === "object") {
           this.#snapshots = new Map(Object.entries(snapshotData));
@@ -47177,10 +47177,10 @@ var require_headers = __commonJS({
       while (j2 > i3 && isHTTPWhiteSpaceCharCode(potentialValue.charCodeAt(i3))) ++i3;
       return i3 === 0 && j2 === potentialValue.length ? potentialValue : potentialValue.substring(i3, j2);
     }
-    function fill(headers, object3) {
-      if (Array.isArray(object3)) {
-        for (let i3 = 0; i3 < object3.length; ++i3) {
-          const header = object3[i3];
+    function fill(headers, object4) {
+      if (Array.isArray(object4)) {
+        for (let i3 = 0; i3 < object4.length; ++i3) {
+          const header = object4[i3];
           if (header.length !== 2) {
             throw webidl.errors.exception({
               header: "Headers constructor",
@@ -47189,10 +47189,10 @@ var require_headers = __commonJS({
           }
           appendHeader(headers, header[0], header[1]);
         }
-      } else if (typeof object3 === "object" && object3 !== null) {
-        const keys = Object.keys(object3);
-        for (let i3 = 0; i3 < keys.length; ++i3) {
-          appendHeader(headers, keys[i3], object3[keys[i3]]);
+      } else if (typeof object4 === "object" && object4 !== null) {
+        const keys2 = Object.keys(object4);
+        for (let i3 = 0; i3 < keys2.length; ++i3) {
+          appendHeader(headers, keys2[i3], object4[keys2[i3]]);
         }
       } else {
         throw webidl.errors.conversionFailed({
@@ -50769,8 +50769,8 @@ var require_cachestorage = __commonJS({
        */
       async keys() {
         webidl.brandCheck(this, _CacheStorage);
-        const keys = this.#caches.keys();
-        return [...keys];
+        const keys2 = this.#caches.keys();
+        return [...keys2];
       }
     };
     Object.defineProperties(CacheStorage.prototype, {
@@ -51993,15 +51993,15 @@ var require_connection = __commonJS({
       });
       return controller;
     }
-    function closeWebSocketConnection(object3, code, reason, validate3 = false) {
+    function closeWebSocketConnection(object4, code, reason, validate3 = false) {
       code ??= null;
       reason ??= "";
       if (validate3) validateCloseCodeAndReason(code, reason);
-      if (isClosed(object3.readyState) || isClosing(object3.readyState)) {
-      } else if (!isEstablished(object3.readyState)) {
-        failWebsocketConnection(object3);
-        object3.readyState = states.CLOSING;
-      } else if (!object3.closeState.has(sentCloseFrameState.SENT) && !object3.closeState.has(sentCloseFrameState.RECEIVED)) {
+      if (isClosed(object4.readyState) || isClosing(object4.readyState)) {
+      } else if (!isEstablished(object4.readyState)) {
+        failWebsocketConnection(object4);
+        object4.readyState = states.CLOSING;
+      } else if (!object4.closeState.has(sentCloseFrameState.SENT) && !object4.closeState.has(sentCloseFrameState.RECEIVED)) {
         const frame2 = new WebsocketFrameSend();
         if (reason.length !== 0 && code === null) {
           code = 1e3;
@@ -52019,11 +52019,11 @@ var require_connection = __commonJS({
         } else {
           frame2.frameData = emptyBuffer;
         }
-        object3.socket.write(frame2.createFrame(opcodes.CLOSE));
-        object3.closeState.add(sentCloseFrameState.SENT);
-        object3.readyState = states.CLOSING;
+        object4.socket.write(frame2.createFrame(opcodes.CLOSE));
+        object4.closeState.add(sentCloseFrameState.SENT);
+        object4.readyState = states.CLOSING;
       } else {
-        object3.readyState = states.CLOSING;
+        object4.readyState = states.CLOSING;
       }
     }
     function failWebsocketConnection(handler, code, reason, cause) {
@@ -56121,13 +56121,13 @@ var init_utils = __esm({
 function is_non_nullish_primitive(v2) {
   return typeof v2 === "string" || typeof v2 === "number" || typeof v2 === "boolean" || typeof v2 === "symbol" || typeof v2 === "bigint";
 }
-function inner_stringify(object3, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder4, filter2, sort, allowDots, serializeDate, format2, formatter, encodeValuesOnly, charset, sideChannel) {
-  let obj = object3;
+function inner_stringify(object4, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder4, filter2, sort, allowDots, serializeDate, format2, formatter, encodeValuesOnly, charset, sideChannel) {
+  let obj = object4;
   let tmp_sc = sideChannel;
   let step = 0;
   let find_flag = false;
   while ((tmp_sc = tmp_sc.get(sentinel)) !== void 0 && !find_flag) {
-    const pos = tmp_sc.get(object3);
+    const pos = tmp_sc.get(object4);
     step += 1;
     if (typeof pos !== "undefined") {
       if (pos === step) {
@@ -56184,8 +56184,8 @@ function inner_stringify(object3, prefix, generateArrayPrefix, commaRoundTrip, a
   } else if (isArray(filter2)) {
     obj_keys = filter2;
   } else {
-    const keys = Object.keys(obj);
-    obj_keys = sort ? keys.sort(sort) : keys;
+    const keys2 = Object.keys(obj);
+    obj_keys = sort ? keys2.sort(sort) : keys2;
   }
   const encoded_prefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
   const adjusted_prefix = commaRoundTrip && isArray(obj) && obj.length === 1 ? encoded_prefix + "[]" : encoded_prefix;
@@ -56203,7 +56203,7 @@ function inner_stringify(object3, prefix, generateArrayPrefix, commaRoundTrip, a
     }
     const encoded_key = allowDots && encodeDotInKeys ? key.replace(/\./g, "%2E") : key;
     const key_prefix = isArray(obj) ? typeof generateArrayPrefix === "function" ? generateArrayPrefix(adjusted_prefix, encoded_key) : adjusted_prefix : adjusted_prefix + (allowDots ? "." + encoded_key : "[" + encoded_key + "]");
-    sideChannel.set(object3, step);
+    sideChannel.set(object4, step);
     const valueSideChannel = /* @__PURE__ */ new WeakMap();
     valueSideChannel.set(sentinel, sideChannel);
     push_to_array(values, inner_stringify(
@@ -56292,8 +56292,8 @@ function normalize_stringify_options(opts = defaults) {
     strictNullHandling: typeof opts.strictNullHandling === "boolean" ? opts.strictNullHandling : defaults.strictNullHandling
   };
 }
-function stringify(object3, opts = {}) {
-  let obj = object3;
+function stringify(object4, opts = {}) {
+  let obj = object4;
   const options = normalize_stringify_options(opts);
   let obj_keys;
   let filter2;
@@ -56304,7 +56304,7 @@ function stringify(object3, opts = {}) {
     filter2 = options.filter;
     obj_keys = filter2;
   }
-  const keys = [];
+  const keys2 = [];
   if (typeof obj !== "object" || obj === null) {
     return "";
   }
@@ -56322,7 +56322,7 @@ function stringify(object3, opts = {}) {
     if (options.skipNulls && obj[key] === null) {
       continue;
     }
-    push_to_array(keys, inner_stringify(
+    push_to_array(keys2, inner_stringify(
       obj[key],
       key,
       // @ts-expect-error
@@ -56344,7 +56344,7 @@ function stringify(object3, opts = {}) {
       sideChannel
     ));
   }
-  const joined = keys.join(options.delimiter);
+  const joined = keys2.join(options.delimiter);
   let prefix = options.addQueryPrefix === true ? "?" : "";
   if (options.charsetSentinel) {
     if (options.charset === "iso-8859-1") {
@@ -59858,14 +59858,14 @@ var require_sha256 = __commonJS({
         })()
       );
       exports2.HMAC = HMAC;
-      function hash(data) {
+      function hash2(data) {
         var h3 = new Hash4().update(data);
         var digest2 = h3.digest();
         h3.clean();
         return digest2;
       }
-      exports2.hash = hash;
-      exports2["default"] = hash;
+      exports2.hash = hash2;
+      exports2["default"] = hash2;
       function hmac2(key, data) {
         var h3 = new HMAC(key).update(data);
         var digest2 = h3.digest();
@@ -76490,13 +76490,13 @@ var init_utils3 = __esm({
 function is_non_nullish_primitive2(v2) {
   return typeof v2 === "string" || typeof v2 === "number" || typeof v2 === "boolean" || typeof v2 === "symbol" || typeof v2 === "bigint";
 }
-function inner_stringify2(object3, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder4, filter2, sort, allowDots, serializeDate, format2, formatter, encodeValuesOnly, charset, sideChannel) {
-  let obj = object3;
+function inner_stringify2(object4, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder4, filter2, sort, allowDots, serializeDate, format2, formatter, encodeValuesOnly, charset, sideChannel) {
+  let obj = object4;
   let tmp_sc = sideChannel;
   let step = 0;
   let find_flag = false;
   while ((tmp_sc = tmp_sc.get(sentinel2)) !== void 0 && !find_flag) {
-    const pos = tmp_sc.get(object3);
+    const pos = tmp_sc.get(object4);
     step += 1;
     if (pos !== void 0) {
       if (pos === step) {
@@ -76556,11 +76556,11 @@ function inner_stringify2(object3, prefix, generateArrayPrefix, commaRoundTrip, 
   } else if (isArray2(filter2)) {
     obj_keys = filter2;
   } else {
-    const keys = Object.keys(obj);
+    const keys2 = Object.keys(obj);
     if (sort) {
-      keys.sort(sort);
+      keys2.sort(sort);
     }
-    obj_keys = keys;
+    obj_keys = keys2;
   }
   const encoded_prefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
   const adjusted_prefix = commaRoundTrip && isArray2(obj) && obj.length === 1 ? encoded_prefix + "[]" : encoded_prefix;
@@ -76582,7 +76582,7 @@ function inner_stringify2(object3, prefix, generateArrayPrefix, commaRoundTrip, 
     } else {
       key_prefix = adjusted_prefix + (allowDots ? "." + encoded_key : "[" + encoded_key + "]");
     }
-    sideChannel.set(object3, step);
+    sideChannel.set(object4, step);
     const valueSideChannel = new WeakMap([[sentinel2, sideChannel]]);
     push_to_array2(values, inner_stringify2(
       value,
@@ -76675,8 +76675,8 @@ function normalize_stringify_options2(opts = defaults2) {
     strictNullHandling: typeof opts.strictNullHandling === "boolean" ? opts.strictNullHandling : defaults2.strictNullHandling
   };
 }
-function stringify2(object3, opts = {}) {
-  let obj = object3;
+function stringify2(object4, opts = {}) {
+  let obj = object4;
   const options = normalize_stringify_options2(opts);
   let obj_keys;
   let filter2;
@@ -76687,7 +76687,7 @@ function stringify2(object3, opts = {}) {
     filter2 = options.filter;
     obj_keys = filter2;
   }
-  const keys = [];
+  const keys2 = [];
   if (typeof obj !== "object" || obj === null) {
     return "";
   }
@@ -76704,7 +76704,7 @@ function stringify2(object3, opts = {}) {
     if (options.skipNulls && obj[key] === null) {
       continue;
     }
-    push_to_array2(keys, inner_stringify2(
+    push_to_array2(keys2, inner_stringify2(
       obj[key],
       key,
       // @ts-expect-error
@@ -76726,7 +76726,7 @@ function stringify2(object3, opts = {}) {
       sideChannel
     ));
   }
-  const joined = keys.join(options.delimiter);
+  const joined = keys2.join(options.delimiter);
   let prefix = options.addQueryPrefix === true ? "?" : "";
   if (options.charsetSentinel) {
     prefix += options.charset === "iso-8859-1" ? (
@@ -79343,11 +79343,11 @@ function getInspectableEventKeys(current, kind, availableBytes) {
   });
 }
 function visitInspectableEventProperties(current, kind, depth, availableBytes, charge, visit) {
-  const keys = getInspectableEventKeys(current, kind, availableBytes());
-  if (keys === void 0) {
+  const keys2 = getInspectableEventKeys(current, kind, availableBytes());
+  if (keys2 === void 0) {
     return false;
   }
-  for (const key of keys) {
+  for (const key of keys2) {
     if (!charge(typeof key === "string" ? key.length * 2 + 8 : 8)) {
       return false;
     }
@@ -81586,12 +81586,12 @@ function canonicalSerializedParserSchema(value, budget) {
         }
         return `[${items.join(",")}]`;
       }
-      const keys = Reflect.ownKeys(current);
-      if (keys.length > MAX_SERIALIZED_PARSER_SCHEMA_NODES - budget.nodes) {
+      const keys2 = Reflect.ownKeys(current);
+      if (keys2.length > MAX_SERIALIZED_PARSER_SCHEMA_NODES - budget.nodes) {
         return UNSAFE_SERIALIZED_PARSER_VALUE;
       }
       const entries = [];
-      for (const key of keys) {
+      for (const key of keys2) {
         if (typeof key !== "string") {
           continue;
         }
@@ -91227,16 +91227,16 @@ function getOutputItemIdentityKeys(output, eventType) {
   }
   return identities;
 }
-function assertOutputItemIdentitiesAvailable(identities, keys) {
-  for (const key of keys) {
+function assertOutputItemIdentitiesAvailable(identities, keys2) {
+  for (const key of keys2) {
     if (identities.has(key)) {
       throw new OpenAIError(`duplicate output item identity '${key}'`);
     }
   }
 }
-function addOutputItemIdentities(identities, keys) {
-  assertOutputItemIdentitiesAvailable(identities, keys);
-  for (const key of keys) {
+function addOutputItemIdentities(identities, keys2) {
+  assertOutputItemIdentitiesAvailable(identities, keys2);
+  for (const key of keys2) {
     identities.add(key);
   }
 }
@@ -96359,7 +96359,7 @@ var require_extend = __commonJS({
       return obj[name];
     };
     module.exports = function extend2() {
-      var options, name, src, copy, copyIsArray, clone3;
+      var options, name, src, copy2, copyIsArray, clone3;
       var target = arguments[0];
       var i3 = 1;
       var length = arguments.length;
@@ -96377,18 +96377,18 @@ var require_extend = __commonJS({
         if (options != null) {
           for (name in options) {
             src = getProperty(target, name);
-            copy = getProperty(options, name);
-            if (target !== copy) {
-              if (deep && copy && (isPlainObject5(copy) || (copyIsArray = isArray4(copy)))) {
+            copy2 = getProperty(options, name);
+            if (target !== copy2) {
+              if (deep && copy2 && (isPlainObject5(copy2) || (copyIsArray = isArray4(copy2)))) {
                 if (copyIsArray) {
                   copyIsArray = false;
                   clone3 = src && isArray4(src) ? src : [];
                 } else {
                   clone3 = src && isPlainObject5(src) ? src : {};
                 }
-                setProperty(target, { name, newValue: extend2(deep, clone3, copy) });
-              } else if (typeof copy !== "undefined") {
-                setProperty(target, { name, newValue: copy });
+                setProperty(target, { name, newValue: extend2(deep, clone3, copy2) });
+              } else if (typeof copy2 !== "undefined") {
+                setProperty(target, { name, newValue: copy2 });
               }
             }
           }
@@ -97013,12 +97013,12 @@ var require_common2 = __commonJS({
       createDebug.skips = [];
       createDebug.formatters = {};
       function selectColor(namespace) {
-        let hash = 0;
+        let hash2 = 0;
         for (let i3 = 0; i3 < namespace.length; i3++) {
-          hash = (hash << 5) - hash + namespace.charCodeAt(i3);
-          hash |= 0;
+          hash2 = (hash2 << 5) - hash2 + namespace.charCodeAt(i3);
+          hash2 |= 0;
         }
-        return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
+        return createDebug.colors[Math.abs(hash2) % createDebug.colors.length];
       }
       createDebug.selectColor = selectColor;
       function createDebug(namespace) {
@@ -97612,9 +97612,9 @@ var require_node = __commonJS({
     }
     function init(debug) {
       debug.inspectOpts = {};
-      const keys = Object.keys(exports.inspectOpts);
-      for (let i3 = 0; i3 < keys.length; i3++) {
-        debug.inspectOpts[keys[i3]] = exports.inspectOpts[keys[i3]];
+      const keys2 = Object.keys(exports.inspectOpts);
+      for (let i3 = 0; i3 < keys2.length; i3++) {
+        debug.inspectOpts[keys2[i3]] = exports.inspectOpts[keys2[i3]];
       }
     }
     module.exports = require_common2()(exports);
@@ -98100,11 +98100,11 @@ var require_dist5 = __commonJS({
     function resume(socket) {
       socket.resume();
     }
-    function omit2(obj, ...keys) {
+    function omit2(obj, ...keys2) {
       const ret = {};
       let key;
       for (key in obj) {
-        if (!keys.includes(key)) {
+        if (!keys2.includes(key)) {
           ret[key] = obj[key];
         }
       }
@@ -102676,8 +102676,8 @@ var init_fetch_blob = __esm({
       get [Symbol.toStringTag]() {
         return "Blob";
       }
-      static [Symbol.hasInstance](object3) {
-        return object3 && typeof object3 === "object" && typeof object3.constructor === "function" && (typeof object3.stream === "function" || typeof object3.arrayBuffer === "function") && /^(Blob|File)$/.test(object3[Symbol.toStringTag]);
+      static [Symbol.hasInstance](object4) {
+        return object4 && typeof object4 === "object" && typeof object4.constructor === "function" && (typeof object4.stream === "function" || typeof object4.arrayBuffer === "function") && /^(Blob|File)$/.test(object4[Symbol.toStringTag]);
       }
     };
     Object.defineProperties(_Blob.prototype, {
@@ -102725,8 +102725,8 @@ var init_file = __esm({
       get [Symbol.toStringTag]() {
         return "File";
       }
-      static [Symbol.hasInstance](object3) {
-        return !!object3 && object3 instanceof fetch_blob_default && /^(File)$/.test(object3[Symbol.toStringTag]);
+      static [Symbol.hasInstance](object4) {
+        return !!object4 && object4 instanceof fetch_blob_default && /^(File)$/.test(object4[Symbol.toStringTag]);
       }
     };
     File3 = _File;
@@ -102879,14 +102879,14 @@ var NAME, isURLSearchParameters, isBlob2, isAbortSignal, isDomainOrSubdomain, is
 var init_is = __esm({
   "node_modules/node-fetch/src/utils/is.js"() {
     NAME = Symbol.toStringTag;
-    isURLSearchParameters = (object3) => {
-      return typeof object3 === "object" && typeof object3.append === "function" && typeof object3.delete === "function" && typeof object3.get === "function" && typeof object3.getAll === "function" && typeof object3.has === "function" && typeof object3.set === "function" && typeof object3.sort === "function" && object3[NAME] === "URLSearchParams";
+    isURLSearchParameters = (object4) => {
+      return typeof object4 === "object" && typeof object4.append === "function" && typeof object4.delete === "function" && typeof object4.get === "function" && typeof object4.getAll === "function" && typeof object4.has === "function" && typeof object4.set === "function" && typeof object4.sort === "function" && object4[NAME] === "URLSearchParams";
     };
-    isBlob2 = (object3) => {
-      return object3 && typeof object3 === "object" && typeof object3.arrayBuffer === "function" && typeof object3.type === "string" && typeof object3.stream === "function" && typeof object3.constructor === "function" && /^(Blob|File)$/.test(object3[NAME]);
+    isBlob2 = (object4) => {
+      return object4 && typeof object4 === "object" && typeof object4.arrayBuffer === "function" && typeof object4.type === "string" && typeof object4.stream === "function" && typeof object4.constructor === "function" && /^(Blob|File)$/.test(object4[NAME]);
     };
-    isAbortSignal = (object3) => {
-      return typeof object3 === "object" && (object3[NAME] === "AbortSignal" || object3[NAME] === "EventTarget");
+    isAbortSignal = (object4) => {
+      return typeof object4 === "object" && (object4[NAME] === "AbortSignal" || object4[NAME] === "EventTarget");
     };
     isDomainOrSubdomain = (destination, original) => {
       const orig = new URL(original).hostname;
@@ -103938,8 +103938,8 @@ var init_get_search = __esm({
         return parsedURL.search;
       }
       const lastOffset = parsedURL.href.length - 1;
-      const hash = parsedURL.hash || (parsedURL.href[lastOffset] === "#" ? "#" : "");
-      return parsedURL.href[lastOffset - hash.length] === "?" ? "?" : "";
+      const hash2 = parsedURL.hash || (parsedURL.href[lastOffset] === "#" ? "#" : "");
+      return parsedURL.href[lastOffset - hash2.length] === "?" ? "?" : "";
     };
   }
 });
@@ -104101,8 +104101,8 @@ var init_request = __esm({
     init_get_search();
     init_referrer();
     INTERNALS3 = /* @__PURE__ */ Symbol("Request internals");
-    isRequest = (object3) => {
-      return typeof object3 === "object" && typeof object3[INTERNALS3] === "object";
+    isRequest = (object4) => {
+      return typeof object4 === "object" && typeof object4[INTERNALS3] === "object";
     };
     doBadDataWarn = deprecate2(
       () => {
@@ -104626,7 +104626,7 @@ var require_gaxios = __commonJS({
     var retry_js_1 = require_retry6();
     var stream_1 = __require("stream");
     var interceptor_js_1 = require_interceptor();
-    var randomUUID23 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
+    var randomUUID24 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
     var HTTP_STATUS_NO_CONTENT = 204;
     var Gaxios = class {
       agentCache = /* @__PURE__ */ new Map();
@@ -104899,7 +104899,7 @@ var require_gaxios = __commonJS({
          */
         ["Blob", "File", "FormData"].includes(opts.data?.constructor?.name || "");
         if (opts.multipart?.length) {
-          const boundary = await randomUUID23();
+          const boundary = await randomUUID24();
           preparedHeaders.set("content-type", `multipart/related; boundary=${boundary}`);
           opts.body = stream_1.Readable.from(this.getMultipartRequest(opts.multipart, boundary));
         } else if (shouldDirectlyPassData) {
@@ -105558,7 +105558,7 @@ var require_bignumber = __commonJS({
             if (carry) x3 = [carry].concat(x3);
             return x3;
           }
-          function compare3(a2, b2, aL, bL) {
+          function compare4(a2, b2, aL, bL) {
             var i3, cmp;
             if (aL != bL) {
               cmp = aL > bL ? 1 : -1;
@@ -105628,7 +105628,7 @@ var require_bignumber = __commonJS({
               if (yc[1] >= base / 2) yc0++;
               do {
                 n2 = 0;
-                cmp = compare3(yc, rem, yL, remL);
+                cmp = compare4(yc, rem, yL, remL);
                 if (cmp < 0) {
                   rem0 = rem[0];
                   if (yL != remL) rem0 = rem0 * base + (rem[1] || 0);
@@ -105638,7 +105638,7 @@ var require_bignumber = __commonJS({
                     prod = multiply2(yc, n2, base);
                     prodL = prod.length;
                     remL = rem.length;
-                    while (compare3(prod, rem, prodL, remL) == 1) {
+                    while (compare4(prod, rem, prodL, remL) == 1) {
                       n2--;
                       subtract(prod, yL < prodL ? yz : yc, prodL, base);
                       prodL = prod.length;
@@ -105655,7 +105655,7 @@ var require_bignumber = __commonJS({
                   subtract(rem, prod, remL, base);
                   remL = rem.length;
                   if (cmp == -1) {
-                    while (compare3(yc, rem, yL, remL) < 1) {
+                    while (compare4(yc, rem, yL, remL) < 1) {
                       n2++;
                       subtract(rem, yL < remL ? yz : yc, remL, base);
                       remL = rem.length;
@@ -105724,7 +105724,7 @@ var require_bignumber = __commonJS({
           var k2, y2, i3 = 1, x3 = new BigNumber2(args[0]);
           for (; i3 < args.length; i3++) {
             y2 = new BigNumber2(args[i3]);
-            if (!y2.s || (k2 = compare2(x3, y2)) === n2 || k2 === 0 && x3.s === n2) {
+            if (!y2.s || (k2 = compare3(x3, y2)) === n2 || k2 === 0 && x3.s === n2) {
               x3 = y2;
             }
           }
@@ -105869,7 +105869,7 @@ var require_bignumber = __commonJS({
           return x3;
         };
         P2.comparedTo = function(y2, b2) {
-          return compare2(this, new BigNumber2(y2, b2));
+          return compare3(this, new BigNumber2(y2, b2));
         };
         P2.decimalPlaces = P2.dp = function(dp, rm8) {
           var c4, n2, v2, x3 = this;
@@ -105967,25 +105967,25 @@ var require_bignumber = __commonJS({
           return round(n2, n2.e + 1, rm8);
         };
         P2.isEqualTo = P2.eq = function(y2, b2) {
-          return compare2(this, new BigNumber2(y2, b2)) === 0;
+          return compare3(this, new BigNumber2(y2, b2)) === 0;
         };
         P2.isFinite = function() {
           return !!this.c;
         };
         P2.isGreaterThan = P2.gt = function(y2, b2) {
-          return compare2(this, new BigNumber2(y2, b2)) > 0;
+          return compare3(this, new BigNumber2(y2, b2)) > 0;
         };
         P2.isGreaterThanOrEqualTo = P2.gte = function(y2, b2) {
-          return (b2 = compare2(this, new BigNumber2(y2, b2))) === 1 || b2 === 0;
+          return (b2 = compare3(this, new BigNumber2(y2, b2))) === 1 || b2 === 0;
         };
         P2.isInteger = function() {
           return !!this.c && bitFloor(this.e / LOG_BASE) > this.c.length - 2;
         };
         P2.isLessThan = P2.lt = function(y2, b2) {
-          return compare2(this, new BigNumber2(y2, b2)) < 0;
+          return compare3(this, new BigNumber2(y2, b2)) < 0;
         };
         P2.isLessThanOrEqualTo = P2.lte = function(y2, b2) {
-          return (b2 = compare2(this, new BigNumber2(y2, b2))) === -1 || b2 === 0;
+          return (b2 = compare3(this, new BigNumber2(y2, b2))) === -1 || b2 === 0;
         };
         P2.isNaN = function() {
           return !this.s;
@@ -106413,7 +106413,7 @@ var require_bignumber = __commonJS({
         for (j2 = r2.length; r2.charCodeAt(--j2) === 48; ) ;
         return r2.slice(0, j2 + 1 || 1);
       }
-      function compare2(x3, y2) {
+      function compare3(x3, y2) {
         var a2, b2, xc = x3.c, yc = y2.c, i3 = x3.s, j2 = y2.s, k2 = x3.e, l3 = y2.e;
         if (!i3 || !j2) return null;
         a2 = xc && !xc[0];
@@ -106776,20 +106776,20 @@ var require_parse3 = __commonJS({
           }
         }
         error3("Bad array");
-      }, object3 = function() {
-        var key, object4 = /* @__PURE__ */ Object.create(null);
+      }, object4 = function() {
+        var key, object5 = /* @__PURE__ */ Object.create(null);
         if (ch === "{") {
           next("{");
           white2();
           if (ch === "}") {
             next("}");
-            return object4;
+            return object5;
           }
           while (ch) {
             key = string4();
             white2();
             next(":");
-            if (_options.strict === true && Object.hasOwnProperty.call(object4, key)) {
+            if (_options.strict === true && Object.hasOwnProperty.call(object5, key)) {
               error3('Duplicate key "' + key + '"');
             }
             if (suspectProtoRx.test(key) === true) {
@@ -106798,7 +106798,7 @@ var require_parse3 = __commonJS({
               } else if (_options.protoAction === "ignore") {
                 value();
               } else {
-                object4[key] = value();
+                object5[key] = value();
               }
             } else if (suspectConstructorRx.test(key) === true) {
               if (_options.constructorAction === "error") {
@@ -106806,15 +106806,15 @@ var require_parse3 = __commonJS({
               } else if (_options.constructorAction === "ignore") {
                 value();
               } else {
-                object4[key] = value();
+                object5[key] = value();
               }
             } else {
-              object4[key] = value();
+              object5[key] = value();
             }
             white2();
             if (ch === "}") {
               next("}");
-              return object4;
+              return object5;
             }
             next(",");
             white2();
@@ -106826,7 +106826,7 @@ var require_parse3 = __commonJS({
         white2();
         switch (ch) {
           case "{":
-            return object3();
+            return object4();
           case "[":
             return array2();
           case '"':
@@ -108200,13 +108200,13 @@ var require_util8 = __commonJS({
       }
     };
     exports.LRUCache = LRUCache;
-    function removeUndefinedValuesInObject(object3) {
-      Object.entries(object3).forEach(([key, value]) => {
+    function removeUndefinedValuesInObject(object4) {
+      Object.entries(object4).forEach(([key, value]) => {
         if (value === void 0 || value === "undefined") {
-          delete object3[key];
+          delete object4[key];
         }
       });
-      return object3;
+      return object4;
     }
     async function isValidFile(filePath) {
       try {
@@ -109589,7 +109589,7 @@ var require_buffer_equal_constant_time = __commonJS({
       return c4 === 0;
     }
     bufferEq.install = function() {
-      Buffer8.prototype.equal = SlowBuffer.prototype.equal = function equal(that) {
+      Buffer8.prototype.equal = SlowBuffer.prototype.equal = function equal2(that) {
         return bufferEq(this, that);
       };
     };
@@ -111352,11 +111352,11 @@ var require_oauth2common = __commonJS({
       }
       const newError2 = new Error(message2);
       if (err2) {
-        const keys = Object.keys(err2);
+        const keys2 = Object.keys(err2);
         if (err2.stack) {
-          keys.push("stack");
+          keys2.push("stack");
         }
-        keys.forEach((key) => {
+        keys2.forEach((key) => {
           if (key !== "message") {
             Object.defineProperty(newError2, key, {
               value: err2[key],
@@ -117043,7 +117043,7 @@ var require_websocket2 = __commonJS({
     var http3 = __require("http");
     var net = __require("net");
     var tls = __require("tls");
-    var { randomBytes: randomBytes3, createHash: createHash26 } = __require("crypto");
+    var { randomBytes: randomBytes3, createHash: createHash27 } = __require("crypto");
     var { Duplex: Duplex5, Readable: Readable7 } = __require("stream");
     var { URL: URL2 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate2();
@@ -117711,7 +117711,7 @@ var require_websocket2 = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest2 = createHash26("sha1").update(key + GUID).digest("base64");
+        const digest2 = createHash27("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest2) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -118080,7 +118080,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter2 = __require("events");
     var http3 = __require("http");
     var { Duplex: Duplex5 } = __require("stream");
-    var { createHash: createHash26 } = __require("crypto");
+    var { createHash: createHash27 } = __require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate2();
     var subprotocol2 = require_subprotocol();
@@ -118387,7 +118387,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest2 = createHash26("sha1").update(key + GUID).digest("base64");
+        const digest2 = createHash27("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -118525,9 +118525,9 @@ function formatMap(templateString, valueMap) {
     }
   });
 }
-function setValueByPath(data, keys, value) {
-  for (let i3 = 0; i3 < keys.length - 1; i3++) {
-    const key = keys[i3];
+function setValueByPath(data, keys2, value) {
+  for (let i3 = 0; i3 < keys2.length - 1; i3++) {
+    const key = keys2[i3];
     if (key.endsWith("[]")) {
       const keyName = key.slice(0, -2);
       if (!(keyName in data)) {
@@ -118542,11 +118542,11 @@ function setValueByPath(data, keys, value) {
         if (Array.isArray(value)) {
           for (let j2 = 0; j2 < arrayData.length; j2++) {
             const entry = arrayData[j2];
-            setValueByPath(entry, keys.slice(i3 + 1), value[j2]);
+            setValueByPath(entry, keys2.slice(i3 + 1), value[j2]);
           }
         } else {
           for (const d of arrayData) {
-            setValueByPath(d, keys.slice(i3 + 1), value);
+            setValueByPath(d, keys2.slice(i3 + 1), value);
           }
         }
       }
@@ -118557,7 +118557,7 @@ function setValueByPath(data, keys, value) {
         data[keyName] = [{}];
       }
       const arrayData = data[keyName];
-      setValueByPath(arrayData[0], keys.slice(i3 + 1), value);
+      setValueByPath(arrayData[0], keys2.slice(i3 + 1), value);
       return;
     }
     if (!data[key] || typeof data[key] !== "object") {
@@ -118565,7 +118565,7 @@ function setValueByPath(data, keys, value) {
     }
     data = data[key];
   }
-  const keyToSet = keys[keys.length - 1];
+  const keyToSet = keys2[keys2.length - 1];
   const existingData = data[keyToSet];
   if (existingData !== void 0) {
     if (!value || typeof value === "object" && Object.keys(value).length === 0) {
@@ -118588,16 +118588,16 @@ function setValueByPath(data, keys, value) {
     }
   }
 }
-function getValueByPath(data, keys, defaultValue = void 0) {
+function getValueByPath(data, keys2, defaultValue = void 0) {
   try {
-    if (keys.length === 1 && keys[0] === "_self") {
+    if (keys2.length === 1 && keys2[0] === "_self") {
       return data;
     }
-    for (let i3 = 0; i3 < keys.length; i3++) {
+    for (let i3 = 0; i3 < keys2.length; i3++) {
       if (typeof data !== "object" || data === null) {
         return defaultValue;
       }
-      const key = keys[i3];
+      const key = keys2[i3];
       if (key.endsWith("[]")) {
         const keyName = key.slice(0, -2);
         if (keyName in data) {
@@ -118605,7 +118605,7 @@ function getValueByPath(data, keys, defaultValue = void 0) {
           if (!Array.isArray(arrayData)) {
             return defaultValue;
           }
-          return arrayData.map((d) => getValueByPath(d, keys.slice(i3 + 1), defaultValue));
+          return arrayData.map((d) => getValueByPath(d, keys2.slice(i3 + 1), defaultValue));
         } else {
           return defaultValue;
         }
@@ -127324,8 +127324,8 @@ function setMcpUsageHeader(headers) {
   const existingHeader = (_a10 = headers[GOOGLE_API_CLIENT_HEADER]) !== null && _a10 !== void 0 ? _a10 : "";
   headers[GOOGLE_API_CLIENT_HEADER] = (existingHeader + ` ${MCP_LABEL}`).trimStart();
 }
-function isMcpCallableTool(object3) {
-  return object3 !== null && typeof object3 === "object" && object3 instanceof McpCallableTool;
+function isMcpCallableTool(object4) {
+  return object4 !== null && typeof object4 === "object" && object4 instanceof McpCallableTool;
 }
 function listAllTools(mcpClient_1) {
   return __asyncGenerator(this, arguments, function* listAllTools_1(mcpClient, maxTools = 100) {
@@ -144949,9 +144949,9 @@ function convertMessages3(model, context, compat, options) {
       if (combinedId.length <= 40) {
         return combinedId;
       }
-      const hash = shortHash(id).slice(0, 8);
-      const prefix = callId.slice(0, Math.max(1, 40 - hash.length - 1));
-      return `${prefix}_${hash}`;
+      const hash2 = shortHash(id).slice(0, 8);
+      const prefix = callId.slice(0, Math.max(1, 40 - hash2.length - 1));
+      return `${prefix}_${hash2}`;
     }
     if (model.provider === "openai")
       return id.length > 40 ? id.slice(0, 40) : id;
@@ -154663,10 +154663,10 @@ var init_box = __esm({
 });
 
 // node_modules/@earendil-works/pi-tui/dist/keybindings.js
-function normalizeKeys(keys) {
-  if (keys === void 0)
+function normalizeKeys(keys2) {
+  if (keys2 === void 0)
     return [];
-  const keyList = Array.isArray(keys) ? keys : [keys];
+  const keyList = Array.isArray(keys2) ? keys2 : [keys2];
   const seen = /* @__PURE__ */ new Set();
   const result = [];
   for (const key of keyList) {
@@ -154841,10 +154841,10 @@ var init_keybindings = __esm({
         this.keysById.clear();
         this.conflicts = [];
         const userClaims = /* @__PURE__ */ new Map();
-        for (const [keybinding, keys] of Object.entries(this.userBindings)) {
+        for (const [keybinding, keys2] of Object.entries(this.userBindings)) {
           if (!(keybinding in this.definitions))
             continue;
-          for (const key of normalizeKeys(keys)) {
+          for (const key of normalizeKeys(keys2)) {
             const claimants = userClaims.get(key) ?? /* @__PURE__ */ new Set();
             claimants.add(keybinding);
             userClaims.set(key, claimants);
@@ -154857,13 +154857,13 @@ var init_keybindings = __esm({
         }
         for (const [id, definition] of Object.entries(this.definitions)) {
           const userKeys = this.userBindings[id];
-          const keys = userKeys === void 0 ? normalizeKeys(definition.defaultKeys) : normalizeKeys(userKeys);
-          this.keysById.set(id, keys);
+          const keys2 = userKeys === void 0 ? normalizeKeys(definition.defaultKeys) : normalizeKeys(userKeys);
+          this.keysById.set(id, keys2);
         }
       }
       matches(data, keybinding) {
-        const keys = this.keysById.get(keybinding) ?? [];
-        for (const key of keys) {
+        const keys2 = this.keysById.get(keybinding) ?? [];
+        for (const key of keys2) {
           if (matchesKey(data, key))
             return true;
         }
@@ -154888,8 +154888,8 @@ var init_keybindings = __esm({
       getResolvedBindings() {
         const resolved = {};
         for (const id of Object.keys(this.definitions)) {
-          const keys = this.keysById.get(id) ?? [];
-          resolved[id] = keys.length === 1 ? keys[0] : [...keys];
+          const keys2 = this.keysById.get(id) ?? [];
+          resolved[id] = keys2.length === 1 ? keys2[0] : [...keys2];
         }
         return resolved;
       }
@@ -155225,9 +155225,9 @@ var init_select_list = __esm({
         if (event.type === "click") {
           const clickedIndex = this.mousePressedIndex ?? itemIndex;
           this.mousePressedIndex = void 0;
-          const changed = this.selectedIndex !== clickedIndex;
+          const changed2 = this.selectedIndex !== clickedIndex;
           this.selectedIndex = clickedIndex;
-          if (changed)
+          if (changed2)
             this.notifySelectionChange();
           const selectedItem = this.filteredItems[this.selectedIndex];
           if (selectedItem)
@@ -156146,22 +156146,22 @@ var init_scroll_view = __esm({
         return requested - moved;
       }
       scrollToStart() {
-        const changed = this.currentScrollTop !== 0 || this.followingEnd !== (this.followEnd && this.contentHeight <= this.currentViewportHeight);
+        const changed2 = this.currentScrollTop !== 0 || this.followingEnd !== (this.followEnd && this.contentHeight <= this.currentViewportHeight);
         this.currentScrollTop = 0;
         this.followingEnd = this.followEnd && this.contentHeight <= this.currentViewportHeight;
         this.followSuppressedAtEnd = false;
-        if (changed) {
+        if (changed2) {
           this.markScrollbarActivity();
           this.requestRenderCallback?.();
         }
       }
       scrollToEnd() {
         const next = Math.max(0, this.contentHeight - this.currentViewportHeight);
-        const changed = this.currentScrollTop !== next || this.followingEnd !== this.followEnd;
+        const changed2 = this.currentScrollTop !== next || this.followingEnd !== this.followEnd;
         this.currentScrollTop = next;
         this.followingEnd = this.followEnd;
         this.followSuppressedAtEnd = false;
-        if (changed) {
+        if (changed2) {
           this.markScrollbarActivity();
           this.requestRenderCallback?.();
         }
@@ -156499,12 +156499,12 @@ var init_alt_screen_search = __esm({
           this.corpus = buildSearchCorpus(lines);
         }
         const normalizedQuery = normalizeQuery(query);
-        const changed = sourceChanged || normalizedQuery !== this.normalizedQuery;
-        if (changed) {
+        const changed2 = sourceChanged || normalizedQuery !== this.normalizedQuery;
+        if (changed2) {
           this.normalizedQuery = normalizedQuery;
           this.matches = findSearchCorpusMatches(this.corpus, normalizedQuery);
         }
-        return { matches: this.matches, changed };
+        return { matches: this.matches, changed: changed2 };
       }
     };
     AltScreenSearchComponent = class {
@@ -157733,10 +157733,10 @@ var init_tui_alt_screen = __esm({
             this.mousePressMoved = true;
             this.lastComponentClick = void 0;
           }
-          let render = false;
+          let render2 = false;
           const targetResult = this.dispatchMouseToTarget(event, target);
           if (targetResult)
-            render = this.applyMouseDispatchResult(event, targetResult);
+            render2 = this.applyMouseDispatchResult(event, targetResult);
           if (raw.release) {
             if (!this.mousePressMoved && this.mousePressPoint?.x === raw.x && this.mousePressPoint.y === raw.y) {
               const clickEvent = this.createMouseEvent("click", raw.button, raw.x, raw.y, {
@@ -157744,11 +157744,11 @@ var init_tui_alt_screen = __esm({
               });
               const clickResult = this.dispatchMouseToTarget(clickEvent, target);
               if (clickResult)
-                render = this.applyMouseDispatchResult(clickEvent, clickResult) || render;
+                render2 = this.applyMouseDispatchResult(clickEvent, clickResult) || render2;
             }
             this.clearComponentMouseGesture();
           }
-          if (render)
+          if (render2)
             this.requestRender();
           return;
         }
@@ -157768,14 +157768,14 @@ var init_tui_alt_screen = __esm({
         }
         const result = overlay.result ?? (overlay.hit ? void 0 : this.dispatchMouseToLayout(event));
         if (result) {
-          const render = this.applyMouseDispatchResult(event, result);
+          const render2 = this.applyMouseDispatchResult(event, result);
           if (type === "press") {
             this.clearTextSelection();
             this.mousePressTarget = result.target;
             this.mousePressPoint = { x: raw.x, y: raw.y };
             this.mousePressMoved = false;
           }
-          if (render)
+          if (render2)
             this.requestRender();
           return;
         }
@@ -158118,9 +158118,9 @@ var init_tui_alt_screen = __esm({
             const overlay = this.dispatchMouseToOverlay(clickEvent);
             const result = overlay.result ?? (overlay.hit ? void 0 : this.dispatchMouseToLayout(clickEvent));
             if (result) {
-              const render = this.applyMouseDispatchResult(clickEvent, result);
+              const render2 = this.applyMouseDispatchResult(clickEvent, result);
               this.clearTextSelection();
-              if (render)
+              if (render2)
                 this.requestRender();
               return;
             }
@@ -159421,7 +159421,7 @@ var require_core = __commonJS({
       function close(node2) {
         result += "</" + tag2(node2) + ">";
       }
-      function render(event) {
+      function render2(event) {
         (event.event === "start" ? open9 : close)(event.node);
       }
       while (original.length || highlighted.length) {
@@ -159431,7 +159431,7 @@ var require_core = __commonJS({
         if (stream12 === original) {
           nodeStack.reverse().forEach(close);
           do {
-            render(stream12.splice(0, 1)[0]);
+            render2(stream12.splice(0, 1)[0]);
             stream12 = selectStream();
           } while (stream12 === original && stream12.length && stream12[0].offset === processed);
           nodeStack.reverse().forEach(open9);
@@ -159441,7 +159441,7 @@ var require_core = __commonJS({
           } else {
             nodeStack.pop();
           }
-          render(stream12.splice(0, 1)[0]);
+          render2(stream12.splice(0, 1)[0]);
         }
       }
       return result + escapeHTML(value.substr(processed));
@@ -169334,8 +169334,8 @@ var require_ignore = __commonJS({
       TMP_KEY_IGNORE = /* @__PURE__ */ Symbol.for("node-ignore");
     }
     var KEY_IGNORE = TMP_KEY_IGNORE;
-    var define2 = (object3, key, value) => {
-      Object.defineProperty(object3, key, { value });
+    var define2 = (object4, key, value) => {
+      Object.defineProperty(object4, key, { value });
       return value;
     };
     var RETURN_FALSE = () => false;
@@ -170631,10 +170631,10 @@ function formatKeyPart(part, options) {
 function formatKeyText(key, options = {}) {
   return key.split("/").map((k2) => k2.split("+").map((part) => formatKeyPart(part, options)).join("+")).join("/");
 }
-function formatKeys(keys, options = {}) {
-  if (keys.length === 0)
+function formatKeys(keys2, options = {}) {
+  if (keys2.length === 0)
     return "";
-  return formatKeyText(keys.join("/"), options);
+  return formatKeyText(keys2.join("/"), options);
 }
 function keyText(keybinding) {
   return formatKeys(getKeybindings().getKeys(keybinding));
@@ -172602,11 +172602,11 @@ function buildEditCallComponent(component, args, theme2, cwd, outputPad) {
 }
 function setEditPreview(component, preview, argsKey) {
   const current = component.preview;
-  const changed = current === void 0 || ("error" in current && "error" in preview ? current.error !== preview.error : "error" in current !== "error" in preview) || !("error" in current) && !("error" in preview) && (current.diff !== preview.diff || current.firstChangedLine !== preview.firstChangedLine);
+  const changed2 = current === void 0 || ("error" in current && "error" in preview ? current.error !== preview.error : "error" in current !== "error" in preview) || !("error" in current) && !("error" in preview) && (current.diff !== preview.diff || current.firstChangedLine !== preview.firstChangedLine);
   component.preview = preview;
   component.previewArgsKey = argsKey;
   component.previewPending = false;
-  return changed;
+  return changed2;
 }
 var editRenderers;
 var init_edit2 = __esm({
@@ -172644,16 +172644,16 @@ var init_edit2 = __esm({
         const argsKey = previewInput ? JSON.stringify({ path: previewInput.path, edits: previewInput.edits }) : void 0;
         const typedResult = result;
         const resultDiff = !context.isError ? typedResult.details?.diff : void 0;
-        let changed = false;
+        let changed2 = false;
         if (callComponent) {
           if (typeof resultDiff === "string") {
-            changed = setEditPreview(callComponent, { diff: resultDiff, firstChangedLine: typedResult.details?.firstChangedLine }, argsKey) || changed;
+            changed2 = setEditPreview(callComponent, { diff: resultDiff, firstChangedLine: typedResult.details?.firstChangedLine }, argsKey) || changed2;
           }
           if (callComponent.settledError !== context.isError) {
             callComponent.settledError = context.isError;
-            changed = true;
+            changed2 = true;
           }
-          if (changed) {
+          if (changed2) {
             buildEditCallComponent(callComponent, context.args, theme2, context.cwd, context.outputPad);
           }
         }
@@ -177983,8 +177983,8 @@ var require_compare = __commonJS({
   "node_modules/semver/functions/compare.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
-    var compare2 = (a2, b2, loose) => new SemVer(a2, loose).compare(new SemVer(b2, loose));
-    module.exports = compare2;
+    var compare3 = (a2, b2, loose) => new SemVer(a2, loose).compare(new SemVer(b2, loose));
+    module.exports = compare3;
   }
 });
 
@@ -177992,8 +177992,8 @@ var require_compare = __commonJS({
 var require_rcompare = __commonJS({
   "node_modules/semver/functions/rcompare.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var rcompare2 = (a2, b2, loose) => compare2(b2, a2, loose);
+    var compare3 = require_compare();
+    var rcompare2 = (a2, b2, loose) => compare3(b2, a2, loose);
     module.exports = rcompare2;
   }
 });
@@ -178002,8 +178002,8 @@ var require_rcompare = __commonJS({
 var require_compare_loose = __commonJS({
   "node_modules/semver/functions/compare-loose.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var compareLoose = (a2, b2) => compare2(a2, b2, true);
+    var compare3 = require_compare();
+    var compareLoose = (a2, b2) => compare3(a2, b2, true);
     module.exports = compareLoose;
   }
 });
@@ -178046,8 +178046,8 @@ var require_rsort = __commonJS({
 var require_gt = __commonJS({
   "node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var gt3 = (a2, b2, loose) => compare2(a2, b2, loose) > 0;
+    var compare3 = require_compare();
+    var gt3 = (a2, b2, loose) => compare3(a2, b2, loose) > 0;
     module.exports = gt3;
   }
 });
@@ -178056,8 +178056,8 @@ var require_gt = __commonJS({
 var require_lt = __commonJS({
   "node_modules/semver/functions/lt.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var lt2 = (a2, b2, loose) => compare2(a2, b2, loose) < 0;
+    var compare3 = require_compare();
+    var lt2 = (a2, b2, loose) => compare3(a2, b2, loose) < 0;
     module.exports = lt2;
   }
 });
@@ -178066,8 +178066,8 @@ var require_lt = __commonJS({
 var require_eq = __commonJS({
   "node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var eq = (a2, b2, loose) => compare2(a2, b2, loose) === 0;
+    var compare3 = require_compare();
+    var eq = (a2, b2, loose) => compare3(a2, b2, loose) === 0;
     module.exports = eq;
   }
 });
@@ -178076,8 +178076,8 @@ var require_eq = __commonJS({
 var require_neq = __commonJS({
   "node_modules/semver/functions/neq.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var neq = (a2, b2, loose) => compare2(a2, b2, loose) !== 0;
+    var compare3 = require_compare();
+    var neq = (a2, b2, loose) => compare3(a2, b2, loose) !== 0;
     module.exports = neq;
   }
 });
@@ -178086,8 +178086,8 @@ var require_neq = __commonJS({
 var require_gte = __commonJS({
   "node_modules/semver/functions/gte.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var gte2 = (a2, b2, loose) => compare2(a2, b2, loose) >= 0;
+    var compare3 = require_compare();
+    var gte2 = (a2, b2, loose) => compare3(a2, b2, loose) >= 0;
     module.exports = gte2;
   }
 });
@@ -178096,8 +178096,8 @@ var require_gte = __commonJS({
 var require_lte = __commonJS({
   "node_modules/semver/functions/lte.js"(exports, module) {
     "use strict";
-    var compare2 = require_compare();
-    var lte2 = (a2, b2, loose) => compare2(a2, b2, loose) <= 0;
+    var compare3 = require_compare();
+    var lte2 = (a2, b2, loose) => compare3(a2, b2, loose) <= 0;
     module.exports = lte2;
   }
 });
@@ -179043,12 +179043,12 @@ var require_simplify = __commonJS({
   "node_modules/semver/ranges/simplify.js"(exports, module) {
     "use strict";
     var satisfies2 = require_satisfies();
-    var compare2 = require_compare();
+    var compare3 = require_compare();
     module.exports = (versions, range2, options) => {
       const set = [];
       let first = null;
       let prev = null;
-      const v2 = versions.sort((a2, b2) => compare2(a2, b2, options));
+      const v2 = versions.sort((a2, b2) => compare3(a2, b2, options));
       for (const version2 of v2) {
         const included = satisfies2(version2, range2, options);
         if (included) {
@@ -179096,7 +179096,7 @@ var require_subset = __commonJS({
     var Comparator = require_comparator();
     var { ANY } = Comparator;
     var satisfies2 = require_satisfies();
-    var compare2 = require_compare();
+    var compare3 = require_compare();
     var subset = (sub, dom, options = {}) => {
       if (sub === dom) {
         return true;
@@ -179156,7 +179156,7 @@ var require_subset = __commonJS({
       }
       let gtltComp;
       if (gt3 && lt2) {
-        gtltComp = compare2(gt3.semver, lt2.semver, options);
+        gtltComp = compare3(gt3.semver, lt2.semver, options);
         if (gtltComp > 0) {
           return null;
         } else if (gtltComp === 0 && (gt3.operator !== ">=" || lt2.operator !== "<=")) {
@@ -179236,14 +179236,14 @@ var require_subset = __commonJS({
       if (!a2) {
         return b2;
       }
-      const comp = compare2(a2.semver, b2.semver, options);
+      const comp = compare3(a2.semver, b2.semver, options);
       return comp > 0 ? a2 : comp < 0 ? b2 : b2.operator === ">" && a2.operator === ">=" ? b2 : a2;
     };
     var lowerLT = (a2, b2, options) => {
       if (!a2) {
         return b2;
       }
-      const comp = compare2(a2.semver, b2.semver, options);
+      const comp = compare3(a2.semver, b2.semver, options);
       return comp < 0 ? a2 : comp > 0 ? b2 : b2.operator === "<" && a2.operator === "<=" ? b2 : a2;
     };
     module.exports = subset;
@@ -179267,7 +179267,7 @@ var require_semver2 = __commonJS({
     var minor = require_minor();
     var patch = require_patch();
     var prerelease = require_prerelease();
-    var compare2 = require_compare();
+    var compare3 = require_compare();
     var rcompare2 = require_rcompare();
     var compareLoose = require_compare_loose();
     var compareBuild = require_compare_build();
@@ -179306,7 +179306,7 @@ var require_semver2 = __commonJS({
       minor,
       patch,
       prerelease,
-      compare: compare2,
+      compare: compare3,
       rcompare: rcompare2,
       compareLoose,
       compareBuild,
@@ -180632,11 +180632,11 @@ function union(types4) {
   return unique3.length === 0 ? "never" : unique3.join(" | ");
 }
 function schemaToType(schema, options = {}) {
-  const render = (tags) => toType(schema, { root: schema, resolving: /* @__PURE__ */ new Set(), expansions: 0, tags });
-  const type = render(true);
+  const render2 = (tags) => toType(schema, { root: schema, resolving: /* @__PURE__ */ new Set(), expansions: 0, tags });
+  const type = render2(true);
   if (options.maxChars === void 0 || type.length <= options.maxChars)
     return type;
-  const untagged = render(false);
+  const untagged = render2(false);
   return untagged.length <= options.maxChars ? untagged : "unknown";
 }
 function resolveRef(ref, root) {
@@ -182031,12 +182031,12 @@ var init_prelude_source = __esm({
 
 // node_modules/@earendil-works/pi-codemode/dist/runtime/vm.js
 function fnv1a(text2) {
-  let hash = 2166136261;
+  let hash2 = 2166136261;
   for (let index3 = 0; index3 < text2.length; index3++) {
-    hash ^= text2.charCodeAt(index3);
-    hash = Math.imul(hash, 16777619);
+    hash2 ^= text2.charCodeAt(index3);
+    hash2 = Math.imul(hash2, 16777619);
   }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return (hash2 >>> 0).toString(16).padStart(8, "0");
 }
 var PRELUDE_HASH;
 var init_vm = __esm({
@@ -182218,16 +182218,16 @@ var init_tool = __esm({
         }));
         const matches2 = [];
         documents.forEach((document2, index3) => {
-          let score = 0;
+          let score2 = 0;
           for (const term of queryTerms) {
             const count2 = termCounts[index3].get(term);
             if (!count2)
               continue;
             const norm = this.k1 * (1 - this.b + this.b * lengths[index3] / averageLength);
-            score += (idf.get(term) ?? 0) * (count2 * (this.k1 + 1) / (count2 + norm));
+            score2 += (idf.get(term) ?? 0) * (count2 * (this.k1 + 1) / (count2 + norm));
           }
-          if (score > 0)
-            matches2.push({ name: document2.name, score });
+          if (score2 > 0)
+            matches2.push({ name: document2.name, score: score2 });
         });
         return matches2.sort((a2, b2) => b2.score - a2.score).slice(0, limit3);
       }
@@ -182291,10 +182291,10 @@ function describeValue(value) {
   if (Array.isArray(value))
     return value.length === 0 ? "an empty array" : "an array";
   if (typeof value === "object") {
-    const keys = Object.keys(value);
-    if (keys.length === 0)
+    const keys2 = Object.keys(value);
+    if (keys2.length === 0)
       return "{}";
-    return `{ ${keys.slice(0, 6).join(", ")}${keys.length > 6 ? ", ..." : ""} }`;
+    return `{ ${keys2.slice(0, 6).join(", ")}${keys2.length > 6 ? ", ..." : ""} }`;
   }
   return typeof value === "string" ? "a string" : `a ${typeof value}`;
 }
@@ -184577,8 +184577,8 @@ function createMcpToolName(server, tool, isTaken = () => false) {
   const name = `mcp__${server}__${tool}`.replace(/[^A-Za-z0-9_]/g, "_");
   if (name.length <= MAX_TOOL_NAME_LENGTH && !isTaken(name))
     return name;
-  const hash = createHash3("sha256").update(`${server}\0${tool}`).digest("hex").slice(0, 8);
-  return `${name.slice(0, MAX_TOOL_NAME_LENGTH - hash.length - 1)}_${hash}`;
+  const hash2 = createHash3("sha256").update(`${server}\0${tool}`).digest("hex").slice(0, 8);
+  return `${name.slice(0, MAX_TOOL_NAME_LENGTH - hash2.length - 1)}_${hash2}`;
 }
 function textOf2(content) {
   return content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
@@ -186294,8 +186294,8 @@ var init_oauth2 = __esm({
         if (!this.lockDir)
           return fn();
         mkdirSync4(this.lockDir, { recursive: true, mode: 448 });
-        const hash = createHash4("sha256").update(key).digest("hex").slice(0, 16);
-        const release = await import_proper_lockfile4.default.lock(join14(this.lockDir, `mcp-auth-refresh-${hash}`), {
+        const hash2 = createHash4("sha256").update(key).digest("hex").slice(0, 16);
+        const release = await import_proper_lockfile4.default.lock(join14(this.lockDir, `mcp-auth-refresh-${hash2}`), {
           realpath: false,
           stale: REFRESH_LOCK_STALE_MS,
           retries: {
@@ -187099,7 +187099,7 @@ var init_ui = __esm({
             resolve9(value);
           };
           let selected;
-          const render = () => {
+          const render2 = () => {
             const menu = build2();
             const wanted = selected ?? menu.selected;
             const body = [];
@@ -187130,10 +187130,10 @@ var init_ui = __esm({
             body.push(list);
             this.setContent(frame(this.theme, menu.title, body, footer), (data) => list.handleInput(data));
           };
-          render();
+          render2();
           unsubscribe = subscribe?.(() => {
             if (!settled)
-              render();
+              render2();
           });
         });
       }
@@ -189634,8 +189634,8 @@ var init_chunk_Br0eD_fh = __esm({
     };
     __copyProps2 = (to, from, except, desc) => {
       if (from && typeof from === "object" || typeof from === "function") {
-        for (var keys = __getOwnPropNames2(from), i3 = 0, n2 = keys.length, key; i3 < n2; i3++) {
-          key = keys[i3];
+        for (var keys2 = __getOwnPropNames2(from), i3 = 0, n2 = keys2.length, key; i3 < n2; i3++) {
+          key = keys2[i3];
           if (!__hasOwnProp2.call(to, key) && key !== except) {
             __defProp2(to, key, {
               get: ((k2) => from[k2]).bind(null, key),
@@ -189803,9 +189803,9 @@ function floatSafeRemainder(val, step) {
     return 0;
   return ratio - roundedRatio;
 }
-function defineLazy(object3, key, getter) {
+function defineLazy(object4, key, getter) {
   let value = void 0;
-  Object.defineProperty(object3, key, {
+  Object.defineProperty(object4, key, {
     get() {
       if (value === EVALUATING) {
         return void 0;
@@ -189817,7 +189817,7 @@ function defineLazy(object3, key, getter) {
       return value;
     },
     set(v2) {
-      Object.defineProperty(object3, key, {
+      Object.defineProperty(object4, key, {
         value: v2
         // configurable: true,
       });
@@ -189860,9 +189860,9 @@ function putProp(target, key, value) {
   else
     target[key] = value;
 }
-function mirrorShape(target, source, keys, wrap2) {
+function mirrorShape(target, source, keys2, wrap2) {
   const raw = sourceShape(source);
-  for (const key of keys) {
+  for (const key of keys2) {
     const desc = Object.getOwnPropertyDescriptor(raw, key);
     if (!desc.enumerable)
       continue;
@@ -189903,12 +189903,12 @@ function getElementAtPath(obj, path45) {
   return path45.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
-  const keys = Object.keys(promisesObj);
-  const promises = keys.map((key) => promisesObj[key]);
+  const keys2 = Object.keys(promisesObj);
+  const promises = keys2.map((key) => promisesObj[key]);
   return Promise.all(promises).then((results) => {
     const resolvedObj = {};
-    for (let i3 = 0; i3 < keys.length; i3++) {
-      resolvedObj[keys[i3]] = results[i3];
+    for (let i3 = 0; i3 < keys2.length; i3++) {
+      resolvedObj[keys2[i3]] = results[i3];
     }
     return resolvedObj;
   });
@@ -190049,15 +190049,15 @@ function pick(schema, mask) {
 }
 function maskedKeys(schema, mask) {
   const raw = sourceShape(schema);
-  const keys = [];
+  const keys2 = [];
   for (const key of Reflect.ownKeys(mask)) {
     if (!Object.getOwnPropertyDescriptor(raw, key)?.enumerable) {
       throw new Error(`Unrecognized key: "${String(key)}"`);
     }
     if (mask[key])
-      keys.push(key);
+      keys2.push(key);
   }
-  return keys;
+  return keys2;
 }
 function omit(schema, mask) {
   const currDef = schema._zod.def;
@@ -191573,10 +191573,10 @@ function handlePropertyResult(result, final, key, input, optin, optout) {
   }
 }
 function normalizeDef(def) {
-  const keys = Object.keys(def.shape);
+  const keys2 = Object.keys(def.shape);
   const ownSymbols = Object.getOwnPropertySymbols(def.shape);
   const symbolKeys = ownSymbols.length ? ownSymbols : NO_SYMBOL_KEYS;
-  const allKeys = symbolKeys.length ? [...keys, ...symbolKeys] : keys;
+  const allKeys = symbolKeys.length ? [...keys2, ...symbolKeys] : keys2;
   for (const k2 of allKeys) {
     if (!def.shape?.[k2]?._zod?.traits?.has("$ZodType")) {
       throw new Error(`Invalid element at key "${String(k2)}": expected a Zod schema`);
@@ -191588,8 +191588,8 @@ function normalizeDef(def) {
     allKeys,
     symbolKeys,
     // string-only: handleCatchall matches it against `for...in`, which never yields a symbol
-    keySet: new Set(keys),
-    numKeys: keys.length,
+    keySet: new Set(keys2),
+    numKeys: keys2.length,
     optionalKeys: new Set(okeys)
   };
 }
@@ -191732,19 +191732,19 @@ function handleIntersectionResults(result, left, right) {
   let unrecIssue;
   const keyIssues = /* @__PURE__ */ new Map();
   const collect = (iss, side) => {
-    let keys;
+    let keys2;
     if (iss.code === "unrecognized_keys" && !iss.path?.length) {
       unrecIssue ?? (unrecIssue = iss);
-      keys = iss.keys;
+      keys2 = iss.keys;
     } else if (iss.code === "invalid_key" && iss.origin === "record" && iss.path?.length === 1) {
       const k2 = String(iss.path[0]);
       if (!keyIssues.has(k2))
         keyIssues.set(k2, iss);
-      keys = [k2];
+      keys2 = [k2];
     } else {
       return false;
     }
-    for (const k2 of keys) {
+    for (const k2 of keys2) {
       if (!unrecKeys.has(k2))
         unrecKeys.set(k2, {});
       unrecKeys.get(k2)[side] = true;
@@ -194373,8 +194373,8 @@ function compactTypeUnion(schema) {
     if (!option || typeof option !== "object")
       return;
     compactTypeUnion(option);
-    const keys = Object.keys(option);
-    if (keys.length !== 1 || keys[0] !== "type")
+    const keys2 = Object.keys(option);
+    if (keys2.length !== 1 || keys2[0] !== "type")
       return;
     const type = option.type;
     for (const member of Array.isArray(type) ? type : [type]) {
@@ -194406,8 +194406,8 @@ function foldObjects(members2) {
   }
   const properties = {};
   const required3 = /* @__PURE__ */ new Set();
-  for (const object3 of objects) {
-    for (const key in object3.properties) {
+  for (const object4 of objects) {
+    for (const key in object4.properties) {
       if (Object.prototype.hasOwnProperty.call(properties, key))
         continue;
       const parts = [];
@@ -194421,18 +194421,18 @@ function foldObjects(members2) {
       const merged = parts.length === 1 ? parts[0] : foldObjects(parts) ?? { allOf: parts };
       assignProp(properties, key, merged);
     }
-    for (const key of object3.required ?? [])
+    for (const key of object4.required ?? [])
       required3.add(key);
   }
   const folded = { type: "object", properties };
   if (required3.size)
     folded.required = [...required3];
-  if (objects.every((object3) => object3.additionalProperties === false)) {
+  if (objects.every((object4) => object4.additionalProperties === false)) {
     folded.additionalProperties = false;
   } else {
     const constraints = [];
-    for (const object3 of objects) {
-      const constraint = undeclaredConstraint(object3);
+    for (const object4 of objects) {
+      const constraint = undeclaredConstraint(object4);
       if (constraint && !constraints.some((seen) => JSON.stringify(seen) === JSON.stringify(constraint)))
         constraints.push(constraint);
     }
@@ -196462,11 +196462,11 @@ var init_schemas2 = __esm({
       inst._zod.processJSONSchema = (ctx, json3, params) => enumProcessor(inst, ctx, json3, params);
       inst.enum = def.entries;
       inst.options = [...inst._zod.values];
-      const keys = new Set(Object.keys(def.entries));
+      const keys2 = new Set(Object.keys(def.entries));
       inst.extract = (values, params) => {
         const newEntries = {};
         for (const value of values) {
-          if (keys.has(value)) {
+          if (keys2.has(value)) {
             newEntries[value] = def.entries[value];
           } else
             throw new Error(`Key ${value} not found in enum`);
@@ -196481,7 +196481,7 @@ var init_schemas2 = __esm({
       inst.exclude = (values, params) => {
         const newEntries = { ...def.entries };
         for (const value of values) {
-          if (keys.has(value)) {
+          if (keys2.has(value)) {
             delete newEntries[value];
           } else
             throw new Error(`Key ${value} not found in enum`);
@@ -197729,9 +197729,9 @@ function resourceUrlFromServerUrl2(url2) {
 }
 function withoutIssuer(body) {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return body;
-  const copy = { ...body };
-  delete copy.issuer;
-  return copy;
+  const copy2 = { ...body };
+  delete copy2.issuer;
+  return copy2;
 }
 function checkResourceAllowed({ requestedResource, configuredResource }) {
   const requested = typeof requestedResource === "string" ? new URL(requestedResource) : new URL(requestedResource.href);
@@ -199730,9 +199730,9 @@ function resolveCacheScope(fallback2) {
   return fallback2 !== void 0 && isValidCacheScope(fallback2.cacheScope) ? fallback2.cacheScope : DEFAULT_CACHE_SCOPE;
 }
 function stripCacheHintFallback(result) {
-  const copy = { ...result };
-  delete copy[RESULT_CACHE_HINT_FALLBACK];
-  return copy;
+  const copy2 = { ...result };
+  delete copy2[RESULT_CACHE_HINT_FALLBACK];
+  return copy2;
 }
 function inputSchemaMaps() {
   if (maps) return maps;
@@ -199811,7 +199811,7 @@ function triState(schema, raw) {
 function enforceDeletedFields(method, result) {
   let next = result;
   let copied = false;
-  const copy = () => {
+  const copy2 = () => {
     if (!copied) {
       next = { ...next };
       copied = true;
@@ -199819,7 +199819,7 @@ function enforceDeletedFields(method, result) {
     return next;
   };
   const tools = result.tools;
-  if (method === "tools/list" && Array.isArray(tools) && tools.some((tool) => isPlainObject$3(tool) && "execution" in tool)) copy().tools = tools.map((tool) => {
+  if (method === "tools/list" && Array.isArray(tools) && tools.some((tool) => isPlainObject$3(tool) && "execution" in tool)) copy2().tools = tools.map((tool) => {
     if (!isPlainObject$3(tool) || !("execution" in tool)) return tool;
     const rest = { ...tool };
     delete rest["execution"];
@@ -199829,7 +199829,7 @@ function enforceDeletedFields(method, result) {
   if (isPlainObject$3(capabilities) && "tasks" in capabilities) {
     const rest = { ...capabilities };
     delete rest["tasks"];
-    copy().capabilities = rest;
+    copy2().capabilities = rest;
   }
   return next;
 }
@@ -200539,9 +200539,9 @@ function redirectTarget(url2, response) {
   }
 }
 function fetchLeavingRedirects(baseFetch) {
-  const copy = (url2, init) => baseFetch(url2, init);
-  leftToFetch.add(copy);
-  return copy;
+  const copy2 = (url2, init) => baseFetch(url2, init);
+  leftToFetch.add(copy2);
+  return copy2;
 }
 function fetchWithinOrigin(baseFetch) {
   if (leftToFetch.has(baseFetch)) return baseFetch;
@@ -203784,9 +203784,9 @@ var init_ajvProvider_97rDpkRx = __esm({
       const codegen_1 = require_codegen();
       const code_1 = require_code$1();
       function toHash(arr) {
-        const hash = {};
-        for (const item of arr) hash[item] = true;
-        return hash;
+        const hash2 = {};
+        for (const item of arr) hash2[item] = true;
+        return hash2;
       }
       exports.toHash = toHash;
       function alwaysValidSchema(it2, schema) {
@@ -204626,27 +204626,27 @@ var init_ajvProvider_97rDpkRx = __esm({
       exports.extendSubschemaMode = extendSubschemaMode;
     }));
     require_fast_deep_equal = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-      module.exports = function equal(a2, b2) {
+      module.exports = function equal2(a2, b2) {
         if (a2 === b2) return true;
         if (a2 && b2 && typeof a2 == "object" && typeof b2 == "object") {
           if (a2.constructor !== b2.constructor) return false;
-          var length, i3, keys;
+          var length, i3, keys2;
           if (Array.isArray(a2)) {
             length = a2.length;
             if (length != b2.length) return false;
-            for (i3 = length; i3-- !== 0; ) if (!equal(a2[i3], b2[i3])) return false;
+            for (i3 = length; i3-- !== 0; ) if (!equal2(a2[i3], b2[i3])) return false;
             return true;
           }
           if (a2.constructor === RegExp) return a2.source === b2.source && a2.flags === b2.flags;
           if (a2.valueOf !== Object.prototype.valueOf) return a2.valueOf() === b2.valueOf();
           if (a2.toString !== Object.prototype.toString) return a2.toString() === b2.toString();
-          keys = Object.keys(a2);
-          length = keys.length;
+          keys2 = Object.keys(a2);
+          length = keys2.length;
           if (length !== Object.keys(b2).length) return false;
-          for (i3 = length; i3-- !== 0; ) if (!Object.prototype.hasOwnProperty.call(b2, keys[i3])) return false;
+          for (i3 = length; i3-- !== 0; ) if (!Object.prototype.hasOwnProperty.call(b2, keys2[i3])) return false;
           for (i3 = length; i3-- !== 0; ) {
-            var key = keys[i3];
-            if (!equal(a2[key], b2[key])) return false;
+            var key = keys2[i3];
+            if (!equal2(a2[key], b2[key])) return false;
           }
           return true;
         }
@@ -204732,7 +204732,7 @@ var init_ajvProvider_97rDpkRx = __esm({
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.getSchemaRefs = exports.resolveUrl = exports.normalizeId = exports._getFullPath = exports.getFullPath = exports.inlineRef = void 0;
       const util_1 = require_util9();
-      const equal = require_fast_deep_equal();
+      const equal2 = require_fast_deep_equal();
       const traverse = require_json_schema_traverse();
       const SIMPLE_INLINED = /* @__PURE__ */ new Set([
         "type",
@@ -204786,8 +204786,8 @@ var init_ajvProvider_97rDpkRx = __esm({
         }
         return count2;
       }
-      function getFullPath(resolver, id = "", normalize2) {
-        if (normalize2 !== false) id = normalizeId(id);
+      function getFullPath(resolver, id = "", normalize3) {
+        if (normalize3 !== false) id = normalizeId(id);
         return _getFullPath(resolver, resolver.parse(id));
       }
       exports.getFullPath = getFullPath;
@@ -204845,7 +204845,7 @@ var init_ajvProvider_97rDpkRx = __esm({
         });
         return localRefs;
         function checkAmbiguosRef(sch1, sch2, ref) {
-          if (sch2 !== void 0 && !equal(sch1, sch2)) throw ambiguos(ref);
+          if (sch2 !== void 0 && !equal2(sch1, sch2)) throw ambiguos(ref);
         }
         function ambiguos(ref) {
           return /* @__PURE__ */ new Error(`reference "${ref}" resolves to more than one schema`);
@@ -205882,7 +205882,7 @@ var init_ajvProvider_97rDpkRx = __esm({
     require_fast_uri = /* @__PURE__ */ __commonJSMin(((exports, module) => {
       const { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizeComponentEncoding, isIPv4, nonSimpleDomain } = require_utils2();
       const { SCHEMES, getSchemeHandler } = require_schemes();
-      function normalize2(uri, options) {
+      function normalize3(uri, options) {
         if (typeof uri === "string") uri = serialize2(parse3(uri, options), options);
         else if (typeof uri === "object") uri = parse3(serialize2(uri, options), options);
         return uri;
@@ -205938,7 +205938,7 @@ var init_ajvProvider_97rDpkRx = __esm({
         target.fragment = relative3.fragment;
         return target;
       }
-      function equal(uriA, uriB, options) {
+      function equal2(uriA, uriB, options) {
         if (typeof uriA === "string") {
           uriA = unescape(uriA);
           uriA = serialize2(normalizeComponentEncoding(parse3(uriA, options), true), {
@@ -206060,10 +206060,10 @@ var init_ajvProvider_97rDpkRx = __esm({
       }
       const fastUri = {
         SCHEMES,
-        normalize: normalize2,
+        normalize: normalize3,
         resolve: resolve9,
         resolveComponent,
-        equal,
+        equal: equal2,
         serialize: serialize2,
         parse: parse3
       };
@@ -206832,8 +206832,8 @@ var init_ajvProvider_97rDpkRx = __esm({
           const { gen, data, schemaCode, it: it2 } = cxt;
           const prec = it2.opts.multipleOfPrecision;
           const res = gen.let("res");
-          const invalid3 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
-          cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid3}))`);
+          const invalid4 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
+          cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid4}))`);
         }
       };
       exports.default = def;
@@ -207028,9 +207028,9 @@ var init_ajvProvider_97rDpkRx = __esm({
     }));
     require_equal = /* @__PURE__ */ __commonJSMin(((exports) => {
       Object.defineProperty(exports, "__esModule", { value: true });
-      const equal = require_fast_deep_equal();
-      equal.code = 'require("ajv/dist/runtime/equal").default';
-      exports.default = equal;
+      const equal2 = require_fast_deep_equal();
+      equal2.code = 'require("ajv/dist/runtime/equal").default';
+      exports.default = equal2;
     }));
     require_uniqueItems = /* @__PURE__ */ __commonJSMin(((exports) => {
       Object.defineProperty(exports, "__esModule", { value: true });
@@ -209483,10 +209483,10 @@ var init_ajvProvider_97rDpkRx = __esm({
     require_formats = /* @__PURE__ */ __commonJSMin(((exports) => {
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.formatNames = exports.fastFormats = exports.fullFormats = void 0;
-      function fmtDef(validate3, compare2) {
+      function fmtDef(validate3, compare3) {
         return {
           validate: validate3,
-          compare: compare2
+          compare: compare3
         };
       }
       exports.fullFormats = {
@@ -211862,9 +211862,9 @@ function parseProtectedHeader(encodedProtected) {
   return encodedProtected === void 0 ? {} : parseJoseHeader(encodedProtected, JWSInvalid, "JWS Protected Header is invalid");
 }
 function encodeJsonUnencodedPayload(payload) {
-  const invalid3 = /[\p{Cs}\p{Cn}]/u.exec(payload)?.[0];
-  if (invalid3 !== void 0)
-    throw new JWSInvalid(new RegExp("\\p{Cs}", "u").test(invalid3) ? "JWS Payload must be a well-formed Unicode string" : "JWS Payload must not contain unassigned Unicode code points");
+  const invalid4 = /[\p{Cs}\p{Cn}]/u.exec(payload)?.[0];
+  if (invalid4 !== void 0)
+    throw new JWSInvalid(new RegExp("\\p{Cs}", "u").test(invalid4) ? "JWS Payload must be a well-formed Unicode string" : "JWS Payload must not contain unassigned Unicode code points");
   return encoder3.encode(payload);
 }
 function encodeCompactUnencodedPayload(payload) {
@@ -213044,10 +213044,10 @@ function decodeProtectedHeader(token) {
       protectedB64u = token.protected;
     else
       throw new TypeError("Token does not contain a Protected Header");
-  const invalid3 = "Invalid Token or Protected Header formatting";
+  const invalid4 = "Invalid Token or Protected Header formatting";
   if (typeof protectedB64u != "string" || !protectedB64u)
-    throw new TypeError(invalid3);
-  return parseJoseHeader(protectedB64u, TypeError, invalid3);
+    throw new TypeError(invalid4);
+  return parseJoseHeader(protectedB64u, TypeError, invalid4);
 }
 var init_decode_protected_header = __esm({
   "node_modules/jose/dist/webapi/util/decode_protected_header.js"() {
@@ -219101,10 +219101,10 @@ var require_util10 = __commonJS({
     var codegen_1 = require_codegen2();
     var code_1 = require_code2();
     function toHash(arr) {
-      const hash = {};
+      const hash2 = {};
       for (const item of arr)
-        hash[item] = true;
-      return hash;
+        hash2[item] = true;
+      return hash2;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it2, schema) {
@@ -220084,29 +220084,29 @@ var require_subschema2 = __commonJS({
 var require_fast_deep_equal2 = __commonJS({
   "node_modules/fast-deep-equal/index.js"(exports, module) {
     "use strict";
-    module.exports = function equal(a2, b2) {
+    module.exports = function equal2(a2, b2) {
       if (a2 === b2) return true;
       if (a2 && b2 && typeof a2 == "object" && typeof b2 == "object") {
         if (a2.constructor !== b2.constructor) return false;
-        var length, i3, keys;
+        var length, i3, keys2;
         if (Array.isArray(a2)) {
           length = a2.length;
           if (length != b2.length) return false;
           for (i3 = length; i3-- !== 0; )
-            if (!equal(a2[i3], b2[i3])) return false;
+            if (!equal2(a2[i3], b2[i3])) return false;
           return true;
         }
         if (a2.constructor === RegExp) return a2.source === b2.source && a2.flags === b2.flags;
         if (a2.valueOf !== Object.prototype.valueOf) return a2.valueOf() === b2.valueOf();
         if (a2.toString !== Object.prototype.toString) return a2.toString() === b2.toString();
-        keys = Object.keys(a2);
-        length = keys.length;
+        keys2 = Object.keys(a2);
+        length = keys2.length;
         if (length !== Object.keys(b2).length) return false;
         for (i3 = length; i3-- !== 0; )
-          if (!Object.prototype.hasOwnProperty.call(b2, keys[i3])) return false;
+          if (!Object.prototype.hasOwnProperty.call(b2, keys2[i3])) return false;
         for (i3 = length; i3-- !== 0; ) {
-          var key = keys[i3];
-          if (!equal(a2[key], b2[key])) return false;
+          var key = keys2[i3];
+          if (!equal2(a2[key], b2[key])) return false;
         }
         return true;
       }
@@ -220210,7 +220210,7 @@ var require_resolve2 = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getSchemaRefs = exports.resolveUrl = exports.normalizeId = exports._getFullPath = exports.getFullPath = exports.inlineRef = void 0;
     var util_1 = require_util10();
-    var equal = require_fast_deep_equal2();
+    var equal2 = require_fast_deep_equal2();
     var traverse = require_json_schema_traverse2();
     var SIMPLE_INLINED = /* @__PURE__ */ new Set([
       "type",
@@ -220275,8 +220275,8 @@ var require_resolve2 = __commonJS({
       }
       return count2;
     }
-    function getFullPath(resolver, id = "", normalize2) {
-      if (normalize2 !== false)
+    function getFullPath(resolver, id = "", normalize3) {
+      if (normalize3 !== false)
         id = normalizeId(id);
       const p = resolver.parse(id);
       return _getFullPath(resolver, p);
@@ -220348,7 +220348,7 @@ var require_resolve2 = __commonJS({
       });
       return localRefs;
       function checkAmbiguosRef(sch1, sch2, ref) {
-        if (sch2 !== void 0 && !equal(sch1, sch2))
+        if (sch2 !== void 0 && !equal2(sch1, sch2))
           throw ambiguos(ref);
       }
       function ambiguos(ref) {
@@ -221871,7 +221871,7 @@ var require_fast_uri2 = __commonJS({
       }
       return decodedScheme;
     }
-    function normalize2(uri, options) {
+    function normalize3(uri, options) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
         normalizeString(uri, options);
@@ -221967,7 +221967,7 @@ var require_fast_uri2 = __commonJS({
       target.fragment = relative3.fragment;
       return target;
     }
-    function equal(uriA, uriB, options) {
+    function equal2(uriA, uriB, options) {
       const normalizedA = normalizeComparableURI(uriA, options);
       const normalizedB = normalizeComparableURI(uriB, options);
       return normalizedA !== void 0 && normalizedB !== void 0 && normalizedA === normalizedB;
@@ -222249,10 +222249,10 @@ var require_fast_uri2 = __commonJS({
     }
     var fastUri = {
       SCHEMES,
-      normalize: normalize2,
+      normalize: normalize3,
       resolve: resolve9,
       resolveComponent,
-      equal,
+      equal: equal2,
       serialize: serialize2,
       parse: parse3
     };
@@ -223094,8 +223094,8 @@ var require_multipleOf2 = __commonJS({
         const { gen, data, schemaCode, it: it2 } = cxt;
         const prec = it2.opts.multipleOfPrecision;
         const res = gen.let("res");
-        const invalid3 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
-        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid3}))`);
+        const invalid4 = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
+        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid4}))`);
       }
     };
     exports.default = def;
@@ -223342,9 +223342,9 @@ var require_equal2 = __commonJS({
   "node_modules/ajv/dist/runtime/equal.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    var equal = require_fast_deep_equal2();
-    equal.code = 'require("ajv/dist/runtime/equal").default';
-    exports.default = equal;
+    var equal2 = require_fast_deep_equal2();
+    equal2.code = 'require("ajv/dist/runtime/equal").default';
+    exports.default = equal2;
   }
 });
 
@@ -225547,8 +225547,8 @@ function IsPromise3(value) {
 }
 function IsRecord2(value) {
   return IsKindOf2(value, "Record") && value.type === "object" && IsOptionalString(value.$id) && IsAdditionalProperties(value.additionalProperties) && IsObject(value.patternProperties) && ((schema) => {
-    const keys = Object.getOwnPropertyNames(schema.patternProperties);
-    return keys.length === 1 && IsPattern(keys[0]) && IsObject(schema.patternProperties) && IsSchema2(schema.patternProperties[keys[0]]);
+    const keys2 = Object.getOwnPropertyNames(schema.patternProperties);
+    return keys2.length === 1 && IsPattern(keys2[0]) && IsObject(schema.patternProperties) && IsSchema2(schema.patternProperties[keys2[0]]);
   })(value);
 }
 function IsRecursive(value) {
@@ -225732,8 +225732,8 @@ function DiscardKey(value, key) {
   const { [key]: _2, ...rest } = value;
   return rest;
 }
-function Discard(value, keys) {
-  return keys.reduce((acc, key) => DiscardKey(acc, key), value);
+function Discard(value, keys2) {
+  return keys2.reduce((acc, key) => DiscardKey(acc, key), value);
 }
 
 // node_modules/@sinclair/typebox/build/esm/type/never/never.mjs
@@ -226061,8 +226061,8 @@ function TemplateLiteral(unresolved2, options) {
 
 // node_modules/@sinclair/typebox/build/esm/type/indexed/indexed-property-keys.mjs
 function FromTemplateLiteral(templateLiteral) {
-  const keys = TemplateLiteralGenerate(templateLiteral);
-  return keys.map((key) => key.toString());
+  const keys2 = TemplateLiteralGenerate(templateLiteral);
+  return keys2.map((key) => key.toString());
 }
 function FromUnion2(types4) {
   const result = [];
@@ -226411,9 +226411,9 @@ function KeyOfPropertyKeys(type) {
 var includePatternProperties = false;
 function KeyOfPattern(schema) {
   includePatternProperties = true;
-  const keys = KeyOfPropertyKeys(schema);
+  const keys2 = KeyOfPropertyKeys(schema);
   includePatternProperties = false;
-  const pattern = keys.map((key) => `(${key})`);
+  const pattern = keys2.map((key) => `(${key})`);
   return `^(${pattern.join("|")})$`;
 }
 
@@ -226454,9 +226454,9 @@ function KeyOfFromMappedResult(mappedResult, options) {
 
 // node_modules/@sinclair/typebox/build/esm/type/keyof/keyof-property-entries.mjs
 function KeyOfPropertyEntries(schema) {
-  const keys = KeyOfPropertyKeys(schema);
-  const schemas = IndexFromPropertyKeys(schema, keys);
-  return keys.map((_2, index3) => [keys[index3], schemas[index3]]);
+  const keys2 = KeyOfPropertyKeys(schema);
+  const schemas = IndexFromPropertyKeys(schema, keys2);
+  return keys2.map((_2, index3) => [keys2[index3], schemas[index3]]);
 }
 
 // node_modules/@sinclair/typebox/build/esm/type/composite/composite.mjs
@@ -227113,8 +227113,8 @@ function FromTemplateLiteral3(schema, mode, options) {
   const finite = IsTemplateLiteralExpressionFinite(expression);
   if (!finite)
     return { ...schema, pattern: FromLiteralValue(schema.pattern, mode) };
-  const strings = [...TemplateLiteralExpressionGenerate(expression)];
-  const literals = strings.map((value) => Literal(value));
+  const strings2 = [...TemplateLiteralExpressionGenerate(expression)];
+  const literals = strings2.map((value) => Literal(value));
   const mapped = FromRest5(literals, mode);
   const union3 = Union(mapped);
   return TemplateLiteral([union3], options);
@@ -227253,9 +227253,9 @@ function FromProperties15(properties, propertyKeys) {
       result[K22] = properties[K22];
   return result;
 }
-function FromObject4(Type4, keys, properties) {
+function FromObject4(Type4, keys2, properties) {
   const options = Discard(Type4, [TransformKind, "$id", "required", "properties"]);
-  const mappedProperties = FromProperties15(properties, keys);
+  const mappedProperties = FromProperties15(properties, keys2);
   return Object2(mappedProperties, options);
 }
 function UnionFromPropertyKeys2(propertyKeys) {
@@ -229452,13 +229452,13 @@ var ValueCastError = class extends TypeBoxError {
 };
 function ScoreUnion(schema, references, value) {
   if (schema[Kind] === "Object" && typeof value === "object" && !IsNull2(value)) {
-    const object3 = schema;
-    const keys = Object.getOwnPropertyNames(value);
-    const entries = Object.entries(object3.properties);
+    const object4 = schema;
+    const keys2 = Object.getOwnPropertyNames(value);
+    const entries = Object.entries(object4.properties);
     return entries.reduce((acc, [key, schema2]) => {
       const literal2 = schema2[Kind] === "Literal" && schema2.const === value[key] ? 100 : 0;
       const checks = Check(schema2, references, value[key]) ? 10 : 0;
-      const exists2 = keys.includes(key) ? 1 : 0;
+      const exists2 = keys2.includes(key) ? 1 : 0;
       return acc + (literal2 + checks + exists2);
     }, 0);
   } else if (schema[Kind] === "Union") {
@@ -229473,10 +229473,10 @@ function SelectUnion(union3, references, value) {
   const schemas = union3.anyOf.map((schema) => Deref(schema, references));
   let [select, best] = [schemas[0], 0];
   for (const schema of schemas) {
-    const score = ScoreUnion(schema, references, value);
-    if (score > best) {
+    const score2 = ScoreUnion(schema, references, value);
+    if (score2 > best) {
       select = schema;
-      best = score;
+      best = score2;
     }
   }
   return select;
@@ -232155,6 +232155,13 @@ var ToolCallPhaseResolutionSchema = Type.Union([
     result: Type.Optional(ToolCallResultAxesSchema)
   }, { additionalProperties: false })
 ]);
+var ToolDiscoverySummarySchema = Type.Object({
+  version: Type.Literal(1),
+  catalogFingerprint: Type.String(),
+  generation: Type.Integer({ minimum: 0 }),
+  selectionFingerprint: Type.String(),
+  toolCount: Type.Integer({ minimum: 0 })
+}, { additionalProperties: false });
 var ProtocolV2EventPayloadSchemas = [
   Type.Object({
     type: Type.Literal("agent_start"),
@@ -232414,7 +232421,12 @@ var ProtocolV2EventPayloadSchemas = [
     preservedMessages: Type.Number(),
     providerCallBlocked: Type.Literal(true)
   }, { additionalProperties: false }),
-  Type.Object({ type: Type.Literal("context_prefix"), agent: Type.String(), fingerprint: Type.String() }, { additionalProperties: false }),
+  Type.Object({
+    type: Type.Literal("context_prefix"),
+    agent: Type.String(),
+    fingerprint: Type.String(),
+    toolDiscovery: Type.Optional(ToolDiscoverySummarySchema)
+  }, { additionalProperties: false }),
   Type.Object({
     type: Type.Literal("provider_request"),
     requestId: Type.String(),
@@ -232426,7 +232438,8 @@ var ProtocolV2EventPayloadSchemas = [
     stablePrefixFingerprint: Type.String(),
     toolSchemaFingerprint: Type.String(),
     capabilityFingerprint: Type.String(),
-    contextWorkingSetFingerprint: Type.String()
+    contextWorkingSetFingerprint: Type.String(),
+    toolDiscovery: Type.Optional(ToolDiscoverySummarySchema)
   }, { additionalProperties: false }),
   Type.Object({
     type: Type.Literal("artifact_created"),
@@ -233021,6 +233034,11 @@ var InitializeRequestSchema = Type.Object({
   method: Type.Literal("initialize"),
   params: Type.Object({
     protocolVersion: Type.Literal(PROTOCOL_VERSION),
+    capabilities: Type.Optional(Type.Array(Type.Literal("toolDiscovery"), {
+      minItems: 1,
+      maxItems: 1,
+      uniqueItems: true
+    })),
     config: Type.Optional(Type.Unknown()),
     configPath: Type.Optional(Type.String({ minLength: 1 })),
     configDir: Type.Optional(Type.String({ minLength: 1 })),
@@ -233247,7 +233265,7 @@ function createPythonToolCallNotification(params) {
 }
 
 // packages/coremind-worker/src/server.ts
-import { createHash as createHash25 } from "node:crypto";
+import { createHash as createHash26 } from "node:crypto";
 import path44 from "node:path";
 
 // packages/coremind-config/dist/parse.js
@@ -233460,14 +233478,17 @@ function toolEffectOperationsForCapability(effect) {
 }
 var ToolRefSchema = Type.Object({
   id: Type.Union(BUILTIN_TOOL_IDS.map((id) => Type.Literal(id)), { description: "\u5185\u7F6E\u5DE5\u5177 id" }),
-  enabled: Type.Optional(Type.Boolean({ default: true }))
+  enabled: Type.Optional(Type.Boolean({ default: true })),
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
 });
 var ScriptToolSchema = Type.Object({
   path: Type.String({ minLength: 1, description: "\u5DE5\u5177\u6587\u4EF6\u8DEF\u5F84\uFF08\u76F8\u5BF9\u914D\u7F6E\u6587\u4EF6\u76EE\u5F55\uFF09" }),
   name: Type.Optional(Type.String({ description: "\u5DE5\u5177\u540D\uFF0C\u7F3A\u7701\u53D6\u6A21\u5757\u5BFC\u51FA\u5BF9\u8C61\u7684 name" })),
-  effect: ToolEffectDeclarationSchema2
+  effect: ToolEffectDeclarationSchema2,
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
 });
 var McpToolSchema = Type.Object({
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
   mcp: Type.Object({ server: Type.String({ minLength: 1 }), tool: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
   effect: ToolEffectDeclarationSchema2,
   capability: Type.Object({
@@ -233701,7 +233722,9 @@ var WorkflowStepSchema = Type.Recursive((Self) => Type.Union([
 
 // packages/coremind-config/dist/schema/config.js
 var CoreMindConfigSchema = Type.Object({
-  schemaVersion: Type.Literal(2, { description: "CoreMind \u914D\u7F6E\u683C\u5F0F\u7248\u672C" }),
+  schemaVersion: Type.Union([Type.Literal(2), Type.Literal(3)], {
+    description: "CoreMind \u914D\u7F6E\u683C\u5F0F\u7248\u672C\uFF1B\u6309\u9700\u66DD\u5149\u5DE5\u5177\u987B\u663E\u5F0F\u4F7F\u7528 3"
+  }),
   name: Type.String({ minLength: 1, description: "\u667A\u80FD\u4F53\u540D\u79F0\uFF08\u5FC5\u586B\uFF09" }),
   description: Type.Optional(Type.String()),
   provider: Type.Optional(ProviderSchema),
@@ -233814,9 +233837,9 @@ function validateProviderHeaderReferences(record2) {
     if (value === null || typeof value !== "object" || Array.isArray(value))
       continue;
     const reference = value;
-    const keys = Object.keys(reference);
-    const validEnv = keys.length === 1 && typeof reference.env === "string" && reference.env.length > 0;
-    const validSecretRef = keys.length === 1 && typeof reference.secretRef === "string" && reference.secretRef.length > 0;
+    const keys2 = Object.keys(reference);
+    const validEnv = keys2.length === 1 && typeof reference.env === "string" && reference.env.length > 0;
+    const validSecretRef = keys2.length === 1 && typeof reference.secretRef === "string" && reference.secretRef.length > 0;
     if (!validEnv && !validSecretRef) {
       details.push(`provider.headers.${name}\uFF1A\u5FC5\u987B\u662F\u975E\u7A7A env \u6216 secretRef \u5F15\u7528`);
     }
@@ -233883,6 +233906,16 @@ function validateRawToolDeclarations(record2) {
     for (const [index3, tool] of location.tools.entries()) {
       if (tool === null || typeof tool !== "object" || Array.isArray(tool))
         continue;
+      if ("exposure" in tool) {
+        if (tool.exposure !== "direct" && tool.exposure !== "deferred") {
+          const detail = `${location.prefix}.${index3}.exposure\uFF1A\u5FC5\u987B\u662F direct \u6216 deferred`;
+          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+        }
+        if (tool.exposure === "deferred" && record2.schemaVersion !== 3) {
+          const detail = `${location.prefix}.${index3}.exposure\uFF1Adeferred \u5FC5\u987B\u663E\u5F0F\u914D\u7F6E schemaVersion: 3`;
+          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+        }
+      }
       if ("mcp" in tool && ("id" in tool || "path" in tool)) {
         const detail = `${location.prefix}.${index3}\uFF1AMCP \u5F15\u7528\u4E0D\u80FD\u540C\u65F6\u5305\u542B id \u6216 path`;
         throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
@@ -233908,12 +233941,12 @@ function validateMcpConfiguration(config2) {
     if (!path.isAbsolute(server.cwd))
       details.push(`${prefix}.cwd\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
     if (process.platform === "win32") {
-      const keys = /* @__PURE__ */ new Set();
+      const keys2 = /* @__PURE__ */ new Set();
       for (const key of Object.keys(server.env ?? {})) {
         const folded = key.toUpperCase();
-        if (keys.has(folded))
+        if (keys2.has(folded))
           details.push(`${prefix}.env\uFF1AWindows \u73AF\u5883\u952E\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
-        keys.add(folded);
+        keys2.add(folded);
       }
     }
   }
@@ -234367,7 +234400,7 @@ var ArtifactStore = class {
     await this.ensureRoot();
     const destination = path2.join(this.rootDir, `${artifactId}.log`);
     const staging = path2.join(this.rootDir, `.${artifactId}.tmp`);
-    const hash = createHash2("sha256");
+    const hash2 = createHash2("sha256");
     let containsSecret = false;
     let scanCarry = "";
     let sizeBytes = 0;
@@ -234376,7 +234409,7 @@ var ArtifactStore = class {
     const scanner = new Transform2({
       transform(chunk, _encoding, callback) {
         sizeBytes += chunk.length;
-        hash.update(chunk);
+        hash2.update(chunk);
         const text2 = `${scanCarry}${chunk.toString("utf8")}`;
         if (containsSecretText(text2))
           containsSecret = true;
@@ -234413,7 +234446,7 @@ var ArtifactStore = class {
         status: "stored",
         relativePath,
         sizeBytes,
-        sha256: hash.digest("hex"),
+        sha256: hash2.digest("hex"),
         mediaType: options.mediaType ?? "text/plain; charset=utf-8",
         createdAt: this.now().toISOString(),
         retention: "run",
@@ -234837,17 +234870,17 @@ var stringToUint8Array = (string4) => textEncoder.encode(string4);
 var textDecoder = new TextDecoder();
 var uint8ArrayToString = (uint8Array) => textDecoder.decode(uint8Array);
 var joinToString = (uint8ArraysOrStrings, encoding) => {
-  const strings = uint8ArraysToStrings(uint8ArraysOrStrings, encoding);
-  return strings.join("");
+  const strings2 = uint8ArraysToStrings(uint8ArraysOrStrings, encoding);
+  return strings2.join("");
 };
 var uint8ArraysToStrings = (uint8ArraysOrStrings, encoding) => {
   if (encoding === "utf8" && uint8ArraysOrStrings.every((uint8ArrayOrString) => typeof uint8ArrayOrString === "string")) {
     return uint8ArraysOrStrings;
   }
   const decoder3 = new StringDecoder(encoding);
-  const strings = uint8ArraysOrStrings.map((uint8ArrayOrString) => typeof uint8ArrayOrString === "string" ? stringToUint8Array(uint8ArrayOrString) : uint8ArrayOrString).map((uint8Array) => decoder3.write(uint8Array));
+  const strings2 = uint8ArraysOrStrings.map((uint8ArrayOrString) => typeof uint8ArrayOrString === "string" ? stringToUint8Array(uint8ArrayOrString) : uint8ArrayOrString).map((uint8Array) => decoder3.write(uint8Array));
   const finalString = decoder3.end();
-  return finalString === "" ? strings : [...strings, finalString];
+  return finalString === "" ? strings2 : [...strings2, finalString];
 };
 var joinToUint8Array = (uint8ArraysOrStrings) => {
   if (uint8ArraysOrStrings.length === 1 && isUint8Array(uint8ArraysOrStrings[0])) {
@@ -244728,6 +244761,11 @@ var BUILTIN_FACTORIES = {
   "web-search": (_cwd, env2, executionEnvironment) => createWebSearchToolForEnvironment(env2, executionEnvironment)
 };
 var MAX_TOOLS_PER_AGENT = 20;
+var configuredToolSources = /* @__PURE__ */ new WeakMap();
+function configuredToolSource(tool) {
+  const source = configuredToolSources.get(tool);
+  return source ? structuredClone(source) : void 0;
+}
 async function buildToolsWithExecutionEnvironment(configs, opts, executionEnvironment) {
   const env2 = opts.env ?? process.env;
   const tools = [];
@@ -244746,7 +244784,9 @@ async function buildToolsWithExecutionEnvironment(configs, opts, executionEnviro
           warnings.push(`\u811A\u672C\u5DE5\u5177 ${tool2.name} \u4E0D\u5F97\u4F7F\u7528\u5185\u7F6E\u5DE5\u5177\u540D\uFF0C\u5DF2\u8DF3\u8FC7`);
           continue;
         }
-        tools.push(wrapToolWithArtifactCapture(tool2, artifactStore));
+        const wrapped2 = wrapToolWithArtifactCapture(tool2, artifactStore);
+        configuredToolSources.set(wrapped2, structuredClone(cfg));
+        tools.push(wrapped2);
         effects.set(tool2.name, cfg.effect);
         capabilities.set(tool2.name, inferLegacyToolCapability(tool2.name, cfg.effect));
       } catch (error3) {
@@ -244766,7 +244806,9 @@ async function buildToolsWithExecutionEnvironment(configs, opts, executionEnviro
       warnings.push(`\u5DE5\u5177 ${cfg.id} \u9700\u8981\u989D\u5916\u914D\u7F6E\uFF08\u5982 API key\uFF09\uFF0C\u5DF2\u8DF3\u8FC7`);
       continue;
     }
-    tools.push(wrapToolWithArtifactCapture(bindFileToolTarget(tool, opts.cwd), artifactStore));
+    const wrapped = wrapToolWithArtifactCapture(bindFileToolTarget(tool, opts.cwd), artifactStore);
+    configuredToolSources.set(wrapped, structuredClone(cfg));
+    tools.push(wrapped);
     effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
     capabilities.set(tool.name, resolveToolCapability({ tool: tool.name }));
   }
@@ -245411,12 +245453,12 @@ var McpStdioTransport = class {
       this.reader = new BufferReader({ maxBufferSize: MCP_MAX_FRAME_BYTES });
       this.serialize = serializeMessage2;
       const env2 = {};
-      const keys = /* @__PURE__ */ new Set();
+      const keys2 = /* @__PURE__ */ new Set();
       for (const [name, value] of Object.entries(this.options.env)) {
         const key = process.platform === "win32" ? name.toUpperCase() : name;
-        if (keys.has(key) || name.includes("\0") || value.includes("\0"))
+        if (keys2.has(key) || name.includes("\0") || value.includes("\0"))
           throw failure2("\u670D\u52A1\u73AF\u5883\u952E\u65E0\u6548\u6216\u91CD\u590D");
-        keys.add(key);
+        keys2.add(key);
         env2[name] = value;
       }
       const subprocess = execa(this.options.command, [...this.options.args], {
@@ -245732,7 +245774,7 @@ var McpHttpFetchOwner = class {
       signal.removeEventListener("abort", aborted4);
       for (const activity of activities)
         activity.settle();
-      this.requests.delete(owned);
+      this.requests.delete(owned2);
       settle2();
     };
     const cancel2 = async () => {
@@ -245745,7 +245787,7 @@ var McpHttpFetchOwner = class {
         finish();
       }
     };
-    const owned = { controller: requestController, done, cancel: cancel2 };
+    const owned2 = { controller: requestController, done, cancel: cancel2 };
     const aborted4 = () => {
       try {
         output?.error(this.fatal ?? cancelled());
@@ -245754,7 +245796,7 @@ var McpHttpFetchOwner = class {
       if (reader)
         void cancel2();
     };
-    this.requests.add(owned);
+    this.requests.add(owned2);
     signal.addEventListener("abort", aborted4, { once: true });
     try {
       const domain = this.options.runEnvironment.hostNetwork ?? this.options.runEnvironment;
@@ -246910,6 +246952,7 @@ var ManagedMcpClient = class {
         };
         client.setNotificationHandler("notifications/tools/list_changed", () => {
           this.invalidated = true;
+          this.options.onToolsChanged?.();
         });
         await client.connect(this.options.transport, requestOptions(executionSignal));
         this.assertSafe(client.getServerVersion());
@@ -249494,12 +249537,12 @@ function assertJsonSerializable(value) {
     if (Object.getOwnPropertySymbols(candidate).length > 0) {
       invalidPayload("contains a symbol-keyed property");
     }
-    const keys = Object.keys(candidate);
-    if (Object.getOwnPropertyNames(candidate).length !== keys.length) {
+    const keys2 = Object.keys(candidate);
+    if (Object.getOwnPropertyNames(candidate).length !== keys2.length) {
       invalidPayload("contains a non-enumerable property");
     }
-    for (let index3 = keys.length - 1; index3 >= 0; index3--) {
-      const descriptor = Object.getOwnPropertyDescriptor(candidate, keys[index3]);
+    for (let index3 = keys2.length - 1; index3 >= 0; index3--) {
+      const descriptor = Object.getOwnPropertyDescriptor(candidate, keys2[index3]);
       if (!("value" in descriptor))
         invalidPayload("contains an accessor");
       stack.push({ value: descriptor.value });
@@ -249946,23 +249989,23 @@ var SessionState = class {
     if (this.usedIds.has(id))
       throw new SessionError("already_exists", `Session id already exists: ${id}`);
   }
-  applyMutation(mutation, invalid3 = invalidMutation) {
+  applyMutation(mutation, invalid4 = invalidMutation) {
     const seq = mutation.kind === "entry" ? mutation.entry.seq : mutation.kind === "record" ? mutation.record.seq : mutation.seq;
     if (seq !== this.sequence + 1)
-      invalid3(`has non-consecutive seq ${seq}`);
+      invalid4(`has non-consecutive seq ${seq}`);
     switch (mutation.kind) {
       case "entry": {
         if (this.usedIds.has(mutation.entry.id))
-          invalid3(`contains duplicate id ${mutation.entry.id}`);
+          invalid4(`contains duplicate id ${mutation.entry.id}`);
         if (mutation.lane !== void 0) {
           const leafId = this.lanes.get(mutation.lane);
           if (leafId === void 0)
-            invalid3(`references missing lane ${mutation.lane}`);
+            invalid4(`references missing lane ${mutation.lane}`);
           if (mutation.entry.parentId !== leafId)
-            invalid3("does not chain to the lane leaf");
+            invalid4("does not chain to the lane leaf");
         }
         if (mutation.entry.parentId !== null && !this.entriesById.has(mutation.entry.parentId)) {
-          invalid3(`references missing parent ${mutation.entry.parentId}`);
+          invalid4(`references missing parent ${mutation.entry.parentId}`);
         }
         this.sequence = seq;
         this.usedIds.add(mutation.entry.id);
@@ -249977,9 +250020,9 @@ var SessionState = class {
       }
       case "record": {
         if (!this.lanes.has(mutation.record.lane))
-          invalid3(`references missing lane ${mutation.record.lane}`);
+          invalid4(`references missing lane ${mutation.record.lane}`);
         if (this.usedIds.has(mutation.record.id))
-          invalid3(`contains duplicate id ${mutation.record.id}`);
+          invalid4(`contains duplicate id ${mutation.record.id}`);
         this.sequence = seq;
         this.usedIds.add(mutation.record.id);
         this.records.push(mutation.record);
@@ -250004,7 +250047,7 @@ var SessionState = class {
       }
       case "lane":
         if (mutation.leafId !== null && !this.entriesById.has(mutation.leafId)) {
-          invalid3(`references missing lane target ${mutation.leafId}`);
+          invalid4(`references missing lane target ${mutation.leafId}`);
         }
         this.sequence = seq;
         this.lanes.set(mutation.lane, mutation.leafId);
@@ -250012,7 +250055,7 @@ var SessionState = class {
         break;
       case "fact":
         if (mutation.fact === "label" && !this.entriesById.has(mutation.targetId)) {
-          invalid3(`references missing label target ${mutation.targetId}`);
+          invalid4(`references missing label target ${mutation.targetId}`);
         }
         this.sequence = seq;
         if (mutation.fact === "name") {
@@ -250661,7 +250704,7 @@ var TraceRecorder = class {
     this.entries = [...initialEntries];
     this.sequence = initialEntries.reduce((highest, entry) => Math.max(highest, entry.sequence), 0);
   }
-  record(event) {
+  record(event, eventId) {
     const scope = `${"agent" in event ? event.agent ?? "" : ""}\0${"stepId" in event ? event.stepId ?? "" : ""}`;
     if (event.type === "text_delta") {
       const text2 = (this.pendingText.get(scope)?.delta ?? "") + event.delta;
@@ -250689,11 +250732,11 @@ var TraceRecorder = class {
           this.append({ ...pending, delta: redactSensitiveText(pending.delta) });
       }
     }
-    return this.append(event);
+    return this.append(event, eventId);
   }
-  append(event) {
+  append(event, eventId = randomUUID13()) {
     const entry = {
-      eventId: randomUUID13(),
+      eventId,
       runId: this.runId,
       sequence: ++this.sequence,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -252423,12 +252466,13 @@ import { isIP as isIP4 } from "node:net";
 
 // packages/coremind-runtime/dist/skill-privacy.js
 function stripPrivateSkillPayload(kind, payload) {
-  const field2 = kind === "start" ? "skillSnapshot" : kind === "event" ? "skillLoad" : void 0;
-  if (!field2 || payload === null || typeof payload !== "object" || Array.isArray(payload) || !Object.hasOwn(payload, field2)) {
+  const fields = kind === "start" ? ["skillSnapshot", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : kind === "event" ? ["skillLoad", "toolDiscoveryCatalog", "toolDiscoverySelection", "toolDiscoverySearch"] : kind === "pause" ? ["toolDiscoveryContinuations"] : [];
+  if (fields.length === 0 || payload === null || typeof payload !== "object" || Array.isArray(payload) || !fields.some((field2) => Object.hasOwn(payload, field2))) {
     return payload;
   }
   const publicPayload = { ...payload };
-  delete publicPayload[field2];
+  for (const field2 of fields)
+    delete publicPayload[field2];
   return publicPayload;
 }
 
@@ -253080,13 +253124,13 @@ function emptyDelivery(policy2) {
   };
 }
 function telemetryStateFromFacts(records) {
-  const changed = [...records].reverse().find((record2) => record2.kind === "telemetry_configuration");
-  if (changed) {
-    const policy3 = validateTelemetryConfigurationFact(changed.payload);
+  const changed2 = [...records].reverse().find((record2) => record2.kind === "telemetry_configuration");
+  if (changed2) {
+    const policy3 = validateTelemetryConfigurationFact(changed2.payload);
     return {
       ...policy3,
       source: "configured",
-      effectiveFromSequence: changed.sequence
+      effectiveFromSequence: changed2.sequence
     };
   }
   const start = records.find((record2) => record2.kind === "start");
@@ -253422,7 +253466,7 @@ function isRecord9(value) {
 }
 
 // packages/coremind-runtime/dist/runtime.js
-import { randomUUID as randomUUID22 } from "node:crypto";
+import { createHash as createHash25, randomUUID as randomUUID23 } from "node:crypto";
 import path43 from "node:path";
 
 // packages/coremind-templates/dist/index.js
@@ -253826,6 +253870,7 @@ function extractAgentError(messages) {
 }
 
 // packages/coremind-runtime/dist/agent-factory.js
+var adapterHistories = /* @__PURE__ */ new WeakMap();
 function buildAgent(agentCfg, ctx) {
   const { temperature, maxTokens } = agentCfg.options ?? {};
   const tools = ctx.harness?.executeTool ? ctx.tools.map((tool) => ({
@@ -253839,29 +253884,74 @@ function buildAgent(agentCfg, ctx) {
       });
     }
   })) : ctx.tools;
-  const stablePrefix = buildStableContextPrefix({
-    projectInstructions: agentCfg.systemPrompt ?? "",
-    tools: tools.map((tool) => ({ name: tool.name, description: tool.description })),
-    stableFacts: ctx.stableFacts,
-    skillsContent: ctx.skillsContent
-  });
+  const catalog = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    declaration: toToolDeclaration(tool)
+  }));
+  const selection = ctx.harness?.registerDeclarationCatalog?.(catalog);
+  const ownedSystems = /* @__PURE__ */ new WeakSet();
+  const makeFrame = (selected) => {
+    const selectedTools = selected ? selected.names.map((name) => {
+      const matching = tools.filter((tool) => tool.name === name);
+      if (matching.length !== 1)
+        throw new CoreMindError("tool_capability_conflict", "\u5DE5\u5177\u58F0\u660E\u4E0D\u5C5E\u4E8E\u552F\u4E00\u5141\u8BB8\u76EE\u5F55");
+      return matching[0];
+    }) : tools;
+    if (selected && (!Number.isSafeInteger(selected.generation) || selected.generation < 0 || !/^[0-9a-f]{64}$/u.test(selected.fingerprint) || new Set(selected.names).size !== selected.names.length)) {
+      throw new CoreMindError("tool_capability_conflict", "\u5DE5\u5177\u58F0\u660E\u8EAB\u4EFD\u975E\u6CD5");
+    }
+    const stablePrefix = buildStableContextPrefix({
+      projectInstructions: agentCfg.systemPrompt ?? "",
+      tools: selectedTools.map((tool) => ({ name: tool.name, description: tool.description })),
+      stableFacts: ctx.stableFacts,
+      skillsContent: ctx.skillsContent
+    });
+    const toolSchemas = selected ? selectedTools.map((tool) => catalog.find((entry) => entry.name === tool.name).declaration) : catalog.map((entry) => entry.declaration);
+    const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas);
+    ownedSystems.add(prefix);
+    const contract = {
+      stablePrefix: stablePrefix.text,
+      toolSchemas,
+      ...selected ? { toolDiscovery: { generation: selected.generation, fingerprint: selected.fingerprint } } : {}
+    };
+    return {
+      selection: selected,
+      tools: selectedTools,
+      stablePrefix,
+      toolSchemas,
+      prefix,
+      contract
+    };
+  };
+  let frame2 = makeFrame(selection);
+  const history = (messages) => {
+    if (!selection)
+      return withoutAdapterPrefix(messages, frame2.prefix);
+    if (!messages[0] || !ownedSystems.has(messages[0])) {
+      throw new CoreMindError("tool_capability_conflict", "\u6A21\u578B\u6267\u884C\u4E0A\u4E0B\u6587\u7F3A\u5C11\u5F53\u524D\u58F0\u660E\u9996\u90E8");
+    }
+    return messages.filter((message2) => {
+      if (ownedSystems.has(message2))
+        return false;
+      if (message2.role === "system" && ("toolsAdded" in message2 || "toolsRemoved" in message2)) {
+        throw new CoreMindError("tool_capability_conflict", "\u5386\u53F2\u6D88\u606F\u542B\u672A\u5F52\u5C5E\u7684\u5DE5\u5177\u58F0\u660E");
+      }
+      return true;
+    });
+  };
   ctx.onEvent({
     type: "context_prefix",
     agent: ctx.agentName,
-    fingerprint: stablePrefix.fingerprint
+    fingerprint: frame2.stablePrefix.fingerprint
   });
-  const toolSchemas = tools.map(toToolDeclaration);
-  ctx.harness?.registerContextContract?.({
-    stablePrefix: stablePrefix.text,
-    toolSchemas
-  });
-  const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas);
+  ctx.harness?.registerContextContract?.(frame2.contract);
   const agent = new Agent({
     initialState: {
-      systemPrompt: stablePrefix.text,
+      systemPrompt: frame2.stablePrefix.text,
       model: ctx.model,
-      tools,
-      messages: [prefix, ...ctx.sessionMessages ?? []],
+      tools: frame2.tools,
+      messages: [frame2.prefix, ...ctx.sessionMessages ?? []],
       thinkingLevel: agentCfg.options?.thinkingLevel
     },
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
@@ -253878,19 +253968,54 @@ function buildAgent(agentCfg, ctx) {
       ctx.harness?.onModelRequestDispatched?.({
         providerId: m3.provider,
         modelId: m3.id,
-        messages: withoutAdapterPrefix(c4.messages, prefix)
+        messages: history(c4.messages)
       });
       return response;
     },
     toolExecution: "parallel",
     convertToLlm: (messages) => [
-      prefix,
-      ...convertToLlm2(withoutAdapterPrefix(messages, prefix))
+      frame2.prefix,
+      ...convertToLlm2(history(messages))
     ],
     transformContext: ctx.harness?.transformContext ? async (messages, signal) => [
-      prefix,
-      ...await ctx.harness.transformContext(withoutAdapterPrefix(messages, prefix), signal)
+      frame2.prefix,
+      ...await ctx.harness.transformContext(history(messages), signal)
     ] : void 0,
+    prepareRequest: selection && ctx.harness?.prepareRequest ? async (request, signal) => {
+      let candidate;
+      const selected = await ctx.harness.prepareRequest((next) => {
+        if (candidate)
+          throw new CoreMindError("tool_capability_conflict", "\u5355\u6B21\u8BF7\u6C42\u53EA\u80FD\u51C6\u5907\u4E00\u4EFD\u58F0\u660E\u5E27");
+        candidate = makeFrame(next);
+        return candidate.contract;
+      }, signal);
+      signal?.throwIfAborted();
+      if (candidate && selected !== candidate.selection || selected && !candidate) {
+        throw new CoreMindError("tool_capability_conflict", "\u58F0\u660E\u786E\u8BA4\u6CA1\u6709\u8FD4\u56DE\u539F\u59CB\u5019\u9009\u8EAB\u4EFD");
+      }
+      const requestHistory = history(request.context.messages);
+      if (candidate) {
+        const stateHistory = history(agent.state.messages);
+        const changed2 = frame2.stablePrefix.fingerprint !== candidate.stablePrefix.fingerprint;
+        frame2 = candidate;
+        agent.state.tools = frame2.tools;
+        agent.state.messages = [frame2.prefix, ...stateHistory];
+        ctx.harness?.registerContextContract?.(frame2.contract);
+        if (changed2)
+          ctx.onEvent({
+            type: "context_prefix",
+            agent: ctx.agentName,
+            fingerprint: frame2.stablePrefix.fingerprint
+          });
+      }
+      return {
+        context: {
+          ...request.context,
+          tools: frame2.tools,
+          messages: [frame2.prefix, ...requestHistory]
+        }
+      };
+    } : void 0,
     beforeToolCall: ctx.harness?.beforeToolCall ? (context, signal) => ctx.harness.beforeToolCall({
       toolCall: {
         callId: context.toolCall.id,
@@ -253914,8 +254039,12 @@ function buildAgent(agentCfg, ctx) {
       isError: context.isError
     }, signal) : void 0
   });
+  adapterHistories.set(agent, () => history(agent.state.messages));
   const activeDriverCalls = /* @__PURE__ */ new Map();
   agent.subscribe((event) => {
+    if (selection && event.type === "message_end" && event.message.role === "system") {
+      ownedSystems.add(event.message);
+    }
     const observation = normalizeDriverObservation(event, ctx.model.contextWindow, activeDriverCalls);
     if (observation) {
       ctx.harness?.onObservation?.(observation);
@@ -253951,6 +254080,17 @@ function buildAgentDriver(agentCfg, ctx) {
       }
     }
   });
+  const prepareRequest = agent.prepareRequest;
+  if (prepareRequest)
+    agent.prepareRequest = async (...args) => {
+      try {
+        const update = await prepareRequest(...args);
+        return update || void 0;
+      } catch (error3) {
+        requestFailure = error3;
+        throw error3;
+      }
+    };
   driver = new ModelAgentDriver(agent, ctx.harness, () => requestFailure, ctx.onObservation);
   return driver;
 }
@@ -253968,13 +254108,12 @@ var ModelAgentDriver = class {
   controlIds = /* @__PURE__ */ new Set();
   pendingControls = /* @__PURE__ */ new Map();
   promptRunning = false;
-  prefix;
+  promptCompleted = false;
   constructor(agent, harness, requestFailure, onObservation) {
     this.agent = agent;
     this.harness = harness;
     this.requestFailure = requestFailure;
     this.onObservation = onObservation;
-    this.prefix = agent.state.messages[0];
     agent.subscribe((event) => {
       if (event.type !== "message_end" || event.message.role !== "user")
         return;
@@ -253987,12 +254126,14 @@ var ModelAgentDriver = class {
   }
   async prompt(input) {
     this.promptRunning = true;
+    this.promptCompleted = false;
     this.acceptingControls = true;
     try {
       if (this.harness?.beforePrompt)
         await this.harness.beforePrompt();
       await this.agent.prompt(input);
       await this.agent.waitForIdle();
+      this.promptCompleted = true;
     } finally {
       this.acceptingControls = false;
       this.promptRunning = false;
@@ -254005,9 +254146,17 @@ var ModelAgentDriver = class {
       throw failure3;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
+    if (!this.promptCompleted || !this.harness?.onPromptCompleted)
+      return;
+    const messages = this.messages();
+    const lastAssistant = [...messages].reverse().find((message2) => message2.role === "assistant");
+    if (!extractAgentError(messages) && (lastAssistant?.stopReason === "stop" || lastAssistant?.stopReason === "length")) {
+      this.promptCompleted = false;
+      this.harness.onPromptCompleted();
+    }
   }
   messages() {
-    return withoutAdapterPrefix(this.agent.state.messages, this.prefix);
+    return adapterHistories.get(this.agent)();
   }
   status() {
     return {
@@ -254619,10 +254768,10 @@ function isStrictChild2(parent, candidate) {
   return relative3.length > 0 && !relative3.startsWith("..") && !path38.isAbsolute(relative3);
 }
 async function hashFile2(filePath) {
-  const hash = createHash15("sha256");
+  const hash2 = createHash15("sha256");
   for await (const chunk of createReadStream4(filePath))
-    hash.update(chunk);
-  return hash.digest("hex");
+    hash2.update(chunk);
+  return hash2.digest("hex");
 }
 
 // packages/coremind-runtime/dist/context-task-state.js
@@ -255273,7 +255422,7 @@ function parseDelegationLimits(value) {
     throw new CoreMindError("child_run_policy_escalation", "delegate.limits \u5FC5\u987B\u662F\u5BF9\u8C61");
   }
   const record2 = value;
-  const keys = [
+  const keys2 = [
     "tokens",
     "toolCalls",
     "costUsd",
@@ -255283,12 +255432,12 @@ function parseDelegationLimits(value) {
     "maxDepth",
     "maxActiveChildren"
   ];
-  const extra = Object.keys(record2).filter((key) => !keys.includes(key));
+  const extra = Object.keys(record2).filter((key) => !keys2.includes(key));
   if (extra.length > 0) {
     throw new CoreMindError("child_run_policy_escalation", `delegate.limits \u4E0D\u63A5\u53D7\u5B57\u6BB5\uFF1A${extra.join("\u3001")}`);
   }
   const limits = {};
-  for (const key of keys) {
+  for (const key of keys2) {
     const item = record2[key];
     if (item === void 0)
       continue;
@@ -257947,30 +258096,30 @@ function getPersistedSnapshot(snapshot, options) {
   return persisted;
 }
 function persistContext(contextPart) {
-  let copy;
+  let copy2;
   for (const key in contextPart) {
     const value = contextPart[key];
     if (value && typeof value === "object") {
       if ("sessionId" in value && "send" in value && "ref" in value) {
-        copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+        copy2 ??= Array.isArray(contextPart) ? contextPart.slice() : {
           ...contextPart
         };
-        copy[key] = {
+        copy2[key] = {
           xstate$$type: $$ACTOR_TYPE,
           id: value.id
         };
       } else {
         const result = persistContext(value);
         if (result !== value) {
-          copy ??= Array.isArray(contextPart) ? contextPart.slice() : {
+          copy2 ??= Array.isArray(contextPart) ? contextPart.slice() : {
             ...contextPart
           };
-          copy[key] = result;
+          copy2[key] = result;
         }
       }
     }
   }
-  return copy ?? contextPart;
+  return copy2 ?? contextPart;
 }
 function resolveRaise(_2, snapshot, args, actionParams, {
   event: eventOrExpr,
@@ -258121,13 +258270,13 @@ function assign(assignment) {
 
 // node_modules/xstate/dist/StateMachine-5f345bba.esm.js
 var cache2 = /* @__PURE__ */ new WeakMap();
-function memo3(object3, key, fn) {
-  let memoizedData = cache2.get(object3);
+function memo3(object4, key, fn) {
+  let memoizedData = cache2.get(object4);
   if (!memoizedData) {
     memoizedData = {
       [key]: fn()
     };
-    cache2.set(object3, memoizedData);
+    cache2.set(object4, memoizedData);
   } else if (!(key in memoizedData)) {
     memoizedData[key] = fn();
   }
@@ -258352,8 +258501,8 @@ ${err2.message}`);
    * Excludes any inert events.
    */
   get ownEvents() {
-    const keys = Object.keys(Object.fromEntries(this.transitions));
-    const events = new Set(keys.filter((descriptor) => {
+    const keys2 = Object.keys(Object.fromEntries(this.transitions));
+    const events = new Set(keys2.filter((descriptor) => {
       return this.transitions.get(descriptor).some((transition) => !(!transition.target && !transition.actions.length && !transition.reenter));
     }));
     return Array.from(events);
@@ -259909,7 +260058,8 @@ function createMcpRun(options) {
                   signal,
                   protocolVersion: server.protocolVersion ?? "legacy",
                   sensitiveValues,
-                  artifactStore: options.artifactStore
+                  artifactStore: options.artifactStore,
+                  onToolsChanged: () => request.onToolsChanged?.(identity3.sha256)
                 });
               } else if (server.transport === "streamable-http" && "url" in target) {
                 if (server.oauth && !options.mcpAuthentication)
@@ -259927,7 +260077,8 @@ function createMcpRun(options) {
                   signal,
                   protocolVersion: server.protocolVersion ?? "legacy",
                   sensitiveValues,
-                  artifactStore: options.artifactStore
+                  artifactStore: options.artifactStore,
+                  onToolsChanged: () => request.onToolsChanged?.(identity3.sha256)
                 });
               } else
                 throw new CoreMindError("invalid_tool", "MCP \u670D\u52A1\u7C7B\u578B\u4E0E\u8EAB\u4EFD\u4E0D\u4E00\u81F4");
@@ -260012,6 +260163,7 @@ function createMcpRun(options) {
           prepared.push({
             authorization,
             approvalDescription,
+            ...selection.exposure ? { exposure: selection.exposure } : {},
             definition: {
               name,
               description: `${listed2.description || listed2.name}\uFF08\u672C\u5730\u670D\u52A1 ${serverName} / ${listed2.name}\uFF09`,
@@ -260169,10 +260321,10 @@ async function identifyServer(serverName, server) {
   return { target, sha256: fingerprintEffectReceiptValue(target) };
 }
 async function hashFile3(file) {
-  const hash = createHash20("sha256");
+  const hash2 = createHash20("sha256");
   for await (const chunk of createReadStream5(file))
-    hash.update(chunk);
-  return hash.digest("hex");
+    hash2.update(chunk);
+  return hash2.digest("hex");
 }
 async function resolveEnvironment(server, options) {
   const env2 = /* @__PURE__ */ Object.create(null);
@@ -263506,31 +263658,31 @@ function restoreSkillSnapshot(records, agents) {
     return void 0;
   }
   const snapshot = start.payload.skillSnapshot;
-  const invalid3 = () => new CoreMindError("context_capability_conflict", "\u539F\u6280\u80FD\u5FEB\u7167\u635F\u574F\u6216\u9009\u62E9\u4E0D\u5339\u914D");
+  const invalid4 = () => new CoreMindError("context_capability_conflict", "\u539F\u6280\u80FD\u5FEB\u7167\u635F\u574F\u6216\u9009\u62E9\u4E0D\u5339\u914D");
   assertSkillSnapshotSize(snapshot);
   if (!isObject8(snapshot) || snapshot.version !== 1 || !isObject8(snapshot.agents))
-    throw invalid3();
+    throw invalid4();
   if (Object.keys(snapshot.agents).length !== Object.keys(agents).length)
-    throw invalid3();
+    throw invalid4();
   for (const [agent, config2] of Object.entries(agents)) {
     if (!Object.hasOwn(snapshot.agents, agent))
-      throw invalid3();
+      throw invalid4();
     const selection = snapshot.agents[agent];
     if (!isObject8(selection) || !Array.isArray(selection.legacyContents) || !selection.legacyContents.every((content) => typeof content === "string") || !Array.isArray(selection.standard))
-      throw invalid3();
+      throw invalid4();
     const seen = /* @__PURE__ */ new Set();
     for (const skill of selection.standard) {
       if (!isObject8(skill) || typeof skill.id !== "string" || !(config2.skills ?? []).includes(skill.id) || findSkill(skill.id) !== void 0 || seen.has(skill.id) || typeof skill.name !== "string" || !skill.name.trim() || typeof skill.description !== "string" || !skill.description.trim() || typeof skill.body !== "string" || typeof skill.bodySha256 !== "string" || createHash24("sha256").update(skill.body, "utf8").digest("hex") !== skill.bodySha256)
-        throw invalid3();
+        throw invalid4();
       seen.add(skill.id);
     }
   }
   const { sha256: sha2562, ...value } = snapshot;
   if (sha2562 !== fingerprintEffectReceiptValue(value))
-    throw invalid3();
+    throw invalid4();
   const frozen = snapshot;
   if (!Object.values(frozen.agents).some((selection) => selection.standard.length > 0))
-    throw invalid3();
+    throw invalid4();
   return structuredClone(frozen);
 }
 function skillPrefixContents(selection) {
@@ -263651,6 +263803,442 @@ function isObject8(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+// packages/coremind-runtime/dist/tool-discovery.js
+import { randomUUID as randomUUID21 } from "node:crypto";
+var DISCOVER_TOOLS_NAME = "discover_tools";
+var MAX_ENTRIES = 256;
+var MAX_SCHEMA_BYTES = 8 * 1024 * 1024;
+var MAX_RESULT_BYTES2 = 16 * 1024;
+var restoredStates = /* @__PURE__ */ new WeakSet();
+var ToolDiscoveryExecution = class {
+  catalog;
+  selection;
+  catalogPublished = false;
+  revision = 0;
+  withdrawn = /* @__PURE__ */ new Set();
+  entries = /* @__PURE__ */ new Map();
+  fingerprints = /* @__PURE__ */ new Map();
+  byFingerprint = /* @__PURE__ */ new Map();
+  candidates = /* @__PURE__ */ new Map();
+  successes = /* @__PURE__ */ new Map();
+  plans = /* @__PURE__ */ new WeakMap();
+  restoredSearches = [];
+  pending;
+  constructor(input) {
+    this.catalog = catalogOf(input.owner, input.entries);
+    for (const entry of this.catalog.entries) {
+      const fingerprint4 = entryFingerprint(entry);
+      this.entries.set(entry.name, entry);
+      this.fingerprints.set(entry.name, fingerprint4);
+      this.byFingerprint.set(fingerprint4, entry);
+    }
+    if (input.restored) {
+      if (!restoredStates.has(input.restored))
+        throw corrupt();
+      if (input.restored.catalog.fingerprint !== this.catalog.fingerprint)
+        throw changed();
+      this.catalogPublished = true;
+      this.selection = input.restored.selections.at(-1);
+      this.restoredSearches = input.restored.searches;
+      for (const source of this.selection?.withdrawnSources ?? [])
+        this.withdrawn.add(source);
+      for (const fact of input.restored.searches)
+        this.successes.set(fact.callId, fact);
+    }
+  }
+  get current() {
+    return this.selection;
+  }
+  search(callId, args, signal) {
+    if (signal?.aborted)
+      throw new CoreMindError("aborted", "\u5DE5\u5177\u53D1\u73B0\u5DF2\u53D6\u6D88");
+    if (!nonempty(callId) || !object3(args) || Object.keys(args).some((key) => key !== "query" && key !== "limit") || typeof args.query !== "string" || !args.query.trim() || [...args.query].length > 256)
+      throw invalid3();
+    const limit3 = args.limit === void 0 ? 5 : args.limit;
+    if (!Number.isInteger(limit3) || limit3 < 1 || limit3 > 8)
+      throw invalid3();
+    const argsFingerprint = fingerprintEffectReceiptValue(args);
+    const previous = this.candidates.get(callId);
+    if (previous) {
+      if (previous.argsFingerprint !== argsFingerprint)
+        throw changed();
+      return previous.result;
+    }
+    const query = normalize2(args.query.trim());
+    const terms = tokenize5(query);
+    const declared = new Set(this.selection?.names ?? []);
+    const ranked = this.catalog.entries.filter((entry) => entry.exposure === "deferred" && !declared.has(entry.name) && !this.withdrawn.has(entry.sourceIdentity)).map((entry) => ({ entry, score: score(entry, query, terms) })).filter((match3) => match3.score > 0).sort((left, right) => right.score - left.score || compare2(left.entry.name, right.entry.name));
+    const matches2 = [];
+    for (const { entry } of ranked.slice(0, limit3)) {
+      const characters = [...entry.description];
+      const match3 = {
+        name: entry.name,
+        description: characters.length > 1024 ? characters.slice(0, 1024).join("") + "\u2026" : entry.description,
+        entryFingerprint: this.fingerprints.get(entry.name)
+      };
+      const next = render([...matches2, match3], ranked.length > matches2.length + 1);
+      if (Buffer.byteLength(JSON.stringify(next), "utf8") > MAX_RESULT_BYTES2)
+        break;
+      matches2.push(match3);
+    }
+    const result = freeze(render(matches2, ranked.length > matches2.length));
+    const fact = freeze({
+      version: 1,
+      owner: this.catalog.owner,
+      callId,
+      catalogFingerprint: this.catalog.fingerprint,
+      queryFingerprint: fingerprintEffectReceiptValue({ query, limit: limit3 }),
+      entries: matches2.map((match3) => match3.entryFingerprint)
+    });
+    this.candidates.set(callId, { argsFingerprint, result, fact });
+    return result;
+  }
+  observe(observation) {
+    if (observation.type !== "tool_execution_end")
+      return void 0;
+    const candidate = this.candidates.get(observation.call.callId);
+    this.candidates.delete(observation.call.callId);
+    if (!candidate || observation.isError || observation.call.tool !== DISCOVER_TOOLS_NAME || !object3(observation.call.args))
+      return void 0;
+    try {
+      if (fingerprintEffectReceiptValue(observation.call.args) !== candidate.argsFingerprint || fingerprintEffectReceiptValue(observation.result) !== fingerprintEffectReceiptValue(candidate.result))
+        return void 0;
+    } catch {
+      return void 0;
+    }
+    this.successes.set(candidate.fact.callId, candidate.fact);
+    return candidate.fact;
+  }
+  prepare(durableSearches) {
+    const names2 = new Set(this.selection?.names ?? this.catalog.entries.filter((entry) => entry.exposure === "direct").map((entry) => entry.name));
+    for (const fact of [...this.restoredSearches, ...durableSearches]) {
+      const known = this.successes.get(fact.callId);
+      if (!known || fingerprintEffectReceiptValue(known) !== fingerprintEffectReceiptValue(fact))
+        throw corrupt();
+      for (const fingerprint4 of fact.entries)
+        names2.add(this.byFingerprint.get(fingerprint4).name);
+    }
+    const selected = this.catalog.entries.filter((entry) => names2.has(entry.name) && !this.withdrawn.has(entry.sourceIdentity)).map((entry) => entry.name);
+    const withdrawnSources = [...this.withdrawn].sort(compare2);
+    if (this.selection && equal(this.selection.names, selected) && equal(this.selection.withdrawnSources, withdrawnSources))
+      return void 0;
+    const value = {
+      version: 1,
+      owner: this.catalog.owner,
+      catalogFingerprint: this.catalog.fingerprint,
+      generation: this.selection ? this.selection.generation + 1 : 0,
+      ...this.selection ? { previousFingerprint: this.selection.fingerprint } : {},
+      names: selected,
+      withdrawnSources
+    };
+    const selection = freeze({ ...value, fingerprint: fingerprintEffectReceiptValue(value) });
+    if (this.pending?.selection.fingerprint === selection.fingerprint && this.plans.get(this.pending) === this.revision)
+      return this.pending;
+    const prepared = freeze({
+      eventId: randomUUID21(),
+      ...!this.catalogPublished ? { catalog: this.catalog } : {},
+      selection
+    });
+    this.plans.set(prepared, this.revision);
+    this.pending = prepared;
+    return prepared;
+  }
+  commit(prepared, receipt) {
+    if (this.plans.get(prepared) !== this.revision || prepared !== this.pending || prepared.selection.generation !== (this.selection ? this.selection.generation + 1 : 0) || prepared.selection.previousFingerprint !== this.selection?.fingerprint)
+      throw changed();
+    if (receipt.runId !== this.catalog.owner.runId || receipt.eventId !== prepared.eventId || receipt.kind !== "event" || receipt.durability !== "critical" || receipt.acknowledgement.requested !== "critical" || receipt.acknowledgement.achieved !== "critical")
+      throw changed();
+    this.selection = prepared.selection;
+    this.catalogPublished = true;
+    this.plans.delete(prepared);
+    this.pending = void 0;
+  }
+  withdraw(sourceIdentity) {
+    if (this.withdrawn.has(sourceIdentity) || !this.catalog.entries.some((entry) => entry.sourceIdentity === sourceIdentity))
+      return;
+    this.withdrawn.add(sourceIdentity);
+    this.revision++;
+  }
+  assertCallable(name, expected) {
+    const entry = this.entries.get(name);
+    if (expected && (!sameOwner2(expected.owner, this.catalog.owner) || expected.name !== name || expected.entryFingerprint !== this.fingerprints.get(name) || expected.sourceIdentity !== entry?.sourceIdentity || expected.sourceEpoch !== (entry && this.withdrawn.has(entry.sourceIdentity) ? 1 : 0)))
+      throw changed();
+    if (!entry || this.withdrawn.has(entry.sourceIdentity) || !this.selection?.names.includes(name)) {
+      if (expected)
+        throw changed();
+      throw invalid3();
+    }
+    return freeze({
+      owner: this.catalog.owner,
+      name,
+      entryFingerprint: this.fingerprints.get(name),
+      sourceIdentity: entry.sourceIdentity,
+      sourceEpoch: 0
+    });
+  }
+};
+function restoreToolDiscovery(records, owner) {
+  validateOwner(owner);
+  let catalog;
+  const selections = [];
+  const searches = [];
+  const byFingerprint = /* @__PURE__ */ new Map();
+  const knownSearches = /* @__PURE__ */ new Map();
+  for (const record2 of records) {
+    if (record2.runId !== owner.runId || record2.kind !== "event" || !object3(record2.payload))
+      continue;
+    const payload = record2.payload;
+    if (owned(payload.toolDiscoveryCatalog, owner)) {
+      if (catalog)
+        throw corrupt();
+      const value = payload.toolDiscoveryCatalog;
+      if (!object3(value) || !keys(value, ["version", "owner", "entries", "fingerprint"]) || value.version !== 1 || !Array.isArray(value.entries))
+        throw corrupt();
+      try {
+        catalog = catalogOf(owner, value.entries);
+      } catch {
+        throw corrupt();
+      }
+      if (catalog.fingerprint !== value.fingerprint)
+        throw corrupt();
+      for (const entry of catalog.entries)
+        byFingerprint.set(entryFingerprint(entry), entry);
+    }
+    if (owned(payload.toolDiscoverySearch, owner)) {
+      const value = payload.toolDiscoverySearch;
+      if (!catalog || !object3(value) || !keys(value, [
+        "version",
+        "owner",
+        "callId",
+        "catalogFingerprint",
+        "queryFingerprint",
+        "entries"
+      ]) || value.version !== 1 || !nonempty(value.callId) || value.catalogFingerprint !== catalog.fingerprint || !hash(value.queryFingerprint) || !Array.isArray(value.entries) || value.entries.length > 8 || new Set(value.entries).size !== value.entries.length || value.entries.some((entry) => typeof entry !== "string" || byFingerprint.get(entry)?.exposure !== "deferred"))
+        throw corrupt();
+      const event = payload.event;
+      if (!object3(event) || event.type !== "tool_result" || event.agent !== owner.agent || event.stepId !== owner.stepId || event.callId !== value.callId || event.tool !== DISCOVER_TOOLS_NAME || event.isError !== false)
+        throw corrupt();
+      if (knownSearches.has(value.callId))
+        throw corrupt();
+      const fact = freeze(copy(value));
+      knownSearches.set(fact.callId, fact);
+      searches.push(fact);
+    }
+    if (owned(payload.toolDiscoverySelection, owner)) {
+      if (!catalog)
+        throw corrupt();
+      const value = payload.toolDiscoverySelection;
+      const previous = selections.at(-1);
+      if (!object3(value) || !keys(value, [
+        "version",
+        "owner",
+        "catalogFingerprint",
+        "generation",
+        "previousFingerprint",
+        "names",
+        "withdrawnSources",
+        "fingerprint"
+      ]) || value.version !== 1 || value.catalogFingerprint !== catalog.fingerprint || value.generation !== selections.length || value.previousFingerprint !== previous?.fingerprint || !strings(value.names) || !strings(value.withdrawnSources) || new Set(value.names).size !== value.names.length || new Set(value.withdrawnSources).size !== value.withdrawnSources.length)
+        throw corrupt();
+      const names2 = value.names;
+      const withdrawnSources = value.withdrawnSources;
+      const sources = new Set(catalog.entries.map((entry) => entry.sourceIdentity));
+      if (withdrawnSources.some((source) => !sources.has(source)) || !equal(withdrawnSources, [...withdrawnSources].sort(compare2)) || previous?.withdrawnSources.some((source) => !withdrawnSources.includes(source)))
+        throw corrupt();
+      const allowed = new Set(previous?.names ?? catalog.entries.filter((entry) => entry.exposure === "direct").map((entry) => entry.name));
+      for (const fact of searches)
+        for (const fingerprint5 of fact.entries)
+          allowed.add(byFingerprint.get(fingerprint5).name);
+      const expected = catalog.entries.filter((entry) => allowed.has(entry.name) && !withdrawnSources.includes(entry.sourceIdentity)).map((entry) => entry.name);
+      const { fingerprint: fingerprint4, ...body } = value;
+      if (!equal(names2, expected) || fingerprint4 !== fingerprintEffectReceiptValue(body))
+        throw corrupt();
+      selections.push(freeze(copy(value)));
+    }
+  }
+  if (!catalog)
+    return void 0;
+  const restored = freeze({ catalog, selections, searches });
+  restoredStates.add(restored);
+  return restored;
+}
+function restoreToolDiscoveryContinuations(records, runId) {
+  const last = records.at(-1);
+  if (last?.kind !== "pause" || !object3(last.payload))
+    return [];
+  const value = last.payload.toolDiscoveryContinuations;
+  if (value === void 0)
+    return [];
+  if (last.runId !== runId || !object3(value) || !keys(value, ["version", "owners"]) || value.version !== 1 || !Array.isArray(value.owners))
+    throw corrupt();
+  const scopes = /* @__PURE__ */ new Set();
+  const executions = /* @__PURE__ */ new Set();
+  const owners = [];
+  for (const candidate of value.owners) {
+    validateOwner(candidate);
+    const owner = candidate;
+    const scope = JSON.stringify([owner.agent, owner.stepId]);
+    if (owner.runId !== runId || scopes.has(scope) || executions.has(owner.executionId))
+      throw corrupt();
+    scopes.add(scope);
+    executions.add(owner.executionId);
+    const restored = restoreToolDiscovery(records, owner);
+    if (!restored?.selections.length)
+      throw corrupt();
+    owners.push(owner);
+  }
+  return freeze(copy(owners));
+}
+function invalid3() {
+  return new CoreMindError("invalid_tool", "\u5DE5\u5177\u4E0D\u5728\u5F53\u524D\u58F0\u660E\u96C6\u5408");
+}
+function changed() {
+  return new CoreMindError("tool_capability_conflict", "\u5DE5\u5177\u76EE\u5F55\u6216\u58F0\u660E\u8EAB\u4EFD\u5DF2\u53D8\u5316");
+}
+function corrupt() {
+  return new CoreMindError("run_state_corrupt", "\u5DE5\u5177\u53D1\u73B0\u4E8B\u5B9E\u7F3A\u5931\u3001\u635F\u574F\u6216\u8EAB\u4EFD\u4E0D\u5339\u914D");
+}
+function catalogOf(owner, entries) {
+  validateOwner(owner);
+  if (!Array.isArray(entries) || entries.length > MAX_ENTRIES)
+    throw invalid3();
+  const names2 = /* @__PURE__ */ new Set();
+  let bytes = 0;
+  for (const entry of entries) {
+    if (!object3(entry) || !keys(entry, [
+      "name",
+      "description",
+      "exposure",
+      "sourceIdentity",
+      "declaration",
+      "effect",
+      "capability"
+    ]) || !nonempty(entry.name) || entry.name === DISCOVER_TOOLS_NAME || names2.has(entry.name) || typeof entry.description !== "string" || entry.exposure !== "direct" && entry.exposure !== "deferred" || !nonempty(entry.sourceIdentity) || !object3(entry.declaration) || entry.declaration.name !== entry.name || entry.declaration.description !== entry.description || !object3(entry.declaration.parameters) || !object3(entry.effect) || !object3(entry.capability))
+      throw invalid3();
+    names2.add(entry.name);
+    try {
+      bytes += Buffer.byteLength(JSON.stringify(entry.declaration), "utf8");
+    } catch {
+      throw invalid3();
+    }
+    if (bytes > MAX_SCHEMA_BYTES)
+      throw invalid3();
+  }
+  const value = { version: 1, owner: copy(owner), entries: copy(entries) };
+  return freeze({ ...value, fingerprint: fingerprintEffectReceiptValue(value) });
+}
+function entryFingerprint(entry) {
+  return fingerprintEffectReceiptValue({
+    sourceIdentity: entry.sourceIdentity,
+    name: entry.name,
+    declaration: entry.declaration,
+    effect: entry.effect,
+    capability: entry.capability
+  });
+}
+function render(matches2, truncated) {
+  const details = { matches: matches2, truncated };
+  return { content: [{ type: "text", text: JSON.stringify(details) }], details };
+}
+function normalize2(value) {
+  return value.normalize("NFKC").toLowerCase();
+}
+function tokenize5(value) {
+  const terms = /* @__PURE__ */ new Set();
+  for (const part of value.match(/[\p{Script=Han}]+|[a-z0-9]+/gu) ?? []) {
+    if (new RegExp("^\\p{Script=Han}", "u").test(part)) {
+      const characters = [...part];
+      if (characters.length === 1)
+        terms.add(part);
+      else
+        for (let index3 = 0; index3 < characters.length - 1; index3++)
+          terms.add(characters[index3] + characters[index3 + 1]);
+    } else
+      terms.add(part);
+  }
+  return [...terms];
+}
+function score(entry, query, terms) {
+  const name = normalize2(entry.name);
+  const description = normalize2(entry.description);
+  return (name === query ? 1e6 : 0) + (name.startsWith(query) ? 1e5 : 0) + (name.includes(query) ? 1e4 : 0) + terms.reduce((total, term) => total + (name.includes(term) ? 100 : 0) + (description.includes(term) ? 1 : 0), 0) + (description.includes(query) ? 10 : 0);
+}
+function compare2(left, right) {
+  const a2 = [...left];
+  const b2 = [...right];
+  for (let index3 = 0; index3 < Math.min(a2.length, b2.length); index3++) {
+    const difference = a2[index3].codePointAt(0) - b2[index3].codePointAt(0);
+    if (difference)
+      return difference;
+  }
+  return a2.length - b2.length;
+}
+function validateOwner(owner) {
+  if (!object3(owner) || !nonempty(owner.runId) || !nonempty(owner.agent) || !nonempty(owner.executionId) || owner.stepId !== void 0 && !nonempty(owner.stepId) || Object.keys(owner).some((key) => !["runId", "agent", "stepId", "executionId"].includes(key)))
+    throw corrupt();
+}
+function owned(value, owner) {
+  if (value === void 0)
+    return false;
+  if (!object3(value) || !object3(value.owner))
+    throw corrupt();
+  validateOwner(value.owner);
+  return sameOwner2(value.owner, owner);
+}
+function sameOwner2(left, right) {
+  return left.runId === right.runId && left.agent === right.agent && left.stepId === right.stepId && left.executionId === right.executionId;
+}
+function equal(left, right) {
+  return fingerprintEffectReceiptValue(left) === fingerprintEffectReceiptValue(right);
+}
+function object3(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function keys(value, allowed) {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
+function nonempty(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+function strings(value) {
+  return Array.isArray(value) && value.every(nonempty);
+}
+function hash(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+function copy(value) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    throw invalid3();
+  }
+}
+function freeze(value, depth = 0) {
+  if (depth > 64)
+    throw invalid3();
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value))
+      freeze(child, depth + 1);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+// packages/coremind-runtime/dist/tool-discovery-declaration.js
+var TOOL_DISCOVERY_DECLARATION = Object.freeze({
+  name: "discover_tools",
+  description: "\u6309\u4E2D\u82F1\u6587\u5173\u952E\u8BCD\u67E5\u627E\u672C Agent \u5DF2\u6388\u6743\u4E14\u5C1A\u672A\u58F0\u660E\u7684\u5DE5\u5177\uFF1B\u547D\u4E2D\u9879\u5728\u4E0B\u4E00\u8BF7\u6C42\u524D\u5B89\u88C5\uFF0C\u4F7F\u7528\u65F6\u4ECD\u987B\u5BA1\u6279\u3002",
+  parameters: {
+    type: "object",
+    properties: {
+      query: { type: "string", minLength: 1, maxLength: 256 },
+      limit: { type: "integer", minimum: 1, maximum: 8 }
+    },
+    required: ["query"],
+    additionalProperties: false
+  }
+});
+
 // packages/coremind-runtime/dist/tool-policy.js
 import { realpath as realpath11 } from "node:fs/promises";
 import path42 from "node:path";
@@ -263668,23 +264256,44 @@ var ToolPolicy = class {
       deny: options.permissions?.deny ?? []
     };
   }
-  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint) {
-    if (matchesAny(tool, this.permissions.deny)) {
-      return { allowed: false, reason: `\u5DE5\u5177 ${tool} \u5728 permissions.deny \u4E2D` };
-    }
-    const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
+  /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
+  allowsDeclaration(tool, capability) {
+    return this.staticDenial(tool, capability) === void 0;
+  }
+  hasRestrictedChildPaths() {
+    return this.options.allowedPaths !== void 0 && !this.options.allowedPaths.some((allowedPath) => path42.resolve(this.options.cwd, allowedPath) === path42.resolve(this.options.cwd));
+  }
+  staticDenial(tool, capability) {
+    if (matchesAny(tool, this.permissions.deny))
+      return `\u5DE5\u5177 ${tool} \u5728 permissions.deny \u4E2D`;
     if (capability.resolution === "fallback") {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\u6216\u5B8C\u6574 Capability\uFF0C\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF1A${capability.issues.join("\u3001")}`
-      };
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\u6216\u5B8C\u6574 Capability\uFF0C\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF1A${capability.issues.join("\u3001")}`;
     }
     if (capability.effect === "unknown" && capability.checkpoint === "unsupported") {
-      return {
-        allowed: false,
-        reason: `\u5DE5\u5177 ${tool} \u7684 Effect \u672A\u77E5\u4E14\u65E0\u6CD5\u5EFA\u7ACB\u5FC5\u8981 Checkpoint\uFF0C\u5DF2\u5728\u6267\u884C\u524D\u963B\u65AD`
-      };
+      return `\u5DE5\u5177 ${tool} \u7684 Effect \u672A\u77E5\u4E14\u65E0\u6CD5\u5EFA\u7ACB\u5FC5\u8981 Checkpoint\uFF0C\u5DF2\u5728\u6267\u884C\u524D\u963B\u65AD`;
     }
+    if (this.hasRestrictedChildPaths() && ["process", "external", "unknown"].includes(capability.effect)) {
+      return `\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u9A8C\u8BC1\u7684 Child Run allowlist \u5185\u76EE\u6807\u8DEF\u5F84`;
+    }
+    if (tool === "bash" && (this.options.platform ?? process.platform) === "win32" && (this.permissions.mode !== "full" || this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return "Windows \u4E3B\u673A Shell \u65E0\u6CD5\u8BC1\u660E\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F\uFF0C\u5DF2\u62D2\u7EDD\uFF1B\u8BF7\u6539\u7528\u6587\u4EF6\u5DE5\u5177\uFF0C\u6216\u5728 WSL2 \u4E2D\u8FD0\u884C CoreMind";
+    }
+    if (capability.effect === "unknown" && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`;
+    }
+    if (capability.source !== "builtin" && ["process", "external", "unknown"].includes(capability.effect) && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
+      return `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u7684 process/external \u526F\u4F5C\u7528\u65E0\u6CD5\u8BC1\u660E\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`;
+    }
+    if (["network", "external"].includes(capability.effect) && this.permissions.network === "deny") {
+      return `\u7F51\u7EDC\u7B56\u7565\u62D2\u7EDD\u5DE5\u5177 ${tool}`;
+    }
+    return void 0;
+  }
+  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint) {
+    const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
+    const staticDenial = this.staticDenial(tool, capability);
+    if (staticDenial)
+      return { allowed: false, reason: staticDenial };
     const effect = resolveToolEffect(args, capability, selectors ?? legacySelectors(capabilityOrDeclaration));
     try {
       const target = await resolveFileToolTarget(tool, args, this.options.cwd);
@@ -263702,23 +264311,10 @@ var ToolPolicy = class {
         effect.paths.push(".");
       }
     }
-    const hasRestrictedChildPathScope = this.options.allowedPaths !== void 0 && !this.options.allowedPaths.some((allowedPath) => path42.resolve(this.options.cwd, allowedPath) === path42.resolve(this.options.cwd));
-    if (hasRestrictedChildPathScope && (effect.operations.includes("process") || effect.operations.includes("external") || capability.effect === "workspace" && effect.paths.length === 0)) {
+    if (this.hasRestrictedChildPaths() && capability.effect === "workspace" && effect.paths.length === 0) {
       return {
         allowed: false,
         reason: `\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u9A8C\u8BC1\u7684 Child Run allowlist \u5185\u76EE\u6807\u8DEF\u5F84`
-      };
-    }
-    if (tool === "bash" && (this.options.platform ?? process.platform) === "win32" && (this.permissions.mode !== "full" || this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: "Windows \u4E3B\u673A Shell \u65E0\u6CD5\u8BC1\u660E\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F\uFF0C\u5DF2\u62D2\u7EDD\uFF1B\u8BF7\u6539\u7528\u6587\u4EF6\u5DE5\u5177\uFF0C\u6216\u5728 WSL2 \u4E2D\u8FD0\u884C CoreMind"
-      };
-    }
-    if (capability.effect === "unknown" && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u672A\u58F0\u660E\u526F\u4F5C\u7528\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`
       };
     }
     const customTool = capability.source !== "builtin";
@@ -263726,12 +264322,6 @@ var ToolPolicy = class {
       return {
         allowed: false,
         reason: `\u81EA\u5B9A\u4E49\u5199\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u68C0\u67E5\u7684\u76EE\u6807\u8DEF\u5F84\uFF0C\u65E0\u6CD5\u8BC1\u660E\u5176\u4EC5\u4FEE\u6539\u5DE5\u4F5C\u533A`
-      };
-    }
-    if (customTool && (effect.operations.includes("process") || effect.operations.includes("external")) && (this.permissions.workspaceOnly || this.permissions.network !== "allow")) {
-      return {
-        allowed: false,
-        reason: `\u81EA\u5B9A\u4E49\u5DE5\u5177 ${tool} \u7684 process/external \u526F\u4F5C\u7528\u65E0\u6CD5\u8BC1\u660E\u6EE1\u8DB3\u5DE5\u4F5C\u533A\u6216\u7F51\u7EDC\u7EA6\u675F`
       };
     }
     if (this.permissions.workspaceOnly) {
@@ -263958,7 +264548,7 @@ async function canonicalize4(input) {
 }
 
 // packages/coremind-runtime/dist/turn-tracker.js
-import { randomUUID as randomUUID21 } from "node:crypto";
+import { randomUUID as randomUUID22 } from "node:crypto";
 var TurnTracker = class _TurnTracker {
   /** 进行中的 Turn（流式期间） */
   currentTurnId;
@@ -263973,7 +264563,7 @@ var TurnTracker = class _TurnTracker {
       tracker = new _TurnTracker();
       this.scopes.set(key, tracker);
     }
-    const turnId = tracker.currentTurnId ?? randomUUID21();
+    const turnId = tracker.currentTurnId ?? randomUUID22();
     tracker.currentTurnId = turnId;
     tracker.openTurnId = turnId;
     return turnId;
@@ -263994,18 +264584,18 @@ var TurnTracker = class _TurnTracker {
   withLocalTurnId(event) {
     switch (event.type) {
       case "agent_start": {
-        const turnId = randomUUID21();
+        const turnId = randomUUID22();
         this.currentTurnId = turnId;
         this.openTurnId = turnId;
         return { ...event, turnId };
       }
       case "text_delta": {
         if (this.currentTurnId === void 0)
-          this.currentTurnId = randomUUID21();
+          this.currentTurnId = randomUUID22();
         return event;
       }
       case "turn_end": {
-        const turnId = this.currentTurnId ?? randomUUID21();
+        const turnId = this.currentTurnId ?? randomUUID22();
         this.openTurnId = turnId;
         this.currentTurnId = void 0;
         return { ...event, turnId };
@@ -264015,7 +264605,7 @@ var TurnTracker = class _TurnTracker {
       case "tool_lifecycle":
       case "effect_receipt": {
         if (this.openTurnId === void 0)
-          this.openTurnId = randomUUID21();
+          this.openTurnId = randomUUID22();
         return { ...event, turnId: this.openTurnId };
       }
       case "agent_end": {
@@ -264094,6 +264684,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
   /** 同一父子树复用一个 Lease 服务；跨进程一致性仍由 canonical lock file 提供。 */
   static async createWithWorkspaceLease(options, workspaceLeaseService, frozenSkills) {
     const { config: config2, configDir } = options;
+    if (config2.schemaVersion !== 3 && [config2.tools ?? [], ...Object.values(config2.agents).map((agent) => agent.tools ?? [])].some((tools) => tools.some((tool) => tool.exposure === "deferred"))) {
+      throw new CoreMindError("invalid_config", "deferred \u5FC5\u987B\u663E\u5F0F\u914D\u7F6E schemaVersion: 3");
+    }
     const cwd = options.cwd ?? process.cwd();
     const env2 = options.env ?? process.env;
     const requestedToolEnv = options.toolEnv ?? env2;
@@ -264220,23 +264813,32 @@ var CoreMindRuntime = class _CoreMindRuntime {
         });
       }
       skillsByAgent.set(name, allContents);
-      driverBuilders.set(name, ({ onEvent, harness, sessionMessages: sessionMessages2, skillTool, mcpTools }) => buildAgentDriver(agentCfg, {
-        models: providerRuntime.models,
-        model: agentModel,
-        tools: [...driverTools, ...mcpTools ?? [], ...skillTool ? [skillTool] : []],
-        agentName: name,
-        onEvent,
-        apiKeyOverride: providerRuntime.apiKeyOverride,
-        sessionMessages: sessionMessages2,
-        skillsContent: allContents,
-        stableFacts: {
-          provider: agentModel.provider,
-          model: agentModel.id,
-          contextWindow: agentModel.contextWindow
-        },
-        promptCacheStatus: agentModel.cost.cacheRead > 0 || agentModel.cost.cacheWrite > 0 ? "available" : "unavailable",
-        harness
-      }));
+      driverBuilders.set(name, ({ onEvent, harness, sessionMessages: sessionMessages2, skillTool, mcpTools, discoveryTool }) => {
+        for (const tool of driverTools)
+          harness?.registerToolSource?.(tool.name, configuredToolSource(tool));
+        return buildAgentDriver(agentCfg, {
+          models: providerRuntime.models,
+          model: agentModel,
+          tools: [
+            ...driverTools,
+            ...mcpTools ?? [],
+            ...skillTool ? [skillTool] : [],
+            ...discoveryTool ? [discoveryTool] : []
+          ],
+          agentName: name,
+          onEvent,
+          apiKeyOverride: providerRuntime.apiKeyOverride,
+          sessionMessages: sessionMessages2,
+          skillsContent: allContents,
+          stableFacts: {
+            provider: agentModel.provider,
+            model: agentModel.id,
+            contextWindow: agentModel.contextWindow
+          },
+          promptCacheStatus: agentModel.cost.cacheRead > 0 || agentModel.cost.cacheWrite > 0 ? "available" : "unavailable",
+          harness
+        });
+      });
     }
     let sessionMessages;
     let resumedContextLength = 0;
@@ -264267,7 +264869,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (!buildDriver)
       return void 0;
     const context = runContextFor(this);
-    const executionId = randomUUID22();
+    const executionId = randomUUID23();
     const turnTracker = new TurnTracker();
     const originalHarness = context.harnessFor(name, stepId, executionId);
     signal?.throwIfAborted();
@@ -264294,7 +264896,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
       sessionMessages: name === this.mainAgentName ? this.sessionMessages : void 0,
       harness,
       mcpTools,
-      skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool
+      skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
+      discoveryTool: originalHarness?.discoveryTool
     });
     context.registerAgent(name, agent, executionId);
     return agent;
@@ -264551,7 +265154,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       parentPolicy,
       delegationBudgetPools,
       delegationHierarchyLimits,
-      createChildRunId: () => randomUUID22(),
+      createChildRunId: () => randomUUID23(),
       adapter: createCoreMindChildRunAdapter({
         createRuntime: async (authority) => {
           const target = this.config.agents[authority.request.agentName];
@@ -264804,7 +265407,12 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throw new CoreMindError("tool_capability_conflict", `\u6062\u590D\u8C03\u7528 ${candidate.previousCallId} \u7684 Tool Capability \u5DF2\u6F02\u79FB\uFF0C\u4E0D\u80FD\u81EA\u52A8\u91CD\u653E`);
       }
     }
-    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID22();
+    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID23();
+    const admission = resumeRecords?.at(-1);
+    const discoveryResumeRecords = admission?.kind === "admission" && this.options.protocolStart?.method === "resume" && fingerprintEffectReceiptValue(admission.payload.protocolStart) === fingerprintEffectReceiptValue(this.options.protocolStart) ? resumeRecords.slice(0, -1) : resumeRecords ?? [];
+    const discoveryContinuations = restoreToolDiscoveryContinuations(discoveryResumeRecords, runId);
+    const consumedDiscoveryContinuations = /* @__PURE__ */ new Set();
+    const liveDiscoveryExecutions = /* @__PURE__ */ new Map();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords = !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
@@ -264814,8 +265422,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     context.attachJournal(journal);
     const operation = resumePlan && resumePlan.operationRecords.length > 0 ? restoreDurableOperation(resumePlan.operationRecords) : DurableOperation.create({
       runId,
-      operationId: randomUUID22(),
-      eventId: randomUUID22()
+      operationId: randomUUID23(),
+      eventId: randomUUID23()
     });
     const persistOperation = (event) => {
       const transition = operation.transition(event);
@@ -264860,15 +265468,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (operation.snapshot().state === "running") {
       persistOperation({
-        eventId: randomUUID22(),
+        eventId: randomUUID23(),
         type: "PAUSE",
         reason: "process_interrupted"
       });
     }
     if (operation.snapshot().state === "accepted") {
-      persistOperation({ eventId: randomUUID22(), type: "START" });
+      persistOperation({ eventId: randomUUID23(), type: "START" });
     } else if (operation.snapshot().state === "paused") {
-      persistOperation({ eventId: randomUUID22(), type: "RESUME" });
+      persistOperation({ eventId: randomUUID23(), type: "RESUME" });
     } else {
       throw new CoreMindError("operation_not_resumable", `\u64CD\u4F5C ${operation.snapshot().operationId} \u5904\u4E8E ${operation.snapshot().state}\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6267\u884C`);
     }
@@ -264883,22 +265491,38 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }) : void 0;
     const capabilityByCallId = /* @__PURE__ */ new Map();
     const skillLoadsByCall = /* @__PURE__ */ new Map();
+    const discoverySearchesByCall = /* @__PURE__ */ new Map();
+    const discoveryGenerations = /* @__PURE__ */ new Map();
     const trace = new TraceRecorder(runId, (entry) => {
       const toolResultCallId = entry.event.type === "tool_result" ? entry.event.callId : void 0;
       const pendingProtocolToolResult = toolResultCallId ? executionSlotFor(this).protocolToolResultFacts?.get(protocolToolResultKey(entry.runId, toolResultCallId)) : void 0;
       const skillCallKey = toolResultCallId && entry.event.type === "tool_result" ? toolCapabilityCallKey(entry.event.agent, entry.event.stepId, toolResultCallId) : void 0;
       const skillLoad = skillCallKey ? skillLoadsByCall.get(skillCallKey) : void 0;
+      const discoverySearch = skillCallKey ? discoverySearchesByCall.get(skillCallKey) : void 0;
+      const discoveryGeneration = entry.event.type === "context_prefix" && entry.event.toolDiscovery ? discoveryGenerations.get(entry.event.toolDiscovery.selectionFingerprint) : void 0;
       const payload = {
         ...entry,
         ...pendingProtocolToolResult ? { protocolToolResult: structuredClone(pendingProtocolToolResult.fact) } : {},
-        ...skillLoad ? { skillLoad } : {}
+        ...skillLoad ? { skillLoad } : {},
+        ...discoverySearch ? { toolDiscoverySearch: discoverySearch.fact } : {},
+        ...discoveryGeneration ? {
+          ...discoveryGeneration.prepared.catalog ? { toolDiscoveryCatalog: discoveryGeneration.prepared.catalog } : {},
+          toolDiscoverySelection: discoveryGeneration.prepared.selection
+        } : {}
       };
       if (skillCallKey)
         skillLoadsByCall.delete(skillCallKey);
       const persisted = journal.appendFact("event", payload, {
-        durability: skillLoad ? skillFactDurability : traceFactDurability(entry.event, capabilityByCallId),
+        durability: discoverySearch || discoveryGeneration ? "critical" : skillLoad ? skillFactDurability : traceFactDurability(entry.event, capabilityByCallId),
         eventId: entry.eventId
       });
+      if (discoveryGeneration)
+        discoveryGeneration.receipt = persisted;
+      if (discoverySearch) {
+        discoverySearchesByCall.delete(skillCallKey);
+        void persisted.then(() => discoverySearch.durable.push(discoverySearch.fact), () => {
+        });
+      }
       if (pendingProtocolToolResult) {
         pendingProtocolToolResult.appendStarted = true;
         void persisted.then(() => pendingProtocolToolResult.resolve(), (error3) => pendingProtocolToolResult.reject(error3)).finally(() => {
@@ -264923,6 +265547,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     let inputReceiptState = existingInputState ?? (inputId === void 0 ? void 0 : "pending");
     let onToolResultRecorded;
     const lifecycleFinalizers = /* @__PURE__ */ new Map();
+    const immediateDiscoveryRejections = /* @__PURE__ */ new Map();
     const mcpAuthorizations = /* @__PURE__ */ new Map();
     const bindMcpArguments = (agent, tool, args) => {
       const authorization = mcpAuthorizations.get(JSON.stringify([agent, tool]));
@@ -265051,7 +265676,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throw new CoreMindError("redaction_failed", "\u6B65\u9AA4\u8F93\u51FA\u5305\u542B\u51ED\u636E\uFF0C\u5DF2\u963B\u6B62\u6301\u4E45\u5316\u4E0E\u5019\u9009\u9A8C\u6536");
       }
       collected.push(enriched);
-      trace.record(enriched);
+      trace.record(enriched, enriched.type === "context_prefix" && enriched.toolDiscovery ? discoveryGenerations.get(enriched.toolDiscovery.selectionFingerprint)?.prepared.eventId : void 0);
       userEvents(enriched);
       if (enriched.type === "tool_result")
         onToolResultRecorded?.(enriched);
@@ -265132,12 +265757,13 @@ var CoreMindRuntime = class _CoreMindRuntime {
       const recorded = toolExecutionEngine.inspect({
         ...toolCallIdentity(event.agent, event.stepId, event.callId)
       });
-      if (!recorded || recorded.tool !== event.tool)
-        return;
       const identity3 = toolCallIdentity(event.agent, event.stepId, event.callId);
       const callKey = toolCapabilityCallKey(event.agent, event.stepId, event.callId);
+      if ((!recorded || recorded.tool !== event.tool) && !immediateDiscoveryRejections.has(callKey))
+        return;
       const finalizer2 = Promise.resolve().then(async () => {
         try {
+          await immediateDiscoveryRejections.get(callKey);
           await journal.flush();
           await toolExecutionEngine.finalizeResult(identity3);
           await releaseWorkspaceLease(identity3);
@@ -265307,7 +265933,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
-      createApprovalId: randomUUID22,
+      createApprovalId: randomUUID23,
       delegation: {
         isAssistedPreapproved: (agent, target) => this.agentConfigs.get(agent)?.delegation?.targets[target]?.preapproved === true
       },
@@ -265345,6 +265971,35 @@ var CoreMindRuntime = class _CoreMindRuntime {
       let pendingProviderCapabilityFingerprint;
       const executionEffects = new Map(this.toolEffectsByAgent.get(agentName));
       const executionCapabilities = new Map(this.toolCapabilitiesByAgent.get(agentName));
+      const effectiveTools = this.agentConfigs.get(agentName)?.tools?.length ? this.agentConfigs.get(agentName).tools : this.config.tools ?? [];
+      const discoveryEnabled = effectiveTools.some((tool) => tool.exposure === "deferred");
+      if (discoveryEnabled && !runStore.supportedDurability?.includes("critical")) {
+        throw new CoreMindError("durability_unsupported", "\u5DE5\u5177\u53D1\u73B0\u9700\u8981\u652F\u6301 critical \u786E\u8BA4\u7684 RunStore");
+      }
+      let discovery;
+      let initialDiscovery;
+      const durableSearches = [];
+      const discoveryBindings = /* @__PURE__ */ new Map();
+      const toolSources = /* @__PURE__ */ new Map();
+      const withdrawnSources = /* @__PURE__ */ new Set();
+      const adapterSelection = (selection) => Object.freeze({
+        names: [...selection.names, DISCOVER_TOOLS_NAME],
+        generation: selection.generation,
+        fingerprint: selection.fingerprint
+      });
+      const discoverySummary = (selection) => ({
+        version: 1,
+        catalogFingerprint: selection.catalogFingerprint,
+        generation: selection.generation,
+        selectionFingerprint: selection.fingerprint,
+        toolCount: selection.names.length + 1
+      });
+      const checkDiscoveryCall = (tool, callId) => {
+        if (!discovery || tool === DISCOVER_TOOLS_NAME)
+          return;
+        const binding = discovery.assertCallable(tool, discoveryBindings.get(callId));
+        discoveryBindings.set(callId, binding);
+      };
       const harness = {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(executionId, contract),
@@ -265355,6 +266010,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
           }
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
+          for (const name of discovery?.current?.names ?? [])
+            discovery.assertCallable(name);
           budget.beforeModelRequest();
         },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
@@ -265367,8 +266024,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
             type: "provider_request",
             agent: agentName,
             ...stepId ? { stepId } : {},
+            ...discovery?.current ? { toolDiscovery: discoverySummary(discovery.current) } : {},
             ...createProviderRequestReplayFact({
-              requestId: `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
+              requestId: discovery ? `${discovery.catalog.owner.executionId}:${providerRequestOrdinal}` : `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
               providerId,
               modelId,
               messages,
@@ -265382,7 +266040,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throwIfContextFailed,
         executeTool: async ({ call, invoke }) => {
           try {
-            return await toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, call.callId), invoke);
+            return await toolExecutionEngine.executeAdapter(toolCallIdentity(agentName, stepId, call.callId), () => {
+              checkDiscoveryCall(call.tool, call.callId);
+              return invoke();
+            });
           } catch (error3) {
             const normalized = normalizeExecutionError(error3);
             if (normalized.code !== "tool_execution_failed") {
@@ -265515,6 +266176,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
           };
           const lifecycleIdentity = toolCallIdentity(agentName, stepId, context2.toolCall.callId);
           const callKey = toolCapabilityCallKey(agentName, stepId, context2.toolCall.callId);
+          checkDiscoveryCall(context2.toolCall.tool, context2.toolCall.callId);
           const argumentsFingerprint = fingerprintEffectReceiptValue(context2.toolCall.args);
           const replayCandidateIndex = toolReplayCandidates.findIndex((candidate) => candidate.agent === agentName && candidate.stepId === stepId && candidate.tool === context2.toolCall.tool && candidate.argumentsFingerprint === argumentsFingerprint);
           if (replayCandidateIndex >= 0) {
@@ -265832,6 +266494,14 @@ var CoreMindRuntime = class _CoreMindRuntime {
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: checkpointFailure.message };
           }
+          try {
+            checkDiscoveryCall(context2.toolCall.tool, context2.toolCall.callId);
+          } catch (error3) {
+            capabilityFailure = normalizeExecutionError(error3);
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, capabilityFailure.message);
+            await rollbackWorkspaceLease(lifecycleIdentity);
+            return { block: true, reason: capabilityFailure.message };
+          }
           effectCoordinator.markStarted(stepId, context2.toolCall.callId, context2.toolCall.tool);
           if (resolvedCapability.durability === "critical") {
             try {
@@ -265959,6 +266629,35 @@ var CoreMindRuntime = class _CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          if (observation.type === "tool_execution_start" && discovery && observation.call.tool !== DISCOVER_TOOLS_NAME) {
+            try {
+              discovery.assertCallable(observation.call.tool);
+            } catch {
+              const call = observation.call;
+              const key = toolCapabilityCallKey(agentName, stepId, call.callId);
+              const capability = executionCapabilities.get(call.tool) ?? resolveToolCapability({ tool: call.tool });
+              const previous = capabilityByCallId.get(key);
+              if (previous && previous.tool !== call.tool) {
+                throw new CoreMindError("tool_capability_conflict", "\u540C\u4E00 Call \u4E0D\u5F97\u66F4\u6362\u5DE5\u5177\u8EAB\u4EFD");
+              }
+              capabilityByCallId.set(key, { tool: call.tool, capability });
+              emit2({
+                type: "capability_resolved",
+                agent: agentName,
+                tool: call.tool,
+                callId: call.callId,
+                ...stepId ? { stepId } : {},
+                capability,
+                recoveryDisposition: recoveryDispositionFor(capability)
+              });
+              const identity3 = toolCallIdentity(agentName, stepId, call.callId);
+              const rejection = toolExecutionEngine.recordCall({ ...identity3, tool: call.tool }).then(() => toolExecutionEngine.blockBeforeExecution(identity3, "\u5DE5\u5177\u4E0D\u5728\u5F53\u524D\u5DF2\u58F0\u660E\u96C6\u5408"));
+              immediateDiscoveryRejections.set(key, rejection);
+              void rejection.catch((error3) => {
+                lifecycleFailure = normalizeExecutionError(error3);
+              });
+            }
+          }
           if (observation.type === "control_consumed" || observation.type === "control_discarded") {
             const state3 = receiptStatusOf(collected, observation.inputId);
             if (observation.type === "control_consumed" && state3 === "pending" && !journal.isAborted()) {
@@ -265971,6 +266670,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
             return;
           }
           if (observation.type === "tool_execution_end") {
+            const search = discovery?.observe(observation);
+            if (search)
+              discoverySearchesByCall.set(toolCapabilityCallKey(agentName, stepId, observation.call.callId), { fact: search, durable: durableSearches });
             const fact = skillExecution?.observe(observation);
             if (fact)
               skillLoadsByCall.set(toolCapabilityCallKey(agentName, stepId, observation.call.callId), fact);
@@ -265983,6 +266685,107 @@ var CoreMindRuntime = class _CoreMindRuntime {
             driver?.abort();
         }
       };
+      if (discoveryEnabled) {
+        const capability = resolveToolCapability({
+          tool: DISCOVER_TOOLS_NAME,
+          source: "registered",
+          declaration: {
+            effect: "none",
+            replay: "safe",
+            concurrency: "parallel",
+            checkpoint: "none",
+            durability: "critical"
+          }
+        });
+        executionEffects.set(DISCOVER_TOOLS_NAME, { operations: ["read"], reversible: true });
+        executionCapabilities.set(DISCOVER_TOOLS_NAME, capability);
+        harness.discoveryTool = adaptCoreMindTool({
+          ...structuredClone(TOOL_DISCOVERY_DECLARATION),
+          effect: { operations: ["read"], reversible: true },
+          capability,
+          execute: async (args, call) => {
+            if (!discovery)
+              throw new CoreMindError("invalid_tool", "\u5DE5\u5177\u76EE\u5F55\u5C1A\u672A\u5C31\u7EEA");
+            const result = discovery.search(call.callId, args, call.signal);
+            return { text: result.content[0].text, details: result.details };
+          }
+        });
+        harness.registerToolSource = (name, source) => toolSources.set(name, {
+          exposure: source?.exposure ?? "direct",
+          sourceIdentity: fingerprintEffectReceiptValue(source ?? { source: "host", name })
+        });
+        harness.registerDeclarationCatalog = (entries) => {
+          const continuation = discoveryContinuations.find((owner2) => owner2.agent === agentName && owner2.stepId === stepId && !consumedDiscoveryContinuations.has(owner2.executionId));
+          if (continuation)
+            consumedDiscoveryContinuations.add(continuation.executionId);
+          const owner = continuation ?? {
+            runId,
+            agent: agentName,
+            executionId,
+            ...stepId ? { stepId } : {}
+          };
+          const catalog = entries.filter((entry) => entry.name !== DISCOVER_TOOLS_NAME).filter((entry) => policy2.allowsDeclaration(entry.name, executionCapabilities.get(entry.name) ?? resolveToolCapability({ tool: entry.name }))).map((entry) => ({
+            ...entry,
+            declaration: entry.declaration,
+            ...toolSources.get(entry.name) ?? {
+              exposure: "direct",
+              sourceIdentity: fingerprintEffectReceiptValue({ source: "host", name: entry.name })
+            },
+            effect: executionEffects.get(entry.name),
+            capability: executionCapabilities.get(entry.name)
+          }));
+          discovery = new ToolDiscoveryExecution({
+            owner,
+            entries: catalog,
+            restored: continuation ? restoreToolDiscovery(resumeRecords, owner) : void 0
+          });
+          for (const [id, previous] of liveDiscoveryExecutions) {
+            if (previous.catalog.owner.agent === agentName && previous.catalog.owner.stepId === stepId)
+              liveDiscoveryExecutions.delete(id);
+          }
+          liveDiscoveryExecutions.set(executionId, discovery);
+          providerRequestOrdinal = resumePlan?.previousTrace.filter((entry) => entry.event.type === "provider_request" && entry.event.toolDiscovery?.catalogFingerprint === discovery.catalog.fingerprint).length ?? 0;
+          for (const source of withdrawnSources)
+            discovery.withdraw(source);
+          initialDiscovery = discovery.prepare([]);
+          return adapterSelection(initialDiscovery?.selection ?? discovery.current);
+        };
+        harness.prepareRequest = async (prepare, signal) => {
+          while (lifecycleFinalizers.size > 0)
+            await Promise.allSettled([...lifecycleFinalizers.values()]);
+          if (lifecycleFailure)
+            throw lifecycleFailure;
+          signal?.throwIfAborted();
+          await journal.flush("critical");
+          const prepared = initialDiscovery ?? discovery.prepare(durableSearches);
+          if (!prepared)
+            return void 0;
+          const selection = adapterSelection(prepared.selection);
+          const contract = prepare(selection);
+          const generation = { prepared };
+          discoveryGenerations.set(prepared.selection.fingerprint, generation);
+          try {
+            emit2({
+              type: "context_prefix",
+              agent: agentName,
+              fingerprint: createHash25("sha256").update(contract.stablePrefix, "utf8").digest("hex"),
+              toolDiscovery: discoverySummary(prepared.selection)
+            });
+            if (!generation.receipt)
+              throw new CoreMindError("fact_ledger_poisoned", "\u58F0\u660E\u4E8B\u5B9E\u672A\u83B7\u51C6\u6301\u4E45\u5316");
+            const receipt = await generation.receipt;
+            signal?.throwIfAborted();
+            if (journal.isAborted())
+              throw new CoreMindError("aborted", "\u58F0\u660E\u53D1\u5E03\u524D Run \u5DF2\u53D6\u6D88");
+            discovery.commit(prepared, receipt);
+            initialDiscovery = void 0;
+            return selection;
+          } finally {
+            discoveryGenerations.delete(prepared.selection.fingerprint);
+          }
+        };
+      }
+      harness.onPromptCompleted = () => liveDiscoveryExecutions.delete(executionId);
       if (mcpRun) {
         harness.prepareMcpTools = async (signal) => {
           const prepared = await mcpRun.prepare({
@@ -265990,6 +266793,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
             executionId,
             signal,
             reservedToolNames: [...executionCapabilities.keys()],
+            onToolsChanged: (sourceIdentity) => {
+              withdrawnSources.add(sourceIdentity);
+              discovery?.withdraw(sourceIdentity);
+            },
             executeHost: async (operation2) => {
               if (executionCapabilities.has(operation2.name)) {
                 throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u51C6\u5907\u64CD\u4F5C\u4E0E\u5DF2\u6709\u5DE5\u5177\u91CD\u540D");
@@ -266000,9 +266807,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
                 source: "registered",
                 declaration: operation2.capability
               }));
-              const call = { callId: randomUUID22(), tool: operation2.name, args: operation2.args };
+              const call = { callId: randomUUID23(), tool: operation2.name, args: operation2.args };
               const callKey = toolCapabilityCallKey(agentName, stepId, call.callId);
-              const turnId = randomUUID22();
+              const turnId = randomUUID23();
               emit2({
                 type: "tool_call",
                 agent: agentName,
@@ -266080,6 +266887,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
           });
           for (const tool of prepared) {
             const { definition, authorization } = tool;
+            toolSources.set(definition.name, {
+              exposure: tool.exposure ?? "direct",
+              sourceIdentity: String(authorization.serverIdentity)
+            });
             const key = JSON.stringify([agentName, definition.name]);
             const previous = mcpAuthorizations.get(key);
             if (previous && fingerprintEffectReceiptValue(previous) !== fingerprintEffectReceiptValue(authorization)) {
@@ -266418,27 +267229,27 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (outcome.status === "paused") {
       persistOperation({
-        eventId: randomUUID22(),
+        eventId: randomUUID23(),
         type: "PAUSE",
         reason: outcome.finishReason
       });
     } else {
       if (outcome.status === "aborted") {
         persistOperation({
-          eventId: randomUUID22(),
+          eventId: randomUUID23(),
           type: "REQUEST_ABORT",
           reason: outcome.finishReason
         });
         persistOperation({
-          eventId: randomUUID22(),
+          eventId: randomUUID23(),
           type: "FAIL",
           reason: outcome.finishReason
         });
       } else if (outcome.status === "succeeded") {
-        persistOperation({ eventId: randomUUID22(), type: "COMPLETE" });
+        persistOperation({ eventId: randomUUID23(), type: "COMPLETE" });
       } else {
         persistOperation({
-          eventId: randomUUID22(),
+          eventId: randomUUID23(),
           type: "FAIL",
           reason: outcome.finishReason
         });
@@ -266463,6 +267274,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     }
     const terminalKind = outcome.status === "paused" ? "pause" : "finish";
+    const pausedDiscoveryOwners = [
+      ...discoveryContinuations.filter((owner) => !consumedDiscoveryContinuations.has(owner.executionId)),
+      ...[...liveDiscoveryExecutions.values()].filter((execution) => execution.current).map((execution) => execution.catalog.owner)
+    ];
     const terminalPayload = {
       operation: operation.snapshot(),
       outcome,
@@ -266472,6 +267287,12 @@ var CoreMindRuntime = class _CoreMindRuntime {
       artifacts: context.artifactRecords(),
       extensions: context.extensions(),
       ...outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {},
+      ...outcome.status === "paused" && pausedDiscoveryOwners.length > 0 ? {
+        toolDiscoveryContinuations: {
+          version: 1,
+          owners: pausedDiscoveryOwners
+        }
+      } : {},
       ...outcome.status === "paused" && deferredTerminalError ? { deferredTerminalError: serializeDeferredTerminalError(deferredTerminalError) } : {}
     };
     const terminalDurabilityFailure = journal.factStatus().state === "poisoned" || terminalError2 instanceof CoreMindError && (terminalError2.code === "durability_unsupported" || terminalError2.code === "durability_barrier_failed" || terminalError2.code === "fact_ledger_poisoned");
@@ -267102,7 +267923,8 @@ var PROTOCOL_V2_SERVER_CAPABILITIES = [
   "checkpointOperations",
   "dynamicTools",
   "hostVerification",
-  "mcpAuthentication"
+  "mcpAuthentication",
+  "toolDiscovery"
 ];
 var PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -267671,7 +268493,7 @@ var ProtocolHost = class {
     if (this.running) throw new CoreMindError("worker_busy", "\u8FD0\u884C\u671F\u95F4\u4E0D\u80FD\u4FEE\u6539 checkpoint");
     if (request.params.action === "create") {
       const params2 = request.params;
-      const checkpointId = createHash25("sha256").update(`${params2.runId}\0${params2.operationId}`).digest("hex").slice(0, 32);
+      const checkpointId = createHash26("sha256").update(`${params2.runId}\0${params2.operationId}`).digest("hex").slice(0, 32);
       const existing = projection.checkpoints.find(
         (record2) => record2.checkpointId === checkpointId
       );
@@ -267791,7 +268613,7 @@ var ProtocolHost = class {
         runtime: "node",
         warnings: initialized.warnings,
         serverCapabilities: PROTOCOL_V2_SERVER_CAPABILITIES.filter(
-          (capability) => capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated
+          (capability) => (capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated) && (capability !== "toolDiscovery" || request.params.capabilities?.includes("toolDiscovery"))
         ),
         schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
         migration: {
@@ -267867,6 +268689,14 @@ var ProtocolHost = class {
       );
     }
     enforceExecutionSecurity(config2);
+    if (Object.values(config2.agents).some(
+      (agent) => (agent.tools?.length ? agent.tools : config2.tools)?.some(
+        (tool) => tool.exposure === "deferred"
+      )
+    ) && !params.capabilities?.includes("toolDiscovery")) {
+      if (!protocolV2) throw new ToolDiscoveryCapabilityChallenge();
+      throw new CoreMindError("protocol_capability_missing", "\u5DE5\u5177\u53D1\u73B0\u9700\u8981\u534F\u5546 toolDiscovery \u80FD\u529B");
+    }
     await buildProviderRuntime(
       config2.provider ?? { id: "deepseek" },
       process.env,
@@ -267915,7 +268745,8 @@ var ProtocolHost = class {
         "loop",
         "runSnapshot",
         "localObservability",
-        "telemetryProjection"
+        "telemetryProjection",
+        ...params.capabilities?.includes("toolDiscovery") ? ["toolDiscovery"] : []
       ]
     };
   }
@@ -268506,6 +269337,13 @@ function rpcIdFrom(value) {
   return "invalid";
 }
 function protocolError(id, error3) {
+  if (error3 instanceof ToolDiscoveryCapabilityChallenge) {
+    return createErrorResponse(id, -32e3, error3.message, "protocol_capability_missing", {
+      schemaVersion: 1,
+      requiredCapabilities: ["toolDiscovery"],
+      retryInitialize: true
+    });
+  }
   if (error3 instanceof ProtocolCursorExpiredError) {
     return createErrorResponse(id, -32e3, error3.message, "cursor_expired", {
       recovery: error3.recovery
@@ -268529,6 +269367,11 @@ function protocolError(id, error3) {
     classification.audit ? { audit: classification.audit } : void 0
   );
 }
+var ToolDiscoveryCapabilityChallenge = class extends CoreMindError {
+  constructor() {
+    super("protocol_capability_missing", "\u5DE5\u5177\u53D1\u73B0\u9700\u8981\u534F\u5546 toolDiscovery \u80FD\u529B");
+  }
+};
 var ProtocolCursorExpiredError = class extends CoreMindError {
   constructor(recovery) {
     super("cursor_expired", `\u4E8B\u4EF6 cursor \u5DF2\u8FC7\u671F\uFF1B\u6700\u65E9\u53EF\u6062\u590D cursor \u4E3A ${recovery.newCursor}`);
@@ -268560,11 +269403,12 @@ function toV1InitializeParams(params) {
     ...params.config !== void 0 ? { config: params.config } : { configPath: params.configPath },
     ...params.configDir !== void 0 ? { configDir: params.configDir } : {},
     ...params.cwd !== void 0 ? { cwd: params.cwd } : {},
-    ...params.sessionId !== void 0 ? { sessionId: params.sessionId } : {}
+    ...params.sessionId !== void 0 ? { sessionId: params.sessionId } : {},
+    ...params.capabilities?.includes("toolDiscovery") ? { capabilities: ["toolDiscovery"] } : {}
   };
 }
 function protocolV2StartFingerprint(request) {
-  return createHash25("sha256").update(
+  return createHash26("sha256").update(
     JSON.stringify({
       method: request.method,
       params: request.params
@@ -268624,7 +269468,7 @@ function protocolV2CallKey(runId, callId) {
   return `${runId}\0${callId}`;
 }
 function sha256Canonical(value) {
-  return createHash25("sha256").update(canonicalJson3(value)).digest("hex");
+  return createHash26("sha256").update(canonicalJson3(value)).digest("hex");
 }
 function canonicalJson3(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);

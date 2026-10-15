@@ -86,6 +86,7 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "dynamicTools",
   "hostVerification",
   "mcpAuthentication",
+  "toolDiscovery",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -973,7 +974,10 @@ export class ProtocolHost {
         runtime: "node",
         warnings: initialized.warnings,
         serverCapabilities: PROTOCOL_V2_SERVER_CAPABILITIES.filter(
-          (capability) => capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated,
+          (capability) =>
+            (capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated) &&
+            (capability !== "toolDiscovery" ||
+              request.params.capabilities?.includes("toolDiscovery")),
         ),
         schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
         migration: {
@@ -1054,6 +1058,17 @@ export class ProtocolHost {
       );
     }
     enforceExecutionSecurity(config);
+    if (
+      Object.values(config.agents).some((agent) =>
+        (agent.tools?.length ? agent.tools : config.tools)?.some(
+          (tool) => tool.exposure === "deferred",
+        ),
+      ) &&
+      !params.capabilities?.includes("toolDiscovery")
+    ) {
+      if (!protocolV2) throw new ToolDiscoveryCapabilityChallenge();
+      throw new CoreMindError("protocol_capability_missing", "工具发现需要协商 toolDiscovery 能力");
+    }
     await buildProviderRuntime(
       config.provider ?? { id: "deepseek" },
       process.env,
@@ -1107,6 +1122,7 @@ export class ProtocolHost {
         "runSnapshot",
         "localObservability",
         "telemetryProjection",
+        ...(params.capabilities?.includes("toolDiscovery") ? ["toolDiscovery"] : []),
       ],
     };
   }
@@ -1800,6 +1816,13 @@ function rpcIdFrom(value: unknown): string | number {
 }
 
 function protocolError(id: string | number, error: unknown): ProtocolErrorResponse {
+  if (error instanceof ToolDiscoveryCapabilityChallenge) {
+    return createErrorResponse(id, -32_000, error.message, "protocol_capability_missing", {
+      schemaVersion: 1,
+      requiredCapabilities: ["toolDiscovery"],
+      retryInitialize: true,
+    });
+  }
   if (error instanceof ProtocolCursorExpiredError) {
     return createErrorResponse(id, -32_000, error.message, "cursor_expired", {
       recovery: error.recovery,
@@ -1822,6 +1845,12 @@ function protocolError(id: string | number, error: unknown): ProtocolErrorRespon
     classification.code,
     classification.audit ? { audit: classification.audit } : undefined,
   );
+}
+
+class ToolDiscoveryCapabilityChallenge extends CoreMindError {
+  constructor() {
+    super("protocol_capability_missing", "工具发现需要协商 toolDiscovery 能力");
+  }
 }
 
 class ProtocolCursorExpiredError extends CoreMindError {
@@ -1884,6 +1913,7 @@ function toV1InitializeParams(
     ...(params.configDir !== undefined ? { configDir: params.configDir } : {}),
     ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
     ...(params.sessionId !== undefined ? { sessionId: params.sessionId } : {}),
+    ...(params.capabilities?.includes("toolDiscovery") ? { capabilities: ["toolDiscovery"] } : {}),
   };
 }
 

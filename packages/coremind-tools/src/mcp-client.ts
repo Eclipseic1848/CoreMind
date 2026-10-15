@@ -46,6 +46,7 @@ interface ManagedClientOptions<Summary> {
   artifactStore: ArtifactStore;
   allowedResourceUris?: readonly string[];
   isFatalTransportError?: (cause: unknown) => boolean;
+  onToolsChanged?: () => void;
 }
 
 const MAX_LIST_PAGES = 32;
@@ -130,6 +131,7 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
           };
           client.setNotificationHandler("notifications/tools/list_changed", () => {
             this.invalidated = true;
+            this.options.onToolsChanged?.();
           });
           await client.connect(this.options.transport, requestOptions(executionSignal));
           this.assertSafe(client.getServerVersion());

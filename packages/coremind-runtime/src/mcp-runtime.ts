@@ -40,6 +40,7 @@ export interface PreparedMcpTool {
   definition: CoreMindToolDefinition;
   approvalDescription: string;
   readonly authorization: Readonly<Record<string, unknown>>;
+  exposure?: "direct" | "deferred";
 }
 
 export interface McpRunOptions {
@@ -60,6 +61,7 @@ interface PrepareMcpTools {
   signal?: AbortSignal;
   executeHost(operation: McpHostOperation): Promise<McpStdioToolResult>;
   reservedToolNames?: readonly string[];
+  onToolsChanged?: (sourceIdentity: string) => void;
 }
 
 const BASE_ENVIRONMENT_KEYS = [
@@ -189,6 +191,7 @@ export function createMcpRun(options: McpRunOptions) {
                   protocolVersion: server.protocolVersion ?? "legacy",
                   sensitiveValues,
                   artifactStore: options.artifactStore,
+                  onToolsChanged: () => request.onToolsChanged?.(identity.sha256),
                 });
               } else if (server.transport === "streamable-http" && "url" in target) {
                 if (server.oauth && !options.mcpAuthentication)
@@ -214,6 +217,7 @@ export function createMcpRun(options: McpRunOptions) {
                   protocolVersion: server.protocolVersion ?? "legacy",
                   sensitiveValues,
                   artifactStore: options.artifactStore,
+                  onToolsChanged: () => request.onToolsChanged?.(identity.sha256),
                 });
               } else throw new CoreMindError("invalid_tool", "MCP 服务类型与身份不一致");
               // 在第一个连接 await 前登记，初始化失败和并发关闭也能找到自有资源。
@@ -298,6 +302,7 @@ export function createMcpRun(options: McpRunOptions) {
           prepared.push({
             authorization,
             approvalDescription,
+            ...(selection.exposure ? { exposure: selection.exposure } : {}),
             definition: {
               name,
               description: `${listed.description || listed.name}（本地服务 ${serverName} / ${listed.name}）`,

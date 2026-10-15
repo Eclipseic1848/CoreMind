@@ -200,6 +200,7 @@ export const ToolRefSchema = Type.Object({
     { description: "内置工具 id" },
   ),
   enabled: Type.Optional(Type.Boolean({ default: true })),
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
 });
 
 /** 自定义脚本工具：指向导出 AgentTool 形状 default 对象的 JS 文件 */
@@ -207,11 +208,13 @@ export const ScriptToolSchema = Type.Object({
   path: Type.String({ minLength: 1, description: "工具文件路径（相对配置文件目录）" }),
   name: Type.Optional(Type.String({ description: "工具名，缺省取模块导出对象的 name" })),
   effect: ToolEffectDeclarationSchema,
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
 });
 
 /** MCP 工具不能从服务注解或旧 effect 声明推断完整能力。 */
 export const McpToolSchema = Type.Object(
   {
+    exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
     mcp: Type.Object(
       { server: Type.String({ minLength: 1 }), tool: Type.String({ minLength: 1 }) },
       { additionalProperties: false },

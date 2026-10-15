@@ -1,3 +1,5 @@
+import { createInitialSystemMessage } from "@earendil-works/pi-ai";
+import type { AgentDriverContextContract } from "./agent-driver.js";
 import { applyCompaction, projectRawBranchMessages } from "./compaction-projection.js";
 import type { StableContextPrefix } from "./context.js";
 import {
@@ -26,6 +28,7 @@ export interface RebuildRunRequestInput {
   entries: readonly Entry[];
   compactions: readonly CompactionEntry[];
   stablePrefix: StableContextPrefix;
+  requestDeclaration?: AgentDriverContextContract;
 }
 
 /**
@@ -51,7 +54,12 @@ export function rebuildRunRequest(input: RebuildRunRequestInput): RequestMessage
     messages = [...rebuilt, ...turnMessages];
   }
   return [
-    { role: "system", content: input.stablePrefix.text, timestamp: 0 },
+    input.requestDeclaration
+      ? createInitialSystemMessage(
+          input.requestDeclaration.stablePrefix,
+          input.requestDeclaration.toolSchemas as Parameters<typeof createInitialSystemMessage>[1],
+        )!
+      : { role: "system", content: input.stablePrefix.text, timestamp: 0 },
     ...convertToLlm(dropUnsentTrailing(messages)),
   ];
 }

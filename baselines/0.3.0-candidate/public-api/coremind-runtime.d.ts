@@ -966,6 +966,7 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     type: "context_prefix";
     agent: string;
     fingerprint: string;
+    toolDiscovery?: ToolDiscoverySummary;
 } | {
     type: "provider_request";
     requestId: string;
@@ -978,6 +979,7 @@ export declare type CoreMindEvent = ToolCallLifecycleFact | {
     toolSchemaFingerprint: string;
     capabilityFingerprint: string;
     contextWorkingSetFingerprint: string;
+    toolDiscovery?: ToolDiscoverySummary;
 } | {
     type: "artifact_created";
     artifactId: string;
@@ -3169,6 +3171,15 @@ export declare interface ToolCapabilityProjection {
     provenance: "current" | "legacy";
 }
 
+/** 仅公开当前声明代次与指纹，不携带工具目录或参数。 */
+declare interface ToolDiscoverySummary {
+    version: 1;
+    catalogFingerprint: string;
+    generation: number;
+    selectionFingerprint: string;
+    toolCount: number;
+}
+
 export declare interface ToolEffect {
     operations: ToolEffectOperation[];
     paths: string[];
@@ -3221,6 +3232,10 @@ export declare class ToolPolicy {
     private readonly options;
     private readonly permissions;
     constructor(options: ToolPolicyOptions);
+    /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
+    allowsDeclaration(tool: string, capability: ResolvedToolCapability): boolean;
+    private hasRestrictedChildPaths;
+    private staticDenial;
     authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;
@@ -3268,7 +3283,7 @@ export declare class TraceRecorder {
     private readonly pendingText;
     readonly entries: CoreMindTraceEvent[];
     constructor(runId: string, forward?: ((entry: CoreMindTraceEvent) => void) | undefined, initialEntries?: CoreMindTraceEvent[]);
-    record(event: CoreMindEvent): CoreMindTraceEvent;
+    record(event: CoreMindEvent, eventId?: string): CoreMindTraceEvent;
     private append;
 }
 

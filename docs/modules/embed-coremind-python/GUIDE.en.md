@@ -71,6 +71,16 @@ Use the same constructor arguments with `AsyncCoreMindClient` and await the thre
 
 Default v1 or a missing handler fails before authentication requests with `protocol_capability_missing` or `mcp_auth_required`. Old v2 Workers still fail the exact schema fingerprint check; interaction is never silently downgraded. Dedicated authorization notifications do not enter `received_events`. Tokens, callback codes, and verifiers remain in Node. Python has no TokenStore seam and creates no default plaintext files. Memory credentials span Runs in one client and disappear on close; local logout does not promise remote revocation. External-service interoperability remains unverified; see the [configuration boundary](../../en/guide/02-configuration.md).
 
+## Tool discovery and Worker compatibility (1.1 development line)
+
+[Deferred tool configuration](../../en/guide/02-configuration.md#deferred-tool-exposure-11-development-line) requires explicit Config 3. Existing Config 2 files omitting `exposure` keep their behavior. Python uses the existing `run/chat` methods; the same Node Runtime owns search and declaration installation, without another configuration process or a Python tool catalog.
+
+Default v1 retains its original first initialize packet with no `capabilities` field. Only `protocol_capability_missing` with details exactly `{schemaVersion: 1, requiredCapabilities: ['toolDiscovery'], retryInitialize: true}` permits at most one retry in the same process, adding only `toolDiscovery`. Ordinary errors and malformed challenges are not retried, and success must acknowledge that capability. V2 declares the capability in its first packet and checks the exact schema fingerprint and capability receipt, without fallback. Older Workers must reject Config 3 before any Run; older SDKs that do not understand the challenge fail explicitly.
+
+A search match does not approve execution. Durable installation at the next request still preserves approval and deny rules. New Runs rebuild declarations; the same Run retains its configuration-fingerprint resume gate. Optional `toolDiscovery` fields on `context_prefix` and `provider_request` carry only the five-field safe summary, which Python validates as a closed object. Complete catalogs and schemas never travel through public events. These are usage and protocol contracts, not claims of external interoperability or completed release qualification.
+
+`resume_run` reuses an installed tool set only when the latest authoritative pause exactly binds the execution to continue. Quality retries start new executions. After a crash without that binding, existing resume admission may allow a fresh deferred declaration, never activation borrowed from the same Run/Agent/Step. Node manages this binding in private facts; it adds no Python catalog, public owners field, or complete-message-recovery promise. Configuration fingerprints, input, approval, and effect checks still apply.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

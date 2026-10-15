@@ -87,6 +87,14 @@ export interface BuildToolsResult {
   warnings: string[];
 }
 
+const configuredToolSources = new WeakMap<AgentTool, ToolConfig>();
+
+/** 保留已成功构造对象的配置来源，不从显示名称反猜脚本或权限。 */
+export function configuredToolSource(tool: AgentTool): ToolConfig | undefined {
+  const source = configuredToolSources.get(tool);
+  return source ? structuredClone(source) : undefined;
+}
+
 /**
  * 按配置构建工具列表：
  * - 内置工具按 id 查工厂；enabled: false 跳过
@@ -123,7 +131,9 @@ export async function buildToolsWithExecutionEnvironment(
           warnings.push(`脚本工具 ${tool.name} 不得使用内置工具名，已跳过`);
           continue;
         }
-        tools.push(wrapToolWithArtifactCapture(tool, artifactStore));
+        const wrapped = wrapToolWithArtifactCapture(tool, artifactStore);
+        configuredToolSources.set(wrapped, structuredClone(cfg));
+        tools.push(wrapped);
         effects.set(tool.name, cfg.effect);
         capabilities.set(tool.name, inferLegacyToolCapability(tool.name, cfg.effect));
       } catch (error) {
@@ -143,7 +153,9 @@ export async function buildToolsWithExecutionEnvironment(
       warnings.push(`工具 ${cfg.id} 需要额外配置（如 API key），已跳过`);
       continue;
     }
-    tools.push(wrapToolWithArtifactCapture(bindFileToolTarget(tool, opts.cwd), artifactStore));
+    const wrapped = wrapToolWithArtifactCapture(bindFileToolTarget(tool, opts.cwd), artifactStore);
+    configuredToolSources.set(wrapped, structuredClone(cfg));
+    tools.push(wrapped);
     effects.set(tool.name, BUILTIN_TOOL_EFFECTS[cfg.id]);
     capabilities.set(tool.name, resolveToolCapability({ tool: tool.name }));
   }

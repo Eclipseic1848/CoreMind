@@ -5,7 +5,7 @@
 ## 顶层字段
 
 ```yaml
-schemaVersion: 2        # 配置格式版本（当前固定 2）
+schemaVersion: 2        # 保留旧配置；使用 deferred 工具时须显式改为 3
 name: my-agent          # 必填：智能体名称
 description: 一句话说明
 provider: {...}         # 模型提供商（缺省 deepseek）
@@ -147,6 +147,28 @@ tools:
 如果自定义工具的路径或 URL 参数使用了非标准字段名，可再声明 `pathFields` 或 `urlFields`，支持 `output.path` 这样的点号路径。缺少 `effect` 的自定义工具不会通过配置校验，也不能使用 `read`、`write`、`bash` 等内置工具名。
 
 注意：单个 agent 工具超过 20 个会告警（工具过多会降低模型选择准确率）。
+
+### 按需曝光工具（1.1 开发线）
+
+工具的 `exposure` 可省略或设为 `direct`；省略时仍按原方式把完整参数 schema 交给模型，旧 Config 2 的解析、配置指纹与声明行为保持不变。使用 `deferred` 必须显式选择 `schemaVersion: 3`；Config 2 带 `deferred` 会静态拒绝，不会自动升级。最小片段如下，完整示例见 [tool-discovery.yaml](../../examples/tool-discovery.yaml)：
+
+```yaml
+schemaVersion: 3
+name: deferred-reader
+agents:
+  main:
+    tools:
+      - id: read
+        exposure: deferred
+```
+
+仅当本次执行包含 deferred 工具时，模型才会得到 `discover_tools({query, limit?})`。目录只来自当前 Agent 配置允许的工具，不搜索其他 Agent 或未配置的服务工具。搜索按名称和描述做 Unicode NFKC 规范化、中文二元词与英文词法匹配，不提供翻译或语义检索。`query` 最长 256 个 Unicode 码点，`limit` 为 1–8，默认 5；单次结果上限 16 KiB。启用此模式的合并目录最多 256 项，完整 schema 总量不超过 8 MiB。
+
+搜索本身不出网、不读取脚本或启动进程；这不免除原有准备工作：已选择的 MCP 工具仍先按原权限连接、握手及读取目录，可能产生 I/O。命中先写入关键事实，完整工具 schema 只有在下一模型请求边界完成持久安装后才曝光；同一批工具调用里先搜索再猜名，仍不能提前执行。命中和安装都不替代执行时的 deny、审批、路径、网络、预算或副作用检查。
+
+每个新 Run 从当前配置重新建立声明，不继承旧 Run、Session 或父级的激活集合。同一 Run 恢复仍受原配置指纹硬门约束，不能通过旧搜索结果放宽权限。Skill、委派、资源派生和宿主注入工具继续直接曝光。公开 `context_prefix` 与 `provider_request` 只增加可选的版本、目录指纹、代次、选择指纹和工具数量摘要；完整目录与参数 schema 留在私有 Run Facts，不出现在公开投影或 Worker 事件中。
+
+声明按每次 execution 隔离：同一 Run、Agent 和 Step 的质量重试也重新建立 deferred 声明。只有最后的权威暂停记录精确绑定待续的 execution 时，恢复才沿用该执行已持久化的选择代次；成功完成的执行不会列为待续。崩溃没有该绑定时，不借最近同 Agent/Step 的旧激活；若原恢复门允许继续，则建立新的 deferred 声明。此规则只决定工具声明，不代替会话消息或请求重建，也不放宽恢复准入。
 
 > 配置里的相对路径（自定义工具 `./my-tool.mjs`、`skills/` 目录、`session.dir`）都相对**配置文件所在目录**解析；`.env` 则跟随运行命令的目录。详见 [CLI 使用指南](05-cli-usage.md#3-在哪里运行目录规则新手最容易困惑的部分)。
 
@@ -291,7 +313,7 @@ permissions:
 
 Windows 使用绝对 Windows 路径；YAML 中可用单引号保留反斜杠。环境字段只能引用 `{env: 名称}` 或 `{secretRef: 引用}`，后者需要 SDK 的 `secretResolver`。CoreMind 只传递有限的平台运行变量和显式引用，不透传整个宿主环境。不要在配置、参数或工具描述中填写秘密。
 
-Agent 的非空 `tools` 精确选择工具；省略或空列表沿用全局 `tools`。内部短名绑定服务、原名、完整 schema 和执行能力，审批展示真实命令、目录与身份摘要。连接、读取目录、每次业务调用分别通过同一审批、预算、租约及持久化链，因此连接加目录读取先消耗两次工具预算。原始 schema 的 `$defs/$ref` 保留到首次模型请求。服务的 annotations 不会自动降低权限。
+Agent 的非空 `tools` 精确选择工具；省略或空列表沿用全局 `tools`。内部短名绑定服务、原名、完整 schema 和执行能力，审批展示真实命令、目录与身份摘要。连接、读取目录、每次业务调用分别通过同一审批、预算、租约及持久化链，因此连接加目录读取先消耗两次工具预算。默认 direct 工具的原始 schema（含 `$defs/$ref`）进入首次模型请求；deferred 工具在发现并持久安装后的请求中保留同样完整的 schema。服务的 annotations 不会自动降低权限。
 
 这是受信任宿主程序，具有当前账户权限；`roots` 或工具白名单不构成操作系统沙箱。`workspaceOnly: true` 或 `network: deny/ask` 会在启动前拒绝，`full` 也不豁免。`doctor` 只检查静态条件，不启动或握手服务；既有 `coremind check` 仍拒绝 `workspaceOnly: false`，本配置不满足受限项目的发布基线。当前 Child Run 不接受 MCP 服务、工具或凭据。
 

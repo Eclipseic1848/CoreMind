@@ -26,7 +26,7 @@ export class TraceRecorder {
     this.sequence = initialEntries.reduce((highest, entry) => Math.max(highest, entry.sequence), 0);
   }
 
-  record(event: CoreMindEvent): CoreMindTraceEvent {
+  record(event: CoreMindEvent, eventId?: string): CoreMindTraceEvent {
     const scope = `${"agent" in event ? (event.agent ?? "") : ""}\0${"stepId" in event ? (event.stepId ?? "") : ""}`;
     if (event.type === "text_delta") {
       const text = (this.pendingText.get(scope)?.delta ?? "") + event.delta;
@@ -59,12 +59,12 @@ export class TraceRecorder {
         if (pending.delta) this.append({ ...pending, delta: redactSensitiveText(pending.delta) });
       }
     }
-    return this.append(event);
+    return this.append(event, eventId);
   }
 
-  private append(event: CoreMindEvent): CoreMindTraceEvent {
+  private append(event: CoreMindEvent, eventId: string = randomUUID()): CoreMindTraceEvent {
     const entry: CoreMindTraceEvent = {
-      eventId: randomUUID(),
+      eventId,
       runId: this.runId,
       sequence: ++this.sequence,
       timestamp: new Date().toISOString(),

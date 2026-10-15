@@ -159,6 +159,7 @@ for line in sys.stdin:
                             "projectionQuery",
                             "checkpointOperations",
                             "dynamicTools",
+                            "toolDiscovery",
                         ] + ([] if params.get("config", {}).get("name") == "no-host-verification" else ["hostVerification"]),
                         "schemaFingerprint": (
                             "sha256:" + "0" * 64

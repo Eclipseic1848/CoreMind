@@ -36,6 +36,13 @@ export interface AgentDriverToolResult {
 export interface AgentDriverContextContract {
   stablePrefix: string;
   toolSchemas: unknown[];
+  toolDiscovery?: { generation: number; fingerprint: string };
+}
+
+export interface AgentDriverDeclarationSelection {
+  readonly names: readonly string[];
+  readonly generation: number;
+  readonly fingerprint: string;
 }
 
 export interface AgentDriverBeforeToolCallContext {
@@ -80,8 +87,17 @@ export interface AgentDriverTurnObservation {
 export interface AgentDriverHarness {
   /** 原生 prompt 开始前完成已持久控制的就绪重放。 */
   beforePrompt?: () => Promise<void>;
+  /** 本次 prompt 正常完成且通过原拒绝门后通知一次。 */
+  onPromptCompleted?: () => void;
   maxRetries?: number;
   registerContextContract?: (contract: AgentDriverContextContract) => void;
+  registerDeclarationCatalog?: (
+    entries: readonly { name: string; description: string; declaration: unknown }[],
+  ) => AgentDriverDeclarationSelection | undefined;
+  prepareRequest?: (
+    prepare: (selection: AgentDriverDeclarationSelection) => AgentDriverContextContract,
+    signal?: AbortSignal,
+  ) => Promise<AgentDriverDeclarationSelection | undefined>;
   beforeModelRequest?: () => void;
   onModelRequestDispatched?: (request: {
     providerId: string;

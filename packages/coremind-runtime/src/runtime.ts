@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
@@ -22,6 +22,7 @@ import {
 } from "coremind-tools";
 import {
   buildToolsWithExecutionEnvironment,
+  configuredToolSource,
   createPlatformExecutionEnvironment,
   type ExecutionEnvironment,
   resolveExecutionEnvironment,
@@ -37,6 +38,7 @@ import type {
   AgentDriverAfterToolCallContext,
   AgentDriverBeforeToolCallContext,
   AgentDriverContextContract,
+  AgentDriverDeclarationSelection,
   AgentDriverHarness,
   AgentDriverToolResult,
 } from "./agent-driver.js";
@@ -120,6 +122,7 @@ import { CoreMindError, isErrorCode } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
 import { normalizeExecutionError } from "./execution-error.js";
 import { enforceExecutionSecurity } from "./execution-security.js";
+import type { FactDurabilityReceipt } from "./fact-ledger.js";
 import { HostVerificationGate, type HostVerificationRequest } from "./host-verification.js";
 import { type CallId, type RunId, receiptId, type StepId, type TurnId } from "./ids.js";
 import {
@@ -212,6 +215,16 @@ import {
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
+import {
+  DISCOVER_TOOLS_NAME,
+  restoreToolDiscovery,
+  restoreToolDiscoveryContinuations,
+  type ToolDiscoveryCallBinding,
+  ToolDiscoveryExecution,
+  type ToolDiscoveryPrepared,
+  type ToolDiscoverySearchFact,
+} from "./tool-discovery.js";
+import { TOOL_DISCOVERY_DECLARATION } from "./tool-discovery-declaration.js";
 import { type ApprovalDecision, type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 import { type CoreMindTraceEvent, redactSensitiveText, TraceRecorder } from "./trace.js";
 import { TurnTracker } from "./turn-tracker.js";
@@ -223,6 +236,8 @@ import {
 
 type RuntimeHarness = AgentDriverHarness & {
   prepareMcpTools?: (signal?: AbortSignal) => Promise<AgentTool[]>;
+  discoveryTool?: AgentTool;
+  registerToolSource?: (name: string, source: ToolConfig | undefined) => void;
 };
 
 type AgentDriverBuilder = (input: {
@@ -231,6 +246,7 @@ type AgentDriverBuilder = (input: {
   sessionMessages?: CoreMindMessage[];
   skillTool?: AgentTool;
   mcpTools?: AgentTool[];
+  discoveryTool?: AgentTool;
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
@@ -425,6 +441,14 @@ export class CoreMindRuntime {
     frozenSkills?: SkillSnapshot,
   ): Promise<CoreMindRuntime> {
     const { config, configDir } = options;
+    if (
+      config.schemaVersion !== 3 &&
+      [config.tools ?? [], ...Object.values(config.agents).map((agent) => agent.tools ?? [])].some(
+        (tools) => tools.some((tool) => tool.exposure === "deferred"),
+      )
+    ) {
+      throw new CoreMindError("invalid_config", "deferred 必须显式配置 schemaVersion: 3");
+    }
     const cwd = options.cwd ?? process.cwd();
     const env = options.env ?? process.env;
     const requestedToolEnv = options.toolEnv ?? env;
@@ -622,27 +646,37 @@ export class CoreMindRuntime {
         });
       }
       skillsByAgent.set(name, allContents);
-      driverBuilders.set(name, ({ onEvent, harness, sessionMessages, skillTool, mcpTools }) =>
-        buildAgentDriver(agentCfg, {
-          models: providerRuntime.models,
-          model: agentModel,
-          tools: [...driverTools, ...(mcpTools ?? []), ...(skillTool ? [skillTool] : [])],
-          agentName: name,
-          onEvent,
-          apiKeyOverride: providerRuntime.apiKeyOverride,
-          sessionMessages,
-          skillsContent: allContents,
-          stableFacts: {
-            provider: agentModel.provider,
-            model: agentModel.id,
-            contextWindow: agentModel.contextWindow,
-          },
-          promptCacheStatus:
-            agentModel.cost.cacheRead > 0 || agentModel.cost.cacheWrite > 0
-              ? "available"
-              : "unavailable",
-          harness,
-        }),
+      driverBuilders.set(
+        name,
+        ({ onEvent, harness, sessionMessages, skillTool, mcpTools, discoveryTool }) => {
+          for (const tool of driverTools)
+            harness?.registerToolSource?.(tool.name, configuredToolSource(tool));
+          return buildAgentDriver(agentCfg, {
+            models: providerRuntime.models,
+            model: agentModel,
+            tools: [
+              ...driverTools,
+              ...(mcpTools ?? []),
+              ...(skillTool ? [skillTool] : []),
+              ...(discoveryTool ? [discoveryTool] : []),
+            ],
+            agentName: name,
+            onEvent,
+            apiKeyOverride: providerRuntime.apiKeyOverride,
+            sessionMessages,
+            skillsContent: allContents,
+            stableFacts: {
+              provider: agentModel.provider,
+              model: agentModel.id,
+              contextWindow: agentModel.contextWindow,
+            },
+            promptCacheStatus:
+              agentModel.cost.cacheRead > 0 || agentModel.cost.cacheWrite > 0
+                ? "available"
+                : "unavailable",
+            harness,
+          });
+        },
       );
     }
 
@@ -731,6 +765,7 @@ export class CoreMindRuntime {
       harness,
       mcpTools,
       skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
+      discoveryTool: originalHarness?.discoveryTool,
     });
     context.registerAgent(name, agent, executionId);
     return agent;
@@ -1467,6 +1502,19 @@ export class CoreMindRuntime {
     }
     // 预生成 runId（D-1）：resume 时以恢复记录为准，否则优先使用调用方预生成值
     const runId: RunId = (resumePlan?.runId ?? this.options.runId ?? randomUUID()) as RunId;
+    const admission = resumeRecords?.at(-1);
+    // 当前 Worker 的明确 resume 准入不取代它刚验证过的暂停绑定。
+    const discoveryResumeRecords =
+      admission?.kind === "admission" &&
+      this.options.protocolStart?.method === "resume" &&
+      fingerprintEffectReceiptValue(
+        (admission.payload as { protocolStart?: unknown }).protocolStart,
+      ) === fingerprintEffectReceiptValue(this.options.protocolStart)
+        ? resumeRecords!.slice(0, -1)
+        : (resumeRecords ?? []);
+    const discoveryContinuations = restoreToolDiscoveryContinuations(discoveryResumeRecords, runId);
+    const consumedDiscoveryContinuations = new Set<string>();
+    const liveDiscoveryExecutions = new Map<string, ToolDiscoveryExecution>();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords =
@@ -1577,6 +1625,20 @@ export class CoreMindRuntime {
       { tool: string; capability: ResolvedToolCapability }
     >();
     const skillLoadsByCall = new Map<string, SkillLoadFact>();
+    const discoverySearchesByCall = new Map<
+      string,
+      {
+        fact: ToolDiscoverySearchFact;
+        durable: ToolDiscoverySearchFact[];
+      }
+    >();
+    const discoveryGenerations = new Map<
+      string,
+      {
+        prepared: ToolDiscoveryPrepared;
+        receipt?: Promise<FactDurabilityReceipt>;
+      }
+    >();
     const trace = new TraceRecorder(
       runId,
       (entry) => {
@@ -1592,20 +1654,47 @@ export class CoreMindRuntime {
             ? toolCapabilityCallKey(entry.event.agent, entry.event.stepId, toolResultCallId)
             : undefined;
         const skillLoad = skillCallKey ? skillLoadsByCall.get(skillCallKey) : undefined;
+        const discoverySearch = skillCallKey
+          ? discoverySearchesByCall.get(skillCallKey)
+          : undefined;
+        const discoveryGeneration =
+          entry.event.type === "context_prefix" && entry.event.toolDiscovery
+            ? discoveryGenerations.get(entry.event.toolDiscovery.selectionFingerprint)
+            : undefined;
         const payload = {
           ...entry,
           ...(pendingProtocolToolResult
             ? { protocolToolResult: structuredClone(pendingProtocolToolResult.fact) }
             : {}),
           ...(skillLoad ? { skillLoad } : {}),
+          ...(discoverySearch ? { toolDiscoverySearch: discoverySearch.fact } : {}),
+          ...(discoveryGeneration
+            ? {
+                ...(discoveryGeneration.prepared.catalog
+                  ? { toolDiscoveryCatalog: discoveryGeneration.prepared.catalog }
+                  : {}),
+                toolDiscoverySelection: discoveryGeneration.prepared.selection,
+              }
+            : {}),
         };
         if (skillCallKey) skillLoadsByCall.delete(skillCallKey);
         const persisted = journal.appendFact("event", payload, {
-          durability: skillLoad
-            ? skillFactDurability
-            : traceFactDurability(entry.event, capabilityByCallId),
+          durability:
+            discoverySearch || discoveryGeneration
+              ? "critical"
+              : skillLoad
+                ? skillFactDurability
+                : traceFactDurability(entry.event, capabilityByCallId),
           eventId: entry.eventId,
         });
+        if (discoveryGeneration) discoveryGeneration.receipt = persisted;
+        if (discoverySearch) {
+          discoverySearchesByCall.delete(skillCallKey!);
+          void persisted.then(
+            () => discoverySearch.durable.push(discoverySearch.fact),
+            () => {},
+          );
+        }
         if (pendingProtocolToolResult) {
           pendingProtocolToolResult.appendStarted = true;
           void persisted
@@ -1657,6 +1746,7 @@ export class CoreMindRuntime {
       | ((event: Extract<CoreMindEvent, { type: "tool_result" }>) => void)
       | undefined;
     const lifecycleFinalizers = new Map<string, Promise<void>>();
+    const immediateDiscoveryRejections = new Map<string, Promise<unknown>>();
     const mcpAuthorizations = new Map<string, Readonly<Record<string, unknown>>>();
     const bindMcpArguments = (agent: string, tool: string, args: unknown): unknown => {
       const authorization = mcpAuthorizations.get(JSON.stringify([agent, tool]));
@@ -1817,7 +1907,12 @@ export class CoreMindRuntime {
         throw new CoreMindError("redaction_failed", "步骤输出包含凭据，已阻止持久化与候选验收");
       }
       collected.push(enriched);
-      trace.record(enriched);
+      trace.record(
+        enriched,
+        enriched.type === "context_prefix" && enriched.toolDiscovery
+          ? discoveryGenerations.get(enriched.toolDiscovery.selectionFingerprint)?.prepared.eventId
+          : undefined,
+      );
       userEvents(enriched);
       if (enriched.type === "tool_result") onToolResultRecorded?.(enriched);
       // 输入被首个 Turn 认领（规格 03 §4：claim 绑定 TurnId；resume 时已 claimed 不再重复）；
@@ -1904,12 +1999,14 @@ export class CoreMindRuntime {
       const recorded = toolExecutionEngine.inspect({
         ...toolCallIdentity(event.agent, event.stepId, event.callId!),
       });
-      if (!recorded || recorded.tool !== event.tool) return;
       const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
       const callKey = toolCapabilityCallKey(event.agent, event.stepId, event.callId!);
+      if ((!recorded || recorded.tool !== event.tool) && !immediateDiscoveryRejections.has(callKey))
+        return;
       // 仍在结果事件之后的微任务提交；宿主准备只等待同一个 Call 的结果屏障。
       const finalizer = Promise.resolve().then(async () => {
         try {
+          await immediateDiscoveryRejections.get(callKey);
           await journal.flush();
           await toolExecutionEngine.finalizeResult(identity);
           await releaseWorkspaceLease(identity);
@@ -2167,6 +2264,45 @@ export class CoreMindRuntime {
       let pendingProviderCapabilityFingerprint: string | undefined;
       const executionEffects = new Map(this.toolEffectsByAgent.get(agentName));
       const executionCapabilities = new Map(this.toolCapabilitiesByAgent.get(agentName));
+      const effectiveTools = this.agentConfigs.get(agentName)?.tools?.length
+        ? this.agentConfigs.get(agentName)!.tools!
+        : (this.config.tools ?? []);
+      const discoveryEnabled = effectiveTools.some((tool) => tool.exposure === "deferred");
+      if (discoveryEnabled && !runStore.supportedDurability?.includes("critical")) {
+        throw new CoreMindError(
+          "durability_unsupported",
+          "工具发现需要支持 critical 确认的 RunStore",
+        );
+      }
+      let discovery: ToolDiscoveryExecution | undefined;
+      let initialDiscovery: ToolDiscoveryPrepared | undefined;
+      const durableSearches: ToolDiscoverySearchFact[] = [];
+      const discoveryBindings = new Map<string, ToolDiscoveryCallBinding>();
+      const toolSources = new Map<
+        string,
+        { exposure: "direct" | "deferred"; sourceIdentity: string }
+      >();
+      const withdrawnSources = new Set<string>();
+      const adapterSelection = (
+        selection: NonNullable<ToolDiscoveryExecution["current"]>,
+      ): AgentDriverDeclarationSelection =>
+        Object.freeze({
+          names: [...selection.names, DISCOVER_TOOLS_NAME],
+          generation: selection.generation,
+          fingerprint: selection.fingerprint,
+        });
+      const discoverySummary = (selection: NonNullable<ToolDiscoveryExecution["current"]>) => ({
+        version: 1 as const,
+        catalogFingerprint: selection.catalogFingerprint,
+        generation: selection.generation,
+        selectionFingerprint: selection.fingerprint,
+        toolCount: selection.names.length + 1,
+      });
+      const checkDiscoveryCall = (tool: string, callId: string) => {
+        if (!discovery || tool === DISCOVER_TOOLS_NAME) return;
+        const binding = discovery.assertCallable(tool, discoveryBindings.get(callId));
+        discoveryBindings.set(callId, binding);
+      };
       const harness: RuntimeHarness = {
         maxRetries: loop ? 0 : limits.maxRetries,
         registerContextContract: (contract) => contextContracts.set(executionId!, contract),
@@ -2180,6 +2316,7 @@ export class CoreMindRuntime {
           }
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
+          for (const name of discovery?.current?.names ?? []) discovery!.assertCallable(name);
           budget.beforeModelRequest();
         },
         onModelRequestDispatched: ({ providerId, modelId, messages }) => {
@@ -2196,8 +2333,11 @@ export class CoreMindRuntime {
             type: "provider_request",
             agent: agentName,
             ...(stepId ? { stepId } : {}),
+            ...(discovery?.current ? { toolDiscovery: discoverySummary(discovery.current) } : {}),
             ...createProviderRequestReplayFact({
-              requestId: `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
+              requestId: discovery
+                ? `${discovery.catalog.owner.executionId}:${providerRequestOrdinal}`
+                : `${agentName}:${stepId ?? "default"}:${providerRequestOrdinal}`,
               providerId,
               modelId,
               messages,
@@ -2213,7 +2353,10 @@ export class CoreMindRuntime {
           try {
             return await toolExecutionEngine.executeAdapter(
               toolCallIdentity(agentName, stepId, call.callId),
-              invoke,
+              () => {
+                checkDiscoveryCall(call.tool, call.callId);
+                return invoke();
+              },
             );
           } catch (error) {
             const normalized = normalizeExecutionError(error);
@@ -2389,6 +2532,7 @@ export class CoreMindRuntime {
           };
           const lifecycleIdentity = toolCallIdentity(agentName, stepId, context.toolCall.callId);
           const callKey = toolCapabilityCallKey(agentName, stepId, context.toolCall.callId);
+          checkDiscoveryCall(context.toolCall.tool, context.toolCall.callId);
           const argumentsFingerprint = fingerprintEffectReceiptValue(context.toolCall.args);
           const replayCandidateIndex = toolReplayCandidates.findIndex(
             (candidate) =>
@@ -2818,6 +2962,17 @@ export class CoreMindRuntime {
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: checkpointFailure.message };
           }
+          try {
+            checkDiscoveryCall(context.toolCall.tool, context.toolCall.callId);
+          } catch (error) {
+            capabilityFailure = normalizeExecutionError(error);
+            await toolExecutionEngine.blockBeforeExecution(
+              lifecycleIdentity,
+              capabilityFailure.message,
+            );
+            await rollbackWorkspaceLease(lifecycleIdentity);
+            return { block: true, reason: capabilityFailure.message };
+          }
           effectCoordinator.markStarted(stepId, context.toolCall.callId, context.toolCall.tool);
           if (resolvedCapability.durability === "critical") {
             try {
@@ -2983,6 +3138,45 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          if (
+            observation.type === "tool_execution_start" &&
+            discovery &&
+            observation.call.tool !== DISCOVER_TOOLS_NAME
+          ) {
+            try {
+              discovery.assertCallable(observation.call.tool);
+            } catch {
+              // 原生对未声明工具立即拒绝，不经过 beforeToolCall，仍须留下未执行的完整收据。
+              const call = observation.call;
+              const key = toolCapabilityCallKey(agentName, stepId, call.callId);
+              const capability =
+                executionCapabilities.get(call.tool) ?? resolveToolCapability({ tool: call.tool });
+              const previous = capabilityByCallId.get(key);
+              if (previous && previous.tool !== call.tool) {
+                throw new CoreMindError("tool_capability_conflict", "同一 Call 不得更换工具身份");
+              }
+              capabilityByCallId.set(key, { tool: call.tool, capability });
+              emit({
+                type: "capability_resolved",
+                agent: agentName,
+                tool: call.tool,
+                callId: call.callId,
+                ...(stepId ? { stepId } : {}),
+                capability,
+                recoveryDisposition: recoveryDispositionFor(capability),
+              });
+              const identity = toolCallIdentity(agentName, stepId, call.callId);
+              const rejection = toolExecutionEngine
+                .recordCall({ ...identity, tool: call.tool })
+                .then(() =>
+                  toolExecutionEngine.blockBeforeExecution(identity, "工具不在当前已声明集合"),
+                );
+              immediateDiscoveryRejections.set(key, rejection);
+              void rejection.catch((error) => {
+                lifecycleFailure = normalizeExecutionError(error);
+              });
+            }
+          }
           if (observation.type === "control_consumed" || observation.type === "control_discarded") {
             const state = receiptStatusOf(collected, observation.inputId);
             if (
@@ -3004,6 +3198,12 @@ export class CoreMindRuntime {
             return;
           }
           if (observation.type === "tool_execution_end") {
+            const search = discovery?.observe(observation);
+            if (search)
+              discoverySearchesByCall.set(
+                toolCapabilityCallKey(agentName, stepId, observation.call.callId),
+                { fact: search, durable: durableSearches },
+              );
             const fact = skillExecution?.observe(observation);
             if (fact)
               skillLoadsByCall.set(
@@ -3029,6 +3229,127 @@ export class CoreMindRuntime {
           if (budget.observeAgentEvent(observation)) driver?.abort();
         },
       };
+      if (discoveryEnabled) {
+        const capability = resolveToolCapability({
+          tool: DISCOVER_TOOLS_NAME,
+          source: "registered",
+          declaration: {
+            effect: "none",
+            replay: "safe",
+            concurrency: "parallel",
+            checkpoint: "none",
+            durability: "critical",
+          },
+        });
+        executionEffects.set(DISCOVER_TOOLS_NAME, { operations: ["read"], reversible: true });
+        executionCapabilities.set(DISCOVER_TOOLS_NAME, capability);
+        harness.discoveryTool = adaptCoreMindTool({
+          ...structuredClone(TOOL_DISCOVERY_DECLARATION),
+          effect: { operations: ["read"], reversible: true },
+          capability,
+          execute: async (args, call) => {
+            if (!discovery) throw new CoreMindError("invalid_tool", "工具目录尚未就绪");
+            const result = discovery.search(call.callId, args, call.signal);
+            return { text: (result.content[0] as { text: string }).text, details: result.details };
+          },
+        });
+        harness.registerToolSource = (name, source) =>
+          toolSources.set(name, {
+            exposure: source?.exposure ?? "direct",
+            sourceIdentity: fingerprintEffectReceiptValue(source ?? { source: "host", name }),
+          });
+        harness.registerDeclarationCatalog = (entries) => {
+          const continuation = discoveryContinuations.find(
+            (owner) =>
+              owner.agent === agentName &&
+              owner.stepId === stepId &&
+              !consumedDiscoveryContinuations.has(owner.executionId),
+          );
+          if (continuation) consumedDiscoveryContinuations.add(continuation.executionId);
+          const owner = continuation ?? {
+            runId,
+            agent: agentName,
+            executionId: executionId!,
+            ...(stepId ? { stepId } : {}),
+          };
+          const catalog = entries
+            .filter((entry) => entry.name !== DISCOVER_TOOLS_NAME)
+            .filter((entry) =>
+              policy.allowsDeclaration(
+                entry.name,
+                executionCapabilities.get(entry.name) ??
+                  resolveToolCapability({ tool: entry.name }),
+              ),
+            )
+            .map((entry) => ({
+              ...entry,
+              declaration: entry.declaration as Readonly<Record<string, unknown>>,
+              ...(toolSources.get(entry.name) ?? {
+                exposure: "direct" as const,
+                sourceIdentity: fingerprintEffectReceiptValue({ source: "host", name: entry.name }),
+              }),
+              effect: executionEffects.get(entry.name)!,
+              capability: executionCapabilities.get(entry.name)!,
+            }));
+          discovery = new ToolDiscoveryExecution({
+            owner,
+            entries: catalog,
+            restored: continuation ? restoreToolDiscovery(resumeRecords!, owner) : undefined,
+          });
+          for (const [id, previous] of liveDiscoveryExecutions) {
+            if (
+              previous.catalog.owner.agent === agentName &&
+              previous.catalog.owner.stepId === stepId
+            )
+              liveDiscoveryExecutions.delete(id);
+          }
+          liveDiscoveryExecutions.set(executionId!, discovery);
+          providerRequestOrdinal =
+            resumePlan?.previousTrace.filter(
+              (entry) =>
+                entry.event.type === "provider_request" &&
+                entry.event.toolDiscovery?.catalogFingerprint === discovery!.catalog.fingerprint,
+            ).length ?? 0;
+          for (const source of withdrawnSources) discovery.withdraw(source);
+          initialDiscovery = discovery.prepare([]);
+          return adapterSelection(initialDiscovery?.selection ?? discovery.current!);
+        };
+        harness.prepareRequest = async (prepare, signal) => {
+          while (lifecycleFinalizers.size > 0)
+            await Promise.allSettled([...lifecycleFinalizers.values()]);
+          if (lifecycleFailure) throw lifecycleFailure;
+          signal?.throwIfAborted();
+          await journal.flush("critical");
+          const prepared = initialDiscovery ?? discovery!.prepare(durableSearches);
+          if (!prepared) return undefined;
+          const selection = adapterSelection(prepared.selection);
+          const contract = prepare(selection);
+          const generation = { prepared } as {
+            prepared: ToolDiscoveryPrepared;
+            receipt?: Promise<FactDurabilityReceipt>;
+          };
+          discoveryGenerations.set(prepared.selection.fingerprint, generation);
+          try {
+            emit({
+              type: "context_prefix",
+              agent: agentName,
+              fingerprint: createHash("sha256").update(contract.stablePrefix, "utf8").digest("hex"),
+              toolDiscovery: discoverySummary(prepared.selection),
+            });
+            if (!generation.receipt)
+              throw new CoreMindError("fact_ledger_poisoned", "声明事实未获准持久化");
+            const receipt = await generation.receipt;
+            signal?.throwIfAborted();
+            if (journal.isAborted()) throw new CoreMindError("aborted", "声明发布前 Run 已取消");
+            discovery!.commit(prepared, receipt);
+            initialDiscovery = undefined;
+            return selection;
+          } finally {
+            discoveryGenerations.delete(prepared.selection.fingerprint);
+          }
+        };
+      }
+      harness.onPromptCompleted = () => liveDiscoveryExecutions.delete(executionId!);
       if (mcpRun) {
         harness.prepareMcpTools = async (signal) => {
           const prepared = await mcpRun.prepare({
@@ -3036,6 +3357,10 @@ export class CoreMindRuntime {
             executionId: executionId!,
             signal,
             reservedToolNames: [...executionCapabilities.keys()],
+            onToolsChanged: (sourceIdentity) => {
+              withdrawnSources.add(sourceIdentity);
+              discovery?.withdraw(sourceIdentity);
+            },
             executeHost: async (operation: McpHostOperation) => {
               if (executionCapabilities.has(operation.name)) {
                 throw new CoreMindError("invalid_tool", "本地服务准备操作与已有工具重名");
@@ -3128,6 +3453,10 @@ export class CoreMindRuntime {
           });
           for (const tool of prepared) {
             const { definition, authorization } = tool;
+            toolSources.set(definition.name, {
+              exposure: tool.exposure ?? "direct",
+              sourceIdentity: String(authorization.serverIdentity),
+            });
             const key = JSON.stringify([agentName, definition.name]);
             const previous = mcpAuthorizations.get(key);
             if (
@@ -3667,6 +3996,14 @@ export class CoreMindRuntime {
       releaseReadiness = assessReleaseReadiness(outcome, evaluation);
     }
     const terminalKind = outcome.status === "paused" ? "pause" : "finish";
+    const pausedDiscoveryOwners = [
+      ...discoveryContinuations.filter(
+        (owner) => !consumedDiscoveryContinuations.has(owner.executionId),
+      ),
+      ...[...liveDiscoveryExecutions.values()]
+        .filter((execution) => execution.current)
+        .map((execution) => execution.catalog.owner),
+    ];
     const terminalPayload = {
       operation: operation.snapshot(),
       outcome,
@@ -3676,6 +4013,14 @@ export class CoreMindRuntime {
       artifacts: context.artifactRecords(),
       extensions: context.extensions(),
       ...(outcome.status === "paused" && loopSnapshot ? { loopSnapshot } : {}),
+      ...(outcome.status === "paused" && pausedDiscoveryOwners.length > 0
+        ? {
+            toolDiscoveryContinuations: {
+              version: 1,
+              owners: pausedDiscoveryOwners,
+            },
+          }
+        : {}),
       ...(outcome.status === "paused" && deferredTerminalError
         ? { deferredTerminalError: serializeDeferredTerminalError(deferredTerminalError) }
         : {}),
