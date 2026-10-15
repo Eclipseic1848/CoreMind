@@ -245530,7 +245530,8 @@ public static class CoreMindMcpJob {
   static void Absolute(string value) {
     Require(!String.IsNullOrEmpty(value) && value.IndexOf('\0') < 0);
     Require(System.Text.RegularExpressions.Regex.IsMatch(value, @"^(?:[A-Za-z]:[\\/]|\\\\[^\\]+\\[^\\]+[\\/])"));
-    Require(String.Equals(Path.GetFullPath(value), value, StringComparison.OrdinalIgnoreCase));
+    // 合法绝对路径可含短文件名或正斜杠，不要求输入已规范化。
+    Path.GetFullPath(value);
   }
   public static void Start(string node, string launcher, string cwd, string servicePipe, Dictionary<string, string> hostEnv) {
     Absolute(node); Absolute(launcher); Absolute(cwd);

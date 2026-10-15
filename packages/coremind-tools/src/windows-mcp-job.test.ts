@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { launchWindowsMcpJob, type WindowsMcpJob } from "./windows-mcp-job.js";
 
 const fixture = path.resolve(process.cwd(), "test/fixtures/mcp-stdio-server.mjs");
-type Mode = "normal" | "orphan" | "pre-abort" | "missing" | "dead-middle";
+type Mode = "normal" | "orphan" | "pre-abort" | "missing" | "dead-middle" | "forward-cwd";
 type RecordEntry = { type: string; pid?: number; childPid?: number };
 
 interface JobContext {
@@ -17,50 +17,53 @@ interface JobContext {
 }
 
 describe.skipIf(process.platform !== "win32")("Windows MCP 原生 Job 所有权", () => {
-  it.each(["close", "natural", "abort"] as const)("%s 后真实树清空且重复关闭成功", async (mode) => {
-    await withJob(
-      mode === "natural" ? "orphan" : "normal",
-      async ({ job, controller, recordPath }) => {
-        await job.ready;
-        const owned = await vi.waitFor(
-          async () => {
-            const current = await records(recordPath);
-            const started = current.find((record) => record.type === "started");
-            if (typeof started?.pid !== "number" || typeof started.childPid !== "number")
-              throw new Error("真实服务尚未记录自有 PID");
-            expect(
-              current.some(
-                (record) => record.type === "heartbeat" && record.pid === started.childPid,
-              ),
-            ).toBe(true);
-            expect(alive(started.pid)).toBe(true);
-            expect(alive(started.childPid)).toBe(true);
-            return { pid: started.pid, childPid: started.childPid };
-          },
-          { timeout: 3_000, interval: 20 },
-        );
-        if (mode === "natural") {
-          job.process.stdin!.write(
-            `${JSON.stringify({
-              jsonrpc: "2.0",
-              id: 1,
-              method: "tools/call",
-              params: { name: "echo", arguments: { value: "自然退出后仍由 Job 回收" } },
-            })}\n`,
+  it.each(["close", "natural", "abort", "forward-cwd"] as const)(
+    "%s 后真实树清空且重复关闭成功",
+    async (mode) => {
+      await withJob(
+        mode === "natural" ? "orphan" : mode === "forward-cwd" ? "forward-cwd" : "normal",
+        async ({ job, controller, recordPath }) => {
+          await job.ready;
+          const owned = await vi.waitFor(
+            async () => {
+              const current = await records(recordPath);
+              const started = current.find((record) => record.type === "started");
+              if (typeof started?.pid !== "number" || typeof started.childPid !== "number")
+                throw new Error("真实服务尚未记录自有 PID");
+              expect(
+                current.some(
+                  (record) => record.type === "heartbeat" && record.pid === started.childPid,
+                ),
+              ).toBe(true);
+              expect(alive(started.pid)).toBe(true);
+              expect(alive(started.childPid)).toBe(true);
+              return { pid: started.pid, childPid: started.childPid };
+            },
+            { timeout: 3_000, interval: 20 },
           );
-          await vi.waitFor(() => expect(alive(owned.pid)).toBe(false));
-        }
-        if (mode === "abort") controller.abort();
-        await expect(Promise.all([job.close(), job.close()])).resolves.toEqual([
-          undefined,
-          undefined,
-        ]);
-        expect(alive(owned.pid)).toBe(false);
-        expect(alive(owned.childPid)).toBe(false);
-        expect((await job.process).exitCode).toBe(0);
-      },
-    );
-  });
+          if (mode === "natural") {
+            job.process.stdin!.write(
+              `${JSON.stringify({
+                jsonrpc: "2.0",
+                id: 1,
+                method: "tools/call",
+                params: { name: "echo", arguments: { value: "自然退出后仍由 Job 回收" } },
+              })}\n`,
+            );
+            await vi.waitFor(() => expect(alive(owned.pid)).toBe(false));
+          }
+          if (mode === "abort") controller.abort();
+          await expect(Promise.all([job.close(), job.close()])).resolves.toEqual([
+            undefined,
+            undefined,
+          ]);
+          expect(alive(owned.pid)).toBe(false);
+          expect(alive(owned.childPid)).toBe(false);
+          expect((await job.process).exitCode).toBe(0);
+        },
+      );
+    },
+  );
 
   it.each(["pre-abort", "missing"] as const)("%s 不执行服务且仍完成真实回收", async (mode) => {
     await withJob(mode, async ({ job, recordPath }) => {
@@ -133,7 +136,7 @@ describe.skipIf(process.platform !== "win32")("Windows MCP 原生 Job 所有权"
       const probe = [
         "#!/usr/bin/env node",
         "const fs=require('node:fs');",
-        "fs.writeFileSync(process.argv[2],JSON.stringify({pid:process.pid,argv:process.argv.slice(3),cwd:fs.realpathSync(process.cwd()),allowed:process.env.COREMIND_JOB_ALLOWED_CANARY,host:process.env.COREMIND_JOB_HOST_CANARY??null,ownerPipe:process.env.COREMIND_MCP_OWNER_PIPE??null,servicePipe:process.env.COREMIND_MCP_SERVICE_PIPE??null}),'utf8');",
+        "fs.writeFileSync(process.argv[2],JSON.stringify({pid:process.pid,argv:process.argv.slice(3),cwd:fs.realpathSync.native(process.cwd()),allowed:process.env.COREMIND_JOB_ALLOWED_CANARY,host:process.env.COREMIND_JOB_HOST_CANARY??null,ownerPipe:process.env.COREMIND_MCP_OWNER_PIPE??null,servicePipe:process.env.COREMIND_MCP_SERVICE_PIPE??null}),'utf8');",
         "setInterval(()=>{},1000);",
       ].join("\n");
       await writeFile(path.join(cwd, "probe.cjs"), probe, "utf8");
@@ -252,7 +255,7 @@ async function withJob(mode: Mode, check: (context: JobContext) => Promise<void>
           mode === "dead-middle"
             ? ["-e", deadMiddleScript(recordPath)]
             : [fixture, recordPath, mode === "orphan" ? "orphan" : "normal"],
-        cwd: directory,
+        cwd: mode === "forward-cwd" ? directory.replaceAll("\\", "/") : directory,
         env: {},
       },
       controller.signal,
