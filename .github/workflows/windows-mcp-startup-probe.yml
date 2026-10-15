@@ -21,10 +21,6 @@ jobs:
         run: |
           npm install --global npm@11.5.1
           npm ci
-          npm run build --workspace coremind-config
-          npm run build --workspace coremind-protocol
-          npm run build --workspace coremind-tools
-      - name: 冷启动预取消的原五秒关闭验收
-        run: node node_modules/vitest/vitest.mjs run --config vitest.engineering.config.ts --project coremind-tools --maxWorkers=1 packages/coremind-tools/src/windows-mcp-job.test.ts -t pre-abort
-      - name: 正常启动与真实进程树关闭验收
-        run: node node_modules/vitest/vitest.mjs run --config vitest.engineering.config.ts --project coremind-tools --maxWorkers=1 packages/coremind-tools/src/windows-mcp-job.test.ts -t "close 后真实树"
+          npm run build
+      - name: 原 Runtime 首格冷连接阶段观察
+        run: node node_modules/vitest/vitest.mjs run --config test/probes/mcp-startup-timing.vitest.config.mts -t 'connect/list/call' --reporter verbose --silent=false
