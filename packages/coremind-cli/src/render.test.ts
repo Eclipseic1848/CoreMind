@@ -1,6 +1,6 @@
 import { Writable } from "node:stream";
+import { CoreMindError } from "coremind-ai";
 import { describe, expect, it } from "vitest";
-import { CoreMindError } from "../../coremind-runtime/src/errors.js";
 import { renderChatEvent } from "./commands/chat.js";
 import {
   errorLine,
