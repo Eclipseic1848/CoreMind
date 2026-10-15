@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -128,6 +129,18 @@ describe("受控发布说明", () => {
 describe("受控发布说明 CLI 的真实 Git 身份", () => {
   it("从脚本根读取版本与 annotated Tag，在其他 cwd 生成完整中英说明", () => {
     const fixture = createFixture();
+    expect(
+      git(fixture.root, [
+        "config",
+        "--local",
+        "--get-regexp",
+        "^(user\\.(name|email)|core\\.autocrlf)$",
+      ]).split(/\r?\n/u),
+    ).toEqual([
+      "user.name CoreMind Test",
+      "user.email test@example.invalid",
+      "core.autocrlf false",
+    ]);
     const expected = template.replace("{{RELEASE_COMMIT}}", fixture.commit);
     const manifest = writeManifest(fixture.root, fixture.commit);
     const result = invoke(fixture.root, ["--manifest", manifest], tmpdir());
@@ -273,9 +286,12 @@ function createFixture(source: string | null = template) {
   if (source !== null)
     writeFileSync(path.join(root, "docs", "release", "notes", "v1.1.0.md"), source, "utf8");
   git(root, ["init", "--quiet", "--initial-branch=main"]);
-  git(root, ["config", "user.name", "CoreMind Test"]);
-  git(root, ["config", "user.email", "test@example.invalid"]);
-  git(root, ["config", "core.autocrlf", "false"]);
+  // 固定配置直接写入自有仓库，避免每个夹具额外启动三次 Git。
+  appendFileSync(
+    path.join(root, ".git", "config"),
+    "\n[user]\n\tname = CoreMind Test\n\temail = test@example.invalid\n[core]\n\tautocrlf = false\n",
+    "utf8",
+  );
   git(root, ["add", "."]);
   git(root, ["commit", "--quiet", "--no-gpg-sign", "-m", "固定发布说明夹具"]);
   git(root, ["tag", "--annotate", "--no-sign", "v1.1.0", "--message", "固定发布标签"]);
