@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased — 1.1 development
 
 - Added the public host-owned MCP authentication session, temporary authorization handler, optional secure TokenStore, and Runtime borrowing without Child inheritance.

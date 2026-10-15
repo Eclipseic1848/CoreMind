@@ -31,8 +31,18 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前阶段
+## 当前发布线：`1.1.0`
 
-> `1.0.1` 发布线完成权限、恢复、Trace、预算与 Worker 生命周期加固，并改善 Python 集成和终端交互。公开安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1)、[npm](https://www.npmjs.com/package/coremind-cli/v/1.0.1) 和 [PyPI](https://pypi.org/project/coremind-ai/1.0.1/) 为准；源码与工程 CI 通过不等于已经发布。
+> `1.1.0` 发布线增加标准 Skill 按需加载、持久交互控制、受控 MCP 与显式 OAuth、Config v3 工具发现及逐 Run/Call 终端证据。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
 
-仓库内 Provider 台账当前未收录 `1.0.1` 静态认证记录；正式发布必须通过绑定候选提交与 Runtime 摘要的 strict-provider 工作流 Artifact。可配置不等于认证，生产评估必须同时核对供应商矩阵与本版本工作流证据。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。
+- 标准 `SKILL.md` 索引、按需加载和冻结快照恢复。
+- 同 Run 持久 `/steer`、`/follow-up` 与五态控制回执。
+- 经权限准入的本地 MCP stdio 工具与取消收尾。
+- 固定 HTTP MCP 目标、精确资源授权与受控凭据。
+- 宿主显式 OAuth 登录、取消、退出和登出。
+- 显式 Config v3 `deferred` 中英文词法发现、声明 generation 与事实重建。
+- 逐 Run/Call 终端执行证据、受控 Artifact 引用和安全输入。
+
+Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`deferred` 必须显式选用 Config v3。新特性须使用支持相应能力的匹配 SDK 与 bundled Worker；使用 Protocol v2 时还须匹配 Schema 指纹；运行要求 Node.js ≥ 22.19，Python SDK 要求 Python ≥ 3.10。未知副作用仍须人工核对，不能盲目恢复；技能加载与工具发现都不授予新权限。真实外部授权服务器互通及全局成对性能收益尚未认证。
+
+Provider 可配置不等于认证；资格须核对同版本、同提交和 Runtime 摘要的 strict-provider 证据。维护者可查看 [RC 验收指南](/release/RC-ACCEPTANCE.zh-CN)和[发布 SOP](/release/README.zh-CN)。

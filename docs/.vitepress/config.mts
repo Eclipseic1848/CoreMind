@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitepress";
+import { type DefaultTheme, defineConfig } from "vitepress";
 import { rewriteDocumentationLink } from "../../scripts/docs-link-policy.mjs";
 
 const repository = "https://github.com/Eclipseic1848/CoreMind";
@@ -14,12 +14,19 @@ export default defineConfig({
   ignoreDeadLinks: [/^\.\.\//],
   markdown: {
     config(markdown) {
+      // 只保护 Markdown 配置占位符，主题组件继续使用正常 Vue 插值。
+      for (const rule of ["text", "code_inline"]) {
+        const render = markdown.renderer.rules[rule]!;
+        markdown.renderer.rules[rule] = (...args) =>
+          render(...args).replaceAll("{{", "&#123;&#123;");
+      }
       const originalLinkOpen = markdown.renderer.rules.link_open;
       markdown.renderer.rules.link_open = (tokens, index, options, environment, self) => {
-        const hrefIndex = tokens[index].attrIndex("href");
+        const token = tokens[index]!;
+        const hrefIndex = token.attrIndex("href");
         if (hrefIndex >= 0) {
-          const href = tokens[index].attrs?.[hrefIndex]?.[1] ?? "";
-          tokens[index].attrSet(
+          const href = token.attrs?.[hrefIndex]?.[1] ?? "";
+          token.attrSet(
             "href",
             rewriteDocumentationLink(href, environment.relativePath ?? "", repositoryRoot),
           );
@@ -28,13 +35,6 @@ export default defineConfig({
           ? originalLinkOpen(tokens, index, options, environment, self)
           : self.renderToken(tokens, index, options);
       };
-    },
-  },
-  vue: {
-    template: {
-      compilerOptions: {
-        delimiters: ["<%", "%>"],
-      },
     },
   },
   locales: {
@@ -52,7 +52,7 @@ export default defineConfig({
   },
 });
 
-function zhTheme() {
+function zhTheme(): DefaultTheme.Config {
   return {
     nav: [
       { text: "快速开始", link: "/guide/01-quickstart" },
@@ -81,7 +81,7 @@ function zhTheme() {
   };
 }
 
-function enTheme() {
+function enTheme(): DefaultTheme.Config {
   return {
     nav: [
       { text: "Quick Start", link: "/en/guide/01-quickstart" },

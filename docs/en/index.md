@@ -31,8 +31,18 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Project status
+## Current release line: `1.1.0`
 
-> The `1.0.1` release line hardens authorization, recovery, Trace, budgets, and Worker lifecycle, and improves Python integration and terminal interaction. Check [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1), [npm](https://www.npmjs.com/package/coremind-cli/v/1.0.1), and [PyPI](https://pypi.org/project/coremind-ai/1.0.1/) for public availability. Source code and passing engineering CI do not establish publication.
+> The `1.1.0` release line adds on-demand standard Skills, durable interactive control, controlled MCP and explicit OAuth, Config v3 tool discovery, and terminal evidence per Run/Call. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and qualification evidence for the same commit determine public availability; source code and engineering CI do not establish publication.
 
-The checked-in Provider ledger currently has no static `1.0.1` certification record. Formal publication requires a strict-provider workflow Artifact bound to the candidate commit and Runtime digest. Configurability is not certification; production evaluation must check both the provider matrix and this version's workflow evidence. Maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).
+- Standard `SKILL.md` indexing, on-demand loading, and frozen-snapshot recovery.
+- Durable same-Run `/steer`, `/follow-up`, and five-state control receipts.
+- Permission-gated local MCP stdio tools and cancellation settlement.
+- Fixed HTTP MCP targets, exact resource authorization, and controlled credentials.
+- Explicit host OAuth login, cancellation, exit, and logout.
+- Explicit Config v3 `deferred` Chinese/English lexical discovery, declaration generation, and fact reconstruction.
+- Terminal evidence per Run/Call, controlled Artifact references, and safe input.
+
+Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible; `deferred` requires explicit Config v3. New features require matching SDK and bundled Worker capabilities; Protocol v2 also requires matching Schema fingerprints. Node.js ≥ 22.19 is required, and the Python SDK requires Python ≥ 3.10. Unknown effects still require human reconciliation before resume. Skill loading and tool discovery grant no new permissions. Real external authorization-server interoperability and global paired performance gains are not certified.
+
+A configurable Provider is not certified; qualification requires strict-provider evidence for the same version, commit, and Runtime digest. Maintainers can follow the [RC acceptance guide](/release/RC-ACCEPTANCE.en) and [release SOP](/release/README.en).

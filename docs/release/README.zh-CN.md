@@ -2,17 +2,24 @@
 
 本 SOP 把 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。候选复用时，清单分别记录包的构建提交和发布提交。任一渠道成功都不能替代整体验收。
 
-> 当前发布目标为 `1.0.1`。本页描述严格发布与断点恢复流程；源码、工程检查和文档同步不代表公开发布完成。公开状态以 GitHub Release、npm 与 PyPI 为准。
+> 当前发布线为 `1.1.0`。本页描述严格发布与断点恢复流程；公开可安装状态以 GitHub Release、npm、PyPI 实时页面和同提交资格证据为准，源码、工程 CI 与文档同步不等于公开发布。
 
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [0.2→0.3 迁移](../migrations/0.2-to-0.3.zh-CN.md)
 
 ## 历史发布决定
 
-`0.7.1` 已按独立批准复用 [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153) 的固定包；清单记录原构建来源与 `providerCertification: not-run`。`0.7.0` 的网络例外和 `0.7.1` 的离线晋升只解释历史制品，均不适用于 `1.0.1`。不恢复这些旧发布任务，不覆盖旧版本。
+`0.7.1` 已按独立批准复用 [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153) 的固定包；清单记录原构建来源与 `providerCertification: not-run`。`0.7.0` 的网络例外和 `0.7.1` 的离线晋升只解释历史制品，均不适用于 `1.0.1` 或 `1.1.0`。不恢复这些旧发布任务，不覆盖旧版本。
+
+## 1.1.0 发布线与升级边界
+
+本线包含标准 Skill 按需冻结加载、持久交互控制、权限约束的本地 MCP、受控 HTTP 资源与凭据、显式 OAuth 取消、Config v3 工具发现与声明重建，以及逐 Run/Call 终端证据与安全输入。详见[变更日志](../../CHANGELOG.md)。
+
+Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`deferred` 必须显式选用 Config v3。新特性须使用支持相应能力的匹配 SDK 与 bundled Worker；使用 Protocol v2 时还须匹配 Schema 指纹；运行要求 Node.js ≥ 22.19，Python SDK 要求 Python ≥ 3.10。未知副作用仍须人工核对，不能盲目恢复；技能加载与工具发现都不授予新权限。真实外部授权服务器互通及全局成对性能收益尚未认证。
 
 ## 发布原则
 
 - 版本、提交、Tag、产物清单与公开文档必须一致。
+- Release 正文只使用经人工语义审阅的固定双语说明；唯一动态内容是已验证的完整提交 SHA。禁止自动聚合 PR/提交标题或生成说明，既有正文冲突立即停止。
 - TypeScript 与 Python 同步发布；Python SDK 继续调用同一个 Node Runtime，不建立第二套运行引擎。
 - Release Please 只创建或更新发布 PR，工作流随后立即将新建 ready PR 幂等转为草稿，不自动 Tag、不自动发布。转换期间存在短暂 ready 窗口，因此仓库必须关闭自动合并，且不得配置仅对 ready PR 生效的发布副作用。
 - npm 与 PyPI 使用 GitHub OIDC 可信发布；仓库和工作流不得保存长期 Registry Token。
@@ -34,13 +41,19 @@
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `1.0.1`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `1.1.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 ```powershell
-npm run release:sync-version -- 1.0.1
+npm run release:sync-version -- 1.1.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
+
+### 固定并审阅发布正文
+
+版本冻结时一并审阅 `docs/release/notes/v1.1.0.md` 的完整中英正文，核对七项能力、兼容与升级边界、真实验证范围及未覆盖限制。模板中的版本与 Tag 固定，`{{RELEASE_COMMIT}}` 恰好出现一次；渲染只注入经校验的 40 位提交 SHA，不从 PR 标题、提交标题或自动 Release Notes 接口拼接内容，避免提交自引用。
+
+在任何 Registry 或 Release 公开写入前验证模板和 Tag/HEAD 身份；Release 阶段再核产物清单，使用固定输出文件配合 `gh release create --notes-file`。缺失、空白、身份不符或未知占位符均停止，不能退回 `--generate-notes`。复用已有 Release 时，先比较线上 body 与同一身份渲染的正文，仅允许明确的 CRLF/LF 与末尾终止换行差异；不同、缺失或查询未知均停止，不能自动编辑、覆盖正文或先上传缺失资产。既有附件哈希、一次构建与恢复门仍全部保留。正文控制不删改任何真实依赖、版权、许可证或 NOTICE。
 
 版本检查：
 
@@ -84,7 +97,7 @@ P0-17 使用 [`v0.7.1-main-ruleset.json`](evidence/v0.7.1-main-ruleset.json) 保
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
 - Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
-- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`1.0.1` 不接受旧版本的网络或离线晋升例外。
+- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`1.1.0` 不接受旧版本的网络或离线晋升例外。
 - Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
@@ -113,7 +126,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 5. 上传一次构建产物；每个消费作业都在使用前独立校验 `SHA256SUMS.txt`，再由独立作业生成 GitHub 构建来源证明。
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
 7. 受保护 `pypi` 环境批准后，以 OIDC 发布同一个 wheel。
-8. npm、PyPI 与来源证明都成功后，创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
+8. npm、PyPI 与来源证明都成功后，按已验证固定正文使用 `--notes-file` 创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
 9. `0.7.0` 的候选、发布和公开回装阶段分别生成 P0-01～P0-20、P0-01～P0-21 与 P0-01～P0-22 顶层报告；该历史报告不代表当前版本的发布证据。
 10. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
 
@@ -124,7 +137,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@1.0.1
+npm install -g coremind-cli@1.1.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent

@@ -11,7 +11,10 @@ function expectPinnedActions(workflow: {
   const actionReferences = Object.values(workflow.jobs)
     .flatMap((job) => job.steps ?? [])
     .map((step) => step.uses)
-    .filter((uses): uses is string => Boolean(uses) && !uses.startsWith("./"));
+    .filter(
+      (uses): uses is string =>
+        typeof uses === "string" && uses.length > 0 && !uses.startsWith("./"),
+    );
 
   expect(actionReferences.length).toBeGreaterThan(0);
   for (const reference of actionReferences) {
@@ -20,6 +23,38 @@ function expectPinnedActions(workflow: {
 }
 
 describe("GitHub Actions 收口合同", () => {
+  it("发布正文在公开写入前校验，创建仅使用固定说明文件", () => {
+    const workflow = parse(readFileSync(".github/workflows/publish-pypi.yml", "utf8"));
+    const selection = workflow.jobs.candidate.steps.find(
+      (step: { id?: string }) => step.id === "selection",
+    );
+    const release = workflow.jobs.release.steps.find((step: { name?: string }) =>
+      step.name?.startsWith("创建仅含当前独立源码包"),
+    );
+    expect(selection.run).toContain("node scripts/release-notes.mjs --tag");
+    expect(selection.run).toContain("--output .scratch/controlled-release-notes.md");
+    expect(workflow.jobs.build.needs).toBe("candidate");
+    expect(release.run).toContain("--manifest release-artifacts/release-manifest.json");
+    expect(release.run).toContain("--notes-file .scratch/controlled-release-notes.md");
+    expect(release.run).not.toContain("--generate-notes");
+    expect(release.run).not.toContain("notes_args");
+    expect(release.run).not.toContain("generate-release-notes");
+  });
+
+  it("恢复已有 Release 时先核对受控正文，再下载或补传资产", () => {
+    const workflow = parse(readFileSync(".github/workflows/publish-pypi.yml", "utf8"));
+    const release = workflow.jobs.release.steps.find((step: { name?: string }) =>
+      step.name?.startsWith("创建仅含当前独立源码包"),
+    );
+    const comparison = release.run.indexOf("--existing-release");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: 核对真实 shell 分支原文，不执行 JavaScript 插值。
+    expect(comparison).toBeGreaterThan(release.run.indexOf('if [ "${release_status}" = "200" ]'));
+    expect(comparison).toBeLessThan(release.run.indexOf("gh release download"));
+    expect(comparison).toBeLessThan(release.run.indexOf("gh release upload"));
+    expect(release.run).not.toContain("gh release edit");
+    expect(release.run).not.toContain("--clobber");
+  });
+
   it("Release 事件先从 main 派发文档部署，手动触发仍直接部署", () => {
     const workflow = parse(readFileSync(".github/workflows/docs.yml", "utf8"));
 

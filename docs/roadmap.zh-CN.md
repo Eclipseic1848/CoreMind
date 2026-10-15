@@ -4,13 +4,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前发布线：`1.0.1`
+## 当前发布线：`1.1.0`
 
-`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `1.0.1` 发布线继承 `0.8.0`，并保留以下能力：
+`0.2.0-rc.1` 保持为不可变参考基线；GitHub Release、npm 与 PyPI 决定各渠道实际可安装的最新版本。当前 `1.1.0` 发布线继承 `1.0.1`，并保留以下能力：
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
-- Config v2、40 个可配置模型供应商及自定义兼容端点。
+- Config v2 兼容与显式 Config v3、43 个可配置 Provider 入口（含兼容别名）及自定义兼容端点。
 - `ask`、`assisted`、`full` 三档权限，以及路径策略、审批、审计、checkpoint、diff 和恢复。
 - 明确的运行结果、预算、Trace、Session、Context 保护、测试、评测和发布门禁。
 - 8 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 22 个能力模块。
@@ -18,9 +18,21 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`v1.0.1` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/1.0.1/) 必须绑定同一版本与提交；公开可用性以实时页面为准，旧版本发布证据继续作为历史记录保留。
+`v1.1.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/) 必须绑定同一版本与提交；公开可安装状态以渠道实时页面和同提交资格证据为准，源码 CI 通过不等于发布。旧版本发布记录保留，不能替代本版本资格。
 
-它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；仓库台账未收录 `1.0.1` 静态认证记录，正式发布还必须有同版本 strict-provider 工作流 Artifact。
+它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；正式发布还必须有绑定本版本、最终提交、Runtime 与 Worker 的 strict-provider 工作流证据。
+
+## `1.1.0`：受控扩展与交互证据
+
+- 标准 `SKILL.md` 索引、按需加载和冻结快照恢复。
+- 同 Run 持久 `/steer`、`/follow-up` 与五态控制回执。
+- 经权限准入的本地 MCP stdio 工具与取消收尾。
+- 固定 HTTP MCP 目标、精确资源授权与受控凭据。
+- 宿主显式 OAuth 登录、取消、退出和登出。
+- 显式 Config v3 `deferred` 中英文词法发现、声明 generation 与事实重建。
+- 逐 Run/Call 终端执行证据、受控 Artifact 引用和安全输入。
+
+Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`deferred` 必须显式选用 Config v3。新特性须使用支持相应能力的匹配 SDK 与 bundled Worker；使用 Protocol v2 时还须匹配 Schema 指纹；运行要求 Node.js ≥ 22.19，Python SDK 要求 Python ≥ 3.10。未知副作用仍须人工核对，不能盲目恢复；技能加载与工具发现都不授予新权限。真实外部授权服务器互通及全局成对性能收益尚未认证。
 
 ## `1.0.1`：运行时安全与集成加固
 
@@ -54,11 +66,11 @@ P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundle
 
 ## 后续路线（版本范围待确认）
 
-0.8.0聚焦宿主验收与工程审查修复。以下方向尚未交付，不再沿用早期规划中已经失效的版本分配；具体范围和验收由维护者在启动时确认：
+1.1.0 发布线围绕受控扩展与交互证据演进。以下方向仍需独立确定范围与验收，不再沿用早期规划中已经失效的版本分配：
 
 - Web开发环境：先运行与控制面，再在线编辑、测试与评测，复用现有Protocol与Runtime。
-- MCP/LSP、受控第三方插件、远程执行环境与平台生态：分别确认安全合同和兼容门禁后推进。
-- 1.0目标：功能冻结、兼容与安全收口，完成正式候选和可审计发布；当前没有承诺日期。
+- 更多 MCP 服务互通、LSP、受控第三方插件、远程执行环境与平台生态：分别确认安全合同和兼容门禁后推进。
+- 后续稳定版本：依据真实缺陷与社区反馈持续完善兼容、安全及可审计发布，不承诺未经确认的日期。
 
 ## `0.3.0`：二期内核与工程闭环
 

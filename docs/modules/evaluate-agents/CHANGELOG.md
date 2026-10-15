@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased
 
 - Added artifact-verified paired evaluation with isolated cells, complete failure accounting, and separate startup, stream, cancellation, and size measurements.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased — 1.1 development
 
 - Added negotiated v2 MCP login/cancel/logout with dedicated non-secret notifications, caller-thread sync handlers, original-loop async handlers, and Node cancellation cleanup. Default v1 remains non-interactive.

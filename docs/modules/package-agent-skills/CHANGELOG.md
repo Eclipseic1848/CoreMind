@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased — 1.1 development
 
 - Added explicit SKILL.md selection, metadata indexes, and policy-controlled body loading while retaining built-in and README prefix behavior.

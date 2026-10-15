@@ -2,17 +2,24 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site at one version and stability level. When reusing a candidate, the manifest distinguishes the package build commit from the release commit.
 
-> The current publication target is `1.0.1`. This page describes strict release qualification and recovery. Source code, engineering checks, and synchronized documentation do not establish public availability; GitHub Release, npm, and PyPI remain authoritative.
+> The current release line is `1.1.0`. This page describes strict release qualification and recovery. Live GitHub Release, npm, and PyPI pages and same-commit qualification evidence determine public availability; source code, engineering CI, and synchronized documentation do not establish publication.
 
 [简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [0.2→0.3 migration](../migrations/0.2-to-0.3.en.md)
 
 ## Historical release decisions
 
-Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `1.0.1`. Do not restart those releases or overwrite their artifacts.
+Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `1.0.1` or `1.1.0`. Do not restart those releases or overwrite their artifacts.
+
+## The 1.1.0 release line and upgrade boundaries
+
+This line includes frozen on-demand standard Skills, durable interactive control, permission-gated local MCP, controlled HTTP resources and credentials, explicit OAuth cancellation, Config v3 discovery and declaration reconstruction, and terminal evidence per Run/Call with safe input. See the [changelog](../../CHANGELOG.en.md).
+
+Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible; `deferred` requires explicit Config v3. New features require matching SDK and bundled Worker capabilities; Protocol v2 also requires matching Schema fingerprints. Node.js ≥ 22.19 is required, and the Python SDK requires Python ≥ 3.10. Unknown effects still require human reconciliation before resume. Skill loading and tool discovery grant no new permissions. Real external authorization-server interoperability and global paired performance gains are not certified.
 
 ## Principles
 
 - Version, commit, tag, artifact manifest, and public documentation must agree.
+- Release bodies use only a fixed bilingual text reviewed for meaning. The only dynamic content is the verified full commit SHA. Never aggregate PR/commit titles or generate notes automatically; an existing-body conflict stops the release.
 - TypeScript and Python ship together. The Python SDK continues to call the same Node runtime.
 - Release Please only creates or updates the release PR, and the workflow then immediately and idempotently converts a newly created ready PR to draft. It never tags or publishes. Conversion leaves a brief ready window, so repository auto-merge must remain disabled and no publication side effect may depend only on a PR being ready.
 - npm and PyPI use GitHub OIDC trusted publishing; the repository and workflow do not store long-lived registry tokens.
@@ -26,12 +33,18 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `1.0.1`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `1.1.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 ```powershell
-npm run release:sync-version -- 1.0.1
+npm run release:sync-version -- 1.1.0
 npm run release:preflight -- --allow-dirty
 ```
+
+### Freeze and review the Release body
+
+Review the complete Chinese and English text in `docs/release/notes/v1.1.0.md` with the version freeze, covering the seven capabilities, compatibility and upgrade boundaries, actual validation, and uncovered limits. Version and Tag are fixed in the template, and `{{RELEASE_COMMIT}}` occurs exactly once. Rendering injects only the verified 40-character commit SHA; it does not assemble content from PR titles, commit titles, or the automatic Release Notes API, avoiding a self-referential source commit.
+
+Validate the template and Tag/HEAD identity before any public Registry or Release write. Recheck the artifact manifest in the Release stage and create the Release from the fixed output file through `gh release create --notes-file`. Missing, empty, mismatched, or unknown template fields stop the operation without falling back to `--generate-notes`. When resuming an existing Release, compare its body with the text rendered for the same identity before uploading missing assets. Only explicit CRLF/LF and final-terminating-newline differences are allowed; a different or missing body or an unknown query result stops recovery, without automatic editing or replacement. Existing asset-hash, build-once, and recovery gates remain active. Notes control never removes real dependencies, copyrights, licenses, or NOTICE files.
 
 Both-platform CI on an ordinary feature branch may explicitly use `--defer-provider-certification` on both `release:preflight` and the nested `acceptance:rc` command. This defers only the requirement that the in-development Runtime already have a live-provider certification. The mode must emit a warning, cannot be passed bare by a release operator, and cannot be enabled through an environment variable. The publication workflow first verifies an external strict-provider Artifact against the candidate commit, version, Runtime build, and bundled Worker, then uses defer internally to replace the checked-in ledger check. It verifies the final npm package digest before generating the release manifest; every other release gate remains active.
 
@@ -60,7 +73,7 @@ P0-17 stores the maintainer's read-only `main` ruleset export and bypass actor i
 
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.0.1` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.1.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -70,7 +83,7 @@ npm run acceptance:rc -- --require-manual
 
 After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit before creating `v<version>` on that commit; the tag must equal the root manifest version. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
 
-For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
+For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created with the validated fixed body through `--notes-file` only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
 
 The Release attaches only the independent source ZIP, checksums, and manifest in addition to GitHub's unavoidable automatic source zip/tar.gz links. Leave `artifact_run_id` empty for the first run. That path first proves the same commit has no earlier successful Build and that the target version is explicitly absent from the GitHub Release, all eight npm packages, and PyPI; any existing or unknown state refuses a rebuild. After a partial publication or uncertain network result, pass the original publication run ID: the workflow accepts only a saved bundle from the same workflow and commit with a successful Build and matching tag, version, manifest, and checksums; it never rebuilds that continuation. Existing same-name, same-version npm, PyPI, or GitHub Release assets are skipped only when their hashes match; missing assets are uploaded and hash conflicts fail immediately. Published versions remain immutable, so conflicts require a higher repaired version.
 
@@ -82,4 +95,4 @@ Stop on any build, acceptance, OIDC, registry, attestation, or Release failure. 
 
 ## Current candidate sequencing
 
-Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.0.1.
+Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.1.0.

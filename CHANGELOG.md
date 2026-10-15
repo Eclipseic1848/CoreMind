@@ -4,6 +4,25 @@
 
 [English](CHANGELOG.en.md)
 
+## 1.1.0
+
+### 新增与改进
+
+- 标准 `SKILL.md` 支持索引与按需 `load_skill`；所选正文在 Runtime 创建时冻结，恢复沿用原快照，加载技能不增加权限。
+- 持久 `/steer` 与 `/follow-up` 在同一 Run 内追加输入；`accepted/applied/rejected/duplicate/conflict` 控制回执与输入认领、完成分开记录。
+- 本地 MCP stdio 工具经显式配置、权限与预算准入后启动，结束或取消时收尾；受信宿主进程不等于沙箱。
+- 受控 HTTP MCP 绑定固定目标、精确资源 URI 与环境变量或 `SecretRef` 凭据；不沿资源内容读取任意宿主路径，Child Run 不继承 MCP 授权。
+- 宿主显式 OAuth 登录使用 PKCE、state 与受控 loopback 回调，支持取消、退出与登出；不自动打开浏览器或把业务 401/403 当作登录许可。
+- Config v3 显式 `deferred` 工具支持中英文词法发现；声明按 execution 隔离，命中持久安装后从后续请求生效，generation 与选择事实可重建，发现不增加执行权限。
+- 终端按真实 Run/Agent/Step/Call 展示审批、结果、耗时与 Effect，区分 stored/blocked Artifact；中文合并输入、字符簇退格、粘贴留稿和退出收尾均保持明确语义。
+- 文档站恢复导航与主题标题的正常渲染，同时保留配置与发布说明占位符的字面显示。
+
+### 升级、兼容与发布资格
+
+Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`deferred` 必须显式选用 Config v3。新特性须使用支持相应能力的匹配 SDK 与 bundled Worker；使用 Protocol v2 时还须匹配 Schema 指纹；运行要求 Node.js ≥ 22.19，Python SDK 要求 Python ≥ 3.10。未知副作用仍须人工核对，不能盲目恢复；技能加载与工具发现都不授予新权限。真实外部授权服务器互通及全局成对性能收益尚未认证。
+
+本条记录 `1.1.0` 发布线能力。公开可安装状态以 GitHub Release、npm、PyPI 实时页面与同一提交的候选、Provider、双平台及制品证据为准；源码与工程 CI 通过不等于发布，旧版本资格不能替代本版本复验。历史记录与许可声明继续保留。
+
 ## 1.0.1 — 2026-09-25
 
 ### 修复

@@ -1,6 +1,6 @@
 # Release Candidate 验收指南
 
-当前目标为1.0.1。历史0.7.0网络例外与0.7.1离线晋升均不可复用；本版本须完成全部严格检查。
+当前验收目标为 `1.1.0` 发布线。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
 
 本指南用于验证同一候选提交上的 CLI/TUI、无头 CLI、TypeScript SDK、Python SDK 与发布物。自动测试、真实终端和真实 Provider 是三类独立证据，不能互相替代；`0.7.0` 的维护者网络例外必须单独标为 waived，不能冒充真实 Provider 成功。
 
@@ -42,6 +42,20 @@ npm run acceptance:rc
 | P18 | npm tarball 内容与入口 | 发布物 |
 | P19 | Python wheel 内容与 Worker | 发布物 |
 | P20 | Windows 与 Linux 真实伪终端 | TUI |
+
+## 1.1.0 能力复验与兼容边界
+
+在同一候选版本、提交和实际制品上核对以下旅程；这些检查补充原 P01～P20，不能替代真实 Provider、双平台或发布后的公开回装证据：
+
+- 标准 `SKILL.md` 先提供索引，显式 `load_skill` 交付冻结正文；冷恢复沿用原快照，不加载修改后的源文件，也不扩权。
+- `/steer`、`/follow-up` 在同一 Run 内生效；五态控制回执与实际 Turn 的输入认领/完成事实分离，审批期间正文不能消费原审批。
+- 本地 MCP stdio 只在权限与预算准入后启动；真实工具结果、取消、进程收尾与未知副作用保持原执行合同。
+- HTTP MCP 仅访问固定目标和精确授权资源 URI；凭据不进入公开事件或 Facts，资源内容不触发任意宿主文件读取，Child Run 不继承 MCP 授权。
+- 显式 OAuth 登录、取消、退出和登出保持受控；真实 loopback 回调及 socket 收尾有独立证据。本地授权服务器夹具不等于外部服务互通认证。
+- Config v3 显式 `deferred` 的中英文词法发现、声明 generation 与持久选择可从权威事实重建；安装从后续请求生效，原 deny、审批与预算继续生效。
+- 终端按实际 Run/Agent/Step/Call 关联审批、耗时、结果和 Effect；stored/blocked Artifact、中文合并输入、字符簇退格、粘贴留稿及退出等待均有真实入口回归，缺失结果不能变成成功。
+
+Config v2、默认或显式 `direct` 和 Protocol v1 继续兼容；`deferred` 不自动升级旧配置。新能力须匹配 SDK 与 bundled Worker，Protocol v2 还须匹配 Schema 指纹。运行下限为 Node.js ≥ 22.19，Python SDK 为 Python ≥ 3.10；实际验证环境另按运行记录说明，不把支持下限当作本轮已经运行的版本。技能加载、工具发现和恢复均不能放宽原权限；未知效果必须先人工核对。全局成对性能收益未认证。
 
 ## 2. P20 真实伪终端
 
@@ -102,8 +116,9 @@ npm run providers:certify
 
 - P01～P19 自动矩阵通过且测试锚点完整。
 - Windows 与 Linux 的 P20 证据绑定同一候选版本和提交。
-- 至少一个真实 Provider 本次复验通过，或 `0.7.0` 的精确网络例外证据有效。
+- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `1.1.0`。
 - 两个平台的 CI、稳定性、覆盖率、安全和发布物门禁通过。
 - 最终全仓 Markdown 审计通过。
+- 固定中英 Release 正文经语义审阅，唯一 `{{RELEASE_COMMIT}}` 注入经校验的提交 SHA；创建只用 `--notes-file`，既有 body 冲突停止，不自动聚合 PR 标题或覆盖正文。
 
 RC 完成仍不等于已经发布。Tag、npm、PyPI、GitHub Release 与文档站必须继续按[正式发布 SOP](README.zh-CN.md)执行。

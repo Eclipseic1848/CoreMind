@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased
 
 - Added explicit host-owned MCP OAuth with S256 callback validation, independently cancellable shared refresh, secure TokenStore injection, dynamic credential filtering, and bounded cleanup across TypeScript, CLI, and Python v2.
