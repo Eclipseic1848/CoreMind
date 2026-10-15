@@ -4,11 +4,12 @@ import type {
   ChildRunTreeProjection,
   CoreMindConfig,
   CoreMindEvent,
+  CoreMindTraceEvent,
   McpAuthentication,
   RunResult,
 } from "coremind-ai";
-import { Box, render, Text, useInput } from "ink";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Box, render, Text, useInput, usePaste, useWindowSize } from "ink";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type ApprovalQueue,
   compactChildRunText,
@@ -17,21 +18,18 @@ import {
   type PendingApproval,
 } from "./approval.js";
 import { formatObservabilityStatus } from "./observability-format.js";
-import { loopStateText } from "./render.js";
-
-/** 消息视图（会话渲染用） */
-interface MessageView {
-  id: number;
-  role: "user" | "assistant" | "notice";
-  text: string;
-  tools: Array<{
-    tool: string;
-    args: unknown;
-    callId?: string;
-    isError?: boolean;
-    ended?: boolean;
-  }>;
-}
+import {
+  formatArtifactReference,
+  formatTerminalRow,
+  loopStateText,
+  terminalText,
+} from "./render.js";
+import {
+  reduceTerminalInput,
+  type TerminalInputAction,
+  type TerminalInputState,
+} from "./terminal-input.js";
+import { createTerminalView, foldTerminalView, type TerminalRow } from "./terminal-view.js";
 
 export interface ChatTUIProps {
   title: string;
@@ -58,35 +56,28 @@ export function formatMcpAuthenticationError(error: unknown): string {
   return "认证失败，请检查服务配置后重试";
 }
 
-/** 消息流中最多渲染的条数（全屏滚动近似） */
-const MAX_VISIBLE = 30;
-
 /**
  * 全屏交互终端（ink）：顶部标题栏 + 消息流（流式文本/工具调用可视化）+ 底部输入框。
  * 与 readline 模式共用同一 ChatSession 与事件流。
  */
 export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps) {
-  const [messages, updateMessages] = useState<MessageView[]>([]);
-  const setMessages = useCallback((update: (previous: MessageView[]) => MessageView[]) => {
-    updateMessages((previous) => {
-      const next = update(previous);
-      if (next === previous || next.length <= MAX_VISIBLE) return next;
-      // 仅额外保留尚未收到结果的工具消息，避免迟到结果失去显示绑定。
-      return next.filter(
-        (message, index) =>
-          index >= next.length - MAX_VISIBLE ||
-          message.tools.some((tool) => tool.isError === undefined && !tool.ended),
-      );
-    });
+  const [view, setView] = useState(createTerminalView);
+  const epoch = useRef(0);
+  const appendMessage = useCallback((role: "user" | "assistant" | "notice", text: string) => {
+    const action = { type: "append" as const, epoch: epoch.current, role, text };
+    setView((previous) => foldTerminalView(previous, action));
   }, []);
-  const [input, setInput] = useState("");
-  const [approvalCommand, setApprovalCommand] = useState<string>();
+  const [editing, setEditing] = useState<TerminalInputState>({ draft: "", revision: 0 });
+  const editingRef = useRef(editing);
+  const input = editing.draft;
+  const approvalCommand = editing.approvalCommand?.text;
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<PendingApproval>();
   const [lastRun, setLastRun] = useState<RunResult>();
   const [loopStatus, setLoopStatus] = useState<string>();
-  const idRef = useRef(0);
+  const windowSize = useWindowSize();
   const login = useRef<{ controller: AbortController; operation: Promise<void> } | undefined>(
     undefined,
   );
@@ -106,145 +97,68 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
     };
   }, []);
 
-  // 键盘输入（受控输入框：字符累积 / 退格 / 回车发送）
-  useInput((inputStr, key) => {
-    if (approvalCommand !== undefined) {
-      if (key.escape) setApprovalCommand(undefined);
-      else if (key.return) {
-        const command = approvalCommand.trim();
-        if (
+  const dispatchInput = (action: TerminalInputAction) => {
+    const current = { approvalId: approvals.current?.request.approvalId };
+    const next = reduceTerminalInput(editingRef.current, action, current);
+    editingRef.current = next.state;
+    setEditing(next.state);
+    for (const effect of next.effects) {
+      if (effect.type === "notice") appendMessage("notice", effect.text);
+      else if (effect.type === "approval") {
+        if (approvals.current?.request.approvalId === effect.approvalId)
+          approvals.resolve(effect.decision);
+      } else {
+        const command = effect.text.trim();
+        const control =
           /^\/(?:steer|follow-up)(?:\s|$)/u.test(command) ||
           command === "/abort" ||
-          /^\/mcp\s+logout\s+\S+$/u.test(command)
-        ) {
-          void handleSubmit(command);
-          setApprovalCommand(undefined);
-        } else
+          /^\/mcp\s+logout\s+\S+$/u.test(command);
+        if (effect.target === "approval-command" && !control) {
           appendCommandError(
             new Error("审批期间使用 /steer 文本、/follow-up 文本或 /abort；Esc 返回审批"),
           );
-      } else if (key.backspace) setApprovalCommand((value) => value?.slice(0, -1));
-      else if (inputStr) setApprovalCommand((value) => (value ?? "") + inputStr);
-      return;
-    }
-    if (pendingApproval) {
-      if (inputStr.startsWith("/")) {
-        setApprovalCommand(inputStr);
-        return;
+          continue;
+        }
+        if (busyRef.current && !control && command !== "/children") continue;
+        if (login.current && !/^\/mcp(?:\s|$)/u.test(command) && command !== "/exit") {
+          appendAuthenticationNotice(
+            "登录等待中；使用 /mcp cancel 取消，或 /exit 退出；原稿已保留",
+          );
+          continue;
+        }
+        const submitted = reduceTerminalInput(
+          editingRef.current,
+          { type: "submitted", revision: effect.revision, target: effect.target },
+          current,
+        );
+        editingRef.current = submitted.state;
+        setEditing(submitted.state);
+        void handleSubmit(effect.text);
       }
-      if (inputStr.toLowerCase() === "y") approvals.resolve("allow");
-      if (inputStr.toLowerCase() === "n" || key.return || key.escape) approvals.resolve("deny");
-      return;
     }
-    if (key.return) {
-      const command = input.trim();
-      if (
-        busy &&
-        command !== "/abort" &&
-        command !== "/children" &&
-        !/^\/mcp\s+logout\s+\S+$/u.test(command) &&
-        !/^\/(?:steer|follow-up)(?:\s|$)/u.test(command)
-      )
-        return;
-      void handleSubmit(input);
-      setInput("");
-    } else if (key.backspace) {
-      setInput((v) => v.slice(0, -1));
-    } else if (inputStr) {
-      setInput((v) => v + inputStr);
-    }
-  });
+  };
+  useInput((text, key) => dispatchInput({ type: "key", text, key }));
+  usePaste((text) => dispatchInput({ type: "paste", text }));
 
   useEffect(() => approvals.subscribe(setPendingApproval), [approvals]);
 
   // 订阅会话事件：流式文本增量 + 工具调用实时状态
   useEffect(() => {
-    const pushEvent = (event: CoreMindEvent) => {
+    const pushEvent = (event: CoreMindEvent, entry?: CoreMindTraceEvent) => {
       if (event.type === "loop_state") {
         setLoopStatus(loopStateText(event.to, event.iteration, event.repairs));
       }
-      if (
-        ![
-          "agent_start",
-          "text_delta",
-          "tool_call",
-          "tool_result",
-          "input_receipt",
-          "input_claimed",
-          "input_completed",
-          "input_discarded",
-        ].includes(event.type)
-      )
-        return;
-      setMessages((prev) => {
-        const next = [...prev];
-        switch (event.type) {
-          case "agent_start": {
-            next.push({ id: idRef.current++, role: "assistant", text: "", tools: [] });
-            break;
-          }
-          case "text_delta": {
-            const index = next.map((message) => message.role).lastIndexOf("assistant");
-            const last = next[index];
-            if (last && last.role === "assistant") {
-              next[index] = { ...last, text: last.text + event.delta };
-            }
-            break;
-          }
-          case "tool_call": {
-            const index = next.map((message) => message.role).lastIndexOf("assistant");
-            const last = next[index];
-            if (last && last.role === "assistant") {
-              next[index] = {
-                ...last,
-                tools: [
-                  ...last.tools,
-                  { tool: event.tool, args: event.args, callId: event.callId },
-                ],
-              };
-            }
-            break;
-          }
-          case "tool_result": {
-            // 带身份的结果可晚于其他消息到达；旧事件仅匹配同名未完成调用。
-            for (let index = next.length - 1; index >= 0; index--) {
-              const message = next[index]!;
-              const toolIndex = message.tools.findIndex((tool) =>
-                event.callId !== undefined
-                  ? tool.callId === event.callId
-                  : tool.tool === event.tool && tool.isError === undefined,
-              );
-              if (toolIndex < 0) continue;
-              next[index] = {
-                ...message,
-                tools: message.tools.map((tool, i) =>
-                  i === toolIndex ? { ...tool, isError: event.isError } : tool,
-                ),
-              };
-              break;
-            }
-            break;
-          }
-          case "input_receipt":
-          case "input_claimed":
-          case "input_completed":
-          case "input_discarded": {
-            next.push({
-              id: idRef.current++,
-              role: "notice",
-              text: `输入 ${event.inputId} · ${event.status}${event.type === "input_claimed" ? ` · Turn ${event.turnId}` : ""}`,
-              tools: [],
-            });
-            break;
-          }
-          default:
-            break;
-        }
-        return next;
-      });
+      const action = {
+        type: "event" as const,
+        epoch: epoch.current,
+        event,
+        ...(entry ? { runId: entry.runId } : {}),
+        observedAtMs: performance.now(),
+      };
+      setView((previous) => foldTerminalView(previous, action));
     };
     return session.onEvent(pushEvent);
-  }, [session, setMessages]);
+  }, [session]);
 
   const handleSubmit = async (text: string) => {
     const trimmed = text.trim();
@@ -333,6 +247,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
     }
     const control = /^\/(steer|follow-up)(?:\s+([\s\S]*))?$/u.exec(trimmed);
     if (control) {
+      const controlEpoch = epoch.current;
       const message = control[2]?.trim();
       if (!message) {
         appendCommandError(new Error(`用法：/${control[1]} 文本`));
@@ -342,15 +257,9 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
         const receipt = await (control[1] === "steer"
           ? session.steer(message)
           : session.followUp(message));
-        setMessages((previous) => [
-          ...previous,
-          {
-            id: idRef.current++,
-            role: "notice",
-            text: `控制 ${receipt.controlId} · Run ${receipt.runId} · ${receipt.status}${receipt.duplicateOf ? ` (${receipt.duplicateOf})` : ""}${receipt.reason ? `：${receipt.reason}` : ""}`,
-            tools: [],
-          },
-        ]);
+        setView((previous) =>
+          foldTerminalView(previous, { type: "control", epoch: controlEpoch, receipt }),
+        );
       } catch (error) {
         appendCommandError(error);
       }
@@ -358,22 +267,19 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
     }
     if (trimmed === "/children") {
       try {
-        const run = busy ? await session.inspectCurrentRunProjection() : lastRun;
+        const run = busyRef.current ? await session.inspectCurrentRunProjection() : lastRun;
         const text = run
           ? formatChildRuns(run)
-          : busy
+          : busyRef.current
             ? "当前运行尚未产生 Child Run Projection。"
             : "尚未完成任何运行。";
-        setMessages((prev) => [
-          ...prev,
-          { id: idRef.current++, role: "assistant", text, tools: [] },
-        ]);
+        appendMessage("assistant", text);
       } catch (error) {
         appendCommandError(error);
       }
       return;
     }
-    if (busy) return;
+    if (busyRef.current) return;
     if (trimmed === "/exit") {
       onExit();
       return;
@@ -384,24 +290,24 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
     }
     if (trimmed === "/status") {
       const text = lastRun ? formatRunStatus(lastRun) : "尚未完成任何运行。";
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      appendMessage("assistant", text);
       return;
     }
     if (trimmed === "/artifacts") {
       const text = formatArtifacts(lastRun);
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      appendMessage("assistant", text);
       return;
     }
     if (trimmed === "/context") {
       const text = formatContext(lastRun);
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      appendMessage("assistant", text);
       return;
     }
     if (trimmed === "/observability") {
       const text = lastRun
         ? formatObservabilityStatus(lastRun.observability)
         : "尚未完成任何运行。";
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      appendMessage("assistant", text);
       return;
     }
     if (trimmed === "/checkpoints") {
@@ -415,7 +321,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
                   `${item.checkpointId} · ${item.tool} · ${item.reversible ? "可恢复" : "不可自动恢复"}`,
               )
               .join("\n");
-      setMessages((prev) => [...prev, { id: idRef.current++, role: "assistant", text, tools: [] }]);
+      appendMessage("assistant", text);
       return;
     }
     if (trimmed.startsWith("/diff ")) {
@@ -428,10 +334,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
               `--- before\n${diff.beforeText ?? "(文件不存在)"}\n+++ after\n${diff.afterText ?? "(文件不存在)"}`
             }`
           : `不可自动比较：${diff.reason ?? "未知原因"}`;
-        setMessages((prev) => [
-          ...prev,
-          { id: idRef.current++, role: "assistant", text, tools: [] },
-        ]);
+        appendMessage("assistant", text);
       } catch (error) {
         appendCommandError(error);
       }
@@ -441,84 +344,49 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
       const checkpointId = trimmed.slice("/restore ".length).trim();
       try {
         await session.restoreCheckpoint(checkpointId);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: idRef.current++,
-            role: "assistant",
-            text: `已恢复 checkpoint ${checkpointId}`,
-            tools: [],
-          },
-        ]);
+        appendMessage("assistant", `已恢复 checkpoint ${checkpointId}`);
       } catch (error) {
         appendCommandError(error);
       }
       return;
     }
-    setInput("");
-    setMessages((prev) => [
-      ...prev,
-      { id: idRef.current++, role: "user", text: trimmed, tools: [] },
-    ]);
+    const runEpoch = ++epoch.current;
+    setView((previous) => foldTerminalView(previous, { type: "begin", epoch: runEpoch }));
+    appendMessage("user", trimmed);
+    busyRef.current = true;
     setBusy(true);
     setLoopStatus(undefined);
+    let runId: string | undefined;
     try {
       const result = await session.chat(trimmed);
+      runId = result.run.runId;
       setLastRun(result.run);
       if (result.run.outcome.status !== "succeeded") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: idRef.current++,
-            role: "assistant",
-            text: formatOutcomeDiagnostic(result.run),
-            tools: [],
-          },
-        ]);
+        appendMessage("assistant", formatOutcomeDiagnostic(result.run));
       }
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: idRef.current++,
-          role: "assistant",
-          text: `运行失败：${error instanceof Error ? error.message : String(error)}`,
-          tools: [],
-        },
-      ]);
-    } finally {
-      setMessages((previous) =>
-        previous.map((message) => ({
-          ...message,
-          tools: message.tools.map((tool) =>
-            tool.isError === undefined ? { ...tool, ended: true } : tool,
-          ),
-        })),
+      appendMessage(
+        "assistant",
+        `运行失败：${error instanceof Error ? error.message : String(error)}`,
       );
+    } finally {
+      setView((previous) =>
+        foldTerminalView(previous, { type: "end", epoch: runEpoch, ...(runId ? { runId } : {}) }),
+      );
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
   const appendCommandError = (error: unknown) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: idRef.current++,
-        role: "notice",
-        text: `命令失败：${error instanceof Error ? error.message : String(error)}`,
-        tools: [],
-      },
-    ]);
+    appendMessage("notice", `命令失败：${error instanceof Error ? error.message : String(error)}`);
   };
 
   const appendAuthenticationNotice = (text: string) => {
-    setMessages((previous) => [
-      ...previous,
-      { id: idRef.current++, role: "notice", text, tools: [] },
-    ]);
+    appendMessage("notice", text);
   };
 
-  const visible = messages.slice(-MAX_VISIBLE);
+  const visible = view.rows;
   const approvalDisplay = pendingApproval
     ? formatApprovalDisplay(pendingApproval.request)
     : undefined;
@@ -527,10 +395,10 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
     : undefined;
 
   return (
-    <Box flexDirection="column" height="100%">
+    <Box flexDirection="column" height="100%" width={windowSize.columns}>
       <Box borderStyle="round" borderColor="cyan" paddingX={1}>
         <Text bold color="cyan">
-          CoreMind · {title}
+          CoreMind · {terminalText(title)}
         </Text>
         <Text dimColor> /help 查看命令 · /exit 退出</Text>
       </Box>
@@ -546,16 +414,17 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
             </Text>
           </Box>
         )}
-        {visible.map((msg) => (
-          <MessageRow key={msg.id} msg={msg} />
+        {visible.map((row) => (
+          <MessageRow key={row.id} row={row} />
         ))}
         {busy && <Text dimColor>{loopStatus ? `↻ ${loopStatus}` : "…"}</Text>}
       </Box>
       {authorization && (
         <Box borderStyle="round" borderColor="yellow" paddingX={1} flexDirection="column">
-          <Text>登录 {authorization.target}</Text>
+          <Text>登录 {terminalText(authorization.target)}</Text>
           <Text>
-            授权方：{authorization.issuer} · 范围：{authorization.scopes}
+            授权方：{terminalText(authorization.issuer)} · 范围：
+            {terminalText(authorization.scopes)}
           </Text>
           <Text>{authorization.url ?? "正在准备授权链接…"}</Text>
           <Text>请手动打开链接；/mcp cancel 取消 · /exit 退出；凭据仅当前进程保存</Text>
@@ -567,6 +436,12 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
             {delegationApproval
               ? `Child Run 委派审批：${delegationApproval.target}`
               : `权限审批：${pendingApproval.request.tool}（${pendingApproval.request.risk}）`}
+          </Text>
+          <Text>
+            审批 {terminalText(pendingApproval.request.approvalId)} ·{" "}
+            {pendingApproval.request.callId
+              ? `${terminalText(pendingApproval.request.agent)}/${terminalText(pendingApproval.request.stepId ?? "-")}/${terminalText(pendingApproval.request.callId)}`
+              : "未绑定调用"}
           </Text>
           {delegationApproval ? (
             <>
@@ -594,11 +469,11 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
       )}
       <Box borderStyle="round" paddingX={1}>
         <Text color="green">你 &gt; </Text>
-        <Text>{input}</Text>
+        <Text>{terminalText(input)}</Text>
       </Box>
       {approvalCommand !== undefined && (
         <Box paddingX={1}>
-          <Text>控制命令 &gt; {approvalCommand}</Text>
+          <Text>控制命令 &gt; {terminalText(approvalCommand)}</Text>
         </Box>
       )}
       {busy && (
@@ -611,41 +486,12 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
   );
 }
 
-function MessageRow({ msg }: { msg: MessageView }) {
-  // 工具行 key：同名工具按出现次数计数（避免数组索引作 key）
-  const toolViews = useMemo(() => {
-    const seen: Record<string, number> = {};
-    return msg.tools.map((tool) => {
-      seen[tool.tool] = (seen[tool.tool] ?? 0) + 1;
-      return { tool, key: `${tool.tool}-${seen[tool.tool]}` };
-    });
-  }, [msg.tools]);
+function MessageRow({ row }: { row: TerminalRow }) {
   return (
     <Box flexDirection="column" marginBottom={0}>
-      {msg.role === "user" ? (
-        <Text color="green">你 &gt; {msg.text}</Text>
-      ) : msg.role === "notice" ? (
-        <Text dimColor>{msg.text}</Text>
-      ) : (
-        <Box flexDirection="column">
-          <Text color="cyan">[assistant]</Text>
-          <Box paddingLeft={2} flexDirection="column">
-            <Text>{msg.text}</Text>
-            {toolViews.map(({ tool, key }) => (
-              <Text key={key} dimColor>
-                ⚙ {tool.tool}
-                {tool.isError === undefined
-                  ? tool.ended
-                    ? " ?"
-                    : " …"
-                  : tool.isError
-                    ? " ✗"
-                    : " ✓"}
-              </Text>
-            ))}
-          </Box>
-        </Box>
-      )}
+      <Text color={row.kind === "text" && row.role === "user" ? "green" : undefined}>
+        {formatTerminalRow(row)}
+      </Text>
     </Box>
   );
 }
@@ -759,12 +605,7 @@ function formatArtifacts(run: RunResult | undefined): string {
   if (!run) return "尚未完成任何运行。";
   const artifacts = run.snapshot.artifacts;
   if (artifacts.length === 0) return "本轮没有 Artifact。";
-  return artifacts
-    .map((artifact) => {
-      const location = artifact.relativePath ?? "未保存";
-      return `${artifact.artifactId} · ${artifact.status} · ${artifact.sizeBytes} bytes · ${location}`;
-    })
-    .join("\n");
+  return `本轮 Artifact：\n${artifacts.map(formatArtifactReference).join("\n")}`;
 }
 
 function formatContext(run: RunResult | undefined): string {

@@ -34,6 +34,8 @@ export interface ToolApprovalRequest {
   runId: string;
   agent: string;
   tool: string;
+  callId?: string;
+  stepId?: string;
   args: unknown;
   /** 绑定审批时看到的完整 canonical 参数；参数变化后不得复用批准。 */
   argumentsFingerprint: string;
@@ -150,6 +152,7 @@ export class ToolPolicy {
     capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration,
     selectors?: ToolEffectDeclaration,
     delegationInputFingerprint?: string,
+    identity?: { callId?: string; stepId?: string },
   ): Promise<ToolPolicyDecision> {
     const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
     const staticDenial = this.staticDenial(tool, capability);
@@ -267,6 +270,8 @@ export class ToolPolicy {
       runId: this.options.runId,
       agent,
       tool,
+      ...(identity?.callId !== undefined ? { callId: identity.callId } : {}),
+      ...(identity?.stepId !== undefined ? { stepId: identity.stepId } : {}),
       args,
       argumentsFingerprint: fingerprintEffectReceiptValue(args),
       ...(tool === DELEGATION_TOOL_NAME && delegationInputFingerprint

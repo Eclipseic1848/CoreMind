@@ -52,3 +52,4 @@ export {
   prepareProtocolToolResultFact,
 } from "./runtime.js";
 export { stripPrivateSkillPayload } from "./skill-privacy.js";
+export { redactSensitiveText, redactSensitiveValue } from "./trace.js";

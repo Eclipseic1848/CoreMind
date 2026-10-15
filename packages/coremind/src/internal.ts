@@ -17,6 +17,8 @@ export {
   type RunKernelDependency,
   type RunProjection,
   type RunProjectionStatus,
+  redactSensitiveText,
+  redactSensitiveValue,
   resolveProviderSecurity,
   stripPrivateSkillPayload,
   validateRunFacts,

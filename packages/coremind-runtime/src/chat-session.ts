@@ -7,6 +7,7 @@ import type { CoreMindEvent } from "./events.js";
 import type { RunProjection } from "./projection.js";
 import type { CoreMindMessage } from "./public-message.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
+import type { CoreMindTraceEvent } from "./trace.js";
 
 /** 一轮对话的结果 */
 export interface ChatTurnResult {
@@ -32,7 +33,9 @@ export interface ChatControlOptions {
  */
 export class ChatSession {
   readonly agentName: string;
-  private readonly listeners = new Set<(event: CoreMindEvent) => void>();
+  private readonly listeners = new Set<
+    (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void
+  >();
   private messages: CoreMindMessage[];
   private activeController?: AbortController;
   private latestSessionFile?: string;
@@ -50,7 +53,7 @@ export class ChatSession {
   }
 
   /** 订阅会话事件（返回取消函数） */
-  onEvent(listener: (event: CoreMindEvent) => void): () => void {
+  onEvent(listener: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
@@ -70,9 +73,11 @@ export class ChatSession {
         this.agentName,
         message,
         this.messages,
-        (event) => {
-          events.push(event);
-          for (const listener of this.listeners) listener(event);
+        (event, entry?: CoreMindTraceEvent) => {
+          events.push(structuredClone(event));
+          for (const listener of this.listeners) {
+            listener(structuredClone(event), entry ? structuredClone(entry) : undefined);
+          }
         },
         controller.signal,
       );

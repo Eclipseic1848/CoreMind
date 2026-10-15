@@ -41,7 +41,13 @@ function childNode(overrides: Partial<ChildRunNodeProjection> = {}): ChildRunNod
       paths: [],
       credentials: [],
     },
-    model: { providerId: "mock", model: "research-model" },
+    model: {
+      providerId: "mock",
+      model: "research-model",
+      providerConfigFingerprint: `sha256:${"a".repeat(64)}`,
+      agentPromptFingerprint: `sha256:${"b".repeat(64)}`,
+      agentDelegationFingerprint: `sha256:${"c".repeat(64)}`,
+    },
     workspace: { canonicalRoot: "C:/workspace", lease: "shared_canonical" },
     status: "running",
     ...overrides,
@@ -49,6 +55,115 @@ function childNode(overrides: Partial<ChildRunNodeProjection> = {}): ChildRunNod
 }
 
 describe("Windows TUI 交互验收", () => {
+  it("合并中文末字和回车仅发送一次完整输入", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const app = render(
+      <ChatTUI
+        title="合并输入"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+    try {
+      app.stdin.write("中文末字\r");
+      await settle();
+      expect(session.chat).toHaveBeenCalledExactlyOnceWith("中文末字");
+    } finally {
+      app.unmount();
+    }
+  });
+
+  it("bracketed 多行粘贴保留完整草稿，只由后续独立 Enter 发送", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const app = render(
+      <ChatTUI
+        title="粘贴"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+    try {
+      app.stdin.write("\x1b[200~中文👩‍🔬\ny\x1b[201~");
+      await settle();
+      expect(session.chat).not.toHaveBeenCalled();
+      app.stdin.write("\r");
+      await settle();
+      expect(session.chat).toHaveBeenCalledExactlyOnceWith("中文👩‍🔬\ny");
+    } finally {
+      app.unmount();
+    }
+  });
+
+  it("审批中合并控制命令回车能提交，粘贴 y 不会批准当前工具", async () => {
+    const session = createSession();
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="审批输入隔离" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    const resolved = vi.fn();
+    const decision = approvals
+      .request({
+        approvalId: "coalesced-approval",
+        runId: "run-test",
+        agent: "main",
+        tool: "write",
+        args: { path: "note.txt" },
+        argumentsFingerprint: "a".repeat(64),
+        risk: "high",
+        reason: "合成审批",
+        effect: {
+          operations: ["write"],
+          paths: ["note.txt"],
+          urls: [],
+          reversible: true,
+          declared: true,
+        },
+      })
+      .then(resolved);
+    try {
+      await settle();
+      app.stdin.write("/steer 追加中文\r");
+      await settle();
+      expect(session.steer).toHaveBeenCalledExactlyOnceWith("追加中文");
+      expect(resolved).not.toHaveBeenCalled();
+      app.stdin.write("\x1b[200~y\r\x1b[201~");
+      await settle();
+      expect(resolved).not.toHaveBeenCalled();
+      expect(approvals.current?.request.approvalId).toBe("coalesced-approval");
+    } finally {
+      approvals.close();
+      await decision;
+      app.unmount();
+    }
+  });
+
+  it("退格删除完整 emoji 字符簇，不向模型发送残缺代理或连接符", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const app = render(
+      <ChatTUI
+        title="字符簇"
+        session={session}
+        approvals={new ApprovalQueue(true)}
+        onExit={() => {}}
+      />,
+    );
+    try {
+      app.stdin.write("保留👩‍🔬");
+      await settle();
+      app.stdin.write("\x7f");
+      await settle();
+      app.stdin.write("\r");
+      await settle();
+      expect(session.chat).toHaveBeenCalledExactlyOnceWith("保留");
+    } finally {
+      app.unmount();
+    }
+  });
   it("展开 Child Run tree 显示层级、预算、结果、Recovery 与未决风险", () => {
     expect(
       formatChildRuns({
@@ -409,7 +524,14 @@ describe("Windows TUI 交互验收", () => {
         listener?.({ type: "tool_call", agent: "assistant", tool: "read", args: {}, callId });
         await settle();
       }
-      expect(app.lastFrame()?.match(/read …/g)).toHaveLength(2);
+      const rows = () =>
+        (app.lastFrame() ?? "")
+          .split("⚙ read ·")
+          .slice(1)
+          .map((row) => row.replace(/\s+/gu, " "));
+      expect(rows()).toHaveLength(2);
+      expect(rows().find((row) => row.includes("Call first"))).toContain("已登记，等待准入");
+      expect(rows().find((row) => row.includes("Call second"))).toContain("已登记，等待准入");
       listener?.({
         type: "tool_result",
         agent: "assistant",
@@ -418,7 +540,9 @@ describe("Windows TUI 交互验收", () => {
         isError: true,
       });
       await settle();
-      expect(app.lastFrame()).not.toContain("read ✗");
+      expect(rows().find((row) => row.includes("Call first"))).toContain("已登记，等待准入");
+      expect(rows().find((row) => row.includes("Call second"))).toContain("已登记，等待准入");
+      expect(rows().find((row) => row.includes("Call unknown"))).toContain("原始调用不在当前窗口");
       listener?.({
         type: "tool_result",
         agent: "assistant",
@@ -427,7 +551,8 @@ describe("Windows TUI 交互验收", () => {
         isError: true,
       });
       await settle();
-      expect(app.lastFrame()).toMatch(/read …[\s\S]*read ✗/);
+      expect(rows().find((row) => row.includes("Call first"))).toContain("已登记，等待准入");
+      expect(rows().find((row) => row.includes("Call second"))).toContain("执行失败");
       listener?.({
         type: "tool_result",
         agent: "assistant",
@@ -436,7 +561,8 @@ describe("Windows TUI 交互验收", () => {
         isError: false,
       });
       await settle();
-      expect(app.lastFrame()).toMatch(/read ✓[\s\S]*read ✗/);
+      expect(rows().find((row) => row.includes("Call first"))).toContain("结果已返回");
+      expect(rows().find((row) => row.includes("Call second"))).toContain("执行失败");
     } finally {
       app.unmount();
     }
@@ -605,7 +731,7 @@ describe("Windows TUI 交互验收", () => {
     await settle();
     await typeCommand(app.stdin.write, "/status");
     await settle();
-    expect(app.lastFrame()).toContain("artifact 1/0");
+    expect(app.lastFrame()).toMatch(/artifact\s+1\/0/u);
     expect(app.lastFrame()).toContain("压缩 1");
     expect(app.lastFrame()).toContain("不可恢复");
 

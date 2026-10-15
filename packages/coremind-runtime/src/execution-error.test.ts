@@ -3,6 +3,26 @@ import { CoreMindError } from "./errors.js";
 import { classifyExecutionError, normalizeExecutionError } from "./execution-error.js";
 
 describe("execution error contract", () => {
+  it("已登记错误的消息和审计字段在终态归一化前即移除凭据，保留实例及分类", () => {
+    const error = new CoreMindError(
+      "agent_failed",
+      [
+        "Authorization: Bearer terminal-auth-canary",
+        "Cookie: session=terminal-cookie-canary",
+        "https://example.invalid/path?api_key=terminal-query-canary&ordinary=keep",
+      ].join("\n"),
+      { originalCode: "vendor?token=terminal-audit-canary" },
+    );
+    expect(normalizeExecutionError(error)).toBe(error);
+    expect(JSON.stringify({ message: error.message, audit: error.audit })).not.toMatch(
+      /terminal-(?:auth|cookie|query|audit)-canary/,
+    );
+    expect(error.message).toContain("https://example.invalid/path");
+    expect(classifyExecutionError(new Error("外层包装", { cause: error }))).toMatchObject({
+      code: "agent_failed",
+      retryClass: "fatal",
+    });
+  });
   it("保留已注册 CoreMindError 的身份与语义", () => {
     const error = new CoreMindError("budget_exceeded", "预算已用尽");
 

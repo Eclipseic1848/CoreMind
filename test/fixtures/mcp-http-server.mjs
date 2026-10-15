@@ -298,6 +298,9 @@ export async function startMcpHttpServer({
     url,
     records,
     sockets,
+    setMode: (next) => {
+      mode = next;
+    },
     notifyToolsChanged: () => {
       if (!toolChanges || notificationStreams.size === 0) throw new Error("工具目录通知流尚未就绪");
       for (const response of notificationStreams) {

@@ -232319,6 +232319,8 @@ var ProtocolV2EventPayloadSchemas = [
     runId: BrandedIdSchema,
     agent: Type.String(),
     tool: Type.String(),
+    callId: OptionalBrandedId,
+    stepId: OptionalBrandedId,
     args: Type.Unknown(),
     argumentsFingerprint: Type.Optional(Type.String({ pattern: "^[a-f0-9]{64}$" })),
     delegationInputFingerprint: Type.Optional(Type.String({ pattern: "^sha256:[a-f0-9]{64}$" })),
@@ -232443,6 +232445,8 @@ var ProtocolV2EventPayloadSchemas = [
   }, { additionalProperties: false }),
   Type.Object({
     type: Type.Literal("artifact_created"),
+    agent: Type.Optional(Type.String()),
+    stepId: OptionalBrandedId,
     artifactId: BrandedIdSchema,
     status: Type.Union([Type.Literal("stored"), Type.Literal("blocked")]),
     sizeBytes: Type.Number(),
@@ -234138,6 +234142,33 @@ function parseAndValidate(data) {
   return { config: config2, warnings };
 }
 
+// packages/coremind-runtime/dist/redaction.js
+function isSecretKey(key) {
+  return /api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret/iu.test(key);
+}
+function redactSensitiveText(value) {
+  return value.replace(/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/gu, "private-key-hidden").replace(/https?:\/\/[^\s"']+/giu, (url2) => redactUrl(url2)).replace(/(\b(?:Cookie|Set-Cookie|Authorization|Proxy-Authorization)[ \t]*:)[ \t]*[^ \t\r\n][^\r\n]*/giu, "$1 hidden").replace(/((?:["']?(?:api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret)["']?\s*[:=]\s*|--?(?:api[_-]?key|token|secret|password|authorization)\s+))(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s"',;{}[\]]+)/giu, "$1hidden").replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden").replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16})\b/gu, "credential-hidden");
+}
+function redactUrl(value) {
+  try {
+    const url2 = new URL(value);
+    let sensitive = Boolean(url2.username || url2.password);
+    if (url2.username)
+      url2.username = "hidden";
+    if (url2.password)
+      url2.password = "hidden";
+    for (const key of [...url2.searchParams.keys()]) {
+      if (isSecretKey(key)) {
+        sensitive = true;
+        url2.searchParams.set(key, "hidden");
+      }
+    }
+    return sensitive ? url2.toString() : value;
+  } catch {
+    return value;
+  }
+}
+
 // packages/coremind-runtime/dist/errors.js
 function terminalStatusForCode(code) {
   return codeInfo(code)?.runStatus ?? "failed";
@@ -234168,10 +234199,10 @@ var CoreMindError = class extends Error {
   /** 未知外部错误的脱敏审计值；不得作为公开错误码重新解释。 */
   audit;
   constructor(code, message2, audit) {
-    super(message2);
+    super(redactSensitiveText(message2));
     this.name = "CoreMindError";
     this.code = code;
-    this.audit = audit;
+    this.audit = audit ? { originalCode: redactSensitiveText(audit.originalCode) } : void 0;
   }
 };
 
@@ -250798,36 +250829,11 @@ function redactSensitiveValue(value, options = {}, key = "", seen = /* @__PURE__
   }
   return value;
 }
-function isSecretKey(key) {
-  return /api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret/iu.test(key);
-}
 function isBodyKey(key) {
   return /^(?:body|content|patch|text)$/iu.test(key);
 }
 function isCommandKey(key) {
   return /^(?:command|script|sql)$/iu.test(key);
-}
-function redactSensitiveText(value) {
-  return value.replace(/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z]+ )?PRIVATE KEY-----|$)/gu, "private-key-hidden").replace(/https?:\/\/[^\s"']+/giu, (url2) => redactUrl(url2)).replace(/(\b(?:Cookie|Set-Cookie|Authorization|Proxy-Authorization)[ \t]*:)[ \t]*[^ \t\r\n][^\r\n]*/giu, "$1 hidden").replace(/((?:["']?(?:api[_-]?key|token|secret|password|passwd|authorization|cookie|private[_-]?key|credential|client[_-]?secret)["']?\s*[:=]\s*|--?(?:api[_-]?key|token|secret|password|authorization)\s+))(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s"',;{}[\]]+)/giu, "$1hidden").replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/giu, "$1hidden").replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16})\b/gu, "credential-hidden");
-}
-function redactUrl(value) {
-  try {
-    const url2 = new URL(value);
-    let sensitive = Boolean(url2.username || url2.password);
-    if (url2.username)
-      url2.username = "hidden";
-    if (url2.password)
-      url2.password = "hidden";
-    for (const key of [...url2.searchParams.keys()]) {
-      if (isSecretKey(key)) {
-        sensitive = true;
-        url2.searchParams.set(key, "hidden");
-      }
-    }
-    return sensitive ? url2.toString() : value;
-  } catch {
-    return value;
-  }
 }
 function textBoundaries(value) {
   const boundaries = [];
@@ -255012,7 +255018,10 @@ var ControlInbox = class {
           continue;
         const reason = "\u672C Run \u5DF2\u8FDB\u5165\u7EC8\u6001\uFF0C\u63A7\u5236\u8F93\u5165\u5C1A\u672A\u4EA4\u4ED8";
         const rejected = await this.appendResolution(stored, "rejected", reason);
-        receipts.push(receiptFor(stored.command, "rejected", { rejectedSequence: rejected.sequence, reason }));
+        receipts.push(receiptFor(stored.command, "rejected", {
+          rejectedSequence: rejected.sequence,
+          reason: stored.reason
+        }));
       }
       return receipts;
     });
@@ -255090,23 +255099,24 @@ var ControlInbox = class {
     const rejected = await this.appendResolution(stored, "rejected", result.reason);
     return receiptFor(command, "rejected", {
       rejectedSequence: rejected.sequence,
-      reason: result.reason
+      reason: stored.reason
     });
   }
   async appendResolution(stored, state3, reason) {
+    const safeReason = reason === void 0 ? void 0 : redactSensitiveText(reason);
     const receipt = await this.options.journal.appendFact("control", {
       schemaVersion: 1,
       controlId: stored.command.controlId,
       fingerprint: stored.fingerprint,
       state: state3,
-      ...reason ? { reason } : {}
+      ...safeReason ? { reason: safeReason } : {}
     }, { durability: "critical" });
     stored.state = state3;
     if (state3 === "applied")
       stored.appliedSequence = receipt.sequence;
     else {
       stored.rejectedSequence = receipt.sequence;
-      stored.reason = reason;
+      stored.reason = safeReason;
     }
     return receipt;
   }
@@ -255179,7 +255189,7 @@ function restoreControls(runId, records) {
       existing.appliedSequence = record2.sequence;
     else {
       existing.rejectedSequence = record2.sequence;
-      existing.reason = fact.reason;
+      existing.reason = fact.reason === void 0 ? void 0 : redactSensitiveText(fact.reason);
     }
   }
   return controls;
@@ -264289,7 +264299,7 @@ var ToolPolicy = class {
     }
     return void 0;
   }
-  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint) {
+  async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint, identity3) {
     const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
     const staticDenial = this.staticDenial(tool, capability);
     if (staticDenial)
@@ -264379,6 +264389,8 @@ var ToolPolicy = class {
       runId: this.options.runId,
       agent,
       tool,
+      ...identity3?.callId !== void 0 ? { callId: identity3.callId } : {},
+      ...identity3?.stepId !== void 0 ? { stepId: identity3.stepId } : {},
       args,
       argumentsFingerprint: fingerprintEffectReceiptValue(args),
       ...tool === DELEGATION_TOOL_NAME && delegationInputFingerprint ? { delegationInputFingerprint } : {},
@@ -265493,6 +265505,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const skillLoadsByCall = /* @__PURE__ */ new Map();
     const discoverySearchesByCall = /* @__PURE__ */ new Map();
     const discoveryGenerations = /* @__PURE__ */ new Map();
+    const userEvents = this.options.events ?? (() => {
+    });
     const trace = new TraceRecorder(runId, (entry) => {
       const toolResultCallId = entry.event.type === "tool_result" ? entry.event.callId : void 0;
       const pendingProtocolToolResult = toolResultCallId ? executionSlotFor(this).protocolToolResultFacts?.get(protocolToolResultKey(entry.runId, toolResultCallId)) : void 0;
@@ -265532,13 +265546,13 @@ var CoreMindRuntime = class _CoreMindRuntime {
             facts.delete(key);
         });
       }
-      this.options.trace?.(entry);
+      this.options.trace?.(structuredClone(entry));
+      const callbackEntry = structuredClone(entry);
+      userEvents(callbackEntry.event, callbackEntry);
     }, resumePlan?.previousTrace);
     const collected = resumePlan?.previousTrace.map((entry) => entry.event) ?? [];
     const terminalEventCursor = collected.length;
     const toolReplayCandidates = [...resumePlan?.toolReplayCandidates ?? []];
-    const userEvents = this.options.events ?? (() => {
-    });
     const turnTracker = new TurnTracker();
     const effectBindingByCall = /* @__PURE__ */ new Map();
     const effectBindingByReceipt = /* @__PURE__ */ new Map();
@@ -265557,7 +265571,6 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const emitInputEvent = (event) => {
       collected.push(event);
       trace.record(event);
-      userEvents(event);
     };
     const prepareControlInput = (command) => {
       const id = controlInputId(runId, command.controlId);
@@ -265677,7 +265690,6 @@ var CoreMindRuntime = class _CoreMindRuntime {
       }
       collected.push(enriched);
       trace.record(enriched, enriched.type === "context_prefix" && enriched.toolDiscovery ? discoveryGenerations.get(enriched.toolDiscovery.selectionFingerprint)?.prepared.eventId : void 0);
-      userEvents(enriched);
       if (enriched.type === "tool_result")
         onToolResultRecorded?.(enriched);
       if (enriched.type === "agent_start" && inputReceiptState === "pending") {
@@ -265942,6 +265954,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
         approvalId: request.approvalId,
         runId: request.runId,
         agent: request.agent,
+        ...request.callId === void 0 ? {} : { callId: request.callId },
+        ...request.stepId === void 0 ? {} : { stepId: request.stepId },
         tool: request.tool,
         args: request.args,
         argumentsFingerprint: request.argumentsFingerprint,
@@ -266301,7 +266315,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
               return { block: true, reason: delegationPolicyFailure.message, terminate: true };
             }
           }
-          const decision = await policy2.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint);
+          const decision = await policy2.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint, { callId: context2.toolCall.callId, ...stepId ? { stepId } : {} });
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
             status: "completed",
@@ -266579,6 +266593,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
             runContextFor(this).recordArtifact(artifact);
             emit2({
               type: "artifact_created",
+              agent: agentName,
+              ...stepId ? { stepId } : {},
               artifactId: artifact.artifactId,
               status: artifact.status,
               sizeBytes: artifact.sizeBytes,
@@ -267187,6 +267203,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (terminalError2 !== void 0 && transcript.length === 0 && !journal.isAborted()) {
       transcript = extractText(allMessages);
     }
+    transcript = redactSensitiveText(transcript);
     try {
       await journal.flush();
     } catch (error3) {
@@ -267304,7 +267321,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
       } catch (error3) {
         const finalDurabilityFailure = durabilityFailure(error3);
         terminalError2 = finalDurabilityFailure;
-        userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
+        userEvents({
+          type: "error",
+          message: redactSensitiveText(finalDurabilityFailure.message),
+          fatal: true
+        });
         outcome = new RunTerminalizer().terminalize(collected.slice(terminalEventCursor), terminalError2);
         evaluation = createEvaluationReport(this.config.quality, metrics);
         releaseReadiness = assessReleaseReadiness(outcome, evaluation);

@@ -268,8 +268,8 @@ export interface CoreMindRuntimeOptions {
   mcpAuthentication?: import("coremind-tools").McpAuthentication;
   /** 首条用户输入（注册为 {{prompt}} 变量；单 agent 模式的输入） */
   initialPrompt?: string;
-  /** 事件回调（CLI 渲染 / Web 面板共用） */
-  events?: (event: CoreMindEvent) => void;
+  /** 事件回调；持久轨迹事件附带原 Run 来源，旁路通知可能没有来源。 */
+  events?: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void;
   /** 带运行标识、顺序和时间戳的结构化轨迹回调。 */
   trace?: (entry: CoreMindTraceEvent) => void;
   /** ask/assisted 模式下由宿主实现的人类审批回调。 */
@@ -838,7 +838,7 @@ export class CoreMindRuntime {
     agentName: string,
     message: string,
     history: CoreMindMessage[],
-    events: (event: CoreMindEvent) => void,
+    events: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void,
     signal?: AbortSignal,
   ): Promise<RunResult> {
     if (this.config.loop?.verify.mode === "host") {
@@ -1639,6 +1639,7 @@ export class CoreMindRuntime {
         receipt?: Promise<FactDurabilityReceipt>;
       }
     >();
+    const userEvents = this.options.events ?? (() => {});
     const trace = new TraceRecorder(
       runId,
       (entry) => {
@@ -1708,7 +1709,9 @@ export class CoreMindRuntime {
               if (facts?.get(key) === pendingProtocolToolResult) facts.delete(key);
             });
         }
-        this.options.trace?.(entry);
+        this.options.trace?.(structuredClone(entry));
+        const callbackEntry = structuredClone(entry);
+        userEvents(callbackEntry.event, callbackEntry);
       },
       resumePlan?.previousTrace,
     );
@@ -1716,7 +1719,6 @@ export class CoreMindRuntime {
     // 历史拒绝保留审计与预算，但不决定本次恢复执行的终态。
     const terminalEventCursor = collected.length;
     const toolReplayCandidates = [...(resumePlan?.toolReplayCandidates ?? [])];
-    const userEvents = this.options.events ?? (() => {});
     const turnTracker = new TurnTracker();
     const effectBindingByCall = new Map<
       string,
@@ -1756,7 +1758,6 @@ export class CoreMindRuntime {
     const emitInputEvent = (event: CoreMindEvent): void => {
       collected.push(event);
       trace.record(event);
-      userEvents(event);
     };
     const prepareControlInput = (
       command: Extract<RunControlCommand, { type: "steering" | "follow_up" }>,
@@ -1913,7 +1914,6 @@ export class CoreMindRuntime {
           ? discoveryGenerations.get(enriched.toolDiscovery.selectionFingerprint)?.prepared.eventId
           : undefined,
       );
-      userEvents(enriched);
       if (enriched.type === "tool_result") onToolResultRecorded?.(enriched);
       // 输入被首个 Turn 认领（规格 03 §4：claim 绑定 TurnId；resume 时已 claimed 不再重复）；
       // 排在 agent_start 之后，保证事件顺序：agent_start → input_claimed
@@ -2233,6 +2233,8 @@ export class CoreMindRuntime {
           approvalId: request.approvalId,
           runId: request.runId,
           agent: request.agent,
+          ...(request.callId === undefined ? {} : { callId: request.callId }),
+          ...(request.stepId === undefined ? {} : { stepId: request.stepId }),
           tool: request.tool,
           args: request.args,
           argumentsFingerprint: request.argumentsFingerprint,
@@ -2715,6 +2717,7 @@ export class CoreMindRuntime {
             resolvedCapability,
             executionEffects.get(context.toolCall.tool),
             delegationInputFingerprint,
+            { callId: context.toolCall.callId, ...(stepId ? { stepId } : {}) },
           );
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
@@ -3064,6 +3067,8 @@ export class CoreMindRuntime {
             runContextFor(this).recordArtifact(artifact);
             emit({
               type: "artifact_created",
+              agent: agentName,
+              ...(stepId ? { stepId } : {}),
               artifactId: artifact.artifactId,
               status: artifact.status,
               sizeBytes: artifact.sizeBytes,
@@ -3886,6 +3891,7 @@ export class CoreMindRuntime {
     if (terminalError !== undefined && transcript.length === 0 && !journal.isAborted()) {
       transcript = extractText(allMessages);
     }
+    transcript = redactSensitiveText(transcript);
     try {
       await journal.flush();
     } catch (error) {
@@ -4039,7 +4045,11 @@ export class CoreMindRuntime {
       } catch (error) {
         const finalDurabilityFailure = durabilityFailure(error);
         terminalError = finalDurabilityFailure;
-        userEvents({ type: "error", message: finalDurabilityFailure.message, fatal: true });
+        userEvents({
+          type: "error",
+          message: redactSensitiveText(finalDurabilityFailure.message),
+          fatal: true,
+        });
         outcome = new RunTerminalizer().terminalize(
           collected.slice(terminalEventCursor),
           terminalError,

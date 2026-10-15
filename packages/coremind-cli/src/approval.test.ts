@@ -4,6 +4,7 @@ import {
   ApprovalQueue,
   applyPermissionMode,
   bindReadlineApprovals,
+  formatApprovalDisplay,
   formatDelegationApproval,
 } from "./approval.js";
 
@@ -23,6 +24,32 @@ const request = (id: string): ToolApprovalRequest => ({
     reversible: true,
     declared: true,
   },
+});
+
+describe("审批仅展示安全副本", () => {
+  it("URL查询/用户口令/Cookie/ANSI不进入面板，授权原参数和指纹不改", () => {
+    const value = {
+      ...request("safe-display"),
+      args: {
+        url: "https://user:markerPASSWORD@example.invalid/?token=markerQUERY",
+        headers: { Cookie: "session=markerCOOKIE" },
+        enabled: false,
+      },
+      reason: "Bearer markerREASON\x1b[2J",
+      effect: {
+        ...request("safe-display").effect,
+        urls: ["https://example.invalid/?access_token=markerTARGET&mode=safe"],
+      },
+    };
+    const original = structuredClone(value);
+    const display = formatApprovalDisplay(value);
+    expect(JSON.stringify(display)).not.toContain("marker");
+    expect(display.targets).toContain("https://example.invalid/");
+    expect(display.arguments).toContain("false");
+    expect(display.reason).not.toContain("\x1b");
+    expect(value).toEqual(original);
+    expect(value.argumentsFingerprint).toBe("a".repeat(64));
+  });
 });
 
 describe("ApprovalQueue", () => {

@@ -1,4 +1,5 @@
 import { ERROR_CODES, type ErrorCodeInfo, type ErrorRetryClass } from "coremind-protocol";
+import { redactSensitiveText } from "./redaction.js";
 
 export {
   ERROR_CODES,
@@ -57,9 +58,9 @@ export class CoreMindError<Code extends string = string> extends Error {
   readonly audit?: { originalCode: string };
 
   constructor(code: Code, message: string, audit?: { originalCode: string }) {
-    super(message);
+    super(redactSensitiveText(message));
     this.name = "CoreMindError";
     this.code = code;
-    this.audit = audit;
+    this.audit = audit ? { originalCode: redactSensitiveText(audit.originalCode) } : undefined;
   }
 }
