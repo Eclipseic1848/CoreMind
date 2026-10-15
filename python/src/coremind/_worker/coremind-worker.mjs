@@ -245435,11 +245435,26 @@ var WINDOWS_MCP_JOB_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
 $pipe = $null
 $status = 1
+$compiled = $false
 try {
   $name = [Environment]::GetEnvironmentVariable('COREMIND_MCP_OWNER_PIPE')
   if ($name -cnotmatch '^coremind-mcp-owner-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') { throw 'control' }
-  $pipe = New-Object -TypeName System.IO.Pipes.NamedPipeClientStream -ArgumentList @('.', $name, [IO.Pipes.PipeDirection]::InOut, [IO.Pipes.PipeOptions]::Asynchronous)
+  $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', $name, [IO.Pipes.PipeDirection]::InOut, [IO.Pipes.PipeOptions]::Asynchronous)
   $pipe.Connect(5000)
+  # 预取消不编译；逐字节读取，避免预读下一条关闭帧。
+  $bytes = [byte[]]::new(1048576)
+  $count = 0
+  while (($next = $pipe.ReadByte()) -ne 10) {
+    if ($next -lt 0 -or $count -eq $bytes.Length) { throw 'control' }
+    $bytes[$count++] = [byte]$next
+  }
+  $line = [Text.UTF8Encoding]::new($false, $true).GetString($bytes, 0, $count)
+  if ($line -ceq '{"cancel":true}') {
+    $bytes = [Text.Encoding]::UTF8.GetBytes('{"type":"closed","activeProcesses":0}' + [char]10)
+    $pipe.Write($bytes, 0, $bytes.Length)
+    $pipe.Flush()
+  } else {
+  Import-Module ($PSHOME+'\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
   Add-Type -WarningAction SilentlyContinue -TypeDefinition @'
 using System;
 using System.Collections.Generic;
@@ -245610,7 +245625,7 @@ public static class CoreMindMcpJob {
   }
 }
 '@
-  $line = [CoreMindMcpJob]::ReadFrame($pipe)
+  $compiled = $true
   if ($null -eq $line -or $line -notmatch '^\s*\{') { throw 'control' }
   $config = ConvertFrom-Json -InputObject $line
   $keys = @($config.PSObject.Properties.Name)
@@ -245638,9 +245653,10 @@ public static class CoreMindMcpJob {
     [CoreMindMcpJob]::Close()
     [CoreMindMcpJob]::Send($pipe, '{"type":"closed","activeProcesses":0}')
   }
+  }
   $status = 0
 } catch {
-  try { [CoreMindMcpJob]::Close() } catch {}
+  if ($compiled) { try { [CoreMindMcpJob]::Close() } catch {} }
   if ($null -ne $pipe -and $pipe.IsConnected) {
     try {
       $bytes = [Text.Encoding]::UTF8.GetBytes('{"type":"error"}' + [char]10)
@@ -245649,7 +245665,7 @@ public static class CoreMindMcpJob {
     } catch {}
   }
 } finally {
-  try { [CoreMindMcpJob]::Close() } catch { $status = 1 }
+  if ($compiled) { try { [CoreMindMcpJob]::Close() } catch { $status = 1 } }
   if ($null -ne $pipe) { $pipe.Dispose() }
 }
 exit $status
