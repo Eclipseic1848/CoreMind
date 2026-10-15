@@ -13,6 +13,18 @@ record({
   cols: process.stdout.columns,
   rows: process.stdout.rows,
 });
+const originalSetRawMode = process.stdin.setRawMode;
+process.stdin.setRawMode = function (enabled) {
+  const result = Reflect.apply(originalSetRawMode, this, [enabled]);
+  record({ type: "raw_mode", enabled, isRaw: this.isRaw === true });
+  if (enabled)
+    queueMicrotask(() => {
+      const readableListeners = this.listenerCount("readable");
+      if (this.isRaw === true && readableListeners > 0)
+        record({ type: "input_ready", isRaw: true, readableListeners });
+    });
+  return result;
+};
 const original = process.stdin.read;
 process.stdin.read = function (...args) {
   const value = Reflect.apply(original, this, args);
