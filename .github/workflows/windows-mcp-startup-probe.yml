@@ -24,5 +24,7 @@ jobs:
           npm run build --workspace coremind-config
           npm run build --workspace coremind-protocol
           npm run build --workspace coremind-tools
-      - name: 预取消原生握手阶段诊断
-        run: node scripts/probe-windows-mcp-startup.mjs "$env:GITHUB_WORKSPACE"
+      - name: 冷启动预取消的原五秒关闭验收
+        run: node node_modules/vitest/vitest.mjs run --config vitest.engineering.config.ts --project coremind-tools --maxWorkers=1 packages/coremind-tools/src/windows-mcp-job.test.ts -t pre-abort
+      - name: 正常启动与真实进程树关闭验收
+        run: node node_modules/vitest/vitest.mjs run --config vitest.engineering.config.ts --project coremind-tools --maxWorkers=1 packages/coremind-tools/src/windows-mcp-job.test.ts -t "close 后真实树"
