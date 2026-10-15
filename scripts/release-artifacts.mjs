@@ -208,6 +208,7 @@ async function buildArtifacts({
     repositoryRoot,
   );
 
+  runNpm(["run", "release:check-npm"], repositoryRoot);
   const npmArtifacts = [];
   for (const packageName of NPM_PUBLISH_ORDER) {
     const packed = runNpm(
