@@ -1,0 +1,28 @@
+name: Windows MCP startup probe
+
+on:
+  push:
+    branches: [codex/diagnose-windows-mcp-startup]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "22.23.3"
+          cache: npm
+      - name: 安装与构建原生启动辅助模块
+        run: |
+          npm install --global npm@11.5.1
+          npm ci
+          npm run build --workspace coremind-config
+          npm run build --workspace coremind-protocol
+          npm run build --workspace coremind-tools
+      - name: 预取消原生握手阶段诊断
+        run: node scripts/probe-windows-mcp-startup.mjs "$env:GITHUB_WORKSPACE"
