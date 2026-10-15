@@ -55,6 +55,7 @@ jobs:
           git fetch origin main --no-tags
           main_sha="$(git rev-parse FETCH_HEAD)"
           test "${tag_sha}" = "${main_sha}"
+          node scripts/release-notes.mjs --tag "${COREMIND_REQUESTED_TAG}" --output .scratch/controlled-release-notes.md
           candidate_sha="${tag_sha}"
           approved_offline_v071="false"
           if [ "${COREMIND_REQUESTED_TAG}" = "v0.7.1" ] && [ "${COREMIND_REUSED_CANDIDATE_RUN_ID}" = "33838498153" ]; then
@@ -507,14 +508,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
-          PROVIDER_EVIDENCE_MODE: ${{ needs.candidate.outputs.provider_evidence_mode }}
         run: |
+          node scripts/release-notes.mjs --tag "${RELEASE_TAG}" --output .scratch/controlled-release-notes.md --manifest release-artifacts/release-manifest.json
           prerelease=""
           if [[ "${RELEASE_TAG}" == *-* ]]; then prerelease="--prerelease"; fi
-          notes_args=()
-          if [ "${PROVIDER_EVIDENCE_MODE}" = "approved-offline-v071" ]; then
-            notes_args=(--notes 'v0.7.1 reuses the exact npm and PyPI artifacts from Candidate 33838498153 (Ubuntu and Windows offline checks passed). Source ZIP reflects the release tag. Live Provider certification was not run: the certification job failed during npm setup. This approved simplified release does not claim live Provider certification success. See release-manifest.json for source provenance and artifact hashes.')
-          fi
           release_state="$(mktemp)"
           release_status="$(curl --silent --show-error --retry 1 --retry-all-errors --connect-timeout 15 --max-time 30 --header "Authorization: Bearer ${GH_TOKEN}" --header 'Accept: application/vnd.github+json' --output "${release_state}" --write-out '%{http_code}' "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")" || {
             echo "GitHub Release 状态未知；停止发布" >&2
@@ -525,6 +522,7 @@ jobs:
             expected_prerelease="false"
             if [[ "${RELEASE_TAG}" == *-* ]]; then expected_prerelease="true"; fi
             test "$(jq -r '.prerelease' "${release_state}")" = "${expected_prerelease}"
+            node scripts/release-notes.mjs --tag "${RELEASE_TAG}" --manifest release-artifacts/release-manifest.json --existing-release "${release_state}"
             expected_source="$(basename release-artifacts/source/*.zip)"
             for asset_name in $(jq -r '.assets[].name' "${release_state}"); do
               case "${asset_name}" in
@@ -559,8 +557,7 @@ jobs:
             release-artifacts/release-manifest.json \
             --repo "${GITHUB_REPOSITORY}" \
             --verify-tag \
-            --generate-notes \
-            "${notes_args[@]}" \
+            --notes-file .scratch/controlled-release-notes.md \
             --title "CoreMind ${RELEASE_TAG#v}" \
             ${prerelease}
 

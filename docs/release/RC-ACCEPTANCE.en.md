@@ -1,6 +1,6 @@
 # Release Candidate Acceptance Guide
 
-The current target is 1.0.1. Neither the historical 0.7.0 network exception nor the 0.7.1 offline promotion applies; this version requires every strict check.
+The current acceptance target is the `1.1.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
@@ -42,6 +42,20 @@ Run `npm run baseline:check` before the RC matrix. It rebuilds every public pack
 | P18 | npm tarball contents and entries | Artifacts |
 | P19 | Python wheel contents and Worker | Artifacts |
 | P20 | Real Windows and Linux pseudoterminals | TUI |
+
+## 1.1.0 feature rechecks and compatibility boundaries
+
+Verify these journeys against the same candidate version, commit, and actual artifacts. They supplement P01-P20 and do not replace live Provider, both-platform, or post-publication public reinstall evidence:
+
+- Standard `SKILL.md` indexing precedes explicit `load_skill` delivery of the frozen body. Cold recovery uses the original snapshot, without rereading changed source files or granting permissions.
+- `/steer` and `/follow-up` take effect within one Run. Five-state control receipts stay separate from input claim/completion facts for actual Turns, and control bodies cannot answer a pending approval.
+- Local MCP stdio starts only after permission and budget admission. Real tool results, cancellation, process settlement, and unknown effects retain the existing execution contract.
+- HTTP MCP uses only the fixed target and exact authorized resource URIs. Credentials stay out of public events and Facts, resource contents cannot trigger arbitrary host-file reads, and Child Runs inherit no MCP authority.
+- Explicit OAuth login, cancel, exit, and logout remain controlled, with independent real loopback-callback and socket-settlement evidence. A local authorization fixture does not certify external interoperability.
+- Explicit Config v3 `deferred` Chinese/English lexical discovery, declaration generation, and durable selections rebuild from authoritative facts. Installation applies on subsequent requests; deny, approval, and budget checks remain active.
+- Terminal approvals, durations, results, and Effects bind to actual Run/Agent/Step/Call identity. Real-entry regressions cover stored/blocked Artifacts, coalesced Chinese input, grapheme deletion, paste-as-draft, and waiting for exit settlement. Missing results cannot become success.
+
+Config v2, default or explicit `direct`, and Protocol v1 remain compatible; `deferred` never upgrades old configuration automatically. New capabilities require matching SDK and bundled Worker support, with matching Schema fingerprints for Protocol v2. Minimum requirements remain Node.js ≥ 22.19 and Python ≥ 3.10 for the Python SDK. Record actual validation environments separately; a supported minimum is not proof that this run exercised that version. Skill loading, discovery, and recovery cannot expand existing permissions; unknown effects require human reconciliation. Global paired performance gains are not certified.
 
 ## P20 real pseudoterminal
 
@@ -89,4 +103,4 @@ For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict
 
 ## Completion
 
-The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider either passes the current live recheck or satisfies the exact `0.7.0` network exception, both platform gates pass, and the final repository-wide Markdown audit passes. Tagging and publishing still follow the [Release SOP](README.en.md).
+The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to this version, final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body. Tagging and publishing still follow the [Release SOP](README.en.md).

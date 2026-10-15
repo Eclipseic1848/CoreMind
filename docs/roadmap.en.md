@@ -4,13 +4,13 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release line: `1.0.1`
+## Current release line: `1.1.0`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `1.0.1` release line retains `0.8.0` and these capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `1.1.0` release line retains `1.0.1` and these capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
-- Config v2, 40 configurable model providers, and custom compatible endpoints.
+- Compatible Config v2, explicit Config v3, 40 configurable model providers, and custom compatible endpoints.
 - `ask`, `assisted`, and `full` permission modes with path policy, approvals, audit, checkpoints, diffs, and recovery.
 - Explicit outcomes, budgets, traces, sessions, context protection, tests, evaluations, and release gates.
 - Eight project templates, five offline golden examples, two real-defect coding-agent repositories, and 22 capability modules.
@@ -18,9 +18,21 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v1.0.1` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/1.0.1/) must bind the same version and commit. Live channel pages remain authoritative for public availability, and older release evidence remains as historical record.
+The `v1.1.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must bind the same version and commit. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
 
-It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. The checked-in ledger has no static `1.0.1` certification record, while formal publication also requires a same-version strict-provider workflow Artifact.
+It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. Formal publication also requires strict-provider evidence bound to this version, final commit, Runtime, and Worker.
+
+## `1.1.0`: controlled extensions and interactive evidence
+
+- Standard `SKILL.md` indexing, on-demand loading, and frozen-snapshot recovery.
+- Durable same-Run `/steer`, `/follow-up`, and five-state control receipts.
+- Permission-gated local MCP stdio tools and cancellation settlement.
+- Fixed HTTP MCP targets, exact resource authorization, and controlled credentials.
+- Explicit host OAuth login, cancellation, exit, and logout.
+- Explicit Config v3 `deferred` Chinese/English lexical discovery, declaration generation, and fact reconstruction.
+- Terminal evidence per Run/Call, controlled Artifact references, and safe input.
+
+Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible; `deferred` requires explicit Config v3. New features require matching SDK and bundled Worker capabilities; Protocol v2 also requires matching Schema fingerprints. Node.js ≥ 22.19 is required, and the Python SDK requires Python ≥ 3.10. Unknown effects still require human reconciliation before resume. Skill loading and tool discovery grant no new permissions. Real external authorization-server interoperability and global paired performance gains are not certified.
 
 ## `1.0.1`: Runtime safety and integration hardening
 
@@ -54,11 +66,11 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 ## Future roadmap (version scope to be confirmed)
 
-Version 0.8.0 focuses on host verification and engineering audit fixes. The following work is not yet delivered; obsolete version assignments from early plans no longer define its schedule. Maintainers confirm scope and acceptance when each effort starts:
+The 1.1.0 release line advances controlled extensions and interactive evidence. The following directions still require independent scope and acceptance; obsolete version assignments from early plans no longer define their schedule:
 
 - Web development environment: run and control surfaces first, followed by editing, testing, and evaluation, reusing the existing Protocol and Runtime.
-- MCP/LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.
-- The 1.0 target: feature freeze, compatibility and security closure, formal qualification, and auditable publication, with no committed date.
+- More MCP service interoperability, LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.
+- Later stable versions: improve compatibility, security, and auditable publication from real defects and community feedback, without unconfirmed dates.
 
 ## `0.3.0`: phase-two kernel and engineering loop
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 - 2026-10-15
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased — 1.1 development
 
 - Added explicit TTY MCP login before run and single-owner chat login/cancel/logout, including cancellation and local revocation during tool approval; machine-output modes reject interaction.

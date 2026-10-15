@@ -4,6 +4,25 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## 1.1.0
+
+### Added and improved
+
+- Standard `SKILL.md` files provide an index and on-demand `load_skill`. Selected bodies freeze when the Runtime is created and resume from the original snapshot; loading a Skill grants no permissions.
+- Durable `/steer` and `/follow-up` add input within the same Run. The `accepted/applied/rejected/duplicate/conflict` control receipts remain separate from input claim and completion.
+- Local MCP stdio tools start only after explicit configuration, permission, and budget admission and settle on completion or cancellation. A trusted host process is not a sandbox.
+- Controlled HTTP MCP binds a fixed target, exact resource URIs, and environment or `SecretRef` credentials. Resource contents cannot cause arbitrary host-path reads, and Child Runs inherit no MCP authority.
+- Explicit host OAuth login uses PKCE, state, and a controlled loopback callback, with cancel, exit, and logout. It does not open a browser automatically or treat business 401/403 responses as permission to log in.
+- Explicit Config v3 `deferred` tools support Chinese and English lexical discovery. Declarations are isolated per execution; durable installation takes effect on subsequent requests, and generation and selection facts are rebuildable. Discovery grants no execution authority.
+- The terminal correlates approvals, results, durations, and Effects by actual Run/Agent/Step/Call and distinguishes stored and blocked Artifacts. Coalesced Chinese input, grapheme deletion, paste-as-draft, and exit settlement retain explicit semantics.
+- Restore documentation navigation and theme titles while preserving literal configuration and release-note placeholders.
+
+### Upgrade, compatibility, and release qualification
+
+Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible; `deferred` requires explicit Config v3. New features require matching SDK and bundled Worker capabilities; Protocol v2 also requires matching Schema fingerprints. Node.js ≥ 22.19 is required, and the Python SDK requires Python ≥ 3.10. Unknown effects still require human reconciliation before resume. Skill loading and tool discovery grant no new permissions. Real external authorization-server interoperability and global paired performance gains are not certified.
+
+This entry describes the `1.1.0` release line. Live GitHub Release, npm, and PyPI pages and candidate, Provider, platform, and artifact evidence for the same commit determine public availability. Source code and engineering CI do not establish publication, and older qualification does not replace this version's rechecks. Historical records and license notices remain preserved.
+
 ## 1.0.1 — 2026-09-25
 
 ### Fix
