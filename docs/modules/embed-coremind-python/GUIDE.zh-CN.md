@@ -71,6 +71,14 @@ with CoreMindClient(config, protocol_version='2.0',
 
 默认 v1 或缺少 handler 时，在认证请求前明确返回 `protocol_capability_missing` 或 `mcp_auth_required`。新 SDK 遇到旧 v2 Worker 仍执行精确 schema 指纹检查；不能降级伪报交互成功。授权请求仅进入专用 handler，不进入 `received_events`；Token、callback code 与 verifier 留在 Node。Python 不接收 TokenStore，不默认写明文文件。同一客户端跨 Run 复用内存凭据，关闭后需重登；远端撤销不在本地 logout 合同内。真实外部服务互通未验证，完整边界见[配置指南](../../guide/02-configuration.md)。
 
+## 工具发现与 Worker 兼容（1.1 开发线）
+
+使用[按需工具配置](../../guide/02-configuration.md#按需曝光工具11-开发线)时须显式写 Config 3；旧 Config 2 省略 `exposure` 的行为保持不变。Python 仍调用原有 `run/chat`，由同一 Node Runtime 进行搜索与声明安装，不增加第二个配置进程或 Python 工具目录。
+
+默认 v1 的首次 initialize 保持旧包形状，不附加 `capabilities`。只有收到 `protocol_capability_missing` 且 details 精确为 `{schemaVersion: 1, requiredCapabilities: ['toolDiscovery'], retryInitialize: true}`，SDK 才在同一进程最多重发一次并仅附加 `toolDiscovery`；普通错误和畸形挑战不重试，成功回执也必须确认该能力。v2 在首包声明能力并校验精确 schema 指纹与能力回执，失败不降级。旧 Worker 必须在任何 Run 前拒绝 Config 3；旧 SDK 不认识能力挑战时会明确失败。
+
+搜索命中不代表工具已获执行批准。下一请求完成持久安装后仍执行原审批与 deny；新 Run 重新建立声明，同一 Run 恢复仍受配置指纹约束。`context_prefix` 和 `provider_request` 的可选 `toolDiscovery` 只含五字段安全摘要，Python 对出现的摘要做封闭校验；完整目录和参数 schema 不经公开事件传输。本节说明协议与使用合同，不代表外部服务互通或本版本发布资格已通过。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

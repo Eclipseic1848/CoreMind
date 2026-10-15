@@ -29,6 +29,26 @@ Providers are inherited dynamically from the locked runtime family. `0.2.0-rc.1`
 
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 
+### Deferred tool exposure (1.1 development line)
+
+Omit `exposure` or set it to `direct` to expose the complete parameter schema as before. Existing Config 2 files that omit the field retain their parsing, configuration fingerprint, and declarations. A `deferred` tool requires an explicit `schemaVersion: 3`; Config 2 with deferred tools is rejected rather than upgraded automatically. See the complete [tool-discovery.yaml example](../../../examples/tool-discovery.yaml):
+
+```yaml
+schemaVersion: 3
+name: deferred-reader
+agents:
+  main:
+    tools:
+      - id: read
+        exposure: deferred
+```
+
+An execution with deferred tools exposes `discover_tools({query, limit?})`. Its catalog contains only tools permitted by the current agent's configuration, excluding other agents and unselected service tools. Matching uses Unicode NFKC normalization, Chinese bigrams, and English lexical tokens over names and descriptions. It performs no translation or semantic retrieval. Query length is at most 256 Unicode code points; limit is 1–8, defaulting to 5. Results are bounded to 16 KiB. This mode permits at most 256 combined catalog entries and 8 MiB of complete schemas.
+
+Search itself performs no network access, script reads, or process creation. Existing preparation still applies: selected MCP tools connect, handshake, and list their catalog under existing permissions, which can perform I/O. Search results commit as critical facts; complete schemas become visible only after durable installation at the next model-request boundary. Guessing the deferred name in the same batch as search cannot execute it early. Neither matching nor installation bypasses deny rules, approval, workspace or network policy, budgets, or effect checks.
+
+Each new Run builds declarations from its current configuration instead of inheriting activation from old Runs, Sessions, or parents. Resuming the same Run retains the configuration-fingerprint hard gate; old search results cannot grant new authority. Skills, delegation, resource-derived tools, and host-injected tools remain direct. Public `context_prefix` and `provider_request` events add only an optional summary containing version, catalog fingerprint, generation, selection fingerprint, and tool count. Complete catalogs and schemas remain private Run Facts and are stripped from public projections and Worker events.
+
 ## Agent-scoped local MCP tools
 
 Explicit stdio services start inside an authorized Run. Use absolute `command` and `cwd` paths and a fixed `args` array. CoreMind does not evaluate a shell or install programs. Replace these paths and the raw tool name with an audited local service:
@@ -67,7 +87,7 @@ permissions:
 
 On Windows, use absolute Windows paths; YAML single quotes preserve backslashes. Environment entries accept only `{env: NAME}` or `{secretRef: reference}`; SecretRef requires the embedding SDK's `secretResolver`. Only a finite set of platform variables and explicit references reach the service. Do not place secrets in configuration, arguments, or tool descriptions.
 
-A nonempty agent `tools` list selects exact raw tools; omitted or empty lists inherit global `tools`. Internal aliases bind the server, raw name, full schema, and declared execution capability. Approval includes the actual command, directory, and identity digest. Connection, catalog listing, and each business call use the same approval, budget, lease, and durable-result chain. Connection plus listing consume two tool calls before business execution. The first model request retains the full selected schema, including `$defs/$ref`; server annotations never lower authority.
+A nonempty agent `tools` list selects exact raw tools; omitted or empty lists inherit global `tools`. Internal aliases bind the server, raw name, full schema, and declared execution capability. Approval includes the actual command, directory, and identity digest. Connection, catalog listing, and each business call use the same approval, budget, lease, and durable-result chain. Connection plus listing consume two tool calls before business execution. Default direct tools retain the full selected schema, including `$defs/$ref`, in the first model request; deferred tools retain that same complete schema in requests after discovery and durable installation. Server annotations never lower authority.
 
 This is trusted host code with the current account's authority. Roots and tool allowlists provide no OS sandbox. `workspaceOnly: true` or `network: deny/ask` rejects startup even in `full` mode. `doctor` checks static conditions without starting or handshaking a service. The existing `coremind check` gate still rejects `workspaceOnly: false`; this configuration does not satisfy the constrained-project release baseline. Child Runs currently accept no MCP services, tools, or credentials.
 

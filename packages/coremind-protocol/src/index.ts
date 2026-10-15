@@ -383,6 +383,13 @@ export const InitializeRequestSchema = Type.Object(
     params: Type.Object(
       {
         protocolVersion: Type.Literal(PROTOCOL_VERSION),
+        capabilities: Type.Optional(
+          Type.Array(Type.Literal("toolDiscovery"), {
+            minItems: 1,
+            maxItems: 1,
+            uniqueItems: true,
+          }),
+        ),
         config: Type.Optional(Type.Unknown()),
         configPath: Type.Optional(Type.String({ minLength: 1 })),
         configDir: Type.Optional(Type.String({ minLength: 1 })),

@@ -21,6 +21,7 @@ systemPrompt: TOptional<TString>;
 tools: TOptional<TArray<TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
 path: TString;
 name: TOptional<TString>;
@@ -30,7 +31,9 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 mcp: TObject<    {
 server: TString;
 tool: TString;
@@ -149,7 +152,7 @@ export declare type CoreMindConfig = Static<typeof CoreMindConfigSchema>;
  * 顶层只保留少量字段，全部可选字段有合理默认值，对新手友好。
  */
 export declare const CoreMindConfigSchema: TObject<    {
-schemaVersion: TLiteral<2>;
+schemaVersion: TUnion<[TLiteral<2>, TLiteral<3>]>;
 name: TString;
 description: TOptional<TString>;
 provider: TOptional<TUnion<[TObject<    {
@@ -182,6 +185,7 @@ secretRef: TString;
 tools: TOptional<TArray<TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
 path: TString;
 name: TOptional<TString>;
@@ -191,7 +195,9 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 mcp: TObject<    {
 server: TString;
 tool: TString;
@@ -251,6 +257,7 @@ systemPrompt: TOptional<TString>;
 tools: TOptional<TArray<TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
 path: TString;
 name: TOptional<TString>;
@@ -260,7 +267,9 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 mcp: TObject<    {
 server: TString;
 tool: TString;
@@ -655,6 +664,7 @@ export declare type McpToolConfig = Static<typeof McpToolSchema>;
 
 /** MCP 工具不能从服务注解或旧 effect 声明推断完整能力。 */
 export declare const McpToolSchema: TObject<    {
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 mcp: TObject<    {
 server: TString;
 tool: TString;
@@ -786,6 +796,7 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>;
 
 export declare type SecretRef = Static<typeof SecretRefSchema>;
@@ -858,6 +869,7 @@ export declare type ToolConfig = Static<typeof ToolConfigSchema>;
 export declare const ToolConfigSchema: TUnion<[TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
 path: TString;
 name: TOptional<TString>;
@@ -867,7 +879,9 @@ reversible: TBoolean;
 pathFields: TOptional<TArray<TString>>;
 urlFields: TOptional<TArray<TString>>;
 }>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>, TObject<    {
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 mcp: TObject<    {
 server: TString;
 tool: TString;
@@ -913,6 +927,7 @@ export declare type ToolRefConfig = Static<typeof ToolRefSchema>;
 export declare const ToolRefSchema: TObject<    {
 id: TUnion<TLiteral<"read" | "ls" | "find" | "grep" | "git_status" | "git_diff" | "git_log" | "bash" | "edit" | "write" | "web-fetch" | "web-search">[]>;
 enabled: TOptional<TBoolean>;
+exposure: TOptional<TUnion<[TLiteral<"direct">, TLiteral<"deferred">]>>;
 }>;
 
 /** 校验配置并填充默认值；结构错误抛 ConfigValidationError（中文可读） */

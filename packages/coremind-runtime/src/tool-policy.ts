@@ -83,6 +83,16 @@ export class ToolPolicy {
     };
   }
 
+  /** 目录只排除无需参数即可确定的拒绝；实际参数和审批仍由 authorize 判定。 */
+  allowsDeclaration(tool: string, capability: ResolvedToolCapability): boolean {
+    return (
+      !matchesAny(tool, this.permissions.deny) &&
+      capability.resolution !== "fallback" &&
+      !(capability.effect === "unknown" && capability.checkpoint === "unsupported") &&
+      !(capability.effect === "network" && this.permissions.network === "deny")
+    );
+  }
+
   async authorize(
     agent: string,
     tool: string,

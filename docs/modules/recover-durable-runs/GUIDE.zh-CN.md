@@ -26,6 +26,10 @@ coremind run coremind.yaml --resume <runId> --json-events
 
 以下情况不会自动继续：配置指纹变化、operation 已终结、Effect Receipt 为 `started` 或 `unknown`、已提交副作用不属于稳定完成步骤、RunState 损坏。执行前被拒绝的工具使用 `not_started`，不会被误判为未知副作用。
 
+Config 3 的 deferred 工具仍受同一恢复门约束：同一 Run 必须匹配原配置指纹，不能改配置后借旧选择集合扩权。目录快照、成功搜索与声明代次保存在私有追加事实中；公开 `context_prefix` 和 `provider_request` 只引用安全摘要。新 Run 根据当前配置重新建立声明，旧 Session、父级或上次 Run 的激活不构成授权。没有工具发现事实的旧 Run 沿原路径恢复，不推测历史工具集合。
+
+从冷启动 Worker 读取同一批 Facts 并重投影，不等于已获准继续执行。继续执行仍须通过原输入、步骤边界、Effect Receipt 与所有权检查；搜索成功也不免除后续工具审批。
+
 ## 旧 Session
 
 恢复旧文件时框架会自动创建 `.v3.backup`。受支持的消息、模型变更、工具集变更、压缩、分支摘要、标签和名称会迁移。无法无损表达的旧条目会返回明确错误，原文件保留；按 [SOP](SOP.zh-CN.md) 人工选择保留旧版本或导出有效上下文。

@@ -32,7 +32,9 @@ import { WorkflowStepSchema } from "./workflow.js";
  * 顶层只保留少量字段，全部可选字段有合理默认值，对新手友好。
  */
 export const CoreMindConfigSchema = Type.Object({
-  schemaVersion: Type.Literal(2, { description: "CoreMind 配置格式版本" }),
+  schemaVersion: Type.Union([Type.Literal(2), Type.Literal(3)], {
+    description: "CoreMind 配置格式版本；按需曝光工具须显式使用 3",
+  }),
   name: Type.String({ minLength: 1, description: "智能体名称（必填）" }),
   description: Type.Optional(Type.String()),
   provider: Type.Optional(ProviderSchema),

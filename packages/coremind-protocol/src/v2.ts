@@ -738,6 +738,17 @@ const ToolCallPhaseResolutionSchema = Type.Union([
   ),
 ]);
 
+const ToolDiscoverySummarySchema = Type.Object(
+  {
+    version: Type.Literal(1),
+    catalogFingerprint: Type.String(),
+    generation: Type.Integer({ minimum: 0 }),
+    selectionFingerprint: Type.String(),
+    toolCount: Type.Integer({ minimum: 0 }),
+  },
+  { additionalProperties: false },
+);
+
 const ProtocolV2EventPayloadSchemas = [
   Type.Object(
     {
@@ -1076,7 +1087,12 @@ const ProtocolV2EventPayloadSchemas = [
     { additionalProperties: false },
   ),
   Type.Object(
-    { type: Type.Literal("context_prefix"), agent: Type.String(), fingerprint: Type.String() },
+    {
+      type: Type.Literal("context_prefix"),
+      agent: Type.String(),
+      fingerprint: Type.String(),
+      toolDiscovery: Type.Optional(ToolDiscoverySummarySchema),
+    },
     { additionalProperties: false },
   ),
   Type.Object(
@@ -1092,6 +1108,7 @@ const ProtocolV2EventPayloadSchemas = [
       toolSchemaFingerprint: Type.String(),
       capabilityFingerprint: Type.String(),
       contextWorkingSetFingerprint: Type.String(),
+      toolDiscovery: Type.Optional(ToolDiscoverySummarySchema),
     },
     { additionalProperties: false },
   ),

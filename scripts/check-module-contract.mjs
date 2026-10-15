@@ -326,11 +326,13 @@ async function checkExampleConfigs() {
         failures.push(`${path.relative(root, file)} YAML 无法解析：${message(error)}`);
         continue;
       }
-      if (!value?.agents || value.schemaVersion !== 2) continue;
+      if (!value?.agents || ![2, 3].includes(value.schemaVersion)) continue;
       try {
         validateConfig(value);
       } catch (error) {
-        failures.push(`${path.relative(root, file)} 不符合 CoreMind Config v2：${message(error)}`);
+        failures.push(
+          `${path.relative(root, file)} 不符合 CoreMind Config v${value.schemaVersion}：${message(error)}`,
+        );
       }
     }
   }

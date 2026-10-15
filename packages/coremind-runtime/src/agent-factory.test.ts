@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createModels } from "@earendil-works/pi-ai";
+import { createModels, getCurrentTools } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
@@ -10,11 +10,183 @@ import {
 import { createReadTool } from "@earendil-works/pi-coding-agent";
 import { buildTools } from "coremind-tools";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildAgent } from "./agent-factory.js";
+import type { AgentDriverContextContract, AgentDriverHarness } from "./agent-driver.js";
+import { buildAgent, buildAgentDriver } from "./agent-factory.js";
+import { CoreMindError } from "./errors.js";
 import type { CoreMindEvent } from "./events.js";
 import { ToolExecutionEngine } from "./tool-call-lifecycle.js";
 
 const temporaryRoots: string[] = [];
+
+describe("按需工具的完整 Adapter 声明帧", () => {
+  it("先只声明初始选择，持久门确认后下一真实请求使用同一完整 schema/prefix/执行对象", async () => {
+    const { models, model, faux } = makeFauxContext();
+    const initial = { names: ["discover_tools"], generation: 0, fingerprint: "a".repeat(64) };
+    const installed = {
+      names: ["discover_tools", "deferred_read"],
+      generation: 1,
+      fingerprint: "b".repeat(64),
+    };
+    let found = false;
+    let release!: () => void;
+    let prepared = false;
+    const durable = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const base = createReadTool(process.cwd());
+    const deferred = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "真实目标结果" }],
+      details: {},
+    }));
+    const tools = [
+      {
+        ...base,
+        name: "discover_tools",
+        description: "发现当前允许的工具",
+        execute: async () => {
+          found = true;
+          return {
+            content: [{ type: "text" as const, text: "已找到工具，待下一请求声明" }],
+            details: {},
+          };
+        },
+      },
+      {
+        ...base,
+        name: "deferred_read",
+        description: "仅安装后曝光的完整目标说明",
+        execute: deferred,
+      },
+    ];
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("discover_tools", { path: "query" })]),
+      fauxAssistantMessage([fauxToolCall("deferred_read", { path: "notes.txt" })]),
+      fauxAssistantMessage("完成"),
+    ]);
+    const requests: Array<Parameters<typeof models.streamSimple>[1]> = [];
+    const original = models.streamSimple.bind(models);
+    models.streamSimple = ((...args) => {
+      requests.push(structuredClone(args[1]));
+      return original(...args);
+    }) as typeof models.streamSimple;
+    let current: AgentDriverContextContract | undefined;
+    const budgeted: AgentDriverContextContract[] = [];
+    const registerCatalog = vi.fn(
+      (_entries: readonly { name: string; description: string; declaration: unknown }[]) => initial,
+    );
+    const executeTool = vi.fn(async ({ invoke }) => invoke());
+    const harness = {
+      registerDeclarationCatalog: registerCatalog,
+      registerContextContract: (contract: AgentDriverContextContract) => {
+        current = contract;
+      },
+      prepareRequest: async (
+        prepare: (selection: typeof initial) => AgentDriverContextContract,
+      ) => {
+        const selected = found ? installed : initial;
+        const contract = prepare(selected);
+        if (found && !prepared) {
+          prepared = true;
+          expect(current?.toolSchemas).toEqual([
+            expect.objectContaining({ name: "discover_tools" }),
+          ]);
+          expect(contract.toolSchemas).toEqual(
+            tools.map((tool) => expect.objectContaining({ name: tool.name })),
+          );
+          await durable;
+        }
+        return selected;
+      },
+      transformContext: async (messages) => {
+        expect(current).toBeDefined();
+        budgeted.push(structuredClone(current!));
+        expect(messages.some((message) => message.role === "system")).toBe(false);
+        return messages;
+      },
+      executeTool,
+    } as AgentDriverHarness;
+    const driver = buildAgentDriver(
+      { systemPrompt: "声明帧测试" },
+      { models, model, tools, agentName: "main", onEvent: () => {}, harness },
+    );
+    const running = driver.prompt("先发现再读取");
+    try {
+      await vi.waitFor(() => expect(requests.length).toBeGreaterThan(0));
+      expect(getCurrentTools(requests[0]!.messages).map((tool) => tool.name)).toEqual([
+        "discover_tools",
+      ]);
+      await vi.waitFor(() => expect(prepared).toBe(true));
+      expect(requests).toHaveLength(1);
+      release();
+      await running;
+      await driver.waitForIdle();
+      expect(registerCatalog).toHaveBeenCalledOnce();
+      expect(registerCatalog.mock.calls[0]?.[0]).toEqual(
+        tools.map((tool) =>
+          expect.objectContaining({
+            name: tool.name,
+            description: tool.description,
+            declaration: expect.objectContaining({ name: tool.name }),
+          }),
+        ),
+      );
+      expect(requests).toHaveLength(3);
+      for (let index = 0; index < requests.length; index++) {
+        const names = index === 0 ? initial.names : installed.names;
+        expect(getCurrentTools(requests[index]!.messages).map((tool) => tool.name)).toEqual(names);
+        expect(
+          requests[index]!.messages.filter((message) => message.role === "system"),
+        ).toHaveLength(1);
+        expect(budgeted[index]?.toolSchemas).toEqual(getCurrentTools(requests[index]!.messages));
+        expect(
+          (budgeted[index] as AgentDriverContextContract & { toolDiscovery?: unknown })
+            .toolDiscovery,
+        ).toEqual({
+          generation: index === 0 ? 0 : 1,
+          fingerprint: index === 0 ? initial.fingerprint : installed.fingerprint,
+        });
+        expect(requests[index]!.messages[0]?.content).toBe(budgeted[index]?.stablePrefix);
+      }
+      expect(driver.messages().some((message) => message.role === "system")).toBe(false);
+      expect(deferred).toHaveBeenCalledOnce();
+      expect(executeTool).toHaveBeenCalledTimes(2);
+    } finally {
+      release();
+      await running;
+    }
+  });
+
+  it.each(["durability", "identity"] as const)(
+    "请求前 %s 失败保持 typed 原因且真实 Provider 零发送",
+    async (failure) => {
+      const { models, model, faux } = makeFauxContext();
+      faux.setResponses([fauxAssistantMessage("不应发送")]);
+      const request = vi.fn(models.streamSimple.bind(models));
+      models.streamSimple = request;
+      const selection = { names: [], generation: 0, fingerprint: "a".repeat(64) };
+      const harness = {
+        registerDeclarationCatalog: () => selection,
+        prepareRequest: async (
+          prepare: (value: typeof selection) => AgentDriverContextContract,
+        ) => {
+          prepare(selection);
+          if (failure === "durability")
+            throw new CoreMindError("fact_ledger_poisoned", "固定持久门失败");
+          return { ...selection };
+        },
+      } as AgentDriverHarness;
+      const driver = buildAgentDriver(
+        {},
+        { models, model, tools: [], agentName: "main", onEvent: () => {}, harness },
+      );
+      await driver.prompt("不能发送");
+      await expect(driver.waitForIdle()).rejects.toMatchObject({
+        code: failure === "durability" ? "fact_ledger_poisoned" : "tool_capability_conflict",
+      });
+      expect(request).not.toHaveBeenCalled();
+    },
+  );
+});
 
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) rmSync(root, { recursive: true, force: true });

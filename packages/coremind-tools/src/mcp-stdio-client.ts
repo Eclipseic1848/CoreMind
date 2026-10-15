@@ -15,6 +15,7 @@ export interface McpStdioClientOptions {
   protocolVersion?: "legacy" | "2026-07-28";
   sensitiveValues?: readonly string[];
   artifactStore: ArtifactStore;
+  onToolsChanged?: () => void;
 }
 
 export interface McpStdioDomainSummary {

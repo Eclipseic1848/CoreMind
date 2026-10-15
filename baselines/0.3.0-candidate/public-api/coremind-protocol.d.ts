@@ -998,6 +998,7 @@ id: TUnion<[TString, TNumber]>;
 method: TLiteral<"initialize">;
 params: TObject<    {
 protocolVersion: TLiteral<"1.0">;
+capabilities: TOptional<TArray<TLiteral<"toolDiscovery">>>;
 config: TOptional<TUnknown>;
 configPath: TOptional<TString>;
 configDir: TOptional<TString>;
@@ -1532,6 +1533,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     type: TLiteral<"context_prefix">;
     agent: TString;
     fingerprint: TString;
+    toolDiscovery: TOptional<TObject<    {
+    version: TLiteral<1>;
+    catalogFingerprint: TString;
+    generation: TInteger;
+    selectionFingerprint: TString;
+    toolCount: TInteger;
+    }>>;
     }> | TObject<    {
     type: TLiteral<"provider_request">;
     requestId: TString;
@@ -1544,6 +1552,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     toolSchemaFingerprint: TString;
     capabilityFingerprint: TString;
     contextWorkingSetFingerprint: TString;
+    toolDiscovery: TOptional<TObject<    {
+    version: TLiteral<1>;
+    catalogFingerprint: TString;
+    generation: TInteger;
+    selectionFingerprint: TString;
+    toolCount: TInteger;
+    }>>;
     }> | TObject<    {
     type: TLiteral<"artifact_created">;
     artifactId: TString;
@@ -1932,6 +1947,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     type: TLiteral<"context_prefix">;
     agent: TString;
     fingerprint: TString;
+    toolDiscovery: TOptional<TObject<    {
+    version: TLiteral<1>;
+    catalogFingerprint: TString;
+    generation: TInteger;
+    selectionFingerprint: TString;
+    toolCount: TInteger;
+    }>>;
     }> | TObject<    {
     type: TLiteral<"provider_request">;
     requestId: TString;
@@ -1944,6 +1966,13 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     toolSchemaFingerprint: TString;
     capabilityFingerprint: TString;
     contextWorkingSetFingerprint: TString;
+    toolDiscovery: TOptional<TObject<    {
+    version: TLiteral<1>;
+    catalogFingerprint: TString;
+    generation: TInteger;
+    selectionFingerprint: TString;
+    toolCount: TInteger;
+    }>>;
     }> | TObject<    {
     type: TLiteral<"artifact_created">;
     artifactId: TString;
@@ -2341,6 +2370,7 @@ id: TUnion<[TString, TNumber]>;
 method: TLiteral<"initialize">;
 params: TObject<    {
 protocolVersion: TLiteral<"1.0">;
+capabilities: TOptional<TArray<TLiteral<"toolDiscovery">>>;
 config: TOptional<TUnknown>;
 configPath: TOptional<TString>;
 configDir: TOptional<TString>;
@@ -2978,6 +3008,13 @@ providerCallBlocked: TLiteral<true>;
 type: TLiteral<"context_prefix">;
 agent: TString;
 fingerprint: TString;
+toolDiscovery: TOptional<TObject<    {
+version: TLiteral<1>;
+catalogFingerprint: TString;
+generation: TInteger;
+selectionFingerprint: TString;
+toolCount: TInteger;
+}>>;
 }> | TObject<    {
 type: TLiteral<"provider_request">;
 requestId: TString;
@@ -2990,6 +3027,13 @@ stablePrefixFingerprint: TString;
 toolSchemaFingerprint: TString;
 capabilityFingerprint: TString;
 contextWorkingSetFingerprint: TString;
+toolDiscovery: TOptional<TObject<    {
+version: TLiteral<1>;
+catalogFingerprint: TString;
+generation: TInteger;
+selectionFingerprint: TString;
+toolCount: TInteger;
+}>>;
 }> | TObject<    {
 type: TLiteral<"artifact_created">;
 artifactId: TString;
@@ -3381,6 +3425,13 @@ providerCallBlocked: TLiteral<true>;
 type: TLiteral<"context_prefix">;
 agent: TString;
 fingerprint: TString;
+toolDiscovery: TOptional<TObject<    {
+version: TLiteral<1>;
+catalogFingerprint: TString;
+generation: TInteger;
+selectionFingerprint: TString;
+toolCount: TInteger;
+}>>;
 }> | TObject<    {
 type: TLiteral<"provider_request">;
 requestId: TString;
@@ -3393,6 +3444,13 @@ stablePrefixFingerprint: TString;
 toolSchemaFingerprint: TString;
 capabilityFingerprint: TString;
 contextWorkingSetFingerprint: TString;
+toolDiscovery: TOptional<TObject<    {
+version: TLiteral<1>;
+catalogFingerprint: TString;
+generation: TInteger;
+selectionFingerprint: TString;
+toolCount: TInteger;
+}>>;
 }> | TObject<    {
 type: TLiteral<"artifact_created">;
 artifactId: TString;

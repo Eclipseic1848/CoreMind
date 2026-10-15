@@ -1,0 +1,29 @@
+# 按需曝光工具需要显式 Config 3；旧 Config 2 不会自动升级。
+# 从项目根目录运行：coremind run examples/tool-discovery.yaml --prompt "发现 read 工具并读取当前工作区的 README.md"
+schemaVersion: 3
+name: deferred-reader
+
+provider:
+  id: deepseek
+  model: deepseek-v4-flash
+  apiKeyEnv: DEEPSEEK_API_KEY
+
+agents:
+  assistant:
+    systemPrompt: |
+      先用 discover_tools 按工具名或描述查找所需工具。
+      工具出现在后续请求的可用列表后再调用；只依据实际结果回答。
+    tools:
+      - id: read
+        exposure: deferred
+
+permissions:
+  mode: ask
+  workspaceOnly: true
+  network: deny
+
+runtime:
+  maxTurns: 5
+  maxToolCalls: 8
+  maxRetries: 0
+  runTimeoutMs: 30000

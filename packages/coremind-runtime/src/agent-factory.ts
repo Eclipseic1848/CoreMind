@@ -14,7 +14,9 @@ import {
 import type { AgentConfig } from "coremind-config";
 import type {
   AgentDriver,
+  AgentDriverContextContract,
   AgentDriverControl,
+  AgentDriverDeclarationSelection,
   AgentDriverHarness,
   AgentDriverObservation,
   AgentDriverStatus,
@@ -23,10 +25,13 @@ import type {
 } from "./agent-driver.js";
 import { buildStableContextPrefix } from "./context.js";
 import { normalizeDependencyUsage } from "./dependency-adapter.js";
+import { CoreMindError } from "./errors.js";
 import { type CoreMindEvent, normalizeEvent } from "./events.js";
 import type { InputId } from "./input-receipt.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { convertToLlm, type AgentMessage as SessionMessage } from "./session-v4/index.js";
+
+const adapterHistories = new WeakMap<Agent, () => CoreMindMessage[]>();
 
 export interface AgentBuildContext {
   /** 共享模型集合（所有 agent 同一实例，streamFn 绑定） */
@@ -73,30 +78,85 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
         },
       }))
     : ctx.tools;
-  const stablePrefix = buildStableContextPrefix({
-    projectInstructions: agentCfg.systemPrompt ?? "",
-    tools: tools.map((tool) => ({ name: tool.name, description: tool.description })),
-    stableFacts: ctx.stableFacts,
-    skillsContent: ctx.skillsContent,
-  });
+  const catalog = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    declaration: toToolDeclaration(tool),
+  }));
+  const selection = ctx.harness?.registerDeclarationCatalog?.(catalog);
+  const ownedSystems = new WeakSet<object>();
+  const makeFrame = (selected?: AgentDriverDeclarationSelection) => {
+    const selectedTools = selected
+      ? selected.names.map((name) => {
+          const matching = tools.filter((tool) => tool.name === name);
+          if (matching.length !== 1)
+            throw new CoreMindError("tool_capability_conflict", "工具声明不属于唯一允许目录");
+          return matching[0]!;
+        })
+      : tools;
+    if (
+      selected &&
+      (!Number.isSafeInteger(selected.generation) ||
+        selected.generation < 0 ||
+        !/^[0-9a-f]{64}$/u.test(selected.fingerprint) ||
+        new Set(selected.names).size !== selected.names.length)
+    ) {
+      throw new CoreMindError("tool_capability_conflict", "工具声明身份非法");
+    }
+    const stablePrefix = buildStableContextPrefix({
+      projectInstructions: agentCfg.systemPrompt ?? "",
+      tools: selectedTools.map((tool) => ({ name: tool.name, description: tool.description })),
+      stableFacts: ctx.stableFacts,
+      skillsContent: ctx.skillsContent,
+    });
+    const toolSchemas = selected
+      ? selectedTools.map((tool) => catalog.find((entry) => entry.name === tool.name)!.declaration)
+      : catalog.map((entry) => entry.declaration);
+    const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas)!;
+    ownedSystems.add(prefix);
+    const contract: AgentDriverContextContract = {
+      stablePrefix: stablePrefix.text,
+      toolSchemas,
+      ...(selected
+        ? { toolDiscovery: { generation: selected.generation, fingerprint: selected.fingerprint } }
+        : {}),
+    };
+    return {
+      selection: selected,
+      tools: selectedTools,
+      stablePrefix,
+      toolSchemas,
+      prefix,
+      contract,
+    };
+  };
+  let frame = makeFrame(selection);
+  const history = <T extends { role?: string }>(messages: T[]): T[] => {
+    if (!selection) return withoutAdapterPrefix(messages, frame.prefix as unknown as T);
+    if (!messages[0] || !ownedSystems.has(messages[0])) {
+      throw new CoreMindError("tool_capability_conflict", "模型执行上下文缺少当前声明首部");
+    }
+    return messages.filter((message) => {
+      if (ownedSystems.has(message)) return false;
+      if (message.role === "system" && ("toolsAdded" in message || "toolsRemoved" in message)) {
+        throw new CoreMindError("tool_capability_conflict", "历史消息含未归属的工具声明");
+      }
+      return true;
+    });
+  };
   ctx.onEvent({
     type: "context_prefix",
     agent: ctx.agentName,
-    fingerprint: stablePrefix.fingerprint,
+    fingerprint: frame.stablePrefix.fingerprint,
   });
-  const toolSchemas = tools.map(toToolDeclaration);
-  ctx.harness?.registerContextContract?.({
-    stablePrefix: stablePrefix.text,
-    toolSchemas,
-  });
+  ctx.harness?.registerContextContract?.(frame.contract);
   // 执行依赖把系统合同放进消息首部；会话、预算和回放仍只处理独立的历史正文。
-  const prefix = createInitialSystemMessage(stablePrefix.text, toolSchemas)!;
-  const agent = new Agent({
+  const agent: Agent = new Agent({
     initialState: {
-      systemPrompt: stablePrefix.text,
+      systemPrompt: frame.stablePrefix.text,
       model: ctx.model,
-      tools,
-      messages: [prefix, ...((ctx.sessionMessages ?? []) as unknown as AgentMessage[])],
+      tools: frame.tools,
+      messages: [frame.prefix, ...((ctx.sessionMessages ?? []) as unknown as AgentMessage[])],
       thinkingLevel: agentCfg.options?.thinkingLevel,
     },
     // 每次流式请求注入：apiKey 覆盖（apiKeyEnv）、temperature/maxTokens（agent options）
@@ -113,24 +173,62 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
       ctx.harness?.onModelRequestDispatched?.({
         providerId: m.provider,
         modelId: m.id,
-        messages: withoutAdapterPrefix(c.messages, prefix),
+        messages: history(c.messages),
       });
       return response;
     },
     toolExecution: "parallel",
     convertToLlm: (messages) => [
-      prefix,
-      ...convertToLlm(withoutAdapterPrefix(messages, prefix) as SessionMessage[]),
+      frame.prefix,
+      ...convertToLlm(history(messages) as SessionMessage[]),
     ],
     transformContext: ctx.harness?.transformContext
       ? async (messages, signal) => [
-          prefix,
+          frame.prefix,
           ...((await ctx.harness!.transformContext!(
-            withoutAdapterPrefix(messages, prefix) as unknown as CoreMindMessage[],
+            history(messages) as unknown as CoreMindMessage[],
             signal,
           )) as unknown as AgentMessage[]),
         ]
       : undefined,
+    prepareRequest:
+      selection && ctx.harness?.prepareRequest
+        ? async (request, signal) => {
+            let candidate: ReturnType<typeof makeFrame> | undefined;
+            const selected = await ctx.harness!.prepareRequest!((next) => {
+              if (candidate)
+                throw new CoreMindError("tool_capability_conflict", "单次请求只能准备一份声明帧");
+              candidate = makeFrame(next);
+              return candidate.contract;
+            }, signal);
+            signal?.throwIfAborted();
+            if ((candidate && selected !== candidate.selection) || (selected && !candidate)) {
+              throw new CoreMindError("tool_capability_conflict", "声明确认没有返回原始候选身份");
+            }
+            const requestHistory = history(request.context.messages);
+            if (candidate) {
+              const stateHistory = history(agent.state.messages);
+              const changed = frame.stablePrefix.fingerprint !== candidate.stablePrefix.fingerprint;
+              frame = candidate;
+              agent.state.tools = frame.tools;
+              agent.state.messages = [frame.prefix, ...stateHistory];
+              ctx.harness?.registerContextContract?.(frame.contract);
+              if (changed)
+                ctx.onEvent({
+                  type: "context_prefix",
+                  agent: ctx.agentName,
+                  fingerprint: frame.stablePrefix.fingerprint,
+                });
+            }
+            return {
+              context: {
+                ...request.context,
+                tools: frame.tools,
+                messages: [frame.prefix, ...requestHistory],
+              },
+            };
+          }
+        : undefined,
     beforeToolCall: ctx.harness?.beforeToolCall
       ? (context, signal) =>
           ctx.harness!.beforeToolCall!(
@@ -166,10 +264,14 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
           )) as Awaited<ReturnType<NonNullable<Agent["afterToolCall"]>>>
       : undefined,
   });
+  adapterHistories.set(agent, () => history(agent.state.messages) as unknown as CoreMindMessage[]);
 
   // 事件归一化转发（agent 名由上下文注入，stepId 由编排层补充）
   const activeDriverCalls = new Map<string, AgentDriverToolCall>();
   agent.subscribe((event) => {
+    if (selection && event.type === "message_end" && event.message.role === "system") {
+      ownedSystems.add(event.message);
+    }
     const observation = normalizeDriverObservation(
       event,
       ctx.model.contextWindow,
@@ -215,6 +317,17 @@ export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext):
       },
     },
   });
+  const prepareRequest = agent.prepareRequest;
+  if (prepareRequest)
+    agent.prepareRequest = async (...args) => {
+      try {
+        const update = await prepareRequest(...args);
+        return update || undefined;
+      } catch (error) {
+        requestFailure = error;
+        throw error;
+      }
+    };
   driver = new ModelAgentDriver(agent, ctx.harness, () => requestFailure, ctx.onObservation);
   return driver;
 }
@@ -229,7 +342,6 @@ class ModelAgentDriver implements AgentDriver {
   private readonly controlIds = new Set<InputId>();
   private readonly pendingControls = new Map<AgentMessage, InputId>();
   private promptRunning = false;
-  private readonly prefix: AgentMessage;
 
   constructor(
     private readonly agent: Agent,
@@ -237,7 +349,6 @@ class ModelAgentDriver implements AgentDriver {
     private readonly requestFailure: () => unknown,
     private readonly onObservation: AgentBuildContext["onObservation"],
   ) {
-    this.prefix = agent.state.messages[0]!;
     agent.subscribe((event) => {
       if (event.type !== "message_end" || event.message.role !== "user") return;
       const inputId = this.pendingControls.get(event.message);
@@ -269,10 +380,7 @@ class ModelAgentDriver implements AgentDriver {
   }
 
   messages(): CoreMindMessage[] {
-    return withoutAdapterPrefix(
-      this.agent.state.messages,
-      this.prefix,
-    ) as unknown as CoreMindMessage[];
+    return adapterHistories.get(this.agent)!();
   }
 
   status(): AgentDriverStatus {

@@ -208,6 +208,16 @@ function validateRawToolDeclarations(record: Record<string, unknown>): void {
     if (!Array.isArray(location.tools)) continue;
     for (const [index, tool] of location.tools.entries()) {
       if (tool === null || typeof tool !== "object" || Array.isArray(tool)) continue;
+      if ("exposure" in tool) {
+        if (tool.exposure !== "direct" && tool.exposure !== "deferred") {
+          const detail = `${location.prefix}.${index}.exposure：必须是 direct 或 deferred`;
+          throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
+        }
+        if (tool.exposure === "deferred" && record.schemaVersion !== 3) {
+          const detail = `${location.prefix}.${index}.exposure：deferred 必须显式配置 schemaVersion: 3`;
+          throw new ConfigValidationError(`配置校验失败：${detail}`, [detail]);
+        }
+      }
       if ("mcp" in tool && ("id" in tool || "path" in tool)) {
         // 旧分支允许额外字段，必须在清理前阻断混合引用。
         const detail = `${location.prefix}.${index}：MCP 引用不能同时包含 id 或 path`;

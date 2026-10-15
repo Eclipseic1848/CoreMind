@@ -131,7 +131,17 @@ class CoreMindClient:
                     if self._protocol_version == PROTOCOL_V2_VERSION
                     else self._initialize_params()
                 )
-                result = self._request_raw("initialize", initialize_params)
+                discovery_negotiated = False
+                try:
+                    result = self._request_raw("initialize", initialize_params)
+                except ProtocolError as error:
+                    if self._protocol_version != PROTOCOL_VERSION or not _is_tool_discovery_challenge(error):
+                        raise
+                    # 仅接受封闭能力挑战，在同一进程最多重发一次；第二次错误直接向上传递。
+                    result = self._request_raw("initialize", {
+                        **initialize_params, "capabilities": ["toolDiscovery"],
+                    })
+                    discovery_negotiated = True
                 selected = (
                     result.get("selectedProtocol")
                     if self._protocol_version == PROTOCOL_V2_VERSION
@@ -158,10 +168,13 @@ class CoreMindClient:
                         "projectionQuery",
                         "checkpointOperations",
                         "dynamicTools",
+                        "toolDiscovery",
                     }
                     if self._protocol_version == PROTOCOL_V2_VERSION
                     else {"runSnapshot"}
                 )
+                if discovery_negotiated:
+                    required_capabilities.add("toolDiscovery")
                 missing_capabilities = required_capabilities.difference(capabilities)
                 if missing_capabilities:
                     raise ProtocolError(
@@ -631,6 +644,7 @@ class CoreMindClient:
             "checkpointOperations",
             "dynamicTools",
             "hostVerification",
+            "toolDiscovery",
         ]
         if self._mcp_auth_handler is not None:
             params["capabilities"].append("mcpAuthentication")
@@ -822,8 +836,13 @@ class CoreMindClient:
         if not isinstance(params, Mapping):
             return
         if method == "event":
-            self.received_events.append(params)
             event = params.get("event")
+            try:
+                _validate_tool_discovery_summary(event)
+            except ProtocolError as error:
+                self._stderr_tail.append(str(error))
+                return
+            self.received_events.append(params)
             if isinstance(event, Mapping) and event.get("type") == "approval_required":
                 threading.Thread(
                     target=self._answer_approval,
@@ -1584,6 +1603,43 @@ def _valid_prefixed_sha256(value: object) -> bool:
     )
 
 
+def _is_tool_discovery_challenge(error: ProtocolError) -> bool:
+    details = error.details
+    return (
+        error.coremind_code == "protocol_capability_missing"
+        and isinstance(details, Mapping)
+        and set(details) == {"schemaVersion", "requiredCapabilities", "retryInitialize"}
+        and type(details.get("schemaVersion")) is int
+        and details["schemaVersion"] == 1
+        and details.get("requiredCapabilities") == ["toolDiscovery"]
+        and details.get("retryInitialize") is True
+    )
+
+
+def _validate_tool_discovery_summary(event: object) -> None:
+    if not isinstance(event, Mapping) or event.get("type") not in {"context_prefix", "provider_request"} or "toolDiscovery" not in event:
+        return
+    summary = event["toolDiscovery"]
+    if (
+        not isinstance(summary, Mapping)
+        or set(summary) != {"version", "catalogFingerprint", "generation", "selectionFingerprint", "toolCount"}
+        or type(summary.get("version")) is not int
+        or summary["version"] != 1
+        or not isinstance(summary.get("catalogFingerprint"), str)
+        or not isinstance(summary.get("selectionFingerprint"), str)
+        or any(type(summary.get(key)) is not int or summary[key] < 0 for key in ("generation", "toolCount"))
+    ):
+        raise ProtocolError("worker 返回的工具发现摘要非法", rpc_code=-32600,
+                            coremind_code="protocol_validation_failed")
+
+
+def _validate_tool_discovery_trace(trace: object) -> None:
+    if isinstance(trace, list):
+        for entry in trace:
+            if isinstance(entry, Mapping):
+                _validate_tool_discovery_summary(entry.get("event"))
+
+
 def _validate_events_page(value: Mapping[str, Any], run_id: str) -> dict[str, Any]:
     result = dict(value)
     events = result.get("events")
@@ -1600,6 +1656,8 @@ def _validate_events_page(value: Mapping[str, Any], run_id: str) -> dict[str, An
             rpc_code=-32600,
             coremind_code="invalid_event_page",
         )
+    for event in events:
+        _validate_tool_discovery_summary(event.get("payload"))
     return result
 
 
@@ -1616,6 +1674,7 @@ def _validate_query_result(value: Mapping[str, Any], run_id: str) -> dict[str, A
             rpc_code=-32600,
             coremind_code="invalid_projection_query",
         )
+    _validate_tool_discovery_trace(result["projection"].get("trace"))
     return result
 
 
@@ -1677,6 +1736,8 @@ def _validate_run_result(
         )
     if require_observability:
         _validate_observability(result.get("observability"))
+    _validate_tool_discovery_trace(result.get("trace"))
+    _validate_tool_discovery_trace(snapshot.get("trace"))
     return result
 
 

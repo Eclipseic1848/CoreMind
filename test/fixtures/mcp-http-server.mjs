@@ -4,10 +4,16 @@ import { pathToFileURL } from "node:url";
 import { gzipSync } from "node:zlib";
 
 /** 仅用于真实本地传输验收；既可导入，也可由独立 Worker 的宿主启动。 */
-export async function startMcpHttpServer({ mode = "normal", secret = "", recordPath } = {}) {
+export async function startMcpHttpServer({
+  mode = "normal",
+  secret = "",
+  recordPath,
+  toolChanges = false,
+} = {}) {
   const records = [];
   const sockets = new Set();
   const pending = new Set();
+  const notificationStreams = new Set();
   let sequence = 0;
   let modern = false;
   let sessionCreated = false;
@@ -15,7 +21,7 @@ export async function startMcpHttpServer({ mode = "normal", secret = "", recordP
     records.push(value);
     if (recordPath) appendFileSync(recordPath, `${JSON.stringify(value)}\n`, "utf8");
   };
-  const schema = {
+  let schema = {
     type: "object",
     $defs: { value: {} },
     properties: { value: { $ref: "#/$defs/value" } },
@@ -51,6 +57,7 @@ export async function startMcpHttpServer({ mode = "normal", secret = "", recordP
     });
     response.on("close", () => {
       pending.delete(response);
+      notificationStreams.delete(response);
       record({ type: "response-closed", id });
     });
     if (current === "redirect") {
@@ -128,7 +135,11 @@ export async function startMcpHttpServer({ mode = "normal", secret = "", recordP
         response.writeHead(404).end();
         return;
       }
-      if (current === "short-stream") {
+      if (toolChanges) {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(": 工具目录通知流\n\n");
+        notificationStreams.add(response);
+      } else if (current === "short-stream") {
         response.writeHead(200, { "content-type": "text/event-stream" });
         response.end(`id: resume-${id}\nretry: 1\n\n`);
       } else if (current === "drop-stream-once" || current === "drop-stream-invalid-utf8") {
@@ -184,14 +195,14 @@ export async function startMcpHttpServer({ mode = "normal", secret = "", recordP
         sessionCreated = true;
         reply(response, message.id, {
           protocolVersion: message.params.protocolVersion,
-          capabilities: { tools: {}, resources: {} },
+          capabilities: { tools: toolChanges ? { listChanged: true } : {}, resources: {} },
           serverInfo: { name: "http-fixture", version: "1.0.0" },
         });
       } else if (message.method === "server/discover") {
         modern = true;
         reply(response, message.id, {
           supportedVersions: ["2026-07-28"],
-          capabilities: { tools: {}, resources: {} },
+          capabilities: { tools: toolChanges ? { listChanged: true } : {}, resources: {} },
           ttlMs: 0,
           cacheScope: "private",
         });
@@ -287,6 +298,17 @@ export async function startMcpHttpServer({ mode = "normal", secret = "", recordP
     url,
     records,
     sockets,
+    notifyToolsChanged: () => {
+      if (!toolChanges || notificationStreams.size === 0) throw new Error("工具目录通知流尚未就绪");
+      for (const response of notificationStreams) {
+        response.write(
+          `data: ${JSON.stringify({ jsonrpc: "2.0", method: "notifications/tools/list_changed" })}\n\n`,
+        );
+      }
+    },
+    changeSchema: (next) => {
+      schema = structuredClone(next);
+    },
     release: () => {
       for (const response of pending) response.end("结束");
     },

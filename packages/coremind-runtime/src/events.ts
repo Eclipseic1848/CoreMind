@@ -9,6 +9,15 @@ import type { ToolEffect } from "./tool-policy.js";
 
 export type EffectReceiptStatus = "not_started" | "started" | "committed" | "unknown";
 
+/** 仅公开当前声明代次与指纹，不携带工具目录或参数。 */
+interface ToolDiscoverySummary {
+  version: 1;
+  catalogFingerprint: string;
+  generation: number;
+  selectionFingerprint: string;
+  toolCount: number;
+}
+
 /** 工具执行证据不保存命令原文，只保留退出码、耗时与不可逆摘要。 */
 export interface ToolExecutionEvidence {
   durationMs: number;
@@ -215,6 +224,7 @@ export type CoreMindEvent =
       type: "context_prefix";
       agent: string;
       fingerprint: string;
+      toolDiscovery?: ToolDiscoverySummary;
     }
   | {
       type: "provider_request";
@@ -228,6 +238,7 @@ export type CoreMindEvent =
       toolSchemaFingerprint: string;
       capabilityFingerprint: string;
       contextWorkingSetFingerprint: string;
+      toolDiscovery?: ToolDiscoverySummary;
     }
   | {
       type: "artifact_created";

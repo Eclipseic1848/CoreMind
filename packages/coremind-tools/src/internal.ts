@@ -45,4 +45,4 @@ export {
   createPlatformExecutionEnvironment,
   shutdownPlatformExecutionEnvironment,
 } from "./platform-execution-environment.js";
-export { buildToolsWithExecutionEnvironment } from "./registry.js";
+export { buildToolsWithExecutionEnvironment, configuredToolSource } from "./registry.js";
