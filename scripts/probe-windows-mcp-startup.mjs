@@ -145,7 +145,11 @@ try {
   const codes = new Set(["invalid_arguments", "unsupported_platform", "invalid_script", "script_anchor_failed", "invalid_system_root", "command_line_too_long", "deadline", "owner_frame_failed", "owner_error", "owner_socket_failed", "owner_eof", "owner_write_failed", "owner_listen_failed", "helper_failed", "stage_evidence_incomplete"]);
   report.code = codes.has(error?.probeCode) ? error.probeCode : "bootstrap_failed";
 } finally {
+  if (!report.passed)
+    process.stdout.write(JSON.stringify({ phase: "before_cleanup", ...report }) + "\n");
+  let cleanupTimer, forceExit = false;
   try {
+  await Promise.race([(async () => {
   ending = true;
   if (timer) clearTimeout(timer);
   if (helper && helper.nodeChildProcess.exitCode === null && helper.nodeChildProcess.signalCode === null) {
@@ -162,7 +166,11 @@ try {
     helper.stdin?.destroy(); helper.stdout?.destroy(); helper.stderr?.destroy();
     try { await helperFinished; } catch { report.passed = false; if (report.code === "complete") report.code = "helper_failed"; }
   }
-  } catch { report.passed = false; report.code = "cleanup_failed"; }
+  })(), new Promise((_, reject) => {
+    cleanupTimer = setTimeout(() => reject(fault("cleanup_failed")), 2_000);
+  })]);
+  } catch { report.passed = false; report.code = "cleanup_failed"; forceExit = true; }
+  finally { if (cleanupTimer) clearTimeout(cleanupTimer); }
   report.nonMarkerStderrBytes = stderrBytes - markerBytes;
   report.elapsedMs = Number((performance.now() - started).toFixed(3));
   if (directory) {
@@ -171,4 +179,5 @@ try {
   }
   process.stdout.write(JSON.stringify(report) + "\n");
   process.exitCode = report.passed ? 0 : 1;
+  if (forceExit) process.exit(1);
 }
