@@ -19,6 +19,13 @@ export {
   tightenExecutionEnvironmentRequirement,
 } from "./execution-environment.js";
 export { resolveFileToolTarget } from "./file-target.js";
+export type { McpClient, McpToolResult } from "./mcp-client.js";
+export {
+  createMcpHttpClient,
+  type McpHttpClient,
+  type McpHttpClientOptions,
+  type McpHttpDomainSummary,
+} from "./mcp-http-client.js";
 export {
   createMcpStdioClient,
   type McpListedTool,

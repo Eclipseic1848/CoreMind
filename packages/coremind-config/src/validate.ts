@@ -1,3 +1,4 @@
+import { isIP } from "node:net";
 import path from "node:path";
 import type { TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
@@ -7,6 +8,7 @@ import {
   type McpToolConfig,
   type WorkflowStep,
 } from "./schema/config.js";
+import type { McpHttpServerConfig } from "./schema/mcp.js";
 import { CustomProviderSchema } from "./schema/provider.js";
 import { toolEffectOperationsForCapability } from "./schema/tools.js";
 
@@ -224,6 +226,10 @@ function validateMcpConfiguration(config: CoreMindConfig): void {
   const details: string[] = [];
   for (const [name, server] of Object.entries(servers)) {
     const prefix = `mcp.servers.${name}`;
+    if (server.transport === "streamable-http") {
+      validateMcpHttpServer(server, prefix, details);
+      continue;
+    }
     if (!path.isAbsolute(server.command)) details.push(`${prefix}.command：必须是固定绝对路径`);
     if (!path.isAbsolute(server.cwd)) details.push(`${prefix}.cwd：必须是固定绝对路径`);
     if (process.platform === "win32") {
@@ -233,6 +239,16 @@ function validateMcpConfiguration(config: CoreMindConfig): void {
         if (keys.has(folded)) details.push(`${prefix}.env：Windows 环境键不能仅大小写不同`);
         keys.add(folded);
       }
+    }
+  }
+
+  for (const [agentName, agent] of Object.entries(config.agents)) {
+    for (const serverName of Object.keys(agent.mcpResources ?? {})) {
+      const prefix = `agents.${agentName}.mcpResources.${serverName}`;
+      const server = servers[serverName];
+      if (!Object.hasOwn(servers, serverName)) details.push(`${prefix}：引用了未声明的 MCP 服务`);
+      else if (server?.transport !== "streamable-http")
+        details.push(`${prefix}：资源选择仅支持 streamable-http 服务`);
     }
   }
 
@@ -268,6 +284,114 @@ function validateMcpConfiguration(config: CoreMindConfig): void {
   if (details.length > 0) {
     throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
   }
+}
+
+const MCP_RESERVED_HEADERS = new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive",
+  "te",
+  "trailer",
+  "proxy-connection",
+  "upgrade",
+  "proxy-authorization",
+  "mcp-session-id",
+  "dpop",
+  "mcp-protocol-version",
+  "mcp-method",
+  "mcp-name",
+  "last-event-id",
+  "accept",
+  "content-type",
+]);
+
+/** 这里只检查静态语法与固定目标，不解析 DNS、Header 引用或建立连接。 */
+function validateMcpHttpServer(
+  server: McpHttpServerConfig,
+  prefix: string,
+  details: string[],
+): void {
+  const addresses = new Set<string>();
+  for (const [index, address] of (server.allowedAddresses ?? []).entries()) {
+    const normalized = normalizeMcpAddress(address);
+    if (normalized === undefined) {
+      details.push(`${prefix}.allowedAddresses.${index}：必须是无区域标记的精确 IP 字面量`);
+    } else {
+      if (addresses.has(normalized)) details.push(`${prefix}.allowedAddresses：地址不能重复`);
+      addresses.add(normalized);
+    }
+  }
+  let url: URL | undefined;
+  try {
+    url = new URL(server.url);
+  } catch {
+    details.push(`${prefix}.url：必须是固定 HTTP(S) URL`);
+  }
+  if (url) {
+    const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
+    if (
+      !/^https?:\/\//iu.test(server.url) ||
+      [...server.url].some(
+        (character) =>
+          character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\",
+      ) ||
+      (url.protocol !== "https:" && url.protocol !== "http:") ||
+      url.username !== "" ||
+      url.password !== "" ||
+      authority.includes("@") ||
+      server.url.includes("?") ||
+      server.url.includes("#")
+    ) {
+      details.push(`${prefix}.url：仅允许无凭据、query、fragment 或控制字符的固定 HTTP(S) URL`);
+    }
+    if (url.protocol === "http:") {
+      // 使用原始主机部分拒绝整数、缩写等会被 URL 自动改写的隐式 loopback。
+      const rawHost = /^[a-z][a-z0-9+.-]*:\/\/(\[[^\]]+\]|[^:/?#]+)(?::[0-9]+)?(?:\/|$)/iu.exec(
+        server.url,
+      )?.[1];
+      const address = rawHost ? normalizeMcpAddress(rawHost.replace(/^\[|\]$/gu, "")) : undefined;
+      if (
+        address === undefined ||
+        (address !== "::1" && !address.startsWith("127.")) ||
+        !addresses.has(address)
+      ) {
+        details.push(`${prefix}.url：HTTP 仅支持显式 allowedAddresses 中的 loopback IP 字面目标`);
+      }
+    }
+  }
+  const headerNames = new Set<string>();
+  for (const [name, value] of Object.entries(server.headers ?? {})) {
+    const folded = name.toLowerCase();
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || name !== name.trim())
+      details.push(`${prefix}.headers：Header 名称必须是合法 token`);
+    if (headerNames.has(folded)) details.push(`${prefix}.headers：Header 名不能仅大小写不同`);
+    headerNames.add(folded);
+    if (MCP_RESERVED_HEADERS.has(folded))
+      details.push(`${prefix}.headers：不能覆盖传输保留 Header`);
+    if (
+      typeof value === "string" &&
+      [...value].some(
+        (character) =>
+          (character.charCodeAt(0) < 32 && character.charCodeAt(0) !== 9) ||
+          character.charCodeAt(0) === 127,
+      )
+    )
+      details.push(`${prefix}.headers：Header 值不能包含控制字符`);
+  }
+}
+
+function normalizeMcpAddress(address: string): string | undefined {
+  const version = isIP(address);
+  if (version === 0 || address.includes("%")) return undefined;
+  if (version === 4) return address;
+  const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]+):([0-9a-f]+)$/u.exec(normalized);
+  if (!mapped) return normalized;
+  const high = Number.parseInt(mapped[1]!, 16);
+  const low = Number.parseInt(mapped[2]!, 16);
+  return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
 }
 
 function validateWorkflowStepIds(steps: WorkflowStep[]): void {

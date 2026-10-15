@@ -1,4 +1,6 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
@@ -172,6 +174,91 @@ describe("checkProject", () => {
         if (!selected) expect(report.passed).toBe(true);
         expect(existsSync(marker)).toBe(false);
       } finally {
+        rmSync(projectDir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(
+    (["allow", "ask", "deny"] as const).flatMap((network) =>
+      (["tool", "resource"] as const).map((selection) => ({ network, selection })),
+    ),
+  )(
+    "HTTP $selection/network=$network：保留工作区边界且静态检查零连接",
+    async ({ network, selection }) => {
+      const projectDir = mkdtempSync(path.join(tmpdir(), "coremind-check-http-mcp-"));
+      let connections = 0;
+      let requests = 0;
+      const service = createServer((_request, response) => {
+        requests += 1;
+        response.writeHead(500).end();
+      });
+      service.on("connection", () => {
+        connections += 1;
+      });
+      await new Promise<void>((resolve) => service.listen(0, "127.0.0.1", resolve));
+      const port = (service.address() as AddressInfo).port;
+      const config: CoreMindConfig = {
+        ...baseConfig,
+        permissions: { mode: "ask", workspaceOnly: true, network },
+        agents: {
+          main:
+            selection === "resource"
+              ? { mcpResources: { remote: ["inventory://item/1"] } }
+              : {
+                  tools: [
+                    {
+                      mcp: { server: "remote", tool: "lookup" },
+                      effect: { operations: ["network"], reversible: false },
+                      capability: {
+                        effect: "network",
+                        replay: "unknown",
+                        concurrency: "parallel",
+                        checkpoint: "none",
+                        durability: "critical",
+                      },
+                    },
+                  ],
+                },
+        },
+        mcp: {
+          servers: {
+            remote: {
+              transport: "streamable-http",
+              url: `http://127.0.0.1:${port}/mcp`,
+              allowedAddresses: ["127.0.0.1"],
+            },
+          },
+        },
+      };
+      try {
+        const report = await checkProject({
+          config,
+          projectDir,
+          env: { DEEPSEEK_API_KEY: "test-only" },
+          profile: "development",
+          overrideReason: "不可覆盖网络拒绝",
+        });
+        expect(
+          report.findings.some((finding) => finding.code === "MCP_TRUSTED_HOST_REQUIRED"),
+        ).toBe(false);
+        expect(
+          report.findings.some((finding) => finding.code === "SECURITY_WORKSPACE_UNBOUNDED"),
+        ).toBe(false);
+        expect(report.passed).toBe(network !== "deny");
+        if (network === "deny") {
+          expect(report.findings).toContainEqual(
+            expect.objectContaining({
+              code: "MCP_HTTP_NETWORK_DENIED",
+              path: "permissions.network",
+              overridable: false,
+            }),
+          );
+        }
+        expect({ connections, requests }).toEqual({ connections: 0, requests: 0 });
+      } finally {
+        service.closeAllConnections();
+        await new Promise<void>((resolve) => service.close(() => resolve()));
         rmSync(projectDir, { recursive: true, force: true });
       }
     },

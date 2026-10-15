@@ -52,6 +52,19 @@ export const AgentConfigSchema = Type.Object({
         "注入的专业技能 id（如 code-review / weekly-report / translation），内容附加到系统提示词",
     }),
   ),
+  mcpResources: Type.Optional(
+    Type.Record(
+      Type.String({ minLength: 1 }),
+      Type.Array(
+        Type.String({
+          minLength: 1,
+          pattern: "^[A-Za-z][A-Za-z0-9+.-]*:[^\\u0000-\\u0020\\u007f]*(?![\\s\\S])",
+        }),
+        { uniqueItems: true },
+      ),
+      { description: "按服务显式选择完整资源 URI；缺省与空集合都不授权，也不继承" },
+    ),
+  ),
   delegation: Type.Optional(AgentDelegationConfigSchema),
 });
 

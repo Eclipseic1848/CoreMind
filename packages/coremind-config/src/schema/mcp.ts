@@ -1,5 +1,5 @@
 import { type Static, Type } from "@sinclair/typebox";
-import { EnvironmentValueRefSchema, SecretRefSchema } from "./provider.js";
+import { EnvironmentValueRefSchema, HeaderValueSchema, SecretRefSchema } from "./provider.js";
 
 const NonEmptyProcessStringSchema = Type.String({ minLength: 1, pattern: "^[^\\u0000]+$" });
 
@@ -24,14 +24,33 @@ export const McpStdioServerConfigSchema = Type.Object(
   { additionalProperties: false },
 );
 
+/** 固定 HTTP 目标；地址与 Header 的语义边界由无 I/O 校验和实际出站共同检查。 */
+export const McpHttpServerConfigSchema = Type.Object(
+  {
+    transport: Type.Literal("streamable-http"),
+    url: Type.String({ minLength: 1 }),
+    headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
+    allowedAddresses: Type.Optional(
+      Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }),
+    ),
+    protocolVersion: Type.Optional(
+      Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
 export const McpConfigSchema = Type.Object(
   {
-    servers: Type.Record(Type.String({ pattern: "^.+$" }), McpStdioServerConfigSchema, {
-      additionalProperties: false,
-    }),
+    servers: Type.Record(
+      Type.String({ pattern: "^.+$" }),
+      Type.Union([McpStdioServerConfigSchema, McpHttpServerConfigSchema]),
+      { additionalProperties: false },
+    ),
   },
   { additionalProperties: false },
 );
 
 export type McpConfig = Static<typeof McpConfigSchema>;
 export type McpStdioServerConfig = Static<typeof McpStdioServerConfigSchema>;
+export type McpHttpServerConfig = Static<typeof McpHttpServerConfigSchema>;

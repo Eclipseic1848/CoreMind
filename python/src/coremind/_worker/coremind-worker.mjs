@@ -17292,10 +17292,10 @@ var init_overflow = __esm({
 function buildProviderErrorPattern(patterns) {
   return new RegExp(patterns.join("|"), "i");
 }
-function retryDelayMs(policy, attempt) {
-  const delay2 = policy.baseDelayMs * 2 ** Math.max(0, attempt - 1);
+function retryDelayMs(policy2, attempt) {
+  const delay2 = policy2.baseDelayMs * 2 ** Math.max(0, attempt - 1);
   const safeDelay = Number.isSafeInteger(delay2) ? delay2 : Number.MAX_SAFE_INTEGER;
-  return Math.min(safeDelay, policy.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS);
+  return Math.min(safeDelay, policy2.maxAgentDelayMs ?? DEFAULT_MAX_AGENT_RETRY_DELAY_MS);
 }
 function sleep(ms, signal) {
   return new Promise((resolve9, reject) => {
@@ -17310,8 +17310,8 @@ function sleep(ms, signal) {
     }, { once: true });
   });
 }
-async function retryAssistantCall(produce, policy, signal, callbacks) {
-  const maxAttempts = policy?.enabled ? policy.maxRetries : 0;
+async function retryAssistantCall(produce, policy2, signal, callbacks) {
+  const maxAttempts = policy2?.enabled ? policy2.maxRetries : 0;
   let attempt = 0;
   let lastRetry;
   for (; ; ) {
@@ -17333,7 +17333,7 @@ async function retryAssistantCall(produce, policy, signal, callbacks) {
     }
     attempt++;
     lastRetry = { attempt, errorMessage: response.errorMessage || "Unknown error" };
-    const delayMs = retryDelayMs(policy, attempt);
+    const delayMs = retryDelayMs(policy2, attempt);
     await callbacks?.onRetryScheduled?.(attempt, maxAttempts, delayMs, lastRetry.errorMessage);
     try {
       await sleep(delayMs, signal);
@@ -31956,22 +31956,22 @@ var require_util2 = __commonJS({
     }
     function parseReferrerPolicy(actualResponse) {
       const policyHeader = (actualResponse.headersList.get("referrer-policy", true) ?? "").split(",");
-      let policy = "";
+      let policy2 = "";
       if (policyHeader.length) {
         for (let i3 = policyHeader.length; i3 !== 0; i3--) {
           const token = policyHeader[i3 - 1].trim();
           if (referrerPolicyTokens.has(token)) {
-            policy = token;
+            policy2 = token;
             break;
           }
         }
       }
-      return policy;
+      return policy2;
     }
     function setRequestReferrerPolicyOnRedirect(request, actualResponse) {
-      const policy = parseReferrerPolicy(actualResponse);
-      if (policy !== "") {
-        request.referrerPolicy = policy;
+      const policy2 = parseReferrerPolicy(actualResponse);
+      if (policy2 !== "") {
+        request.referrerPolicy = policy2;
       }
     }
     function crossOriginResourcePolicyCheck() {
@@ -32072,8 +32072,8 @@ var require_util2 = __commonJS({
       };
     }
     function determineRequestsReferrer2(request) {
-      const policy = request.referrerPolicy;
-      assert2(policy);
+      const policy2 = request.referrerPolicy;
+      assert2(policy2);
       let referrerSource = null;
       if (request.referrer === "client") {
         const globalOrigin = getGlobalOrigin();
@@ -32089,7 +32089,7 @@ var require_util2 = __commonJS({
       if (referrerURL.toString().length > 4096) {
         referrerURL = referrerOrigin;
       }
-      switch (policy) {
+      switch (policy2) {
         case "no-referrer":
           return "no-referrer";
         case "origin":
@@ -43228,7 +43228,7 @@ var require_dump = __commonJS({
 var require_dns = __commonJS({
   "node_modules/undici/lib/interceptor/dns.js"(exports, module) {
     "use strict";
-    var { isIP: isIP3 } = __require("node:net");
+    var { isIP: isIP5 } = __require("node:net");
     var { lookup } = __require("node:dns");
     var DecoratorHandler = require_decorator_handler();
     var { InvalidArgumentError, InformationalError } = require_errors2();
@@ -43639,7 +43639,7 @@ var require_dns = __commonJS({
             return dispatch(origDispatchOpts, handler);
           }
           const origin = origDispatchOpts.origin.constructor === URL ? origDispatchOpts.origin : new URL(origDispatchOpts.origin);
-          if (isIP3(origin.hostname) !== 0) {
+          if (isIP5(origin.hostname) !== 0) {
             return dispatch(origDispatchOpts, handler);
           }
           instance.runLookup(origin, origDispatchOpts, (err2, newOrigin) => {
@@ -55934,11 +55934,11 @@ function getDefaultFetch() {
   throw new Error("`fetch` is not defined as a global; Either pass `fetch` to the client, `new Anthropic({ fetch })` or polyfill the global, `globalThis.fetch = fetch`");
 }
 function makeReadableStream(...args) {
-  const ReadableStream2 = globalThis.ReadableStream;
-  if (typeof ReadableStream2 === "undefined") {
+  const ReadableStream3 = globalThis.ReadableStream;
+  if (typeof ReadableStream3 === "undefined") {
     throw new Error("`ReadableStream` is not defined as a global; You will need to polyfill it, `globalThis.ReadableStream = ReadableStream`");
   }
-  return new ReadableStream2(...args);
+  return new ReadableStream3(...args);
 }
 function ReadableStreamFrom(iterable2) {
   let iter = Symbol.asyncIterator in iterable2 ? iterable2[Symbol.asyncIterator]() : iterable2[Symbol.iterator]();
@@ -75125,11 +75125,11 @@ function getDefaultFetch2() {
   throw new Error("`fetch` is not defined as a global; Either pass `fetch` to the client, `new OpenAI({ fetch })` or polyfill the global, `globalThis.fetch = fetch`");
 }
 function makeReadableStream2(...args) {
-  const ReadableStream2 = globalThis.ReadableStream;
-  if (typeof ReadableStream2 === "undefined") {
+  const ReadableStream3 = globalThis.ReadableStream;
+  if (typeof ReadableStream3 === "undefined") {
     throw new Error("`ReadableStream` is not defined as a global; You will need to polyfill it, `globalThis.ReadableStream = ReadableStream`");
   }
-  return new ReadableStream2(...args);
+  return new ReadableStream3(...args);
 }
 function ReadableStreamFrom2(iterable2) {
   let iter = Symbol.asyncIterator in iterable2 ? iterable2[Symbol.asyncIterator]() : iterable2[Symbol.iterator]();
@@ -101640,7 +101640,7 @@ var require_ponyfill_es2018 = __commonJS({
         assertWritableStream(writable2, `${context} has member 'writable' that`);
         return { readable: readable2, writable: writable2 };
       }
-      class ReadableStream2 {
+      class ReadableStream3 {
         constructor(rawUnderlyingSource = {}, rawStrategy = {}) {
           if (rawUnderlyingSource === void 0) {
             rawUnderlyingSource = null;
@@ -101775,10 +101775,10 @@ var require_ponyfill_es2018 = __commonJS({
           return ReadableStreamFrom3(asyncIterable);
         }
       }
-      Object.defineProperties(ReadableStream2, {
+      Object.defineProperties(ReadableStream3, {
         from: { enumerable: true }
       });
-      Object.defineProperties(ReadableStream2.prototype, {
+      Object.defineProperties(ReadableStream3.prototype, {
         cancel: { enumerable: true },
         getReader: { enumerable: true },
         pipeThrough: { enumerable: true },
@@ -101787,33 +101787,33 @@ var require_ponyfill_es2018 = __commonJS({
         values: { enumerable: true },
         locked: { enumerable: true }
       });
-      setFunctionName(ReadableStream2.from, "from");
-      setFunctionName(ReadableStream2.prototype.cancel, "cancel");
-      setFunctionName(ReadableStream2.prototype.getReader, "getReader");
-      setFunctionName(ReadableStream2.prototype.pipeThrough, "pipeThrough");
-      setFunctionName(ReadableStream2.prototype.pipeTo, "pipeTo");
-      setFunctionName(ReadableStream2.prototype.tee, "tee");
-      setFunctionName(ReadableStream2.prototype.values, "values");
+      setFunctionName(ReadableStream3.from, "from");
+      setFunctionName(ReadableStream3.prototype.cancel, "cancel");
+      setFunctionName(ReadableStream3.prototype.getReader, "getReader");
+      setFunctionName(ReadableStream3.prototype.pipeThrough, "pipeThrough");
+      setFunctionName(ReadableStream3.prototype.pipeTo, "pipeTo");
+      setFunctionName(ReadableStream3.prototype.tee, "tee");
+      setFunctionName(ReadableStream3.prototype.values, "values");
       if (typeof Symbol.toStringTag === "symbol") {
-        Object.defineProperty(ReadableStream2.prototype, Symbol.toStringTag, {
+        Object.defineProperty(ReadableStream3.prototype, Symbol.toStringTag, {
           value: "ReadableStream",
           configurable: true
         });
       }
-      Object.defineProperty(ReadableStream2.prototype, SymbolAsyncIterator, {
-        value: ReadableStream2.prototype.values,
+      Object.defineProperty(ReadableStream3.prototype, SymbolAsyncIterator, {
+        value: ReadableStream3.prototype.values,
         writable: true,
         configurable: true
       });
       function CreateReadableStream(startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark = 1, sizeAlgorithm = () => 1) {
-        const stream12 = Object.create(ReadableStream2.prototype);
+        const stream12 = Object.create(ReadableStream3.prototype);
         InitializeReadableStream(stream12);
         const controller = Object.create(ReadableStreamDefaultController.prototype);
         SetUpReadableStreamDefaultController(stream12, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, sizeAlgorithm);
         return stream12;
       }
       function CreateReadableByteStream(startAlgorithm, pullAlgorithm, cancelAlgorithm) {
-        const stream12 = Object.create(ReadableStream2.prototype);
+        const stream12 = Object.create(ReadableStream3.prototype);
         InitializeReadableStream(stream12);
         const controller = Object.create(ReadableByteStreamController.prototype);
         SetUpReadableByteStreamController(stream12, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, 0, void 0);
@@ -101832,7 +101832,7 @@ var require_ponyfill_es2018 = __commonJS({
         if (!Object.prototype.hasOwnProperty.call(x3, "_readableStreamController")) {
           return false;
         }
-        return x3 instanceof ReadableStream2;
+        return x3 instanceof ReadableStream3;
       }
       function IsReadableStreamLocked(stream12) {
         if (stream12._reader === void 0) {
@@ -102425,7 +102425,7 @@ var require_ponyfill_es2018 = __commonJS({
       exports2.ByteLengthQueuingStrategy = ByteLengthQueuingStrategy;
       exports2.CountQueuingStrategy = CountQueuingStrategy2;
       exports2.ReadableByteStreamController = ReadableByteStreamController;
-      exports2.ReadableStream = ReadableStream2;
+      exports2.ReadableStream = ReadableStream3;
       exports2.ReadableStreamBYOBReader = ReadableStreamBYOBReader;
       exports2.ReadableStreamBYOBRequest = ReadableStreamBYOBRequest;
       exports2.ReadableStreamDefaultController = ReadableStreamDefaultController;
@@ -103945,7 +103945,7 @@ var init_get_search = __esm({
 });
 
 // node_modules/node-fetch/src/utils/referrer.js
-import { isIP } from "node:net";
+import { isIP as isIP2 } from "node:net";
 function stripURLForUseAsAReferrer(url2, originOnly = false) {
   if (url2 == null) {
     return "no-referrer";
@@ -103974,7 +103974,7 @@ function isOriginPotentiallyTrustworthy(url2) {
     return true;
   }
   const hostIp = url2.host.replace(/(^\[)|(]$)/g, "");
-  const hostIPVersion = isIP(hostIp);
+  const hostIPVersion = isIP2(hostIp);
   if (hostIPVersion === 4 && /^127\./.test(hostIp)) {
     return true;
   }
@@ -104005,7 +104005,7 @@ function determineRequestsReferrer(request, { referrerURLCallback, referrerOrigi
   if (request.referrer === "no-referrer" || request.referrerPolicy === "") {
     return null;
   }
-  const policy = request.referrerPolicy;
+  const policy2 = request.referrerPolicy;
   if (request.referrer === "about:client") {
     return "no-referrer";
   }
@@ -104022,7 +104022,7 @@ function determineRequestsReferrer(request, { referrerURLCallback, referrerOrigi
     referrerOrigin = referrerOriginCallback(referrerOrigin);
   }
   const currentURL = new URL(request.url);
-  switch (policy) {
+  switch (policy2) {
     case "no-referrer":
       return "no-referrer";
     case "origin":
@@ -104058,18 +104058,18 @@ function determineRequestsReferrer(request, { referrerURLCallback, referrerOrigi
       }
       return referrerURL;
     default:
-      throw new TypeError(`Invalid referrerPolicy: ${policy}`);
+      throw new TypeError(`Invalid referrerPolicy: ${policy2}`);
   }
 }
 function parseReferrerPolicyFromHeader(headers) {
   const policyTokens = (headers.get("referrer-policy") || "").split(/[,\s]+/);
-  let policy = "";
+  let policy2 = "";
   for (const token of policyTokens) {
     if (token && ReferrerPolicy.has(token)) {
-      policy = token;
+      policy2 = token;
     }
   }
-  return policy;
+  return policy2;
 }
 var ReferrerPolicy, DEFAULT_REFERRER_POLICY;
 var init_referrer = __esm({
@@ -104626,7 +104626,7 @@ var require_gaxios = __commonJS({
     var retry_js_1 = require_retry6();
     var stream_1 = __require("stream");
     var interceptor_js_1 = require_interceptor();
-    var randomUUID21 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
+    var randomUUID22 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
     var HTTP_STATUS_NO_CONTENT = 204;
     var Gaxios = class {
       agentCache = /* @__PURE__ */ new Map();
@@ -104899,7 +104899,7 @@ var require_gaxios = __commonJS({
          */
         ["Blob", "File", "FormData"].includes(opts.data?.constructor?.name || "");
         if (opts.multipart?.length) {
-          const boundary = await randomUUID21();
+          const boundary = await randomUUID22();
           preparedHeaders.set("content-type", `multipart/related; boundary=${boundary}`);
           opts.body = stream_1.Readable.from(this.getMultipartRequest(opts.multipart, boundary));
         } else if (shouldDirectlyPassData) {
@@ -166676,7 +166676,7 @@ var require_photon_rs = __commonJS({
     var imports = {};
     imports["__wbindgen_placeholder__"] = module.exports;
     var wasm;
-    var { TextEncoder: TextEncoder2, TextDecoder: TextDecoder3 } = __require("util");
+    var { TextEncoder: TextEncoder2, TextDecoder: TextDecoder4 } = __require("util");
     function debugString(val) {
       const type = typeof val;
       if (type == "number" || type == "boolean" || val == null) {
@@ -166789,7 +166789,7 @@ ${val.stack}`;
       }
       return cachedDataViewMemory0;
     }
-    var cachedTextDecoder = new TextDecoder3("utf-8", { ignoreBOM: true, fatal: true });
+    var cachedTextDecoder = new TextDecoder4("utf-8", { ignoreBOM: true, fatal: true });
     cachedTextDecoder.decode();
     function getStringFromWasm0(ptr, len) {
       ptr = ptr >>> 0;
@@ -206015,7 +206015,7 @@ var init_ajvProvider_97rDpkRx = __esm({
           query: void 0,
           fragment: void 0
         };
-        let isIP3 = false;
+        let isIP5 = false;
         if (options.reference === "suffix") if (options.scheme) uri = options.scheme + ":" + uri;
         else uri = "//" + uri;
         const matches2 = uri.match(URI_PARSE);
@@ -206031,8 +206031,8 @@ var init_ajvProvider_97rDpkRx = __esm({
           if (parsed.host) if (isIPv4(parsed.host) === false) {
             const ipv6result = normalizeIPv6(parsed.host);
             parsed.host = ipv6result.host.toLowerCase();
-            isIP3 = ipv6result.isIPV6;
-          } else isIP3 = true;
+            isIP5 = ipv6result.isIPV6;
+          } else isIP5 = true;
           if (parsed.scheme === void 0 && parsed.userinfo === void 0 && parsed.host === void 0 && parsed.port === void 0 && parsed.query === void 0 && !parsed.path) parsed.reference = "same-document";
           else if (parsed.scheme === void 0) parsed.reference = "relative";
           else if (parsed.fragment === void 0) parsed.reference = "absolute";
@@ -206040,7 +206040,7 @@ var init_ajvProvider_97rDpkRx = __esm({
           if (options.reference && options.reference !== "suffix" && options.reference !== parsed.reference) parsed.error = parsed.error || "URI is not a " + options.reference + " reference.";
           const schemeHandler = getSchemeHandler(options.scheme || parsed.scheme);
           if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport)) {
-            if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP3 === false && nonSimpleDomain(parsed.host)) try {
+            if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP5 === false && nonSimpleDomain(parsed.host)) try {
               parsed.host = URL.domainToASCII(parsed.host.toLowerCase());
             } catch (e2) {
               parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e2;
@@ -221380,8 +221380,8 @@ var require_utils3 = __commonJS({
     var HOST_DELIMS = { "@": "%40", "/": "%2F", "?": "%3F", "#": "%23", ":": "%3A" };
     var HOST_DELIM_RE = /[@/?#:]/g;
     var HOST_DELIM_NO_COLON_RE = /[@/?#]/g;
-    function reescapeHostDelimiters(host, isIP3) {
-      const re = isIP3 ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
+    function reescapeHostDelimiters(host, isIP5) {
+      const re = isIP5 ? HOST_DELIM_NO_COLON_RE : HOST_DELIM_RE;
       re.lastIndex = 0;
       return host.replace(re, (ch) => HOST_DELIMS[ch]);
     }
@@ -222070,8 +222070,8 @@ var require_fast_uri2 = __commonJS({
       const host = matches2[4];
       return hasMalformedPercentEncoding(matches2[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches2[6]) || hasMalformedPercentEncoding(matches2[7]) || hasMalformedPercentEncoding(matches2[8]);
     }
-    function canonicalizeHost(parsed, options, schemeHandler, isIP3) {
-      if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP3 === false && nonSimpleDomain(parsed.host)) {
+    function canonicalizeHost(parsed, options, schemeHandler, isIP5) {
+      if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP5 === false && nonSimpleDomain(parsed.host)) {
         try {
           parsed.host = new URL("http://" + parsed.host).hostname;
         } catch (e2) {
@@ -222098,7 +222098,7 @@ var require_fast_uri2 = __commonJS({
       let malformedHost = false;
       let malformedIPLiteral = false;
       let malformedScheme = false;
-      let isIP3 = false;
+      let isIP5 = false;
       if (options.reference === "suffix") {
         if (options.scheme) {
           uri = options.scheme + ":" + uri;
@@ -222161,15 +222161,15 @@ var require_fast_uri2 = __commonJS({
             const bracketedIPLiteral = isIPLiteral(parsed.host);
             const hasIPLiteralBracket = parsed.host.indexOf("[") !== -1 || parsed.host.indexOf("]") !== -1;
             const ipv6result = normalizeIPv6(parsed.host);
-            isIP3 = ipv6result.isIPV6 || ipv6result.isIPVFuture === true;
+            isIP5 = ipv6result.isIPV6 || ipv6result.isIPVFuture === true;
             malformedIPLiteral = hasIPLiteralBracket && (!bracketedIPLiteral || ipv6result.error === true);
-            parsed.host = isIP3 ? ipv6result.host : ipv6result.host.toLowerCase();
+            parsed.host = isIP5 ? ipv6result.host : ipv6result.host.toLowerCase();
             if (malformedIPLiteral) {
               parsed.error = parsed.error || "URI host is malformed.";
               malformedAuthorityOrPort = true;
             }
           } else {
-            isIP3 = true;
+            isIP5 = true;
           }
         }
         if (parsed.scheme === void 0 && parsed.userinfo === void 0 && parsed.host === void 0 && parsed.port === void 0 && parsed.query === void 0 && !parsed.path) {
@@ -222186,14 +222186,14 @@ var require_fast_uri2 = __commonJS({
         }
         const schemeHandler = getSchemeHandler(options.scheme || parsed.scheme);
         if (!malformedIPLiteral) {
-          malformedHost = canonicalizeHost(parsed, options, schemeHandler, isIP3);
+          malformedHost = canonicalizeHost(parsed, options, schemeHandler, isIP5);
         }
         if (uri.indexOf("%") !== -1 && parsed.host !== void 0 && !malformedIPLiteral) {
-          let host = isIP3 ? parsed.host : normalizePercentEncoding(parsed.host, true);
-          if (!isIP3) {
+          let host = isIP5 ? parsed.host : normalizePercentEncoding(parsed.host, true);
+          if (!isIP5) {
             host = normalizePercentEncoding(host.toLowerCase());
           }
-          parsed.host = reescapeHostDelimiters(host, isIP3);
+          parsed.host = reescapeHostDelimiters(host, isIP5);
         }
         if (!schemeHandler || schemeHandler && !schemeHandler.skipNormalize) {
           if (parsed.path) {
@@ -233393,6 +233393,10 @@ var AgentConfigSchema = Type.Object({
   skills: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
     description: "\u6CE8\u5165\u7684\u4E13\u4E1A\u6280\u80FD id\uFF08\u5982 code-review / weekly-report / translation\uFF09\uFF0C\u5185\u5BB9\u9644\u52A0\u5230\u7CFB\u7EDF\u63D0\u793A\u8BCD"
   })),
+  mcpResources: Type.Optional(Type.Record(Type.String({ minLength: 1 }), Type.Array(Type.String({
+    minLength: 1,
+    pattern: "^[A-Za-z][A-Za-z0-9+.-]*:[^\\u0000-\\u0020\\u007f]*(?![\\s\\S])"
+  }), { uniqueItems: true }), { description: "\u6309\u670D\u52A1\u663E\u5F0F\u9009\u62E9\u5B8C\u6574\u8D44\u6E90 URI\uFF1B\u7F3A\u7701\u4E0E\u7A7A\u96C6\u5408\u90FD\u4E0D\u6388\u6743\uFF0C\u4E5F\u4E0D\u7EE7\u627F" })),
   delegation: Type.Optional(AgentDelegationConfigSchema)
 });
 var SessionConfigSchema = Type.Object({
@@ -233489,10 +233493,15 @@ var McpStdioServerConfigSchema = Type.Object({
   env: Type.Optional(Type.Record(Type.String({ pattern: "^[^=\\u0000]+$" }), Type.Union([EnvironmentValueRefSchema, SecretRefSchema]), { additionalProperties: false })),
   protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
 }, { additionalProperties: false });
+var McpHttpServerConfigSchema = Type.Object({
+  transport: Type.Literal("streamable-http"),
+  url: Type.String({ minLength: 1 }),
+  headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
+  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true })),
+  protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
+}, { additionalProperties: false });
 var McpConfigSchema = Type.Object({
-  servers: Type.Record(Type.String({ pattern: "^.+$" }), McpStdioServerConfigSchema, {
-    additionalProperties: false
-  })
+  servers: Type.Record(Type.String({ pattern: "^.+$" }), Type.Union([McpStdioServerConfigSchema, McpHttpServerConfigSchema]), { additionalProperties: false })
 }, { additionalProperties: false });
 
 // packages/coremind-config/dist/schema/telemetry.js
@@ -233580,6 +233589,7 @@ var CoreMindConfigSchema = Type.Object({
 });
 
 // packages/coremind-config/dist/validate.js
+import { isIP } from "node:net";
 import path from "node:path";
 var ConfigValidationError = class extends Error {
   code = "invalid_config";
@@ -233756,6 +233766,10 @@ function validateMcpConfiguration(config2) {
   const details = [];
   for (const [name, server] of Object.entries(servers)) {
     const prefix = `mcp.servers.${name}`;
+    if (server.transport === "streamable-http") {
+      validateMcpHttpServer(server, prefix, details);
+      continue;
+    }
     if (!path.isAbsolute(server.command))
       details.push(`${prefix}.command\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
     if (!path.isAbsolute(server.cwd))
@@ -233768,6 +233782,16 @@ function validateMcpConfiguration(config2) {
           details.push(`${prefix}.env\uFF1AWindows \u73AF\u5883\u952E\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
         keys.add(folded);
       }
+    }
+  }
+  for (const [agentName, agent] of Object.entries(config2.agents)) {
+    for (const serverName of Object.keys(agent.mcpResources ?? {})) {
+      const prefix = `agents.${agentName}.mcpResources.${serverName}`;
+      const server = servers[serverName];
+      if (!Object.hasOwn(servers, serverName))
+        details.push(`${prefix}\uFF1A\u5F15\u7528\u4E86\u672A\u58F0\u660E\u7684 MCP \u670D\u52A1`);
+      else if (server?.transport !== "streamable-http")
+        details.push(`${prefix}\uFF1A\u8D44\u6E90\u9009\u62E9\u4EC5\u652F\u6301 streamable-http \u670D\u52A1`);
     }
   }
   for (const location of configuredToolLists(config2)) {
@@ -233799,6 +233823,85 @@ function validateMcpConfiguration(config2) {
   if (details.length > 0) {
     throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
   }
+}
+var MCP_RESERVED_HEADERS = /* @__PURE__ */ new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive",
+  "te",
+  "trailer",
+  "proxy-connection",
+  "upgrade",
+  "proxy-authorization",
+  "mcp-session-id",
+  "dpop",
+  "mcp-protocol-version",
+  "mcp-method",
+  "mcp-name",
+  "last-event-id",
+  "accept",
+  "content-type"
+]);
+function validateMcpHttpServer(server, prefix, details) {
+  const addresses = /* @__PURE__ */ new Set();
+  for (const [index3, address] of (server.allowedAddresses ?? []).entries()) {
+    const normalized = normalizeMcpAddress(address);
+    if (normalized === void 0) {
+      details.push(`${prefix}.allowedAddresses.${index3}\uFF1A\u5FC5\u987B\u662F\u65E0\u533A\u57DF\u6807\u8BB0\u7684\u7CBE\u786E IP \u5B57\u9762\u91CF`);
+    } else {
+      if (addresses.has(normalized))
+        details.push(`${prefix}.allowedAddresses\uFF1A\u5730\u5740\u4E0D\u80FD\u91CD\u590D`);
+      addresses.add(normalized);
+    }
+  }
+  let url2;
+  try {
+    url2 = new URL(server.url);
+  } catch {
+    details.push(`${prefix}.url\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A HTTP(S) URL`);
+  }
+  if (url2) {
+    const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
+    if (!/^https?:\/\//iu.test(server.url) || [...server.url].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\") || url2.protocol !== "https:" && url2.protocol !== "http:" || url2.username !== "" || url2.password !== "" || authority.includes("@") || server.url.includes("?") || server.url.includes("#")) {
+      details.push(`${prefix}.url\uFF1A\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u3001query\u3001fragment \u6216\u63A7\u5236\u5B57\u7B26\u7684\u56FA\u5B9A HTTP(S) URL`);
+    }
+    if (url2.protocol === "http:") {
+      const rawHost = /^[a-z][a-z0-9+.-]*:\/\/(\[[^\]]+\]|[^:/?#]+)(?::[0-9]+)?(?:\/|$)/iu.exec(server.url)?.[1];
+      const address = rawHost ? normalizeMcpAddress(rawHost.replace(/^\[|\]$/gu, "")) : void 0;
+      if (address === void 0 || address !== "::1" && !address.startsWith("127.") || !addresses.has(address)) {
+        details.push(`${prefix}.url\uFF1AHTTP \u4EC5\u652F\u6301\u663E\u5F0F allowedAddresses \u4E2D\u7684 loopback IP \u5B57\u9762\u76EE\u6807`);
+      }
+    }
+  }
+  const headerNames = /* @__PURE__ */ new Set();
+  for (const [name, value] of Object.entries(server.headers ?? {})) {
+    const folded = name.toLowerCase();
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || name !== name.trim())
+      details.push(`${prefix}.headers\uFF1AHeader \u540D\u79F0\u5FC5\u987B\u662F\u5408\u6CD5 token`);
+    if (headerNames.has(folded))
+      details.push(`${prefix}.headers\uFF1AHeader \u540D\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
+    headerNames.add(folded);
+    if (MCP_RESERVED_HEADERS.has(folded))
+      details.push(`${prefix}.headers\uFF1A\u4E0D\u80FD\u8986\u76D6\u4F20\u8F93\u4FDD\u7559 Header`);
+    if (typeof value === "string" && [...value].some((character) => character.charCodeAt(0) < 32 && character.charCodeAt(0) !== 9 || character.charCodeAt(0) === 127))
+      details.push(`${prefix}.headers\uFF1AHeader \u503C\u4E0D\u80FD\u5305\u542B\u63A7\u5236\u5B57\u7B26`);
+  }
+}
+function normalizeMcpAddress(address) {
+  const version2 = isIP(address);
+  if (version2 === 0 || address.includes("%"))
+    return void 0;
+  if (version2 === 4)
+    return address;
+  const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]+):([0-9a-f]+)$/u.exec(normalized);
+  if (!mapped)
+    return normalized;
+  const high = Number.parseInt(mapped[1], 16);
+  const low = Number.parseInt(mapped[2], 16);
+  return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
 }
 function validateWorkflowStepIds(steps) {
   const ids = /* @__PURE__ */ new Set();
@@ -234079,7 +234182,7 @@ function boundDelegationDispositionExecutor(owner) {
 }
 
 // packages/coremind-runtime/dist/checkpoint.js
-import { createHash as createHash7, randomUUID as randomUUID10 } from "node:crypto";
+import { createHash as createHash7, randomUUID as randomUUID11 } from "node:crypto";
 import { mkdir as mkdir5, readFile as readFile7, realpath as realpath7, unlink, writeFile as writeFile6 } from "node:fs/promises";
 import path33 from "node:path";
 
@@ -245074,7 +245177,7 @@ function safeHeader(value) {
   return value.replace(/[\r\n\t]/g, "_");
 }
 
-// packages/coremind-tools/dist/mcp-stdio-client.js
+// packages/coremind-tools/dist/mcp-client.js
 import { createHash as createHash6 } from "node:crypto";
 import { mkdtemp as mkdtemp2, rm as rm2, writeFile as writeFile4 } from "node:fs/promises";
 import { tmpdir as tmpdir6 } from "node:os";
@@ -245325,23 +245428,14 @@ function failure2(message2) {
   return new McpStdioError("mcp_transport_error", message2);
 }
 
-// packages/coremind-tools/dist/mcp-stdio-client.js
+// packages/coremind-tools/dist/mcp-client.js
 var MAX_LIST_PAGES2 = 32;
 var MAX_TOOLS = 256;
 var MAX_DESCRIPTION_BYTES = 4096;
 var INLINE_RESULT_BYTES = 16 * 1024;
 var REQUEST_TIMEOUT_MS = 3e4;
-function createMcpStdioClient(options) {
-  return new ManagedMcpClient({
-    ...options,
-    args: Object.freeze([...options.args]),
-    env: Object.freeze({ ...options.env }),
-    sensitiveValues: Object.freeze([...options.sensitiveValues ?? []])
-  });
-}
 var ManagedMcpClient = class {
   options;
-  transport;
   definitions = /* @__PURE__ */ new WeakMap();
   secrets;
   client;
@@ -245350,42 +245444,56 @@ var ManagedMcpClient = class {
   invalidated = false;
   ready = false;
   tools;
+  owner = new AbortController();
+  allowedResourceUris;
+  isNonFatalSdkError = () => false;
+  ownerCancelled = () => {
+    void this.close().catch(() => {
+    });
+  };
   constructor(options) {
     this.options = options;
-    this.transport = new McpStdioTransport(options);
     this.secrets = [...new Set(options.sensitiveValues ?? [])].filter((value) => value.length > 0);
+    this.allowedResourceUris = new Set(options.allowedResourceUris ?? []);
+    if (options.mode === "http")
+      options.signal?.addEventListener("abort", this.ownerCancelled, { once: true });
   }
   get environmentSummary() {
-    return this.transport.environmentSummary;
+    return this.options.transport.environmentSummary;
   }
   connect(signal) {
-    if (this.connected)
-      return this.connected;
-    this.connected = this.perform(signal, async (executionSignal) => {
-      const { Client: SdkClient } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
-      const client = new SdkClient({ name: "coremind", version: "1" }, {
-        capabilities: {},
-        enforceStrictCapabilities: true,
-        versionNegotiation: {
-          mode: this.options.protocolVersion === "2026-07-28" ? { pin: "2026-07-28" } : "legacy"
-        },
-        inputRequired: { autoFulfill: false }
-      });
-      this.client = client;
-      client.onerror = () => {
-        this.invalidated = true;
-        void this.close().catch(() => {
+    if (this.options.mode === "http" && signal?.aborted)
+      return Promise.reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
+    if (!this.connected) {
+      this.connected = this.perform(this.options.mode === "http" ? void 0 : signal, async (executionSignal) => {
+        const { Client: SdkClient, SdkError: SdkError2, SdkErrorCode: SdkErrorCode2, SdkHttpError: SdkHttpError2, ProtocolError: ProtocolError3 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+        this.isNonFatalSdkError = (cause) => cause instanceof ProtocolError3 || cause instanceof SdkHttpError2 || cause instanceof SdkError2 && (cause.code === SdkErrorCode2.RequestTimeout || cause.code === SdkErrorCode2.CapabilityNotSupported);
+        const client = new SdkClient({ name: "coremind", version: "1" }, {
+          capabilities: {},
+          enforceStrictCapabilities: true,
+          versionNegotiation: {
+            mode: this.options.protocolVersion === "2026-07-28" ? { pin: "2026-07-28" } : "legacy"
+          },
+          inputRequired: { autoFulfill: false }
         });
-      };
-      client.setNotificationHandler("notifications/tools/list_changed", () => {
-        this.invalidated = true;
+        this.client = client;
+        client.onerror = (cause) => {
+          if (this.options.mode === "stdio" || this.isFatal(cause)) {
+            this.invalidated = true;
+            void this.close().catch(() => {
+            });
+          }
+        };
+        client.setNotificationHandler("notifications/tools/list_changed", () => {
+          this.invalidated = true;
+        });
+        await client.connect(this.options.transport, requestOptions(executionSignal));
+        this.assertSafe(client.getServerVersion());
+        this.assertSafe(client.getInstructions());
+        this.ready = true;
       });
-      await client.connect(this.transport, requestOptions(executionSignal));
-      this.assertSafe(client.getServerVersion());
-      this.assertSafe(client.getInstructions());
-      this.ready = true;
-    });
-    return this.connected;
+    }
+    return this.options.mode === "http" ? waitFor(this.connected, signal) : this.connected;
   }
   async listTools(signal) {
     return this.perform(signal, async (executionSignal) => {
@@ -245450,36 +245558,86 @@ var ManagedMcpClient = class {
       if (result.content.some((item) => item.type !== "text"))
         throw error2("mcp_unsupported_content", "\u672C\u5730\u5DE5\u5177\u8FD4\u56DE\u4E86\u4E0D\u652F\u6301\u7684\u5185\u5BB9\u7C7B\u578B");
       const content = result.content.map((item) => item.type === "text" ? item.text : "").join("\n");
-      const value = { mcp: structuredClone(result) };
-      const serialized = JSON.stringify(value);
-      let text2 = result.structuredContent !== void 0 ? [content, JSON.stringify(result.structuredContent)].filter((part) => part.length > 0).join("\n") : content;
-      this.assertSafe(text2);
-      let details = value;
-      if (Buffer.byteLength(serialized, "utf8") > INLINE_RESULT_BYTES) {
-        const directory = await mkdtemp2(path30.join(tmpdir6(), "coremind-mcp-result-"));
-        try {
-          const file = path30.join(directory, "result.json");
-          await writeFile4(file, serialized, { encoding: "utf8", flag: "wx", mode: 384 });
-          const imported = await this.options.artifactStore.importFile(file, {
-            deleteSource: true,
-            mediaType: "application/json; charset=utf-8"
-          });
-          text2 = imported.preview;
-          details = { mcp: { output: "artifact" }, artifact: imported.record };
-        } finally {
-          await rm2(directory, { recursive: true, force: true });
-        }
-      }
-      return {
-        text: text2,
-        details,
-        ...result.isError !== void 0 ? { isError: result.isError } : {}
-      };
+      const text2 = result.structuredContent !== void 0 ? [content, JSON.stringify(result.structuredContent)].filter((part) => part.length > 0).join("\n") : content;
+      return this.packageResult(result, text2, result.isError);
     });
   }
+  async listResources(signal) {
+    this.assertResourceScope();
+    return this.perform(signal, async (executionSignal) => {
+      const resources = await this.resourceDirectory("resources", executionSignal);
+      const selected = resources.filter((item) => this.allowedResourceUris.has(String(item.uri)));
+      const value = { resources: selected };
+      return this.packageResult(value, JSON.stringify(value));
+    });
+  }
+  async listResourceTemplates(signal) {
+    this.assertResourceScope();
+    return this.perform(signal, async (executionSignal) => {
+      const templates = await this.resourceDirectory("resourceTemplates", executionSignal);
+      const { UriTemplate: UriTemplate4 } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+      const selected = templates.filter((item) => {
+        const template = new UriTemplate4(String(item.uriTemplate));
+        return [...this.allowedResourceUris].some((uri) => template.match(uri) !== null);
+      });
+      const value = { resourceTemplates: selected };
+      return this.packageResult(value, JSON.stringify(value));
+    });
+  }
+  async readResource(uri, signal) {
+    this.assertResourceScope(uri);
+    return this.perform(signal, async (executionSignal) => {
+      this.assertReady();
+      const result = await this.client.request({ method: "resources/read", params: { uri } }, requestOptions(executionSignal));
+      this.assertSafe(result);
+      for (const item of result.contents) {
+        if (!this.allowedResourceUris.has(item.uri))
+          throw error2("mcp_protocol_error", "\u8D44\u6E90\u54CD\u5E94\u5305\u542B\u6388\u6743\u96C6\u5408\u5916\u7684 URI");
+        if ("blob" in item || !("text" in item) || typeof item.text !== "string")
+          throw error2("mcp_unsupported_content", "\u4EC5\u652F\u6301\u8D44\u6E90\u6587\u672C\u548C JSON \u6B63\u6587");
+      }
+      return this.packageResult(result, result.contents.map((item) => "text" in item ? item.text : "").join("\n"));
+    });
+  }
+  assertResourceScope(uri) {
+    if (this.options.mode !== "http" || this.allowedResourceUris.size === 0 || uri !== void 0 && !this.allowedResourceUris.has(uri))
+      throw error2("mcp_resource_not_allowed", "\u8D44\u6E90\u4E0D\u5728\u672C\u6B21 HTTP \u8FDE\u63A5\u7684\u7CBE\u786E\u6388\u6743\u96C6\u5408\u4E2D");
+  }
+  async resourceDirectory(kind, signal) {
+    this.assertReady();
+    const items = [];
+    const cursors = /* @__PURE__ */ new Set();
+    let cursor;
+    let totalBytes = 0;
+    for (let page = 0; page < MAX_LIST_PAGES2; page++) {
+      const params = cursor === void 0 ? {} : { params: { cursor } };
+      const result = kind === "resources" ? await this.client.request({ method: "resources/list", ...params }, requestOptions(signal)) : await this.client.request({ method: "resources/templates/list", ...params }, requestOptions(signal));
+      totalBytes += this.assertSafe(result);
+      if (totalBytes > MCP_MAX_FRAME_BYTES)
+        throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
+      const entries = kind === "resources" ? result.resources : result.resourceTemplates;
+      if (!Array.isArray(entries))
+        throw error2("mcp_protocol_error", "\u8D44\u6E90\u76EE\u5F55\u7F3A\u5C11\u9884\u671F\u96C6\u5408");
+      for (const item of entries) {
+        if (items.length >= MAX_TOOLS)
+          throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u6570\u91CF\u8D85\u8FC7\u4E0A\u9650");
+        items.push(item);
+      }
+      if (result.nextCursor === void 0)
+        return items;
+      if (cursors.has(result.nextCursor))
+        throw error2("mcp_invalid_directory", "\u8D44\u6E90\u76EE\u5F55\u5206\u9875\u6E38\u6807\u672A\u6536\u655B");
+      cursors.add(result.nextCursor);
+      cursor = result.nextCursor;
+    }
+    throw error2("mcp_output_limit", "\u8D44\u6E90\u76EE\u5F55\u9875\u6570\u8D85\u8FC7\u4E0A\u9650");
+  }
   close() {
-    if (!this.closed)
-      this.closed = this.transport.close();
+    if (!this.closed) {
+      this.closed = this.options.transport.close();
+      this.owner.abort();
+      this.options.signal?.removeEventListener("abort", this.ownerCancelled);
+    }
     return this.closed;
   }
   assertReady() {
@@ -245509,22 +245667,69 @@ var ManagedMcpClient = class {
       throw error2("mcp_output_limit", "\u672C\u5730\u5DE5\u5177\u6570\u636E\u8D85\u8FC7\u5B57\u8282\u4E0A\u9650");
     return bytes;
   }
+  async packageResult(result, text2, isError) {
+    this.assertSafe(result);
+    this.assertSafe(text2);
+    const value = { mcp: structuredClone(result) };
+    const serialized = JSON.stringify(value);
+    let details = value;
+    if (Buffer.byteLength(serialized, "utf8") > INLINE_RESULT_BYTES) {
+      const directory = await mkdtemp2(path30.join(tmpdir6(), "coremind-mcp-result-"));
+      try {
+        const file = path30.join(directory, "result.json");
+        await writeFile4(file, serialized, { encoding: "utf8", flag: "wx", mode: 384 });
+        const imported = await this.options.artifactStore.importFile(file, {
+          deleteSource: true,
+          mediaType: "application/json; charset=utf-8"
+        });
+        text2 = imported.preview;
+        details = { mcp: { output: "artifact" }, artifact: imported.record };
+      } finally {
+        await rm2(directory, { recursive: true, force: true });
+      }
+    }
+    return { text: text2, details, ...isError !== void 0 ? { isError } : {} };
+  }
+  isFatal(cause) {
+    if (this.options.isFatalTransportError?.(cause))
+      return true;
+    if (cause instanceof McpStdioError)
+      return [
+        "mcp_output_limit",
+        "mcp_secret_blocked",
+        "mcp_invalid_directory",
+        "mcp_protocol_error"
+      ].includes(cause.code);
+    return !this.isNonFatalSdkError(cause);
+  }
   async perform(signal, action) {
-    const signals2 = [signal, this.options.signal].filter((value) => value !== void 0);
+    const deadline = new AbortController();
+    const timer = this.options.mode === "http" ? setTimeout(() => deadline.abort(), REQUEST_TIMEOUT_MS) : void 0;
+    const signals2 = [signal, this.options.signal, this.owner.signal, deadline.signal].filter((value) => value !== void 0);
     const executionSignal = AbortSignal.any(signals2);
-    if (this.closed || executionSignal.aborted)
-      throw error2("mcp_connection_unavailable", "\u672C\u5730\u5DE5\u5177\u8FDE\u63A5\u5DF2\u5173\u95ED\u6216\u8C03\u7528\u5DF2\u53D6\u6D88");
     const cancel2 = () => {
       void this.close().catch(() => {
       });
     };
-    executionSignal.addEventListener("abort", cancel2, { once: true });
     try {
+      if (this.closed || executionSignal.aborted)
+        throw error2("mcp_connection_unavailable", "\u5DE5\u5177\u8FDE\u63A5\u5DF2\u5173\u95ED\u6216\u8C03\u7528\u5DF2\u53D6\u6D88");
+      if (this.options.mode === "stdio")
+        executionSignal.addEventListener("abort", cancel2, { once: true });
       return await action(executionSignal);
     } catch (cause) {
-      await this.close();
-      throw cause instanceof McpStdioError ? cause : error2("mcp_protocol_error", "\u672C\u5730\u5DE5\u5177\u534F\u8BAE\u8C03\u7528\u5931\u8D25\uFF1B\u8FDC\u7AEF\u6548\u679C\u53EF\u80FD\u672A\u77E5\uFF0C\u4E0D\u81EA\u52A8\u91CD\u8BD5");
+      if (this.options.mode === "stdio" || this.isFatal(cause)) {
+        this.invalidated = true;
+        await this.close();
+      }
+      if (cause instanceof McpStdioError)
+        throw cause;
+      if (this.options.mode === "http" && executionSignal.aborted)
+        throw error2("mcp_request_cancelled", "\u5DE5\u5177\u8BF7\u6C42\u5DF2\u53D6\u6D88\u6216\u8D85\u8FC7\u672C\u6B21\u671F\u9650\uFF1B\u4E0D\u81EA\u52A8\u91CD\u8BD5");
+      throw error2("mcp_protocol_error", "\u5DE5\u5177\u534F\u8BAE\u8C03\u7528\u5931\u8D25\uFF1B\u8FDC\u7AEF\u6548\u679C\u53EF\u80FD\u672A\u77E5\uFF0C\u4E0D\u81EA\u52A8\u91CD\u8BD5");
     } finally {
+      if (timer !== void 0)
+        clearTimeout(timer);
       executionSignal.removeEventListener("abort", cancel2);
     }
   }
@@ -245555,9 +245760,740 @@ function freezeJson(value) {
   }
   return value;
 }
+function waitFor(pending, signal) {
+  if (!signal)
+    return pending;
+  return new Promise((resolve9, reject) => {
+    const cancelled3 = () => reject(error2("mcp_request_cancelled", "\u5DE5\u5177\u8FDE\u63A5\u7B49\u5F85\u5DF2\u53D6\u6D88"));
+    if (signal.aborted)
+      cancelled3();
+    else
+      signal.addEventListener("abort", cancelled3, { once: true });
+    pending.then(resolve9, reject).finally(() => signal.removeEventListener("abort", cancelled3));
+  });
+}
+
+// packages/coremind-tools/dist/mcp-http-fetch.js
+import { randomUUID as randomUUID8 } from "node:crypto";
+import dns from "node:dns/promises";
+import { isIP as isIP3 } from "node:net";
+import { ReadableStream as ReadableStream2 } from "node:stream/web";
+import { TextDecoder as TextDecoder3 } from "node:util";
+var MAX_BODY_BYTES = 8 * 1024 * 1024;
+var MAX_OWNER_BYTES = 64 * 1024 * 1024;
+var MAX_GETS = 3;
+var GET_WINDOW_MS = 3e4;
+var RESERVED_HEADERS = /* @__PURE__ */ new Set([
+  "host",
+  "connection",
+  "proxy-authorization",
+  "proxy-connection",
+  "keep-alive",
+  "te",
+  "trailer",
+  "upgrade",
+  "dpop",
+  "content-length",
+  "transfer-encoding",
+  "content-type",
+  "accept",
+  "mcp-session-id",
+  "mcp-protocol-version",
+  "mcp-method",
+  "mcp-name",
+  "last-event-id"
+]);
+function createMcpHttpFetch(options) {
+  return new McpHttpFetchOwner(options);
+}
+var McpHttpFetchOwner = class {
+  options;
+  environmentSummary;
+  fetch;
+  url;
+  headers;
+  allowed;
+  secrets;
+  controller = new AbortController();
+  requests = /* @__PURE__ */ new Set();
+  agent;
+  closing;
+  bytes = 0;
+  gets = 0;
+  firstGet;
+  fatal;
+  constructor(options) {
+    this.options = options;
+    this.url = parseTarget(options.url);
+    this.allowed = Object.freeze((options.allowedAddresses ?? []).map(normalizeAddress));
+    this.secrets = Object.freeze((options.sensitiveValues ?? []).filter(Boolean));
+    try {
+      this.headers = new Headers();
+      const names2 = /* @__PURE__ */ new Set();
+      for (const [name, value] of Object.entries(options.headers)) {
+        const folded = name.toLowerCase();
+        if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || names2.has(folded) || RESERVED_HEADERS.has(folded) || typeof value !== "string" || [...value].some((character) => {
+          const code = character.charCodeAt(0);
+          return code < 32 && code !== 9 || code === 127;
+        }))
+          throw policy();
+        names2.add(folded);
+        this.headers.append(name, value);
+      }
+      if (Buffer.byteLength(JSON.stringify([...this.headers]), "utf8") > 16 * 1024)
+        throw policy();
+    } catch {
+      throw policy();
+    }
+    this.fetch = (input, init) => this.request(input, init);
+  }
+  get remainingGetWindowMs() {
+    return this.firstGet === void 0 ? GET_WINDOW_MS : Math.max(0, GET_WINDOW_MS - (performance.now() - this.firstGet));
+  }
+  get closed() {
+    return Boolean(this.fatal || this.closing || this.controller.signal.aborted || this.options.signal?.aborted);
+  }
+  close() {
+    if (!this.closing)
+      this.closing = this.closeOwned();
+    return this.closing;
+  }
+  async closeOwned() {
+    this.controller.abort();
+    const requests = [...this.requests];
+    const results = await Promise.allSettled([
+      ...requests.map((request) => request.cancel()),
+      ...this.agent ? [this.agent.destroy()] : []
+    ]);
+    await Promise.all(requests.map((request) => request.done));
+    if (results.some((result) => result.status === "rejected"))
+      throw new McpStdioError("mcp_cleanup_failed", "\u8FDC\u7A0B\u8FDE\u63A5\u672A\u80FD\u5B8C\u6574\u5173\u95ED");
+  }
+  async request(input, init = {}) {
+    this.checkOpen();
+    let target;
+    try {
+      target = new URL(input);
+    } catch {
+      throw policy();
+    }
+    if (target.href !== this.url.href)
+      throw policy();
+    const method = (init.method ?? "GET").toUpperCase();
+    if (method !== "GET" && method !== "POST")
+      throw policy();
+    if (method === "GET") {
+      this.firstGet ??= performance.now();
+      if (this.gets >= MAX_GETS || this.remainingGetWindowMs <= 0)
+        throw this.fail(new McpStdioError("mcp_http_limit_exceeded", "\u8FDC\u7A0B\u4E8B\u4EF6\u6062\u590D\u9884\u7B97\u5DF2\u7528\u5C3D"));
+      this.gets += 1;
+    }
+    const hostname = this.url.hostname.replace(/^\[|\]$/g, "");
+    if (isIP3(hostname))
+      validateMcpHttpAddress(hostname, this.url.protocol, this.allowed);
+    const headers = new Headers(init.headers);
+    for (const [name, value] of this.headers) {
+      if (headers.has(name) && headers.get(name) !== value)
+        throw policy();
+      headers.set(name, value);
+    }
+    if ([
+      "host",
+      "content-length",
+      "transfer-encoding",
+      "connection",
+      "keep-alive",
+      "te",
+      "trailer",
+      "upgrade",
+      "proxy-authorization",
+      "proxy-connection",
+      "dpop"
+    ].some((name) => headers.has(name)))
+      throw policy();
+    if (typeof init.body === "string" && Buffer.byteLength(init.body, "utf8") > MAX_BODY_BYTES)
+      throw this.fail(new McpStdioError("mcp_http_limit_exceeded", "\u8FDC\u7A0B\u8BF7\u6C42\u8D85\u8FC7\u4E0A\u9650"));
+    const activities = [];
+    const requestController = new AbortController();
+    const signal = AbortSignal.any([
+      this.controller.signal,
+      requestController.signal,
+      ...this.options.signal ? [this.options.signal] : [],
+      ...init.signal ? [init.signal] : []
+    ]);
+    let settle2;
+    const done = new Promise((resolve9) => {
+      settle2 = resolve9;
+    });
+    let finished8 = false;
+    let reader;
+    let output;
+    const finish = () => {
+      if (finished8)
+        return;
+      finished8 = true;
+      signal.removeEventListener("abort", aborted3);
+      for (const activity of activities)
+        activity.settle();
+      this.requests.delete(owned);
+      settle2();
+    };
+    const cancel2 = async () => {
+      requestController.abort();
+      if (reader) {
+        try {
+          await reader.cancel();
+        } catch {
+        }
+        finish();
+      }
+    };
+    const owned = { controller: requestController, done, cancel: cancel2 };
+    const aborted3 = () => {
+      try {
+        output?.error(this.fatal ?? cancelled());
+      } catch {
+      }
+      if (reader)
+        void cancel2();
+    };
+    this.requests.add(owned);
+    signal.addEventListener("abort", aborted3, { once: true });
+    try {
+      const domain = this.options.runEnvironment.hostNetwork ?? this.options.runEnvironment;
+      activities.push(this.options.runEnvironment.beginActivity({
+        id: `mcp-http-run:${randomUUID8()}`,
+        kind: "network"
+      }));
+      if (domain !== this.options.runEnvironment)
+        activities.push(domain.beginActivity({ id: `mcp-http-domain:${randomUUID8()}`, kind: "network" }));
+      for (const activity of activities) {
+        if (activity.signal.aborted)
+          requestController.abort();
+        else
+          activity.signal.addEventListener("abort", () => requestController.abort(), {
+            once: true,
+            signal
+          });
+      }
+      const resolved = await resolveExecutionEnvironment(domain, {});
+      if (resolved.capabilities.networkEgress !== "unrestricted")
+        throw policy();
+      this.checkOpen();
+      if (signal.aborted)
+        throw cancelled();
+      this.environmentSummary = Object.freeze({
+        isolation: "trusted_host",
+        processControl: "none",
+        networkEgress: "adapter_scoped",
+        credentialIsolation: "none",
+        platform: resolved.capabilities.identity.platform,
+        evidence: Object.freeze([
+          ...resolved.evidence,
+          "fixed-target-socket-address-validation",
+          "private-http-dispatcher"
+        ])
+      });
+      const { Agent: HttpAgent, fetch: dispatchFetch } = await Promise.resolve().then(() => __toESM(require_undici(), 1));
+      this.checkOpen();
+      if (signal.aborted)
+        throw cancelled();
+      this.agent ??= new HttpAgent({
+        connections: 8,
+        pipelining: 1,
+        maxOrigins: 1,
+        allowH2: false,
+        headersTimeout: 3e4,
+        bodyTimeout: 3e4,
+        connectTimeout: 1e4,
+        maxHeaderSize: 16 * 1024,
+        connect: { lookup: this.lookup, autoSelectFamily: false }
+      }).compose(preventMisdirectedReplay);
+      const response = await dispatchFetch(this.url, {
+        method,
+        headers: Array.from(headers),
+        body: init.body,
+        signal,
+        redirect: "manual",
+        dispatcher: this.agent
+      });
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw policy();
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new McpStdioError(response.status === 401 || response.status === 403 ? "mcp_http_auth_required" : "mcp_http_status_error", response.status === 401 || response.status === 403 ? "\u8FDC\u7A0B\u670D\u52A1\u62D2\u7EDD\u5F53\u524D\u51ED\u8BC1" : "\u8FDC\u7A0B\u670D\u52A1\u8FD4\u56DE\u5931\u8D25\u72B6\u6001");
+      }
+      this.assertSafe(JSON.stringify([...response.headers]));
+      for (const [name, value] of response.headers) {
+        this.assertSafe(name);
+        this.assertSafe(value);
+      }
+      if (!response.body) {
+        finish();
+        return new Response(null, { status: response.status, headers: response.headers });
+      }
+      reader = response.body.getReader();
+      if (signal.aborted)
+        throw cancelled();
+      let bodyBytes = 0;
+      let eventBytes = 0;
+      let lineBytes = 0;
+      let previousCr = false;
+      let tail = "";
+      const decoder3 = new TextDecoder3("utf-8", { fatal: true });
+      const overlap = Math.max(0, ...this.secrets.map((value) => value.length - 1));
+      const sse2 = response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() === "text/event-stream";
+      const body = new ReadableStream2({
+        start: (controller) => {
+          output = controller;
+        },
+        pull: async (controller) => {
+          try {
+            if (signal.aborted)
+              throw this.fatal ?? cancelled();
+            const result = await reader.read();
+            if (result.done) {
+              let end;
+              try {
+                end = decoder3.decode();
+              } catch {
+                throw invalidUtf8();
+              }
+              this.assertSafe(tail + end);
+              finish();
+              controller.close();
+              return;
+            }
+            bodyBytes += result.value.byteLength;
+            this.bytes += result.value.byteLength;
+            if (bodyBytes > MAX_BODY_BYTES || this.bytes > MAX_OWNER_BYTES)
+              throw new McpStdioError("mcp_http_limit_exceeded", "\u8FDC\u7A0B\u54CD\u5E94\u8D85\u8FC7\u4E0A\u9650");
+            if (sse2)
+              for (const byte of result.value) {
+                eventBytes += 1;
+                if (eventBytes > MAX_BODY_BYTES)
+                  throw new McpStdioError("mcp_http_limit_exceeded", "\u8FDC\u7A0B\u4E8B\u4EF6\u8D85\u8FC7\u4E0A\u9650");
+                if (byte === 10 && previousCr) {
+                  previousCr = false;
+                  continue;
+                }
+                if (byte === 10 || byte === 13) {
+                  if (lineBytes === 0)
+                    eventBytes = 0;
+                  lineBytes = 0;
+                  previousCr = byte === 13;
+                } else {
+                  lineBytes += 1;
+                  previousCr = false;
+                }
+              }
+            let text2;
+            try {
+              text2 = decoder3.decode(result.value, { stream: true });
+            } catch {
+              throw invalidUtf8();
+            }
+            this.assertSafe(tail + text2);
+            tail = overlap ? (tail + text2).slice(-overlap) : "";
+            controller.enqueue(result.value);
+          } catch (error3) {
+            let safe = this.normalize(error3, signal);
+            let recover = method === "GET" && sse2 && !signal.aborted && safe.code === "mcp_http_request_failed";
+            if (recover) {
+              try {
+                this.assertSafe(tail + decoder3.decode());
+              } catch (cause) {
+                safe = cause instanceof McpStdioError ? cause : invalidUtf8();
+                recover = false;
+              }
+            }
+            try {
+              if (recover)
+                controller.close();
+              else
+                controller.error(safe);
+            } catch {
+            }
+            if (isMcpHttpFatalError(safe))
+              this.fail(safe);
+            await cancel2();
+          }
+        },
+        cancel: async () => {
+          await cancel2();
+        }
+      });
+      return new Response(body, { status: response.status, headers: response.headers });
+    } catch (error3) {
+      const safe = this.normalize(error3, signal);
+      if (isMcpHttpFatalError(safe))
+        this.fail(safe);
+      await cancel2();
+      finish();
+      throw safe;
+    }
+  }
+  lookup = (hostname, options, callback) => {
+    if (hostname !== this.url.hostname.replace(/^\[|\]$/g, "")) {
+      callback(policy(), "");
+      return;
+    }
+    void dns.lookup(hostname, { all: true, verbatim: true }).then((records) => {
+      this.checkOpen();
+      if (!records.length)
+        throw policy();
+      const addresses = records.map(({ address }) => {
+        const approved = validateMcpHttpAddress(address, this.url.protocol, this.allowed);
+        return { address: approved, family: isIP3(approved) };
+      });
+      if (options.all)
+        callback(null, addresses);
+      else
+        callback(null, addresses[0].address, addresses[0].family);
+    }).catch((error3) => {
+      const safe = error3 instanceof McpStdioError ? error3 : new McpStdioError("mcp_http_request_failed", "\u8FDC\u7A0B\u5730\u5740\u89E3\u6790\u5931\u8D25");
+      if (isMcpHttpFatalError(safe))
+        this.fail(safe);
+      callback(safe, "");
+    });
+  };
+  checkOpen() {
+    if (this.fatal)
+      throw this.fatal;
+    if (this.closing || this.controller.signal.aborted || this.options.signal?.aborted)
+      throw cancelled();
+  }
+  assertSafe(text2) {
+    if (this.secrets.some((secret) => text2.includes(secret)))
+      throw new McpStdioError("mcp_secret_blocked", "\u8FDC\u7A0B\u54CD\u5E94\u5305\u542B\u53D7\u4FDD\u62A4\u51ED\u8BC1");
+  }
+  normalize(error3, signal) {
+    if (this.fatal)
+      return this.fatal;
+    if (error3 instanceof McpStdioError)
+      return error3;
+    if (error3 instanceof Error && error3.cause instanceof McpStdioError)
+      return error3.cause;
+    if (signal.aborted)
+      return cancelled();
+    return new McpStdioError("mcp_http_request_failed", "\u8FDC\u7A0B\u8FDE\u63A5\u5931\u8D25\uFF0C\u64CD\u4F5C\u7ED3\u679C\u53EF\u80FD\u672A\u77E5");
+  }
+  fail(error3) {
+    this.fatal ??= error3;
+    this.controller.abort();
+    return this.fatal;
+  }
+};
+var preventMisdirectedReplay = (dispatch) => (options, handler) => dispatch(options, new Proxy(handler, {
+  get(target, key) {
+    if (key === "onResponseStart") {
+      const onResponseStart = (controller, status, headers, message2) => {
+        if (status === 421) {
+          controller.abort(new McpStdioError("mcp_http_status_error", "\u8FDC\u7A0B\u670D\u52A1\u8FD4\u56DE\u5931\u8D25\u72B6\u6001"));
+          return;
+        }
+        target.onResponseStart?.(controller, status, headers, message2);
+      };
+      return onResponseStart;
+    }
+    const value = Reflect.get(target, key, target);
+    return typeof value === "function" ? value.bind(target) : value;
+  }
+}));
+function isMcpHttpFatalError(error3) {
+  return error3 instanceof McpStdioError && [
+    "mcp_http_policy_denied",
+    "mcp_http_limit_exceeded",
+    "mcp_secret_blocked",
+    "mcp_protocol_error",
+    "mcp_cleanup_failed"
+  ].includes(error3.code);
+}
+function parseTarget(value) {
+  try {
+    if (value !== value.trim() || [...value].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\"))
+      throw policy();
+    const authority = /^[^:]+:\/\/([^/?#]*)/.exec(value)?.[1];
+    if (!authority || authority.includes("@"))
+      throw policy();
+    const url2 = new URL(value);
+    if (url2.protocol !== "http:" && url2.protocol !== "https:" || url2.username || url2.password || url2.search || url2.hash || value.includes("?") || value.includes("#"))
+      throw policy();
+    const hostname = url2.hostname.replace(/^\[|\]$/g, "");
+    const rawHostname = authority.startsWith("[") ? authority.slice(1, authority.indexOf("]")) : authority.split(":", 1)[0];
+    if (url2.protocol === "http:" && (!isIP3(rawHostname) || !isIP3(hostname) || !isLoopback(normalizeAddress(hostname))))
+      throw policy();
+    return url2;
+  } catch {
+    throw policy();
+  }
+}
+function validateMcpHttpAddress(address, protocol, allowed) {
+  const normalized = normalizeAddress(address);
+  const family = isIP3(normalized);
+  let privateAddress = false;
+  if (family === 4) {
+    const [a2, b2, c4] = normalized.split(".").map(Number);
+    if (a2 === 0 || a2 >= 224 || a2 === 169 && b2 === 254)
+      throw policy();
+    privateAddress = a2 === 10 || a2 === 127 || a2 === 172 && b2 >= 16 && b2 <= 31 || a2 === 192 && b2 === 168 || a2 === 100 && b2 >= 64 && b2 <= 127;
+    if (!privateAddress && (a2 === 192 && b2 === 0 && (c4 === 0 || c4 === 2) || a2 === 192 && b2 === 88 && c4 === 99 || a2 === 198 && (b2 === 18 || b2 === 19 || b2 === 51 && c4 === 100) || a2 === 203 && b2 === 0 && c4 === 113))
+      throw policy();
+  } else {
+    const words = ipv6Words(normalized);
+    const first = words[0];
+    if (words.every((word) => word === 0) || (first & 65472) === 65152 || (first & 65280) === 65280)
+      throw policy();
+    privateAddress = isLoopback(normalized) || (first & 65024) === 64512;
+    if (!privateAddress && ((first & 57344) !== 8192 || first === 8193 && words[1] < 512 || first === 8194 || first === 8193 && words[1] === 3512 || first === 16383 && words[1] < 4096))
+      throw policy();
+  }
+  const explicitlyAllowed = allowed.some((value) => normalizeAddress(value) === normalized);
+  if (allowed.length > 0 && !explicitlyAllowed)
+    throw policy();
+  if (protocol === "http:" ? !isLoopback(normalized) || !explicitlyAllowed : protocol !== "https:" || privateAddress && !explicitlyAllowed)
+    throw policy();
+  return normalized;
+}
+function normalizeAddress(value) {
+  if (typeof value !== "string" || value.includes("%"))
+    throw policy();
+  const address = value.replace(/^\[|\]$/g, "");
+  const family = isIP3(address);
+  if (family === 4)
+    return address;
+  if (family !== 6)
+    throw policy();
+  const canonical2 = new URL(`https://[${address}]/`).hostname.slice(1, -1);
+  const words = ipv6Words(canonical2);
+  if (words.slice(0, 5).every((word) => word === 0) && words[5] === 65535)
+    return `${words[6] >> 8}.${words[6] & 255}.${words[7] >> 8}.${words[7] & 255}`;
+  return canonical2;
+}
+function ipv6Words(address) {
+  const [left, right] = address.split("::");
+  const before = left ? left.split(":").map((value) => Number.parseInt(value, 16)) : [];
+  const after = right ? right.split(":").map((value) => Number.parseInt(value, 16)) : [];
+  return right === void 0 ? before : [...before, ...Array(8 - before.length - after.length).fill(0), ...after];
+}
+function isLoopback(address) {
+  return address.startsWith("127.") || address === "::1";
+}
+function policy() {
+  return new McpStdioError("mcp_http_policy_denied", "\u8FDC\u7A0B\u76EE\u6807\u6216\u8BF7\u6C42\u4E0D\u7B26\u5408\u7F51\u7EDC\u6388\u6743");
+}
+function cancelled() {
+  return new McpStdioError("mcp_request_cancelled", "\u8FDC\u7A0B\u8BF7\u6C42\u5DF2\u53D6\u6D88\u6216\u5173\u95ED");
+}
+function invalidUtf8() {
+  return new McpStdioError("mcp_protocol_error", "\u8FDC\u7A0B\u54CD\u5E94\u4E0D\u662F\u6709\u6548 UTF-8");
+}
+
+// packages/coremind-tools/dist/mcp-http-transport.js
+function createMcpHttpTransport(options) {
+  return new McpHttpTransport(options);
+}
+var McpHttpTransport = class {
+  options;
+  onclose;
+  onerror;
+  onmessage;
+  hasPerRequestStream = true;
+  owner;
+  requests = /* @__PURE__ */ new Map();
+  reconnectTimers = /* @__PURE__ */ new Set();
+  transport;
+  started = false;
+  notified = false;
+  closing;
+  version;
+  constructor(options) {
+    this.options = options;
+    this.owner = createMcpHttpFetch(options);
+  }
+  get environmentSummary() {
+    return this.owner.environmentSummary;
+  }
+  get sessionId() {
+    return this.transport?.sessionId;
+  }
+  get protocolVersion() {
+    return this.transport?.protocolVersion ?? this.version;
+  }
+  setProtocolVersion(version2) {
+    this.version = version2;
+    this.transport?.setProtocolVersion(version2);
+  }
+  async start() {
+    if (this.started || this.closing)
+      throw protocolFailure();
+    this.started = true;
+    if (this.options.signal?.aborted)
+      throw cancelled2();
+    const { StreamableHTTPClientTransport: HttpTransport } = await Promise.resolve().then(() => (init_dist11(), dist_exports2));
+    if (this.closing || this.options.signal?.aborted)
+      throw cancelled2();
+    this.transport = new HttpTransport(new URL(this.options.url), {
+      fetch: this.owner.fetch,
+      requestInit: { headers: this.options.headers, redirect: "manual" },
+      protocolVersion: this.version,
+      onInsufficientScope: "throw",
+      maxStepUpRetries: 0,
+      reconnectionOptions: {
+        maxRetries: 3,
+        initialReconnectionDelay: 100,
+        maxReconnectionDelay: 1e3,
+        reconnectionDelayGrowFactor: 2
+      },
+      reconnectionScheduler: (reconnect, delay2) => {
+        if (this.closing || this.owner.closed)
+          return;
+        const bounded = Math.max(0, Math.min(Number.isFinite(delay2) ? delay2 : 1e3, 1e3, this.owner.remainingGetWindowMs));
+        const timer = setTimeout(() => {
+          this.reconnectTimers.delete(timer);
+          reconnect();
+        }, bounded);
+        this.reconnectTimers.add(timer);
+        return () => {
+          clearTimeout(timer);
+          this.reconnectTimers.delete(timer);
+        };
+      }
+    });
+    this.transport.onmessage = (message2) => {
+      if ("id" in message2 && message2.id !== void 0 && !("method" in message2))
+        this.requests.get(message2.id)?.release();
+      this.onmessage?.(message2);
+    };
+    this.transport.onerror = (error3) => this.onerror?.(safeError(error3));
+    await this.transport.start();
+  }
+  async send(message2, options) {
+    if (!this.transport || this.closing || this.options.signal?.aborted)
+      throw cancelled2();
+    let request;
+    if ("method" in message2 && "id" in message2) {
+      const id = message2.id;
+      if (this.requests.has(id) || this.requests.size >= 256)
+        throw protocolFailure();
+      const controller = new AbortController();
+      const signal2 = AbortSignal.any([
+        controller.signal,
+        ...options?.requestSignal ? [options.requestSignal] : []
+      ]);
+      const release = () => {
+        signal2.removeEventListener("abort", release);
+        if (this.requests.get(id)?.controller === controller)
+          this.requests.delete(id);
+      };
+      request = { controller, signal: signal2, release };
+      this.requests.set(id, request);
+      signal2.addEventListener("abort", release, { once: true });
+      if (signal2.aborted)
+        release();
+    }
+    const cancelling = "method" in message2 && message2.method === "notifications/cancelled";
+    if ("method" in message2 && message2.method === "notifications/cancelled") {
+      const id = message2.params?.requestId;
+      if (typeof id === "string" || typeof id === "number") {
+        const pending = this.requests.get(id);
+        pending?.controller.abort();
+        pending?.release();
+        message2 = {
+          jsonrpc: "2.0",
+          method: "notifications/cancelled",
+          params: { requestId: id, reason: "\u8BF7\u6C42\u5DF2\u53D6\u6D88" }
+        };
+      }
+    }
+    const signal = request?.signal ?? options?.requestSignal;
+    try {
+      await this.transport.send(message2, {
+        ...options,
+        ...signal ? { requestSignal: signal } : {}
+      });
+    } catch (error3) {
+      request?.release();
+      if (cancelling && error3 instanceof McpStdioError && !isMcpHttpFatalError(error3))
+        return;
+      throw error3 instanceof McpStdioError ? error3 : signal?.aborted ? cancelled2() : safeError(error3);
+    }
+  }
+  close() {
+    if (!this.closing)
+      this.closing = this.closeOwned();
+    return this.closing;
+  }
+  async closeOwned() {
+    for (const timer of this.reconnectTimers)
+      clearTimeout(timer);
+    this.reconnectTimers.clear();
+    for (const request of this.requests.values()) {
+      request.controller.abort();
+      request.release();
+    }
+    this.requests.clear();
+    const results = await Promise.allSettled([
+      ...this.transport ? [this.transport.close()] : [],
+      this.owner.close()
+    ]);
+    if (results.some((result) => result.status === "rejected"))
+      throw new McpStdioError("mcp_cleanup_failed", "\u8FDC\u7A0B\u8FDE\u63A5\u672A\u80FD\u5B8C\u6574\u5173\u95ED");
+    this.notifyClosed();
+  }
+  notifyClosed() {
+    if (this.notified)
+      return;
+    this.notified = true;
+    this.onclose?.();
+  }
+};
+function safeError(error3) {
+  return error3 instanceof McpStdioError ? error3 : protocolFailure();
+}
+function protocolFailure() {
+  return new McpStdioError("mcp_protocol_error", "\u8FDC\u7A0B\u534F\u8BAE\u54CD\u5E94\u65E0\u6548");
+}
+function cancelled2() {
+  return new McpStdioError("mcp_request_cancelled", "\u8FDC\u7A0B\u8BF7\u6C42\u5DF2\u53D6\u6D88\u6216\u5173\u95ED");
+}
+
+// packages/coremind-tools/dist/mcp-http-client.js
+function createMcpHttpClient(options) {
+  const frozen = {
+    ...options,
+    headers: Object.freeze({ ...options.headers }),
+    ...options.allowedAddresses !== void 0 ? { allowedAddresses: Object.freeze([...options.allowedAddresses]) } : {},
+    sensitiveValues: Object.freeze([...options.sensitiveValues ?? []]),
+    allowedResourceUris: Object.freeze([...options.allowedResourceUris ?? []])
+  };
+  return new ManagedMcpClient({
+    ...frozen,
+    mode: "http",
+    transport: createMcpHttpTransport(frozen),
+    isFatalTransportError: isMcpHttpFatalError
+  });
+}
+
+// packages/coremind-tools/dist/mcp-stdio-client.js
+function createMcpStdioClient(options) {
+  const frozen = {
+    ...options,
+    args: Object.freeze([...options.args]),
+    env: Object.freeze({ ...options.env }),
+    sensitiveValues: Object.freeze([...options.sensitiveValues ?? []])
+  };
+  return new ManagedMcpClient({
+    ...frozen,
+    mode: "stdio",
+    transport: new McpStdioTransport(frozen)
+  });
+}
 
 // packages/coremind-tools/dist/platform-execution-environment.js
-import { randomUUID as randomUUID8 } from "node:crypto";
+import { randomUUID as randomUUID9 } from "node:crypto";
 import { rm as rm3 } from "node:fs/promises";
 import { createServer as createServer2 } from "node:http";
 import { tmpdir as tmpdir7 } from "node:os";
@@ -245608,9 +246544,9 @@ async function probeLinuxSandbox(workspaceRoot, env2) {
   await ensureLinuxSandboxInitialized();
   const probeEnvironment = {
     ...env2,
-    COREMIND_SANDBOX_PROBE_SECRET: randomUUID8()
+    COREMIND_SANDBOX_PROBE_SECRET: randomUUID9()
   };
-  const outsidePath = path31.join(tmpdir7(), `coremind-sandbox-probe-${randomUUID8()}`);
+  const outsidePath = path31.join(tmpdir7(), `coremind-sandbox-probe-${randomUUID9()}`);
   const server = createServer2((_request, response) => response.end("reachable"));
   await new Promise((resolve9, reject) => {
     server.once("error", reject);
@@ -245621,7 +246557,7 @@ async function probeLinuxSandbox(workspaceRoot, env2) {
     throw new Error("\u65E0\u6CD5\u521B\u5EFA\u672C\u5730\u7F51\u7EDC\u8D1F\u5411\u63A2\u9488");
   const probeScript = buildLinuxSandboxProbeScript(outsidePath, address.port);
   const command = `${shellQuote(process.execPath)} -e ${shellQuote(probeScript)}`;
-  const commandId = randomUUID8();
+  const commandId = randomUUID9();
   try {
     const wrapped = await wrapLinuxSandboxCommand(command, buildLinuxSandboxConfig(workspaceRoot, probeEnvironment), void 0, commandId);
     const executable = wrapped.argv[0];
@@ -245687,7 +246623,7 @@ function collectDeclaredStringFields(value, fields) {
 }
 
 // packages/coremind-runtime/dist/workspace-lease.js
-import { randomUUID as randomUUID9 } from "node:crypto";
+import { randomUUID as randomUUID10 } from "node:crypto";
 import { link, mkdir as mkdir4, readFile as readFile6, realpath as realpath6, rename as rename2, rm as rm4, writeFile as writeFile5 } from "node:fs/promises";
 import path32 from "node:path";
 
@@ -245714,7 +246650,7 @@ var WorkspaceLeaseService = class {
       runId: options.owner.runId,
       callId: options.owner.callId,
       pid: process.pid,
-      nonce: randomUUID9(),
+      nonce: randomUUID10(),
       acquiredAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     if (options.lane === "parallel")
@@ -246149,7 +247085,7 @@ var CheckpointManager = class {
     }
   }
   async persist(value) {
-    const { checkpointId = randomUUID10(), ...payload } = value;
+    const { checkpointId = randomUUID11(), ...payload } = value;
     if (!/^[a-zA-Z0-9_-]+$/.test(checkpointId)) {
       throw new CoreMindError("invalid_checkpoint_id", `\u975E\u6CD5 checkpointId\uFF1A${checkpointId}`);
     }
@@ -248903,7 +249839,7 @@ function isRetryableDependencyAssistantError(message2) {
 }
 
 // packages/coremind-runtime/dist/trace.js
-import { randomUUID as randomUUID11 } from "node:crypto";
+import { randomUUID as randomUUID12 } from "node:crypto";
 var TraceRecorder = class {
   runId;
   forward;
@@ -248948,7 +249884,7 @@ var TraceRecorder = class {
   }
   append(event) {
     const entry = {
-      eventId: randomUUID11(),
+      eventId: randomUUID12(),
       runId: this.runId,
       sequence: ++this.sequence,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -249825,12 +250761,12 @@ function assertChildRunPolicyIsNarrower(parent, remainingBudget, request) {
     throw policyEscalation("Child Run \u6267\u884C\u73AF\u5883\u8981\u6C42\u6BD4\u7236\u7EA7\u66F4\u5BBD");
   }
 }
-function normalizeParentPolicy(policy) {
-  const maxDepth = policy.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth;
-  const maxActiveChildren = policy.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren;
-  const maxDescendants = policy.maxDescendants ?? CHILD_RUN_LIMIT_DEFAULTS.maxDescendants;
+function normalizeParentPolicy(policy2) {
+  const maxDepth = policy2.maxDepth ?? CHILD_RUN_LIMIT_DEFAULTS.maxDepth;
+  const maxActiveChildren = policy2.maxActiveChildren ?? CHILD_RUN_LIMIT_DEFAULTS.maxActiveChildren;
+  const maxDescendants = policy2.maxDescendants ?? CHILD_RUN_LIMIT_DEFAULTS.maxDescendants;
   for (const [label, value] of [
-    ["depth", policy.depth],
+    ["depth", policy2.depth],
     ["maxDepth", maxDepth],
     ["maxActiveChildren", maxActiveChildren],
     ["maxDescendants", maxDescendants]
@@ -249839,16 +250775,16 @@ function normalizeParentPolicy(policy) {
       throw policyEscalation(`Child Run \u7684 ${label} \u5FC5\u987B\u662F\u6709\u9650\u975E\u8D1F\u6574\u6570`);
     }
   }
-  for (const [key, value] of Object.entries(policy.budget)) {
+  for (const [key, value] of Object.entries(policy2.budget)) {
     if (!Number.isFinite(value) || value < 0) {
       throw policyEscalation(`Child Run \u7236\u7EA7 ${key} \u9884\u7B97\u5FC5\u987B\u662F\u6709\u9650\u975E\u8D1F\u6570`);
     }
   }
-  if (policy.budget.descendants > maxDescendants) {
+  if (policy2.budget.descendants > maxDescendants) {
     throw policyEscalation("Child Run \u7236\u7EA7\u540E\u4EE3\u9884\u7B97\u8D85\u8FC7 maxDescendants");
   }
   return {
-    ...structuredClone(policy),
+    ...structuredClone(policy2),
     maxDepth,
     maxActiveChildren,
     maxDescendants
@@ -249865,11 +250801,11 @@ function assertDelegationBudgetPool(parent, budget) {
     throw policyEscalation("Delegation Budget \u6C60\u7684 descendants \u4E0D\u80FD\u8D85\u8FC7\u7236\u7EA7\u540E\u4EE3\u4E0A\u9650");
   }
 }
-function hierarchyFromPolicy(policy) {
+function hierarchyFromPolicy(policy2) {
   return {
-    maxDepth: policy.maxDepth,
-    maxActiveChildren: policy.maxActiveChildren,
-    maxDescendants: policy.maxDescendants
+    maxDepth: policy2.maxDepth,
+    maxActiveChildren: policy2.maxActiveChildren,
+    maxDescendants: policy2.maxDescendants
   };
 }
 function normalizeScopeHierarchy(parent, budget, configured) {
@@ -250674,7 +251610,7 @@ function fingerprint(value) {
 
 // packages/coremind-runtime/dist/observability.js
 import { createHash as createHash11 } from "node:crypto";
-import { isIP as isIP2 } from "node:net";
+import { isIP as isIP4 } from "node:net";
 
 // packages/coremind-runtime/dist/skill-privacy.js
 function stripPrivateSkillPayload(kind, payload) {
@@ -251054,13 +251990,13 @@ var TelemetryEgressController = class {
     this.options = options;
   }
   async export(records) {
-    const policy = normalizePolicy(this.options.policy);
-    const projection = emptyDelivery(policy);
-    if (policy.mode === "DISABLED")
+    const policy2 = normalizePolicy(this.options.policy);
+    const projection = emptyDelivery(policy2);
+    if (policy2.mode === "DISABLED")
       return projection;
     let endpointOrigin;
     try {
-      endpointOrigin = endpointOriginOf(policy.endpoint);
+      endpointOrigin = endpointOriginOf(policy2.endpoint);
     } catch (error3) {
       projection.failed = 1;
       projection.lastFailure = failureCodeOf(error3);
@@ -251075,12 +252011,12 @@ var TelemetryEgressController = class {
       projection.lastFailure = "configuration_mismatch";
       return projection;
     }
-    if (!telemetryConfigurationMatches(persistedPolicy, policy, endpointOrigin)) {
+    if (!telemetryConfigurationMatches(persistedPolicy, policy2, endpointOrigin)) {
       projection.failed = 1;
       projection.lastFailure = "configuration_mismatch";
       return projection;
     }
-    const consentFailure = consentFailureFor(records, policy, endpointOrigin);
+    const consentFailure = consentFailureFor(records, policy2, endpointOrigin);
     if (consentFailure) {
       projection.failed = 1;
       projection.lastFailure = consentFailure;
@@ -251137,7 +252073,7 @@ var TelemetryEgressController = class {
       projection.lastFailure = failureCodeOf(error3);
       return projection;
     }
-    const eligible = eligibleRecords(records, policy, endpointOrigin);
+    const eligible = eligibleRecords(records, policy2, endpointOrigin);
     const unique3 = [];
     const identities = /* @__PURE__ */ new Set();
     for (const record2 of eligible) {
@@ -251155,7 +252091,7 @@ var TelemetryEgressController = class {
     projection.queued = queue.length;
     for (const [index3, record2] of queue.entries()) {
       try {
-        const projected = projectExportRecord(record2, policy, this.options.redact);
+        const projected = projectExportRecord(record2, policy2, this.options.redact);
         const exported = await invokeBeforeDeadline((signal) => exporter.export(projected, { authorization, signal }), exportDeadline);
         if (exported.status === "timed_out") {
           projection.failed += 1;
@@ -251189,11 +252125,11 @@ var TelemetryEgressController = class {
     return projection;
   }
 };
-function telemetryConfigurationMatches(persisted, policy, endpointOrigin) {
-  return persisted.mode === policy.mode && persisted.endpointOrigin === endpointOrigin && persisted.contentLevel === policy.contentLevel && persisted.allowedFields.length === policy.allowedFields.length && persisted.allowedFields.every((field2, index3) => field2 === policy.allowedFields[index3]);
+function telemetryConfigurationMatches(persisted, policy2, endpointOrigin) {
+  return persisted.mode === policy2.mode && persisted.endpointOrigin === endpointOrigin && persisted.contentLevel === policy2.contentLevel && persisted.allowedFields.length === policy2.allowedFields.length && persisted.allowedFields.every((field2, index3) => field2 === policy2.allowedFields[index3]);
 }
-function createTelemetryConfigurationFact(policy, configuredAt) {
-  const normalized = normalizePolicy(policy);
+function createTelemetryConfigurationFact(policy2, configuredAt) {
+  const normalized = normalizePolicy(policy2);
   return validateTelemetryConfigurationFact({
     schemaVersion: 1,
     mode: normalized.mode,
@@ -251304,28 +252240,28 @@ function terminalDurationMs(records) {
   const durationMs = terminal.payload.metrics.durationMs;
   return typeof durationMs === "number" && durationMs >= 0 ? durationMs : void 0;
 }
-function normalizePolicy(policy) {
-  if (!["DISABLED", "FEEDBACK_ONLY", "FULL"].includes(policy.mode)) {
-    throw new CoreMindError("run_state_corrupt", `\u672A\u77E5 Telemetry mode\uFF1A${String(policy.mode)}`);
+function normalizePolicy(policy2) {
+  if (!["DISABLED", "FEEDBACK_ONLY", "FULL"].includes(policy2.mode)) {
+    throw new CoreMindError("run_state_corrupt", `\u672A\u77E5 Telemetry mode\uFF1A${String(policy2.mode)}`);
   }
-  const contentLevel = policy.contentLevel ?? "metrics_only";
+  const contentLevel = policy2.contentLevel ?? "metrics_only";
   if (contentLevel !== "metrics_only" && contentLevel !== "content") {
     throw new CoreMindError("run_state_corrupt", `\u672A\u77E5 Telemetry content level\uFF1A${contentLevel}`);
   }
   return {
-    mode: policy.mode,
+    mode: policy2.mode,
     contentLevel,
-    allowedFields: [...new Set(policy.allowedFields ?? [])].sort(),
-    ...policy.endpoint ? { endpoint: policy.endpoint } : {}
+    allowedFields: [...new Set(policy2.allowedFields ?? [])].sort(),
+    ...policy2.endpoint ? { endpoint: policy2.endpoint } : {}
   };
 }
-function emptyDelivery(policy) {
+function emptyDelivery(policy2) {
   return {
-    mode: policy.mode,
+    mode: policy2.mode,
     exporterLoaded: false,
-    ...policy.endpointOrigin ? { endpointOrigin: policy.endpointOrigin } : {},
-    contentLevel: policy.contentLevel ?? "metrics_only",
-    allowedFields: [...policy.allowedFields ?? []],
+    ...policy2.endpointOrigin ? { endpointOrigin: policy2.endpointOrigin } : {},
+    contentLevel: policy2.contentLevel ?? "metrics_only",
+    allowedFields: [...policy2.allowedFields ?? []],
     queued: 0,
     handedOff: 0,
     failed: 0,
@@ -251337,9 +252273,9 @@ function emptyDelivery(policy) {
 function telemetryStateFromFacts(records) {
   const changed = [...records].reverse().find((record2) => record2.kind === "telemetry_configuration");
   if (changed) {
-    const policy2 = validateTelemetryConfigurationFact(changed.payload);
+    const policy3 = validateTelemetryConfigurationFact(changed.payload);
     return {
-      ...policy2,
+      ...policy3,
       source: "configured",
       effectiveFromSequence: changed.sequence
     };
@@ -251354,14 +252290,14 @@ function telemetryStateFromFacts(records) {
       effectiveFromSequence: 1
     };
   }
-  const policy = validateTelemetryConfigurationFact(start.payload.telemetry);
+  const policy2 = validateTelemetryConfigurationFact(start.payload.telemetry);
   return {
-    ...policy,
-    source: policy.mode === "DISABLED" ? "default" : "configured",
+    ...policy2,
+    source: policy2.mode === "DISABLED" ? "default" : "configured",
     effectiveFromSequence: start.sequence
   };
 }
-function consentFailureFor(records, policy, endpointOrigin) {
+function consentFailureFor(records, policy2, endpointOrigin) {
   const canonical2 = canonicalAuthorizationRecords(records);
   const consents = canonical2.flatMap((record2) => {
     if (record2.kind !== "telemetry_consent")
@@ -251372,17 +252308,17 @@ function consentFailureFor(records, policy, endpointOrigin) {
       return [];
     }
   });
-  if (policy.mode === "FEEDBACK_ONLY" && !consents.some((consent) => consent.kind === "feedback" && consent.targetOrigin === endpointOrigin && consent.contentLevel === policy.contentLevel && Number.isInteger(consent.throughSequence))) {
+  if (policy2.mode === "FEEDBACK_ONLY" && !consents.some((consent) => consent.kind === "feedback" && consent.targetOrigin === endpointOrigin && consent.contentLevel === policy2.contentLevel && Number.isInteger(consent.throughSequence))) {
     return "feedback_consent_missing";
   }
-  if (policy.contentLevel === "content" && !consents.some((consent) => consent.kind === "content" && consent.targetOrigin === endpointOrigin && consent.contentLevel === "content" && policy.allowedFields.every((field2) => consent.allowedFields.includes(field2)))) {
+  if (policy2.contentLevel === "content" && !consents.some((consent) => consent.kind === "content" && consent.targetOrigin === endpointOrigin && consent.contentLevel === "content" && policy2.allowedFields.every((field2) => consent.allowedFields.includes(field2)))) {
     return "content_consent_missing";
   }
   return void 0;
 }
-function eligibleRecords(records, policy, endpointOrigin) {
+function eligibleRecords(records, policy2, endpointOrigin) {
   const source = records.filter((record2) => record2.kind !== "telemetry_consent" && record2.kind !== "telemetry_configuration");
-  if (policy.mode === "FULL") {
+  if (policy2.mode === "FULL") {
     const effectiveFromSequence = telemetryStateFromFacts(canonicalAuthorizationRecords(records)).effectiveFromSequence;
     return source.filter((record2) => record2.sequence >= effectiveFromSequence);
   }
@@ -251395,18 +252331,18 @@ function eligibleRecords(records, policy, endpointOrigin) {
     } catch {
       return [];
     }
-  }).filter((consent) => consent.kind === "feedback" && consent.targetOrigin === endpointOrigin && consent.contentLevel === policy.contentLevel).reduce((highest, consent) => Math.max(highest, consent.throughSequence ?? 0), 0);
+  }).filter((consent) => consent.kind === "feedback" && consent.targetOrigin === endpointOrigin && consent.contentLevel === policy2.contentLevel).reduce((highest, consent) => Math.max(highest, consent.throughSequence ?? 0), 0);
   return source.filter((record2) => record2.sequence <= throughSequence);
 }
-function projectExportRecord(record2, policy, redact) {
+function projectExportRecord(record2, policy2, redact) {
   const publicRecord = {
     ...record2,
     payload: stripPrivateSkillPayload(record2.kind, record2.payload)
   };
   const event = traceEventOf(publicRecord);
   const fields = metricsFields(publicRecord, event);
-  if (policy.contentLevel === "content") {
-    for (const field2 of policy.allowedFields) {
+  if (policy2.contentLevel === "content") {
+    for (const field2 of policy2.allowedFields) {
       const value = contentField(publicRecord, event, field2);
       if (value !== void 0)
         fields[field2] = value;
@@ -251596,7 +252532,7 @@ function validateTelemetryConfigurationFact(value) {
   return structuredClone(value);
 }
 function createTelemetryEgressAuthorization(input) {
-  if (!isEndpointOrigin(input.targetOrigin) || input.resolvedAddresses.length === 0 || input.resolvedAddresses.some((address) => isIP2(address) === 0)) {
+  if (!isEndpointOrigin(input.targetOrigin) || input.resolvedAddresses.length === 0 || input.resolvedAddresses.some((address) => isIP4(address) === 0)) {
     throw new Error("Telemetry egress authorization \u7F3A\u5C11\u5408\u6CD5 origin \u6216\u89E3\u6790\u5730\u5740");
   }
   const value = {
@@ -251619,7 +252555,7 @@ function validateTelemetryEgressAuthorization(value, endpointOrigin) {
     targetOrigin: endpointOrigin,
     resolvedAddresses: Array.isArray(value.resolvedAddresses) ? value.resolvedAddresses.filter((item) => isNonBlankString2(item)) : []
   });
-  if (value.schemaVersion !== 1 || value.targetOrigin !== endpointOrigin || !Array.isArray(value.resolvedAddresses) || value.resolvedAddresses.length === 0 || !isCanonicalStringList(value.resolvedAddresses) || !value.resolvedAddresses.every((address) => isIP2(address) !== 0) || value.redirectPolicy !== "deny" || value.proxyPolicy !== "deny" || value.tlsPolicy !== "strict" || value.policyFingerprint !== expected.policyFingerprint) {
+  if (value.schemaVersion !== 1 || value.targetOrigin !== endpointOrigin || !Array.isArray(value.resolvedAddresses) || value.resolvedAddresses.length === 0 || !isCanonicalStringList(value.resolvedAddresses) || !value.resolvedAddresses.every((address) => isIP4(address) !== 0) || value.redirectPolicy !== "deny" || value.proxyPolicy !== "deny" || value.tlsPolicy !== "strict" || value.policyFingerprint !== expected.policyFingerprint) {
     throw new Error("Telemetry egress authorization \u4E0E\u914D\u7F6E\u76EE\u6807\u4E0D\u4E00\u81F4");
   }
   return structuredClone(value);
@@ -251677,7 +252613,7 @@ function isRecord9(value) {
 }
 
 // packages/coremind-runtime/dist/runtime.js
-import { randomUUID as randomUUID20 } from "node:crypto";
+import { randomUUID as randomUUID21 } from "node:crypto";
 import path43 from "node:path";
 
 // packages/coremind-templates/dist/index.js
@@ -252370,12 +253306,12 @@ function createToolExecutionEvidence(input) {
     } : {}
   };
 }
-function assessRuntimeEngineeringEvidence(events, policy, verificationStepId) {
+function assessRuntimeEngineeringEvidence(events, policy2, verificationStepId) {
   const successfulTests = /* @__PURE__ */ new Set();
   let regressionCommandMatched = false;
   let diffReviewed = false;
   let checkpointRecorded = false;
-  const regressionFingerprint = commandFingerprint(policy.regressionCommand);
+  const regressionFingerprint = commandFingerprint(policy2.regressionCommand);
   for (const event of events) {
     if (event.type === "checkpoint_created" && event.reversible && (event.tool === "edit" || event.tool === "write")) {
       checkpointRecorded = true;
@@ -252391,17 +253327,17 @@ function assessRuntimeEngineeringEvidence(events, policy, verificationStepId) {
       regressionCommandMatched = true;
     }
   }
-  const minimum = policy.minSuccessfulTestCommands ?? 2;
+  const minimum = policy2.minSuccessfulTestCommands ?? 2;
   const reasons = [];
   if (successfulTests.size < minimum) {
     reasons.push(`\u6210\u529F\u6D4B\u8BD5\u547D\u4EE4\u4E0D\u8DB3\uFF1A\u9700\u8981 ${minimum} \u6761\uFF0C\u5B9E\u9645 ${successfulTests.size} \u6761`);
   }
   if (!regressionCommandMatched)
     reasons.push("\u672A\u6267\u884C\u914D\u7F6E\u7684\u5B8C\u6574\u56DE\u5F52\u547D\u4EE4\u6216\u547D\u4EE4\u672A\u6210\u529F");
-  if ((policy.requireCheckpoint ?? true) && !checkpointRecorded) {
+  if ((policy2.requireCheckpoint ?? true) && !checkpointRecorded) {
     reasons.push("\u6CA1\u6709\u53EF\u6062\u590D\u7684\u5199\u524D Checkpoint");
   }
-  if ((policy.requireDiffReview ?? true) && !diffReviewed) {
+  if ((policy2.requireDiffReview ?? true) && !diffReviewed) {
     reasons.push("\u9A8C\u8BC1\u9636\u6BB5\u6CA1\u6709\u6210\u529F\u6267\u884C git_diff");
   }
   return {
@@ -253579,16 +254515,25 @@ function inspectExecutionSecurity(config2) {
       path: "provider.apiKey"
     });
   }
+  const headerSources = [];
   if (provider && "headers" in provider && provider.headers) {
-    for (const name of Object.keys(provider.headers)) {
+    headerSources.push({ path: "provider.headers", headers: provider.headers });
+  }
+  for (const [name, server] of Object.entries(config2.mcp?.servers ?? {})) {
+    if (server.transport === "streamable-http" && server.headers) {
+      headerSources.push({ path: `mcp.servers.${name}.headers`, headers: server.headers });
+    }
+  }
+  for (const source of headerSources) {
+    for (const name of Object.keys(source.headers)) {
       if (!SENSITIVE_HEADER_NAMES.has(name.trim().toLowerCase()))
         continue;
-      if (typeof provider.headers[name] !== "string")
+      if (typeof source.headers[name] !== "string")
         continue;
       findings.push({
         code: "execution_security_violation",
         message: `\u654F\u611F Header ${name} \u4E0D\u5141\u8BB8\u4F7F\u7528\u5B57\u9762\u91CF`,
-        path: `provider.headers.${name}`
+        path: `${source.path}.${name}`
       });
     }
   }
@@ -253601,7 +254546,7 @@ function enforceExecutionSecurity(config2) {
 }
 
 // packages/coremind-runtime/dist/host-verification.js
-import { createHash as createHash16, randomUUID as randomUUID12 } from "node:crypto";
+import { createHash as createHash16, randomUUID as randomUUID13 } from "node:crypto";
 var HostVerificationGate = class {
   options;
   requests = /* @__PURE__ */ new Map();
@@ -253651,7 +254596,7 @@ var HostVerificationGate = class {
       request = {
         schemaVersion: 1,
         runId: this.options.runId,
-        requestId: randomUUID12(),
+        requestId: randomUUID13(),
         stepId: input.stepId,
         iteration: input.iteration,
         candidateSha256
@@ -253717,7 +254662,7 @@ var HostVerificationGate = class {
 };
 
 // packages/coremind-runtime/dist/input-receipt.js
-import { createHash as createHash17, randomUUID as randomUUID13 } from "node:crypto";
+import { createHash as createHash17, randomUUID as randomUUID14 } from "node:crypto";
 var TRANSITIONS = {
   pending: ["claimed", "discarded"],
   claimed: ["completed", "discarded"],
@@ -253728,7 +254673,7 @@ function inputFingerprint(content) {
   return createHash17("sha256").update(content, "utf8").digest("hex").slice(0, 16);
 }
 function newInputId() {
-  return randomUUID13();
+  return randomUUID14();
 }
 function controlInputId(runId, controlId) {
   const digest2 = createHash17("sha256").update(JSON.stringify([runId, controlId]), "utf8").digest("hex");
@@ -253822,14 +254767,14 @@ var LifecycleExtensionError = class extends Error {
 var LifecycleExtensionHost = class {
   extensions;
   timeoutMs;
-  constructor(policy) {
-    this.timeoutMs = policy.timeoutMs ?? 1e3;
+  constructor(policy2) {
+    this.timeoutMs = policy2.timeoutMs ?? 1e3;
     if (!Number.isInteger(this.timeoutMs) || this.timeoutMs < 1) {
       throw new LifecycleExtensionError("extension_invalid", "\u6269\u5C55\u8D85\u65F6\u5FC5\u987B\u662F\u6B63\u6574\u6570\u6BEB\u79D2");
     }
     const seen = /* @__PURE__ */ new Set();
-    const trusted = new Set(policy.trustedIds);
-    for (const extension2 of policy.extensions) {
+    const trusted = new Set(policy2.trustedIds);
+    for (const extension2 of policy2.extensions) {
       if (seen.has(extension2.id)) {
         throw new LifecycleExtensionError("extension_duplicate", `\u6269\u5C55 id \u91CD\u590D\uFF1A${extension2.id}`);
       }
@@ -253837,12 +254782,12 @@ var LifecycleExtensionHost = class {
       if (!trusted.has(extension2.id)) {
         throw new LifecycleExtensionError("extension_not_trusted", `\u6269\u5C55 ${extension2.id} \u672A\u5217\u5165\u663E\u5F0F\u4FE1\u4EFB\u6E05\u5355`);
       }
-      const grant = policy.grants[extension2.id];
+      const grant = policy2.grants[extension2.id];
       if (!grant || !capabilitiesAllowed(extension2.capabilities, grant)) {
         throw new LifecycleExtensionError("extension_capability_denied", `\u6269\u5C55 ${extension2.id} \u8BF7\u6C42\u7684\u80FD\u529B\u672A\u88AB\u5B8C\u6574\u6388\u6743`);
       }
     }
-    this.extensions = [...policy.extensions].sort((left, right) => left.id.localeCompare(right.id, "en"));
+    this.extensions = [...policy2.extensions].sort((left, right) => left.id.localeCompare(right.id, "en"));
   }
   async dispatch(type, payload) {
     const receipts = [];
@@ -253879,7 +254824,7 @@ var LifecycleExtensionHost = class {
           event: type,
           status: timedOut ? "timed_out" : "failed",
           durationMs: performance.now() - startedAt,
-          error: timedOut ? `\u8D85\u8FC7 ${this.timeoutMs}ms` : safeError(error3)
+          error: timedOut ? `\u8D85\u8FC7 ${this.timeoutMs}ms` : safeError2(error3)
         });
       }
     }
@@ -253937,7 +254882,7 @@ function withTimeout2(promise, timeoutMs) {
     });
   });
 }
-function safeError(error3) {
+function safeError2(error3) {
   const value = error3 instanceof Error ? error3.message : String(error3);
   return value.replace(/(?:sk-|key-|token-)[a-z0-9_-]+/gi, "<redacted>");
 }
@@ -258094,8 +259039,20 @@ function createMcpRun(options) {
     }
     const reserved = /* @__PURE__ */ new Set([...BUILTIN_TOOL_IDS, ...request.reservedToolNames ?? []]);
     const prepared = [];
-    for (const [serverName, selections] of grouped) {
-      const server = structuredClone(options.config.mcp.servers[serverName]);
+    const resources = agent.mcpResources ?? {};
+    const serverNames = /* @__PURE__ */ new Set([
+      ...grouped.keys(),
+      ...Object.keys(resources).filter((name) => resources[name].length > 0)
+    ]);
+    for (const serverName of serverNames) {
+      const selections = grouped.get(serverName) ?? [];
+      const resourceUris = [...resources[serverName] ?? []];
+      const configuredServer = options.config.mcp?.servers[serverName];
+      if (!configuredServer)
+        throw new CoreMindError("invalid_tool", "MCP \u5F15\u7528\u4E86\u672A\u77E5\u670D\u52A1");
+      const server = structuredClone(configuredServer);
+      if (resourceUris.length > 0 && server.transport !== "streamable-http")
+        throw new CoreMindError("invalid_tool", "\u8D44\u6E90\u6388\u6743\u4EC5\u652F\u6301 Streamable HTTP \u670D\u52A1");
       const identity3 = await identifyServer(serverName, server);
       assertOpen(signal);
       const target = freezeJson2({ ...identity3.target, serverIdentity: identity3.sha256 });
@@ -258107,111 +259064,208 @@ function createMcpRun(options) {
         reserved.add(name);
       }
       let client;
-      await request.executeHost({
-        name: connectName,
-        args: { ...target, operation: "connect" },
-        effect: { operations: ["process"], reversible: false },
-        capability: { ...HOST_CAPABILITY },
-        approvalDescription: describeTarget(target, "\u5EFA\u7ACB\u8FDE\u63A5"),
-        invoke: async () => {
-          assertOpen(signal);
-          const { env: env2, sensitiveValues } = await resolveEnvironment(server, options);
-          assertOpen(signal);
-          if ((await identifyServer(serverName, server)).sha256 !== identity3.sha256)
-            throw new CoreMindError("tool_capability_conflict", "\u672C\u5730\u670D\u52A1\u76EE\u6807\u5728\u6279\u51C6\u540E\u53D1\u751F\u53D8\u5316");
-          assertOpen(signal);
-          client = createMcpStdioClient({
-            command: target.command,
-            args: target.argv,
-            cwd: target.cwd,
-            env: env2,
-            runEnvironment: options.environment,
-            signal,
-            protocolVersion: server.protocolVersion ?? "legacy",
-            sensitiveValues,
-            artifactStore: options.artifactStore
+      let connection;
+      const connect = () => {
+        if (connection)
+          return connection;
+        connection = (async () => {
+          await request.executeHost({
+            name: connectName,
+            args: { ...target, operation: "connect" },
+            effect: {
+              operations: [server.transport === "stdio" ? "process" : "network"],
+              reversible: false
+            },
+            capability: {
+              ...HOST_CAPABILITY,
+              effect: server.transport === "stdio" ? "process" : "network",
+              concurrency: server.transport === "stdio" ? "run_serial" : "parallel",
+              checkpoint: server.transport === "stdio" ? "unsupported" : "none"
+            },
+            approvalDescription: describeTarget(target, "\u5EFA\u7ACB\u8FDE\u63A5"),
+            invoke: async () => {
+              assertOpen(signal);
+              if (server.transport === "stdio" && "command" in target) {
+                const { env: env2, sensitiveValues } = await resolveEnvironment(server, options);
+                assertOpen(signal);
+                if ((await identifyServer(serverName, server)).sha256 !== identity3.sha256)
+                  throw new CoreMindError("tool_capability_conflict", "\u672C\u5730\u670D\u52A1\u76EE\u6807\u5728\u6279\u51C6\u540E\u53D1\u751F\u53D8\u5316");
+                assertOpen(signal);
+                client = createMcpStdioClient({
+                  command: target.command,
+                  args: target.argv,
+                  cwd: target.cwd,
+                  env: env2,
+                  runEnvironment: options.environment,
+                  signal,
+                  protocolVersion: server.protocolVersion ?? "legacy",
+                  sensitiveValues,
+                  artifactStore: options.artifactStore
+                });
+              } else if (server.transport === "streamable-http" && "url" in target) {
+                const { headers, sensitiveValues } = await resolveHeaders(server, options);
+                assertOpen(signal);
+                client = createMcpHttpClient({
+                  url: server.url,
+                  headers,
+                  allowedAddresses: server.allowedAddresses,
+                  allowedResourceUris: resourceUris,
+                  runEnvironment: options.environment,
+                  signal,
+                  protocolVersion: server.protocolVersion ?? "legacy",
+                  sensitiveValues,
+                  artifactStore: options.artifactStore
+                });
+              } else
+                throw new CoreMindError("invalid_tool", "MCP \u670D\u52A1\u7C7B\u578B\u4E0E\u8EAB\u4EFD\u4E0D\u4E00\u81F4");
+              owners.add(client);
+              await client.connect(signal);
+              assertOpen(signal);
+              return {
+                text: "\u672C\u5730\u670D\u52A1\u8FDE\u63A5\u5DF2\u5EFA\u7ACB",
+                details: {
+                  mcp: {
+                    server: serverName,
+                    serverIdentity: identity3.sha256,
+                    status: "connected",
+                    environment: client.environmentSummary
+                  }
+                }
+              };
+            }
           });
-          owners.add(client);
-          await client.connect(signal);
           assertOpen(signal);
-          return {
-            text: "\u672C\u5730\u670D\u52A1\u8FDE\u63A5\u5DF2\u5EFA\u7ACB",
-            details: {
-              mcp: {
-                server: serverName,
-                serverIdentity: identity3.sha256,
-                status: "connected",
-                environment: client.environmentSummary
+          if (!client)
+            throw new CoreMindError("tool_execution_failed", "\u5BBF\u4E3B\u6CA1\u6709\u6267\u884C\u5DF2\u51C6\u5165\u7684\u8FDE\u63A5\u52A8\u4F5C");
+          return client;
+        })();
+        return connection;
+      };
+      if (selections.length > 0) {
+        const connectedClient = await connect();
+        let catalog;
+        await request.executeHost({
+          name: listName,
+          args: { ...target, operation: "list", tools: selections.map((tool) => tool.mcp.tool) },
+          effect: {
+            operations: [server.transport === "stdio" ? "external" : "network"],
+            reversible: false
+          },
+          capability: {
+            ...HOST_CAPABILITY,
+            effect: server.transport === "stdio" ? "external" : "network",
+            concurrency: server.transport === "stdio" ? "run_serial" : "parallel",
+            checkpoint: server.transport === "stdio" ? "unsupported" : "none"
+          },
+          approvalDescription: describeTarget(target, "\u8BFB\u53D6\u5DE5\u5177\u76EE\u5F55"),
+          invoke: async () => {
+            assertOpen(signal);
+            catalog = await connectedClient.listTools(signal);
+            assertOpen(signal);
+            return {
+              text: "\u672C\u5730\u5DE5\u5177\u76EE\u5F55\u5DF2\u8BFB\u53D6",
+              details: {
+                mcp: {
+                  server: serverName,
+                  serverIdentity: identity3.sha256,
+                  toolCount: catalog.length
+                }
               }
-            }
-          };
-        }
-      });
-      assertOpen(signal);
-      if (!client)
-        throw new CoreMindError("tool_execution_failed", "\u5BBF\u4E3B\u6CA1\u6709\u6267\u884C\u5DF2\u51C6\u5165\u7684\u8FDE\u63A5\u52A8\u4F5C");
-      const connectedClient = client;
-      let catalog;
-      await request.executeHost({
-        name: listName,
-        args: { ...target, operation: "list", tools: selections.map((tool) => tool.mcp.tool) },
-        effect: { operations: ["external"], reversible: false },
-        capability: { ...HOST_CAPABILITY, effect: "external" },
-        approvalDescription: describeTarget(target, "\u8BFB\u53D6\u5DE5\u5177\u76EE\u5F55"),
-        invoke: async () => {
-          assertOpen(signal);
-          catalog = await connectedClient.listTools(signal);
-          assertOpen(signal);
-          return {
-            text: "\u672C\u5730\u5DE5\u5177\u76EE\u5F55\u5DF2\u8BFB\u53D6",
-            details: {
-              mcp: {
-                server: serverName,
-                serverIdentity: identity3.sha256,
-                toolCount: catalog.length
-              }
-            }
-          };
-        }
-      });
-      assertOpen(signal);
-      if (!catalog)
-        throw new CoreMindError("tool_execution_failed", "\u5BBF\u4E3B\u6CA1\u6709\u6267\u884C\u5DF2\u51C6\u5165\u7684\u76EE\u5F55\u52A8\u4F5C");
-      const listedTools = catalog;
-      for (const selection of selections) {
-        const matches2 = listedTools.filter((tool) => tool.name === selection.mcp.tool);
-        if (matches2.length !== 1)
-          throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u76EE\u5F55\u7F3A\u5C11\u552F\u4E00\u7684\u5DF2\u9009\u62E9\u5DE5\u5177");
-        const listed2 = matches2[0];
-        const authorization = freezeJson2({
-          ...target,
-          tool: listed2.name,
-          schemaSha256: listed2.schemaSha256,
-          definitionSha256: fingerprintEffectReceiptValue(listed2.definition),
-          effect: selection.effect,
-          capability: selection.capability
+            };
+          }
         });
-        const name = alias(serverName, listed2.name, fingerprintEffectReceiptValue(authorization));
+        assertOpen(signal);
+        if (!catalog)
+          throw new CoreMindError("tool_execution_failed", "\u5BBF\u4E3B\u6CA1\u6709\u6267\u884C\u5DF2\u51C6\u5165\u7684\u76EE\u5F55\u52A8\u4F5C");
+        const listedTools = catalog;
+        for (const selection of selections) {
+          const matches2 = listedTools.filter((tool) => tool.name === selection.mcp.tool);
+          if (matches2.length !== 1)
+            throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u76EE\u5F55\u7F3A\u5C11\u552F\u4E00\u7684\u5DF2\u9009\u62E9\u5DE5\u5177");
+          const listed2 = matches2[0];
+          const authorization = freezeJson2({
+            ...target,
+            tool: listed2.name,
+            schemaSha256: listed2.schemaSha256,
+            definitionSha256: fingerprintEffectReceiptValue(listed2.definition),
+            effect: selection.effect,
+            capability: selection.capability
+          });
+          const name = alias(serverName, listed2.name, fingerprintEffectReceiptValue(authorization));
+          if (reserved.has(name))
+            throw new CoreMindError("invalid_tool", "\u672C\u5730\u5DE5\u5177\u522B\u540D\u4E0E\u5DF2\u6709\u5DE5\u5177\u51B2\u7A81");
+          reserved.add(name);
+          const approvalDescription = describeTarget(authorization, `\u8C03\u7528\u539F\u59CB\u5DE5\u5177 ${listed2.name}`);
+          prepared.push({
+            authorization,
+            approvalDescription,
+            definition: {
+              name,
+              description: `${listed2.description || listed2.name}\uFF08\u672C\u5730\u670D\u52A1 ${serverName} / ${listed2.name}\uFF09`,
+              parameters: structuredClone(listed2.inputSchema),
+              effect: selection.effect,
+              capability: selection.capability,
+              execute: async (args, context) => {
+                const callSignal = AbortSignal.any([
+                  signal,
+                  ...context.signal ? [context.signal] : []
+                ]);
+                assertOpen(callSignal);
+                return connectedClient.callTool(listed2, args, callSignal);
+              }
+            }
+          });
+        }
+      }
+      for (const operation of [
+        "resources/list",
+        "resources/templates/list",
+        "resources/read"
+      ]) {
+        if (resourceUris.length === 0)
+          break;
+        const capability = {
+          effect: "network",
+          replay: "unknown",
+          concurrency: "parallel",
+          checkpoint: "none",
+          durability: "critical"
+        };
+        const authorization = freezeJson2({ ...target, operation, resourceUris, capability });
+        const name = alias(serverName, operation.replaceAll("/", "_"), fingerprintEffectReceiptValue(authorization));
         if (reserved.has(name))
-          throw new CoreMindError("invalid_tool", "\u672C\u5730\u5DE5\u5177\u522B\u540D\u4E0E\u5DF2\u6709\u5DE5\u5177\u51B2\u7A81");
+          throw new CoreMindError("invalid_tool", "MCP \u8D44\u6E90\u5DE5\u5177\u522B\u540D\u51B2\u7A81");
         reserved.add(name);
-        const approvalDescription = describeTarget(authorization, `\u8C03\u7528\u539F\u59CB\u5DE5\u5177 ${listed2.name}`);
+        const read = operation === "resources/read";
         prepared.push({
           authorization,
-          approvalDescription,
+          approvalDescription: describeTarget(authorization, `\u8D44\u6E90\u64CD\u4F5C ${operation}`),
           definition: {
             name,
-            description: `${listed2.description || listed2.name}\uFF08\u672C\u5730\u670D\u52A1 ${serverName} / ${listed2.name}\uFF09`,
-            parameters: structuredClone(listed2.inputSchema),
-            effect: selection.effect,
-            capability: selection.capability,
+            description: `MCP \u8D44\u6E90 ${operation}\uFF08\u670D\u52A1 ${serverName}\uFF1B\u4EC5\u5F53\u524D Agent \u7CBE\u786E\u6388\u6743 URI\uFF09`,
+            parameters: {
+              type: "object",
+              properties: read ? { uri: { type: "string", enum: resourceUris } } : {},
+              ...read ? { required: ["uri"] } : {},
+              additionalProperties: false
+            },
+            effect: { operations: ["network"], reversible: false },
+            capability,
             execute: async (args, context) => {
               const callSignal = AbortSignal.any([
                 signal,
                 ...context.signal ? [context.signal] : []
               ]);
               assertOpen(callSignal);
-              return connectedClient.callTool(listed2, args, callSignal);
+              if (args === null || typeof args !== "object" || Array.isArray(args) || Object.keys(args).some((key) => !read || key !== "uri") || read && (typeof args.uri !== "string" || !resourceUris.includes(args.uri)))
+                throw new CoreMindError("invalid_tool", "MCP \u8D44\u6E90\u53C2\u6570\u4E0D\u5728\u5F53\u524D Agent \u7684\u7CBE\u786E\u6388\u6743\u8303\u56F4\u5185");
+              const resourceClient = await waitForMcpConnection(connect(), callSignal);
+              assertOpen(callSignal);
+              if (operation === "resources/list")
+                return resourceClient.listResources(callSignal);
+              if (operation === "resources/templates/list")
+                return resourceClient.listResourceTemplates(callSignal);
+              return resourceClient.readResource(args.uri, callSignal);
             }
           }
         });
@@ -258246,6 +259300,25 @@ function createMcpRun(options) {
   };
 }
 async function identifyServer(serverName, server) {
+  if (server.transport === "streamable-http") {
+    let url2;
+    try {
+      url2 = new URL(server.url);
+    } catch {
+      throw new CoreMindError("invalid_tool", "MCP HTTP URL \u65E0\u6548");
+    }
+    if (!["http:", "https:"].includes(url2.protocol) || url2.username || url2.password || url2.search || url2.hash)
+      throw new CoreMindError("invalid_tool", "MCP HTTP URL \u5FC5\u987B\u662F\u65E0\u51ED\u636E\u3001\u67E5\u8BE2\u548C\u7247\u6BB5\u7684\u56FA\u5B9A HTTP(S) \u76EE\u6807");
+    const target2 = {
+      server: serverName,
+      transport: server.transport,
+      url: url2.href,
+      headerReferences: Object.fromEntries(Object.entries(server.headers ?? {}).sort(([a2], [b2]) => a2 < b2 ? -1 : a2 > b2 ? 1 : 0)),
+      allowedAddresses: [...server.allowedAddresses ?? []].sort(),
+      protocolVersion: server.protocolVersion ?? "legacy"
+    };
+    return { target: target2, sha256: fingerprintEffectReceiptValue(target2) };
+  }
   if (!path39.isAbsolute(server.command) || !path39.isAbsolute(server.cwd))
     throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u547D\u4EE4\u4E0E\u5DE5\u4F5C\u76EE\u5F55\u5FC5\u987B\u4E3A\u7EDD\u5BF9\u8DEF\u5F84");
   const command = await realpath10(server.command);
@@ -258308,11 +259381,44 @@ async function resolveEnvironment(server, options) {
   }
   return { env: env2, sensitiveValues };
 }
+async function resolveHeaders(server, options) {
+  const headers = /* @__PURE__ */ Object.create(null);
+  const sensitiveValues = [];
+  for (const [name, reference] of Object.entries(server.headers ?? {})) {
+    let value;
+    try {
+      value = typeof reference === "string" ? reference : "env" in reference ? options.env[reference.env] : await options.secretResolver?.resolve(reference.secretRef);
+    } catch {
+      throw new CoreMindError("secret_reference_unresolved", "MCP HTTP Header \u5F15\u7528\u65E0\u6CD5\u89E3\u6790");
+    }
+    if (typeof value !== "string" || value.trim().length === 0 || /[\r\n]/u.test(value) || value.includes("\0"))
+      throw new CoreMindError("secret_reference_unresolved", "MCP HTTP Header \u5F15\u7528\u4E3A\u7A7A\u3001\u65E0\u6548\u6216\u65E0\u6CD5\u89E3\u6790");
+    const headerValue2 = value.trim();
+    headers[name] = headerValue2;
+    if (typeof reference !== "string") {
+      sensitiveValues.push(value, headerValue2);
+      const token = name.toLowerCase() === "authorization" ? /^(?:Bearer|Basic)\s+(.+)$/iu.exec(headerValue2)?.[1] : void 0;
+      if (token)
+        sensitiveValues.push(token);
+    }
+  }
+  return { headers, sensitiveValues };
+}
+function waitForMcpConnection(promise, signal) {
+  signal.throwIfAborted();
+  return new Promise((resolve9, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    promise.then(resolve9, reject).finally(() => signal.removeEventListener("abort", abort));
+  });
+}
 function alias(server, tool, sha2562) {
   const short = (value, length) => value.replace(/[^A-Za-z0-9_-]/gu, "_").slice(0, length);
   return `mcp_${short(server, 8)}_${short(tool, 12)}_${sha2562.slice(0, 32)}`;
 }
 function describeTarget(target, action) {
+  if (typeof target.url === "string")
+    return `${action}\uFF1A${String(target.server)}\uFF1BHTTP ${target.url}\uFF1B\u8EAB\u4EFD ${String(target.serverIdentity)}`;
   return `${action}\uFF1A${String(target.server)}\uFF1B\u7A0B\u5E8F ${String(target.command)}\uFF1B\u76EE\u5F55 ${String(target.cwd)}\uFF1B\u8EAB\u4EFD ${String(target.serverIdentity)}`;
 }
 function freezeJson2(value) {
@@ -258467,12 +259573,12 @@ function validTimestamp(value) {
 }
 
 // packages/coremind-runtime/dist/run-state.js
-import { createHash as createHash20, randomUUID as randomUUID15 } from "node:crypto";
+import { createHash as createHash20, randomUUID as randomUUID16 } from "node:crypto";
 import { link as link2, mkdir as mkdir7, open as open7, readFile as readFile9, rename as rename4, rm as rm6, stat as stat8, writeFile as writeFile8 } from "node:fs/promises";
 import path40 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
-import { randomUUID as randomUUID14 } from "node:crypto";
+import { randomUUID as randomUUID15 } from "node:crypto";
 var flushOperations = /* @__PURE__ */ new WeakMap();
 function flushFactLedgerWith(ledger, operation) {
   let result;
@@ -258509,7 +259615,7 @@ var FactLedger = class {
     const durability = options.durability ?? "ordinary";
     const sequence2 = this.nextSequence;
     this.nextSequence += 1;
-    const eventId = options.eventId ?? randomUUID14();
+    const eventId = options.eventId ?? randomUUID15();
     const record2 = {
       version: 1,
       runId: this.runId,
@@ -258738,7 +259844,7 @@ var FileRunStore = class {
     return { records, needsSeparator: text2.length > 0 && !terminated };
   }
   async publishAtomically(destination, text2, record2, durability = "ordinary") {
-    const temporary = `${destination}.${process.pid}.${randomUUID15()}.tmp`;
+    const temporary = `${destination}.${process.pid}.${randomUUID16()}.tmp`;
     try {
       await writeFile8(temporary, text2, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit?.({ destination, temporary, record: record2 });
@@ -258765,7 +259871,7 @@ var FileRunStore = class {
   async prepareAppend(destination, record2, text2) {
     if (!this.options.beforeCommit)
       return;
-    const temporary = `${destination}.${process.pid}.${randomUUID15()}.tmp`;
+    const temporary = `${destination}.${process.pid}.${randomUUID16()}.tmp`;
     try {
       await writeFile8(temporary, text2, { encoding: "utf8", flag: "wx" });
       await this.options.beforeCommit({ destination, temporary, record: record2 });
@@ -258887,7 +259993,7 @@ var FileRunStore = class {
     const owner = {
       pid: process.pid,
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-      nonce: randomUUID15()
+      nonce: randomUUID16()
     };
     let acquired = false;
     let transientPermissionError;
@@ -258923,7 +260029,7 @@ var FileRunStore = class {
     if (inspected.state !== "valid" || isProcessAlive3(inspected.owner.pid))
       return false;
     const claimPath = `${lockPath}.reclaim-${inspected.owner.nonce}`;
-    const tombstonePath = `${claimPath}.tombstone-${randomUUID15()}`;
+    const tombstonePath = `${claimPath}.tombstone-${randomUUID16()}`;
     let claimHandle;
     try {
       claimHandle = await open7(claimPath, "wx");
@@ -260623,7 +261729,7 @@ function assessReleaseReadiness(outcome, evaluation) {
 }
 
 // packages/coremind-runtime/dist/run-context.js
-import { randomUUID as randomUUID16 } from "node:crypto";
+import { randomUUID as randomUUID17 } from "node:crypto";
 var RunContext = class {
   agents = /* @__PURE__ */ new Map();
   harnessFactory;
@@ -260641,7 +261747,7 @@ var RunContext = class {
   toolCalls = /* @__PURE__ */ new Map();
   delegationApprovalBindings = /* @__PURE__ */ new Map();
   terminationError;
-  registerAgent(name, agent, executionId = randomUUID16()) {
+  registerAgent(name, agent, executionId = randomUUID17()) {
     this.agents.set(executionId, { name, driver: agent });
   }
   agent(name, executionId) {
@@ -260920,7 +262026,7 @@ function outcomeFromError(error3) {
 }
 
 // packages/coremind-runtime/dist/session.js
-import { createHash as createHash22, randomUUID as randomUUID17 } from "node:crypto";
+import { createHash as createHash22, randomUUID as randomUUID18 } from "node:crypto";
 import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open8, readFile as readFile10, rename as rename5, rm as rm7, stat as stat9, unlink as unlink2, writeFile as writeFile9 } from "node:fs/promises";
 import path41 from "node:path";
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -261369,7 +262475,7 @@ async function ensureLegacyBackup(backupPath, source) {
     }
     return;
   }
-  const temporary = `${backupPath}.${process.pid}.${randomUUID17()}.tmp`;
+  const temporary = `${backupPath}.${process.pid}.${randomUUID18()}.tmp`;
   try {
     await writeFile9(temporary, source, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, backupPath);
@@ -261378,7 +262484,7 @@ async function ensureLegacyBackup(backupPath, source) {
   }
 }
 async function writeTextAtomically(destination, text2) {
-  const temporary = `${destination}.${process.pid}.${randomUUID17()}.tmp`;
+  const temporary = `${destination}.${process.pid}.${randomUUID18()}.tmp`;
   try {
     await writeFile9(temporary, text2, { encoding: "utf8", flag: "wx" });
     await rename5(temporary, destination);
@@ -261389,7 +262495,7 @@ async function writeTextAtomically(destination, text2) {
 async function publishPublicAlias(storagePath, publicPath2) {
   if (await pathsReferToSameFile(storagePath, publicPath2))
     return;
-  const temporary = `${publicPath2}.${process.pid}.${randomUUID17()}.alias`;
+  const temporary = `${publicPath2}.${process.pid}.${randomUUID18()}.alias`;
   try {
     await link3(storagePath, temporary);
     await unlink2(publicPath2).catch((error3) => {
@@ -261446,7 +262552,7 @@ function stripUndefined(value) {
 }
 
 // packages/coremind-runtime/dist/session-maintenance.js
-import { randomUUID as randomUUID18 } from "node:crypto";
+import { randomUUID as randomUUID19 } from "node:crypto";
 async function compactSessionInRun(options) {
   const { session, models, model, budget, journal, signal, emit: emit2, runId, agent } = options;
   signal.throwIfAborted();
@@ -261464,9 +262570,9 @@ async function compactSessionInRun(options) {
     if (!budget.canRequestModel())
       throw new CoreMindError("budget_exceeded", "\u6458\u8981\u5269\u4F59\u9884\u7B97\u4E0D\u8DB3");
     budget.beforeModelRequest();
-    const requestId = randomUUID18();
+    const requestId = randomUUID19();
     const stepId = `session-compaction:${requestId}`;
-    const turnId = randomUUID18();
+    const turnId = randomUUID19();
     await session.appendMaintenanceRecord({
       runId,
       requestId,
@@ -262031,7 +263137,7 @@ async function canonicalize4(input) {
 }
 
 // packages/coremind-runtime/dist/turn-tracker.js
-import { randomUUID as randomUUID19 } from "node:crypto";
+import { randomUUID as randomUUID20 } from "node:crypto";
 var TurnTracker = class _TurnTracker {
   /** 进行中的 Turn（流式期间） */
   currentTurnId;
@@ -262046,7 +263152,7 @@ var TurnTracker = class _TurnTracker {
       tracker = new _TurnTracker();
       this.scopes.set(key, tracker);
     }
-    const turnId = tracker.currentTurnId ?? randomUUID19();
+    const turnId = tracker.currentTurnId ?? randomUUID20();
     tracker.currentTurnId = turnId;
     tracker.openTurnId = turnId;
     return turnId;
@@ -262067,18 +263173,18 @@ var TurnTracker = class _TurnTracker {
   withLocalTurnId(event) {
     switch (event.type) {
       case "agent_start": {
-        const turnId = randomUUID19();
+        const turnId = randomUUID20();
         this.currentTurnId = turnId;
         this.openTurnId = turnId;
         return { ...event, turnId };
       }
       case "text_delta": {
         if (this.currentTurnId === void 0)
-          this.currentTurnId = randomUUID19();
+          this.currentTurnId = randomUUID20();
         return event;
       }
       case "turn_end": {
-        const turnId = this.currentTurnId ?? randomUUID19();
+        const turnId = this.currentTurnId ?? randomUUID20();
         this.openTurnId = turnId;
         this.currentTurnId = void 0;
         return { ...event, turnId };
@@ -262088,7 +263194,7 @@ var TurnTracker = class _TurnTracker {
       case "tool_lifecycle":
       case "effect_receipt": {
         if (this.openTurnId === void 0)
-          this.openTurnId = randomUUID19();
+          this.openTurnId = randomUUID20();
         return { ...event, turnId: this.openTurnId };
       }
       case "agent_end": {
@@ -262180,7 +263286,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (options.childRunAuthority && (options.toolDefinitions?.length ?? 0) > 0) {
       throw new CoreMindError("child_run_policy_escalation", "Child Runtime \u4E0D\u63A5\u53D7\u7F3A\u5C11\u5185\u5EFA provenance \u7684\u6CE8\u5165\u5DE5\u5177");
     }
-    if (options.childRunAuthority && (config2.mcp !== void 0 || [
+    if (options.childRunAuthority && (config2.mcp !== void 0 || Object.values(config2.agents).some((agent) => agent.mcpResources !== void 0) || [
       config2.tools ?? [],
       ...Object.values(config2.agents).map((agent) => agent.tools ?? [])
     ].some((tools) => tools.some((tool) => "mcp" in tool)))) {
@@ -262340,7 +263446,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (!buildDriver)
       return void 0;
     const context = runContextFor(this);
-    const executionId = randomUUID20();
+    const executionId = randomUUID21();
     const turnTracker = new TurnTracker();
     const originalHarness = context.harnessFor(name, stepId, executionId);
     signal?.throwIfAborted();
@@ -262624,7 +263730,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       parentPolicy,
       delegationBudgetPools,
       delegationHierarchyLimits,
-      createChildRunId: () => randomUUID20(),
+      createChildRunId: () => randomUUID21(),
       adapter: createCoreMindChildRunAdapter({
         createRuntime: async (authority) => {
           const target = this.config.agents[authority.request.agentName];
@@ -262636,9 +263742,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
           for (const agent of Object.values(childAgents)) {
             if (agent.tools)
               agent.tools = agent.tools.filter(isDelegatedBuiltinToolConfig);
+            delete agent.mcpResources;
           }
           childAgents[authority.request.agentName] = {
-            ...target,
+            ...childAgents[authority.request.agentName],
             ...target.tools ? { tools: target.tools.filter(isDelegatedBuiltinToolConfig) } : {},
             model: authority.request.model.model,
             options: authority.request.model.options
@@ -262810,7 +263917,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const parentTools = new Set(this.toolCapabilitiesByAgent.get(parentAgentName)?.keys() ?? []);
     const targetAgent = this.agentConfigs.get(args.target);
     const configuredTools = (targetAgent?.tools?.length ?? 0) > 0 ? targetAgent.tools : this.config.tools ?? [];
-    if (configuredTools.some((tool) => "mcp" in tool)) {
+    if (configuredTools.some((tool) => "mcp" in tool) || targetAgent?.mcpResources !== void 0) {
       throw new CoreMindError("child_run_policy_escalation", "Child Run \u4E0D\u7EE7\u627F\u5BBF\u4E3B\u672C\u5730\u670D\u52A1\u3001\u5DE5\u5177\u6216\u51ED\u636E");
     }
     const targetTools = [...this.toolCapabilitiesByAgent.get(args.target)?.keys() ?? []].filter((tool) => tool !== DELEGATION_TOOL_NAME && isDelegatedSafeToolName(tool));
@@ -262876,7 +263983,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throw new CoreMindError("tool_capability_conflict", `\u6062\u590D\u8C03\u7528 ${candidate.previousCallId} \u7684 Tool Capability \u5DF2\u6F02\u79FB\uFF0C\u4E0D\u80FD\u81EA\u52A8\u91CD\u653E`);
       }
     }
-    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID20();
+    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID21();
     context.attachRunId(runId);
     const effectiveInitialPrompt = resumePlan?.initialPrompt ?? this.options.initialPrompt;
     const admissionRecords = !resumePlan && this.options.protocolStart ? await runStore.read(runId) : [];
@@ -262886,8 +263993,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     context.attachJournal(journal);
     const operation = resumePlan && resumePlan.operationRecords.length > 0 ? restoreDurableOperation(resumePlan.operationRecords) : DurableOperation.create({
       runId,
-      operationId: randomUUID20(),
-      eventId: randomUUID20()
+      operationId: randomUUID21(),
+      eventId: randomUUID21()
     });
     const persistOperation = (event) => {
       const transition = operation.transition(event);
@@ -262932,15 +264039,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (operation.snapshot().state === "running") {
       persistOperation({
-        eventId: randomUUID20(),
+        eventId: randomUUID21(),
         type: "PAUSE",
         reason: "process_interrupted"
       });
     }
     if (operation.snapshot().state === "accepted") {
-      persistOperation({ eventId: randomUUID20(), type: "START" });
+      persistOperation({ eventId: randomUUID21(), type: "START" });
     } else if (operation.snapshot().state === "paused") {
-      persistOperation({ eventId: randomUUID20(), type: "RESUME" });
+      persistOperation({ eventId: randomUUID21(), type: "RESUME" });
     } else {
       throw new CoreMindError("operation_not_resumable", `\u64CD\u4F5C ${operation.snapshot().operationId} \u5904\u4E8E ${operation.snapshot().state}\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6267\u884C`);
     }
@@ -263372,13 +264479,13 @@ var CoreMindRuntime = class _CoreMindRuntime {
       context.setCompactedPrefixEnd(originalMessageCount);
       return entry.id;
     };
-    const policy = new ToolPolicy({
+    const policy2 = new ToolPolicy({
       permissions: this.config.permissions,
       allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
-      createApprovalId: randomUUID20,
+      createApprovalId: randomUUID21,
       delegation: {
         isAssistedPreapproved: (agent, target) => this.agentConfigs.get(agent)?.delegation?.targets[target]?.preapproved === true
       },
@@ -263710,7 +264817,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
               return { block: true, reason: delegationPolicyFailure.message, terminate: true };
             }
           }
-          const decision = await policy.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint);
+          const decision = await policy2.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint);
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
             status: "completed",
@@ -263787,7 +264894,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
             await toolExecutionEngine.advance(lifecycleIdentity, {
               phase: "lease_acquired",
               status: "skipped",
-              reason: "Pure Local Read \u4E0D\u9700\u8981 Workspace Lease"
+              reason: "\u8BE5\u5DE5\u5177\u58F0\u660E\u5141\u8BB8\u5E76\u884C\u6267\u884C\uFF0C\u4E0D\u9700\u8981 Workspace Lease"
             });
           } else {
             try {
@@ -264071,9 +265178,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
                 source: "registered",
                 declaration: operation2.capability
               }));
-              const call = { callId: randomUUID20(), tool: operation2.name, args: operation2.args };
+              const call = { callId: randomUUID21(), tool: operation2.name, args: operation2.args };
               const callKey = toolCapabilityCallKey(agentName, stepId, call.callId);
-              const turnId = randomUUID20();
+              const turnId = randomUUID21();
               emit2({
                 type: "tool_call",
                 agent: agentName,
@@ -264489,27 +265596,27 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (outcome.status === "paused") {
       persistOperation({
-        eventId: randomUUID20(),
+        eventId: randomUUID21(),
         type: "PAUSE",
         reason: outcome.finishReason
       });
     } else {
       if (outcome.status === "aborted") {
         persistOperation({
-          eventId: randomUUID20(),
+          eventId: randomUUID21(),
           type: "REQUEST_ABORT",
           reason: outcome.finishReason
         });
         persistOperation({
-          eventId: randomUUID20(),
+          eventId: randomUUID21(),
           type: "FAIL",
           reason: outcome.finishReason
         });
       } else if (outcome.status === "succeeded") {
-        persistOperation({ eventId: randomUUID20(), type: "COMPLETE" });
+        persistOperation({ eventId: randomUUID21(), type: "COMPLETE" });
       } else {
         persistOperation({
-          eventId: randomUUID20(),
+          eventId: randomUUID21(),
           type: "FAIL",
           reason: outcome.finishReason
         });
@@ -264976,16 +266083,16 @@ function tightenDelegationBudget(configured, inherited) {
   ]));
 }
 async function assertRuntimeChildPolicyAuthority(input) {
-  const { policy, config: config2, model, executionEnvironment, workspaceRoot, tools, limits, enforceRuntimeBudget, enforceDelegatedToolBoundary, trustedSkillLoader } = input;
+  const { policy: policy2, config: config2, model, executionEnvironment, workspaceRoot, tools, limits, enforceRuntimeBudget, enforceDelegatedToolBoundary, trustedSkillLoader } = input;
   const unsafeTool = enforceDelegatedToolBoundary ? [...tools].find((tool) => !isDelegatedSafeToolName(tool) && !(trustedSkillLoader && tool === SKILL_TOOL_NAME)) : void 0;
   if (unsafeTool) {
     throw new CoreMindError("child_run_policy_escalation", `Child Runtime \u5DE5\u5177 ${unsafeTool} \u4E0D\u80FD\u8BC1\u660E\u4E0D\u4F1A\u6269\u5C55 Delegated Context`);
   }
   const canonicalRoot = await canonicalizeWorkspace(workspaceRoot);
-  if (!matchesRuntimeChildModel(policy.model, model)) {
+  if (!matchesRuntimeChildModel(policy2.model, model)) {
     throw new CoreMindError("child_run_policy_escalation", "Child Run \u7236\u7B56\u7565\u6A21\u578B\u4E0E\u5F53\u524D Runtime \u7684\u5B9E\u9645 Provider/model \u4E0D\u4E00\u81F4");
   }
-  if (policy.workspace.canonicalRoot !== canonicalRoot || policy.workspace.lease !== "shared_canonical") {
+  if (policy2.workspace.canonicalRoot !== canonicalRoot || policy2.workspace.lease !== "shared_canonical") {
     throw new CoreMindError("child_run_policy_escalation", "Child Run \u7236\u7B56\u7565 Workspace \u5FC5\u987B\u7ED1\u5B9A\u5F53\u524D Runtime \u7684 canonical root \u4E0E\u5171\u4EAB\u79DF\u7EA6");
   }
   const permissions = {
@@ -264993,7 +266100,7 @@ async function assertRuntimeChildPolicyAuthority(input) {
     workspaceOnly: config2.permissions?.workspaceOnly ?? true,
     network: config2.permissions?.network ?? "ask"
   };
-  if (policy.permissions.mode !== permissions.mode || policy.permissions.workspaceOnly !== permissions.workspaceOnly || policy.permissions.network !== permissions.network || [...tools].some((tool) => !policy.permissions.tools.includes(tool)) || policy.permissions.paths.some((allowedPath) => path43.isAbsolute(allowedPath) || allowedPath.split(/[\\/]/u).includes("..")) || policy.permissions.credentials.length > 0) {
+  if (policy2.permissions.mode !== permissions.mode || policy2.permissions.workspaceOnly !== permissions.workspaceOnly || policy2.permissions.network !== permissions.network || [...tools].some((tool) => !policy2.permissions.tools.includes(tool)) || policy2.permissions.paths.some((allowedPath) => path43.isAbsolute(allowedPath) || allowedPath.split(/[\\/]/u).includes("..")) || policy2.permissions.credentials.length > 0) {
     throw new CoreMindError("child_run_policy_escalation", "Child Run \u7236\u7B56\u7565\u6743\u9650\u3001\u5DE5\u5177\u3001\u8DEF\u5F84\u6216\u51ED\u636E\u8303\u56F4\u4E0D\u662F\u5F53\u524D Runtime \u7684\u771F\u5B9E\u5B50\u96C6");
   }
   if (limits.maxTokens === void 0 || limits.maxCostUsd === void 0) {
@@ -265008,15 +266115,15 @@ async function assertRuntimeChildPolicyAuthority(input) {
       steps: limits.maxSteps
     };
     for (const key of Object.keys(budgetBounds)) {
-      if (budgetBounds[key] > policy.budget[key]) {
+      if (budgetBounds[key] > policy2.budget[key]) {
         throw new CoreMindError("child_run_policy_escalation", `Child Runtime \u7684 ${key} \u5B9E\u9645\u4E0A\u9650\u8D85\u8FC7\u7236\u7EA7\u5212\u62E8\u9884\u7B97`);
       }
     }
   }
   try {
-    await resolveExecutionEnvironment(executionEnvironment, policy.environment);
+    await resolveExecutionEnvironment(executionEnvironment, policy2.environment);
     if (executionEnvironment.hostNetwork && (tools.has("web-fetch") || tools.has("web-search"))) {
-      await resolveExecutionEnvironment(executionEnvironment.hostNetwork, policy.environment);
+      await resolveExecutionEnvironment(executionEnvironment.hostNetwork, policy2.environment);
     }
   } catch (error3) {
     throw new CoreMindError("child_run_policy_escalation", error3 instanceof Error ? error3.message : String(error3));

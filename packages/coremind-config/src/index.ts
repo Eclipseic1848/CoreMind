@@ -45,7 +45,12 @@ export {
   type LoopVerificationConfig,
   LoopVerificationSchema,
 } from "./schema/loop.js";
-export { McpConfigSchema, McpStdioServerConfigSchema } from "./schema/mcp.js";
+export {
+  McpConfigSchema,
+  type McpHttpServerConfig,
+  McpHttpServerConfigSchema,
+  McpStdioServerConfigSchema,
+} from "./schema/mcp.js";
 export {
   EnvironmentValueRefSchema,
   HeaderValueSchema,

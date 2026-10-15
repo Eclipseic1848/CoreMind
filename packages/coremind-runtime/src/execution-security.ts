@@ -30,14 +30,23 @@ export function inspectExecutionSecurity(config: CoreMindConfig): ExecutionSecur
       path: "provider.apiKey",
     });
   }
+  const headerSources: Array<{ path: string; headers: Record<string, unknown> }> = [];
   if (provider && "headers" in provider && provider.headers) {
-    for (const name of Object.keys(provider.headers)) {
+    headerSources.push({ path: "provider.headers", headers: provider.headers });
+  }
+  for (const [name, server] of Object.entries(config.mcp?.servers ?? {})) {
+    if (server.transport === "streamable-http" && server.headers) {
+      headerSources.push({ path: `mcp.servers.${name}.headers`, headers: server.headers });
+    }
+  }
+  for (const source of headerSources) {
+    for (const name of Object.keys(source.headers)) {
       if (!SENSITIVE_HEADER_NAMES.has(name.trim().toLowerCase())) continue;
-      if (typeof provider.headers[name] !== "string") continue;
+      if (typeof source.headers[name] !== "string") continue;
       findings.push({
         code: "execution_security_violation",
         message: `敏感 Header ${name} 不允许使用字面量`,
-        path: `provider.headers.${name}`,
+        path: `${source.path}.${name}`,
       });
     }
   }

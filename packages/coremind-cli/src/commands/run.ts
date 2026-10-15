@@ -101,6 +101,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     : undefined;
   const onSigint = () => controller.abort();
   process.once("SIGINT", onSigint);
+  approvalReadline?.on("SIGINT", onSigint);
 
   try {
     const runtime = await CoreMindRuntime.create({
@@ -171,6 +172,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     return 1;
   } finally {
     process.off("SIGINT", onSigint);
+    approvalReadline?.off("SIGINT", onSigint);
     unbindApprovals?.();
     approvals.close();
     approvalReadline?.close();

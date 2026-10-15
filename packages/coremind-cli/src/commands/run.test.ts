@@ -1,10 +1,14 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { EventEmitter } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { CoreMindRuntime } from "coremind-ai";
 import { describe, expect, it, vi } from "vitest";
 import { formatObservabilityStatus } from "../observability-format.js";
 import { cmdRun, exitCodeForRunStatus } from "./run.js";
+
+vi.mock("node:readline/promises", () => ({ createInterface: vi.fn() }));
 
 describe("run 终态退出码", () => {
   it.each([
@@ -149,5 +153,50 @@ it("--print 在工具事件和恢复会话时仅输出最终正文", async () =>
     create.mockRestore();
     stdout.mockRestore();
     logs.mockRestore();
+  }
+});
+
+it("TTY readline 的 Ctrl+C 中止同一 Run，并移除自身信号监听器", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "coremind-run-sigint-"));
+  const file = path.join(directory, "coremind.json");
+  await writeFile(
+    file,
+    JSON.stringify({ schemaVersion: 2, name: "tty-cancel", agents: { main: {} } }),
+    "utf8",
+  );
+  const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+  const questioner = Object.assign(new EventEmitter(), { question: vi.fn(), close: vi.fn() });
+  vi.mocked(createInterface).mockReturnValue(
+    questioner as unknown as ReturnType<typeof createInterface>,
+  );
+  const processSignals = process.listeners("SIGINT");
+  const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+  const create = vi.spyOn(CoreMindRuntime, "create").mockImplementation(async (options) => {
+    return {
+      resumedContextLength: 0,
+      run: async () => {
+        expect(options.signal?.aborted).toBe(false);
+        expect(questioner.listenerCount("SIGINT")).toBe(1);
+        questioner.emit("SIGINT");
+        expect(options.signal?.aborted).toBe(true);
+        return { transcript: "", outcome: { status: "aborted", finishReason: "aborted" } };
+      },
+    } as unknown as CoreMindRuntime;
+  });
+  try {
+    expect(await cmdRun({ flags: new Map([["print", true]]), positionals: [file] }, [file])).toBe(
+      130,
+    );
+    expect(questioner.listenerCount("SIGINT")).toBe(0);
+    expect(process.listeners("SIGINT")).toEqual(processSignals);
+    expect(questioner.close).toHaveBeenCalledTimes(1);
+  } finally {
+    create.mockRestore();
+    diagnostic.mockRestore();
+    vi.mocked(createInterface).mockReset();
+    if (ttyDescriptor) Object.defineProperty(process.stdin, "isTTY", ttyDescriptor);
+    else Reflect.deleteProperty(process.stdin, "isTTY");
+    await rm(directory, { recursive: true, force: true });
   }
 });

@@ -28,6 +28,20 @@ Run `coremind doctor coremind.yaml` for static diagnostics, then execute only wi
 
 From the repository root run `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`. Verify zero corresponding I/O on denial, the first model schema, real process cleanup, blocked secret output, and no retry of unknown effects. Protocol errors and business `isError` remain distinct; retries cannot establish that an unproven write is safe.
 
+## Controlled HTTP MCP and resources
+
+Use the [HTTP configuration](../../en/guide/02-configuration.md#controlled-http-mcp-and-exact-resource-authorization) with a fixed `streamable-http` URL without userinfo, query, or fragment. An environment reference in `headers.Authorization` must provide the complete value, including any `Bearer ` prefix. `secretRef` is also supported; never put tokens in configuration. Missing/unresolved credentials and 401/403 fail explicitly without OAuth, refresh, or identity fallback.
+
+Without `allowedAddresses`, HTTPS permits only verified public addresses. A nonempty list constrains every endpoint address to exact IP literals, including public addresses; private addresses must be listed too. Plain HTTP requires a loopback IP literal URL and a matching allowlist entry. Verified DNS answers are pinned to actual sockets, TLS hostname checks remain enabled, all redirects are rejected, and environment proxies are ignored. Static `doctor` never connects.
+
+HTTP connection, listing, and resource operations use existing network authorization. `network: allow` already approves them, including under `mode: ask`; `network: ask` retains network approval. Actual business `external` effects, explicit deny, and workspace hard gates remain. Child Runs inherit no MCP, resource, or credential authority.
+
+Select complete URI strings per agent, for example `mcpResources: {remote: ['fixture://first']}`. Missing and empty sets grant and inherit nothing. Resources require HTTP. List, templates, and read are lazy; matching templates never expands read scope, and returned content URIs must also be authorized. A `file:` URI is not a host-file API; links/HTML are not dereferenced or executed, and blobs are unsupported. Resource-only agents without inherited MCP tools perform no HTTP I/O before the first model request; tool-only selection never implicitly lists resources.
+
+Limits are 8 MiB per body, 64 MiB per owner, 32 pages/256 directory entries, and a 30-second total request/directory deadline. GET recovery allows at most three requests per owner in 30 seconds; business POSTs are never automatically resent. Cancelling one request must preserve other authorized calls. Run shutdown waits for local bodies/sockets/the dispatcher without sending remote DELETE; the service's lease owns remote session cleanup. Secrets must stay out of prompts, Facts, exceptions, and Worker JSON. Large safe results use the existing Artifact path.
+
+Follow the HTTP fetch/transport/client, Runtime, CLI, and Python tests in [module.yaml](module.yaml) for allowed, denied, cancelled, and unknown-effect cases while preserving stdio regressions. These are execution and acceptance instructions, not a claim that all tests or real external service interoperability have passed.
+
 ## Coding-tool boundaries
 
 ```ts
