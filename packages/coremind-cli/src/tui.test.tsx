@@ -942,10 +942,13 @@ describe("运行中控制与普通草稿", () => {
       />,
     );
     try {
+      let controls = 0;
       for (const status of ["accepted", "applied", "rejected", "duplicate", "conflict"] as const) {
         vi.mocked(session.steer).mockResolvedValueOnce(controlReceipt(status));
-        await typeCommand(app.stdin.write, `/steer ${status}`);
+        app.stdin.write(`/steer ${status}\r`);
         await vi.waitFor(() => expect(app.lastFrame()).toContain(`Run run-original · ${status}`));
+        expect(session.steer).toHaveBeenNthCalledWith(++controls, status);
+        expect(session.steer).toHaveBeenCalledTimes(controls);
       }
       listener?.({ type: "agent_start", agent: "main" });
       listener?.({ type: "text_delta", agent: "main", delta: "流式开头" });

@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createModels } from "@earendil-works/pi-ai";
@@ -197,6 +205,100 @@ describe("CoreMindSession（二期会话树存储）", () => {
     expect((await second.buildContext()).messages).toHaveLength(0);
     const reopened = await CoreMindSession.open(opts);
     expect((await reopened.buildContext()).messages).toHaveLength(1);
+  });
+
+  // #283：通过正式入口修复断尾，公开路径必须始终指向保留完整前缀的同一文件。
+  it.each([false, true])("断尾恢复保持公开 hardlink 与完整消息（迁移=%s）", async (legacy) => {
+    const dir = makeDir();
+    const sessionId = "tail-recovery";
+    const opts = { dir, sessionId, cwd };
+    if (legacy) writeLegacySession(dir, sessionId, [legacyMessage("old", null, "旧中文消息")]);
+    const session = await CoreMindSession.open(opts);
+    await session.appendMessages([
+      { role: "user", content: [{ type: "text", text: "完整中文与表情🙂" }] },
+    ]);
+    const prefix = readFileSync(session.filePath);
+    const identity = statSync(session.filePath);
+    const repository = new JsonlSessionRepo({
+      fs: new SessionFileSystem({ cwd }),
+      sessionsRoot: dir,
+    });
+    const metadata = (await repository.list({ cwd })).find((item) => item.id === sessionId)!;
+    expect(statSync(metadata.path).ino).toBe(identity.ino);
+    // 尾部半个 UTF-8 字符属于未完成记录，不能破坏已完成的多字节前缀。
+    appendFileSync(
+      session.filePath,
+      Buffer.concat([Buffer.from('{"kind":"entry","text":"', "utf8"), Buffer.from([0xe4, 0xb8])]),
+    );
+
+    const recovered = await CoreMindSession.open(opts);
+    expect((await recovered.buildContext()).messages.map(textOf)).toEqual([
+      ...(legacy ? ["旧中文消息"] : []),
+      "完整中文与表情🙂",
+    ]);
+    expect(readFileSync(recovered.filePath)).toEqual(prefix);
+    expect(readFileSync(metadata.path)).toEqual(prefix);
+    expect(statSync(recovered.filePath).ino).toBe(identity.ino);
+    expect(statSync(metadata.path).ino).toBe(identity.ino);
+    const reopened = await CoreMindSession.open(opts);
+    await reopened.appendMessages([{ role: "user", content: "恢复后继续" }]);
+    expect((await (await CoreMindSession.open(opts)).buildContext()).messages.at(-1)).toMatchObject(
+      {
+        role: "user",
+        content: "恢复后继续",
+      },
+    );
+  });
+
+  it("合法末行无换行只补分隔符，保留公开文件身份", async () => {
+    const opts = { dir: makeDir(), sessionId: "no-newline", cwd };
+    const session = await CoreMindSession.open(opts);
+    await session.appendMessages([{ role: "user", content: "保留末行" }]);
+    const prefix = readFileSync(session.filePath, "utf8");
+    const identity = statSync(session.filePath);
+    writeFileSync(session.filePath, prefix.slice(0, -1), "utf8");
+    const reopened = await CoreMindSession.open(opts);
+    expect((await reopened.buildContext()).messages.map(textOf)).toEqual(["保留末行"]);
+    expect(readFileSync(session.filePath, "utf8")).toBe(prefix);
+    expect(statSync(session.filePath).ino).toBe(identity.ino);
+  });
+
+  it("中间损坏仍拒绝，不截断或替换完整文件", async () => {
+    const opts = { dir: makeDir(), sessionId: "middle-corrupt", cwd };
+    const session = await CoreMindSession.open(opts);
+    await session.appendMessages([{ role: "user", content: "完整消息" }]);
+    const original = readFileSync(session.filePath, "utf8").split("\n");
+    original.splice(1, 0, "{损坏的中间行");
+    const corrupt = original.join("\n");
+    writeFileSync(session.filePath, corrupt, "utf8");
+    await expect(CoreMindSession.open(opts)).rejects.toThrow();
+    expect(readFileSync(session.filePath, "utf8")).toBe(corrupt);
+  });
+
+  it("不同 inode 的公开 v4 文件仍拒绝覆盖", async () => {
+    const opts = { dir: makeDir(), sessionId: "foreign-alias", cwd };
+    const session = await CoreMindSession.open(opts);
+    const original = readFileSync(session.filePath, "utf8");
+    const identity = statSync(session.filePath);
+    unlinkSync(session.filePath);
+    writeFileSync(session.filePath, original, "utf8");
+    expect(statSync(session.filePath).ino).not.toBe(identity.ino);
+    await expect(CoreMindSession.open(opts)).rejects.toThrow();
+    expect(readFileSync(session.filePath, "utf8")).toBe(original);
+  });
+
+  it("完整前缀含非法 UTF-8 时拒绝按替换字符扩展或截断原文件", async () => {
+    const opts = { dir: makeDir(), sessionId: "invalid-prefix", cwd };
+    const session = await CoreMindSession.open(opts);
+    await session.appendMessages([{ role: "user", content: "字节前缀" }]);
+    const bytes = readFileSync(session.filePath);
+    const offset = bytes.indexOf(Buffer.from("字节前缀", "utf8"));
+    expect(offset).toBeGreaterThan(0);
+    bytes[offset] = 0xff;
+    const corrupt = Buffer.concat([bytes, Buffer.from('{"kind":"entry"', "utf8")]);
+    writeFileSync(session.filePath, corrupt);
+    await expect(CoreMindSession.open(opts)).rejects.toThrow("非法 UTF-8");
+    expect(readFileSync(session.filePath)).toEqual(corrupt);
   });
 
   it("maybeCompact：上下文超预算时生成摘要并替换视图（存储不变）", async () => {
