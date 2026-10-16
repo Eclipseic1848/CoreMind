@@ -757,6 +757,13 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "model_output_limit": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
     "no_agent": {
       "terminality": "terminal",
       "cancelClass": "other",

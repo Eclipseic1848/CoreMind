@@ -39,6 +39,7 @@ describe("RunTerminalizer", () => {
     ["budget_exceeded", "budget_exceeded"],
     ["retry_limit", "budget_exceeded"],
     ["agent_failed", "failed"],
+    ["model_output_limit", "failed"],
   ] as const)("错误码 %s 映射为终态 %s", (code, status) => {
     expect(
       new RunTerminalizer().terminalize([], new CoreMindError(code, "测试错误")),

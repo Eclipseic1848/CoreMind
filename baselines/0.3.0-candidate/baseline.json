@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "1c353ea969a85bce2f8e6e43194c540e10ef68a0",
+    "developmentCommit": "a304619cd44732a415770ac6b6c6fa132a5f3b70",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -16,7 +16,7 @@
       "coremind-ai": "c6bd910c426112fdac577f85c0e172bdfb38345eea8ea3c42d50109c900c0bfe",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
-      "coremind-protocol": "189336b6500a13f03df51b0323ebb4fc767f4b780c7b7193363caa1e3d186f2b",
+      "coremind-protocol": "4f50874fa810f33948f359883131e22f2879f6d285d0f8f56b396794b07001ad",
       "coremind-runtime": "5703f9a6a95edd501563b86b6ab070fec868f8e9fe6a2c896d6f382b8392c3e8",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "ef99c6ff5dfc2ca8423113d2df43002020bee0d98e2d6d1c0e0ffd74946167b2",
@@ -25,7 +25,7 @@
     "schemas": {
       "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
       "protocol": "3a4ea1babbe4e5572b44243c6479b050d25dd39c51065e7ef7c2d3767d47cedc",
-      "protocolV2": "366feec83753e5dd9c7223529624ee30d7699be19ea7705810f7c47d14d34d07"
+      "protocolV2": "cae630b1b9334cdb362ef235cb2567ea5731225acb206a3a08df23df9c918c94"
     }
   },
   "dependencies": {
@@ -283,9 +283,9 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-16T04:12:18.253Z",
+    "capturedAt": "2026-10-16T05:06:54.411Z",
     "capturePlatform": "win32",
-    "updateReason": "核对兼容运行依赖精确升级后的三个实际安装版本；公共API与协议Schema保持不变",
+    "updateReason": "Issue #284: add terminal model_output_limit and regenerate the shared error schema and public protocol declaration",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "8c468569b2a943075f406387da649c407730704d9ef3eb81599aeca55a4e7b31",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
@@ -293,8 +293,8 @@
       "coremind-ai": "0ae8e490afb7b7a5b4b91abab70eb051b60be62acf22c1b43059f1f079818a24",
       "coremind-cli": "b5f2c49ade935d100bc35b5748bb115e620d7a679ae562b95189db9c9fe1d5d5",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
-      "coremind-protocol": "d21f8b05dfdbcd3d273377e7debc2e34c5759c9aad9178f50be4ad6e470877db",
-      "coremind-runtime": "3936f765f6ee9e0a242275556cb23eb35a8b53068cf9a1600244210a466950fc",
+      "coremind-protocol": "a3c4dcd7777597967956f671b5fe166dd9c0c54c753dc2c3d9e3e566335613b0",
+      "coremind-runtime": "3b2bc1b479fc816d42a88410e64252b3723e1c52721b84d1ba2279e131e5a712",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
       "coremind-tools": "37dca4c4020f70f6d50a285b54118ed223b913084908fcdba1269c85e32dc339",
       "coremind-worker": "4f1e9b97dea17bb7c8f2dce04d830ff37454cde4582dd4b8cfc1e17bdf31db14"

@@ -10,6 +10,7 @@ describe("retry policy", () => {
     [new CoreMindError("approval_denied", "用户拒绝"), "human"],
     [new CoreMindError("unknown_effect", "副作用未知"), "human"],
     [new CoreMindError("invalid_config", "参数无效"), "permanent"],
+    [new CoreMindError("model_output_limit", "单次输出截断"), "permanent"],
     [new Error("未分类错误"), "human"],
   ] as const)("把 %o 分类为 %s", (error, category) => {
     expect(classifyRetry(error).category).toBe(category);

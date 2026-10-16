@@ -231466,6 +231466,7 @@ var ERROR_CODES = defineErrorCodes({
   unknown_agent: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   unknown_provider: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   agent_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  model_output_limit: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_agent: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_prompt: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_models: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
@@ -255659,12 +255660,14 @@ function buildAgent(agentCfg, ctx) {
         args: context.args
       }
     }, signal) : void 0,
-    finishTurn: ctx.harness?.shouldStopAfterTurn ? async ({ message: message3 }) => {
+    finishTurn: async ({ message: message3 }) => {
+      if (message3.stopReason === "length")
+        return { action: "end" };
       if (message3.stopReason === "error" || message3.stopReason === "aborted")
         return;
-      if (await ctx.harness.shouldStopAfterTurn())
+      if (await ctx.harness?.shouldStopAfterTurn?.())
         return { action: "end" };
-    } : void 0,
+    },
     afterToolCall: ctx.harness?.afterToolCall ? async (context, signal) => await ctx.harness.afterToolCall({
       toolCall: {
         callId: context.toolCall.id,
@@ -255782,11 +255785,16 @@ var ModelAgentDriver = class {
       throw failure3;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
-    if (!this.promptCompleted || !this.harness?.onPromptCompleted)
+    if (!this.promptCompleted)
       return;
     const messages = this.messages();
     const lastAssistant = [...messages].reverse().find((message3) => message3.role === "assistant");
-    if (!extractAgentError(messages) && (lastAssistant?.stopReason === "stop" || lastAssistant?.stopReason === "length")) {
+    if (lastAssistant?.stopReason === "length") {
+      throw new CoreMindError("model_output_limit", "\u6A21\u578B\u8F93\u51FA\u8FBE\u5230\u5355\u6B21\u8F93\u51FA\u4E0A\u9650\uFF0C\u6B63\u6587\u4E0D\u5B8C\u6574");
+    }
+    if (!this.harness?.onPromptCompleted)
+      return;
+    if (!extractAgentError(messages) && lastAssistant?.stopReason === "stop") {
       this.promptCompleted = false;
       this.harness.onPromptCompleted();
     }

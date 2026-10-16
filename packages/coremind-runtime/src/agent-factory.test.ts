@@ -200,6 +200,171 @@ function makeFauxContext() {
 }
 
 describe("prompt 成功通知", () => {
+  it.each([true, false])(
+    "截断带完整工具调用时，Harness=%s 均不得继续下一请求",
+    async (withHarness) => {
+      const { models, model, faux } = makeFauxContext();
+      const invoke = vi.fn(async () => ({
+        content: [{ type: "text" as const, text: "不得执行" }],
+        details: {},
+      }));
+      const completed = vi.fn();
+      const shouldStop = vi.fn(() => false);
+      faux.setResponses([
+        fauxAssistantMessage(
+          [
+            { type: "text", text: "保留的部分正文" },
+            fauxToolCall("read", { path: "notes.txt" }, { id: "call-truncated" }),
+          ],
+          { stopReason: "length" },
+        ),
+        fauxAssistantMessage("不得覆盖的正常完成"),
+      ]);
+      const driver = buildAgentDriver(
+        {},
+        {
+          models,
+          model,
+          tools: [{ ...createReadTool(process.cwd()), execute: invoke }],
+          agentName: "main",
+          onEvent: () => {},
+          ...(withHarness
+            ? { harness: { onPromptCompleted: completed, shouldStopAfterTurn: shouldStop } }
+            : {}),
+        },
+      );
+      await driver.prompt("验证工具调用截断");
+      await expect(driver.waitForIdle()).rejects.toMatchObject({ code: "model_output_limit" });
+      expect(faux.state.callCount).toBe(1);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(completed).not.toHaveBeenCalled();
+      expect(shouldStop).not.toHaveBeenCalled();
+      const lastAssistant = [...driver.messages()]
+        .reverse()
+        .find((message) => message.role === "assistant");
+      expect(lastAssistant).toMatchObject({ stopReason: "length" });
+      expect(JSON.stringify(driver.messages())).toContain("保留的部分正文");
+      expect(JSON.stringify(driver.messages())).not.toContain("不得覆盖的正常完成");
+    },
+  );
+
+  it.each([true, false])("截断在成功 hook=%s 时均抛出类型化错误并保留消息", async (withHook) => {
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([fauxAssistantMessage("保留的部分正文", { stopReason: "length" })]);
+    const completed = vi.fn();
+    const driver = buildAgentDriver(
+      {},
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "main",
+        onEvent: () => {},
+        ...(withHook ? { harness: { onPromptCompleted: completed } } : {}),
+      },
+    );
+    await driver.prompt("输出截断");
+    const messages = structuredClone(driver.messages());
+    await expect(driver.waitForIdle()).rejects.toMatchObject({ code: "model_output_limit" });
+    expect(driver.messages()).toEqual(messages);
+    expect(driver.messages().at(-1)).toMatchObject({ role: "assistant", stopReason: "length" });
+    expect(JSON.stringify(messages)).toContain("保留的部分正文");
+    expect(completed).not.toHaveBeenCalled();
+    expect(faux.state.callCount).toBe(1);
+  });
+
+  it("尚未开始 prompt 的空闲检查不把旧截断历史当作本轮失败", async () => {
+    const { models, model, faux } = makeFauxContext();
+    const completed = vi.fn();
+    const driver = buildAgentDriver(
+      {},
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "main",
+        onEvent: () => {},
+        sessionMessages: [
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "旧正文" }],
+            stopReason: "length",
+            timestamp: 1,
+          },
+        ],
+        harness: { onPromptCompleted: completed },
+      },
+    );
+    await expect(driver.waitForIdle()).resolves.toBeUndefined();
+    expect(completed).not.toHaveBeenCalled();
+    expect(faux.state.callCount).toBe(0);
+  });
+
+  it.each(["permission", "context"] as const)("截断不覆盖原有 %s 拒绝", async (source) => {
+    const { models, model, faux } = makeFauxContext();
+    faux.setResponses([fauxAssistantMessage("部分正文", { stopReason: "length" })]);
+    const failure = new CoreMindError(
+      source === "permission" ? "loop_paused" : "context_budget_exhausted",
+      "原有拒绝",
+    );
+    const permission = vi.fn(() => {
+      if (source === "permission") throw failure;
+    });
+    const context = vi.fn(() => {
+      throw failure;
+    });
+    const completed = vi.fn();
+    const driver = buildAgentDriver(
+      {},
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "main",
+        onEvent: () => {},
+        harness: {
+          throwIfDenied: permission,
+          throwIfContextFailed: context,
+          onPromptCompleted: completed,
+        },
+      },
+    );
+    await driver.prompt("保留原错误优先级");
+    await expect(driver.waitForIdle()).rejects.toBe(failure);
+    expect(permission).toHaveBeenCalledOnce();
+    expect(context).toHaveBeenCalledTimes(source === "permission" ? 0 : 1);
+    expect(completed).not.toHaveBeenCalled();
+    expect(faux.state.callCount).toBe(1);
+  });
+
+  it("请求前失败优先于权限与 Context 检查，且 Provider 零调用", async () => {
+    const { models, model, faux } = makeFauxContext();
+    const failure = new CoreMindError("fact_ledger_poisoned", "原有持久门失败");
+    const permission = vi.fn();
+    const context = vi.fn();
+    const driver = buildAgentDriver(
+      {},
+      {
+        models,
+        model,
+        tools: [],
+        agentName: "main",
+        onEvent: () => {},
+        harness: {
+          beforeModelRequest: () => {
+            throw failure;
+          },
+          throwIfDenied: permission,
+          throwIfContextFailed: context,
+        },
+      },
+    );
+    await driver.prompt("不得发送");
+    await expect(driver.waitForIdle()).rejects.toBe(failure);
+    expect(permission).not.toHaveBeenCalled();
+    expect(context).not.toHaveBeenCalled();
+    expect(faux.state.callCount).toBe(0);
+  });
   it("真实完成后只通知一次，空闲检查不完成尚未开始的 prompt", async () => {
     const { models, model, faux } = makeFauxContext();
     faux.setResponses([fauxAssistantMessage("第一次完成"), fauxAssistantMessage("第二次完成")]);

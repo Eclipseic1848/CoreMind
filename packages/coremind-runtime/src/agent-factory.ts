@@ -242,12 +242,11 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
             signal,
           )
       : undefined,
-    finishTurn: ctx.harness?.shouldStopAfterTurn
-      ? async ({ message }) => {
-          if (message.stopReason === "error" || message.stopReason === "aborted") return;
-          if (await ctx.harness!.shouldStopAfterTurn!()) return { action: "end" };
-        }
-      : undefined,
+    finishTurn: async ({ message }) => {
+      if (message.stopReason === "length") return { action: "end" };
+      if (message.stopReason === "error" || message.stopReason === "aborted") return;
+      if (await ctx.harness?.shouldStopAfterTurn?.()) return { action: "end" };
+    },
     afterToolCall: ctx.harness?.afterToolCall
       ? async (context, signal) =>
           (await ctx.harness!.afterToolCall!(
@@ -380,13 +379,14 @@ class ModelAgentDriver implements AgentDriver {
     if (failure !== undefined) throw failure;
     this.harness?.throwIfDenied?.();
     this.harness?.throwIfContextFailed?.();
-    if (!this.promptCompleted || !this.harness?.onPromptCompleted) return;
+    if (!this.promptCompleted) return;
     const messages = this.messages();
     const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
-    if (
-      !extractAgentError(messages) &&
-      (lastAssistant?.stopReason === "stop" || lastAssistant?.stopReason === "length")
-    ) {
+    if (lastAssistant?.stopReason === "length") {
+      throw new CoreMindError("model_output_limit", "模型输出达到单次输出上限，正文不完整");
+    }
+    if (!this.harness?.onPromptCompleted) return;
+    if (!extractAgentError(messages) && lastAssistant?.stopReason === "stop") {
       this.promptCompleted = false;
       this.harness.onPromptCompleted();
     }

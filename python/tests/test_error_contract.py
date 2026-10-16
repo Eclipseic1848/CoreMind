@@ -6,6 +6,17 @@ from coremind import ERROR_CODES, ProtocolError, error_code_info
 
 
 class ErrorContractTest(unittest.TestCase):
+    def test_model_output_limit_is_terminal_without_retry(self) -> None:
+        self.assertEqual(
+            error_code_info("model_output_limit"),
+            {
+                "terminality": "terminal",
+                "cancelClass": "other",
+                "retryClass": "fatal",
+                "humanAction": "none",
+                "runStatus": "failed",
+            },
+        )
     def test_registered_code_exposes_shared_classification(self) -> None:
         self.assertEqual(
             error_code_info("cursor_expired"),

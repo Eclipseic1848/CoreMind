@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { ERROR_CODES, normalizeExternalErrorCode } from "./index.js";
 
 describe("Error Contract", () => {
+  it("单次模型输出上限是确定性失败，不归入累计预算或瞬态重试", () => {
+    expect(ERROR_CODES.model_output_limit).toEqual({
+      terminality: "terminal",
+      cancelClass: "other",
+      retryClass: "fatal",
+      humanAction: "none",
+      runStatus: "failed",
+    });
+  });
   it.each([
     ["mcp_auth_required", "pausable", "human", "human", "paused"],
     ["mcp_auth_failed", "terminal", "other", "fatal", "failed"],

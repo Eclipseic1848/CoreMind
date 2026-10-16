@@ -138,6 +138,45 @@ afterAll(() => {
 });
 
 describe("coremind CLI 端到端", () => {
+  it("run --print 对截断返回 1，stdout 保留部分正文且 stderr 给出诊断", async () => {
+    const result = await runCliAsync(
+      ["run", mockConfigPath, "--prompt", "__COREMIND_OUTPUT_LIMIT__", "--print"],
+      { env: { COREMIND_TEST_API_KEY: "test-only" } },
+    );
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("保留的部分正文\n");
+    expect(result.stderr).toContain("模型输出达到单次输出上限");
+  }, 65_000);
+
+  it("run --json-events 对截断输出类型化失败且无正常完成回执", async () => {
+    const result = await runCliAsync(
+      ["run", mockConfigPath, "--prompt", "__COREMIND_OUTPUT_LIMIT__", "--json-events"],
+      { env: { COREMIND_TEST_API_KEY: "test-only" } },
+    );
+    const events = result.stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(result.code).toBe(1);
+    expect(events.at(-1)).toMatchObject({
+      type: "run_result",
+      snapshot: {
+        outcome: {
+          status: "failed",
+          finishReason: "model_output_limit",
+          error: { code: "model_output_limit" },
+        },
+      },
+    });
+    expect(
+      events
+        .filter((event) => event.type === "text_delta")
+        .map((event) => event.delta)
+        .join(""),
+    ).toBe("保留的部分正文");
+    expect(events.some((event) => event.type === "input_completed")).toBe(false);
+    expect(result.stderr).toContain("模型输出达到单次输出上限");
+  }, 65_000);
   it("run 人类输出展示 Child Run 目标、状态和成功结果摘要", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-cli-child-run-"));
     const yaml = path.join(dir, "coremind.yaml");
