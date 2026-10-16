@@ -197,8 +197,16 @@ import {
 } from "./run-state.js";
 import { RunTerminalizer } from "./run-terminalizer.js";
 import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
-import { CoreMindSession } from "./session.js";
+import {
+  CoreMindSession,
+  copySessionHistory,
+  historySessionSnapshot,
+  openWritableSession,
+  rememberSessionHistory,
+  sessionSnapshot,
+} from "./session.js";
 import { compactSessionInRun } from "./session-maintenance.js";
+import { acquireSessionWriteLease, type SessionWriteLease } from "./session-write-lease.js";
 import {
   assertSkillSnapshotSize,
   freezeSkillSnapshot,
@@ -686,16 +694,12 @@ export class CoreMindRuntime {
     if (options.sessionId && config.session?.enabled) {
       const dir = sessionDir(config, configDir);
       try {
-        if (await CoreMindSession.exists(dir, options.sessionId, cwd)) {
-          const cm = await CoreMindSession.open({ dir, sessionId: options.sessionId, cwd });
-          const restored = projectBranchMessages(await cm.branchEntries()).map(
-            (item) => item.message,
-          );
-          if (restored.length > 0) {
-            sessionMessages = restored as unknown as CoreMindMessage[];
-            resumedContextLength = restored.length;
-          }
-        }
+        const cm = await CoreMindSession.open({ dir, sessionId: options.sessionId, cwd });
+        const restored = projectBranchMessages(await cm.branchEntries()).map(
+          (item) => item.message,
+        );
+        sessionMessages = rememberSessionHistory(cm, restored as CoreMindMessage[]);
+        resumedContextLength = restored.length;
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         throw new CoreMindError(
@@ -761,7 +765,10 @@ export class CoreMindRuntime {
     const agent = buildDriver({
       onEvent: (event) => onEvent(turnTracker.withTurnId(event)),
       // 恢复视图只注入主 agent（会话归属者）
-      sessionMessages: name === this.mainAgentName ? this.sessionMessages : undefined,
+      sessionMessages:
+        name === this.mainAgentName
+          ? (context.initialSessionMessages() ?? this.sessionMessages)
+          : undefined,
       harness,
       mcpTools,
       skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
@@ -825,9 +832,11 @@ export class CoreMindRuntime {
 
   /** 返回交互会话应继承的恢复消息副本。 */
   initialMessagesFor(name: string): CoreMindMessage[] {
-    return (name === this.mainAgentName
-      ? [...(this.sessionMessages ?? [])]
-      : []) as unknown as CoreMindMessage[];
+    const copied = copySessionHistory(
+      executionSlotFor(this).sessionPreviewHistory ?? this.sessionMessages ?? [],
+    );
+    if (name !== this.mainAgentName) copied.length = 0;
+    return copied;
   }
 
   /**
@@ -877,6 +886,10 @@ export class CoreMindRuntime {
       this.skillsByAgent,
     );
     executionSlotFor(turnRuntime).skills = executionSlotFor(this).skills;
+    executionSlotFor(turnRuntime).explicitSessionHistory = history;
+    executionSlotFor(turnRuntime).expectedSessionSnapshot =
+      historySessionSnapshot(history) ??
+      (this.sessionMessages ? historySessionSnapshot(this.sessionMessages) : undefined);
     const unbindActiveRun = bindActiveRun(this, {
       acceptInputControl: (command) => {
         const context = executionSlotFor(turnRuntime).kernel?.currentContext();
@@ -896,7 +909,10 @@ export class CoreMindRuntime {
         turnRuntime.executeConfiguredDelegationDisposition(parentAgentName, rawArgs, callId),
     });
     try {
-      return await turnRuntime.run();
+      const result = await turnRuntime.run();
+      const preview = executionSlotFor(turnRuntime).sessionPreviewHistory;
+      if (preview) executionSlotFor(this).sessionPreviewHistory = copySessionHistory(preview);
+      return result;
     } finally {
       unbindActiveRun();
     }
@@ -928,7 +944,12 @@ export class CoreMindRuntime {
       throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发执行");
     }
     slot.running = true;
-    slot.kernel ??= new RunKernel({ execute: (context) => this.executeRunBody(context) });
+    slot.kernel ??= new RunKernel({
+      execute: (context) =>
+        executeWithSessionLease(this, this.options, this.config, context, (ownership) =>
+          this.executeRunBody(context, ownership),
+        ),
+    });
     try {
       return await slot.kernel.run();
     } finally {
@@ -1420,7 +1441,10 @@ export class CoreMindRuntime {
   }
 
   /** run() 主体（并发检测由外层 run() 包装） */
-  private async executeRunBody(context: RunContext<RuntimeHarness>): Promise<RunResult> {
+  private async executeRunBody(
+    context: RunContext<RuntimeHarness>,
+    ownership?: SessionRunOwnership,
+  ): Promise<RunResult> {
     context.attachExecutionEnvironment(this.executionEnvironment);
     const started = performance.now();
     const lifecycleHost = this.options.lifecycleExtensions
@@ -1444,14 +1468,32 @@ export class CoreMindRuntime {
     let canonicalSessionBranch: BranchMessage[] = [];
     let previousContextCompactions: ContextCompactionLedgerEntry[] = [];
     if (this.options.sessionId && this.config.session?.enabled) {
-      const session = await CoreMindSession.open({
-        dir: sessionDir(this.config, this.options.configDir),
-        sessionId: this.options.sessionId,
-        cwd: this.options.cwd ?? process.cwd(),
-      });
+      const session = await openWritableSession(
+        {
+          dir: sessionDir(this.config, this.options.configDir),
+          sessionId: this.options.sessionId,
+          cwd: this.options.cwd ?? process.cwd(),
+        },
+        ownership!.lease,
+      );
       const sessionEntries = await session.branchEntries();
       sessionSeqStart = sessionEntries.reduce((max, entry) => Math.max(max, entry.seq), 0);
-      context.attachSession(session, projectBranchMessages(sessionEntries));
+      const slot = executionSlotFor(this);
+      if (
+        slot.explicitSessionHistory !== undefined &&
+        slot.expectedSessionSnapshot !== sessionSnapshot(session)
+      ) {
+        throw new CoreMindError(
+          "session_snapshot_stale",
+          "会话已被其他运行修改，请重新打开交互历史",
+        );
+      }
+      const branch = projectBranchMessages(sessionEntries);
+      context.attachSession(
+        session,
+        branch,
+        slot.explicitSessionHistory ?? branch.map((item) => item.message as CoreMindMessage),
+      );
       canonicalSessionBranch = projectRawBranchMessages(sessionEntries);
       previousContextCompactions = projectContextCompactionLedger(sessionEntries);
     }
@@ -2402,7 +2444,11 @@ export class CoreMindRuntime {
           const canonicalMessages = context.sessionHandle()
             ? [
                 ...canonicalSessionBranch.map((item) => item.message),
-                ...messages.slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
+                ...messages.slice(
+                  context.compactedPrefixEnd() ??
+                    context.initialSessionLength() ??
+                    this.resumedContextLength,
+                ),
               ]
             : messages;
           const taskState = projectContextTaskState({
@@ -3897,6 +3943,13 @@ export class CoreMindRuntime {
     } catch (error) {
       terminalError = durabilityFailure(error);
     }
+    if (ownership) {
+      try {
+        await releaseRunSession(ownership, context);
+      } catch (error) {
+        terminalError = error;
+      }
+    }
     const metrics = analyzeRunMetrics(
       collected,
       allMessages,
@@ -4342,18 +4395,17 @@ export class CoreMindRuntime {
     const context = runContextFor(this);
     const mains = context.agentsNamed(this.mainAgentName);
     if (mains.length === 0) return undefined;
-    const cm =
-      context.sessionHandle() ??
-      (await CoreMindSession.open({
-        dir: sessionDir(this.config, this.options.configDir),
-        sessionId,
-        cwd: this.options.cwd ?? process.cwd(),
-      }));
-    if (!context.sessionHandle())
-      context.attachSession(cm, projectBranchMessages(await cm.branchEntries()));
+    const cm = context.sessionHandle();
+    if (!cm) throw new CoreMindError("session_write_lease_invalid", "当前 Run 没有可写会话身份");
     // 只追加本轮新增：恢复历史已落盘；请求级压缩的摘要与保留区已由压缩条目代表
     let messages = mains.flatMap((main) =>
-      main.messages().slice(context.compactedPrefixEnd() ?? this.resumedContextLength),
+      main
+        .messages()
+        .slice(
+          context.compactedPrefixEnd() ??
+            context.initialSessionLength() ??
+            this.resumedContextLength,
+        ),
     );
     if (context.currentJournal()?.isAborted()) {
       // D-4 方案 A：abort 后只写已确认部分——去掉尾部未正常终止的 assistant 消息（竞态赢家文本）
@@ -4369,12 +4421,83 @@ export class CoreMindRuntime {
 
 // 类内旧执行字段仅为冻结声明布局保留；真实执行态由每个 Runtime 的 Kernel/Context 隔离持有。
 interface RuntimeExecutionSlot {
+  sessionPreviewHistory?: CoreMindMessage[];
+  explicitSessionHistory?: CoreMindMessage[];
+  expectedSessionSnapshot?: string;
   running?: boolean;
   kernel?: RunKernel<RuntimeHarness, RunResult>;
   context?: RunContext<RuntimeHarness>;
   protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;
   skills?: SkillSnapshot;
   skillExecutions?: Map<string, SkillExecution>;
+}
+
+interface SessionRunOwnership {
+  lease: SessionWriteLease;
+  released: boolean;
+  retained: boolean;
+}
+
+async function executeWithSessionLease(
+  runtime: CoreMindRuntime,
+  options: CoreMindRuntimeOptions,
+  config: CoreMindConfig,
+  context: RunContext<RuntimeHarness>,
+  execute: (ownership?: SessionRunOwnership) => Promise<RunResult>,
+): Promise<RunResult> {
+  if (!options.sessionId || !config.session?.enabled) return execute();
+  const ownership: SessionRunOwnership = {
+    lease: await acquireSessionWriteLease(sessionDir(config, options.configDir), options.sessionId),
+    released: false,
+    retained: false,
+  };
+  try {
+    const result = await execute(ownership);
+    const session = context.sessionHandle();
+    if (session) {
+      for (const messages of result.messages.values()) rememberSessionHistory(session, messages);
+      executionSlotFor(runtime).sessionPreviewHistory = rememberSessionHistory(
+        session,
+        projectBranchMessages(await session.branchEntries()).map(
+          (item) => item.message as CoreMindMessage,
+        ),
+      );
+    }
+    return result;
+  } catch (error) {
+    try {
+      await releaseRunSession(ownership, context);
+    } catch (cleanupError) {
+      throw Object.assign(
+        new CoreMindError("session_lock_recovery_required", "运行失败且会话所有权未能安全释放"),
+        { cause: new AggregateError([error, cleanupError]) },
+      );
+    }
+    throw error;
+  }
+}
+
+async function releaseRunSession(
+  ownership: SessionRunOwnership,
+  context: RunContext<RuntimeHarness>,
+): Promise<void> {
+  if (ownership.released || ownership.retained) return;
+  if (!context.isExecutionQuiescent()) {
+    ownership.retained = true;
+    throw new CoreMindError(
+      "session_not_quiescent",
+      "会话写入或运行尚未静止，保留写租约并等待恢复审计",
+    );
+  }
+  ownership.released = true;
+  try {
+    await ownership.lease.release();
+  } catch (error) {
+    throw Object.assign(
+      new CoreMindError("session_lock_recovery_required", "会话写租约释放失败，需核验所有权"),
+      { cause: error },
+    );
+  }
 }
 
 const runtimeExecutionSlots = new WeakMap<CoreMindRuntime, RuntimeExecutionSlot>();

@@ -331,6 +331,19 @@ export const ERROR_CODES = defineErrorCodes({
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  session_write_locked: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  session_write_lease_invalid: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
+  session_snapshot_stale: { terminality: "terminal", cancelClass: "human", retryClass: "human" },
+  session_lock_recovery_required: {
+    terminality: "terminal",
+    cancelClass: "human",
+    retryClass: "human",
+  },
+  session_not_quiescent: { terminality: "terminal", cancelClass: "human", retryClass: "human" },
   invalid_run_id: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   invalid_config: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   execution_security_violation: {

@@ -54,6 +54,52 @@ function legacyMessage(id: string, parentId: string | null, text: string): Recor
 }
 
 describe("CoreMindSession（二期会话树存储）", () => {
+  it("同一持有者的并发追加仍有序完成，纯读打开不长期占用写身份", async () => {
+    const dir = makeDir();
+    const opts = { dir, sessionId: "one-holder", cwd };
+    const session = await CoreMindSession.open(opts);
+    await CoreMindSession.open(opts);
+    await Promise.all([
+      session.appendMessages([{ role: "user", content: "第一条", timestamp: 1 }]),
+      session.appendMessages([{ role: "user", content: "第二条", timestamp: 2 }]),
+    ]);
+    const reopened = await CoreMindSession.open(opts);
+    expect((await reopened.branchEntries()).map((entry) => entry.seq)).toEqual([1, 2]);
+    expect((await reopened.buildContext()).messages.map(textOf)).toEqual(["第一条", "第二条"]);
+  });
+
+  it.each(["message", "maintenance", "compaction"] as const)(
+    "不同持有者推进后，旧快照的 %s 写入在落盘前拒绝",
+    async (mutation) => {
+      const dir = makeDir();
+      const opts = { dir, sessionId: "shared", cwd };
+      const first = await CoreMindSession.open(opts);
+      const stale = await CoreMindSession.open(opts);
+      await first.appendMessages([{ role: "user", content: "已确认的新消息", timestamp: 1 }]);
+      const confirmed = readFileSync(first.filePath, "utf8");
+      const writing =
+        mutation === "message"
+          ? stale.appendMessages([{ role: "user", content: "旧分支", timestamp: 2 }])
+          : mutation === "maintenance"
+            ? stale.appendMaintenanceRecord({ status: "旧维护" })
+            : stale.appendCompaction({
+                summary: "旧摘要",
+                retainedTail: [],
+                tokensBefore: 100,
+                details: { fingerprint: "old", rangeStartId: "m1", rangeEndId: "m1" },
+              });
+      await expect(writing).rejects.toMatchObject({ code: "session_snapshot_stale" });
+      expect(readFileSync(first.filePath, "utf8")).toBe(confirmed);
+      const fresh = await CoreMindSession.open(opts);
+      await fresh.appendMessages([{ role: "user", content: "重新打开后接续", timestamp: 3 }]);
+      expect((await fresh.branchEntries()).map((entry) => entry.seq)).toEqual([1, 2]);
+      expect((await fresh.buildContext()).messages.map(textOf)).toEqual([
+        "已确认的新消息",
+        "重新打开后接续",
+      ]);
+    },
+  );
+
   it("新建 → 落盘 → 重新打开恢复，消息一致（roundtrip）", async () => {
     const dir = makeDir();
     const opts = { dir, sessionId: "s1", cwd };
