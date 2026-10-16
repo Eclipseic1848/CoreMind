@@ -44,6 +44,7 @@ type FixtureRecord = Record<string, unknown> & { type?: string; method?: string 
 describe("本地 MCP 真实 Runtime 准入", () => {
   it("connect/list/call 均在真实 critical barrier 后执行，首个模型使用冻结目录与真实批准目标", async (context) => {
     await withProject(context, async (project) => {
+      const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
       const gates = Array.from({ length: 3 }, () => ({
         entered: deferred<void>(),
         release: deferred<void>(),
@@ -61,6 +62,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           if (event?.type !== "effect_receipt" || event.status !== "started") return;
           const gate = gates[stage++];
           if (!gate) throw new Error("夹具收到了额外的 started 屏障");
+          if (stage === 2) startupTrace?.("list_gate_enter");
           gate.entered.resolve();
           await gate.release.promise;
         },
@@ -79,7 +81,13 @@ describe("本地 MCP 真实 Runtime 准入", () => {
           approvals.push(request);
           return "allow";
         },
-        events: (event) => observed.push(event),
+        events: (event) => {
+          observed.push(event);
+          if (event.type === "tool_lifecycle" && event.resolution.phase === "executing")
+            startupTrace?.("runtime_executing");
+          if (event.type === "tool_lifecycle" && event.resolution.phase === "observed")
+            startupTrace?.("observed");
+        },
       });
       expect(existsSync(project.recordFile)).toBe(false);
       expect(project.requests).toEqual([]);
@@ -88,6 +96,7 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         await waitForBarrier("connect", gates[0]!.entered.promise, project.running, observed);
         expect(existsSync(project.recordFile)).toBe(false);
         expect(project.requests).toHaveLength(0);
+        startupTrace?.("connect_gate_release");
         gates[0]!.release.resolve();
 
         await waitForBarrier("list", gates[1]!.entered.promise, project.running, observed);
@@ -896,6 +905,8 @@ async function withProject(
   context: Pick<TestContext, "signal" | "onTestFinished">,
   action: (project: Project) => Promise<void>,
 ) {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+  startupTrace?.("fixture_enter");
   const controller = new AbortController();
   const releases = new Set<() => void>();
   const requests: WireRequest[] = [];
@@ -952,6 +963,7 @@ async function withProject(
     });
   });
   const cancel = () => {
+    startupTrace?.("fixture_abort");
     controller.abort();
     for (const release of releases) {
       try {
@@ -972,6 +984,8 @@ async function withProject(
           await project.running;
         } catch (error) {
           failures.push(error);
+        } finally {
+          startupTrace?.("run_settled");
         }
       }
       let processesStopped = true;
@@ -1026,6 +1040,7 @@ async function withProject(
         failures.push(error);
       }
       context.signal.removeEventListener("abort", cancel);
+      startupTrace?.("cleanup_done");
       failures.push(...errors);
       if (failures.length) throw new AggregateError(failures, "MCP 真实 Runtime 主流程与资源清理");
     })());
@@ -1097,7 +1112,9 @@ async function withProject(
           runtime: { maxTurns: 3, maxRetries: 0, maxToolCalls: 3, runTimeoutMs: 0 },
         },
       };
-      await action(project);
+      const activeProject = project;
+      startupTrace?.("fixture_ready");
+      await (startupTrace ? startupTrace.run(() => action(activeProject)) : action(activeProject));
     } catch (error) {
       failures.push(error);
     }
@@ -1168,11 +1185,12 @@ async function waitForBarrier(
         },
       ),
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(new Error(`${label} started 屏障等待超时：${runSummary(undefined, observed)}`)),
-          15_000,
-        );
+        timer = setTimeout(() => {
+          Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.()?.(
+            `wait_${label.replaceAll("-", "_")}_timeout`,
+          );
+          reject(new Error(`${label} started 屏障等待超时：${runSummary(undefined, observed)}`));
+        }, 15_000);
       }),
     ]);
   } finally {
@@ -1222,7 +1240,12 @@ async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
     return await Promise.race([
       promise,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(`MCP 真实验收阶段超时（${label}）`)), 15_000);
+        timer = setTimeout(() => {
+          Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.()?.(
+            "bounded_timeout",
+          );
+          reject(new Error(`MCP 真实验收阶段超时（${label}）`));
+        }, 15_000);
       }),
     ]);
   } finally {

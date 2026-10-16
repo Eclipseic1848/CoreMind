@@ -138,6 +138,8 @@ export async function launchWindowsMcpJob(
   },
   signal: AbortSignal,
 ): Promise<WindowsMcpJob> {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.(signal);
+  startupTrace?.("job_prepare_begin");
   if (process.platform !== "win32") throw transportFailure();
   const launcher = new URL("./vendor/windows-mcp/service.mjs", import.meta.url);
   try {
@@ -257,6 +259,7 @@ export async function launchWindowsMcpJob(
     owner = await endpoint(
       "owner",
       (socket) => {
+        startupTrace?.("owner_socket_connected");
         firstWasCancel = Boolean(closing || signal.aborted);
         ownerInitialized = true;
         send(
@@ -274,6 +277,7 @@ export async function launchWindowsMcpJob(
       },
       (value) => {
         if (message(value, "job_ready") && !ownerReady && !provedClosed) {
+          startupTrace?.("owner_job_ready");
           ownerReady = true;
           configureService();
           finishReady();
@@ -292,14 +296,17 @@ export async function launchWindowsMcpJob(
       },
       fail,
     );
+    startupTrace?.("owner_listen_ready");
     service = await endpoint(
       "service",
       (socket) => {
+        startupTrace?.("service_socket_connected");
         if (closing || signal.aborted) socket.end();
         else configureService();
       },
       (value) => {
         if (message(value, "ready") && configurationSent && !serviceReady && !serviceExited) {
+          startupTrace?.("service_ready");
           serviceReady = true;
           finishReady();
         } else if (message(value, "exit") && serviceReady && !serviceExited) {
@@ -315,6 +322,7 @@ export async function launchWindowsMcpJob(
       },
       fail,
     );
+    startupTrace?.("service_listen_ready");
     const helperOptions = {
       cwd: options.cwd,
       env: { ...hostEnv, COREMIND_MCP_OWNER_PIPE: owner.name },
@@ -342,6 +350,8 @@ export async function launchWindowsMcpJob(
       ],
       helperOptions,
     );
+    startupTrace?.("helper_spawned");
+    if (startupTrace) helper.stderr.on("data", startupTrace.stderr);
     helperFinished = helper.then(
       (result) => {
         if (!closing) void close().catch(() => {});
