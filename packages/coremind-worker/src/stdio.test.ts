@@ -5,10 +5,12 @@ process.env.DEEPSEEK_API_KEY = "test-only";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
-import { PassThrough } from "node:stream";
+import { PassThrough, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { CheckpointManager, type CoreMindEvent, FileRunStore, RunStateJournal } from "coremind-ai";
 import { createEventNotification } from "coremind-protocol";
@@ -471,6 +473,262 @@ describe("stdio 传输背压", () => {
       input.destroy();
     }
   });
+
+  it("真实审批在输出回调持有期间继续执行 read", async (context) => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-stdio-approval-"));
+    const content = "只有真实文件读取才返回的正文🙂";
+    type Message = {
+      id?: string;
+      method?: string;
+      result?: Record<string, unknown>;
+      error?: unknown;
+      params?: { runId?: string; event?: { type?: string; approvalId?: string } };
+    };
+    class ApprovalOutput extends Writable {
+      readonly messages: Message[] = [];
+      held?: () => void;
+      approval?: { runId: string; approvalId: string };
+      constructor() {
+        super({ decodeStrings: false, highWaterMark: 1 });
+      }
+      override _write(
+        chunk: string | Buffer,
+        _encoding: BufferEncoding,
+        callback: (error?: Error | null) => void,
+      ): void {
+        try {
+          const message = JSON.parse(
+            typeof chunk === "string" ? chunk : chunk.toString("utf8"),
+          ) as Message;
+          this.messages.push(message);
+          if (message.method === "event" && message.params?.event?.type === "approval_required") {
+            const runId = message.params.runId;
+            const approvalId = message.params.event.approvalId;
+            if (!runId || !approvalId) throw new Error("真实审批通知缺少身份");
+            this.approval = { runId, approvalId };
+            this.held = callback;
+            return;
+          }
+          callback();
+        } catch (error) {
+          callback(error instanceof Error ? error : new Error("真实审批输出不是合法 JSONL"));
+        }
+      }
+      release(): void {
+        const callback = this.held;
+        this.held = undefined;
+        callback?.();
+      }
+    }
+    const input = new PassThrough();
+    const output = new ApprovalOutput();
+    const requests: Array<{
+      messages: Array<{ role: string; tool_call_id?: string; content?: unknown }>;
+    }> = [];
+    const failures: unknown[] = [];
+    const httpBodies = new Set<Promise<void>>();
+    let stopping = false;
+    let body: Promise<void> | undefined;
+    let completion: Promise<void> | undefined;
+    const checkOwner = () => {
+      if (stopping) throw new Error("真实审批探针已收尾");
+    };
+    const model = createServer((request, response) => {
+      const operation: Promise<void> = (async () => {
+        request.setEncoding("utf8");
+        let raw = "";
+        for await (const chunk of request) {
+          raw += chunk;
+          if (Buffer.byteLength(raw, "utf8") > 1024 * 1024) throw new Error("模型请求超过夹具上限");
+        }
+        checkOwner();
+        if (request.method !== "POST" || request.url !== "/v1/chat/completions")
+          throw new Error("模型请求路径不符");
+        const parsed = JSON.parse(raw) as (typeof requests)[number];
+        requests.push(parsed);
+        if (requests.length > 2) throw new Error("模型请求次数超过夹具上限");
+        const tool = parsed.messages.find((message) => message.role === "tool");
+        const first = requests.length === 1;
+        if (first) expect(tool).toBeUndefined();
+        else {
+          expect(tool?.tool_call_id).toBe("call-approval-read");
+          expect(JSON.stringify(tool?.content)).toContain(content);
+        }
+        const delta = first
+          ? {
+              role: "assistant",
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "call-approval-read",
+                  type: "function",
+                  function: { name: "read", arguments: '{"path":"notes.txt"}' },
+                },
+              ],
+            }
+          : { role: "assistant", content: "审批后已读取" };
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        for (const [value, reason] of [
+          [delta, null],
+          [{}, first ? "tool_calls" : "stop"],
+        ]) {
+          response.write(
+            `data: ${JSON.stringify({ id: "approval-output", choices: [{ index: 0, delta: value, finish_reason: reason }] })}\n\n`,
+          );
+        }
+        response.end("data: [DONE]\n\n");
+      })()
+        .catch((error: unknown) => {
+          failures.push(error);
+          if (!response.headersSent) response.writeHead(500);
+          response.end();
+        })
+        .finally(() => httpBodies.delete(operation));
+      httpBodies.add(operation);
+    });
+    const bounded = async <T>(operation: Promise<T>, deadline: number): Promise<T> => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          operation,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("真实审批探针阶段超时")),
+              Math.max(1, deadline - performance.now()),
+            );
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+    const stop = () => {
+      stopping = true;
+      output.release();
+      input.end();
+      model.closeAllConnections();
+    };
+    // 框架超时也先取消并收拢真 Runtime、测试体及 HTTP；未静止时保留目录。
+    context.signal.addEventListener("abort", stop, { once: true });
+    context.onTestFinished(async () => {
+      stop();
+      const deadline = performance.now() + 4_000;
+      try {
+        try {
+          await bounded(Promise.all([body?.catch(() => undefined), completion]), deadline);
+        } finally {
+          if (model.listening)
+            await bounded(
+              new Promise<void>((resolve, reject) =>
+                model.close((error) => (error ? reject(error) : resolve())),
+              ),
+              deadline,
+            );
+          await bounded(Promise.all([...httpBodies]), deadline);
+        }
+      } finally {
+        context.signal.removeEventListener("abort", stop);
+        input.destroy();
+        output.destroy();
+      }
+      const resolved = path.resolve(directory);
+      if (
+        path.dirname(resolved) !== path.resolve(tmpdir()) ||
+        !path.basename(resolved).startsWith("coremind-stdio-approval-")
+      )
+        throw new Error("拒绝清理无归属的真实审批目录");
+      rmSync(resolved, { recursive: true, force: true });
+    });
+    if (context.signal.aborted) stop();
+    body = (async () => {
+      checkOwner();
+      writeFileSync(path.join(directory, "notes.txt"), content, "utf8");
+      const deadline = performance.now() + 10_000;
+      const until = async (ready: () => boolean): Promise<void> => {
+        while (!ready()) {
+          checkOwner();
+          if (performance.now() >= deadline) throw new Error("等待真实审批状态超时");
+          await new Promise<void>((resolve) => setTimeout(resolve, 10));
+        }
+        checkOwner();
+      };
+      await bounded(
+        new Promise<void>((resolve, reject) => {
+          model.once("error", reject);
+          model.listen(0, "127.0.0.1", () => {
+            model.off("error", reject);
+            resolve();
+          });
+        }),
+        deadline,
+      );
+      checkOwner();
+      completion = runStdioWorker(input, output);
+      void completion.catch(() => undefined);
+      const send = (id: string, method: string, params: unknown) => {
+        checkOwner();
+        input.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
+      };
+      send("init-approval", "initialize", {
+        protocolVersion: "1.0",
+        config: {
+          schemaVersion: 2,
+          name: "真实审批输出背压",
+          provider: {
+            id: "approval-output",
+            baseUrl: `http://127.0.0.1:${(model.address() as AddressInfo).port}/v1`,
+            model: "probe",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+          },
+          agents: { main: { tools: [{ id: "read" }] } },
+          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
+          runtime: { maxTurns: 4, maxToolCalls: 2, maxRetries: 0, runTimeoutMs: 10_000 },
+          session: { enabled: false },
+        },
+        configDir: directory,
+        cwd: directory,
+      });
+      await until(() => output.messages.some((message) => message.id === "init-approval"));
+      expect(output.messages.find((message) => message.id === "init-approval")).toMatchObject({
+        result: { protocolVersion: "1.0" },
+      });
+      send("run-approval", "run", { runId: "stdio-approval", input: "读取 notes.txt" });
+      await until(() => output.approval !== undefined);
+      expect(output.approval?.runId).toBe("stdio-approval");
+      expect(requests).toHaveLength(1);
+      expect(output.held).toBeTypeOf("function");
+      expect(output.writableNeedDrain).toBe(true);
+      const writesAtApproval = output.messages.length;
+      send("allow-approval", "approve", { ...output.approval!, decision: "allow" });
+      await until(() => requests.length === 2);
+      expect(failures).toEqual([]);
+      const tool = requests[1]!.messages.find((message) => message.role === "tool");
+      expect(tool?.tool_call_id).toBe("call-approval-read");
+      expect(JSON.stringify(tool?.content)).toContain(content);
+      expect(output.held).toBeTypeOf("function");
+      expect(output.writableNeedDrain).toBe(true);
+      expect(output.messages).toHaveLength(writesAtApproval);
+      // 只证明真实审批不等待物理 callback；drain 由原生 Writable 自行触发。
+      output.release();
+      await until(() => output.messages.some((message) => message.id === "run-approval"));
+      expect(output.messages.find((message) => message.id === "allow-approval")).toMatchObject({
+        result: { accepted: true },
+      });
+      expect(output.messages.find((message) => message.id === "run-approval")).toMatchObject({
+        result: { outcome: { status: "succeeded" }, transcript: "审批后已读取" },
+      });
+      expect(
+        output.messages.filter((message) => message.params?.event?.type === "approval_required"),
+      ).toHaveLength(1);
+      input.end();
+      await bounded(completion, deadline);
+      checkOwner();
+      expect(failures).toEqual([]);
+      expect(requests).toHaveLength(2);
+      expect(readFileSync(path.join(directory, "notes.txt"), "utf8")).toBe(content);
+    })();
+    await body;
+  }, 15_000);
 
   it("真实 v1 restore 在断管后完成磁盘恢复才结束 stdio", async (context) => {
     const directory = mkdtempSync(path.join(tmpdir(), "coremind-restore-output-"));
