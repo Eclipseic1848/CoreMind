@@ -1,9 +1,11 @@
 // 统一门面的内部入口；只转发同仓库组件需要的 Runtime 投影能力。
 export {
+  type BoundedOutput,
   buildProviderRuntime,
   type ContextProjection,
   ControlInbox,
   classifyExecutionError,
+  createBoundedOutput,
   enforceExecutionSecurity,
   type InternalRunControlCommand,
   type PendingApprovalControl,

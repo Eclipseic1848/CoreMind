@@ -23,6 +23,15 @@ describe("Error Contract", () => {
       runStatus,
     });
   });
+  it("输出交付失败是不可重试的传输失败", () => {
+    expect(ERROR_CODES.output_delivery_failed).toEqual({
+      terminality: "terminal",
+      cancelClass: "other",
+      retryClass: "fatal",
+      humanAction: "none",
+      runStatus: "failed",
+    });
+  });
   it("每个登记码都有稳定名称和完整分类", () => {
     for (const [code, info] of Object.entries(ERROR_CODES)) {
       expect(code).toMatch(/^[a-z][a-z0-9_]*$/);

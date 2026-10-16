@@ -100,3 +100,13 @@ with CoreMindClient(config, protocol_version='2.0',
 - 不要把一次成功运行当成稳定性证明。
 - 不要通过 full 模式绕过 deny、工作区保护、审计、Effect Receipt 或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
+
+## Worker 输出交付限制
+
+随包 Worker 的 stdout 队列与在飞消息合计最多 **64 MiB 已编码 UTF-8、1024 条**，单条最多 64 MiB；关键 RPC 响应、审批/工具/认证通知和控制回执不能因队列已满而静默丢弃。其他既有 best-effort `event` 通知在总预算不足时可以丢弃；v2 宿主可用持久 `events` 补读，按每个 Run 的实际分页 `nextCursor` 推进。live 通知的 `sequence` 是独立计数，不能当作持久游标；v1 没有同等的持久补读保证。单条本身超限仍使传输失败。
+
+普通 write/drain 等待不暂停输入，因此审批、cancel 和 tool_result 仍可进入。硬溢出、断管或写入错误触发一次 shutdown：拒绝新输入，取消活动 Run、待工具和待审批，并等待原有静止检查。EOF 同样先等待 shutdown，再在 **10 秒**内等待已接收 RPC 的最终响应和真实输出 flush；未达到静止不能算成功。stdout 已不可用时不保证还能发送错误响应或 cancel ACK；Worker 以非 0 状态和 stderr 的 `output_delivery_failed` 诊断报告交付失败，Python 可能按既有合同抛出 `WorkerExitedError`，不能假设一定收到该码的 JSON-RPC 错误。
+
+这是传输层有界失败合同，Runtime 的同步事件回调没有变成异步背压。限制不包括 JSON 编码瞬时内存、上游响应生成及接收端资源。传输层不改写既有持久事实、不放宽权限；Runtime 仍按自身取消和收尾规则记录结果，不把交付故障伪造成业务完成，也不自动重试潜在副作用。
+
+上述10秒限制交付等待，不保证强制终止物理流或不合作的 JavaScript。逻辑 close 有界返回；尚未返回的自有 write 仅保留一个 error 护栏及其 close 清理监听，直到该回调或流 close 收敛。超时失败不等于全部操作已静止；未确认收尾时不能据此释放或复用相关环境。

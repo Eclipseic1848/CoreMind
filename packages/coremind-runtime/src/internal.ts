@@ -1,5 +1,6 @@
 // 仅供同仓库受控组件复用；不属于 coremind-runtime 主公共入口。
 
+export { type BoundedOutput, createBoundedOutput } from "./bounded-output.js";
 export {
   CompactionLedger,
   type ContextArtifactReference,

@@ -120,10 +120,14 @@ it("--print 在工具事件和恢复会话时仅输出最终正文", async () =>
     "utf8",
   );
   const chunks: string[] = [];
-  const stdout = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
-    chunks.push(String(chunk));
-    return true;
-  });
+  const stdout = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation((chunk, encoding, callback) => {
+      chunks.push(String(chunk));
+      const done = typeof encoding === "function" ? encoding : callback;
+      done?.();
+      return true;
+    });
   const logs = vi.spyOn(console, "log").mockImplementation((...args) => {
     chunks.push(args.join(" "));
   });
