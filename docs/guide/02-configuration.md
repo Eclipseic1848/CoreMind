@@ -42,7 +42,7 @@ provider:
   id: ollama
   baseUrl: http://localhost:11434/v1
   model: qwen2.5:7b
-  apiKeyEnv: OLLAMA_API_KEY     # 无鉴权时可不配
+  # apiKeyEnv: OLLAMA_API_KEY   # 有鉴权时显式配置；缺失会失败关闭
   # contextWindow: 131072       # 可选：对齐真实模型能力（缺省 32768）
   # maxTokens: 8192             # 可选：最大输出（缺省 4096）
 ```
@@ -52,6 +52,22 @@ API key 来源可以是 `apiKeyEnv` 指定的环境变量，或后端无关的
 `SecretResolver` 解析不透明引用；CLI、Python SDK 和标准 Worker 不注入 resolver，遇到
 SecretRef 会以 `secret_reference_unresolved` 安全失败，且不会回退到明文或其他凭据来源。
 显式 `apiKeyEnv` 缺失也使用同一错误码失败关闭。
+
+仅对声明 `baseUrl` 的自定义兼容端点：未配置显式 API key 引用时，仍兼容按 `id` 推断的环境变量（例如 `ollama` 对应 `OLLAMA_API_KEY`）。变量非空时使用该 key；没有真实 key 时可匿名访问，或仅使用安全解析的 Header 认证，不会额外发送占位 Bearer。要使用匿名端点，也应确保调用方环境没有该推断变量。内置 Provider 和阿里云原生入口仍要求原有凭据。
+
+仅 Header 认证使用完整 Header 值，例如环境变量 `GATEWAY_AUTHORIZATION` 的值应为 `Bearer <token>`；CoreMind 不再补 `Bearer`：
+
+```yaml
+provider:
+  id: private-gateway
+  baseUrl: https://gateway.example/v1
+  model: configured-model
+  headers:
+    Authorization:
+      env: GATEWAY_AUTHORIZATION
+```
+
+`X-API-Key` 等网关 Header 同样可独立认证。Header 名不区分大小写，同名配置以后者为准；显式 Authorization Header 覆盖默认 API key Bearer。显式 key 或任意 Header 引用缺失、空白或解析失败时始终拒绝，不会降级匿名、换用推断 key 或忽略该 Header。401/403 也不会触发匿名回退。秘密只用于配置端点的实际请求，不进入模型消息、结果或持久化事实。
 
 自定义 Provider 的普通 Header 可继续使用字面量；Authorization、Proxy-Authorization、
 X-API-Key、API-Key、X-Auth-Token、X-Access-Token、X-Goog-API-Key、

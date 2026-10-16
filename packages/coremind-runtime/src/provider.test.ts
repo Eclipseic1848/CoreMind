@@ -360,7 +360,10 @@ describe("buildProviderRuntime（自定义 OpenAI 兼容端点）", () => {
         },
         {} as NodeJS.ProcessEnv,
       );
-      expect(await isolated.models.getAuth(isolated.model)).toBeUndefined();
+      const isolatedAuth = await isolated.models.getAuth(isolated.model);
+      expect(isolated.apiKeyOverride).toBeUndefined();
+      expect(isolatedAuth?.auth.headers).toEqual({ authorization: null });
+      expect(isolatedAuth?.auth.apiKey).not.toBe("host-secret");
     } finally {
       if (original === undefined) delete process.env.GATEWAY_API_KEY;
       else process.env.GATEWAY_API_KEY = original;

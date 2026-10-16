@@ -188,6 +188,31 @@ configuration fails closed with `secret_reference_unresolved` and never falls
 back to plaintext or another credential source. An explicitly configured but
 empty `apiKeyEnv` fails the same way.
 
+### Custom compatible endpoints
+
+Only custom Providers with `baseUrl` support anonymous or Header-only requests. Without an explicit key reference, the existing inferred environment variable remains supported: for example, `ollama` uses `OLLAMA_API_KEY`. A nonempty value supplies the key; otherwise no default Authorization Bearer is sent. Ensure the inferred variable is absent when anonymous access is intended. Built-in Providers and the native Alibaba entry retain their credential requirements.
+
+```yaml
+provider:
+  id: ollama
+  baseUrl: http://localhost:11434/v1
+  model: qwen2.5:7b
+```
+
+Header-only authentication uses the complete Header value. For this example, `GATEWAY_AUTHORIZATION` contains `Bearer <token>`; CoreMind adds no second Bearer prefix:
+
+```yaml
+provider:
+  id: private-gateway
+  baseUrl: https://gateway.example/v1
+  model: configured-model
+  headers:
+    Authorization:
+      env: GATEWAY_AUTHORIZATION
+```
+
+Other gateway Headers such as `X-API-Key` can authenticate independently. Header names are case-insensitive, with the last spelling winning; an explicit Authorization Header overrides the default API-key Bearer. Missing, blank, or unresolved explicit key or Header references always fail closed, without anonymous fallback, inferred-key fallback, or silently dropping the Header. HTTP 401/403 also causes no anonymous fallback. Resolved secrets reach only the configured endpoint, never model messages, results, or persistent Facts.
+
 Ordinary custom headers may remain literal. Authorization,
 Proxy-Authorization, X-API-Key, API-Key, X-Auth-Token, X-Access-Token,
 X-Goog-API-Key, X-Amz-Security-Token, and Cookie values must use `{ env: "NAME" }` or
