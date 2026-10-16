@@ -41,7 +41,7 @@ receipt = client.control({
 page = client.events(run_id, after_sequence=0)
 ```
 
-Type can be `steering` or `follow_up`; follow-up continues in the same Run after the agent would naturally stop. Await the corresponding AsyncCoreMindClient methods for the same contract. Every `events` call requires explicit `after_sequence`. Save the last read sequence and advance it for catch-up; an empty page is not a terminal result. Use events or `query` to check the final outcome.
+Type can be `steering` or `follow_up`; follow-up continues in the same Run after the agent would naturally stop. Await the corresponding AsyncCoreMindClient methods for the same contract. Every `events` call requires explicit `after_sequence`. Save each Run’s returned `nextCursor` after processing its page and use it for catch-up; never derive it from live notification sequence values. An empty page is not a terminal result. Use events or `query` to check the final outcome.
 
 Retain controlId for retries: identical content returns duplicate, different content returns conflict. Other receipts are accepted, applied, and rejected. Accepted means durably received; applied means the applied fact committed before delivery to the agent queue. Neither proves model consumption. Match independent `input_receipt/input_claimed/input_completed/input_discarded` events by inputId. Wrong, unready, or sealed Runs reject controls. Controls neither approve tools nor change permissions or budgets, and they start no concurrent Run.
 
@@ -81,6 +81,44 @@ A search match does not approve execution. Durable installation at the next requ
 
 `resume_run` reuses an installed tool set only when the latest authoritative pause exactly binds the execution to continue. Quality retries start new executions. After a crash without that binding, existing resume admission may allow a fresh deferred declaration, never activation borrowed from the same Run/Agent/Step. Node manages this binding in private facts; it adds no Python catalog, public owners field, or complete-message-recovery promise. Configuration fingerprints, input, approval, and effect checks still apply.
 
+## Long-lived notification consumption (1.2 development)
+
+Without explicit drain, received_events, received_tool_calls, received_tool_cancellations, and received_verification_requests retain the complete history. A drain takes all four current client-wide buckets, preserving original list identities, per-bucket order, and shallow Mapping references. Batches may contain several runIds and do not provide global cross-bucket interleaving. Direct concurrent external mutation of the lists is outside the SDK guarantee.
+
+These functions retain the **complete** batch. The host owns `retained` and releases each batch after all four buckets are processed or reliably saved; do not let that host container grow indefinitely. Draining starts no Worker or RPC and can retrieve history retained before close.
+
+```python
+from coremind import AsyncCoreMindClient, CoreMindClient, NotificationHistory
+
+def collect(client: CoreMindClient, retained: list[NotificationHistory]) -> None:
+    retained.append(client.drain_notifications())
+
+async def collect_async(client: AsyncCoreMindClient,
+                        retained: list[NotificationHistory]) -> None:
+    retained.append(await client.drain_notifications())
+```
+
+The host handles batch['events'], batch['tool_calls'], batch['tool_cancellations'], and batch['verification_requests']. Correlate tools and cancellations by runId/callId/registrationId and continue to answer explicitly through submit_tool_result/submit_verification. Taking a batch is not a server acknowledgement, does not approve or execute anything, and does not prove business or callback completion. Callback queues, running handlers, overflow errors, and v1 callables remain unchanged; handlers may reenter drain. MCP authorization stays in its dedicated handler.
+
+Async drain performs the local copy under the short lock in the calling Task, without a `to_thread` consumer whose destructive clear could finish after the awaiting Task is cancelled. Copying remains O(N) and temporarily occupies the calling thread/loop. This is not an automatic hard retention limit; consume regularly. Default complete retention remains unchanged without an explicit call.
+
+Durable catch-up is separate. Explicit v2 events() neither reads nor refills the four live lists. Save each Run’s **returned nextCursor** after handling the page; live notification sequence values are a different domain and must not be incremented or substituted. Here consume_page is the host’s function that processes or reliably saves the complete page; failure leaves the cursor unchanged:
+
+```python
+from collections.abc import Callable, Mapping
+from typing import Any
+
+def catch_up_page(client: CoreMindClient, run_id: str,
+                  cursors: dict[str, int],
+                  consume_page: Callable[[Mapping[str, Any]], None]) -> bool:
+    page = client.events(run_id, after_sequence=cursors.get(run_id, 0), limit=100)
+    consume_page(page)
+    cursors[run_id] = page['nextCursor']
+    return page['hasMore']
+```
+
+Await events() with the async client and retain the same per-Run commit order. Continue while hasMore=True; a temporarily empty page or False during execution is not terminal, so check events or query. Handle cursor_expired using the existing ProtocolError.details recovery/projection/newCursor contract; do not reset arbitrarily or borrow another Run’s cursor. Drain never advances these cursors. Durable events provide fact/event/projection recovery evidence, not guaranteed verbatim replay of every dedicated tool_call, tool_cancel, or verification_request, and do not replace pending host notifications. V1 retains inspect_run/snapshot without acquiring the v2 durable events API.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).
@@ -91,7 +129,7 @@ A search match does not approve execution. Durable installation at the next requ
 6. For the v1 tool bridge only, inject a registration failure and confirm `client.pid` is cleared and the temporary directory can be removed.
 7. For an explicit Loop, compare Python and TypeScript `loop_state` order, then call `resume_run` after pause and confirm committed effects do not replay.
 8. For v1, verify `result['snapshot']` matches top-level runId, outcome, operation, metrics, and trace. Stop using a Worker that reports `invalid_run_snapshot`.
-9. For v2 host verification, catch up with `events` by RunId and sequence, confirm rejection repairs within the same Run, and distinguish control receipts from the final outcome.
+9. For v2 host verification, catch up with `events` using each RunId’s returned `nextCursor`, confirm rejection repairs within the same Run, and distinguish control receipts from the final outcome.
 10. For v2 input controls, verify sync/async, duplicate/conflict, cancellation discard, and no queue leakage into the next Run, retaining real request and input-event evidence.
 
 ## Common mistakes

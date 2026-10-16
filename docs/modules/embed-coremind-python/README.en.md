@@ -10,6 +10,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 
 - `CoreMindClient`
 - `AsyncCoreMindClient`
+- `drain_notifications` / `NotificationHistory`
 - `@client.tool`
 - `resume_run`
 - `inspect_run`
@@ -35,6 +36,8 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - Python and TypeScript preserve identical `loop_state` order, Loop terminals, stable snapshots, and effect receipts
 - Protocol performs complete nested validation for operation, outcome, metrics, evaluation, release readiness, trace, checkpoints, artifacts, and extension receipts; any drift fails closed with `invalid_run_snapshot`
 - The PyPI package continues to carry the built Node Worker and does not introduce a separate Python Runtime or Loop
+
+All four `received_*` lists retain notifications by default. `drain_notifications()` atomically takes events, tool_calls, tool_cancellations, and verification_requests while preserving list identity. Process or retain the entire batch: taking it is not a server acknowledgement, does not clear callbacks, and does not answer tools, approvals, or verification. Live sequence values differ from durable events-page nextCursor values; save the latter separately per runId. See the [long-lived consumption guide](GUIDE.en.md#long-lived-notification-consumption-12-development).
 
 CoreMind supplies mechanisms, quality guardrails, and development guidance. Users or business owners retain control of goals, rules, data fields, approval ownership, and final acceptance.
 

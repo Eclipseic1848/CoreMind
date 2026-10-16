@@ -41,7 +41,7 @@ receipt = client.control({
 page = client.events(run_id, after_sequence=0)
 ```
 
-`type` 可为 `steering` 或 `follow_up`：后者等 Agent 自然停止后继续同一 Run。AsyncCoreMindClient 的对应方法使用 `await`，合同相同。`events` 每次必须显式传 `after_sequence`；保存已读 sequence 后递增补读，不把一次空页当作终态，最终用事件或 `query` 核对 outcome。
+`type` 可为 `steering` 或 `follow_up`：后者等 Agent 自然停止后继续同一 Run。AsyncCoreMindClient 的对应方法使用 `await`，合同相同。`events` 每次必须显式传 `after_sequence`；每个 Run 分别保存页返回的 `nextCursor`，处理成功后以它补读，不用 live 通知的 sequence 计算游标，也不把一次空页当作终态，最终用事件或 `query` 核对 outcome。
 
 保留 controlId 重试，相同内容为 duplicate，不同内容为 conflict；另外三态为 accepted、applied、rejected。accepted 是持久接收，applied 是应用事实提交后交付 Agent 队列，都不是模型已消费。按 inputId 区分独立的 `input_receipt/input_claimed/input_completed/input_discarded`。错误 Run、未就绪或已封口会拒绝；控制不批准工具、不改变权限或预算，也不新开并发 Run。
 
@@ -81,6 +81,44 @@ with CoreMindClient(config, protocol_version='2.0',
 
 `resume_run` 只有在最后权威暂停记录精确绑定待续 execution 时，才沿用该执行的已安装工具集合。质量重试建立新 execution；崩溃没有该绑定时，在原恢复门准入后从新的 deferred 声明开始，不借同 Run/Agent/Step 的旧激活。此绑定由 Node 的私有事实管理，不增加 Python 目录、公开 owners 字段或消息恢复承诺；原配置指纹、输入、审批和副作用检查仍适用。
 
+## 常驻通知消费（1.2 开发线）
+
+默认不调用 drain 时，`received_events`、`received_tool_calls`、`received_tool_cancellations`、`received_verification_requests` 完整保留。新方法一次取走当前全客户端四桶，清空原 list 而不替换对象；每桶保序，元素是原 Mapping 的浅引用。批次可能含多个 runId，不保证跨桶总交错顺序；外部直接并发修改 list 不在 SDK 线程安全保证内。
+
+以下函数先留存**整个** batch；`retained` 由宿主持有，完整处理或持久保存四桶后再释放，不能让该宿主容器无限累积。方法本身不启动 Worker、不发 RPC，也可读取 close 前留下的历史。
+
+```python
+from coremind import AsyncCoreMindClient, CoreMindClient, NotificationHistory
+
+def collect(client: CoreMindClient, retained: list[NotificationHistory]) -> None:
+    retained.append(client.drain_notifications())
+
+async def collect_async(client: AsyncCoreMindClient,
+                        retained: list[NotificationHistory]) -> None:
+    retained.append(await client.drain_notifications())
+```
+
+宿主分别处理 `batch['events']`、`batch['tool_calls']`、`batch['tool_cancellations']` 和 `batch['verification_requests']`。按 runId、callId、registrationId 关联工具和取消；仍通过 `submit_tool_result` / `submit_verification` 等原接口显式回应。取走不是服务端 ack，不自动批准/执行，不代表业务处理或 callback 已完成。回调队列、已执行的 handler、过载错误和 v1 callable 不受清表影响；handler 可重入 drain。MCP 授权 URL/回执走专用 handler，不混入批次。
+
+async drain 故意在调用 Task 内直接执行本地短锁复制，不开 `to_thread` 消费线程，从而没有后台已清表、等待 Task 却取消而拿不到批次的中间窗口。复制仍是 O(N)，会暂占调用线程/loop；没有自动硬容量限制，应规律消费。默认不调用时旧完整保留行为不变。
+
+durable 补读是另一个面：显式 v2 的 `events()` 不读取或补回四个 live list。每个 Run 保存自己的 **页返回 nextCursor**，成功处理页后再推进，绝不把 live 通知 sequence 当作该 cursor，也不加一猜值。下面 `consume_page` 是宿主处理或可靠保存完整页的同步函数；抛错就不推进：
+
+```python
+from collections.abc import Callable, Mapping
+from typing import Any
+
+def catch_up_page(client: CoreMindClient, run_id: str,
+                  cursors: dict[str, int],
+                  consume_page: Callable[[Mapping[str, Any]], None]) -> bool:
+    page = client.events(run_id, after_sequence=cursors.get(run_id, 0), limit=100)
+    consume_page(page)
+    cursors[run_id] = page['nextCursor']
+    return page['hasMore']
+```
+
+Async 对 `events` 使用 await，仍在处理成功后保存该 Run 的 nextCursor。`hasMore=True` 继续翻页；运行中暂时 False/空页不等于终态，需事件或 query 核对。`cursor_expired` 沿原 `ProtocolError.details` 的 recovery/projection/newCursor 处理，不擅自重置或借另一 Run 的 cursor。drain 不改变这些游标。durable events 只提供事实/事件/投影恢复依据，不保证原样重放专用 tool_call、tool_cancel、verification_request，不能代替尚待宿主处理的四桶。v1 没有该 v2 events 补读 API，保留原 inspect_run/snapshot 能力。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。
@@ -91,7 +129,7 @@ with CoreMindClient(config, protocol_version='2.0',
 6. 仅对 v1 工具桥注入注册失败，确认 `client.pid` 被清空且临时目录可以删除。
 7. 使用显式 Loop 时对比 Python 与 TypeScript 的 `loop_state` 顺序；暂停后调用 `resume_run`，确认 committed 副作用未重复。
 8. 对 v1 校验 `result['snapshot']` 与顶层 runId、outcome、operation、metrics、trace 一致；收到 `invalid_run_snapshot` 时停止使用该 Worker。
-9. 对 v2 宿主验收，按 RunId 与 sequence 补读 `events`，拒绝候选后确认同一 Run 修复，并区分控制回执与最终 outcome。
+9. 对 v2 宿主验收，按每个 RunId 保存的 events 页 `nextCursor` 补读，拒绝候选后确认同一 Run 修复，并区分控制回执与最终 outcome。
 10. 对 v2 输入控制分别验证 sync/async、重复/冲突、取消丢弃与下一 Run 无队列泄漏，保留真实请求及输入事件证据。
 
 ## 常见误区

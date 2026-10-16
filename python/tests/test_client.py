@@ -48,6 +48,8 @@ class CoreMindClientTest(unittest.TestCase):
         errors = []
         def callback(event):
             try:
+                batch = client.drain_notifications()
+                self.assertEqual(set(batch), {"events", "tool_calls", "tool_cancellations", "verification_requests"})
                 client.inspect_run("run-1")
             except Exception as error:
                 errors.append(error)
@@ -80,6 +82,11 @@ class CoreMindClientTest(unittest.TestCase):
                     client._handle_notification({"method": "event", "params": {"index": index}})
                 self.assertIsNotNone(client.event_handler_error)
                 self.assertEqual(len(client.received_events), 5)
+                overflow = client.event_handler_error
+                batch = client.drain_notifications()
+                self.assertEqual([event["index"] for event in batch["events"]], list(range(5)))
+                self.assertEqual(client.received_events, [])
+                self.assertIs(client.event_handler_error, overflow)
                 client.inspect_run("run-1")
             finally:
                 release.set()
@@ -131,7 +138,9 @@ class CoreMindClientTest(unittest.TestCase):
             async with AsyncCoreMindClient({"schemaVersion": 2, "name": "host-verification", "agents": {"main": {}}},
                                            worker_command=worker, protocol_version="2.0") as client:
                 await client.run(run_id="verify-async")
-                request = client.sync_client.received_verification_requests[0]
+                batch = await client.drain_notifications()
+                request = batch["verification_requests"][0]
+                self.assertEqual(client.sync_client.received_verification_requests, [])
                 receipt = await client.submit_verification(request["runId"], request["requestId"],
                     request["candidateSha256"], decision="accept", control_id="async-verification")
                 self.assertEqual(receipt["controlId"], "async-verification")
@@ -229,11 +238,15 @@ class CoreMindClientTest(unittest.TestCase):
             self.assertNotIn("敏感内容", "\n".join(client._stderr_tail))
 
     def test_python_callable_round_trip(self) -> None:
+        retained = []
         @self.client.tool(
             description="查询订单",
             effect={"operations": ["read"], "reversible": True},
         )
         def lookup_order(order_id: str) -> dict[str, str]:
+            batch = self.client.drain_notifications()
+            retained.append(batch)
+            self.assertEqual(batch["tool_calls"], [])
             return {"id": order_id, "status": "paid"}
 
         result = self.client.run("调用工具")
@@ -347,7 +360,9 @@ class CoreMindClientTest(unittest.TestCase):
                 if client.received_tool_calls:
                     break
                 time.sleep(0.01)
-            call = client.received_tool_calls[0]
+            batch = client.drain_notifications()
+            call = batch["tool_calls"][0]
+            self.assertEqual(client.received_tool_calls, [])
             receipt = client.submit_tool_result(
                 call["runId"],
                 call["callId"],
