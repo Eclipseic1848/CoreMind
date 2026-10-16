@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "3cf8f476917a407b54774b0478086aceb3b172ae",
+    "developmentCommit": "1c353ea969a85bce2f8e6e43194c540e10ef68a0",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -31,13 +31,13 @@
   "dependencies": {
     "installed": {
       "coding-layer": [
-        "1.2.0"
+        "1.3.0"
       ],
       "model-layer": [
-        "1.2.0"
+        "1.3.0"
       ],
       "runtime-core": [
-        "1.2.0"
+        "1.3.0"
       ]
     }
   },
@@ -283,18 +283,18 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-16T02:58:36.313Z",
+    "capturedAt": "2026-10-16T04:12:18.253Z",
     "capturePlatform": "win32",
-    "updateReason": "新增会话单写者、陈旧快照与安全释放错误码；保留既有 Runtime API 形状",
+    "updateReason": "核对兼容运行依赖精确升级后的三个实际安装版本；公共API与协议Schema保持不变",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "51d5802e038e5953984bec18ef803ed61b571934b0c96ea42a31cc3f8056ad0a",
+    "dependencyLockSha256": "8c468569b2a943075f406387da649c407730704d9ef3eb81599aeca55a4e7b31",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
       "coremind-ai": "0ae8e490afb7b7a5b4b91abab70eb051b60be62acf22c1b43059f1f079818a24",
       "coremind-cli": "b5f2c49ade935d100bc35b5748bb115e620d7a679ae562b95189db9c9fe1d5d5",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
       "coremind-protocol": "d21f8b05dfdbcd3d273377e7debc2e34c5759c9aad9178f50be4ad6e470877db",
-      "coremind-runtime": "3abb35ae8311a821232fb6a092986af3061612608cd02e945f6460140232f14a",
+      "coremind-runtime": "3936f765f6ee9e0a242275556cb23eb35a8b53068cf9a1600244210a466950fc",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
       "coremind-tools": "37dca4c4020f70f6d50a285b54118ed223b913084908fcdba1269c85e32dc339",
       "coremind-worker": "4f1e9b97dea17bb7c8f2dce04d830ff37454cde4582dd4b8cfc1e17bdf31db14"

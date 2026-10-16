@@ -183,7 +183,7 @@ import {
   type RunMetrics,
   type RunOutcome,
 } from "./result.js";
-import { runWithTransientRetry } from "./retry-policy.js";
+import { classifyRetry, runWithTransientRetry } from "./retry-policy.js";
 import { RunContext } from "./run-context.js";
 import { RunEffectCoordinator } from "./run-effect-coordinator.js";
 import { RunKernel } from "./run-kernel.js";
@@ -1790,7 +1790,7 @@ export class CoreMindRuntime {
       | ((event: Extract<CoreMindEvent, { type: "tool_result" }>) => void)
       | undefined;
     const lifecycleFinalizers = new Map<string, Promise<void>>();
-    const immediateDiscoveryRejections = new Map<string, Promise<unknown>>();
+    const immediateToolRejections = new Map<string, Promise<unknown>>();
     const mcpAuthorizations = new Map<string, Readonly<Record<string, unknown>>>();
     const bindMcpArguments = (agent: string, tool: string, args: unknown): unknown => {
       const authorization = mcpAuthorizations.get(JSON.stringify([agent, tool]));
@@ -2043,12 +2043,12 @@ export class CoreMindRuntime {
       });
       const identity = toolCallIdentity(event.agent, event.stepId, event.callId!);
       const callKey = toolCapabilityCallKey(event.agent, event.stepId, event.callId!);
-      if ((!recorded || recorded.tool !== event.tool) && !immediateDiscoveryRejections.has(callKey))
+      if ((!recorded || recorded.tool !== event.tool) && !immediateToolRejections.has(callKey))
         return;
       // 仍在结果事件之后的微任务提交；宿主准备只等待同一个 Call 的结果屏障。
       const finalizer = Promise.resolve().then(async () => {
         try {
-          await immediateDiscoveryRejections.get(callKey);
+          await immediateToolRejections.get(callKey);
           await journal.flush();
           await toolExecutionEngine.finalizeResult(identity);
           await releaseWorkspaceLease(identity);
@@ -3189,6 +3189,7 @@ export class CoreMindRuntime {
           }
         },
         onObservation: (observation) => {
+          let immediateRejection: string | undefined;
           if (
             observation.type === "tool_execution_start" &&
             discovery &&
@@ -3197,36 +3198,55 @@ export class CoreMindRuntime {
             try {
               discovery.assertCallable(observation.call.tool);
             } catch {
-              // 原生对未声明工具立即拒绝，不经过 beforeToolCall，仍须留下未执行的完整收据。
-              const call = observation.call;
-              const key = toolCapabilityCallKey(agentName, stepId, call.callId);
-              const capability =
-                executionCapabilities.get(call.tool) ?? resolveToolCapability({ tool: call.tool });
-              const previous = capabilityByCallId.get(key);
-              if (previous && previous.tool !== call.tool) {
-                throw new CoreMindError("tool_capability_conflict", "同一 Call 不得更换工具身份");
-              }
-              capabilityByCallId.set(key, { tool: call.tool, capability });
-              emit({
-                type: "capability_resolved",
-                agent: agentName,
-                tool: call.tool,
-                callId: call.callId,
-                ...(stepId ? { stepId } : {}),
-                capability,
-                recoveryDisposition: recoveryDispositionFor(capability),
-              });
-              const identity = toolCallIdentity(agentName, stepId, call.callId);
-              const rejection = toolExecutionEngine
-                .recordCall({ ...identity, tool: call.tool })
-                .then(() =>
-                  toolExecutionEngine.blockBeforeExecution(identity, "工具不在当前已声明集合"),
-                );
-              immediateDiscoveryRejections.set(key, rejection);
-              void rejection.catch((error) => {
-                lifecycleFailure = normalizeExecutionError(error);
-              });
+              immediateRejection = "工具不在当前已声明集合";
             }
+          }
+          if (observation.type === "tool_execution_end" && observation.isError) {
+            const call = observation.call;
+            const key = toolCapabilityCallKey(agentName, stepId, call.callId);
+            const binding = effectBindingByCall.get(key);
+            // 已冻结真实 start，且从未准入的参数拒绝也必须形成完整的未执行收据。
+            if (
+              binding?.tool === call.tool &&
+              !capabilityByCallId.has(key) &&
+              !toolExecutionEngine.inspect(toolCallIdentity(agentName, stepId, call.callId)) &&
+              !immediateToolRejections.has(key)
+            ) {
+              immediateRejection = "工具在执行准入前被拒绝";
+            }
+          }
+          if (
+            immediateRejection !== undefined &&
+            (observation.type === "tool_execution_start" ||
+              observation.type === "tool_execution_end")
+          ) {
+            const call = observation.call;
+            const key = toolCapabilityCallKey(agentName, stepId, call.callId);
+            const capability =
+              executionCapabilities.get(call.tool) ?? resolveToolCapability({ tool: call.tool });
+            const previous = capabilityByCallId.get(key);
+            if (previous && previous.tool !== call.tool) {
+              throw new CoreMindError("tool_capability_conflict", "同一 Call 不得更换工具身份");
+            }
+            capabilityByCallId.set(key, { tool: call.tool, capability });
+            emit({
+              type: "capability_resolved",
+              agent: agentName,
+              tool: call.tool,
+              callId: call.callId,
+              ...(stepId ? { stepId } : {}),
+              capability,
+              recoveryDisposition: recoveryDispositionFor(capability),
+            });
+            const identity = toolCallIdentity(agentName, stepId, call.callId);
+            const reason = immediateRejection;
+            const rejection = toolExecutionEngine
+              .recordCall({ ...identity, tool: call.tool })
+              .then(() => toolExecutionEngine.blockBeforeExecution(identity, reason));
+            immediateToolRejections.set(key, rejection);
+            void rejection.catch((error) => {
+              lifecycleFailure = normalizeExecutionError(error);
+            });
           }
           if (observation.type === "control_consumed" || observation.type === "control_discarded") {
             const state = receiptStatusOf(collected, observation.inputId);
@@ -3614,7 +3634,49 @@ export class CoreMindRuntime {
                 : undefined,
               executeStep: (request) =>
                 runWithTransientRetry(
-                  () => this.executeLoopStep(request, emit, limits.stepTimeoutMs, collected),
+                  async () => {
+                    const attemptCursor = collected.length;
+                    try {
+                      return await this.executeLoopStep(
+                        request,
+                        emit,
+                        limits.stepTimeoutMs,
+                        collected,
+                      );
+                    } catch (error) {
+                      // 重起步骤会丢弃本次 Driver；已开始的委派也不能证明子任务可以重放。
+                      if (
+                        retryCount < limits.maxRetries &&
+                        classifyRetry(error).retryable &&
+                        collected
+                          .slice(attemptCursor)
+                          .some(
+                            (event) =>
+                              event.type === "effect_receipt" &&
+                              event.stepId === request.stepId &&
+                              event.status !== "not_started" &&
+                              (event.tool === DELEGATION_TOOL_NAME ||
+                                capabilityByCallId.get(
+                                  toolCapabilityCallKey(event.agent!, event.stepId, event.callId!),
+                                )?.capability.effect !== "none"),
+                          )
+                      ) {
+                        const original = normalizeExecutionError(error);
+                        throw new CoreMindError(
+                          "unclassified_error",
+                          `步骤 ${request.stepId} 已产生副作用或已开始委派，模型请求失败后须人工核对，禁止整步重试`,
+                          {
+                            originalCode:
+                              `${original.code}: ${original.audit?.originalCode ?? original.message}`.slice(
+                                0,
+                                512,
+                              ),
+                          },
+                        );
+                      }
+                      throw error;
+                    }
+                  },
                   {
                     maxRetries: Math.max(0, limits.maxRetries - retryCount),
                     signal: this.options.signal,

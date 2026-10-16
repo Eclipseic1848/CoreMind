@@ -4,6 +4,8 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { buildWorkerRuntimeDependencies } from "./dependency-family.mjs";
+import { buildDependencyReport } from "./dependency-report.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pythonPackage = path.join(repositoryRoot, "python", "src", "coremind");
@@ -14,6 +16,8 @@ const errorContractOutput = path.join(pythonPackage, "_error_contract.json");
 
 await mkdir(workerDirectory, { recursive: true });
 const workerBuild = await build({
+  absWorkingDir: repositoryRoot,
+  metafile: true,
   entryPoints: [path.join(repositoryRoot, "packages", "coremind-worker", "src", "stdio.ts")],
   outfile: workerOutput,
   write: false,
@@ -27,6 +31,13 @@ const workerBuild = await build({
     js: 'import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);',
   },
 });
+const dependencyReport = await buildDependencyReport(repositoryRoot);
+if (!dependencyReport.summary.lockstep) throw new Error("Worker 核心依赖族未锁步");
+const runtimeDependencies = await buildWorkerRuntimeDependencies(
+  repositoryRoot,
+  workerBuild.metafile,
+  dependencyReport.summary.version,
+);
 execFileSync(
   process.execPath,
   [path.join(repositoryRoot, "scripts", "build-linux-sandbox-backend.mjs"), "--python-assets"],
@@ -59,6 +70,7 @@ const workerManifest = {
   protocolV2Version: "2.0",
   protocolV2SchemaFingerprint: protocolModule.PROTOCOL_V2_SCHEMA_FINGERPRINT,
   bundleSha256: createHash("sha256").update(normalizedBundle, "utf8").digest("hex"),
+  runtimeDependencies,
 };
 await writeFile(workerManifestOutput, `${JSON.stringify(workerManifest, null, 2)}\n`, "utf8");
 

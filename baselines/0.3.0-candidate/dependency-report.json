@@ -1,49 +1,85 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-14",
+  "generatedAt": "2026-10-15",
   "summary": {
     "lockstep": true,
-    "version": "1.2.0",
-    "packages": 3
+    "version": "1.3.0",
+    "packages": 7
   },
   "dependencies": [
     {
       "name": "@earendil-works/pi-agent-core",
       "declaredVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
       "installedVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
-      "resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-1.2.0.tgz",
-      "integrity": "sha512-pUR0vYmGhHkBQGeCeWjwVIA+l1+MrDu6m6VGuysjh6KBzBpovTV/MlcVrEIOaM8jv/slpAyUmuCEQl1jOBqHJQ=="
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-agent-core/-/pi-agent-core-1.3.0.tgz",
+      "integrity": "sha512-2jvpxZs47PFD5mSQb/yK0pGHJ5yO7Nu22u9mFjHbSLRgu62vZ9rupimDSIp4arnqOadyv0AWvYHtCSpFoJV7ag=="
     },
     {
       "name": "@earendil-works/pi-ai",
       "declaredVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
       "installedVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
-      "resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-1.2.0.tgz",
-      "integrity": "sha512-U5/1zXqfV1on7/9sbez03tT4Ru49Lvfb4+zXSDK3DBKF5cRk6KxvAOTOY3HJ4jimlZth+rs7vbJqN6iBQAoNuQ=="
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-1.3.0.tgz",
+      "integrity": "sha512-KaBI8x7q7sPoFUXICNGD9efHzDG+oRNwVvkA9jdIsSQWH1RjFssOlEGsbLtewUPPgCrvmz0l2KTgSLXTyj3acw=="
     },
     {
       "name": "@earendil-works/pi-coding-agent",
       "declaredVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
       "installedVersions": [
-        "1.2.0"
+        "1.3.0"
       ],
-      "resolved": "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-1.2.0.tgz",
-      "integrity": "sha512-h/4WaVWv1VlCaY8x8qEN5U+7jbF/e7+Ck6moPeEOFn5juMTWwNAXjwgYM7gRgbBYh8Zppwt6qWvJDzNTf4GNEQ=="
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-1.3.0.tgz",
+      "integrity": "sha512-V/WoCjA2hQSe3QLWIUB24cTRdtEdeLiIzkDqU5RMXV6VWuD+KGZnzVBMhglwdnQTySkehZsjt8a3g6Jd2g4nnw=="
+    },
+    {
+      "name": "@earendil-works/pi-codemode",
+      "declaredVersions": [],
+      "installedVersions": [
+        "1.3.0"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-codemode/-/pi-codemode-1.3.0.tgz",
+      "integrity": "sha512-2G9tmbsPhgzwfz7cmzJpbLSLqOx3eu22Gbzm+Wc3HqeZMjLQS4F3KfAabozVhv7uEjq3k2O1dZTHmhhWr2xbfQ=="
+    },
+    {
+      "name": "@earendil-works/pi-mcp",
+      "declaredVersions": [],
+      "installedVersions": [
+        "1.3.0"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-mcp/-/pi-mcp-1.3.0.tgz",
+      "integrity": "sha512-lbktLplmdGamM2t460Q0ziNEfpUEHDTVNf79g/AialJ3XZ+SHgNqa/OJXRR+fU+GV/l+gBhRPcyP8XkQlv8Avw=="
+    },
+    {
+      "name": "@earendil-works/pi-telemetry",
+      "declaredVersions": [],
+      "installedVersions": [
+        "1.3.0"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-telemetry/-/pi-telemetry-1.3.0.tgz",
+      "integrity": "sha512-ERGZr+aXjNJzoUbB7ZzHVH3g5otzMHjHLs2Fyizm12By5X+gBEhod9cJXFOk13S7M8a29Am+Mq21zm73mRJFLg=="
+    },
+    {
+      "name": "@earendil-works/pi-tui",
+      "declaredVersions": [],
+      "installedVersions": [
+        "1.3.0"
+      ],
+      "resolved": "https://registry.npmjs.org/@earendil-works/pi-tui/-/pi-tui-1.3.0.tgz",
+      "integrity": "sha512-AlKvEwEWyVtnuw7SVb4N/mUhlfIohyFslUNWarZVdLHHSdt3ca5EhMLwTzblBpDpaofSz+f+tAHie6CfxVrWKA=="
     }
   ],
   "packaging": {
     "cliShrinkwrap": false,
-    "reason": "CLI 与 SDK 共用工作区 Lockfile、干净安装和 tarball 内容门禁"
+    "reason": "发布候选验证 tarball 干净安装的实际依赖图；仓库 overrides 不约束消费者"
   },
   "audit": {
     "command": "npm run security:audit",

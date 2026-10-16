@@ -18,7 +18,8 @@
 - Provider、工具、abort、usage、错误和超时必须通过显式转换或合同测试。
 - CoreMind 对用户继续返回稳定的 `session.dir/<id>.jsonl` 路径；底层仓库布局不能改写 CLI/SDK 的文件合同。
 - 不用双重强转掩盖跨版本类型冲突。
-- SDK 不使用 shrinkwrap；CLI 与 SDK 共用工作区 Lockfile、干净安装和 tarball 内容门禁。
+- SDK 不使用 shrinkwrap；仓库 overrides 不约束下游消费者。发布验收在 tarball 干净安装后逐层核对实际运行依赖图的七个成员，保留原有导入、Child Run 与内容门禁。
+- Python 内置 Worker 的 manifest 记录七个成员的实际安装版本、锁定归档完整性及构建输出中的 `bundled` 状态；已解析的成员不等于已内联。wheel 与冻结源码中的 Worker/manifest 逐字节核对，消费者 npm 图与随包 Worker 分别验收。
 - 依赖升级失败时整体回退，禁止混搭进入主线。
 - 候选基线采集会扫描 `coremind-runtime` 和 `coremind-ai` 的聚合声明；发现私有依赖类型即阻断。
 

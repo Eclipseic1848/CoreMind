@@ -20,6 +20,7 @@ Connect deterministic business actions through built-in tools, script tools, or 
 
 - Tool loading failures are warned and skipped
 - Tool exceptions enter tool_result and failure budgets
+- Final tool-call JSON must parse completely; string-escape repair may preserve its full content. Otherwise it is rejected before approval, checkpoints, and execution, without completing missing structure or executing a parsed prefix. Rejection produces a bound `not_started` receipt and tool error so the model can resubmit. Valid arguments still pass the original permission and execution gates.
 - Escaped paths or deny rules block execution
 - A custom tool without `effect` fails at configuration or SDK definition time; restricted modes never guess unknown side effects
 - `effect.operations` may combine `read`, `write`, `process`, `network`, and `external`; `reversible` must reflect reality

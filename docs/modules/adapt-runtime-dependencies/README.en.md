@@ -18,7 +18,8 @@ Keep model streaming, messages, tools, usage, and error classification behind pr
 - Provider, tool, abort, usage, error, and timeout behavior is covered by explicit conversion or contract tests.
 - CoreMind continues to return the stable `session.dir/<id>.jsonl` path; an internal repository layout cannot rewrite the CLI/SDK file contract.
 - Double casts may not conceal cross-version type conflicts.
-- SDK packages do not use shrinkwrap. CLI and SDK packages share the workspace lockfile, clean-install checks, and tarball-content gates.
+- SDK packages do not use shrinkwrap; repository overrides do not constrain downstream consumers. Release validation traverses all seven runtime dependency members after a clean tarball installation, retaining import, Child Run, and package-content checks.
+- The bundled Python Worker's manifest records each member's actual installed version, locked archive integrity, and `bundled` output status; resolution does not imply inclusion. Wheel validation compares the Worker and manifest byte-for-byte with frozen source. Consumer npm graphs and the bundled Worker are verified separately.
 - A failed upgrade rolls back as one family; mixed versions never enter the main line.
 - Candidate baseline capture scans the `coremind-runtime` and `coremind-ai` declaration rollups and blocks private dependency type leaks.
 
