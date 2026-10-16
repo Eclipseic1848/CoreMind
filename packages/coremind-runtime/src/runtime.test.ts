@@ -2737,22 +2737,19 @@ describe("CoreMindRuntime", () => {
               ? { callId: entry.event.callId, tool: entry.event.tool }
               : undefined,
           ),
-      ).toEqual([
-        { callId: "shared-call", tool: "read" },
-        { callId: "shared-call", tool: "write" },
-      ]);
-      expect(result.outcome).toMatchObject({ status: "failed" });
+      ).toEqual([{ callId: "shared-call", tool: "read" }]);
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: { code: "effect_receipt_conflict" },
+      });
+      expect(result.outcome.error?.message).toContain("工具 Call 身份重复");
+      expect(providerRequests).toBe(2);
       expect(existsSync(target)).toBe(false);
-      expect(result.trace).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            event: expect.objectContaining({
-              type: "error",
-              message: expect.stringContaining("Tool Capability"),
-            }),
-          }),
-        ]),
-      );
+      expect(
+        result.trace.some(
+          ({ event }) => event.type === "capability_resolved" && event.tool === "write",
+        ),
+      ).toBe(false);
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));

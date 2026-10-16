@@ -255701,6 +255701,14 @@ function buildAgentDriver(agentCfg, ctx) {
   let driver;
   const agent = buildAgent(agentCfg, {
     ...ctx,
+    onEvent: (event) => {
+      try {
+        ctx.onEvent(event);
+      } catch (error3) {
+        requestFailure ??= error3;
+        throw error3;
+      }
+    },
     harness: {
       ...ctx.harness,
       onObservation: (observation) => {
@@ -266798,6 +266806,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
           enriched = { ...enriched, turnId: call.turnId };
       }
       if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
+        const callKey = toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId);
+        if (effectBindingByCall.has(callKey) || resumePlan?.previousTrace.some(({ event: previous }) => previous.type === "tool_call" && previous.callId !== void 0 && toolCapabilityCallKey(previous.agent, previous.stepId, previous.callId) === callKey)) {
+          lifecycleFailure = journal.isAborted() ? new CoreMindError("aborted", "\u8FD0\u884C\u5DF2\u4E2D\u6B62\uFF0C\u62D2\u7EDD\u91CD\u590D\u5DE5\u5177\u8C03\u7528") : new CoreMindError("effect_receipt_conflict", "\u5DE5\u5177 Call \u8EAB\u4EFD\u91CD\u590D\uFF0C\u5DF2\u62D2\u7EDD\u540E\u7EED\u8C03\u7528");
+          throw lifecycleFailure;
+        }
         context.recordToolCall({
           agent: enriched.agent,
           callId: enriched.callId,
