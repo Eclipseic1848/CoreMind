@@ -18,7 +18,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
-from typing import Any, Awaitable, Callable, Mapping, Sequence, Union, get_args, get_origin
+from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union, get_args, get_origin
 from urllib.parse import parse_qsl, urlsplit
 
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
@@ -29,6 +29,13 @@ ApprovalHandler = Callable[[Mapping[str, Any]], str]
 EventHandler = Callable[[Mapping[str, Any]], None]
 McpAuthHandler = Callable[[Mapping[str, Any]], None | Awaitable[None]]
 _MISSING = object()
+
+
+class NotificationHistory(TypedDict):
+    events: list[Mapping[str, Any]]
+    tool_calls: list[Mapping[str, Any]]
+    tool_cancellations: list[Mapping[str, Any]]
+    verification_requests: list[Mapping[str, Any]]
 
 
 class CoreMindClient:
@@ -89,6 +96,21 @@ class CoreMindClient:
         """返回常驻 worker 进程号。"""
 
         return self._process.pid if self._process else None
+
+    def drain_notifications(self) -> NotificationHistory:
+        """原子取走四类本地通知历史；不确认业务处理、不清理回调队列。"""
+        with self._pending_lock:
+            history: NotificationHistory = {
+                "events": list(self.received_events),
+                "tool_calls": list(self.received_tool_calls),
+                "tool_cancellations": list(self.received_tool_cancellations),
+                "verification_requests": list(self.received_verification_requests),
+            }
+            self.received_events.clear()
+            self.received_tool_calls.clear()
+            self.received_tool_cancellations.clear()
+            self.received_verification_requests.clear()
+        return history
 
     def start(self) -> "CoreMindClient":
         """启动 worker、协商协议并注册已有 Python 工具。"""
@@ -829,7 +851,9 @@ class CoreMindClient:
                 if self._protocol_version != PROTOCOL_V2_VERSION or "hostVerification" not in self._capabilities:
                     raise ProtocolError("未协商宿主验收能力", rpc_code=-32601,
                                         coremind_code="protocol_capability_missing")
-                self.received_verification_requests.append(parse_verification_request(message))
+                request = parse_verification_request(message)
+                with self._pending_lock:
+                    self.received_verification_requests.append(request)
             except ProtocolError as error:
                 self._stderr_tail.append(str(error))
             return
@@ -842,7 +866,8 @@ class CoreMindClient:
             except ProtocolError as error:
                 self._stderr_tail.append(str(error))
                 return
-            self.received_events.append(params)
+            with self._pending_lock:
+                self.received_events.append(params)
             if isinstance(event, Mapping) and event.get("type") == "approval_required":
                 threading.Thread(
                     target=self._answer_approval,
@@ -871,7 +896,9 @@ class CoreMindClient:
                         rpc_code=-32600,
                         coremind_code="protocol_validation_failed",
                     )
-                self.received_tool_calls.append(_validate_tool_call(params))
+                notification = _validate_tool_call(params)
+                with self._pending_lock:
+                    self.received_tool_calls.append(notification)
             except ProtocolError as error:
                 self._stderr_tail.append(str(error))
         elif method == "tool_cancel" and self._protocol_version == PROTOCOL_V2_VERSION:
@@ -886,7 +913,9 @@ class CoreMindClient:
                         rpc_code=-32600,
                         coremind_code="protocol_validation_failed",
                     )
-                self.received_tool_cancellations.append(_validate_tool_cancel(params))
+                notification = _validate_tool_cancel(params)
+                with self._pending_lock:
+                    self.received_tool_cancellations.append(notification)
             except ProtocolError as error:
                 self._stderr_tail.append(str(error))
 
@@ -998,6 +1027,10 @@ class AsyncCoreMindClient:
 
     def tool(self, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._client.tool(**kwargs)
+
+    async def drain_notifications(self) -> NotificationHistory:
+        """本地原子消费；不创建可能先清表、后因取消丢交付的后台任务。"""
+        return self._client.drain_notifications()
 
     async def start(self) -> "AsyncCoreMindClient":
         await asyncio.to_thread(self._client.start)

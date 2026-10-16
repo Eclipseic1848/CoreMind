@@ -98,6 +98,9 @@ class WorkerReuseTest(unittest.TestCase):
         self.assertEqual(Path(process.args[1]).resolve(), bundled_worker)
         mode = "async" if asynchronous else "sync"
         completed: list[tuple[str, dict, list[dict]]] = []
+        durable_cursors: dict[str, int] = {}
+        retained_batches = []
+        live_event_ids: set[str] = set()
         with patch.object(process, "terminate", wraps=process.terminate) as terminate, \
              patch.object(process, "kill", wraps=process.kill) as kill:
             try:
@@ -108,6 +111,21 @@ class WorkerReuseTest(unittest.TestCase):
                     handle = await client.run(prompt, run_id=run_id) if asynchronous else client.run(prompt, run_id=run_id)
                     events = await self._read_finished(client, run_id, asynchronous)
                     completed.append((run_id, handle, events))
+                    batch = await client.drain_notifications() if asynchronous else client.drain_notifications()
+                    retained_batches.append(batch)
+                    self.assertEqual(batch["tool_calls"], [])
+                    self.assertEqual(batch["tool_cancellations"], [])
+                    self.assertEqual(batch["verification_requests"], [])
+                    for notification in batch["events"]:
+                        self.assertIn(notification["runId"], [item[0] for item in completed])
+                        event_id = notification["event"]["eventId"]
+                        self.assertNotIn(event_id, live_event_ids)
+                        live_event_ids.add(event_id)
+                    # durable cursor 只来自各 Run 的 events 页，绝不取 live sequence。
+                    page = (await client.events(run_id, after_sequence=0, limit=ordinal)
+                            if asynchronous else client.events(run_id, after_sequence=0, limit=ordinal))
+                    self.assertEqual(page["events"], events[:ordinal])
+                    durable_cursors[run_id] = page["nextCursor"]
 
                 all_event_ids: set[str] = set()
                 self.assertEqual(len(requests), 3, "每个新 Run 必须恰好调用一次本地 Provider")
@@ -136,11 +154,37 @@ class WorkerReuseTest(unittest.TestCase):
                     users = [message for message in requests[ordinal - 1]["messages"]
                              if message["role"] == "user"]
                     self.assertEqual([_message_text(message) for message in users], [f"只处理任务-{ordinal}"])
+                    # 其他 Run 已推进、live 历史已 drain 后，仍能按该 Run 的原游标完整补读。
+                    recovered = []
+                    cursor = durable_cursors[run_id]
+                    deadline = time.monotonic() + 20
+                    while True:
+                        previous_cursor = cursor
+                        page = (await client.events(run_id, after_sequence=cursor, limit=2)
+                                if asynchronous else client.events(run_id, after_sequence=cursor, limit=2))
+                        recovered.extend(page["events"])
+                        cursor = page["nextCursor"]
+                        if not page["hasMore"]:
+                            break
+                        self.assertGreater(cursor, previous_cursor)
+                        self.assertLess(time.monotonic(), deadline, "跨 Run 补读未在原阶段预算内收敛")
+                    self.assertEqual(recovered, events[ordinal:])
+                    durable_cursors[run_id] = cursor
+                    self.assertEqual(cursor, events[-1]["sequence"])
             finally:
                 if asynchronous:
                     await client.close()
                 else:
                     client.close()
+                final_batch = await client.drain_notifications() if asynchronous else client.drain_notifications()
+                retained_batches.append(final_batch)
+            all_live = [notification for batch in retained_batches for notification in batch["events"]]
+            self.assertTrue(all(not batch[bucket] for batch in retained_batches
+                                for bucket in ("tool_calls", "tool_cancellations", "verification_requests")))
+            self.assertTrue(all(notification["runId"] in durable_cursors for notification in all_live))
+            self.assertEqual(len({notification["event"]["eventId"] for notification in all_live}), len(all_live))
+            self.assertTrue(all(any(notification["runId"] == run_id for notification in all_live)
+                                for run_id in durable_cursors))
             observation = {"pid": process.pid, "returncode": process.returncode,
                            "terminateCalls": terminate.call_count, "killCalls": kill.call_count}
             self.assertEqual(process.returncode, 0, observation)

@@ -50,6 +50,18 @@ Protocol v1 `@client.tool` requires an `effect` declaration. Initialization or r
 
 Before release, build the bundled Worker and wheel, run Twine, and run `npm run release:check-wheel`. The final gate installs the wheel in a clean virtual environment, compares `coremind.__version__` with package metadata, and starts the bundled Worker.
 
+## 常驻通知消费（1.2 开发线）
+
+四个公开 `received_*` list 默认继续完整保留。同步 `client.drain_notifications()` 或异步 `await client.drain_notifications()` 原子返回 `NotificationHistory`，包含 `events`、`tool_calls`、`tool_cancellations`、`verification_requests` 全部四桶，并原位清空原 list。每桶接收顺序与完整 Mapping 字段保持，返回新 list 但浅共享元素；不提供跨桶全局交错顺序。SDK 自己的 append 与 drain 共享短锁；外部直接并发修改 list 不在保证内。
+
+消费或留存整个 batch，不能只取 events 后丢弃待处理工具/取消/验收。drain 不发 RPC、不启动 Worker，可在 start 前和 close 后取走已有历史；它不是服务端 ack，不回答审批、执行工具或提交验收，也不清 callback 队列、不改变过载错误。MCP 授权通知仍只走专用 handler，不进入四桶。单次取走全客户端当前批次，可以混多个 runId，宿主按各自身份分发。复制为 O(N)，async 本地直接执行而不使用可被取消的后台消费线程；不承诺自动容量上限，常驻消费者应规律处理并释放自己已消费的批次。
+
+Protocol v2 的 `events(run_id, after_sequence=...)` 是独立的 durable 补读面。只在处理页成功后，按该 runId 保存返回的 `nextCursor`；**live 通知的 sequence 不是 durable cursor**，不能混用或加一推算。drain 不推进 cursor，空页也不代表终态。durable events 并不承诺原样重放专用 tool_call/tool_cancel/verification 通知；它不能代替尚待宿主应答的四桶。完整 sync/async 和四桶留存示例见[中文指南](../docs/modules/embed-coremind-python/GUIDE.zh-CN.md#常驻通知消费12-开发线)。
+
+All four public `received_*` lists retain notifications by default. `client.drain_notifications()` and `await async_client.drain_notifications()` atomically return a `NotificationHistory` with events, tool_calls, tool_cancellations, and verification_requests, clearing the existing lists in place. Order is preserved within each bucket; result lists are new but Mapping elements remain shallow references. There is no cross-bucket global ordering guarantee. SDK append and drain share a short lock; direct concurrent external list mutation is outside that contract.
+
+Process or retain the entire batch. Taking it is not a server acknowledgement, does not answer approvals/tools/verification, does not clear callback queues or overload errors, and does not advance durable cursors. The method starts no Worker or RPC and works before start or after close. MCP authorization stays in its dedicated handler. Batches may contain several runIds; route them by identity. Copying is O(N), runs locally even in the async client, and is not an automatic capacity limit. For v2 catch-up, save the events page’s `nextCursor` separately per runId only after processing; live notification sequence values are a different domain. Empty pages do not prove terminal state, and durable events do not promise replay of every dedicated host notification. See the [English guide](../docs/modules/embed-coremind-python/GUIDE.en.md#long-lived-notification-consumption-12-development).
+
 ## 当前源码修复说明（尚未发布）
 
 1.1 开发线支持显式 v2 MCP 交互认证：设置 `mcp_auth_handler`，调用 `mcp_login`、`mcp_cancel_auth`、`mcp_logout`。sync handler 在发起线程，async handler 在原 loop；取消会向 Node 发送原事务 cancel 并等待收尾。凭据默认只在 Node 宿主内存，不进入 `received_events` 或 Python 消息；无 handler、v1、旧 Worker 或缺能力明确拒绝。详见[Python 指南](../docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。真实外部认证服务互通未验证。
@@ -58,6 +70,6 @@ The 1.1 development line supports explicit v2 MCP authentication through `mcp_au
 
 新 Worker 协商 `resumeOperations` 后，SDK 自动为每次恢复生成操作身份，并在请求结果未知时保留身份供重试。跨进程重试时同时传入 `operation_id` 和 `expected_sequence`；同一次操作必须保留相同参数。详见 [Protocol 合同](../docs/spec/0.4.x/01-protocol-v2-and-v1-migration.md)。SDK 与 bundled Worker 必须来自同一次构建，协议指纹不匹配会被拒绝。
 
-`event_handler` 在独立单线程中按接收顺序执行，可以调用 SDK。请求返回不保证回调已全部完成，调用方需要自行同步。最多排队 1024 条；过载后 `event_handler_error` 非空并停止接收新的用户回调，已排队回调继续处理，`received_events` 仍保留完整通知，审批及协议响应读取不受阻塞。关闭客户端停止回调投递，不保证排空队列；已进入的用户回调无法强制终止，应自行使用有界等待。
+`event_handler` 在独立单线程中按接收顺序执行，可以调用 SDK。请求返回不保证回调已全部完成，调用方需要自行同步。最多排队 1024 条；过载后 `event_handler_error` 非空并停止接收新的用户回调，已排队回调继续处理，`received_events` 默认完整保留通知；显式 drain 后仅保留自上次 drain 起的新通知，审批及协议响应读取不受阻塞。关闭客户端停止回调投递，不保证排空队列；已进入的用户回调无法强制终止，应自行使用有界等待。
 
-These source fixes are not yet published. A negotiated `resumeOperations` capability enables per-operation identity; preserve both `operation_id` and `expected_sequence` for retries across client processes. Use a matching SDK and bundled Worker. Event callbacks run in order on a separate thread; request completion does not imply callback completion. The 1024-entry queue reports overload via `event_handler_error` and stops new callback deliveries while retaining notifications in `received_events`. Closing does not drain callbacks or forcibly terminate user code.
+These source fixes are not yet published. A negotiated `resumeOperations` capability enables per-operation identity; preserve both `operation_id` and `expected_sequence` for retries across client processes. Use a matching SDK and bundled Worker. Event callbacks run in order on a separate thread; request completion does not imply callback completion. The 1024-entry queue reports overload via `event_handler_error` and stops new callback deliveries while retaining notifications in `received_events`. Notifications are retained by default; explicit drain leaves only new notifications in the public lists. Closing does not drain callbacks or forcibly terminate user code.

@@ -10,6 +10,7 @@
 
 - `CoreMindClient`
 - `AsyncCoreMindClient`
+- `drain_notifications` / `NotificationHistory`
 - `@client.tool`
 - `resume_run`
 - `inspect_run`
@@ -35,6 +36,8 @@
 - Python 与 TypeScript 对 `loop_state` 顺序、Loop 终态、稳定快照和 Effect Receipt 保持一致
 - Protocol 对 operation、outcome、metrics、evaluation、releaseReadiness、Trace、Checkpoint、Artifact 和扩展收据执行完整嵌套校验；任意字段漂移都以 `invalid_run_snapshot` 失败关闭
 - PyPI 包继续携带构建后的 Node Worker，不创建独立 Python Runtime 或 Loop
+
+四个 `received_*` 默认完整保留；显式 `drain_notifications()` 原子取走 events、tool_calls、tool_cancellations、verification_requests 全部四桶，原 list 身份保持。必须消费或留存整个批次，取走不是服务端 ack，不清 callback 队列，也不自动回答工具/审批/验收。live 通知 sequence 与 durable events 页 nextCursor 不同；按各 runId 另存后者。见[常驻消费指南](GUIDE.zh-CN.md#常驻通知消费12-开发线)。
 
 CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则、数据字段、审批责任和最终验收由用户或业务负责人决定。
 
