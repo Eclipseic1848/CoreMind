@@ -897,3 +897,29 @@ describe("buildAgent（options 与 apiKey 注入）", () => {
     });
   });
 });
+
+it("本地工具事实回调失败后 Driver 保留同一个类型化异常", async () => {
+  const { models, model, faux } = makeFauxContext();
+  const failure = new CoreMindError("effect_receipt_conflict", "固定本地事实身份冲突");
+  faux.setResponses([
+    fauxAssistantMessage([
+      fauxToolCall("missing_tool", { value: "完整参数" }, { id: "call-local-conflict" }),
+    ]),
+  ]);
+  const driver = buildAgentDriver(
+    {},
+    {
+      models,
+      model,
+      tools: [],
+      agentName: "main",
+      onEvent: (event) => {
+        if (event.type === "tool_call") throw failure;
+      },
+    },
+  );
+  await driver.prompt("触发本地事实拒绝");
+  await expect(driver.waitForIdle()).rejects.toBe(failure);
+  expect(faux.state.callCount).toBe(1);
+  expect(driver.status()).toMatchObject({ running: false, pendingToolCalls: 0 });
+});

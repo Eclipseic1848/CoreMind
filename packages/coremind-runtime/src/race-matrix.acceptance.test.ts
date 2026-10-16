@@ -66,14 +66,39 @@ class RequestRecorder {
 
 type MockScriptResult = Array<Record<string, unknown>>;
 
+interface MockModelRequest {
+  messages: unknown[];
+  tools?: Array<{ function?: { name?: string } }>;
+}
+
 interface MockServerOptions {
   shouldRecord?: () => boolean;
   cancelReplyOnClose?: boolean;
 }
 
 /** 场景对应的响应脚本：流式文本或工具调用（timing 决定） */
-function scenarioScript(scenario: RaceScenario, toolName: string): MockScriptResult {
-  if (scenario.timing === "tool" || scenario.timing === "approval") {
+function scenarioScript(
+  scenario: RaceScenario,
+  toolName: string,
+  request?: MockModelRequest,
+): MockScriptResult {
+  const toolDeclared =
+    request === undefined ||
+    request.tools?.some((tool) => tool.function?.name === toolName) === true;
+  const hasToolResult =
+    request?.messages.some(
+      (message) =>
+        message !== null &&
+        typeof message === "object" &&
+        "role" in message &&
+        message.role === "tool",
+    ) ?? false;
+  // 新输入未声明工具，或已有本次工具结果时，假 Provider 正常答复并结束。
+  if (
+    (scenario.timing === "tool" || scenario.timing === "approval") &&
+    toolDeclared &&
+    !hasToolResult
+  ) {
     return [
       {
         id: "t",
@@ -114,7 +139,7 @@ function scenarioScript(scenario: RaceScenario, toolName: string): MockScriptRes
 }
 
 function createMockServer(
-  getScript: () => MockScriptResult,
+  getScript: (request: MockModelRequest) => MockScriptResult,
   recorder: RequestRecorder,
   getDelayMs: () => number,
   options: MockServerOptions = {},
@@ -133,9 +158,9 @@ function createMockServer(
         body += chunk.toString("utf8");
       });
       request.on("end", () => {
-        const parsed = JSON.parse(body) as { messages: unknown[] };
+        const parsed = JSON.parse(body) as MockModelRequest;
         if (options.shouldRecord?.() ?? true) recorder.record(parsed.messages);
-        const script = getScript();
+        const script = getScript(parsed);
         const delayMs = getDelayMs();
         let replyPending = true;
         const settleReply = () => {
@@ -404,7 +429,7 @@ async function runSeedChunk(
   const dir = mkdtempSync(path.join(tmpdir(), "coremind-race-matrix-"));
   let currentScenario: RaceScenario = generateRaceScenario(seedStart);
   const { server, port } = await createMockServer(
-    () => scenarioScript(currentScenario, toolName),
+    (request) => scenarioScript(currentScenario, toolName, request),
     recorder,
     () => (currentScenario.action === "timeout" ? currentScenario.actionDelayMs + 500 : 30),
     serverOptions,
@@ -536,7 +561,7 @@ describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
     const seedEnd = Number(process.env.RACE_SEED_END ?? 1_000);
     const CHUNKS = 4;
     const chunkSize = Math.ceil((seedEnd - seedStart) / CHUNKS);
-    await Promise.all(
+    const results = await Promise.allSettled(
       Array.from({ length: CHUNKS }, (_, chunk) =>
         runSeedChunk(
           seedStart + chunk * chunkSize,
@@ -545,6 +570,9 @@ describe("取消竞态种子矩阵（门 C-1，1,000 种子）", () => {
         ),
       ),
     );
+    // 收拢每个块的 finally 后再传播原错，避免活动块污染后续测试。
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure?.status === "rejected") throw failure.reason;
   }, 600_000);
 
   it("矩阵可复现：同种子产生相同场景（回放契约）", () => {
@@ -676,10 +704,13 @@ describe("四入口取消路径", () => {
 });
 
 afterEach(() => {
-  for (const recorder of allRecorders) {
-    if (recorder.unconsumed() > 0) {
-      throw new Error(`存在未消费的请求录制（${recorder.unconsumed()} 次）——测试未对齐`);
+  try {
+    for (const recorder of allRecorders) {
+      if (recorder.unconsumed() > 0) {
+        throw new Error(`存在未消费的请求录制（${recorder.unconsumed()} 次）——测试未对齐`);
+      }
     }
+  } finally {
+    allRecorders.clear();
   }
-  allRecorders.clear();
 });

@@ -1887,6 +1887,22 @@ export class CoreMindRuntime {
         if (call) enriched = { ...enriched, turnId: call.turnId };
       }
       if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
+        const callKey = toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId);
+        if (
+          effectBindingByCall.has(callKey) ||
+          resumePlan?.previousTrace.some(
+            ({ event: previous }) =>
+              previous.type === "tool_call" &&
+              previous.callId !== undefined &&
+              toolCapabilityCallKey(previous.agent, previous.stepId, previous.callId) === callKey,
+          )
+        ) {
+          // 不覆盖首次冻结事实；取消分界后的重复输入保持原取消语义。
+          lifecycleFailure = journal.isAborted()
+            ? new CoreMindError("aborted", "运行已中止，拒绝重复工具调用")
+            : new CoreMindError("effect_receipt_conflict", "工具 Call 身份重复，已拒绝后续调用");
+          throw lifecycleFailure;
+        }
         context.recordToolCall({
           agent: enriched.agent,
           callId: enriched.callId as CallId,

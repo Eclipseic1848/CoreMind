@@ -299,6 +299,15 @@ export function buildAgentDriver(agentCfg: AgentConfig, ctx: AgentBuildContext):
   let driver: ModelAgentDriver | undefined;
   const agent = buildAgent(agentCfg, {
     ...ctx,
+    onEvent: (event) => {
+      try {
+        ctx.onEvent(event);
+      } catch (error) {
+        // 执行依赖会把观测异常转为模型消息；保留首个本地类型化原因。
+        requestFailure ??= error;
+        throw error;
+      }
+    },
     harness: {
       ...ctx.harness,
       onObservation: (observation) => {
