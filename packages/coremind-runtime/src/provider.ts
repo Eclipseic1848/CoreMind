@@ -6,6 +6,7 @@ import {
   envApiKeyAuth,
   type Model,
   type Models,
+  type ProviderHeaders,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import {
@@ -224,6 +225,9 @@ async function buildCustomRuntime(
       "配置了 apiKey 直填：密钥会随配置文件进入版本库/分享链路，建议改用 apiKeyEnv 环境变量",
     );
   }
+  const endpointAuth = security.apiKey
+    ? staticKeyAuth(security.apiKey)
+    : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]);
   models.setProvider(
     createProvider({
       id,
@@ -231,15 +235,33 @@ async function buildCustomRuntime(
       baseUrl: cfg.baseUrl,
       headers: security.headers,
       auth: {
-        apiKey: security.apiKey
-          ? staticKeyAuth(security.apiKey)
-          : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]),
+        apiKey: {
+          ...endpointAuth,
+          resolve: async (request) => {
+            const resolution = await endpointAuth.resolve(request);
+            const apiKey = nonEmpty(resolution?.auth.apiKey);
+            const headers: ProviderHeaders = {};
+            for (const [name, value] of Object.entries({
+              ...resolution?.auth.headers,
+              ...security.headers,
+            })) {
+              headers[name.toLowerCase()] = value;
+            }
+            // 兼容客户端要求非空 key；占位值不能成为出站 Bearer 或真实凭据报告。
+            if (!apiKey && headers.authorization === undefined) headers.authorization = null;
+            return {
+              ...resolution,
+              auth: { ...resolution?.auth, apiKey: apiKey ?? "coremind-keyless", headers },
+              source: resolution?.source ?? "custom endpoint",
+            };
+          },
+        },
       },
       models: [model],
       api: openAICompletionsApi(),
     }),
   );
-  const apiKeyOverride = cfg.apiKey ? undefined : (security.apiKey ?? env[apiKeyEnv]);
+  const apiKeyOverride = cfg.apiKey ? undefined : nonEmpty(security.apiKey ?? env[apiKeyEnv]);
   return {
     models,
     model,

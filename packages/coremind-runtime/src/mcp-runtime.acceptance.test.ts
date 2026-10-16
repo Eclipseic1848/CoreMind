@@ -1,14 +1,14 @@
 import "../../../test/setup-env.js";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CoreMindConfig } from "coremind-config";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type TestContext, vi } from "vitest";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import {
@@ -42,12 +42,15 @@ type WireRequest = {
 type FixtureRecord = Record<string, unknown> & { type?: string; method?: string };
 
 describe("本地 MCP 真实 Runtime 准入", () => {
-  it("connect/list/call 均在真实 critical barrier 后执行，首个模型使用冻结目录与真实批准目标", async () => {
-    await withProject(async (project) => {
+  it("connect/list/call 均在真实 critical barrier 后执行，首个模型使用冻结目录与真实批准目标", async (context) => {
+    await withProject(context, async (project) => {
       const gates = Array.from({ length: 3 }, () => ({
         entered: deferred<void>(),
         release: deferred<void>(),
       }));
+      project.onCancel(() => {
+        for (const gate of gates) gate.release.resolve();
+      });
       let stage = 0;
       const store = new FileRunStore(path.join(project.directory, "runs"), {
         beforeBarrier: async ({ record }) => {
@@ -218,8 +221,8 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   }, 60_000);
 
-  it.each(["list", "call"] as const)("拒绝 %s 审批时对应真实请求为零", async (target) => {
-    await withProject(async (project) => {
+  it.for(["list", "call"] as const)("拒绝 %s 审批时对应真实请求为零", async (target, context) => {
+    await withProject(context, async (project) => {
       const approvals: ToolApprovalRequest[] = [];
       const rejectedIndex = target === "list" ? 2 : 3;
       const runtime = await CoreMindRuntime.create({
@@ -268,8 +271,8 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   });
 
-  it("connect 与 list 已耗尽两次工具预算，业务调用在批准和发送前阻断", async () => {
-    await withProject(async (project) => {
+  it("connect 与 list 已耗尽两次工具预算，业务调用在批准和发送前阻断", async (context) => {
+    await withProject(context, async (project) => {
       const approvals: ToolApprovalRequest[] = [];
       const runtime = await CoreMindRuntime.create({
         config: { ...project.config, runtime: { ...project.config.runtime, maxToolCalls: 2 } },
@@ -315,59 +318,63 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   });
 
-  it.each(["connect", "list"] as const)("%s started 关键提交失败阻止真实 I/O", async (target) => {
-    await withProject(async (project) => {
-      let failures = 0;
-      const store = new FileRunStore(path.join(project.directory, "runs"), {
-        beforeBarrier: ({ record }) => {
-          const event =
-            record?.kind === "event"
-              ? (record.payload as { event: CoreMindEvent }).event
-              : undefined;
-          if (
-            event?.type === "effect_receipt" &&
-            event.status === "started" &&
-            event.tool.startsWith(`mcp_${target}_`)
-          ) {
-            failures++;
-            throw new Error(`${target} 的 started 受控持久化失败`);
-          }
-        },
+  it.for(["connect", "list"] as const)(
+    "%s started 关键提交失败阻止真实 I/O",
+    async (target, context) => {
+      await withProject(context, async (project) => {
+        let failures = 0;
+        const store = new FileRunStore(path.join(project.directory, "runs"), {
+          beforeBarrier: ({ record }) => {
+            const event =
+              record?.kind === "event"
+                ? (record.payload as { event: CoreMindEvent }).event
+                : undefined;
+            if (
+              event?.type === "effect_receipt" &&
+              event.status === "started" &&
+              event.tool.startsWith(`mcp_${target}_`)
+            ) {
+              failures++;
+              throw new Error(`${target} 的 started 受控持久化失败`);
+            }
+          },
+        });
+        const runtime = await CoreMindRuntime.create({
+          config: project.config,
+          configDir: project.directory,
+          cwd: project.directory,
+          runStore: store,
+          env: project.env,
+          signal: project.controller.signal,
+          initialPrompt: "持久确认前不得执行",
+          approveTool: async () => "allow",
+        });
+        project.running = runtime.run();
+        const result = await bounded(project.running, "Run 完成");
+        expect(failures).toBe(1);
+        expect(result.outcome).toMatchObject({
+          status: "failed",
+          error: { code: "durability_barrier_failed" },
+        });
+        const records = await serviceRecords(project.recordFile);
+        expect(records.filter((record) => record.type === "started")).toHaveLength(
+          target === "connect" ? 0 : 1,
+        );
+        expect(records.filter((record) => record.method === "initialize")).toHaveLength(
+          target === "connect" ? 0 : 1,
+        );
+        expect(records.filter((record) => record.method === "tools/list")).toHaveLength(0);
+        expect(records.filter((record) => record.method === "tools/call")).toHaveLength(0);
+        expect(project.requests).toHaveLength(0);
       });
-      const runtime = await CoreMindRuntime.create({
-        config: project.config,
-        configDir: project.directory,
-        cwd: project.directory,
-        runStore: store,
-        env: project.env,
-        signal: project.controller.signal,
-        initialPrompt: "持久确认前不得执行",
-        approveTool: async () => "allow",
-      });
-      project.running = runtime.run();
-      const result = await bounded(project.running, "Run 完成");
-      expect(failures).toBe(1);
-      expect(result.outcome).toMatchObject({
-        status: "failed",
-        error: { code: "durability_barrier_failed" },
-      });
-      const records = await serviceRecords(project.recordFile);
-      expect(records.filter((record) => record.type === "started")).toHaveLength(
-        target === "connect" ? 0 : 1,
-      );
-      expect(records.filter((record) => record.method === "initialize")).toHaveLength(
-        target === "connect" ? 0 : 1,
-      );
-      expect(records.filter((record) => record.method === "tools/list")).toHaveLength(0);
-      expect(records.filter((record) => record.method === "tools/call")).toHaveLength(0);
-      expect(project.requests).toHaveLength(0);
-    });
-  });
+    },
+  );
 
-  it("connect 结果持久化未确认前不准入 list，释放后完成真实调用", async () => {
-    await withProject(async (project) => {
+  it("connect 结果持久化未确认前不准入 list，释放后完成真实调用", async (context) => {
+    await withProject(context, async (project) => {
       const entered = deferred<void>();
       const release = deferred<void>();
+      project.onCancel(() => release.resolve());
       const observed: CoreMindEvent[] = [];
       const approvals: ToolApprovalRequest[] = [];
       let barriers = 0;
@@ -426,10 +433,11 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   }, 60_000);
 
-  it.each(["workflow", "loop"] as const)(
+  it.for(["workflow", "loop"] as const)(
     "%s 选中 MCP 后首个模型使用冻结 schema 并完成真实调用",
-    async (mode) => {
-      await withProject(async (project) => {
+    { timeout: 60_000 },
+    async (mode, context) => {
+      await withProject(context, async (project) => {
         const approvals: ToolApprovalRequest[] = [];
         const runtime = await CoreMindRuntime.create({
           config: orchestratedConfig(project.config, mode),
@@ -483,15 +491,16 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         expect(result.trace.some(({ event }) => event.type === "quiescence_timeout")).toBe(false);
       });
     },
-    60_000,
   );
 
-  it.each(["workflow", "loop"] as const)(
+  it.for(["workflow", "loop"] as const)(
     "%s 的 step_timeout 包含 MCP 连接审批准备且阻止迟到启动",
-    async (mode) => {
-      await withProject(async (project) => {
+    { timeout: 60_000 },
+    async (mode, context) => {
+      await withProject(context, async (project) => {
         const entered = deferred<void>();
         const release = deferred<void>();
+        project.onCancel(() => release.resolve());
         const observed: CoreMindEvent[] = [];
         const approvals: ToolApprovalRequest[] = [];
         const stepTimeoutMs = 60_137;
@@ -553,18 +562,17 @@ describe("本地 MCP 真实 Runtime 准入", () => {
         }
       });
     },
-    60_000,
   );
 
-  it.each([
+  it.for([
     ["默认权限", undefined, undefined],
     ["工作区约束", { mode: "full", workspaceOnly: true, network: "allow" }, "allow"],
     ["断网约束", { mode: "full", workspaceOnly: false, network: "deny" }, "allow"],
     ["按需网络约束", { mode: "full", workspaceOnly: false, network: "ask" }, "allow"],
     ["连接审批拒绝", { mode: "ask", workspaceOnly: false, network: "allow" }, "deny"],
     ["缺少审批处理器", { mode: "ask", workspaceOnly: false, network: "allow" }, undefined],
-  ] as const)("%s 在服务启动与模型请求前阻断", async (_name, permissions, decision) => {
-    await withProject(async (project) => {
+  ] as const)("%s 在服务启动与模型请求前阻断", async ([_name, permissions, decision], context) => {
+    await withProject(context, async (project) => {
       const config = { ...project.config, permissions };
       const approvals: ToolApprovalRequest[] = [];
       const runtime = await CoreMindRuntime.create({
@@ -593,37 +601,41 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   });
 
-  it.each([false, true])("未选 MCP 的 Agent 不加载其他目录（声明服务=%s）", async (configured) => {
-    await withProject(async (project) => {
-      const config: CoreMindConfig = configured
-        ? {
-            ...project.config,
-            agents: { main: { tools: [{ id: "read" }] }, other: project.config.agents.main! },
-            tools: [],
-          }
-        : { ...project.config, mcp: undefined, tools: [], agents: { main: {} } };
-      const runtime = await CoreMindRuntime.create({
-        config,
-        configDir: project.directory,
-        cwd: project.directory,
-        env: project.env,
-        signal: project.controller.signal,
-        initialPrompt: "直接完成，不使用工具",
+  it.for([false, true])(
+    "未选 MCP 的 Agent 不加载其他目录（声明服务=%s）",
+    async (configured, context) => {
+      await withProject(context, async (project) => {
+        const config: CoreMindConfig = configured
+          ? {
+              ...project.config,
+              agents: { main: { tools: [{ id: "read" }] }, other: project.config.agents.main! },
+              tools: [],
+            }
+          : { ...project.config, mcp: undefined, tools: [], agents: { main: {} } };
+        const runtime = await CoreMindRuntime.create({
+          config,
+          configDir: project.directory,
+          cwd: project.directory,
+          env: project.env,
+          signal: project.controller.signal,
+          initialPrompt: "直接完成，不使用工具",
+        });
+        project.running = runtime.run();
+        const result = await bounded(project.running, "Run 完成");
+        expect(result.outcome.status).toBe("succeeded");
+        expect(project.requests).toHaveLength(1);
+        expect(existsSync(project.recordFile)).toBe(false);
+        expect(
+          project.requests[0]!.tools?.some((tool) => tool.function.name.startsWith("mcp_")) ??
+            false,
+        ).toBe(false);
+        expect(result.trace.filter(({ event }) => event.type === "tool_call")).toEqual([]);
       });
-      project.running = runtime.run();
-      const result = await bounded(project.running, "Run 完成");
-      expect(result.outcome.status).toBe("succeeded");
-      expect(project.requests).toHaveLength(1);
-      expect(existsSync(project.recordFile)).toBe(false);
-      expect(
-        project.requests[0]!.tools?.some((tool) => tool.function.name.startsWith("mcp_")) ?? false,
-      ).toBe(false);
-      expect(result.trace.filter(({ event }) => event.type === "tool_call")).toEqual([]);
-    });
-  });
+    },
+  );
 
-  it("未授权 Agent 猜中另一 Agent 的真实 MCP 别名也不能执行", async () => {
-    await withProject(async (project) => {
+  it("未授权 Agent 猜中另一 Agent 的真实 MCP 别名也不能执行", async (context) => {
+    await withProject(context, async (project) => {
       const config: CoreMindConfig = {
         ...project.config,
         defaultAgent: "main",
@@ -699,11 +711,12 @@ describe("本地 MCP 真实 Runtime 准入", () => {
     });
   }, 60_000);
 
-  it("业务已发生效果后取消记录 unknown，关闭真实树且冷恢复不重放", async () => {
-    await withProject(async (project) => {
+  it("业务已发生效果后取消记录 unknown，关闭真实树且冷恢复不重放", async (context) => {
+    await withProject(context, async (project) => {
       const selection = project.config.agents.main!.tools![0]!;
       if (!("mcp" in selection)) throw new Error("夹具缺少选中的 MCP 工具");
       const server = project.config.mcp!.servers.local!;
+      if (server.transport !== "stdio") throw new Error("夹具缺少本地 stdio 服务");
       const config: CoreMindConfig = {
         ...project.config,
         mcp: { servers: { local: { ...server, args: [...server.args, "effect-then-hang"] } } },
@@ -813,6 +826,25 @@ describe("本地 MCP 真实 Runtime 准入", () => {
       expect(events.some((event) => event.type === "quiescence_timeout")).toBe(false);
     });
   }, 60_000);
+  it("测试取消先放行夹具等待并 join 动作，再关闭并删除目录", async (context) => {
+    const controller = new AbortController();
+    const release = deferred<void>();
+    let directory = "";
+    let actionFinished = false;
+    await withProject(
+      { signal: controller.signal, onTestFinished: context.onTestFinished },
+      async (project) => {
+        directory = project.directory;
+        project.onCancel(() => release.resolve());
+        queueMicrotask(() => controller.abort());
+        await release.promise;
+        await writeFile(path.join(directory, "owned-cleanup.txt"), "已完成自有动作收尾", "utf8");
+        actionFinished = true;
+      },
+    );
+    expect(actionFinished).toBe(true);
+    expect(existsSync(directory)).toBe(false);
+  });
 });
 
 interface Project {
@@ -822,6 +854,7 @@ interface Project {
   config: CoreMindConfig;
   env: NodeJS.ProcessEnv;
   controller: AbortController;
+  onCancel(release: () => void): void;
   running?: Promise<RunResult>;
   nextToolCall?: string;
 }
@@ -859,11 +892,20 @@ function orchestratedConfig(config: CoreMindConfig, mode: "workflow" | "loop"): 
   };
 }
 
-async function withProject(action: (project: Project) => Promise<void>) {
-  const directory = await mkdtemp(path.join(tmpdir(), "coremind-mcp-acceptance-"));
-  const recordFile = path.join(directory, "service.jsonl");
+async function withProject(
+  context: Pick<TestContext, "signal" | "onTestFinished">,
+  action: (project: Project) => Promise<void>,
+) {
+  const controller = new AbortController();
+  const releases = new Set<() => void>();
   const requests: WireRequest[] = [];
   const errors: unknown[] = [];
+  const failures: unknown[] = [];
+  let directory = "";
+  let recordFile = "";
+  let project: Project | undefined;
+  let body: Promise<void> | undefined;
+  let closing: Promise<void> | undefined;
   const server = createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -876,8 +918,8 @@ async function withProject(action: (project: Project) => Promise<void>) {
         requests.push(parsed);
         const tool = parsed.tools?.find((entry) => entry.function.name.startsWith("mcp_"));
         const toolName =
-          project.nextToolCall ?? (requests.length === 1 ? tool?.function.name : undefined);
-        delete project.nextToolCall;
+          project!.nextToolCall ?? (requests.length === 1 ? tool?.function.name : undefined);
+        delete project!.nextToolCall;
         const call = toolName !== undefined;
         const delta = call
           ? {
@@ -909,102 +951,162 @@ async function withProject(action: (project: Project) => Promise<void>) {
       }
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const project: Project = {
-    directory,
-    recordFile,
-    requests,
-    controller: new AbortController(),
-    env: { ...process.env, MCP_TEST_SECRET: serviceSecret, COREMIND_MCP_UNLISTED: "host-only" },
-    config: {
-      schemaVersion: 2,
-      name: "MCP 真实验收",
-      provider: {
-        id: "probe",
-        baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
-        model: "probe-model",
-        apiKeyEnv: "COREMIND_TEST_API_KEY",
-      },
-      mcp: {
-        servers: {
-          local: {
-            transport: "stdio",
-            command: process.execPath,
-            args: [service, recordFile],
-            cwd: directory,
-            env: { MCP_TEST_SECRET: { env: "MCP_TEST_SECRET" } },
-          },
+  const cancel = () => {
+    controller.abort();
+    for (const release of releases) {
+      try {
+        release();
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+  };
+  const close = () =>
+    (closing ??= (async () => {
+      cancel();
+      // body 不包含 close，先 join 完整创建/动作，避免迟到 Run 越过清理快照。
+      await body;
+      releases.clear();
+      if (project?.running) {
+        try {
+          await project.running;
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      let processesStopped = true;
+      try {
+        const started = recordFile
+          ? (await serviceRecords(recordFile)).find((record) => record.type === "started")
+          : undefined;
+        if (started) {
+          for (const pid of [
+            (started as { childPid: number }).childPid,
+            (started as { pid: number }).pid,
+          ]) {
+            if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid)
+              throw new Error("夹具自有 PID 无效");
+            if (!alive(pid)) continue;
+            failures.push(new Error("Runtime 完成后夹具自有进程仍在运行"));
+            if (process.platform === "win32") {
+              const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+                windowsHide: true,
+                timeout: 2_000,
+              });
+              if (result.error) failures.push(result.error);
+              if (result.status !== 0 && alive(pid))
+                failures.push(new Error("夹具自有进程终止失败"));
+            } else process.kill(pid, "SIGKILL");
+            await vi.waitFor(() => expect(alive(pid)).toBe(false), {
+              timeout: 2_000,
+              interval: 20,
+            });
+          }
+        }
+      } catch (error) {
+        processesStopped = false;
+        failures.push(error);
+      }
+      try {
+        server.closeAllConnections();
+        if (server.listening)
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+          );
+      } catch (error) {
+        failures.push(error);
+      }
+      try {
+        if (directory && processesStopped) {
+          expect(path.dirname(path.resolve(directory))).toBe(path.resolve(tmpdir()));
+          expect(path.basename(directory).startsWith("coremind-mcp-acceptance-")).toBe(true);
+          await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 30 });
+        } else if (directory) failures.push(new Error("自有进程未确认退出，保留夹具目录"));
+      } catch (error) {
+        failures.push(error);
+      }
+      context.signal.removeEventListener("abort", cancel);
+      failures.push(...errors);
+      if (failures.length) throw new AggregateError(failures, "MCP 真实 Runtime 主流程与资源清理");
+    })());
+  context.signal.addEventListener("abort", cancel, { once: true });
+  context.onTestFinished(close);
+  if (context.signal.aborted) cancel();
+  body = (async () => {
+    try {
+      directory = await mkdtemp(path.join(tmpdir(), "coremind-mcp-acceptance-"));
+      recordFile = path.join(directory, "service.jsonl");
+      controller.signal.throwIfAborted();
+      await new Promise<void>((resolve, reject) => {
+        const failed = (error: Error) => reject(error);
+        server.once("error", failed);
+        server.listen(0, "127.0.0.1", () => {
+          server.off("error", failed);
+          resolve();
+        });
+      });
+      controller.signal.throwIfAborted();
+      project = {
+        directory,
+        recordFile,
+        requests,
+        controller,
+        onCancel: (release) => {
+          releases.add(release);
+          if (controller.signal.aborted) release();
         },
-      },
-      agents: {
-        main: {
-          tools: [
-            {
-              mcp: { server: "local", tool: "echo" },
-              effect: { operations: ["external"], reversible: false },
-              capability: {
-                effect: "external",
-                replay: "unknown",
-                concurrency: "run_serial",
-                checkpoint: "unsupported",
-                durability: "critical",
+        env: { ...process.env, MCP_TEST_SECRET: serviceSecret, COREMIND_MCP_UNLISTED: "host-only" },
+        config: {
+          schemaVersion: 2,
+          name: "MCP 真实验收",
+          provider: {
+            id: "probe",
+            baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+            model: "probe-model",
+            apiKeyEnv: "COREMIND_TEST_API_KEY",
+          },
+          mcp: {
+            servers: {
+              local: {
+                transport: "stdio",
+                command: process.execPath,
+                args: [service, recordFile],
+                cwd: directory,
+                env: { MCP_TEST_SECRET: { env: "MCP_TEST_SECRET" } },
               },
             },
-          ],
+          },
+          agents: {
+            main: {
+              tools: [
+                {
+                  mcp: { server: "local", tool: "echo" },
+                  effect: { operations: ["external"], reversible: false },
+                  capability: {
+                    effect: "external",
+                    replay: "unknown",
+                    concurrency: "run_serial",
+                    checkpoint: "unsupported",
+                    durability: "critical",
+                  },
+                },
+              ],
+            },
+          },
+          permissions: { mode: "ask", workspaceOnly: false, network: "allow" },
+          runtime: { maxTurns: 3, maxRetries: 0, maxToolCalls: 3, runTimeoutMs: 0 },
         },
-      },
-      permissions: { mode: "ask", workspaceOnly: false, network: "allow" },
-      runtime: { maxTurns: 3, maxRetries: 0, maxToolCalls: 3, runTimeoutMs: 0 },
-    },
-  };
-  const failures: unknown[] = [];
-  try {
-    await action(project);
-  } catch (error) {
-    failures.push(error);
-  }
-  project.controller.abort();
-  if (project.running) {
-    try {
-      await bounded(project.running, "cleanup 取消 join");
+      };
+      await action(project);
     } catch (error) {
       failures.push(error);
     }
-  }
+  })();
   try {
-    const started = (await serviceRecords(recordFile)).find((record) => record.type === "started");
-    if (started) {
-      for (const pid of [
-        (started as { childPid: number }).childPid,
-        (started as { pid: number }).pid,
-      ]) {
-        if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid)
-          throw new Error("夹具自有 PID 无效");
-        if (!alive(pid)) continue;
-        failures.push(new Error("Runtime 完成后夹具自有进程仍在运行"));
-        if (process.platform === "win32")
-          spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
-        else process.kill(pid, "SIGKILL");
-      }
-    }
-  } catch (error) {
-    failures.push(error);
+    await body;
+  } finally {
+    await close();
   }
-  try {
-    server.closeAllConnections();
-    await new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    );
-  } catch (error) {
-    failures.push(error);
-  }
-  try {
-    await rm(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 30 });
-  } catch (error) {
-    failures.push(error);
-  }
-  failures.push(...errors);
-  if (failures.length) throw new AggregateError(failures, "MCP 真实 Runtime 主流程与资源清理");
 }
 
 function traceEvents(records: RunStateRecord[]): CoreMindEvent[] {

@@ -263973,18 +263973,39 @@ async function buildCustomRuntime(cfg, env2, security, capabilityOrigin) {
   if (cfg.apiKey) {
     warnings.push("\u914D\u7F6E\u4E86 apiKey \u76F4\u586B\uFF1A\u5BC6\u94A5\u4F1A\u968F\u914D\u7F6E\u6587\u4EF6\u8FDB\u5165\u7248\u672C\u5E93/\u5206\u4EAB\u94FE\u8DEF\uFF0C\u5EFA\u8BAE\u6539\u7528 apiKeyEnv \u73AF\u5883\u53D8\u91CF");
   }
+  const endpointAuth = security.apiKey ? staticKeyAuth(security.apiKey) : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]);
   models.setProvider(createProvider({
     id,
     name: cfg.name,
     baseUrl: cfg.baseUrl,
     headers: security.headers,
     auth: {
-      apiKey: security.apiKey ? staticKeyAuth(security.apiKey) : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv])
+      apiKey: {
+        ...endpointAuth,
+        resolve: async (request) => {
+          const resolution = await endpointAuth.resolve(request);
+          const apiKey = nonEmpty2(resolution?.auth.apiKey);
+          const headers = {};
+          for (const [name, value] of Object.entries({
+            ...resolution?.auth.headers,
+            ...security.headers
+          })) {
+            headers[name.toLowerCase()] = value;
+          }
+          if (!apiKey && headers.authorization === void 0)
+            headers.authorization = null;
+          return {
+            ...resolution,
+            auth: { ...resolution?.auth, apiKey: apiKey ?? "coremind-keyless", headers },
+            source: resolution?.source ?? "custom endpoint"
+          };
+        }
+      }
     },
     models: [model],
     api: openAICompletionsApi()
   }));
-  const apiKeyOverride = cfg.apiKey ? void 0 : security.apiKey ?? env2[apiKeyEnv];
+  const apiKeyOverride = cfg.apiKey ? void 0 : nonEmpty2(security.apiKey ?? env2[apiKeyEnv]);
   return {
     models,
     model,
