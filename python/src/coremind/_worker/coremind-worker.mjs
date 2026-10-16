@@ -262357,6 +262357,7 @@ function validateAcknowledgement(store, requested, acknowledgement) {
 
 // packages/coremind-runtime/dist/run-state.js
 var MAX_RUN_FILE_CURSORS = 64;
+var MAX_SERIALIZED_PREFIX_BYTES = 4 * 1024 * 1024;
 var FileRunStore = class {
   directory;
   options;
@@ -262432,14 +262433,16 @@ var FileRunStore = class {
       throw new CoreMindError("run_state_failed", `RunState \u8BFB\u53D6\u5931\u8D25\uFF1A${error3 instanceof Error ? error3.message : String(error3)}`);
     }
   }
-  async readUnlocked(runId, destination) {
-    let text2;
-    try {
-      text2 = await readFile12(destination, "utf8");
-    } catch (error3) {
-      if (error3.code === "ENOENT")
-        return { records: [] };
-      throw error3;
+  async readUnlocked(runId, destination, sourceText) {
+    let text2 = sourceText;
+    if (text2 === void 0) {
+      try {
+        text2 = await readFile12(destination, "utf8");
+      } catch (error3) {
+        if (error3.code === "ENOENT")
+          return { records: [] };
+        throw error3;
+      }
     }
     const terminated = text2.endsWith("\n");
     const lines = text2.split("\n");
@@ -262523,16 +262526,28 @@ var FileRunStore = class {
       throw error3;
     }
   }
-  async rememberCursor(destination, lastRecord, needsSeparator, identity3) {
-    const resolvedIdentity = identity3 ?? await this.fileIdentity(destination);
+  async rememberCursor(destination, lastRecord, needsSeparator, serializedPrefix) {
+    const resolvedIdentity = await this.fileIdentity(destination);
     this.cursors.delete(destination);
     this.cursors.set(destination, {
       identity: resolvedIdentity,
       lastRecord: lastRecord ? structuredClone(lastRecord) : void 0,
-      needsSeparator
+      needsSeparator,
+      ...serializedPrefix && serializedPrefix.bytes <= MAX_SERIALIZED_PREFIX_BYTES ? { serializedPrefix } : {}
     });
     if (this.cursors.size > MAX_RUN_FILE_CURSORS) {
       this.cursors.delete(this.cursors.keys().next().value);
+    }
+    let bytes = 0;
+    for (const cursor of this.cursors.values())
+      bytes += cursor.serializedPrefix?.bytes ?? 0;
+    for (const cursor of this.cursors.values()) {
+      if (bytes <= MAX_SERIALIZED_PREFIX_BYTES)
+        break;
+      if (cursor.serializedPrefix) {
+        bytes -= cursor.serializedPrefix.bytes;
+        delete cursor.serializedPrefix;
+      }
     }
   }
   sameIdentity(left, right) {
@@ -262543,76 +262558,106 @@ var FileRunStore = class {
   async writeRecord(record2, durability) {
     const destination = this.pathFor(record2.runId);
     validateRecord(record2, record2.runId);
-    await this.withWriterLock(destination, async () => {
-      const currentIdentity = await this.fileIdentity(destination);
-      const cached2 = this.cursors.get(destination);
-      let records;
-      let tail = cached2 && this.sameIdentity(cached2.identity, currentIdentity) ? { record: cached2.lastRecord, needsSeparator: cached2.needsSeparator } : void 0;
-      if (!tail || tail.record && record2.sequence < tail.record.sequence) {
-        const parsed = await this.readUnlocked(record2.runId, destination);
-        records = parsed.records;
-        if (parsed.repairedText !== void 0) {
-          await this.publishAtomically(destination, parsed.repairedText);
-        }
-        tail = {
-          record: parsed.records.at(-1),
-          needsSeparator: parsed.repairedText === void 0 && (parsed.needsSeparator ?? false)
-        };
-        await this.rememberCursor(destination, tail.record, tail.needsSeparator);
-      }
-      const duplicate = tail.record?.sequence === record2.sequence ? tail.record : records?.find((item) => item.sequence === record2.sequence);
-      if (duplicate) {
-        if (canonicalJson2(duplicate) === canonicalJson2(record2)) {
-          if (durability === "critical") {
-            let handle2;
-            try {
-              handle2 = await open9(destination, "r+");
-              await this.options.beforeBarrier?.({
-                destination,
-                runId: record2.runId,
-                requested: durability,
-                record: record2
-              });
-              await handle2.sync();
-            } finally {
-              await handle2?.close().catch(() => void 0);
-            }
+    try {
+      await this.withWriterLock(destination, async () => {
+        const currentIdentity = await this.fileIdentity(destination);
+        const cached2 = this.cursors.get(destination);
+        let records;
+        let tail = cached2 && this.sameIdentity(cached2.identity, currentIdentity) ? { record: cached2.lastRecord, needsSeparator: cached2.needsSeparator } : void 0;
+        let prefix = tail ? cached2?.serializedPrefix : void 0;
+        let sourceText;
+        if (durability === "critical") {
+          try {
+            sourceText = await readFile12(destination, "utf8");
+          } catch (error3) {
+            if (error3.code !== "ENOENT")
+              throw error3;
+            sourceText = "";
           }
-          return;
+          if (prefix?.text !== sourceText) {
+            tail = void 0;
+            prefix = void 0;
+          }
         }
-        throw new CoreMindError("run_state_conflict", `RunState ${record2.runId} \u7684 sequence ${record2.sequence} \u5DF2\u7531\u53E6\u4E00\u6761\u8BB0\u5F55\u5360\u7528`);
-      }
-      const expectedSequence = (tail.record?.sequence ?? records?.at(-1)?.sequence ?? 0) + 1;
-      if (record2.sequence !== expectedSequence) {
-        throw new CoreMindError("run_state_conflict", `RunState ${record2.runId} \u671F\u671B sequence ${expectedSequence}\uFF0C\u5B9E\u9645\u4E3A ${record2.sequence}`);
-      }
-      const serializedRecord = JSON.stringify(record2);
-      if (durability === "critical" || record2.sequence === 1) {
-        if (!records) {
-          const parsed = await this.readUnlocked(record2.runId, destination);
+        if (!tail || tail.record && record2.sequence < tail.record.sequence) {
+          prefix = void 0;
+          const parsed = await this.readUnlocked(record2.runId, destination, sourceText);
           records = parsed.records;
           if (parsed.repairedText !== void 0) {
             await this.publishAtomically(destination, parsed.repairedText);
           }
+          tail = {
+            record: parsed.records.at(-1),
+            needsSeparator: parsed.repairedText === void 0 && (parsed.needsSeparator ?? false)
+          };
+          await this.rememberCursor(destination, tail.record, tail.needsSeparator);
         }
-        const text3 = `${records.map((item) => JSON.stringify(item)).join("\n")}${records.length > 0 ? "\n" : ""}${serializedRecord}
+        const duplicate = tail.record?.sequence === record2.sequence ? tail.record : records?.find((item) => item.sequence === record2.sequence);
+        if (duplicate) {
+          if (canonicalJson2(duplicate) === canonicalJson2(record2)) {
+            if (durability === "critical") {
+              let handle2;
+              try {
+                handle2 = await open9(destination, "r+");
+                await this.options.beforeBarrier?.({
+                  destination,
+                  runId: record2.runId,
+                  requested: durability,
+                  record: record2
+                });
+                await handle2.sync();
+              } finally {
+                await handle2?.close().catch(() => void 0);
+              }
+            }
+            return;
+          }
+          throw new CoreMindError("run_state_conflict", `RunState ${record2.runId} \u7684 sequence ${record2.sequence} \u5DF2\u7531\u53E6\u4E00\u6761\u8BB0\u5F55\u5360\u7528`);
+        }
+        const expectedSequence = (tail.record?.sequence ?? records?.at(-1)?.sequence ?? 0) + 1;
+        if (record2.sequence !== expectedSequence) {
+          throw new CoreMindError("run_state_conflict", `RunState ${record2.runId} \u671F\u671B sequence ${expectedSequence}\uFF0C\u5B9E\u9645\u4E3A ${record2.sequence}`);
+        }
+        const serializedRecord = JSON.stringify(record2);
+        if (durability === "critical" || record2.sequence === 1) {
+          if (!records && !prefix) {
+            const parsed = await this.readUnlocked(record2.runId, destination, sourceText);
+            records = parsed.records;
+            if (parsed.repairedText !== void 0) {
+              await this.publishAtomically(destination, parsed.repairedText);
+            }
+          }
+          const previous = prefix?.text ?? records.map((item) => `${JSON.stringify(item)}
+`).join("");
+          const line = `${serializedRecord}
 `;
-        await this.publishAtomically(destination, text3, record2, durability);
-        await this.rememberCursor(destination, JSON.parse(serializedRecord), false);
-        return;
-      }
-      const text2 = `${tail.needsSeparator ? "\n" : ""}${serializedRecord}
+          const text3 = `${previous}${line}`;
+          await this.publishAtomically(destination, text3, record2, durability);
+          await this.rememberCursor(destination, JSON.parse(serializedRecord), false, durability === "critical" ? {
+            text: text3,
+            bytes: prefix ? prefix.bytes + Buffer.byteLength(line, "utf8") : Buffer.byteLength(text3, "utf8")
+          } : void 0);
+          return;
+        }
+        const text2 = `${tail.needsSeparator ? "\n" : ""}${serializedRecord}
 `;
-      await this.prepareAppend(destination, record2, text2);
-      let handle;
-      try {
-        handle = await open9(destination, "a");
-        await handle.writeFile(text2, "utf8");
-      } finally {
-        await handle?.close().catch(() => void 0);
-      }
-      await this.rememberCursor(destination, JSON.parse(serializedRecord), false);
-    });
+        await this.prepareAppend(destination, record2, text2);
+        let handle;
+        try {
+          handle = await open9(destination, "a");
+          await handle.writeFile(text2, "utf8");
+        } finally {
+          await handle?.close().catch(() => void 0);
+        }
+        await this.rememberCursor(destination, JSON.parse(serializedRecord), false, prefix ? {
+          text: `${prefix.text}${text2}`,
+          bytes: prefix.bytes + Buffer.byteLength(text2, "utf8")
+        } : void 0);
+      });
+    } catch (error3) {
+      this.cursors.delete(destination);
+      throw error3;
+    }
   }
   async withWriterLock(destination, operation) {
     await mkdir8(this.directory, { recursive: true });

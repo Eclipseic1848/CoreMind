@@ -154,14 +154,22 @@ interface RunFileIdentity {
   ctimeMs: number;
 }
 
+interface SerializedRunPrefix {
+  text: string;
+  bytes: number;
+}
+
 interface RunFileCursor {
   identity?: RunFileIdentity;
   lastRecord?: RunStateRecord;
   needsSeparator: boolean;
+  serializedPrefix?: SerializedRunPrefix;
 }
 
 // ponytail: 只缓存父 Run 与默认 32 个子 Run 的近期游标；淘汰后全量复核，不牺牲正确性。
 const MAX_RUN_FILE_CURSORS = 64;
+// 仅限制驻留前缀的 UTF-8 payload；完整读取和发布仍保留。
+const MAX_SERIALIZED_PREFIX_BYTES = 4 * 1024 * 1024;
 
 export class FileRunStore implements RunStore {
   readonly supportedDurability = ["ordinary", "critical"] as const;
@@ -268,13 +276,16 @@ export class FileRunStore implements RunStore {
   private async readUnlocked(
     runId: string,
     destination: string,
+    sourceText?: string,
   ): Promise<{ records: RunStateRecord[]; repairedText?: string; needsSeparator?: boolean }> {
-    let text: string;
-    try {
-      text = await readFile(destination, "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { records: [] };
-      throw error;
+    let text = sourceText;
+    if (text === undefined) {
+      try {
+        text = await readFile(destination, "utf8");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return { records: [] };
+        throw error;
+      }
     }
     const terminated = text.endsWith("\n");
     const lines = text.split("\n");
@@ -373,17 +384,30 @@ export class FileRunStore implements RunStore {
     destination: string,
     lastRecord: RunStateRecord | undefined,
     needsSeparator: boolean,
-    identity?: RunFileIdentity,
+    serializedPrefix?: SerializedRunPrefix,
   ): Promise<void> {
-    const resolvedIdentity = identity ?? (await this.fileIdentity(destination));
+    const resolvedIdentity = await this.fileIdentity(destination);
     this.cursors.delete(destination);
     this.cursors.set(destination, {
       identity: resolvedIdentity,
       lastRecord: lastRecord ? structuredClone(lastRecord) : undefined,
       needsSeparator,
+      ...(serializedPrefix && serializedPrefix.bytes <= MAX_SERIALIZED_PREFIX_BYTES
+        ? { serializedPrefix }
+        : {}),
     });
     if (this.cursors.size > MAX_RUN_FILE_CURSORS) {
       this.cursors.delete(this.cursors.keys().next().value!);
+    }
+    let bytes = 0;
+    for (const cursor of this.cursors.values()) bytes += cursor.serializedPrefix?.bytes ?? 0;
+    // 最多扫描 64 个游标；淘汰文本不丢尾记录，ordinary 仍可单行追加。
+    for (const cursor of this.cursors.values()) {
+      if (bytes <= MAX_SERIALIZED_PREFIX_BYTES) break;
+      if (cursor.serializedPrefix) {
+        bytes -= cursor.serializedPrefix.bytes;
+        delete cursor.serializedPrefix;
+      }
     }
   }
 
@@ -404,92 +428,132 @@ export class FileRunStore implements RunStore {
   private async writeRecord(record: RunStateRecord, durability: RunStoreDurability): Promise<void> {
     const destination = this.pathFor(record.runId);
     validateRecord(record, record.runId);
-    await this.withWriterLock(destination, async () => {
-      const currentIdentity = await this.fileIdentity(destination);
-      const cached = this.cursors.get(destination);
-      let records: RunStateRecord[] | undefined;
-      let tail =
-        cached && this.sameIdentity(cached.identity, currentIdentity)
-          ? { record: cached.lastRecord, needsSeparator: cached.needsSeparator }
-          : undefined;
-      if (!tail || (tail.record && record.sequence < tail.record.sequence)) {
-        const parsed = await this.readUnlocked(record.runId, destination);
-        records = parsed.records;
-        if (parsed.repairedText !== undefined) {
-          await this.publishAtomically(destination, parsed.repairedText);
-        }
-        tail = {
-          record: parsed.records.at(-1),
-          needsSeparator: parsed.repairedText === undefined && (parsed.needsSeparator ?? false),
-        };
-        await this.rememberCursor(destination, tail.record, tail.needsSeparator);
-      }
-      const duplicate =
-        tail.record?.sequence === record.sequence
-          ? tail.record
-          : records?.find((item) => item.sequence === record.sequence);
-      if (duplicate) {
-        if (stableJson(duplicate) === stableJson(record)) {
-          if (durability === "critical") {
-            let handle: Awaited<ReturnType<typeof open>> | undefined;
-            try {
-              handle = await open(destination, "r+");
-              await this.options.beforeBarrier?.({
-                destination,
-                runId: record.runId,
-                requested: durability,
-                record,
-              });
-              await handle.sync();
-            } finally {
-              await handle?.close().catch(() => undefined);
-            }
+    try {
+      await this.withWriterLock(destination, async () => {
+        const currentIdentity = await this.fileIdentity(destination);
+        const cached = this.cursors.get(destination);
+        let records: RunStateRecord[] | undefined;
+        let tail =
+          cached && this.sameIdentity(cached.identity, currentIdentity)
+            ? { record: cached.lastRecord, needsSeparator: cached.needsSeparator }
+            : undefined;
+        let prefix = tail ? cached?.serializedPrefix : undefined;
+        let sourceText: string | undefined;
+        if (durability === "critical") {
+          try {
+            sourceText = await readFile(destination, "utf8");
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            sourceText = "";
           }
-          return;
+          // stat 相同仍须逐字比较实际全文，不能让缓存掩盖外部改写。
+          if (prefix?.text !== sourceText) {
+            tail = undefined;
+            prefix = undefined;
+          }
         }
-        throw new CoreMindError(
-          "run_state_conflict",
-          `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
-        );
-      }
-      const expectedSequence = (tail.record?.sequence ?? records?.at(-1)?.sequence ?? 0) + 1;
-      if (record.sequence !== expectedSequence) {
-        throw new CoreMindError(
-          "run_state_conflict",
-          `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
-        );
-      }
-      const serializedRecord = JSON.stringify(record);
-      if (durability === "critical" || record.sequence === 1) {
-        if (!records) {
-          const parsed = await this.readUnlocked(record.runId, destination);
+        if (!tail || (tail.record && record.sequence < tail.record.sequence)) {
+          prefix = undefined;
+          const parsed = await this.readUnlocked(record.runId, destination, sourceText);
           records = parsed.records;
           if (parsed.repairedText !== undefined) {
             await this.publishAtomically(destination, parsed.repairedText);
           }
+          tail = {
+            record: parsed.records.at(-1),
+            needsSeparator: parsed.repairedText === undefined && (parsed.needsSeparator ?? false),
+          };
+          await this.rememberCursor(destination, tail.record, tail.needsSeparator);
         }
-        const text = `${records.map((item) => JSON.stringify(item)).join("\n")}${
-          records.length > 0 ? "\n" : ""
-        }${serializedRecord}\n`;
-        await this.publishAtomically(destination, text, record, durability);
+        const duplicate =
+          tail.record?.sequence === record.sequence
+            ? tail.record
+            : records?.find((item) => item.sequence === record.sequence);
+        if (duplicate) {
+          if (stableJson(duplicate) === stableJson(record)) {
+            if (durability === "critical") {
+              let handle: Awaited<ReturnType<typeof open>> | undefined;
+              try {
+                handle = await open(destination, "r+");
+                await this.options.beforeBarrier?.({
+                  destination,
+                  runId: record.runId,
+                  requested: durability,
+                  record,
+                });
+                await handle.sync();
+              } finally {
+                await handle?.close().catch(() => undefined);
+              }
+            }
+            return;
+          }
+          throw new CoreMindError(
+            "run_state_conflict",
+            `RunState ${record.runId} 的 sequence ${record.sequence} 已由另一条记录占用`,
+          );
+        }
+        const expectedSequence = (tail.record?.sequence ?? records?.at(-1)?.sequence ?? 0) + 1;
+        if (record.sequence !== expectedSequence) {
+          throw new CoreMindError(
+            "run_state_conflict",
+            `RunState ${record.runId} 期望 sequence ${expectedSequence}，实际为 ${record.sequence}`,
+          );
+        }
+        const serializedRecord = JSON.stringify(record);
+        if (durability === "critical" || record.sequence === 1) {
+          if (!records && !prefix) {
+            const parsed = await this.readUnlocked(record.runId, destination, sourceText);
+            records = parsed.records;
+            if (parsed.repairedText !== undefined) {
+              await this.publishAtomically(destination, parsed.repairedText);
+            }
+          }
+          const previous =
+            prefix?.text ?? records!.map((item) => `${JSON.stringify(item)}\n`).join("");
+          const line = `${serializedRecord}\n`;
+          const text = `${previous}${line}`;
+          await this.publishAtomically(destination, text, record, durability);
+          await this.rememberCursor(
+            destination,
+            JSON.parse(serializedRecord) as RunStateRecord,
+            false,
+            durability === "critical"
+              ? {
+                  text,
+                  bytes: prefix
+                    ? prefix.bytes + Buffer.byteLength(line, "utf8")
+                    : Buffer.byteLength(text, "utf8"),
+                }
+              : undefined,
+          );
+          return;
+        }
+        const text = `${tail.needsSeparator ? "\n" : ""}${serializedRecord}\n`;
+        await this.prepareAppend(destination, record, text);
+        let handle: Awaited<ReturnType<typeof open>> | undefined;
+        try {
+          handle = await open(destination, "a");
+          await handle.writeFile(text, "utf8");
+        } finally {
+          await handle?.close().catch(() => undefined);
+        }
         await this.rememberCursor(
           destination,
           JSON.parse(serializedRecord) as RunStateRecord,
           false,
+          prefix
+            ? {
+                text: `${prefix.text}${text}`,
+                bytes: prefix.bytes + Buffer.byteLength(text, "utf8"),
+              }
+            : undefined,
         );
-        return;
-      }
-      const text = `${tail.needsSeparator ? "\n" : ""}${serializedRecord}\n`;
-      await this.prepareAppend(destination, record, text);
-      let handle: Awaited<ReturnType<typeof open>> | undefined;
-      try {
-        handle = await open(destination, "a");
-        await handle.writeFile(text, "utf8");
-      } finally {
-        await handle?.close().catch(() => undefined);
-      }
-      await this.rememberCursor(destination, JSON.parse(serializedRecord) as RunStateRecord, false);
-    });
+      });
+    } catch (error) {
+      this.cursors.delete(destination);
+      throw error;
+    }
   }
 
   private async withWriterLock<T>(destination: string, operation: () => Promise<T>): Promise<T> {

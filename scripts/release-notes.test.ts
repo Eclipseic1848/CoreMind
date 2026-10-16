@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import {
   appendFileSync,
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -13,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { assertExistingReleaseNotes, renderControlledReleaseNotes } from "./release-notes.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -42,19 +43,29 @@ const template = [
   "",
 ].join("\n");
 const temporaryRoots: string[] = [];
+const seedRoots: string[] = [];
+const fixtureSeeds = new Map<string | null, ReturnType<typeof createFixtureSeed>>();
 
-afterEach(() => {
-  for (const directory of temporaryRoots.splice(0)) {
-    const target = path.resolve(directory);
-    if (
-      path.resolve(path.dirname(target)) !== path.resolve(tmpdir()) ||
-      !path.basename(target).startsWith("coremind-release-notes-")
-    ) {
-      throw new Error("拒绝清理不属于本测试的临时目录");
+afterEach(() => cleanupDirectories(temporaryRoots));
+
+function cleanupDirectories(roots: string[]) {
+  const errors: unknown[] = [];
+  for (const directory of roots.splice(0)) {
+    try {
+      const target = path.resolve(directory);
+      if (
+        path.resolve(path.dirname(target)) !== path.resolve(tmpdir()) ||
+        !path.basename(target).startsWith("coremind-release-notes-")
+      ) {
+        throw new Error("拒绝清理不属于本测试的临时目录");
+      }
+      rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
+    } catch (error) {
+      errors.push(error);
     }
-    rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 });
   }
-});
+  if (errors.length > 0) throw new AggregateError(errors, "测试临时目录清理失败");
+}
 
 describe("受控发布说明", () => {
   it("只替换已验证的完整提交，保留固定中英正文", () => {
@@ -127,6 +138,17 @@ describe("受控发布说明", () => {
 });
 
 describe("受控发布说明 CLI 的真实 Git 身份", () => {
+  for (const source of [template, null, "\n", template.replaceAll("1.1.0", "1.0.1")]) {
+    beforeAll(() => {
+      fixtureSeeds.set(source, createFixtureSeed(source));
+    });
+  }
+
+  afterAll(() => {
+    fixtureSeeds.clear();
+    cleanupDirectories(seedRoots);
+  });
+
   it("从脚本根读取版本与 annotated Tag，在其他 cwd 生成完整中英说明", () => {
     const fixture = createFixture();
     expect(
@@ -182,6 +204,7 @@ describe("受控发布说明 CLI 的真实 Git 身份", () => {
     writeFileSync(fixture.output, "保留已有输出\n", "utf8");
     const result = invoke(fixture.root);
     expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Git 工作区不干净");
     expect(readFileSync(fixture.output, "utf8")).toBe("保留已有输出\n");
   });
 
@@ -245,6 +268,7 @@ function git(root: string, args: string[]) {
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
+      timeout: 10_000,
     },
   );
   if (result.status !== 0) throw new Error(`测试夹具 Git 失败：${result.stderr}`);
@@ -254,6 +278,17 @@ function git(root: string, args: string[]) {
 function createFixture(source: string | null = template) {
   const root = mkdtempSync(path.join(tmpdir(), "coremind-release-notes-"));
   temporaryRoots.push(root);
+  const seed = fixtureSeeds.get(source);
+  if (!seed) throw new Error("未准备对应正文的已提交 Git 夹具");
+  // 完整复制工作树与 .git，不使用 clone、worktree、硬链接或共享对象目录。
+  cpSync(seed.root, root, { recursive: true });
+  expect(git(root, ["status", "--porcelain", "--untracked-files=all"])).toBe("");
+  return { root, commit: seed.commit, output: path.join(root, ".scratch", "notes.md") };
+}
+
+function createFixtureSeed(source: string | null) {
+  const root = mkdtempSync(path.join(tmpdir(), "coremind-release-notes-seed-"));
+  seedRoots.push(root);
   mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, "docs", "release", "notes"), { recursive: true });
   mkdirSync(path.join(root, ".scratch"));

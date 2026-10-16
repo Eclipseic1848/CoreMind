@@ -32,6 +32,12 @@ Executions within one Run remain distinct. A quality retry starts a new executio
 
 Reading and reprojecting the same Facts in a cold Worker does not authorize continued execution. Resume still checks the original input, stable step boundary, Effect Receipts, and ownership. Successful discovery never replaces subsequent tool approval.
 
+## Critical journal cost and limits
+
+The 1.2 development line reuses historical JSON text from successfully published critical prefixes. Under the existing writer lock, each critical commit still reads and exactly compares the complete UTF-8 text before reuse; an idempotent critical commit still synchronizes its barrier. At most 64 recently updated cursors retain a combined 4 MiB of UTF-8 prefix payload. Prefix eviction drops text, not the tail cursor.
+
+This is not a Store heap limit. Explicit reads, query polling, failed commits, or external changes can require fresh validation. Caches are not shared across Store instances or processes. Hits reduce repeated parsing and serialization only: complete reads, full temporary rewrites, synchronization, and atomic publication remain. The journal format, resume gates, and critical acknowledgement contract do not change. Fixed-history JSON call counts do not establish production throughput, latency, or physical I/O gains.
+
 ## Legacy sessions
 
 The framework creates `.v3.backup` before migration. Supported messages, model changes, active tool changes, compactions, branch summaries, labels, and names migrate. An entry that cannot be represented losslessly returns an explicit error and preserves the source. Follow the [SOP](SOP.en.md) to retain the old version or export its effective context.
