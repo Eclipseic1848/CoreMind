@@ -5,6 +5,8 @@ import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertNpmDependencyFamily } from "./dependency-family.mjs";
+import { buildDependencyReport } from "./dependency-report.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publintCli = path.join(repositoryRoot, "node_modules", "publint", "src", "cli.js");
@@ -71,6 +73,24 @@ async function main() {
         ...tarballs,
       ],
       installRoot,
+    );
+    const expectedDependencies = await buildDependencyReport(repositoryRoot);
+    if (!expectedDependencies.summary.lockstep) throw new Error("发布源码的核心依赖族未锁步");
+    const installedGraph = JSON.parse(
+      runNpm(["ls", "--all", "--json", "--omit=dev"], installRoot, false).stdout,
+    );
+    const installedFamily = assertNpmDependencyFamily(
+      installedGraph,
+      expectedDependencies.summary.version,
+    );
+    // 完整安装图只留在本次临时验证目录，不增加正式发布制品。
+    await writeFile(
+      path.join(temporaryRoot, "consumer-dependency-graph.json"),
+      `${JSON.stringify({ graph: installedGraph, family: installedFamily }, null, 2)}\n`,
+      "utf8",
+    );
+    console.log(
+      `消费者实际依赖检查通过：${installedFamily.packages} 个成员 @ ${installedFamily.version}`,
     );
     const importProgram = `
     const names = ${JSON.stringify(packages.map((item) => item.name))};

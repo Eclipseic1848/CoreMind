@@ -99,19 +99,19 @@
     {
       "id": "github-copilot",
       "defaultModel": "claude-fable-5",
-      "modelCount": 35,
+      "modelCount": 36,
       "status": "inherited-unverified"
     },
     {
       "id": "google",
       "defaultModel": "deep-research-max-preview-04-2026",
-      "modelCount": 22,
+      "modelCount": 23,
       "status": "inherited-unverified"
     },
     {
       "id": "google-vertex",
       "defaultModel": "gemini-2.5-flash",
-      "modelCount": 13,
+      "modelCount": 14,
       "status": "inherited-unverified"
     },
     {
@@ -171,7 +171,7 @@
     {
       "id": "nvidia",
       "defaultModel": "deepseek-ai/deepseek-v4.1-flash",
-      "modelCount": 21,
+      "modelCount": 20,
       "status": "inherited-unverified"
     },
     {
@@ -189,19 +189,19 @@
     {
       "id": "opencode",
       "defaultModel": "claude-fable-5",
-      "modelCount": 83,
+      "modelCount": 84,
       "status": "inherited-unverified"
     },
     {
       "id": "opencode-go",
       "defaultModel": "claude-haiku-5-5",
-      "modelCount": 31,
+      "modelCount": 29,
       "status": "inherited-unverified"
     },
     {
       "id": "openrouter",
       "defaultModel": "anthropic/claude-fable-5",
-      "modelCount": 393,
+      "modelCount": 396,
       "status": "inherited-unverified"
     },
     {
@@ -237,7 +237,7 @@
     {
       "id": "vercel-ai-gateway",
       "defaultModel": "alibaba/qwen-3-14b",
-      "modelCount": 245,
+      "modelCount": 301,
       "status": "inherited-unverified"
     },
     {

@@ -27,6 +27,7 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 ## Model-aware lifecycle
 
 - Every request resolves a context window and output limit for the actual provider/model route. Multiple trusted sources use their safe intersection; a custom endpoint without a trusted window uses a conservative value with explicit `assumed` evidence.
+- When restored history changes model or provider, the request view omits the former model's thinking and retains its visible answer. The same model retains valid thinking fields. Filtering never deletes or rewrites the original persistent session facts.
 - The input budget fully subtracts the request's actual `maxTokens`, stable prefix, tool schemas, structured output, multimodal occupancy, protocol overhead, and safety margin. An output request above the model limit, unknown image occupancy, or exhausted static budget fails closed before the provider call.
 - When compaction is required, the working set replaces the old prefix with `TaskState` projected from Runtime facts, then retains the previous complete user-to-assistant turn and the active unfinished user message. If that undeletable set does not fit, the run pauses instead of truncating characters.
 - Every compaction persists its summary and source range in the session and appends a fingerprint-only parent-linked ledger fact to the run facts. At the lineage-depth limit, CoreMind rebuilds from canonical session messages; it never guesses through a corrupt lineage.

@@ -28,7 +28,7 @@ export interface NormalizedDependencyUsage {
 
 export function inspectRuntimeCompatibility(): RuntimeCompatibilityReport {
   return {
-    dependencyFamily: "1.2.0",
+    dependencyFamily: "1.3.0",
     adapterVersion: 2,
     errorMappingVersion: 1,
     capabilities: {

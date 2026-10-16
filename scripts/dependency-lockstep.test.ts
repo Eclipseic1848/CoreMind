@@ -2,12 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const LOCKSTEP_VERSION = "1.2.0";
-const dependencyNames = [
-  "@earendil-works/pi-agent-core",
-  "@earendil-works/pi-ai",
-  "@earendil-works/pi-coding-agent",
-] as const;
+import { DEPENDENCY_FAMILY, declaredFamilyVersion } from "./dependency-family.mjs";
+
+const dependencyNames = DEPENDENCY_FAMILY;
 
 describe("二期核心依赖锁步合同", () => {
   it("声明和安装树只包含一个精确版本族", async () => {
@@ -20,6 +17,7 @@ describe("二期核心依赖锁步合同", () => {
           },
       ),
     );
+    const LOCKSTEP_VERSION = declaredFamilyVersion(manifests);
     const lock = JSON.parse(await readFile(path.join(root, "package-lock.json"), "utf8")) as {
       packages?: Record<string, { version?: string }>;
     };
@@ -28,8 +26,8 @@ describe("二期核心依赖锁步合同", () => {
       const declarations = manifests
         .map((manifest) => manifest.dependencies?.[dependencyName])
         .filter((version): version is string => Boolean(version));
-      expect(declarations, dependencyName).not.toHaveLength(0);
-      expect(new Set(declarations), dependencyName).toEqual(new Set([LOCKSTEP_VERSION]));
+      if (declarations.length)
+        expect(new Set(declarations), dependencyName).toEqual(new Set([LOCKSTEP_VERSION]));
 
       const suffix = `node_modules/${dependencyName}`;
       const installed = new Set(

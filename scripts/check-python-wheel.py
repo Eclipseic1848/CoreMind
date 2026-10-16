@@ -80,6 +80,7 @@ def main() -> int:
             blockers.append("缺少内置 Node worker")
         else:
             blockers.extend(check_worker_bundle(archive.read(worker_name).decode("utf-8")))
+        blockers.extend(check_bundled_worker_identity(archive))
         blockers.extend(check_linux_sandbox_assets(archive))
         blockers.extend(check_mcp_license_assets(archive))
         blockers.extend(check_windows_mcp_assets(archive))
@@ -109,6 +110,71 @@ def main() -> int:
     print(f"wheel 预检通过：{wheel.name}，{len(names)} 个条目")
     smoke_install(wheel)
     return 0
+
+
+RUNTIME_DEPENDENCY_NAMES = (
+    "@earendil-works/pi-agent-core", "@earendil-works/pi-ai",
+    "@earendil-works/pi-coding-agent", "@earendil-works/pi-codemode",
+    "@earendil-works/pi-mcp", "@earendil-works/pi-telemetry", "@earendil-works/pi-tui",
+)
+
+
+def check_bundled_worker_identity(archive: zipfile.ZipFile, repository_root: Path | None = None) -> list[str]:
+    root = (repository_root or Path(__file__).resolve().parents[1]).resolve()
+    prefix = "coremind/_worker/"
+    source = root / "python" / "src" / "coremind" / "_worker"
+    contents: dict[str, bytes] = {}
+    try:
+        for filename in ("manifest.json", "coremind-worker.mjs"):
+            if archive.namelist().count(prefix + filename) != 1:
+                return ["内置 Worker 身份文件缺失或重复"]
+            contents[filename] = archive.read(prefix + filename)
+            # 固定提交中的生成物是发布来源，不能只信 wheel 自带的自洽摘要。
+            if contents[filename] != (source / filename).read_bytes():
+                return [f"内置 Worker 与冻结源码不一致：{filename}"]
+        manifest = json.loads(contents["manifest.json"].decode("utf-8"))
+        lock = json.loads((root / "package-lock.json").read_text(encoding="utf-8"))
+    except (KeyError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ["内置 Worker 缺少有效的冻结来源"]
+    if not isinstance(manifest, dict) or manifest.get("bundleSha256") != hashlib.sha256(contents["coremind-worker.mjs"]).hexdigest():
+        return ["内置 Worker 内容摘要不匹配"]
+    dependencies = manifest.get("runtimeDependencies")
+    if not isinstance(dependencies, dict) or set(dependencies) != set(RUNTIME_DEPENDENCY_NAMES):
+        return ["内置 Worker 核心依赖身份不完整"]
+    versions: set[str] = set()
+    packages = lock.get("packages") if isinstance(lock, dict) else None
+    if not isinstance(packages, dict):
+        return ["内置 Worker 缺少锁定安装来源"]
+    for name, identity in dependencies.items():
+        if (not isinstance(identity, dict) or set(identity) != {"version", "integrity", "bundled"}
+                or not isinstance(identity["version"], str)
+                or not isinstance(identity["integrity"], str)
+                or not identity["integrity"].startswith("sha512-")
+                or type(identity["bundled"]) is not bool):
+            return [f"内置 Worker 核心依赖身份格式无效：{name}"]
+        versions.add(identity["version"])
+        suffix = "node_modules/" + name
+        entries = [(relative, value) for relative, value in packages.items()
+                   if relative == suffix or relative.endswith("/" + suffix)]
+        if not entries:
+            return [f"内置 Worker 核心依赖未锁定：{name}"]
+        for relative, locked in entries:
+            try:
+                filename = (root / relative / "package.json").resolve()
+                if not filename.is_relative_to(root):
+                    return ["核心依赖安装路径超出冻结目录"]
+                metadata = json.loads(filename.read_text(encoding="utf-8"))
+                if (not isinstance(locked, dict) or not isinstance(metadata, dict)
+                        or metadata.get("name") != name
+                        or metadata.get("version") != identity["version"]
+                        or locked.get("version") != identity["version"]
+                        or locked.get("integrity") != identity["integrity"]):
+                    return [f"内置 Worker 核心依赖与实际 metadata/lock 不一致：{name}"]
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                return [f"内置 Worker 核心依赖安装来源不可读：{name}"]
+    if len(versions) != 1 or not any(value["bundled"] for value in dependencies.values()):
+        return ["内置 Worker 核心依赖版本不一致或未记录真实内联来源"]
+    return []
 
 
 def check_worker_bundle(bundle: str) -> list[str]:

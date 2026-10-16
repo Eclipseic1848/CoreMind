@@ -3098,7 +3098,7 @@ describe("CoreMindRuntime", () => {
                 tool_calls: [
                   {
                     index: 0,
-                    id: `call-read-${providerRequests}`,
+                    id: `call-write-${providerRequests}`,
                     type: "function",
                     function: {
                       name: "write",
@@ -3125,6 +3125,7 @@ describe("CoreMindRuntime", () => {
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     let approvals = 0;
+    const approvalTools: string[] = [];
     const store = new FileRunStore(path.join(dir, "runs"));
 
     try {
@@ -3140,7 +3141,8 @@ describe("CoreMindRuntime", () => {
         configDir: dir,
         cwd: dir,
         initialPrompt: "必须写入 article.md 才能完成任务",
-        approveTool: async () => {
+        approveTool: async (request) => {
+          approvalTools.push(request.tool);
           approvals += 1;
           return "deny";
         },
@@ -3151,6 +3153,7 @@ describe("CoreMindRuntime", () => {
 
       expect(providerRequests).toBe(1);
       expect(approvals).toBe(1);
+      expect(approvalTools).toEqual(["write"]);
       expect(existsSync(target)).toBe(false);
       expect(result.outcome).toMatchObject({
         status: "paused",

@@ -16,6 +16,7 @@ Inherit the provider catalog from the locked runtime dependency while keeping av
 ## Errors and boundaries
 
 - Unknown providers or models prevent startup
+- Recognized transient gateway errors inside a stream follow the bounded provider retry policy. Loop respects `maxRetries`, fails when exhausted, and skips subsequent verification. Unknown, billing, and authentication errors gain no automatic retry. Steps using only tools without effects may retry; an existing effect or started delegation instead requires human review and prevents replaying the whole step. This conservatively includes read-only child tasks because the parent's own receipt cannot prove the child is safe to replay.
 - A missing apiKeyEnv produces an explicit authentication error
 - Runtime reads credentials only from the caller-injected environment. Once `apiKeyEnv` is explicit, it is the sole key source; host-process variables, credential files, and provider defaults are not fallback sources
 - Catalog discovery means configurable only; current certification covers streaming, tools, structured output, multi-turn, abort, error mapping, and long context

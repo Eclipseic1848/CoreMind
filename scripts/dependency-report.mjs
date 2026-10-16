@@ -2,12 +2,9 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEPENDENCY_FAMILY, declaredFamilyVersion } from "./dependency-family.mjs";
 
-const TARGETS = [
-  "@earendil-works/pi-agent-core",
-  "@earendil-works/pi-ai",
-  "@earendil-works/pi-coding-agent",
-];
+const TARGETS = DEPENDENCY_FAMILY;
 
 export async function buildDependencyReport(rootDirectory, generatedAt = localDate()) {
   const root = path.resolve(rootDirectory);
@@ -17,6 +14,7 @@ export async function buildDependencyReport(rootDirectory, generatedAt = localDa
       async (relativePath) => JSON.parse(await readFile(path.join(root, relativePath), "utf8")),
     ),
   );
+  const expectedVersion = declaredFamilyVersion(manifests);
   const dependencies = [];
   const allVersions = new Set();
   for (const name of TARGETS) {
@@ -44,14 +42,17 @@ export async function buildDependencyReport(rootDirectory, generatedAt = localDa
     schemaVersion: 1,
     generatedAt,
     summary: {
-      lockstep: versions.length === 1,
+      lockstep:
+        versions.length === 1 &&
+        versions[0] === expectedVersion &&
+        dependencies.every((entry) => entry.installedVersions.length === 1),
       version: versions.length === 1 ? versions[0] : null,
       packages: dependencies.length,
     },
     dependencies,
     packaging: {
       cliShrinkwrap: false,
-      reason: "CLI 与 SDK 共用工作区 Lockfile、干净安装和 tarball 内容门禁",
+      reason: "发布候选验证 tarball 干净安装的实际依赖图；仓库 overrides 不约束消费者",
     },
     audit: {
       command: "npm run security:audit",
