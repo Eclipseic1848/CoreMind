@@ -198,32 +198,28 @@ describe("受控发布说明 CLI 的真实 Git 身份", () => {
     expect(existsSync(fixture.output)).toBe(false);
   });
 
-  it("拒绝未知、重复与缺值 CLI 参数", () => {
+  it.each([
+    { name: "未知", extra: ["--unknown", "x"] },
+    { name: "重复", extra: ["--tag", "v1.1.0"] },
+    { name: "manifest 缺值", extra: ["--manifest"] },
+    { name: "existing-release 缺值", extra: ["--existing-release"] },
+  ])("拒绝 $name CLI 参数", ({ extra }) => {
     const fixture = createFixture();
-    for (const extra of [
-      ["--unknown", "x"],
-      ["--tag", "v1.1.0"],
-      ["--manifest"],
-      ["--existing-release"],
-    ]) {
-      expect(invoke(fixture.root, extra).status).not.toBe(0);
-      expect(existsSync(fixture.output)).toBe(false);
-    }
+    expect(invoke(fixture.root, extra).status).not.toBe(0);
+    expect(existsSync(fixture.output)).toBe(false);
   });
 
-  it("manifest 的版本、Tag、提交与候选状态任一冲突即停止", () => {
+  it.each([
+    { name: "版本", change: { version: "1.0.1" } },
+    { name: "Tag", change: { tag: "v1.0.1" } },
+    { name: "提交", change: { commit: "b".repeat(40) } },
+    { name: "候选状态", change: { candidate: true } },
+  ])("manifest 的 $name 冲突即停止", ({ change }) => {
     const fixture = createFixture();
-    for (const change of [
-      { version: "1.0.1" },
-      { tag: "v1.0.1" },
-      { commit: "b".repeat(40) },
-      { candidate: true },
-    ]) {
-      const manifest = writeManifest(fixture.root, fixture.commit, change);
-      const result = invoke(fixture.root, ["--manifest", manifest]);
-      expect(result.status).not.toBe(0);
-      expect(existsSync(fixture.output)).toBe(false);
-    }
+    const manifest = writeManifest(fixture.root, fixture.commit, change);
+    const result = invoke(fixture.root, ["--manifest", manifest]);
+    expect(result.status).not.toBe(0);
+    expect(existsSync(fixture.output)).toBe(false);
   });
 
   it("既有 Release 正文冲突时不覆盖 JSON 或产生可发布输出", () => {
@@ -303,7 +299,7 @@ function createFixture(source: string | null = template) {
 }
 
 function invoke(root: string, extra: string[] = [], cwd = root) {
-  return spawnSync(
+  const result = spawnSync(
     process.execPath,
     [
       path.join(root, "scripts", "release-notes.mjs"),
@@ -316,6 +312,10 @@ function invoke(root: string, extra: string[] = [], cwd = root) {
     ],
     { cwd, encoding: "utf8", windowsHide: true, timeout: 10_000 },
   );
+  expect(result.error).toBeUndefined();
+  expect(result.signal).toBeNull();
+  expect(result.status).toBeTypeOf("number");
+  return result;
 }
 
 function snapshotFiles(root: string, directory = root): Record<string, string> {
