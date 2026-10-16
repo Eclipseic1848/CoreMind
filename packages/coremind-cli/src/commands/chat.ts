@@ -11,6 +11,7 @@ import {
   type McpAuthentication,
   parseAndValidate,
 } from "coremind-ai";
+import { type BoundedOutput, createBoundedOutput } from "coremind-ai/internal";
 import {
   ApprovalQueue,
   applyPermissionMode,
@@ -30,17 +31,18 @@ import {
 import { createTerminalView, foldTerminalView } from "../terminal-view.js";
 import { formatMcpAuthenticationError, type McpChatAuthentication, runChatTUI } from "../tui.js";
 
-function printChatHelp(): void {
-  console.log(dim("命令："));
-  console.log(dim("  /help            显示本帮助"));
-  console.log(dim("  /exit            退出对话"));
-  console.log(dim("  /abort           中止当前回答（可继续提问）"));
-  console.log(dim("  /steer 文本      向当前运行追加指令"));
-  console.log(dim("  /follow-up 文本  当前任务自然结束后继续输入"));
-  console.log(dim("  /mcp login 服务  登录已配置的 MCP 服务（仅当前进程保存）"));
-  console.log(dim("  /mcp cancel      取消当前登录"));
-  console.log(dim("  /mcp logout 服务 清除当前进程的服务凭据"));
-  console.log(dim("忙时普通输入仅保留为草稿，空闲后按 Enter 确认发送。"));
+function printChatHelp(write: (text: string) => void): void {
+  const log = (text: string) => write(`${text}\n`);
+  log(dim("命令："));
+  log(dim("  /help            显示本帮助"));
+  log(dim("  /exit            退出对话"));
+  log(dim("  /abort           中止当前回答（可继续提问）"));
+  log(dim("  /steer 文本      向当前运行追加指令"));
+  log(dim("  /follow-up 文本  当前任务自然结束后继续输入"));
+  log(dim("  /mcp login 服务  登录已配置的 MCP 服务（仅当前进程保存）"));
+  log(dim("  /mcp cancel      取消当前登录"));
+  log(dim("  /mcp logout 服务 清除当前进程的服务凭据"));
+  log(dim("忙时普通输入仅保留为草稿，空闲后按 Enter 确认发送。"));
 }
 
 /**
@@ -91,6 +93,15 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
   }
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
   let authentication: McpAuthentication | undefined;
+  let session: ChatSession | undefined;
+  const useTui = process.stdin.isTTY === true && !flagBool(parsed, "no-tui");
+  const controller = new AbortController();
+  const writer = useTui
+    ? undefined
+    : createBoundedOutput(output, {
+        onFailure: () => controller.abort(),
+      });
+  const log = (text: string) => (writer ? writer.write(`${text}\n`) : console.log(text));
   try {
     if (
       Object.values(config.mcp?.servers ?? {}).some(
@@ -113,7 +124,6 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
     });
 
     const agentName = config.defaultAgent ?? Object.keys(config.agents)[0];
-    let session: ChatSession;
     try {
       session = new ChatSession(runtime, agentName ?? "");
     } catch (error) {
@@ -121,30 +131,44 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
       return 1;
     }
     if (runtime.resumedContextLength > 0) {
-      console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+      log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
     }
 
     const quiet = flagBool(parsed, "quiet");
     // 交互终端（TTY）默认全屏 TUI；非 TTY（管道/脚本）或 --no-tui 回退 readline
-    if (process.stdin.isTTY === true && !flagBool(parsed, "no-tui")) {
+    if (useTui) {
       await runChatTUI(session, config.name, approvals, mcp);
     } else {
-      if (!quiet) console.log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
-      const unsubscribe = session.onEvent((event, entry) =>
-        renderChatEvent(event, output, entry?.runId),
-      );
+      if (!quiet) log(dim(`开始对话（/help 查看命令，/exit 退出）—— ${config.name}`));
+      const unsubscribe = session.onEvent((event, entry) => {
+        if (!writer!.failure) renderChatEvent(event, writer!, entry?.runId);
+      });
       try {
-        await runReadlineChat(session, approvals, undefined, mcp);
+        await runReadlineChat(session, approvals, undefined, mcp, {
+          writer: writer!,
+          signal: controller.signal,
+        });
       } finally {
         unsubscribe();
       }
     }
     const sessionFile = await session.persist();
-    if (sessionFile) console.log(dim(`会话已保存：${sessionFile}`));
+    if (sessionFile) log(dim(`会话已保存：${sessionFile}`));
+    await writer?.flush();
     return 0;
+  } catch (error) {
+    if (writer?.failure) {
+      console.error(errorLine(`output_delivery_failed: ${writer.failure.message}`));
+      return 1;
+    }
+    throw error;
   } finally {
     approvals.close();
-    await authentication?.close();
+    try {
+      await authentication?.close();
+    } finally {
+      await writer?.close();
+    }
   }
 }
 
@@ -154,6 +178,7 @@ export async function runReadlineChat(
   approvals: ApprovalQueue,
   streams: { input: NodeJS.ReadableStream; output: NodeJS.WritableStream } = { input, output },
   mcp?: McpChatAuthentication,
+  delivery?: { writer: BoundedOutput; signal: AbortSignal },
 ): Promise<void> {
   const rl = createInterface(streams);
   let answerApproval: ((answer: string) => void) | undefined;
@@ -164,6 +189,16 @@ export async function runReadlineChat(
   const controls = new Set<Promise<void>>();
   let login: { controller: AbortController; operation: Promise<void> } | undefined;
   const cancelLogin = () => login?.controller.abort();
+  const stopOutput = () => {
+    cancelLogin();
+    session.abort();
+    while (approvals.current) approvals.resolve("deny");
+    answerApproval?.("n");
+    answerApproval = undefined;
+    rl.close();
+  };
+  const writer = delivery?.writer ?? createBoundedOutput(streams.output, { onFailure: stopOutput });
+  delivery?.signal.addEventListener("abort", stopOutput, { once: true });
   const onSigint = () => {
     cancelLogin();
     session.abort();
@@ -174,16 +209,21 @@ export async function runReadlineChat(
     rl.on("SIGINT", onSigint);
   }
   const unbindApprovals = bindReadlineApprovals(approvals, {
-    question: (prompt) => {
-      streams.output.write(prompt);
-      return new Promise<string>((resolve) => {
+    question: (prompt) =>
+      new Promise<string>((resolve) => {
         answerApproval = resolve;
-      });
-    },
+        writer.write(prompt);
+        if (writer.failure) {
+          answerApproval = undefined;
+          resolve("n");
+        }
+      }),
   });
   try {
-    streams.output.write(cyan("\n你 > "));
+    if (delivery?.signal.aborted) stopOutput();
+    writer.write(cyan("\n你 > "));
     for await (const line of rl) {
+      if (writer.failure) break;
       const text = line.trim();
       const editedDraft = draftPrefilled;
       draftPrefilled = false;
@@ -192,27 +232,27 @@ export async function runReadlineChat(
         const command = /^\/mcp\s+(login|logout)\s+(\S+)$/u.exec(text);
         if (text === "/mcp cancel") {
           cancelLogin();
-          streams.output.write("已请求取消登录\n");
+          writer.write("已请求取消登录\n");
           continue;
         }
         if (!command) {
-          streams.output.write("用法：/mcp login 服务、/mcp cancel、/mcp logout 服务\n");
+          writer.write("用法：/mcp login 服务、/mcp cancel、/mcp logout 服务\n");
           continue;
         }
         const serverName = command[2]!;
         const server = mcp?.config.mcp?.servers[serverName];
         if (!mcp || server?.transport !== "streamable-http" || !server.oauth) {
-          streams.output.write("指定服务没有配置 OAuth 登录\n");
+          writer.write("指定服务没有配置 OAuth 登录\n");
           continue;
         }
         if (command[1] === "logout") {
           cancelLogin();
           const operation = mcp.authentication.logout(serverName).then(
             () => {
-              streams.output.write("已清除当前进程的服务凭据\n");
+              writer.write("已清除当前进程的服务凭据\n");
             },
             (error: unknown) => {
-              streams.output.write(`${formatMcpAuthenticationError(error)}\n`);
+              writer.write(`${formatMcpAuthenticationError(error)}\n`);
             },
           );
           controls.add(operation);
@@ -220,14 +260,14 @@ export async function runReadlineChat(
           continue;
         }
         if (!terminal) {
-          streams.output.write("交互登录需要 TTY\n");
+          writer.write("交互登录需要 TTY\n");
           continue;
         }
         if (login || activeChat || answerApproval) {
-          streams.output.write("请等待当前运行、审批或登录结束后再登录\n");
+          writer.write("请等待当前运行、审批或登录结束后再登录\n");
           continue;
         }
-        streams.output.write(
+        writer.write(
           `登录 ${serverName}：${server.url}；授权方 ${server.oauth.issuer}；范围 ${server.oauth.scopes.join("、")}（仅当前进程保存）\n`,
         );
         const controller = new AbortController();
@@ -236,17 +276,15 @@ export async function runReadlineChat(
             signal: controller.signal,
             onAuthorization: (request, signal) => {
               signal.throwIfAborted();
-              streams.output.write(
-                `请手动打开授权链接；/mcp cancel 取消：\n${request.authorizationUrl}\n`,
-              );
+              writer.write(`请手动打开授权链接；/mcp cancel 取消：\n${request.authorizationUrl}\n`);
             },
           })
           .then(
             () => {
-              streams.output.write("登录成功，可继续提问\n");
+              writer.write("登录成功，可继续提问\n");
             },
             (error: unknown) => {
-              streams.output.write(`${formatMcpAuthenticationError(error)}\n`);
+              writer.write(`${formatMcpAuthenticationError(error)}\n`);
             },
           )
           .finally(() => {
@@ -260,14 +298,14 @@ export async function runReadlineChat(
         while (approvals.current) approvals.resolve("deny");
         answerApproval?.("n");
         answerApproval = undefined;
-        streams.output.write(dim("已请求中止，收尾后可继续提问\n"));
+        writer.write(dim("已请求中止，收尾后可继续提问\n"));
         continue;
       }
       const control = /^\/(steer|follow-up)(?:\s+([\s\S]*))?$/u.exec(text);
       if (control) {
         const message = control[2]?.trim();
         if (!message) {
-          streams.output.write(`用法：/${control[1]} 文本\n`);
+          writer.write(`用法：/${control[1]} 文本\n`);
           continue;
         }
         // 调用时立即固定活动 Run；仅等待回执的部分并发，不占用输入循环。
@@ -276,13 +314,11 @@ export async function runReadlineChat(
             const receipt = await (control[1] === "steer"
               ? session.steer(message)
               : session.followUp(message));
-            streams.output.write(
+            writer.write(
               `控制 ${receipt.controlId} · Run ${receipt.runId} · ${receipt.status}${receipt.duplicateOf ? ` (${receipt.duplicateOf})` : ""}${receipt.reason ? `：${receipt.reason}` : ""}\n`,
             );
           } catch (error) {
-            streams.output.write(
-              `控制失败：${error instanceof Error ? error.message : String(error)}\n`,
-            );
+            writer.write(`控制失败：${error instanceof Error ? error.message : String(error)}\n`);
           }
         })();
         controls.add(operation);
@@ -290,8 +326,8 @@ export async function runReadlineChat(
         continue;
       }
       if (text === "/help" || (answerApproval && text.startsWith("/"))) {
-        if (text === "/help") printChatHelp();
-        else streams.output.write(`未知命令：${text}\n`);
+        if (text === "/help") printChatHelp((text) => writer.write(text));
+        else writer.write(`未知命令：${text}\n`);
         continue;
       }
       if (answerApproval) {
@@ -301,45 +337,43 @@ export async function runReadlineChat(
         continue;
       }
       if (login) {
-        streams.output.write("登录等待中；使用 /mcp cancel 取消，或 /exit 退出\n");
+        writer.write("登录等待中；使用 /mcp cancel 取消，或 /exit 退出\n");
         continue;
       }
       if (activeChat) {
         if (!text) continue;
         if (draft === undefined) {
           draft = text;
-          streams.output.write(
+          writer.write(
             `草稿已保留：${draft}\n空闲后按 Enter 确认发送；当前可用 /steer、/follow-up 或 /abort。\n`,
           );
         } else {
-          streams.output.write(`已有草稿，未替换：${draft}\n本次输入未保存：${text}\n`);
+          writer.write(`已有草稿，未替换：${draft}\n本次输入未保存：${text}\n`);
         }
         continue;
       }
       if (!text && draft === undefined) continue;
       if (draft !== undefined && text && !editedDraft) {
-        streams.output.write(
-          `已有草稿，未替换：${draft}\n本次输入未保存：${text}\n空行确认发送原草稿。\n`,
-        );
+        writer.write(`已有草稿，未替换：${draft}\n本次输入未保存：${text}\n空行确认发送原草稿。\n`);
         continue;
       }
       const message = editedDraft ? text : (draft ?? text);
       draft = undefined;
       if (!message) continue;
-      streams.output.write(dim("[assistant] "));
+      writer.write(dim("[assistant] "));
       activeChat = Promise.resolve()
-        .then(() => session.chat(message))
+        .then(() => (writer.failure ? undefined : session.chat(message)))
         .then(() => {
-          streams.output.write("\n");
+          writer.write("\n");
         })
         .catch((error: unknown) => {
           console.error(errorLine(error instanceof Error ? error.message : String(error)));
         })
         .finally(() => {
           activeChat = undefined;
-          streams.output.write(cyan("\n你 > "));
-          if (draft !== undefined) {
-            streams.output.write(`草稿待确认：${draft}\n按 Enter 发送草稿。\n`);
+          writer.write(cyan("\n你 > "));
+          if (!writer.failure && draft !== undefined) {
+            writer.write(`草稿待确认：${draft}\n按 Enter 发送草稿。\n`);
             if (terminal && !rl.line) {
               rl.write(draft);
               draftPrefilled = true;
@@ -357,14 +391,23 @@ export async function runReadlineChat(
     await login?.operation;
     await activeChat;
     await Promise.allSettled(controls);
+    delivery?.signal.removeEventListener("abort", stopOutput);
     rl.close();
+    if (!delivery) {
+      try {
+        await writer.flush();
+      } finally {
+        await writer.close();
+      }
+    }
   }
+  if (writer.failure) throw writer.failure;
 }
 
 /** 对话事件渲染（工具调用可视化 + 流式文本） */
 export function renderChatEvent(
   event: CoreMindEvent,
-  stream: NodeJS.WritableStream = output,
+  stream: { write(text: string): unknown } = output,
   runId?: string,
 ): void {
   switch (event.type) {

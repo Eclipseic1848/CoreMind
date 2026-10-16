@@ -13,6 +13,7 @@ import {
   type RunResult,
   type RunStatus,
 } from "coremind-ai";
+import { createBoundedOutput } from "coremind-ai/internal";
 import {
   ApprovalQueue,
   applyPermissionMode,
@@ -115,6 +116,16 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
   approvalReadline?.on("SIGINT", onSigint);
   if (loginServer) approvalReadline?.on("close", onSigint);
   let authentication: McpAuthentication | undefined;
+  const writer = createBoundedOutput(process.stdout, { onFailure: () => controller.abort() });
+  const log = (...values: unknown[]) => writer.write(`${values.map(String).join(" ")}\n`);
+  const writeJson = (value: unknown) => {
+    if (writer.failure) return;
+    try {
+      writer.write(`${JSON.stringify(value)}\n`);
+    } catch {
+      writer.fail();
+    }
+  };
 
   try {
     if (loginServer) {
@@ -147,38 +158,37 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       ...(authentication ? { mcpAuthentication: authentication } : {}),
       approveTool: (request) => approvals.request(request),
       events: (event) => {
+        if (writer.failure) return;
         if (jsonEvents) {
-          process.stdout.write(`${JSON.stringify(event)}\n`);
+          writeJson(event);
           return;
         }
         if (printOnly) return;
-        renderEvent(event);
+        renderEvent(event, (text) => writer.write(text));
       },
     });
     if (runtime.resumedContextLength > 0 && !jsonEvents && !printOnly) {
-      console.log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
+      log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
     }
 
     // 3. 执行
     const result = await runtime.run();
     if (printOnly && result.transcript.length > 0) {
-      process.stdout.write(
-        result.transcript.endsWith("\n") ? result.transcript : `${result.transcript}\n`,
-      );
+      writer.write(result.transcript.endsWith("\n") ? result.transcript : `${result.transcript}\n`);
     }
     if (jsonEvents) {
       for (const node of result.childRuns?.nodes ?? []) {
-        process.stdout.write(`${JSON.stringify(toChildRunEvent(node))}\n`);
+        writeJson(toChildRunEvent(node));
       }
-      process.stdout.write(`${JSON.stringify(toRunResultEvent(result))}\n`);
+      writeJson(toRunResultEvent(result));
     }
     if (!printOnly && !jsonEvents) {
-      console.log(dim(formatObservabilityStatus(result.observability)));
+      log(dim(formatObservabilityStatus(result.observability)));
       if (result.childRuns) {
         for (const node of result.childRuns.nodes) {
-          console.log(dim(formatChildRun(node)));
+          log(dim(formatChildRun(node)));
         }
-        console.log(
+        log(
           dim(
             `Child Runs ${result.childRuns.nodes.length} · 活动 ${result.childRuns.activeDescendants} · 未处置 ${result.childRuns.unhandledDescendants}`,
           ),
@@ -186,11 +196,11 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       }
     }
     if (result.sessionFile && !jsonEvents && !printOnly) {
-      console.log(dim(`会话已保存：${result.sessionFile}`));
+      log(dim(`会话已保存：${result.sessionFile}`));
     }
     // 质量摘要（管道/机器模式不打印，保持 --print/--json-events 纯净）
     if (!printOnly && !jsonEvents && result.outcome.status === "succeeded") {
-      console.log(dim(`✓ 运行完成：${formatMetrics(result.metrics)}`));
+      log(dim(`✓ 运行完成：${formatMetrics(result.metrics)}`));
     }
     if (result.outcome.status !== "succeeded") {
       const diagnostic =
@@ -198,8 +208,18 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         `运行以 ${result.outcome.status} 结束：${result.outcome.finishReason}`;
       console.error(errorLine(diagnostic));
     }
+    await writer.flush();
     return exitCodeForRunStatus(result.outcome.status);
   } catch (error) {
+    try {
+      await writer.flush();
+    } catch {
+      /* 优先报告锁存的交付失败。 */
+    }
+    if (writer.failure) {
+      console.error(errorLine(`output_delivery_failed: ${writer.failure.message}`));
+      return 1;
+    }
     if (
       controller.signal.aborted ||
       (error && typeof error === "object" && "code" in error && error.code === "aborted")
@@ -216,7 +236,11 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
     unbindApprovals?.();
     approvals.close();
     approvalReadline?.close();
-    await authentication?.close();
+    try {
+      await authentication?.close();
+    } finally {
+      await writer.close();
+    }
   }
 }
 
@@ -284,31 +308,32 @@ export function toRunResultEvent(result: RunResult): Record<string, unknown> {
 /** 默认模式的事件渲染（流式文本 + 步骤 + 工具调用） */
 function renderEvent(
   event: Parameters<NonNullable<Parameters<typeof CoreMindRuntime.create>[0]["events"]>>[0],
+  write: (text: string) => void,
 ): void {
   switch (event.type) {
     case "text_delta":
-      process.stdout.write(event.delta);
+      write(event.delta);
       break;
     case "loop_state":
-      process.stdout.write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
+      write(`\n${loopStateLine(event.to, event.iteration, event.repairs)}\n`);
       break;
     case "step_start":
-      process.stdout.write(`\n${stepLine(event.stepId, event.kind)}\n`);
+      write(`\n${stepLine(event.stepId, event.kind)}\n`);
       break;
     case "step_resumed":
-      process.stdout.write(`\n${dim(`↻ 复用稳定步骤：${event.stepId}`)}\n`);
+      write(`\n${dim(`↻ 复用稳定步骤：${event.stepId}`)}\n`);
       break;
     case "tool_call":
-      process.stdout.write(`\n${toolLine(event.tool, event.args)}`);
+      write(`\n${toolLine(event.tool, event.args)}`);
       break;
     case "tool_result":
-      process.stdout.write(toolResultLine(event.isError));
+      write(toolResultLine(event.isError));
       break;
     case "agent_start":
-      process.stdout.write(`\n${cyan(`[${event.agent}]`)} `);
+      write(`\n${cyan(`[${event.agent}]`)} `);
       break;
     case "agent_end":
-      process.stdout.write("\n");
+      write("\n");
       break;
     case "error":
       if (event.fatal) {

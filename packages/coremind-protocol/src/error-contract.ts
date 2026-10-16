@@ -411,6 +411,7 @@ export const ERROR_CODES = defineErrorCodes({
   workspace_busy: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
 
   // —— worker 类 ——
+  output_delivery_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   worker_closed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   already_initialized: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   worker_busy: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
