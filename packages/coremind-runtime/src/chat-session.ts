@@ -7,6 +7,7 @@ import type { CoreMindEvent } from "./events.js";
 import type { RunProjection } from "./projection.js";
 import type { CoreMindMessage } from "./public-message.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
+import { copySessionHistory } from "./session.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 /** 一轮对话的结果 */
@@ -83,7 +84,7 @@ export class ChatSession {
       );
       const nextMessages = run.messages.get(this.agentName);
       if (nextMessages) {
-        this.messages = [...nextMessages];
+        this.messages = copySessionHistory(nextMessages);
       }
       this.latestSessionFile = run.sessionFile;
       this.latestRun = run;

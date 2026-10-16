@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "bb5170034d28a7aab4e15e038c474011feaff4ab",
+    "developmentCommit": "3cf8f476917a407b54774b0478086aceb3b172ae",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -16,7 +16,7 @@
       "coremind-ai": "c6bd910c426112fdac577f85c0e172bdfb38345eea8ea3c42d50109c900c0bfe",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
-      "coremind-protocol": "dd9df560df621c39ed9261815044ad7d94e5ec28a00a6baddc25cd8227a13271",
+      "coremind-protocol": "189336b6500a13f03df51b0323ebb4fc767f4b780c7b7193363caa1e3d186f2b",
       "coremind-runtime": "5703f9a6a95edd501563b86b6ab070fec868f8e9fe6a2c896d6f382b8392c3e8",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "ef99c6ff5dfc2ca8423113d2df43002020bee0d98e2d6d1c0e0ffd74946167b2",
@@ -25,7 +25,7 @@
     "schemas": {
       "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
       "protocol": "3a4ea1babbe4e5572b44243c6479b050d25dd39c51065e7ef7c2d3767d47cedc",
-      "protocolV2": "3392c9c49adced36a56d11534d27a8fd13717954e33283b18501ed84cada672b"
+      "protocolV2": "366feec83753e5dd9c7223529624ee30d7699be19ea7705810f7c47d14d34d07"
     }
   },
   "dependencies": {
@@ -283,20 +283,20 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-15T06:05:02.084Z",
+    "capturedAt": "2026-10-16T02:58:36.313Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #253：审批和Artifact可选身份同步v2与Python Worker；事件和ChatSession监听器复用既有Trace envelope作为可选第二参数，修复同一交互内Child Run身份碰撞并隔离监听器副本，前五个交互参数和旧单参监听器保持兼容，未新增协议正文或wire字段。",
+    "updateReason": "新增会话单写者、陈旧快照与安全释放错误码；保留既有 Runtime API 形状",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "34ed753c9a68b689623fa78b212c2ba0fcd0a41badfb8363b7313ac9d6f77d21",
+    "dependencyLockSha256": "51d5802e038e5953984bec18ef803ed61b571934b0c96ea42a31cc3f8056ad0a",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
       "coremind-ai": "0ae8e490afb7b7a5b4b91abab70eb051b60be62acf22c1b43059f1f079818a24",
-      "coremind-cli": "095afa35a66243543f29b03c03cfe8267916381adc0b71f2d8883a8fd8d2aab4",
+      "coremind-cli": "b5f2c49ade935d100bc35b5748bb115e620d7a679ae562b95189db9c9fe1d5d5",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
-      "coremind-protocol": "e165a0203677bdb2538dd4651b639b7e6ad9e2f60a7025887419e82249752f11",
-      "coremind-runtime": "1c0fe29b384bb9fa36e04530dc6613bc8a84938e18be541d9f5024ef44d0cebe",
+      "coremind-protocol": "d21f8b05dfdbcd3d273377e7debc2e34c5759c9aad9178f50be4ad6e470877db",
+      "coremind-runtime": "3abb35ae8311a821232fb6a092986af3061612608cd02e945f6460140232f14a",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "8e09cb15ca6eefe830a0b5582f0f67bd359b83b6acb0cfc2e4f0cd78a07eee4d",
+      "coremind-tools": "37dca4c4020f70f6d50a285b54118ed223b913084908fcdba1269c85e32dc339",
       "coremind-worker": "4f1e9b97dea17bb7c8f2dce04d830ff37454cde4582dd4b8cfc1e17bdf31db14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"

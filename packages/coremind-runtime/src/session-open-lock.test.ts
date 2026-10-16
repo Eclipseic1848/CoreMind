@@ -1,4 +1,5 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,14 +9,14 @@ vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   return {
     ...actual,
-    open: async (...args: Parameters<typeof actual.open>) => {
-      if (String(args[0]).endsWith(".open.lock")) {
+    link: async (...args: Parameters<typeof actual.link>) => {
+      if (String(args[1]).endsWith(".open.lock")) {
         fault.attempts++;
         if (fault.remaining-- > 0) {
           throw Object.assign(new Error("注入锁文件打开失败"), { code: fault.code });
         }
       }
-      return actual.open(...args);
+      return actual.link(...args);
     },
   };
 });
@@ -33,7 +34,8 @@ afterEach(() => {
 });
 
 function options() {
-  const dir = mkdtempSync(path.join(tmpdir(), "coremind-session-lock-"));
+  const dir = path.join(tmpdir(), `coremind-session-lock-${randomUUID()}`);
+  mkdirSync(dir);
   directories.push(dir);
   return { dir, cwd: dir, sessionId: "lock-test" };
 }

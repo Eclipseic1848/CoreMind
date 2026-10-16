@@ -15,6 +15,15 @@
 
 `ContextLifecycleManager`、`ContextWorkingSetBuilder` 和 `ContextTaskState` 通过 `coremind-runtime/internal` 供同仓库受控组件复用，不属于主公共入口。调用方通过 Runtime 事件、`RunOutcome`、Trace 与 Snapshot 观察其结果。
 
+## 会话写入所有权
+
+- 同一规范化目录和 Session ID 只允许一个活动写入者。Run 在读取执行历史前取得跨进程写租约，覆盖模型、工具、压缩、最终追加和取消收敛；实际文件操作另用短锁。不同会话不共用这把锁，文件所有权不授予工具权限。
+- 启用 `session.enabled` 且提供 `sessionId` 时，`CoreMindRuntime.create()` 会建立或打开空会话，取得一致的预读消息与水位；此时不持长期租约，也不调用模型。普通 `run()` 在租约内刷新历史；Chat 保留自己的压缩视图，并核对来源水位。
+- 竞争写入报告 `session_write_locked`；旧持有者追加或旧 Chat 继续报告 `session_snapshot_stale`，不修改文件、不自动合并分支。外部 Runtime 推进会话后，须重新创建 Runtime 从持久会话恢复，再创建 Chat；仅在旧 Runtime 上新建 Chat 不会刷新外部历史。同一 Chat 的正常连续轮次会传递新水位。
+- 宿主通过 `runAgentTurn` 管理历史时，可以沿用上一轮返回的消息或浅复制数组。跨轮使用经 JSON 重建或深复制的历史时，重新创建 Runtime 从持久会话恢复，以重新取得可核验的来源水位。失效写身份报告 `session_write_lease_invalid`；锁损坏或释放失败需要按 `session_lock_recovery_required` 核验所有权，已报错的旧持有者须重新打开。
+- 最后一次会话写入已完成且运行静止后，先封住旧写身份并释放租约，再形成终态。另一 Run 可在此前 Run 写终态元数据时开始；此时此前 Run 已无模型、工具或会话写入。不能安全收敛时报告 `session_not_quiescent` 并保留租约，不能假装已释放。
+- 仅在记录的 PID 明确死亡、owner/nonce 重新核验一致后回收崩溃遗留的写锁和短锁。旧空锁、损坏 owner 或残留恢复 claim 会失败关闭，须先核验所有权；不按时间猜测失活或盲删锁。此机制面向支持 hardlink 的本机文件系统，不承诺共享网络文件系统或断电级持久性。
+
 ## 模型感知生命周期
 
 - 每次请求按实际 Provider/model 解析 Context 窗口与输出上限；多个可信来源取安全交集，自定义端点缺少可信窗口时使用有明确 `assumed` 证据的保守值。

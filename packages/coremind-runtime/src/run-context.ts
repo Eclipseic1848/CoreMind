@@ -9,7 +9,7 @@ import type { CallId, RunId, StepId, TurnId } from "./ids.js";
 import type { LifecycleExtensionReceipt } from "./lifecycle-extension.js";
 import type { CoreMindMessage } from "./public-message.js";
 import { hasPendingJournalFlush, type RunStateJournal } from "./run-state.js";
-import type { CoreMindSession } from "./session.js";
+import { type CoreMindSession, sessionHasPendingWrites } from "./session.js";
 
 /** 单次 Run 的可变资源所有者；Runtime 门面只负责创建与切换实例。 */
 export class RunContext<THarness> {
@@ -18,6 +18,8 @@ export class RunContext<THarness> {
   private journal?: RunStateJournal;
   private controlInbox?: ControlInbox;
   private session?: CoreMindSession;
+  private initialSessionHistory?: CoreMindMessage[];
+  private initialSessionHistoryLength?: number;
   private branch?: BranchMessage[];
   private compactedPrefix?: number;
   private persistPaused = false;
@@ -144,6 +146,7 @@ export class RunContext<THarness> {
   }
 
   isExecutionQuiescent(): boolean {
+    if (this.session && sessionHasPendingWrites(this.session)) return false;
     for (const { driver } of this.agents.values()) {
       const status = driver.status();
       if (status.running || status.pendingToolCalls > 0 || status.queuedControls > 0) {
@@ -175,9 +178,25 @@ export class RunContext<THarness> {
     return this.terminationError;
   }
 
-  attachSession(session: CoreMindSession, branch: BranchMessage[]): void {
+  attachSession(
+    session: CoreMindSession,
+    branch: BranchMessage[],
+    initialMessages?: CoreMindMessage[],
+  ): void {
     this.session = session;
     this.branch = branch;
+    if (initialMessages !== undefined) {
+      this.initialSessionHistory = initialMessages;
+      this.initialSessionHistoryLength = initialMessages.length;
+    }
+  }
+
+  initialSessionMessages(): CoreMindMessage[] | undefined {
+    return this.initialSessionHistory;
+  }
+
+  initialSessionLength(): number | undefined {
+    return this.initialSessionHistoryLength;
   }
 
   sessionHandle(): CoreMindSession | undefined {

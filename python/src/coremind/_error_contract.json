@@ -491,6 +491,41 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "session_write_locked": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "session_write_lease_invalid": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "session_snapshot_stale": {
+      "terminality": "terminal",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "humanAction": "required",
+      "runStatus": "failed"
+    },
+    "session_lock_recovery_required": {
+      "terminality": "terminal",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "humanAction": "required",
+      "runStatus": "failed"
+    },
+    "session_not_quiescent": {
+      "terminality": "terminal",
+      "cancelClass": "human",
+      "retryClass": "human",
+      "humanAction": "required",
+      "runStatus": "failed"
+    },
     "invalid_run_id": {
       "terminality": "terminal",
       "cancelClass": "corruption",

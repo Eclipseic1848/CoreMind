@@ -3,8 +3,6 @@ import {
   access,
   copyFile,
   link,
-  mkdir,
-  open,
   readFile,
   rename,
   rm,
@@ -30,6 +28,12 @@ import {
   type SessionContext,
   shouldCompact,
 } from "./session-v4/index.js";
+import {
+  acquireSessionWriteLease,
+  assertSessionWriteLease,
+  type SessionWriteLease,
+  withSessionIO,
+} from "./session-write-lease.js";
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -113,7 +117,7 @@ export class CoreMindSession {
   static async open(opts: CoreMindSessionOptions): Promise<CoreMindSession> {
     assertValidSessionId(opts.sessionId);
     const publicPath = path.resolve(opts.dir, `${opts.sessionId}.jsonl`);
-    return withSessionOpenLock(publicPath, async () => {
+    return withSessionIO(opts.dir, opts.sessionId, async (identity) => {
       const env = new SessionFileSystem({ cwd: opts.cwd });
       const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: path.resolve(opts.dir) });
       let metadata = (await repository.list({ cwd: opts.cwd })).find(
@@ -148,7 +152,21 @@ export class CoreMindSession {
         : await repository.create({ id: opts.sessionId, cwd: opts.cwd });
       const openedMetadata = await session.getMetadata();
       await ensurePublicSessionPath(openedMetadata.path, publicPath);
-      return new CoreMindSession(session, isNew, publicPath);
+      const opened = new CoreMindSession(session, isNew, publicPath);
+      const state: SessionHolder = {
+        options: { ...opts, dir: path.dirname(publicPath) },
+        identity,
+        storagePath: openedMetadata.path,
+        publicPath,
+        watermark: "",
+        io: Promise.resolve(),
+        writes: Promise.resolve(),
+        pending: 0,
+        stale: false,
+      };
+      state.watermark = await readSessionWatermark(state);
+      holders.set(opened, state);
+      return opened;
     });
   }
 
@@ -163,14 +181,22 @@ export class CoreMindSession {
 
   /** 追加消息（每条一个树条目）；先深层删除 undefined 值字段（会话存储拒绝 undefined 值） */
   async appendMessages(messages: CoreMindMessage[]): Promise<void> {
-    for (const message of messages) {
-      await this.session.appendMessage(stripUndefined(message) as AgentMessage);
-    }
+    await withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, async () => {
+        for (const message of messages) {
+          await this.session.appendMessage(stripUndefined(message) as AgentMessage);
+        }
+      }),
+    );
   }
 
   /** 维护请求保留在 Session 事实域，不注入正常对话上下文。 */
   async appendMaintenanceRecord(data: Record<string, unknown>): Promise<void> {
-    await this.session.appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data));
+    await withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, () =>
+        this.session.appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data)),
+      ),
+    );
   }
 
   /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
@@ -199,16 +225,20 @@ export class CoreMindSession {
     tokensBefore: number;
     details: CoremindCompactionDetails;
   }): Promise<Awaited<ReturnType<Session["appendEntry"]>>> {
-    return this.session.appendEntry(
-      {
-        type: "compaction",
-        id: this.session.idGenerator.next(),
-        summary: compaction.summary,
-        retainedTail: compaction.retainedTail as AgentMessage[],
-        tokensBefore: compaction.tokensBefore,
-        details: compaction.details,
-      },
-      "main",
+    return withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, () =>
+        this.session.appendEntry(
+          {
+            type: "compaction",
+            id: this.session.idGenerator.next(),
+            summary: compaction.summary,
+            retainedTail: compaction.retainedTail as AgentMessage[],
+            tokensBefore: compaction.tokensBefore,
+            details: compaction.details,
+          },
+          "main",
+        ),
+      ),
     );
   }
 
@@ -231,36 +261,213 @@ export class CoreMindSession {
     signal?.throwIfAborted();
     const merged = { ...DEFAULT_COMPACTION_SETTINGS, ...settings };
     if (!merged.enabled) return false;
-    const entries = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
-    const tokens = estimateContextTokens(buildSessionContext(entries).messages).tokens;
-    // 预算公式（上游实现）：tokens > contextWindow − reserveTokens 时触发
-    if (!shouldCompact(tokens, contextWindow, merged)) return false;
-    const prep = prepareCompaction(entries, merged);
-    if (!prep.ok || !prep.value) return false;
-    const result = await compact(prep.value, models, model, undefined, signal, undefined, retry);
-    signal?.throwIfAborted();
-    if (!result.ok) return false;
-    const current = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
-    const identities = (items: typeof entries) =>
-      items
-        .filter((entry) => entry.type !== "custom")
-        .map((entry) => entry.id)
-        .join("\0");
-    if (identities(current) !== identities(entries)) return false;
-    await this.session.appendEntry(
-      {
-        type: "compaction",
-        id: this.session.idGenerator.next(),
-        summary: result.value.summary,
-        retainedTail: result.value.retainedTail,
-        tokensBefore: result.value.tokensBefore,
-        ...(result.value.details === undefined ? {} : { details: result.value.details }),
-        ...(result.value.usage === undefined ? {} : { usage: result.value.usage }),
-      },
-      "main",
-    );
-    return true;
+    return withSessionWriter(this, async (lease) => {
+      const entries = await withHolderIO(this, lease, () =>
+        this.session.findEntriesOnBranch({ order: "oldestFirst" }),
+      );
+      const tokens = estimateContextTokens(buildSessionContext(entries).messages).tokens;
+      // 预算公式（上游实现）：tokens > contextWindow − reserveTokens 时触发
+      if (!shouldCompact(tokens, contextWindow, merged)) return false;
+      const prep = prepareCompaction(entries, merged);
+      if (!prep.ok || !prep.value) return false;
+      const result = await compact(prep.value, models, model, undefined, signal, undefined, retry);
+      signal?.throwIfAborted();
+      if (!result.ok) return false;
+      return withHolderIO(this, lease, async () => {
+        const current = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+        const identities = (items: typeof entries) =>
+          items
+            .filter((entry) => entry.type !== "custom")
+            .map((entry) => entry.id)
+            .join("\0");
+        if (identities(current) !== identities(entries)) return false;
+        await this.session.appendEntry(
+          {
+            type: "compaction",
+            id: this.session.idGenerator.next(),
+            summary: result.value.summary,
+            retainedTail: result.value.retainedTail,
+            tokensBefore: result.value.tokensBefore,
+            ...(result.value.details === undefined ? {} : { details: result.value.details }),
+            ...(result.value.usage === undefined ? {} : { usage: result.value.usage }),
+          },
+          "main",
+        );
+        return true;
+      });
+    });
   }
+}
+
+interface SessionHolder {
+  options: CoreMindSessionOptions;
+  identity: string;
+  storagePath: string;
+  publicPath: string;
+  watermark: string;
+  writer?: SessionWriteLease;
+  io: Promise<void>;
+  writes: Promise<void>;
+  pending: number;
+  stale: boolean;
+}
+
+const holders = new WeakMap<CoreMindSession, SessionHolder>();
+const historySnapshots = new WeakMap<CoreMindMessage[], string>();
+const historyTails = new WeakMap<CoreMindMessage, string>();
+
+function holder(session: CoreMindSession): SessionHolder {
+  return holders.get(session)!;
+}
+
+/** 仅供 Runtime 内部持有整轮写身份，不增加包入口能力。 */
+export async function openWritableSession(
+  options: CoreMindSessionOptions,
+  lease: SessionWriteLease,
+): Promise<CoreMindSession> {
+  await withSessionIO(options.dir, options.sessionId, (identity) =>
+    assertSessionWriteLease(lease, identity),
+  );
+  const session = await CoreMindSession.open(options);
+  await assertSessionWriteLease(lease, holder(session).identity);
+  holder(session).writer = lease;
+  return session;
+}
+
+export function sessionSnapshot(session: CoreMindSession): string {
+  return holder(session).watermark;
+}
+
+export function sessionHasPendingWrites(session: CoreMindSession): boolean {
+  return holder(session).pending > 0;
+}
+
+export function rememberSessionHistory(
+  session: CoreMindSession,
+  history: CoreMindMessage[],
+): CoreMindMessage[] {
+  const snapshot = sessionSnapshot(session);
+  historySnapshots.set(history, snapshot);
+  const tail = history.at(-1);
+  // 普通浅复制沿用尾消息身份，但旧消息的来源水位不能被后续轮次重标。
+  if (tail && !historyTails.has(tail)) historyTails.set(tail, snapshot);
+  return history;
+}
+
+export function historySessionSnapshot(history: CoreMindMessage[]): string | undefined {
+  const tail = history.at(-1);
+  return historySnapshots.get(history) ?? (tail ? historyTails.get(tail) : undefined);
+}
+
+export function copySessionHistory(history: CoreMindMessage[]): CoreMindMessage[] {
+  const copied = [...history];
+  const snapshot = historySessionSnapshot(history);
+  if (snapshot !== undefined) historySnapshots.set(copied, snapshot);
+  return copied;
+}
+
+async function readSessionWatermark(state: SessionHolder): Promise<string> {
+  const [internal, external] = await Promise.all([
+    stat(state.storagePath, { bigint: true }),
+    stat(state.publicPath, { bigint: true }),
+  ]);
+  if (internal.dev !== external.dev || internal.ino !== external.ino) {
+    throw new CoreMindError("session_layout_conflict", "会话公开路径与内部存储冲突");
+  }
+  return [internal.dev, internal.ino, internal.size, internal.mtimeNs, internal.ctimeNs].join(":");
+}
+
+async function withSessionWriter<T>(
+  session: CoreMindSession,
+  action: (lease: SessionWriteLease) => Promise<T>,
+): Promise<T> {
+  const state = holder(session);
+  state.pending++;
+  const perform = async () => {
+    const acquired = state.writer
+      ? undefined
+      : await acquireSessionWriteLease(state.options.dir, state.options.sessionId);
+    const lease = state.writer ?? acquired!;
+    let result: T;
+    try {
+      result = await action(lease);
+    } catch (error) {
+      if (acquired) {
+        try {
+          await acquired.release();
+        } catch (cleanupError) {
+          state.stale = true;
+          throw Object.assign(
+            new CoreMindError("session_lock_recovery_required", "会话写入与租约释放未能正常完成"),
+            { cause: new AggregateError([error, cleanupError]) },
+          );
+        }
+      }
+      throw error;
+    }
+    if (acquired) {
+      try {
+        await acquired.release();
+      } catch (error) {
+        state.stale = true;
+        throw Object.assign(
+          new CoreMindError("session_lock_recovery_required", "会话写租约释放失败，请重新核验会话"),
+          { cause: error },
+        );
+      }
+    }
+    return result;
+  };
+  const operation = state.writer ? perform() : state.writes.then(perform);
+  if (!state.writer)
+    state.writes = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+  try {
+    return await operation;
+  } finally {
+    state.pending--;
+  }
+}
+
+function withHolderIO<T>(
+  session: CoreMindSession,
+  lease: SessionWriteLease,
+  action: () => Promise<T>,
+): Promise<T> {
+  const state = holder(session);
+  const operation = state.io.then(async () => {
+    let nextWatermark = state.watermark;
+    try {
+      const result = await withSessionIO(
+        state.options.dir,
+        state.options.sessionId,
+        async (identity) => {
+          await assertSessionWriteLease(lease, identity);
+          if (state.stale || (await readSessionWatermark(state)) !== state.watermark) {
+            throw new CoreMindError(
+              "session_snapshot_stale",
+              "会话已被其他写入推进，请重新打开后再写入",
+            );
+          }
+          const result = await action();
+          nextWatermark = await readSessionWatermark(state);
+          return result;
+        },
+      );
+      state.watermark = nextWatermark;
+      return result;
+    } catch (error) {
+      state.stale = true;
+      throw error;
+    }
+  });
+  state.io = operation.then(
+    () => undefined,
+    () => undefined,
+  );
+  return operation;
 }
 
 /**
@@ -349,38 +556,6 @@ async function pathsReferToSameFile(left: string, right: string): Promise<boolea
     return leftInfo.dev === rightInfo.dev && leftInfo.ino === rightInfo.ino;
   } catch {
     return false;
-  }
-}
-
-async function withSessionOpenLock<T>(publicPath: string, action: () => Promise<T>): Promise<T> {
-  await mkdir(path.dirname(publicPath), { recursive: true });
-  const lockPath = `${publicPath}.open.lock`;
-  const deadline = Date.now() + 2_000;
-  let handle: Awaited<ReturnType<typeof open>> | undefined;
-  while (!handle) {
-    try {
-      handle = await open(lockPath, "wx");
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      // Windows 删除中的锁文件可能暂报权限错误；仍须成功独占创建后才能进入临界区。
-      const transientWindowsLock =
-        process.platform === "win32" && (code === "EPERM" || code === "EACCES");
-      if (code !== "EEXIST" && !transientWindowsLock) throw error;
-      if (Date.now() >= deadline) {
-        if (code !== "EEXIST") throw error;
-        throw new CoreMindError(
-          "session_open_locked",
-          `会话 ${path.basename(publicPath)} 正由另一进程打开`,
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-  }
-  try {
-    return await action();
-  } finally {
-    await handle.close();
-    await rm(lockPath, { force: true });
   }
 }
 
