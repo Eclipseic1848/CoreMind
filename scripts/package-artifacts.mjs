@@ -110,6 +110,7 @@ function collectRequiredEntries(manifest) {
   if (manifest.name === "coremind-tools") {
     for (const filename of [
       "service.mjs",
+      "guard.dll",
       "manifest.json",
       "metafile.json",
       "THIRD-PARTY-LICENSES.txt",

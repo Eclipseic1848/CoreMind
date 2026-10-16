@@ -22,6 +22,8 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 Confirm the program, directory, arguments, and environment references using the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools). Run static diagnostics with zero startup, then verify denial and approval independently for connection, listing, and business execution. Check full schema, approval identity, blocked secrets, unknown effects, and actual process cleanup. Preserve the constrained-project quality gate without a trusted-host exemption.
 
+Maintainers rebuild the fixed Job assembly with `node scripts/build-windows-mcp-service.mjs --rebuild-guard` in a controlled Windows environment, then review the actual C# source, Framework csc/three reference digests, and generated DLL. Changed source requires recompilation, not a rewritten receipt. Normal builds, `--check`, `--copy-only`, and `--python-assets` only verify and copy frozen assets; Linux needs no compiler. Retain the original Windows Job/MCP regressions, 15-second/60-second gates, and npm/wheel/source-ZIP installation checks, including pre-cancellation, owner death, all-descendant shutdown, and unknown-cleanup failures. Provenance does not promise byte-deterministic output across compilers or replace real platform acceptance.
+
 ## Additional acceptance for controlled HTTP MCP
 
 1. Fix the URL and Header references using the [HTTP configuration](../../en/guide/02-configuration.md#controlled-http-mcp-and-exact-resource-authorization). Authentication environment variables contain complete Header values. Missing credentials and 401/403 must not change identity, start OAuth, or refresh tokens.
