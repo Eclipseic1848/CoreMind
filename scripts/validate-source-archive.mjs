@@ -168,6 +168,7 @@ async function rejectWorkstationPaths(root) {
     ".yml",
     ".toml",
     ".txt",
+    ".cs",
   ]);
   const pending = [root];
   while (pending.length > 0) {

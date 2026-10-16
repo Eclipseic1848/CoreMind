@@ -7,7 +7,10 @@ import { TextDecoder } from "node:util";
 import { execa, type Subprocess } from "execa";
 import { McpStdioError } from "./mcp-stdio-error.js";
 import { WINDOWS_MCP_JOB_SCRIPT } from "./windows-mcp-job-script.js";
-import { WINDOWS_MCP_SERVICE_SHA256 } from "./windows-mcp-service-identity.js";
+import {
+  WINDOWS_MCP_GUARD_SHA256,
+  WINDOWS_MCP_SERVICE_SHA256,
+} from "./windows-mcp-service-identity.js";
 
 const MAX_CONTROL_BYTES = 1024 * 1024;
 type ManagedProcess = Subprocess<{ encoding: "buffer"; buffer: false; reject: false }>;
@@ -140,11 +143,15 @@ export async function launchWindowsMcpJob(
 ): Promise<WindowsMcpJob> {
   if (process.platform !== "win32") throw transportFailure();
   const launcher = new URL("./vendor/windows-mcp/service.mjs", import.meta.url);
+  const guard = new URL("./vendor/windows-mcp/guard.dll", import.meta.url);
   try {
     if (
       createHash("sha256")
         .update(await readFile(launcher))
-        .digest("hex") !== WINDOWS_MCP_SERVICE_SHA256
+        .digest("hex") !== WINDOWS_MCP_SERVICE_SHA256 ||
+      createHash("sha256")
+        .update(await readFile(guard))
+        .digest("hex") !== WINDOWS_MCP_GUARD_SHA256
     )
       throw transportFailure();
   } catch {
@@ -317,7 +324,12 @@ export async function launchWindowsMcpJob(
     );
     const helperOptions = {
       cwd: options.cwd,
-      env: { ...hostEnv, COREMIND_MCP_OWNER_PIPE: owner.name },
+      env: {
+        ...hostEnv,
+        COREMIND_MCP_OWNER_PIPE: owner.name,
+        COREMIND_MCP_GUARD_ASSEMBLY: fileURLToPath(guard),
+        COREMIND_MCP_GUARD_SHA256: WINDOWS_MCP_GUARD_SHA256,
+      },
       extendEnv: false,
       shell: false,
       stdin: "pipe",

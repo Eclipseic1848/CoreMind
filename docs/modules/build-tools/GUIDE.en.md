@@ -28,6 +28,8 @@ Run `coremind doctor coremind.yaml` for static diagnostics, then execute only wi
 
 From the repository root run `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`. Verify zero corresponding I/O on denial, the first model schema, real process cleanup, blocked secret output, and no retry of unknown effects. Protocol errors and business `isError` remain distinct; retries cannot establish that an unproven write is safe.
 
+Local Windows services continue to use system Windows PowerShell and a dedicated Job. Startup computes SHA-256 from the actual bundled DLL bytes and loads that same byte array. Normal installation and execution neither invoke a C# compiler nor import the PowerShell Utility module. Missing or mismatched assets reject startup without falling back to an uncontrolled process. The assembly uses the Windows-provided CLR 4 Framework family without a .NET SDK or NuGet. It does not sandbox trusted host code or guarantee startup within every system policy or load.
+
 ## Controlled HTTP MCP and resources
 
 Use the [HTTP configuration](../../en/guide/02-configuration.md#controlled-http-mcp-and-exact-resource-authorization) with a fixed `streamable-http` URL without userinfo, query, or fragment. An environment reference in `headers.Authorization` must provide the complete value, including any `Bearer ` prefix. `secretRef` is also supported; never put tokens in configuration. Missing/unresolved credentials and 401/403 fail explicitly without OAuth, refresh, or identity fallback.

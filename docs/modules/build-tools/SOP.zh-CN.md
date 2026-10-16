@@ -22,6 +22,8 @@
 
 按[配置指南](../../guide/02-configuration.md#mcp按-agent-选择本地工具)确认程序、目录、参数和环境引用。先做零启动的静态诊断，再验证连接、目录、业务三个阶段各自拒绝与允许，检查完整 schema、审批身份、秘密阻断、未知效果和真实进程回收。保持受限项目质量门；不为受信宿主程序增加豁免。
 
+固定 Job 程序集的维护者在受控 Windows 环境执行 `node scripts/build-windows-mcp-service.mjs --rebuild-guard`，审查真实 C#、Framework csc/三项引用摘要及生成 DLL；修改源码必须重新编译，不能只更新收据。普通构建、`--check`、`--copy-only` 与 `--python-assets` 只验证和复制冻结资产，Linux 不需要编译器。再运行原 Windows Job 与 MCP 全回归、原 15 秒/60 秒门禁以及 npm、wheel、源码 ZIP 安装检查；预取消、owner 死亡、全部后代退出和未知清理失败的断言保持。编译来源记录不承诺不同编译器下的逐次字节确定性，也不代替真实平台验收。
+
 ## 受控 HTTP MCP 的附加验收
 
 1. 按[HTTP 配置](../../guide/02-configuration.md#mcp受控-http-与精确资源授权)固定 URL 和 Header 引用。确认认证环境变量含完整 Header 值；凭据缺失、401/403 不回退身份，不进入 OAuth 或刷新。

@@ -136,7 +136,7 @@ describe.skipIf(process.platform !== "win32")("Windows MCP 原生 Job 所有权"
       const probe = [
         "#!/usr/bin/env node",
         "const fs=require('node:fs');",
-        "fs.writeFileSync(process.argv[2],JSON.stringify({pid:process.pid,argv:process.argv.slice(3),cwd:fs.realpathSync.native(process.cwd()),allowed:process.env.COREMIND_JOB_ALLOWED_CANARY,host:process.env.COREMIND_JOB_HOST_CANARY??null,ownerPipe:process.env.COREMIND_MCP_OWNER_PIPE??null,servicePipe:process.env.COREMIND_MCP_SERVICE_PIPE??null}),'utf8');",
+        "fs.writeFileSync(process.argv[2],JSON.stringify({pid:process.pid,argv:process.argv.slice(3),cwd:fs.realpathSync.native(process.cwd()),allowed:process.env.COREMIND_JOB_ALLOWED_CANARY,host:process.env.COREMIND_JOB_HOST_CANARY??null,ownerPipe:process.env.COREMIND_MCP_OWNER_PIPE??null,servicePipe:process.env.COREMIND_MCP_SERVICE_PIPE??null,guardAssembly:process.env.COREMIND_MCP_GUARD_ASSEMBLY??null,guardHash:process.env.COREMIND_MCP_GUARD_SHA256??null}),'utf8');",
         "setInterval(()=>{},1000);",
       ].join("\n");
       await writeFile(path.join(cwd, "probe.cjs"), probe, "utf8");
@@ -181,6 +181,8 @@ describe.skipIf(process.platform !== "win32")("Windows MCP 原生 Job 所有权"
           host: null,
           ownerPipe: null,
           servicePipe: null,
+          guardAssembly: null,
+          guardHash: null,
         });
         await expect(job.close(), entry).resolves.toBeUndefined();
         expect(alive(actual.pid), entry).toBe(false);
