@@ -26,6 +26,7 @@ import {
   appendFile,
   lstat,
   mkdir,
+  open,
   readdir,
   readFile,
   rename,
@@ -173,6 +174,33 @@ export class SessionFileSystem implements FileSystem {
       await mkdir(resolve(resolved, ".."), { recursive: true });
       await appendFile(resolved, content);
       return ok(undefined);
+    } catch (error) {
+      return err(toFileError(error, resolved));
+    }
+  }
+  async repairTextTail(
+    path: string,
+    originalText: string,
+    validPrefix: string,
+  ): Promise<Result<void, FileError>> {
+    const resolved = resolvePath(this.cwd, path);
+    try {
+      const handle = await open(resolved, "r+");
+      try {
+        const bytes = await handle.readFile();
+        const prefix = Buffer.from(validPrefix, "utf8");
+        if (
+          bytes.toString("utf8") !== originalText ||
+          !bytes.subarray(0, prefix.length).equals(prefix)
+        ) {
+          return err(new FileError("invalid", "会话内容已变化或完整前缀含非法 UTF-8", resolved));
+        }
+        // 只截断已验证的坏尾，保留 inode，避免公开 hardlink 与内部文件失联。
+        await handle.truncate(prefix.length);
+        return ok(undefined);
+      } finally {
+        await handle.close();
+      }
     } catch (error) {
       return err(toFileError(error, resolved));
     }

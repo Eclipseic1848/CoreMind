@@ -26,6 +26,7 @@
 ## 错误与边界
 
 - session_restore_failed：会话损坏时停止，不静默新建
+- Session 最后一条 JSON 无法完整解析时，只移除未完成的尾部，保留已验证的 UTF-8 前缀和公开文件关联；重复打开仍可继续追加。中间损坏、完整前缀非法编码或冲突的公开路径仍会拒绝恢复，不静默覆盖。
 - 旧 `ContextProtector` 压缩失败发出 `context_compaction_failed`；模型感知生命周期失败发出 `context_lifecycle_failed`，错误码为 `context_capability_conflict`、`context_budget_exhausted`、`context_artifact_missing` 或 `context_lineage_corrupt`
 - 模型感知压缩必须绑定启用的持久化 Session；没有 Session 时只有无需压缩的请求可以继续，需要压缩的请求返回 `paused` 且不调用 Provider
 - 成功解析预算发出 `context_budget_resolved`；成功压缩发出带 capability 指纹、lineage 深度、触发原因和 Session 条目引用的 `context_compacted`

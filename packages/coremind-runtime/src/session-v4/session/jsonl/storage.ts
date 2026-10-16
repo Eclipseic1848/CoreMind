@@ -110,12 +110,19 @@ export class JsonlSessionStorage implements SessionStorage<JsonlSessionMetadata>
         )
           throw error;
         const validPrefix = `${physicalLines.slice(0, index).join("\n")}\n`;
-        await publishFileAtomically(fs, path, async (tempPath) => {
+        if (fs.repairTextTail) {
           fileResult(
-            await fs.writeFile(tempPath, validPrefix),
-            `Failed to stage torn-tail repair ${path}`,
+            await fs.repairTextTail(path, content, validPrefix),
+            `Failed to repair session tail ${path}`,
           );
-        });
+        } else {
+          await publishFileAtomically(fs, path, async (tempPath) => {
+            fileResult(
+              await fs.writeFile(tempPath, validPrefix),
+              `Failed to stage torn-tail repair ${path}`,
+            );
+          });
+        }
         return storage;
       }
       storage.applyMutation(mutation, path, index + 1);

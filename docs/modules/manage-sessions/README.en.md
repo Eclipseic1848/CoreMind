@@ -25,6 +25,8 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 
 ## Errors and boundaries
 
+- If the final JSON record cannot be parsed, recovery removes only the incomplete tail and preserves the validated UTF-8 prefix and public file identity. Reopening can continue appending. Corruption in the middle, invalid encoding in the complete prefix, and conflicting public paths still fail without silently overwriting data.
+
 - session_restore_failed: stop on corruption instead of silently starting over
 - Legacy `ContextProtector` failures emit `context_compaction_failed`. Model-aware lifecycle failures emit `context_lifecycle_failed` with `context_capability_conflict`, `context_budget_exhausted`, `context_artifact_missing`, or `context_lineage_corrupt`
 - Model-aware compaction requires an enabled durable session. Without one, requests that fit may continue, but a request that needs compaction returns `paused` without calling the provider

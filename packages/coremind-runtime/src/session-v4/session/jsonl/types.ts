@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 // 保留既有会话合同，避免依赖升级改变历史存储与恢复语义。
-import type { FileSystem } from "../../types.js";
+import type { FileError, FileSystem, Result } from "../../types.js";
 import type { JsonValue, SessionCreateOptions, SessionMetadata } from "../types.js";
 export type JsonlSessionRepoFileSystem = Pick<
   FileSystem,
@@ -37,7 +37,13 @@ export type JsonlSessionRepoFileSystem = Pick<
   | "exists"
   | "createDir"
   | "remove"
->;
+> & {
+  repairTextTail?(
+    path: string,
+    originalText: string,
+    validPrefix: string,
+  ): Promise<Result<void, FileError>>;
+};
 export interface JsonlSessionRepoOptions {
   fs: JsonlSessionRepoFileSystem;
   sessionsRoot: string;

@@ -26108,7 +26108,7 @@ var require_graceful_fs = __commonJS({
       }
       function ReadStream$open() {
         var that = this;
-        open9(that.path, that.flags, that.mode, function(err2, fd) {
+        open10(that.path, that.flags, that.mode, function(err2, fd) {
           if (err2) {
             if (that.autoClose)
               that.destroy();
@@ -26128,7 +26128,7 @@ var require_graceful_fs = __commonJS({
       }
       function WriteStream$open() {
         var that = this;
-        open9(that.path, that.flags, that.mode, function(err2, fd) {
+        open10(that.path, that.flags, that.mode, function(err2, fd) {
           if (err2) {
             that.destroy();
             that.emit("error", err2);
@@ -26145,8 +26145,8 @@ var require_graceful_fs = __commonJS({
         return new fs11.WriteStream(path46, options);
       }
       var fs$open = fs11.open;
-      fs11.open = open9;
-      function open9(path46, flags, mode, cb) {
+      fs11.open = open10;
+      function open10(path46, flags, mode, cb) {
         if (typeof mode === "function")
           cb = mode, mode = null;
         return go$open(path46, flags, mode, cb);
@@ -65267,17 +65267,17 @@ var init_parser2 = __esm({
       return tokens;
     };
     strip = (tokens) => {
-      let open9 = [];
+      let open10 = [];
       for (const token of tokens) {
         if (token.type === "brace" || token.type === "paren") {
           if (token.value === "{" || token.value === "[") {
-            open9.push(token.value);
+            open10.push(token.value);
           } else {
-            open9.pop();
+            open10.pop();
           }
         }
       }
-      let innermostOpenBracket = open9[open9.length - 1];
+      let innermostOpenBracket = open10[open10.length - 1];
       let length = tokens.length;
       let JSON_NUMBER = /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/;
       while (length > 0) {
@@ -117992,7 +117992,7 @@ var require_stream = __commonJS({
       };
       duplex2._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open9() {
+          ws.once("open", function open10() {
             duplex2._final(callback);
           });
           return;
@@ -118013,7 +118013,7 @@ var require_stream = __commonJS({
       };
       duplex2._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open9() {
+          ws.once("open", function open10() {
             duplex2._write(chunk, encoding, callback);
           });
           return;
@@ -159412,7 +159412,7 @@ var require_core = __commonJS({
         }
         return highlighted[0].event === "start" ? original : highlighted;
       }
-      function open9(node2) {
+      function open10(node2) {
         function attributeString(attr) {
           return " " + attr.nodeName + '="' + escapeHTML(attr.value) + '"';
         }
@@ -159422,7 +159422,7 @@ var require_core = __commonJS({
         result += "</" + tag2(node2) + ">";
       }
       function render2(event) {
-        (event.event === "start" ? open9 : close)(event.node);
+        (event.event === "start" ? open10 : close)(event.node);
       }
       while (original.length || highlighted.length) {
         let stream12 = selectStream();
@@ -159434,7 +159434,7 @@ var require_core = __commonJS({
             render2(stream12.splice(0, 1)[0]);
             stream12 = selectStream();
           } while (stream12 === original && stream12.length && stream12[0].offset === processed);
-          nodeStack.reverse().forEach(open9);
+          nodeStack.reverse().forEach(open10);
         } else {
           if (stream12[0].event === "start") {
             nodeStack.push(stream12[0].node);
@@ -163175,11 +163175,11 @@ var require_perl = __commonJS({
         /#/
         // valid but infrequent and weird
       ];
-      const PAIRED_DOUBLE_RE = (prefix, open9, close = "\\1") => {
-        const middle = close === "\\1" ? close : concat2(close, open9);
+      const PAIRED_DOUBLE_RE = (prefix, open10, close = "\\1") => {
+        const middle = close === "\\1" ? close : concat2(close, open10);
         return concat2(
           concat2("(?:", prefix, ")"),
-          open9,
+          open10,
           /(?:\\.|[^\\\/])*?/,
           middle,
           /(?:\\.|[^\\\/])*?/,
@@ -163187,10 +163187,10 @@ var require_perl = __commonJS({
           REGEX_MODIFIERS
         );
       };
-      const PAIRED_RE = (prefix, open9, close) => {
+      const PAIRED_RE = (prefix, open10, close) => {
         return concat2(
           concat2("(?:", prefix, ")"),
-          open9,
+          open10,
           /(?:\\.|[^\\\/])*?/,
           close,
           REGEX_MODIFIERS
@@ -176703,10 +176703,10 @@ var init_esm3 = __esm({
           }
           return filtered.join("/");
         }).join("|");
-        const [open9, close] = set.length > 1 ? ["(?:", ")"] : ["", ""];
-        re = "^" + open9 + re + close + "$";
+        const [open10, close] = set.length > 1 ? ["(?:", ")"] : ["", ""];
+        re = "^" + open10 + re + close + "$";
         if (this.partial) {
-          re = "^(?:\\/|" + open9 + re.slice(1, -1) + close + ")$";
+          re = "^(?:\\/|" + open10 + re.slice(1, -1) + close + ")$";
         }
         if (this.negate)
           re = "^(?!" + re + ").+$";
@@ -210181,11 +210181,11 @@ var init_dist10 = __esm({
             return;
           }
           const decoder3 = new TextDecoder(), reader = body.getReader();
-          let open9 = true;
+          let open10 = true;
           do {
             const { done, value } = await reader.read();
-            value && __privateGet(this, _parser).feed(decoder3.decode(value, { stream: !done })), done && (open9 = false, __privateGet(this, _parser).reset(), __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this));
-          } while (open9);
+            value && __privateGet(this, _parser).feed(decoder3.decode(value, { stream: !done })), done && (open10 = false, __privateGet(this, _parser).reset(), __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this));
+          } while (open10);
         }), __privateAdd(this, _onFetchError, (err2) => {
           __privateSet(this, _controller, void 0), !(err2.name === "AbortError" || err2.type === "aborted") && __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this, flattenError2(err2));
         }), __privateAdd(this, _onEvent, (event) => {
@@ -235477,11 +235477,11 @@ var replacements = Object.entries(specialMainSymbols);
 // node_modules/yoctocolors/base.js
 import tty from "node:tty";
 var hasColors = tty?.WriteStream?.prototype?.hasColors?.() ?? false;
-var format = (open9, close) => {
+var format = (open10, close) => {
   if (!hasColors) {
     return (input) => input;
   }
-  const openCode = `\x1B[${open9}m`;
+  const openCode = `\x1B[${open10}m`;
   const closeCode = `\x1B[${close}m`;
   return (input) => {
     const string4 = input + "";
@@ -249868,7 +249868,7 @@ ${TURN_PREFIX_SUMMARIZATION_PROMPT}`;
 }
 
 // packages/coremind-runtime/dist/session-v4/file-system.js
-import { appendFile, lstat as lstat2, mkdir as mkdir6, readdir as readdir3, readFile as readFile9, rename as rename3, rm as rm5, writeFile as writeFile7 } from "node:fs/promises";
+import { appendFile, lstat as lstat2, mkdir as mkdir6, open as open6, readdir as readdir3, readFile as readFile9, rename as rename3, rm as rm5, writeFile as writeFile7 } from "node:fs/promises";
 import { homedir as homedir9 } from "node:os";
 import { basename as basename7, isAbsolute as isAbsolute6, join as join19, resolve as resolve8 } from "node:path";
 import { fileURLToPath as fileURLToPath11 } from "node:url";
@@ -250006,6 +250006,25 @@ var SessionFileSystem = class {
       await mkdir6(resolve8(resolved, ".."), { recursive: true });
       await appendFile(resolved, content);
       return ok(void 0);
+    } catch (error3) {
+      return err(toFileError(error3, resolved));
+    }
+  }
+  async repairTextTail(path46, originalText, validPrefix) {
+    const resolved = resolvePath5(this.cwd, path46);
+    try {
+      const handle = await open6(resolved, "r+");
+      try {
+        const bytes = await handle.readFile();
+        const prefix = Buffer.from(validPrefix, "utf8");
+        if (bytes.toString("utf8") !== originalText || !bytes.subarray(0, prefix.length).equals(prefix)) {
+          return err(new FileError("invalid", "\u4F1A\u8BDD\u5185\u5BB9\u5DF2\u53D8\u5316\u6216\u5B8C\u6574\u524D\u7F00\u542B\u975E\u6CD5 UTF-8", resolved));
+        }
+        await handle.truncate(prefix.length);
+        return ok(void 0);
+      } finally {
+        await handle.close();
+      }
     } catch (error3) {
       return err(toFileError(error3, resolved));
     }
@@ -250947,9 +250966,13 @@ var JsonlSessionStorage = class _JsonlSessionStorage {
           throw error3;
         const validPrefix = `${physicalLines.slice(0, index3).join("\n")}
 `;
-        await publishFileAtomically(fs10, path46, async (tempPath) => {
-          fileResult(await fs10.writeFile(tempPath, validPrefix), `Failed to stage torn-tail repair ${path46}`);
-        });
+        if (fs10.repairTextTail) {
+          fileResult(await fs10.repairTextTail(path46, content, validPrefix), `Failed to repair session tail ${path46}`);
+        } else {
+          await publishFileAtomically(fs10, path46, async (tempPath) => {
+            fileResult(await fs10.writeFile(tempPath, validPrefix), `Failed to stage torn-tail repair ${path46}`);
+          });
+        }
         return storage;
       }
       storage.applyMutation(mutation, path46, index3 + 1);
@@ -254200,7 +254223,7 @@ var TEMPLATES = [
 // packages/coremind-templates/dist/standard-skills.js
 import { createHash as createHash14 } from "node:crypto";
 import { constants as constants12 } from "node:fs";
-import { lstat as lstat3, open as open6, realpath as realpath8, stat as stat5 } from "node:fs/promises";
+import { lstat as lstat3, open as open7, realpath as realpath8, stat as stat5 } from "node:fs/promises";
 import path38 from "node:path";
 var MAX_SOURCE_BYTES = 256 * 1024;
 var MAX_RESULT_BYTES = 2 * 1024 * 1024;
@@ -254332,7 +254355,7 @@ async function readBoundedUtf8(file, directory, boundaries) {
     throw new Error(`\u6280\u80FD\u6E90\u4E0D\u662F\u666E\u901A\u6587\u4EF6\uFF1A${file}`);
   if (before.size > BigInt(MAX_SOURCE_BYTES))
     throw new Error(`\u6280\u80FD\u6E90\u8D85\u8FC7 256 KiB \u4E0A\u9650\uFF1A${file}`);
-  const handle = await open6(canonical2, constants12.O_RDONLY | constants12.O_NONBLOCK);
+  const handle = await open7(canonical2, constants12.O_RDONLY | constants12.O_NONBLOCK);
   try {
     const opened = await handle.stat({ bigint: true });
     if (!opened.isFile() || !sameIdentity(before, opened)) {
@@ -261178,7 +261201,7 @@ function validTimestamp(value) {
 
 // packages/coremind-runtime/dist/run-state.js
 import { createHash as createHash22, randomUUID as randomUUID18 } from "node:crypto";
-import { link as link2, mkdir as mkdir7, open as open7, readFile as readFile10, rename as rename4, rm as rm6, stat as stat8, writeFile as writeFile8 } from "node:fs/promises";
+import { link as link2, mkdir as mkdir7, open as open8, readFile as readFile10, rename as rename4, rm as rm6, stat as stat8, writeFile as writeFile8 } from "node:fs/promises";
 import path41 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
@@ -261379,7 +261402,7 @@ var FileRunStore = class {
       return await this.withWriterLock(destination, async () => {
         let handle;
         try {
-          handle = await open7(destination, "r+");
+          handle = await open8(destination, "r+");
           await this.options.beforeBarrier?.({ destination, runId, requested });
           await handle.sync();
           return durabilityAcknowledgement(this, requested);
@@ -261455,7 +261478,7 @@ var FileRunStore = class {
       if (durability === "critical") {
         let handle;
         try {
-          handle = await open7(temporary, "r+");
+          handle = await open8(temporary, "r+");
           await this.options.beforeBarrier?.({
             destination,
             runId: record2.runId,
@@ -261542,7 +261565,7 @@ var FileRunStore = class {
           if (durability === "critical") {
             let handle2;
             try {
-              handle2 = await open7(destination, "r+");
+              handle2 = await open8(destination, "r+");
               await this.options.beforeBarrier?.({
                 destination,
                 runId: record2.runId,
@@ -261582,7 +261605,7 @@ var FileRunStore = class {
       await this.prepareAppend(destination, record2, text2);
       let handle;
       try {
-        handle = await open7(destination, "a");
+        handle = await open8(destination, "a");
         await handle.writeFile(text2, "utf8");
       } finally {
         await handle?.close().catch(() => void 0);
@@ -261636,7 +261659,7 @@ var FileRunStore = class {
     const tombstonePath = `${claimPath}.tombstone-${randomUUID18()}`;
     let claimHandle;
     try {
-      claimHandle = await open7(claimPath, "wx");
+      claimHandle = await open8(claimPath, "wx");
     } catch (error3) {
       if (error3.code === "EEXIST")
         return false;
@@ -263630,7 +263653,7 @@ function outcomeFromError(error3) {
 
 // packages/coremind-runtime/dist/session.js
 import { createHash as createHash24, randomUUID as randomUUID20 } from "node:crypto";
-import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open8, readFile as readFile11, rename as rename5, rm as rm7, stat as stat9, unlink as unlink2, writeFile as writeFile9 } from "node:fs/promises";
+import { access as access5, copyFile, link as link3, mkdir as mkdir8, open as open9, readFile as readFile11, rename as rename5, rm as rm7, stat as stat9, unlink as unlink2, writeFile as writeFile9 } from "node:fs/promises";
 import path42 from "node:path";
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
 function assertValidSessionId2(sessionId) {
@@ -263825,7 +263848,7 @@ async function withSessionOpenLock(publicPath2, action) {
   let handle;
   while (!handle) {
     try {
-      handle = await open8(lockPath, "wx");
+      handle = await open9(lockPath, "wx");
     } catch (error3) {
       const code = error3.code;
       const transientWindowsLock = process.platform === "win32" && (code === "EPERM" || code === "EACCES");
