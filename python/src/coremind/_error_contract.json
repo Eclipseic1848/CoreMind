@@ -659,6 +659,13 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "output_delivery_failed": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
     "worker_closed": {
       "terminality": "terminal",
       "cancelClass": "other",

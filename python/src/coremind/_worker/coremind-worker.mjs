@@ -225019,6 +225019,34 @@ var require_ajv2 = __commonJS({
 import { createInterface as createInterface4 } from "node:readline";
 import { pathToFileURL as pathToFileURL5 } from "node:url";
 
+// packages/coremind-config/dist/parse.js
+var import_yaml = __toESM(require_dist(), 1);
+import { readFile } from "node:fs/promises";
+var ConfigParseError = class extends Error {
+  code = "parse_error";
+  constructor(message3) {
+    super(message3);
+    this.name = "ConfigParseError";
+  }
+};
+function parseConfigText(text2, sourceName = "\u914D\u7F6E") {
+  try {
+    return (0, import_yaml.parse)(text2);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new ConfigParseError(`${sourceName} \u8BED\u6CD5\u89E3\u6790\u5931\u8D25\uFF1A${detail}`);
+  }
+}
+async function loadConfigFile(filePath) {
+  let text2;
+  try {
+    text2 = await readFile(filePath, "utf8");
+  } catch (cause) {
+    throw new ConfigParseError(`\u65E0\u6CD5\u8BFB\u53D6\u914D\u7F6E\u6587\u4EF6 ${filePath}\uFF1A${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+  return parseConfigText(text2, filePath);
+}
+
 // node_modules/@sinclair/typebox/build/esm/type/guard/value.mjs
 var value_exports = {};
 __export(value_exports, {
@@ -227766,6 +227794,458 @@ __export(type_exports3, {
 
 // node_modules/@sinclair/typebox/build/esm/type/type/index.mjs
 var Type = type_exports3;
+
+// packages/coremind-config/dist/schema/provider.js
+var SecretRefSchema = Type.Object({ secretRef: Type.String({ minLength: 1, description: "\u4E0D\u900F\u660E\u79D8\u5BC6\u5F15\u7528" }) }, { additionalProperties: false });
+var EnvironmentValueRefSchema = Type.Object({ env: Type.String({ minLength: 1, description: "\u73AF\u5883\u53D8\u91CF\u540D" }) }, { additionalProperties: false });
+var HeaderValueSchema = Type.Union([
+  Type.String(),
+  EnvironmentValueRefSchema,
+  SecretRefSchema
+]);
+var ProviderRefSchema = Type.Object({
+  id: Type.String({
+    minLength: 1,
+    description: "\u5185\u7F6E\u63D0\u4F9B\u5546 id\uFF0C\u5982 deepseek / moonshotai-cn / zai"
+  }),
+  model: Type.Optional(Type.String({ description: "\u6A21\u578B\u540D\uFF0C\u7F3A\u7701\u6309\u63D0\u4F9B\u5546\u53D6\u9ED8\u8BA4\u6A21\u578B" })),
+  apiKeyEnv: Type.Optional(Type.String({
+    minLength: 1,
+    description: "API key \u73AF\u5883\u53D8\u91CF\u540D\uFF0C\u7F3A\u7701\u6309 id \u63A8\u65AD\uFF08\u5982 DEEPSEEK_API_KEY\uFF09"
+  })),
+  apiKeySecretRef: Type.Optional(SecretRefSchema)
+});
+var CustomProviderSchema = Type.Object({
+  id: Type.Optional(Type.String({ minLength: 1, default: "custom", description: "\u81EA\u5B9A\u4E49\u63D0\u4F9B\u5546\u6807\u8BC6" })),
+  name: Type.Optional(Type.String()),
+  baseUrl: Type.String({ minLength: 1, description: "\u7AEF\u70B9\u5730\u5740\uFF0C\u5982 http://localhost:11434/v1" }),
+  model: Type.String({ minLength: 1, description: "\u6A21\u578B\u540D\uFF0C\u5982 qwen2.5:7b" }),
+  api: Type.Optional(Type.Literal("openai-completions", {
+    default: "openai-completions",
+    description: "\u63A5\u53E3\u534F\u8BAE\uFF0C\u4E00\u671F\u4EC5\u652F\u6301 openai-completions"
+  })),
+  apiKey: Type.Optional(Type.String({ description: "\u76F4\u63A5\u5199 API key\uFF08\u4E0D\u5EFA\u8BAE\uFF0C\u4F18\u5148\u7528 apiKeyEnv\uFF09" })),
+  apiKeyEnv: Type.Optional(Type.String({ minLength: 1, description: "API key \u73AF\u5883\u53D8\u91CF\u540D" })),
+  apiKeySecretRef: Type.Optional(SecretRefSchema),
+  headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema, { description: "\u9644\u52A0\u8BF7\u6C42\u5934" })),
+  thinkingFormat: Type.Optional(Type.Literal("qwen", {
+    description: "Qwen \u601D\u8003\u63A7\u5236\u683C\u5F0F\uFF1B\u7531 agent.options.thinkingLevel \u51B3\u5B9A enable_thinking"
+  })),
+  contextWindow: Type.Optional(Type.Integer({
+    minimum: 1024,
+    description: "\u6A21\u578B\u4E0A\u4E0B\u6587\u7A97\u53E3\uFF08token\uFF09\uFF0C\u7F3A\u7701\u6309 32768 \u515C\u5E95"
+  })),
+  maxTokens: Type.Optional(Type.Integer({
+    minimum: 1,
+    description: "\u6A21\u578B\u6700\u5927\u8F93\u51FA token \u6570\uFF0C\u7F3A\u7701\u6309 4096 \u515C\u5E95"
+  }))
+});
+var ProviderSchema = Type.Union([CustomProviderSchema, ProviderRefSchema]);
+var ModelOptionsSchema = Type.Object({
+  temperature: Type.Optional(Type.Number({ minimum: 0, maximum: 2, default: 0.7 })),
+  maxTokens: Type.Optional(Type.Integer({ minimum: 1 })),
+  thinkingLevel: Type.Optional(Type.Union([
+    Type.Literal("off"),
+    Type.Literal("low"),
+    Type.Literal("medium"),
+    Type.Literal("high"),
+    Type.Literal("xhigh")
+  ]))
+});
+
+// packages/coremind-config/dist/schema/tools.js
+var BUILTIN_TOOL_IDS = [
+  "read",
+  "ls",
+  "find",
+  "grep",
+  "git_status",
+  "git_diff",
+  "git_log",
+  "bash",
+  "edit",
+  "write",
+  "web-fetch",
+  "web-search"
+];
+var TOOL_CAPABILITY_EFFECTS = [
+  "none",
+  "workspace",
+  "process",
+  "network",
+  "external",
+  "unknown"
+];
+var TOOL_CAPABILITY_REPLAYS = ["safe", "idempotent", "unsafe", "unknown"];
+var TOOL_CAPABILITY_CONCURRENCY = [
+  "parallel",
+  "run_serial",
+  "workspace_exclusive"
+];
+var TOOL_CAPABILITY_CHECKPOINTS = ["none", "required", "unsupported"];
+var TOOL_CAPABILITY_DURABILITY = ["ordinary", "critical"];
+var TOOL_EFFECT_OPERATIONS = ["read", "write", "process", "network", "external"];
+var ToolEffectDeclarationSchema = Type.Object({
+  operations: Type.Array(Type.Union(TOOL_EFFECT_OPERATIONS.map((operation) => Type.Literal(operation))), { minItems: 1, uniqueItems: true }),
+  reversible: Type.Boolean({ description: "\u8BE5\u5DE5\u5177\u7684\u526F\u4F5C\u7528\u662F\u5426\u53EF\u7531\u6846\u67B6\u81EA\u52A8\u56DE\u9000" }),
+  pathFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
+    description: "\u989D\u5916\u7684\u8DEF\u5F84\u53C2\u6570\u5B57\u6BB5\uFF0C\u652F\u6301\u70B9\u53F7\u8DEF\u5F84\uFF0C\u4F8B\u5982 output.path"
+  })),
+  urlFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
+    description: "\u989D\u5916\u7684 URL \u53C2\u6570\u5B57\u6BB5\uFF0C\u652F\u6301\u70B9\u53F7\u8DEF\u5F84\uFF0C\u4F8B\u5982 request.endpoint"
+  }))
+}, { additionalProperties: false });
+var PURE_LOCAL_READ = {
+  effect: "none",
+  replay: "safe",
+  concurrency: "parallel",
+  checkpoint: "none",
+  durability: "ordinary"
+};
+var WORKSPACE_WRITE = {
+  effect: "workspace",
+  replay: "idempotent",
+  concurrency: "workspace_exclusive",
+  checkpoint: "required",
+  durability: "critical"
+};
+var BUILTIN_TOOL_METADATA = {
+  read: { capability: PURE_LOCAL_READ },
+  ls: { capability: PURE_LOCAL_READ },
+  find: { capability: PURE_LOCAL_READ },
+  grep: { capability: PURE_LOCAL_READ },
+  git_status: { capability: PURE_LOCAL_READ },
+  git_diff: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
+  git_log: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
+  edit: { capability: WORKSPACE_WRITE },
+  write: { capability: WORKSPACE_WRITE },
+  bash: {
+    capability: {
+      effect: "process",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "unsupported",
+      durability: "critical"
+    }
+  },
+  "web-fetch": {
+    capability: {
+      effect: "network",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "none",
+      durability: "critical"
+    }
+  },
+  "web-search": {
+    capability: {
+      effect: "network",
+      replay: "unknown",
+      concurrency: "run_serial",
+      checkpoint: "none",
+      durability: "critical"
+    }
+  }
+};
+var BUILTIN_TOOL_CAPABILITIES = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => [id, Object.freeze(BUILTIN_TOOL_METADATA[id].capability)])));
+var BUILTIN_TOOL_EFFECTS = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => {
+  const metadata = BUILTIN_TOOL_METADATA[id];
+  return [
+    id,
+    Object.freeze({
+      operations: Object.freeze(toolEffectOperationsForCapability(metadata.capability.effect)),
+      reversible: metadata.capability.replay === "safe" || metadata.capability.replay === "idempotent",
+      ...metadata.pathFields ? { pathFields: Object.freeze([...metadata.pathFields]) } : {},
+      ...metadata.urlFields ? { urlFields: Object.freeze([...metadata.urlFields]) } : {}
+    })
+  ];
+})));
+function toolEffectOperationsForCapability(effect) {
+  switch (effect) {
+    case "none":
+      return ["read"];
+    case "workspace":
+      return ["write"];
+    case "process":
+      return ["process"];
+    case "network":
+      return ["network"];
+    case "external":
+    case "unknown":
+      return ["external"];
+  }
+}
+var ToolRefSchema = Type.Object({
+  id: Type.Union(BUILTIN_TOOL_IDS.map((id) => Type.Literal(id)), { description: "\u5185\u7F6E\u5DE5\u5177 id" }),
+  enabled: Type.Optional(Type.Boolean({ default: true })),
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
+});
+var ScriptToolSchema = Type.Object({
+  path: Type.String({ minLength: 1, description: "\u5DE5\u5177\u6587\u4EF6\u8DEF\u5F84\uFF08\u76F8\u5BF9\u914D\u7F6E\u6587\u4EF6\u76EE\u5F55\uFF09" }),
+  name: Type.Optional(Type.String({ description: "\u5DE5\u5177\u540D\uFF0C\u7F3A\u7701\u53D6\u6A21\u5757\u5BFC\u51FA\u5BF9\u8C61\u7684 name" })),
+  effect: ToolEffectDeclarationSchema,
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
+});
+var McpToolSchema = Type.Object({
+  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
+  mcp: Type.Object({ server: Type.String({ minLength: 1 }), tool: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
+  effect: ToolEffectDeclarationSchema,
+  capability: Type.Object({
+    effect: Type.Union(TOOL_CAPABILITY_EFFECTS.map((value) => Type.Literal(value))),
+    replay: Type.Union(TOOL_CAPABILITY_REPLAYS.map((value) => Type.Literal(value))),
+    concurrency: Type.Union(TOOL_CAPABILITY_CONCURRENCY.map((value) => Type.Literal(value))),
+    checkpoint: Type.Union(TOOL_CAPABILITY_CHECKPOINTS.map((value) => Type.Literal(value))),
+    durability: Type.Union(TOOL_CAPABILITY_DURABILITY.map((value) => Type.Literal(value)))
+  }, { additionalProperties: false })
+}, { additionalProperties: false });
+var ToolConfigSchema = Type.Union([ToolRefSchema, ScriptToolSchema, McpToolSchema]);
+
+// packages/coremind-config/dist/schema/agent.js
+var DelegationBudgetSchema = Type.Object({
+  tokens: Type.Integer({ minimum: 1 }),
+  toolCalls: Type.Integer({ minimum: 0 }),
+  costUsd: Type.Number({ minimum: 0 }),
+  wallTimeMs: Type.Integer({ minimum: 1 }),
+  steps: Type.Integer({ minimum: 1 }),
+  descendants: Type.Integer({ minimum: 0 })
+});
+var DelegationTargetConfigSchema = Type.Object({
+  preapproved: Type.Optional(Type.Boolean({ description: "assisted \u6A21\u5F0F\u662F\u5426\u53EF\u81EA\u52A8\u6279\u51C6\u8BE5\u56FA\u5B9A Delegation Target" })),
+  budget: DelegationBudgetSchema
+});
+var DelegationHierarchyLimitsSchema = Type.Object({
+  maxDepth: Type.Optional(Type.Integer({ minimum: 0, maximum: 3 })),
+  maxActiveChildren: Type.Optional(Type.Integer({ minimum: 0, maximum: 4 })),
+  maxDescendants: Type.Optional(Type.Integer({ minimum: 0, maximum: 32 }))
+});
+var AgentDelegationConfigSchema = Type.Object({
+  budget: DelegationBudgetSchema,
+  limits: Type.Optional(DelegationHierarchyLimitsSchema),
+  targets: Type.Record(Type.String({ minLength: 1 }), DelegationTargetConfigSchema)
+});
+var AgentConfigSchema = Type.Object({
+  model: Type.Optional(Type.String({ description: "\u6A21\u578B\u540D\uFF0C\u7F3A\u7701\u7EE7\u627F provider.model" })),
+  systemPrompt: Type.Optional(Type.String({ default: "\u4F60\u662F\u4E00\u4E2A\u4E50\u4E8E\u52A9\u4EBA\u7684\u52A9\u624B\u3002", description: "\u7CFB\u7EDF\u63D0\u793A\u8BCD" })),
+  tools: Type.Optional(Type.Array(ToolConfigSchema, {
+    default: [],
+    description: "\u8BE5 agent \u53EF\u7528\u7684\u5DE5\u5177\uFF08\u7F3A\u7701\u7EE7\u627F\u5168\u5C40 tools\uFF09"
+  })),
+  options: Type.Optional(ModelOptionsSchema),
+  description: Type.Optional(Type.String({ description: "\u7ED9\u5176\u4ED6 agent \u770B\u7684\u2018\u540D\u7247\u2019\u63CF\u8FF0" })),
+  skills: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
+    description: "\u6CE8\u5165\u7684\u4E13\u4E1A\u6280\u80FD id\uFF08\u5982 code-review / weekly-report / translation\uFF09\uFF0C\u5185\u5BB9\u9644\u52A0\u5230\u7CFB\u7EDF\u63D0\u793A\u8BCD"
+  })),
+  mcpResources: Type.Optional(Type.Record(Type.String({ minLength: 1 }), Type.Array(Type.String({
+    minLength: 1,
+    pattern: "^[A-Za-z][A-Za-z0-9+.-]*:[^\\u0000-\\u0020\\u007f]*(?![\\s\\S])"
+  }), { uniqueItems: true }), { description: "\u6309\u670D\u52A1\u663E\u5F0F\u9009\u62E9\u5B8C\u6574\u8D44\u6E90 URI\uFF1B\u7F3A\u7701\u4E0E\u7A7A\u96C6\u5408\u90FD\u4E0D\u6388\u6743\uFF0C\u4E5F\u4E0D\u7EE7\u627F" })),
+  delegation: Type.Optional(AgentDelegationConfigSchema)
+});
+var SessionConfigSchema = Type.Object({
+  enabled: Type.Boolean({ default: false, description: "\u662F\u5426\u6301\u4E45\u5316\u4F1A\u8BDD\u5230\u672C\u5730 JSONL" }),
+  dir: Type.Optional(Type.String({ description: "\u4F1A\u8BDD\u5B58\u50A8\u76EE\u5F55\uFF0C\u7F3A\u7701\u4E3A ./sessions" })),
+  compact: Type.Optional(Type.Boolean({
+    default: false,
+    description: "\u4E0A\u4E0B\u6587\u8D85\u9884\u7B97\u65F6\u81EA\u52A8\u538B\u7F29\uFF08LLM \u6458\u8981\uFF0C\u6D88\u8017 token\uFF1B\u663E\u5F0F\u5F00\u542F\uFF09"
+  }))
+});
+
+// packages/coremind-config/dist/schema/harness.js
+var RuntimeLimitsSchema = Type.Object({
+  maxTurns: Type.Optional(Type.Integer({ minimum: 1, default: 20 })),
+  maxSteps: Type.Optional(Type.Integer({ minimum: 1, default: 100 })),
+  stepTimeoutMs: Type.Optional(Type.Integer({ minimum: 0, default: 3e5 })),
+  runTimeoutMs: Type.Optional(Type.Integer({ minimum: 0, default: 9e5 })),
+  maxToolCalls: Type.Optional(Type.Integer({ minimum: 0, default: 50 })),
+  maxToolFailures: Type.Optional(Type.Integer({ minimum: 0, default: 3 })),
+  maxRetries: Type.Optional(Type.Integer({ minimum: 0, default: 3 })),
+  maxTokens: Type.Optional(Type.Integer({ minimum: 1 })),
+  maxCostUsd: Type.Optional(Type.Number({ minimum: 0 }))
+});
+var PermissionsConfigSchema = Type.Object({
+  mode: Type.Optional(Type.Union([Type.Literal("ask"), Type.Literal("assisted"), Type.Literal("full")], {
+    default: "ask"
+  })),
+  workspaceOnly: Type.Optional(Type.Boolean({ default: true })),
+  network: Type.Optional(Type.Union([Type.Literal("ask"), Type.Literal("allow"), Type.Literal("deny")], {
+    default: "ask"
+  })),
+  allow: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { default: [] })),
+  deny: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { default: [] }))
+});
+var QualityConfigSchema = Type.Object({
+  profile: Type.Optional(Type.Union([Type.Literal("development"), Type.Literal("standard"), Type.Literal("strict")], {
+    default: "standard"
+  })),
+  allowOverride: Type.Optional(Type.Boolean({ default: true })),
+  minScenarioPassRate: Type.Optional(Type.Number({ minimum: 0, maximum: 1 }))
+});
+
+// packages/coremind-config/dist/schema/loop.js
+var LoopActionSchema = Type.Object({
+  agent: Type.String({ minLength: 1, description: "\u5F15\u7528 agents \u4E0B\u5B9A\u4E49\u7684 Agent \u540D\u79F0" }),
+  input: Type.String({ minLength: 1, description: "\u652F\u6301 Loop \u53D8\u91CF\u63D2\u503C\u7684\u8F93\u5165\u6A21\u677F" })
+});
+var AgentVerificationSchema = Type.Object({
+  mode: Type.Optional(Type.Literal("agent")),
+  agent: Type.String({ minLength: 1 }),
+  input: Type.String({ minLength: 1 }),
+  passIf: Type.String({
+    minLength: 1,
+    description: "\u9A8C\u8BC1\u6587\u672C\u6761\u4EF6\uFF1B{{text}} \u6307\u9A8C\u8BC1 Agent \u7684\u8F93\u51FA"
+  }),
+  evidence: Type.Optional(Type.Object({
+    mode: Type.Literal("runtime"),
+    regressionCommand: Type.String({ minLength: 1 }),
+    minSuccessfulTestCommands: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 2 })),
+    requireCheckpoint: Type.Optional(Type.Boolean({ default: true })),
+    requireDiffReview: Type.Optional(Type.Boolean({ default: true }))
+  }, {
+    description: "\u7531 Runtime \u5DE5\u5177\u7ED3\u679C\u3001Checkpoint \u4E0E Diff \u5143\u6570\u636E\u51B3\u5B9A\u9A8C\u8BC1\uFF0C\u4E0D\u63A5\u53D7\u6A21\u578B\u53E3\u5934\u58F0\u660E\u4EE3\u66FF\u8BC1\u636E"
+  }))
+});
+var LoopVerificationSchema = Type.Union([
+  AgentVerificationSchema,
+  Type.Object({
+    mode: Type.Literal("host"),
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 36e5, default: 6e4 }))
+  }, { additionalProperties: false })
+]);
+var LoopConfigSchema = Type.Object({
+  planning: Type.Optional(LoopActionSchema),
+  execute: LoopActionSchema,
+  verify: LoopVerificationSchema,
+  repair: LoopActionSchema,
+  maxIterations: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 3, description: "\u6700\u591A\u9A8C\u8BC1\u8F6E\u6570" })),
+  maxRepairs: Type.Optional(Type.Integer({ minimum: 0, maximum: 99, default: 2, description: "\u6700\u591A\u4FEE\u590D\u6B21\u6570" })),
+  maxRepeatedAction: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 2, description: "\u76F8\u540C\u8FDB\u5C55\u6307\u7EB9\u4E0A\u9650" })),
+  onFailure: Type.Optional(Type.Union([Type.Literal("repair"), Type.Literal("pause"), Type.Literal("fail")], {
+    default: "repair"
+  })),
+  onExhausted: Type.Optional(Type.Union([Type.Literal("pause"), Type.Literal("fail")], { default: "fail" }))
+});
+
+// packages/coremind-config/dist/schema/mcp.js
+var NonEmptyProcessStringSchema = Type.String({ minLength: 1, pattern: "^[^\\u0000]+$" });
+var McpStdioServerConfigSchema = Type.Object({
+  transport: Type.Literal("stdio"),
+  command: NonEmptyProcessStringSchema,
+  args: Type.Array(Type.String({ pattern: "^[^\\u0000]*$" })),
+  cwd: NonEmptyProcessStringSchema,
+  env: Type.Optional(Type.Record(Type.String({ pattern: "^[^=\\u0000]+$" }), Type.Union([EnvironmentValueRefSchema, SecretRefSchema]), { additionalProperties: false })),
+  protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
+}, { additionalProperties: false });
+var McpOAuthConfigSchema = Type.Object({
+  issuer: Type.String({ minLength: 1, maxLength: 2048 }),
+  clientId: Type.String({
+    minLength: 1,
+    maxLength: 1024,
+    pattern: "^[^\\u0000-\\u0020\\u007f]+$"
+  }),
+  scopes: Type.Array(Type.String({ minLength: 1, maxLength: 256, pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$" }), { uniqueItems: true, maxItems: 32 }),
+  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }))
+}, { additionalProperties: false });
+var McpHttpServerConfigSchema = Type.Object({
+  transport: Type.Literal("streamable-http"),
+  url: Type.String({ minLength: 1 }),
+  headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
+  oauth: Type.Optional(McpOAuthConfigSchema),
+  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true })),
+  protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
+}, { additionalProperties: false });
+var McpConfigSchema = Type.Object({
+  servers: Type.Record(Type.String({ pattern: "^.+$" }), Type.Union([McpStdioServerConfigSchema, McpHttpServerConfigSchema]), { additionalProperties: false })
+}, { additionalProperties: false });
+
+// packages/coremind-config/dist/schema/telemetry.js
+var TelemetryModeSchema = Type.Union([Type.Literal("DISABLED"), Type.Literal("FEEDBACK_ONLY"), Type.Literal("FULL")], { default: "DISABLED" });
+var TelemetryContentLevelSchema = Type.Union([Type.Literal("metrics_only"), Type.Literal("content")], { default: "metrics_only" });
+var TelemetryConfigSchema = Type.Object({
+  mode: Type.Optional(TelemetryModeSchema),
+  endpoint: Type.Optional(Type.String({
+    minLength: 1,
+    pattern: "^https?://",
+    description: "\u663E\u5F0F\u6388\u6743\u7684 Telemetry \u76EE\u6807\uFF1B\u663E\u793A\u65F6\u53EA\u4FDD\u7559 origin"
+  })),
+  contentLevel: Type.Optional(TelemetryContentLevelSchema),
+  allowedFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
+    default: [],
+    uniqueItems: true,
+    description: "content \u4E8C\u6B21\u6388\u6743\u5141\u8BB8\u7684\u7CBE\u786E\u5B57\u6BB5\u8DEF\u5F84"
+  }))
+});
+
+// packages/coremind-config/dist/schema/workflow.js
+var RetrySchema = Type.Object({
+  max: Type.Optional(Type.Integer({ minimum: 0, default: 1, description: "\u6700\u5927\u91CD\u8BD5\u6B21\u6570\uFF08\u9ED8\u8BA4 1\uFF09" })),
+  if: Type.Optional(Type.String({ description: "\u91CD\u8BD5\u6761\u4EF6\uFF08\u771F\u503C = \u9700\u8981\u91CD\u8BD5\uFF09\uFF0C\u53EF\u7528 {{text}} \u5F15\u7528\u672C\u6B65\u9AA4\u8F93\u51FA" }))
+});
+var WorkflowStepSchema = Type.Recursive((Self) => Type.Union([
+  Type.Object({
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("prompt"),
+    agent: Type.String({ minLength: 1, description: "\u5F15\u7528 agents \u4E0B\u5B9A\u4E49\u7684 agent \u540D\u5B57" }),
+    input: Type.String({ description: "\u4EFB\u52A1\u8F93\u5165\uFF0C\u652F\u6301 {{\u53D8\u91CF}} \u63D2\u503C" }),
+    saveAs: Type.Optional(Type.String({ description: "\u6B65\u9AA4\u8F93\u51FA\u4FDD\u5B58\u5230 outputs \u7684\u952E\u540D" })),
+    retry: Type.Optional(RetrySchema)
+  }),
+  Type.Object({
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("call"),
+    agent: Type.String({ minLength: 1 }),
+    input: Type.String({ description: "\u59D4\u6258\u8F93\u5165\uFF0C\u652F\u6301 {{\u53D8\u91CF}} \u63D2\u503C" }),
+    saveAs: Type.Optional(Type.String()),
+    retry: Type.Optional(RetrySchema)
+  }),
+  Type.Object({
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("parallel"),
+    steps: Type.Array(Self),
+    saveAs: Type.Optional(Type.String({ description: "\u5404\u5B50\u6B65\u9AA4\u8F93\u51FA\u7684\u805A\u5408\u6587\u672C" }))
+  }),
+  Type.Object({
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("if"),
+    condition: Type.String({ description: "\u6761\u4EF6\u8868\u8FBE\u5F0F\uFF0C\u5982 {{changes.text}} contains \u65E0" }),
+    then: Type.Array(Self),
+    else: Type.Optional(Type.Array(Self))
+  }),
+  Type.Object({
+    id: Type.String({ minLength: 1 }),
+    type: Type.Literal("switch"),
+    on: Type.String({ description: "\u8981\u5224\u5B9A\u7684\u53D8\u91CF\u540D\uFF0C\u5982 changes.text" }),
+    cases: Type.Record(Type.String(), Type.Array(Self), { description: "\u547D\u4E2D\u503C \u2192 \u6B65\u9AA4\u6570\u7EC4" }),
+    default: Type.Optional(Type.Array(Self))
+  })
+]));
+
+// packages/coremind-config/dist/schema/config.js
+var CoreMindConfigSchema = Type.Object({
+  schemaVersion: Type.Union([Type.Literal(2), Type.Literal(3)], {
+    description: "CoreMind \u914D\u7F6E\u683C\u5F0F\u7248\u672C\uFF1B\u6309\u9700\u66DD\u5149\u5DE5\u5177\u987B\u663E\u5F0F\u4F7F\u7528 3"
+  }),
+  name: Type.String({ minLength: 1, description: "\u667A\u80FD\u4F53\u540D\u79F0\uFF08\u5FC5\u586B\uFF09" }),
+  description: Type.Optional(Type.String()),
+  provider: Type.Optional(ProviderSchema),
+  tools: Type.Optional(Type.Array(ToolConfigSchema, { default: [], description: "\u5168\u5C40\u9ED8\u8BA4\u5DE5\u5177" })),
+  mcp: Type.Optional(McpConfigSchema),
+  options: Type.Optional(ModelOptionsSchema),
+  agents: Type.Record(Type.String({ minLength: 1 }), AgentConfigSchema, {
+    description: "\u591A agent \u6309\u540D\u5B57\u5B9A\u4E49"
+  }),
+  defaultAgent: Type.Optional(Type.String({ description: "\u7F3A\u7701 agent \u540D\uFF0C\u7F3A\u7701\u4E3A\u7B2C\u4E00\u4E2A" })),
+  workflow: Type.Optional(Type.Array(WorkflowStepSchema)),
+  loop: Type.Optional(LoopConfigSchema),
+  session: Type.Optional(SessionConfigSchema),
+  runtime: Type.Optional(RuntimeLimitsSchema),
+  permissions: Type.Optional(PermissionsConfigSchema),
+  quality: Type.Optional(QualityConfigSchema),
+  telemetry: Type.Optional(TelemetryConfigSchema)
+});
+
+// packages/coremind-config/dist/validate.js
+import { isIP } from "node:net";
+import path from "node:path";
 
 // node_modules/@sinclair/typebox/build/esm/errors/function.mjs
 function DefaultErrorFunction(error3) {
@@ -231101,6 +231581,398 @@ __export(value_exports2, {
   ValueErrorIterator: () => ValueErrorIterator
 });
 
+// packages/coremind-config/dist/validate.js
+var ConfigValidationError = class extends Error {
+  code = "invalid_config";
+  /** 校验错误明细列表 */
+  details;
+  constructor(message3, details) {
+    super(message3);
+    this.name = "ConfigValidationError";
+    this.details = details;
+  }
+};
+function validateConfig(data) {
+  if (data === null || typeof data !== "object" || Array.isArray(data)) {
+    throw new ConfigValidationError("\u914D\u7F6E\u5185\u5BB9\u5FC5\u987B\u662F\u5BF9\u8C61\uFF08YAML \u6620\u5C04\u6216 JSON \u5BF9\u8C61\uFF09", []);
+  }
+  const record2 = data;
+  if ("version" in record2 && !("schemaVersion" in record2)) {
+    const details = ["\u65E7\u5B57\u6BB5 version \u5DF2\u505C\u7528\uFF0C\u8BF7\u5220\u9664 version \u5E76\u6DFB\u52A0 schemaVersion: 2"];
+    throw new ConfigValidationError(`\u914D\u7F6E\u683C\u5F0F\u5DF2\u5347\u7EA7\uFF1A${details[0]}`, details);
+  }
+  validateRawToolDeclarations(record2);
+  validateCustomProviderFields(record2);
+  validateProviderHeaderReferences(record2);
+  if (!value_exports2.Check(CoreMindConfigSchema, data)) {
+    const details = [];
+    for (const error3 of value_exports2.Errors(CoreMindConfigSchema, data)) {
+      const path47 = error3.path === "" ? "\u6839\u914D\u7F6E" : error3.path.slice(1).replaceAll("/", ".");
+      details.push(`${path47}\uFF1A${error3.message}`);
+    }
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF0C\u5171 ${details.length} \u5904\u95EE\u9898\uFF1A
+  - ${details.join("\n  - ")}`, details);
+  }
+  validateMcpConfiguration(data);
+  const config2 = value_exports2.Parse(CoreMindConfigSchema, data);
+  for (const server of Object.values(config2.mcp?.servers ?? {})) {
+    server.protocolVersion ??= "legacy";
+  }
+  if (config2.workflow && config2.loop) {
+    const detail = "workflow \u4E0E loop \u53EA\u80FD\u9009\u62E9\u4E00\u79CD\uFF0C\u4E0D\u80FD\u540C\u65F6\u914D\u7F6E";
+    throw new ConfigValidationError(detail, [detail]);
+  }
+  validateWorkflowStepIds(config2.workflow ?? []);
+  validateLoopAgents(config2);
+  validateDelegationTargets(config2);
+  validateTelemetry(config2);
+  return config2;
+}
+function validateDelegationTargets(config2) {
+  const knownAgents = new Set(Object.keys(config2.agents));
+  const details = [];
+  for (const [parentName, agent] of Object.entries(config2.agents)) {
+    const delegation = agent.delegation;
+    if (!delegation)
+      continue;
+    const maxDescendants = delegation.limits?.maxDescendants ?? 32;
+    if (delegation.budget.descendants > maxDescendants) {
+      details.push(`agents.${parentName}.delegation.budget.descendants\uFF1A\u4E0D\u80FD\u8D85\u8FC7\u5C42\u7EA7\u4E0A\u9650 ${maxDescendants}`);
+    }
+    for (const [targetName, target] of Object.entries(delegation.targets)) {
+      const path47 = `agents.${parentName}.delegation.targets.${targetName}`;
+      if (targetName === parentName) {
+        details.push(`${path47}\uFF1A\u7236 Agent \u4E0D\u80FD\u59D4\u6D3E\u7ED9\u81EA\u8EAB`);
+      } else if (!knownAgents.has(targetName)) {
+        details.push(`${path47}\uFF1A\u5F15\u7528\u4E86\u672A\u5B9A\u4E49\u7684 Agent`);
+      }
+      for (const key of Object.keys(delegation.budget)) {
+        const reserved = key === "descendants" ? target.budget[key] + 1 : target.budget[key];
+        if (reserved > delegation.budget[key]) {
+          details.push(`${path47}.budget.${key}\uFF1A\u4E0D\u80FD\u8D85\u8FC7\u7236 Agent \u7684\u59D4\u6D3E\u9884\u7B97\u6C60`);
+        }
+      }
+    }
+  }
+  if (details.length > 0) {
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
+  }
+}
+function validateProviderHeaderReferences(record2) {
+  const provider = record2.provider;
+  if (provider === null || typeof provider !== "object" || Array.isArray(provider))
+    return;
+  const headers = provider.headers;
+  if (headers === null || typeof headers !== "object" || Array.isArray(headers))
+    return;
+  const details = [];
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value === "string")
+      continue;
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+      continue;
+    const reference = value;
+    const keys2 = Object.keys(reference);
+    const validEnv = keys2.length === 1 && typeof reference.env === "string" && reference.env.length > 0;
+    const validSecretRef = keys2.length === 1 && typeof reference.secretRef === "string" && reference.secretRef.length > 0;
+    if (!validEnv && !validSecretRef) {
+      details.push(`provider.headers.${name}\uFF1A\u5FC5\u987B\u662F\u975E\u7A7A env \u6216 secretRef \u5F15\u7528`);
+    }
+  }
+  if (details.length > 0) {
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
+  }
+}
+function validateCustomProviderFields(record2) {
+  const provider = record2.provider;
+  if (provider === null || typeof provider !== "object" || Array.isArray(provider) || !("baseUrl" in provider)) {
+    return;
+  }
+  const allowed = propertiesOf(CustomProviderSchema);
+  const details = Object.keys(provider).filter((key) => !allowed.has(key)).map((key) => `provider.${key}\uFF1A\u81EA\u5B9A\u4E49 Provider \u4E0D\u652F\u6301\u8BE5\u5B57\u6BB5`);
+  if (details.length > 0) {
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
+  }
+}
+function validateTelemetry(config2) {
+  const telemetry = config2.telemetry;
+  if (!telemetry || telemetry.mode === void 0 || telemetry.mode === "DISABLED")
+    return;
+  if (!telemetry.endpoint) {
+    const detail = `telemetry.endpoint\uFF1A${telemetry.mode} \u6A21\u5F0F\u5FC5\u987B\u663E\u5F0F\u914D\u7F6E HTTP(S) endpoint`;
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+  }
+}
+function validateLoopAgents(config2) {
+  if (!config2.loop)
+    return;
+  const knownAgents = new Set(Object.keys(config2.agents));
+  const actions = [
+    ["planning", config2.loop.planning],
+    ["execute", config2.loop.execute],
+    ["verify", config2.loop.verify],
+    ["repair", config2.loop.repair]
+  ];
+  const details = actions.flatMap(([name, action]) => action && "agent" in action && !knownAgents.has(action.agent) ? [`loop.${name}.agent \u5F15\u7528\u4E86\u672A\u5B9A\u4E49\u7684 Agent\uFF1A${action.agent}`] : []);
+  if (details.length > 0) {
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
+  }
+}
+function configuredToolLists(record2) {
+  const locations = [
+    { prefix: "tools", tools: record2.tools }
+  ];
+  if (record2.agents !== null && typeof record2.agents === "object" && !Array.isArray(record2.agents)) {
+    for (const [name, agent] of Object.entries(record2.agents)) {
+      if (agent !== null && typeof agent === "object" && !Array.isArray(agent)) {
+        locations.push({
+          prefix: `agents.${name}.tools`,
+          tools: agent.tools
+        });
+      }
+    }
+  }
+  return locations;
+}
+function validateRawToolDeclarations(record2) {
+  for (const location of configuredToolLists(record2)) {
+    if (!Array.isArray(location.tools))
+      continue;
+    for (const [index3, tool] of location.tools.entries()) {
+      if (tool === null || typeof tool !== "object" || Array.isArray(tool))
+        continue;
+      if ("exposure" in tool) {
+        if (tool.exposure !== "direct" && tool.exposure !== "deferred") {
+          const detail = `${location.prefix}.${index3}.exposure\uFF1A\u5FC5\u987B\u662F direct \u6216 deferred`;
+          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+        }
+        if (tool.exposure === "deferred" && record2.schemaVersion !== 3) {
+          const detail = `${location.prefix}.${index3}.exposure\uFF1Adeferred \u5FC5\u987B\u663E\u5F0F\u914D\u7F6E schemaVersion: 3`;
+          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+        }
+      }
+      if ("mcp" in tool && ("id" in tool || "path" in tool)) {
+        const detail = `${location.prefix}.${index3}\uFF1AMCP \u5F15\u7528\u4E0D\u80FD\u540C\u65F6\u5305\u542B id \u6216 path`;
+        throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+      }
+      if ("path" in tool && !("effect" in tool)) {
+        const detail = `${location.prefix}.${index3}.effect\uFF1A\u81EA\u5B9A\u4E49\u5DE5\u5177\u5FC5\u987B\u58F0\u660E\u526F\u4F5C\u7528`;
+        throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
+      }
+    }
+  }
+}
+function validateMcpConfiguration(config2) {
+  const servers = config2.mcp?.servers ?? {};
+  const details = [];
+  for (const [name, server] of Object.entries(servers)) {
+    const prefix = `mcp.servers.${name}`;
+    if (server.transport === "streamable-http") {
+      validateMcpHttpServer(server, prefix, details);
+      continue;
+    }
+    if (!path.isAbsolute(server.command))
+      details.push(`${prefix}.command\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
+    if (!path.isAbsolute(server.cwd))
+      details.push(`${prefix}.cwd\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
+    if (process.platform === "win32") {
+      const keys2 = /* @__PURE__ */ new Set();
+      for (const key of Object.keys(server.env ?? {})) {
+        const folded = key.toUpperCase();
+        if (keys2.has(folded))
+          details.push(`${prefix}.env\uFF1AWindows \u73AF\u5883\u952E\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
+        keys2.add(folded);
+      }
+    }
+  }
+  for (const [agentName, agent] of Object.entries(config2.agents)) {
+    for (const serverName of Object.keys(agent.mcpResources ?? {})) {
+      const prefix = `agents.${agentName}.mcpResources.${serverName}`;
+      const server = servers[serverName];
+      if (!Object.hasOwn(servers, serverName))
+        details.push(`${prefix}\uFF1A\u5F15\u7528\u4E86\u672A\u58F0\u660E\u7684 MCP \u670D\u52A1`);
+      else if (server?.transport !== "streamable-http")
+        details.push(`${prefix}\uFF1A\u8D44\u6E90\u9009\u62E9\u4EC5\u652F\u6301 streamable-http \u670D\u52A1`);
+    }
+  }
+  for (const location of configuredToolLists(config2)) {
+    if (!Array.isArray(location.tools))
+      continue;
+    const selected = /* @__PURE__ */ new Set();
+    for (const [index3, tool] of location.tools.entries()) {
+      if (tool === null || typeof tool !== "object" || !("mcp" in tool))
+        continue;
+      const ref = tool;
+      const prefix = `${location.prefix}.${index3}`;
+      if (!Object.hasOwn(servers, ref.mcp.server)) {
+        details.push(`${prefix}.mcp.server\uFF1A\u5F15\u7528\u4E86\u672A\u58F0\u660E\u7684 MCP \u670D\u52A1`);
+      }
+      const identity3 = JSON.stringify([ref.mcp.server, ref.mcp.tool]);
+      if (selected.has(identity3))
+        details.push(`${prefix}.mcp\uFF1A\u4E0D\u80FD\u91CD\u590D\u9009\u62E9\u540C\u4E00\u670D\u52A1\u5DE5\u5177`);
+      selected.add(identity3);
+      const boundary = toolEffectOperationsForCapability(ref.capability.effect)[0];
+      const mutable = ref.effect.operations.filter((operation) => operation !== "read");
+      const consistent = ref.capability.effect === "none" ? mutable.length === 0 : mutable.length === 1 && mutable[0] === boundary;
+      if (!consistent)
+        details.push(`${prefix}.effect\uFF1A\u526F\u4F5C\u7528\u5FC5\u987B\u4E0E capability.effect \u4E00\u81F4`);
+      if ((ref.capability.effect === "workspace" || ref.capability.effect === "unknown") && ref.capability.checkpoint === "none") {
+        details.push(`${prefix}.capability.checkpoint\uFF1Aworkspace/unknown \u4E0D\u80FD\u58F0\u660E none`);
+      }
+    }
+  }
+  if (details.length > 0) {
+    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
+  }
+}
+var MCP_RESERVED_HEADERS = /* @__PURE__ */ new Set([
+  "host",
+  "content-length",
+  "transfer-encoding",
+  "connection",
+  "keep-alive",
+  "te",
+  "trailer",
+  "proxy-connection",
+  "upgrade",
+  "proxy-authorization",
+  "mcp-session-id",
+  "dpop",
+  "mcp-protocol-version",
+  "mcp-method",
+  "mcp-name",
+  "last-event-id",
+  "accept",
+  "content-type"
+]);
+function validateMcpHttpTarget(server, prefix, details, urlField = "url") {
+  const addresses = /* @__PURE__ */ new Set();
+  for (const [index3, address] of (server.allowedAddresses ?? []).entries()) {
+    const normalized = normalizeMcpAddress(address);
+    if (normalized === void 0) {
+      details.push(`${prefix}.allowedAddresses.${index3}\uFF1A\u5FC5\u987B\u662F\u65E0\u533A\u57DF\u6807\u8BB0\u7684\u7CBE\u786E IP \u5B57\u9762\u91CF`);
+    } else {
+      if (addresses.has(normalized))
+        details.push(`${prefix}.allowedAddresses\uFF1A\u5730\u5740\u4E0D\u80FD\u91CD\u590D`);
+      addresses.add(normalized);
+    }
+  }
+  let url2;
+  try {
+    url2 = new URL(server.url);
+  } catch {
+    details.push(`${prefix}.${urlField}\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A HTTP(S) URL`);
+  }
+  if (url2) {
+    const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
+    if (!/^https?:\/\//iu.test(server.url) || [...server.url].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\") || url2.protocol !== "https:" && url2.protocol !== "http:" || url2.username !== "" || url2.password !== "" || authority.includes("@") || server.url.includes("?") || server.url.includes("#")) {
+      details.push(`${prefix}.${urlField}\uFF1A\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u3001query\u3001fragment \u6216\u63A7\u5236\u5B57\u7B26\u7684\u56FA\u5B9A HTTP(S) URL`);
+    }
+    if (url2.protocol === "http:") {
+      const rawHost = /^[a-z][a-z0-9+.-]*:\/\/(\[[^\]]+\]|[^:/?#]+)(?::[0-9]+)?(?:\/|$)/iu.exec(server.url)?.[1];
+      const address = rawHost ? normalizeMcpAddress(rawHost.replace(/^\[|\]$/gu, "")) : void 0;
+      if (address === void 0 || address !== "::1" && !address.startsWith("127.") || !addresses.has(address)) {
+        details.push(`${prefix}.${urlField}\uFF1AHTTP \u4EC5\u652F\u6301\u663E\u5F0F allowedAddresses \u4E2D\u7684 loopback IP \u5B57\u9762\u76EE\u6807`);
+      }
+    }
+  }
+}
+function validateMcpHttpServer(server, prefix, details) {
+  validateMcpHttpTarget(server, prefix, details);
+  if (server.oauth) {
+    validateMcpHttpTarget({ url: server.oauth.issuer, allowedAddresses: server.oauth.allowedAddresses }, `${prefix}.oauth`, details, "issuer");
+    if (Object.keys(server.headers ?? {}).some((name) => name.toLowerCase() === "authorization"))
+      details.push(`${prefix}.oauth\uFF1A\u4E0D\u80FD\u540C\u65F6\u914D\u7F6E OAuth \u4E0E Authorization Header`);
+  }
+  const headerNames = /* @__PURE__ */ new Set();
+  for (const [name, value] of Object.entries(server.headers ?? {})) {
+    const folded = name.toLowerCase();
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || name !== name.trim())
+      details.push(`${prefix}.headers\uFF1AHeader \u540D\u79F0\u5FC5\u987B\u662F\u5408\u6CD5 token`);
+    if (headerNames.has(folded))
+      details.push(`${prefix}.headers\uFF1AHeader \u540D\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
+    headerNames.add(folded);
+    if (MCP_RESERVED_HEADERS.has(folded))
+      details.push(`${prefix}.headers\uFF1A\u4E0D\u80FD\u8986\u76D6\u4F20\u8F93\u4FDD\u7559 Header`);
+    if (typeof value === "string" && [...value].some((character) => character.charCodeAt(0) < 32 && character.charCodeAt(0) !== 9 || character.charCodeAt(0) === 127))
+      details.push(`${prefix}.headers\uFF1AHeader \u503C\u4E0D\u80FD\u5305\u542B\u63A7\u5236\u5B57\u7B26`);
+  }
+}
+function normalizeMcpAddress(address) {
+  const version2 = isIP(address);
+  if (version2 === 0 || address.includes("%"))
+    return void 0;
+  if (version2 === 4)
+    return address;
+  const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]+):([0-9a-f]+)$/u.exec(normalized);
+  if (!mapped)
+    return normalized;
+  const high = Number.parseInt(mapped[1], 16);
+  const low = Number.parseInt(mapped[2], 16);
+  return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
+}
+function validateWorkflowStepIds(steps) {
+  const ids = /* @__PURE__ */ new Set();
+  const visit = (items) => {
+    for (const step of items) {
+      if (ids.has(step.id)) {
+        const detail = `workflow \u6B65\u9AA4 id \u91CD\u590D\uFF1A${step.id}`;
+        throw new ConfigValidationError(detail, [detail]);
+      }
+      ids.add(step.id);
+      if (step.type === "parallel")
+        visit(step.steps);
+      if (step.type === "if") {
+        visit(step.then);
+        visit(step.else ?? []);
+      }
+      if (step.type === "switch") {
+        for (const branch of Object.values(step.cases))
+          visit(branch);
+        visit(step.default ?? []);
+      }
+    }
+  };
+  visit(steps);
+}
+function findUnknownKeys(data) {
+  const warnings = [];
+  if (data === null || typeof data !== "object")
+    return warnings;
+  const top = data;
+  const topProps = propertiesOf(CoreMindConfigSchema);
+  for (const key of Object.keys(top)) {
+    if (!topProps.has(key))
+      warnings.push(`\u9876\u5C42\u5B58\u5728\u672A\u77E5\u5B57\u6BB5\uFF1A${key}\uFF08\u5DF2\u5FFD\u7565\uFF09`);
+  }
+  const agents = top.agents;
+  if (agents !== null && typeof agents === "object" && !Array.isArray(agents)) {
+    const agentSchema = CoreMindConfigSchema.properties.agents;
+    const patterns = agentSchema?.patternProperties;
+    const recordValue = patterns ? Object.values(patterns)[0] : void 0;
+    const agentProps = recordValue ? propertiesOf(recordValue) : /* @__PURE__ */ new Set();
+    for (const [name, agent] of Object.entries(agents)) {
+      if (agent === null || typeof agent !== "object")
+        continue;
+      for (const key of Object.keys(agent)) {
+        if (!agentProps.has(key))
+          warnings.push(`agents.${name} \u5B58\u5728\u672A\u77E5\u5B57\u6BB5\uFF1A${key}\uFF08\u5DF2\u5FFD\u7565\uFF09`);
+      }
+    }
+  }
+  return warnings;
+}
+function propertiesOf(schema) {
+  const props = schema.properties;
+  return new Set(props ? Object.keys(props) : []);
+}
+function parseAndValidate(data) {
+  const warnings = findUnknownKeys(data);
+  const config2 = validateConfig(data);
+  return { config: config2, warnings };
+}
+
 // packages/coremind-protocol/dist/error-contract.js
 function defineErrorCodes(codes) {
   return Object.fromEntries(Object.entries(codes).map(([code, info]) => [
@@ -231451,6 +232323,7 @@ var ERROR_CODES = defineErrorCodes({
   rate_limit: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
   workspace_busy: { terminality: "transient", cancelClass: "other", retryClass: "transient" },
   // —— worker 类 ——
+  output_delivery_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   worker_closed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   already_initialized: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   worker_busy: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
@@ -233127,7 +234000,7 @@ var RunSnapshotSchema = Type.Object({
   extensions: Type.Array(LifecycleExtensionReceiptSchema),
   resumable: Type.Boolean()
 }, { additionalProperties: false });
-var ToolEffectDeclarationSchema = Type.Object({
+var ToolEffectDeclarationSchema2 = Type.Object({
   operations: Type.Array(Type.Union([
     Type.Literal("read"),
     Type.Literal("write"),
@@ -233209,7 +234082,7 @@ var RegisterToolRequestSchema = Type.Object({
     name: Type.String({ minLength: 1 }),
     description: Type.String({ minLength: 1 }),
     parameters: Type.Unknown(),
-    effect: ToolEffectDeclarationSchema,
+    effect: ToolEffectDeclarationSchema2,
     label: Type.Optional(Type.String({ minLength: 1 }))
   }, { additionalProperties: false })
 }, { additionalProperties: false });
@@ -233373,880 +234246,6 @@ function createPythonToolCallNotification(params) {
     method: "python_tool_call",
     params: { protocolVersion: PROTOCOL_VERSION, ...params }
   };
-}
-
-// packages/coremind-worker/src/server.ts
-import { createHash as createHash27 } from "node:crypto";
-import path46 from "node:path";
-
-// packages/coremind-config/dist/parse.js
-var import_yaml = __toESM(require_dist(), 1);
-import { readFile } from "node:fs/promises";
-var ConfigParseError = class extends Error {
-  code = "parse_error";
-  constructor(message3) {
-    super(message3);
-    this.name = "ConfigParseError";
-  }
-};
-function parseConfigText(text2, sourceName = "\u914D\u7F6E") {
-  try {
-    return (0, import_yaml.parse)(text2);
-  } catch (cause) {
-    const detail = cause instanceof Error ? cause.message : String(cause);
-    throw new ConfigParseError(`${sourceName} \u8BED\u6CD5\u89E3\u6790\u5931\u8D25\uFF1A${detail}`);
-  }
-}
-async function loadConfigFile(filePath) {
-  let text2;
-  try {
-    text2 = await readFile(filePath, "utf8");
-  } catch (cause) {
-    throw new ConfigParseError(`\u65E0\u6CD5\u8BFB\u53D6\u914D\u7F6E\u6587\u4EF6 ${filePath}\uFF1A${cause instanceof Error ? cause.message : String(cause)}`);
-  }
-  return parseConfigText(text2, filePath);
-}
-
-// packages/coremind-config/dist/schema/provider.js
-var SecretRefSchema = Type.Object({ secretRef: Type.String({ minLength: 1, description: "\u4E0D\u900F\u660E\u79D8\u5BC6\u5F15\u7528" }) }, { additionalProperties: false });
-var EnvironmentValueRefSchema = Type.Object({ env: Type.String({ minLength: 1, description: "\u73AF\u5883\u53D8\u91CF\u540D" }) }, { additionalProperties: false });
-var HeaderValueSchema = Type.Union([
-  Type.String(),
-  EnvironmentValueRefSchema,
-  SecretRefSchema
-]);
-var ProviderRefSchema = Type.Object({
-  id: Type.String({
-    minLength: 1,
-    description: "\u5185\u7F6E\u63D0\u4F9B\u5546 id\uFF0C\u5982 deepseek / moonshotai-cn / zai"
-  }),
-  model: Type.Optional(Type.String({ description: "\u6A21\u578B\u540D\uFF0C\u7F3A\u7701\u6309\u63D0\u4F9B\u5546\u53D6\u9ED8\u8BA4\u6A21\u578B" })),
-  apiKeyEnv: Type.Optional(Type.String({
-    minLength: 1,
-    description: "API key \u73AF\u5883\u53D8\u91CF\u540D\uFF0C\u7F3A\u7701\u6309 id \u63A8\u65AD\uFF08\u5982 DEEPSEEK_API_KEY\uFF09"
-  })),
-  apiKeySecretRef: Type.Optional(SecretRefSchema)
-});
-var CustomProviderSchema = Type.Object({
-  id: Type.Optional(Type.String({ minLength: 1, default: "custom", description: "\u81EA\u5B9A\u4E49\u63D0\u4F9B\u5546\u6807\u8BC6" })),
-  name: Type.Optional(Type.String()),
-  baseUrl: Type.String({ minLength: 1, description: "\u7AEF\u70B9\u5730\u5740\uFF0C\u5982 http://localhost:11434/v1" }),
-  model: Type.String({ minLength: 1, description: "\u6A21\u578B\u540D\uFF0C\u5982 qwen2.5:7b" }),
-  api: Type.Optional(Type.Literal("openai-completions", {
-    default: "openai-completions",
-    description: "\u63A5\u53E3\u534F\u8BAE\uFF0C\u4E00\u671F\u4EC5\u652F\u6301 openai-completions"
-  })),
-  apiKey: Type.Optional(Type.String({ description: "\u76F4\u63A5\u5199 API key\uFF08\u4E0D\u5EFA\u8BAE\uFF0C\u4F18\u5148\u7528 apiKeyEnv\uFF09" })),
-  apiKeyEnv: Type.Optional(Type.String({ minLength: 1, description: "API key \u73AF\u5883\u53D8\u91CF\u540D" })),
-  apiKeySecretRef: Type.Optional(SecretRefSchema),
-  headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema, { description: "\u9644\u52A0\u8BF7\u6C42\u5934" })),
-  thinkingFormat: Type.Optional(Type.Literal("qwen", {
-    description: "Qwen \u601D\u8003\u63A7\u5236\u683C\u5F0F\uFF1B\u7531 agent.options.thinkingLevel \u51B3\u5B9A enable_thinking"
-  })),
-  contextWindow: Type.Optional(Type.Integer({
-    minimum: 1024,
-    description: "\u6A21\u578B\u4E0A\u4E0B\u6587\u7A97\u53E3\uFF08token\uFF09\uFF0C\u7F3A\u7701\u6309 32768 \u515C\u5E95"
-  })),
-  maxTokens: Type.Optional(Type.Integer({
-    minimum: 1,
-    description: "\u6A21\u578B\u6700\u5927\u8F93\u51FA token \u6570\uFF0C\u7F3A\u7701\u6309 4096 \u515C\u5E95"
-  }))
-});
-var ProviderSchema = Type.Union([CustomProviderSchema, ProviderRefSchema]);
-var ModelOptionsSchema = Type.Object({
-  temperature: Type.Optional(Type.Number({ minimum: 0, maximum: 2, default: 0.7 })),
-  maxTokens: Type.Optional(Type.Integer({ minimum: 1 })),
-  thinkingLevel: Type.Optional(Type.Union([
-    Type.Literal("off"),
-    Type.Literal("low"),
-    Type.Literal("medium"),
-    Type.Literal("high"),
-    Type.Literal("xhigh")
-  ]))
-});
-
-// packages/coremind-config/dist/schema/tools.js
-var BUILTIN_TOOL_IDS = [
-  "read",
-  "ls",
-  "find",
-  "grep",
-  "git_status",
-  "git_diff",
-  "git_log",
-  "bash",
-  "edit",
-  "write",
-  "web-fetch",
-  "web-search"
-];
-var TOOL_CAPABILITY_EFFECTS = [
-  "none",
-  "workspace",
-  "process",
-  "network",
-  "external",
-  "unknown"
-];
-var TOOL_CAPABILITY_REPLAYS = ["safe", "idempotent", "unsafe", "unknown"];
-var TOOL_CAPABILITY_CONCURRENCY = [
-  "parallel",
-  "run_serial",
-  "workspace_exclusive"
-];
-var TOOL_CAPABILITY_CHECKPOINTS = ["none", "required", "unsupported"];
-var TOOL_CAPABILITY_DURABILITY = ["ordinary", "critical"];
-var TOOL_EFFECT_OPERATIONS = ["read", "write", "process", "network", "external"];
-var ToolEffectDeclarationSchema2 = Type.Object({
-  operations: Type.Array(Type.Union(TOOL_EFFECT_OPERATIONS.map((operation) => Type.Literal(operation))), { minItems: 1, uniqueItems: true }),
-  reversible: Type.Boolean({ description: "\u8BE5\u5DE5\u5177\u7684\u526F\u4F5C\u7528\u662F\u5426\u53EF\u7531\u6846\u67B6\u81EA\u52A8\u56DE\u9000" }),
-  pathFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
-    description: "\u989D\u5916\u7684\u8DEF\u5F84\u53C2\u6570\u5B57\u6BB5\uFF0C\u652F\u6301\u70B9\u53F7\u8DEF\u5F84\uFF0C\u4F8B\u5982 output.path"
-  })),
-  urlFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
-    description: "\u989D\u5916\u7684 URL \u53C2\u6570\u5B57\u6BB5\uFF0C\u652F\u6301\u70B9\u53F7\u8DEF\u5F84\uFF0C\u4F8B\u5982 request.endpoint"
-  }))
-}, { additionalProperties: false });
-var PURE_LOCAL_READ = {
-  effect: "none",
-  replay: "safe",
-  concurrency: "parallel",
-  checkpoint: "none",
-  durability: "ordinary"
-};
-var WORKSPACE_WRITE = {
-  effect: "workspace",
-  replay: "idempotent",
-  concurrency: "workspace_exclusive",
-  checkpoint: "required",
-  durability: "critical"
-};
-var BUILTIN_TOOL_METADATA = {
-  read: { capability: PURE_LOCAL_READ },
-  ls: { capability: PURE_LOCAL_READ },
-  find: { capability: PURE_LOCAL_READ },
-  grep: { capability: PURE_LOCAL_READ },
-  git_status: { capability: PURE_LOCAL_READ },
-  git_diff: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
-  git_log: { capability: PURE_LOCAL_READ, pathFields: ["path"] },
-  edit: { capability: WORKSPACE_WRITE },
-  write: { capability: WORKSPACE_WRITE },
-  bash: {
-    capability: {
-      effect: "process",
-      replay: "unknown",
-      concurrency: "run_serial",
-      checkpoint: "unsupported",
-      durability: "critical"
-    }
-  },
-  "web-fetch": {
-    capability: {
-      effect: "network",
-      replay: "unknown",
-      concurrency: "run_serial",
-      checkpoint: "none",
-      durability: "critical"
-    }
-  },
-  "web-search": {
-    capability: {
-      effect: "network",
-      replay: "unknown",
-      concurrency: "run_serial",
-      checkpoint: "none",
-      durability: "critical"
-    }
-  }
-};
-var BUILTIN_TOOL_CAPABILITIES = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => [id, Object.freeze(BUILTIN_TOOL_METADATA[id].capability)])));
-var BUILTIN_TOOL_EFFECTS = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => {
-  const metadata = BUILTIN_TOOL_METADATA[id];
-  return [
-    id,
-    Object.freeze({
-      operations: Object.freeze(toolEffectOperationsForCapability(metadata.capability.effect)),
-      reversible: metadata.capability.replay === "safe" || metadata.capability.replay === "idempotent",
-      ...metadata.pathFields ? { pathFields: Object.freeze([...metadata.pathFields]) } : {},
-      ...metadata.urlFields ? { urlFields: Object.freeze([...metadata.urlFields]) } : {}
-    })
-  ];
-})));
-function toolEffectOperationsForCapability(effect) {
-  switch (effect) {
-    case "none":
-      return ["read"];
-    case "workspace":
-      return ["write"];
-    case "process":
-      return ["process"];
-    case "network":
-      return ["network"];
-    case "external":
-    case "unknown":
-      return ["external"];
-  }
-}
-var ToolRefSchema = Type.Object({
-  id: Type.Union(BUILTIN_TOOL_IDS.map((id) => Type.Literal(id)), { description: "\u5185\u7F6E\u5DE5\u5177 id" }),
-  enabled: Type.Optional(Type.Boolean({ default: true })),
-  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
-});
-var ScriptToolSchema = Type.Object({
-  path: Type.String({ minLength: 1, description: "\u5DE5\u5177\u6587\u4EF6\u8DEF\u5F84\uFF08\u76F8\u5BF9\u914D\u7F6E\u6587\u4EF6\u76EE\u5F55\uFF09" }),
-  name: Type.Optional(Type.String({ description: "\u5DE5\u5177\u540D\uFF0C\u7F3A\u7701\u53D6\u6A21\u5757\u5BFC\u51FA\u5BF9\u8C61\u7684 name" })),
-  effect: ToolEffectDeclarationSchema2,
-  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
-});
-var McpToolSchema = Type.Object({
-  exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")])),
-  mcp: Type.Object({ server: Type.String({ minLength: 1 }), tool: Type.String({ minLength: 1 }) }, { additionalProperties: false }),
-  effect: ToolEffectDeclarationSchema2,
-  capability: Type.Object({
-    effect: Type.Union(TOOL_CAPABILITY_EFFECTS.map((value) => Type.Literal(value))),
-    replay: Type.Union(TOOL_CAPABILITY_REPLAYS.map((value) => Type.Literal(value))),
-    concurrency: Type.Union(TOOL_CAPABILITY_CONCURRENCY.map((value) => Type.Literal(value))),
-    checkpoint: Type.Union(TOOL_CAPABILITY_CHECKPOINTS.map((value) => Type.Literal(value))),
-    durability: Type.Union(TOOL_CAPABILITY_DURABILITY.map((value) => Type.Literal(value)))
-  }, { additionalProperties: false })
-}, { additionalProperties: false });
-var ToolConfigSchema = Type.Union([ToolRefSchema, ScriptToolSchema, McpToolSchema]);
-
-// packages/coremind-config/dist/schema/agent.js
-var DelegationBudgetSchema = Type.Object({
-  tokens: Type.Integer({ minimum: 1 }),
-  toolCalls: Type.Integer({ minimum: 0 }),
-  costUsd: Type.Number({ minimum: 0 }),
-  wallTimeMs: Type.Integer({ minimum: 1 }),
-  steps: Type.Integer({ minimum: 1 }),
-  descendants: Type.Integer({ minimum: 0 })
-});
-var DelegationTargetConfigSchema = Type.Object({
-  preapproved: Type.Optional(Type.Boolean({ description: "assisted \u6A21\u5F0F\u662F\u5426\u53EF\u81EA\u52A8\u6279\u51C6\u8BE5\u56FA\u5B9A Delegation Target" })),
-  budget: DelegationBudgetSchema
-});
-var DelegationHierarchyLimitsSchema = Type.Object({
-  maxDepth: Type.Optional(Type.Integer({ minimum: 0, maximum: 3 })),
-  maxActiveChildren: Type.Optional(Type.Integer({ minimum: 0, maximum: 4 })),
-  maxDescendants: Type.Optional(Type.Integer({ minimum: 0, maximum: 32 }))
-});
-var AgentDelegationConfigSchema = Type.Object({
-  budget: DelegationBudgetSchema,
-  limits: Type.Optional(DelegationHierarchyLimitsSchema),
-  targets: Type.Record(Type.String({ minLength: 1 }), DelegationTargetConfigSchema)
-});
-var AgentConfigSchema = Type.Object({
-  model: Type.Optional(Type.String({ description: "\u6A21\u578B\u540D\uFF0C\u7F3A\u7701\u7EE7\u627F provider.model" })),
-  systemPrompt: Type.Optional(Type.String({ default: "\u4F60\u662F\u4E00\u4E2A\u4E50\u4E8E\u52A9\u4EBA\u7684\u52A9\u624B\u3002", description: "\u7CFB\u7EDF\u63D0\u793A\u8BCD" })),
-  tools: Type.Optional(Type.Array(ToolConfigSchema, {
-    default: [],
-    description: "\u8BE5 agent \u53EF\u7528\u7684\u5DE5\u5177\uFF08\u7F3A\u7701\u7EE7\u627F\u5168\u5C40 tools\uFF09"
-  })),
-  options: Type.Optional(ModelOptionsSchema),
-  description: Type.Optional(Type.String({ description: "\u7ED9\u5176\u4ED6 agent \u770B\u7684\u2018\u540D\u7247\u2019\u63CF\u8FF0" })),
-  skills: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
-    description: "\u6CE8\u5165\u7684\u4E13\u4E1A\u6280\u80FD id\uFF08\u5982 code-review / weekly-report / translation\uFF09\uFF0C\u5185\u5BB9\u9644\u52A0\u5230\u7CFB\u7EDF\u63D0\u793A\u8BCD"
-  })),
-  mcpResources: Type.Optional(Type.Record(Type.String({ minLength: 1 }), Type.Array(Type.String({
-    minLength: 1,
-    pattern: "^[A-Za-z][A-Za-z0-9+.-]*:[^\\u0000-\\u0020\\u007f]*(?![\\s\\S])"
-  }), { uniqueItems: true }), { description: "\u6309\u670D\u52A1\u663E\u5F0F\u9009\u62E9\u5B8C\u6574\u8D44\u6E90 URI\uFF1B\u7F3A\u7701\u4E0E\u7A7A\u96C6\u5408\u90FD\u4E0D\u6388\u6743\uFF0C\u4E5F\u4E0D\u7EE7\u627F" })),
-  delegation: Type.Optional(AgentDelegationConfigSchema)
-});
-var SessionConfigSchema = Type.Object({
-  enabled: Type.Boolean({ default: false, description: "\u662F\u5426\u6301\u4E45\u5316\u4F1A\u8BDD\u5230\u672C\u5730 JSONL" }),
-  dir: Type.Optional(Type.String({ description: "\u4F1A\u8BDD\u5B58\u50A8\u76EE\u5F55\uFF0C\u7F3A\u7701\u4E3A ./sessions" })),
-  compact: Type.Optional(Type.Boolean({
-    default: false,
-    description: "\u4E0A\u4E0B\u6587\u8D85\u9884\u7B97\u65F6\u81EA\u52A8\u538B\u7F29\uFF08LLM \u6458\u8981\uFF0C\u6D88\u8017 token\uFF1B\u663E\u5F0F\u5F00\u542F\uFF09"
-  }))
-});
-
-// packages/coremind-config/dist/schema/harness.js
-var RuntimeLimitsSchema = Type.Object({
-  maxTurns: Type.Optional(Type.Integer({ minimum: 1, default: 20 })),
-  maxSteps: Type.Optional(Type.Integer({ minimum: 1, default: 100 })),
-  stepTimeoutMs: Type.Optional(Type.Integer({ minimum: 0, default: 3e5 })),
-  runTimeoutMs: Type.Optional(Type.Integer({ minimum: 0, default: 9e5 })),
-  maxToolCalls: Type.Optional(Type.Integer({ minimum: 0, default: 50 })),
-  maxToolFailures: Type.Optional(Type.Integer({ minimum: 0, default: 3 })),
-  maxRetries: Type.Optional(Type.Integer({ minimum: 0, default: 3 })),
-  maxTokens: Type.Optional(Type.Integer({ minimum: 1 })),
-  maxCostUsd: Type.Optional(Type.Number({ minimum: 0 }))
-});
-var PermissionsConfigSchema = Type.Object({
-  mode: Type.Optional(Type.Union([Type.Literal("ask"), Type.Literal("assisted"), Type.Literal("full")], {
-    default: "ask"
-  })),
-  workspaceOnly: Type.Optional(Type.Boolean({ default: true })),
-  network: Type.Optional(Type.Union([Type.Literal("ask"), Type.Literal("allow"), Type.Literal("deny")], {
-    default: "ask"
-  })),
-  allow: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { default: [] })),
-  deny: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { default: [] }))
-});
-var QualityConfigSchema = Type.Object({
-  profile: Type.Optional(Type.Union([Type.Literal("development"), Type.Literal("standard"), Type.Literal("strict")], {
-    default: "standard"
-  })),
-  allowOverride: Type.Optional(Type.Boolean({ default: true })),
-  minScenarioPassRate: Type.Optional(Type.Number({ minimum: 0, maximum: 1 }))
-});
-
-// packages/coremind-config/dist/schema/loop.js
-var LoopActionSchema = Type.Object({
-  agent: Type.String({ minLength: 1, description: "\u5F15\u7528 agents \u4E0B\u5B9A\u4E49\u7684 Agent \u540D\u79F0" }),
-  input: Type.String({ minLength: 1, description: "\u652F\u6301 Loop \u53D8\u91CF\u63D2\u503C\u7684\u8F93\u5165\u6A21\u677F" })
-});
-var AgentVerificationSchema = Type.Object({
-  mode: Type.Optional(Type.Literal("agent")),
-  agent: Type.String({ minLength: 1 }),
-  input: Type.String({ minLength: 1 }),
-  passIf: Type.String({
-    minLength: 1,
-    description: "\u9A8C\u8BC1\u6587\u672C\u6761\u4EF6\uFF1B{{text}} \u6307\u9A8C\u8BC1 Agent \u7684\u8F93\u51FA"
-  }),
-  evidence: Type.Optional(Type.Object({
-    mode: Type.Literal("runtime"),
-    regressionCommand: Type.String({ minLength: 1 }),
-    minSuccessfulTestCommands: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 2 })),
-    requireCheckpoint: Type.Optional(Type.Boolean({ default: true })),
-    requireDiffReview: Type.Optional(Type.Boolean({ default: true }))
-  }, {
-    description: "\u7531 Runtime \u5DE5\u5177\u7ED3\u679C\u3001Checkpoint \u4E0E Diff \u5143\u6570\u636E\u51B3\u5B9A\u9A8C\u8BC1\uFF0C\u4E0D\u63A5\u53D7\u6A21\u578B\u53E3\u5934\u58F0\u660E\u4EE3\u66FF\u8BC1\u636E"
-  }))
-});
-var LoopVerificationSchema = Type.Union([
-  AgentVerificationSchema,
-  Type.Object({
-    mode: Type.Literal("host"),
-    timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 36e5, default: 6e4 }))
-  }, { additionalProperties: false })
-]);
-var LoopConfigSchema = Type.Object({
-  planning: Type.Optional(LoopActionSchema),
-  execute: LoopActionSchema,
-  verify: LoopVerificationSchema,
-  repair: LoopActionSchema,
-  maxIterations: Type.Optional(Type.Integer({ minimum: 1, maximum: 100, default: 3, description: "\u6700\u591A\u9A8C\u8BC1\u8F6E\u6570" })),
-  maxRepairs: Type.Optional(Type.Integer({ minimum: 0, maximum: 99, default: 2, description: "\u6700\u591A\u4FEE\u590D\u6B21\u6570" })),
-  maxRepeatedAction: Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 2, description: "\u76F8\u540C\u8FDB\u5C55\u6307\u7EB9\u4E0A\u9650" })),
-  onFailure: Type.Optional(Type.Union([Type.Literal("repair"), Type.Literal("pause"), Type.Literal("fail")], {
-    default: "repair"
-  })),
-  onExhausted: Type.Optional(Type.Union([Type.Literal("pause"), Type.Literal("fail")], { default: "fail" }))
-});
-
-// packages/coremind-config/dist/schema/mcp.js
-var NonEmptyProcessStringSchema = Type.String({ minLength: 1, pattern: "^[^\\u0000]+$" });
-var McpStdioServerConfigSchema = Type.Object({
-  transport: Type.Literal("stdio"),
-  command: NonEmptyProcessStringSchema,
-  args: Type.Array(Type.String({ pattern: "^[^\\u0000]*$" })),
-  cwd: NonEmptyProcessStringSchema,
-  env: Type.Optional(Type.Record(Type.String({ pattern: "^[^=\\u0000]+$" }), Type.Union([EnvironmentValueRefSchema, SecretRefSchema]), { additionalProperties: false })),
-  protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
-}, { additionalProperties: false });
-var McpOAuthConfigSchema = Type.Object({
-  issuer: Type.String({ minLength: 1, maxLength: 2048 }),
-  clientId: Type.String({
-    minLength: 1,
-    maxLength: 1024,
-    pattern: "^[^\\u0000-\\u0020\\u007f]+$"
-  }),
-  scopes: Type.Array(Type.String({ minLength: 1, maxLength: 256, pattern: "^[\\x21\\x23-\\x5b\\x5d-\\x7e]+$" }), { uniqueItems: true, maxItems: 32 }),
-  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true }))
-}, { additionalProperties: false });
-var McpHttpServerConfigSchema = Type.Object({
-  transport: Type.Literal("streamable-http"),
-  url: Type.String({ minLength: 1 }),
-  headers: Type.Optional(Type.Record(Type.String(), HeaderValueSchema)),
-  oauth: Type.Optional(McpOAuthConfigSchema),
-  allowedAddresses: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1, uniqueItems: true })),
-  protocolVersion: Type.Optional(Type.Union([Type.Literal("legacy"), Type.Literal("2026-07-28")], { default: "legacy" }))
-}, { additionalProperties: false });
-var McpConfigSchema = Type.Object({
-  servers: Type.Record(Type.String({ pattern: "^.+$" }), Type.Union([McpStdioServerConfigSchema, McpHttpServerConfigSchema]), { additionalProperties: false })
-}, { additionalProperties: false });
-
-// packages/coremind-config/dist/schema/telemetry.js
-var TelemetryModeSchema = Type.Union([Type.Literal("DISABLED"), Type.Literal("FEEDBACK_ONLY"), Type.Literal("FULL")], { default: "DISABLED" });
-var TelemetryContentLevelSchema = Type.Union([Type.Literal("metrics_only"), Type.Literal("content")], { default: "metrics_only" });
-var TelemetryConfigSchema = Type.Object({
-  mode: Type.Optional(TelemetryModeSchema),
-  endpoint: Type.Optional(Type.String({
-    minLength: 1,
-    pattern: "^https?://",
-    description: "\u663E\u5F0F\u6388\u6743\u7684 Telemetry \u76EE\u6807\uFF1B\u663E\u793A\u65F6\u53EA\u4FDD\u7559 origin"
-  })),
-  contentLevel: Type.Optional(TelemetryContentLevelSchema),
-  allowedFields: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
-    default: [],
-    uniqueItems: true,
-    description: "content \u4E8C\u6B21\u6388\u6743\u5141\u8BB8\u7684\u7CBE\u786E\u5B57\u6BB5\u8DEF\u5F84"
-  }))
-});
-
-// packages/coremind-config/dist/schema/workflow.js
-var RetrySchema = Type.Object({
-  max: Type.Optional(Type.Integer({ minimum: 0, default: 1, description: "\u6700\u5927\u91CD\u8BD5\u6B21\u6570\uFF08\u9ED8\u8BA4 1\uFF09" })),
-  if: Type.Optional(Type.String({ description: "\u91CD\u8BD5\u6761\u4EF6\uFF08\u771F\u503C = \u9700\u8981\u91CD\u8BD5\uFF09\uFF0C\u53EF\u7528 {{text}} \u5F15\u7528\u672C\u6B65\u9AA4\u8F93\u51FA" }))
-});
-var WorkflowStepSchema = Type.Recursive((Self) => Type.Union([
-  Type.Object({
-    id: Type.String({ minLength: 1 }),
-    type: Type.Literal("prompt"),
-    agent: Type.String({ minLength: 1, description: "\u5F15\u7528 agents \u4E0B\u5B9A\u4E49\u7684 agent \u540D\u5B57" }),
-    input: Type.String({ description: "\u4EFB\u52A1\u8F93\u5165\uFF0C\u652F\u6301 {{\u53D8\u91CF}} \u63D2\u503C" }),
-    saveAs: Type.Optional(Type.String({ description: "\u6B65\u9AA4\u8F93\u51FA\u4FDD\u5B58\u5230 outputs \u7684\u952E\u540D" })),
-    retry: Type.Optional(RetrySchema)
-  }),
-  Type.Object({
-    id: Type.String({ minLength: 1 }),
-    type: Type.Literal("call"),
-    agent: Type.String({ minLength: 1 }),
-    input: Type.String({ description: "\u59D4\u6258\u8F93\u5165\uFF0C\u652F\u6301 {{\u53D8\u91CF}} \u63D2\u503C" }),
-    saveAs: Type.Optional(Type.String()),
-    retry: Type.Optional(RetrySchema)
-  }),
-  Type.Object({
-    id: Type.String({ minLength: 1 }),
-    type: Type.Literal("parallel"),
-    steps: Type.Array(Self),
-    saveAs: Type.Optional(Type.String({ description: "\u5404\u5B50\u6B65\u9AA4\u8F93\u51FA\u7684\u805A\u5408\u6587\u672C" }))
-  }),
-  Type.Object({
-    id: Type.String({ minLength: 1 }),
-    type: Type.Literal("if"),
-    condition: Type.String({ description: "\u6761\u4EF6\u8868\u8FBE\u5F0F\uFF0C\u5982 {{changes.text}} contains \u65E0" }),
-    then: Type.Array(Self),
-    else: Type.Optional(Type.Array(Self))
-  }),
-  Type.Object({
-    id: Type.String({ minLength: 1 }),
-    type: Type.Literal("switch"),
-    on: Type.String({ description: "\u8981\u5224\u5B9A\u7684\u53D8\u91CF\u540D\uFF0C\u5982 changes.text" }),
-    cases: Type.Record(Type.String(), Type.Array(Self), { description: "\u547D\u4E2D\u503C \u2192 \u6B65\u9AA4\u6570\u7EC4" }),
-    default: Type.Optional(Type.Array(Self))
-  })
-]));
-
-// packages/coremind-config/dist/schema/config.js
-var CoreMindConfigSchema = Type.Object({
-  schemaVersion: Type.Union([Type.Literal(2), Type.Literal(3)], {
-    description: "CoreMind \u914D\u7F6E\u683C\u5F0F\u7248\u672C\uFF1B\u6309\u9700\u66DD\u5149\u5DE5\u5177\u987B\u663E\u5F0F\u4F7F\u7528 3"
-  }),
-  name: Type.String({ minLength: 1, description: "\u667A\u80FD\u4F53\u540D\u79F0\uFF08\u5FC5\u586B\uFF09" }),
-  description: Type.Optional(Type.String()),
-  provider: Type.Optional(ProviderSchema),
-  tools: Type.Optional(Type.Array(ToolConfigSchema, { default: [], description: "\u5168\u5C40\u9ED8\u8BA4\u5DE5\u5177" })),
-  mcp: Type.Optional(McpConfigSchema),
-  options: Type.Optional(ModelOptionsSchema),
-  agents: Type.Record(Type.String({ minLength: 1 }), AgentConfigSchema, {
-    description: "\u591A agent \u6309\u540D\u5B57\u5B9A\u4E49"
-  }),
-  defaultAgent: Type.Optional(Type.String({ description: "\u7F3A\u7701 agent \u540D\uFF0C\u7F3A\u7701\u4E3A\u7B2C\u4E00\u4E2A" })),
-  workflow: Type.Optional(Type.Array(WorkflowStepSchema)),
-  loop: Type.Optional(LoopConfigSchema),
-  session: Type.Optional(SessionConfigSchema),
-  runtime: Type.Optional(RuntimeLimitsSchema),
-  permissions: Type.Optional(PermissionsConfigSchema),
-  quality: Type.Optional(QualityConfigSchema),
-  telemetry: Type.Optional(TelemetryConfigSchema)
-});
-
-// packages/coremind-config/dist/validate.js
-import { isIP } from "node:net";
-import path from "node:path";
-var ConfigValidationError = class extends Error {
-  code = "invalid_config";
-  /** 校验错误明细列表 */
-  details;
-  constructor(message3, details) {
-    super(message3);
-    this.name = "ConfigValidationError";
-    this.details = details;
-  }
-};
-function validateConfig(data) {
-  if (data === null || typeof data !== "object" || Array.isArray(data)) {
-    throw new ConfigValidationError("\u914D\u7F6E\u5185\u5BB9\u5FC5\u987B\u662F\u5BF9\u8C61\uFF08YAML \u6620\u5C04\u6216 JSON \u5BF9\u8C61\uFF09", []);
-  }
-  const record2 = data;
-  if ("version" in record2 && !("schemaVersion" in record2)) {
-    const details = ["\u65E7\u5B57\u6BB5 version \u5DF2\u505C\u7528\uFF0C\u8BF7\u5220\u9664 version \u5E76\u6DFB\u52A0 schemaVersion: 2"];
-    throw new ConfigValidationError(`\u914D\u7F6E\u683C\u5F0F\u5DF2\u5347\u7EA7\uFF1A${details[0]}`, details);
-  }
-  validateRawToolDeclarations(record2);
-  validateCustomProviderFields(record2);
-  validateProviderHeaderReferences(record2);
-  if (!value_exports2.Check(CoreMindConfigSchema, data)) {
-    const details = [];
-    for (const error3 of value_exports2.Errors(CoreMindConfigSchema, data)) {
-      const path47 = error3.path === "" ? "\u6839\u914D\u7F6E" : error3.path.slice(1).replaceAll("/", ".");
-      details.push(`${path47}\uFF1A${error3.message}`);
-    }
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF0C\u5171 ${details.length} \u5904\u95EE\u9898\uFF1A
-  - ${details.join("\n  - ")}`, details);
-  }
-  validateMcpConfiguration(data);
-  const config2 = value_exports2.Parse(CoreMindConfigSchema, data);
-  for (const server of Object.values(config2.mcp?.servers ?? {})) {
-    server.protocolVersion ??= "legacy";
-  }
-  if (config2.workflow && config2.loop) {
-    const detail = "workflow \u4E0E loop \u53EA\u80FD\u9009\u62E9\u4E00\u79CD\uFF0C\u4E0D\u80FD\u540C\u65F6\u914D\u7F6E";
-    throw new ConfigValidationError(detail, [detail]);
-  }
-  validateWorkflowStepIds(config2.workflow ?? []);
-  validateLoopAgents(config2);
-  validateDelegationTargets(config2);
-  validateTelemetry(config2);
-  return config2;
-}
-function validateDelegationTargets(config2) {
-  const knownAgents = new Set(Object.keys(config2.agents));
-  const details = [];
-  for (const [parentName, agent] of Object.entries(config2.agents)) {
-    const delegation = agent.delegation;
-    if (!delegation)
-      continue;
-    const maxDescendants = delegation.limits?.maxDescendants ?? 32;
-    if (delegation.budget.descendants > maxDescendants) {
-      details.push(`agents.${parentName}.delegation.budget.descendants\uFF1A\u4E0D\u80FD\u8D85\u8FC7\u5C42\u7EA7\u4E0A\u9650 ${maxDescendants}`);
-    }
-    for (const [targetName, target] of Object.entries(delegation.targets)) {
-      const path47 = `agents.${parentName}.delegation.targets.${targetName}`;
-      if (targetName === parentName) {
-        details.push(`${path47}\uFF1A\u7236 Agent \u4E0D\u80FD\u59D4\u6D3E\u7ED9\u81EA\u8EAB`);
-      } else if (!knownAgents.has(targetName)) {
-        details.push(`${path47}\uFF1A\u5F15\u7528\u4E86\u672A\u5B9A\u4E49\u7684 Agent`);
-      }
-      for (const key of Object.keys(delegation.budget)) {
-        const reserved = key === "descendants" ? target.budget[key] + 1 : target.budget[key];
-        if (reserved > delegation.budget[key]) {
-          details.push(`${path47}.budget.${key}\uFF1A\u4E0D\u80FD\u8D85\u8FC7\u7236 Agent \u7684\u59D4\u6D3E\u9884\u7B97\u6C60`);
-        }
-      }
-    }
-  }
-  if (details.length > 0) {
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
-  }
-}
-function validateProviderHeaderReferences(record2) {
-  const provider = record2.provider;
-  if (provider === null || typeof provider !== "object" || Array.isArray(provider))
-    return;
-  const headers = provider.headers;
-  if (headers === null || typeof headers !== "object" || Array.isArray(headers))
-    return;
-  const details = [];
-  for (const [name, value] of Object.entries(headers)) {
-    if (typeof value === "string")
-      continue;
-    if (value === null || typeof value !== "object" || Array.isArray(value))
-      continue;
-    const reference = value;
-    const keys2 = Object.keys(reference);
-    const validEnv = keys2.length === 1 && typeof reference.env === "string" && reference.env.length > 0;
-    const validSecretRef = keys2.length === 1 && typeof reference.secretRef === "string" && reference.secretRef.length > 0;
-    if (!validEnv && !validSecretRef) {
-      details.push(`provider.headers.${name}\uFF1A\u5FC5\u987B\u662F\u975E\u7A7A env \u6216 secretRef \u5F15\u7528`);
-    }
-  }
-  if (details.length > 0) {
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
-  }
-}
-function validateCustomProviderFields(record2) {
-  const provider = record2.provider;
-  if (provider === null || typeof provider !== "object" || Array.isArray(provider) || !("baseUrl" in provider)) {
-    return;
-  }
-  const allowed = propertiesOf(CustomProviderSchema);
-  const details = Object.keys(provider).filter((key) => !allowed.has(key)).map((key) => `provider.${key}\uFF1A\u81EA\u5B9A\u4E49 Provider \u4E0D\u652F\u6301\u8BE5\u5B57\u6BB5`);
-  if (details.length > 0) {
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
-  }
-}
-function validateTelemetry(config2) {
-  const telemetry = config2.telemetry;
-  if (!telemetry || telemetry.mode === void 0 || telemetry.mode === "DISABLED")
-    return;
-  if (!telemetry.endpoint) {
-    const detail = `telemetry.endpoint\uFF1A${telemetry.mode} \u6A21\u5F0F\u5FC5\u987B\u663E\u5F0F\u914D\u7F6E HTTP(S) endpoint`;
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
-  }
-}
-function validateLoopAgents(config2) {
-  if (!config2.loop)
-    return;
-  const knownAgents = new Set(Object.keys(config2.agents));
-  const actions = [
-    ["planning", config2.loop.planning],
-    ["execute", config2.loop.execute],
-    ["verify", config2.loop.verify],
-    ["repair", config2.loop.repair]
-  ];
-  const details = actions.flatMap(([name, action]) => action && "agent" in action && !knownAgents.has(action.agent) ? [`loop.${name}.agent \u5F15\u7528\u4E86\u672A\u5B9A\u4E49\u7684 Agent\uFF1A${action.agent}`] : []);
-  if (details.length > 0) {
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
-  }
-}
-function configuredToolLists(record2) {
-  const locations = [
-    { prefix: "tools", tools: record2.tools }
-  ];
-  if (record2.agents !== null && typeof record2.agents === "object" && !Array.isArray(record2.agents)) {
-    for (const [name, agent] of Object.entries(record2.agents)) {
-      if (agent !== null && typeof agent === "object" && !Array.isArray(agent)) {
-        locations.push({
-          prefix: `agents.${name}.tools`,
-          tools: agent.tools
-        });
-      }
-    }
-  }
-  return locations;
-}
-function validateRawToolDeclarations(record2) {
-  for (const location of configuredToolLists(record2)) {
-    if (!Array.isArray(location.tools))
-      continue;
-    for (const [index3, tool] of location.tools.entries()) {
-      if (tool === null || typeof tool !== "object" || Array.isArray(tool))
-        continue;
-      if ("exposure" in tool) {
-        if (tool.exposure !== "direct" && tool.exposure !== "deferred") {
-          const detail = `${location.prefix}.${index3}.exposure\uFF1A\u5FC5\u987B\u662F direct \u6216 deferred`;
-          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
-        }
-        if (tool.exposure === "deferred" && record2.schemaVersion !== 3) {
-          const detail = `${location.prefix}.${index3}.exposure\uFF1Adeferred \u5FC5\u987B\u663E\u5F0F\u914D\u7F6E schemaVersion: 3`;
-          throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
-        }
-      }
-      if ("mcp" in tool && ("id" in tool || "path" in tool)) {
-        const detail = `${location.prefix}.${index3}\uFF1AMCP \u5F15\u7528\u4E0D\u80FD\u540C\u65F6\u5305\u542B id \u6216 path`;
-        throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
-      }
-      if ("path" in tool && !("effect" in tool)) {
-        const detail = `${location.prefix}.${index3}.effect\uFF1A\u81EA\u5B9A\u4E49\u5DE5\u5177\u5FC5\u987B\u58F0\u660E\u526F\u4F5C\u7528`;
-        throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${detail}`, [detail]);
-      }
-    }
-  }
-}
-function validateMcpConfiguration(config2) {
-  const servers = config2.mcp?.servers ?? {};
-  const details = [];
-  for (const [name, server] of Object.entries(servers)) {
-    const prefix = `mcp.servers.${name}`;
-    if (server.transport === "streamable-http") {
-      validateMcpHttpServer(server, prefix, details);
-      continue;
-    }
-    if (!path.isAbsolute(server.command))
-      details.push(`${prefix}.command\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
-    if (!path.isAbsolute(server.cwd))
-      details.push(`${prefix}.cwd\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A\u7EDD\u5BF9\u8DEF\u5F84`);
-    if (process.platform === "win32") {
-      const keys2 = /* @__PURE__ */ new Set();
-      for (const key of Object.keys(server.env ?? {})) {
-        const folded = key.toUpperCase();
-        if (keys2.has(folded))
-          details.push(`${prefix}.env\uFF1AWindows \u73AF\u5883\u952E\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
-        keys2.add(folded);
-      }
-    }
-  }
-  for (const [agentName, agent] of Object.entries(config2.agents)) {
-    for (const serverName of Object.keys(agent.mcpResources ?? {})) {
-      const prefix = `agents.${agentName}.mcpResources.${serverName}`;
-      const server = servers[serverName];
-      if (!Object.hasOwn(servers, serverName))
-        details.push(`${prefix}\uFF1A\u5F15\u7528\u4E86\u672A\u58F0\u660E\u7684 MCP \u670D\u52A1`);
-      else if (server?.transport !== "streamable-http")
-        details.push(`${prefix}\uFF1A\u8D44\u6E90\u9009\u62E9\u4EC5\u652F\u6301 streamable-http \u670D\u52A1`);
-    }
-  }
-  for (const location of configuredToolLists(config2)) {
-    if (!Array.isArray(location.tools))
-      continue;
-    const selected = /* @__PURE__ */ new Set();
-    for (const [index3, tool] of location.tools.entries()) {
-      if (tool === null || typeof tool !== "object" || !("mcp" in tool))
-        continue;
-      const ref = tool;
-      const prefix = `${location.prefix}.${index3}`;
-      if (!Object.hasOwn(servers, ref.mcp.server)) {
-        details.push(`${prefix}.mcp.server\uFF1A\u5F15\u7528\u4E86\u672A\u58F0\u660E\u7684 MCP \u670D\u52A1`);
-      }
-      const identity3 = JSON.stringify([ref.mcp.server, ref.mcp.tool]);
-      if (selected.has(identity3))
-        details.push(`${prefix}.mcp\uFF1A\u4E0D\u80FD\u91CD\u590D\u9009\u62E9\u540C\u4E00\u670D\u52A1\u5DE5\u5177`);
-      selected.add(identity3);
-      const boundary = toolEffectOperationsForCapability(ref.capability.effect)[0];
-      const mutable = ref.effect.operations.filter((operation) => operation !== "read");
-      const consistent = ref.capability.effect === "none" ? mutable.length === 0 : mutable.length === 1 && mutable[0] === boundary;
-      if (!consistent)
-        details.push(`${prefix}.effect\uFF1A\u526F\u4F5C\u7528\u5FC5\u987B\u4E0E capability.effect \u4E00\u81F4`);
-      if ((ref.capability.effect === "workspace" || ref.capability.effect === "unknown") && ref.capability.checkpoint === "none") {
-        details.push(`${prefix}.capability.checkpoint\uFF1Aworkspace/unknown \u4E0D\u80FD\u58F0\u660E none`);
-      }
-    }
-  }
-  if (details.length > 0) {
-    throw new ConfigValidationError(`\u914D\u7F6E\u6821\u9A8C\u5931\u8D25\uFF1A${details.join("\uFF1B")}`, details);
-  }
-}
-var MCP_RESERVED_HEADERS = /* @__PURE__ */ new Set([
-  "host",
-  "content-length",
-  "transfer-encoding",
-  "connection",
-  "keep-alive",
-  "te",
-  "trailer",
-  "proxy-connection",
-  "upgrade",
-  "proxy-authorization",
-  "mcp-session-id",
-  "dpop",
-  "mcp-protocol-version",
-  "mcp-method",
-  "mcp-name",
-  "last-event-id",
-  "accept",
-  "content-type"
-]);
-function validateMcpHttpTarget(server, prefix, details, urlField = "url") {
-  const addresses = /* @__PURE__ */ new Set();
-  for (const [index3, address] of (server.allowedAddresses ?? []).entries()) {
-    const normalized = normalizeMcpAddress(address);
-    if (normalized === void 0) {
-      details.push(`${prefix}.allowedAddresses.${index3}\uFF1A\u5FC5\u987B\u662F\u65E0\u533A\u57DF\u6807\u8BB0\u7684\u7CBE\u786E IP \u5B57\u9762\u91CF`);
-    } else {
-      if (addresses.has(normalized))
-        details.push(`${prefix}.allowedAddresses\uFF1A\u5730\u5740\u4E0D\u80FD\u91CD\u590D`);
-      addresses.add(normalized);
-    }
-  }
-  let url2;
-  try {
-    url2 = new URL(server.url);
-  } catch {
-    details.push(`${prefix}.${urlField}\uFF1A\u5FC5\u987B\u662F\u56FA\u5B9A HTTP(S) URL`);
-  }
-  if (url2) {
-    const authority = /^[^:]+:\/\/([^/?#]*)/u.exec(server.url)?.[1] ?? "";
-    if (!/^https?:\/\//iu.test(server.url) || [...server.url].some((character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127 || character === "\\") || url2.protocol !== "https:" && url2.protocol !== "http:" || url2.username !== "" || url2.password !== "" || authority.includes("@") || server.url.includes("?") || server.url.includes("#")) {
-      details.push(`${prefix}.${urlField}\uFF1A\u4EC5\u5141\u8BB8\u65E0\u51ED\u636E\u3001query\u3001fragment \u6216\u63A7\u5236\u5B57\u7B26\u7684\u56FA\u5B9A HTTP(S) URL`);
-    }
-    if (url2.protocol === "http:") {
-      const rawHost = /^[a-z][a-z0-9+.-]*:\/\/(\[[^\]]+\]|[^:/?#]+)(?::[0-9]+)?(?:\/|$)/iu.exec(server.url)?.[1];
-      const address = rawHost ? normalizeMcpAddress(rawHost.replace(/^\[|\]$/gu, "")) : void 0;
-      if (address === void 0 || address !== "::1" && !address.startsWith("127.") || !addresses.has(address)) {
-        details.push(`${prefix}.${urlField}\uFF1AHTTP \u4EC5\u652F\u6301\u663E\u5F0F allowedAddresses \u4E2D\u7684 loopback IP \u5B57\u9762\u76EE\u6807`);
-      }
-    }
-  }
-}
-function validateMcpHttpServer(server, prefix, details) {
-  validateMcpHttpTarget(server, prefix, details);
-  if (server.oauth) {
-    validateMcpHttpTarget({ url: server.oauth.issuer, allowedAddresses: server.oauth.allowedAddresses }, `${prefix}.oauth`, details, "issuer");
-    if (Object.keys(server.headers ?? {}).some((name) => name.toLowerCase() === "authorization"))
-      details.push(`${prefix}.oauth\uFF1A\u4E0D\u80FD\u540C\u65F6\u914D\u7F6E OAuth \u4E0E Authorization Header`);
-  }
-  const headerNames = /* @__PURE__ */ new Set();
-  for (const [name, value] of Object.entries(server.headers ?? {})) {
-    const folded = name.toLowerCase();
-    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) || name !== name.trim())
-      details.push(`${prefix}.headers\uFF1AHeader \u540D\u79F0\u5FC5\u987B\u662F\u5408\u6CD5 token`);
-    if (headerNames.has(folded))
-      details.push(`${prefix}.headers\uFF1AHeader \u540D\u4E0D\u80FD\u4EC5\u5927\u5C0F\u5199\u4E0D\u540C`);
-    headerNames.add(folded);
-    if (MCP_RESERVED_HEADERS.has(folded))
-      details.push(`${prefix}.headers\uFF1A\u4E0D\u80FD\u8986\u76D6\u4F20\u8F93\u4FDD\u7559 Header`);
-    if (typeof value === "string" && [...value].some((character) => character.charCodeAt(0) < 32 && character.charCodeAt(0) !== 9 || character.charCodeAt(0) === 127))
-      details.push(`${prefix}.headers\uFF1AHeader \u503C\u4E0D\u80FD\u5305\u542B\u63A7\u5236\u5B57\u7B26`);
-  }
-}
-function normalizeMcpAddress(address) {
-  const version2 = isIP(address);
-  if (version2 === 0 || address.includes("%"))
-    return void 0;
-  if (version2 === 4)
-    return address;
-  const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
-  const mapped = /^::ffff:([0-9a-f]+):([0-9a-f]+)$/u.exec(normalized);
-  if (!mapped)
-    return normalized;
-  const high = Number.parseInt(mapped[1], 16);
-  const low = Number.parseInt(mapped[2], 16);
-  return `${high >>> 8}.${high & 255}.${low >>> 8}.${low & 255}`;
-}
-function validateWorkflowStepIds(steps) {
-  const ids = /* @__PURE__ */ new Set();
-  const visit = (items) => {
-    for (const step of items) {
-      if (ids.has(step.id)) {
-        const detail = `workflow \u6B65\u9AA4 id \u91CD\u590D\uFF1A${step.id}`;
-        throw new ConfigValidationError(detail, [detail]);
-      }
-      ids.add(step.id);
-      if (step.type === "parallel")
-        visit(step.steps);
-      if (step.type === "if") {
-        visit(step.then);
-        visit(step.else ?? []);
-      }
-      if (step.type === "switch") {
-        for (const branch of Object.values(step.cases))
-          visit(branch);
-        visit(step.default ?? []);
-      }
-    }
-  };
-  visit(steps);
-}
-function findUnknownKeys(data) {
-  const warnings = [];
-  if (data === null || typeof data !== "object")
-    return warnings;
-  const top = data;
-  const topProps = propertiesOf(CoreMindConfigSchema);
-  for (const key of Object.keys(top)) {
-    if (!topProps.has(key))
-      warnings.push(`\u9876\u5C42\u5B58\u5728\u672A\u77E5\u5B57\u6BB5\uFF1A${key}\uFF08\u5DF2\u5FFD\u7565\uFF09`);
-  }
-  const agents = top.agents;
-  if (agents !== null && typeof agents === "object" && !Array.isArray(agents)) {
-    const agentSchema = CoreMindConfigSchema.properties.agents;
-    const patterns = agentSchema?.patternProperties;
-    const recordValue = patterns ? Object.values(patterns)[0] : void 0;
-    const agentProps = recordValue ? propertiesOf(recordValue) : /* @__PURE__ */ new Set();
-    for (const [name, agent] of Object.entries(agents)) {
-      if (agent === null || typeof agent !== "object")
-        continue;
-      for (const key of Object.keys(agent)) {
-        if (!agentProps.has(key))
-          warnings.push(`agents.${name} \u5B58\u5728\u672A\u77E5\u5B57\u6BB5\uFF1A${key}\uFF08\u5DF2\u5FFD\u7565\uFF09`);
-      }
-    }
-  }
-  return warnings;
-}
-function propertiesOf(schema) {
-  const props = schema.properties;
-  return new Set(props ? Object.keys(props) : []);
-}
-function parseAndValidate(data) {
-  const warnings = findUnknownKeys(data);
-  const config2 = validateConfig(data);
-  return { config: config2, warnings };
 }
 
 // packages/coremind-runtime/dist/redaction.js
@@ -255702,6 +255701,14 @@ function buildAgentDriver(agentCfg, ctx) {
   let driver;
   const agent = buildAgent(agentCfg, {
     ...ctx,
+    onEvent: (event) => {
+      try {
+        ctx.onEvent(event);
+      } catch (error3) {
+        requestFailure ??= error3;
+        throw error3;
+      }
+    },
     harness: {
       ...ctx.harness,
       onObservation: (observation) => {
@@ -266799,6 +266806,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
           enriched = { ...enriched, turnId: call.turnId };
       }
       if (enriched.type === "tool_call" && enriched.callId && enriched.turnId) {
+        const callKey = toolCapabilityCallKey(enriched.agent, enriched.stepId, enriched.callId);
+        if (effectBindingByCall.has(callKey) || resumePlan?.previousTrace.some(({ event: previous }) => previous.type === "tool_call" && previous.callId !== void 0 && toolCapabilityCallKey(previous.agent, previous.stepId, previous.callId) === callKey)) {
+          lifecycleFailure = journal.isAborted() ? new CoreMindError("aborted", "\u8FD0\u884C\u5DF2\u4E2D\u6B62\uFF0C\u62D2\u7EDD\u91CD\u590D\u5DE5\u5177\u8C03\u7528") : new CoreMindError("effect_receipt_conflict", "\u5DE5\u5177 Call \u8EAB\u4EFD\u91CD\u590D\uFF0C\u5DF2\u62D2\u7EDD\u540E\u7EED\u8C03\u7528");
+          throw lifecycleFailure;
+        }
         context.recordToolCall({
           agent: enriched.agent,
           callId: enriched.callId,
@@ -269160,7 +269172,202 @@ async function createMcpAuthentication(options) {
   });
 }
 
+// packages/coremind-runtime/dist/bounded-output.js
+import { setImmediate as setImmediate3 } from "node:timers/promises";
+var MAX_PENDING_MESSAGES = 1024;
+var DEFAULT_MAX_PENDING_BYTES = 64 * 1024 * 1024;
+var FLUSH_TIMEOUT_MS = 1e4;
+function createBoundedOutput(output, options) {
+  const maxBytes = options.maxPendingBytes ?? DEFAULT_MAX_PENDING_BYTES;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new Error("\u8F93\u51FA\u5B57\u8282\u9884\u7B97\u5FC5\u987B\u662F\u6B63\u5B89\u5168\u6574\u6570");
+  }
+  const queue = [];
+  let pendingBytes = 0;
+  let inFlight;
+  let physicalWrite;
+  let streamClosed = false;
+  let guardSettling;
+  let failure3;
+  let closed = false;
+  let closing;
+  let pumping = false;
+  let flushing;
+  const detachErrorGuard = () => {
+    output.removeListener("error", onError);
+    output.removeListener("close", onClose);
+  };
+  const settleErrorGuard = () => {
+    if (physicalWrite && !streamClosed)
+      return Promise.resolve();
+    if (streamClosed) {
+      detachErrorGuard();
+      return Promise.resolve();
+    }
+    guardSettling ??= (async () => {
+      if (failure3)
+        await setImmediate3();
+      if (!physicalWrite)
+        detachErrorGuard();
+    })();
+    return guardSettling;
+  };
+  const finishFlush = (error3) => {
+    if (!flushing)
+      return;
+    const current = flushing;
+    flushing = void 0;
+    clearTimeout(current.timer);
+    if (error3)
+      current.reject(error3);
+    else
+      current.resolve();
+  };
+  const fail2 = (message3) => {
+    if (failure3)
+      return;
+    failure3 = new CoreMindError("output_delivery_failed", message3);
+    queue.length = 0;
+    inFlight = void 0;
+    pendingBytes = 0;
+    finishFlush(failure3);
+    options.onFailure(failure3);
+  };
+  const complete = (current) => {
+    if (closed || failure3 || inFlight !== current || !current.returned || !current.callbackDone)
+      return;
+    if (current.needsDrain && !current.drained)
+      return;
+    inFlight = void 0;
+    pendingBytes -= current.bytes;
+    pump2();
+  };
+  const pump2 = () => {
+    if (closed || failure3 || pumping)
+      return;
+    pumping = true;
+    try {
+      while (!inFlight && queue.length > 0 && !closed && !failure3) {
+        const item = queue.shift();
+        const current = {
+          bytes: item.bytes,
+          returned: false,
+          callbackDone: false,
+          needsDrain: false,
+          drained: false
+        };
+        inFlight = current;
+        physicalWrite = current;
+        try {
+          const accepted = output.write(item.text, (error3) => {
+            if (physicalWrite === current)
+              physicalWrite = void 0;
+            if (closed)
+              void settleErrorGuard();
+            if (closed || failure3 || inFlight !== current)
+              return;
+            if (error3) {
+              fail2("\u8F93\u51FA\u5199\u5165\u5931\u8D25");
+              return;
+            }
+            current.callbackDone = true;
+            complete(current);
+          });
+          current.needsDrain = !accepted;
+          current.returned = true;
+          complete(current);
+        } catch {
+          fail2("\u8F93\u51FA\u5199\u5165\u5931\u8D25");
+        }
+      }
+    } finally {
+      pumping = false;
+    }
+    if (!failure3 && pendingBytes === 0)
+      finishFlush();
+  };
+  const onDrain = () => {
+    if (!inFlight || closed || failure3)
+      return;
+    inFlight.drained = true;
+    complete(inFlight);
+  };
+  const onError = () => {
+    fail2("\u8F93\u51FA\u6D41\u53D1\u751F\u9519\u8BEF");
+  };
+  const onClose = () => {
+    streamClosed = true;
+    physicalWrite = void 0;
+    fail2("\u8F93\u51FA\u6D41\u5DF2\u5173\u95ED");
+    if (closed)
+      detachErrorGuard();
+  };
+  output.on("drain", onDrain);
+  output.on("error", onError);
+  output.on("close", onClose);
+  return {
+    get failure() {
+      return failure3;
+    },
+    write(text2, droppable = false) {
+      if (closed || failure3)
+        return false;
+      if (text2.length === 0)
+        return true;
+      const bytes = Buffer.byteLength(text2, "utf8");
+      if (bytes > maxBytes) {
+        fail2("\u5355\u6761\u8F93\u51FA\u8D85\u8FC7\u4F20\u8F93\u5B57\u8282\u9884\u7B97");
+        return false;
+      }
+      if (pendingBytes + bytes > maxBytes || queue.length + (inFlight ? 1 : 0) >= MAX_PENDING_MESSAGES) {
+        if (!droppable)
+          fail2("\u5F85\u4EA4\u4ED8\u8F93\u51FA\u8D85\u8FC7\u4F20\u8F93\u9884\u7B97");
+        return false;
+      }
+      pendingBytes += bytes;
+      queue.push({ text: text2, bytes });
+      pump2();
+      return failure3 === void 0 && !closed;
+    },
+    flush() {
+      if (failure3)
+        return Promise.reject(failure3);
+      if (closed)
+        return Promise.reject(new CoreMindError("output_delivery_failed", "\u8F93\u51FA\u4EA4\u4ED8\u5668\u5DF2\u5173\u95ED"));
+      if (pendingBytes === 0)
+        return Promise.resolve();
+      if (flushing)
+        return flushing.promise;
+      let resolve9;
+      let reject;
+      const promise = new Promise((yes, no) => {
+        resolve9 = yes;
+        reject = no;
+      });
+      const timer = setTimeout(() => fail2("\u8F93\u51FA\u4EA4\u4ED8\u7B49\u5F85\u8D85\u65F6"), FLUSH_TIMEOUT_MS);
+      flushing = { promise, resolve: resolve9, reject, timer };
+      return promise;
+    },
+    fail() {
+      if (!closed)
+        fail2("\u8F93\u51FA\u5185\u5BB9\u65E0\u6CD5\u4EA4\u4ED8");
+    },
+    close() {
+      if (closing)
+        return closing;
+      closed = true;
+      if (pendingBytes > 0)
+        fail2("\u8F93\u51FA\u4EA4\u4ED8\u5668\u5173\u95ED\u65F6\u4ECD\u6709\u672A\u4EA4\u4ED8\u5185\u5BB9");
+      output.removeListener("drain", onDrain);
+      closing = settleErrorGuard();
+      return closing;
+    }
+  };
+}
+
 // packages/coremind-worker/src/server.ts
+import { createHash as createHash27 } from "node:crypto";
+import path46 from "node:path";
 var PROTOCOL_V2_SERVER_CAPABILITIES = [
   "runHandle",
   "resumeOperations",
@@ -270852,58 +271059,102 @@ function checkpointRestoreAttempt(records, runId, operationId) {
 
 // packages/coremind-worker/src/stdio.ts
 function createStdioSender(output, options = {}) {
-  const maxQueuedMessages = options.maxQueuedMessages ?? 1024;
-  if (!Number.isInteger(maxQueuedMessages) || maxQueuedMessages < 1) {
-    throw new Error("maxQueuedMessages \u5FC5\u987B\u662F\u6B63\u6574\u6570");
-  }
-  const queue = [];
-  let blocked = false;
   let closed = false;
-  const flush = () => {
-    if (closed) return;
-    blocked = false;
-    while (queue.length > 0 && !blocked) {
-      const next = queue.shift();
+  const writer = createBoundedOutput(output, {
+    maxPendingBytes: options.maxPendingBytes,
+    onFailure: options.onFailure ?? (() => {
+    })
+  });
+  return {
+    get failure() {
+      return writer.failure;
+    },
+    flush: () => writer.flush(),
+    close: () => {
+      closed = true;
+      return writer.close();
+    },
+    fail: () => writer.fail(),
+    send(message3) {
+      if (closed || writer.failure) return;
       try {
-        blocked = !output.write(next.line);
+        writer.write(`${JSON.stringify(message3)}
+`, isLiveEvent(message3));
       } catch {
-        closed = true;
-        queue.length = 0;
-        return;
+        writer.fail();
       }
-      if (blocked) output.once("drain", flush);
     }
-  };
-  return (message3) => {
-    if (closed) return;
-    const item = {
-      line: `${JSON.stringify(message3)}
-`,
-      droppable: isLiveEvent(message3)
-    };
-    if (!blocked && queue.length === 0) {
-      queue.push(item);
-      flush();
-      return;
-    }
-    if (item.droppable && queue.length >= maxQueuedMessages) return;
-    queue.push(item);
   };
 }
 function isLiveEvent(message3) {
-  return message3 !== null && typeof message3 === "object" && message3.method === "event";
+  const notification = message3;
+  return message3 !== null && typeof message3 === "object" && notification?.method === "event" && notification.params?.event?.type !== "approval_required";
 }
 function runStdioWorker(input = process.stdin, output = process.stdout) {
-  const send = createStdioSender(output);
-  const server = new ProtocolHost({ send });
+  let resolve9;
+  let reject;
+  const completion = new Promise((yes, no) => {
+    resolve9 = yes;
+    reject = no;
+  });
+  let finishing = false;
+  const pending = /* @__PURE__ */ new Set();
+  const sender = createStdioSender(output, { onFailure: () => queueMicrotask(finish) });
+  const server = new ProtocolHost({ send: (message3) => sender.send(message3) });
   const lines = createInterface4({ input, crlfDelay: Number.POSITIVE_INFINITY });
-  lines.on("line", (line) => {
-    if (line.trim().length === 0) return;
+  function finish() {
+    if (finishing) return;
+    finishing = true;
+    lines.removeListener("line", onLine);
+    lines.close();
+    const finished8 = (async () => {
+      let deadlineFailure;
+      try {
+        const shutdown = await server.shutdown().then(
+          (result) => ({ result }),
+          (error3) => ({ error: error3 })
+        );
+        let timer;
+        try {
+          await Promise.race([
+            (async () => {
+              await Promise.all(pending);
+              if (sender.failure) throw sender.failure;
+              if ("error" in shutdown) throw shutdown.error;
+              if (!shutdown.result.quiescent) {
+                throw new CoreMindError("worker_closed", "Worker \u6536\u5C3E\u672A\u8FBE\u5230\u9759\u6B62");
+              }
+              await sender.flush();
+            })(),
+            new Promise((_resolve, rejectPending) => {
+              timer = setTimeout(() => {
+                deadlineFailure = new CoreMindError(
+                  "output_delivery_failed",
+                  pending.size > 0 ? "\u8F93\u51FA\u4EA4\u4ED8\u7B49\u5F85\u8D85\u65F6\uFF1B\u5DF2\u63A5\u6536\u64CD\u4F5C\u672A\u5168\u90E8\u6536\u5C3E\uFF0C\u9700\u5BBF\u4E3B\u5904\u7F6E" : "\u8F93\u51FA\u4EA4\u4ED8\u7B49\u5F85\u8D85\u65F6"
+                );
+                sender.fail();
+                rejectPending(deadlineFailure);
+              }, 1e4);
+            })
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      } catch (error3) {
+        throw deadlineFailure ?? sender.failure ?? error3;
+      } finally {
+        await sender.close();
+      }
+    })();
+    void finished8.then(resolve9, reject);
+  }
+  function onLine(line) {
+    if (finishing || sender.failure || line.trim().length === 0) return;
     let value;
     try {
       value = JSON.parse(line);
     } catch (error3) {
-      send(
+      sender.send(
         createErrorResponse(
           "invalid",
           -32700,
@@ -270913,19 +271164,25 @@ function runStdioWorker(input = process.stdin, output = process.stdout) {
       );
       return;
     }
-    server.accept(value);
-  });
-  return new Promise((resolve9, reject) => {
-    lines.once("close", () => {
-      void server.shutdown().then(
-        () => resolve9(),
-        (error3) => reject(error3)
-      );
-    });
-  });
+    const operation = server.handle(value).then(
+      (response) => sender.send(response),
+      () => sender.fail()
+    ).finally(() => pending.delete(operation));
+    pending.add(operation);
+  }
+  lines.on("line", onLine);
+  lines.once("close", finish);
+  return completion;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL5(process.argv[1]).href) {
-  await runStdioWorker();
+  try {
+    await runStdioWorker();
+  } catch (error3) {
+    console.error(
+      error3 instanceof CoreMindError ? `${error3.code}: ${error3.message}` : "worker_closed: Worker stdio \u6536\u5C3E\u5931\u8D25"
+    );
+    process.exitCode = 1;
+  }
 }
 export {
   createStdioSender,
