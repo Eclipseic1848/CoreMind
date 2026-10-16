@@ -60,6 +60,7 @@ if (
     "owner_listen_ready",
     "service_listen_ready",
     "helper_spawned",
+    "helper_spawn_event",
     "owner_socket_connected",
     "owner_job_ready",
     "service_socket_connected",
@@ -111,6 +112,14 @@ if (
     if (scope.entries.length === 64) scope.entries.shift();
     scope.entries.push({ stage, elapsedMs: Number((performance.now() - scope.began).toFixed(3)) });
     if (stage !== "test_signal_abort" && stage !== "after_each") scope.touched = true;
+  }
+  function observeParentTick(scope, count = true) {
+    const sample = scope.parentTicks;
+    if (!sample || sample.endedBy !== null) return;
+    const now = performance.now();
+    sample.maxGapMs = Math.max(sample.maxGapMs, now - sample.last);
+    sample.last = now;
+    if (count) sample.samples++;
   }
   function alive(pid) {
     if (!Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) return null;
@@ -176,6 +185,7 @@ if (
   }
   function emit(scope, reason) {
     if (!scope.touched || scope.outputs >= 3) return;
+    observeParentTick(scope, false);
     sampleFixture(scope, reason);
     const body = JSON.stringify({
       round,
@@ -184,6 +194,11 @@ if (
       state: scope.state,
       counters: scope.counters,
       entries: scope.entries,
+      parentTicks: scope.parentTicks && {
+        samples: scope.parentTicks.samples,
+        maxGapMs: Number(scope.parentTicks.maxGapMs.toFixed(3)),
+        endedBy: scope.parentTicks.endedBy,
+      },
       fixture: scope.fixture ?? { status: "not_identified" },
     });
     const line = body + "\n",
@@ -222,6 +237,19 @@ if (
     };
     scope.trace = (stage) => {
       mark(scope, stage);
+      if (stage === "helper_spawned" && !scope.parentTicks)
+        scope.parentTicks = { last: performance.now(), samples: 0, maxGapMs: 0, endedBy: null };
+      if (
+        stage === "native_ps_begin" ||
+        stage === "after_each" ||
+        stage === "test_signal_abort" ||
+        stage.endsWith("_timeout") ||
+        (stage.startsWith("transport_start_") && stage !== "transport_start_begin")
+      ) {
+        observeParentTick(scope, false);
+        if (scope.parentTicks && scope.parentTicks.endedBy === null)
+          scope.parentTicks.endedBy = stage;
+      }
       if (
         (stage.endsWith("_timeout") || stage === "test_signal_abort") &&
         !scope.deadlineSnapshot
@@ -361,6 +389,7 @@ if (
     }
     let watched = false;
     const peek = () => {
+      observeParentTick(scope);
       if (watched || !this.windowsJob) return;
       watched = true;
       count(scope, "windows_job");

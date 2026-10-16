@@ -350,6 +350,8 @@ export async function launchWindowsMcpJob(
       ],
       helperOptions,
     );
+    if (startupTrace)
+      helper.nodeChildProcess.once("spawn", () => startupTrace("helper_spawn_event"));
     startupTrace?.("helper_spawned");
     if (startupTrace) helper.stderr.on("data", startupTrace.stderr);
     helperFinished = helper.then(
