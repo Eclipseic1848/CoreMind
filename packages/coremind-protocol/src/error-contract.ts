@@ -427,6 +427,7 @@ export const ERROR_CODES = defineErrorCodes({
   unknown_agent: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   unknown_provider: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   agent_failed: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
+  model_output_limit: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_agent: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_prompt: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },
   no_models: { terminality: "terminal", cancelClass: "other", retryClass: "fatal" },

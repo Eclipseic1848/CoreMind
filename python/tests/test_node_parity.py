@@ -31,6 +31,73 @@ class NodeRuntimeParityTest(unittest.TestCase):
         else:
             os.environ["COREMIND_TEST_API_KEY"] = cls.previous_test_api_key
 
+    def test_model_output_limit_matches_node_and_protocol_v2_without_completion(self) -> None:
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "测试需要 Node.js")
+        port = _free_port()
+        mock_server = subprocess.Popen(
+            [node, str(REPOSITORY_ROOT / "packages" / "coremind-cli" / "test" / "mock-openai-server.mjs"), str(port)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
+        )
+        try:
+            _wait_for_port(port)
+            base_url = f"http://127.0.0.1:{port}/v1"
+            config = {
+                "schemaVersion": 2,
+                "name": "单次模型输出上限跨语言验收",
+                "provider": {"id": "probe", "baseUrl": base_url, "model": "probe-model", "apiKeyEnv": "COREMIND_TEST_API_KEY"},
+                "agents": {"main": {"systemPrompt": "测试助手"}},
+                "runtime": {"maxRetries": 2},
+            }
+            with tempfile.TemporaryDirectory(prefix="coremind-python-output-limit-") as directory:
+                with CoreMindClient(config, config_dir=directory, cwd=directory, request_timeout=20) as client:
+                    result = client.run("__COREMIND_OUTPUT_LIMIT__")
+                completed = subprocess.run(
+                    [node, str(Path(__file__).with_name("ts_parity.mjs")), base_url, directory, "__COREMIND_OUTPUT_LIMIT__"],
+                    cwd=REPOSITORY_ROOT, check=True, capture_output=True, text=True, encoding="utf-8", timeout=20,
+                )
+                typescript_result = json.loads(completed.stdout)
+                self.assertEqual(result["outcome"], typescript_result["outcome"])
+                self.assertEqual(result["outcome"]["status"], "failed")
+                self.assertEqual(result["outcome"]["finishReason"], "model_output_limit")
+                self.assertEqual(result["outcome"]["error"]["code"], "model_output_limit")
+                for runtime_result in (result, typescript_result):
+                    self.assertEqual(runtime_result["transcript"], "保留的部分正文")
+                    self.assertEqual(runtime_result["snapshot"]["outcome"], runtime_result["outcome"])
+                    self.assertEqual(runtime_result["messages"]["main"][-1]["stopReason"], "length")
+                    self.assertNotIn("input_completed", [entry["event"]["type"] for entry in runtime_result["trace"]])
+                with CoreMindClient(config, protocol_version="2.0", config_dir=directory, cwd=directory, request_timeout=20) as client:
+                    handle = client.run("__COREMIND_OUTPUT_LIMIT__", run_id="python-output-limit-v2")
+                    cursor = 0
+                    events: list[dict[str, object]] = []
+                    deadline = time.monotonic() + 10
+                    while time.monotonic() < deadline:
+                        try:
+                            page = client.events(handle["runId"], after_sequence=cursor, limit=100)
+                        except ProtocolError:
+                            time.sleep(0.02)
+                            continue
+                        events.extend(page["events"])
+                        cursor = page["nextCursor"]
+                        if any(event["eventType"] == "fact.finish" for event in events):
+                            break
+                        time.sleep(0.02)
+                    self.assertTrue(any(event["eventType"] == "fact.finish" for event in events), "未收到终态事实")
+                    projection = client.query(handle["runId"])["projection"]
+                    self.assertEqual(projection["status"], "finished")
+                    self.assertEqual(projection["outcome"], result["outcome"])
+                    finish = next(event for event in events if event["eventType"] == "fact.finish")
+                    self.assertEqual(finish["payload"]["outcome"], result["outcome"])
+                    self.assertEqual("".join(event["payload"]["delta"] for event in events if event["eventType"] == "text_delta"), "保留的部分正文")
+                    self.assertFalse(any(event["eventType"] in ("retry", "input_completed") for event in events))
+        finally:
+            mock_server.terminate()
+            try:
+                mock_server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                mock_server.kill()
+                mock_server.wait(timeout=2)
+
     def test_bundled_worker_rejects_secret_ref_without_resolver_without_leakage(self) -> None:
         opaque_ref = "opaque/python/key/never-log"
         config = {

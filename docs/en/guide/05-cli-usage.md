@@ -50,6 +50,8 @@ Executes a single request and exits with a structured result. Use `--dry-run` to
 
 Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and the last record is always `run_result`; diagnostics go to stderr. `run_result.observability` is the same Fact Projection used by TypeScript, Python, and Worker consumers. Local Run, Context, Call, error, and delivery state remains available when Telemetry is `DISABLED`. `--print` stdout contains only the final body; notices, approvals, and diagnostics use stderr. `--print` and `--json-events` are mutually exclusive.
 
+When a model reaches its per-response output limit (`stopReason: length`), the Run returns `failed/model_output_limit` and exit code `1`. The result preserves the partial body and original message stop reason; `--print` still outputs that partial body. It must not be treated as a complete answer. Runtime does not automatically continue or retry it as a transient failure, and does not advance later Workflow steps or Loop verification. This differs from the cumulative Run budget error `budget_exceeded`.
+
 ## `chat`
 
 Starts the terminal interface with streaming output, approval requests, current Loop state, session controls, and trace visibility. Use `ask` mode while learning or reviewing a new repository.

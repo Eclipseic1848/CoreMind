@@ -24,7 +24,9 @@ const server = createServer((req, res) => {
     }
     // 从最后一条用户消息取前 30 字符作为回复内容
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const replyText = `mock回复：${extractUserText(lastUser?.content).slice(0, 30)}`;
+    const userText = extractUserText(lastUser?.content);
+    const limited = userText === "__COREMIND_OUTPUT_LIMIT__";
+    const replyText = limited ? "保留的部分正文" : `mock回复：${userText.slice(0, 30)}`;
 
     // 提取 user message 文本（content 可能是字符串或 [{type:"text",text}] 数组）
     function extractUserText(content) {
@@ -59,7 +61,7 @@ const server = createServer((req, res) => {
     const chunk3 = {
       id: "mock-3",
       object: "chat.completion.chunk",
-      choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+      choices: [{ index: 0, delta: {}, finish_reason: limited ? "length" : "stop" }],
     };
     res.write(`data: ${JSON.stringify(chunk3)}\n\n`);
     res.write("data: [DONE]\n\n");

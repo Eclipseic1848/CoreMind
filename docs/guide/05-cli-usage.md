@@ -84,6 +84,8 @@ coremind eval coremind.yaml --suite evals/scenarios.yaml --json
 
 `--print` 的 stdout 仅输出最终正文；提示、审批与诊断走 stderr。需要结构化事件流时使用 `--json-events`，两者不能同时使用。
 
+模型因单次输出上限结束（`stopReason: length`）时，Run 返回 `failed/model_output_limit`，退出码为 `1`。结果保留部分正文和消息中的原始停止原因，`--print` 仍输出已有部分正文；不能将其当作完整回答。Runtime 不自动续写或按瞬态错误重试，也不推进后续 Workflow 步骤或 Loop 验收。此错误与累计运行预算耗尽的 `budget_exceeded` 不同。
+
 ## 3. 在哪里运行：目录规则（新手最容易困惑的部分）
 
 全局安装后 `coremind` 命令**任何目录都能敲**，但"在哪敲"会影响它找到什么文件。下面把规则讲透。
