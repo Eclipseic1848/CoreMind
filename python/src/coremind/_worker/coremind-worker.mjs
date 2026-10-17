@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);
+import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url); if(process.env.COREMIND_STARTUP_DIAGNOSTICS === "1") { try { const s="CM_STARTUP_DIAG " + JSON.stringify({stage:"bundle-enter",pid:process.pid,epochMs:Date.now(),monoMs:Number(process.hrtime.bigint()/1000000n)}) + "\n"; if(Buffer.byteLength(s,"utf8")<=192) require("node:fs").writeSync(2,s,undefined,"utf8"); } catch {} }
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -269279,7 +269279,39 @@ function createBoundedOutput(output, options) {
 
 // packages/coremind-worker/src/server.ts
 import { createHash as createHash28 } from "node:crypto";
+import { writeSync } from "node:fs";
 import path47 from "node:path";
+var STARTUP_DIAGNOSTIC_STAGES = /* @__PURE__ */ new Set([
+  "server-module-ready",
+  "stdio-enter",
+  "stdio-ready",
+  "initialize-line",
+  "v2-parse-begin",
+  "v2-parse-end",
+  "initialize-enter",
+  "config-parsed",
+  "security-checked",
+  "provider-begin",
+  "provider-end",
+  "initialize-state-stored",
+  "v2-response-ready",
+  "initialize-response-created",
+  "initialize-response-enqueued"
+]);
+var startupDiagnosticCount = 0;
+function emitStartupDiagnostic(stage) {
+  if (process.env.COREMIND_STARTUP_DIAGNOSTICS !== "1" || !STARTUP_DIAGNOSTIC_STAGES.has(stage) || startupDiagnosticCount >= 16)
+    return;
+  try {
+    const line = `CM_STARTUP_DIAG ${JSON.stringify({ stage, pid: process.pid, epochMs: Date.now(), monoMs: Number(process.hrtime.bigint() / 1000000n) })}
+`;
+    if (Buffer.byteLength(line, "utf8") > 192) return;
+    startupDiagnosticCount++;
+    writeSync(2, line, void 0, "utf8");
+  } catch {
+  }
+}
+emitStartupDiagnostic("server-module-ready");
 var PROTOCOL_V2_SERVER_CAPABILITIES = [
   "runHandle",
   "resumeOperations",
@@ -269961,6 +269993,7 @@ var ProtocolHost = class {
     throw new CoreMindError("control_unavailable", `\u7B49\u5F85 Runtime ${runId} \u7684 ControlInbox \u8D85\u65F6`);
   }
   async handleProtocolV2Initialize(value) {
+    emitStartupDiagnostic("v2-parse-begin");
     let request;
     try {
       const parsed = parseProtocolV2Request(value);
@@ -269968,6 +270001,7 @@ var ProtocolHost = class {
         throw new ProtocolV2ValidationError("v2 initialize \u8DEF\u5F84\u6536\u5230\u975E initialize \u8BF7\u6C42");
       }
       request = parsed;
+      emitStartupDiagnostic("v2-parse-end");
     } catch (error3) {
       return protocolError(rpcIdFrom(value), error3);
     }
@@ -269976,6 +270010,7 @@ var ProtocolHost = class {
       const initialized = await this.initialize(toV1InitializeParams(request.params), true);
       this.selectedProtocol = selectedProtocol;
       this.mcpAuthenticationNegotiated = request.params.capabilities?.includes("mcpAuthentication") === true;
+      emitStartupDiagnostic("v2-response-ready");
       return createSuccessResponse(request.id, {
         selectedProtocol,
         runtime: "node",
@@ -270038,6 +270073,7 @@ var ProtocolHost = class {
     }
   }
   async initialize(params, protocolV2 = false) {
+    emitStartupDiagnostic("initialize-enter");
     if (this.initialized) throw new CoreMindError("already_initialized", "worker \u5DF2\u521D\u59CB\u5316");
     let rawConfig;
     let configDir;
@@ -270050,6 +270086,7 @@ var ProtocolHost = class {
       configDir = path47.resolve(params.configDir ?? process.cwd());
     }
     const { config: config2, warnings } = parseAndValidate(rawConfig);
+    emitStartupDiagnostic("config-parsed");
     if (!protocolV2 && config2.loop?.verify.mode === "host") {
       throw new CoreMindError(
         "protocol_capability_missing",
@@ -270057,6 +270094,7 @@ var ProtocolHost = class {
       );
     }
     enforceExecutionSecurity(config2);
+    emitStartupDiagnostic("security-checked");
     if (Object.values(config2.agents).some(
       (agent) => (agent.tools?.length ? agent.tools : config2.tools)?.some(
         (tool) => tool.exposure === "deferred"
@@ -270065,11 +270103,13 @@ var ProtocolHost = class {
       if (!protocolV2) throw new ToolDiscoveryCapabilityChallenge();
       throw new CoreMindError("protocol_capability_missing", "\u5DE5\u5177\u53D1\u73B0\u9700\u8981\u534F\u5546 toolDiscovery \u80FD\u529B");
     }
+    emitStartupDiagnostic("provider-begin");
     await buildProviderRuntime(
       config2.provider ?? { id: "deepseek" },
       process.env,
       this.options.secretResolver
     );
+    emitStartupDiagnostic("provider-end");
     if (Object.values(config2.mcp?.servers ?? {}).some(
       (server) => server.transport === "streamable-http" && server.oauth
     )) {
@@ -270088,6 +270128,7 @@ var ProtocolHost = class {
       trustProjectCode: params.trustProjectCode === true,
       runStore: this.options.runStoreFactory?.(path47.join(configDir, ".coremind", "runs")) ?? new FileRunStore(path47.join(configDir, ".coremind", "runs"))
     };
+    emitStartupDiagnostic("initialize-state-stored");
     return {
       protocolVersion: PROTOCOL_VERSION,
       runtime: "node",
@@ -271020,6 +271061,7 @@ function isLiveEvent(message3) {
   return message3 !== null && typeof message3 === "object" && notification?.method === "event" && notification.params?.event?.type !== "approval_required";
 }
 function runStdioWorker(input = process.stdin, output = process.stdout) {
+  emitStartupDiagnostic("stdio-enter");
   let resolve9;
   let reject;
   const completion = new Promise((yes, no) => {
@@ -271093,14 +271135,21 @@ function runStdioWorker(input = process.stdin, output = process.stdout) {
       );
       return;
     }
+    const initializing = typeof value === "object" && value !== null && "method" in value && value.method === "initialize";
+    if (initializing) emitStartupDiagnostic("initialize-line");
     const operation = server.handle(value).then(
-      (response) => sender.send(response),
+      (response) => {
+        if (initializing) emitStartupDiagnostic("initialize-response-created");
+        sender.send(response);
+        if (initializing) emitStartupDiagnostic("initialize-response-enqueued");
+      },
       () => sender.fail()
     ).finally(() => pending.delete(operation));
     pending.add(operation);
   }
   lines.on("line", onLine);
   lines.once("close", finish);
+  emitStartupDiagnostic("stdio-ready");
   return completion;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL5(process.argv[1]).href) {

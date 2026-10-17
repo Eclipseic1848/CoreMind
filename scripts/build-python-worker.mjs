@@ -28,7 +28,7 @@ const workerBuild = await build({
   sourcemap: false,
   legalComments: "inline",
   banner: {
-    js: 'import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);',
+    js: 'import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url); if(process.env.COREMIND_STARTUP_DIAGNOSTICS === "1") { try { const s="CM_STARTUP_DIAG " + JSON.stringify({stage:"bundle-enter",pid:process.pid,epochMs:Date.now(),monoMs:Number(process.hrtime.bigint()/1000000n)}) + "\\n"; if(Buffer.byteLength(s,"utf8")<=192) require("node:fs").writeSync(2,s,undefined,"utf8"); } catch {} }',
   },
 });
 const dependencyReport = await buildDependencyReport(repositoryRoot);

@@ -152,7 +152,7 @@ execute:async()=>({content:[{type:"text",text:"ok"}],details:{}})};
                             sync = client.sync_client if asynchronous else client
                             before = len(requests)
                             process = None
-                            with patch.dict(os.environ, {"COREMIND_PYTHON_TRUST_TEST_KEY": "test-only-key"}):
+                            with patch.dict(os.environ, {"COREMIND_PYTHON_TRUST_TEST_KEY": "test-only-key", "COREMIND_STARTUP_DIAGNOSTICS": "1"}):
                                 os.environ.pop("COREMIND_WORKER_PATH", None)
                                 try:
                                     if asynchronous:

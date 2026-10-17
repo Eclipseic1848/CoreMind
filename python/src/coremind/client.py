@@ -6,11 +6,13 @@ import asyncio
 import hashlib
 import inspect
 import json
+import math
 import os
 import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -19,7 +21,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
 from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union, get_args, get_origin
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, quote, urlsplit
 
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
 
@@ -29,6 +31,39 @@ ApprovalHandler = Callable[[Mapping[str, Any]], str]
 EventHandler = Callable[[Mapping[str, Any]], None]
 McpAuthHandler = Callable[[Mapping[str, Any]], None | Awaitable[None]]
 _MISSING = object()
+_STARTUP_DIAGNOSTIC_COUNT = 0
+_STARTUP_DIAGNOSTIC_STAGES = frozenset({
+    "py-start", "py-assets-begin", "py-assets-end", "py-spawn-begin", "py-spawn-return",
+    "py-readers-started", "py-initialize-write", "py-initialize-flushed", "py-initialize-dequeued",
+    "py-initialize-timeout", "py-stdout-id1", "py-queued-id1", "py-node-stderr",
+    "py-cleanup-begin", "py-cleanup-empty", "py-cleanup-end",
+})
+_NODE_STARTUP_STAGES = frozenset({
+    "node-preload", "bundle-enter", "server-module-ready", "stdio-enter", "stdio-ready",
+    "initialize-line", "v2-parse-begin", "v2-parse-end", "initialize-enter", "config-parsed",
+    "security-checked", "provider-begin", "provider-end", "initialize-state-stored",
+    "v2-response-ready", "initialize-response-created", "initialize-response-enqueued",
+})
+
+
+def _startup_diagnostic(stage: str, **numbers: Any) -> None:
+    # 仅供隔离诊断；只输出固定阶段和计时，不记录请求或配置正文。
+    global _STARTUP_DIAGNOSTIC_COUNT
+    if (os.environ.get("COREMIND_STARTUP_DIAGNOSTICS") != "1"
+            or stage not in _STARTUP_DIAGNOSTIC_STAGES or _STARTUP_DIAGNOSTIC_COUNT >= 512):
+        return
+    try:
+        line = "CM_STARTUP_DIAG " + json.dumps({
+            "stage": stage, "epochMs": round(time.time() * 1000, 3),
+            "monoMs": round(time.monotonic() * 1000, 3), **numbers,
+        }, separators=(",", ":")) + "\n"
+        if len(line.encode("utf-8")) > 768:
+            return
+        _STARTUP_DIAGNOSTIC_COUNT += 1
+        sys.stderr.write(line)
+        sys.stderr.flush()
+    except Exception:
+        pass
 
 
 class NotificationHistory(TypedDict):
@@ -120,6 +155,7 @@ class CoreMindClient:
         """启动 worker、协商协议并注册已有 Python 工具。"""
 
         with self._lifecycle_lock:
+            _startup_diagnostic("py-start", protocol=self._protocol_version)
             if self._closed:
                 raise CoreMindError("客户端已关闭")
             if self._started:
@@ -132,8 +168,14 @@ class CoreMindClient:
                 )
             command = self._worker_command or _discover_worker_command()
             if self._worker_command is None:
+                _startup_diagnostic("py-assets-begin")
                 _verify_bundled_worker(command)
+                _startup_diagnostic("py-assets-end")
+                if os.environ.get("COREMIND_STARTUP_DIAGNOSTICS") == "1":
+                    preload = "import{writeSync}from'node:fs';try{const s='CM_STARTUP_DIAG '+JSON.stringify({stage:'node-preload',pid:process.pid,epochMs:Date.now(),monoMs:Number(process.hrtime.bigint()/1000000n)})+'\\n';if(Buffer.byteLength(s,'utf8')<=192)writeSync(2,s,undefined,'utf8')}catch{}"
+                    command = [command[0], "--import=data:text/javascript," + quote(preload, safe=""), *command[1:]]
             try:
+                _startup_diagnostic("py-spawn-begin")
                 self._process = subprocess.Popen(
                     command,
                     stdin=subprocess.PIPE,
@@ -145,12 +187,14 @@ class CoreMindClient:
                     cwd=str(self._cwd) if self._cwd else None,
                     env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                 )
+                _startup_diagnostic("py-spawn-return", pid=self._process.pid)
             except OSError as error:
                 raise WorkerNotFoundError(f"无法启动 CoreMind worker：{error}") from error
             self._reader = threading.Thread(target=self._reader_loop, daemon=True)
             self._stderr_reader = threading.Thread(target=self._stderr_loop, daemon=True)
             self._reader.start()
             self._stderr_reader.start()
+            _startup_diagnostic("py-readers-started", pid=self._process.pid)
             try:
                 initialize_params = (
                     self._initialize_v2_params()
@@ -735,12 +779,21 @@ class CoreMindClient:
             "params": dict(params),
         }
         try:
+            if method == "initialize":
+                _startup_diagnostic("py-initialize-write", pid=process.pid, rpcId=request_id,
+                                    timeout=self._request_timeout, protocol=self._protocol_version,
+                                    trust=self._trust_project_code,
+                                    mainThread=threading.current_thread() is threading.main_thread())
             with self._write_lock:
                 process.stdin.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
                 process.stdin.flush()
             deadline = time.monotonic() + (timeout or self._request_timeout)
+            if method == "initialize":
+                _startup_diagnostic("py-initialize-flushed", pid=process.pid, rpcId=request_id)
             while True:
                 response = response_queue.get(timeout=max(0, deadline - time.monotonic()))
+                if method == "initialize":
+                    _startup_diagnostic("py-initialize-dequeued", pid=process.pid, rpcId=request_id)
                 if not _auth or isinstance(response, BaseException) or response.get("method") != "mcp_auth_request":
                     break
                 try:
@@ -755,6 +808,11 @@ class CoreMindClient:
                     raise ProtocolError("专用认证 handler 执行失败", rpc_code=-32000,
                                         coremind_code="mcp_auth_failed") from None
         except queue.Empty as error:
+            if method == "initialize":
+                _startup_diagnostic("py-initialize-timeout", pid=process.pid, rpcId=request_id,
+                                    alive=process.poll() is None,
+                                    readerAlive=bool(self._reader and self._reader.is_alive()),
+                                    stderrAlive=bool(self._stderr_reader and self._stderr_reader.is_alive()))
             raise CoreMindError(f"协议请求 {method} 超时") from error
         finally:
             with self._pending_lock:
@@ -791,10 +849,14 @@ class CoreMindClient:
                     continue
                 request_id = message.get("id") if isinstance(message, Mapping) else None
                 if isinstance(request_id, int):
+                    if request_id == 1:
+                        _startup_diagnostic("py-stdout-id1", pid=process.pid)
                     with self._pending_lock:
                         pending = self._pending.get(request_id)
                     if pending:
                         pending.put(message)
+                        if request_id == 1:
+                            _startup_diagnostic("py-queued-id1", pid=process.pid)
         finally:
             error = self._worker_exited_error()
             with self._pending_lock:
@@ -824,6 +886,16 @@ class CoreMindClient:
             return
         for line in process.stderr:
             self._stderr_tail.append(line.rstrip())
+            if os.environ.get("COREMIND_STARTUP_DIAGNOSTICS") == "1" and line.startswith("CM_STARTUP_DIAG "):
+                try:
+                    item = json.loads(line[len("CM_STARTUP_DIAG "):])
+                    if (set(item) == {"stage", "pid", "epochMs", "monoMs"}
+                            and item["stage"] in _NODE_STARTUP_STAGES and item["pid"] == process.pid
+                            and all(type(item[key]) in (int, float) and math.isfinite(item[key])
+                                    for key in ("pid", "epochMs", "monoMs"))):
+                        _startup_diagnostic("py-node-stderr", node=item)
+                except (ValueError, TypeError, KeyError, OverflowError):
+                    pass
 
     def _handle_notification(self, message: Mapping[str, Any]) -> None:
         method = message.get("method")
@@ -990,11 +1062,13 @@ class CoreMindClient:
         return WorkerExitedError(f"CoreMind worker 已退出{suffix}")
 
     def _terminate_process(self) -> None:
+        _startup_diagnostic("py-cleanup-begin", pid=self.pid)
         self._event_stop.set()
         if self._event_dispatcher and self._event_dispatcher is not threading.current_thread():
             self._event_dispatcher.join(timeout=1)
         process = self._process
         if not process:
+            _startup_diagnostic("py-cleanup-empty")
             return
         if process.stdin:
             try:
@@ -1018,6 +1092,7 @@ class CoreMindClient:
             self._reader.join(timeout=1)
         if self._stderr_reader and self._stderr_reader is not threading.current_thread():
             self._stderr_reader.join(timeout=1)
+        _startup_diagnostic("py-cleanup-end", pid=process.pid, returncode=process.returncode)
 
 
 class AsyncCoreMindClient:

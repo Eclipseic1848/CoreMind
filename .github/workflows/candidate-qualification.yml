@@ -124,6 +124,15 @@ jobs:
       - name: 构建 Python worker
         run: npm run build:python-worker
 
+      - name: 记录 SDK 前 Windows 资源快照（仅隔离诊断）
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $os = Get-CimInstance Win32_OperatingSystem
+          [PSCustomObject]@{ stage='before-python-sdk'; epochMs=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); freeMemoryKiB=$os.FreePhysicalMemory; totalMemoryKiB=$os.TotalVisibleMemorySize; processCount=$os.NumberOfProcesses } | ConvertTo-Json -Compress
+          @(Get-CimInstance Win32_Process | Where-Object Name -in @('node.exe','python.exe','powershell.exe','pwsh.exe') | Select-Object -First 200 Name,ProcessId,ParentProcessId,CreationDate,UserModeTime,KernelModeTime,WorkingSetSize,PrivatePageCount) | ConvertTo-Json -Compress
+
       - name: 安装并测试 Python SDK（离线）
         shell: bash
         run: |
@@ -192,7 +201,7 @@ jobs:
   provider-certification:
     name: Provider certification
     needs: candidate
-    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && inputs.credential_env == 'COREMIND_CERT_API_KEY' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && inputs.credential_env == 'COREMIND_CERT_API_KEY' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit && false
     runs-on: ubuntu-latest
     timeout-minutes: ${{ fromJSON(inputs.max_duration_minutes) }}
     permissions:
@@ -278,7 +287,7 @@ jobs:
   qualified:
     name: Candidate qualified
     needs: [candidate, provider-certification]
-    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider'
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && false
     runs-on: ubuntu-latest
     permissions:
       actions: read

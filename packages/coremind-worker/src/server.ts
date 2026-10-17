@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { writeSync } from "node:fs";
 import path from "node:path";
 import {
   CheckpointManager,
@@ -75,6 +76,45 @@ import {
   parseProtocolV2Request,
   parseRunSnapshot,
 } from "coremind-protocol";
+
+const STARTUP_DIAGNOSTIC_STAGES = new Set([
+  "server-module-ready",
+  "stdio-enter",
+  "stdio-ready",
+  "initialize-line",
+  "v2-parse-begin",
+  "v2-parse-end",
+  "initialize-enter",
+  "config-parsed",
+  "security-checked",
+  "provider-begin",
+  "provider-end",
+  "initialize-state-stored",
+  "v2-response-ready",
+  "initialize-response-created",
+  "initialize-response-enqueued",
+]);
+let startupDiagnosticCount = 0;
+
+/** 仅供隔离分支的固定阶段观测；总量低于管道容量，失败不改变业务交付。 */
+export function emitStartupDiagnostic(stage: string): void {
+  if (
+    process.env.COREMIND_STARTUP_DIAGNOSTICS !== "1" ||
+    !STARTUP_DIAGNOSTIC_STAGES.has(stage) ||
+    startupDiagnosticCount >= 16
+  )
+    return;
+  try {
+    const line = `CM_STARTUP_DIAG ${JSON.stringify({ stage, pid: process.pid, epochMs: Date.now(), monoMs: Number(process.hrtime.bigint() / 1_000_000n) })}\n`;
+    if (Buffer.byteLength(line, "utf8") > 192) return;
+    startupDiagnosticCount++;
+    writeSync(2, line, undefined, "utf8");
+  } catch {
+    // 诊断失败不能替代原请求的结果或异常。
+  }
+}
+
+emitStartupDiagnostic("server-module-ready");
 
 const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "runHandle",
@@ -954,6 +994,7 @@ export class ProtocolHost {
   private async handleProtocolV2Initialize(
     value: unknown,
   ): Promise<ProtocolSuccessResponse | ProtocolErrorResponse> {
+    emitStartupDiagnostic("v2-parse-begin");
     let request: ProtocolV2InitializeRequest;
     try {
       const parsed = parseProtocolV2Request(value);
@@ -961,6 +1002,7 @@ export class ProtocolHost {
         throw new ProtocolV2ValidationError("v2 initialize 路径收到非 initialize 请求");
       }
       request = parsed;
+      emitStartupDiagnostic("v2-parse-end");
     } catch (error) {
       return protocolError(rpcIdFrom(value), error);
     }
@@ -972,6 +1014,7 @@ export class ProtocolHost {
       this.selectedProtocol = selectedProtocol;
       this.mcpAuthenticationNegotiated =
         request.params.capabilities?.includes("mcpAuthentication") === true;
+      emitStartupDiagnostic("v2-response-ready");
       return createSuccessResponse(request.id, {
         selectedProtocol,
         runtime: "node",
@@ -1042,6 +1085,7 @@ export class ProtocolHost {
     params: Extract<ProtocolRequest, { method: "initialize" }>["params"],
     protocolV2 = false,
   ): Promise<unknown> {
+    emitStartupDiagnostic("initialize-enter");
     if (this.initialized) throw new CoreMindError("already_initialized", "worker 已初始化");
     let rawConfig: unknown;
     let configDir: string;
@@ -1054,6 +1098,7 @@ export class ProtocolHost {
       configDir = path.resolve(params.configDir ?? process.cwd());
     }
     const { config, warnings } = parseAndValidate(rawConfig);
+    emitStartupDiagnostic("config-parsed");
     if (!protocolV2 && config.loop?.verify.mode === "host") {
       throw new CoreMindError(
         "protocol_capability_missing",
@@ -1061,6 +1106,7 @@ export class ProtocolHost {
       );
     }
     enforceExecutionSecurity(config);
+    emitStartupDiagnostic("security-checked");
     if (
       Object.values(config.agents).some((agent) =>
         (agent.tools?.length ? agent.tools : config.tools)?.some(
@@ -1072,11 +1118,13 @@ export class ProtocolHost {
       if (!protocolV2) throw new ToolDiscoveryCapabilityChallenge();
       throw new CoreMindError("protocol_capability_missing", "工具发现需要协商 toolDiscovery 能力");
     }
+    emitStartupDiagnostic("provider-begin");
     await buildProviderRuntime(
       config.provider ?? { id: "deepseek" },
       process.env,
       this.options.secretResolver,
     );
+    emitStartupDiagnostic("provider-end");
     if (
       Object.values(config.mcp?.servers ?? {}).some(
         (server) => server.transport === "streamable-http" && server.oauth,
@@ -1099,6 +1147,7 @@ export class ProtocolHost {
         this.options.runStoreFactory?.(path.join(configDir, ".coremind", "runs")) ??
         new FileRunStore(path.join(configDir, ".coremind", "runs")),
     };
+    emitStartupDiagnostic("initialize-state-stored");
     return {
       protocolVersion: PROTOCOL_VERSION,
       runtime: "node",

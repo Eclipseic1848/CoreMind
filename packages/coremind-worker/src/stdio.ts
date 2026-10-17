@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { CoreMindError } from "coremind-ai";
 import { type BoundedOutput, createBoundedOutput } from "coremind-ai/internal";
 import { createErrorResponse } from "coremind-protocol";
-import { WorkerServer } from "./server.js";
+import { emitStartupDiagnostic, WorkerServer } from "./server.js";
 
 export interface StdioSenderOptions {
   maxPendingBytes?: number;
@@ -64,6 +64,7 @@ export function runStdioWorker(
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
 ): Promise<void> {
+  emitStartupDiagnostic("stdio-enter");
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
   const completion = new Promise<void>((yes, no) => {
@@ -142,10 +143,20 @@ export function runStdioWorker(
       return;
     }
     // 跟踪最终 RPC 响应，但输入循环不能等待长运行，否则控制请求会被饿死。
+    const initializing =
+      typeof value === "object" &&
+      value !== null &&
+      "method" in value &&
+      value.method === "initialize";
+    if (initializing) emitStartupDiagnostic("initialize-line");
     const operation = server
       .handle(value)
       .then(
-        (response) => sender.send(response),
+        (response) => {
+          if (initializing) emitStartupDiagnostic("initialize-response-created");
+          sender.send(response);
+          if (initializing) emitStartupDiagnostic("initialize-response-enqueued");
+        },
         () => sender.fail(),
       )
       .finally(() => pending.delete(operation));
@@ -154,6 +165,7 @@ export function runStdioWorker(
 
   lines.on("line", onLine);
   lines.once("close", finish);
+  emitStartupDiagnostic("stdio-ready");
   return completion;
 }
 
