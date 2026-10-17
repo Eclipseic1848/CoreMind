@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -44,6 +45,58 @@ describe("五个黄金示例", () => {
       ).config;
       const report = await checkProject({ config, projectDir });
       expect(report.passed, `${id}: ${JSON.stringify(report.findings)}`).toBe(true);
+    }
+  });
+
+  it("脚本示例文档先审查入口，再显式批准加载并保留工具审批边界", () => {
+    for (const [id, entry] of [
+      ["faq-order-assistant", "src/order-tool.ts"],
+      ["bounded-research-agent", "src/search-tool.ts"],
+    ] as const) {
+      for (const locale of ["zh-CN", "en"] as const) {
+        for (const [file, count] of [
+          [`README.${locale}.md`, 2],
+          [`docs/testing-guide.${locale}.md`, 1],
+        ] as const) {
+          const text = readFileSync(path.join(goldenRoot, id, file), "utf8");
+          const commands = text.match(/`node [^`\n]+ (?:run|eval) coremind\.yaml[^`\n]*`/g) ?? [];
+          expect(commands, `${id}/${file}`).toHaveLength(count);
+          expect(text.indexOf(entry)).toBeGreaterThanOrEqual(0);
+          expect(text.indexOf(entry)).toBeLessThan(text.indexOf(commands[0]!));
+          expect(text).toContain("--permission full");
+          for (const command of commands) {
+            expect(command).toContain("--trust-project-code");
+            expect(command).not.toContain("--permission full");
+          }
+        }
+      }
+    }
+  });
+
+  it("文档生成器保留定制恢复材料并生成脚本加载说明", () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-golden-docs-"));
+    const customized = path.join(cwd, "examples/golden/verified-repair-loop/README.zh-CN.md");
+    const content = "定制验收：修复成功、暂停恢复和耗尽失败。\n";
+    try {
+      mkdirSync(path.dirname(customized), { recursive: true });
+      writeFileSync(customized, content, "utf8");
+      execFileSync(
+        process.execPath,
+        [path.resolve(goldenRoot, "../../scripts/generate-golden-example-docs.mjs")],
+        {
+          cwd,
+          encoding: "utf8",
+          timeout: 10_000,
+        },
+      );
+      expect(readFileSync(customized, "utf8")).toBe(content);
+      for (const id of ["faq-order-assistant", "bounded-research-agent"]) {
+        expect(
+          readFileSync(path.join(cwd, "examples/golden", id, "README.en.md"), "utf8"),
+        ).toContain("--trust-project-code");
+      }
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
     }
   });
 
@@ -163,6 +216,9 @@ async function evaluate(
       cwd: projectDir,
       suite: await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml")),
       approveTool,
+      ...(["faq-order-assistant", "bounded-research-agent"].includes(id)
+        ? { approveProjectCode: () => true }
+        : {}),
       runtimeFactory: (options) =>
         CoreMindRuntime.create({
           ...options,

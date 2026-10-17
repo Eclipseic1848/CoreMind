@@ -78,6 +78,8 @@ export interface BuildToolsOptions {
   env?: NodeJS.ProcessEnv;
   /** 受控工具输出存储；缺省使用工作区 .coremind/artifacts。 */
   artifactStore?: ArtifactStore;
+  /** Runtime 在真实脚本 import 前确认本批宿主批准，返回批准的规范入口路径。 */
+  beforeScriptImport?: (fullPath: string) => Promise<string>;
 }
 
 export interface BuildToolsResult {
@@ -126,7 +128,7 @@ export async function buildToolsWithExecutionEnvironment(
     }
     if ("path" in cfg) {
       try {
-        const tool = await loadScriptTool(cfg, opts.configDir);
+        const tool = await loadScriptTool(cfg, opts.configDir, opts.beforeScriptImport);
         if (Object.hasOwn(BUILTIN_TOOL_EFFECTS, tool.name)) {
           warnings.push(`脚本工具 ${tool.name} 不得使用内置工具名，已跳过`);
           continue;
@@ -137,6 +139,13 @@ export async function buildToolsWithExecutionEnvironment(
         effects.set(tool.name, cfg.effect);
         capabilities.set(tool.name, inferLegacyToolCapability(tool.name, cfg.effect));
       } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error.code === "execution_security_violation" || error.code === "aborted")
+        )
+          throw error;
         warnings.push(error instanceof Error ? error.message : String(error));
       }
       continue;

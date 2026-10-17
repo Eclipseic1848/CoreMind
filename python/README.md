@@ -62,6 +62,12 @@ All four public `received_*` lists retain notifications by default. `client.drai
 
 Process or retain the entire batch. Taking it is not a server acknowledgement, does not answer approvals/tools/verification, does not clear callback queues or overload errors, and does not advance durable cursors. The method starts no Worker or RPC and works before start or after close. MCP authorization stays in its dedicated handler. Batches may contain several runIds; route them by identity. Copying is O(N), runs locally even in the async client, and is not an automatic capacity limit. For v2 catch-up, save the events page’s `nextCursor` separately per runId only after processing; live notification sequence values are a different domain. Empty pages do not prove terminal state, and durable events do not promise replay of every dedicated host notification. See the [English guide](../docs/modules/embed-coremind-python/GUIDE.en.md#long-lived-notification-consumption-12-development).
 
+## 项目脚本加载信任（1.2 开发线，尚未发布）
+
+`CoreMindClient` 和 `AsyncCoreMindClient` 默认不信任配置脚本。对已审查的项目显式传 `trust_project_code=True`；只接受 bool，字符串不表示同意。这允许脚本及依赖按宿主权限加载，不允许工具绕过原审批或 deny。两种协议都要求 Worker 宣告 `projectCodeTrust`；旧 Worker 缺能力时在 run/chat 前失败，不自动降级。详见 [迁移说明](../docs/migrations/1.0-to-1.2.zh-CN.md)。
+
+Both clients default to rejecting configured project scripts. Pass `trust_project_code=True` only for reviewed code; the argument accepts booleans only. Loading approval does not bypass tool approvals or deny rules. Both protocols require the Worker capability `projectCodeTrust`; missing capability rejects before run/chat without downgrade. See the [migration](../docs/migrations/1.0-to-1.2.en.md).
+
 ## 当前源码修复说明（尚未发布）
 
 1.1 开发线支持显式 v2 MCP 交互认证：设置 `mcp_auth_handler`，调用 `mcp_login`、`mcp_cancel_auth`、`mcp_logout`。sync handler 在发起线程，async handler 在原 loop；取消会向 Node 发送原事务 cancel 并等待收尾。凭据默认只在 Node 宿主内存，不进入 `received_events` 或 Python 消息；无 handler、v1、旧 Worker 或缺能力明确拒绝。详见[Python 指南](../docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。真实外部认证服务互通未验证。

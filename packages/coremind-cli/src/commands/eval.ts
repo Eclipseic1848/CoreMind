@@ -15,6 +15,7 @@ import {
   parsePermissionMode,
 } from "../approval.js";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
+import { createProjectCodeAuthorizer } from "../project-code-trust.js";
 import { dim, errorLine, green, yellow } from "../render.js";
 
 /** coremind eval：使用真实 Runtime 重复执行离线/真实 Provider 场景。 */
@@ -37,22 +38,36 @@ export async function cmdEval(parsed: ParsedArgs, positionals: string[]): Promis
   }
   if (permissionMode) config = applyPermissionMode(config, permissionMode);
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
-  const approvalReadline =
-    process.stdin.isTTY === true ? createInterface({ input, output }) : undefined;
-  const unbindApprovals = approvalReadline
-    ? bindReadlineApprovals(approvals, approvalReadline)
-    : undefined;
+  const controller = new AbortController();
+  let approvalReadline: ReturnType<typeof createInterface> | undefined;
+  let unbindApprovals: (() => void) | undefined;
 
   const suiteFile = path.resolve(
     flagString(parsed, "suite") ?? path.join(configDir, "evals", "scenarios.yaml"),
   );
   try {
+    const authorize = createProjectCodeAuthorizer(parsed, () => controller.abort());
     const result = await runEvaluationSuite({
       config,
       configDir,
       cwd: process.cwd(),
+      signal: controller.signal,
       suite: await loadEvaluationSuite(suiteFile),
-      approveTool: (request) => approvals.request(request),
+      approveProjectCode: async (request, signal) => {
+        // 每次初始化先关闭上一场景的审批输入；同范围决定由 authorizer 复用。
+        unbindApprovals?.();
+        unbindApprovals = undefined;
+        approvalReadline?.close();
+        approvalReadline = undefined;
+        return authorize(request, signal);
+      },
+      approveTool: (request) => {
+        if (!approvalReadline && process.stdin.isTTY === true) {
+          approvalReadline = createInterface({ input, output });
+          unbindApprovals = bindReadlineApprovals(approvals, approvalReadline);
+        }
+        return approvals.request(request);
+      },
     });
     if (flagBool(parsed, "json")) {
       process.stdout.write(`${JSON.stringify(result)}\n`);
@@ -81,6 +96,13 @@ export async function cmdEval(parsed: ParsedArgs, positionals: string[]): Promis
     unbindApprovals?.();
     approvals.close();
     approvalReadline?.close();
+    if (
+      controller.signal.aborted ||
+      (error && typeof error === "object" && "code" in error && error.code === "aborted")
+    ) {
+      console.error(errorLine("评测已取消"));
+      return 130;
+    }
     console.error(errorLine(error instanceof Error ? error.message : String(error)));
     return 1;
   }

@@ -462,6 +462,7 @@ async function captureTsSdk(
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port, toolError, childRun),
+      ...(toolError ? { approveProjectCode: () => true } : {}),
       configDir: dir,
       cwd: dir,
       initialPrompt: "你好",
@@ -534,7 +535,15 @@ async function captureCli(
   try {
     const { code, stdout, stderr } = await spawnAndWait(
       "node",
-      [cliPath, "run", configPath, "--prompt", "你好", "--json-events"],
+      [
+        cliPath,
+        "run",
+        configPath,
+        "--prompt",
+        "你好",
+        "--json-events",
+        ...(toolError ? ["--trust-project-code"] : []),
+      ],
       { cwd: dir },
     );
     expect(code, stderr).toBe(childRun === "failure" ? 2 : (providerFault?.expectedExitCode ?? 0));
@@ -638,6 +647,7 @@ async function captureTui(
   try {
     const runtime = await CoreMindRuntime.create({
       config: fixtureConfig(port, toolError, childRun),
+      ...(toolError ? { approveProjectCode: () => true } : {}),
       configDir: dir,
       cwd: dir,
     });
@@ -707,7 +717,9 @@ async function capturePython(
       JSON.stringify(dir) +
       ", cwd=" +
       JSON.stringify(dir) +
-      ", request_timeout=30)",
+      ", request_timeout=30, trust_project_code=" +
+      (toolError ? "True" : "False") +
+      ")",
     'result = client.run("你好")',
     'print("RUN_ID:" + result["runId"])',
     'print("OUTCOME:" + json.dumps(result["outcome"]))',

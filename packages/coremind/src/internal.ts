@@ -11,6 +11,7 @@ export {
   type PendingApprovalControl,
   ProjectionEngine,
   type ProtocolToolResultFact,
+  prepareProjectCodeImports,
   prepareProtocolToolResultFact,
   type RecoveryDecision,
   RunContext,

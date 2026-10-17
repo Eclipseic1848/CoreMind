@@ -19,6 +19,10 @@ Use **Report a vulnerability** on the repository Security page when available. D
 
 If no private entry point is available, open a public issue without technical details and ask maintainers for a private contact channel. Response times are targets, not an SLA.
 
+## Project script loading (unpublished 1.2 development line)
+
+Configuration-driven Runtime requires explicit host approval of the complete batch before any project script import. Non-TTY CLI use requires `--trust-project-code`; Python requires `trust_project_code=True`. Top-level code and transitive dependencies run with host privileges. Entry path/hash approval is not an OS sandbox or an immutable dependency graph and cannot eliminate replacement races by host-privileged external processes. Loading approval grants no tool execution permissions; `full` and quality overrides cannot replace it. `doctor` and `check` do not load project scripts. Direct low-level loader callers own source trust. See the [1.2 migration](docs/migrations/1.0-to-1.2.en.md).
+
 ## Security boundaries
 
 - Permission modes control approval behavior; they do not make risky tools inherently safe. Explicit deny rules, workspace restrictions, budgets, traces, checkpoints, effect receipts, and resume checks remain active even in `full`. Start unfamiliar work in `ask` mode.

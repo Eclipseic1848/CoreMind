@@ -120,7 +120,7 @@ class ToolDiscoveryProtocolTest(unittest.TestCase):
         return path
 
     @contextmanager
-    def _worker(self, directory: Path, scenario: dict, *, config=None, protocol="1.0"):
+    def _worker(self, directory: Path, scenario: dict, *, config=None, protocol="1.0", trust_project_code=False):
         records = directory / "wire.jsonl"
         processes = []
         real_popen = subprocess.Popen
@@ -136,6 +136,7 @@ class ToolDiscoveryProtocolTest(unittest.TestCase):
             cwd=directory,
             session_id="discovery-session",
             protocol_version=protocol,
+            trust_project_code=trust_project_code,
             request_timeout=3,
             worker_command=[
                 sys.executable, "-u", "-c", WORKER_WRAPPER,
@@ -202,6 +203,17 @@ class ToolDiscoveryProtocolTest(unittest.TestCase):
                 self.assertNotEqual(requests[0]["id"], requests[1]["id"])
                 self.assertEqual(requests[0]["params"], self._legacy_params(config, directory))
                 self.assertEqual(requests[1]["params"], {**requests[0]["params"], "capabilities": ["toolDiscovery"]})
+
+    def test_v1_challenge_preserves_explicit_project_code_trust(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary).resolve()
+            with self._worker(directory, {"mode": "challenge", "error": challenge_error(), "advertise": True},
+                              trust_project_code=True) as (client, records):
+                client.start()
+            requests = self._initializations(records)
+            self.assertEqual(len(requests), 2)
+            self.assertIs(requests[0]["params"]["trustProjectCode"], True)
+            self.assertEqual(requests[1]["params"], {**requests[0]["params"], "capabilities": ["toolDiscovery"]})
 
     def test_repeated_challenge_is_rejected_after_exactly_one_retry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

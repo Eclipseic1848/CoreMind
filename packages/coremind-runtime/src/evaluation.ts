@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { CoreMindConfig } from "coremind-config";
 import { parseConfigText } from "coremind-config";
-import { terminalStatusForCode } from "./errors.js";
+import { CoreMindError, terminalStatusForCode } from "./errors.js";
 import {
   captureEvaluationBaseline,
   type EvaluationGrader,
@@ -82,6 +82,8 @@ export interface RunEvaluationOptions {
   cwd?: string;
   suite: EvaluationSuite;
   runtimeFactory?: EvaluationRuntimeFactory;
+  signal?: AbortSignal;
+  approveProjectCode?: CoreMindRuntimeOptions["approveProjectCode"];
   approveTool?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
 }
 
@@ -148,6 +150,9 @@ export async function runEvaluationSuite(
   options: RunEvaluationOptions,
 ): Promise<EvaluationSuiteResult> {
   const suite = validateEvaluationSuite(options.suite);
+  const checkCancellation = () => {
+    if (options.signal?.aborted) throw new CoreMindError("aborted", "评测已取消");
+  };
   const profile = options.config.quality?.profile ?? "standard";
   const factory = options.runtimeFactory ?? CoreMindRuntime.create;
   const attempts: EvaluationAttempt[] = [];
@@ -156,18 +161,23 @@ export async function runEvaluationSuite(
   for (const scenario of suite.scenarios) {
     const repetitions = Math.max(scenario.repetitions ?? 1, profile === "strict" ? 3 : 1);
     for (let attempt = 1; attempt <= repetitions; attempt++) {
+      checkCancellation();
       const graders = scenario.graders ?? legacyGraders(scenario.expected ?? {});
       const cwd = options.cwd ?? options.configDir;
       const baseline = await captureEvaluationBaseline(cwd, graders);
       try {
+        checkCancellation();
         const runtime = await factory({
           config: options.config,
           configDir: options.configDir,
           cwd: options.cwd,
           initialPrompt: scenario.input,
           approveTool: options.approveTool,
+          approveProjectCode: options.approveProjectCode,
+          signal: options.signal,
         });
         const result = await runtime.run();
+        checkCancellation();
         for (const finding of result.evaluation.securityFindings) securityFindings.add(finding);
         const graderResults = await evaluateGraders(graders, result, cwd, baseline);
         const verdict = graderVerdict(graderResults);
@@ -185,6 +195,7 @@ export async function runEvaluationSuite(
           toolTrajectory: summarizeToolTrajectory(result),
         });
       } catch (error) {
+        checkCancellation();
         const normalized = normalizeExecutionError(error);
         const { code, message, audit } = normalized;
         const outcome: RunOutcome = {
@@ -211,6 +222,7 @@ export async function runEvaluationSuite(
     }
   }
 
+  checkCancellation();
   const scenarioResults = suite.scenarios.map((scenario) => {
     const own = attempts.filter((attempt) => attempt.scenarioId === scenario.id);
     const score = own.filter((attempt) => attempt.passed).length / own.length;

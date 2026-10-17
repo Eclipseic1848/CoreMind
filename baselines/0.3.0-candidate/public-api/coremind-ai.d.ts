@@ -192,6 +192,7 @@ import { ProcessRunnerError } from 'coremind-tools';
 import { ProcessRunnerErrorCode } from 'coremind-tools';
 import { ProcessRunRequest } from 'coremind-tools';
 import { ProcessRunResult } from 'coremind-tools';
+import { ProjectCodeTrustRequest } from 'coremind-runtime';
 import { ProjectGuidanceOptions } from 'coremind-templates';
 import { ProjectionEngine } from 'coremind-runtime';
 import { ProjectLanguage } from 'coremind-templates';
@@ -711,6 +712,8 @@ export { ProcessRunnerErrorCode }
 export { ProcessRunRequest }
 
 export { ProcessRunResult }
+
+export { ProjectCodeTrustRequest }
 
 export { ProjectGuidanceOptions }
 

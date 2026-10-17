@@ -1207,6 +1207,8 @@ export declare class CoreMindRuntime {
 }
 
 export declare interface CoreMindRuntimeOptions {
+    /** 宿主明确批准配置脚本及其依赖按宿主权限加载；不授予工具执行权限。 */
+    approveProjectCode?: (request: ProjectCodeTrustRequest, signal?: AbortSignal) => boolean | Promise<boolean>;
     /** 宿主模式的持久验证请求通知；通过 acceptControl 回复，返回值不代表通过。 */
     onVerification?: (request: HostVerificationRequest) => void;
     /** 已校验的配置 */
@@ -2356,6 +2358,15 @@ export declare interface ProjectCheckReport {
     };
 }
 
+export declare interface ProjectCodeTrustRequest {
+    projectRoot: string;
+    sources: readonly {
+        path: string;
+        sha256: string;
+    }[];
+    fingerprint: string;
+}
+
 /** 从 append-only Run Facts 生成可删除、可重建的唯一运行投影。 */
 export declare const ProjectionEngine: {
     project(records: readonly RunStateRecord[]): RunProjection;
@@ -2633,6 +2644,8 @@ export declare interface RunEvaluationOptions {
     cwd?: string;
     suite: EvaluationSuite;
     runtimeFactory?: EvaluationRuntimeFactory;
+    signal?: AbortSignal;
+    approveProjectCode?: CoreMindRuntimeOptions["approveProjectCode"];
     approveTool?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
 }
 

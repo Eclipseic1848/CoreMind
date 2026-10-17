@@ -3,8 +3,8 @@
   "version": "1.1.0",
   "protocolVersion": "1.0",
   "protocolV2Version": "2.0",
-  "protocolV2SchemaFingerprint": "sha256:eb7b5d70a26e1b3e6d1752c6bcdc40f1dcbede4df100888f0e6cf6e5155e990f",
-  "bundleSha256": "19c9fa561d960f742b2f14be32e0dd4a073511b90e6d22555468e53af3d0a8ad",
+  "protocolV2SchemaFingerprint": "sha256:7d1e57725d2c34f0cf2187c77998cdfb0363deb824c7be4c92c2aadb488acf3f",
+  "bundleSha256": "29dc1fdebf64b38aac19c294ad188a3d24afaec56dc1c1baed1c305b8f1a1ed8",
   "runtimeDependencies": {
     "@earendil-works/pi-agent-core": {
       "version": "1.3.0",

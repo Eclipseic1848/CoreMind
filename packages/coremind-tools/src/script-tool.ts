@@ -21,8 +21,14 @@ export class ScriptToolError extends Error {
  *     execute: async (toolCallId, params, signal) => ({ content: [{ type: "text", text }], details: {} }),
  *   }
  */
-export async function loadScriptTool(cfg: ScriptToolConfig, configDir: string): Promise<AgentTool> {
-  const fullPath = path.resolve(configDir, cfg.path);
+export async function loadScriptTool(
+  cfg: ScriptToolConfig,
+  configDir: string,
+  beforeScriptImport?: (fullPath: string) => Promise<string>,
+): Promise<AgentTool> {
+  const requestedPath = path.resolve(configDir, cfg.path);
+  // 配置驱动的 Runtime 必须先取得宿主批准；直接调用本低层 API 表示调用方已信任来源。
+  const fullPath = beforeScriptImport ? await beforeScriptImport(requestedPath) : requestedPath;
   let mod: unknown;
   try {
     mod = await import(pathToFileURL(fullPath).href);

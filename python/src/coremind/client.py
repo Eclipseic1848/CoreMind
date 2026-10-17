@@ -54,9 +54,13 @@ class CoreMindClient:
         mcp_auth_handler: McpAuthHandler | None = None,
         request_timeout: float = 300.0,
         protocol_version: str = PROTOCOL_VERSION,
+        trust_project_code: bool = False,
     ) -> None:
         if protocol_version not in {PROTOCOL_VERSION, PROTOCOL_V2_VERSION}:
             raise ValueError("protocol_version 只支持 1.0 或 2.0")
+        if not isinstance(trust_project_code, bool):
+            raise TypeError("trust_project_code 必须是 bool")
+        self._trust_project_code = trust_project_code
         self._config = config
         self._config_dir = Path(config_dir).resolve() if config_dir else None
         self._cwd = Path(cwd).resolve() if cwd else None
@@ -195,6 +199,7 @@ class CoreMindClient:
                     if self._protocol_version == PROTOCOL_V2_VERSION
                     else {"runSnapshot"}
                 )
+                required_capabilities.add("projectCodeTrust")
                 if discovery_negotiated:
                     required_capabilities.add("toolDiscovery")
                 missing_capabilities = required_capabilities.difference(capabilities)
@@ -635,6 +640,8 @@ class CoreMindClient:
 
     def _initialize_params(self) -> dict[str, Any]:
         params: dict[str, Any] = {"protocolVersion": PROTOCOL_VERSION}
+        if self._trust_project_code:
+            params["trustProjectCode"] = True
         if isinstance(self._config, Mapping):
             params["config"] = dict(self._config)
             params["configDir"] = str(self._config_dir or Path.cwd())
@@ -1016,8 +1023,8 @@ class CoreMindClient:
 class AsyncCoreMindClient:
     """同步客户端的 asyncio 适配器；协议和 Runtime 完全相同。"""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self._client = CoreMindClient(*args, **kwargs)
+    def __init__(self, *args: Any, trust_project_code: bool = False, **kwargs: Any) -> None:
+        self._client = CoreMindClient(*args, trust_project_code=trust_project_code, **kwargs)
         self._mcp_auth_tasks: set[asyncio.Task[Any]] = set()
         self._mcp_auth_ids: set[str] = set()
 
