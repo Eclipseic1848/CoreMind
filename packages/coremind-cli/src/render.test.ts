@@ -7,6 +7,7 @@ import {
   formatArtifactReference,
   formatControlReceipt,
   formatInputReceipt,
+  formatTerminalInput,
   loopStateLine,
   summarizeTerminalArguments,
   terminalText,
@@ -184,5 +185,28 @@ describe("终端安全格式器", () => {
     expect(text).toContain("17");
     renderChatEvent({ type: "tool_result", agent: "main", tool: "read", isError: false }, output);
     expect(text).toContain("未绑定");
+  });
+});
+
+describe("编辑光标整段安全渲染", () => {
+  it("安全原稿按字素边界标光标，标记不属于原稿", () => {
+    expect(formatTerminalInput("中👩🏽‍💻文", 1)).toBe("中▏👩🏽‍💻文");
+    expect(formatTerminalInput("中👩🏽‍💻文", 2)).toBe("中👩🏽‍💻▏文");
+    expect(formatTerminalInput("一\n二", 1)).toBe("一▏\n二");
+    expect(formatTerminalInput("")).toBe("▏");
+  });
+  it.each([
+    "api_key=editor-secret-canary",
+    "password=editor-secret-canary",
+    "Authorization: Bearer editor-secret-canary",
+    "api_\x1b[31mkey=editor-secret-canary\x1b[0m",
+  ])("cursor 在凭据标签/值中间时先整段脱敏 %j", (text) => {
+    for (const cursor of [1, 4, Math.floor(text.length / 2), text.length]) {
+      const shown = formatTerminalInput(text, cursor);
+      expect(shown.startsWith(terminalText(text))).toBe(true);
+      expect(shown).not.toContain("editor-secret-canary");
+      expect(shown).not.toContain("\x1b");
+      expect(shown).toContain("[光标 ");
+    }
   });
 });

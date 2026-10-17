@@ -1,6 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
 import type { ControlReceipt, LoopPhase } from "coremind-ai";
 import { redactSensitiveText, redactSensitiveValue } from "coremind-ai/internal";
+import { terminalInputCursor } from "./terminal-input.js";
 import type { TerminalRow } from "./terminal-view.js";
 
 /** 极简 ANSI 渲染（避免引入 TUI 依赖） */
@@ -78,6 +79,20 @@ const terminalControls = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/gu;
 /** 先移除可重组标签的控制码再完整脱敏；省略标志也计入显示上限。 */
 export function terminalText(text: string, maxGraphemes = 16_384, maxBytes = 65_536): string {
   return terminalTextResult(text, maxGraphemes, maxBytes).text;
+}
+
+/** 先完整净化和脱敏，再显示光标；安全文本改变时不用原 offset 拆分凭据。 */
+export function formatTerminalInput(text: string, offset?: number): string {
+  const safe = terminalText(text);
+  const cursor = terminalInputCursor(text, offset);
+  if (safe === text) return `${text.slice(0, cursor)}▏${text.slice(cursor)}`;
+  let position = 0;
+  let total = 0;
+  for (const part of graphemes.segment(text)) {
+    if (part.index < cursor) position++;
+    total++;
+  }
+  return `${safe} [光标 ${position}/${total}]`;
 }
 
 /** 只有实际超过显示上限才标记截断，不根据正文末尾字符猜测。 */
