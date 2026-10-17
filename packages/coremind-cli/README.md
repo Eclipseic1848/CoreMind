@@ -20,6 +20,8 @@ TUI 默认摘要会突出 Child Run 数量、活动后代和未处置风险；�
 
 TUI 忙碌期间，普通 Enter 输入不会被排队到下一轮；`/abort` 与 `/children` 仍可立即执行。
 
+TUI 支持按字素的 `←/→` 中段移动、当前位置插入或完整退格，`Home/End` 跳整个稿件首尾。`↑/↓` 浏览当前 TUI 实例最近 50 条已准入普通提问；越过最新一条时恢复浏览前草稿及光标。历史只驻留内存，保留已提交提问的原文，显示继续整段脱敏；不记录 slash 命令、审批回答、认证面板 URL/回执、被忙碌状态拦截的提交或模型输出，浏览不会自动发送。普通稿仍受 16,384 字素 / 65,536 UTF-8 字节上限约束，超限整段拒绝。审批控制命令独立编辑，Esc 返回审批并保留普通稿和光标；粘贴仍只留稿，不自动批准或提交。光标展示先对整段正文脱敏，净化后无法对应原位置时显示安全正文与位置提示。readline 路径保持其原生编辑行为；这里不提供持久历史、按词编辑、视觉行导航或系统 IME 适配保证。
+
 所有 CLI/TUI/TypeScript/Python 入口共享 Runtime 委派矩阵：`ask` 每次批准，`assisted` 只自动批准 Config 显式预批准的合规目标，`full` 也不能覆盖 deny、预算或其他硬边界。审批绑定目标、任务、引用和实际预算的指纹；Child Run 后续工具和外部 Effect 继续独立审批。
 
 ```bash
@@ -48,6 +50,8 @@ After a configured delegation completes, regular `run` output lists each Child R
 The default TUI summary highlights Child Run count, active descendants, and unhandled risk. While a run is active, `/children` expands current canonical Facts through the unified Projection into a nested tree with identities, targets, budgets, status, Outcome, Recovery, and risk text. `delegate` approval cards summarize the target, task, explicit references, and tightened budget while stating that delegation approval does not pre-approve child Effects. The only current cancellation authority is `/abort`, which aborts the parent response and is propagated by Runtime to active Child Runs; unauthorized child-specific cancellation or failure disposition is not displayed. Use `/status`, `/artifacts`, `/context`, and `/observability` to inspect recovery, evaluation, artifacts, cache, compaction, and local observations. `run_result.snapshot` and `run_result.observability` share one Fact Projection with both SDKs. The view separates local state from Telemetry egress and states that `handed-off` does not mean receiver-side delivery.
 
 While the TUI is busy, ordinary Enter input is not queued into a later turn; `/abort` and `/children` remain available immediately.
+
+The TUI supports grapheme-based left/right movement, insertion at the cursor, and whole-grapheme backspace. Home/End address the whole draft. Up/Down browse the latest 50 admitted ordinary questions in the current TUI instance; moving past the newest entry restores the original unsent draft and cursor. This memory-only history retains original submitted questions while display continues to redact complete text. It excludes slash commands, approval answers, authentication-panel URLs or receipts, blocked submissions, and model output. Browsing never sends input. Drafts retain the 16,384-grapheme / 65,536-UTF-8-byte limits and reject oversize changes as a whole. Approval commands edit independently; Escape preserves the ordinary draft and cursor, and paste neither approves nor submits automatically. Display redacts the complete text before drawing the cursor, using safe text and a position hint when sanitization changes it. Readline keeps its native editing behavior. Persistent history, word editing, visual-line navigation, and system IME integration are outside this change.
 
 All CLI, TUI, TypeScript, and Python entry points share the Runtime delegation matrix: `ask` approves every request; `assisted` auto-approves only a compliant target explicitly pre-approved in Config; and `full` cannot override deny rules, budgets, or other hard boundaries. Approval binds the target, task, references, and effective limits by fingerprint, while child tools and external Effects remain independently approved.
 

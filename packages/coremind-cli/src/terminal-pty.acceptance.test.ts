@@ -524,6 +524,57 @@ it("真实 PTY 合并登录与取消，授权面板 resize 后粘贴取消只留
   }
 }, 40_000);
 
+it("真实 PTY 中段编辑与历史恢复跨三种尺寸，精确产生两次输入与 HTTP", async () => {
+  const first = "首中测文尾";
+  const second = "未改👩🏽‍💻稿";
+  await withTerminal(
+    "cursor-history",
+    (request, ordinal) => {
+      expect(ordinal).toBeLessThanOrEqual(2);
+      expect(lastUser(request)).toBe(ordinal === 1 ? first : second);
+      return { text: ordinal === 1 ? "第一轮已接收" : "第二轮已接收" };
+    },
+    {},
+    async (terminal) => {
+      const edit = async (text: string, shown: string) => {
+        const offset = terminal.outputOffset();
+        terminal.send(text);
+        await terminal.waitText(shown, offset);
+      };
+      await terminal.resize(40, 16);
+      await edit("中👩🏽‍💻文", "中👩🏽‍💻文▏");
+      await edit("\x1b[D", "中👩🏽‍💻▏文");
+      await edit("\x7f", "中▏文");
+      await edit("测", "中测▏文");
+      await edit("\x1b[H", "▏中测文");
+      await edit("首", "首▏中测文");
+      await edit("\x1b[F", "首中测文▏");
+      const completed = terminal.outputOffset();
+      terminal.send("尾\r");
+      const firstRun = await terminal.waitRun(first, "succeeded");
+      expect(eventsOf(firstRun).filter((event) => event.type === "input_receipt")).toEqual([
+        expect.objectContaining({ contentFingerprint: fingerprint(first) }),
+      ]);
+      await terminal.waitText("输入就绪", completed);
+      await terminal.resize(80, 24);
+      await edit("未👩🏽‍💻稿", "未👩🏽‍💻稿▏");
+      await edit("\x1b[D", "未👩🏽‍💻▏稿");
+      await edit("\x1b[D", "未▏👩🏽‍💻稿");
+      await edit("\x1b[A", `${first}▏`);
+      expect(terminal.requests).toHaveLength(1);
+      await terminal.resize(120, 40);
+      await edit("\x1b[B", "未▏👩🏽‍💻稿");
+      expect(terminal.requests).toHaveLength(1);
+      terminal.send("改\r");
+      const secondRun = await terminal.waitRun(second, "succeeded");
+      expect(eventsOf(secondRun).filter((event) => event.type === "input_receipt")).toEqual([
+        expect.objectContaining({ contentFingerprint: fingerprint(second) }),
+      ]);
+      expect(terminal.requests).toHaveLength(2);
+    },
+  );
+}, 40_000);
+
 async function withTerminal(
   name: string,
   reply: Reply,

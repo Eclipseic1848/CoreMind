@@ -1112,3 +1112,190 @@ async function typeCommand(write: (value: string) => void, command: string): Pro
   }
   write("\r");
 }
+
+describe("TUI 中段编辑与有限历史接线", () => {
+  it("真实 Ink 方向键/Home/End 编辑字素，合并 Enter 只发送整稿且不含光标装饰", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="中段编辑" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    const shown = async (text: string) => vi.waitFor(() => expect(app.lastFrame()).toContain(text));
+    try {
+      await settle();
+      app.stdin.write("中👩🏽‍💻文");
+      await shown("中👩🏽‍💻文▏");
+      app.stdin.write("\x1b[D");
+      await shown("中👩🏽‍💻▏文");
+      app.stdin.write("\x7f");
+      await shown("中▏文");
+      app.stdin.write("测");
+      await shown("中测▏文");
+      app.stdin.write("\x1b[H");
+      await shown("▏中测文");
+      app.stdin.write("首");
+      await shown("首▏中测文");
+      app.stdin.write("\x1b[F");
+      await shown("首中测文▏");
+      app.stdin.write("尾\r");
+      await vi.waitFor(() => expect(session.chat).toHaveBeenCalledExactlyOnceWith("首中测文尾"));
+      expect(vi.mocked(session.chat).mock.calls[0]?.[0]).not.toContain("▏");
+    } finally {
+      approvals.close();
+      app.unmount();
+    }
+  });
+
+  it("Up/Down 不发送，越过最新历史恢复原草稿及中段 cursor 后继续插入", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="输入历史" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    const shown = async (text: string) => vi.waitFor(() => expect(app.lastFrame()).toContain(text));
+    try {
+      await settle();
+      for (const question of ["历史一", "历史二"]) {
+        app.stdin.write(`${question}\r`);
+        await settle();
+        await shown("输入就绪");
+      }
+      expect(session.chat).toHaveBeenCalledTimes(2);
+      app.stdin.write("未👩🏽‍💻稿");
+      await shown("未👩🏽‍💻稿▏");
+      app.stdin.write("\x1b[D");
+      await shown("未👩🏽‍💻▏稿");
+      app.stdin.write("\x1b[D");
+      await shown("未▏👩🏽‍💻稿");
+      app.stdin.write("\x1b[A");
+      await shown("历史二▏");
+      app.stdin.write("\x1b[A");
+      await shown("历史一▏");
+      app.stdin.write("\x1b[B");
+      await shown("历史二▏");
+      app.stdin.write("\x1b[B");
+      await shown("未▏👩🏽‍💻稿");
+      expect(session.chat).toHaveBeenCalledTimes(2);
+      app.stdin.write("改\r");
+      await vi.waitFor(() => expect(session.chat).toHaveBeenNthCalledWith(3, "未改👩🏽‍💻稿"));
+      expect(session.chat).toHaveBeenCalledTimes(3);
+    } finally {
+      approvals.close();
+      app.unmount();
+    }
+  });
+
+  it("忙时被拒绝的 Enter 不记录历史、不清稿，恢复后普通稿仍可继续编辑", async () => {
+    const session = createSession();
+    const turn = { text: "完成", events: [], run: createRun() };
+    let finish: (value: typeof turn) => void = () => {};
+    vi.mocked(session.chat)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(turn);
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="历史准入" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    const shown = async (text: string) => vi.waitFor(() => expect(app.lastFrame()).toContain(text));
+    try {
+      await settle();
+      app.stdin.write("开始\r");
+      await vi.waitFor(() => expect(session.chat).toHaveBeenCalledExactlyOnceWith("开始"));
+      app.stdin.write("未准入\r");
+      await shown("未准入▏");
+      expect(session.chat).toHaveBeenCalledTimes(1);
+      app.stdin.write("\x1b[A");
+      await shown("开始▏");
+      app.stdin.write("\x1b[B");
+      await shown("未准入▏");
+      finish(turn);
+      await shown("输入就绪");
+      app.stdin.write("\r");
+      await vi.waitFor(() => expect(session.chat).toHaveBeenNthCalledWith(2, "未准入"));
+    } finally {
+      finish(turn);
+      approvals.close();
+      app.unmount();
+    }
+  });
+
+  it("审批期间方向键不回放历史，命令 paste 不决定审批，退出命令保留主稿 cursor", async () => {
+    const session = createSession();
+    vi.mocked(session.chat).mockResolvedValue({ text: "完成", events: [], run: createRun() });
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="编辑隔离" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    let decision: Promise<unknown> | undefined;
+    const shown = async (text: string) => vi.waitFor(() => expect(app.lastFrame()).toContain(text));
+    try {
+      await settle();
+      app.stdin.write("历史\r");
+      await settle();
+      app.stdin.write("原👩‍🔬稿");
+      await shown("原👩‍🔬稿▏");
+      app.stdin.write("\x1b[D");
+      await shown("原👩‍🔬▏稿");
+      app.stdin.write("\x1b[D");
+      await shown("原▏👩‍🔬稿");
+      const resolved = vi.fn();
+      decision = approvals.request(controlApproval()).then(resolved);
+      await settle();
+      app.stdin.write("\x1b[A");
+      await settle();
+      expect(app.lastFrame()).toContain("原👩‍🔬稿");
+      app.stdin.write("/steer y");
+      await shown("/steer y▏");
+      app.stdin.write("\x1b[D");
+      await shown("/steer ▏y");
+      app.stdin.write("\x1b[200~n\r\x1b[201~");
+      await settle();
+      expect(resolved).not.toHaveBeenCalled();
+      expect(session.steer).not.toHaveBeenCalled();
+      app.stdin.write("\x1b");
+      await settle();
+      expect(approvals.current?.request.approvalId).toBe("control-approval");
+      app.stdin.write("n");
+      await decision;
+      await shown("原▏👩‍🔬稿");
+      app.stdin.write("\x1b[A");
+      await shown("历史▏");
+      app.stdin.write("\x1b[B");
+      await shown("原▏👩‍🔬稿");
+      expect(session.chat).toHaveBeenCalledTimes(1);
+    } finally {
+      approvals.close();
+      await decision;
+      app.unmount();
+    }
+  });
+
+  it("cursor 移入凭据标签中间仍整段脱敏，secret 不进入 Ink 帧", async () => {
+    const session = createSession();
+    const approvals = new ApprovalQueue(true);
+    const app = render(
+      <ChatTUI title="安全编辑" session={session} approvals={approvals} onExit={() => {}} />,
+    );
+    try {
+      await settle();
+      app.stdin.write("api_key=ink-editor-secret-canary");
+      await vi.waitFor(() => expect(app.lastFrame()).toContain("[光标 "));
+      app.stdin.write("\x1b[H");
+      await vi.waitFor(() => expect(app.lastFrame()).toContain("[光标 0/"));
+      app.stdin.write("\x1b[C");
+      await vi.waitFor(() => expect(app.lastFrame()).toContain("[光标 1/"));
+      expect(app.frames.join("\n")).not.toContain("ink-editor-secret-canary");
+      expect(session.chat).not.toHaveBeenCalled();
+    } finally {
+      approvals.close();
+      app.unmount();
+    }
+  });
+});
