@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CoreMindConfig } from "coremind-config";
 import { describe, expect, it, type TestContext, vi } from "vitest";
+import { observeMcpCommits, observeMcpStartup } from "../../../test/probes/mcp-startup-observer.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import {
@@ -43,182 +44,195 @@ type FixtureRecord = Record<string, unknown> & { type?: string; method?: string 
 
 describe("本地 MCP 真实 Runtime 准入", () => {
   it("connect/list/call 均在真实 critical barrier 后执行，首个模型使用冻结目录与真实批准目标", async (context) => {
-    await withProject(context, async (project) => {
-      const gates = Array.from({ length: 3 }, () => ({
-        entered: deferred<void>(),
-        release: deferred<void>(),
-      }));
-      project.onCancel(() => {
-        for (const gate of gates) gate.release.resolve();
-      });
-      let stage = 0;
-      const store = new FileRunStore(path.join(project.directory, "runs"), {
-        beforeBarrier: async ({ record }) => {
-          const event =
-            record?.kind === "event"
-              ? (record.payload as { event: CoreMindEvent }).event
-              : undefined;
-          if (event?.type !== "effect_receipt" || event.status !== "started") return;
-          const gate = gates[stage++];
-          if (!gate) throw new Error("夹具收到了额外的 started 屏障");
-          gate.entered.resolve();
-          await gate.release.promise;
-        },
-      });
-      const approvals: ToolApprovalRequest[] = [];
-      const observed: CoreMindEvent[] = [];
-      const runtime = await CoreMindRuntime.create({
-        config: project.config,
-        configDir: project.directory,
-        cwd: project.directory,
-        runStore: store,
-        env: project.env,
-        signal: project.controller.signal,
-        initialPrompt: "通过已授权本地工具完成回声",
-        approveTool: async (request) => {
-          approvals.push(request);
-          return "allow";
-        },
-        events: (event) => observed.push(event),
-      });
-      expect(existsSync(project.recordFile)).toBe(false);
-      expect(project.requests).toEqual([]);
-      project.running = runtime.run();
-      try {
-        await waitForBarrier("connect", gates[0]!.entered.promise, project.running, observed);
+    await observeMcpStartup(() =>
+      withProject(context, async (project) => {
+        const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+        const gates = Array.from({ length: 3 }, () => ({
+          entered: deferred<void>(),
+          release: deferred<void>(),
+        }));
+        project.onCancel(() => {
+          for (const gate of gates) gate.release.resolve();
+        });
+        let stage = 0;
+        const store = new FileRunStore(path.join(project.directory, "runs"), {
+          beforeBarrier: async ({ record }) => {
+            const event =
+              record?.kind === "event"
+                ? (record.payload as { event: CoreMindEvent }).event
+                : undefined;
+            if (event?.type !== "effect_receipt" || event.status !== "started") return;
+            const gate = gates[stage++];
+            if (!gate) throw new Error("夹具收到了额外的 started 屏障");
+            if (stage === 1) startupTrace?.("connect_gate_enter");
+            if (stage === 2) startupTrace?.("list_gate_enter");
+            gate.entered.resolve();
+            await gate.release.promise;
+          },
+        });
+        observeMcpCommits(store, () => stage);
+        const approvals: ToolApprovalRequest[] = [];
+        const observed: CoreMindEvent[] = [];
+        const runtime = await CoreMindRuntime.create({
+          config: project.config,
+          configDir: project.directory,
+          cwd: project.directory,
+          runStore: store,
+          env: project.env,
+          signal: project.controller.signal,
+          initialPrompt: "通过已授权本地工具完成回声",
+          approveTool: async (request) => {
+            approvals.push(request);
+            return "allow";
+          },
+          events: (event) => {
+            observed.push(event);
+            if (event.type === "tool_lifecycle" && event.resolution.phase === "executing")
+              startupTrace?.("runtime_executing");
+            if (event.type === "tool_lifecycle" && event.resolution.phase === "observed")
+              startupTrace?.("observed");
+          },
+        });
         expect(existsSync(project.recordFile)).toBe(false);
-        expect(project.requests).toHaveLength(0);
-        gates[0]!.release.resolve();
+        expect(project.requests).toEqual([]);
+        project.running = runtime.run();
+        try {
+          await waitForBarrier("connect", gates[0]!.entered.promise, project.running, observed);
+          expect(existsSync(project.recordFile)).toBe(false);
+          expect(project.requests).toHaveLength(0);
+          startupTrace?.("connect_gate_release");
+          gates[0]!.release.resolve();
 
-        await waitForBarrier("list", gates[1]!.entered.promise, project.running, observed);
-        let records = await serviceRecords(project.recordFile);
-        expect(records.filter((record) => record.type === "started")).toHaveLength(1);
-        expect(records.filter((record) => record.method === "initialize")).toHaveLength(1);
-        expect(records.filter((record) => record.method === "tools/list")).toHaveLength(0);
-        expect(project.requests).toHaveLength(0);
-        gates[1]!.release.resolve();
+          await waitForBarrier("list", gates[1]!.entered.promise, project.running, observed);
+          let records = await serviceRecords(project.recordFile);
+          expect(records.filter((record) => record.type === "started")).toHaveLength(1);
+          expect(records.filter((record) => record.method === "initialize")).toHaveLength(1);
+          expect(records.filter((record) => record.method === "tools/list")).toHaveLength(0);
+          expect(project.requests).toHaveLength(0);
+          gates[1]!.release.resolve();
 
-        await waitForBarrier("business", gates[2]!.entered.promise, project.running, observed);
-        records = await serviceRecords(project.recordFile);
-        expect(records.filter((record) => record.method === "tools/list")).toHaveLength(2);
-        expect(records.filter((record) => record.method === "tools/call")).toHaveLength(0);
-        expect(project.requests).toHaveLength(1);
-        const started = processRecord(records);
-        expect(alive(started.pid)).toBe(true);
-        expect(alive(started.childPid)).toBe(true);
-        gates[2]!.release.resolve();
+          await waitForBarrier("business", gates[2]!.entered.promise, project.running, observed);
+          records = await serviceRecords(project.recordFile);
+          expect(records.filter((record) => record.method === "tools/list")).toHaveLength(2);
+          expect(records.filter((record) => record.method === "tools/call")).toHaveLength(0);
+          expect(project.requests).toHaveLength(1);
+          const started = processRecord(records);
+          expect(alive(started.pid)).toBe(true);
+          expect(alive(started.childPid)).toBe(true);
+          gates[2]!.release.resolve();
 
-        const result = await bounded(project.running, "Run 完成");
-        expect(result.outcome.status, runSummary(result, observed)).toBe("succeeded");
-        expect(stage).toBe(3);
-        expect(project.requests).toHaveLength(2);
-        const declared = project.requests[0]!.tools!;
-        expect(declared).toHaveLength(1);
-        const name = declared[0]!.function.name;
-        expect(name).toMatch(/^mcp_[A-Za-z0-9_-]+$/u);
-        expect(declared[0]!.function.parameters).toEqual(inputSchema);
-        expect(approvals).toHaveLength(3);
-        const business = approvals.find((request) => request.tool === name)!;
-        const envelope = business.args as { mcp: Record<string, unknown>; arguments: unknown };
-        expect(envelope.arguments).toEqual(businessArgs);
-        expect(envelope.mcp).toMatchObject({
-          server: "local",
-          command: await realpath(process.execPath),
-          cwd: await realpath(project.directory),
-          argv: [service, project.recordFile],
-          tool: "echo",
-          schemaSha256: fingerprintEffectReceiptValue({ inputSchema }),
-          effect: { operations: ["external"], reversible: false },
-          capability: {
-            effect: "external",
-            replay: "unknown",
-            concurrency: "run_serial",
-            checkpoint: "unsupported",
-            durability: "critical",
-          },
-        });
-        expect(envelope.mcp.serverIdentity).toMatch(/^[0-9a-f]{64}$/u);
-        expect(business.argumentsFingerprint).toBe(fingerprintEffectReceiptValue(envelope));
-        const persisted = await store.read(result.runId);
-        const events = traceEvents(persisted);
-        const publicApprovals = events.filter((event) => event.type === "approval_required");
-        expect(publicApprovals).toHaveLength(3);
-        expect(publicApprovals.find((event) => event.tool === name)).toMatchObject({
-          args: {
-            ...envelope,
-            mcp: { ...envelope.mcp, envReferences: { MCP_TEST_SECRET: "<已隐藏>" } },
-          },
-          argumentsFingerprint: business.argumentsFingerprint,
-        });
-        const calls = events.filter((event) => event.type === "tool_call");
-        expect(calls).toHaveLength(3);
-        expect(calls.map((event) => event.tool)).toEqual([
-          approvals[0]!.tool,
-          approvals[1]!.tool,
-          name,
-        ]);
-        expect(new Set(calls.map((event) => event.callId)).size).toBe(3);
-        expect(new Set(calls.map((event) => event.turnId)).size).toBe(3);
-        for (const call of calls) {
-          expect(call.argumentsFingerprint).toMatch(/^[0-9a-f]{64}$/u);
-          const phases = events.filter(
-            (event): event is Extract<CoreMindEvent, { type: "tool_lifecycle" }> =>
-              event.type === "tool_lifecycle" && event.callId === call.callId,
-          );
-          expect(phases.map((event) => event.resolution.phase)).toEqual(TOOL_CALL_PHASES);
-          const effects = events.filter(
-            (event): event is Extract<CoreMindEvent, { type: "effect_receipt" }> =>
-              event.type === "effect_receipt" && event.callId === call.callId,
-          );
-          expect(effects.map((event) => event.status)).toEqual(["started", "committed"]);
-          for (const receipt of effects)
-            expect(receipt.binding).toMatchObject({
-              runId: result.runId,
-              turnId: call.turnId,
-              tool: call.tool,
-              argumentsFingerprint: call.argumentsFingerprint,
-            });
+          const result = await bounded(project.running, "Run 完成");
+          expect(result.outcome.status, runSummary(result, observed)).toBe("succeeded");
+          expect(stage).toBe(3);
+          expect(project.requests).toHaveLength(2);
+          const declared = project.requests[0]!.tools!;
+          expect(declared).toHaveLength(1);
+          const name = declared[0]!.function.name;
+          expect(name).toMatch(/^mcp_[A-Za-z0-9_-]+$/u);
+          expect(declared[0]!.function.parameters).toEqual(inputSchema);
+          expect(approvals).toHaveLength(3);
+          const business = approvals.find((request) => request.tool === name)!;
+          const envelope = business.args as { mcp: Record<string, unknown>; arguments: unknown };
+          expect(envelope.arguments).toEqual(businessArgs);
+          expect(envelope.mcp).toMatchObject({
+            server: "local",
+            command: await realpath(process.execPath),
+            cwd: await realpath(project.directory),
+            argv: [service, project.recordFile],
+            tool: "echo",
+            schemaSha256: fingerprintEffectReceiptValue({ inputSchema }),
+            effect: { operations: ["external"], reversible: false },
+            capability: {
+              effect: "external",
+              replay: "unknown",
+              concurrency: "run_serial",
+              checkpoint: "unsupported",
+              durability: "critical",
+            },
+          });
+          expect(envelope.mcp.serverIdentity).toMatch(/^[0-9a-f]{64}$/u);
+          expect(business.argumentsFingerprint).toBe(fingerprintEffectReceiptValue(envelope));
+          const persisted = await store.read(result.runId);
+          const events = traceEvents(persisted);
+          const publicApprovals = events.filter((event) => event.type === "approval_required");
+          expect(publicApprovals).toHaveLength(3);
+          expect(publicApprovals.find((event) => event.tool === name)).toMatchObject({
+            args: {
+              ...envelope,
+              mcp: { ...envelope.mcp, envReferences: { MCP_TEST_SECRET: "<已隐藏>" } },
+            },
+            argumentsFingerprint: business.argumentsFingerprint,
+          });
+          const calls = events.filter((event) => event.type === "tool_call");
+          expect(calls).toHaveLength(3);
+          expect(calls.map((event) => event.tool)).toEqual([
+            approvals[0]!.tool,
+            approvals[1]!.tool,
+            name,
+          ]);
+          expect(new Set(calls.map((event) => event.callId)).size).toBe(3);
+          expect(new Set(calls.map((event) => event.turnId)).size).toBe(3);
+          for (const call of calls) {
+            expect(call.argumentsFingerprint).toMatch(/^[0-9a-f]{64}$/u);
+            const phases = events.filter(
+              (event): event is Extract<CoreMindEvent, { type: "tool_lifecycle" }> =>
+                event.type === "tool_lifecycle" && event.callId === call.callId,
+            );
+            expect(phases.map((event) => event.resolution.phase)).toEqual(TOOL_CALL_PHASES);
+            const effects = events.filter(
+              (event): event is Extract<CoreMindEvent, { type: "effect_receipt" }> =>
+                event.type === "effect_receipt" && event.callId === call.callId,
+            );
+            expect(effects.map((event) => event.status)).toEqual(["started", "committed"]);
+            for (const receipt of effects)
+              expect(receipt.binding).toMatchObject({
+                runId: result.runId,
+                turnId: call.turnId,
+                tool: call.tool,
+                argumentsFingerprint: call.argumentsFingerprint,
+              });
+            expect(
+              events
+                .filter(
+                  (event): event is Extract<CoreMindEvent, { type: "workspace_lease" }> =>
+                    event.type === "workspace_lease" && event.callId === call.callId,
+                )
+                .map((event) => event.status),
+            ).toEqual(["acquired", "released"]);
+          }
           expect(
-            events
-              .filter(
-                (event): event is Extract<CoreMindEvent, { type: "workspace_lease" }> =>
-                  event.type === "workspace_lease" && event.callId === call.callId,
-              )
-              .map((event) => event.status),
-          ).toEqual(["acquired", "released"]);
+            project.requests[0]!.messages.some(
+              (message) => message.role === "assistant" || message.role === "tool",
+            ),
+          ).toBe(false);
+          expect(events.some((event) => event.type === "quiescence_timeout")).toBe(false);
+          const completedRecords = await serviceRecords(project.recordFile);
+          expect(completedRecords).toContainEqual({
+            type: "environment",
+            allowed: true,
+            forbidden: false,
+          });
+          const wireCalls = completedRecords.filter((record) => record.method === "tools/call");
+          expect(wireCalls).toHaveLength(1);
+          expect(wireCalls[0]!.params).toMatchObject({ name: "echo", arguments: businessArgs });
+          expect((wireCalls[0]!.params as Record<string, unknown>).arguments).not.toHaveProperty(
+            "mcp",
+          );
+          expect(
+            JSON.stringify({ persisted, requests: project.requests, approvals }),
+          ).not.toContain(serviceSecret);
+          await vi.waitFor(
+            () => {
+              expect(alive(started.pid)).toBe(false);
+              expect(alive(started.childPid)).toBe(false);
+            },
+            { timeout: 3_000, interval: 20 },
+          );
+        } finally {
+          for (const gate of gates) gate.release.resolve();
         }
-        expect(
-          project.requests[0]!.messages.some(
-            (message) => message.role === "assistant" || message.role === "tool",
-          ),
-        ).toBe(false);
-        expect(events.some((event) => event.type === "quiescence_timeout")).toBe(false);
-        const completedRecords = await serviceRecords(project.recordFile);
-        expect(completedRecords).toContainEqual({
-          type: "environment",
-          allowed: true,
-          forbidden: false,
-        });
-        const wireCalls = completedRecords.filter((record) => record.method === "tools/call");
-        expect(wireCalls).toHaveLength(1);
-        expect(wireCalls[0]!.params).toMatchObject({ name: "echo", arguments: businessArgs });
-        expect((wireCalls[0]!.params as Record<string, unknown>).arguments).not.toHaveProperty(
-          "mcp",
-        );
-        expect(JSON.stringify({ persisted, requests: project.requests, approvals })).not.toContain(
-          serviceSecret,
-        );
-        await vi.waitFor(
-          () => {
-            expect(alive(started.pid)).toBe(false);
-            expect(alive(started.childPid)).toBe(false);
-          },
-          { timeout: 3_000, interval: 20 },
-        );
-      } finally {
-        for (const gate of gates) gate.release.resolve();
-      }
-    });
+      }),
+    );
   }, 60_000);
 
   it.for(["list", "call"] as const)("拒绝 %s 审批时对应真实请求为零", async (target, context) => {
@@ -896,6 +910,8 @@ async function withProject(
   context: Pick<TestContext, "signal" | "onTestFinished">,
   action: (project: Project) => Promise<void>,
 ) {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+  startupTrace?.("fixture_enter");
   const controller = new AbortController();
   const releases = new Set<() => void>();
   const requests: WireRequest[] = [];
@@ -952,6 +968,7 @@ async function withProject(
     });
   });
   const cancel = () => {
+    startupTrace?.("fixture_abort");
     controller.abort();
     for (const release of releases) {
       try {
@@ -972,13 +989,24 @@ async function withProject(
           await project.running;
         } catch (error) {
           failures.push(error);
+        } finally {
+          startupTrace?.("run_settled");
         }
       }
       let processesStopped = true;
       try {
-        const started = recordFile
-          ? (await serviceRecords(recordFile)).find((record) => record.type === "started")
-          : undefined;
+        const records = recordFile ? await serviceRecords(recordFile) : [];
+        startupTrace?.(
+          records.some((record) => record.type === "started")
+            ? "cleanup_record_started"
+            : "cleanup_record_not_started",
+        );
+        startupTrace?.(
+          records.some((record) => record.method === "initialize")
+            ? "cleanup_record_initialized"
+            : "cleanup_record_not_initialized",
+        );
+        const started = records.find((record) => record.type === "started");
         if (started) {
           for (const pid of [
             (started as { childPid: number }).childPid,
@@ -1026,6 +1054,7 @@ async function withProject(
         failures.push(error);
       }
       context.signal.removeEventListener("abort", cancel);
+      startupTrace?.("cleanup_done");
       failures.push(...errors);
       if (failures.length) throw new AggregateError(failures, "MCP 真实 Runtime 主流程与资源清理");
     })());
@@ -1097,7 +1126,9 @@ async function withProject(
           runtime: { maxTurns: 3, maxRetries: 0, maxToolCalls: 3, runTimeoutMs: 0 },
         },
       };
-      await action(project);
+      const activeProject = project;
+      startupTrace?.("fixture_ready");
+      await (startupTrace ? startupTrace.run(() => action(activeProject)) : action(activeProject));
     } catch (error) {
       failures.push(error);
     }
@@ -1168,11 +1199,12 @@ async function waitForBarrier(
         },
       ),
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(new Error(`${label} started 屏障等待超时：${runSummary(undefined, observed)}`)),
-          15_000,
-        );
+        timer = setTimeout(() => {
+          Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.()?.(
+            `wait_${label.replaceAll("-", "_")}_timeout`,
+          );
+          reject(new Error(`${label} started 屏障等待超时：${runSummary(undefined, observed)}`));
+        }, 15_000);
       }),
     ]);
   } finally {
@@ -1183,6 +1215,10 @@ async function waitForBarrier(
 function runSummary(result: RunResult | undefined, observed: CoreMindEvent[]): string {
   const error = result && "error" in result.outcome ? result.outcome.error : undefined;
   return JSON.stringify({
+    startupStages: Reflect.get(
+      globalThis,
+      Symbol.for("coremind.mcpStartup.capture"),
+    )?.()?.snapshot(),
     status: result?.outcome.status ?? "pending",
     ...(error ? { error: { code: error.code, message: safeMessage(error) } } : {}),
     events: observed.slice(-20).map((event) => event.type),
@@ -1222,7 +1258,12 @@ async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
     return await Promise.race([
       promise,
       new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(`MCP 真实验收阶段超时（${label}）`)), 15_000);
+        timer = setTimeout(() => {
+          Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.()?.(
+            "bounded_timeout",
+          );
+          reject(new Error(`MCP 真实验收阶段超时（${label}）`));
+        }, 15_000);
       }),
     ]);
   } finally {

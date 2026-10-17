@@ -156,6 +156,11 @@ export function createMcpRun(options: McpRunOptions) {
       const connect = (): Promise<McpStdioClient | McpHttpClient> => {
         if (connection) return connection;
         connection = (async () => {
+          const startupTrace = Reflect.get(
+            globalThis,
+            Symbol.for("coremind.mcpStartup.capture"),
+          )?.();
+          startupTrace?.("host_connect_begin");
           await request.executeHost({
             name: connectName,
             args: { ...target, operation: "connect" },
@@ -171,15 +176,18 @@ export function createMcpRun(options: McpRunOptions) {
             },
             approvalDescription: describeTarget(target, "建立连接"),
             invoke: async () => {
+              startupTrace?.("runtime_invoke_begin");
               assertOpen(signal);
               if (server.transport === "stdio" && "command" in target) {
                 const { env, sensitiveValues } = await resolveEnvironment(server, options);
+                startupTrace?.("runtime_env_done");
                 assertOpen(signal);
                 if ((await identifyServer(serverName, server)).sha256 !== identity.sha256)
                   throw new CoreMindError(
                     "tool_capability_conflict",
                     "本地服务目标在批准后发生变化",
                   );
+                startupTrace?.("runtime_identity_done");
                 assertOpen(signal);
                 client = createMcpStdioClient({
                   command: target.command,
@@ -222,7 +230,9 @@ export function createMcpRun(options: McpRunOptions) {
               } else throw new CoreMindError("invalid_tool", "MCP 服务类型与身份不一致");
               // 在第一个连接 await 前登记，初始化失败和并发关闭也能找到自有资源。
               owners.add(client);
+              startupTrace?.("runtime_client_connect_begin");
               await client.connect(signal);
+              startupTrace?.("runtime_client_connect_fulfilled");
               assertOpen(signal);
               return {
                 text: "本地服务连接已建立",
@@ -237,6 +247,7 @@ export function createMcpRun(options: McpRunOptions) {
               };
             },
           });
+          startupTrace?.("host_connect_fulfilled");
           assertOpen(signal);
           if (!client)
             throw new CoreMindError("tool_execution_failed", "宿主没有执行已准入的连接动作");

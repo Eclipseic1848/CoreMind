@@ -141,6 +141,8 @@ export async function launchWindowsMcpJob(
   },
   signal: AbortSignal,
 ): Promise<WindowsMcpJob> {
+  const startupTrace = Reflect.get(globalThis, Symbol.for("coremind.mcpStartup.capture"))?.();
+  startupTrace?.("job_prepare_begin");
   if (process.platform !== "win32") throw transportFailure();
   const launcher = new URL("./vendor/windows-mcp/service.mjs", import.meta.url);
   const guard = new URL("./vendor/windows-mcp/guard.dll", import.meta.url);
@@ -157,6 +159,7 @@ export async function launchWindowsMcpJob(
   } catch {
     throw transportFailure();
   }
+  startupTrace?.("job_assets_verified");
   const hostEnv: Record<string, string> = {};
   for (const name of ["SystemRoot", "windir", "PATH", "PATHEXT", "ComSpec", "TEMP", "TMP"]) {
     const entry = Object.entries(process.env).find(
@@ -264,6 +267,7 @@ export async function launchWindowsMcpJob(
     owner = await endpoint(
       "owner",
       (socket) => {
+        startupTrace?.("owner_socket_connected");
         firstWasCancel = Boolean(closing || signal.aborted);
         ownerInitialized = true;
         send(
@@ -281,6 +285,7 @@ export async function launchWindowsMcpJob(
       },
       (value) => {
         if (message(value, "job_ready") && !ownerReady && !provedClosed) {
+          startupTrace?.("owner_job_ready");
           ownerReady = true;
           configureService();
           finishReady();
@@ -299,14 +304,17 @@ export async function launchWindowsMcpJob(
       },
       fail,
     );
+    startupTrace?.("owner_listen_ready");
     service = await endpoint(
       "service",
       (socket) => {
+        startupTrace?.("service_socket_connected");
         if (closing || signal.aborted) socket.end();
         else configureService();
       },
       (value) => {
         if (message(value, "ready") && configurationSent && !serviceReady && !serviceExited) {
+          startupTrace?.("service_ready");
           serviceReady = true;
           finishReady();
         } else if (message(value, "exit") && serviceReady && !serviceExited) {
@@ -322,6 +330,7 @@ export async function launchWindowsMcpJob(
       },
       fail,
     );
+    startupTrace?.("service_listen_ready");
     const helperOptions = {
       cwd: options.cwd,
       env: {
@@ -354,6 +363,9 @@ export async function launchWindowsMcpJob(
       ],
       helperOptions,
     );
+    startupTrace?.("helper_spawned");
+    if (startupTrace)
+      helper.nodeChildProcess.once("spawn", () => startupTrace("helper_spawn_event"));
     helperFinished = helper.then(
       (result) => {
         if (!closing) void close().catch(() => {});

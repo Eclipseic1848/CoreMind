@@ -93,6 +93,11 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
       this.connected = this.perform(
         this.options.mode === "http" ? undefined : signal,
         async (executionSignal) => {
+          const startupTrace = Reflect.get(
+            globalThis,
+            Symbol.for("coremind.mcpStartup.capture"),
+          )?.();
+          startupTrace?.("client_sdk_import_begin");
           const {
             Client: SdkClient,
             SdkError,
@@ -100,6 +105,7 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
             SdkHttpError,
             ProtocolError,
           } = await import("@modelcontextprotocol/client");
+          startupTrace?.("client_sdk_import_done");
           this.isNonFatalSdkError = (cause) =>
             cause instanceof ProtocolError ||
             cause instanceof SdkHttpError ||
@@ -133,7 +139,9 @@ export class ManagedMcpClient<Summary> implements McpClient<Summary> {
             this.invalidated = true;
             this.options.onToolsChanged?.();
           });
+          startupTrace?.("sdk_client_connect_begin");
           await client.connect(this.options.transport, requestOptions(executionSignal));
+          startupTrace?.("sdk_client_connect_fulfilled");
           this.assertSafe(client.getServerVersion());
           this.assertSafe(client.getInstructions());
           this.ready = true;
