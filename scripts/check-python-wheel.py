@@ -393,6 +393,9 @@ def smoke_install(wheel: Path) -> None:
         run(
             [
                 str(python),
+                "-I",
+                "-X",
+                "utf8",
                 "-m",
                 "pip",
                 "install",
