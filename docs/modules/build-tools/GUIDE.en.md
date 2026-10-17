@@ -28,7 +28,7 @@ Run `coremind doctor coremind.yaml` for static diagnostics, then execute only wi
 
 From the repository root run `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`. Verify zero corresponding I/O on denial, the first model schema, real process cleanup, blocked secret output, and no retry of unknown effects. Protocol errors and business `isError` remain distinct; retries cannot establish that an unproven write is safe.
 
-Local Windows services continue to use system Windows PowerShell and a dedicated Job. Startup computes SHA-256 from the actual bundled DLL bytes and loads that same byte array. Normal installation and execution neither invoke a C# compiler nor import the PowerShell Utility module. Missing or mismatched assets reject startup without falling back to an uncontrolled process. The assembly uses the Windows-provided CLR 4 Framework family without a .NET SDK or NuGet. It does not sandbox trusted host code or guarantee startup within every system policy or load.
+Local Windows services use the bundled fixed `host.exe` and a dedicated Job. Startup verifies the actual host and Job DLL bytes; the host then verifies and loads that same DLL byte array. Normal installation and execution invoke neither a C# compiler nor PowerShell. Missing or mismatched assets reject startup without falling back to an uncontrolled process. The host and assembly use the Windows-provided CLR 4 Framework family without a .NET SDK or NuGet. They do not sandbox trusted host code or guarantee startup within every system policy or load.
 
 ## Controlled HTTP MCP and resources
 

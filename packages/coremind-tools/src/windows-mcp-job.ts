@@ -1,14 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { TextDecoder } from "node:util";
 import { execa, type Subprocess } from "execa";
 import { McpStdioError } from "./mcp-stdio-error.js";
-import { WINDOWS_MCP_JOB_SCRIPT } from "./windows-mcp-job-script.js";
 import {
   WINDOWS_MCP_GUARD_SHA256,
+  WINDOWS_MCP_HOST_SHA256,
   WINDOWS_MCP_SERVICE_SHA256,
 } from "./windows-mcp-service-identity.js";
 
@@ -144,14 +144,25 @@ export async function launchWindowsMcpJob(
   if (process.platform !== "win32") throw transportFailure();
   const launcher = new URL("./vendor/windows-mcp/service.mjs", import.meta.url);
   const guard = new URL("./vendor/windows-mcp/guard.dll", import.meta.url);
+  const host = new URL("./vendor/windows-mcp/host.exe", import.meta.url);
   try {
+    // CLR 会在 Main 前读取旁置配置，拒绝未冻结的启动输入。
+    try {
+      await lstat(new URL("./vendor/windows-mcp/host.exe.config", import.meta.url));
+      throw transportFailure();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     if (
       createHash("sha256")
         .update(await readFile(launcher))
         .digest("hex") !== WINDOWS_MCP_SERVICE_SHA256 ||
       createHash("sha256")
         .update(await readFile(guard))
-        .digest("hex") !== WINDOWS_MCP_GUARD_SHA256
+        .digest("hex") !== WINDOWS_MCP_GUARD_SHA256 ||
+      createHash("sha256")
+        .update(await readFile(host))
+        .digest("hex") !== WINDOWS_MCP_HOST_SHA256
     )
       throw transportFailure();
   } catch {
@@ -343,17 +354,7 @@ export async function launchWindowsMcpJob(
       cleanup: false,
       killDescendants: false,
     } as const;
-    helper = execa(
-      path.win32.join(windowsDirectory, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-      [
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-EncodedCommand",
-        Buffer.from(WINDOWS_MCP_JOB_SCRIPT, "utf16le").toString("base64"),
-      ],
-      helperOptions,
-    );
+    helper = execa(fileURLToPath(host), [], helperOptions);
     helperFinished = helper.then(
       (result) => {
         if (!closing) void close().catch(() => {});

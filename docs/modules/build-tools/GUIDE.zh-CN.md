@@ -28,7 +28,7 @@ const lookupOrder = defineTool({
 
 在仓库根目录运行 `npx vitest run packages/coremind-tools/src/mcp-stdio-client.test.ts packages/coremind-tools/src/mcp-stdio-transport.test.ts packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts`，核对审批拒绝时对应 I/O 为零、首次模型 schema、真实进程回收、秘密输出阻断和未知效果不重发。协议错误与业务 `isError` 分开处理，未经证明的写效果不能靠重试恢复。
 
-Windows 本地服务仍使用系统 Windows PowerShell 与专属 Job。启动时从随包固定 DLL 的实际字节计算 SHA-256，再加载同一字节数组；普通安装和运行不会调用 C# 编译器或导入 PowerShell Utility 模块。缺失或摘要不符会拒绝启动，不降级为未受控进程。该程序集依赖 Windows 自带的 CLR 4 系列 Framework，不引入 .NET SDK 或 NuGet；它不将受信宿主程序变成沙箱，也不保证任意系统策略或负载下都能按时启动。
+Windows 本地服务使用随包固定的 `host.exe` 与专属 Job。启动前核验启动器与 Job DLL 的实际字节摘要，启动器再校验并加载同一 DLL 字节数组；普通安装和运行不调用 C# 编译器或 PowerShell。缺失或摘要不符会拒绝启动，不降级为未受控进程。启动器与程序集依赖 Windows 自带的 CLR 4 系列 Framework，不引入 .NET SDK 或 NuGet；它们不将受信宿主程序变成沙箱，也不保证任意系统策略或负载下都能按时启动。
 
 ## 受控 HTTP MCP 与资源
 

@@ -1,8 +1,43 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { evaluatePackageFiles } from "./package-artifacts.mjs";
+import { collectRequiredEntries, evaluatePackageFiles } from "./package-artifacts.mjs";
 
 describe("npm 发布包内容门禁", () => {
+  it("Windows MCP 六个冻结资产均为必需的发布入口", () => {
+    const assets = [
+      "service.mjs",
+      "guard.dll",
+      "host.exe",
+      "manifest.json",
+      "metafile.json",
+      "THIRD-PARTY-LICENSES.txt",
+    ].map((filename) => `dist/vendor/windows-mcp/${filename}`);
+    const requiredFiles = collectRequiredEntries({
+      name: "coremind-tools",
+      main: "./dist/index.js",
+    });
+    expect(requiredFiles).toEqual([...assets, "dist/index.js"]);
+    const packedFiles = [...assets, "dist/index.js"];
+    expect(
+      evaluatePackageFiles({
+        packageName: "coremind-tools",
+        declaredFiles: ["dist"],
+        packedFiles,
+        requiredFiles,
+      }),
+    ).toEqual({ ready: true, blockers: [] });
+    for (const missing of assets) {
+      expect(
+        evaluatePackageFiles({
+          packageName: "coremind-tools",
+          declaredFiles: ["dist"],
+          packedFiles: packedFiles.filter((filename) => filename !== missing),
+          requiredFiles,
+        }),
+      ).toEqual({ ready: false, blockers: [`coremind-tools 缺少入口：${missing}`] });
+    }
+  });
+
   it("接受真实会话实现的代码、类型和 source map 编译产物", () => {
     const modules = readdirSync(
       new URL("../packages/coremind-runtime/src/session-v4/session/", import.meta.url),

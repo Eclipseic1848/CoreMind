@@ -285,6 +285,33 @@
       "exitCode": 0
     }
   },
+  "host": {
+    "source": {
+      "entry": "packages/coremind-tools/src/windows-mcp-console-host.cs",
+      "sha256": "5505eac30ef73d485862eee3023086c76ff27af9e1309c48444e501fa428e6d5"
+    },
+    "compiler": {
+      "name": "csc.exe",
+      "sha256": "46809206887326d2d24db1eff1f3064de972c3451abe766b49111450a5e08e00",
+      "options": [
+        "/nologo",
+        "/noconfig",
+        "/nostdlib+",
+        "/utf8output",
+        "/codepage:65001",
+        "/target:exe",
+        "/platform:anycpu",
+        "/optimize+",
+        "/debug-"
+      ],
+      "references": {
+        "mscorlib.dll": "11ac114c43ecf6996bef58ba3c99fba3693a4560a84eeadde54d193060dc626c",
+        "System.dll": "2b3c17c6208a0b4b6beb94e1a066f99ba06cdb2ea919479e99d47e8c6d96dc71",
+        "System.Core.dll": "8b898bed54ae8cc61f9c58cc3eb062724f8357d2bdda338b5d363654ecff333d"
+      },
+      "exitCode": 0
+    }
+  },
   "build": {
     "esbuild": "0.28.1"
   },
@@ -292,6 +319,7 @@
     "service.mjs": "1e857f61e41340943b7dcf240b971d86915c25731ddf76e98487076ba1c342b6",
     "THIRD-PARTY-LICENSES.txt": "35fe90e5cc6370797b954974b659a83935e169666a535f4a7bb127932775e934",
     "metafile.json": "f9a9639fe1492f940e4f9756b740ab35737e691e1c69ecba8e39801d06be818e",
-    "guard.dll": "c0eff42694d6acb03cd454118752229751d9894e3775ce08e7dbb668b3620414"
+    "guard.dll": "c0eff42694d6acb03cd454118752229751d9894e3775ce08e7dbb668b3620414",
+    "host.exe": "01b0679eeabbfaffe7855533b7b813093358bb994527984296a808b49e3162ba"
   }
 }
