@@ -19,6 +19,7 @@ import {
   parsePermissionMode,
 } from "../approval.js";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
+import { createProjectCodeAuthorizer } from "../project-code-trust.js";
 import {
   cyan,
   dim,
@@ -115,6 +116,8 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
       configDir,
       cwd: process.cwd(),
       sessionId,
+      signal: controller.signal,
+      approveProjectCode: createProjectCodeAuthorizer(parsed, () => controller.abort()),
       ...(authentication ? { mcpAuthentication: authentication } : {}),
       approveTool: (request) => approvals.request(request),
       // 非对话事件（配置告警等）由 runtime 回调处理；对话事件走 ChatSession
@@ -161,7 +164,15 @@ export async function cmdChat(parsed: ParsedArgs, positionals: string[]): Promis
       console.error(errorLine(`output_delivery_failed: ${writer.failure.message}`));
       return 1;
     }
-    throw error;
+    if (
+      controller.signal.aborted ||
+      (error && typeof error === "object" && "code" in error && error.code === "aborted")
+    ) {
+      console.error(errorLine("运行已取消"));
+      return 130;
+    }
+    console.error(errorLine(error instanceof Error ? error.message : String(error)));
+    return 1;
   } finally {
     approvals.close();
     try {

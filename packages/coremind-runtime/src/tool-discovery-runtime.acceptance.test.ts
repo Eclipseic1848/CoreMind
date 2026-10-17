@@ -131,19 +131,22 @@ it("静态策略禁止的脚本工具描述不会进入搜索或实际模型请�
     };`,
       "utf8",
     );
-    const result = await run({
-      agents: {
-        main: {
-          tools: [
-            {
-              path: "./private-process.mjs",
-              exposure: "deferred",
-              effect: { operations: ["process"], reversible: false },
-            },
-          ],
+    const result = await run(
+      {
+        agents: {
+          main: {
+            tools: [
+              {
+                path: "./private-process.mjs",
+                exposure: "deferred",
+                effect: { operations: ["process"], reversible: false },
+              },
+            ],
+          },
         },
       },
-    });
+      { approveProjectCode: () => true },
+    );
     expect(result.outcome.status).toBe("succeeded");
     expect(requests.map(names)).toEqual([
       ["discover_tools"],
@@ -176,20 +179,23 @@ it("安装的大 schema 先进入真实预算，超限时不发第二请求", as
     };`,
       "utf8",
     );
-    const result = await run({
-      agents: {
-        main: {
-          systemPrompt: "按需发现",
-          tools: [
-            {
-              path: "./large-tool.mjs",
-              exposure: "deferred",
-              effect: { operations: ["read"], reversible: true },
-            },
-          ],
+    const result = await run(
+      {
+        agents: {
+          main: {
+            systemPrompt: "按需发现",
+            tools: [
+              {
+                path: "./large-tool.mjs",
+                exposure: "deferred",
+                effect: { operations: ["read"], reversible: true },
+              },
+            ],
+          },
         },
       },
-    });
+      { approveProjectCode: () => true },
+    );
     expect(result.outcome).toMatchObject({
       status: "paused",
       finishReason: "context_budget_exhausted",
@@ -257,7 +263,7 @@ async function scenario(
     store: FileRunStore;
     run: (
       patch?: Partial<CoreMindConfig>,
-      options?: Pick<CoreMindRuntimeOptions, "resumeRunId" | "approveTool">,
+      options?: Pick<CoreMindRuntimeOptions, "resumeRunId" | "approveTool" | "approveProjectCode">,
     ) => Promise<Awaited<ReturnType<CoreMindRuntime["run"]>>>;
   }) => Promise<void>,
   settings: { guessed?: boolean; resumeRead?: boolean } = {},

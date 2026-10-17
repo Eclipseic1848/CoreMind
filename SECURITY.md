@@ -27,6 +27,10 @@
 
 `ask`、`assisted` 和 `full` 控制审批策略，但不会把高风险工具自动变安全。显式拒绝、工作区路径限制、审计、Trace、预算、checkpoint、Effect Receipt 和恢复检查仍优先执行。首次运行陌生项目时应选择 `ask`。
 
+### 项目脚本加载（1.2 开发线，尚未发布）
+
+配置驱动 Runtime 在任何项目脚本 import 前要求宿主单批明确批准；CLI 非 TTY 需显式 `--trust-project-code`，Python 需显式 `trust_project_code=True`。脚本与传递依赖的顶层代码按宿主权限执行；入口路径/摘要批准不是 OS 沙箱或整个依赖图的不可变证明，也不能消除同权限外部进程的检查后替换。加载同意不授予工具执行权限，`full` 和质量 override 不替代该决定。`doctor` / `check` 不加载项目脚本；直接调用低层工具加载 API 由调用者承担来源信任。详见 [1.2 迁移](docs/migrations/1.0-to-1.2.zh-CN.md)。
+
 ### Shell 与工具隔离
 
 - Linux：内置 `bash` 在操作系统级隔离中运行，固定禁止网络、仅允许写工作区，并在隔离不可用时拒绝执行，不回退宿主 Shell。该能力的关键依赖仍处于研究预览阶段。

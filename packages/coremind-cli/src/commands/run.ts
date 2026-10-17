@@ -22,6 +22,7 @@ import {
 } from "../approval.js";
 import { flagBool, flagNumber, flagString, type ParsedArgs } from "../args.js";
 import { formatObservabilityStatus } from "../observability-format.js";
+import { createProjectCodeAuthorizer } from "../project-code-trust.js";
 import {
   cyan,
   dim,
@@ -106,15 +107,10 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
   // 2. 构建运行时（事件回调：JSONL 或渲染）
   const controller = new AbortController();
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
-  const approvalReadline =
-    process.stdin.isTTY === true ? createInterface({ input, output }) : undefined;
-  const unbindApprovals = approvalReadline
-    ? bindReadlineApprovals(approvals, approvalReadline)
-    : undefined;
+  let approvalReadline: ReturnType<typeof createInterface> | undefined;
+  let unbindApprovals: (() => void) | undefined;
   const onSigint = () => controller.abort();
   process.once("SIGINT", onSigint);
-  approvalReadline?.on("SIGINT", onSigint);
-  if (loginServer) approvalReadline?.on("close", onSigint);
   let authentication: McpAuthentication | undefined;
   const writer = createBoundedOutput(process.stdout, { onFailure: () => controller.abort() });
   const log = (...values: unknown[]) => writer.write(`${values.map(String).join(" ")}\n`);
@@ -134,17 +130,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         console.error(errorLine("指定服务没有配置 OAuth 登录"));
         return 1;
       }
-      console.error(
-        `登录 ${loginServer}：${server.url}；授权方 ${server.oauth.issuer}；范围 ${server.oauth.scopes.join("、")}（仅当前进程保存）`,
-      );
       authentication = await createMcpAuthentication({ config });
-      await authentication.login(loginServer, {
-        signal: controller.signal,
-        onAuthorization: (request, signal) => {
-          signal.throwIfAborted();
-          console.error(`请手动打开授权链接；Ctrl+C 取消：\n${request.authorizationUrl}`);
-        },
-      });
     }
     const runtime = await CoreMindRuntime.create({
       config,
@@ -155,6 +141,7 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
       resumeRunId,
       maxSteps,
       signal: controller.signal,
+      approveProjectCode: createProjectCodeAuthorizer(parsed, () => controller.abort()),
       ...(authentication ? { mcpAuthentication: authentication } : {}),
       approveTool: (request) => approvals.request(request),
       events: (event) => {
@@ -167,6 +154,28 @@ export async function cmdRun(parsed: ParsedArgs, positionals: string[]): Promise
         renderEvent(event, (text) => writer.write(text));
       },
     });
+    // 加载信任完成后才启用工具审批或 OAuth 输入，避免两个 reader 竞争 stdin。
+    if (process.stdin.isTTY === true) {
+      approvalReadline = createInterface({ input, output });
+      unbindApprovals = bindReadlineApprovals(approvals, approvalReadline);
+      approvalReadline.on("SIGINT", onSigint);
+      if (loginServer) approvalReadline.on("close", onSigint);
+    }
+    if (loginServer && authentication) {
+      const server = config.mcp!.servers[loginServer]!;
+      if (server.transport !== "streamable-http" || !server.oauth)
+        throw new Error("OAuth 配置无效");
+      console.error(
+        `登录 ${loginServer}：${server.url}；授权方 ${server.oauth.issuer}；范围 ${server.oauth.scopes.join("、")}（仅当前进程保存）`,
+      );
+      await authentication.login(loginServer, {
+        signal: controller.signal,
+        onAuthorization: (request, signal) => {
+          signal.throwIfAborted();
+          console.error(`请手动打开授权链接；Ctrl+C 取消：\n${request.authorizationUrl}`);
+        },
+      });
+    }
     if (runtime.resumedContextLength > 0 && !jsonEvents && !printOnly) {
       log(dim(`已恢复会话 ${sessionId}（${runtime.resumedContextLength} 条历史消息）`));
     }

@@ -285,6 +285,7 @@ export {
   type ProjectCheckOptions,
   type ProjectCheckReport,
 } from "./project-check.js";
+export type { ProjectCodeTrustRequest } from "./project-code-trust.js";
 export {
   type ChildRunDispositionProjection,
   type ChildRunNodeProjection,

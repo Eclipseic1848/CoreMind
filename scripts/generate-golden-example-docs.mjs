@@ -4,6 +4,7 @@ import path from "node:path";
 const examples = [
   {
     id: "faq-order-assistant",
+    projectCodeEntry: "src/order-tool.ts",
     titleZh: "FAQ/订单助手",
     titleEn: "FAQ and Order Assistant",
     profile: "order",
@@ -25,19 +26,19 @@ const examples = [
       "ask-mode approval",
       "happy and not-found cases",
     ],
-    run: 'node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "查询订单 A-100"',
-    eval: "node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml",
+    run: 'node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "查询订单 A-100" --trust-project-code',
+    eval: "node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml --trust-project-code",
     expectedZh: "输出“订单 A-100 已支付，金额 299 元”，并记录一次 lookup_order 审批与工具调用。",
     expectedEn:
       "Outputs that A-100 is paid for 299 and records one lookup_order approval and tool call.",
     failuresZh: [
       "未启动 mock Provider：先运行启动命令并检查 8811 端口",
-      "非 TTY 下 ask 默认拒绝：交互执行，或在可信离线 CI 中显式使用 --permission full",
+      "先审查 src/order-tool.ts 及其依赖，再用 --trust-project-code 批准加载；非 TTY 下 ask 仍拒绝工具，仅可信离线 CI 才另加 --permission full，full 不替代加载批准",
       "A-999 返回未找到是预期业务失败分支，不应改成虚构订单",
     ],
     failuresEn: [
       "Mock provider is not running: start it and check port 8811",
-      "ask denies safely in non-TTY mode: run interactively or explicitly use --permission full in trusted offline CI",
+      "Review src/order-tool.ts and its imports before using --trust-project-code; ask still denies tools in non-TTY mode, so only trusted offline CI may separately add --permission full, which does not approve code loading",
       "A-999 returning not found is the expected business failure branch; do not fabricate an order",
     ],
   },
@@ -120,6 +121,7 @@ const examples = [
   },
   {
     id: "bounded-research-agent",
+    projectCodeEntry: "src/search-tool.ts",
     titleZh: "研究/问题调查 Agent",
     titleEn: "Bounded Research Agent",
     profile: "research",
@@ -142,8 +144,8 @@ const examples = [
       "Human approval for a custom tool",
       "Trace, context protection, and budgets",
     ],
-    run: 'node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "是否应直接用于高影响决策"',
-    eval: "node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml",
+    run: 'node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "是否应直接用于高影响决策" --trust-project-code',
+    eval: "node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml --trust-project-code",
     expectedZh: "结论建议小规模试点，引用 S1/S2，保留人工复核和中等置信度。",
     expectedEn:
       "Recommends a small pilot, cites S1/S2, preserves human review, and reports medium confidence.",
@@ -202,6 +204,8 @@ const examples = [
 ];
 
 for (const item of examples) {
+  // 验证修复示例的恢复与耗尽材料已手工维护，不能再被通用模板覆盖。
+  if (item.id === "verified-repair-loop") continue;
   const root = path.join("examples", "golden", item.id);
   await write(root, "README.zh-CN.md", readme(item, "zh"));
   await write(root, "README.en.md", readme(item, "en"));
@@ -229,7 +233,7 @@ for (const item of examples) {
 
 await write("examples", "golden", "README.zh-CN.md", index("zh"));
 await write("examples", "golden", "README.en.md", index("en"));
-console.log(`已生成 ${examples.length} 个黄金示例的双语开发材料。`);
+console.log("已更新黄金示例双语开发材料，保留验证修复示例的定制文档。");
 
 async function write(...parts) {
   const content = parts.pop();
@@ -238,9 +242,16 @@ async function write(...parts) {
   await writeFile(file, content.replaceAll("\r\n", "\n"), "utf8");
 }
 
+function projectCodeTrustNote(item, language) {
+  if (!item.projectCodeEntry) return "";
+  return language === "zh"
+    ? `先审查 \`coremind.yaml\`、\`${item.projectCodeEntry}\` 及其导入依赖，确认可在宿主权限下加载后，再执行下列带 \`--trust-project-code\` 的命令。非 TTY 缺少该标志会在导入前拒绝；TTY 也可省略标志并逐次确认。\n\n加载信任与工具权限分开：该标志不免除 \`ask\` 审批；只有已审查的本地 mock CI 需要跳过工具审批时，才另外加 \`--permission full\`，后者不能替代加载批准。这里只验证本地 mock，不构成真实 Provider 认证。\n\n`
+    : `Review \`coremind.yaml\`, \`${item.projectCodeEntry}\`, and its imports first. After accepting execution with host privileges, use the commands below with \`--trust-project-code\`. Non-TTY runs without this flag reject before import; TTY users may omit it and confirm each load.\n\nCode-loading trust and tool permissions are separate: the flag does not bypass \`ask\` approval. Only reviewed local-mock CI that needs to skip tool approval may separately add \`--permission full\`; that option cannot approve code loading. These examples use local mocks and do not certify a real provider.\n\n`;
+}
+
 function readme(item, language) {
   const zh = language === "zh";
-  return `# ${zh ? item.titleZh : item.titleEn}\n\n${zh ? item.goalZh : item.goalEn}\n\n## ${zh ? "离线运行" : "Offline run"}\n\n1. ${zh ? "在仓库根目录构建" : "Build at the repository root"}：\`npm run build:python-worker\`。\n2. ${zh ? "进入本目录并设置仅用于本地 mock 的环境变量" : "Enter this directory and set the local-mock environment variable"}：PowerShell \`$env:GOLDEN_MOCK_API_KEY="offline"\`；Linux \`export GOLDEN_MOCK_API_KEY=offline\`。\n3. ${zh ? "启动 Provider" : "Start the provider"}：\`node ../_shared/mock-provider.mjs ${item.profile} ${item.port}\`。\n4. ${zh ? "另开终端执行" : "Run in another terminal"}：\`${item.run}\`。\n5. ${zh ? "执行评测" : "Run evaluation"}：\`${item.eval}\`。\n\n## ${zh ? "期望证据" : "Expected evidence"}\n\n${zh ? item.expectedZh : item.expectedEn}\n\n- ${zh ? "配置" : "Configuration"}：[coremind.yaml](coremind.yaml)\n- ${zh ? "场景" : "Scenarios"}：[evals/scenarios.yaml](evals/scenarios.yaml)\n- SOP：[${zh ? "中文" : "English"}](SOP.${zh ? "zh-CN" : "en"}.md)\n- ${zh ? "失败与修复" : "Failures and repairs"}：[${zh ? "中文" : "English"}](FAILURES.${zh ? "zh-CN" : "en"}.md)\n\n${zh ? "本示例只使用模拟数据；真实 Provider 配置必须改用 apiKeyEnv，并在获得数据外传授权后再启用。" : "This example uses mock data only. A real provider must use apiKeyEnv and requires authorization before data egress."}\n`;
+  return `# ${zh ? item.titleZh : item.titleEn}\n\n${zh ? item.goalZh : item.goalEn}\n\n## ${zh ? "离线运行" : "Offline run"}\n\n${zh ? '启动 mock Provider 和运行示例要使用两个终端；两个终端都须进入本示例目录，并各自设置 `GOLDEN_MOCK_API_KEY=offline`（PowerShell 用 `$env:GOLDEN_MOCK_API_KEY="offline"`）。' : 'Use separate terminals for the mock provider and the example. Enter this example directory and set `GOLDEN_MOCK_API_KEY=offline` in both terminals (PowerShell: `$env:GOLDEN_MOCK_API_KEY="offline"`).'}\n\n${projectCodeTrustNote(item, language)}1. ${zh ? "在仓库根目录构建" : "Build at the repository root"}：\`npm run build:python-worker\`。\n2. ${zh ? "进入本目录并设置仅用于本地 mock 的环境变量" : "Enter this directory and set the local-mock environment variable"}：PowerShell \`$env:GOLDEN_MOCK_API_KEY="offline"\`；Linux \`export GOLDEN_MOCK_API_KEY=offline\`。\n3. ${zh ? "启动 Provider" : "Start the provider"}：\`node ../_shared/mock-provider.mjs ${item.profile} ${item.port}\`。\n4. ${zh ? "另开终端执行" : "Run in another terminal"}：\`${item.run}\`。\n5. ${zh ? "执行评测" : "Run evaluation"}：\`${item.eval}\`。\n\n## ${zh ? "期望证据" : "Expected evidence"}\n\n${zh ? item.expectedZh : item.expectedEn}\n\n- ${zh ? "配置" : "Configuration"}：[coremind.yaml](coremind.yaml)\n- ${zh ? "场景" : "Scenarios"}：[evals/scenarios.yaml](evals/scenarios.yaml)\n- SOP：[${zh ? "中文" : "English"}](SOP.${zh ? "zh-CN" : "en"}.md)\n- ${zh ? "失败与修复" : "Failures and repairs"}：[${zh ? "中文" : "English"}](FAILURES.${zh ? "zh-CN" : "en"}.md)\n\n${zh ? "本示例只使用模拟数据；真实 Provider 配置必须改用 apiKeyEnv，并在获得数据外传授权后再启用。" : "This example uses mock data only. A real provider must use apiKeyEnv and requires authorization before data egress."}\n`;
 }
 
 function sop(item, language) {
@@ -286,7 +297,7 @@ function architecture(item, language) {
 
 function testing(item, language) {
   const zh = language === "zh";
-  return `# ${zh ? "测试指南" : "Testing Guide"}\n\n1. \`coremind check coremind.yaml\`。\n2. ${zh ? "运行离线正常场景" : "Run the offline happy path"}。\n3. ${zh ? "运行 FAILURES 中的至少一个失败场景" : "Run at least one failure from FAILURES"}。\n4. \`${item.eval}\`。\n5. ${zh ? "确认退出码、RunOutcome、工具计数、审批、Trace 与 checkpoint 符合预期" : "Verify exit code, RunOutcome, tool counts, approvals, trace, and checkpoints"}。\n`;
+  return `# ${zh ? "测试指南" : "Testing Guide"}\n\n${projectCodeTrustNote(item, language)}1. \`coremind check coremind.yaml\`。\n2. ${zh ? "运行离线正常场景" : "Run the offline happy path"}。\n3. ${zh ? "运行 FAILURES 中的至少一个失败场景" : "Run at least one failure from FAILURES"}。\n4. \`${item.eval}\`。\n5. ${zh ? "确认退出码、RunOutcome、工具计数、审批、Trace 与 checkpoint 符合预期" : "Verify exit code, RunOutcome, tool counts, approvals, trace, and checkpoints"}。\n`;
 }
 
 function acceptance(language) {

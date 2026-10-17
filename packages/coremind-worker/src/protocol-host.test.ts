@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CoreMindError,
   type CoreMindRuntimeOptions,
   FileRunStore,
   fingerprintRunConfig,
@@ -22,6 +23,65 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it.each(["denied", "directory", "factory"] as const)(
+    "项目加载 %s：只有完整预检后的明确拒绝保留此前静止状态",
+    async (kind) => {
+      const dir = await mkdtemp(path.join(tmpdir(), "coremind-host-trust-close-"));
+      const entry = path.join(dir, "probe.mjs");
+      const factory = vi.fn(async () => {
+        throw new CoreMindError("execution_security_violation", "未知工厂资源状态");
+      });
+      const host = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+      try {
+        if (kind === "denied") await writeFile(entry, "export default {};\n", "utf8");
+        if (kind === "directory") await mkdir(entry);
+        const initialized = await host.handle({
+          jsonrpc: "2.0",
+          id: "init-trust-close",
+          method: "initialize",
+          params: {
+            protocolVersion: "1.0",
+            config: {
+              schemaVersion: 2,
+              name: "trust-close",
+              agents: { main: {} },
+              tools: [{ path: "probe.mjs", effect: { operations: ["read"], reversible: true } }],
+            },
+            configDir: dir,
+          },
+        });
+        expect(initialized).not.toHaveProperty("error");
+        let attempt = 0;
+        const run = () =>
+          host.handle({
+            jsonrpc: "2.0",
+            id: `trust-close-run-${++attempt}`,
+            method: "run",
+            params: { input: "执行" },
+          });
+        expect(await run()).toMatchObject({
+          error: { data: { coremindCode: "execution_security_violation" } },
+        });
+        if (kind === "factory") {
+          expect(factory).toHaveBeenCalledTimes(1);
+          await writeFile(entry, "export default {};\n", "utf8");
+          expect(await run()).toMatchObject({
+            error: { data: { coremindCode: "execution_security_violation" } },
+          });
+        }
+        expect(factory).toHaveBeenCalledTimes(kind === "factory" ? 1 : 0);
+        await expect(host.shutdown()).resolves.toEqual({
+          closed: true,
+          quiescent: kind === "denied",
+        });
+      } finally {
+        await host.shutdown();
+        expect(path.dirname(path.resolve(dir))).toBe(path.resolve(tmpdir()));
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it.each(["v1", "query", "events", "expired"] as const)(
     "%s 公开出口剥离技能私有数据，保留原始 Store、事实身份和普通字段",
     async (outlet) => {
@@ -1059,6 +1119,7 @@ describe("ProtocolHost", () => {
           "checkpointOperations",
           "dynamicTools",
           "hostVerification",
+          "projectCodeTrust",
         ],
         schemaFingerprint: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
         migration: {

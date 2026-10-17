@@ -160,6 +160,7 @@ for line in sys.stdin:
                             "checkpointOperations",
                             "dynamicTools",
                             "toolDiscovery",
+                            "projectCodeTrust",
                         ] + ([] if params.get("config", {}).get("name") == "no-host-verification" else ["hostVerification"]),
                         "schemaFingerprint": (
                             "sha256:" + "0" * 64
@@ -183,7 +184,7 @@ for line in sys.stdin:
                 "id": request_id,
                 "result": {
                     "protocolVersion": "1.0",
-                    "capabilities": ["runSnapshot", "localObservability"],
+                    "capabilities": ["runSnapshot", "localObservability", "projectCodeTrust"],
                 },
             }
         )

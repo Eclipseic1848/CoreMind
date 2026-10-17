@@ -257,7 +257,7 @@ it.each(["headless", "print", "json-events"] as const)(
   },
 );
 
-it("run 在同一宿主登录后把原 session 注入 Runtime，运行结束仅 owner 关闭", async () => {
+it("run 在加载准入后、业务 Run 前完成宿主登录，并由同一 owner 关闭", async () => {
   const descriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
   Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
   const fixture = authentication(false);
@@ -266,11 +266,15 @@ it("run 在同一宿主登录后把原 session 注入 Runtime，运行结束仅 
   questioner.mockReturnValue(rl);
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
-  const run = vi.fn().mockResolvedValue({ transcript: "正文", outcome: { status: "succeeded" } });
+  const run = vi.fn().mockImplementation(async () => {
+    expect(fixture.auth.login).toHaveBeenCalledOnce();
+    expect(fixture.auth.close).not.toHaveBeenCalled();
+    return { transcript: "正文", outcome: { status: "succeeded" } };
+  });
   const create = vi
     .spyOn(CoreMindRuntime, "create")
     .mockImplementation(async (options: CoreMindRuntimeOptions) => {
-      expect(fixture.auth.login).toHaveBeenCalledOnce();
+      expect(fixture.auth.login).not.toHaveBeenCalled();
       expect(options.mcpAuthentication).toBe(fixture.auth);
       expect(fixture.auth.close).not.toHaveBeenCalled();
       return { resumedContextLength: 0, run } as unknown as CoreMindRuntime;
@@ -300,16 +304,26 @@ it("run 预登录时 Ctrl+C 保留 130 退出语义且不创建业务 Run", asyn
   const rl = Object.assign(new EventEmitter(), { question: vi.fn(), close: vi.fn() });
   questioner.mockReturnValue(rl);
   vi.spyOn(console, "error").mockImplementation(() => {});
-  const create = vi.spyOn(CoreMindRuntime, "create");
+  const run = vi.fn();
+  const create = vi.spyOn(CoreMindRuntime, "create").mockResolvedValue({
+    resumedContextLength: 0,
+    run,
+  } as unknown as CoreMindRuntime);
   const running = cmdRun(
     { flags: new Map([["mcp-login", "remote"]]), positionals: ["coremind.json"] },
     ["coremind.json"],
   );
   try {
     await vi.waitFor(() => expect(fixture.auth.login).toHaveBeenCalledOnce());
+    expect(create).toHaveBeenCalledOnce();
+    const options = create.mock.calls[0]![0];
+    expect(options.mcpAuthentication).toBe(fixture.auth);
+    expect(options.signal?.aborted).toBe(false);
     process.emit("SIGINT");
     expect(await running).toBe(130);
-    expect(create).not.toHaveBeenCalled();
+    expect(options.signal?.aborted).toBe(true);
+    expect(fixture.signal()).toBe(options.signal);
+    expect(run).not.toHaveBeenCalled();
     expect(fixture.auth.close).toHaveBeenCalledOnce();
     expect(rl.close).toHaveBeenCalledOnce();
   } finally {

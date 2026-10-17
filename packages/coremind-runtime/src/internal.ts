@@ -35,6 +35,7 @@ export { ControlInbox, type InternalRunControlCommand } from "./control-inbox.js
 export { classifyExecutionError } from "./execution-error.js";
 export { enforceExecutionSecurity } from "./execution-security.js";
 export type { RunId } from "./ids.js";
+export { prepareProjectCodeImports } from "./project-code-trust.js";
 export {
   type ContextProjection,
   type PendingApprovalControl,

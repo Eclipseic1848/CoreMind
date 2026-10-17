@@ -2,6 +2,8 @@
 
 CoreMind 的内置工具注册表、自定义 TypeScript/Python 工具加载器与平台安全适配层。公共能力还包括受控 `ProcessRunner`、只读 `GitAdapter` 和有输入/输出/复杂度上限的统一 Diff。
 
+配置驱动 Runtime 在 import 项目脚本前需要宿主明确同意。直接程序化调用本包 `loadScriptTool()` / `buildTools()` 表示调用方已信任指定来源；它们不是任意宿主代码的隔离层。加载脚本会执行顶层与依赖，工具执行权限仍单独检查。见 [1.2 迁移](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/migrations/1.0-to-1.2.zh-CN.md)。
+
 所有自定义工具都必须声明输入、输出和结构化副作用，且不能冒用内置工具名。高风险工具应使用“请求批准”模式；Linux 内置 Shell 可启用操作系统级隔离。Windows 当前不提供同等级 Shell 隔离，宿主 Shell 只有在 full、关闭工作区限制、允许网络三项同时明确选择时开放；其他组合使用路径感知文件工具或隔离的 Linux 环境。
 
 自定义工具对可预期的业务或执行失败应抛出公开的 `ToolExecutionError`；Runtime 会把它作为已登记的 `tool_execution_failed` 工具结果交给 Agent，但不会自动重试。自定义工具抛出的裸异常属于未知 Adapter 故障，会收敛为需要人工处置的 `unclassified_error` 并暂停运行。内置工具也只在能够证明是预期失败的边界（例如进程正常返回非零退出码）生成该错误；其他裸异常不得伪装成已知失败，取消、超时等已有结构化错误码保持不变。

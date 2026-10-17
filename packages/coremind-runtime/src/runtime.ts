@@ -163,6 +163,7 @@ import {
   restoreDurableOperation,
 } from "./operation-state.js";
 import { Orchestrator, type StepOutput } from "./orchestrator.js";
+import { type ProjectCodeTrustRequest, prepareProjectCodeImports } from "./project-code-trust.js";
 import { type ChildRunTreeProjection, ProjectionEngine, type RunProjection } from "./projection.js";
 import {
   buildProviderRuntime,
@@ -258,6 +259,11 @@ type AgentDriverBuilder = (input: {
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
+  /** 宿主明确批准配置脚本及其依赖按宿主权限加载；不授予工具执行权限。 */
+  approveProjectCode?: (
+    request: ProjectCodeTrustRequest,
+    signal?: AbortSignal,
+  ) => boolean | Promise<boolean>;
   /** 宿主模式的持久验证请求通知；通过 acceptControl 回复，返回值不代表通过。 */
   onVerification?: (request: HostVerificationRequest) => void;
   /** 已校验的配置 */
@@ -490,6 +496,13 @@ export class CoreMindRuntime {
       );
     }
 
+    const beforeScriptImport = await prepareProjectCodeImports(
+      config,
+      configDir,
+      options.approveProjectCode,
+      options.signal,
+    );
+
     // 1. provider（解析模型，警告转发）
     const providerRuntime = await buildProviderRuntime(
       config.provider,
@@ -563,6 +576,7 @@ export class CoreMindRuntime {
           configDir,
           env: toolEnv,
           artifactStore,
+          beforeScriptImport,
         },
         executionEnvironment,
       );
@@ -1216,6 +1230,7 @@ export class CoreMindRuntime {
               events: this.options.events,
               trace: this.options.trace,
               approveTool: this.options.approveTool,
+              approveProjectCode: this.options.approveProjectCode,
               runStore,
               runId: authority.childRunId,
               childRunAuthority: authority,

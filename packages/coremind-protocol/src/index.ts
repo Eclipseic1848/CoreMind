@@ -392,6 +392,7 @@ export const InitializeRequestSchema = Type.Object(
         ),
         config: Type.Optional(Type.Unknown()),
         configPath: Type.Optional(Type.String({ minLength: 1 })),
+        trustProjectCode: Type.Optional(Type.Boolean()),
         configDir: Type.Optional(Type.String({ minLength: 1 })),
         cwd: Type.Optional(Type.String({ minLength: 1 })),
         sessionId: Type.Optional(Type.String({ minLength: 1 })),

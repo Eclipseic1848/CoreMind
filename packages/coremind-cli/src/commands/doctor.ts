@@ -1,10 +1,5 @@
-import path from "node:path";
-import {
-  CoreMindRuntime,
-  inspectRuntimeCompatibility,
-  loadConfigFile,
-  parseAndValidate,
-} from "coremind-ai";
+import { inspectRuntimeCompatibility, loadConfigFile, parseAndValidate } from "coremind-ai";
+import { buildProviderRuntime, enforceExecutionSecurity } from "coremind-ai/internal";
 import type { ParsedArgs } from "../args.js";
 import { dim, green, red, yellow } from "../render.js";
 
@@ -93,17 +88,13 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
       }
       // 3. provider 构建可用性
       try {
-        const _runtime = await CoreMindRuntime.create({
-          config: result.config,
-          configDir: path.dirname(path.resolve(file)),
-          cwd: process.cwd(),
-          events: () => {},
-        });
+        enforceExecutionSecurity(result.config);
+        await buildProviderRuntime(result.config.provider, process.env);
         const providerId = runtimeProviderId(result.config);
         checks.push({
           name: `提供商 ${providerId}`,
           ok: true,
-          detail: "注册成功（未发送真实请求）",
+          detail: "注册成功（仅静态检查，未加载项目脚本或发送真实请求；执行时脚本需要加载信任）",
         });
       } catch (error) {
         checks.push({

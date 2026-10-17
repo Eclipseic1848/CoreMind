@@ -84,6 +84,8 @@ export declare interface BuildToolsOptions {
     env?: NodeJS.ProcessEnv;
     /** 受控工具输出存储；缺省使用工作区 .coremind/artifacts。 */
     artifactStore?: ArtifactStore;
+    /** Runtime 在真实脚本 import 前确认本批宿主批准，返回批准的规范入口路径。 */
+    beforeScriptImport?: (fullPath: string) => Promise<string>;
 }
 
 export declare interface BuildToolsResult {
@@ -257,7 +259,7 @@ export declare interface LinuxSandboxedBashOptions {
  *     execute: async (toolCallId, params, signal) => ({ content: [{ type: "text", text }], details: {} }),
  *   }
  */
-export declare function loadScriptTool(cfg: ScriptToolConfig, configDir: string): Promise<AgentTool>;
+export declare function loadScriptTool(cfg: ScriptToolConfig, configDir: string, beforeScriptImport?: (fullPath: string) => Promise<string>): Promise<AgentTool>;
 
 export declare interface McpAuthentication {
     login(server: string, options?: McpLoginOptions): Promise<McpAuthenticationResult>;

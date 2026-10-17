@@ -33,6 +33,7 @@ import {
   enforceExecutionSecurity,
   ProjectionEngine,
   type ProtocolToolResultFact,
+  prepareProjectCodeImports,
   prepareProtocolToolResultFact,
   type RunId,
   stripPrivateSkillPayload,
@@ -87,6 +88,7 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "hostVerification",
   "mcpAuthentication",
   "toolDiscovery",
+  "projectCodeTrust",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -140,6 +142,7 @@ interface InitializedState {
   configDir: string;
   cwd: string;
   sessionId?: string;
+  trustProjectCode: boolean;
   runStore: ProtocolEventRunStore;
 }
 
@@ -1091,6 +1094,7 @@ export class ProtocolHost {
       configDir,
       cwd: path.resolve(params.cwd ?? configDir),
       sessionId: params.sessionId,
+      trustProjectCode: params.trustProjectCode === true,
       runStore:
         this.options.runStoreFactory?.(path.join(configDir, ".coremind", "runs")) ??
         new FileRunStore(path.join(configDir, ".coremind", "runs")),
@@ -1120,6 +1124,7 @@ export class ProtocolHost {
         "checkpointRestore",
         "loop",
         "runSnapshot",
+        "projectCodeTrust",
         "localObservability",
         "telemetryProjection",
         ...(params.capabilities?.includes("toolDiscovery") ? ["toolDiscovery"] : []),
@@ -1216,6 +1221,7 @@ export class ProtocolHost {
     const runId = requestedRunId ?? resumeRunId;
     if (runId) this.pausedControlInboxes.delete(runId);
     this.running = true;
+    const previousExecutionQuiescent = this.lastExecutionQuiescent;
     this.lastExecutionQuiescent = false;
     this.activeExecutionCompletion = new Promise<void>((resolve) => {
       this.resolveActiveExecution = resolve;
@@ -1238,9 +1244,22 @@ export class ProtocolHost {
             },
           }
         : baseConfig;
+      if (!state.trustProjectCode) {
+        await prepareProjectCodeImports(
+          config,
+          state.configDir,
+          () => {
+            // 入口读取已全部关闭，明确拒绝尚未调用工厂；保留此前执行资源的状态。
+            this.lastExecutionQuiescent = previousExecutionQuiescent;
+            return false;
+          },
+          this.activeController.signal,
+        );
+      }
       const runtime = await this.runtimeFactory({
         config,
         configDir: state.configDir,
+        ...(state.trustProjectCode ? { approveProjectCode: () => true } : {}),
         cwd: state.cwd,
         secretResolver: this.options.secretResolver,
         ...(this.mcpAuthentication ? { mcpAuthentication: this.mcpAuthentication } : {}),
@@ -1913,6 +1932,7 @@ function toV1InitializeParams(
     ...(params.configDir !== undefined ? { configDir: params.configDir } : {}),
     ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
     ...(params.sessionId !== undefined ? { sessionId: params.sessionId } : {}),
+    ...(params.trustProjectCode !== undefined ? { trustProjectCode: params.trustProjectCode } : {}),
     ...(params.capabilities?.includes("toolDiscovery") ? { capabilities: ["toolDiscovery"] } : {}),
   };
 }

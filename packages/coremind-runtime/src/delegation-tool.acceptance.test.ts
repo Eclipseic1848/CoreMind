@@ -2374,6 +2374,7 @@ describe("Delegation Tool TypeScript happy path", () => {
         config,
         configDir: directory,
         cwd: directory,
+        approveProjectCode: () => true,
         env: {
           COREMIND_PROVIDER_AUTH: "provider-credential-value",
           UNRELATED_TOKEN: "unrelated-token-value",

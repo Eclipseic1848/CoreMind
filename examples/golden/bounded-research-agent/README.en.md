@@ -6,11 +6,15 @@ Collect offline evidence within explicit tool, retry, turn, step, token, and tim
 
 Use separate terminals for the mock provider and the example. Enter this example directory and set `GOLDEN_MOCK_API_KEY=offline` in both terminals (PowerShell: `$env:GOLDEN_MOCK_API_KEY="offline"`).
 
+Review `coremind.yaml`, `src/search-tool.ts`, and its imports first. After accepting execution with host privileges, use the commands below with `--trust-project-code`. Non-TTY runs without this flag reject before import; TTY users may omit it and confirm each load.
+
+Code-loading trust and tool permissions are separate: the flag does not bypass `ask` approval. Only reviewed local-mock CI that needs to skip tool approval may separately add `--permission full`; that option cannot approve code loading. These examples use local mocks and do not certify a real provider.
+
 1. Build at the repository root：`npm run build:python-worker`。
 2. Enter this directory and set the local-mock environment variable：PowerShell `$env:GOLDEN_MOCK_API_KEY="offline"`；Linux `export GOLDEN_MOCK_API_KEY=offline`。
 3. Start the provider：`node ../_shared/mock-provider.mjs research 8814`。
-4. Run in another terminal：`node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "是否应直接用于高影响决策"`。
-5. Run evaluation：`node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml`。
+4. Run in another terminal：`node ../../../packages/coremind-cli/dist/cli.js run coremind.yaml --prompt "是否应直接用于高影响决策" --trust-project-code`。
+5. Run evaluation：`node ../../../packages/coremind-cli/dist/cli.js eval coremind.yaml --trust-project-code`。
 
 ## Expected evidence
 

@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "c582b3f37f162d0235e8a92ace0f44fcc62d061c",
+    "developmentCommit": "b834ac52521482a8e866f0ee5e5c0b9330be6f48",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,19 +13,19 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "c6bd910c426112fdac577f85c0e172bdfb38345eea8ea3c42d50109c900c0bfe",
+      "coremind-ai": "0d37cbe466a8ae953d65dbe6df30be8fc7dc3d606bd2df77df2b2d57804f1bf3",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
-      "coremind-protocol": "e933bb20dd22988836d784517f79cef102ebda810ba909c341f70349f3bd104d",
-      "coremind-runtime": "5703f9a6a95edd501563b86b6ab070fec868f8e9fe6a2c896d6f382b8392c3e8",
+      "coremind-protocol": "7f3291556b14044f02e1f145bf61ecd3a07898f1efdfcae91bc268442e2ad3d0",
+      "coremind-runtime": "db5ca163ca64b843d135005e82d4dc8d7ebf9c165f8a99c86cdc08dd7cef9add",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
-      "coremind-tools": "ef99c6ff5dfc2ca8423113d2df43002020bee0d98e2d6d1c0e0ffd74946167b2",
+      "coremind-tools": "96690716a0b98ac983ec1e728008f7aadbb05cf155804d77d9208896b7894fca",
       "coremind-worker": "5b228bdd8b5b06fc4f9c81fd8ca60604eb0766f6d57db52623eaf7372e2234f1"
     },
     "schemas": {
       "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
-      "protocol": "3a4ea1babbe4e5572b44243c6479b050d25dd39c51065e7ef7c2d3767d47cedc",
-      "protocolV2": "eb7b5d70a26e1b3e6d1752c6bcdc40f1dcbede4df100888f0e6cf6e5155e990f"
+      "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
+      "protocolV2": "7d1e57725d2c34f0cf2187c77998cdfb0363deb824c7be4c92c2aadb488acf3f"
     }
   },
   "dependencies": {
@@ -283,21 +283,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-16T06:13:36.105Z",
+    "capturedAt": "2026-10-16T10:29:42.548Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue 288：新增输出交付失败错误合同，保留既有模型截断终态与参考基线",
+    "updateReason": "v1.2.0 #291：增加项目入口加载信任回调、评测取消信号、工具导入前钩子及v1/v2初始化严格布尔字段；#308仅复用内部准入并保守处理Worker静止状态。真实相关回归、PTY、SDK131项、8npm消费者及wheel已验证，接受上述显式合同增量；历史参考、覆盖率、行为矩阵和安全门保持不变。",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "8c468569b2a943075f406387da649c407730704d9ef3eb81599aeca55a4e7b31",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
-      "coremind-ai": "5161b22a29303f209a54ee4977eeac70db6fdaee30cfd4671aea67512fe0d4ec",
-      "coremind-cli": "b2107bef16b9fd8e77166c8fa1dc6f15df87b007a4070f5c374ca7d1917f0022",
+      "coremind-ai": "951cf13f7b1d950e27c0b34b78c101de8ee3502970b67ca2cb96d470ffaf7eaa",
+      "coremind-cli": "e09869c680338c57084f08098ce0d67841b211f3f7c17cdb3c198c1bc458699f",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
-      "coremind-protocol": "2ab6657d1727ac4ac82f02c13a3f257eb38fa580707f94a49ee564f28eb2b0aa",
-      "coremind-runtime": "cc1a59a6631e5c1bf665a4772e9cdd6e617045e80de5dd5c8d31abee08b76c25",
+      "coremind-protocol": "7e80f093d19ea9dd6a16bf30eb190fa6647561e5a70dec53eeecc4f261c218fa",
+      "coremind-runtime": "f77f7eca7a25e5d9896fb75af905100a68209ae16244218739d42545e476e95b",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "37dca4c4020f70f6d50a285b54118ed223b913084908fcdba1269c85e32dc339",
-      "coremind-worker": "6ef087d4c1648f82770e9c2eefa57eaf6520e0db4f007b4a64428f42c2afb2f6"
+      "coremind-tools": "ef0b92c3b37ad9a2f42db19ca0408a7866e6a844115e6fe61acc95698bb9681a",
+      "coremind-worker": "a5a48650720999a75bd13cad9b0d2137192adf0702afd94208b299f927159144"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }
