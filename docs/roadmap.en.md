@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release line: `1.1.0`
+## Current release line: `1.2.0`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The current `1.1.0` release line retains `1.0.1` and these capabilities:
+`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The `1.2.0` release line upgrades directly from `1.0.1` and includes unpublished 1.1 development. Use the [direct migration guide](migrations/1.0-to-1.2.en.md), without installing 1.1. Current source retains these capabilities:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,11 +18,22 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v1.1.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must bind the same version and commit. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
+The `v1.2.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must bind the same version and commit. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. Formal publication also requires strict-provider evidence bound to this version, final commit, Runtime, and Worker.
 
-## `1.1.0`: controlled extensions and interactive evidence
+## `1.2.0`: reliability, controlled extensions, and interactive evidence
+
+Accepted fixes cover Session writes/recovery, final tool arguments, cross-model request views, safe transient retry, model output limits, custom authentication, output delivery, and consumer dependency identity. Duplicate Call identity handling, critical journal prefix processing, and Python notification consumption have also merged with acceptance. This release line includes the following improvements:
+
+- Critical journal prefix processing that retains complete reads/writes and synchronization, with no overall performance promise.
+- Atomic Python four-bucket notification drain, retaining default history, host responses, and durable-cursor contracts.
+- Explicit trust before project-script imports, with matching SDK/Worker upgrades and separate execution authority.
+- Grapheme cursors, middle editing, draft recovery, and bounded ordinary-input history, retaining approval/paste isolation.
+
+Windows MCP startup uses fixed Job assets and a thin launcher while retaining the original 15-second call and 60-second connection gates. Formal publication requires strict Provider, both-platform engineering/stability/coverage/real PTY, and public download/reinstall evidence bound to the final commit and exact artifacts.
+
+### Unpublished 1.1 development included in this release line
 
 - Standard `SKILL.md` indexing, on-demand loading, and frozen-snapshot recovery.
 - Durable same-Run `/steer`, `/follow-up`, and five-state control receipts.
@@ -66,7 +77,7 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 ## Future roadmap (version scope to be confirmed)
 
-The 1.1.0 release line advances controlled extensions and interactive evidence. The following directions still require independent scope and acceptance; obsolete version assignments from early plans no longer define their schedule:
+The 1.2.0 release line advances controlled extensions and interactive evidence. The following directions still require independent scope and acceptance; obsolete version assignments from early plans no longer define their schedule:
 
 - Web development environment: run and control surfaces first, followed by editing, testing, and evaluation, reusing the existing Protocol and Runtime.
 - More MCP service interoperability, LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.

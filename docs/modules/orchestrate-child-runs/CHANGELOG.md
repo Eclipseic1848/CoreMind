@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 - 2026-10-17
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## 1.1.0 - 2026-10-15
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

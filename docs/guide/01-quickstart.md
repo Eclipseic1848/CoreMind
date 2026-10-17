@@ -6,10 +6,10 @@
 
 需要 Node.js ≥ 22.19.0。
 
-`coremind-cli@1.0.1` 是本发布线的目标包；安装前以 npm 实时页面确认公开可用性。
+`coremind-cli@1.2.0` 是本发布线的目标包；安装前以 npm 实时页面确认公开可用性。从 `1.0.1` 升级请直接使用[1.0.1→1.2 迁移指南](../migrations/1.0-to-1.2.zh-CN.md)，无须安装未发布的 1.1。
 
 ```bash
-npm install -g coremind-cli@1.0.1
+npm install -g coremind-cli@1.2.0
 coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
@@ -38,7 +38,7 @@ cp .env.example .env           # Linux
 
 凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
-交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；`1.0.1` 正式发布必须取得绑定本次候选的严格真实调用认证，其他可配置 Provider 不因此自动获得认证。[供应商矩阵](../providers/README.zh-CN.md)是较早的静态台账，发布证据见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1)。
+交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；可配置不等于当前版本已认证，投产前应核对[供应商矩阵](../providers/README.zh-CN.md)与[对应正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0)中的同版本资格证据；其他可配置 Provider 不因此自动获得认证。
 
 ## 4. 运行
 

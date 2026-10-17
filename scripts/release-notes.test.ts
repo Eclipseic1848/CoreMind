@@ -74,9 +74,16 @@ describe("受控发布说明", () => {
     );
   });
 
-  it("实际当版固定正文可渲染，并保留法律材料引用与未认证边界", () => {
-    const source = readFileSync(path.join(repositoryRoot, "docs/release/notes/v1.1.0.md"), "utf8");
-    const body = renderControlledReleaseNotes(source, identity);
+  it.each(["1.1.0", "1.2.0"])("%s 固定正文可渲染，并保留法律材料引用与未认证边界", (version) => {
+    const source = readFileSync(
+      path.join(repositoryRoot, `docs/release/notes/v${version}.md`),
+      "utf8",
+    );
+    const body = renderControlledReleaseNotes(source, {
+      ...identity,
+      version,
+      requestedTag: `v${version}`,
+    });
     expect(body).not.toContain("{{RELEASE_COMMIT}}");
     expect(body).toContain(`Commit: ${sha}`);
     expect(body).toContain("THIRD_PARTY_NOTICES.md");

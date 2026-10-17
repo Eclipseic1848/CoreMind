@@ -31,9 +31,11 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Current release line: `1.1.0`
+## Current release line: `1.2.0`
 
-> The `1.1.0` release line adds on-demand standard Skills, durable interactive control, controlled MCP and explicit OAuth, Config v3 tool discovery, and terminal evidence per Run/Call. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and qualification evidence for the same commit determine public availability; source code and engineering CI do not establish publication.
+[Upgrade directly from 1.0.1](../migrations/1.0-to-1.2.en.md) · [1.2 release notes](../release/notes/v1.2.0.md)
+
+> The `1.2.0` release line upgrades directly from `1.0.1` and includes unpublished 1.1 development: standard Skills, durable control, controlled MCP/explicit OAuth, discovery, and terminal evidence. It also includes Session, final tool-argument, model-request, custom-authentication, output-delivery, duplicate Call identity, journal-processing, Python notification-consumption, project-script loading-trust, and terminal-editing improvements. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
 
 - Standard `SKILL.md` indexing, on-demand loading, and frozen-snapshot recovery.
 - Durable same-Run `/steer`, `/follow-up`, and five-state control receipts.

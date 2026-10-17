@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "b834ac52521482a8e866f0ee5e5c0b9330be6f48",
+    "developmentCommit": "36513eec2fa5d8f60006a129b98418414fc96307",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -283,15 +283,15 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-16T10:29:42.548Z",
+    "capturedAt": "2026-10-17T12:57:57.246Z",
     "capturePlatform": "win32",
-    "updateReason": "v1.2.0 #291：增加项目入口加载信任回调、评测取消信号、工具导入前钩子及v1/v2初始化严格布尔字段；#308仅复用内部准入并保守处理Worker静止状态。真实相关回归、PTY、SDK131项、8npm消费者及wheel已验证，接受上述显式合同增量；历史参考、覆盖率、行为矩阵和安全门保持不变。",
+    "updateReason": "v1.2.0 同步发布版本、完整依赖身份和已审阅公开 API；历史参考基线保持不变",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "8c468569b2a943075f406387da649c407730704d9ef3eb81599aeca55a4e7b31",
+    "dependencyLockSha256": "734e08644cb5f1996fd1865d9e5b2420661e9197c8b2ac827aa8a15b41281541",
     "codingEvalFixtureSha256": "a54a0b95e9365900b4ea163dfe9414717517a23a30da681dca2299d8ddd3a0f9",
     "packageDistSha256": {
       "coremind-ai": "951cf13f7b1d950e27c0b34b78c101de8ee3502970b67ca2cb96d470ffaf7eaa",
-      "coremind-cli": "e09869c680338c57084f08098ce0d67841b211f3f7c17cdb3c198c1bc458699f",
+      "coremind-cli": "7c79459d1625ad92213cd9a7581614e366c7ee7d83cde632d31e9415b7860c20",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
       "coremind-protocol": "7e80f093d19ea9dd6a16bf30eb190fa6647561e5a70dec53eeecc4f261c218fa",
       "coremind-runtime": "f77f7eca7a25e5d9896fb75af905100a68209ae16244218739d42545e476e95b",

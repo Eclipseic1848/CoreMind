@@ -4,60 +4,32 @@
 
 [English](CHANGELOG.en.md)
 
-## [1.2.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.0.1...v1.2.0) (2026-10-17)
+## 1.2.0
 
+未独立发布的 1.1 开发成果并入 1.2，公开用户从 1.0.1 直接升级。详见[双语发布说明](docs/release/notes/v1.2.0.md)和[迁移指南](docs/migrations/1.0-to-1.2.zh-CN.md)。
 
-### Features
+### 实现与修复
 
-* add artifact-verified paired evaluation ([#258](https://github.com/Eclipseic1848/CoreMind/issues/258)) ([d4210b8](https://github.com/Eclipseic1848/CoreMind/commit/d4210b88139eb5d4fab1bc9954abe8d69a036534))
-* **cli:** 完善调用证据与安全交互 ([c852bed](https://github.com/Eclipseic1848/CoreMind/commit/c852bedd2934f9e906c831572e0cdefca90f503c))
-* **mcp:** 完成宿主交互认证与安全取消 ([f8ec7c6](https://github.com/Eclipseic1848/CoreMind/commit/f8ec7c6bb0ce42e4117a174cbdce2dd17b9e6add))
-* **mcp:** 实现宿主交互认证与安全取消 ([4f365bf](https://github.com/Eclipseic1848/CoreMind/commit/4f365bf5478a2876be33f427877a349b6ad4cca8))
-* **mcp:** 支持受控 HTTP 服务与精确资源授权 ([e6d79b5](https://github.com/Eclipseic1848/CoreMind/commit/e6d79b58e14bcf11c650e2247799db13e0de491f))
-* **mcp:** 支持受控 HTTP 服务与精确资源授权 ([1c6a5b2](https://github.com/Eclipseic1848/CoreMind/commit/1c6a5b234689d03f35cd4aaf681e41e665e5e336))
-* prepare v1.1.0 release qualification ([f6be8cc](https://github.com/Eclipseic1848/CoreMind/commit/f6be8cc21b122dc56189c6d628ec2a17bcdaa1dd))
-* **python:** 增加原子通知历史消费接口 ([073a1ef](https://github.com/Eclipseic1848/CoreMind/commit/073a1ef2e14af3d66dc04eb29b7d3a53780e42df))
-* **runtime:** deliver durable controls to the active run ([#265](https://github.com/Eclipseic1848/CoreMind/issues/265)) ([d137c7d](https://github.com/Eclipseic1848/CoreMind/commit/d137c7d6b536da4f65e856fcfb9f79cb11993137)), closes [#248](https://github.com/Eclipseic1848/CoreMind/issues/248)
-* **tools:** authorize agent-scoped local MCP services ([12656a0](https://github.com/Eclipseic1848/CoreMind/commit/12656a0f31cc79c12624f8211b2fc7d7d7eb7709))
-* **tools:** 接入按 Agent 授权的本地 MCP 服务 ([4e12440](https://github.com/Eclipseic1848/CoreMind/commit/4e124409920397d1769a478e3d213a2693449245))
-* 完成受权限约束的工具按需发现与声明重建 ([bb51700](https://github.com/Eclipseic1848/CoreMind/commit/bb5170034d28a7aab4e15e038c474011feaff4ab))
-* 支持受权限约束的工具按需发现与声明重建 ([2b221ee](https://github.com/Eclipseic1848/CoreMind/commit/2b221ee6f93bc70da38082a30af709205c8e5248))
+- 纳入标准 Skill、持久控制、受控 MCP/显式认证、Config v3 发现、终端证据和文档渲染修复。
+- 修复 Session 多持有者写入、失效历史与 JSONL 尾段恢复；本机硬链接租约不提供分布式锁。
+- 严格校验最终工具参数结构；按模型身份处理历史思考，保留原 Session、普通回答和工具配对。
+- 明确暂态错误的有界重试；步骤有写入、外部效果或委派后暂停核对，纯读保留重试。
+- 模型输出上限以 `failed` / `model_output_limit` 保留部分正文，不执行附带工具或继续编排。
+- 自定义兼容端点支持免 key/Header-only；显式凭据缺失不降级匿名。CLI/Worker 有界输出队列和关键交付失败收尾保留审批及取消输入。
+- 校验七成员真实消费者依赖图及 Worker/wheel 构建身份；保留关键事实同步和原子 owner 发布。
 
+- 重复 Agent/Step/Call 身份在运行和同 Run 恢复中拒绝再次准入；保留首条事实、原绑定和合法新身份。已合并并通过双平台 CI。
 
-### Bug Fixes
+- 黄金示例文档生成器保留验证修复示例的手工定制材料，不再用通用模板覆盖；五示例索引和其余示例的原生成路径保留。
+- 修复正常拒绝项目脚本后的 SDK 关闭：仅对入口检查完成且尚未创建 Runtime 的明确拒绝保留原静止状态；读取或工厂失败，以及此前未静止的执行状态，仍按原保守规则处理。
 
-* **cli:** secure redaction and join explicit exit ([ae2dd31](https://github.com/Eclipseic1848/CoreMind/commit/ae2dd31abe83cc3f24c743c220e780c5892f7db8))
-* distinguish session modules from release data ([c95b1ad](https://github.com/Eclipseic1848/CoreMind/commit/c95b1ade68c08ddc61d2ae876e800e2d430a939e))
-* enforce provider request and retry integrity ([a304619](https://github.com/Eclipseic1848/CoreMind/commit/a304619cd44732a415770ac6b6c6fa132a5f3b70))
-* enforce provider request and retry integrity ([d678928](https://github.com/Eclipseic1848/CoreMind/commit/d67892891d291d58e66283a243892fefe1d55af6))
-* preserve complete tool declarations in model requests ([5cb7b86](https://github.com/Eclipseic1848/CoreMind/commit/5cb7b8621311089c2dd155c4ab09d8b1bad2be1b))
-* preserve session identity during tail recovery ([f952805](https://github.com/Eclipseic1848/CoreMind/commit/f952805ab9835ec5f53b6570e03d878e55af73e0)), closes [#283](https://github.com/Eclipseic1848/CoreMind/issues/283)
-* preserve tool-call facts and release validation ([55cb9e8](https://github.com/Eclipseic1848/CoreMind/commit/55cb9e8fc79820f289332b7e87ad8a4a8e39f6e3))
-* **provider:** support keyless and header authentication ([cb7837f](https://github.com/Eclipseic1848/CoreMind/commit/cb7837f2532609fc19d4d4b66a8cd200d1ba2cf3))
-* release and protect owned sandbox assets ([#255](https://github.com/Eclipseic1848/CoreMind/issues/255)) ([93804cb](https://github.com/Eclipseic1848/CoreMind/commit/93804cbfb3e50e9c91d5e4632531ac7a9f254889))
-* remove unverified automatic review approval ([#257](https://github.com/Eclipseic1848/CoreMind/issues/257)) ([50d2641](https://github.com/Eclipseic1848/CoreMind/commit/50d2641c07e7a4ce6803cfdcbebf6d3476b2e0b1))
-* restore runtime safety and session compatibility ([f54496f](https://github.com/Eclipseic1848/CoreMind/commit/f54496f553135d1f449e9416b04ee53dd643e497))
-* **runtime:** reject duplicate tool call facts ([dac2d75](https://github.com/Eclipseic1848/CoreMind/commit/dac2d75495949a8b1893939d6479f7700a030c09))
-* **runtime:** report model output limits as failures ([6e882e1](https://github.com/Eclipseic1848/CoreMind/commit/6e882e182db20cdb9a1e021b6c9257e2a815d566))
-* **runtime:** 保证持久会话单写者与陈旧视图拒绝 ([#296](https://github.com/Eclipseic1848/CoreMind/issues/296)) ([1c353ea](https://github.com/Eclipseic1848/CoreMind/commit/1c353ea969a85bce2f8e6e43194c540e10ef68a0))
-* secure runtime artifacts and preserve sessions ([c0f5229](https://github.com/Eclipseic1848/CoreMind/commit/c0f52299a936787be93064450fd34f53f9c5a5e8))
-* **security:** require explicit project code trust ([aee01cd](https://github.com/Eclipseic1848/CoreMind/commit/aee01cd2389bfa2131fa8cd41423d7a58dff9813))
-* **tools:** 使用固定程序集启动 Windows MCP Job ([a5a21a5](https://github.com/Eclipseic1848/CoreMind/commit/a5a21a5ade62f5dd4e107b3315b91971105de06a))
-* **transport:** bound output and join accepted operations ([546949a](https://github.com/Eclipseic1848/CoreMind/commit/546949aded55984c1480bb13fd57c7a0e035c6d9))
-* **transport:** bound output and join accepted operations ([0037143](https://github.com/Eclipseic1848/CoreMind/commit/003714317872fc9071fcefeb6d97ce347315ea7d))
-* 修复 Python 3.14 认证取消额外诊断 ([0bfb493](https://github.com/Eclipseic1848/CoreMind/commit/0bfb4939c653e7bbdd8f6eb8649eb5cf8d4db39f))
-* 同步 Worker 终态复用并稳定取消验收 ([#261](https://github.com/Eclipseic1848/CoreMind/issues/261)) ([b9ab865](https://github.com/Eclipseic1848/CoreMind/commit/b9ab8659928b6c4a2b8c684e1756fd55de6b95de))
-* 完成 Windows MCP 冷启动预取消 ([50574ac](https://github.com/Eclipseic1848/CoreMind/commit/50574acf4229f22c169c311a81709d757e45861c))
-* 接受 Windows MCP 合法绝对路径 ([ebdc510](https://github.com/Eclipseic1848/CoreMind/commit/ebdc51060292ba0e799133e731c1b8e61d775d76))
-* 确认 Windows MCP 整树回收并稳定取消 ([7a8709c](https://github.com/Eclipseic1848/CoreMind/commit/7a8709c668e9229651adce9d09d6baba36ef5120))
-* 隔离工具发现重试与暂停恢复并过滤受限目录 ([561a178](https://github.com/Eclipseic1848/CoreMind/commit/561a1788c06bbc8ec2a90d8883fb8137e95eeaa2))
+### 迁移边界与发布要求
 
+关键日志前缀处理与 Python 四桶通知 drain 已合并验收。缓存只减少命中的解析/序列化，不减少完整读写；drain 不提供服务端确认或持久游标推进。支持项目脚本 import 前显式信任和终端字素编辑/有界历史；加载信任不替代执行权限或 OS 沙箱。Config v2、Protocol v1/v2 继续支持；新 SDK/Worker 一起更新，v2 指纹按最终 Schema 核定。升级前停进程并备份；回滚统一恢复 1.0.1 与升级前状态，人工核对外部效果。
 
-### Performance Improvements
+Windows MCP 启动使用固定 Job 资产与薄启动器，保留原 15 秒调用和 60 秒连接门禁。正式发布必须取得绑定最终提交与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。局部验证不等于外部互通或整体性能结论。
 
-* **runtime:** reuse verified journal prefixes ([540ee60](https://github.com/Eclipseic1848/CoreMind/commit/540ee60a49af96e815e0afe6f1b5a1bce52def79))
-
-## 1.1.0
+## 1.1.0 — 未发布历史草稿，纳入 1.2.0 目标
 
 ### 新增与改进
 
@@ -76,7 +48,7 @@
 
 Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`deferred` 必须显式选用 Config v3。新特性须使用支持相应能力的匹配 SDK 与 bundled Worker；使用 Protocol v2 时还须匹配 Schema 指纹；运行要求 Node.js ≥ 22.19，Python SDK 要求 Python ≥ 3.10。未知副作用仍须人工核对，不能盲目恢复；技能加载与工具发现都不授予新权限。真实外部授权服务器互通及全局成对性能收益尚未认证。
 
-本条记录 `1.1.0` 发布线能力。公开可安装状态以 GitHub Release、npm、PyPI 实时页面与同一提交的候选、Provider、双平台及制品证据为准；源码与工程 CI 通过不等于发布，旧版本资格不能替代本版本复验。历史记录与许可声明继续保留。
+本节保留未独立发布的 1.1 开发记录，能力并入 1.2 目标，不表示存在 1.1 正式版本。1.2 可用性与资格以最终版本、提交和准确制品证据为准；1.0.1 及更早已发布记录与许可声明不变。
 
 ## 1.0.1 — 2026-09-25
 

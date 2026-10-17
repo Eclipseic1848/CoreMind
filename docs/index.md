@@ -31,9 +31,11 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前发布线：`1.1.0`
+## 当前发布线：`1.2.0`
 
-> `1.1.0` 发布线增加标准 Skill 按需加载、持久交互控制、受控 MCP 与显式 OAuth、Config v3 工具发现及逐 Run/Call 终端证据。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
+[从 1.0.1 直接升级](migrations/1.0-to-1.2.zh-CN.md) · [1.2 发布说明](release/notes/v1.2.0.md)
+
+> `1.2.0` 发布线从 `1.0.1` 直接升级，纳入未独立发布的 1.1 开发成果：标准 Skill、持久控制、受控 MCP/显式 OAuth、工具发现与终端证据；同时包含 Session、最终工具参数、模型请求、自定义认证、输出交付、重复 Call 身份、日志处理、Python 通知消费、项目脚本加载信任和终端编辑。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
 
 - 标准 `SKILL.md` 索引、按需加载和冻结快照恢复。
 - 同 Run 持久 `/steer`、`/follow-up` 与五态控制回执。
