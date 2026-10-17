@@ -16,7 +16,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - `inspect_run`
 - `checkpoint_diff`
 - `checkpoint_restore`
-- `CoreMind Protocol v1` (the `0.8.0` default)
+- `CoreMind Protocol v1` (the `1.2.0` default)
 - Explicit `CoreMind Protocol v2` negotiation
 - Protocol v2 `query`, `events`, and `submit_verification` for host verification
 - Pure-JSON `result["snapshot"]`
@@ -24,7 +24,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 ## Errors and boundaries
 
 - Protocol errors map to typed Python exceptions
-- Protocol v1 remains supported in `0.8.0`; no removal schedule is approved. Protocol v2 must be selected explicitly.
+- Protocol v1 remains supported in `1.2.0`; no removal schedule is approved. Protocol v2 must be selected explicitly.
 - Python callables remain a v1 bridge. Protocol v2 accepts declarative tool definitions and explicit tool results; it does not execute host Python callables.
 - In v2, `run()` first returns a RunHandle. An `accepted` control receipt does not prove the decision was applied or the Run succeeded; read the Projection outcome with `query(runId)`.
 - The worker stays alive instead of spawning per request
@@ -54,4 +54,4 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [Module example](../../../examples/modules/embed-coremind-python/README.en.md)
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
 
-For unpublished source changes to resume operation identity, ordered asynchronous callbacks, and queue overload handling, see the [Python SDK README](../../../python/README.md). Existing 0.8.0 wheels do not thereby acquire these changes.
+For the 1.2.0 source contracts for resume operation identity, callback ordering, notification consumption, and loading trust, see the [Python SDK source fixes](../../../python/README.md#源码修复说明). Upgrade the SDK and bundled Worker together and verify same-version artifacts and qualification evidence on official channels; a documentation update does not add behavior to older wheels.

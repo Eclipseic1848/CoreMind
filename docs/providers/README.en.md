@@ -1,6 +1,6 @@
 # Provider Support and Certification Matrix
 
-> This table was generated from the 2026-08-26 static runtime catalog and human-maintained evidence ledger and corresponds to target version `1.1.0`. Do not edit the table manually.
+> This table was generated from the 2026-08-26 static runtime catalog and human-maintained evidence ledger and corresponds to target version `1.2.0`. Do not edit the table manually.
 
 CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **0** entries, while **43** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
@@ -16,7 +16,7 @@ CoreMind has **42** built-in chat providers and **43** configurable entries incl
 
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 1.1.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 1.2.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 193 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
 | `anthropic` | `claude-fable-5` | — | 17 | Configurable, unverified | — |

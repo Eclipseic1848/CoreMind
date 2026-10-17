@@ -60,6 +60,7 @@ function zhTheme(): DefaultTheme.Config {
       { text: "功能模块", link: "/modules/README.zh-CN" },
       { text: "供应商", link: "/providers/README.zh-CN" },
       { text: "发布验收", link: "/release/RC-ACCEPTANCE.zh-CN" },
+      { text: "升级至 1.2", link: "/migrations/1.0-to-1.2.zh-CN" },
       { text: "路线图", link: "/roadmap.zh-CN" },
     ],
     sidebar: {
@@ -72,6 +73,8 @@ function zhTheme(): DefaultTheme.Config {
             { text: "Skills", link: "/guide/03-skills" },
             { text: "质量保障", link: "/guide/04-quality" },
             { text: "CLI 使用", link: "/guide/05-cli-usage" },
+            { text: "1.0.1→1.2 升级", link: "/migrations/1.0-to-1.2.zh-CN" },
+            { text: "1.2 发布说明", link: "/release/notes/v1.2.0" },
           ],
         },
       ],
@@ -89,6 +92,7 @@ function enTheme(): DefaultTheme.Config {
       { text: "Modules", link: "/modules/README.en" },
       { text: "Providers", link: "/providers/README.en" },
       { text: "Release acceptance", link: "/release/RC-ACCEPTANCE.en" },
+      { text: "Upgrade to 1.2", link: "/migrations/1.0-to-1.2.en" },
       { text: "Roadmap", link: "/roadmap.en" },
     ],
     sidebar: {
@@ -101,6 +105,8 @@ function enTheme(): DefaultTheme.Config {
             { text: "Skills", link: "/en/guide/03-skills" },
             { text: "Quality", link: "/en/guide/04-quality" },
             { text: "CLI", link: "/en/guide/05-cli-usage" },
+            { text: "1.0.1→1.2 upgrade", link: "/migrations/1.0-to-1.2.en" },
+            { text: "1.2 release notes", link: "/release/notes/v1.2.0" },
           ],
         },
       ],

@@ -16,7 +16,7 @@
 - `inspect_run`
 - `checkpoint_diff`
 - `checkpoint_restore`
-- `CoreMind Protocol v1`（`0.8.0` 默认值）
+- `CoreMind Protocol v1`（`1.2.0` 默认值）
 - 显式协商 `CoreMind Protocol v2`
 - Protocol v2 的 `query`、`events` 与 `submit_verification` 宿主验收入口
 - `result["snapshot"]` 纯 JSON 运行快照
@@ -24,7 +24,7 @@
 ## 错误与边界
 
 - 协议错误映射为类型化 Python 异常
-- `0.8.0` 继续支持 Protocol v1，且尚无批准的移除时间表；Protocol v2 必须显式选择。
+- `1.2.0` 继续支持 Protocol v1，且尚无批准的移除时间表；Protocol v2 必须显式选择。
 - Python callable 仍属于 v1 工具桥；Protocol v2 只接受声明式工具定义和显式工具结果，不执行宿主 Python callable。
 - v2 的 `run()` 先返回 RunHandle；`accepted` 控制回执不代表候选已应用或 Run 已成功，最终读取 `query(runId)` 的 Projection outcome。
 - worker 常驻复用，不为每次请求创建进程
@@ -54,4 +54,4 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [Module example](../../../examples/modules/embed-coremind-python/README.en.md)
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
 
-当前源码的恢复操作身份、回调异步顺序和队列过载边界见 [Python SDK 修复说明](../../../python/README.md#当前源码修复说明尚未发布)。这些修复尚未发布，不能据此认定既有 0.8.0 wheel 已具备新行为。
+1.2.0 源码的恢复操作身份、回调顺序、通知消费和加载信任边界见 [Python SDK 修复说明](../../../python/README.md#源码修复说明)。升级时同时更新 SDK 与 bundled Worker，并核对正式渠道的同版本制品和资格证据；旧 wheel 不因文档更新获得新行为。

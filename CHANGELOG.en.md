@@ -4,7 +4,32 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
-## 1.1.0
+## 1.2.0
+
+Unpublished 1.1 development is included in 1.2; public users migrate directly from 1.0.1. See the [bilingual release notes](docs/release/notes/v1.2.0.md) and [migration guide](docs/migrations/1.0-to-1.2.en.md).
+
+### Features and fixes
+
+- Include standard Skills, durable control, controlled MCP/explicit authentication, Config v3 discovery, terminal evidence, and documentation rendering fixes.
+- Fix Session multi-holder writes, stale history, and JSONL tail recovery; local hard-link leases are not distributed locks.
+- Validate complete final tool-argument structure and historical thinking by model identity, retaining original Sessions, answers, and tool pairing.
+- Bound explicit transient retries; pause after started writes, external effects, or delegation, while pure reads retain retry.
+- Output limits return `failed` / `model_output_limit` with partial text, without attached tool execution or orchestration continuation.
+- Custom compatible endpoints support keyless/Header-only use without anonymous fallback on missing explicit credentials. Bounded CLI/Worker output and critical-delivery settlement retain approval/cancellation input.
+- Check seven-member actual consumer dependency graphs and Worker/wheel build identity, retaining critical Fact synchronization and atomic owner publication.
+
+- Repeated Agent/Step/Call identities reject readmission during execution and same-Run recovery, preserving first facts, bindings, and valid new identities. The fix has merged and passed both-platform CI.
+
+- The golden-example documentation generator preserves the verification-repair example's hand-maintained materials instead of overwriting them with generic templates; the five-example index and other generation paths remain intact.
+- Fix SDK shutdown after an ordinary project-script denial: preserve the prior quiescent state only when entry inspection has completed and the Runtime has not been created. Read or factory failures and a previously unsettled execution state retain conservative handling.
+
+### Migration boundaries and publication requirements
+
+Critical journal prefix processing and Python four-bucket draining have merged with acceptance. Cache hits reduce parsing/serialization, not complete reads/writes; draining is neither a server acknowledgement nor durable-cursor advancement. Explicit trust before project-script imports and grapheme editing/bounded terminal history are supported. Loading trust is neither execution permission nor an OS sandbox. Config v2 and Protocol v1/v2 remain supported; upgrade SDK/Worker together, with the v2 fingerprint determined by the final Schema. Stop processes and back up before upgrading; roll back programs and earlier state together to 1.0.1 and reconcile external effects.
+
+Windows MCP startup uses fixed Job assets and a thin launcher while retaining the original 15-second call and 60-second connection gates. Formal publication requires strict Provider, both-platform engineering/stability/coverage/real PTY, and public download/reinstall evidence bound to the final commit and exact artifacts. Focused verification is not external interoperability or an overall performance result.
+
+## 1.1.0 — Unpublished historical draft; included in the 1.2.0 target
 
 ### Added and improved
 
@@ -23,7 +48,7 @@ This file records user-facing changes. Historical release records remain unchang
 
 Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible; `deferred` requires explicit Config v3. New features require matching SDK and bundled Worker capabilities; Protocol v2 also requires matching Schema fingerprints. Node.js ≥ 22.19 is required, and the Python SDK requires Python ≥ 3.10. Unknown effects still require human reconciliation before resume. Skill loading and tool discovery grant no new permissions. Real external authorization-server interoperability and global paired performance gains are not certified.
 
-This entry describes the `1.1.0` release line. Live GitHub Release, npm, and PyPI pages and candidate, Provider, platform, and artifact evidence for the same commit determine public availability. Source code and engineering CI do not establish publication, and older qualification does not replace this version's rechecks. Historical records and license notices remain preserved.
+This section preserves unpublished 1.1 development history included in the 1.2 target; it does not establish a stable 1.1 release. Actual 1.2 availability and qualification require the final version, commit, and exact artifacts. Published 1.0.1 and earlier records and license notices remain unchanged.
 
 ## 1.0.1 — 2026-09-25
 
