@@ -19,7 +19,7 @@ class WindowsMcpWheelTest(unittest.TestCase):
     def test_frozen_assets_pass_and_missing_or_forged_assets_fail(self) -> None:
         vendor = ROOT / "packages/coremind-tools/src/vendor/windows-mcp"
         files = {name: (vendor / name).read_bytes() for name in
-                 ("service.mjs", "guard.dll", "manifest.json", "metafile.json", "THIRD-PARTY-LICENSES.txt")}
+                 ("service.mjs", "guard.dll", "host.exe", "manifest.json", "metafile.json", "THIRD-PARTY-LICENSES.txt")}
 
         def check(assets: dict[str, bytes]) -> list[str]:
             buffer = io.BytesIO()

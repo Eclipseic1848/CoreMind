@@ -111881,7 +111881,7 @@ var require_filesubjecttokensupplier = __commonJS({
     }));
     var realpath14 = (0, util_1.promisify)(fs10.realpath ?? (() => {
     }));
-    var lstat4 = (0, util_1.promisify)(fs10.lstat ?? (() => {
+    var lstat5 = (0, util_1.promisify)(fs10.lstat ?? (() => {
     }));
     var FileSubjectTokenSupplier = class {
       filePath;
@@ -111907,7 +111907,7 @@ var require_filesubjecttokensupplier = __commonJS({
         let parsedFilePath = this.filePath;
         try {
           parsedFilePath = await realpath14(parsedFilePath);
-          if (!(await lstat4(parsedFilePath)).isFile()) {
+          if (!(await lstat5(parsedFilePath)).isFile()) {
             throw new Error();
           }
         } catch (err2) {
@@ -248814,34 +248814,16 @@ var McpStdioError = class extends Error {
 
 // packages/coremind-tools/dist/windows-mcp-job.js
 import { createHash as createHash7, randomUUID as randomUUID9 } from "node:crypto";
-import { readFile as readFile9 } from "node:fs/promises";
+import { lstat as lstat3, readFile as readFile9 } from "node:fs/promises";
 import { createServer as createServer2 } from "node:net";
 import path32 from "node:path";
 import { fileURLToPath as fileURLToPath11 } from "node:url";
 import { TextDecoder as TextDecoder2 } from "node:util";
 
-// packages/coremind-tools/dist/windows-mcp-job-script.js
-var WINDOWS_MCP_JOB_SCRIPT = `
-$ErrorActionPreference = 'Stop'
-$status = 1
-try {
-  $guardPath = [Environment]::GetEnvironmentVariable('COREMIND_MCP_GUARD_ASSEMBLY')
-  $expectedHash = [Environment]::GetEnvironmentVariable('COREMIND_MCP_GUARD_SHA256')
-  if ($expectedHash -cnotmatch '^[0-9a-f]{64}$') { throw 'asset' }
-  $guardBytes = [IO.File]::ReadAllBytes($guardPath)
-  $sha = [Security.Cryptography.SHA256]::Create()
-  try { $actualHash = [BitConverter]::ToString($sha.ComputeHash($guardBytes)).Replace('-', '').ToLowerInvariant() }
-  finally { $sha.Dispose() }
-  if ($actualHash -cne $expectedHash) { throw 'asset' }
-  [void][Reflection.Assembly]::Load($guardBytes)
-  $status = [CoreMindMcpJob]::Run([Environment]::GetEnvironmentVariable('COREMIND_MCP_OWNER_PIPE'))
-} catch { }
-exit $status
-`;
-
 // packages/coremind-tools/dist/windows-mcp-service-identity.js
 var WINDOWS_MCP_SERVICE_SHA256 = "1e857f61e41340943b7dcf240b971d86915c25731ddf76e98487076ba1c342b6";
 var WINDOWS_MCP_GUARD_SHA256 = "c0eff42694d6acb03cd454118752229751d9894e3775ce08e7dbb668b3620414";
+var WINDOWS_MCP_HOST_SHA256 = "01b0679eeabbfaffe7855533b7b813093358bb994527984296a808b49e3162ba";
 
 // packages/coremind-tools/dist/windows-mcp-job.js
 var MAX_CONTROL_BYTES = 1024 * 1024;
@@ -248949,8 +248931,16 @@ async function launchWindowsMcpJob(options, signal) {
     throw transportFailure();
   const launcher = new URL("./vendor/windows-mcp/service.mjs", import.meta.url);
   const guard = new URL("./vendor/windows-mcp/guard.dll", import.meta.url);
+  const host = new URL("./vendor/windows-mcp/host.exe", import.meta.url);
   try {
-    if (createHash7("sha256").update(await readFile9(launcher)).digest("hex") !== WINDOWS_MCP_SERVICE_SHA256 || createHash7("sha256").update(await readFile9(guard)).digest("hex") !== WINDOWS_MCP_GUARD_SHA256)
+    try {
+      await lstat3(new URL("./vendor/windows-mcp/host.exe.config", import.meta.url));
+      throw transportFailure();
+    } catch (error3) {
+      if (error3.code !== "ENOENT")
+        throw error3;
+    }
+    if (createHash7("sha256").update(await readFile9(launcher)).digest("hex") !== WINDOWS_MCP_SERVICE_SHA256 || createHash7("sha256").update(await readFile9(guard)).digest("hex") !== WINDOWS_MCP_GUARD_SHA256 || createHash7("sha256").update(await readFile9(host)).digest("hex") !== WINDOWS_MCP_HOST_SHA256)
       throw transportFailure();
   } catch {
     throw transportFailure();
@@ -249136,13 +249126,7 @@ async function launchWindowsMcpJob(options, signal) {
       cleanup: false,
       killDescendants: false
     };
-    helper = execa(path32.win32.join(windowsDirectory, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), [
-      "-NoLogo",
-      "-NoProfile",
-      "-NonInteractive",
-      "-EncodedCommand",
-      Buffer.from(WINDOWS_MCP_JOB_SCRIPT, "utf16le").toString("base64")
-    ], helperOptions);
+    helper = execa(fileURLToPath11(host), [], helperOptions);
     helperFinished = helper.then((result) => {
       if (!closing)
         void close().catch(() => {
@@ -254999,7 +254983,7 @@ var TEMPLATES = [
 // packages/coremind-templates/dist/standard-skills.js
 import { createHash as createHash15 } from "node:crypto";
 import { constants as constants12 } from "node:fs";
-import { lstat as lstat3, open as open8, realpath as realpath9, stat as stat6 } from "node:fs/promises";
+import { lstat as lstat4, open as open8, realpath as realpath9, stat as stat6 } from "node:fs/promises";
 import path40 from "node:path";
 var MAX_SOURCE_BYTES = 256 * 1024;
 var MAX_RESULT_BYTES = 2 * 1024 * 1024;
@@ -255093,7 +255077,7 @@ async function resolveSelectedSkills(ids, configDir) {
 }
 async function exists(file) {
   try {
-    await lstat3(file);
+    await lstat4(file);
     return true;
   } catch (error3) {
     if (error3.code === "ENOENT")

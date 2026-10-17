@@ -194,7 +194,7 @@ def check_worker_bundle(bundle: str) -> list[str]:
 def check_windows_mcp_assets(archive: zipfile.ZipFile) -> list[str]:
     prefix = "coremind/_worker/vendor/windows-mcp/"
     vendor = Path(__file__).resolve().parents[1] / "packages/coremind-tools/src/vendor/windows-mcp"
-    expected_names = {"service.mjs", "guard.dll", "manifest.json", "metafile.json", "THIRD-PARTY-LICENSES.txt"}
+    expected_names = {"service.mjs", "guard.dll", "host.exe", "manifest.json", "metafile.json", "THIRD-PARTY-LICENSES.txt"}
     blockers: list[str] = []
     # 逐字节核对同一冻结源码的资产，拒绝把同步伪造的 manifest 当可信身份。
     for relative in sorted(expected_names):

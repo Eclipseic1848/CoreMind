@@ -105,12 +105,13 @@ function runNpmPackDryRun(rootDirectory, packageName) {
   return packed;
 }
 
-function collectRequiredEntries(manifest) {
+export function collectRequiredEntries(manifest) {
   const entries = new Set();
   if (manifest.name === "coremind-tools") {
     for (const filename of [
       "service.mjs",
       "guard.dll",
+      "host.exe",
       "manifest.json",
       "metafile.json",
       "THIRD-PARTY-LICENSES.txt",

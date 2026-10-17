@@ -34,6 +34,8 @@ describe("Windows MCP 固定启动器资产", () => {
     { filename: "service.mjs", forgeManifest: true },
     { filename: "guard.dll", forgeManifest: false },
     { filename: "guard.dll", forgeManifest: true },
+    { filename: "host.exe", forgeManifest: false },
+    { filename: "host.exe", forgeManifest: true },
   ])(
     "拒绝被替换的 $filename；同时伪造外部 manifest=$forgeManifest",
     async ({ filename, forgeManifest }) => {
@@ -71,9 +73,52 @@ describe("Windows MCP 固定启动器资产", () => {
     },
   );
 
-  it("缺少 guard 时资产校验失败", async () => {
+  it.each([
+    "missing",
+    "source-entry",
+    "source",
+    "compiler-name",
+    "compiler",
+    "compile-failed",
+    "references",
+    "reference-sha",
+    "options",
+    "target",
+  ] as const)("拒绝无效的 host 编译收据 %s", async (mode) => {
     await withAssets(async (temporary) => {
-      await rm(path.join(temporary, "guard.dll"));
+      const filename = path.join(temporary, "manifest.json");
+      const manifest = JSON.parse(await readFile(filename, "utf8"));
+      if (mode === "missing") delete manifest.host;
+      else if (mode === "source-entry") manifest.host.source.entry = "other.cs";
+      else if (mode === "source") manifest.host.source.sha256 = "0".repeat(64);
+      else if (mode === "compiler-name") manifest.host.compiler.name = "other.exe";
+      else if (mode === "compiler") manifest.host.compiler.sha256 = "invalid";
+      else if (mode === "compile-failed") manifest.host.compiler.exitCode = 1;
+      else if (mode === "references")
+        manifest.host.compiler.references["other.dll"] = "a".repeat(64);
+      else if (mode === "reference-sha")
+        manifest.host.compiler.references["System.dll"] = "invalid";
+      else if (mode === "options") manifest.host.compiler.options = [];
+      else
+        manifest.host.compiler.options = manifest.host.compiler.options.map((option: string) =>
+          option === "/target:exe" ? "/target:library" : option,
+        );
+      await writeFile(filename, JSON.stringify(manifest), "utf8");
+      await expect(verifyWindowsMcpService(temporary)).rejects.toThrow();
+    });
+  });
+
+  it("拒绝随固定启动器旁置的 CLR 配置", async () => {
+    await withAssets(async (temporary) => {
+      await verifyWindowsMcpService(temporary);
+      await writeFile(path.join(temporary, "host.exe.config"), "<configuration />", "utf8");
+      await expect(verifyWindowsMcpService(temporary)).rejects.toThrow();
+    });
+  });
+
+  it.each(["guard.dll", "host.exe"])("缺少 %s 时资产校验失败", async (asset) => {
+    await withAssets(async (temporary) => {
+      await rm(path.join(temporary, asset));
       await expect(verifyWindowsMcpService(temporary)).rejects.toThrow();
     });
   });

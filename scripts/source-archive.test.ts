@@ -35,7 +35,9 @@ describe("源码 ZIP 内容门禁", () => {
     const result = evaluateSourceArchiveEntries([
       "coremind-source/package.json",
       "coremind-source/packages/coremind-tools/src/windows-mcp-job-guard.cs",
+      "coremind-source/packages/coremind-tools/src/windows-mcp-console-host.cs",
       "coremind-source/packages/coremind-tools/src/vendor/windows-mcp/guard.dll",
+      "coremind-source/packages/coremind-tools/src/vendor/windows-mcp/host.exe",
       "coremind-source/packages/coremind-cli/src/cli.ts",
       "coremind-source/packages/coremind-cli/src/cli.e2e.test.ts",
       "coremind-source/.env.example",
