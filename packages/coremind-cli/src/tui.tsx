@@ -20,6 +20,7 @@ import {
 import { formatObservabilityStatus } from "./observability-format.js";
 import {
   formatArtifactReference,
+  formatTerminalInput,
   formatTerminalRow,
   loopStateText,
   terminalText,
@@ -132,7 +133,12 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
         }
         const submitted = reduceTerminalInput(
           editingRef.current,
-          { type: "submitted", revision: effect.revision, target: effect.target },
+          {
+            type: "submitted",
+            revision: effect.revision,
+            target: effect.target,
+            remember: effect.target === "draft" && !command.startsWith("/"),
+          },
           current,
         );
         editingRef.current = submitted.state;
@@ -418,6 +424,7 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
               {"\n"}/steer 文本：追加指令 · /follow-up 文本：任务自然结束后继续
               {"\n"}/mcp login 服务 · /mcp cancel · /mcp logout 服务（凭据仅当前进程保存）
               {"\n"}applied 仅表示已交队列；输入的 claimed/completed/discarded 单独显示。
+              {"\n"}←/→ 移动 · Home/End 整稿首尾 · ↑/↓ 历史，↓ 返回草稿。
             </Text>
           </Box>
         )}
@@ -476,11 +483,17 @@ export function ChatTUI({ title, session, approvals, onExit, mcp }: ChatTUIProps
       )}
       <Box borderStyle="round" paddingX={1}>
         <Text color="green">你 &gt; </Text>
-        <Text>{terminalText(input)}</Text>
+        <Text>
+          {pendingApproval || approvalCommand !== undefined
+            ? terminalText(input)
+            : formatTerminalInput(input, editing.cursor)}
+        </Text>
       </Box>
       {approvalCommand !== undefined && (
         <Box paddingX={1}>
-          <Text>控制命令 &gt; {terminalText(approvalCommand)}</Text>
+          <Text>
+            控制命令 &gt; {formatTerminalInput(approvalCommand, editing.approvalCommand?.cursor)}
+          </Text>
         </Box>
       )}
       {busy && (
