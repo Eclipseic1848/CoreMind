@@ -1,14 +1,44 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createCertificationEvidence,
+  createCertificationFailure,
   upsertCertificationRecord,
 } from "./provider-certification.mjs";
 import { verifyProviderCertificationArtifact } from "./verify-provider-certification-artifact.mjs";
 
 describe("候选 Provider 认证 Artifact", () => {
+  it("独立失败诊断不能被当作候选认证资格", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-provider-artifact-"));
+    if (
+      path.dirname(path.resolve(directory)) !== path.resolve(tmpdir()) ||
+      !path.basename(directory).startsWith("coremind-provider-artifact-")
+    ) {
+      throw new Error("测试清理路径越界");
+    }
+    try {
+      const failure = createCertificationFailure({
+        version: "1.2.0",
+        commit: "a".repeat(40),
+        stage: "child-validate",
+        events: [],
+        durationMs: 100,
+      });
+      writeFileSync(
+        path.join(directory, "provider-certification-failure.json"),
+        JSON.stringify(failure),
+        "utf8",
+      );
+      await expect(verifyProviderCertificationArtifact(directory, "a".repeat(40))).rejects.toThrow(
+        "没有绑定候选提交",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("只接受与候选提交及台账交叉匹配的完整证据", async () => {
     const directory = createArtifact("a".repeat(40));
 
