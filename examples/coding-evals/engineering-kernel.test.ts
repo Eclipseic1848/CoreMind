@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,6 +12,7 @@ import {
   selectCodingEnvironment,
 } from "coremind-ai";
 import { describe, expect, it } from "vitest";
+import { commandTimeoutMs, runCodingCommand as run } from "./_shared/command.js";
 
 type Fixture = {
   language: "typescript" | "python";
@@ -21,8 +21,6 @@ type Fixture = {
   regressionCommand: { command: string; args: string[] };
   repair: string;
 };
-
-const commandTimeoutMs = 30_000;
 
 const fixtures: Fixture[] = [
   {
@@ -63,7 +61,7 @@ describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => 
       const ledger = new EngineeringEvidenceLedger({ plan, repoMap });
 
       const failing = run(root, fixture.targetCommand);
-      expect(failing.exitCode).toBe(1);
+      expect(failing.exitCode, JSON.stringify({ stage: "reproduction", ...failing })).toBe(1);
       ledger.recordVerification({
         kind: "reproduction",
         command: commandText(fixture.targetCommand),
@@ -105,6 +103,10 @@ describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => 
         exitCode: regression.exitCode,
         durationMs: regression.durationMs,
       });
+      expect(target.exitCode, JSON.stringify({ stage: "target-test", ...target })).toBe(0);
+      expect(regression.exitCode, JSON.stringify({ stage: "regression-test", ...regression })).toBe(
+        0,
+      );
       ledger.markDiffReviewed();
 
       expect(ledger.finalize({ claimTestsPassed: true, outcome: "succeeded" })).toMatchObject({
@@ -113,7 +115,8 @@ describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => 
       });
 
       await restoreCheckpoint(checkpoint as NonNullable<typeof checkpoint>, root);
-      expect(run(root, fixture.targetCommand).exitCode).toBe(1);
+      const restored = run(root, fixture.targetCommand);
+      expect(restored.exitCode, JSON.stringify({ stage: "restored", ...restored })).toBe(1);
       // 四次串行命令各有独立上限，另给 checkpoint 与仓库检查留出时间。
     },
     4 * commandTimeoutMs + 30_000,
@@ -135,6 +138,7 @@ describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => 
       repoMap: buildRepositoryMap(inspection, selection),
     });
     const wrong = run(root, { command: "__coremind_missing_command__", args: [] });
+    expect(wrong).toMatchObject({ exitCode: null, errorCode: "ENOENT" });
     ledger.recordVerification({
       kind: "target-test",
       command: "__coremind_missing_command__",
@@ -148,6 +152,39 @@ describe.each(fixtures)("$language Coding Kernel 跨文件验收", (fixture) => 
     expect(ledger.finalize({ claimTestsPassed: false, outcome: "aborted" })).toMatchObject({
       outcome: "aborted",
       testsPassed: false,
+    });
+  });
+});
+
+describe("评测命令失败现场", () => {
+  it("真实退出保留退出码和字节数，不返回原始输出或命令", () => {
+    const result = run(process.cwd(), {
+      command: process.execPath,
+      args: [
+        "-e",
+        'process.stdout.write("x".repeat(4096)); process.stderr.write("y".repeat(4096)); process.exitCode = 1;',
+      ],
+    });
+    expect(result).toEqual({
+      exitCode: 1,
+      durationMs: expect.any(Number),
+      errorCode: null,
+      signal: null,
+      pid: expect.any(Number),
+      stdoutBytes: 4096,
+      stderrBytes: 4096,
+    });
+  });
+
+  it("超时保留空退出码及错误分类，不伪装成测试失败退出码", () => {
+    const result = run(
+      process.cwd(),
+      { command: process.execPath, args: ["-e", "setInterval(() => {}, 1000)"] },
+      100,
+    );
+    expect(result, JSON.stringify(result)).toMatchObject({
+      exitCode: null,
+      errorCode: "ETIMEDOUT",
     });
   });
 });
@@ -196,20 +233,6 @@ function write(root: string, relative: string, content: string): void {
   const target = path.join(root, relative);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, content, "utf8");
-}
-
-function run(
-  cwd: string,
-  request: Fixture["targetCommand"],
-): { exitCode: number | null; durationMs: number } {
-  const startedAt = Date.now();
-  const result = spawnSync(request.command, request.args, {
-    cwd,
-    encoding: "utf8",
-    stdio: "pipe",
-    timeout: commandTimeoutMs,
-  });
-  return { exitCode: result.status, durationMs: Date.now() - startedAt };
 }
 
 function commandText(request: Fixture["targetCommand"]): string {

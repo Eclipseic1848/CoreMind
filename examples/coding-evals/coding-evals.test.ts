@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -13,6 +13,7 @@ import {
   runEvaluationSuite,
 } from "coremind-ai";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { runCodingCommand } from "./_shared/command.js";
 import { createCodingEvalMockServer } from "./_shared/mock-provider.mjs";
 import "./engineering-kernel.test.js";
 
@@ -31,7 +32,11 @@ afterAll(() => {
 describe("真实缺陷仓库确定性评测", () => {
   it("TypeScript Agent 先复现失败，再最小修复并通过目标与回归测试", async () => {
     const projectDir = prepareRepository("typescript-defect");
-    expect(run(projectDir, process.execPath, "--test", "tests/discount.test.ts")).not.toBe(0);
+    const failing = runCodingCommand(projectDir, {
+      command: process.execPath,
+      args: ["--test", "tests/discount.test.ts"],
+    });
+    expect(failing.exitCode, JSON.stringify({ stage: "reproduction", ...failing })).toBe(1);
     const userDraft = readFileSync(path.join(projectDir, "user-notes.txt"), "utf8");
     const protectedConfig = readFileSync(path.join(projectDir, "coremind.yaml"), "utf8");
 
@@ -53,12 +58,22 @@ describe("真实缺陷仓库确定性评测", () => {
     );
     expect(readFileSync(path.join(projectDir, "user-notes.txt"), "utf8")).toBe(userDraft);
     expect(readFileSync(path.join(projectDir, "coremind.yaml"), "utf8")).toBe(protectedConfig);
-    expect(run(projectDir, process.execPath, "--test")).toBe(0);
+    const regression = runCodingCommand(projectDir, {
+      command: process.execPath,
+      args: ["--test"],
+    });
+    expect(regression.exitCode, JSON.stringify({ stage: "regression-test", ...regression })).toBe(
+      0,
+    );
   });
 
   it("Python Agent 先复现失败，再最小修复并通过目标与回归测试", async () => {
     const projectDir = prepareRepository("python-defect");
-    expect(run(projectDir, "python", "-m", "unittest", "tests.test_tax")).not.toBe(0);
+    const failing = runCodingCommand(projectDir, {
+      command: "python",
+      args: ["-m", "unittest", "tests.test_tax"],
+    });
+    expect(failing.exitCode, JSON.stringify({ stage: "reproduction", ...failing })).toBe(1);
     const userDraft = readFileSync(path.join(projectDir, "user-notes.txt"), "utf8");
     const protectedEnv = readFileSync(path.join(projectDir, ".env.example"), "utf8");
 
@@ -80,7 +95,13 @@ describe("真实缺陷仓库确定性评测", () => {
     );
     expect(readFileSync(path.join(projectDir, "user-notes.txt"), "utf8")).toBe(userDraft);
     expect(readFileSync(path.join(projectDir, ".env.example"), "utf8")).toBe(protectedEnv);
-    expect(run(projectDir, "python", "-m", "unittest", "discover", "-s", "tests")).toBe(0);
+    const regression = runCodingCommand(projectDir, {
+      command: "python",
+      args: ["-m", "unittest", "discover", "-s", "tests"],
+    });
+    expect(regression.exitCode, JSON.stringify({ stage: "regression-test", ...regression })).toBe(
+      0,
+    );
   });
 });
 
@@ -144,8 +165,4 @@ function prepareRepository(id: string): string {
 
 function git(cwd: string, ...args: string[]): void {
   execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
-}
-
-function run(cwd: string, command: string, ...args: string[]): number | null {
-  return spawnSync(command, args, { cwd, encoding: "utf8", stdio: "pipe", timeout: 30_000 }).status;
 }
