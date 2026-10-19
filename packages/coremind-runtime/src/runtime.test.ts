@@ -21,7 +21,7 @@ import {
   projectBranchMessages,
   projectRawBranchMessages,
 } from "./compaction-projection.js";
-import { ControlInbox } from "./control-inbox.js";
+import { ControlInbox, type ControlReceipt } from "./control-inbox.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import type { CoreMindEvent } from "./events.js";
 import type { HostVerificationRequest } from "./host-verification.js";
@@ -596,25 +596,72 @@ describe("CoreMindRuntime", () => {
     });
   });
 
-  it("宿主验收拒绝后在同一 Run 修正，只有持久接受才能成功", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "coremind-host-verify-"));
-    const server = createTextSequenceServer(["初稿", "修正稿"]);
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-    const requests: Array<{ runId: string; candidate: string }> = [];
-    const replies: Promise<unknown>[] = [];
-    try {
-      const runtime = await CoreMindRuntime.create({
-        config: loopConfig((server.address() as AddressInfo).port, {
-          verify: { mode: "host", timeoutMs: 1_000 },
-        }),
-        configDir: dir,
-        cwd: dir,
-        runId: "host-verification-run",
-        initialPrompt: "写一份结果",
-        onVerification: (request) => {
-          requests.push(request);
-          replies.push(
-            runtime.acceptControl({
+  it.each([
+    {
+      name: "默认期限，立即持久回复",
+      commitDelayMs: 0,
+      commitState: "applied",
+      timeoutMs: undefined,
+      expectedStatus: "succeeded",
+    },
+    {
+      name: "默认期限，慢速持久回复",
+      commitDelayMs: 1_100,
+      commitState: "applied",
+      timeoutMs: undefined,
+      expectedStatus: "succeeded",
+    },
+    {
+      name: "显式一秒期限，迟到回复不能改写暂停",
+      commitDelayMs: 1_100,
+      commitState: "applied",
+      timeoutMs: 1_000,
+      expectedStatus: "paused",
+    },
+    {
+      name: "显式一秒期限，迟到持久收件仍安全拒绝",
+      commitDelayMs: 1_100,
+      commitState: "accepted",
+      timeoutMs: 1_000,
+      expectedStatus: "paused",
+    },
+  ] as const)(
+    "宿主验收拒绝后在同一 Run 修正，只有持久接受才能成功（$name）",
+    async ({ commitDelayMs, commitState, timeoutMs, expectedStatus }) => {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-host-verify-"));
+      const server = createTextSequenceServer(["初稿", "修正稿"]);
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const requests: Array<{ runId: string; candidate: string }> = [];
+      const replies: Promise<ControlReceipt>[] = [];
+      const store = new FileRunStore(
+        path.join(dir, "runs"),
+        commitDelayMs > 0
+          ? {
+              beforeCommit: async ({ record }) => {
+                if (
+                  record?.kind === "control" &&
+                  (record.payload as { state?: string }).state === commitState
+                ) {
+                  await new Promise((resolve) => setTimeout(resolve, commitDelayMs));
+                }
+              },
+            }
+          : {},
+      );
+      try {
+        const runtime = await CoreMindRuntime.create({
+          config: loopConfig((server.address() as AddressInfo).port, {
+            // 成功路径使用产品默认期限；独立负例保留一秒截止与真实慢速 critical 发布。
+            verify: { mode: "host", ...(timeoutMs === undefined ? {} : { timeoutMs }) },
+          }),
+          configDir: dir,
+          cwd: dir,
+          runStore: store,
+          runId: "host-verification-run",
+          initialPrompt: "写一份结果",
+          onVerification: (request) => {
+            requests.push(request);
+            const reply = runtime.acceptControl({
               schemaVersion: 1,
               controlId: `answer-${request.requestId}`,
               runId: request.runId,
@@ -623,23 +670,76 @@ describe("CoreMindRuntime", () => {
               candidateSha256: request.candidateSha256,
               decision: requests.length === 1 ? "reject" : "accept",
               feedback: requests.length === 1 ? "修正缺失内容" : "",
-            }),
-          );
-        },
-      });
-      const result = await runtime.run();
-      await Promise.all(replies);
-      expect(result.outcome.status).toBe("succeeded");
-      expect(result.transcript).toBe("修正稿");
-      expect(requests).toMatchObject([
-        { runId: "host-verification-run", candidate: "初稿" },
-        { runId: "host-verification-run", candidate: "修正稿" },
-      ]);
-    } finally {
-      await closeServer(server);
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+            });
+            replies.push(reply);
+            return reply;
+          },
+        });
+        const result = await runtime.run();
+        const receipts = await Promise.all(replies);
+        const diagnostic = JSON.stringify({
+          status: result.outcome.status,
+          finishReason: result.outcome.finishReason,
+          code: result.outcome.error?.code,
+          requests: requests.length,
+          receipts: receipts.map((receipt) => receipt.status),
+        });
+        expect(result.outcome.status, diagnostic).toBe(expectedStatus);
+        const succeeded = expectedStatus === "succeeded";
+        expect(result.transcript, diagnostic).toBe(succeeded ? "修正稿" : "初稿");
+        const receiptStates = receipts.map((receipt) => receipt.status);
+        expect(receiptStates, diagnostic).toEqual(
+          succeeded ? ["applied", "applied"] : [expect.stringMatching(/^(?:applied|rejected)$/u)],
+        );
+        if (commitState === "accepted") {
+          expect(receiptStates, diagnostic).toEqual(["rejected"]);
+        }
+        for (const receipt of receipts) {
+          if (receipt.status === "rejected") {
+            expect(receipt.reason, diagnostic).toBe("宿主验收对象不匹配、已决定或当前不可接收回复");
+          }
+        }
+        expect(requests, diagnostic).toMatchObject(
+          succeeded
+            ? [
+                { runId: "host-verification-run", candidate: "初稿" },
+                { runId: "host-verification-run", candidate: "修正稿" },
+              ]
+            : [{ runId: "host-verification-run", candidate: "初稿" }],
+        );
+        const decisions = succeeded ? ["reject", "accept"] : ["reject"];
+        expect(
+          (await store.read(result.runId)).filter((record) => record.kind === "control"),
+          diagnostic,
+        ).toMatchObject(
+          decisions.flatMap((decision, index) => [
+            {
+              sequence: expect.any(Number),
+              payload: {
+                controlId: receipts[index]!.controlId,
+                state: "accepted",
+                command: { type: "verification", decision },
+              },
+            },
+            {
+              sequence:
+                receiptStates[index] === "applied"
+                  ? receipts[index]!.appliedSequence
+                  : receipts[index]!.rejectedSequence,
+              payload: { controlId: receipts[index]!.controlId, state: receiptStates[index] },
+            },
+          ]),
+        );
+        if (!succeeded) {
+          expect(result.outcome.finishReason, diagnostic).toBe("loop_paused");
+          expect(await runtime.waitForQuiescence()).toBe(true);
+        }
+      } finally {
+        await closeServer(server);
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("真实 Child Runtime Adapter 绑定 authority、执行独立 Run 并等待 Quiescent", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-real-child-"));
