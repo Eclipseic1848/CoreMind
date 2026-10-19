@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager, redirect_stderr
+from io import StringIO
 import json
 import os
+import queue
 import subprocess
 import sys
 import tempfile
@@ -13,7 +16,54 @@ from pathlib import Path
 from threading import Thread
 from unittest.mock import patch
 
-from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
+from coremind import AsyncCoreMindClient, CoreMindClient, CoreMindError, ProtocolError
+
+
+@contextmanager
+def _worker_failure_context(client, protocol: str, asynchronous: bool, trusted: bool):
+    # 仅记录测试生命周期；失败时也保留 SDK 清空内部引用之前创建的真实进程。
+    processes = []
+    cleanup = []
+    original_popen = subprocess.Popen
+    original_cleanup = client._terminate_process
+    started = time.monotonic()
+
+    def spawn(*args, **kwargs):
+        process = original_popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def state():
+        process = processes[-1] if processes else None
+        return {"pid": process.pid if process else None,
+                "returncode": process.poll() if process else None,
+                "readerAlive": bool(client._reader and client._reader.is_alive()),
+                "stderrReaderAlive": bool(client._stderr_reader and client._stderr_reader.is_alive())}
+
+    def terminate():
+        record = {"before": state()}
+        if len(cleanup) < 2:
+            cleanup.append(record)
+        try:
+            return original_cleanup()
+        finally:
+            record["after"] = state()
+
+    with patch("coremind.client.subprocess.Popen", side_effect=spawn), \
+         patch.object(client, "_terminate_process", side_effect=terminate):
+        try:
+            yield processes
+        except BaseException:
+            # 不输出配置、环境、命令、路径或原始 stderr；观测失败不能替代原异常。
+            try:
+                evidence = {"protocol": protocol, "asynchronous": asynchronous, "trusted": trusted,
+                            "elapsedMs": round((time.monotonic() - started) * 1000),
+                            "processCount": len(processes), "state": state(), "cleanup": cleanup}
+                print("COREMIND_TEST_WORKER_FAILURE " + json.dumps(evidence, separators=(",", ":")),
+                      file=sys.stderr)
+            except (OSError, ValueError):
+                pass
+            raise
 
 
 # 复用既有假 Worker 的全部协议形状，仅在真实 JSONL 回执去掉新能力并记录请求。
@@ -48,6 +98,69 @@ runpy.run_path(fixture, run_name="__main__")
 
 
 class ProjectCodeTrustTest(unittest.TestCase):
+    def test_initialize_timeout_preserves_failure_context_and_reaps_worker(self) -> None:
+        asyncio.run(self._initialize_timeout_matrix())
+
+    async def _initialize_timeout_matrix(self) -> None:
+        secret = "must-not-appear-in-failure-context"
+        worker = 'import sys; print("must-not-appear-in-failure-context", file=sys.stderr, flush=True); list(sys.stdin)'
+        for version in ("1.0", "2.0"):
+            for asynchronous in (False, True):
+                with self.subTest(version=version, asynchronous=asynchronous):
+                    client_type = AsyncCoreMindClient if asynchronous else CoreMindClient
+                    client = client_type(
+                        {"schemaVersion": 2, "name": secret, "agents": {"main": {}}},
+                        protocol_version=version, request_timeout=1,
+                        worker_command=[sys.executable, "-u", "-c", worker],
+                    )
+                    sync = client.sync_client if asynchronous else client
+                    output = StringIO()
+                    try:
+                        with self.assertRaises(CoreMindError) as caught, redirect_stderr(output):
+                            with _worker_failure_context(sync, version, asynchronous, False) as processes:
+                                try:
+                                    if asynchronous:
+                                        await client.start()
+                                    else:
+                                        client.start()
+                                finally:
+                                    if asynchronous:
+                                        await client.close()
+                                    else:
+                                        client.close()
+                    finally:
+                        if asynchronous:
+                            await client.close()
+                        else:
+                            client.close()
+                    self.assertEqual(str(caught.exception), "协议请求 initialize 超时")
+                    self.assertIsInstance(caught.exception.__cause__, queue.Empty)
+                    self.assertEqual(len(processes), 1)
+                    self.assertIsNone(sync._process)
+                    self.assertEqual(processes[0].returncode, 0)
+                    self.assertFalse(sync._reader.is_alive())
+                    self.assertFalse(sync._stderr_reader.is_alive())
+                    lines = output.getvalue().splitlines()
+                    self.assertEqual(len(lines), 1)
+                    self.assertTrue(lines[0].startswith("COREMIND_TEST_WORKER_FAILURE "))
+                    self.assertLessEqual(len(lines[0].encode("utf-8")), 1536)
+                    context = json.loads(lines[0].split(" ", 1)[1])
+                    self.assertEqual(set(context), {"protocol", "asynchronous", "trusted", "elapsedMs",
+                                                    "processCount", "state", "cleanup"})
+                    self.assertEqual((context["protocol"], context["asynchronous"], context["trusted"]),
+                                     (version, asynchronous, False))
+                    self.assertEqual(context["processCount"], 1)
+                    self.assertGreater(context["elapsedMs"], 0)
+                    self.assertEqual(context["state"], {"pid": processes[0].pid, "returncode": 0,
+                                                       "readerAlive": False, "stderrReaderAlive": False})
+                    self.assertEqual(len(context["cleanup"]), 2)
+                    self.assertIsNone(context["cleanup"][0]["before"]["returncode"])
+                    self.assertEqual(context["cleanup"][0]["after"], context["state"])
+                    self.assertEqual(context["cleanup"][1], {"before": context["state"],
+                                                            "after": context["state"]})
+                    self.assertNotIn(secret, output.getvalue())
+                    self.assertNotIn(str(Path(__file__).resolve()), output.getvalue())
+
     def test_boolean_only_and_initialize_field(self) -> None:
         config = {"schemaVersion": 2, "name": "trust", "agents": {"main": {}}}
         with patch("coremind.client.subprocess.Popen") as spawn:
@@ -152,7 +265,8 @@ execute:async()=>({content:[{type:"text",text:"ok"}],details:{}})};
                             sync = client.sync_client if asynchronous else client
                             before = len(requests)
                             process = None
-                            with patch.dict(os.environ, {"COREMIND_PYTHON_TRUST_TEST_KEY": "test-only-key"}):
+                            with _worker_failure_context(sync, version, asynchronous, enabled), \
+                                 patch.dict(os.environ, {"COREMIND_PYTHON_TRUST_TEST_KEY": "test-only-key"}):
                                 os.environ.pop("COREMIND_WORKER_PATH", None)
                                 try:
                                     if asynchronous:
