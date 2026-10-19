@@ -34,11 +34,14 @@ def _worker_failure_context(client, protocol: str, asynchronous: bool, trusted: 
         return process
 
     def state():
-        process = processes[-1] if processes else None
-        return {"pid": process.pid if process else None,
-                "returncode": process.poll() if process else None,
-                "readerAlive": bool(client._reader and client._reader.is_alive()),
-                "stderrReaderAlive": bool(client._stderr_reader and client._stderr_reader.is_alive())}
+        try:
+            process = processes[-1] if processes else None
+            return {"pid": process.pid if process else None,
+                    "returncode": process.poll() if process else None,
+                    "readerAlive": bool(client._reader and client._reader.is_alive()),
+                    "stderrReaderAlive": bool(client._stderr_reader and client._stderr_reader.is_alive())}
+        except Exception:
+            return {"unavailable": True}
 
     def terminate():
         record = {"before": state()}
@@ -61,7 +64,7 @@ def _worker_failure_context(client, protocol: str, asynchronous: bool, trusted: 
                             "processCount": len(processes), "state": state(), "cleanup": cleanup}
                 print("COREMIND_TEST_WORKER_FAILURE " + json.dumps(evidence, separators=(",", ":")),
                       file=sys.stderr)
-            except (OSError, ValueError):
+            except Exception:
                 pass
             raise
 
@@ -98,6 +101,39 @@ runpy.run_path(fixture, run_name="__main__")
 
 
 class ProjectCodeTrustTest(unittest.TestCase):
+    def test_observation_failure_cannot_interrupt_cleanup_or_replace_original_error(self) -> None:
+        for broken_output in (False, True):
+            with self.subTest(broken_output=broken_output):
+                client = CoreMindClient({"schemaVersion": 2, "name": "probe", "agents": {"main": {}}})
+                failure = CoreMindError("原异常")
+                output = StringIO()
+                with patch.object(client, "_reader") as reader, \
+                     patch.object(client, "_terminate_process") as cleanup, \
+                     patch.object(output, "write", wraps=output.write,
+                                  side_effect=RuntimeError("写入失败") if broken_output else None), \
+                     redirect_stderr(output):
+                    reader.is_alive.side_effect = RuntimeError("观测失败")
+                    with self.assertRaises(CoreMindError) as caught:
+                        with _worker_failure_context(client, "1.0", False, False):
+                            client._terminate_process()
+                            raise failure
+                self.assertIs(caught.exception, failure)
+                cleanup.assert_called_once_with()
+                if not broken_output:
+                    context = json.loads(output.getvalue().split(" ", 1)[1])
+                    self.assertEqual(context["state"], {"unavailable": True})
+                    self.assertEqual(context["cleanup"], [{"before": {"unavailable": True},
+                                                           "after": {"unavailable": True}}])
+
+    def test_observation_does_not_swallow_cleanup_failure(self) -> None:
+        client = CoreMindClient({"schemaVersion": 2, "name": "probe", "agents": {"main": {}}})
+        failure = CoreMindError("原清理异常")
+        with patch.object(client, "_terminate_process", side_effect=failure), \
+             redirect_stderr(StringIO()), self.assertRaises(CoreMindError) as caught:
+            with _worker_failure_context(client, "1.0", False, False):
+                client._terminate_process()
+        self.assertIs(caught.exception, failure)
+
     def test_initialize_timeout_preserves_failure_context_and_reaps_worker(self) -> None:
         asyncio.run(self._initialize_timeout_matrix())
 
