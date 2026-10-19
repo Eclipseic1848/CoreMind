@@ -11,6 +11,7 @@ import {
   assertCertificationSucceeded,
   certificationChildBudget,
   checkCertificationChildRun,
+  classifyCertificationApprovalRejection,
   createCertificationEvidence,
   createCertificationFailure,
   inspectCandidateManifest,
@@ -21,6 +22,50 @@ import {
 } from "./provider-certification.mjs";
 
 describe("真实父子认证链的离线反例", () => {
+  it.each([
+    [
+      { agent: "parent", tool: "delegate", args: { target: "worker", task: "TASK " } },
+      "delegate_task_mismatch",
+    ],
+    [
+      { agent: "parent", tool: "delegate", args: { target: "other", task: "TASK" } },
+      "delegate_target_mismatch",
+    ],
+    [
+      { agent: "worker", tool: "write", args: { path: "other", content: "MARKER" } },
+      "write_path_mismatch",
+    ],
+    [
+      { agent: "worker", tool: "write", args: { path: "marker.txt", content: "MARKER\n" } },
+      "write_content_mismatch",
+    ],
+    [{ agent: "parent", tool: "write", args: {} }, "unexpected_agent_or_tool"],
+    [
+      {
+        agent: "PRIVATE-CANARY-SECRET",
+        tool: "PRIVATE-CANARY-SECRET",
+        args: { secret: "PRIVATE-CANARY-SECRET" },
+      },
+      "unexpected_agent_or_tool",
+    ],
+    [
+      { agent: "parent", tool: "delegate", args: { target: "worker", task: "TASK" } },
+      "unclassified_rejection",
+    ],
+    [
+      { agent: "worker", tool: "write", args: { path: "marker.txt", content: "MARKER" } },
+      "unclassified_rejection",
+    ],
+  ])("拒绝分类只返回固定枚举：%s", (request, reason) => {
+    const result = classifyCertificationApprovalRejection(request, {
+      task: "TASK",
+      markerPath: "marker.txt",
+      marker: "MARKER",
+    });
+    expect(result).toBe(reason);
+    expect(result).not.toContain("PRIVATE-CANARY-SECRET");
+  });
+
   it("完整链和真实文件副作用才可通过", async () => {
     await withChildFixture(async (context) => {
       await expect(checkCertificationChildRun(context)).resolves.toMatchObject({
@@ -96,6 +141,18 @@ describe("真实父子认证链的离线反例", () => {
         childToolCompleted: false,
       });
     });
+  });
+
+  it("审批拒绝保留固定分类，未知分类不进入失败摘要", () => {
+    const context = childFixture();
+    Object.assign(context, { lastApprovalRejection: "delegate_task_mismatch" });
+    expect(createCertificationFailure(failureFixture(context)).child).toMatchObject({
+      lastApprovalRejection: "delegate_task_mismatch",
+    });
+    Object.assign(context, { lastApprovalRejection: "PRIVATE-CANARY-SECRET" });
+    const evidence = createCertificationFailure(failureFixture(context));
+    expect(evidence.child.lastApprovalRejection).toBe("unknown");
+    expect(JSON.stringify(evidence)).not.toContain("PRIVATE-CANARY-SECRET");
   });
 
   it.each([

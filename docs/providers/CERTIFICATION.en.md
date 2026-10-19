@@ -38,6 +38,8 @@ Provider discovery means that CoreMind has an adapter entry point. It does not m
 
 Before temporary-workspace cleanup, a failed certification attempts to write one fixed-field `COREMIND_CERTIFICATION_FAILURE` log record and a separate `.scratch/provider-certification-failure.json` file (at most 4 KiB). Strict candidate qualification uploads it separately as `provider-certification-failure-<commit>`, without changing the success ledger. The summary contains only candidate identity, stage, parent/child counts, booleans, enums, approval counts, and observed usage. It excludes response bodies, tool arguments, paths, credentials, and arbitrary exceptions. Parent/child certification requires successful tool receipts; error receipts cannot count as completion.
 
+Synthetic certification prompts provide explicit JSON arguments for `delegate` and `write`; approval still matches the target, task, and written content exactly. Approval rejection in the successful-child scenario records only a fixed classification: target, task, path, or content mismatch; unexpected agent/tool; or unclassified rejection. Unknown classifications become `unknown`. Classification uses the actual rejected request, does not infer arguments from other calls in the same batch, and never grants approval.
+
 Failed-run usage is `partial` or `unknown`, with missing values recorded as `null`. It is not zero cost, a complete bill, or remaining authorization for another call. Output failures preserve the original certification failure and cleanup; forced process termination may prevent recording. Diagnostics confer no certification and further live validation requires explicit approval.
 
 ## Revocation
