@@ -16,6 +16,7 @@ import {
   assertCertificationSucceeded,
   certificationChildBudget,
   checkCertificationChildRun,
+  classifyCertificationApprovalRejection,
   createCertificationEvidence,
   inspectCandidateManifest,
   recordCertificationFailure,
@@ -308,8 +309,8 @@ async function certifyChildRunSuccess() {
   childContext = { events, markerStatus: "not_checked", approvalsAllowed: 0, approvalsDenied: 0 };
   const runtime = await createDelegationRuntime({
     scenarioWorkspace,
-    parentPrompt: `必须调用 delegate，把任务 ${task} 委派给 worker，references 为空。Child 成功后只回复 PARENT-CHILD-CERT-DONE。不得调用 write。`,
-    workerPrompt: `你是认证 Child。必须先调用 write，把 ${marker} 精确写入 ${markerPath}；工具成功后只输出 {"status":"ok","marker":"${marker}"}。`,
+    parentPrompt: `必须且只能调用一次 delegate，参数原样使用 ${JSON.stringify({ target: "worker", task, references: [], limits: {} })}，task 字段不得改写或扩写。Child 成功后只回复 PARENT-CHILD-CERT-DONE。不得调用 write。`,
+    workerPrompt: `你是认证 Child。必须先调用 write，参数原样使用 ${JSON.stringify({ path: markerPath, content: marker })}，content 不得添加换行或其他字符；工具成功后只输出 {"status":"ok","marker":"${marker}"}。`,
     withWrite: true,
     events,
     approveTool: async (request) => {
@@ -333,6 +334,11 @@ async function certifyChildRunSuccess() {
         return "allow";
       }
       childContext.approvalsDenied += 1;
+      childContext.lastApprovalRejection = classifyCertificationApprovalRejection(request, {
+        task,
+        markerPath,
+        marker,
+      });
       return "deny";
     },
   });
@@ -355,7 +361,7 @@ async function certifyChildRunCancellation() {
   let abortStartedAt;
   const runtime = await createDelegationRuntime({
     scenarioWorkspace,
-    parentPrompt: `必须调用 delegate，把任务 ${task} 委派给 worker，references 为空。不得调用其他工具。`,
+    parentPrompt: `必须且只能调用一次 delegate，参数原样使用 ${JSON.stringify({ target: "worker", task, references: [], limits: {} })}，task 字段不得改写或扩写。不得调用其他工具。`,
     workerPrompt: "你是取消认证 Child。立即流式生成至少两万字的纯合成技术文本。",
     events,
     signal: controller.signal,

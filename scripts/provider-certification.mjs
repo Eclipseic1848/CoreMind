@@ -1,6 +1,31 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
+const APPROVAL_REJECTION_REASONS = [
+  "delegate_target_mismatch",
+  "delegate_task_mismatch",
+  "write_path_mismatch",
+  "write_content_mismatch",
+  "unexpected_agent_or_tool",
+  "unclassified_rejection",
+];
+
+/** 只解释已发生的拒绝，不批准请求或保留其原始参数。 */
+export function classifyCertificationApprovalRejection(request, { task, markerPath, marker }) {
+  const args = request.args ?? {};
+  if (request.agent === "parent" && request.tool === "delegate") {
+    if (args.target !== "worker") return "delegate_target_mismatch";
+    if (args.task !== task) return "delegate_task_mismatch";
+    return "unclassified_rejection";
+  }
+  if (request.agent === "worker" && request.tool === "write") {
+    if (args.path !== markerPath) return "write_path_mismatch";
+    if (args.content !== marker) return "write_content_mismatch";
+    return "unclassified_rejection";
+  }
+  return "unexpected_agent_or_tool";
+}
+
 /** 保留真实文件副作用与完整父子链校验，供认证入口和离线回归共用。 */
 export async function checkCertificationChildRun(context) {
   const { result, markerFile, marker } = context;
@@ -51,6 +76,7 @@ export function certificationChildFacts({
   markerStatus,
   approvalsAllowed,
   approvalsDenied,
+  lastApprovalRejection,
 }) {
   const node = result?.childRuns?.nodes[0];
   const countEvents = (type, agent) =>
@@ -85,6 +111,7 @@ export function certificationChildFacts({
       .length,
     approvalsAllowed: nonnegative(approvalsAllowed, true),
     approvalsDenied: nonnegative(approvalsDenied, true),
+    lastApprovalRejection: fixedValue(lastApprovalRejection, APPROVAL_REJECTION_REASONS),
     structuredResultPresent: Boolean(node?.result),
     markerStatus: fixedValue(markerStatus, [
       "not_checked",
