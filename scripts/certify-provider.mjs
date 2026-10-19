@@ -15,8 +15,10 @@ import { shutdownPlatformExecutionEnvironment } from "../packages/coremind-tools
 import {
   assertCertificationSucceeded,
   certificationChildBudget,
+  checkCertificationChildRun,
   createCertificationEvidence,
   inspectCandidateManifest,
+  recordCertificationFailure,
   upsertCertificationRecord,
   validateCertificationApproval,
   verifyCandidateArtifact,
@@ -85,6 +87,8 @@ const deadlineTimer = setTimeout(
 );
 const certificationEvents = [];
 let accumulatedCostUsd = 0;
+let stage = "streaming";
+let childContext;
 
 const details = {};
 try {
@@ -104,6 +108,7 @@ try {
   details.streaming = { passed: true, deltaCount };
   details.structuredResult = { passed: true, outputHash: hash(basicResult.transcript) };
 
+  stage = "tool-call";
   const tool = defineTool({
     name: "lookup_certification_marker",
     description: "返回认证标记。必须先调用此工具，不能自行猜测标记。",
@@ -131,8 +136,10 @@ try {
   details.toolCall = { passed: true, calls: toolResult.metrics.toolCalls };
 
   details.childRun = await certifyChildRunSuccess();
+  stage = "child-cancel";
   details.childRunCancel = await certifyChildRunCancellation();
 
+  stage = "multi-turn";
   const chatRuntime = await createRuntime({});
   const session = new ChatSession(chatRuntime, "assistant");
   const firstTurn = await session.chat("记住合成测试代码 SESSION-CERT-8319，只回复已记住。");
@@ -149,6 +156,7 @@ try {
   }
   details.multiTurn = { passed: true, turns: 3, outputHash: hash(thirdTurn.text) };
 
+  stage = "abort";
   const abortController = new AbortController();
   const abortRuntime = await createRuntime({
     prompt: "请生成一篇至少五千字、分二十节的纯合成技术文章。",
@@ -162,6 +170,7 @@ try {
   }
   details.abort = { passed: true, status: abortResult.outcome.status };
 
+  stage = "long-context";
   const longContextChars = Number(process.env.COREMIND_CERT_LONG_CONTEXT_CHARS ?? 64_000);
   if (
     !Number.isInteger(longContextChars) ||
@@ -189,6 +198,7 @@ try {
     outputHash: hash(longContextResult.transcript),
   };
 
+  stage = "auth-error";
   process.env[apiKeyEnv] = "invalid-coremind-certification-key";
   const errorRuntime = await createRuntime({ prompt: "只回复 ERROR-CHECK" });
   try {
@@ -208,6 +218,7 @@ try {
     details.error = { passed: true, status: "rejected", diagnostic: "authentication_error" };
   }
   process.env[apiKeyEnv] = originalKey;
+  stage = "evidence";
   const usage = certificationUsage(Date.now() - startedAtMs);
   const ref = process.env.GITHUB_RUN_ID
     ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
@@ -250,6 +261,31 @@ try {
   console.log(
     `Provider 真实认证通过：${providerId}/${model}，证据：${path.relative(root, output)}`,
   );
+} catch (error) {
+  await recordCertificationFailure(
+    {
+      version,
+      commit,
+      runtimeArtifactSha256,
+      candidateArtifactSha256: candidate.candidateArtifactSha256,
+      runtimeDigest,
+      artifactManifestDigest: candidate.artifactManifestDigest,
+      stage,
+      approval,
+      events: certificationEvents,
+      durationMs: Date.now() - startedAtMs,
+      child: childContext,
+    },
+    {
+      writeLog: (line) => console.error(line),
+      writeArtifact: async (json) => {
+        const output = path.join(root, ".scratch", "provider-certification-failure.json");
+        await mkdir(path.dirname(output), { recursive: true });
+        await writeFile(output, json, "utf8");
+      },
+    },
+  );
+  throw error;
 } finally {
   process.env[apiKeyEnv] = originalKey;
   clearTimeout(deadlineTimer);
@@ -262,12 +298,14 @@ try {
 }
 
 async function certifyChildRunSuccess() {
+  stage = "child-create";
   const scenarioWorkspace = path.join(workspace, "child-success");
   await mkdir(scenarioWorkspace, { recursive: true });
   const task = "CHILD-CERT-SUCCESS-7429";
   const markerPath = "child-certification-marker.txt";
   const marker = "CHILD-TOOL-CERT-7429";
   const events = [];
+  childContext = { events, markerStatus: "not_checked", approvalsAllowed: 0, approvalsDenied: 0 };
   const runtime = await createDelegationRuntime({
     scenarioWorkspace,
     parentPrompt: `必须调用 delegate，把任务 ${task} 委派给 worker，references 为空。Child 成功后只回复 PARENT-CHILD-CERT-DONE。不得调用 write。`,
@@ -282,6 +320,7 @@ async function certifyChildRunSuccess() {
         args.target === "worker" &&
         args.task === task
       ) {
+        childContext.approvalsAllowed += 1;
         return "allow";
       }
       if (
@@ -290,51 +329,21 @@ async function certifyChildRunSuccess() {
         args.path === markerPath &&
         args.content === marker
       ) {
+        childContext.approvalsAllowed += 1;
         return "allow";
       }
+      childContext.approvalsDenied += 1;
       return "deny";
     },
   });
+  stage = "child-run";
   const result = await runtime.run();
+  childContext.result = result;
   assertCertificationSucceeded(result, "父子 Agent 产品链", [originalKey]);
-  const node = result.childRuns?.nodes[0];
-  const parentProviderCalls = countEvents(events, "provider_request", "parent");
-  const childProviderCalls = countEvents(events, "provider_request", "worker");
-  const delegationToolCalled = hasToolEvent(events, "tool_call", "parent", "delegate");
-  const delegationToolCompleted = hasToolEvent(events, "tool_result", "parent", "delegate");
-  const childToolCalled = hasToolEvent(events, "tool_call", "worker", "write");
-  const childToolCompleted = hasToolEvent(events, "tool_result", "worker", "write");
-  const markerWritten =
-    (await readFile(path.join(scenarioWorkspace, markerPath), "utf8")) === marker;
-  if (
-    result.childRuns?.nodes.length !== 1 ||
-    node?.status !== "joined" ||
-    node.outcome?.status !== "succeeded" ||
-    result.childRuns.activeDescendants !== 0 ||
-    result.childRuns.quiescent !== true ||
-    parentProviderCalls < 1 ||
-    childProviderCalls < 1 ||
-    !delegationToolCalled ||
-    !delegationToolCompleted ||
-    !childToolCalled ||
-    !childToolCompleted ||
-    !markerWritten ||
-    !node.result
-  ) {
-    throw new Error("真实父子 Agent 产品链不完整");
-  }
-  return {
-    passed: true,
-    parentProviderCalls,
-    delegationToolCalled,
-    childProviderCalls,
-    childTool: "write",
-    childToolCompleted,
-    childOutcome: node.outcome.status,
-    joined: node.status === "joined",
-    quiescent: result.childRuns.quiescent,
-    structuredResultSha256: hash(JSON.stringify(node.result)),
-  };
+  stage = "child-validate";
+  childContext.markerFile = path.join(scenarioWorkspace, markerPath);
+  childContext.marker = marker;
+  return checkCertificationChildRun(childContext);
 }
 
 async function certifyChildRunCancellation() {
@@ -465,16 +474,6 @@ async function createDelegationRuntime({
     }),
     signal: signal ? AbortSignal.any([deadline.signal, signal]) : deadline.signal,
   });
-}
-
-function countEvents(events, type, agent) {
-  return events.filter((event) => event.type === type && event.agent === agent).length;
-}
-
-function hasToolEvent(events, type, agent, tool) {
-  return events.some(
-    (event) => event.type === type && event.agent === agent && event.tool === tool,
-  );
 }
 
 async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {

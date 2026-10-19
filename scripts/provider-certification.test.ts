@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   RunBudgetController,
@@ -7,12 +10,318 @@ import {
 import {
   assertCertificationSucceeded,
   certificationChildBudget,
+  checkCertificationChildRun,
   createCertificationEvidence,
+  createCertificationFailure,
   inspectCandidateManifest,
+  recordCertificationFailure,
   upsertCertificationRecord,
   validateCertificationApproval,
   verifyCandidateArtifact,
 } from "./provider-certification.mjs";
+
+describe("真实父子认证链的离线反例", () => {
+  it("完整链和真实文件副作用才可通过", async () => {
+    await withChildFixture(async (context) => {
+      await expect(checkCertificationChildRun(context)).resolves.toMatchObject({
+        passed: true,
+        parentProviderCalls: 1,
+        childProviderCalls: 1,
+        childToolCompleted: true,
+        structuredResultSha256: createHash("sha256")
+          .update(JSON.stringify(context.result.childRuns.nodes[0].result))
+          .digest("hex"),
+      });
+    });
+  });
+
+  it("文件缺失仍报告认证链失败，不被 ENOENT 遮蔽", async () => {
+    await withChildFixture(async (context) => {
+      await rm(context.markerFile);
+      await expect(checkCertificationChildRun(context)).rejects.toThrow(
+        "真实父子 Agent 产品链不完整",
+      );
+      const snapshot = failureFixture(context);
+      snapshot.events.push(
+        { type: "provider_request" },
+        {
+          type: "turn_end",
+          inputTokens: 8,
+          outputTokens: 2,
+          costUsd: 0.02,
+        },
+      );
+      expect(createCertificationFailure(snapshot)).toMatchObject({
+        status: "failed",
+        child: { markerStatus: "missing", delegationToolCalled: true, childToolCompleted: true },
+        usage: { completeness: "partial", costUsdObserved: 0.02, inputTokensObserved: 8 },
+      });
+    });
+  });
+
+  it.each(["delegate", "write"])("%s 的错误回执不能被认作工具完成", async (tool) => {
+    await withChildFixture(async (context) => {
+      for (const event of context.events) {
+        if (event.type === "tool_result" && event.tool === tool) event.isError = true;
+      }
+      await expect(checkCertificationChildRun(context)).rejects.toThrow(
+        "真实父子 Agent 产品链不完整",
+      );
+    });
+  });
+
+  it.each(["delegate", "write"])("未调用 %s 时，即使文件存在也必须失败", async (tool) => {
+    await withChildFixture(async (context) => {
+      context.events = context.events.filter((event) => event.tool !== tool);
+      await expect(checkCertificationChildRun(context)).rejects.toThrow(
+        "真实父子 Agent 产品链不完整",
+      );
+    });
+  });
+
+  it("审批拒绝和工具错误分别留证，文件存在仍不能掩盖失败", async () => {
+    await withChildFixture(async (context) => {
+      context.approvalsAllowed = 1;
+      context.approvalsDenied = 1;
+      for (const event of context.events) {
+        if (event.type === "tool_result" && event.tool === "write") event.isError = true;
+      }
+      await expect(checkCertificationChildRun(context)).rejects.toThrow(
+        "真实父子 Agent 产品链不完整",
+      );
+      expect(createCertificationFailure(failureFixture(context)).child).toMatchObject({
+        approvalsAllowed: 1,
+        approvalsDenied: 1,
+        toolErrors: 1,
+        childToolCompleted: false,
+      });
+    });
+  });
+
+  it.each([
+    "未 join",
+    "Child 失败",
+    "仍有后代",
+    "未静止",
+    "无结构化结果",
+    "多个 Child",
+    "marker 不符",
+  ])("%s 仍受原门槛拦截", async (scenario) => {
+    await withChildFixture(async (context) => {
+      const node = context.result.childRuns.nodes[0];
+      if (scenario === "未 join") node.status = "running";
+      if (scenario === "Child 失败") node.outcome.status = "failed";
+      if (scenario === "仍有后代") context.result.childRuns.activeDescendants = 1;
+      if (scenario === "未静止") context.result.childRuns.quiescent = false;
+      if (scenario === "无结构化结果") Object.assign(node, { result: undefined });
+      if (scenario === "多个 Child") context.result.childRuns.nodes.push(node);
+      if (scenario === "marker 不符") await writeFile(context.markerFile, "wrong", "utf8");
+      await expect(checkCertificationChildRun(context)).rejects.toThrow(
+        "真实父子 Agent 产品链不完整",
+      );
+    });
+  });
+
+  it("其他文件读取错误保留原 I/O 错误并记为不可用", async () => {
+    await withChildFixture(async (context) => {
+      context.markerFile = path.dirname(context.markerFile);
+      await expect(checkCertificationChildRun(context)).rejects.toMatchObject({ code: "EISDIR" });
+      expect(createCertificationFailure(failureFixture(context)).child.markerStatus).toBe(
+        "unavailable",
+      );
+    });
+  });
+});
+
+describe("失败认证的有界独立证据", () => {
+  it.each(["child-cancel", "multi-turn", "abort", "long-context", "auth-error", "evidence"])(
+    "%s 失败不得沿用先前成功 Child 的现场",
+    (stage) => {
+      const snapshot = failureFixture(childFixture());
+      snapshot.stage = stage;
+      expect(createCertificationFailure(snapshot)).toMatchObject({ stage, child: null });
+    },
+  );
+
+  it("只保留白名单元数据和固定事实，不含 canary 正文、参数、异常、路径或密钥", () => {
+    const canary = "PRIVATE-CANARY-SECRET";
+    const child = childFixture(canary);
+    Object.assign(child.result, { transcript: canary, error: canary });
+    Object.assign(child.result.childRuns.nodes[0], {
+      agentName: canary,
+      result: { secret: canary },
+    });
+    Object.assign(child.events[0], { prompt: canary, args: { path: canary }, error: canary });
+    child.result.outcome.status = canary;
+    child.markerStatus = canary;
+    const snapshot = failureFixture(child);
+    Object.assign(snapshot.approval, { credentialEnv: canary, key: canary });
+    const evidence = createCertificationFailure(snapshot);
+    const json = JSON.stringify(evidence);
+    expect(json).not.toContain(canary);
+    expect(Buffer.byteLength(json, "utf8")).toBeLessThanOrEqual(4096);
+    expect(evidence).toMatchObject({
+      kind: "provider-certification-failure",
+      evidenceLevel: "diagnostic-only",
+      status: "failed",
+      stage: "child-validate",
+      commit: "a".repeat(40),
+      child: { parentOutcome: "unknown", markerStatus: "unknown", structuredResultPresent: true },
+    });
+    expect(createCertificationFailure({ ...snapshot, stage: canary })).toMatchObject({
+      stage: "unknown",
+      child: null,
+    });
+  });
+
+  it("缺失或坏用量保持 unknown/null，保留有效的部分费用而不声称是完整账单", () => {
+    const snapshot = failureFixture();
+    snapshot.events.push(
+      { type: "provider_request" },
+      {
+        type: "turn_end",
+        inputTokens: -1,
+        outputTokens: NaN,
+        costUsd: Infinity,
+      },
+    );
+    expect(createCertificationFailure(snapshot).usage).toMatchObject({
+      completeness: "unknown",
+      providerCallsObserved: 1,
+      turnsObserved: 1,
+      completeUsageTurns: 0,
+      inputTokensObserved: null,
+      outputTokensObserved: null,
+      costUsdObserved: null,
+    });
+    snapshot.events.push({ type: "turn_end", costUsd: 0.03 }, { type: "retry", scope: "provider" });
+    expect(createCertificationFailure(snapshot).usage).toMatchObject({
+      completeness: "partial",
+      costUsdObserved: 0.03,
+      inputTokensObserved: null,
+      outputTokensObserved: null,
+      completeUsageTurns: 0,
+      retriesObserved: 1,
+    });
+  });
+
+  it("成功写入的一条固定前缀日志和独立 JSON 文件一致", async () => {
+    await withChildFixture(async (context) => {
+      const file = path.join(path.dirname(context.markerFile), "failure.json");
+      const logs: string[] = [];
+      await recordCertificationFailure(failureFixture(context), {
+        writeLog: (line: string) => logs.push(line),
+        writeArtifact: (json: string) => writeFile(file, json, "utf8"),
+      });
+      const json = await readFile(file, "utf8");
+      expect(logs).toEqual([`COREMIND_CERTIFICATION_FAILURE ${json.trimEnd()}`]);
+      expect(JSON.parse(json)).toMatchObject({
+        status: "failed",
+        evidenceLevel: "diagnostic-only",
+      });
+    });
+  });
+
+  it.each(["日志", "异步日志", "文件", "两者", "观察"])(
+    "%s 输出异常不替换原失败，真实临时目录仍清理",
+    async (fault) => {
+      const original = new Error("原认证失败");
+      let directory = "";
+      let artifactCalled = false;
+      let logCalled = false;
+      const operation = withChildFixture(async (context) => {
+        directory = path.dirname(context.markerFile);
+        try {
+          throw original;
+        } catch (error) {
+          const snapshot =
+            fault === "观察"
+              ? new Proxy(failureFixture(context), {
+                  get() {
+                    throw new Error("观察故障");
+                  },
+                })
+              : failureFixture(context);
+          await recordCertificationFailure(snapshot, {
+            writeLog: () => {
+              logCalled = true;
+              if (fault === "日志" || fault === "两者") throw new Error("日志故障");
+              if (fault === "异步日志") return Promise.reject(new Error("异步日志故障"));
+            },
+            writeArtifact: async () => {
+              artifactCalled = true;
+              if (fault === "文件" || fault === "两者") throw new Error("文件故障");
+            },
+          });
+          throw error;
+        }
+      });
+      await expect(operation).rejects.toBe(original);
+      expect(logCalled).toBe(fault !== "观察");
+      expect(artifactCalled).toBe(fault !== "观察");
+      await expect(access(directory)).rejects.toMatchObject({ code: "ENOENT" });
+    },
+  );
+});
+
+function failureFixture(child?: ReturnType<typeof childFixture>) {
+  return {
+    version: "1.2.0",
+    commit: "a".repeat(40),
+    runtimeArtifactSha256: "b".repeat(64),
+    candidateArtifactSha256: "c".repeat(64),
+    runtimeDigest: `sha256:${"d".repeat(64)}`,
+    artifactManifestDigest: `sha256:${"e".repeat(64)}`,
+    stage: "child-validate",
+    approval: { maxCostUsd: 1, maxDurationMs: 600_000, maxRetries: 0 },
+    events: [] as Record<string, unknown>[],
+    durationMs: 100,
+    child,
+  };
+}
+
+async function withChildFixture(run: (context: ReturnType<typeof childFixture>) => Promise<void>) {
+  const directory = await mkdtemp(path.join(tmpdir(), "coremind-provider-child-test-"));
+  if (
+    path.dirname(path.resolve(directory)) !== path.resolve(tmpdir()) ||
+    !path.basename(directory).startsWith("coremind-provider-child-test-")
+  ) {
+    throw new Error("测试清理路径越界");
+  }
+  try {
+    const context = childFixture(path.join(directory, "marker.txt"));
+    await writeFile(context.markerFile, context.marker, "utf8");
+    await run(context);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+function childFixture(markerFile = "unused") {
+  return {
+    markerFile,
+    marker: "synthetic-marker",
+    markerStatus: "not_checked",
+    approvalsAllowed: 2,
+    approvalsDenied: 0,
+    events: [
+      { type: "provider_request", agent: "parent" },
+      { type: "provider_request", agent: "worker" },
+      { type: "tool_call", agent: "parent", tool: "delegate" },
+      { type: "tool_result", agent: "parent", tool: "delegate", isError: false },
+      { type: "tool_call", agent: "worker", tool: "write" },
+      { type: "tool_result", agent: "worker", tool: "write", isError: false },
+    ],
+    result: {
+      outcome: { status: "succeeded" },
+      childRuns: {
+        nodes: [{ status: "joined", outcome: { status: "succeeded" }, result: { done: true } }],
+        activeDescendants: 0,
+        quiescent: true,
+      },
+    },
+  };
+}
 
 describe("Provider 认证批准边界", () => {
   it("父模型消耗时间和费用后仍能划拨认证 Child，且不扩大批准上限", () => {

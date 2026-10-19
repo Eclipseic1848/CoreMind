@@ -1,4 +1,226 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+
+/** 保留真实文件副作用与完整父子链校验，供认证入口和离线回归共用。 */
+export async function checkCertificationChildRun(context) {
+  const { result, markerFile, marker } = context;
+  try {
+    context.markerStatus = (await readFile(markerFile, "utf8")) === marker ? "matched" : "mismatch";
+  } catch (error) {
+    context.markerStatus = error?.code === "ENOENT" ? "missing" : "unavailable";
+    if (context.markerStatus !== "missing") throw error;
+  }
+  const facts = certificationChildFacts(context);
+  if (
+    facts.nodeCount !== 1 ||
+    !facts.joined ||
+    facts.childOutcome !== "succeeded" ||
+    facts.activeDescendants !== 0 ||
+    !facts.quiescent ||
+    facts.parentProviderCalls < 1 ||
+    facts.childProviderCalls < 1 ||
+    !facts.delegationToolCalled ||
+    !facts.delegationToolCompleted ||
+    !facts.childToolCalled ||
+    !facts.childToolCompleted ||
+    facts.markerStatus !== "matched" ||
+    !facts.structuredResultPresent
+  ) {
+    throw new Error("真实父子 Agent 产品链不完整");
+  }
+  return {
+    passed: true,
+    parentProviderCalls: facts.parentProviderCalls,
+    delegationToolCalled: facts.delegationToolCalled,
+    childProviderCalls: facts.childProviderCalls,
+    childTool: "write",
+    childToolCompleted: facts.childToolCompleted,
+    childOutcome: facts.childOutcome,
+    joined: facts.joined,
+    quiescent: facts.quiescent,
+    structuredResultSha256: createHash("sha256")
+      .update(JSON.stringify(result.childRuns.nodes[0].result))
+      .digest("hex"),
+  };
+}
+
+/** 只取固定布尔、计数和枚举，不序列化模型内容、工具参数或异常。 */
+export function certificationChildFacts({
+  result,
+  events,
+  markerStatus,
+  approvalsAllowed,
+  approvalsDenied,
+}) {
+  const node = result?.childRuns?.nodes[0];
+  const countEvents = (type, agent) =>
+    events.filter((event) => event.type === type && event.agent === agent).length;
+  const hasToolEvent = (type, agent, tool) =>
+    events.some(
+      (event) =>
+        event.type === type &&
+        event.agent === agent &&
+        event.tool === tool &&
+        (type !== "tool_result" || event.isError === false),
+    );
+  return {
+    parentOutcome: fixedValue(result?.outcome?.status, [
+      "succeeded",
+      "failed",
+      "paused",
+      "aborted",
+    ]),
+    childOutcome: fixedValue(node?.outcome?.status, ["succeeded", "failed", "paused", "aborted"]),
+    nodeCount: result?.childRuns?.nodes.length ?? null,
+    joined: node?.status === "joined",
+    activeDescendants: nonnegative(result?.childRuns?.activeDescendants, true),
+    quiescent: result?.childRuns?.quiescent === true,
+    parentProviderCalls: countEvents("provider_request", "parent"),
+    childProviderCalls: countEvents("provider_request", "worker"),
+    delegationToolCalled: hasToolEvent("tool_call", "parent", "delegate"),
+    delegationToolCompleted: hasToolEvent("tool_result", "parent", "delegate"),
+    childToolCalled: hasToolEvent("tool_call", "worker", "write"),
+    childToolCompleted: hasToolEvent("tool_result", "worker", "write"),
+    toolErrors: events.filter((event) => event.type === "tool_result" && event.isError === true)
+      .length,
+    approvalsAllowed: nonnegative(approvalsAllowed, true),
+    approvalsDenied: nonnegative(approvalsDenied, true),
+    structuredResultPresent: Boolean(node?.result),
+    markerStatus: fixedValue(markerStatus, [
+      "not_checked",
+      "matched",
+      "mismatch",
+      "missing",
+      "unavailable",
+    ]),
+  };
+}
+
+/** 失败观察永远不是完整账单，也不能作为成功资格或再次调用的剩余额度。 */
+export function createCertificationFailure({
+  version,
+  commit,
+  runtimeArtifactSha256,
+  candidateArtifactSha256,
+  runtimeDigest,
+  artifactManifestDigest,
+  stage,
+  approval,
+  events,
+  durationMs,
+  child,
+}) {
+  const turns = events.filter((event) => event.type === "turn_end");
+  const observed = (key, integer = false) => {
+    const values = turns
+      .map((event) => nonnegative(event[key], integer))
+      .filter((value) => value !== null);
+    return values.length
+      ? nonnegative(
+          values.reduce((sum, value) => sum + value, 0),
+          integer,
+        )
+      : null;
+  };
+  const sha = (value, prefix = "") =>
+    new RegExp(`^${prefix}[0-9a-f]{64}$`, "u").test(value ?? "") ? value : null;
+  const inputTokensObserved = observed("inputTokens", true);
+  const outputTokensObserved = observed("outputTokens", true);
+  const costUsdObserved = observed("costUsd");
+  return {
+    schemaVersion: 1,
+    kind: "provider-certification-failure",
+    status: "failed",
+    evidenceLevel: "diagnostic-only",
+    version:
+      typeof version === "string" &&
+      /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/u.test(version) &&
+      version.length < 64
+        ? version
+        : null,
+    commit: /^[0-9a-f]{40}$/u.test(commit ?? "") ? commit : null,
+    runtimeArtifactSha256: sha(runtimeArtifactSha256),
+    candidateArtifactSha256: sha(candidateArtifactSha256),
+    runtimeDigest: sha(runtimeDigest, "sha256:"),
+    artifactManifestDigest: sha(artifactManifestDigest, "sha256:"),
+    stage: fixedValue(stage, [
+      "streaming",
+      "tool-call",
+      "child-create",
+      "child-run",
+      "child-validate",
+      "child-cancel",
+      "multi-turn",
+      "abort",
+      "long-context",
+      "auth-error",
+      "evidence",
+    ]),
+    approval: {
+      maxCostUsd: nonnegative(approval?.maxCostUsd),
+      maxDurationMs: nonnegative(approval?.maxDurationMs, true),
+      maxRetries: nonnegative(approval?.maxRetries, true),
+    },
+    usage: {
+      completeness: [inputTokensObserved, outputTokensObserved, costUsdObserved].some(
+        (value) => value !== null,
+      )
+        ? "partial"
+        : "unknown",
+      providerCallsObserved: events.filter((event) => event.type === "provider_request").length,
+      turnsObserved: turns.length,
+      completeUsageTurns: turns.filter(
+        (event) =>
+          nonnegative(event.inputTokens, true) !== null &&
+          nonnegative(event.outputTokens, true) !== null &&
+          nonnegative(event.costUsd) !== null,
+      ).length,
+      inputTokensObserved,
+      outputTokensObserved,
+      costUsdObserved,
+      durationMs: nonnegative(durationMs, true),
+      retriesObserved: events.filter(
+        (event) => event.type === "retry" && event.scope === "provider",
+      ).length,
+    },
+    // 此现场只属于父子成功链；后续场景失败不能引用先前成功 Run 的事实。
+    child:
+      child && ["child-create", "child-run", "child-validate"].includes(stage)
+        ? certificationChildFacts(child)
+        : null,
+  };
+}
+
+/** 两种输出彼此隔离；普通观测或输出失败不能替换原失败或中断 finally 清理。 */
+export async function recordCertificationFailure(snapshot, { writeLog, writeArtifact }) {
+  let json;
+  try {
+    json = `${JSON.stringify(createCertificationFailure(snapshot))}\n`;
+    if (Buffer.byteLength(json, "utf8") > 4096) return;
+  } catch {
+    return;
+  }
+  try {
+    await writeLog(`COREMIND_CERTIFICATION_FAILURE ${json.trimEnd()}`);
+  } catch {
+    /* 保留原失败。 */
+  }
+  try {
+    await writeArtifact(json);
+  } catch {
+    /* 保留原失败。 */
+  }
+}
+
+function fixedValue(value, allowed) {
+  return allowed.includes(value) ? value : "unknown";
+}
+
+function nonnegative(value, integer = false) {
+  return Number.isFinite(value) && value >= 0 && (!integer || Number.isSafeInteger(value))
+    ? value
+    : null;
+}
 
 // 为父模型请求和汇总保留预算，不能把父 Run 的全部额度交给 Child。
 export function certificationChildBudget({ wallTimeMs, costUsd }) {

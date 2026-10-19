@@ -34,6 +34,12 @@ Provider discovery means that CoreMind has an adapter entry point. It does not m
 6. Run `npm run check` and `npm test` to verify that documentation and runtime discovery remain aligned.
 7. Ask another maintainer to review the evidence, data-egress approval, and redaction before merge.
 
+## Failure diagnostics
+
+Before temporary-workspace cleanup, a failed certification attempts to write one fixed-field `COREMIND_CERTIFICATION_FAILURE` log record and a separate `.scratch/provider-certification-failure.json` file (at most 4 KiB). Strict candidate qualification uploads it separately as `provider-certification-failure-<commit>`, without changing the success ledger. The summary contains only candidate identity, stage, parent/child counts, booleans, enums, approval counts, and observed usage. It excludes response bodies, tool arguments, paths, credentials, and arbitrary exceptions. Parent/child certification requires successful tool receipts; error receipts cannot count as completion.
+
+Failed-run usage is `partial` or `unknown`, with missing values recorded as `null`. It is not zero cost, a complete bill, or remaining authorization for another call. Output failures preserve the original certification failure and cleanup; forced process termination may prevent recording. Diagnostics confer no certification and further live validation requires explicit approval.
+
 ## Revocation
 
 Evidence must include provider, model, CoreMind version, candidate commit, Runtime and candidate-package digests, date, platform, every check, synthetic long-context size, parent/child result, cancellation convergence, zero-retry redacted usage, and a reviewable link. Downgrade certification when a current check is missing, an API changes incompatibly, a default model is retired, a live regression fails, a security issue is found, or no retest occurred across a major version. Repeat the complete procedure before restoring certification.
