@@ -19,6 +19,7 @@
 
 ## 错误与边界
 
+- `doctor <配置文件>` 按所选 Provider 的既有凭据策略静态检查，合法匿名/Header-only 自定义端点不要求无关 API key；显式凭据缺失仍失败，内置 Provider 鉴权要求不放宽。无配置时保留通用环境诊断；检查不加载项目脚本、不发 Provider 请求，通过不代表凭据有效、真实连通或认证。
 - `run` 稳定退出码：成功 `0`、失败 `1`、暂停 `2`、预算耗尽 `3`、超时 `124`、中止 `130`
 - `--json-events` 的 stdout 只含 JSONL，最后一行固定为 `run_result`；诊断写入 stderr
 - `--print` 与 `--json-events` 互斥，防止自然语言污染机器输出

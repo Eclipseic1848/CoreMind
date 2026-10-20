@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- 修复 `doctor <配置文件>` 对合法匿名/Header-only 自定义 Provider 的无关 API key 误报，复用所选 Provider 的既有凭据校验；显式缺失凭据仍失败，内置鉴权和无配置通用诊断保持不变。检查不加载项目脚本、不发 Provider 请求，不证明凭据有效、真实连通或认证（#332）。
+- Fix unrelated API-key failures in `doctor <config-file>` for legitimate anonymous/Header-only custom Providers by reusing the selected Provider's existing credential checks. Explicit missing credentials still fail; built-in authentication and general diagnostics without a config remain unchanged. Checks neither load project scripts nor send Provider requests and do not establish credential validity, connectivity, or certification (#332).
 - 修复 readline `/exit`、`!exit`：与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍自然完成，空闲退出、审批及 MCP 登录等待行为保持不变（#331）。
 - Fix readline `/exit` and `!exit` to match the TUI by requesting active-Run cancellation before waiting for cleanup. Ordinary piped EOF still completes naturally, while idle-exit, approval-wait, and MCP-login-wait behavior remains unchanged (#331).
 

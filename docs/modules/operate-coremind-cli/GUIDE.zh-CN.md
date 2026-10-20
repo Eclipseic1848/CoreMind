@@ -26,7 +26,7 @@ readline 模式下，`/exit`、`!exit` 会先请求取消活动 Run，再等待�
 5. 在长回答生成期间输入 `/abort`，确认回答停止且可以继续输入。
 6. 使用 `--session` 前设置 `session.enabled: true`；缺失时 CLI 必须明确失败，不能静默继续。
 7. 使用显式 Loop 时确认 TUI、readline 和 `--json-events` 的状态顺序一致；暂停后以同一 runId 恢复。
-8. 使用 `coremind doctor coremind.yaml` 时确认只检查该配置的 `provider.apiKeyEnv`，不会把无关 Provider 的密钥缺失当成失败。
+8. 使用 `coremind doctor coremind.yaml` 验证合法匿名/Header-only 自定义端点不会因无关 API key 缺失而失败；显式凭据缺失仍失败，内置 Provider 鉴权要求不变。不带配置文件时保留通用环境诊断；检查不加载项目脚本、不发 Provider 请求，通过不等于凭据有效、真实连通或认证。
 9. 在 TUI 中依次运行 `/status`、`/artifacts`、`/context`，核对恢复、评测、完整产物引用和上下文压缩证据。
 
 ## MCP 交互认证（1.1 开发线）
