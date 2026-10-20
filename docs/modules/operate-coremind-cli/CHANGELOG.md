@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- 修复 readline `/exit`、`!exit`：与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍自然完成，空闲退出、审批及 MCP 登录等待行为保持不变（#331）。
+- Fix readline `/exit` and `!exit` to match the TUI by requesting active-Run cancellation before waiting for cleanup. Ordinary piped EOF still completes naturally, while idle-exit, approval-wait, and MCP-login-wait behavior remains unchanged (#331).
+
 ## 1.2.0 - 2026-10-17
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

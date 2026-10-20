@@ -15,6 +15,8 @@ coremind check coremind.yaml
 
 In the project directory, copy `.env.example` to `.env` and fill in `DASHSCOPE_API_KEY` before running `coremind eval coremind.yaml`. The CLI loads `.env` from the current working directory.
 
+In readline mode, `/exit` and `!exit` request cancellation of the active Run before waiting for cleanup, matching the TUI. Ordinary piped EOF still lets an already-started response finish naturally; idle exit, approval waits, and MCP login waits retain their existing behavior. Cancellation does not roll back tool effects already started; inspect effect receipts and recovery checks.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

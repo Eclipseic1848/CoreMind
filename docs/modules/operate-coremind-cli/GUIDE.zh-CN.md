@@ -15,6 +15,8 @@ coremind check coremind.yaml
 
 在项目目录把 `.env.example` 复制为 `.env`，填入 `DASHSCOPE_API_KEY` 后，再运行 `coremind eval coremind.yaml`。CLI 从当前工作目录加载 `.env`。
 
+readline 模式下，`/exit`、`!exit` 会先请求取消活动 Run，再等待收尾，与 TUI 一致。普通管道 EOF 仍让已开始的回答自然完成；空闲退出、审批及 MCP 登录等待沿用既有行为。取消不代表回滚已开始的工具副作用，仍须核对 Effect Receipt 与恢复检查。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

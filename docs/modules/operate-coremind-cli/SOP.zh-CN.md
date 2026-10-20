@@ -12,7 +12,7 @@
 4. 用 check 与 eval 验收。
 5. 人工阅读使用 TUI 或 `--print`；`1.0.0` 的 `--print` stdout 仅包含正文，运行提示及审批走 stderr，机器消费应使用 `--json-events`，两种参数不得同时传入。
 6. 自动化必须同时检查退出码和最后一条 `run_result`，并把 stderr 作为诊断保存。
-7. 分别注入权限拒绝、预算耗尽、超时与中止，验证 `2/3/124/130`。
+7. 分别注入权限拒绝、预算耗尽、超时与中止，验证 `2/3/124/130`。对 readline 的 `/exit`、`!exit` 验证先请求取消活动 Run 再等待收尾；普通管道 EOF 仍自然完成，并保留空闲退出、审批及 MCP 登录等待回归。
 8. 对显式 Loop 注入验证失败、暂停恢复和耗尽；比较 TUI、readline 和 JSONL 的状态顺序。
 9. 确认恢复没有重复完整步骤或 committed 副作用，unknown 副作用会要求人工核对。
 10. 对比 TUI `/status`、`/artifacts`、`/context` 与最后一条 JSONL `snapshot`，字段与真实文件状态必须一致。

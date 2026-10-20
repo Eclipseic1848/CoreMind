@@ -24,6 +24,7 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 - `--print` and `--json-events` are mutually exclusive so prose cannot contaminate machine output
 - Non-TTY approvals deny safely
 - TUI and readline share the same ChatSession harness, and failed terminal states display their reason
+- Readline `/exit` and `!exit` match the TUI: request cancellation of the active Run, then wait for cleanup. Ordinary piped EOF still lets an already-started response finish naturally. Existing idle-exit, approval-wait, and MCP-login-wait behavior remains unchanged.
 - TUI keeps one editable busy draft; Enter sends it only after the Run becomes idle. Readline keeps the first submitted busy draft, reports later submissions as unsaved, and never overwrites or executes it automatically. Once idle, edit a prefilled draft and confirm, or use a blank line to confirm the saved draft without prefill
 - TUI and readline support `/steer text` and `/follow-up text`; empty bodies show usage. Controls target the Run captured at call time; unready, sealed, or wrong Runs reject them. Both retain `/abort`; TUI also retains `/children`
 - During tool approval, explicit controls do not approve tools. TUI uses `/` to enter command mode and Esc to return; y/n inside commands are not approval answers. Permission modes and deny rules remain unchanged

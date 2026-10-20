@@ -824,11 +824,10 @@ describe("coremind CLI 端到端", () => {
     expect(session).toContain("第二轮");
   });
 
-  it("chat 交互：对话回复 + /exit 命令退出", () => {
-    // 注：管道 stdin 下 Node readline 在 EOF 后不可靠，多轮交互由真实使用验证
+  it("chat 管道 EOF 等待当前对话自然完成", () => {
     const { stdout, code } = runCli(["chat", mockConfigPath, "--quiet"], {
       env: { MOCK_PORT: String(MOCK_PORT) },
-      input: "第一轮\n/exit\n",
+      input: "第一轮\n",
     });
     expect(code).toBe(0);
     expect(stdout).toContain("mock回复：第一轮");
