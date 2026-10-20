@@ -20,6 +20,8 @@ const lookupOrder = defineTool({
 
 工具名必须是业务专用名称，不能使用内置 `read`、`write`、`bash` 等保留名。SDK 定义和脚本注册都会在执行前拒绝冲突。
 
+内置 `web-fetch` 和 `web-search` 收到非 2xx 响应或读取正文失败时，会先等待正文取消/释放的清理尝试结束，再结算本地网络活动；清理自身失败仍保留原 HTTP/读取错误。正常结果、取消行为及既有权限和网络策略保持不变；`web-fetch` 仍限制正文最多 2 MiB。
+
 ## 本地 MCP 服务
 
 按[配置指南](../../guide/02-configuration.md#mcp按-agent-选择本地工具)声明已审核程序及每个 Agent 的原始工具引用。CLI、TypeScript 和 Python 共用 Node Runtime；Python 不另建客户端。不要通过全局 SDK `toolDefinitions` 注入远端目录。
