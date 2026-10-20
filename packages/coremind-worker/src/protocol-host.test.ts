@@ -23,6 +23,223 @@ import { ProtocolHost } from "./index.js";
 process.env.DEEPSEEK_API_KEY = "test-only";
 
 describe("ProtocolHost", () => {
+  it("v2 已接受的项目加载拒绝在 query、events 与持久事实保留安全错误身份", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-v2-trust-error-"));
+    const factory = vi.fn(async () => {
+      throw new Error("不应创建 Runtime");
+    });
+    const host = new ProtocolHost({ send: () => {}, runtimeFactory: factory });
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const runId = "trust-error";
+    const outcome = {
+      status: "failed",
+      finishReason: "execution_security_violation",
+      error: {
+        code: "execution_security_violation",
+        message: "加载项目脚本需要宿主明确批准",
+      },
+    };
+    try {
+      await writeFile(path.join(dir, "untrusted.mjs"), "export default {};\n", "utf8");
+      await initializeV2With(host, {
+        config: {
+          schemaVersion: 2,
+          name: "trust-error",
+          agents: { main: {} },
+          tools: [{ path: "untrusted.mjs", effect: { operations: ["read"], reversible: true } }],
+        },
+        configDir: dir,
+        cwd: dir,
+      });
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "run-trust-error",
+          method: "run",
+          params: { runId, input: "执行" },
+        }),
+      ).toMatchObject({ result: { runId, selectedProtocol: "2.0" } });
+      expect((await waitForFinishedProjection(host, runId)).outcome).toEqual(outcome);
+      const events = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "trust-events",
+        method: "events",
+        params: { runId, afterSequence: 0 },
+      });
+      expect(events).toMatchObject({
+        result: {
+          events: expect.arrayContaining([
+            expect.objectContaining({ eventType: "fact.finish", payload: { outcome } }),
+          ]),
+        },
+      });
+      expect((await store.read(runId)).at(-1)).toMatchObject({
+        kind: "finish",
+        payload: { outcome },
+      });
+      expect(factory).not.toHaveBeenCalled();
+    } finally {
+      await host.shutdown();
+      expect(path.dirname(path.resolve(dir))).toBe(path.resolve(tmpdir()));
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    {
+      label: "安全拒绝",
+      phase: "factory",
+      error: new CoreMindError("execution_security_violation", "Bearer startup-sensitive-value"),
+      code: "execution_security_violation",
+      status: "failed",
+    },
+    {
+      label: "人工暂停",
+      phase: "factory",
+      error: new CoreMindError("loop_paused", "Bearer startup-sensitive-value"),
+      code: "loop_paused",
+      status: "paused",
+    },
+    {
+      label: "瞬态系统错误",
+      phase: "factory",
+      error: Object.assign(new Error("Bearer startup-sensitive-value"), { code: "ECONNRESET" }),
+      code: "network_error",
+      status: "failed",
+    },
+    {
+      label: "后台超时",
+      phase: "run",
+      error: new CoreMindError("run_timeout", "Bearer startup-sensitive-value"),
+      code: "run_timeout",
+      status: "timeout",
+    },
+    {
+      label: "未知外部错误码",
+      phase: "factory",
+      error: Object.assign(new Error("Bearer startup-sensitive-value"), {
+        code: "vendor_error?token=startup-sensitive-value",
+      }),
+      code: "unclassified_error",
+      status: "paused",
+    },
+    {
+      label: "未知后台异常",
+      phase: "run",
+      error: new Error("Bearer startup-sensitive-value"),
+      code: "unclassified_error",
+      status: "paused",
+    },
+    {
+      label: "空异常 undefined",
+      phase: "factory",
+      error: undefined,
+      code: "unclassified_error",
+      status: "paused",
+    },
+    {
+      label: "空异常 null",
+      phase: "run",
+      error: null,
+      code: "unclassified_error",
+      status: "paused",
+    },
+  ])("已接受的 $label 沿用 v1/v2 共享错误合同，脱敏后可重新查询", async (failure) => {
+    const dir = await mkdtemp(path.join(tmpdir(), "coremind-v2-startup-error-"));
+    const runtimeFactory = async () => {
+      if (failure.phase === "factory") throw failure.error;
+      return {
+        run: async (): Promise<never> => {
+          throw failure.error;
+        },
+      };
+    };
+    const v1 = new ProtocolHost({ send: () => {}, runtimeFactory });
+    const host = new ProtocolHost({ send: () => {}, runtimeFactory });
+    const reopened = new ProtocolHost({ send: () => {} });
+    const store = new FileRunStore(path.join(dir, ".coremind", "runs"));
+    const runId = "startup-error";
+    try {
+      await v1.handle({
+        jsonrpc: "2.0",
+        id: "init-v1-startup",
+        method: "initialize",
+        params: {
+          protocolVersion: "1.0",
+          config: { schemaVersion: 2, name: "demo", agents: { main: {} } },
+          configDir: dir,
+        },
+      });
+      const v1Response = await v1.handle({
+        jsonrpc: "2.0",
+        id: "v1-startup",
+        method: "run",
+        params: { input: "执行" },
+      });
+      expect(v1Response).toMatchObject({ error: { data: { coremindCode: failure.code } } });
+      await initializeV2(host, dir);
+      expect(
+        await host.handle({
+          jsonrpc: "2.0",
+          protocolVersion: "2.0",
+          id: "start-error",
+          method: "run",
+          params: { runId, input: "执行" },
+        }),
+      ).toMatchObject({ result: { runId, selectedProtocol: "2.0" } });
+      const projection = await waitForFinishedProjection(host, runId);
+      const expected = {
+        status: failure.status,
+        finishReason: failure.code,
+        error: { code: failure.code },
+      };
+      expect(projection.outcome).toMatchObject(expected);
+      expect(projection.recovery).toMatchObject({
+        requiresHuman: failure.code === "unclassified_error",
+      });
+      const records = await store.read(runId);
+      const terminal = records.at(-1)!;
+      expect(terminal).toMatchObject({ kind: "finish", payload: { outcome: expected } });
+      const events = await host.handle({
+        jsonrpc: "2.0",
+        protocolVersion: "2.0",
+        id: "startup-events",
+        method: "events",
+        params: { runId, afterSequence: 0 },
+      });
+      expect(events).toMatchObject({
+        result: {
+          events: expect.arrayContaining([
+            expect.objectContaining({ eventType: "fact.finish", payload: terminal.payload }),
+          ]),
+        },
+      });
+      await host.shutdown();
+      await initializeV2(reopened, dir);
+      expect((await waitForFinishedProjection(reopened, runId)).outcome).toEqual(
+        projection.outcome,
+      );
+      const evidence = JSON.stringify({ v1Response, projection, records, events });
+      expect(evidence).not.toContain("startup-sensitive-value");
+      expect(evidence).not.toContain('"stack"');
+      expect(evidence).not.toContain('"cause"');
+      if (failure.code === "unclassified_error") {
+        expect(projection.outcome).toMatchObject({
+          error: {
+            message: "外部执行返回未分类错误，需人工审计后继续",
+            audit: { originalCode: expect.any(String) },
+          },
+        });
+      }
+    } finally {
+      await Promise.all([v1.shutdown(), host.shutdown(), reopened.shutdown()]);
+      expect(path.dirname(path.resolve(dir))).toBe(path.resolve(tmpdir()));
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it.each(["denied", "directory", "factory"] as const)(
     "项目加载 %s：只有完整预检后的明确拒绝保留此前静止状态",
     async (kind) => {
@@ -358,7 +575,18 @@ describe("ProtocolHost", () => {
             method: "query",
             params: { runId: "finalizing" },
           }),
-        ).toMatchObject({ result: { projection: { outcome: { status: "failed" } } } });
+        ).toMatchObject({
+          result: {
+            projection: {
+              status: "finished",
+              outcome: {
+                status: "paused",
+                finishReason: "unclassified_error",
+                error: { code: "unclassified_error" },
+              },
+            },
+          },
+        });
       },
       { timeout: 10_000 },
     );
@@ -757,7 +985,16 @@ describe("ProtocolHost", () => {
             params: { runId: "startup-failure" },
           }),
         ).toMatchObject({
-          result: { projection: { status: "finished", outcome: { status: "failed" } } },
+          result: {
+            projection: {
+              status: "finished",
+              outcome: {
+                status: "paused",
+                finishReason: "unclassified_error",
+                error: { code: "unclassified_error" },
+              },
+            },
+          },
         });
       },
       { timeout: 10_000 },

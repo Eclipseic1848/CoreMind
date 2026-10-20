@@ -44,6 +44,7 @@ import {
   createEventNotification,
   createPythonToolCallNotification,
   createSuccessResponse,
+  ERROR_CODES,
   negotiateProtocolV2,
   PROTOCOL_V2_SCHEMA_FINGERPRINT,
   PROTOCOL_VERSION,
@@ -1315,6 +1316,7 @@ export class ProtocolHost {
         try {
           const failedRecords = await state.runStore.read(runId);
           if (failedRecords.at(-1)?.kind !== "finish") {
+            const classification = classifyExecutionError(error);
             const journal = new RunStateJournal(
               runId,
               state.runStore,
@@ -1322,9 +1324,13 @@ export class ProtocolHost {
             );
             journal.finish({
               outcome: {
-                status: "failed",
-                finishReason: "agent_failed",
-                error: { code: "agent_failed", message: "Runtime 初始化或后台执行失败" },
+                status: ERROR_CODES[classification.code].runStatus,
+                finishReason: classification.code,
+                error: {
+                  code: classification.code,
+                  message: classification.message,
+                  ...(classification.audit ? { audit: classification.audit } : {}),
+                },
               },
             });
             await journal.flush("critical");

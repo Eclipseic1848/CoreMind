@@ -27,8 +27,10 @@ examplePaths:
 testPaths:
   - "python/tests/test_client.py"
   - "python/tests/test_tool_annotations.py"
+  - "python/tests/test_project_code_trust.py"
   - "python/tests/test_node_parity.py"
   - "packages/coremind-worker/src/server.test.ts"
+  - "packages/coremind-worker/src/protocol-host.test.ts"
   - "packages/coremind-protocol/src/protocol.test.ts"
   - "python/tests/test_release_metadata.py"
   - "python/tests/test_mcp_auth.py"
