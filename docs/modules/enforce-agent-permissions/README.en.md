@@ -19,6 +19,7 @@ Enforce ask, assisted, and full approval modes while distinguishing path-aware f
 - Missing approval handlers deny safely
 - A human denial blocks that call and later unapproved calls in the same batch, then pauses after batch reconciliation. It is not fed back as an ordinary recoverable tool error, so the model cannot request another approval in the same run. A sequential workflow saves no output for the denied step and starts no later step.
 - Explicit deny and escaped paths for path-aware file tools remain blocked in full mode
+- Framework-managed persistent state is not a writable target for ordinary business tools; approval modes and explicit allow entries do not override this protection. Host maintenance APIs retain ownership of restore and cleanup.
 - Nested path and URL arguments are inspected recursively; approval UI shows effects, complete targets, and reasons first
 - The Windows host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected; every other combination fails closed
 - Git Bash discovery provides command compatibility rather than operating-system isolation
@@ -34,6 +35,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/host-shell.ts](../../../packages/coremind-tools/src/host-shell.ts)
 - [packages/coremind-runtime/src/tool-policy.test.ts](../../../packages/coremind-runtime/src/tool-policy.test.ts)
+- [Framework-state write protection regressions](../../../packages/coremind-runtime/src/state-write-protection.acceptance.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
 - [packages/coremind-cli/src/approval.test.ts](../../../packages/coremind-cli/src/approval.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)

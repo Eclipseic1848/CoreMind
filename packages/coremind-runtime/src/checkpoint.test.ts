@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -9,6 +17,63 @@ import { ToolPolicy } from "./tool-policy.js";
 import { WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("CheckpointManager", () => {
+  it("内置写入拒绝指向未创建框架状态的悬空文件符号链接", async ({ skip }) => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-dangling-"));
+    const state = path.join(cwd, "future.jsonl");
+    try {
+      symlinkSync(state, path.join(cwd, "business.txt"), "file");
+    } catch (error) {
+      if (process.platform === "win32" && (error as NodeJS.ErrnoException).code === "EPERM") {
+        skip("Windows EPERM：当前账户没有文件符号链接创建权限；Linux 必须运行此回归");
+      }
+      throw error;
+    }
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "target",
+      protectedPaths: [state],
+      permissions: { mode: "full", workspaceOnly: true },
+      createApprovalId: () => "approval",
+    });
+    for (const tool of ["write", "edit", "custom_write"]) {
+      await expect(
+        policy.authorize(
+          "main",
+          tool,
+          { path: "business.txt", content: "覆盖" },
+          tool === "custom_write" ? { operations: ["write"], reversible: true } : undefined,
+        ),
+      ).resolves.toMatchObject({ allowed: false });
+    }
+    const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
+    await expect(
+      tools[0]!.execute("call", { path: "business.txt", content: "覆盖" }, undefined),
+    ).rejects.toThrow("悬空");
+    expect(existsSync(state)).toBe(false);
+  });
+
+  it("批准后替换为框架状态硬链接，内置工具执行前仍拒绝写入", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-hardlink-"));
+    const business = path.join(cwd, "business.txt");
+    const state = path.join(cwd, "previous.jsonl");
+    writeFileSync(business, "业务正文", "utf8");
+    writeFileSync(state, "原始框架状态", "utf8");
+    const args = { path: "business.txt", content: "after" };
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "target",
+      permissions: { mode: "ask" },
+      createApprovalId: () => "approval",
+      approve: async () => "allow",
+    });
+    expect((await policy.authorize("main", "write", args)).allowed).toBe(true);
+    unlinkSync(business);
+    linkSync(state, business);
+    const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
+    await expect(tools[0]!.execute("call", args, undefined)).rejects.toThrow("硬链接");
+    expect(readFileSync(state, "utf8")).toBe("原始框架状态");
+  });
+
   it("批准后替换参数不能改写另一文件", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-change-"));
     const args = { path: "allowed.txt", content: "after" };

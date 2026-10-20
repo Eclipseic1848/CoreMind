@@ -1,11 +1,153 @@
-import { mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
 describe("ToolPolicy", () => {
+  it("拒绝经悬空目录符号链接写入框架状态，仍允许新建业务路径", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-state-dangling-"));
+    const stateRoot = path.join(cwd, ".coremind", "runs");
+    mkdirSync(stateRoot, { recursive: true });
+    symlinkSync(
+      path.join(stateRoot, "future"),
+      path.join(cwd, "business-link"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "state-policy",
+      protectedPaths: [stateRoot],
+      permissions: { mode: "full", workspaceOnly: true },
+      createApprovalId: () => "approval",
+    });
+    for (const tool of ["write", "edit", "custom_write"]) {
+      await expect(
+        policy.authorize(
+          "main",
+          tool,
+          { path: "business-link/new.jsonl", content: "覆盖" },
+          tool === "custom_write" ? { operations: ["write"], reversible: true } : undefined,
+        ),
+      ).resolves.toMatchObject({ allowed: false });
+    }
+    await expect(
+      policy.authorize("main", "write", { path: "new/nested/business.txt", content: "业务正文" }),
+    ).resolves.toMatchObject({ allowed: true });
+  });
+
+  it.each(["ask", "assisted", "full"] as const)(
+    "%s 拒绝经业务文件硬链接改写框架状态，仍允许读取",
+    async (mode) => {
+      const cwd = mkdtempSync(path.join(tmpdir(), "coremind-state-hardlink-"));
+      const stateRoot = path.join(cwd, ".coremind", "runs");
+      mkdirSync(stateRoot, { recursive: true });
+      const stateFile = path.join(stateRoot, "previous.jsonl");
+      writeFileSync(stateFile, "原始框架状态", "utf8");
+      linkSync(stateFile, path.join(cwd, "business.txt"));
+      const policy = new ToolPolicy({
+        cwd,
+        runId: "state-policy",
+        protectedPaths: [stateRoot],
+        permissions: { mode, workspaceOnly: true, allow: ["*"] },
+        createApprovalId: () => "approval",
+        approve: async () => "allow",
+      });
+      for (const tool of ["write", "edit", "custom_write"]) {
+        await expect(
+          policy.authorize(
+            "main",
+            tool,
+            { path: "business.txt", content: "覆盖" },
+            tool === "custom_write" ? { operations: ["write"], reversible: true } : undefined,
+          ),
+        ).resolves.toMatchObject({ allowed: false });
+      }
+      await expect(
+        policy.authorize("main", "read", { path: "business.txt" }),
+      ).resolves.toMatchObject({ allowed: true });
+    },
+  );
+
+  it.each(["ask", "assisted", "full"] as const)(
+    "%s 的显式允许和审批均不能改写框架状态或其父目录",
+    async (mode) => {
+      const cwd = mkdtempSync(path.join(tmpdir(), "coremind-state-policy-"));
+      const stateRoot = path.join(cwd, ".coremind", "runs");
+      mkdirSync(stateRoot, { recursive: true });
+      const alias = path.join(cwd, "state-alias");
+      symlinkSync(stateRoot, alias, process.platform === "win32" ? "junction" : "dir");
+      let approvals = 0;
+      const policy = new ToolPolicy({
+        cwd,
+        runId: "state-policy",
+        protectedPaths: [stateRoot],
+        permissions: { mode, workspaceOnly: false, network: "deny", allow: ["*"] },
+        createApprovalId: () => "approval",
+        approve: async () => {
+          approvals += 1;
+          return "allow";
+        },
+      });
+      for (const target of [
+        ".coremind/runs/run.jsonl",
+        "@.coremind/runs/new/nested/run.jsonl",
+        pathToFileURL(path.join(stateRoot, "run.jsonl")).href,
+        "state-alias/run.jsonl",
+        ".coremind/runs",
+      ]) {
+        for (const tool of ["write", "edit"]) {
+          await expect(
+            policy.authorize("main", tool, { path: target, content: "覆盖" }),
+          ).resolves.toMatchObject({ allowed: false, reason: expect.stringContaining("框架状态") });
+        }
+      }
+      for (const target of [".", ".coremind"]) {
+        await expect(
+          policy.authorize(
+            "main",
+            "remove_tree",
+            { target },
+            { operations: ["write"], reversible: true, pathFields: ["target"] },
+          ),
+        ).resolves.toMatchObject({ allowed: false });
+      }
+      expect(approvals).toBe(0);
+      for (const target of ["notes.txt", ".coremind/decisions.md", ".coremind/runs-backup/note"]) {
+        await expect(
+          policy.authorize("main", "write", { path: target, content: "业务正文" }),
+        ).resolves.toMatchObject({ allowed: true });
+      }
+      await expect(
+        policy.authorize("main", "read", { path: ".coremind/runs/run.jsonl" }),
+      ).resolves.toMatchObject({ allowed: true });
+    },
+  );
+
+  it("框架状态保护不接受无目标写入或无法解析的路径", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-state-unresolved-"));
+    writeFileSync(path.join(cwd, "ordinary.txt"), "业务正文", "utf8");
+    const cycle = path.join(cwd, "cycle");
+    symlinkSync(cycle, cycle, process.platform === "win32" ? "junction" : "dir");
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "state-policy",
+      protectedPaths: [cycle],
+      permissions: { mode: "full", workspaceOnly: false, allow: ["*"] },
+      createApprovalId: () => "approval",
+    });
+    for (const args of [{}, { path: "ordinary.txt" }]) {
+      await expect(
+        policy.authorize("main", "custom_write", args, {
+          operations: ["write"],
+          reversible: true,
+        }),
+      ).resolves.toMatchObject({ allowed: false, reason: expect.stringContaining("框架状态") });
+    }
+  });
+
   it("网络授权不会预批准含 URL 的写入或外部副作用", async () => {
     const requests: ToolApprovalRequest[] = [];
     const policy = new ToolPolicy({

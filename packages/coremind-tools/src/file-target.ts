@@ -1,4 +1,4 @@
-import { access, realpath } from "node:fs/promises";
+import { access, lstat, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,6 +53,7 @@ export async function resolveFileToolTarget(
     }
   }
   target = await canonicalFileTarget(target);
+  if (tool === "write" || tool === "edit") await assertSingleLinkWriteTarget(target);
   const previous = bindings.get(args);
   if (
     previous &&
@@ -64,11 +65,30 @@ export async function resolveFileToolTarget(
   return target;
 }
 
+/** 无法从单一路径证明全部硬链接别名安全，普通工具写入失败关闭。 */
+export async function assertSingleLinkWriteTarget(target: string): Promise<void> {
+  try {
+    const metadata = await stat(target);
+    if (metadata.isFile() && metadata.nlink > 1) {
+      throw new Error("多硬链接写入目标可能指向框架状态，已拒绝；请先由宿主显式处理别名");
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
 async function canonicalFileTarget(input: string): Promise<string> {
   try {
     return await realpath(input);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    try {
+      if ((await lstat(input)).isSymbolicLink()) {
+        throw new Error("悬空符号链接无法安全解析，已拒绝");
+      }
+    } catch (inspectionError) {
+      if ((inspectionError as NodeJS.ErrnoException).code !== "ENOENT") throw inspectionError;
+    }
     const parent = path.dirname(input);
     if (parent === input) throw error;
     return path.join(await canonicalFileTarget(parent), path.basename(input));

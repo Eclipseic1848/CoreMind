@@ -171,6 +171,11 @@ const MAX_RUN_FILE_CURSORS = 64;
 // 仅限制驻留前缀的 UTF-8 payload；完整读取和发布仍保留。
 const MAX_SERIALIZED_PREFIX_BYTES = 4 * 1024 * 1024;
 
+/** 仅供 Runtime 保护混放目录中的 Run 文件、锁与原子发布临时文件。 */
+export function isManagedRunPath(relativePath: string): boolean {
+  return /^[a-zA-Z0-9_-]+\.jsonl(?:[./\\]|$)/iu.test(relativePath);
+}
+
 export class FileRunStore implements RunStore {
   readonly supportedDurability = ["ordinary", "critical"] as const;
   readonly durabilityBoundary = "process_crash" as const;

@@ -49,6 +49,11 @@ function validateSessionId(id: string): void {
 function sessionDirectoryName(cwd: string): string {
   return `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
 }
+/** 识别同一存储命名空间，避免 Runtime 复制内部目录的布局规则。 */
+export function isJsonlSessionStoragePath(relativePath: string): boolean {
+  const directory = relativePath.split(/[/\\]/u, 1)[0]!;
+  return directory.startsWith("--") && directory.endsWith("--");
+}
 function sessionFileName(createdAt: number, id: string): string {
   const timestamp = new Date(createdAt).toISOString().replace(/[:.]/g, "-");
   return `${timestamp}_${id}.jsonl`;

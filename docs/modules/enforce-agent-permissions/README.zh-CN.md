@@ -19,6 +19,7 @@
 - 没有审批处理器时安全拒绝
 - 人工拒绝任一工具审批后，被拒绝项和本批次尚未审批的后续工具都会被阻断；本批结果归并后把运行置为 `paused`，不会继续请求模型或重复弹出审批；顺序工作流不会保存拒绝步骤的输出，也不会启动后续步骤
 - 显式 deny 与路径感知文件工具的越界路径在 full 下也不会放行
+- 框架管理的持久状态不属于普通业务工具的可写目标；三档模式与显式 allow 都不覆盖该保护，宿主维护接口仍负责恢复和清理
 - 路径与 URL 会递归检查嵌套参数；审批面板优先展示副作用、完整目标与原因
 - Windows 宿主 Shell 只有在 `mode: full`、`workspaceOnly: false`、`network: allow` 同时满足时开放；其他组合安全拒绝
 - Git Bash 发现只提供命令兼容性，不提供操作系统隔离
@@ -34,6 +35,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/host-shell.ts](../../../packages/coremind-tools/src/host-shell.ts)
 - [packages/coremind-runtime/src/tool-policy.test.ts](../../../packages/coremind-runtime/src/tool-policy.test.ts)
+- [框架状态写入保护回归](../../../packages/coremind-runtime/src/state-write-protection.acceptance.test.ts)
 - [packages/coremind-runtime/src/runtime.test.ts](../../../packages/coremind-runtime/src/runtime.test.ts)
 - [packages/coremind-cli/src/approval.test.ts](../../../packages/coremind-cli/src/approval.test.ts)
 - [packages/coremind-tools/src/linux-sandbox.test.ts](../../../packages/coremind-tools/src/linux-sandbox.test.ts)
