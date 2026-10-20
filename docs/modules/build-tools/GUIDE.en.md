@@ -20,6 +20,8 @@ const lookupOrder = defineTool({
 
 Use a business-specific tool name rather than a reserved built-in name such as `read`, `write`, or `bash`. SDK definitions and script registration reject collisions before execution.
 
+For non-2xx responses or body-read failures, built-in `web-fetch` and `web-search` await response-body cancellation/release cleanup attempts before settling local network activity. A cleanup failure preserves the original HTTP/read error. Normal results, cancellation behavior, existing permissions, and network policy remain unchanged; `web-fetch` still limits response bodies to 2 MiB.
+
 ## Local MCP services
 
 Use the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools) to declare audited programs and exact per-agent raw tool references. CLI, TypeScript, and Python share the Node Runtime; Python does not create a second MCP client. Do not inject a remote catalog through global SDK `toolDefinitions`.

@@ -8,7 +8,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 1. Define the input JSON Schema, `effect.operations`, `effect.reversible`, and idempotency strategy. Use `external` and `false` when uncertain.
 2. Implement deterministic code instead of hiding rules in prompts.
-3. Cover success, invalid input, dependency failure, and repeated calls.
+3. Cover success, invalid input, dependency failure, and repeated calls. For built-in `web-fetch`/`web-search`, verify that non-2xx responses and body-read failures await response-body cancellation/release cleanup attempts before settling local network activity, with cleanup failures preserving the original HTTP/read error. Retain regressions for success, cancellation, existing permissions/network policy, and the `web-fetch` 2 MiB body limit.
 4. Declare non-standard path or URL fields with `pathFields` or `urlFields`, confirm permission and real recovery behavior for writes, and reject names that collide with built-in tools.
 5. Use command and argument arrays for subprocesses, with timeout, output limit, cancellation signal, and a minimal environment. Treat an explicit `env` as authoritative; never merge host secrets into it or let the tool execution context replace it.
 6. Use only fixed `GitAdapter` reads for Git evidence. Stop and request separate authorization before mutating Git state.

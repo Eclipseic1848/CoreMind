@@ -12,6 +12,8 @@
 
 ## Unreleased
 
+- 修复内置 `web-fetch`/`web-search` 的错误响应与正文读取失败收尾：等待正文取消/释放的清理尝试结束后才结算本地网络活动，清理异常保留原 HTTP/读取错误；原有成功、取消、权限/网络策略及 `web-fetch` 的 2 MiB 正文上限保持不变（#330）。
+- Fix built-in `web-fetch`/`web-search` cleanup for non-2xx responses and body-read failures: await body cancellation/release cleanup attempts before settling local network activity, preserving the original HTTP/read error if cleanup fails. Existing success, cancellation, permissions/network policy, and the `web-fetch` 2 MiB body limit remain unchanged (#330).
 - Added explicit host-owned MCP OAuth with S256 callback validation, independently cancellable shared refresh, secure TokenStore injection, dynamic credential filtering, and bounded cleanup across TypeScript, CLI, and Python v2.
 
 - Added fixed-target Streamable HTTP MCP with referenced credentials, DNS-to-socket address validation, bounded transport recovery, and independent request cancellation through the existing Run lifecycle.

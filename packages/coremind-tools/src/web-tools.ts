@@ -35,6 +35,7 @@ export function createWebFetchToolForEnvironment(
             headers: { "user-agent": "CoreMind/0.1 (web-fetch)" },
           });
           if (!res.ok) {
+            await res.body?.cancel().catch(() => undefined);
             throw new Error(`HTTP ${res.status} ${res.statusText}`);
           }
           let html = "";
@@ -49,12 +50,14 @@ export function createWebFetchToolForEnvironment(
                 // 按实际解压后的字节计量，不能信任 Content-Length 或输出截断。
                 bytes += value.byteLength;
                 if (bytes > 2 * 1024 * 1024) {
-                  await reader.cancel();
                   throw new Error("响应超过 2 MiB 限制");
                 }
                 html += decoder.decode(value, { stream: true });
               }
               html += decoder.decode();
+            } catch (error) {
+              await reader.cancel().catch(() => undefined);
+              throw error;
             } finally {
               reader.releaseLock();
             }
@@ -132,9 +135,13 @@ export function createWebSearchToolForEnvironment(
             }),
           });
           if (!res.ok) {
+            await res.body?.cancel().catch(() => undefined);
             throw new Error(`HTTP ${res.status}`);
           }
-          const data = (await res.json()) as {
+          const data = (await res.json().catch(async (error) => {
+            await res.body?.cancel().catch(() => undefined);
+            throw error;
+          })) as {
             results?: { title?: string; url?: string; content?: string }[];
           };
           const results = data.results ?? [];
