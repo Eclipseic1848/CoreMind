@@ -240,10 +240,11 @@ export class Orchestrator {
           `workflow 引用了未定义的 agent：${agentName}（第 ${stepId} 步）`,
         );
       }
+      const messageCursor = agent.messages().length;
       await agent.prompt(input);
       await agent.waitForIdle();
       signal.throwIfAborted();
-      return extractSuccessfulText(agent);
+      return extractSuccessfulText(agent, messageCursor);
     })();
     try {
       if (timeoutMs <= 0) return await run;
@@ -374,7 +375,7 @@ function emptyOutput(stepId: string): StepOutput {
   return { text: "", metadata: { agent: "", stepId } };
 }
 
-function extractSuccessfulText(agent: AgentDriver): string {
+function extractSuccessfulText(agent: AgentDriver, messageCursor: number): string {
   const messages = agent.messages();
   const agentError = extractAgentError(messages);
   if (agentError) {
@@ -384,7 +385,7 @@ function extractSuccessfulText(agent: AgentDriver): string {
       errorMessage: agentError,
     });
   }
-  return extractText(messages);
+  return extractText(messages.slice(messageCursor));
 }
 
 /**

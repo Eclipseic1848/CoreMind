@@ -55,6 +55,92 @@ import {
 } from "./workspace-lease.js";
 
 describe("CoreMindRuntime", () => {
+  it("同 Session 跨 Run 的工作流只输出当前步骤，历史仍进入模型上下文", async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: unknown }> }> = [];
+    const server = createTextSequenceServer(["旧历史", "新草稿", "新复核"]);
+    server.on("request", (request) => {
+      let body = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        body += chunk;
+      });
+      request.on("end", () => requests.push(JSON.parse(body)));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-workflow-session-output-"));
+    const config: CoreMindConfig = {
+      schemaVersion: 2,
+      name: "步骤输出与历史隔离",
+      provider: {
+        id: "probe",
+        model: "probe",
+        apiKeyEnv: "COREMIND_TEST_API_KEY",
+        baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
+      },
+      agents: { main: {} },
+      session: { enabled: true, compact: false },
+      runtime: { maxTurns: 4, maxRetries: 0 },
+    };
+    const options = { cwd, configDir: cwd, sessionId: "shared" };
+    try {
+      const first = await (
+        await CoreMindRuntime.create({ ...options, config, initialPrompt: "旧输入" })
+      ).run();
+      expect(first.outcome.status).toBe("succeeded");
+      expect(first.transcript).toBe("旧历史");
+      const result = await (
+        await CoreMindRuntime.create({
+          ...options,
+          config: {
+            ...config,
+            workflow: [
+              { id: "draft", type: "prompt", agent: "main", input: "起草", saveAs: "draft" },
+              {
+                id: "branch",
+                type: "if",
+                condition: "{{draft.text}} == 新草稿",
+                then: [
+                  {
+                    id: "review",
+                    type: "call",
+                    agent: "main",
+                    input: "复核 {{draft.text}}",
+                    saveAs: "review",
+                  },
+                ],
+                else: [{ id: "wrong", type: "call", agent: "main", input: "错误分支" }],
+              },
+            ],
+          },
+        })
+      ).run();
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect([...result.outputs].map(([key, output]) => [key, output.text])).toEqual([
+        ["draft", "新草稿"],
+        ["review", "新复核"],
+      ]);
+      expect(result.transcript).toBe("新复核");
+      expect(
+        result.trace
+          .map((entry) => entry.event)
+          .filter((event) => event.type === "step_output" && event.agent === "main")
+          .map((event) => event.text),
+      ).toEqual(["新草稿", "新复核"]);
+      expect(requests).toHaveLength(3);
+      expect(JSON.stringify(requests[1]!.messages)).toContain("旧历史");
+      expect(JSON.stringify(requests[2]!.messages)).toContain("旧历史");
+      expect(requests[2]!.messages.at(-1)).toMatchObject({
+        role: "user",
+        content: [{ type: "text", text: "复核 新草稿" }],
+      });
+    } finally {
+      server.closeAllConnections();
+      await closeServer(server);
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it.each(["cancel", "timeout"])("摘要期间 %s 会终止请求且不会报告成功", async (mode) => {
     const server = createTextSequenceServer(["正文", "摘要"]);
     let requests = 0;

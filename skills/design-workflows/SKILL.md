@@ -16,4 +16,6 @@ description: "Design, implement, test, or diagnose fixed workflows and explicit 
 9. Run the tests and commands listed in [module.yaml](../../docs/modules/design-workflows/module.yaml) and the [development SOP](../../docs/modules/design-workflows/SOP.en.md).
 10. Stop on unconfirmed business rules, failed security gates, or non-reversible actions without explicit authorization. Never commit, push, tag, or publish implicitly.
 
+For Workflow `prompt`/`call` steps, preserve the same Session history as model context while limiting step output, `saveAs`, subsequent interpolation, and transcript to assistant text newly produced by that step. Verify that consecutive steps using the same agent do not repeat earlier replies in later step results.
+
 中文原则：固定依赖优先 Workflow；只有需要“生成—验证—修复—再验证”时才使用显式 Loop。失败不得伪成功，`full` 不得关闭预算、审计、checkpoint、Effect Receipt 或恢复保护。

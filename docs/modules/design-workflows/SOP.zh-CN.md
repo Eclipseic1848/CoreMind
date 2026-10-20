@@ -6,7 +6,7 @@
 
 ## 执行步骤
 
-1. 画出输入、候选结果、验证结果、修复结果和终态；固定依赖优先使用 Workflow。
+1. 画出输入、候选结果、验证结果、修复结果和终态；固定依赖优先使用 Workflow。同一 Agent 连续执行 `prompt`/`call` 时，验证模型仍可使用同一 Session 历史，而步骤输出、`saveAs`、后续插值和 transcript 只含本步骤新增的 assistant 文本。
 2. 把确定性判断写进普通代码、工具或 Agent 验证的 `passIf`；宿主验收则由宿主独立核对并提交持久决定，不让模型临时发明验收标准。
 3. 为 `loop` 配置 `maxIterations`、`maxRepairs`、`maxRepeatedAction`、`onFailure` 和 `onExhausted`。
 4. 为所有工具声明副作用、可逆性和目标字段；外部副作用还要有业务幂等键、收据或补偿流程。

@@ -6,6 +6,8 @@
 - 单个 Agent 自主调用工具即可完成：使用基础 Agent Loop，并设置 Runtime 预算。
 - 结果必须经过独立验证，失败后允许有限修复：使用 `loop`。
 
+Workflow 的 `prompt`/`call` 步骤输出只包含本步骤新增的 assistant 文本，`saveAs`、后续插值和 transcript 使用同一边界。同一 Session 的历史仍供模型使用；例如同一 Agent 连续两步分别新增 `A`、`B`，第二步输出应为 `B`，不能拼入第一步的 `A`。
+
 ## 第二步：写最小 Loop 配置
 
 ```yaml

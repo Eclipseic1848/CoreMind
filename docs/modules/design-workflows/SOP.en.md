@@ -6,7 +6,7 @@ Confirm the business owner, success criteria, verification rule, allowed repair 
 
 ## Procedure
 
-1. Map input, candidate, verification, repair, and terminal results. Prefer a Workflow for fixed dependencies.
+1. Map input, candidate, verification, repair, and terminal results. Prefer a Workflow for fixed dependencies. For consecutive `prompt`/`call` steps using the same agent, verify that the same Session history remains available to the model, while step output, `saveAs`, subsequent interpolation, and transcript contain only assistant text newly produced by that step.
 2. Put deterministic decisions in normal code, a tool, or agent verification's `passIf`. For host verification, have the host check the candidate independently and submit a durable decision; never let the model invent acceptance rules.
 3. Configure `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted` for every `loop`.
 4. Declare every tool effect, reversibility, and target field. External effects also need a business idempotency key, receipt, or compensation process.
