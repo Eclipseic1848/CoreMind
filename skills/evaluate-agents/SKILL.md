@@ -10,7 +10,7 @@ description: "Separate runtime outcome, metrics, business evaluation, and releas
 3. Follow [the SOP](../../docs/modules/evaluate-agents/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Use schemaVersion 2 whenever tools or files matter. Require an outcome grader, then select trajectory, command, file, diff, state, and response graders according to the failure risks.
-6. Capture dirty-worktree and protected-file baselines before each attempt. Preserve user changes and reject paths outside the workspace.
+6. Capture dirty-worktree and protected-file baselines before each attempt. Preserve user changes and reject paths outside the workspace. For diff `preserveExisting: false`, verify that only pre-existing dirty-content protection is disabled: `allowedPaths`, `forbiddenPaths`, `requiredPaths`, and `maxChangedFiles` still use baseline-to-final status or content differences. Dirty files with unchanged status and content do not count as changes, deletion of a previously untracked file does, and default `true` protection remains unchanged.
 7. Inspect RunOutcome, Trace, budgets, approvals, checkpoints, grader evidence, final tests, and diffs. Treat a fluent answer without evidence as unverified.
 8. Separate deterministic offline evidence from live-provider evidence, and label automated review honestly.
 9. For comparisons, freeze experiment id/version/seed, arm weights, input fingerprints, environment, budget, and graders before running. Preserve the complete trace and truthful outcome for every arm.

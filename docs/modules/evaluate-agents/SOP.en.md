@@ -10,7 +10,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 2. Create happy, boundary, failure, denial, timeout, and cancellation scenarios.
 3. Use schemaVersion 1 for compatible text checks; use schemaVersion 2 when tools, files, diffs, and runtime-state evidence matter.
 4. Include an outcome grader in every schemaVersion 2 scenario, then add trajectory, command, file, diff, state, and response graders according to risk.
-5. Capture the dirty-worktree and protected-file baseline, and declare allowed plus forbidden paths before execution.
+5. Capture the dirty-worktree and protected-file baseline, and declare allowed plus forbidden paths before execution. Verify that diff `preserveExisting: false` still enforces `allowedPaths`, `forbiddenPaths`, `requiredPaths`, and `maxChangedFiles` against baseline-to-final status or content differences. Dirty files with unchanged status and content must not count as changes, deletion of a previously untracked file must count, and the default `true` protection must remain unchanged.
 6. Run `coremind check` and `coremind eval`; repeat strict scenarios at least three times.
 7. Keep deterministic offline and live-model results separate. Record model, provider, platform, repetitions, cost/tokens, and data-egress authorization for live runs.
 8. Use release readiness, security gates, final tests, and owner review—not fluent prose—to decide release.

@@ -55,6 +55,8 @@ scenarios:
 
 七类 grader 分别验证终态、工具轨迹、命令、文件、Git 差异、运行状态和最终回答。评测前会记录文件与脏工作区基线；评测命令不通过 Shell 拼接，路径不得逃逸工作区。
 
+将 diff grader 的 `preserveExisting` 设为 `false` 只关闭旧脏内容保护，不关闭 `allowedPaths`、`forbiddenPaths`、`requiredPaths` 或 `maxChangedFiles`。这些约束仍比较基线与终态的状态或内容差异：状态和内容均未变化的既有脏文件不计入变化，原 untracked 文件被删除则计入变化。省略该字段或设为 `true` 时，既有脏内容继续受保护。
+
 ## 轻量实验
 
 ```ts

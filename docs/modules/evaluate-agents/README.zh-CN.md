@@ -25,6 +25,7 @@
 - strict 场景至少重复三次
 - schemaVersion 2 必须至少包含一个 `outcome` grader；同一场景最多 20 个 grader
 - 命令、文件和差异评测都有工作区、输出与超时上限；既有脏工作区默认必须保持原样
+- Diff grader 的 `preserveExisting: false` 只关闭既有脏内容保护，`allowedPaths`、`forbiddenPaths`、`requiredPaths`、`maxChangedFiles` 仍按基线与终态的状态或内容差异执行；状态和内容均未变化的既有脏文件不计入变化，删除原有 untracked 文件计入变化。默认 `true` 的保护不变。
 - 实验 arm 由实验 id、版本、seed 与输入指纹确定性分配；同一输入可复现，不伪装成密码学随机
 - 每条实验记录必须绑定版本、环境、输入指纹、arm、运行终态、完整 Trace 和 grader 结果
 

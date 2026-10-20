@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CoreMindConfig } from "coremind-config";
@@ -9,6 +9,11 @@ import {
   runEvaluationSuite,
   validateEvaluationSuite,
 } from "./evaluation.js";
+import {
+  captureEvaluationBaseline,
+  type DiffGrader,
+  evaluateGraders,
+} from "./evaluation-graders.js";
 
 const config: CoreMindConfig = {
   schemaVersion: 2,
@@ -224,6 +229,133 @@ describe("runEvaluationSuite", () => {
 
     expect(result.passRate).toBe(0);
     expect(result.attempts[0]?.reason).toContain("既有脏工作区内容被修改");
+  });
+
+  it("diff grader 默认保护原脏文件，关闭保护仅允许改动而不隐藏变化", async () => {
+    const cwd = createEvaluationRepository();
+    const graders: DiffGrader[] = [
+      { type: "diff" },
+      { type: "diff", preserveExisting: true },
+      { type: "diff", preserveExisting: false },
+    ];
+    try {
+      const baseline = await captureEvaluationBaseline(cwd, graders);
+      writeFileSync(path.join(cwd, "notes.txt"), "Agent 覆盖内容\n", "utf8");
+      const verdicts = await evaluateGraders(graders, successfulResult("完成"), cwd, baseline);
+
+      expect(verdicts.map((verdict) => verdict.passed)).toEqual([false, false, true]);
+      expect(verdicts[0]?.reason).toBe("既有脏工作区内容被修改：notes.txt");
+      expect(verdicts[1]?.reason).toBe("既有脏工作区内容被修改：notes.txt");
+      expect(verdicts[2]?.evidence?.changedPaths).toEqual(["notes.txt"]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    {
+      rule: "forbiddenPaths",
+      constraints: { forbiddenPaths: ["notes.txt"] },
+      reason: "diff 修改了禁止文件：notes.txt",
+    },
+    {
+      rule: "allowedPaths",
+      constraints: { allowedPaths: ["src/**"] },
+      reason: "diff 包含未允许文件：notes.txt",
+    },
+    {
+      rule: "maxChangedFiles",
+      constraints: { maxChangedFiles: 0 },
+      reason: "Agent 新增变更 1 个文件，超过 0 个上限",
+    },
+    {
+      rule: "requiredPaths 与准确计数",
+      constraints: {
+        allowedPaths: ["notes.txt"],
+        requiredPaths: ["notes.txt"],
+        maxChangedFiles: 1,
+      },
+      reason: undefined,
+    },
+  ])("diff grader 按内容识别同状态的既有脏文件，落实 $rule", async ({ constraints, reason }) => {
+    const cwd = createEvaluationRepository();
+    const grader: DiffGrader = { type: "diff", preserveExisting: false, ...constraints };
+    try {
+      writeFileSync(path.join(cwd, "src", "value.js"), "export const value = 3;\n", "utf8");
+      writeFileSync(path.join(cwd, "untracked.txt"), "未修改的既有未跟踪文件\n", "utf8");
+      const baseline = await captureEvaluationBaseline(cwd, [grader]);
+      writeFileSync(path.join(cwd, "notes.txt"), "用户已经提交的草稿\n", "utf8");
+      const after = await captureEvaluationBaseline(cwd, [grader]);
+      expect(after.dirtyFiles.get("notes.txt")?.status).toBe(
+        baseline.dirtyFiles.get("notes.txt")?.status,
+      );
+      const [verdict] = await evaluateGraders([grader], successfulResult("完成"), cwd, baseline);
+
+      expect(verdict?.passed).toBe(reason === undefined);
+      if (reason) expect(verdict?.reason).toBe(reason);
+      else expect(verdict?.evidence?.changedPaths).toEqual(["notes.txt"]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["删除未跟踪", "恢复干净"])(
+    "diff grader 将从状态列表消失的既有文件计入变化并落实路径约束（%s）",
+    async (operation) => {
+      const cwd = createEvaluationRepository();
+      const file = operation === "删除未跟踪" ? "untracked.txt" : "notes.txt";
+      const graders: DiffGrader[] = [
+        { type: "diff", preserveExisting: false, forbiddenPaths: [file] },
+        { type: "diff", preserveExisting: false, maxChangedFiles: 0 },
+        {
+          type: "diff",
+          preserveExisting: false,
+          allowedPaths: [file],
+          requiredPaths: [file],
+          maxChangedFiles: 1,
+        },
+      ];
+      try {
+        if (operation === "删除未跟踪")
+          writeFileSync(path.join(cwd, file), "执行前已存在\n", "utf8");
+        const baseline = await captureEvaluationBaseline(cwd, graders);
+        expect(baseline.dirtyFiles.has(file)).toBe(true);
+        if (operation === "删除未跟踪") unlinkSync(path.join(cwd, file));
+        else writeFileSync(path.join(cwd, file), "基线\n", "utf8");
+        const after = await captureEvaluationBaseline(cwd, graders);
+        expect(after.dirtyFiles.has(file)).toBe(false);
+        const verdicts = await evaluateGraders(graders, successfulResult("完成"), cwd, baseline);
+
+        expect(verdicts.map((verdict) => verdict.passed)).toEqual([false, false, true]);
+        expect(verdicts[0]?.reason).toBe(`diff 修改了禁止文件：${file}`);
+        expect(verdicts[1]?.reason).toBe("Agent 新增变更 1 个文件，超过 0 个上限");
+        expect(verdicts[2]?.evidence?.changedPaths).toEqual([file]);
+      } finally {
+        rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("diff grader 保留仅暂存既有脏文件时的状态变化计数", async () => {
+    const cwd = createEvaluationRepository();
+    const grader: DiffGrader = { type: "diff", requiredPaths: ["notes.txt"], maxChangedFiles: 1 };
+    try {
+      const baseline = await captureEvaluationBaseline(cwd, [grader]);
+      git(cwd, "add", "notes.txt");
+      const after = await captureEvaluationBaseline(cwd, [grader]);
+      expect(after.dirtyFiles.get("notes.txt")?.fingerprint).toBe(
+        baseline.dirtyFiles.get("notes.txt")?.fingerprint,
+      );
+      expect(after.dirtyFiles.get("notes.txt")?.status).not.toBe(
+        baseline.dirtyFiles.get("notes.txt")?.status,
+      );
+      const [verdict] = await evaluateGraders([grader], successfulResult("完成"), cwd, baseline);
+
+      expect(verdict?.passed).toBe(true);
+      expect(verdict?.evidence?.changedPaths).toEqual(["notes.txt"]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("schemaVersion 2 强制包含 outcome grader 并校验 grader 字段", () => {

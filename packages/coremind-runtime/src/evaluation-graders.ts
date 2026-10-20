@@ -351,18 +351,17 @@ async function evaluateDiff(
   const after = new Map(
     afterEntries.map((entry) => [normalizeGitPath(entry.path), `${entry.index}${entry.worktree}`]),
   );
-  if (grader.preserveExisting !== false) {
-    for (const [file, before] of baseline.dirtyFiles) {
-      const fingerprint = await fingerprintWorkspacePath(cwd, file);
-      if (fingerprint !== before.fingerprint) {
-        return { passed: false, reason: `既有脏工作区内容被修改：${file}` };
-      }
+  const changedPaths: string[] = [];
+  for (const file of new Set([...baseline.dirtyFiles.keys(), ...after.keys()])) {
+    const before = baseline.dirtyFiles.get(file);
+    const contentChanged =
+      before !== undefined && (await fingerprintWorkspacePath(cwd, file)) !== before.fingerprint;
+    if (grader.preserveExisting !== false && contentChanged) {
+      return { passed: false, reason: `既有脏工作区内容被修改：${file}` };
     }
+    if (before?.status !== after.get(file) || contentChanged) changedPaths.push(file);
   }
-  const changedPaths = [...after]
-    .filter(([file, status]) => baseline.dirtyFiles.get(file)?.status !== status)
-    .map(([file]) => file)
-    .sort();
+  changedPaths.sort();
   const disallowed = changedPaths.find(
     (file) =>
       grader.allowedPaths && !grader.allowedPaths.some((allowed) => matchesPath(file, allowed)),
