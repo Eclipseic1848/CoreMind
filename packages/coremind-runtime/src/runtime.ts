@@ -762,14 +762,20 @@ export class CoreMindRuntime {
     const harness: RuntimeHarness = {
       ...originalHarness,
       beforePrompt: async () => {
+        signal?.throwIfAborted();
         if (originalHarness?.beforePrompt) await originalHarness.beforePrompt();
         if (name === this.mainAgentName) {
           await context.currentControlInbox()?.applyPending("steering");
           await context.currentControlInbox()?.applyPending("follow_up");
         }
+        signal?.throwIfAborted();
         if (this.options.signal?.aborted || context.currentJournal()?.isAborted()) {
           throw new CoreMindError("aborted", "控制恢复完成前运行已取消");
         }
+      },
+      beforeModelRequest: () => {
+        signal?.throwIfAborted();
+        originalHarness?.beforeModelRequest?.();
       },
       onObservation: (observation) =>
         originalHarness?.onObservation?.(
@@ -2351,6 +2357,7 @@ export class CoreMindRuntime {
     });
     const deniedAgents = new Set<string>();
     const activeRunContext = context;
+    let modelRequestsOpen = true;
     context.setHarnessFactory((agentName, stepId, executionId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       const skillExecution = skillSnapshot?.agents[agentName]?.standard.length
@@ -2412,6 +2419,11 @@ export class CoreMindRuntime {
               `事实账本已失效，不能继续模型请求：${facts.reason}`,
             );
           }
+          if (!modelRequestsOpen || facts.terminal) {
+            throw new CoreMindError("run_already_finished", "Run 已封闭，不能继续模型请求");
+          }
+          if (journal.isAborted())
+            throw new CoreMindError("aborted", "Run 已取消，不能继续模型请求");
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           for (const name of discovery?.current?.names ?? []) discovery!.assertCallable(name);
@@ -2817,8 +2829,9 @@ export class CoreMindRuntime {
             resolvedCapability,
             executionEffects.get(context.toolCall.tool),
             delegationInputFingerprint,
-            { callId: context.toolCall.callId, ...(stepId ? { stepId } : {}) },
+            { callId: context.toolCall.callId, ...(stepId ? { stepId } : {}), signal },
           );
+          signal?.throwIfAborted();
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
             status: "completed",
@@ -3867,6 +3880,7 @@ export class CoreMindRuntime {
         }
       }
     } finally {
+      modelRequestsOpen = false;
       hostVerification?.interrupt(new CoreMindError("run_already_finished", "Run 已结束验收等待"));
       context.setHarnessFactory(undefined);
     }

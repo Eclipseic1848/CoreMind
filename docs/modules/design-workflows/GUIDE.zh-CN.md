@@ -52,7 +52,7 @@ coremind run coremind.yaml --prompt "修复候选结果" --json-events
 coremind run coremind.yaml --resume <runId>
 ```
 
-## 第四步：至少验证六个反例
+## 第四步：至少验证八个反例
 
 1. 首次 verify 返回 FAIL，确认进入 repair。
 2. repair 后仍 FAIL，确认达到上限后返回 `loop_exhausted`。
@@ -60,5 +60,11 @@ coremind run coremind.yaml --resume <runId>
 4. 用户拒绝审批，确认暂停且不重放工具。
 5. 注入 503 后恢复，确认只做有界瞬态重试。
 6. 在稳定边界退出并恢复，确认已完成步骤与 committed 副作用不重复。
+7. 一个 `parallel` 子步骤失败，其他步骤仍在等待：确认取消同组其他步骤并等待其收尾，保留首个错误，Run 结束后不再准入新模型调用。
+8. 一个 `parallel` 子步骤进入暂停，其他步骤仍待审批或已有操作开始：确认取消并等待同组其他步骤收尾，保留原暂停原因和已开始操作的收据；取消不等于回滚。
+
+另行确认全成功的 `parallel` 仍按声明顺序聚合，不受完成先后影响。
+
+待审批调用在取消时关闭为拒绝。框架结束本地等待，宿主审批回调可以继续运行，但迟到的批准不再生效。
 
 可直接运行[验证修复黄金示例](../../../examples/golden/verified-repair-loop/README.zh-CN.md)，它已覆盖修复成功、暂停恢复和耗尽失败。

@@ -28,6 +28,7 @@ examplePaths:
   - examples/modules/design-workflows/README.en.md
 testPaths:
   - "packages/coremind-runtime/src/orchestrator.test.ts"
+  - "packages/coremind-runtime/src/parallel-failure.acceptance.test.ts"
   - "packages/coremind-runtime/src/loop-controller.test.ts"
   - "packages/coremind-runtime/src/loop-runner.test.ts"
   - "packages/coremind-runtime/src/retry-policy.test.ts"

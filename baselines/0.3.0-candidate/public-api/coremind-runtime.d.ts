@@ -3258,6 +3258,7 @@ export declare class ToolPolicy {
     authorize(agent: string, tool: string, args: unknown, capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration, selectors?: ToolEffectDeclaration, delegationInputFingerprint?: string, identity?: {
         callId?: string;
         stepId?: string;
+        signal?: AbortSignal;
     }): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;
