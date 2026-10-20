@@ -31,11 +31,13 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Current release line: `1.2.0`
+## Current release line: `1.3.0`
 
-[Upgrade directly from 1.0.1](../migrations/1.0-to-1.2.en.md) · [1.2 release notes](../release/notes/v1.2.0.md)
+[Upgrade from 1.2](../migrations/1.2-to-1.3.en.md) · [1.3 release notes](../release/notes/v1.3.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-> The `1.2.0` release line upgrades directly from `1.0.1` and includes unpublished 1.1 development: standard Skills, durable control, controlled MCP/explicit OAuth, discovery, and terminal evidence. It also includes Session, final tool-argument, model-request, custom-authentication, output-delivery, duplicate Call identity, journal-processing, Python notification-consumption, project-script loading-trust, and terminal-editing improvements. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
+> The `1.3.0` release line upgrades from the published `1.2.0` release. It fixes internal persistent-state protection, parallel-failure cleanup, Python deferred annotations, Workflow step output, Diff graders, Protocol v2 error identity, Web response cleanup, explicit readline exit, and doctor credential diagnostics, and updates the security policy. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
+
+### Capabilities retained from 1.2
 
 - Standard `SKILL.md` indexing, on-demand loading, and frozen-snapshot recovery.
 - Durable same-Run `/steer`, `/follow-up`, and five-state control receipts.

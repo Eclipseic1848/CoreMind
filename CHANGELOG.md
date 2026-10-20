@@ -4,24 +4,48 @@
 
 [English](CHANGELOG.en.md)
 
-## [1.3.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.2.0...v1.3.0) (2026-10-20)
+## 1.3.0
 
+本节记录 `1.3.0` 发布准备范围，包含 #324–#333 已验收合入的十项修复；不表示已经公开发布。详见[固定双语发布说明](docs/release/notes/v1.3.0.md)与[1.2→1.3 迁移指南](docs/migrations/1.2-to-1.3.zh-CN.md)。
 
-### Bug Fixes
+### 安全修复
 
-* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架内部持久状态的写入保护 ([331094b](https://github.com/Eclipseic1848/CoreMind/commit/331094bac9ebae8967ccd420f86def3df53109ed))
-* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架持久状态写入保护 ([a95c369](https://github.com/Eclipseic1848/CoreMind/commit/a95c369892147b554eb61669d455f008b893238d))
-* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行分支失败后的取消与终态准入 ([a299685](https://github.com/Eclipseic1848/CoreMind/commit/a299685027e47bafa0df8a8a425d307ff6aaf827))
-* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行失败取消与终态准入 ([4fe9a6a](https://github.com/Eclipseic1848/CoreMind/commit/4fe9a6ae51d9a4dffde5d27246a6b715e257ca6c))
-* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 修复Python延迟注解生成工具参数Schema ([e08264f](https://github.com/Eclipseic1848/CoreMind/commit/e08264f571e173f724e8ac79d2dc0683c962dbfb))
-* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 解析Python工具的延迟参数注解 ([1f3e072](https://github.com/Eclipseic1848/CoreMind/commit/1f3e072fe2433f9618ac958319b07ba5ea7049f6))
-* [#327](https://github.com/Eclipseic1848/CoreMind/issues/327) 隔离Workflow步骤输出与Session历史 ([6bd4962](https://github.com/Eclipseic1848/CoreMind/commit/6bd4962522f34839f703a4eeeae02757c33f97ac))
-* [#328](https://github.com/Eclipseic1848/CoreMind/issues/328) 按内容指纹补全Diff grader变更检测 ([67e337f](https://github.com/Eclipseic1848/CoreMind/commit/67e337f9e21be45938f3dfba8ecb1164b78784f6))
-* [#329](https://github.com/Eclipseic1848/CoreMind/issues/329) 保留v2启动失败的稳定错误身份 ([d70e185](https://github.com/Eclipseic1848/CoreMind/commit/d70e18527bdae4b39ab485c0bedbe502ffd759f7))
-* [#330](https://github.com/Eclipseic1848/CoreMind/issues/330) 等待Web错误响应正文清理后结算活动 ([c58a459](https://github.com/Eclipseic1848/CoreMind/commit/c58a4597fad2b079dcdeb681ba3308b1174afaf3))
-* [#331](https://github.com/Eclipseic1848/CoreMind/issues/331) 显式退出readline时取消活动Run ([27bc2dd](https://github.com/Eclipseic1848/CoreMind/commit/27bc2dd38c24cc4f6c4408e6f12e6eef7b9b4906))
-* [#332](https://github.com/Eclipseic1848/CoreMind/issues/332) 修复doctor对匿名Provider的误报 ([af1bf25](https://github.com/Eclipseic1848/CoreMind/commit/af1bf255d01bde490c299865290f1d2ebd90976d))
-* [#333](https://github.com/Eclipseic1848/CoreMind/issues/333) 更新双语安全策略的版本状态 ([7ef3110](https://github.com/Eclipseic1848/CoreMind/commit/7ef3110a279bf132ae6743b567b59a51aba26a0e))
+- **框架状态保护：** 统一授权按 canonical 目标保护框架管理的持久状态，普通业务工具不能通过 `ask`、`assisted`、`full` 或显式 allow 改写这些状态。现存多硬链接文件的普通工具写入也会被拒绝；合法业务文件和宿主维护接口保留原职责。这是路径保护，不是任意宿主代码的 OS 沙箱。 ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
+
+### 缺陷修复
+
+#### Runtime 与 Workflow
+
+- **并行终止与准入：** 普通 `parallel` 子步骤首次失败或暂停时，取消同组其他步骤并等待收尾，保留首个错误；Run 结束后不再准入新模型调用。已开始操作保留收据，取消不等于回滚；全成功仍按声明顺序聚合。 ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
+- **步骤输出边界：** Workflow `prompt`/`call` 保留同一 Session 历史作为模型上下文，但步骤输出、`saveAs`、后续插值与 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。 ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
+- **v2 启动错误身份：** 已接受 Run 的 Runtime 初始化失败按共享错误分类持久化稳定错误码、对应终态与安全消息，供 `query`/`events` 查询，不再统一改为 `agent_failed`。未知异常以 `unclassified_error` 保守暂停并要求人工审计，不公开凭据或原始堆栈，也不表示可直接恢复。 ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
+
+#### Python 工具桥
+
+- **延迟参数注解：** v1 `@client.tool` 自动 Schema 可解析 future/字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解；无法解析的前向引用明确要求显式 `parameters`。保留 Node 侧先转换再校验的既有规则，转换后仍未通过 Schema 的参数在 callable 执行前拒绝；显式 Schema 兼容，复杂 typing 支持范围不扩大。 ([#326](https://github.com/Eclipseic1848/CoreMind/issues/326))
+
+#### 评测
+
+- **Diff grader：** `preserveExisting: false` 只关闭既有脏内容保护，`allowedPaths`、`forbiddenPaths`、`requiredPaths`、`maxChangedFiles` 仍按基线与终态的状态或内容差异执行。状态和内容均未变化的既有脏文件不计，原 untracked 文件删除计入变化；原 stage/unstage 计数及默认 `true` 保护不变。 ([#328](https://github.com/Eclipseic1848/CoreMind/issues/328))
+
+#### Web 工具
+
+- **响应正文收尾：** `web-fetch`/`web-search` 遇非 2xx 或正文读取失败时，等待正文取消/释放的清理尝试结束后才结算本地网络活动；清理异常保留原 HTTP/读取错误。成功、取消、权限与网络策略不变，`web-fetch` 原 2 MiB 正文上限保留。 ([#330](https://github.com/Eclipseic1848/CoreMind/issues/330))
+
+#### CLI
+
+- **readline 显式退出：** `/exit`、`!exit` 与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍让已开始的回答自然完成。空闲退出、审批及 MCP 登录等待的既有行为保持，取消不回滚已开始工具副作用。 ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
+- **doctor 凭据策略：** 有配置时复用所选 Provider 的既有校验，合法匿名/Header-only 自定义端点不要求无关 API key；显式凭据缺失仍失败，内置鉴权要求不放宽。无配置通用诊断保留；检查不加载项目脚本、不发 Provider 请求，通过不代表凭据有效、真实连通或认证。 ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
+
+### 文档
+
+- **安全策略版本状态：** 双语 SECURITY 支持表链接最新正式 Release，准确标明 1.2.0 已发布与既有安全加固已交付；保留 `0.3.1` 重大安全问题例外、私密披露方式及原安全边界，不把本轮新保护归为旧版能力。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
+
+- **发布材料与验证：** 同步 1.3.0 包版本、模块与 TTY 模板，冻结随包 Worker，补充双语迁移和发布材料，并把新版本固定正文纳入既有回归；正式发布仍须完成最终提交的严格资格与公开回装。 ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334))
+
+### 兼容与发布边界
+
+Config/Protocol 版本不升级，保留 Config v2/v3、Protocol v1/v2 和统一 Node Runtime。`ToolPolicy` 构造选项新增可选 `protectedPaths` 保护条目，`authorize()` 的 `identity` 新增可选 `signal?: AbortSignal`，既有调用保持兼容；SDK 与 bundled Worker 须同步升级并保留原指纹检查。正式发布仍需绑定最终 main 提交、当前版本、Runtime/Worker 与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。旧版本认证、历史例外与单项 CI 不能替代本轮资格；外部副作用仍需人工核对。
 
 ## 1.2.0
 

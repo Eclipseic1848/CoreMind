@@ -1,6 +1,6 @@
 {
   "name": "coremind-runtime",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "CoreMind 运行时：provider 注册、Agent 构建、简化编排引擎、会话管理",
   "license": "MIT",
   "repository": {
@@ -41,10 +41,10 @@
     "@earendil-works/pi-agent-core": "1.3.0",
     "@earendil-works/pi-ai": "1.3.0",
     "ajv": "8.18.0",
-    "coremind-config": "1.2.0",
-    "coremind-protocol": "1.2.0",
-    "coremind-templates": "1.2.0",
-    "coremind-tools": "1.2.0",
+    "coremind-config": "1.3.0",
+    "coremind-protocol": "1.3.0",
+    "coremind-templates": "1.3.0",
+    "coremind-tools": "1.3.0",
     "xstate": "5.32.5"
   }
 }

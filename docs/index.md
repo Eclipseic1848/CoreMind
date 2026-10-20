@@ -31,11 +31,13 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前发布线：`1.2.0`
+## 当前发布线：`1.3.0`
 
-[从 1.0.1 直接升级](migrations/1.0-to-1.2.zh-CN.md) · [1.2 发布说明](release/notes/v1.2.0.md)
+[从 1.2 升级](migrations/1.2-to-1.3.zh-CN.md) · [1.3 发布说明](release/notes/v1.3.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-> `1.2.0` 发布线从 `1.0.1` 直接升级，纳入未独立发布的 1.1 开发成果：标准 Skill、持久控制、受控 MCP/显式 OAuth、工具发现与终端证据；同时包含 Session、最终工具参数、模型请求、自定义认证、输出交付、重复 Call 身份、日志处理、Python 通知消费、项目脚本加载信任和终端编辑。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
+> `1.3.0` 发布线从已发布的 `1.2.0` 升级，修复内部持久状态保护、并行失败收尾、Python 延迟注解、Workflow 步骤输出、Diff grader、Protocol v2 错误身份、Web 正文释放、readline 显式退出及 doctor 凭据诊断，并同步安全策略。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
+
+### 继承自 1.2 的能力
 
 - 标准 `SKILL.md` 索引、按需加载和冻结快照恢复。
 - 同 Run 持久 `/steer`、`/follow-up` 与五态控制回执。

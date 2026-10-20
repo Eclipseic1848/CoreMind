@@ -1,6 +1,8 @@
 # Release Candidate Acceptance Guide
 
-The current acceptance target is the `1.1.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
+The current acceptance target is the `1.3.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
+
+Recheck #324–#333 through the existing matrix and module regressions. See the [complete release notes](notes/v1.3.0.md) and [1.2→1.3 migration](../migrations/1.2-to-1.3.en.md) for scope and boundaries. P01-P20 and the original strict qualification requirements remain unchanged.
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
@@ -43,7 +45,7 @@ Run `npm run baseline:check` before the RC matrix. It rebuilds every public pack
 | P19 | Python wheel contents and Worker | Artifacts |
 | P20 | Real Windows and Linux pseudoterminals | TUI |
 
-## 1.1.0 feature rechecks and compatibility boundaries
+## 1.3.0 feature rechecks and compatibility boundaries
 
 Verify these journeys against the same candidate version, commit, and actual artifacts. They supplement P01-P20 and do not replace live Provider, both-platform, or post-publication public reinstall evidence:
 
@@ -103,4 +105,4 @@ For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict
 
 ## Completion
 
-The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to this version, final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body. Tagging and publishing still follow the [Release SOP](README.en.md).
+The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to 1.3.0, its final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body. Tagging and publishing still follow the [Release SOP](README.en.md).

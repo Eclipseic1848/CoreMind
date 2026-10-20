@@ -2,13 +2,19 @@
 
 This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site at one version and stability level. When reusing a candidate, the manifest distinguishes the package build commit from the release commit.
 
-> The `1.2.0` release line upgrades directly from `1.0.1` and includes unpublished 1.1 development. This page describes strict release qualification and recovery. Live GitHub Release, npm, and PyPI pages and same-commit qualification evidence determine public availability; source code, engineering CI, and synchronized documentation do not establish publication.
+> Current preparation targets `1.3.0`, upgrading from published `1.2.0` and covering the ten fixes in #324–#333. This page describes strict qualification and recovery. Preparation, source code, engineering CI, and synchronized documentation do not establish publication; live GitHub Release, npm, and PyPI pages and same-commit qualification evidence determine public availability.
 
-[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.0.1→1.2 migration](../migrations/1.0-to-1.2.en.md) · [1.2 release notes](notes/v1.2.0.md)
+[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.2→1.3 migration](../migrations/1.2-to-1.3.en.md) · [1.3 release notes](notes/v1.3.0.md)
 
 ## Historical release decisions
 
 Version `0.7.1` used the separately approved fixed artifacts from [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153), retaining their original build provenance and `providerCertification: not-run`. The `0.7.0` network exception and `0.7.1` offline promotion explain historical artifacts only; neither applies to `1.0.1` or `1.2.0`. Do not restart those releases or overwrite their artifacts.
+
+## 1.3.0 release preparation and upgrade boundaries
+
+The ten accepted fixes cover framework-state protection, parallel termination and step output, Python annotations, Diff grading, v2 startup errors, Web-body cleanup, readline exit, doctor credentials, and security documentation. See the [current-version changelog](../../CHANGELOG.en.md#130) and [migration guide](../migrations/1.2-to-1.3.en.md) for the complete scope.
+
+Prepare versions, documentation, engineering, and offline gates in the Release Please draft PR. After merge, freeze main and obtain strict qualification bound to the final 1.3.0 commit, Runtime/Worker, and exact artifacts. Neither 1.2.0 certification nor historical exceptions qualify this release. Unknown effects still require human reconciliation; existing Config/Protocol compatibility and capability checks remain.
 
 ## The 1.2.0 release line and upgrade boundaries
 
@@ -33,22 +39,22 @@ Create protected GitHub environments named `npm` and `pypi`, both requiring main
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `1.2.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `1.3.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 Before continuing, verify that a release PR actually exists for the target version and expected branch with `isDraft=true`; workflow success alone is insufficient. If none exists, first reconcile older unpublished or unsynchronized release PRs; never skip the draft and proceed directly to qualification.
 
 ```powershell
-npm run release:sync-version -- 1.2.0
+npm run release:sync-version -- 1.3.0
 npm run release:preflight -- --allow-dirty
 ```
 
 ### Freeze and review the Release body
 
-Review the complete Chinese and English text in `docs/release/notes/v1.2.0.md` with the version freeze, covering accepted capabilities, completion of remaining targets, direct migration from 1.0.1, actual validation, and uncovered limits. Version and Tag are fixed in the template, and `{{RELEASE_COMMIT}}` occurs exactly once. Rendering injects only the verified 40-character commit SHA; it does not assemble content from PR titles, commit titles, or the automatic Release Notes API, avoiding a self-referential source commit.
+Review the complete Chinese and English text in `docs/release/notes/v1.3.0.md` with the version freeze, covering all ten #324–#333 changes, the full current-version CHANGELOG and key highlights, migration from 1.2, actual validation, and uncovered limits. Version and Tag are fixed in the template, and `{{RELEASE_COMMIT}}` occurs exactly once. Rendering injects only the verified 40-character commit SHA; it does not assemble content from PR titles, commit titles, or the automatic Release Notes API, avoiding a self-referential source commit.
 
 Validate the template and Tag/HEAD identity before any public Registry or Release write. Recheck the artifact manifest in the Release stage and create the Release from the fixed output file through `gh release create --notes-file`. Missing, empty, mismatched, or unknown template fields stop the operation without falling back to `--generate-notes`. When resuming an existing Release, compare its body with the text rendered for the same identity before uploading missing assets. Only explicit CRLF/LF and final-terminating-newline differences are allowed; a different or missing body or an unknown query result stops recovery, without automatic editing or replacement. Existing asset-hash, build-once, and recovery gates remain active. Notes control never removes real dependencies, copyrights, licenses, or NOTICE files.
 
-Windows MCP startup uses fixed Job assets and a thin launcher while retaining the original 15-second call and 60-second connection gates. Formal publication requires strict Provider, both-platform engineering/stability/coverage/real PTY, and public download/reinstall evidence bound to the final commit and exact artifacts. Do not copy older run IDs, W/F identities, coverage, or test counts into a 1.2 conclusion.
+Windows MCP startup uses fixed Job assets and a thin launcher while retaining the original 15-second call and 60-second connection gates. Formal publication requires strict Provider, both-platform engineering/stability/coverage/real PTY, and public download/reinstall evidence bound to the final commit and exact artifacts. Do not copy older run IDs, W/F identities, coverage, or test counts into a 1.3 conclusion.
 
 Both-platform CI on an ordinary feature branch may explicitly use `--defer-provider-certification` on both `release:preflight` and the nested `acceptance:rc` command. This defers only the requirement that the in-development Runtime already have a live-provider certification. The mode must emit a warning, cannot be passed bare by a release operator, and cannot be enabled through an environment variable. The publication workflow first verifies an external strict-provider Artifact against the candidate commit, version, Runtime build, and bundled Worker, then uses defer internally to replace the checked-in ledger check. It verifies the final npm package digest before generating the release manifest; every other release gate remains active.
 
@@ -77,7 +83,7 @@ P0-17 stores the maintainer's read-only `main` ruleset export and bypass actor i
 
 Property tests must use repository-fixed seeds, and host-capability discovery must be exercised through injectable deterministic cases. If the same commit produces coverage drift across repeats or runners, remove the test nondeterminism before changing any floor.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.2.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `1.3.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -107,4 +113,4 @@ Stop on any build, acceptance, OIDC, registry, attestation, or Release failure. 
 
 ## Current candidate sequencing
 
-Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.2.0.
+Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 1.3.0.

@@ -4,6 +4,49 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## 1.3.0
+
+This section records `1.3.0` release preparation and the ten accepted, merged fixes in #324–#333; it does not establish public publication. See the [fixed bilingual release notes](docs/release/notes/v1.3.0.md) and [1.2→1.3 migration guide](docs/migrations/1.2-to-1.3.en.md).
+
+### Security Fixes
+
+- **Framework-state protection:** unified authorization protects framework-managed persistent state by canonical target. Ordinary business tools cannot bypass it through `ask`, `assisted`, `full`, or an explicit allow. Ordinary tool writes to existing multiply hard-linked files are also rejected; legitimate business files and host maintenance interfaces retain their roles. This is path protection, not an OS sandbox for arbitrary host code. ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
+
+### Bug Fixes
+
+#### Runtime and Workflow
+
+- **Parallel termination and admission:** the first failure or pause in an ordinary `parallel` substep cancels its siblings and waits for settlement while preserving the first error. No new model calls are admitted after the Run ends. Started operations retain receipts; cancellation is not rollback. All-success results still aggregate in declaration order. ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
+- **Step-output boundaries:** Workflow `prompt`/`call` retains the same Session history as model context, while step output, `saveAs`, subsequent interpolation, and transcript contain only assistant text newly produced by that step, without repeating earlier replies. ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
+- **V2 startup-error identity:** Runtime initialization failures after Run acceptance persist the shared classification's stable code, corresponding outcome status, and safe message for `query`/`events`, rather than replacing every failure with `agent_failed`. Unknown exceptions pause as `unclassified_error` and require human audit, without exposing credentials or raw stacks or establishing that direct resume is safe. ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
+
+#### Python tool bridge
+
+- **Deferred parameter annotations:** v1 `@client.tool` automatic schemas resolve future/string annotations for `int`, `str`, `bool`, and existing supported containers. Unresolvable forward references explicitly require `parameters`. Existing Node conversion still precedes validation; arguments that remain invalid are rejected before callable execution. Explicit schemas remain compatible without expanding complex typing support. ([#326](https://github.com/Eclipseic1848/CoreMind/issues/326))
+
+#### Evaluation
+
+- **Diff grader:** `preserveExisting: false` only disables protection of existing dirty content. `allowedPaths`, `forbiddenPaths`, `requiredPaths`, and `maxChangedFiles` still use baseline-to-final status or content differences. Dirty files with unchanged status and content do not count; deleting a file untracked at baseline does. Existing stage/unstage counting and default `true` protection remain unchanged. ([#328](https://github.com/Eclipseic1848/CoreMind/issues/328))
+
+#### Web tools
+
+- **Response-body settlement:** on non-2xx responses or body-read failures, `web-fetch`/`web-search` await body cancellation/release cleanup attempts before settling local network activity. Cleanup failures preserve the original HTTP/read error. Success, cancellation, permissions, network policy, and the existing `web-fetch` 2 MiB body limit remain unchanged. ([#330](https://github.com/Eclipseic1848/CoreMind/issues/330))
+
+#### CLI
+
+- **Explicit readline exit:** `/exit` and `!exit` match the TUI by requesting active-Run cancellation before waiting for cleanup. Ordinary piped EOF still lets an already-started response finish naturally. Existing idle-exit, approval-wait, and MCP-login-wait behavior remains; cancellation does not roll back started tool effects. ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
+- **Doctor credential policy:** configured diagnostics reuse the selected Provider's existing checks. Legitimate anonymous/Header-only custom endpoints require no unrelated API key; explicit missing credentials still fail, and built-in authentication requirements are not relaxed. General diagnostics without a config remain. Checks neither load project scripts nor send Provider requests; passing does not prove credential validity, connectivity, or certification. ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
+
+### Documentation
+
+- **Security-policy version status:** bilingual SECURITY tables link to the latest official Release and identify 1.2.0 and existing hardening as shipped. The `0.3.1` critical-security exception, private disclosure process, and existing safety boundaries remain; this round's new protections are not attributed to older releases. ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
+
+- **Release materials and validation:** synchronize 1.3.0 package versions, module and TTY templates, freeze the bundled Worker, add bilingual migration and release materials, and include the new fixed notes in existing regression checks. Publication still requires final-commit strict qualification and public reinstall checks. ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334))
+
+### Compatibility and publication boundaries
+
+Config/Protocol versions do not change: Config v2/v3, Protocol v1/v2, and the unified Node Runtime remain. `ToolPolicy` gains optional `protectedPaths` constructor entries, and the `identity` argument of `authorize()` gains optional `signal?: AbortSignal`; existing calls remain compatible. Upgrade the SDK and bundled Worker together and retain existing fingerprint checks. Formal publication still requires strict Provider, both-platform engineering/stability/coverage/real PTY, and public download/reinstall evidence bound to the final main commit, current version, Runtime/Worker, and exact artifacts. Older certification, historical exceptions, and individual CI runs do not qualify this release; external effects still require human reconciliation.
+
 ## 1.2.0
 
 Unpublished 1.1 development is included in 1.2; public users migrate directly from 1.0.1. See the [bilingual release notes](docs/release/notes/v1.2.0.md) and [migration guide](docs/migrations/1.0-to-1.2.en.md).
