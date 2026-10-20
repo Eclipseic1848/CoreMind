@@ -96,7 +96,7 @@ function chatSession() {
   } as unknown as ChatSession;
 }
 
-it.each(["cancel", "eof", "sigint"] as const)(
+it.each(["cancel", "eof", "sigint", "/exit", "!exit"] as const)(
   "readline 登录等待时可 %s，命令与授权 URL 不进入模型",
   async (stop) => {
     const input = Object.assign(new PassThrough(), { isTTY: true });
@@ -120,7 +120,8 @@ it.each(["cancel", "eof", "sigint"] as const)(
       expect(session.chat).not.toHaveBeenCalled();
       if (stop === "cancel") input.write("/mcp cancel\n");
       else if (stop === "eof") input.end();
-      else process.emit("SIGINT");
+      else if (stop === "sigint") process.emit("SIGINT");
+      else input.write(`${stop}\n`);
       await vi.waitFor(() => expect(fixture.signal()?.aborted).toBe(true));
       if (stop === "cancel") {
         input.write("/mcp logout remote\n");

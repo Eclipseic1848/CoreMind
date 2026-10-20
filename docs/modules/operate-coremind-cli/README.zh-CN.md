@@ -24,6 +24,7 @@
 - `--print` 与 `--json-events` 互斥，防止自然语言污染机器输出
 - 非 TTY 审批安全拒绝
 - TUI 与 readline 使用同一 ChatSession Harness；失败终态会显示原因，不会静默结束
+- readline 的 `/exit`、`!exit` 与 TUI 一致，先请求取消活动 Run 并等待收尾。普通管道 EOF 仍等待已开始的回答自然完成；空闲退出、审批和 MCP 登录等待的既有行为保持不变。
 - TUI 忙时保留一份可编辑草稿，Enter 不提交普通输入；空闲后 Enter 确认。readline 保留第一份忙时草稿，后续输入提示未保存，不覆盖或自动执行；空闲后预填编辑并确认，未预填时用空行确认原稿
 - TUI 与 readline 均支持 `/steer 文本`、`/follow-up 文本`；空正文只显示用法。控制只交给调用时的活动 Run，未就绪、封口或错误 Run 明确拒绝；两入口的 `/abort` 与 TUI 的 `/children` 仍可用
 - 工具审批期显式控制不会批准工具；TUI 先按 `/` 进入命令模式、Esc 返回审批，命令正文 y/n 不作审批答案。权限模式和 deny 等边界不变

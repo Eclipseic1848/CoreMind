@@ -12,7 +12,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 4. Accept with check and eval.
 5. Use TUI or `--print` for reading results. In `1.0.0`, `--print` stdout contains only the body; run notices and approvals use stderr; use `--json-events` for machine consumers, and never pass both options together.
 6. Automation must check both the exit code and final `run_result`, while preserving stderr diagnostics.
-7. Inject denial, budget exhaustion, timeout, and abort, then verify `2/3/124/130` respectively.
+7. Inject denial, budget exhaustion, timeout, and abort, then verify `2/3/124/130` respectively. For readline `/exit` and `!exit`, verify that active-Run cancellation is requested before waiting for cleanup. Ordinary piped EOF must still complete naturally; retain idle-exit, approval-wait, and MCP-login-wait regressions.
 8. For an explicit Loop, inject verification failure, pause-resume, and exhaustion; compare TUI, readline, and JSONL state order.
 9. Confirm resume does not replay completed steps or committed effects and requires human reconciliation for unknown effects.
 10. Compare TUI `/status`, `/artifacts`, and `/context` with the final JSONL `snapshot`; fields must match actual files and run state.

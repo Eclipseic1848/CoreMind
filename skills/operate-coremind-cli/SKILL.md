@@ -18,4 +18,6 @@ description: "Operate or diagnose CoreMind create, run, chat, check, eval, docto
 11. Run the tests listed in [module.yaml](../../docs/modules/operate-coremind-cli/module.yaml) and `npm run check:modules`.
 12. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
+Verify that readline `/exit` and `!exit` request active-Run cancellation before waiting for cleanup, matching the TUI. Preserve natural completion on ordinary piped EOF and existing idle-exit, approval-wait, and MCP-login-wait behavior. Cancellation does not roll back tool effects already started; retain effect-receipt and recovery checks.
+
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint、Effect Receipt 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

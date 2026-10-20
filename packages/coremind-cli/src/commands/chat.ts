@@ -238,7 +238,10 @@ export async function runReadlineChat(
       const text = line.trim();
       const editedDraft = draftPrefilled;
       draftPrefilled = false;
-      if (text === "/exit" || text === "!exit") break;
+      if (text === "/exit" || text === "!exit") {
+        session.abort();
+        break;
+      }
       if (/^\/mcp(?:\s|$)/u.test(text)) {
         const command = /^\/mcp\s+(login|logout)\s+(\S+)$/u.exec(text);
         if (text === "/mcp cancel") {
