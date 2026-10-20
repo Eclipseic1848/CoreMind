@@ -27,6 +27,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - Protocol v1 remains supported in `1.2.0`; no removal schedule is approved. Protocol v2 must be selected explicitly.
 - Python callables remain a v1 bridge. Protocol v2 accepts declarative tool definitions and explicit tool results; it does not execute host Python callables.
 - In v2, `run()` first returns a RunHandle. An `accepted` control receipt does not prove the decision was applied or the Run succeeded; read the Projection outcome with `query(runId)`.
+- Runtime startup failures after v2 Run acceptance are persisted under the shared error contract. `query`/`events` expose the stable error code, corresponding outcome status, and safe message instead of replacing every failure with `agent_failed`. Unknown exceptions pause as `unclassified_error` and require human audit, without exposing credentials or raw stacks.
 - The worker stays alive instead of spawning per request
 - Tool results remain JSON-serializable across languages
 - `@client.tool` requires `effect`, and protocol registration validates the declaration

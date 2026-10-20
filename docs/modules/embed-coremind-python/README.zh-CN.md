@@ -27,6 +27,7 @@
 - `1.2.0` 继续支持 Protocol v1，且尚无批准的移除时间表；Protocol v2 必须显式选择。
 - Python callable 仍属于 v1 工具桥；Protocol v2 只接受声明式工具定义和显式工具结果，不执行宿主 Python callable。
 - v2 的 `run()` 先返回 RunHandle；`accepted` 控制回执不代表候选已应用或 Run 已成功，最终读取 `query(runId)` 的 Projection outcome。
+- v2 已接受 Run 的 Runtime 启动失败按共享错误合同持久化，可通过 `query`/`events` 查询稳定错误码、对应终态与安全消息，不统一改为 `agent_failed`。未知异常以 `unclassified_error` 保守暂停并要求人工审计，不公开凭据或原始堆栈。
 - worker 常驻复用，不为每次请求创建进程
 - 工具结果跨语言保持 JSON 可序列化
 - `@client.tool` 必须提供 `effect`；Protocol 注册会校验副作用声明

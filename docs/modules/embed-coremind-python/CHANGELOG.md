@@ -4,6 +4,8 @@
 
 - 修复 v1 `@client.tool` 对 future/字符串 `int`、`str`、`bool` 和已有容器参数注解的自动 Schema；Node 侧保留既有类型转换，转换后仍未通过 Schema 校验的参数在执行前拒绝。无法解析的前向引用明确要求显式 `parameters`，既有显式 Schema 保持兼容，复杂 typing 支持范围不扩大（#326）。
 - Fix v1 `@client.tool` automatic schemas for future/string `int`, `str`, `bool`, and existing container parameter annotations. Node preserves existing type conversion and rejects arguments that still fail schema validation before execution. Unresolvable forward references explicitly require `parameters`; existing explicit schemas remain compatible without expanding complex typing support (#326).
+- 修复 v2 已接受 Run 的 Runtime 启动失败身份：按共享错误合同持久化稳定错误码、对应终态与安全消息，供 `query`/`events` 查询；未知异常以 `unclassified_error` 暂停并要求人工审计，不公开凭据或原始堆栈（#329）。
+- Preserve Runtime startup-error identity after v2 Run acceptance: persist the shared error contract's stable code, corresponding outcome status, and safe message for `query`/`events`. Unknown exceptions pause as `unclassified_error` and require human audit without exposing credentials or raw stacks (#329).
 
 ## 1.2.0 - 2026-10-17
 

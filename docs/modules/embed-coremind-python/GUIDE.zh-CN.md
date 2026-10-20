@@ -24,6 +24,8 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 
 以上是默认 Protocol v1 示例。`0.8.0` 的宿主验收应使用 `CoreMindClient(..., protocol_version="2.0")`：`run()` 先返回 RunHandle，宿主核对 `received_verification_requests` 后用 `submit_verification` 提交决定，再用 `query(runId)` 读取最终 Projection outcome。v2 不执行 `@client.tool` Python callable；完整流程见[宿主验收示例](../../../examples/host-verification/README.md)。
 
+v2 `run()` 已返回 RunHandle 后，若后台 Runtime 初始化失败，应通过 `query(runId)` 或 `events` 读取同一 Run 的持久失败结果。已登记错误沿用共享分类的稳定错误码、对应终态与安全消息；未知异常以 `unclassified_error` 暂停，须人工审计后决定后续处理。它不同于 SDK `initialize` 调用本身抛错，不应把所有启动错误归为 `agent_failed`，也不应输出凭据或原始堆栈。
+
 在 v1 中，`effect` 会随 `register_tool` 发给共享 Runtime。非标准路径或 URL 字段可填写 `pathFields`、`urlFields`；终态在 `result['outcome']`，协议、启动与调用方错误才使用 Python 异常。
 
 省略 `parameters` 时，`@client.tool` 从参数注解生成 Schema，支持 future 或字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解（如 `list[int]`）。Node 侧先按既有规则转换再校验；例如 `int` 参数收到字符串 `'5'` 时，转换为整数 `5` 后进入 callable，转换后仍未通过 Schema 校验的参数在执行前拒绝。前向引用无法解析时会明确报错并要求显式 `parameters`；复杂 typing 仍按既有支持范围处理，需要精确约束时提供显式 Schema，既有显式 `parameters` 用法不变。

@@ -330,6 +330,9 @@ execute:async()=>({content:[{type:"text",text:"ok"}],details:{}})};
                                                 self.assertLess(time.monotonic(), deadline)
                                                 await asyncio.sleep(0.01)
                                         self.assertEqual(result["outcome"]["status"], "succeeded" if enabled else "failed")
+                                        if not enabled:
+                                            self.assertEqual(result["outcome"]["error"]["code"], "execution_security_violation")
+                                            self.assertEqual(result["outcome"]["finishReason"], "execution_security_violation")
                                     self.assertEqual((directory / "imported").exists(), enabled)
                                     self.assertEqual(len(requests) - before, 1 if enabled else 0)
                                 finally:
