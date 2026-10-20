@@ -7,6 +7,8 @@
 ## 最小示例
 
 ```text
+from __future__ import annotations
+
 with CoreMindClient(config_path='coremind.yaml') as client:
     @client.tool(
         description='查询模拟订单',
@@ -23,6 +25,8 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 以上是默认 Protocol v1 示例。`0.8.0` 的宿主验收应使用 `CoreMindClient(..., protocol_version="2.0")`：`run()` 先返回 RunHandle，宿主核对 `received_verification_requests` 后用 `submit_verification` 提交决定，再用 `query(runId)` 读取最终 Projection outcome。v2 不执行 `@client.tool` Python callable；完整流程见[宿主验收示例](../../../examples/host-verification/README.md)。
 
 在 v1 中，`effect` 会随 `register_tool` 发给共享 Runtime。非标准路径或 URL 字段可填写 `pathFields`、`urlFields`；终态在 `result['outcome']`，协议、启动与调用方错误才使用 Python 异常。
+
+省略 `parameters` 时，`@client.tool` 从参数注解生成 Schema，支持 future 或字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解（如 `list[int]`）。Node 侧先按既有规则转换再校验；例如 `int` 参数收到字符串 `'5'` 时，转换为整数 `5` 后进入 callable，转换后仍未通过 Schema 校验的参数在执行前拒绝。前向引用无法解析时会明确报错并要求显式 `parameters`；复杂 typing 仍按既有支持范围处理，需要精确约束时提供显式 Schema，既有显式 `parameters` 用法不变。
 
 如果 initialize 或任一工具注册失败，客户端会先关闭已启动的 worker，再把异常返回给调用方。仍建议使用上下文管理器或 `finally` 处理正常生命周期。
 
@@ -131,6 +135,7 @@ Async 对 `events` 使用 await，仍在处理成功后保存该 Run 的 nextCur
 8. 对 v1 校验 `result['snapshot']` 与顶层 runId、outcome、operation、metrics、trace 一致；收到 `invalid_run_snapshot` 时停止使用该 Worker。
 9. 对 v2 宿主验收，按每个 RunId 保存的 events 页 `nextCursor` 补读，拒绝候选后确认同一 Run 修复，并区分控制回执与最终 outcome。
 10. 对 v2 输入控制分别验证 sync/async、重复/冲突、取消丢弃与下一 Run 无队列泄漏，保留真实请求及输入事件证据。
+11. 对 v1 自动 Schema 覆盖 future/字符串 `int`、`str`、`bool` 与已有容器注解，确认 Node 保留既有类型转换，可转换值以目标类型进入 callable，转换后仍未通过 Schema 的参数在执行前拒绝；无法解析的前向引用要求显式 `parameters`，原显式 Schema 仍可使用。
 
 ## 常见误区
 

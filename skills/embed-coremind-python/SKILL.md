@@ -18,4 +18,6 @@ description: "Drive the same Node runtime and explicit Loop over stdio JSON-RPC 
 11. Run the tests listed in [module.yaml](../../docs/modules/embed-coremind-python/module.yaml) and `npm run check:modules`.
 12. Stop on a security failure or non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
+For v1 `@client.tool` automatic schemas, verify future/string `int`, `str`, `bool`, and existing container annotations. Preserve existing Node conversion before schema validation: convertible values reach the callable in the target type, and arguments that still fail validation are rejected before execution. Unresolvable forward references must explicitly require `parameters`; existing explicit schemas remain compatible. Do not claim support for all Python typing syntax; complex types retain the existing support limits.
+
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint、Effect Receipt 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

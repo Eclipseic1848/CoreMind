@@ -30,6 +30,7 @@
 - worker 常驻复用，不为每次请求创建进程
 - 工具结果跨语言保持 JSON 可序列化
 - `@client.tool` 必须提供 `effect`；Protocol 注册会校验副作用声明
+- v1 `@client.tool` 自动 Schema 支持 `from __future__ import annotations` 和字符串形式的 `int`、`str`、`bool` 及既有支持范围内的容器注解；Node 侧按既有规则先转换再校验 Schema，可转换值以目标类型进入 callable，转换后仍未通过校验的参数在执行前拒绝。无法解析的前向引用会明确要求显式 `parameters`；显式 Schema 保持兼容，复杂类型仍受既有支持范围限制。
 - 初始化或工具注册失败时客户端立即关闭 worker，不遗留半启动进程
 - v1 的 `run`/`chat` 结果与 TypeScript 使用同一套六种终态；v2 先返回 RunHandle，再通过 Projection 查询终态
 - resume_run 复用 Node Runtime 的同一安全恢复判定，可继续暂停或意外中断运行

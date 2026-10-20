@@ -26,6 +26,7 @@ examplePaths:
   - examples/modules/embed-coremind-python/README.en.md
 testPaths:
   - "python/tests/test_client.py"
+  - "python/tests/test_tool_annotations.py"
   - "python/tests/test_node_parity.py"
   - "packages/coremind-worker/src/server.test.ts"
   - "packages/coremind-protocol/src/protocol.test.ts"

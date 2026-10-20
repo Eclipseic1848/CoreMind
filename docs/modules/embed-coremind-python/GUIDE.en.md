@@ -7,6 +7,8 @@ Drive the same Node runtime over stdio JSON-RPC from Python. Default Protocol v1
 ## Minimal example
 
 ```text
+from __future__ import annotations
+
 with CoreMindClient(config_path='coremind.yaml') as client:
     @client.tool(
         description='查询模拟订单',
@@ -23,6 +25,8 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 The example above uses default Protocol v1. For host verification in `0.8.0`, use `CoreMindClient(..., protocol_version="2.0")`: `run()` first returns a RunHandle; check `received_verification_requests`, submit the host decision with `submit_verification`, and read the final Projection outcome with `query(runId)`. V2 does not execute `@client.tool` Python callables. See the [host verification example](../../../examples/host-verification/README.en.md).
 
 In v1, `effect` travels with `register_tool` to the shared runtime. Use `pathFields` and `urlFields` for non-standard arguments. Terminal states live in `result['outcome']`; Python exceptions remain for protocol, startup, and caller failures.
+
+When `parameters` is omitted, `@client.tool` builds a schema from parameter annotations, including future or string annotations for `int`, `str`, `bool`, and existing supported containers such as `list[int]`. Node applies existing conversion rules before validation: for an `int` parameter, the string `'5'` becomes the integer `5` before reaching the callable. Arguments that still fail schema validation after conversion are rejected before execution. An unresolvable forward reference fails explicitly and requires `parameters`. Complex typing retains the existing support limits; provide an explicit schema for precise constraints. Existing explicit `parameters` usage remains unchanged.
 
 If initialization or any tool registration fails, the client closes the started worker before returning the exception. Continue to use a context manager or `finally` for the normal lifecycle.
 
@@ -131,6 +135,7 @@ Await events() with the async client and retain the same per-Run commit order. C
 8. For v1, verify `result['snapshot']` matches top-level runId, outcome, operation, metrics, and trace. Stop using a Worker that reports `invalid_run_snapshot`.
 9. For v2 host verification, catch up with `events` using each RunId’s returned `nextCursor`, confirm rejection repairs within the same Run, and distinguish control receipts from the final outcome.
 10. For v2 input controls, verify sync/async, duplicate/conflict, cancellation discard, and no queue leakage into the next Run, retaining real request and input-event evidence.
+11. For v1 automatic schemas, cover future/string `int`, `str`, `bool`, and existing container annotations. Confirm Node preserves existing type conversion, convertible values reach the callable in the target type, and arguments that still fail schema validation are rejected before execution. Unresolvable forward references require explicit `parameters`, and existing explicit schemas must still work.
 
 ## Common mistakes
 
