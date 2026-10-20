@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+- 修复 Diff grader 在 `preserveExisting: false` 时的差异判定：只关闭既有脏内容保护，路径与文件数约束继续按基线和终态的状态或内容差异执行；状态和内容均未变化的既有脏文件不计，原 untracked 文件删除计入变化，默认 `true` 保护不变（#328）。
+- Fix Diff grader change detection with `preserveExisting: false`: only pre-existing dirty-content protection is disabled; path and file-count constraints still use baseline-to-final status or content differences. Dirty files with unchanged status and content do not count, deleting a previously untracked file does, and default `true` protection remains unchanged (#328).
 - Added artifact-verified paired evaluation with isolated cells, complete failure accounting, and separate startup, stream, cancellation, and size measurements.
 - Documented immutable inputs, unavailable metrics, local fixture limits, and reproducible raw reports without automatic review approval.
 

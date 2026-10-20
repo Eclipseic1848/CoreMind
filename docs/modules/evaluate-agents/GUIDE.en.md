@@ -55,6 +55,8 @@ scenarios:
 
 The seven grader types validate outcome, tool trajectory, commands, files, Git diff, runtime state, and final response. Evaluation captures file and dirty-worktree baselines first. Commands do not use shell concatenation, and paths cannot escape the workspace.
 
+Setting the diff grader's `preserveExisting` to `false` only disables protection of pre-existing dirty content; it does not disable `allowedPaths`, `forbiddenPaths`, `requiredPaths`, or `maxChangedFiles`. Those constraints still use status or content differences between the baseline and final state: dirty files with unchanged status and content do not count as changes, while deleting a previously untracked file does. Omitting the field or setting it to `true` keeps existing dirty content protected.
+
 ## Lightweight experiments
 
 ```ts

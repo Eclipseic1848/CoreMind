@@ -25,6 +25,7 @@ Separate runtime outcome, metrics, business evaluation, and release readiness wh
 - Strict scenarios run at least three times
 - schemaVersion 2 requires at least one `outcome` grader and allows at most 20 graders per scenario
 - Command, file, and diff evaluation enforce workspace, output, and timeout limits; pre-existing dirty-worktree content is preserved by default
+- Diff grader `preserveExisting: false` only disables protection of pre-existing dirty content. `allowedPaths`, `forbiddenPaths`, `requiredPaths`, and `maxChangedFiles` still use status or content differences between the baseline and final state: dirty files with unchanged status and content do not count as changes, while deleting a previously untracked file does. The default `true` protection remains unchanged.
 - Arm assignment is deterministic from experiment id, version, seed, and input fingerprint; it is reproducible and is not presented as cryptographic randomness
 - Every experiment record binds version, environment, input fingerprint, arm, terminal outcome, complete trace, and grader results
 
