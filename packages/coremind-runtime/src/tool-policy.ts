@@ -1,4 +1,4 @@
-import { realpath } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import {
   type PermissionsConfig,
@@ -13,7 +13,7 @@ import {
   type ResolvedToolCapability,
   resolveToolCapability,
 } from "coremind-tools";
-import { resolveFileToolTarget } from "coremind-tools/internal";
+import { assertSingleLinkWriteTarget, resolveFileToolTarget } from "coremind-tools/internal";
 import { DELEGATION_DISPOSITION_TOOL_NAME, DELEGATION_TOOL_NAME } from "./delegation-tool.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
 import { collectDeclaredStringFields } from "./tool-effect-selectors.js";
@@ -61,6 +61,11 @@ export interface ToolPolicyOptions {
   approve?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
   createApprovalId: () => string;
   allowedPaths?: readonly string[];
+  /** Runtime 绑定的框架状态；命名空间用于兼容状态与业务文件混放。 */
+  protectedPaths?: readonly (
+    | string
+    | { path: string; contains: (relativePath: string) => boolean }
+  )[];
   platform?: NodeJS.Platform;
   onApprovalRequired?: (request: ToolApprovalRequest) => void;
   onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
@@ -217,6 +222,23 @@ export class ToolPolicy {
       }
     }
 
+    if (effect.operations.includes("write") && this.options.protectedPaths?.length) {
+      if (effect.paths.length === 0) {
+        return { allowed: false, reason: `工具 ${tool} 未暴露可检查的写入目标，无法保护框架状态` };
+      }
+      try {
+        const protectedPath = await this.findProtectedPath(effect.paths);
+        if (protectedPath) {
+          return {
+            allowed: false,
+            reason: `普通业务工具不得改写框架状态或其父目录：${protectedPath}`,
+          };
+        }
+      } catch {
+        return { allowed: false, reason: "无法确认框架状态写入边界，已拒绝" };
+      }
+    }
+
     const networkTool =
       capability.effect === "network" || capability.effect === "external" || effect.urls.length > 0;
     if (networkTool && this.permissions.network === "deny") {
@@ -341,6 +363,29 @@ export class ToolPolicy {
     }
     return undefined;
   }
+
+  private async findProtectedPath(candidates: string[]): Promise<string | undefined> {
+    const protectedPaths = await Promise.all(
+      (this.options.protectedPaths ?? []).map(async (entry) => ({
+        path: await canonicalize(typeof entry === "string" ? entry : entry.path, true),
+        contains: typeof entry === "string" ? undefined : entry.contains,
+      })),
+    );
+    for (const candidate of candidates) {
+      const target = await canonicalize(path.resolve(this.options.cwd, candidate), true);
+      await assertSingleLinkWriteTarget(target);
+      for (const entry of protectedPaths) {
+        if (!isOutside(target, entry.path)) return candidate;
+        if (
+          !isOutside(entry.path, target) &&
+          (!entry.contains || entry.contains(path.relative(entry.path, target)))
+        ) {
+          return candidate;
+        }
+      }
+    }
+    return undefined;
+  }
 }
 
 function delegationTarget(args: unknown): string | undefined {
@@ -456,7 +501,7 @@ function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
-async function canonicalize(input: string): Promise<string> {
+async function canonicalize(input: string, strict = false): Promise<string> {
   let current = path.resolve(input);
   const missing: string[] = [];
   while (true) {
@@ -465,7 +510,19 @@ async function canonicalize(input: string): Promise<string> {
       return path.join(existing, ...missing.reverse());
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
-      if (code !== "ENOENT") return current;
+      if (code !== "ENOENT") {
+        if (strict) throw error;
+        return current;
+      }
+      if (strict) {
+        try {
+          if ((await lstat(current)).isSymbolicLink()) {
+            throw new Error("悬空符号链接无法安全解析，已拒绝");
+          }
+        } catch (inspectionError) {
+          if ((inspectionError as NodeJS.ErrnoException).code !== "ENOENT") throw inspectionError;
+        }
+      }
       const parent = path.dirname(current);
       if (parent === current) return path.resolve(input);
       missing.push(path.basename(current));

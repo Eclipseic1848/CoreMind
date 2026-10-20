@@ -22,6 +22,7 @@ The three modes decide who approves; they never override explicit policy:
 | Declared low-risk read/write inside the workspace | Prompt | Auto-approve | Auto-approve |
 | Network policy is `ask` | Prompt | Prompt | Prompt |
 | Explicit deny or escaped path | Deny | Deny | Deny |
+| Ordinary business tools modifying framework-managed persistent state | Deny | Deny | Deny |
 | Windows shell with workspace restriction or network not allowed | Deny | Deny | Deny |
 | Windows shell with open workspace and allowed network | Deny | Deny | Execute without OS isolation |
 | Undeclared custom effect while restrictions apply | Deny | Deny | Deny |
@@ -34,6 +35,8 @@ The three modes decide who approves; they never override explicit policy:
 4. Inspect failure status, budgets, traces, approvals, and checkpoints instead of judging only fluent text.
 5. On Windows, verify file tools still work and that `bash` is denied in ask, assisted, or whenever one restriction remains. With all three conditions open, confirm a real Git Bash or PowerShell is selected and trace, checkpoints, and audit remain active.
 6. Verify that `..`, outside absolute paths, another drive, UNC paths, and directory links pointing outside the workspace are all denied.
+   Also verify that business tools cannot modify canonical framework-state targets or their directory aliases, while legitimate business files and `.coremind/decisions.md` remain writable under the existing policy. This path protection is not OS isolation for arbitrary host code.
+   Business-tool writes to existing files with multiple hard links are denied to avoid changing data through another alias. Reads retain their existing policy; the host must explicitly resolve the link relationship before a write.
 7. In ask mode, deny the first real tool approval. Confirm exactly one model request and one approval, zero file side effects, and a `paused` outcome. Then use a two-step sequential workflow to confirm that the denied step saves no output and the second step never starts. Do not wait for repeated denials to exhaust a generic turn budget.
 
 ## Common mistakes

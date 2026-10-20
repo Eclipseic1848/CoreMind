@@ -28,6 +28,7 @@ examplePaths:
   - examples/modules/enforce-agent-permissions/README.en.md
 testPaths:
   - "packages/coremind-runtime/src/tool-policy.test.ts"
+  - "packages/coremind-runtime/src/state-write-protection.acceptance.test.ts"
   - "packages/coremind-runtime/src/runtime.test.ts"
   - "packages/coremind-cli/src/approval.test.ts"
   - "packages/coremind-tools/src/linux-sandbox.test.ts"

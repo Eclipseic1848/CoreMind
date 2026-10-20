@@ -18,7 +18,7 @@ export {
   resolveExecutionEnvironment,
   tightenExecutionEnvironmentRequirement,
 } from "./execution-environment.js";
-export { resolveFileToolTarget } from "./file-target.js";
+export { assertSingleLinkWriteTarget, resolveFileToolTarget } from "./file-target.js";
 export {
   bindMcpAuthentication,
   createMcpAuthenticationEngine,

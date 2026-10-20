@@ -191,6 +191,7 @@ import { RunKernel } from "./run-kernel.js";
 import {
   FileRunStore,
   fingerprintRunConfig,
+  isManagedRunPath,
   RunStateJournal,
   type RunStateRecord,
   type RunStore,
@@ -202,6 +203,7 @@ import {
   CoreMindSession,
   copySessionHistory,
   historySessionSnapshot,
+  isManagedSessionPath,
   openWritableSession,
   rememberSessionHistory,
   sessionSnapshot,
@@ -2292,6 +2294,27 @@ export class CoreMindRuntime {
     const policy = new ToolPolicy({
       permissions: this.config.permissions,
       allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
+      protectedPaths: [
+        path.resolve(this.options.configDir, ".coremind", "runs"),
+        path.resolve(this.options.configDir, ".coremind", "checkpoints"),
+        path.resolve(this.options.configDir, ".coremind", "quality-overrides.jsonl"),
+        path.resolve(this.options.cwd ?? process.cwd(), ".coremind", "quality-overrides.jsonl"),
+        path.resolve(this.options.cwd ?? process.cwd(), ".coremind", "artifacts"),
+        path.resolve(this.options.cwd ?? process.cwd(), ".coremind", "leases"),
+        ...(runStore instanceof FileRunStore
+          ? [{ path: path.resolve(runStore.directory), contains: isManagedRunPath }]
+          : runStore.pathFor
+            ? [path.resolve(runStore.pathFor(runId))]
+            : []),
+        ...(this.config.session?.enabled
+          ? [
+              {
+                path: sessionDir(this.config, this.options.configDir),
+                contains: isManagedSessionPath,
+              },
+            ]
+          : []),
+      ],
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,

@@ -28,6 +28,7 @@ import {
   type SessionContext,
   shouldCompact,
 } from "./session-v4/index.js";
+import { isJsonlSessionStoragePath } from "./session-v4/session/jsonl/repo.js";
 import {
   acquireSessionWriteLease,
   assertSessionWriteLease,
@@ -37,6 +38,14 @@ import {
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
+
+/** 仅供 Runtime 保护公开别名、锁、备份及内部会话目录，保留业务兄弟文件。 */
+export function isManagedSessionPath(relativePath: string): boolean {
+  return (
+    isJsonlSessionStoragePath(relativePath) ||
+    /^[a-zA-Z0-9_-]+\.jsonl(?:[./\\]|$)/iu.test(relativePath)
+  );
+}
 
 function assertValidSessionId(sessionId: string): void {
   if (!SESSION_ID_RE.test(sessionId)) {

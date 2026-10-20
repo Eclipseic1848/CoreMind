@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- 普通业务工具写入前统一保护框架持久状态；保留合法业务文件和宿主恢复接口的既有行为。
+- Protect framework-managed persistent state before business-tool writes while preserving legitimate business files and host restore APIs.
+- 现存多硬链接文件的普通工具写入失败关闭，执行前复核文件身份；读取与单链接业务文件写入保持原权限。
+- Fail closed on business-tool writes to existing files with multiple hard links and recheck before execution; reads and single-link business-file writes retain their existing policy.
+
 ## 1.2.0 - 2026-10-17
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

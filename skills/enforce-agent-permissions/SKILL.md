@@ -10,6 +10,7 @@ description: "Enforce ask, assisted, and full approval modes while distinguishin
 3. Follow [the SOP](../../docs/modules/enforce-agent-permissions/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Resolve the structured ToolEffect before approval. Test nested paths, URLs, absolute paths, drives, UNC paths, and directory links, and reject undeclared effects when restrictions cannot be proven.
+   Keep framework-managed persistent state outside ordinary business-tool writes in every approval mode; test canonical aliases and parent targets while preserving legitimate business-file writes. Do not claim OS isolation for arbitrary host code.
 6. On Windows, fail closed unless full mode, open workspace access, and allowed network are all explicit. Treat Git Bash as interpreter compatibility rather than isolation, and prefer path-aware tools or an isolated Linux environment when restrictions are required.
 7. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
 8. When testing ask mode, make a deterministic provider repeat the same tool request. Deny the first approval and require one model request, one approval, zero side effects, and a paused outcome. In a sequential workflow, require that the denied step saves no output and no later step starts; a human denial must never consume later model turns or workflow steps.

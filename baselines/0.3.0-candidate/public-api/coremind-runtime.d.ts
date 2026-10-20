@@ -3261,6 +3261,7 @@ export declare class ToolPolicy {
     }): Promise<ToolPolicyDecision>;
     private findEscapedPath;
     private findOutsideAllowedPaths;
+    private findProtectedPath;
 }
 
 export declare interface ToolPolicyDecision {
@@ -3277,6 +3278,11 @@ declare interface ToolPolicyOptions {
     approve?: (request: ToolApprovalRequest) => Promise<ApprovalDecision>;
     createApprovalId: () => string;
     allowedPaths?: readonly string[];
+    /** Runtime 绑定的框架状态；命名空间用于兼容状态与业务文件混放。 */
+    protectedPaths?: readonly (string | {
+        path: string;
+        contains: (relativePath: string) => boolean;
+    })[];
     platform?: NodeJS.Platform;
     onApprovalRequired?: (request: ToolApprovalRequest) => void;
     onApprovalResolved?: (request: ToolApprovalRequest, decision: ApprovalDecision) => void;
