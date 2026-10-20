@@ -100,14 +100,22 @@ export class Orchestrator {
     return this.outputs;
   }
 
-  private async runSteps(steps: WorkflowStep[], depth: number): Promise<void> {
+  private async runSteps(
+    steps: WorkflowStep[],
+    depth: number,
+    signal = this.signal,
+  ): Promise<void> {
     for (const step of steps) {
-      await this.runStep(step, depth);
+      await this.runStep(step, depth, signal);
     }
   }
 
-  private async runStep(step: WorkflowStep, depth: number): Promise<StepOutput> {
-    if (this.signal?.aborted) {
+  private async runStep(
+    step: WorkflowStep,
+    depth: number,
+    signal = this.signal,
+  ): Promise<StepOutput> {
+    if (signal?.aborted) {
       throw new CoreMindError("aborted", "执行已中止");
     }
     const completed = this.completedSteps.get(step.id);
@@ -121,13 +129,13 @@ export class Orchestrator {
     switch (step.type) {
       case "prompt":
       case "call":
-        return this.runAgentStep(step, depth);
+        return this.runAgentStep(step, depth, signal);
       case "parallel":
-        return this.runParallelStep(step, depth);
+        return this.runParallelStep(step, depth, signal);
       case "if":
-        return this.runIfStep(step, depth);
+        return this.runIfStep(step, depth, signal);
       case "switch":
-        return this.runSwitchStep(step, depth);
+        return this.runSwitchStep(step, depth, signal);
     }
   }
 
@@ -138,6 +146,7 @@ export class Orchestrator {
   private async runAgentStep(
     step: Extract<WorkflowStep, { type: "prompt" | "call" }>,
     _depth: number,
+    signal?: AbortSignal,
   ): Promise<StepOutput> {
     const retryCfg = step.retry;
     const maxAttempts = 1 + (retryCfg?.max ?? 1);
@@ -146,7 +155,7 @@ export class Orchestrator {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const input = this.interpolate(step.input);
-        const text = await this.promptWithTimeout(step.agent, input, step.id);
+        const text = await this.promptWithTimeout(step.agent, input, step.id, signal);
         const output: StepOutput = { text, metadata: { agent: step.agent, stepId: step.id } };
 
         const retryNeeded =
@@ -207,14 +216,17 @@ export class Orchestrator {
     agentName: string,
     input: string,
     stepId: string,
+    parentSignal?: AbortSignal,
   ): Promise<string> {
     const timeoutMs = this.stepTimeoutMs;
     const controller = new AbortController();
-    const signal = this.signal
-      ? AbortSignal.any([this.signal, controller.signal])
+    const signal = parentSignal
+      ? AbortSignal.any([parentSignal, controller.signal])
       : controller.signal;
     let agent: AgentDriver | undefined;
     let timer: NodeJS.Timeout | undefined;
+    const onAbort = () => agent?.abort();
+    signal.addEventListener("abort", onAbort, { once: true });
     const run = (async () => {
       signal.throwIfAborted();
       agent = await this.createAgent(agentName, stepId, signal);
@@ -230,6 +242,7 @@ export class Orchestrator {
       }
       await agent.prompt(input);
       await agent.waitForIdle();
+      signal.throwIfAborted();
       return extractSuccessfulText(agent);
     })();
     try {
@@ -243,13 +256,13 @@ export class Orchestrator {
               `步骤 ${stepId} 执行超时（${timeoutMs}ms），已中止`,
             );
             controller.abort(failure);
-            agent?.abort();
             reject(failure);
           }, timeoutMs);
         }),
       ]);
     } finally {
       if (timer) clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
     }
   }
 
@@ -265,9 +278,26 @@ export class Orchestrator {
   private async runParallelStep(
     step: Extract<WorkflowStep, { type: "parallel" }>,
     depth: number,
+    parentSignal?: AbortSignal,
   ): Promise<StepOutput> {
     this.events({ type: "step_start", stepId: step.id, kind: "parallel" });
-    const results = await Promise.all(step.steps.map((s) => this.runStep(s, depth + 1)));
+    const controller = new AbortController();
+    const signal = parentSignal
+      ? AbortSignal.any([parentSignal, controller.signal])
+      : controller.signal;
+    let firstFailure: { error: unknown } | undefined;
+    const settled = await Promise.allSettled(
+      step.steps.map((child) =>
+        this.runStep(child, depth + 1, signal).catch((error: unknown) => {
+          // 首错先取消同组，再等待所有收尾；清理错误不能覆盖原始失败。
+          firstFailure ??= { error };
+          controller.abort(error);
+          throw error;
+        }),
+      ),
+    );
+    if (firstFailure) throw firstFailure.error;
+    const results = settled.map((result) => (result as PromiseFulfilledResult<StepOutput>).value);
     const text = results
       .map((r) => r.text)
       .filter((t) => t.length > 0)
@@ -288,10 +318,11 @@ export class Orchestrator {
   private async runIfStep(
     step: Extract<WorkflowStep, { type: "if" }>,
     depth: number,
+    signal?: AbortSignal,
   ): Promise<StepOutput> {
     this.events({ type: "step_start", stepId: step.id, kind: "if" });
     const branch = evalCondition(this.interpolate(step.condition)) ? step.then : step.else;
-    if (branch) await this.runSteps(branch, depth + 1);
+    if (branch) await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);
@@ -300,13 +331,14 @@ export class Orchestrator {
   private async runSwitchStep(
     step: Extract<WorkflowStep, { type: "switch" }>,
     depth: number,
+    signal?: AbortSignal,
   ): Promise<StepOutput> {
     this.events({ type: "step_start", stepId: step.id, kind: "switch" });
     const value = this.variables.get(step.on) ?? "";
     // 命中判定：变量值包含 case 键（对长文本更实用）
     const hit = Object.keys(step.cases).find((key) => value.includes(key));
     const branch = hit ? step.cases[hit] : step.default;
-    if (branch) await this.runSteps(branch, depth + 1);
+    if (branch) await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);

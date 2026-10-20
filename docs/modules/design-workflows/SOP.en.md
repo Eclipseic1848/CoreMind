@@ -11,9 +11,10 @@ Confirm the business owner, success criteria, verification rule, allowed repair 
 3. Configure `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted` for every `loop`.
 4. Declare every tool effect, reversibility, and target field. External effects also need a business idempotency key, receipt, or compensation process.
 5. Write failure tests first. Verification failure, no progress, exhaustion, budget limits, denied approval, timeout, abort, and transient errors each need an explicit terminal result.
-6. Verify that every stable transition persists and that resuming the same run ID does not replay completed steps or committed effects.
-7. Compare the same state sequence and terminal result across CLI/TUI, TypeScript SDK, and Python SDK. For host verification, also check request identity, candidate hash, repair within the same Run after rejection, and that `accepted` is not final success.
-8. Run module tests, the golden example, coverage, and `npm run check:modules`; preserve traces and human conclusions.
+6. Inject both failure and pause into `parallel`. Verify sibling cancellation and settlement, first-error preservation, and no new model-call admission after the Run ends. Inspect receipts for operations already started; cancellation is not rollback. All-success results must still aggregate in declaration order.
+7. Verify that every stable transition persists and that resuming the same run ID does not replay completed steps or committed effects.
+8. Compare the same state sequence and terminal result across CLI/TUI, TypeScript SDK, and Python SDK. For host verification, also check request identity, candidate hash, repair within the same Run after rejection, and that `accepted` is not final success.
+9. Run module tests, the golden example, coverage, and `npm run check:modules`; preserve traces and human conclusions.
 
 ## Required commands
 

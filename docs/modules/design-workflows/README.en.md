@@ -29,6 +29,7 @@ The internal state-machine dependency stays behind `LoopController` and is not p
 - `0.8.0` supports agent and host verification. A durable host control accepts or rejects the candidate; `onVerification` only notifies the host.
 - `maxIterations`, `maxRepairs`, `maxRepeatedAction`, global budgets, and timeouts bound execution.
 - Only confirmed transient provider or network errors retry. Approval denials, security denials, invalid arguments, and deterministic business failures do not retry blindly.
+- When a `parallel` substep first fails or pauses, cancel its siblings and wait for them to settle while preserving the first error; admit no new model calls after the Run ends. Operations already started retain their receipts, and cancellation is not rollback. All-success results still aggregate in declaration order.
 - Tool effects receive `started`, `committed`, or `unknown` receipts. Resume does not replay committed effects, while unknown effects pause for human reconciliation.
 - A snapshot represents a stable CoreMind business state, not an arbitrary call stack or in-flight external request.
 - `full` reduces per-action prompts but never disables explicit deny rules, budgets, traces, checkpoints, receipts, or resume checks.

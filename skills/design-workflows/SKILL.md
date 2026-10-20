@@ -9,10 +9,11 @@ description: "Design, implement, test, or diagnose fixed workflows and explicit 
 2. Confirm the owner, success rule, verification rule, allowed repair scope, permissions, budgets, and irreversible effects before selecting an architecture.
 3. Use ordinary code for deterministic logic, `workflow` for fixed dependencies, and `loop` only for a genuine generate-verify-repair cycle.
 4. Write failing contracts before implementation for verification failure, exhaustion, no progress, approval denial, timeout, abort, transient errors, and resume.
-5. Set `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted`; never solve a defect by silently raising bounds. Agent verification requires `passIf`; published `0.8.0` host verification omits it and requires a durable host decision. An `accepted` control receipt is not a passing verification or final Run outcome.
-6. Inspect RunOutcome, ordered `loop_state` events, budgets, checkpoints, and effect receipts. A fluent answer without a passing verifier is not success.
-7. Resume only from a persisted stable CoreMind state. Do not replay committed effects, and pause for human reconciliation when an effect is unknown.
-8. Run the tests and commands listed in [module.yaml](../../docs/modules/design-workflows/module.yaml) and the [development SOP](../../docs/modules/design-workflows/SOP.en.md).
-9. Stop on unconfirmed business rules, failed security gates, or non-reversible actions without explicit authorization. Never commit, push, tag, or publish implicitly.
+5. For `parallel`, verify that the first failure or pause cancels siblings and waits for them to settle while preserving the first error. Admit no new model calls after the Run ends. Preserve receipts for operations already started; cancellation is not rollback. All-success results must still aggregate in declaration order.
+6. Set `maxIterations`, `maxRepairs`, `maxRepeatedAction`, `onFailure`, and `onExhausted`; never solve a defect by silently raising bounds. Agent verification requires `passIf`; published `0.8.0` host verification omits it and requires a durable host decision. An `accepted` control receipt is not a passing verification or final Run outcome.
+7. Inspect RunOutcome, ordered `loop_state` events, budgets, checkpoints, and effect receipts. A fluent answer without a passing verifier is not success.
+8. Resume only from a persisted stable CoreMind state. Do not replay committed effects, and pause for human reconciliation when an effect is unknown.
+9. Run the tests and commands listed in [module.yaml](../../docs/modules/design-workflows/module.yaml) and the [development SOP](../../docs/modules/design-workflows/SOP.en.md).
+10. Stop on unconfirmed business rules, failed security gates, or non-reversible actions without explicit authorization. Never commit, push, tag, or publish implicitly.
 
 中文原则：固定依赖优先 Workflow；只有需要“生成—验证—修复—再验证”时才使用显式 Loop。失败不得伪成功，`full` 不得关闭预算、审计、checkpoint、Effect Receipt 或恢复保护。

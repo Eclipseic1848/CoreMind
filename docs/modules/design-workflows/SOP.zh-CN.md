@@ -11,9 +11,10 @@
 3. 为 `loop` 配置 `maxIterations`、`maxRepairs`、`maxRepeatedAction`、`onFailure` 和 `onExhausted`。
 4. 为所有工具声明副作用、可逆性和目标字段；外部副作用还要有业务幂等键、收据或补偿流程。
 5. 先写失败用例，再实现或修改：verify 失败、无进展、耗尽、预算、审批拒绝、超时、中止和瞬态错误都必须有确定终态。
-6. 验证每次稳定状态迁移都会持久化；恢复同一 runId 时不重复完整步骤和 committed 副作用。
-7. 分别从 CLI/TUI、TypeScript SDK 和 Python SDK 检查相同状态序列与终态；使用宿主验收时，另外验证请求身份、候选摘要、拒绝后同 Run 修复，以及 `accepted` 不等于最终成功。
-8. 运行模块测试、黄金示例、覆盖率和 `npm run check:modules`，保存 Trace 与人工结论。
+6. 对 `parallel` 分别注入失败与暂停，验证取消同组其他步骤并等待其收尾、保留首个错误、Run 结束后不再准入新模型调用。检查已开始操作的收据，不把取消当作回滚；全成功仍按声明顺序聚合。
+7. 验证每次稳定状态迁移都会持久化；恢复同一 runId 时不重复完整步骤和 committed 副作用。
+8. 分别从 CLI/TUI、TypeScript SDK 和 Python SDK 检查相同状态序列与终态；使用宿主验收时，另外验证请求身份、候选摘要、拒绝后同 Run 修复，以及 `accepted` 不等于最终成功。
+9. 运行模块测试、黄金示例、覆盖率和 `npm run check:modules`，保存 Trace 与人工结论。
 
 ## 必跑命令
 

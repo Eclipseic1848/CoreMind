@@ -157,8 +157,10 @@ export class ToolPolicy {
     capabilityOrDeclaration?: ResolvedToolCapability | ToolEffectDeclaration,
     selectors?: ToolEffectDeclaration,
     delegationInputFingerprint?: string,
-    identity?: { callId?: string; stepId?: string },
+    identity?: { callId?: string; stepId?: string; signal?: AbortSignal },
   ): Promise<ToolPolicyDecision> {
+    const signal = identity?.signal;
+    signal?.throwIfAborted();
     const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
     const staticDenial = this.staticDenial(tool, capability);
     if (staticDenial) return { allowed: false, reason: staticDenial };
@@ -239,6 +241,7 @@ export class ToolPolicy {
       }
     }
 
+    signal?.throwIfAborted();
     const networkTool =
       capability.effect === "network" || capability.effect === "external" || effect.urls.length > 0;
     if (networkTool && this.permissions.network === "deny") {
@@ -310,22 +313,45 @@ export class ToolPolicy {
       capability,
     };
     this.options.onApprovalRequired?.(request);
-    if (!this.options.approve) {
-      this.options.onApprovalResolved?.(request, "deny");
+    let onAbort: (() => void) | undefined;
+    try {
+      signal?.throwIfAborted();
+      if (!this.options.approve) {
+        this.options.onApprovalResolved?.(request, "deny");
+        return {
+          allowed: false,
+          reason: `工具 ${tool} 需要用户批准，但当前调用方未提供审批处理器`,
+          approvalId: request.approvalId,
+        };
+      }
+      // 仅取消框架等待；宿主回调的迟到结果不能重新批准已取消的 Call。
+      const decision = signal
+        ? await new Promise<ApprovalDecision>((resolve, reject) => {
+            onAbort = () => reject(signal.reason);
+            if (signal.aborted) onAbort();
+            else signal.addEventListener("abort", onAbort, { once: true });
+            Promise.resolve()
+              .then(() => {
+                signal.throwIfAborted();
+                return this.options.approve!(request);
+              })
+              .then(resolve, reject);
+          })
+        : await this.options.approve(request);
+      signal?.throwIfAborted();
+      this.options.onApprovalResolved?.(request, decision);
       return {
-        allowed: false,
-        reason: `工具 ${tool} 需要用户批准，但当前调用方未提供审批处理器`,
+        allowed: decision === "allow",
+        reason: decision === "allow" ? "用户已批准" : "用户已拒绝",
         approvalId: request.approvalId,
+        ...(decision === "allow" ? { approvedBy: "user" as const } : {}),
       };
+    } catch (error) {
+      if (signal?.aborted) this.options.onApprovalResolved?.(request, "deny");
+      throw error;
+    } finally {
+      if (onAbort) signal?.removeEventListener("abort", onAbort);
     }
-    const decision = await this.options.approve(request);
-    this.options.onApprovalResolved?.(request, decision);
-    return {
-      allowed: decision === "allow",
-      reason: decision === "allow" ? "用户已批准" : "用户已拒绝",
-      approvalId: request.approvalId,
-      ...(decision === "allow" ? { approvedBy: "user" as const } : {}),
-    };
   }
 
   private async findEscapedPath(candidates: string[]): Promise<string | undefined> {

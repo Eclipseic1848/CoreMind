@@ -52,7 +52,7 @@ Inspect `loop_state` order, the final `run_result`, tool traces, effect receipts
 coremind run coremind.yaml --resume <runId>
 ```
 
-## Step 4: test at least six counterexamples
+## Step 4: test at least eight counterexamples
 
 1. First verification returns FAIL and transitions to repair.
 2. Verification still fails after repair and ends as `loop_exhausted` at the limit.
@@ -60,5 +60,11 @@ coremind run coremind.yaml --resume <runId>
 4. A denied approval pauses without replaying the tool.
 5. One injected 503 triggers only the bounded transient retry.
 6. Exit at a stable boundary and resume without replaying completed steps or committed effects.
+7. One `parallel` substep fails while siblings are still waiting: cancel those siblings, wait for them to settle, preserve the first error, and admit no new model calls after the Run ends.
+8. One `parallel` substep pauses while siblings still await approval or have started operations: cancel and wait for the siblings to settle, preserving the original pause reason and receipts for operations already started. Cancellation is not rollback.
+
+Also confirm that all-success `parallel` results still aggregate in declaration order regardless of completion order.
+
+Cancellation closes pending approvals as denied. The framework stops waiting locally; the host approval callback may continue, but a late approval no longer takes effect.
 
 Run the [verified repair golden example](../../../examples/golden/verified-repair-loop/README.en.md) for repair success, pause-resume, and exhaustion coverage.
