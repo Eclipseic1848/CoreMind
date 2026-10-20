@@ -42,6 +42,7 @@ This section records `1.3.0` release preparation and the ten accepted, merged fi
 - **Security-policy version status:** bilingual SECURITY tables link to the latest official Release and identify 1.2.0 and existing hardening as shipped. The `0.3.1` critical-security exception, private disclosure process, and existing safety boundaries remain; this round's new protections are not attributed to older releases. ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
 
 - **Release materials and validation:** synchronize 1.3.0 package versions, module and TTY templates, freeze the bundled Worker, add bilingual migration and release materials, and include the new fixed notes in existing regression checks. Publication still requires final-commit strict qualification and public reinstall checks. ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334))
+- **Installation and navigation consistency:** align bilingual quickstarts, CLI/configuration guides, npm/Python package descriptions, and documentation navigation with the 1.3.0 installation target, current qualification, and 1.2→1.3 migration, retaining historical guides and existing safety, trust, and certification boundaries. ([#346](https://github.com/Eclipseic1848/CoreMind/issues/346))
 
 ### Compatibility and publication boundaries
 
