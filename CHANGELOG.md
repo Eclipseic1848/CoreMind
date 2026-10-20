@@ -4,6 +4,25 @@
 
 [English](CHANGELOG.en.md)
 
+## [1.3.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.2.0...v1.3.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架内部持久状态的写入保护 ([331094b](https://github.com/Eclipseic1848/CoreMind/commit/331094bac9ebae8967ccd420f86def3df53109ed))
+* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架持久状态写入保护 ([a95c369](https://github.com/Eclipseic1848/CoreMind/commit/a95c369892147b554eb61669d455f008b893238d))
+* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行分支失败后的取消与终态准入 ([a299685](https://github.com/Eclipseic1848/CoreMind/commit/a299685027e47bafa0df8a8a425d307ff6aaf827))
+* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行失败取消与终态准入 ([4fe9a6a](https://github.com/Eclipseic1848/CoreMind/commit/4fe9a6ae51d9a4dffde5d27246a6b715e257ca6c))
+* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 修复Python延迟注解生成工具参数Schema ([e08264f](https://github.com/Eclipseic1848/CoreMind/commit/e08264f571e173f724e8ac79d2dc0683c962dbfb))
+* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 解析Python工具的延迟参数注解 ([1f3e072](https://github.com/Eclipseic1848/CoreMind/commit/1f3e072fe2433f9618ac958319b07ba5ea7049f6))
+* [#327](https://github.com/Eclipseic1848/CoreMind/issues/327) 隔离Workflow步骤输出与Session历史 ([6bd4962](https://github.com/Eclipseic1848/CoreMind/commit/6bd4962522f34839f703a4eeeae02757c33f97ac))
+* [#328](https://github.com/Eclipseic1848/CoreMind/issues/328) 按内容指纹补全Diff grader变更检测 ([67e337f](https://github.com/Eclipseic1848/CoreMind/commit/67e337f9e21be45938f3dfba8ecb1164b78784f6))
+* [#329](https://github.com/Eclipseic1848/CoreMind/issues/329) 保留v2启动失败的稳定错误身份 ([d70e185](https://github.com/Eclipseic1848/CoreMind/commit/d70e18527bdae4b39ab485c0bedbe502ffd759f7))
+* [#330](https://github.com/Eclipseic1848/CoreMind/issues/330) 等待Web错误响应正文清理后结算活动 ([c58a459](https://github.com/Eclipseic1848/CoreMind/commit/c58a4597fad2b079dcdeb681ba3308b1174afaf3))
+* [#331](https://github.com/Eclipseic1848/CoreMind/issues/331) 显式退出readline时取消活动Run ([27bc2dd](https://github.com/Eclipseic1848/CoreMind/commit/27bc2dd38c24cc4f6c4408e6f12e6eef7b9b4906))
+* [#332](https://github.com/Eclipseic1848/CoreMind/issues/332) 修复doctor对匿名Provider的误报 ([af1bf25](https://github.com/Eclipseic1848/CoreMind/commit/af1bf255d01bde490c299865290f1d2ebd90976d))
+* [#333](https://github.com/Eclipseic1848/CoreMind/issues/333) 更新双语安全策略的版本状态 ([7ef3110](https://github.com/Eclipseic1848/CoreMind/commit/7ef3110a279bf132ae6743b567b59a51aba26a0e))
+
 ## 1.2.0
 
 未独立发布的 1.1 开发成果并入 1.2，公开用户从 1.0.1 直接升级。详见[双语发布说明](docs/release/notes/v1.2.0.md)和[迁移指南](docs/migrations/1.0-to-1.2.zh-CN.md)。
