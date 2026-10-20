@@ -8,10 +8,12 @@ Security issues must be handled privately. This page describes responsible repor
 
 | Version | Security updates |
 | --- | --- |
-| Latest stable `0.8.x` | Supported according to severity and reproducibility |
+| [Latest official release](https://github.com/Eclipseic1848/CoreMind/releases/latest) | Supported according to severity and reproducibility |
 | `0.3.1` | Critical security issues only; upgrade to the latest stable release |
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
+
+[v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) has been officially released, and the 1.2 capabilities described below have shipped. Refer to Releases for the latest stable version.
 
 ## Report privately
 
@@ -19,7 +21,7 @@ Use **Report a vulnerability** on the repository Security page when available. D
 
 If no private entry point is available, open a public issue without technical details and ask maintainers for a private contact channel. Response times are targets, not an SLA.
 
-## Project script loading (unpublished 1.2 development line)
+## Project script loading (since 1.2.0)
 
 Configuration-driven Runtime requires explicit host approval of the complete batch before any project script import. Non-TTY CLI use requires `--trust-project-code`; Python requires `trust_project_code=True`. Top-level code and transitive dependencies run with host privileges. Entry path/hash approval is not an OS sandbox or an immutable dependency graph and cannot eliminate replacement races by host-privileged external processes. Loading approval grants no tool execution permissions; `full` and quality overrides cannot replace it. `doctor` and `check` do not load project scripts. Direct low-level loader callers own source trust. See the [1.2 migration](docs/migrations/1.0-to-1.2.en.md).
 
@@ -47,6 +49,6 @@ Configuration-driven Runtime requires explicit host approval of the complete bat
 
 Redaction is not data isolation. Sessions, checkpoints, quality override logs, and non-secret trace fields may still contain business context. Protect local state with operating-system access controls and an appropriate retention policy. Before production use, add infrastructure isolation, threat modeling, live-provider retesting, and business evaluations.
 
-Unpublished source hardening: built-in file approval, checkpoints, and execution share a resolved target and recheck before execution. This is not an OS sandbox and cannot eliminate filesystem races from a malicious host process. Git tools require Git 2.36+, disable fsmonitor and external diff/textconv execution, and restrict default reads to the working directory; repository configuration is not trusted code.
+Released security hardening: built-in file approval, checkpoints, and execution share a resolved target and recheck before execution. This is not an OS sandbox and cannot eliminate filesystem races from a malicious host process. Git tools require Git 2.36+, disable fsmonitor and external diff/textconv execution, and restrict default reads to the working directory; repository configuration is not trusted code.
 
 Linux `web-fetch` and `web-search` use an explicitly declared host network environment, still subject to tool authorization and network policy. They do not claim the Shell sandbox's network isolation. A Child Run enabling either tool must satisfy the actual host network environment's complete capability requirements. Cancellation waits for both parent and network activities to settle.
