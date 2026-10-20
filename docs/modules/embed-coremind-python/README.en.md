@@ -30,6 +30,7 @@ Drive the same Node runtime and explicit Loop over stdio JSON-RPC from Python, a
 - The worker stays alive instead of spawning per request
 - Tool results remain JSON-serializable across languages
 - `@client.tool` requires `effect`, and protocol registration validates the declaration
+- V1 `@client.tool` automatic schemas support `from __future__ import annotations` and string annotations for `int`, `str`, `bool`, and containers within the existing supported range. Node applies existing conversion rules before schema validation: convertible values reach the callable in the target type, while arguments that still fail validation are rejected before execution. Unresolvable forward references explicitly require `parameters`; explicit schemas remain compatible, and complex types retain the existing support limits.
 - Initialization or tool-registration failures close the worker immediately instead of leaving a partially started process
 - V1 `run` and `chat` results use the same six terminal states as TypeScript; v2 first returns a RunHandle and exposes the terminal state through Projection queries
 - resume_run reuses the same safe-resume decision for paused or interrupted runs in the Node runtime

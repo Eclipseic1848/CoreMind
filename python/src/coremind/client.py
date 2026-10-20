@@ -18,7 +18,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import UnionType
-from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union, get_args, get_origin
+from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union, get_args, get_origin, get_type_hints
 from urllib.parse import parse_qsl, urlsplit
 
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
@@ -2208,12 +2208,33 @@ def _validate_v2_initialize_result(value: Mapping[str, Any]) -> None:
 
 
 def _schema_from_callable(function: Callable[..., Any]) -> dict[str, Any]:
+    # Python 3.14 的原生延迟注解不能因返回类型未定义而阻断参数推导。
+    options = {"annotation_format": inspect.Format.FORWARDREF} if hasattr(inspect, "Format") else {}
+    signature = inspect.signature(function, **options)
+
+    def parameter_annotations():
+        pass
+
+    # 只解析参数；返回注解不属于工具输入合同，也不改写调用方的注解。
+    parameter_annotations.__annotations__ = {
+        name: parameter.annotation for name, parameter in signature.parameters.items()
+        if parameter.annotation is not inspect.Parameter.empty
+    }
+    try:
+        annotations = get_type_hints(
+            parameter_annotations, globalns=getattr(inspect.unwrap(function), "__globals__", {}),
+            include_extras=True,
+        )
+    except (NameError, TypeError, SyntaxError, AttributeError) as error:
+        raise CoreMindError(
+            f"Python 工具 {function.__name__} 无法解析参数类型注解；请显式提供 parameters"
+        ) from error
     properties: dict[str, Any] = {}
     required: list[str] = []
-    for name, parameter in inspect.signature(function).parameters.items():
+    for name, parameter in signature.parameters.items():
         if parameter.kind in {parameter.VAR_POSITIONAL, parameter.VAR_KEYWORD}:
             raise CoreMindError(f"Python 工具 {function.__name__} 不支持 *args/**kwargs")
-        properties[name] = _annotation_schema(parameter.annotation)
+        properties[name] = _annotation_schema(annotations.get(name, parameter.annotation))
         if parameter.default is inspect.Parameter.empty:
             required.append(name)
     schema: dict[str, Any] = {

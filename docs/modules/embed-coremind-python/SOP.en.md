@@ -8,7 +8,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 1. Create and reuse one client.
 2. With default Protocol v1, initialize before registering Python tools. Negotiate Protocol v2 explicitly and do not register Python callables there.
-3. For v1 callables, annotate parameters and provide truthful `effect.operations` and `effect.reversible`.
+3. For v1 callables, annotate parameters and provide truthful `effect.operations` and `effect.reversible`. Verify automatic schemas for future/string `int`, `str`, `bool`, and existing container annotations, with Node applying existing conversion rules before schema validation and rejecting arguments that still fail validation before execution. Unresolvable forward references must explicitly require `parameters`; existing explicit schemas remain compatible. Complex typing stays within existing support limits.
 4. Subscribe to events and handle approvals. Exhaustively consume all six v1 RunOutcome terminal states; in v2, read the final Projection with `query(runId)`.
 5. Use resume_run only for paused or interrupted runs deemed safe.
 6. Compare explicit Loop state order, pause-resume, exhaustion, and effect receipts with TypeScript. For host verification, also check request identity, candidate hash, durable decision, and final Projection outcome.

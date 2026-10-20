@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- 修复 v1 `@client.tool` 对 future/字符串 `int`、`str`、`bool` 和已有容器参数注解的自动 Schema；Node 侧保留既有类型转换，转换后仍未通过 Schema 校验的参数在执行前拒绝。无法解析的前向引用明确要求显式 `parameters`，既有显式 Schema 保持兼容，复杂 typing 支持范围不扩大（#326）。
+- Fix v1 `@client.tool` automatic schemas for future/string `int`, `str`, `bool`, and existing container parameter annotations. Node preserves existing type conversion and rejects arguments that still fail schema validation before execution. Unresolvable forward references explicitly require `parameters`; existing explicit schemas remain compatible without expanding complex typing support (#326).
+
 ## 1.2.0 - 2026-10-17
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

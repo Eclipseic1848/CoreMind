@@ -112,6 +112,9 @@ jobs:
           python -X utf8 -m pip install --disable-pip-version-check ./python
           python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_mcp_auth.py" -v
 
+      - name: Python 3.14 工具延迟注解与真实往返（离线）
+        run: python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_tool_annotations.py" -v
+
       - name: 记录实际运行时间
         if: always()
         shell: bash

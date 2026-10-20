@@ -8,7 +8,7 @@
 
 1. 创建并复用一个客户端。
 2. 默认 Protocol v1 先 initialize，再注册 Python 工具；Protocol v2 显式协商，不注册 Python callable。
-3. 使用 v1 callable 时注解参数类型，并填写真实 `effect.operations` 与 `effect.reversible`。
+3. 使用 v1 callable 时注解参数类型，并填写真实 `effect.operations` 与 `effect.reversible`。验证 future/字符串 `int`、`str`、`bool` 和已有容器注解的自动 Schema，确认 Node 先按既有规则转换，再校验 Schema，转换后仍未通过的参数在执行前拒绝；无法解析的前向引用须明确要求显式 `parameters`，原显式 Schema 保持兼容。复杂 typing 不超出既有支持范围。
 4. 订阅事件和处理审批；v1 结果穷举消费六种 RunOutcome，v2 用 `query(runId)` 读取最终 Projection。
 5. 仅用 resume_run 恢复暂停或意外中断且安全的运行。
 6. 显式 Loop 必须与 TypeScript 对比状态顺序、暂停恢复、耗尽和 Effect Receipt；宿主验收还要核对请求身份、候选摘要、持久决定和最终 Projection outcome。
