@@ -1,6 +1,6 @@
 # Provider 支持与认证矩阵
 
-> 表格基于 2026-08-26 的运行时静态目录和人工证据台账生成，当前对应目标版本 `1.2.0`。不应手工修改表格。
+> 表格基于 2026-08-26 的运行时静态目录和人工证据台账生成，当前对应目标版本 `1.3.0`。不应手工修改表格。
 
 CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** 个可配置入口。其中 **0** 个入口具有完整真实调用证据，**43** 个仅代表运行时目录可识别。**可配置不等于通过真实认证，别名不重复计为独立提供商。**
 
@@ -16,7 +16,7 @@ CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** �
 
 | Provider ID | 默认模型 | 认证版本 | 模型数 | 状态 | 证据 |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | 可配置，1.2.0 未认证（保留旧版证据） | [证据](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | 可配置，1.3.0 未认证（保留旧版证据） | [证据](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 193 | 可配置，未认证 | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | 可配置，未认证 | — |
 | `anthropic` | `claude-fable-5` | — | 17 | 可配置，未认证 | — |

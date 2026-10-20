@@ -4,6 +4,49 @@
 
 [English](CHANGELOG.en.md)
 
+## 1.3.0
+
+本节记录 `1.3.0` 发布准备范围，包含 #324–#333 已验收合入的十项修复；不表示已经公开发布。详见[固定双语发布说明](docs/release/notes/v1.3.0.md)与[1.2→1.3 迁移指南](docs/migrations/1.2-to-1.3.zh-CN.md)。
+
+### 安全修复
+
+- **框架状态保护：** 统一授权按 canonical 目标保护框架管理的持久状态，普通业务工具不能通过 `ask`、`assisted`、`full` 或显式 allow 改写这些状态。现存多硬链接文件的普通工具写入也会被拒绝；合法业务文件和宿主维护接口保留原职责。这是路径保护，不是任意宿主代码的 OS 沙箱。 ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
+
+### 缺陷修复
+
+#### Runtime 与 Workflow
+
+- **并行终止与准入：** 普通 `parallel` 子步骤首次失败或暂停时，取消同组其他步骤并等待收尾，保留首个错误；Run 结束后不再准入新模型调用。已开始操作保留收据，取消不等于回滚；全成功仍按声明顺序聚合。 ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
+- **步骤输出边界：** Workflow `prompt`/`call` 保留同一 Session 历史作为模型上下文，但步骤输出、`saveAs`、后续插值与 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。 ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
+- **v2 启动错误身份：** 已接受 Run 的 Runtime 初始化失败按共享错误分类持久化稳定错误码、对应终态与安全消息，供 `query`/`events` 查询，不再统一改为 `agent_failed`。未知异常以 `unclassified_error` 保守暂停并要求人工审计，不公开凭据或原始堆栈，也不表示可直接恢复。 ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
+
+#### Python 工具桥
+
+- **延迟参数注解：** v1 `@client.tool` 自动 Schema 可解析 future/字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解；无法解析的前向引用明确要求显式 `parameters`。保留 Node 侧先转换再校验的既有规则，转换后仍未通过 Schema 的参数在 callable 执行前拒绝；显式 Schema 兼容，复杂 typing 支持范围不扩大。 ([#326](https://github.com/Eclipseic1848/CoreMind/issues/326))
+
+#### 评测
+
+- **Diff grader：** `preserveExisting: false` 只关闭既有脏内容保护，`allowedPaths`、`forbiddenPaths`、`requiredPaths`、`maxChangedFiles` 仍按基线与终态的状态或内容差异执行。状态和内容均未变化的既有脏文件不计，原 untracked 文件删除计入变化；原 stage/unstage 计数及默认 `true` 保护不变。 ([#328](https://github.com/Eclipseic1848/CoreMind/issues/328))
+
+#### Web 工具
+
+- **响应正文收尾：** `web-fetch`/`web-search` 遇非 2xx 或正文读取失败时，等待正文取消/释放的清理尝试结束后才结算本地网络活动；清理异常保留原 HTTP/读取错误。成功、取消、权限与网络策略不变，`web-fetch` 原 2 MiB 正文上限保留。 ([#330](https://github.com/Eclipseic1848/CoreMind/issues/330))
+
+#### CLI
+
+- **readline 显式退出：** `/exit`、`!exit` 与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍让已开始的回答自然完成。空闲退出、审批及 MCP 登录等待的既有行为保持，取消不回滚已开始工具副作用。 ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
+- **doctor 凭据策略：** 有配置时复用所选 Provider 的既有校验，合法匿名/Header-only 自定义端点不要求无关 API key；显式凭据缺失仍失败，内置鉴权要求不放宽。无配置通用诊断保留；检查不加载项目脚本、不发 Provider 请求，通过不代表凭据有效、真实连通或认证。 ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
+
+### 文档
+
+- **安全策略版本状态：** 双语 SECURITY 支持表链接最新正式 Release，准确标明 1.2.0 已发布与既有安全加固已交付；保留 `0.3.1` 重大安全问题例外、私密披露方式及原安全边界，不把本轮新保护归为旧版能力。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
+
+- **发布材料与验证：** 同步 1.3.0 包版本、模块与 TTY 模板，冻结随包 Worker，补充双语迁移和发布材料，并把新版本固定正文纳入既有回归；正式发布仍须完成最终提交的严格资格与公开回装。 ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334))
+
+### 兼容与发布边界
+
+Config/Protocol 版本不升级，保留 Config v2/v3、Protocol v1/v2 和统一 Node Runtime。`ToolPolicy` 构造选项新增可选 `protectedPaths` 保护条目，`authorize()` 的 `identity` 新增可选 `signal?: AbortSignal`，既有调用保持兼容；SDK 与 bundled Worker 须同步升级并保留原指纹检查。正式发布仍需绑定最终 main 提交、当前版本、Runtime/Worker 与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。旧版本认证、历史例外与单项 CI 不能替代本轮资格；外部副作用仍需人工核对。
+
 ## 1.2.0
 
 未独立发布的 1.1 开发成果并入 1.2，公开用户从 1.0.1 直接升级。详见[双语发布说明](docs/release/notes/v1.2.0.md)和[迁移指南](docs/migrations/1.0-to-1.2.zh-CN.md)。

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 - 2026-10-20
+
+- Synchronized module contracts and version metadata for the 1.3.0 release line; publication requires qualification for the final commit and exact artifacts.
+
 ## 1.2.0 - 2026-10-17
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

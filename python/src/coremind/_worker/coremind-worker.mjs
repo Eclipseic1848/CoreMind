@@ -24710,15 +24710,15 @@ var require_windows = __commonJS({
       }
       return false;
     }
-    function checkStat(stat11, path48, options) {
-      if (!stat11.isSymbolicLink() && !stat11.isFile()) {
+    function checkStat(stat12, path48, options) {
+      if (!stat12.isSymbolicLink() && !stat12.isFile()) {
         return false;
       }
       return checkPathExt(path48, options);
     }
     function isexe(path48, options, cb) {
-      fs10.stat(path48, function(er, stat11) {
-        cb(er, er ? false : checkStat(stat11, path48, options));
+      fs10.stat(path48, function(er, stat12) {
+        cb(er, er ? false : checkStat(stat12, path48, options));
       });
     }
     function sync(path48, options) {
@@ -24734,20 +24734,20 @@ var require_mode = __commonJS({
     isexe.sync = sync;
     var fs10 = __require("fs");
     function isexe(path48, options, cb) {
-      fs10.stat(path48, function(er, stat11) {
-        cb(er, er ? false : checkStat(stat11, options));
+      fs10.stat(path48, function(er, stat12) {
+        cb(er, er ? false : checkStat(stat12, options));
       });
     }
     function sync(path48, options) {
       return checkStat(fs10.statSync(path48), options);
     }
-    function checkStat(stat11, options) {
-      return stat11.isFile() && checkMode(stat11, options);
+    function checkStat(stat12, options) {
+      return stat12.isFile() && checkMode(stat12, options);
     }
-    function checkMode(stat11, options) {
-      var mod = stat11.mode;
-      var uid = stat11.uid;
-      var gid = stat11.gid;
+    function checkMode(stat12, options) {
+      var mod = stat12.mode;
+      var uid = stat12.uid;
+      var gid = stat12.gid;
       var myUid = options.uid !== void 0 ? options.uid : process.getuid && process.getuid();
       var myGid = options.gid !== void 0 ? options.gid : process.getgid && process.getgid();
       var u2 = parseInt("100", 8);
@@ -26654,11 +26654,11 @@ var require_mtime_precision = __commonJS({
     function probe(file, fs10, callback) {
       const cachedPrecision = fs10[cacheSymbol];
       if (cachedPrecision) {
-        return fs10.stat(file, (err2, stat11) => {
+        return fs10.stat(file, (err2, stat12) => {
           if (err2) {
             return callback(err2);
           }
-          callback(null, stat11.mtime, cachedPrecision);
+          callback(null, stat12.mtime, cachedPrecision);
         });
       }
       const mtime = new Date(Math.ceil(Date.now() / 1e3) * 1e3 + 5);
@@ -26666,13 +26666,13 @@ var require_mtime_precision = __commonJS({
         if (err2) {
           return callback(err2);
         }
-        fs10.stat(file, (err3, stat11) => {
+        fs10.stat(file, (err3, stat12) => {
           if (err3) {
             return callback(err3);
           }
-          const precision = stat11.mtime.getTime() % 1e3 === 0 ? "s" : "ms";
+          const precision = stat12.mtime.getTime() % 1e3 === 0 ? "s" : "ms";
           Object.defineProperty(fs10, cacheSymbol, { value: precision });
-          callback(null, stat11.mtime, precision);
+          callback(null, stat12.mtime, precision);
         });
       });
     }
@@ -26726,14 +26726,14 @@ var require_lockfile = __commonJS({
         if (options.stale <= 0) {
           return callback(Object.assign(new Error("Lock file is already being held"), { code: "ELOCKED", file }));
         }
-        options.fs.stat(lockfilePath, (err3, stat11) => {
+        options.fs.stat(lockfilePath, (err3, stat12) => {
           if (err3) {
             if (err3.code === "ENOENT") {
               return acquireLock(file, { ...options, stale: 0 }, callback);
             }
             return callback(err3);
           }
-          if (!isLockStale(stat11, options)) {
+          if (!isLockStale(stat12, options)) {
             return callback(Object.assign(new Error("Lock file is already being held"), { code: "ELOCKED", file }));
           }
           removeLock(file, options, (err4) => {
@@ -26745,8 +26745,8 @@ var require_lockfile = __commonJS({
         });
       });
     }
-    function isLockStale(stat11, options) {
-      return stat11.mtime.getTime() < Date.now() - options.stale;
+    function isLockStale(stat12, options) {
+      return stat12.mtime.getTime() < Date.now() - options.stale;
     }
     function removeLock(file, options, callback) {
       options.fs.rmdir(getLockFile(file, options), (err2) => {
@@ -26764,7 +26764,7 @@ var require_lockfile = __commonJS({
       lock2.updateDelay = lock2.updateDelay || options.update;
       lock2.updateTimeout = setTimeout(() => {
         lock2.updateTimeout = null;
-        options.fs.stat(lock2.lockfilePath, (err2, stat11) => {
+        options.fs.stat(lock2.lockfilePath, (err2, stat12) => {
           const isOverThreshold = lock2.lastUpdate + options.stale < Date.now();
           if (err2) {
             if (err2.code === "ENOENT" || isOverThreshold) {
@@ -26773,7 +26773,7 @@ var require_lockfile = __commonJS({
             lock2.updateDelay = 1e3;
             return updateLock(file, options);
           }
-          const isMtimeOurs = lock2.mtime.getTime() === stat11.mtime.getTime();
+          const isMtimeOurs = lock2.mtime.getTime() === stat12.mtime.getTime();
           if (!isMtimeOurs) {
             return setLockAsCompromised(
               file,
@@ -26898,11 +26898,11 @@ var require_lockfile = __commonJS({
         if (err2) {
           return callback(err2);
         }
-        options.fs.stat(getLockFile(file2, options), (err3, stat11) => {
+        options.fs.stat(getLockFile(file2, options), (err3, stat12) => {
           if (err3) {
             return err3.code === "ENOENT" ? callback(null, false) : callback(err3);
           }
-          return callback(null, !isLockStale(stat11, options));
+          return callback(null, !isLockStale(stat12, options));
         });
       });
     }
@@ -63209,8 +63209,8 @@ async function runWalkGrep(pattern, root, signal) {
     hits.push(line);
     return true;
   };
-  const stat11 = await fs5.stat(root).catch(() => null);
-  if (stat11?.isFile()) {
+  const stat12 = await fs5.stat(root).catch(() => null);
+  if (stat12?.isFile()) {
     await grepFile(root, re, push);
   } else {
     await walk2(root, "", (rel) => grepFile(path16.join(root, rel), re, push), signal);
@@ -102959,21 +102959,21 @@ var init_from = __esm({
     init_fetch_blob();
     ({ stat: stat4 } = fs6);
     blobFromSync = (path48, type) => fromBlob(statSync2(path48), path48, type);
-    blobFrom = (path48, type) => stat4(path48).then((stat11) => fromBlob(stat11, path48, type));
-    fileFrom = (path48, type) => stat4(path48).then((stat11) => fromFile(stat11, path48, type));
+    blobFrom = (path48, type) => stat4(path48).then((stat12) => fromBlob(stat12, path48, type));
+    fileFrom = (path48, type) => stat4(path48).then((stat12) => fromFile(stat12, path48, type));
     fileFromSync = (path48, type) => fromFile(statSync2(path48), path48, type);
-    fromBlob = (stat11, path48, type = "") => new fetch_blob_default([new BlobDataItem({
+    fromBlob = (stat12, path48, type = "") => new fetch_blob_default([new BlobDataItem({
       path: path48,
-      size: stat11.size,
-      lastModified: stat11.mtimeMs,
+      size: stat12.size,
+      lastModified: stat12.mtimeMs,
       start: 0
     })], { type });
-    fromFile = (stat11, path48, type = "") => new file_default([new BlobDataItem({
+    fromFile = (stat12, path48, type = "") => new file_default([new BlobDataItem({
       path: path48,
-      size: stat11.size,
-      lastModified: stat11.mtimeMs,
+      size: stat12.size,
+      lastModified: stat12.mtimeMs,
       start: 0
-    })], basename4(path48), { type, lastModified: stat11.mtimeMs });
+    })], basename4(path48), { type, lastModified: stat12.mtimeMs });
     BlobDataItem = class _BlobDataItem {
       #path;
       #start;
@@ -111881,7 +111881,7 @@ var require_filesubjecttokensupplier = __commonJS({
     }));
     var realpath14 = (0, util_1.promisify)(fs10.realpath ?? (() => {
     }));
-    var lstat5 = (0, util_1.promisify)(fs10.lstat ?? (() => {
+    var lstat7 = (0, util_1.promisify)(fs10.lstat ?? (() => {
     }));
     var FileSubjectTokenSupplier = class {
       filePath;
@@ -111907,7 +111907,7 @@ var require_filesubjecttokensupplier = __commonJS({
         let parsedFilePath = this.filePath;
         try {
           parsedFilePath = await realpath14(parsedFilePath);
-          if (!(await lstat5(parsedFilePath)).isFile()) {
+          if (!(await lstat7(parsedFilePath)).isFile()) {
             throw new Error();
           }
         } catch (err2) {
@@ -173924,8 +173924,8 @@ function createLsToolDefinition(cwd, options) {
               reject(new Error(`Path not found: ${dirPath}`));
               return;
             }
-            const stat11 = await ops.stat(dirPath);
-            if (!stat11.isDirectory()) {
+            const stat12 = await ops.stat(dirPath);
+            if (!stat12.isDirectory()) {
               reject(new Error(`Not a directory: ${dirPath}`));
               return;
             }
@@ -236718,6 +236718,10 @@ function validateSessionId(id) {
 function sessionDirectoryName(cwd) {
   return `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
 }
+function isJsonlSessionStoragePath(relativePath) {
+  const directory = relativePath.split(/[/\\]/u, 1)[0];
+  return directory.startsWith("--") && directory.endsWith("--");
+}
 function sessionFileName(createdAt, id) {
   const timestamp = new Date(createdAt).toISOString().replace(/[:.]/g, "-");
   return `${timestamp}_${id}.jsonl`;
@@ -237155,6 +237159,9 @@ function recoveryRequired() {
 
 // packages/coremind-runtime/dist/session.js
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
+function isManagedSessionPath(relativePath) {
+  return isJsonlSessionStoragePath(relativePath) || /^[a-zA-Z0-9_-]+\.jsonl(?:[./\\]|$)/iu.test(relativePath);
+}
 function assertValidSessionId(sessionId) {
   if (!SESSION_ID_RE.test(sessionId)) {
     throw new CoreMindError("invalid_session_id", `\u4F1A\u8BDD id \u53EA\u80FD\u5305\u542B\u5B57\u6BCD\u3001\u6570\u5B57\u3001\u8FDE\u5B57\u7B26\u4E0E\u4E0B\u5212\u7EBF\uFF08\u5F53\u524D\uFF1A${sessionId}\uFF09`);
@@ -247010,8 +247017,8 @@ function hasFileAncestor(targetPath) {
       continue;
     const nextPath = currentPath + path26.sep + part;
     try {
-      const stat11 = fs32.statSync(nextPath);
-      if (stat11.isFile() || stat11.isSymbolicLink()) {
+      const stat12 = fs32.statSync(nextPath);
+      if (stat12.isFile() || stat12.isSymbolicLink()) {
         return true;
       }
     } catch {
@@ -247137,11 +247144,11 @@ function cleanupBwrapMountPoints(opts) {
   }
   for (const mountPoint of bwrapMountPoints) {
     try {
-      const stat11 = fs32.statSync(mountPoint);
-      if (stat11.isFile() && stat11.size === 0) {
+      const stat12 = fs32.statSync(mountPoint);
+      if (stat12.isFile() && stat12.size === 0) {
         fs32.unlinkSync(mountPoint);
         logForDebugging(`[Sandbox Linux] Cleaned up bwrap mount point (file): ${mountPoint}`);
-      } else if (stat11.isDirectory()) {
+      } else if (stat12.isDirectory()) {
         const entries = fs32.readdirSync(mountPoint);
         if (entries.length === 0) {
           fs32.rmdirSync(mountPoint);
@@ -247915,7 +247922,7 @@ async function spawnSandboxed(argv, cwd, env2, options, executionEnvironment) {
 init_dist8();
 
 // packages/coremind-tools/dist/file-target.js
-import { access as access5, realpath as realpath6 } from "node:fs/promises";
+import { access as access5, lstat as lstat3, realpath as realpath6, stat as stat6 } from "node:fs/promises";
 import { homedir as homedir9 } from "node:os";
 import path30 from "node:path";
 import { fileURLToPath as fileURLToPath10 } from "node:url";
@@ -247961,6 +247968,8 @@ async function resolveFileToolTarget(tool, args, cwd) {
     }
   }
   target = await canonicalFileTarget(target);
+  if (tool === "write" || tool === "edit")
+    await assertSingleLinkWriteTarget(target);
   const previous = bindings.get(args);
   if (previous && (previous.tool !== tool || previous.input !== raw || previous.target !== target)) {
     throw new Error("\u6587\u4EF6\u76EE\u6807\u5728\u5BA1\u6279\u6216\u6267\u884C\u671F\u95F4\u53D1\u751F\u53D8\u5316\uFF0C\u5FC5\u987B\u91CD\u65B0\u53D1\u8D77\u8C03\u7528");
@@ -247968,12 +247977,31 @@ async function resolveFileToolTarget(tool, args, cwd) {
   bindings.set(args, { tool, input: raw, target });
   return target;
 }
+async function assertSingleLinkWriteTarget(target) {
+  try {
+    const metadata = await stat6(target);
+    if (metadata.isFile() && metadata.nlink > 1) {
+      throw new Error("\u591A\u786C\u94FE\u63A5\u5199\u5165\u76EE\u6807\u53EF\u80FD\u6307\u5411\u6846\u67B6\u72B6\u6001\uFF0C\u5DF2\u62D2\u7EDD\uFF1B\u8BF7\u5148\u7531\u5BBF\u4E3B\u663E\u5F0F\u5904\u7406\u522B\u540D");
+    }
+  } catch (error3) {
+    if (error3.code !== "ENOENT")
+      throw error3;
+  }
+}
 async function canonicalFileTarget(input) {
   try {
     return await realpath6(input);
   } catch (error3) {
     if (error3.code !== "ENOENT")
       throw error3;
+    try {
+      if ((await lstat3(input)).isSymbolicLink()) {
+        throw new Error("\u60AC\u7A7A\u7B26\u53F7\u94FE\u63A5\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF0C\u5DF2\u62D2\u7EDD");
+      }
+    } catch (inspectionError) {
+      if (inspectionError.code !== "ENOENT")
+        throw inspectionError;
+    }
     const parent = path30.dirname(input);
     if (parent === input)
       throw error3;
@@ -248055,6 +248083,7 @@ function createWebFetchToolForEnvironment(environment) {
             headers: { "user-agent": "CoreMind/0.1 (web-fetch)" }
           });
           if (!res.ok) {
+            await res.body?.cancel().catch(() => void 0);
             throw new Error(`HTTP ${res.status} ${res.statusText}`);
           }
           let html = "";
@@ -248069,12 +248098,14 @@ function createWebFetchToolForEnvironment(environment) {
                   break;
                 bytes += value.byteLength;
                 if (bytes > 2 * 1024 * 1024) {
-                  await reader.cancel();
                   throw new Error("\u54CD\u5E94\u8D85\u8FC7 2 MiB \u9650\u5236");
                 }
                 html += decoder3.decode(value, { stream: true });
               }
               html += decoder3.decode();
+            } catch (error3) {
+              await reader.cancel().catch(() => void 0);
+              throw error3;
             } finally {
               reader.releaseLock();
             }
@@ -248123,9 +248154,13 @@ function createWebSearchToolForEnvironment(env2 = process.env, environment) {
             })
           });
           if (!res.ok) {
+            await res.body?.cancel().catch(() => void 0);
             throw new Error(`HTTP ${res.status}`);
           }
-          const data = await res.json();
+          const data = await res.json().catch(async (error3) => {
+            await res.body?.cancel().catch(() => void 0);
+            throw error3;
+          });
           const results = data.results ?? [];
           if (results.length === 0)
             throw new Error("\u65E0\u641C\u7D22\u7ED3\u679C");
@@ -248814,7 +248849,7 @@ var McpStdioError = class extends Error {
 
 // packages/coremind-tools/dist/windows-mcp-job.js
 import { createHash as createHash7, randomUUID as randomUUID9 } from "node:crypto";
-import { lstat as lstat3, readFile as readFile9 } from "node:fs/promises";
+import { lstat as lstat4, readFile as readFile9 } from "node:fs/promises";
 import { createServer as createServer2 } from "node:net";
 import path32 from "node:path";
 import { fileURLToPath as fileURLToPath11 } from "node:url";
@@ -248934,7 +248969,7 @@ async function launchWindowsMcpJob(options, signal) {
   const host = new URL("./vendor/windows-mcp/host.exe", import.meta.url);
   try {
     try {
-      await lstat3(new URL("./vendor/windows-mcp/host.exe.config", import.meta.url));
+      await lstat4(new URL("./vendor/windows-mcp/host.exe.config", import.meta.url));
       throw transportFailure();
     } catch (error3) {
       if (error3.code !== "ENOENT")
@@ -254983,7 +255018,7 @@ var TEMPLATES = [
 // packages/coremind-templates/dist/standard-skills.js
 import { createHash as createHash15 } from "node:crypto";
 import { constants as constants12 } from "node:fs";
-import { lstat as lstat4, open as open8, realpath as realpath9, stat as stat6 } from "node:fs/promises";
+import { lstat as lstat5, open as open8, realpath as realpath9, stat as stat7 } from "node:fs/promises";
 import path40 from "node:path";
 var MAX_SOURCE_BYTES = 256 * 1024;
 var MAX_RESULT_BYTES = 2 * 1024 * 1024;
@@ -255018,7 +255053,7 @@ async function resolveSelectedSkills(ids, configDir) {
     return result;
   const configPath = path40.resolve(configDir);
   const canonicalConfig = await realpath9(configPath);
-  if (!(await stat6(canonicalConfig)).isDirectory())
+  if (!(await stat7(canonicalConfig)).isDirectory())
     throw new Error("\u914D\u7F6E\u76EE\u5F55\u4E0D\u662F\u76EE\u5F55");
   const rootPath = path40.join(configPath, "skills");
   const canonicalRoot = await canonicalDirectory(rootPath, canonicalConfig);
@@ -255077,7 +255112,7 @@ async function resolveSelectedSkills(ids, configDir) {
 }
 async function exists(file) {
   try {
-    await lstat4(file);
+    await lstat5(file);
     return true;
   } catch (error3) {
     if (error3.code === "ENOENT")
@@ -255090,7 +255125,7 @@ async function canonicalDirectory(directory, boundary) {
     return void 0;
   const canonical2 = await realpath9(directory);
   assertWithin(boundary, canonical2);
-  if (!(await stat6(canonical2)).isDirectory())
+  if (!(await stat7(canonical2)).isDirectory())
     throw new Error(`\u6280\u80FD\u8DEF\u5F84\u4E0D\u662F\u76EE\u5F55\uFF1A${directory}`);
   return canonical2;
 }
@@ -255110,7 +255145,7 @@ async function readBoundedUtf8(file, directory, boundaries) {
   await checkBoundaries();
   const canonical2 = await realpath9(file);
   assertWithin(directory, canonical2);
-  const before = await stat6(canonical2, { bigint: true });
+  const before = await stat7(canonical2, { bigint: true });
   if (!before.isFile())
     throw new Error(`\u6280\u80FD\u6E90\u4E0D\u662F\u666E\u901A\u6587\u4EF6\uFF1A${file}`);
   if (before.size > BigInt(MAX_SOURCE_BYTES))
@@ -255132,7 +255167,7 @@ async function readBoundedUtf8(file, directory, boundaries) {
     if (length > MAX_SOURCE_BYTES)
       throw new Error(`\u6280\u80FD\u6E90\u8D85\u8FC7 256 KiB \u4E0A\u9650\uFF1A${file}`);
     await checkBoundaries();
-    if (await realpath9(file) !== canonical2 || BigInt(length) !== before.size || !sameIdentity(before, await handle.stat({ bigint: true })) || !sameIdentity(before, await stat6(canonical2, { bigint: true }))) {
+    if (await realpath9(file) !== canonical2 || BigInt(length) !== before.size || !sameIdentity(before, await handle.stat({ bigint: true })) || !sameIdentity(before, await stat7(canonical2, { bigint: true }))) {
       throw new Error(`\u6280\u80FD\u6E90\u8BFB\u53D6\u671F\u95F4\u53D8\u5316\uFF1A${file}`);
     }
     return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(buffer.subarray(0, length));
@@ -255815,7 +255850,7 @@ function projectContextCompactionLedger(entries) {
 // packages/coremind-runtime/dist/context-lifecycle.js
 import { createHash as createHash17 } from "node:crypto";
 import { createReadStream as createReadStream4 } from "node:fs";
-import { realpath as realpath10, stat as stat7 } from "node:fs/promises";
+import { realpath as realpath10, stat as stat8 } from "node:fs/promises";
 import path41 from "node:path";
 var ContextLifecycleError = class extends Error {
   reason;
@@ -255940,7 +255975,7 @@ async function validateArtifactReferences(request) {
       const realCandidate = await realpath10(candidate);
       if (!isStrictChild2(realArtifactRoot, realCandidate))
         throwArtifactMissing(reference.artifactId);
-      const metadata = await stat7(realCandidate);
+      const metadata = await stat8(realCandidate);
       if (!metadata.isFile() || metadata.size !== reference.sizeBytes) {
         throwArtifactMissing(reference.artifactId);
       }
@@ -260840,13 +260875,13 @@ var Orchestrator = class {
     await this.runSteps(this.steps, 0);
     return this.outputs;
   }
-  async runSteps(steps, depth) {
+  async runSteps(steps, depth, signal = this.signal) {
     for (const step of steps) {
-      await this.runStep(step, depth);
+      await this.runStep(step, depth, signal);
     }
   }
-  async runStep(step, depth) {
-    if (this.signal?.aborted) {
+  async runStep(step, depth, signal = this.signal) {
+    if (signal?.aborted) {
       throw new CoreMindError("aborted", "\u6267\u884C\u5DF2\u4E2D\u6B62");
     }
     const completed = this.completedSteps.get(step.id);
@@ -260859,27 +260894,27 @@ var Orchestrator = class {
     switch (step.type) {
       case "prompt":
       case "call":
-        return this.runAgentStep(step, depth);
+        return this.runAgentStep(step, depth, signal);
       case "parallel":
-        return this.runParallelStep(step, depth);
+        return this.runParallelStep(step, depth, signal);
       case "if":
-        return this.runIfStep(step, depth);
+        return this.runIfStep(step, depth, signal);
       case "switch":
-        return this.runSwitchStep(step, depth);
+        return this.runSwitchStep(step, depth, signal);
     }
   }
   /**
    * 派发任务给某 agent（唯一执行 Agent 的地方；每步独立实例）。
    * 支持：单步超时护栏（stepTimeoutMs）、质量把关重试（retry.if 为真则重试）。
    */
-  async runAgentStep(step, _depth) {
+  async runAgentStep(step, _depth, signal) {
     const retryCfg = step.retry;
     const maxAttempts = 1 + (retryCfg?.max ?? 1);
     this.events({ type: "step_start", stepId: step.id, kind: step.type });
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const input = this.interpolate(step.input);
-        const text2 = await this.promptWithTimeout(step.agent, input, step.id);
+        const text2 = await this.promptWithTimeout(step.agent, input, step.id, signal);
         const output = { text: text2, metadata: { agent: step.agent, stepId: step.id } };
         const retryNeeded = retryCfg?.if !== void 0 && evalCondition(this.interpolateWithStepText(retryCfg.if, text2));
         if (retryNeeded && attempt < maxAttempts) {
@@ -260927,12 +260962,14 @@ var Orchestrator = class {
     throw new CoreMindError("step_limit", `\u6B65\u9AA4 ${step.id} \u91CD\u8BD5\u6B21\u6570\u5F02\u5E38`);
   }
   /** 同一步骤的准备与模型执行共用期限；迟到工厂不能越过取消边界。 */
-  async promptWithTimeout(agentName, input, stepId) {
+  async promptWithTimeout(agentName, input, stepId, parentSignal) {
     const timeoutMs = this.stepTimeoutMs;
     const controller = new AbortController();
-    const signal = this.signal ? AbortSignal.any([this.signal, controller.signal]) : controller.signal;
+    const signal = parentSignal ? AbortSignal.any([parentSignal, controller.signal]) : controller.signal;
     let agent;
     let timer;
+    const onAbort = () => agent?.abort();
+    signal.addEventListener("abort", onAbort, { once: true });
     const run = (async () => {
       signal.throwIfAborted();
       agent = await this.createAgent(agentName, stepId, signal);
@@ -260943,9 +260980,11 @@ var Orchestrator = class {
       if (!agent) {
         throw new CoreMindError("unknown_agent", `workflow \u5F15\u7528\u4E86\u672A\u5B9A\u4E49\u7684 agent\uFF1A${agentName}\uFF08\u7B2C ${stepId} \u6B65\uFF09`);
       }
+      const messageCursor = agent.messages().length;
       await agent.prompt(input);
       await agent.waitForIdle();
-      return extractSuccessfulText(agent);
+      signal.throwIfAborted();
+      return extractSuccessfulText(agent, messageCursor);
     })();
     try {
       if (timeoutMs <= 0)
@@ -260956,7 +260995,6 @@ var Orchestrator = class {
           timer = setTimeout(() => {
             const failure3 = new CoreMindError("step_timeout", `\u6B65\u9AA4 ${stepId} \u6267\u884C\u8D85\u65F6\uFF08${timeoutMs}ms\uFF09\uFF0C\u5DF2\u4E2D\u6B62`);
             controller.abort(failure3);
-            agent?.abort();
             reject(failure3);
           }, timeoutMs);
         })
@@ -260964,6 +261002,7 @@ var Orchestrator = class {
     } finally {
       if (timer)
         clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
     }
   }
   /** 重试条件插值：{{text}} 指本步骤输出，其余变量走正常插值 */
@@ -260975,9 +261014,19 @@ var Orchestrator = class {
     });
   }
   /** 并行执行子步骤：共享 outputs/variables，事件按声明顺序聚合文本 */
-  async runParallelStep(step, depth) {
+  async runParallelStep(step, depth, parentSignal) {
     this.events({ type: "step_start", stepId: step.id, kind: "parallel" });
-    const results = await Promise.all(step.steps.map((s2) => this.runStep(s2, depth + 1)));
+    const controller = new AbortController();
+    const signal = parentSignal ? AbortSignal.any([parentSignal, controller.signal]) : controller.signal;
+    let firstFailure;
+    const settled = await Promise.allSettled(step.steps.map((child) => this.runStep(child, depth + 1, signal).catch((error3) => {
+      firstFailure ??= { error: error3 };
+      controller.abort(error3);
+      throw error3;
+    })));
+    if (firstFailure)
+      throw firstFailure.error;
+    const results = settled.map((result) => result.value);
     const text2 = results.map((r2) => r2.text).filter((t2) => t2.length > 0).join("\n");
     const output = { text: text2, metadata: { agent: "", stepId: step.id } };
     if (step.saveAs)
@@ -260992,22 +261041,22 @@ var Orchestrator = class {
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return output;
   }
-  async runIfStep(step, depth) {
+  async runIfStep(step, depth, signal) {
     this.events({ type: "step_start", stepId: step.id, kind: "if" });
     const branch = evalCondition(this.interpolate(step.condition)) ? step.then : step.else;
     if (branch)
-      await this.runSteps(branch, depth + 1);
+      await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);
   }
-  async runSwitchStep(step, depth) {
+  async runSwitchStep(step, depth, signal) {
     this.events({ type: "step_start", stepId: step.id, kind: "switch" });
     const value = this.variables.get(step.on) ?? "";
     const hit = Object.keys(step.cases).find((key) => value.includes(key));
     const branch = hit ? step.cases[hit] : step.default;
     if (branch)
-      await this.runSteps(branch, depth + 1);
+      await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
     return emptyOutput(step.id);
@@ -261035,7 +261084,7 @@ var Orchestrator = class {
 function emptyOutput(stepId) {
   return { text: "", metadata: { agent: "", stepId } };
 }
-function extractSuccessfulText(agent) {
+function extractSuccessfulText(agent, messageCursor) {
   const messages = agent.messages();
   const agentError = extractAgentError(messages);
   if (agentError) {
@@ -261045,7 +261094,7 @@ function extractSuccessfulText(agent) {
       errorMessage: agentError
     });
   }
-  return extractText(messages);
+  return extractText(messages.slice(messageCursor));
 }
 function evalCondition(condition) {
   const cond = condition.trim();
@@ -261364,7 +261413,7 @@ function progressFingerprint(text2) {
 // packages/coremind-runtime/dist/mcp-runtime.js
 import { createHash as createHash22 } from "node:crypto";
 import { createReadStream as createReadStream5 } from "node:fs";
-import { realpath as realpath11, stat as stat8 } from "node:fs/promises";
+import { realpath as realpath11, stat as stat9 } from "node:fs/promises";
 import path42 from "node:path";
 var BASE_ENVIRONMENT_KEYS = [
   "PATH",
@@ -261725,7 +261774,7 @@ async function identifyServer(serverName, server) {
     throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u547D\u4EE4\u4E0E\u5DE5\u4F5C\u76EE\u5F55\u5FC5\u987B\u4E3A\u7EDD\u5BF9\u8DEF\u5F84");
   const command = await realpath11(server.command);
   const cwd = await realpath11(server.cwd);
-  if (!(await stat8(command)).isFile() || !(await stat8(cwd)).isDirectory())
+  if (!(await stat9(command)).isFile() || !(await stat9(cwd)).isDirectory())
     throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u76EE\u6807\u4E0D\u662F\u7A0B\u5E8F\u6587\u4EF6\u6216\u5DE5\u4F5C\u76EE\u5F55");
   const scripts = [];
   for (const [argumentIndex, argument] of (server.args ?? []).entries()) {
@@ -261733,7 +261782,7 @@ async function identifyServer(serverName, server) {
     if (candidate.startsWith("-") || !/\.(?:[cm]?js|py|pyw|sh|bash|rb|pl|ps1|cmd|bat)$/iu.test(candidate))
       continue;
     const script = await realpath11(path42.resolve(cwd, candidate));
-    if (!(await stat8(script)).isFile())
+    if (!(await stat9(script)).isFile())
       throw new CoreMindError("invalid_tool", "\u672C\u5730\u670D\u52A1\u811A\u672C\u4E0D\u662F\u666E\u901A\u6587\u4EF6");
     scripts.push({ argumentIndex, path: script, sha256: await hashFile3(script) });
   }
@@ -261976,7 +262025,7 @@ function validTimestamp(value) {
 
 // packages/coremind-runtime/dist/project-code-trust.js
 import { createHash as createHash23 } from "node:crypto";
-import { open as open9, realpath as realpath12, stat as stat9 } from "node:fs/promises";
+import { open as open9, realpath as realpath12, stat as stat10 } from "node:fs/promises";
 import path43 from "node:path";
 function checkCancellation(signal) {
   if (signal?.aborted)
@@ -261985,7 +262034,7 @@ function checkCancellation(signal) {
 async function inspectSource(fullPath, signal) {
   checkCancellation(signal);
   const canonical2 = await realpath12(fullPath);
-  if (!(await stat9(canonical2)).isFile()) {
+  if (!(await stat10(canonical2)).isFile()) {
     throw new CoreMindError("execution_security_violation", "\u9879\u76EE\u811A\u672C\u5165\u53E3\u5FC5\u987B\u662F\u666E\u901A\u6587\u4EF6");
   }
   const handle = await open9(canonical2, "r");
@@ -262066,7 +262115,7 @@ async function prepareProjectCodeImports(config2, configDir, approve, signal) {
 
 // packages/coremind-runtime/dist/run-state.js
 import { createHash as createHash24, randomUUID as randomUUID20 } from "node:crypto";
-import { link as link4, mkdir as mkdir8, open as open10, readFile as readFile12, rename as rename6, rm as rm8, stat as stat10, writeFile as writeFile9 } from "node:fs/promises";
+import { link as link4, mkdir as mkdir8, open as open10, readFile as readFile12, rename as rename6, rm as rm8, stat as stat11, writeFile as writeFile9 } from "node:fs/promises";
 import path44 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
@@ -262222,6 +262271,9 @@ function validateAcknowledgement(store, requested, acknowledgement) {
 // packages/coremind-runtime/dist/run-state.js
 var MAX_RUN_FILE_CURSORS = 64;
 var MAX_SERIALIZED_PREFIX_BYTES = 4 * 1024 * 1024;
+function isManagedRunPath(relativePath) {
+  return /^[a-zA-Z0-9_-]+\.jsonl(?:[./\\]|$)/iu.test(relativePath);
+}
 var FileRunStore = class {
   directory;
   options;
@@ -262376,7 +262428,7 @@ var FileRunStore = class {
   }
   async fileIdentity(destination) {
     try {
-      const current = await stat10(destination);
+      const current = await stat11(destination);
       return {
         dev: current.dev,
         ino: current.ino,
@@ -265312,7 +265364,7 @@ var TOOL_DISCOVERY_DECLARATION = Object.freeze({
 });
 
 // packages/coremind-runtime/dist/tool-policy.js
-import { realpath as realpath13 } from "node:fs/promises";
+import { lstat as lstat6, realpath as realpath13 } from "node:fs/promises";
 import path45 from "node:path";
 var PATH_KEYS = /* @__PURE__ */ new Set(["path", "file", "filepath", "cwd", "directory"]);
 var ToolPolicy = class {
@@ -265362,6 +265414,8 @@ var ToolPolicy = class {
     return void 0;
   }
   async authorize(agent, tool, args, capabilityOrDeclaration, selectors, delegationInputFingerprint, identity3) {
+    const signal = identity3?.signal;
+    signal?.throwIfAborted();
     const capability = resolvePolicyCapability(tool, capabilityOrDeclaration);
     const staticDenial = this.staticDenial(tool, capability);
     if (staticDenial)
@@ -265411,6 +265465,23 @@ var ToolPolicy = class {
         };
       }
     }
+    if (effect.operations.includes("write") && this.options.protectedPaths?.length) {
+      if (effect.paths.length === 0) {
+        return { allowed: false, reason: `\u5DE5\u5177 ${tool} \u672A\u66B4\u9732\u53EF\u68C0\u67E5\u7684\u5199\u5165\u76EE\u6807\uFF0C\u65E0\u6CD5\u4FDD\u62A4\u6846\u67B6\u72B6\u6001` };
+      }
+      try {
+        const protectedPath = await this.findProtectedPath(effect.paths);
+        if (protectedPath) {
+          return {
+            allowed: false,
+            reason: `\u666E\u901A\u4E1A\u52A1\u5DE5\u5177\u4E0D\u5F97\u6539\u5199\u6846\u67B6\u72B6\u6001\u6216\u5176\u7236\u76EE\u5F55\uFF1A${protectedPath}`
+          };
+        }
+      } catch {
+        return { allowed: false, reason: "\u65E0\u6CD5\u786E\u8BA4\u6846\u67B6\u72B6\u6001\u5199\u5165\u8FB9\u754C\uFF0C\u5DF2\u62D2\u7EDD" };
+      }
+    }
+    signal?.throwIfAborted();
     const networkTool = capability.effect === "network" || capability.effect === "external" || effect.urls.length > 0;
     if (networkTool && this.permissions.network === "deny") {
       return { allowed: false, reason: `\u7F51\u7EDC\u7B56\u7565\u62D2\u7EDD\u5DE5\u5177 ${tool}` };
@@ -265462,22 +265533,44 @@ var ToolPolicy = class {
       capability
     };
     this.options.onApprovalRequired?.(request);
-    if (!this.options.approve) {
-      this.options.onApprovalResolved?.(request, "deny");
+    let onAbort;
+    try {
+      signal?.throwIfAborted();
+      if (!this.options.approve) {
+        this.options.onApprovalResolved?.(request, "deny");
+        return {
+          allowed: false,
+          reason: `\u5DE5\u5177 ${tool} \u9700\u8981\u7528\u6237\u6279\u51C6\uFF0C\u4F46\u5F53\u524D\u8C03\u7528\u65B9\u672A\u63D0\u4F9B\u5BA1\u6279\u5904\u7406\u5668`,
+          approvalId: request.approvalId
+        };
+      }
+      const decision = signal ? await new Promise((resolve9, reject) => {
+        onAbort = () => reject(signal.reason);
+        if (signal.aborted)
+          onAbort();
+        else
+          signal.addEventListener("abort", onAbort, { once: true });
+        Promise.resolve().then(() => {
+          signal.throwIfAborted();
+          return this.options.approve(request);
+        }).then(resolve9, reject);
+      }) : await this.options.approve(request);
+      signal?.throwIfAborted();
+      this.options.onApprovalResolved?.(request, decision);
       return {
-        allowed: false,
-        reason: `\u5DE5\u5177 ${tool} \u9700\u8981\u7528\u6237\u6279\u51C6\uFF0C\u4F46\u5F53\u524D\u8C03\u7528\u65B9\u672A\u63D0\u4F9B\u5BA1\u6279\u5904\u7406\u5668`,
-        approvalId: request.approvalId
+        allowed: decision === "allow",
+        reason: decision === "allow" ? "\u7528\u6237\u5DF2\u6279\u51C6" : "\u7528\u6237\u5DF2\u62D2\u7EDD",
+        approvalId: request.approvalId,
+        ...decision === "allow" ? { approvedBy: "user" } : {}
       };
+    } catch (error3) {
+      if (signal?.aborted)
+        this.options.onApprovalResolved?.(request, "deny");
+      throw error3;
+    } finally {
+      if (onAbort)
+        signal?.removeEventListener("abort", onAbort);
     }
-    const decision = await this.options.approve(request);
-    this.options.onApprovalResolved?.(request, decision);
-    return {
-      allowed: decision === "allow",
-      reason: decision === "allow" ? "\u7528\u6237\u5DF2\u6279\u51C6" : "\u7528\u6237\u5DF2\u62D2\u7EDD",
-      approvalId: request.approvalId,
-      ...decision === "allow" ? { approvedBy: "user" } : {}
-    };
   }
   async findEscapedPath(candidates) {
     if (candidates.length === 0)
@@ -265508,6 +265601,24 @@ var ToolPolicy = class {
       const allowed = allowedRoots.some((root) => (!isOutside2(root.lexical, lexicalTarget) || !isOutside2(root.canonical, lexicalTarget)) && !isOutside2(root.canonical, canonicalTarget));
       if (!allowed)
         return candidate;
+    }
+    return void 0;
+  }
+  async findProtectedPath(candidates) {
+    const protectedPaths = await Promise.all((this.options.protectedPaths ?? []).map(async (entry) => ({
+      path: await canonicalize4(typeof entry === "string" ? entry : entry.path, true),
+      contains: typeof entry === "string" ? void 0 : entry.contains
+    })));
+    for (const candidate of candidates) {
+      const target = await canonicalize4(path45.resolve(this.options.cwd, candidate), true);
+      await assertSingleLinkWriteTarget(target);
+      for (const entry of protectedPaths) {
+        if (!isOutside2(target, entry.path))
+          return candidate;
+        if (!isOutside2(entry.path, target) && (!entry.contains || entry.contains(path45.relative(entry.path, target)))) {
+          return candidate;
+        }
+      }
     }
     return void 0;
   }
@@ -265601,7 +265712,7 @@ function legacySelectors(value) {
 function unique2(values) {
   return [...new Set(values)];
 }
-async function canonicalize4(input) {
+async function canonicalize4(input, strict = false) {
   let current = path45.resolve(input);
   const missing = [];
   while (true) {
@@ -265610,8 +265721,21 @@ async function canonicalize4(input) {
       return path45.join(existing, ...missing.reverse());
     } catch (error3) {
       const code = error3.code;
-      if (code !== "ENOENT")
+      if (code !== "ENOENT") {
+        if (strict)
+          throw error3;
         return current;
+      }
+      if (strict) {
+        try {
+          if ((await lstat6(current)).isSymbolicLink()) {
+            throw new Error("\u60AC\u7A7A\u7B26\u53F7\u94FE\u63A5\u65E0\u6CD5\u5B89\u5168\u89E3\u6790\uFF0C\u5DF2\u62D2\u7EDD");
+          }
+        } catch (inspectionError) {
+          if (inspectionError.code !== "ENOENT")
+            throw inspectionError;
+        }
+      }
       const parent = path45.dirname(current);
       if (parent === current)
         return path45.resolve(input);
@@ -265950,15 +266074,21 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const harness = {
       ...originalHarness,
       beforePrompt: async () => {
+        signal?.throwIfAborted();
         if (originalHarness?.beforePrompt)
           await originalHarness.beforePrompt();
         if (name === this.mainAgentName) {
           await context.currentControlInbox()?.applyPending("steering");
           await context.currentControlInbox()?.applyPending("follow_up");
         }
+        signal?.throwIfAborted();
         if (this.options.signal?.aborted || context.currentJournal()?.isAborted()) {
           throw new CoreMindError("aborted", "\u63A7\u5236\u6062\u590D\u5B8C\u6210\u524D\u8FD0\u884C\u5DF2\u53D6\u6D88");
         }
+      },
+      beforeModelRequest: () => {
+        signal?.throwIfAborted();
+        originalHarness?.beforeModelRequest?.();
       },
       onObservation: (observation) => originalHarness?.onObservation?.(observation.type === "control_consumed" ? { ...observation, turnId: turnTracker.ensureCurrentTurn(name) } : observation)
     };
@@ -267024,6 +267154,21 @@ var CoreMindRuntime = class _CoreMindRuntime {
     const policy2 = new ToolPolicy({
       permissions: this.config.permissions,
       allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
+      protectedPaths: [
+        path46.resolve(this.options.configDir, ".coremind", "runs"),
+        path46.resolve(this.options.configDir, ".coremind", "checkpoints"),
+        path46.resolve(this.options.configDir, ".coremind", "quality-overrides.jsonl"),
+        path46.resolve(this.options.cwd ?? process.cwd(), ".coremind", "quality-overrides.jsonl"),
+        path46.resolve(this.options.cwd ?? process.cwd(), ".coremind", "artifacts"),
+        path46.resolve(this.options.cwd ?? process.cwd(), ".coremind", "leases"),
+        ...runStore instanceof FileRunStore ? [{ path: path46.resolve(runStore.directory), contains: isManagedRunPath }] : runStore.pathFor ? [path46.resolve(runStore.pathFor(runId))] : [],
+        ...this.config.session?.enabled ? [
+          {
+            path: sessionDir(this.config, this.options.configDir),
+            contains: isManagedSessionPath
+          }
+        ] : []
+      ],
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
@@ -267057,6 +267202,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     });
     const deniedAgents = /* @__PURE__ */ new Set();
     const activeRunContext = context;
+    let modelRequestsOpen = true;
     context.setHarnessFactory((agentName, stepId, executionId) => {
       const agentModel = this.agentModels.get(agentName) ?? this.providerRuntime.model;
       const skillExecution = skillSnapshot?.agents[agentName]?.standard.length ? new SkillExecution(skillSnapshot, agentName, resumeRecords, stepId) : void 0;
@@ -267104,6 +267250,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
           if (facts.state === "poisoned") {
             throw new CoreMindError("fact_ledger_poisoned", `\u4E8B\u5B9E\u8D26\u672C\u5DF2\u5931\u6548\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6A21\u578B\u8BF7\u6C42\uFF1A${facts.reason}`);
           }
+          if (!modelRequestsOpen || facts.terminal) {
+            throw new CoreMindError("run_already_finished", "Run \u5DF2\u5C01\u95ED\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6A21\u578B\u8BF7\u6C42");
+          }
+          if (journal.isAborted())
+            throw new CoreMindError("aborted", "Run \u5DF2\u53D6\u6D88\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6A21\u578B\u8BF7\u6C42");
           throwIfContextFailed();
           throwIfDelegationBlocksModel();
           for (const name of discovery?.current?.names ?? [])
@@ -267397,7 +267548,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
               return { block: true, reason: delegationPolicyFailure.message, terminate: true };
             }
           }
-          const decision = await policy2.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint, { callId: context2.toolCall.callId, ...stepId ? { stepId } : {} });
+          const decision = await policy2.authorize(agentName, context2.toolCall.tool, authorizationArgs, resolvedCapability, executionEffects.get(context2.toolCall.tool), delegationInputFingerprint, { callId: context2.toolCall.callId, ...stepId ? { stepId } : {}, signal });
+          signal?.throwIfAborted();
           await toolExecutionEngine.advance(lifecycleIdentity, {
             phase: "policy_resolved",
             status: "completed",
@@ -268186,6 +268338,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         }
       }
     } finally {
+      modelRequestsOpen = false;
       hostVerification?.interrupt(new CoreMindError("run_already_finished", "Run \u5DF2\u7ED3\u675F\u9A8C\u6536\u7B49\u5F85"));
       context.setHarnessFactory(void 0);
     }
@@ -270277,6 +270430,7 @@ var ProtocolHost = class {
         try {
           const failedRecords = await state3.runStore.read(runId);
           if (failedRecords.at(-1)?.kind !== "finish") {
+            const classification = classifyExecutionError(error3);
             const journal = new RunStateJournal(
               runId,
               state3.runStore,
@@ -270284,9 +270438,13 @@ var ProtocolHost = class {
             );
             journal.finish({
               outcome: {
-                status: "failed",
-                finishReason: "agent_failed",
-                error: { code: "agent_failed", message: "Runtime \u521D\u59CB\u5316\u6216\u540E\u53F0\u6267\u884C\u5931\u8D25" }
+                status: ERROR_CODES[classification.code].runStatus,
+                finishReason: classification.code,
+                error: {
+                  code: classification.code,
+                  message: classification.message,
+                  ...classification.audit ? { audit: classification.audit } : {}
+                }
               }
             });
             await journal.flush("critical");

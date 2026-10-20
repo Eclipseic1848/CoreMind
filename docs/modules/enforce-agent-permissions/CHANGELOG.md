@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 - 2026-10-20
 
 - 普通业务工具写入前统一保护框架持久状态；保留合法业务文件和宿主恢复接口的既有行为。
 - Protect framework-managed persistent state before business-tool writes while preserving legitimate business files and host restore APIs.

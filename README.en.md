@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-line%201.2.0-f59e0b)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-line%201.3.0-f59e0b)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -18,15 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The `1.2.0` release line upgrades directly from `1.0.1` and includes unpublished 1.1 development: standard Skills, durable control, controlled MCP/explicit OAuth, discovery, and terminal evidence, together with Session, tool-argument, model-request, authentication, output-delivery, duplicate Call identity, journal-processing, Python notification-consumption, project-script loading-trust, and terminal-editing improvements. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
+> The `1.3.0` release line upgrades from the published `1.2.0` release. It fixes internal persistent-state protection, parallel-failure cleanup, Python deferred annotations, Workflow step output, Diff graders, Protocol v2 error identity, Web response cleanup, explicit readline exit, and doctor credential diagnostics, and updates the security policy. Standard Skills, durable control, MCP/OAuth, discovery, and terminal capabilities from 1.2 remain. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
 
 > A configurable Provider is not a certified Provider. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 
-[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [1.2 release notes](docs/release/notes/v1.2.0.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
+[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [1.2→1.3 upgrade](docs/migrations/1.2-to-1.3.en.md) · [1.3 release notes](docs/release/notes/v1.3.0.md) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The `1.2.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
+The `1.3.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
 
 | Capability | Current support |
 |---|---|
@@ -46,7 +46,7 @@ The `1.2.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime an
 
 The current version does not include a complete Web development environment, an official hosted API, an official Docker image, a pure Python runtime, or formal macOS support. See the [public roadmap](docs/roadmap.en.md).
 
-## Seven extension capabilities in the 1.2 release line
+## Seven extension capabilities retained from 1.2
 
 - Standard `SKILL.md` files provide an index and on-demand `load_skill`. Selected bodies freeze when the Runtime is created and resume from the original snapshot; loading a Skill grants no permissions.
 - Durable `/steer` and `/follow-up` add input within the same Run. The `accepted/applied/rejected/duplicate/conflict` control receipts remain separate from input claim and completion.
@@ -70,13 +70,14 @@ See the [configuration guide](docs/en/guide/02-configuration.md), [Skill guide](
 | `0.8.0` release line | Same-Run host verification and the engineering audit fixes | Strict candidate, Provider, and public-artifact evidence remain separate gates |
 | `1.0.1` release line | Authorization, recovery, Trace, budgets, Worker, and SDK integration hardening | Strict evidence bound to the same version, commit, and artifacts |
 | Unpublished `1.1.0` development | Standard Skills, durable control, MCP/OAuth, explicit discovery, and terminal evidence | Included in 1.2; no intermediate installation |
-| `1.2.0` release line | Combine 1.1 development with reliability, journal-processing, notification-consumption, loading-trust, and terminal-editing improvements | Preserve configuration/protocol and permission boundaries; bind formal qualification to the final version, commit, and exact artifacts |
+| Published `1.2.0` | Combine 1.1 development with reliability, journal-processing, notification-consumption, loading-trust, and terminal-editing improvements | Preserve historical release and certification evidence without substituting it for a new version's qualification |
+| `1.3.0` release line | Fix internal-state write protection, failure cancellation, tool arguments and step output, grading, error identity, network cleanup, and CLI diagnostics | Preserve configuration/protocol and permission boundaries; obtain evidence for this version, commit, and exact artifacts |
 | Phase-three Web environment | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 Future maintenance releases will evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-Historical candidate and Provider evidence remains available for audit but cannot replace `1.2.0` release or certification evidence.
+Historical candidate and Provider evidence remains available for audit but cannot replace `1.3.0` release or certification evidence.
 
 ## Product boundary
 
@@ -92,10 +93,10 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer; the Python SDK requires Python 3.10 or newer. The example targets `1.2.0`; confirm public availability in the Release and registries before installation. Upgrade directly from `1.0.1` using the [migration guide](docs/migrations/1.0-to-1.2.en.md):
+Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer; the Python SDK requires Python 3.10 or newer. The example targets `1.3.0`; confirm public availability in the Release and registries before installation. Upgrade from `1.2.0` using the [migration guide](docs/migrations/1.2-to-1.3.en.md):
 
 ```bash
-npm install -g coremind-cli@1.2.0
+npm install -g coremind-cli@1.3.0
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -148,7 +149,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `1.2.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
+CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `1.3.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
