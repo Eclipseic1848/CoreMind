@@ -33,7 +33,7 @@ provider:
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：`1.0.1` 共提供 40 个可配置入口，包括 39 个继承入口和 1 个 CoreMind 原生入口；可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)尚未收录 `1.0.1` 认证记录；正式发布必须使用绑定最终提交和 Runtime 摘要的严格认证证据，可在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.0.1) 对应的 Candidate 工作流中核对。部署到其他模型、凭据或环境仍需单独复验。
+**内置提供商**：`1.3.0` 有 42 个内置聊天 Provider，含兼容别名共 43 个可配置入口；别名不重复计为独立提供商。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)仅反映已登记证据；正式发布还必须使用绑定最终提交、Runtime 和准确制品摘要的严格认证证据，可在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.3.0) 对应的 Candidate 工作流中核对。部署到其他模型、凭据或环境仍需单独复验。
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 

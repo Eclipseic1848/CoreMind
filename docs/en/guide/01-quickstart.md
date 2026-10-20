@@ -8,12 +8,12 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 ## 2. Install and create a project
 
-`coremind-cli@1.2.0` is the target package for this release line; confirm public availability on the live npm page before installation. Upgrade directly from `1.0.1` using the [1.0.1-to-1.2 migration guide](/migrations/1.0-to-1.2.en), without installing the unpublished 1.1 line.
+`coremind-cli@1.3.0` is the target package for this release line; confirm public availability on the live npm page before installation. Upgrade from `1.2` using the [1.2-to-1.3 migration guide](/migrations/1.2-to-1.3.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
 
 ```bash
-npm install coremind-ai@1.2.0 coremind-cli@1.2.0
-npx coremind-cli@1.2.0 providers
-npx coremind-cli@1.2.0 create my-agent --provider alibaba-model-studio
+npm install coremind-ai@1.3.0 coremind-cli@1.3.0
+npx coremind-cli@1.3.0 providers
+npx coremind-cli@1.3.0 create my-agent --provider alibaba-model-studio
 cd my-agent
 ```
 
@@ -29,7 +29,7 @@ DASHSCOPE_API_KEY=replace_me
 
 Credentials belong in environment variables. An embedding host may instead supply a `SecretRef` resolver; sensitive Headers, including common API-key and token aliases, cannot use plaintext literals.
 
-Provider support does not imply live certification. Check the [provider matrix](/providers/README.en) before production evaluation.
+Provider support does not imply live certification. Check the [provider matrix](/providers/README.en) and the [corresponding Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.3.0) for same-version qualification evidence before production evaluation.
 
 ## 4. Validate before running
 
