@@ -26,7 +26,7 @@ In readline mode, `/exit` and `!exit` request cancellation of the active Run bef
 5. Enter `/abort` during a long response and verify that generation stops and input remains usable.
 6. Set `session.enabled: true` before using `--session`; the CLI must fail clearly rather than continue silently when it is missing.
 7. For an explicit Loop, compare state order across TUI, readline, and `--json-events`, then resume a pause with the same run ID.
-8. With `coremind doctor coremind.yaml`, verify that credential checks follow that config's `provider.apiKeyEnv` and do not fail on unrelated Provider keys.
+8. With `coremind doctor coremind.yaml`, verify that legitimate anonymous/Header-only custom endpoints do not fail for missing unrelated API keys. Explicit missing credentials must still fail, and built-in Provider authentication requirements remain unchanged. Without a config file, retain general environment diagnostics. Checks must neither load project scripts nor send Provider requests; passing does not prove credential validity, connectivity, or certification.
 9. In the TUI, run `/status`, `/artifacts`, and `/context`, then verify recovery, evaluation, artifact references, and context-compaction evidence.
 
 ## Interactive MCP authentication (1.1 development line)

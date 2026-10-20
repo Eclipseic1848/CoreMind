@@ -19,6 +19,7 @@ Provide a beginner end-to-end path through create, run, chat, check, eval, docto
 
 ## Errors and boundaries
 
+- `doctor <config-file>` statically checks the selected Provider's existing credential policy. Legitimate anonymous/Header-only custom endpoints require no unrelated API key; explicit missing credentials still fail, and built-in Provider authentication requirements remain unchanged. Without a config, general environment diagnostics remain. Checks neither load project scripts nor send Provider requests; passing does not establish credential validity, connectivity, or certification.
 - Stable `run` exit codes: succeeded `0`, failed `1`, paused `2`, budget exhausted `3`, timeout `124`, and aborted `130`
 - `--json-events` keeps stdout as JSONL and always ends with `run_result`; diagnostics go to stderr
 - `--print` and `--json-events` are mutually exclusive so prose cannot contaminate machine output

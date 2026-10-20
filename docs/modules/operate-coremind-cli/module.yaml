@@ -29,6 +29,7 @@ testPaths:
   - "packages/coremind-cli/src/approval.test.ts"
   - "packages/coremind-cli/src/commands/create.test.ts"
   - "packages/coremind-cli/src/commands/run.test.ts"
+  - "packages/coremind-cli/src/commands/doctor.test.ts"
   - "packages/coremind-cli/src/commands/chat.test.ts"
   - "packages/coremind-cli/src/tui.test.tsx"
   - "packages/coremind-runtime/src/run-terminalizer.test.ts"

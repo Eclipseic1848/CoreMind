@@ -7,7 +7,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 ## Procedure
 
 1. Create or adopt a project.
-2. Check the local environment with doctor.
+2. Check the local environment with doctor. With a config, test anonymous/Header-only custom endpoints, explicit missing credentials, and built-in authentication requirements against the selected Provider's existing policy; without a config, retain general diagnostics. Verify that checks neither load project scripts nor send Provider requests. A static pass is not evidence of credential validity, connectivity, or certification.
 3. Develop with run or chat.
 4. Accept with check and eval.
 5. Use TUI or `--print` for reading results. In `1.0.0`, `--print` stdout contains only the body; run notices and approvals use stderr; use `--json-events` for machine consumers, and never pass both options together.

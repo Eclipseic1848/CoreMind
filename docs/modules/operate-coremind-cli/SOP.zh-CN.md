@@ -7,7 +7,7 @@
 ## 执行步骤
 
 1. 用 create 生成或接入项目。
-2. 用 doctor 检查本地环境。
+2. 用 doctor 检查本地环境。有配置时按所选 Provider 的既有凭据策略验证匿名/Header-only 自定义端点、显式凭据缺失和内置鉴权要求；无配置时保留通用诊断。确认检查不加载项目脚本、不发 Provider 请求；静态通过不作为凭据有效、真实连通或认证证据。
 3. 用 run 或 chat 开发。
 4. 用 check 与 eval 验收。
 5. 人工阅读使用 TUI 或 `--print`；`1.0.0` 的 `--print` stdout 仅包含正文，运行提示及审批走 stderr，机器消费应使用 `--json-events`，两种参数不得同时传入。

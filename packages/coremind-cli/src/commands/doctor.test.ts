@@ -22,12 +22,17 @@ describe("doctor Provider 凭据检查", () => {
     });
   });
 
-  it("识别 Alibaba 默认变量，其他未声明入口继续使用通用体检", () => {
+  it("识别 Alibaba 原生入口默认变量，自定义端点不推断默认凭据", () => {
     expect(resolveConfiguredApiKeyEnv({ provider: { id: "alibaba-model-studio" } })).toBe(
       "DASHSCOPE_API_KEY",
     );
     expect(resolveConfiguredApiKeyEnv({ provider: { id: "deepseek" } })).toBeUndefined();
     expect(resolveConfiguredApiKeyEnv({})).toBeUndefined();
+    expect(
+      resolveConfiguredApiKeyEnv({
+        provider: { id: "alibaba-model-studio", baseUrl: "http://127.0.0.1:9/v1" },
+      }),
+    ).toBeUndefined();
   });
 
   it("无配置文件时保留常见变量体检语义", () => {
@@ -50,6 +55,87 @@ describe("doctor Provider 凭据检查", () => {
       ok: true,
       detail: "常见提供商 key 均已配置（仅检查存在性，未验证有效性）",
     });
+  });
+
+  it.each([
+    {
+      name: "匿名端点沿用 Alibaba 标识",
+      provider: { id: "alibaba-model-studio", baseUrl: "http://127.0.0.1:9/v1", model: "probe" },
+      configured: false,
+      expected: 0,
+    },
+    {
+      name: "仅 Header 认证",
+      provider: {
+        id: "doctor-custom",
+        baseUrl: "http://127.0.0.1:9/v1",
+        model: "probe",
+        headers: { Authorization: { env: "DOCTOR_HEADER_KEY" } },
+      },
+      configured: false,
+      expected: 0,
+    },
+    {
+      name: "显式凭据缺失",
+      provider: {
+        id: "doctor-custom",
+        baseUrl: "http://127.0.0.1:9/v1",
+        model: "probe",
+        apiKeyEnv: "DOCTOR_EXPLICIT_KEY",
+      },
+      configured: true,
+      expected: 1,
+    },
+    { name: "内置凭据缺失", provider: { id: "deepseek" }, configured: false, expected: 1 },
+  ])("$name：真实 doctor 复用 Provider 认证策略且不加载脚本或发请求", async (item) => {
+    const directory = mkdtempSync(path.join(tmpdir(), "coremind-doctor-provider-auth-"));
+    const file = path.join(directory, "coremind.json");
+    const marker = path.join(directory, "imported");
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("不应发送请求"));
+    for (const key of [
+      "DEEPSEEK_API_KEY",
+      "OPENAI_API_KEY",
+      "MOONSHOT_API_KEY",
+      "ZAI_API_KEY",
+      "DASHSCOPE_API_KEY",
+      "DOCTOR_CUSTOM_API_KEY",
+      "DOCTOR_EXPLICIT_KEY",
+    ])
+      vi.stubEnv(key, "");
+    vi.stubEnv("DOCTOR_HEADER_KEY", "doctor-test-only");
+    try {
+      writeFileSync(
+        path.join(directory, "probe.mjs"),
+        'import {writeFileSync} from "node:fs"; writeFileSync(new URL("./imported", import.meta.url), "loaded", "utf8"); export default {};\n',
+        "utf8",
+      );
+      writeFileSync(
+        file,
+        JSON.stringify({
+          schemaVersion: 2,
+          name: "doctor-provider-auth",
+          provider: item.provider,
+          agents: { main: {} },
+          tools: [{ path: "probe.mjs", effect: { operations: ["read"], reversible: true } }],
+        }),
+        "utf8",
+      );
+      const code = await cmdDoctor({ flags: new Map(), positionals: [] }, [file]);
+      const text = output.mock.calls.flat().join("\n");
+      expect(code, text).toBe(item.expected);
+      expect(text).not.toContain("未配置：DEEPSEEK_API_KEY");
+      if (item.configured) expect(text).toContain("未配置：DOCTOR_EXPLICIT_KEY");
+      expect(text).not.toContain("doctor-test-only");
+      expect(existsSync(marker)).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+      output.mockRestore();
+      vi.unstubAllEnvs();
+      expect(path.dirname(path.resolve(directory))).toBe(path.resolve(tmpdir()));
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it.each([

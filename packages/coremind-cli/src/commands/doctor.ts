@@ -112,11 +112,13 @@ export async function cmdDoctor(_parsed: ParsedArgs, positionals: string[]): Pro
     }
   }
 
-  // 4. 配置文件声明了凭据来源时只检查该变量；无配置时保留通用体检。
-  checks.push({
-    name: "API key 环境变量",
-    ...checkApiKeyEnvironment(configuredApiKeyEnv, process.env),
-  });
+  // 4. 已选 Provider 的凭据由构建校验；显式变量保留提示，无配置才做通用体检。
+  if (!file || configuredApiKeyEnv) {
+    checks.push({
+      name: "API key 环境变量",
+      ...checkApiKeyEnvironment(configuredApiKeyEnv, process.env),
+    });
+  }
 
   // 输出
   console.log("CoreMind 环境自检：\n");
@@ -143,11 +145,13 @@ function runtimeProviderId(config: {
 }
 
 export function resolveConfiguredApiKeyEnv(config: {
-  provider?: { id?: string; apiKeyEnv?: string };
+  provider?: { id?: string; apiKeyEnv?: string; baseUrl?: string };
 }): string | undefined {
   const explicit = config.provider?.apiKeyEnv?.trim();
   if (explicit) return explicit;
-  return config.provider?.id === "alibaba-model-studio" ? "DASHSCOPE_API_KEY" : undefined;
+  return config.provider?.id === "alibaba-model-studio" && !("baseUrl" in config.provider)
+    ? "DASHSCOPE_API_KEY"
+    : undefined;
 }
 
 export function checkApiKeyEnvironment(
