@@ -1,13 +1,14 @@
-import { createModels } from "@earendil-works/pi-ai";
+import { createModels, Type } from "@earendil-works/pi-ai";
 import {
   type FauxResponseStep,
   fauxAssistantMessage,
   fauxProvider,
+  fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import type { WorkflowStep } from "coremind-config";
 import { describe, expect, it } from "vitest";
 import type { AgentDriver } from "./agent-driver.js";
-import { buildAgentDriver } from "./agent-factory.js";
+import { type AgentBuildContext, buildAgentDriver } from "./agent-factory.js";
 import { CoreMindError } from "./errors.js";
 import { evalCondition, Orchestrator } from "./orchestrator.js";
 
@@ -18,7 +19,11 @@ let instanceCounter = 0;
  * 注意：faux provider 的响应队列按 provider id 在模块级共享，
  * 因此每个实例必须使用唯一 provider id，避免并发实例互相干扰。
  */
-function makeAgent(name: string, responses: FauxResponseStep[]): AgentDriver {
+function makeAgent(
+  name: string,
+  responses: FauxResponseStep[],
+  tools: AgentBuildContext["tools"] = [],
+): AgentDriver {
   instanceCounter += 1;
   const providerId = `faux-${name}-${instanceCounter}`;
   const models = createModels();
@@ -30,7 +35,7 @@ function makeAgent(name: string, responses: FauxResponseStep[]): AgentDriver {
     {
       models,
       model: faux.getModel(),
-      tools: [],
+      tools,
       agentName: name,
       onEvent: () => undefined,
     },
@@ -91,6 +96,81 @@ describe("evalCondition", () => {
 });
 
 describe("Orchestrator", () => {
+  it("复用 Driver 时只保存本次尝试输出，旧历史和失败稿不污染重试条件或下游", async () => {
+    const agent = makeAgent("main", [
+      fauxAssistantMessage("旧历史"),
+      fauxAssistantMessage("坏结果"),
+      fauxAssistantMessage("好结果"),
+      fauxAssistantMessage("下游结果"),
+    ]);
+    await agent.prompt("旧输入");
+    await agent.waitForIdle();
+    const recorded: Array<{ type: string; text?: string }> = [];
+    const outputs = await new Orchestrator(
+      [
+        {
+          id: "draft",
+          type: "prompt",
+          agent: "main",
+          input: "起草",
+          saveAs: "draft",
+          retry: { max: 1, if: "{{text}} contains 坏" },
+        },
+        {
+          id: "review",
+          type: "call",
+          agent: "main",
+          input: "复核 {{draft.text}}",
+          saveAs: "review",
+        },
+      ],
+      { createAgent: () => agent, events: (event) => recorded.push(event) },
+    ).run();
+
+    expect(outputs.get("draft")?.text).toBe("好结果");
+    expect(outputs.get("review")?.text).toBe("下游结果");
+    expect(agent.messages().at(-2)?.content).toEqual([{ type: "text", text: "复核 好结果" }]);
+    expect(
+      recorded.filter((event) => event.type === "step_output").map((event) => event.text),
+    ).toEqual(["好结果", "下游结果"]);
+  });
+
+  it.each([false, true])("多工具回合保留本步全部新增文本（存在历史：%s）", async (history) => {
+    const executed: string[] = [];
+    const agent = makeAgent(
+      "main",
+      [
+        ...(history ? [fauxAssistantMessage("旧历史")] : []),
+        fauxAssistantMessage([{ type: "text", text: "第一段" }, fauxToolCall("echo", {})]),
+        fauxAssistantMessage([{ type: "text", text: "第二段" }, fauxToolCall("echo", {})]),
+        fauxAssistantMessage("最终段"),
+      ],
+      [
+        {
+          name: "echo",
+          label: "echo",
+          description: "回显",
+          parameters: Type.Object({}),
+          execute: async (callId) => {
+            executed.push(callId);
+            return { content: [{ type: "text", text: "工具结果" }], details: {} };
+          },
+        },
+      ],
+    );
+    if (history) {
+      await agent.prompt("旧输入");
+      await agent.waitForIdle();
+    }
+    const outputs = await new Orchestrator(
+      [{ id: "current", type: "call", agent: "main", input: "新输入", saveAs: "current" }],
+      { createAgent: () => agent, events: () => {} },
+    ).run();
+
+    expect(outputs.get("current")?.text).toBe("第一段第二段最终段");
+    expect(executed).toHaveLength(2);
+  });
+
   it("步骤执行异常向调用方抛出并标记失败", async () => {
     const recorded: Array<{ type: string; ok?: boolean }> = [];
     const failingAgent = {

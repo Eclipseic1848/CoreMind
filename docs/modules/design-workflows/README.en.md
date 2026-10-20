@@ -25,6 +25,7 @@ The internal state-machine dependency stays behind `LoopController` and is not p
 
 ## Reliability and effect boundaries
 
+- Workflow `prompt`/`call` steps retain the same Session history as model context, but step output, `saveAs`, subsequent interpolation, and transcript contain only assistant text newly produced by that step, without repeating earlier replies.
 - A failed verification must repair, pause, or fail; it cannot return success.
 - `0.8.0` supports agent and host verification. A durable host control accepts or rejects the candidate; `onVerification` only notifies the host.
 - `maxIterations`, `maxRepairs`, `maxRepeatedAction`, global budgets, and timeouts bound execution.

@@ -6,6 +6,8 @@
 - Use the basic agent loop with runtime budgets when one agent can decide its tool calls.
 - Use `loop` when an independent verifier must reject a candidate and bounded repair is allowed.
 
+Workflow `prompt`/`call` step output contains only assistant text newly produced by that step; `saveAs`, subsequent interpolation, and transcript use the same boundary. The same Session history remains available to the model. If one agent produces `A` and then `B` in consecutive steps, the second step outputs `B` without including the first step's `A`.
+
 ## Step 2: write the smallest Loop configuration
 
 ```yaml

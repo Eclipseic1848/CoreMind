@@ -25,6 +25,7 @@
 
 ## 可靠性与副作用边界
 
+- Workflow 的 `prompt`/`call` 步骤保留同一 Session 的历史作为模型上下文，但步骤输出、`saveAs`、后续插值和 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。
 - verify 未通过时只能进入 repair、pause 或 fail，不能返回成功。
 - `0.8.0` 支持 Agent 验证和宿主验收两种模式；宿主模式由持久控制决定接受或拒绝，`onVerification` 回调仅通知候选。
 - `maxIterations`、`maxRepairs`、`maxRepeatedAction`、总预算和超时共同限制运行。
