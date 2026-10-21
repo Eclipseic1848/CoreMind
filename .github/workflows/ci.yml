@@ -89,6 +89,13 @@ jobs:
       - name: 核心确定性测试
         run: npm run test:engineering -- --maxWorkers=1
 
+      - name: 取消准入边界与固定种子回归
+        env:
+          RACE_SEED_START: "4"
+          RACE_SEED_END: "5"
+        # 工程门定向回放失败种子；候选稳定性矩阵仍执行完整 1000 种子。
+        run: node node_modules/vitest/vitest.mjs run --project=coremind-runtime-race-matrix --maxWorkers=1
+
       - name: 构建 Python worker
         run: npm run build:python-worker
 

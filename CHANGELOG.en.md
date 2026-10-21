@@ -38,6 +38,10 @@ This section records `1.3.0` release preparation and the ten accepted, merged fi
 - **Explicit readline exit:** `/exit` and `!exit` match the TUI by requesting active-Run cancellation before waiting for cleanup. Ordinary piped EOF still lets an already-started response finish naturally. Existing idle-exit, approval-wait, and MCP-login-wait behavior remains; cancellation does not roll back started tool effects. ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
 - **Doctor credential policy:** configured diagnostics reuse the selected Provider's existing checks. Legitimate anonymous/Header-only custom endpoints require no unrelated API key; explicit missing credentials still fail, and built-in authentication requirements are not relaxed. General diagnostics without a config remain. Checks neither load project scripts nor send Provider requests; passing does not prove credential validity, connectivity, or certification. ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
 
+#### Engineering checks
+
+- **Cancellation-race boundaries:** the acceptance fixture validates cleanup events against the actual cancellation-admission boundary and pending Call/Turn identities, correcting false failures based on scenario labels while checking genuinely late admitted activity. Add a gated approval-cancellation regression, strict negative cases, and a fixed-seed gate on both platforms. Retain all 1,000 seeds, original timeouts, and every invariant; production cancellation and permission rules remain unchanged. ([#348](https://github.com/Eclipseic1848/CoreMind/issues/348))
+
 ### Documentation
 
 - **Security-policy version status:** bilingual SECURITY tables link to the latest official Release and identify 1.2.0 and existing hardening as shipped. The `0.3.1` critical-security exception, private disclosure process, and existing safety boundaries remain; this round's new protections are not attributed to older releases. ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
