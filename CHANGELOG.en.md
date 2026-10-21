@@ -11,6 +11,7 @@ This section records `1.3.0` release preparation and the ten accepted, merged fi
 ### Security Fixes
 
 - **Framework-state protection:** unified authorization protects framework-managed persistent state by canonical target. Ordinary business tools cannot bypass it through `ask`, `assisted`, `full`, or an explicit allow. Ordinary tool writes to existing multiply hard-linked files are also rejected; legitimate business files and host maintenance interfaces retain their roles. This is path protection, not an OS sandbox for arbitrary host code. ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
+- **Development/build dependencies:** pin Vite in the Vitest test chain to `8.2.4` and override Vite to `6.4.4` only within the VitePress `1.6.4` subtree to fix editor-launch vulnerabilities. No prerelease documentation framework or new risk exception is introduced. The change is limited to development/documentation build dependencies and does not change Runtime permissions or sandbox boundaries. ([#350](https://github.com/Eclipseic1848/CoreMind/issues/350))
 
 ### Bug Fixes
 

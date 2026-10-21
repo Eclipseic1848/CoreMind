@@ -62,42 +62,6 @@
         "https://github.com/advisories/GHSA-hp3w-g68c-fv3c"
       ],
       "reason": "格式精度异常可导致拒绝服务，现无正式修复；当前仅开发 CLI 链持有，不使用其格式化入口或外部格式字符串，不进入生产安装。"
-    },
-    "vite": {
-      "maximumSeverity": "high",
-      "versions": [
-        "5.4.21"
-      ],
-      "advisories": [
-        "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
-        "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
-        "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
-        "https://github.com/advisories/GHSA-v6wh-96g9-6wx3"
-      ],
-      "reason": "仅由 VitePress 1 静态构建使用；package.json 和文档工作流只运行 build，Pages 仅部署静态产物，不启动 dev/preview/editor middleware。localhost 不能作为安全边界；新增服务器或监听插件须重审。"
-    },
-    "vitepress": {
-      "maximumSeverity": "moderate",
-      "versions": [
-        "1.6.4"
-      ],
-      "advisories": [
-        "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
-        "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
-        "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
-        "https://github.com/advisories/GHSA-v6wh-96g9-6wx3"
-      ],
-      "reason": "当前稳定系列的传递开发服务器风险；仅构建预渲染文档，禁止 dev/preview，没有服务端进程或本地文件 HTTP 入口。强制跨主版本覆盖不属于兼容修复。"
-    },
-    "esbuild": {
-      "maximumSeverity": "moderate",
-      "versions": [
-        "0.21.5"
-      ],
-      "advisories": [
-        "https://github.com/advisories/GHSA-67mh-4wv8-2f99"
-      ],
-      "reason": "仅 VitePress 内部开发依赖受影响；静态文档调用 build/transform，不调用 serve。根构建器 0.28.1 不受该公告影响。"
     }
   }
 }
