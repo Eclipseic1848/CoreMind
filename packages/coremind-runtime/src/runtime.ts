@@ -2025,6 +2025,13 @@ export class CoreMindRuntime {
       string,
       { lease: WorkspaceLeaseHandle; identity: ToolCallIdentity }
     >();
+    // 原生文件 Store 的租约关键 Fact 已同步完整前缀；自定义实现仍保留全局屏障。
+    const leaseFlushDurability: RunStoreDurability =
+      Object.getPrototypeOf(runStore) === FileRunStore.prototype &&
+      runStore.commit === FileRunStore.prototype.commit &&
+      runStore.barrier === FileRunStore.prototype.barrier
+        ? "ordinary"
+        : "critical";
     const releaseWorkspaceLease = async (identity: ToolCallIdentity): Promise<void> => {
       const callKey = toolCapabilityCallKey(identity.agent, identity.stepId, identity.callId);
       const held = workspaceLeaseByCall.get(callKey);
@@ -2052,7 +2059,7 @@ export class CoreMindRuntime {
         callId: identity.callId,
         ...(identity.stepId ? { stepId: identity.stepId } : {}),
       });
-      await journal.flush("critical");
+      await journal.flush(leaseFlushDurability);
     };
     const rollbackWorkspaceLease = async (identity: ToolCallIdentity): Promise<void> => {
       const callKey = toolCapabilityCallKey(identity.agent, identity.stepId, identity.callId);
@@ -2074,7 +2081,7 @@ export class CoreMindRuntime {
         callId: identity.callId,
         ...(identity.stepId ? { stepId: identity.stepId } : {}),
       });
-      await journal.flush("critical");
+      await journal.flush(leaseFlushDurability);
     };
     onToolResultRecorded = (event) => {
       const recorded = toolExecutionEngine.inspect({
@@ -2962,7 +2969,7 @@ export class CoreMindRuntime {
                 callId: context.toolCall.callId,
                 ...(stepId ? { stepId } : {}),
               });
-              await journal.flush("critical");
+              await journal.flush(leaseFlushDurability);
               await toolExecutionEngine.advance(lifecycleIdentity, {
                 phase: "lease_acquired",
                 status: "completed",

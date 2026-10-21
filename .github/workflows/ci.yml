@@ -2,12 +2,6 @@ name: Engineering CI
 
 on:
   workflow_dispatch:
-    inputs:
-      windows_python_diagnostic:
-        description: "仅诊断 #352 Windows Python MCP；不形成工程或候选资格"
-        type: boolean
-        required: false
-        default: false
   push:
     branches: [main]
   pull_request:
@@ -17,8 +11,7 @@ permissions:
 
 jobs:
   engineering:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_python_diagnostic == true && github.ref == 'refs/heads/fix/issue-352-windows-mcp-timeout') }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_python_diagnostic == true && github.ref == 'refs/heads/fix/issue-352-windows-mcp-timeout' && 'Diagnostic-only (Engineering omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
+    name: Engineering (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -141,55 +134,3 @@ jobs:
             echo "- 耗时：${duration_seconds} 秒"
             echo "- 结果：${{ job.status }}"
           } >> "${GITHUB_STEP_SUMMARY}"
-
-  windows-python-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_python_diagnostic == true && github.ref == 'refs/heads/fix/issue-352-windows-mcp-timeout' }}
-    name: Diagnostic-only Windows Python MCP issue-352
-    runs-on: windows-latest
-    timeout-minutes: 30
-    env:
-      PYTHONUTF8: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: "22.x"
-          cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.11"
-      - name: 固定本次诊断身份
-        shell: bash
-        run: |
-          mkdir -p .scratch/issue-352/evidence
-          git rev-parse HEAD > .scratch/issue-352/evidence/commit.txt
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          node --version > .scratch/issue-352/evidence/node-version.txt
-          python --version > .scratch/issue-352/evidence/python-version.txt
-          cp scripts/diagnose-python-mcp.py scripts/diagnose-python-mcp-node.mjs .scratch/issue-352/evidence/
-      - name: 构建本次诊断 Worker
-        shell: bash
-        run: |
-          npm install --global npm@11.5.1
-          npm ci
-          npm run build:python-worker
-          npm --version > .scratch/issue-352/evidence/npm-version.txt
-      - name: 安装副本 Python 全套与阶段观测
-        shell: bash
-        run: |
-          python -m pip install --disable-pip-version-check ./python
-          env -u PYTHONPATH python -u -W error::ResourceWarning scripts/diagnose-python-mcp.py "$GITHUB_WORKSPACE" .scratch/issue-352/evidence/installed.json --mode installed --full
-      - name: 源码副本 Python 全套与阶段观测
-        shell: bash
-        run: |
-          env -u PYTHONPATH python -u -W error::ResourceWarning scripts/diagnose-python-mcp.py "$GITHUB_WORKSPACE" .scratch/issue-352/evidence/source.json --mode source --full
-      - name: 留存诊断证据
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: issue-352-diagnostic-only-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .scratch/issue-352/evidence
-          if-no-files-found: error
-          retention-days: 30
