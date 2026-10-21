@@ -37,6 +37,10 @@
 - **readline 显式退出：** `/exit`、`!exit` 与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍让已开始的回答自然完成。空闲退出、审批及 MCP 登录等待的既有行为保持，取消不回滚已开始工具副作用。 ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
 - **doctor 凭据策略：** 有配置时复用所选 Provider 的既有校验，合法匿名/Header-only 自定义端点不要求无关 API key；显式凭据缺失仍失败，内置鉴权要求不放宽。无配置通用诊断保留；检查不加载项目脚本、不发 Provider 请求，通过不代表凭据有效、真实连通或认证。 ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
 
+#### 工程验收
+
+- **取消竞态边界：** 验收夹具按真实取消准入边界及未完成 Call/Turn 身份核对关闭事件，修正场景标签导致的正常收尾误判，并检查真正迟到的已准入活动。增加确定进入审批再取消的回归、严格反例及双平台固定种子门；保留完整 1000 种子、原超时与全部不变量，生产取消与权限规则不变。 ([#348](https://github.com/Eclipseic1848/CoreMind/issues/348))
+
 ### 文档
 
 - **安全策略版本状态：** 双语 SECURITY 支持表链接最新正式 Release，准确标明 1.2.0 已发布与既有安全加固已交付；保留 `0.3.1` 重大安全问题例外、私密披露方式及原安全边界，不把本轮新保护归为旧版能力。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333))
