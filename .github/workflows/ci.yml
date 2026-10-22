@@ -1,12 +1,12 @@
 name: Engineering CI
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-full-engineering-context-diagnostic' && 'Diagnostic-only #354 Full Engineering context' || ' ' }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-observer-startup-diagnostic' && 'Diagnostic-only #354 Observer startup only' || ' ' }}
 
 on:
   workflow_dispatch:
     inputs:
       windows_original_head_diagnostic:
-        description: "仅诊断 #354 原始失败 head 的完整 Engineering 上下文；不形成工程或候选资格"
+        description: "仅诊断 #354 Observer startup only；不运行核心或目标用例，不形成工程或候选资格"
         type: boolean
         required: false
         default: false
@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-full-engineering-context-diagnostic') }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-full-engineering-context-diagnostic' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-observer-startup-diagnostic') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-observer-startup-diagnostic' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -145,8 +145,8 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   windows-original-head-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-full-engineering-context-diagnostic' }}
-    name: Diagnostic-only issue-354 Full Engineering context
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-observer-startup-diagnostic' }}
+    name: Diagnostic-only issue-354 Observer startup only
     runs-on: windows-latest
     steps:
       - name: 开始记录实际运行时间
@@ -216,7 +216,7 @@ jobs:
           npm run providers:matrix
           git diff --exit-code -- docs/providers
 
-      - name: 完整 Engineering 核心上下文（Diagnostic-only）
+      - name: Observer startup only（Diagnostic-only）
         run: python -X utf8 scripts/diagnose-original-python-command.py
 
       - name: 留存原始 head 诊断证据

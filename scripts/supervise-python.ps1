@@ -1,4 +1,16 @@
 ﻿param([string]$InputLog, [string]$OutputLog, [int]$Seconds = 90, [switch]$SelfCheck)
+# 临时阶段观测开始 entry
+function Write-CoreMindStartupStage([string]$Stage) {
+    # 阶段标记与 snapshots 分离；自检和空输出路径不写入。
+    if ($SelfCheck -or [string]::IsNullOrEmpty($OutputLog)) { return }
+    try {
+        [IO.File]::AppendAllText(($OutputLog + '.startup.tsv'), ($Stage + "`t" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + "`t" + $PID + "`t" + $PSVersionTable.PSVersion.ToString() + "`t" + [Environment]::ProcessPath + "`n"), [Text.UTF8Encoding]::new($false))
+    } catch {
+        # 标记写入失败保持未知，不改变原观察器的异常语义。
+    }
+}
+Write-CoreMindStartupStage 'script_enter'
+# 临时阶段观测结束 entry
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $utf8 = [System.Text.UTF8Encoding]::new($false)
@@ -16,6 +28,9 @@ function Get-ImageSha256([string]$ImagePath) {
     }
 }
 
+# 临时阶段观测开始 native_begin
+Write-CoreMindStartupStage 'native_type_begin'
+# 临时阶段观测结束 native_begin
 if (-not ('CoreMindExitProbe' -as [type])) {
     Add-Type -TypeDefinition @'
 using System; using System.Runtime.InteropServices;
@@ -25,6 +40,9 @@ public static class CoreMindExitProbe {
 }
 '@
 }
+# 临时阶段观测开始 native_ready
+Write-CoreMindStartupStage 'native_type_ready'
+# 临时阶段观测结束 native_ready
 function Get-NativeProcessExit([IntPtr]$Handle) {
     $wait = [CoreMindExitProbe]::WaitForSingleObject($Handle, 0)
     if ($wait -eq 258) { return @{ state = 'active' } }
@@ -65,7 +83,13 @@ $readCount = 0
 $active = @{}
 $images = @{}
 $processes = @{}
+# 临时阶段观测开始 ready_begin
+Write-CoreMindStartupStage 'ready_write_begin'
+# 临时阶段观测结束 ready_begin
 Emit @{ kind = 'observer_ready'; observerPid = $PID; sampleIntervalMs = 200; maximumSeconds = $Seconds }
+# 临时阶段观测开始 ready_written
+Write-CoreMindStartupStage 'ready_written'
+# 临时阶段观测结束 ready_written
 while ($timer.Elapsed.TotalSeconds -lt $Seconds) {
     if (Test-Path -LiteralPath $InputLog) {
         # 共享读取不锁住 Node 写入；只处理带换行的完整记录。
