@@ -2,6 +2,7 @@ from pathlib import Path
 import datetime, hashlib, json, os, shutil, subprocess, sys, time
 import ctypes
 from ctypes import wintypes
+from observer_etw import record_observer_trace
 
 
 def sample_observer_cpu(observer):
@@ -83,9 +84,9 @@ try:
     assert not os.environ.get("GITHUB_SHA") or os.environ["GITHUB_SHA"] == metadata["head"], "checkout head mismatch"
     subprocess.run(["git", "merge-base", "--is-ancestor", BASE, "HEAD"], cwd=root, check=True)
     changed = set(git("diff", "--name-only", BASE).splitlines()) | set(git("ls-files", "--others", "--exclude-standard").splitlines())
-    allowed = {".github/workflows/ci.yml", "scripts/diagnose-original-python-command.py", "scripts/probe-python-command.mjs", "scripts/supervise-python.ps1", "package.json", "package-lock.json"}
+    allowed = {".github/workflows/ci.yml", "scripts/diagnose-original-python-command.py", "scripts/probe-python-command.mjs", "scripts/supervise-python.ps1", "package.json", "package-lock.json", "scripts/observer_etw.py", "scripts/observer_etw_analysis.py", "scripts/observer-trace.wprp"}
     metadata["changedPaths"] = sorted(changed)
-    assert changed == allowed, "diagnostic diff must contain only four temporary files and two approved toolchain files"
+    assert changed == allowed, "diagnostic diff must contain exactly nine approved diagnostic and toolchain paths"
     metadata["testToolchainFiles"] = {p: sha(root / p) for p in ("package.json", "package-lock.json")}
     for package in metadata["testToolchainFiles"]:
         assert subprocess.check_output(["git", "show", TOOLCHAIN_SOURCE + ":" + package], cwd=root) == (root / package).read_bytes(), package + " differs from approved security patch bytes"
@@ -100,37 +101,38 @@ except Exception as error:
     write(evidence / "preparation-failed.json", {**metadata, "preparationFailed": True, "errorType": type(error).__name__, "error": str(error)})
     raise
 
-observer = None
-observer_ready = False
-startup_ready = False
-controller = {}
-try:
-    with (evidence / "observer.stdout.log").open("wb") as out, (evidence / "observer.stderr.log").open("wb") as err:
-        # 仅在内存记录；Popen 返回后立即建立原 15 秒 deadline，不插入文件写入。
-        controller["popenBefore"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
-        observer = subprocess.Popen([pwsh, "-NoProfile", "-File", str(supervisor), "-InputLog", str(calls), "-OutputLog", str(snapshots), "-Seconds", "3600"], stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
-        ready = time.monotonic() + 15
-        controller["popenAfterDeadlineCreated"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic(), "returnedPid": observer.pid, "readyDeadlineMonotonic": ready}
-        while time.monotonic() < ready and observer.poll() is None:
-            if snapshots.exists():
-                with snapshots.open(encoding="utf-8") as stream: first = stream.readline()
-                try: observer_ready = first.endswith("\n") and json.loads(first).get("kind") == "observer_ready"
-                except json.JSONDecodeError: pass
-                if observer_ready: break
-            time.sleep(0.1)
-        controller["readyWaitFinished"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic(), "observerReadyFromLoop": observer_ready}
-        assert observer_ready and observer.poll() is None, "external observer not ready"
-        startup_ready = True
-finally:
-    controller["finallyEntered"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
-    controller["observerCpuBeforeCleanup"] = sample_observer_cpu(observer)
-    if observer is not None and observer.poll() is None:
-        time.sleep(0.5)
-    observer_natural_exit = observer is not None and observer.poll() is not None
-    observer_terminated = False
-    if observer is not None and not observer_natural_exit:
-        observer.terminate()
-        observer_terminated = True
-        observer.wait(timeout=15)
-    controller["finished"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
-    write(evidence / "startup-result.json", {"startupReady": startup_ready, "observerReadyFromLoop": observer_ready, "maximumObserverStarts": 1, "observerStarted": observer is not None, "fullCoreRuns": 0, "targetCalls": 0, "controller": controller, "controllerAfterTimestampMeasuredAfterDeadlineCreation": True, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "startupTrace": snapshots.name + ".startup.tsv", "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "repairEstablished": False, "interpretation": "Observer startup evidence only; startupReady does not establish repair"})
+with record_observer_trace(evidence, root / "scripts/observer-trace.wprp"):
+    observer = None
+    observer_ready = False
+    startup_ready = False
+    controller = {}
+    try:
+        with (evidence / "observer.stdout.log").open("wb") as out, (evidence / "observer.stderr.log").open("wb") as err:
+            # 仅在内存记录；Popen 返回后立即建立原 15 秒 deadline，不插入文件写入。
+            controller["popenBefore"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
+            observer = subprocess.Popen([pwsh, "-NoProfile", "-File", str(supervisor), "-InputLog", str(calls), "-OutputLog", str(snapshots), "-Seconds", "3600"], stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
+            ready = time.monotonic() + 15
+            controller["popenAfterDeadlineCreated"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic(), "returnedPid": observer.pid, "readyDeadlineMonotonic": ready}
+            while time.monotonic() < ready and observer.poll() is None:
+                if snapshots.exists():
+                    with snapshots.open(encoding="utf-8") as stream: first = stream.readline()
+                    try: observer_ready = first.endswith("\n") and json.loads(first).get("kind") == "observer_ready"
+                    except json.JSONDecodeError: pass
+                    if observer_ready: break
+                time.sleep(0.1)
+            controller["readyWaitFinished"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic(), "observerReadyFromLoop": observer_ready}
+            assert observer_ready and observer.poll() is None, "external observer not ready"
+            startup_ready = True
+    finally:
+        controller["finallyEntered"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
+        controller["observerCpuBeforeCleanup"] = sample_observer_cpu(observer)
+        if observer is not None and observer.poll() is None:
+            time.sleep(0.5)
+        observer_natural_exit = observer is not None and observer.poll() is not None
+        observer_terminated = False
+        if observer is not None and not observer_natural_exit:
+            observer.terminate()
+            observer_terminated = True
+            observer.wait(timeout=15)
+        controller["finished"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
+        write(evidence / "startup-result.json", {"startupReady": startup_ready, "observerReadyFromLoop": observer_ready, "maximumObserverStarts": 1, "observerStarted": observer is not None, "fullCoreRuns": 0, "targetCalls": 0, "controller": controller, "controllerAfterTimestampMeasuredAfterDeadlineCreation": True, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "startupTrace": snapshots.name + ".startup.tsv", "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "repairEstablished": False, "interpretation": "Observer startup evidence only; startupReady does not establish repair"})

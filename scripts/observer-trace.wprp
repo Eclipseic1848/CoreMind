@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="CoreMind">
+  <Profiles>
+    <SystemCollector Id="ObserverCollector" Name="CoreMind observer kernel collector">
+      <BufferSize Value="1024" />
+      <Buffers Value="64" />
+    </SystemCollector>
+    <SystemProvider Id="ObserverProvider">
+      <Keywords>
+        <Keyword Value="ProcessThread" />
+        <Keyword Value="Loader" />
+        <Keyword Value="CSwitch" />
+        <Keyword Value="ReadyThread" />
+        <Keyword Value="Filename" />
+        <Keyword Value="FileIO" />
+        <Keyword Value="FileIOInit" />
+        <Keyword Value="DiskIO" />
+        <Keyword Value="DiskIOInit" />
+      </Keywords>
+    </SystemProvider>
+    <Profile Id="CoreMindObserver.Light.File" Name="CoreMindObserver" Description="Observer startup scheduling and file IO" DetailLevel="Light" LoggingMode="File">
+      <Collectors>
+        <SystemCollectorId Value="ObserverCollector">
+          <SystemProviderId Value="ObserverProvider" />
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>
