@@ -1,7 +1,15 @@
 name: Engineering CI
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-original-head-diagnostic' && 'Diagnostic-only #354 original-head Python reproduction' || ' ' }}
 
 on:
   workflow_dispatch:
+    inputs:
+      windows_original_head_diagnostic:
+        description: "仅诊断 #354 原始失败 head 的 Python 目标用例；不形成工程或候选资格"
+        type: boolean
+        required: false
+        default: false
   push:
     branches: [main]
   pull_request:
@@ -11,7 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    name: Engineering (${{ matrix.os }}, Node ${{ matrix.node }})
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-original-head-diagnostic') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-original-head-diagnostic' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -134,3 +143,86 @@ jobs:
             echo "- 耗时：${duration_seconds} 秒"
             echo "- 结果：${{ job.status }}"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  windows-original-head-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-original-head-diagnostic' }}
+    name: Diagnostic-only issue-354 original-head Python reproduction
+    runs-on: windows-latest
+    steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.3"
+          cache: npm
+
+      - name: 安装 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11.9"
+
+      - name: 安装依赖
+        run: |
+          npm install --global npm@11.5.1
+          npm ci
+
+      - name: 安装 Linux sandbox 依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: 代码风格检查
+        run: npx biome check .
+
+      - name: 生产依赖与开发工具风险门禁
+        run: npm run security:audit
+
+      - name: 构建与类型检查
+        run: |
+          npm run build
+          npm run typecheck
+
+      - name: 跨进程 Workspace Lease 验收
+        run: npm run acceptance:workspace-lease
+
+      - name: 核心依赖锁步与模块合同
+        run: |
+          npm run dependencies:check
+          node scripts/phase2-baseline.mjs
+          npm run check:modules
+
+      - name: 双语文档与文档站
+        run: |
+          npm run check:docs
+          npm run docs:audit
+          npm run docs:build
+
+      - name: 供应商矩阵一致性
+        shell: bash
+        run: |
+          npm run providers:matrix
+          git diff --exit-code -- docs/providers
+
+      - name: 原始 Python 目标用例复现搜索（Diagnostic-only）
+        run: python -X utf8 scripts/diagnose-original-python-command.py
+
+      - name: 留存原始 head 诊断证据
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: issue-354-original-head-diagnostic-only-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .scratch/issue-354/evidence
+          if-no-files-found: warn
