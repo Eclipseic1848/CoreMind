@@ -2,6 +2,7 @@ from pathlib import Path
 import datetime, hashlib, json, os, shutil, subprocess, sys, time
 
 BASE = "04f898fbc8b65ef40458e1be60aba86133ab4298"
+TOOLCHAIN_SOURCE = "6332ac55e58a1e810596a0e849fd0978f29bf88a"
 root = Path(__file__).resolve().parents[1]
 evidence = root / ".scratch/issue-354/evidence"
 evidence.mkdir(parents=True)
@@ -26,7 +27,9 @@ metadata = {"atUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(), "
     "maximumOriginalCases": 100, "firstAnomalyStops": True, "originalCommandTimeoutMs": 30000,
     "originalCaseTimeoutMs": 150000, "outerDiagnosticWatchdogSeconds": 180,
     "outerWatchdogIsNotProductFailure": True, "qualifiesAsEngineering": False,
-    "originalRootCauseConfirmed": False, "passingDoesNotEstablishRepair": True}
+    "originalRootCauseConfirmed": False, "passingDoesNotEstablishRepair": True,
+    "securityPatchIssue": 355, "toolchainSource": TOOLCHAIN_SOURCE,
+    "toolchainChangeIsNotOriginalTimeoutRepair": True}
 try:
     assert os.name == "nt", "Windows diagnostic only"
     python = Path(sys.executable).resolve()
@@ -42,9 +45,12 @@ try:
     assert not os.environ.get("GITHUB_SHA") or os.environ["GITHUB_SHA"] == metadata["head"], "checkout head mismatch"
     subprocess.run(["git", "merge-base", "--is-ancestor", BASE, "HEAD"], cwd=root, check=True)
     changed = set(git("diff", "--name-only", BASE).splitlines()) | set(git("ls-files", "--others", "--exclude-standard").splitlines())
-    allowed = {".github/workflows/ci.yml", "scripts/diagnose-original-python-command.py", "scripts/probe-python-command.mjs", "scripts/supervise-python.ps1"}
+    allowed = {".github/workflows/ci.yml", "scripts/diagnose-original-python-command.py", "scripts/probe-python-command.mjs", "scripts/supervise-python.ps1", "package.json", "package-lock.json"}
     metadata["changedPaths"] = sorted(changed)
-    assert changed == allowed, "diagnostic diff must contain only the four temporary files"
+    assert changed == allowed, "diagnostic diff must contain only four temporary files and two approved toolchain files"
+    metadata["testToolchainFiles"] = {p: sha(root / p) for p in ("package.json", "package-lock.json")}
+    for package in metadata["testToolchainFiles"]:
+        assert subprocess.check_output(["git", "show", TOOLCHAIN_SOURCE + ":" + package], cwd=root) == (root / package).read_bytes(), package + " differs from approved security patch bytes"
     metadata["sources"] = {p: sha(root / p) for p in sources}
     for source in sources:
         assert subprocess.check_output(["git", "show", BASE + ":" + source], cwd=root) == (root / source).read_bytes(), source + " differs from original bytes"
