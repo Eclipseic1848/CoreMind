@@ -1,5 +1,5 @@
 from pathlib import Path
-import datetime, hashlib, json, os, shutil, subprocess, sys, time
+import datetime, hashlib, json, os, shutil, subprocess, sys, time, re
 
 BASE = "04f898fbc8b65ef40458e1be60aba86133ab4298"
 TOOLCHAIN_SOURCE = "6332ac55e58a1e810596a0e849fd0978f29bf88a"
@@ -24,9 +24,11 @@ artifacts = {
 sources = ["examples/coding-evals/engineering-kernel.test.ts", "examples/coding-evals/_shared/command.ts", "examples/coding-evals/vitest.config.ts"]
 metadata = {"atUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(), "base": BASE,
     "run": os.environ.get("GITHUB_RUN_ID"), "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
-    "maximumProjectRuns": 1, "expectedProjectCases": 8, "firstAnomalyStops": True, "originalCommandTimeoutMs": 30000,
-    "primaryPythonCaseTimeoutMs": 150000, "outerDiagnosticWatchdogSeconds": 180,
-    "outerWatchdogIsNotProductFailure": True, "qualifiesAsEngineering": False,
+    "maximumSuiteRuns": 1, "expectedCoreCounts": {"total": 2819, "passed": 2806, "skipped": 13, "failed": 0},
+    "originalCommand": "npm.cmd run test:engineering -- --maxWorkers=1", "firstAnomalyStops": True, "originalCommandTimeoutMs": 30000,
+    "primaryPythonCaseTimeoutMs": 150000, "suiteAuxiliaryTimeoutSeconds": None,
+    "suiteWaitBoundary": "original GHA job boundary", "subsequentFixedSeedExecuted": False,
+    "qualifiesAsEngineering": False,
     "originalRootCauseConfirmed": False, "passingDoesNotEstablishRepair": True,
     "securityPatchIssue": 355, "toolchainSource": TOOLCHAIN_SOURCE,
     "toolchainChangeIsNotOriginalTimeoutRepair": True}
@@ -42,6 +44,11 @@ try:
     assert sys.version_info[:3] == (3, 11, 9) and metadata["nodeVersion"] == "v22.23.3", "executable version mismatch"
     assert metadata["pythonSha256"] == "5f7b89a612c9b8af1d6456cdfcd1dbe5ca630849e79aebced9bee9a6694952ec", "Python image mismatch"
     assert metadata["nodeSha256"] == "9c9245166b4a8e182e0b797da9c20136117ff24368eaff1fec8343a123c8db0e", "Node image mismatch"
+    python_command, npm_command = shutil.which("python"), shutil.which("npm.cmd")
+    assert python_command and Path(python_command).resolve() == python, "Python command resolution mismatch"
+    assert npm_command, "npm.cmd must be available"
+    metadata.update(npmCommandPath=npm_command, npmVersion=subprocess.check_output([pwsh, "-NoProfile", "-Command", "& npm.cmd --version; exit $LASTEXITCODE"], cwd=root, text=True, encoding="utf-8").strip())
+    assert metadata["npmVersion"] == "11.5.1", "npm version mismatch"
     assert not os.environ.get("GITHUB_SHA") or os.environ["GITHUB_SHA"] == metadata["head"], "checkout head mismatch"
     subprocess.run(["git", "merge-base", "--is-ancestor", BASE, "HEAD"], cwd=root, check=True)
     changed = set(git("diff", "--name-only", BASE).splitlines()) | set(git("ls-files", "--others", "--exclude-standard").splitlines())
@@ -62,16 +69,39 @@ except Exception as error:
     write(evidence / "preparation-failed.json", {**metadata, "preparationFailed": True, "errorType": type(error).__name__, "error": str(error)})
     raise
 
+def parse_core_summary(stdout):
+    # 只接受唯一且完整的默认 Tests 汇总；原始输出独立保存。
+    clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", stdout)
+    lines = [line.strip() for line in clean.splitlines() if re.match(r"^\s*Tests\s+", line)]
+    summary = {"summaryLines": lines, "parseValid": False, "passed": None,
+               "skipped": None, "failed": None, "total": None}
+    if len(lines) != 1:
+        return summary
+    match = re.fullmatch(r"Tests\s+(.+?)\s+\((\d+)\)", lines[0])
+    if not match:
+        return summary
+    parts = [re.fullmatch(r"(\d+)\s+(passed|failed|skipped)", part.strip())
+             for part in match[1].split("|")]
+    if not all(parts) or len({part[2] for part in parts}) != len(parts):
+        return summary
+    counts = {part[2]: int(part[1]) for part in parts}
+    if "passed" not in counts or "skipped" not in counts:
+        return summary
+    summary.update(counts, failed=counts.get("failed", 0), total=int(match[2]))
+    summary["parseValid"] = sum(counts.values()) == summary["total"]
+    return summary
+
+
 env = os.environ.copy()
-env["PATH"] = str(python.parent) + os.pathsep + str(node.parent) + os.pathsep + env["PATH"]
 env["NODE_OPTIONS"] = (env.get("NODE_OPTIONS", "") + " --import=" + preload.as_uri()).strip()
 env["COREMIND_COMMAND_PROBE_LOG"] = str(calls)
-results = []
+result = None
+command_started = False
 observer = None
 observer_ready = False
 try:
     with (evidence / "observer.stdout.log").open("wb") as out, (evidence / "observer.stderr.log").open("wb") as err:
-        observer = subprocess.Popen([pwsh, "-NoProfile", "-File", str(supervisor), "-InputLog", str(calls), "-OutputLog", str(snapshots), "-Seconds", "1800"], stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
+        observer = subprocess.Popen([pwsh, "-NoProfile", "-File", str(supervisor), "-InputLog", str(calls), "-OutputLog", str(snapshots), "-Seconds", "3600"], stdout=out, stderr=err, creationflags=subprocess.CREATE_NO_WINDOW)
         ready = time.monotonic() + 15
         while time.monotonic() < ready and observer.poll() is None:
             if snapshots.exists():
@@ -81,31 +111,21 @@ try:
                 if observer_ready: break
             time.sleep(0.1)
         assert observer_ready and observer.poll() is None, "external observer not ready"
-        for index in range(1, 2):
-            report = evidence / f"round-{index:02d}.json"
-            argv = [str(node), "node_modules/vitest/vitest.mjs", "run", "--config=vitest.engineering.config.ts", "--project=coding-evals", "--maxWorkers=1", "--reporter=json", "--outputFile", str(report)]
-            started = time.monotonic()
-            with (evidence / f"round-{index:02d}.stdout.log").open("wb") as stdout, (evidence / f"round-{index:02d}.stderr.log").open("wb") as stderr:
-                process = subprocess.Popen(argv, cwd=root, env=env, stdout=stdout, stderr=stderr, creationflags=subprocess.CREATE_NO_WINDOW)
-                watchdog = False
-                try: code = process.wait(timeout=180)
-                except subprocess.TimeoutExpired:
-                    watchdog = True
-                    # 仅回收仍由本脚本持有句柄的测试根进程及其子树。
-                    assert process.poll() is None
-                    killed = subprocess.run(["taskkill.exe", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
-                    (evidence / f"round-{index:02d}.watchdog-kill.log").write_bytes(killed.stdout + killed.stderr)
-                    code = process.wait(timeout=15)
-            data = json.loads(report.read_text(encoding="utf-8-sig")) if report.exists() else {}
-            selected = [a for t in data.get("testResults", []) for a in t.get("assertionResults", []) if a.get("status") == "passed"]
-            case_passed = code == 0 and not watchdog and data.get("success") is True and data.get("numTotalTests") == 8 and data.get("numPassedTests") == 8 and data.get("numPendingTests") == 0 and len(selected) == 8 and any(a.get("fullName") == "'python' Coding Kernel 跨文件验收 保留失败证据，写前建 checkpoint，修复后验证，并可完整恢复" for a in selected)
-            observer_alive = observer.poll() is None
-            accepted = case_passed and observer_alive
-            item = {"projectRun": index, "nodePid": process.pid, "exitCode": code, "durationSeconds": time.monotonic() - started, "outerWatchdogFired": watchdog, "projectPassed": case_passed, "observerAlive": observer_alive, "accepted": accepted, "passed": data.get("numPassedTests"), "selectedOut": data.get("numPendingTests"), "report": report.name, "argv": argv}
-            results.append(item)
-            write(evidence / "progress.json", {"results": results, "originalRootCauseConfirmed": False})
-            print(json.dumps(item, ensure_ascii=False), flush=True)
-            if not accepted: break
+        argv = [pwsh, "-NoProfile", "-Command", "& npm.cmd run test:engineering -- --maxWorkers=1; exit $LASTEXITCODE"]
+        started = time.monotonic()
+        stdout_path, stderr_path = evidence / "core.stdout.log", evidence / "core.stderr.log"
+        with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+            process = subprocess.Popen(argv, cwd=root, env=env, stdout=stdout, stderr=stderr, creationflags=subprocess.CREATE_NO_WINDOW)
+            command_started = True
+            # 等待原命令自然结束；没有新增整个 suite 的辅助超时。
+            code = process.wait()
+        observer_alive = observer.poll() is None
+        core_summary = parse_core_summary(stdout_path.read_text(encoding="utf-8-sig"))
+        write(evidence / "core-summary.json", core_summary)
+        accepted = code == 0 and core_summary.get("parseValid") is True and core_summary.get("total") == 2819 and core_summary.get("passed") == 2806 and core_summary.get("skipped") == 13 and core_summary.get("failed") == 0 and observer_ready and observer_alive
+        result = {"suiteRun": 1, "processPid": process.pid, "exitCode": code, "durationSeconds": time.monotonic() - started, "coreSummary": "core-summary.json", "observerReady": observer_ready, "observerAlive": observer_alive, "accepted": accepted, "argv": argv, "stdout": stdout_path.name, "stderr": stderr_path.name}
+        write(evidence / "run-result.json", result)
+        print(json.dumps(result, ensure_ascii=False), flush=True)
 finally:
     if observer is not None and observer.poll() is None:
         time.sleep(0.5)
@@ -115,6 +135,6 @@ finally:
         observer.terminate()
         observer_terminated = True
         observer.wait(timeout=15)
-    write(evidence / "batch-result.json", {"results": results, "plannedProjectRuns": 1, "executedProjectRuns": len(results), "expectedProjectCases": 8, "firstAnomalyStopped": bool(results and not results[-1]["accepted"]), "observerReady": observer_ready, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "interpretation": "Single full coding-evals project run only; passing is not repair evidence"})
-if results and not results[-1]["accepted"]:
+    write(evidence / "batch-result.json", {"result": result, "plannedSuiteRuns": 1, "executedSuiteRuns": int(command_started), "expectedCoreCounts": {"total": 2819, "passed": 2806, "skipped": 13, "failed": 0}, "observerReady": observer_ready, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "subsequentFixedSeedExecuted": False, "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "interpretation": "Single full original Engineering core command only; passing is not repair evidence"})
+if result is not None and not result["accepted"]:
     raise SystemExit(1)
