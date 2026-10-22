@@ -1,7 +1,15 @@
 name: Engineering CI
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' && 'Diagnostic-only #354 Windows CI resource check' || ' ' }}
 
 on:
   workflow_dispatch:
+    inputs:
+      windows_original_head_diagnostic:
+        description: "仅诊断 #354 Windows CI resource check；完整 Engineering 仅运行一次，不形成工程或候选资格"
+        type: boolean
+        required: false
+        default: false
   push:
     branches: [main]
   pull_request:
@@ -11,7 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    name: Engineering (${{ matrix.os }}, Node ${{ matrix.node }})
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -134,3 +143,145 @@ jobs:
             echo "- 耗时：${duration_seconds} 秒"
             echo "- 结果：${{ job.status }}"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  windows-original-head-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' }}
+    name: Diagnostic-only issue-354 Windows CI resource check
+    runs-on: windows-latest
+    steps:
+      - name: 开始记录实际运行时间
+        shell: bash
+        run: |
+          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
+          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.3"
+          cache: npm
+
+      - name: 安装 Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11.9"
+
+      - name: 安装依赖
+        run: |
+          npm install --global npm@11.5.1
+          npm ci
+
+      - name: 安装 Linux sandbox 依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap socat ripgrep
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: 代码风格检查
+        run: npx biome check .
+
+      - name: 生产依赖与开发工具风险门禁
+        run: npm run security:audit
+
+      - name: 构建与类型检查
+        run: |
+          npm run build
+          npm run typecheck
+
+      - name: 跨进程 Workspace Lease 验收
+        run: npm run acceptance:workspace-lease
+
+      - name: 核心依赖锁步与模块合同
+        run: |
+          npm run dependencies:check
+          node scripts/phase2-baseline.mjs
+          npm run check:modules
+
+      - name: 双语文档与文档站
+        run: |
+          npm run check:docs
+          npm run docs:audit
+          npm run docs:build
+
+      - name: 供应商矩阵一致性
+        shell: bash
+        run: |
+          npm run providers:matrix
+          git diff --exit-code -- docs/providers
+
+      - name: Windows CI resource check（Diagnostic-only）
+        run: |
+          $evidence = Join-Path $env:GITHUB_WORKSPACE '.scratch/issue-354-env'
+          New-Item -ItemType Directory -Path $evidence -ErrorAction Stop | Out-Null
+          $counters = @(
+            '\Processor(_Total)\% Processor Time', '\System\Processor Queue Length',
+            '\Memory\Available MBytes', '\PhysicalDisk(_Total)\Avg. Disk sec/Read',
+            '\PhysicalDisk(_Total)\Avg. Disk sec/Write', '\PhysicalDisk(_Total)\Current Disk Queue Length'
+          )
+          $record = [ordered]@{
+            run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = $env:GITHUB_SHA
+            diagnosticOnly = $true; qualifiesAsEngineering = $false; repairEstablished = $false
+            timeZone = [TimeZoneInfo]::Local.Id; utcOffset = [DateTimeOffset]::Now.Offset.ToString()
+            logicalProcessorCount = [Environment]::ProcessorCount
+            coreStartedAtUtc = $null; coreFinishedAtUtc = $null; originalCoreExit = $null; coreError = $null
+            collector = [ordered]@{ pid = $null; started = $false; earlyExit = $null; cleanup = 'not-started'; errors = @(); quality = 'unknown-not-validated' }
+          }
+          $collectorProcess = $null; $coreExit = 1
+          try {
+            try {
+              $info = [System.Diagnostics.ProcessStartInfo]::new()
+              $info.FileName = Join-Path $env:SystemRoot 'System32/typeperf.exe'
+              $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+              foreach ($argument in ($counters + @('-si', '1', '-sc', '3600', '-f', 'CSV', '-o', (Join-Path $evidence 'system-counters.csv')))) {
+                $info.ArgumentList.Add($argument)
+              }
+              $collectorProcess = [System.Diagnostics.Process]::new(); $collectorProcess.StartInfo = $info
+              $record.collector.started = $collectorProcess.Start()
+              if ($record.collector.started) { $record.collector.pid = $collectorProcess.Id }
+            } catch { $record.collector.errors += $_.Exception.Message }
+            $record.coreStartedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+            $LASTEXITCODE = $null
+            try {
+              npm run test:engineering -- --maxWorkers=1
+              if ($null -eq $LASTEXITCODE) { throw 'Core command did not return an exit code' }
+              $coreExit = [int]$LASTEXITCODE; $record.originalCoreExit = $coreExit
+            } catch {
+              $record.coreError = $_.Exception.Message
+              $coreExit = 1
+              if ($null -ne $LASTEXITCODE) {
+                $record.originalCoreExit = [int]$LASTEXITCODE
+                if ($LASTEXITCODE -ne 0) { $coreExit = [int]$LASTEXITCODE }
+              }
+            }
+          } finally {
+            $record.coreFinishedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
+            if ($null -ne $collectorProcess -and $record.collector.started) {
+              try {
+                $record.collector.earlyExit = $collectorProcess.HasExited
+                if (-not $record.collector.earlyExit) { $collectorProcess.Kill() }
+              } catch { $record.collector.errors += ('cleanup: ' + $_.Exception.Message) }
+              try {
+                $record.collector.cleanup = if ($collectorProcess.WaitForExit(5000)) { 'exited' } else { 'unknown-process-may-remain' }
+              } catch { $record.collector.cleanup = 'unknown-process-may-remain'; $record.collector.errors += $_.Exception.Message }
+            }
+            try { if ($null -ne $collectorProcess) { $collectorProcess.Dispose() } }
+            catch { $record.collector.errors += ('dispose: ' + $_.Exception.Message) }
+            try { $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $evidence 'result.json') -Encoding utf8 }
+            catch { [Console]::Error.WriteLine('Diagnostic metadata: ' + $_.Exception.Message) }
+          }
+          exit $coreExit
+
+      - name: 留存原始 head 诊断证据
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: issue-354-windows-ci-environment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .scratch/issue-354-env
+          if-no-files-found: warn
