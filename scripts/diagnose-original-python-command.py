@@ -24,8 +24,8 @@ artifacts = {
 sources = ["examples/coding-evals/engineering-kernel.test.ts", "examples/coding-evals/_shared/command.ts", "examples/coding-evals/vitest.config.ts"]
 metadata = {"atUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(), "base": BASE,
     "run": os.environ.get("GITHUB_RUN_ID"), "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
-    "maximumOriginalCases": 100, "firstAnomalyStops": True, "originalCommandTimeoutMs": 30000,
-    "originalCaseTimeoutMs": 150000, "outerDiagnosticWatchdogSeconds": 180,
+    "maximumProjectRuns": 1, "expectedProjectCases": 8, "firstAnomalyStops": True, "originalCommandTimeoutMs": 30000,
+    "primaryPythonCaseTimeoutMs": 150000, "outerDiagnosticWatchdogSeconds": 180,
     "outerWatchdogIsNotProductFailure": True, "qualifiesAsEngineering": False,
     "originalRootCauseConfirmed": False, "passingDoesNotEstablishRepair": True,
     "securityPatchIssue": 355, "toolchainSource": TOOLCHAIN_SOURCE,
@@ -81,9 +81,9 @@ try:
                 if observer_ready: break
             time.sleep(0.1)
         assert observer_ready and observer.poll() is None, "external observer not ready"
-        for index in range(1, 101):
+        for index in range(1, 2):
             report = evidence / f"round-{index:02d}.json"
-            argv = [str(node), "node_modules/vitest/vitest.mjs", "run", "--config=vitest.engineering.config.ts", "--project=coding-evals", "--maxWorkers=1", "-t", "python.*Coding Kernel 跨文件验收.*保留失败证据", "--reporter=json", "--outputFile", str(report)]
+            argv = [str(node), "node_modules/vitest/vitest.mjs", "run", "--config=vitest.engineering.config.ts", "--project=coding-evals", "--maxWorkers=1", "--reporter=json", "--outputFile", str(report)]
             started = time.monotonic()
             with (evidence / f"round-{index:02d}.stdout.log").open("wb") as stdout, (evidence / f"round-{index:02d}.stderr.log").open("wb") as stderr:
                 process = subprocess.Popen(argv, cwd=root, env=env, stdout=stdout, stderr=stderr, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -98,10 +98,10 @@ try:
                     code = process.wait(timeout=15)
             data = json.loads(report.read_text(encoding="utf-8-sig")) if report.exists() else {}
             selected = [a for t in data.get("testResults", []) for a in t.get("assertionResults", []) if a.get("status") == "passed"]
-            case_passed = code == 0 and not watchdog and data.get("success") is True and data.get("numPassedTests") == 1 and len(selected) == 1 and data.get("numTotalTests") == 8 and data.get("numPendingTests") == 7 and selected[0].get("fullName") == "'python' Coding Kernel 跨文件验收 保留失败证据，写前建 checkpoint，修复后验证，并可完整恢复"
+            case_passed = code == 0 and not watchdog and data.get("success") is True and data.get("numTotalTests") == 8 and data.get("numPassedTests") == 8 and data.get("numPendingTests") == 0 and len(selected) == 8 and any(a.get("fullName") == "'python' Coding Kernel 跨文件验收 保留失败证据，写前建 checkpoint，修复后验证，并可完整恢复" for a in selected)
             observer_alive = observer.poll() is None
             accepted = case_passed and observer_alive
-            item = {"round": index, "nodePid": process.pid, "exitCode": code, "durationSeconds": time.monotonic() - started, "outerWatchdogFired": watchdog, "originalCasePassed": case_passed, "observerAlive": observer_alive, "continueBatch": accepted, "passed": data.get("numPassedTests"), "selectedOut": data.get("numPendingTests"), "report": report.name, "argv": argv}
+            item = {"projectRun": index, "nodePid": process.pid, "exitCode": code, "durationSeconds": time.monotonic() - started, "outerWatchdogFired": watchdog, "projectPassed": case_passed, "observerAlive": observer_alive, "accepted": accepted, "passed": data.get("numPassedTests"), "selectedOut": data.get("numPendingTests"), "report": report.name, "argv": argv}
             results.append(item)
             write(evidence / "progress.json", {"results": results, "originalRootCauseConfirmed": False})
             print(json.dumps(item, ensure_ascii=False), flush=True)
@@ -115,6 +115,6 @@ finally:
         observer.terminate()
         observer_terminated = True
         observer.wait(timeout=15)
-    write(evidence / "batch-result.json", {"results": results, "plannedCases": 100, "executedCases": len(results), "firstAnomalyStopped": bool(results and not results[-1]["continueBatch"]), "observerReady": observer_ready, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "interpretation": "Bounded reproduction search only; success is not repair evidence"})
-if results and not results[-1]["continueBatch"]:
+    write(evidence / "batch-result.json", {"results": results, "plannedProjectRuns": 1, "executedProjectRuns": len(results), "expectedProjectCases": 8, "firstAnomalyStopped": bool(results and not results[-1]["accepted"]), "observerReady": observer_ready, "observerNaturalExit": observer_natural_exit, "observerStoppedByController": observer_terminated, "observerReturnCode": observer.returncode if observer is not None else None, "observerFailureIsProductFailure": False, "qualifiesAsEngineering": False, "originalRootCauseConfirmed": False, "interpretation": "Single full coding-evals project run only; passing is not repair evidence"})
+if results and not results[-1]["accepted"]:
     raise SystemExit(1)

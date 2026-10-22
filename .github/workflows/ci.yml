@@ -1,6 +1,6 @@
 name: Engineering CI
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-safe-original-head-diagnostic' && 'Diagnostic-only #354 original-head Python reproduction' || ' ' }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-coding-context-diagnostic' && 'Diagnostic-only #354 original-head Python reproduction' || ' ' }}
 
 on:
   workflow_dispatch:
@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-safe-original-head-diagnostic') }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-safe-original-head-diagnostic' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-coding-context-diagnostic') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-coding-context-diagnostic' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -145,7 +145,7 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   windows-original-head-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-safe-original-head-diagnostic' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-coding-context-diagnostic' }}
     name: Diagnostic-only issue-354 original-head Python reproduction
     runs-on: windows-latest
     steps:
