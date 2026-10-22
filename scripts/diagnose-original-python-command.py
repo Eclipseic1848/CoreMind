@@ -1,5 +1,36 @@
 from pathlib import Path
 import datetime, hashlib, json, os, shutil, subprocess, sys, time
+import ctypes
+from ctypes import wintypes
+
+
+def sample_observer_cpu(observer):
+    record = {"state": "unknown", "sampleBeforeMonotonic": time.monotonic()}
+    try:
+        if observer is None:
+            record["reason"] = "observer not started"
+            return record
+        record["returnedPid"] = observer.pid
+        query = ctypes.WinDLL("kernel32", use_last_error=True).GetProcessTimes
+        query.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+        query.restype = wintypes.BOOL
+        creation, exit_time, kernel, user = (wintypes.FILETIME() for _ in range(4))
+        # 借用固定 CPython 3.11.9 的自有进程句柄，不重开 PID 或关闭句柄。
+        if not query(wintypes.HANDLE(int(observer._handle)), ctypes.byref(creation),
+                     ctypes.byref(exit_time), ctypes.byref(kernel), ctypes.byref(user)):
+            record["win32Error"] = ctypes.get_last_error()
+            return record
+        ticks = lambda value: (value.dwHighDateTime << 32) | value.dwLowDateTime
+        created, kernel_ticks, user_ticks = (ticks(value) for value in (creation, kernel, user))
+        record.update(state="observed", creationTime100ns=created,
+                      creationUnixMs=(created - 116444736000000000) // 10000,
+                      kernelTime100ns=kernel_ticks, userTime100ns=user_ticks,
+                      cpuTotalMs=(kernel_ticks + user_ticks) / 10000)
+    except Exception as error:
+        record.update(errorType=type(error).__name__, error=str(error))
+    finally:
+        record["sampleAfterMonotonic"] = time.monotonic()
+    return record
 
 BASE = "04f898fbc8b65ef40458e1be60aba86133ab4298"
 TOOLCHAIN_SOURCE = "6332ac55e58a1e810596a0e849fd0978f29bf88a"
@@ -92,6 +123,7 @@ try:
         startup_ready = True
 finally:
     controller["finallyEntered"] = {"utcUnixMs": time.time_ns() // 1_000_000, "monotonicSeconds": time.monotonic()}
+    controller["observerCpuBeforeCleanup"] = sample_observer_cpu(observer)
     if observer is not None and observer.poll() is None:
         time.sleep(0.5)
     observer_natural_exit = observer is not None and observer.poll() is not None
