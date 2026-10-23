@@ -266924,6 +266924,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     });
     const workspaceLeaseService = this.workspaceLeaseService;
     const workspaceLeaseByCall = /* @__PURE__ */ new Map();
+    const leaseFlushDurability = Object.getPrototypeOf(runStore) === FileRunStore.prototype && runStore.commit === FileRunStore.prototype.commit && runStore.barrier === FileRunStore.prototype.barrier ? "ordinary" : "critical";
     const releaseWorkspaceLease = async (identity3) => {
       const callKey = toolCapabilityCallKey(identity3.agent, identity3.stepId, identity3.callId);
       const held = workspaceLeaseByCall.get(callKey);
@@ -266952,7 +266953,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         callId: identity3.callId,
         ...identity3.stepId ? { stepId: identity3.stepId } : {}
       });
-      await journal.flush("critical");
+      await journal.flush(leaseFlushDurability);
     };
     const rollbackWorkspaceLease = async (identity3) => {
       const callKey = toolCapabilityCallKey(identity3.agent, identity3.stepId, identity3.callId);
@@ -266975,7 +266976,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         callId: identity3.callId,
         ...identity3.stepId ? { stepId: identity3.stepId } : {}
       });
-      await journal.flush("critical");
+      await journal.flush(leaseFlushDurability);
     };
     onToolResultRecorded = (event) => {
       const recorded = toolExecutionEngine.inspect({
@@ -267653,7 +267654,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
                 callId: context2.toolCall.callId,
                 ...stepId ? { stepId } : {}
               });
-              await journal.flush("critical");
+              await journal.flush(leaseFlushDurability);
               await toolExecutionEngine.advance(lifecycleIdentity, {
                 phase: "lease_acquired",
                 status: "completed"
