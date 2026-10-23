@@ -12,6 +12,7 @@
 
 - **框架状态保护：** 统一授权按 canonical 目标保护框架管理的持久状态，普通业务工具不能通过 `ask`、`assisted`、`full` 或显式 allow 改写这些状态。现存多硬链接文件的普通工具写入也会被拒绝；合法业务文件和宿主维护接口保留原职责。这是路径保护，不是任意宿主代码的 OS 沙箱。 ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
 - **开发构建依赖：** 将 Vitest 测试链的 Vite 固定为 `8.2.4`，仅将 VitePress `1.6.4` 子树的 Vite 覆盖为 `6.4.4`，修复编辑器启动相关漏洞；不引入预发行文档框架，也不新增风险豁免。变更限于开发/文档构建依赖，不改变 Runtime 权限或沙箱边界。 ([#350](https://github.com/Eclipseic1848/CoreMind/issues/350))
+- **测试依赖安全修复：** 将 `vitest` 与 `@vitest/coverage-v8` 同步升级至 `4.1.12`，使测试链纳入 `@vitest/mocker` 的手工 mock 代码生成转义与 Windows redirect 路径规范化补丁（[GHSA-qxg6-89mg-rqv8](https://github.com/vitest-dev/vitest/security/advisories/GHSA-qxg6-89mg-rqv8)、[GHSA-xp26-3454-mjgp](https://github.com/vitest-dev/vitest/security/advisories/GHSA-xp26-3454-mjgp)）。变更仅限开发/测试依赖，不改变 Runtime 权限或沙箱边界，也不新增风险豁免。 ([#355](https://github.com/Eclipseic1848/CoreMind/issues/355))
 
 ### 缺陷修复
 

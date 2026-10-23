@@ -1,6 +1,16 @@
 import { spawnSync } from "node:child_process";
+import path from "node:path";
 
 export const commandTimeoutMs = 30_000;
+
+// setup-python 固定了解释器目录时直接使用绝对路径，避免依赖 PATH 搜索结果。
+export function pythonCommand(): string {
+  const location = process.env.pythonLocation;
+  if (!location) {
+    return "python";
+  }
+  return path.join(location, process.platform === "win32" ? "python.exe" : "bin/python");
+}
 
 export function runCodingCommand(
   cwd: string,

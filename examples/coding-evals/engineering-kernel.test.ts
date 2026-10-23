@@ -12,7 +12,7 @@ import {
   selectCodingEnvironment,
 } from "coremind-ai";
 import { describe, expect, it } from "vitest";
-import { commandTimeoutMs, runCodingCommand as run } from "./_shared/command.js";
+import { commandTimeoutMs, pythonCommand, runCodingCommand as run } from "./_shared/command.js";
 
 type Fixture = {
   language: "typescript" | "python";
@@ -33,9 +33,12 @@ const fixtures: Fixture[] = [
   {
     language: "python",
     source: "src/rate.py",
-    targetCommand: { command: "python", args: ["-B", "-m", "unittest", "tests.test_price"] },
+    targetCommand: {
+      command: pythonCommand(),
+      args: ["-B", "-m", "unittest", "tests.test_price"],
+    },
     regressionCommand: {
-      command: "python",
+      command: pythonCommand(),
       args: ["-B", "-m", "unittest", "discover", "-s", "tests"],
     },
     repair: "RATE = 0.2\n",

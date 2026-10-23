@@ -13,7 +13,7 @@ import {
   runEvaluationSuite,
 } from "coremind-ai";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { runCodingCommand } from "./_shared/command.js";
+import { pythonCommand, runCodingCommand } from "./_shared/command.js";
 import { createCodingEvalMockServer } from "./_shared/mock-provider.mjs";
 import "./engineering-kernel.test.js";
 
@@ -27,6 +27,23 @@ beforeAll(() => {
 afterAll(() => {
   if (previousKey === undefined) delete process.env.CODING_MOCK_API_KEY;
   else process.env.CODING_MOCK_API_KEY = previousKey;
+});
+
+describe("Python 解释器解析", () => {
+  it("优先使用 setup-python 的绝对路径，未设置 pythonLocation 时保留裸名称", () => {
+    const original = process.env.pythonLocation;
+    try {
+      const location = path.join(tmpdir(), "python-location");
+      process.env.pythonLocation = location;
+      const executable = process.platform === "win32" ? "python.exe" : path.join("bin", "python");
+      expect(pythonCommand()).toBe(path.join(location, executable));
+      delete process.env.pythonLocation;
+      expect(pythonCommand()).toBe("python");
+    } finally {
+      if (original === undefined) delete process.env.pythonLocation;
+      else process.env.pythonLocation = original;
+    }
+  });
 });
 
 describe("真实缺陷仓库确定性评测", () => {
@@ -70,7 +87,7 @@ describe("真实缺陷仓库确定性评测", () => {
   it("Python Agent 先复现失败，再最小修复并通过目标与回归测试", async () => {
     const projectDir = prepareRepository("python-defect");
     const failing = runCodingCommand(projectDir, {
-      command: "python",
+      command: pythonCommand(),
       args: ["-m", "unittest", "tests.test_tax"],
     });
     expect(failing.exitCode, JSON.stringify({ stage: "reproduction", ...failing })).toBe(1);
@@ -96,7 +113,7 @@ describe("真实缺陷仓库确定性评测", () => {
     expect(readFileSync(path.join(projectDir, "user-notes.txt"), "utf8")).toBe(userDraft);
     expect(readFileSync(path.join(projectDir, ".env.example"), "utf8")).toBe(protectedEnv);
     const regression = runCodingCommand(projectDir, {
-      command: "python",
+      command: pythonCommand(),
       args: ["-m", "unittest", "discover", "-s", "tests"],
     });
     expect(regression.exitCode, JSON.stringify({ stage: "regression-test", ...regression })).toBe(
