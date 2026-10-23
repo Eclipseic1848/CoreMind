@@ -1,12 +1,12 @@
 name: Engineering CI
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' && 'Diagnostic-only #354 InventorySvc A 单次验证' || ' ' }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' && 'Diagnostic-only #354 InventorySvc 人工基线 A 单次验证' || ' ' }}
 
 on:
   workflow_dispatch:
     inputs:
       windows_original_head_diagnostic:
-        description: "仅执行一次 InventorySvc A 验证；候选未触发即停止，复用原 SPE，不形成 Engineering 或 Candidate 资格"
+        description: "仅执行一次 InventorySvc 人工基线 A 验证；候选未触发即停止，复用原 SPE，不形成 Engineering 或 Candidate 资格"
         type: boolean
         required: false
         default: false
@@ -146,10 +146,10 @@ jobs:
 
   windows-original-head-diagnostic:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' }}
-    name: Diagnostic-only issue-354 InventorySvc A 单次验证
+    name: Diagnostic-only issue-354 InventorySvc 人工基线 A 单次验证
     runs-on: windows-latest
     steps:
-      - name: 核对原配置并激活 A 候选
+      - name: 记录入场配置、准备实验基线并激活 A 候选
         id: inventory_prepare
         shell: pwsh
         run: |
@@ -159,11 +159,28 @@ jobs:
           $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
           $key = Get-Item -LiteralPath $policy -ErrorAction Stop
           $service = Get-Service -Name InventorySvc -ErrorAction Stop
-          if ($service.Status -ne 'Stopped' -or $service.StartType -ne 'Disabled' -or $key.GetValueKind('DisableInventory') -ne 'DWord' -or $key.GetValue('DisableInventory') -ne 1) { throw '初始配置不符合方案，未修改环境' }
-          [ordered]@{ stage = 'inventory-a-before'; utc = [DateTimeOffset]::UtcNow.ToString('o'); status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventory = $key.GetValue('DisableInventory') } | ConvertTo-Json -Compress
+          $disableInventoryPresent = $key.GetValueNames() -contains 'DisableInventory'
+          $disableInventoryKind = if ($disableInventoryPresent) { $key.GetValueKind('DisableInventory').ToString() } else { $null }
+          $disableInventory = $key.GetValue('DisableInventory')
+          [ordered]@{ stage = 'inventory-a-arrival'; utc = [DateTimeOffset]::UtcNow.ToString('o'); image = $env:ImageOS; imageVersion = $env:ImageVersion; status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventoryPresent = $disableInventoryPresent; disableInventoryKind = $disableInventoryKind; disableInventory = $disableInventory } | ConvertTo-Json -Compress
+          if ($service.Status -notin @('Stopped', 'Running')) { throw '服务处于过渡或未知状态，未修改环境' }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value 'restore_required=true' -Encoding utf8
+          # 人工准备的实验基线不代表原失败 VM；清理也仅恢复此基线。
+          Stop-Service -Name InventorySvc -ErrorAction Stop
+          Set-Service -Name InventorySvc -StartupType Disabled -ErrorAction Stop
+          New-ItemProperty -LiteralPath $policy -Name DisableInventory -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null
+          $key = Get-Item -LiteralPath $policy -ErrorAction Stop
+          $service = Get-Service -Name InventorySvc -ErrorAction Stop
+          $disableInventoryPresent = $key.GetValueNames() -contains 'DisableInventory'
+          $disableInventoryKind = if ($disableInventoryPresent) { $key.GetValueKind('DisableInventory').ToString() } else { $null }
+          $disableInventory = $key.GetValue('DisableInventory')
+          [ordered]@{ stage = 'inventory-a-baseline'; utc = [DateTimeOffset]::UtcNow.ToString('o'); artificialBaseline = $true; status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventoryPresent = $disableInventoryPresent; disableInventoryKind = $disableInventoryKind; disableInventory = $disableInventory } | ConvertTo-Json -Compress
+          if ($service.Status -ne 'Stopped' -or $service.StartType -ne 'Disabled' -or $disableInventoryKind -ne 'DWord' -or $disableInventory -ne 1) { throw '实验基线读回不符合方案，不激活 A' }
+          $residualProcesses = @(Get-CimInstance -ClassName Win32_Process -Filter "Name='CompatTelRunner.exe'" -ErrorAction Stop)
+          [ordered]@{ stage = 'inventory-a-baseline-residue'; utc = [DateTimeOffset]::UtcNow.ToString('o'); processes = @($residualProcesses | Select-Object ProcessId, ParentProcessId, CreationDate, KernelModeTime, UserModeTime) } | ConvertTo-Json -Depth 5 -Compress
+          if ($residualProcesses.Count -gt 0) { throw '实验起点仍有 CompatTelRunner 进程，不激活 A、不补等待' }
           $activatedAt = [DateTimeOffset]::UtcNow.ToString('o')
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "COREMIND_INVENTORY_A_STARTED_UTC=$activatedAt" -Encoding utf8
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value 'restore_required=true' -Encoding utf8
           # Manual 是受控实验设置，不代表原 275 VM 的实际启动类型。
           Remove-ItemProperty -LiteralPath $policy -Name DisableInventory -ErrorAction Stop
           Set-Service -Name InventorySvc -StartupType Manual -ErrorAction Stop
@@ -258,7 +275,7 @@ jobs:
         if: ${{ steps.inventory_candidate.outputs.triggered == 'true' }}
         run: pwsh -NoProfile -File scripts/capture-windows-python-timeout.ps1
 
-      - name: 保留结束快照并恢复原配置
+      - name: 保留结束快照并恢复实验基线
         if: ${{ always() && steps.inventory_prepare.outputs.restore_required == 'true' }}
         shell: pwsh
         run: |
@@ -274,8 +291,8 @@ jobs:
             $service = Get-Service -Name InventorySvc -ErrorAction Stop
             $key = Get-Item -LiteralPath $policy -ErrorAction Stop
             $restored = $restoreErrors.Count -eq 0 -and $service.Status -eq 'Stopped' -and $service.StartType -eq 'Disabled' -and $key.GetValueKind('DisableInventory') -eq 'DWord' -and $key.GetValue('DisableInventory') -eq 1
-            [ordered]@{ stage = 'inventory-a-restored'; utc = [DateTimeOffset]::UtcNow.ToString('o'); restored = $restored; status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventory = $key.GetValue('DisableInventory'); errors = $restoreErrors } | ConvertTo-Json -Compress
-            if (-not $restored) { throw '原配置恢复未获确认；保留原核心结果，不追加执行' }
+            [ordered]@{ stage = 'inventory-a-baseline-restored'; utc = [DateTimeOffset]::UtcNow.ToString('o'); artificialBaseline = $true; restored = $restored; status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventory = $key.GetValue('DisableInventory'); errors = $restoreErrors } | ConvertTo-Json -Compress
+            if (-not $restored) { throw '实验基线恢复未获确认；保留原核心结果，不追加执行' }
           }
 
       - name: 留存加密原生诊断证据
