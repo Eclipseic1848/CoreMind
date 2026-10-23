@@ -1,12 +1,12 @@
 name: Engineering CI
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' && 'Diagnostic-only #354 SPE 原超时原生转储' || ' ' }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' && 'Diagnostic-only #354 InventorySvc A 单次验证' || ' ' }}
 
 on:
   workflow_dispatch:
     inputs:
       windows_original_head_diagnostic:
-        description: "仅诊断 #354 SPE 触发原超时原生转储；完整 Engineering 仅运行一次，不形成 required Engineering 或 Candidate 资格"
+        description: "仅执行一次 InventorySvc A 验证；候选未触发即停止，复用原 SPE，不形成 Engineering 或 Candidate 资格"
         type: boolean
         required: false
         default: false
@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture') }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -145,10 +145,32 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   windows-original-head-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' }}
-    name: Diagnostic-only issue-354 SPE 原超时原生转储
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-inventory-control' }}
+    name: Diagnostic-only issue-354 InventorySvc A 单次验证
     runs-on: windows-latest
     steps:
+      - name: 核对原配置并激活 A 候选
+        id: inventory_prepare
+        shell: pwsh
+        run: |
+          if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw '仅允许一次性托管 Windows VM' }
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          if (-not [Security.Principal.WindowsPrincipal]::new($identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw '缺少管理员权限' }
+          $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
+          $key = Get-Item -LiteralPath $policy -ErrorAction Stop
+          $service = Get-Service -Name InventorySvc -ErrorAction Stop
+          if ($service.Status -ne 'Stopped' -or $service.StartType -ne 'Disabled' -or $key.GetValueKind('DisableInventory') -ne 'DWord' -or $key.GetValue('DisableInventory') -ne 1) { throw '初始配置不符合方案，未修改环境' }
+          [ordered]@{ stage = 'inventory-a-before'; utc = [DateTimeOffset]::UtcNow.ToString('o'); status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventory = $key.GetValue('DisableInventory') } | ConvertTo-Json -Compress
+          $activatedAt = [DateTimeOffset]::UtcNow.ToString('o')
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "COREMIND_INVENTORY_A_STARTED_UTC=$activatedAt" -Encoding utf8
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value 'restore_required=true' -Encoding utf8
+          # Manual 是受控实验设置，不代表原 275 VM 的实际启动类型。
+          Remove-ItemProperty -LiteralPath $policy -Name DisableInventory -ErrorAction Stop
+          Set-Service -Name InventorySvc -StartupType Manual -ErrorAction Stop
+          Start-Service -Name InventorySvc -ErrorAction Stop
+          $service = Get-Service -Name InventorySvc -ErrorAction Stop
+          if ($service.Status -ne 'Running' -or $service.StartType -ne 'Manual' -or $null -ne (Get-Item -LiteralPath $policy).GetValue('DisableInventory')) { throw 'A 配置读回不符' }
+
       - name: 开始记录实际运行时间
         shell: bash
         run: |
@@ -216,9 +238,45 @@ jobs:
           npm run providers:matrix
           git diff --exit-code -- docs/providers
 
+      - name: 单次核对候选活动与执行身份
+        id: inventory_candidate
+        shell: pwsh
+        run: |
+          $policy = Get-Item -LiteralPath 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat' -ErrorAction Stop
+          $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='InventorySvc'" -ErrorAction Stop
+          $processes = @(Get-CimInstance -ClassName Win32_Process -Filter "Name='CompatTelRunner.exe'" -ErrorAction Stop)
+          $activatedAt = [DateTimeOffset]::Parse($env:COREMIND_INVENTORY_A_STARTED_UTC).UtcDateTime
+          $eligible = @($processes | Where-Object { $service.ProcessId -gt 0 -and $_.ParentProcessId -eq $service.ProcessId -and $null -ne $_.CreationDate -and $_.CreationDate.ToUniversalTime() -ge $activatedAt -and $null -ne $_.KernelModeTime -and $null -ne $_.UserModeTime })
+          $triggered = $service.State -eq 'Running' -and $service.StartMode -eq 'Manual' -and $null -eq $policy.GetValue('DisableInventory') -and $eligible.Count -gt 0
+          [ordered]@{ stage = 'inventory-a-admission'; utc = [DateTimeOffset]::UtcNow.ToString('o'); triggered = $triggered; servicePid = $service.ProcessId; serviceState = $service.State; serviceStartMode = $service.StartMode; disableInventory = $policy.GetValue('DisableInventory'); processes = @($processes | Select-Object ProcessId, ParentProcessId, CreationDate, KernelModeTime, UserModeTime); eligiblePids = @($eligible | Select-Object -ExpandProperty ProcessId) } | ConvertTo-Json -Depth 5 -Compress
+          [ordered]@{ stage = 'inventory-a-identity'; head = $env:GITHUB_SHA; image = $env:ImageOS; imageVersion = $env:ImageVersion; osVersion = [Environment]::OSVersion.Version.ToString(); visibleProcessors = [Environment]::ProcessorCount; node = Get-FileHash -LiteralPath (Get-Command node -CommandType Application -ErrorAction Stop).Source; python = Get-FileHash -LiteralPath (Get-Command python -CommandType Application -ErrorAction Stop).Source; lock = Get-FileHash -LiteralPath 'package-lock.json' } | ConvertTo-Json -Depth 4 -Compress
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "triggered=$($triggered.ToString().ToLowerInvariant())" -Encoding utf8
+          if (-not $triggered) { Write-Host '候选未触发或活动证据不足；核心测试不启动，本次 A 到此结束。' }
+
       - name: SPE 触发原超时原生转储（Diagnostic-only）
         id: native_capture
+        if: ${{ steps.inventory_candidate.outputs.triggered == 'true' }}
         run: pwsh -NoProfile -File scripts/capture-windows-python-timeout.ps1
+
+      - name: 保留结束快照并恢复原配置
+        if: ${{ always() && steps.inventory_prepare.outputs.restore_required == 'true' }}
+        shell: pwsh
+        run: |
+          $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
+          try {
+            $processes = @(Get-CimInstance -ClassName Win32_Process -Filter "Name='CompatTelRunner.exe'" -ErrorAction Stop)
+            [ordered]@{ stage = 'inventory-a-after'; utc = [DateTimeOffset]::UtcNow.ToString('o'); processes = @($processes | Select-Object ProcessId, ParentProcessId, CreationDate, KernelModeTime, UserModeTime) } | ConvertTo-Json -Depth 5 -Compress
+          } finally {
+            $restoreErrors = @()
+            try { Stop-Service -Name InventorySvc -ErrorAction Stop } catch { $restoreErrors += 'stop-service: ' + $_.Exception.Message }
+            try { Set-Service -Name InventorySvc -StartupType Disabled -ErrorAction Stop } catch { $restoreErrors += 'disable-service: ' + $_.Exception.Message }
+            try { New-ItemProperty -LiteralPath $policy -Name DisableInventory -PropertyType DWord -Value 1 -Force -ErrorAction Stop | Out-Null } catch { $restoreErrors += 'restore-policy: ' + $_.Exception.Message }
+            $service = Get-Service -Name InventorySvc -ErrorAction Stop
+            $key = Get-Item -LiteralPath $policy -ErrorAction Stop
+            $restored = $restoreErrors.Count -eq 0 -and $service.Status -eq 'Stopped' -and $service.StartType -eq 'Disabled' -and $key.GetValueKind('DisableInventory') -eq 'DWord' -and $key.GetValue('DisableInventory') -eq 1
+            [ordered]@{ stage = 'inventory-a-restored'; utc = [DateTimeOffset]::UtcNow.ToString('o'); restored = $restored; status = $service.Status.ToString(); startType = $service.StartType.ToString(); disableInventory = $key.GetValue('DisableInventory'); errors = $restoreErrors } | ConvertTo-Json -Compress
+            if (-not $restored) { throw '原配置恢复未获确认；保留原核心结果，不追加执行' }
+          }
 
       - name: 留存加密原生诊断证据
         if: ${{ always() && steps.native_capture.outputs.safe_artifact == 'true' }}
