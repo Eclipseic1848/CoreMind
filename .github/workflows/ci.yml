@@ -1,12 +1,12 @@
 name: Engineering CI
 run-name: >-
-  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' && 'Diagnostic-only #354 Windows CI resource check' || ' ' }}
+  ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' && 'Diagnostic-only #354 SPE 原超时原生转储' || ' ' }}
 
 on:
   workflow_dispatch:
     inputs:
       windows_original_head_diagnostic:
-        description: "仅诊断 #354 Windows CI resource check；完整 Engineering 仅运行一次，不形成工程或候选资格"
+        description: "仅诊断 #354 SPE 触发原超时原生转储；完整 Engineering 仅运行一次，不形成 required Engineering 或 Candidate 资格"
         type: boolean
         required: false
         default: false
@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   engineering:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment') }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture') }}
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' && 'Diagnostic-only (regular gate omitted)' || format('Engineering ({0}, Node {1})', matrix.os, matrix.node) }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -145,8 +145,8 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
   windows-original-head-diagnostic:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-windows-ci-environment' }}
-    name: Diagnostic-only issue-354 Windows CI resource check
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.windows_original_head_diagnostic == true && github.ref == 'refs/heads/fix/issue-354-native-timeout-capture' }}
+    name: Diagnostic-only issue-354 SPE 原超时原生转储
     runs-on: windows-latest
     steps:
       - name: 开始记录实际运行时间
@@ -216,72 +216,14 @@ jobs:
           npm run providers:matrix
           git diff --exit-code -- docs/providers
 
-      - name: Windows CI resource check（Diagnostic-only）
-        run: |
-          $evidence = Join-Path $env:GITHUB_WORKSPACE '.scratch/issue-354-env'
-          New-Item -ItemType Directory -Path $evidence -ErrorAction Stop | Out-Null
-          $counters = @(
-            '\Processor(_Total)\% Processor Time', '\System\Processor Queue Length',
-            '\Memory\Available MBytes', '\PhysicalDisk(_Total)\Avg. Disk sec/Read',
-            '\PhysicalDisk(_Total)\Avg. Disk sec/Write', '\PhysicalDisk(_Total)\Current Disk Queue Length'
-          )
-          $record = [ordered]@{
-            run = $env:GITHUB_RUN_ID; attempt = $env:GITHUB_RUN_ATTEMPT; head = $env:GITHUB_SHA
-            diagnosticOnly = $true; qualifiesAsEngineering = $false; repairEstablished = $false
-            timeZone = [TimeZoneInfo]::Local.Id; utcOffset = [DateTimeOffset]::Now.Offset.ToString()
-            logicalProcessorCount = [Environment]::ProcessorCount
-            coreStartedAtUtc = $null; coreFinishedAtUtc = $null; originalCoreExit = $null; coreError = $null
-            collector = [ordered]@{ pid = $null; started = $false; earlyExit = $null; cleanup = 'not-started'; errors = @(); quality = 'unknown-not-validated' }
-          }
-          $collectorProcess = $null; $coreExit = 1
-          try {
-            try {
-              $info = [System.Diagnostics.ProcessStartInfo]::new()
-              $info.FileName = Join-Path $env:SystemRoot 'System32/typeperf.exe'
-              $info.UseShellExecute = $false; $info.CreateNoWindow = $true
-              foreach ($argument in ($counters + @('-si', '1', '-sc', '3600', '-f', 'CSV', '-o', (Join-Path $evidence 'system-counters.csv')))) {
-                $info.ArgumentList.Add($argument)
-              }
-              $collectorProcess = [System.Diagnostics.Process]::new(); $collectorProcess.StartInfo = $info
-              $record.collector.started = $collectorProcess.Start()
-              if ($record.collector.started) { $record.collector.pid = $collectorProcess.Id }
-            } catch { $record.collector.errors += $_.Exception.Message }
-            $record.coreStartedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
-            $LASTEXITCODE = $null
-            try {
-              npm run test:engineering -- --maxWorkers=1
-              if ($null -eq $LASTEXITCODE) { throw 'Core command did not return an exit code' }
-              $coreExit = [int]$LASTEXITCODE; $record.originalCoreExit = $coreExit
-            } catch {
-              $record.coreError = $_.Exception.Message
-              $coreExit = 1
-              if ($null -ne $LASTEXITCODE) {
-                $record.originalCoreExit = [int]$LASTEXITCODE
-                if ($LASTEXITCODE -ne 0) { $coreExit = [int]$LASTEXITCODE }
-              }
-            }
-          } finally {
-            $record.coreFinishedAtUtc = [DateTimeOffset]::UtcNow.ToString('o')
-            if ($null -ne $collectorProcess -and $record.collector.started) {
-              try {
-                $record.collector.earlyExit = $collectorProcess.HasExited
-                if (-not $record.collector.earlyExit) { $collectorProcess.Kill() }
-              } catch { $record.collector.errors += ('cleanup: ' + $_.Exception.Message) }
-              try {
-                $record.collector.cleanup = if ($collectorProcess.WaitForExit(5000)) { 'exited' } else { 'unknown-process-may-remain' }
-              } catch { $record.collector.cleanup = 'unknown-process-may-remain'; $record.collector.errors += $_.Exception.Message }
-            }
-            try { if ($null -ne $collectorProcess) { $collectorProcess.Dispose() } }
-            catch { $record.collector.errors += ('dispose: ' + $_.Exception.Message) }
-            try { $record | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $evidence 'result.json') -Encoding utf8 }
-            catch { [Console]::Error.WriteLine('Diagnostic metadata: ' + $_.Exception.Message) }
-          }
-          exit $coreExit
+      - name: SPE 触发原超时原生转储（Diagnostic-only）
+        id: native_capture
+        run: pwsh -NoProfile -File scripts/capture-windows-python-timeout.ps1
 
-      - name: 留存原始 head 诊断证据
-        if: always()
+      - name: 留存加密原生诊断证据
+        if: ${{ always() && steps.native_capture.outputs.safe_artifact == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: issue-354-windows-ci-environment-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .scratch/issue-354-env
+          name: issue-354-native-timeout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .scratch/issue-354-spe-public
           if-no-files-found: warn
