@@ -1772,6 +1772,139 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it.for(["builtin", "subclass", "commit-decorated", "barrier-decorated"] as const)(
+    "Workspace Lease %s 保留关键提交与 Store 屏障契约",
+    async (kind) => {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-barriers-"));
+      const server = createWriteCallingServer();
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const criticalLeases: string[] = [];
+      let lastCriticalWasLease = false;
+      let repeatedLeaseBarriers = 0;
+      const Store = kind === "subclass" ? class extends FileRunStore {} : FileRunStore;
+      const store = new Store(path.join(dir, "runs"), {
+        beforeBarrier: ({ record, requested }) => {
+          if (!record) {
+            if (lastCriticalWasLease) repeatedLeaseBarriers++;
+            return;
+          }
+          const event =
+            record.kind === "event"
+              ? (record.payload as { event: CoreMindEvent }).event
+              : undefined;
+          lastCriticalWasLease = event?.type === "workspace_lease";
+          if (event?.type === "workspace_lease") {
+            expect(requested).toBe("critical");
+            criticalLeases.push(event.status);
+          }
+        },
+      });
+      if (kind === "commit-decorated") {
+        store.commit = (...args) => FileRunStore.prototype.commit.call(store, ...args);
+      }
+      if (kind === "barrier-decorated") {
+        store.barrier = (...args) => FileRunStore.prototype.barrier.call(store, ...args);
+      }
+      try {
+        const port = (server.address() as AddressInfo).port;
+        const runtime = await CoreMindRuntime.create({
+          config: { ...toolConfig(port, {}), tools: [{ id: "write" }] },
+          configDir: dir,
+          cwd: dir,
+          initialPrompt: "写入 article.md",
+          approveTool: async () => "allow",
+          runStore: store,
+        });
+        const result = await runtime.run();
+        expect(result.outcome.status).toBe("succeeded");
+        expect(readFileSync(path.join(dir, "article.md"), "utf8")).toBe("已写入");
+        expect(criticalLeases).toEqual(["acquired", "released"]);
+        expect(repeatedLeaseBarriers).toBe(kind === "builtin" ? 0 : 2);
+        const persisted = (await store.read(result.runId)).flatMap((record) => {
+          const event =
+            record.kind === "event"
+              ? (record.payload as { event: CoreMindEvent }).event
+              : undefined;
+          return event?.type === "workspace_lease" ? [event.status] : [];
+        });
+        expect(persisted).toEqual(["acquired", "released"]);
+      } finally {
+        await closeServer(server);
+      }
+    },
+  );
+
+  it("Workspace Lease acquired 关键确认失败前后均不创建 checkpoint 或执行工具", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-ack-"));
+    const target = path.join(dir, "article.md");
+    const server = createWriteCallingServer();
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    let barrierEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      barrierEntered = resolve;
+    });
+    let releaseBarrier!: () => void;
+    const acknowledgement = new Promise<void>((resolve) => {
+      releaseBarrier = resolve;
+    });
+    const observed: CoreMindEvent[] = [];
+    const store = new FileRunStore(path.join(dir, "runs"), {
+      beforeBarrier: async ({ record }) => {
+        const event =
+          record?.kind === "event" ? (record.payload as { event: CoreMindEvent }).event : undefined;
+        if (event?.type === "workspace_lease" && event.status === "acquired") {
+          barrierEntered();
+          await acknowledgement;
+          throw new Error("lease acquired barrier failed");
+        }
+      },
+    });
+    let running: ReturnType<CoreMindRuntime["run"]> | undefined;
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...toolConfig(port, {}), tools: [{ id: "write" }] },
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "持久确认前不得写入 article.md",
+        approveTool: async () => "allow",
+        runStore: store,
+        events: (event) => observed.push(event),
+      });
+      running = runtime.run();
+      await entered;
+      expect(existsSync(target)).toBe(false);
+      expect(observed.some((event) => event.type === "checkpoint_created")).toBe(false);
+      releaseBarrier();
+      const result = await running;
+      expect(result.outcome).toMatchObject({
+        status: "failed",
+        error: {
+          code: "durability_barrier_failed",
+          message: expect.stringContaining("lease acquired barrier failed"),
+        },
+      });
+      expect(existsSync(target)).toBe(false);
+      expect(observed.some((event) => event.type === "checkpoint_created")).toBe(false);
+      expect(
+        observed.some(
+          (event) =>
+            event.type === "tool_lifecycle" &&
+            event.resolution.phase === "lease_acquired" &&
+            event.resolution.status === "completed",
+        ),
+      ).toBe(false);
+      expect((await store.read(result.runId)).some((record) => record.kind === "checkpoint")).toBe(
+        false,
+      );
+      expect(await new WorkspaceLeaseService().inspect(dir)).toMatchObject({ state: "available" });
+    } finally {
+      releaseBarrier();
+      await running?.catch(() => undefined);
+      await closeServer(server);
+    }
+  });
+
   it("遗留 Workspace Lease 先持久化 recovery_required，再暂停等待显式恢复", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-lease-recovery-"));
     const canonicalRoot = await canonicalizeWorkspace(dir);
