@@ -18,6 +18,8 @@ This section records `1.3.0` release preparation and the ten accepted, merged fi
 
 #### Runtime and Workflow
 
+- **Retry status-code boundaries:** digits such as `503` or `524` inside request IDs or longer numbers no longer misclassify unknown Provider errors as transient. Loop preserves the original error and redacted audit and pauses for human review. Standalone status codes, other transient reasons, quota exclusions, and existing retry budgets retain their behavior. ([#360](https://github.com/Eclipseic1848/CoreMind/issues/360))
+
 - **Parallel termination and admission:** the first failure or pause in an ordinary `parallel` substep cancels its siblings and waits for settlement while preserving the first error. No new model calls are admitted after the Run ends. Started operations retain receipts; cancellation is not rollback. All-success results still aggregate in declaration order. ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
 - **Step-output boundaries:** Workflow `prompt`/`call` retains the same Session history as model context, while step output, `saveAs`, subsequent interpolation, and transcript contain only assistant text newly produced by that step, without repeating earlier replies. ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
 - **V2 startup-error identity:** Runtime initialization failures after Run acceptance persist the shared classification's stable code, corresponding outcome status, and safe message for `query`/`events`, rather than replacing every failure with `agent_failed`. Unknown exceptions pause as `unclassified_error` and require human audit, without exposing credentials or raw stacks or establishing that direct resume is safe. ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
