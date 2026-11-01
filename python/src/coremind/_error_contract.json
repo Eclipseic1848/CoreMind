@@ -309,6 +309,34 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "task_commit_invalid": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "task_commit_conflict": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "task_store_corrupt": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
+    "task_store_unavailable": {
+      "terminality": "terminal",
+      "cancelClass": "corruption",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
     "run_state_locked": {
       "terminality": "terminal",
       "cancelClass": "corruption",

@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "331094bac9ebae8967ccd420f86def3df53109ed",
+    "developmentCommit": "288cac6d05a9fdb8ca07a777628ea41a3340be5a",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -16,8 +16,8 @@
       "coremind-ai": "0d37cbe466a8ae953d65dbe6df30be8fc7dc3d606bd2df77df2b2d57804f1bf3",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
-      "coremind-protocol": "7f3291556b14044f02e1f145bf61ecd3a07898f1efdfcae91bc268442e2ad3d0",
-      "coremind-runtime": "c21de844ef95ec11aa452df24479cb8be6cc81da88d83c7e731480faa1505e12",
+      "coremind-protocol": "a3452d8b7872eabb18ea65f2358772aea98de78919f24efad45c69ae2e431eea",
+      "coremind-runtime": "b5922c46776a93cb874f19fc3b246a01f03fca2165ebd177b292dab62038cc3b",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "96690716a0b98ac983ec1e728008f7aadbb05cf155804d77d9208896b7894fca",
       "coremind-worker": "5b228bdd8b5b06fc4f9c81fd8ca60604eb0766f6d57db52623eaf7372e2234f1"
@@ -25,7 +25,7 @@
     "schemas": {
       "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
       "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
-      "protocolV2": "7d1e57725d2c34f0cf2187c77998cdfb0363deb824c7be4c92c2aadb488acf3f"
+      "protocolV2": "a91fe01b636f8a8275013bc34ecdf8036e206ddc0561a91575598de972dc8893"
     }
   },
   "dependencies": {
@@ -283,21 +283,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-10-20T04:24:54.604Z",
+    "capturedAt": "2026-11-01T05:29:21.515Z",
     "capturePlatform": "win32",
-    "updateReason": "#325：工具授权接受可选取消信号，收回待审批调用并保持既有调用兼容；历史参考基线不变",
+    "updateReason": "#362 已批准的任务原子提交合同；ADR0025 记录旧域兼容、配套 SDK/Worker 与回滚；仅增量 API/错误枚举，安全、覆盖率、超时、验收和依赖保持",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "734e08644cb5f1996fd1865d9e5b2420661e9197c8b2ac827aa8a15b41281541",
-    "codingEvalFixtureSha256": "b161be7b4ca9acbf1a4f651e38b49f8e3250b9f2375828717853435e01e047a8",
+    "dependencyLockSha256": "42f7f3780e9dc7cd3275bfc1da8568d44aacf605c9e90f16868749d8c0722bb4",
+    "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "951cf13f7b1d950e27c0b34b78c101de8ee3502970b67ca2cb96d470ffaf7eaa",
-      "coremind-cli": "7c79459d1625ad92213cd9a7581614e366c7ee7d83cde632d31e9415b7860c20",
+      "coremind-cli": "c84d2667b0179beaf3555345e67fdd47781e82e78b17b46c27ddbd854b4e6e1d",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
-      "coremind-protocol": "7e80f093d19ea9dd6a16bf30eb190fa6647561e5a70dec53eeecc4f261c218fa",
-      "coremind-runtime": "2ed52d037b91b19f8c6d7b29ea18028978db3fbe855452fbaf596a34d74d1b82",
+      "coremind-protocol": "a63dc1242e4a82d6693453991548e1a41c464e713b7cc4029808ac57a2a2312e",
+      "coremind-runtime": "61f368ff85ca45c69c047d47741f37b4daaadc4012c9e52b7d107554aa3401f4",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "beb65755c1a82445cb99a2111cc52265161a39e5781d6144085685258b01f62d",
-      "coremind-worker": "a5a48650720999a75bd13cad9b0d2137192adf0702afd94208b299f927159144"
+      "coremind-tools": "1b4adc101935ebf4cd562d596c7e98a5321275dee70662c113f8c2094a113fb3",
+      "coremind-worker": "83f30ad27bd4ce6c7881711ef8f8f393bced403a7990488b419882054c7abf8a"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

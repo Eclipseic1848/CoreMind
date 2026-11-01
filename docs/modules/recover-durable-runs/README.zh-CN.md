@@ -1,6 +1,6 @@
 # 持久运行与故障恢复
 
-状态：合同与文档已对齐 `1.0.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+状态：保留既有 Run 恢复合同，新增 1.4 开发线的 internal TaskCommit 存储基础；不是已发布版本声明。支持平台：Windows、Linux，须分别验收。macOS 尚未列为正式支持。
 
 ## 目的
 
@@ -25,6 +25,12 @@ LoopController 继续管理 planning、execute、verify、repair 等业务阶段
 - `FileRunStore`：单 writer 锁、连续序号、ordinary 逐 Fact 追加、critical 原子同步和可控尾部修复。
 - `prepareRunResume()`：恢复前检查配置指纹、终态、稳定步骤和 Effect Receipt。
 - `CoreMindSession`：稳定公开路径、双后端合同与旧 schema 迁移。
+
+## 显式任务提交（internal）
+
+`TaskCommitSession` 把一个任务 checkpoint、typed document 更新和文本 entry 放在一个 critical 原子记录中，先验证、持久提交，再整体发布投影。全会话 revision、commitId 内容幂等和长期 writer 租约避免静默覆盖。原子任务日志是唯一权威，旧 Session/Run/Workspace 数据不迁移、不重复写入。
+
+本项不执行任务或提供 sleep/wake、嵌套调用、公共 SDK/Worker 接入。内置存储只承诺 `process_crash`；未知 I/O 结果须重开核对原提交，不推断远端业务副作用。详见[合同与错误处理](GUIDE.zh-CN.md)、[ADR](../../adr/0025-explicit-task-commit-authority.md)和[可运行示例](../../../examples/modules/recover-durable-runs/README.zh-CN.md)。
 
 ## 稳定不变量
 

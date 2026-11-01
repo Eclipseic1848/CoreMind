@@ -50,6 +50,13 @@ it.each(["ask", "assisted", "full"] as const)(
     await checkpoints.markApplied(checkpoint.checkpointId);
     const qualityFile = path.join(configDir, ".coremind", "quality-overrides.jsonl");
     writeFileSync(qualityFile, "原始审计\n", "utf8");
+    const taskFiles = [cwd, configDir].map((root) =>
+      path.join(root, ".coremind", "tasks", "commits.jsonl"),
+    );
+    for (const file of taskFiles) {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, "任务原子提交事实\n", "utf8");
+    }
     let target = "";
     const server = toolServer(() => ({
       name: "write",
@@ -64,6 +71,7 @@ it.each(["ask", "assisted", "full"] as const)(
         session.filePath,
         internalSession,
         qualityFile,
+        ...taskFiles,
       ]) {
         const before = readFileSync(file, "utf8");
         target = path.relative(cwd, file);

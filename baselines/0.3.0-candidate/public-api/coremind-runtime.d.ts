@@ -1802,6 +1802,7 @@ export declare interface FileGrader extends GraderBase {
 export declare class FileRunStore implements RunStore {
     readonly directory: string;
     private readonly options;
+    readonly atomicCriticalCommit: true;
     readonly supportedDurability: readonly ["ordinary", "critical"];
     readonly durabilityBoundary: "process_crash";
     private readonly cursors;
@@ -1824,6 +1825,8 @@ export declare class FileRunStore implements RunStore {
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
 declare interface FileRunStoreOptions {
+    /** 原子任务日志不允许修剪损坏尾行；普通 Run 保持原有恢复规则。 */
+    repairTornTail?: boolean;
     /** 仅供故障注入测试：新增记录临时文件完成后、发布前调用。 */
     beforeCommit?: (context: {
         destination: string;
@@ -2845,7 +2848,7 @@ export declare class RunStateJournal {
     private enqueue;
 }
 
-export declare type RunStateKind = "admission" | "verification" | "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "pause" | "finish";
+export declare type RunStateKind = "admission" | "verification" | "start" | "resume" | "telemetry_configuration" | "telemetry_consent" | "control" | "delegation" | "event" | "checkpoint" | "checkpoint_restore" | "loop" | "operation" | "task_commit" | "pause" | "finish";
 
 export declare interface RunStateRecord {
     version: 1;
@@ -2860,6 +2863,8 @@ export declare interface RunStateRecord {
 export declare type RunStatus = "succeeded" | "failed" | "paused" | "aborted" | "timeout" | "budget_exceeded";
 
 export declare interface RunStore {
+    /** critical commit 整条记录原子可见；显式任务模式必须具备此保证。 */
+    readonly atomicCriticalCommit?: true;
     /** 旧 Adapter 缺省时仅按 ordinary/process_memory 兼容，critical 必须失败关闭。 */
     readonly supportedDurability?: readonly RunStoreDurability[];
     readonly durabilityBoundary?: RunStoreDurabilityBoundary;

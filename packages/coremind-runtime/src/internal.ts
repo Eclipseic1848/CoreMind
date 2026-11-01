@@ -54,4 +54,15 @@ export {
   prepareProtocolToolResultFact,
 } from "./runtime.js";
 export { stripPrivateSkillPayload } from "./skill-privacy.js";
+export {
+  type TaskCheckpoint,
+  type TaskCommit,
+  type TaskCommitProjection,
+  type TaskCommitReceipt,
+  TaskCommitSession,
+  type TaskCommitSessionOptions,
+  type TaskConversationEntry,
+  type TaskDocument,
+  type TaskDocumentSchema,
+} from "./task-commit.js";
 export { redactSensitiveText, redactSensitiveValue } from "./trace.js";

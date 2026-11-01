@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 1.4.0 development
+
+- Added the opt-in internal TaskCommit authority for atomic task checkpoint, typed document and text-entry publication, with revision conflicts, content-bound idempotency and process-crash recovery.
+- Preserved legacy Session/Run/Workspace data and Run tail repair; task journals fail closed on truncation. Added task paths to standard Runtime write protection.
+- Added real child-process exit/ownership regressions, a model-free runnable example, ADR 0025 and bilingual operational guidance. This is storage infrastructure, not public task execution or release qualification. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+
 ## 1.3.0 - 2026-10-20
 
 - Synchronized module contracts and version metadata for the 1.3.0 release line; publication requires qualification for the final commit and exact artifacts.

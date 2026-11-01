@@ -6,6 +6,14 @@ from coremind import ERROR_CODES, ProtocolError, error_code_info
 
 
 class ErrorContractTest(unittest.TestCase):
+    def test_task_commit_errors_do_not_enable_automatic_retry(self) -> None:
+        for code in ("task_commit_invalid", "task_commit_conflict", "task_store_corrupt", "task_store_unavailable"):
+            with self.subTest(code=code):
+                error = ProtocolError("任务状态需要核对", rpc_code=-32000, coremind_code=code)
+                self.assertEqual(error.error_info, ERROR_CODES[code])
+                self.assertEqual(error.error_info["retryClass"], "fatal")
+                self.assertEqual(error.error_info["runStatus"], "failed")
+
     def test_model_output_limit_is_terminal_without_retry(self) -> None:
         self.assertEqual(
             error_code_info("model_output_limit"),

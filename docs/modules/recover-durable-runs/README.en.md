@@ -1,6 +1,6 @@
 # Durable Runs and Recovery
 
-Status: contract and documentation aligned with the `1.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: existing Run recovery remains supported; the 1.4 development line adds an internal TaskCommit storage foundation. This is not a publication claim. Windows and Linux require separate acceptance; macOS is not yet officially supported.
 
 ## Purpose
 
@@ -25,6 +25,12 @@ LoopController remains the owner of planning, execution, verification, and repai
 - `FileRunStore` provides a single-writer lock, consecutive sequences, per-Fact ordinary append, atomic critical synchronization, and bounded tail repair.
 - `prepareRunResume()` checks the configuration fingerprint, terminal state, stable steps, and effect receipts.
 - `CoreMindSession` preserves a stable public path, backend conformance, and versioned migration.
+
+## Explicit task commits (internal)
+
+`TaskCommitSession` places one task checkpoint, typed document updates and text entries in one critical atomic record. It validates first, persists, then publishes the complete projection. Session-wide revisions, content-bound commitIds and a long-lived writer lease prevent silent overwrites. The task commit stream is the sole authority; legacy Session/Run/Workspace data is neither migrated nor duplicated.
+
+This does not execute tasks or add sleep/wake, nested calls, public SDK or Worker commands. Built-in durability covers `process_crash` only. Uncertain I/O requires reopening and checking the original commit, without inferring remote business effects. See the [contract and error guide](GUIDE.en.md), [ADR](../../adr/0025-explicit-task-commit-authority.md) and [runnable example](../../../examples/modules/recover-durable-runs/README.en.md).
 
 ## Invariants
 

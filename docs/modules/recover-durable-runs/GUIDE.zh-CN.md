@@ -42,6 +42,38 @@ Config 3 的 deferred 工具仍受同一恢复门约束：同一 Run 必须匹�
 
 恢复旧文件时框架会自动创建 `.v3.backup`。受支持的消息、模型变更、工具集变更、压缩、分支摘要、标签和名称会迁移。无法无损表达的旧条目会返回明确错误，原文件保留；按 [SOP](SOP.zh-CN.md) 人工选择保留旧版本或导出有效上下文。
 
+## 显式任务原子提交（1.4 开发线，internal）
+
+需要把任务 checkpoint、业务 document 和相关文本一起保存时，由受信任宿主使用 `coremind-runtime/internal` 的 `TaskCommitSession`。这是内部存储基础，不是普通 `ChatSession` 的新模式，也不会执行任务、唤醒定时器或接入 Python/Worker。完整决策见 [ADR 0025](../../adr/0025-explicit-task-commit-authority.md)。
+
+1. `open({ workspace, sessionId, documentSchemas })` 规范化已有工作区并独占任务会话；第二 writer 被拒绝。
+2. `commit({ schemaVersion: 1, commitId, expectedRevision, taskId, task, documents, entries })` 全量校验后保存一个原子记录。成功回执含 commitId、新 revision 和 `durabilityBoundary`。
+3. `snapshot()` 返回复制的 `{ revision, tasks, documents, entries }`。写入期间仍是旧投影，成功后整体切换；重开从提交事实完整重建。
+4. `close()` 拒绝新提交，等待已经接收的提交结束，再释放租约。关闭后不能继续读取或提交。
+
+`task` 是 `{ type, version, phase, checkpoint }`；这里只验证身份、正整数版本和 JSON 数据，不执行阶段或迁移。每个 document 为 `{ id, type, version, value }`，按 id 全量替换，无删除；每个 entry 为 `{ id, role: "user" | "assistant", text }`，只追加且 id 不能重复。
+
+document 注册为 `{ type, version, schema }`，Schema 使用同步 JSON Schema draft-07。类型/版本必须注册，Schema 指纹随使用记录保存；重开时缺失或改变旧 Schema 会拒绝。禁止异步校验及未解析的网络引用；校验不会转换、删字段或填默认值。
+
+所有 id、type、phase 为 1–128 个 ASCII 字母、数字、`_` 或 `-`，首字符须为字母或数字。输入及包含身份/Schema 指纹的事实 payload 分别限 1 MiB UTF-8；checkpoint/document value 必须是有限 JSON，不能带访问器、循环、Date、函数、BigInt 或 undefined。全会话共享 revision；同 commitId 和相同完整内容返回原回执，不再次追加，异内容拒绝。只改变 JSON 对象键顺序不影响幂等比较。
+
+默认文件为 `<workspace>/.coremind/tasks/<sha256(sessionId)>/commits.jsonl`，绑定规范化工作区身份。不要复制到另一工作区后直接打开，也不要编辑或把 entry 再写入旧 Session。任务文件没有自动脱敏或加密。标准工具路径保护覆盖配置目录和 cwd 下的 `.coremind/tasks`；宿主自行选择其他工作区时也要配置相应写保护。
+
+| 错误 | 处理 |
+|---|---|
+| `task_commit_invalid` | 修正整个提交或 document Schema，未发生本次写入 |
+| `task_commit_conflict` | 检查 revision、commitId 内容和 entry id；不要自动生成新键重试 |
+| `session_write_locked` / `policy_denied` | 核实 writer 与工作区/链接身份，不删活锁或绕过路径检查 |
+| `task_store_corrupt` / `run_state_corrupt` | 保留原文件，核对 Schema、版本、身份和序列；任务日志不自动修剪尾行 |
+| `durability_unsupported` | 自定义 Store 不满足原子 critical 与持久性合同，不能启用 |
+| `durability_barrier_failed` / `task_store_unavailable` | 停用当前 holder，关闭后重开，核对原 commitId；失败可能已完整落盘，不代表回滚 |
+
+自定义 `store(directory)` 是宿主信任接口，须声明 `atomicCriticalCommit: true`、支持 `critical`、至少 `process_crash`，提供原子单记录写入及匹配持久回执；读取不得静默修复任务事实。用 FileRunStore 实现时设置 `repairTornTail: false`。若暴露 `pathFor`，文件必须属于当前租约。能力声明不等于对任意 Adapter 的认证。
+
+内置 Store 仅承诺进程崩溃边界，不覆盖系统断电或外部支付/建单。读取需全量重建，critical 仍重写完整日志，适合受控规模的单机任务；不是分布式队列或无限历史存储。运行[无模型事务示例](../../../examples/modules/recover-durable-runs/README.zh-CN.md)核对可见性、重开与幂等行为。
+
+新增共享错误码会改变 Protocol v2 Schema 指纹，SDK/Worker/manifest 须配套更新；对公开 RunStateKind 做穷尽匹配的宿主需处理新的 `task_commit`，普通 Run 不会产生它。回滚时先停止 writer、保留任务目录，再恢复配套旧 SDK/Worker；旧三个事实域不需迁移，旧版本不读取新任务日志，也不能将其复制成旧 Session 或 Run 文件。
+
 ## 新手最容易犯的错误
 
 - 把 `paused` 当作失败后自动重试信号。

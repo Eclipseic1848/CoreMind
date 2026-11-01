@@ -24,6 +24,19 @@ coremind run coremind.yaml --resume <runId> --json-events
 5. 再次用同一 `runId` 恢复，确认终态 operation 被拒绝继续，而不是再次写入。
 6. 比对顶层兼容字段与 `snapshot`，确认 `runId`、operation、outcome、指标和证据一致。
 
+## 无模型 TaskCommit 示例（1.4 开发线）
+
+仓库安装依赖并构建后，从根目录运行：
+
+```powershell
+npm run build
+node examples/modules/recover-durable-runs/task-commit.mjs
+```
+
+[示例源码](task-commit.mjs)在独立临时工作区原子保存 checkpoint/document/文本 entry，关闭重开验证重建，再检查同 commitId 幂等和异内容冲突。成功输出 `TaskCommit OK`，最后仅清理本次临时目录；不读取凭据、不调用模型、不访问外部业务系统。
+
+这是 `coremind-runtime/internal` 存储合同示例，不执行任务阶段或提供 sleep/wake。真实进程退出窗口见 `task-commit-crash.test.ts`；示例中的正常 close/reopen 不代替崩溃验收。
+
 ## 故障注入
 
 从仓库根目录运行：

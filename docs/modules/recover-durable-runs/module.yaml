@@ -7,6 +7,7 @@ version: 1.3.0
 sourcePaths:
   - "packages/coremind-runtime/src/operation-state.ts"
   - "packages/coremind-runtime/src/run-state.ts"
+  - "packages/coremind-runtime/src/task-commit.ts"
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/checkpoint.ts"
   - "packages/coremind-runtime/src/run-effect-coordinator.ts"
@@ -28,9 +29,13 @@ skillPath: skills/recover-durable-runs/SKILL.md
 examplePaths:
   - examples/modules/recover-durable-runs/README.zh-CN.md
   - examples/modules/recover-durable-runs/README.en.md
+  - examples/modules/recover-durable-runs/task-commit.mjs
 testPaths:
   - "packages/coremind-runtime/src/operation-state.test.ts"
   - "packages/coremind-runtime/src/run-state.test.ts"
+  - "packages/coremind-runtime/src/task-commit.test.ts"
+  - "packages/coremind-runtime/src/task-commit-crash.test.ts"
+  - "packages/coremind-runtime/src/state-write-protection.acceptance.test.ts"
   - "packages/coremind-runtime/src/session-conformance.test.ts"
   - "packages/coremind-runtime/src/session.test.ts"
   - "packages/coremind-runtime/src/checkpoint.test.ts"

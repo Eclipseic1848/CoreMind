@@ -146,6 +146,7 @@ const modules = [
     source: [
       "packages/coremind-runtime/src/operation-state.ts",
       "packages/coremind-runtime/src/run-state.ts",
+      "packages/coremind-runtime/src/task-commit.ts",
       "packages/coremind-runtime/src/session.ts",
       "packages/coremind-runtime/src/checkpoint.ts",
       "packages/coremind-runtime/src/run-effect-coordinator.ts",
@@ -155,6 +156,9 @@ const modules = [
     tests: [
       "packages/coremind-runtime/src/operation-state.test.ts",
       "packages/coremind-runtime/src/run-state.test.ts",
+      "packages/coremind-runtime/src/task-commit.test.ts",
+      "packages/coremind-runtime/src/task-commit-crash.test.ts",
+      "packages/coremind-runtime/src/state-write-protection.acceptance.test.ts",
       "packages/coremind-runtime/src/session-conformance.test.ts",
       "packages/coremind-runtime/src/session.test.ts",
       "packages/coremind-runtime/src/checkpoint.test.ts",
@@ -173,6 +177,7 @@ const modules = [
       "DurableOperation",
       "restoreDurableOperation",
       "FileRunStore",
+      "TaskCommitSession (internal)",
       "prepareRunResume",
       "CoreMindSession",
       "RunResult.operation",
