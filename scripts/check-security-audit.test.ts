@@ -81,6 +81,93 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("安全审计结果边界", () => {
+  function preparePi() {
+    const packages = {
+      "pi-agent": {
+        maximumSeverity: "high",
+        versions: ["1.0.0"],
+        nodes: ["node_modules/pi-agent"],
+        advisories: ["https://github.com/advisories/GHSA-reviewed-undici"],
+      },
+      undici: {
+        maximumSeverity: "high",
+        versions: ["1.0.0"],
+        nodes: ["node_modules/pi-agent/node_modules/undici"],
+        advisories: ["https://github.com/advisories/GHSA-reviewed-undici"],
+      },
+    };
+    vi.mocked(readFile)
+      .mockReset()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          expiresAt: "2999-09-30",
+          acceptedPiPackages: packages,
+          allowedDevelopmentOnlyPackages: allowed,
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ scripts: {} }))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          packages: Object.fromEntries(
+            [
+              ...Object.keys(allowed).map((name) => `node_modules/${name}`),
+              "node_modules/pi-agent",
+              "node_modules/pi-agent/node_modules/undici",
+              "node_modules/undici",
+            ].map((node) => [node, { version: "1.0.0" }]),
+          ),
+        }),
+      );
+    const findings = report({ "pi-agent": "high", undici: "high" });
+    Object.assign(findings.vulnerabilities["pi-agent"], { via: ["undici"] });
+    findings.vulnerabilities.undici.nodes = ["node_modules/pi-agent/node_modules/undici"];
+    return findings;
+  }
+
+  it("仅接受登记的 Pi 传递风险，并明确风险没有消失", async () => {
+    const pi = preparePi();
+    const complete = {
+      ...pi,
+      vulnerabilities: { ...pi.vulnerabilities, ...report({ vite: "high" }).vulnerabilities },
+      metadata: { vulnerabilities: { total: 3 } },
+    };
+    vi.mocked(spawnSync)
+      .mockReturnValueOnce(result(pi, 1))
+      .mockReturnValueOnce(result(complete, 1));
+    await expect(check()).resolves.toBeUndefined();
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("2 个生产依赖风险"));
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("风险接受不代表漏洞已修复"));
+  });
+
+  it.each(["production", "complete"])("%s 审计拒绝 Pi 接受范围外的实例", async (scope) => {
+    const pi = preparePi();
+    const changed = structuredClone(pi);
+    changed.vulnerabilities.undici.nodes.push("node_modules/undici");
+    vi.mocked(spawnSync)
+      .mockReturnValueOnce(result(scope === "production" ? changed : pi, 1))
+      .mockReturnValueOnce(result(changed, 1));
+    await expect(check()).rejects.toThrow("audit rejected");
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("安装位置不在已接受"));
+  });
+
+  it.each(["advisory", "version", "severity", "source", "unrelated"])(
+    "Pi 接受不放行未经核实的变化：%s",
+    async (change) => {
+      const pi = preparePi();
+      if (change === "advisory")
+        pi.vulnerabilities.undici.via = [{ url: "https://github.com/advisories/GHSA-new-risk" }];
+      if (change === "version") pi.vulnerabilities.undici.nodes = ["node_modules/unknown"];
+      if (change === "severity") pi.vulnerabilities.undici.severity = "critical";
+      if (change === "source") pi.vulnerabilities.undici.via = [];
+      if (change === "unrelated") {
+        Object.assign(pi.vulnerabilities, report({ vite: "high" }).vulnerabilities);
+        pi.metadata.vulnerabilities.total += 1;
+      }
+      vi.mocked(spawnSync).mockReturnValueOnce(result(pi, 1));
+      await expect(check()).rejects.toThrow("audit rejected");
+    },
+  );
+
   it.each([{}, { vite: "high" }, { vite: "high", vitepress: "moderate", esbuild: "moderate" }])(
     "允许合法零风险报告或已登记风险子集：%j",
     async (findings) => {

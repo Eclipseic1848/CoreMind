@@ -4042,6 +4042,51 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it.each([
+    [401, "authentication failed request_id=req_011CU503xyz"],
+    [400, "image exceeds 5242880 bytes"],
+  ] as const)("Loop 不重试带状态码子串的 HTTP %i 错误", async (status, message) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-loop-status-substring-"));
+    const store = new FileRunStore(path.join(dir, "runs"));
+    let requests = 0;
+    const server = createServer((_request, response) => {
+      requests += 1;
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as AddressInfo).port;
+      const runtime = await CoreMindRuntime.create({
+        config: { ...loopConfig(port), runtime: { maxRetries: 3 } },
+        configDir: dir,
+        initialPrompt: "修复缺陷",
+        runStore: store,
+      });
+
+      const result = await runtime.run();
+      const records = await store.read(result.runId);
+
+      expect(requests).toBe(1);
+      expect(result.metrics.retries).toBe(0);
+      expect(result.trace.filter((entry) => entry.event.type === "retry")).toEqual([]);
+      expect(result.outcome).toMatchObject({
+        status: "paused",
+        finishReason: "unclassified_error",
+        error: { code: "unclassified_error" },
+      });
+      expect(JSON.stringify(result.outcome.error?.audit)).toContain(message);
+      expect(records.at(-1)).toMatchObject({ kind: "pause", payload: { outcome: result.outcome } });
+      expect(ProjectionEngine.project(records).recovery).toMatchObject({
+        resumable: false,
+        requiresHuman: true,
+      });
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("Loop 总超时会传播取消并记录 timeout 控制器终态", async () => {
     const server = createServer((_request, response) => {
       setTimeout(() => {

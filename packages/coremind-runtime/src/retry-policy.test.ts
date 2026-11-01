@@ -45,6 +45,21 @@ describe("retry policy", () => {
     expect(onRetry.mock.calls.map(([attempt]) => attempt)).toEqual([1, 2]);
   });
 
+  it.each([
+    "401 authentication failed request_id=req_011CU503xyz",
+    "400 image exceeds 5242880 bytes",
+  ])("状态码子串不消耗重试预算并保留原错误：%s", async (errorMessage) => {
+    const error = Object.freeze({ role: "assistant", stopReason: "error", errorMessage });
+    const operation = vi.fn().mockRejectedValue(error);
+    const onRetry = vi.fn();
+
+    await expect(runWithTransientRetry(operation, { maxRetries: 3, onRetry })).rejects.toBe(error);
+    expect(operation).toHaveBeenCalledOnce();
+    expect(onRetry).not.toHaveBeenCalled();
+    expect(error.errorMessage).toBe(errorMessage);
+    expect(classifyRetry(error).category).toBe("human");
+  });
+
   it("确定性失败、人工处置和重试耗尽都立即抛出", async () => {
     const permanent = vi.fn().mockRejectedValue(new CoreMindError("invalid_config", "坏配置"));
     await expect(runWithTransientRetry(permanent, { maxRetries: 3 })).rejects.toThrow("坏配置");
