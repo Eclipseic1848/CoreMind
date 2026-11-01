@@ -4,9 +4,16 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
-## Unreleased — 1.4.0 development
+**Unreleased: 1.4.0 development preparation**
 
-### Improvements
+These changes are not yet released and include the unreleased 1.3.0 fixes. See the [v1.4.0 release notes](docs/release/notes/v1.4.0.md).
+
+**Dependency fixes and risk disposition**
+
+- **Dependency fixes:** update fast-uri to 3.1.9 and CoreMind network tools to Undici 8.12.2; update VitePress's Vite to 6.4.5, API Extractor's minimatch to 11.0.1, and the fixed Linux backend build source's Zod to 4.6.6 and node-forge to 1.4.2. Scoped overrides do not upgrade underlying runtime or the Linux backend source version. ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **Explicitly accepted underlying runtime risks:** record the user's decision to accept the known risks in underlying runtime 1.3.0 and its minimatch 10.2.6 / Undici 8.10.2 dependencies. Acceptance does not fix these vulnerabilities. Audits still enforce exact versions, installation locations, advisories, severity ceilings, and the original 2026-11-14 expiry; other risks and invalid reports remain blocking. Public npm consumers can still install the affected chain and cannot rely on repository overrides. See the [security policy](SECURITY.en.md). ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+
+**Improvements**
 
 - **Durable waits and idempotent wakeups:** TaskSession atomically saves the next phase, result and absolute deadline, adds nextWake and sleepId-bound wake, and recomputes delays after restart. Includes actual process exits, duplicate/stale notifications, cancellation races, lost receipts, an offline host alarm example and bilingual guidance. All timeouts remain unchanged; cross-platform CI and release qualification are still required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
 
@@ -27,6 +34,8 @@ This section records `1.3.0` release preparation and the ten accepted, merged fi
 ### Bug Fixes
 
 #### Runtime and Workflow
+
+- **Retry status-code boundaries:** digits such as `503` or `524` inside request IDs or longer numbers no longer misclassify unknown Provider errors as transient. Loop preserves the original error and redacted audit and pauses for human review. Standalone status codes, other transient reasons, quota exclusions, and existing retry budgets retain their behavior. ([#360](https://github.com/Eclipseic1848/CoreMind/issues/360))
 
 - **Parallel termination and admission:** the first failure or pause in an ordinary `parallel` substep cancels its siblings and waits for settlement while preserving the first error. No new model calls are admitted after the Run ends. Started operations retain receipts; cancellation is not rollback. All-success results still aggregate in declaration order. ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
 - **Step-output boundaries:** Workflow `prompt`/`call` retains the same Session history as model context, while step output, `saveAs`, subsequent interpolation, and transcript contain only assistant text newly produced by that step, without repeating earlier replies. ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
