@@ -78,3 +78,11 @@ npm run check:modules
 5. 执行原模块及仓库门禁；Windows 本地通过不能替代 Linux CI。未合并且安全门受阻时保持 Issue 开放，不发布。
 
 完整 API 与边界见[任务指南](../../guides/durable-tasks.zh-CN.md)。
+
+## 持久等待验收
+
+1. 保存 taskId、sleepId、wakeAt；确认下一阶段、结果与等待一并提交。未确认提交不得向调用方宣称已睡眠。
+2. 重启时 query 已知任务并处理 ready，再用 nextWake 重建 alarm。timer 单次最多 2147483647 毫秒，触发后重新核对期限；不持有旧 Promise 等待恢复。
+3. wakeId 在该任务内保持稳定，载荷绑定 sleepId。not_due 未占用键；accepted 才显式 resume。duplicate/stale/terminal 不驱动阶段；I/O 结果未知先关闭重开核对原键。
+4. 运行 task-sleep.test.ts、task-sleep-process.test.ts、task-session-runtime.test.ts 和 task-sleep.mjs。检查真实进程退出、到期前/恰好/之后、取消竞争与确认丢失。
+5. 保留所有原执行和验收超时；Windows 与 Linux CI 均须通过才合并关闭。回滚须停止 writer 并保全任务目录，旧阶段 SDK 不支持新的睡眠/唤醒记录。

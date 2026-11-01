@@ -8,9 +8,11 @@ This file records user-facing changes. Historical release records remain unchang
 
 ### Improvements
 
+- **Durable waits and idempotent wakeups:** TaskSession atomically saves the next phase, result and absolute deadline, adds nextWake and sleepId-bound wake, and recomputes delays after restart. Includes actual process exits, duplicate/stale notifications, cancellation races, lost receipts, an offline host alarm example and bilingual guidance. All timeouts remain unchanged; cross-platform CI and release qualification are still required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
+
 - **Durable task phases and explicit migration:** public TypeScript `TaskSession` adds start/query/resume/cancel, atomic phase checkpoints, definition/version/authority checks and explicit state migration. Models and tools use the existing Runtime; unresolved Run windows fail closed. Includes real process, permission/budget/cancellation checks, bilingual guides, SOP/Skill and an offline example. This does not establish merge or release qualification. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
 
-- **Atomic task commit foundation:** added internal `TaskCommitSession`, committing a task checkpoint, typed documents and text entries in one atomic durable record. It checks revisions, content-bound commitId idempotency and schema identity, and rebuilds projections after process crashes. Legacy Session/Run/Workspace data stays unchanged; standard Runtime authorization protects task paths. Includes an ADR, bilingual guidance, SOP/Skill, real child-process regressions and a model-free example. Background scheduling, sleep/wake and cross-language access remain separate work. This is not a publication claim. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+- **Atomic task commit foundation:** added internal `TaskCommitSession`, committing a task checkpoint, typed documents and text entries in one atomic durable record. It checks revisions, content-bound commitId idempotency and schema identity, and rebuilds projections after process crashes. Legacy Session/Run/Workspace data stays unchanged; standard Runtime authorization protects task paths. Includes an ADR, bilingual guidance, SOP/Skill, real child-process regressions and a model-free example. Background scheduler services and cross-language access remain separate work. This is not a publication claim. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
 
 ## 1.3.0
 

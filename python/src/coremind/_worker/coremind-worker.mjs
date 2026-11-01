@@ -53534,7 +53534,7 @@ var require_eventsource_stream = __commonJS({
     var defaultMaxEventSize = buffer.kStringMaxLength;
     var DATA = Buffer.from("data");
     var EVENT = Buffer.from("event");
-    var ID3 = Buffer.from("id");
+    var ID4 = Buffer.from("id");
     var RETRY = Buffer.from("retry");
     function isASCIINumberBytes(buffer2, start) {
       if (start >= buffer2.length) {
@@ -53725,7 +53725,7 @@ ${value}`;
           }
           return;
         }
-        if (isFieldName(line, fieldLength, ID3)) {
+        if (isFieldName(line, fieldLength, ID4)) {
           if (isValidLastEventIdBytes(line, valueStart)) {
             event.id = line.toString("utf8", valueStart);
           }
@@ -269304,6 +269304,8 @@ var validateCommit = validator.compile({
 });
 
 // packages/coremind-runtime/dist/task-session.js
+var ID3 = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/u;
+var MAX_DATE_MS = 864e13;
 var stateValidator = new import_ajv4.Ajv({ strict: true, ownProperties: true }).compile({
   type: "object",
   additionalProperties: false,
@@ -269312,9 +269314,23 @@ var stateValidator = new import_ajv4.Ajv({ strict: true, ownProperties: true }).
     format: { const: 1 },
     authority: { type: "string", pattern: "^[a-f0-9]{64}$" },
     definition: { type: "string", pattern: "^[a-f0-9]{64}$" },
-    status: { enum: ["ready", "paused", "completed", "cancelled"] },
+    status: { enum: ["ready", "paused", "sleeping", "completed", "cancelled"] },
     checkpoint: {},
-    pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 }
+    pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 },
+    sleep: {
+      type: "object",
+      additionalProperties: false,
+      required: ["sleepId", "wakeAt"],
+      properties: {
+        sleepId: { type: "string", pattern: ID3.source },
+        wakeAt: { type: "integer", minimum: 0, maximum: MAX_DATE_MS }
+      }
+    },
+    wakes: {
+      type: "object",
+      propertyNames: { type: "string", pattern: ID3.source },
+      additionalProperties: { type: "string", pattern: ID3.source }
+    }
   }
 });
 

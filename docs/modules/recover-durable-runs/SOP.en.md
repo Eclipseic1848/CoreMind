@@ -78,3 +78,11 @@ The checker in `gate` mode must traverse the tracked deterministic fixtures and 
 5. Run the original module/repository gates. Windows local results do not replace Linux CI. Keep unmerged, security-blocked Issues open; do not publish.
 
 See the [task guide](../../guides/durable-tasks.en.md) for API details.
+
+## Durable wait acceptance
+
+1. Record taskId, sleepId and wakeAt; verify next phase, result and wait commit together. Never acknowledge sleeping before the durable receipt.
+2. At startup, query known tasks and handle ready ones, then rebuild alarms with nextWake. Cap each timer at 2147483647 ms and recheck the deadline on delivery; never restore an old Promise.
+3. Keep wakeId stable within the task and bind it to sleepId. not_due does not reserve the key; explicitly resume after accepted. duplicate/stale/terminal do not drive phases. After uncertain I/O, close/reopen and check the original key.
+4. Run task-sleep.test.ts, task-sleep-process.test.ts, task-session-runtime.test.ts and task-sleep.mjs. Check process exits, before/exact/after deadline, cancellation races and lost acknowledgements.
+5. Preserve every execution and acceptance timeout. Require both Windows and Linux CI before merge/closure. Stop writers and preserve task data before rollback; older phase SDKs reject the new sleep/wake records.

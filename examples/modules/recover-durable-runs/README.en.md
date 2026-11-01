@@ -54,3 +54,7 @@ Return to the [English guide](../../../docs/modules/recover-durable-runs/GUIDE.e
 After building, run `node examples/modules/recover-durable-runs/task-phases.mjs`. It imports TaskSession from public coremind-ai, checks A→reopen→B→completed and explicit v1→v2 migration, without credentials or model calls. It prints `Task phases and migration OK` and removes only its own temporary workspace. Actual process exits are tested separately in task-session-process.test.ts.
 
 See the [task guide](../../../docs/guides/durable-tasks.en.md).
+
+## Offline durable wait and host alarm example
+
+After building, run `node examples/modules/recover-durable-runs/task-sleep.mjs`. It commits A's result and deadline, reopens, builds a capped ordinary timer from nextWake, then uses wake/resume to execute B. It prints `Durable sleep and host alarm OK`, needs no credentials and removes only its own temporary directory. Real host startup must also query known ready tasks. This example's close/reopen does not replace the actual process exits in task-sleep-process.test.ts.

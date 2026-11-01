@@ -375,8 +375,11 @@ export {
   type TaskRuntimeOptions,
   TaskSession,
   type TaskSessionOptions,
+  type TaskSleep,
   type TaskSnapshot,
   type TaskTransition,
+  type TaskWakeDeadline,
+  type TaskWakeResult,
 } from "./task-session.js";
 export {
   type AuthorizationState,

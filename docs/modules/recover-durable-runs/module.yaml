@@ -32,12 +32,15 @@ examplePaths:
   - examples/modules/recover-durable-runs/README.en.md
   - examples/modules/recover-durable-runs/task-commit.mjs
   - examples/modules/recover-durable-runs/task-phases.mjs
+  - examples/modules/recover-durable-runs/task-sleep.mjs
 testPaths:
   - "packages/coremind-runtime/src/operation-state.test.ts"
   - "packages/coremind-runtime/src/run-state.test.ts"
   - "packages/coremind-runtime/src/task-session.test.ts"
   - "packages/coremind-runtime/src/task-session-process.test.ts"
   - "packages/coremind-runtime/src/task-session-runtime.test.ts"
+  - "packages/coremind-runtime/src/task-sleep.test.ts"
+  - "packages/coremind-runtime/src/task-sleep-process.test.ts"
   - "packages/coremind-runtime/src/task-commit.test.ts"
   - "packages/coremind-runtime/src/task-commit-crash.test.ts"
   - "packages/coremind-runtime/src/state-write-protection.acceptance.test.ts"

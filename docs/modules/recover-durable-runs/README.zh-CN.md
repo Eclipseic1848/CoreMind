@@ -81,4 +81,8 @@ Windows 与 Linux 使用相同的合同和测试定义。锁文件在异常进�
 
 ## 公共持久任务阶段（1.4 开发线）
 
-`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。此开发线不代表正式发布；跨语言、sleep/wake、嵌套调用另行交付。
+`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。此开发线不代表正式发布；跨语言、嵌套调用另行交付。
+
+## 持久等待（1.4 开发线）
+
+阶段返回 sleepUntil 原子保存下一阶段与绝对期限；nextWake 查询最近持久等待，wake(taskId, wakeId, sleepId) 幂等置为 ready，再显式 resume。旧 alarm 不得推进新睡眠；宿主负责重启、恢复已知 ready 任务和重建计时器。取消使 alarm 失效，关闭空闲会话保留等待。等待不延长 Run、工具、阶段或 Worker 超时。用法、回执丢失处理和旧 SDK 回滚限制见[任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0027](../../adr/0027-durable-task-sleep-wake.md)。

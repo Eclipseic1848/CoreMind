@@ -3012,7 +3012,7 @@ export declare class TaskExecutionError extends Error {
     constructor(code: TaskExecutionErrorCode, message: string);
 }
 
-export declare type TaskExecutionErrorCode = "task_definition_invalid" | "task_definition_unknown" | "task_definition_mismatch" | "task_authority_mismatch" | "task_checkpoint_invalid" | "task_migration_failed" | "task_not_found" | "task_already_exists" | "task_busy" | "task_closed" | "task_cancelled" | "task_phase_timeout" | "task_run_unresolved" | "task_run_failed";
+export declare type TaskExecutionErrorCode = "task_definition_invalid" | "task_definition_unknown" | "task_definition_mismatch" | "task_authority_mismatch" | "task_checkpoint_invalid" | "task_migration_failed" | "task_not_found" | "task_already_exists" | "task_busy" | "task_closed" | "task_cancelled" | "task_phase_timeout" | "task_deadline_invalid" | "task_wake_conflict" | "task_run_unresolved" | "task_run_failed";
 
 export declare interface TaskPhaseContext {
     readonly task: TaskSnapshot;
@@ -3034,11 +3034,14 @@ export declare class TaskSession {
     private readonly runtime;
     private readonly authority;
     private readonly phaseTimeoutMs;
+    private readonly clock;
     private active?;
     private closing?;
     private constructor();
     static open(options: TaskSessionOptions): Promise<TaskSession>;
     query(taskId: string): TaskSnapshot | undefined;
+    nextWake(): TaskWakeDeadline | undefined;
+    wake(taskId: string, wakeId: string, sleepId: string): Promise<TaskWakeResult>;
     start(input: {
         taskId: string;
         type: string;
@@ -3062,6 +3065,14 @@ export declare interface TaskSessionOptions {
     documentSchemas?: readonly TaskDocumentSchema[];
     /** 纯状态任务可省略；调用 context.run 时必须提供。 */
     runtime?: TaskRuntimeOptions;
+    /** 受信任宿主时钟，默认 Date.now；每次查询/唤醒重新读取，不恢复内存 timer。 */
+    clock?: () => number;
+}
+
+export declare interface TaskSleep {
+    sleepId: string;
+    /** UTC epoch 毫秒，范围与 JavaScript Date 的非负时间范围一致。 */
+    wakeAt: number;
 }
 
 export declare interface TaskSnapshot {
@@ -3069,18 +3080,32 @@ export declare interface TaskSnapshot {
     type: string;
     version: number;
     phase: string;
-    status: "ready" | "paused" | "completed" | "cancelled";
+    status: "ready" | "paused" | "sleeping" | "completed" | "cancelled";
     checkpoint: JsonValue;
     /** 存在时禁止自动重发 Run；须先核对原 Run 的 Facts 与副作用回执。 */
     pendingRunId?: string;
+    sleep?: TaskSleep;
 }
 
 export declare interface TaskTransition {
     phase: string;
     checkpoint: JsonValue;
     done?: boolean;
+    /** 保存下一阶段并结束本次执行；等待期间不占用阶段或 Run 超时。 */
+    sleepUntil?: number;
     documents?: TaskDocument[];
     entries?: TaskConversationEntry[];
+}
+
+export declare interface TaskWakeDeadline extends TaskSleep {
+    taskId: string;
+    remainingMs: number;
+}
+
+export declare interface TaskWakeResult {
+    /** accepted 仅确认已持久置为 ready；下一阶段仍需显式 resume。 */
+    status: "accepted" | "duplicate" | "not_due" | "stale" | "terminal";
+    task: TaskSnapshot;
 }
 
 export declare interface TelemetryAuthorizationScope {

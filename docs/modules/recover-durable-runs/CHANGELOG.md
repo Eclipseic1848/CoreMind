@@ -2,6 +2,8 @@
 
 ## Unreleased — 1.4.0 development
 
+- Added durable sleepUntil/nextWake/wake with deadline checks, sleep-bound idempotency, cancellation and cold-process recovery. Waiting preserves all execution timeouts. Added host alarm example, bilingual guidance, compatibility notes and ADR 0027; original CI and merge qualification remain required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
+
 - Added public TypeScript TaskSession phase execution and explicit migration over TaskCommit, preserving existing Run governance and failing closed on unresolved Run windows. Added process recovery, migration, concurrency, cancellation and local HTTP governance checks, ADR 0026, bilingual task guides and an offline example. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
 
 - Added the opt-in internal TaskCommit authority for atomic task checkpoint, typed document and text-entry publication, with revision conflicts, content-bound idempotency and process-crash recovery.
