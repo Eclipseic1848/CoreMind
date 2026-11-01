@@ -96,3 +96,7 @@ try {
 - 不要把一次成功运行当成稳定性证明。
 - 不要通过 full 模式绕过 deny、工作区保护、审计、Effect Receipt 或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
+
+## 持久任务阶段（1.4 开发线）
+
+公共 `TaskSession` / `TaskDefinition` 支持 start/query/resume/cancel 和显式迁移。每次 resume 执行一个阶段；这不是 ChatSession 历史恢复或任意 JS 栈恢复。使用方法和治理边界见[持久任务指南](../../guides/durable-tasks.zh-CN.md)。

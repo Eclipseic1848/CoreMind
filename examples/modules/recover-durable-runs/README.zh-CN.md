@@ -48,3 +48,9 @@ npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/
 检查器测试会在 `gate` 档遍历受 Git 跟踪的当前格式与 0.3.0 fixture；不要用本机 `.coremind` 目录替代验收输入。
 
 返回 [中文指南](../../../docs/modules/recover-durable-runs/GUIDE.zh-CN.md)。
+
+## 离线任务阶段与迁移示例
+
+构建后执行 `node examples/modules/recover-durable-runs/task-phases.mjs`。示例从公共 coremind-ai 导入 TaskSession，验证 A→重开→B→完成和显式 v1→v2 迁移，不读取凭据或调用模型。输出 `Task phases and migration OK`，仅清理自身临时工作区。真实进程退出由 task-session-process.test.ts 单独验收。
+
+参见[任务指南](../../../docs/guides/durable-tasks.zh-CN.md)。

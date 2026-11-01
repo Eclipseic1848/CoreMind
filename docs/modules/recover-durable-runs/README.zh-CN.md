@@ -78,3 +78,7 @@ Windows 与 Linux 使用相同的合同和测试定义。锁文件在异常进�
 - [可复用 Skill](../../../skills/recover-durable-runs/SKILL.md)
 
 该模块只能证明框架恢复合同成立，不能代替业务数据库、支付系统或其他外部服务的幂等与补偿设计。
+
+## 公共持久任务阶段（1.4 开发线）
+
+`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。此开发线不代表正式发布；跨语言、sleep/wake、嵌套调用另行交付。

@@ -2,6 +2,8 @@
 
 ## Unreleased — 1.4.0 development
 
+- Added public TypeScript TaskSession phase execution and explicit migration over TaskCommit, preserving existing Run governance and failing closed on unresolved Run windows. Added process recovery, migration, concurrency, cancellation and local HTTP governance checks, ADR 0026, bilingual task guides and an offline example. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
+
 - Added the opt-in internal TaskCommit authority for atomic task checkpoint, typed document and text-entry publication, with revision conflicts, content-bound idempotency and process-crash recovery.
 - Preserved legacy Session/Run/Workspace data and Run tail repair; task journals fail closed on truncation. Added task paths to standard Runtime write protection.
 - Added real child-process exit/ownership regressions, a model-free runnable example, ADR 0025 and bilingual operational guidance. This is storage infrastructure, not public task execution or release qualification. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))

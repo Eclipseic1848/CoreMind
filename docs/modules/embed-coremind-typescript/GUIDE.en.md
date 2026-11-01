@@ -96,3 +96,7 @@ Default memory credentials require login after restart. Node hosts may supply `t
 - Do not treat one successful run as stability evidence.
 - Do not use full mode to bypass configured deny rules, audit, checkpoints, effect receipts, or recovery. Path-aware file tools enforce workspace policy; arbitrary shell execution has separate platform limits.
 - Do not describe inherited providers as genuinely certified.
+
+## Durable task phases (1.4 development)
+
+Public `TaskSession` / `TaskDefinition` support start/query/resume/cancel and explicit migration. Each resume executes one phase; this is separate from ChatSession history or arbitrary JS stack restoration. See the [durable task guide](../../guides/durable-tasks.en.md) for usage and governance boundaries.

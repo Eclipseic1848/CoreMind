@@ -48,3 +48,9 @@ npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/
 The checker test runs the tracked current-format and 0.3.0 fixtures in `gate` mode. Do not substitute a local `.coremind` directory for acceptance input.
 
 Return to the [English guide](../../../docs/modules/recover-durable-runs/GUIDE.en.md).
+
+## Offline task phase and migration example
+
+After building, run `node examples/modules/recover-durable-runs/task-phases.mjs`. It imports TaskSession from public coremind-ai, checks A→reopen→B→completed and explicit v1→v2 migration, without credentials or model calls. It prints `Task phases and migration OK` and removes only its own temporary workspace. Actual process exits are tested separately in task-session-process.test.ts.
+
+See the [task guide](../../../docs/guides/durable-tasks.en.md).

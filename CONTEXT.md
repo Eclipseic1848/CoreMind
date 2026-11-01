@@ -186,3 +186,6 @@ _Avoid_: 恢复（与 Restore 混用）
 **Restore（撤销恢复）**：
 把 Workspace 文件恢复到 Checkpoint 记录的状态（显式用户动作）。
 _Avoid_: 恢复（与 Resume 混用）
+
+**TaskSession / TaskDefinition（持久任务阶段）**：
+受信任宿主注册的 type/version/phase/checkpoint Schema 合同。start 保存初态，resume 执行一个阶段，query 查询，cancel 取消；成功阶段与显式迁移经 TaskCommit 原子提交。处理器从阶段顶部恢复，模型与工具经既有 Runtime；未提交阶段的 pendingRunId 阻止自动重发。它不同于普通 ChatSession、Workflow Step 与可恢复 Run，预算仍按 Run 计量。见 [ADR 0026](docs/adr/0026-task-phases-and-migrations.md)。

@@ -366,6 +366,18 @@ export {
   type RunSnapshot,
   type RunSnapshotInput,
 } from "./snapshot.js";
+export type { TaskConversationEntry, TaskDocument, TaskDocumentSchema } from "./task-commit.js";
+export {
+  type TaskDefinition,
+  TaskExecutionError,
+  type TaskExecutionErrorCode,
+  type TaskPhaseContext,
+  type TaskRuntimeOptions,
+  TaskSession,
+  type TaskSessionOptions,
+  type TaskSnapshot,
+  type TaskTransition,
+} from "./task-session.js";
 export {
   type AuthorizationState,
   advanceToolCallLifecycle,

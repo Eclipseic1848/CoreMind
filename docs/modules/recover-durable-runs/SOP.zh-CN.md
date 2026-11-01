@@ -68,3 +68,13 @@ npm run check:modules
 ```
 
 检查器的 `gate` 档必须遍历仓库内受跟踪的确定性 fixture，并对 I-1～I-12 输出零 violation；`eval` 档必须可独立运行。Linux 使用同一命令。真实进程崩溃、并发 writer 与文件系统 rename 行为必须分别在 Windows 和 Linux 验收，不能互相替代。
+
+## 公共任务执行与迁移验收
+
+1. 核对 type/version/Schema、authorityVersion 与 Runtime 配置；确认处理器从顶部重进不会直接重复业务副作用。
+2. 从 query 获取 taskId、phase、status、checkpoint 和 pendingRunId。已有未提交 Run 时保全其 Facts 与回执，不改日志或创建替代 Run。
+3. 定义变化必须提升版本并提供仅转换状态的 migrate；权限/预算/工具变化不允许借迁移扩权。失败时比较原日志，确认未写迁移事实。
+4. 运行 task-session.test.ts、task-session-process.test.ts、task-session-runtime.test.ts 与 task-phases.mjs 示例；确认真实进程重启、终态不重复、取消/超时和权限/预算/未知效果边界。
+5. 执行原模块及仓库门禁；Windows 本地通过不能替代 Linux CI。未合并且安全门受阻时保持 Issue 开放，不发布。
+
+完整 API 与边界见[任务指南](../../guides/durable-tasks.zh-CN.md)。

@@ -84,3 +84,7 @@ The new shared error codes change the Protocol v2 schema fingerprint: update SDK
 - Treating local `.coremind` output as a reproducible Gate fixture.
 
 Run the [module example](../../../examples/modules/recover-durable-runs/README.en.md) before adapting recovery to a business workflow.
+
+## Public durable task phases (1.4 development)
+
+`TaskSession` from `coremind-ai` adds start/query/resume/cancel and explicit version migration over the storage foundation. Each resume executes one phase; models/tools use the existing Runtime. Preserve and inspect the original Run when pendingRunId exists; do not resend automatically. See the [public task guide](../../guides/durable-tasks.en.md) and [ADR 0026](../../adr/0026-task-phases-and-migrations.md). This is not a release claim; cross-language access, sleep/wake and nested calls remain separate work.
