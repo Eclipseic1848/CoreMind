@@ -7,6 +7,8 @@ version: 1.3.0
 sourcePaths:
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/chat-session.ts"
+  - "packages/coremind-runtime/src/session-tree.ts"
+  - "packages/coremind-runtime/src/session-write-lease.ts"
   - "packages/coremind-runtime/src/context.ts"
   - "packages/coremind-runtime/src/context-lifecycle.ts"
   - "packages/coremind-runtime/src/context-task-state.ts"
@@ -25,9 +27,12 @@ skillPath: skills/manage-sessions/SKILL.md
 examplePaths:
   - examples/modules/manage-sessions/README.zh-CN.md
   - examples/modules/manage-sessions/README.en.md
+  - examples/modules/manage-sessions/branches.mjs
 testPaths:
   - "packages/coremind-runtime/src/session.test.ts"
   - "packages/coremind-runtime/src/chat-session.test.ts"
+  - "packages/coremind-runtime/src/chat-session-tree.test.ts"
+  - "packages/coremind-runtime/src/session-navigation-fault.test.ts"
   - "packages/coremind-runtime/src/context.test.ts"
   - "packages/coremind-runtime/src/context-lifecycle.test.ts"
   - "packages/coremind-runtime/src/context-task-state.test.ts"

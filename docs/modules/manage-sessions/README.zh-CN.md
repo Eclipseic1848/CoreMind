@@ -8,10 +8,12 @@
 
 ## 公共接口
 
-- `CoreMindSession`
+- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork`（1.4 开发线；稳定 DTO，不公开存储写入器）
 - `ChatSession`
 - `ChatSession.steer/followUp(message, options?)`（1.1 开发线，`options` 为 `{ controlId?, runId? }`）
 - `ContextProtector`
+
+`CoreMindSession` 为内部适配器，不是主包公共导出。会话/分支/Run、写入失败及旧 SDK 回滚边界见 [指南](GUIDE.zh-CN.md)。分叉只返回新身份，宿主重新应用配置和授权后继续。
 
 `ContextLifecycleManager`、`ContextWorkingSetBuilder` 和 `ContextTaskState` 通过 `coremind-runtime/internal` 供同仓库受控组件复用，不属于主公共入口。调用方通过 Runtime 事件、`RunOutcome`、Trace 与 Snapshot 观察其结果。
 

@@ -202,6 +202,7 @@ import { RunTerminalizer } from "./run-terminalizer.js";
 import { registerCoreMindRuntimeInstance } from "./runtime-instance-authority.js";
 import {
   CoreMindSession,
+  type CoreMindSessionOptions,
   copySessionHistory,
   historySessionSnapshot,
   isManagedSessionPath,
@@ -210,8 +211,17 @@ import {
   sessionSnapshot,
 } from "./session.js";
 import { compactSessionInRun } from "./session-maintenance.js";
+import {
+  bindSessionNavigation,
+  type ChatSessionTree,
+  type SessionNavigation,
+} from "./session-tree.js";
 import { assertJsonSerializable } from "./session-v4/session/session.js";
-import { acquireSessionWriteLease, type SessionWriteLease } from "./session-write-lease.js";
+import {
+  acquireSessionWriteLease,
+  type SessionWriteLease,
+  withSessionWriteLease,
+} from "./session-write-lease.js";
 import {
   assertSkillSnapshotSize,
   freezeSkillSnapshot,
@@ -441,6 +451,18 @@ export class CoreMindRuntime {
     this.resumedContextLength = resumedContextLength;
     this.mainAgentName = config.defaultAgent ?? firstKey(config.agents) ?? "";
     this.skillsByAgent = skillsByAgent;
+    bindSessionNavigation(this, (agentName, history, operation) =>
+      navigateRuntimeSession(this, agentName, history, operation),
+    );
+    const slot = executionSlotFor(this);
+    slot.sessionAgent = this.mainAgentName;
+    if (options.sessionId && config.session?.enabled) {
+      slot.sessionOptions = {
+        dir: sessionDir(config, options.configDir),
+        sessionId: options.sessionId,
+        cwd: options.cwd ?? process.cwd(),
+      };
+    }
     // 这些读取只用于保留已冻结的私有声明布局；执行状态已迁移到 RunContext。
     void this.lastAgents;
     void this.activeHarnessFactory;
@@ -899,7 +921,7 @@ export class CoreMindRuntime {
         "宿主验收模式须通过 run() 与绑定该 Run 的控制接口执行",
       );
     }
-    if (executionSlotFor(this).running) {
+    if (executionSlotFor(this).running || executionSlotFor(this).navigatingSession) {
       throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发 run() 与交互 Turn");
     }
     if (!this.agentConfigs.has(agentName)) {
@@ -983,7 +1005,7 @@ export class CoreMindRuntime {
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run(): Promise<RunResult> {
     const slot = executionSlotFor(this);
-    if (slot.running || boundDelegationExecutor(this)) {
+    if (slot.running || slot.navigatingSession || boundDelegationExecutor(this)) {
       throw new CoreMindError("concurrent_run", "同一 Runtime 不支持并发执行");
     }
     slot.running = true;
@@ -4663,6 +4685,9 @@ export class CoreMindRuntime {
 
 // 类内旧执行字段仅为冻结声明布局保留；真实执行态由每个 Runtime 的 Kernel/Context 隔离持有。
 interface RuntimeExecutionSlot {
+  sessionOptions?: CoreMindSessionOptions;
+  sessionAgent?: string;
+  navigatingSession?: boolean;
   taskProgram?: {
     id: string;
     execute: (call: TaskProgramCall) => Promise<void>;
@@ -4676,6 +4701,51 @@ interface RuntimeExecutionSlot {
   protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;
   skills?: SkillSnapshot;
   skillExecutions?: Map<string, SkillExecution>;
+}
+
+/** 仅供 ChatSession 使用；导航与 Run 使用相同的写身份和历史水位。 */
+async function navigateRuntimeSession(
+  runtime: CoreMindRuntime,
+  agentName: string,
+  history: CoreMindMessage[],
+  navigation: SessionNavigation,
+): Promise<{ tree: ChatSessionTree; history?: CoreMindMessage[] }> {
+  const slot = executionSlotFor(runtime);
+  if (!slot.sessionOptions || slot.sessionAgent !== agentName)
+    throw new CoreMindError(
+      "session_navigation_invalid",
+      "导航需要启用持久会话并使用会话所属主 Agent",
+    );
+  if (slot.running || slot.navigatingSession || boundDelegationExecutor(runtime))
+    throw new CoreMindError("concurrent_run", "活动 Run 或导航期间不能操作会话树");
+  slot.navigatingSession = true;
+  try {
+    const opts = slot.sessionOptions;
+    return await withSessionWriteLease(opts.dir, opts.sessionId, async (lease) => {
+      const session = await openWritableSession(opts, lease);
+      if (
+        navigation.type !== "inspect" &&
+        historySessionSnapshot(history) !== sessionSnapshot(session)
+      )
+        throw new CoreMindError("session_snapshot_stale", "会话已变化，请重新打开后再导航");
+      if (navigation.type === "fork") return { tree: await session.fork(navigation.at) };
+      if (navigation.type === "create")
+        await session.createBranch(navigation.branchId, navigation.at);
+      if (navigation.type === "select") await session.selectBranch(navigation.branchId);
+      const tree = await session.inspectTree();
+      if (navigation.type === "inspect") return { tree };
+      const restored = rememberSessionHistory(
+        session,
+        projectBranchMessages(await session.branchEntries()).map(
+          (item) => item.message as CoreMindMessage,
+        ),
+      );
+      slot.sessionPreviewHistory = copySessionHistory(restored);
+      return { tree, history: restored };
+    });
+  } finally {
+    slot.navigatingSession = false;
+  }
 }
 
 type TaskProgramCall = (

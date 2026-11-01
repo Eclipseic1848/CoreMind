@@ -263305,6 +263305,11 @@ var ERROR_CODES = defineErrorCodes({
     cancelClass: "corruption",
     retryClass: "fatal"
   },
+  session_navigation_invalid: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal"
+  },
   session_restore_failed: {
     terminality: "terminal",
     cancelClass: "corruption",
@@ -268016,6 +268021,26 @@ async function acquireSessionWriteLease(directory, sessionId) {
   const sessionPath = await canonicalSessionPath(directory, sessionId);
   return acquireOwned(sessionPath, "write");
 }
+async function withSessionWriteLease(directory, sessionId, action) {
+  const lease = await acquireSessionWriteLease(directory, sessionId);
+  let result;
+  try {
+    result = await action(lease);
+  } catch (error3) {
+    try {
+      await lease.release();
+    } catch (cleanupError) {
+      throw Object.assign(new CoreMindError("session_lock_recovery_required", "\u4F1A\u8BDD\u5BFC\u822A\u548C\u79DF\u7EA6\u91CA\u653E\u5747\u5931\u8D25"), { cause: new AggregateError([error3, cleanupError]) });
+    }
+    throw error3;
+  }
+  try {
+    await lease.release();
+  } catch (error3) {
+    throw Object.assign(new CoreMindError("session_lock_recovery_required", "\u4F1A\u8BDD\u5BFC\u822A\u79DF\u7EA6\u672A\u80FD\u6B63\u5E38\u91CA\u653E"), { cause: error3 });
+  }
+  return result;
+}
 async function withSessionIO(directory, sessionId, action) {
   const sessionPath = await canonicalSessionPath(directory, sessionId);
   const lease = await acquireOwned(sessionPath, "open");
@@ -268249,6 +268274,8 @@ function recoveryRequired() {
 
 // packages/coremind-runtime/dist/session.js
 var SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
+var NAVIGATION_LANE = "coremind/navigation/v1";
+var NAVIGATION_ENTRY = "coremind.session-branch.v1";
 function isManagedSessionPath(relativePath) {
   return isJsonlSessionStoragePath(relativePath) || /^[a-zA-Z0-9_-]+\.jsonl(?:[./\\]|$)/iu.test(relativePath);
 }
@@ -268306,7 +268333,8 @@ var CoreMindSession = class _CoreMindSession {
         io: Promise.resolve(),
         writes: Promise.resolve(),
         pending: 0,
-        stale: false
+        stale: false,
+        activeBranch: await readActiveBranch(session)
       };
       state3.watermark = await readSessionWatermark(state3);
       holders.set(opened, state3);
@@ -268326,25 +268354,25 @@ var CoreMindSession = class _CoreMindSession {
   async appendMessages(messages) {
     await withSessionWriter(this, (lease) => withHolderIO(this, lease, async () => {
       for (const message3 of messages) {
-        await this.session.appendMessage(stripUndefined(message3));
+        await this.session.view(holder(this).activeBranch).appendMessage(stripUndefined(message3));
       }
     }));
   }
   /** 维护请求保留在 Session 事实域，不注入正常对话上下文。 */
   async appendMaintenanceRecord(data) {
-    await withSessionWriter(this, (lease) => withHolderIO(this, lease, () => this.session.appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data))));
+    await withSessionWriter(this, (lease) => withHolderIO(this, lease, () => this.session.view(holder(this).activeBranch).appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data))));
   }
   /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
   async buildContext() {
-    return buildSessionContext(await this.session.findEntriesOnBranch({ order: "oldestFirst" }));
+    return buildSessionContext(await this.branchEntries());
   }
-  /** 主 lane 全部条目（oldestFirst）——投影与请求重建用 */
+  /** 所选分支全部条目（oldestFirst）——投影与请求重建用 */
   async branchEntries() {
-    return this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    return this.session.view(holder(this).activeBranch).findEntriesOnBranch({ order: "oldestFirst" });
   }
-  /** 主 lane 当前 seq 水位（空树为 0）——Run 关联会话树的起始水位 */
+  /** 所选分支当前 seq 水位（空树为 0）——Run 关联会话树的起始水位 */
   async currentSeq() {
-    const entries = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    const entries = await this.branchEntries();
     return entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
   }
   /**
@@ -268359,7 +268387,7 @@ var CoreMindSession = class _CoreMindSession {
       retainedTail: compaction.retainedTail,
       tokensBefore: compaction.tokensBefore,
       details: compaction.details
-    }, "main")));
+    }, holder(this).activeBranch)));
   }
   /**
    * 自动压缩：上下文超预算时生成 LLM 摘要并追加压缩条目（存储不变——非破坏）。
@@ -268371,7 +268399,7 @@ var CoreMindSession = class _CoreMindSession {
     if (!merged.enabled)
       return false;
     return withSessionWriter(this, async (lease) => {
-      const entries = await withHolderIO(this, lease, () => this.session.findEntriesOnBranch({ order: "oldestFirst" }));
+      const entries = await withHolderIO(this, lease, () => this.branchEntries());
       const tokens = estimateContextTokens(buildSessionContext(entries).messages).tokens;
       if (!shouldCompact(tokens, contextWindow, merged))
         return false;
@@ -268383,7 +268411,7 @@ var CoreMindSession = class _CoreMindSession {
       if (!result.ok)
         return false;
       return withHolderIO(this, lease, async () => {
-        const current = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+        const current = await this.branchEntries();
         const identities = (items) => items.filter((entry) => entry.type !== "custom").map((entry) => entry.id).join("\0");
         if (identities(current) !== identities(entries))
           return false;
@@ -268395,12 +268423,111 @@ var CoreMindSession = class _CoreMindSession {
           tokensBefore: result.value.tokensBefore,
           ...result.value.details === void 0 ? {} : { details: result.value.details },
           ...result.value.usage === void 0 ? {} : { usage: result.value.usage }
-        }, "main");
+        }, holder(this).activeBranch);
         return true;
       });
     });
   }
+  /** 受支持的只读 DTO；不返回 SessionStorage、操作记录或自定义数据。 */
+  async inspectTree() {
+    const metadata = await this.session.getMetadata();
+    const entries = await this.session.findEntries({ order: "oldestFirst" });
+    const origin = metadata.metadata?.coremindFork;
+    return {
+      sessionId: metadata.id,
+      activeBranch: holder(this).activeBranch,
+      branches: (await this.session.getLanes()).filter((pointer) => pointer.lane !== NAVIGATION_LANE).map((pointer) => ({ id: pointer.lane, leafId: pointer.leafId })),
+      nodes: entries.filter((entry) => entry.type !== "custom" || entry.customType !== NAVIGATION_ENTRY).map((entry) => ({
+        id: entry.id,
+        parentId: entry.parentId,
+        seq: entry.seq,
+        type: entry.type,
+        ...entry.type === "message" ? { message: structuredClone(entry.message) } : {},
+        ...entry.type === "compaction" || entry.type === "branch_summary" ? { summary: entry.summary } : {}
+      })),
+      ...isObject2(origin) && typeof origin.sessionId === "string" && typeof origin.entryId === "string" ? { forkedFrom: { sessionId: origin.sessionId, entryId: origin.entryId } } : {}
+    };
+  }
+  async createBranch(branchId, at2) {
+    assertBranchId(branchId);
+    await withSessionWriter(this, (lease) => withHolderIO(this, lease, async () => {
+      if ((await this.session.getLanes()).some((pointer) => pointer.lane === branchId))
+        throw navigationInvalid(`\u5206\u652F\u5DF2\u5B58\u5728\uFF1A${branchId}`);
+      if (at2 !== null)
+        await this.assertNode(at2);
+      await this.session.createLane(branchId, at2?.entryId ?? null);
+    }));
+  }
+  async selectBranch(branchId) {
+    assertBranchId(branchId);
+    await withSessionWriter(this, (lease) => withHolderIO(this, lease, async () => {
+      const lanes = await this.session.getLanes();
+      if (!lanes.some((pointer) => pointer.lane === branchId))
+        throw navigationInvalid(`\u5206\u652F\u4E0D\u5B58\u5728\uFF1A${branchId}`);
+      if (holder(this).activeBranch === branchId)
+        return;
+      if (!lanes.some((pointer) => pointer.lane === NAVIGATION_LANE))
+        await this.session.createLane(NAVIGATION_LANE, null);
+      await this.session.view(NAVIGATION_LANE).appendCustomEntry(NAVIGATION_ENTRY, { branchId });
+      holder(this).activeBranch = branchId;
+    }));
+  }
+  /** 只复制所选节点的历史祖先；目标身份由框架产生，调用方不能指定路径。 */
+  async fork(at2) {
+    return withSessionWriter(this, (lease) => withHolderIO(this, lease, async () => {
+      await this.assertNode(at2);
+      const state3 = holder(this);
+      const sessionId = randomUUID2();
+      const opts = { ...state3.options, sessionId };
+      return withSessionWriteLease(opts.dir, sessionId, async (targetLease) => {
+        await withSessionIO(opts.dir, sessionId, async (identity3) => {
+          await assertSessionWriteLease(targetLease, identity3);
+          const repository = new JsonlSessionRepo({
+            fs: new SessionFileSystem({ cwd: opts.cwd }),
+            sessionsRoot: opts.dir
+          });
+          const source = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === state3.options.sessionId);
+          if (!source || source.path !== state3.storagePath)
+            throw new CoreMindError("session_layout_conflict", "\u5206\u53C9\u6765\u6E90\u4E0E\u5DF2\u6253\u5F00\u7684\u4F1A\u8BDD\u4E0D\u4E00\u81F4");
+          const target = await repository.fork(source, {
+            id: sessionId,
+            cwd: opts.cwd,
+            scope: "branch",
+            entryId: at2.entryId,
+            position: "at",
+            metadata: { coremindFork: { sessionId: at2.sessionId, entryId: at2.entryId } }
+          });
+          const metadata = await target.getMetadata();
+          await ensurePublicSessionPath(metadata.path, path3.resolve(opts.dir, `${sessionId}.jsonl`));
+        });
+        return await (await openWritableSession(opts, targetLease)).inspectTree();
+      });
+    }));
+  }
+  async assertNode(at2) {
+    if (!isObject2(at2) || at2.sessionId !== holder(this).options.sessionId || typeof at2.entryId !== "string" || (await this.session.getEntry(at2.entryId))?.type !== "message")
+      throw navigationInvalid("\u8282\u70B9\u5FC5\u987B\u662F\u5F53\u524D\u4F1A\u8BDD\u4E2D\u5B58\u5728\u7684\u6D88\u606F\u8282\u70B9");
+  }
 };
+function navigationInvalid(message3) {
+  return new CoreMindError("session_navigation_invalid", message3);
+}
+function assertBranchId(branchId) {
+  if (typeof branchId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/u.test(branchId))
+    throw navigationInvalid("\u5206\u652F id \u987B\u4E3A 1\u201364 \u4F4D\u5B57\u6BCD\u3001\u6570\u5B57\u3001\u8FDE\u5B57\u7B26\u6216\u4E0B\u5212\u7EBF");
+}
+async function readActiveBranch(session) {
+  const entry = await session.findEntry({ type: "custom", customType: NAVIGATION_ENTRY });
+  if (!entry)
+    return "main";
+  if (entry.type !== "custom" || !isObject2(entry.data) || typeof entry.data.branchId !== "string")
+    throw new CoreMindError("session_restore_failed", "\u6301\u4E45\u5206\u652F\u9009\u62E9\u8BB0\u5F55\u65E0\u6548");
+  assertBranchId(entry.data.branchId);
+  const branchId = entry.data.branchId;
+  if (!(await session.getLanes()).some((pointer) => pointer.lane === branchId))
+    throw new CoreMindError("session_restore_failed", "\u6301\u4E45\u5206\u652F\u9009\u62E9\u5F15\u7528\u4E86\u4E0D\u5B58\u5728\u7684\u5206\u652F");
+  return branchId;
+}
 var holders = /* @__PURE__ */ new WeakMap();
 var historySnapshots = /* @__PURE__ */ new WeakMap();
 var historyTails = /* @__PURE__ */ new WeakMap();
@@ -268874,6 +269001,12 @@ function stripUndefined(value) {
     return result;
   }
   return value;
+}
+
+// packages/coremind-runtime/dist/session-tree.js
+var navigators = /* @__PURE__ */ new WeakMap();
+function bindSessionNavigation(owner, navigate) {
+  navigators.set(owner, navigate);
 }
 
 // packages/coremind-runtime/dist/checkpoint.js
@@ -297076,6 +297209,16 @@ var CoreMindRuntime = class _CoreMindRuntime {
     this.resumedContextLength = resumedContextLength;
     this.mainAgentName = config2.defaultAgent ?? firstKey(config2.agents) ?? "";
     this.skillsByAgent = skillsByAgent;
+    bindSessionNavigation(this, (agentName, history, operation) => navigateRuntimeSession(this, agentName, history, operation));
+    const slot = executionSlotFor(this);
+    slot.sessionAgent = this.mainAgentName;
+    if (options.sessionId && config2.session?.enabled) {
+      slot.sessionOptions = {
+        dir: sessionDir(config2, options.configDir),
+        sessionId: options.sessionId,
+        cwd: options.cwd ?? process.cwd()
+      };
+    }
     void this.lastAgents;
     void this.activeHarnessFactory;
     void this.activeRunPromise;
@@ -297378,7 +297521,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
     if (this.config.loop?.verify.mode === "host") {
       throw new CoreMindError("loop_config_invalid", "\u5BBF\u4E3B\u9A8C\u6536\u6A21\u5F0F\u987B\u901A\u8FC7 run() \u4E0E\u7ED1\u5B9A\u8BE5 Run \u7684\u63A7\u5236\u63A5\u53E3\u6267\u884C");
     }
-    if (executionSlotFor(this).running) {
+    if (executionSlotFor(this).running || executionSlotFor(this).navigatingSession) {
       throw new CoreMindError("concurrent_run", "\u540C\u4E00 Runtime \u4E0D\u652F\u6301\u5E76\u53D1 run() \u4E0E\u4EA4\u4E92 Turn");
     }
     if (!this.agentConfigs.has(agentName)) {
@@ -297438,7 +297581,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
   /** 执行：有 workflow 走编排，否则单 agent 直答。返回结果含质量摘要 */
   async run() {
     const slot = executionSlotFor(this);
-    if (slot.running || boundDelegationExecutor(this)) {
+    if (slot.running || slot.navigatingSession || boundDelegationExecutor(this)) {
       throw new CoreMindError("concurrent_run", "\u540C\u4E00 Runtime \u4E0D\u652F\u6301\u5E76\u53D1\u6267\u884C");
     }
     slot.running = true;
@@ -300132,6 +300275,36 @@ var CoreMindRuntime = class _CoreMindRuntime {
     return cm.filePath;
   }
 };
+async function navigateRuntimeSession(runtime, agentName, history, navigation) {
+  const slot = executionSlotFor(runtime);
+  if (!slot.sessionOptions || slot.sessionAgent !== agentName)
+    throw new CoreMindError("session_navigation_invalid", "\u5BFC\u822A\u9700\u8981\u542F\u7528\u6301\u4E45\u4F1A\u8BDD\u5E76\u4F7F\u7528\u4F1A\u8BDD\u6240\u5C5E\u4E3B Agent");
+  if (slot.running || slot.navigatingSession || boundDelegationExecutor(runtime))
+    throw new CoreMindError("concurrent_run", "\u6D3B\u52A8 Run \u6216\u5BFC\u822A\u671F\u95F4\u4E0D\u80FD\u64CD\u4F5C\u4F1A\u8BDD\u6811");
+  slot.navigatingSession = true;
+  try {
+    const opts = slot.sessionOptions;
+    return await withSessionWriteLease(opts.dir, opts.sessionId, async (lease) => {
+      const session = await openWritableSession(opts, lease);
+      if (navigation.type !== "inspect" && historySessionSnapshot(history) !== sessionSnapshot(session))
+        throw new CoreMindError("session_snapshot_stale", "\u4F1A\u8BDD\u5DF2\u53D8\u5316\uFF0C\u8BF7\u91CD\u65B0\u6253\u5F00\u540E\u518D\u5BFC\u822A");
+      if (navigation.type === "fork")
+        return { tree: await session.fork(navigation.at) };
+      if (navigation.type === "create")
+        await session.createBranch(navigation.branchId, navigation.at);
+      if (navigation.type === "select")
+        await session.selectBranch(navigation.branchId);
+      const tree = await session.inspectTree();
+      if (navigation.type === "inspect")
+        return { tree };
+      const restored = rememberSessionHistory(session, projectBranchMessages(await session.branchEntries()).map((item) => item.message));
+      slot.sessionPreviewHistory = copySessionHistory(restored);
+      return { tree, history: restored };
+    });
+  } finally {
+    slot.navigatingSession = false;
+  }
+}
 async function executeWithSessionLease(runtime, options, config2, context, execute) {
   if (!options.sessionId || !config2.session?.enabled)
     return execute();

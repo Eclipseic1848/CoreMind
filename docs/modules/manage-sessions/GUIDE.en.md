@@ -19,6 +19,38 @@ The CLI accepts `--session <id>` only after sessions are enabled. Otherwise it f
 
 Models may expose different context windows and output limits. The Runtime resolves capabilities again for every request and model switch, and budgets the request's exact `maxTokens`; it does not silently shrink the caller's request to a fraction of the context window.
 
+## TypeScript session trees (1.4 development)
+
+Import ChatSession, CoreMindRuntime and the ChatSessionNodeRef/ChatSessionTree types from coremind-ai. Enable persistent sessions and provide sessionId in trusted host options. See the [runnable example](../../../examples/modules/manage-sessions/branches.mjs).
+
+```ts
+const chat = new ChatSession(await CoreMindRuntime.create(options), "main");
+await chat.chat("First question");
+const tree = await chat.inspectSessionTree();
+const entry = tree.nodes.filter((node) => node.type === "message").at(-1)!;
+const at = { sessionId: tree.sessionId, entryId: entry.id };
+await chat.createBranch("alternative", at);
+await chat.selectBranch("alternative");
+await chat.chat("Continue this branch");
+const fork = await chat.fork(at);
+const forkChat = new ChatSession(await CoreMindRuntime.create({
+  config: options.config, configDir: options.configDir, cwd: options.cwd,
+  sessionId: fork.sessionId,
+}), "main");
+await forkChat.chat("Continue the new session");
+```
+
+- createBranch(id, at) starts at a message, or empty history when at is null. Names use 1–64 letters, digits, hyphens or underscores. Creation does not select; main is the initial branch.
+- selectBranch(id) persists one selection for the entire Session. Later chat reads and appends only that branch. Stale Chat objects reject until reopened through a fresh Runtime.
+- inspectSessionTree() returns a detached sessionId/activeBranch/branches/nodes/forkedFrom? snapshot. Nodes include the entire tree and unredacted messages; host access control is required. Node references bind sessionId even when historical entry ids match across forks.
+- fork(at) includes the message and ancestors, generates a new identity and leaves source bytes unchanged. No target id/path is accepted. Reapply host policy and credentials explicitly; do not copy runId/resumeRunId/protocolStart. Runs, unconsumed controls, execution receipts, checkpoints and credential grants are not copied. Historical tool ids do not grant authority.
+- Navigation requires persistence, the main Agent and no active Run/navigation/writer. Query also requires idle ownership and may perform existing open-time repairs. Invalid input uses session_navigation_invalid; concurrency uses concurrent_run/session_write_locked; stale history uses session_snapshot_stale.
+- Each chat creates a fresh Run/Agent. Runtime persists at settlement; persist() only returns the most recent turn's path.
+
+A rejected selection write may already be durable: preserve files and reopen to inspect rather than assuming rollback. A failed fork alias may leave a complete internal candidate; verify its identity from the reported path before opening, without blindly forking again or deleting the source.
+
+Old v3 and unbranched v4 data remain compatible. Older SDKs ignore persisted selection and must not take over new files. Rollback requires stopping writers, preserving Session/Run/Workspace and restoring pre-upgrade backups. These APIs neither implement upstream ExtensionAPI nor resume an old Run. Python/RPC navigation belongs to #367. See [ADR0029](../../adr/0029-public-session-tree-navigation.md).
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

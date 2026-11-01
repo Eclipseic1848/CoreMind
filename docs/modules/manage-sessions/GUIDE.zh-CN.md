@@ -19,6 +19,40 @@ session:
 
 不同模型的窗口和输出上限可以不同。Runtime 会在每次请求和模型切换时重新解析能力，并将本次实际 `maxTokens` 原样纳入预算；不会用窗口比例静默缩小调用方请求。
 
+## TypeScript 会话树（1.4 开发线）
+
+```ts
+import { ChatSession, CoreMindRuntime, type ChatSessionNodeRef } from "coremind-ai";
+
+// options 为已校验的宿主配置，开启 session.enabled 并指定 sessionId。
+const chat = new ChatSession(await CoreMindRuntime.create(options), "main");
+await chat.chat("第一问");
+const tree = await chat.inspectSessionTree();
+const entry = tree.nodes.filter((node) => node.type === "message").at(-1)!;
+const at: ChatSessionNodeRef = { sessionId: tree.sessionId, entryId: entry.id };
+await chat.createBranch("alternative", at);
+await chat.selectBranch("alternative");
+await chat.chat("从这一分支继续");
+const fork = await chat.fork(at);
+const forkChat = new ChatSession(await CoreMindRuntime.create({
+  config: options.config, configDir: options.configDir, cwd: options.cwd,
+  sessionId: fork.sessionId,
+  // 按宿主策略重新提供 secretResolver、approveTool 等能力，不复制运行身份。
+}), "main");
+await forkChat.chat("在新会话继续");
+```
+
+- createBranch(id, at) 从消息节点建分支；at 为 null 表示空历史。名称为 1–64 位字母、数字、连字符或下划线；创建不自动选择，main 是初始分支。
+- selectBranch(id) 持久切换整个 Session 的活动分支，下一轮只读取并追加该分支。它不是单个 Chat 对象的私有选择；旧对象会因水位过期拒绝，须重新打开 Runtime/Chat。
+- inspectSessionTree() 返回 sessionId/activeBranch/branches/nodes/forkedFrom? 副本。nodes 是全树，含未脱敏消息；宿主必须限制访问。节点引用必须绑定本会话 sessionId，即使 fork 复制的历史 entryId 相同也不能混用。
+- fork(at) 包含该消息及祖先，返回新会话身份，不修改来源；不接受目标 id 或路径。重新应用宿主配置，不传来源 runId/resumeRunId/protocolStart。原 Run、未消费控制、收据、checkpoint 和凭据授权不复制；历史工具 id 不授予执行能力。
+- 导航要求启用持久化、主 Agent 和无活动 Run/导航/writer。查询也要求空闲，可能执行既有打开修复。参数错误为 session_navigation_invalid，并发为 concurrent_run/session_write_locked，旧视图为 session_snapshot_stale。
+- 每轮 chat 创建独立 Run/Agent，Runtime 在收敛阶段落盘；persist() 只返回最近一轮路径，不触发保存。
+
+选择写入拒绝可能发生在实际落盘之后；保留文件，重新打开查询，不能假定回滚。fork 的公开别名失败可能留下完整内部候选；按错误路径核实身份再打开，不盲目重新 fork 或删除来源。
+
+旧 v3/v4 无分支数据兼容。旧 SDK 不理解持久选择，禁止直接接管新文件；回滚须停 writer、保全完整 Session/Run/Workspace 并恢复升级前备份。本 API 不是 第三方 ExtensionAPI，也不恢复原 Run。Python/RPC 导航归 #367。见 [ADR0029](../../adr/0029-public-session-tree-navigation.md)与[可运行示例](../../../examples/modules/manage-sessions/branches.mjs)。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

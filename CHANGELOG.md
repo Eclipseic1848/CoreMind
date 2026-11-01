@@ -15,6 +15,8 @@
 
 **能力提升**
 
+- **公共会话树：** ChatSession 新增树查询、命名分支、持久选择与按消息节点 fork；复用会话写锁，继续对话只读取所选分支。新会话不继承 Run/控制/授权，补齐真实进程恢复、写故障回归、双语指南与旧 SDK 回滚边界；CI 与发布资格仍须满足原门禁。 ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
+
 - **稳定键调用与结果复用：** 新增 runCalls/executeTool 和调用查询，一个阶段共享原 Run/ChildRun 治理；显式结果恢复、分歧审计和真实进程中断验证。未知副作用仍由原恢复门拦截，旧 SDK 回滚边界与双语文档同步；正式发布仍须原 CI、安全与合并验收。 ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
 
 - **持久等待与幂等唤醒：** TaskSession 原子保存下一阶段、结果和绝对期限，支持 nextWake 与绑定 sleepId 的 wake，重启后重新计算等待。覆盖真实进程退出、重复/过期通知、取消竞争与回执丢失，提供离线宿主 alarm 示例与双语指南。保留全部原超时；跨平台 CI 和发布资格仍须验收。 ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))

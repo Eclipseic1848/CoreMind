@@ -8,6 +8,12 @@ import type { RunProjection } from "./projection.js";
 import type { CoreMindMessage } from "./public-message.js";
 import type { CoreMindRuntime, RunResult } from "./runtime.js";
 import { copySessionHistory } from "./session.js";
+import {
+  type ChatSessionNodeRef,
+  type ChatSessionTree,
+  navigateChatSession,
+  type SessionNavigation,
+} from "./session-tree.js";
 import type { CoreMindTraceEvent } from "./trace.js";
 
 /** 一轮对话的结果 */
@@ -28,9 +34,9 @@ export interface ChatControlOptions {
 
 /**
  * 交互式会话（库 API）：多轮对话循环，供 CLI chat 与自定义 UI 复用。
- * - 同一 agent 实例持续对话（上下文延续）
+ * - 每轮创建独立 Run/Agent，延续已确认的会话历史
  * - onEvent 订阅归一化事件流（工具调用实时可视化等）
- * - persist() 接入运行时会话持久化（需 session.enabled + sessionId）
+ * - Runtime 在轮次收敛时持久化；persist() 只返回最近一次文件路径
  */
 export class ChatSession {
   readonly agentName: string;
@@ -41,6 +47,7 @@ export class ChatSession {
   private activeController?: AbortController;
   private latestSessionFile?: string;
   private latestRun?: RunResult;
+  private navigating = false;
 
   constructor(
     private readonly runtime: CoreMindRuntime,
@@ -63,7 +70,7 @@ export class ChatSession {
 
   /** 发送一轮消息：返回最终文本与本轮事件 */
   async chat(message: string): Promise<ChatTurnResult> {
-    if (this.activeController) {
+    if (this.activeController || this.navigating) {
       throw new CoreMindError("concurrent_run", "同一 ChatSession 不支持并发 chat()");
     }
     const events: CoreMindEvent[] = [];
@@ -91,6 +98,44 @@ export class ChatSession {
       return { text: run.transcript, events, run };
     } finally {
       if (this.activeController === controller) this.activeController = undefined;
+    }
+  }
+
+  /** 查询持久树的快照；与写操作一样要求没有活动 Run。 */
+  async inspectSessionTree(): Promise<ChatSessionTree> {
+    return this.navigate({ type: "inspect" });
+  }
+
+  /** 从本会话消息节点建立命名分支；null 表示空历史，不自动切换。 */
+  async createBranch(branchId: string, at: ChatSessionNodeRef | null): Promise<ChatSessionTree> {
+    return this.navigate({ type: "create", branchId, at });
+  }
+
+  /** 持久选择已有分支；下一轮只从该分支构造历史。 */
+  async selectBranch(branchId: string): Promise<ChatSessionTree> {
+    return this.navigate({ type: "select", branchId });
+  }
+
+  /** 返回新会话的身份与树；用宿主配置重新创建 Runtime 后即可继续对话。 */
+  async fork(at: ChatSessionNodeRef): Promise<ChatSessionTree> {
+    return this.navigate({ type: "fork", at });
+  }
+
+  private async navigate(operation: SessionNavigation): Promise<ChatSessionTree> {
+    if (this.activeController || this.navigating)
+      throw new CoreMindError("concurrent_run", "活动 chat 或导航期间不能操作会话树");
+    this.navigating = true;
+    try {
+      const result = await navigateChatSession(
+        this.runtime,
+        this.agentName,
+        this.messages,
+        operation,
+      );
+      if (result.history) this.messages = copySessionHistory(result.history);
+      return result.tree;
+    } finally {
+      this.navigating = false;
     }
   }
 
@@ -124,7 +169,7 @@ export class ChatSession {
     return inspectBoundRunProjection(this.runtime);
   }
 
-  /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */
+  /** 返回最近一轮已完成的持久化路径；本方法不追加或刷新会话文件。 */
   async persist(): Promise<string | undefined> {
     return this.latestSessionFile;
   }

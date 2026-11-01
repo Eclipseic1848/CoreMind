@@ -5,6 +5,8 @@ description: "Persist multi-turn messages, fail clearly on corrupt recovery, and
 
 # Sessions and Context
 
+For 1.4 session navigation, use only ChatSession public DTO APIs; do not expose SessionStorage. Verify actual branch-specific provider payloads, restart, fork provenance, new Run authorization and failure receipts. Fork returns a new sessionId and requires explicit host configuration; never copy Run/control/credential identities. Preserve original gates/timeouts. Older SDK writers must not consume newly selected branch files; stop writers and restore pre-upgrade backups for rollback. Follow the updated bilingual module guide and navigation acceptance in the SOP.
+
 1. Read [the module contract](../../docs/modules/manage-sessions/README.en.md) and the language-matched guide only when implementation details are needed.
 2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.
 3. Follow [the SOP](../../docs/modules/manage-sessions/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.

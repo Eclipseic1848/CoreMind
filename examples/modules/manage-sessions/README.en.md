@@ -9,6 +9,14 @@ session:
   compact: false
 ```
 
+## Session tree example (1.4 development)
+
+`npm run build`
+
+`node examples/modules/manage-sessions/branches.mjs`
+
+The example imports only coremind-ai and uses a local HTTP fake provider without real credentials. It checks branch isolation, persisted selection, fork provenance and continued chat, then safely removes its temporary directory. It does not replace real-provider qualification or Windows/Linux CI.
+
 ## Verification
 
 1. Run the tests listed in the module manifest from the repository root.

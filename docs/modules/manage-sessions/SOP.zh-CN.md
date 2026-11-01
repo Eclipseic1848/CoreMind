@@ -17,6 +17,14 @@
 9. 运行模块列出的测试，并执行 `npm run check:modules`。
 10. 保存 Trace、评测和人工确认记录；未经明确授权不发布。
 
+## 会话树验收（1.4 开发线）
+
+1. 对比本地假 Provider 的真实请求，验证分支切换、独立进程重启和 fork 的祖先隔离；fork 前后原会话字节相同。
+2. 活动 Run、第二 writer、旧快照、未知/跨会话节点、非法名称和路径在写入或请求前拒绝；新会话仍走新 Run 审批，不复制控制或执行记录。
+3. 注入选择写前、坏尾、写后失去确认和 fork 别名失败，保留现场并重新打开确认事实；不盲目重跑。
+4. 运行新增 chat-session-tree、session-navigation-fault 测试及原模块回归，执行 `node examples/modules/manage-sessions/branches.mjs`，核对 API、生成 Worker/错误合同和原门禁。
+5. 旧 SDK 回滚先停 writer、保全完整事实域，恢复升级前备份；不让旧 writer 忽略新选择后继续 main。
+
 ## 停止条件
 
 遇到未确认业务规则、不可逆副作用、工作区外访问、真实密钥缺失或安全门禁失败时停止，向负责人请求决定。不要自行扩大业务范围。
