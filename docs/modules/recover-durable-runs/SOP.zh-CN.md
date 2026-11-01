@@ -86,3 +86,10 @@ npm run check:modules
 3. wakeId 在该任务内保持稳定，载荷绑定 sleepId。not_due 未占用键；accepted 才显式 resume。duplicate/stale/terminal 不驱动阶段；I/O 结果未知先关闭重开核对原键。
 4. 运行 task-sleep.test.ts、task-sleep-process.test.ts、task-session-runtime.test.ts 和 task-sleep.mjs。检查真实进程退出、到期前/恰好/之后、取消竞争与确认丢失。
 5. 保留所有原执行和验收超时；Windows 与 Linux CI 均须通过才合并关闭。回滚须停止 writer 并保全任务目录，旧阶段 SDK 不支持新的睡眠/唤醒记录。
+
+## 稳定键调用（1.4 开发线）
+
+1. 核对 taskId、phase/version、RunId、key、参数签名及 authorityVersion；禁止清理或替换未知调用。
+2. 区分在飞/已完成/失败/取消及调用顺序分歧；unknown 效果保全后暂停，幂等重试检查新 Call/attempt 与旧 receipt。
+3. 运行 task-calls.test.ts、task-calls-process.test.ts、task-calls-child.test.ts 及 task-calls.mjs，验证真实中断、投影故障和治理边界。
+4. 执行原模块与双平台门禁；未合并或 CI 受安全依赖阻塞仍保持 Issue 开放。

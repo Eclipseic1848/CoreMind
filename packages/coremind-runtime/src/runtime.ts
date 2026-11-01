@@ -117,6 +117,7 @@ import {
   createEffectReceiptBinding,
   type EffectReceiptBinding,
   fingerprintEffectReceiptValue,
+  projectEffectReceiptBindings,
 } from "./effect-receipt-binding.js";
 import { CoreMindError, isErrorCode } from "./errors.js";
 import { type CoreMindEvent, extractAgentError, extractText } from "./events.js";
@@ -209,6 +210,7 @@ import {
   sessionSnapshot,
 } from "./session.js";
 import { compactSessionInRun } from "./session-maintenance.js";
+import { assertJsonSerializable } from "./session-v4/session/session.js";
 import { acquireSessionWriteLease, type SessionWriteLease } from "./session-write-lease.js";
 import {
   assertSkillSnapshotSize,
@@ -224,6 +226,7 @@ import {
   skillPrefixContents,
 } from "./skill-runtime.js";
 import { createRunSnapshot, type RunSnapshot } from "./snapshot.js";
+import { buildTaskToolDriver, type TaskToolRequest } from "./task-tool-driver.js";
 import { type ToolCallIdentity, ToolExecutionEngine } from "./tool-call-lifecycle.js";
 import { toolCapabilityCallKey } from "./tool-capability-identity.js";
 import {
@@ -258,6 +261,7 @@ type AgentDriverBuilder = (input: {
   skillTool?: AgentTool;
   mcpTools?: AgentTool[];
   discoveryTool?: AgentTool;
+  taskTool?: TaskToolRequest;
 }) => AgentDriver;
 
 export interface CoreMindRuntimeOptions {
@@ -672,9 +676,24 @@ export class CoreMindRuntime {
       skillsByAgent.set(name, allContents);
       driverBuilders.set(
         name,
-        ({ onEvent, harness, sessionMessages, skillTool, mcpTools, discoveryTool }) => {
+        ({ onEvent, harness, sessionMessages, skillTool, mcpTools, discoveryTool, taskTool }) => {
           for (const tool of driverTools)
             harness?.registerToolSource?.(tool.name, configuredToolSource(tool));
+          if (taskTool)
+            return buildTaskToolDriver(
+              {
+                tools: [
+                  ...driverTools,
+                  ...(mcpTools ?? []),
+                  ...(skillTool ? [skillTool] : []),
+                  ...(discoveryTool ? [discoveryTool] : []),
+                ],
+                agentName: name,
+                harness,
+                onEvent,
+              },
+              taskTool,
+            );
           return buildAgentDriver(agentCfg, {
             models: providerRuntime.models,
             model: agentModel,
@@ -749,6 +768,7 @@ export class CoreMindRuntime {
     onEvent: (event: CoreMindEvent) => void = this.options.events ?? (() => {}),
     stepId?: string,
     signal?: AbortSignal,
+    taskTool?: TaskToolRequest,
   ): Promise<AgentDriver | undefined> {
     const buildDriver = this.driverBuilders.get(name);
     if (!buildDriver) return undefined;
@@ -795,6 +815,7 @@ export class CoreMindRuntime {
       mcpTools,
       skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
       discoveryTool: originalHarness?.discoveryTool,
+      taskTool,
     });
     context.registerAgent(name, agent, executionId);
     return agent;
@@ -1523,6 +1544,14 @@ export class CoreMindRuntime {
     const resumeRecords = this.options.resumeRunId
       ? await runStore.read(this.options.resumeRunId)
       : undefined;
+    const taskProgram = executionSlotFor(this).taskProgram;
+    const storedProgram = (
+      resumeRecords?.find((record) => record.kind === "start")?.payload as
+        | { taskProgram?: string }
+        | undefined
+    )?.taskProgram;
+    if (resumeRecords && storedProgram !== taskProgram?.id)
+      throw new CoreMindError("resume_config_mismatch", "任务调用 Run 必须由原任务作用域恢复");
     const skillSnapshot = executionSlotFor(this).skills;
     if (
       resumeRecords &&
@@ -1637,6 +1666,7 @@ export class CoreMindRuntime {
           schemaVersion: this.config.schemaVersion,
           configFingerprint,
           initialPrompt: this.options.initialPrompt,
+          ...(taskProgram ? { taskProgram: taskProgram.id } : {}),
           sessionId: this.options.sessionId,
           ...(sessionSeqStart !== undefined
             ? { sessionSeqStart, turnSeqStart: sessionSeqStart }
@@ -3666,6 +3696,79 @@ export class CoreMindRuntime {
             }
             throw deferredTerminalError;
           }
+          if (taskProgram) {
+            if (loop || this.config.workflow)
+              throw new CoreMindError(
+                "invalid_config",
+                "精确任务调用不能替代已配置的 workflow/loop 验收",
+              );
+            const name = this.mainAgentName;
+            await taskProgram.execute(async (stepId, tool, args) => {
+              if (journal.isAborted()) throw new CoreMindError("aborted", "任务 Run 已停止");
+              const completed = resumePlan?.completedSteps.get(stepId);
+              if (completed) return JSON.parse(completed.output.text) as AgentDriverToolResult;
+              const start = { type: "step_start" as const, stepId, kind: "task_tool" };
+              budget.observeAgentEvent(start);
+              budget.throwIfExceeded();
+              emit(start);
+              let result: AgentDriverToolResult | undefined;
+              const agent = await this.createAgent(
+                name,
+                (event) => emit({ ...event, stepId } as CoreMindEvent),
+                stepId,
+                this.options.signal,
+                {
+                  tool,
+                  args,
+                  accept: (value) => {
+                    result = value;
+                  },
+                },
+              );
+              if (!agent) throw new CoreMindError("unknown_agent", "任务默认 Agent 不存在");
+              await agent.prompt("任务工具调用");
+              await agent.waitForIdle();
+              while (lifecycleFinalizers.size > 0)
+                await Promise.all([...lifecycleFinalizers.values()]);
+              if (lifecycleFailure) throw lifecycleFailure;
+              if (checkpointFailure) throw checkpointFailure;
+              const adapterFailure = selectedAdapterFailure();
+              if (adapterFailure) throw adapterFailure;
+              budget.throwIfExceeded();
+              if (journal.isAborted() || !result)
+                throw new CoreMindError("aborted", "任务调用未收敛");
+              const receipts = projectEffectReceiptBindings(collected).filter(
+                (item) => item.binding?.stepId === stepId,
+              );
+              const committed = new Set(
+                receipts
+                  .filter((item) => item.status === "committed")
+                  .map((item) => item.idempotencyKey),
+              );
+              for (const event of [...collected].reverse()) {
+                if (
+                  event.type === "tool_attempt" &&
+                  event.stepId === stepId &&
+                  committed.has(receiptId(runId, stepId, event.callId))
+                )
+                  committed.add(event.previousReceiptId);
+              }
+              if (receipts.some((item) => !committed.has(item.idempotencyKey)))
+                throw new CoreMindError(
+                  "tool_execution_failed",
+                  "任务工具存在尚未收敛的副作用回执",
+                );
+              // 先保存完整结果，再交给任务账本；此间崩溃由同一 Run 的整步结果恢复。
+              const durable = { content: result.content, details: result.details ?? null };
+              assertJsonSerializable(durable);
+              const text = JSON.stringify(durable);
+              emit({ type: "step_output", stepId, agent: name, text });
+              emit({ type: "step_end", stepId, ok: true });
+              await journal.flush("critical");
+              return JSON.parse(text) as AgentDriverToolResult;
+            });
+            return { outputs: new Map<string, StepOutput>(), transcript: "" };
+          }
           if (loop) {
             const engineeringEvidence =
               loop.verify.mode === "host" ? undefined : loop.verify.evidence;
@@ -4560,6 +4663,10 @@ export class CoreMindRuntime {
 
 // 类内旧执行字段仅为冻结声明布局保留；真实执行态由每个 Runtime 的 Kernel/Context 隔离持有。
 interface RuntimeExecutionSlot {
+  taskProgram?: {
+    id: string;
+    execute: (call: TaskProgramCall) => Promise<void>;
+  };
   sessionPreviewHistory?: CoreMindMessage[];
   explicitSessionHistory?: CoreMindMessage[];
   expectedSessionSnapshot?: string;
@@ -4569,6 +4676,29 @@ interface RuntimeExecutionSlot {
   protocolToolResultFacts?: Map<string, PendingProtocolToolResultFact>;
   skills?: SkillSnapshot;
   skillExecutions?: Map<string, SkillExecution>;
+}
+
+type TaskProgramCall = (
+  stepId: string,
+  tool: string,
+  args: unknown,
+) => Promise<AgentDriverToolResult>;
+
+/** 只供 TaskSession 使用：精确工具与子任务共享同一个 Run 的全部治理。 */
+export async function runTaskProgram(
+  runtime: CoreMindRuntime,
+  id: string,
+  execute: (call: TaskProgramCall) => Promise<void>,
+): Promise<RunResult> {
+  const slot = executionSlotFor(runtime);
+  if (slot.running || slot.taskProgram)
+    throw new CoreMindError("concurrent_run", "任务 Run 已在执行");
+  slot.taskProgram = { id, execute };
+  try {
+    return await runtime.run();
+  } finally {
+    slot.taskProgram = undefined;
+  }
 }
 
 interface SessionRunOwnership {

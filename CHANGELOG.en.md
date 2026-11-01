@@ -15,6 +15,8 @@ These changes are not yet released and include the unreleased 1.3.0 fixes. See t
 
 **Improvements**
 
+- **Keyed calls and result reuse:** added runCalls/executeTool and call queries within the existing Run/ChildRun controls. Includes explicit result recovery, divergence audits and real-process interruption regressions. Unknown effects retain the existing recovery gate; bilingual documentation covers old-SDK rollback boundaries. CI, security and merge acceptance remain required before release. ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
+
 - **Durable waits and idempotent wakeups:** TaskSession atomically saves the next phase, result and absolute deadline, adds nextWake and sleepId-bound wake, and recomputes delays after restart. Includes actual process exits, duplicate/stale notifications, cancellation races, lost receipts, an offline host alarm example and bilingual guidance. All timeouts remain unchanged; cross-platform CI and release qualification are still required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
 
 - **Durable task phases and explicit migration:** public TypeScript `TaskSession` adds start/query/resume/cancel, atomic phase checkpoints, definition/version/authority checks and explicit state migration. Models and tools use the existing Runtime; unresolved Run windows fail closed. Includes real process, permission/budget/cancellation checks, bilingual guides, SOP/Skill and an offline example. This does not establish merge or release qualification. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))

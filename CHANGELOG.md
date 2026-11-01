@@ -15,6 +15,8 @@
 
 **能力提升**
 
+- **稳定键调用与结果复用：** 新增 runCalls/executeTool 和调用查询，一个阶段共享原 Run/ChildRun 治理；显式结果恢复、分歧审计和真实进程中断验证。未知副作用仍由原恢复门拦截，旧 SDK 回滚边界与双语文档同步；正式发布仍须原 CI、安全与合并验收。 ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
+
 - **持久等待与幂等唤醒：** TaskSession 原子保存下一阶段、结果和绝对期限，支持 nextWake 与绑定 sleepId 的 wake，重启后重新计算等待。覆盖真实进程退出、重复/过期通知、取消竞争与回执丢失，提供离线宿主 alarm 示例与双语指南。保留全部原超时；跨平台 CI 和发布资格仍须验收。 ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
 
 - **持久任务阶段与显式迁移：** 公共 TypeScript `TaskSession` 支持 start/query/resume/cancel，阶段检查点原子提交，版本/定义/权限身份校验与显式状态迁移。模型和工具沿用现有 Runtime；未知 Run 窗口失败关闭。配套真实进程、权限/预算/取消验证及双语指南、SOP/Skill 和离线示例。未合并或安全门未通过不构成发布资格。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))

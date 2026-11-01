@@ -58,3 +58,7 @@ npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/
 ## 离线持久等待与宿主 alarm 示例
 
 构建后执行 `node examples/modules/recover-durable-runs/task-sleep.mjs`。示例提交 A 的结果和期限，重开后从 nextWake 建立有上限的普通 timer，再 wake/resume 执行 B，输出 `Durable sleep and host alarm OK`。无需凭据，仅清理自身临时目录。宿主实际重启还须 query 已知 ready 任务；此示例的 close/reopen 不代替 task-sleep-process.test.ts 的真实进程退出验证。
+
+## 稳定键调用（1.4 开发线）
+
+构建后运行 `node examples/modules/recover-durable-runs/task-calls.mjs`。验证重复键和结果提交后重开，真实工具计数仅1；使用固定假凭据且不请求模型，输出 `Keyed calls and durable reuse OK`。仅清理自身临时目录。真实进程退出另由 task-calls-process.test.ts 验证。

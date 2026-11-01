@@ -2977,6 +2977,35 @@ export declare interface StepOutput {
     };
 }
 
+export declare interface TaskCallContext {
+    /** 同一阶段 Run 内串行调用；重复 key 连接同一在飞调用或复用已提交结果。 */
+    executeTool(key: string, tool: string, args: JsonValue): Promise<TaskToolResult>;
+}
+
+export declare class TaskCallError extends Error {
+    readonly code: "task_call_conflict" | "task_call_unresolved" | "task_call_failed";
+    constructor(code: "task_call_conflict" | "task_call_unresolved" | "task_call_failed", message: string);
+}
+
+declare interface TaskCallRecord {
+    key: string;
+    tool: string;
+    args: JsonValue;
+    signature: string;
+    stepId: string;
+    status: "pending" | "completed" | "failed" | "cancelled";
+    result?: TaskToolResult;
+    error?: string;
+}
+
+export declare interface TaskCallSnapshot extends TaskCallRecord {
+    runId: string;
+    phase: string;
+    version: number;
+    /** 包含注册工具能力、配置与回调版本的完整权限指纹。 */
+    authority: string;
+}
+
 /** 当前基础合同只保存文本对话；不执行消息或还原 JS 调用栈。 */
 export declare interface TaskConversationEntry {
     id: string;
@@ -3019,6 +3048,8 @@ export declare interface TaskPhaseContext {
     readonly signal: AbortSignal;
     /** 每阶段最多一次完整受治理 Run；不暴露裸模型或工具执行器。 */
     run(prompt: string): Promise<RunResult>;
+    /** 与 run 二选一；所有稳定键调用共享一个完整受治理 Run。 */
+    runCalls<T extends JsonValue>(handler: (calls: TaskCallContext) => Promise<T>): Promise<T>;
 }
 
 export declare interface TaskRuntimeOptions extends Pick<CoreMindRuntimeOptions, "config" | "configDir" | "env" | "toolEnv" | "approveTool" | "approveProjectCode" | "toolDefinitions" | "lifecycleExtensions" | "maxSteps" | "stepTimeoutMs"> {
@@ -3048,6 +3079,8 @@ export declare class TaskSession {
         checkpoint: JsonValue;
     }): Promise<TaskSnapshot>;
     resume(taskId: string): Promise<TaskSnapshot>;
+    /** 历史记录随任务保留；终态不重新执行，不自动清除审计与结果。 */
+    calls(taskId: string): TaskCallSnapshot[];
     cancel(taskId: string): Promise<TaskSnapshot>;
     close(): Promise<void>;
     private assertOpen;
@@ -3085,6 +3118,11 @@ export declare interface TaskSnapshot {
     /** 存在时禁止自动重发 Run；须先核对原 Run 的 Facts 与副作用回执。 */
     pendingRunId?: string;
     sleep?: TaskSleep;
+}
+
+export declare interface TaskToolResult {
+    content: CoreMindMessageContent[];
+    details: JsonValue;
 }
 
 export declare interface TaskTransition {

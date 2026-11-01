@@ -34,3 +34,5 @@ Runtime 配置、权限、预算、工具声明与宿主注册函数组成独立
 回滚代码前关闭 TaskSession 并保留 `.coremind/tasks`；旧版本不会自动执行新任务封装。不要删除任务日志、重用旧 taskId 伪造新任务或在未知效果未确认时新建替代 Run。现有旧数据路径不需要迁移。
 
 后续持久等待与幂等唤醒由 [ADR 0027](0027-durable-task-sleep-wake.md) 扩展；其新增状态的兼容与回滚约束以该 ADR 为准。
+
+后续显式稳定键调用见 [ADR 0028](0028-keyed-task-calls.md)。原 context.run 未解决窗口规则保持；runCalls 在同一 Run 内按可证明的整步结果协调，不删除旧 pendingRunId 或绕过副作用证明。
