@@ -2,7 +2,7 @@
 
 [简体中文](durable-tasks.zh-CN.md)
 
-TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This is unreleased development work. Python, Worker, sleep/wake and nested calls are separate deliveries.
+TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This is unreleased development work. Python, Worker and nested calls are separate deliveries.
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -30,6 +30,30 @@ try {
 
 A phase can return `documents` and `entries` in the same atomic commit; documents must match documentSchemas registered at open. Queries return copies. Do not open internal TaskCommitSession alongside an active public TaskSession or bypass execution contracts through internal storage.
 
+## Durable waiting and host alarms
+
+A phase returns `{ phase: "b", checkpoint: result, sleepUntil: deadline }` to commit its next phase, result, optional documents/entries and sleep state together. The deadline is an integer UTC epoch millisecond value from zero through `8_640_000_000_000_000`. Past deadlines are immediately eligible; combining sleepUntil with `done: true` is invalid. Queries return `status: "sleeping"` and `sleep: { sleepId, wakeAt }`. Every sleep has a distinct sleepId, so an old alarm cannot release a later sleep, even with the same deadline.
+
+`nextWake()` returns the earliest `{ taskId, sleepId, wakeAt, remainingMs }`, breaking ties by taskId, or undefined when none remain. It recomputes the delay from durable state and the current clock; it never restores an old Promise/timer. Date.now is the default; tests may inject a trusted `clock`. This clock does not alter Runtime, tool, phase or Worker timeouts. A backwards clock change increases the remaining wait; admission still checks the absolute deadline.
+
+Keep taskId, sleepId and a stable wakeId, then call `wake(taskId, wakeId, sleepId)`. It only persists ready; call `resume(taskId)` explicitly to execute the next phase. Direct resume also checks the deadline: early calls remain sleeping; due calls first persist ready, then execute a phase. No Run or phase timer remains active during the durable wait. Waiting never increases existing execution timeouts.
+
+| Wake result | Host action |
+|---|---|
+| `accepted` | Ready and wakeId→sleepId were committed together; explicitly resume |
+| `duplicate` | This taskId already admitted the same key/payload; no write, and do not treat an old alarm as a current phase instruction |
+| `not_due` | No write or key reservation; query the deadline and retry the same key when due |
+| `stale` | Not the current sleep; discard the notification without advancing |
+| `terminal` | Completed or cancelled; discard without reviving the task |
+
+Rebinding an accepted wakeId to another sleepId raises `task_wake_conflict`. Both identifiers start with a letter/digit, contain only letters, digits, underscores or hyphens, and are at most 128 characters. Concurrent writes return task_busy; after settlement, inspect state and the original key. Accepted keys remain in task state, subject to the existing 1 MiB TaskCommit limit; history is not unbounded. After an uncertain write acknowledgement, close/reopen and check the original key instead of assuming rollback.
+
+Hosts own process startup, alarm delivery and ready-task recovery. If wake commits but the process exits before resume, query known tasks and explicitly resume ready ones at startup; nextWake alone cannot find them. Cancel terminates a waiting task and invalidates later alarms; closing an idle session releases its lease without cancelling durable waits. Migration does not run before the deadline. Definition upgrades require explicit resume migration; wake cannot migrate or grant authority.
+
+Run `node examples/modules/recover-durable-runs/task-sleep.mjs` for an offline host example. After reopening it uses ordinary setTimeout, capped at `2_147_483_647` ms per timer, then rechecks eligibility. There is no new background scheduler service. Ordinary close/reopen does not replace actual process-exit tests.
+
+Compatibility: existing non-sleep states remain readable; exhaustive status switches must handle sleeping. Older phase SDKs reject states containing sleep/wakes, so stop writers and back up task data before rollback. Never edit facts or force an older SDK to continue. This increment changes neither Protocol v2, Python/Worker task access nor legacy Run/Session data. See [ADR 0027](../adr/0027-durable-task-sleep-wake.md).
+
 ## Migration
 
 Increase version when changing the definition, schema or handlers and supply `migrate(previous, signal)`, returning only `{ phase, checkpoint }`. Same-version drift, downgrades, missing migrations, exceptions and invalid results fail closed. Failed migration preserves original facts. Successful migration atomically saves version/state before executing a phase and is not repeated after restart. Completed/cancelled tasks need no migration.
@@ -49,7 +73,9 @@ A pendingRunId means the original Run requires reconciliation. Resume returns `t
 ```text
 npm run build
 node examples/modules/recover-durable-runs/task-phases.mjs
+node examples/modules/recover-durable-runs/task-sleep.mjs
 npx vitest run packages/coremind-runtime/src/task-session.test.ts packages/coremind-runtime/src/task-session-process.test.ts packages/coremind-runtime/src/task-session-runtime.test.ts --maxWorkers=1
+npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremind-runtime/src/task-sleep-process.test.ts --maxWorkers=1
 ```
 
 The offline example demonstrates A→reopen→B→completed and explicit v1→v2 migration. Separate tests exercise actual process exits; ordinary close/reopen is not crash acceptance. See [ADR 0026](../adr/0026-task-phases-and-migrations.md) and the [recovery SOP](../modules/recover-durable-runs/SOP.en.md).

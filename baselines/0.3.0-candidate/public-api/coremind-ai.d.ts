@@ -298,8 +298,11 @@ import { TaskPhaseContext } from 'coremind-runtime';
 import { TaskRuntimeOptions } from 'coremind-runtime';
 import { TaskSession } from 'coremind-runtime';
 import { TaskSessionOptions } from 'coremind-runtime';
+import { TaskSleep } from 'coremind-runtime';
 import { TaskSnapshot } from 'coremind-runtime';
 import { TaskTransition } from 'coremind-runtime';
+import { TaskWakeDeadline } from 'coremind-runtime';
+import { TaskWakeResult } from 'coremind-runtime';
 import { TelemetryAuthorizationScope } from 'coremind-runtime';
 import { TelemetryConfig } from 'coremind-config';
 import { TelemetryConfigurationFact } from 'coremind-runtime';
@@ -937,9 +940,15 @@ export { TaskSession }
 
 export { TaskSessionOptions }
 
+export { TaskSleep }
+
 export { TaskSnapshot }
 
 export { TaskTransition }
+
+export { TaskWakeDeadline }
+
+export { TaskWakeResult }
 
 export { TelemetryAuthorizationScope }
 

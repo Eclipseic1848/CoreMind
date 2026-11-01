@@ -134,6 +134,26 @@ describe("任务阶段复用真实 Runtime 治理", () => {
     expect(tasks.query("job")!.pendingRunId).toBeUndefined();
   });
 
+  it("半小时持久等待在 Run 结束后提交，不延长 Run 或阶段超时", async () => {
+    await serve((response) => respond(response));
+    let runId = "";
+    const tasks = await open(async (context) => {
+      const result = await context.run("回答后等待");
+      runId = result.runId;
+      return { phase: "a", checkpoint: result.transcript, sleepUntil: Date.now() + 1_800_000 };
+    });
+    expect(await tasks.resume("job")).toMatchObject({ status: "sleeping", checkpoint: "完成" });
+    expect(tasks.query("job")!.pendingRunId).toBeUndefined();
+    expect(tasks.nextWake()!.remainingMs).toBeGreaterThan(0);
+    expect(tasks.nextWake()!.remainingMs).toBeLessThanOrEqual(1_800_000);
+    expect((await events(runId)).records.map((record) => record.kind)).toEqual(
+      expect.arrayContaining(["start", "finish"]),
+    );
+    expect(runtime.config.runtime.runTimeoutMs).toBe(10_000);
+    await tasks.resume("job");
+    expect(requests).toBe(1);
+  });
+
   it("工具审批拒绝保持阶段检查点，不写文件，恢复不重发模型", async () => {
     await serve((response, index) =>
       respond(

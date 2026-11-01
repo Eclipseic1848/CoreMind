@@ -2,7 +2,7 @@
 
 [English](durable-tasks.en.md)
 
-TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本功能仍为未发布开发线；Python、Worker、sleep/wake 和嵌套调用另行交付。
+TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本功能仍为未发布开发线；Python、Worker 和嵌套调用另行交付。
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -32,6 +32,30 @@ try {
 
 阶段可返回 `documents` 和 `entries`，与检查点同一原子提交；document 须匹配 `open` 中注册的 documentSchemas。快照是副本。不能将内部 TaskCommitSession 与活动公共 TaskSession 同时打开，也不能用内部存储入口绕开公共执行合同。
 
+## 持久等待与宿主唤醒
+
+阶段返回 `{ phase: "b", checkpoint: result, sleepUntil: deadline }` 时，将下一阶段、结果、可选 document/entry 与睡眠状态一起提交。`deadline` 是非负整数 UTC epoch 毫秒，最大 `8_640_000_000_000_000`；过去期限允许立即唤醒，不能同时返回 `done: true`。查询得到 `status: "sleeping"` 和 `sleep: { sleepId, wakeAt }`。每次睡眠生成独立 sleepId，即使期限相同，旧 alarm 也不能唤醒下一次睡眠。
+
+`nextWake()` 返回最早等待的 `{ taskId, sleepId, wakeAt, remainingMs }`，同期限按 taskId 排序，无等待时返回 undefined。它从持久状态和当前时钟重算剩余时间，不恢复旧 Promise/timer。默认使用 Date.now；测试可注入受信任的 `clock`，不会改变 Runtime、工具、阶段或 Worker 的超时。时钟回拨会增加剩余等待，到期判断仍以绝对期限为准。
+
+宿主保留 taskId、sleepId 和稳定 wakeId，调用 `wake(taskId, wakeId, sleepId)`。它只持久置为 ready，不执行下一阶段；随后显式 `resume(taskId)`。直接 resume 也会检查期限：早到保持 sleeping，到期先提交 ready，再运行下一阶段。等待期间没有活动 Run 或阶段计时器，等待长度不会扩大任何原执行超时。
+
+| wake 结果 | 宿主动作 |
+|---|---|
+| `accepted` | 已将 ready 与 wakeId→sleepId 一起持久提交，可显式 resume |
+| `duplicate` | 此 taskId 下相同 wakeId/sleepId 已准入；不重复写入，不把旧 alarm 当作当前阶段指令 |
+| `not_due` | 未到期，未写入或占用 wakeId；重新查询期限，到期可用原键重试 |
+| `stale` | 不是当前睡眠；丢弃旧通知，不推进阶段 |
+| `terminal` | 已完成或取消；丢弃通知，不复活任务 |
+
+已接受的 wakeId 改绑其他 sleepId 报 `task_wake_conflict`。两个标识均须以字母/数字开头，只含字母、数字、下划线、连字符，最长128字符。并发写返回 task_busy；原操作落定后核对状态和原键。已准入键保留在任务状态中，仍受单次 TaskCommit 1 MiB 限制，不承诺无限唤醒历史。写入确认失败时关闭并重开，再核对原键；不能假设失败即回滚。
+
+宿主负责进程启动、alarm 投递和 ready 任务恢复。如果 wake 已落盘但进程在 resume 前退出，新进程应先 query 已知任务，再显式恢复 ready；仅扫描 nextWake 不会发现它。`cancel` 使等待任务终止，后续 alarm 无效；`close` 空闲会话仅释放租约，不取消已提交等待。到期前不执行迁移；定义升级须通过 resume 显式迁移，wake 不替代迁移或授予新权限。
+
+完整离线宿主示例：`node examples/modules/recover-durable-runs/task-sleep.mjs`。示例重开会话后使用普通 setTimeout，单次最多 `2_147_483_647` ms，醒来重新校验期限；框架没有新增后台调度服务。普通 close/reopen 不代替真实进程退出测试。
+
+兼容：旧无睡眠状态可直接读取；新 `sleeping` 状态需要更新穷尽分支。旧阶段 SDK 会拒绝包含 sleep/wakes 的新状态，因此回滚前停止 writer 并备份任务目录，不编辑事实或用旧 SDK 强行继续。此增量不改变 Protocol v2、Python/Worker 任务入口或旧 Run/Session 数据。详见 [ADR 0027](../adr/0027-durable-task-sleep-wake.md)。
+
 ## 迁移
 
 定义结构、Schema 或阶段函数改变时增加 version，提供 `migrate(previous, signal)`，仅返回 `{ phase, checkpoint }`。同版本定义变化、降级、缺少迁移、异常、无效 Schema 结果均失败关闭。迁移失败保留原事实；成功迁移先原子保存新版本与状态，重启不重复迁移。完成/取消的任务不需要迁移。
@@ -51,7 +75,9 @@ try {
 ```text
 npm run build
 node examples/modules/recover-durable-runs/task-phases.mjs
+node examples/modules/recover-durable-runs/task-sleep.mjs
 npx vitest run packages/coremind-runtime/src/task-session.test.ts packages/coremind-runtime/src/task-session-process.test.ts packages/coremind-runtime/src/task-session-runtime.test.ts --maxWorkers=1
+npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremind-runtime/src/task-sleep-process.test.ts --maxWorkers=1
 ```
 
 示例完全离线，演示 A→重开→B→完成，以及显式 v1→v2 状态迁移。真实进程退出由测试单独验证，普通 close/reopen 不代替崩溃验收。详见 [ADR 0026](../adr/0026-task-phases-and-migrations.md) 和[恢复 SOP](../modules/recover-durable-runs/SOP.zh-CN.md)。

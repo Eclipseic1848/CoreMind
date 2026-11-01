@@ -100,3 +100,5 @@ Default memory credentials require login after restart. Node hosts may supply `t
 ## Durable task phases (1.4 development)
 
 Public `TaskSession` / `TaskDefinition` support start/query/resume/cancel and explicit migration. Each resume executes one phase; this is separate from ChatSession history or arbitrary JS stack restoration. See the [durable task guide](../../guides/durable-tasks.en.md) for usage and governance boundaries.
+
+Returning sleepUntil atomically saves the next phase and absolute deadline. nextWake queries the earliest durable wait; wake(taskId, wakeId, sleepId) idempotently makes it ready, followed by explicit resume. An old alarm cannot advance a later sleep. Hosts own process restart, known ready-task recovery and timer reconstruction. Cancellation invalidates alarms; closing an idle session preserves waits. Waiting never extends Run, tool, phase or Worker timeouts. See the [task guide](../../guides/durable-tasks.en.md) and [ADR 0027](../../adr/0027-durable-task-sleep-wake.md) for uncertain acknowledgements and older-SDK rollback limits.

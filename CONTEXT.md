@@ -189,3 +189,6 @@ _Avoid_: 恢复（与 Resume 混用）
 
 **TaskSession / TaskDefinition（持久任务阶段）**：
 受信任宿主注册的 type/version/phase/checkpoint Schema 合同。start 保存初态，resume 执行一个阶段，query 查询，cancel 取消；成功阶段与显式迁移经 TaskCommit 原子提交。处理器从阶段顶部恢复，模型与工具经既有 Runtime；未提交阶段的 pendingRunId 阻止自动重发。它不同于普通 ChatSession、Workflow Step 与可恢复 Run，预算仍按 Run 计量。见 [ADR 0026](docs/adr/0026-task-phases-and-migrations.md)。
+
+**TaskSleep / TaskWake（持久等待与唤醒）**：
+阶段结果中的 sleepUntil 将下一阶段、checkpoint 与绝对期限/sleepId 原子提交。nextWake 给出最近持久等待；wake 将稳定 wakeId 绑定 sleepId 并提交 ready，resume 才执行下一阶段。早到不准入、旧身份不推进、终态不复活；宿主负责 alarm 与重启后恢复 ready。不同于活动 Run 的执行超时，也不是后台调度服务。见 [ADR 0027](docs/adr/0027-durable-task-sleep-wake.md)。

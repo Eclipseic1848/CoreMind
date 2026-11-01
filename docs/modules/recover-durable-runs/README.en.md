@@ -81,4 +81,8 @@ This module verifies framework recovery contracts. It does not replace idempoten
 
 ## Public durable task phases (1.4 development)
 
-`TaskSession` from `coremind-ai` adds start/query/resume/cancel and explicit version migration over the storage foundation. Each resume executes one phase; models/tools use the existing Runtime. Preserve and inspect the original Run when pendingRunId exists; do not resend automatically. See the [public task guide](../../guides/durable-tasks.en.md) and [ADR 0026](../../adr/0026-task-phases-and-migrations.md). This is not a release claim; cross-language access, sleep/wake and nested calls remain separate work.
+`TaskSession` from `coremind-ai` adds start/query/resume/cancel and explicit version migration over the storage foundation. Each resume executes one phase; models/tools use the existing Runtime. Preserve and inspect the original Run when pendingRunId exists; do not resend automatically. See the [public task guide](../../guides/durable-tasks.en.md) and [ADR 0026](../../adr/0026-task-phases-and-migrations.md). This is not a release claim; cross-language access and nested calls remain separate work.
+
+## Durable waits (1.4 development)
+
+Returning sleepUntil atomically saves the next phase and absolute deadline. nextWake queries the earliest durable wait; wake(taskId, wakeId, sleepId) idempotently makes it ready, followed by explicit resume. An old alarm cannot advance a later sleep. Hosts own process restart, known ready-task recovery and timer reconstruction. Cancellation invalidates alarms; closing an idle session preserves waits. Waiting never extends Run, tool, phase or Worker timeouts. See the [task guide](../../guides/durable-tasks.en.md) and [ADR 0027](../../adr/0027-durable-task-sleep-wake.md) for uncertain acknowledgements and older-SDK rollback limits.

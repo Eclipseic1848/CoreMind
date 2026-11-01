@@ -54,3 +54,7 @@ npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/
 构建后执行 `node examples/modules/recover-durable-runs/task-phases.mjs`。示例从公共 coremind-ai 导入 TaskSession，验证 A→重开→B→完成和显式 v1→v2 迁移，不读取凭据或调用模型。输出 `Task phases and migration OK`，仅清理自身临时工作区。真实进程退出由 task-session-process.test.ts 单独验收。
 
 参见[任务指南](../../../docs/guides/durable-tasks.zh-CN.md)。
+
+## 离线持久等待与宿主 alarm 示例
+
+构建后执行 `node examples/modules/recover-durable-runs/task-sleep.mjs`。示例提交 A 的结果和期限，重开后从 nextWake 建立有上限的普通 timer，再 wake/resume 执行 B，输出 `Durable sleep and host alarm OK`。无需凭据，仅清理自身临时目录。宿主实际重启还须 query 已知 ready 任务；此示例的 close/reopen 不代替 task-sleep-process.test.ts 的真实进程退出验证。

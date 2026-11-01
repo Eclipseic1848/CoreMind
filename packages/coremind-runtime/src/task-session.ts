@@ -28,6 +28,8 @@ export type TaskExecutionErrorCode =
   | "task_closed"
   | "task_cancelled"
   | "task_phase_timeout"
+  | "task_deadline_invalid"
+  | "task_wake_conflict"
   | "task_run_unresolved"
   | "task_run_failed";
 
@@ -41,21 +43,41 @@ export class TaskExecutionError extends Error {
   }
 }
 
+export interface TaskSleep {
+  sleepId: string;
+  /** UTC epoch 毫秒，范围与 JavaScript Date 的非负时间范围一致。 */
+  wakeAt: number;
+}
+
+export interface TaskWakeDeadline extends TaskSleep {
+  taskId: string;
+  remainingMs: number;
+}
+
+export interface TaskWakeResult {
+  /** accepted 仅确认已持久置为 ready；下一阶段仍需显式 resume。 */
+  status: "accepted" | "duplicate" | "not_due" | "stale" | "terminal";
+  task: TaskSnapshot;
+}
+
 export interface TaskSnapshot {
   taskId: string;
   type: string;
   version: number;
   phase: string;
-  status: "ready" | "paused" | "completed" | "cancelled";
+  status: "ready" | "paused" | "sleeping" | "completed" | "cancelled";
   checkpoint: JsonValue;
   /** 存在时禁止自动重发 Run；须先核对原 Run 的 Facts 与副作用回执。 */
   pendingRunId?: string;
+  sleep?: TaskSleep;
 }
 
 export interface TaskTransition {
   phase: string;
   checkpoint: JsonValue;
   done?: boolean;
+  /** 保存下一阶段并结束本次执行；等待期间不占用阶段或 Run 超时。 */
+  sleepUntil?: number;
   documents?: TaskDocument[];
   entries?: TaskConversationEntry[];
 }
@@ -107,6 +129,8 @@ export interface TaskSessionOptions {
   documentSchemas?: readonly TaskDocumentSchema[];
   /** 纯状态任务可省略；调用 context.run 时必须提供。 */
   runtime?: TaskRuntimeOptions;
+  /** 受信任宿主时钟，默认 Date.now；每次查询/唤醒重新读取，不恢复内存 timer。 */
+  clock?: () => number;
 }
 
 interface TaskState {
@@ -116,6 +140,9 @@ interface TaskState {
   status: TaskSnapshot["status"];
   checkpoint: JsonValue;
   pendingRunId?: string;
+  sleep?: TaskSleep;
+  /** 仅保留已经准入的 wakeId→sleepId，避免旧 alarm 在后续阶段再次生效。 */
+  wakes?: Record<string, string>;
 }
 
 interface RegisteredTask {
@@ -125,6 +152,7 @@ interface RegisteredTask {
 }
 
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/u;
+const MAX_DATE_MS = 8_640_000_000_000_000;
 const stateValidator = new Ajv({ strict: true, ownProperties: true }).compile({
   type: "object",
   additionalProperties: false,
@@ -133,15 +161,29 @@ const stateValidator = new Ajv({ strict: true, ownProperties: true }).compile({
     format: { const: 1 },
     authority: { type: "string", pattern: "^[a-f0-9]{64}$" },
     definition: { type: "string", pattern: "^[a-f0-9]{64}$" },
-    status: { enum: ["ready", "paused", "completed", "cancelled"] },
+    status: { enum: ["ready", "paused", "sleeping", "completed", "cancelled"] },
     checkpoint: {},
     pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 },
+    sleep: {
+      type: "object",
+      additionalProperties: false,
+      required: ["sleepId", "wakeAt"],
+      properties: {
+        sleepId: { type: "string", pattern: ID.source },
+        wakeAt: { type: "integer", minimum: 0, maximum: MAX_DATE_MS },
+      },
+    },
+    wakes: {
+      type: "object",
+      propertyNames: { type: "string", pattern: ID.source },
+      additionalProperties: { type: "string", pattern: ID.source },
+    },
   },
 });
 
 /** 宿主显式驱动的阶段控制器；每次 resume 只有一个阶段提交，不恢复 JS 栈。 */
 export class TaskSession {
-  private active?: { taskId: string; controller: AbortController; promise: Promise<TaskSnapshot> };
+  private active?: { taskId: string; controller: AbortController; promise: Promise<unknown> };
   private closing?: Promise<void>;
 
   private constructor(
@@ -151,9 +193,13 @@ export class TaskSession {
     private readonly runtime: TaskRuntimeOptions | undefined,
     private readonly authority: string,
     private readonly phaseTimeoutMs: number,
+    private readonly clock: () => number,
   ) {}
 
   static async open(options: TaskSessionOptions): Promise<TaskSession> {
+    const clock = options.clock ?? Date.now;
+    if (typeof clock !== "function") throw failure("task_deadline_invalid", "clock 必须为函数");
+    validateTime(clock());
     const definitions = register(options.definitions);
     const workspace = await realpath(options.workspace);
     const runtime = options.runtime ? copyRegistration(options.runtime) : undefined;
@@ -204,6 +250,7 @@ export class TaskSession {
       runtime,
       authority,
       limits.stepTimeoutMs,
+      clock,
     );
   }
 
@@ -211,6 +258,62 @@ export class TaskSession {
     this.assertOpen();
     const record = this.record(taskId);
     return record ? snapshot(taskId, record) : undefined;
+  }
+
+  nextWake(): TaskWakeDeadline | undefined {
+    this.assertOpen();
+    const now = validateTime(this.clock());
+    let next: TaskWakeDeadline | undefined;
+    for (const [taskId, record] of Object.entries(this.commits.snapshot().tasks)) {
+      const state = readState(record);
+      if (state.status !== "sleeping") continue;
+      const sleep = state.sleep!;
+      if (
+        !next ||
+        sleep.wakeAt < next.wakeAt ||
+        (sleep.wakeAt === next.wakeAt && taskId < next.taskId)
+      )
+        next = { taskId, ...sleep, remainingMs: Math.max(0, sleep.wakeAt - now) };
+    }
+    return next;
+  }
+
+  wake(taskId: string, wakeId: string, sleepId: string): Promise<TaskWakeResult> {
+    return this.exclusive<TaskWakeResult>(taskId, async (controller) => {
+      if (
+        typeof wakeId !== "string" ||
+        !ID.test(wakeId) ||
+        typeof sleepId !== "string" ||
+        !ID.test(sleepId)
+      )
+        throw failure("task_wake_conflict", "wakeId 和 sleepId 必须为有效标识");
+      const record = this.requiredRecord(taskId);
+      const state = readState(record);
+      if (state.authority !== this.authority)
+        throw failure("task_authority_mismatch", "唤醒不能改变任务的权限/配置身份");
+      if (state.wakes && Object.hasOwn(state.wakes, wakeId)) {
+        if (state.wakes[wakeId] !== sleepId)
+          throw failure("task_wake_conflict", "wakeId 已绑定不同睡眠");
+        return { status: "duplicate", task: snapshot(taskId, record) };
+      }
+      if (state.status === "completed" || state.status === "cancelled")
+        return { status: "terminal", task: snapshot(taskId, record) };
+      if (state.status !== "sleeping" || state.sleep!.sleepId !== sleepId)
+        return { status: "stale", task: snapshot(taskId, record) };
+      const registered = this.definition(record.type);
+      if (
+        record.version !== registered.definition.version ||
+        state.definition !== registered.fingerprint
+      )
+        throw failure("task_definition_mismatch", "唤醒不能改变任务定义；显式迁移须通过 resume");
+      if (validateTime(this.clock()) < state.sleep!.wakeAt)
+        return { status: "not_due", task: snapshot(taskId, record) };
+      assertActive(controller.signal);
+      const ready = awake(state);
+      ready.wakes = { ...state.wakes, [wakeId]: sleepId };
+      await this.persist(taskId, { ...record, checkpoint: asJson(ready) });
+      return { status: "accepted", task: snapshot(taskId, this.requiredRecord(taskId)) };
+    });
   }
 
   start(input: { taskId: string; type: string; checkpoint: JsonValue }): Promise<TaskSnapshot> {
@@ -250,6 +353,8 @@ export class TaskSession {
       const registered = this.definition(record.type);
       if (state.pendingRunId)
         throw failure("task_run_unresolved", "阶段已有未提交 Run，必须核对原 Run，禁止自动重发");
+      if (state.status === "sleeping" && validateTime(this.clock()) < state.sleep!.wakeAt)
+        return snapshot(taskId, record);
       if (record.version !== registered.definition.version) {
         const migrate = registered.definition.migrate;
         if (!migrate || record.version > registered.definition.version)
@@ -286,6 +391,12 @@ export class TaskSession {
         throw failure("task_definition_mismatch", "同版本任务定义已变化；请提升版本并显式迁移");
       }
       validateCheckpoint(registered, record.phase, state.checkpoint);
+      if (state.status === "sleeping") {
+        assertActive(controller.signal);
+        state = awake(state);
+        record = { ...record, checkpoint: asJson(state) };
+        await this.persist(taskId, record);
+      }
       let accepting = true;
       let run: Promise<RunResult> | undefined;
       let succeeded = false;
@@ -341,18 +452,31 @@ export class TaskSession {
         if (state.pendingRunId && !succeeded) throw failure("task_run_failed", "Run 未成功");
         if (
           Object.keys(transition).some(
-            (key) => !["phase", "checkpoint", "done", "documents", "entries"].includes(key),
+            (key) =>
+              !["phase", "checkpoint", "done", "sleepUntil", "documents", "entries"].includes(key),
           ) ||
           (transition.done !== undefined && typeof transition.done !== "boolean")
         )
           throw failure("task_checkpoint_invalid", "阶段结果字段无效");
         validateCheckpoint(registered, transition.phase, transition.checkpoint);
+        if (transition.sleepUntil !== undefined) {
+          validateTime(transition.sleepUntil);
+          if (transition.done) throw failure("task_deadline_invalid", "已完成任务不能同时睡眠");
+        }
         const next: TaskState = {
           format: 1,
           authority: state.authority,
           definition: state.definition,
-          status: transition.done ? "completed" : "ready",
+          status: transition.done
+            ? "completed"
+            : transition.sleepUntil !== undefined
+              ? "sleeping"
+              : "ready",
           checkpoint: transition.checkpoint,
+          ...(state.wakes ? { wakes: state.wakes } : {}),
+          ...(transition.sleepUntil !== undefined
+            ? { sleep: { sleepId: randomUUID(), wakeAt: transition.sleepUntil } }
+            : {}),
         };
         await this.persist(
           taskId,
@@ -450,10 +574,10 @@ export class TaskSession {
     });
   }
 
-  private exclusive(
+  private exclusive<T>(
     taskId: string,
-    operation: (controller: AbortController) => Promise<TaskSnapshot>,
-  ): Promise<TaskSnapshot> {
+    operation: (controller: AbortController) => Promise<T>,
+  ): Promise<T> {
     this.assertOpen();
     if (this.active) return Promise.reject(failure("task_busy", "任务会话已有活动操作"));
     const controller = new AbortController();
@@ -520,7 +644,24 @@ function validateCheckpoint(
 function readState(record: TaskCheckpoint): TaskState {
   if (!stateValidator(record.checkpoint))
     throw failure("task_checkpoint_invalid", "任务状态封装损坏或版本不支持");
-  return record.checkpoint as unknown as TaskState;
+  const state = record.checkpoint as unknown as TaskState;
+  if (
+    (state.status === "sleeping" && !state.sleep) ||
+    (state.sleep && (state.pendingRunId || !["sleeping", "cancelled"].includes(state.status)))
+  )
+    throw failure("task_checkpoint_invalid", "睡眠身份与任务状态不一致");
+  return state;
+}
+
+function awake(state: TaskState): TaskState {
+  const { sleep: _sleep, ...ready } = state;
+  return { ...ready, status: "ready" };
+}
+
+function validateTime(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_DATE_MS)
+    throw failure("task_deadline_invalid", "时间必须是范围内的非负整数 UTC epoch 毫秒");
+  return value;
 }
 
 function snapshot(taskId: string, record: TaskCheckpoint): TaskSnapshot {
@@ -533,6 +674,7 @@ function snapshot(taskId: string, record: TaskCheckpoint): TaskSnapshot {
     status: state.status,
     checkpoint: state.checkpoint,
     ...(state.pendingRunId ? { pendingRunId: state.pendingRunId } : {}),
+    ...(state.sleep ? { sleep: state.sleep } : {}),
   });
 }
 
