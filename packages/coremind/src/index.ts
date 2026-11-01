@@ -66,6 +66,7 @@ export {
   ProtocolV2RunHandleSchema,
   type ProtocolV2RunRequest,
   ProtocolV2RunRequestSchema,
+  ProtocolV2SessionClient,
   type ProtocolV2StartRequest,
   ProtocolV2ValidationError,
   ProtocolValidationError,

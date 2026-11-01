@@ -96,6 +96,11 @@ async function main() {
     const names = ${JSON.stringify(packages.map((item) => item.name))};
     for (const name of names) await import(name);
     await import("coremind-templates/internal");
+    const { strict: assert } = await import("node:assert");
+    const { ProtocolV2SessionClient } = await import("coremind-ai");
+    assert.equal(typeof ProtocolV2SessionClient, "function");
+    assert.equal((await import("coremind-protocol")).ProtocolV2SessionClient, ProtocolV2SessionClient);
+    assert.equal(typeof (await import("coremind-worker")).runStdioWorker, "function");
     console.log(JSON.stringify({ imported: names }));
   `;
     runNode(["--input-type=module", "--eval", importProgram], installRoot);

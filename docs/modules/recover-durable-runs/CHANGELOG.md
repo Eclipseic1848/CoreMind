@@ -1,5 +1,10 @@
 # Changelog
 
+**1.4.0 开发线 / Development line**
+
+- 同一 Node Worker 接入 TS 与同步/异步 Python 持久任务和会话导航，严格绑定身份、能力与宿主注册；补充真实崩溃重启及结果复用验收（#367）。
+- Expose durable tasks and session navigation through one Node Worker for TS and sync/async Python, with identity/capability checks, trusted registration and real-process recovery tests (#367).
+
 ## Unreleased — 1.4.0 development
 
 - Added keyed runCalls/executeTool, durable call queries, ordered replay checks and original-Run reconciliation. Shared budgets, ChildRun limits and unknown-effect gates remain enforced. Added crash-window and projection-fault checks, bilingual docs, offline example and ADR 0028. Release still requires original CI/security and merge acceptance. ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))

@@ -67,3 +67,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-sessions/README.en.md)
 - [Agent Skill](../../../skills/manage-sessions/SKILL.md)
+
+## Cross-language API
+
+Protocol v2 and sync/async Python task/session methods use the same Node Runtime. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Run `python -X utf8 examples/modules/embed-coremind-python/tasks.py` and `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`. Verify real restart, committed calls, session identity, cancellation and errors; mocks or process liveness alone are insufficient.

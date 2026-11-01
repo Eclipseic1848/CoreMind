@@ -57,3 +57,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
 
 1.2.0 源码的恢复操作身份、回调顺序、通知消费和加载信任边界见 [Python SDK 修复说明](../../../python/README.md#源码修复说明)。升级时同时更新 SDK 与 bundled Worker，并核对正式渠道的同版本制品和资格证据；旧 wheel 不因文档更新获得新行为。
+
+## 跨语言入口
+
+任务与会话分支的 Protocol v2 / 同步与异步 Python 入口已接入同一 Node Runtime。使用方法和权限边界见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)

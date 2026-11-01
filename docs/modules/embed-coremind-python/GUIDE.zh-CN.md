@@ -155,3 +155,21 @@ Async 对 `events` 使用 await，仍在处理成功后保存该 Run 的 nextCur
 这是传输层有界失败合同，Runtime 的同步事件回调没有变成异步背压。限制不包括 JSON 编码瞬时内存、上游响应生成及接收端资源。传输层不改写既有持久事实、不放宽权限；Runtime 仍按自身取消和收尾规则记录结果，不把交付故障伪造成业务完成，也不自动重试潜在副作用。
 
 上述10秒限制交付等待，不保证强制终止物理流或不合作的 JavaScript。逻辑 close 有界返回；尚未返回的自有 write 仅保留一个 error 护栏及其 close 清理监听，直到该回调或流 close 收敛。超时失败不等于全部操作已静止；未确认收尾时不能据此释放或复用相关环境。
+
+## 持久任务与会话分支的跨语言入口（1.4 开发线）
+
+同步 `CoreMindClient` 与 `AsyncCoreMindClient` 新增 `task_start(task_id, definition_id, checkpoint)`、`task_query/task_resume/task_cancel/task_calls(task_id)`、`task_next_wake()`、`task_wake(task_id, wake_id, sleep_id)`。异步方法使用相同参数并 `await`。返回完整 DTO，快照在 `result["task"]`、调用账本在 `result["calls"]`、最近期限在 `result["deadline"]`；未知任务查询返回 `task=None`。任务操作不是 RunHandle，也不把等待自动变成运行。
+
+Session 方法为 `inspect_session_tree()`、`create_session_branch(branch_id, at)`、`select_session_branch(branch_id)`、`fork_session(at)`，返回 `result["tree"]`。`at` 为 `{ "sessionId": ..., "entryId": ... }`；创建空分支可传 `None`，fork 必须引用来源消息。fork 返回新会话身份，调用方用原配置显式创建新客户端；不会复制 Run 或权限。树包含完整原始消息，宿主负责访问授权。
+
+所有方法要求 `protocol_version="2.0"`、匹配当前 Schema 指纹，并分别协商 `durableTasks` / `sessionBranches`。旧 Worker、缺失能力和错误身份显式拒绝，不降级到 v1。v1 既有行为保留；旧 SDK 不应接管新任务调用账本和会话选择数据，回滚先停 writer 并恢复升级前完整备份。
+
+任务定义由受信任 Node 宿主在启动时通过 `runStdioWorker(input, output, { tasks: { definitions, documentSchemas?, runtime? } })` 注册；Python 使用既有 `worker_command` 启动该宿主。默认随包 Worker 支持会话导航，但没有任务注册表，任务调用返回 `protocol_capability_missing`。线协议仅传定义 ID 和 JSON 业务数据，不提供模块加载、源码、Python callable 或凭据参数。不要把密钥放入 checkpoint。
+
+`runtime` 可以提供原工具定义、审批回调、环境和 `authorityVersion`；config/configDir 继承初始化。宿主注册信任不授权加载配置中的项目代码，也不替代工具权限。`trust_project_code` 仍独立控制项目代码；开关变化被绑定到任务权限身份。外部策略、闭包值或凭据路由改变仍须更新宿主 `authorityVersion`。任务模型/工具复用同一 Node Runtime、原 Run 预算、超时、权限、取消和副作用恢复门。
+
+TS 的 `ProtocolV2SessionClient` 从 `coremind-ai` 或 `coremind-protocol` 导入，复用宿主已有 RPC 传输。构造参数 `{ sessionId, initialized, request }`，其中 `request(method, params)` 返回 RPC result 或抛出原结构化错误；`.task({ action: "query", taskId })` 和 `.session({ action: "inspect" })` 自动绑定会话、校验请求和结果身份。它不管理进程、存储或调度。
+
+任务错误保留原 Error Contract 分类。`ProtocolError.details` 追加 `operation/action/sessionId/taskId`；TaskExecutionError/TaskCallError 的细分原因在 `taskCode`，例如 `task_definition_unknown`、`task_authority_mismatch`、`task_cancelled`。不要把 `taskCode` 当新的顶层错误分类。活动阶段可查询或显式取消任务；第二执行、普通 Run、导航等竞争操作拒绝。RPC 取消/进程退出不保证业务回滚；保留事实并先查询，未知效果不得盲重试。
+
+离线示例：构建后运行 `python -X utf8 examples/modules/embed-coremind-python/tasks.py`，展示同步/异步 A→关闭进程→重开→wake→B 和取消。真实崩溃窗口、TS/Python 结果与错误一致性由 `python/tests/test_session_management.py` 验证：Run 结果已持久化但阶段未提交时退出，重开不重复工具效果；不调用真实 Provider。没有第二 Python Runtime、后台调度服务或外部 exactly-once 保证。

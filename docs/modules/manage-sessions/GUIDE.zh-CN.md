@@ -51,7 +51,7 @@ await forkChat.chat("在新会话继续");
 
 选择写入拒绝可能发生在实际落盘之后；保留文件，重新打开查询，不能假定回滚。fork 的公开别名失败可能留下完整内部候选；按错误路径核实身份再打开，不盲目重新 fork 或删除来源。
 
-旧 v3/v4 无分支数据兼容。旧 SDK 不理解持久选择，禁止直接接管新文件；回滚须停 writer、保全完整 Session/Run/Workspace 并恢复升级前备份。本 API 不是 第三方 ExtensionAPI，也不恢复原 Run。Python/RPC 导航归 #367。见 [ADR0029](../../adr/0029-public-session-tree-navigation.md)与[可运行示例](../../../examples/modules/manage-sessions/branches.mjs)。
+旧 v3/v4 无分支数据兼容。旧 SDK 不理解持久选择，禁止直接接管新文件；回滚须停 writer、保全完整 Session/Run/Workspace 并恢复升级前备份。本 API 不是 第三方 ExtensionAPI，也不恢复原 Run。Python/RPC 导航见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)。见 [ADR0029](../../adr/0029-public-session-tree-navigation.md)与[可运行示例](../../../examples/modules/manage-sessions/branches.mjs)。
 
 ## 验证
 

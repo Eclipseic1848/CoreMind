@@ -245,6 +245,7 @@ import { ProtocolV2RunHandle } from 'coremind-protocol';
 import { ProtocolV2RunHandleSchema } from 'coremind-protocol';
 import { ProtocolV2RunRequest } from 'coremind-protocol';
 import { ProtocolV2RunRequestSchema } from 'coremind-protocol';
+import { ProtocolV2SessionClient } from 'coremind-protocol';
 import { ProtocolV2StartRequest } from 'coremind-protocol';
 import { ProtocolV2ValidationError } from 'coremind-protocol';
 import { ProtocolValidationError } from 'coremind-protocol';
@@ -841,6 +842,8 @@ export { ProtocolV2RunHandleSchema }
 export { ProtocolV2RunRequest }
 
 export { ProtocolV2RunRequestSchema }
+
+export { ProtocolV2SessionClient }
 
 export { ProtocolV2StartRequest }
 

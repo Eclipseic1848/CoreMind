@@ -90,9 +90,7 @@ describe("持久稳定键工具调用", () => {
     );
     await expect(tasks.resume("job")).rejects.toBeDefined();
     expect(tasks.query("job")).toMatchObject({ status: "paused", checkpoint: "initial" });
-    expect(tasks.calls("job").flatMap((group) => group.calls)).not.toContainEqual(
-      expect.objectContaining({ status: "completed" }),
-    );
+    expect(tasks.calls("job")).not.toContainEqual(expect.objectContaining({ status: "completed" }));
     expect(executions).toBe(0);
   });
   it("处理器抛出 undefined 也不能被当成成功并推进阶段", async () => {

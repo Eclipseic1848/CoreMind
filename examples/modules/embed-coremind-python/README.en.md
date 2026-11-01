@@ -27,3 +27,13 @@ The example above uses the default Protocol v1 callable bridge. Host verificatio
 7. Tamper with a test Worker's snapshot schemaVersion or outcome and verify the SDK reports `invalid_run_snapshot` instead of accepting inconsistent state.
 
 Return to the [English guide](../../../docs/modules/embed-coremind-python/GUIDE.en.md).
+
+## Offline durable task example
+
+```text
+npm run build:python-worker
+python -m pip install ./python
+python -X utf8 examples/modules/embed-coremind-python/tasks.py
+```
+
+task-host.mjs registers trusted definitions; tasks.py demonstrates sync/async reopen, wake, completion and cancellation with no real model requests.

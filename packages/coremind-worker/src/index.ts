@@ -6,3 +6,4 @@ export {
   WorkerServer,
   type WorkerServerOptions,
 } from "./server.js";
+export { runStdioWorker } from "./stdio.js";

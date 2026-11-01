@@ -25,6 +25,8 @@ decision: TUnion<[TLiteral<"allow">, TLiteral<"deny">]>;
 }>;
 }>;
 
+declare type BoundCommand<T> = T extends unknown ? Omit<T, "sessionId"> : never;
+
 export declare const CancelRequestSchema: TObject<    {
 jsonrpc: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
@@ -1104,11 +1106,184 @@ export declare function parseProtocolV2McpAuthResult(value: unknown): ProtocolV2
 /** 解析 v2 请求；连接级版本锁定由 ProtocolHost 负责。 */
 export declare function parseProtocolV2Request(value: unknown): ProtocolV2Request;
 
+export declare function parseProtocolV2SessionResult(value: unknown, params?: ProtocolV2SessionRequest["params"]): ProtocolV2SessionResult;
+
+/** 校验响应结构和调用身份；不能把其他任务的结果交给当前请求。 */
+export declare function parseProtocolV2TaskResult(value: unknown, params?: ProtocolV2TaskRequest["params"]): ProtocolV2TaskResult;
+
 export declare function parseRunSnapshot(value: unknown): ProtocolRunSnapshot;
 
 /** 客户端与 Host 共同锁定的完整 v2 线协议 schema 集。 */
 export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
+    readonly taskResult: TUnion<[...TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TLiteral<"cancel" | "start" | "resume">;
+    taskId: TString;
+    task: TObject<    {
+    taskId: TString;
+    type: TString;
+    version: TInteger;
+    phase: TString;
+    status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+    checkpoint: TUnknown;
+    pendingRunId: TOptional<TString>;
+    sleep: TOptional<TObject<    {
+    sleepId: TString;
+    wakeAt: TInteger;
+    }>>;
+    }>;
+    }>[], TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TLiteral<"query">;
+    taskId: TString;
+    task: TUnion<[TObject<    {
+    taskId: TString;
+    type: TString;
+    version: TInteger;
+    phase: TString;
+    status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+    checkpoint: TUnknown;
+    pendingRunId: TOptional<TString>;
+    sleep: TOptional<TObject<    {
+    sleepId: TString;
+    wakeAt: TInteger;
+    }>>;
+    }>, TNull]>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TLiteral<"wake">;
+    taskId: TString;
+    wakeId: TString;
+    sleepId: TString;
+    task: TObject<    {
+    taskId: TString;
+    type: TString;
+    version: TInteger;
+    phase: TString;
+    status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+    checkpoint: TUnknown;
+    pendingRunId: TOptional<TString>;
+    sleep: TOptional<TObject<    {
+    sleepId: TString;
+    wakeAt: TInteger;
+    }>>;
+    }>;
+    wakeStatus: TUnion<TLiteral<"terminal" | "accepted" | "duplicate" | "not_due" | "stale">[]>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TLiteral<"calls">;
+    taskId: TString;
+    calls: TArray<TObject<    {
+    key: TString;
+    tool: TString;
+    args: TUnknown;
+    signature: TString;
+    stepId: TString;
+    status: TUnion<TLiteral<"failed" | "completed" | "cancelled" | "pending">[]>;
+    error: TOptional<TString>;
+    result: TOptional<TObject<    {
+    content: TArray<TRecord<TString, TUnknown>>;
+    details: TUnknown;
+    }>>;
+    runId: TString;
+    phase: TString;
+    version: TInteger;
+    authority: TString;
+    }>>;
+    }>, TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TLiteral<"next_wake">;
+    deadline: TUnion<[TNull, TObject<    {
+    sleepId: TString;
+    wakeAt: TInteger;
+    taskId: TString;
+    remainingMs: TInteger;
+    }>]>;
+    }>]>;
+    readonly sessionResult: TObject<    {
+    schemaVersion: TLiteral<1>;
+    sessionId: TString;
+    action: TUnion<TLiteral<"inspect" | "create" | "select" | "fork">[]>;
+    tree: TObject<    {
+    sessionId: TString;
+    activeBranch: TString;
+    branches: TArray<TObject<    {
+    id: TString;
+    leafId: TUnion<[TNull, TString]>;
+    }>>;
+    nodes: TArray<TObject<    {
+    id: TString;
+    parentId: TUnion<[TNull, TString]>;
+    seq: TInteger;
+    type: TUnion<TLiteral<"message" | "model_change" | "thinking_level_change" | "active_tools_change" | "compaction" | "branch_summary" | "custom">[]>;
+    message: TOptional<TRecord<TString, TUnknown>>;
+    summary: TOptional<TString>;
+    }>>;
+    forkedFrom: TOptional<TObject<    {
+    sessionId: TString;
+    entryId: TString;
+    }>>;
+    }>;
+    }>;
     readonly request: TUnion<[TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    id: TUnion<[TString, TNumber]>;
+    method: TLiteral<"task">;
+    params: TUnion<[TObject<    {
+    sessionId: TString;
+    action: TLiteral<"start">;
+    taskId: TString;
+    type: TString;
+    checkpoint: TUnknown;
+    }>, ...TObject<    {
+    sessionId: TString;
+    action: TLiteral<"cancel" | "query" | "resume" | "calls">;
+    taskId: TString;
+    }>[], TObject<    {
+    sessionId: TString;
+    action: TLiteral<"wake">;
+    taskId: TString;
+    wakeId: TString;
+    sleepId: TString;
+    }>, TObject<    {
+    sessionId: TString;
+    action: TLiteral<"next_wake">;
+    }>]>;
+    }>, TObject<    {
+    jsonrpc: TLiteral<"2.0">;
+    protocolVersion: TLiteral<"2.0">;
+    id: TUnion<[TString, TNumber]>;
+    method: TLiteral<"session">;
+    params: TUnion<[TObject<    {
+    sessionId: TString;
+    action: TLiteral<"inspect">;
+    }>, TObject<    {
+    sessionId: TString;
+    action: TLiteral<"create">;
+    branchId: TString;
+    at: TUnion<[TObject<    {
+    sessionId: TString;
+    entryId: TString;
+    }>, TNull]>;
+    }>, TObject<    {
+    sessionId: TString;
+    action: TLiteral<"select">;
+    branchId: TString;
+    }>, TObject<    {
+    sessionId: TString;
+    action: TLiteral<"fork">;
+    at: TObject<    {
+    sessionId: TString;
+    entryId: TString;
+    }>;
+    }>]>;
+    }>, TObject<    {
     jsonrpc: TLiteral<"2.0">;
     id: TUnion<[TString, TNumber]>;
     method: TLiteral<"initialize">;
@@ -1202,8 +1377,8 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     controlId: TString;
     type: TLiteral<"delegation_disposition">;
     reason: TString;
-    delegationId: TString;
     action: TUnion<[TLiteral<"accept_failure">, TLiteral<"choose_alternative">, TLiteral<"redelegate">, TLiteral<"propagate_terminal">]>;
+    delegationId: TString;
     }>]>;
     }>, TObject<    {
     jsonrpc: TLiteral<"2.0">;
@@ -1355,6 +1530,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
+    stepId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
     callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
@@ -1362,13 +1538,12 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
-    stepId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "error" | "tool_result" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -1747,6 +1922,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
+    stepId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
     callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
@@ -1754,7 +1930,6 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
-    stepId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
@@ -1773,6 +1948,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
+    stepId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
     callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
@@ -1780,13 +1956,12 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
-    stepId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
     ignorable: TBoolean;
     sensitivity: TLiteral<"local">;
-    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+    eventType: TLiteral<"budget_exceeded" | "policy_denied" | "error" | "tool_result" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
     payload: TObject<    {
     type: TLiteral<"agent_start">;
     agent: TString;
@@ -2165,6 +2340,7 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     runId: TString;
     approvalId: TOptional<TString>;
     delegationId: TOptional<TString>;
+    stepId: TOptional<TString>;
     protocolVersion: TLiteral<"2.0">;
     callId: TOptional<TString>;
     eventSchemaVersion: TLiteral<1>;
@@ -2172,7 +2348,6 @@ export declare const PROTOCOL_V2_SCHEMA_BUNDLE: {
     eventId: TString;
     timestamp: TString;
     turnId: TOptional<TString>;
-    stepId: TOptional<TString>;
     receiptId: TOptional<TString>;
     parentRunId: TOptional<TString>;
     childRunId: TOptional<TString>;
@@ -2749,8 +2924,8 @@ schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"delegation_disposition">;
 reason: TString;
-delegationId: TString;
 action: TUnion<[TLiteral<"accept_failure">, TLiteral<"choose_alternative">, TLiteral<"redelegate">, TLiteral<"propagate_terminal">]>;
+delegationId: TString;
 }>]>;
 
 export declare type ProtocolV2ControlReceipt = Static<typeof ProtocolV2ControlReceiptSchema>;
@@ -2814,8 +2989,8 @@ schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"delegation_disposition">;
 reason: TString;
-delegationId: TString;
 action: TUnion<[TLiteral<"accept_failure">, TLiteral<"choose_alternative">, TLiteral<"redelegate">, TLiteral<"propagate_terminal">]>;
+delegationId: TString;
 }>]>;
 }>;
 
@@ -2839,6 +3014,7 @@ export declare const ProtocolV2EventEnvelopeSchema: TUnion<[...TObject<    {
 runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
+stepId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
 callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
@@ -2846,13 +3022,12 @@ sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
-stepId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "error" | "tool_result" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;
@@ -3231,6 +3406,7 @@ environmentState: TOptional<TUnion<[TLiteral<"available">, TLiteral<"degraded">,
 runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
+stepId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
 callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
@@ -3238,7 +3414,6 @@ sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
-stepId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
@@ -3260,6 +3435,7 @@ events: TArray<TUnion<[...TObject<    {
 runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
+stepId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
 callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
@@ -3267,13 +3443,12 @@ sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
-stepId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
 ignorable: TBoolean;
 sensitivity: TLiteral<"local">;
-eventType: TLiteral<"budget_exceeded" | "policy_denied" | "tool_result" | "error" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
+eventType: TLiteral<"budget_exceeded" | "policy_denied" | "error" | "tool_result" | "capability_resolved" | "approval_resolved" | "agent_start" | "turn_end" | "text_delta" | "tool_call" | "tool_attempt" | "workspace_lease" | "effect_receipt" | "step_start" | "step_output" | "step_resumed" | "step_end" | "loop_state" | "retry" | "approval_required" | "context_budget_resolved" | "context_compacted" | "context_compaction_failed" | "context_lifecycle_failed" | "context_prefix" | "provider_request" | "artifact_created" | "extension_lifecycle" | "checkpoint_created" | "tool_execution_evidence" | "engineering_evidence" | "agent_end" | "input_receipt" | "input_claimed" | "input_completed" | "input_discarded" | "quiescence_timeout" | "tool_lifecycle">;
 payload: TObject<    {
 type: TLiteral<"agent_start">;
 agent: TString;
@@ -3652,6 +3827,7 @@ environmentState: TOptional<TUnion<[TLiteral<"available">, TLiteral<"degraded">,
 runId: TString;
 approvalId: TOptional<TString>;
 delegationId: TOptional<TString>;
+stepId: TOptional<TString>;
 protocolVersion: TLiteral<"2.0">;
 callId: TOptional<TString>;
 eventSchemaVersion: TLiteral<1>;
@@ -3659,7 +3835,6 @@ sequence: TInteger;
 eventId: TString;
 timestamp: TString;
 turnId: TOptional<TString>;
-stepId: TOptional<TString>;
 receiptId: TOptional<TString>;
 parentRunId: TOptional<TString>;
 childRunId: TOptional<TString>;
@@ -3841,6 +4016,59 @@ export declare type ProtocolV2Request = Static<typeof ProtocolV2RequestSchema>;
 
 export declare const ProtocolV2RequestSchema: TUnion<[TObject<    {
 jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"task">;
+params: TUnion<[TObject<    {
+sessionId: TString;
+action: TLiteral<"start">;
+taskId: TString;
+type: TString;
+checkpoint: TUnknown;
+}>, ...TObject<    {
+sessionId: TString;
+action: TLiteral<"cancel" | "query" | "resume" | "calls">;
+taskId: TString;
+}>[], TObject<    {
+sessionId: TString;
+action: TLiteral<"wake">;
+taskId: TString;
+wakeId: TString;
+sleepId: TString;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"next_wake">;
+}>]>;
+}>, TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"session">;
+params: TUnion<[TObject<    {
+sessionId: TString;
+action: TLiteral<"inspect">;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"create">;
+branchId: TString;
+at: TUnion<[TObject<    {
+sessionId: TString;
+entryId: TString;
+}>, TNull]>;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"select">;
+branchId: TString;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"fork">;
+at: TObject<    {
+sessionId: TString;
+entryId: TString;
+}>;
+}>]>;
+}>, TObject<    {
+jsonrpc: TLiteral<"2.0">;
 id: TUnion<[TString, TNumber]>;
 method: TLiteral<"initialize">;
 params: TObject<    {
@@ -3933,8 +4161,8 @@ schemaVersion: TLiteral<1>;
 controlId: TString;
 type: TLiteral<"delegation_disposition">;
 reason: TString;
-delegationId: TString;
 action: TUnion<[TLiteral<"accept_failure">, TLiteral<"choose_alternative">, TLiteral<"redelegate">, TLiteral<"propagate_terminal">]>;
+delegationId: TString;
 }>]>;
 }>, TObject<    {
 jsonrpc: TLiteral<"2.0">;
@@ -4104,7 +4332,206 @@ input: TOptional<TString>;
 }>;
 }>;
 
+/** 复用宿主已有 RPC 传输；只封装绑定会话的新 v2 操作，不建立第二执行器。 */
+export declare class ProtocolV2SessionClient {
+    private readonly capabilities;
+    private readonly sessionId;
+    private readonly request;
+    constructor(options: {
+        sessionId: string;
+        initialized: ProtocolV2InitializeResult;
+        request: (method: "task" | "session", params: ProtocolV2TaskRequest["params"] | ProtocolV2SessionRequest["params"]) => Promise<unknown>;
+    });
+    task(command: BoundCommand<ProtocolV2TaskRequest["params"]>): Promise<ProtocolV2TaskResult>;
+    session(command: BoundCommand<ProtocolV2SessionRequest["params"]>): Promise<ProtocolV2SessionResult>;
+    private invoke;
+    private require;
+}
+
+export declare type ProtocolV2SessionRequest = Static<typeof ProtocolV2SessionRequestSchema>;
+
+export declare const ProtocolV2SessionRequestSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"session">;
+params: TUnion<[TObject<    {
+sessionId: TString;
+action: TLiteral<"inspect">;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"create">;
+branchId: TString;
+at: TUnion<[TObject<    {
+sessionId: TString;
+entryId: TString;
+}>, TNull]>;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"select">;
+branchId: TString;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"fork">;
+at: TObject<    {
+sessionId: TString;
+entryId: TString;
+}>;
+}>]>;
+}>;
+
+export declare type ProtocolV2SessionResult = Static<typeof ProtocolV2SessionResultSchema>;
+
+export declare const ProtocolV2SessionResultSchema: TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TUnion<TLiteral<"inspect" | "create" | "select" | "fork">[]>;
+tree: TObject<    {
+sessionId: TString;
+activeBranch: TString;
+branches: TArray<TObject<    {
+id: TString;
+leafId: TUnion<[TNull, TString]>;
+}>>;
+nodes: TArray<TObject<    {
+id: TString;
+parentId: TUnion<[TNull, TString]>;
+seq: TInteger;
+type: TUnion<TLiteral<"message" | "model_change" | "thinking_level_change" | "active_tools_change" | "compaction" | "branch_summary" | "custom">[]>;
+message: TOptional<TRecord<TString, TUnknown>>;
+summary: TOptional<TString>;
+}>>;
+forkedFrom: TOptional<TObject<    {
+sessionId: TString;
+entryId: TString;
+}>>;
+}>;
+}>;
+
 export declare type ProtocolV2StartRequest = ProtocolV2RunRequest | ProtocolV2ChatRequest | ProtocolV2ResumeRequest;
+
+export declare type ProtocolV2TaskRequest = Static<typeof ProtocolV2TaskRequestSchema>;
+
+/** 任务定义只由宿主注册；线协议不接收执行器、模块路径或凭据配置。 */
+export declare const ProtocolV2TaskRequestSchema: TObject<    {
+jsonrpc: TLiteral<"2.0">;
+protocolVersion: TLiteral<"2.0">;
+id: TUnion<[TString, TNumber]>;
+method: TLiteral<"task">;
+params: TUnion<[TObject<    {
+sessionId: TString;
+action: TLiteral<"start">;
+taskId: TString;
+type: TString;
+checkpoint: TUnknown;
+}>, ...TObject<    {
+sessionId: TString;
+action: TLiteral<"cancel" | "query" | "resume" | "calls">;
+taskId: TString;
+}>[], TObject<    {
+sessionId: TString;
+action: TLiteral<"wake">;
+taskId: TString;
+wakeId: TString;
+sleepId: TString;
+}>, TObject<    {
+sessionId: TString;
+action: TLiteral<"next_wake">;
+}>]>;
+}>;
+
+export declare type ProtocolV2TaskResult = Static<typeof ProtocolV2TaskResultSchema>;
+
+export declare const ProtocolV2TaskResultSchema: TUnion<[...TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TLiteral<"cancel" | "start" | "resume">;
+taskId: TString;
+task: TObject<    {
+taskId: TString;
+type: TString;
+version: TInteger;
+phase: TString;
+status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+checkpoint: TUnknown;
+pendingRunId: TOptional<TString>;
+sleep: TOptional<TObject<    {
+sleepId: TString;
+wakeAt: TInteger;
+}>>;
+}>;
+}>[], TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TLiteral<"query">;
+taskId: TString;
+task: TUnion<[TObject<    {
+taskId: TString;
+type: TString;
+version: TInteger;
+phase: TString;
+status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+checkpoint: TUnknown;
+pendingRunId: TOptional<TString>;
+sleep: TOptional<TObject<    {
+sleepId: TString;
+wakeAt: TInteger;
+}>>;
+}>, TNull]>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TLiteral<"wake">;
+taskId: TString;
+wakeId: TString;
+sleepId: TString;
+task: TObject<    {
+taskId: TString;
+type: TString;
+version: TInteger;
+phase: TString;
+status: TUnion<TLiteral<"paused" | "ready" | "sleeping" | "completed" | "cancelled">[]>;
+checkpoint: TUnknown;
+pendingRunId: TOptional<TString>;
+sleep: TOptional<TObject<    {
+sleepId: TString;
+wakeAt: TInteger;
+}>>;
+}>;
+wakeStatus: TUnion<TLiteral<"terminal" | "accepted" | "duplicate" | "not_due" | "stale">[]>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TLiteral<"calls">;
+taskId: TString;
+calls: TArray<TObject<    {
+key: TString;
+tool: TString;
+args: TUnknown;
+signature: TString;
+stepId: TString;
+status: TUnion<TLiteral<"failed" | "completed" | "cancelled" | "pending">[]>;
+error: TOptional<TString>;
+result: TOptional<TObject<    {
+content: TArray<TRecord<TString, TUnknown>>;
+details: TUnknown;
+}>>;
+runId: TString;
+phase: TString;
+version: TInteger;
+authority: TString;
+}>>;
+}>, TObject<    {
+schemaVersion: TLiteral<1>;
+sessionId: TString;
+action: TLiteral<"next_wake">;
+deadline: TUnion<[TNull, TObject<    {
+sleepId: TString;
+wakeAt: TInteger;
+taskId: TString;
+remainingMs: TInteger;
+}>]>;
+}>]>;
 
 export declare type ProtocolV2ToolCallNotification = Static<typeof ProtocolV2ToolCallNotificationSchema>;
 

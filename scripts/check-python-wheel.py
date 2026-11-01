@@ -419,6 +419,7 @@ def smoke_install(wheel: Path) -> None:
         )
         try:
             wait_for_port(port)
+            task_host_source = (repository_root / "examples/modules/embed-coremind-python/task-host.mjs").read_text(encoding="utf-8")
             program = f"""
 import json
 import os
@@ -427,7 +428,7 @@ import tempfile
 from pathlib import Path
 from importlib.metadata import version
 import coremind
-from coremind import ERROR_CODES, CoreMindClient, __version__
+from coremind import ERROR_CODES, CoreMindClient, ProtocolError, __version__
 
 assert Path(coremind.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 assert __version__ == version("coremind-ai"), (__version__, version("coremind-ai"))
@@ -468,6 +469,29 @@ if result is not None:
     assert node["agentName"] == "researcher", node
     assert node["status"] == "joined", node
     assert node["outcome"]["status"] == "succeeded", node
+with tempfile.TemporaryDirectory(prefix="coremind-wheel-task-") as directory:
+    root = Path(directory)
+    with CoreMindClient(config, protocol_version="2.0", session_id="tasks", config_dir=root, cwd=root, request_timeout=30) as client:
+        assert client.inspect_session_tree()["tree"]["sessionId"] == "tasks"
+        try:
+            client.task_query("job")
+        except ProtocolError as error:
+            assert error.coremind_code == "protocol_capability_missing"
+        else:
+            raise AssertionError("默认 Worker 不应有任务注册表")
+    bundle = Path(coremind.__file__).parent / "_worker/coremind-worker.mjs"
+    host = root / "trusted-task-host.mjs"
+    host.write_text({task_host_source!r}.replace('"coremind-worker"', json.dumps(bundle.as_uri())), encoding="utf-8")
+    options = dict(protocol_version="2.0", session_id="tasks", config_dir=root, cwd=root, request_timeout=30,
+                   worker_command=["node", str(host)])
+    with CoreMindClient(config, **options) as client:
+        client.task_start("job", "example", 0)
+        sleeping = client.task_resume("job")["task"]
+        assert sleeping["status"] == "sleeping"
+    with CoreMindClient(config, **options) as client:
+        assert client.task_query("job")["task"] == sleeping
+        client.task_wake("job", "wake", sleeping["sleep"]["sleepId"])
+        assert client.task_resume("job")["task"]["checkpoint"] == 2
 print(json.dumps({{"version": __version__, "workerStarted": True, "childRun": result is not None}}))
 """
             completed = run(

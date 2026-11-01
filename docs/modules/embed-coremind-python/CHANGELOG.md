@@ -1,5 +1,10 @@
 # Changelog
 
+**1.4.0 开发线 / Development line**
+
+- 同一 Node Worker 接入 TS 与同步/异步 Python 持久任务和会话导航，严格绑定身份、能力与宿主注册；补充真实崩溃重启及结果复用验收（#367）。
+- Expose durable tasks and session navigation through one Node Worker for TS and sync/async Python, with identity/capability checks, trusted registration and real-process recovery tests (#367).
+
 ## 1.3.0 - 2026-10-20
 
 - 修复 v1 `@client.tool` 对 future/字符串 `int`、`str`、`bool` 和已有容器参数注解的自动 Schema；Node 侧保留既有类型转换，转换后仍未通过 Schema 校验的参数在执行前拒绝。无法解析的前向引用明确要求显式 `parameters`，既有显式 Schema 保持兼容，复杂 typing 支持范围不扩大（#326）。

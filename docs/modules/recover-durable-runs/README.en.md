@@ -90,3 +90,7 @@ Returning sleepUntil atomically saves the next phase and absolute deadline. next
 ## Keyed calls (1.4 development)
 
 runCalls/executeTool bind stable keys to arguments, authority and order within one governed Run, sharing its budgets, permissions and ChildRun limits. calls queries history; unknown effects pause, while committed results reconcile from the original Run. Terminal parents execute no more calls; history retains the original 1 MiB limit without automatic cleanup. For compatibility, rollback and host versioning responsibility see [the task guide](../../guides/durable-tasks.en.md) and [ADR 0028](../../adr/0028-keyed-task-calls.md).
+
+## Cross-language API
+
+Protocol v2 and sync/async Python task/session methods use the same Node Runtime. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Run `python -X utf8 examples/modules/embed-coremind-python/tasks.py` and `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`. Verify real restart, committed calls, session identity, cancellation and errors; mocks or process liveness alone are insufficient.

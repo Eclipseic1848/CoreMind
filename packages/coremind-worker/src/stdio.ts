@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { CoreMindError } from "coremind-ai";
 import { type BoundedOutput, createBoundedOutput } from "coremind-ai/internal";
 import { createErrorResponse } from "coremind-protocol";
-import { WorkerServer } from "./server.js";
+import { WorkerServer, type WorkerServerOptions } from "./server.js";
 
 export interface StdioSenderOptions {
   maxPendingBytes?: number;
@@ -63,6 +63,7 @@ function isLiveEvent(message: unknown): boolean {
 export function runStdioWorker(
   input: NodeJS.ReadableStream = process.stdin,
   output: NodeJS.WritableStream = process.stdout,
+  options: Omit<WorkerServerOptions, "send"> = {},
 ): Promise<void> {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
@@ -73,7 +74,7 @@ export function runStdioWorker(
   let finishing = false;
   const pending = new Set<Promise<void>>();
   const sender = createStdioSender(output, { onFailure: () => queueMicrotask(finish) });
-  const server = new WorkerServer({ send: (message) => sender.send(message) });
+  const server = new WorkerServer({ ...options, send: (message) => sender.send(message) });
   const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
 
   function finish(): void {

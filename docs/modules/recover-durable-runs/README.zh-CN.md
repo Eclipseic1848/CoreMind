@@ -90,3 +90,7 @@ Windows 与 Linux 使用相同的合同和测试定义。锁文件在异常进�
 ## 稳定键调用（1.4 开发线）
 
 runCalls 内 executeTool 的稳定键绑定参数、权限身份与顺序，一个阶段共享原 Run 的预算/权限/ChildRun 上限。calls 查询历史结果；未知外部效果仍暂停，已提交结果可从原 Run 协调。父任务终态不执行，历史受原 1 MiB 限制，不自动清理。兼容、回滚和宿主版本责任见 [任务指南](../../guides/durable-tasks.zh-CN.md) 和 [ADR 0028](../../adr/0028-keyed-task-calls.md)。
+
+## 跨语言入口
+
+任务与会话分支的 Protocol v2 / 同步与异步 Python 入口已接入同一 Node Runtime。使用方法和权限边界见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)

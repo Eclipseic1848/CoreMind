@@ -49,7 +49,7 @@ await forkChat.chat("Continue the new session");
 
 A rejected selection write may already be durable: preserve files and reopen to inspect rather than assuming rollback. A failed fork alias may leave a complete internal candidate; verify its identity from the reported path before opening, without blindly forking again or deleting the source.
 
-Old v3 and unbranched v4 data remain compatible. Older SDKs ignore persisted selection and must not take over new files. Rollback requires stopping writers, preserving Session/Run/Workspace and restoring pre-upgrade backups. These APIs neither implement upstream ExtensionAPI nor resume an old Run. Python/RPC navigation belongs to #367. See [ADR0029](../../adr/0029-public-session-tree-navigation.md).
+Old v3 and unbranched v4 data remain compatible. Older SDKs ignore persisted selection and must not take over new files. Rollback requires stopping writers, preserving Session/Run/Workspace and restoring pre-upgrade backups. These APIs neither implement upstream ExtensionAPI nor resume an old Run. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md) for Python/RPC navigation. See [ADR0029](../../adr/0029-public-session-tree-navigation.md).
 
 ## Verification
 

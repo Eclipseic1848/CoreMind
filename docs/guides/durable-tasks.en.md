@@ -102,6 +102,10 @@ Order is intent → governed execution and receipt validation → critical Run s
 
 Uncertain write acknowledgements invalidate the holder. Preserve both task and Run facts, close/reopen and inspect original commits rather than assuming rollback. Arbitrary host JavaScript, clocks, randomness and direct networking are outside this contract. This is neither external exactly-once nor durable JS-stack execution or another Runtime.
 
-Older tasks without callGroups remain readable. Older SDKs reject the new ledger and do not understand the task-specific Run marker: stop all writers and preserve both fact domains before rollback, and never resume a new task Run independently with an old SDK. Python/Worker access remains #367; this change does not alter the protocol. Release qualification still requires both platform CIs, all security gates and merge.
+Older tasks without callGroups remain readable. Older SDKs reject the new ledger and do not understand the task-specific Run marker: stop all writers and preserve both fact domains before rollback, and never resume a new task Run independently with an old SDK. Python/Worker access is described in the cross-language section below. Release qualification still requires both platform CIs, all security gates and merge.
 
 Run `task-calls.test.ts`, `task-calls-process.test.ts`, `task-calls-child.test.ts`, the offline `task-calls.mjs`, and original module gates. Coverage includes real process exits after intent/effect/Run-result/task-result/Run-finish, ChildRun limits, budgets, authorization, cancellation and uncertain result acknowledgements. See [ADR 0028](../adr/0028-keyed-task-calls.md).
+
+## Cross-language access
+
+See the [Python SDK guide](../modules/embed-coremind-python/GUIDE.en.md#cross-language-tasks-and-session-branches-1-4-development-line) for cross-language tasks and navigation. Tasks require trusted host registration, matching fingerprints and negotiated capabilities.

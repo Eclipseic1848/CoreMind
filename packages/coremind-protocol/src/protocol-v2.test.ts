@@ -89,6 +89,8 @@ describe("CoreMind Protocol v2", () => {
   });
   it("schema fingerprint 覆盖请求、响应、事件与错误合同", () => {
     expect(Object.keys(PROTOCOL_V2_SCHEMA_BUNDLE)).toEqual([
+      "taskResult",
+      "sessionResult",
       "request",
       "initializeResult",
       "runHandle",
