@@ -288,6 +288,18 @@ import { SkillMeta } from 'coremind-templates';
 import { SKILLS } from 'coremind-templates';
 import { StateGrader } from 'coremind-runtime';
 import { StepOutput } from 'coremind-runtime';
+import { TaskConversationEntry } from 'coremind-runtime';
+import { TaskDefinition } from 'coremind-runtime';
+import { TaskDocument } from 'coremind-runtime';
+import { TaskDocumentSchema } from 'coremind-runtime';
+import { TaskExecutionError } from 'coremind-runtime';
+import { TaskExecutionErrorCode } from 'coremind-runtime';
+import { TaskPhaseContext } from 'coremind-runtime';
+import { TaskRuntimeOptions } from 'coremind-runtime';
+import { TaskSession } from 'coremind-runtime';
+import { TaskSessionOptions } from 'coremind-runtime';
+import { TaskSnapshot } from 'coremind-runtime';
+import { TaskTransition } from 'coremind-runtime';
 import { TelemetryAuthorizationScope } from 'coremind-runtime';
 import { TelemetryConfig } from 'coremind-config';
 import { TelemetryConfigurationFact } from 'coremind-runtime';
@@ -904,6 +916,30 @@ export { SKILLS }
 export { StateGrader }
 
 export { StepOutput }
+
+export { TaskConversationEntry }
+
+export { TaskDefinition }
+
+export { TaskDocument }
+
+export { TaskDocumentSchema }
+
+export { TaskExecutionError }
+
+export { TaskExecutionErrorCode }
+
+export { TaskPhaseContext }
+
+export { TaskRuntimeOptions }
+
+export { TaskSession }
+
+export { TaskSessionOptions }
+
+export { TaskSnapshot }
+
+export { TaskTransition }
 
 export { TelemetryAuthorizationScope }
 

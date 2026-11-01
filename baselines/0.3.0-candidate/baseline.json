@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "288cac6d05a9fdb8ca07a777628ea41a3340be5a",
+    "developmentCommit": "9c653e0acfe0eb7a607a8dd5d9cec1e09ec9a819",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,11 +13,11 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "0d37cbe466a8ae953d65dbe6df30be8fc7dc3d606bd2df77df2b2d57804f1bf3",
+      "coremind-ai": "b08f49bb0850731938769a2327402649f8676675342892472f094fc4018a88c5",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
       "coremind-protocol": "a3452d8b7872eabb18ea65f2358772aea98de78919f24efad45c69ae2e431eea",
-      "coremind-runtime": "b5922c46776a93cb874f19fc3b246a01f03fca2165ebd177b292dab62038cc3b",
+      "coremind-runtime": "634268635e027c372aed005b301365ac8087f17a982f5c48c6add1d01e6e10e4",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "96690716a0b98ac983ec1e728008f7aadbb05cf155804d77d9208896b7894fca",
       "coremind-worker": "5b228bdd8b5b06fc4f9c81fd8ca60604eb0766f6d57db52623eaf7372e2234f1"
@@ -283,18 +283,18 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-01T05:29:21.515Z",
+    "capturedAt": "2026-11-01T06:15:43.008Z",
     "capturePlatform": "win32",
-    "updateReason": "#362 已批准的任务原子提交合同；ADR0025 记录旧域兼容、配套 SDK/Worker 与回滚；仅增量 API/错误枚举，安全、覆盖率、超时、验收和依赖保持",
+    "updateReason": "Issue #363: additive public TaskSession phase and migration API; ADR 0026; preserve protocol, security, timeout, coverage and historical reference contracts",
     "apiExtractorVersion": "7.58.12",
     "dependencyLockSha256": "42f7f3780e9dc7cd3275bfc1da8568d44aacf605c9e90f16868749d8c0722bb4",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
-      "coremind-ai": "951cf13f7b1d950e27c0b34b78c101de8ee3502970b67ca2cb96d470ffaf7eaa",
+      "coremind-ai": "47b90daf85cac2cf4f73bed756f9fb14771c72c4c5d81cd89a89d8010d3c4c54",
       "coremind-cli": "c84d2667b0179beaf3555345e67fdd47781e82e78b17b46c27ddbd854b4e6e1d",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
       "coremind-protocol": "a63dc1242e4a82d6693453991548e1a41c464e713b7cc4029808ac57a2a2312e",
-      "coremind-runtime": "61f368ff85ca45c69c047d47741f37b4daaadc4012c9e52b7d107554aa3401f4",
+      "coremind-runtime": "2de0b6dbc572a3610e6afe95bb248574e36e4b5a9340c3329131336d4c3824c1",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
       "coremind-tools": "1b4adc101935ebf4cd562d596c7e98a5321275dee70662c113f8c2094a113fb3",
       "coremind-worker": "83f30ad27bd4ce6c7881711ef8f8f393bced403a7990488b419882054c7abf8a"

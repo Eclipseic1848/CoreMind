@@ -23,3 +23,7 @@ For the opt-in internal task mode, follow [ADR 0025](../../docs/adr/0025-explici
 中文执行原则：恢复不是重新运行；先判定权威状态和副作用证据，再决定跳过、重试或请求人工处理。不能无损迁移时保留原文件并失败关闭。
 
 显式任务模式以单条 TaskCommit 同时提交 checkpoint/document/entry；校验和持久回执未完成前不得发布部分投影。未知 I/O 后保留原 commitId 重开核对，不删坏尾行，不把单机进程崩溃保证写成外部 exactly-once。
+
+Public TypeScript TaskSession builds phase execution and explicit migration on that internal foundation; follow [ADR 0026](../../docs/adr/0026-task-phases-and-migrations.md) and the [task guide](../../docs/guides/durable-tasks.en.md). Validate same-version definition identity and independent Runtime authority before execution. Migration receives only state and cannot authorize new policy. Keep pendingRunId after unresolved Runs; never silently resend. Run task-session.test.ts, task-session-process.test.ts, task-session-runtime.test.ts and task-phases.mjs. Budgets remain per Run; phase handlers are trusted, cooperatively cancelled host code, not an OS sandbox.
+
+公共 TaskSession 每次 resume 只执行一个阶段，迁移失败保留原事实。定义闭包变化须提升定义版本，审批闭包/外部策略变化须更新 authorityVersion；未知副作用不得借新阶段重试。

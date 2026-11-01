@@ -206307,7 +206307,7 @@ var init_ajvProvider_97rDpkRx = __esm({
           uriResolver
         };
       }
-      var Ajv4 = class {
+      var Ajv5 = class {
         constructor(opts = {}) {
           this.schemas = {};
           this.refs = {};
@@ -206627,9 +206627,9 @@ var init_ajvProvider_97rDpkRx = __esm({
           }
         }
       };
-      Ajv4.ValidationError = validation_error_1.default;
-      Ajv4.MissingRefError = ref_error_1.default;
-      exports.default = Ajv4;
+      Ajv5.ValidationError = validation_error_1.default;
+      Ajv5.MissingRefError = ref_error_1.default;
+      exports.default = Ajv5;
       function checkOptions(checkOpts, options, msg, log2 = "error") {
         for (const key in checkOpts) {
           const opt = key;
@@ -208386,7 +208386,7 @@ var init_ajvProvider_97rDpkRx = __esm({
       const draft7MetaSchema = require_json_schema_draft_07();
       const META_SUPPORT_DATA = ["/properties"];
       const META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-      var Ajv4 = class extends core_1.default {
+      var Ajv5 = class extends core_1.default {
         _addVocabularies() {
           super._addVocabularies();
           draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -208403,11 +208403,11 @@ var init_ajvProvider_97rDpkRx = __esm({
           return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
         }
       };
-      exports.Ajv = Ajv4;
-      module.exports = exports = Ajv4;
-      module.exports.Ajv = Ajv4;
+      exports.Ajv = Ajv5;
+      module.exports = exports = Ajv5;
+      module.exports.Ajv = Ajv5;
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.default = Ajv4;
+      exports.default = Ajv5;
       var validate_1 = require_validate();
       Object.defineProperty(exports, "KeywordCxt", {
         enumerable: true,
@@ -222474,7 +222474,7 @@ var require_core3 = __commonJS({
         uriResolver
       };
     }
-    var Ajv4 = class {
+    var Ajv5 = class {
       constructor(opts = {}) {
         this.schemas = {};
         this.refs = {};
@@ -222844,9 +222844,9 @@ var require_core3 = __commonJS({
         }
       }
     };
-    Ajv4.ValidationError = validation_error_1.default;
-    Ajv4.MissingRefError = ref_error_1.default;
-    exports.default = Ajv4;
+    Ajv5.ValidationError = validation_error_1.default;
+    Ajv5.MissingRefError = ref_error_1.default;
+    exports.default = Ajv5;
     function checkOptions(checkOpts, options, msg, log2 = "error") {
       for (const key in checkOpts) {
         const opt = key;
@@ -224957,7 +224957,7 @@ var require_ajv2 = __commonJS({
     var draft7MetaSchema = require_json_schema_draft_072();
     var META_SUPPORT_DATA = ["/properties"];
     var META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-    var Ajv4 = class extends core_1.default {
+    var Ajv5 = class extends core_1.default {
       _addVocabularies() {
         super._addVocabularies();
         draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -224976,11 +224976,11 @@ var require_ajv2 = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv = Ajv4;
-    module.exports = exports = Ajv4;
-    module.exports.Ajv = Ajv4;
+    exports.Ajv = Ajv5;
+    module.exports = exports = Ajv5;
+    module.exports.Ajv = Ajv5;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv4;
+    exports.default = Ajv5;
     var validate_1 = require_validate2();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: function() {
       return validate_1.KeywordCxt;
@@ -269250,6 +269250,74 @@ async function createMcpAuthentication(options) {
   });
 }
 
+// packages/coremind-runtime/dist/task-session.js
+var import_ajv4 = __toESM(require_ajv2(), 1);
+
+// packages/coremind-runtime/dist/task-commit.js
+var import_ajv3 = __toESM(require_ajv2(), 1);
+var MAX_COMMIT_BYTES = 1024 * 1024;
+var ID2 = { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$" };
+var VERSION5 = { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
+var validator = new import_ajv3.Ajv({ logger: false, strict: true, ownProperties: true });
+var validateCommit = validator.compile({
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "commitId",
+    "expectedRevision",
+    "taskId",
+    "task",
+    "documents",
+    "entries"
+  ],
+  properties: {
+    schemaVersion: { const: 1 },
+    commitId: ID2,
+    expectedRevision: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER - 1 },
+    taskId: ID2,
+    task: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "version", "phase", "checkpoint"],
+      properties: { type: ID2, version: VERSION5, phase: ID2, checkpoint: {} }
+    },
+    documents: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "type", "version", "value"],
+        properties: { id: ID2, type: ID2, version: VERSION5, value: {} }
+      }
+    },
+    entries: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "role", "text"],
+        properties: { id: ID2, role: { enum: ["user", "assistant"] }, text: { type: "string" } }
+      }
+    }
+  }
+});
+
+// packages/coremind-runtime/dist/task-session.js
+var stateValidator = new import_ajv4.Ajv({ strict: true, ownProperties: true }).compile({
+  type: "object",
+  additionalProperties: false,
+  required: ["format", "authority", "definition", "status", "checkpoint"],
+  properties: {
+    format: { const: 1 },
+    authority: { type: "string", pattern: "^[a-f0-9]{64}$" },
+    definition: { type: "string", pattern: "^[a-f0-9]{64}$" },
+    status: { enum: ["ready", "paused", "completed", "cancelled"] },
+    checkpoint: {},
+    pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 }
+  }
+});
+
 // packages/coremind-runtime/dist/bounded-output.js
 import { setImmediate as setImmediate3 } from "node:timers/promises";
 var MAX_PENDING_MESSAGES = 1024;
@@ -269442,56 +269510,6 @@ function createBoundedOutput(output, options) {
     }
   };
 }
-
-// packages/coremind-runtime/dist/task-commit.js
-var import_ajv3 = __toESM(require_ajv2(), 1);
-var MAX_COMMIT_BYTES = 1024 * 1024;
-var ID2 = { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$" };
-var VERSION5 = { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
-var validator = new import_ajv3.Ajv({ logger: false, strict: true, ownProperties: true });
-var validateCommit = validator.compile({
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "schemaVersion",
-    "commitId",
-    "expectedRevision",
-    "taskId",
-    "task",
-    "documents",
-    "entries"
-  ],
-  properties: {
-    schemaVersion: { const: 1 },
-    commitId: ID2,
-    expectedRevision: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER - 1 },
-    taskId: ID2,
-    task: {
-      type: "object",
-      additionalProperties: false,
-      required: ["type", "version", "phase", "checkpoint"],
-      properties: { type: ID2, version: VERSION5, phase: ID2, checkpoint: {} }
-    },
-    documents: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "type", "version", "value"],
-        properties: { id: ID2, type: ID2, version: VERSION5, value: {} }
-      }
-    },
-    entries: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "role", "text"],
-        properties: { id: ID2, role: { enum: ["user", "assistant"] }, text: { type: "string" } }
-      }
-    }
-  }
-});
 
 // packages/coremind-worker/src/server.ts
 import { createHash as createHash28 } from "node:crypto";

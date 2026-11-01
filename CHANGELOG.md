@@ -8,7 +8,9 @@
 
 ### 能力提升
 
-- **任务原子提交基础：** 新增 internal `TaskCommitSession`，把任务 checkpoint、typed document 和文本 entry 放在一个原子持久记录中；支持 revision 冲突、commitId 内容幂等、Schema 身份校验和进程崩溃后投影重建。旧 Session/Run/Workspace 数据不迁移，标准 Runtime 保护任务存储路径。配套 ADR、双语指南、SOP/Skill、真实子进程回归与无模型示例；任务调度、sleep/wake 和公共 SDK 接入仍属后续迭代。本节不表示已发布。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+- **持久任务阶段与显式迁移：** 公共 TypeScript `TaskSession` 支持 start/query/resume/cancel，阶段检查点原子提交，版本/定义/权限身份校验与显式状态迁移。模型和工具沿用现有 Runtime；未知 Run 窗口失败关闭。配套真实进程、权限/预算/取消验证及双语指南、SOP/Skill 和离线示例。未合并或安全门未通过不构成发布资格。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
+
+- **任务原子提交基础：** 新增 internal `TaskCommitSession`，把任务 checkpoint、typed document 和文本 entry 放在一个原子持久记录中；支持 revision 冲突、commitId 内容幂等、Schema 身份校验和进程崩溃后投影重建。旧 Session/Run/Workspace 数据不迁移，标准 Runtime 保护任务存储路径。配套 ADR、双语指南、SOP/Skill、真实子进程回归与无模型示例；后台调度、sleep/wake 和跨语言接入仍属后续迭代。本节不表示已发布。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
 
 ## 1.3.0
 

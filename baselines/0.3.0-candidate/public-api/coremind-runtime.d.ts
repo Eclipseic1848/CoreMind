@@ -1936,6 +1936,10 @@ export declare interface JsonObjectSchema extends Record<string, unknown> {
     additionalProperties?: boolean;
 }
 
+declare type JsonValue = null | boolean | number | string | JsonValue[] | {
+    [key: string]: JsonValue;
+};
+
 export declare interface LanguageCandidate {
     language: CodingLanguage;
     score: number;
@@ -2971,6 +2975,112 @@ export declare interface StepOutput {
         agent: string;
         stepId: string;
     };
+}
+
+/** 当前基础合同只保存文本对话；不执行消息或还原 JS 调用栈。 */
+export declare interface TaskConversationEntry {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+}
+
+export declare interface TaskDefinition {
+    type: string;
+    version: number;
+    initialPhase: string;
+    checkpointSchema: Record<string, unknown>;
+    phases: Record<string, (context: TaskPhaseContext) => TaskTransition | Promise<TaskTransition>>;
+    /** 只转换旧阶段与检查点；不接收 Runtime、权限、工具或预算入口。 */
+    migrate?: (previous: TaskSnapshot, signal: AbortSignal) => Pick<TaskTransition, "phase" | "checkpoint"> | Promise<Pick<TaskTransition, "phase" | "checkpoint">>;
+}
+
+export declare interface TaskDocument {
+    id: string;
+    type: string;
+    version: number;
+    value: JsonValue;
+}
+
+export declare interface TaskDocumentSchema {
+    type: string;
+    version: number;
+    schema: Record<string, unknown>;
+}
+
+export declare class TaskExecutionError extends Error {
+    readonly code: TaskExecutionErrorCode;
+    constructor(code: TaskExecutionErrorCode, message: string);
+}
+
+export declare type TaskExecutionErrorCode = "task_definition_invalid" | "task_definition_unknown" | "task_definition_mismatch" | "task_authority_mismatch" | "task_checkpoint_invalid" | "task_migration_failed" | "task_not_found" | "task_already_exists" | "task_busy" | "task_closed" | "task_cancelled" | "task_phase_timeout" | "task_run_unresolved" | "task_run_failed";
+
+export declare interface TaskPhaseContext {
+    readonly task: TaskSnapshot;
+    readonly signal: AbortSignal;
+    /** 每阶段最多一次完整受治理 Run；不暴露裸模型或工具执行器。 */
+    run(prompt: string): Promise<RunResult>;
+}
+
+export declare interface TaskRuntimeOptions extends Pick<CoreMindRuntimeOptions, "config" | "configDir" | "env" | "toolEnv" | "approveTool" | "approveProjectCode" | "toolDefinitions" | "lifecycleExtensions" | "maxSteps" | "stepTimeoutMs"> {
+    /** 宿主须在回调闭包、凭据路由或外部策略改变时更新此身份。 */
+    authorityVersion: string;
+}
+
+/** 宿主显式驱动的阶段控制器；每次 resume 只有一个阶段提交，不恢复 JS 栈。 */
+export declare class TaskSession {
+    private readonly commits;
+    private readonly definitions;
+    private readonly workspace;
+    private readonly runtime;
+    private readonly authority;
+    private readonly phaseTimeoutMs;
+    private active?;
+    private closing?;
+    private constructor();
+    static open(options: TaskSessionOptions): Promise<TaskSession>;
+    query(taskId: string): TaskSnapshot | undefined;
+    start(input: {
+        taskId: string;
+        type: string;
+        checkpoint: JsonValue;
+    }): Promise<TaskSnapshot>;
+    resume(taskId: string): Promise<TaskSnapshot>;
+    cancel(taskId: string): Promise<TaskSnapshot>;
+    close(): Promise<void>;
+    private assertOpen;
+    private definition;
+    private record;
+    private requiredRecord;
+    private persist;
+    private exclusive;
+}
+
+export declare interface TaskSessionOptions {
+    workspace: string;
+    sessionId: string;
+    definitions: readonly TaskDefinition[];
+    documentSchemas?: readonly TaskDocumentSchema[];
+    /** 纯状态任务可省略；调用 context.run 时必须提供。 */
+    runtime?: TaskRuntimeOptions;
+}
+
+export declare interface TaskSnapshot {
+    taskId: string;
+    type: string;
+    version: number;
+    phase: string;
+    status: "ready" | "paused" | "completed" | "cancelled";
+    checkpoint: JsonValue;
+    /** 存在时禁止自动重发 Run；须先核对原 Run 的 Facts 与副作用回执。 */
+    pendingRunId?: string;
+}
+
+export declare interface TaskTransition {
+    phase: string;
+    checkpoint: JsonValue;
+    done?: boolean;
+    documents?: TaskDocument[];
+    entries?: TaskConversationEntry[];
 }
 
 export declare interface TelemetryAuthorizationScope {

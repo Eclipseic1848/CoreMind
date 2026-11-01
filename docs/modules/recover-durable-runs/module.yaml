@@ -8,6 +8,7 @@ sourcePaths:
   - "packages/coremind-runtime/src/operation-state.ts"
   - "packages/coremind-runtime/src/run-state.ts"
   - "packages/coremind-runtime/src/task-commit.ts"
+  - "packages/coremind-runtime/src/task-session.ts"
   - "packages/coremind-runtime/src/session.ts"
   - "packages/coremind-runtime/src/checkpoint.ts"
   - "packages/coremind-runtime/src/run-effect-coordinator.ts"
@@ -30,9 +31,13 @@ examplePaths:
   - examples/modules/recover-durable-runs/README.zh-CN.md
   - examples/modules/recover-durable-runs/README.en.md
   - examples/modules/recover-durable-runs/task-commit.mjs
+  - examples/modules/recover-durable-runs/task-phases.mjs
 testPaths:
   - "packages/coremind-runtime/src/operation-state.test.ts"
   - "packages/coremind-runtime/src/run-state.test.ts"
+  - "packages/coremind-runtime/src/task-session.test.ts"
+  - "packages/coremind-runtime/src/task-session-process.test.ts"
+  - "packages/coremind-runtime/src/task-session-runtime.test.ts"
   - "packages/coremind-runtime/src/task-commit.test.ts"
   - "packages/coremind-runtime/src/task-commit-crash.test.ts"
   - "packages/coremind-runtime/src/state-write-protection.acceptance.test.ts"

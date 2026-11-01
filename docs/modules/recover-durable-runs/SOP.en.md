@@ -68,3 +68,13 @@ npm run check:modules
 ```
 
 The checker in `gate` mode must traverse the tracked deterministic fixtures and return zero violations for I-1 through I-12; `eval` must remain independently runnable. Use the same command on Linux. Real process crashes, competing writers, and filesystem rename behavior require separate Windows and Linux acceptance.
+
+## Public task execution and migration acceptance
+
+1. Check type/version/schema, authorityVersion and Runtime configuration. Handlers restarting at the top must not repeat business effects through direct host I/O.
+2. Query taskId, phase, status, checkpoint and pendingRunId. Preserve original Run Facts/receipts for unresolved Runs; do not edit journals or create replacement Runs.
+3. Definition changes need an increased version and a state-only migrate function. Migration cannot change authority, budgets or tools. Compare the original journal after failures to verify no migration facts were written.
+4. Run task-session.test.ts, task-session-process.test.ts, task-session-runtime.test.ts and the task-phases.mjs example. Check actual process recovery, terminal idempotency, cancellation/timeouts and permission/budget/unknown-effect boundaries.
+5. Run the original module/repository gates. Windows local results do not replace Linux CI. Keep unmerged, security-blocked Issues open; do not publish.
+
+See the [task guide](../../guides/durable-tasks.en.md) for API details.

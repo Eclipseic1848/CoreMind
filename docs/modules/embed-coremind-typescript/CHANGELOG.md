@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — 1.4.0 development
+
+- Exported TaskSession, TaskDefinition and related task contracts through coremind-ai. Added start/query/resume/cancel, explicit state migration and existing Runtime governance; unresolved Run windows fail closed. See the bilingual durable task guides. This is not a release claim. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
+
 ## 1.3.0 - 2026-10-20
 
 - Synchronized module contracts and version metadata for the 1.3.0 release line; publication requires qualification for the final commit and exact artifacts.

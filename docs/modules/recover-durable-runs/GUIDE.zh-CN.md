@@ -84,3 +84,7 @@ document 注册为 `{ type, version, schema }`，Schema 使用同步 JSON Schema
 - 把本机 `.coremind` 运行产物当作可复现的 Gate fixture。
 
 运行 [模块示例](../../../examples/modules/recover-durable-runs/README.zh-CN.md) 后，再把恢复策略接入具体业务。
+
+## 公共持久任务阶段（1.4 开发线）
+
+`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。此开发线不代表正式发布；跨语言、sleep/wake、嵌套调用另行交付。
