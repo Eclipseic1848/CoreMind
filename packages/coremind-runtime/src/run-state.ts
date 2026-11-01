@@ -64,6 +64,7 @@ export type RunStateKind =
   | "checkpoint_restore"
   | "loop"
   | "operation"
+  | "task_commit"
   | "pause"
   | "finish";
 
@@ -97,6 +98,8 @@ export interface RunStoreDurabilityMetrics {
 }
 
 export interface RunStore {
+  /** critical commit 整条记录原子可见；显式任务模式必须具备此保证。 */
+  readonly atomicCriticalCommit?: true;
   /** 旧 Adapter 缺省时仅按 ordinary/process_memory 兼容，critical 必须失败关闭。 */
   readonly supportedDurability?: readonly RunStoreDurability[];
   readonly durabilityBoundary?: RunStoreDurabilityBoundary;
@@ -129,6 +132,8 @@ export interface RunResumePlan {
 
 /** 本地 JSONL RunStore：每条记录只追加，不覆盖既有审计。 */
 export interface FileRunStoreOptions {
+  /** 原子任务日志不允许修剪损坏尾行；普通 Run 保持原有恢复规则。 */
+  repairTornTail?: boolean;
   /** 仅供故障注入测试：新增记录临时文件完成后、发布前调用。 */
   beforeCommit?: (context: {
     destination: string;
@@ -177,6 +182,7 @@ export function isManagedRunPath(relativePath: string): boolean {
 }
 
 export class FileRunStore implements RunStore {
+  readonly atomicCriticalCommit = true as const;
   readonly supportedDurability = ["ordinary", "critical"] as const;
   readonly durabilityBoundary = "process_crash" as const;
   private readonly cursors = new Map<string, RunFileCursor>();
@@ -303,7 +309,12 @@ export class FileRunStore implements RunStore {
       try {
         parsed = JSON.parse(line) as unknown;
       } catch (error) {
-        if (!terminated && index === lines.length - 1 && records.length > 0) {
+        if (
+          this.options.repairTornTail !== false &&
+          !terminated &&
+          index === lines.length - 1 &&
+          records.length > 0
+        ) {
           return {
             records,
             repairedText: `${records.map((item) => JSON.stringify(item)).join("\n")}\n`,
@@ -1529,6 +1540,7 @@ function validateRecord(value: unknown, expectedRunId: string): RunStateRecord {
       "checkpoint_restore",
       "loop",
       "operation",
+      "task_commit",
       "pause",
       "finish",
     ].includes(record.kind ?? "")

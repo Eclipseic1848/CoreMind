@@ -24521,16 +24521,16 @@ function applySchemaArrayCoercion(value, schema) {
 }
 function coerceWithUnionSchema(value, schemas) {
   for (const schema of schemas) {
-    const validator = getSubSchemaValidator(schema);
-    if (validator?.Check(value)) {
+    const validator2 = getSubSchemaValidator(schema);
+    if (validator2?.Check(value)) {
       return value;
     }
   }
   for (const schema of schemas) {
     const candidate = structuredClone(value);
     const coerced = coerceWithJsonSchema(candidate, schema);
-    const validator = getSubSchemaValidator(schema);
-    if (validator?.Check(coerced)) {
+    const validator2 = getSubSchemaValidator(schema);
+    if (validator2?.Check(coerced)) {
       return coerced;
     }
   }
@@ -24602,9 +24602,9 @@ function getValidator(schema) {
   if (cached2) {
     return cached2;
   }
-  const validator = Compile(schema);
-  validatorCache.set(key, validator);
-  return validator;
+  const validator2 = Compile(schema);
+  validatorCache.set(key, validator2);
+  return validator2;
 }
 function formatValidationPath(error3) {
   if (error3.keyword === "required") {
@@ -24625,7 +24625,7 @@ function validateToolArguments(tool, toolCall) {
   const args = structuredClone(toolCall.arguments);
   normalizeOptionalNulls(args, tool.parameters);
   value_exports3.Convert(tool.parameters, args);
-  const validator = getValidator(tool.parameters);
+  const validator2 = getValidator(tool.parameters);
   if (!Object.getOwnPropertySymbols(tool.parameters).includes(TYPEBOX_KIND)) {
     const coerced = coerceWithJsonSchema(args, tool.parameters);
     if (coerced !== args) {
@@ -24635,14 +24635,14 @@ function validateToolArguments(tool, toolCall) {
         }
         Object.assign(args, coerced);
       } else {
-        return validator.Check(coerced) ? coerced : args;
+        return validator2.Check(coerced) ? coerced : args;
       }
     }
   }
-  if (validator.Check(args)) {
+  if (validator2.Check(args)) {
     return args;
   }
-  const errors = validator.Errors(args).map((error3) => `  - ${formatValidationPath(error3)}: ${error3.message}`).join("\n") || "Unknown validation error";
+  const errors = validator2.Errors(args).map((error3) => `  - ${formatValidationPath(error3)}: ${error3.message}`).join("\n") || "Unknown validation error";
   const errorMessage6 = `Validation failed for tool "${toolCall.name}":
 ${errors}
 
@@ -46804,7 +46804,7 @@ var require_sqlite_cache_store = __commonJS({
     var { Writable: Writable5 } = __require("node:stream");
     var { assertCacheKey, assertCacheValue } = require_cache();
     var DatabaseSync;
-    var VERSION5 = 3;
+    var VERSION6 = 3;
     var MAX_ENTRY_SIZE = 2 * 1e3 * 1e3 * 1e3;
     module.exports = class SqliteCacheStore {
       #maxEntrySize = MAX_ENTRY_SIZE;
@@ -46875,7 +46875,7 @@ var require_sqlite_cache_store = __commonJS({
       PRAGMA temp_store = memory;
       PRAGMA optimize;
 
-      CREATE TABLE IF NOT EXISTS cacheInterceptorV${VERSION5} (
+      CREATE TABLE IF NOT EXISTS cacheInterceptorV${VERSION6} (
         -- Data specific to us
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT NOT NULL,
@@ -46894,8 +46894,8 @@ var require_sqlite_cache_store = __commonJS({
         staleAt INTEGER NOT NULL
       );
 
-      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION5}_getValuesQuery ON cacheInterceptorV${VERSION5}(url, method, deleteAt);
-      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION5}_deleteByUrlQuery ON cacheInterceptorV${VERSION5}(deleteAt);
+      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION6}_getValuesQuery ON cacheInterceptorV${VERSION6}(url, method, deleteAt);
+      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION6}_deleteByUrlQuery ON cacheInterceptorV${VERSION6}(deleteAt);
     `);
         this.#getValuesQuery = this.#db.prepare(`
       SELECT
@@ -46910,7 +46910,7 @@ var require_sqlite_cache_store = __commonJS({
         vary,
         cachedAt,
         staleAt
-      FROM cacheInterceptorV${VERSION5}
+      FROM cacheInterceptorV${VERSION6}
       WHERE
         url = ?
         AND method = ?
@@ -46918,7 +46918,7 @@ var require_sqlite_cache_store = __commonJS({
         deleteAt ASC
     `);
         this.#updateValueQuery = this.#db.prepare(`
-      UPDATE cacheInterceptorV${VERSION5} SET
+      UPDATE cacheInterceptorV${VERSION6} SET
         body = ?,
         deleteAt = ?,
         statusCode = ?,
@@ -46933,7 +46933,7 @@ var require_sqlite_cache_store = __commonJS({
         id = ?
     `);
         this.#insertValueQuery = this.#db.prepare(`
-      INSERT INTO cacheInterceptorV${VERSION5} (
+      INSERT INTO cacheInterceptorV${VERSION6} (
         url,
         method,
         body,
@@ -46949,20 +46949,20 @@ var require_sqlite_cache_store = __commonJS({
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
         this.#deleteByUrlQuery = this.#db.prepare(
-          `DELETE FROM cacheInterceptorV${VERSION5} WHERE url = ?`
+          `DELETE FROM cacheInterceptorV${VERSION6} WHERE url = ?`
         );
         this.#countEntriesQuery = this.#db.prepare(
-          `SELECT COUNT(*) AS total FROM cacheInterceptorV${VERSION5}`
+          `SELECT COUNT(*) AS total FROM cacheInterceptorV${VERSION6}`
         );
         this.#deleteExpiredValuesQuery = this.#db.prepare(
-          `DELETE FROM cacheInterceptorV${VERSION5} WHERE deleteAt <= ?`
+          `DELETE FROM cacheInterceptorV${VERSION6} WHERE deleteAt <= ?`
         );
         this.#deleteOldValuesQuery = this.#maxCount === Infinity ? null : this.#db.prepare(`
-        DELETE FROM cacheInterceptorV${VERSION5}
+        DELETE FROM cacheInterceptorV${VERSION6}
         WHERE id IN (
           SELECT
             id
-          FROM cacheInterceptorV${VERSION5}
+          FROM cacheInterceptorV${VERSION6}
           ORDER BY cachedAt ASC
           LIMIT ?
         )
@@ -53534,7 +53534,7 @@ var require_eventsource_stream = __commonJS({
     var defaultMaxEventSize = buffer.kStringMaxLength;
     var DATA = Buffer.from("data");
     var EVENT = Buffer.from("event");
-    var ID2 = Buffer.from("id");
+    var ID3 = Buffer.from("id");
     var RETRY = Buffer.from("retry");
     function isASCIINumberBytes(buffer2, start) {
       if (start >= buffer2.length) {
@@ -53725,7 +53725,7 @@ ${value}`;
           }
           return;
         }
-        if (isFieldName(line, fieldLength, ID2)) {
+        if (isFieldName(line, fieldLength, ID3)) {
           if (isValidLastEventIdBytes(line, valueStart)) {
             event.id = line.toString("utf8", valueStart);
           }
@@ -190969,11 +190969,11 @@ var init_parse6 = __esm({
     COMPILE_INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
     COMPILE_FALLBACK = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
     validate2 = ((schema, value, _ctx) => {
-      const validator = schema._zod.bag.validator;
-      if (validator !== void 0) {
-        if (validator(value) !== COMPILE_INVALID)
+      const validator2 = schema._zod.bag.validator;
+      if (validator2 !== void 0) {
+        if (validator2(value) !== COMPILE_INVALID)
           return true;
-        if (validator.definite === true && _ctx === void 0)
+        if (validator2.definite === true && _ctx === void 0)
           return false;
       }
       return validateFallback(schema, value, _ctx);
@@ -200677,8 +200677,8 @@ function preloadSchemas() {
   warmInputSchemaMaps2026();
   warmWireResultSchemas2026();
 }
-function fromJsonSchema(schema, validator) {
-  const check2 = validator.getValidator(schema);
+function fromJsonSchema(schema, validator2) {
+  const check2 = validator2.getValidator(schema);
   return { "~standard": {
     version: 1,
     vendor: "mcp",
@@ -206307,7 +206307,7 @@ var init_ajvProvider_97rDpkRx = __esm({
           uriResolver
         };
       }
-      var Ajv3 = class {
+      var Ajv4 = class {
         constructor(opts = {}) {
           this.schemas = {};
           this.refs = {};
@@ -206627,9 +206627,9 @@ var init_ajvProvider_97rDpkRx = __esm({
           }
         }
       };
-      Ajv3.ValidationError = validation_error_1.default;
-      Ajv3.MissingRefError = ref_error_1.default;
-      exports.default = Ajv3;
+      Ajv4.ValidationError = validation_error_1.default;
+      Ajv4.MissingRefError = ref_error_1.default;
+      exports.default = Ajv4;
       function checkOptions(checkOpts, options, msg, log2 = "error") {
         for (const key in checkOpts) {
           const opt = key;
@@ -208386,7 +208386,7 @@ var init_ajvProvider_97rDpkRx = __esm({
       const draft7MetaSchema = require_json_schema_draft_07();
       const META_SUPPORT_DATA = ["/properties"];
       const META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-      var Ajv3 = class extends core_1.default {
+      var Ajv4 = class extends core_1.default {
         _addVocabularies() {
           super._addVocabularies();
           draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -208403,11 +208403,11 @@ var init_ajvProvider_97rDpkRx = __esm({
           return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
         }
       };
-      exports.Ajv = Ajv3;
-      module.exports = exports = Ajv3;
-      module.exports.Ajv = Ajv3;
+      exports.Ajv = Ajv4;
+      module.exports = exports = Ajv4;
+      module.exports.Ajv = Ajv4;
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.default = Ajv3;
+      exports.default = Ajv4;
       var validate_1 = require_validate();
       Object.defineProperty(exports, "KeywordCxt", {
         enumerable: true,
@@ -214806,8 +214806,8 @@ function anySignal(a2, b2) {
   b2.addEventListener("abort", onB, { once: true });
   return controller.signal;
 }
-function fromJsonSchema2(schema, validator) {
-  return fromJsonSchema(schema, validator ?? (_defaultValidator ??= new AjvJsonSchemaValidator()));
+function fromJsonSchema2(schema, validator2) {
+  return fromJsonSchema(schema, validator2 ?? (_defaultValidator ??= new AjvJsonSchemaValidator()));
 }
 var OAuthClientFlowError, IssuerMismatchError, RegistrationRejectedError, InsecureTokenEndpointError, AuthorizationServerMismatchError, InsufficientScopeError, UnauthorizedError, AUTHORIZATION_CODE_RESPONSE_TYPE, AUTHORIZATION_CODE_CHALLENGE_METHOD, RECOGNIZED_CHALLENGE_SCHEMES, ClientCredentialsProvider, PrivateKeyJwtProvider, StaticPrivateKeyJwtProvider, CrossAppAccessProvider, CAP_EXEMPT_METHODS, InMemoryResponseCacheStore, MAX_CACHE_TTL_MS, ClientResponseCache, AUTH_SEAM, UNSUPPORTED_PROTOCOL_VERSION, NOT_PROBE_RECOGNIZED, DEFAULT_VERSION_NEGOTIATION_MODE, ProbeWindow, pendingSpentCloseGuards, LIST_CHANGED_EVICTIONS, DEFAULT_LIST_MAX_PAGES, Client2, DPOP_SUPPORTED_ALGS, DEFAULT_DPOP_ALG, DPOP_TYP, DpopSession, withOAuth, withDpop, withDpopFromProvider, withLogging, applyMiddlewares, createMiddleware, SseError, SSEClientTransport, DEFAULT_MAX_STEP_UP_RETRIES, DEFAULT_STREAMABLE_HTTP_RECONNECTION_OPTIONS, RESERVED_REQUEST_HEADER_NAMES, StreamableHTTPClientTransport, _defaultValidator;
 var init_dist11 = __esm({
@@ -216990,11 +216990,11 @@ var init_dist11 = __esm({
             params
           }, await buildSendOptions());
         }
-        const validator = compiled !== void 0 && compiled.ok ? compiled.validator : void 0;
-        if (validator) {
+        const validator2 = compiled !== void 0 && compiled.ok ? compiled.validator : void 0;
+        if (validator2) {
           if (result.structuredContent === void 0 && !result.isError) throw new ProtocolError(ProtocolErrorCode.InvalidRequest, `Tool ${params.name} has an output schema but did not return structured content`);
           if (result.structuredContent !== void 0 && !result.isError) try {
-            const validationResult = validator(result.structuredContent);
+            const validationResult = validator2(result.structuredContent);
             if (!validationResult.valid) throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Structured content does not match the tool's output schema: ${validationResult.errorMessage}`);
           } catch (error3) {
             if (error3 instanceof ProtocolError) throw error3;
@@ -222474,7 +222474,7 @@ var require_core3 = __commonJS({
         uriResolver
       };
     }
-    var Ajv3 = class {
+    var Ajv4 = class {
       constructor(opts = {}) {
         this.schemas = {};
         this.refs = {};
@@ -222844,9 +222844,9 @@ var require_core3 = __commonJS({
         }
       }
     };
-    Ajv3.ValidationError = validation_error_1.default;
-    Ajv3.MissingRefError = ref_error_1.default;
-    exports.default = Ajv3;
+    Ajv4.ValidationError = validation_error_1.default;
+    Ajv4.MissingRefError = ref_error_1.default;
+    exports.default = Ajv4;
     function checkOptions(checkOpts, options, msg, log2 = "error") {
       for (const key in checkOpts) {
         const opt = key;
@@ -224957,7 +224957,7 @@ var require_ajv2 = __commonJS({
     var draft7MetaSchema = require_json_schema_draft_072();
     var META_SUPPORT_DATA = ["/properties"];
     var META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-    var Ajv3 = class extends core_1.default {
+    var Ajv4 = class extends core_1.default {
       _addVocabularies() {
         super._addVocabularies();
         draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -224976,11 +224976,11 @@ var require_ajv2 = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv = Ajv3;
-    module.exports = exports = Ajv3;
-    module.exports.Ajv = Ajv3;
+    exports.Ajv = Ajv4;
+    module.exports = exports = Ajv4;
+    module.exports.Ajv = Ajv4;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv3;
+    exports.default = Ajv4;
     var validate_1 = require_validate2();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: function() {
       return validate_1.KeywordCxt;
@@ -232147,6 +232147,14 @@ var ERROR_CODES = defineErrorCodes({
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   run_state_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_commit_invalid: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_commit_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_store_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_store_unavailable: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal"
+  },
   run_state_locked: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   checkpoint_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   checkpoint_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
@@ -262277,6 +262285,7 @@ function isManagedRunPath(relativePath) {
 var FileRunStore = class {
   directory;
   options;
+  atomicCriticalCommit = true;
   supportedDurability = ["ordinary", "critical"];
   durabilityBoundary = "process_crash";
   cursors = /* @__PURE__ */ new Map();
@@ -262373,7 +262382,7 @@ var FileRunStore = class {
       try {
         parsed = JSON.parse(line);
       } catch (error3) {
-        if (!terminated && index3 === lines.length - 1 && records.length > 0) {
+        if (this.options.repairTornTail !== false && !terminated && index3 === lines.length - 1 && records.length > 0) {
           return {
             records,
             repairedText: `${records.map((item) => JSON.stringify(item)).join("\n")}
@@ -263180,6 +263189,7 @@ function validateRecord(value, expectedRunId) {
     "checkpoint_restore",
     "loop",
     "operation",
+    "task_commit",
     "pause",
     "finish"
   ].includes(record2.kind ?? "")) {
@@ -267157,6 +267167,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
       allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
       protectedPaths: [
         path46.resolve(this.options.configDir, ".coremind", "runs"),
+        path46.resolve(this.options.configDir, ".coremind", "tasks"),
+        path46.resolve(this.options.cwd ?? process.cwd(), ".coremind", "tasks"),
         path46.resolve(this.options.configDir, ".coremind", "checkpoints"),
         path46.resolve(this.options.configDir, ".coremind", "quality-overrides.jsonl"),
         path46.resolve(this.options.cwd ?? process.cwd(), ".coremind", "quality-overrides.jsonl"),
@@ -269430,6 +269442,56 @@ function createBoundedOutput(output, options) {
     }
   };
 }
+
+// packages/coremind-runtime/dist/task-commit.js
+var import_ajv3 = __toESM(require_ajv2(), 1);
+var MAX_COMMIT_BYTES = 1024 * 1024;
+var ID2 = { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$" };
+var VERSION5 = { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
+var validator = new import_ajv3.Ajv({ logger: false, strict: true, ownProperties: true });
+var validateCommit = validator.compile({
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "commitId",
+    "expectedRevision",
+    "taskId",
+    "task",
+    "documents",
+    "entries"
+  ],
+  properties: {
+    schemaVersion: { const: 1 },
+    commitId: ID2,
+    expectedRevision: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER - 1 },
+    taskId: ID2,
+    task: {
+      type: "object",
+      additionalProperties: false,
+      required: ["type", "version", "phase", "checkpoint"],
+      properties: { type: ID2, version: VERSION5, phase: ID2, checkpoint: {} }
+    },
+    documents: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "type", "version", "value"],
+        properties: { id: ID2, type: ID2, version: VERSION5, value: {} }
+      }
+    },
+    entries: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "role", "text"],
+        properties: { id: ID2, role: { enum: ["user", "assistant"] }, text: { type: "string" } }
+      }
+    }
+  }
+});
 
 // packages/coremind-worker/src/server.ts
 import { createHash as createHash28 } from "node:crypto";

@@ -42,6 +42,38 @@ This is not a Store heap limit. Explicit reads, query polling, failed commits, o
 
 The framework creates `.v3.backup` before migration. Supported messages, model changes, active tool changes, compactions, branch summaries, labels, and names migrate. An entry that cannot be represented losslessly returns an explicit error and preserves the source. Follow the [SOP](SOP.en.md) to retain the old version or export its effective context.
 
+## Explicit atomic task commits (1.4 development line, internal)
+
+A trusted host can use `TaskCommitSession` from `coremind-runtime/internal` to persist a task checkpoint, business documents and related text together. This is an internal storage foundation: it does not add a regular ChatSession mode, execute tasks, schedule wakeups or expose Python/Worker commands. See [ADR 0025](../../adr/0025-explicit-task-commit-authority.md).
+
+1. `open({ workspace, sessionId, documentSchemas })` canonicalizes an existing workspace and obtains exclusive task-session ownership. A second writer is rejected.
+2. `commit({ schemaVersion: 1, commitId, expectedRevision, taskId, task, documents, entries })` validates everything before one atomic write. The receipt contains commitId, the new revision and `durabilityBoundary`.
+3. `snapshot()` returns a copy of `{ revision, tasks, documents, entries }`. Readers see the old projection during the write and the complete new projection after success. Reopening rebuilds every view from commit facts.
+4. `close()` rejects new submissions, drains accepted submissions and releases ownership. Reads and writes are rejected after closing.
+
+`task` is `{ type, version, phase, checkpoint }`. This layer validates identifiers, a positive integer version and JSON, without executing or migrating task phases. Documents are `{ id, type, version, value }`, replaced in full by id without deletion. Entries are `{ id, role: "user" | "assistant", text }`, append-only with unique ids.
+
+Register documents as `{ type, version, schema }` with synchronous JSON Schema draft-07. Each type/version must be registered; used schema fingerprints are persisted. Reopening rejects missing or changed schemas. Async validation and unresolved remote references are rejected. Validation never coerces values, removes fields or inserts defaults.
+
+Identifiers, types and phases contain 1–128 ASCII letters, digits, `_` or `-`, starting with a letter or digit. Both the input and the fact payload including identity/schema fingerprints are limited to 1 MiB UTF-8. Checkpoints and document values must be finite JSON, without accessors, cycles, Date, functions, BigInt or undefined. Revision belongs to the whole task session. The same commitId with the same complete content returns its original receipt without appending; changed content conflicts. JSON object key order does not change idempotency.
+
+The default file is `<workspace>/.coremind/tasks/<sha256(sessionId)>/commits.jsonl`, bound to the canonical workspace identity. Do not copy it into another workspace and reopen it, edit it, or duplicate its entries into the legacy Session log. Task data is neither automatically redacted nor encrypted. Standard tool authorization protects `.coremind/tasks` under the config directory and cwd; hosts choosing other workspaces must protect those paths too.
+
+| Error | Action |
+|---|---|
+| `task_commit_invalid` | Correct the complete submission or document schema; this attempt has not written |
+| `task_commit_conflict` | Inspect revision, commitId content and entry ids; do not automatically choose another key |
+| `session_write_locked` / `policy_denied` | Check ownership and workspace/link identity; never remove a live lock or bypass validation |
+| `task_store_corrupt` / `run_state_corrupt` | Preserve the file and inspect schema, version, identity and sequence; task tails are not repaired automatically |
+| `durability_unsupported` | The custom Store cannot enable this mode without the atomic critical/durability contract |
+| `durability_barrier_failed` / `task_store_unavailable` | Stop using the holder, close and reopen, then check the original commitId; failure may follow a complete durable write and does not imply rollback |
+
+A custom `store(directory)` is a trusted host interface. It must declare `atomicCriticalCommit: true`, support `critical`, guarantee at least `process_crash`, commit one record atomically, and return the matching durability receipt. Reads must not silently repair task facts. A FileRunStore implementation must set `repairTornTail: false`. Any exposed `pathFor` must match the current lease. Capability declarations do not certify an arbitrary Adapter.
+
+The built-in Store covers process crashes only, not power loss or remote payment/order transactions. Recovery reads the whole history; critical commits still rewrite the entire journal. This targets bounded local tasks, not a distributed queue or unbounded history. Run the [model-free transaction example](../../../examples/modules/recover-durable-runs/README.en.md) to check visibility, reopening and idempotency.
+
+The new shared error codes change the Protocol v2 schema fingerprint: update SDK, Worker and manifest together. Hosts exhaustively matching the public RunStateKind must handle `task_commit`; ordinary Runs never emit it. To roll back, stop writers, retain the complete task directory and restore matching old SDK/Worker versions. Legacy fact domains require no migration. Older versions cannot read task logs; copying them into legacy Session or Run files is not a migration.
+
 ## Common beginner mistakes
 
 - Treating `paused` as permission to retry blindly.

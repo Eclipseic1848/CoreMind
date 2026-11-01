@@ -2309,6 +2309,8 @@ export class CoreMindRuntime {
       allowedPaths: this.options.childRunAuthority?.inheritedPolicy.permissions.paths,
       protectedPaths: [
         path.resolve(this.options.configDir, ".coremind", "runs"),
+        path.resolve(this.options.configDir, ".coremind", "tasks"),
+        path.resolve(this.options.cwd ?? process.cwd(), ".coremind", "tasks"),
         path.resolve(this.options.configDir, ".coremind", "checkpoints"),
         path.resolve(this.options.configDir, ".coremind", "quality-overrides.jsonl"),
         path.resolve(this.options.cwd ?? process.cwd(), ".coremind", "quality-overrides.jsonl"),

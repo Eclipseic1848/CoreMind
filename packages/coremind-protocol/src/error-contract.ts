@@ -233,6 +233,14 @@ export const ERROR_CODES = defineErrorCodes({
   // —— 损坏类 ——
   run_state_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   run_state_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_commit_invalid: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_commit_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_store_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
+  task_store_unavailable: {
+    terminality: "terminal",
+    cancelClass: "corruption",
+    retryClass: "fatal",
+  },
   run_state_locked: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   checkpoint_corrupt: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },
   checkpoint_conflict: { terminality: "terminal", cancelClass: "corruption", retryClass: "fatal" },

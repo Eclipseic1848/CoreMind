@@ -24,6 +24,19 @@ coremind run coremind.yaml --resume <runId> --json-events
 5. Resume the same `runId` again and confirm that the terminal operation is rejected instead of writing again.
 6. Compare the compatibility fields with `snapshot` and confirm matching run id, operation, outcome, metrics, and evidence.
 
+## Model-free TaskCommit example (1.4 development line)
+
+After installing repository dependencies, run from the root:
+
+```text
+npm run build
+node examples/modules/recover-durable-runs/task-commit.mjs
+```
+
+The [source](task-commit.mjs) atomically saves a checkpoint, document and text entry in its own temporary workspace, closes/reopens to check reconstruction, then checks same-content idempotency and changed-content conflicts. It prints `TaskCommit OK` and removes only its own temporary directory. It reads no credentials and calls no model or external business service.
+
+This demonstrates the internal storage contract, not task execution or sleep/wake. Real process exit windows are covered by `task-commit-crash.test.ts`; normal close/reopen in this example is not crash acceptance.
+
 ## Fault injection
 
 Run from the repository root:

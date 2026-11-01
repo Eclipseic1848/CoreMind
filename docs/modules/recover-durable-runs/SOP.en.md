@@ -45,7 +45,22 @@
 | Operation is completed or failed | Do not resume; create a new task |
 | Effect outcome is unknown | Query the external system and remain paused if still uncertain |
 
-## 6. Verification
+## 6. Explicit task sessions
+
+1. Fix the workspace, sessionId and document schemas using the [TaskCommit contract](GUIDE.en.md). This is an independent fact domain, not ordinary Run resume.
+2. Submit the complete checkpoint/documents/entries with a stable commitId and the observed revision. Consume the new projection only after a successful receipt.
+3. Inspect content and revision on conflicts. After a failed receipt or uncertain I/O, close and reopen, then check the same commitId/content. Never choose a new key to blindly repeat external effects.
+4. Reject competing live writers. Existing lease logic reclaims ownership only after proving the old process absent; ambiguous locks must be preserved, not deleted or bypassed with longer timeouts.
+5. Default task logs fail closed even on a truncated tail; the ordinary Run repair table above does not apply. Preserve unknown schema/version or workspace-identity failures for investigation.
+6. Run the model-free example and process tests below. Local Windows success does not replace Linux CI, legacy Run/Session/request-rebuild regressions or the original release gates.
+
+```text
+npm run build
+node examples/modules/recover-durable-runs/task-commit.mjs
+npx vitest run --project coremind-runtime packages/coremind-runtime/src/task-commit.test.ts packages/coremind-runtime/src/task-commit-crash.test.ts --maxWorkers=1
+```
+
+## 7. Verification
 
 ```text
 npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1

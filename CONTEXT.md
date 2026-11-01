@@ -29,14 +29,23 @@ _Avoid_: 用 Session 指代单次 Run、RunState 或交互控制器
 ### 事实与投影
 
 **Fact（事实）**：
-追加式、不可变、持久的记录，是恢复与审计的权威来源。分三个互不重叠的事实域：
+追加式、不可变、持久的记录，是恢复与审计的权威来源。普通运行保留三个互不重叠的事实域：
 
 - **Session 事实**：会话树（消息全量，未脱敏）；
 - **Run 事实**：RunState journal（事件、operation、loop 快照、checkpoint 引用，脱敏）；
 - **Workspace 事实**：checkpoint 文件内容（文件前后快照）。
 
 各域通过关联键（RunId、SessionId + 条目 seq、CheckpointId）显式连接，不做物理合并。
+显式任务模式另有 **TaskCommit 事实域**：一个原子提交同时拥有任务 checkpoint、typed document 与文本 entry。其 entry 不再写入普通 Session 日志，三类视图从同一事实重建；旧三个域不迁移。见 [ADR 0025](docs/adr/0025-explicit-task-commit-authority.md)。
 _Avoid_: 状态、日志、快照（Snapshot 是投影）
+
+**TaskCommit（任务提交）**：
+显式任务会话内以 commitId 幂等、expectedRevision 控制并发的一次原子持久记录；不是远端业务事务或 Run 终态。
+_Avoid_: 三日志顺序写入、Tool Call、Workspace Checkpoint
+
+**TaskCheckpoint（任务检查点）**：
+任务 type/version/phase 与可序列化 checkpoint 的完整值，由 TaskCommit 持久化；本项不包含任务执行与迁移逻辑。
+_Avoid_: 文件前后快照、任意 JS 调用栈、RunSnapshot
 
 **Projection（投影）**：
 从事实派生的可丢弃视图（RunSnapshot、会话上下文视图、CheckpointDiff、metrics、TUI 状态）。投影可随时从事实重建，不承载权威信息。

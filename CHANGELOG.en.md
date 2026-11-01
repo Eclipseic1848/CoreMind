@@ -4,6 +4,12 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## Unreleased — 1.4.0 development
+
+### Improvements
+
+- **Atomic task commit foundation:** added internal `TaskCommitSession`, committing a task checkpoint, typed documents and text entries in one atomic durable record. It checks revisions, content-bound commitId idempotency and schema identity, and rebuilds projections after process crashes. Legacy Session/Run/Workspace data stays unchanged; standard Runtime authorization protects task paths. Includes an ADR, bilingual guidance, SOP/Skill, real child-process regressions and a model-free example. Scheduling, sleep/wake and public SDK access remain separate work. This is not a publication claim. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+
 ## 1.3.0
 
 This section records `1.3.0` release preparation and the ten accepted, merged fixes in #324–#333; it does not establish public publication. See the [fixed bilingual release notes](docs/release/notes/v1.3.0.md) and [1.2→1.3 migration guide](docs/migrations/1.2-to-1.3.en.md).

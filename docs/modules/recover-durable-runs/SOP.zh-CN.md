@@ -45,7 +45,22 @@
 | operation 已 completed/failed | 不允许 resume，创建新任务 |
 | 副作用结果未知 | 查询外部系统；不能确认时保持暂停 |
 
-## 六、验证命令
+## 六、显式任务会话
+
+1. 按 [TaskCommit 合同](GUIDE.zh-CN.md)固定工作区、sessionId 和 document Schema；这是独立任务事实，不是普通 Run 的 resume。
+2. 用稳定 commitId 和读取到的 revision 提交完整 checkpoint/document/entry。收到成功回执后才消费新投影。
+3. 冲突先核对内容与 revision。持久回执失败或 I/O 结果未知时关闭 holder，再重开并以相同内容/commitId核对；禁止直接更换键重做外部效果。
+4. 活 writer 拒绝竞争；只有原租约机制确认进程不存在才回收死主。锁无法确认时保留现场，不通过增大超时或删锁继续。
+5. 默认任务日志尾部损坏也失败关闭，不套用上表的普通 Run 尾部修复。未知 Schema/版本或工作区身份变化须保留原文件并人工核查。
+6. 运行下面的无模型示例与跨进程测试；Windows 本地通过不能替代 Linux CI。旧 Run/Session/request-rebuild 回归与全部原发布门仍须通过。
+
+```powershell
+npm run build
+node examples/modules/recover-durable-runs/task-commit.mjs
+npx vitest run --project coremind-runtime packages/coremind-runtime/src/task-commit.test.ts packages/coremind-runtime/src/task-commit-crash.test.ts --maxWorkers=1
+```
+
+## 七、验证命令
 
 ```powershell
 npx vitest run packages/coremind-runtime/src/invariant-checker.test.ts packages/coremind-runtime/src/operation-state.test.ts packages/coremind-runtime/src/run-state.test.ts packages/coremind-runtime/src/session-conformance.test.ts packages/coremind-runtime/src/session.test.ts packages/coremind-runtime/src/checkpoint.test.ts packages/coremind-runtime/src/snapshot.test.ts packages/coremind-runtime/src/runtime.test.ts packages/coremind-worker/src/server.test.ts --maxWorkers=1

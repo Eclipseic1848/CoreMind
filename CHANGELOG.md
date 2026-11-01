@@ -4,6 +4,12 @@
 
 [English](CHANGELOG.en.md)
 
+## 未发布 — 1.4.0 开发线
+
+### 能力提升
+
+- **任务原子提交基础：** 新增 internal `TaskCommitSession`，把任务 checkpoint、typed document 和文本 entry 放在一个原子持久记录中；支持 revision 冲突、commitId 内容幂等、Schema 身份校验和进程崩溃后投影重建。旧 Session/Run/Workspace 数据不迁移，标准 Runtime 保护任务存储路径。配套 ADR、双语指南、SOP/Skill、真实子进程回归与无模型示例；任务调度、sleep/wake 和公共 SDK 接入仍属后续迭代。本节不表示已发布。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+
 ## 1.3.0
 
 本节记录 `1.3.0` 发布准备范围，包含 #324–#333 已验收合入的十项修复；不表示已经公开发布。详见[固定双语发布说明](docs/release/notes/v1.3.0.md)与[1.2→1.3 迁移指南](docs/migrations/1.2-to-1.3.zh-CN.md)。

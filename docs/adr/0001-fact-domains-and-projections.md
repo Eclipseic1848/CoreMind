@@ -6,6 +6,8 @@ CoreMind 存在三份并行持久日志（会话树、RunState journal、checkpo
 
 accepted
 
+显式任务模式的增量决策见 [ADR 0025](0025-explicit-task-commit-authority.md)：新增 TaskCommit 权威域，不迁移或合并本决策中的旧三个域。
+
 ## Considered Options
 
 - **合并为单一事件日志**（deepseek-harness 形态）：物理合并三份日志。被否：范围爆炸，破坏 0.3.0 已验证的恢复证据与既有工具链，违背"不粗暴合并"约束。
