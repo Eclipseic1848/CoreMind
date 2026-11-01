@@ -6,6 +6,8 @@ This file records user-facing changes. Historical release records remain unchang
 
 ## Unreleased — 1.4.0 development
 
+- **Public session trees:** ChatSession adds tree inspection, named branches, durable selection and message-node forks under existing writer ownership. New sessions do not inherit Run/control/authorization identities. Includes process recovery, write-failure regressions, bilingual guides and older SDK rollback boundaries; original CI and release gates remain required. ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
+
 ### Improvements
 
 - **Durable waits and idempotent wakeups:** TaskSession atomically saves the next phase, result and absolute deadline, adds nextWake and sleepId-bound wake, and recomputes delays after restart. Includes actual process exits, duplicate/stale notifications, cancellation races, lost receipts, an offline host alarm example and bilingual guidance. All timeouts remain unchanged; cross-platform CI and release qualification are still required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))

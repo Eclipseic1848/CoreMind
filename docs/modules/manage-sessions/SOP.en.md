@@ -17,6 +17,14 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 9. Run the listed module tests and `npm run check:modules`.
 10. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
+## Session tree acceptance (1.4 development)
+
+1. Compare actual local fake-provider payloads across branch selection, independent process restart and fork. Source bytes must stay unchanged by fork.
+2. Reject active Runs, competing writers, stale history, unknown/foreign nodes and invalid names/paths before writes or requests. New-session tools still need fresh Run approval, without inherited controls or execution records.
+3. Inject selection failures before write, at a torn tail, after durable write, and at fork alias publication. Preserve evidence and reopen to determine facts; do not blindly rerun.
+4. Run chat-session-tree and session-navigation-fault tests plus original module regressions; execute `node examples/modules/manage-sessions/branches.mjs`. Check additive APIs, generated Worker/error contracts and original gates.
+5. Stop writers and preserve all fact domains before older SDK rollback; restore pre-upgrade backups instead of letting an older writer ignore the selection and continue main.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

@@ -477,6 +477,13 @@
       "humanAction": "none",
       "runStatus": "failed"
     },
+    "session_navigation_invalid": {
+      "terminality": "terminal",
+      "cancelClass": "other",
+      "retryClass": "fatal",
+      "humanAction": "none",
+      "runStatus": "failed"
+    },
     "session_restore_failed": {
       "terminality": "terminal",
       "cancelClass": "corruption",

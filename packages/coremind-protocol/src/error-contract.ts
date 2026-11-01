@@ -309,6 +309,11 @@ export const ERROR_CODES = defineErrorCodes({
     cancelClass: "corruption",
     retryClass: "fatal",
   },
+  session_navigation_invalid: {
+    terminality: "terminal",
+    cancelClass: "other",
+    retryClass: "fatal",
+  },
   session_restore_failed: {
     terminality: "terminal",
     cancelClass: "corruption",

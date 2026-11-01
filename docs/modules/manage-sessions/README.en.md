@@ -8,10 +8,12 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 
 ## Public interfaces
 
-- `CoreMindSession`
+- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork` (1.4 development; stable DTOs without storage writers)
 - `ChatSession`
 - `ChatSession.steer/followUp(message, options?)` (1.1 development; `options` is `{ controlId?, runId? }`)
 - `ContextProtector`
+
+`CoreMindSession` is an internal adapter, not a main-entry export. The [guide](GUIDE.en.md) explains Session/branch/Run boundaries, write failures and older SDK rollback. A fork returns a new identity; the host reapplies configuration and authority.
 
 `ContextLifecycleManager`, `ContextWorkingSetBuilder`, and `ContextTaskState` are available to controlled in-repository components through `coremind-runtime/internal`; they are not part of the main public entry point. Callers observe their results through Runtime events, `RunOutcome`, traces, and snapshots.
 

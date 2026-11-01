@@ -67,9 +67,9 @@ export declare interface ChatControlOptions {
 
 /**
  * 交互式会话（库 API）：多轮对话循环，供 CLI chat 与自定义 UI 复用。
- * - 同一 agent 实例持续对话（上下文延续）
+ * - 每轮创建独立 Run/Agent，延续已确认的会话历史
  * - onEvent 订阅归一化事件流（工具调用实时可视化等）
- * - persist() 接入运行时会话持久化（需 session.enabled + sessionId）
+ * - Runtime 在轮次收敛时持久化；persist() 只返回最近一次文件路径
  */
 export declare class ChatSession {
     private readonly runtime;
@@ -79,11 +79,21 @@ export declare class ChatSession {
     private activeController?;
     private latestSessionFile?;
     private latestRun?;
+    private navigating;
     constructor(runtime: CoreMindRuntime, agentName: string);
     /** 订阅会话事件（返回取消函数） */
     onEvent(listener: (event: CoreMindEvent, entry?: CoreMindTraceEvent) => void): () => void;
     /** 发送一轮消息：返回最终文本与本轮事件 */
     chat(message: string): Promise<ChatTurnResult>;
+    /** 查询持久树的快照；与写操作一样要求没有活动 Run。 */
+    inspectSessionTree(): Promise<ChatSessionTree>;
+    /** 从本会话消息节点建立命名分支；null 表示空历史，不自动切换。 */
+    createBranch(branchId: string, at: ChatSessionNodeRef | null): Promise<ChatSessionTree>;
+    /** 持久选择已有分支；下一轮只从该分支构造历史。 */
+    selectBranch(branchId: string): Promise<ChatSessionTree>;
+    /** 返回新会话的身份与树；用宿主配置重新创建 Runtime 后即可继续对话。 */
+    fork(at: ChatSessionNodeRef): Promise<ChatSessionTree>;
+    private navigate;
     /** 中止当前轮 */
     abort(): void;
     /** 在后续可用 Turn 追加指令；回执不代表模型已经消费。 */
@@ -92,12 +102,42 @@ export declare class ChatSession {
     followUp(message: string, options?: ChatControlOptions): Promise<ControlReceipt>;
     /** 查询当前一轮从 canonical Facts 重建的统一 Projection。 */
     inspectCurrentRunProjection(): Promise<RunProjection | undefined>;
-    /** 持久化会话（需 config.session.enabled 与 runtime sessionId；返回文件路径） */
+    /** 返回最近一轮已完成的持久化路径；本方法不追加或刷新会话文件。 */
     persist(): Promise<string | undefined>;
     listCheckpoints(): CheckpointRecord[];
     diffCheckpoint(checkpointId: string): Promise<CheckpointDiff>;
     restoreCheckpoint(checkpointId: string): Promise<void>;
     private findCheckpoint;
+}
+
+export declare interface ChatSessionBranch {
+    id: string;
+    leafId: string | null;
+}
+
+/** 节点必须显式绑定所属会话；分叉复制的历史 id 不能替代会话身份。 */
+export declare interface ChatSessionNodeRef {
+    sessionId: string;
+    entryId: string;
+}
+
+/** 会话消息仍是未脱敏历史，宿主必须控制此查询的访问权限。 */
+export declare interface ChatSessionTree {
+    sessionId: string;
+    activeBranch: string;
+    branches: ChatSessionBranch[];
+    nodes: ChatSessionTreeNode[];
+    forkedFrom?: ChatSessionNodeRef;
+}
+
+/** 只读树节点；内部维护数据与存储写入能力不从此 DTO 暴露。 */
+export declare interface ChatSessionTreeNode {
+    id: string;
+    parentId: string | null;
+    seq: number;
+    type: "message" | "model_change" | "thinking_level_change" | "active_tools_change" | "compaction" | "branch_summary" | "custom";
+    message?: CoreMindMessage;
+    summary?: string;
 }
 
 /** 一轮对话的结果 */

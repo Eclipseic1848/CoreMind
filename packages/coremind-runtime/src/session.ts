@@ -15,6 +15,7 @@ import type { Model, Models, RetryPolicy } from "@earendil-works/pi-ai";
 import type { CoremindCompactionDetails } from "./compaction-projection.js";
 import { CoreMindError } from "./errors.js";
 import type { CoreMindMessage } from "./public-message.js";
+import type { ChatSessionNodeRef, ChatSessionTree } from "./session-tree.js";
 import { SessionFileSystem } from "./session-v4/file-system.js";
 import {
   type AgentMessage,
@@ -34,10 +35,13 @@ import {
   assertSessionWriteLease,
   type SessionWriteLease,
   withSessionIO,
+  withSessionWriteLease,
 } from "./session-write-lease.js";
 
 /** 会话 id 允许的字符（防路径穿越：仅字母/数字/连字符/下划线） */
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
+const NAVIGATION_LANE = "coremind/navigation/v1";
+const NAVIGATION_ENTRY = "coremind.session-branch.v1";
 
 /** 仅供 Runtime 保护公开别名、锁、备份及内部会话目录，保留业务兄弟文件。 */
 export function isManagedSessionPath(relativePath: string): boolean {
@@ -172,6 +176,7 @@ export class CoreMindSession {
         writes: Promise.resolve(),
         pending: 0,
         stale: false,
+        activeBranch: await readActiveBranch(session),
       };
       state.watermark = await readSessionWatermark(state);
       holders.set(opened, state);
@@ -193,7 +198,9 @@ export class CoreMindSession {
     await withSessionWriter(this, (lease) =>
       withHolderIO(this, lease, async () => {
         for (const message of messages) {
-          await this.session.appendMessage(stripUndefined(message) as AgentMessage);
+          await this.session
+            .view(holder(this).activeBranch)
+            .appendMessage(stripUndefined(message) as AgentMessage);
         }
       }),
     );
@@ -203,24 +210,28 @@ export class CoreMindSession {
   async appendMaintenanceRecord(data: Record<string, unknown>): Promise<void> {
     await withSessionWriter(this, (lease) =>
       withHolderIO(this, lease, () =>
-        this.session.appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data)),
+        this.session
+          .view(holder(this).activeBranch)
+          .appendCustomEntry("coremind.session-maintenance.v1", stripUndefined(data)),
       ),
     );
   }
 
   /** 恢复视图：压缩条目替换旧历史后的上下文（存储不变——非破坏） */
   async buildContext(): Promise<SessionContext> {
-    return buildSessionContext(await this.session.findEntriesOnBranch({ order: "oldestFirst" }));
+    return buildSessionContext(await this.branchEntries());
   }
 
-  /** 主 lane 全部条目（oldestFirst）——投影与请求重建用 */
+  /** 所选分支全部条目（oldestFirst）——投影与请求重建用 */
   async branchEntries(): Promise<Awaited<ReturnType<Session["findEntriesOnBranch"]>>> {
-    return this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    return this.session
+      .view(holder(this).activeBranch)
+      .findEntriesOnBranch({ order: "oldestFirst" });
   }
 
-  /** 主 lane 当前 seq 水位（空树为 0）——Run 关联会话树的起始水位 */
+  /** 所选分支当前 seq 水位（空树为 0）——Run 关联会话树的起始水位 */
   async currentSeq(): Promise<number> {
-    const entries = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+    const entries = await this.branchEntries();
     return entries.reduce((max, entry) => Math.max(max, entry.seq), 0);
   }
 
@@ -245,7 +256,7 @@ export class CoreMindSession {
             tokensBefore: compaction.tokensBefore,
             details: compaction.details,
           },
-          "main",
+          holder(this).activeBranch,
         ),
       ),
     );
@@ -271,9 +282,7 @@ export class CoreMindSession {
     const merged = { ...DEFAULT_COMPACTION_SETTINGS, ...settings };
     if (!merged.enabled) return false;
     return withSessionWriter(this, async (lease) => {
-      const entries = await withHolderIO(this, lease, () =>
-        this.session.findEntriesOnBranch({ order: "oldestFirst" }),
-      );
+      const entries = await withHolderIO(this, lease, () => this.branchEntries());
       const tokens = estimateContextTokens(buildSessionContext(entries).messages).tokens;
       // 预算公式（上游实现）：tokens > contextWindow − reserveTokens 时触发
       if (!shouldCompact(tokens, contextWindow, merged)) return false;
@@ -283,7 +292,7 @@ export class CoreMindSession {
       signal?.throwIfAborted();
       if (!result.ok) return false;
       return withHolderIO(this, lease, async () => {
-        const current = await this.session.findEntriesOnBranch({ order: "oldestFirst" });
+        const current = await this.branchEntries();
         const identities = (items: typeof entries) =>
           items
             .filter((entry) => entry.type !== "custom")
@@ -300,15 +309,149 @@ export class CoreMindSession {
             ...(result.value.details === undefined ? {} : { details: result.value.details }),
             ...(result.value.usage === undefined ? {} : { usage: result.value.usage }),
           },
-          "main",
+          holder(this).activeBranch,
         );
         return true;
       });
     });
   }
+
+  /** 受支持的只读 DTO；不返回 SessionStorage、操作记录或自定义数据。 */
+  async inspectTree(): Promise<ChatSessionTree> {
+    const metadata = await this.session.getMetadata();
+    const entries = await this.session.findEntries({ order: "oldestFirst" });
+    const origin = (metadata as { metadata?: Record<string, unknown> }).metadata?.coremindFork;
+    return {
+      sessionId: metadata.id,
+      activeBranch: holder(this).activeBranch,
+      branches: (await this.session.getLanes())
+        .filter((pointer) => pointer.lane !== NAVIGATION_LANE)
+        .map((pointer) => ({ id: pointer.lane, leafId: pointer.leafId })),
+      nodes: entries
+        .filter((entry) => entry.type !== "custom" || entry.customType !== NAVIGATION_ENTRY)
+        .map((entry) => ({
+          id: entry.id,
+          parentId: entry.parentId,
+          seq: entry.seq,
+          type: entry.type,
+          ...(entry.type === "message"
+            ? { message: structuredClone(entry.message) as CoreMindMessage }
+            : {}),
+          ...(entry.type === "compaction" || entry.type === "branch_summary"
+            ? { summary: entry.summary }
+            : {}),
+        })),
+      ...(isObject(origin) &&
+      typeof origin.sessionId === "string" &&
+      typeof origin.entryId === "string"
+        ? { forkedFrom: { sessionId: origin.sessionId, entryId: origin.entryId } }
+        : {}),
+    };
+  }
+
+  async createBranch(branchId: string, at: ChatSessionNodeRef | null): Promise<void> {
+    assertBranchId(branchId);
+    await withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, async () => {
+        if ((await this.session.getLanes()).some((pointer) => pointer.lane === branchId))
+          throw navigationInvalid(`分支已存在：${branchId}`);
+        if (at !== null) await this.assertNode(at);
+        await this.session.createLane(branchId, at?.entryId ?? null);
+      }),
+    );
+  }
+
+  async selectBranch(branchId: string): Promise<void> {
+    assertBranchId(branchId);
+    await withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, async () => {
+        const lanes = await this.session.getLanes();
+        if (!lanes.some((pointer) => pointer.lane === branchId))
+          throw navigationInvalid(`分支不存在：${branchId}`);
+        if (holder(this).activeBranch === branchId) return;
+        if (!lanes.some((pointer) => pointer.lane === NAVIGATION_LANE))
+          await this.session.createLane(NAVIGATION_LANE, null);
+        // 选择记录独立于消息分支；一条追加确认后才改变内存视图。
+        await this.session.view(NAVIGATION_LANE).appendCustomEntry(NAVIGATION_ENTRY, { branchId });
+        holder(this).activeBranch = branchId;
+      }),
+    );
+  }
+
+  /** 只复制所选节点的历史祖先；目标身份由框架产生，调用方不能指定路径。 */
+  async fork(at: ChatSessionNodeRef): Promise<ChatSessionTree> {
+    return withSessionWriter(this, (lease) =>
+      withHolderIO(this, lease, async () => {
+        await this.assertNode(at);
+        const state = holder(this);
+        const sessionId = randomUUID();
+        const opts = { ...state.options, sessionId };
+        return withSessionWriteLease(opts.dir, sessionId, async (targetLease) => {
+          await withSessionIO(opts.dir, sessionId, async (identity) => {
+            await assertSessionWriteLease(targetLease, identity);
+            const repository = new JsonlSessionRepo({
+              fs: new SessionFileSystem({ cwd: opts.cwd }),
+              sessionsRoot: opts.dir,
+            });
+            const source = (await repository.list({ cwd: opts.cwd })).find(
+              (candidate) => candidate.id === state.options.sessionId,
+            );
+            if (!source || source.path !== state.storagePath)
+              throw new CoreMindError("session_layout_conflict", "分叉来源与已打开的会话不一致");
+            const target = await repository.fork(source, {
+              id: sessionId,
+              cwd: opts.cwd,
+              scope: "branch",
+              entryId: at.entryId,
+              position: "at",
+              metadata: { coremindFork: { sessionId: at.sessionId, entryId: at.entryId } },
+            });
+            const metadata = await target.getMetadata();
+            await ensurePublicSessionPath(
+              metadata.path,
+              path.resolve(opts.dir, `${sessionId}.jsonl`),
+            );
+          });
+          return await (await openWritableSession(opts, targetLease)).inspectTree();
+        });
+      }),
+    );
+  }
+
+  private async assertNode(at: ChatSessionNodeRef): Promise<void> {
+    if (
+      !isObject(at) ||
+      at.sessionId !== holder(this).options.sessionId ||
+      typeof at.entryId !== "string" ||
+      (await this.session.getEntry(at.entryId))?.type !== "message"
+    )
+      throw navigationInvalid("节点必须是当前会话中存在的消息节点");
+  }
+}
+
+function navigationInvalid(message: string): CoreMindError {
+  return new CoreMindError("session_navigation_invalid", message);
+}
+
+function assertBranchId(branchId: string): void {
+  if (typeof branchId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/u.test(branchId))
+    throw navigationInvalid("分支 id 须为 1–64 位字母、数字、连字符或下划线");
+}
+
+async function readActiveBranch(session: Session): Promise<string> {
+  const entry = await session.findEntry({ type: "custom", customType: NAVIGATION_ENTRY });
+  if (!entry) return "main";
+  if (entry.type !== "custom" || !isObject(entry.data) || typeof entry.data.branchId !== "string")
+    throw new CoreMindError("session_restore_failed", "持久分支选择记录无效");
+  assertBranchId(entry.data.branchId);
+  const branchId = entry.data.branchId;
+  if (!(await session.getLanes()).some((pointer) => pointer.lane === branchId))
+    throw new CoreMindError("session_restore_failed", "持久分支选择引用了不存在的分支");
+  return branchId;
 }
 
 interface SessionHolder {
+  activeBranch: string;
   options: CoreMindSessionOptions;
   identity: string;
   storagePath: string;

@@ -361,6 +361,12 @@ export {
   type ProtocolStartIdentity,
   type RunResult,
 } from "./runtime.js";
+export type {
+  ChatSessionBranch,
+  ChatSessionNodeRef,
+  ChatSessionTree,
+  ChatSessionTreeNode,
+} from "./session-tree.js";
 export {
   createRunSnapshot,
   type RunSnapshot,

@@ -47,6 +47,38 @@ export async function acquireSessionWriteLease(
   return acquireOwned(sessionPath, "write");
 }
 
+/** 短期宿主导航复用原租约；释放失败不能掩盖动作的原始失败。 */
+export async function withSessionWriteLease<T>(
+  directory: string,
+  sessionId: string,
+  action: (lease: SessionWriteLease) => Promise<T>,
+): Promise<T> {
+  const lease = await acquireSessionWriteLease(directory, sessionId);
+  let result: T;
+  try {
+    result = await action(lease);
+  } catch (error) {
+    try {
+      await lease.release();
+    } catch (cleanupError) {
+      throw Object.assign(
+        new CoreMindError("session_lock_recovery_required", "会话导航和租约释放均失败"),
+        { cause: new AggregateError([error, cleanupError]) },
+      );
+    }
+    throw error;
+  }
+  try {
+    await lease.release();
+  } catch (error) {
+    throw Object.assign(
+      new CoreMindError("session_lock_recovery_required", "会话导航租约未能正常释放"),
+      { cause: error },
+    );
+  }
+  return result;
+}
+
 /** 只有短 I/O 互斥会等待；与长期写租约分别证明所有权和死主状态。 */
 export async function withSessionIO<T>(
   directory: string,

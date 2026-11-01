@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 1.4.0 development
+
+- Added public ChatSession tree inspection, named branches, durable selection and message-node forks; continued chat uses the selected history under the original writer lease.
+- Added public-package and independent-process checks, fresh authorization, branch compaction and write-failure regressions; documented old SDK rollback and fork publication boundaries.
+
 ## 1.3.0 - 2026-10-20
 
 - Synchronized module contracts and version metadata for the 1.3.0 release line; publication requires qualification for the final commit and exact artifacts.

@@ -1,5 +1,7 @@
 # TypeScript SDK 上手指南
 
+1.4 开发线新增 ChatSession 会话树查询、分支选择和按节点分叉。仅需 coremind-ai 公共导出；用新 sessionId 及宿主配置重新打开。接口、失败恢复与旧 SDK 回滚限制见[会话树指南](../manage-sessions/GUIDE.zh-CN.md)。
+
 ## 什么时候使用
 
 通过 coremind-ai 单一门面在 Node 工程中嵌入 Runtime、工具、会话、显式 Loop、评测和事件。

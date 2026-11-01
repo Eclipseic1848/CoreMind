@@ -9,6 +9,14 @@ session:
   compact: false
 ```
 
+## 会话树示例（1.4 开发线）
+
+`npm run build`
+
+`node examples/modules/manage-sessions/branches.mjs`
+
+示例只从 coremind-ai 公共入口导入，使用本地 HTTP 假 Provider，不需要真实密钥。验证分支历史隔离、持久选择、fork 来源和继续对话；临时目录安全清理。它不代替真实 Provider、Linux/Windows CI 或正式发布资格。
+
 ## 验证步骤
 
 1. 从仓库根目录运行模块清单中的测试。

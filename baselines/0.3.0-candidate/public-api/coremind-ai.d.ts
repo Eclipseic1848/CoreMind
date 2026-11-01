@@ -6,6 +6,10 @@ import { buildTools } from 'coremind-tools';
 import { BuildToolsOptions } from 'coremind-tools';
 import { ChatControlOptions } from 'coremind-runtime';
 import { ChatSession } from 'coremind-runtime';
+import { ChatSessionBranch } from 'coremind-runtime';
+import { ChatSessionNodeRef } from 'coremind-runtime';
+import { ChatSessionTree } from 'coremind-runtime';
+import { ChatSessionTreeNode } from 'coremind-runtime';
 import { ChatTurnResult } from 'coremind-runtime';
 import { CheckpointDiff } from 'coremind-runtime';
 import { CheckpointManager } from 'coremind-runtime';
@@ -359,6 +363,14 @@ export { BuildToolsOptions }
 export { ChatControlOptions }
 
 export { ChatSession }
+
+export { ChatSessionBranch }
+
+export { ChatSessionNodeRef }
+
+export { ChatSessionTree }
+
+export { ChatSessionTreeNode }
 
 export { ChatTurnResult }
 

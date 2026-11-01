@@ -1,5 +1,7 @@
 # TypeScript SDK Guide
 
+The 1.4 development line adds ChatSession tree inspection, branch selection and node forks through coremind-ai. Reopen a new sessionId with host configuration. See [session tree guidance](../manage-sessions/GUIDE.en.md) for APIs, failure recovery and older SDK rollback restrictions.
+
 ## When to use it
 
 Embed runtime, tools, sessions, explicit Loops, evaluation, and events in Node applications through the single coremind-ai facade.

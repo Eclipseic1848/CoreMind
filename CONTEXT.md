@@ -26,6 +26,9 @@ _Avoid_: 工具执行、invocation
 跨 Run 的消息事实域：用户消息、助手消息、工具调用与结果的未脱敏全量持久记录（会话树）。
 _Avoid_: 用 Session 指代单次 Run、RunState 或交互控制器
 
+**SessionBranch（会话分支）**：
+同一 Session 树中的命名 lane 和消息末端；持久选择决定下一轮历史及追加位置。fork 另建会话身份，只继承所选消息祖先，不继承 Run、控制或授权。见 [ADR 0029](docs/adr/0029-public-session-tree-navigation.md)。
+
 ### 事实与投影
 
 **Fact（事实）**：
