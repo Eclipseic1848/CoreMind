@@ -16,10 +16,10 @@ if (
   !Number.isFinite(expiry) ||
   new Date(expiry).toISOString().slice(0, 10) !== policy.expiresAt
 ) {
-  fail("开发依赖风险处置缺少有效的到期日");
+  fail("依赖风险处置缺少有效的到期日");
 }
 if (expiry < Date.now()) {
-  fail(`开发依赖风险处置已过期：${policy.expiresAt}`);
+  fail(`依赖风险处置已过期：${policy.expiresAt}`);
 }
 
 for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
@@ -29,50 +29,58 @@ for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
 }
 
 const severityOrder = ["info", "low", "moderate", "high", "critical"];
+const lock = JSON.parse(await readFile(path.join(root, "package-lock.json"), "utf8"));
+const acceptedPi = policy.acceptedPiPackages ?? {};
 const production = runAudit(["audit", "--omit=dev", "--json"], true);
 const productionNames = Object.keys(production.vulnerabilities);
-if (productionNames.length > 0) {
-  fail(`生产依赖存在漏洞：${productionNames.join("、")}`);
-}
+validateFindings(production.vulnerabilities, acceptedPi, "生产");
 
 const complete = runAudit(["audit", "--json"], true);
 const findings = complete.vulnerabilities;
-const lock = JSON.parse(await readFile(path.join(root, "package-lock.json"), "utf8"));
-const allowed = policy.allowedDevelopmentOnlyPackages ?? {};
-const findingNames = Object.keys(findings).sort();
-const unreviewedNames = findingNames.filter((name) => !Object.hasOwn(allowed, name));
-if (unreviewedNames.length > 0) {
-  fail(`开发依赖存在未审查风险：${unreviewedNames.join("、")}`);
-}
+validateFindings(findings, { ...policy.allowedDevelopmentOnlyPackages, ...acceptedPi }, "完整");
 
-for (const [name, finding] of Object.entries(findings)) {
-  const disposition = allowed[name];
-  const maximum = disposition.maximumSeverity;
-  if (!severityOrder.includes(maximum)) fail(`${name} 缺少有效的审查风险上限`);
-  if (severityOrder.indexOf(finding.severity) > severityOrder.indexOf(maximum)) {
-    fail(`${name} 风险等级 ${finding.severity} 超出已审查上限 ${maximum}`);
-  }
-  if (
-    !Array.isArray(disposition.versions) ||
-    !Array.isArray(finding.nodes) ||
-    finding.nodes.length === 0 ||
-    finding.nodes.some((node) => !disposition.versions.includes(lock.packages?.[node]?.version))
-  ) {
-    fail(`${name} 安装版本不在已审查范围`);
-  }
-  const advisories = collectAdvisories(name);
-  if (
-    !Array.isArray(disposition.advisories) ||
-    advisories.size === 0 ||
-    [...advisories].some((url) => !disposition.advisories.includes(url))
-  ) {
-    fail(`${name} 存在未审查的安全公告`);
-  }
-}
-
+const developmentCount = Object.keys(findings).filter(
+  (name) => !Object.hasOwn(acceptedPi, name),
+).length;
 console.log(
-  `安全审计通过：生产依赖 0 个漏洞；${findingNames.length} 个仅开发依赖风险已隔离并登记至 ${policy.expiresAt}。`,
+  `安全审计通过：${productionNames.length} 个生产依赖风险按 Pi 风险接受决定登记，未接受的生产风险 0 个；${developmentCount} 个仅开发依赖风险已登记；有效期至 ${policy.expiresAt}。风险接受不代表漏洞已修复。`,
 );
+
+function validateFindings(findings, allowed, scope) {
+  const unreviewed = Object.keys(findings).filter((name) => !Object.hasOwn(allowed, name));
+  if (unreviewed.length > 0) fail(`${scope}依赖存在未审查风险：${unreviewed.join("、")}`);
+  for (const [name, finding] of Object.entries(findings)) {
+    const disposition = allowed[name];
+    const maximum = disposition.maximumSeverity;
+    if (!severityOrder.includes(maximum)) fail(`${name} 缺少有效的审查风险上限`);
+    if (severityOrder.indexOf(finding.severity) > severityOrder.indexOf(maximum)) {
+      fail(`${name} 风险等级 ${finding.severity} 超出已审查上限 ${maximum}`);
+    }
+    if (
+      !Array.isArray(disposition.versions) ||
+      !Array.isArray(finding.nodes) ||
+      finding.nodes.length === 0 ||
+      finding.nodes.some((node) => !disposition.versions.includes(lock.packages?.[node]?.version))
+    ) {
+      fail(`${name} 安装版本不在已审查范围`);
+    }
+    if (
+      Object.hasOwn(acceptedPi, name) &&
+      (!Array.isArray(disposition.nodes) ||
+        finding.nodes.some((node) => !disposition.nodes.includes(node)))
+    ) {
+      fail(`${name} 安装位置不在已接受的 Pi 依赖范围`);
+    }
+    const advisories = collectAdvisories(findings, name);
+    if (
+      !Array.isArray(disposition.advisories) ||
+      advisories.size === 0 ||
+      [...advisories].some((url) => !disposition.advisories.includes(url))
+    ) {
+      fail(`${name} 存在未审查的安全公告`);
+    }
+  }
+}
 
 function runAudit(arguments_, allowFailure = false) {
   const npmCli = process.env.npm_execpath;
@@ -109,7 +117,7 @@ function runAudit(arguments_, allowFailure = false) {
 }
 
 /** 传递风险按真实公告追溯，包名相同不能放行后来新增的公告。 */
-function collectAdvisories(name, visited = new Set()) {
+function collectAdvisories(findings, name, visited = new Set()) {
   if (visited.has(name)) return new Set();
   visited.add(name);
   const via = findings[name]?.via;
@@ -117,7 +125,7 @@ function collectAdvisories(name, visited = new Set()) {
   const urls = new Set();
   for (const item of via) {
     if (typeof item === "string") {
-      for (const url of collectAdvisories(item, visited)) urls.add(url);
+      for (const url of collectAdvisories(findings, item, visited)) urls.add(url);
     } else if (
       typeof item?.url === "string" &&
       item.url.startsWith("https://github.com/advisories/GHSA-")

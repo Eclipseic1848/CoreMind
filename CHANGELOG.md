@@ -4,9 +4,16 @@
 
 [English](CHANGELOG.en.md)
 
-## 未发布 — 1.4.0 开发线
+**未发布：1.4.0 开发准备**
 
-### 能力提升
+以下变更尚未正式发布；包含未独立发布的 1.3.0 修复。最终发布说明见 [v1.4.0](docs/release/notes/v1.4.0.md)。
+
+**依赖修复与风险处置**
+
+- **依赖修复：** fast-uri 更新至 3.1.9，CoreMind 网络工具使用 Undici 8.12.2；VitePress 的 Vite 更新至 6.4.5、API Extractor 的 minimatch 至 11.0.1，固定 Linux 后端开发源的 Zod 至 4.6.6、node-forge 至 1.4.2。定向覆盖不升级底层运行库，也不改变 Linux 后端来源版本。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **获准接受的运行时依赖风险：** 按用户明确决定登记底层运行库 1.3.0 及其 minimatch 10.2.6 / Undici 8.10.2 已知风险；这不代表漏洞已修复。审计继续核对确切版本、安装位置、公告、等级上限及原到期日 2026-11-14，其他风险和报告失败仍阻断。公开 npm 消费者仍可能安装这条受影响链，不能依赖仓库 overrides。详见[安全说明](SECURITY.md)。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+
+**能力提升**
 
 - **持久任务阶段与显式迁移：** 公共 TypeScript `TaskSession` 支持 start/query/resume/cancel，阶段检查点原子提交，版本/定义/权限身份校验与显式状态迁移。模型和工具沿用现有 Runtime；未知 Run 窗口失败关闭。配套真实进程、权限/预算/取消验证及双语指南、SOP/Skill 和离线示例。未合并或安全门未通过不构成发布资格。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
 
@@ -25,6 +32,8 @@
 ### 缺陷修复
 
 #### Runtime 与 Workflow
+
+- **重试状态码边界：** 请求 ID 或长数字中的 `503`、`524` 等子串不再把未知 Provider 错误误分类为瞬态；Loop 保留原错误及脱敏审计，暂停等待人工处理。独立状态码、其他瞬态原因、配额排除及原重试预算保持不变。 ([#360](https://github.com/Eclipseic1848/CoreMind/issues/360))
 
 - **并行终止与准入：** 普通 `parallel` 子步骤首次失败或暂停时，取消同组其他步骤并等待收尾，保留首个错误；Run 结束后不再准入新模型调用。已开始操作保留收据，取消不等于回滚；全成功仍按声明顺序聚合。 ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
 - **步骤输出边界：** Workflow `prompt`/`call` 保留同一 Session 历史作为模型上下文，但步骤输出、`saveAs`、后续插值与 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。 ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
