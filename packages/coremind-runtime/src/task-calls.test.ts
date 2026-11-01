@@ -76,6 +76,25 @@ async function open(def: TaskDefinition) {
 }
 
 describe("持久稳定键工具调用", () => {
+  it("审批回调抛出 undefined 时不能记录成功或推进阶段", async () => {
+    runtime.approveTool = async () => {
+      throw undefined;
+    };
+    const tasks = await open(
+      definition(async (context) => {
+        await context.runCalls(async ({ executeTool }) =>
+          executeTool("read", "probe", { value: 1 }),
+        );
+        return { phase: "a", checkpoint: "错误", done: true };
+      }),
+    );
+    await expect(tasks.resume("job")).rejects.toBeDefined();
+    expect(tasks.query("job")).toMatchObject({ status: "paused", checkpoint: "initial" });
+    expect(tasks.calls("job").flatMap((group) => group.calls)).not.toContainEqual(
+      expect.objectContaining({ status: "completed" }),
+    );
+    expect(executions).toBe(0);
+  });
   it("处理器抛出 undefined 也不能被当成成功并推进阶段", async () => {
     const tasks = await open(
       definition(async (context) => {
