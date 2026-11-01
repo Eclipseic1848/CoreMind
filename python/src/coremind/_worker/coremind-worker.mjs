@@ -283239,7 +283239,17 @@ function normalizeDependencyUsage(usage) {
   };
 }
 function isRetryableDependencyAssistantError(message3) {
-  return isRetryableAssistantError(message3);
+  const assistant = message3;
+  if (!assistant.errorMessage)
+    return isRetryableAssistantError(assistant);
+  return isRetryableAssistantError({
+    ...assistant,
+    // shortcut: Pi 1.3.0 缺状态码边界；官方安全版升级后可移除此兼容处理，保留回归。
+    errorMessage: assistant.errorMessage.replace(/429|500|502|503|504|520|524/g, (status, offset, source) => {
+      const neighbors = (source[offset - 1] ?? "") + (source[offset + status.length] ?? "");
+      return /[a-z0-9]/i.test(neighbors) ? "xxx" : status;
+    })
+  });
 }
 
 // packages/coremind-runtime/dist/trace.js

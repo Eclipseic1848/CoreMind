@@ -27,6 +27,8 @@
 
 #### Runtime 与 Workflow
 
+- **重试状态码边界：** 请求 ID 或长数字中的 `503`、`524` 等子串不再把未知 Provider 错误误分类为瞬态；Loop 保留原错误及脱敏审计，暂停等待人工处理。独立状态码、其他瞬态原因、配额排除及原重试预算保持不变。 ([#360](https://github.com/Eclipseic1848/CoreMind/issues/360))
+
 - **并行终止与准入：** 普通 `parallel` 子步骤首次失败或暂停时，取消同组其他步骤并等待收尾，保留首个错误；Run 结束后不再准入新模型调用。已开始操作保留收据，取消不等于回滚；全成功仍按声明顺序聚合。 ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
 - **步骤输出边界：** Workflow `prompt`/`call` 保留同一 Session 历史作为模型上下文，但步骤输出、`saveAs`、后续插值与 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。 ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
 - **v2 启动错误身份：** 已接受 Run 的 Runtime 初始化失败按共享错误分类持久化稳定错误码、对应终态与安全消息，供 `query`/`events` 查询，不再统一改为 `agent_failed`。未知异常以 `unclassified_error` 保守暂停并要求人工审计，不公开凭据或原始堆栈，也不表示可直接恢复。 ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
