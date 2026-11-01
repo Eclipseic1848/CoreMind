@@ -1,12 +1,29 @@
 import { createHash, randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
+import path from "node:path";
 import { Ajv, type ValidateFunction } from "ajv";
 import { resolveRuntimeLimits } from "./budget.js";
 import { canonicalJson } from "./canonical-json.js";
 import { projectEffectReceiptBindings } from "./effect-receipt-binding.js";
-import { CoreMindRuntime, type CoreMindRuntimeOptions, type RunResult } from "./runtime.js";
+import { ProjectionEngine } from "./projection.js";
+import { FileRunStore, findUnsafeToolCall } from "./run-state.js";
+import {
+  CoreMindRuntime,
+  type CoreMindRuntimeOptions,
+  type RunResult,
+  runTaskProgram,
+} from "./runtime.js";
 import { assertJsonSerializable } from "./session-v4/session/session.js";
 import type { JsonValue } from "./session-v4/session/types.js";
+import {
+  copyTaskValue,
+  executeTaskCalls,
+  type TaskCallContext,
+  TaskCallError,
+  type TaskCallGroup,
+  type TaskCallSnapshot,
+  taskCallGroupsSchema,
+} from "./task-calls.js";
 import {
   type TaskCheckpoint,
   TaskCommitSession,
@@ -87,6 +104,8 @@ export interface TaskPhaseContext {
   readonly signal: AbortSignal;
   /** 每阶段最多一次完整受治理 Run；不暴露裸模型或工具执行器。 */
   run(prompt: string): Promise<RunResult>;
+  /** 与 run 二选一；所有稳定键调用共享一个完整受治理 Run。 */
+  runCalls<T extends JsonValue>(handler: (calls: TaskCallContext) => Promise<T>): Promise<T>;
 }
 
 export interface TaskDefinition {
@@ -143,6 +162,7 @@ interface TaskState {
   sleep?: TaskSleep;
   /** 仅保留已经准入的 wakeId→sleepId，避免旧 alarm 在后续阶段再次生效。 */
   wakes?: Record<string, string>;
+  callGroups?: TaskCallGroup[];
 }
 
 interface RegisteredTask {
@@ -163,6 +183,7 @@ const stateValidator = new Ajv({ strict: true, ownProperties: true }).compile({
     definition: { type: "string", pattern: "^[a-f0-9]{64}$" },
     status: { enum: ["ready", "paused", "sleeping", "completed", "cancelled"] },
     checkpoint: {},
+    callGroups: taskCallGroupsSchema,
     pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 },
     sleep: {
       type: "object",
@@ -345,13 +366,19 @@ export class TaskSession {
       let state = readState(record);
       if (state.status === "completed" || state.status === "cancelled")
         return snapshot(taskId, record);
-      if (state.authority !== this.authority)
+      if (state.authority !== this.authority) {
+        if (state.callGroups?.length) {
+          state.callGroups.at(-1)!.conflict = "恢复权限/能力身份变化";
+          await this.persist(taskId, { ...record, checkpoint: asJson(state) });
+        }
         throw failure(
           "task_authority_mismatch",
           "任务权限/配置身份变化，不能通过状态迁移授予新权限",
         );
+      }
       const registered = this.definition(record.type);
-      if (state.pendingRunId)
+      const pendingCalls = state.callGroups?.find((group) => group.runId === state.pendingRunId);
+      if (state.pendingRunId && (!pendingCalls || record.version !== registered.definition.version))
         throw failure("task_run_unresolved", "阶段已有未提交 Run，必须核对原 Run，禁止自动重发");
       if (state.status === "sleeping" && validateTime(this.clock()) < state.sleep!.wakeAt)
         return snapshot(taskId, record);
@@ -388,6 +415,10 @@ export class TaskSession {
         await this.persist(taskId, record);
         state = readState(record);
       } else if (state.definition !== registered.fingerprint) {
+        if (pendingCalls) {
+          pendingCalls.conflict = "恢复任务定义发生分歧";
+          await this.persist(taskId, { ...record, checkpoint: asJson(state) });
+        }
         throw failure("task_definition_mismatch", "同版本任务定义已变化；请提升版本并显式迁移");
       }
       validateCheckpoint(registered, record.phase, state.checkpoint);
@@ -398,7 +429,7 @@ export class TaskSession {
         await this.persist(taskId, record);
       }
       let accepting = true;
-      let run: Promise<RunResult> | undefined;
+      let run: Promise<unknown> | undefined;
       let succeeded = false;
       const context: TaskPhaseContext = {
         task: snapshot(taskId, record),
@@ -406,7 +437,8 @@ export class TaskSession {
         run: (prompt) => {
           if (!accepting || controller.signal.aborted)
             return Promise.reject(failure("task_cancelled", "阶段已停止接收调用"));
-          if (run) return Promise.reject(failure("task_run_unresolved", "每阶段只能启动一次 Run"));
+          if (run || pendingCalls)
+            return Promise.reject(failure("task_run_unresolved", "每阶段只能启动一次 Run"));
           if (!this.runtime || typeof prompt !== "string" || !prompt.trim())
             return Promise.reject(
               failure("task_definition_invalid", "调用 Run 须配置 Runtime 并提供非空 prompt"),
@@ -434,7 +466,112 @@ export class TaskSession {
           })();
           // 调用者遗漏 await 也不允许逃逸提交；最终必须等待受治理 Run 收敛。
           void run.catch(() => undefined);
-          return run;
+          return run as Promise<RunResult>;
+        },
+        runCalls: <T extends JsonValue>(
+          handler: (calls: TaskCallContext) => Promise<T>,
+        ): Promise<T> => {
+          if (!accepting || controller.signal.aborted)
+            return Promise.reject(failure("task_cancelled", "阶段已停止接收调用"));
+          if (run) return Promise.reject(failure("task_run_unresolved", "每阶段只能拥有一个 Run"));
+          if (
+            !this.runtime ||
+            typeof handler !== "function" ||
+            this.runtime.config.workflow ||
+            this.runtime.config.loop
+          )
+            return Promise.reject(
+              failure(
+                "task_definition_invalid",
+                "runCalls 须配置单 Agent Runtime 与处理器，不能替代 workflow/loop",
+              ),
+            );
+          run = (async () => {
+            const group: TaskCallGroup = pendingCalls ?? {
+              runId: randomUUID(),
+              phase: record.phase,
+              version: record.version,
+              authority: state.authority,
+              calls: [],
+            };
+            if (!pendingCalls) {
+              state = {
+                ...state,
+                pendingRunId: group.runId,
+                callGroups: [...(state.callGroups ?? []), group],
+              };
+              record = { ...record, checkpoint: asJson(state) };
+              await this.persist(taskId, record);
+            }
+            const persist = async () => {
+              record = { ...record, checkpoint: asJson(state) };
+              await this.persist(taskId, record);
+            };
+            const facts = await new FileRunStore(
+              path.join(this.runtime!.configDir, ".coremind", "runs"),
+            ).read(group.runId);
+            const projection = facts.length ? ProjectionEngine.project(facts) : undefined;
+            if (
+              facts.length &&
+              (
+                facts.find((fact) => fact.kind === "start")?.payload as
+                  | { taskProgram?: string }
+                  | undefined
+              )?.taskProgram !== group.runId
+            )
+              throw failure("task_run_unresolved", "调用 Run 与持久任务作用域不匹配");
+            if (projection?.status === "finished") {
+              if (projection.snapshot?.outcome.status !== "succeeded")
+                throw failure("task_run_unresolved", "原调用 Run 已失败或取消，不得自动创建新 Run");
+              const value = await executeTaskCalls({
+                group,
+                signal: controller.signal,
+                persist,
+                handler,
+              });
+              succeeded = true;
+              return value;
+            }
+            assertActive(controller.signal);
+            const runtime = await CoreMindRuntime.create({
+              ...this.runtime!,
+              cwd: this.workspace,
+              runId: group.runId,
+              ...(facts.length ? { resumeRunId: group.runId } : {}),
+              initialPrompt: "CoreMind keyed task calls",
+              signal: controller.signal,
+            });
+            let value: T | undefined;
+            let callbackFailure: unknown;
+            let callbackFailed = false;
+            const result = await runTaskProgram(runtime, group.runId, async (invoke) => {
+              try {
+                value = await executeTaskCalls({
+                  group,
+                  signal: controller.signal,
+                  persist,
+                  invoke,
+                  handler,
+                });
+              } catch (error) {
+                callbackFailed = true;
+                callbackFailure = error;
+                throw error instanceof Error
+                  ? error
+                  : new TaskCallError("task_call_failed", "调用处理器抛出了非 Error 异常");
+              }
+            });
+            // 沿用原恢复合同：已提交整步结果及关联幂等 attempt 可收敛；旧收据保持不可变。
+            succeeded =
+              result.outcome.status === "succeeded" &&
+              findUnsafeToolCall(result.trace) === undefined &&
+              (await runtime.waitForQuiescence(0));
+            if (callbackFailed) throw callbackFailure;
+            if (!succeeded) throw failure("task_run_failed", "稳定键调用 Run 未成功，不能推进阶段");
+            return value as T;
+          })();
+          void run.catch(() => undefined);
+          return run as Promise<T>;
         },
       };
       try {
@@ -474,6 +611,7 @@ export class TaskSession {
               : "ready",
           checkpoint: transition.checkpoint,
           ...(state.wakes ? { wakes: state.wakes } : {}),
+          ...(state.callGroups ? { callGroups: state.callGroups } : {}),
           ...(transition.sleepUntil !== undefined
             ? { sleep: { sleepId: randomUUID(), wakeAt: transition.sleepUntil } }
             : {}),
@@ -505,6 +643,17 @@ export class TaskSession {
         accepting = false;
       }
     });
+  }
+
+  /** 历史记录随任务保留；终态不重新执行，不自动清除审计与结果。 */
+  calls(taskId: string): TaskCallSnapshot[] {
+    this.assertOpen();
+    return copyTaskValue(
+      (readState(this.requiredRecord(taskId)).callGroups ?? []).flatMap(
+        ({ calls, runId, phase, version, authority }) =>
+          calls.map((call) => ({ ...call, runId, phase, version, authority })),
+      ),
+    );
   }
 
   async cancel(taskId: string): Promise<TaskSnapshot> {
@@ -645,6 +794,40 @@ function readState(record: TaskCheckpoint): TaskState {
   if (!stateValidator(record.checkpoint))
     throw failure("task_checkpoint_invalid", "任务状态封装损坏或版本不支持");
   const state = record.checkpoint as unknown as TaskState;
+  const groups = state.callGroups ?? [];
+  if (
+    new Set(groups.map((group) => group.runId)).size !== groups.length ||
+    groups.some((group) => {
+      if (
+        new Set(group.calls.map((call) => call.key)).size !== group.calls.length ||
+        group.authority !== state.authority
+      )
+        return true;
+      return group.calls.some((call) => {
+        const signature = createHash("sha256")
+          .update(
+            canonicalJson({
+              key: call.key,
+              tool: call.tool,
+              args: call.args,
+              authority: group.authority,
+            }),
+            "utf8",
+          )
+          .digest("hex");
+        return (
+          signature !== call.signature ||
+          createHash("sha256").update(`${group.runId}:${call.key}`, "utf8").digest("hex") !==
+            call.stepId ||
+          (call.status === "completed") !== (call.result !== undefined)
+        );
+      });
+    })
+  )
+    throw failure("task_checkpoint_invalid", "持久调用签名、结果或作用域损坏");
+  const current = groups.find((group) => group.runId === state.pendingRunId);
+  if (current && (current.phase !== record.phase || current.version !== record.version))
+    throw failure("task_checkpoint_invalid", "未完成调用与当前阶段/版本不匹配");
   if (
     (state.status === "sleeping" && !state.sleep) ||
     (state.sleep && (state.pendingRunId || !["sleeping", "cancelled"].includes(state.status)))

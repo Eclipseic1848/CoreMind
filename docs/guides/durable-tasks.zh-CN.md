@@ -2,7 +2,7 @@
 
 [English](durable-tasks.en.md)
 
-TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本功能仍为未发布开发线；Python、Worker 和嵌套调用另行交付。
+TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本功能仍为未发布开发线；Python/Worker 入口另行交付；显式稳定键调用见下文。
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -68,7 +68,7 @@ try {
 
 配置、权限和工具声明改变时不能借迁移恢复。`authorityVersion` 须随审批闭包、外部策略或凭据路由变化更新；恢复检查只保存身份哈希。宿主函数是可信代码，AbortSignal 无法强制终止任意 JavaScript/I/O，须协作取消并只从受治理入口启动业务调用。
 
-若查询结果含 pendingRunId，原 Run 已进入需要核查的窗口；恢复会报 `task_run_unresolved`，不会重发。先保留任务目录与原 Run Facts，检查原 Run 的状态和副作用回执。本版本不提供清除该标识或自动结果协调；不要修改日志或新建替代 Run 绕过它。多次 keyed 调用与确定性复用属于 #365。
+传统 context.run 的 pendingRunId 仍要求先核对原 Run，不自动重发。下述显式 runCalls 仅在稳定键及原副作用证明满足时协调原 Run；不要删除标识或新建替代 Run。
 
 ## 可复现验证
 
@@ -81,3 +81,29 @@ npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremin
 ```
 
 示例完全离线，演示 A→重开→B→完成，以及显式 v1→v2 状态迁移。真实进程退出由测试单独验证，普通 close/reopen 不代替崩溃验收。详见 [ADR 0026](../adr/0026-task-phases-and-migrations.md) 和[恢复 SOP](../modules/recover-durable-runs/SOP.zh-CN.md)。
+
+## 稳定键调用（1.4 开发线）
+
+一个阶段在 `context.run(prompt)` 与 `context.runCalls(handler)` 中二选一，最多拥有一个 Run。后者精确执行已注册工具，不发起父模型请求，也不能替代配置中的 workflow/loop。所有键共享原 Run 的工具/步骤/token/费用预算、权限、审批、取消、超时和 ChildRun 上限。
+
+```ts
+const result = await context.runCalls(async ({ executeTool }) => {
+  const first = await executeTool("record", "lookup", { id: "42" });
+  const same = await executeTool("record", "lookup", { id: "42" });
+  return same.details;
+});
+```
+
+`lookup` 须在 Runtime 中显式注册，示例见 `examples/modules/recover-durable-runs/task-calls.mjs`。已有固定目标的委派使用 `executeTool("child", "delegate", { target, task, references: [] })`，仍由原 ChildRun Coordinator 准入。每个不同键须串行 await；重复在飞键连接原 Promise，已完成键返回持久结果的副本。返回值为 `{ content, details }`，须为有限 JSON；不支持保存函数、循环引用、无限值或被原脱敏门识别的凭据。大输出仍受既有任务提交 1 MiB 上限，应引用受治理 Artifact。
+
+作用域包括父任务、阶段、定义版本和本次阶段 Run。循环回同名阶段会获得新 Run，不复用旧一轮结果。签名绑定规范化参数、工具以及完整 Runtime 权限/能力身份；恢复还核对唯一键出现顺序。换工具、换参数、遗漏/插入/调换旧键、同版本改处理器或能力变化均拒绝；调用分歧随 TaskCommit 保存审计。修改闭包、外部服务能力、依赖行为或凭据路由时，宿主仍必须更新定义版本/authorityVersion，源码哈希不能发现这些变化。
+
+`session.calls(taskId)` 查询全部历史调用的 key、工具、参数、作用域、stepId、RunId、状态和已提交结果；失败记录仅存稳定错误标记，详情查原 Run Facts。父任务完成/取消后不再执行，记录继续保留；没有自动清理、无限历史或新的归档服务。
+
+恢复顺序：先保存调用 intent；原 Runtime 完成生命周期与回执校验后 critical 保存整步结果；再提交任务结果账本，最后才交给处理器。真实进程在结果两次提交之间退出时，从同一 Run 的整步结果重建，不重做工具。Run 已成功而阶段未提交时仅重进处理器并复用旧键，不准新增键。原 Run 未结束时沿用原恢复判定：未知外部效果暂停；符合既有幂等证明条件时新 Call/attempt 关联旧 receipt，旧收据不可改写。失败/取消调用不能换键或新 Run 绕过；不支持迁移未解决的旧 Run。
+
+发生写入确认故障时，旧 holder 不再可用：保留目录，关闭重开，查原 TaskCommit 与 Run；不假定回滚或自动继续。任意宿主 JS、时间、随机值、裸网络请求不会被重放保护；这不是外部 exactly-once、持久 JS 栈或新的任务执行引擎。
+
+旧任务无 callGroups 时仍可读；旧 SDK 会拒绝新账本字段，且不认识任务专用 Run 标记。回滚前停止所有 writer，保全任务与 Run 两个事实域；不要用旧 SDK 单独 resume 新任务 Run。Python/Worker 入口属于后续 #367，本项不改变协议。正式能力仍须双平台 CI、安全门和合并验收。
+
+验证：运行 `task-calls.test.ts`、`task-calls-process.test.ts`、`task-calls-child.test.ts` 和离线 `task-calls.mjs`，再运行模块原门禁。包含真实进程在 intent、效果、整步结果、任务结果、Run 结束后的退出，及 ChildRun、预算、权限、取消、写入确认故障。详见 [ADR 0028](../adr/0028-keyed-task-calls.md)。

@@ -29,3 +29,5 @@ Public TypeScript TaskSession builds phase execution and explicit migration on t
 公共 TaskSession 每次 resume 只执行一个阶段，迁移失败保留原事实。定义闭包变化须提升定义版本，审批闭包/外部策略变化须更新 authorityVersion；未知副作用不得借新阶段重试。
 
 持久等待遵循 [ADR 0027](../../docs/adr/0027-durable-task-sleep-wake.md)：sleepUntil 与阶段结果一起提交，nextWake 从持久期限重建 alarm。wake 只确认 ready；宿主显式 resume，并在重启时 query 已知 ready 任务。已准入 wakeId 必须稳定绑定 sleepId；早到不消耗键，重复/过期通知不得推进后续阶段。回执未知先关闭重开核对，不扩大任何超时，不新增后台调度或把 close/reopen 当成崩溃验收。运行 task-sleep.test.ts、task-sleep-process.test.ts、task-session-runtime.test.ts 和 task-sleep.mjs。
+
+稳定键恢复遵循 [ADR 0028](../../docs/adr/0028-keyed-task-calls.md)。一个阶段只允许一个 run/runCalls；所有 key 共享原 Run 治理与子树上限。先保存 intent，确认原 Run 整步结果后再提交任务结果；恢复核对签名、版本、权限和顺序。未知效果不自动重放，安全新 Call 必须保留 attempt/receipt 绑定。终态只查询历史；I/O 不明须保全两个事实域，不伪造回滚。运行 task-calls.test.ts、task-calls-process.test.ts、task-calls-child.test.ts 和 task-calls.mjs，保留所有原门禁与超时。

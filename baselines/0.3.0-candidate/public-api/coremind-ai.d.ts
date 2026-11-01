@@ -288,6 +288,9 @@ import { SkillMeta } from 'coremind-templates';
 import { SKILLS } from 'coremind-templates';
 import { StateGrader } from 'coremind-runtime';
 import { StepOutput } from 'coremind-runtime';
+import { TaskCallContext } from 'coremind-runtime';
+import { TaskCallError } from 'coremind-runtime';
+import { TaskCallSnapshot } from 'coremind-runtime';
 import { TaskConversationEntry } from 'coremind-runtime';
 import { TaskDefinition } from 'coremind-runtime';
 import { TaskDocument } from 'coremind-runtime';
@@ -300,6 +303,7 @@ import { TaskSession } from 'coremind-runtime';
 import { TaskSessionOptions } from 'coremind-runtime';
 import { TaskSleep } from 'coremind-runtime';
 import { TaskSnapshot } from 'coremind-runtime';
+import { TaskToolResult } from 'coremind-runtime';
 import { TaskTransition } from 'coremind-runtime';
 import { TaskWakeDeadline } from 'coremind-runtime';
 import { TaskWakeResult } from 'coremind-runtime';
@@ -920,6 +924,12 @@ export { StateGrader }
 
 export { StepOutput }
 
+export { TaskCallContext }
+
+export { TaskCallError }
+
+export { TaskCallSnapshot }
+
 export { TaskConversationEntry }
 
 export { TaskDefinition }
@@ -943,6 +953,8 @@ export { TaskSessionOptions }
 export { TaskSleep }
 
 export { TaskSnapshot }
+
+export { TaskToolResult }
 
 export { TaskTransition }
 

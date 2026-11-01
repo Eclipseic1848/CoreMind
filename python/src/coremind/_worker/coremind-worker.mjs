@@ -16366,21 +16366,21 @@ var init_models = __esm({
         this.supersedeProviderRefresh(provider.id);
         this.providers.set(provider.id, provider);
       }
-      deleteProvider(id) {
-        this.supersedeProviderRefresh(id);
-        this.providers.delete(id);
+      deleteProvider(id2) {
+        this.supersedeProviderRefresh(id2);
+        this.providers.delete(id2);
       }
       clearProviders() {
-        for (const id of /* @__PURE__ */ new Set([...this.providers.keys(), ...this.refreshControllers.keys()])) {
-          this.supersedeProviderRefresh(id);
+        for (const id2 of /* @__PURE__ */ new Set([...this.providers.keys(), ...this.refreshControllers.keys()])) {
+          this.supersedeProviderRefresh(id2);
         }
         this.providers.clear();
       }
       getProviders() {
         return Array.from(this.providers.values());
       }
-      getProvider(id) {
-        return this.providers.get(id);
+      getProvider(id2) {
+        return this.providers.get(id2);
       }
       getModels(provider) {
         if (provider !== void 0) {
@@ -16425,11 +16425,11 @@ var init_models = __esm({
       getModelsOfType(type, provider) {
         return this.getAllModels(provider).filter((model) => isModelType(model, type));
       }
-      getModel(provider, id) {
-        return this.getModels(provider).find((model) => model.id === id);
+      getModel(provider, id2) {
+        return this.getModels(provider).find((model) => model.id === id2);
       }
-      getModelOfType(type, provider, id) {
-        return this.getModelsOfType(type, provider).find((model) => model.id === id);
+      getModelOfType(type, provider, id2) {
+        return this.getModelsOfType(type, provider).find((model) => model.id === id2);
       }
       supersedeProviderRefresh(providerId) {
         const generation = (this.refreshGenerations.get(providerId) ?? 0) + 1;
@@ -20535,10 +20535,10 @@ function ErrorUniqueItems(_stack, context, schemaPath, instancePath, schema, val
     return true;
   const set = /* @__PURE__ */ new Set();
   const duplicateItems = value.reduce((result, value2, index3) => {
-    const hash2 = hash_exports.Hash(value2);
-    if (set.has(hash2))
+    const hash3 = hash_exports.Hash(value2);
+    if (set.has(hash3))
       return [...result, index3];
-    set.add(hash2);
+    set.add(hash3);
     return result;
   }, []);
   const isUniqueItems = guard_exports.IsEqual(duplicateItems.length, 0);
@@ -23853,10 +23853,10 @@ var init_error2 = __esm({
 function MakeUnique(values) {
   const [hashes, result] = [/* @__PURE__ */ new Set(), []];
   for (const value of values) {
-    const hash2 = Hash3(value);
-    if (hashes.has(hash2))
+    const hash3 = Hash3(value);
+    if (hashes.has(hash3))
       continue;
-    hashes.add(hash2);
+    hashes.add(hash3);
     result.push(value);
   }
   return result;
@@ -35294,8 +35294,8 @@ var require_client_h2 = __commonJS({
       }
       this[kClient][kOnError](err2);
     }
-    function onHttp2FrameError(type, code, id) {
-      if (id === 0) {
+    function onHttp2FrameError(type, code, id2) {
+      if (id2 === 0) {
         if (this[kReceivedGoAway]) {
           return;
         }
@@ -42189,7 +42189,7 @@ var require_snapshot_recorder = __commonJS({
           return;
         }
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash2 = createRequestHash(request);
+        const hash3 = createRequestHash(request);
         const normalizedHeaders = normalizeHeaders2(response.headers);
         const responseData = {
           statusCode: response.statusCode,
@@ -42197,16 +42197,16 @@ var require_snapshot_recorder = __commonJS({
           body: Buffer.isBuffer(response.body) ? response.body.toString("base64") : Buffer.from(String(response.body || "")).toString("base64"),
           trailers: response.trailers
         };
-        if (this.#snapshots.size >= this.#maxSnapshots && !this.#snapshots.has(hash2)) {
+        if (this.#snapshots.size >= this.#maxSnapshots && !this.#snapshots.has(hash3)) {
           const oldestKey = this.#snapshots.keys().next().value;
           this.#snapshots.delete(oldestKey);
         }
-        const existingSnapshot = this.#snapshots.get(hash2);
+        const existingSnapshot = this.#snapshots.get(hash3);
         if (existingSnapshot && existingSnapshot.responses) {
           existingSnapshot.responses.push(responseData);
           existingSnapshot.timestamp = (/* @__PURE__ */ new Date()).toISOString();
         } else {
-          this.#snapshots.set(hash2, {
+          this.#snapshots.set(hash3, {
             request,
             responses: [responseData],
             // Always store as array for consistency
@@ -42242,8 +42242,8 @@ var require_snapshot_recorder = __commonJS({
           return void 0;
         }
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash2 = createRequestHash(request);
-        const snapshot = this.#snapshots.get(hash2);
+        const hash3 = createRequestHash(request);
+        const snapshot = this.#snapshots.get(hash3);
         if (!snapshot) return void 0;
         const currentCallCount = snapshot.callCount || 0;
         const responseIndex = Math.min(currentCallCount, snapshot.responses.length - 1);
@@ -42268,8 +42268,8 @@ var require_snapshot_recorder = __commonJS({
           const parsed = JSON.parse(data);
           if (Array.isArray(parsed)) {
             this.#snapshots.clear();
-            for (const { hash: hash2, snapshot } of parsed) {
-              this.#snapshots.set(hash2, snapshot);
+            for (const { hash: hash3, snapshot } of parsed) {
+              this.#snapshots.set(hash3, snapshot);
             }
           } else {
             this.#snapshots = new Map(Object.entries(parsed));
@@ -42295,8 +42295,8 @@ var require_snapshot_recorder = __commonJS({
         }
         const resolvedPath = resolve9(path48);
         await mkdir9(dirname12(resolvedPath), { recursive: true });
-        const data = Array.from(this.#snapshots.entries()).map(([hash2, snapshot]) => ({
-          hash: hash2,
+        const data = Array.from(this.#snapshots.entries()).map(([hash3, snapshot]) => ({
+          hash: hash3,
           snapshot
         }));
         await writeFile10(resolvedPath, JSON.stringify(data, null, 2), { flush: true });
@@ -42338,8 +42338,8 @@ var require_snapshot_recorder = __commonJS({
        */
       deleteSnapshot(requestOpts) {
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash2 = createRequestHash(request);
-        return this.#snapshots.delete(hash2);
+        const hash3 = createRequestHash(request);
+        return this.#snapshots.delete(hash3);
       }
       /**
        * Gets information about a specific snapshot
@@ -42348,11 +42348,11 @@ var require_snapshot_recorder = __commonJS({
        */
       getSnapshotInfo(requestOpts) {
         const request = formatRequestKey(requestOpts, this.#headerFilters, this.matchOptions);
-        const hash2 = createRequestHash(request);
-        const snapshot = this.#snapshots.get(hash2);
+        const hash3 = createRequestHash(request);
+        const snapshot = this.#snapshots.get(hash3);
         if (!snapshot) return null;
         return {
-          hash: hash2,
+          hash: hash3,
           request: snapshot.request,
           responseCount: snapshot.responses ? snapshot.responses.length : snapshot.response ? 1 : 0,
           // .response for legacy snapshots
@@ -42368,8 +42368,8 @@ var require_snapshot_recorder = __commonJS({
       replaceSnapshots(snapshotData) {
         this.#snapshots.clear();
         if (Array.isArray(snapshotData)) {
-          for (const { hash: hash2, snapshot } of snapshotData) {
-            this.#snapshots.set(hash2, snapshot);
+          for (const { hash: hash3, snapshot } of snapshotData) {
+            this.#snapshots.set(hash3, snapshot);
           }
         } else if (snapshotData && typeof snapshotData === "object") {
           this.#snapshots = new Map(Object.entries(snapshotData));
@@ -59869,14 +59869,14 @@ var require_sha256 = __commonJS({
         })()
       );
       exports2.HMAC = HMAC;
-      function hash2(data) {
+      function hash3(data) {
         var h3 = new Hash4().update(data);
         var digest2 = h3.digest();
         h3.clean();
         return digest2;
       }
-      exports2.hash = hash2;
-      exports2["default"] = hash2;
+      exports2.hash = hash3;
+      exports2["default"] = hash3;
       function hmac2(key, data) {
         var h3 = new HMAC(key).update(data);
         var digest2 = h3.digest();
@@ -66508,9 +66508,9 @@ var init_BetaToolRunner = __esm({
          * }
          */
         deferToolCall(toolUse) {
-          const id = typeof toolUse === "string" ? toolUse : toolUse.id;
-          if (__classPrivateFieldGet3(this, _BetaToolRunner_calls, "f") && !__classPrivateFieldGet3(this, _BetaToolRunner_calls, "f").has(id)) {
-            __classPrivateFieldGet3(this, _BetaToolRunner_calls, "f").set(id, { status: "held" });
+          const id2 = typeof toolUse === "string" ? toolUse : toolUse.id;
+          if (__classPrivateFieldGet3(this, _BetaToolRunner_calls, "f") && !__classPrivateFieldGet3(this, _BetaToolRunner_calls, "f").has(id2)) {
+            __classPrivateFieldGet3(this, _BetaToolRunner_calls, "f").set(id2, { status: "held" });
           }
         }
         /**
@@ -74035,8 +74035,8 @@ function buildParams(model, context, isOAuthToken2, options, disablePreferredStr
   }
   return { params, hasPreferredStrictTools, providerThinkingLevel: effortMessages ? activeEffort : void 0 };
 }
-function normalizeToolCallId(id) {
-  return id.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+function normalizeToolCallId(id2) {
+  return id2.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 }
 function convertToolResult(msg, content = msg.content) {
   return {
@@ -77012,15 +77012,15 @@ var init_pagination2 = __esm({
       }
       nextPageRequestOptions() {
         const data = this.getPaginatedItems();
-        const id = data[data.length - 1]?.id;
-        if (!id) {
+        const id2 = data[data.length - 1]?.id;
+        if (!id2) {
           return null;
         }
         return {
           ...this.options,
           query: {
             ...maybeObj2(this.options.query),
-            after: id
+            after: id2
           }
         };
       }
@@ -81881,10 +81881,10 @@ function observeSerializedChatCompletionParserParams(body, initial, update) {
   });
 }
 function finalizeChatCompletion(snapshot, params, audioDoneChoiceIndexes, validatedMessages) {
-  const { id, choices, created, model, system_fingerprint, ...rest } = snapshot;
+  const { id: id2, choices, created, model, system_fingerprint, ...rest } = snapshot;
   const completion = {
     ...rest,
-    id,
+    id: id2,
     choices: mapCapturedSnapshotArray(choices, MAX_STREAM_CHOICES, "choice", (choice) => {
       const validated = validatedMessages.get(choice);
       if (!validated) {
@@ -81994,19 +81994,19 @@ function finalizeChatCompletion(snapshot, params, audioDoneChoiceIndexes, valida
                 throw new OpenAIError(`missing choices[${index3}].tool_calls[${i3}].type`);
               }
               if (stableTool.type === "custom") {
-                const { custom, type: type2, id: id3, ...toolRest2 } = stableTool;
+                const { custom, type: type2, id: id4, ...toolRest2 } = stableTool;
                 const { input = "", name: name2, ...customRest } = custom || {};
                 if (name2 == null) {
                   throw new OpenAIError(`missing choices[${index3}].tool_calls[${i3}].custom.name`);
                 }
                 return {
                   ...toolRest2,
-                  id: id3 || `call_${uuid42()}`,
+                  id: id4 || `call_${uuid42()}`,
                   type: type2,
                   custom: { ...customRest, name: name2, input }
                 };
               }
-              const { function: fn, type, id: id2, ...toolRest } = stableTool;
+              const { function: fn, type, id: id3, ...toolRest } = stableTool;
               const { arguments: args, name, ...fnRest } = fn || {};
               if (name == null) {
                 throw new OpenAIError(`missing choices[${index3}].tool_calls[${i3}].function.name`);
@@ -82016,7 +82016,7 @@ function finalizeChatCompletion(snapshot, params, audioDoneChoiceIndexes, valida
               }
               return {
                 ...toolRest,
-                id: id2 || `call_${uuid42()}`,
+                id: id3 || `call_${uuid42()}`,
                 type,
                 function: { ...fnRest, name, arguments: args }
               };
@@ -82175,10 +82175,10 @@ var init_ChatCompletionStream = __esm({
             const message3 = getChatCompletionReadableStreamMessage(item);
             if (__classPrivateFieldGet4(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f")) {
               const toolCalls = __classPrivateFieldGet4(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f").choices[0]?.message.tool_calls;
-              for (const [index3, id] of message3.tool_call_ids?.entries() ?? []) {
+              for (const [index3, id2] of message3.tool_call_ids?.entries() ?? []) {
                 const toolCall = toolCalls?.[index3];
-                if (toolCall && id) {
-                  toolCall.id = id;
+                if (toolCall && id2) {
+                  toolCall.id = id2;
                 }
               }
               this._addChatCompletion(__classPrivateFieldGet4(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_endRequest).call(this));
@@ -82644,7 +82644,7 @@ var init_ChatCompletionStream = __esm({
           if (tool_calls) {
             const toolCallSnapshots = (_e2 = choice.message).tool_calls ?? (_e2.tool_calls = []);
             for (const toolCallDelta of tool_calls) {
-              const { index: index4, id, type, function: fn, custom, ...rest3 } = toolCallDelta;
+              const { index: index4, id: id2, type, function: fn, custom, ...rest3 } = toolCallDelta;
               if (!Number.isSafeInteger(index4) || index4 < 0 || index4 >= MAX_STREAM_TOOL_CALLS) {
                 throw new OpenAIError(`Chat completion stream contains an invalid tool call index: ${index4}`);
               }
@@ -82660,8 +82660,8 @@ var init_ChatCompletionStream = __esm({
                 }
               }
               assignOwnProperties(tool_call, rest3);
-              if (id) {
-                tool_call.id = id;
+              if (id2) {
+                tool_call.id = id2;
               }
               if (type) {
                 tool_call.type = type;
@@ -89867,16 +89867,16 @@ var init_evals = __esm({
 });
 
 // node_modules/openai/lib/file-processing.mjs
-async function waitForFileProcessing(resource, id, pollInterval, maxWait) {
+async function waitForFileProcessing(resource, id2, pollInterval, maxWait) {
   const terminalStates = /* @__PURE__ */ new Set(["processed", "error", "deleted"]);
   const start = performance.now();
-  let file = await resource.retrieve(id);
+  let file = await resource.retrieve(id2);
   while (!file.status || !terminalStates.has(file.status)) {
     await sleep3(pollInterval);
-    file = await resource.retrieve(id);
+    file = await resource.retrieve(id2);
     if (performance.now() - start > maxWait) {
       throw new APIConnectionTimeoutError2({
-        message: `Giving up on waiting for file ${id} to finish processing after ${maxWait} milliseconds.`
+        message: `Giving up on waiting for file ${id2} to finish processing after ${maxWait} milliseconds.`
       });
     }
   }
@@ -89968,8 +89968,8 @@ var init_files5 = __esm({
       /**
        * Waits for the given file to be processed, default timeout is 30 mins.
        */
-      async waitForProcessing(id, { pollInterval = 5e3, maxWait = 30 * 60 * 1e3 } = {}) {
-        return await waitForFileProcessing(this, id, pollInterval, maxWait);
+      async waitForProcessing(id2, { pollInterval = 5e3, maxWait = 30 * 60 * 1e3 } = {}) {
+        return await waitForFileProcessing(this, id2, pollInterval, maxWait);
       }
     };
   }
@@ -92466,8 +92466,8 @@ var init_alerts = __esm({
       /**
        * Get a safety alert belonging to the authenticated API project.
        */
-      retrieve(id, options) {
-        return this._client.get(path17`/safety/alerts/${id}`, { ...options, __security: { bearerAuth: true } });
+      retrieve(id2, options) {
+        return this._client.get(path17`/safety/alerts/${id2}`, { ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -95159,8 +95159,8 @@ var init_hash4 = __esm({
 });
 
 // node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js
-function encodeTextSignatureV1(id, phase) {
-  const payload = { v: 1, id };
+function encodeTextSignatureV1(id2, phase) {
+  const payload = { v: 1, id: id2 };
   if (phase)
     payload.phase = phase;
   return JSON.stringify(payload);
@@ -95214,12 +95214,12 @@ function convertResponsesMessages(model, context, allowedToolCallProviders, opti
     const normalized = `fc_${shortHash(itemId)}`;
     return normalized.length > 64 ? normalized.slice(0, 64) : normalized;
   };
-  const normalizeToolCallId2 = (id, _targetModel, source) => {
+  const normalizeToolCallId2 = (id2, _targetModel, source) => {
     if (!allowedToolCallProviders.has(model.provider))
-      return normalizeIdPart(id);
-    if (!id.includes("|"))
-      return normalizeIdPart(id);
-    const [callId, itemId] = id.split("|");
+      return normalizeIdPart(id2);
+    if (!id2.includes("|"))
+      return normalizeIdPart(id2);
+    const [callId, itemId] = id2.split("|");
     const normalizedCallId = normalizeIdPart(callId);
     const isForeignToolCall = source.provider !== model.provider || source.api !== model.api;
     let normalizedItemId = isForeignToolCall ? buildForeignResponsesItemId(itemId) : normalizeIdPart(itemId);
@@ -97044,12 +97044,12 @@ var require_common2 = __commonJS({
       createDebug.skips = [];
       createDebug.formatters = {};
       function selectColor(namespace) {
-        let hash2 = 0;
+        let hash3 = 0;
         for (let i3 = 0; i3 < namespace.length; i3++) {
-          hash2 = (hash2 << 5) - hash2 + namespace.charCodeAt(i3);
-          hash2 |= 0;
+          hash3 = (hash3 << 5) - hash3 + namespace.charCodeAt(i3);
+          hash3 |= 0;
         }
-        return createDebug.colors[Math.abs(hash2) % createDebug.colors.length];
+        return createDebug.colors[Math.abs(hash3) % createDebug.colors.length];
       }
       createDebug.selectColor = selectColor;
       function createDebug(namespace) {
@@ -103969,8 +103969,8 @@ var init_get_search = __esm({
         return parsedURL.search;
       }
       const lastOffset = parsedURL.href.length - 1;
-      const hash2 = parsedURL.hash || (parsedURL.href[lastOffset] === "#" ? "#" : "");
-      return parsedURL.href[lastOffset - hash2.length] === "?" ? "?" : "";
+      const hash3 = parsedURL.hash || (parsedURL.href[lastOffset] === "#" ? "#" : "");
+      return parsedURL.href[lastOffset - hash3.length] === "?" ? "?" : "";
     };
   }
 });
@@ -104657,7 +104657,7 @@ var require_gaxios = __commonJS({
     var retry_js_1 = require_retry6();
     var stream_1 = __require("stream");
     var interceptor_js_1 = require_interceptor();
-    var randomUUID26 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
+    var randomUUID27 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
     var HTTP_STATUS_NO_CONTENT = 204;
     var Gaxios = class {
       agentCache = /* @__PURE__ */ new Map();
@@ -104930,7 +104930,7 @@ var require_gaxios = __commonJS({
          */
         ["Blob", "File", "FormData"].includes(opts.data?.constructor?.name || "");
         if (opts.multipart?.length) {
-          const boundary = await randomUUID26();
+          const boundary = await randomUUID27();
           preparedHeaders.set("content-type", `multipart/related; boundary=${boundary}`);
           opts.body = stream_1.Readable.from(this.getMultipartRequest(opts.multipart, boundary));
         } else if (shouldDirectlyPassData) {
@@ -105717,7 +105717,7 @@ var require_bignumber = __commonJS({
             return q2;
           };
         })();
-        function format2(n2, i3, rm9, id) {
+        function format2(n2, i3, rm9, id2) {
           var c0, e2, ne, len, str2;
           if (rm9 == null) rm9 = ROUNDING_MODE;
           else intCheck(rm9, 0, 8);
@@ -105726,17 +105726,17 @@ var require_bignumber = __commonJS({
           ne = n2.e;
           if (i3 == null) {
             str2 = coeffToString(n2.c);
-            str2 = id == 1 || id == 2 && (ne <= TO_EXP_NEG || ne >= TO_EXP_POS) ? toExponential(str2, ne) : toFixedPoint(str2, ne, "0");
+            str2 = id2 == 1 || id2 == 2 && (ne <= TO_EXP_NEG || ne >= TO_EXP_POS) ? toExponential(str2, ne) : toFixedPoint(str2, ne, "0");
           } else {
             n2 = round(new BigNumber2(n2), i3, rm9);
             e2 = n2.e;
             str2 = coeffToString(n2.c);
             len = str2.length;
-            if (id == 1 || id == 2 && (i3 <= e2 || e2 <= TO_EXP_NEG)) {
+            if (id2 == 1 || id2 == 2 && (i3 <= e2 || e2 <= TO_EXP_NEG)) {
               for (; len < i3; str2 += "0", len++) ;
               str2 = toExponential(str2, e2);
             } else {
-              i3 -= ne + (id === 2 && e2 > ne);
+              i3 -= ne + (id2 === 2 && e2 > ne);
               str2 = toFixedPoint(str2, e2, "0");
               if (e2 + 1 > len) {
                 if (--i3 > 0) for (str2 += "."; i3--; str2 += "0") ;
@@ -129310,13 +129310,13 @@ async function $do$q(client, body, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function agentsDelete(client, id, api_version, options) {
-  return new APIPromise3($do$p(client, id, api_version, options));
+function agentsDelete(client, id2, api_version, options) {
+  return new APIPromise3($do$p(client, id2, api_version, options));
 }
-async function $do$p(client, id, api_version, options) {
+async function $do$p(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -129384,13 +129384,13 @@ async function $do$p(client, id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function agentsGet(client, id, api_version, options) {
-  return new APIPromise3($do$o(client, id, api_version, options));
+function agentsGet(client, id2, api_version, options) {
+  return new APIPromise3($do$o(client, id2, api_version, options));
 }
-async function $do$o(client, id, api_version, options) {
+async function $do$o(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -129607,13 +129607,13 @@ async function $do$m(client, body, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function environmentsDeleteEnvironment(client, id, api_version, options) {
-  return new APIPromise3($do$l(client, id, api_version, options));
+function environmentsDeleteEnvironment(client, id2, api_version, options) {
+  return new APIPromise3($do$l(client, id2, api_version, options));
 }
-async function $do$l(client, id, api_version, options) {
+async function $do$l(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -129681,13 +129681,13 @@ async function $do$l(client, id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function environmentsGetEnvironment(client, id, api_version, options) {
-  return new APIPromise3($do$k(client, id, api_version, options));
+function environmentsGetEnvironment(client, id2, api_version, options) {
+  return new APIPromise3($do$k(client, id2, api_version, options));
 }
-async function $do$k(client, id, api_version, options) {
+async function $do$k(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -129919,13 +129919,13 @@ async function $do$i(client, environment, path48, api_version, page_size, page_t
   }
   return [result, { status: "complete", request: req, response }];
 }
-function interactionsCancel(client, id, api_version, options) {
-  return new APIPromise3($do$h(client, id, api_version, options));
+function interactionsCancel(client, id2, api_version, options) {
+  return new APIPromise3($do$h(client, id2, api_version, options));
 }
-async function $do$h(client, id, api_version, options) {
+async function $do$h(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -130073,13 +130073,13 @@ async function $do$g(client, body, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function interactionsDelete(client, id, api_version, options) {
-  return new APIPromise3($do$f(client, id, api_version, options));
+function interactionsDelete(client, id2, api_version, options) {
+  return new APIPromise3($do$f(client, id2, api_version, options));
 }
-async function $do$f(client, id, api_version, options) {
+async function $do$f(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -130150,13 +130150,13 @@ async function $do$f(client, id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function interactionsGet(client, id, api_version, include_input, last_event_id, stream12, options) {
-  return new APIPromise3($do$e(client, id, api_version, include_input, last_event_id, stream12, options));
+function interactionsGet(client, id2, api_version, include_input, last_event_id, stream12, options) {
+  return new APIPromise3($do$e(client, id2, api_version, include_input, last_event_id, stream12, options));
 }
-async function $do$e(client, id, api_version, include_input, last_event_id, stream12, options) {
+async function $do$e(client, id2, api_version, include_input, last_event_id, stream12, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version,
     include_input,
     last_event_id,
@@ -130310,13 +130310,13 @@ async function $do$d(client, body, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function triggersDelete(client, id, api_version, options) {
-  return new APIPromise3($do$c(client, id, api_version, options));
+function triggersDelete(client, id2, api_version, options) {
+  return new APIPromise3($do$c(client, id2, api_version, options));
 }
-async function $do$c(client, id, api_version, options) {
+async function $do$c(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -130384,13 +130384,13 @@ async function $do$c(client, id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function triggersGet(client, id, api_version, options) {
-  return new APIPromise3($do$b(client, id, api_version, options));
+function triggersGet(client, id2, api_version, options) {
+  return new APIPromise3($do$b(client, id2, api_version, options));
 }
-async function $do$b(client, id, api_version, options) {
+async function $do$b(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -130691,13 +130691,13 @@ async function $do$8(client, trigger_id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function triggersUpdate(client, id, body, api_version, options) {
-  return new APIPromise3($do$7(client, id, body, api_version, options));
+function triggersUpdate(client, id2, body, api_version, options) {
+  return new APIPromise3($do$7(client, id2, body, api_version, options));
 }
-async function $do$7(client, id, body, api_version, options) {
+async function $do$7(client, id2, body, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     body,
     api_version
   };
@@ -130838,13 +130838,13 @@ async function $do$6(client, body, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function webhooksDelete(client, id, api_version, options) {
-  return new APIPromise3($do$5(client, id, api_version, options));
+function webhooksDelete(client, id2, api_version, options) {
+  return new APIPromise3($do$5(client, id2, api_version, options));
 }
-async function $do$5(client, id, api_version, options) {
+async function $do$5(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -130912,13 +130912,13 @@ async function $do$5(client, id, api_version, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function webhooksGet(client, id, api_version, options) {
-  return new APIPromise3($do$4(client, id, api_version, options));
+function webhooksGet(client, id2, api_version, options) {
+  return new APIPromise3($do$4(client, id2, api_version, options));
 }
-async function $do$4(client, id, api_version, options) {
+async function $do$4(client, id2, api_version, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version
   };
   const payload = input;
@@ -131062,13 +131062,13 @@ async function $do$3(client, api_version, page_size, page_token, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function webhooksPing(client, id, api_version, body, options) {
-  return new APIPromise3($do$2(client, id, api_version, body, options));
+function webhooksPing(client, id2, api_version, body, options) {
+  return new APIPromise3($do$2(client, id2, api_version, body, options));
 }
-async function $do$2(client, id, api_version, body, options) {
+async function $do$2(client, id2, api_version, body, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version,
     body
   };
@@ -131138,13 +131138,13 @@ async function $do$2(client, id, api_version, body, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function webhooksRotateSigningSecret(client, id, api_version, body, options) {
-  return new APIPromise3($do$1(client, id, api_version, body, options));
+function webhooksRotateSigningSecret(client, id2, api_version, body, options) {
+  return new APIPromise3($do$1(client, id2, api_version, body, options));
 }
-async function $do$1(client, id, api_version, body, options) {
+async function $do$1(client, id2, api_version, body, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version,
     body
   };
@@ -131214,13 +131214,13 @@ async function $do$1(client, id, api_version, body, options) {
   }
   return [result, { status: "complete", request: req, response }];
 }
-function webhooksUpdate(client, id, api_version, update_mask, body, options) {
-  return new APIPromise3($do(client, id, api_version, update_mask, body, options));
+function webhooksUpdate(client, id2, api_version, update_mask, body, options) {
+  return new APIPromise3($do(client, id2, api_version, update_mask, body, options));
 }
-async function $do(client, id, api_version, update_mask, body, options) {
+async function $do(client, id2, api_version, update_mask, body, options) {
   var _a10, _b, _c;
   const input = {
-    id,
+    id: id2,
     api_version,
     update_mask,
     body
@@ -139729,14 +139729,14 @@ var init_node3 = __esm({
       /**
        * Deletes an Agent.
        */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(agentsDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      delete(id2, params, options) {
+        return unwrapAsAPIPromise(agentsDelete(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Gets a specific Agent.
        */
-      get(id, params, options) {
-        return unwrapAsAPIPromise(agentsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      get(id2, params, options) {
+        return unwrapAsAPIPromise(agentsGet(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
     };
     /**
@@ -139816,14 +139816,14 @@ var init_node3 = __esm({
       /**
        * Deletes an environment.
        */
-      deleteEnvironment(id, params, options) {
-        return unwrapAsAPIPromise(environmentsDeleteEnvironment(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      deleteEnvironment(id2, params, options) {
+        return unwrapAsAPIPromise(environmentsDeleteEnvironment(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Gets an environment.
        */
-      getEnvironment(id, params, options) {
-        return unwrapAsAPIPromise(environmentsGetEnvironment(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      getEnvironment(id2, params, options) {
+        return unwrapAsAPIPromise(environmentsGetEnvironment(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
     };
     /**
@@ -139980,11 +139980,11 @@ var init_node3 = __esm({
        * @remarks
        * Deletes the interaction by id.
        */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(interactionsDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      delete(id2, params, options) {
+        return unwrapAsAPIPromise(interactionsDelete(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
-      get(id, params, options) {
-        return unwrapAsAPIPromise(interactionsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.include_input, params === null || params === void 0 ? void 0 : params.last_event_id, params === null || params === void 0 ? void 0 : params.stream, options));
+      get(id2, params, options) {
+        return unwrapAsAPIPromise(interactionsGet(this, id2, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.include_input, params === null || params === void 0 ? void 0 : params.last_event_id, params === null || params === void 0 ? void 0 : params.stream, options));
       }
       /**
        * Canceling an interaction
@@ -139992,8 +139992,8 @@ var init_node3 = __esm({
        * @remarks
        * Cancels an interaction by id. This only applies to background interactions that are still running.
        */
-      cancel(id, params, options) {
-        return unwrapAsAPIPromise(interactionsCancel(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      cancel(id2, params, options) {
+        return unwrapAsAPIPromise(interactionsCancel(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
     };
     /**
@@ -140069,21 +140069,21 @@ var init_node3 = __esm({
       /**
        * Deletes a trigger.
        */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(triggersDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      delete(id2, params, options) {
+        return unwrapAsAPIPromise(triggersDelete(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Gets details of a single trigger.
        */
-      get(id, params, options) {
-        return unwrapAsAPIPromise(triggersGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      get(id2, params, options) {
+        return unwrapAsAPIPromise(triggersGet(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Updates a trigger.
        */
-      update(id, params, options) {
+      update(id2, params, options) {
         const { api_version } = params, body = __rest(params, ["api_version"]);
-        return unwrapAsAPIPromise(triggersUpdate(this, id, body, api_version, options));
+        return unwrapAsAPIPromise(triggersUpdate(this, id2, body, api_version, options));
       }
       /**
        * Lists executions for a trigger.
@@ -140171,34 +140171,34 @@ var init_node3 = __esm({
       /**
        * Deletes a Webhook.
        */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(webhooksDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      delete(id2, params, options) {
+        return unwrapAsAPIPromise(webhooksDelete(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Gets a specific Webhook.
        */
-      get(id, params, options) {
-        return unwrapAsAPIPromise(webhooksGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+      get(id2, params, options) {
+        return unwrapAsAPIPromise(webhooksGet(this, id2, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
       /**
        * Updates an existing Webhook.
        */
-      update(id, params, options) {
+      update(id2, params, options) {
         const _a10 = params !== null && params !== void 0 ? params : {}, { api_version, update_mask } = _a10, body$body = __rest(_a10, ["api_version", "update_mask"]);
         const body = params === void 0 || Object.keys(body$body).length === 0 ? void 0 : body$body;
-        return unwrapAsAPIPromise(webhooksUpdate(this, id, api_version, update_mask, body, options));
+        return unwrapAsAPIPromise(webhooksUpdate(this, id2, api_version, update_mask, body, options));
       }
       /**
        * Sends a ping event to a Webhook.
        */
-      ping(id, api_version, body, options) {
-        return unwrapAsAPIPromise(webhooksPing(this, id, api_version, body, options));
+      ping(id2, api_version, body, options) {
+        return unwrapAsAPIPromise(webhooksPing(this, id2, api_version, body, options));
       }
       /**
        * Generates a new signing secret for a Webhook.
        */
-      rotateSigningSecret(id, api_version, body, options) {
-        return unwrapAsAPIPromise(webhooksRotateSigningSecret(this, id, api_version, body, options));
+      rotateSigningSecret(id2, api_version, body, options) {
+        return unwrapAsAPIPromise(webhooksRotateSigningSecret(this, id2, api_version, body, options));
       }
     };
     /**
@@ -140254,20 +140254,20 @@ var init_node3 = __esm({
         const response = await unwrapWithSdkHttpResponse(interactionsCreate(this.getClient(api_version), request, api_version, toGoogleGenAIRequestOptions(options)));
         return addOutputPropertiesIfInteraction(response);
       }
-      async get(id, params = {}, options) {
+      async get(id2, params = {}, options) {
         const { api_version, stream: stream12 = false, last_event_id, include_input } = params !== null && params !== void 0 ? params : {};
         if (stream12 === true) {
-          const response2 = await wrapSDKCall(() => this.getClient(api_version).interactions.get(id, { stream: stream12, last_event_id, include_input, api_version }, toGoogleGenAIRequestOptions(options, true)));
+          const response2 = await wrapSDKCall(() => this.getClient(api_version).interactions.get(id2, { stream: stream12, last_event_id, include_input, api_version }, toGoogleGenAIRequestOptions(options, true)));
           return wrapStreamErrors(response2);
         }
-        const response = await unwrapWithSdkHttpResponse(interactionsGet(this.getClient(api_version), id, api_version, include_input, last_event_id, stream12, toGoogleGenAIRequestOptions(options)));
+        const response = await unwrapWithSdkHttpResponse(interactionsGet(this.getClient(api_version), id2, api_version, include_input, last_event_id, stream12, toGoogleGenAIRequestOptions(options)));
         return addOutputPropertiesIfInteraction(response);
       }
-      async delete(id, params = {}, options) {
-        return wrapSDKCall(() => this.getClient(params === null || params === void 0 ? void 0 : params.api_version).interactions.delete(id, { api_version: params === null || params === void 0 ? void 0 : params.api_version }, toGoogleGenAIRequestOptions(options)));
+      async delete(id2, params = {}, options) {
+        return wrapSDKCall(() => this.getClient(params === null || params === void 0 ? void 0 : params.api_version).interactions.delete(id2, { api_version: params === null || params === void 0 ? void 0 : params.api_version }, toGoogleGenAIRequestOptions(options)));
       }
-      async cancel(id, params = {}, options) {
-        return addOutputPropertiesIfInteraction(await unwrapWithSdkHttpResponse(interactionsCancel(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options))));
+      async cancel(id2, params = {}, options) {
+        return addOutputPropertiesIfInteraction(await unwrapWithSdkHttpResponse(interactionsCancel(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options))));
       }
       getClient(apiVersion) {
         var _a10;
@@ -140292,11 +140292,11 @@ var init_node3 = __esm({
         const { api_version, pageSize, pageToken, parent } = params !== null && params !== void 0 ? params : {};
         return unwrapWithSdkHttpResponse(agentsList(this.getClient(api_version), api_version, pageSize, pageToken, parent, toGoogleGenAIRequestOptions(options)));
       }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(agentsGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async get(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(agentsGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(agentsDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async delete(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(agentsDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
       getClient(apiVersion) {
         var _a10;
@@ -140321,23 +140321,23 @@ var init_node3 = __esm({
         const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
         return unwrapWithSdkHttpResponse(webhooksList(this.getClient(), api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
       }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(webhooksGet(this.getClient(), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async get(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(webhooksGet(this.getClient(), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async update(id, params = {}, options) {
+      async update(id2, params = {}, options) {
         const _a10 = params !== null && params !== void 0 ? params : {}, { api_version, update_mask } = _a10, body = __rest(_a10, ["api_version", "update_mask"]);
-        return unwrapWithSdkHttpResponse(webhooksUpdate(this.getClient(), id, api_version, update_mask, body, toGoogleGenAIRequestOptions(options)));
+        return unwrapWithSdkHttpResponse(webhooksUpdate(this.getClient(), id2, api_version, update_mask, body, toGoogleGenAIRequestOptions(options)));
       }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(webhooksDelete(this.getClient(), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async delete(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(webhooksDelete(this.getClient(), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async rotateSigningSecret(id, params = {}, options) {
+      async rotateSigningSecret(id2, params = {}, options) {
         const _a10 = params !== null && params !== void 0 ? params : {}, { api_version } = _a10, body = __rest(_a10, ["api_version"]);
-        return unwrapWithSdkHttpResponse(webhooksRotateSigningSecret(this.getClient(), id, api_version, body, toGoogleGenAIRequestOptions(options)));
+        return unwrapWithSdkHttpResponse(webhooksRotateSigningSecret(this.getClient(), id2, api_version, body, toGoogleGenAIRequestOptions(options)));
       }
-      async ping(id, params = void 0, options) {
+      async ping(id2, params = void 0, options) {
         const { api_version, body } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(webhooksPing(this.getClient(), id, api_version, body, toGoogleGenAIRequestOptions(options)));
+        return unwrapWithSdkHttpResponse(webhooksPing(this.getClient(), id2, api_version, body, toGoogleGenAIRequestOptions(options)));
       }
       getClient() {
         var _a10;
@@ -140357,15 +140357,15 @@ var init_node3 = __esm({
         const { api_version, filter: filter2, pageSize, pageToken } = params !== null && params !== void 0 ? params : {};
         return unwrapWithSdkHttpResponse(triggersList(this.getClient(api_version), api_version, filter2, pageSize, pageToken, toGoogleGenAIRequestOptions(options)));
       }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(triggersGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async get(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(triggersGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async update(id, params, options) {
+      async update(id2, params, options) {
         const { api_version } = params, body = __rest(params, ["api_version"]);
-        return unwrapWithSdkHttpResponse(triggersUpdate(this.getClient(api_version), id, body, api_version, toGoogleGenAIRequestOptions(options)));
+        return unwrapWithSdkHttpResponse(triggersUpdate(this.getClient(api_version), id2, body, api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(triggersDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async delete(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(triggersDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
       async run(trigger_id, params = {}, options) {
         return unwrapWithSdkHttpResponse(triggersRun(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), trigger_id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
@@ -140407,11 +140407,11 @@ var init_node3 = __esm({
         const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
         return unwrapWithSdkHttpResponse(environmentsListEnvironments(this.getClient(api_version), api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
       }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(environmentsGetEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async get(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(environmentsGetEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(environmentsDeleteEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+      async delete(id2, params = {}, options) {
+        return unwrapWithSdkHttpResponse(environmentsDeleteEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id2, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
       getClient(apiVersion) {
         var _a10;
@@ -141261,13 +141261,13 @@ function resolveGoogleThinkingLevel(model, level) {
   }
 }
 function usesGoogleThinkingLevel(model) {
-  const id = model.id.toLowerCase();
+  const id2 = model.id.toLowerCase();
   return (
     // Match Gemini 3 Pro/Flash IDs with or without a minor version, such as
     // gemini-3-flash-preview, gemini-3.1-pro-preview, and gemini-3.8-flash.
-    /gemini-3(?:\.\d+)?-(?:pro|flash)/.test(id) || // Match Gemini 4 and later, such as gemini-4-argon (#10890).
-    /gemini-(?:[4-9]|[1-9]\d)/.test(id) || id === "gemini-flash-latest" || id === "gemini-flash-lite-latest" || // Match both hosted Gemma 4 naming forms: gemma-4-* and gemma4-*.
-    /gemma-?4/.test(id)
+    /gemini-3(?:\.\d+)?-(?:pro|flash)/.test(id2) || // Match Gemini 4 and later, such as gemini-4-argon (#10890).
+    /gemini-(?:[4-9]|[1-9]\d)/.test(id2) || id2 === "gemini-flash-latest" || id2 === "gemini-flash-lite-latest" || // Match both hosted Gemma 4 naming forms: gemma-4-* and gemma4-*.
+    /gemma-?4/.test(id2)
   );
 }
 function toGoogleThinkingLevel(level) {
@@ -141333,10 +141333,10 @@ function supportsMultimodalFunctionResponse(modelId) {
 function convertMessages2(model, context) {
   const conversation = withoutInitialSystemMessage(collapseSystemMessages(context).messages);
   const contents = [];
-  const normalizeToolCallId2 = (id) => {
+  const normalizeToolCallId2 = (id2) => {
     if (!requiresToolCallId(model.id))
-      return id;
-    return id.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+      return id2;
+    return id2.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
   };
   const transformedMessages = transformMessages(conversation, model, normalizeToolCallId2);
   for (const msg of transformedMessages) {
@@ -142451,28 +142451,28 @@ function createOutput(model) {
 function createMistralToolCallIdNormalizer() {
   const idMap = /* @__PURE__ */ new Map();
   const reverseMap = /* @__PURE__ */ new Map();
-  return (id) => {
-    const existing = idMap.get(id);
+  return (id2) => {
+    const existing = idMap.get(id2);
     if (existing)
       return existing;
     let attempt = 0;
     while (true) {
-      const candidate = deriveMistralToolCallId(id, attempt);
+      const candidate = deriveMistralToolCallId(id2, attempt);
       const owner = reverseMap.get(candidate);
-      if (!owner || owner === id) {
-        idMap.set(id, candidate);
-        reverseMap.set(candidate, id);
+      if (!owner || owner === id2) {
+        idMap.set(id2, candidate);
+        reverseMap.set(candidate, id2);
         return candidate;
       }
       attempt++;
     }
   };
 }
-function deriveMistralToolCallId(id, attempt) {
-  const normalized = id.replace(/[^a-zA-Z0-9]/g, "");
+function deriveMistralToolCallId(id2, attempt) {
+  const normalized = id2.replace(/[^a-zA-Z0-9]/g, "");
   if (attempt === 0 && normalized.length === MISTRAL_TOOL_CALL_ID_LENGTH)
     return normalized;
-  const seedBase = normalized || id;
+  const seedBase = normalized || id2;
   const seed = attempt === 0 ? seedBase : `${seedBase}:${attempt}`;
   return shortHash(seed).replace(/[^a-zA-Z0-9]/g, "").slice(0, MISTRAL_TOOL_CALL_ID_LENGTH);
 }
@@ -143081,7 +143081,7 @@ var init_mistral_conversations = __esm({
             throw new Error(`No API key for provider: ${model.provider}`);
           }
           const normalizeMistralToolCallId = createMistralToolCallIdNormalizer();
-          const transformedMessages = transformMessages(normalizedContext.messages, model, (id) => normalizeMistralToolCallId(id));
+          const transformedMessages = transformMessages(normalizedContext.messages, model, (id2) => normalizeMistralToolCallId(id2));
           let payload = buildChatPayload(model, normalizedContext, transformedMessages, options);
           const nextPayload = await options?.onPayload?.(payload, model);
           if (nextPayload !== void 0) {
@@ -144972,24 +144972,24 @@ function addCacheControlToTextContent(message3, cacheControl) {
 function convertMessages3(model, context, compat, options) {
   const normalizedContext = resolveTranscript(context, compat.supportsMidConvoSystemMessages);
   const params = [];
-  const normalizeToolCallId2 = (id) => {
-    if (id.includes("|")) {
-      const separatorIndex = id.indexOf("|");
-      const callId = id.slice(0, separatorIndex).replace(/[^a-zA-Z0-9_-]/g, "_");
-      const itemId = id.slice(separatorIndex + 1).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const normalizeToolCallId2 = (id2) => {
+    if (id2.includes("|")) {
+      const separatorIndex = id2.indexOf("|");
+      const callId = id2.slice(0, separatorIndex).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const itemId = id2.slice(separatorIndex + 1).replace(/[^a-zA-Z0-9_-]/g, "_");
       const combinedId = itemId.length > 0 ? `${callId}_${itemId}` : callId;
       if (combinedId.length <= 40) {
         return combinedId;
       }
-      const hash2 = shortHash(id).slice(0, 8);
-      const prefix = callId.slice(0, Math.max(1, 40 - hash2.length - 1));
-      return `${prefix}_${hash2}`;
+      const hash3 = shortHash(id2).slice(0, 8);
+      const prefix = callId.slice(0, Math.max(1, 40 - hash3.length - 1));
+      return `${prefix}_${hash3}`;
     }
     if (model.provider === "openai")
-      return id.length > 40 ? id.slice(0, 40) : id;
-    return id;
+      return id2.length > 40 ? id2.slice(0, 40) : id2;
+    return id2;
   };
-  const transformedMessages = transformMessages(normalizedContext.messages, model, (id) => normalizeToolCallId2(id));
+  const transformedMessages = transformMessages(normalizedContext.messages, model, (id2) => normalizeToolCallId2(id2));
   const transcriptTools = resolveTranscriptTools(normalizedContext.messages, compat.supportsMidConvoSystemMessages === true && compat.supportsMidConvoToolAdditions === true);
   const instructionRole = model.reasoning && compat.supportsDeveloperRole ? "developer" : "system";
   let lastRole = null;
@@ -148177,54 +148177,54 @@ var init_classifier_shared = __esm({
 });
 
 // node_modules/@earendil-works/pi-ai/dist/api/system-one-shared.js
-function probabilities(label, value, id) {
+function probabilities(label, value, id2) {
   if (!isRecord3(value))
-    throw new Error(`${label} returned invalid probabilities for ${id}`);
+    throw new Error(`${label} returned invalid probabilities for ${id2}`);
   return Object.fromEntries(Object.entries(value).map(([key, probability]) => [
     key,
-    requiredNumber(label, probability, `probability for ${id}.${key}`)
+    requiredNumber(label, probability, `probability for ${id2}.${key}`)
   ]));
 }
 function parseAnswers(label, value, context) {
   if (!isRecord3(value))
     throw new Error(`${label} returned an unexpected response`);
   const answers = [];
-  for (const [id, question] of Object.entries(context.questions)) {
-    const answer = value[id];
+  for (const [id2, question] of Object.entries(context.questions)) {
+    const answer = value[id2];
     if (!isRecord3(answer))
-      throw new Error(`${label} did not return an answer for ${id}`);
+      throw new Error(`${label} did not return an answer for ${id2}`);
     if (question.type === "choice") {
       if (answer.type !== "choice" || typeof answer.choice !== "string") {
-        throw new Error(`${label} did not return a choice answer for ${id}`);
+        throw new Error(`${label} did not return a choice answer for ${id2}`);
       }
       answers.push([
-        id,
+        id2,
         {
           type: "choice",
           choice: answer.choice,
-          probabilities: probabilities(label, answer.probabilities, id),
-          confidence: requiredNumber(label, answer.confidence, `confidence for ${id}`)
+          probabilities: probabilities(label, answer.probabilities, id2),
+          confidence: requiredNumber(label, answer.confidence, `confidence for ${id2}`)
         }
       ]);
     } else if (question.type === "score") {
       if (answer.type !== "score")
-        throw new Error(`${label} did not return a score answer for ${id}`);
+        throw new Error(`${label} did not return a score answer for ${id2}`);
       answers.push([
-        id,
+        id2,
         {
           type: "score",
-          score: requiredNumber(label, answer.score, `score for ${id}`),
-          confidence: requiredNumber(label, answer.confidence, `confidence for ${id}`)
+          score: requiredNumber(label, answer.score, `score for ${id2}`),
+          confidence: requiredNumber(label, answer.confidence, `confidence for ${id2}`)
         }
       ]);
     } else {
       if (answer.type !== "noul")
-        throw new Error(`${label} did not return a bool answer for ${id}`);
+        throw new Error(`${label} did not return a bool answer for ${id2}`);
       answers.push([
-        id,
+        id2,
         {
           type: "bool",
-          probability: requiredNumber(label, answer.noul, `probability for ${id}`)
+          probability: requiredNumber(label, answer.noul, `probability for ${id2}`)
         }
       ]);
     }
@@ -148234,8 +148234,8 @@ function parseAnswers(label, value, context) {
 function wireRequest(context) {
   return {
     state: context.state,
-    questions: Object.fromEntries(Object.entries(context.questions).map(([id, question]) => [
-      id,
+    questions: Object.fromEntries(Object.entries(context.questions).map(([id2, question]) => [
+      id2,
       question.type === "bool" ? { ...question, type: "noul" } : question
     ]))
   };
@@ -148416,7 +148416,7 @@ function githubCopilotProvider() {
       if (credential?.type !== "oauth")
         return models;
       const availableModelIds = credential.availableModelIds;
-      if (!Array.isArray(availableModelIds) || !availableModelIds.every((id) => typeof id === "string")) {
+      if (!Array.isArray(availableModelIds) || !availableModelIds.every((id2) => typeof id2 === "string")) {
         return models;
       }
       const available = new Set(availableModelIds);
@@ -148824,42 +148824,42 @@ function wireInput(context) {
     }
   ];
 }
-function choiceProbabilities(value, id) {
+function choiceProbabilities(value, id2) {
   if (!Array.isArray(value))
-    throw new Error(`${LABEL2} returned invalid probabilities for ${id}`);
+    throw new Error(`${LABEL2} returned invalid probabilities for ${id2}`);
   return Object.fromEntries(value.map((entry) => {
     if (!isRecord3(entry) || typeof entry.value !== "string") {
-      throw new Error(`${LABEL2} returned invalid probabilities for ${id}`);
+      throw new Error(`${LABEL2} returned invalid probabilities for ${id2}`);
     }
-    return [entry.value, requiredNumber(LABEL2, entry.probability, `probability for ${id}.${entry.value}`)];
+    return [entry.value, requiredNumber(LABEL2, entry.probability, `probability for ${id2}.${entry.value}`)];
   }));
 }
-function parseAnswer(id, question, answer) {
+function parseAnswer(id2, question, answer) {
   if (answer.type === "refusal")
-    throw new Error(`${LABEL2} refused to answer ${id}`);
+    throw new Error(`${LABEL2} refused to answer ${id2}`);
   if (question.type === "choice") {
     if (answer.type !== "choice" || typeof answer.choice !== "string") {
-      throw new Error(`${LABEL2} did not return a choice answer for ${id}`);
+      throw new Error(`${LABEL2} did not return a choice answer for ${id2}`);
     }
     return {
       type: "choice",
       choice: answer.choice,
-      probabilities: choiceProbabilities(answer.probabilities, id),
-      confidence: requiredNumber(LABEL2, answer.confidence, `confidence for ${id}`)
+      probabilities: choiceProbabilities(answer.probabilities, id2),
+      confidence: requiredNumber(LABEL2, answer.confidence, `confidence for ${id2}`)
     };
   }
   if (question.type === "score") {
     if (answer.type !== "score")
-      throw new Error(`${LABEL2} did not return a score answer for ${id}`);
+      throw new Error(`${LABEL2} did not return a score answer for ${id2}`);
     return {
       type: "score",
-      score: requiredNumber(LABEL2, answer.score, `score for ${id}`),
-      confidence: requiredNumber(LABEL2, answer.confidence, `confidence for ${id}`)
+      score: requiredNumber(LABEL2, answer.score, `score for ${id2}`),
+      confidence: requiredNumber(LABEL2, answer.confidence, `confidence for ${id2}`)
     };
   }
   if (answer.type !== "predicate")
-    throw new Error(`${LABEL2} did not return a predicate answer for ${id}`);
-  return { type: "bool", probability: requiredNumber(LABEL2, answer.probability, `probability for ${id}`) };
+    throw new Error(`${LABEL2} did not return a predicate answer for ${id2}`);
+  return { type: "bool", probability: requiredNumber(LABEL2, answer.probability, `probability for ${id2}`) };
 }
 function parseAnswers2(value, context) {
   if (!Array.isArray(value))
@@ -148869,11 +148869,11 @@ function parseAnswers2(value, context) {
     if (isRecord3(answer) && typeof answer.name === "string")
       byName.set(answer.name, answer);
   }
-  return Object.fromEntries(Object.entries(context.questions).map(([id, question]) => {
-    const answer = byName.get(id);
+  return Object.fromEntries(Object.entries(context.questions).map(([id2, question]) => {
+    const answer = byName.get(id2);
     if (!answer)
-      throw new Error(`${LABEL2} did not return an answer for ${id}`);
-    return [id, parseAnswer(id, question, answer)];
+      throw new Error(`${LABEL2} did not return an answer for ${id2}`);
+    return [id2, parseAnswer(id2, question, answer)];
   }));
 }
 function errorMessage(error3) {
@@ -148905,7 +148905,7 @@ var init_openai_decisions = __esm({
         const body = await postClassifierRequest(LABEL2, new URL("decisions", `${model.baseUrl.replace(/\/+$/u, "")}/`), model, {
           model: model.id,
           input: wireInput(context),
-          questions: Object.entries(context.questions).map(([id, question]) => wireQuestion(id, question))
+          questions: Object.entries(context.questions).map(([id2, question]) => wireQuestion(id2, question))
         }, options, NO_RETRY_STATUSES);
         if (!isRecord3(body))
           throw new Error(`${LABEL2} returned an unexpected response`);
@@ -149296,14 +149296,14 @@ var init_radius_config = __esm({
 
 // node_modules/@earendil-works/pi-ai/dist/providers/radius.js
 function radiusProvider(options = {}) {
-  const id = options.id ?? "radius";
+  const id2 = options.id ?? "radius";
   const name = options.name ?? "Radius";
   const gateway = normalizeRadiusGatewayUrl(options.gateway ?? DEFAULT_RADIUS_GATEWAY);
-  const baselineModels = gateway === normalizeRadiusGatewayUrl(DEFAULT_RADIUS_GATEWAY) ? Object.values(RADIUS_MODELS).map((model) => ({ ...model, provider: id })) : [];
+  const baselineModels = gateway === normalizeRadiusGatewayUrl(DEFAULT_RADIUS_GATEWAY) ? Object.values(RADIUS_MODELS).map((model) => ({ ...model, provider: id2 })) : [];
   let dynamicModels;
   const streams = piMessagesApi();
   return {
-    id,
+    id: id2,
     name,
     auth: {
       apiKey: envApiKeyAuth("Radius API key", ["RADIUS_API_KEY"]),
@@ -149313,7 +149313,7 @@ function radiusProvider(options = {}) {
     refreshModels: async (context) => {
       const stored = context.stored;
       if (stored) {
-        const restored = stored.models.filter((model) => model.provider === id);
+        const restored = stored.models.filter((model) => model.provider === id2);
         if (!await context.publish({
           update: () => {
             dynamicModels = restored;
@@ -149323,7 +149323,7 @@ function radiusProvider(options = {}) {
         }
       }
       if (!stored && context.credential?.type === "oauth") {
-        const legacy = getRadiusModels(id, context.credential);
+        const legacy = getRadiusModels(id2, context.credential);
         if (legacy.length > 0) {
           if (!await context.publish({
             persist: { models: legacy, checkedAt: Date.now() },
@@ -149341,7 +149341,7 @@ function radiusProvider(options = {}) {
       const config2 = await loadRadiusGatewayConfig(gateway, apiKey, context.signal);
       if (context.signal.aborted)
         return;
-      const refreshed = getRadiusModelsFromConfig(id, config2);
+      const refreshed = getRadiusModelsFromConfig(id2, config2);
       await context.publish({
         persist: { models: refreshed, checkedAt: Date.now() },
         update: () => {
@@ -154902,10 +154902,10 @@ var init_keybindings = __esm({
             this.conflicts.push({ key, keybindings: [...keybindings] });
           }
         }
-        for (const [id, definition] of Object.entries(this.definitions)) {
-          const userKeys = this.userBindings[id];
+        for (const [id2, definition] of Object.entries(this.definitions)) {
+          const userKeys = this.userBindings[id2];
           const keys2 = userKeys === void 0 ? normalizeKeys(definition.defaultKeys) : normalizeKeys(userKeys);
-          this.keysById.set(id, keys2);
+          this.keysById.set(id2, keys2);
         }
       }
       matches(data, keybinding) {
@@ -154934,9 +154934,9 @@ var init_keybindings = __esm({
       }
       getResolvedBindings() {
         const resolved = {};
-        for (const id of Object.keys(this.definitions)) {
-          const keys2 = this.keysById.get(id) ?? [];
-          resolved[id] = keys2.length === 1 ? keys2[0] : [...keys2];
+        for (const id2 of Object.keys(this.definitions)) {
+          const keys2 = this.keysById.get(id2) ?? [];
+          resolved[id2] = keys2.length === 1 ? keys2[0] : [...keys2];
         }
         return resolved;
       }
@@ -156678,16 +156678,16 @@ var init_alt_screen_flash = __esm({
         this.requestRender = requestRender;
       }
       flash(message3, durationMs = DEFAULT_DURATION_MS) {
-        const id = this.nextId++;
+        const id2 = this.nextId++;
         const timer = setTimeout(() => {
-          const index3 = this.entries.findIndex((entry) => entry.id === id);
+          const index3 = this.entries.findIndex((entry) => entry.id === id2);
           if (index3 === -1)
             return;
           this.entries.splice(index3, 1);
           this.requestRender();
         }, Math.max(0, durationMs));
         timer.unref();
-        this.entries.push({ id, message: message3, timer });
+        this.entries.push({ id: id2, message: message3, timer });
         this.requestRender();
       }
       dispose() {
@@ -177660,14 +177660,14 @@ var require_semver = __commonJS({
         if (!m3[4]) {
           this.prerelease = [];
         } else {
-          this.prerelease = m3[4].split(".").map((id) => {
-            if (/^[0-9]+$/.test(id)) {
-              const num = +id;
+          this.prerelease = m3[4].split(".").map((id2) => {
+            if (/^[0-9]+$/.test(id2)) {
+              const num = +id2;
               if (num >= 0 && num < MAX_SAFE_INTEGER) {
                 return num;
               }
             }
-            return id;
+            return id2;
           });
         }
         this.build = m3[5] ? m3[5].split(".") : [];
@@ -178536,7 +178536,7 @@ var require_range = __commonJS({
       debug("stars", comp);
       return comp;
     };
-    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
+    var isX = (id2) => !id2 || id2.toLowerCase() === "x" || id2 === "*";
     var invalidXRangeOrder = (M2, m3, p) => isX(M2) && !isX(m3) || isX(m3) && p && !isX(p);
     var replaceTildes = (comp, options) => {
       return comp.trim().split(/\s+/).map((c4) => replaceTilde(c4, options)).join(" ");
@@ -181152,7 +181152,7 @@ var init_execution = __esm({
         });
       }
       /** `CodemodeRun.deliver()`. */
-      deliver(seq, now, id, outcome) {
+      deliver(seq, now, id2, outcome) {
         if (this.finished)
           return;
         if (!Number.isFinite(now))
@@ -181160,9 +181160,9 @@ var init_execution = __esm({
         if (!Number.isInteger(seq) || seq < 1 || this.delivered.has(seq)) {
           throw new Error(`Result number ${seq} is not a positive integer used once`);
         }
-        const pending = this.pending.get(id);
+        const pending = this.pending.get(id2);
         if (pending === void 0)
-          throw new Error(`Call ${id} is not waiting for a result`);
+          throw new Error(`Call ${id2} is not waiting for a result`);
         if (!outcome.ok && outcome.properties !== void 0) {
           const { properties: properties2 } = outcome;
           if (typeof properties2 !== "object" || properties2 === null || Array.isArray(properties2)) {
@@ -181172,14 +181172,14 @@ var init_execution = __esm({
         const payload = outcome.ok ? outcome.value === void 0 ? void 0 : JSON.stringify(outcome.value) : outcome.message;
         const properties = !outcome.ok && outcome.properties !== void 0 ? JSON.stringify(outcome.properties) : void 0;
         this.delivered.add(seq);
-        this.pending.delete(id);
+        this.pending.delete(id2);
         if (pending.record) {
           pending.record.status = outcome.ok ? "ok" : "error";
           pending.record.durationMs = performance.now() - pending.startedAt;
         }
         this.post({
           type: "result",
-          id,
+          id: id2,
           ok: outcome.ok,
           payload,
           seq,
@@ -181253,22 +181253,22 @@ var init_execution = __esm({
       }
       /** A host-controlled run: record the call and hand it to the caller, which answers with `deliver()`. */
       forwardCall(message3, control) {
-        const { id, name, target } = message3;
+        const { id: id2, name, target } = message3;
         const args = message3.args === void 0 ? void 0 : parseBridgeJson(message3.args, "call arguments");
         const record2 = target === "tool" ? { name, status: "cancelled", durationMs: 0 } : void 0;
         if (record2)
           this.calls.push(record2);
-        this.pending.set(id, { record: record2, startedAt: performance.now(), controller: new AbortController() });
-        control.onCall({ id, target, name, args });
+        this.pending.set(id2, { record: record2, startedAt: performance.now(), controller: new AbortController() });
+        control.onCall({ id: id2, target, name, args });
       }
       async handleCall(message3) {
-        const { id, name } = message3;
+        const { id: id2, name } = message3;
         const isTool2 = message3.target === "tool";
         const record2 = isTool2 ? { name, status: "cancelled", durationMs: 0 } : void 0;
         if (record2)
           this.calls.push(record2);
         const pending = { record: record2, startedAt: performance.now(), controller: new AbortController() };
-        this.pending.set(id, pending);
+        this.pending.set(id2, pending);
         let status;
         let reply;
         try {
@@ -181277,13 +181277,13 @@ var init_execution = __esm({
             throw new Error(`Unknown ${isTool2 ? "tool" : "global"} "${name}"`);
           const args = message3.args === void 0 ? void 0 : JSON.parse(message3.args);
           const value = await tool.execute(args, { signal: pending.controller.signal });
-          reply = { type: "result", id, ok: true, payload: value === void 0 ? void 0 : JSON.stringify(value) };
+          reply = { type: "result", id: id2, ok: true, payload: value === void 0 ? void 0 : JSON.stringify(value) };
           status = "ok";
         } catch (error3) {
-          reply = { type: "result", id, ok: false, payload: errorMessage2(error3) };
+          reply = { type: "result", id: id2, ok: false, payload: errorMessage2(error3) };
           status = "error";
         }
-        if (!this.pending.delete(id))
+        if (!this.pending.delete(id2))
           return;
         if (record2) {
           record2.status = status;
@@ -181422,7 +181422,7 @@ var init_execution = __esm({
         const result = execution.promise.finally(() => this.running.delete(execution));
         return {
           result,
-          deliver: (seq, now, id, outcome) => execution.deliver(seq, now, id, outcome),
+          deliver: (seq, now, id2, outcome) => execution.deliver(seq, now, id2, outcome),
           get finished() {
             return execution.finished;
           }
@@ -182111,12 +182111,12 @@ var init_prelude_source = __esm({
 
 // node_modules/@earendil-works/pi-codemode/dist/runtime/vm.js
 function fnv1a(text2) {
-  let hash2 = 2166136261;
+  let hash3 = 2166136261;
   for (let index3 = 0; index3 < text2.length; index3++) {
-    hash2 ^= text2.charCodeAt(index3);
-    hash2 = Math.imul(hash2, 16777619);
+    hash3 ^= text2.charCodeAt(index3);
+    hash3 = Math.imul(hash3, 16777619);
   }
-  return (hash2 >>> 0).toString(16).padStart(8, "0");
+  return (hash3 >>> 0).toString(16).padStart(8, "0");
 }
 var PRELUDE_HASH;
 var init_vm = __esm({
@@ -182400,8 +182400,8 @@ function checkClassifierContext(context) {
     throw fail2(`context.questions must map question IDs to questions, got ${describeValue(questions)}`);
   }
   const isStrings = (values) => values.length > 0 && values.every((value) => typeof value === "string");
-  for (const [id, question] of Object.entries(questions)) {
-    const at2 = `context.questions.${id}`;
+  for (const [id2, question] of Object.entries(questions)) {
+    const at2 = `context.questions.${id2}`;
     if (typeof question !== "object" || question === null || Array.isArray(question)) {
       throw fail2(`${at2} must be a question object, got ${describeValue(question)}`);
     }
@@ -182810,11 +182810,11 @@ function createModelGlobals(models, toolCallId, calls, publish, addUsage, addGen
       throw new Error(`${name}() expects ${withArticle(type)} model as its first argument, got ${describeValue(model)}.${undefinedHint} ${listHint}`);
     }
     const provider = given.provider;
-    const id = given.id;
-    const ref = `${provider}/${id}`;
-    const resolved = models.getModelOfType(type, provider, id);
+    const id2 = given.id;
+    const ref = `${provider}/${id2}`;
+    const resolved = models.getModelOfType(type, provider, id2);
     if (!resolved) {
-      const actualType = [...MODEL_TYPES].find((other) => other !== type && models.getModelOfType(other, provider, id) !== void 0);
+      const actualType = [...MODEL_TYPES].find((other) => other !== type && models.getModelOfType(other, provider, id2) !== void 0);
       throw new Error(actualType ? `"${ref}" is ${withArticle(actualType)} model, not ${withArticle(type)} model. ${listHint}` : `Unknown ${type} model "${ref}". ${listHint}`);
     }
     const checked = checkContext(context);
@@ -182850,11 +182850,11 @@ function createModelGlobals(models, toolCallId, calls, publish, addUsage, addGen
       return available.map(toModelInfo);
     },
     "models.getModelOfType": (args) => {
-      const [type, provider, id] = args;
-      if (typeof provider !== "string" || typeof id !== "string") {
+      const [type, provider, id2] = args;
+      if (typeof provider !== "string" || typeof id2 !== "string") {
         throw new Error(`models.getModelOfType(type, provider, id) expects three strings, got (${args.map(describeValue).join(", ")}). The provider and the id are separate arguments, for example models.getModelOfType("classifier", "typesafe", "jev-latest").`);
       }
-      const model = models.getModelOfType(toModelType(type), provider, id);
+      const model = models.getModelOfType(toModelType(type), provider, id2);
       return model === void 0 ? void 0 : toModelInfo(model);
     },
     "models.classify": (args, { signal }) => runModelCall("models.classify", "classifier", args, checkClassifierContext, (resolved, context) => models.classify(resolved, context, { signal })),
@@ -183057,8 +183057,8 @@ function getCodemodeCallableTools(tools) {
   return tools.filter((tool) => tool.name !== CODEMODE_TOOL_NAME);
 }
 function renderToolSection(declaration) {
-  const id = toCodemodeIdentifier(declaration.name);
-  const heading = id === declaration.name ? `### \`${id}\`` : `### \`${id}\` (\`${declaration.name}\`)`;
+  const id2 = toCodemodeIdentifier(declaration.name);
+  const heading = id2 === declaration.name ? `### \`${id2}\`` : `### \`${id2}\` (\`${declaration.name}\`)`;
   return `${heading}
 ${renderToolSample(declaration).trim()}`;
 }
@@ -183715,12 +183715,12 @@ var init_client3 = __esm({
         const transport3 = this.requireTransport(allowConnecting);
         if (options.signal?.aborted)
           throw new McpAbortError();
-        const id = this.nextRequestId++;
-        const progressToken = options.onProgress ? id : void 0;
+        const id2 = this.nextRequestId++;
+        const progressToken = options.onProgress ? id2 : void 0;
         const requestParams = progressToken === void 0 ? params : { ...params, _meta: { ...isObject5(params?._meta) ? params._meta : {}, progressToken } };
         const message3 = {
           jsonrpc: "2.0",
-          id,
+          id: id2,
           method,
           ...requestParams === void 0 ? {} : { params: requestParams }
         };
@@ -183732,18 +183732,18 @@ var init_client3 = __esm({
             timer: void 0,
             signal: options.signal,
             // The spec forbids cancelling `initialize`.
-            onAbort: () => this.cancelPending(id, new McpAbortError(), method !== "initialize", String(options.signal?.reason ?? "Aborted")),
+            onAbort: () => this.cancelPending(id2, new McpAbortError(), method !== "initialize", String(options.signal?.reason ?? "Aborted")),
             sendController: new AbortController(),
             cancellable: method !== "initialize",
             onProgress: options.onProgress,
             progressToken
           };
-          this.pending.set(id, entry);
+          this.pending.set(id2, entry);
           if (progressToken !== void 0)
-            this.progressRequests.set(progressToken, id);
+            this.progressRequests.set(progressToken, id2);
           options.signal?.addEventListener("abort", entry.onAbort, { once: true });
-          this.armTimeout(id, entry);
-          transport3.send(message3, { signal: entry.sendController.signal }).catch((error3) => this.cancelPending(id, error3, false));
+          this.armTimeout(id2, entry);
+          transport3.send(message3, { signal: entry.sendController.signal }).catch((error3) => this.cancelPending(id2, error3, false));
         });
       }
       async notifyInternal(method, params, allowConnecting) {
@@ -183842,31 +183842,31 @@ var init_client3 = __esm({
         if (isObject5(params) && isJsonRpcId(params.requestId))
           this.incoming.get(params.requestId)?.abort(params.reason);
       }
-      armTimeout(id, entry) {
+      armTimeout(id2, entry) {
         if (entry.timer)
           clearTimeout(entry.timer);
         if (!Number.isFinite(entry.timeoutMs) || entry.timeoutMs <= 0)
           return;
         entry.timer = setTimeout(() => {
-          this.cancelPending(id, new McpTimeoutError(entry.timeoutMs), entry.cancellable, "Request timed out");
+          this.cancelPending(id2, new McpTimeoutError(entry.timeoutMs), entry.cancellable, "Request timed out");
         }, entry.timeoutMs);
       }
-      cancelPending(id, error3, notifyServer, reason) {
-        const entry = this.pending.get(id);
+      cancelPending(id2, error3, notifyServer, reason) {
+        const entry = this.pending.get(id2);
         if (!entry)
           return;
-        this.removePending(id, entry);
+        this.removePending(id2, entry);
         entry.reject(error3);
         if (notifyServer && this.transport) {
           void this.transport.send({
             jsonrpc: "2.0",
             method: "notifications/cancelled",
-            params: { requestId: id, ...reason ? { reason } : {} }
+            params: { requestId: id2, ...reason ? { reason } : {} }
           }).catch((sendError) => this.emitError(sendError));
         }
       }
-      removePending(id, entry) {
-        this.pending.delete(id);
+      removePending(id2, entry) {
+        this.pending.delete(id2);
         if (entry.timer)
           clearTimeout(entry.timer);
         if (entry.progressToken !== void 0)
@@ -183875,8 +183875,8 @@ var init_client3 = __esm({
         entry.sendController.abort();
       }
       rejectPending(error3) {
-        for (const [id, entry] of this.pending) {
-          this.removePending(id, entry);
+        for (const [id2, entry] of this.pending) {
+          this.removePending(id2, entry);
           entry.reject(error3);
         }
       }
@@ -184469,8 +184469,8 @@ var init_streamable_http = __esm({
       async consumeSse(stream12, cursor, onMessage2) {
         await consumeSseStream(stream12, {
           maxEventBytes: this.options.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
-          onId: (id) => {
-            cursor.lastEventId = id;
+          onId: (id2) => {
+            cursor.lastEventId = id2;
           },
           onRetry: (delayMs) => {
             cursor.retryMs = delayMs;
@@ -184668,8 +184668,8 @@ function createMcpToolName(server, tool, isTaken = () => false) {
   const name = `mcp__${server}__${tool}`.replace(/[^A-Za-z0-9_]/g, "_");
   if (name.length <= MAX_TOOL_NAME_LENGTH && !isTaken(name))
     return name;
-  const hash2 = createHash4("sha256").update(`${server}\0${tool}`).digest("hex").slice(0, 8);
-  return `${name.slice(0, MAX_TOOL_NAME_LENGTH - hash2.length - 1)}_${hash2}`;
+  const hash3 = createHash4("sha256").update(`${server}\0${tool}`).digest("hex").slice(0, 8);
+  return `${name.slice(0, MAX_TOOL_NAME_LENGTH - hash3.length - 1)}_${hash3}`;
 }
 function textOf2(content) {
   return content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
@@ -186150,10 +186150,10 @@ function clientMetadataDocument(serverUrl, redirectUrl, metadata) {
   if (metadata.authorization_response_iss_parameter_supported) {
     return { url: `${CLIENT_METADATA_BASE_URL}/client.json`, redirectUrl };
   }
-  const id = callbackId(serverUrl);
+  const id2 = callbackId(serverUrl);
   const redirect = new URL(redirectUrl);
-  redirect.pathname = `${CALLBACK_PATH}/${id}`;
-  return { url: `${CLIENT_METADATA_BASE_URL}/${id}/client.json`, redirectUrl: redirect.href };
+  redirect.pathname = `${CALLBACK_PATH}/${id2}`;
+  return { url: `${CLIENT_METADATA_BASE_URL}/${id2}/client.json`, redirectUrl: redirect.href };
 }
 function createProvider2(serverUrl, store, settings2, redirectUrl, onRedirect) {
   return new McpOAuthProvider({
@@ -186385,8 +186385,8 @@ var init_oauth2 = __esm({
         if (!this.lockDir)
           return fn();
         mkdirSync4(this.lockDir, { recursive: true, mode: 448 });
-        const hash2 = createHash5("sha256").update(key).digest("hex").slice(0, 16);
-        const release = await import_proper_lockfile4.default.lock(join15(this.lockDir, `mcp-auth-refresh-${hash2}`), {
+        const hash3 = createHash5("sha256").update(key).digest("hex").slice(0, 16);
+        const release = await import_proper_lockfile4.default.lock(join15(this.lockDir, `mcp-auth-refresh-${hash3}`), {
           realpath: false,
           stale: REFRESH_LOCK_STALE_MS,
           retries: {
@@ -192573,15 +192573,15 @@ var init_schemas = __esm({
         const syms = normalized.symbolKeys;
         const doc = new Doc(["payload", "ctx"], { shape, inst, memo: memo4, syms });
         const parseStr = (k2) => `shape[${k2}]._zod.run({ value: input[${k2}], issues: [] }, ctx)`;
-        const prefixStr = (id, k2) => `
-          let ${id}_ab = false;
-          for (let i = 0; i < ${id}.issues.length; i++) {
-            const iss = ${id}.issues[i];
+        const prefixStr = (id2, k2) => `
+          let ${id2}_ab = false;
+          for (let i = 0; i < ${id2}.issues.length; i++) {
+            const iss = ${id2}.issues[i];
             iss.path = iss.path ? [${k2}, ...iss.path] : [${k2}];
             payload.issues.push(iss);
-            if (iss.continue !== true) ${id}_ab = true;
+            if (iss.continue !== true) ${id2}_ab = true;
           }
-          if (${id}_ab && ctx && ctx.abortEarly) {
+          if (${id2}_ab && ctx && ctx.abortEarly) {
             payload.value = newResult;
             return payload;
           }`;
@@ -192595,34 +192595,34 @@ var init_schemas = __esm({
         for (const key of normalized.allKeys) {
           if (key === "__proto__")
             continue;
-          const id = ids[key];
+          const id2 = ids[key];
           const k2 = typeof key === "symbol" ? `syms[${syms.indexOf(key)}]` : esc(key);
           const isPresent = `${k2} in input`;
           const schema = shape[key];
           const optin = schema?._zod?.optin;
           const isOptionalIn = optin !== void 0;
           const isOptionalOut = schema?._zod?.optout === "optional";
-          doc.write(`const ${id} = ${parseStr(k2)};`);
+          doc.write(`const ${id2} = ${parseStr(k2)};`);
           if (isOptionalIn && isOptionalOut) {
-            const assign2 = optin === "optional" ? `${id}_present` : `${id}.value !== undefined || ${id}_present`;
+            const assign2 = optin === "optional" ? `${id2}_present` : `${id2}.value !== undefined || ${id2}_present`;
             doc.write(`
-        const ${id}_present = ${isPresent};
-        if (!${id}.issues.length || ${id}_present) {
-          if (${id}.issues.length) {${prefixStr(id, k2)}
+        const ${id2}_present = ${isPresent};
+        if (!${id2}.issues.length || ${id2}_present) {
+          if (${id2}.issues.length) {${prefixStr(id2, k2)}
           }
 
           if (${assign2}) {
-            newResult[${k2}] = ${id}.value;
+            newResult[${k2}] = ${id2}.value;
           }
         }
 
       `);
           } else if (!isOptionalIn) {
             doc.write(`
-        const ${id}_present = ${isPresent};
-        if (${id}.issues.length) {${prefixStr(id, k2)}
+        const ${id2}_present = ${isPresent};
+        if (${id2}.issues.length) {${prefixStr(id2, k2)}
         }
-        if (!${id}_present && !${id}.issues.length) {
+        if (!${id2}_present && !${id2}.issues.length) {
           payload.issues.push({
             code: "invalid_type",
             expected: "nonoptional",
@@ -192635,22 +192635,22 @@ var init_schemas = __esm({
           }
         }
 
-        if (${id}_present) {
-          newResult[${k2}] = ${id}.value;
+        if (${id2}_present) {
+          newResult[${k2}] = ${id2}.value;
         }
 
       `);
           } else {
             doc.write(`
-        if (${id}.issues.length) {${prefixStr(id, k2)}
+        if (${id2}.issues.length) {${prefixStr(id2, k2)}
         }
       `);
             if (optin === "defaulted") {
-              doc.write(`newResult[${k2}] = ${id}.value;`);
+              doc.write(`newResult[${k2}] = ${id2}.value;`);
             } else {
               doc.write(`
-        if (${id}.value !== undefined || ${isPresent}) {
-          newResult[${k2}] = ${id}.value;
+        if (${id2}.value !== undefined || ${isPresent}) {
+          newResult[${k2}] = ${id2}.value;
         }
       `);
             }
@@ -194372,26 +194372,26 @@ function extractDefs(ctx, schema) {
     return;
   const idToSchema = /* @__PURE__ */ new Map();
   for (const entry of ctx.seen.entries()) {
-    const id = ctx.metadataRegistry.get(entry[0])?.id;
-    if (id) {
-      const existing = idToSchema.get(id);
+    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id2) {
+      const existing = idToSchema.get(id2);
       if (existing && existing !== entry[0]) {
-        throw new Error(`Duplicate schema id "${id}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
+        throw new Error(`Duplicate schema id "${id2}" detected during JSON Schema conversion. Two different schemas cannot share the same id when converted together.`);
       }
-      idToSchema.set(id, entry[0]);
+      idToSchema.set(id2, entry[0]);
     }
   }
   const makeURI = (entry) => {
     const defsSegment = ctx.target === "draft-2020-12" ? "$defs" : "definitions";
     if (ctx.external) {
       const externalId = ctx.external.registry.get(entry[0])?.id;
-      const uriGenerator = ctx.external.uri ?? ((id2) => id2);
+      const uriGenerator = ctx.external.uri ?? ((id3) => id3);
       if (externalId) {
         return { ref: uriGenerator(externalId) };
       }
-      const id = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
-      entry[1].defId = id;
-      return { defId: id, ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id)}` };
+      const id2 = entry[1].defId ?? entry[1].schema.id ?? `schema${ctx.counter++}`;
+      entry[1].defId = id2;
+      return { defId: id2, ref: `${uriGenerator("__shared")}#/${defsSegment}/${encodeJSONPointerSegment(id2)}` };
     }
     const uriPrefix = `#`;
     const defUriPrefix = `${uriPrefix}/${defsSegment}/`;
@@ -194439,8 +194439,8 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         continue;
       }
     }
-    const id = ctx.metadataRegistry.get(entry[0])?.id;
-    if (id) {
+    const id2 = ctx.metadataRegistry.get(entry[0])?.id;
+    if (id2) {
       extractToDef(entry);
       continue;
     }
@@ -194671,10 +194671,10 @@ function finalize(ctx, schema) {
   } else {
   }
   if (ctx.external?.uri) {
-    const id = ctx.external.registry.get(schema)?.id;
-    if (!id)
+    const id2 = ctx.external.registry.get(schema)?.id;
+    if (!id2)
       throw new Error("Schema is missing an `id` property");
-    result.$id = ctx.external.uri(id);
+    result.$id = ctx.external.uri(id2);
   }
   assignProps(result, root.defId ? root.schema : root.def ?? root.schema);
   const rootMetaId = ctx.metadataRegistry.get(schema)?.id;
@@ -194860,7 +194860,7 @@ function stringifyKeyNames(bySchema, json3, visited3) {
   const values = json3.enum ?? (json3.const !== void 0 ? [json3.const] : void 0);
   if (!numericType && !values?.some((v2) => typeof v2 === "number"))
     return json3;
-  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format: format2, id, ...rest } = json3;
+  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, format: format2, id: id2, ...rest } = json3;
   if (rest.enum)
     rest.enum = rest.enum.map((v2) => typeof v2 === "number" ? String(v2) : v2);
   else if (typeof rest.const === "number")
@@ -198744,8 +198744,8 @@ function buildSchemas2025() {
 function isNonObjectJsonSchemaRoot(json3) {
   return json3["type"] !== "object";
 }
-function establishesNewBase(id) {
-  return id !== void 0 && !(typeof id === "string" && id.startsWith("#"));
+function establishesNewBase(id2) {
+  return id2 !== void 0 && !(typeof id2 === "string" && id2.startsWith("#"));
 }
 function wrapOutputSchemaForLegacy(natural) {
   const $schema = typeof natural["$schema"] === "string" ? natural["$schema"] : void 0;
@@ -203877,9 +203877,9 @@ var init_ajvProvider_97rDpkRx = __esm({
       const codegen_1 = require_codegen();
       const code_1 = require_code$1();
       function toHash(arr) {
-        const hash2 = {};
-        for (const item of arr) hash2[item] = true;
-        return hash2;
+        const hash3 = {};
+        for (const item of arr) hash3[item] = true;
+        return hash3;
       }
       exports.toHash = toHash;
       function alwaysValidSchema(it2, schema) {
@@ -204879,9 +204879,9 @@ var init_ajvProvider_97rDpkRx = __esm({
         }
         return count2;
       }
-      function getFullPath(resolver, id = "", normalize4) {
-        if (normalize4 !== false) id = normalizeId(id);
-        return _getFullPath(resolver, resolver.parse(id));
+      function getFullPath(resolver, id2 = "", normalize4) {
+        if (normalize4 !== false) id2 = normalizeId(id2);
+        return _getFullPath(resolver, resolver.parse(id2));
       }
       exports.getFullPath = getFullPath;
       function _getFullPath(resolver, p) {
@@ -204889,13 +204889,13 @@ var init_ajvProvider_97rDpkRx = __esm({
       }
       exports._getFullPath = _getFullPath;
       const TRAILING_SLASH_HASH = /#\/?$/;
-      function normalizeId(id) {
-        return id ? id.replace(TRAILING_SLASH_HASH, "") : "";
+      function normalizeId(id2) {
+        return id2 ? id2.replace(TRAILING_SLASH_HASH, "") : "";
       }
       exports.normalizeId = normalizeId;
-      function resolveUrl(resolver, baseId, id) {
-        id = normalizeId(id);
-        return resolver.resolve(baseId, id);
+      function resolveUrl(resolver, baseId, id2) {
+        id2 = normalizeId(id2);
+        return resolver.resolve(baseId, id2);
       }
       exports.resolveUrl = resolveUrl;
       const ANCHOR = /^[a-z_][-a-z0-9._]*$/i;
@@ -205540,8 +205540,8 @@ var init_ajvProvider_97rDpkRx = __esm({
         const refPath = (0, resolve_1._getFullPath)(this.opts.uriResolver, p);
         let baseId = (0, resolve_1.getFullPath)(this.opts.uriResolver, root.baseId, void 0);
         if (Object.keys(root.schema).length > 0 && refPath === baseId) return getJsonPointer.call(this, p, root);
-        const id = (0, resolve_1.normalizeId)(refPath);
-        const schOrRef = this.refs[id] || this.schemas[id];
+        const id2 = (0, resolve_1.normalizeId)(refPath);
+        const schOrRef = this.refs[id2] || this.schemas[id2];
         if (typeof schOrRef == "string") {
           const sch = resolveSchema.call(this, root, schOrRef);
           if (typeof (sch === null || sch === void 0 ? void 0 : sch.schema) !== "object") return;
@@ -205549,7 +205549,7 @@ var init_ajvProvider_97rDpkRx = __esm({
         }
         if (typeof (schOrRef === null || schOrRef === void 0 ? void 0 : schOrRef.schema) !== "object") return;
         if (!schOrRef.validate) compileSchema.call(this, schOrRef);
-        if (id === (0, resolve_1.normalizeId)(ref)) {
+        if (id2 === (0, resolve_1.normalizeId)(ref)) {
           const { schema } = schOrRef;
           const { schemaId } = this.opts;
           const schId = schema[schemaId];
@@ -206307,7 +206307,7 @@ var init_ajvProvider_97rDpkRx = __esm({
           uriResolver
         };
       }
-      var Ajv5 = class {
+      var Ajv6 = class {
         constructor(opts = {}) {
           this.schemas = {};
           this.refs = {};
@@ -206417,13 +206417,13 @@ var init_ajvProvider_97rDpkRx = __esm({
             for (const sch of schema) this.addSchema(sch, void 0, _meta, _validateSchema);
             return this;
           }
-          let id;
+          let id2;
           if (typeof schema === "object") {
             const { schemaId } = this.opts;
-            id = schema[schemaId];
-            if (id !== void 0 && typeof id != "string") throw new Error(`schema ${schemaId} must be string`);
+            id2 = schema[schemaId];
+            if (id2 !== void 0 && typeof id2 != "string") throw new Error(`schema ${schemaId} must be string`);
           }
-          key = (0, resolve_1.normalizeId)(key || id);
+          key = (0, resolve_1.normalizeId)(key || id2);
           this._checkUnique(key);
           this.schemas[key] = this._addSchema(schema, _meta, key, _validateSchema, true);
           return this;
@@ -206488,11 +206488,11 @@ var init_ajvProvider_97rDpkRx = __esm({
             case "object": {
               const cacheKey = schemaKeyRef;
               this._cache.delete(cacheKey);
-              let id = schemaKeyRef[this.opts.schemaId];
-              if (id) {
-                id = (0, resolve_1.normalizeId)(id);
-                delete this.schemas[id];
-                delete this.refs[id];
+              let id2 = schemaKeyRef[this.opts.schemaId];
+              if (id2) {
+                id2 = (0, resolve_1.normalizeId)(id2);
+                delete this.schemas[id2];
+                delete this.refs[id2];
               }
               return this;
             }
@@ -206584,14 +206584,14 @@ var init_ajvProvider_97rDpkRx = __esm({
           }
         }
         _addSchema(schema, meta2, baseId, validateSchema = this.opts.validateSchema, addSchema = this.opts.addUsedSchema) {
-          let id;
+          let id2;
           const { schemaId } = this.opts;
-          if (typeof schema == "object") id = schema[schemaId];
+          if (typeof schema == "object") id2 = schema[schemaId];
           else if (this.opts.jtd) throw new Error("schema must be object");
           else if (typeof schema != "boolean") throw new Error("schema must be object or boolean");
           let sch = this._cache.get(schema);
           if (sch !== void 0) return sch;
-          baseId = (0, resolve_1.normalizeId)(id || baseId);
+          baseId = (0, resolve_1.normalizeId)(id2 || baseId);
           const localRefs = resolve_1.getSchemaRefs.call(this, schema, baseId);
           sch = new compile_1.SchemaEnv({
             schema,
@@ -206608,8 +206608,8 @@ var init_ajvProvider_97rDpkRx = __esm({
           if (validateSchema) this.validateSchema(schema, true);
           return sch;
         }
-        _checkUnique(id) {
-          if (this.schemas[id] || this.refs[id]) throw new Error(`schema with key or id "${id}" already exists`);
+        _checkUnique(id2) {
+          if (this.schemas[id2] || this.refs[id2]) throw new Error(`schema with key or id "${id2}" already exists`);
         }
         _compileSchemaEnv(sch) {
           if (sch.meta) this._compileMetaSchema(sch);
@@ -206627,9 +206627,9 @@ var init_ajvProvider_97rDpkRx = __esm({
           }
         }
       };
-      Ajv5.ValidationError = validation_error_1.default;
-      Ajv5.MissingRefError = ref_error_1.default;
-      exports.default = Ajv5;
+      Ajv6.ValidationError = validation_error_1.default;
+      Ajv6.MissingRefError = ref_error_1.default;
+      exports.default = Ajv6;
       function checkOptions(checkOpts, options, msg, log2 = "error") {
         for (const key in checkOpts) {
           const opt = key;
@@ -208386,7 +208386,7 @@ var init_ajvProvider_97rDpkRx = __esm({
       const draft7MetaSchema = require_json_schema_draft_07();
       const META_SUPPORT_DATA = ["/properties"];
       const META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-      var Ajv5 = class extends core_1.default {
+      var Ajv6 = class extends core_1.default {
         _addVocabularies() {
           super._addVocabularies();
           draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -208403,11 +208403,11 @@ var init_ajvProvider_97rDpkRx = __esm({
           return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
         }
       };
-      exports.Ajv = Ajv5;
-      module.exports = exports = Ajv5;
-      module.exports.Ajv = Ajv5;
+      exports.Ajv = Ajv6;
+      module.exports = exports = Ajv6;
+      module.exports.Ajv = Ajv6;
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.default = Ajv5;
+      exports.default = Ajv6;
       var validate_1 = require_validate();
       Object.defineProperty(exports, "KeywordCxt", {
         enumerable: true,
@@ -209998,7 +209998,7 @@ function createParser(config2) {
       "`config` must be an object, got a function instead. Did you mean `createParser({onEvent: fn})`?"
     );
   const { onEvent = noop6, onError = noop6, onRetry = noop6, onComment, maxBufferSize } = config2, pendingFragments = [];
-  let pendingFragmentsLength = 0, isFirstChunk = true, id, data = "", dataLines = 0, eventType, terminated = false;
+  let pendingFragmentsLength = 0, isFirstChunk = true, id2, data = "", dataLines = 0, eventType, terminated = false;
   function feed(chunk) {
     if (terminated)
       throw new Error(
@@ -210021,7 +210021,7 @@ function createParser(config2) {
     trailing !== "" && (pendingFragments.push(trailing), pendingFragmentsLength = trailing.length), checkBufferSize();
   }
   function checkBufferSize() {
-    maxBufferSize !== void 0 && (pendingFragmentsLength + data.length <= maxBufferSize || (terminated = true, pendingFragments.length = 0, pendingFragmentsLength = 0, id = void 0, data = "", dataLines = 0, eventType = void 0, onError(
+    maxBufferSize !== void 0 && (pendingFragmentsLength + data.length <= maxBufferSize || (terminated = true, pendingFragments.length = 0, pendingFragmentsLength = 0, id2 = void 0, data = "", dataLines = 0, eventType = void 0, onError(
       new ParseError3(`Buffered data exceeded max buffer size of ${maxBufferSize} characters`, {
         type: "max-buffer-size-exceeded"
       })
@@ -210034,7 +210034,7 @@ function createParser(config2) {
 `, searchIndex);
       for (; lfIndex !== -1; ) {
         if (searchIndex === lfIndex) {
-          dataLines > 0 && onEvent({ id, event: eventType, data }), id = void 0, data = "", dataLines = 0, eventType = void 0, searchIndex = lfIndex + 1, lfIndex = chunk.indexOf(`
+          dataLines > 0 && onEvent({ id: id2, event: eventType, data }), id2 = void 0, data = "", dataLines = 0, eventType = void 0, searchIndex = lfIndex + 1, lfIndex = chunk.indexOf(`
 `, searchIndex);
           continue;
         }
@@ -210042,7 +210042,7 @@ function createParser(config2) {
         if (isDataPrefix(chunk, searchIndex, firstCharCode)) {
           const valueStart = chunk.charCodeAt(searchIndex + 5) === SPACE2 ? searchIndex + 6 : searchIndex + 5, value = chunk.slice(valueStart, lfIndex);
           if (dataLines === 0 && chunk.charCodeAt(lfIndex + 1) === LF4) {
-            onEvent({ id, event: eventType, data: value }), id = void 0, data = "", eventType = void 0, searchIndex = lfIndex + 2, lfIndex = chunk.indexOf(`
+            onEvent({ id: id2, event: eventType, data: value }), id2 = void 0, data = "", eventType = void 0, searchIndex = lfIndex + 2, lfIndex = chunk.indexOf(`
 `, searchIndex);
             continue;
           }
@@ -210085,7 +210085,7 @@ ${value2}`, dataLines++;
     }
     if (firstCharCode === 105 && chunk.charCodeAt(start + 1) === 100 && chunk.charCodeAt(start + 2) === 58) {
       const value2 = chunk.slice(chunk.charCodeAt(start + 3) === SPACE2 ? start + 4 : start + 3, end);
-      value2.includes("\0") || (id = value2);
+      value2.includes("\0") || (id2 = value2);
       return;
     }
     if (firstCharCode === 58) {
@@ -210113,7 +210113,7 @@ ${value2}`, dataLines++;
 ${value}`, dataLines++;
         break;
       case "id":
-        value.includes("\0") || (id = value);
+        value.includes("\0") || (id2 = value);
         break;
       case "retry":
         /^\d+$/.test(value) ? onRetry(parseInt(value, 10)) : onError(
@@ -210136,17 +210136,17 @@ ${value}`, dataLines++;
   }
   function dispatchEvent() {
     dataLines > 0 && onEvent({
-      id,
+      id: id2,
       event: eventType,
       data
-    }), id = void 0, data = "", dataLines = 0, eventType = void 0;
+    }), id2 = void 0, data = "", dataLines = 0, eventType = void 0;
   }
   function reset2(options = {}) {
     if (options.consume && pendingFragments.length > 0) {
       const incompleteLine = pendingFragments.join("");
       parseLine(incompleteLine, 0, incompleteLine.length);
     }
-    isFirstChunk = true, id = void 0, data = "", dataLines = 0, eventType = void 0, pendingFragments.length = 0, pendingFragmentsLength = 0, terminated = false;
+    isFirstChunk = true, id2 = void 0, data = "", dataLines = 0, eventType = void 0, pendingFragments.length = 0, pendingFragmentsLength = 0, terminated = false;
   }
   return { feed, reset: reset2 };
 }
@@ -214455,10 +214455,10 @@ function disarmSpentCloseGuard(transport3) {
   pendingSpentCloseGuards.delete(transport3);
   disarm?.();
 }
-function buildProbeRequest(id, protocolVersion, clientInfo, capabilities) {
+function buildProbeRequest(id2, protocolVersion, clientInfo, capabilities) {
   return {
     jsonrpc: "2.0",
-    id,
+    id: id2,
     method: "server/discover",
     params: { _meta: codecForVersion(protocolVersion).outboundEnvelope({
       protocolVersion,
@@ -214525,7 +214525,7 @@ async function negotiateEra(negotiation, deps) {
     let correctiveUsed = false;
     let timeoutRetriesRemaining = maxRetries;
     for (; ; ) {
-      const reply = await window2.exchange((id) => buildProbeRequest(id, requestedVersion, deps.clientInfo, deps.capabilities), timeoutMs);
+      const reply = await window2.exchange((id2) => buildProbeRequest(id2, requestedVersion, deps.clientInfo, deps.capabilities), timeoutMs);
       if (reply.kind === "timeout" && timeoutRetriesRemaining > 0) {
         timeoutRetriesRemaining--;
         continue;
@@ -215697,22 +215697,22 @@ var init_dist11 = __esm({
       * never collide with Protocol's numeric ids (e.g. on a shared stdio pipe).
       */
       async exchange(buildRequest, timeoutMs) {
-        const id = `server-discover-probe-${++this._probeCounter}`;
+        const id2 = `server-discover-probe-${++this._probeCounter}`;
         return new Promise((resolve9) => {
           let settled = false;
           const settle2 = (reply) => {
             if (settled) return;
             settled = true;
             clearTimeout(timer);
-            if (this._pending?.id === id) this._pending = void 0;
+            if (this._pending?.id === id2) this._pending = void 0;
             resolve9(reply);
           };
           const timer = setTimeout(() => settle2({ kind: "timeout" }), timeoutMs);
           this._pending = {
-            id,
+            id: id2,
             resolve: settle2
           };
-          this._transport.send(buildRequest(id)).catch((error3) => settle2({
+          this._transport.send(buildRequest(id2)).catch((error3) => settle2({
             kind: "send-error",
             error: error3
           }));
@@ -216863,8 +216863,8 @@ var init_dist11 = __esm({
       * through would surface as "unknown message ID" via `onerror`).
       */
       _onresponse(response) {
-        const id = response.id;
-        const entry = typeof id === "string" ? this._listenState.get(id) : void 0;
+        const id2 = response.id;
+        const entry = typeof id2 === "string" ? this._listenState.get(id2) : void 0;
         if (entry !== void 0) {
           if (isJSONRPCErrorResponse(response)) entry.settle({
             cause: "remote",
@@ -219194,10 +219194,10 @@ var require_util10 = __commonJS({
     var codegen_1 = require_codegen2();
     var code_1 = require_code2();
     function toHash(arr) {
-      const hash2 = {};
+      const hash3 = {};
       for (const item of arr)
-        hash2[item] = true;
-      return hash2;
+        hash3[item] = true;
+      return hash3;
     }
     exports.toHash = toHash;
     function alwaysValidSchema(it2, schema) {
@@ -220368,10 +220368,10 @@ var require_resolve2 = __commonJS({
       }
       return count2;
     }
-    function getFullPath(resolver, id = "", normalize4) {
+    function getFullPath(resolver, id2 = "", normalize4) {
       if (normalize4 !== false)
-        id = normalizeId(id);
-      const p = resolver.parse(id);
+        id2 = normalizeId(id2);
+      const p = resolver.parse(id2);
       return _getFullPath(resolver, p);
     }
     exports.getFullPath = getFullPath;
@@ -220381,13 +220381,13 @@ var require_resolve2 = __commonJS({
     }
     exports._getFullPath = _getFullPath;
     var TRAILING_SLASH_HASH = /#\/?$/;
-    function normalizeId(id) {
-      return id ? id.replace(TRAILING_SLASH_HASH, "") : "";
+    function normalizeId(id2) {
+      return id2 ? id2.replace(TRAILING_SLASH_HASH, "") : "";
     }
     exports.normalizeId = normalizeId;
-    function resolveUrl(resolver, baseId, id) {
-      id = normalizeId(id);
-      return resolver.resolve(baseId, id);
+    function resolveUrl(resolver, baseId, id2) {
+      id2 = normalizeId(id2);
+      return resolver.resolve(baseId, id2);
     }
     exports.resolveUrl = resolveUrl;
     var ANCHOR = /^[a-z_][-a-z0-9._]*$/i;
@@ -221157,8 +221157,8 @@ var require_compile2 = __commonJS({
       if (Object.keys(root.schema).length > 0 && refPath === baseId) {
         return getJsonPointer.call(this, p, root);
       }
-      const id = (0, resolve_1.normalizeId)(refPath);
-      const schOrRef = this.refs[id] || this.schemas[id];
+      const id2 = (0, resolve_1.normalizeId)(refPath);
+      const schOrRef = this.refs[id2] || this.schemas[id2];
       if (typeof schOrRef == "string") {
         const sch = resolveSchema.call(this, root, schOrRef);
         if (typeof (sch === null || sch === void 0 ? void 0 : sch.schema) !== "object")
@@ -221169,7 +221169,7 @@ var require_compile2 = __commonJS({
         return;
       if (!schOrRef.validate)
         compileSchema.call(this, schOrRef);
-      if (id === (0, resolve_1.normalizeId)(ref)) {
+      if (id2 === (0, resolve_1.normalizeId)(ref)) {
         const { schema } = schOrRef;
         const { schemaId } = this.opts;
         const schId = schema[schemaId];
@@ -222474,7 +222474,7 @@ var require_core3 = __commonJS({
         uriResolver
       };
     }
-    var Ajv5 = class {
+    var Ajv6 = class {
       constructor(opts = {}) {
         this.schemas = {};
         this.refs = {};
@@ -222596,15 +222596,15 @@ var require_core3 = __commonJS({
             this.addSchema(sch, void 0, _meta, _validateSchema);
           return this;
         }
-        let id;
+        let id2;
         if (typeof schema === "object") {
           const { schemaId } = this.opts;
-          id = schema[schemaId];
-          if (id !== void 0 && typeof id != "string") {
+          id2 = schema[schemaId];
+          if (id2 !== void 0 && typeof id2 != "string") {
             throw new Error(`schema ${schemaId} must be string`);
           }
         }
-        key = (0, resolve_1.normalizeId)(key || id);
+        key = (0, resolve_1.normalizeId)(key || id2);
         this._checkUnique(key);
         this.schemas[key] = this._addSchema(schema, _meta, key, _validateSchema, true);
         return this;
@@ -222683,11 +222683,11 @@ var require_core3 = __commonJS({
           case "object": {
             const cacheKey = schemaKeyRef;
             this._cache.delete(cacheKey);
-            let id = schemaKeyRef[this.opts.schemaId];
-            if (id) {
-              id = (0, resolve_1.normalizeId)(id);
-              delete this.schemas[id];
-              delete this.refs[id];
+            let id2 = schemaKeyRef[this.opts.schemaId];
+            if (id2) {
+              id2 = (0, resolve_1.normalizeId)(id2);
+              delete this.schemas[id2];
+              delete this.refs[id2];
             }
             return this;
           }
@@ -222794,10 +222794,10 @@ var require_core3 = __commonJS({
         }
       }
       _addSchema(schema, meta2, baseId, validateSchema = this.opts.validateSchema, addSchema = this.opts.addUsedSchema) {
-        let id;
+        let id2;
         const { schemaId } = this.opts;
         if (typeof schema == "object") {
-          id = schema[schemaId];
+          id2 = schema[schemaId];
         } else {
           if (this.opts.jtd)
             throw new Error("schema must be object");
@@ -222807,7 +222807,7 @@ var require_core3 = __commonJS({
         let sch = this._cache.get(schema);
         if (sch !== void 0)
           return sch;
-        baseId = (0, resolve_1.normalizeId)(id || baseId);
+        baseId = (0, resolve_1.normalizeId)(id2 || baseId);
         const localRefs = resolve_1.getSchemaRefs.call(this, schema, baseId);
         sch = new compile_1.SchemaEnv({ schema, schemaId, meta: meta2, baseId, localRefs });
         this._cache.set(sch.schema, sch);
@@ -222820,9 +222820,9 @@ var require_core3 = __commonJS({
           this.validateSchema(schema, true);
         return sch;
       }
-      _checkUnique(id) {
-        if (this.schemas[id] || this.refs[id]) {
-          throw new Error(`schema with key or id "${id}" already exists`);
+      _checkUnique(id2) {
+        if (this.schemas[id2] || this.refs[id2]) {
+          throw new Error(`schema with key or id "${id2}" already exists`);
         }
       }
       _compileSchemaEnv(sch) {
@@ -222844,9 +222844,9 @@ var require_core3 = __commonJS({
         }
       }
     };
-    Ajv5.ValidationError = validation_error_1.default;
-    Ajv5.MissingRefError = ref_error_1.default;
-    exports.default = Ajv5;
+    Ajv6.ValidationError = validation_error_1.default;
+    Ajv6.MissingRefError = ref_error_1.default;
+    exports.default = Ajv6;
     function checkOptions(checkOpts, options, msg, log2 = "error") {
       for (const key in checkOpts) {
         const opt = key;
@@ -224957,7 +224957,7 @@ var require_ajv2 = __commonJS({
     var draft7MetaSchema = require_json_schema_draft_072();
     var META_SUPPORT_DATA = ["/properties"];
     var META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-    var Ajv5 = class extends core_1.default {
+    var Ajv6 = class extends core_1.default {
       _addVocabularies() {
         super._addVocabularies();
         draft7_1.default.forEach((v2) => this.addVocabulary(v2));
@@ -224976,11 +224976,11 @@ var require_ajv2 = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv = Ajv5;
-    module.exports = exports = Ajv5;
-    module.exports.Ajv = Ajv5;
+    exports.Ajv = Ajv6;
+    module.exports = exports = Ajv6;
+    module.exports.Ajv = Ajv6;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv5;
+    exports.default = Ajv6;
     var validate_1 = require_validate2();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: function() {
       return validate_1.KeywordCxt;
@@ -227947,11 +227947,11 @@ var BUILTIN_TOOL_METADATA = {
     }
   }
 };
-var BUILTIN_TOOL_CAPABILITIES = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => [id, Object.freeze(BUILTIN_TOOL_METADATA[id].capability)])));
-var BUILTIN_TOOL_EFFECTS = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id) => {
-  const metadata = BUILTIN_TOOL_METADATA[id];
+var BUILTIN_TOOL_CAPABILITIES = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id2) => [id2, Object.freeze(BUILTIN_TOOL_METADATA[id2].capability)])));
+var BUILTIN_TOOL_EFFECTS = Object.freeze(Object.fromEntries(BUILTIN_TOOL_IDS.map((id2) => {
+  const metadata = BUILTIN_TOOL_METADATA[id2];
   return [
-    id,
+    id2,
     Object.freeze({
       operations: Object.freeze(toolEffectOperationsForCapability(metadata.capability.effect)),
       reversible: metadata.capability.replay === "safe" || metadata.capability.replay === "idempotent",
@@ -227976,7 +227976,7 @@ function toolEffectOperationsForCapability(effect) {
   }
 }
 var ToolRefSchema = Type.Object({
-  id: Type.Union(BUILTIN_TOOL_IDS.map((id) => Type.Literal(id)), { description: "\u5185\u7F6E\u5DE5\u5177 id" }),
+  id: Type.Union(BUILTIN_TOOL_IDS.map((id2) => Type.Literal(id2)), { description: "\u5185\u7F6E\u5DE5\u5177 id" }),
   enabled: Type.Optional(Type.Boolean({ default: true })),
   exposure: Type.Optional(Type.Union([Type.Literal("direct"), Type.Literal("deferred")]))
 });
@@ -234229,17 +234229,17 @@ function parseRunSnapshot(value) {
   }
   return structuredClone(value);
 }
-function createSuccessResponse(id, result) {
-  return { jsonrpc: "2.0", id, result };
+function createSuccessResponse(id2, result) {
+  return { jsonrpc: "2.0", id: id2, result };
 }
-function createErrorResponse(id, code, message3, coremindCode, details) {
+function createErrorResponse(id2, code, message3, coremindCode, details) {
   const data = coremindCode !== void 0 || details !== void 0 ? {
     ...coremindCode !== void 0 ? { coremindCode } : {},
     ...details !== void 0 ? { details } : {}
   } : void 0;
   return {
     jsonrpc: "2.0",
-    id,
+    id: id2,
     error: { code, message: message3, ...data ? { data } : {} }
   };
 }
@@ -235794,7 +235794,7 @@ var Session = class {
       return this;
     return {
       getLeafId: () => this.getLeafIdForLane(lane),
-      getEntry: (id) => this.getEntry(id),
+      getEntry: (id2) => this.getEntry(id2),
       getStats: () => this.getStats(),
       getName: () => this.getName(),
       setName: (name) => this.setName(name),
@@ -235811,8 +235811,8 @@ var Session = class {
   async getLeafId() {
     return this.getLeafIdForLane("main");
   }
-  async getEntry(id) {
-    return this.storage.getEntry(id);
+  async getEntry(id2) {
+    return this.storage.getEntry(id2);
   }
   async getStats() {
     return this.storage.getStats();
@@ -236046,7 +236046,7 @@ function parseMutation(line, path48, lineNumber) {
   switch (value.kind) {
     case "entry": {
       const lane = value.lane === void 0 ? void 0 : requireString(value.lane, path48, lineNumber, "lane");
-      const id = requireString(value.id, path48, lineNumber, "id");
+      const id2 = requireString(value.id, path48, lineNumber, "id");
       const type = requireString(value.type, path48, lineNumber, "entry type");
       if (!ENTRY_TYPES.has(type))
         throw invalidFile(path48, lineNumber, `has unknown entry type ${type}`);
@@ -236055,11 +236055,11 @@ function parseMutation(line, path48, lineNumber) {
       if (type === "custom")
         requireString(value.customType, path48, lineNumber, "customType");
       const { kind: _kind, lane: _lane, ...entryFields } = value;
-      const entry = { ...entryFields, id, type, parentId, seq, timestamp };
+      const entry = { ...entryFields, id: id2, type, parentId, seq, timestamp };
       return lane === void 0 ? { kind: "entry", entry } : { kind: "entry", lane, entry };
     }
     case "record": {
-      const id = requireString(value.id, path48, lineNumber, "id");
+      const id2 = requireString(value.id, path48, lineNumber, "id");
       const lane = requireString(value.lane, path48, lineNumber, "lane");
       const type = requireString(value.type, path48, lineNumber, "record type");
       if (!RECORD_TYPES.has(type))
@@ -236078,7 +236078,7 @@ function parseMutation(line, path48, lineNumber) {
       const { kind: _kind, ...recordFields } = value;
       return {
         kind: "record",
-        record: { ...recordFields, id, lane, type, seq, timestamp }
+        record: { ...recordFields, id: id2, lane, type, seq, timestamp }
       };
     }
     case "lane":
@@ -236215,9 +236215,9 @@ var SessionState = class {
       throw new SessionError("not_found", `Entry not found: ${targetId}`);
     }
   }
-  validateUnusedId(id) {
-    if (this.usedIds.has(id))
-      throw new SessionError("already_exists", `Session id already exists: ${id}`);
+  validateUnusedId(id2) {
+    if (this.usedIds.has(id2))
+      throw new SessionError("already_exists", `Session id already exists: ${id2}`);
   }
   applyMutation(mutation, invalid5 = invalidMutation) {
     const seq = mutation.kind === "entry" ? mutation.entry.seq : mutation.kind === "record" ? mutation.record.seq : mutation.seq;
@@ -236307,8 +236307,8 @@ var SessionState = class {
         break;
     }
   }
-  getEntry(id) {
-    return this.entriesById.get(id);
+  getEntry(id2) {
+    return this.entriesById.get(id2);
   }
   findEntries(query = {}) {
     assertValidLimit2(query.limit);
@@ -236380,8 +236380,8 @@ var SessionState = class {
   getName() {
     return this.name;
   }
-  getLabel(id) {
-    return this.labels.get(id);
+  getLabel(id2) {
+    return this.labels.get(id2);
   }
   getStats() {
     return this.stats;
@@ -236624,8 +236624,8 @@ var JsonlSessionStorage = class _JsonlSessionStorage {
       return structuredClone(record2);
     });
   }
-  async getEntry(id) {
-    const entry = this.state.getEntry(id);
+  async getEntry(id2) {
+    const entry = this.state.getEntry(id2);
     return entry === void 0 ? void 0 : structuredClone(entry);
   }
   async findEntries(query = {}) {
@@ -236658,17 +236658,17 @@ var JsonlSessionStorage = class _JsonlSessionStorage {
       this.applyMutation(mutation);
     });
   }
-  async getLabel(id) {
-    return this.state.getLabel(id);
+  async getLabel(id2) {
+    return this.state.getLabel(id2);
   }
-  setLabel(id, label) {
+  setLabel(id2, label) {
     return this.enqueue(async () => {
-      this.state.validateTarget(id);
+      this.state.validateTarget(id2);
       const mutation = {
         kind: "fact",
         seq: this.state.nextSequence,
         fact: "label",
-        targetId: id,
+        targetId: id2,
         label
       };
       await this.appendMutation(mutation);
@@ -236718,8 +236718,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 var SESSION_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/;
-function validateSessionId(id) {
-  if (!SESSION_ID_PATTERN.test(id)) {
+function validateSessionId(id2) {
+  if (!SESSION_ID_PATTERN.test(id2)) {
     throw new SessionError("invalid_payload", "Session id must be non-empty, contain only alphanumeric characters, '-', '_', and '.', and start and end with an alphanumeric character");
   }
 }
@@ -236730,9 +236730,9 @@ function isJsonlSessionStoragePath(relativePath) {
   const directory = relativePath.split(/[/\\]/u, 1)[0];
   return directory.startsWith("--") && directory.endsWith("--");
 }
-function sessionFileName(createdAt, id) {
+function sessionFileName(createdAt, id2) {
   const timestamp = new Date(createdAt).toISOString().replace(/[:.]/g, "-");
-  return `${timestamp}_${id}.jsonl`;
+  return `${timestamp}_${id2}.jsonl`;
 }
 var JsonlSessionRepo = class {
   fs;
@@ -236775,21 +236775,21 @@ var JsonlSessionRepo = class {
     return storage;
   }
   async prepareCreate(options) {
-    const id = options.id ?? uuidv7();
-    validateSessionId(id);
+    const id2 = options.id ?? uuidv7();
+    validateSessionId(id2);
     const cwd = fileResult(await this.fs.absolutePath(options.cwd), `Failed to resolve session cwd ${options.cwd}`);
-    if (await this.sessionIdExists(id, cwd)) {
-      throw new SessionError("already_exists", `Session already exists: ${id}`);
+    if (await this.sessionIdExists(id2, cwd)) {
+      throw new SessionError("already_exists", `Session already exists: ${id2}`);
     }
     const createdAt = Date.now();
     const sessionDirectory = await this.sessionDirectory(cwd);
-    const path48 = fileResult(await this.fs.joinPath([sessionDirectory, sessionFileName(createdAt, id)]), `Failed to resolve path for session ${id}`);
+    const path48 = fileResult(await this.fs.joinPath([sessionDirectory, sessionFileName(createdAt, id2)]), `Failed to resolve path for session ${id2}`);
     if (options.metadata !== void 0)
       assertJsonSerializable(options.metadata);
     const header = {
       kind: "header",
       version: 4,
-      id,
+      id: id2,
       createdAt,
       cwd,
       parentSessionId: options.parentSessionId,
@@ -236813,8 +236813,8 @@ var JsonlSessionRepo = class {
     }
     return metadata.sort((left, right) => right.modifiedAt - left.modifiedAt);
   }
-  async sessionIdExists(id, cwd) {
-    const suffix = `_${id}.jsonl`;
+  async sessionIdExists(id2, cwd) {
+    const suffix = `_${id2}.jsonl`;
     const directory = await this.sessionDirectory(cwd);
     if (!fileResult(await this.fs.exists(directory), `Failed to check sessions directory ${directory}`))
       return false;
@@ -237839,7 +237839,7 @@ var ArtifactStore = class {
     await this.ensureRoot();
     const destination = path4.join(this.rootDir, `${artifactId}.log`);
     const staging = path4.join(this.rootDir, `.${artifactId}.tmp`);
-    const hash2 = createHash3("sha256");
+    const hash3 = createHash3("sha256");
     let containsSecret = false;
     let scanCarry = "";
     let sizeBytes = 0;
@@ -237848,7 +237848,7 @@ var ArtifactStore = class {
     const scanner = new Transform2({
       transform(chunk, _encoding, callback) {
         sizeBytes += chunk.length;
-        hash2.update(chunk);
+        hash3.update(chunk);
         const text2 = `${scanCarry}${chunk.toString("utf8")}`;
         if (containsSecretText(text2))
           containsSecret = true;
@@ -237885,7 +237885,7 @@ var ArtifactStore = class {
         status: "stored",
         relativePath,
         sizeBytes,
-        sha256: hash2.digest("hex"),
+        sha256: hash3.digest("hex"),
         mediaType: options.mediaType ?? "text/plain; charset=utf-8",
         createdAt: this.now().toISOString(),
         retention: "run",
@@ -239982,9 +239982,9 @@ var validateStrictDeadlock = (outgoingMessages, wrappedMessage) => {
   if (wrappedMessage?.type !== REQUEST_TYPE || wrappedMessage.hasListeners) {
     return;
   }
-  for (const { id } of outgoingMessages) {
-    if (id !== void 0) {
-      STRICT_RESPONSES[id].resolve({ isDeadlock: true, hasListeners: false });
+  for (const { id: id2 } of outgoingMessages) {
+    if (id2 !== void 0) {
+      STRICT_RESPONSES[id2].resolve({ isDeadlock: true, hasListeners: false });
     }
   }
 };
@@ -239992,8 +239992,8 @@ var handleStrictRequest = async ({ wrappedMessage, anyProcess, channel, isSubpro
   if (wrappedMessage?.type !== REQUEST_TYPE || !anyProcess.connected) {
     return wrappedMessage;
   }
-  const { id, message: message3 } = wrappedMessage;
-  const response = { id, type: RESPONSE_TYPE, message: hasMessageListeners(anyProcess, ipcEmitter) };
+  const { id: id2, message: message3 } = wrappedMessage;
+  const response = { id: id2, type: RESPONSE_TYPE, message: hasMessageListeners(anyProcess, ipcEmitter) };
   try {
     await sendMessage({
       anyProcess,
@@ -240010,8 +240010,8 @@ var handleStrictResponse = (wrappedMessage) => {
   if (wrappedMessage?.type !== RESPONSE_TYPE) {
     return false;
   }
-  const { id, message: hasListeners } = wrappedMessage;
-  STRICT_RESPONSES[id]?.resolve({ isDeadlock: false, hasListeners });
+  const { id: id2, message: hasListeners } = wrappedMessage;
+  STRICT_RESPONSES[id2]?.resolve({ isDeadlock: false, hasListeners });
   return true;
 };
 var waitForStrictResponse = async (wrappedMessage, anyProcess, isSubprocess) => {
@@ -240053,8 +240053,8 @@ var startSendMessage = (anyProcess, wrappedMessage, strict) => {
   }
   const outgoingMessages = OUTGOING_MESSAGES.get(anyProcess);
   const onMessageSent = createDeferred();
-  const id = strict ? wrappedMessage.id : void 0;
-  const outgoingMessage = { onMessageSent, id };
+  const id2 = strict ? wrappedMessage.id : void 0;
+  const outgoingMessage = { onMessageSent, id: id2 };
   outgoingMessages.add(outgoingMessage);
   return { outgoingMessages, outgoingMessage };
 };
@@ -251193,8 +251193,8 @@ var McpHttpTransport = class {
       throw cancelled2();
     let request;
     if ("method" in message3 && "id" in message3) {
-      const id = message3.id;
-      if (this.requests.has(id) || this.requests.size >= 256)
+      const id2 = message3.id;
+      if (this.requests.has(id2) || this.requests.size >= 256)
         throw protocolFailure();
       const controller = new AbortController();
       const signal2 = AbortSignal.any([
@@ -251203,26 +251203,26 @@ var McpHttpTransport = class {
       ]);
       const release = () => {
         signal2.removeEventListener("abort", release);
-        if (this.requests.get(id)?.controller === controller)
-          this.requests.delete(id);
+        if (this.requests.get(id2)?.controller === controller)
+          this.requests.delete(id2);
       };
       request = { controller, signal: signal2, release };
-      this.requests.set(id, request);
+      this.requests.set(id2, request);
       signal2.addEventListener("abort", release, { once: true });
       if (signal2.aborted)
         release();
     }
     const cancelling = "method" in message3 && message3.method === "notifications/cancelled";
     if ("method" in message3 && message3.method === "notifications/cancelled") {
-      const id = message3.params?.requestId;
-      if (typeof id === "string" || typeof id === "number") {
-        const pending = this.requests.get(id);
+      const id2 = message3.params?.requestId;
+      if (typeof id2 === "string" || typeof id2 === "number") {
+        const pending = this.requests.get(id2);
         pending?.controller.abort();
         pending?.release();
         message3 = {
           jsonrpc: "2.0",
           method: "notifications/cancelled",
-          params: { requestId: id, reason: "\u8BF7\u6C42\u5DF2\u53D6\u6D88" }
+          params: { requestId: id2, reason: "\u8BF7\u6C42\u5DF2\u53D6\u6D88" }
         };
       }
     }
@@ -252101,22 +252101,22 @@ function resolveDelegatedContextReferences(input) {
     const parsed = /^(fact|artifact):([^\s]+)$/u.exec(reference);
     if (!parsed)
       throw invalidReference(reference, "\u683C\u5F0F\u975E\u6CD5");
-    const [, type, id] = parsed;
+    const [, type, id2] = parsed;
     if (type === "fact") {
-      const fact = input.parentFacts.find((record2) => record2.eventId === id);
+      const fact = input.parentFacts.find((record2) => record2.eventId === id2);
       if (!fact)
         throw invalidReference(reference, "\u4E0D\u5C5E\u4E8E\u5F53\u524D\u7236 Run");
       return {
         reference,
         type,
-        eventId: id,
+        eventId: id2,
         sequence: fact.sequence,
         factKind: fact.kind,
         timestamp: fact.timestamp,
         payloadFingerprint: `sha256:${fingerprintEffectReceiptValue(fact.payload)}`
       };
     }
-    const artifact = input.artifacts.find((record2) => record2.artifactId === id);
+    const artifact = input.artifacts.find((record2) => record2.artifactId === id2);
     if (artifact?.status !== "stored" || artifact.redaction !== "none" || !artifact.sha256) {
       throw invalidReference(reference, "\u4E0D\u5C5E\u4E8E\u5F53\u524D\u7236 Run \u7684\u53EF\u59D4\u6D3E Artifact");
     }
@@ -254919,7 +254919,7 @@ function isRecord9(value) {
 }
 
 // packages/coremind-runtime/dist/runtime.js
-import { createHash as createHash27, randomUUID as randomUUID25 } from "node:crypto";
+import { createHash as createHash27, randomUUID as randomUUID26 } from "node:crypto";
 import path46 from "node:path";
 
 // packages/coremind-templates/dist/index.js
@@ -254931,15 +254931,15 @@ import { readFileSync as readFileSync7 } from "node:fs";
 import path38 from "node:path";
 import { fileURLToPath as fileURLToPath12 } from "node:url";
 var skillsRoot = path38.join(path38.dirname(fileURLToPath12(import.meta.url)), "..", "skills");
-function skillDir(id) {
-  return path38.join(skillsRoot, id);
+function skillDir(id2) {
+  return path38.join(skillsRoot, id2);
 }
-function loadSkill(id, name, description) {
+function loadSkill(id2, name, description) {
   return {
-    id,
+    id: id2,
     name,
     description,
-    content: readFileSync7(path38.join(skillDir(id), "README.md"), "utf8")
+    content: readFileSync7(path38.join(skillDir(id2), "README.md"), "utf8")
   };
 }
 var SKILLS = [
@@ -254947,14 +254947,14 @@ var SKILLS = [
   loadSkill("weekly-report", "\u5468\u62A5\u64B0\u5199", "\u6309 SOP \u751F\u6210\u7ED3\u6784\u5316\u5468\u62A5\uFF1A\u6536\u96C6\u7EF4\u5EA6/\u7ED3\u6784\u6A21\u677F/\u4EF7\u503C\u5BFC\u5411\u5199\u4F5C"),
   loadSkill("translation", "\u7FFB\u8BD1", "\u6309 SOP \u7FFB\u8BD1\uFF1A\u672F\u8BED\u4E00\u81F4/\u683C\u5F0F\u4FDD\u6301/\u81EA\u68C0\u6E05\u5355")
 ];
-function findSkill(id) {
-  return SKILLS.find((s2) => s2.id === id);
+function findSkill(id2) {
+  return SKILLS.find((s2) => s2.id === id2);
 }
 
 // packages/coremind-templates/dist/index.js
 var templatesRoot = path39.join(path39.dirname(fileURLToPath13(import.meta.url)), "..", "templates");
-function templateDir(category, id) {
-  return path39.join(templatesRoot, category, id);
+function templateDir(category, id2) {
+  return path39.join(templatesRoot, category, id2);
 }
 var TEMPLATES = [
   {
@@ -255044,17 +255044,17 @@ async function resolveSelectedSkills(ids, configDir) {
       throw new Error("\u6280\u80FD\u89E3\u6790\u7ED3\u679C\u8D85\u8FC7 2 MiB \u4E0A\u9650");
     }
   };
-  for (const id of ids) {
-    if (typeof id !== "string" || !id || id === "." || id === ".." || id.includes("\0") || /[\\/:]/u.test(id)) {
-      throw new Error(`\u975E\u6CD5\u6280\u80FD ID\uFF1A${String(id)}`);
+  for (const id2 of ids) {
+    if (typeof id2 !== "string" || !id2 || id2 === "." || id2 === ".." || id2.includes("\0") || /[\\/:]/u.test(id2)) {
+      throw new Error(`\u975E\u6CD5\u6280\u80FD ID\uFF1A${String(id2)}`);
     }
-    const builtin = findSkill(id);
+    const builtin = findSkill(id2);
     if (builtin) {
       result.legacyContents.push(builtin.content);
       names2.set(builtin.name, builtin.id);
       checkSize();
     } else {
-      pending.push(id);
+      pending.push(id2);
     }
   }
   if (pending.length === 0)
@@ -255066,17 +255066,17 @@ async function resolveSelectedSkills(ids, configDir) {
   const rootPath = path40.join(configPath, "skills");
   const canonicalRoot = await canonicalDirectory(rootPath, canonicalConfig);
   if (!canonicalRoot) {
-    for (const id of pending) {
-      result.missing.push(id);
+    for (const id2 of pending) {
+      result.missing.push(id2);
       checkSize();
     }
     return result;
   }
   const selected = /* @__PURE__ */ new Map();
   const standardIds = /* @__PURE__ */ new Set();
-  for (const id of pending) {
-    if (!selected.has(id)) {
-      const directoryPath = path40.join(rootPath, id);
+  for (const id2 of pending) {
+    if (!selected.has(id2)) {
+      const directoryPath = path40.join(rootPath, id2);
       const canonicalSkill = await canonicalDirectory(directoryPath, canonicalRoot);
       let value2;
       if (canonicalSkill) {
@@ -255091,27 +255091,27 @@ async function resolveSelectedSkills(ids, configDir) {
         ];
         if (standardExists) {
           if (legacyExists) {
-            result.warnings.push(`\u6280\u80FD ${id} \u540C\u65F6\u6709 SKILL.md \u548C README.md\uFF0C\u4F7F\u7528 SKILL.md`);
+            result.warnings.push(`\u6280\u80FD ${id2} \u540C\u65F6\u6709 SKILL.md \u548C README.md\uFF0C\u4F7F\u7528 SKILL.md`);
           }
-          value2 = parseStandardSkill(id, await readBoundedUtf8(standardPath, canonicalSkill, boundaries));
+          value2 = parseStandardSkill(id2, await readBoundedUtf8(standardPath, canonicalSkill, boundaries));
         } else if (legacyExists) {
           value2 = await readBoundedUtf8(legacyPath, canonicalSkill, boundaries);
         }
       }
-      selected.set(id, value2);
+      selected.set(id2, value2);
     }
-    const value = selected.get(id);
+    const value = selected.get(id2);
     if (value === void 0)
-      result.missing.push(id);
+      result.missing.push(id2);
     else if (typeof value === "string")
       result.legacyContents.push(value);
-    else if (!standardIds.has(id)) {
+    else if (!standardIds.has(id2)) {
       const previous = names2.get(value.name);
-      if (previous && previous !== id) {
-        result.warnings.push(`\u6280\u80FD ${previous} \u548C ${id} \u4F7F\u7528\u76F8\u540C\u540D\u79F0 ${value.name}\uFF0C\u4ECD\u6309 ID \u533A\u5206`);
+      if (previous && previous !== id2) {
+        result.warnings.push(`\u6280\u80FD ${previous} \u548C ${id2} \u4F7F\u7528\u76F8\u540C\u540D\u79F0 ${value.name}\uFF0C\u4ECD\u6309 ID \u533A\u5206`);
       }
-      names2.set(value.name, id);
-      standardIds.add(id);
+      names2.set(value.name, id2);
+      standardIds.add(id2);
       result.standard.push(value);
     }
     checkSize();
@@ -255186,21 +255186,21 @@ async function readBoundedUtf8(file, directory, boundaries) {
 function sameIdentity(left, right) {
   return left.dev === right.dev && left.ino === right.ino && left.size === right.size && left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs;
 }
-function parseStandardSkill(id, content) {
+function parseStandardSkill(id2, content) {
   const match3 = content.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u);
   if (!match3)
-    throw new Error(`\u6280\u80FD ${id} \u7684 SKILL.md frontmatter \u65E0\u6548`);
-  const metadata = parseConfigText(match3[1], `\u6280\u80FD ${id}`);
+    throw new Error(`\u6280\u80FD ${id2} \u7684 SKILL.md frontmatter \u65E0\u6548`);
+  const metadata = parseConfigText(match3[1], `\u6280\u80FD ${id2}`);
   if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) {
-    throw new Error(`\u6280\u80FD ${id} \u7684 frontmatter \u5FC5\u987B\u662F\u5BF9\u8C61`);
+    throw new Error(`\u6280\u80FD ${id2} \u7684 frontmatter \u5FC5\u987B\u662F\u5BF9\u8C61`);
   }
   const { name, description } = metadata;
   if (typeof name !== "string" || !name.trim() || typeof description !== "string" || !description.trim()) {
-    throw new Error(`\u6280\u80FD ${id} \u7684 name \u548C description \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32`);
+    throw new Error(`\u6280\u80FD ${id2} \u7684 name \u548C description \u5FC5\u987B\u662F\u975E\u7A7A\u5B57\u7B26\u4E32`);
   }
   const body = content.slice(match3[0].length);
   return {
-    id,
+    id: id2,
     name,
     description,
     bodySha256: createHash15("sha256").update(body, "utf8").digest("hex"),
@@ -256236,10 +256236,10 @@ function isStrictChild2(parent, candidate) {
   return relative3.length > 0 && !relative3.startsWith("..") && !path41.isAbsolute(relative3);
 }
 async function hashFile2(filePath) {
-  const hash2 = createHash17("sha256");
+  const hash3 = createHash17("sha256");
   for await (const chunk of createReadStream4(filePath))
-    hash2.update(chunk);
-  return hash2.digest("hex");
+    hash3.update(chunk);
+  return hash3.digest("hex");
 }
 
 // packages/coremind-runtime/dist/context-task-state.js
@@ -257403,14 +257403,14 @@ var WILDCARD = "*";
 var XSTATE_INIT = "xstate.init";
 var XSTATE_ERROR = "xstate.error";
 var XSTATE_STOP = "xstate.stop";
-function createAfterEvent(delayRef, id) {
+function createAfterEvent(delayRef, id2) {
   return {
-    type: `xstate.after.${delayRef}.${id}`
+    type: `xstate.after.${delayRef}.${id2}`
   };
 }
-function createDoneStateEvent(id, output) {
+function createDoneStateEvent(id2, output) {
   return {
-    type: `xstate.done.state.${id}`,
+    type: `xstate.done.state.${id2}`,
     output
   };
 }
@@ -257421,11 +257421,11 @@ function createDoneActorEvent(invokeId, output) {
     actorId: invokeId
   };
 }
-function createErrorActorEvent(id, error3) {
+function createErrorActorEvent(id2, error3) {
   return {
-    type: `xstate.error.actor.${id}`,
+    type: `xstate.error.actor.${id2}`,
     error: error3,
-    actorId: id
+    actorId: id2
   };
 }
 function createInitEvent(input) {
@@ -257611,8 +257611,8 @@ function matchesEventDescriptor(eventType, descriptor) {
   }
   return true;
 }
-function createScheduledEventId(actorRef, id) {
-  return `${actorRef.sessionId}.${id}`;
+function createScheduledEventId(actorRef, id2) {
+  return `${actorRef.sessionId}.${id2}`;
 }
 var idCounter = 0;
 function createSystem(rootActor, options) {
@@ -257626,16 +257626,16 @@ function createSystem(rootActor, options) {
     logger
   } = options;
   const scheduler3 = {
-    schedule: (source, target, event, delay2, id = Math.random().toString(36).slice(2)) => {
+    schedule: (source, target, event, delay2, id2 = Math.random().toString(36).slice(2)) => {
       const scheduledEvent = {
         source,
         target,
         event,
         delay: delay2,
-        id,
+        id: id2,
         startedAt: Date.now()
       };
-      const scheduledEventId = createScheduledEventId(source, id);
+      const scheduledEventId = createScheduledEventId(source, id2);
       system._snapshot._scheduledEvents[scheduledEventId] = scheduledEvent;
       const timeout = clock.setTimeout(() => {
         delete timerMap[scheduledEventId];
@@ -257644,8 +257644,8 @@ function createSystem(rootActor, options) {
       }, delay2);
       timerMap[scheduledEventId] = timeout;
     },
-    cancel: (source, id) => {
-      const scheduledEventId = createScheduledEventId(source, id);
+    cancel: (source, id2) => {
+      const scheduledEventId = createScheduledEventId(source, id2);
       const timeout = timerMap[scheduledEventId];
       delete timerMap[scheduledEventId];
       delete system._snapshot._scheduledEvents[scheduledEventId];
@@ -257739,9 +257739,9 @@ function createSystem(rootActor, options) {
           target,
           event,
           delay: delay2,
-          id
+          id: id2
         } = scheduledEvents[scheduledId];
-        scheduler3.schedule(source, target, event, delay2, id);
+        scheduler3.schedule(source, target, event, delay2, id2);
       }
     },
     _clock: clock,
@@ -257762,8 +257762,8 @@ var defaultOptions = {
     setTimeout: (fn, ms) => {
       return setTimeout(fn, ms);
     },
-    clearTimeout: (id) => {
-      return clearTimeout(id);
+    clearTimeout: (id2) => {
+      return clearTimeout(id2);
     }
   },
   logger: console.log.bind(console),
@@ -257807,7 +257807,7 @@ var Actor = class {
       logger,
       parent,
       syncSnapshot,
-      id,
+      id: id2,
       systemId,
       inspect: inspect3
     } = resolvedOptions;
@@ -257819,7 +257819,7 @@ var Actor = class {
       this.system.inspect(toObserver(inspect3));
     }
     this.sessionId = this.system._bookId();
-    this.id = id ?? this.sessionId;
+    this.id = id2 ?? this.sessionId;
     this.logger = options?.logger ?? this.system._logger;
     this.clock = options?.clock ?? this.system._clock;
     this._parent = parent;
@@ -258348,14 +258348,14 @@ function cancel(sendId) {
   return cancel2;
 }
 function resolveSpawn(actorScope, snapshot, actionArgs, _actionParams, {
-  id,
+  id: id2,
   systemId,
   src,
   input,
   syncSnapshot
 }) {
   const logic = typeof src === "string" ? resolveReferencedActor(snapshot.machine, src) : src;
-  const resolvedId = typeof id === "function" ? id(actionArgs) : id;
+  const resolvedId = typeof id2 === "function" ? id2(actionArgs) : id2;
   let actorRef;
   let resolvedInput = void 0;
   if (logic) {
@@ -258379,7 +258379,7 @@ function resolveSpawn(actorScope, snapshot, actionArgs, _actionParams, {
       [resolvedId]: actorRef
     }
   }), {
-    id,
+    id: id2,
     systemId,
     actorRef,
     src,
@@ -258400,7 +258400,7 @@ function executeSpawn(actorScope, {
   });
 }
 function spawnChild(...[src, {
-  id,
+  id: id2,
   systemId,
   input,
   syncSnapshot = false
@@ -258408,7 +258408,7 @@ function spawnChild(...[src, {
   function spawnChild2(_args, _params) {
   }
   spawnChild2.type = "xstate.spawnChild";
-  spawnChild2.id = id;
+  spawnChild2.id = id2;
   spawnChild2.systemId = systemId;
   spawnChild2.src = src;
   spawnChild2.input = input;
@@ -259550,9 +259550,9 @@ function getPersistedSnapshot(snapshot, options) {
     ...jsonValues
   } = snapshot;
   const childrenJson = {};
-  for (const id in children) {
-    const child = children[id];
-    childrenJson[id] = {
+  for (const id2 in children) {
+    const child = children[id2];
+    childrenJson[id2] = {
       snapshot: child.getPersistedSnapshot(options),
       src: child.src,
       systemId: child.systemId,
@@ -259595,7 +259595,7 @@ function persistContext(contextPart) {
 }
 function resolveRaise(_2, snapshot, args, actionParams, {
   event: eventOrExpr,
-  id,
+  id: id2,
   delay: delay2
 }, {
   internalQueue
@@ -259620,7 +259620,7 @@ function resolveRaise(_2, snapshot, args, actionParams, {
   }
   return [snapshot, {
     event: resolvedEvent,
-    id,
+    id: id2,
     delay: resolvedDelay
   }, void 0];
 }
@@ -259628,12 +259628,12 @@ function executeRaise(actorScope, params) {
   const {
     event,
     delay: delay2,
-    id
+    id: id2
   } = params;
   if (typeof delay2 === "number") {
     actorScope.defer(() => {
       const self2 = actorScope.self;
-      actorScope.system.scheduler.schedule(self2, self2, event, delay2, id);
+      actorScope.system.scheduler.schedule(self2, self2, event, delay2, id2);
     });
     return;
   }
@@ -260268,7 +260268,7 @@ var SpecialTargets = /* @__PURE__ */ (function(SpecialTargets2) {
 function resolveSendTo(actorScope, snapshot, args, actionParams, {
   to,
   event: eventOrExpr,
-  id,
+  id: id2,
   delay: delay2
 }, extra) {
   const delaysMap = snapshot.machine.implementations.delays;
@@ -260308,7 +260308,7 @@ function resolveSendTo(actorScope, snapshot, args, actionParams, {
     to: targetActorRef,
     targetId: typeof resolvedTarget === "string" ? resolvedTarget : void 0,
     event: resolvedEvent,
-    id,
+    id: id2,
     delay: resolvedDelay
   }, void 0];
 }
@@ -260323,10 +260323,10 @@ function executeSendTo(actorScope, params) {
       to,
       event,
       delay: delay2,
-      id
+      id: id2
     } = params;
     if (typeof delay2 === "number") {
-      actorScope.system.scheduler.schedule(actorScope.self, to, event, delay2, id);
+      actorScope.system.scheduler.schedule(actorScope.self, to, event, delay2, id2);
       return;
     }
     actorScope.system._relay(
@@ -261807,10 +261807,10 @@ async function identifyServer(serverName, server) {
   return { target, sha256: fingerprintEffectReceiptValue(target) };
 }
 async function hashFile3(file) {
-  const hash2 = createHash22("sha256");
+  const hash3 = createHash22("sha256");
   for await (const chunk of createReadStream5(file))
-    hash2.update(chunk);
-  return hash2.digest("hex");
+    hash3.update(chunk);
+  return hash3.digest("hex");
 }
 async function resolveEnvironment(server, options) {
   const env2 = /* @__PURE__ */ Object.create(null);
@@ -262050,12 +262050,12 @@ async function inspectSource(fullPath, signal) {
     if (!(await handle.stat()).isFile()) {
       throw new CoreMindError("execution_security_violation", "\u9879\u76EE\u811A\u672C\u5165\u53E3\u5FC5\u987B\u662F\u666E\u901A\u6587\u4EF6");
     }
-    const hash2 = createHash23("sha256");
+    const hash3 = createHash23("sha256");
     for await (const chunk of handle.createReadStream({ autoClose: false, signal })) {
-      hash2.update(chunk);
+      hash3.update(chunk);
     }
     checkCancellation(signal);
-    return { path: canonical2, sha256: hash2.digest("hex") };
+    return { path: canonical2, sha256: hash3.digest("hex") };
   } finally {
     await handle.close();
   }
@@ -263087,7 +263087,7 @@ function prepareRunResume(records, configFingerprint, requestedPrompt) {
 function inputReceiptsAreResumable(trace) {
   try {
     const statuses = foldInputReceipts(trace.map((entry) => entry.event));
-    return [...statuses].every(([id, status]) => isControlInputId(id) || status === "pending" || status === "claimed");
+    return [...statuses].every(([id2, status]) => isControlInputId(id2) || status === "pending" || status === "claimed");
   } catch (error3) {
     throw new CoreMindError("run_state_corrupt", `\u8F93\u5165\u6536\u636E\u65E0\u6CD5\u5B89\u5168\u6298\u53E0\uFF1A${error3 instanceof Error ? error3.message : String(error3)}`);
   }
@@ -263943,17 +263943,17 @@ async function buildBuiltinRuntime(cfg, env2, resolvedApiKey) {
   };
 }
 async function buildCustomRuntime(cfg, env2, security, capabilityOrigin) {
-  const id = cfg.id ?? "custom";
-  const apiKeyEnv = inferEnv(cfg, id);
+  const id2 = cfg.id ?? "custom";
+  const apiKeyEnv = inferEnv(cfg, id2);
   const models = createModels({ authContext: isolatedAuthContext(env2, apiKeyEnv) });
-  const model = buildCustomModel(cfg, id);
+  const model = buildCustomModel(cfg, id2);
   const warnings = [];
   if (cfg.apiKey) {
     warnings.push("\u914D\u7F6E\u4E86 apiKey \u76F4\u586B\uFF1A\u5BC6\u94A5\u4F1A\u968F\u914D\u7F6E\u6587\u4EF6\u8FDB\u5165\u7248\u672C\u5E93/\u5206\u4EAB\u94FE\u8DEF\uFF0C\u5EFA\u8BAE\u6539\u7528 apiKeyEnv \u73AF\u5883\u53D8\u91CF");
   }
-  const endpointAuth = security.apiKey ? staticKeyAuth(security.apiKey) : envApiKeyAuth(cfg.name ?? id, [apiKeyEnv]);
+  const endpointAuth = security.apiKey ? staticKeyAuth(security.apiKey) : envApiKeyAuth(cfg.name ?? id2, [apiKeyEnv]);
   models.setProvider(createProvider({
-    id,
+    id: id2,
     name: cfg.name,
     baseUrl: cfg.baseUrl,
     headers: security.headers,
@@ -264061,12 +264061,12 @@ function isolatedAuthContext(env2, apiKeyEnv, denyEnvironment = false) {
 function cacheStatus(model) {
   return model.cost.cacheRead > 0 || model.cost.cacheWrite > 0 ? "available" : "unavailable";
 }
-function buildCustomModel(cfg, id) {
+function buildCustomModel(cfg, id2) {
   return {
     id: cfg.model,
     name: cfg.model,
     api: "openai-completions",
-    provider: id,
+    provider: id2,
     baseUrl: cfg.baseUrl,
     reasoning: cfg.thinkingFormat !== void 0,
     input: ["text"],
@@ -264077,10 +264077,10 @@ function buildCustomModel(cfg, id) {
     compat: cfg.thinkingFormat ? { thinkingFormat: cfg.thinkingFormat } : void 0
   };
 }
-function inferEnv(cfg, id) {
+function inferEnv(cfg, id2) {
   if (cfg.apiKeyEnv)
     return cfg.apiKeyEnv;
-  return `${id.toUpperCase().replaceAll("-", "_")}_API_KEY`;
+  return `${id2.toUpperCase().replaceAll("-", "_")}_API_KEY`;
 }
 function staticKeyAuth(apiKey) {
   return {
@@ -264822,7 +264822,7 @@ function restoreSkillSnapshot(records, agents) {
 function skillPrefixContents(selection) {
   if (selection.standard.length === 0)
     return [...selection.legacyContents];
-  const index3 = selection.standard.map(({ id, name, description, bodySha256 }) => `- ${JSON.stringify({ id, name, description, bodySha256 })}`).join("\n");
+  const index3 = selection.standard.map(({ id: id2, name, description, bodySha256 }) => `- ${JSON.stringify({ id: id2, name, description, bodySha256 })}`).join("\n");
   return [
     ...selection.legacyContents,
     `## \u53EF\u6309\u9700\u52A0\u8F7D\u7684\u6807\u51C6\u6280\u80FD
@@ -264937,8 +264937,113 @@ function isObject8(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-// packages/coremind-runtime/dist/tool-discovery.js
+// packages/coremind-runtime/dist/task-tool-driver.js
+init_dist();
+var import_ajv3 = __toESM(require_ajv2(), 1);
 import { randomUUID as randomUUID23 } from "node:crypto";
+function buildTaskToolDriver(ctx, request) {
+  const harness = ctx.harness;
+  const controller = new AbortController();
+  let running = false;
+  let active = Promise.resolve();
+  const catalog = ctx.tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    declaration: toToolDeclaration(tool)
+  }));
+  const selection = harness.registerDeclarationCatalog?.(catalog);
+  const emit2 = ctx.onEvent;
+  const agent = ctx.agentName;
+  const execute = async () => {
+    await harness.beforePrompt?.();
+    controller.signal.throwIfAborted();
+    const matches2 = ctx.tools.filter((tool2) => tool2.name === request.tool);
+    if (matches2.length !== 1)
+      throw new CoreMindError("invalid_tool", "\u4EFB\u52A1\u5DE5\u5177\u4E0D\u5C5E\u4E8E\u552F\u4E00\u6CE8\u518C\u76EE\u5F55");
+    const tool = matches2[0];
+    const call = { callId: randomUUID23(), tool: tool.name, args: request.args };
+    emit2({ type: "agent_start", agent });
+    harness.onObservation?.({ type: "agent_start" });
+    emit2({ type: "tool_call", agent, ...call });
+    harness.onObservation?.({ type: "tool_execution_start", call });
+    let result = {
+      content: [{ type: "text", text: "\u5DE5\u5177\u672A\u5B8C\u6210" }],
+      details: {}
+    };
+    let error3;
+    let admitted = false;
+    try {
+      if (selection && !selection.names.includes(tool.name))
+        throw new CoreMindError("tool_capability_conflict", "\u4EFB\u52A1\u5DE5\u5177\u672A\u8FDB\u5165\u5F53\u524D\u58F0\u660E\u96C6\u5408");
+      if (!new import_ajv3.Ajv({ strict: false, ownProperties: true }).validate(tool.parameters, call.args))
+        throw new CoreMindError("invalid_tool", "\u4EFB\u52A1\u5DE5\u5177\u53C2\u6570\u4E0D\u7B26\u5408\u6CE8\u518C Schema");
+      const decision = await harness.beforeToolCall({ toolCall: call }, controller.signal);
+      if (decision?.block)
+        throw new CoreMindError("tool_execution_failed", decision.reason ?? "\u5DE5\u5177\u51C6\u5165\u88AB\u62D2\u7EDD");
+      admitted = true;
+      controller.signal.throwIfAborted();
+      result = await harness.executeTool({
+        call,
+        signal: controller.signal,
+        invoke: () => tool.execute(call.callId, call.args, controller.signal)
+      });
+    } catch (caught) {
+      error3 = caught;
+    }
+    let isError = error3 !== void 0 || result.isError === true;
+    try {
+      if (admitted) {
+        const changed2 = await harness.afterToolCall({ toolCall: call, result, isError }, controller.signal);
+        result = {
+          content: changed2?.content ?? result.content,
+          details: changed2?.details ?? result.details
+        };
+        isError = changed2?.isError ?? isError;
+      }
+    } catch (caught) {
+      error3 ??= caught;
+      isError = true;
+    } finally {
+      harness.onObservation?.({ type: "tool_execution_end", call, result, isError });
+      emit2({ type: "tool_result", agent, tool: call.tool, callId: call.callId, isError });
+      emit2({ type: "agent_end", agent });
+      harness.onObservation?.({ type: "agent_end" });
+    }
+    harness.throwIfDenied?.();
+    harness.throwIfContextFailed?.();
+    if (error3)
+      throw error3;
+    if (isError)
+      throw new CoreMindError("tool_execution_failed", "\u4EFB\u52A1\u5DE5\u5177\u62A5\u544A\u5931\u8D25");
+    controller.signal.throwIfAborted();
+    request.accept(result);
+    harness.onPromptCompleted?.();
+  };
+  return {
+    prompt: () => {
+      if (running)
+        return Promise.reject(new CoreMindError("run_id_conflict", "\u5DE5\u5177\u8C03\u7528\u5DF2\u5F00\u59CB"));
+      running = true;
+      active = execute().finally(() => {
+        running = false;
+      });
+      return active;
+    },
+    waitForIdle: () => active,
+    messages: () => [],
+    status: () => ({ running, pendingToolCalls: running ? 1 : 0, queuedControls: 0 }),
+    abort: () => controller.abort(),
+    canAcceptControl: () => false,
+    queueControl: () => {
+      throw new CoreMindError("invalid_config", "\u7CBE\u786E\u4EFB\u52A1\u8C03\u7528\u4E0D\u63A5\u6536\u6A21\u578B\u63A7\u5236\u8F93\u5165");
+    },
+    clearQueuedControls: () => {
+    }
+  };
+}
+
+// packages/coremind-runtime/dist/tool-discovery.js
+import { randomUUID as randomUUID24 } from "node:crypto";
 var DISCOVER_TOOLS_NAME = "discover_tools";
 var MAX_ENTRIES = 256;
 var MAX_SCHEMA_BYTES = 8 * 1024 * 1024;
@@ -265069,7 +265174,7 @@ var ToolDiscoveryExecution = class {
     if (this.pending?.selection.fingerprint === selection.fingerprint && this.plans.get(this.pending) === this.revision)
       return this.pending;
     const prepared = freeze({
-      eventId: randomUUID23(),
+      eventId: randomUUID24(),
       ...!this.catalogPublished ? { catalog: this.catalog } : {},
       selection
     });
@@ -265756,7 +265861,7 @@ async function canonicalize4(input, strict = false) {
 }
 
 // packages/coremind-runtime/dist/turn-tracker.js
-import { randomUUID as randomUUID24 } from "node:crypto";
+import { randomUUID as randomUUID25 } from "node:crypto";
 var TurnTracker = class _TurnTracker {
   /** 进行中的 Turn（流式期间） */
   currentTurnId;
@@ -265771,7 +265876,7 @@ var TurnTracker = class _TurnTracker {
       tracker = new _TurnTracker();
       this.scopes.set(key, tracker);
     }
-    const turnId = tracker.currentTurnId ?? randomUUID24();
+    const turnId = tracker.currentTurnId ?? randomUUID25();
     tracker.currentTurnId = turnId;
     tracker.openTurnId = turnId;
     return turnId;
@@ -265792,18 +265897,18 @@ var TurnTracker = class _TurnTracker {
   withLocalTurnId(event) {
     switch (event.type) {
       case "agent_start": {
-        const turnId = randomUUID24();
+        const turnId = randomUUID25();
         this.currentTurnId = turnId;
         this.openTurnId = turnId;
         return { ...event, turnId };
       }
       case "text_delta": {
         if (this.currentTurnId === void 0)
-          this.currentTurnId = randomUUID24();
+          this.currentTurnId = randomUUID25();
         return event;
       }
       case "turn_end": {
-        const turnId = this.currentTurnId ?? randomUUID24();
+        const turnId = this.currentTurnId ?? randomUUID25();
         this.openTurnId = turnId;
         this.currentTurnId = void 0;
         return { ...event, turnId };
@@ -265813,7 +265918,7 @@ var TurnTracker = class _TurnTracker {
       case "tool_lifecycle":
       case "effect_receipt": {
         if (this.openTurnId === void 0)
-          this.openTurnId = randomUUID24();
+          this.openTurnId = randomUUID25();
         return { ...event, turnId: this.openTurnId };
       }
       case "agent_end": {
@@ -266015,17 +266120,29 @@ var CoreMindRuntime = class _CoreMindRuntime {
         ...selected.standard.length > 0 ? [[SKILL_TOOL_NAME, SKILL_TOOL_CAPABILITY]] : []
       ]));
       const allContents = skillPrefixContents(selectedSkills[name]);
-      for (const id of selected.missing) {
+      for (const id2 of selected.missing) {
         emit2({
           type: "error",
-          message: `\u6280\u80FD ${id} \u4E0D\u5B58\u5728\uFF08\u5185\u7F6E\uFF1A${SKILLS.map((s2) => s2.id).join("\u3001")}\uFF1B\u81EA\u5B9A\u4E49\uFF1A\u653E\u914D\u7F6E\u76EE\u5F55\u7684 skills/${id}/README.md\uFF09\uFF0C\u5DF2\u5FFD\u7565`,
+          message: `\u6280\u80FD ${id2} \u4E0D\u5B58\u5728\uFF08\u5185\u7F6E\uFF1A${SKILLS.map((s2) => s2.id).join("\u3001")}\uFF1B\u81EA\u5B9A\u4E49\uFF1A\u653E\u914D\u7F6E\u76EE\u5F55\u7684 skills/${id2}/README.md\uFF09\uFF0C\u5DF2\u5FFD\u7565`,
           fatal: false
         });
       }
       skillsByAgent.set(name, allContents);
-      driverBuilders.set(name, ({ onEvent, harness, sessionMessages: sessionMessages2, skillTool, mcpTools, discoveryTool }) => {
+      driverBuilders.set(name, ({ onEvent, harness, sessionMessages: sessionMessages2, skillTool, mcpTools, discoveryTool, taskTool }) => {
         for (const tool of driverTools)
           harness?.registerToolSource?.(tool.name, configuredToolSource(tool));
+        if (taskTool)
+          return buildTaskToolDriver({
+            tools: [
+              ...driverTools,
+              ...mcpTools ?? [],
+              ...skillTool ? [skillTool] : [],
+              ...discoveryTool ? [discoveryTool] : []
+            ],
+            agentName: name,
+            harness,
+            onEvent
+          }, taskTool);
         return buildAgentDriver(agentCfg, {
           models: providerRuntime.models,
           model: agentModel,
@@ -266070,12 +266187,12 @@ var CoreMindRuntime = class _CoreMindRuntime {
   }
   /** 按名字创建独立 Driver 实例（每次新实例，消息历史独立） */
   async createAgent(name, onEvent = this.options.events ?? (() => {
-  }), stepId, signal) {
+  }), stepId, signal, taskTool) {
     const buildDriver = this.driverBuilders.get(name);
     if (!buildDriver)
       return void 0;
     const context = runContextFor(this);
-    const executionId = randomUUID25();
+    const executionId = randomUUID26();
     const turnTracker = new TurnTracker();
     const originalHarness = context.harnessFor(name, stepId, executionId);
     signal?.throwIfAborted();
@@ -266109,7 +266226,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
       harness,
       mcpTools,
       skillTool: executionSlotFor(this).skillExecutions?.get(executionId)?.tool,
-      discoveryTool: originalHarness?.discoveryTool
+      discoveryTool: originalHarness?.discoveryTool,
+      taskTool
     });
     context.registerAgent(name, agent, executionId);
     return agent;
@@ -266377,7 +266495,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       parentPolicy,
       delegationBudgetPools,
       delegationHierarchyLimits,
-      createChildRunId: () => randomUUID25(),
+      createChildRunId: () => randomUUID26(),
       adapter: createCoreMindChildRunAdapter({
         createRuntime: async (authority) => {
           const target = this.config.agents[authority.request.agentName];
@@ -266615,6 +266733,10 @@ var CoreMindRuntime = class _CoreMindRuntime {
       previousContextCompactions = projectContextCompactionLedger(sessionEntries);
     }
     const resumeRecords = this.options.resumeRunId ? await runStore.read(this.options.resumeRunId) : void 0;
+    const taskProgram = executionSlotFor(this).taskProgram;
+    const storedProgram = resumeRecords?.find((record2) => record2.kind === "start")?.payload?.taskProgram;
+    if (resumeRecords && storedProgram !== taskProgram?.id)
+      throw new CoreMindError("resume_config_mismatch", "\u4EFB\u52A1\u8C03\u7528 Run \u5FC5\u987B\u7531\u539F\u4EFB\u52A1\u4F5C\u7528\u57DF\u6062\u590D");
     const skillSnapshot = executionSlotFor(this).skills;
     if (resumeRecords && restoreSkillSnapshot(resumeRecords, this.config.agents)?.sha256 !== skillSnapshot?.sha256) {
       throw new CoreMindError("context_capability_conflict", "\u539F\u6280\u80FD\u5FEB\u7167\u5728\u6062\u590D\u51C6\u5165\u524D\u5DF2\u53D8\u5316");
@@ -266636,7 +266758,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         throw new CoreMindError("tool_capability_conflict", `\u6062\u590D\u8C03\u7528 ${candidate.previousCallId} \u7684 Tool Capability \u5DF2\u6F02\u79FB\uFF0C\u4E0D\u80FD\u81EA\u52A8\u91CD\u653E`);
       }
     }
-    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID25();
+    const runId = resumePlan?.runId ?? this.options.runId ?? randomUUID26();
     const admission = resumeRecords?.at(-1);
     const discoveryResumeRecords = admission?.kind === "admission" && this.options.protocolStart?.method === "resume" && fingerprintEffectReceiptValue(admission.payload.protocolStart) === fingerprintEffectReceiptValue(this.options.protocolStart) ? resumeRecords.slice(0, -1) : resumeRecords ?? [];
     const discoveryContinuations = restoreToolDiscoveryContinuations(discoveryResumeRecords, runId);
@@ -266651,8 +266773,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
     context.attachJournal(journal);
     const operation = resumePlan && resumePlan.operationRecords.length > 0 ? restoreDurableOperation(resumePlan.operationRecords) : DurableOperation.create({
       runId,
-      operationId: randomUUID25(),
-      eventId: randomUUID25()
+      operationId: randomUUID26(),
+      eventId: randomUUID26()
     });
     const persistOperation = (event) => {
       const transition = operation.transition(event);
@@ -266680,6 +266802,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
         schemaVersion: this.config.schemaVersion,
         configFingerprint,
         initialPrompt: this.options.initialPrompt,
+        ...taskProgram ? { taskProgram: taskProgram.id } : {},
         sessionId: this.options.sessionId,
         ...sessionSeqStart !== void 0 ? { sessionSeqStart, turnSeqStart: sessionSeqStart } : {},
         operationId: operation.snapshot().operationId,
@@ -266697,15 +266820,15 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (operation.snapshot().state === "running") {
       persistOperation({
-        eventId: randomUUID25(),
+        eventId: randomUUID26(),
         type: "PAUSE",
         reason: "process_interrupted"
       });
     }
     if (operation.snapshot().state === "accepted") {
-      persistOperation({ eventId: randomUUID25(), type: "START" });
+      persistOperation({ eventId: randomUUID26(), type: "START" });
     } else if (operation.snapshot().state === "paused") {
-      persistOperation({ eventId: randomUUID25(), type: "RESUME" });
+      persistOperation({ eventId: randomUUID26(), type: "RESUME" });
     } else {
       throw new CoreMindError("operation_not_resumable", `\u64CD\u4F5C ${operation.snapshot().operationId} \u5904\u4E8E ${operation.snapshot().state}\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u6267\u884C`);
     }
@@ -266790,14 +266913,14 @@ var CoreMindRuntime = class _CoreMindRuntime {
       trace.record(event);
     };
     const prepareControlInput = (command) => {
-      const id = controlInputId(runId, command.controlId);
-      if (receiptStatusOf(collected, id) === void 0) {
+      const id2 = controlInputId(runId, command.controlId);
+      if (receiptStatusOf(collected, id2) === void 0) {
         emitInputEvent(createInputReceipt({
-          inputId: id,
+          inputId: id2,
           contentFingerprint: inputFingerprint(command.message)
         }));
       }
-      return id;
+      return id2;
     };
     context.attachControlInbox(new ControlInbox({
       runId,
@@ -266811,11 +266934,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
           });
         }
         if (command.type === "steering" || command.type === "follow_up") {
-          const id = prepareControlInput(command);
+          const id2 = prepareControlInput(command);
           if (hostVerification?.waiting) {
-            const state3 = receiptStatusOf(collected, id);
+            const state3 = receiptStatusOf(collected, id2);
             if (state3 === "pending" || state3 === "claimed")
-              emitInputEvent(discardInput({ inputId: id }));
+              emitInputEvent(discardInput({ inputId: id2 }));
             return Promise.resolve({
               status: "rejected",
               reason: "\u5BBF\u4E3B\u9A8C\u6536\u671F\u95F4\u4E0D\u80FD\u6539\u53D8\u5019\u9009\u8F93\u5165"
@@ -266836,8 +266959,8 @@ var CoreMindRuntime = class _CoreMindRuntime {
       if (fact.state === "applied")
         previouslyApplied.add(fact.controlId);
     }
-    for (const id of previouslyApplied) {
-      const command = previousInputControls.get(id);
+    for (const id2 of previouslyApplied) {
+      const command = previousInputControls.get(id2);
       if (!command)
         continue;
       const input = prepareControlInput(command);
@@ -267185,7 +267308,7 @@ var CoreMindRuntime = class _CoreMindRuntime {
       cwd: this.options.cwd ?? process.cwd(),
       runId: trace.runId,
       approve: this.options.approveTool,
-      createApprovalId: randomUUID25,
+      createApprovalId: randomUUID26,
       delegation: {
         isAssistedPreapproved: (agent, target) => this.agentConfigs.get(agent)?.delegation?.targets[target]?.preapproved === true
       },
@@ -268015,9 +268138,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
             entries: catalog,
             restored: continuation ? restoreToolDiscovery(resumeRecords, owner) : void 0
           });
-          for (const [id, previous] of liveDiscoveryExecutions) {
+          for (const [id2, previous] of liveDiscoveryExecutions) {
             if (previous.catalog.owner.agent === agentName && previous.catalog.owner.stepId === stepId)
-              liveDiscoveryExecutions.delete(id);
+              liveDiscoveryExecutions.delete(id2);
           }
           liveDiscoveryExecutions.set(executionId, discovery);
           providerRequestOrdinal = resumePlan?.previousTrace.filter((entry) => entry.event.type === "provider_request" && entry.event.toolDiscovery?.catalogFingerprint === discovery.catalog.fingerprint).length ?? 0;
@@ -268083,9 +268206,9 @@ var CoreMindRuntime = class _CoreMindRuntime {
                 source: "registered",
                 declaration: operation2.capability
               }));
-              const call = { callId: randomUUID25(), tool: operation2.name, args: operation2.args };
+              const call = { callId: randomUUID26(), tool: operation2.name, args: operation2.args };
               const callKey = toolCapabilityCallKey(agentName, stepId, call.callId);
-              const turnId = randomUUID25();
+              const turnId = randomUUID26();
               emit2({
                 type: "tool_call",
                 agent: agentName,
@@ -268206,6 +268329,62 @@ var CoreMindRuntime = class _CoreMindRuntime {
             await childRuns2.cancelPendingRedelegations(deferredTerminalError.code, `\u7236 Run \u5DF2\u6709\u5F85\u6062\u590D\u7EC8\u6001 ${deferredTerminalError.code}\uFF0C\u64A4\u9500\u5C1A\u672A\u6267\u884C\u7684\u91CD\u65B0\u59D4\u6D3E`);
           }
           throw deferredTerminalError;
+        }
+        if (taskProgram) {
+          if (loop || this.config.workflow)
+            throw new CoreMindError("invalid_config", "\u7CBE\u786E\u4EFB\u52A1\u8C03\u7528\u4E0D\u80FD\u66FF\u4EE3\u5DF2\u914D\u7F6E\u7684 workflow/loop \u9A8C\u6536");
+          const name2 = this.mainAgentName;
+          await taskProgram.execute(async (stepId, tool, args) => {
+            if (journal.isAborted())
+              throw new CoreMindError("aborted", "\u4EFB\u52A1 Run \u5DF2\u505C\u6B62");
+            const completed = resumePlan?.completedSteps.get(stepId);
+            if (completed)
+              return JSON.parse(completed.output.text);
+            const start = { type: "step_start", stepId, kind: "task_tool" };
+            budget.observeAgentEvent(start);
+            budget.throwIfExceeded();
+            emit2(start);
+            let result;
+            const agent2 = await this.createAgent(name2, (event) => emit2({ ...event, stepId }), stepId, this.options.signal, {
+              tool,
+              args,
+              accept: (value) => {
+                result = value;
+              }
+            });
+            if (!agent2)
+              throw new CoreMindError("unknown_agent", "\u4EFB\u52A1\u9ED8\u8BA4 Agent \u4E0D\u5B58\u5728");
+            await agent2.prompt("\u4EFB\u52A1\u5DE5\u5177\u8C03\u7528");
+            await agent2.waitForIdle();
+            while (lifecycleFinalizers.size > 0)
+              await Promise.all([...lifecycleFinalizers.values()]);
+            if (lifecycleFailure)
+              throw lifecycleFailure;
+            if (checkpointFailure)
+              throw checkpointFailure;
+            const adapterFailure2 = selectedAdapterFailure();
+            if (adapterFailure2)
+              throw adapterFailure2;
+            budget.throwIfExceeded();
+            if (journal.isAborted() || !result)
+              throw new CoreMindError("aborted", "\u4EFB\u52A1\u8C03\u7528\u672A\u6536\u655B");
+            const receipts = projectEffectReceiptBindings(collected).filter((item) => item.binding?.stepId === stepId);
+            const committed = new Set(receipts.filter((item) => item.status === "committed").map((item) => item.idempotencyKey));
+            for (const event of [...collected].reverse()) {
+              if (event.type === "tool_attempt" && event.stepId === stepId && committed.has(receiptId(runId, stepId, event.callId)))
+                committed.add(event.previousReceiptId);
+            }
+            if (receipts.some((item) => !committed.has(item.idempotencyKey)))
+              throw new CoreMindError("tool_execution_failed", "\u4EFB\u52A1\u5DE5\u5177\u5B58\u5728\u5C1A\u672A\u6536\u655B\u7684\u526F\u4F5C\u7528\u56DE\u6267");
+            const durable = { content: result.content, details: result.details ?? null };
+            assertJsonSerializable(durable);
+            const text2 = JSON.stringify(durable);
+            emit2({ type: "step_output", stepId, agent: name2, text: text2 });
+            emit2({ type: "step_end", stepId, ok: true });
+            await journal.flush("critical");
+            return JSON.parse(text2);
+          });
+          return { outputs: /* @__PURE__ */ new Map(), transcript: "" };
         }
         if (loop) {
           const engineeringEvidence = loop.verify.mode === "host" ? void 0 : loop.verify.evidence;
@@ -268500,13 +268679,13 @@ var CoreMindRuntime = class _CoreMindRuntime {
         outcome = new RunTerminalizer().terminalize(collected.slice(terminalEventCursor), terminalError2);
       }
     }
-    for (const [id, state3] of foldInputReceipts(collected)) {
-      if (!isControlInputId(id))
+    for (const [id2, state3] of foldInputReceipts(collected)) {
+      if (!isControlInputId(id2))
         continue;
       if (state3 === "claimed" && outcome.status === "succeeded")
-        emitInputEvent(completeInput({ inputId: id }));
+        emitInputEvent(completeInput({ inputId: id2 }));
       else if (outcome.status !== "paused" && (state3 === "pending" || state3 === "claimed"))
-        emitInputEvent(discardInput({ inputId: id }));
+        emitInputEvent(discardInput({ inputId: id2 }));
     }
     if (inputReceiptState !== void 0 && inputReceiptState !== "completed") {
       if (outcome.status === "succeeded") {
@@ -268527,27 +268706,27 @@ var CoreMindRuntime = class _CoreMindRuntime {
     }
     if (outcome.status === "paused") {
       persistOperation({
-        eventId: randomUUID25(),
+        eventId: randomUUID26(),
         type: "PAUSE",
         reason: outcome.finishReason
       });
     } else {
       if (outcome.status === "aborted") {
         persistOperation({
-          eventId: randomUUID25(),
+          eventId: randomUUID26(),
           type: "REQUEST_ABORT",
           reason: outcome.finishReason
         });
         persistOperation({
-          eventId: randomUUID25(),
+          eventId: randomUUID26(),
           type: "FAIL",
           reason: outcome.finishReason
         });
       } else if (outcome.status === "succeeded") {
-        persistOperation({ eventId: randomUUID25(), type: "COMPLETE" });
+        persistOperation({ eventId: randomUUID26(), type: "COMPLETE" });
       } else {
         persistOperation({
-          eventId: randomUUID25(),
+          eventId: randomUUID26(),
           type: "FAIL",
           reason: outcome.finishReason
         });
@@ -269250,15 +269429,57 @@ async function createMcpAuthentication(options) {
   });
 }
 
+// packages/coremind-runtime/dist/task-calls.js
+var id = { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$" };
+var hash2 = { type: "string", pattern: "^[a-f0-9]{64}$" };
+var taskCallGroupsSchema = {
+  type: "array",
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["runId", "phase", "version", "authority", "calls"],
+    properties: {
+      runId: id,
+      phase: id,
+      version: { type: "integer", minimum: 1 },
+      authority: hash2,
+      conflict: { type: "string" },
+      calls: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["key", "tool", "args", "signature", "stepId", "status"],
+          properties: {
+            key: id,
+            tool: { type: "string", minLength: 1 },
+            args: {},
+            signature: hash2,
+            stepId: hash2,
+            status: { enum: ["pending", "completed", "failed", "cancelled"] },
+            error: { type: "string" },
+            result: {
+              type: "object",
+              additionalProperties: false,
+              required: ["content", "details"],
+              properties: { content: { type: "array", items: { type: "object" } }, details: {} }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
 // packages/coremind-runtime/dist/task-session.js
-var import_ajv4 = __toESM(require_ajv2(), 1);
+var import_ajv5 = __toESM(require_ajv2(), 1);
 
 // packages/coremind-runtime/dist/task-commit.js
-var import_ajv3 = __toESM(require_ajv2(), 1);
+var import_ajv4 = __toESM(require_ajv2(), 1);
 var MAX_COMMIT_BYTES = 1024 * 1024;
 var ID2 = { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$" };
 var VERSION5 = { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
-var validator = new import_ajv3.Ajv({ logger: false, strict: true, ownProperties: true });
+var validator = new import_ajv4.Ajv({ logger: false, strict: true, ownProperties: true });
 var validateCommit = validator.compile({
   type: "object",
   additionalProperties: false,
@@ -269306,7 +269527,7 @@ var validateCommit = validator.compile({
 // packages/coremind-runtime/dist/task-session.js
 var ID3 = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/u;
 var MAX_DATE_MS = 864e13;
-var stateValidator = new import_ajv4.Ajv({ strict: true, ownProperties: true }).compile({
+var stateValidator = new import_ajv5.Ajv({ strict: true, ownProperties: true }).compile({
   type: "object",
   additionalProperties: false,
   required: ["format", "authority", "definition", "status", "checkpoint"],
@@ -269316,6 +269537,7 @@ var stateValidator = new import_ajv4.Ajv({ strict: true, ownProperties: true }).
     definition: { type: "string", pattern: "^[a-f0-9]{64}$" },
     status: { enum: ["ready", "paused", "sleeping", "completed", "cancelled"] },
     checkpoint: {},
+    callGroups: taskCallGroupsSchema,
     pendingRunId: { type: "string", pattern: "^[a-zA-Z0-9_-]+$", maxLength: 128 },
     sleep: {
       type: "object",
@@ -269616,9 +269838,9 @@ var ProtocolHost = class {
     try {
       request = parseProtocolRequest(value);
     } catch (error3) {
-      const id = rpcIdFrom(value);
+      const id2 = rpcIdFrom(value);
       return createErrorResponse(
-        id,
+        id2,
         -32600,
         error3 instanceof Error ? error3.message : String(error3),
         "protocol_validation_failed"
@@ -270969,36 +271191,36 @@ function serializeRunResult(result) {
 }
 function rpcIdFrom(value) {
   if (value !== null && typeof value === "object") {
-    const id = value.id;
-    if (typeof id === "string" || typeof id === "number") return id;
+    const id2 = value.id;
+    if (typeof id2 === "string" || typeof id2 === "number") return id2;
   }
   return "invalid";
 }
-function protocolError(id, error3) {
+function protocolError(id2, error3) {
   if (error3 instanceof ToolDiscoveryCapabilityChallenge) {
-    return createErrorResponse(id, -32e3, error3.message, "protocol_capability_missing", {
+    return createErrorResponse(id2, -32e3, error3.message, "protocol_capability_missing", {
       schemaVersion: 1,
       requiredCapabilities: ["toolDiscovery"],
       retryInitialize: true
     });
   }
   if (error3 instanceof ProtocolCursorExpiredError) {
-    return createErrorResponse(id, -32e3, error3.message, "cursor_expired", {
+    return createErrorResponse(id2, -32e3, error3.message, "cursor_expired", {
       recovery: error3.recovery
     });
   }
   if (error3 instanceof ProtocolValidationError) {
-    return createErrorResponse(id, -32600, error3.message, "protocol_validation_failed");
+    return createErrorResponse(id2, -32600, error3.message, "protocol_validation_failed");
   }
   if (error3 instanceof ProtocolV2ValidationError) {
-    return createErrorResponse(id, -32600, error3.message, "protocol_validation_failed");
+    return createErrorResponse(id2, -32600, error3.message, "protocol_validation_failed");
   }
   if (error3 instanceof ProtocolV2NegotiationError) {
-    return createErrorResponse(id, -32601, error3.message, error3.code);
+    return createErrorResponse(id2, -32601, error3.message, error3.code);
   }
   const classification = classifyExecutionError(error3);
   return createErrorResponse(
-    id,
+    id2,
     -32e3,
     classification.message,
     classification.code,

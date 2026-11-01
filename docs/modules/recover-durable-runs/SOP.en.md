@@ -86,3 +86,10 @@ See the [task guide](../../guides/durable-tasks.en.md) for API details.
 3. Keep wakeId stable within the task and bind it to sleepId. not_due does not reserve the key; explicitly resume after accepted. duplicate/stale/terminal do not drive phases. After uncertain I/O, close/reopen and check the original key.
 4. Run task-sleep.test.ts, task-sleep-process.test.ts, task-session-runtime.test.ts and task-sleep.mjs. Check process exits, before/exact/after deadline, cancellation races and lost acknowledgements.
 5. Preserve every execution and acceptance timeout. Require both Windows and Linux CI before merge/closure. Stop writers and preserve task data before rollback; older phase SDKs reject the new sleep/wake records.
+
+## Keyed calls (1.4 development)
+
+1. Preserve taskId, phase/version, RunId, key, signature and authorityVersion; never replace an unresolved call.
+2. Distinguish pending/completed/failed/cancelled and order conflicts. Preserve unknown effects; verify new Call/attempt links to immutable receipts for proven retries.
+3. Run task-calls.test.ts, task-calls-process.test.ts, task-calls-child.test.ts and task-calls.mjs, covering real exits, projection failures and governance.
+4. Run original module and both platform gates. Keep unmerged or security-blocked Issues open.

@@ -58,3 +58,7 @@ See the [task guide](../../../docs/guides/durable-tasks.en.md).
 ## Offline durable wait and host alarm example
 
 After building, run `node examples/modules/recover-durable-runs/task-sleep.mjs`. It commits A's result and deadline, reopens, builds a capped ordinary timer from nextWake, then uses wake/resume to execute B. It prints `Durable sleep and host alarm OK`, needs no credentials and removes only its own temporary directory. Real host startup must also query known ready tasks. This example's close/reopen does not replace the actual process exits in task-sleep-process.test.ts.
+
+## Keyed calls (1.4 development)
+
+After building, run `node examples/modules/recover-durable-runs/task-calls.mjs`. It checks duplicate keys and reopen after a committed result, with exactly one real tool execution. A fixed dummy key is used without model requests. It prints `Keyed calls and durable reuse OK` and removes only its own temporary directory. Real exits are covered separately by task-calls-process.test.ts.

@@ -2,7 +2,7 @@
 
 [简体中文](durable-tasks.zh-CN.md)
 
-TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This is unreleased development work. Python, Worker and nested calls are separate deliveries.
+TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This is unreleased development work. Python/Worker access remains separate; explicit keyed calls are described below.
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -66,7 +66,7 @@ Supply `runtime: { config, configDir, authorityVersion, ... }` at open and call 
 
 Changed configuration, permissions or tools cannot be authorized through migration. Update authorityVersion when approval closures, external policy or credential routing change; only identity hashes are persisted. Host functions are trusted code. AbortSignal cannot forcibly terminate arbitrary JavaScript/I/O: handlers must cooperate with cancellation and launch business actions through governed entry points.
 
-A pendingRunId means the original Run requires reconciliation. Resume returns `task_run_unresolved` without resending. Preserve the task directory and original Run Facts, and inspect status/effect receipts. This version does not clear this marker or automatically reconcile results. Do not edit journals or create replacement Runs to bypass it. Multiple keyed calls and deterministic result reuse belong to #365.
+Legacy context.run still requires inspection of its pendingRunId without automatic resending. The explicit runCalls contract below reconciles only the original Run under stable-key and existing effect-proof rules; never delete the marker or create a replacement Run.
 
 ## Reproducible checks
 
@@ -79,3 +79,29 @@ npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremin
 ```
 
 The offline example demonstrates A→reopen→B→completed and explicit v1→v2 migration. Separate tests exercise actual process exits; ordinary close/reopen is not crash acceptance. See [ADR 0026](../adr/0026-task-phases-and-migrations.md) and the [recovery SOP](../modules/recover-durable-runs/SOP.en.md).
+
+## Keyed calls (1.4 development)
+
+A phase chooses either `context.run(prompt)` or `context.runCalls(handler)` and owns at most one Run. The latter invokes registered tools directly without a parent model request; it cannot replace configured workflow/loop verification. Every key shares the original Run budgets, authorization, approvals, cancellation, timeouts and ChildRun limits.
+
+```ts
+const result = await context.runCalls(async ({ executeTool }) => {
+  const first = await executeTool("record", "lookup", { id: "42" });
+  const same = await executeTool("record", "lookup", { id: "42" });
+  return same.details;
+});
+```
+
+Register `lookup` explicitly; see `examples/modules/recover-durable-runs/task-calls.mjs`. Configured delegation uses `executeTool("child", "delegate", { target, task, references: [] })` through the original ChildRun Coordinator. Await distinct keys sequentially. Duplicate in-flight keys join the original promise; completed keys return copies of durable results. `{ content, details }` must be finite JSON, without accessors/cycles or detected credentials. The existing 1 MiB TaskCommit limit still applies; use governed Artifact references for large outputs.
+
+Scope binds the parent task, phase, definition version and phase Run, so looping back to a phase starts a fresh scope. Signatures bind canonical arguments, tool and the complete Runtime authority/capability identity. Recovery verifies unique-key order. Changed arguments/tools, omitted/inserted/reordered keys, same-version handler drift and capability drift are refused with TaskCommit audit. Hosts must still update definition versions/authorityVersion for changed closures, remote capability contracts, dependency behavior and credential routing: source fingerprints cannot detect them.
+
+`session.calls(taskId)` returns historical key, tool, arguments, scope, stepId, RunId, state and committed result. Failed calls store only stable error markers; inspect original Run Facts for details. Completed/cancelled parents execute no more work. Records remain queryable; there is no automatic deletion, unbounded history or new archive service.
+
+Order is intent → governed execution and receipt validation → critical Run step result → TaskCommit result ledger → handler return. A real process exit between the two result writes rebuilds from the same Run step without executing the tool again. A successful Run before phase commit permits only replay of recorded keys. An unfinished Run uses the original recovery gate: unknown effects pause; existing idempotency proof permits a new Call/attempt linked to the immutable old receipt. Failed/cancelled calls cannot be bypassed with a new key or Run. Unresolved Runs cannot migrate.
+
+Uncertain write acknowledgements invalidate the holder. Preserve both task and Run facts, close/reopen and inspect original commits rather than assuming rollback. Arbitrary host JavaScript, clocks, randomness and direct networking are outside this contract. This is neither external exactly-once nor durable JS-stack execution or another Runtime.
+
+Older tasks without callGroups remain readable. Older SDKs reject the new ledger and do not understand the task-specific Run marker: stop all writers and preserve both fact domains before rollback, and never resume a new task Run independently with an old SDK. Python/Worker access remains #367; this change does not alter the protocol. Release qualification still requires both platform CIs, all security gates and merge.
+
+Run `task-calls.test.ts`, `task-calls-process.test.ts`, `task-calls-child.test.ts`, the offline `task-calls.mjs`, and original module gates. Coverage includes real process exits after intent/effect/Run-result/task-result/Run-finish, ChildRun limits, budgets, authorization, cancellation and uncertain result acknowledgements. See [ADR 0028](../adr/0028-keyed-task-calls.md).
