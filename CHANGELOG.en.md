@@ -4,6 +4,15 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+**Unreleased: 1.4.0 development preparation**
+
+These changes are not yet released and include the unreleased 1.3.0 fixes. See the [v1.4.0 release notes](docs/release/notes/v1.4.0.md).
+
+**Dependency fixes and risk disposition**
+
+- **Dependency fixes:** update fast-uri to 3.1.9 and CoreMind network tools to Undici 8.12.2; update VitePress's Vite to 6.4.5, API Extractor's minimatch to 11.0.1, and the fixed Linux backend build source's Zod to 4.6.6 and node-forge to 1.4.2. Scoped overrides do not upgrade underlying runtime or the Linux backend source version. ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **Explicitly accepted underlying runtime risks:** record the user's decision to accept the known risks in underlying runtime 1.3.0 and its minimatch 10.2.6 / Undici 8.10.2 dependencies. Acceptance does not fix these vulnerabilities. Audits still enforce exact versions, installation locations, advisories, severity ceilings, and the original 2026-11-14 expiry; other risks and invalid reports remain blocking. Public npm consumers can still install the affected chain and cannot rely on repository overrides. See the [security policy](SECURITY.en.md). ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+
 ## 1.3.0
 
 This section records `1.3.0` release preparation and the ten accepted, merged fixes in #324–#333; it does not establish public publication. See the [fixed bilingual release notes](docs/release/notes/v1.3.0.md) and [1.2→1.3 migration guide](docs/migrations/1.2-to-1.3.en.md).

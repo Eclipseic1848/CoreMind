@@ -4,6 +4,15 @@
 
 [English](CHANGELOG.en.md)
 
+**未发布：1.4.0 开发准备**
+
+以下变更尚未正式发布；包含未独立发布的 1.3.0 修复。最终发布说明见 [v1.4.0](docs/release/notes/v1.4.0.md)。
+
+**依赖修复与风险处置**
+
+- **依赖修复：** fast-uri 更新至 3.1.9，CoreMind 网络工具使用 Undici 8.12.2；VitePress 的 Vite 更新至 6.4.5、API Extractor 的 minimatch 至 11.0.1，固定 Linux 后端开发源的 Zod 至 4.6.6、node-forge 至 1.4.2。定向覆盖不升级底层运行库，也不改变 Linux 后端来源版本。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **获准接受的运行时依赖风险：** 按用户明确决定登记底层运行库 1.3.0 及其 minimatch 10.2.6 / Undici 8.10.2 已知风险；这不代表漏洞已修复。审计继续核对确切版本、安装位置、公告、等级上限及原到期日 2026-11-14，其他风险和报告失败仍阻断。公开 npm 消费者仍可能安装这条受影响链，不能依赖仓库 overrides。详见[安全说明](SECURITY.md)。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+
 ## 1.3.0
 
 本节记录 `1.3.0` 发布准备范围，包含 #324–#333 已验收合入的十项修复；不表示已经公开发布。详见[固定双语发布说明](docs/release/notes/v1.3.0.md)与[1.2→1.3 迁移指南](docs/migrations/1.2-to-1.3.zh-CN.md)。
