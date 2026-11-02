@@ -31,11 +31,17 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Current release line: `1.3.0`
+## Current release line: `1.4.0`
 
-[Upgrade from 1.2](../migrations/1.2-to-1.3.en.md) · [1.3 release notes](../release/notes/v1.3.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
+[Upgrade from 1.2](../migrations/1.2-to-1.4.en.md) · [1.4 release notes](../release/notes/v1.4.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-> The `1.3.0` release line upgrades from the published `1.2.0` release. It fixes internal persistent-state protection, parallel-failure cleanup, Python deferred annotations, Workflow step output, Diff graders, Protocol v2 error identity, Web response cleanup, explicit readline exit, and doctor credential diagnostics, and updates the security policy. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli), and [PyPI](https://pypi.org/project/coremind-ai/) pages and same-commit qualification evidence determine public availability; source code and engineering CI do not establish publication.
+> The `1.4.0` release line upgrades from published `1.2.0`, including all unpublished `1.3.0` fixes without an intermediate release. Current source includes atomic durable task phases, waiting and explicit wakeup, keyed result reuse, session trees and forks, and TS plus sync/async Python access through one Node Worker. Standard Skills, durable control, MCP/OAuth, discovery and terminal capabilities from 1.2 remain. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) pages determine the latest public stable version and installability. Verify final qualification evidence for this version before formal use; source and engineering CI do not establish public delivery, production outcomes or Provider certification.
+
+### Capabilities merged for 1.4
+
+- [Durable tasks](../guides/durable-tasks.en.md): atomic phases, definition migration, durable waits and keyed result reuse; hosts own alarms and explicit recovery.
+- [Session trees and forks](../modules/manage-sessions/GUIDE.en.md): named branches, durable selection and new session identities without copied execution authorization.
+- [Cross-language SDKs](../modules/embed-coremind-python/GUIDE.en.md): TS and sync/async Python share one Node Runtime, authoritative facts and permission boundaries with matching Protocol v2 capabilities and fingerprints.
 
 ### Capabilities retained from 1.2
 

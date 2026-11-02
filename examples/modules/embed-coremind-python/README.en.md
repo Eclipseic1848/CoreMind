@@ -37,3 +37,5 @@ python -X utf8 examples/modules/embed-coremind-python/tasks.py
 ```
 
 task-host.mjs registers trusted definitions; tasks.py demonstrates sync/async reopen, wake, completion and cancellation with no real model requests.
+
+The composition covers phase A, a durable wait, actual Node Worker exit/restart, explicit wake, saved-result reuse and phase B. It checks different process identities, the original Run/key/result and one execution record. Canary effects are explicitly declared and approved by the trusted host; this does not guarantee external exactly-once.

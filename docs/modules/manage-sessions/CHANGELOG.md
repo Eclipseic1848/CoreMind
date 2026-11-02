@@ -1,6 +1,8 @@
 # Changelog
 
-**1.4.0 开发线 / Development line**
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
 
 - 修复同一物理目录的路径别名重开/fork：核对目录与文件身份后沿用原 v4 存储，不误做 v3 迁移、不搬移历史（#367）。
 - Fix reopening/forking through physical directory aliases by checking directory/file identity and retaining existing v4 storage without legacy migration or moving history (#367).
@@ -8,7 +10,7 @@
 - 同一 Node Worker 接入 TS 与同步/异步 Python 持久任务和会话导航，严格绑定身份、能力与宿主注册；补充真实崩溃重启及结果复用验收（#367）。
 - Expose durable tasks and session navigation through one Node Worker for TS and sync/async Python, with identity/capability checks, trusted registration and real-process recovery tests (#367).
 
-## Unreleased — 1.4.0 development
+### 本版本变更 / Changes in this release
 
 - Added public ChatSession tree inspection, named branches, durable selection and message-node forks; continued chat uses the selected history under the original writer lease.
 - Added public-package and independent-process checks, fresh authorization, branch compaction and write-failure regressions; documented old SDK rollback and fork publication boundaries.

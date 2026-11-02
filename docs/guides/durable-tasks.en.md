@@ -1,8 +1,8 @@
-# Durable task phases (1.4 development)
+# Durable task phases (1.4 release line)
 
 [简体中文](durable-tasks.zh-CN.md)
 
-TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This is unreleased development work. Python/Worker access remains separate; explicit keyed calls are described below.
+TypeScript hosts import `TaskSession` and `TaskDefinition` from `coremind-ai`. This guide covers the 1.4.0 release line; public status depends on the corresponding Release, Registry artifacts and final qualification. TS and sync/async Python access the same Worker through Protocol v2; trusted Node hosts register task definitions and the default Worker rejects unregistered tasks. See the [cross-language guide](../modules/embed-coremind-python/GUIDE.en.md); explicit keyed calls are described below.
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -80,7 +80,7 @@ npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremin
 
 The offline example demonstrates A→reopen→B→completed and explicit v1→v2 migration. Separate tests exercise actual process exits; ordinary close/reopen is not crash acceptance. See [ADR 0026](../adr/0026-task-phases-and-migrations.md) and the [recovery SOP](../modules/recover-durable-runs/SOP.en.md).
 
-## Keyed calls (1.4 development)
+## Keyed calls (1.4 release line)
 
 A phase chooses either `context.run(prompt)` or `context.runCalls(handler)` and owns at most one Run. The latter invokes registered tools directly without a parent model request; it cannot replace configured workflow/loop verification. Every key shares the original Run budgets, authorization, approvals, cancellation, timeouts and ChildRun limits.
 
@@ -109,3 +109,7 @@ Run `task-calls.test.ts`, `task-calls-process.test.ts`, `task-calls-child.test.t
 ## Cross-language access
 
 See the [Python SDK guide](../modules/embed-coremind-python/GUIDE.en.md#cross-language-tasks-and-session-branches-1-4-development-line) for cross-language tasks and navigation. Tasks require trusted host registration, matching fingerprints and negotiated capabilities.
+
+## Real-process composition
+
+The [public TypeScript API example](../../examples/modules/recover-durable-runs/task-restart.mjs) and [sync/async Python example](../../examples/modules/embed-coremind-python/tasks.py) cover A, a durable wait, actual child-process restart, explicit wake, saved-result reuse and B, comparing the original Run/key/result and one execution record. They use controlled offline data only; hosts own process startup and alarms, and unknown external effects remain unsafe to replay.

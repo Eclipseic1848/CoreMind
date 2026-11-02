@@ -87,7 +87,7 @@ npm run check:modules
 4. 运行 task-sleep.test.ts、task-sleep-process.test.ts、task-session-runtime.test.ts 和 task-sleep.mjs。检查真实进程退出、到期前/恰好/之后、取消竞争与确认丢失。
 5. 保留所有原执行和验收超时；Windows 与 Linux CI 均须通过才合并关闭。回滚须停止 writer 并保全任务目录，旧阶段 SDK 不支持新的睡眠/唤醒记录。
 
-## 稳定键调用（1.4 开发线）
+## 稳定键调用（1.4 发布线）
 
 1. 核对 taskId、phase/version、RunId、key、参数签名及 authorityVersion；禁止清理或替换未知调用。
 2. 区分在飞/已完成/失败/取消及调用顺序分歧；unknown 效果保全后暂停，幂等重试检查新 Call/attempt 与旧 receipt。

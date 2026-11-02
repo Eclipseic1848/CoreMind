@@ -87,7 +87,7 @@ See the [task guide](../../guides/durable-tasks.en.md) for API details.
 4. Run task-sleep.test.ts, task-sleep-process.test.ts, task-session-runtime.test.ts and task-sleep.mjs. Check process exits, before/exact/after deadline, cancellation races and lost acknowledgements.
 5. Preserve every execution and acceptance timeout. Require both Windows and Linux CI before merge/closure. Stop writers and preserve task data before rollback; older phase SDKs reject the new sleep/wake records.
 
-## Keyed calls (1.4 development)
+## Keyed calls (1.4 release line)
 
 1. Preserve taskId, phase/version, RunId, key, signature and authorityVersion; never replace an unresolved call.
 2. Distinguish pending/completed/failed/cancelled and order conflicts. Preserve unknown effects; verify new Call/attempt links to immutable receipts for proven retries.

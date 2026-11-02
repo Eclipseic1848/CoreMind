@@ -1,8 +1,8 @@
-# 持久任务阶段（1.4 开发线）
+# 持久任务阶段（1.4 发布线）
 
 [English](durable-tasks.en.md)
 
-TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本功能仍为未发布开发线；Python/Worker 入口另行交付；显式稳定键调用见下文。
+TypeScript 宿主可从 `coremind-ai` 导入 `TaskSession` 和 `TaskDefinition`。本指南对应 1.4.0 发布线，公开状态以同版本 Release、Registry 与最终资格证据为准；TS 与同步/异步 Python 已通过 Protocol v2 接入同一 Worker，可信 Node 宿主注册任务定义，默认 Worker 不开放未注册任务。Python 使用见[跨语言指南](../modules/embed-coremind-python/GUIDE.zh-CN.md)；显式稳定键调用见下文。
 
 ```ts
 import { TaskSession, type TaskDefinition } from "coremind-ai";
@@ -82,7 +82,7 @@ npx vitest run packages/coremind-runtime/src/task-sleep.test.ts packages/coremin
 
 示例完全离线，演示 A→重开→B→完成，以及显式 v1→v2 状态迁移。真实进程退出由测试单独验证，普通 close/reopen 不代替崩溃验收。详见 [ADR 0026](../adr/0026-task-phases-and-migrations.md) 和[恢复 SOP](../modules/recover-durable-runs/SOP.zh-CN.md)。
 
-## 稳定键调用（1.4 开发线）
+## 稳定键调用（1.4 发布线）
 
 一个阶段在 `context.run(prompt)` 与 `context.runCalls(handler)` 中二选一，最多拥有一个 Run。后者精确执行已注册工具，不发起父模型请求，也不能替代配置中的 workflow/loop。所有键共享原 Run 的工具/步骤/token/费用预算、权限、审批、取消、超时和 ChildRun 上限。
 
@@ -111,3 +111,7 @@ const result = await context.runCalls(async ({ executeTool }) => {
 ## 跨语言接入
 
 跨语言任务与会话操作见 [Python SDK 指南](../modules/embed-coremind-python/GUIDE.zh-CN.md#持久任务与会话分支的跨语言入口-1-4-开发线)。默认 Worker 不注册任务；宿主须显式注册可信定义，匹配指纹并协商能力。
+
+## 真实进程组合示例
+
+[TypeScript 公共 API 示例](../../examples/modules/recover-durable-runs/task-restart.mjs)和[同步/异步 Python 示例](../../examples/modules/embed-coremind-python/tasks.py)覆盖 A→持久等待→真实子进程重启→显式唤醒→复用已保存结果→B，核对原 Run/key/result 与一次执行记录。它们仅使用受控离线数据；宿主负责进程启动与 alarm，未知外部效果仍不能自动重放。

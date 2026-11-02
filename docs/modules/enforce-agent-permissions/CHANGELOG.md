@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - 普通业务工具写入前统一保护框架持久状态；保留合法业务文件和宿主恢复接口的既有行为。

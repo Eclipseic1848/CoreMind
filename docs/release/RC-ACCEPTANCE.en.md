@@ -1,8 +1,8 @@
 # Release Candidate Acceptance Guide
 
-The current acceptance target is the `1.3.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
+The current acceptance target is the `1.4.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
 
-Recheck #324–#333 through the existing matrix and module regressions. See the [complete release notes](notes/v1.3.0.md) and [1.2→1.3 migration](../migrations/1.2-to-1.3.en.md) for scope and boundaries. P01-P20 and the original strict qualification requirements remain unchanged.
+This version includes the unpublished #324–#333 fixes and subsequent security/reliability repairs, plus #359–#367 / #376 dependency-risk disposition, durable tasks, session branches, cross-language access, and CI repair. There is no separate 1.3 publication. See the [complete release notes](notes/v1.4.0.md) and [1.2→1.4 migration](../migrations/1.2-to-1.4.en.md) for scope and boundaries. P01-P20 and the original strict qualification requirements remain unchanged.
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
@@ -21,6 +21,8 @@ npm run acceptance:rc
 The command runs the full Node suite, Python SDK/real Worker tests, synchronized-version preflight, and all eight npm packages through content checks, publint, type resolution, and clean-project installation, plus wheel content and clean-install checks. P01-P19 are also bound to explicit test files and test titles. A missing evidence anchor fails the RC even when the broad test suite exits successfully.
 
 Run `npm run baseline:check` before the RC matrix. It rebuilds every public package before comparing the frozen type contracts; stale `dist` output is not accepted as evidence that source contracts are unchanged.
+
+The formal Candidate cancellation-stability matrix retains all 1000 fixed seeds; Engineering CI's targeted seed 4 regression cannot replace it. Keep every existing RPC, task, subprocess, settlement, and workflow timeout. Rerunning unexplained failures, shrinking coverage, or extending deadlines cannot establish acceptance.
 
 | Case | Acceptance target | Entry paths |
 |---|---|---|
@@ -45,7 +47,7 @@ Run `npm run baseline:check` before the RC matrix. It rebuilds every public pack
 | P19 | Python wheel contents and Worker | Artifacts |
 | P20 | Real Windows and Linux pseudoterminals | TUI |
 
-## 1.3.0 feature rechecks and compatibility boundaries
+## 1.4.0 feature rechecks and compatibility boundaries
 
 Verify these journeys against the same candidate version, commit, and actual artifacts. They supplement P01-P20 and do not replace live Provider, both-platform, or post-publication public reinstall evidence:
 
@@ -56,6 +58,10 @@ Verify these journeys against the same candidate version, commit, and actual art
 - Explicit OAuth login, cancel, exit, and logout remain controlled, with independent real loopback-callback and socket-settlement evidence. A local authorization fixture does not certify external interoperability.
 - Explicit Config v3 `deferred` Chinese/English lexical discovery, declaration generation, and durable selections rebuild from authoritative facts. Installation applies on subsequent requests; deny, approval, and budget checks remain active.
 - Terminal approvals, durations, results, and Effects bind to actual Run/Agent/Step/Call identity. Real-entry regressions cover stored/blocked Artifacts, coalesced Chinese input, grapheme deletion, paste-as-draft, and waiting for exit settlement. Missing results cannot become success.
+- Durable task phases commit checkpoints, typed documents, and text entries atomically. Reopen after a real process exit under the original revision/commitId; reject content conflicts, unknown Schemas, and changed definition/authority identities. Models and tools retain existing Run/ChildRun permission, budget, and cancellation gates; unknown external effects are not replayed.
+- Durable waits bind deadlines and notifications through sleepId/wakeId and recompute nextWake after restart. Duplicate, stale, not-due, or terminal notifications cannot advance the wrong phase. The host owns processes and alarms; a new Promise or resident service cannot substitute for durable facts.
+- Keyed calls reuse the original Run/key/result. Exit after the result is durable but before phase commit, then reopen with confirmed effects executed once; changed call order, arguments, or authority reject. Unknown results retain existing recovery gates, without an external-business exactly-once claim.
+- TS and sync/async Python use the same real Node Worker to verify task and session tree/branch/fork behavior, capabilities, parameters, request identity, and error parity. The default Worker rejects unregistered tasks; RPC carries only trusted host-definition IDs and JSON. Bidirectional Windows long/short-path and directory-alias reopen/fork preserves file identity and historical bytes without entering v3 migration. Different physical cwd, copied aliases, and cross-session nodes still reject.
 
 Config v2, default or explicit `direct`, and Protocol v1 remain compatible; `deferred` never upgrades old configuration automatically. New capabilities require matching SDK and bundled Worker support, with matching Schema fingerprints for Protocol v2. Minimum requirements remain Node.js ≥ 22.19 and Python ≥ 3.10 for the Python SDK. Record actual validation environments separately; a supported minimum is not proof that this run exercised that version. Skill loading, discovery, and recovery cannot expand existing permissions; unknown effects require human reconciliation. Global paired performance gains are not certified.
 
@@ -93,16 +99,18 @@ An identity mismatch, missing check, malformed file, or either absent platform f
 
 ## Live provider
 
-P01-P20 do not replace the live-provider release recheck. With approved data and a local environment variable, run:
+P01-P20 do not replace the live-provider release recheck. Before execution, explicitly approve synthetic-data egress, Provider, model, credential source, cost ceiling, and maximum duration under the [certification SOP](../providers/CERTIFICATION.en.md), binding final main source commit S and Runtime candidate-package SHA-256 H. Approval for an older candidate is not reusable. With approved data and a local environment variable, run:
 
 ```powershell
 npm run providers:certify
 ```
 
-Certification covers seven checks: streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
+Certification covers seven checks: streaming, tool calls, structured results, multi-turn state, abort, error mapping, and long context, plus the live parent/child Agent chain and cancellation convergence already required by the certification SOP. Stop when the account lacks service entitlement, permissions, a valid credential, or a successful live request. Never switch models or providers silently, and do not present historical evidence as a current recheck.
 
 For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict run `33582995518` and the fixed Runtime digest. It does not update the certification ledger. The separate simplified `0.7.1` decision is recorded in the SOP; other versions retain the strict live-provider requirement.
 
 ## Completion
 
-The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to 1.3.0, its final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body. Tagging and publishing still follow the [Release SOP](README.en.md).
+The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to 1.4.0, its final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The strict Candidate workflow's actual `Candidate qualified` job must succeed; a skipped Provider or Engineering-only success does not qualify. Dependency audits accept only the precise #359 risk scope: acceptance does not fix vulnerabilities, and other risks or invalid reports still block. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body.
+
+RC completion is not publication. Create the immutable `v1.4.0` tag only on the final qualified commit, then follow the [Release SOP](README.en.md) to publish all ten artifacts from one build R: eight npm tarballs, one wheel, and one independent source ZIP. Publicly download every item, compare manifests and hashes, reinstall in clean environments, and verify the GitHub Release and bilingual documentation site.

@@ -21,7 +21,7 @@ session:
 
 不同模型的窗口和输出上限可以不同。Runtime 会在每次请求和模型切换时重新解析能力，并将本次实际 `maxTokens` 原样纳入预算；不会用窗口比例静默缩小调用方请求。
 
-## TypeScript 会话树（1.4 开发线）
+## TypeScript 会话树（1.4 发布线）
 
 ```ts
 import { ChatSession, CoreMindRuntime, type ChatSessionNodeRef } from "coremind-ai";

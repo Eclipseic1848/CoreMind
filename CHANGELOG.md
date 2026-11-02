@@ -4,32 +4,76 @@
 
 [English](CHANGELOG.en.md)
 
-**未发布：1.4.0 开发准备**
+## 1.4.0
 
-以下变更尚未正式发布；包含未独立发布的 1.3.0 修复。最终发布说明见 [v1.4.0](docs/release/notes/v1.4.0.md)。
+本节记录 `1.4.0` 发布线；源码和发布准备不等于公开交付，实际状态以同版本 Release/Registry 与最终提交、准确制品的资格证据为准。1.4.0 包含未独立发布的 1.3.0 修复及本轮持久任务、会话树和跨语言能力；不补发 1.3.0。1.2.0 用户请按[迁移指南](docs/migrations/1.2-to-1.4.zh-CN.md)升级，最终固定正文见[发布说明](docs/release/notes/v1.4.0.md)。
 
-**依赖修复与风险处置**
+### 安全与依赖
 
-- **依赖修复：** fast-uri 更新至 3.1.9，CoreMind 网络工具使用 Undici 8.12.2；VitePress 的 Vite 更新至 6.4.5、API Extractor 的 minimatch 至 11.0.1，固定 Linux 后端开发源的 Zod 至 4.6.6、node-forge 至 1.4.2。定向覆盖不升级底层运行库，也不改变 Linux 后端来源版本。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
-- **获准接受的运行时依赖风险：** 按用户明确决定登记底层运行库 1.3.0 及其 minimatch 10.2.6 / Undici 8.10.2 已知风险；这不代表漏洞已修复。审计继续核对确切版本、安装位置、公告、等级上限及原到期日 2026-11-14，其他风险和报告失败仍阻断。公开 npm 消费者仍可能安装这条受影响链，不能依赖仓库 overrides。详见[安全说明](SECURITY.md)。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **框架状态保护：** 统一授权按 canonical 目标保护框架管理的持久状态，普通业务工具不能通过 `ask`、`assisted`、`full` 或显式 allow 改写这些状态。现存多硬链接文件的普通工具写入也会被拒绝；合法业务文件和宿主维护接口保留原职责。这是路径保护，不是任意宿主代码的 OS 沙箱。 ([#324](https://github.com/Eclipseic1848/CoreMind/issues/324))
+- **开发构建依赖：** 将 Vitest 测试链的 Vite 固定为 `8.2.4`，仅将 VitePress `1.6.4` 子树的 Vite 覆盖为 `6.4.5`，修复编辑器启动相关漏洞；不引入预发行文档框架，也不新增风险豁免。变更限于开发/文档构建依赖，不改变 Runtime 权限或沙箱边界。 ([#350](https://github.com/Eclipseic1848/CoreMind/issues/350))
+- **测试依赖安全修复：** 将 `vitest` 与 `@vitest/coverage-v8` 同步升级至 `4.1.12`，使测试链纳入 `@vitest/mocker` 的手工 mock 代码生成转义与 Windows redirect 路径规范化补丁（[GHSA-qxg6-89mg-rqv8](https://github.com/vitest-dev/vitest/security/advisories/GHSA-qxg6-89mg-rqv8)、[GHSA-xp26-3454-mjgp](https://github.com/vitest-dev/vitest/security/advisories/GHSA-xp26-3454-mjgp)）。变更仅限开发/测试依赖，不改变 Runtime 权限或沙箱边界，也不新增风险豁免。 ([#355](https://github.com/Eclipseic1848/CoreMind/issues/355))
 
-**能力提升**
+- **生产与构建依赖：** fast-uri 更新至 3.1.9，CoreMind 网络工具使用 Undici 8.12.2；API Extractor 的 minimatch 更新至 11.0.1，固定 Linux 后端开发源的 Zod 至 4.6.6、node-forge 至 1.4.2。文档链 Vite 在原安全修复基础上更新至 6.4.5；定向覆盖不升级底层运行库，也不改变 Linux 后端来源版本。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **获准接受的运行时依赖风险：** 精确登记底层运行库 1.3.0 及其 minimatch 10.2.6 / Undici 8.10.2 已知风险；接受风险不代表漏洞已修复。审计继续核对版本、安装位置、公告、等级上限和原到期日 2026-11-14，其他风险和报告失败仍阻断。公开 npm 消费者仍可能安装受影响链，不能依赖仓库 overrides。详见[安全说明](SECURITY.md)。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
 
-- **会话路径恢复：** 同一物理工作目录的 Windows 长短名或目录链接可重开并 fork 既有 v4 会话；核对目录及文件身份后沿用原存储，避免误入旧格式迁移，不搬移或改写历史。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+### 能力提升
 
-- **公共会话树：** ChatSession 新增树查询、命名分支、持久选择与按消息节点 fork；复用会话写锁，继续对话只读取所选分支。新会话不继承 Run/控制/授权，补齐真实进程恢复、写故障回归、双语指南与旧 SDK 回滚边界；CI 与发布资格仍须满足原门禁。 ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
+- **任务原子提交：** 新增 internal `TaskCommitSession`，将 checkpoint、typed document 与文本 entry 作为同一持久事实提交；revision、内容绑定 commitId、Schema 身份和单 writer 约束支持安全重开与崩溃恢复。旧 Session/Run/Workspace 数据不迁移，原子性不涵盖外部业务副作用。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+- **持久任务阶段与迁移：** 公共 `TaskSession` 支持 start/query/resume/cancel、阶段检查点与显式状态迁移；模型和工具复用既有 Runtime/Run/ChildRun、权限、预算与取消。重启从已提交阶段继续，无法确认的 Run 保留人工核对，终态任务不重做。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
+- **持久等待与幂等唤醒：** 原子保存下一阶段、检查点和绝对期限；重开后 nextWake 重新计算等待，持久 sleepId/wakeId 约束重复或过期通知。宿主负责进程启动、alarm 与显式恢复，不增加后台调度服务或扩大原超时。 ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
+- **稳定键调用与结果复用：** `runCalls`、`executeTool` 和调用查询将结果绑定父任务、阶段、版本及稳定键，并从原 Run/任务事实恢复。参数、能力或调用顺序分歧会拒绝并审计；未知外部效果仍由原恢复门拦截，所有键共享原权限、预算、取消和 ChildRun 上限。 ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
+- **公共会话树与分支：** `ChatSession` 提供树查询、命名分支、持久选择及按消息节点 fork；继续对话读取所选历史，原写锁与活动 Run 限制保留。fork 产生新会话和来源关联，不复制 Run/控制/授权身份。 ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
+- **跨语言任务与会话：** Protocol v2 增加独立能力与绑定身份的 DTO，TypeScript 与同步/异步 Python 经唯一 Node Worker 调用宿主注册的任务及会话导航。默认 Worker 不开放未注册任务，RPC 不传源码、模块路径或凭据；工具权限与项目代码信任分别校验，实际信任开关进入任务权限身份。原顶层错误分类与任务子码、v1 行为及所有超时保留。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
 
-- **稳定键调用与结果复用：** 新增 runCalls/executeTool 和调用查询，一个阶段共享原 Run/ChildRun 治理；显式结果恢复、分歧审计和真实进程中断验证。未知副作用仍由原恢复门拦截，旧 SDK 回滚边界与双语文档同步；正式发布仍须原 CI、安全与合并验收。 ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
+### 缺陷修复
 
-- **持久等待与幂等唤醒：** TaskSession 原子保存下一阶段、结果和绝对期限，支持 nextWake 与绑定 sleepId 的 wake，重启后重新计算等待。覆盖真实进程退出、重复/过期通知、取消竞争与回执丢失，提供离线宿主 alarm 示例与双语指南。保留全部原超时；跨平台 CI 和发布资格仍须验收。 ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
+#### Runtime 与 Workflow
 
-- **持久任务阶段与显式迁移：** 公共 TypeScript `TaskSession` 支持 start/query/resume/cancel，阶段检查点原子提交，版本/定义/权限身份校验与显式状态迁移。模型和工具沿用现有 Runtime；未知 Run 窗口失败关闭。配套真实进程、权限/预算/取消验证及双语指南、SOP/Skill 和离线示例。未合并或安全门未通过不构成发布资格。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
+- **会话路径恢复：** 同一物理工作目录的 Windows 长短名或目录链接可重开并 fork 既有 v4 会话；核对目录与内部/公开文件身份后沿用原存储和 metadata.cwd，避免误入 v3 迁移，不搬移或改写历史。不同物理目录与复制文件仍拒绝。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+- **重试状态码边界：** 请求 ID 或长数字中的 `503`、`524` 等子串不再把未知 Provider 错误误分类为瞬态；Loop 保留原错误及脱敏审计，暂停等待人工处理。独立状态码、其他瞬态原因、配额排除及原重试预算保持不变。 ([#360](https://github.com/Eclipseic1848/CoreMind/issues/360))
 
-- **任务原子提交基础：** 新增 internal `TaskCommitSession`，把任务 checkpoint、typed document 和文本 entry 放在一个原子持久记录中；支持 revision 冲突、commitId 内容幂等、Schema 身份校验和进程崩溃后投影重建。旧 Session/Run/Workspace 数据不迁移，标准 Runtime 保护任务存储路径。配套 ADR、双语指南、SOP/Skill、真实子进程回归与无模型示例；后台调度服务和跨语言接入仍属后续迭代。本节不表示已发布。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+- **并行终止与准入：** 普通 `parallel` 子步骤首次失败或暂停时，取消同组其他步骤并等待收尾，保留首个错误；Run 结束后不再准入新模型调用。已开始操作保留收据，取消不等于回滚；全成功仍按声明顺序聚合。 ([#325](https://github.com/Eclipseic1848/CoreMind/issues/325))
+- **步骤输出边界：** Workflow `prompt`/`call` 保留同一 Session 历史作为模型上下文，但步骤输出、`saveAs`、后续插值与 transcript 只包含本步骤新增的 assistant 文本，不重复历史回答。 ([#327](https://github.com/Eclipseic1848/CoreMind/issues/327))
+- **v2 启动错误身份：** 已接受 Run 的 Runtime 初始化失败按共享错误分类持久化稳定错误码、对应终态与安全消息，供 `query`/`events` 查询，不再统一改为 `agent_failed`。未知异常以 `unclassified_error` 保守暂停并要求人工审计，不公开凭据或原始堆栈，也不表示可直接恢复。 ([#329](https://github.com/Eclipseic1848/CoreMind/issues/329))
+- **租约持久化开销：** 对未改写的内置 `FileRunStore`，租约关键 Fact 后不再重复执行全局刷盘，降低慢磁盘下 MCP 关键路径的冗余同步开销；仍等待 critical acknowledgement 并拦截失败，释放前安全屏障保持。自定义 Store、子类以及改写 `commit` 或 `barrier` 的实例沿用原屏障行为。 ([#352](https://github.com/Eclipseic1848/CoreMind/issues/352))
 
-- **跨语言任务与会话：** Protocol v2 增加独立能力和绑定身份的 DTO；TS、同步/异步 Python 通过同一 Node Worker 执行宿主注册的任务及分支/fork。任务工具权限与项目代码信任独立，原错误分类和超时保留；附真实进程崩溃后的结果复用与跨语言验收、安装入口和双语示例。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+#### Python 工具桥
 
-- **CI 失败传播：** 拆分 Windows 工程门的多命令步骤，防止主 Python 测试等前序失败被后续成功覆盖；原命令、顺序、验收与超时保持，补充真实 PowerShell 反例回归（#376）。
+- **延迟参数注解：** v1 `@client.tool` 自动 Schema 可解析 future/字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解；无法解析的前向引用明确要求显式 `parameters`。保留 Node 侧先转换再校验的既有规则，转换后仍未通过 Schema 的参数在 callable 执行前拒绝；显式 Schema 兼容，复杂 typing 支持范围不扩大。 ([#326](https://github.com/Eclipseic1848/CoreMind/issues/326))
+
+#### 评测
+
+- **Diff grader：** `preserveExisting: false` 只关闭既有脏内容保护，`allowedPaths`、`forbiddenPaths`、`requiredPaths`、`maxChangedFiles` 仍按基线与终态的状态或内容差异执行。状态和内容均未变化的既有脏文件不计，原 untracked 文件删除计入变化；原 stage/unstage 计数及默认 `true` 保护不变。 ([#328](https://github.com/Eclipseic1848/CoreMind/issues/328))
+
+#### Web 工具
+
+- **响应正文收尾：** `web-fetch`/`web-search` 遇非 2xx 或正文读取失败时，等待正文取消/释放的清理尝试结束后才结算本地网络活动；清理异常保留原 HTTP/读取错误。成功、取消、权限与网络策略不变，`web-fetch` 原 2 MiB 正文上限保留。 ([#330](https://github.com/Eclipseic1848/CoreMind/issues/330))
+
+#### CLI
+
+- **readline 显式退出：** `/exit`、`!exit` 与 TUI 一致，先请求取消活动 Run 并等待收尾；普通管道 EOF 仍让已开始的回答自然完成。空闲退出、审批及 MCP 登录等待的既有行为保持，取消不回滚已开始工具副作用。 ([#331](https://github.com/Eclipseic1848/CoreMind/issues/331))
+- **doctor 凭据策略：** 有配置时复用所选 Provider 的既有校验，合法匿名/Header-only 自定义端点不要求无关 API key；显式凭据缺失仍失败，内置鉴权要求不放宽。无配置通用诊断保留；检查不加载项目脚本、不发 Provider 请求，通过不代表凭据有效、真实连通或认证。 ([#332](https://github.com/Eclipseic1848/CoreMind/issues/332))
+
+#### 工程验收
+
+- **CI 失败传播：** 拆分 Windows 工程门的多命令步骤，防止主 Python 等前序失败被后续成功覆盖；保留原命令、顺序、验收和超时，并补充真实 PowerShell 退出码反例。 ([#376](https://github.com/Eclipseic1848/CoreMind/issues/376))
+- **Coding Kernel 解释器身份：** 优先使用 setup-python 提供的 pythonLocation 解析 Python 绝对路径，避免裸命令依赖 PATH 搜索；未设置时保留原行为，原 30 秒上限、退出码与错误分类保持。 ([#357](https://github.com/Eclipseic1848/CoreMind/pull/357))
+- **取消竞态边界：** 验收夹具按真实取消准入边界及未完成 Call/Turn 身份核对关闭事件，修正场景标签导致的正常收尾误判，并检查真正迟到的已准入活动。增加确定进入审批再取消的回归、严格反例及双平台固定种子门；保留完整 1000 种子、原超时与全部不变量，生产取消与权限规则不变。 ([#348](https://github.com/Eclipseic1848/CoreMind/issues/348))
+
+### 文档与发布工程
+
+- **安全策略版本状态：** 双语 SECURITY 支持表链接最新正式 Release，准确保留已发布版本与既有加固的交付事实、私密披露方式和原安全边界；已接受依赖风险另按精确策略说明，不把接受风险写成漏洞消除。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333), [#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **统一 1.4.0 交付材料：** 纳入原 1.3.0 发布准备、安装导航与 Worker 生成物同步，统一根与 8 个 npm 包、Python、内部精确依赖、锁文件、模块与 TTY 模板到 1.4.0。同步双语 README、设计/指南/SOP/Skill、示例、1.2→1.4 迁移、路线图和文档站，固定发布正文包含完整本版本变更。1.3.0 不独立发布，历史文档与证据保留。 ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334), [#346](https://github.com/Eclipseic1848/CoreMind/issues/346), [#358](https://github.com/Eclipseic1848/CoreMind/pull/358), [#368](https://github.com/Eclipseic1848/CoreMind/issues/368))
+- **能力操作材料：** 任务提交、阶段、等待、稳定键调用、会话树和跨语言入口均配套双语指南、模块合同、SOP/Skill、离线可运行示例及真实进程恢复回归；工程检查不代替最终 Provider 或正式发布资格。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362), [#363](https://github.com/Eclipseic1848/CoreMind/issues/363), [#364](https://github.com/Eclipseic1848/CoreMind/issues/364), [#365](https://github.com/Eclipseic1848/CoreMind/issues/365), [#366](https://github.com/Eclipseic1848/CoreMind/issues/366), [#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+
+### 兼容与发布边界
+
+保留 Config v2/v3、Protocol v1/v2 和唯一 Node Runtime。新任务/会话 DTO 与 capability 需要同步升级 SDK 和 bundled Worker，并通过新 v2 Schema 指纹检查。默认 Worker 不接收任意可执行任务；宿主代码信任不等于沙箱或工具授权。`ToolPolicy` 的可选 `protectedPaths` 和授权身份的可选 `signal?: AbortSignal` 保持既有调用兼容。
+
+旧 Session/Run/Workspace 不统一迁移；新的任务事实和会话选择记录由新 SDK 管理，旧 SDK 不接管。回滚前必须停止所有 writer，恢复升级前的程序、SDK、Worker 与完整状态备份；未知外部效果不能无条件重放，也不承诺外部 exactly-once、自动副作用回滚或分布式锁/调度。详见[1.2→1.4 迁移](docs/migrations/1.2-to-1.4.zh-CN.md)。
+
+正式发布仍须绑定最终 main、当前版本、Runtime/Worker 和准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载与回装证据。旧认证、历史例外、单项工程 CI 和文档同步均不能代替本轮资格；实际状态以同版本 Release/Registry 及最终资格证据为准。
 
 ## 1.3.0
 

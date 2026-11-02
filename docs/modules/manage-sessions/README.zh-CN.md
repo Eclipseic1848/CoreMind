@@ -8,7 +8,7 @@
 
 ## 公共接口
 
-- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork`（1.4 开发线；稳定 DTO，不公开存储写入器）
+- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork`（1.4 发布线；稳定 DTO，不公开存储写入器）
 - `ChatSession`
 - `ChatSession.steer/followUp(message, options?)`（1.1 开发线，`options` 为 `{ controlId?, runId? }`）
 - `ContextProtector`

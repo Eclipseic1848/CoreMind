@@ -24,7 +24,7 @@ coremind run coremind.yaml --resume <runId> --json-events
 5. Resume the same `runId` again and confirm that the terminal operation is rejected instead of writing again.
 6. Compare the compatibility fields with `snapshot` and confirm matching run id, operation, outcome, metrics, and evidence.
 
-## Model-free TaskCommit example (1.4 development line)
+## Model-free TaskCommit example (1.4 release line line)
 
 After installing repository dependencies, run from the root:
 
@@ -59,6 +59,12 @@ See the [task guide](../../../docs/guides/durable-tasks.en.md).
 
 After building, run `node examples/modules/recover-durable-runs/task-sleep.mjs`. It commits A's result and deadline, reopens, builds a capped ordinary timer from nextWake, then uses wake/resume to execute B. It prints `Durable sleep and host alarm OK`, needs no credentials and removes only its own temporary directory. Real host startup must also query known ready tasks. This example's close/reopen does not replace the actual process exits in task-sleep-process.test.ts.
 
-## Keyed calls (1.4 development)
+## Keyed calls (1.4 release line)
 
 After building, run `node examples/modules/recover-durable-runs/task-calls.mjs`. It checks duplicate keys and reopen after a committed result, with exactly one real tool execution. A fixed dummy key is used without model requests. It prints `Keyed calls and durable reuse OK` and removes only its own temporary directory. Real exits are covered separately by task-calls-process.test.ts.
+
+## Real-process restart composition
+
+After building, run `node examples/modules/recover-durable-runs/task-restart.mjs`. Phase A atomically saves a keyed result and wait; the parent observes child exit, starts a new process and explicitly wakes the durable wait. Phase B consumes the saved result. Assertions compare process identities, the original Run/key/result and a single execution record, without real Provider requests or changing subprocess limits.
+
+This validates a controlled offline window, not external exactly-once. See the matching [sync/async Python example](../embed-coremind-python/tasks.py).

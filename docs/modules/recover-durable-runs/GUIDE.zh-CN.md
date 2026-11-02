@@ -42,7 +42,7 @@ Config 3 的 deferred 工具仍受同一恢复门约束：同一 Run 必须匹�
 
 恢复旧文件时框架会自动创建 `.v3.backup`。受支持的消息、模型变更、工具集变更、压缩、分支摘要、标签和名称会迁移。无法无损表达的旧条目会返回明确错误，原文件保留；按 [SOP](SOP.zh-CN.md) 人工选择保留旧版本或导出有效上下文。
 
-## 显式任务原子提交（1.4 开发线，internal）
+## 显式任务原子提交（1.4 发布线，internal）
 
 需要把任务 checkpoint、业务 document 和相关文本一起保存时，由受信任宿主使用 `coremind-runtime/internal` 的 `TaskCommitSession`。这是内部存储基础，不是普通 `ChatSession` 的新模式，也不会执行任务、唤醒定时器或接入 Python/Worker。完整决策见 [ADR 0025](../../adr/0025-explicit-task-commit-authority.md)。
 
@@ -85,14 +85,14 @@ document 注册为 `{ type, version, schema }`，Schema 使用同步 JSON Schema
 
 运行 [模块示例](../../../examples/modules/recover-durable-runs/README.zh-CN.md) 后，再把恢复策略接入具体业务。
 
-## 公共持久任务阶段（1.4 开发线）
+## 公共持久任务阶段（1.4 发布线）
 
-`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。此开发线不代表正式发布；跨语言入口另行交付；显式稳定键调用见下文。
+`coremind-ai` 的 `TaskSession` 在上述存储基础上提供 start/query/resume/cancel 与显式版本迁移。每次 resume 执行一个阶段，模型/工具使用既有 Runtime；有 pendingRunId 时先保全原 Run，不自动重发。详见[公共任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0026](../../adr/0026-task-phases-and-migrations.md)。本说明对应 1.4.0 发布线，公开状态以同版本 Release、Registry 与资格证据为准；TS 与同步/异步 Python 已通过同一 Worker 接入，见[跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)。显式稳定键调用见下文。
 
-## 持久等待（1.4 开发线）
+## 持久等待（1.4 发布线）
 
 阶段返回 sleepUntil 原子保存下一阶段与绝对期限；nextWake 查询最近持久等待，wake(taskId, wakeId, sleepId) 幂等置为 ready，再显式 resume。旧 alarm 不得推进新睡眠；宿主负责重启、恢复已知 ready 任务和重建计时器。取消使 alarm 失效，关闭空闲会话保留等待。等待不延长 Run、工具、阶段或 Worker 超时。用法、回执丢失处理和旧 SDK 回滚限制见[任务指南](../../guides/durable-tasks.zh-CN.md)与 [ADR 0027](../../adr/0027-durable-task-sleep-wake.md)。
 
-## 稳定键调用（1.4 开发线）
+## 稳定键调用（1.4 发布线）
 
 runCalls 内 executeTool 的稳定键绑定参数、权限身份与顺序，一个阶段共享原 Run 的预算/权限/ChildRun 上限。calls 查询历史结果；未知外部效果仍暂停，已提交结果可从原 Run 协调。父任务终态不执行，历史受原 1 MiB 限制，不自动清理。兼容、回滚和宿主版本责任见 [任务指南](../../guides/durable-tasks.zh-CN.md) 和 [ADR 0028](../../adr/0028-keyed-task-calls.md)。

@@ -156,7 +156,7 @@ Async 对 `events` 使用 await，仍在处理成功后保存该 Run 的 nextCur
 
 上述10秒限制交付等待，不保证强制终止物理流或不合作的 JavaScript。逻辑 close 有界返回；尚未返回的自有 write 仅保留一个 error 护栏及其 close 清理监听，直到该回调或流 close 收敛。超时失败不等于全部操作已静止；未确认收尾时不能据此释放或复用相关环境。
 
-## 持久任务与会话分支的跨语言入口（1.4 开发线）
+## 持久任务与会话分支的跨语言入口（1.4 发布线）
 
 同步 `CoreMindClient` 与 `AsyncCoreMindClient` 新增 `task_start(task_id, definition_id, checkpoint)`、`task_query/task_resume/task_cancel/task_calls(task_id)`、`task_next_wake()`、`task_wake(task_id, wake_id, sleep_id)`。异步方法使用相同参数并 `await`。返回完整 DTO，快照在 `result["task"]`、调用账本在 `result["calls"]`、最近期限在 `result["deadline"]`；未知任务查询返回 `task=None`。任务操作不是 RunHandle，也不把等待自动变成运行。
 
