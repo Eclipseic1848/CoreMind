@@ -338,7 +338,7 @@ jobs:
 
       - name: 下载已批准的 v0.7.1 离线候选
         if: inputs.artifact_run_id == '' && needs.candidate.outputs.provider_evidence_mode == 'approved-offline-v071'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           github-token: ${{ github.token }}
           run-id: 33838498153
@@ -386,7 +386,7 @@ jobs:
       attestations: write
     steps:
       - name: 下载已验证发布物
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
@@ -425,7 +425,7 @@ jobs:
       - run: npm install --global npm@11.5.1
 
       - name: 下载已验证发布物
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
@@ -452,7 +452,7 @@ jobs:
           ref: ${{ inputs.tag }}
 
       - name: 下载已验证发布物
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
@@ -487,14 +487,14 @@ jobs:
           fetch-depth: 0
 
       - name: 下载已验证发布物
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
 
       - name: 下载 P0 候选报告与双平台证据
         if: inputs.tag == 'v0.7.0' && inputs.reuse_candidate_run_id == ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-p0-candidate-evidence
           path: .scratch
@@ -627,14 +627,14 @@ jobs:
 
       - name: 下载已验证发布物与候选证据
         if: inputs.tag == 'v0.7.0'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: coremind-*-evidence
           path: .scratch
           merge-multiple: true
 
       - name: 下载发布 bundle
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coremind-release-bundle
           path: release-artifacts
