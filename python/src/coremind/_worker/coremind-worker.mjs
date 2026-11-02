@@ -268476,6 +268476,15 @@ var CoreMindSession = class _CoreMindSession {
       let metadata = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === opts.sessionId);
       const hasPublicPath = await fileExists(publicPath2);
       if (metadata === void 0 && hasPublicPath) {
+        const firstLine2 = (await readFile4(publicPath2, "utf8")).split("\n").find((line) => line.trim().length > 0);
+        const header = firstLine2 === void 0 ? {} : parseJsonObject(firstLine2, publicPath2, 1);
+        if (header.kind === "header" && header.version === 4 && header.id === opts.sessionId && typeof header.cwd === "string" && await pathsReferToSameFile(header.cwd, opts.cwd)) {
+          const candidate = (await repository.list({ cwd: header.cwd })).find((item) => item.id === opts.sessionId);
+          if (candidate && await pathsReferToSameFile(candidate.path, publicPath2))
+            metadata = candidate;
+        }
+      }
+      if (metadata === void 0 && hasPublicPath) {
         metadata = await migrateLegacySession(opts, repository, publicPath2);
       } else if (metadata !== void 0 && hasPublicPath) {
         const linked = await pathsReferToSameFile(metadata.path, publicPath2);
@@ -268498,7 +268507,7 @@ var CoreMindSession = class _CoreMindSession {
       await ensurePublicSessionPath(openedMetadata.path, publicPath2);
       const opened = new _CoreMindSession(session, isNew, publicPath2);
       const state3 = {
-        options: { ...opts, dir: path3.dirname(publicPath2) },
+        options: { ...opts, cwd: openedMetadata.cwd, dir: path3.dirname(publicPath2) },
         identity: identity3,
         storagePath: openedMetadata.path,
         publicPath: publicPath2,

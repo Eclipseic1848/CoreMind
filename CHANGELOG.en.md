@@ -15,6 +15,8 @@ These changes are not yet released and include the unreleased 1.3.0 fixes. See t
 
 **Improvements**
 
+- **Session path recovery:** reopen and fork existing v4 sessions through Windows long/short paths or directory links to the same physical workspace. Directory and file identity checks preserve the original storage without moving or rewriting history or entering legacy migration. ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+
 - **Public session trees:** ChatSession adds tree inspection, named branches, durable selection and message-node forks under existing writer ownership. New sessions do not inherit Run/control/authorization identities. Includes process recovery, write-failure regressions, bilingual guides and older SDK rollback boundaries; original CI and release gates remain required. ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
 
 - **Keyed calls and result reuse:** added runCalls/executeTool and call queries within the existing Run/ChildRun controls. Includes explicit result recovery, divergence audits and real-process interruption regressions. Unknown effects retain the existing recovery gate; bilingual documentation covers old-SDK rollback boundaries. CI, security and merge acceptance remain required before release. ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
