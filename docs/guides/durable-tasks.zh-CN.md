@@ -104,6 +104,10 @@ const result = await context.runCalls(async ({ executeTool }) => {
 
 发生写入确认故障时，旧 holder 不再可用：保留目录，关闭重开，查原 TaskCommit 与 Run；不假定回滚或自动继续。任意宿主 JS、时间、随机值、裸网络请求不会被重放保护；这不是外部 exactly-once、持久 JS 栈或新的任务执行引擎。
 
-旧任务无 callGroups 时仍可读；旧 SDK 会拒绝新账本字段，且不认识任务专用 Run 标记。回滚前停止所有 writer，保全任务与 Run 两个事实域；不要用旧 SDK 单独 resume 新任务 Run。Python/Worker 入口属于后续 #367，本项不改变协议。正式能力仍须双平台 CI、安全门和合并验收。
+旧任务无 callGroups 时仍可读；旧 SDK 会拒绝新账本字段，且不认识任务专用 Run 标记。回滚前停止所有 writer，保全任务与 Run 两个事实域；不要用旧 SDK 单独 resume 新任务 Run。Python/Worker 入口见下方跨语言接入。正式能力仍须双平台 CI、安全门和合并验收。
 
 验证：运行 `task-calls.test.ts`、`task-calls-process.test.ts`、`task-calls-child.test.ts` 和离线 `task-calls.mjs`，再运行模块原门禁。包含真实进程在 intent、效果、整步结果、任务结果、Run 结束后的退出，及 ChildRun、预算、权限、取消、写入确认故障。详见 [ADR 0028](../adr/0028-keyed-task-calls.md)。
+
+## 跨语言接入
+
+跨语言任务与会话操作见 [Python SDK 指南](../modules/embed-coremind-python/GUIDE.zh-CN.md#持久任务与会话分支的跨语言入口-1-4-开发线)。默认 Worker 不注册任务；宿主须显式注册可信定义，匹配指纹并协商能力。

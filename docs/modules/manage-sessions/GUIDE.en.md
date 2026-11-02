@@ -15,6 +15,8 @@ session:
 
 The CLI accepts `--session <id>` only after sessions are enabled. Otherwise it fails clearly with configuration guidance.
 
+Reopening the same physical workspace through Windows long/short paths or directory links checks directory and public-file identity and retains the existing v4 storage path from its header. History stays in place. A different physical directory or an identical-content copy with a different file identity cannot use this recovery path.
+
 `session.compact` controls the legacy `ContextProtector`; it does not disable the Runtime's model-aware request budget. Whenever a request exceeds available input space, the Runtime attempts to build a bounded working set. If this actually requires compaction, an enabled writable session must exist because the summary cannot live only in process memory.
 
 Models may expose different context windows and output limits. The Runtime resolves capabilities again for every request and model switch, and budgets the request's exact `maxTokens`; it does not silently shrink the caller's request to a fraction of the context window.
@@ -49,7 +51,7 @@ await forkChat.chat("Continue the new session");
 
 A rejected selection write may already be durable: preserve files and reopen to inspect rather than assuming rollback. A failed fork alias may leave a complete internal candidate; verify its identity from the reported path before opening, without blindly forking again or deleting the source.
 
-Old v3 and unbranched v4 data remain compatible. Older SDKs ignore persisted selection and must not take over new files. Rollback requires stopping writers, preserving Session/Run/Workspace and restoring pre-upgrade backups. These APIs neither implement upstream ExtensionAPI nor resume an old Run. Python/RPC navigation belongs to #367. See [ADR0029](../../adr/0029-public-session-tree-navigation.md).
+Old v3 and unbranched v4 data remain compatible. Older SDKs ignore persisted selection and must not take over new files. Rollback requires stopping writers, preserving Session/Run/Workspace and restoring pre-upgrade backups. These APIs neither implement upstream ExtensionAPI nor resume an old Run. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md) for Python/RPC navigation. See [ADR0029](../../adr/0029-public-session-tree-navigation.md).
 
 ## Verification
 

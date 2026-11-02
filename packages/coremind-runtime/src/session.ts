@@ -138,6 +138,27 @@ export class CoreMindSession {
       );
       const hasPublicPath = await fileExists(publicPath);
 
+      // 同一物理目录的短名或链接仍须沿用既有 v4 存储命名，不能误入 v3 迁移。
+      if (metadata === undefined && hasPublicPath) {
+        const firstLine = (await readFile(publicPath, "utf8"))
+          .split("\n")
+          .find((line) => line.trim().length > 0);
+        const header = firstLine === undefined ? {} : parseJsonObject(firstLine, publicPath, 1);
+        if (
+          header.kind === "header" &&
+          header.version === 4 &&
+          header.id === opts.sessionId &&
+          typeof header.cwd === "string" &&
+          (await pathsReferToSameFile(header.cwd, opts.cwd))
+        ) {
+          const candidate = (await repository.list({ cwd: header.cwd })).find(
+            (item) => item.id === opts.sessionId,
+          );
+          if (candidate && (await pathsReferToSameFile(candidate.path, publicPath)))
+            metadata = candidate;
+        }
+      }
+
       if (metadata === undefined && hasPublicPath) {
         metadata = await migrateLegacySession(opts, repository, publicPath);
       } else if (metadata !== undefined && hasPublicPath) {
@@ -167,7 +188,7 @@ export class CoreMindSession {
       await ensurePublicSessionPath(openedMetadata.path, publicPath);
       const opened = new CoreMindSession(session, isNew, publicPath);
       const state: SessionHolder = {
-        options: { ...opts, dir: path.dirname(publicPath) },
+        options: { ...opts, cwd: openedMetadata.cwd, dir: path.dirname(publicPath) },
         identity,
         storagePath: openedMetadata.path,
         publicPath,

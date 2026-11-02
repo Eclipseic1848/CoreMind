@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "b6e859065be150b0c5c2f0546f1e24662659d6c0",
+    "developmentCommit": "fb4c4492aaa9fa16f8811ddd93c512161dbdca4c",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -13,19 +13,19 @@
   },
   "publicContracts": {
     "apiReports": {
-      "coremind-ai": "3e67a101b30607a15d50b49762a68762570b354aa899f74265518e74825fcaa5",
+      "coremind-ai": "2127e7461dc2dd293db8893d4519d89f1d3e310b490fe308f993c815b7ec88a7",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
-      "coremind-protocol": "e50d867e5d7c9f0d92527b8746139b973713f9b8662a896a931829fe0fd03049",
+      "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
       "coremind-runtime": "81dce5d32b152349a2eaff1e81a4d9e383b0dac4abb3797f5ee477d022aa0678",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "96690716a0b98ac983ec1e728008f7aadbb05cf155804d77d9208896b7894fca",
-      "coremind-worker": "5b228bdd8b5b06fc4f9c81fd8ca60604eb0766f6d57db52623eaf7372e2234f1"
+      "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
     },
     "schemas": {
       "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
       "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
-      "protocolV2": "cc7ae9cb12ae914673dd7b9697a1b383490dba171b9cbcd9cf20ae408f4da08a"
+      "protocolV2": "504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69"
     }
   },
   "dependencies": {
@@ -283,21 +283,21 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-01T13:02:05.573Z",
+    "capturedAt": "2026-11-01T18:49:37.781Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #366: public session tree API and registered navigation error; original gates retained",
+    "updateReason": "Issue #367: negotiated task/session DTOs and trusted Worker registration with typed SDK transport; existing gates unchanged",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "42f7f3780e9dc7cd3275bfc1da8568d44aacf605c9e90f16868749d8c0722bb4",
+    "dependencyLockSha256": "e90231b13cfaa1255d67c2c07e69ae19f2320da6f3590aad20e1a47408103359",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
-      "coremind-ai": "79ddb9d959ba09d4094b44d7374c25fb58c416ad6fea2e5f281ef3b626c42573",
+      "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
       "coremind-cli": "c84d2667b0179beaf3555345e67fdd47781e82e78b17b46c27ddbd854b4e6e1d",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
-      "coremind-protocol": "e89e6fc2faef5d29cadef0f2ef210d90e2e1984bed8dd034dd157752b7eabcb0",
-      "coremind-runtime": "166297178ffe427ab7f82ac44e0279e872b0a0ff725a60bf7b711e29bacf9281",
+      "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
+      "coremind-runtime": "e51ab5a4652c60182500856db2fc62ee70909494e9bb1d4c8f5e6e113984f99d",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
       "coremind-tools": "1b4adc101935ebf4cd562d596c7e98a5321275dee70662c113f8c2094a113fb3",
-      "coremind-worker": "83f30ad27bd4ce6c7881711ef8f8f393bced403a7990488b419882054c7abf8a"
+      "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
   }

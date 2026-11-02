@@ -20,3 +20,7 @@
 ## 停止条件
 
 遇到未确认业务规则、不可逆副作用、工作区外访问、真实密钥缺失或安全门禁失败时停止，向负责人请求决定。不要自行扩大业务范围。
+
+## 跨语言验收
+
+任务与会话分支的 Protocol v2 / 同步与异步 Python 入口已接入同一 Node Runtime。使用方法和权限边界见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)；离线执行 `python -X utf8 examples/modules/embed-coremind-python/tasks.py`，并运行 `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`。核对真实重启、稳定调用结果、会话身份、取消和错误；不要用纯 Mock 或进程存活替代验收。

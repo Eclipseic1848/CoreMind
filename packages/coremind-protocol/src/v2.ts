@@ -2,6 +2,63 @@ import { createHash } from "node:crypto";
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { ErrorCodeSchema } from "./error-contract.js";
+import {
+  type ProtocolV2SessionRequest,
+  ProtocolV2SessionRequestSchema,
+  type ProtocolV2SessionResult,
+  ProtocolV2SessionResultSchema,
+  type ProtocolV2TaskRequest,
+  ProtocolV2TaskRequestSchema,
+  type ProtocolV2TaskResult,
+  ProtocolV2TaskResultSchema,
+} from "./session-management.js";
+
+export * from "./session-management.js";
+
+/** 校验响应结构和调用身份；不能把其他任务的结果交给当前请求。 */
+export function parseProtocolV2TaskResult(
+  value: unknown,
+  params?: ProtocolV2TaskRequest["params"],
+): ProtocolV2TaskResult {
+  if (!Value.Check(ProtocolV2TaskResultSchema, value))
+    throw new ProtocolV2ValidationError("任务响应结构无效");
+  if (
+    params &&
+    (value.sessionId !== params.sessionId ||
+      value.action !== params.action ||
+      ("taskId" in params && (!("taskId" in value) || value.taskId !== params.taskId)) ||
+      ("task" in value &&
+        value.task &&
+        "taskId" in params &&
+        value.task.taskId !== params.taskId) ||
+      (params.action === "wake" &&
+        (value.action !== "wake" ||
+          value.wakeId !== params.wakeId ||
+          value.sleepId !== params.sleepId)))
+  )
+    throw new ProtocolV2ValidationError("任务响应身份不匹配");
+  return structuredClone(value);
+}
+
+export function parseProtocolV2SessionResult(
+  value: unknown,
+  params?: ProtocolV2SessionRequest["params"],
+): ProtocolV2SessionResult {
+  if (!Value.Check(ProtocolV2SessionResultSchema, value))
+    throw new ProtocolV2ValidationError("会话树响应结构无效");
+  if (
+    params &&
+    (value.sessionId !== params.sessionId ||
+      value.action !== params.action ||
+      (params.action === "fork"
+        ? value.tree.sessionId === params.sessionId ||
+          value.tree.forkedFrom?.sessionId !== params.sessionId ||
+          value.tree.forkedFrom?.entryId !== params.at.entryId
+        : value.tree.sessionId !== params.sessionId))
+  )
+    throw new ProtocolV2ValidationError("会话树响应身份不匹配");
+  return structuredClone(value);
+}
 
 export const PROTOCOL_V2_VERSION = "2.0" as const;
 
@@ -420,6 +477,8 @@ export const ProtocolV2McpAuthRequestSchema = Type.Object(
 );
 
 export const ProtocolV2RequestSchema = Type.Union([
+  ProtocolV2TaskRequestSchema,
+  ProtocolV2SessionRequestSchema,
   ProtocolV2InitializeRequestSchema,
   ProtocolV2RunRequestSchema,
   ProtocolV2ChatRequestSchema,
@@ -1528,6 +1587,8 @@ export const ProtocolV2ErrorResponseSchema = Type.Object(
 
 /** 客户端与 Host 共同锁定的完整 v2 线协议 schema 集。 */
 export const PROTOCOL_V2_SCHEMA_BUNDLE = {
+  taskResult: ProtocolV2TaskResultSchema,
+  sessionResult: ProtocolV2SessionResultSchema,
   request: ProtocolV2RequestSchema,
   initializeResult: ProtocolV2InitializeResultSchema,
   runHandle: ProtocolV2RunHandleSchema,

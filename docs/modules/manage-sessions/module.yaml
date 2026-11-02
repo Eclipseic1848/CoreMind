@@ -29,6 +29,9 @@ examplePaths:
   - examples/modules/manage-sessions/README.en.md
   - examples/modules/manage-sessions/branches.mjs
 testPaths:
+  - "python/tests/test_session_management.py"
+  - "packages/coremind-worker/src/session-management.test.ts"
+  - "packages/coremind-protocol/src/session-management.test.ts"
   - "packages/coremind-runtime/src/session.test.ts"
   - "packages/coremind-runtime/src/chat-session.test.ts"
   - "packages/coremind-runtime/src/chat-session-tree.test.ts"

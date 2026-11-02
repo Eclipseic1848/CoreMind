@@ -15,6 +15,8 @@
 
 **能力提升**
 
+- **会话路径恢复：** 同一物理工作目录的 Windows 长短名或目录链接可重开并 fork 既有 v4 会话；核对目录及文件身份后沿用原存储，避免误入旧格式迁移，不搬移或改写历史。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+
 - **公共会话树：** ChatSession 新增树查询、命名分支、持久选择与按消息节点 fork；复用会话写锁，继续对话只读取所选分支。新会话不继承 Run/控制/授权，补齐真实进程恢复、写故障回归、双语指南与旧 SDK 回滚边界；CI 与发布资格仍须满足原门禁。 ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
 
 - **稳定键调用与结果复用：** 新增 runCalls/executeTool 和调用查询，一个阶段共享原 Run/ChildRun 治理；显式结果恢复、分歧审计和真实进程中断验证。未知副作用仍由原恢复门拦截，旧 SDK 回滚边界与双语文档同步；正式发布仍须原 CI、安全与合并验收。 ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
@@ -24,6 +26,8 @@
 - **持久任务阶段与显式迁移：** 公共 TypeScript `TaskSession` 支持 start/query/resume/cancel，阶段检查点原子提交，版本/定义/权限身份校验与显式状态迁移。模型和工具沿用现有 Runtime；未知 Run 窗口失败关闭。配套真实进程、权限/预算/取消验证及双语指南、SOP/Skill 和离线示例。未合并或安全门未通过不构成发布资格。 ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
 
 - **任务原子提交基础：** 新增 internal `TaskCommitSession`，把任务 checkpoint、typed document 和文本 entry 放在一个原子持久记录中；支持 revision 冲突、commitId 内容幂等、Schema 身份校验和进程崩溃后投影重建。旧 Session/Run/Workspace 数据不迁移，标准 Runtime 保护任务存储路径。配套 ADR、双语指南、SOP/Skill、真实子进程回归与无模型示例；后台调度服务和跨语言接入仍属后续迭代。本节不表示已发布。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+
+- **跨语言任务与会话：** Protocol v2 增加独立能力和绑定身份的 DTO；TS、同步/异步 Python 通过同一 Node Worker 执行宿主注册的任务及分支/fork。任务工具权限与项目代码信任独立，原错误分类和超时保留；附真实进程崩溃后的结果复用与跨语言验收、安装入口和双语示例。 ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
 
 - **CI 失败传播：** 拆分 Windows 工程门的多命令步骤，防止主 Python 测试等前序失败被后续成功覆盖；原命令、顺序、验收与超时保持，补充真实 PowerShell 反例回归（#376）。
 

@@ -30,3 +30,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.
 
 Unpublished source fix: end-of-run session summaries consume the same Run turn/token/cost budget and remaining deadline, and obey cancellation. Insufficient budget skips compaction while preserving history. Compare actual provider calls with persisted request facts; unknown usage on failure is not zero usage.
+
+## Cross-language acceptance
+
+Protocol v2 and sync/async Python task/session methods use the same Node Runtime. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Run `python -X utf8 examples/modules/embed-coremind-python/tasks.py` and `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`. Verify real restart, committed calls, session identity, cancellation and errors; mocks or process liveness alone are insufficient.

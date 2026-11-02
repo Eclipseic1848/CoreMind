@@ -15,6 +15,8 @@ session:
 
 只有启用后才能使用 CLI 的 `--session <id>`。如果配置未启用，CLI 会明确失败并提示修正。
 
+同一物理工作目录通过 Windows 长短名或目录链接重开时，会话会核对目录与公开文件的物理身份，沿用头中记录的既有 v4 存储路径；不搬移历史。不同物理目录或内容相同但身份不同的复制文件不能借此恢复为同一会话。
+
 `session.compact` 控制旧 `ContextProtector` 行为，不会关闭 Runtime 的模型感知预算。只要当前请求超过可用输入预算，Runtime 就会尝试构建有界 Working Set；若确实需要压缩，必须同时存在已启用且可写入的 Session，摘要不能只保存在进程内存中。
 
 不同模型的窗口和输出上限可以不同。Runtime 会在每次请求和模型切换时重新解析能力，并将本次实际 `maxTokens` 原样纳入预算；不会用窗口比例静默缩小调用方请求。
@@ -51,7 +53,7 @@ await forkChat.chat("在新会话继续");
 
 选择写入拒绝可能发生在实际落盘之后；保留文件，重新打开查询，不能假定回滚。fork 的公开别名失败可能留下完整内部候选；按错误路径核实身份再打开，不盲目重新 fork 或删除来源。
 
-旧 v3/v4 无分支数据兼容。旧 SDK 不理解持久选择，禁止直接接管新文件；回滚须停 writer、保全完整 Session/Run/Workspace 并恢复升级前备份。本 API 不是 第三方 ExtensionAPI，也不恢复原 Run。Python/RPC 导航归 #367。见 [ADR0029](../../adr/0029-public-session-tree-navigation.md)与[可运行示例](../../../examples/modules/manage-sessions/branches.mjs)。
+旧 v3/v4 无分支数据兼容。旧 SDK 不理解持久选择，禁止直接接管新文件；回滚须停 writer、保全完整 Session/Run/Workspace 并恢复升级前备份。本 API 不是 第三方 ExtensionAPI，也不恢复原 Run。Python/RPC 导航见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)。见 [ADR0029](../../adr/0029-public-session-tree-navigation.md)与[可运行示例](../../../examples/modules/manage-sessions/branches.mjs)。
 
 ## 验证
 

@@ -37,6 +37,9 @@ examplePaths:
   - examples/modules/recover-durable-runs/task-sleep.mjs
   - examples/modules/recover-durable-runs/task-calls.mjs
 testPaths:
+  - "python/tests/test_session_management.py"
+  - "packages/coremind-worker/src/session-management.test.ts"
+  - "packages/coremind-protocol/src/session-management.test.ts"
   - "packages/coremind-runtime/src/operation-state.test.ts"
   - "packages/coremind-runtime/src/run-state.test.ts"
   - "packages/coremind-runtime/src/task-session.test.ts"

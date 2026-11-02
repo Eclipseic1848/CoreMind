@@ -13,6 +13,8 @@ import { ProtocolV2VerificationRequestNotification } from 'coremind-protocol';
 import { RunControlCommand } from 'coremind-ai';
 import { RunStateRecord } from 'coremind-ai';
 import { SecretResolver } from 'coremind-ai';
+import { TaskRuntimeOptions } from 'coremind-ai';
+import { TaskSessionOptions } from 'coremind-ai';
 
 declare type ProtocolEventRunStore = FileRunStore & {
     readEventWindow?: (options: {
@@ -34,6 +36,10 @@ declare class ProtocolHost {
     private readonly runtimeFactory;
     private initialized?;
     private selectedProtocol?;
+    private readonly managementCapabilities;
+    private taskSession?;
+    private managementOperation?;
+    private managementController?;
     private readonly toolSpecs;
     private readonly protocolV2ToolRegistrations;
     private readonly pendingApprovals;
@@ -66,6 +72,11 @@ declare class ProtocolHost {
     accept(value: unknown): void;
     handle(value: unknown): Promise<ProtocolSuccessResponse | ProtocolErrorResponse>;
     private handleProtocolV2;
+    private managementState;
+    private managedOperation;
+    private openTasks;
+    private handleTask;
+    private handleSessionNavigation;
     private handleMcpAuthentication;
     private withProtocolV2RunTransition;
     private beginProtocolV2Run;
@@ -106,6 +117,9 @@ declare class ProtocolHost {
 export { ProtocolHost }
 export { ProtocolHost as WorkerServer }
 
+/** 一行一个 JSON-RPC 消息；普通背压期间仍处理输入，硬失败后等待一次统一收尾。 */
+export declare function runStdioWorker(input?: NodeJS.ReadableStream, output?: NodeJS.WritableStream, options?: Omit<WorkerServerOptions, "send">): Promise<void>;
+
 export declare type WorkerMessage = ProtocolSuccessResponse | ProtocolErrorResponse | ProtocolV2ToolCallNotification | ProtocolV2ToolCancelNotification | ProtocolV2VerificationRequestNotification | ProtocolV2McpAuthRequestNotification | ReturnType<typeof createEventNotification> | ReturnType<typeof createPythonToolCallNotification>;
 
 export declare type WorkerRuntime = Pick<CoreMindRuntime, "run"> & {
@@ -120,6 +134,10 @@ export declare interface WorkerServerOptions {
     runtimeFactory?: WorkerRuntimeFactory;
     runStoreFactory?: (directory: string) => ProtocolEventRunStore;
     secretResolver?: SecretResolver;
+    /** 可信 Node 宿主预注册；RPC 只能引用 definitions 中的 type。 */
+    tasks?: Pick<TaskSessionOptions, "definitions" | "documentSchemas"> & {
+        runtime?: Omit<TaskRuntimeOptions, "config" | "configDir" | "approveProjectCode">;
+    };
 }
 
 export { }

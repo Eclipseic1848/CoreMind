@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {
+  ChatSession,
   CheckpointManager,
   type CheckpointRecord,
   type ControlApplyResult,
@@ -25,6 +26,11 @@ import {
   type RunStateRecord,
   restoreCheckpoint,
   type SecretResolver,
+  TaskCallError,
+  TaskExecutionError,
+  type TaskRuntimeOptions,
+  TaskSession,
+  type TaskSessionOptions,
 } from "coremind-ai";
 import {
   buildProviderRuntime,
@@ -62,7 +68,9 @@ import {
   type ProtocolV2QueryRequest,
   type ProtocolV2Request,
   type ProtocolV2RunHandle,
+  type ProtocolV2SessionRequest,
   type ProtocolV2StartRequest,
+  type ProtocolV2TaskRequest,
   type ProtocolV2ToolCallNotification,
   type ProtocolV2ToolCancelNotification,
   type ProtocolV2ToolRegisterRequest,
@@ -74,6 +82,8 @@ import {
   parseProtocolV2McpAuthRequestNotification,
   parseProtocolV2McpAuthResult,
   parseProtocolV2Request,
+  parseProtocolV2SessionResult,
+  parseProtocolV2TaskResult,
   parseRunSnapshot,
 } from "coremind-protocol";
 
@@ -90,6 +100,8 @@ const PROTOCOL_V2_SERVER_CAPABILITIES = [
   "mcpAuthentication",
   "toolDiscovery",
   "projectCodeTrust",
+  "durableTasks",
+  "sessionBranches",
 ] as const;
 const PROTOCOL_V2_AVAILABLE_CONTROLS = [
   "cancel",
@@ -122,6 +134,10 @@ export interface WorkerServerOptions {
   runtimeFactory?: WorkerRuntimeFactory;
   runStoreFactory?: (directory: string) => ProtocolEventRunStore;
   secretResolver?: SecretResolver;
+  /** 可信 Node 宿主预注册；RPC 只能引用 definitions 中的 type。 */
+  tasks?: Pick<TaskSessionOptions, "definitions" | "documentSchemas"> & {
+    runtime?: Omit<TaskRuntimeOptions, "config" | "configDir" | "approveProjectCode">;
+  };
 }
 
 export interface ProtocolEventWindow {
@@ -185,6 +201,10 @@ export class ProtocolHost {
   private readonly runtimeFactory: WorkerRuntimeFactory;
   private initialized?: InitializedState;
   private selectedProtocol?: typeof PROTOCOL_VERSION | "2.0";
+  private readonly managementCapabilities = new Set<string>();
+  private taskSession?: Promise<TaskSession>;
+  private managementOperation?: Promise<unknown>;
+  private managementController?: AbortController;
   private readonly toolSpecs = new Map<string, RegisteredToolSpec>();
   private readonly protocolV2ToolRegistrations = new Map<string, RegisteredToolSpec>();
   private readonly pendingApprovals = new Map<string, PendingApproval>();
@@ -326,6 +346,32 @@ export class ProtocolHost {
           ),
         );
       }
+      if (request.method === "task" || request.method === "session") {
+        try {
+          const result =
+            request.method === "task"
+              ? await this.handleTask(request)
+              : await this.handleSessionNavigation(request);
+          return createSuccessResponse(request.id, result);
+        } catch (error) {
+          const response = protocolError(request.id, error);
+          const previous = response.error.data?.details;
+          response.error.data = {
+            ...response.error.data,
+            details: {
+              ...(previous && typeof previous === "object" ? previous : {}),
+              operation: request.method,
+              action: request.params.action,
+              sessionId: request.params.sessionId,
+              ...("taskId" in request.params ? { taskId: request.params.taskId } : {}),
+              ...(error instanceof TaskExecutionError || error instanceof TaskCallError
+                ? { taskCode: error.code }
+                : {}),
+            },
+          };
+          return response;
+        }
+      }
       if (request.method === "control") {
         return createSuccessResponse(
           request.id,
@@ -369,6 +415,159 @@ export class ProtocolHost {
     } catch (error) {
       return protocolError(request.id, error);
     }
+  }
+
+  private managementState(sessionId: string, capability: string): InitializedState {
+    const state = this.requireInitialized();
+    if (!this.managementCapabilities.has(capability))
+      throw new CoreMindError("protocol_capability_missing", "未协商 " + capability + " 能力");
+    if (sessionId !== (state.sessionId ?? "python-default"))
+      throw new CoreMindError("session_navigation_invalid", "请求不属于初始化时绑定的会话");
+    return state;
+  }
+
+  private managedOperation<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    if (
+      this.running ||
+      this.managementOperation ||
+      this.protocolV2RunTransitions.has(PROTOCOL_V2_WORKER_TRANSITION)
+    )
+      throw new CoreMindError("worker_busy", "Worker 已有运行或会话操作");
+    const controller = new AbortController();
+    this.managementController = controller;
+    const pending = Promise.resolve().then(() => {
+      if (this.closed) throw new CoreMindError("worker_closed", "Worker 已关闭");
+      return operation(controller.signal);
+    });
+    this.managementOperation = pending;
+    return pending.finally(() => {
+      if (this.managementOperation === pending) {
+        this.managementOperation = undefined;
+        this.managementController = undefined;
+      }
+    });
+  }
+
+  private openTasks(state: InitializedState): Promise<TaskSession> {
+    if (!this.options.tasks)
+      throw new CoreMindError("protocol_capability_missing", "宿主未注册任务定义");
+    const options = this.options.tasks;
+    this.taskSession ??= TaskSession.open({
+      workspace: state.cwd,
+      sessionId: state.sessionId ?? "python-default",
+      definitions: options.definitions,
+      documentSchemas: options.documentSchemas,
+      ...(options.runtime
+        ? {
+            runtime: {
+              ...options.runtime,
+              // 回调源码无法反映闭包中的信任开关；把实际授权值绑定到持久身份。
+              authorityVersion: createHash("sha256")
+                .update(
+                  JSON.stringify([
+                    "coremind/worker-tasks/v1",
+                    options.runtime.authorityVersion,
+                    state.trustProjectCode,
+                  ]),
+                )
+                .digest("hex"),
+              config: state.config,
+              configDir: state.configDir,
+              // 信任任务注册不等于允许配置另外加载项目脚本。
+              approveProjectCode: () => state.trustProjectCode,
+            },
+          }
+        : {}),
+    });
+    return this.taskSession;
+  }
+
+  private async handleTask(request: ProtocolV2TaskRequest): Promise<unknown> {
+    const params = request.params;
+    const state = this.managementState(params.sessionId, "durableTasks");
+    const operate = async () => {
+      const tasks = await this.openTasks(state);
+      const base = { schemaVersion: 1, sessionId: params.sessionId, action: params.action };
+      let result: unknown;
+      switch (params.action) {
+        case "start":
+          result = {
+            ...base,
+            taskId: params.taskId,
+            task: await tasks.start(params as Parameters<TaskSession["start"]>[0]),
+          };
+          break;
+        case "query":
+          result = { ...base, taskId: params.taskId, task: tasks.query(params.taskId) ?? null };
+          break;
+        case "resume":
+          result = { ...base, taskId: params.taskId, task: await tasks.resume(params.taskId) };
+          break;
+        case "cancel":
+          result = { ...base, taskId: params.taskId, task: await tasks.cancel(params.taskId) };
+          break;
+        case "wake": {
+          const woke = await tasks.wake(params.taskId, params.wakeId, params.sleepId);
+          result = {
+            ...base,
+            taskId: params.taskId,
+            wakeId: params.wakeId,
+            sleepId: params.sleepId,
+            task: woke.task,
+            wakeStatus: woke.status,
+          };
+          break;
+        }
+        case "next_wake":
+          result = { ...base, deadline: tasks.nextWake() ?? null };
+          break;
+        case "calls":
+          result = { ...base, taskId: params.taskId, calls: tasks.calls(params.taskId) };
+      }
+      return parseProtocolV2TaskResult(result, params);
+    };
+    // 查询只读已提交快照；取消必须能在阶段 RPC 尚未返回时进入。
+    return ["query", "next_wake", "calls", "cancel"].includes(params.action)
+      ? operate()
+      : this.managedOperation(operate);
+  }
+
+  private handleSessionNavigation(request: ProtocolV2SessionRequest): Promise<unknown> {
+    const params = request.params;
+    const state = this.managementState(params.sessionId, "sessionBranches");
+    return this.managedOperation(async (signal) => {
+      const config = persistentSessionConfig(state.config, state.configDir);
+      if (!state.trustProjectCode)
+        await prepareProjectCodeImports(config, state.configDir, () => false, signal);
+      const runtime = await CoreMindRuntime.create({
+        config,
+        configDir: state.configDir,
+        cwd: state.cwd,
+        sessionId: params.sessionId,
+        signal,
+        secretResolver: this.options.secretResolver,
+        approveProjectCode: () => state.trustProjectCode,
+      });
+      signal.throwIfAborted();
+      const chat = new ChatSession(runtime, config.defaultAgent ?? Object.keys(config.agents)[0]!);
+      const tree =
+        params.action === "inspect"
+          ? await chat.inspectSessionTree()
+          : params.action === "create"
+            ? await chat.createBranch(params.branchId, params.at)
+            : params.action === "select"
+              ? await chat.selectBranch(params.branchId)
+              : await chat.fork(params.at);
+      return parseProtocolV2SessionResult(
+        {
+          schemaVersion: 1,
+          sessionId: params.sessionId,
+          action: params.action,
+          tree,
+        },
+        params,
+      );
+    });
   }
 
   private async handleMcpAuthentication(
@@ -497,6 +696,7 @@ export class ProtocolHost {
   }
 
   private async beginProtocolV2Run(request: ProtocolV2StartRequest): Promise<ProtocolV2RunHandle> {
+    if (this.managementOperation) throw new CoreMindError("worker_busy", "任务或会话导航尚未完成");
     if (this.closed) throw new CoreMindError("worker_closed", "worker 已关闭");
     const fingerprint = protocolV2StartFingerprint(request);
     const resumeOperation =
@@ -842,7 +1042,8 @@ export class ProtocolHost {
         ...(diff.reason !== undefined ? { reason: diff.reason } : {}),
       };
     }
-    if (this.running) throw new CoreMindError("worker_busy", "运行期间不能修改 checkpoint");
+    if (this.running || this.managementOperation)
+      throw new CoreMindError("worker_busy", "运行或会话操作期间不能修改 checkpoint");
     if (request.params.action === "create") {
       const params = request.params;
       const checkpointId = createHash("sha256")
@@ -973,6 +1174,10 @@ export class ProtocolHost {
       this.selectedProtocol = selectedProtocol;
       this.mcpAuthenticationNegotiated =
         request.params.capabilities?.includes("mcpAuthentication") === true;
+      if (request.params.capabilities?.includes("sessionBranches"))
+        this.managementCapabilities.add("sessionBranches");
+      if (this.options.tasks && request.params.capabilities?.includes("durableTasks"))
+        this.managementCapabilities.add("durableTasks");
       return createSuccessResponse(request.id, {
         selectedProtocol,
         runtime: "node",
@@ -981,7 +1186,9 @@ export class ProtocolHost {
           (capability) =>
             (capability !== "mcpAuthentication" || this.mcpAuthenticationNegotiated) &&
             (capability !== "toolDiscovery" ||
-              request.params.capabilities?.includes("toolDiscovery")),
+              request.params.capabilities?.includes("toolDiscovery")) &&
+            (!["durableTasks", "sessionBranches"].includes(capability) ||
+              this.managementCapabilities.has(capability)),
         ),
         schemaFingerprint: PROTOCOL_V2_SCHEMA_FINGERPRINT,
         migration: {
@@ -1137,7 +1344,8 @@ export class ProtocolHost {
     params: Extract<ProtocolRequest, { method: "register_tool" }>["params"],
   ): unknown {
     this.requireInitialized();
-    if (this.running) throw new CoreMindError("worker_busy", "运行期间不能注册工具");
+    if (this.running || this.managementOperation)
+      throw new CoreMindError("worker_busy", "运行或会话操作期间不能注册工具");
     if (
       params.parameters === null ||
       typeof params.parameters !== "object" ||
@@ -1157,7 +1365,8 @@ export class ProtocolHost {
 
   private registerProtocolV2Tool(request: ProtocolV2ToolRegisterRequest): unknown {
     this.requireInitialized();
-    if (this.running) throw new CoreMindError("worker_busy", "运行期间不能注册工具");
+    if (this.running || this.managementOperation)
+      throw new CoreMindError("worker_busy", "运行或会话操作期间不能注册工具");
     const params = request.params;
     const definitionFingerprint = protocolV2ToolDefinitionFingerprint(params);
     const existing = this.protocolV2ToolRegistrations.get(params.registrationId);
@@ -1218,7 +1427,8 @@ export class ProtocolHost {
     protocolStart?: ProtocolStartIdentity,
   ): Promise<unknown> {
     const state = this.requireInitialized();
-    if (this.running) throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行");
+    if (this.running || this.managementOperation)
+      throw new CoreMindError("worker_busy", "同一 worker 同时只允许一个运行或会话操作");
     const runId = requestedRunId ?? resumeRunId;
     if (runId) this.pausedControlInboxes.delete(runId);
     this.running = true;
@@ -1236,14 +1446,7 @@ export class ProtocolHost {
         ? { ...state.config, defaultAgent: agent, workflow: undefined }
         : state.config;
       const config = persistentChat
-        ? {
-            ...baseConfig,
-            session: {
-              enabled: true,
-              dir: baseConfig.session?.dir ?? path.join(state.configDir, ".coremind", "sessions"),
-              compact: baseConfig.session?.compact ?? false,
-            },
-          }
+        ? persistentSessionConfig(baseConfig, state.configDir)
         : baseConfig;
       if (!state.trustProjectCode) {
         await prepareProjectCodeImports(
@@ -1775,6 +1978,15 @@ export class ProtocolHost {
   /** 停止接收新请求，并等待在飞 Runtime/Environment 完成自己的 finally 清理。 */
   async shutdown(timeoutMs = 5_000): Promise<{ closed: true; quiescent: boolean }> {
     this.closed = true;
+    this.managementController?.abort();
+    const tasksClosed = this.taskSession
+      ? this.taskSession
+          .then((tasks) => tasks.close())
+          .then(
+            () => true,
+            () => false,
+          )
+      : Promise.resolve(true);
     for (const transaction of this.mcpAuthTransactions.values()) transaction.controller.abort();
     const authenticationClosed = Promise.resolve()
       .then(() => this.mcpAuthentication?.close())
@@ -1794,6 +2006,7 @@ export class ProtocolHost {
     const active = Promise.all([...this.protocolV2RunTransitions.values()]).then(async () => {
       this.activeController?.abort();
       await this.activeExecutionCompletion;
+      await this.managementOperation?.catch(() => undefined);
       await Promise.allSettled(
         [...this.mcpAuthTransactions.values()].map((transaction) => transaction.promise),
       );
@@ -1804,6 +2017,7 @@ export class ProtocolHost {
         active.then(
           async () =>
             (await authenticationClosed) &&
+            (await tasksClosed) &&
             this.lastExecutionQuiescent &&
             this.unsettledPythonCalls.size === 0,
         ),
@@ -1821,6 +2035,17 @@ export class ProtocolHost {
     if (!this.initialized) throw new CoreMindError("not_initialized", "请先调用 initialize");
     return this.initialized;
   }
+}
+
+function persistentSessionConfig(config: CoreMindConfig, configDir: string): CoreMindConfig {
+  return {
+    ...config,
+    session: {
+      enabled: true,
+      dir: config.session?.dir ?? path.join(configDir, ".coremind", "sessions"),
+      compact: config.session?.compact ?? false,
+    },
+  };
 }
 
 function serializeRunResult(result: RunResult): unknown {

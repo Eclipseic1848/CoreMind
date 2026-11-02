@@ -22,6 +22,7 @@ from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union
 from urllib.parse import parse_qsl, urlsplit
 
 from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
+from ._session_management import validate_management_error, validate_management_result
 
 PROTOCOL_VERSION = "1.0"
 PROTOCOL_V2_VERSION = "2.0"
@@ -382,6 +383,63 @@ class CoreMindClient:
             require_observability="localObservability" in self._capabilities,
         )
 
+    def task_start(self, task_id: str, definition_id: str, checkpoint: Any) -> dict[str, Any]:
+        return self._management_request("task", {"action": "start", "taskId": task_id,
+                                                "type": definition_id, "checkpoint": checkpoint})
+
+    def task_query(self, task_id: str) -> dict[str, Any]:
+        return self._management_request("task", {"action": "query", "taskId": task_id})
+
+    def task_resume(self, task_id: str) -> dict[str, Any]:
+        return self._management_request("task", {"action": "resume", "taskId": task_id})
+
+    def task_cancel(self, task_id: str) -> dict[str, Any]:
+        return self._management_request("task", {"action": "cancel", "taskId": task_id})
+
+    def task_wake(self, task_id: str, wake_id: str, sleep_id: str) -> dict[str, Any]:
+        return self._management_request("task", {"action": "wake", "taskId": task_id,
+                                                "wakeId": wake_id, "sleepId": sleep_id})
+
+    def task_next_wake(self) -> dict[str, Any]:
+        return self._management_request("task", {"action": "next_wake"})
+
+    def task_calls(self, task_id: str) -> dict[str, Any]:
+        return self._management_request("task", {"action": "calls", "taskId": task_id})
+
+    def inspect_session_tree(self) -> dict[str, Any]:
+        return self._management_request("session", {"action": "inspect"})
+
+    def create_session_branch(self, branch_id: str, at: Mapping[str, str] | None) -> dict[str, Any]:
+        return self._management_request("session", {"action": "create", "branchId": branch_id, "at": at})
+
+    def select_session_branch(self, branch_id: str) -> dict[str, Any]:
+        return self._management_request("session", {"action": "select", "branchId": branch_id})
+
+    def fork_session(self, at: Mapping[str, str]) -> dict[str, Any]:
+        return self._management_request("session", {"action": "fork", "at": at})
+
+    def _management_request(self, method: str, command: Mapping[str, Any]) -> dict[str, Any]:
+        self._require_v2_method(method)
+        # 在进入传输前冻结业务值并拒绝 callable/NaN，不把它们转换为可执行代码。
+        try:
+            params = json.loads(json.dumps(
+                {**command, "sessionId": self._session_id or "python-default"},
+                ensure_ascii=False, allow_nan=False))
+        except (ValueError, TypeError) as error:
+            raise ProtocolError("任务与会话参数必须为 JSON 数据", rpc_code=-32600,
+                                coremind_code="protocol_validation_failed") from error
+        self.start()
+        capability = "durableTasks" if method == "task" else "sessionBranches"
+        if capability not in self._capabilities:
+            raise ProtocolError(f"Worker 未协商 {capability}", rpc_code=-32601,
+                                coremind_code="protocol_capability_missing")
+        try:
+            result = self._request_raw(method, params)
+        except ProtocolError as error:
+            validate_management_error(error, method, params)
+            raise
+        return validate_management_result(result, method, params)
+
     def checkpoint_list(self, run_id: str) -> dict[str, Any]:
         """列出脱敏后的 Protocol v2 Checkpoint。"""
 
@@ -674,6 +732,8 @@ class CoreMindClient:
             "dynamicTools",
             "hostVerification",
             "toolDiscovery",
+            "durableTasks",
+            "sessionBranches",
         ]
         if self._mcp_auth_handler is not None:
             params["capabilities"].append("mcpAuthentication")
@@ -1151,6 +1211,39 @@ class AsyncCoreMindClient:
 
     async def checkpoint_diff(self, run_id: str, checkpoint_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.checkpoint_diff, run_id, checkpoint_id)
+
+    async def task_start(self, task_id: str, definition_id: str, checkpoint: Any) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_start, task_id, definition_id, checkpoint)
+
+    async def task_query(self, task_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_query, task_id)
+
+    async def task_resume(self, task_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_resume, task_id)
+
+    async def task_cancel(self, task_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_cancel, task_id)
+
+    async def task_wake(self, task_id: str, wake_id: str, sleep_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_wake, task_id, wake_id, sleep_id)
+
+    async def task_next_wake(self) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_next_wake)
+
+    async def task_calls(self, task_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.task_calls, task_id)
+
+    async def inspect_session_tree(self) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.inspect_session_tree)
+
+    async def create_session_branch(self, branch_id: str, at: Mapping[str, str] | None) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.create_session_branch, branch_id, at)
+
+    async def select_session_branch(self, branch_id: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.select_session_branch, branch_id)
+
+    async def fork_session(self, at: Mapping[str, str]) -> dict[str, Any]:
+        return await asyncio.to_thread(self._client.fork_session, at)
 
     async def checkpoint_list(self, run_id: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._client.checkpoint_list, run_id)

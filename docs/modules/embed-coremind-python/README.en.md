@@ -57,3 +57,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [Agent Skill](../../../skills/embed-coremind-python/SKILL.md)
 
 For the 1.2.0 source contracts for resume operation identity, callback ordering, notification consumption, and loading trust, see the [Python SDK source fixes](../../../python/README.md#源码修复说明). Upgrade the SDK and bundled Worker together and verify same-version artifacts and qualification evidence on official channels; a documentation update does not add behavior to older wheels.
+
+## Cross-language API
+
+Protocol v2 and sync/async Python task/session methods use the same Node Runtime. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Run `python -X utf8 examples/modules/embed-coremind-python/tasks.py` and `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`. Verify real restart, committed calls, session identity, cancellation and errors; mocks or process liveness alone are insufficient.

@@ -27,3 +27,13 @@ with CoreMindClient(config_path='coremind.yaml') as client:
 7. 篡改测试 Worker 的 snapshot schemaVersion 或 outcome，确认 SDK 返回 `invalid_run_snapshot`，而不是接受不一致结果。
 
 返回 [中文指南](../../../docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。
+
+## 持久任务离线示例
+
+```text
+npm run build:python-worker
+python -m pip install ./python
+python -X utf8 examples/modules/embed-coremind-python/tasks.py
+```
+
+task-host.mjs 在宿主注册可信定义；tasks.py 展示同步/异步重开、唤醒、完成和取消。没有真实模型请求。

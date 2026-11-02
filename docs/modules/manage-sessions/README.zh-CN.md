@@ -66,3 +66,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 - [模块示例](../../../examples/modules/manage-sessions/README.zh-CN.md)
 - [Module example](../../../examples/modules/manage-sessions/README.en.md)
 - [Agent Skill](../../../skills/manage-sessions/SKILL.md)
+
+## 跨语言入口
+
+任务与会话分支的 Protocol v2 / 同步与异步 Python 入口已接入同一 Node Runtime。使用方法和权限边界见 [跨语言指南](../embed-coremind-python/GUIDE.zh-CN.md)

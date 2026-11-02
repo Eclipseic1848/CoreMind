@@ -93,3 +93,7 @@ See the [task guide](../../guides/durable-tasks.en.md) for API details.
 2. Distinguish pending/completed/failed/cancelled and order conflicts. Preserve unknown effects; verify new Call/attempt links to immutable receipts for proven retries.
 3. Run task-calls.test.ts, task-calls-process.test.ts, task-calls-child.test.ts and task-calls.mjs, covering real exits, projection failures and governance.
 4. Run original module and both platform gates. Keep unmerged or security-blocked Issues open.
+
+## Cross-language acceptance
+
+Protocol v2 and sync/async Python task/session methods use the same Node Runtime. See the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Run `python -X utf8 examples/modules/embed-coremind-python/tasks.py` and `python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p test_session_management.py -v`. Verify real restart, committed calls, session identity, cancellation and errors; mocks or process liveness alone are insufficient.

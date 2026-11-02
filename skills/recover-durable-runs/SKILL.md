@@ -31,3 +31,7 @@ Public TypeScript TaskSession builds phase execution and explicit migration on t
 持久等待遵循 [ADR 0027](../../docs/adr/0027-durable-task-sleep-wake.md)：sleepUntil 与阶段结果一起提交，nextWake 从持久期限重建 alarm。wake 只确认 ready；宿主显式 resume，并在重启时 query 已知 ready 任务。已准入 wakeId 必须稳定绑定 sleepId；早到不消耗键，重复/过期通知不得推进后续阶段。回执未知先关闭重开核对，不扩大任何超时，不新增后台调度或把 close/reopen 当成崩溃验收。运行 task-sleep.test.ts、task-sleep-process.test.ts、task-session-runtime.test.ts 和 task-sleep.mjs。
 
 稳定键恢复遵循 [ADR 0028](../../docs/adr/0028-keyed-task-calls.md)。一个阶段只允许一个 run/runCalls；所有 key 共享原 Run 治理与子树上限。先保存 intent，确认原 Run 整步结果后再提交任务结果；恢复核对签名、版本、权限和顺序。未知效果不自动重放，安全新 Call 必须保留 attempt/receipt 绑定。终态只查询历史；I/O 不明须保全两个事实域，不伪造回滚。运行 task-calls.test.ts、task-calls-process.test.ts、task-calls-child.test.ts 和 task-calls.mjs，保留所有原门禁与超时。
+
+## 跨语言任务与导航（#367）
+
+使用 Protocol v2、匹配 Schema 指纹和独立协商的 durableTasks/sessionBranches。任务定义由 Node 宿主显式注册，Python 只传定义 ID 与 JSON 数据；不传源码、callable 或凭据。信任注册不绕过项目代码开关或工具授权。验收运行 python/tests/test_session_management.py，检查真实进程重启后的已提交结果复用、任务/Run/会话身份、取消、越权和错误分类。旧 SDK 不接管新数据；先停 writer 并保留完整备份。详见 docs/modules/embed-coremind-python/GUIDE.zh-CN.md。

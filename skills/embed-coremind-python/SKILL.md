@@ -21,3 +21,7 @@ description: "Drive the same Node runtime and explicit Loop over stdio JSON-RPC 
 For v1 `@client.tool` automatic schemas, verify future/string `int`, `str`, `bool`, and existing container annotations. Preserve existing Node conversion before schema validation: convertible values reach the callable in the target type, and arguments that still fail validation are rejected before execution. Unresolvable forward references must explicitly require `parameters`; existing explicit schemas remain compatible. Do not claim support for all Python typing syntax; complex types retain the existing support limits.
 
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint、Effect Receipt 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。
+
+## 跨语言任务与导航（#367）
+
+使用 Protocol v2、匹配 Schema 指纹和独立协商的 durableTasks/sessionBranches。任务定义由 Node 宿主显式注册，Python 只传定义 ID 与 JSON 数据；不传源码、callable 或凭据。信任注册不绕过项目代码开关或工具授权。验收运行 python/tests/test_session_management.py，检查真实进程重启后的已提交结果复用、任务/Run/会话身份、取消、越权和错误分类。旧 SDK 不接管新数据；先停 writer 并保留完整备份。详见 docs/modules/embed-coremind-python/GUIDE.zh-CN.md。

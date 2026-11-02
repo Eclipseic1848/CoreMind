@@ -16,6 +16,8 @@ export {
   type NormalizedExternalErrorCode,
   normalizeExternalErrorCode,
 } from "./error-contract.js";
+export { ProtocolV2SessionClient } from "./session-client.js";
+export * from "./session-management.js";
 
 export {
   negotiateProtocolV2,
@@ -86,6 +88,8 @@ export {
   parseProtocolV2McpAuthRequestNotification,
   parseProtocolV2McpAuthResult,
   parseProtocolV2Request,
+  parseProtocolV2SessionResult,
+  parseProtocolV2TaskResult,
 } from "./v2.js";
 
 export const PROTOCOL_VERSION = "1.0" as const;

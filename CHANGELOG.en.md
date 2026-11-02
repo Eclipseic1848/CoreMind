@@ -15,6 +15,8 @@ These changes are not yet released and include the unreleased 1.3.0 fixes. See t
 
 **Improvements**
 
+- **Session path recovery:** reopen and fork existing v4 sessions through Windows long/short paths or directory links to the same physical workspace. Directory and file identity checks preserve the original storage without moving or rewriting history or entering legacy migration. ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
+
 - **Public session trees:** ChatSession adds tree inspection, named branches, durable selection and message-node forks under existing writer ownership. New sessions do not inherit Run/control/authorization identities. Includes process recovery, write-failure regressions, bilingual guides and older SDK rollback boundaries; original CI and release gates remain required. ([#366](https://github.com/Eclipseic1848/CoreMind/issues/366))
 
 - **Keyed calls and result reuse:** added runCalls/executeTool and call queries within the existing Run/ChildRun controls. Includes explicit result recovery, divergence audits and real-process interruption regressions. Unknown effects retain the existing recovery gate; bilingual documentation covers old-SDK rollback boundaries. CI, security and merge acceptance remain required before release. ([#365](https://github.com/Eclipseic1848/CoreMind/issues/365))
@@ -24,6 +26,8 @@ These changes are not yet released and include the unreleased 1.3.0 fixes. See t
 - **Durable task phases and explicit migration:** public TypeScript `TaskSession` adds start/query/resume/cancel, atomic phase checkpoints, definition/version/authority checks and explicit state migration. Models and tools use the existing Runtime; unresolved Run windows fail closed. Includes real process, permission/budget/cancellation checks, bilingual guides, SOP/Skill and an offline example. This does not establish merge or release qualification. ([#363](https://github.com/Eclipseic1848/CoreMind/issues/363))
 
 - **Atomic task commit foundation:** added internal `TaskCommitSession`, committing a task checkpoint, typed documents and text entries in one atomic durable record. It checks revisions, content-bound commitId idempotency and schema identity, and rebuilds projections after process crashes. Legacy Session/Run/Workspace data stays unchanged; standard Runtime authorization protects task paths. Includes an ADR, bilingual guidance, SOP/Skill, real child-process regressions and a model-free example. Background scheduler services and cross-language access remain separate work. This is not a publication claim. ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362))
+
+- **Cross-language tasks and sessions:** Protocol v2 adds negotiated capabilities and identity-bound DTOs. TS and sync/async Python use one Node Worker for trusted host tasks and branch/fork operations, preserving separate tool permissions and project-code trust, existing error classification and timeouts. Includes real-process result reuse, parity checks, package entry validation and bilingual examples. ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
 
 - **CI failure propagation:** split multi-command Windows engineering steps so later success cannot mask earlier failures, including Python SDK tests. Preserve commands, ordering, acceptance and timeouts, with a real PowerShell regression (#376).
 
