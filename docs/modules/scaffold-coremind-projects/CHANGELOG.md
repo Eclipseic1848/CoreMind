@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - Synchronized module contracts and version metadata for the 1.3.0 release line; publication requires qualification for the final commit and exact artifacts.

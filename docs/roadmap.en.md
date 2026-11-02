@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release line: `1.3.0`
+## Current release line: `1.4.0`
 
-`0.2.0-rc.1` remains the immutable reference baseline. GitHub Releases, npm, and PyPI determine the latest installable version in each channel. The `1.3.0` release line upgrades from published `1.2.0`, focusing on safety, cancellation, data ownership, cross-language tools, and diagnostics while retaining the 1.1 work included in 1.2. Use the [1.2→1.3 migration guide](migrations/1.2-to-1.3.en.md); earlier upgrades remain in the [historical guide](migrations/1.0-to-1.2.en.md). Current source retains these capabilities:
+`0.2.0-rc.1` remains an immutable reference baseline. Published `1.2.0` is the upgrade baseline; GitHub Releases, npm and PyPI determine the latest public stable version. The `1.4.0` release line combines unpublished `1.3.0` fixes with durable tasks, session trees and cross-language access. Use the [1.2→1.4 migration guide](migrations/1.2-to-1.4.en.md), or the [historical guide](migrations/1.0-to-1.2.en.md) for earlier versions. Verify same-version public artifacts and final qualification evidence before formal use. Current source includes:
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,11 +18,23 @@ This public roadmap describes product boundaries and intended directions. It del
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v1.3.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must share one version, with package-build and source-ZIP release commits recorded separately in the release manifest. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
+The `v1.4.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must share one version, with package-build and source-ZIP release commits recorded separately in the release manifest. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. Formal publication also requires strict-provider evidence bound to this version, final commit, Runtime, and Worker.
 
-## `1.3.0`: audit fixes and consistent behavior across entry points
+## `1.4.0`: durable tasks and sessions
+
+- Atomically commit task phases, checkpoints, typed documents and text entries with revision, idempotency, Schema and single-writer checks.
+- Public `TaskSession` supports start/query/resume/cancel and explicit definition-version migration. Handlers restart at the committed phase, without restoring JavaScript stacks.
+- Durable waits bind absolute deadlines and sleepId/wakeId. Hosts own alarms, process startup and explicit ready-task recovery; no background distributed scheduler is added.
+- Keyed calls reuse committed results under the original Run/ChildRun while checking arguments, order, capability, authorization and effect facts. Unknown external effects require human reconciliation; external exactly-once is not promised.
+- Session trees support named branches, durable selection and message-node forks. New sessions inherit no Run identity or authorization; equivalent physical directory paths retain identity-checked existing storage.
+- Protocol v2 negotiates task/session capabilities for TS and sync/async Python through one Node Worker. Trusted hosts register definitions; Python sends no source, callables or credentials.
+- Include unpublished 1.3 fixes, retry status-code boundaries, CI failure propagation and dependency fixes/approved risk registration. Risk acceptance does not fix vulnerabilities; see the [security policy](../SECURITY.en.md).
+
+These capabilities have merged into source. Engineering acceptance does not establish production outcomes or live Provider certification. Formal publication still requires strict qualification for the final commit, Runtime/Worker and exact artifacts, followed by public-channel reinstall verification. See the [1.4 release notes](release/notes/v1.4.0.md).
+
+## Unpublished `1.3.0`: audit fixes included in 1.4
 
 - Strengthen tool-write protection for framework persistent state, retaining separate host-code trust and execution-permission boundaries.
 - Cancel parallel siblings on the first failure and wait for cleanup; terminal runs reject late execution admission.
@@ -35,7 +47,7 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 - Check the selected Provider's credentials in doctor without rejecting keyless/Header-only endpoints, loading scripts, or sending requests.
 - Align bilingual security-support status with the latest formal Release while retaining disclosure and safety boundaries.
 
-This version's strict Provider, both-platform candidate, and public reinstall qualification still require separate evidence bound to the final version, commit, and exact artifacts. Older results do not substitute for it. See the [1.3 release notes](release/notes/v1.3.0.md).
+These fixes are included in 1.4 without publishing or installing 1.3. The [1.3 preparation notes](release/notes/v1.3.0.md) remain historical and cannot qualify 1.4.
 
 ## Published `1.2.0`: reliability, controlled extensions, and interactive evidence
 
@@ -92,7 +104,7 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 ## Future roadmap (version scope to be confirmed)
 
-The 1.3.0 release line focuses on audit fixes to existing capabilities. The following directions still require independent scope and acceptance; obsolete version assignments from early plans no longer define their schedule:
+The current 1.4.0 scope delivers merged capabilities and reliability fixes. The following are later candidates, outside this release and without authorization to start; scope and acceptance require separate confirmation, with no promised version or date:
 
 - Web development environment: run and control surfaces first, followed by editing, testing, and evaluation, reusing the existing Protocol and Runtime.
 - More MCP service interoperability, LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.
@@ -113,7 +125,7 @@ Phase two advances through `alpha → beta → rc` and strengthens the framework
 
 Phase two starts from an immutable `0.2.0-rc.1` reference baseline that freezes public types, Config/Protocol schemas, the critical dependency combination, P01-P20, both-platform behavior, same-task coding-evaluation conditions, and quality floors. Coverage may improve but may not regress. Every intentional contract change must explain migration and rollback; gates are never lowered merely to pass.
 
-## Phase three: Web development environment
+## Later candidate: Web development environment (scope pending)
 
 Phase three is planned to add a complete browser-based development experience:
 

@@ -8,7 +8,7 @@ Persist multi-turn messages, fail clearly on corrupt recovery, and protect conte
 
 ## Public interfaces
 
-- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork` (1.4 development; stable DTOs without storage writers)
+- `ChatSession.inspectSessionTree/createBranch/selectBranch/fork` (1.4 release line; stable DTOs without storage writers)
 - `ChatSession`
 - `ChatSession.steer/followUp(message, options?)` (1.1 development; `options` is `{ controlId?, runId? }`)
 - `ContextProtector`

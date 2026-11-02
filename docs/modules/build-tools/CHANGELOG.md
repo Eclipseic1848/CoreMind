@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - 修复内置 `web-fetch`/`web-search` 的错误响应与正文读取失败收尾：等待正文取消/释放的清理尝试结束后才结算本地网络活动，清理异常保留原 HTTP/读取错误；原有成功、取消、权限/网络策略及 `web-fetch` 的 2 MiB 正文上限保持不变（#330）。

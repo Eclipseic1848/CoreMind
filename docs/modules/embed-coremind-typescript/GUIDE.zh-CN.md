@@ -1,6 +1,6 @@
 # TypeScript SDK 上手指南
 
-1.4 开发线新增 ChatSession 会话树查询、分支选择和按节点分叉。仅需 coremind-ai 公共导出；用新 sessionId 及宿主配置重新打开。接口、失败恢复与旧 SDK 回滚限制见[会话树指南](../manage-sessions/GUIDE.zh-CN.md)。
+1.4 发布线新增 ChatSession 会话树查询、分支选择和按节点分叉。仅需 coremind-ai 公共导出；用新 sessionId 及宿主配置重新打开。接口、失败恢复与旧 SDK 回滚限制见[会话树指南](../manage-sessions/GUIDE.zh-CN.md)。
 
 ## 什么时候使用
 
@@ -99,7 +99,7 @@ try {
 - 不要通过 full 模式绕过 deny、工作区保护、审计、Effect Receipt 或恢复。
 - 不要把继承 Provider 误称为已通过真实认证。
 
-## 持久任务阶段（1.4 开发线）
+## 持久任务阶段（1.4 发布线）
 
 公共 `TaskSession` / `TaskDefinition` 支持 start/query/resume/cancel 和显式迁移。每次 resume 执行一个阶段；这不是 ChatSession 历史恢复或任意 JS 栈恢复。使用方法和治理边界见[持久任务指南](../../guides/durable-tasks.zh-CN.md)。
 

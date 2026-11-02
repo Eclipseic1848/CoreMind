@@ -21,7 +21,7 @@ Reopening the same physical workspace through Windows long/short paths or direct
 
 Models may expose different context windows and output limits. The Runtime resolves capabilities again for every request and model switch, and budgets the request's exact `maxTokens`; it does not silently shrink the caller's request to a fraction of the context window.
 
-## TypeScript session trees (1.4 development)
+## TypeScript session trees (1.4 release line)
 
 Import ChatSession, CoreMindRuntime and the ChatSessionNodeRef/ChatSessionTree types from coremind-ai. Enable persistent sessions and provide sessionId in trusted host options. See the [runnable example](../../../examples/modules/manage-sessions/branches.mjs).
 

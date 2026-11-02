@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - 修复 `parallel` 首次失败或暂停后的同组步骤取消与收尾，保留首个错误，并在 Run 结束后拒绝新模型调用；已开始操作的收据保留，取消不等于回滚，全成功仍按声明顺序聚合（#325）。

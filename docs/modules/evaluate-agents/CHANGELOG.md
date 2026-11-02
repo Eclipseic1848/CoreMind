@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - 修复 Diff grader 在 `preserveExisting: false` 时的差异判定：只关闭既有脏内容保护，路径与文件数约束继续按基线和终态的状态或内容差异执行；状态和内容均未变化的既有脏文件不计，原 untracked 文件删除计入变化，默认 `true` 保护不变（#328）。

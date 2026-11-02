@@ -32,6 +32,19 @@
 - [0.7.0 P0：Child Run 产品化与稳定发布](0.7.x/02-p0-child-run-productization-and-stable-release.md)
 - [宿主验收与同 Run 有限修正（0.8.0 已发布）](0.7.x/03-host-verification.md)
 
+## 1.4.0 持久任务与会话合同
+
+以下合同及能力已合入发布准备主线，正式交付仍须最终版本资格。Session 消息、Run 执行、Workspace checkpoint 与显式任务提交各有事实边界；Python 经同一 Worker 调用，不建设第二 Runtime 或事实库。
+
+- [任务原子提交](../adr/0025-explicit-task-commit-authority.md)
+- [阶段与显式迁移](../adr/0026-task-phases-and-migrations.md)
+- [持久等待与唤醒](../adr/0027-durable-task-sleep-wake.md)
+- [稳定键调用与结果复用](../adr/0028-keyed-task-calls.md)
+- [公共会话树与分支](../adr/0029-public-session-tree-navigation.md)
+- [跨语言可信任务宿主](../adr/0030-cross-language-task-session-host.md)
+
+宿主负责可信定义注册、进程启动与 alarm；等待不扩展执行超时，未知外部效果不自动重放，不承诺分布式调度或外部 exactly-once。使用及验收入口见[任务指南](../guides/durable-tasks.zh-CN.md)与[1.2→1.4 迁移](../migrations/1.2-to-1.4.zh-CN.md)。
+
 ## 状态口径
 
 - `proposed`：仍有关键合同待确认。

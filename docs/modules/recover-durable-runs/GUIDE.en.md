@@ -42,7 +42,7 @@ This is not a Store heap limit. Explicit reads, query polling, failed commits, o
 
 The framework creates `.v3.backup` before migration. Supported messages, model changes, active tool changes, compactions, branch summaries, labels, and names migrate. An entry that cannot be represented losslessly returns an explicit error and preserves the source. Follow the [SOP](SOP.en.md) to retain the old version or export its effective context.
 
-## Explicit atomic task commits (1.4 development line, internal)
+## Explicit atomic task commits (1.4 release line, internal)
 
 A trusted host can use `TaskCommitSession` from `coremind-runtime/internal` to persist a task checkpoint, business documents and related text together. This is an internal storage foundation: it does not add a regular ChatSession mode, execute tasks, schedule wakeups or expose Python/Worker commands. See [ADR 0025](../../adr/0025-explicit-task-commit-authority.md).
 
@@ -85,14 +85,14 @@ The new shared error codes change the Protocol v2 schema fingerprint: update SDK
 
 Run the [module example](../../../examples/modules/recover-durable-runs/README.en.md) before adapting recovery to a business workflow.
 
-## Public durable task phases (1.4 development)
+## Public durable task phases (1.4 release line)
 
-`TaskSession` from `coremind-ai` adds start/query/resume/cancel and explicit version migration over the storage foundation. Each resume executes one phase; models/tools use the existing Runtime. Preserve and inspect the original Run when pendingRunId exists; do not resend automatically. See the [public task guide](../../guides/durable-tasks.en.md) and [ADR 0026](../../adr/0026-task-phases-and-migrations.md). This is not a release claim; cross-language access remains separate work; keyed calls are described below.
+`TaskSession` from `coremind-ai` adds start/query/resume/cancel and explicit version migration over the storage foundation. Each resume executes one phase; models/tools use the existing Runtime. Preserve and inspect the original Run when pendingRunId exists; do not resend automatically. See the [public task guide](../../guides/durable-tasks.en.md) and [ADR 0026](../../adr/0026-task-phases-and-migrations.md). This guide covers the 1.4.0 release line; public status depends on the corresponding Release, Registry artifacts and final qualification. TS and sync/async Python already access the same Worker; see the [cross-language guide](../embed-coremind-python/GUIDE.en.md). Keyed calls are described below.
 
-## Durable waits (1.4 development)
+## Durable waits (1.4 release line)
 
 Returning sleepUntil atomically saves the next phase and absolute deadline. nextWake queries the earliest durable wait; wake(taskId, wakeId, sleepId) idempotently makes it ready, followed by explicit resume. An old alarm cannot advance a later sleep. Hosts own process restart, known ready-task recovery and timer reconstruction. Cancellation invalidates alarms; closing an idle session preserves waits. Waiting never extends Run, tool, phase or Worker timeouts. See the [task guide](../../guides/durable-tasks.en.md) and [ADR 0027](../../adr/0027-durable-task-sleep-wake.md) for uncertain acknowledgements and older-SDK rollback limits.
 
-## Keyed calls (1.4 development)
+## Keyed calls (1.4 release line)
 
 runCalls/executeTool bind stable keys to arguments, authority and order within one governed Run, sharing its budgets, permissions and ChildRun limits. calls queries history; unknown effects pause, while committed results reconcile from the original Run. Terminal parents execute no more calls; history retains the original 1 MiB limit without automatic cleanup. For compatibility, rollback and host versioning responsibility see [the task guide](../../guides/durable-tasks.en.md) and [ADR 0028](../../adr/0028-keyed-task-calls.md).

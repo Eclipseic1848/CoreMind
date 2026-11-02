@@ -156,7 +156,7 @@ This is a bounded transport failure contract. Runtime synchronous event callback
 
 The 10-second limit bounds delivery waiting, not forced termination of a physical stream or uncooperative JavaScript. Logical close returns without an unbounded wait; an outstanding owned write retains only one error guard and its close cleanup listener until that callback or stream close settles. A timeout is not proof that all accepted operations are quiescent; related resources must not be released or reused on that assumption.
 
-## Cross-language tasks and session branches (1.4 development line)
+## Cross-language tasks and session branches (1.4 release line)
 
 `CoreMindClient` and `AsyncCoreMindClient` expose `task_start(task_id, definition_id, checkpoint)`, `task_query/task_resume/task_cancel/task_calls(task_id)`, `task_next_wake()` and `task_wake(task_id, wake_id, sleep_id)`. Await the async methods with the same arguments. Results are complete DTOs: `result["task"]`, `result["calls"]` and `result["deadline"]`; querying an unknown task returns `task=None`. These are not RunHandles, and sleeping tasks require explicit wake and resume.
 

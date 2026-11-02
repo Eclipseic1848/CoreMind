@@ -31,11 +31,17 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前发布线：`1.3.0`
+## 当前发布线：`1.4.0`
 
-[从 1.2 升级](migrations/1.2-to-1.3.zh-CN.md) · [1.3 发布说明](release/notes/v1.3.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
+[从 1.2 升级](migrations/1.2-to-1.4.zh-CN.md) · [1.4 发布说明](release/notes/v1.4.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-> `1.3.0` 发布线从已发布的 `1.2.0` 升级，修复内部持久状态保护、并行失败收尾、Python 延迟注解、Workflow 步骤输出、Diff grader、Protocol v2 错误身份、Web 正文释放、readline 显式退出及 doctor 凭据诊断，并同步安全策略。公开可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面及同提交资格证据为准；源码与工程 CI 通过不等于已经发布。
+> `1.4.0` 发布线以已发布的 `1.2.0` 为升级基线；未独立发布的 `1.3.0` 修复全部纳入本版。当前源码已合入持久任务原子阶段、等待与显式唤醒、稳定键结果复用、会话树与分叉，以及 TS 和同步/异步 Python 的同一 Node Worker 接入。1.2 的标准 Skill、持久控制、MCP/OAuth、工具发现与终端能力继续保留。最新公开稳定版本与可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面为准；正式使用还须核对本版本最终资格证据，源码和工程 CI 不代替公开交付、生产效果或 Provider 认证。
+
+### 1.4 已合入的能力
+
+- [持久任务](guides/durable-tasks.zh-CN.md)：原子阶段、定义迁移、持久等待与稳定键结果复用；宿主负责 alarm 和显式恢复。
+- [会话树与分叉](modules/manage-sessions/GUIDE.zh-CN.md)：命名分支、持久选择与新会话身份，不复制执行授权。
+- [跨语言 SDK](modules/embed-coremind-python/GUIDE.zh-CN.md)：TS 与同步/异步 Python 复用唯一 Node Runtime、事实及权限边界，匹配 Protocol v2 能力和指纹。
 
 ### 继承自 1.2 的能力
 

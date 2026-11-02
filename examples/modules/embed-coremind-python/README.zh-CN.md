@@ -37,3 +37,5 @@ python -X utf8 examples/modules/embed-coremind-python/tasks.py
 ```
 
 task-host.mjs 在宿主注册可信定义；tasks.py 展示同步/异步重开、唤醒、完成和取消。没有真实模型请求。
+
+组合验收覆盖阶段 A→持久等待→真实 Node Worker 退出/重启→显式唤醒→复用结果→阶段 B，核对不同进程身份、原 Run/key/result 与仅一次执行记录。可信宿主的 canary 效果显式声明并授权；这不保证外部 exactly-once。

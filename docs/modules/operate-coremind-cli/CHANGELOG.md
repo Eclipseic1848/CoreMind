@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
 ## 1.3.0 - 2026-10-20
 
 - 修复 `doctor <配置文件>` 对合法匿名/Header-only 自定义 Provider 的无关 API key 误报，复用所选 Provider 的既有凭据校验；显式缺失凭据仍失败，内置鉴权和无配置通用诊断保持不变。检查不加载项目脚本、不发 Provider 请求，不证明凭据有效、真实连通或认证（#332）。

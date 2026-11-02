@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — 1.4.0 development
+## 1.4.0 - 2026-11-02
+
+- Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+
+### 本版本变更 / Changes in this release
 
 - Added durable sleepUntil/nextWake/wake with deadline checks, sleep-bound idempotency, cancellation and cold-process recovery. Waiting preserves all execution timeouts. Added host alarm example, bilingual guidance, compatibility notes and ADR 0027; original CI and merge qualification remain required. ([#364](https://github.com/Eclipseic1848/CoreMind/issues/364))
 
