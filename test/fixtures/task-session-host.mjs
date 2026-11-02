@@ -4,7 +4,10 @@ import { pathToFileURL } from "node:url";
 
 // 仅供测试：宿主启动参数选择包入口，不接受 RPC 传来的模块路径或源码。
 const [workspace, bundle] = process.argv.slice(2);
+// 仅记录测试宿主加载阶段，失败时复用客户端已有 stderr 缓冲。
+console.error(`task-session-host: import-start uptime=${process.uptime()}`);
 const { runStdioWorker } = await import(bundle ? pathToFileURL(bundle).href : "coremind-worker");
+console.error(`task-session-host: import-ready uptime=${process.uptime()}`);
 await runStdioWorker(process.stdin, process.stdout, {
   tasks: {
     runtime: {

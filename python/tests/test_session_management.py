@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -63,7 +64,12 @@ class SessionManagementTest(unittest.TestCase):
                 return {"method": "task", "command": {"action": action, **fields}}
             client = open_client()
             try:
-                started = await call(client, "task_start", "job", "counter", "initial")
+                try:
+                    started = await call(client, "task_start", "job", "counter", "initial")
+                except Exception:
+                    sync = client.sync_client if asynchronous else client
+                    print({"initialTaskStartStderr": list(sync._stderr_tail)}, file=sys.stderr, flush=True)
+                    raise
                 self.assertEqual(started["task"]["status"], "ready")
                 process = (client.sync_client if asynchronous else client)._process
                 with self.assertRaises(WorkerExitedError):
@@ -180,6 +186,8 @@ class SessionManagementTest(unittest.TestCase):
                 inspected, ts_fork = self._ts(workspace, config,
                     {"method": "session", "command": {"action": "inspect"}},
                     {"method": "session", "command": {"action": "fork", "at": ref}})
+                self.assertIn("tree", inspected, {"inspect": inspected, "fork": ts_fork})
+                self.assertIn("tree", ts_fork, ts_fork)
                 self.assertEqual(inspected["tree"]["activeBranch"], "alternate")
                 self.assertEqual(ts_fork["tree"]["nodes"], fork["nodes"])
                 async def check_async():

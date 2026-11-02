@@ -66,7 +66,13 @@ try {
     try {
       results.push(await client[method](command));
     } catch (error) {
-      results.push({ error: error.data, errorInfo: ERROR_CODES[error.data?.coremindCode] });
+      // 本地异常直接失败，避免序列化 undefined 后只留下空对象。
+      if (!error?.data) throw error;
+      results.push({
+        error: error.data,
+        errorInfo: ERROR_CODES[error.data.coremindCode],
+        message: error.message,
+      });
     }
   }
   child.stdin.end();
@@ -83,6 +89,9 @@ try {
     clearTimeout(timer);
   }
   process.stdout.write(JSON.stringify(results));
+} catch (error) {
+  console.error(stderr);
+  throw error;
 } finally {
   if (child.exitCode === null) child.kill();
 }
