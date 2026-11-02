@@ -31,6 +31,55 @@
 
 - **CI 失败传播：** 拆分 Windows 工程门的多命令步骤，防止主 Python 测试等前序失败被后续成功覆盖；原命令、顺序、验收与超时保持，补充真实 PowerShell 反例回归（#376）。
 
+## [1.4.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.2.0...v1.4.0) (2026-11-02)
+
+
+### Features
+
+* [#334](https://github.com/Eclipseic1848/CoreMind/issues/334) 准备v1.3.0版本与双语发布材料 ([7977017](https://github.com/Eclipseic1848/CoreMind/commit/79770176b5d3ba30db68562579e4c8c000f21fda))
+* [#362](https://github.com/Eclipseic1848/CoreMind/issues/362) 同步主线并验收任务原子提交 ([ca2dc0e](https://github.com/Eclipseic1848/CoreMind/commit/ca2dc0ea07d8e0b96cde64a7f832677968228ce9))
+* [#362](https://github.com/Eclipseic1848/CoreMind/issues/362) 建立任务原子提交与唯一事实合同 ([9c653e0](https://github.com/Eclipseic1848/CoreMind/commit/9c653e0acfe0eb7a607a8dd5d9cec1e09ec9a819))
+* [#363](https://github.com/Eclipseic1848/CoreMind/issues/363) 同步主线并验收任务阶段恢复 ([f8d16be](https://github.com/Eclipseic1848/CoreMind/commit/f8d16beb0e30aa2cc80b184db42a1676ae56592e))
+* [#363](https://github.com/Eclipseic1848/CoreMind/issues/363) 实现持久任务阶段与显式版本迁移 ([77d7af9](https://github.com/Eclipseic1848/CoreMind/commit/77d7af940d4df05925edf84c78ee3d6fcb52a2cf))
+* [#364](https://github.com/Eclipseic1848/CoreMind/issues/364) 同步主线并验收持久等待唤醒 ([980e4df](https://github.com/Eclipseic1848/CoreMind/commit/980e4df07f3542da62c3d09a4ed85125b6a72771))
+* [#364](https://github.com/Eclipseic1848/CoreMind/issues/364) 实现持久等待与幂等唤醒 ([16b4a70](https://github.com/Eclipseic1848/CoreMind/commit/16b4a70fee3fe760763247023b86dbfd3b14c114))
+* [#365](https://github.com/Eclipseic1848/CoreMind/issues/365) 同步主线并验收稳定键恢复 ([9eaad90](https://github.com/Eclipseic1848/CoreMind/commit/9eaad903c5e3979ea199c5f0a76c0f9fcb9509aa))
+* [#365](https://github.com/Eclipseic1848/CoreMind/issues/365) 实现稳定键调用与持久结果恢复 ([b6e8590](https://github.com/Eclipseic1848/CoreMind/commit/b6e859065be150b0c5c2f0546f1e24662659d6c0))
+* [#366](https://github.com/Eclipseic1848/CoreMind/issues/366) 同步主线并验收公共会话树 ([1601edc](https://github.com/Eclipseic1848/CoreMind/commit/1601edc0046a3a143d2f39034d1912c67428b882))
+* [#366](https://github.com/Eclipseic1848/CoreMind/issues/366) 开放会话树分支与安全分叉 ([ca95e16](https://github.com/Eclipseic1848/CoreMind/commit/ca95e16c629107d901732a2dcf57f99c8f1b291c))
+* [#367](https://github.com/Eclipseic1848/CoreMind/issues/367) 接入跨语言持久任务与会话分支 ([bf22c11](https://github.com/Eclipseic1848/CoreMind/commit/bf22c11c4fecf12cd84924dfabc6f6199b6f44cb))
+
+
+### Bug Fixes
+
+* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架内部持久状态的写入保护 ([331094b](https://github.com/Eclipseic1848/CoreMind/commit/331094bac9ebae8967ccd420f86def3df53109ed))
+* [#324](https://github.com/Eclipseic1848/CoreMind/issues/324) 强化框架持久状态写入保护 ([a95c369](https://github.com/Eclipseic1848/CoreMind/commit/a95c369892147b554eb61669d455f008b893238d))
+* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行分支失败后的取消与终态准入 ([a299685](https://github.com/Eclipseic1848/CoreMind/commit/a299685027e47bafa0df8a8a425d307ff6aaf827))
+* [#325](https://github.com/Eclipseic1848/CoreMind/issues/325) 修复并行失败取消与终态准入 ([4fe9a6a](https://github.com/Eclipseic1848/CoreMind/commit/4fe9a6ae51d9a4dffde5d27246a6b715e257ca6c))
+* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 修复Python延迟注解生成工具参数Schema ([e08264f](https://github.com/Eclipseic1848/CoreMind/commit/e08264f571e173f724e8ac79d2dc0683c962dbfb))
+* [#326](https://github.com/Eclipseic1848/CoreMind/issues/326) 解析Python工具的延迟参数注解 ([1f3e072](https://github.com/Eclipseic1848/CoreMind/commit/1f3e072fe2433f9618ac958319b07ba5ea7049f6))
+* [#327](https://github.com/Eclipseic1848/CoreMind/issues/327) 隔离Workflow步骤输出与Session历史 ([6bd4962](https://github.com/Eclipseic1848/CoreMind/commit/6bd4962522f34839f703a4eeeae02757c33f97ac))
+* [#328](https://github.com/Eclipseic1848/CoreMind/issues/328) 按内容指纹补全Diff grader变更检测 ([67e337f](https://github.com/Eclipseic1848/CoreMind/commit/67e337f9e21be45938f3dfba8ecb1164b78784f6))
+* [#329](https://github.com/Eclipseic1848/CoreMind/issues/329) 保留v2启动失败的稳定错误身份 ([d70e185](https://github.com/Eclipseic1848/CoreMind/commit/d70e18527bdae4b39ab485c0bedbe502ffd759f7))
+* [#330](https://github.com/Eclipseic1848/CoreMind/issues/330) 等待Web错误响应正文清理后结算活动 ([c58a459](https://github.com/Eclipseic1848/CoreMind/commit/c58a4597fad2b079dcdeb681ba3308b1174afaf3))
+* [#331](https://github.com/Eclipseic1848/CoreMind/issues/331) 显式退出readline时取消活动Run ([27bc2dd](https://github.com/Eclipseic1848/CoreMind/commit/27bc2dd38c24cc4f6c4408e6f12e6eef7b9b4906))
+* [#332](https://github.com/Eclipseic1848/CoreMind/issues/332) 修复doctor对匿名Provider的误报 ([af1bf25](https://github.com/Eclipseic1848/CoreMind/commit/af1bf255d01bde490c299865290f1d2ebd90976d))
+* [#333](https://github.com/Eclipseic1848/CoreMind/issues/333) 更新双语安全策略的版本状态 ([7ef3110](https://github.com/Eclipseic1848/CoreMind/commit/7ef3110a279bf132ae6743b567b59a51aba26a0e))
+* [#346](https://github.com/Eclipseic1848/CoreMind/issues/346) 同步 v1.3.0 安装指引与文档导航 ([3a7592b](https://github.com/Eclipseic1848/CoreMind/commit/3a7592b09532a6228560cc2b41e2bcc8f4030c13))
+* [#348](https://github.com/Eclipseic1848/CoreMind/issues/348) 修复取消竞态验收的边界判定 ([c8c5f6a](https://github.com/Eclipseic1848/CoreMind/commit/c8c5f6a07c63dc0ae920f861d7a104a7eb96a949))
+* [#348](https://github.com/Eclipseic1848/CoreMind/issues/348) 同步已验收的安全前置修复 ([f53e415](https://github.com/Eclipseic1848/CoreMind/commit/f53e415a756cd0a4b185d4afbdc43733e9e97473))
+* [#350](https://github.com/Eclipseic1848/CoreMind/issues/350) 升级 Vite 并移除已消除风险登记 ([4c935e8](https://github.com/Eclipseic1848/CoreMind/commit/4c935e80f266505c00204a83bb2778566a0614a9))
+* [#355](https://github.com/Eclipseic1848/CoreMind/issues/355) 修复 Vitest mock 注册安全漏洞 ([6332ac5](https://github.com/Eclipseic1848/CoreMind/commit/6332ac55e58a1e810596a0e849fd0978f29bf88a))
+* [#359](https://github.com/Eclipseic1848/CoreMind/issues/359) 修复依赖并登记获准接受的 Pi 风险 ([56a7cd6](https://github.com/Eclipseic1848/CoreMind/commit/56a7cd6b695addf0f922bbc26f0a9de75baa72df))
+* [#360](https://github.com/Eclipseic1848/CoreMind/issues/360) 修复状态码子串导致的重试误判 ([051d7f7](https://github.com/Eclipseic1848/CoreMind/commit/051d7f7b075d6b115634af3ce38302631a97a4f5))
+* [#360](https://github.com/Eclipseic1848/CoreMind/issues/360) 同步安全处置并验收重试分类 ([f49a281](https://github.com/Eclipseic1848/CoreMind/commit/f49a28177f60ab05e22c605088f4fff4f72c58dc))
+* [#367](https://github.com/Eclipseic1848/CoreMind/issues/367) 保留跨语言诊断的真实错误与导入阶段 ([44809c5](https://github.com/Eclipseic1848/CoreMind/commit/44809c5531bebacaa5037859cd51c3de09acec06))
+* [#367](https://github.com/Eclipseic1848/CoreMind/issues/367) 同步已验收的 CI 失败传播修复 ([918401b](https://github.com/Eclipseic1848/CoreMind/commit/918401bde6fceae38fc1929190131498dd19e966))
+* [#367](https://github.com/Eclipseic1848/CoreMind/issues/367) 恢复等价物理路径下的会话与分叉 ([a635c4e](https://github.com/Eclipseic1848/CoreMind/commit/a635c4e4b5255733f002d5333a34f2bd8bc28652))
+* [#376](https://github.com/Eclipseic1848/CoreMind/issues/376) 保留 Windows CI 每条检查的失败退出码 ([7457b0f](https://github.com/Eclipseic1848/CoreMind/commit/7457b0f555b07aa83eda9f1a29bdbf98f7e64e2e))
+* **release:** 同步 1.3.0 Python worker 生成物 ([#358](https://github.com/Eclipseic1848/CoreMind/issues/358)) ([288cac6](https://github.com/Eclipseic1848/CoreMind/commit/288cac6d05a9fdb8ca07a777628ea41a3340be5a))
+* 固定 Coding Kernel 的 Python 解释器路径 ([#357](https://github.com/Eclipseic1848/CoreMind/issues/357)) ([16f79cf](https://github.com/Eclipseic1848/CoreMind/commit/16f79cf6ae51efabb5054338cee57274265fa8bf))
+
 ## 1.3.0
 
 本节记录 `1.3.0` 发布准备范围，包含 #324–#333 已验收合入的十项修复；不表示已经公开发布。详见[固定双语发布说明](docs/release/notes/v1.3.0.md)与[1.2→1.3 迁移指南](docs/migrations/1.2-to-1.3.zh-CN.md)。
