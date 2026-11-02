@@ -27,6 +27,8 @@ These changes are not yet released and include the unreleased 1.3.0 fixes. See t
 
 - **Cross-language tasks and sessions:** Protocol v2 adds negotiated capabilities and identity-bound DTOs. TS and sync/async Python use one Node Worker for trusted host tasks and branch/fork operations, preserving separate tool permissions and project-code trust, existing error classification and timeouts. Includes real-process result reuse, parity checks, package entry validation and bilingual examples. ([#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
 
+- **CI failure propagation:** split multi-command Windows engineering steps so later success cannot mask earlier failures, including Python SDK tests. Preserve commands, ordering, acceptance and timeouts, with a real PowerShell regression (#376).
+
 ## 1.3.0
 
 This section records `1.3.0` release preparation and the ten accepted, merged fixes in #324–#333; it does not establish public publication. See the [fixed bilingual release notes](docs/release/notes/v1.3.0.md) and [1.2→1.3 migration guide](docs/migrations/1.2-to-1.3.en.md).

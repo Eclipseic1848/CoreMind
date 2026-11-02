@@ -19,3 +19,7 @@ description: "Change CoreMind source within its frozen public contracts, one-way
 12. Stop on a security failure, an unauthorized live external benchmark, or a non-reversible action that lacks explicit user authorization. Never push, tag, or publish implicitly.
 
 中文执行原则：先确认业务规则和冻结基线，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。
+
+## 工程门失败传播（#376）
+
+保留 Engineering CI 中原生命令的独立步骤和失败即停止规则，不能让后序成功覆盖 Windows 前序失败。执行工作流合同中的实际 PowerShell 退出码反例；关闭 Issue 前读取完整 CI 日志，绿色汇总不能替代真实验收。不要放宽原超时、安全门或测试范围。

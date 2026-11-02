@@ -25,3 +25,7 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.
+
+## Engineering CI failure propagation
+
+Default Windows PowerShell does not automatically stop a multi-command step when an earlier native command exits nonzero. Engineering CI runs installation, build, type checks, dependency/baseline checks, docs, Python SDK tests and golden examples as separate steps, each reporting its own exit status. Do not regroup these checks so a later success can mask an earlier failure; golden examples must not run after Python SDK test failure. Inspect original logs and acceptance results before closing an Issue, even when the job badge is green. Existing gates and timeouts remain unchanged; regressions are in scripts/workflow-contract.test.ts (#376).
