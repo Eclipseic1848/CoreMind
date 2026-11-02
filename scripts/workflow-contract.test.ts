@@ -118,6 +118,52 @@ describe("GitHub Actions 收口合同", () => {
     }
   });
 
+  it("Windows 工程门每步独立返回原生命令退出码", () => {
+    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    for (const step of workflow.jobs.engineering.steps) {
+      if (!step.run || step.shell === "bash" || step.if === "runner.os == 'Linux'") continue;
+      expect(step.shell).toBeUndefined();
+      const commands = step.run
+        .trim()
+        .split(/\r?\n/u)
+        .filter((line: string) => line.trim() && !line.trim().startsWith("#"));
+      expect(commands, step.name).toHaveLength(1);
+      expect(step["continue-on-error"], step.name).toBeUndefined();
+      expect(step.if, step.name).toBeUndefined();
+    }
+  });
+
+  it.skipIf(process.platform !== "win32")("主 Python 检查失败不能被后续黄金示例的成功覆盖", () => {
+    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
+    const results: Array<number | null> = [];
+    // 按真实 YAML 的步骤边界执行两个替身原生命令，不运行产品测试或增加重试。
+    for (const step of workflow.jobs.engineering.steps) {
+      const checks = String(step.run ?? "")
+        .split(/\r?\n/u)
+        .filter((line) => line.includes("python -W error::ResourceWarning -m unittest discover"));
+      if (!checks.length) continue;
+      const commands = checks.map((line) => {
+        const code = line.includes("-s python/tests") ? 7 : 0;
+        return `& '${process.execPath.replaceAll("'", "''")}' -e 'process.exit(${code})'`;
+      });
+      // 与 Actions 默认 pwsh 一样，最终退出码来自本步骤最后一个原生命令。
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          ["$ErrorActionPreference='Stop'", ...commands, "exit $LASTEXITCODE"].join("\n"),
+        ],
+        { encoding: "utf8", timeout: 5_000 },
+      );
+      expect(result.error).toBeUndefined();
+      results.push(result.status);
+      if (result.status !== 0) break;
+    }
+    expect(results).toEqual([7]);
+  });
+
   it("候选资格门承接完整离线矩阵且真实 Provider 认证只能显式手动触发", () => {
     const workflow = parse(readFileSync(".github/workflows/candidate-qualification.yml", "utf8"));
     const candidateCommands = workflow.jobs.candidate.steps
