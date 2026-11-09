@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -48,6 +48,13 @@ describe("候选 Provider 认证 Artifact", () => {
     await expect(verifyProviderCertificationArtifact(directory, "c".repeat(40))).rejects.toThrow(
       "没有绑定候选提交",
     );
+    const evidenceFile = path.join(directory, "evidence", "candidate.json");
+    const evidence = JSON.parse(readFileSync(evidenceFile, "utf8"));
+    delete evidence.approval.billingControl;
+    writeFileSync(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
+    await expect(verifyProviderCertificationArtifact(directory, "a".repeat(40))).rejects.toThrow(
+      "缺少操作人确认的免费额度费用边界",
+    );
   });
 
   it("拒绝与证据不一致的认证台账", async () => {
@@ -90,6 +97,7 @@ function createArtifact(commit: string, runtimeArtifactSha256 = "b".repeat(64)) 
       maxCostUsd: 0.5,
       maxDurationMs: 900_000,
       maxRetries: 0,
+      billingControl: "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only",
     },
     usage: {
       providerCalls: 10,

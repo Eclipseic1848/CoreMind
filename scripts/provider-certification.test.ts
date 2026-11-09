@@ -212,7 +212,11 @@ describe("失败认证的有界独立证据", () => {
     child.result.outcome.status = canary;
     child.markerStatus = canary;
     const snapshot = failureFixture(child);
-    Object.assign(snapshot.approval, { credentialEnv: canary, key: canary });
+    Object.assign(snapshot.approval, {
+      credentialEnv: canary,
+      key: canary,
+      billingControl: canary,
+    });
     const evidence = createCertificationFailure(snapshot);
     const json = JSON.stringify(evidence);
     expect(json).not.toContain(canary);
@@ -229,6 +233,18 @@ describe("失败认证的有界独立证据", () => {
       stage: "unknown",
       child: null,
     });
+  });
+
+  it("失败证据只保留已知的操作人费用边界声明", () => {
+    const snapshot = failureFixture();
+    const billingControl = "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only";
+    expect(createCertificationFailure(snapshot).approval).not.toHaveProperty("billingControl");
+    expect(
+      createCertificationFailure({
+        ...snapshot,
+        approval: { ...snapshot.approval, billingControl },
+      }).approval,
+    ).toMatchObject({ billingControl });
   });
 
   it("缺失或坏用量保持 unknown/null，保留有效的部分费用而不声称是完整账单", () => {
@@ -399,13 +415,14 @@ describe("Provider 认证批准边界", () => {
     expect(child.wallTimeMs).toBeLessThanOrEqual(120_000 - 1_000);
     expect(child.costUsd).toBeLessThanOrEqual(1 - 0.1);
   });
-  it("五项批准不完整或候选身份不一致时在联网前失败", () => {
+  it("批准边界不完整、费用声明无效或候选身份不一致时在联网前失败", () => {
     const approved = {
       provider: "alibaba-model-studio",
       model: "qwen-plus",
       credentialEnv: "COREMIND_CERT_API_KEY",
       maxCostUsd: "0.5",
       maxDurationMinutes: "15",
+      alibabaFreeQuotaOnlyConfirmed: "true",
       expectedVersion: "0.7.0",
       expectedCommit: "a".repeat(40),
       expectedRuntimeArtifactSha256: "b".repeat(64),
@@ -431,7 +448,33 @@ describe("Provider 认证批准边界", () => {
       maxCostUsd: 0.5,
       maxDurationMs: 900_000,
       maxRetries: 0,
+      billingControl: "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only",
     });
+    for (const alibabaFreeQuotaOnlyConfirmed of [undefined, false, "false", 1, "1", "TRUE", ""]) {
+      expect(() =>
+        validateCertificationApproval({ ...approved, alibabaFreeQuotaOnlyConfirmed }, actual),
+      ).toThrow("需操作人确认北京 qwen-plus");
+    }
+    expect(
+      validateCertificationApproval({ ...approved, alibabaFreeQuotaOnlyConfirmed: true }, actual),
+    ).toHaveProperty(
+      "billingControl",
+      "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only",
+    );
+    expect(() =>
+      validateCertificationApproval({ ...approved, model: "qwen-turbo" }, actual),
+    ).toThrow("需操作人确认北京 qwen-plus");
+    expect(
+      validateCertificationApproval(
+        {
+          ...approved,
+          provider: "deepseek",
+          model: "deepseek-chat",
+          alibabaFreeQuotaOnlyConfirmed: false,
+        },
+        actual,
+      ),
+    ).not.toHaveProperty("billingControl");
   });
 
   it("候选清单必须绑定批准提交、版本与 Runtime 包摘要", () => {
@@ -633,6 +676,29 @@ describe("Provider 认证诊断", () => {
     expect(() =>
       createCertificationEvidence({ ...input, usage: { ...input.usage, costUsd: 0.6 } }),
     ).toThrow("Provider 认证用量超过批准边界");
+    for (const billingControl of [undefined, "", "zero-price", "operator-confirmed"]) {
+      expect(() =>
+        createCertificationEvidence({
+          ...input,
+          approval: { ...input.approval, billingControl },
+        }),
+      ).toThrow("缺少操作人确认的免费额度费用边界");
+    }
+    expect(() =>
+      createCertificationEvidence({
+        ...input,
+        model: "qwen-turbo",
+        approval: { ...input.approval, model: "qwen-turbo" },
+      }),
+    ).toThrow("缺少操作人确认的免费额度费用边界");
+    const otherProvider = { provider: "deepseek", model: "deepseek-chat" };
+    expect(
+      createCertificationEvidence({
+        ...input,
+        ...otherProvider,
+        approval: { ...input.approval, ...otherProvider, billingControl: undefined },
+      }),
+    ).toMatchObject({ status: "passed", ...otherProvider });
 
     expect(createCertificationEvidence(input)).toMatchObject({
       checkId: "P0-20",
@@ -640,7 +706,10 @@ describe("Provider 认证诊断", () => {
       runtimeDigest: `sha256:${"d".repeat(64)}`,
       artifactManifestDigest: `sha256:${"e".repeat(64)}`,
       candidateArtifactSha256: "f".repeat(64),
-      approval: { maxRetries: 0 },
+      approval: {
+        maxRetries: 0,
+        billingControl: "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only",
+      },
       usage: { providerCalls: 10, retries: 0 },
     });
   });
@@ -694,6 +763,7 @@ function completeBoundEvidence() {
       maxCostUsd: 0.5,
       maxDurationMs: 900_000,
       maxRetries: 0,
+      billingControl: "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only",
     },
     usage: {
       providerCalls: 10,

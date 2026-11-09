@@ -57,6 +57,7 @@ const approval = validateCertificationApproval(
     credentialEnv: process.env.COREMIND_CERT_API_KEY_ENV,
     maxCostUsd: process.env.COREMIND_CERT_MAX_COST_USD,
     maxDurationMinutes: process.env.COREMIND_CERT_MAX_DURATION_MINUTES,
+    alibabaFreeQuotaOnlyConfirmed: process.env.COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED,
     expectedVersion: process.env.COREMIND_CERT_EXPECTED_VERSION,
     expectedCommit: process.env.COREMIND_CERT_EXPECTED_COMMIT,
     expectedRuntimeArtifactSha256: process.env.COREMIND_CERT_EXPECTED_RUNTIME_SHA256,

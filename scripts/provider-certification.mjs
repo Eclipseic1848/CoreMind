@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
+const ALIBABA_BILLING_CONTROL = "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only";
+
 const APPROVAL_REJECTION_REASONS = [
   "delegate_target_mismatch",
   "delegate_task_mismatch",
@@ -187,6 +189,9 @@ export function createCertificationFailure({
       maxCostUsd: nonnegative(approval?.maxCostUsd),
       maxDurationMs: nonnegative(approval?.maxDurationMs, true),
       maxRetries: nonnegative(approval?.maxRetries, true),
+      ...(approval?.billingControl === ALIBABA_BILLING_CONTROL
+        ? { billingControl: ALIBABA_BILLING_CONTROL }
+        : {}),
     },
     usage: {
       completeness: [inputTokensObserved, outputTokensObserved, costUsdObserved].some(
@@ -349,13 +354,25 @@ export function validateCertificationApproval(approval, actual) {
   if (approval.expectedRuntimeArtifactSha256 !== actual?.runtimeArtifactSha256) {
     throw new Error("认证 Runtime Artifact 与批准值不一致");
   }
+  const provider = approval.provider.trim();
+  const model = approval.model.trim();
+  // 此标记是操作人对有效额度和已生效开关的声明，不是程序核验账号的结果。
+  if (
+    provider === "alibaba-model-studio" &&
+    (model !== "qwen-plus" ||
+      (approval.alibabaFreeQuotaOnlyConfirmed !== true &&
+        approval.alibabaFreeQuotaOnlyConfirmed !== "true"))
+  ) {
+    throw new Error("阿里云认证需操作人确认北京 qwen-plus 的有效免费额度与已生效的用完即停");
+  }
   return {
-    provider: approval.provider.trim(),
-    model: approval.model.trim(),
+    provider,
+    model,
     credentialEnv: approval.credentialEnv,
     maxCostUsd,
     maxDurationMs: maxDurationMinutes * 60_000,
     maxRetries: 0,
+    ...(provider === "alibaba-model-studio" ? { billingControl: ALIBABA_BILLING_CONTROL } : {}),
   };
 }
 
@@ -452,6 +469,12 @@ export function createCertificationEvidence({
     approval.maxDurationMs <= 0
   ) {
     throw new Error("Provider 认证批准边界无效");
+  }
+  if (
+    provider === "alibaba-model-studio" &&
+    (model !== "qwen-plus" || approval.billingControl !== ALIBABA_BILLING_CONTROL)
+  ) {
+    throw new Error("阿里云认证证据缺少操作人确认的免费额度费用边界");
   }
   if (approval.maxRetries !== 0 || usage?.retries !== 0) {
     throw new Error("Provider 认证禁止自动重试");

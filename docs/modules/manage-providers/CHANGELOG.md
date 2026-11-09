@@ -2,6 +2,8 @@
 
 ## 1.4.0 - 2026-11-02
 
+- Use `max_tokens` for built-in Beijing `qwen-plus` and reselect the output-limit field when named Agents switch models, preserving other custom endpoints.
+- Require an operator-confirmed free-quota-only billing boundary for Alibaba certification, defaulting to rejection; retain candidate binding, budgets, zero retries and timeouts. Account confirmation does not establish live certification.
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
 
 ## 1.3.0 - 2026-10-20

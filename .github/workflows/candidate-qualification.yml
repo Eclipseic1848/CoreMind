@@ -45,6 +45,11 @@ on:
         description: "同次候选制品中 coremind-runtime npm 包的 SHA-256"
         required: true
         type: string
+      alibaba_free_quota_only_confirmed:
+        description: "操作人已核实北京 qwen-plus 有效免费额度且用完即停已生效；非程序账号核验"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -205,6 +210,7 @@ jobs:
       COREMIND_CERT_API_KEY: ${{ secrets.COREMIND_CERT_API_KEY }}
       COREMIND_CERT_MAX_COST_USD: ${{ inputs.max_cost_usd }}
       COREMIND_CERT_MAX_DURATION_MINUTES: ${{ inputs.max_duration_minutes }}
+      COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED: ${{ inputs.alibaba_free_quota_only_confirmed }}
       COREMIND_CERT_EXPECTED_VERSION: ${{ inputs.expected_version }}
       COREMIND_CERT_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
       COREMIND_CERT_EXPECTED_RUNTIME_SHA256: ${{ inputs.expected_runtime_sha256 }}

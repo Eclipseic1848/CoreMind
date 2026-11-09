@@ -198,6 +198,11 @@ describe("GitHub Actions 收口合同", () => {
     ]) {
       expect(workflow.on.workflow_dispatch.inputs[input].required).toBe(true);
     }
+    expect(workflow.on.workflow_dispatch.inputs.alibaba_free_quota_only_confirmed).toMatchObject({
+      required: false,
+      type: "boolean",
+      default: false,
+    });
     expect(workflow.jobs.candidate.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
     for (const command of [
       "npm run test:stability",
@@ -252,10 +257,23 @@ describe("GitHub Actions 收口合同", () => {
       COREMIND_CERT_API_KEY_ENV: `\${{ inputs.credential_env }}`,
       COREMIND_CERT_MAX_COST_USD: `\${{ inputs.max_cost_usd }}`,
       COREMIND_CERT_MAX_DURATION_MINUTES: `\${{ inputs.max_duration_minutes }}`,
+      COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED: `\${{ inputs.alibaba_free_quota_only_confirmed }}`,
       COREMIND_CERT_EXPECTED_VERSION: `\${{ inputs.expected_version }}`,
       COREMIND_CERT_EXPECTED_COMMIT: `\${{ inputs.expected_commit }}`,
       COREMIND_CERT_EXPECTED_RUNTIME_SHA256: `\${{ inputs.expected_runtime_sha256 }}`,
     });
+    const certificationScript = readFileSync("scripts/certify-provider.mjs", "utf8");
+    const approvalStart = certificationScript.indexOf(
+      "const approval = validateCertificationApproval(",
+    );
+    const credentialRead = certificationScript.indexOf(
+      "const originalKey = process.env[apiKeyEnv]",
+    );
+    expect(approvalStart).toBeGreaterThanOrEqual(0);
+    expect(credentialRead).toBeGreaterThan(approvalStart);
+    expect(certificationScript.slice(approvalStart, credentialRead)).toContain(
+      "alibabaFreeQuotaOnlyConfirmed: process.env.COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED",
+    );
     const candidateDownload = workflow.jobs["provider-certification"].steps.find(
       (step: { name?: string }) => step.name === "下载同次 Linux 候选制品",
     );

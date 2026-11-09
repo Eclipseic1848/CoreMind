@@ -11,6 +11,16 @@ CoreMind 能识别某个供应商，只代表运行时具有对应适配入口�
 5. 测试内容不得包含个人信息、商业秘密或生产数据。
 6. 执行前明确批准 Provider、模型、凭据来源、费用上限、最长运行时间、候选提交和 Runtime 候选包 SHA-256。
 
+### 阿里云 qwen-plus 的费用前置条件
+
+内置 `alibaba-model-studio` 使用北京通用接入点；域名中的 `trial` 不代表免费，该地址也用于[按量付费](https://help.aliyun.com/zh/model-studio/base-url)。模型元数据中的零费率和 `turn_end` 后的用量统计都不能证明本次费用上限。
+
+当前阿里云认证只接受 `qwen-plus`。操作人必须先在控制台核实该模型仍有未过期、未耗尽的免费额度，且“免费额度用完即停”已经生效；未确认则不得执行。开关存在生效延迟，普通预算的“立即停止”也可能在延迟期间继续计费，不能替代上述保护。参见[免费额度说明](https://help.aliyun.com/zh/model-studio/new-free-quota/)和[预算管理](https://help.aliyun.com/zh/model-studio/budget-management)。
+
+核实后，才能将 Candidate Qualification 的 `alibaba_free_quota_only_confirmed` 设为 `true`；默认值为 `false`。本地认证脚本对应环境变量为 `COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED=true`。该标记仅记录操作人的账号状态声明，不是程序自动核验；证据以固定 `billingControl` 值 `operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only` 保存这项边界。原单次授权、费用上限、零重试、候选身份与全部超时仍然适用，确认标记不代表真实认证已通过。
+
+当前工作流只从 GitHub Actions Secret `COREMIND_CERT_API_KEY` 注入密钥，不要把密钥放入工作流输入或认证证据。内置北京 `qwen-plus` 请求使用 `max_tokens`；命名 Agent 切换模型时重新选择输出上限字段，其他自定义端点保留原行为。字段兼容不等于费用保护或真实服务验收，参数语义见[官方 API 文档](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions)。
+
 ## 强制检查
 
 | 检查 | 通过条件 |
