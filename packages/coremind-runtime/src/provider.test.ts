@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CoreMindError } from "./errors.js";
 import {
   buildProviderRuntime,
@@ -191,6 +191,80 @@ describe("buildProviderRuntime（内置提供商）", () => {
     expect(await runtime.models.getAuth(runtime.model)).toMatchObject({
       auth: { apiKey: "resolved-alibaba" },
     });
+  });
+
+  it.each([
+    {
+      name: "默认 qwen-plus",
+      config: { id: "alibaba-model-studio" },
+      agentModel: undefined,
+      field: "max_tokens",
+      limit: 8192,
+    },
+    {
+      name: "命名 Agent 切换到 qwen-plus",
+      config: { id: "alibaba-model-studio", model: "qwen3.8-flash" },
+      agentModel: "qwen-plus",
+      field: "max_tokens",
+      limit: 8192,
+    },
+    {
+      name: "命名 Agent 切换到新模型",
+      config: { id: "alibaba-model-studio", model: "qwen-plus" },
+      agentModel: "qwen3.8-flash",
+      field: "max_completion_tokens",
+      limit: 8192,
+    },
+    {
+      name: "自定义同名入口保留原字段",
+      config: {
+        id: "alibaba-model-studio",
+        baseUrl: "https://example.invalid/v1",
+        model: "qwen-plus",
+        maxTokens: 321,
+      },
+      agentModel: undefined,
+      field: "max_completion_tokens",
+      limit: 321,
+    },
+  ])("$name 的合成请求使用对应输出上限字段", async ({ config, agentModel, field, limit }) => {
+    const requests: Array<Record<string, unknown>> = [];
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const request = new Request(input, init);
+      requests.push((await request.json()) as Record<string, unknown>);
+      return new Response(
+        `data: ${JSON.stringify({
+          id: "synthetic-output-limit",
+          choices: [
+            { index: 0, delta: { role: "assistant", content: "ok" }, finish_reason: "stop" },
+          ],
+          usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 },
+        })}\n\ndata: [DONE]\n\n`,
+        { headers: { "content-type": "text/event-stream" } },
+      );
+    });
+    try {
+      const runtime = await buildProviderRuntime(
+        { ...config, apiKeyEnv: "COREMIND_TEST_API_KEY" },
+        { COREMIND_TEST_API_KEY: "synthetic-only" },
+      );
+      const model = resolveProviderModel(runtime, agentModel);
+      const result = await runtime.models
+        .streamSimple(
+          model,
+          { messages: [{ role: "user", content: "合成测试", timestamp: 0 }] },
+          { apiKey: runtime.apiKeyOverride },
+        )
+        .result();
+      expect(result.stopReason).toBe("stop");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toMatchObject({ model: model.id, [field]: limit });
+      expect(requests[0]).not.toHaveProperty(
+        field === "max_tokens" ? "max_completion_tokens" : "max_tokens",
+      );
+    } finally {
+      fetch.mockRestore();
+    }
   });
 
   it("apiKeyEnv 配置时解析为 apiKeyOverride", async () => {

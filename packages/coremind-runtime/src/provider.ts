@@ -43,7 +43,7 @@ export function resolveProviderModel(runtime: ProviderRuntime, modelId?: string)
     .find((model) => model.id === modelId);
   if (matched) return matched;
   if (runtime.acceptsUnlistedModels) {
-    return { ...runtime.model, id: modelId, name: modelId };
+    return withAlibabaOutputLimit({ ...runtime.model, id: modelId, name: modelId });
   }
   throw new CoreMindError(
     "no_models",
@@ -92,6 +92,8 @@ export function providerSecurityErrorPath(error: CoreMindError): string | undefi
 }
 
 const DEFAULT_PROVIDER = "deepseek";
+const ALIBABA_MODEL_STUDIO_BASE_URL =
+  "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
 const CORE_MIND_PROVIDER_IDS = ["alibaba-model-studio"] as const;
 const BUILTIN_PROVIDER_ALIASES = new Map([["azure-openai-responses", "azure"]]);
 
@@ -126,7 +128,7 @@ export async function buildProviderRuntime(
   return buildBuiltinRuntime(cfg, env, security.apiKey);
 }
 
-/** 阿里云模型服务的中国区试用域名；任意同区域工作区密钥均可调用。 */
+/** 阿里云模型服务的北京通用接入点；费用取决于账号的计费设置。 */
 async function buildAlibabaModelStudioRuntime(
   cfg: {
     id: string;
@@ -144,7 +146,7 @@ async function buildAlibabaModelStudioRuntime(
     {
       id: cfg.id,
       name: "Alibaba Cloud Model Studio",
-      baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      baseUrl: ALIBABA_MODEL_STUDIO_BASE_URL,
       model: modelId,
       apiKeyEnv,
       contextWindow: 131072,
@@ -217,7 +219,7 @@ async function buildCustomRuntime(
   const id = cfg.id ?? "custom";
   const apiKeyEnv = inferEnv(cfg, id);
   const models = createModels({ authContext: isolatedAuthContext(env, apiKeyEnv) });
-  const model = buildCustomModel(cfg, id);
+  const model = withAlibabaOutputLimit(buildCustomModel(cfg, id));
   // apiKey 直填告警：密钥会随配置文件进入版本库/分享链路，引导用 apiKeyEnv
   const warnings: string[] = [];
   if (cfg.apiKey) {
@@ -375,6 +377,23 @@ function isolatedAuthContext(
 
 function cacheStatus(model: Model<any>): "available" | "unavailable" {
   return model.cost.cacheRead > 0 || model.cost.cacheWrite > 0 ? "available" : "unavailable";
+}
+
+function withAlibabaOutputLimit(model: Model<any>): Model<any> {
+  if (
+    model.provider !== "alibaba-model-studio" ||
+    model.baseUrl !== ALIBABA_MODEL_STUDIO_BASE_URL
+  ) {
+    return model;
+  }
+  // 旧 qwen-plus 仅支持 max_tokens；命名 Agent 切换模型时重新选择，避免继承错误字段。
+  return {
+    ...model,
+    compat: {
+      ...model.compat,
+      maxTokensField: model.id === "qwen-plus" ? "max_tokens" : "max_completion_tokens",
+    },
+  };
 }
 
 /** 手工构造 OpenAI 兼容 Model 对象。cost 必须给全 0（计费计算缺字段出 NaN） */

@@ -272515,7 +272515,7 @@ function resolveProviderModel(runtime, modelId) {
   if (matched)
     return matched;
   if (runtime.acceptsUnlistedModels) {
-    return { ...runtime.model, id: modelId, name: modelId };
+    return withAlibabaOutputLimit({ ...runtime.model, id: modelId, name: modelId });
   }
   throw new CoreMindError("no_models", `\u547D\u540D Agent \u914D\u7F6E\u7684\u6A21\u578B ${modelId} \u4E0D\u5728 Provider ${runtime.model.provider} \u7684\u9501\u5B9A\u76EE\u5F55\u4E2D`);
 }
@@ -272535,6 +272535,7 @@ var ProviderSecurityError = class extends CoreMindError {
   }
 };
 var DEFAULT_PROVIDER = "deepseek";
+var ALIBABA_MODEL_STUDIO_BASE_URL = "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1";
 var BUILTIN_PROVIDER_ALIASES = /* @__PURE__ */ new Map([["azure-openai-responses", "azure"]]);
 function listInheritedProviders() {
   return [...getBuiltinProviders()];
@@ -272558,7 +272559,7 @@ async function buildAlibabaModelStudioRuntime(cfg, env2, security) {
   return buildCustomRuntime({
     id: cfg.id,
     name: "Alibaba Cloud Model Studio",
-    baseUrl: "https://trial.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    baseUrl: ALIBABA_MODEL_STUDIO_BASE_URL,
     model: modelId,
     apiKeyEnv,
     contextWindow: 131072,
@@ -272606,7 +272607,7 @@ async function buildCustomRuntime(cfg, env2, security, capabilityOrigin) {
   const id2 = cfg.id ?? "custom";
   const apiKeyEnv = inferEnv(cfg, id2);
   const models = createModels({ authContext: isolatedAuthContext(env2, apiKeyEnv) });
-  const model2 = buildCustomModel(cfg, id2);
+  const model2 = withAlibabaOutputLimit(buildCustomModel(cfg, id2));
   const warnings = [];
   if (cfg.apiKey) {
     warnings.push("\u914D\u7F6E\u4E86 apiKey \u76F4\u586B\uFF1A\u5BC6\u94A5\u4F1A\u968F\u914D\u7F6E\u6587\u4EF6\u8FDB\u5165\u7248\u672C\u5E93/\u5206\u4EAB\u94FE\u8DEF\uFF0C\u5EFA\u8BAE\u6539\u7528 apiKeyEnv \u73AF\u5883\u53D8\u91CF");
@@ -272720,6 +272721,18 @@ function isolatedAuthContext(env2, apiKeyEnv, denyEnvironment = false) {
 }
 function cacheStatus(model2) {
   return model2.cost.cacheRead > 0 || model2.cost.cacheWrite > 0 ? "available" : "unavailable";
+}
+function withAlibabaOutputLimit(model2) {
+  if (model2.provider !== "alibaba-model-studio" || model2.baseUrl !== ALIBABA_MODEL_STUDIO_BASE_URL) {
+    return model2;
+  }
+  return {
+    ...model2,
+    compat: {
+      ...model2.compat,
+      maxTokensField: model2.id === "qwen-plus" ? "max_tokens" : "max_completion_tokens"
+    }
+  };
 }
 function buildCustomModel(cfg, id2) {
   return {

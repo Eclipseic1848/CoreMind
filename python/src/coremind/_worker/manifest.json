@@ -4,7 +4,7 @@
   "protocolVersion": "1.0",
   "protocolV2Version": "2.0",
   "protocolV2SchemaFingerprint": "sha256:504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69",
-  "bundleSha256": "e1907638b71a5bd7960716e69f082921bf851f9dc802ab5a3ca7f627e6768d3b",
+  "bundleSha256": "9b8b1863cdde473ff5f834cd4f1037ef409c1005906d4a2d858be69cb0488b10",
   "runtimeDependencies": {
     "@earendil-works/pi-agent-core": {
       "version": "1.5.0",

@@ -11,6 +11,16 @@ Provider discovery means that CoreMind has an adapter entry point. It does not m
 5. Do not use personal data, confidential material, or production data.
 6. Before execution, explicitly approve the provider, model, credential source, cost cap, maximum duration, candidate commit, and Runtime candidate-package SHA-256.
 
+### Billing prerequisite for Alibaba qwen-plus
+
+The built-in `alibaba-model-studio` route uses the Beijing endpoint. The `trial` hostname does not establish free usage: the endpoint also serves [pay-as-you-go requests](https://help.aliyun.com/zh/model-studio/base-url). Zero rates in model metadata and usage accumulated after `turn_end` cannot establish the approved cost cap.
+
+Alibaba certification currently accepts only `qwen-plus`. Before execution, the operator must verify in the console that this model has unexpired, unexhausted free quota and that the stop-on-free-quota-exhaustion control is already effective. Without this confirmation, do not execute. The control takes time to apply; ordinary budget-triggered immediate suspension can also incur charges during its delay and cannot replace this protection. See the [free-quota policy](https://help.aliyun.com/zh/model-studio/new-free-quota/) and [budget-management documentation](https://help.aliyun.com/zh/model-studio/budget-management).
+
+Only after verification may the operator set Candidate Qualification input `alibaba_free_quota_only_confirmed` to `true`; it defaults to `false`. The local certification script uses `COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED=true`. This records an operator declaration, not an automated account check. Evidence records the fixed `billingControl` value `operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only`. Single-run approval, the cost cap, zero retries, candidate identity and all timeouts still apply; the confirmation does not establish live certification.
+
+The workflow injects the key only from GitHub Actions Secret `COREMIND_CERT_API_KEY`; never put its value in workflow inputs or evidence. Built-in Beijing `qwen-plus` requests use `max_tokens`. Named Agents reselect the output-limit field when switching models; other custom endpoints retain their behavior. Request compatibility does not establish billing protection or live-service acceptance. See the [official API documentation](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions) for parameter semantics.
+
 ## Required checks
 
 | Check | Pass condition |
