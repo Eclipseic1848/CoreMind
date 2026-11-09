@@ -308,6 +308,7 @@ function createFixtureSeed(source: string | null) {
     "release-version.mjs",
     "verify-provider-certification-artifact.mjs",
     "provider-certification.mjs",
+    "deepseek-certification-budget.mjs",
   ])
     copyFileSync(path.join(repositoryRoot, "scripts", name), path.join(root, "scripts", name));
   writeFileSync(

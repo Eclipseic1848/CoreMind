@@ -13,6 +13,11 @@ import {
 } from "../packages/coremind-runtime/dist/index.js";
 import { shutdownPlatformExecutionEnvironment } from "../packages/coremind-tools/dist/internal.js";
 import {
+  createDeepSeekCertificationGuard,
+  DEEPSEEK_CERTIFICATION_OPTIONS,
+} from "./deepseek-certification-budget.mjs";
+import {
+  assertCertificationAuthentication,
   assertCertificationSucceeded,
   certificationChildBudget,
   checkCertificationChildRun,
@@ -56,6 +61,7 @@ const approval = validateCertificationApproval(
     model: process.env.COREMIND_CERT_MODEL,
     credentialEnv: process.env.COREMIND_CERT_API_KEY_ENV,
     maxCostUsd: process.env.COREMIND_CERT_MAX_COST_USD,
+    maxCostCny: process.env.COREMIND_CERT_MAX_COST_CNY,
     maxDurationMinutes: process.env.COREMIND_CERT_MAX_DURATION_MINUTES,
     alibabaFreeQuotaOnlyConfirmed: process.env.COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED,
     expectedVersion: process.env.COREMIND_CERT_EXPECTED_VERSION,
@@ -93,7 +99,14 @@ let stage = "streaming";
 let childContext;
 
 const details = {};
+const originalFetch = globalThis.fetch;
+const billingGuard =
+  providerId === "deepseek"
+    ? createDeepSeekCertificationGuard({ maxCostCny: approval.maxCostCny })
+    : undefined;
+const certificationOptions = providerId === "deepseek" ? DEEPSEEK_CERTIFICATION_OPTIONS : undefined;
 try {
+  if (billingGuard) globalThis.fetch = billingGuard.fetch;
   const basicEvents = [];
   const basic = await createRuntime({
     prompt: '只输出 JSON：{"status":"ok","marker":"CM-CERT-2026"}',
@@ -201,6 +214,7 @@ try {
   };
 
   stage = "auth-error";
+  const beforeAuthentication = billingGuard?.snapshot();
   process.env[apiKeyEnv] = "invalid-coremind-certification-key";
   const errorRuntime = await createRuntime({ prompt: "只回复 ERROR-CHECK" });
   try {
@@ -218,6 +232,11 @@ try {
     }
     if (!/401|invalid.api.key/i.test(message)) throw error;
     details.error = { passed: true, status: "rejected", diagnostic: "authentication_error" };
+  }
+  if (billingGuard) {
+    billingGuard.assertHealthy();
+    assertCertificationAuthentication(beforeAuthentication, billingGuard.snapshot());
+    details.error = { ...details.error, httpStatus: 401, requests: 1 };
   }
   process.env[apiKeyEnv] = originalKey;
   stage = "evidence";
@@ -237,6 +256,7 @@ try {
     ref,
     approval,
     usage,
+    billing: billingGuard?.snapshot(),
     testedAt,
     platform: `${process.platform}-${process.arch}`,
     node: process.version,
@@ -274,6 +294,7 @@ try {
       artifactManifestDigest: candidate.artifactManifestDigest,
       stage,
       approval,
+      billing: billingGuard?.snapshot(),
       events: certificationEvents,
       durationMs: Date.now() - startedAtMs,
       child: childContext,
@@ -295,6 +316,7 @@ try {
   try {
     await shutdownPlatformExecutionEnvironment();
   } finally {
+    globalThis.fetch = originalFetch;
     await rm(certificationRoot, { recursive: true, force: true });
   }
 }
@@ -425,6 +447,7 @@ async function createDelegationRuntime({
     provider: { id: providerId, model, apiKeyEnv },
     agents: {
       parent: {
+        ...(certificationOptions ? { options: certificationOptions } : {}),
         systemPrompt: "你是认证父 Agent。只按合成测试任务调用 delegate，不得自行完成 Child 任务。",
         ...(withWrite ? { tools: [{ id: "write" }] } : {}),
         delegation: {
@@ -451,6 +474,7 @@ async function createDelegationRuntime({
         },
       },
       worker: {
+        ...(certificationOptions ? { options: certificationOptions } : {}),
         systemPrompt: workerPrompt,
         ...(withWrite ? { tools: [{ id: "write" }] } : {}),
       },
@@ -491,6 +515,7 @@ async function createRuntime({ prompt, events, toolDefinitions, signal } = {}) {
     provider: { id: providerId, model, apiKeyEnv },
     agents: {
       assistant: {
+        ...(certificationOptions ? { options: certificationOptions } : {}),
         systemPrompt: "你正在执行自动化认证，只处理合成标记，不要求或输出任何其他数据。",
       },
     },

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { DEEPSEEK_BILLING_CONTROL } from "./deepseek-certification-budget.mjs";
 import {
   createCertificationEvidence,
   createCertificationFailure,
@@ -69,6 +70,66 @@ describe("候选 Provider 认证 Artifact", () => {
     await expect(verifyProviderCertificationArtifact(directory, "a".repeat(40))).rejects.toThrow(
       "认证台账与证据不一致",
     );
+  });
+
+  it("DeepSeek 制品缺少人民币账本或伪造取消预留时不能取得候选资格", async () => {
+    const commit = "a".repeat(40);
+    const directory = createArtifact(commit);
+    if (
+      path.dirname(path.resolve(directory)) !== path.resolve(tmpdir()) ||
+      !path.basename(directory).startsWith("coremind-provider-artifact-")
+    ) {
+      throw new Error("测试清理路径越界");
+    }
+    try {
+      const evidenceFile = path.join(directory, "evidence", "candidate.json");
+      const input = JSON.parse(readFileSync(evidenceFile, "utf8"));
+      input.provider = "deepseek";
+      input.model = "deepseek-flash";
+      Object.assign(input.approval, {
+        provider: input.provider,
+        model: input.model,
+        credentialEnv: "DEEPSEEK_API_KEY",
+        billingControl: DEEPSEEK_BILLING_CONTROL,
+        billingCurrency: "CNY",
+        maxCostCny: 10,
+      });
+      input.details.error = { passed: true, status: "failed", httpStatus: 401, requests: 1 };
+      input.billing = {
+        billingControl: DEEPSEEK_BILLING_CONTROL,
+        currency: "CNY",
+        maxCostCny: 10,
+        requests: 10,
+        settledRequests: 7,
+        retainedReservations: 3,
+        settledCostCny: 0.01,
+        reservedCostCny: 6.316032,
+        exposureCny: 6.326032,
+        deniedRequests: 0,
+        invalidResponses: 0,
+        authenticationRejections: 1,
+      };
+      const evidence = createCertificationEvidence(input);
+      writeFileSync(evidenceFile, JSON.stringify(evidence), "utf8");
+      const ledger = upsertCertificationRecord(
+        { schemaVersion: 2, certifications: [] },
+        evidence,
+        "https://example.test/candidate.json",
+      );
+      writeFileSync(path.join(directory, "certifications.json"), JSON.stringify(ledger), "utf8");
+      await expect(verifyProviderCertificationArtifact(directory, commit)).resolves.toMatchObject({
+        provider: "deepseek",
+        model: "deepseek-flash",
+      });
+      for (const billing of [undefined, { ...input.billing, reservedCostCny: 0 }]) {
+        writeFileSync(evidenceFile, JSON.stringify({ ...evidence, billing }), "utf8");
+        await expect(verifyProviderCertificationArtifact(directory, commit)).rejects.toThrow(
+          "DeepSeek",
+        );
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
 

@@ -7,7 +7,9 @@ import {
   RunBudgetController,
   resolveRuntimeLimits,
 } from "../packages/coremind-runtime/src/budget.js";
+import { DEEPSEEK_BILLING_CONTROL } from "./deepseek-certification-budget.mjs";
 import {
+  assertCertificationAuthentication,
   assertCertificationSucceeded,
   certificationChildBudget,
   checkCertificationChildRun,
@@ -468,8 +470,8 @@ describe("Provider 认证批准边界", () => {
       validateCertificationApproval(
         {
           ...approved,
-          provider: "deepseek",
-          model: "deepseek-chat",
+          provider: "openai",
+          model: "gpt-4.1-mini",
           alibabaFreeQuotaOnlyConfirmed: false,
         },
         actual,
@@ -691,7 +693,7 @@ describe("Provider 认证诊断", () => {
         approval: { ...input.approval, model: "qwen-turbo" },
       }),
     ).toThrow("缺少操作人确认的免费额度费用边界");
-    const otherProvider = { provider: "deepseek", model: "deepseek-chat" };
+    const otherProvider = { provider: "openai", model: "gpt-4.1-mini" };
     expect(
       createCertificationEvidence({
         ...input,
@@ -714,6 +716,186 @@ describe("Provider 认证诊断", () => {
     });
   });
 });
+
+describe("DeepSeek 人民币认证边界", () => {
+  it("固定模型和凭据后单独保存人民币上限，不换算 SDK 美元估算门", () => {
+    const { approved, actual } = deepSeekApprovalFixture();
+    expect(validateCertificationApproval(approved, actual)).toMatchObject({
+      provider: "deepseek",
+      model: "deepseek-flash",
+      credentialEnv: "DEEPSEEK_API_KEY",
+      maxCostUsd: 0.5,
+      maxCostCny: 10,
+      billingCurrency: "CNY",
+      billingControl: DEEPSEEK_BILLING_CONTROL,
+      maxDurationMs: 600_000,
+      maxRetries: 0,
+    });
+    expect(
+      validateCertificationApproval({ ...approved, maxCostCny: "1.000001" }, actual).maxCostCny,
+    ).toBe(1.000001);
+  });
+
+  it.each([
+    { model: "deepseek-chat" },
+    { credentialEnv: "COREMIND_CERT_API_KEY" },
+    { maxCostCny: undefined },
+    { maxCostCny: "" },
+    { maxCostCny: "USD 0.5" },
+    { maxCostCny: true },
+    { maxCostCny: "0xA" },
+    { maxCostCny: "0" },
+    { maxCostCny: "-1" },
+    { maxCostCny: "Infinity" },
+    { maxCostCny: "0.0000009" },
+  ])("批准不完整或误用币种时拒绝：%s", (invalid) => {
+    const { approved, actual } = deepSeekApprovalFixture();
+    expect(() => validateCertificationApproval({ ...approved, ...invalid }, actual)).toThrow();
+  });
+
+  it("鉴权场景只有新增一笔真实请求及 HTTP 401 才通过", () => {
+    const before = { ...deepSeekBillingFixture(), requests: 8, authenticationRejections: 0 };
+    const after = { ...before, requests: 9, authenticationRejections: 1 };
+    expect(assertCertificationAuthentication(before, after)).toEqual({
+      httpStatus: 401,
+      requests: 1,
+    });
+    for (const invalid of [
+      before,
+      { ...after, requests: 8 },
+      { ...after, requests: 10 },
+      { ...after, authenticationRejections: 0 },
+      { ...after, deniedRequests: 1 },
+      { ...after, invalidResponses: 1 },
+      { ...after, requests: NaN },
+    ]) {
+      expect(() => assertCertificationAuthentication(before, invalid)).toThrow("单次真实 401");
+    }
+  });
+
+  it("用整数微元复算已结算费用与取消预留，只输出账本白名单", () => {
+    const input = deepSeekEvidenceFixture();
+    const result = createCertificationEvidence({
+      ...input,
+      billing: { ...input.billing, response: "PRIVATE-CANARY-SECRET" },
+    });
+    expect(result.billing).toEqual(input.billing);
+    expect(JSON.stringify(result.billing)).not.toContain("PRIVATE-CANARY-SECRET");
+  });
+
+  it.each([
+    { billing: undefined },
+    { billing: { currency: "USD" } },
+    { billing: { maxCostCny: 20 } },
+    { billing: { requests: 11 } },
+    { billing: { settledRequests: 0 } },
+    { billing: { reservedCostCny: 0 } },
+    { billing: { settledCostCny: 0.1 } },
+    { billing: { exposureCny: 6.316032 } },
+    { billing: { settledCostCny: 0.0100001 } },
+    { billing: { deniedRequests: 1 } },
+    { billing: { invalidResponses: 1 } },
+    { billing: { authenticationRejections: 0 } },
+    { billing: { requests: Number.MAX_SAFE_INTEGER + 1 } },
+    { approval: { maxCostCny: 5 } },
+    { approval: { billingCurrency: "USD" } },
+    { approval: { model: "deepseek-chat" }, model: "deepseek-chat" },
+    { approval: { credentialEnv: "COREMIND_CERT_API_KEY" } },
+    { error: { httpStatus: 429 } },
+    { error: { requests: 0 } },
+    { error: { status: "succeeded" } },
+  ])("拒绝被篡改或不完整的费用和鉴权证据：%s", (invalid) => {
+    const input = deepSeekEvidenceFixture();
+    const modified = {
+      ...input,
+      ...("model" in invalid ? { model: invalid.model } : {}),
+      approval: { ...input.approval, ...invalid.approval },
+      billing:
+        "billing" in invalid && invalid.billing === undefined
+          ? undefined
+          : { ...input.billing, ...invalid.billing },
+      details: { ...input.details, error: { ...input.details.error, ...invalid.error } },
+    };
+    expect(() => createCertificationEvidence(modified)).toThrow();
+  });
+
+  it("失败账本仍是诊断，未知字段和字符串不能进入 4 KiB 摘要", () => {
+    const snapshot = failureFixture();
+    const canary = "PRIVATE-CANARY-SECRET";
+    const input = deepSeekEvidenceFixture();
+    const failure = createCertificationFailure({
+      ...snapshot,
+      approval: input.approval,
+      billing: { ...input.billing, currency: canary, settledCostCny: canary, body: canary },
+    });
+    expect(failure).toMatchObject({
+      evidenceLevel: "diagnostic-only",
+      approval: {
+        billingControl: DEEPSEEK_BILLING_CONTROL,
+        billingCurrency: "CNY",
+        maxCostCny: 10,
+      },
+      billing: { currency: "unknown", settledCostCny: null, retainedReservations: 3 },
+      usage: { completeness: "unknown" },
+    });
+    const json = JSON.stringify(failure);
+    expect(json).not.toContain(canary);
+    expect(Buffer.byteLength(json, "utf8")).toBeLessThanOrEqual(4096);
+  });
+});
+
+function deepSeekApprovalFixture() {
+  return {
+    approved: {
+      provider: "deepseek",
+      model: "deepseek-flash",
+      credentialEnv: "DEEPSEEK_API_KEY",
+      maxCostUsd: "0.5",
+      maxCostCny: "10",
+      maxDurationMinutes: "10",
+      expectedVersion: "1.4.0",
+      expectedCommit: "a".repeat(40),
+      expectedRuntimeArtifactSha256: "b".repeat(64),
+    },
+    actual: { version: "1.4.0", commit: "a".repeat(40), runtimeArtifactSha256: "b".repeat(64) },
+  };
+}
+
+function deepSeekBillingFixture() {
+  return {
+    billingControl: DEEPSEEK_BILLING_CONTROL,
+    currency: "CNY",
+    maxCostCny: 10,
+    requests: 10,
+    settledRequests: 7,
+    retainedReservations: 3,
+    settledCostCny: 0.01,
+    reservedCostCny: 6.316032,
+    exposureCny: 6.326032,
+    deniedRequests: 0,
+    invalidResponses: 0,
+    authenticationRejections: 1,
+  };
+}
+
+function deepSeekEvidenceFixture() {
+  const { approved, actual } = deepSeekApprovalFixture();
+  return {
+    ...completeBoundEvidence(),
+    ...actual,
+    provider: "deepseek",
+    model: "deepseek-flash",
+    testedAt: "2026-11-09T10:00:00.000Z",
+    platform: "linux-x64",
+    node: "v22.23.3",
+    approval: validateCertificationApproval(approved, actual),
+    details: {
+      ...completeDetails(3),
+      error: { passed: true, status: "failed", httpStatus: 401, requests: 1 },
+    },
+    billing: deepSeekBillingFixture(),
+  };
+}
 
 describe("Provider 认证台账", () => {
   it("按 Provider 与版本替换记录，并保存提交与 Runtime 摘要", () => {
