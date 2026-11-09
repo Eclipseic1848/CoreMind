@@ -1,9 +1,10 @@
-import { createModels, Type } from "@earendil-works/pi-ai";
+import { createModels } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
+import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 import { type AgentDriver, type AgentDriverObservation, FakeAgentDriver } from "./agent-driver.js";
 import { buildAgentDriver } from "./agent-factory.js";

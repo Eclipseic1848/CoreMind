@@ -17,46 +17,46 @@ CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** �
 | Provider ID | 默认模型 | 认证版本 | 模型数 | 状态 | 证据 |
 |---|---|---|---:|---|---|
 | `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | 可配置，1.4.0 未认证（保留旧版证据） | [证据](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
-| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 193 | 可配置，未认证 | — |
+| `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 197 | 可配置，未认证 | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | 可配置，未认证 | — |
 | `anthropic` | `claude-fable-5` | — | 17 | 可配置，未认证 | — |
-| `azure` | `gpt-4` | — | 45 | 可配置，未认证 | — |
-| `azure-openai-responses`（`azure` 的兼容别名） | `gpt-4` | — | 45 | 可配置，未认证 | — |
-| `baseten` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 22 | 可配置，未认证 | — |
+| `azure` | `chat-latest` | — | 45 | 可配置，未认证 | — |
+| `azure-openai-responses`（`azure` 的兼容别名） | `chat-latest` | — | 45 | 可配置，未认证 | — |
+| `baseten` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 14 | 可配置，未认证 | — |
 | `cerebras` | `gpt-oss-120b` | — | 2 | 可配置，未认证 | — |
-| `cloudflare-ai-gateway` | `claude-fable-5` | — | 57 | 可配置，未认证 | — |
-| `cloudflare-workers-ai` | `@cf/deepseek-ai/deepseek-v4-flash-0731` | — | 18 | 可配置，未认证 | — |
+| `cloudflare-ai-gateway` | `claude-fable-5` | — | 59 | 可配置，未认证 | — |
+| `cloudflare-workers-ai` | `@cf/deepseek-ai/deepseek-v4-flash-0731` | — | 19 | 可配置，未认证 | — |
 | `deepseek` | `deepseek-flash` | — | 2 | 可配置，未认证 | — |
-| `fireworks` | `accounts/fireworks/models/deepseek-v4p1-flash` | — | 22 | 可配置，未认证 | — |
-| `github-copilot` | `claude-fable-5` | — | 36 | 可配置，未认证 | — |
+| `fireworks` | `accounts/fireworks/models/deepseek-v4p1-flash` | — | 29 | 可配置，未认证 | — |
+| `github-copilot` | `claude-fable-5` | — | 27 | 可配置，未认证 | — |
 | `google` | `deep-research-max-preview-04-2026` | — | 23 | 可配置，未认证 | — |
-| `google-vertex` | `gemini-2.5-flash` | — | 14 | 可配置，未认证 | — |
+| `google-vertex` | `gemini-2.5-flash` | — | 13 | 可配置，未认证 | — |
 | `groq` | `llama-3.1-8b-instant` | — | 7 | 可配置，未认证 | — |
 | `huggingface` | `deepseek-ai/DeepSeek-R1` | — | 78 | 可配置，未认证 | — |
-| `kimi-coding` | `k3` | — | 4 | 可配置，未认证 | — |
+| `kimi-coding` | `k3` | — | 6 | 可配置，未认证 | — |
 | `meta` | `muse-spark-1.1` | — | 6 | 可配置，未认证 | — |
-| `minimax` | `MiniMax-M2.7` | — | 3 | 可配置，未认证 | — |
-| `minimax-cn` | `MiniMax-M2.7` | — | 3 | 可配置，未认证 | — |
-| `mistral` | `codestral-2508` | — | 40 | 可配置，未认证 | — |
-| `moonshotai` | `kimi-k2.6` | — | 4 | 可配置，未认证 | — |
-| `moonshotai-cn` | `kimi-k2.6` | — | 4 | 可配置，未认证 | — |
-| `nvidia` | `deepseek-ai/deepseek-v4.1-flash` | — | 20 | 可配置，未认证 | — |
-| `openai` | `gpt-4` | — | 44 | 可配置，未认证 | — |
-| `openai-codex` | `gpt-5.3-codex-spark` | — | 9 | 可配置，未认证 | — |
-| `opencode` | `claude-fable-5` | — | 84 | 可配置，未认证 | — |
-| `opencode-go` | `claude-haiku-5-5` | — | 29 | 可配置，未认证 | — |
-| `openrouter` | `anthropic/claude-fable-5` | — | 396 | 可配置，未认证 | — |
-| `qwen-token-plan` | `deepseek-v3.2` | — | 20 | 可配置，未认证 | — |
-| `qwen-token-plan-cn` | `deepseek-v3.2` | — | 20 | 可配置，未认证 | — |
+| `minimax` | `MiniMax-M2.7` | — | 4 | 可配置，未认证 | — |
+| `minimax-cn` | `MiniMax-M2.7` | — | 4 | 可配置，未认证 | — |
+| `mistral` | `codestral-2508` | — | 34 | 可配置，未认证 | — |
+| `moonshotai` | `kimi-k2.6` | — | 6 | 可配置，未认证 | — |
+| `moonshotai-cn` | `kimi-k2.6` | — | 6 | 可配置，未认证 | — |
+| `nvidia` | `deepseek-ai/deepseek-v4.1-flash` | — | 21 | 可配置，未认证 | — |
+| `openai` | `chat-latest` | — | 44 | 可配置，未认证 | — |
+| `openai-codex` | `gpt-5.6-luna` | — | 8 | 可配置，未认证 | — |
+| `opencode` | `claude-fable-5` | — | 79 | 可配置，未认证 | — |
+| `opencode-go` | `claude-haiku-5-5` | — | 30 | 可配置，未认证 | — |
+| `openrouter` | `~anthropic/claude-fable-latest` | — | 388 | 可配置，未认证 | — |
+| `qwen-token-plan` | `deepseek-v3.2` | — | 21 | 可配置，未认证 | — |
+| `qwen-token-plan-cn` | `deepseek-v3.2` | — | 21 | 可配置，未认证 | — |
 | `qwen-token-plan-individual` | `deepseek-v4-flash-0731` | — | 9 | 可配置，未认证 | — |
-| `radius` | `balanced` | — | 29 | 可配置，未认证 | — |
-| `together` | `deepseek-ai/DeepSeek-V4-Flash-0731` | — | 17 | 可配置，未认证 | — |
-| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | — | 301 | 可配置，未认证 | — |
+| `radius` | `balanced` | — | 28 | 可配置，未认证 | — |
+| `together` | `deepseek-ai/DeepSeek-V4-Pro-0813` | — | 15 | 可配置，未认证 | — |
+| `vercel-ai-gateway` | `alibaba/qwen-3-14b` | — | 303 | 可配置，未认证 | — |
 | `xai` | `grok-4.3` | — | 4 | 可配置，未认证 | — |
-| `xiaomi` | `mimo-v2.5` | — | 6 | 可配置，未认证 | — |
-| `xiaomi-token-plan-ams` | `mimo-v2.5` | — | 4 | 可配置，未认证 | — |
-| `xiaomi-token-plan-cn` | `mimo-v2.5` | — | 4 | 可配置，未认证 | — |
-| `xiaomi-token-plan-sgp` | `mimo-v2.5` | — | 4 | 可配置，未认证 | — |
+| `xiaomi` | `mimo-v2.6-flash` | — | 3 | 可配置，未认证 | — |
+| `xiaomi-token-plan-ams` | `mimo-v2.6-flash` | — | 2 | 可配置，未认证 | — |
+| `xiaomi-token-plan-cn` | `mimo-v2.6-flash` | — | 2 | 可配置，未认证 | — |
+| `xiaomi-token-plan-sgp` | `mimo-v2.6-flash` | — | 2 | 可配置，未认证 | — |
 | `zai` | `glm-4.7` | — | 7 | 可配置，未认证 | — |
 | `zai-coding-cn` | `glm-4.6v` | — | 4 | 可配置，未认证 | — |
 

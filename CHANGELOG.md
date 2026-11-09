@@ -15,8 +15,8 @@
 - **开发构建依赖：** 将 Vitest 测试链的 Vite 固定为 `8.2.4`，仅将 VitePress `1.6.4` 子树的 Vite 覆盖为 `6.4.5`，修复编辑器启动相关漏洞；不引入预发行文档框架，也不新增风险豁免。变更限于开发/文档构建依赖，不改变 Runtime 权限或沙箱边界。 ([#350](https://github.com/Eclipseic1848/CoreMind/issues/350))
 - **测试依赖安全修复：** 将 `vitest` 与 `@vitest/coverage-v8` 同步升级至 `4.1.12`，使测试链纳入 `@vitest/mocker` 的手工 mock 代码生成转义与 Windows redirect 路径规范化补丁（[GHSA-qxg6-89mg-rqv8](https://github.com/vitest-dev/vitest/security/advisories/GHSA-qxg6-89mg-rqv8)、[GHSA-xp26-3454-mjgp](https://github.com/vitest-dev/vitest/security/advisories/GHSA-xp26-3454-mjgp)）。变更仅限开发/测试依赖，不改变 Runtime 权限或沙箱边界，也不新增风险豁免。 ([#355](https://github.com/Eclipseic1848/CoreMind/issues/355))
 
-- **生产与构建依赖：** fast-uri 更新至 3.1.9，CoreMind 网络工具使用 Undici 8.12.2；API Extractor 的 minimatch 更新至 11.0.1，固定 Linux 后端开发源的 Zod 至 4.6.6、node-forge 至 1.4.2。文档链 Vite 在原安全修复基础上更新至 6.4.5；定向覆盖不升级底层运行库，也不改变 Linux 后端来源版本。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
-- **获准接受的运行时依赖风险：** 精确登记底层运行库 1.3.0 及其 minimatch 10.2.6 / Undici 8.10.2 已知风险；接受风险不代表漏洞已修复。审计继续核对版本、安装位置、公告、等级上限和原到期日 2026-11-14，其他风险和报告失败仍阻断。公开 npm 消费者仍可能安装受影响链，不能依赖仓库 overrides。详见[安全说明](SECURITY.md)。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **生产与构建依赖加固。** fast-uri 更新至 3.1.9，固定 Linux 后端开发源的 Zod 更新至 4.6.6、node-forge 更新至 1.4.2，文档链的 Vite 更新至 6.4.5。 ([#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **底层运行库 1.5.0 迁移。** 将八个依赖成员锁定到同一版本，纳入新增工具参数校验包，采用官方传递版本 Undici 8.12.3 与 minimatch 11.0.3，并同步 CoreMind 网络工具的 Undici 版本。两项传递依赖超出 #359 登记的九条公告影响范围，相应风险接受项移除。独立开发依赖风险仍按原范围审计，到期日为 2026-11-14。详见[安全说明](SECURITY.md)。 ([#379](https://github.com/Eclipseic1848/CoreMind/issues/379))
 
 ### 能力提升
 
@@ -64,7 +64,7 @@
 
 ### 文档与发布工程
 
-- **安全策略版本状态：** 双语 SECURITY 支持表链接最新正式 Release，准确保留已发布版本与既有加固的交付事实、私密披露方式和原安全边界；已接受依赖风险另按精确策略说明，不把接受风险写成漏洞消除。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333), [#359](https://github.com/Eclipseic1848/CoreMind/issues/359))
+- **安全策略版本状态。** 双语 SECURITY 支持表链接最新正式 Release，记录已发布版本与既有加固、私密披露方式和安全边界，并区分早期底层依赖的风险接受与当前开发依赖审计范围。 ([#333](https://github.com/Eclipseic1848/CoreMind/issues/333), [#359](https://github.com/Eclipseic1848/CoreMind/issues/359), [#379](https://github.com/Eclipseic1848/CoreMind/issues/379))
 - **统一 1.4.0 交付材料：** 纳入原 1.3.0 发布准备、安装导航与 Worker 生成物同步，统一根与 8 个 npm 包、Python、内部精确依赖、锁文件、模块与 TTY 模板到 1.4.0。同步双语 README、设计/指南/SOP/Skill、示例、1.2→1.4 迁移、路线图和文档站，固定发布正文包含完整本版本变更。1.3.0 不独立发布，历史文档与证据保留。 ([#334](https://github.com/Eclipseic1848/CoreMind/issues/334), [#346](https://github.com/Eclipseic1848/CoreMind/issues/346), [#358](https://github.com/Eclipseic1848/CoreMind/pull/358), [#368](https://github.com/Eclipseic1848/CoreMind/issues/368))
 - **能力操作材料：** 任务提交、阶段、等待、稳定键调用、会话树和跨语言入口均配套双语指南、模块合同、SOP/Skill、离线可运行示例及真实进程恢复回归；工程检查不代替最终 Provider 或正式发布资格。 ([#362](https://github.com/Eclipseic1848/CoreMind/issues/362), [#363](https://github.com/Eclipseic1848/CoreMind/issues/363), [#364](https://github.com/Eclipseic1848/CoreMind/issues/364), [#365](https://github.com/Eclipseic1848/CoreMind/issues/365), [#366](https://github.com/Eclipseic1848/CoreMind/issues/366), [#367](https://github.com/Eclipseic1848/CoreMind/issues/367))
 

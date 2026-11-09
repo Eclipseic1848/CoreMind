@@ -28,7 +28,7 @@ export interface NormalizedDependencyUsage {
 
 export function inspectRuntimeCompatibility(): RuntimeCompatibilityReport {
   return {
-    dependencyFamily: "1.3.0",
+    dependencyFamily: "1.5.0",
     adapterVersion: 2,
     errorMappingVersion: 2,
     capabilities: {
@@ -53,18 +53,5 @@ export function normalizeDependencyUsage(usage: Usage): NormalizedDependencyUsag
 
 /** 错误分类只在 Adapter 内依赖低层消息结构。 */
 export function isRetryableDependencyAssistantError(message: unknown): boolean {
-  const assistant = message as AssistantMessage;
-  if (!assistant.errorMessage) return isRetryableAssistantError(assistant);
-  return isRetryableAssistantError({
-    ...assistant,
-    // shortcut: Pi 1.3.0 缺状态码边界；官方安全版升级后可移除此兼容处理，保留回归。
-    errorMessage: assistant.errorMessage.replace(
-      /429|500|502|503|504|520|524/g,
-      (status, offset: number, source: string) => {
-        const neighbors = (source[offset - 1] ?? "") + (source[offset + status.length] ?? "");
-        // 等长字母保留原边界，避免删除数字后拼出新的瞬态关键词。
-        return /[a-z0-9]/i.test(neighbors) ? "xxx" : status;
-      },
-    ),
-  });
+  return isRetryableAssistantError(message as AssistantMessage);
 }

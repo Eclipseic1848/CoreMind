@@ -42,7 +42,7 @@ const BUILTIN_FACTORIES: Record<
     cwd: string,
     env: NodeJS.ProcessEnv,
     executionEnvironment?: ExecutionEnvironment,
-  ) => AgentTool | null
+  ) => AgentTool<any> | null
 > = {
   read: (cwd) => createReadTool(cwd),
   ls: (cwd) => createLsTool(cwd),

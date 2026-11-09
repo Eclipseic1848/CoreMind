@@ -1,6 +1,6 @@
 # Runtime 依赖 Adapter
 
-状态：合同与文档已对齐 `1.0.0` 发布线；支持平台：Windows、Linux。macOS 尚未列为正式支持。
+本模块面向 `1.4.0` 发布线，支持 Windows 和 Linux。
 
 ## 目的
 
@@ -14,12 +14,12 @@
 
 ## 不变量
 
-- 核心依赖安装树只能存在一个版本族。
+- 核心依赖安装树只能存在一个版本族。1.4.0 将底层运行库的八个依赖成员统一锁定为 1.5.0，包含新增工具参数校验包。
 - Provider、工具、abort、usage、错误和超时必须通过显式转换或合同测试。
 - CoreMind 对用户继续返回稳定的 `session.dir/<id>.jsonl` 路径；底层仓库布局不能改写 CLI/SDK 的文件合同。
 - 不用双重强转掩盖跨版本类型冲突。
-- SDK 不使用 shrinkwrap；仓库 overrides 不约束下游消费者。发布验收在 tarball 干净安装后逐层核对实际运行依赖图的七个成员，保留原有导入、Child Run 与内容门禁。
-- Python 内置 Worker 的 manifest 记录七个成员的实际安装版本、锁定归档完整性及构建输出中的 `bundled` 状态；已解析的成员不等于已内联。wheel 与冻结源码中的 Worker/manifest 逐字节核对，消费者 npm 图与随包 Worker 分别验收。
+- SDK 依赖由消费者安装图决定。发布验收在无仓库 overrides 的 tarball 干净安装后核对全部八个依赖成员与官方传递版本，并执行导入、Child Run 和内容检查。
+- Python 内置 Worker 的 manifest 记录八个成员的实际安装版本、锁定归档完整性及构建输出中的 `bundled` 状态，分别标注依赖解析和实际内联。wheel 与冻结源码中的 Worker/manifest 逐字节核对，消费者 npm 图与随包 Worker 分别验收。
 - 依赖升级失败时整体回退，禁止混搭进入主线。
 - 候选基线采集会扫描 `coremind-runtime` 和 `coremind-ai` 的聚合声明；发现私有依赖类型即阻断。
 

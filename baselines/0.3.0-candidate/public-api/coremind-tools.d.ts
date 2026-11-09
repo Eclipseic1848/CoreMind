@@ -1,5 +1,6 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { BUILTIN_TOOL_CAPABILITIES } from 'coremind-config';
+import { createBashTool } from '@earendil-works/pi-coding-agent';
 import type { ScriptToolConfig } from 'coremind-config';
 import { TOOL_CAPABILITY_CHECKPOINTS } from 'coremind-config';
 import { TOOL_CAPABILITY_CONCURRENCY } from 'coremind-config';
@@ -14,7 +15,7 @@ import { ToolCapabilityEffect } from 'coremind-config';
 import { ToolCapabilityReplay } from 'coremind-config';
 import { ToolConfig } from 'coremind-config';
 import { ToolEffectDeclaration } from 'coremind-config';
-import { Type } from '@earendil-works/pi-ai';
+import { Type } from 'typebox';
 
 export declare interface ArtifactImportResult {
     record: ArtifactRecord;
@@ -106,10 +107,10 @@ export declare function createGitLogTool(cwd: string): AgentTool<typeof GitLogPa
 export declare function createGitStatusTool(cwd: string): AgentTool<typeof GitStatusParams>;
 
 /** 非 Linux 宿主命令统一走 ProcessRunner；权限层仍在执行前决定是否允许。 */
-export declare function createHostBashTool(options: HostBashOptions): AgentTool;
+export declare function createHostBashTool(options: HostBashOptions): ReturnType<typeof createBashTool>;
 
 /** Linux bash 使用真实 OS 隔离；初始化或依赖缺失时失败关闭，不回退到宿主 shell。 */
-export declare function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions): AgentTool;
+export declare function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions): ReturnType<typeof createBashTool>;
 
 /** 为 UTF-8 文本生成标准 unified diff，并对输入、复杂度和输出分别限流。 */
 export declare function createUnifiedDiff(before: string, after: string, options?: UnifiedDiffOptions): string;

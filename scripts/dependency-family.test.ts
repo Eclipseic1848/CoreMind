@@ -19,9 +19,10 @@ function graph(version = "1.2.0"): NpmNode & { dependencies: Record<string, NpmN
 }
 
 describe("真实消费者依赖身份", () => {
-  it.each(["1.2.0", "1.3.0"])("按当前精确声明核对七个成员：%s", (version) => {
+  it("按当前精确声明核对八个成员", () => {
+    const version = "1.5.0";
     expect(assertNpmDependencyFamily(graph(version), version)).toMatchObject({
-      packages: 7,
+      packages: 8,
       version,
     });
   });
@@ -89,7 +90,7 @@ describe("真实消费者依赖身份", () => {
         },
       };
       const dependencies = await buildWorkerRuntimeDependencies(directory, metafile, "1.2.0");
-      expect(Object.keys(dependencies)).toHaveLength(7);
+      expect(Object.keys(dependencies)).toHaveLength(8);
       expect(dependencies[used]).toEqual({ version: "1.2.0", integrity, bundled: true });
       expect(dependencies[unused]!.bundled).toBe(false);
       writeFileSync(
