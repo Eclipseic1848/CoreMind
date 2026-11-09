@@ -298,10 +298,14 @@ describe("Linux helper 进程所有权", () => {
           backend.cleanupLinuxSandboxCommand();
         }
       }
-      await execute("printf allowed > result.txt");
+      await assert.rejects(
+        execute("trap 'exit 7' TERM; printf allowed > result.txt && kill -TERM 1 && sleep 1"),
+        { status: 7 },
+      );
       assert.equal(readFileSync(path.join(workspace, "result.txt"), "utf8"), "allowed");
       function probe() {
         const assert = require("node:assert/strict");
+        const { spawnSync } = require("node:child_process");
         const fs = require("node:fs");
         const path = require("node:path");
         const helper = process.argv[1];
@@ -312,8 +316,22 @@ describe("Linux helper 进程所有权", () => {
             assert.ok(codes.includes(error.code), String(error));
             return error.code;
           }
-          throw new Error("自有执行资产仍可写入");
+          throw new Error("受保护的访问未被拒绝");
         }
+        assert.equal(fs.readFileSync("/proc/1/comm", "utf8").trim(), "apply-seccomp");
+        denied(() => { fs.closeSync(fs.openSync("/proc/1/mem", "r")); }, ["EACCES", "EPERM"]);
+        const status = fs.readFileSync("/proc/self/status", "utf8");
+        for (const capability of ["CapEff", "CapPrm", "CapBnd"]) {
+          assert.match(status, new RegExp("^" + capability + ":[ \\t]+0+$", "m"));
+        }
+        assert.match(status, /^NoNewPrivs:[ \t]+1$/m);
+        assert.match(status, /^Seccomp:[ \t]+2$/m);
+        const nested = spawnSync("unshare", ["--user", "/bin/true"], {
+          encoding: "utf8", env: { ...process.env, LC_ALL: "C" },
+        });
+        assert.ifError(nested.error);
+        assert.equal(nested.status, 1, nested.stderr);
+        assert.match(nested.stderr, /unshare failed:/);
         const file = denied(() => { const fd = fs.openSync(path.join(path.dirname(helper), "permission-canary"), "r+"); fs.closeSync(fd); });
         const executable = denied(() => { const fd = fs.openSync(helper, "r+"); fs.closeSync(fd); }, ["EROFS", "EACCES", "EPERM", "ETXTBSY"]);
         const directory = denied(() => fs.mkdirSync(path.join(path.dirname(helper), "forbidden-probe")));

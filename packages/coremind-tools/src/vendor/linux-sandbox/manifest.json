@@ -5,6 +5,7 @@
     "version": "0.0.71",
     "license": "Apache-2.0",
     "files": {
+      "scripts/linux-seccomp-init.c": "3d35d3a071ffc65eb3f4bc17e7b3bc78b52c7d90cca7f2f3b2b5229d270fe595",
       "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/shell-quote.js": "40898decd1babc4bffdc2a43cc0bbe6e655fe891194379c0ef441df3df621225",
       "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/debug.js": "4627c2d75a97335cd99db609bb48c9d097c0d384b3cc41ac7bfef51624083265",
       "node_modules/@anthropic-ai/sandbox-runtime/dist/utils/which.js": "150f2f55dbb6e74a22a3638732a26bb017dc2559ba6462c630b62d6b0d509076",
@@ -19,13 +20,19 @@
     "esbuild": "0.28.1",
     "entry": "export { wrapCommandWithSandboxLinux, checkLinuxDependencies, cleanupBwrapMountPoints } from \"./dist/sandbox/linux-sandbox-utils.js\";\nexport { getDefaultWritePaths } from \"./dist/sandbox/sandbox-utils.js\";\nexport { hasRipgrepSync } from \"./dist/utils/ripgrep.js\";",
     "network": "denied",
-    "proxies": false
+    "proxies": false,
+    "seccompInit": {
+      "compiler": "zig",
+      "version": "0.15.2",
+      "source": "scripts/linux-seccomp-init.c"
+    }
   },
   "artifacts": {
-    "backend.mjs": "0f429675ddfb6cf62f77b654c8e570563c4f2680ba2debf85cf34b3291bdeea0",
+    "backend.mjs": "9c8d9e145a500fe32c673d7bc708ba6114f5c379c0612949fd14d9ec90311bb3",
     "LICENSE": "1210bc93eb85dd786c33192d5bcb7153a93922fa99fbc1512af6a7199cb41080",
-    "metafile.json": "07efd8d7d45abaa702d7e11426c14d9340b102678c5518a684cece6146325939",
-    "bin/x64/apply-seccomp": "5c92b0f369a626f5d7cb27d7912cfa882dc26a3690f17cc0016480c5b8b01df7",
-    "bin/arm64/apply-seccomp": "bfa3450c76d9a929663ea924ec0dedce908905e9e8124105c74547e8e5b748ef"
+    "metafile.json": "f1cb3223447c6bb496a0edd4e56290a9cd267207001831f0d7dd65af8d90855a",
+    "musl-COPYRIGHT": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
+    "bin/x64/apply-seccomp": "3c936e83f2d00a79d41ef3991b52e0c2b8f8bfbc4a2a848696e8cbb96ba2a606",
+    "bin/arm64/apply-seccomp": "d4173ac663712f10aa938859e33fa83b7beff197509f13e53fdef08058c30866"
   }
 }

@@ -222,7 +222,10 @@ def check_linux_sandbox_assets(archive: zipfile.ZipFile) -> list[str]:
     except (KeyError, UnicodeDecodeError, json.JSONDecodeError):
         return ["Linux 安全后端缺少有效 manifest.json"]
 
-    artifacts = {"backend.mjs", "LICENSE", "metafile.json", "bin/x64/apply-seccomp", "bin/arm64/apply-seccomp"}
+    artifacts = {
+        "backend.mjs", "LICENSE", "musl-COPYRIGHT", "metafile.json",
+        "bin/x64/apply-seccomp", "bin/arm64/apply-seccomp",
+    }
     if (
         not isinstance(manifest, dict)
         or type(manifest.get("schemaVersion")) is not int
@@ -237,11 +240,14 @@ def check_linux_sandbox_assets(archive: zipfile.ZipFile) -> list[str]:
         or not all(isinstance(source.get(key), str) and source[key] for key in ("package", "version", "license"))
         or not isinstance(source.get("files"), dict)
         or not source["files"]
+        or "scripts/linux-seccomp-init.c" not in source["files"]
         or not all(isinstance(key, str) and key and valid_sha256(value) for key, value in source["files"].items())
         or not isinstance(build, dict)
         or not all(isinstance(build.get(key), str) and build[key] for key in ("esbuild", "entry"))
         or build.get("network") != "denied"
         or build.get("proxies") is not False
+        or not isinstance(build.get("seccompInit"), dict)
+        or build["seccompInit"].get("source") != "scripts/linux-seccomp-init.c"
         or not isinstance(hashes, dict)
         or set(hashes) != artifacts
         or not all(valid_sha256(value) for value in hashes.values())

@@ -2,6 +2,8 @@
 
 ## 1.4.0 - 2026-11-02
 
+- 严格 Linux 沙箱改由 Bubblewrap 直接启动受信 PID 1，保留原隔离与 seccomp 规则并禁止嵌套用户命名空间。
+- Strict Linux sandboxing launches its trusted PID 1 directly through Bubblewrap, preserving isolation and seccomp rules while disabling nested user namespaces.
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
 
 ## 1.3.0 - 2026-10-20

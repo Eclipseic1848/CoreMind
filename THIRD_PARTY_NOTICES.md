@@ -17,6 +17,7 @@ CoreMind 的运行时底座直接依赖以下 npm 包（MIT 协议，Copyright 2
 | 包 | 用途 | 许可 |
 |---|---|---|
 | @anthropic-ai/sandbox-runtime | Linux 内置 shell 的 OS 级隔离适配 | Apache-2.0 |
+| musl libc | 静态链接到 Linux seccomp 助手，许可随 `musl-COPYRIGHT` 资产提供 | MIT 及文件所列声明 |
 | xstate 5.32.5 | 显式 Loop 的内部状态迁移与快照适配；公共合同仍由 CoreMind 定义 | MIT |
 | execa 10.0.1 | 跨平台子进程执行、超时、中止与流式输出适配 | MIT |
 | diff 9.0.0 | 受限统一差异生成 | BSD-3-Clause |
