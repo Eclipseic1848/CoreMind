@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import {
+  DEEPSEEK_BILLING_CONTROL,
+  DEEPSEEK_REQUEST_RESERVATION_MICROCNY,
+  toDeepSeekMicroCny,
+} from "./deepseek-certification-budget.mjs";
 
 const ALIBABA_BILLING_CONTROL = "operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only";
 
@@ -138,6 +143,7 @@ export function createCertificationFailure({
   events,
   durationMs,
   child,
+  billing,
 }) {
   const turns = events.filter((event) => event.type === "turn_end");
   const observed = (key, integer = false) => {
@@ -192,7 +198,15 @@ export function createCertificationFailure({
       ...(approval?.billingControl === ALIBABA_BILLING_CONTROL
         ? { billingControl: ALIBABA_BILLING_CONTROL }
         : {}),
+      ...(approval?.billingControl === DEEPSEEK_BILLING_CONTROL
+        ? {
+            billingControl: DEEPSEEK_BILLING_CONTROL,
+            billingCurrency: fixedValue(approval.billingCurrency, ["CNY"]),
+            maxCostCny: nonnegative(approval.maxCostCny),
+          }
+        : {}),
     },
+    ...(billing ? { billing: deepSeekBillingFacts(billing) } : {}),
     usage: {
       completeness: [inputTokensObserved, outputTokensObserved, costUsdObserved].some(
         (value) => value !== null,
@@ -252,6 +266,97 @@ function nonnegative(value, integer = false) {
   return Number.isFinite(value) && value >= 0 && (!integer || Number.isSafeInteger(value))
     ? value
     : null;
+}
+
+function deepSeekBillingFacts(billing) {
+  return {
+    billingControl: fixedValue(billing?.billingControl, [DEEPSEEK_BILLING_CONTROL]),
+    currency: fixedValue(billing?.currency, ["CNY"]),
+    ...Object.fromEntries(
+      ["maxCostCny", "settledCostCny", "reservedCostCny", "exposureCny"].map((key) => [
+        key,
+        nonnegative(billing?.[key]),
+      ]),
+    ),
+    ...Object.fromEntries(
+      [
+        "requests",
+        "settledRequests",
+        "retainedReservations",
+        "deniedRequests",
+        "invalidResponses",
+        "authenticationRejections",
+      ].map((key) => [key, nonnegative(billing?.[key], true)]),
+    ),
+  };
+}
+
+/** 鉴权反例必须真的发出一笔请求并收到 401，预算拒绝不能代替认证。 */
+export function assertCertificationAuthentication(before, after) {
+  if (
+    ![
+      before?.requests,
+      after?.requests,
+      before?.authenticationRejections,
+      after?.authenticationRejections,
+    ].every((value) => nonnegative(value, true) !== null) ||
+    after.requests !== before.requests + 1 ||
+    after.authenticationRejections !== before.authenticationRejections + 1 ||
+    before.deniedRequests !== 0 ||
+    after.deniedRequests !== 0 ||
+    before.invalidResponses !== 0 ||
+    after.invalidResponses !== 0
+  ) {
+    throw new Error("DeepSeek 鉴权认证缺少单次真实 401，费用拒绝不能作为通过证据");
+  }
+  return { httpStatus: 401, requests: 1 };
+}
+
+function validateDeepSeekBilling(approval, billing, error) {
+  const facts = deepSeekBillingFacts(billing);
+  if (
+    approval.model !== "deepseek-flash" ||
+    approval.credentialEnv !== "DEEPSEEK_API_KEY" ||
+    approval.billingCurrency !== "CNY" ||
+    approval.billingControl !== DEEPSEEK_BILLING_CONTROL ||
+    facts.billingControl !== DEEPSEEK_BILLING_CONTROL ||
+    facts.currency !== "CNY" ||
+    Object.values(facts).includes(null) ||
+    !Number.isFinite(approval.maxCostCny) ||
+    approval.maxCostCny <= 0 ||
+    facts.maxCostCny !== approval.maxCostCny
+  ) {
+    throw new Error("DeepSeek 认证证据缺少绑定人民币上限的费用账本");
+  }
+  const approved = toDeepSeekMicroCny(approval.maxCostCny);
+  const settled = toDeepSeekMicroCny(facts.settledCostCny);
+  const reserved = toDeepSeekMicroCny(facts.reservedCostCny);
+  const exposure = toDeepSeekMicroCny(facts.exposureCny);
+  if (
+    approved / 1_000_000 !== approval.maxCostCny ||
+    settled / 1_000_000 !== facts.settledCostCny ||
+    reserved / 1_000_000 !== facts.reservedCostCny ||
+    exposure / 1_000_000 !== facts.exposureCny ||
+    facts.settledRequests < 1 ||
+    facts.retainedReservations < 1 ||
+    facts.requests !== facts.settledRequests + facts.retainedReservations ||
+    !Number.isSafeInteger(facts.retainedReservations * DEEPSEEK_REQUEST_RESERVATION_MICROCNY) ||
+    reserved !== facts.retainedReservations * DEEPSEEK_REQUEST_RESERVATION_MICROCNY ||
+    !Number.isSafeInteger(facts.settledRequests * DEEPSEEK_REQUEST_RESERVATION_MICROCNY) ||
+    settled > facts.settledRequests * DEEPSEEK_REQUEST_RESERVATION_MICROCNY ||
+    !Number.isSafeInteger(settled + reserved) ||
+    exposure !== settled + reserved ||
+    exposure > approved ||
+    facts.deniedRequests !== 0 ||
+    facts.invalidResponses !== 0 ||
+    facts.authenticationRejections !== 1 ||
+    error?.httpStatus !== 401 ||
+    error?.requests !== 1 ||
+    !["failed", "paused", "aborted", "rejected"].includes(error?.status)
+  ) {
+    throw new Error("DeepSeek 认证费用或鉴权证据无效");
+  }
+  return facts;
 }
 
 // 为父模型请求和汇总保留预算，不能把父 Run 的全部额度交给 Child。
@@ -356,6 +461,32 @@ export function validateCertificationApproval(approval, actual) {
   }
   const provider = approval.provider.trim();
   const model = approval.model.trim();
+  let deepSeekApproval = {};
+  if (provider === "deepseek") {
+    if (
+      !["string", "number"].includes(typeof approval.maxCostCny) ||
+      !/^\d+(?:\.\d{1,6})?$/u.test(String(approval.maxCostCny).trim())
+    ) {
+      throw new Error("DeepSeek 人民币费用上限必须是最多六位小数的十进制数值");
+    }
+    const maxCostCny = Number(approval.maxCostCny);
+    if (
+      model !== "deepseek-flash" ||
+      approval.credentialEnv !== "DEEPSEEK_API_KEY" ||
+      !Number.isFinite(maxCostCny) ||
+      maxCostCny <= 0
+    ) {
+      throw new Error("DeepSeek 认证需固定 deepseek-flash、DEEPSEEK_API_KEY 和人民币费用上限");
+    }
+    if (toDeepSeekMicroCny(maxCostCny) / 1_000_000 !== maxCostCny) {
+      throw new Error("DeepSeek 人民币费用上限最多允许六位小数");
+    }
+    deepSeekApproval = {
+      maxCostCny,
+      billingCurrency: "CNY",
+      billingControl: DEEPSEEK_BILLING_CONTROL,
+    };
+  }
   // 此标记是操作人对有效额度和已生效开关的声明，不是程序核验账号的结果。
   if (
     provider === "alibaba-model-studio" &&
@@ -372,6 +503,7 @@ export function validateCertificationApproval(approval, actual) {
     maxCostUsd,
     maxDurationMs: maxDurationMinutes * 60_000,
     maxRetries: 0,
+    ...deepSeekApproval,
     ...(provider === "alibaba-model-studio" ? { billingControl: ALIBABA_BILLING_CONTROL } : {}),
   };
 }
@@ -405,6 +537,7 @@ export function createCertificationEvidence({
   approval,
   usage,
   details,
+  billing,
 }) {
   if (typeof version !== "string" || version.trim().length === 0) {
     throw new Error("Provider 认证证据缺少 CoreMind 版本");
@@ -498,6 +631,8 @@ export function createCertificationEvidence({
   if (usage.costUsd > approval.maxCostUsd || usage.durationMs > approval.maxDurationMs) {
     throw new Error("Provider 认证用量超过批准边界");
   }
+  const billingFacts =
+    provider === "deepseek" ? validateDeepSeekBilling(approval, billing, details.error) : undefined;
 
   return {
     schemaVersion: 2,
@@ -534,6 +669,7 @@ export function createCertificationEvidence({
     approval,
     usage,
     details,
+    ...(billingFacts ? { billing: billingFacts } : {}),
     dataPolicy: "synthetic-only",
     secretsRecorded: false,
   };

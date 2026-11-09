@@ -2,6 +2,7 @@
 
 ## 1.4.0 - 2026-11-02
 
+- Add a CNY reservation ledger for fixed `deepseek` / `deepseek-flash` certification via `DEEPSEEK_API_KEY`, covering parent, child, failed and cancelled requests before dispatch; retain the separate USD estimate gate, live authentication checks and new candidate-bound approval requirement.
 - Use `max_tokens` for built-in Beijing `qwen-plus` and reselect the output-limit field when named Agents switch models, preserving other custom endpoints.
 - Require an operator-confirmed free-quota-only billing boundary for Alibaba certification, defaulting to rejection; retain candidate binding, budgets, zero retries and timeouts. Account confirmation does not establish live certification.
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.

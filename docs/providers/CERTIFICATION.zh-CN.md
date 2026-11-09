@@ -19,7 +19,17 @@ CoreMind 能识别某个供应商，只代表运行时具有对应适配入口�
 
 核实后，才能将 Candidate Qualification 的 `alibaba_free_quota_only_confirmed` 设为 `true`；默认值为 `false`。本地认证脚本对应环境变量为 `COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED=true`。该标记仅记录操作人的账号状态声明，不是程序自动核验；证据以固定 `billingControl` 值 `operator-confirmed-alibaba-beijing-qwen-plus-free-quota-only` 保存这项边界。原单次授权、费用上限、零重试、候选身份与全部超时仍然适用，确认标记不代表真实认证已通过。
 
-当前工作流只从 GitHub Actions Secret `COREMIND_CERT_API_KEY` 注入密钥，不要把密钥放入工作流输入或认证证据。内置北京 `qwen-plus` 请求使用 `max_tokens`；命名 Agent 切换模型时重新选择输出上限字段，其他自定义端点保留原行为。字段兼容不等于费用保护或真实服务验收，参数语义见[官方 API 文档](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions)。
+阿里云认证从 GitHub Actions Secret `COREMIND_CERT_API_KEY` 注入密钥，不要把密钥放入工作流输入或认证证据。内置北京 `qwen-plus` 请求使用 `max_tokens`；命名 Agent 切换模型时重新选择输出上限字段，其他自定义端点保留原行为。字段兼容不等于费用保护或真实服务验收，参数语义见[官方 API 文档](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions)。
+
+### DeepSeek 的人民币认证预算
+
+此路线固定使用 `deepseek` / `deepseek-flash`，密钥由 GitHub Actions Secret `DEEPSEEK_API_KEY` 注入，账号结算币种须为 CNY。Candidate Qualification 的 `max_cost_cny`（本地环境变量 `COREMIND_CERT_MAX_COST_CNY`）必须填写本次明确批准的人民币金额；批准记录保存 `maxCostCny`、`billingCurrency: "CNY"` 和 `billingControl: "deepseek-flash-cny-reserved-v1"`。原 `max_cost_usd` 与 SDK 费用估算门独立保留，不进行币种转换或额度抵扣；阿里云路线沿用上节前提。
+
+认证固定 `maxTokens: 1024`、`thinkingLevel: "off"`。按[官方人民币高峰单价](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)预留：未命中输入每百万 token 2 元、输出每百万 token 8 元。每笔请求外发前均按完整输入窗 1,048,576 token 加 1,024 输出 token 预留 **2.105344 元**，不以字符估算、预期缓存命中或当前已观察用量代替请求上界。
+
+全次认证共享一个预留账本，覆盖父模型、子 Agent、失败和取消请求。仅在收到完整且可信的 usage、结束原因和 `[DONE]` 后，才按用量释放该笔差额；其余情况保留整笔预留。可用认证预算不足以预留时，在请求发送前拒绝；这种本地拒绝不代表鉴权测试通过，无效密钥检查仍须实际发送一次请求并收到真实 HTTP 401。零重试、原验收与全部超时不变。
+
+离线实现和双平台工程 CI 通过后，必须以新的候选提交及 Runtime 包 SHA-256 申请一次真实认证批准，明确人民币金额和外发边界。旧授权、已保存密钥或预算门拒绝均不能代替批准，也不代表已认证或已发布。
 
 ## 强制检查
 

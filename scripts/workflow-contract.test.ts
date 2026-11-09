@@ -203,6 +203,10 @@ describe("GitHub Actions 收口合同", () => {
       type: "boolean",
       default: false,
     });
+    expect(workflow.on.workflow_dispatch.inputs.max_cost_cny).toMatchObject({
+      required: false,
+      type: "string",
+    });
     expect(workflow.jobs.candidate.strategy.matrix.os).toEqual(["ubuntu-latest", "windows-latest"]);
     for (const command of [
       "npm run test:stability",
@@ -243,6 +247,9 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs["provider-certification"].if).toContain(
       "inputs.credential_env == 'COREMIND_CERT_API_KEY'",
     );
+    expect(workflow.jobs["provider-certification"].if).toContain(
+      "((inputs.provider == 'deepseek' && inputs.credential_env == 'DEEPSEEK_API_KEY') || (inputs.provider != 'deepseek' && inputs.credential_env == 'COREMIND_CERT_API_KEY'))",
+    );
     expect(workflow.jobs["provider-certification"]["timeout-minutes"]).toContain(
       "inputs.max_duration_minutes",
     );
@@ -256,6 +263,9 @@ describe("GitHub Actions 收口合同", () => {
     expect(workflow.jobs["provider-certification"].env).toMatchObject({
       COREMIND_CERT_API_KEY_ENV: `\${{ inputs.credential_env }}`,
       COREMIND_CERT_MAX_COST_USD: `\${{ inputs.max_cost_usd }}`,
+      COREMIND_CERT_MAX_COST_CNY: `\${{ inputs.max_cost_cny }}`,
+      COREMIND_CERT_API_KEY: `\${{ inputs.provider != 'deepseek' && secrets.COREMIND_CERT_API_KEY || '' }}`,
+      DEEPSEEK_API_KEY: `\${{ inputs.provider == 'deepseek' && secrets.DEEPSEEK_API_KEY || '' }}`,
       COREMIND_CERT_MAX_DURATION_MINUTES: `\${{ inputs.max_duration_minutes }}`,
       COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED: `\${{ inputs.alibaba_free_quota_only_confirmed }}`,
       COREMIND_CERT_EXPECTED_VERSION: `\${{ inputs.expected_version }}`,
@@ -274,6 +284,14 @@ describe("GitHub Actions 收口合同", () => {
     expect(certificationScript.slice(approvalStart, credentialRead)).toContain(
       "alibabaFreeQuotaOnlyConfirmed: process.env.COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED",
     );
+    expect(certificationScript.slice(approvalStart, credentialRead)).toContain(
+      "maxCostCny: process.env.COREMIND_CERT_MAX_COST_CNY",
+    );
+    for (const agent of ["assistant", "parent", "worker"]) {
+      expect(certificationScript.replaceAll("\r\n", "\n")).toContain(
+        `${agent}: {\n        ...(certificationOptions ? { options: certificationOptions } : {}),`,
+      );
+    }
     const candidateDownload = workflow.jobs["provider-certification"].steps.find(
       (step: { name?: string }) => step.name === "下载同次 Linux 候选制品",
     );

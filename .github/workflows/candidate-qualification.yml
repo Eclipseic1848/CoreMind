@@ -22,12 +22,16 @@ on:
         required: true
         type: string
       credential_env:
-        description: "批准的凭据环境变量名；GitHub Secret 使用 COREMIND_CERT_API_KEY"
+        description: "DeepSeek 固定 DEEPSEEK_API_KEY；其他 Provider 使用 COREMIND_CERT_API_KEY"
         required: true
         type: string
       max_cost_usd:
-        description: "本次真实认证的最高费用（USD）"
+        description: "原 SDK 估算费用上限（USD）；DeepSeek 另需人民币硬上限"
         required: true
+        type: string
+      max_cost_cny:
+        description: "DeepSeek 本次人民币费用硬上限；其他 Provider 留空"
+        required: false
         type: string
       max_duration_minutes:
         description: "本次真实认证的最长运行时间（1-60 分钟）"
@@ -197,7 +201,7 @@ jobs:
   provider-certification:
     name: Provider certification
     needs: candidate
-    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && inputs.credential_env == 'COREMIND_CERT_API_KEY' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit
+    if: github.event_name == 'workflow_dispatch' && inputs.qualification_mode == 'strict-provider' && ((inputs.provider == 'deepseek' && inputs.credential_env == 'DEEPSEEK_API_KEY') || (inputs.provider != 'deepseek' && inputs.credential_env == 'COREMIND_CERT_API_KEY')) && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit
     runs-on: ubuntu-latest
     timeout-minutes: ${{ fromJSON(inputs.max_duration_minutes) }}
     permissions:
@@ -207,8 +211,10 @@ jobs:
       COREMIND_CERT_PROVIDER: ${{ inputs.provider }}
       COREMIND_CERT_MODEL: ${{ inputs.model }}
       COREMIND_CERT_API_KEY_ENV: ${{ inputs.credential_env }}
-      COREMIND_CERT_API_KEY: ${{ secrets.COREMIND_CERT_API_KEY }}
+      COREMIND_CERT_API_KEY: ${{ inputs.provider != 'deepseek' && secrets.COREMIND_CERT_API_KEY || '' }}
+      DEEPSEEK_API_KEY: ${{ inputs.provider == 'deepseek' && secrets.DEEPSEEK_API_KEY || '' }}
       COREMIND_CERT_MAX_COST_USD: ${{ inputs.max_cost_usd }}
+      COREMIND_CERT_MAX_COST_CNY: ${{ inputs.max_cost_cny }}
       COREMIND_CERT_MAX_DURATION_MINUTES: ${{ inputs.max_duration_minutes }}
       COREMIND_CERT_ALIBABA_FREE_QUOTA_ONLY_CONFIRMED: ${{ inputs.alibaba_free_quota_only_confirmed }}
       COREMIND_CERT_EXPECTED_VERSION: ${{ inputs.expected_version }}
