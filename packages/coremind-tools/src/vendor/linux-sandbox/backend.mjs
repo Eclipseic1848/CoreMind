@@ -781,23 +781,6 @@ function resolveApplySeccompPrefix(applyPath, argv0) {
   const binary = getApplySeccompBinaryPath(applyPath);
   return binary ? `${quote([binary])} ` : void 0;
 }
-function buildSandboxCommand(httpSocketPath, socksSocketPath, userCommand, applySeccompPrefix, shell, socatPath) {
-  const shellPath = shell || "bash";
-  const socat = quote([socatPath ?? "socat"]);
-  const socatCommands = [
-    `${socat} TCP-LISTEN:3128,fork,reuseaddr UNIX-CONNECT:${httpSocketPath} >/dev/null 2>&1 &`,
-    `${socat} TCP-LISTEN:1080,fork,reuseaddr UNIX-CONNECT:${socksSocketPath} >/dev/null 2>&1 &`,
-    'trap "kill %1 %2 2>/dev/null; exit" EXIT'
-  ];
-  if (applySeccompPrefix) {
-    const applySeccompCmd = applySeccompPrefix + quote([shellPath, "-c", userCommand]);
-    const innerScript = [...socatCommands, applySeccompCmd].join("\n");
-    return `${shellPath} -c ${quote([innerScript])}`;
-  } else {
-    const innerScript = [...socatCommands, `eval ${quote([userCommand])}`].join("\n");
-    return `${shellPath} -c ${quote([innerScript])}`;
-  }
-}
 function resolveSymlinkDenyDest(normalizedPath) {
   try {
     if (fs3.lstatSync(normalizedPath).isSymbolicLink()) {
@@ -1154,6 +1137,9 @@ async function generateFilesystemArgs(readConfig, writeConfig, maskedFileBinds, 
 }
 async function wrapCommandWithSandboxLinux(params) {
   const { command, commandId, needsNetworkRestriction, httpSocketPath, socksSocketPath, httpProxyPort, socksProxyPort, proxyAuthToken, caCertPath, readConfig, writeConfig, unsetEnvVars, setEnvVars, maskedFileBinds, maskedFileStoreDir, enableWeakerNestedSandbox, allowAllUnixSockets, binShell, ripgrepConfig = { command: "rg" }, mandatoryDenySearchDepth = DEFAULT_MANDATORY_DENY_SEARCH_DEPTH, allowGitConfig = false, gitSafeDirectories, seccompConfig, bwrapPath, socatPath, observeSocketPath, abortSignal } = params;
+  if (needsNetworkRestriction !== true || writeConfig === void 0 || enableWeakerNestedSandbox !== false || allowAllUnixSockets !== false || httpSocketPath !== void 0 || socksSocketPath !== void 0 || httpProxyPort !== void 0 || socksProxyPort !== void 0 || proxyAuthToken !== void 0 || caCertPath !== void 0 || socatPath !== void 0 || observeSocketPath !== void 0 || bwrapPath !== void 0 || !path2.isAbsolute(seccompConfig?.applyPath ?? "")) {
+    throw new Error("Linux \u540E\u7AEF\u4EC5\u652F\u6301\u4E25\u683C\u65AD\u7F51\u4E0E\u56FA\u5B9A seccomp helper");
+  }
   const hasReadRestrictions = readConfig && readConfig.denyOnly.length > 0 || maskedFileBinds !== void 0 && maskedFileBinds.length > 0;
   const hasWriteRestrictions = writeConfig !== void 0;
   const hasEnvRestrictions = unsetEnvVars !== void 0 && unsetEnvVars.length > 0 || setEnvVars !== void 0 && Object.keys(setEnvVars).length > 0;
@@ -1243,26 +1229,13 @@ async function wrapCommandWithSandboxLinux(params) {
     bwrapArgs.push(...fsArgs);
     bwrapArgs.push("--dev", "/dev");
     bwrapArgs.push("--unshare-pid");
-    if (!enableWeakerNestedSandbox) {
-      bwrapArgs.push("--unshare-user", "--cap-drop", "ALL", "--proc", "/proc");
-    } else {
-      bwrapArgs.push("--unshare-user", "--bind", "/proc", "/proc");
-    }
+    bwrapArgs.push("--unshare-user", "--cap-drop", "ALL", "--proc", "/proc", "--disable-userns", "--as-pid-1");
     const shellName = binShell || "bash";
     const shell = whichSync(shellName);
     if (!shell) {
       throw new Error(`Shell '${shellName}' not found in PATH`);
     }
-    bwrapArgs.push("--", shell, "-c");
-    if (needsNetworkRestriction && httpSocketPath && socksSocketPath) {
-      const sandboxCommand = buildSandboxCommand(httpSocketPath, socksSocketPath, command, applySeccompPrefix, shell, socatPath);
-      bwrapArgs.push(sandboxCommand);
-    } else if (applySeccompPrefix) {
-      const applySeccompCmd = applySeccompPrefix + quote([shell, "-c", command]);
-      bwrapArgs.push(applySeccompCmd);
-    } else {
-      bwrapArgs.push(command);
-    }
+    bwrapArgs.push("--", seccompConfig.applyPath, shell, "-c", command);
     const wrappedCommand = quote([bwrapPath ?? "bwrap", ...bwrapArgs]);
     const restrictions = [];
     if (needsNetworkRestriction)

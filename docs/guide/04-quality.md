@@ -50,6 +50,8 @@ Linux 实现锁定 [Anthropic Sandbox Runtime](https://github.com/anthropic-expe
 
 Ubuntu/Debian 需要安装 `bubblewrap`、`socat` 和 `ripgrep`。Ubuntu 24.04 及以后默认的 AppArmor 非特权用户命名空间限制会阻止这套隔离机制；当前 CI 仅在临时 runner 中关闭该限制。生产机器不得照抄 CI 设置，必须由系统安全负责人评估后决定启用方式；无法满足前置条件时，CoreMind 会关闭 Linux `bash` 执行，而不是降级到宿主 shell。
 
+Bubblewrap 需支持 `--disable-userns` 和 `--as-pid-1`。它在启动命令前创建隔离命名空间、挂载独立 `/proc` 并丢弃能力。受信助手以不可转储的 PID 1 加载原有 seccomp 过滤规则，再负责命令退出和子进程回收。
+
 ## 4. Context 与 Session
 
 - `--session <id>` 保存并恢复多轮消息；损坏会话会返回 `session_restore_failed`，不会静默创建新会话。
