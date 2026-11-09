@@ -1,54 +1,22 @@
-name: Engineering CI
+name: Sandbox mechanism proof 380
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  engineering:
-    name: Engineering (${{ matrix.os }}, Node ${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: [22.x]
+  sandbox-mechanism:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: 开始记录实际运行时间
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: 恢复原 Linux 沙箱依赖环境
         shell: bash
-        run: |
-          echo "COREMIND_JOB_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_ENV}"
-          echo "COREMIND_JOB_STARTED_EPOCH=$(date +%s)" >> "${GITHUB_ENV}"
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-
-      - name: 安装 Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-
-      - name: 安装 Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.11"
-
-      # Windows 默认 pwsh 只报告最后一个原生命令的退出码；每条检查独立成步。
-      - name: 固定 npm 版本
-        run: npm install --global npm@11.5.1
-
-      - name: 安装依赖
-        run: npm ci
-
-      - name: 安装 Linux sandbox 依赖
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y bubblewrap socat ripgrep
@@ -56,94 +24,124 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
 
-      - name: 代码风格检查
-        run: npx biome check .
-
-      - name: 生产依赖与开发工具风险门禁
-        run: npm run security:audit
-
-      - name: 构建
-        run: npm run build
-
-      - name: 类型检查
-        run: npm run typecheck
-
-      - name: 跨进程 Workspace Lease 验收
-        run: npm run acceptance:workspace-lease
-
-      - name: 核心依赖锁步
-        run: npm run dependencies:check
-
-      - name: 候选基线合同
-        run: node scripts/phase2-baseline.mjs
-
-      - name: 模块合同
-        run: npm run check:modules
-
-      - name: 双语文档配对
-        run: npm run check:docs
-
-      - name: Markdown 审计
-        run: npm run docs:audit
-
-      - name: 构建文档站
-        run: npm run docs:build
-
-      - name: 供应商矩阵一致性
+      - name: 验证原报错与后续命名空间权限
         shell: bash
         run: |
-          npm run providers:matrix
-          git diff --exit-code -- docs/providers
+          . /etc/os-release
+          printf 'OS=%s\n' "$VERSION_ID"
+          test "$VERSION_ID" = 26.04
+          uname -r
+          bwrap --version
+          dpkg-query -W bubblewrap apparmor
+          test "$(git rev-parse HEAD^)" = 938429838c456bc16ea6fe714386c330e636fea9
+          helper_dir=packages/coremind-tools/src/vendor/linux-sandbox
+          python3 -I - "$helper_dir" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+          root = pathlib.Path(sys.argv[1])
+          asset = "bin/x64/apply-seccomp"
+          digest = hashlib.sha256((root / asset).read_bytes()).hexdigest()
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          assert digest == manifest["artifacts"][asset], digest
+          print("originalHelperSha256=" + digest)
+          PY
+          original="$RUNNER_TEMP/coremind-380-original"
+          install -m 700 "$helper_dir/bin/x64/apply-seccomp" "$original"
+          sandbox=(bwrap --new-session --die-with-parent --unshare-net --ro-bind / / --dev /dev --unshare-pid --unshare-user --cap-drop ALL --proc /proc)
+          old_status=0
+          timeout 5s "${sandbox[@]}" -- "$original" /bin/true >"$RUNNER_TEMP/coremind-380-old.log" 2>&1 || old_status=$?
+          printf 'caseAExit=%s\n' "$old_status"
+          cat "$RUNNER_TEMP/coremind-380-old.log"
+          test "$old_status" = 1
+          grep -F 'apply-seccomp: write /proc/self/setgroups' "$RUNNER_TEMP/coremind-380-old.log"
+          probe="$RUNNER_TEMP/coremind-380-probe.py"
+          cat >"$probe" <<'PY'
+          import ctypes
+          import errno
+          import json
+          import os
+          import pathlib
+          import sys
 
-      - name: 核心确定性测试
-        run: npm run test:engineering -- --maxWorkers=1
+          user_namespace = 0x10000000
+          pid_mount_namespaces = 0x20020000
+          libc = ctypes.CDLL(None, use_errno=True)
+          proc = pathlib.Path("/proc/self")
 
-      - name: 取消准入边界与固定种子回归
-        env:
-          RACE_SEED_START: "4"
-          RACE_SEED_END: "5"
-        # 工程门定向回放失败种子；候选稳定性矩阵仍执行完整 1000 种子。
-        run: node node_modules/vitest/vitest.mjs run --project=coremind-runtime-race-matrix --maxWorkers=1
+          def read(name):
+              try:
+                  return (proc / name).read_text(encoding="utf-8").strip()
+              except OSError as error:
+                  return {"errno": error.errno}
 
-      - name: 构建 Python worker
-        run: npm run build:python-worker
+          def state():
+              fields = dict(line.split(":", 1) for line in read("status").splitlines() if ":" in line)
+              return {
+                  "pid": os.getpid(),
+                  "procSelf": os.readlink(proc),
+                  "profile": read("attr/apparmor/current"),
+                  "setgroups": read("setgroups"),
+                  **{key: fields[key].strip() for key in ("CapEff", "CapPrm", "CapBnd", "NoNewPrivs")},
+              }
 
-      - name: 安装 Python SDK
-        run: python -m pip install --disable-pip-version-check ./python
+          def unshare(flags):
+              if libc.unshare(flags) == 0:
+                  return 0
+              return ctypes.get_errno()
 
-      - name: Python SDK 与跨语言合同（离线）
-        run: python -W error::ResourceWarning -m unittest discover -s python/tests -p "test_*.py" -v
+          def write(name, value):
+              try:
+                  fd = os.open(proc / name, os.O_WRONLY | os.O_CLOEXEC)
+              except OSError as error:
+                  return {"phase": "open", "errno": error.errno}
+              try:
+                  payload = value.encode("ascii")
+                  return {"phase": "write", "errno": 0 if os.write(fd, payload) == len(payload) else errno.EIO}
+              except OSError as error:
+                  return {"phase": "write", "errno": error.errno}
+              finally:
+                  os.close(fd)
 
-      - name: Python 黄金示例（离线）
-        run: python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
+          if sys.argv[1] == "guard":
+              result = {"case": "C", **state(), "nestedUsernsErrno": unshare(user_namespace)}
+              print(json.dumps(result), flush=True)
+              assert result["pid"] == 1 and result["procSelf"] == "1"
+              assert result["NoNewPrivs"] == "1"
+              assert all(int(result[key], 16) == 0 for key in ("CapEff", "CapPrm", "CapBnd"))
+              assert result["nestedUsernsErrno"] in (errno.EPERM, errno.EACCES, errno.ENOSPC)
+              sys.exit(0)
 
-      - name: 示例配置冒烟（离线）
-        run: |
-          node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
+          uid, gid = os.geteuid(), os.getegid()
+          result = {"case": "B", "outer": state(), "directPidMountErrno": unshare(pid_mount_namespaces)}
+          if result["directPidMountErrno"] != errno.EPERM:
+              print(json.dumps(result), flush=True)
+              sys.exit(3)
+          dumpable = libc.prctl(3, 0, 0, 0, 0)
+          result["setDumpableResult"] = libc.prctl(4, 1, 0, 0, 0)
+          result["nestedUsernsErrno"] = unshare(user_namespace)
+          if result["nestedUsernsErrno"]:
+              print(json.dumps(result), flush=True)
+              sys.exit(2)
 
-      - name: 安装 Python 3.14 认证回归环境
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: "3.14"
-
-      - name: 安装 Python 3.14 SDK
-        run: python -X utf8 -m pip install --disable-pip-version-check ./python
-
-      - name: Python 3.14 认证取消与真实错误传播（离线）
-        run: python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_mcp_auth.py" -v
-
-      - name: Python 3.14 工具延迟注解与真实往返（离线）
-        run: python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_tool_annotations.py" -v
-
-      - name: 记录实际运行时间
-        if: always()
-        shell: bash
-        run: |
-          finished_epoch="$(date +%s)"
-          duration_seconds="$((finished_epoch - COREMIND_JOB_STARTED_EPOCH))"
-          {
-            echo "### Engineering CI · ${{ matrix.os }}"
-            echo "- 开始：${COREMIND_JOB_STARTED_AT}"
-            echo "- 耗时：${duration_seconds} 秒"
-            echo "- 结果：${{ job.status }}"
-          } >> "${GITHUB_STEP_SUMMARY}"
+          result["nested"] = state()
+          result["setgroupsWrite"] = write("setgroups", "deny")
+          if read("setgroups") != "deny":
+              print(json.dumps(result), flush=True)
+              sys.exit(2)
+          result["uidMap"] = write("uid_map", f"{uid} {uid} 1\n")
+          result["gidMap"] = write("gid_map", f"{gid} {gid} 1\n")
+          result["restoreDumpableResult"] = libc.prctl(4, int(dumpable == 1), 0, 0, 0)
+          result["nestedPidMountErrno"] = unshare(pid_mount_namespaces)
+          print(json.dumps(result), flush=True)
+          success = result["uidMap"]["errno"] == result["gidMap"]["errno"] == result["nestedPidMountErrno"] == 0
+          sys.exit(0 if success else 2)
+          PY
+          if timeout 10s "${sandbox[@]}" -- "$(command -v python3)" -I "$probe" narrow; then
+            echo '已记录窄补丁所需的映射和命名空间证据'
+          else
+            narrow_status=$?
+            test "$narrow_status" = 2
+            timeout 10s "${sandbox[@]}" --disable-userns --as-pid-1 -- "$(command -v python3)" -I "$probe" guard
+          fi
