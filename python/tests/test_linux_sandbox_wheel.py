@@ -19,7 +19,7 @@ PREFIX = "coremind/_worker/vendor/linux-sandbox/"
 
 def assets() -> dict[str, bytes]:
     files = {"backend.mjs": b"export {};\n", "backend.d.mts": b"export {};\n",
-             "LICENSE": b"Apache-2.0\n", "metafile.json": b"{}\n"}
+             "LICENSE": b"Apache-2.0\n", "musl-COPYRIGHT": b"MIT\n", "metafile.json": b"{}\n"}
     for arch, machine in (("x64", 62), ("arm64", 183)):
         header = bytearray(64)
         header[:6] = b"\x7fELF\x02\x01"
@@ -28,8 +28,10 @@ def assets() -> dict[str, bytes]:
     manifest = {
         "schemaVersion": 1,
         "source": {"package": "sandbox-backend", "version": "1.0.0", "license": "Apache-2.0",
-                   "files": {"backend.js": hashlib.sha256(b"source").hexdigest()}},
-        "build": {"esbuild": "1.0.0", "entry": "export {};", "network": "denied", "proxies": False},
+                   "files": {"backend.js": hashlib.sha256(b"source").hexdigest(),
+                             "scripts/linux-seccomp-init.c": hashlib.sha256(b"helper source").hexdigest()}},
+        "build": {"esbuild": "1.0.0", "entry": "export {};", "network": "denied", "proxies": False,
+                  "seccompInit": {"compiler": "zig", "version": "0.15.2", "source": "scripts/linux-seccomp-init.c"}},
         "artifacts": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()
                       if name != "backend.d.mts"},
     }
@@ -58,7 +60,7 @@ class LinuxSandboxWheelTest(unittest.TestCase):
                 self.assertTrue(check(files))
 
     def test_modified_assets_are_rejected(self) -> None:
-        for name in ("backend.mjs", "LICENSE", "metafile.json", "bin/x64/apply-seccomp", "bin/arm64/apply-seccomp"):
+        for name in ("backend.mjs", "LICENSE", "musl-COPYRIGHT", "metafile.json", "bin/x64/apply-seccomp", "bin/arm64/apply-seccomp"):
             with self.subTest(name=name):
                 files = assets()
                 files[name] += b"changed"
@@ -80,6 +82,7 @@ class LinuxSandboxWheelTest(unittest.TestCase):
 
     def test_invalid_boundary_or_digest_is_rejected(self) -> None:
         for section, key, value in (("build", "network", "allow"), ("build", "proxies", True),
+                                    ("build", "seccompInit", {"source": "other.c"}),
                                     ("artifacts", "bin/x64/apply-seccomp", "invalid")):
             with self.subTest(section=section, key=key):
                 files = assets()

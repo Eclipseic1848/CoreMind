@@ -61,6 +61,8 @@ Context compaction failures emit `context_compaction_failed` rather than silentl
 
 Linux can provide operating-system isolation for the built-in shell when its prerequisites are available. Windows does not provide an equivalent host-shell sandbox, so execution opens only when full mode, `workspaceOnly: false`, and `network: allow` are all explicit. Every other combination fails closed. Git Bash discovery does not change that boundary. Custom tools require truthful structured effects and remain responsible for their own isolation on every platform.
 
+The Linux backend requires Bubblewrap with `--disable-userns` and `--as-pid-1`. Bubblewrap sets up isolation, a private `/proc`, and capability dropping before launching the trusted helper. The helper installs the existing seccomp rules as a non-dumpable PID 1 and handles command exit and child reaping.
+
 Runtime, CLI, and both SDKs share six terminal outcomes: `succeeded`, `failed`, `paused`, `aborted`, `timeout`, and `budget_exceeded`. Checkpoint restore compares the post-tool fingerprint and refuses to overwrite later user or concurrent edits.
 
 Trace events are recursively sanitized before persistence or observer delivery. Secret fields, sensitive URL values, and secret values inside commands do not enter RunState; tool argument bodies keep only length markers, while ordinary test commands remain reviewable. This defense does not replace operating-system access controls or a business-data retention policy.
