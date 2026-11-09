@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: 恢复原 Linux 沙箱依赖环境
@@ -33,7 +34,9 @@ jobs:
           uname -r
           bwrap --version
           dpkg-query -W bubblewrap apparmor
-          test "$(git rev-parse HEAD^)" = 938429838c456bc16ea6fe714386c330e636fea9
+          baseline=938429838c456bc16ea6fe714386c330e636fea9
+          git merge-base --is-ancestor "$baseline" HEAD
+          test "$(git diff --name-only "$baseline" HEAD)" = .github/workflows/ci.yml
           helper_dir=packages/coremind-tools/src/vendor/linux-sandbox
           python3 -I - "$helper_dir" <<'PY'
           import hashlib
