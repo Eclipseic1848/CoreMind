@@ -3,6 +3,7 @@
 ## 1.4.0 - 2026-11-02
 
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.
+- Extended dependency identity and release checks to the underlying runtime 1.5.0 family of eight packages, including the new tool argument validation package.
 
 ## 1.3.0 - 2026-10-20
 

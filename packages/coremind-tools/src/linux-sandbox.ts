@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
 import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
 import {
@@ -21,14 +20,16 @@ export interface LinuxSandboxedBashOptions {
 }
 
 /** Linux bash 使用真实 OS 隔离；初始化或依赖缺失时失败关闭，不回退到宿主 shell。 */
-export function createLinuxSandboxedBashTool(options: LinuxSandboxedBashOptions): AgentTool {
+export function createLinuxSandboxedBashTool(
+  options: LinuxSandboxedBashOptions,
+): ReturnType<typeof createBashTool> {
   return createLinuxSandboxedBashToolForEnvironment(options);
 }
 
 export function createLinuxSandboxedBashToolForEnvironment(
   options: LinuxSandboxedBashOptions,
   executionEnvironment?: ExecutionEnvironment,
-): AgentTool {
+): ReturnType<typeof createBashTool> {
   const env = options.env ?? process.env;
   const operations: BashOperations = {
     exec: async (command, cwd, execution) => {

@@ -3131,6 +3131,56 @@ describe("CoreMindRuntime", () => {
     }
   });
 
+  it("普通 JSON Schema 数值参数先转换再审批，执行使用同一有效值", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-tool-argument-approval-"));
+    const server = createWriteCallingServer("read_limit", '{"limit":"7"}');
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const observed: Array<{ stage: string; args: unknown }> = [];
+    try {
+      const runtime = await CoreMindRuntime.create({
+        config: toolConfig((server.address() as AddressInfo).port, {
+          permissions: { mode: "ask", workspaceOnly: true, network: "deny" },
+          runtime: { maxTurns: 4, maxRetries: 0, runTimeoutMs: 10_000 },
+        }),
+        configDir: dir,
+        cwd: dir,
+        initialPrompt: "调用指定数量的读取工具",
+        approveTool: async (request) => {
+          observed.push({ stage: "approval", args: structuredClone(request.args) });
+          return "allow";
+        },
+        toolDefinitions: [
+          {
+            name: "read_limit",
+            description: "读取指定数量",
+            parameters: {
+              type: "object",
+              properties: { limit: { type: "integer" } },
+              required: ["limit"],
+              additionalProperties: false,
+            },
+            effect: { operations: ["read"], reversible: true },
+            execute: (args) => {
+              observed.push({ stage: "execute", args: structuredClone(args) });
+              return { text: "完成" };
+            },
+          },
+        ],
+      });
+
+      const result = await runtime.run();
+
+      expect(result.outcome.status).toBe("succeeded");
+      expect(observed).toEqual([
+        { stage: "approval", args: { limit: 7 } },
+        { stage: "execute", args: { limit: 7 } },
+      ]);
+    } finally {
+      await closeServer(server);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("ask 模式通过调用方批准后执行工具并记录审批 Trace", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-runtime-approval-"));
     writeFileSync(path.join(dir, "notes.txt"), "审批测试", "utf8");
@@ -5535,7 +5585,10 @@ function createToolCallingServer() {
   });
 }
 
-function createWriteCallingServer(toolName = "write") {
+function createWriteCallingServer(
+  toolName = "write",
+  toolArguments = '{"path":"article.md","content":"已写入"}',
+) {
   return createServer((request, response) => {
     let body = "";
     request.setEncoding("utf8");
@@ -5571,7 +5624,7 @@ function createWriteCallingServer(toolName = "write") {
                     type: "function",
                     function: {
                       name: toolName,
-                      arguments: '{"path":"article.md","content":"已写入"}',
+                      arguments: toolArguments,
                     },
                   },
                 ],

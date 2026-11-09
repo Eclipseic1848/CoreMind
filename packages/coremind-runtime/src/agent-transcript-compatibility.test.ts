@@ -1,10 +1,11 @@
-import { createModels, getCurrentTools, Type, toToolDeclaration } from "@earendil-works/pi-ai";
+import { createModels, getCurrentTools, toToolDeclaration } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import { createReadTool } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 import { buildAgentDriver } from "./agent-factory.js";
 import type { CoreMindMessage } from "./public-message.js";

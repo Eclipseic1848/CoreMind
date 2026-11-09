@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "fb4c4492aaa9fa16f8811ddd93c512161dbdca4c",
+    "developmentCommit": "938429838c456bc16ea6fe714386c330e636fea9",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -19,7 +19,7 @@
       "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
       "coremind-runtime": "81dce5d32b152349a2eaff1e81a4d9e383b0dac4abb3797f5ee477d022aa0678",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
-      "coremind-tools": "96690716a0b98ac983ec1e728008f7aadbb05cf155804d77d9208896b7894fca",
+      "coremind-tools": "5c887496c63daadefce623ddf837bd0a1f11df3bb6f84025c9e2268ced62b969",
       "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
     },
     "schemas": {
@@ -31,13 +31,13 @@
   "dependencies": {
     "installed": {
       "coding-layer": [
-        "1.3.0"
+        "1.5.0"
       ],
       "model-layer": [
-        "1.3.0"
+        "1.5.0"
       ],
       "runtime-core": [
-        "1.3.0"
+        "1.5.0"
       ]
     }
   },
@@ -283,20 +283,20 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-01T18:49:37.781Z",
+    "capturedAt": "2026-11-09T03:44:59.625Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #367: negotiated task/session DTOs and trusted Worker registration with typed SDK transport; existing gates unchanged",
+    "updateReason": "Issue #379：Pi 1.5.0 官方依赖族、工具类型与 Worker 身份同步",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "e90231b13cfaa1255d67c2c07e69ae19f2320da6f3590aad20e1a47408103359",
+    "dependencyLockSha256": "5c08b5f8fabec8e58e65b60a93e0ed9de60cfd1b174dd2ac1f06994c1e9dbc6d",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
       "coremind-cli": "c84d2667b0179beaf3555345e67fdd47781e82e78b17b46c27ddbd854b4e6e1d",
       "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
       "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
-      "coremind-runtime": "e51ab5a4652c60182500856db2fc62ee70909494e9bb1d4c8f5e6e113984f99d",
+      "coremind-runtime": "865011cad41cbdac8290c669f6b0e7b065a5dd6e2e4ba0f767f3b11869bc9aca",
       "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "1b4adc101935ebf4cd562d596c7e98a5321275dee70662c113f8c2094a113fb3",
+      "coremind-tools": "0b286e4369307d2b439a837364f64c9c8182b5a012af853e611a9411892ec7ff",
       "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"

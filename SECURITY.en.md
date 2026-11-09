@@ -15,13 +15,13 @@ Security issues must be handled privately. This page describes responsible repor
 
 [v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) has been officially released, and the 1.2 capabilities described below have shipped. Refer to Releases for the latest stable version.
 
-## Dependency risk acceptance in the 1.4.0 development source
+## Dependency security in the 1.4.0 development source
 
-On 2026-11-01, the user explicitly directed the project to accept underlying runtime's security risks and continue delivery; the decision is recorded in [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484). This does not fix vulnerabilities, establish zero production vulnerabilities, or retroactively change released-version assurances.
+Earlier candidates used underlying runtime 1.3.0 with pinned minimatch 10.2.6 and Undici 8.10.2 under the narrowly scoped risk acceptance recorded in [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484).
 
-The scope is underlying runtime 1.3.0 and its pinned minimatch 10.2.6 and Undici 8.10.2 dependencies. Risks include glob resource amplification, network denial of service, TLS validation, and cache isolation problems; reachability of every advisory through CoreMind has not been established. Exact advisories and versions are in the [audit policy](.github/security-audit-policy.json). CoreMind's own network tools move to Undici 8.12.2 while underlying runtime retains its official dependency identity. Public npm consumers can still resolve affected dependencies; root repository overrides do not propagate to consumers.
+[#379](https://github.com/Eclipseic1848/CoreMind/issues/379) upgrades the underlying runtime dependency family to 1.5.0 and uses its official transitive versions minimatch 11.0.3 and Undici 8.12.3. Both versions fall outside all nine advisory ranges recorded in #359. The corresponding acceptances are removed from the [audit policy](.github/security-audit-policy.json). Release qualification must check an npm consumer install without repository overrides.
 
-`npm run security:audit` checks production and complete dependency trees and reports accepted risks explicitly. New advisories, versions/locations/severity beyond the recorded scope, other unreviewed risks, network failures, and malformed reports still fail. The original policy expiry of **2026-11-14** remains in force and requires renewed disposition; prefer official fixes and removal of accepted entries. Other permissions, isolation controls, tests, and execution timeouts remain unchanged.
+`npm run security:audit` checks production and complete dependency trees. The separate development dependency risk acceptance is limited to the registered versions, locations, advisories, and severity levels. Its original **2026-11-14** expiry requires renewed disposition. New advisories, other unreviewed risks, network failures, and malformed reports remain blocking.
 
 ## Report privately
 

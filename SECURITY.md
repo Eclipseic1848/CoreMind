@@ -15,13 +15,13 @@
 
 [v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) 已正式发布，下述 1.2 能力已交付；最新稳定版本以 Releases 为准。
 
-## 1.4.0 开发源码的依赖风险接受
+## 1.4.0 开发源码的依赖安全
 
-2026-11-01，用户明确要求接受底层运行时的安全风险并继续交付，决定记录于 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484)。这不是漏洞修复或“生产依赖零漏洞”的声明，也不追溯改变已发布版本的保证。
+早期候选的底层运行库 1.3.0 及其固定的 minimatch 10.2.6、Undici 8.10.2 曾有精确风险接受，原决定见 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484)。
 
-范围仅为底层运行库 1.3.0 及其固定的 minimatch 10.2.6、Undici 8.10.2。风险包括 glob 资源放大、网络拒绝服务、TLS 校验及缓存隔离问题；未证明每项公告都能从 CoreMind 触发。确切公告和版本列于 [审计策略](.github/security-audit-policy.json)。CoreMind 自用网络工具升级至 Undici 8.12.2，底层运行时的传递依赖保持官方身份；公开 npm 消费者仍会解析受影响依赖，根项目 overrides 不会传递到消费者。
+[#379](https://github.com/Eclipseic1848/CoreMind/issues/379) 将底层运行库依赖族统一升级至 1.5.0，并采用官方传递版本 minimatch 11.0.3 和 Undici 8.12.3。这两个版本超出 #359 登记的九条公告影响范围，相应接受项已从[审计策略](.github/security-audit-policy.json)移除。发布门禁须核对无仓库 overrides 的 npm 消费者安装图。
 
-`npm run security:audit` 分别检查生产和完整依赖，输出已接受风险而非掩盖漏洞。新公告、超出登记版本/位置/等级的实例、其他未经审查的风险、网络错误及损坏报告仍失败。沿用原策略到期日 **2026-11-14**，届时必须重新处理；优先跟进官方修复并移除接受项。其他权限、安全隔离、测试和执行超时不变。
+`npm run security:audit` 分别检查生产和完整依赖。独立的开发依赖风险仅接受策略登记的版本、位置、公告和等级，原到期日为 **2026-11-14**，届时须重新处理。新公告、其他未经审查的风险、网络错误及损坏报告仍阻断。
 
 ## 私下报告漏洞
 

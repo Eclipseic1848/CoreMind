@@ -7,7 +7,7 @@ import {
 describe("低层运行依赖 Adapter", () => {
   it("以 CoreMind 自有结构报告锁步版本、能力和错误映射", () => {
     expect(inspectRuntimeCompatibility()).toEqual({
-      dependencyFamily: "1.3.0",
+      dependencyFamily: "1.5.0",
       adapterVersion: 2,
       errorMappingVersion: 2,
       capabilities: {

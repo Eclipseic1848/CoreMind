@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type BashOperations, createBashTool } from "@earendil-works/pi-coding-agent";
 import { type ExecutionEnvironment, resolveExecutionEnvironment } from "./execution-environment.js";
 import { createSupervisedProcessRunner, ProcessRunnerError } from "./process-runner.js";
@@ -18,14 +17,14 @@ interface ShellInvocation {
 }
 
 /** 非 Linux 宿主命令统一走 ProcessRunner；权限层仍在执行前决定是否允许。 */
-export function createHostBashTool(options: HostBashOptions): AgentTool {
+export function createHostBashTool(options: HostBashOptions): ReturnType<typeof createBashTool> {
   return createHostBashToolForEnvironment(options);
 }
 
 export function createHostBashToolForEnvironment(
   options: HostBashOptions,
   executionEnvironment?: ExecutionEnvironment,
-): AgentTool {
+): ReturnType<typeof createBashTool> {
   const env = options.env ?? process.env;
   const runner = createSupervisedProcessRunner(executionEnvironment);
   const operations: BashOperations = {

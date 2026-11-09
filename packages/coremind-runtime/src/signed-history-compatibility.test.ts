@@ -6,9 +6,9 @@ import {
   createModels,
   createProvider,
   type Model,
-  Type,
 } from "@earendil-works/pi-ai";
 import { anthropicMessagesApi } from "@earendil-works/pi-ai/compat";
+import { Type } from "typebox";
 import { expect, it, vi } from "vitest";
 import { CoreMindSession } from "./session.js";
 import { convertToLlm } from "./session-v4/index.js";

@@ -1,4 +1,4 @@
-import { createModels, Type } from "@earendil-works/pi-ai";
+import { createModels } from "@earendil-works/pi-ai";
 import {
   type FauxResponseStep,
   fauxAssistantMessage,
@@ -6,6 +6,7 @@ import {
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import type { WorkflowStep } from "coremind-config";
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import type { AgentDriver } from "./agent-driver.js";
 import { type AgentBuildContext, buildAgentDriver } from "./agent-factory.js";

@@ -10,6 +10,7 @@ export const DEPENDENCY_FAMILY = Object.freeze([
   ...DIRECT_MEMBERS,
   "@earendil-works/pi-codemode",
   "@earendil-works/pi-mcp",
+  "@earendil-works/pi-schema",
   "@earendil-works/pi-telemetry",
   "@earendil-works/pi-tui",
 ]);

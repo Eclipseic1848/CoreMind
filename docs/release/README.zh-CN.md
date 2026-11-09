@@ -16,7 +16,7 @@
 
 TaskSession 的阶段提交是独立任务事实，不把 Session、Run 和 Workspace 的依次写入称为原子事务；模型与工具继续复用原 Runtime 的权限、预算、取消和恢复门。宿主注册可信任务定义并负责启动进程与 alarm，默认 Worker 不开放未注册任务，Python 不传输可执行源码或建立第二 Runtime。会话 fork 生成新身份，不复制执行或授权；回滚须先停止 writer，保全当前事实并恢复升级前备份，旧 SDK 不能接管新的任务/会话记录。
 
-本版只接受 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359) 已精确登记的底层运行库 1.3.0 及其传递依赖风险；接受不等于修复，不延长原 2026-11-14 到期日。其他风险、超出登记范围的实例或审计报告失败仍阻塞，详见[安全策略](../../SECURITY.md)。
+[#379](https://github.com/Eclipseic1848/CoreMind/issues/379) 将底层运行库统一至 1.5.0，并采用官方传递版本 Undici 8.12.3 与 minimatch 11.0.3，移除 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359) 登记的九条公告对应的接受项。发布前须核对无仓库 overrides 的 npm 消费者安装图、Worker 清单及生产和完整依赖审计。独立开发依赖风险仍按原范围审核，原到期日为 2026-11-14。详见[安全策略](../../SECURITY.md)。
 
 先在 Release Please 生成的草稿发布 PR 中准备版本、文档、工程及离线门禁，合入后冻结 main，再完成绑定 1.4.0 最终提交、Runtime/Worker 与准确制品的严格资格。1.2.0 的认证与历史豁免均不能替代；未知副作用仍须人工核对，Config/Protocol 的既有兼容与能力校验不变。
 
