@@ -15,13 +15,13 @@
 
 [v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) 已正式发布，下述 1.2 能力已交付；最新稳定版本以 Releases 为准。
 
-## 1.4.0 开发源码的依赖安全
+## 开发源码的依赖安全
 
 早期候选的底层运行库 1.3.0 及其固定的 minimatch 10.2.6、Undici 8.10.2 曾有精确风险接受，原决定见 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484)。
 
 [#379](https://github.com/Eclipseic1848/CoreMind/issues/379) 将底层运行库依赖族统一升级至 1.5.0，并采用官方传递版本 minimatch 11.0.3 和 Undici 8.12.3。这两个版本超出 #359 登记的九条公告影响范围，相应接受项已从[审计策略](.github/security-audit-policy.json)移除。发布门禁须核对无仓库 overrides 的 npm 消费者安装图。
 
-`npm run security:audit` 分别检查生产和完整依赖。独立的开发依赖风险仅接受策略登记的版本、位置、公告和等级，原到期日为 **2026-11-14**，届时须重新处理。新公告、其他未经审查的风险、网络错误及损坏报告仍阻断。
+`npm run security:audit` 分别检查生产和完整依赖。本开发分支已将锁定的开发依赖 node-forge 更新至 1.4.3，并清除了 2026-11-14 到期的全部例外。当前策略要求两次审计均无发现。今后登记例外必须指定有效到期日。未登记的风险、网络错误及损坏报告都会阻断。
 
 ## 私下报告漏洞
 
