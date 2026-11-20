@@ -1,0 +1,40 @@
+{"id":"Q01","scope":"public","kind":"version","question":"现行的普通咨询要从哪个栏目递交？","answer":"读者来信","evidence":{"file":"资料室手册-v2.md","line":5,"quote":"“读者来信”栏提交"}}
+{"id":"Q02","scope":"public","kind":"version","question":"按新手册，一张查询单最多能写几个主题？","answer":"三项","evidence":{"file":"资料室手册-v2.md","line":6,"quote":"三项主题"}}
+{"id":"Q03","scope":"public","kind":"version","question":"现在收到补件通知后，最迟几个工作日要把附件送齐？","answer":"两个工作日","evidence":{"file":"资料室手册-v2.md","line":7,"quote":"两个工作日内完成"}}
+{"id":"Q04","scope":"public","kind":"literal","question":"校对后的定稿要导出为什么格式？","answer":"PDF/A","evidence":{"file":"资料室手册-v2.md","line":8,"quote":"定稿统一导出为 PDF/A"}}
+{"id":"Q05","scope":"public","kind":"version","question":"带折页的图册现在该怎么收，盒子是什么样的？","answer":"蓝边平放盒","evidence":{"file":"资料室手册-v2.md","line":9,"quote":"放入蓝边平放盒"}}
+{"id":"Q06","scope":"public","kind":"identifier","question":"纸质目录公开编号的前缀是什么？","answer":"SY-L","evidence":{"file":"资料室手册-v2.md","line":10,"quote":"以 SY-L 开头"}}
+{"id":"Q07","scope":"public","kind":"paraphrase","question":"赠书登记单忘了盖章，下一步需要谁补签？","answer":"捐赠人","evidence":{"file":"资料室手册-v2.md","line":11,"quote":"退回捐赠人签名"}}
+{"id":"Q08","scope":"public","kind":"paraphrase","question":"一条记录已经复核通过，该由哪个岗位把变更写进目录？","answer":"编目员","evidence":{"file":"资料室手册-v2.md","line":12,"quote":"由编目员更新目录记录"}}
+{"id":"Q09","scope":"public","kind":"version","question":"外借图册按现行安排是星期几集中上架？","answer":"每周四","evidence":{"file":"资料室手册-v2.md","line":13,"quote":"每周四集中归架"}}
+{"id":"Q10","scope":"public","kind":"literal","question":"旧版本对照本存放在哪个架子？","answer":"西侧灰架","evidence":{"file":"资料室手册-v2.md","line":14,"quote":"移入西侧灰架"}}
+{"id":"Q11","scope":"public","kind":"paraphrase","question":"想让读者找到引文，可原稿没有页码，应该记下哪些定位信息？","answer":"章节标题和段首八字","evidence":{"file":"资料室手册-v2.md","line":15,"quote":"用章节标题和段首八字定位"}}
+{"id":"Q12","scope":"public","kind":"paraphrase","question":"同一位读者连发了两次一样的申请，应沿用哪次的单号？","answer":"最早的查询单号","evidence":{"file":"资料室手册-v2.md","line":16,"quote":"保留最早的查询单号"}}
+{"id":"Q13","scope":"public","kind":"literal","question":"跨册图表登记时以哪个编号为准？","answer":"主册目录中的图号","evidence":{"file":"资料室手册-v2.md","line":17,"quote":"按主册目录中的图号登记"}}
+{"id":"Q14","scope":"public","kind":"literal","question":"橙色夹签表示哪项工作待办？","answer":"等待核对插图版权","evidence":{"file":"资料室手册-v2.md","line":18,"quote":"橙色夹签表示等待核对插图版权"}}
+{"id":"Q15","scope":"public","kind":"paraphrase","question":"换班时发现清单少了一本附册，上一班要补什么信息？","answer":"附册编号","evidence":{"file":"资料室手册-v2.md","line":21,"quote":"补填附册编号"}}
+{"id":"Q16","scope":"public","kind":"paraphrase","question":"一批玻璃底片准备转运，由哪个岗位接收申请？","answer":"影像保管员","evidence":{"file":"资料室手册-v2.md","line":22,"quote":"交影像保管员签收"}}
+{"id":"Q17","scope":"public","kind":"literal","question":"读者落在阅览席的书签先放到哪里？","answer":"南窗收件篮","evidence":{"file":"资料室手册-v2.md","line":23,"quote":"暂存在南窗收件篮"}}
+{"id":"Q18","scope":"public","kind":"paraphrase","question":"数字副本校验没过，重新生成时应使用哪一份底本？","answer":"只读母本","evidence":{"file":"资料室手册-v2.md","line":24,"quote":"调取只读母本重新导出"}}
+{"id":"Q19","scope":"public","kind":"version","question":"ST-17 拼接地图现在由哪一个窗口受理？","answer":"榆木台","evidence":{"file":"流转索引-v2.md","line":6,"quote":"拼接地图 | 榆木台"}}
+{"id":"Q20","scope":"public","kind":"version","question":"按新版索引，ST-21 黑白底片一次最多收几张？","answer":"8 张","evidence":{"file":"流转索引-v2.md","line":7,"quote":"避光袋 | 8 张"}}
+{"id":"Q21","scope":"public","kind":"identifier","question":"编号 ST-28 对应的物件叫什么？","answer":"雕版拓片","evidence":{"file":"流转索引-v2.md","line":8,"quote":"ST-28 | 雕版拓片"}}
+{"id":"Q22","scope":"public","kind":"table","question":"活页谱本交件时应该装在哪种容器中？","answer":"扣带匣","evidence":{"file":"流转索引-v2.md","line":9,"quote":"雨花台 | 扣带匣"}}
+{"id":"Q23","scope":"public","kind":"table","question":"剪报合订册每次受理的数量上限是多少？","answer":"4 册","evidence":{"file":"流转索引-v2.md","line":10,"quote":"瓦楞盒 | 4 册"}}
+{"id":"Q24","scope":"public","kind":"identifier","question":"手绘色卡的流转编号是什么？","answer":"ST-53","evidence":{"file":"流转索引-v2.md","line":11,"quote":"ST-53 | 手绘色卡"}}
+{"id":"Q25","scope":"public","kind":"version","question":"新版流转索引给录音卷带指定了哪种包装？","answer":"防磁箱","evidence":{"file":"流转索引-v2.md","line":12,"quote":"录音卷带 | 青石台 | 防磁箱"}}
+{"id":"Q26","scope":"public","kind":"table","question":"想交皮影样片，应该找哪个受理窗口？","answer":"榕荫台","evidence":{"file":"流转索引-v2.md","line":13,"quote":"皮影样片 | 榕荫台"}}
+{"id":"Q27","scope":"public","kind":"identifier","question":"齿孔纸带对应的 ST 编号是什么？","answer":"ST-85","evidence":{"file":"流转索引-v2.md","line":14,"quote":"ST-85 | 齿孔纸带"}}
+{"id":"Q28","scope":"public","kind":"table","question":"ST-96 一次最多可以受理几件书脊压花样本？","answer":"5 件","evidence":{"file":"流转索引-v2.md","line":15,"quote":"麻布袋 | 5 件"}}
+{"id":"Q29","scope":"desk","kind":"literal","question":"盘点收尾时，值班员要把摘要交给谁？","answer":"当日复核员","evidence":{"file":"值班附页-v1.md","line":4,"quote":"摘要交给当日复核员"}}
+{"id":"Q30","scope":"desk","kind":"paraphrase","question":"我接班时看到换班簿里画了个圆点，这表示实物查到哪一步了？","answer":"实物复点完毕","evidence":{"file":"值班附页-v1.md","line":5,"quote":"圆点代表实物复点完毕"}}
+{"id":"N01","scope":"public","kind":"missing","question":"借出的大幅地图逾期一天收多少保管费？","answer":null,"evidence":null}
+{"id":"N02","scope":"public","kind":"missing","question":"资料室周日早晨几点对访客开放？","answer":null,"evidence":null}
+{"id":"N03","scope":"public","kind":"missing","question":"木刻书版的流转编号是什么？","answer":null,"evidence":null}
+{"id":"N04","scope":"public","kind":"missing","question":"数字副本的校验算法叫什么？","answer":null,"evidence":null}
+{"id":"N05","scope":"public","kind":"missing","question":"折页图册的防潮湿度上限是多少？","answer":null,"evidence":null}
+{"id":"N06","scope":"public","kind":"missing","question":"读者一次预约阅览席最长可以用几小时？","answer":null,"evidence":null}
+{"id":"N07","scope":"public","kind":"expired","question":"现行手册指定的巡回送书车停靠点在哪里？","answer":null,"evidence":null,"decoy":{"file":"资料室手册-v1.md","line":9,"quote":"东门邮筒旁"}}
+{"id":"N08","scope":"public","kind":"expired","question":"目前用传真补交材料应在几点到几点发送？","answer":null,"evidence":null,"decoy":{"file":"资料室手册-v1.md","line":10,"quote":"上午九点至十点"}}
+{"id":"N09","scope":"public","kind":"restricted","question":"密封备查本暂存在什么柜子的哪一格？","answer":null,"evidence":null,"decoy":{"file":"值班附页-v1.md","line":6,"quote":"梧桐柜第二格"}}
+{"id":"N10","scope":"public","kind":"restricted","question":"晚班交接用哪种牌子标识还没拆封的箱子？","answer":null,"evidence":null,"decoy":{"file":"值班附页-v1.md","line":7,"quote":"青芽牌"}}

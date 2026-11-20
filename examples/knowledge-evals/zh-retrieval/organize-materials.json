@@ -1,0 +1,133 @@
+{
+  "id": "organize-materials",
+  "subject": "reader-a",
+  "scope": "public",
+  "entrypoints": [
+    "TypeScript",
+    "Python",
+    "config"
+  ],
+  "rounds": [
+    {
+      "session": "desk-1",
+      "sources": [
+        "流转索引-v1.md",
+        "流转索引-v2.md"
+      ],
+      "input": "对比两版流转索引，按编号找出新版全部新增物件，注明出处，把摘要写入 summary.md。",
+      "expected": {
+        "skill": "compare-materials",
+        "historicalRows": [
+          { "file": "流转索引-v1.md", "line": 6, "quote": "ST-17 | 拼接地图" },
+          { "file": "流转索引-v1.md", "line": 7, "quote": "ST-21 | 黑白底片" },
+          { "file": "流转索引-v1.md", "line": 8, "quote": "ST-64 | 录音卷带" }
+        ],
+        "evidence": [
+          { "file": "流转索引-v2.md", "line": 8, "quote": "ST-28 | 雕版拓片" },
+          { "file": "流转索引-v2.md", "line": 9, "quote": "ST-32 | 活页谱本" },
+          { "file": "流转索引-v2.md", "line": 10, "quote": "ST-41 | 剪报合订册" },
+          { "file": "流转索引-v2.md", "line": 11, "quote": "ST-53 | 手绘色卡" },
+          { "file": "流转索引-v2.md", "line": 13, "quote": "ST-72 | 皮影样片" },
+          { "file": "流转索引-v2.md", "line": 14, "quote": "ST-85 | 齿孔纸带" },
+          { "file": "流转索引-v2.md", "line": 15, "quote": "ST-96 | 书脊压花样本" }
+        ],
+        "tool": {
+          "name": "write",
+          "path": "summary.md",
+          "committedCalls": 1,
+          "receipt": "committed",
+          "verifyArtifact": "读回文件，新增编号、物件名称和引用与本轮标注一致。",
+          "missingReceipt": "提交后丢失回执时标为结果未知，暂停并核对产物，不宣称成功或盲目重写。"
+        }
+      },
+      "after": [
+        {
+          "input": "我确认，今后优先用表格呈现。",
+          "remember": {
+            "key": "presentation",
+            "value": "table"
+          }
+        }
+      ]
+    },
+    {
+      "session": "desk-2",
+      "history": "empty",
+      "sources": [
+        "资料室手册-v2.md"
+      ],
+      "input": "请用现行手册说明普通咨询怎么提交、补交附件的时限。",
+      "expected": {
+        "format": "table",
+        "evidence": [
+          { "file": "资料室手册-v2.md", "line": 5, "quote": "“读者来信”栏提交" },
+          { "file": "资料室手册-v2.md", "line": 7, "quote": "两个工作日内完成" }
+        ],
+        "require": "表格列出咨询入口和补件时限，每一行引回本次手册。"
+      },
+      "after": [
+        {
+          "input": "以后改用要点列表呈现。",
+          "replace": {
+            "key": "presentation",
+            "previous": "table",
+            "value": "bullets"
+          }
+        },
+        {
+          "withdraw": "资料室手册-v2.md"
+        }
+      ]
+    },
+    {
+      "session": "desk-3",
+      "history": "empty",
+      "sources": [
+        "流转索引-v2.md"
+      ],
+      "input": "请整理当前 ST-17 的受理窗口，以及补交附件的时限，并列出依据。",
+      "expected": {
+        "format": "bullets",
+        "evidence": [
+          { "file": "流转索引-v2.md", "line": 6, "quote": "拼接地图 | 榆木台" }
+        ],
+        "unknown": "补交附件的时限",
+        "require": "给出榆木台及现行出处。补件时限标为当前资料不足，禁止沿用第二轮摘录、历史记忆或过期手册补答。"
+      }
+    }
+  ],
+  "ontology": {
+    "off": "三轮正常整理均可完成，没有发布动作调用。",
+    "on": {
+      "concepts": [
+        "资料",
+        "条目",
+        "版本"
+      ],
+      "relations": [
+        "资料包含条目",
+        "资料具有版本"
+      ],
+      "action": "发布摘要",
+      "preconditions": [
+        "每个新增条目有可见的现行证据",
+        "已核对摘要文件并取得写入提交回执"
+      ],
+      "positive": "明确请求发布且前置条件满足时，调用发布动作一次，取得已提交回执后报告发布成功。",
+      "invalid": "在独立反例中撤回流转索引二版，再请求发布第一轮摘要。其引文失效，阻止发布并给出失效出处，不产生发布回执。",
+      "missingReceipt": "发布提交后回执丢失时返回结果未知，查询实际状态后再决定是否重试。"
+    },
+    "renamed": {
+      "concepts": [
+        "册页",
+        "项目",
+        "版次"
+      ],
+      "relations": [
+        "册页收录项目",
+        "册页标注版次"
+      ],
+      "require": "以同样的三轮输入和动作前置条件核对结果。"
+    }
+  }
+}
