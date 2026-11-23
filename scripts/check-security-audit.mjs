@@ -9,17 +9,22 @@ const policy = JSON.parse(
 );
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 
-const expiry = Date.parse(`${policy.expiresAt}T23:59:59Z`);
-if (
-  typeof policy.expiresAt !== "string" ||
-  !/^\d{4}-\d{2}-\d{2}$/.test(policy.expiresAt) ||
-  !Number.isFinite(expiry) ||
-  new Date(expiry).toISOString().slice(0, 10) !== policy.expiresAt
-) {
-  fail("依赖风险处置缺少有效的到期日");
-}
-if (expiry < Date.now()) {
-  fail(`依赖风险处置已过期：${policy.expiresAt}`);
+const acceptedPi = policy.acceptedPiPackages ?? {};
+const accepted = { ...policy.allowedDevelopmentOnlyPackages, ...acceptedPi };
+const hasAcceptances = Object.keys(accepted).length > 0;
+if (hasAcceptances || policy.expiresAt !== undefined) {
+  const expiry = Date.parse(`${policy.expiresAt}T23:59:59Z`);
+  if (
+    typeof policy.expiresAt !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(policy.expiresAt) ||
+    !Number.isFinite(expiry) ||
+    new Date(expiry).toISOString().slice(0, 10) !== policy.expiresAt
+  ) {
+    fail("依赖风险处置缺少有效的到期日");
+  }
+  if (expiry < Date.now()) {
+    fail(`依赖风险处置已过期：${policy.expiresAt}`);
+  }
 }
 
 for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
@@ -30,20 +35,21 @@ for (const forbiddenScript of ["docs:dev", "docs:preview"]) {
 
 const severityOrder = ["info", "low", "moderate", "high", "critical"];
 const lock = JSON.parse(await readFile(path.join(root, "package-lock.json"), "utf8"));
-const acceptedPi = policy.acceptedPiPackages ?? {};
 const production = runAudit(["audit", "--omit=dev", "--json"], true);
 const productionNames = Object.keys(production.vulnerabilities);
 validateFindings(production.vulnerabilities, acceptedPi, "生产");
 
 const complete = runAudit(["audit", "--json"], true);
 const findings = complete.vulnerabilities;
-validateFindings(findings, { ...policy.allowedDevelopmentOnlyPackages, ...acceptedPi }, "完整");
+validateFindings(findings, accepted, "完整");
 
 const developmentCount = Object.keys(findings).filter(
   (name) => !Object.hasOwn(acceptedPi, name),
 ).length;
 console.log(
-  `安全审计通过：${productionNames.length} 个生产依赖风险按 Pi 风险接受决定登记，未接受的生产风险 0 个；${developmentCount} 个仅开发依赖风险已登记；有效期至 ${policy.expiresAt}。风险接受不代表漏洞已修复。`,
+  hasAcceptances
+    ? `安全审计通过：${productionNames.length} 个生产依赖风险按 Pi 风险接受决定登记，未接受的生产风险 0 个；${developmentCount} 个仅开发依赖风险已登记；有效期至 ${policy.expiresAt}。风险接受不代表漏洞已修复。`
+    : "安全审计通过：生产与完整依赖审计均无发现，当前无风险接受项。",
 );
 
 function validateFindings(findings, allowed, scope) {

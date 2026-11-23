@@ -1,6 +1,6 @@
 # CoreMind SOP 与 Skill 索引
 
-所有 22 个模块的合同与文档当前已统一对齐 `0.8.0` 发布线。新手建议按“README 理解边界 → GUIDE 上手 → SOP 执行 → Skill 复用 → 示例验证”的顺序使用。
+先通过 README 了解能力边界，再按 GUIDE 接入、按 SOP 验收。Skill 和示例可在项目开发中复用。各模块的版本和成熟度见对应目录中的 `module.yaml`。
 
 | 能力模块 | README | SOP | Skill | 示例 |
 |---|---|---|---|---|
@@ -10,6 +10,7 @@
 | 持久运行与故障恢复 | [说明](recover-durable-runs/README.zh-CN.md) | [SOP](recover-durable-runs/SOP.zh-CN.md) | [Skill](../../skills/recover-durable-runs/SKILL.md) | [示例](../../examples/modules/recover-durable-runs/README.zh-CN.md) |
 | 编排 Child Run | [说明](orchestrate-child-runs/README.zh-CN.md) | [SOP](orchestrate-child-runs/SOP.zh-CN.md) | [Skill](../../skills/orchestrate-child-runs/SKILL.md) | [示例](../../examples/modules/orchestrate-child-runs/README.zh-CN.md) |
 | 上下文与 Artifact 治理 | [说明](manage-context-artifacts/README.zh-CN.md) | [SOP](manage-context-artifacts/SOP.zh-CN.md) | [Skill](../../skills/manage-context-artifacts/SKILL.md) | [示例](../../examples/modules/manage-context-artifacts/README.zh-CN.md) |
+| 知识检索与引用 | [说明](manage-knowledge/README.zh-CN.md) | [SOP](manage-knowledge/SOP.zh-CN.md) | [Skill](../../skills/manage-knowledge/SKILL.md) | [示例](../../examples/modules/manage-knowledge/README.zh-CN.md) |
 | Agent 构建 | [说明](design-agents/README.zh-CN.md) | [SOP](design-agents/SOP.zh-CN.md) | [Skill](../../skills/design-agents/SKILL.md) | [示例](../../examples/modules/design-agents/README.zh-CN.md) |
 | 编码智能体 | [说明](build-coding-agents/README.zh-CN.md) | [SOP](build-coding-agents/SOP.zh-CN.md) | [Skill](../../skills/build-coding-agents/SKILL.md) | [示例](../../examples/modules/build-coding-agents/README.zh-CN.md) |
 | Runtime 生命周期扩展 | [说明](extend-runtime-lifecycle/README.zh-CN.md) | [SOP](extend-runtime-lifecycle/SOP.zh-CN.md) | [Skill](../../skills/extend-runtime-lifecycle/SKILL.md) | [示例](../../examples/modules/extend-runtime-lifecycle/README.zh-CN.md) |

@@ -10,6 +10,7 @@ Every module includes implementation paths, tests, bilingual README/SOP/guides, 
 - [Durable Runs and Recovery](recover-durable-runs/README.en.md)
 - [Orchestrate Child Runs](orchestrate-child-runs/README.en.md)
 - [Context and Artifact Governance](manage-context-artifacts/README.en.md)
+- [Knowledge Retrieval and Citations](manage-knowledge/README.en.md)
 - [Agent Construction](design-agents/README.en.md)
 - [Runtime Lifecycle Extensions](extend-runtime-lifecycle/README.en.md)
 - [Coding Agents](build-coding-agents/README.en.md)

@@ -1,0 +1,46 @@
+{
+  "synthetic": true,
+  "asOf": "2026-10-01",
+  "documents": [
+    {
+      "file": "资料室手册-v1.md",
+      "id": "资料室手册",
+      "version": 1,
+      "access": "public",
+      "validFrom": "2025-01-01",
+      "validUntil": "2026-07-01"
+    },
+    {
+      "file": "资料室手册-v2.md",
+      "id": "资料室手册",
+      "version": 2,
+      "access": "public",
+      "validFrom": "2026-07-01",
+      "validUntil": null
+    },
+    {
+      "file": "流转索引-v1.md",
+      "id": "流转索引",
+      "version": 1,
+      "access": "public",
+      "validFrom": "2025-01-01",
+      "validUntil": "2026-07-01"
+    },
+    {
+      "file": "流转索引-v2.md",
+      "id": "流转索引",
+      "version": 2,
+      "access": "public",
+      "validFrom": "2026-07-01",
+      "validUntil": null
+    },
+    {
+      "file": "值班附页-v1.md",
+      "id": "值班附页",
+      "version": 1,
+      "access": "desk",
+      "validFrom": "2026-07-01",
+      "validUntil": null
+    }
+  ]
+}

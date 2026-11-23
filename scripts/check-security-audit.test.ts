@@ -251,6 +251,36 @@ describe("安全审计结果边界", () => {
     await expect(check()).rejects.toThrow("audit rejected");
   });
 
+  it.each([false, true])("无风险接受项时仍检查两份报告，有新增风险：%s", async (newFinding) => {
+    vi.mocked(readFile)
+      .mockReset()
+      .mockResolvedValueOnce(JSON.stringify({ allowedDevelopmentOnlyPackages: {} }))
+      .mockResolvedValueOnce(JSON.stringify({ scripts: {} }))
+      .mockResolvedValueOnce(JSON.stringify({ packages: {} }));
+    if (newFinding) {
+      vi.mocked(spawnSync)
+        .mockReturnValueOnce(result())
+        .mockReturnValueOnce(result(report({ vite: "high" }), 1));
+      await expect(check()).rejects.toThrow("audit rejected");
+    } else {
+      await expect(check()).resolves.toBeUndefined();
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining("当前无风险接受项"));
+    }
+    expect(spawnSync).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["allowedDevelopmentOnlyPackages", "acceptedPiPackages"])(
+    "%s 有例外时必须提供到期日",
+    async (key) => {
+      vi.mocked(readFile)
+        .mockReset()
+        .mockResolvedValueOnce(JSON.stringify({ [key]: allowed }))
+        .mockResolvedValueOnce(JSON.stringify({ scripts: {} }));
+      await expect(check()).rejects.toThrow("audit rejected");
+      expect(spawnSync).not.toHaveBeenCalled();
+    },
+  );
+
   it("继续拒绝过期策略和开发服务器入口", async () => {
     for (const [expiresAt, scripts] of [
       ["2000-01-01", {}],

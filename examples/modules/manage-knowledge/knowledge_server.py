@@ -1,0 +1,143 @@
+"""从本地资料建索引，向获准的 CoreMind 运行提供只读知识查询。"""
+
+import argparse
+import hmac
+import json
+import os
+import sys
+from datetime import date
+from pathlib import Path
+from typing import Annotated
+
+import uvicorn
+from mcp.server.fastmcp import FastMCP
+from pydantic import Field
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+RETRIEVAL = Path(__file__).resolve().parents[2] / "knowledge-evals" / "zh-retrieval"
+sys.path.insert(0, str(RETRIEVAL))
+
+from qdrant_retrieval import KnowledgeIndex
+from keyword_baseline import terms
+
+
+def load_corpus(manifest_path):
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    as_of = date.fromisoformat(manifest["asOf"]).isoformat()
+    directory = (manifest_path.parent / "sources").resolve(strict=True)
+    chunks = []
+    seen = set()
+    for source in manifest["documents"]:
+        file = source["file"]
+        if not file or Path(file).name != file or ":" in file or "/" in file or "\\" in file:
+            raise ValueError("来源文件必须是 sources 目录下的文件名")
+        path = (directory / file).resolve(strict=True)
+        if path.parent != directory or not path.is_file():
+            raise ValueError(f"来源文件超出资料目录：{file}")
+        start = date.fromisoformat(source["validFrom"]).isoformat()
+        until = source["validUntil"]
+        if until is not None:
+            until = date.fromisoformat(until).isoformat()
+            if start >= until:
+                raise ValueError(f"来源有效期无效：{file}")
+        version = source["version"]
+        doc_id = source["id"]
+        if not isinstance(doc_id, str) or not doc_id.strip() or type(version) is not int or version < 1:
+            raise ValueError(f"来源 ID 或版本无效：{file}")
+        if (doc_id, version) in seen:
+            raise ValueError(f"来源 ID 与版本重复：{file}")
+        seen.add((doc_id, version))
+        access = source["access"]
+        if not isinstance(access, str) or not access.strip() or access != access.strip():
+            raise ValueError(f"来源范围无效：{file}")
+        if path.suffix.lower() == ".md":
+            items = [
+                {"text": content.strip(), "line": line}
+                for line, content in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                if next(terms(content), None) is not None
+            ]
+        elif path.suffix.lower() in {".pdf", ".docx"}:
+            from docling_bridge import parse_document
+
+            items = parse_document(path)
+        else:
+            raise ValueError(f"不支持的资料格式：{file}")
+        if not items:
+            raise ValueError(f"资料未提取出正文：{file}")
+        chunks.extend(
+            {
+                **item,
+                "docId": doc_id,
+                "version": version,
+                "file": file,
+                "access": access,
+                "validFrom": start,
+                "validUntil": until,
+            }
+            for item in items
+        )
+    return as_of, chunks
+
+
+def make_app(index, scope, as_of, token):
+    mcp = FastMCP("CoreMind Knowledge", stateless_http=True, json_response=True)
+
+    @mcp.tool(structured_output=False)
+    def search_knowledge(query: Annotated[str, Field(min_length=1, max_length=500)]) -> str:
+        """查找可参考的资料片段并附版本与来源位置。相似片段只是候选证据。"""
+        if not query.strip():
+            raise ValueError("查询不能为空")
+        matches = index.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
+        fields = {"docId", "version", "file", "line", "locator", "text"}
+        citations = [{key: value for key, value in row.items() if key in fields} for row in matches]
+        return json.dumps({"citations": citations}, ensure_ascii=False)
+
+    @mcp.custom_route("/health", methods=["GET"])
+    async def health(_request):
+        return JSONResponse({"status": "ready"})
+
+    app = mcp.streamable_http_app()
+
+    async def authorized(asgi_scope, receive, send):
+        if asgi_scope["type"] == "http":
+            request = Request(asgi_scope, receive)
+            actual = request.headers.get("authorization", "").encode("utf-8")
+            if not hmac.compare_digest(actual, token):
+                await JSONResponse({"error": "unauthorized"}, status_code=401)(
+                    asgi_scope, receive, send
+                )
+                return
+        await app(asgi_scope, receive, send)
+
+    return authorized
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path, default=RETRIEVAL / "manifest.json")
+    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--scope", default="public")
+    parser.add_argument("--port", type=int, default=8767)
+    args = parser.parse_args()
+    if not args.scope.strip() or args.scope != args.scope.strip():
+        parser.error("--scope 需要非空的阅读范围")
+    authorization = os.environ.get("COREMIND_KNOWLEDGE_AUTHORIZATION", "")
+    if not authorization.startswith("Bearer ") or len(authorization.removeprefix("Bearer ").strip()) < 24:
+        parser.error("请通过 COREMIND_KNOWLEDGE_AUTHORIZATION 提供独立的本地 Bearer 令牌")
+    as_of, chunks = load_corpus(args.manifest)
+    index = KnowledgeIndex(args.model_dir)
+    try:
+        index.replace(chunks)
+        uvicorn.run(
+            make_app(index, args.scope, as_of, authorization.encode("utf-8")),
+            host="127.0.0.1",
+            port=args.port,
+            access_log=False,
+        )
+    finally:
+        index.close()
+
+
+if __name__ == "__main__":
+    main()

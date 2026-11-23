@@ -1,0 +1,43 @@
+schemaVersion: 1
+id: manage-knowledge
+name:
+  zh-CN: "知识检索与引用"
+  en: "Knowledge Retrieval and Citations"
+version: 1.4.0
+sourcePaths:
+  - "examples/modules/manage-knowledge/knowledge_server.py"
+  - "examples/modules/manage-knowledge/coremind.yaml"
+  - "examples/knowledge-evals/zh-retrieval/docling_bridge.py"
+  - "examples/knowledge-evals/zh-retrieval/qdrant_retrieval.py"
+  - "packages/coremind-config/src/schema/mcp.ts"
+  - "packages/coremind-runtime/src/mcp-runtime.ts"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-knowledge/README.zh-CN.md
+    en: docs/modules/manage-knowledge/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-knowledge/SOP.zh-CN.md
+    en: docs/modules/manage-knowledge/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-knowledge/GUIDE.zh-CN.md
+    en: docs/modules/manage-knowledge/GUIDE.en.md
+  changelog: docs/modules/manage-knowledge/CHANGELOG.md
+skillPath: skills/manage-knowledge/SKILL.md
+examplePaths:
+  - examples/modules/manage-knowledge/README.zh-CN.md
+  - examples/modules/manage-knowledge/README.en.md
+testPaths:
+  - "examples/modules/manage-knowledge/acceptance.mjs"
+  - "examples/knowledge-evals/zh-retrieval/test_docling_bridge.py"
+  - "examples/knowledge-evals/zh-retrieval/qdrant_benchmark.py"
+  - "examples/knowledge-evals/zh-retrieval/qdrant_check.py"
+  - "examples/knowledge-evals/zh-retrieval/answer_benchmark.py"
+  - "examples/knowledge-evals/zh-retrieval/check.mjs"
+  - "examples/knowledge-evals/zh-retrieval/test_keyword_baseline.py"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "build-tools"
+  - "evaluate-agents"
+maturity: alpha

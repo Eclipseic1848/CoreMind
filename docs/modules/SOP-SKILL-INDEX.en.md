@@ -1,6 +1,6 @@
 # CoreMind SOP and Skill Index
 
-All 22 module contracts and documentation are synchronized with the `0.8.0` release line. New users should follow README for boundaries, Guide for onboarding, SOP for execution, Skill for reuse, and Example for verification.
+Read the README for scope, the guide for integration and the SOP for verification. Use the skill and example during development. Each module's `module.yaml` records its version and maturity.
 
 | Capability | README | SOP | Skill | Example |
 |---|---|---|---|---|
@@ -10,6 +10,7 @@ All 22 module contracts and documentation are synchronized with the `0.8.0` rele
 | Durable Runs and Recovery | [README](recover-durable-runs/README.en.md) | [SOP](recover-durable-runs/SOP.en.md) | [Skill](../../skills/recover-durable-runs/SKILL.md) | [Example](../../examples/modules/recover-durable-runs/README.en.md) |
 | Orchestrate Child Runs | [README](orchestrate-child-runs/README.en.md) | [SOP](orchestrate-child-runs/SOP.en.md) | [Skill](../../skills/orchestrate-child-runs/SKILL.md) | [Example](../../examples/modules/orchestrate-child-runs/README.en.md) |
 | Context and Artifact Governance | [README](manage-context-artifacts/README.en.md) | [SOP](manage-context-artifacts/SOP.en.md) | [Skill](../../skills/manage-context-artifacts/SKILL.md) | [Example](../../examples/modules/manage-context-artifacts/README.en.md) |
+| Knowledge Retrieval and Citations | [README](manage-knowledge/README.en.md) | [SOP](manage-knowledge/SOP.en.md) | [Skill](../../skills/manage-knowledge/SKILL.md) | [Example](../../examples/modules/manage-knowledge/README.en.md) |
 | Agent Construction | [README](design-agents/README.en.md) | [SOP](design-agents/SOP.en.md) | [Skill](../../skills/design-agents/SKILL.md) | [Example](../../examples/modules/design-agents/README.en.md) |
 | Coding Agents | [README](build-coding-agents/README.en.md) | [SOP](build-coding-agents/SOP.en.md) | [Skill](../../skills/build-coding-agents/SKILL.md) | [Example](../../examples/modules/build-coding-agents/README.en.md) |
 | Runtime Lifecycle Extensions | [README](extend-runtime-lifecycle/README.en.md) | [SOP](extend-runtime-lifecycle/SOP.en.md) | [Skill](../../skills/extend-runtime-lifecycle/SKILL.md) | [Example](../../examples/modules/extend-runtime-lifecycle/README.en.md) |
