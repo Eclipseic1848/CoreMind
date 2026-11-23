@@ -22,6 +22,15 @@ const lookupOrder = defineTool({
 6. Temporarily rename the tool to `read` and confirm definition or registration rejects it before execution; then restore a business-specific name.
 7. Run the ProcessRunner, GitAdapter, and unified-diff tests; confirm timeout, cancellation, output limits, read-only Git, and oversized files all fail closed.
 
+## Run the three local tool entry points
+
+```sh
+npm run build
+node examples/modules/build-tools/transport-parity.mjs
+```
+
+A deterministic model fixture calls the local handler, real stdio MCP, and loopback Streamable HTTP MCP. Each entry point should return `{"flag":false,"count":0,"empty":null}`. The script checks connection, tool discovery, and echo approvals for both MCP transports, and closes the local services. [Optional browser example](../../../docs/modules/build-tools/BROWSER.en.md)
+
 ## Local MCP verification
 
 Use the [full configuration](../../../docs/en/guide/02-configuration.md#agent-scoped-local-mcp-tools) with an audited local stdio program. Run `coremind doctor coremind.yaml` and verify it starts no service, then `coremind run coremind.yaml --prompt "Call the approved tool"`. Approve connection, listing, and business execution separately. Inspect three independent Calls/EffectReceipts, the actual raw tool arguments, and process exit after completion.

@@ -75,6 +75,8 @@ const preview = await diffFiles("src/before.ts", "src/after.ts");
 
 ## Verification
 
+The interoperability check compares one synthetic business action across a local handler, stdio MCP, and HTTP MCP. The optional pinned Playwright MCP example uses an isolated browser context and a local synthetic page. MCP tool parameters are validated locally against the declared JSON Schema dialect. [Interoperability example](../../../examples/modules/build-tools/README.en.md) · [Browser setup](BROWSER.en.md)
+
 1. Follow the [SOP](SOP.en.md).
 2. Run the [module example](../../../examples/modules/build-tools/README.en.md).
 3. Run `coremind check`; also run `coremind eval` for business outputs.

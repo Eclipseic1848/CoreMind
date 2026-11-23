@@ -13,6 +13,8 @@ sourcePaths:
   - "packages/coremind-runtime/src/public-tool.ts"
   - "packages/coremind-runtime/src/mcp-runtime.ts"
   - "packages/coremind-runtime/src/mcp-authentication.ts"
+  - "packages/coremind-runtime/src/tool-json-schema.ts"
+  - "examples/modules/build-tools/browser/mcp-launcher.mjs"
 documents:
   readme:
     zh-CN: docs/modules/build-tools/README.zh-CN.md
@@ -59,6 +61,8 @@ testPaths:
   - "packages/coremind-tools/src/mcp-authentication-errors.test.ts"
   - "packages/coremind-runtime/src/mcp-auth-runtime.acceptance.test.ts"
   - "python/tests/test_mcp_auth.py"
+  - "examples/modules/build-tools/transport-parity.mjs"
+  - "examples/modules/build-tools/browser/run.mjs"
 supportedPlatforms:
   - "windows"
   - "linux"

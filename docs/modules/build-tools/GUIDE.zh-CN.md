@@ -75,6 +75,8 @@ const preview = await diffFiles("src/before.ts", "src/after.ts");
 
 ## 验证
 
+互通验收用一个合成业务动作对照本地处理、stdio MCP 与 HTTP MCP。可选浏览器使用固定版本 Playwright MCP 进程及独立浏览器上下文，只连接合成演示页。MCP 工具参数按声明的 JSON Schema 方言本地校验。[互通示例](../../../examples/modules/build-tools/README.zh-CN.md) · [浏览器接入](BROWSER.zh-CN.md)
+
 1. 按 [SOP](SOP.zh-CN.md) 执行。
 2. 运行 [模块示例](../../../examples/modules/build-tools/README.zh-CN.md)。
 3. 运行 `coremind check`；涉及业务输出时再运行 `coremind eval`。

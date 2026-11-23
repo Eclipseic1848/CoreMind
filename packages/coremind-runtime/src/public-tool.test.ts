@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adaptCoreMindTool, defineTool } from "./public-tool.js";
+import { createToolSchemaValidator } from "./tool-json-schema.js";
 
 describe("CoreMind 公共工具契约", () => {
   it("不暴露 pi-agent 类型也可定义并执行 TypeScript 工具", async () => {
@@ -59,6 +60,44 @@ describe("CoreMind 公共工具契约", () => {
         execute: async () => "x",
       }),
     ).toThrow("有效的 object JSON Schema");
+  });
+
+  it("按显式方言校验 MCP 的 2020-12 参数，并保留 draft-07", () => {
+    const definition = (parameters: Parameters<typeof defineTool>[0]["parameters"]) =>
+      defineTool({
+        name: "browser_navigate",
+        description: "打开本地页面",
+        parameters,
+        effect: { operations: ["external"], reversible: false },
+        execute: async () => "ok",
+      });
+    const parameters = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+      properties: {
+        url: { type: "string" },
+        inputs: { type: "array", prefixItems: [{ type: "integer" }] },
+      },
+      required: ["url"],
+      additionalProperties: false,
+    };
+    expect(adaptCoreMindTool(definition(parameters)).parameters).toBe(parameters);
+    const validator = createToolSchemaValidator(parameters);
+    expect(validator.validate(parameters, { url: "http://127.0.0.1", inputs: [1] })).toBe(true);
+    expect(validator.validate(parameters, { url: "http://127.0.0.1", inputs: ["x"] })).toBe(false);
+    expect(() =>
+      definition({ ...parameters, properties: { inputs: { prefixItems: false } } }),
+    ).toThrow("有效的 object JSON Schema");
+    expect(() =>
+      definition({ ...parameters, $schema: "https://example.invalid/2020-12/schema" }),
+    ).toThrow("有效的 object JSON Schema");
+    const legacy = definition({
+      ...parameters,
+      $schema: "http://json-schema.org/draft-07/schema#",
+    });
+    expect(createToolSchemaValidator(legacy.parameters).validate(legacy.parameters, {})).toBe(
+      false,
+    );
   });
 
   it("拒绝未声明副作用的自定义工具", () => {
