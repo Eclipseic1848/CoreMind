@@ -967,6 +967,21 @@ describe("四入口请求等价（门 A-2）", () => {
 });
 
 describe("外部配置目录的标准技能", () => {
+  it("四入口运行同一套共享周报、交付前检查和普通摘要", async () => {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+    const script = path.join(root, "examples/modules/package-agent-skills/acceptance.mjs");
+    const result = await spawnAndWait(process.execPath, [script], { cwd: root });
+    expect(result.code, result.stderr).toBe(0);
+    const evidence = result.stdout
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(evidence).toHaveLength(20);
+    expect(
+      evidence.filter((item) => item.case === "ordinary-summary").map((item) => item.calls),
+    ).toEqual([[], [], [], []]);
+  }, 90_000);
+
   it.each(["typescript", "cli", "python-v1", "python-v2"])(
     "%s 使用同一冻结正文完成索引、加载和重复引用",
     async (entry) => {

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -57,6 +57,44 @@ describe("checkProject", () => {
     expect(report.findings).toContainEqual(
       expect.objectContaining({ code: "execution_security_violation", overridable: false }),
     );
+  });
+
+  it("静态检查拒绝选中技能包的资源摘要不匹配", async () => {
+    const projectDir = mkdtempSync(path.join(tmpdir(), "coremind-check-skill-"));
+    const packageDir = path.join(projectDir, "skills", "shared-weekly-report");
+    try {
+      mkdirSync(path.join(packageDir, "assets"), { recursive: true });
+      writeFileSync(
+        path.join(packageDir, "SKILL.md"),
+        '---\nname: shared-weekly-report\ndescription: 周报\nmetadata:\n  version: "1.0.0"\n---\n',
+        "utf8",
+      );
+      writeFileSync(path.join(packageDir, "assets", "template.md"), "周报模板\n", "utf8");
+      writeFileSync(
+        path.join(packageDir, "coremind.skill.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          resources: [{ path: "assets/template.md", sha256: "0".repeat(64) }],
+        }),
+        "utf8",
+      );
+      const report = await checkProject({
+        config: { ...baseConfig, agents: { main: { skills: ["shared-weekly-report"] } } },
+        projectDir,
+        env: { DEEPSEEK_API_KEY: "test-only" },
+        profile: "development",
+      });
+      expect(report.passed).toBe(false);
+      expect(report.findings).toContainEqual(
+        expect.objectContaining({
+          code: "SKILL_PACKAGE_INVALID",
+          path: "agents.main.skills",
+          overridable: false,
+        }),
+      );
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 
   it("非安全材料缺失可按配置记录原因后覆盖", async () => {

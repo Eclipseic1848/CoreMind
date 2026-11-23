@@ -1,0 +1,26 @@
+schemaVersion: 3
+name: shared-skill-example
+provider:
+  id: skill-fixture
+  model: local-test
+  baseUrl: http://127.0.0.1:8771/v1
+  apiKeyEnv: COREMIND_SKILL_FIXTURE_KEY
+defaultAgent: main
+agents:
+  main:
+    systemPrompt: |
+      根据用户要求完成任务。如果标准技能索引中有适用技能，先读取正文，再按正文需要读取该技能声明的资源。
+      只使用用户提供的业务事实，交付用户要求的 JSON。
+    skills: [shared-weekly-report, shared-release-preflight]
+permissions:
+  mode: ask
+  allow: [load_skill]
+  workspaceOnly: true
+  network: deny
+runtime:
+  maxTurns: 6
+  maxToolCalls: 4
+  maxRetries: 0
+  runTimeoutMs: 20000
+quality:
+  profile: development

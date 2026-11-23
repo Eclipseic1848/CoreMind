@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import type { AgentConfig, ToolEffectDeclaration } from "coremind-config";
 import { findSkill } from "coremind-templates";
-import type { StandardSkill } from "coremind-templates/internal";
+import { isSkillResourcePath, type StandardSkill } from "coremind-templates/internal";
 import { resolveToolCapability } from "coremind-tools";
 import type { AgentDriverObservation } from "./agent-driver.js";
 import { fingerprintEffectReceiptValue } from "./effect-receipt-binding.js";
@@ -31,24 +31,36 @@ export interface SkillSelection {
 }
 
 export interface SkillSnapshot {
-  version: 1;
+  version: 1 | 2;
   agents: Record<string, SkillSelection>;
   sha256: string;
 }
 
-export interface SkillLoadFact {
-  version: 1;
+interface SkillLoadIdentity {
   id: string;
   bodySha256: string;
   snapshotSha256: string;
-  delivery: "body" | "reference";
 }
+
+export type SkillLoadFact = SkillLoadIdentity &
+  (
+    | { version: 1; delivery: "body" | "reference" }
+    | { version: 2; delivery: "resource"; resource: string; resourceSha256: string }
+  );
 
 export function freezeSkillSnapshot(
   agents: Record<string, SkillSelection>,
 ): SkillSnapshot | undefined {
   if (!Object.values(agents).some((selection) => selection.standard.length > 0)) return undefined;
-  const value = { version: 1 as const, agents: structuredClone(agents) };
+  const version = Object.values(agents).some((selection) =>
+    selection.standard.some((skill) => skill.resources !== undefined),
+  )
+    ? 2
+    : 1;
+  const value = { version, agents: structuredClone(agents) } satisfies Omit<
+    SkillSnapshot,
+    "sha256"
+  >;
   const snapshot = { ...value, sha256: fingerprintEffectReceiptValue(value) };
   assertSkillSnapshotSize(snapshot);
   return snapshot;
@@ -82,8 +94,14 @@ export function restoreSkillSnapshot(
   const invalid = () =>
     new CoreMindError("context_capability_conflict", "原技能快照损坏或选择不匹配");
   assertSkillSnapshotSize(snapshot);
-  if (!isObject(snapshot) || snapshot.version !== 1 || !isObject(snapshot.agents)) throw invalid();
+  if (
+    !isObject(snapshot) ||
+    (snapshot.version !== 1 && snapshot.version !== 2) ||
+    !isObject(snapshot.agents)
+  )
+    throw invalid();
   if (Object.keys(snapshot.agents).length !== Object.keys(agents).length) throw invalid();
+  let hasPack = false;
   for (const [agent, config] of Object.entries(agents)) {
     if (!Object.hasOwn(snapshot.agents, agent)) throw invalid();
     const selection = snapshot.agents[agent];
@@ -111,9 +129,33 @@ export function restoreSkillSnapshot(
         createHash("sha256").update(skill.body, "utf8").digest("hex") !== skill.bodySha256
       )
         throw invalid();
+      if (Object.hasOwn(skill, "resources") || Object.hasOwn(skill, "packageVersion")) {
+        if (
+          snapshot.version !== 2 ||
+          typeof skill.packageVersion !== "string" ||
+          !skill.packageVersion.trim() ||
+          !Array.isArray(skill.resources)
+        )
+          throw invalid();
+        const resourcePaths = new Set<string>();
+        for (const resource of skill.resources) {
+          if (
+            !isObject(resource) ||
+            typeof resource.path !== "string" ||
+            !isSkillResourcePath(resource.path) ||
+            resourcePaths.has(resource.path.toLowerCase()) ||
+            typeof resource.content !== "string" ||
+            createHash("sha256").update(resource.content, "utf8").digest("hex") !== resource.sha256
+          )
+            throw invalid();
+          resourcePaths.add(resource.path.toLowerCase());
+        }
+        hasPack = true;
+      }
       seen.add(skill.id);
     }
   }
+  if (snapshot.version === 2 && !hasPack) throw invalid();
   const { sha256, ...value } = snapshot;
   if (sha256 !== fingerprintEffectReceiptValue(value)) throw invalid();
   const frozen = snapshot as unknown as SkillSnapshot;
@@ -130,14 +172,20 @@ export function skillPrefixContents(selection: SkillSelection): string[] {
         `- ${JSON.stringify({ id, name, description, bodySha256 })}`,
     )
     .join("\n");
+  const resourceHint = selection.standard.some((skill) => skill.resources?.length)
+    ? " 需要技能声明的资料、模板或脚本源码时，使用 load_skill({id, resource})。"
+    : "";
   return [
     ...selection.legacyContents,
-    `## 可按需加载的标准技能\n仅索引不代表正文已加载；使用 load_skill({id}) 读取说明，不增加任何工具权限。\n${index}`,
+    `## 可按需加载的标准技能\n仅索引不代表正文已加载；使用 load_skill({id}) 读取说明，不增加任何工具权限。${resourceHint}\n${index}`,
   ];
 }
 
 export function renderSkillBody(skill: StandardSkill): string {
-  return `# 技能 ${skill.id} · ${skill.name}\n正文 SHA-256: ${skill.bodySha256}\n\n${skill.body}`;
+  const resources = skill.resources?.length
+    ? `\n版本: ${skill.packageVersion}\n已声明资源: ${skill.resources.map(({ path }) => path).join(", ")}`
+    : "";
+  return `# 技能 ${skill.id} · ${skill.name}\n正文 SHA-256: ${skill.bodySha256}${resources}\n\n${skill.body}`;
 }
 
 export function renderSkillReference(skill: StandardSkill): string {
@@ -148,14 +196,37 @@ export function rebuildSkillResult(snapshot: SkillSnapshot, agent: string, fact:
   const skill = Object.hasOwn(snapshot.agents, agent)
     ? snapshot.agents[agent]!.standard.find((candidate) => candidate.id === fact.id)
     : undefined;
+  const invalid = () =>
+    new CoreMindError("context_capability_conflict", "技能加载事实与原快照不匹配");
+  if (!skill || fact.snapshotSha256 !== snapshot.sha256 || fact.bodySha256 !== skill.bodySha256)
+    throw invalid();
+  if (fact.version === 2) {
+    const resource = skill.resources?.find(({ path }) => path === fact.resource);
+    if (
+      snapshot.version !== 2 ||
+      !resource ||
+      fact.delivery !== "resource" ||
+      fact.resourceSha256 !== resource.sha256
+    )
+      throw invalid();
+    return {
+      content: [{ type: "text" as const, text: resource.content }],
+      details: {
+        id: skill.id,
+        bodySha256: skill.bodySha256,
+        delivery: fact.delivery,
+        resource: resource.path,
+        resourceSha256: resource.sha256,
+      },
+    };
+  }
   if (
-    !skill ||
     fact.version !== 1 ||
-    fact.snapshotSha256 !== snapshot.sha256 ||
-    fact.bodySha256 !== skill.bodySha256 ||
-    !["body", "reference"].includes(fact.delivery)
+    !["body", "reference"].includes(fact.delivery) ||
+    Object.hasOwn(fact, "resource") ||
+    Object.hasOwn(fact, "resourceSha256")
   )
-    throw new CoreMindError("context_capability_conflict", "技能加载事实与原快照不匹配");
+    throw invalid();
   return {
     content: [
       {
@@ -203,33 +274,62 @@ export class SkillExecution {
       this.known.set(event.callId, fact as unknown as SkillLoadFact);
     }
     const skills = snapshot.agents[agent]!.standard;
+    const hasResources = skills.some((skill) => skill.resources?.length);
     this.tool = {
       name: SKILL_TOOL_NAME,
       label: "加载技能",
-      description: "按已配置的 ID 加载本轮冻结的专业说明；不执行脚本或增加权限。",
+      description: hasResources
+        ? "读取本轮冻结的专业说明或技能声明的资源。脚本资源仅返回源码文本。"
+        : "按已配置的 ID 加载本轮冻结的专业说明；不执行脚本或增加权限。",
       executionMode: "sequential",
       parameters: {
         type: "object",
-        properties: { id: { type: "string", enum: skills.map((skill) => skill.id) } },
+        properties: {
+          id: { type: "string", enum: skills.map((skill) => skill.id) },
+          ...(hasResources ? { resource: { type: "string" as const } } : {}),
+        },
         required: ["id"],
         additionalProperties: false,
       },
       execute: async (callId, args, signal) => {
         signal?.throwIfAborted();
-        if (!isObject(args) || Object.keys(args).length !== 1 || typeof args.id !== "string") {
-          throw new CoreMindError("invalid_tool", "加载技能只接受一个已授权 id");
+        if (
+          !isObject(args) ||
+          typeof args.id !== "string" ||
+          Object.keys(args).some((key) => key !== "id" && key !== "resource") ||
+          (Object.hasOwn(args, "resource") && typeof args.resource !== "string")
+        ) {
+          throw new CoreMindError("invalid_tool", "加载技能需要已授权 id，可指定已声明的 resource");
         }
         const skill = skills.find((candidate) => candidate.id === args.id);
         if (!skill) throw new CoreMindError("invalid_tool", "该技能不在当前 Agent 的选择中");
-        const fact: SkillLoadFact = {
-          version: 1,
+        const identity = {
           id: skill.id,
           bodySha256: skill.bodySha256,
           snapshotSha256: snapshot.sha256,
-          delivery: this.resident.has(skill.id) ? "reference" : "body",
         };
+        const resource =
+          typeof args.resource === "string"
+            ? skill.resources?.find(({ path }) => path === args.resource)
+            : undefined;
+        if (typeof args.resource === "string" && !resource)
+          throw new CoreMindError("invalid_tool", "资源未在当前技能包中声明");
+        const fact: SkillLoadFact = resource
+          ? {
+              ...identity,
+              version: 2,
+              delivery: "resource",
+              resource: resource.path,
+              resourceSha256: resource.sha256,
+            }
+          : {
+              ...identity,
+              version: 1,
+              delivery: this.resident.has(skill.id) ? "reference" : "body",
+            };
+        const result = rebuildSkillResult(snapshot, agent, fact);
         this.candidates.set(callId, fact);
-        return rebuildSkillResult(snapshot, agent, fact);
+        return result;
       },
     };
   }
@@ -238,16 +338,20 @@ export class SkillExecution {
     if (observation.type !== "tool_execution_end") return undefined;
     const fact = this.candidates.get(observation.call.callId);
     this.candidates.delete(observation.call.callId);
+    const args = observation.call.args;
     if (
       !fact ||
       observation.isError ||
       observation.call.tool !== SKILL_TOOL_NAME ||
-      !isObject(observation.call.args) ||
-      observation.call.args.id !== fact.id ||
-      JSON.stringify(observation.result.content) !==
-        JSON.stringify(rebuildSkillResult(this.snapshot, this.agent, fact).content) ||
-      JSON.stringify(observation.result.details) !==
-        JSON.stringify(rebuildSkillResult(this.snapshot, this.agent, fact).details)
+      !isObject(args) ||
+      args.id !== fact.id ||
+      (fact.version === 2 ? args.resource !== fact.resource : Object.hasOwn(args, "resource"))
+    )
+      return undefined;
+    const expected = rebuildSkillResult(this.snapshot, this.agent, fact);
+    if (
+      JSON.stringify(observation.result.content) !== JSON.stringify(expected.content) ||
+      JSON.stringify(observation.result.details) !== JSON.stringify(expected.details)
     )
       return undefined;
     this.known.set(observation.call.callId, fact);

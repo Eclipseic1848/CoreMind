@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "resources": [
+    {
+      "path": "references/writing-rules.md",
+      "sha256": "21484cd86559efb026313cfb6bc7aa06261a66992484c0a788f88141c7364a78"
+    },
+    {
+      "path": "assets/weekly-template.json",
+      "sha256": "9764fff71a014a34bcfb8fc75b674f0ac2eb8c6450334688787165f235af42f7"
+    }
+  ]
+}

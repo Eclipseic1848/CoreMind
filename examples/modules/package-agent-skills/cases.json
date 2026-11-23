@@ -1,0 +1,57 @@
+[
+  {
+    "id": "weekly-delivery",
+    "prompt": "请整理交付一部的周报并输出 JSON。已完成：完成 3 家门店联调。阻碍：等客户确认切换窗口。下周计划：周三提交验收材料。",
+    "skill": "shared-weekly-report",
+    "resources": ["references/writing-rules.md", "assets/weekly-template.json"],
+    "expected": {
+      "部门": "交付一部",
+      "本周交付": ["完成 3 家门店联调"],
+      "需协调": ["等客户确认切换窗口"],
+      "下周承诺": ["周三提交验收材料"]
+    }
+  },
+  {
+    "id": "weekly-platform",
+    "prompt": "请整理平台研发部的周报并输出 JSON。已完成：修复 2 条告警规则。阻碍：测试库磁盘空间不足。下周计划：周五完成滚动发布演练。",
+    "skill": "shared-weekly-report",
+    "resources": ["references/writing-rules.md", "assets/weekly-template.json"],
+    "expected": {
+      "部门": "平台研发部",
+      "本周交付": ["修复 2 条告警规则"],
+      "需协调": ["测试库磁盘空间不足"],
+      "下周承诺": ["周五完成滚动发布演练"]
+    }
+  },
+  {
+    "id": "preflight-staging",
+    "prompt": "请为星塔项目的预发布环境做交付前检查并输出 JSON。环境现状：Node.js 24.16.0；已保存回滚快照；已指定复核人。",
+    "skill": "shared-release-preflight",
+    "resources": ["references/dependency-rules.md", "assets/checklist.json", "scripts/check-environment.mjs"],
+    "expected": {
+      "项目": "星塔",
+      "环境": "预发布",
+      "交付结论": "可交付",
+      "缺项": []
+    }
+  },
+  {
+    "id": "preflight-offline",
+    "prompt": "请为云桥项目的离线联调环境做交付前检查并输出 JSON。环境现状：Node.js 20.11.0；未保存回滚快照；已指定复核人。",
+    "skill": "shared-release-preflight",
+    "resources": ["references/dependency-rules.md", "assets/checklist.json", "scripts/check-environment.mjs"],
+    "expected": {
+      "项目": "云桥",
+      "环境": "离线联调",
+      "交付结论": "暂缓交付",
+      "缺项": ["Node.js 至少需要 22.19.0", "缺少回滚快照"]
+    }
+  },
+  {
+    "id": "ordinary-summary",
+    "prompt": "用一句话概括以下通知，输出键为「摘要」的 JSON。资料室下周一上午暂停开放以更换门禁，当天下午恢复开放。",
+    "skill": null,
+    "resources": [],
+    "expected": { "摘要": "资料室下周一上午因更换门禁暂停开放，当天下午恢复开放。" }
+  }
+]

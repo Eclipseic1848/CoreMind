@@ -1,0 +1,5 @@
+[
+  { "id": "node", "minimum": "22.19.0", "missing": "Node.js 至少需要 22.19.0" },
+  { "id": "snapshot", "missing": "缺少回滚快照" },
+  { "id": "reviewer", "missing": "未指定复核人" }
+]

@@ -6,13 +6,13 @@
 
 ## 执行步骤
 
-1. 在配置目录 `skills/<id>/` 选择旧 README 全文格式，或带 YAML `name`、`description` 的 SKILL.md；在 Agent 的 `skills` 中显式列出目录 ID。标准名称描述须为非空字符串，名称不是调用别名。
-2. 正文只保留必要步骤和所需业务依据。单文件含 frontmatter 不超过 256 KiB；解析结果和全部 Agent 冻结快照各不超过 2 MiB 序列化 UTF-8 JSON。CoreMind 不自动读取 references 或执行相邻脚本。
-3. 复核同 ID 内置优先、双文件 SKILL 优先且告警、损坏不回落，以及未选 ID、非法路径、越界链接和权限错误均不能绕过边界。
-4. 用真实任务验证首请求仅索引、`load_skill` 经 ToolPolicy 后正文进入请求；核对正文原始 UTF-8 字节和无前缀 64 字符 SHA，重复加载与压缩后重载符合实际工作集。
-5. 验证标准技能在 Runtime 与 Child 中的冻结身份；修改或删除源文件后恢复仍使用原 start 快照，并经过原配置和恢复安全门。缺失或损坏快照不能用当前磁盘补齐。
-6. 运行模块列出的解析、helper 和 Runtime 回归，并执行 `npm run check:modules`。完整请求重建还须保留正常 Session/压缩条目；技能事实不代替整段对话。
-7. 核查原始 Store 的正文存储与公开投影、事件、遥测私有字段剥离。保存 Trace、评测和人工确认记录；未经明确授权不发布。SHA 校验不构成防宿主任意改写的签名。
+1. 在配置目录 `skills/<id>/` 编写标准 `SKILL.md`，在 Agent 的 `skills` 中显式列出目录 ID。描述写适用条件，正文写步骤与检查项。按 [Agent Skills 规范](https://agentskills.io/specification) 组织 `references/`、`assets/`、`scripts/`，将包版本填入 `metadata.version`。旧项目可继续用 `README.md` 全文格式。
+2. 按[资源包示例](GUIDE.zh-CN.md#编写资源包)声明相对路径和原始 UTF-8 字节的 SHA-256，统一 Git 行尾为 LF。单文件最多 256 KiB，解析结果和全部 Agent 冻结快照各最多 2 MiB 序列化 UTF-8 JSON。
+3. 运行 `coremind check`，核对内置优先、双文件告警、损坏包、越界路径和链接。调用 `load_skill` 验证未声明资源会被拒绝。脚本源码可作为文本读取。要执行脚本，按项目工具注册、审批和沙箱流程单独授权。
+4. 按[固定版本安装和回退](GUIDE.zh-CN.md#固定版本安装和回退)保存版本专属的内容锁。在两个干净配置目录分别安装和冻结重装，比较锁和已安装文件的 SHA-256。升级前保留上一份锁，注入一次资源篡改并核对旧版，随后演练回退。
+5. 用匹配任务、无关任务和依赖缺失任务测试触发。核对首次模型请求只有索引。验证经 ToolPolicy 批准的 `load_skill({id})` 正文与 `load_skill({id, resource})` 资源进入请求，覆盖重复调用、压缩后重载和撤销权限后的拒绝。
+6. 首次加载后修改或移走源文件，验证从旧运行恢复得到原版，新建 Runtime 得到当前版本。核对损坏或缺失快照明确失败，以及原始 Store 私有字段从公开投影、事件和遥测中剥离。完整请求重建仍需保留 Session 和压缩记录。
+7. 完成[模块示例](../../../examples/modules/package-agent-skills/README.zh-CN.md)的四入口验证和 `npm run check:modules`。真实模型效果单独用同题、同模型和同参数做开关对照，保存流程遵循、事实正确性、无关触发、延时与 Token 记录。发布前收集负责人确认。
 
 ## 停止条件
 

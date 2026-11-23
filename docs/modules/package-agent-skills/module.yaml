@@ -12,6 +12,13 @@ sourcePaths:
   - "packages/coremind-runtime/src/skill-runtime.ts"
   - "packages/coremind-runtime/src/skill-privacy.ts"
   - "packages/coremind-runtime/src/runtime.ts"
+  - "packages/coremind-runtime/src/project-check.ts"
+  - "examples/modules/package-agent-skills/install-skill.mjs"
+  - "examples/modules/package-agent-skills/skills"
+  - "examples/modules/package-agent-skills/coremind.yaml"
+  - "examples/modules/package-agent-skills/cases.json"
+  - "examples/modules/package-agent-skills/run.mjs"
+  - "examples/modules/package-agent-skills/run.py"
 documents:
   readme:
     zh-CN: docs/modules/package-agent-skills/README.zh-CN.md
@@ -33,9 +40,13 @@ testPaths:
   - "packages/coremind-runtime/src/skill-runtime.test.ts"
   - "packages/coremind-runtime/src/skill-privacy.test.ts"
   - "packages/coremind-runtime/src/skills-runtime.acceptance.test.ts"
+  - "packages/coremind-runtime/src/project-check.test.ts"
   - "packages/coremind-cli/src/entry-equivalence.acceptance.test.tsx"
   - "packages/coremind-worker/src/protocol-host.test.ts"
   - "python/tests/test_skill_assets_wheel.py"
+  - "examples/modules/package-agent-skills/install-skill.test.mjs"
+  - "examples/modules/package-agent-skills/acceptance.mjs"
+  - "examples/modules/package-agent-skills/paired-evaluation.mjs"
 supportedPlatforms:
   - "windows"
   - "linux"

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "resources": [
+    {
+      "path": "references/dependency-rules.md",
+      "sha256": "e236316d7becb3a57b06de882920801b22070bcfb6a1ec4dc1fd7e32fd3e3926"
+    },
+    {
+      "path": "assets/checklist.json",
+      "sha256": "49b457aa726aea96e40fae94b0c367c1b115a004e4e78fe0845f3cc2d9ecce7b"
+    },
+    {
+      "path": "scripts/check-environment.mjs",
+      "sha256": "d393491c26d610a496a4691129c167ed7ec17ea969b7476efe116fd770dcb483"
+    }
+  ]
+}

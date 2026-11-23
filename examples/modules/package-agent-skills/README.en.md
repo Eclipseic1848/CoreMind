@@ -1,20 +1,31 @@
-# Skill and SOP Loading Example
+# Share a weekly report template and a release checklist
 
-This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
+[The example configuration](coremind.yaml) selects two version `1.0.0` Skill packages for one agent and grants only the `load_skill` tool.
 
-```text
-agents:
-  reviewer:
-    systemPrompt: 你是代码审查助手
-    skills:
-      - code-review
+- The delivery and platform teams fill in the same weekly report template with their own progress, blockers, and plans.
+- The Xingta staging environment and Yunqiao offline environment use one release checklist. Staging passes. The offline environment reports an outdated Node.js version and a missing rollback snapshot.
+- A general notification summary completes without any skill calls.
+
+## Run the example across all four entry points
+
+From the repository root, use Node.js with the repository dependencies installed and Python 3.10 or later. Set `COREMIND_SKILL_PYTHON` to the absolute interpreter path if needed.
+
+```sh
+npm run build
+node examples/modules/package-agent-skills/acceptance.mjs
 ```
 
-## Verification
+The script starts a local loopback model fixture and copies both packages into isolated temporary projects. CLI with YAML, the TypeScript SDK, and the synchronous and asynchronous Python SDKs each run the [same five cases](cases.json). Expect 20 JSON records with the entry point, case, skill calls, and output. The script verifies the returned resource bytes and checks that reading the script source creates no execution sentinel. This verifies the interface, isolation, and workflow. Use paired evaluation with the same prompts to measure a real model's skill selection.
 
-1. Run the tests listed in the module manifest from the repository root.
-2. Run `coremind check` for configuration examples.
-3. Add scenarios and run `coremind eval` for business outputs.
-4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
+## Run a paired evaluation with a real model
 
-Return to the [English guide](../../../docs/modules/package-agent-skills/GUIDE.en.md).
+Use an authorized, keyless Qwen-compatible endpoint. Set `COREMIND_SKILL_EVAL_BASE_URL` to its API base URL and `COREMIND_SKILL_EVAL_MODEL` to its model ID.
+
+```sh
+node examples/modules/package-agent-skills/paired-evaluation.mjs --plan
+node examples/modules/package-agent-skills/paired-evaluation.mjs --run
+```
+
+The runner uses the same prompts and model settings with Skills enabled and disabled. It records scores, original output, tool calls, timing, and reported token usage in `.scratch/p2/skill-sharing/live-eval/`. Pass case IDs after `--run` to select specific cases. Use `--rescore <report-path>` to grade a recorded result offline.
+
+To adapt the example, place the packages under `skills/` in your configuration directory. Update their instructions and resources, then record the SHA-256 of each resource's original UTF-8 bytes in `coremind.skill.json`. Set the Provider and the selected `skills` in YAML, then run `coremind check <config-file>`. See the [SOP](../../../docs/modules/package-agent-skills/SOP.en.md) for pinned installation and rollback, and the [guide](../../../docs/modules/package-agent-skills/GUIDE.en.md) for configuration.
