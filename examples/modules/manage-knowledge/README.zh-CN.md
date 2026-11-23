@@ -58,6 +58,18 @@ node examples/modules/manage-knowledge/acceptance.mjs
 
 验收从项目配置启动 CLI、TypeScript SDK 和 Python SDK（同步与异步），各入口实际调用同一 MCP 服务。绑定方式见[项目配置](coremind.yaml)、[TypeScript 入口](search.mjs)及[Python 入口](search.py)。
 
+## 增量导入与撤回
+
+使用 `--state` 保存每个文档版本的原文、范围和撤回状态。相同版本与内容重复启动不会重复写入；同版本内容变化会失败并要求提升版本号。`--withdraw DOC:VERSION` 在启动时撤回指定版本；服务提供的 `resolve_citation` 返回旧引文是 `available`、`withdrawn` 还是 `unknown`。
+
+```sh
+python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json
+python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json --withdraw 资料室手册:2
+cd examples/modules/manage-knowledge && python -B -X utf8 -m unittest test_knowledge_catalog.py -v
+```
+
+单元测试覆盖幂等导入、同版本冲突、撤回后检索与引文、重建失败回滚和状态重启。
+
 ## 复核文档解析
 
 在仓库根目录使用 Python 3.12 环境准备 Docling。首次解析 PDF 需要布局、表格与中文 OCR 模型可用。测试资料包含一份原生文本与扫描页混排的 PDF、一份含表格的 DOCX 和一份 Markdown。

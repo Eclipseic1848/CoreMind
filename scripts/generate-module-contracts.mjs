@@ -287,6 +287,7 @@ const modules = [
       "Retrieve source passages with their version and location within the host's read scope.",
     source: [
       "examples/modules/manage-knowledge/knowledge_server.py",
+      "examples/modules/manage-knowledge/knowledge_catalog.py",
       "examples/modules/manage-knowledge/coremind.yaml",
       "examples/knowledge-evals/zh-retrieval/docling_bridge.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_retrieval.py",
@@ -295,6 +296,7 @@ const modules = [
     ],
     tests: [
       "examples/modules/manage-knowledge/acceptance.mjs",
+      "examples/modules/manage-knowledge/test_knowledge_catalog.py",
       "examples/knowledge-evals/zh-retrieval/test_docling_bridge.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_benchmark.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_check.py",
@@ -303,14 +305,25 @@ const modules = [
       "examples/knowledge-evals/zh-retrieval/test_keyword_baseline.py",
     ],
     dependencies: ["build-tools", "evaluate-agents"],
-    interfaces: ["search_knowledge(query)"],
-    errorsZh: ["资料不足时保留证据缺口", "检查每条引文的版本、位置和阅读范围"],
-    errorsEn: ["Report missing evidence", "Verify source versions, locations and read scopes"],
-    stepsZh: ["确定来源和身份", "运行三个入口", "与固定集的标注和关键词基线对照"],
+    interfaces: [
+      "search_knowledge(query)",
+      "resolve_citation(docId, version, file, line|locator)",
+    ],
+    errorsZh: [
+      "资料不足时保留证据缺口",
+      "同版本内容变化必须提升版本号",
+      "撤回后旧引文返回 withdrawn",
+    ],
+    errorsEn: [
+      "Report missing evidence",
+      "Require a version bump when content changes",
+      "Return withdrawn for citations to retracted versions",
+    ],
+    stepsZh: ["确定来源和身份", "导入或撤回版本并运行三个入口", "复核旧引文和固定集标注"],
     stepsEn: [
       "Identify sources and scope",
-      "Run all three entry points",
-      "Compare with the gold citations and the keyword baseline",
+      "Import or withdraw versions and run all three entry points",
+      "Resolve old citations and compare with the gold set",
     ],
     example: "node examples/knowledge-evals/zh-retrieval/check.mjs",
   }),

@@ -106,8 +106,6 @@ class KnowledgeIndex:
             if start >= end:
                 raise ValueError("无效的来源生效区间")
             payloads.append({**chunk, "_start": start, "_end": end})
-        if not payloads:
-            raise ValueError("替换索引至少需要一个知识块")
         with self.lock:
             staged = QdrantClient(":memory:")
             staged.create_collection(

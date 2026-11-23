@@ -4,4 +4,4 @@
 
 例如，松屿资料室的两版索引把 `ST-17` 分别列在“榛果台”和“榆木台”。回答现行窗口时，需要引用二版的物件行。只有旧版记载的事项，不能据此作为现行规则作答。
 
-本模块处于 P1 本地迭代。接入见[使用指南](GUIDE.zh-CN.md)，效果验收见[开发 SOP](SOP.zh-CN.md)。[示例说明](../../../examples/modules/manage-knowledge/README.zh-CN.md)给出复核材料，[模块清单](module.yaml)登记实现和测试。
+P1 已验收。P2 增加增量导入、版本撤回和旧引文解析：同一文档 ID 与版本只接受一份内容，重复导入返回无变化；内容变化必须提升版本号；撤回后检索不再返回该版本，旧引文通过 `resolve_citation` 返回可用、已撤回或未知。接入见[使用指南](GUIDE.zh-CN.md)，效果验收见[开发 SOP](SOP.zh-CN.md)。[示例说明](../../../examples/modules/manage-knowledge/README.zh-CN.md)给出复核材料，[模块清单](module.yaml)登记实现和测试。

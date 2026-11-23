@@ -58,6 +58,18 @@ node examples/modules/manage-knowledge/acceptance.mjs
 
 The acceptance script runs the CLI with the project configuration, the TypeScript SDK and the Python SDK (sync and async). Each makes a real call to the same MCP service. See the [configuration](coremind.yaml), [TypeScript entry point](search.mjs) and [Python entry point](search.py) for the bindings.
 
+## Incremental imports and withdrawal
+
+Pass `--state` to keep each version's text, scope and withdrawal status. Restarting with the same version and content does not duplicate it; changed content fails until the version is bumped. `--withdraw DOC:VERSION` withdraws a version at startup, and `resolve_citation` reports whether an old citation is `available`, `withdrawn` or `unknown`.
+
+```sh
+python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json
+python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json --withdraw 资料室手册:2
+cd examples/modules/manage-knowledge && python -B -X utf8 -m unittest test_knowledge_catalog.py -v
+```
+
+The unit tests cover idempotent imports, same-version conflicts, withdrawal in search and citation resolution, rebuild rollback and state reload.
+
 ## Check document parsing
 
 Use a Python 3.12 environment from the repository root. PDF conversion needs the layout, table and Chinese OCR models available on the first run. The parser fixtures include a mixed native-text/scanned PDF, a DOCX table and a Markdown file.

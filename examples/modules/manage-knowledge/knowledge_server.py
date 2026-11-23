@@ -20,13 +20,14 @@ sys.path.insert(0, str(RETRIEVAL))
 
 from qdrant_retrieval import KnowledgeIndex
 from keyword_baseline import terms
+from knowledge_catalog import KnowledgeCatalog
 
 
 def load_corpus(manifest_path):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     as_of = date.fromisoformat(manifest["asOf"]).isoformat()
     directory = (manifest_path.parent / "sources").resolve(strict=True)
-    chunks = []
+    records = []
     seen = set()
     for source in manifest["documents"]:
         file = source["file"]
@@ -65,22 +66,21 @@ def load_corpus(manifest_path):
             raise ValueError(f"不支持的资料格式：{file}")
         if not items:
             raise ValueError(f"资料未提取出正文：{file}")
-        chunks.extend(
+        records.append(
             {
-                **item,
                 "docId": doc_id,
                 "version": version,
                 "file": file,
                 "access": access,
                 "validFrom": start,
                 "validUntil": until,
+                "chunks": items,
             }
-            for item in items
         )
-    return as_of, chunks
+    return as_of, records
 
 
-def make_app(index, scope, as_of, token):
+def make_app(catalog, scope, as_of, token):
     mcp = FastMCP("CoreMind Knowledge", stateless_http=True, json_response=True)
 
     @mcp.tool(structured_output=False)
@@ -88,10 +88,24 @@ def make_app(index, scope, as_of, token):
         """查找可参考的资料片段并附版本与来源位置。相似片段只是候选证据。"""
         if not query.strip():
             raise ValueError("查询不能为空")
-        matches = index.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
+        matches = catalog.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
         fields = {"docId", "version", "file", "line", "locator", "text"}
         citations = [{key: value for key, value in row.items() if key in fields} for row in matches]
         return json.dumps({"citations": citations}, ensure_ascii=False)
+
+    @mcp.tool(structured_output=False)
+    def resolve_citation(
+        docId: Annotated[str, Field(min_length=1, max_length=200)],
+        version: Annotated[int, Field(ge=1)],
+        file: Annotated[str, Field(min_length=1, max_length=200)],
+        line: Annotated[int | None, Field(ge=1)] = None,
+        locator: Annotated[str | None, Field(max_length=200)] = None,
+    ) -> str:
+        """解析旧运行留下的引文；返回可用原文、已撤回或未知状态。"""
+        return json.dumps(
+            catalog.resolve(docId.strip(), version, file, line=line, locator=locator),
+            ensure_ascii=False,
+        )
 
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_request):
@@ -119,18 +133,32 @@ def main():
     parser.add_argument("--model-dir", type=Path, required=True)
     parser.add_argument("--scope", default="public")
     parser.add_argument("--port", type=int, default=8767)
+    parser.add_argument("--state", type=Path)
+    parser.add_argument(
+        "--withdraw",
+        action="append",
+        default=[],
+        metavar="DOC:VERSION",
+        help="启动时撤回指定文档版本，可重复",
+    )
     args = parser.parse_args()
     if not args.scope.strip() or args.scope != args.scope.strip():
         parser.error("--scope 需要非空的阅读范围")
     authorization = os.environ.get("COREMIND_KNOWLEDGE_AUTHORIZATION", "")
     if not authorization.startswith("Bearer ") or len(authorization.removeprefix("Bearer ").strip()) < 24:
         parser.error("请通过 COREMIND_KNOWLEDGE_AUTHORIZATION 提供独立的本地 Bearer 令牌")
-    as_of, chunks = load_corpus(args.manifest)
+    as_of, records = load_corpus(args.manifest)
     index = KnowledgeIndex(args.model_dir)
+    catalog = KnowledgeCatalog(index, args.state)
     try:
-        index.replace(chunks)
+        catalog.import_documents(records)
+        for item in args.withdraw:
+            doc_id, separator, version = item.rpartition(":")
+            if not separator or not doc_id.strip() or not version.isdigit():
+                parser.error("--withdraw 需要 DOC:VERSION")
+            catalog.withdraw(doc_id.strip(), int(version))
         uvicorn.run(
-            make_app(index, args.scope, as_of, authorization.encode("utf-8")),
+            make_app(catalog, args.scope, as_of, authorization.encode("utf-8")),
             host="127.0.0.1",
             port=args.port,
             access_log=False,
