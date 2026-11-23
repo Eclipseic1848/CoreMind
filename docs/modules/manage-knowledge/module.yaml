@@ -6,6 +6,7 @@ name:
 version: 1.4.0
 sourcePaths:
   - "examples/modules/manage-knowledge/knowledge_server.py"
+  - "examples/modules/manage-knowledge/knowledge_catalog.py"
   - "examples/modules/manage-knowledge/coremind.yaml"
   - "examples/knowledge-evals/zh-retrieval/docling_bridge.py"
   - "examples/knowledge-evals/zh-retrieval/qdrant_retrieval.py"
@@ -28,6 +29,7 @@ examplePaths:
   - examples/modules/manage-knowledge/README.en.md
 testPaths:
   - "examples/modules/manage-knowledge/acceptance.mjs"
+  - "examples/modules/manage-knowledge/test_knowledge_catalog.py"
   - "examples/knowledge-evals/zh-retrieval/test_docling_bridge.py"
   - "examples/knowledge-evals/zh-retrieval/qdrant_benchmark.py"
   - "examples/knowledge-evals/zh-retrieval/qdrant_check.py"
