@@ -325,6 +325,42 @@ const modules = [
     example: "node examples/knowledge-evals/zh-retrieval/check.mjs",
   }),
   moduleOf({
+    id: "manage-memory",
+    zh: "长期记忆与经验提炼",
+    en: "Long-term Memory and Reflection",
+    maturity: "alpha",
+    purposeZh: "在宿主授权的范围内，通过 Hindsight 召回已确认的偏好、事实和经验。",
+    purposeEn:
+      "Use Hindsight to recall confirmed preferences, facts, and lessons within the host's authorized scope.",
+    source: [
+      "examples/modules/manage-memory/memory_server.py",
+      "examples/modules/manage-memory/hindsight_backend.py",
+      "examples/modules/manage-memory/requirements.txt",
+      "examples/modules/manage-memory/coremind.yaml",
+      "examples/modules/manage-memory/search.mjs",
+      "examples/modules/manage-memory/search.py",
+    ],
+    tests: [
+      "examples/modules/manage-memory/test_memory_service.py",
+      "examples/modules/manage-memory/acceptance.mjs",
+    ],
+    dependencies: ["build-tools", "manage-sessions", "manage-context-artifacts", "evaluate-agents"],
+    interfaces: ["recall_memory(query)", "host retain, correct, forget and reflect"],
+    errorsZh: ["候选未经确认无法召回", "拒绝未授权范围及过时版本", "存储不可用时返回明确失败"],
+    errorsEn: [
+      "Exclude unconfirmed candidates from recall",
+      "Reject unauthorized scope and stale revisions",
+      "Return an explicit failure when storage is unavailable",
+    ],
+    stepsZh: ["确定作用域与来源", "验证确认、召回和纠错", "复查遗忘后的存储与新会话"],
+    stepsEn: [
+      "Establish scope and evidence",
+      "Verify confirmation, recall, and correction",
+      "Check storage and a new session after forgetting",
+    ],
+    example: "node examples/modules/manage-memory/acceptance.mjs",
+  }),
+  moduleOf({
     id: "design-agents",
     zh: "Agent 构建",
     en: "Agent Construction",

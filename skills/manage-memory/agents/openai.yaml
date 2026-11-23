@@ -1,0 +1,4 @@
+interface:
+  display_name: "Long-term Memory and Reflection"
+  short_description: "Build and verify scoped CoreMind memory workflows"
+  default_prompt: "Use $manage-memory to add scoped recall and verify the confirmation, correction, and forgetting lifecycle."
