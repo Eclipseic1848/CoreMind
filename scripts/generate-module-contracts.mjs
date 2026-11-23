@@ -305,10 +305,7 @@ const modules = [
       "examples/knowledge-evals/zh-retrieval/test_keyword_baseline.py",
     ],
     dependencies: ["build-tools", "evaluate-agents"],
-    interfaces: [
-      "search_knowledge(query)",
-      "resolve_citation(docId, version, file, line|locator)",
-    ],
+    interfaces: ["search_knowledge(query)", "resolve_citation(docId, version, file, line|locator)"],
     errorsZh: [
       "资料不足时保留证据缺口",
       "同版本内容变化必须提升版本号",
