@@ -100,4 +100,4 @@ python -B -X utf8 examples/knowledge-evals/zh-retrieval/test_docling_bridge.py -
 
 用[二版手册](../../knowledge-evals/zh-retrieval/sources/资料室手册-v2.md)复核结果。检索运行真实嵌入模型和 Qdrant。入口验收使用本地模型夹具发起工具调用、转发检索 JSON 并逐项比对。
 
-[接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md) · [效果评测步骤](../../../docs/modules/manage-knowledge/SOP.zh-CN.md)
+[接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md) · [效果评测步骤](../../../docs/modules/manage-knowledge/SOP.zh-CN.md) · [干净消费者验收](../../../docs/modules/manage-knowledge/CLEAN-CONSUMER.zh-CN.md)

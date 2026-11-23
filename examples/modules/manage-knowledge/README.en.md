@@ -100,4 +100,4 @@ The acceptance script asks “现行的普通咨询要从哪个栏目递交？�
 
 Check the excerpt in the [second edition](../../knowledge-evals/zh-retrieval/sources/资料室手册-v2.md). Retrieval uses a real embedding model and Qdrant. Each entry point uses a local model fixture to request the tool call and return its JSON for comparison.
 
-[Integration guide](../../../docs/modules/manage-knowledge/GUIDE.en.md) · [Evaluation procedure](../../../docs/modules/manage-knowledge/SOP.en.md)
+[Integration guide](../../../docs/modules/manage-knowledge/GUIDE.en.md) · [Evaluation procedure](../../../docs/modules/manage-knowledge/SOP.en.md) · [Clean consumer verification](../../../docs/modules/manage-knowledge/CLEAN-CONSUMER.en.md)
