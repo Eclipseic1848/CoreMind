@@ -42,6 +42,14 @@ _Avoid_: 用 Session 指代单次 Run、RunState 或交互控制器
 显式任务模式另有 **TaskCommit 事实域**：一个原子提交同时拥有任务 checkpoint、typed document 与文本 entry。其 entry 不再写入普通 Session 日志，三类视图从同一事实重建；旧三个域不迁移。见 [ADR 0025](docs/adr/0025-explicit-task-commit-authority.md)。
 _Avoid_: 状态、日志、快照（Snapshot 是投影）
 
+**Long-term Memory（长期记忆）**：
+经确认后可在授权范围内再次召回的偏好或经验，带来源、版本和有效期。跨会话使用须获宿主授权。见 [ADR 0031](docs/adr/0031-long-term-memory-authority.md)。
+_Avoid_: Session 历史、Run 事实、压缩摘要
+
+**Memory Candidate（记忆候选）**：
+带来源和适用条件、等待确认的偏好或经验。确认后形成可召回的长期记忆。
+_Avoid_: 已生效记忆、自动保存的事实
+
 **TaskCommit（任务提交）**：
 显式任务会话内以 commitId 幂等、expectedRevision 控制并发的一次原子持久记录；不是远端业务事务或 Run 终态。
 _Avoid_: 三日志顺序写入、Tool Call、Workspace Checkpoint

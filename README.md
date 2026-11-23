@@ -42,7 +42,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
 | 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
-| 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库、22 个能力模块；每个模块配套测试、SOP、Skill、中英文指南与示例 |
+| 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库与能力模块。每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
 | 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI 与双平台真实伪终端，并完成绑定本版本与 Runtime 摘要的严格真实 Provider 复验；安装状态以 Release 与 Registry 为准 |
 
@@ -274,7 +274,7 @@ CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），
 
 ## 学习与验证材料
 
-- [22 个能力模块](docs/modules/README.zh-CN.md)：每个模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`；Child Run 模块自 `0.7.0` 起稳定交付。
+- 每个能力模块均有实现路径、测试、双语 README/SOP/指南、Skill、示例和 `module.yaml`。Child Run 模块自 `0.7.0` 起稳定交付。[能力模块目录](docs/modules/README.zh-CN.md)
 - [5 个黄金示例](examples/golden/README.zh-CN.md)：订单助手、合同审核、Python 数据分析、受控调查与验证修复 Loop，均可用本地 mock Provider 离线运行。
 - [2 个编码智能体真实缺陷仓库](examples/coding-evals/README.zh-CN.md)：TypeScript 与 Python 均验证复现、最小修复、目标/回归测试、只读 Git 证据和脏工作区保护。
 - [配置指南](docs/guide/02-configuration.md)、[Skill 指南](docs/guide/03-skills.md)、[质量指南](docs/guide/04-quality.md)、[CLI 指南](docs/guide/05-cli-usage.md)。
@@ -296,7 +296,7 @@ python -X utf8 -m build --wheel python
 npm run release:check-wheel
 ```
 
-`npm run check:modules` 会检查 22 个模块与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。P20 由目标平台真实伪终端自动验收；若自动脚本与人工可见界面出现差异，再补充人工复核记录。
+`npm run check:modules` 会检查模块目录与 5 个黄金示例的双语配对、Skill frontmatter、源码/测试路径、Markdown 链接、Config v2 和版本记录。CI 同时面向 Windows 与 Linux，连续三次执行 Node 测试，并验证覆盖率不下降、Python SDK、真实 Worker 一致性、黄金示例、编码缺陷评测、npm tarball 和 wheel 干净安装。P20 由目标平台真实伪终端自动验收；若自动脚本与人工可见界面出现差异，再补充人工复核记录。
 
 ## 开源协议
 

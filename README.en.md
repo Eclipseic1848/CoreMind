@@ -42,7 +42,7 @@ The `1.4.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime an
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
-| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and 22 capability modules, each paired with tests, SOPs, a Skill, bilingual guides, and examples |
+| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and capability modules. Each module has tests, SOPs, a Skill, bilingual guides, and examples. |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
 | Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix and real pseudoterminal acceptance on both platforms, plus strict live-provider certification bound to this version and Runtime digest; Releases and registries remain authoritative for installation |
 
@@ -162,7 +162,7 @@ See the generated [provider matrix](docs/providers/README.en.md) and [certificat
 
 ## Learning and verification
 
-- [22 capability modules](docs/modules/README.en.md), each with implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`; the Child Run module has shipped as stable since `0.7.0`.
+- Each capability module lists implementation paths, tests, bilingual README/SOP/guides, a reusable skill, examples, and `module.yaml`. The Child Run module has shipped as stable since `0.7.0`. [Module catalog](docs/modules/README.en.md)
 - [5 offline golden examples](examples/golden/README.en.md): order support, contract review, Python data analysis, bounded research, and verified repair.
 - [2 real-defect coding-agent repositories](examples/coding-evals/README.en.md): TypeScript and Python cases verify reproduction, minimal repair, target/regression tests, read-only Git evidence, and dirty-worktree preservation.
 - `npm run check:modules` verifies bilingual pairs, skill frontmatter, paths, Markdown links, Config v2 examples, and version records.

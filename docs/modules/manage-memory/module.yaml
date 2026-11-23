@@ -1,0 +1,40 @@
+schemaVersion: 1
+id: manage-memory
+name:
+  zh-CN: "长期记忆与经验提炼"
+  en: "Long-term Memory and Reflection"
+version: 1.4.0
+sourcePaths:
+  - "examples/modules/manage-memory/memory_server.py"
+  - "examples/modules/manage-memory/hindsight_backend.py"
+  - "examples/modules/manage-memory/requirements.txt"
+  - "examples/modules/manage-memory/coremind.yaml"
+  - "examples/modules/manage-memory/search.mjs"
+  - "examples/modules/manage-memory/search.py"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-memory/README.zh-CN.md
+    en: docs/modules/manage-memory/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-memory/SOP.zh-CN.md
+    en: docs/modules/manage-memory/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-memory/GUIDE.zh-CN.md
+    en: docs/modules/manage-memory/GUIDE.en.md
+  changelog: docs/modules/manage-memory/CHANGELOG.md
+skillPath: skills/manage-memory/SKILL.md
+examplePaths:
+  - examples/modules/manage-memory/README.zh-CN.md
+  - examples/modules/manage-memory/README.en.md
+testPaths:
+  - "examples/modules/manage-memory/test_memory_service.py"
+  - "examples/modules/manage-memory/acceptance.mjs"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "build-tools"
+  - "manage-sessions"
+  - "manage-context-artifacts"
+  - "evaluate-agents"
+maturity: alpha

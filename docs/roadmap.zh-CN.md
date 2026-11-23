@@ -22,6 +22,13 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；正式发布还必须有绑定本版本、最终提交、Runtime 与 Worker 的 strict-provider 工作流证据。
 
+## `2.0.0` 建设计划
+
+- 知识导入、检索引用、版本增量及撤回已合入主线。[知识模块](modules/manage-knowledge/README.zh-CN.md)
+- 长期记忆与经验提炼采用 Hindsight，P2-B 实现、示例及验证记录进入阶段评审。[长期记忆模块](modules/manage-memory/README.zh-CN.md)
+- 接续交付 Skill 资源共享、工具互通和浏览器能力，再验证可选本体的模型、映射、约束和动作绑定。[阶段跟踪](https://github.com/Eclipseic1848/CoreMind/issues/388)
+- 双平台 CI、源码与制品回装、四入口一致性及双语文档验收通过后，发布 GitHub `v2.0.0` 和对应 npm/PyPI 包。
+
 ## `1.4.0`：持久任务与会话能力
 
 - 原子保存任务阶段、checkpoint、typed document 与文本 entry，保留 revision、幂等、Schema 和单 writer 检查。

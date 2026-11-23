@@ -22,6 +22,13 @@ The `v1.4.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/rel
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. Formal publication also requires strict-provider evidence bound to this version, final commit, Runtime, and Worker.
 
+## `2.0.0` development plan
+
+- The main branch includes knowledge ingestion, cited retrieval, incremental versions, and withdrawal. [Knowledge module](modules/manage-knowledge/README.en.md)
+- P2-B uses Hindsight for long-term memory and reflection. Its implementation, examples, and verification record are available for phase review. [Long-term memory module](modules/manage-memory/README.en.md)
+- The remaining phases cover Skill resource sharing, tool interoperability and browser capabilities, and optional ontology models, mappings, constraints, and action binding. [Phase tracking](https://github.com/Eclipseic1848/CoreMind/issues/388)
+- Publish `v2.0.0` on GitHub with matching npm and PyPI packages after dual-platform CI, source and package installation checks, four-entry-point parity, and bilingual documentation checks pass.
+
 ## `1.4.0`: durable tasks and sessions
 
 - Atomically commit task phases, checkpoints, typed documents and text entries with revision, idempotency, Schema and single-writer checks.

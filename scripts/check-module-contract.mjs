@@ -22,6 +22,7 @@ const expectedModules = [
   "manage-checkpoints",
   "manage-context-artifacts",
   "manage-knowledge",
+  "manage-memory",
   "manage-providers",
   "manage-sessions",
   "operate-coremind-cli",
