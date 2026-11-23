@@ -296,6 +296,7 @@ const modules = [
     ],
     tests: [
       "examples/modules/manage-knowledge/acceptance.mjs",
+      "examples/modules/manage-knowledge/clean-consumer.mjs",
       "examples/modules/manage-knowledge/test_knowledge_catalog.py",
       "examples/knowledge-evals/zh-retrieval/test_docling_bridge.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_benchmark.py",
