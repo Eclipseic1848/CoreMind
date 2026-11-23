@@ -34,6 +34,15 @@ Maintainers rebuild the fixed Job assembly or host with `node scripts/build-wind
 6. Check model requests, Facts/query/events, Artifacts, CLI, and Worker JSON for credential leakage. Verify local bodies/sockets/the dispatcher have settled before fixture cleanup. Remote sessions rely on service leases; no DELETE is sent.
 7. Run the listed TypeScript, CLI, Python sync/async, and old-Worker rejection regressions while retaining stdio tests. Record workspace, installed-artifact, platform, and real external interoperability evidence separately; do not mark unexecuted forms as passed.
 
+## P2-D interoperability and browser acceptance
+
+1. Compare the same input across a local handler, stdio MCP, and HTTP MCP. Check `false`, `0`, and `null` field by field, along with the approved raw tool name and execution receipt. [Interoperability example](../../../examples/modules/build-tools/README.en.md)
+2. Exercise controlled timeout, cancellation, and disconnection. Record `unknown` if the client sent a side effect and lost its acknowledgement. Check call counts and owned Windows processes or local HTTP connections after cancellation. Keep cold resume from replaying the original write.
+3. Install the pinned Playwright MCP separately. Use an isolated browser on the synthetic loopback page and verify both the page result and cleanup of the service and browser after cancellation. Run the base interoperability example independently. [Browser acceptance](BROWSER.en.md)
+4. Run code execution regressions on both platforms. Check legacy draft-07, explicit Draft 2020-12, and rejection of unknown dialects.
+
+The three echo routes returned identical fields on Windows and in a Linux container. Windows loopback HTTP checks verified a single business call through cancellation or a lost acknowledgement after a write, connection closure, a durable `unknown` receipt, and no replay on cold resume. The Linux container separately verified stdout, stderr, timeout, and real process tree termination. The browser checks covered approval, download, screenshot, and cancellation on Windows Chrome 157. [Browser results](BROWSER.en.md)
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

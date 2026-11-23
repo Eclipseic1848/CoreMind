@@ -34,6 +34,15 @@
 6. 检查模型请求、Facts/query/events、Artifact、CLI 和 Worker JSON 都没有凭据原文。Run 结束须先验证本地 body/socket/dispatcher 已收敛，再做测试夹具兜底清理；远端 session 由服务租约管理，不发送 DELETE。
 7. 运行清单中的 TypeScript、CLI、Python 同步/异步及旧 Worker 拒绝回归；保留原 stdio 测试。分别记录工作区、安装制品、平台和真实外部互通证据，未运行的形态不得标为通过。
 
+## P2-D 互通与浏览器验收
+
+1. 运行同一输入的本地函数、stdio MCP、HTTP MCP 对照，逐字段核验 `false`、`0` 与 `null`，并核对已批准的原始工具名和执行回执。[互通示例](../../../examples/modules/build-tools/README.zh-CN.md)
+2. 执行受控超时、取消及断连用例。副作用已经发送却没有回执时保存 `unknown`，取消后核对调用次数和 Windows 进程树或 HTTP 本地连接，冷恢复不得重发原业务写入。
+3. 单独安装固定 Playwright MCP，使用隔离浏览器操作本机合成页。校验读取页面结果及取消后的服务、浏览器清理。基础互通流程独立于浏览器安装。[浏览器验收](BROWSER.zh-CN.md)
+4. 在两个平台运行代码执行回归。验证旧 draft-07 工具参数、显式 Draft 2020-12 参数以及未知方言失败关闭。
+
+本次在 Windows 与 Linux 容器实跑三入口回显，结果字段一致。Windows 本地 HTTP 取消与写后断连用例核验原业务调用只执行一次，连接关闭，unknown 回执持久化，冷恢复不重放。Linux 容器单独验证了标准输出、标准错误、超时及真实进程树终止。浏览器实测覆盖 Windows Chrome 157 上的审批、下载、截图与取消，按该平台记录结果。[浏览器核对记录](BROWSER.zh-CN.md)
+
 ## 停止条件
 
 遇到未确认业务规则、不可逆副作用、工作区外访问、真实密钥缺失或安全门禁失败时停止，向负责人请求决定。不要自行扩大业务范围。

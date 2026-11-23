@@ -38,6 +38,7 @@ CoreMind 只提供机制、质量护栏和开发指导。业务目标、规则�
 
 ## 源码、测试与示例
 
+- P2-D 的本地处理函数、stdio MCP 与校验地址的 HTTP MCP 使用同一输入和业务断言。浏览器是按项目显式选择的可选能力。[互通示例](../../../examples/modules/build-tools/README.zh-CN.md) · [Playwright MCP](BROWSER.zh-CN.md)
 - [packages/coremind-tools/src](../../../packages/coremind-tools/src)
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/process-runner.ts](../../../packages/coremind-tools/src/process-runner.ts)

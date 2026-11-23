@@ -556,6 +556,10 @@ const modules = [
       "packages/coremind-tools/src/git-adapter.ts",
       "packages/coremind-tools/src/unified-diff.ts",
       "packages/coremind-runtime/src/public-tool.ts",
+      "packages/coremind-runtime/src/mcp-runtime.ts",
+      "packages/coremind-runtime/src/mcp-authentication.ts",
+      "packages/coremind-runtime/src/tool-json-schema.ts",
+      "examples/modules/build-tools/browser/mcp-launcher.mjs",
     ],
     tests: [
       "packages/coremind-tools/src/registry.test.ts",
@@ -564,6 +568,10 @@ const modules = [
       "packages/coremind-tools/src/git-adapter.test.ts",
       "packages/coremind-tools/src/unified-diff.test.ts",
       "packages/coremind-runtime/src/public-tool.test.ts",
+      "packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts",
+      "packages/coremind-runtime/src/mcp-http-runtime.acceptance.test.ts",
+      "examples/modules/build-tools/transport-parity.mjs",
+      "examples/modules/build-tools/browser/run.mjs",
     ],
     dependencies: ["configure-coremind", "enforce-agent-permissions", "manage-checkpoints"],
     interfaces: [

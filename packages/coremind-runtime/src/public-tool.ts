@@ -1,5 +1,4 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { Ajv } from "ajv";
 import {
   BUILTIN_TOOL_IDS,
   TOOL_EFFECT_OPERATIONS,
@@ -12,8 +11,7 @@ import {
   type ToolCapabilityDeclaration,
 } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
-
-const JSON_SCHEMA_VALIDATOR = new Ajv({ logger: false, strict: false });
+import { validateToolSchema } from "./tool-json-schema.js";
 
 export interface JsonObjectSchema extends Record<string, unknown> {
   type: "object";
@@ -61,10 +59,7 @@ export function defineTool<TArgs>(
   if (definition.description.trim().length === 0) {
     throw new CoreMindError("invalid_tool", `工具 ${definition.name} 的 description 不能为空`);
   }
-  if (
-    definition.parameters.type !== "object" ||
-    !JSON_SCHEMA_VALIDATOR.validateSchema(definition.parameters)
-  ) {
+  if (definition.parameters.type !== "object" || !validateToolSchema(definition.parameters)) {
     throw new CoreMindError(
       "invalid_tool",
       `工具 ${definition.name} 的 parameters 必须为有效的 object JSON Schema`,

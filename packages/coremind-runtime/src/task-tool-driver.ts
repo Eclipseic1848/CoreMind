@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { toToolDeclaration } from "@earendil-works/pi-ai";
-import { Ajv } from "ajv";
 import type { AgentDriver, AgentDriverToolResult } from "./agent-driver.js";
 import type { AgentBuildContext } from "./agent-factory.js";
 import { CoreMindError } from "./errors.js";
+import { createToolSchemaValidator } from "./tool-json-schema.js";
 
 export interface TaskToolRequest {
   tool: string;
@@ -49,7 +49,7 @@ export function buildTaskToolDriver(
     try {
       if (selection && !selection.names.includes(tool.name))
         throw new CoreMindError("tool_capability_conflict", "任务工具未进入当前声明集合");
-      if (!new Ajv({ strict: false, ownProperties: true }).validate(tool.parameters, call.args))
+      if (!(await createToolSchemaValidator(tool.parameters).validate(tool.parameters, call.args)))
         throw new CoreMindError("invalid_tool", "任务工具参数不符合注册 Schema");
       const decision = await harness.beforeToolCall!({ toolCall: call }, controller.signal);
       if (decision?.block)

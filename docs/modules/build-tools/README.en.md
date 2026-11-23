@@ -38,6 +38,7 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 
 ## Source, tests, and examples
 
+- P2-D runs the same input and business assertion through a local handler, stdio MCP, and address-checked HTTP MCP. Projects can opt into the separate browser capability. [Interoperability example](../../../examples/modules/build-tools/README.en.md) · [Playwright MCP](BROWSER.en.md)
 - [packages/coremind-tools/src](../../../packages/coremind-tools/src)
 - [packages/coremind-tools/src/linux-sandbox.ts](../../../packages/coremind-tools/src/linux-sandbox.ts)
 - [packages/coremind-tools/src/process-runner.ts](../../../packages/coremind-tools/src/process-runner.ts)

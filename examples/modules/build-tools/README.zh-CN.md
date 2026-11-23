@@ -22,6 +22,15 @@ const lookupOrder = defineTool({
 6. 把工具名临时改为 `read`，确认定义或注册在执行前被拒绝；随后恢复业务专用名称。
 7. 运行 ProcessRunner、GitAdapter 与统一 Diff 的测试，确认超时、中止、输出上限、只读 Git 和超大文件均失败关闭。
 
+## 在本机运行三种工具入口
+
+```sh
+npm run build
+node examples/modules/build-tools/transport-parity.mjs
+```
+
+确定性模型夹具分别调用本地函数、真实 stdio MCP 和回环 Streamable HTTP MCP。三种入口应返回 `{"flag":false,"count":0,"empty":null}`。脚本核验 stdio 和 HTTP 的连接、工具目录及回显审批，并关闭本机服务。[可选浏览器示例](../../../docs/modules/build-tools/BROWSER.zh-CN.md)
+
 ## 本地 MCP 验证
 
 使用[完整配置](../../../docs/guide/02-configuration.md#mcp按-agent-选择本地工具)替换成本机已经审核的 stdio 程序。先运行 `coremind doctor coremind.yaml`，确认自检没有启动服务，再通过 `coremind run coremind.yaml --prompt "调用已批准的工具"` 分别审批连接、目录和业务动作。检查三次独立 Call/EffectReceipt、真实原名参数与终态后进程退出。

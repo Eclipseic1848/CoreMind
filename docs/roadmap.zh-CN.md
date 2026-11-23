@@ -25,8 +25,10 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 ## `2.0.0` 建设计划
 
 - 知识导入、检索引用、版本增量及撤回已合入主线。[知识模块](modules/manage-knowledge/README.zh-CN.md)
-- 长期记忆与经验提炼采用 Hindsight，P2-B 实现、示例及验证记录进入阶段评审。[长期记忆模块](modules/manage-memory/README.zh-CN.md)
-- 接续交付 Skill 资源共享、工具互通和浏览器能力，再验证可选本体的模型、映射、约束和动作绑定。[阶段跟踪](https://github.com/Eclipseic1848/CoreMind/issues/388)
+- 长期记忆与经验提炼采用 Hindsight。P2-B 实现、示例和验证记录已通过双平台工程 CI 并合入主线。[长期记忆模块](modules/manage-memory/README.zh-CN.md) · [合并记录](https://github.com/Eclipseic1848/CoreMind/pull/395)
+- Skill 支持声明资源、固定提交安装和旧运行恢复。工具层提供本地、stdio MCP 与 Streamable HTTP MCP 互通验收，以及可选的 Playwright MCP 浏览器示例。[Skill 模块](modules/package-agent-skills/README.zh-CN.md) · [工具模块](modules/build-tools/README.zh-CN.md)
+- 已验证从已合入源码构建的 npm/Python 安装件，以及从原文重建知识索引。发布候选制品仍需复跑同一消费流程。[干净消费者说明](modules/manage-knowledge/CLEAN-CONSUMER.zh-CN.md)
+- 接续验证可选本体的模型、映射、约束与动作绑定。[P2 阶段跟踪](https://github.com/Eclipseic1848/CoreMind/issues/388)
 - 双平台 CI、源码与制品回装、四入口一致性及双语文档验收通过后，发布 GitHub `v2.0.0` 和对应 npm/PyPI 包。
 
 ## `1.4.0`：持久任务与会话能力
