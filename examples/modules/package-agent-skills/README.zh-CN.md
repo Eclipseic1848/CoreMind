@@ -17,6 +17,8 @@ node examples/modules/package-agent-skills/acceptance.mjs
 
 脚本启动本机回环模型夹具，将两个技能包复制到独立临时项目，逐一用 CLI + YAML、TypeScript SDK、Python 同步和异步 SDK 运行[五个用例](cases.json)。预期输出 20 条 JSON 记录，含入口、用例、技能调用和业务结果。脚本还逐字核对实际返回的资源，确认脚本源码读取后没有生成执行哨兵。该命令验证接口、数据隔离和流程契约。真实模型能否按需选用资源，需要同题成对评测。
 
+要复验固定安装版，先把两份 Skill 装到同一配置目录，再将该目录作为 `acceptance.mjs` 的第一个参数。[安装步骤](../../../docs/modules/package-agent-skills/GUIDE.zh-CN.md#固定版本安装和回退)
+
 ## 真实模型成对评测
 
 使用已授权且无需密钥的 Qwen 兼容端点。将 `COREMIND_SKILL_EVAL_BASE_URL` 设为兼容接口地址，将 `COREMIND_SKILL_EVAL_MODEL` 设为服务实际提供的模型名。

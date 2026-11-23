@@ -164,7 +164,10 @@ test("固定包可冻结重装、拒绝损坏并回退到上一个版本", async
     rename.mock.restore();
     syncBuiltinESMExports();
   }
-  assert.equal(await readFile(path.join(target, template), "utf8"), releases.get(v1).files[template]);
+  assert.equal(
+    await readFile(path.join(target, template), "utf8"),
+    releases.get(v1).files[template],
+  );
   assert.equal(await readFile(lockV2, "utf8"), releases.get(v2).lock);
   assert.equal((await install(configA, lockV2)).version, "2");
   assert.equal(

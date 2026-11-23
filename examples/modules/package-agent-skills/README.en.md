@@ -17,6 +17,8 @@ node examples/modules/package-agent-skills/acceptance.mjs
 
 The script starts a local loopback model fixture and copies both packages into isolated temporary projects. CLI with YAML, the TypeScript SDK, and the synchronous and asynchronous Python SDKs each run the [same five cases](cases.json). Expect 20 JSON records with the entry point, case, skill calls, and output. The script verifies the returned resource bytes and checks that reading the script source creates no execution sentinel. This verifies the interface, isolation, and workflow. Use paired evaluation with the same prompts to measure a real model's skill selection.
 
+To repeat the checks on a pinned installation, install both Skills in one configuration directory and pass that directory as the first argument to `acceptance.mjs`. [Installation steps](../../../docs/modules/package-agent-skills/GUIDE.en.md#pinned-installation-and-rollback)
+
 ## Run a paired evaluation with a real model
 
 Use an authorized, keyless Qwen-compatible endpoint. Set `COREMIND_SKILL_EVAL_BASE_URL` to its API base URL and `COREMIND_SKILL_EVAL_MODEL` to its model ID.

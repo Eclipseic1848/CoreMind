@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 
 const example = import.meta.dirname;
 const root = path.resolve(example, "../../..");
+const installedProject = process.argv[2] ? path.resolve(process.argv[2]) : example;
 const cases = JSON.parse(await readFile(path.join(example, "cases.json"), "utf8"));
 const yaml = await readFile(path.join(example, "coremind.yaml"), "utf8");
 const exec = promisify(execFile);
@@ -172,7 +173,9 @@ try {
       const cwd = await mkdtemp(path.join(workspace, "project-"));
       const config = path.join(cwd, "coremind.yaml");
       await writeFile(config, yaml.replace("127.0.0.1:8771", `127.0.0.1:${port}`), "utf8");
-      await cp(path.join(example, "skills"), path.join(cwd, "skills"), { recursive: true });
+      await cp(path.join(installedProject, "skills"), path.join(cwd, "skills"), {
+        recursive: true,
+      });
       const cli = entry === "CLI + YAML";
       const python = entry.startsWith("Python");
       const args = cli
