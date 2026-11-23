@@ -53,14 +53,14 @@ In PowerShell on Linux, set `$python` to `"$probe/venv/bin/python"`. The check u
 
 Node.js 22.22.1, npm 11.13.0, Python 3.12.13, and pip 25.0.1. All eight npm packages and the Python wheel were built locally from the pinned source at package version `1.4.0`. The npm lock recorded all eight local tarball sources. The knowledge service used Qdrant Client 1.15.1, ONNX Runtime 1.23.2, and quantized BGE-M3. Both model file digests matched the pinned source values.
 
-| Check | Elapsed time | Exit code |
-| --- | ---: | ---: |
-| Empty-cache npm ci, build, and pack | 122.44 s / 68.82 s / 31.06 s | 0 / 0 / 0 |
-| First npm consumer installation | 117.62 s | 0 |
-| Python venv and knowledge service dependencies | 17.67 s / 264.25 s | 0 / 0 |
-| Build and install the consumer wheel | 47.15 s / 1.83 s | 0 / 0 |
-| Download the ONNX model and tokenizer | 224.33 s / 66.66 s | 0 / 0 |
-| Rebuild twice and query from all four entry points | 54.40 s | 0 |
+| Check                                              |                 Elapsed time | Exit code |
+| -------------------------------------------------- | ---------------------------: | --------: |
+| Empty-cache npm ci, build, and pack                | 122.44 s / 68.82 s / 31.06 s | 0 / 0 / 0 |
+| First npm consumer installation                    |                     117.62 s |         0 |
+| Python venv and knowledge service dependencies     |           17.67 s / 264.25 s |     0 / 0 |
+| Build and install the consumer wheel               |             47.15 s / 1.83 s |     0 / 0 |
+| Download the ONNX model and tokenizer              |           224.33 s / 66.66 s |     0 / 0 |
+| Rebuild twice and query from all four entry points |                      54.40 s |         0 |
 
 Each rebuild indexed 56 text chunks from five source revisions. The service was ready in 10.27 s on the first start and 6.12 s on the second. All eight queries exited `0` and cited the same text on line 5 of `资料室手册-v2.md`, revision 2.
 
