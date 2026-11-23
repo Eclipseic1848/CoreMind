@@ -21,6 +21,7 @@ const expectedModules = [
   "inspect-agent-traces",
   "manage-checkpoints",
   "manage-context-artifacts",
+  "manage-knowledge",
   "manage-providers",
   "manage-sessions",
   "operate-coremind-cli",

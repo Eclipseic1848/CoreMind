@@ -1,0 +1,8 @@
+# Knowledge retrieval development SOP
+
+1. Assign each original a document ID, version, validity interval and read scope. Choose a concrete question and mark its supporting passage. Add questions supported only by expired material, by another reader's material or by none of the sources.
+2. Pin the parser, retrieval component, model and input versions. Index source files and their metadata. Keep the questions, answer key, gold citations and three-round scenario on the scoring side.
+3. Send the same question, date and read scope through the configuration, TypeScript and Python entry points. Compare the document, version, location and excerpt in every result. For a Chinese table, check that each value is tied to the correct row and column.
+4. Run the 30 answerable questions in the [fixed dataset](../../../examples/knowledge-evals/zh-retrieval/README.zh-CN.md). Record top-one and top-five hits, missed question IDs and elapsed time. Compare with SQLite FTS5 on identical inputs. The P1 target is at least 27 of 30 top-five hits.
+5. Check the ten unanswerable questions for expired or unauthorized results. If the application generates answers, check those answers for fabricated citations separately. Similar passages can match an unanswerable question.
+6. Run the tests in the [module manifest](module.yaml) and `npm run check:modules`. Record the test environment, corpus digest, component versions, citations from all three entry points and the reasons for choosing a retrieval method.

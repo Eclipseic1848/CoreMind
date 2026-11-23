@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge Retrieval and Citations"
+  short_description: "Import source documents and verify retrieval citations"
+  default_prompt: "Use $manage-knowledge to connect versioned sources and verify that search results cite the correct, readable passages."

@@ -22,6 +22,15 @@ python -B -X utf8 test_keyword_baseline.py
 
 第一条核对题目、来源、引文和三轮任务的标注。第二条运行离线 SQLite FTS5 关键词检索，逐条核对候选来源的权限和有效期。第三条向评分端传入过期和受限来源，验证它会报错。
 
+真实模型复跑使用 OpenAI 兼容接口，不需要 Ollama：
+
+```sh
+DASHSCOPE_API_KEY=<key> python -B -X utf8 answer_benchmark.py --provider dashscope --model qwen-plus --model-dir <模型目录> --output <结果.json>
+DEEPSEEK_API_KEY=<key> python -B -X utf8 answer_benchmark.py --provider deepseek --model deepseek-chat --model-dir <模型目录> --output <结果.json>
+```
+
+脚本先让模型生成答案与引文，再用独立审核步骤判断引文是否直接支持；不支持时最终拒答。密钥只通过环境变量传入。
+
 P0 使用同一固定集在 Windows 和 Linux 容器复跑。30 道有答案题中，第一条命中 27 道，前五条命中 30 道。编号 Q21、Q25、Q26 的正确证据排在第二至第五位。10 道无答案题均得到相似片段。后续比较组件时应单独记录无依据问题的回答及其引文。
 
 有答案题按前 5 个检索结果中是否包含标注的现行、可见来源及对应行计分。候选块覆盖多行时，应能从块内定位该摘录。生成回答再核对是否正确作答、引文是否支持回答。无答案题分别检查能否明确告知资料不足、有无虚构引文及越权内容。单纯返回相似片段的检索结果不能代替生成回答的拒答验收。

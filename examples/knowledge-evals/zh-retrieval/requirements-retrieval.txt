@@ -1,0 +1,4 @@
+numpy==2.3.4
+onnxruntime==1.23.2
+qdrant-client==1.15.1
+tokenizers==0.22.1
