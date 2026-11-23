@@ -1,6 +1,6 @@
 # Skills
 
-A skill provides reusable procedures such as review checklists, writing templates, or translation rules. Built-in skills and legacy `README.md` skills still enter the stable prompt prefix in full. The 1.1 development line adds `SKILL.md` metadata indexes and on-demand bodies. Validate their effect with scenario evaluations.
+A skill provides reusable procedures such as review checklists, writing templates, or translation rules. Built-in skills and legacy `README.md` skills enter the stable prompt prefix in full. Standard `SKILL.md` files supply metadata indexes, on-demand bodies, and declared resources. Validate their effect with scenario evaluations.
 
 ## Select a skill
 
@@ -39,15 +39,21 @@ The first model request contains only the authorized standard skills' IDs, names
 
 After a successful load, a repeated call returns a short reference while the body remains in the final model working set. If compaction removes the body, another call reloads the same frozen bytes. A reference, user claim, or historical load marker does not prove that the body is present in the current request. Normal tool-result messages feed budgets, actual requests, and reconstruction; the body is not also appended to the stable prefix.
 
+## Reuse resources and pin versions
+
+Set `metadata.version` in `SKILL.md`. In `coremind.skill.json` alongside it, declare files under `references/`, `assets/`, or `scripts/` with a SHA-256 digest of each file's raw UTF-8 bytes. Loading the body returns the package version and declared paths. The agent can request a declared template with `load_skill({"id":"legal-review","resource":"assets/template.md"})`. Current tool authorization applies to resource reads, and scripts are returned as text.
+
+To share across projects, pin the full public GitHub commit and keep its lock file. Projects can restore identical packages from the same lock and roll back with a previous lock. [Authoring, installation, and rollback guide](../../modules/package-agent-skills/GUIDE.en.md#author-a-resource-package)
+
 ## Limits, freezing, and recovery
 
 - Each project source file is limited to 256 KiB including frontmatter. Each resolver result and the complete snapshot across all agents are separately limited to 2 MiB of serialized UTF-8 JSON. Exceeding a limit fails explicitly.
-- Canonical directory and file boundaries reject escaping links. Invalid UTF-8, permission failures, or source identity changes during reading fail rather than becoming missing skills. IDs cannot specify arbitrary paths.
+- Directory and file boundaries are checked against canonical paths. Resource packages reject traversal, symlinks, junctions, and path aliases. Invalid UTF-8, permission failures, or source identity changes during reading fail explicitly.
 - Body bytes and line endings after frontmatter are preserved. Body and snapshot SHA values are raw 64-character hexadecimal strings without a `sha256:` prefix.
-- When standard skills are enabled, Runtime creation freezes selected content for its Runs and Children. Later file edits do not change that Runtime; create a new one to load edits. Resuming a standard-skill Run uses its original start snapshot without rereading modified or deleted source files. Invalid snapshots or selection mismatches fail recovery, and existing configuration and resume gates still apply.
+- Runtime creation freezes selected bodies and declared resources for its Runs and Children. A new Runtime reads the current installation. Resume uses the original start snapshot and rejects invalid snapshots and selection mismatches. Existing body-only snapshots and configuration and resume gates remain supported.
 
-The raw RunStore is trusted host data containing frozen bodies and load facts. Public projections, Worker events, and telemetry exports strip those private attached fields. Loaded text can still appear in normal sessions, model requests, or business output. SHA values check consistency; they are not signatures or protection against a host rewriting its own Store.
+The raw RunStore is trusted host data containing frozen bodies, resources, and load facts. Public projections, Worker events, and telemetry exports strip those private fields. Loaded text can still appear in normal sessions, model requests, or business output. SHA values check consistency.
 
 Disabling Session does not provide full conversation recovery. Frozen snapshots and load facts support skill-result reconstruction; full request reconstruction still requires persisted session entries, compaction records, and the corresponding prefix. Store durability follows its existing contract.
 
-CoreMind does not automatically load neighboring references, execute skill scripts, install dependencies, synchronize remote skills, or provide a skill marketplace.
+Review the package before selecting its ID. Script execution uses a separately registered project tool under existing approval and sandbox rules. [Two resource reuse examples](../../../examples/modules/package-agent-skills/README.en.md)

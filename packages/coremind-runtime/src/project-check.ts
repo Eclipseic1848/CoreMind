@@ -1,6 +1,7 @@
 import { access, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { CoreMindConfig, QualityConfig } from "coremind-config";
+import { resolveSelectedSkills } from "coremind-templates/internal";
 import { CoreMindError } from "./errors.js";
 import { inspectExecutionSecurity } from "./execution-security.js";
 import {
@@ -153,6 +154,20 @@ export async function checkProject(options: ProjectCheckOptions): Promise<Projec
     });
   }
 
+  for (const [agent, { skills }] of Object.entries(options.config.agents)) {
+    if (!skills?.length) continue;
+    try {
+      await resolveSelectedSkills(skills, options.projectDir);
+    } catch (error) {
+      findings.push({
+        code: "SKILL_PACKAGE_INVALID",
+        severity: "error",
+        message: error instanceof Error ? error.message : String(error),
+        path: `agents.${agent}.skills`,
+        overridable: false,
+      });
+    }
+  }
   for (const relative of REQUIRED_PROJECT_FILES) {
     if (await exists(path.join(options.projectDir, relative))) continue;
     findings.push({

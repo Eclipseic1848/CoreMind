@@ -4,7 +4,11 @@ import { appendFile, chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveSelectedSkills } from "./internal.js";
+import {
+  isSkillResourcePath,
+  readStandardSkillPackage,
+  resolveSelectedSkills,
+} from "./internal.js";
 import { findSkill } from "./skills.js";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -37,9 +41,8 @@ async function writeSkill(
   file: string,
   content: string | Uint8Array,
 ) {
-  const directory = path.join(configDir, "skills", id);
-  await mkdir(directory, { recursive: true });
-  const destination = path.join(directory, file);
+  const destination = path.join(configDir, "skills", id, file);
+  await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, content, "utf8");
   return destination;
 }
@@ -301,5 +304,213 @@ describe("显式选择标准技能", () => {
     expect(first.standard[0]?.body).toBe("旧正文");
     expect(second.standard[0]?.body).toBe("新正文");
     expect(first.standard[0]?.bodySha256).not.toBe(second.standard[0]?.bodySha256);
+  });
+});
+
+const PACKAGE_ID = "packaged";
+const MANIFEST = "coremind.skill.json";
+const versionedSource =
+  "\uFEFF---\r\nname: 技能包\r\ndescription: 技能说明\r\nmetadata:\r\n  version: '1.2.0'\r\n---\r\n正文\r\n";
+
+function digest(content: string | Uint8Array) {
+  const bytes = typeof content === "string" ? Buffer.from(content, "utf8") : content;
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function writePackage(
+  configDir: string,
+  resources: { path: string; sha256: string }[],
+  skillSource = versionedSource,
+) {
+  await writeSkill(configDir, PACKAGE_ID, "SKILL.md", skillSource);
+  return writeSkill(
+    configDir,
+    PACKAGE_ID,
+    MANIFEST,
+    JSON.stringify({ schemaVersion: 1, resources }),
+  );
+}
+
+describe("技能资源清单", () => {
+  it("安装和运行复用同一包校验，保留原始 UTF-8 字节且只返回声明资源", async () => {
+    const { configDir } = await workspace();
+    const resources = [
+      { path: "assets/subdir/Template.md", content: "\uFEFF模板\r\n第二行\n" },
+      { path: "references/notes.md", content: "参考内容\n" },
+      { path: "scripts/source.mjs", content: "// 脚本内容\n" },
+    ].map(({ path, content }) => ({ path, content, sha256: digest(content) }));
+    const file = await writePackage(
+      configDir,
+      resources.map(({ path, sha256 }) => ({ path, sha256 })),
+    );
+    for (const resource of resources) {
+      await writeSkill(configDir, PACKAGE_ID, resource.path, resource.content);
+    }
+    await writeSkill(configDir, PACKAGE_ID, "assets/unlisted.md", "未声明的内容");
+
+    const manifest = `\uFEFF${await fileSystem.readFile(file, "utf8")}\r\n`;
+    await writeFile(file, manifest, "utf8");
+    const loaded = await readStandardSkillPackage(path.dirname(file), PACKAGE_ID);
+    expect(loaded).toEqual({
+      source: versionedSource,
+      manifest,
+      skill: {
+        id: PACKAGE_ID,
+        name: "技能包",
+        description: "技能说明",
+        body: "正文\r\n",
+        bodySha256: digest("正文\r\n"),
+        packageVersion: "1.2.0",
+        resources,
+      },
+    });
+    expect((await resolveSelectedSkills([PACKAGE_ID, PACKAGE_ID], configDir)).standard).toEqual([
+      loaded.skill,
+    ]);
+  });
+
+  it("无清单的 Skill 可含版本元数据，旧版加载结果保持原结构", async () => {
+    const { configDir } = await workspace();
+    await writeSkill(configDir, PACKAGE_ID, "SKILL.md", versionedSource);
+    expect((await resolveSelectedSkills([PACKAGE_ID], configDir)).standard).toEqual([
+      {
+        id: PACKAGE_ID,
+        name: "技能包",
+        description: "技能说明",
+        body: "正文\r\n",
+        bodySha256: digest("正文\r\n"),
+      },
+    ]);
+  });
+
+  it.each([
+    source(),
+    versionedSource.replace("'1.2.0'", "1"),
+    versionedSource.replace("'1.2.0'", "' 1.2.0'"),
+  ])("清单要求明确的字符串版本", async (skillSource) => {
+    const { configDir } = await workspace();
+    await writePackage(configDir, [], skillSource);
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(
+      "metadata.version",
+    );
+  });
+
+  it("声明清单缺少 SKILL.md 时报告包结构错误", async () => {
+    const { configDir } = await workspace();
+    await writeSkill(configDir, PACKAGE_ID, MANIFEST, '{"schemaVersion":1,"resources":[]}');
+    await writeSkill(configDir, PACKAGE_ID, "README.md", "旧版说明");
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow("缺少 SKILL.md");
+  });
+
+  it.each([
+    "schemaVersion: 1\nresources: []\n",
+    '{"schemaVersion":2,"resources":[]}',
+    '{"schemaVersion":1,"resources":{}}',
+    '{"schemaVersion":1,"resources":[],"unknown":true}',
+    '{"schemaVersion":1,"resources":[],"resources":[]}',
+    '{"schemaVersion":1,"resources":[{"path":"assets/a.md","sha256":"xyz"}]}',
+  ])("拒绝不符合清单结构的输入 %j", async (manifest) => {
+    const { configDir } = await workspace();
+    await writeSkill(configDir, PACKAGE_ID, "SKILL.md", versionedSource);
+    await writeSkill(configDir, PACKAGE_ID, MANIFEST, manifest);
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(MANIFEST);
+  });
+
+  it.each([
+    "assets",
+    "assets/",
+    "assets/./file.md",
+    "assets/../file.md",
+    "assets//file.md",
+    "assets/file.md.",
+    "assets/File Name.md",
+    "assets/FILE~1.MD",
+    "assets/CON.md",
+    "assets/LPT1/file.md",
+    "assets/file.md\n",
+    "assets/file.md:stream",
+    "references\\notes.md",
+    "/assets/file.md",
+    "D:/assets/file.md",
+    "docs/findings.md",
+  ])("拒绝有别名或不可移植的资源路径 %j", (resource) => {
+    expect(isSkillResourcePath(resource)).toBe(false);
+  });
+
+  it.each([
+    ["assets/theme.md", "assets/theme.md"],
+    ["assets/theme.md", "assets/Theme.md"],
+    ["assets/Blue/one.md", "assets/blue/two.md"],
+    ["assets/blue", "assets/blue/two.md"],
+  ])("在访问资源之前拒绝冲突路径 %s 和 %s", async (first, second) => {
+    const { configDir } = await workspace();
+    await writePackage(
+      configDir,
+      [first, second].map((path) => ({ path, sha256: digest("") })),
+    );
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow("重复或冲突");
+  });
+
+  it("报告缺失、摘要异常和无效 UTF-8 的声明资源", async () => {
+    const { configDir } = await workspace();
+    const resource = "assets/template.md";
+    await writePackage(configDir, [{ path: resource, sha256: digest("原文\n") }]);
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await writeSkill(configDir, PACKAGE_ID, resource, "原文\r\n");
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(
+      /SHA-256.*assets\/template\.md/u,
+    );
+    const invalidUtf8 = Uint8Array.of(0xff);
+    await writePackage(configDir, [{ path: resource, sha256: digest(invalidUtf8) }]);
+    await writeSkill(configDir, PACKAGE_ID, resource, invalidUtf8);
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow("utf-8");
+  });
+
+  it("拒绝指向包内的资源目录联接和其他目录链接", async () => {
+    const { configDir } = await workspace();
+    const link = "assets/linked";
+    const resource = "sample.md";
+    await writePackage(configDir, [{ path: `${link}/${resource}`, sha256: digest("正文") }]);
+    const target = await writeSkill(configDir, PACKAGE_ID, `assets/original/${resource}`, "正文");
+    await symlink(
+      path.dirname(target),
+      path.join(configDir, "skills", PACKAGE_ID, link),
+      "junction",
+    );
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(/链接.*linked/u);
+  });
+
+  it.skipIf(process.platform === "win32")("拒绝指向包内的声明资源文件链接", async () => {
+    const { configDir } = await workspace();
+    const resource = "assets/linked.md";
+    await writePackage(configDir, [{ path: resource, sha256: digest("正文") }]);
+    const target = await writeSkill(configDir, PACKAGE_ID, "assets/original.md", "正文");
+    await symlink(target, path.join(configDir, "skills", PACKAGE_ID, resource));
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(
+      /链接.*linked\.md/u,
+    );
+  });
+
+  it("逐项限制资源文件及整个解析结果的字节数", async () => {
+    const { configDir } = await workspace();
+    const content = "a".repeat(MAX_SOURCE_BYTES);
+    const resources = Array.from({ length: 9 }, (_, index) => ({
+      path: `assets/file-${index}.md`,
+      sha256: digest(content),
+    }));
+    await writePackage(configDir, resources);
+    for (const resource of resources.slice(0, 8)) {
+      await writeSkill(configDir, PACKAGE_ID, resource.path, content);
+    }
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(
+      /2 MiB.*file-7\.md/u,
+    );
+    const first = resources[0]!;
+    await writeSkill(configDir, PACKAGE_ID, first.path, `${content}x`);
+    await expect(resolveSelectedSkills([PACKAGE_ID], configDir)).rejects.toThrow(
+      /256 KiB.*file-0\.md/u,
+    );
   });
 });

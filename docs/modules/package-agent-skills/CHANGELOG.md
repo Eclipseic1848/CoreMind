@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2.0 development
+
+- Added resource manifests, policy-controlled loading of declared files, and versioned snapshots that preserve the bytes selected at run creation.
+- Added a pinned Git installer with frozen-lockfile restore and rollback using the previous lock.
+- Added shared procedure examples for CLI, TypeScript, Python sync, and Python async.
+
 ## 1.4.0 - 2026-11-02
 
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.

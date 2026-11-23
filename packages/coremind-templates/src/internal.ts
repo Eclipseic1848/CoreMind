@@ -1,1 +1,6 @@
-export { resolveSelectedSkills, type StandardSkill } from "./standard-skills.js";
+export {
+  isSkillResourcePath,
+  readStandardSkillPackage,
+  resolveSelectedSkills,
+  type StandardSkill,
+} from "./standard-skills.js";

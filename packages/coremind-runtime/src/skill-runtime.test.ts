@@ -108,10 +108,11 @@ async function execute(
 function ended(
   callId: string,
   result: AgentDriverToolResult,
+  args = { id: "selected" } as { id: string; resource?: string },
 ): Extract<AgentDriverObservation, { type: "tool_execution_end" }> {
   return {
     type: "tool_execution_end",
-    call: { callId, tool: SKILL_TOOL_NAME, args: { id: "selected" } },
+    call: { callId, tool: SKILL_TOOL_NAME, args },
     result,
     isError: false,
   };
@@ -255,6 +256,58 @@ describe("标准技能冻结与结果重建", () => {
 });
 
 describe("技能执行只认可观察成功及实际正文驻留", () => {
+  it("按声明取冻结资源，摘要与路径绑定，正文仍能使用旧事实", async () => {
+    const { agents, config, selected } = fixture();
+    const resource = {
+      path: "assets/template.md",
+      content: "原模板，不应预先进入模型上下文\r\n",
+      sha256: "",
+    };
+    resource.sha256 = createHash("sha256").update(resource.content, "utf8").digest("hex");
+    selected.packageVersion = "1.0.0";
+    selected.resources = [resource];
+    const snapshot = freezeSkillSnapshot(agents)!;
+    expect(snapshot.version).toBe(2);
+    expect(skillPrefixContents(agents.main!).join("\n")).not.toContain(resource.content);
+    expect(restoreSkillSnapshot([start(snapshot)], config)).toEqual(snapshot);
+    const execution = new SkillExecution(snapshot, "main");
+    expect((await execute(execution, "body")).content).toEqual(
+      rebuildSkillResult(snapshot, "main", loadFact(snapshot)).content,
+    );
+    const args = { id: "selected", resource: resource.path };
+    const result = await execute(execution, "resource", args);
+    expect(result.content).toEqual([{ type: "text", text: resource.content }]);
+    const fact = execution.observe(ended("resource", result, args))!;
+    expect(fact).toMatchObject({
+      version: 2,
+      resource: resource.path,
+      resourceSha256: resource.sha256,
+    });
+    expect(rebuildSkillResult(snapshot, "main", fact)).toEqual(result);
+    expect(() =>
+      rebuildSkillResult(snapshot, "main", { ...fact, resourceSha256: "wrong" } as SkillLoadFact),
+    ).toThrow("与原快照不匹配");
+    const others = new SkillExecution(snapshot, "worker");
+    await expect(execute(others, "wrong-agent", args)).rejects.toMatchObject({
+      code: "invalid_tool",
+    });
+    for (const path of [
+      "assets/private.md",
+      "assets/../SKILL.md",
+      "C:/private.md",
+      "Assets/template.md",
+    ]) {
+      await expect(
+        execute(execution, "unknown-resource", { ...args, resource: path }),
+      ).rejects.toMatchObject({ code: "invalid_tool" });
+    }
+    const snapshotResource = snapshot.agents.main!.standard[0]!.resources![0]!;
+    snapshotResource.content = "资源被修改";
+    const { sha256: _, ...value } = snapshot;
+    snapshot.sha256 = fingerprintEffectReceiptValue(value);
+    expect(() => restoreSkillSnapshot([start(snapshot)], config)).toThrow("原技能快照损坏");
+  });
+
   it("execute 本身不宣称加载成功；真实成功观察后重复引用，正文移出后同 SHA 重载", async () => {
     const { selected, snapshot } = fixture();
     const execution = new SkillExecution(snapshot, "main");

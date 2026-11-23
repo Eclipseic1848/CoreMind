@@ -43,6 +43,133 @@ interface WireRequest {
 }
 
 describe("标准技能的真实持久化与 Child Run", () => {
+  it.each([true, false])("资源冷恢复按原快照读取且重新审批（允许=%s）", async (allowOnResume) => {
+    const directory = await mkdtemp(path.join(tmpdir(), "coremind-skill-resource-"));
+    const sourceDir = path.dirname(await writeSkill(directory));
+    const resource = "scripts/check.mjs";
+    const sentinel = path.join(sourceDir, "scripts", "ran-sentinel.txt");
+    const resourceText = `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(sentinel)}, "unexpected");\n`;
+    const sha256 = createHash("sha256").update(resourceText, "utf8").digest("hex");
+    await writeFile(
+      path.join(sourceDir, "SKILL.md"),
+      frontmatter.replace(/---\n$/u, 'metadata:\n  version: "1.0.0"\n---\n') + body,
+      "utf8",
+    );
+    await mkdir(path.dirname(sentinel));
+    await writeFile(path.join(sourceDir, resource), resourceText, "utf8");
+    await writeFile(
+      path.join(sourceDir, "coremind.skill.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        resources: [{ path: resource, sha256 }],
+      }),
+      "utf8",
+    );
+    const requests: WireRequest[] = [];
+    const failures: unknown[] = [];
+    const server = provider(async (request) => {
+      requests.push(request);
+      if ([1, 3, 5].includes(requests.length))
+        return { tool: "load_skill", args: { id: skillId, resource } };
+      if (requests.length === 2) return { tool: "read", args: { path: "denied.txt" } };
+      return "完成";
+    }, failures);
+    try {
+      await listen(server);
+      const config: CoreMindConfig = {
+        ...baseConfig(portOf(server)),
+        agents: { main: { systemPrompt: "读取声明的脚本源码", skills: [skillId] } },
+        tools: [{ id: "read" }],
+        session: { enabled: false },
+        permissions: { mode: "ask", deny: ["read"], workspaceOnly: true, network: "deny" },
+      };
+      const runId = "resource-resume";
+      const store = new FileRunStore(path.join(directory, ".coremind", "runs"));
+      const options = {
+        config,
+        configDir: directory,
+        cwd: directory,
+        initialPrompt: "检查脚本",
+        runStore: store,
+      };
+      const first = await CoreMindRuntime.create({
+        ...options,
+        runId,
+        approveTool: async () => "allow",
+      });
+      const paused = await first.run();
+      expect(paused.outcome.status).toBe("paused");
+      expect(requestText(requests[0]!)).not.toContain(resourceText);
+      expect(toolTexts(requests[1]!)).toEqual([resourceText]);
+      expect(JSON.stringify(paused.trace)).not.toContain("writeFileSync");
+      expect(await readdir(path.dirname(sentinel))).toEqual(["check.mjs"]);
+      const originals = await store.read(runId);
+      expect(startSnapshot(originals).version).toBe(2);
+      expect(skillLoads(originals).map((entry) => entry.skillLoad)).toEqual([
+        expect.objectContaining({
+          version: 2,
+          delivery: "resource",
+          resource,
+          resourceSha256: sha256,
+        }),
+      ]);
+
+      const newContent = "磁盘上的新版本\n";
+      await writeFile(path.join(sourceDir, resource), newContent, "utf8");
+      const approvals: ToolApprovalRequest[] = [];
+      const resumed = await CoreMindRuntime.create({
+        ...options,
+        resumeRunId: runId,
+        approveTool: async (request) => {
+          approvals.push(request);
+          return allowOnResume ? "allow" : "deny";
+        },
+      });
+      const result = await resumed.run();
+      expect(failures).toEqual([]);
+      expect(approvals).toContainEqual(expect.objectContaining({ tool: "load_skill" }));
+      expect(requestText(requests[2]!)).not.toContain(resourceText);
+      if (allowOnResume) {
+        expect(result.outcome.status).toBe("succeeded");
+        expect(toolTexts(requests[3]!)).toEqual([resourceText]);
+        await writeFile(
+          path.join(sourceDir, "coremind.skill.json"),
+          JSON.stringify({
+            schemaVersion: 1,
+            resources: [
+              {
+                path: resource,
+                sha256: createHash("sha256").update(newContent, "utf8").digest("hex"),
+              },
+            ],
+          }),
+          "utf8",
+        );
+        const fresh = await CoreMindRuntime.create({
+          ...options,
+          runId: "resource-new-run",
+          approveTool: async () => "allow",
+        });
+        expect((await fresh.run()).outcome.status).toBe("succeeded");
+        expect(toolTexts(requests[5]!)).toEqual([newContent]);
+        expect(startSnapshot(await store.read("resource-new-run")).sha256).not.toBe(
+          startSnapshot(originals).sha256,
+        );
+      } else {
+        expect(result.outcome).toMatchObject({
+          status: "paused",
+          finishReason: "tool_approval_denied",
+        });
+        expect(requests).toHaveLength(3);
+        expect(skillLoads(await store.read(runId))).toHaveLength(1);
+      }
+      expect(await readdir(path.dirname(sentinel))).toEqual(["check.mjs"]);
+    } finally {
+      await close(server);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("未启用 Session 时，加载事实先持久化，删除源文件后冷恢复仍重建原正文", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "coremind-skills-resume-"));
     const source = await writeSkill(directory);
