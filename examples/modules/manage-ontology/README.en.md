@@ -1,5 +1,7 @@
 # Optional ontology example
 
+To use ontology on its own, connect an empty business project to the 2.0.0 source service and start with one object query. See the [integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md) for the process and credential. The runner below exercises CoreMind clients. The cross-session document assistant is an optional composition example.
+
 The document assistant uses [`document-review`](models/document-review/actions.json) to describe records, validate reviewer relationships, and check whether a record may be published. The same adapter loads [`equipment-maintenance`](models/equipment-maintenance/actions.json) to describe equipment, station relationships, and service restoration.
 
 ## Run the example

@@ -13,4 +13,6 @@ description: "Package, share, and roll back reusable CoreMind skills with declar
 6. Test relevant and unrelated tasks, missing prerequisites, current tool permissions, and resume after replacing the package. Inspect RunOutcome and Trace for the actual tool calls and results.
 7. Run the tests listed in [module.yaml](../../docs/modules/package-agent-skills/module.yaml) and `npm run check:modules`. Require explicit authorization for publication.
 
+For a Skill-only delivery, start from the owner’s agent and select a single project Skill. Confirm ordinary conversation after deselecting it in a fresh session. A skill package can be updated or rolled back by its own content lock. See the [standalone configuration](../../docs/modules/package-agent-skills/GUIDE.en.md).
+
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

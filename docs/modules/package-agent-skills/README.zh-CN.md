@@ -1,10 +1,12 @@
 # Skill 与 SOP 装载
 
-本文覆盖 2.0 开发线的标准 Skill、资源复用与固定版本共享。模块支持 Windows 和 Linux。
+本文覆盖 CoreMind 2.0的标准 Skill、资源复用与固定版本共享。模块支持 Windows 和 Linux。
 
 ## 目的
 
 按 Agent 的 `skills` ID 选择可复用的专业流程。内置 Skill 和旧 README 保持全文注入。配置目录下的标准 `SKILL.md` 先进入索引，再由 `load_skill({id})` 返回正文。资源包通过 `load_skill({id, resource})` 按需提供声明文件。业务事实仍由项目文档提供。
+
+一个只用 Skill 的项目需要一个可运行的 Agent、配置旁的 `skills/<id>/SKILL.md` 和该 Agent 的 `skills` 选择。使用者可以直接创建这些文件，独立更新 Skill。读取标准 Skill 使用 Runtime 提供的 `load_skill`，不需要另配业务工具、知识库、Hindsight 或本体服务。见[最小项目与停用步骤](GUIDE.zh-CN.md)。
 
 ## 公共接口
 

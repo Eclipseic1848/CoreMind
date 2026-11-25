@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+> 业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。2.0.0 已有 Skill、工具和 MCP 接口；知识、记忆与本体的服务实现目前随源码示例提供。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
 > Provider 可配置不等于认证。本版本资格必须由绑定最终提交、版本、Runtime 摘要与 bundled Worker 的 strict-provider 工作流证据确认；生产评估还须核对供应商矩阵。
 

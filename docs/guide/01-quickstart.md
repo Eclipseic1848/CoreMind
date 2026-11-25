@@ -14,7 +14,9 @@ coremind --version              # 验证安装成功
 coremind --help                 # 查看帮助
 ```
 
-## 2. 从模板创建
+## 2. 选择项目入口
+
+在已有业务项目或空目录中，可直接使用[仅运行 Runtime 的最小配置](06-capability-construction.md)，按需再开一项能力。下面用翻译模板演示 CLI 创建项目。
 
 ```bash
 coremind providers

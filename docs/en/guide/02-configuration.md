@@ -15,15 +15,13 @@ agents:
   main:
     systemPrompt: |
       Answer accurately. State uncertainty and never invent tool results.
-    tools:
-      - id: read
 permissions:
   mode: ask
   workspaceOnly: true
   network: ask
 ```
 
-Keep the first configuration small. Add tools, workflow stages, or an explicit Loop only when a verified requirement needs them.
+Enable only the capabilities needed by this project. Select Skills or tools per agent and use the relevant MCP bindings for knowledge, Hindsight and ontology. An agent without a nonempty tool list inherits global `tools`, so check both levels when testing removal. [Empty-project configuration and individual acceptance](06-capability-construction.md)
 
 CoreMind 2.0.0 has 42 built-in chat Providers and 43 configurable entries including compatibility aliases. Use `listInheritedProviders()` to inspect the installed catalog. Only `deepseek` with `deepseek-flash` passed strict certification for this release commit and Runtime package digest. Both `providers` and `create` retain the bundled historical labels. They show Alibaba Model Studio as certified and DeepSeek as unverified. Validate deployments that use a different model, credential or environment separately. [Online certification matrix](../../providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) · [2.0.0 release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)
 

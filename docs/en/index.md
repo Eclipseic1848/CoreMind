@@ -35,11 +35,11 @@ features:
 
 [Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+> Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. Version 2.0.0 provides Skill, tool and MCP interfaces. The knowledge, memory and ontology services currently ship as source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
-### Start with a document project
+### Enable one capability in your own project
 
-Create a `document-assistant` project with `coremind create`. Supply two document versions, confirm a formatting preference and run the ordinary or ontology-enabled configuration. [Construction guide](guide/06-capability-construction.md)
+Start with a provider and one agent. Connect one component, test it, and check what happens when you remove it. The `document-assistant` example shows how several components work together. [Construction guide](guide/06-capability-construction.md)
 
 ### Capabilities merged for 1.4
 

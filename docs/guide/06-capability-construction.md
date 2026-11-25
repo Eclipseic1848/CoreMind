@@ -4,15 +4,41 @@
 
 《智能体构建能力图谱 V1.0.2》的 04–08 共 20 个子项。业务方提供资料、身份、业务规则和验收样本，CoreMind 提供可组合的模块。TypeScript SDK、CLI + YAML、Python 同步及异步 SDK 共用同一 Node Runtime。每个模块的 SOP 给出实施步骤，开发 Skill 供工程团队复用，示例包含配置、运行命令与预期结果。
 
-## 从一项业务任务开始
+## 从自己的项目开始
 
-1. 选一项能当场判定成败的任务。以资料整理为例，输入两版材料、一项已确认的格式偏好，输出带版本、出处的摘要。留一条已撤回资料和一个无授权身份做反例。
-2. 接入只读知识源，先让四个入口找到同一条原文。需要跨会话使用偏好时，再接入 Hindsight，分别授予查询与管理权限。
-3. 将整理方法写成 Skill，把保存摘要等实际动作注册为工具。由宿主决定谁能执行、使用哪个目录，以及用什么回执确认成功。
-4. 有对象、关系或动作前提时，加载本体模型。让草稿和已复核资料走一遍相同的发布请求，分别核对拒绝时的零调用和成功时的业务回执。
-5. 在三个独立会话里依次验证首次整理、复用偏好、更正偏好与撤回资料。现有组合例程运行真实 MCP、Skill、文件工具和本体引擎，知识索引、记忆后端和模型使用确定性夹具。业务交付还要在目标服务、模型、安装制品和业务样本上复跑。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md)
+在业务项目根目录创建 `coremind.yaml`，只配置模型和一个 Agent。下面的基线可用于 CoreMind 2.0.0，五项可选能力均未选用。
 
-资料助手还在两个独立项目里用真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体复跑了七个案例。验收记录附合成输入、首次失败、修复和摘要原文，可作为业务方准备自己用例的参照。[真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
+```yaml
+schemaVersion: 2
+name: my-project
+provider:
+  id: deepseek
+  model: deepseek-flash
+  apiKeyEnv: DEEPSEEK_API_KEY
+agents:
+  main:
+    systemPrompt: 根据用户提供的文字回答问题。
+```
+
+把模型凭据放入运行环境。在该目录执行 `npx coremind-cli@2.0.0 run coremind.yaml --prompt "请只回答 OK"`，核对回复和零工具调用。记录这份配置和依赖版本，作为逐项启用能力时的对照。
+
+| 仅选用一项时 | 2.0.0 的接入方式 | 第一个验收动作 |
+| --- | --- | --- |
+| 知识 | 宿主部署知识 MCP 服务，在 Agent 工具列表中只绑定需要的检索操作 | 提供两版原文，用读者身份检索并回查版本和出处 |
+| Hindsight 记忆 | 宿主部署网关并绑定 Hindsight 记忆库，单独授权 Agent 的召回接口 | 宿主写入已确认偏好，新会话召回，另一主体无法读取 |
+| Skill | 在项目的 `skills/<id>/SKILL.md` 定义方法，在 `agents.main.skills` 选择 ID | 适用任务能加载正文；移除 ID 后新运行无法加载 |
+| 工具 | 通过 SDK 注册业务函数，或用配置绑定 stdio/HTTP MCP 操作，并为 Agent 选择工具 | 验证输入、权限和一次业务回执；移除绑定后新运行不再提供该工具 |
+| 本体 | 宿主提供模型、映射和约束，经本体 MCP 服务绑定所需操作 | 用自己的模型验证一条合规记录和一条违规记录；只读项目仅授权查询、校验 |
+
+知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。下一阶段将提供可独立部署、配置和升级的组件；Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
+
+**空白项目验收顺序**
+
+1. 在仓库外建立只运行 Runtime 的项目。保留成功输出，确认未启动五域服务、未加载业务 Skill 或业务工具。
+2. 每次从同一基线任选一项，记录启用、实际调用和移除后的结果。只提供该项所需的依赖、配置、数据与凭据。独立升级或回退该项，同时核对宿主状态和其他组件版本。
+3. 选一个实际需要的组合，例如知识与 Skill。再移除其中一项，验证剩余能力仍可用。CLI、TypeScript、Python 同步和异步入口用同一份项目配置核对结果。
+
+`document-assistant` 是资料整理的参考示例和组合回归。它在两个独立项目里用合成资料、真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体验证了七例。可查阅输入、权限、预期输出和失败记录来设计自己的测试。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md) · [真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
 
 ## 04 知识管理
 

@@ -1,10 +1,12 @@
 # Skill and SOP Loading
 
-This module covers standard skills, reusable resources, and pinned version sharing in the 2.0 development line. It supports Windows and Linux.
+This module covers standard skills, reusable resources, and pinned version sharing in CoreMind 2.0. It supports Windows and Linux.
 
 ## Purpose
 
 Select reusable procedures by agent `skills` IDs. Built-ins and legacy README skills retain full prefix injection. Project `SKILL.md` files first supply an index, then `load_skill({id})` returns their bodies on demand. Resource packages supply declared files through `load_skill({id, resource})`. Business facts remain in project documentation.
+
+A Skill-only project needs a working agent, a `skills/<id>/SKILL.md` file under the configuration directory, and that ID in the agent’s `skills` list. You can author and update the Skill directly. The Runtime supplies `load_skill` for standard Skills, so this setup needs no business tool, knowledge store, Hindsight, or ontology service. See the [minimal project and removal steps](GUIDE.en.md).
 
 ## Public interfaces
 

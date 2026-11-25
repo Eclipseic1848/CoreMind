@@ -6,19 +6,27 @@ Assign a focused SOP to an agent. Built-ins and legacy README skills keep full p
 
 ## Minimal example
 
+Create `coremind.yaml` in an empty project directory. This example uses DeepSeek with the host’s own Provider credentials. In an existing project, add `legal-review` to the intended agent’s `skills` list and authorize reads under the existing approval policy.
+
 ```yaml
+schemaVersion: 3
+name: skill-only
+provider: { id: deepseek, model: deepseek-flash, apiKeyEnv: DEEPSEEK_API_KEY }
+defaultAgent: reviewer
 agents:
   reviewer:
-    systemPrompt: Review the supplied contract using the project rules.
-    skills:
-      - legal-review
+    systemPrompt: Review the clauses supplied by the user against the project rules.
+    skills: [legal-review]
+permissions: { mode: ask, allow: [load_skill], workspaceOnly: true, network: deny }
+runtime: {}
+quality: { profile: standard }
 ```
 
 Create `skills/legal-review/SKILL.md`:
 
 ```markdown
 ---
-name: Contract review
+name: legal-review
 description: Compare clauses with project rules and report missing evidence.
 ---
 
@@ -28,6 +36,10 @@ Check payment, delivery, and liability. Ask for confirmation when business evide
 The directory ID controls authorization; the name is display metadata. The first request contains the index. The agent calls `load_skill({"id":"legal-review"})` before the body enters normal tool messages, subject to ToolPolicy and budgets. README remains supported. SKILL wins with a warning when both files exist; built-ins still take precedence on the same ID.
 
 Each file is limited to 256 KiB. Resolver results and the complete multi-agent snapshot are separately limited to 2 MiB of serialized UTF-8 JSON. Body and snapshot SHA values are raw 64-character hexadecimal strings. Runtime creation freezes standard skills; Child execution and resume retain them instead of switching to current files. Create a new Runtime to read edits. Repeated loads return references only while the actual body remains in the final working set; compaction can make reloading necessary.
+
+Run `coremind check coremind.yaml` in the project. With your Provider credentials set, try `coremind run coremind.yaml --prompt "Use legal-review to assess this payment clause: the deposit percentage is unconfirmed."`. Inspect Trace for the `load_skill` ID and returned body, then try an unrelated question to check for an unwanted trigger.
+
+To disable the Skill, remove its ID from every agent that selects it. If this was the last standard Skill and no other agent needs the read permission, remove the dedicated `allow: [load_skill]` grant. Start a new Runtime and session and check that the ID is absent from the index. Existing runs resume with their frozen snapshots. Once the project no longer uses the package, you can move `skills/legal-review/` out of the project and keep the previous content lock for rollback.
 
 ## Author a resource package
 

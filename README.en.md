@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+> Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. Version 2.0.0 provides Skill, tool and MCP interfaces. The knowledge, memory and ontology services currently ship as source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
 > A configurable Provider is not a certified Provider. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 

@@ -4,15 +4,41 @@
 
 Domains 04–08 of the V1.0.2 agent capability map cover 20 capabilities. The project owner supplies documents, identities, business rules and acceptance cases. CoreMind supplies the modules. The TypeScript SDK, CLI with YAML, and synchronous and asynchronous Python SDKs share one Node Runtime. Each module has an implementation SOP, a reusable developer Skill and an example with configuration, commands and expected results.
 
-## Start with one business task
+## Start in your own project
 
-1. Choose a task with an observable result. For a document assistant, supply two versions of a document and a confirmed formatting preference. Require a summary with versioned citations. Include a withdrawn document and a reader without access.
-2. Connect read-only knowledge and check that all four entry points return the same source passage. When the preference must carry over to another session, connect Hindsight and grant separate read and management permissions.
-3. Put the summarization procedure in a Skill. Register actions such as saving the summary as tools. The host selects the authorized operator, the output directory and the receipt that proves completion.
-4. Enable ontology when the task depends on object relationships or action prerequisites. Request publication for both a draft and a reviewed document. Check the executor call count on denial and the business receipt on success.
-5. Use three independent sessions to exercise first use, preference reuse, and a correction combined with a source withdrawal. The composition example uses real MCP, Skill loading, file tools and the ontology engine. The knowledge index, memory backend and model are deterministic fixtures. Repeat the cases with the target services, model, installed artifacts and business samples before deployment. [Composition example](../../../examples/modules/manage-ontology/README.en.md)
+Create `coremind.yaml` in your application directory with a provider and one agent. This CoreMind 2.0.0 baseline selects none of the five optional capabilities.
 
-The document assistant also ran seven cases in two independent projects with live Qwen, Qdrant/BGE-M3, Hindsight/PostgreSQL and an optional ontology. The record includes synthetic inputs, initial failures, fixes and generated summaries to help teams design their own acceptance cases. [Live service integration](../../../examples/modules/manage-ontology/LIVE-COMPOSITION.en.md)
+```yaml
+schemaVersion: 2
+name: my-project
+provider:
+  id: deepseek
+  model: deepseek-flash
+  apiKeyEnv: DEEPSEEK_API_KEY
+agents:
+  main:
+    systemPrompt: Answer questions using the text supplied by the user.
+```
+
+Supply the model credential through the environment. From this directory run `npx coremind-cli@2.0.0 run coremind.yaml --prompt "Reply only OK"` and check the reply and zero tool calls. Keep the configuration and dependency versions for comparison when you enable each capability.
+
+| Select one capability | How to connect it in 2.0.0 | First acceptance check |
+| --- | --- | --- |
+| Knowledge | Deploy the knowledge MCP service and bind only the retrieval operations the agent needs | Supply two source versions, then search as a reader and resolve the citation and version |
+| Hindsight memory | Deploy the gateway, bind a Hindsight bank and authorize the agent's recall operation separately | Retain a confirmed preference as the host, recall it in a new session and verify another subject cannot read it |
+| Skill | Define a method in project file `skills/<id>/SKILL.md` and select its ID in `agents.main.skills` | Load the body for a matching task, remove the ID and check a new run cannot load it |
+| Tools | Register a business function through the SDK or bind a stdio/HTTP MCP operation, then select the tool for the agent | Verify input, permission and a business receipt. Remove the binding and check the tool is absent from a new run |
+| Ontology | Supply the model, mappings and constraints, then bind the required ontology MCP operations | Validate one conforming and one violating record against your model. Grant read-only projects just query and validation operations |
+
+Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested with just its own service. CoreMind 2.0.0 ships these services and their adapters as source examples. The next stage will deliver independently deployable, configurable and upgradable components. Skills and tools retain their existing loading mechanisms. Each component should include its implementation, version and compatibility range, SOP, developer Skill and a runnable example that enables only that capability. [Configuration](02-configuration.md) · [Roadmap](../../roadmap.en.md)
+
+**Acceptance from an empty project**
+
+1. Run the Runtime in a project outside the repository. Keep the output and verify that no optional service, business Skill or business tool was loaded.
+2. Return to this baseline for each capability. Record enabling it, calling it and removing it. Supply only its own dependencies, configuration, data and credentials. Upgrade or roll it back while checking host state and the other components' versions.
+3. Combine capabilities needed for a task, such as knowledge and a Skill. Remove one and check the other still works. Use the same project configuration for the CLI, TypeScript, synchronous Python and asynchronous Python entry points.
+
+`document-assistant` is a reference example and a regression test for composition. Seven cases ran in two projects with synthetic documents, live Qwen, Qdrant/BGE-M3, Hindsight/PostgreSQL and an optional ontology. The inputs, permissions, expected outputs and failure records can help you design your own tests. [Composition example](../../../examples/modules/manage-ontology/README.en.md) · [Live service integration](../../../examples/modules/manage-ontology/LIVE-COMPOSITION.en.md)
 
 ## 04 Knowledge management
 

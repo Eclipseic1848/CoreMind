@@ -11,4 +11,6 @@ description: Build and verify an optional CoreMind business ontology when a proj
 4. Compare the actual receipt with the target, request identifier, previous state and expected outcome. An unconfirmed effect requires reconciliation before another write.
 5. Use the [development procedure](../../docs/modules/manage-ontology/SOP.en.md) to verify both vocabularies, correct and invalid records, enabled and unbound operation, model failure and the four public entry points. Retain model and bundle digests with the observations.
 
+For an ontology-only project covering 06.01–06.04, start with one model directory and one read binding. Use the 2.0.0 service from the source release. A document-assistant template, knowledge service and memory backend are optional. Track the standalone package as a separate distribution deliverable. Rehearse a model-preserving upgrade and rollback, reconcile pending actions, and verify that removing the binding leaves the host operational and the business receipts intact.
+
 中文接入和验收见[业务本体指南](../../docs/modules/manage-ontology/GUIDE.zh-CN.md)和[开发 SOP](../../docs/modules/manage-ontology/SOP.zh-CN.md)。

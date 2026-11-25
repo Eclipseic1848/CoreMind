@@ -1,5 +1,7 @@
 # 可选本体示例
 
+只使用本体时，可从空白业务项目连接 2.0.0 源码服务，先运行一次对象查询。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)给出独立进程与凭据的用法。下面的脚本验证 CoreMind 各入口。跨会话资料助手是可选的组合示例。
+
 资料整理助手使用 [`document-review`](models/document-review/actions.json) 模型查询资料、验证复核人以及检查可否发布。完全相同的适配器也能加载 [`equipment-maintenance`](models/equipment-maintenance/actions.json)，查询设备、维护站点及复修动作。
 
 ## 运行

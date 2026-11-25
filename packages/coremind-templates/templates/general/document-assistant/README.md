@@ -4,7 +4,9 @@
 
 根据可见的资料版本生成带出处的摘要，按已确认的偏好选择表格或清单。业务方提供原文、身份对应的阅读范围和记忆库。需要核对发布条件时，可以接入自己的本体模型。
 
-## 创建项目
+这是五项能力按需组合的参考示例，也用于跨会话回归。业务项目可直接从 Runtime 起步，单独选择任一能力。[空白项目接入指南](https://eclipseic1848.github.io/CoreMind/guide/06-capability-construction.html)
+
+## 创建示例项目
 
 使用包含此模板的 CoreMind CLI 和同版本的 Node、Python SDK。Node.js 需要 22.19 或更高版本。正式发布后的安装命令如下；候选验收时将安装来源换为同一候选的 tarball 与 wheel。
 

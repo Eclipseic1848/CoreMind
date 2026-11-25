@@ -8,3 +8,9 @@
 6. Run the tests in the [module manifest](module.yaml) and `npm run check:modules`. Record the test environment, corpus digest, component versions, citations from all three entry points and the reasons for choosing a retrieval method.
 7. Check increments and withdrawal: start twice with `--state` and confirm no change; change content under the same version and confirm rejection; withdraw an active version and confirm search excludes it and old citations report `withdrawn`; inject a rebuild failure and confirm the previous index and state file remain.
 8. Resolve the same citation as two readers. Check the first valid day, expiry day and withdrawal. Inject a state-file replacement failure and verify search, citation lookup and restart all reflect the last committed version.
+
+## Acceptance for a separately installed distribution (planned)
+
+1. In an empty directory outside the checkout and a fresh Python environment, install only the chosen version of the knowledge component. Record its source, version, artifact digest and launch command. Move the checkout out of reach and start with the business manifest, originals and pinned model. Use a standard MCP client to check missing-credential rejection, authorized search and citation resolution, then check the application's own entry point.
+2. For the first packaged release, generate real state containing a withdrawn edition with the 2.0.0 source service. Compare behavior before and after upgrade and rollback using the guide. For later upgrades, use the previous released distribution as the baseline.
+3. Remove the project binding and dedicated service environment. Verify that other project features still run and that the originals, state file and withdrawal records remain available. Record the independent install result separately from source-level regressions.
