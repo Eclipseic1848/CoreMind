@@ -14,6 +14,7 @@ sourcePaths:
   - "packages/coremind-runtime/src/runtime.ts"
   - "packages/coremind-runtime/src/project-check.ts"
   - "examples/modules/package-agent-skills/install-skill.mjs"
+  - "packages/coremind-templates/bin/install-skill.mjs"
   - "examples/modules/package-agent-skills/draft-skill.mjs"
   - "examples/modules/package-agent-skills/skills"
   - "examples/modules/package-agent-skills/coremind.yaml"

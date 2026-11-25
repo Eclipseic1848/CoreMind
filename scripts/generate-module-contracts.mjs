@@ -12,7 +12,12 @@ const modules = [
     purposeZh: "用一份可校验的 coremind.yaml 描述 Agent、工具、工作流、预算、权限和质量档。",
     purposeEn:
       "Describe agents, tools, workflows, budgets, permissions, and quality profiles in one validated coremind.yaml file.",
-    source: ["packages/coremind-config/src"],
+    source: [
+      "packages/coremind-config/src",
+      "packages/coremind-cli/src/commands/create.ts",
+      "examples/modules/configure-coremind/runtime-only.mts",
+      "examples/modules/configure-coremind/runtime_only.py",
+    ],
     tests: [
       "packages/coremind-config/src/parse.test.ts",
       "packages/coremind-config/src/validate.test.ts",
@@ -634,6 +639,8 @@ const modules = [
       "packages/coremind-runtime/src/mcp-runtime.ts",
       "packages/coremind-runtime/src/mcp-authentication.ts",
       "packages/coremind-runtime/src/tool-json-schema.ts",
+      "examples/modules/build-tools/single-tool.mts",
+      "examples/modules/build-tools/order-lookup.mjs",
       "examples/modules/build-tools/browser/mcp-launcher.mjs",
     ],
     tests: [
@@ -709,6 +716,7 @@ const modules = [
       "packages/coremind-runtime/src/skill-privacy.ts",
       "packages/coremind-runtime/src/runtime.ts",
       "packages/coremind-runtime/src/project-check.ts",
+      "packages/coremind-templates/bin/install-skill.mjs",
       "examples/modules/package-agent-skills/install-skill.mjs",
       "examples/modules/package-agent-skills/draft-skill.mjs",
       "examples/modules/package-agent-skills/skills",

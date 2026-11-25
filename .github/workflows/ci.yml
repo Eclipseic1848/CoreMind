@@ -120,8 +120,11 @@ jobs:
       - name: Python 黄金示例（离线）
         run: python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
 
-      - name: 安装知识与本体组合验收依赖
-        run: python -X utf8 -m pip install --disable-pip-version-check -r examples/modules/manage-ontology/requirements.txt -r examples/modules/manage-knowledge/requirements.txt
+      - name: 安装知识、记忆和本体的验收依赖
+        run: python -X utf8 -m pip install --disable-pip-version-check -r examples/modules/manage-ontology/requirements.txt -r examples/modules/manage-knowledge/requirements.txt -r examples/modules/manage-memory/requirements.txt
+
+      - name: 记忆版本、作用域与遗忘回归
+        run: python -B -X utf8 -m unittest discover -s examples/modules/manage-memory -p "test_memory_service.py" -v
 
       - name: 知识目录、引文阅读范围与回滚
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-knowledge -p "test_knowledge_catalog.py" -v
