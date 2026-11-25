@@ -14,6 +14,7 @@ sourcePaths:
   - "packages/coremind-runtime/src/runtime.ts"
   - "packages/coremind-runtime/src/project-check.ts"
   - "examples/modules/package-agent-skills/install-skill.mjs"
+  - "examples/modules/package-agent-skills/draft-skill.mjs"
   - "examples/modules/package-agent-skills/skills"
   - "examples/modules/package-agent-skills/coremind.yaml"
   - "examples/modules/package-agent-skills/cases.json"
@@ -45,6 +46,7 @@ testPaths:
   - "packages/coremind-worker/src/protocol-host.test.ts"
   - "python/tests/test_skill_assets_wheel.py"
   - "examples/modules/package-agent-skills/install-skill.test.mjs"
+  - "examples/modules/package-agent-skills/draft-skill.test.mjs"
   - "examples/modules/package-agent-skills/acceptance.mjs"
   - "examples/modules/package-agent-skills/paired-evaluation.mjs"
 supportedPlatforms:

@@ -6,6 +6,8 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 
 ## Procedure
 
+When starting from a task description, run the [draft generator](../../../examples/modules/package-agent-skills/README.en.md) outside the project's `skills/` folder. Have the owner edit `SKILL.md` and review the trigger and output format with a matching and a non-matching task. Copy the draft into the project and select its ID after review.
+
 1. Write a standard `SKILL.md` under `skills/<id>/` and explicitly list the directory ID in the agent's `skills`. Put trigger conditions in the description and procedures in the body. Follow the [Agent Skills specification](https://agentskills.io/specification) for `references/`, `assets/`, and `scripts/`, and record the package version in `metadata.version`. Existing projects can still use legacy `README.md` skills.
 2. Declare relative paths and SHA-256 values for raw UTF-8 bytes following the [package example](GUIDE.en.md#author-a-resource-package). Set Git line endings to LF. Each file is limited to 256 KiB. Resolver results and the multi-agent snapshot each have a 2 MiB serialized UTF-8 JSON limit.
 3. Run `coremind check` to verify built-in precedence, the warning when both formats exist, and rejection of invalid packages, escaping paths, and links. Call `load_skill` to test rejection of undeclared paths. The agent can read script source as text. Script execution requires a separately registered tool and the project's approval and sandbox rules.

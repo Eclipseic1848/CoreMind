@@ -6,6 +6,17 @@
 - The Xingta staging environment and Yunqiao offline environment use one release checklist. Staging passes. The offline environment reports an outdated Node.js version and a missing rollback snapshot.
 - A general notification summary completes without any skill calls.
 
+## Generate an editable draft from a task
+
+Run `npm ci` and `npm run build` from the repository root first. The local command puts the task into a standard Skill template and validates it with the project loader. It runs without model credentials.
+
+```sh
+node examples/modules/package-agent-skills/draft-skill.mjs .scratch/skill-drafts compare-records "Compare two documents, list the changes and cite the version and source location for each."
+node --test examples/modules/package-agent-skills/draft-skill.test.mjs
+```
+
+Open `.scratch/skill-drafts/compare-records/SKILL.md`. The draft uses the same task brief in two examples, one asking for the work and one asking only to quote the brief. Replace these with business-specific cases, state the scope in the description and edit the procedure and acceptance examples. Generating the same ID again in that directory refuses to overwrite it. After review, copy the whole `compare-records` folder into `skills/` next to the project configuration, add `compare-records` to the selected agent's `skills`, and run `coremind check <config-file>`. A new Runtime loads the Skill only when that agent explicitly selects its ID.
+
 ## Run the example across all four entry points
 
 From the repository root, use Node.js with the repository dependencies installed and Python 3.10 or later. Set `COREMIND_SKILL_PYTHON` to the absolute interpreter path if needed.

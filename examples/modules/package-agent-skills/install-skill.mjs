@@ -24,7 +24,7 @@ const pinnedSource = /^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/u
 const skillPath = /^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*SKILL\.md$/u;
 const lockName = "skills-lock.json";
 
-function checkId(id) {
+export function checkId(id) {
   if (
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) ||
     id.length > 64 ||

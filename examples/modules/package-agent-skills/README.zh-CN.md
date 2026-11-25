@@ -6,6 +6,17 @@
 - 星塔项目的预发布环境和云桥项目的离线联调环境复用同一核对清单。预发布环境通过，离线联调环境报告 Node.js 版本偏低和回滚快照缺失。
 - 一条普通通知摘要全程不调用技能工具，用于检查技能的适用范围。
 
+## 从任务说明生成可编辑草稿
+
+先在仓库根目录执行 `npm ci`、`npm run build`。下面的本地命令将任务说明填入标准 Skill 模板，调用项目使用的加载器校验格式，无需模型凭据。
+
+```sh
+node examples/modules/package-agent-skills/draft-skill.mjs .scratch/skill-drafts compare-records "比对两份资料，逐条标出变化，附资料版本和原文位置。"
+node --test examples/modules/package-agent-skills/draft-skill.test.mjs
+```
+
+打开生成的 `.scratch/skill-drafts/compare-records/SKILL.md`。草稿用同一份任务说明给出“执行并交付”和“仅转述”的触发正反例。将其改成真实业务场景，在 `description` 写清适用范围，并编辑正文的操作步骤和验收样例。同一目录内重复生成该 ID 会拒绝覆盖。负责人审核后，将整个 `compare-records` 目录复制到项目配置旁的 `skills/`，在目标 Agent 的 `skills` 中加入 `compare-records`，再运行 `coremind check <配置文件>`。只有显式选择该 ID 的新 Runtime 才加载它。
+
 ## 运行四入口示例
 
 从仓库根目录运行。需要 Node.js、仓库依赖和 Python 3.10 或更高版本。若 `python` 指向其他解释器，可将 `COREMIND_SKILL_PYTHON` 设为解释器的绝对路径。

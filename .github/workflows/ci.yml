@@ -80,6 +80,9 @@ jobs:
       - name: 模块合同
         run: npm run check:modules
 
+      - name: Skill 草稿生成、审核与显式选择
+        run: node --test examples/modules/package-agent-skills/draft-skill.test.mjs
+
       - name: 双语文档配对
         run: npm run check:docs
 

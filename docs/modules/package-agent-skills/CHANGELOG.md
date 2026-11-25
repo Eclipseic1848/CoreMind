@@ -2,6 +2,8 @@
 
 ## Unreleased — 2.0 development
 
+- Added a local task-to-Skill draft example with an explicit review and activation check.
+
 - Added resource manifests, policy-controlled loading of declared files, and versioned snapshots that preserve the bytes selected at run creation.
 - Added a pinned Git installer with frozen-lockfile restore and rollback using the previous lock.
 - Added shared procedure examples for CLI, TypeScript, Python sync, and Python async.
