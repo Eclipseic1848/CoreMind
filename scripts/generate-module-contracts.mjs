@@ -286,6 +286,11 @@ const modules = [
     purposeEn:
       "Retrieve source passages with their version and location within the host's read scope.",
     source: [
+      "components/knowledge/pyproject.toml",
+      "components/knowledge/src/coremind_knowledge_mcp/server.py",
+      "components/knowledge/src/coremind_knowledge_mcp/catalog.py",
+      "components/knowledge/src/coremind_knowledge_mcp/retrieval.py",
+      "components/knowledge/src/coremind_knowledge_mcp/docling_bridge.py",
       "examples/modules/manage-knowledge/knowledge_server.py",
       "examples/modules/manage-knowledge/knowledge_catalog.py",
       "examples/modules/manage-knowledge/coremind.yaml",
@@ -295,6 +300,7 @@ const modules = [
       "packages/coremind-runtime/src/mcp-runtime.ts",
     ],
     tests: [
+      "components/knowledge/tests/installed_lifecycle.py",
       "examples/modules/manage-knowledge/acceptance.mjs",
       "examples/modules/manage-knowledge/clean-consumer.mjs",
       "examples/modules/manage-knowledge/test_knowledge_catalog.py",
@@ -334,6 +340,9 @@ const modules = [
     purposeEn:
       "Use Hindsight to recall confirmed preferences, facts, and lessons within the host's authorized scope.",
     source: [
+      "components/memory/pyproject.toml",
+      "components/memory/src/coremind_memory_mcp/server.py",
+      "components/memory/src/coremind_memory_mcp/backend.py",
       "examples/modules/manage-memory/memory_server.py",
       "examples/modules/manage-memory/hindsight_backend.py",
       "examples/modules/manage-memory/requirements.txt",
@@ -342,6 +351,7 @@ const modules = [
       "examples/modules/manage-memory/search.py",
     ],
     tests: [
+      "examples/modules/manage-memory/check_component.py",
       "examples/modules/manage-memory/test_memory_service.py",
       "examples/modules/manage-memory/acceptance.mjs",
     ],
@@ -370,6 +380,10 @@ const modules = [
     purposeEn:
       "Opt into domain models, source alignment, constraint checking, and authorized actions.",
     source: [
+      "components/ontology/pyproject.toml",
+      "components/ontology/src/coremind_ontology",
+      "examples/modules/manage-ontology/_ontology_source.py",
+      "examples/modules/manage-ontology/receipt_handler.py",
       "examples/modules/manage-ontology/ontology_graph.py",
       "examples/modules/manage-ontology/ontology_mapping.py",
       "examples/modules/manage-ontology/ontology_project.py",
@@ -382,6 +396,7 @@ const modules = [
       "examples/modules/manage-ontology/run.py",
     ],
     tests: [
+      "examples/modules/manage-ontology/installed_acceptance.py",
       "examples/modules/manage-ontology/test_ontology_graph.py",
       "examples/modules/manage-ontology/test_ontology_mapping.py",
       "examples/modules/manage-ontology/test_ontology_project.py",

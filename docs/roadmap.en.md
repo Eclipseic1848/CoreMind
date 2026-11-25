@@ -22,9 +22,9 @@ All eight npm packages, the Python wheel and the source ZIP for `v2.0.0` matched
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Windows, Linux and strict DeepSeek certification passed for this version. [Candidate qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
-## Next stage: five independently usable capabilities
+## Independently usable capabilities
 
-Start from the Runtime in the application project. Knowledge retrieval, Hindsight memory and ontology will each have a separately deployable version, a configuration entry point, and upgrade and rollback instructions. Skills are selected by ID; tools are registered or bound. Verify each can be updated and removed independently. Deliver the implementation, SOP, developer Skill and minimal example for each capability. In a project outside the repository, test the Runtime alone, each of the five capabilities alone, then selected combinations. Remove one component and check the rest. Use `document-assistant` for reference and composition regression. [Construction and acceptance method](en/guide/06-capability-construction.md)
+Start from the Runtime in the application project. Knowledge retrieval, Hindsight memory and ontology each have a separately deployable source build, a configuration entry point, and upgrade and rollback instructions. Skills are selected by ID; tools are registered or bound. Verify each can be updated and removed independently. Deliver the implementation, SOP, developer Skill and minimal example for each capability. In a project outside the repository, test the Runtime alone, each of the five capabilities alone, then selected combinations. Remove one component and check the rest. Use `document-assistant` for reference and composition regression. [Construction and acceptance method](en/guide/06-capability-construction.md)
 
 ## Delivered in `2.0.0`
 

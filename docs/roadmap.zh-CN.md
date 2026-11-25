@@ -22,7 +22,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。本版本的 Windows、Linux 和 DeepSeek 严格认证均已通过。[候选资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
-## 下一阶段：可独立使用的五项能力
+## 独立组件交付
 
 业务项目以 Runtime 为起点。知识检索、Hindsight 记忆、本体服务各自提供可安装部署的版本、配置入口和升级回退说明。Skill 通过项目选择 ID，工具通过注册或绑定启用；两者分别验证独立更新与移除。五项都配实现、SOP、开发 Skill 和最小示例。使用仓库外的空白项目验收 Runtime、五种单项和按需组合，记录移除一项后其余能力的结果。`document-assistant` 用作参考示例和组合回归。[建设与验收方法](guide/06-capability-construction.md)
 

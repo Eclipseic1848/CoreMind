@@ -32,7 +32,7 @@ agents:
 | 工具 | 通过 SDK 注册业务函数，或用配置绑定 stdio/HTTP MCP 操作，并为 Agent 选择工具 | 验证输入、权限和一次业务回执；移除绑定后新运行不再提供该工具 |
 | 本体 | 宿主提供模型、映射和约束，经本体 MCP 服务绑定所需操作 | 用自己的模型验证一条合规记录和一条违规记录；只读项目仅授权查询、校验 |
 
-知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。下一阶段将提供可独立部署、配置和升级的组件；Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
+知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。当前源码提供三个可独立安装的 0.1.0 组件，分别见[知识](../../components/knowledge/README.md)、[记忆](../../components/memory/README.md)和[本体](../../components/ontology/README.md)。Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
 
 **空白项目验收顺序**
 
@@ -41,6 +41,16 @@ agents:
 3. 选一个实际需要的组合，例如知识与 Skill。再移除其中一项，验证剩余能力仍可用。CLI、TypeScript、Python 同步和异步入口用同一份项目配置核对结果。
 
 `document-assistant` 是资料整理的参考示例和组合回归。它在两个独立项目里用合成资料、真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体验证了七例。可查阅输入、权限、预期输出和失败记录来设计自己的测试。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md) · [真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
+
+### 复跑独立安装验收
+
+在仓库外新建消费者，安装同一构建的 npm 安装件及含 Worker 的 Python wheel。用各自的 Python 环境启动知识、记忆和本体服务。在私有 JSON 中以 `knowledge`、`memory`、`ontology` 为键，分别填写回环 `url`、读令牌 `authorization`、只读 `tool` 名、`args` 和预期结果片段 `expect`。记忆场景先由宿主写入合成事实。用主仓库的[验收脚本](../../scripts/verify-optional-consumer.mjs)运行：
+
+```sh
+node scripts/verify-optional-consumer.mjs <消费者目录> <已安装SDK的Python> <私有JSON>
+```
+
+脚本生成 `optional-acceptance.json`，记录四个入口看到的工具和成功调用数。模型为本地确定性夹具，三个 MCP 服务使用实际安装件。去掉私有 JSON 参数可复跑 Runtime、Skill 和工具用例。
 
 ## 04 知识管理
 

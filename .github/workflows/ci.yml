@@ -153,6 +153,15 @@ jobs:
       - name: Python 3.14 工具延迟注解与真实往返（离线）
         run: python -X utf8 -W error::ResourceWarning -m unittest discover -s python/tests -p "test_tool_annotations.py" -v
 
+      - name: 构建独立 MCP 组件
+        run: python -m pip wheel --disable-pip-version-check --no-deps --wheel-dir .scratch/component-wheels ./components/knowledge ./components/memory ./components/ontology
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coremind-component-wheels-${{ matrix.os }}
+          path: .scratch/component-wheels/*.whl
+          if-no-files-found: error
+
       - name: 记录实际运行时间
         if: always()
         shell: bash
