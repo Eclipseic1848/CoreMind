@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. Check the matching artifacts on [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) for public availability.
+> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
 > A configurable Provider is not a certified Provider. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 
@@ -99,7 +99,7 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Source development requires Node.js 22.19+, npm 11.5.1+ and Python 3.10+ for the Python SDK. Use the following command once 2.0.0 is publicly available. [Upgrade from 1.4](docs/migrations/1.4-to-2.0.en.md)
+Source development requires Node.js 22.19+, npm 11.5.1+ and Python 3.10+ for the Python SDK. Use the following command to install 2.0.0. [Upgrade from 1.4](docs/migrations/1.4-to-2.0.en.md)
 
 ```bash
 npm install -g coremind-cli@2.0.0
@@ -155,7 +155,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `2.0.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
+CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. For `2.0.0`, `deepseek-flash` passed strict certification for the exact commit, version and Runtime digest. [Certification results](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 
