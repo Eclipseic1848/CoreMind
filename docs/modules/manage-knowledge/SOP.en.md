@@ -16,3 +16,11 @@
 3. Remove the project binding and dedicated service environment. Verify that other project features still run and that the originals, state file and withdrawal records remain available. Record the independent install result separately from source-level regressions.
 
 Run the [migration regression](../../../components/knowledge/tests/installed_lifecycle.py) outside the checkout with the installed wheel's interpreter. Supply `--console`, `--model-dir`, `--example`, and `--legacy-archive` (the official 2.0.0 source ZIP). It generates a real prior catalog, moves the prior service aside, exercises a standard MCP client, two reader scopes, replacement and withdrawal, then restarts the previous service against the last committed state after an induced rebuild failure.
+
+The local 0.1.0 acceptance run used Windows, Python 3.12.13 and wheel SHA-256 `de84e44f6d68dde7e85d63f21551ffe5add7b4d8bfbbbac98f90fb4f68f494ef`. Tests used synthetic documents and local model weights.
+
+| Check | Observed result |
+| --- | --- |
+| Empty business project | Installed only the knowledge wheel and its dependencies. A standard MCP client resolved line 3 with its header at line 1. Missing credentials returned 401. Another reader had no matches and received `unknown` on lookup. |
+| Migration and rollback | The official 2.0.0 source service generated the prior catalog. The wheel preserved its citations and withdrawal. Neither an unknown withdrawal nor an oversized chunk changed the last committed state. The previous service then resolved the new edition and both withdrawals. |
+| Retrieval and parsing | Sparse retrieval placed the gold passage first on 30/30 answerable questions. All ten unanswerable questions still returned candidates. With an existing Docling/RapidOCR environment, the wheel parsed four PDF and three DOCX chunks, including the scanned-page and table locations. |

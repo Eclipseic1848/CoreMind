@@ -286,6 +286,7 @@ export async function runSkillInstaller(args) {
   }
 }
 
-if (process.argv[1] && pathToFileURL(await realpath(process.argv[1])).href === import.meta.url) {
+const entryPoint = process.argv[1] && (await realpath(process.argv[1]).catch(() => undefined));
+if (entryPoint && pathToFileURL(entryPoint).href === import.meta.url) {
   await runSkillInstaller(process.argv.slice(2));
 }
