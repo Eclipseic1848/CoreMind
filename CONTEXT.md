@@ -50,6 +50,14 @@ _Avoid_: Session 历史、Run 事实、压缩摘要
 带来源和适用条件、等待确认的偏好或经验。确认后形成可召回的长期记忆。
 _Avoid_: 已生效记忆、自动保存的事实
 
+**Business Ontology（业务本体）**：
+由业务方确认的对象类型、属性、关系与约束。实例通过带版本的来源映射对应到业务模型，根据约束返回合规、违规或不可用。[ADR 0032](docs/adr/0032-optional-ontology-action-binding.md)
+_Avoid_: 检索索引、自动抽取的关联、权限策略
+
+**Business Action Receipt（业务动作回执）**：
+由执行该动作的业务系统提供的结果证据，绑定请求、目标对象和实际状态。CoreMind 的工具授权与技术调用收据用于追踪执行过程，业务成功仍需检查预期效果。[ADR 0032](docs/adr/0032-optional-ontology-action-binding.md)
+_Avoid_: 审批结果、动作候选、提交成功提示
+
 **TaskCommit（任务提交）**：
 显式任务会话内以 commitId 幂等、expectedRevision 控制并发的一次原子持久记录；不是远端业务事务或 Run 终态。
 _Avoid_: 三日志顺序写入、Tool Call、Workspace Checkpoint

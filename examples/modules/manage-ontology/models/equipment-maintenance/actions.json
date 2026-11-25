@@ -1,0 +1,11 @@
+{
+  "modelVersion": "1.0.0",
+  "actions": {
+    "restore-service": {
+      "targetClass": "urn:maintenance:Equipment",
+      "stateProperty": "urn:maintenance:condition",
+      "from": "repaired",
+      "to": "online"
+    }
+  }
+}

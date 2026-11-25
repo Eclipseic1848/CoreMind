@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "sources": {
+    "inventory": {
+      "idField": "number",
+      "class": "urn:maintenance:Equipment",
+      "identities": { "N-2": { "confirmed": "urn:equipment:spare" } },
+      "fields": [
+        {
+          "aliases": ["state"],
+          "predicate": "urn:maintenance:condition",
+          "codes": { "OK": "online", "FIXED": "repaired" }
+        },
+        { "aliases": ["site"], "predicate": "urn:maintenance:station", "term": "iri" }
+      ]
+    }
+  }
+}

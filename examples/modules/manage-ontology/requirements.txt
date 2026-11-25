@@ -1,0 +1,4 @@
+rdflib==7.6.0
+pyshacl==0.40.2
+mcp==1.30.0
+uvicorn==0.54.0

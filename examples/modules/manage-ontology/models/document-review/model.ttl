@@ -1,0 +1,12 @@
+@prefix ex: <urn:review:> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:Model a owl:Ontology ; owl:versionInfo "1.0.0" .
+ex:Document a owl:Class ; rdfs:label "资料"@zh .
+ex:PolicyDocument a owl:Class ; rdfs:subClassOf ex:Document ; rdfs:label "制度资料"@zh .
+ex:Person a owl:Class ; rdfs:label "复核人"@zh .
+ex:state a owl:DatatypeProperty ; rdfs:domain ex:Document ; rdfs:range xsd:string .
+ex:weightKg a owl:DatatypeProperty ; rdfs:domain ex:Document ; rdfs:range xsd:decimal .
+ex:reviewedBy a owl:ObjectProperty ; rdfs:domain ex:Document ; rdfs:range ex:Person .

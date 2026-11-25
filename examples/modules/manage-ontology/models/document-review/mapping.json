@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "sources": {
+    "catalog": {
+      "idField": "externalId",
+      "class": "urn:review:Document",
+      "identities": {
+        "A1": { "confirmed": "urn:doc:guide" },
+        "A2": { "candidates": ["urn:doc:guide", "urn:doc:draft"] },
+        "A3": { "confirmed": "urn:doc:incoming" }
+      },
+      "fields": [
+        {
+          "aliases": ["state", "状态"],
+          "predicate": "urn:review:state",
+          "codes": { "D": "draft", "R": "reviewed" }
+        },
+        {
+          "aliases": ["克重"],
+          "predicate": "urn:review:weightKg",
+          "scale": "0.001",
+          "datatype": "http://www.w3.org/2001/XMLSchema#decimal"
+        },
+        { "aliases": ["owner", "复核人"], "predicate": "urn:review:reviewedBy", "term": "iri" }
+      ]
+    },
+    "archive": {
+      "idField": "archiveId",
+      "class": "urn:review:Document",
+      "identities": { "ARCH-1": { "confirmed": "urn:doc:guide" } },
+      "fields": [
+        {
+          "aliases": ["approval"],
+          "predicate": "urn:review:state",
+          "codes": { "等待备案": "reviewed", "已归档": "published" }
+        },
+        { "aliases": ["reviewerId"], "predicate": "urn:review:reviewedBy", "term": "iri" }
+      ]
+    }
+  }
+}

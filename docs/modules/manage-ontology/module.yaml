@@ -1,0 +1,47 @@
+schemaVersion: 1
+id: manage-ontology
+name:
+  zh-CN: "可选本体与业务动作"
+  en: "Optional Ontology and Business Actions"
+version: 1.4.0
+sourcePaths:
+  - "examples/modules/manage-ontology/ontology_graph.py"
+  - "examples/modules/manage-ontology/ontology_mapping.py"
+  - "examples/modules/manage-ontology/ontology_project.py"
+  - "examples/modules/manage-ontology/ontology_server.py"
+  - "examples/modules/manage-ontology/requirements.txt"
+  - "examples/modules/manage-ontology/models"
+  - "examples/modules/manage-ontology/coremind.yaml"
+  - "examples/modules/manage-ontology/coremind-off.yaml"
+  - "examples/modules/manage-ontology/run.mjs"
+  - "examples/modules/manage-ontology/run.py"
+documents:
+  readme:
+    zh-CN: docs/modules/manage-ontology/README.zh-CN.md
+    en: docs/modules/manage-ontology/README.en.md
+  sop:
+    zh-CN: docs/modules/manage-ontology/SOP.zh-CN.md
+    en: docs/modules/manage-ontology/SOP.en.md
+  guide:
+    zh-CN: docs/modules/manage-ontology/GUIDE.zh-CN.md
+    en: docs/modules/manage-ontology/GUIDE.en.md
+  changelog: docs/modules/manage-ontology/CHANGELOG.md
+skillPath: skills/manage-ontology/SKILL.md
+examplePaths:
+  - examples/modules/manage-ontology/README.zh-CN.md
+  - examples/modules/manage-ontology/README.en.md
+testPaths:
+  - "examples/modules/manage-ontology/test_ontology_graph.py"
+  - "examples/modules/manage-ontology/test_ontology_mapping.py"
+  - "examples/modules/manage-ontology/test_ontology_project.py"
+  - "examples/modules/manage-ontology/acceptance.mjs"
+  - "examples/modules/manage-ontology/ontology-fixture.mjs"
+  - "examples/modules/manage-ontology/composition.mjs"
+supportedPlatforms:
+  - "windows"
+  - "linux"
+dependencies:
+  - "configure-coremind"
+  - "build-tools"
+  - "enforce-agent-permissions"
+maturity: alpha

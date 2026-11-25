@@ -12,6 +12,7 @@
 - [上下文与 Artifact 治理](manage-context-artifacts/README.zh-CN.md)
 - [知识检索与引用](manage-knowledge/README.zh-CN.md)
 - [长期记忆与经验提炼](manage-memory/README.zh-CN.md)
+- [可选本体与业务动作](manage-ontology/README.zh-CN.md)
 - [Agent 构建](design-agents/README.zh-CN.md)
 - [Runtime 生命周期扩展](extend-runtime-lifecycle/README.zh-CN.md)
 - [编码智能体](build-coding-agents/README.zh-CN.md)

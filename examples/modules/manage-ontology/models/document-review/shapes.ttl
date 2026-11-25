@@ -1,0 +1,15 @@
+@prefix ex: <urn:review:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:DocumentShape a sh:NodeShape ; sh:targetClass ex:Document ;
+    sh:property ex:DocumentState, ex:DocumentReviewer, ex:DocumentWeight .
+ex:DocumentState a sh:PropertyShape ; sh:path ex:state ;
+    sh:minCount 1 ; sh:maxCount 1 ; sh:in ("draft" "reviewed" "published") ;
+    sh:message "资料状态应为草稿、已复核或已发布。"@zh .
+ex:DocumentReviewer a sh:PropertyShape ; sh:path ex:reviewedBy ;
+    sh:minCount 1 ; sh:maxCount 1 ; sh:class ex:Person ; sh:nodeKind sh:IRI ;
+    sh:message "资料须有一名已登记的复核人。"@zh .
+ex:DocumentWeight a sh:PropertyShape ; sh:path ex:weightKg ;
+    sh:maxCount 1 ; sh:datatype xsd:decimal ; sh:minInclusive 0 ;
+    sh:message "重量必须为非负的十进制千克。"@zh .

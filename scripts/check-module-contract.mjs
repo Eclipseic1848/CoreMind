@@ -23,6 +23,7 @@ const expectedModules = [
   "manage-context-artifacts",
   "manage-knowledge",
   "manage-memory",
+  "manage-ontology",
   "manage-providers",
   "manage-sessions",
   "operate-coremind-cli",

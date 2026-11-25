@@ -1,0 +1,9 @@
+@prefix ex: <urn:maintenance:> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ex:Model a owl:Ontology ; owl:versionInfo "1.0.0" .
+ex:Equipment a owl:Class ; rdfs:label "设备"@zh .
+ex:Station a owl:Class ; rdfs:label "站点"@zh .
+ex:condition a owl:DatatypeProperty ; rdfs:domain ex:Equipment .
+ex:station a owl:ObjectProperty ; rdfs:domain ex:Equipment ; rdfs:range ex:Station .

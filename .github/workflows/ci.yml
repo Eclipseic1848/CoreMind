@@ -117,6 +117,18 @@ jobs:
       - name: Python 黄金示例（离线）
         run: python -W error::ResourceWarning -m unittest discover -s examples/golden/python-data-analysis/tests -p "test_*.py" -v
 
+      - name: 安装可选本体示例依赖
+        run: python -X utf8 -m pip install --disable-pip-version-check -r examples/modules/manage-ontology/requirements.txt
+
+      - name: 本体映射、SHACL 与动作校验
+        run: python -B -X utf8 -m unittest discover -s examples/modules/manage-ontology -p "test_ontology_*.py" -v
+
+      - name: 本体四入口启停、故障与授权（离线）
+        run: node examples/modules/manage-ontology/acceptance.mjs
+
+      - name: 资料助手跨会话组合验收（离线）
+        run: node examples/modules/manage-ontology/composition.mjs
+
       - name: 示例配置冒烟（离线）
         run: |
           node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"
