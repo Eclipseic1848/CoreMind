@@ -171,7 +171,7 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
-thinkingFormat: TOptional<TLiteral<"qwen">>;
+thinkingFormat: TOptional<TUnion<[TLiteral<"qwen">, TLiteral<"qwen-chat-template">]>>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>, TObject<    {
@@ -452,7 +452,7 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
-thinkingFormat: TOptional<TLiteral<"qwen">>;
+thinkingFormat: TOptional<TUnion<[TLiteral<"qwen">, TLiteral<"qwen-chat-template">]>>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>;
@@ -748,7 +748,7 @@ env: TString;
 }>, TObject<    {
 secretRef: TString;
 }>]>>>;
-thinkingFormat: TOptional<TLiteral<"qwen">>;
+thinkingFormat: TOptional<TUnion<[TLiteral<"qwen">, TLiteral<"qwen-chat-template">]>>;
 contextWindow: TOptional<TInteger>;
 maxTokens: TOptional<TInteger>;
 }>, TObject<    {

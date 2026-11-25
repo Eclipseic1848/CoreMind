@@ -9,7 +9,13 @@ import { describe, expect, it } from "vitest";
 import { CoreMindRuntime } from "./runtime.js";
 
 describe("自定义 Provider 的 Qwen 思考控制", () => {
-  it("通过公开 Runtime seam 关闭思考，且拒绝任意请求体透传", async () => {
+  it.each([
+    ["qwen", "off", false],
+    ["qwen", "high", true],
+    ["qwen-chat-template", "off", false],
+    ["qwen-chat-template", "high", true],
+    [undefined, "off", false],
+  ] as const)("通过公开 Runtime 发送 %s / %s 的思考开关", async (format, level, enabled) => {
     const requests: Array<Record<string, unknown>> = [];
     const server = createServer((request, response) => {
       let body = "";
@@ -46,7 +52,7 @@ describe("自定义 Provider 的 Qwen 思考控制", () => {
         baseUrl: `http://127.0.0.1:${port}/v1`,
         model: "qwen3.8-27b",
         apiKeyEnv: "COREMIND_TEST_API_KEY",
-        thinkingFormat: "qwen",
+        ...(format ? { thinkingFormat: format } : {}),
       } as const;
       const config = validateConfig({
         schemaVersion: 2,
@@ -55,7 +61,7 @@ describe("自定义 Provider 的 Qwen 思考控制", () => {
         agents: {
           main: {
             systemPrompt: "直接回答",
-            options: { thinkingLevel: "off" },
+            options: { thinkingLevel: level, maxTokens: 900 },
           },
         },
         defaultAgent: "main",
@@ -72,24 +78,39 @@ describe("自定义 Provider 的 Qwen 思考控制", () => {
 
       expect(result.outcome.status).toBe("succeeded");
       expect(requests).toHaveLength(1);
-      expect(requests[0]).toMatchObject({
-        model: "qwen3.8-27b",
-        enable_thinking: false,
-      });
-      expect(() =>
-        validateConfig({
-          schemaVersion: 2,
-          name: "禁止任意请求体",
-          provider: {
-            ...provider,
-            requestBody: { Authorization: "不得透传" },
-          },
-          agents: { main: { systemPrompt: "测试" } },
-        }),
-      ).toThrowError(/provider\.requestBody/);
+      const body = requests[0]!;
+      expect(body.model).toBe(provider.model);
+      expect(body.max_completion_tokens ?? body.max_tokens).toBe(900);
+      if (format === "qwen") {
+        expect(body.enable_thinking).toBe(enabled);
+        expect(body.chat_template_kwargs).toBeUndefined();
+      } else if (format === "qwen-chat-template") {
+        expect(body.chat_template_kwargs).toEqual({
+          enable_thinking: enabled,
+          preserve_thinking: true,
+        });
+        expect(body.enable_thinking).toBeUndefined();
+      } else {
+        expect(body.chat_template_kwargs).toBeUndefined();
+        expect(body.enable_thinking).toBeUndefined();
+      }
     } finally {
       await closeServer(server);
     }
+  });
+
+  it.each([
+    [{ thinkingFormat: "unsupported" }, /provider\.thinkingFormat/],
+    [{ requestBody: { Authorization: "不得透传" } }, /provider\.requestBody/],
+  ])("配置验证拒绝无效格式或任意请求体", (extra, error) => {
+    expect(() =>
+      validateConfig({
+        schemaVersion: 2,
+        name: "受限请求配置",
+        provider: { id: "endpoint", model: "qwen", baseUrl: "http://127.0.0.1/v1", ...extra },
+        agents: { main: {} },
+      }),
+    ).toThrowError(error);
   });
 });
 

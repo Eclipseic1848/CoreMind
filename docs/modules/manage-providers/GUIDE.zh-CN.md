@@ -15,6 +15,28 @@ provider:
 
 这是 `0.8.0` 发布候选实际认证的 Provider/模型组合；在自己的密钥和部署环境中仍需复验。认证证据与静态矩阵的区别见[模块说明](README.zh-CN.md)。
 
+## 为自定义 Qwen 服务选择思考开关
+
+先核对部署的聊天模板接受哪个字段。读取顶层 `enable_thinking` 的服务使用 `provider.thinkingFormat: qwen`；读取 `chat_template_kwargs.enable_thinking` 的 vLLM 服务使用 `qwen-chat-template`。以下配置让一个摘要任务关闭思考，并将单次输出上限设为 900 token。将地址、模型名和凭据变量换成宿主实际提供的值。
+
+```yaml
+schemaVersion: 3
+name: document-summary
+provider:
+  id: local-qwen
+  baseUrl: http://127.0.0.1:8000/v1
+  model: qwen-document
+  apiKeyEnv: QWEN_API_KEY
+  thinkingFormat: qwen-chat-template
+agents:
+  main:
+    options: { thinkingLevel: off, maxTokens: 900 }
+```
+
+在该格式中，`off` 生成 `chat_template_kwargs.enable_thinking: false`；例如改为 `high` 后值为 `true`。运行库同时发送 `preserve_thinking: true`。所选格式决定请求字段的位置，输出预算仍由 `maxTokens` 控制。自定义服务默认省略这两种 Qwen 开关。
+
+升级后，仅在需要嵌套开关的服务配置中启用新格式。回滚旧 SDK/Worker 前，先恢复该服务原先可用的配置；旧版本无法解析 `qwen-chat-template`。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

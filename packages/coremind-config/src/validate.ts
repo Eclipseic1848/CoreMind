@@ -147,6 +147,13 @@ function validateCustomProviderFields(record: Record<string, unknown>): void {
   const details = Object.keys(provider)
     .filter((key) => !allowed.has(key))
     .map((key) => `provider.${key}：自定义 Provider 不支持该字段`);
+  // 校验显式格式，避免无效格式回退到内置 Provider 并丢弃自定义地址。
+  if (
+    "thinkingFormat" in provider &&
+    !Value.Check(CustomProviderSchema.properties.thinkingFormat, provider.thinkingFormat)
+  ) {
+    details.push("provider.thinkingFormat：不支持的自定义 Provider 思考控制格式");
+  }
   if (details.length > 0) {
     throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
   }

@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "938429838c456bc16ea6fe714386c330e636fea9",
+    "developmentCommit": "b9302514cbbbb9957a3009f060e698c328c93066",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -15,7 +15,7 @@
     "apiReports": {
       "coremind-ai": "2127e7461dc2dd293db8893d4519d89f1d3e310b490fe308f993c815b7ec88a7",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
-      "coremind-config": "b679ef6a5e80a22a3d8718fa48b9ec5dd1928156b22f8fb9c0fa13ce931dd098",
+      "coremind-config": "8be91da2c25c914f95a3765df86576aad14779a1da5f4a92b6af64db3e0a735d",
       "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
       "coremind-runtime": "81dce5d32b152349a2eaff1e81a4d9e383b0dac4abb3797f5ee477d022aa0678",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
@@ -23,7 +23,7 @@
       "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
     },
     "schemas": {
-      "config": "abb6f00f27e5a5712e382037e524ee9d00c02b35f8f51be3b2dd83408a75433b",
+      "config": "66aadc05d0fc779189d07905e255add9bf6dd56ff7ba7d3a5db2fc14291f3132",
       "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
       "protocolV2": "504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69"
     }
@@ -283,20 +283,20 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-09T03:44:59.625Z",
+    "capturedAt": "2026-11-25T02:21:57.959Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #379：Pi 1.5.0 官方依赖族、工具类型与 Worker 身份同步",
+    "updateReason": "Issue 410：显式接受 Qwen 聊天模板思考开关，仅扩展自定义 Provider 的 thinkingFormat 合同。原 qwen 与未配置路径保留，关闭或启用时均核对 900 token 的请求。",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "5c08b5f8fabec8e58e65b60a93e0ed9de60cfd1b174dd2ac1f06994c1e9dbc6d",
+    "dependencyLockSha256": "7b3dcf3b761546614983cc164532637c3842a3f1dadd254f41d12a070d2af1b8",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
-      "coremind-cli": "c84d2667b0179beaf3555345e67fdd47781e82e78b17b46c27ddbd854b4e6e1d",
-      "coremind-config": "cacc71f82536f779c4465141613ed4ecf85d9da6b64803f009ed0ed76e14c97e",
+      "coremind-cli": "a437418fb99a53e1ca80c8df3d5438b4e60eaa37f4048f6f7007abc27592b835",
+      "coremind-config": "e596a402cd5410b79b24253e3150fdf1c9f20b530ec8685cc258eb7054503717",
       "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
-      "coremind-runtime": "865011cad41cbdac8290c669f6b0e7b065a5dd6e2e4ba0f767f3b11869bc9aca",
-      "coremind-templates": "cb4b4a68ed543c45b2f12efc466a20774c60a3b759b4cfb13ad859701c827a0e",
-      "coremind-tools": "0b286e4369307d2b439a837364f64c9c8182b5a012af853e611a9411892ec7ff",
+      "coremind-runtime": "383d1e8767f5b7edfd727bc29310d77bc29f08c2e31e0fd1ee4f877e4a2097cd",
+      "coremind-templates": "0558ff116faf9bfa7450a52751e8605207263978ef67f58e42246b75e1eb3bef",
+      "coremind-tools": "ad60f0448937f1a957106dbb8eb2d211dc035a01ed945f8bde7676c34a7e1b3a",
       "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"
