@@ -4,6 +4,32 @@
 
 [English](CHANGELOG.en.md)
 
+## [2.0.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.4.0...v2.0.0) (2026-11-25)
+
+
+### Features
+
+* add incremental knowledge updates and withdrawal ([600e464](https://github.com/Eclipseic1848/CoreMind/commit/600e4640580bd7e67408ce816330bb4255c308e0))
+* add incremental knowledge updates and withdrawal ([9ce285b](https://github.com/Eclipseic1848/CoreMind/commit/9ce285bc560b77e1709fcdd923625ace43f8fd54))
+* add knowledge retrieval and citation module ([93816f6](https://github.com/Eclipseic1848/CoreMind/commit/93816f6bd28c08564777a7137f816255a78dbde7))
+* add knowledge retrieval and citation module ([1401739](https://github.com/Eclipseic1848/CoreMind/commit/1401739127758844186bcb265e3e5c90c87d540b))
+* **config:** select the native Qwen chat template thinking switch ([e0ea0e7](https://github.com/Eclipseic1848/CoreMind/commit/e0ea0e7bd8384341bf85b92fb8a2a54c22329e9e))
+* **memory:** integrate Hindsight long-term memory ([b791b24](https://github.com/Eclipseic1848/CoreMind/commit/b791b243dcf84c54a34f7850915b9b8746c99f0c))
+* **ontology:** add opt-in models, SHACL and guarded actions ([5bf25f4](https://github.com/Eclipseic1848/CoreMind/commit/5bf25f4cf9cab44bb7dca05ff4e700dd86bf7986))
+* **skills:** generate editable drafts from business task descriptions ([2a945a9](https://github.com/Eclipseic1848/CoreMind/commit/2a945a9e3a284995630940430bfe452be0eb93af))
+* **skills:** share pinned packages with frozen resources ([e4323b4](https://github.com/Eclipseic1848/CoreMind/commit/e4323b4b8e820e9495b42a1987a1f674f9caf448))
+* **templates:** scaffold the document assistant and publish its five-domain guide ([8706d4b](https://github.com/Eclipseic1848/CoreMind/commit/8706d4be503bdeea7da1f65a76ff65f866f5a843))
+* **tools:** verify MCP parity and optional browser lifecycle ([f50b670](https://github.com/Eclipseic1848/CoreMind/commit/f50b67066792624f0e46c663c7d3466737b0692d))
+
+
+### Bug Fixes
+
+* clear expired audit exceptions after dependency update ([5653227](https://github.com/Eclipseic1848/CoreMind/commit/5653227be80587ad158a1b4818aa1e8ed47e1003))
+* **knowledge:** enforce citation scope and publish catalog changes atomically ([88e4a1e](https://github.com/Eclipseic1848/CoreMind/commit/88e4a1efa00ac68b79aff4090bb82d93efa610b5))
+* **knowledge:** include the source header with Markdown table citations ([756767e](https://github.com/Eclipseic1848/CoreMind/commit/756767e540d65591b3620ada7a50ac3086a70c76))
+* **runtime:** honor exclusive tool lanes within a model turn ([249098c](https://github.com/Eclipseic1848/CoreMind/commit/249098c7b322c8bba57df661d7f5cd1d8b072d33))
+* **templates:** distinguish single-document summaries from revision comparisons ([a7f22ac](https://github.com/Eclipseic1848/CoreMind/commit/a7f22ace7a32ce0dc6dec1c6ffead7afaa50b824))
+
 ## 1.4.0
 
 本节记录 `1.4.0` 发布线；源码和发布准备不等于公开交付，实际状态以同版本 Release/Registry 与最终提交、准确制品的资格证据为准。1.4.0 包含未独立发布的 1.3.0 修复及本轮持久任务、会话树和跨语言能力；不补发 1.3.0。1.2.0 用户请按[迁移指南](docs/migrations/1.2-to-1.4.zh-CN.md)升级，最终固定正文见[发布说明](docs/release/notes/v1.4.0.md)。
