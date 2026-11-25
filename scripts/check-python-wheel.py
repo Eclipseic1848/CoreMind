@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import zipfile
+from email.parser import Parser
 from pathlib import Path
 
 
@@ -71,10 +72,22 @@ def main() -> int:
         if metadata_name is None:
             blockers.append("缺少 METADATA")
         else:
-            metadata = archive.read(metadata_name).decode("utf-8", errors="strict")
-            if "License-Expression: MIT" not in metadata:
+            metadata = Parser().parsestr(archive.read(metadata_name).decode("utf-8"), headersonly=True)
+            if metadata["License-Expression"] != "MIT":
                 blockers.append("METADATA 缺少 MIT License-Expression")
-            if "Classifier: Development Status :: 5 - Production/Stable" not in metadata:
+            version = re.match(r"^(\d+)\.(\d+)", metadata.get("Version", ""))
+            if version is None:
+                blockers.append("METADATA 缺少有效的 Version")
+            elif tuple(map(int, version.groups())) >= (2, 1):
+                license_name = metadata_name.removesuffix("METADATA") + "licenses/LICENSE"
+                repository_license = Path(__file__).resolve().parents[1] / "LICENSE"
+                if (
+                    "LICENSE" not in metadata.get_all("License-File", [])
+                    or names.count(license_name) != 1
+                    or archive.read(license_name) != repository_license.read_bytes()
+                ):
+                    blockers.append("wheel 缺少与根许可证逐字一致的项目 LICENSE")
+            if "Development Status :: 5 - Production/Stable" not in metadata.get_all("Classifier", []):
                 blockers.append("METADATA 缺少 Production/Stable classifier")
         if worker_name not in names:
             blockers.append("缺少内置 Node worker")

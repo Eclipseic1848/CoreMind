@@ -20,6 +20,15 @@ def check(wheel: Path, install: bool) -> None:
         metadata = BytesParser().parsebytes(archive.read(f"{dist_info}/METADATA"))
         if (metadata["Name"], metadata["Version"]) != (name, version):
             raise ValueError(f"wheel 元数据与文件名不一致：{wheel.name}")
+        license_name = f"{dist_info}/licenses/LICENSE"
+        repository_license = Path(__file__).resolve().parents[1] / "LICENSE"
+        if (
+            metadata["License-Expression"] != "MIT"
+            or "LICENSE" not in metadata.get_all("License-File", [])
+            or archive.namelist().count(license_name) != 1
+            or archive.read(license_name) != repository_license.read_bytes()
+        ):
+            raise ValueError(f"{wheel.name} 缺少与根许可证逐字一致的项目 LICENSE")
         entry_points = configparser.ConfigParser()
         entry_points.read_string(archive.read(f"{dist_info}/entry_points.txt").decode("utf-8"))
         if name not in entry_points["console_scripts"]:

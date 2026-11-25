@@ -9,6 +9,7 @@ description = "Local, versioned document retrieval and citations over Streamable
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "markdown-it-py==4.3.0",
     "mcp==1.30.0",

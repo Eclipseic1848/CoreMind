@@ -12,6 +12,7 @@ Release preparation. [2.0-to-2.1 candidate migration](docs/migrations/2.0-to-2.1
 - Knowledge, Hindsight memory, and ontology ship as separate 0.1.0 components. Install a Skill from a pinned commit and register or remove each application tool independently.
 - The CLI lists configurable Providers and links to the online certification matrix. Check the evidence for the version and artifact you use.
 - Refresh the README, contribution and security instructions, capability guides, implementation SOPs, developer Skills, and minimal examples.
+- Include the complete MIT license and copyright notice in the npm packages and Python wheels.
 
 ## 2.0.0
 
