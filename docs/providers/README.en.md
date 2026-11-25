@@ -2,7 +2,7 @@
 
 > This table was generated from the 2026-11-25 static runtime catalog and human-maintained evidence ledger and corresponds to target version `2.0.0`. Do not edit the table manually.
 
-CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **1** entries, while **42** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
+CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **1** of these entries, while **42** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
 ## Status definitions
 

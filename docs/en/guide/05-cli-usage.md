@@ -8,25 +8,25 @@ The CLI provides project scaffolding, environment checks, static validation, int
 coremind create <directory>
 coremind doctor
 coremind check [config]
-coremind run [config] [prompt]
+coremind run <config> --prompt "..."
 coremind chat [config]
 coremind eval [config]
-coremind list-templates
+coremind templates
 coremind providers
 ```
 
-Use `npx coremind-cli@1.4.0` before global installation, or invoke `coremind` after installing `coremind-cli@1.4.0` globally. Releases and registries are the source of truth for public availability and later versions.
+Install with `npm install -g coremind-cli@2.0.0`. Run `coremind --version` to verify that it prints `coremind v2.0.0`. The commands below use `npx` and also work without a global installation. [npm package](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [Release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)
 
 ## Recommended first run
 
 ```bash
-npx coremind-cli@1.4.0 doctor
-npx coremind-cli@1.4.0 check coremind.yaml
-npx coremind-cli@1.4.0 run coremind.yaml --dry-run
-npx coremind-cli@1.4.0 chat coremind.yaml
+npx coremind-cli@2.0.0 doctor
+npx coremind-cli@2.0.0 check coremind.yaml
+npx coremind-cli@2.0.0 run coremind.yaml --prompt "Summarize the task in one sentence."
+npx coremind-cli@2.0.0 chat coremind.yaml
 ```
 
-This sequence separates environment, configuration, resolution, and live execution failures.
+The first two commands check the environment and configuration offline. Configure the chosen Provider credentials before running the live request or starting chat.
 
 ## `create`
 
@@ -34,7 +34,7 @@ Creates a project from a maintained template. The wizard asks for language, prov
 
 ## `providers`
 
-Lists every configurable provider and separates current certification evidence from catalog-only support. Use it before `create`; configurability alone is not a live certification claim.
+`coremind providers` lists configurable entries. Both this command and `coremind create` show the historical labels bundled in CLI 2.0.0. Alibaba Model Studio (`alibaba-model-studio`) displays “CoreMind 已认证” from an earlier release. DeepSeek displays “可配置，尚未认证”. Of the 43 configurable entries in 2.0.0, only `deepseek` with `deepseek-flash` passed strict certification. [Online certification matrix](../../providers/README.en.md) · [2.0.0 strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 ## `doctor`
 
@@ -46,7 +46,7 @@ Validates configuration and project contracts without contacting a model. Use it
 
 ## `run`
 
-Executes a single request and exits with a structured result. Use `--dry-run` to inspect resolved settings without model traffic. Use `--resume <runId>` to continue a paused or interrupted run from a persisted stable boundary. Automation should consume documented result fields and the process exit code rather than decorative terminal text.
+Executes a single request and exits with a structured result. Use `coremind check coremind.yaml` for an offline configuration check. Use `--resume <runId>` to continue a paused or interrupted run from a persisted stable boundary. Automation should consume documented result fields and the process exit code rather than decorative terminal text.
 
 Stable exit codes are `0` succeeded, `1` failed, `2` paused, `3` budget exhausted, `124` timed out, and `130` aborted. With `--json-events`, stdout is JSONL, ordered `loop_state` events expose explicit Loop progress, and successful delivery ends with `run_result`; diagnostics go to stderr. `run_result.observability` is the same Fact Projection used by TypeScript, Python, and Worker consumers. Local Run, Context, Call, error, and delivery state remains available when Telemetry is `DISABLED`. `--print` stdout contains only the final body; notices, approvals, and diagnostics use stderr. `--print` and `--json-events` are mutually exclusive.
 
@@ -106,7 +106,7 @@ See the [Coding Agent guide](../../modules/build-coding-agents/GUIDE.en.md) and 
 
 1. Run `doctor`.
 2. Run `check` on the exact configuration path.
-3. Run with `--dry-run`.
+3. With credentials configured, reproduce the request using `coremind run coremind.yaml --prompt "..."`.
 4. Inspect the structured error and trace identifier.
 5. Reproduce with the smallest configuration before reporting an issue.
 

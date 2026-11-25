@@ -267,7 +267,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`2.0.0` 的 `deepseek-flash` 严格认证已通过，证据绑定本次提交、版本与 Runtime 摘要。[认证结果](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) `0.7.0` 的一次性网络例外与旧版本证据只供追溯，均不计为本版本认证。
+CoreMind 提供 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。2.0.0 的 `deepseek-flash` 通过 12 项真实检查：七项基础行为覆盖流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文，另五项覆盖父模型调用、委派、子模型调用、子工具调用及取消收敛。证据绑定本次提交、版本和 Runtime 候选包摘要。0.7.0 的网络例外保留在历史记录中。[认证矩阵](docs/providers/README.zh-CN.md) · [严格认证结果](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

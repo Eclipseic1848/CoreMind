@@ -17,7 +17,7 @@ In a consumer application, replace the example's string comparison with independ
 
 ## Python host integration
 
-Use a Python package and bundled Worker from the same version (the published package is `coremind-ai==0.8.0`). Create `CoreMindClient` with `protocol_version="2.0"` and configure `loop.verify.mode="host"`. The existing Loop configuration still owns execute, repair, maxIterations and maxRepairs.
+Install `coremind-ai==2.0.0` and use the Worker bundled in the wheel. Create `CoreMindClient` with `protocol_version="2.0"` and configure `loop.verify.mode="host"`. The existing Loop configuration still owns execute, repair, maxIterations and maxRepairs.
 
 After `client.run(...)` returns a RunHandle, the host event handler reads `client.received_verification_requests`. The SDK validates the notification structure and text digest. This fragment handles one request; `accepted` and `feedback` must come from independent host validation, not a model-generated PASS:
 

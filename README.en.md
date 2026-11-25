@@ -155,7 +155,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. For `2.0.0`, `deepseek-flash` passed strict certification for the exact commit, version and Runtime digest. [Certification results](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
+CoreMind provides 43 configurable Provider entries including compatibility aliases and supports custom OpenAI-compatible endpoints. On 2.0.0, `deepseek-flash` passed 12 live checks. Seven cover streaming, tool calls, structured results, multi-turn exchanges, abort, error mapping and long context. Five cover the parent model call, delegation, child model call, child tool call and cancellation convergence. The evidence identifies the exact commit, version and Runtime tarball digest. The 0.7.0 network exception remains in the historical record. [Provider matrix](docs/providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

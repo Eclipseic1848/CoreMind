@@ -19,7 +19,7 @@ node examples/host-verification/demo.mjs
 
 ## Python 宿主接入
 
-使用同版本的 Python 包与随包 bundled Worker（公开包为 `coremind-ai==0.8.0`），并以 `protocol_version="2.0"` 创建 `CoreMindClient`。配置中启用 `loop.verify.mode="host"`；execute、repair、maxIterations、maxRepairs 仍由原 Loop 配置控制。
+安装 `coremind-ai==2.0.0`，使用 wheel 自带的 Worker，并以 `protocol_version="2.0"` 创建 `CoreMindClient`。配置中启用 `loop.verify.mode="host"`；execute、repair、maxIterations、maxRepairs 仍由原 Loop 配置控制。
 
 `client.run(...)` 返回 RunHandle 后，由宿主事件处理逻辑读取 `client.received_verification_requests`。SDK 已校验通知结构与文本摘要。以下片段处理一个请求；`accepted` 与 `feedback` 必须来自宿主独立验证，不来自模型自报 PASS：
 

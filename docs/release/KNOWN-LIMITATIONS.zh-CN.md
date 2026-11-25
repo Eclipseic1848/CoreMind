@@ -2,7 +2,7 @@
 
 > P3 的三会话检查使用确定性夹具。P4-A 在 Windows 工作目录用小型合成资料、真实 Qwen、BGE-M3/Qdrant 内存索引、Hindsight/PostgreSQL 和 RDFLib/pySHACL 完成四入口与三独立会话。Python 使用工作区构建的 Node Worker。CLI 在临时项目预批准写入，SDK 把写入限定为本项目的 summary.md。知识服务重启时从原文和版本状态重建索引。生产容量、时延和外部动作回执由宿主实测。[P4-A 运行与复验记录](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 
-- 43个Provider入口可配置（42个内置聊天Provider，含兼容别名），但不等于真实认证。2.0.0须使用绑定本次候选版本、最终提交与Runtime摘要的strict-provider证据；旧版本认证和发布豁免不能替代。
+- 2.0.0 有 43 个可配置入口（含兼容别名）。本版严格认证通过的是 `deepseek/deepseek-flash`。已发布 CLI 的 `providers` 与 `create` 显示旧静态标签：阿里云显示“CoreMind 已认证”，DeepSeek 显示“可配置，尚未认证”。选择模型时请核对[本版认证矩阵](../providers/README.zh-CN.md)和[严格认证记录](https://github.com/Eclipseic1848/CoreMind/issues/403)。
 - P0 已更新开发依赖并移除 2026-11-14 到期的审计例外。按本版策略，最终候选的生产和完整依赖审计均须零发现。[安全策略](../../SECURITY.md)
 - 二期 Coding Eval 的外部模型同题对比仍待执行。P4-A 的七个案例测量资料助手在两份合成资料集上的行为。
 - 发布要求全仓覆盖率不下降；`1.0.1` 记录的总体 lines/statements/branches 低于长期 80% 目标，部分关键安全分支低于 90%。`2.0.0` 的实际值以同提交覆盖率报告为准，不用旧数值代替本轮结果。
