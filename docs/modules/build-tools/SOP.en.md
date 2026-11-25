@@ -1,5 +1,7 @@
 # Tools and Business Capabilities Development SOP
 
+Use the [single-tool example](../../../examples/modules/build-tools/README.en.md#register-one-application-tool) to register a function in your own project. Record a receipt and implementation version, exercise upgrade and rollback, and check visibility after denial and removal of the host registration.
+
 ## Prerequisites
 
 Read the [module overview](README.en.md), then confirm the business owner, inputs, outputs, failure conditions, and permission boundary.

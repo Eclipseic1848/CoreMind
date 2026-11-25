@@ -1,5 +1,9 @@
 # 工具与业务能力示例
 
+## 只注册一个业务工具
+
+在自己的项目准备[仅 Runtime 的配置](../../../docs/guide/06-capability-construction.md)，安装对应的 `coremind-ai`。复制 [single-tool.mts](single-tool.mts) 和 [order-lookup.mjs](order-lookup.mjs)，运行 `node single-tool.mts order-lookup.mjs`。宿主只注册一个工具，模型选择它后返回订单 ID、状态和实现版本。把新的实现文件作为同一入口的参数即可升级，传入原文件即可回退。省略实现参数时不注册该工具。权限可由宿主在配置中允许或拒绝 `lookup_order`，输入 Schema 与执行结果仍由 Runtime 校验。
+
 该示例展示模块的最小用法；复制前先由业务负责人确认字段与规则。
 
 ```text

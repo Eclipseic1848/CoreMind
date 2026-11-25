@@ -1,5 +1,9 @@
 # Tools and Business Capabilities Example
 
+## Register one application tool
+
+Prepare the [Runtime-only configuration](../../../docs/en/guide/06-capability-construction.md) in your project and install the matching `coremind-ai` package. Copy [single-tool.mts](single-tool.mts) and [order-lookup.mjs](order-lookup.mjs) and run `node single-tool.mts order-lookup.mjs`. The host registers one tool. When called it returns the order ID, status and implementation version. Pass the new implementation file to upgrade or the original file to roll back. Omit the implementation argument to remove the tool registration. Set allow or deny rules for `lookup_order` in the host configuration. The Runtime validates the input schema and observes the result.
+
 This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
 
 ```text

@@ -3,6 +3,9 @@ name: build-tools
 description: "Connect deterministic business actions through built-in tools, script tools, or the stable defineTool contract. Use when creating, changing, reviewing, or diagnosing the tools and business capabilities capability in a CoreMind project."
 ---
 
+
+For an independently versioned host tool, run the [single-tool example](../../examples/modules/build-tools/README.en.md#register-one-application-tool) and check the observed version, denied execution and removal.
+
 # Tools and Business Capabilities
 
 1. Read [the module contract](../../docs/modules/build-tools/README.en.md) and the language-matched guide only when implementation details are needed.
