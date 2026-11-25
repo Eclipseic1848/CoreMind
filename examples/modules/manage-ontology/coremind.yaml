@@ -1,0 +1,49 @@
+schemaVersion: 3
+name: local-ontology
+provider:
+  id: local-ontology-fixture
+  model: local-test
+  baseUrl: http://127.0.0.1:8880/v1
+  apiKeyEnv: COREMIND_ONTOLOGY_FIXTURE_KEY
+defaultAgent: main
+mcp:
+  servers:
+    ontology:
+      transport: streamable-http
+      url: http://127.0.0.1:8879/mcp
+      allowedAddresses: ["127.0.0.1"]
+      headers:
+        Authorization:
+          env: COREMIND_ONTOLOGY_AUTHORIZATION
+agents:
+  main:
+    systemPrompt: |
+      整理用户提供的资料。使用本体工具核对对象、来源和约束。
+      遇到本体不可用时说明校验暂不可用，继续完成普通资料整理。
+      把动作检查结果作为候选，保留待确认项和业务回执。
+    tools:
+      - mcp: { server: ontology, tool: ontology_describe }
+        effect: { operations: [network], reversible: true }
+        capability: &readonly
+          effect: network
+          replay: safe
+          concurrency: run_serial
+          checkpoint: none
+          durability: critical
+      - mcp: { server: ontology, tool: ontology_validate_record }
+        effect: { operations: [network], reversible: true }
+        capability: *readonly
+      - mcp: { server: ontology, tool: ontology_inspect_action }
+        effect: { operations: [network], reversible: true }
+        capability: *readonly
+permissions:
+  mode: assisted
+  workspaceOnly: true
+  network: allow
+runtime:
+  maxTurns: 8
+  maxToolCalls: 10
+  maxRetries: 0
+  runTimeoutMs: 20000
+quality:
+  profile: development

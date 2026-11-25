@@ -1,0 +1,9 @@
+@prefix ex: <urn:maintenance:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+ex:EquipmentShape a sh:NodeShape ; sh:targetClass ex:Equipment ;
+    sh:property ex:EquipmentState, ex:EquipmentStation .
+ex:EquipmentState a sh:PropertyShape ; sh:path ex:condition ;
+    sh:minCount 1 ; sh:maxCount 1 ; sh:in ("repaired" "online") .
+ex:EquipmentStation a sh:PropertyShape ; sh:path ex:station ;
+    sh:minCount 1 ; sh:maxCount 1 ; sh:class ex:Station .

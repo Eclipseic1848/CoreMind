@@ -1,0 +1,17 @@
+{
+  "modelVersion": "1.0.0",
+  "actions": {
+    "review": {
+      "targetClass": "urn:review:Document",
+      "stateProperty": "urn:review:state",
+      "from": "draft",
+      "to": "reviewed"
+    },
+    "publish": {
+      "targetClass": "urn:review:Document",
+      "stateProperty": "urn:review:state",
+      "from": "reviewed",
+      "to": "published"
+    }
+  }
+}

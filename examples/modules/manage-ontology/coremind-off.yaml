@@ -1,0 +1,22 @@
+schemaVersion: 3
+name: local-ontology-off
+provider:
+  id: local-ontology-fixture
+  model: local-test
+  baseUrl: http://127.0.0.1:8880/v1
+  apiKeyEnv: COREMIND_ONTOLOGY_FIXTURE_KEY
+defaultAgent: main
+agents:
+  main:
+    systemPrompt: 整理用户提供的资料，按主题和状态输出摘要。
+permissions:
+  mode: assisted
+  workspaceOnly: true
+  network: deny
+runtime:
+  maxTurns: 8
+  maxToolCalls: 10
+  maxRetries: 0
+  runTimeoutMs: 20000
+quality:
+  profile: development

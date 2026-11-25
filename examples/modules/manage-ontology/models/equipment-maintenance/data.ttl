@@ -1,0 +1,4 @@
+@prefix ex: <urn:maintenance:> .
+
+<urn:site:north> a ex:Station .
+<urn:equipment:reader> a ex:Equipment ; ex:condition "repaired" ; ex:station <urn:site:north> .

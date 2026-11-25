@@ -12,6 +12,7 @@
 | 上下文与 Artifact 治理 | [说明](manage-context-artifacts/README.zh-CN.md) | [SOP](manage-context-artifacts/SOP.zh-CN.md) | [Skill](../../skills/manage-context-artifacts/SKILL.md) | [示例](../../examples/modules/manage-context-artifacts/README.zh-CN.md) |
 | 知识检索与引用 | [说明](manage-knowledge/README.zh-CN.md) | [SOP](manage-knowledge/SOP.zh-CN.md) | [Skill](../../skills/manage-knowledge/SKILL.md) | [示例](../../examples/modules/manage-knowledge/README.zh-CN.md) |
 | 长期记忆与经验提炼 | [说明](manage-memory/README.zh-CN.md) | [SOP](manage-memory/SOP.zh-CN.md) | [Skill](../../skills/manage-memory/SKILL.md) | [示例](../../examples/modules/manage-memory/README.zh-CN.md) |
+| 可选本体与业务动作 | [说明](manage-ontology/README.zh-CN.md) | [SOP](manage-ontology/SOP.zh-CN.md) | [Skill](../../skills/manage-ontology/SKILL.md) | [示例](../../examples/modules/manage-ontology/README.zh-CN.md) |
 | Agent 构建 | [说明](design-agents/README.zh-CN.md) | [SOP](design-agents/SOP.zh-CN.md) | [Skill](../../skills/design-agents/SKILL.md) | [示例](../../examples/modules/design-agents/README.zh-CN.md) |
 | 编码智能体 | [说明](build-coding-agents/README.zh-CN.md) | [SOP](build-coding-agents/SOP.zh-CN.md) | [Skill](../../skills/build-coding-agents/SKILL.md) | [示例](../../examples/modules/build-coding-agents/README.zh-CN.md) |
 | Runtime 生命周期扩展 | [说明](extend-runtime-lifecycle/README.zh-CN.md) | [SOP](extend-runtime-lifecycle/SOP.zh-CN.md) | [Skill](../../skills/extend-runtime-lifecycle/SKILL.md) | [示例](../../examples/modules/extend-runtime-lifecycle/README.zh-CN.md) |

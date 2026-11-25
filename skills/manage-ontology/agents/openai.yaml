@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optional Business Ontology"
+  short_description: "Build and verify optional CoreMind ontology bindings"
+  default_prompt: "Use $manage-ontology to map source records, validate constraints and verify the prerequisites and receipts for business actions."

@@ -1,0 +1,10 @@
+@prefix ex: <urn:review:> .
+@prefix doc: <urn:doc:> .
+@prefix person: <urn:person:> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+person:li a ex:Person ; rdfs:label "李复核"@zh .
+doc:guide a ex:PolicyDocument ; ex:state "reviewed" ; ex:reviewedBy person:li ;
+    ex:weightKg 1.25 ; rdfs:label "资料室手册"@zh .
+doc:draft a ex:Document ; ex:state "draft" ; ex:reviewedBy person:li ;
+    ex:weightKg 0.5 ; rdfs:label "新制度草稿"@zh .
