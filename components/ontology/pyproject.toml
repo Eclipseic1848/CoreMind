@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coremind-ontology-mcp"
+version = "0.1.0"
+description = "CoreMind optional RDF and SHACL MCP service"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "rdflib==7.6.0",
+  "pyshacl==0.40.2",
+  "mcp==1.30.0",
+  "uvicorn==0.54.0",
+]
+
+[project.scripts]
+coremind-ontology-mcp = "coremind_ontology.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

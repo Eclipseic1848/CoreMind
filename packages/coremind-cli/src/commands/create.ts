@@ -9,7 +9,7 @@ import {
   TEMPLATES,
   type TemplateMeta,
 } from "coremind-ai";
-import { flagString, type ParsedArgs } from "../args.js";
+import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { promptLine, select } from "../interactive.js";
 import { cyan, dim, errorLine, green, yellow } from "../render.js";
 import { providerStatusLabel } from "./list-providers.js";
@@ -36,8 +36,15 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
   const target = path.resolve(process.cwd(), name);
   const existingProject = (await directoryHasEntries(target)) && name !== undefined;
   const hadCoreMindConfig = await fileExists(path.join(target, "coremind.yaml"));
-  const hadEnvExample = await fileExists(path.join(target, ".env.example"));
   const projectName = existingPath ? path.basename(target) : name;
+  if (flagBool(parsed, "runtime-only")) {
+    if (parsed.flags.has("template") || parsed.flags.has("t")) {
+      console.error(errorLine("--runtime-only 与 --template 只能选其一"));
+      return 1;
+    }
+    return createRuntimeOnly(parsed, target, projectName, hadCoreMindConfig);
+  }
+  const hadEnvExample = await fileExists(path.join(target, ".env.example"));
   let language = parseLanguage(flagString(parsed, "language"));
   if (flagString(parsed, "language") && !language) {
     console.error(errorLine("--language 只能是 typescript、javascript 或 python"));
@@ -175,6 +182,44 @@ interface ProviderSelection {
   id: string;
   apiKeyEnv: string;
   model?: string;
+}
+
+async function createRuntimeOnly(
+  parsed: ParsedArgs,
+  target: string,
+  projectName: string,
+  hasConfig: boolean,
+): Promise<number> {
+  if (hasConfig) {
+    console.log(dim(`使用已有配置：${path.join(target, "coremind.yaml")}`));
+    return 0;
+  }
+  const provider = await selectProvider(parsed);
+  if (!provider) return 1;
+  const yaml = [
+    "schemaVersion: 2",
+    `name: ${JSON.stringify(projectName)}`,
+    "provider:",
+    `  id: ${JSON.stringify(provider.id)}`,
+    ...(provider.model ? [`  model: ${JSON.stringify(provider.model)}`] : []),
+    `  apiKeyEnv: ${provider.apiKeyEnv}`,
+    "agents:",
+    "  main:",
+    "    systemPrompt: 根据用户提供的信息回答问题。",
+    "",
+  ].join("\n");
+  try {
+    await mkdir(target, { recursive: true });
+    await writeFile(path.join(target, "coremind.yaml"), yaml, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    console.error(
+      errorLine(`无法创建配置：${error instanceof Error ? error.message : String(error)}`),
+    );
+    return 1;
+  }
+  console.log(green(`✓ 已创建 Runtime 配置：${path.join(target, "coremind.yaml")}`));
+  console.log(dim(`在运行环境中设置 ${provider.apiKeyEnv}，然后执行 coremind run coremind.yaml。`));
+  return 0;
 }
 
 const PROVIDER_PRESETS: ProviderSelection[] = [

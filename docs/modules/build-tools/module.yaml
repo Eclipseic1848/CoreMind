@@ -14,6 +14,8 @@ sourcePaths:
   - "packages/coremind-runtime/src/mcp-runtime.ts"
   - "packages/coremind-runtime/src/mcp-authentication.ts"
   - "packages/coremind-runtime/src/tool-json-schema.ts"
+  - "examples/modules/build-tools/single-tool.mts"
+  - "examples/modules/build-tools/order-lookup.mjs"
   - "examples/modules/build-tools/browser/mcp-launcher.mjs"
 documents:
   readme:

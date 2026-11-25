@@ -3,6 +3,9 @@ name: package-agent-skills
 description: "Package, share, and roll back reusable CoreMind skills with declared references, assets, and scripts. Use when authoring project skills, pinning Git versions, or diagnosing skill triggers, resource permissions, and frozen recovery."
 ---
 
+
+Use `coremind-skill-install` from the current `coremind-templates` build for the pinned external Skill workflow.
+
 # Skill and SOP Loading
 
 1. Read [the module contract](../../docs/modules/package-agent-skills/README.en.md) and the language-matched guide only when implementation details are needed.

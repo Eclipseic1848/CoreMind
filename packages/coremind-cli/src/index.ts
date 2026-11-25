@@ -58,6 +58,7 @@ ${cyan("CoreMind（星枢智核）")} — 配置驱动智能体开发框架 ${di
 命令：
   ${cyan("create <name>")}          创建新项目或接入已有工程
       --template <id>   非交互选择模板
+      --runtime-only    只写入包含模型与一个 Agent 的配置
       --language <lang> typescript、javascript 或 python
       --provider <id>   选择模型 Provider（非交互时必填）
       --model <id>      可选，指定模型

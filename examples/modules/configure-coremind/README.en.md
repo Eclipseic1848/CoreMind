@@ -1,5 +1,15 @@
 # Configuration and Schema Example
 
+## Run the Runtime alone
+
+Use the current source build of the CLI or its candidate artifact. In your application directory, run `coremind create . --runtime-only --provider deepseek --model deepseek-flash` and set `DEEPSEEK_API_KEY`. With released 2.0.0, copy the [minimal configuration](../../../docs/en/guide/06-capability-construction.md).
+
+- CLI: `coremind run coremind.yaml --prompt "Reply only OK"`.
+- TypeScript: install the matching `coremind-ai` npm package, copy [runtime-only.mts](runtime-only.mts) to the project root and run `node runtime-only.mts`.
+- Python: install the matching `coremind-ai` wheel and copy [runtime_only.py](runtime_only.py) to the root. Run `python runtime_only.py` and `python runtime_only.py --async` for the two Python entry points.
+
+All four entry points should produce a reply in one turn. Check that the model request has an empty tool catalog and that the application needs only its base configuration and Runtime dependencies.
+
 This is the smallest module example. Ask the business owner to confirm fields and rules before copying it.
 
 ```text

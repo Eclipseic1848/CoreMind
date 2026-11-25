@@ -1,5 +1,7 @@
 # Skill 与 SOP 装载开发 SOP
 
+固定版本安装使用当前 `coremind-templates` 安装件中的 `coremind-skill-install`。在独立项目核对锁和资源字节，再由目标 Agent 选择 Skill。安装及回退见[指南](GUIDE.zh-CN.md#固定版本安装和回退)。
+
 ## 前置条件
 
 先阅读 [模块说明](README.zh-CN.md)，确认业务负责人、输入输出、失败条件和权限边界。

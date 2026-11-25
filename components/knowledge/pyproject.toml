@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coremind-knowledge-mcp"
+dynamic = ["version"]
+description = "Local, versioned document retrieval and citations over Streamable HTTP MCP"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "markdown-it-py==4.3.0",
+    "mcp==1.30.0",
+    "numpy==2.3.4",
+    "onnxruntime==1.23.2",
+    "pydantic>=2,<3",
+    "qdrant-client==1.15.1",
+    "starlette<2",
+    "tokenizers==0.22.1",
+    "uvicorn==0.54.0",
+]
+
+[project.optional-dependencies]
+documents = ["docling[rapidocr]==2.151.1"]
+
+[project.scripts]
+coremind-knowledge-mcp = "coremind_knowledge_mcp.server:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "coremind_knowledge_mcp.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

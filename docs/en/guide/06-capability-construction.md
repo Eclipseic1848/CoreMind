@@ -22,6 +22,8 @@ agents:
 
 Supply the model credential through the environment. From this directory run `npx coremind-cli@2.0.0 run coremind.yaml --prompt "Reply only OK"` and check the reply and zero tool calls. Keep the configuration and dependency versions for comparison when you enable each capability.
 
+With the current CLI built from source, run `coremind create . --runtime-only --provider deepseek --model deepseek-flash`. It reuses an existing `coremind.yaml`. See the [SDK example](../../../examples/modules/configure-coremind/README.en.md) for the two SDKs.
+
 | Select one capability | How to connect it in 2.0.0 | First acceptance check |
 | --- | --- | --- |
 | Knowledge | Deploy the knowledge MCP service and bind only the retrieval operations the agent needs | Supply two source versions, then search as a reader and resolve the citation and version |
@@ -30,7 +32,7 @@ Supply the model credential through the environment. From this directory run `np
 | Tools | Register a business function through the SDK or bind a stdio/HTTP MCP operation, then select the tool for the agent | Verify input, permission and a business receipt. Remove the binding and check the tool is absent from a new run |
 | Ontology | Supply the model, mappings and constraints, then bind the required ontology MCP operations | Validate one conforming and one violating record against your model. Grant read-only projects just query and validation operations |
 
-Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested with just its own service. CoreMind 2.0.0 ships these services and their adapters as source examples. The next stage will deliver independently deployable, configurable and upgradable components. Skills and tools retain their existing loading mechanisms. Each component should include its implementation, version and compatibility range, SOP, developer Skill and a runnable example that enables only that capability. [Configuration](02-configuration.md) · [Roadmap](../../roadmap.en.md)
+Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested with just its own service. CoreMind 2.0.0 ships these services and their adapters as source examples. The current source provides separately installable 0.1.0 components for [knowledge](../../../components/knowledge/README.md), [memory](../../../components/memory/README.md) and [ontology](../../../components/ontology/README.md). Skills and tools retain their existing loading mechanisms. Each component should include its implementation, version and compatibility range, SOP, developer Skill and a runnable example that enables only that capability. [Configuration](02-configuration.md) · [Roadmap](../../roadmap.en.md)
 
 **Acceptance from an empty project**
 
@@ -39,6 +41,16 @@ Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested
 3. Combine capabilities needed for a task, such as knowledge and a Skill. Remove one and check the other still works. Use the same project configuration for the CLI, TypeScript, synchronous Python and asynchronous Python entry points.
 
 `document-assistant` is a reference example and a regression test for composition. Seven cases ran in two projects with synthetic documents, live Qwen, Qdrant/BGE-M3, Hindsight/PostgreSQL and an optional ontology. The inputs, permissions, expected outputs and failure records can help you design your own tests. [Composition example](../../../examples/modules/manage-ontology/README.en.md) · [Live service integration](../../../examples/modules/manage-ontology/LIVE-COMPOSITION.en.md)
+
+### Repeat the installed consumer checks
+
+Create a consumer outside the checkout and install the npm artifacts and Python wheel with its embedded Worker from the same build. Start the knowledge, memory and ontology services in their own Python environments. A private JSON file uses the keys `knowledge`, `memory` and `ontology`. For each service, provide its loopback `url`, read `authorization`, read-only `tool`, `args` and an expected response substring in `expect`. Retain a synthetic fact as the host for the memory case. Run the [acceptance script](../../../scripts/verify-optional-consumer.mjs) from the repository:
+
+```sh
+node scripts/verify-optional-consumer.mjs <consumer-directory> <Python-with-installed-SDK> <private-JSON>
+```
+
+The script writes `optional-acceptance.json` with the catalog and successful calls observed through each of the four entry points. The model is a deterministic local fixture. The three MCP services run from installed artifacts. Omit the private JSON argument to repeat the Runtime, Skill and tools cases.
 
 ## 04 Knowledge management
 

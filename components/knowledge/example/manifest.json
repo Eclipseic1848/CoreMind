@@ -1,0 +1,13 @@
+{
+  "asOf": "2026-10-01",
+  "documents": [
+    {
+      "id": "desk",
+      "version": 1,
+      "file": "desk.md",
+      "access": "records",
+      "validFrom": "2026-01-01",
+      "validUntil": null
+    }
+  ]
+}

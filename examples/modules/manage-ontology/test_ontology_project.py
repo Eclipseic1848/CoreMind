@@ -1,5 +1,6 @@
 import json
 import shutil
+import sqlite3
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -85,6 +86,29 @@ class OntologyProjectTest(unittest.TestCase):
             self.assertEqual((result["modelVersion"], result["status"]), ("2.0.0", "denied"))
             executor.assert_not_called()
             self.assertEqual(original.inspect_action("publish", "urn:doc:guide")["status"], "ready")
+
+    def test_receipt_database_owns_writer_and_persists_confirmed_or_unknown_results(self):
+        with TemporaryDirectory() as temp:
+            journal = Path(temp) / "receipts.sqlite3"
+            first = OntologyProject(MODELS / "document-review", demo_transition, receipt_db=journal)
+            try:
+                with self.assertRaises(sqlite3.OperationalError):
+                    OntologyProject(MODELS / "document-review", demo_transition, receipt_db=journal)
+                self.assertEqual(first.perform_action("publish", "urn:doc:guide", "one")["status"], "completed")
+                first.executor = Mock(return_value=None)
+                self.assertEqual(first.perform_action("review", "urn:doc:draft", "two")["status"], "unknown")
+            finally:
+                first.close()
+            executor = Mock()
+            restored = OntologyProject(MODELS / "document-review", executor, receipt_db=journal)
+            try:
+                self.assertEqual(restored.inspect_action("publish", "urn:doc:guide")["state"], "published")
+                self.assertTrue(restored.perform_action("publish", "urn:doc:guide", "one")["replayed"])
+                self.assertEqual(restored.perform_action("review", "urn:doc:draft", "two")["status"], "unknown")
+                self.assertEqual(restored.perform_action("review", "urn:doc:draft", "three")["reason"], "prior_effect_unknown")
+                executor.assert_not_called()
+            finally:
+                restored.close()
 
 
 if __name__ == "__main__":

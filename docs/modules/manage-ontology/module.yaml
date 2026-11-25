@@ -5,6 +5,10 @@ name:
   en: "Optional Ontology and Business Actions"
 version: 2.0.0
 sourcePaths:
+  - "components/ontology/pyproject.toml"
+  - "components/ontology/src/coremind_ontology"
+  - "examples/modules/manage-ontology/_ontology_source.py"
+  - "examples/modules/manage-ontology/receipt_handler.py"
   - "examples/modules/manage-ontology/ontology_graph.py"
   - "examples/modules/manage-ontology/ontology_mapping.py"
   - "examples/modules/manage-ontology/ontology_project.py"
@@ -31,6 +35,7 @@ examplePaths:
   - examples/modules/manage-ontology/README.zh-CN.md
   - examples/modules/manage-ontology/README.en.md
 testPaths:
+  - "examples/modules/manage-ontology/installed_acceptance.py"
   - "examples/modules/manage-ontology/test_ontology_graph.py"
   - "examples/modules/manage-ontology/test_ontology_mapping.py"
   - "examples/modules/manage-ontology/test_ontology_project.py"

@@ -14,7 +14,7 @@ A Skill-only project needs a working agent, a `skills/<id>/SKILL.md` file under 
 - `loadDirectorySkills`
 - `SKILLS`
 
-Applications use the existing Runtime to load standard skills. Use [`install-skill.mjs`](../../../examples/modules/package-agent-skills/install-skill.mjs) to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
+Applications use the existing Runtime to load standard skills. Use the `coremind-skill-install` command shipped by the current coremind-templates build to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
 
 ## Errors and boundaries
 

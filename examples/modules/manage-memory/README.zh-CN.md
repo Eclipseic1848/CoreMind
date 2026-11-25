@@ -5,7 +5,7 @@
 ## 准备服务
 
 1. 启动 Hindsight 1.2.3，将 API 绑定到本地 `127.0.0.1:8780`。Python 3.12 可安装 `hindsight-api-slim[embedded-db,local-onnx]==1.2.3`，用 `hindsight-api --host 127.0.0.1 --port 8780` 启动。设 `HINDSIGHT_API_DATABASE_URL=pg0://coremind-memory-demo` 以隔离演示数据库。由宿主配置模型，中文召回使用适配中文的嵌入模型。设 `HINDSIGHT_API_RETAIN_EXTRACTION_MODE=chunks`、`HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION=false`、`HINDSIGHT_API_LLM_TRACE_ENABLED=false` 和 `HINDSIGHT_API_LLM_TRACE_DELETE_WITH_DOCUMENT=true`。不配置神经重排时使用 `HINDSIGHT_API_RERANKER_PROVIDER=rrf`。本地模型或代理绑定回环地址时，将 `127.0.0.1,localhost` 加入 `NO_PROXY`。[安装与部署](https://hindsight.vectorize.io/developer/installation) · [模型配置](https://hindsight.vectorize.io/developer/configuration)
-2. 从 [2.0.0 正式源码 ZIP](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) 的 `examples/modules/manage-memory/` 取出 `memory_server.py`、`hindsight_backend.py` 和 `requirements.txt`，放在同一个宿主服务目录。在此目录激活专用 Python 3.12 虚拟环境并运行 `python -m pip install -r requirements.txt`。网关固定使用 `hindsight-client==1.2.3`、`mcp==1.30.0` 和 `uvicorn==0.54.0`。独立网关安装包属于后续建设。
+2. 从源码根目录运行 `python -m pip wheel --no-deps ./components/memory --wheel-dir dist`。将生成的 `coremind_memory_mcp-0.1.0-py3-none-any.whl` 交付宿主，在专用 Python 3.12 环境运行 `python -m pip install ./coremind_memory_mcp-0.1.0-py3-none-any.whl`。执行 `coremind-memory-mcp --version` 核对版本。兼容基线为 Hindsight API/客户端 1.2.3，已验证的 PostgreSQL 版本为 18.1。早期脚本保留于 [2.0.0 源码附件](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)。
 3. 在 Agent 可读工作区之外准备宿主绑定文件和回执路径。下例在 PowerShell 中使用 `C:/CoreMind-local/memory-host.json`。实际运行前把路径改成自己可写的本地目录，并预先创建目录。B 用户或其他分支应有独立凭据和各自的授权记忆库。
 
    ```json
@@ -21,7 +21,7 @@
    ```powershell
    $env:COREMIND_MEMORY_AUTHORIZATION = 'Bearer ' + (Read-Host '查询令牌' -MaskInput)
    $env:COREMIND_MEMORY_ADMIN_AUTHORIZATION = 'Bearer ' + (Read-Host '宿主管理令牌' -MaskInput)
-   python -B -X utf8 ./memory_server.py --hindsight-url http://127.0.0.1:8780 --config 'C:/CoreMind-local/memory-host.json' --state 'C:/CoreMind-local/memory-receipts.json' --port 8769
+   coremind-memory-mcp --hindsight-url http://127.0.0.1:8780 --config 'C:/CoreMind-local/memory-host.json' --state 'C:/CoreMind-local/memory-receipts.json' --port 8769
    ```
 
    网关监听 `127.0.0.1:8769`。绑定文件与回执位于业务工作区之外，每个回执文件只由一个运行的网关独占。
@@ -102,6 +102,8 @@ Invoke-RestMethod -Method Post -Uri "$memoryUrl/forget" -Headers $memoryHeaders 
 
 ## CoreMind 四入口验收
 
-业务项目接入见[配置指南](../../../docs/modules/manage-memory/GUIDE.zh-CN.md)。如需复现仓库内的四入口用例，在完整检出根目录执行 `npm ci`、`npm run build`，在验收环境执行 `python -m pip install -e ./python`。保持网关运行，在写入表格偏好后、更正或遗忘前运行 `node examples/modules/manage-memory/acceptance.mjs "资料摘要应该采用哪种格式？" "资料摘要优先使用表格。"`。驱动使用 8770 端口的确定性模型夹具、检出目录的 CLI 和源码 Worker，通过 `COREMIND_MEMORY_PYTHON` 选择解释器。验收独立安装时应改用公开 CLI、SDK 及 wheel 默认内置 Worker，真实模型效果单独复验。
+在新的业务目录按[配置指南](../../../docs/modules/manage-memory/GUIDE.zh-CN.md)安装 2.0.0 CLI、TypeScript SDK 与 Python SDK。复制本目录的 `acceptance.mjs`、`coremind.yaml`、`search.mjs` 和 `search.py`，将 YAML 的 `mcp.servers.memory.url` 指向测试网关；验收配置保留回环模型端口 8770。业务终端仅注入读令牌，用 `COREMIND_MEMORY_PYTHON` 指定已安装 SDK 的解释器。宿主写入表格偏好后、更正或遗忘前，在业务目录执行 `node acceptance.mjs "资料摘要应该采用哪种格式？" "资料摘要优先使用表格。"`。驱动加载已安装的 CLI、SDK 和 wheel 内置 Worker，核对四入口召回的是同一条事实。运行入口使用确定性模型夹具，真实模型效果另行验证。
+
+如要复验已安装的独立 wheel，将 [check_component.py](check_component.py) 复制到空白目录。准备两个隔离测试库、各自的读令牌和首库的管理员令牌。在宿主验收终端注入 `COREMIND_MEMORY_AUTHORIZATION`、`COREMIND_MEMORY_OTHER_AUTHORIZATION`、`COREMIND_MEMORY_ADMIN_AUTHORIZATION`，运行 `python -I -X utf8 check_component.py --bank demo-alice --url http://127.0.0.1:8769`。脚本经宿主 HTTP 和独立 MCP 会话验证幂等写入、不同主体、更正、到期与遗忘，使用新的文档 ID 并在退出时遗忘测试文档。
 
 返回[中文指南](../../../docs/modules/manage-memory/GUIDE.zh-CN.md)。逐项验收见[开发 SOP](../../../docs/modules/manage-memory/SOP.zh-CN.md)。

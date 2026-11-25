@@ -6,6 +6,9 @@ name:
 version: 2.0.0
 sourcePaths:
   - "packages/coremind-config/src"
+  - "packages/coremind-cli/src/commands/create.ts"
+  - "examples/modules/configure-coremind/runtime-only.mts"
+  - "examples/modules/configure-coremind/runtime_only.py"
 documents:
   readme:
     zh-CN: docs/modules/configure-coremind/README.zh-CN.md
