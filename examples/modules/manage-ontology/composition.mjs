@@ -39,7 +39,9 @@ sys.path.insert(0, str(Path(ontology_home).with_name(f"manage-{kind}")))
 if kind == "knowledge":
     # 生产服务入口用 Qdrant；联合用例复用相同服务装配，使用确定性的索引替身。
     class KeywordIndex:
-        def replace(self, chunks):
+        def replace(self, chunks, *, before_publish=None):
+            if before_publish is not None:
+                before_publish()
             self.chunks = chunks
 
         def search(self, query, *, scope, as_of, limit, mode):

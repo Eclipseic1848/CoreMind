@@ -103,7 +103,9 @@ def make_app(catalog, scope, as_of, token):
     ) -> str:
         """解析旧运行留下的引文；返回可用原文、已撤回或未知状态。"""
         return json.dumps(
-            catalog.resolve(docId.strip(), version, file, line=line, locator=locator),
+            catalog.resolve(
+                docId.strip(), version, file, line=line, locator=locator, scope=scope, as_of=as_of
+            ),
             ensure_ascii=False,
         )
 
