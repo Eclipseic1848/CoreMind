@@ -17,6 +17,6 @@ This provider/model pair passed live certification in the `0.8.0` release candid
 2. Run `coremind check` for configuration examples.
 3. Add scenarios and run `coremind eval` for business outputs.
 4. Inject one failure and confirm RunOutcome or the process exit code reports failure explicitly.
-5. Certified status requires all seven live checks for the same version and model. Without data-egress and cost approval, validate configuration only and send no request.
+5. You can validate this configuration locally. For 2.0.0 certification, obtain data-egress and cost approval and use the same version, provider, and model for the seven base checks and five checks covering the parent/child call chain and cancellation convergence. Follow the [provider certification SOP](../../../docs/providers/CERTIFICATION.en.md).
 
 Return to the [English guide](../../../docs/modules/manage-providers/GUIDE.en.md).

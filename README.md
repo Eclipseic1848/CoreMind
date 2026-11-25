@@ -18,7 +18,7 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。可公开安装的版本以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的对应制品为准。
+> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
 > Provider 可配置不等于认证。本版本资格必须由绑定最终提交、版本、Runtime 摘要与 bundled Worker 的 strict-provider 工作流证据确认；生产评估还须核对供应商矩阵。
 
@@ -109,7 +109,7 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-源码开发需要 Node.js ≥ 22.19、npm ≥ 11.5.1，Python SDK 需要 Python ≥ 3.10。公开渠道提供 2.0.0 后可按下例安装。[从 1.4 升级](docs/migrations/1.4-to-2.0.zh-CN.md)
+源码开发需要 Node.js ≥ 22.19、npm ≥ 11.5.1，Python SDK 需要 Python ≥ 3.10。按下例安装 2.0.0。[从 1.4 升级](docs/migrations/1.4-to-2.0.zh-CN.md)
 
 ```bash
 npm install -g coremind-cli@2.0.0
@@ -267,7 +267,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`2.0.0` 正式发布必须另有绑定最终提交、版本与 Runtime 摘要的 strict-provider 工作流证据。`0.7.0` 的一次性网络例外与旧版本证据只供追溯，均不计为本版本认证。
+CoreMind 提供 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。2.0.0 的 `deepseek-flash` 通过 12 项真实检查：七项基础行为覆盖流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文，另五项覆盖父模型调用、委派、子模型调用、子工具调用及取消收敛。证据绑定本次提交、版本和 Runtime 候选包摘要。0.7.0 的网络例外保留在历史记录中。[认证矩阵](docs/providers/README.zh-CN.md) · [严格认证结果](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

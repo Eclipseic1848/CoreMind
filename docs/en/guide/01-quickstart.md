@@ -8,7 +8,7 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 ## 2. Install and create a project
 
-`coremind-cli@2.0.0` is the target package for this release line; confirm public availability on the live npm page before installation. Upgrade from `1.4` using the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
+`coremind-cli@2.0.0` is available on the public npm registry. Upgrade from `1.4` using the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
 
 ```bash
 npm install coremind-ai@2.0.0 coremind-cli@2.0.0
@@ -34,17 +34,16 @@ Provider support does not imply live certification. Check the [provider matrix](
 ## 4. Validate before running
 
 ```bash
-npx coremind doctor
-npx coremind check
-npx coremind run coremind.yaml --dry-run
+npx coremind-cli@2.0.0 doctor coremind.yaml
+npx coremind-cli@2.0.0 check coremind.yaml
 ```
 
-`doctor` checks the environment, `check` validates the project contract, and `--dry-run` resolves configuration without sending a model request.
+`doctor` reports the environment and `check` validates the project configuration. You can run both checks before sending a model request.
 
 ## 5. Run interactively
 
 ```bash
-npx coremind chat coremind.yaml
+npx coremind-cli@2.0.0 chat coremind.yaml
 ```
 
 Start with the ask permission mode. Review every requested operation until you understand the tool and data boundaries.

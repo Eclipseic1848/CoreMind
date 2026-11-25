@@ -6,6 +6,8 @@
 
 ## 2.0.0
 
+于 2026-11-25（UTC）发布。[冻结提交](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [发布构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [发布跟踪](https://github.com/Eclipseic1848/CoreMind/issues/404)
+
 业务方现在可以从 `document-assistant` 模板创建资料整理项目，替换自己的资料、身份绑定、Skill 和本体模型。CLI/YAML、TypeScript、Python 同步和异步调用沿用同一个 Node Runtime。
 
 - **知识。** Docling/RapidOCR 负责解析，BGE-M3 与 Qdrant 用于中文检索。结果给出文件、版本和位置。检索及解析 Markdown 表格引文时，数据行还带同一文件版本内的表头原文和行号，便于核对每个值对应的列。宿主可幂等导入、撤回版本、从原文重建索引。检索和旧引文解析均校验阅读范围。索引构建失败时保留上一份可用状态。[表格引文修复 #411](https://github.com/Eclipseic1848/CoreMind/issues/411)
@@ -15,9 +17,11 @@
 - **可选本体。** 业务方提供 RDF 模型、映射、SHACL Core 约束与动作规则。RDFLib 和 pySHACL 返回约束位置、模型版本和动作前置条件。宿主另行授权执行并检查实际结果。
 - **同轮多个工具。** 同一模型回合同时请求若干工具时，含独占或串行合同的批次按顺序执行；可并发的批次保留并发。审批、预算、持久化与工作区租约仍由 Runtime 执行。
 - **Qwen 兼容端点。** 自定义 Provider 可显式使用 `qwen-chat-template` 将思考开关发送到 `chat_template_kwargs.enable_thinking`。旧 `qwen` 格式继续发送顶层开关。无效的显式格式会在配置阶段被拒绝，输出预算仍由 Agent 控制。
-- **交付材料。** 五域建设指南给出能力图谱 04–08 的 20 项映射。资料助手模板提供双语说明、Skill 和四入口样例。P0 同步了依赖并清理已过期的审计例外。发布候选继续执行工程、稳定性、覆盖率、双平台真实 PTY、严格 Provider 及公开回装门禁。
+- **交付材料。** 五域建设指南给出能力图谱 04–08 的 20 项映射。资料助手模板提供双语说明、Skill 和四入口样例。P0 同步了依赖并清理已过期的审计例外。Windows 与 Linux 均通过稳定性、覆盖率及真实 PTY 检查。严格候选的资料助手在两个合成项目、两个独立主体上首次运行即通过 7/7。[双平台与 Provider 验收](https://github.com/Eclipseic1848/CoreMind/issues/403) · [七例记录](https://github.com/Eclipseic1848/CoreMind/issues/403#issuecomment-7153443452)
 
 2026-11-24，资料助手在 Windows 开发环境以两个项目的小型合成资料、独立读者和两个 Hindsight 个人记忆库完成七个逻辑案例。CLI 比较两版资料，TypeScript 整理草稿并检查发布条件，Python 同步入口验证另一项目的资料与偏好，异步入口验证更正和撤回。另有三个独立 ChatSession 分别验证未设置偏好、已确认表格偏好及更正为清单。真实 Qwen3.8-27B 调用知识、记忆与可选本体服务。原始记录保留失败尝试与复验，同一案例只计一次。[运行方法与边界](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) · [逐次运行及摘要](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/live-composition-results.json)
+
+DeepSeek `deepseek-flash` 正式认证通过 12 项检查，零重试。单次授权为 30 分钟、人民币 10 元，SDK 估算上限 0.50 美元。SDK 记录 39,833 tokens、估算 0.012180252 美元；人民币已结算 0.088264 元，另有预留 6.316032 元。[认证作业](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139/job/139014137383)
 
 [1.4→2.0 迁移](docs/migrations/1.4-to-2.0.zh-CN.md) · [完整发布说明](docs/release/notes/v2.0.0.md)
 

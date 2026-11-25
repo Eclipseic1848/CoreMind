@@ -29,11 +29,11 @@ telemetry: {...}        # 可选：进程外投影；默认 DISABLED，本地观
 ```yaml
 provider:
   id: deepseek                  # 内置提供商之一
-  model: deepseek-v4-flash      # 可选，缺省取该提供商默认模型
+  model: deepseek-flash         # 2.0.0 已认证的模型
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-**内置提供商**：`1.4.0` 有 42 个内置聊天 Provider，含兼容别名共 43 个可配置入口；别名不重复计为独立提供商。可通过 TypeScript SDK 的 `listInheritedProviders()` 查看当前安装版本的继承清单。可配置不等于真实认证。[静态供应商矩阵](../providers/README.zh-CN.md)仅反映已登记证据；正式发布还必须使用绑定最终提交、Runtime 和准确制品摘要的严格认证证据，可在同版本 [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.4.0) 对应的 Candidate 工作流中核对。部署到其他模型、凭据或环境仍需单独复验。
+2.0.0 有 42 个内置聊天 Provider，含兼容别名共 43 个可配置入口。TypeScript SDK 的 `listInheritedProviders()` 可列出本机安装版本的目录。本版本唯一通过严格认证的组合为 `deepseek` / `deepseek-flash`，证据绑定发布提交与实际 Runtime 包摘要。CLI 的 `providers` 和 `create` 沿用包内历史标签，仍将阿里云标为已认证、DeepSeek 标为尚未认证。部署到其他模型、凭据或环境时需单独复验。[在线认证矩阵](../providers/README.zh-CN.md) · [严格认证记录](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) · [2.0.0 发布说明](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)
 
 **自定义 OpenAI 兼容端点**（Ollama / 本地模型 / 私有网关）：
 

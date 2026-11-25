@@ -110,7 +110,7 @@ function renderEnglish(data) {
 
 > This table was generated from the ${data.generatedAt} static runtime catalog and human-maintained evidence ledger and corresponds to target version \`${data.targetVersion}\`. Do not edit the table manually.
 
-CoreMind has **${data.providers.filter((item) => !item.aliasOf).length}** built-in chat providers and **${data.summary.supported}** configurable entries including compatibility aliases. Complete real-call evidence exists for **${data.summary.certified}** entries, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
+CoreMind has **${data.providers.filter((item) => !item.aliasOf).length}** built-in chat providers and **${data.summary.supported}** configurable entries including compatibility aliases. Complete real-call evidence exists for **${data.summary.certified}** of these entries, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
 ## Status definitions
 

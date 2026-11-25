@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-26",
+  "updatedAt": "2026-11-25",
   "criteria": [
     "streaming",
     "tool-call",
@@ -112,6 +112,32 @@
         "long-context"
       ],
       "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json"
+    },
+    {
+      "id": "deepseek",
+      "model": "deepseek-flash",
+      "version": "2.0.0",
+      "commit": "ea4f637dc3c6380e621ac401b29f650616af92ed",
+      "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
+      "candidateArtifactSha256": "4e598f765bc67065908b49b5ffa1a40b9feeb2f14973c1d3c4746752ee2ba9b8",
+      "runtimeDigest": "sha256:b480a0c270d307ba8ef10138ba49ba705fc9b50f30b3919bb18bd767f973bb48",
+      "artifactManifestDigest": "sha256:0af562c831d47b97dd4a9b1de76ab2114692b57e25c7753096e49f183dcd8df5",
+      "testedAt": "2026-11-25T06:05:16.608Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "abort",
+        "error",
+        "long-context",
+        "parent-model-call",
+        "delegation-tool",
+        "child-model-call",
+        "child-tool-call",
+        "cancel-convergence"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.0.0-2026-11-25.json"
     }
   ]
 }

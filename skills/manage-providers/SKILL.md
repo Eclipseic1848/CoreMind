@@ -10,8 +10,8 @@ description: "Inherit the provider catalog from the locked runtime dependency wh
 3. Follow [the SOP](../../docs/modules/manage-providers/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.
 4. Add or update a failing test before implementation, then make the smallest change that passes it.
 5. Inspect RunOutcome, Trace, budgets, approvals, and checkpoints. Treat a fluent answer without evidence as unverified.
-6. Obtain explicit data-egress and cost approval before live certification. Require streaming, tool call, structured result, multi-turn, abort, error mapping, and long-context evidence from the same version/provider/model.
-7. Bind certification to the full Git commit and Runtime artifact SHA-256 that were actually tested.
+6. Obtain explicit data-egress and cost approval before live certification. For 2.0.0, run the seven base checks (streaming, tool call, structured result, multi-turn, abort, error mapping, and long context) and verify the parent model call, delegation tool, child model call, child tool call, and cancellation convergence. Use the same version, provider, and model for all 12 checks. Follow the [provider certification SOP](../../docs/providers/CERTIFICATION.en.md).
+7. Bind certification to the full Git commit and the SHA-256 digests of the tested Runtime and candidate package.
 8. Treat the caller-injected environment as authoritative. Test conflicting and empty environments; never fall back to host variables or credential files after `apiKeyEnv` is selected.
 9. Reject plaintext credential values in Provider headers, including case or separator variants of credential aliases. Accept only secret references resolved at execution time.
 10. Keep incomplete or older evidence configurable and unverified; regenerate the matrix and inspect certification gaps.

@@ -6,7 +6,7 @@
 
 需要 Node.js ≥ 22.19.0。
 
-`coremind-cli@2.0.0` 是本发布线的目标包；安装前以 npm 实时页面确认公开可用性。从 `1.4` 升级请使用[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)；更早版本的[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)保留供查阅。
+`coremind-cli@2.0.0` 已发布到 npm，可按下方命令安装。从 `1.4` 升级请使用[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)；更早版本的[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)保留供查阅。
 
 ```bash
 npm install -g coremind-cli@2.0.0

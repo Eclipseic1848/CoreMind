@@ -1,6 +1,6 @@
 # Providers and Models
 
-Status: contract and documentation aligned with the `1.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the `2.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
@@ -19,7 +19,7 @@ Inherit the provider catalog from the locked runtime dependency while keeping av
 - Recognized transient gateway errors inside a stream follow the bounded provider retry policy. Loop respects `maxRetries`, fails when exhausted, and skips subsequent verification. Unknown, billing, and authentication errors gain no automatic retry. Steps using only tools without effects may retry; an existing effect or started delegation instead requires human review and prevents replaying the whole step. This conservatively includes read-only child tasks because the parent's own receipt cannot prove the child is safe to replay.
 - A missing apiKeyEnv produces an explicit authentication error
 - Runtime reads credentials only from the caller-injected environment. Once `apiKeyEnv` is explicit, it is the sole key source; host-process variables, credential files, and provider defaults are not fallback sources
-- Catalog discovery means configurable only; current certification covers streaming, tools, structured output, multi-turn, abort, error mapping, and long context
+- Catalog discovery identifies configurable Providers. Certification in 2.0.0 requires seven base checks (streaming, tool call, structured result, multi-turn, abort, error mapping, and long context) plus five checks for the parent model call, delegation tool, child model call, child tool call, and cancellation convergence.
 - Earlier evidence with missing current checks is retained with gaps but automatically downgraded to configurable and incomplete
 - Current-version certification records the full Git commit and Runtime artifact SHA-256, so evidence is bound to the build that was actually tested
 
@@ -37,4 +37,4 @@ CoreMind supplies mechanisms, quality guardrails, and development guidance. User
 - [Module example](../../../examples/modules/manage-providers/README.en.md)
 - [Agent Skill](../../../skills/manage-providers/SKILL.md)
 
-The `0.8.0` certification is historical only; `1.0.0` requires its own strict-provider workflow evidence.
+`deepseek/deepseek-flash` passed strict certification for `2.0.0`. The [provider matrix](../../providers/README.en.md) links the evidence for the tested commit.

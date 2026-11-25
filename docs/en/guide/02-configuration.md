@@ -9,7 +9,7 @@ schemaVersion: 2
 name: my-agent
 provider:
   id: deepseek
-  model: deepseek-chat
+  model: deepseek-flash
   apiKeyEnv: DEEPSEEK_API_KEY
 agents:
   main:
@@ -25,7 +25,7 @@ permissions:
 
 Keep the first configuration small. Add tools, workflow stages, or an explicit Loop only when a verified requirement needs them.
 
-Providers are inherited dynamically from the locked runtime family. The `1.4.0` release line has 42 built-in chat Providers and 43 configurable entries including compatibility aliases; aliases do not count as independent Providers. Use `listInheritedProviders()` to inspect the exact installed catalog. Configurability is not live certification. The [static Provider matrix](../../providers/README.en.md) reflects recorded evidence only; formal publication also requires strict-provider evidence bound to the final commit, Runtime, and exact artifact digests. Check the Candidate workflow associated with the same-version [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.4.0). Deployment to another model, credential, or environment requires separate validation.
+CoreMind 2.0.0 has 42 built-in chat Providers and 43 configurable entries including compatibility aliases. Use `listInheritedProviders()` to inspect the installed catalog. Only `deepseek` with `deepseek-flash` passed strict certification for this release commit and Runtime package digest. Both `providers` and `create` retain the bundled historical labels. They show Alibaba Model Studio as certified and DeepSeek as unverified. Validate deployments that use a different model, credential or environment separately. [Online certification matrix](../../providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) · [2.0.0 release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)
 
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 

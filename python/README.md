@@ -14,7 +14,7 @@ python -m pip install "coremind-ai==2.0.0"
 
 Protocol v2 不开放 Python callable 注册；改用 `register_tool_definition()` 注册声明式 Schema/Effect/Capability，从 `received_tool_calls` 读取调用、从 `received_tool_cancellations` 读取取消，再用 `submit_tool_result()` 显式回传。Checkpoint 使用 `checkpoint_list/create/diff/restore`，恢复必须提交 `diff` 返回的当前文件身份。两类能力都由随包 Node Runtime 执行，Python 不读取私有数据库或复制状态机。`2.0.0` 仍默认使用 v1，并显式支持 v2；当前没有批准的 v1 移除时间表，任何移除都需要独立、版本化的弃用决策。
 
-1.4.0 的同步/异步客户端提供 `task_start`、`task_query`、`task_resume`、`task_cancel`、`task_next_wake`、`task_wake` 和会话树、分支、fork 方法；须显式启用 Protocol v2。可信 Node 宿主通过 `runStdioWorker` 注册定义，Python 只传定义 ID 与 JSON；默认 Worker 不开放未注册任务。组合用法见[任务与会话指南](https://github.com/Eclipseic1848/CoreMind/blob/v1.4.0/docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。
+从 1.4.0 起，同步和异步客户端提供 `task_start`、`task_query`、`task_resume`、`task_cancel`、`task_next_wake`、`task_wake` 和会话树、分支、fork 方法；须显式启用 Protocol v2。可信 Node 宿主通过 `runStdioWorker` 注册定义，Python 只传定义 ID 与 JSON；默认 Worker 不开放未注册任务。组合用法见[任务与会话指南](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/modules/embed-coremind-python/GUIDE.zh-CN.md)。
 
 Python 包随 bundled worker 一起携带由 TypeScript 唯一 Error Contract 生成的只读 `ERROR_CODES`。可用 `error_code_info(code)` 查询终态、取消、重试、人工处置和兼容 Run 状态；`ProtocolError.error_info` 自动提供同一分类。未登记的 Python SDK 自有码会在仓库 CI 中失败，未知外部错误仍收敛为 `unclassified_error`。
 
@@ -30,7 +30,7 @@ Configured delegation runs through that same bundled Node Worker. A v1 `run` res
 
 Protocol v2 does not accept Python callable registration. Use `register_tool_definition()` for declarative tools, consume `received_tool_calls` and `received_tool_cancellations`, and return results explicitly with `submit_tool_result()`. Checkpoint operations are exposed through `checkpoint_list/create/diff/restore`, with compare-and-swap file identity required for restore. Both paths remain authoritative in the bundled Node runtime. Version `2.0.0` keeps v1 as the default and supports explicit v2 opt-in. No v1 removal schedule is approved; removal requires a separate, versioned deprecation decision.
 
-Version 1.4.0 exposes task start/query/resume/cancel/next-wake/wake and session tree/branch/fork methods in both clients with explicit Protocol v2. Trusted Node hosts register definitions through `runStdioWorker`; Python sends definition IDs and JSON only, and the default Worker rejects unregistered tasks. See the [task and session guide](https://github.com/Eclipseic1848/CoreMind/blob/v1.4.0/docs/modules/embed-coremind-python/GUIDE.en.md).
+Since version 1.4.0, both clients have supported task start/query/resume/cancel/next-wake/wake and session tree/branch/fork methods with explicit Protocol v2. Trusted Node hosts register definitions through `runStdioWorker`; Python sends definition IDs and JSON only, and the default Worker rejects unregistered tasks. See the [task and session guide](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/modules/embed-coremind-python/GUIDE.en.md).
 
 The Python package ships a read-only `ERROR_CODES` artifact generated from the single TypeScript Error Contract. Use `error_code_info(code)` for terminality, cancellation, retry, human-action, and compatibility Run classifications; `ProtocolError.error_info` exposes the same entry. CI rejects unregistered Python-owned codes, and unknown external failures still converge to `unclassified_error`.
 
