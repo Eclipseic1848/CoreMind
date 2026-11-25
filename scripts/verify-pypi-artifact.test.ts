@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   decideExistingPyPiArtifact,
   manifestWheels,
-  stagePyPiUploads,
+  stagePyPiUpload,
 } from "./verify-pypi-artifact.mjs";
 
 const roots: string[] = [];
@@ -38,6 +38,11 @@ function fixture(version = "2.1.0") {
       sha256: createHash("sha256").update(bytes).digest("hex"),
     };
   });
+  writeFileSync(
+    path.join(root, "SHA256SUMS.txt"),
+    artifacts.map((item) => `${item.sha256}  ${item.path}`).join("\n"),
+    "utf8",
+  );
   return { root, target: path.join(root, "stage"), manifest: { version, artifacts } };
 }
 
@@ -55,46 +60,62 @@ describe("PyPI 断点发布判定", () => {
     expect(decideExistingPyPiArtifact("same", releases, "other.whl")).toBe("publish");
   });
 
-  it("四项公开版本各自返回 404 时只列为待上传，不把它当首次 OIDC 注册证明", async () => {
+  it("各环境只向自己的 PyPI 项目查询，404 时只暂存该项目的 wheel", async () => {
     const { root, target, manifest } = fixture();
-    const calls: string[] = [];
-    const request = async (url: string) => {
-      calls.push(url);
-      return new Response(null, { status: 404 });
-    };
-    expect(await stagePyPiUploads(root, manifest, target, request)).toBe("publish");
-    expect(calls).toEqual(
-      manifest.artifacts.map((a) => `https://pypi.org/pypi/${a.name}/${a.version}/json`),
-    );
-    expect(readdirSync(target).sort()).toEqual(
-      manifest.artifacts.map((a) => path.basename(a.path)).sort(),
-    );
-  });
-
-  it("部分发布只暂存缺失项目，全部相同时跳过上传", async () => {
-    const { root, target, manifest } = fixture();
-    const request = (missing: string) => async (url: string) => {
-      const wheel = manifest.artifacts.find((a) => url.endsWith(`/${a.name}/${a.version}/json`))!;
-      if (wheel.name === missing) return new Response(null, { status: 404 });
-      return Response.json({
-        urls: [{ filename: path.basename(wheel.path), digests: { sha256: wheel.sha256 } }],
-      });
-    };
     for (const artifact of manifest.artifacts) {
       const directory = path.join(target, artifact.name);
-      expect(await stagePyPiUploads(root, manifest, directory, request(artifact.name))).toBe(
+      const calls: string[] = [];
+      const request = async (url: string) => {
+        calls.push(url);
+        return new Response(null, { status: 404 });
+      };
+      expect(await stagePyPiUpload(root, manifest, artifact.name, directory, request)).toBe(
         "publish",
       );
+      expect(calls).toEqual([`https://pypi.org/pypi/${artifact.name}/${artifact.version}/json`]);
       expect(readdirSync(directory)).toEqual([path.basename(artifact.path)]);
     }
-    const allIdentical = path.join(target, "all-identical");
-    expect(await stagePyPiUploads(root, manifest, allIdentical, request(""))).toBe(
-      "skip-identical",
-    );
-    expect(existsSync(allIdentical)).toBe(false);
   });
 
-  it("任意一项哈希冲突、权限错误或查询失败均阻止整批暂存", async () => {
+  it("同项目已发布相同字节便跳过；拒绝未指定或未知的项目", async () => {
+    const { root, target, manifest } = fixture();
+    for (const artifact of manifest.artifacts) {
+      const request = async () =>
+        Response.json({
+          urls: [{ filename: path.basename(artifact.path), digests: { sha256: artifact.sha256 } }],
+        });
+      expect(await stagePyPiUpload(root, manifest, artifact.name, target, request)).toBe(
+        "skip-identical",
+      );
+      expect(existsSync(target)).toBe(false);
+    }
+    for (const invalid of ["", "other"]) {
+      await expect(
+        stagePyPiUpload(root, manifest, invalid, target, () => {
+          throw new Error("unexpected request");
+        }),
+      ).rejects.toThrow("当前清单中没有");
+    }
+  });
+
+  it("SDK 环境仅读取自己的 wheel，并兼容 2.0.0 的单件清单", async () => {
+    for (const version of ["2.0.0", "2.1.0"]) {
+      const { root, target, manifest } = fixture(version);
+      for (const item of manifest.artifacts.slice(1)) rmSync(path.join(root, item.path));
+      expect(
+        await stagePyPiUpload(
+          root,
+          manifest,
+          "coremind-ai",
+          target,
+          async () => new Response(null, { status: 404 }),
+        ),
+      ).toBe("publish");
+      expect(readdirSync(target)).toEqual([path.basename(manifest.artifacts[0].path)]);
+    }
+  });
+
+  it("项目哈希冲突、权限错误或查询失败时阻止该项目上传", async () => {
     const { root, target, manifest } = fixture();
     const last = manifest.artifacts.at(-1)!;
     for (const failure of [
@@ -106,13 +127,30 @@ describe("PyPI 断点发布判定", () => {
     ]) {
       const request = async (url: string) =>
         url.includes(last.name) ? failure : new Response(null, { status: 404 });
-      await expect(stagePyPiUploads(root, manifest, target, request)).rejects.toThrow();
+      await expect(stagePyPiUpload(root, manifest, last.name, target, request)).rejects.toThrow();
       expect(existsSync(target)).toBe(false);
     }
     writeFileSync(path.join(root, last.path), "changed", "utf8");
     await expect(
-      stagePyPiUploads(root, manifest, target, async () => new Response(null, { status: 404 })),
+      stagePyPiUpload(
+        root,
+        manifest,
+        last.name,
+        target,
+        async () => new Response(null, { status: 404 }),
+      ),
     ).rejects.toThrow("本地 wheel");
+    expect(existsSync(target)).toBe(false);
+    writeFileSync(path.join(root, "SHA256SUMS.txt"), "", "utf8");
+    await expect(
+      stagePyPiUpload(
+        root,
+        manifest,
+        last.name,
+        target,
+        async () => new Response(null, { status: 404 }),
+      ),
+    ).rejects.toThrow("SHA256SUMS.txt");
     expect(existsSync(target)).toBe(false);
   });
 

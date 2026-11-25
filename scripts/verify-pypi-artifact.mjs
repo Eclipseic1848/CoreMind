@@ -67,43 +67,44 @@ export function decideExistingPyPiArtifact(localSha256, releases, filename) {
   return "conflict";
 }
 
-export async function planPyPiUploads(rootDirectory, manifest, request = fetch) {
-  const pending = [];
-  for (const wheel of manifestWheels(manifest)) {
-    const bytes = await readFile(path.join(rootDirectory, wheel.path));
-    if (
-      createHash("sha256").update(bytes).digest("hex") !== wheel.sha256 ||
-      bytes.length !== wheel.size
-    ) {
-      throw new Error(`本地 wheel 大小或 SHA-256 与清单不符：${wheel.filename}`);
-    }
-    const response = await request(`https://pypi.org/pypi/${wheel.name}/${wheel.version}/json`);
-    if (response.status !== 404 && !response.ok) {
-      throw new Error(`PyPI ${wheel.name} 查询失败：HTTP ${response.status}`);
-    }
-    // 公开 404 只说明该版本未发布；首次上传的权限由 PyPI 在 OIDC 换证和上传时检查。
-    const releases = response.status === 404 ? [] : (await response.json()).urls;
-    const decision = decideExistingPyPiArtifact(wheel.sha256, releases, wheel.filename);
-    if (decision === "conflict") throw new Error(`PyPI wheel SHA-256 冲突：${wheel.filename}`);
-    if (decision === "publish") pending.push(wheel);
+async function verifyPyPiWheel(rootDirectory, wheel, request) {
+  const bytes = await readFile(path.join(rootDirectory, wheel.path));
+  if (
+    createHash("sha256").update(bytes).digest("hex") !== wheel.sha256 ||
+    bytes.length !== wheel.size
+  ) {
+    throw new Error(`本地 wheel 大小或 SHA-256 与清单不符：${wheel.filename}`);
   }
-  return pending;
+  const response = await request(`https://pypi.org/pypi/${wheel.name}/${wheel.version}/json`);
+  if (response.status !== 404 && !response.ok) {
+    throw new Error(`PyPI ${wheel.name} 查询失败：HTTP ${response.status}`);
+  }
+  // 公开 404 只说明该版本未发布；首次上传的权限由 PyPI 在 OIDC 换证和上传时检查。
+  const releases = response.status === 404 ? [] : (await response.json()).urls;
+  const decision = decideExistingPyPiArtifact(wheel.sha256, releases, wheel.filename);
+  if (decision === "conflict") throw new Error(`PyPI wheel SHA-256 冲突：${wheel.filename}`);
+  return decision;
 }
 
-export async function stagePyPiUploads(rootDirectory, manifest, target, request = fetch) {
-  const pending = await planPyPiUploads(rootDirectory, manifest, request);
-  if (pending.length && target) {
+export async function stagePyPiUpload(rootDirectory, manifest, project, target, request = fetch) {
+  const wheel = manifestWheels(manifest).find((item) => item.name === project);
+  if (!wheel) throw new Error(`当前清单中没有该 PyPI 项目：${project}`);
+  const sums = await readFile(path.join(rootDirectory, "SHA256SUMS.txt"), "utf8");
+  const entries = sums.split(/\r?\n/).filter((line) => line.endsWith(`  ${wheel.path}`));
+  if (entries.length !== 1 || entries[0] !== `${wheel.sha256}  ${wheel.path}`) {
+    throw new Error(`SHA256SUMS.txt 与项目清单不匹配：${wheel.filename}`);
+  }
+  const decision = await verifyPyPiWheel(rootDirectory, wheel, request);
+  if (decision === "publish") {
     await mkdir(path.dirname(target), { recursive: true });
     await mkdir(target);
-    for (const wheel of pending) {
-      await copyFile(path.join(rootDirectory, wheel.path), path.join(target, wheel.filename));
-    }
+    await copyFile(path.join(rootDirectory, wheel.path), path.join(target, wheel.filename));
   }
-  return pending.length ? "publish" : "skip-identical";
+  return decision;
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  const [, , root = "release-artifacts", mode, target] = process.argv;
+  const [, , root = "release-artifacts", mode, project, stageFlag, target] = process.argv;
   const manifest = JSON.parse(await readFile(path.join(root, "release-manifest.json"), "utf8"));
   if (mode === "--requirements") {
     for (const wheel of manifestWheels(manifest)) {
@@ -111,11 +112,17 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
     }
   } else if (mode === "--sdk-filename") {
     console.log(manifestWheels(manifest).find((wheel) => wheel.name === "coremind-ai").filename);
-  } else if (!mode || (mode === "--stage" && target)) {
-    console.log(await stagePyPiUploads(root, manifest, target));
+  } else if (mode === "--project" && project && stageFlag === "--stage" && target) {
+    console.log(await stagePyPiUpload(root, manifest, project, target));
+  } else if (!mode) {
+    const decisions = [];
+    for (const wheel of manifestWheels(manifest)) {
+      decisions.push(await verifyPyPiWheel(root, wheel, fetch));
+    }
+    console.log(decisions.includes("publish") ? "publish" : "skip-identical");
   } else {
     throw new Error(
-      "用法：verify-pypi-artifact.mjs [目录] [--stage 上传目录|--requirements|--sdk-filename]",
+      "用法：verify-pypi-artifact.mjs [目录] [--project 项目 --stage 上传目录|--requirements|--sdk-filename]",
     );
   }
 }

@@ -578,7 +578,25 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs.npm.environment.name).toBe("npm");
     expect(workflow.jobs.npm.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.npm.needs).toContain("build");
-    expect(workflow.jobs.pypi.environment.name).toBe("pypi");
+    const pypi = workflow.jobs.pypi;
+    expect(pypi.strategy.matrix.include).toEqual([
+      { project: "coremind-ai", environment: "pypi" },
+      { project: "coremind-knowledge-mcp", environment: "pypi-knowledge" },
+      { project: "coremind-memory-mcp", environment: "pypi-memory" },
+      { project: "coremind-ontology-mcp", environment: "pypi-ontology" },
+    ]);
+    expect(pypi.strategy["fail-fast"]).toBe(false);
+    expect(pypi.environment.name).toBe(`\${{ matrix.environment }}`);
+    const pypiState = pypi.steps.find((step: { id?: string }) => step.id === "pypi-state");
+    expect(pypiState.env.PYPI_PROJECT).toBe(`\${{ matrix.project }}`);
+    expect(pypiState.run).toContain(`--project "\${PYPI_PROJECT}" --stage .scratch/pypi-upload`);
+    const pypiPublish = pypi.steps.find((step: { uses?: string }) =>
+      step.uses?.startsWith("pypa/gh-action-pypi-publish@"),
+    );
+    expect(pypiPublish.with["packages-dir"]).toBe(".scratch/pypi-upload");
+    expect(pypiPublish.if).toBe("steps.pypi-state.outputs.decision == 'publish'");
+    expect(pypi["continue-on-error"]).toBeUndefined();
+    expect(workflow.jobs.release.if).toBeUndefined();
     expect(workflow.jobs.pypi.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.pypi.needs).toContain("build");
     expect(serialized).toContain("verify-pypi-artifact.mjs");
@@ -719,7 +737,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(serialized).toContain("npm@11.5.1");
     expect(serialized).toContain("build==1.5.0");
     expect(serialized).not.toContain("build==1.5.1");
-    for (const jobName of ["attest", "npm", "pypi", "release"]) {
+    for (const jobName of ["attest", "npm", "release"]) {
       const commands = workflow.jobs[jobName].steps
         .map((step: { run?: string }) => step.run ?? "")
         .join("\n");

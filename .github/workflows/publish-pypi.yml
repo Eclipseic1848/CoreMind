@@ -438,11 +438,24 @@ jobs:
           node scripts/publish-npm-artifacts.mjs --publish release-artifacts
 
   pypi:
+    name: Publish PyPI ${{ matrix.project }}
     needs: [build]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: coremind-ai
+            environment: pypi
+          - project: coremind-knowledge-mcp
+            environment: pypi-knowledge
+          - project: coremind-memory-mcp
+            environment: pypi-memory
+          - project: coremind-ontology-mcp
+            environment: pypi-ontology
     environment:
-      name: pypi
-      url: https://pypi.org/p/coremind-ai
+      name: ${{ matrix.environment }}
+      url: https://pypi.org/p/${{ matrix.project }}
     permissions:
       contents: read
       id-token: write
@@ -457,15 +470,12 @@ jobs:
           name: coremind-release-bundle
           path: release-artifacts
 
-      - name: 校验已验证发布物哈希
-        run: |
-          cd release-artifacts
-          sha256sum --check SHA256SUMS.txt
-
       - name: 判断 PyPI 同版本产物是否可安全续传
         id: pypi-state
+        env:
+          PYPI_PROJECT: ${{ matrix.project }}
         run: |
-          decision="$(node scripts/verify-pypi-artifact.mjs release-artifacts --stage .scratch/pypi-upload)"
+          decision="$(node scripts/verify-pypi-artifact.mjs release-artifacts --project "${PYPI_PROJECT}" --stage .scratch/pypi-upload)"
           echo "decision=${decision}" >> "${GITHUB_OUTPUT}"
 
       - name: 使用可信发布上传 PyPI
