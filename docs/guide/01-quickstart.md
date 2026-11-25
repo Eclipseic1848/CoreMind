@@ -63,7 +63,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 | `coremind chat <file>` | 多轮 TUI（审批、预算、Trace、checkpoint/diff/恢复） |
 | `coremind check [file]` | 检查配置、安全、项目材料和质量档 |
 | `coremind eval [file]` | 重复运行 `evals/scenarios.yaml` |
-| `coremind templates` | 查看全部 8 个模板（兼容 `list-templates`） |
+| `coremind templates` | 查看当前安装版本的模板（兼容 `list-templates`） |
 | `coremind providers` | 查看可配置 Provider 与当前认证状态 |
 | `coremind doctor` | 环境自检（Node 版本 / 配置 / API key 是否存在） |
 
@@ -74,4 +74,5 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 - 想让 agent 更专业（按 SOP 干活）？→ [技能指南](03-skills.md)
 - 跑完不知道好不好？→ [质量与调优](04-quality.md)
 - 看看经过完整材料与离线评测的实现？→ [5 个黄金示例](../../examples/golden/README.zh-CN.md)
-- 按模块学习？→ [22 个能力模块](../modules/README.zh-CN.md)
+- 按业务任务组合知识、记忆、本体、工具与 Skill？→ [五个能力域的建设与验收](06-capability-construction.md)
+- 按模块学习？→ [能力模块目录](../modules/README.zh-CN.md)

@@ -1,4 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { type CoreMindConfig, parseConfigText, validateConfig } from "coremind-config";
 import { describe, expect, it } from "vitest";
@@ -75,9 +77,75 @@ describe("模板配置合法", () => {
         id: "alibaba-model-studio",
         apiKeyEnv: "DASHSCOPE_API_KEY",
       });
-      expect(t.requiresEnv).toEqual([]);
+      expect(t.requiresEnv).not.toContain(config.provider?.apiKeyEnv);
     });
   }
+
+  it("document-assistant 只向 Agent 开放两项资料查询，默认由宿主审批文件写入", () => {
+    const config = parsed.get("document-assistant")!;
+    const template = TEMPLATES.find((t) => t.id === "document-assistant")!;
+    expect(template.requiresEnv).toEqual([
+      "COREMIND_KNOWLEDGE_AUTHORIZATION",
+      "COREMIND_MEMORY_AUTHORIZATION",
+    ]);
+    expect(Object.keys(config.mcp!.servers)).toEqual(["knowledge", "memory"]);
+    for (const [name, server] of Object.entries(config.mcp!.servers)) {
+      expect(server).toMatchObject({
+        allowedAddresses: ["127.0.0.1"],
+        headers: { Authorization: { env: `COREMIND_${name.toUpperCase()}_AUTHORIZATION` } },
+      });
+    }
+    const agent = config.agents.main!;
+    expect(
+      agent.tools?.map((tool) => ("mcp" in tool ? tool.mcp.tool : "id" in tool && tool.id)),
+    ).toEqual(["write", "search_knowledge", "recall_memory"]);
+    for (const tool of agent.tools ?? []) {
+      if ("mcp" in tool) {
+        expect(tool.capability).toMatchObject({
+          effect: "network",
+          durability: "critical",
+          concurrency: "run_serial",
+        });
+      }
+    }
+    expect(agent.skills).toEqual(["document-comparison"]);
+    expect(existsSync(path.join(template.dir, "skills/document-comparison/SKILL.md"))).toBe(true);
+    expect(config.permissions).toMatchObject({
+      mode: "ask",
+      workspaceOnly: true,
+      allow: ["load_skill"],
+    });
+  });
+
+  it("启用后保留普通配置，只增加本体只读动作检查", () => {
+    const template = TEMPLATES.find((t) => t.id === "document-assistant")!;
+    const dir = mkdtempSync(path.join(tmpdir(), "coremind-ontology-config-"));
+    try {
+      const ordinary = path.join(dir, "coremind.yaml");
+      const target = path.join(dir, "coremind-ontology.yaml");
+      copyFileSync(path.join(template.dir, "coremind.yaml"), ordinary);
+      const original = readFileSync(ordinary, "utf8");
+      execFileSync(process.execPath, [path.join(template.dir, "enable-ontology.mjs")], {
+        cwd: dir,
+      });
+      const withOntology = validateConfig(parseConfigText(readFileSync(target, "utf8")));
+      expect(withOntology.provider).toEqual(parsed.get("document-assistant")!.provider);
+      expect(withOntology.mcp!.servers.ontology).toMatchObject({
+        url: "http://127.0.0.1:8879/mcp",
+        headers: { Authorization: { env: "COREMIND_ONTOLOGY_AUTHORIZATION" } },
+      });
+      expect(withOntology.agents.main!.tools!.slice(0, -1)).toEqual(
+        parsed.get("document-assistant")!.agents.main!.tools,
+      );
+      expect(withOntology.agents.main!.tools!.at(-1)).toMatchObject({
+        mcp: { server: "ontology", tool: "ontology_inspect_action" },
+        capability: { effect: "network", durability: "critical", concurrency: "run_serial" },
+      });
+      expect(readFileSync(ordinary, "utf8")).toBe(original);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   it("blog-writer 一次生成并一次写入，不提供无关命令工具", () => {
     const config = parsed.get("blog-writer")!;

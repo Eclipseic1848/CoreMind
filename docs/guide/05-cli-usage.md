@@ -64,7 +64,7 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
 | `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
 | `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
-| `coremind templates` | 查看全部 8 个场景模板 | — | `coremind templates` |
+| `coremind templates` | 查看当前安装版本的场景模板 | — | `coremind templates` |
 | `coremind providers` | 查看可配置 Provider 与当前认证状态 | — | `coremind providers` |
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 

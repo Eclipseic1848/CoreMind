@@ -13,9 +13,14 @@ const pairs = [
   ["SECURITY.md", "SECURITY.en.md"],
   ["CODE_OF_CONDUCT.md", "docs/en/community-code-of-conduct.md"],
   ["CHANGELOG.md", "CHANGELOG.en.md"],
-  ...["01-quickstart", "02-configuration", "03-skills", "04-quality", "05-cli-usage"].map(
-    (name) => [`docs/guide/${name}.md`, `docs/en/guide/${name}.md`],
-  ),
+  ...[
+    "01-quickstart",
+    "02-configuration",
+    "03-skills",
+    "04-quality",
+    "05-cli-usage",
+    "06-capability-construction",
+  ].map((name) => [`docs/guide/${name}.md`, `docs/en/guide/${name}.md`]),
 ];
 
 const missing = pairs.flat().filter((file) => !existsSync(path.join(root, file)));
