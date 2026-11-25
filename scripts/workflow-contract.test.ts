@@ -67,11 +67,22 @@ describe("GitHub Actions 收口合同", () => {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: 检查 shell 原文变量，不是 JavaScript 插值。
       '--repo "${GITHUB_REPOSITORY}"',
     );
-    expect(workflow.jobs.deploy.if).toContain("workflow_dispatch");
+    const { build, deploy } = workflow.jobs;
+    expect(build.if).toContain("workflow_dispatch");
+    expect(deploy.needs).toBe("build");
     expect(workflow.jobs.deploy.environment.name).toBe("github-pages");
-    expect(
-      workflow.jobs.deploy.steps.map((step: { run?: string }) => step.run).join("\n"),
-    ).toContain("npm install --global npm@11.5.1");
+    expect(build.steps.map((step: { run?: string }) => step.run).join("\n")).toContain(
+      "npm install --global npm@11.5.1",
+    );
+    const upload = build.steps.find((step: { uses?: string }) =>
+      step.uses?.startsWith("actions/upload-pages-artifact@"),
+    );
+    expect(build.env.PAGES_ARTIFACT).toContain("github.run_attempt");
+    expect(upload.with.name).toContain("env.PAGES_ARTIFACT");
+    expect(build.outputs.artifact_name).toBe(upload.with.name);
+    expect(deploy.steps).toHaveLength(1);
+    expect(deploy.steps[0].uses).toMatch(/^actions\/deploy-pages@/);
+    expect(deploy.steps[0].with.artifact_name).toContain("needs.build.outputs.artifact_name");
   });
 
   it("双平台工程 CI 为 PR 与 main 提供稳定快速门禁", () => {
