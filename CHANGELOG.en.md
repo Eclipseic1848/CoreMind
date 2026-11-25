@@ -4,6 +4,15 @@ This file records user-facing changes. Historical release records remain unchang
 
 [简体中文](CHANGELOG.md)
 
+## 2.1.0
+
+Release preparation. [2.0-to-2.1 candidate migration](docs/migrations/2.0-to-2.1.en.md) · [Candidate notes](docs/release/notes/v2.1.0.md) · [Release milestone](https://github.com/Eclipseic1848/CoreMind/milestone/5)
+
+- Generate a minimal configuration in your project with `coremind create . --runtime-only`, then select capabilities as needed.
+- Knowledge, Hindsight memory, and ontology ship as separate 0.1.0 components. Install a Skill from a pinned commit and register or remove each application tool independently.
+- The CLI lists configurable Providers and links to the online certification matrix. Check the evidence for the version and artifact you use.
+- Refresh the README, contribution and security instructions, capability guides, implementation SOPs, developer Skills, and minimal examples.
+
 ## 2.0.0
 
 Released on 2026-11-25 (UTC). [Frozen commit](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [Release build](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [Release tracking](https://github.com/Eclipseic1848/CoreMind/issues/404)

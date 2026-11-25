@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 - 2026-11-25
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## 2.0.0
 
 - Support the explicit Qwen chat-template thinking format on custom endpoints. Keep the top-level format and existing output limits, and reject unrecognized explicit thinking formats.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 - 2026-11-25
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## 2.0.0
 
 - Scaffold the document assistant with business service bindings, matching CLI/SDK routes, optional ontology and bilingual usage. Preserve existing environment entries and include the required service credentials.

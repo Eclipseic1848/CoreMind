@@ -1,6 +1,6 @@
 {
   "name": "coremind-worker",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "CoreMind 跨语言 Node Runtime worker",
   "license": "MIT",
   "repository": {
@@ -37,7 +37,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "coremind-ai": "2.0.0",
-    "coremind-protocol": "2.0.0"
+    "coremind-ai": "2.1.0",
+    "coremind-protocol": "2.1.0"
   }
 }

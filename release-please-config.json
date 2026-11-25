@@ -28,7 +28,7 @@
         { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-config" },
         { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-templates" },
         { "type": "json", "path": "packages/coremind-runtime/package.json", "jsonpath": "$.dependencies.coremind-tools" },
-        { "type": "json", "path": "packages/coremind-templates/package.json", "jsonpath": "$.devDependencies.coremind-config" },
+        { "type": "json", "path": "packages/coremind-templates/package.json", "jsonpath": "$.dependencies.coremind-config" },
         { "type": "json", "path": "packages/coremind-tools/package.json", "jsonpath": "$.dependencies.coremind-config" },
         { "type": "json", "path": "packages/coremind-worker/package.json", "jsonpath": "$.dependencies.coremind-ai" },
         { "type": "json", "path": "packages/coremind-worker/package.json", "jsonpath": "$.dependencies.coremind-protocol" },

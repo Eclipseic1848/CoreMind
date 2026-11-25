@@ -4,6 +4,15 @@
 
 [English](CHANGELOG.en.md)
 
+## 2.1.0
+
+发布准备中。[2.0→2.1 候选迁移](docs/migrations/2.0-to-2.1.zh-CN.md) · [候选说明](docs/release/notes/v2.1.0.md) · [发布进度](https://github.com/Eclipseic1848/CoreMind/milestone/5)
+
+- 业务项目可用 `coremind create . --runtime-only` 生成最小配置，按需加载五项能力。
+- 知识、Hindsight 记忆和本体提供三个独立的 0.1.0 组件。Skill 可从固定提交安装，工具可单独注册和撤除。
+- CLI 列出可配置 Provider 并指向公开认证矩阵。实际认证按对应版本和制品核对。
+- 更新 README、贡献指南、安全报告、五域说明、实施 SOP、开发 Skill 和最小示例。
+
 ## 2.0.0
 
 于 2026-11-25（UTC）发布。[冻结提交](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [发布构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [发布跟踪](https://github.com/Eclipseic1848/CoreMind/issues/404)
