@@ -6,7 +6,7 @@
 - The Xingta staging environment and Yunqiao offline environment use one release checklist. Staging passes. The offline environment reports an outdated Node.js version and a missing rollback snapshot.
 - A general notification summary completes without any skill calls.
 
-To try a single local Skill, copy one example package to `skills/<id>/` under your own configuration directory and list only that ID on the intended agent. You can also write the `SKILL.md` yourself. The [standalone guide](../../../docs/modules/package-agent-skills/GUIDE.en.md) includes a complete configuration. The draft generator, pinned installer, acceptance scripts, and model fixture are source examples. The installed CLI can load a local Skill without them.
+To try a single local Skill, copy one example package to `skills/<id>/` under your own configuration directory and list only that ID on the intended agent. You can also write the `SKILL.md` yourself. The [standalone guide](../../../docs/modules/package-agent-skills/GUIDE.en.md) includes a complete configuration. The draft generator, acceptance scripts and model fixture run from source. The 2.1.0 candidate `coremind-templates` package supplies the pinned `coremind-skill-install` command. The installed CLI can load a local Skill without them.
 
 ## Generate an editable draft from a task
 

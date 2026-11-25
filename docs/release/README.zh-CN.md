@@ -1,10 +1,10 @@
 # CoreMind 正式发布 SOP
 
-本 SOP 把 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。候选复用时，清单分别记录包的构建提交和发布提交。任一渠道成功都不能替代整体验收。
+本 SOP 将八个 npm 包、Python SDK、独立组件、源码 ZIP、GitHub Release 和双语文档站纳入同一次发布。制品清单同时记录构建身份、包版本和 SHA-256。
 
-> 本 SOP 适用于 2.0.0 发布线，升级基线为 1.4.0。冻结主线提交 S 后，从候选制品取得 Runtime 包的 SHA-256 H。按受支持的部署方式启动固定版本服务，使用候选 npm tarball、Python wheel 与内置 Worker 在干净项目复跑资料助手，验证两次索引重建、四入口、不同项目与主体的隔离及实际摘要。真实 Provider 资格绑定相同 S/H、已授权的模型、凭据来源、预算和时限，另行核对双平台工程、稳定性、覆盖率、真实 PTY 与成功的 `Candidate qualified` 作业。正式发布后逐件核对构建 R 的八个 npm 包、wheel 和源码 ZIP，再从公开源安装并复跑最小组合。
+> 2.1.0 候选从 2.0.0 升级。候选 SDK 使用同一版本，知识、Hindsight 记忆和本体分别使用 0.1.0。空白项目依次验收仅 Runtime、五项单独加载、组合和移除。以资料助手保留组合回归。正式发布逐件比对同一构建的 13 件制品。
 
-[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md)
+[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md) · [2.0→2.1 候选迁移](../migrations/2.0-to-2.1.zh-CN.md) · [2.1 候选说明](notes/v2.1.0.md)
 
 ## 历史发布决定
 
@@ -41,7 +41,7 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 
 在正式候选前确认：
 
-1. GitHub 仓库存在受保护环境 `npm` 与 `pypi`，均要求维护者人工批准。
+1. GitHub 仓库的 `npm`、`pypi`、`pypi-knowledge`、`pypi-memory` 和 `pypi-ontology` 均限主线部署，并要求维护者人工批准。
 2. 8 个 npm 包分别配置 Trusted Publisher：仓库 `Eclipseic1848/CoreMind`、工作流文件 `publish-pypi.yml`、环境 `npm`。
 3. PyPI 项目 `coremind-ai` 配置 Trusted Publisher：同一仓库、同一工作流文件、环境 `pypi`。
 4. GitHub Actions 可以写入构建来源证明，并允许发布工作流创建 Release。
@@ -51,19 +51,19 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `2.0.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `2.1.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 继续前必须核对实际存在目标版本、预期分支的发布 PR，且 `isDraft=true`；工作流成功本身不够。未创建时先核对并处理未发布或状态未同步的旧发布 PR，不得跳过草稿直接进入资格验收。
 
 ```powershell
-npm run release:sync-version -- 2.0.0
+npm run release:sync-version -- 2.1.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
 
 ### 固定并审阅发布正文
 
-冻结时核对 `docs/release/notes/v2.0.0.md`、双语 CHANGELOG、1.4→2.0 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
+冻结时核对 `docs/release/notes/v2.1.0.md`、双语 CHANGELOG、2.0→2.1 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
 
 在任何 Registry 或 Release 公开写入前验证模板和 Tag/HEAD 身份；Release 阶段再核产物清单，使用固定输出文件配合 `gh release create --notes-file`。缺失、空白、身份不符或未知占位符均停止，不能退回 `--generate-notes`。复用已有 Release 时，先比较线上 body 与同一身份渲染的正文，仅允许明确的 CRLF/LF 与末尾终止换行差异；不同、缺失或查询未知均停止，不能自动编辑、覆盖正文或先上传缺失资产。既有附件哈希、一次构建与恢复门仍全部保留。正文控制不删改任何真实依赖、版权、许可证或 NOTICE。
 
@@ -83,6 +83,17 @@ npm run release:preflight -- --allow-dirty
 草稿 PR 先完成版本、文档、工程检查与可在分支执行的离线验收，再转 ready 经受保护 PR 合入。严格 Provider 工作流要求冻结的 main 提交，须在合并后、Tag 与发布前完成；不得从普通功能分支创建发布 Tag。
 
 将最终 main 源码提交记为 S，Runtime 候选包 SHA-256 记为 H。任何真实 Provider 执行前，按[认证 SOP](../providers/CERTIFICATION.zh-CN.md)取得明确外发与费用批准，绑定 Provider、模型、凭据来源、费用上限、最长运行时间及本次 S/H；旧候选的批准或认证不得代用。不得把只有工程 CI 通过或 Provider 被跳过的运行视为严格资格。
+
+首次发布前，在 [PyPI Publishing](https://pypi.org/manage/account/publishing/) 登记三个 Pending Trusted Publisher。Owner 为 `Eclipseic1848`，Repository 为 `CoreMind`，Workflow 为 `publish-pypi.yml`。三个首次登记必须使用不同的环境名。
+
+| PyPI 项目 | GitHub 环境 |
+| --- | --- |
+| `coremind-ai` | `pypi`，现有 SDK 项目 |
+| `coremind-knowledge-mcp` | `pypi-knowledge` |
+| `coremind-memory-mcp` | `pypi-memory` |
+| `coremind-ontology-mcp` | `pypi-ontology` |
+
+公开项目接口返回 404 时，仍需在账户页面确认待发布登记。首次上传后，待发布者会转为该项目的普通可信发布者。[PyPI 登记指南](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/) · [OIDC 匹配规则](https://docs.pypi.org/trusted-publishers/internals/)
 
 ## 3. 执行代码与文档门禁
 
@@ -115,7 +126,7 @@ P0-17 使用 [`v0.7.1-main-ruleset.json`](evidence/v0.7.1-main-ruleset.json) 保
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
 - Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
-- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`2.0.0` 不接受旧版本的网络或离线晋升例外。
+- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；当前候选不接受旧版本的网络或离线晋升例外。
 - Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
@@ -128,7 +139,7 @@ npm run acceptance:rc -- --require-manual
 
 1. 最终全仓 Markdown 审计通过后，将草稿发布 PR 标记 ready。
 2. 确认 PR 只包含本版本内容，双平台 CI 全绿后合并到 `main`。
-3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v2.0.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
+3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v2.1.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
 4. Tag 后工作区必须干净，重新执行 `npm run release:preflight`。`v0.7.0` 的历史恢复仍使用其专属网络例外参数；其他版本不得使用。
 
 Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `Publish CoreMind Release` 并输入已存在的 Tag。
@@ -138,12 +149,12 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 当前版本的严格发布工作流执行以下顺序：
 
 1. 从指定 Tag checkout，同一作业完成代码、安全和发布预检。
-2. 构建 8 个 npm tarball、1 个 wheel、1 个独立源码 ZIP。
+2. 构建 8 个 npm tarball、1 个 SDK wheel、3 个独立组件 wheel、1 个独立源码 ZIP。
 3. 对 npm 执行 allowlist、publint、类型解析；对 wheel 执行 Twine、干净安装和内置 Worker；对源码 ZIP 使用跨平台解码器执行内容、路径穿越和解压安装门禁。
 4. 生成 `release-manifest.json` 与 `SHA256SUMS.txt`，每个产物记录版本、大小和 SHA-256。
 5. 上传一次构建产物；每个消费作业都在使用前独立校验 `SHA256SUMS.txt`，再由独立作业生成 GitHub 构建来源证明。
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
-7. 受保护 `pypi` 环境批准后，以 OIDC 发布同一个 wheel。
+7. 四个受保护 PyPI 环境逐项批准后，各自以 OIDC 发布对应的 wheel。各项目按包名、版本和摘要验收。
 8. npm、PyPI 与来源证明都成功后，按已验证固定正文使用 `--notes-file` 创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
 9. `0.7.0` 的候选、发布和公开回装阶段分别生成 P0-01～P0-20、P0-01～P0-21 与 P0-01～P0-22 顶层报告；该历史报告不代表当前版本的发布证据。
 10. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
@@ -155,14 +166,14 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@2.0.0
+npm install -g coremind-cli@2.1.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent
 coremind check coremind.yaml
 ```
 
-以同一次发布构建 bundle 记为 R：从 npm、PyPI 和 GitHub Release 公开下载 8 个 npm tarball、1 个 wheel、1 个独立源码 ZIP 共 10 件，逐项核对 R 的清单与 SHA-256，并在全新环境验证 8 个 npm 入口、CLI、bundled Worker、基本 Child Run 和源码 ZIP 解压安装。维护者随后另建本地 Python 虚拟环境复核 `coremind.__version__`、Node Worker 启动、TypeScript/Python parity 和 Python callable 工具往返；Protocol v2 的任务/会话入口另核可信宿主注册、重启、分支与 fork。最后检查双语文档站导航、下载链接与版本说明，部分渠道成功不构成完成。
+以同一次发布构建 bundle 记为 R：从 npm、PyPI 和 GitHub Release 公开下载 8 个 npm tarball、1 个 SDK wheel、3 个独立组件 wheel、1 个源码 ZIP 共 13 件，逐项核对 R 的清单与 SHA-256，并在全新环境验证 8 个 npm 入口、CLI、bundled Worker、基本 Child Run、源码 ZIP 解压安装及三个组件的独立启动。再验证空白项目、单域、组合和移除。维护者随后另建本地 Python 虚拟环境复核 `coremind.__version__`、Node Worker 启动、TypeScript/Python parity 和 Python callable 工具往返；Protocol v2 的任务/会话入口另核可信宿主注册、重启、分支与 fork。最后检查双语文档站导航、下载链接与版本说明，部分渠道成功不构成完成。
 
 ### 发布元数据收尾
 

@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release line: `2.0.0`
+## Public stable release `2.0.0`
 
-Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. Version 2.0.0 provides Skill, tool and MCP interfaces. The knowledge, memory and ontology services currently ship as source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [Migration from 1.4](migrations/1.4-to-2.0.en.md)
+Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. The 2.0.0 release provides Skill, tool and MCP interfaces and includes the knowledge, memory and ontology services in its source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [Migration from 1.4](migrations/1.4-to-2.0.en.md)
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -22,9 +22,9 @@ All eight npm packages, the Python wheel and the source ZIP for `v2.0.0` matched
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Windows, Linux and strict DeepSeek certification passed for this version. [Candidate qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
-## Independently usable capabilities
+## `2.1.0` candidate status
 
-Start from the Runtime in the application project. Knowledge retrieval, Hindsight memory and ontology each have a separately deployable source build, a configuration entry point, and upgrade and rollback instructions. Skills are selected by ID; tools are registered or bound. Verify each can be updated and removed independently. Deliver the implementation, SOP, developer Skill and minimal example for each capability. In a project outside the repository, test the Runtime alone, each of the five capabilities alone, then selected combinations. Remove one component and check the rest. Use `document-assistant` for reference and composition regression. [Construction and acceptance method](en/guide/06-capability-construction.md)
+The five optional capabilities are on the main branch. Start with a Runtime-only project, install any of the three `0.1.0` wheels for knowledge, Hindsight memory and ontology, and select pinned Skills and business tools as needed. The external consumer passed 49 checks across four client entry points, individual capabilities, combinations and removal using a deterministic model fixture. Public installation and Provider qualification require evidence for the 2.1.0 artifacts. [Candidate installation and rollback](migrations/2.0-to-2.1.en.md) · [Candidate changes](release/notes/v2.1.0.md) · [Implementation record](https://github.com/Eclipseic1848/CoreMind/pull/424) · [Construction and acceptance](en/guide/06-capability-construction.md)
 
 ## Delivered in `2.0.0`
 

@@ -61,7 +61,7 @@ Calculate SHA-256 over the raw bytes. On Windows, run `Get-FileHash assets/templ
 
 ## Pinned installation and rollback
 
-Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install a `coremind-templates` artifact built from the current source in your working directory, then prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
+Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install the matching 2.1.0 candidate npm tarballs, including `coremind-templates`, in your working directory ([candidate installation](../../migrations/2.0-to-2.1.en.md)), then prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
 
 ```sh
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0

@@ -1,10 +1,10 @@
 # CoreMind Release SOP
 
-This SOP publishes GitHub source, eight npm packages including the CLI and TypeScript SDK, the PyPI Python SDK, an independent source ZIP, a GitHub Release, and the bilingual documentation site at one version and stability level. When reusing a candidate, the manifest distinguishes the package build commit from the release commit.
+The release includes eight npm packages, the Python SDK, independently versioned components, a source ZIP, a GitHub Release, and the bilingual documentation site. The manifest binds each distribution to its build, version and SHA-256.
 
-> This SOP targets 2.0.0. The upgrade baseline is 1.4.0. Freeze the main commit S, then obtain the candidate Runtime tarball SHA-256 H. Start the pinned services in their supported deployment mode. Install candidate npm tarballs, wheel and bundled Worker in clean projects and verify two index rebuilds, four entry points, project and reader isolation, and the actual summary file. Bind strict Provider qualification to S/H, the approved model, credential source, budget and duration. Verify both-platform engineering, stability, coverage, real PTYs and a successful `Candidate qualified` job. After publication, compare build R's eight npm packages, wheel and source ZIP with its manifest. Reinstall from public sources and rerun the minimum integrated example.
+> The 2.1.0 candidate uses 2.0.0 as its upgrade baseline. The CLI and SDKs share the candidate version; knowledge, Hindsight memory and ontology each start at 0.1.0. Qualify the Runtime alone, individual capabilities, composition and removal in a clean project. Keep the document assistant as a composition regression. Compare all thirteen public artifacts with the same release build.
 
-[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md)
+[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md) · [2.0-to-2.1 candidate migration](../migrations/2.0-to-2.1.en.md) · [2.1 candidate notes](notes/v2.1.0.md)
 
 ## Historical release decisions
 
@@ -39,22 +39,33 @@ Config v2, omitted or explicit `direct` tools, and Protocol v1 remain compatible
 
 ## One-time account configuration
 
-Create protected GitHub environments named `npm` and `pypi`, both requiring maintainer approval. Configure Trusted Publishers for all eight npm packages with repository `Eclipseic1848/CoreMind`, workflow `publish-pypi.yml`, and environment `npm`. Configure the PyPI `coremind-ai` publisher with the same repository and workflow plus environment `pypi`. Allow GitHub Actions to create pull requests, keep repository auto-merge disabled, and do not configure irreversible automation that runs only because a PR is ready. The workflow filename and environment are part of the OIDC identity; renaming either requires a coordinated registry-side update and revalidation.
+Set up the protected GitHub environments `npm`, `pypi`, `pypi-knowledge`, `pypi-memory`, and `pypi-ontology`. Each deploys from main and requires maintainer approval. Configure Trusted Publishers for all eight npm packages with repository `Eclipseic1848/CoreMind`, workflow `publish-pypi.yml`, and environment `npm`. Configure the PyPI `coremind-ai` publisher with the same repository and workflow plus environment `pypi`. Allow GitHub Actions to create pull requests, keep repository auto-merge disabled, and do not configure irreversible automation that runs only because a PR is ready. The workflow filename and environment are part of the OIDC identity; renaming either requires a coordinated registry-side update and revalidation.
+
+Before the first component releases, register their Pending Trusted Publishers in [PyPI Publishing](https://pypi.org/manage/account/publishing/). Use owner `Eclipseic1848`, repository `CoreMind` and workflow `publish-pypi.yml`. Each pending publisher uses a distinct environment.
+
+| PyPI project | GitHub environment |
+| --- | --- |
+| `coremind-ai` | `pypi` (existing SDK project) |
+| `coremind-knowledge-mcp` | `pypi-knowledge` |
+| `coremind-memory-mcp` | `pypi-memory` |
+| `coremind-ontology-mcp` | `pypi-ontology` |
+
+Confirm the account-side registration independently of the public project endpoint. The first upload converts a pending publisher into a publisher for that project. [PyPI registration](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/) · [OIDC claim matching](https://docs.pypi.org/trusted-publishers/internals/)
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `2.0.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `2.1.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 Before continuing, verify that a release PR actually exists for the target version and expected branch with `isDraft=true`; workflow success alone is insufficient. If none exists, first reconcile older unpublished or unsynchronized release PRs; never skip the draft and proceed directly to qualification.
 
 ```powershell
-npm run release:sync-version -- 2.0.0
+npm run release:sync-version -- 2.1.0
 npm run release:preflight -- --allow-dirty
 ```
 
 ### Freeze and review the Release body
 
-Review `docs/release/notes/v2.0.0.md`, both changelogs, migration from 1.4 and the scope of the actual tests. The reviewed body has exactly one `{{RELEASE_COMMIT}}` and the renderer injects only the verified 40-character commit for the tag.
+Review `docs/release/notes/v2.1.0.md`, both changelogs, migration from 2.0 and the scope of the actual tests. The reviewed body has exactly one `{{RELEASE_COMMIT}}` and the renderer injects only the verified 40-character commit for the tag.
 
 Validate the template and Tag/HEAD identity before any public Registry or Release write. Recheck the artifact manifest in the Release stage and create the Release from the fixed output file through `gh release create --notes-file`. Missing, empty, mismatched, or unknown template fields stop the operation without falling back to `--generate-notes`. When resuming an existing Release, compare its body with the text rendered for the same identity before uploading missing assets. Only explicit CRLF/LF and final-terminating-newline differences are allowed; a different or missing body or an unknown query result stops recovery, without automatic editing or replacement. Existing asset-hash, build-once, and recovery gates remain active. Notes control never removes real dependencies, copyrights, licenses, or NOTICE files.
 
@@ -91,7 +102,7 @@ Property tests must use repository-fixed seeds, and host-capability discovery mu
 
 The formal Candidate cancellation-stability matrix retains all 1000 fixed seeds; Engineering CI's targeted seed 4 regression cannot replace it. Keep all existing task, RPC, subprocess, settlement, and workflow timeouts. Increasing deadlines, shrinking the matrix, or rerunning unexplained failures cannot establish release qualification.
 
-Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. Version `2.0.0` cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
+Follow the [RC acceptance guide](RC-ACCEPTANCE.en.md). P01-P19 and their evidence anchors must pass; real Windows ConPTY and Linux PTY evidence must bind to the same version and commit; and a currently authorized Provider must pass streaming, tool, structured-result, multi-turn, and error-path rechecks. The current candidate cannot reuse older release exceptions. Actual P20 JSON stays in ignored `.scratch/rc-evidence/` and is archived with the workflow run identifier; the source commit retains templates only, avoiding a commit-SHA self-reference. Finish with:
 
 ```powershell
 npm run acceptance:rc -- --require-manual
@@ -99,15 +110,15 @@ npm run acceptance:rc -- --require-manual
 
 ## Merge, tag, and publish
 
-After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit, with the actual `Candidate qualified` job successful and matching version, Runtime package digest, live Provider, and both-platform PTY evidence, before creating `v2.0.0` on that commit. The tag must equal the root manifest version and must never be moved or overwritten. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
+After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit, with the actual `Candidate qualified` job successful and matching version, Runtime package digest, live Provider, and both-platform PTY evidence, before creating `v2.1.0` on that commit. The tag must equal the root manifest version and must never be moved or overwritten. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
 
-For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one wheel, and one independent source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheel. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created with the validated fixed body through `--notes-file` only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
+For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one SDK wheel, three independent component wheels, and one source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheels. Each PyPI job publishes only the wheel for its environment. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created with the validated fixed body through `--notes-file` only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
 
 The Release attaches only the independent source ZIP, checksums, and manifest in addition to GitHub's unavoidable automatic source zip/tar.gz links. Leave `artifact_run_id` empty for the first run. That path first proves the same commit has no earlier successful Build and that the target version is explicitly absent from the GitHub Release, all eight npm packages, and PyPI; any existing or unknown state refuses a rebuild. After a partial publication or uncertain network result, pass the original publication run ID: the workflow accepts only a saved bundle from the same workflow and commit with a successful Build and matching tag, version, manifest, and checksums; it never rebuilds that continuation. Existing same-name, same-version npm, PyPI, or GitHub Release assets are skipped only when their hashes match; missing assets are uploaded and hash conflicts fail immediately. Published versions remain immutable, so conflicts require a higher repaired version.
 
 ## Public-registry verification and failure handling
 
-Let R identify the single publication build bundle. Download all ten artifacts publicly from npm, PyPI, and the GitHub Release: eight npm tarballs, one wheel, and one independent source ZIP. Compare every item with R's manifest and SHA-256 values, then verify all eight npm entries, the CLI, bundled Worker, basic Child Run, and extracted source-ZIP installation in clean environments. Maintainers should additionally verify a fresh global CLI install, create a project, run `coremind check`, and use a new Python virtual environment to verify `coremind.__version__`, Worker startup, TypeScript/Python parity, and a Python callable round trip. Separately check Protocol v2 task/session access through a trusted registered host, restart, branches, and forks. Confirm bilingual documentation navigation and download links; partial channel success does not establish completion.
+Let R identify the single publication build bundle. Download all thirteen artifacts publicly from npm, PyPI, and the GitHub Release: eight npm tarballs, one SDK wheel, three component wheels, and one source ZIP. Compare every item with R's manifest and SHA-256 values, then verify all eight npm entries, the CLI, bundled Worker, basic Child Run, and extracted source-ZIP installation in clean environments. Start each installed component separately, then verify composition and removal. Maintainers should additionally verify a fresh global CLI install, create a project, run `coremind check`, and use a new Python virtual environment to verify `coremind.__version__`, Worker startup, TypeScript/Python parity, and a Python callable round trip. Separately check Protocol v2 task/session access through a trusted registered host, restart, branches, and forks. Confirm bilingual documentation navigation and download links; partial channel success does not establish completion.
 
 ### Release metadata closeout
 
@@ -121,4 +132,4 @@ Stop on any build, acceptance, OIDC, registry, attestation, or Release failure. 
 
 ## Current candidate sequencing
 
-Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to 2.0.0.
+Prepare the version, documentation, engineering gates, and branch-safe offline checks in the draft release PR. Merge through the protected PR process, then freeze the resulting main commit. Strict Provider qualification requires that exact main commit and approved Runtime package digest, and must finish with both-platform PTY evidence before creating the tag or publishing. Historical exceptions do not apply to this candidate.

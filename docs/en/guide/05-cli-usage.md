@@ -2,7 +2,7 @@
 
 The CLI provides project scaffolding, environment checks, static validation, interactive chat, one-shot execution, evaluation, and template discovery.
 
-The CLI built from current source supports `coremind create . --runtime-only --provider deepseek --model deepseek-flash`. It creates a single configuration with one agent, and preserves an existing `coremind.yaml`. [Start in your project](06-capability-construction.md)
+With the `2.1.0` candidate CLI installed locally, run `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`. This creates one configuration with one agent and preserves an existing `coremind.yaml`. [Install the local candidate](../../migrations/2.0-to-2.1.en.md)
 
 ## Commands
 
@@ -37,6 +37,8 @@ Creates a project from a maintained template. The wizard asks for language, prov
 ## `providers`
 
 `coremind providers` lists configurable entries. Both this command and `coremind create` show the historical labels bundled in CLI 2.0.0. Alibaba Model Studio (`alibaba-model-studio`) displays “CoreMind 已认证” from an earlier release. DeepSeek displays “可配置，尚未认证”. Of the 43 configurable entries in 2.0.0, only `deepseek` with `deepseek-flash` passed strict certification. [Online certification matrix](../../providers/README.en.md) · [2.0.0 strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
+
+In the 2.1.0 candidate, `providers` and `create` list configurable entries and link to the online matrix. For certification, check the target version, commit and Runtime package digest. [Provider matrix](../../providers/README.en.md)
 
 ## `doctor`
 

@@ -2,7 +2,7 @@
 
 ## 只启用 Runtime
 
-使用仓库当前源码构建的 CLI 或对应的候选安装件，在业务目录执行 `coremind create . --runtime-only --provider deepseek --model deepseek-flash`，并配置 `DEEPSEEK_API_KEY`。已发布 2.0.0 可直接复制[最小配置](../../../docs/guide/06-capability-construction.md)。
+从同一提交安装[2.1.0 本地候选包](../../../docs/migrations/2.0-to-2.1.zh-CN.md)，在业务目录执行 `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`，并配置 `DEEPSEEK_API_KEY`。已发布 2.0.0 可直接复制[最小配置](../../../docs/guide/06-capability-construction.md)。
 
 - CLI：`coremind run coremind.yaml --prompt "请只回答 OK"`。
 - TypeScript：安装对应的 `coremind-ai` npm 包，把 [runtime-only.mts](runtime-only.mts) 复制到项目根目录，运行 `node runtime-only.mts`。

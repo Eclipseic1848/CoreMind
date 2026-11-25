@@ -1,4 +1,10 @@
-# 2.0.0 已知限制
+# 已知限制
+
+## 2.1.0 候选
+
+五域工程验收覆盖 49 项仓库外检查，三项服务实际启动，模型使用确定性夹具。生产语料的检索质量、跨主体记忆策略、业务工具副作用及本体动作回执仍由业务方在目标环境确认。当前公开安装与 Provider 记录请按版本核对。[候选验收范围](RC-ACCEPTANCE.zh-CN.md) · [迁移与回退](../migrations/2.0-to-2.1.zh-CN.md)
+
+## 2.0.0 已知限制
 
 > P3 的三会话检查使用确定性夹具。P4-A 在 Windows 工作目录用小型合成资料、真实 Qwen、BGE-M3/Qdrant 内存索引、Hindsight/PostgreSQL 和 RDFLib/pySHACL 完成四入口与三独立会话。Python 使用工作区构建的 Node Worker。CLI 在临时项目预批准写入，SDK 把写入限定为本项目的 summary.md。知识服务重启时从原文和版本状态重建索引。生产容量、时延和外部动作回执由宿主实测。[P4-A 运行与复验记录](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 

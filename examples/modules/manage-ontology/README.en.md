@@ -1,6 +1,6 @@
 # Optional ontology example
 
-An empty business project can install only the ontology wheel and make an MCP query. The standalone acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
+An empty business project can install just the `0.1.0` ontology wheel supplied for the 2.1.0 candidate and make an MCP query. The standalone acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
 
 The document assistant uses [`document-review`](models/document-review/actions.json) to describe records, validate reviewer relationships, and check whether a record may be published. The same adapter loads [`equipment-maintenance`](models/equipment-maintenance/actions.json) to describe equipment, station relationships, and service restoration.
 

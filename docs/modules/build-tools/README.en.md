@@ -1,6 +1,6 @@
 # Tools and Business Capabilities
 
-Status: contract and documentation aligned with the `2.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Version 2.0.0 provides tool registration and MCP bindings. To test independent tool upgrades and removal with the 2.1.0 candidate, install matching SDK artifacts in the application project. Windows and Linux are supported. [Candidate installation](../../migrations/2.0-to-2.1.en.md)
 
 ## Purpose
 

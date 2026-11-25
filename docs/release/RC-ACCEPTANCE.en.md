@@ -1,14 +1,20 @@
 # Release Candidate Acceptance Guide
 
-The current acceptance target is the `2.0.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
+The current acceptance target is the `2.1.0` candidate. The latest public release is `2.0.0`. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
 
-Run P01–P20 and verify the document template with its optional ontology. [Release notes](notes/v2.0.0.md) · [Migration from 1.4](../migrations/1.4-to-2.0.en.md)
+Repeat P01–P20 and the document-assistant composition checks. Keep the 2.0.0 records as historical evidence. [2.0 release notes](notes/v2.0.0.md) · [Migration from 1.4](../migrations/1.4-to-2.0.en.md)
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
 
 [简体中文](RC-ACCEPTANCE.zh-CN.md)
 
+
+## 2.1.0 components and public reinstall
+
+Outside the checkout, install clients and the three independent `0.1.0` wheels from the same candidate build. Connect real BGE-M3/Qdrant, Hindsight/PostgreSQL and RDFLib/pySHACL. Use CLI/YAML, TypeScript and synchronous and asynchronous Python to verify the Runtime baseline, five individual capabilities, combinations and removal. The 49 engineering checks used a deterministic model fixture. Strict Provider evidence must name this frozen commit, model and exact Runtime tarball digest. [Candidate installation](../migrations/2.0-to-2.1.en.md) · [Candidate notes](notes/v2.1.0.md)
+
+After publication, download all 13 artifacts from npm, PyPI and GitHub Release: eight npm tarballs, one SDK wheel, three optional service wheels and one source ZIP. Check each SHA-256 against the manifest from the same release build, then use the public files to repeat installation, service startup and business calls, including the bundled Worker check. Record the reinstall results and build identity. [Release procedure](README.en.md)
 
 ## Automated matrix
 
