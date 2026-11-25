@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-line%201.4.0-f59e0b)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-line%202.0.0-f59e0b)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -18,15 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> The `1.4.0` release line upgrades from published `1.2.0`, including all unpublished `1.3.0` fixes without an intermediate release. Current source includes atomic durable task phases, waiting and explicit wakeup, keyed result reuse, session trees and forks, and TS plus sync/async Python access through one Node Worker. Standard Skills, durable control, MCP/OAuth, discovery and terminal capabilities from 1.2 remain. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) pages determine the latest public stable version and installability. Verify final qualification evidence for this version before formal use; source and engineering CI do not establish public delivery, production outcomes or Provider certification.
+> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. Check the matching artifacts on [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) for public availability.
 
 > A configurable Provider is not a certified Provider. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 
-[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [1.2→1.4 upgrade](docs/migrations/1.2-to-1.4.en.md) · [1.4 release notes](docs/release/notes/v1.4.0.md) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
+[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [1.4→2.0 upgrade](docs/migrations/1.4-to-2.0.en.md) · [2.0 release notes](docs/release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The `1.4.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
+The `2.0.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
 
 | Capability | Current support |
 |---|---|
@@ -42,7 +42,7 @@ The `1.4.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime an
 | Change protection | Workspace path policy, approvals, pre-write checkpoints, diffs, explicit restore, and audit; built-in Linux shell commands also run in a network-disabled sandbox |
 | Quality engineering | `check`, `eval`, three quality profiles, seven grader types, dirty-worktree preservation, failure injection, three-run stability, coverage floors, clean npm/wheel installation, and release preflight |
 | Coding agents | Reproduce first, diagnose, make a minimal repair, run target and regression tests, and review the diff; the current offline Coding Eval passes 6/6, while the phase-two live external same-task comparison has not run |
-| Learning system | Eight templates, five offline golden examples, two real-defect repositories, and capability modules. Each module has tests, SOPs, a Skill, bilingual guides, and examples. |
+| Learning system | Nine templates, five offline golden examples, two real-defect repositories, and capability modules. Each module has tests, SOPs, a Skill, bilingual guides, and examples. |
 | Project scaffolding | New or existing TypeScript, JavaScript, and Python projects with code/test skeletons, evaluation scenarios, and project guidance |
 | Current platforms | Windows and Linux; every publishable candidate must complete the automated matrix and real pseudoterminal acceptance on both platforms, plus strict live-provider certification bound to this version and Runtime digest; Releases and registries remain authoritative for installation |
 
@@ -76,14 +76,14 @@ See the [durable-task guide](docs/guides/durable-tasks.en.md), [session-branch g
 | Unpublished `1.1.0` development | Standard Skills, durable control, MCP/OAuth, explicit discovery, and terminal evidence | Included in 1.2; no intermediate installation |
 | Published `1.2.0` | Combine 1.1 development with reliability, journal-processing, notification-consumption, loading-trust, and terminal-editing improvements | Preserve historical release and certification evidence without substituting it for a new version's qualification |
 | Unpublished `1.3.0` preparation | Internal-state protection, cancellation, step output, tool schemas, grading, error identity, network cleanup and CLI diagnostics | Included in 1.4; no intermediate installation |
-| `1.4.0` release line | Durable phases/waits/keyed calls, session trees/forks, TS and sync/async Python access, all 1.3 fixes and current dependency disposition | Preserve original gates and timeouts; publish only with strict evidence for the final commit and artifacts |
-| `2.0.0` in development | Knowledge retrieval, Hindsight memory, optional ontology, tools and Skills for application teams | [Capability construction guide](docs/en/guide/06-capability-construction.md) · [GitHub delivery milestone](https://github.com/Eclipseic1848/CoreMind/milestone/3) |
+| `1.4.0` upgrade baseline | Durable tasks, session trees, forks and cross-language access | [Historical release notes](docs/release/notes/v1.4.0.md) |
+| `2.0.0` release line | Knowledge retrieval, Hindsight memory, optional ontology, tools and Skills for application teams | [Capability construction guide](docs/en/guide/06-capability-construction.md) · [GitHub delivery milestone](https://github.com/Eclipseic1848/CoreMind/milestone/3) |
 | Later Web-environment candidate (scope pending) | Visual agent/tool/workflow configuration, online code editing, trace debugging, testing and evaluation, approvals, project files, and release guidance | The Web environment reuses CoreMind Protocol and does not create another execution engine |
 | Later platform and ecosystem work | Formal macOS support and continued growth of community templates, Skills, provider evidence, and business modules | Every capability ships with implementation, tests, SOP, Skill, bilingual guidance, and examples |
 
 Future maintenance releases will evolve from real defects, community feedback, and release evidence. CoreMind will still not decide business goals, approval ownership, or agent architecture for the user, and it does not plan to ship an official Docker image or become a hosted SaaS.
 
-Historical candidate and Provider evidence remains available for audit but cannot replace `1.4.0` release or certification evidence.
+Historical candidate and Provider evidence remains available for audit but cannot replace `2.0.0` release or certification evidence.
 
 ## Product boundary
 
@@ -99,10 +99,10 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Source development requires Node.js 22.19 or newer and npm 11.5.1 or newer; the Python SDK requires Python 3.10 or newer. The example targets the `1.4.0` release line. Confirm same-version public Release/registry artifacts and final qualification evidence before installation; channel pages determine the latest public stable version. Upgrade from `1.2.0` using the [migration guide](docs/migrations/1.2-to-1.4.en.md):
+Source development requires Node.js 22.19+, npm 11.5.1+ and Python 3.10+ for the Python SDK. Use the following command once 2.0.0 is publicly available. [Upgrade from 1.4](docs/migrations/1.4-to-2.0.en.md)
 
 ```bash
-npm install -g coremind-cli@1.4.0
+npm install -g coremind-cli@2.0.0
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -155,7 +155,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `1.4.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
+CoreMind exposes a locked catalog of 43 configurable provider entries including compatibility aliases and also supports custom OpenAI-compatible endpoints. Configurable support is not certification. Current certification requires live streaming, tool-call, structured-result, multi-turn, abort, error-mapping, and long-context evidence on the same version. Formal `2.0.0` publication requires strict-provider workflow evidence bound to the final commit, version, and Runtime digest. The one-time `0.7.0` network exception and older evidence remain traceable but do not count for this version.
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

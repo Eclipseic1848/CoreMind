@@ -31,11 +31,15 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Current release line: `1.4.0`
+## Current release line: `2.0.0`
 
-[Upgrade from 1.2](../migrations/1.2-to-1.4.en.md) · [1.4 release notes](../release/notes/v1.4.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
+[Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-> The `1.4.0` release line upgrades from published `1.2.0`, including all unpublished `1.3.0` fixes without an intermediate release. Current source includes atomic durable task phases, waiting and explicit wakeup, keyed result reuse, session trees and forks, and TS plus sync/async Python access through one Node Worker. Standard Skills, durable control, MCP/OAuth, discovery and terminal capabilities from 1.2 remain. Live [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) pages determine the latest public stable version and installability. Verify final qualification evidence for this version before formal use; source and engineering CI do not establish public delivery, production outcomes or Provider certification.
+> CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. Check the matching artifacts on [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) for public availability.
+
+### Start with a document project
+
+Create a `document-assistant` project with `coremind create`. Supply two document versions, confirm a formatting preference and run the ordinary or ontology-enabled configuration. [Construction guide](guide/06-capability-construction.md)
 
 ### Capabilities merged for 1.4
 

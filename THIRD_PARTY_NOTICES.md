@@ -33,3 +33,7 @@ Windows MCP 私有启动器内联锁定的 Execa 及其实际依赖。npm 的 `d
 ## 内容借鉴
 
 - **模板库组织方式**借鉴自 agency-agents-zh（开源 AI 角色库，其角色人设内容经 CoreMind 重新编排为结构化配置，未直接复制原文）。
+
+## 2.0 可选宿主组件
+
+资料解析由宿主安装 Docling 和 RapidOCR；知识示例使用 Qdrant Client、ONNX Runtime 与固定版 BGE-M3 模型，并用 markdown-it-py 4.3.0 识别 Markdown 表格行与表头。版本见[知识服务依赖清单](examples/modules/manage-knowledge/requirements.txt)。长期记忆服务使用 Hindsight；本体适配器使用 RDFLib、pySHACL、Python MCP SDK 和 Uvicorn；浏览器示例可选用 Playwright MCP。示例提供配置与安装说明，模型权重和这些服务由宿主独立安装。复核上游版本与随包声明请查阅[知识](examples/modules/manage-knowledge/README.en.md)、[记忆](examples/modules/manage-memory/README.en.md)、[本体](examples/modules/manage-ontology/requirements.txt)及[浏览器](docs/modules/build-tools/BROWSER.en.md)的来源说明。

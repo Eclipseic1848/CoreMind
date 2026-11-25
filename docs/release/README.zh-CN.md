@@ -2,15 +2,15 @@
 
 本 SOP 把 GitHub 源码、8 个 npm 包（含 CLI 与 TypeScript SDK）、PyPI Python SDK、独立源码 ZIP、GitHub Release 和双语文档站作为一个版本发布。候选复用时，清单分别记录包的构建提交和发布提交。任一渠道成功都不能替代整体验收。
 
-> 本 SOP 针对 `1.4.0` 发布线，从已发布的 `1.2.0` 升级，纳入未独立发布的 1.3 修复、后续安全与可靠性修复，以及 #359–#367、#376 的风险处置、持久任务、会话分支和跨语言能力；不补发 1.3。本页描述严格发布与断点恢复流程；发布准备、源码、工程 CI 与文档同步不等于公开发布，公开可安装状态以 GitHub Release、npm、PyPI 实时页面和同提交资格证据为准。
+> 本 SOP 适用于 2.0.0 发布线，升级基线为 1.4.0。冻结主线提交 S 后，从候选制品取得 Runtime 包的 SHA-256 H。按受支持的部署方式启动固定版本服务，使用候选 npm tarball、Python wheel 与内置 Worker 在干净项目复跑资料助手，验证两次索引重建、四入口、不同项目与主体的隔离及实际摘要。真实 Provider 资格绑定相同 S/H、已授权的模型、凭据来源、预算和时限，另行核对双平台工程、稳定性、覆盖率、真实 PTY 与成功的 `Candidate qualified` 作业。正式发布后逐件核对构建 R 的八个 npm 包、wheel 和源码 ZIP，再从公开源安装并复跑最小组合。
 
-[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.2→1.4 迁移](../migrations/1.2-to-1.4.zh-CN.md) · [1.4 发布说明](notes/v1.4.0.md)
+[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md)
 
 ## 历史发布决定
 
 `0.7.1` 已按独立批准复用 [Candidate 33838498153](https://github.com/Eclipseic1848/CoreMind/actions/runs/33838498153) 的固定包；清单记录原构建来源与 `providerCertification: not-run`。`0.7.0` 的网络例外和 `0.7.1` 的离线晋升只解释历史制品，均不适用于 `1.0.1` 或 `1.2.0`。不恢复这些旧发布任务，不覆盖旧版本。
 
-## 1.4.0 发布准备与升级边界
+## 历史 1.4.0 发布准备与升级边界
 
 本版纳入 #324–#333 的框架状态保护、并行终止、步骤输出、Python 注解、Diff grader、v2 错误身份、网络清理和 CLI 诊断修复，以及后续依赖安全、Windows 执行和 CI 失败传播修复。#359–#367 同步交付精确依赖风险处置、状态码重试边界、任务原子提交与阶段迁移、持久等待/唤醒、稳定键调用、会话树/分支/fork，以及 TS、同步/异步 Python 的统一 Node Worker 入口。完整范围见[本版本变更日志](../../CHANGELOG.md#140)与[迁移指南](../migrations/1.2-to-1.4.zh-CN.md)。
 
@@ -20,7 +20,7 @@ TaskSession 的阶段提交是独立任务事实，不把 Session、Run 和 Work
 
 先在 Release Please 生成的草稿发布 PR 中准备版本、文档、工程及离线门禁，合入后冻结 main，再完成绑定 1.4.0 最终提交、Runtime/Worker 与准确制品的严格资格。1.2.0 的认证与历史豁免均不能替代；未知副作用仍须人工核对，Config/Protocol 的既有兼容与能力校验不变。
 
-## 1.2.0 发布线与升级边界
+## 历史 1.2.0 发布线与升级边界
 
 本发布线纳入未发布 1.1 的受控扩展与交互能力，以及 Session、工具参数、模型请求、自定义认证、输出交付、依赖身份、重复 Call 身份、日志处理、Python 通知消费、项目脚本加载信任和终端编辑。正式说明与资格必须绑定最终提交，详见[变更日志](../../CHANGELOG.md)。
 
@@ -51,23 +51,23 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `1.4.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `2.0.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 继续前必须核对实际存在目标版本、预期分支的发布 PR，且 `isDraft=true`；工作流成功本身不够。未创建时先核对并处理未发布或状态未同步的旧发布 PR，不得跳过草稿直接进入资格验收。
 
 ```powershell
-npm run release:sync-version -- 1.4.0
+npm run release:sync-version -- 2.0.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
 
 ### 固定并审阅发布正文
 
-版本冻结时一并审阅 `docs/release/notes/v1.4.0.md` 的完整中英正文，核对未发布的 1.3 修复、后续安全与可靠性修复、#359–#367 和 #376、完整本版本 CHANGELOG 与关键亮点、1.2 升级边界、真实验证范围及未覆盖限制。模板中的版本与 Tag 固定，`{{RELEASE_COMMIT}}` 恰好出现一次；渲染只注入经校验的 40 位提交 SHA，不从 PR 标题、提交标题或自动 Release Notes 接口拼接内容，避免提交自引用。
+冻结时核对 `docs/release/notes/v2.0.0.md`、双语 CHANGELOG、1.4→2.0 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
 
 在任何 Registry 或 Release 公开写入前验证模板和 Tag/HEAD 身份；Release 阶段再核产物清单，使用固定输出文件配合 `gh release create --notes-file`。缺失、空白、身份不符或未知占位符均停止，不能退回 `--generate-notes`。复用已有 Release 时，先比较线上 body 与同一身份渲染的正文，仅允许明确的 CRLF/LF 与末尾终止换行差异；不同、缺失或查询未知均停止，不能自动编辑、覆盖正文或先上传缺失资产。既有附件哈希、一次构建与恢复门仍全部保留。正文控制不删改任何真实依赖、版权、许可证或 NOTICE。
 
-Windows MCP 启动使用固定 Job 资产与薄启动器，保留原 15 秒调用和 60 秒连接门禁。正式发布必须取得绑定最终提交与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。这里只写资格要求，不注入旧运行号、W/F、覆盖率或测试数作为 1.4 结论。
+Windows MCP 启动使用固定 Job 资产与薄启动器，保留原 15 秒调用和 60 秒连接门禁。正式发布必须取得绑定最终提交与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。这里只写资格要求，不注入旧运行号、W/F、覆盖率或测试数作为 2.0 结论。
 
 版本检查：
 
@@ -115,7 +115,7 @@ P0-17 使用 [`v0.7.1-main-ruleset.json`](evidence/v0.7.1-main-ruleset.json) 保
 - P01～P19 自动矩阵与逐 Case 测试锚点全部通过。
 - Windows 和 Linux 各有一份真实伪终端 P20 证据，且绑定同一版本与候选提交。
 - P20 实际 JSON 保存在不进入 Git 的 `.scratch/rc-evidence/`，并与工作流运行号一起归档；候选源码只保留模板，避免证据 SHA 自引用。
-- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`1.4.0` 不接受旧版本的网络或离线晋升例外。
+- 至少一个已批准 Provider 完成本次真实流式、工具、结构化、多轮和错误路径复验；`2.0.0` 不接受旧版本的网络或离线晋升例外。
 - Linux 自动化必须由目标平台 PTY 运行；Windows、管道输入或普通日志不能伪造成 Linux 真实终端。
 
 最终确认命令：
@@ -128,7 +128,7 @@ npm run acceptance:rc -- --require-manual
 
 1. 最终全仓 Markdown 审计通过后，将草稿发布 PR 标记 ready。
 2. 确认 PR 只包含本版本内容，双平台 CI 全绿后合并到 `main`。
-3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v1.4.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
+3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v2.0.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
 4. Tag 后工作区必须干净，重新执行 `npm run release:preflight`。`v0.7.0` 的历史恢复仍使用其专属网络例外参数；其他版本不得使用。
 
 Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `Publish CoreMind Release` 并输入已存在的 Tag。
@@ -155,7 +155,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@1.4.0
+npm install -g coremind-cli@2.0.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent

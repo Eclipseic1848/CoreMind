@@ -2,6 +2,8 @@
 
 Provider discovery means that CoreMind has an adapter entry point. It does not mean the provider has been certified. A provider becomes certified only after every live check below passes and reviewable evidence is recorded. See the current [provider matrix](./README.en.md).
 
+The DeepSeek and Qwen development trials measure knowledge and memory behavior. Release certification uses the frozen main commit S and actual candidate Runtime tarball SHA-256 H. Record the Provider, model, budget, duration and seven test outcomes. [2.0.0 candidate qualification](../release/RC-ACCEPTANCE.en.md)
+
 ## Prerequisites
 
 1. Use an official account, production API endpoint, and a verifiable model identifier.

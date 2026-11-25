@@ -12,6 +12,8 @@
 4. 有对象、关系或动作前提时，加载本体模型。让草稿和已复核资料走一遍相同的发布请求，分别核对拒绝时的零调用和成功时的业务回执。
 5. 在三个独立会话里依次验证首次整理、复用偏好、更正偏好与撤回资料。现有组合例程运行真实 MCP、Skill、文件工具和本体引擎，知识索引、记忆后端和模型使用确定性夹具。业务交付还要在目标服务、模型、安装制品和业务样本上复跑。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md)
 
+资料助手还在两个独立项目里用真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体复跑了七个案例。验收记录附合成输入、首次失败、修复和摘要原文，可作为业务方准备自己用例的参照。[真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
+
 ## 04 知识管理
 
 [开发 SOP](../modules/manage-knowledge/SOP.zh-CN.md) · [开发 Skill](../../skills/manage-knowledge/SKILL.md) · [可运行示例及检索结果](../../examples/modules/manage-knowledge/README.zh-CN.md)

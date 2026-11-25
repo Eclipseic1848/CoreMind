@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+
+- Support the explicit Qwen chat-template thinking format on custom endpoints. Keep the top-level format and existing output limits, and reject unrecognized explicit thinking formats.
+
 ## 1.4.0 - 2026-11-02
 
 - Add a CNY reservation ledger for fixed `deepseek` / `deepseek-flash` certification via `DEEPSEEK_API_KEY`, covering parent, child, failed and cancelled requests before dispatch; retain the separate USD estimate gate, live authentication checks and new candidate-bound approval requirement.

@@ -4,21 +4,21 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Current release line: `1.4.0`
+## Current release line: `2.0.0`
 
-`0.2.0-rc.1` remains an immutable reference baseline. Published `1.2.0` is the upgrade baseline; GitHub Releases, npm and PyPI determine the latest public stable version. The `1.4.0` release line combines unpublished `1.3.0` fixes with durable tasks, session trees and cross-language access. Use the [1.2→1.4 migration guide](migrations/1.2-to-1.4.en.md), or the [historical guide](migrations/1.0-to-1.2.en.md) for earlier versions. Verify same-version public artifacts and final qualification evidence before formal use. Current source includes:
+CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. Check the matching artifacts on [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases), [npm](https://www.npmjs.com/package/coremind-cli) and [PyPI](https://pypi.org/project/coremind-ai/) for public availability. [Migration from 1.4](migrations/1.4-to-2.0.en.md)
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
 - Compatible Config v2, explicit Config v3, 43 configurable provider entries including compatibility aliases, and custom compatible endpoints.
 - `ask`, `assisted`, and `full` permission modes with path policy, approvals, audit, checkpoints, diffs, and recovery.
 - Explicit outcomes, budgets, traces, sessions, context protection, tests, evaluations, and release gates.
-- Eight project templates, five offline golden examples, two real-defect coding-agent repositories, and 22 capability modules.
+- Nine project templates, five offline golden examples, two real-defect coding-agent repositories, and 25 capability modules.
 - Tests, SOPs, a Skill, bilingual guides, and examples for every capability module.
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-The `v1.4.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must share one version, with package-build and source-ZIP release commits recorded separately in the release manifest. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
+The `v2.0.0` tag, [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases), eight npm packages, and [PyPI package](https://pypi.org/project/coremind-ai/) must share one version, with package-build and source-ZIP release commits recorded separately in the release manifest. Live channel pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication. Older release records remain historical and do not qualify this version.
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Release qualification and Provider certification are tracked separately. Formal publication also requires strict-provider evidence bound to this version, final commit, Runtime, and Worker.
 
@@ -29,7 +29,8 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 - Skills support declared resources, pinned installation, and recovery of old runs. Tools include local, stdio MCP, and Streamable HTTP MCP interoperability checks and an opt-in Playwright MCP browser example. [Skill module](modules/package-agent-skills/README.en.md) · [Tool module](modules/build-tools/README.en.md)
 - Clean consumers verified npm and Python packages built from merged source and rebuilt the knowledge index from source documents. Repeat that flow with release candidate artifacts before publication. [Clean consumer procedure](modules/manage-knowledge/CLEAN-CONSUMER.en.md)
 - P3 has merged into main with optional graph models, source mappings, SHACL validation and business action bindings. Four entry points and the three-session example passed engineering checks on both platforms. [Ontology module](modules/manage-ontology/README.en.md)
-- P4 tracks the business template, live service integration, candidate artifacts and coordinated publication. Each issue lists its exit conditions and supporting evidence. [Capability construction guide](en/guide/06-capability-construction.md) · [v2.0.0 milestone](https://github.com/Eclipseic1848/CoreMind/milestone/3)
+- P4-A has merged into main. Two independent projects used synthetic documents with live retrieval, Hindsight, Qwen and an optional ontology. Four public entry points and three independent sessions covered seven cases. [Capability construction guide](en/guide/06-capability-construction.md) · [Integration acceptance #401](https://github.com/Eclipseic1848/CoreMind/issues/401)
+- The remaining release stages freeze the version, qualify artifacts from the same commit, then publish and reinstall from public sources. Each issue records its commit, checks and status. [#402](https://github.com/Eclipseic1848/CoreMind/issues/402) · [#403](https://github.com/Eclipseic1848/CoreMind/issues/403) · [#404](https://github.com/Eclipseic1848/CoreMind/issues/404) · [v2.0.0 milestone](https://github.com/Eclipseic1848/CoreMind/milestone/3)
 
 ## `1.4.0`: durable tasks and sessions
 
@@ -113,7 +114,7 @@ Version numbers and dates are not promised; each batch proceeds only after its a
 
 ## Future roadmap (version scope to be confirmed)
 
-The current 1.4.0 scope delivers merged capabilities and reliability fixes. The following are later candidates, outside this release and without authorization to start; scope and acceptance require separate confirmation, with no promised version or date:
+The following items require separate scoping and acceptance. Versions and dates remain open.
 
 - Web development environment: run and control surfaces first, followed by editing, testing, and evaluation, reusing the existing Protocol and Runtime.
 - More MCP service interoperability, LSP, controlled third-party plugins, remote execution environments, and platform integrations: proceed after separate security contracts and compatibility gates are agreed.

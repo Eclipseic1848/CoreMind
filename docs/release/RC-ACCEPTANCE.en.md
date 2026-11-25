@@ -1,8 +1,8 @@
 # Release Candidate Acceptance Guide
 
-The current acceptance target is the `1.4.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
+The current acceptance target is the `2.0.0` release line. Neither the historical `0.7.0` network exception nor the `0.7.1` offline promotion applies; this version requires every strict check. Live Release and registry pages and same-commit qualification evidence determine public availability; passing source CI does not establish publication.
 
-This version includes the unpublished #324–#333 fixes and subsequent security/reliability repairs, plus #359–#367 / #376 dependency-risk disposition, durable tasks, session branches, cross-language access, and CI repair. There is no separate 1.3 publication. See the [complete release notes](notes/v1.4.0.md) and [1.2→1.4 migration](../migrations/1.2-to-1.4.en.md) for scope and boundaries. P01-P20 and the original strict qualification requirements remain unchanged.
+Run P01–P20 and verify the document template with its optional ontology. [Release notes](notes/v2.0.0.md) · [Migration from 1.4](../migrations/1.4-to-2.0.en.md)
 
 This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and artifacts from one candidate commit. Automated tests, real terminals, and a live provider are independent evidence and cannot substitute for one another. The maintainer network exception for `0.7.0` must be recorded separately as waived and must never be presented as a live-provider success.
 
@@ -46,6 +46,10 @@ The formal Candidate cancellation-stability matrix retains all 1000 fixed seeds;
 | P18 | npm tarball contents and entries | Artifacts |
 | P19 | Python wheel contents and Worker | Artifacts |
 | P20 | Real Windows and Linux pseudoterminals | TUI |
+
+## 2.0.0 document-assistant qualification
+
+Freeze the main commit S, then obtain the candidate Runtime tarball SHA-256 H. Start the pinned services in their supported deployment mode. Install candidate npm tarballs, wheel and bundled Worker in clean projects and verify two index rebuilds, four entry points, project and reader isolation, and the actual summary file. Bind strict Provider qualification to S/H, the approved model, credential source, budget and duration. Verify both-platform engineering, stability, coverage, real PTYs and a successful `Candidate qualified` job. After publication, compare build R's eight npm packages, wheel and source ZIP with its manifest. Reinstall from public sources and rerun the minimum integrated example.
 
 ## 1.4.0 feature rechecks and compatibility boundaries
 
@@ -111,6 +115,6 @@ For `0.7.0` only, Issue #113 records a one-time timeout decision bound to strict
 
 ## Completion
 
-The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to 1.4.0, its final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The strict Candidate workflow's actual `Candidate qualified` job must succeed; a skipped Provider or Engineering-only success does not qualify. Dependency audits accept only the precise #359 risk scope: acceptance does not fix vulnerabilities, and other risks or invalid reports still block. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body.
+The RC is complete only when P01-P19 and their evidence anchors pass, both P20 files bind to the same version and commit, one provider passes the strict recheck bound to 2.0.0, its final commit, and Runtime digest without a historical exception, both platform gates pass, and the final repository-wide Markdown audit passes. The strict Candidate workflow's actual `Candidate qualified` job must succeed; a skipped Provider or Engineering-only success does not qualify. Both the production and full dependency audits must produce valid reports with zero findings. The fixed bilingual Release body must also be reviewed for meaning; its unique `{{RELEASE_COMMIT}}` receives the verified commit SHA, creation uses `--notes-file`, and an existing-body conflict stops recovery without aggregating PR titles or overwriting the body.
 
-RC completion is not publication. Create the immutable `v1.4.0` tag only on the final qualified commit, then follow the [Release SOP](README.en.md) to publish all ten artifacts from one build R: eight npm tarballs, one wheel, and one independent source ZIP. Publicly download every item, compare manifests and hashes, reinstall in clean environments, and verify the GitHub Release and bilingual documentation site.
+RC completion is not publication. Create the immutable `v2.0.0` tag only on the final qualified commit, then follow the [Release SOP](README.en.md) to publish all ten artifacts from one build R: eight npm tarballs, one wheel, and one independent source ZIP. Publicly download every item, compare manifests and hashes, reinstall in clean environments, and verify the GitHub Release and bilingual documentation site.

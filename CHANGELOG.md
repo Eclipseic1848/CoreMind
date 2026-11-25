@@ -4,31 +4,22 @@
 
 [English](CHANGELOG.en.md)
 
-## [2.0.0](https://github.com/Eclipseic1848/CoreMind/compare/v1.4.0...v2.0.0) (2026-11-25)
+## 2.0.0
 
+业务方现在可以从 `document-assistant` 模板创建资料整理项目，替换自己的资料、身份绑定、Skill 和本体模型。CLI/YAML、TypeScript、Python 同步和异步调用沿用同一个 Node Runtime。
 
-### Features
+- **知识。** Docling/RapidOCR 负责解析，BGE-M3 与 Qdrant 用于中文检索。结果给出文件、版本和位置。检索及解析 Markdown 表格引文时，数据行还带同一文件版本内的表头原文和行号，便于核对每个值对应的列。宿主可幂等导入、撤回版本、从原文重建索引。检索和旧引文解析均校验阅读范围。索引构建失败时保留上一份可用状态。[表格引文修复 #411](https://github.com/Eclipseic1848/CoreMind/issues/411)
+- **长期记忆。** 宿主为 Hindsight 记忆库绑定读者和管理员。召回返回归属、版本和来源。写入、更正、遗忘及经验候选的确认由宿主管理，旧备份恢复后按遗忘回执清理。
+- **Skill。** 根据业务任务说明生成可编辑草稿，使用标准 `SKILL.md`，按声明和权限读取资源。固定上游提交安装并以摘要冻结资源。旧 v1 快照沿用原恢复方式。脚本资源的读取与执行分别授权。资料助手按请求选择单份整理或两版比较，命中同一来源和位置后结束重复检索、说明范围并保存摘要。
+- **工具。** 本地处理函数、stdio MCP 和 Streamable HTTP MCP 共用参数、取消和回执边界。可选 Playwright MCP 提供交互式浏览器。未知写入结果须凭原请求及回执核对。
+- **可选本体。** 业务方提供 RDF 模型、映射、SHACL Core 约束与动作规则。RDFLib 和 pySHACL 返回约束位置、模型版本和动作前置条件。宿主另行授权执行并检查实际结果。
+- **同轮多个工具。** 同一模型回合同时请求若干工具时，含独占或串行合同的批次按顺序执行；可并发的批次保留并发。审批、预算、持久化与工作区租约仍由 Runtime 执行。
+- **Qwen 兼容端点。** 自定义 Provider 可显式使用 `qwen-chat-template` 将思考开关发送到 `chat_template_kwargs.enable_thinking`。旧 `qwen` 格式继续发送顶层开关。无效的显式格式会在配置阶段被拒绝，输出预算仍由 Agent 控制。
+- **交付材料。** 五域建设指南给出能力图谱 04–08 的 20 项映射。资料助手模板提供双语说明、Skill 和四入口样例。P0 同步了依赖并清理已过期的审计例外。发布候选继续执行工程、稳定性、覆盖率、双平台真实 PTY、严格 Provider 及公开回装门禁。
 
-* add incremental knowledge updates and withdrawal ([600e464](https://github.com/Eclipseic1848/CoreMind/commit/600e4640580bd7e67408ce816330bb4255c308e0))
-* add incremental knowledge updates and withdrawal ([9ce285b](https://github.com/Eclipseic1848/CoreMind/commit/9ce285bc560b77e1709fcdd923625ace43f8fd54))
-* add knowledge retrieval and citation module ([93816f6](https://github.com/Eclipseic1848/CoreMind/commit/93816f6bd28c08564777a7137f816255a78dbde7))
-* add knowledge retrieval and citation module ([1401739](https://github.com/Eclipseic1848/CoreMind/commit/1401739127758844186bcb265e3e5c90c87d540b))
-* **config:** select the native Qwen chat template thinking switch ([e0ea0e7](https://github.com/Eclipseic1848/CoreMind/commit/e0ea0e7bd8384341bf85b92fb8a2a54c22329e9e))
-* **memory:** integrate Hindsight long-term memory ([b791b24](https://github.com/Eclipseic1848/CoreMind/commit/b791b243dcf84c54a34f7850915b9b8746c99f0c))
-* **ontology:** add opt-in models, SHACL and guarded actions ([5bf25f4](https://github.com/Eclipseic1848/CoreMind/commit/5bf25f4cf9cab44bb7dca05ff4e700dd86bf7986))
-* **skills:** generate editable drafts from business task descriptions ([2a945a9](https://github.com/Eclipseic1848/CoreMind/commit/2a945a9e3a284995630940430bfe452be0eb93af))
-* **skills:** share pinned packages with frozen resources ([e4323b4](https://github.com/Eclipseic1848/CoreMind/commit/e4323b4b8e820e9495b42a1987a1f674f9caf448))
-* **templates:** scaffold the document assistant and publish its five-domain guide ([8706d4b](https://github.com/Eclipseic1848/CoreMind/commit/8706d4be503bdeea7da1f65a76ff65f866f5a843))
-* **tools:** verify MCP parity and optional browser lifecycle ([f50b670](https://github.com/Eclipseic1848/CoreMind/commit/f50b67066792624f0e46c663c7d3466737b0692d))
+2026-11-24，资料助手在 Windows 开发环境以两个项目的小型合成资料、独立读者和两个 Hindsight 个人记忆库完成七个逻辑案例。CLI 比较两版资料，TypeScript 整理草稿并检查发布条件，Python 同步入口验证另一项目的资料与偏好，异步入口验证更正和撤回。另有三个独立 ChatSession 分别验证未设置偏好、已确认表格偏好及更正为清单。真实 Qwen3.8-27B 调用知识、记忆与可选本体服务。原始记录保留失败尝试与复验，同一案例只计一次。[运行方法与边界](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) · [逐次运行及摘要](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/live-composition-results.json)
 
-
-### Bug Fixes
-
-* clear expired audit exceptions after dependency update ([5653227](https://github.com/Eclipseic1848/CoreMind/commit/5653227be80587ad158a1b4818aa1e8ed47e1003))
-* **knowledge:** enforce citation scope and publish catalog changes atomically ([88e4a1e](https://github.com/Eclipseic1848/CoreMind/commit/88e4a1efa00ac68b79aff4090bb82d93efa610b5))
-* **knowledge:** include the source header with Markdown table citations ([756767e](https://github.com/Eclipseic1848/CoreMind/commit/756767e540d65591b3620ada7a50ac3086a70c76))
-* **runtime:** honor exclusive tool lanes within a model turn ([249098c](https://github.com/Eclipseic1848/CoreMind/commit/249098c7b322c8bba57df661d7f5cd1d8b072d33))
-* **templates:** distinguish single-document summaries from revision comparisons ([a7f22ac](https://github.com/Eclipseic1848/CoreMind/commit/a7f22ace7a32ce0dc6dec1c6ffead7afaa50b824))
+[1.4→2.0 迁移](docs/migrations/1.4-to-2.0.zh-CN.md) · [完整发布说明](docs/release/notes/v2.0.0.md)
 
 ## 1.4.0
 

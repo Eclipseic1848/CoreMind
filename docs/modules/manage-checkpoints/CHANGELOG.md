@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0 - 2026-11-25
+
+- Updated the module contract and package version for CoreMind 2.0.0.
+
 ## 1.4.0 - 2026-11-02
 
 - Prepared the 1.4.0 module contract, version metadata and bilingual release materials; publication requires final qualification.

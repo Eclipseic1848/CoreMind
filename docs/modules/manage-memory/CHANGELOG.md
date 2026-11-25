@@ -1,5 +1,5 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
 
-- Add the P2-B Hindsight integration and acceptance cases to the 1.4.0 development baseline for the planned 2.0.0 release. The module covers scoped recall, explicit confirmation, correction, expiry, and forgetting.
+- Integrate Hindsight 1.2.3 for scoped recall, host confirmation, correction, expiry and forgetting. Keep experience candidates separate from confirmed facts and replay forgetting receipts after logical restore.
