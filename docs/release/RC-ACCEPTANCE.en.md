@@ -10,6 +10,12 @@ This guide validates the CLI/TUI, headless CLI, TypeScript SDK, Python SDK, and 
 [简体中文](RC-ACCEPTANCE.zh-CN.md)
 
 
+## 2.1.0 components and public reinstall
+
+Outside the checkout, install clients and the three independent `0.1.0` wheels from the same candidate build. Connect real BGE-M3/Qdrant, Hindsight/PostgreSQL and RDFLib/pySHACL. Use CLI/YAML, TypeScript and synchronous and asynchronous Python to verify the Runtime baseline, five individual capabilities, combinations and removal. The 49 engineering checks used a deterministic model fixture. Strict Provider evidence must name this frozen commit, model and exact Runtime tarball digest. [Candidate installation](../migrations/2.0-to-2.1.en.md) · [Candidate notes](notes/v2.1.0.md)
+
+After publication, download all 13 artifacts from npm, PyPI and GitHub Release: eight npm tarballs, one SDK wheel, three optional service wheels and one source ZIP. Check each SHA-256 against the manifest from the same release build, then use the public files to repeat installation, service startup and business calls, including the bundled Worker check. Record the reinstall results and build identity. [Release procedure](README.en.md)
+
 ## Automated matrix
 
 Run at the candidate repository root:
@@ -50,12 +56,6 @@ The formal Candidate cancellation-stability matrix retains all 1000 fixed seeds;
 ## 2.0.0 document-assistant qualification
 
 Freeze the main commit S, then obtain the candidate Runtime tarball SHA-256 H. Start the pinned services in their supported deployment mode. Install candidate npm tarballs, wheel and bundled Worker in clean projects and verify two index rebuilds, four entry points, project and reader isolation, and the actual summary file. Bind strict Provider qualification to S/H, the approved model, credential source, budget and duration. Verify both-platform engineering, stability, coverage, real PTYs and a successful `Candidate qualified` job. After publication, compare build R's eight npm packages, wheel and source ZIP with its manifest. Reinstall from public sources and rerun the minimum integrated example.
-
-## 2.1.0 components and public reinstall
-
-Outside the checkout, install clients and the three independent `0.1.0` wheels from the same candidate build. Connect real BGE-M3/Qdrant, Hindsight/PostgreSQL and RDFLib/pySHACL. Use CLI/YAML, TypeScript and synchronous and asynchronous Python to verify the Runtime baseline, five individual capabilities, combinations and removal. The 49 engineering checks used a deterministic model fixture. Strict Provider evidence must name this frozen commit, model and exact Runtime tarball digest. [Candidate installation](../migrations/2.0-to-2.1.en.md) · [Candidate notes](notes/v2.1.0.md)
-
-After publication, download all 13 artifacts from npm, PyPI and GitHub Release: eight npm tarballs, one SDK wheel, three optional service wheels and one source ZIP. Check each SHA-256 against the manifest from the same release build, then use the public files to repeat installation, service startup and business calls, including the bundled Worker check. Record the reinstall results and build identity. [Release procedure](README.en.md)
 
 ## 1.4.0 feature rechecks and compatibility boundaries
 

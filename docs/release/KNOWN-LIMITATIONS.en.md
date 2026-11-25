@@ -1,4 +1,10 @@
-# 2.0.0 Known Limitations
+# Known Limitations
+
+## 2.1.0 candidate
+
+The 49 external consumer checks used three running services and a deterministic model fixture. In the target environment, the application team evaluates retrieval on production documents, memory policy across subjects, business-tool effects and ontology action receipts. Check public availability and Provider records for the exact version. [Candidate acceptance scope](RC-ACCEPTANCE.en.md) · [Migration and rollback](../migrations/2.0-to-2.1.en.md)
+
+## 2.0.0 known limitations
 
 > P3 used deterministic fixtures for its three-session check. P4-A used small synthetic documents in a Windows workspace with Qwen, BGE-M3, in-memory Qdrant, Hindsight/PostgreSQL and RDFLib/pySHACL across four entry points and three independent sessions. Python used a workspace-built Node Worker. The CLI preapproved writes in a temporary project. The SDK hosts limited writes to the project's summary.md. The knowledge service rebuilds its index from source and version state after restart. Hosts measure production capacity, latency and external action receipts. [P4-A runs and retests](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.en.md) [Migration from 1.4](../migrations/1.4-to-2.0.en.md)
 
