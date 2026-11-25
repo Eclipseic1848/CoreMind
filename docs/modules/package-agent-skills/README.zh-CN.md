@@ -14,7 +14,7 @@
 - `loadDirectorySkills`
 - `SKILLS`
 
-应用通过现有 Runtime 使用标准 Skill，通过 [`install-skill.mjs`](../../../examples/modules/package-agent-skills/install-skill.mjs) 将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
+应用通过现有 Runtime 使用标准 Skill，通过 由当前 coremind-templates 安装件提供的 `coremind-skill-install` 将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
 
 ## 错误与边界
 

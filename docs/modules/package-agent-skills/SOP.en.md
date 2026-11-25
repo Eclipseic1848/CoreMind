@@ -1,5 +1,7 @@
 # Skill and SOP Loading Development SOP
 
+Use `coremind-skill-install` from the current `coremind-templates` artifact. Verify the lock and resource bytes in an independent project, then select the Skill for the target agent. [Install and roll back](GUIDE.en.md#pinned-installation-and-rollback)
+
 ## Prerequisites
 
 Read the [module overview](README.en.md), then confirm the business owner, inputs, outputs, failure conditions, and permission boundary.

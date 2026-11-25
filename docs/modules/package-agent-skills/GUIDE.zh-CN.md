@@ -61,13 +61,12 @@ SHA-256 基于原始字节计算。Windows 可用 `Get-FileHash assets/template.
 
 ## 固定版本安装和回退
 
-需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。以下命令在 CoreMind 源码仓库根目录运行。先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
+需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。以下命令使用当前源码构建的 coremind-templates 安装件。先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
 
 ```sh
-npm run build
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
-node examples/modules/package-agent-skills/install-skill.mjs project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
-node examples/modules/package-agent-skills/install-skill.mjs project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
+npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
+npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
 ```
 
 安装器先在临时目录使用 Skills CLI 冻结安装，再按 CoreMind 清单和固定提交核对原始字节。校验后先保存可用于冻结重装的内容锁，再替换目标目录。如果替换失败且保留了新锁，可省略源参数，使用同一份锁重试。项目 `skills/<id>/` 只接收 `SKILL.md`、清单和声明的资源。`coremind check project-a/coremind.yaml` 校验 Agent 已选的包。两次安装返回的锁 SHA-256 应一致。

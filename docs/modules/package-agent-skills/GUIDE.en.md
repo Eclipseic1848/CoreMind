@@ -61,13 +61,12 @@ Calculate SHA-256 over the raw bytes. On Windows, run `Get-FileHash assets/templ
 
 ## Pinned installation and rollback
 
-Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. From the CoreMind source root, prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
+Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install a `coremind-templates` artifact built from the current source in your working directory, then prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
 
 ```sh
-npm run build
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
-node examples/modules/package-agent-skills/install-skill.mjs project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
-node examples/modules/package-agent-skills/install-skill.mjs project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
+npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
+npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
 ```
 
 The installer runs a frozen Skills CLI install in a temporary directory, then checks raw bytes against the CoreMind manifest and pinned commit. It saves the verified lock before replacing the target directory. If replacement fails after the lock was saved, omit the source argument and retry with that lock. The project's `skills/<id>/` receives only `SKILL.md`, the manifest, and the declared resources. Run `coremind check project-a/coremind.yaml` to validate the package selected by the agent. Both installation commands should return the same lock SHA-256.
