@@ -1,22 +1,16 @@
 """用 SQLite FTS5 对固定中文资料集测量关键词检索，不调用模型。"""
 
 import json
-import re
 import sqlite3
-import unicodedata
+import sys
 from contextlib import closing
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "components/knowledge/src"))
+
+from coremind_knowledge_mcp.text import terms
+
 ROOT = Path(__file__).resolve().parent
-
-
-def terms(text):
-    normalized = unicodedata.normalize("NFKC", text).lower()
-    for token in re.findall(r"[\u3400-\u9fff]+|[a-z0-9]+", normalized):
-        if len(token) > 1 and "\u3400" <= token[0] <= "\u9fff":
-            yield from (token[i:i + 2] for i in range(len(token) - 1))
-        else:
-            yield token
 
 
 def index(db, manifest, scope):

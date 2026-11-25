@@ -4,11 +4,12 @@
 
 ## 从空白项目只接入知识
 
-把 2.0.0 源码解压在服务目录。以下命令从业务目录运行，`COREMIND_SRC` 表示源码根目录的绝对路径，`MODEL_DIR` 表示已校验的 BGE-M3 模型目录，两者由操作者设置。使用服务专用的 Python 3.12 环境。先按[示例](../../../examples/modules/manage-knowledge/README.zh-CN.md)准备模型并设置完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION`。首次演练可以使用下面的合成清单，也可将 `--manifest` 换成业务项目自己的清单，原文放在清单同级的 `sources/`。
+准备独立的 Python 3.12 环境、0.1.0 本地 wheel 和 BGE-M3 模型。将[知识单项示例](../../../components/knowledge/README.md)的合成清单、原文目录 `sources/` 和 `query.py` 放在空业务目录，或换成自己的清单与原文。设置完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION`。以下命令在业务目录执行，`MODEL_DIR` 指向已校验模型。
 
 ```sh
-python -m pip install -r "$COREMIND_SRC/examples/modules/manage-knowledge/requirements.txt" -r "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt"
-python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-knowledge/knowledge_server.py" --manifest "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/manifest.json" --model-dir "$MODEL_DIR" --state ./knowledge-state.json --scope public
+python -m pip install ./coremind_knowledge_mcp-0.1.0-py3-none-any.whl
+coremind-knowledge-mcp --version
+coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --state ./state/catalog.json --scope records
 ```
 
 用支持 Streamable HTTP 的 MCP 客户端连接 `http://127.0.0.1:8767/mcp`，以该变量的完整值发送 `Authorization`。在 `tools/list` 中找到 `search_knowledge` 和 `resolve_citation`，分别查询和回查原文。若宿主是 CoreMind，将[知识服务配置](../../../examples/modules/manage-knowledge/coremind.yaml)中的 `mcp.servers.knowledge` 和所需的 Agent 工具声明加入自己的配置，使用项目自己的模型。此接入无需资料助手模板或其他领域服务。

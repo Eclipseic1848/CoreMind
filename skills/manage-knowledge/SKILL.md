@@ -12,7 +12,7 @@ description: Implement or evaluate evidence retrieval in a CoreMind project when
 5. Follow the [SOP](../../docs/modules/manage-knowledge/SOP.en.md) to compare retrieval quality and latency with the fixed baseline. Record discrepancies with the question ID, source version and observed location.
 6. For incremental updates, preserve stable document IDs and bump versions when content changes. Verify that repeated imports are unchanged, withdrawn versions leave search, and `resolve_citation` reports available, withdrawn or unknown. Run `test_knowledge_catalog.py` before changing the catalog.
 
-For a project using only capability map 04.01–04.04, start in an empty business directory with the knowledge binding and the project's own reader scope. In 2.0.0, launch the service from the source release and pass the project manifest, model and state paths. Treat installation without the checkout as a separate delivery gate. Rehearse a stateful upgrade with a withdrawn citation and remove the binding without deleting the owner's sources or withdrawal history.
+For a project using only capability map 04.01–04.04, start in an empty business directory with the knowledge binding and the project's own reader scope. Install the [0.1.0 knowledge wheel](../../components/knowledge/README.md) in a dedicated environment. Pass the project's manifest, model, reader scope and state to `coremind-knowledge-mcp`. Run the [installed lifecycle check](../../components/knowledge/tests/installed_lifecycle.py) with a real 2.0.0 source archive and the pinned BGE-M3 files. Rehearse a stateful upgrade with a withdrawn citation and remove the binding without deleting the owner's sources or withdrawal history.
 
 中文开发步骤与验收条件见[开发 SOP](../../docs/modules/manage-knowledge/SOP.zh-CN.md)。
 

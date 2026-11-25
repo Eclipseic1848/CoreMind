@@ -5,6 +5,11 @@ name:
   en: "Knowledge Retrieval and Citations"
 version: 2.0.0
 sourcePaths:
+  - "components/knowledge/pyproject.toml"
+  - "components/knowledge/src/coremind_knowledge_mcp/server.py"
+  - "components/knowledge/src/coremind_knowledge_mcp/catalog.py"
+  - "components/knowledge/src/coremind_knowledge_mcp/retrieval.py"
+  - "components/knowledge/src/coremind_knowledge_mcp/docling_bridge.py"
   - "examples/modules/manage-knowledge/knowledge_server.py"
   - "examples/modules/manage-knowledge/knowledge_catalog.py"
   - "examples/modules/manage-knowledge/coremind.yaml"
@@ -28,6 +33,7 @@ examplePaths:
   - examples/modules/manage-knowledge/README.zh-CN.md
   - examples/modules/manage-knowledge/README.en.md
 testPaths:
+  - "components/knowledge/tests/installed_lifecycle.py"
   - "examples/modules/manage-knowledge/acceptance.mjs"
   - "examples/modules/manage-knowledge/clean-consumer.mjs"
   - "examples/modules/manage-knowledge/test_knowledge_catalog.py"

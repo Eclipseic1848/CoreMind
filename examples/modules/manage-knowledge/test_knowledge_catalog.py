@@ -102,7 +102,7 @@ class KnowledgeCatalogTest(unittest.TestCase):
             state = Path(directory) / "state.json"
             catalog = KnowledgeCatalog(FakeIndex(), state)
             catalog.import_document(document())
-            with patch("knowledge_catalog.os.replace", side_effect=OSError("落盘失败")):
+            with patch("coremind_knowledge_mcp.catalog.os.replace", side_effect=OSError("落盘失败")):
                 with self.assertRaises(OSError):
                     catalog.withdraw("资料室手册", 1)
                 with self.assertRaises(OSError):
@@ -185,7 +185,7 @@ class KnowledgeCatalogTest(unittest.TestCase):
             self.assertEqual(catalog.index.generation, generation)
             catalog = KnowledgeCatalog(FakeIndex(), state)
             server = FastMCP("test")
-            with patch("knowledge_server.FastMCP", return_value=server):
+            with patch("coremind_knowledge_mcp.server.FastMCP", return_value=server):
                 make_app(catalog, "editor", day, b"fixture")
 
             def call(tool, **args):

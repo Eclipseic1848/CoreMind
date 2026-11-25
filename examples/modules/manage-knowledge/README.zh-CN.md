@@ -1,6 +1,6 @@
 # 通过三个入口检索中文资料
 
-本例包含两种操作：源码中的知识服务可以单独启动；下方的 Node 构建用于维护者复验 CoreMind 客户端入口。业务项目只需要知识时，直接按[空白项目接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md)连接服务，无需创建资料助手模板。服务的独立安装件仍待交付。
+本例包含两种操作：源码中的知识服务可以单独启动；下方的 Node 构建用于维护者复验 CoreMind 客户端入口。业务项目只需要知识时，直接按[空白项目接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md)连接服务，无需创建资料助手模板。[知识组件 0.1.0](../../../components/knowledge/README.md)提供独立本地 wheel 和普通 MCP 客户端示例。
 
 本例使用[松屿资料室合成资料](../../knowledge-evals/zh-retrieval/manifest.json)。示例知识服务在本机运行，宿主选定读者范围。模型调用工具时仅提交查询文本。索引只接收五份来源文件和清单元数据。题目与答案位于评分端。
 

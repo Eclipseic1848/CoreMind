@@ -4,11 +4,12 @@ The host selects the scope of material a reader may access and starts the knowle
 
 ## Connect only knowledge from an empty project
 
-Unpack the 2.0.0 source release in a separate service directory. Run the commands below from the business project in a dedicated Python 3.12 environment. Set `COREMIND_SRC` to the absolute path of the source root and `MODEL_DIR` to the verified BGE-M3 directory. Prepare the model and set the complete `COREMIND_KNOWLEDGE_AUTHORIZATION` value as described in the [example](../../../examples/modules/manage-knowledge/README.en.md). Start with the synthetic manifest below or pass your project's manifest with its original documents in the adjacent `sources/` directory.
+Use a dedicated Python 3.12 environment, the local 0.1.0 wheel and a BGE-M3 model directory. Place the [knowledge-only example](../../../components/knowledge/README.md) manifest, its adjacent `sources/` and `query.py` in the empty business directory or provide your own documents. Set the full `COREMIND_KNOWLEDGE_AUTHORIZATION` value. Run the following in the project directory with `MODEL_DIR` pointing to the verified model.
 
 ```sh
-python -m pip install -r "$COREMIND_SRC/examples/modules/manage-knowledge/requirements.txt" -r "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt"
-python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-knowledge/knowledge_server.py" --manifest "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/manifest.json" --model-dir "$MODEL_DIR" --state ./knowledge-state.json --scope public
+python -m pip install ./coremind_knowledge_mcp-0.1.0-py3-none-any.whl
+coremind-knowledge-mcp --version
+coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --state ./state/catalog.json --scope records
 ```
 
 Connect any Streamable HTTP MCP client to `http://127.0.0.1:8767/mcp` with the full credential in the `Authorization` header. Find `search_knowledge` and `resolve_citation` in `tools/list`, then search and look up a citation. In a CoreMind project, copy the `mcp.servers.knowledge` binding and the required Agent tool declarations from the [example configuration](../../../examples/modules/manage-knowledge/coremind.yaml) into your own configuration and use your own model. No document-assistant template or other domain service is required.

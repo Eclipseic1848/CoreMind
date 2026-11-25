@@ -43,7 +43,7 @@ def check(model_dir):
             index, "_encode", return_value=iter([([0.0] * len(dense), sparse)])
         ):
             assert index.search("说明", **context, mode="dense") == []
-        for invalid in ([], [new] * 8 + [dict(private, text="说明 " * 513)]):
+        for invalid in ([dict(new, line=0)], [new] * 8 + [dict(private, text="说明 " * 513)]):
             try:
                 index.replace(invalid)
             except ValueError:
@@ -54,6 +54,8 @@ def check(model_dir):
         index.replace([private])
         assert index.search("说明", **context) == []
         assert index.search("说明", scope="desk", as_of=context["as_of"]) == [private]
+        index.replace([])
+        assert index.search("说明", scope="desk", as_of=context["as_of"]) == []
 
 
 if __name__ == "__main__":
