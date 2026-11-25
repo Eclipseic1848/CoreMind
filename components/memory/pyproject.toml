@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coremind-memory-mcp"
+dynamic = ["version"]
+description = "Hindsight-backed, host-authorized memory for Streamable HTTP MCP clients"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "hindsight-client==1.2.3",
+    "mcp==1.30.0",
+    "pydantic>=2,<3",
+    "starlette<2",
+    "uvicorn==0.54.0",
+]
+
+[project.scripts]
+coremind-memory-mcp = "coremind_memory_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "coremind_memory_mcp.__version__" }

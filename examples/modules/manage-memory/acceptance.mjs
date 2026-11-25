@@ -4,11 +4,12 @@ import { copyFile, mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { loadConfigFile, parseAndValidate } from "coremind-ai";
 
 const exec = promisify(execFile);
 const example = import.meta.dirname;
-const root = path.resolve(example, "../../..");
 const [question = "资料摘要应该采用哪种格式？", expected = "资料摘要优先使用表格。"] =
   process.argv.slice(2);
 assert.ok(question.trim() && expected.trim(), "查询和预期记忆正文不能为空");
@@ -16,7 +17,9 @@ const auth = process.env.COREMIND_MEMORY_AUTHORIZATION;
 assert.ok(auth?.startsWith("Bearer ") && auth.slice(7).trim(), "请设置记忆查询服务的 Bearer 凭据");
 const fixtureKey = process.env.COREMIND_MEMORY_FIXTURE_KEY ?? "memory-local-test-only";
 assert.ok(`Bearer ${fixtureKey}` !== auth, "模型夹具与记忆服务必须使用不同凭据");
-const health = "http://127.0.0.1:8769/health";
+const configFile = path.join(example, "coremind.yaml");
+const { config: projectConfig } = parseAndValidate(await loadConfigFile(configFile));
+const health = new URL("/health", projectConfig.mcp.servers.memory.url);
 assert.equal((await fetch(health, { signal: AbortSignal.timeout(5000) })).status, 401);
 const ready = await fetch(health, {
   headers: { Authorization: auth },
@@ -87,17 +90,18 @@ try {
     provider.listen(8770, "127.0.0.1", resolve);
   });
   const config = path.join(workspace, "coremind.yaml");
-  await copyFile(path.join(example, "coremind.yaml"), config);
+  await copyFile(configFile, config);
   const python = process.env.COREMIND_MEMORY_PYTHON ?? "python";
   const env = {
     ...process.env,
     COREMIND_MEMORY_FIXTURE_KEY: fixtureKey,
-    PYTHONPATH: path.join(root, "python/src"),
     PYTHONIOENCODING: "utf-8",
   };
   delete env.COREMIND_MEMORY_ADMIN_AUTHORIZATION;
   delete env.COREMIND_HINDSIGHT_API_KEY;
-  const cli = path.join(root, "packages/coremind-cli/dist/cli.js");
+  delete env.PYTHONPATH;
+  delete env.COREMIND_WORKER_PATH;
+  const cli = fileURLToPath(new URL("cli.js", import.meta.resolve("coremind-cli")));
   const pythonArgs = ["-B", "-X", "utf8", path.join(example, "search.py"), config, question];
   const fixtures = [
     ["CLI + YAML", process.execPath, [cli, "run", config, "--prompt", question, "--json-events"]],

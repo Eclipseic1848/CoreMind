@@ -2,7 +2,7 @@
 
 ## 从空白项目只接入记忆
 
-按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)将 2.0.0 源码网关部署到独立服务目录。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.0.0 coremind-ai@2.0.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目安装 `coremind-ai==2.0.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
+按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)在宿主安装 0.1.0 wheel 并启动 `coremind-memory-mcp`。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.0.0 coremind-ai@2.0.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目安装 `coremind-ai==2.0.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
 
 ```yaml
 schemaVersion: 3

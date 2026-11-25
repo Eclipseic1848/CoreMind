@@ -4,6 +4,6 @@
 
 宿主确定项目、主体、Agent 和会话分支，管理写入确认、更正、遗忘和经验是否生效。模型使用只读工具召回当前可见的记忆。会话历史、运行记录和知识资料仍按各自的数据合同管理。
 
-CoreMind 2.0.0 的[正式源码 ZIP](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)提供网关脚本和固定依赖，可将记忆目录单独解压到宿主管理的服务目录。CLI 和 SDK 是可选调用端。独立可安装的网关软件包及其版本升级流程属于后续建设。
+独立网关 `coremind-memory-mcp` 0.1.0 可由[组件目录](../../../components/memory/README.md)构建成 wheel，安装在宿主自己的 Python 环境。其运行与升级独立于业务项目、CLI、SDK、知识库和本体。旧项目仍可使用 [CoreMind 2.0.0 源码附件](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)中的脚本。
 
 [接入指南](GUIDE.zh-CN.md)和[可运行示例](../../../examples/modules/manage-memory/README.zh-CN.md)说明记忆的权限和使用过程。[开发 SOP](SOP.zh-CN.md)列出验收条件，实现和测试路径见[模块清单](module.yaml)。

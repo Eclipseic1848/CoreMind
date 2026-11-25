@@ -6,19 +6,15 @@ from pathlib import Path
 
 from coremind import AsyncCoreMindClient, CoreMindClient
 
-ROOT = Path(__file__).resolve().parents[3]
-WORKER = ROOT / "packages" / "coremind-worker" / "dist" / "stdio.js"
-
-
 async def search_async(config, query):
-    async with AsyncCoreMindClient(config, worker_command=["node", str(WORKER)]) as client:
+    async with AsyncCoreMindClient(config) as client:
         return await client.run(query)
 
 
 def search(config, query, asynchronous):
     if asynchronous:
         return asyncio.run(search_async(config, query))
-    with CoreMindClient(config, worker_command=["node", str(WORKER)]) as client:
+    with CoreMindClient(config) as client:
         return client.run(query)
 
 

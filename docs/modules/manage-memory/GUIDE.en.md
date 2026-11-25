@@ -2,7 +2,7 @@
 
 ## Connect one component in an empty project
 
-Run the 2.0.0 source gateway in a separate service directory as described in the [example](../../../examples/modules/manage-memory/README.en.md). A standard MCP client can connect directly. For CoreMind, install the CLI and TypeScript SDK in the application with `npm install --save-exact coremind-cli@2.0.0 coremind-ai@2.0.0`. Python projects install `coremind-ai==2.0.0` and use its bundled Worker. The following `coremind.yaml` registers one tool. Select an application model configured by your host.
+Install the 0.1.0 wheel on the host and launch `coremind-memory-mcp` as described in the [example](../../../examples/modules/manage-memory/README.en.md). A standard MCP client can connect directly. For CoreMind, install the CLI and TypeScript SDK in the application with `npm install --save-exact coremind-cli@2.0.0 coremind-ai@2.0.0`. Python projects install `coremind-ai==2.0.0` and use its bundled Worker. The following `coremind.yaml` registers one tool. Select an application model configured by your host.
 
 ```yaml
 schemaVersion: 3

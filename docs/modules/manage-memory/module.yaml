@@ -5,6 +5,9 @@ name:
   en: "Long-term Memory and Reflection"
 version: 2.0.0
 sourcePaths:
+  - "components/memory/pyproject.toml"
+  - "components/memory/src/coremind_memory_mcp/server.py"
+  - "components/memory/src/coremind_memory_mcp/backend.py"
   - "examples/modules/manage-memory/memory_server.py"
   - "examples/modules/manage-memory/hindsight_backend.py"
   - "examples/modules/manage-memory/requirements.txt"
@@ -27,6 +30,7 @@ examplePaths:
   - examples/modules/manage-memory/README.zh-CN.md
   - examples/modules/manage-memory/README.en.md
 testPaths:
+  - "examples/modules/manage-memory/check_component.py"
   - "examples/modules/manage-memory/test_memory_service.py"
   - "examples/modules/manage-memory/acceptance.mjs"
 supportedPlatforms:

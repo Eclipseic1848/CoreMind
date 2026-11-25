@@ -122,7 +122,7 @@ class MemoryServiceTest(unittest.TestCase):
     def test_expiration_filters_even_when_backend_still_has_old_record(self):
         self.service.write(confirmed(expires="2020-01-02"))
         current = datetime(2020, 1, 2, tzinfo=timezone.utc)
-        with patch("memory_server.datetime") as clock:
+        with patch("coremind_memory_mcp.server.datetime") as clock:
             clock.now.return_value = current
             self.assertEqual(self.service.recall(["reader-a"], QUERY), {"memories": []})
         self.assertIn(("reader-a", "format"), self.backend.data)
