@@ -200,7 +200,7 @@ jobs:
 
       - name: 保存 P0 候选报告与双平台证据
         if: inputs.tag == 'v0.7.0' && inputs.reuse_candidate_run_id == ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coremind-p0-candidate-evidence
           path: |
@@ -370,7 +370,7 @@ jobs:
           node --input-type=module -e 'import { readFileSync } from "node:fs"; const m=JSON.parse(readFileSync("release-artifacts/release-manifest.json", "utf8")); const version=process.env.COREMIND_RELEASE_TAG.replace(/^v/u, ""); if (m.commit !== process.argv[1] || m.tag !== process.env.COREMIND_RELEASE_TAG || m.version !== version) process.exit(1)' "${tag_sha}"
 
       - name: 保存一次构建的全部发布物
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coremind-release-bundle
           path: release-artifacts/
@@ -578,7 +578,7 @@ jobs:
 
       - name: 保存 P0 发布报告
         if: always() && inputs.tag == 'v0.7.0'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coremind-p0-release-evidence
           path: |
@@ -674,7 +674,7 @@ jobs:
 
       - name: 保存 P0 发布闭环报告
         if: inputs.tag == 'v0.7.0'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coremind-p0-post-release-evidence
           path: |
