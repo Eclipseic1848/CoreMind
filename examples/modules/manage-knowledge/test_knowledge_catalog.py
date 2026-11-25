@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from knowledge_catalog import KnowledgeCatalog, KnowledgeVersionConflict
 
@@ -28,9 +29,11 @@ class FakeIndex:
         self.generation = 0
         self.fail = False
 
-    def replace(self, chunks):
+    def replace(self, chunks, *, before_publish=None):
         if self.fail:
             raise RuntimeError("重建失败")
+        if before_publish is not None:
+            before_publish()
         self.chunks = [dict(chunk) for chunk in chunks]
         self.generation += 1
 
@@ -45,6 +48,8 @@ class FakeIndex:
 
 
 class KnowledgeCatalogTest(unittest.TestCase):
+    reader = {"scope": "public", "as_of": "2026-10-01"}
+
     def test_same_version_and_content_is_unchanged(self):
         index = FakeIndex()
         catalog = KnowledgeCatalog(index)
@@ -71,11 +76,43 @@ class KnowledgeCatalogTest(unittest.TestCase):
         self.assertEqual(catalog.withdraw("资料室手册", 1), "withdrawn")
         self.assertEqual(catalog.search("旧版", scope="public", as_of="2026-10-01"), [])
         self.assertEqual(
-            catalog.resolve("资料室手册", 1, "手册-v1.md", 1)["status"], "withdrawn"
+            catalog.resolve("资料室手册", 1, "手册-v1.md", 1, **self.reader)["status"], "withdrawn"
         )
         self.assertEqual(
-            catalog.resolve("资料室手册", 2, "手册-v2.md", 5)["status"], "available"
+            catalog.resolve("资料室手册", 2, "手册-v2.md", 5, **self.reader)["status"], "available"
         )
+
+    def test_citation_visibility_uses_reader_scope_and_half_open_dates(self):
+        catalog = KnowledgeCatalog(FakeIndex())
+        catalog.import_document({**document(until="2026-10-01"), "access": "editor"})
+        def resolve(scope, day):
+            return catalog.resolve("资料室手册", 1, "手册-v1.md", 1, scope=scope, as_of=day)
+        unknown = {"status": "unknown", "docId": "资料室手册", "version": 1}
+        self.assertEqual(resolve("editor", "2026-01-01")["text"], "原件正文")
+        self.assertEqual(resolve("editor", "2025-12-31"), unknown)
+        self.assertEqual(resolve("editor", "2026-10-01"), unknown)
+        self.assertEqual(resolve("public", "2026-01-01"), unknown)
+        catalog.withdraw("资料室手册", 1)
+        self.assertEqual(resolve("editor", "2026-01-01")["status"], "withdrawn")
+        self.assertEqual(resolve("public", "2026-01-01"), unknown)
+
+    def test_failed_state_replace_preserves_visible_version_and_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state.json"
+            catalog = KnowledgeCatalog(FakeIndex(), state)
+            catalog.import_document(document())
+            with patch("knowledge_catalog.os.replace", side_effect=OSError("落盘失败")):
+                with self.assertRaises(OSError):
+                    catalog.withdraw("资料室手册", 1)
+                with self.assertRaises(OSError):
+                    catalog.import_document(document(version=2, text="二版正文"))
+            for instance in (catalog, KnowledgeCatalog(FakeIndex(), state)):
+                self.assertTrue(instance.search("原件正文", **self.reader))
+                self.assertEqual(instance.search("二版正文", **self.reader), [])
+                self.assertEqual(
+                    instance.resolve("资料室手册", 1, "手册-v1.md", 1, **self.reader)["status"],
+                    "available",
+                )
 
     def test_failed_rebuild_keeps_previous_index_and_state(self):
         index = FakeIndex()
@@ -101,7 +138,7 @@ class KnowledgeCatalogTest(unittest.TestCase):
             index = FakeIndex()
             second = KnowledgeCatalog(index, state)
             self.assertEqual(
-                second.resolve("资料室手册", 1, "手册-v1.md", 1)["status"],
+                second.resolve("资料室手册", 1, "手册-v1.md", 1, **self.reader)["status"],
                 "withdrawn",
             )
             self.assertEqual(

@@ -13,3 +13,5 @@ description: Implement or evaluate evidence retrieval in a CoreMind project when
 6. For incremental updates, preserve stable document IDs and bump versions when content changes. Verify that repeated imports are unchanged, withdrawn versions leave search, and `resolve_citation` reports available, withdrawn or unknown. Run `test_knowledge_catalog.py` before changing the catalog.
 
 中文开发步骤与验收条件见[开发 SOP](../../docs/modules/manage-knowledge/SOP.zh-CN.md)。
+
+Apply the host’s reader scope and as-of date to citation lookup. Test both readers across expiry and withdrawal. If saving the catalog fails, verify the live index and the restarted service still agree.

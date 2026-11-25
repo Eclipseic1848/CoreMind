@@ -120,6 +120,9 @@ jobs:
       - name: 安装可选本体示例依赖
         run: python -X utf8 -m pip install --disable-pip-version-check -r examples/modules/manage-ontology/requirements.txt
 
+      - name: 知识目录、引文阅读范围与回滚
+        run: python -B -X utf8 -m unittest discover -s examples/modules/manage-knowledge -p "test_knowledge_catalog.py" -v
+
       - name: 本体映射、SHACL 与动作校验
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-ontology -p "test_ontology_*.py" -v
 

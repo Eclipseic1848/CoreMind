@@ -11,3 +11,5 @@ Read the supporting excerpt before using a retrieved item to answer. If the visi
 ## Incremental imports and withdrawal
 
 Pass `--state` to keep a state file with each version's text, scope and withdrawal status. Restarting with the same version and content does not write a duplicate. Changed content for an existing version fails and requires a version bump. `--withdraw DOC:VERSION` removes that version from search immediately, while `resolve_citation` tells an old run whether its citation is available, withdrawn or unknown. A failed rebuild keeps the previous index and state file.
+
+Historical citations use the service’s reader scope and the manifest’s as-of date. Validity starts on the first date and ends before the expiry date. Out-of-scope or out-of-period citations return `unknown`. Readers can see an excerpt or a withdrawal status only within that boundary.

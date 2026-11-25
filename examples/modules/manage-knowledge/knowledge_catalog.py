@@ -27,36 +27,31 @@ class KnowledgeCatalog:
                 raise ValueError("知识状态版本不受支持")
             for record in state["documents"]:
                 self.documents[(record["docId"], record["version"])] = record
-        self._rebuild()
+        self.index.replace(self._active_chunks(self.documents))
 
     def import_document(self, record):
         result = self.import_documents([record])
         return "imported" if result["imported"] else "unchanged"
 
     def import_documents(self, records):
-        previous = dict(self.documents)
+        documents = dict(self.documents)
         imported = 0
         unchanged = 0
-        try:
-            for record in records:
-                self._validate(record)
-                key = (record["docId"], record["version"])
-                existing = self.documents.get(key)
-                if existing is not None:
-                    if fingerprint(existing) == fingerprint(record):
-                        unchanged += 1
-                        continue
-                    raise KnowledgeVersionConflict(
-                        f"文档 {record['docId']} 版本 {record['version']} 内容已变化；请提升版本号"
-                    )
-                self.documents[key] = record
-                imported += 1
-            if imported:
-                self._rebuild()
-                self._save()
-        except Exception:
-            self.documents = previous
-            raise
+        for record in records:
+            self._validate(record)
+            key = (record["docId"], record["version"])
+            existing = documents.get(key)
+            if existing is not None:
+                if fingerprint(existing) == fingerprint(record):
+                    unchanged += 1
+                    continue
+                raise KnowledgeVersionConflict(
+                    f"文档 {record['docId']} 版本 {record['version']} 内容已变化；请提升版本号"
+                )
+            documents[key] = record
+            imported += 1
+        if imported:
+            self._commit(documents)
         return {"imported": imported, "unchanged": unchanged}
 
     def withdraw(self, doc_id, version):
@@ -66,14 +61,7 @@ class KnowledgeCatalog:
             raise ValueError("未知的文档版本")
         if record.get("withdrawn"):
             return "withdrawn"
-        previous = dict(self.documents)
-        self.documents[key] = {**record, "withdrawn": True}
-        try:
-            self._rebuild()
-            self._save()
-        except Exception:
-            self.documents = previous
-            raise
+        self._commit({**self.documents, key: {**record, "withdrawn": True}})
         return "withdrawn"
 
     def search(self, query, *, scope, as_of, limit=5, mode="sparse"):
@@ -81,9 +69,14 @@ class KnowledgeCatalog:
             query, scope=scope, as_of=as_of, limit=limit, mode=mode
         )
 
-    def resolve(self, doc_id, version, file, line=None, locator=None):
+    def resolve(self, doc_id, version, file, line=None, locator=None, *, scope, as_of):
         record = self.documents.get((doc_id, version))
-        if record is None:
+        if (
+            record is None
+            or record["access"] not in {"public", scope}
+            or as_of < record["validFrom"]
+            or (record["validUntil"] is not None and as_of >= record["validUntil"])
+        ):
             return {"status": "unknown", "docId": doc_id, "version": version}
         if record.get("withdrawn"):
             return {"status": "withdrawn", "docId": doc_id, "version": version}
@@ -110,9 +103,10 @@ class KnowledgeCatalog:
             "file": file,
         }
 
-    def _active_chunks(self):
+    @staticmethod
+    def _active_chunks(documents):
         chunks = []
-        for record in self.documents.values():
+        for record in documents.values():
             if record.get("withdrawn"):
                 continue
             for chunk in record["chunks"]:
@@ -129,22 +123,28 @@ class KnowledgeCatalog:
                 )
         return chunks
 
-    def _rebuild(self):
-        self.index.replace(self._active_chunks())
-
-    def _save(self):
+    def _commit(self, documents):
+        chunks = self._active_chunks(documents)
         if self.state_path is None:
-            return
+            self.index.replace(chunks)
+        else:
+            self.index.replace(chunks, before_publish=lambda: self._save(documents))
+        self.documents = documents
+
+    def _save(self, documents):
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         state = {
             "schemaVersion": 1,
-            "documents": list(self.documents.values()),
+            "documents": list(documents.values()),
         }
         temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-        temporary.write_text(
-            json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        os.replace(temporary, self.state_path)
+        try:
+            temporary.write_text(
+                json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            os.replace(temporary, self.state_path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     @staticmethod
     def _validate(record):

@@ -78,7 +78,7 @@ class KnowledgeIndex:
                 models.SparseVector(indices=list(sparse), values=list(sparse.values())),
             )
 
-    def replace(self, chunks):
+    def replace(self, chunks, *, before_publish=None):
         payloads = []
         for chunk in chunks:
             for field in ("docId", "file", "text", "access"):
@@ -134,6 +134,9 @@ class KnowledgeIndex:
                             )
                         ],
                     )
+                # 新索引构建和目录落盘均成功后，读请求才可见新版本。
+                if before_publish is not None:
+                    before_publish()
             except Exception:
                 staged.close()
                 raise
