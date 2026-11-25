@@ -388,6 +388,8 @@ const modules = [
       "examples/modules/manage-ontology/acceptance.mjs",
       "examples/modules/manage-ontology/ontology-fixture.mjs",
       "examples/modules/manage-ontology/composition.mjs",
+      "examples/modules/manage-ontology/live-document-session.mjs",
+      "examples/modules/manage-ontology/document-assistant-corpora",
     ],
     dependencies: ["configure-coremind", "build-tools", "enforce-agent-permissions"],
     interfaces: [
