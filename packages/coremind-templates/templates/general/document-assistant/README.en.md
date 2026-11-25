@@ -23,6 +23,8 @@ python -m pip install coremind-ai==2.0.0
 | Hindsight memory | `http://127.0.0.1:8769/mcp` | Bind the reader to the authorized bank. Supply `COREMIND_MEMORY_AUTHORIZATION`. The host confirms, corrects, and forgets preferences. [Start and confirm a preference](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-memory/README.en.md) |
 | Optional ontology | `http://127.0.0.1:8879/mcp` | Prepare the model and constraints. Supply `COREMIND_ONTOLOGY_AUTHORIZATION` to inspect action preconditions. [Start and bind a model](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.en.md) |
 
+For a first run, point the knowledge service’s `--manifest` at the [archive corpus](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-ontology/document-assistant-corpora/archive/manifest.json). It includes two manual revisions and a draft table. A second project can use the [blue corpus](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-ontology/document-assistant-corpora/blue/manifest.json). Give each service its own reader credential.
+
 Set the model key and both read credentials in the process environment. Each service credential is the complete `Bearer <token>` value issued by the host. This example uses PowerShell 7. Linux hosts may inject the same environment variables through their deployment platform. Keep administrative tokens in the host service.
 
 ```powershell

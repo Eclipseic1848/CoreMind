@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "asOf": "2026-11-24",
+  "documents": [
+    {
+      "id": "guide",
+      "version": 1,
+      "file": "guide-v1.md",
+      "access": "public",
+      "validFrom": "2020-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "guide",
+      "version": 2,
+      "file": "guide-v2.md",
+      "access": "public",
+      "validFrom": "2020-01-01",
+      "validUntil": null
+    },
+    {
+      "id": "draft",
+      "version": 1,
+      "file": "draft-v1.md",
+      "access": "public",
+      "validFrom": "2020-01-01",
+      "validUntil": null
+    }
+  ]
+}

@@ -23,6 +23,8 @@ python -m pip install coremind-ai==2.0.0
 | Hindsight 记忆 | `http://127.0.0.1:8769/mcp` | 将读者绑定到获准的记忆库，用 `COREMIND_MEMORY_AUTHORIZATION` 召回。由宿主在确认后记录、更正或遗忘偏好。[启动与确认偏好](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-memory/README.zh-CN.md) |
 | 可选本体 | `http://127.0.0.1:8879/mcp` | 提供业务模型与约束，用 `COREMIND_ONTOLOGY_AUTHORIZATION` 查询动作前置条件。[启动与模型配置](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.zh-CN.md) |
 
+第一次运行时，可为知识服务的 `--manifest` 指定[资料室演示清单](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-ontology/document-assistant-corpora/archive/manifest.json)。它含同一手册的两版原文和一份草稿表格。第二个项目可改用[蓝签资料清单](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-ontology/document-assistant-corpora/blue/manifest.json)，为两个服务配置各自的读取令牌。
+
 在运行终端中注入模型密钥与两项只读服务令牌。每项服务令牌取宿主签发的完整 `Bearer <令牌>` 值。下例使用 PowerShell 7；Linux 也可用环境变量或部署平台的凭据注入。管理令牌仅由宿主服务持有。
 
 ```powershell
