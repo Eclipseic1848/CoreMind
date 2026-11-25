@@ -1,8 +1,8 @@
 # Release Candidate 验收指南
 
-当前验收目标为 `1.4.0` 发布线。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
+当前验收目标为 `2.0.0` 发布线。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
 
-本轮纳入未独立发布的 #324–#333 及后续安全可靠性修复，以及 #359–#367、#376 的依赖风险处置、持久任务、会话分支、跨语言能力与 CI 修复；不补发 1.3。范围和迁移边界见[完整发布说明](notes/v1.4.0.md)与[1.2→1.4 迁移](../migrations/1.2-to-1.4.zh-CN.md)。P01～P20 及原严格资格要求保持不变。
+本版保留 P01–P20，同时需复验资料整理模板及其可选本体。[发布说明](notes/v2.0.0.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 
 本指南用于验证同一候选提交上的 CLI/TUI、无头 CLI、TypeScript SDK、Python SDK 与发布物。自动测试、真实终端和真实 Provider 是三类独立证据，不能互相替代；`0.7.0` 的维护者网络例外必须单独标为 waived，不能冒充真实 Provider 成功。
 
@@ -46,6 +46,10 @@ npm run acceptance:rc
 | P18 | npm tarball 内容与入口 | 发布物 |
 | P19 | Python wheel 内容与 Worker | 发布物 |
 | P20 | Windows 与 Linux 真实伪终端 | TUI |
+
+## 2.0.0 资料助手候选验证
+
+冻结主线提交 S 后，从候选制品取得 Runtime 包的 SHA-256 H。按受支持的部署方式启动固定版本服务，使用候选 npm tarball、Python wheel 与内置 Worker 在干净项目复跑资料助手，验证两次索引重建、四入口、不同项目与主体的隔离及实际摘要。真实 Provider 资格绑定相同 S/H、已授权的模型、凭据来源、预算和时限，另行核对双平台工程、稳定性、覆盖率、真实 PTY 与成功的 `Candidate qualified` 作业。正式发布后逐件核对构建 R 的八个 npm 包、wheel 和源码 ZIP，再从公开源安装并复跑最小组合。
 
 ## 1.4.0 能力复验与兼容边界
 
@@ -124,10 +128,10 @@ npm run providers:certify
 
 - P01～P19 自动矩阵通过且测试锚点完整。
 - Windows 与 Linux 的 P20 证据绑定同一候选版本和提交。
-- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `1.4.0`。
+- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `2.0.0`。
 - 两个平台的 CI、稳定性、覆盖率、安全和发布物门禁通过。
-- 严格 Candidate 工作流的 `Candidate qualified` 作业真实成功；Provider 被跳过或仅工程门通过不算完成。依赖审计仅按 #359 接受的精确风险范围处理，接受不是修复，其他风险和报告错误仍阻塞。
+- 严格 Candidate 工作流的 `Candidate qualified` 作业真实成功；Provider 被跳过或仅工程门通过不算完成。生产依赖与完整依赖的审计报告均须有效且零发现。
 - 最终全仓 Markdown 审计通过。
 - 固定中英 Release 正文经语义审阅，唯一 `{{RELEASE_COMMIT}}` 注入经校验的提交 SHA；创建只用 `--notes-file`，既有 body 冲突停止，不自动聚合 PR 标题或覆盖正文。
 
-RC 完成仍不等于已经发布。只在最终资格通过的提交创建不可移动的 `v1.4.0` Tag；随后按[正式发布 SOP](README.zh-CN.md)发布同一构建 R 的 8 个 npm tarball、wheel 与独立源码 ZIP 共 10 件，公开下载逐项核对清单/哈希并在干净环境回装，最后验证 GitHub Release 与双语文档站。
+RC 完成仍不等于已经发布。只在最终资格通过的提交创建不可移动的 `v2.0.0` Tag；随后按[正式发布 SOP](README.zh-CN.md)发布同一构建 R 的 8 个 npm tarball、wheel 与独立源码 ZIP 共 10 件，公开下载逐项核对清单/哈希并在干净环境回装，最后验证 GitHub Release 与双语文档站。

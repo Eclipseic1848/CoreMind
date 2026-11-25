@@ -12,6 +12,8 @@ Domains 04–08 of the V1.0.2 agent capability map cover 20 capabilities. The pr
 4. Enable ontology when the task depends on object relationships or action prerequisites. Request publication for both a draft and a reviewed document. Check the executor call count on denial and the business receipt on success.
 5. Use three independent sessions to exercise first use, preference reuse, and a correction combined with a source withdrawal. The composition example uses real MCP, Skill loading, file tools and the ontology engine. The knowledge index, memory backend and model are deterministic fixtures. Repeat the cases with the target services, model, installed artifacts and business samples before deployment. [Composition example](../../../examples/modules/manage-ontology/README.en.md)
 
+The document assistant also ran seven cases in two independent projects with live Qwen, Qdrant/BGE-M3, Hindsight/PostgreSQL and an optional ontology. The record includes synthetic inputs, initial failures, fixes and generated summaries to help teams design their own acceptance cases. [Live service integration](../../../examples/modules/manage-ontology/LIVE-COMPOSITION.en.md)
+
 ## 04 Knowledge management
 
 [Implementation SOP](../../modules/manage-knowledge/SOP.en.md) · [Developer Skill](../../../skills/manage-knowledge/SKILL.md) · [Runnable example and retrieval results](../../../examples/modules/manage-knowledge/README.en.md)

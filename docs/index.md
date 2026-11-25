@@ -31,11 +31,15 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前发布线：`1.4.0`
+## 当前发布线：`2.0.0`
 
-[从 1.2 升级](migrations/1.2-to-1.4.zh-CN.md) · [1.4 发布说明](release/notes/v1.4.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
+[从 1.4 升级](migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](release/notes/v2.0.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-> `1.4.0` 发布线以已发布的 `1.2.0` 为升级基线；未独立发布的 `1.3.0` 修复全部纳入本版。当前源码已合入持久任务原子阶段、等待与显式唤醒、稳定键结果复用、会话树与分叉，以及 TS 和同步/异步 Python 的同一 Node Worker 接入。1.2 的标准 Skill、持久控制、MCP/OAuth、工具发现与终端能力继续保留。最新公开稳定版本与可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面为准；正式使用还须核对本版本最终资格证据，源码和工程 CI 不代替公开交付、生产效果或 Provider 认证。
+> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。可公开安装的版本以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的对应制品为准。
+
+### 从资料项目开始
+
+用 `coremind create` 创建 `document-assistant`。准备两版资料，确认一个格式偏好，再运行普通版或可选本体版。[五域建设方法](guide/06-capability-construction.md)
 
 ### 1.4 已合入的能力
 

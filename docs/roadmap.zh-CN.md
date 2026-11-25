@@ -4,21 +4,21 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 当前发布线：`1.4.0`
+## 当前发布线：`2.0.0`
 
-`0.2.0-rc.1` 保持为不可变参考基线；`1.2.0` 是已发布的升级基线，最新公开稳定版本以 GitHub Release、npm 与 PyPI 为准。`1.4.0` 发布线将未独立发布的 `1.3.0` 修复与持久任务、会话树和跨语言接入一起交付。升级见[1.2→1.4 迁移指南](migrations/1.2-to-1.4.zh-CN.md)，更早版本见[历史迁移指南](migrations/1.0-to-1.2.zh-CN.md)。正式使用前须核对同版本公开制品和最终资格证据；当前源码具备以下能力：
+从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。可公开安装的版本以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的对应制品为准。 [1.4→2.0 迁移](migrations/1.4-to-2.0.zh-CN.md)
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
 - Config v2 兼容与显式 Config v3、43 个可配置 Provider 入口（含兼容别名）及自定义兼容端点。
 - `ask`、`assisted`、`full` 三档权限，以及路径策略、审批、审计、checkpoint、diff 和恢复。
 - 明确的运行结果、预算、Trace、Session、Context 保护、测试、评测和发布门禁。
-- 8 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 22 个能力模块。
+- 9 个项目模板、5 个离线黄金示例、2 个编码智能体真实缺陷仓库和 25 个能力模块。
 - 每个能力模块配套测试、SOP、Skill、中英文指南和示例。
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`v1.4.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/) 必须版本一致，包构建提交和源码 ZIP 发布提交按发布清单分别记录；公开可安装状态以渠道实时页面和同提交资格证据为准，源码 CI 通过不等于发布。旧版本发布记录保留，不能替代本版本资格。
+`v2.0.0` Tag、[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、8 个 npm 包与 [PyPI](https://pypi.org/project/coremind-ai/) 必须版本一致，包构建提交和源码 ZIP 发布提交按发布清单分别记录；公开可安装状态以渠道实时页面和同提交资格证据为准，源码 CI 通过不等于发布。旧版本发布记录保留，不能替代本版本资格。
 
 它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。发布资格与 Provider 认证分别记录；正式发布还必须有绑定本版本、最终提交、Runtime 与 Worker 的 strict-provider 工作流证据。
 
@@ -29,7 +29,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - Skill 支持声明资源、固定提交安装和旧运行恢复。工具层提供本地、stdio MCP 与 Streamable HTTP MCP 互通验收，以及可选的 Playwright MCP 浏览器示例。[Skill 模块](modules/package-agent-skills/README.zh-CN.md) · [工具模块](modules/build-tools/README.zh-CN.md)
 - 已验证从已合入源码构建的 npm/Python 安装件，以及从原文重建知识索引。发布候选制品仍需复跑同一消费流程。[干净消费者说明](modules/manage-knowledge/CLEAN-CONSUMER.zh-CN.md)
 - P3 已合入主线，交付可选本体模型、来源映射、SHACL 校验和业务动作绑定。四入口和三会话组合均通过双平台工程检查。[本体模块](modules/manage-ontology/README.zh-CN.md)
-- P4 跟踪业务模板与真实服务组合、候选制品和正式发布。各项均以 Issue 的退出条件及验收记录为准。[五域建设指南](guide/06-capability-construction.md) · [v2.0.0 里程碑](https://github.com/Eclipseic1848/CoreMind/milestone/3)
+- P4-A 已合入主线。两个独立项目用合成资料接入真实检索、Hindsight、Qwen 和可选本体。四个公开入口和三个独立会话完成七个案例。[五域建设指南](guide/06-capability-construction.md) · [组合验收 #401](https://github.com/Eclipseic1848/CoreMind/issues/401)
+- 后续依次冻结版本、验收同一提交的候选制品、发布并从公开渠道回装。每个阶段的提交、检查与状态分别记录在 [#402](https://github.com/Eclipseic1848/CoreMind/issues/402)、[#403](https://github.com/Eclipseic1848/CoreMind/issues/403)、[#404](https://github.com/Eclipseic1848/CoreMind/issues/404)。[v2.0.0 里程碑](https://github.com/Eclipseic1848/CoreMind/milestone/3)
 
 ## `1.4.0`：持久任务与会话能力
 
@@ -113,7 +114,7 @@ P0 实现、Node 22 双平台工程、候选 npm tarball、Python wheel、bundle
 
 ## 后续路线（版本范围待确认）
 
-1.4.0 当前范围是已合入能力与可靠性修复的正式交付。以下仅是远期候选方向，尚未纳入本次发布或授权开工，仍需独立确认范围与验收，不承诺版本或日期：
+以下方向留待后续独立立项，版本和日期待定。
 
 - Web开发环境：先运行与控制面，再在线编辑、测试与评测，复用现有Protocol与Runtime。
 - 更多 MCP 服务互通、LSP、受控第三方插件、远程执行环境与平台生态：分别确认安全合同和兼容门禁后推进。

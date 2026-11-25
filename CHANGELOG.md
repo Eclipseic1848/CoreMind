@@ -4,6 +4,23 @@
 
 [English](CHANGELOG.en.md)
 
+## 2.0.0
+
+业务方现在可以从 `document-assistant` 模板创建资料整理项目，替换自己的资料、身份绑定、Skill 和本体模型。CLI/YAML、TypeScript、Python 同步和异步调用沿用同一个 Node Runtime。
+
+- **知识。** Docling/RapidOCR 负责解析，BGE-M3 与 Qdrant 用于中文检索。结果给出文件、版本和位置。检索及解析 Markdown 表格引文时，数据行还带同一文件版本内的表头原文和行号，便于核对每个值对应的列。宿主可幂等导入、撤回版本、从原文重建索引。检索和旧引文解析均校验阅读范围。索引构建失败时保留上一份可用状态。[表格引文修复 #411](https://github.com/Eclipseic1848/CoreMind/issues/411)
+- **长期记忆。** 宿主为 Hindsight 记忆库绑定读者和管理员。召回返回归属、版本和来源。写入、更正、遗忘及经验候选的确认由宿主管理，旧备份恢复后按遗忘回执清理。
+- **Skill。** 根据业务任务说明生成可编辑草稿，使用标准 `SKILL.md`，按声明和权限读取资源。固定上游提交安装并以摘要冻结资源。旧 v1 快照沿用原恢复方式。脚本资源的读取与执行分别授权。资料助手按请求选择单份整理或两版比较，命中同一来源和位置后结束重复检索、说明范围并保存摘要。
+- **工具。** 本地处理函数、stdio MCP 和 Streamable HTTP MCP 共用参数、取消和回执边界。可选 Playwright MCP 提供交互式浏览器。未知写入结果须凭原请求及回执核对。
+- **可选本体。** 业务方提供 RDF 模型、映射、SHACL Core 约束与动作规则。RDFLib 和 pySHACL 返回约束位置、模型版本和动作前置条件。宿主另行授权执行并检查实际结果。
+- **同轮多个工具。** 同一模型回合同时请求若干工具时，含独占或串行合同的批次按顺序执行；可并发的批次保留并发。审批、预算、持久化与工作区租约仍由 Runtime 执行。
+- **Qwen 兼容端点。** 自定义 Provider 可显式使用 `qwen-chat-template` 将思考开关发送到 `chat_template_kwargs.enable_thinking`。旧 `qwen` 格式继续发送顶层开关。无效的显式格式会在配置阶段被拒绝，输出预算仍由 Agent 控制。
+- **交付材料。** 五域建设指南给出能力图谱 04–08 的 20 项映射。资料助手模板提供双语说明、Skill 和四入口样例。P0 同步了依赖并清理已过期的审计例外。发布候选继续执行工程、稳定性、覆盖率、双平台真实 PTY、严格 Provider 及公开回装门禁。
+
+2026-11-24，资料助手在 Windows 开发环境以两个项目的小型合成资料、独立读者和两个 Hindsight 个人记忆库完成七个逻辑案例。CLI 比较两版资料，TypeScript 整理草稿并检查发布条件，Python 同步入口验证另一项目的资料与偏好，异步入口验证更正和撤回。另有三个独立 ChatSession 分别验证未设置偏好、已确认表格偏好及更正为清单。真实 Qwen3.8-27B 调用知识、记忆与可选本体服务。原始记录保留失败尝试与复验，同一案例只计一次。[运行方法与边界](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) · [逐次运行及摘要](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/live-composition-results.json)
+
+[1.4→2.0 迁移](docs/migrations/1.4-to-2.0.zh-CN.md) · [完整发布说明](docs/release/notes/v2.0.0.md)
+
 ## 1.4.0
 
 本节记录 `1.4.0` 发布线；源码和发布准备不等于公开交付，实际状态以同版本 Release/Registry 与最终提交、准确制品的资格证据为准。1.4.0 包含未独立发布的 1.3.0 修复及本轮持久任务、会话树和跨语言能力；不补发 1.3.0。1.2.0 用户请按[迁移指南](docs/migrations/1.2-to-1.4.zh-CN.md)升级，最终固定正文见[发布说明](docs/release/notes/v1.4.0.md)。

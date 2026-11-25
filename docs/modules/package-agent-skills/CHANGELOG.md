@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 2.0 development
+## 2.0.0
 
 - Added a local task-to-Skill draft example with an explicit review and activation check.
 

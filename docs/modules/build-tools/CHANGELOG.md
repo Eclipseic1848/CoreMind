@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased · P2-D
+## 2.0.0
 
 - Added a local, stdio MCP, and Streamable HTTP MCP parity example using one synthetic operation.
 - Added opt-in Playwright MCP guidance and a loopback browser control and cancellation check.

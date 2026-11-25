@@ -1,5 +1,5 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
 
-- Add the P1 knowledge retrieval module to the 1.4.0 development baseline for the planned 2.0.0 release. The module uses a read-only MCP tool and documents how to verify source versions, locations and read scopes across three entry points.
+- Add cited knowledge retrieval with document versions, locations and reader scopes. Return the original table header and its line with a Markdown data row in both search and citation lookup. Import and withdraw idempotently, rebuild from source, preserve the previous usable catalog on a failed rebuild, and enforce scope during citation lookup. Verify CLI, TypeScript and Python sync/async against the same service.

@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-line%201.4.0-f59e0b)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-line%202.0.0-f59e0b)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -18,15 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> `1.4.0` 发布线以已发布的 `1.2.0` 为升级基线；未独立发布的 `1.3.0` 修复全部纳入本版。当前源码已合入持久任务原子阶段、等待与显式唤醒、稳定键结果复用、会话树与分叉，以及 TS 和同步/异步 Python 的同一 Node Worker 接入。1.2 的标准 Skill、持久控制、MCP/OAuth、工具发现与终端能力继续保留。最新公开稳定版本与可安装状态以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 和 [PyPI](https://pypi.org/project/coremind-ai/) 实时页面为准；正式使用还须核对本版本最终资格证据，源码和工程 CI 不代替公开交付、生产效果或 Provider 认证。
+> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。可公开安装的版本以 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases)、[npm](https://www.npmjs.com/package/coremind-cli) 与 [PyPI](https://pypi.org/project/coremind-ai/) 的对应制品为准。
 
 > Provider 可配置不等于认证。本版本资格必须由绑定最终提交、版本、Runtime 摘要与 bundled Worker 的 strict-provider 工作流证据确认；生产评估还须核对供应商矩阵。
 
-[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [1.2→1.4 升级](docs/migrations/1.2-to-1.4.zh-CN.md) · [1.4 发布说明](docs/release/notes/v1.4.0.md) · [1.0.1→1.2 历史升级](docs/migrations/1.0-to-1.2.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
+[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [1.4→2.0 升级](docs/migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](docs/release/notes/v2.0.0.md) · [1.0.1→1.2 历史升级](docs/migrations/1.0-to-1.2.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-`1.4.0` 发布线坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
+`2.0.0` 发布线坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
 
 | 能力域 | 当前支持 |
 |---|---|
@@ -42,7 +42,7 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 | 变更保护 | 工作区路径策略、审批、写前 checkpoint、diff、显式恢复、审计；Linux 内置 shell 额外使用断网沙箱 |
 | 质量工程 | `check`、`eval`、三档质量门禁、场景评测、七类 grader、脏工作区保护、失败注入、三连跑、覆盖率基线、npm/wheel 干净安装和发布预检 |
 | 编码智能体 | 先复现、再定位、最小修改、目标测试、回归测试和差异审查；当前离线 Coding Eval 6/6，二期真实外部同题模型对照尚未执行 |
-| 新手学习 | 8 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库与能力模块。每个模块配套测试、SOP、Skill、中英文指南与示例 |
+| 新手学习 | 9 个场景模板、5 个离线黄金示例、2 个真实缺陷仓库与能力模块。每个模块配套测试、SOP、Skill、中英文指南与示例 |
 | 项目脚手架 | 新项目或已有工程接入；TypeScript、JavaScript、Python；生成代码/测试骨架、评测场景和项目级指导材料 |
 | 当前平台 | Windows 与 Linux；每个可发布候选都必须在同一源码提交完成自动矩阵、双平台 CI 与双平台真实伪终端，并完成绑定本版本与 Runtime 摘要的严格真实 Provider 复验；安装状态以 Release 与 Registry 为准 |
 
@@ -76,14 +76,14 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 | `1.1.0` 未发布开发阶段 | 标准 Skill、持久控制、MCP/OAuth、显式工具发现与终端证据 | 并入 1.2；不要求安装中间版本 |
 | `1.2.0` 已发布 | 汇总 1.1 开发成果、可靠性、日志处理、通知消费、加载信任和终端编辑 | 保留历史发布与认证证据，不替代新版本资格 |
 | `1.3.0` 未发布准备 | 内部状态保护、取消、步骤输出、工具 Schema、评测、错误身份、网络清理及 CLI 诊断修复 | 全部纳入 1.4，不要求安装中间版本 |
-| `1.4.0` 发布线 | 持久任务阶段/等待/稳定键、会话树与分叉、TS 与同步/异步 Python 接入，汇总 1.3 修复和本轮依赖处置 | 原资格与超时不放宽，取得最终提交与制品的严格证据后才发布 |
-| `2.0.0` 开发中 | 知识库、Hindsight 长期记忆、可选本体、工具和 Skill 的通用构建框架 | [五域建设指南](docs/guide/06-capability-construction.md) · [GitHub 阶段与发布进度](https://github.com/Eclipseic1848/CoreMind/milestone/3) |
+| `1.4.0` 升级基线 | 持久任务、会话树、分叉与跨语言接入 | [历史发布说明](docs/release/notes/v1.4.0.md) |
+| `2.0.0` 发布线 | 知识库、Hindsight 长期记忆、可选本体、工具和 Skill 的通用构建框架 | [五域建设指南](docs/guide/06-capability-construction.md) · [GitHub 阶段与发布进度](https://github.com/Eclipseic1848/CoreMind/milestone/3) |
 | 后续候选 Web 开发环境（范围待确认） | 可视化配置 Agent/工具/Workflow、在线代码编辑、Trace 调试、测试评测、权限审批、项目文件管理和发布指导 | Web 复用 CoreMind Protocol，不建立另一套运行引擎 |
 | 后续平台与生态 | macOS 正式支持；持续扩展社区模板、Skill、Provider 证据和业务模块 | 每项能力必须同步交付实现、测试、SOP、Skill、中英文指南和示例 |
 
 后续维护版本将以真实缺陷、社区反馈和发布证据为依据持续迭代。CoreMind 仍不会替用户决定业务目标、审批责任或智能体架构，也不计划提供官方 Docker 镜像或把框架变成托管 SaaS。
 
-旧版本候选与 Provider 证据继续保留用于追溯，但不能替代 `1.4.0` 的发布或认证证据。
+旧版本候选与 Provider 证据继续保留用于追溯，但不能替代 `2.0.0` 的发布或认证证据。
 
 ## CoreMind 解决什么问题
 
@@ -109,10 +109,10 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-使用源码开发需要 Node.js ≥ 22.19 与 npm ≥ 11.5.1；Python SDK 需要 Python ≥ 3.10。下例以 `1.4.0` 发布线为安装目标；执行前先核对 Release、Registry 的同版本公开制品与最终资格证据，最新公开稳定版本以渠道页面为准；从 `1.2.0` 升级请按[迁移指南](docs/migrations/1.2-to-1.4.zh-CN.md)操作：
+源码开发需要 Node.js ≥ 22.19、npm ≥ 11.5.1，Python SDK 需要 Python ≥ 3.10。公开渠道提供 2.0.0 后可按下例安装。[从 1.4 升级](docs/migrations/1.4-to-2.0.zh-CN.md)
 
 ```bash
-npm install -g coremind-cli@1.4.0
+npm install -g coremind-cli@2.0.0
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -267,7 +267,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`1.4.0` 正式发布必须另有绑定最终提交、版本与 Runtime 摘要的 strict-provider 工作流证据。`0.7.0` 的一次性网络例外与旧版本证据只供追溯，均不计为本版本认证。
+CoreMind 提供锁定的 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。可配置不等于 CoreMind Certified；当前认证必须在同一版本完成流式、工具调用、结构化结果、多轮、abort、错误映射和长上下文七项真实测试。`2.0.0` 正式发布必须另有绑定最终提交、版本与 Runtime 摘要的 strict-provider 工作流证据。`0.7.0` 的一次性网络例外与旧版本证据只供追溯，均不计为本版本认证。
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

@@ -8,7 +8,7 @@ CoreMind 的 TypeScript/JavaScript 统一 SDK 门面。请只从 `coremind-ai` �
 
 `RunResult.snapshot` 是 CLI、Worker、TypeScript 与 Python 共用的纯 JSON 运行快照；门面同时导出受控生命周期扩展与可追踪轻量实验接口。
 
-1.4.0 发布线增加 `TaskSession` 原子阶段、持久等待和稳定键结果复用，以及 `ChatSession` 会话树/分支/fork；`ProtocolV2SessionClient` 与同步/异步 Python 使用同一 Node Worker。可信宿主负责注册任务定义和 alarm，未知外部效果仍由原恢复门拦截。安装前核对同版本 Release、Registry 制品与最终资格证据。
+1.4.0 引入 `TaskSession` 原子阶段、持久等待和稳定键结果复用，以及 `ChatSession` 会话树/分支/fork；`ProtocolV2SessionClient` 与同步/异步 Python 使用同一 Node Worker。可信宿主负责注册任务定义和 alarm，未知外部效果仍由原恢复门拦截。安装前核对同版本 Release、Registry 制品与最终资格证据。
 
 [完整文档（需仓库访问权限）](https://github.com/Eclipseic1848/CoreMind)
 
@@ -20,6 +20,10 @@ Run results use six terminal states; the facade exports `LoopConfig`, `LoopPhase
 
 `RunResult.snapshot` is the shared pure-JSON run envelope, and the facade also exports bounded lifecycle-extension and traceable lightweight-experiment contracts.
 
-The 1.4.0 release line adds atomic `TaskSession` phases, durable waits, keyed result reuse and `ChatSession` trees/branches/forks. `ProtocolV2SessionClient` and sync/async Python use the same Node Worker. Trusted hosts own task registration and alarms; unknown external effects retain the original recovery gate. Confirm the corresponding Release, public Registry artifacts and final qualification before installation.
+Version 1.4.0 introduced atomic `TaskSession` phases, durable waits, keyed result reuse and `ChatSession` trees/branches/forks. `ProtocolV2SessionClient` and sync/async Python use the same Node Worker. Trusted hosts own task registration and alarms; unknown external effects retain the original recovery gate. Confirm the corresponding Release, public Registry artifacts and final qualification before installation.
 
 [Full documentation (repository access required)](https://github.com/Eclipseic1848/CoreMind)
+
+2.0.0 的知识、Hindsight、Skill、工具和可选本体共用这一 SDK。[建设指南](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/guide/06-capability-construction.md)
+
+The same SDK serves all five capability domains in 2.0.0. [Construction guide](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/en/guide/06-capability-construction.md)

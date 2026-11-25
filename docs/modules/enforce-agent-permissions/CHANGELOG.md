@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0 - 2026-11-25
+
+- Updated the module contract and package version for CoreMind 2.0.0.
+
 ## 1.4.0 - 2026-11-02
 
 - 严格 Linux 沙箱改由 Bubblewrap 直接启动受信 PID 1，保留原隔离与 seccomp 规则并禁止嵌套用户命名空间。

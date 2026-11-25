@@ -3,7 +3,7 @@ id: manage-memory
 name:
   zh-CN: "长期记忆与经验提炼"
   en: "Long-term Memory and Reflection"
-version: 1.4.0
+version: 2.0.0
 sourcePaths:
   - "examples/modules/manage-memory/memory_server.py"
   - "examples/modules/manage-memory/hindsight_backend.py"

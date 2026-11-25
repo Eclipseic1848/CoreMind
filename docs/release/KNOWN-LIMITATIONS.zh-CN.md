@@ -1,11 +1,11 @@
-# 1.4.0 已知限制
+# 2.0.0 已知限制
 
-> 本文件描述 `1.4.0` 发布线的能力边界；从已发布的 `1.2.0` 升级，保留其纳入的 1.1 能力，并纳入未独立发布的 1.3 修复、后续安全可靠性修复以及 #359–#367、#376；不补发 1.3。升级注意事项见[1.2→1.4 迁移指南](../migrations/1.2-to-1.4.zh-CN.md)。公开可安装状态以 GitHub Release、npm、PyPI 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
+> P3 的三会话检查使用确定性夹具。P4-A 在 Windows 工作目录用小型合成资料、真实 Qwen、BGE-M3/Qdrant 内存索引、Hindsight/PostgreSQL 和 RDFLib/pySHACL 完成四入口与三独立会话。Python 使用工作区构建的 Node Worker。CLI 在临时项目预批准写入，SDK 把写入限定为本项目的 summary.md。知识服务重启时从原文和版本状态重建索引。生产容量、时延和外部动作回执由宿主实测。[P4-A 运行与复验记录](https://github.com/Eclipseic1848/CoreMind/blob/d87a160a1f437b656043f1b977248dba09482cbc/examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md) [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 
-- 43个Provider入口可配置（42个内置聊天Provider，含兼容别名），但不等于真实认证。1.4.0须使用绑定本次候选版本、最终提交与Runtime摘要的strict-provider证据；旧版本认证和发布豁免不能替代。
-- 底层运行库 1.5.0 采用的 Undici 8.12.3 与 minimatch 11.0.3 超出 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359) 登记的九条公告影响范围。安全结论限于这些公告及最终候选的审计证据。独立开发依赖风险只接受策略登记的版本、位置、公告和等级，原到期日为 2026-11-14。详见[安全策略](../../SECURITY.md)。
-- 二期真实外部同题模型评测尚未执行，离线 Coding Eval 不能替代真实模型质量结论。
-- 发布要求全仓覆盖率不下降；`1.0.1` 记录的总体 lines/statements/branches 低于长期 80% 目标，部分关键安全分支低于 90%。`1.4.0` 的实际值以同提交覆盖率报告为准，不用旧数值代替本轮结果。
+- 43个Provider入口可配置（42个内置聊天Provider，含兼容别名），但不等于真实认证。2.0.0须使用绑定本次候选版本、最终提交与Runtime摘要的strict-provider证据；旧版本认证和发布豁免不能替代。
+- P0 已更新开发依赖并移除 2026-11-14 到期的审计例外。按本版策略，最终候选的生产和完整依赖审计均须零发现。[安全策略](../../SECURITY.md)
+- 二期 Coding Eval 的外部模型同题对比仍待执行。P4-A 的七个案例测量资料助手在两份合成资料集上的行为。
+- 发布要求全仓覆盖率不下降；`1.0.1` 记录的总体 lines/statements/branches 低于长期 80% 目标，部分关键安全分支低于 90%。`2.0.0` 的实际值以同提交覆盖率报告为准，不用旧数值代替本轮结果。
 - 生命周期扩展是进程内受控扩展，不是操作系统沙箱。只开放四个事件，默认不加载未知项目扩展。
 - Windows 宿主 Shell 的安全边界依赖权限、工作区和网络组合；Linux 内置 Shell 才使用额外的断网隔离。两者不应被描述为相同级别的沙箱。
 - Python SDK 使用随包 Node Worker，要求 Python `>=3.10` 与 Node.js `>=22.19`；不存在独立纯 Python Runtime。新能力需要匹配的 SDK/Worker；Protocol v2 的 Schema 指纹必须一致，旧 Worker 忽略字段不能视为支持。
@@ -13,7 +13,7 @@
 - 默认压缩是本地确定性策略，不自动创建项目 Memory；实验策略不会自动切换为默认。
 - Child Run 不支持 durable detach、独立 spawn/list/resume 命令、Goals 或 Jobs；本期不包含 Web。
 - 当前不提供官方托管 API、多租户 SaaS、官方 Docker 镜像、macOS 正式支持或扩展市场。
-- `v1.4.0` Tag、GitHub Release、8 个 npm 包与 PyPI 必须版本一致；包的构建提交与源码 ZIP 的发布提交分别记录在清单中，二者之间不得有产品代码变更。公开渠道是安装可用性的最终依据。
+- `v2.0.0` Tag、GitHub Release、8 个 npm 包与 PyPI 必须版本一致；包的构建提交与源码 ZIP 的发布提交分别记录在清单中，二者之间不得有产品代码变更。公开渠道是安装可用性的最终依据。
 
 - Trace 无空白片段可能延迟到轮次结束；未闭合安全缓冲上限为 65,536 字符。凭据步骤候选明确失败，不静默修改验收哈希。
 - v1 Python 工具取消只结束本地等待，外部函数未确认收尾时不能视为 quiescent；Linux Web 的宿主网络域不继承 Shell 沙箱隔离。
@@ -57,4 +57,4 @@
 - 已合并的关键日志前缀命中只减少解析/序列化，完整读写和同步保留；Python 四桶通知 drain 不提供服务端确认、自动内存上限或持久游标推进。项目脚本 import 前显式加载信任不是工具授权、依赖冻结或 OS 沙箱；字素编辑和最多 50 条当前界面普通输入历史不是完整编辑器。详见[迁移指南](../migrations/1.0-to-1.2.zh-CN.md)。
 - Windows MCP 启动使用固定 Job 资产与薄启动器，保留原 15 秒调用和 60 秒连接门禁。正式发布必须取得绑定最终提交与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。
 
-全局成对性能收益尚未认证，不承诺总体吞吐、时延或资源收益。发布正文只使用经审固定双语说明和唯一提交注入，既有正文冲突停止；最终 Provider、候选与公开回装资格仍须按[正式发布 SOP](README.zh-CN.md)分别取证。真实 Provider 外发与费用批准须绑定最终源码 S、Runtime 候选包 SHA-256 H；严格 Candidate 必须真实通过 `Candidate qualified` 与完整 1000 种子矩阵。仅在资格通过后创建不可移动的 `v1.4.0`，公开下载并核验同一构建 R 的 8 个 npm tarball、wheel、独立源码 ZIP 共 10 件；工程 CI、本地夹具或部分渠道成功均不能替代。
+全局成对性能收益尚未认证，不承诺总体吞吐、时延或资源收益。发布正文只使用经审固定双语说明和唯一提交注入，既有正文冲突停止；最终 Provider、候选与公开回装资格仍须按[正式发布 SOP](README.zh-CN.md)分别取证。真实 Provider 外发与费用批准须绑定最终源码 S、Runtime 候选包 SHA-256 H；严格 Candidate 必须真实通过 `Candidate qualified` 与完整 1000 种子矩阵。仅在资格通过后创建不可移动的 `v2.0.0`，公开下载并核验同一构建 R 的 8 个 npm tarball、wheel、独立源码 ZIP 共 10 件；工程 CI、本地夹具或部分渠道成功均不能替代。
