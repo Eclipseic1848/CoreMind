@@ -82,6 +82,52 @@ it("真实 HTTP 连接、目录、调用都在独立持久屏障后执行，完�
   });
 });
 
+it.each(["run_serial", "workspace_exclusive", "parallel"] as const)(
+  "同回合两次 %s MCP 调用遵循声明的顺序",
+  async (lane) => {
+    await withProject("tool", async (project) => {
+      const tool = project.config.agents.main!.tools![0]!;
+      if (!("mcp" in tool)) throw new Error("夹具工具类型错误");
+      tool.capability.concurrency = lane;
+      project.repeatTool = true;
+      project.config.permissions!.network = "ask";
+      const runtime = await create(project);
+      project.running = runtime.run();
+      const result = await project.running;
+      expect(result.outcome.status, JSON.stringify(result.outcome)).toBe("succeeded");
+      expect(methods(project, "tools/call")).toHaveLength(2);
+      expect(project.approvals).toHaveLength(4);
+      expect(
+        project.requests[1]!.messages.filter((m) => (m as { role: string }).role === "tool"),
+      ).toHaveLength(2);
+      const events = project.observed.filter(
+        (event) => "callId" in event && event.callId?.startsWith("http-business-call-"),
+      );
+      const firstResult = events.findIndex(
+        (e) => e.type === "tool_result" && e.callId === "http-business-call-0",
+      );
+      const secondCall = events.findIndex(
+        (e) => e.type === "tool_call" && e.callId === "http-business-call-1",
+      );
+      expect(firstResult).toBeGreaterThanOrEqual(0);
+      expect(secondCall).toBeGreaterThanOrEqual(0);
+      if (lane !== "parallel") {
+        const released = events.findIndex(
+          (e) =>
+            e.type === "workspace_lease" &&
+            e.callId === "http-business-call-0" &&
+            e.status === "released",
+        );
+        expect(released).toBeGreaterThan(firstResult);
+        expect(secondCall).toBeGreaterThan(released);
+      } else {
+        expect(secondCall).toBeLessThan(firstResult);
+      }
+      expect(await runtime.waitForQuiescence()).toBe(true);
+    });
+  },
+);
+
 it("仅资源 Agent 的首个模型请求之前没有 HTTP，读取经原 Harness 准入且秘密不外泄", async () => {
   await withProject("resource", async (project) => {
     project.config.permissions!.network = "ask";
@@ -401,6 +447,7 @@ type Project = {
   controller: AbortController;
   arguments: Record<string, unknown>;
   parallelResourceReads?: boolean;
+  repeatTool?: boolean;
   onFirstModel?: () => void;
   running?: Promise<RunResult>;
 };
@@ -456,6 +503,7 @@ async function withProject(
               : item.function.name.startsWith("mcp_"),
           ) ?? [];
         const tools = project.parallelResourceReads ? selected : selected.slice(0, 1);
+        if (project.repeatTool) tools.push(...tools);
         const calling = requests.length === 1 && tools.length > 0;
         const delta = calling
           ? {

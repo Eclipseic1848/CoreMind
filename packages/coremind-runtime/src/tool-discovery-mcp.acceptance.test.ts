@@ -21,6 +21,31 @@ interface Request {
 type Reply = string | Array<{ name: string; args: unknown }>;
 const args = { value: "受控回显正文" };
 
+it("按需发现的串行工具逐项执行，第二项拒绝后同批剩余调用不外发", async () => {
+  await scenario(async (project) => {
+    const discover = project.reply;
+    project.reply = (request, ordinal) =>
+      ordinal === 2
+        ? ["第一项", "拒绝项", "后续项"].map((value) => ({
+            name: businessName(request),
+            args: { value },
+          }))
+        : discover(request, ordinal);
+    project.config.permissions!.network = "ask";
+    project.approve = async (request) => {
+      if (!isBusiness(request.tool) || methods(project, "tools/call").length === 0) return "allow";
+      return "deny";
+    };
+    const result = await project.run();
+    expect(result.outcome.finishReason).toBe("tool_approval_denied");
+    expect(names(project.requests[0]!)).toEqual(["discover_tools"]);
+    expect(methods(project, "tools/call").map((record) => record.params)).toEqual([
+      { name: "echo", arguments: { value: "第一项" } },
+    ]);
+    expect(project.requests).toHaveLength(2);
+  });
+});
+
 it("真实目录通知先撤回未安装来源，后续搜索和声明都不复活它", async () => {
   await scenario(async (project) => {
     project.reply = async (_request, ordinal) => {

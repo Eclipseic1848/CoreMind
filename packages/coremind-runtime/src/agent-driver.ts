@@ -90,6 +90,8 @@ export interface AgentDriverHarness {
   /** 本次 prompt 正常完成且通过原拒绝门后通知一次。 */
   onPromptCompleted?: () => void;
   maxRetries?: number;
+  requiresSequentialToolBatch?: (tools: readonly string[]) => boolean;
+  waitForToolResult?: (callId: string) => Promise<void> | undefined;
   registerContextContract?: (contract: AgentDriverContextContract) => void;
   registerDeclarationCatalog?: (
     entries: readonly { name: string; description: string; declaration: unknown }[],

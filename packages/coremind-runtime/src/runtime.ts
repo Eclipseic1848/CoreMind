@@ -2471,6 +2471,19 @@ export class CoreMindRuntime {
       };
       const harness: RuntimeHarness = {
         maxRetries: loop ? 0 : limits.maxRetries,
+        requiresSequentialToolBatch: (tools) => {
+          // 只在同批调用争同一租约时串行，保留父写入与独立委派等并发路径。
+          const lanes = new Set<ResolvedToolCapability["concurrency"]>();
+          for (const tool of tools) {
+            const lane = executionCapabilities.get(tool)?.concurrency;
+            if (!lane || lane === "parallel") continue;
+            if (lanes.has(lane)) return true;
+            lanes.add(lane);
+          }
+          return false;
+        },
+        waitForToolResult: (callId) =>
+          lifecycleFinalizers.get(toolCapabilityCallKey(agentName, stepId, callId)),
         registerContextContract: (contract) => contextContracts.set(executionId!, contract),
         beforeModelRequest: () => {
           const facts = journal.factStatus();
