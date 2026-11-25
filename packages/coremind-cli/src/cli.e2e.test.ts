@@ -232,12 +232,13 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toMatch(/coremind v\d+\.\d+\.\d+/);
   });
 
-  it("list-templates 输出 8 个模板", () => {
+  it("list-templates 列出资料整理助手及已有模板", () => {
     const { stdout, code } = runCli(["list-templates"]);
     expect(code).toBe(0);
     for (const id of [
       "translator",
       "blog-writer",
+      "document-assistant",
       "code-reviewer",
       "bug-squasher",
       "hr-interviewer",
@@ -304,6 +305,48 @@ describe("coremind CLI 端到端", () => {
     );
     expect(existsSync(path.join(dir, "my-agent", "docs", "development-sop.en.md"))).toBe(true);
   });
+
+  it.each([false, true])(
+    "资料模板保留所选 Provider、服务凭据和已有变量（已有环境=%s）",
+    (hasEnv) => {
+      const dir = mkdtempSync(path.join(tmpdir(), "coremind-document-"));
+      const envFile = path.join(dir, ".env.example");
+      if (hasEnv)
+        writeFileSync(envFile, "EXISTING=value\nCOREMIND_MEMORY_AUTHORIZATION=existing", "utf8");
+      const { code } = runCli(
+        [
+          "create",
+          ".",
+          "--template",
+          "document-assistant",
+          "--language",
+          "typescript",
+          "--provider",
+          "deepseek",
+        ],
+        { cwd: dir },
+      );
+      expect(code).toBe(0);
+      expect(readFileSync(path.join(dir, "coremind.yaml"), "utf8")).toContain(
+        "apiKeyEnv: DEEPSEEK_API_KEY",
+      );
+      const vars = readFileSync(envFile, "utf8");
+      expect(vars).toContain("DEEPSEEK_API_KEY=\n");
+      expect(vars).not.toContain("DASHSCOPE_API_KEY=");
+      expect(vars).toContain("COREMIND_KNOWLEDGE_AUTHORIZATION=\n");
+      expect(vars.match(/^COREMIND_MEMORY_AUTHORIZATION=/gm)).toHaveLength(1);
+      if (hasEnv)
+        expect(vars).toContain("EXISTING=value\nCOREMIND_MEMORY_AUTHORIZATION=existing\n");
+      for (const asset of [
+        "run.mts",
+        "run.py",
+        "enable-ontology.mjs",
+        "skills/document-comparison/SKILL.md",
+      ]) {
+        expect(existsSync(path.join(dir, asset)), asset).toBe(true);
+      }
+    },
+  );
 
   it("create 非法名称退出码 1", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));

@@ -6,6 +6,8 @@
 
 ## 执行步骤
 
+从任务说明起草新 Skill 时，先在项目 `skills/` 之外运行[草稿生成示例](../../../examples/modules/package-agent-skills/README.zh-CN.md)。负责人编辑 `SKILL.md`，用一个适用、一个不适用的任务核准触发条件和交付格式，审核后再复制进项目并选择其 ID。
+
 1. 在配置目录 `skills/<id>/` 编写标准 `SKILL.md`，在 Agent 的 `skills` 中显式列出目录 ID。描述写适用条件，正文写步骤与检查项。按 [Agent Skills 规范](https://agentskills.io/specification) 组织 `references/`、`assets/`、`scripts/`，将包版本填入 `metadata.version`。旧项目可继续用 `README.md` 全文格式。
 2. 按[资源包示例](GUIDE.zh-CN.md#编写资源包)声明相对路径和原始 UTF-8 字节的 SHA-256，统一 Git 行尾为 LF。单文件最多 256 KiB，解析结果和全部 Agent 冻结快照各最多 2 MiB 序列化 UTF-8 JSON。
 3. 运行 `coremind check`，核对内置优先、双文件告警、损坏包、越界路径和链接。调用 `load_skill` 验证未声明资源会被拒绝。脚本源码可作为文本读取。要执行脚本，按项目工具注册、审批和沙箱流程单独授权。

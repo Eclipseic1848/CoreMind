@@ -28,8 +28,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - 长期记忆与经验提炼采用 Hindsight。P2-B 实现、示例和验证记录已通过双平台工程 CI 并合入主线。[长期记忆模块](modules/manage-memory/README.zh-CN.md) · [合并记录](https://github.com/Eclipseic1848/CoreMind/pull/395)
 - Skill 支持声明资源、固定提交安装和旧运行恢复。工具层提供本地、stdio MCP 与 Streamable HTTP MCP 互通验收，以及可选的 Playwright MCP 浏览器示例。[Skill 模块](modules/package-agent-skills/README.zh-CN.md) · [工具模块](modules/build-tools/README.zh-CN.md)
 - 已验证从已合入源码构建的 npm/Python 安装件，以及从原文重建知识索引。发布候选制品仍需复跑同一消费流程。[干净消费者说明](modules/manage-knowledge/CLEAN-CONSUMER.zh-CN.md)
-- P3 新增可选本体模块，交付模型、来源映射、SHACL 校验和业务动作绑定。按四入口和跨会话组合场景验收。[本体模块](modules/manage-ontology/README.zh-CN.md)
-- 双平台 CI、源码与制品回装、四入口一致性及双语文档验收通过后，发布 GitHub `v2.0.0` 和对应 npm/PyPI 包。
+- P3 已合入主线，交付可选本体模型、来源映射、SHACL 校验和业务动作绑定。四入口和三会话组合均通过双平台工程检查。[本体模块](modules/manage-ontology/README.zh-CN.md)
+- P4 跟踪业务模板与真实服务组合、候选制品和正式发布。各项均以 Issue 的退出条件及验收记录为准。[五域建设指南](guide/06-capability-construction.md) · [v2.0.0 里程碑](https://github.com/Eclipseic1848/CoreMind/milestone/3)
 
 ## `1.4.0`：持久任务与会话能力
 

@@ -43,6 +43,14 @@ export const TEMPLATES: TemplateMeta[] = [
     dir: templateDir("general", "blog-writer"),
   },
   {
+    id: "document-assistant",
+    name: "资料整理助手",
+    category: "general",
+    description: "比较资料版本、引用原文位置、按已确认的偏好写摘要，可选检查发布条件",
+    requiresEnv: ["COREMIND_KNOWLEDGE_AUTHORIZATION", "COREMIND_MEMORY_AUTHORIZATION"],
+    dir: templateDir("general", "document-assistant"),
+  },
+  {
     id: "code-reviewer",
     name: "代码审查员",
     category: "coding",

@@ -37,6 +37,8 @@ testPaths:
   - "examples/modules/manage-ontology/acceptance.mjs"
   - "examples/modules/manage-ontology/ontology-fixture.mjs"
   - "examples/modules/manage-ontology/composition.mjs"
+  - "examples/modules/manage-ontology/live-document-session.mjs"
+  - "examples/modules/manage-ontology/document-assistant-corpora"
 supportedPlatforms:
   - "windows"
   - "linux"

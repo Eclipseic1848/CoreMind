@@ -1,0 +1,896 @@
+{
+  "date": "2026-11-24",
+  "stage": "P4-A",
+  "fixCommits": {
+    "toolScheduling": "249098c",
+    "qwenChatTemplate": "e0ea0e7",
+    "documentSkill": "a7f22ac",
+    "markdownTableHeader": "756767e"
+  },
+  "scope": "development workspace, synthetic documents, actual network model and local services",
+  "host": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "processor": "Intel Core Ultra 9 285H",
+    "logicalCpus": 16,
+    "memoryBytes": 33820106752
+  },
+  "stack": {
+    "node": "22.22.1",
+    "python": "3.12",
+    "hindsight": "1.2.3",
+    "postgresql": "18.1",
+    "markdownTableParser": "markdown-it-py 4.3.0",
+    "qdrantClient": "1.15.1",
+    "onnxRuntime": "1.23.2",
+    "MCP": "1.30.0",
+    "rdflib": "7.6.0",
+    "pyshacl": "0.40.2",
+    "model": "Qwen3.8-27B",
+    "sampling": {
+      "temperature": 0,
+      "thinkingLevel": "off",
+      "outputTokens": 900,
+      "qwenEndpointProbe": {
+        "topLevel": {
+          "completionTokens": 30,
+          "hasReasoning": true
+        },
+        "chatTemplate": {
+          "completionTokens": 3,
+          "hasReasoning": false
+        }
+      }
+    },
+    "embeddingModel": "BGE-M3 ONNX int8, revision 2b34e84df040034d4b9eabb62383a87c18955822",
+    "pythonWorker": "workspace stdio.js loading the same Node Runtime as CLI / TypeScript"
+  },
+  "corpora": [
+    {
+      "project": "A",
+      "manifest_sha256": "6f81b80cf405a844c3b846e34496807b5f592de3ce68b609b774b91267306fba"
+    },
+    {
+      "project": "B",
+      "manifest_sha256": "4a4a262b996f9a7767e38ce5c2c7e8b0ed5b5ae0f3ab61ace65960b80fb112a3"
+    }
+  ],
+  "runtimeDistributionsSha256": {
+    "packages/coremind-runtime/dist/agent-factory.js": "3a6a5d3bcd4a2d7e435616635b684ab2a5b11c74103318b582306e728a667a0d",
+    "packages/coremind-runtime/dist/runtime.js": "620d4d8900376227c40c586328dab0c430601bf49c675d337262617d65c79972"
+  },
+  "verifiedWire": {
+    "format": "qwen-chat-template",
+    "enable_thinking": false,
+    "maxTokens": 900,
+    "skillRetestRequests": 10,
+    "tableRetestRequests": 8
+  },
+  "skillSha256": "a7a73fe9a9216b4249fdd36de008cfee9cc6b5b2a086538347b954781c9dd5d4",
+  "resolvedTable": {
+    "citation": {
+      "text": "| 新制度草稿 | 档案交接登记 |",
+      "line": 3,
+      "tableHeader": [
+        {
+          "line": 1,
+          "text": "| 资料 | 本周新增规定 |"
+        }
+      ],
+      "docId": "draft",
+      "version": 1,
+      "file": "draft-v1.md"
+    },
+    "resolved": {
+      "status": "available",
+      "docId": "draft",
+      "version": 1,
+      "file": "draft-v1.md",
+      "line": 3,
+      "locator": null,
+      "text": "| 新制度草稿 | 档案交接登记 |",
+      "tableHeader": [
+        {
+          "line": 1,
+          "text": "| 资料 | 本周新增规定 |"
+        }
+      ]
+    }
+  },
+  "caseSha256Encoding": "cases[].sha256 hashes the Markdown text in UTF-8 with LF. For the two table retests columnReview records separate byte hashes and sizes of the original LF project files and the CRLF Windows evidence copies.",
+  "columnReview": {
+    "method": "Read the original summaries, compared the cited cell, its column and its row, and rescored the same archived bytes. The first grader matched ‘第 3 行（表头见第 1 行）’ as if it asserted that row 3 was the header. Both earlier summaries actually called row 3 a title and still fail.",
+    "cases": {
+      "A2-final": {
+        "meaningVerified": false
+      },
+      "session-confirmed-final": {
+        "meaningVerified": false
+      },
+      "A2-column": {
+        "meaningVerified": true,
+        "projectFile": "prior-summary-2.md",
+        "projectFileBytes": 1034,
+        "projectFileSha256": "b057019ab492d084db8a445fdc0ed3ed095cf846de2730e9b6feb0c8794300a8",
+        "archiveFile": "A2-column-summary.md",
+        "archiveFileBytes": 1057,
+        "archiveFileSha256": "cef260a90a70411abe3416bd46ce27dd1122cb5e5b708276206a150a7613e34d"
+      },
+      "session-confirmed-column": {
+        "meaningVerified": true,
+        "projectFile": "summary.md",
+        "projectFileBytes": 1034,
+        "projectFileSha256": "b057019ab492d084db8a445fdc0ed3ed095cf846de2730e9b6feb0c8794300a8",
+        "archiveFile": "session-confirmed-column-summary.md",
+        "archiveFileBytes": 1057,
+        "archiveFileSha256": "cef260a90a70411abe3416bd46ce27dd1122cb5e5b708276206a150a7613e34d"
+      }
+    }
+  },
+  "cases": [
+    {
+      "case": "A1",
+      "entry": "CLI",
+      "project": "A",
+      "requests": 3,
+      "run_ids": [
+        "581fb21c-07de-45aa-b5b7-6557f1ddf689"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 43.363,
+      "passed": true,
+      "sha256": "045108310d5bb6cf1659724aa5e86837c9b6e47b9442318b429f4a33201224ee",
+      "markdown": "# 《资料室手册》版本比较摘要\n\n## 核对过的版本\n- 文件名：guide-v1.md，版本号：1，行号：1\n- 文件名：guide-v2.md，版本号：2，行号：1\n\n## 有依据的新增项（仅列原文可证明的变化）\n- 新增：归还后核销（来源：guide-v2.md，版本 2，行 1；guide-v1.md 版本 1 行 1 无此内容）\n\n## 说明\n- 记忆服务未返回已确认的摘要格式偏好，故按技能要求采用清单格式。\n- 两版共有内容：来访者登记姓名（guide-v1.md 版本 1 行 1；guide-v2.md 版本 2 行 1）。\n",
+      "thinkingFormat": "qwen"
+    },
+    {
+      "case": "session-before",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 3,
+      "run_ids": [
+        "9ccb42aa-35f0-4d5f-9a70-885634e4defa"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 43.115,
+      "passed": true,
+      "sha256": "045108310d5bb6cf1659724aa5e86837c9b6e47b9442318b429f4a33201224ee",
+      "markdown": "# 《资料室手册》版本比较摘要\n\n## 核对过的版本\n- 文件名：guide-v1.md，版本号：1，行号：1\n- 文件名：guide-v2.md，版本号：2，行号：1\n\n## 有依据的新增项（仅列原文可证明的变化）\n- 新增：归还后核销（来源：guide-v2.md，版本 2，行 1；guide-v1.md 版本 1 行 1 无此内容）\n\n## 说明\n- 记忆服务未返回已确认的摘要格式偏好，故按技能要求采用清单格式。\n- 两版共有内容：来访者登记姓名（guide-v1.md 版本 1 行 1；guide-v2.md 版本 2 行 1）。\n",
+      "thinkingFormat": "qwen"
+    },
+    {
+      "case": "A2",
+      "entry": "TS",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "fd195af6-3446-43a0-8aff-309087fce4c7"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": false,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": false,
+        "运行成功": false,
+        "事实": false,
+        "隔离与撤回": true,
+        "格式": false
+      },
+      "seconds": 94.467,
+      "passed": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "markdown": "",
+      "thinkingFormat": "qwen",
+      "finishReason": "model_output_limit"
+    },
+    {
+      "case": "session-confirmed",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "2b3db3fe-fc8b-4f68-b531-cf2310fcc4e8"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": false,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": false,
+        "运行成功": false,
+        "事实": false,
+        "隔离与撤回": true,
+        "格式": false
+      },
+      "seconds": 93.44,
+      "passed": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "markdown": "",
+      "thinkingFormat": "qwen",
+      "finishReason": "model_output_limit"
+    },
+    {
+      "case": "B1",
+      "entry": "Python sync",
+      "project": "B",
+      "requests": 3,
+      "run_ids": [
+        "84ab2dab-092e-4a82-9fef-0a4ca1b93e50"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 39.574,
+      "passed": true,
+      "sha256": "ca69756fe85495f4bf59b0423aec1a5883f47045c8ec1d7a7a675ce356efc973",
+      "markdown": "# 《资料室手册》版本比较摘要\n\n## 核对过的版本\n1. blue-v1.md，版本 1，第 1 行\n2. blue-v2.md，版本 2，第 1 行\n\n## 有依据的新增项\n1. 蓝签复核 —— 仅见于 blue-v2.md（版本 2，第 1 行）：\"新版新增：蓝签复核。\"；blue-v1.md（版本 1，第 1 行）中无此内容。\n\n## 说明\n- 两版共有内容：\"资料室手册规定资料入库应贴标签。\"（blue-v1.md 版本 1 第 1 行；blue-v2.md 版本 2 第 1 行），非新增项，不列入。\n- 摘要格式：按已确认偏好（带编号清单，来源 summary-format v1，project:editor-b/confirmed/1）撰写。\n",
+      "thinkingFormat": "qwen"
+    },
+    {
+      "case": "A3",
+      "entry": "Python async",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "4eaca3bd-58dc-4629-a140-12c251478148"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 68.032,
+      "passed": true,
+      "sha256": "f4fd18f539f2ae4b34a9d230e91b96a0fcfd86f86f49cf34d37e3a940ea9c1b1",
+      "markdown": "# 《资料室手册》版本比较摘要\n\n## 结论\n- 无法列出有依据的新增项：知识服务中仅检索到《资料室手册》的一个版本（guide-v1.md，版本 1），缺少第二版（如 guide-v2.md / 版本 2），两版不可对照。\n- 依据 document-comparison 技能规则：只有一版时明确写出缺少哪一版——本例缺少《资料室手册》的第二版，故不虚构任何\"新增项\"。\n\n## 核对过的版本\n- 文件名：guide-v1.md｜版本：1｜行号：1｜内容：\"资料室手册规定来访者登记姓名。\"\n- 相关但非手册版本（不作为对照依据）：draft-v1.md｜版本：1｜行号：1、3｜内容：表格\"资料 / 本周新增规定\"及\"新制度草稿 / 档案交接登记\"。该文件是新制度草稿，并非《资料室手册》的第二版，不能用于版本比较。\n\n## 说明\n- 摘要格式：按已确认偏好（来源：project:editor-a/confirmed/2，版本 2，2026-11-24）采用项目符号清单。\n- 以上每项结论均附文件名、版本与行号，仅采信本次检索返回的可见原文。\n",
+      "thinkingFormat": "qwen"
+    },
+    {
+      "case": "session-corrected",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "2e103723-aa41-474b-9b5f-faef74190134"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 66.292,
+      "passed": true,
+      "sha256": "425bb387781fe41077d4607d850f44c17d012978fa9a07ec7dcbdd3850b2786e",
+      "markdown": "# 《资料室手册》版本比较摘要\n\n- 比较结论：知识服务中仅检索到《资料室手册》的一个版本，缺少第二版，无法进行两版对照，因此没有可列出的有依据新增项。\n- 核对过的版本（文件名 / 版本号 / 行号）：\n  - guide-v1.md / 版本 1 / 第 1 行（原文：\"资料室手册规定来访者登记姓名。\"）\n- 缺失版本：《资料室手册》第二版（如 guide-v2.md / 版本 2）未在知识服务中检索到。\n- 新增项：无（缺少可对照的第二版，无法依据原文证明任何变化）。\n- 说明：draft-v1.md（版本 1，第 1 行、第 3 行）为\"新制度草稿\"，并非《资料室手册》的第二版，不作为本次版本对照的依据。\n",
+      "thinkingFormat": "qwen"
+    },
+    {
+      "case": "A2-recheck",
+      "entry": "TS",
+      "project": "A",
+      "requests": 6,
+      "run_ids": [
+        "161902fc-cea6-4159-8bdd-d3108c240cb8"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 63.77,
+      "passed": true,
+      "sha256": "2566109b5b7748508f54e7f6e4976046db3f319c152e60f2cb33ef7c8949f176",
+      "markdown": "# 《新制度草稿》摘要\n\n## 一、资料版本情况\n\n| 项目 | 内容 |\n| --- | --- |\n| 文件 | draft-v1.md |\n| 版本 | 1 |\n| 说明 | 知识服务仅返回该文件第 1 版；未检索到第 2 版，缺少第二版，无法进行版本间对照 |\n\n## 二、可证实的内容（仅采信本次返回的可见原文）\n\n| 内容 | 文件 | 版本 | 位置 |\n| --- | --- | --- | --- |\n| 表格标题行：「资料 / 本周新增规定」 | draft-v1.md | 1 | 第 1 行 |\n| 表格行：「新制度草稿 / 档案交接登记」 | draft-v1.md | 1 | 第 3 行 |\n\n注：以上为知识服务返回的全部可见原文片段；草稿正文其余内容未在本次检索结果中出现，不作推断。\n\n## 三、发布前置条件检查（本体工具实际结果）\n\n| 项目 | 结果 |\n| --- | --- |\n| 对象 | urn:doc:draft |\n| 动作 | publish |\n| 状态 | denied（拒绝） |\n| 原因 | precondition_failed（前置条件未满足） |\n| 当前状态 | draft |\n| 模型版本 / 摘要 | 1.0.0 / 876809b5e1d4a46cb99bda2ae0aa5038d495d4b89834343ab54d96b95ae5286f |\n\n**结论：不能发布。** 本体检查返回拒绝，原因为前置条件未满足（precondition_failed），对象当前仍处于 draft 状态。即使后续检查通过，也只说明具备执行条件，实际发布须另经宿主授权办理。\n\n## 四、格式说明\n\n本摘要按记忆服务中已确认的偏好（「整理资料摘要时优先使用 Markdown 表格」，来源：summary-format v1，project:editor-a/confirmed/1）采用表格形式。\n",
+      "thinkingFormat": "qwen-chat-template"
+    },
+    {
+      "case": "session-confirmed-recheck",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 7,
+      "run_ids": [
+        "3a9edc8a-a565-4042-a74c-9847d582363e"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "search_knowledge",
+        "search_knowledge",
+        "search_knowledge",
+        "search_knowledge"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": false,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": false,
+        "运行成功": false,
+        "事实": false,
+        "隔离与撤回": true,
+        "格式": false
+      },
+      "seconds": 38.86,
+      "passed": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "markdown": "",
+      "thinkingFormat": "qwen-chat-template",
+      "finishReason": "budget_exceeded"
+    },
+    {
+      "case": "A2-final",
+      "entry": "TS",
+      "project": "A",
+      "requests": 5,
+      "run_ids": [
+        "4a2f0ae7-9b3d-4a78-ae89-7db647aa2bff"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 58.212,
+      "passed": false,
+      "sha256": "196272164a8a10252cdbb65dc28cb5187bca8e9b6d56dc73ea1216d6661cf23c",
+      "markdown": "# 《新制度草稿》摘要\n\n## 一、资料要点\n\n| 要点 | 依据（文件 / 版本 / 行号） |\n| --- | --- |\n| 文档标题为《新制度草稿》，主题为\"档案交接登记\" | draft-v1.md / v1 / 第 3 行 |\n\n> 说明：知识服务对《新制度草稿》（draft-v1.md, v1）仅返回第 3 行标题行一条可见原文，正文条款内容尚无依据，无法进一步提炼。检索中出现的 guide-v1.md / guide-v2.md（资料室手册）与本文档无关，未采信。\n\n## 二、发布前置条件检查（本体工具实际结果）\n\n| 项目 | 结果 |\n| --- | --- |\n| 对象 | urn:doc:draft |\n| 动作 | publish |\n| 状态 | denied（拒绝） |\n| 原因 | precondition_failed（前置条件未满足） |\n| 当前状态 | draft |\n| 模型版本 / 摘要 | 1.0.0 / 876809b5e1d4a46cb99bda2ae0aa5038d495d4b89834343ab54d96b95ae5286f |\n\n**结论：当前不能发布。** 本体检查返回拒绝，原因为前置条件未满足（precondition_failed），对象仍处于 draft 状态。即使后续检查通过，也只说明具备执行条件，实际发布须另经宿主授权办理。\n\n## 三、格式说明\n\n本摘要按记忆服务中已确认的偏好（\"整理资料摘要时优先使用 Markdown 表格\"，来源：summary-format / v1，project:editor-a/confirmed/1）采用表格形式撰写。\n",
+      "columnMeaningVerified": false,
+      "initialCasePass": true,
+      "thinkingFormat": "qwen-chat-template"
+    },
+    {
+      "case": "session-confirmed-final",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 5,
+      "run_ids": [
+        "142d12c7-6e62-4296-9306-ae54fb5d46f1"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 55.282,
+      "passed": false,
+      "sha256": "a872804b5b20f4b5377f1b0e15b75f5f77c00f11a639a57ba422f7eb294f4527",
+      "markdown": "# 《新制度草稿》摘要\n\n## 一、资料要点\n\n| 要点 | 依据（文件 / 版本 / 行号） |\n| --- | --- |\n| 文档标题为《新制度草稿》，主题为\"档案交接登记\" | draft-v1.md / v1 / 第 3 行 |\n\n> 说明：知识服务对《新制度草稿》（draft-v1.md, v1）仅返回第 3 行标题行一条可见原文，正文条款内容尚无依据，无法进一步提炼。检索中出现的 guide-v1.md / guide-v2.md（资料室手册）与本文档无关，未采信。\n\n## 二、发布前置条件检查（本体工具实际结果）\n\n| 项目 | 结果 |\n| --- | --- |\n| 对象 | urn:doc:draft |\n| 动作 | publish |\n| 状态 | denied（拒绝） |\n| 原因 | precondition_failed（前置条件未满足） |\n| 当前状态 | draft |\n| 模型版本 / 摘要 | 1.0.0 / 876809b5e1d4a46cb99bda2ae0aa5038d495d4b89834343ab54d96b95ae5286f |\n\n**结论：当前不能发布。** 本体检查返回拒绝，原因为前置条件未满足（precondition_failed），对象仍处于 draft 状态。即使后续检查通过，也只说明具备执行条件，实际发布须另经宿主授权办理。\n\n## 三、格式说明\n\n本摘要按记忆服务中已确认的偏好（\"整理资料摘要时优先使用 Markdown 表格\"，来源：project:editor-a/confirmed/1，版本 1）采用表格形式撰写。\n",
+      "columnMeaningVerified": false,
+      "initialCasePass": true,
+      "thinkingFormat": "qwen-chat-template"
+    },
+    {
+      "case": "A2-column",
+      "entry": "TS",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "779937cd-fd69-4fbc-a5eb-7a79288595a5"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "列语义": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 45.729,
+      "passed": true,
+      "sha256": "b057019ab492d084db8a445fdc0ed3ed095cf846de2730e9b6feb0c8794300a8",
+      "markdown": "# 《新制度草稿》摘要\n\n## 内容要点\n\n| 要点 | 依据 |\n| --- | --- |\n| 本周新增规定：档案交接登记 | 文件 `draft-v1.md`，版本 1，第 3 行（表头见第 1 行：资料 / 本周新增规定） |\n\n## 发布条件检查\n\n| 项目 | 结果 |\n| --- | --- |\n| 对象 | `urn:doc:draft` |\n| 动作 | `publish` |\n| 状态 | 拒绝（denied） |\n| 原因 | 前置条件未满足（precondition_failed），当前状态为 draft |\n\n**结论**：本体检查返回拒绝，原因为前置条件未满足（当前状态为 draft），因此目前不具备发布条件。检查通过仅代表具备执行条件，实际发布还须另经宿主授权办理。\n\n## 说明\n\n- 摘要格式依据记忆服务中已确认的偏好：整理资料摘要时优先使用 Markdown 表格（来源：summary-format，版本 1，ref: project:editor-a/confirmed/1）。\n- 除上述表格行外，未检索到《新制度草稿》（draft-v1.md，版本 1）的其他可见原文内容；其余部分尚无依据，不作推断。\n",
+      "initialColumnCheck": false,
+      "initialCasePass": false,
+      "columnMeaningVerified": true,
+      "thinkingFormat": "qwen-chat-template"
+    },
+    {
+      "case": "session-confirmed-column",
+      "entry": "ChatSession",
+      "project": "A",
+      "requests": 4,
+      "run_ids": [
+        "fafb51bf-f5c6-4fc0-b0c3-c1ed8c73b6f0"
+      ],
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "write"
+      ],
+      "tools": [
+        "load_skill",
+        "ontology_inspect_action",
+        "recall_memory",
+        "search_knowledge",
+        "write"
+      ],
+      "checks": {
+        "load_skill": true,
+        "search_knowledge": true,
+        "recall_memory": true,
+        "write": true,
+        "ontology_inspect_action": true,
+        "独立用户输入": true,
+        "列语义": true,
+        "落盘": true,
+        "运行成功": true,
+        "事实": true,
+        "隔离与撤回": true,
+        "格式": true
+      },
+      "seconds": 41.695,
+      "passed": true,
+      "sha256": "b057019ab492d084db8a445fdc0ed3ed095cf846de2730e9b6feb0c8794300a8",
+      "markdown": "# 《新制度草稿》摘要\n\n## 内容要点\n\n| 要点 | 依据 |\n| --- | --- |\n| 本周新增规定：档案交接登记 | 文件 `draft-v1.md`，版本 1，第 3 行（表头见第 1 行：资料 / 本周新增规定） |\n\n## 发布条件检查\n\n| 项目 | 结果 |\n| --- | --- |\n| 对象 | `urn:doc:draft` |\n| 动作 | `publish` |\n| 状态 | 拒绝（denied） |\n| 原因 | 前置条件未满足（precondition_failed），当前状态为 draft |\n\n**结论**：本体检查返回拒绝，原因为前置条件未满足（当前状态为 draft），因此目前不具备发布条件。检查通过仅代表具备执行条件，实际发布还须另经宿主授权办理。\n\n## 说明\n\n- 摘要格式依据记忆服务中已确认的偏好：整理资料摘要时优先使用 Markdown 表格（来源：summary-format，版本 1，ref: project:editor-a/confirmed/1）。\n- 除上述表格行外，未检索到《新制度草稿》（draft-v1.md，版本 1）的其他可见原文内容；其余部分尚无依据，不作推断。\n",
+      "initialColumnCheck": false,
+      "initialCasePass": false,
+      "columnMeaningVerified": true,
+      "thinkingFormat": "qwen-chat-template"
+    }
+  ],
+  "sessions": [
+    {
+      "case": "session-before",
+      "session": "f6c107d1-025e-42c8-90e9-729973861b9c",
+      "run": "9ccb42aa-35f0-4d5f-9a70-885634e4defa",
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "write"
+      ],
+      "persistedSessionSha256": "b88f421ba903e246a243dae27ab7a4ad1d2210dacd9be8281cb01593fbcc087c"
+    },
+    {
+      "case": "session-corrected",
+      "session": "f42452f2-9165-4459-aaef-456a4f2203a3",
+      "run": "2e103723-aa41-474b-9b5f-faef74190134",
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "persistedSessionSha256": "f20088a502a332ec892ad880255d1f820c6617fa4283815e77f672ae49dc60df"
+    },
+    {
+      "case": "session-confirmed-final",
+      "session": "e3dad909-0fed-4ebd-abf0-eeb8ce47bffb",
+      "run": "142d12c7-6e62-4296-9306-ae54fb5d46f1",
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "search_knowledge",
+        "write"
+      ],
+      "persistedSessionSha256": "ae9eb9678c96a18afad4e4cafa7a596ee459aa0a57b3a0f6820e6106d87ef196"
+    },
+    {
+      "case": "session-confirmed-column",
+      "session": "530f258f-ce29-4c92-93bf-b86e6e037b1a",
+      "run": "fafb51bf-f5c6-4fc0-b0c3-c1ed8c73b6f0",
+      "completed": [
+        "load_skill",
+        "search_knowledge",
+        "recall_memory",
+        "ontology_inspect_action",
+        "search_knowledge",
+        "write"
+      ],
+      "persistedSessionSha256": "9bdd12bfc5f6d550758dacee75673c51e3dcb7e0357fb43c2aa6c3efff027809"
+    }
+  ],
+  "retry": {
+    "change": "qwen-chat-template",
+    "max_output": 900,
+    "bank_revision": 1,
+    "manifest_sha256": "6f81b80cf405a844c3b846e34496807b5f592de3ce68b609b774b91267306fba"
+  },
+  "services": {
+    "measurementRun": "table-aware final development build",
+    "readinessSeconds": [
+      {
+        "service": "memory",
+        "seconds": 3.79
+      },
+      {
+        "service": "ontology",
+        "seconds": 3.821
+      },
+      {
+        "service": "knowledge",
+        "seconds": 7.586
+      },
+      {
+        "service": "native",
+        "seconds": 23.359
+      }
+    ],
+    "singleServicePeakRssBytes": {
+      "native": 1307865088,
+      "memory": 116744192,
+      "ontology": 81551360,
+      "knowledge": 1151729664
+    },
+    "peakSamplingMs": 250,
+    "knowledgeQuery": {
+      "samples": 10,
+      "query": "资料室手册",
+      "milliseconds": [
+        36.31,
+        33.88,
+        28.28,
+        28.54,
+        30.1,
+        62.76,
+        69.12,
+        36.2,
+        33.84,
+        31.38
+      ],
+      "p50": 33.86,
+      "p95_nearest_rank": 69.12
+    },
+    "indexBuild": {
+      "documents": 5,
+      "chunks": 6,
+      "load_model_s": 2.5944,
+      "build_empty_and_index_s": 0.1495,
+      "qdrant_client": "1.15.1",
+      "onnxruntime": "1.23.2",
+      "mcp": "1.30.0"
+    }
+  },
+  "recovery": {
+    "bankIsolation": {
+      "A": [
+        [
+          "editor-a",
+          1,
+          "整理资料摘要时优先使用 Markdown 表格。"
+        ]
+      ],
+      "B": [
+        [
+          "editor-b",
+          1,
+          "整理资料摘要时优先使用带编号清单。"
+        ]
+      ],
+      "cross_admin": 403
+    },
+    "crossProjectCredentials": [
+      {
+        "active": "A",
+        "caller": "B",
+        "status": 401
+      },
+      {
+        "active": "B",
+        "caller": "A",
+        "status": 401
+      },
+      {
+        "active": "A",
+        "caller": "B",
+        "status": 401
+      },
+      {
+        "active": "A",
+        "caller": "B",
+        "status": 401
+      },
+      {
+        "active": "A",
+        "caller": "B",
+        "status": 401
+      }
+    ],
+    "restart": {
+      "a_version": 2,
+      "b_version": 1
+    },
+    "indexFailure": {
+      "exit_code": 1,
+      "same_state_sha256": "48aff40f3fa7f40019d466e5ff7707d5daaa34542dba94ee98f9a1af72cc6b51"
+    },
+    "citations": {
+      "guide-1": "available",
+      "guide-2": "withdrawn",
+      "restricted-1": "unknown",
+      "expired-1": "unknown"
+    },
+    "cancel": {
+      "status": "aborted",
+      "reason": "aborted",
+      "writes": 0,
+      "summary_unchanged": true
+    },
+    "outage": {
+      "exit_code": 1,
+      "model_requests": 0
+    },
+    "ackLoss": {
+      "first": "unknown",
+      "replay": true,
+      "new_id": "prior_effect_unknown",
+      "committed_effects": [
+        [
+          "p4-ack",
+          "urn:doc:guide",
+          "published"
+        ]
+      ]
+    }
+  },
+  "previousFindings": [
+    {
+      "stage": "table row meaning",
+      "reason": "Finding the correct file, row and restriction passed literal checks, but the data row was initially reported as a title. The column retest requires weekly additions semantics and verifies the cell and its header through both MCP tools."
+    },
+    {
+      "stage": "single-document task",
+      "reason": "after fixing the Qwen wire format, repeated equivalent searches exhausted the 15-call budget in the extra ChatSession. The template Skill now distinguishes summaries from version comparisons and stops searching when sources repeat."
+    },
+    {
+      "stage": "template composition",
+      "reason": "network effects declared with ordinary durability; Runtime rejected the tools before a model request"
+    },
+    {
+      "stage": "first live model turn",
+      "reason": "same-turn run_serial calls contended for the run lane; fixed in issue 408"
+    }
+  ]
+}

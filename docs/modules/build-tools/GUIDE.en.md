@@ -4,6 +4,8 @@
 
 Connect deterministic business actions through built-in tools, script tools, or the stable defineTool contract.
 
+When two calls in one turn both require `run_serial`, or both require a `workspace_exclusive` lease on the same workspace, the Runtime processes the batch in model order. Each call has its own permission, budget and lease checks. The next call starts after the preceding receipt becomes durable and its lease is released. Tools that permit parallel execution and have no lease conflict may overlap. This also applies to MCP tools installed through deferred discovery.
+
 ## Minimal example
 
 ```text

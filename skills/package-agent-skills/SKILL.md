@@ -6,7 +6,7 @@ description: "Package, share, and roll back reusable CoreMind skills with declar
 # Skill and SOP Loading
 
 1. Read [the module contract](../../docs/modules/package-agent-skills/README.en.md) and the language-matched guide only when implementation details are needed.
-2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.
+2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile. For a new procedure, use the [task-to-draft example](../../examples/modules/package-agent-skills/README.en.md). Have the owner edit the draft outside the project's skills directory before copying and explicitly selecting its ID.
 3. Follow the [SOP](../../docs/modules/package-agent-skills/SOP.en.md) or [中文 SOP](../../docs/modules/package-agent-skills/SOP.zh-CN.md). Put trigger conditions in `description`, set `metadata.version`, and list reusable files with raw-byte SHA-256 in `coremind.skill.json`.
 4. Pin the full Git commit, retain a lock per version, and verify frozen restore in a second project. Use the previous lock to rehearse rollback. Review the package before selecting its ID for an agent.
 5. Verify that `load_skill({id, resource})` exposes only the authorized declared resource. Treat a declared script as text. To run a script, use a separately authorized project tool.

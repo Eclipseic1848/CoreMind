@@ -55,8 +55,9 @@ export const CustomProviderSchema = Type.Object({
     Type.Record(Type.String(), HeaderValueSchema, { description: "附加请求头" }),
   ),
   thinkingFormat: Type.Optional(
-    Type.Literal("qwen", {
-      description: "Qwen 思考控制格式；由 agent.options.thinkingLevel 决定 enable_thinking",
+    Type.Union([Type.Literal("qwen"), Type.Literal("qwen-chat-template")], {
+      description:
+        "Qwen 思考开关的位置：顶层 enable_thinking 或 chat_template_kwargs.enable_thinking",
     }),
   ),
   contextWindow: Type.Optional(

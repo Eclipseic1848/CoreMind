@@ -16,6 +16,11 @@ def fingerprint(record):
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def table_context(record, chunk):
+    header = record.get("tableHeaders", {}).get(str(chunk.get("line")))
+    return {"tableHeader": [header]} if header is not None else {}
+
+
 class KnowledgeCatalog:
     def __init__(self, index, state_path=None):
         self.index = index
@@ -42,7 +47,11 @@ class KnowledgeCatalog:
             key = (record["docId"], record["version"])
             existing = documents.get(key)
             if existing is not None:
+                if "tableHeaders" not in existing and "tableHeaders" in record:
+                    # 旧状态未保存表格结构。先补派生字段，再对照同版本的原文、位置和范围。
+                    existing = {**existing, "tableHeaders": record["tableHeaders"]}
                 if fingerprint(existing) == fingerprint(record):
+                    documents[key] = existing
                     unchanged += 1
                     continue
                 raise KnowledgeVersionConflict(
@@ -50,7 +59,7 @@ class KnowledgeCatalog:
                 )
             documents[key] = record
             imported += 1
-        if imported:
+        if documents != self.documents:
             self._commit(documents)
         return {"imported": imported, "unchanged": unchanged}
 
@@ -95,6 +104,7 @@ class KnowledgeCatalog:
                 "line": chunk.get("line"),
                 "locator": chunk.get("locator"),
                 "text": chunk["text"],
+                **table_context(record, chunk),
             }
         return {
             "status": "missing",
@@ -113,6 +123,7 @@ class KnowledgeCatalog:
                 chunks.append(
                     {
                         **chunk,
+                        **table_context(record, chunk),
                         "docId": record["docId"],
                         "version": record["version"],
                         "file": record["file"],

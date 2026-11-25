@@ -136,20 +136,14 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
 
   if (provider) {
     const envExamplePath = path.join(target, ".env.example");
-    if (hadEnvExample) {
-      const existing = await readFile(envExamplePath, "utf8");
-      const names = new Set(
-        existing
-          .split(/\r?\n/)
-          .map((line) => line.match(/^([A-Z_][A-Z0-9_]*)=/)?.[1])
-          .filter((value): value is string => Boolean(value)),
-      );
-      if (!names.has(provider.apiKeyEnv)) {
-        const separator = existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
-        await writeFile(envExamplePath, `${existing}${separator}${provider.apiKeyEnv}=\n`, "utf8");
-      }
-    } else {
-      await writeFile(envExamplePath, `${provider.apiKeyEnv}=\n`, "utf8");
+    const existing = hadEnvExample ? await readFile(envExamplePath, "utf8") : "";
+    const defined = new Set([...existing.matchAll(/^([A-Z_][A-Z0-9_]*)=/gm)].map((m) => m[1]));
+    const required = new Set([provider.apiKeyEnv, ...template.requiresEnv]);
+    const missing = [...required].filter((key) => !defined.has(key));
+    if (missing.length > 0) {
+      const separator = existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
+      const entries = missing.map((key) => `${key}=\n`).join("");
+      await writeFile(envExamplePath, existing + separator + entries, "utf8");
     }
   }
 

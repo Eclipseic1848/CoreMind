@@ -28,8 +28,8 @@ It includes the public `loop` configuration, verify-repair states, stable snapsh
 - P2-B uses Hindsight for long-term memory and reflection. The implementation, examples, and verification record passed engineering CI on both platforms and merged into main. [Long-term memory module](modules/manage-memory/README.en.md) · [Merge record](https://github.com/Eclipseic1848/CoreMind/pull/395)
 - Skills support declared resources, pinned installation, and recovery of old runs. Tools include local, stdio MCP, and Streamable HTTP MCP interoperability checks and an opt-in Playwright MCP browser example. [Skill module](modules/package-agent-skills/README.en.md) · [Tool module](modules/build-tools/README.en.md)
 - Clean consumers verified npm and Python packages built from merged source and rebuilt the knowledge index from source documents. Repeat that flow with release candidate artifacts before publication. [Clean consumer procedure](modules/manage-knowledge/CLEAN-CONSUMER.en.md)
-- P3 adds the optional ontology module with graph models, source mappings, SHACL validation, and business action bindings. Acceptance checks cover the four entry points and cross-session composition. [Ontology module](modules/manage-ontology/README.en.md)
-- Publish `v2.0.0` on GitHub with matching npm and PyPI packages after dual-platform CI, source and package installation checks, four-entry-point parity, and bilingual documentation checks pass.
+- P3 has merged into main with optional graph models, source mappings, SHACL validation and business action bindings. Four entry points and the three-session example passed engineering checks on both platforms. [Ontology module](modules/manage-ontology/README.en.md)
+- P4 tracks the business template, live service integration, candidate artifacts and coordinated publication. Each issue lists its exit conditions and supporting evidence. [Capability construction guide](en/guide/06-capability-construction.md) · [v2.0.0 milestone](https://github.com/Eclipseic1848/CoreMind/milestone/3)
 
 ## `1.4.0`: durable tasks and sessions
 

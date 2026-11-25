@@ -1,5 +1,6 @@
 """知识增量与撤回的验收测试。"""
 
+import asyncio
 import json
 import tempfile
 import unittest
@@ -145,6 +146,77 @@ class KnowledgeCatalogTest(unittest.TestCase):
                 second.search("原件", scope="public", as_of="2026-10-01"), []
             )
             self.assertEqual(second.import_document(document()), "unchanged")
+
+    def test_markdown_table_context_survives_legacy_reimport_and_matches_both_tools(self):
+        from mcp.server.fastmcp import FastMCP
+        from knowledge_server import load_corpus, make_app
+
+        source = (
+            "| 资料 | 本周新增规定 |\n| --- | --- |\n| 新制度草稿 | 档案交接登记 |\n\n"
+            "普通正文 | 含竖线\n\n"
+            "~~~markdown\n| 伪表头 | 含义 |\n| --- | --- |\n| 伪数据 | 误读 |\n~~~\n\n"
+            "名称 | 值班窗口\n--- | ---\n编号 | 榆木台\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "sources").mkdir()
+            file = root / "sources/草稿.md"
+            file.write_text(source, encoding="utf-8")
+            manifest = root / "manifest.json"
+            entry = {
+                "id": "draft", "version": 1, "file": file.name, "access": "editor",
+                "validFrom": "2026-01-01", "validUntil": "2027-01-01",
+            }
+            manifest.write_text(json.dumps({"asOf": "2026-05-01", "documents": [entry]}), encoding="utf-8")
+            day, (record,) = load_corpus(manifest)
+            state = root / "state.json"
+            legacy = {k: v for k, v in record.items() if k != "tableHeaders"}
+            catalog = KnowledgeCatalog(FakeIndex(), state)
+            catalog.import_document(legacy)
+            catalog.import_document({**legacy, "version": 2})
+            catalog.withdraw("draft", 2)
+            catalog = KnowledgeCatalog(FakeIndex(), state)
+            self.assertEqual(
+                catalog.import_documents([record, {**record, "version": 2}]),
+                {"imported": 0, "unchanged": 2},
+            )
+            generation = catalog.index.generation
+            self.assertEqual(catalog.import_document(record), "unchanged")
+            self.assertEqual(catalog.index.generation, generation)
+            catalog = KnowledgeCatalog(FakeIndex(), state)
+            server = FastMCP("test")
+            with patch("knowledge_server.FastMCP", return_value=server):
+                make_app(catalog, "editor", day, b"fixture")
+
+            def call(tool, **args):
+                content = asyncio.run(server.call_tool(tool, args))
+                return json.loads(content[0].text)
+
+            for line, header in [(3, 1), (15, 13)]:
+                text = source.splitlines()[line - 1]
+                expected = [{"line": header, "text": source.splitlines()[header - 1]}]
+                (hit,) = call("search_knowledge", query=text)["citations"]
+                self.assertEqual((hit["line"], hit["text"], hit.get("tableHeader")), (line, text, expected))
+                resolved = call("resolve_citation", docId="draft", version=1, file=file.name, line=line)
+                self.assertEqual(resolved["tableHeader"], expected)
+                self.assertEqual(resolved["text"], text)
+            for line in (1, 5, 8, 10, 13):
+                resolved = call("resolve_citation", docId="draft", version=1, file=file.name, line=line)
+                self.assertNotIn("tableHeader", resolved)
+            for version, scope, as_of, status in [
+                (1, "public", day, "unknown"), (1, "editor", "2027-01-01", "unknown"),
+                (2, "editor", day, "withdrawn"),
+            ]:
+                self.assertEqual(catalog.resolve("draft", version, file.name, 3, scope=scope, as_of=as_of),
+                                 {"status": status, "docId": "draft", "version": version})
+            file.write_text(source.replace("本周新增规定", "标题"), encoding="utf-8")
+            _, (changed,) = load_corpus(manifest)
+            with self.assertRaises(KnowledgeVersionConflict):
+                catalog.import_document(changed)
+            catalog.import_document({**changed, "version": 3})
+            for version, column in [(1, "本周新增规定"), (3, "标题")]:
+                resolved = call("resolve_citation", docId="draft", version=version, file=file.name, line=3)
+                self.assertEqual(resolved["tableHeader"], [{"line": 1, "text": f"| 资料 | {column} |"}])
 
 
 if __name__ == "__main__":

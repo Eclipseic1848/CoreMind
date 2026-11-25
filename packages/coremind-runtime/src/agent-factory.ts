@@ -64,9 +64,13 @@ export interface AgentBuildContext {
  */
 export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent {
   const { temperature, maxTokens } = agentCfg.options ?? {};
+  let sequentialBatch = false;
   const tools = ctx.harness?.executeTool
     ? ctx.tools.map((tool) => ({
         ...tool,
+        get executionMode() {
+          return sequentialBatch ? ("sequential" as const) : tool.executionMode;
+        },
         execute: async (...args: Parameters<AgentTool["execute"]>) => {
           const [callId, params, signal, onUpdate] = args;
           return (await ctx.harness!.executeTool!({
@@ -268,6 +272,19 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
   // 事件归一化转发（agent 名由上下文注入，stepId 由编排层补充）
   const activeDriverCalls = new Map<string, AgentDriverToolCall>();
   agent.subscribe((event) => {
+    if (
+      event.type === "message_end" &&
+      event.message.role === "assistant" &&
+      ctx.harness?.requiresSequentialToolBatch
+    ) {
+      const names = event.message.content.flatMap((block) =>
+        block.type === "toolCall" &&
+        (!frame.selection || frame.selection.names.includes(block.name))
+          ? [block.name]
+          : [],
+      );
+      sequentialBatch = ctx.harness.requiresSequentialToolBatch(names);
+    }
     if (selection && event.type === "message_end" && event.message.role === "system") {
       ownedSystems.add(event.message);
     }
@@ -287,6 +304,9 @@ export function buildAgent(agentCfg: AgentConfig, ctx: AgentBuildContext): Agent
           ? { ...coreEvent, promptCacheStatus: ctx.promptCacheStatus }
           : coreEvent;
       ctx.onEvent({ ...enriched, agent: ctx.agentName } as CoreMindEvent);
+      // 当前调用的回执落盘并释放租约后，Pi 才能启动同批下一项。
+      if (sequentialBatch && coreEvent.type === "tool_result" && coreEvent.callId)
+        return ctx.harness?.waitForToolResult?.(coreEvent.callId);
     }
   });
 

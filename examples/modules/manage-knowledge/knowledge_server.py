@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 import uvicorn
+from markdown_it import MarkdownIt
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 from starlette.requests import Request
@@ -18,7 +19,6 @@ from starlette.responses import JSONResponse
 RETRIEVAL = Path(__file__).resolve().parents[2] / "knowledge-evals" / "zh-retrieval"
 sys.path.insert(0, str(RETRIEVAL))
 
-from qdrant_retrieval import KnowledgeIndex
 from keyword_baseline import terms
 from knowledge_catalog import KnowledgeCatalog
 
@@ -52,12 +52,23 @@ def load_corpus(manifest_path):
         access = source["access"]
         if not isinstance(access, str) or not access.strip() or access != access.strip():
             raise ValueError(f"来源范围无效：{file}")
+        metadata = {}
         if path.suffix.lower() == ".md":
+            lines = path.read_text(encoding="utf-8").splitlines()
             items = [
                 {"text": content.strip(), "line": line}
-                for line, content in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                for line, content in enumerate(lines, 1)
                 if next(terms(content), None) is not None
             ]
+            headers = {}
+            for token in MarkdownIt("commonmark").enable("table").parse("\n".join(lines)):
+                if token.type == "table_open":
+                    header_index, table_end = token.map
+                    # 第一个数据行在表头和分隔行之后；保留原始行号与原文。
+                    header = {"line": header_index + 1, "text": lines[header_index]}
+                    for number in range(header_index + 3, table_end + 1):
+                        headers[str(number)] = header
+            metadata["tableHeaders"] = headers
         elif path.suffix.lower() in {".pdf", ".docx"}:
             from docling_bridge import parse_document
 
@@ -75,6 +86,7 @@ def load_corpus(manifest_path):
                 "validFrom": start,
                 "validUntil": until,
                 "chunks": items,
+                **metadata,
             }
         )
     return as_of, records
@@ -85,11 +97,11 @@ def make_app(catalog, scope, as_of, token):
 
     @mcp.tool(structured_output=False)
     def search_knowledge(query: Annotated[str, Field(min_length=1, max_length=500)]) -> str:
-        """查找可参考的资料片段并附版本与来源位置。相似片段只是候选证据。"""
+        """查找可参考的资料片段并附版本与来源位置。相似片段只是候选证据。表格行按 tableHeader 解释列值，引用数据行。"""
         if not query.strip():
             raise ValueError("查询不能为空")
         matches = catalog.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
-        fields = {"docId", "version", "file", "line", "locator", "text"}
+        fields = {"docId", "version", "file", "line", "locator", "text", "tableHeader"}
         citations = [{key: value for key, value in row.items() if key in fields} for row in matches]
         return json.dumps({"citations": citations}, ensure_ascii=False)
 
@@ -130,6 +142,8 @@ def make_app(catalog, scope, as_of, token):
 
 
 def main():
+    from qdrant_retrieval import KnowledgeIndex
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=RETRIEVAL / "manifest.json")
     parser.add_argument("--model-dir", type=Path, required=True)

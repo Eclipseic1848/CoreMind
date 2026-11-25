@@ -19,10 +19,13 @@ node examples/modules/manage-ontology/acceptance.mjs
 
 ## 跨会话资料整理
 
-```sh
+```powershell
+uv pip install --python $env:COREMIND_ONTOLOGY_PYTHON -r examples/modules/manage-ontology/requirements.txt -r examples/modules/manage-knowledge/requirements.txt
 node examples/modules/manage-ontology/composition.mjs
 ```
 
 第一个会话对照资料版本、附引用并保存摘要。宿主确认表格偏好后，第二个会话在另一份资料上复用偏好和 Skill，本体拦住草稿发布。更正偏好并撤回资料后，第三个会话读取清单偏好与有效引用。脚本运行真实 MCP、资料与记忆服务适配器、Skill、本体和文件工具，知识索引、记忆存储与模型使用确定性夹具。
 
 将业务模型、数据、形状、映射和动作文件换成经审核的本地资产，即可将同一 MCP 入口接到自己的项目。动作示例仅用于合成数据。正式业务处理器以事务、请求 ID 和真实系统回执提供持久结果。[接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
+
+使用两个独立项目、真实 Qdrant、Hindsight 和业务方提供的模型验收资料整理助手，见[真实服务组合验收](LIVE-COMPOSITION.zh-CN.md)。

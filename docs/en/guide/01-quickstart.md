@@ -55,3 +55,4 @@ Start with the ask permission mode. Review every requested operation until you u
 - Add reusable instructions through [Skills](/en/guide/03-skills).
 - Define [quality gates](/en/guide/04-quality).
 - Explore the complete [CLI reference](/en/guide/05-cli-usage).
+- Combine knowledge, memory, ontology, tools and Skills for a business task with the [capability construction and acceptance guide](06-capability-construction.md).

@@ -5,6 +5,7 @@
 - Added a local, stdio MCP, and Streamable HTTP MCP parity example using one synthetic operation.
 - Added opt-in Playwright MCP guidance and a loopback browser control and cancellation check.
 - Validate tool parameters using the declared draft-07 or Draft 2020-12 JSON Schema dialect.
+- Dispatch same-turn calls that share an exclusive lane in order, including deferred MCP tools.
 
 ## 1.4.0 - 2026-11-02
 

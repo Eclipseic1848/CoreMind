@@ -104,10 +104,29 @@ async function main() {
     console.log(JSON.stringify({ imported: names }));
   `;
     runNode(["--input-type=module", "--eval", importProgram], installRoot);
+    const cli = path.join(installRoot, "node_modules", "coremind-cli", "dist", "cli.js");
+    runNode([cli, "--version"], installRoot);
     runNode(
-      [path.join(installRoot, "node_modules", "coremind-cli", "dist", "cli.js"), "--version"],
+      [
+        cli,
+        "create",
+        "archive",
+        "--template",
+        "document-assistant",
+        "--language",
+        "typescript",
+        "--provider",
+        "deepseek",
+      ],
       installRoot,
     );
+    const archive = path.join(installRoot, "archive");
+    runNode(["enable-ontology.mjs"], archive);
+    for (const file of ["run.mts", "run.py", "skills/document-comparison/SKILL.md"]) {
+      if (!(await readFile(path.join(archive, file), "utf8")).trim()) {
+        throw new Error(`安装包生成的资料整理助手缺少内容：${file}`);
+      }
+    }
     if (process.env.COREMIND_SKIP_RELEASE_CHILD_RUN_SMOKE === "true") {
       console.log("已按维护者授权跳过 GitHub Runner Linux sandbox Child Run 冒烟");
     } else {
