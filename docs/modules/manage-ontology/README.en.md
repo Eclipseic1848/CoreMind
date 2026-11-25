@@ -2,7 +2,7 @@
 
 A project can supply its own vocabulary for objects, properties and relationships, align source records, and explain when an action is available. For example, a document repository can link two catalogue identifiers to one document, check its reviewer and then decide whether publication is possible.
 
-CoreMind 2.0.0 supplies the ontology service in the source release. Run the adapter in a dedicated Python environment. An empty business project can use MCP to query its own model without a document-assistant template. A separately installable, upgradable and removable distribution is planned.
+The CoreMind 2.0.0 source entry point remains compatible. Install the independently versioned `coremind-ontology-mcp` 0.1.0 wheel, supply an external model directory, and bind only the read tools in an empty project. Business assets stay with the project. [Component package](../../../components/ontology/README.md)
 
 | Capability map | Module behavior |
 | --- | --- |

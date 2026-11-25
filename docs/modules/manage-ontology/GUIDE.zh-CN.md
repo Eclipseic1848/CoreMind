@@ -16,23 +16,28 @@
 
 ## 从空白项目只启用本体
 
-将 2.0.0 源码解压在服务目录，设置 `COREMIND_SRC` 为其绝对路径。在业务项目中准备自己的五份模型文件，设置 `MODEL_DIR` 为其目录。首次演练可指向源码中的 `examples/modules/manage-ontology/models/document-review`。使用专用 Python 3.12 环境，按下段设置读取凭据后启动。源码示例锁定 RDFLib 7.6.0、pySHACL 0.40.2、MCP 1.30.0 和 Uvicorn 0.54.0，用于加载本地 Turtle 并执行 SHACL Core 校验。[依赖清单](../../../examples/modules/manage-ontology/requirements.txt) · [RDFLib](https://pypi.org/project/rdflib/7.6.0/) · [pySHACL](https://pypi.org/project/pyshacl/0.40.2/)
+从源码根目录用 `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology` 构建 wheel，或使用团队分发的同版本制品。把 wheel 复制到业务主机，在独立 Python 3.10+ 环境安装。将五份业务模型文件放在环境外，设置 `MODEL_DIR` 为其绝对路径，向服务进程提供 `COREMIND_ONTOLOGY_AUTHORIZATION`。凭据为完整的 `Bearer <token>`，令牌至少 24 个无空白字符。
 
 ```sh
-python -m pip install -r "$COREMIND_SRC/examples/modules/manage-ontology/requirements.txt"
-python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-ontology/ontology_server.py" --model-dir "$MODEL_DIR" --port 8879
+python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+coremind-ontology-mcp --version
+coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```
 
-通过宿主环境提供 `COREMIND_ONTOLOGY_AUTHORIZATION`，其值为含 `Bearer ` 前缀的完整头，令牌部分至少 24 个无空白字符。按 Agent 显式绑定 `ontology_describe`、`ontology_validate_record` 和 `ontology_inspect_action`，可分别查询资源、校验来源记录、检查动作。返回结果中的 `modelVersion`、`modelDigest` 和 `bundleDigest` 用于复核具体模型与资产。`coremind-off.yaml` 展示停用形式。[只读配置](../../../examples/modules/manage-ontology/coremind.yaml) · [无本体配置](../../../examples/modules/manage-ontology/coremind-off.yaml)
+首个只读项目只需要自己的模型和该组件。示例模型、服务配置及可保留回执的仓库外测试见[验收示例](../../../examples/modules/manage-ontology/README.zh-CN.md)。
+
+可按 Agent 选择 `ontology_describe`、`ontology_validate_record` 和 `ontology_inspect_action`，分别查询对象、校验记录和检查动作前置条件。用 `modelVersion`、`modelDigest`、`bundleDigest` 核实本次资产。参照[只读配置](../../../examples/modules/manage-ontology/coremind.yaml)，停用对照见[无本体配置](../../../examples/modules/manage-ontology/coremind-off.yaml)。
 
 使用支持 Streamable HTTP 的 MCP 客户端连接 `http://127.0.0.1:8879/mcp`，按设置发送 `Authorization`。使用资料模型时调用 `ontology_describe`，传入 `{"resource":"urn:doc:guide"}`，核对对象及模型版本。CoreMind 项目从只读配置取 `mcp.servers.ontology` 和所需的 Agent 工具声明即可，保留自己的模型提供商。只接入本体时无需运行知识服务或 Hindsight。
 
 ## 绑定可写动作
 
-`publish` 把目标资料从 `reviewed` 转为 `published`。检查结果 `ready` 表示具备候选资格。需要执行时，宿主单独启用 `--enable-actions`，提供不同的 `COREMIND_ONTOLOGY_ACTION_AUTHORIZATION`，再将 `ontology_perform_action` 按有副作用的工具绑定到获准调用者。CoreMind 工具政策决定是否准入；处理器执行前重新核对当前图、目标和预期状态，随后按业务回执判断是否完成。
+在只读模式下调用 `ontology_perform_action` 会收到 `action_not_authorized`。要开放写操作，业务方为获准的 Agent 绑定该工具并保留 CoreMind 的审批策略。服务端设置与读取凭据不同的 `COREMIND_ONTOLOGY_ACTION_AUTHORIZATION`，启动时追加 `--action-handler /abs/handler.py --receipt-db /abs/state/receipts.sqlite3`。只加载经宿主审阅的本地处理器；该 Python 文件导出同步 `execute(command)`。目录需已存在且可写。
 
-示例处理器生成合成回执。接入业务系统时须核对请求标识、对象、前态和实际状态。回执缺失或结果不符会留下 `unknown`；此时先查询业务系统，不得重放写操作。示例在当前宿主进程内记录请求，跨重启的对账与持久回执由业务宿主提供。[宿主实现](../../../examples/modules/manage-ontology/ontology_project.py) · [验收步骤](SOP.zh-CN.md)
+处理器按 `requestId` 在业务系统执行事务，返回 `requestId`、`resource`、`previousState`、`status`、`state`。[业务事务示例](../../../examples/modules/manage-ontology/receipt_handler.py)演示条件更新和业务回执在同一 SQLite 事务提交。组件另在派发前写入本项目独占的回执库。已确认的请求可回读；崩溃、丢失或不一致的回执保留为 `unknown`，重启后继续阻断同一对象的新动作。查询业务权威记录后由负责人对账，保留未决库。
 
 ## 升级与移除
 
 升级前保存五份模型文件、版本及摘要。若启用了业务动作，先停写并保留宿主持久回执与待核对请求。在独立进程中用相同模型复查对象、违规样例和动作前置条件，再切换端点。需要回滚时恢复旧服务与模型，逐笔核对已实际发生的业务动作。停用某项目时移除其本体工具、服务绑定及凭据。独占服务可停机并移除专用环境，共享服务只解除该项目绑定。业务模型、映射和动作回执由项目方保管。
+
+停止独占进程后，使用 `python -m pip uninstall coremind-ontology-mcp` 卸除。备份或回退时保留同一份最新回执库；用旧库覆盖它会丢失新请求的证据。历史 2.0.0 源码示例只在进程内保存动作状态，回切到该示例时只开放读取。新模型初始状态与已确认回执不一致时，组件拒绝该对象动作并返回 `model_state_conflict`。

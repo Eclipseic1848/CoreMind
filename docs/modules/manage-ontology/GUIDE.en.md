@@ -16,12 +16,15 @@ Both `catalog.A1` and `archive.ARCH-1` map to the confirmed `urn:doc:guide`. The
 
 ## Enable only ontology from an empty project
 
-Unpack the 2.0.0 source release in a separate service directory and set `COREMIND_SRC` to its absolute path. Prepare the five model files in your project and set `MODEL_DIR` to their directory. For a first run, use `examples/modules/manage-ontology/models/document-review` from the source release. Use a dedicated Python 3.12 environment and set the read credential described below before starting the service. The example pins RDFLib 7.6.0, pySHACL 0.40.2, MCP 1.30.0 and Uvicorn 0.54.0 and uses local Turtle and SHACL Core. [Requirements](../../../examples/modules/manage-ontology/requirements.txt) · [RDFLib](https://pypi.org/project/rdflib/7.6.0/) · [pySHACL](https://pypi.org/project/pyshacl/0.40.2/)
+Build the wheel from the repository root with `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology`, or take the versioned wheel from your distributor. Copy the wheel to the business host and install it in a dedicated Python 3.10+ environment. Put the five model files outside the environment. Set `MODEL_DIR` to their absolute directory path and supply the read credential described below.
 
 ```sh
-python -m pip install -r "$COREMIND_SRC/examples/modules/manage-ontology/requirements.txt"
-python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-ontology/ontology_server.py" --model-dir "$MODEL_DIR" --port 8879
+python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+coremind-ontology-mcp --version
+coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```
+
+A read-only project needs just the component and its model assets. Find sample models, service bindings and the external installation check in the [runnable example](../../../examples/modules/manage-ontology/README.en.md).
 
 Supply the full Bearer header in `COREMIND_ONTOLOGY_AUTHORIZATION`. The token after `Bearer ` must have at least 24 non-whitespace characters. Bind `ontology_describe`, `ontology_validate_record` and `ontology_inspect_action` per agent for inspection, record validation and action checks. Use `modelVersion`, `modelDigest` and `bundleDigest` to identify the model and project assets used. Select `coremind-off.yaml` when the task needs no ontology. [Read-only configuration](../../../examples/modules/manage-ontology/coremind.yaml) · [Unbound configuration](../../../examples/modules/manage-ontology/coremind-off.yaml)
 
@@ -29,10 +32,12 @@ Connect a Streamable HTTP MCP client to `http://127.0.0.1:8879/mcp` with the cre
 
 ## Bind a write action
 
-The `publish` action expects a `reviewed` document and a `published` result. Inspection reports `ready` when the action is eligible. To execute it, the host starts the service with `--enable-actions`, supplies a distinct `COREMIND_ONTOLOGY_ACTION_AUTHORIZATION` and binds `ontology_perform_action` as an effectful tool to an authorized caller. CoreMind enforces its tool policy. The handler checks the current graph, target and expected state again before execution and uses the business receipt to determine the outcome.
+A read credential calling `ontology_perform_action` receives `action_not_authorized`. To enable writes, bind that tool for the authorized agent and keep CoreMind tool approval in place. Set a distinct `COREMIND_ONTOLOGY_ACTION_AUTHORIZATION` and start the service with `--action-handler /abs/handler.py --receipt-db /abs/state/receipts.sqlite3`. The host explicitly selects a reviewed local Python file exporting a synchronous `execute(command)`. Its state directory must already exist and be writable.
 
-The example supplies a synthetic receipt. A real integration must match the request ID, object, previous state and observed state. Treat a missing or inconsistent receipt as `unknown`, query the owning system and avoid replaying the write. The example records requests within the running host process. The business host owns durable receipts and reconciliation across restarts. [Host implementation](../../../examples/modules/manage-ontology/ontology_project.py) · [Acceptance procedure](SOP.en.md)
+The handler executes a business transaction keyed by `requestId` and returns `requestId`, `resource`, `previousState`, `status`, and `state`. The [sample business handler](../../../examples/modules/manage-ontology/receipt_handler.py) commits a conditional update and its business receipt in one SQLite transaction. The component separately records the request in the project’s exclusive receipt database before dispatch. Confirmed requests return the saved receipt. Missing or inconsistent receipts and interrupted writes remain `unknown`; after restart, a new write against that resource still requires reconciliation. Preserve the database and check the authoritative business system.
 
 ## Upgrade and removal
 
 Save the five model files, versions and digests. If business actions are enabled, pause writes and preserve the host's durable receipts and unresolved requests. Start the target service separately. Repeat a known object query, a violation and an action precondition check against the same model before switching endpoints. For rollback, restore the earlier service and model, and reconcile actions already performed. To disconnect a project, remove its ontology tools, service binding and credentials. Remove the service environment only if it is dedicated to that project. The project owner keeps its models, mappings and receipts.
+
+After stopping the dedicated process, run `python -m pip uninstall coremind-ontology-mcp`. Keep the latest receipt database through backup or rollback. Restoring an older database would discard evidence of later requests. The original 2.0.0 source demo keeps action state in memory; restrict a fallback to that version to reads. If a new model’s initial state conflicts with confirmed receipts, the component rejects writes to the resource with `model_state_conflict`.

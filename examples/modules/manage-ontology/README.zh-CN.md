@@ -1,8 +1,20 @@
 # 可选本体示例
 
-只使用本体时，可从空白业务项目连接 2.0.0 源码服务，先运行一次对象查询。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)给出独立进程与凭据的用法。下面的脚本验证 CoreMind 各入口。跨会话资料助手是可选的组合示例。
+空白业务项目可只安装本体 wheel 并发起 MCP 查询。下面的独立验收与四入口源码示例分别运行。资料助手是额外的组合用例。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
 
 资料整理助手使用 [`document-review`](models/document-review/actions.json) 模型查询资料、验证复核人以及检查可否发布。完全相同的适配器也能加载 [`equipment-maintenance`](models/equipment-maintenance/actions.json)，查询设备、维护站点及复修动作。
+
+## 从 wheel 验收
+
+在源码根目录构建 `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology`。把 wheel、当前目录的 `installed_acceptance.py`、`receipt_handler.py` 和 `models/` 复制到仓库外。在新建并激活的 Python 3.12 虚拟环境中运行下面的命令。`business-test` 需要为空，执行后将保留业务资产和两份数据库。
+
+```sh
+python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+python -I -B -X utf8 installed_acceptance.py --project ./business-test
+python -m pip uninstall -y coremind-ontology-mcp
+```
+
+验收使用真实的 Streamable HTTP 客户端、pySHACL 和本机 SQLite 业务事务。它启动只读与写服务、切换模型版本、模拟业务写入后进程中断并核对重放行为。成功时返回 `businessReceipts: 2`、`unknownReplayBlocked: true` 和 `modelRollback: "1.0.0"`。卸载后业务目录应保留 `business.sqlite3`、`action-receipts.sqlite3` 和模型文件。
 
 ## 运行
 
