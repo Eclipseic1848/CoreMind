@@ -1,5 +1,15 @@
 # 配置与 Schema示例
 
+## 只启用 Runtime
+
+使用仓库当前源码构建的 CLI 或对应的候选安装件，在业务目录执行 `coremind create . --runtime-only --provider deepseek --model deepseek-flash`，并配置 `DEEPSEEK_API_KEY`。已发布 2.0.0 可直接复制[最小配置](../../../docs/guide/06-capability-construction.md)。
+
+- CLI：`coremind run coremind.yaml --prompt "请只回答 OK"`。
+- TypeScript：安装对应的 `coremind-ai` npm 包，把 [runtime-only.mts](runtime-only.mts) 复制到项目根目录，运行 `node runtime-only.mts`。
+- Python：安装对应的 `coremind-ai` wheel，把 [runtime_only.py](runtime_only.py) 复制到根目录。用 `python runtime_only.py` 或 `python runtime_only.py --async` 验证同步和异步入口。
+
+四个入口均应完成一轮回复。检查模型请求的工具目录为空，并确认业务目录只需基础配置与运行所需的依赖。
+
 该示例展示模块的最小用法；复制前先由业务负责人确认字段与规则。
 
 ```text

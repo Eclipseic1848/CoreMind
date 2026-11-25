@@ -22,11 +22,18 @@ function skillDir(id: string): string {
 }
 
 function loadSkill(id: string, name: string, description: string): SkillMeta {
+  let content: string | undefined;
   return {
     id,
     name,
     description,
-    content: readFileSync(path.join(skillDir(id), "README.md"), "utf8"),
+    get content() {
+      content ??= readFileSync(path.join(skillDir(id), "README.md"), "utf8");
+      return content;
+    },
+    set content(value) {
+      content = value;
+    },
   };
 }
 

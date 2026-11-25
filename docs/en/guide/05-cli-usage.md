@@ -2,6 +2,8 @@
 
 The CLI provides project scaffolding, environment checks, static validation, interactive chat, one-shot execution, evaluation, and template discovery.
 
+The CLI built from current source supports `coremind create . --runtime-only --provider deepseek --model deepseek-flash`. It creates a single configuration with one agent, and preserves an existing `coremind.yaml`. [Start in your project](06-capability-construction.md)
+
 ## Commands
 
 ```bash

@@ -1,6 +1,6 @@
 import "../../../test/setup-env.js";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -263,6 +263,27 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("CoreMind 已认证");
     expect(stdout).toContain("deepseek");
     expect(stdout).toContain("可配置，尚未认证");
+  });
+
+  it("runtime-only 在新目录和已有业务目录只创建最小配置", () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-runtime-only-"));
+    const args = ["--runtime-only", "--provider", "deepseek", "--model", "deepseek-flash"];
+    expect(runCli(["create", "first-agent", ...args], { cwd }).code).toBe(0);
+    expect(readdirSync(path.join(cwd, "first-agent"))).toEqual(["coremind.yaml"]);
+    const document = path.join(cwd, "business.txt");
+    writeFileSync(document, "原有资料", "utf8");
+    expect(runCli(["create", ".", ...args], { cwd }).code).toBe(0);
+    const configPath = path.join(cwd, "coremind.yaml");
+    const config = readFileSync(configPath, "utf8");
+    expect(config).toContain("deepseek-flash");
+    expect(config).not.toMatch(/(?:tools|skills|mcp):/);
+    expect(runCli(["create", ".", "--runtime-only"], { cwd }).code).toBe(0);
+    expect(readFileSync(configPath, "utf8")).toBe(config);
+    expect(readFileSync(document, "utf8")).toBe("原有资料");
+    expect(runCli(["create", "conflict", ...args, "--template", "translator"], { cwd }).code).toBe(
+      1,
+    );
+    expect(readdirSync(cwd).sort()).toEqual(["business.txt", "coremind.yaml", "first-agent"]);
   });
 
   it("非交互 create 未选择 Provider 时失败并给出命令", () => {

@@ -22,6 +22,8 @@ agents:
 
 Supply the model credential through the environment. From this directory run `npx coremind-cli@2.0.0 run coremind.yaml --prompt "Reply only OK"` and check the reply and zero tool calls. Keep the configuration and dependency versions for comparison when you enable each capability.
 
+With the current CLI built from source, run `coremind create . --runtime-only --provider deepseek --model deepseek-flash`. It reuses an existing `coremind.yaml`. See the [SDK example](../../../examples/modules/configure-coremind/README.en.md) for the two SDKs.
+
 | Select one capability | How to connect it in 2.0.0 | First acceptance check |
 | --- | --- | --- |
 | Knowledge | Deploy the knowledge MCP service and bind only the retrieval operations the agent needs | Supply two source versions, then search as a reader and resolve the citation and version |

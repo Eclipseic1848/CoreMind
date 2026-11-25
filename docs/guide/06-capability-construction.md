@@ -22,6 +22,8 @@ agents:
 
 把模型凭据放入运行环境。在该目录执行 `npx coremind-cli@2.0.0 run coremind.yaml --prompt "请只回答 OK"`，核对回复和零工具调用。记录这份配置和依赖版本，作为逐项启用能力时的对照。
 
+从源码构建的新 CLI 也可以执行 `coremind create . --runtime-only --provider deepseek --model deepseek-flash`。已有 `coremind.yaml` 时沿用该文件。两种 SDK 的最小入口见[运行示例](../../examples/modules/configure-coremind/README.zh-CN.md)。
+
 | 仅选用一项时 | 2.0.0 的接入方式 | 第一个验收动作 |
 | --- | --- | --- |
 | 知识 | 宿主部署知识 MCP 服务，在 Agent 工具列表中只绑定需要的检索操作 | 提供两版原文，用读者身份检索并回查版本和出处 |
