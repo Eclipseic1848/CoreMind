@@ -1,10 +1,12 @@
 # Tools and Business Capabilities
 
-Status: contract and documentation aligned with the `1.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
+Status: contract and documentation aligned with the `2.0.0` release line. Supported platforms: Windows and Linux. macOS is not yet officially supported.
 
 ## Purpose
 
 Connect deterministic business actions through built-in tools, script tools, or the stable defineTool contract.
+
+Tools can be enabled independently. Give an agent only the workspace `read` tool to read a user-selected file without a Skill, retrieval, cross-session memory, or an ontology service. Add a project tool or an MCP service when the business task calls for it. See the [guide](GUIDE.en.md) for a complete configuration and removal steps.
 
 ## Public interfaces
 

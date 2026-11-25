@@ -5,6 +5,8 @@ description: "Describe agents, tools, a Workflow or explicit bounded Loop, budge
 
 # Configuration and Schema
 
+Start with the application's own configuration. Keep the Runtime-only baseline and a check for each independently selected capability. Review inherited global tools as well as agent-level selections. Use `document-assistant` when you need a reference for a combination. [Component acceptance](../../docs/en/guide/06-capability-construction.md)
+
 1. Read [the module contract](../../docs/modules/configure-coremind/README.en.md) and the language-matched guide only when implementation details are needed.
 2. Identify the business owner, accepted inputs and outputs, failure conditions, permission mode, and quality profile.
 3. Follow [the SOP](../../docs/modules/configure-coremind/SOP.en.md) in order. Do not invent unresolved business rules or broaden the requested architecture.

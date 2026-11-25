@@ -6,6 +6,28 @@
 
 同一回合中，两个调用都需要 `run_serial`，或都需要同一工作区的 `workspace_exclusive` 时，Runtime 按模型给出的顺序处理整批。每个调用独立经过权限、预算与租约检查，前一项回执落盘并释放租约后才开始下一项。允许并行且没有租约冲突的工具可同时执行。这个规则也适用于按需发现后已装载的 MCP 工具。
 
+## 只启用一个工具
+
+在空目录创建 `coremind.yaml`，并在同一目录放一个自己编写的 `sample.txt`。下面的 Agent 只获得读取工作区文件的权限。已有项目可将 `{ id: read }` 添加到目标 Agent 的工具列表。
+
+```yaml
+schemaVersion: 3
+name: read-only-example
+provider: { id: deepseek, model: deepseek-flash, apiKeyEnv: DEEPSEEK_API_KEY }
+defaultAgent: main
+agents:
+  main:
+    systemPrompt: 使用获准的读取工具查询用户指定的工作区文件。
+    tools: [{ id: read }]
+permissions: { mode: ask, allow: [read], workspaceOnly: true, network: deny }
+runtime: {}
+quality: { profile: standard }
+```
+
+先执行 `coremind check coremind.yaml`。在宿主设置自己的 Provider 凭据后，通过 `coremind run coremind.yaml --prompt "请读取 sample.txt 并逐字返回内容。"` 检查结果，在 Trace 中核对 `read` 调用及文件原文。用工作区外的文件作反例，确认 Runtime 拒绝读取。
+
+停用时，从该 Agent 的 `tools` 和仅供本例使用的 `permissions.allow` 移除 `read`，再开启新 Runtime 和会话。Agent 的工具列表为空或未填写时会继承顶层 `tools`，因此也要检查全局配置。如果工具由 TS 宿主通过 `toolDefinitions` 注入，还要移除宿主注册。对于 MCP 工具，移除该 Agent 的具体工具引用；只有在所有 Agent 都不再使用该服务后，再移除服务配置和专用凭据。用新会话核对模型收到的工具清单。
+
 ## 最小示例
 
 ```text

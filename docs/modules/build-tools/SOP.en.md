@@ -18,6 +18,10 @@ Read the [module overview](README.en.md), then confirm the business owner, input
 10. Run the listed module tests and `npm run check:modules`.
 11. Preserve trace, evaluation, and owner-approval evidence; do not publish without explicit authorization.
 
+## Upgrade and roll back a single tool
+
+Built-in tools follow the CoreMind release. Pin application-owned scripts, tool packages, and MCP services independently. Before updating one, retain its previous implementation and binding. Compare tool names, input schemas, results, effects, and credential scope. Start a fresh session with that single tool and record a successful receipt and a denied request with zero side effects. Restore the previous version and repeat the same cases.
+
 ## Additional acceptance for local MCP
 
 Confirm the program, directory, arguments, and environment references using the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools). Run static diagnostics with zero startup, then verify denial and approval independently for connection, listing, and business execution. Check full schema, approval identity, blocked secrets, unknown effects, and actual process cleanup. Preserve the constrained-project quality gate without a trusted-host exemption.

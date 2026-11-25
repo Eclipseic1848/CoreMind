@@ -6,7 +6,9 @@ This guide creates and runs a minimal CoreMind project. CoreMind currently requi
 
 When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is recommended for first-time users because configuration and SDK calls receive the strongest editor feedback.
 
-## 2. Install and create a project
+## 2. Install and choose a project entry point
+
+For an existing project or an empty directory, use the [Runtime-only configuration](06-capability-construction.md) and enable one capability when needed. The CLI example below uses the translator template.
 
 `coremind-cli@2.0.0` is available on the public npm registry. Upgrade from `1.4` using the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
 

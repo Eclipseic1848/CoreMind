@@ -13,6 +13,12 @@ Prepare at least two projects, two subjects, two agents, and two session branche
 
 Run the checks in the [module manifest](module.yaml) and `npm run check:modules`. Record the result, entry point, and failure stage for each case. When using a deterministic candidate fixture, report lifecycle behavior and live model extraction quality separately.
 
+## Verify standalone deployment and upgrades
+
+1. Deploy the three gateway files from the 2.0.0 source ZIP. In a separate empty project, use only a reader token and a standard MCP client. `tools/list` must expose just `recall_memory`. Write a fact through the host and query it through MCP. Check bank, document ID, revision, text and source. `/health` checks only the gateway process.
+2. Run M01–M06. A missing or invalid reader token returns HTTP 401. A valid administrator targeting an ungranted bank gets 403. Exercise the published CLI, TypeScript SDK, and synchronous and asynchronous Python SDKs. All four callers resolve installed dependencies from the clean consumer. Python uses its bundled Worker. The existing `acceptance.mjs` checks a repository build.
+3. Record the gateway source release, Hindsight client/API versions, PostgreSQL version, bindings and receipt path. In 2.0.0 the receipt JSON has no independent format version and is owned by one gateway process. Before upgrading, stop writes and back up PostgreSQL and the latest receipts. In an isolated copy, test an active fact, a forgotten fact, replay of its deletion, a stale correction and recall after restart with the same reader. On rollback, restore the previous software and consistent state, retain the newest forgetting receipts and replay those deletions. An independently released gateway will need compatibility, receipt migration and rollback tests for its own versions.
+
 ## P2-B verification record
 
 - Hindsight OSS 1.2.3 and PostgreSQL covered writes, restart, correction, expiry, deletion, scope isolation, and recall through the four entry points. All eight memory service unit tests passed.

@@ -35,11 +35,11 @@ features:
 
 [从 1.4 升级](migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](release/notes/v2.0.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-> 从 1.4.0 升级到 2.0.0 后，可用资料整理助手模板连接知识检索、Hindsight 记忆、Skill、工具和可选本体。业务方提供原文、身份与规则。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+> 业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。2.0.0 已有 Skill、工具和 MCP 接口；知识、记忆与本体的服务实现目前随源码示例提供。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
 
-### 从资料项目开始
+### 在自己的项目里启用第一项能力
 
-用 `coremind create` 创建 `document-assistant`。准备两版资料，确认一个格式偏好，再运行普通版或可选本体版。[五域建设方法](guide/06-capability-construction.md)
+从只含模型和一个 Agent 的配置开始，再接入一个组件，分别验证启用和移除。`document-assistant` 提供多项组合的参考。[五域建设方法](guide/06-capability-construction.md)
 
 ### 1.4 已合入的能力
 

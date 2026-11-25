@@ -21,6 +21,12 @@ npm run check:modules
 
 Attach the four entry-point results, actual execution counts and model and mapping versions to the acceptance record. When rules change, run the same inputs against both versions and check that observed differences match the intended change. [Runnable example](../../../examples/modules/manage-ontology/README.en.md) · [Module manifest](module.yaml)
 
+## Acceptance for a separately installed distribution (planned)
+
+In an empty business directory outside the checkout and a fresh Python environment, install only the ontology component. Record the distribution source, version and digest. Take the checkout out of reach, load business-supplied model files and use a standard MCP client to query one object, detect a constraint violation and confirm that the read credential cannot execute an action. Switch to a second model with the same component and check the reported model version and digest.
+
+Use the 2.0.0 source service as the upgrade baseline for the first packaged version. Rehearse upgrade and rollback against copies. Verify existing object IRIs, mappings, SHACL results and business receipts. Check that unresolved writes are never replayed. Remove the ontology binding and verify that the rest of the host still runs. Retain its models and receipts when removing a dedicated service environment.
+
 ## P3 development verification
 
 - Windows Python 3.12 and the Linux Python 3.13 container each passed 15 tests covering two interchangeable domain models, field normalization, real SHACL reports, and action receipts.

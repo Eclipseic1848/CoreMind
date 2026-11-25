@@ -6,7 +6,7 @@ This public roadmap describes product boundaries and intended directions. It del
 
 ## Current release line: `2.0.0`
 
-CoreMind 2.0.0 extends 1.4.0 with a document assistant template for knowledge retrieval, Hindsight memory, Skills, tools and an optional ontology. Application teams supply documents, identities and rules. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [Migration from 1.4](migrations/1.4-to-2.0.en.md)
+Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. Version 2.0.0 provides Skill, tool and MCP interfaces. The knowledge, memory and ontology services currently ship as source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [Migration from 1.4](migrations/1.4-to-2.0.en.md)
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -22,7 +22,11 @@ All eight npm packages, the Python wheel and the source ZIP for `v2.0.0` matched
 
 It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Windows, Linux and strict DeepSeek certification passed for this version. [Candidate qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
-## `2.0.0` development plan
+## Next stage: five independently usable capabilities
+
+Start from the Runtime in the application project. Knowledge retrieval, Hindsight memory and ontology will each have a separately deployable version, a configuration entry point, and upgrade and rollback instructions. Skills are selected by ID; tools are registered or bound. Verify each can be updated and removed independently. Deliver the implementation, SOP, developer Skill and minimal example for each capability. In a project outside the repository, test the Runtime alone, each of the five capabilities alone, then selected combinations. Remove one component and check the rest. Use `document-assistant` for reference and composition regression. [Construction and acceptance method](en/guide/06-capability-construction.md)
+
+## Delivered in `2.0.0`
 
 - The main branch includes knowledge ingestion, cited retrieval, incremental versions, and withdrawal. [Knowledge module](modules/manage-knowledge/README.en.md)
 - P2-B uses Hindsight for long-term memory and reflection. The implementation, examples, and verification record passed engineering CI on both platforms and merged into main. [Long-term memory module](modules/manage-memory/README.en.md) · [Merge record](https://github.com/Eclipseic1848/CoreMind/pull/395)

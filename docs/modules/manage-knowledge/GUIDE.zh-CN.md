@@ -2,6 +2,17 @@
 
 宿主先为知识服务选择允许阅读的资料范围，并在回环地址 `127.0.0.1` 启动它。示例通过 CoreMind 已有的 Streamable HTTP MCP 接口提供只读工具 `search_knowledge`。查询参数只有 `query`，阅读范围由宿主决定。TypeScript、Python 和 CLI 加载同一项目配置并访问同一服务。
 
+## 从空白项目只接入知识
+
+把 2.0.0 源码解压在服务目录。以下命令从业务目录运行，`COREMIND_SRC` 表示源码根目录的绝对路径，`MODEL_DIR` 表示已校验的 BGE-M3 模型目录，两者由操作者设置。使用服务专用的 Python 3.12 环境。先按[示例](../../../examples/modules/manage-knowledge/README.zh-CN.md)准备模型并设置完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION`。首次演练可以使用下面的合成清单，也可将 `--manifest` 换成业务项目自己的清单，原文放在清单同级的 `sources/`。
+
+```sh
+python -m pip install -r "$COREMIND_SRC/examples/modules/manage-knowledge/requirements.txt" -r "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt"
+python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-knowledge/knowledge_server.py" --manifest "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/manifest.json" --model-dir "$MODEL_DIR" --state ./knowledge-state.json --scope public
+```
+
+用支持 Streamable HTTP 的 MCP 客户端连接 `http://127.0.0.1:8767/mcp`，以该变量的完整值发送 `Authorization`。在 `tools/list` 中找到 `search_knowledge` 和 `resolve_citation`，分别查询和回查原文。若宿主是 CoreMind，将[知识服务配置](../../../examples/modules/manage-knowledge/coremind.yaml)中的 `mcp.servers.knowledge` 和所需的 Agent 工具声明加入自己的配置，使用项目自己的模型。此接入无需资料助手模板或其他领域服务。
+
 ## 第一次查询
 
 按[运行示例](../../../examples/modules/manage-knowledge/README.zh-CN.md)准备环境并运行三个入口。用公开身份查询“ST-17 拼接地图现在由哪一个窗口受理？”。在结果中找到“榆木台”，打开[二版索引](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v2.md)核对第 6 行。相同编号在[一版索引](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v1.md)也出现在第 6 行，但窗口为“榛果台”。只核对行号会把旧结果判为正确。
@@ -17,3 +28,7 @@ Markdown 表格的数据行在 `search_knowledge` 和 `resolve_citation` 中均�
 历史引文沿用当前知识服务的阅读范围和资料清单的基准日期。有效期包含起始日，不含截止日。范围外或不在有效期内的引文统一返回 `unknown`；在可读范围内才能看到摘录或 `withdrawn` 状态。
 
 升级前保存的 Markdown 状态可用原清单和原文再次导入。服务核对已有正文、行号、版本和权限后补齐表头，保留已撤回标记。后续同版本重导保持幂等。
+
+## 升级与移除
+
+更换服务版本前停止旧进程，保存原文、清单、模型版本和状态文件。在副本启动目标版本，复查现行引文、同版本重复导入和已撤回引文，再切换业务连接。回滚时使用原服务环境及已核对的状态，保留升级后产生的撤回记录。业务项目停用知识时，移除该项目的 MCP 工具、服务绑定和读者凭据。若服务专属该项目，再停止进程并卸除专用 Python 环境。业务原文、清单、撤回记录和共用模型由其所有者按保留策略处置。

@@ -2,6 +2,8 @@
 
 `coremind.yaml`（也支持 JSON）是智能体的唯一定义文件。本指南按字段逐个说明。
 
+在业务项目中，只运行 Runtime 时配置模型与一个 Agent，省略五项可选能力。启用时按 Agent 选择 Skill 或工具，知识、Hindsight 和本体各自通过所需的 MCP 绑定接入。已有全局 `tools` 会被缺少非空工具列表的 Agent 继承，验收时也要检查全局配置。[空白项目配置与五项单独验收](06-capability-construction.md)
+
 ## 顶层字段
 
 ```yaml

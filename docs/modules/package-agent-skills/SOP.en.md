@@ -16,6 +16,8 @@ When starting from a task description, run the [draft generator](../../../exampl
 6. Change or remove source files after the first load. An existing run resumes with its original package, while a new Runtime gets the current version. Check that missing or corrupted snapshots fail and that raw Store fields stay private in public projections, events, and telemetry. Complete request reconstruction still requires persisted Session and compaction records.
 7. Run the four entry points in the [module example](../../../examples/modules/package-agent-skills/README.en.md) and run `npm run check:modules`. For real-model comparison, run with and without the skill using the same tasks, model, and parameters. Record procedure adherence, factual accuracy, unrelated triggers, latency, and tokens. Collect owner approval before publishing.
 
+For independent acceptance, select just one Skill in the application’s minimal configuration. Record its version, commit or content lock, the selected agent, and an actual read. Update only that package and compare a new Runtime with a resumed run. Finally remove the ID and verify ordinary conversation in a fresh session.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

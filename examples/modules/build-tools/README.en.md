@@ -22,6 +22,8 @@ const lookupOrder = defineTool({
 6. Temporarily rename the tool to `read` and confirm definition or registration rejects it before execution; then restore a business-specific name.
 7. Run the ProcessRunner, GitAdapter, and unified-diff tests; confirm timeout, cancellation, output limits, read-only Git, and oversized files all fail closed.
 
+To try the built-in read tool, use the [single-tool configuration](../../../docs/modules/build-tools/GUIDE.en.md) in your own directory. The `transport-parity.mjs` runner and its loopback services are source-based acceptance examples. The optional browser scenario uses the Playwright MCP service and browser specified in its guide. Ordinary file tools can run independently.
+
 ## Run the three local tool entry points
 
 ```sh

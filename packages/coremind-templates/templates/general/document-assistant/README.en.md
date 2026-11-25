@@ -4,7 +4,9 @@
 
 Compare document versions, cite each change, and format the summary using the reader's confirmed preference. The application owner supplies source records, the reader's access scope, and a memory bank. An optional ontology checks whether a business action is eligible.
 
-## Create a project
+Use this reference example to exercise composition across sessions. A business project can start with just the Runtime and select any one capability. [Start in your own project](https://eclipseic1848.github.io/CoreMind/en/guide/06-capability-construction.html)
+
+## Create the example project
 
 Use the CLI containing this template, matching Node and Python SDKs, and Node.js 22.19 or later. After the public release, install the following versions. During candidate qualification, install the matching tarballs and wheel.
 

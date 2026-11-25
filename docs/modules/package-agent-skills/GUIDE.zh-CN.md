@@ -6,19 +6,27 @@
 
 ## 最小示例
 
+在自己的空目录中创建 `coremind.yaml`。下面使用 DeepSeek，运行时由宿主提供自己的 Provider 凭据。若已有项目，只把 `legal-review` 加入目标 Agent 的 `skills`，并按现有审批策略授权读取。
+
 ```yaml
+schemaVersion: 3
+name: skill-only
+provider: { id: deepseek, model: deepseek-flash, apiKeyEnv: DEEPSEEK_API_KEY }
+defaultAgent: reviewer
 agents:
   reviewer:
-    systemPrompt: 你是代码审查助手
-    skills:
-      - legal-review
+    systemPrompt: 按用户提供的条款核对项目约定。
+    skills: [legal-review]
+permissions: { mode: ask, allow: [load_skill], workspaceOnly: true, network: deny }
+runtime: {}
+quality: { profile: standard }
 ```
 
 对应 `skills/legal-review/SKILL.md`：
 
 ```markdown
 ---
-name: 合同审查
+name: legal-review
 description: 核对条款与项目约定，标记证据缺口。
 ---
 
@@ -28,6 +36,10 @@ description: 核对条款与项目约定，标记证据缺口。
 目录 ID 决定授权，名称只作展示。首请求只有索引，Agent 调用 `load_skill({"id":"legal-review"})` 后正文才进入正常工具消息；调用仍服从 ToolPolicy 与预算。旧 `README.md` 可继续使用，同目录双文件选 SKILL 并告警；内置同 ID 仍优先。
 
 单文件上限 256 KiB，解析结果与全部 Agent 冻结快照各最多 2 MiB 序列化 UTF-8 JSON。正文与快照 SHA 均为无前缀的 64 字符十六进制值。标准技能在 Runtime 创建后冻结，Child 和 resume 不切换到当前磁盘版本；新 Runtime 才读取修改。只有实际正文仍在最终工作集中，重复加载才返回引用；压缩移走正文后可重载。
+
+在项目目录执行 `coremind check coremind.yaml` 检查配置。设置 Provider 凭据后，可用 `coremind run coremind.yaml --prompt "请用 legal-review 核对付款条款：预付款比例暂未确认。"` 发起验证，在 Trace 中核对 `load_skill` 的 ID 和实际返回的正文。再使用无关问题检查是否有误触发。
+
+要停用，移除选择该 ID 的 Agent 的对应 `skills` 项。若它是最后一个标准 Skill 且没有其他 Agent 需要读取，同时移除专用的 `allow: [load_skill]` 授权。新建 Runtime 和会话，确认该 ID 已从索引消失。旧运行仍按其冻结快照恢复。项目不再使用该包时可移走 `skills/legal-review/`，保留上一版内容锁供回退。
 
 ## 编写资源包
 

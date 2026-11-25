@@ -4,6 +4,8 @@
 
 Read the [module overview](README.en.md), then confirm the business owner, inputs, outputs, failure conditions, and permission boundary.
 
+Keep a Runtime-only configuration and its output at the project root. From that baseline enable one capability, verify a call, remove its binding and check visibility in a new run. Test the combinations your project needs. Check global tool inheritance when removing a binding. [Empty-project acceptance](../../en/guide/06-capability-construction.md)
+
 ## Procedure
 
 1. Define schemaVersion, name, and agents first.

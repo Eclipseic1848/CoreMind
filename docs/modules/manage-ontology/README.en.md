@@ -2,6 +2,8 @@
 
 A project can supply its own vocabulary for objects, properties and relationships, align source records, and explain when an action is available. For example, a document repository can link two catalogue identifiers to one document, check its reviewer and then decide whether publication is possible.
 
+CoreMind 2.0.0 supplies the ontology service in the source release. Run the adapter in a dedicated Python environment. An empty business project can use MCP to query its own model without a document-assistant template. A separately installable, upgradable and removable distribution is planned.
+
 | Capability map | Module behavior |
 | --- | --- |
 | 06.01 Objects and relationships | Load a Turtle vocabulary and instance data. Inspect types, properties and outgoing relationships. |

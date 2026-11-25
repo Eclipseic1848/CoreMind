@@ -2,6 +2,17 @@
 
 The host selects the scope of material a reader may access and starts the knowledge service on the loopback address `127.0.0.1`. The example exposes a read-only `search_knowledge` tool over CoreMind's existing Streamable HTTP MCP interface. Its only query parameter is `query`. The host controls the read scope. TypeScript, Python and the CLI use the same project configuration and service.
 
+## Connect only knowledge from an empty project
+
+Unpack the 2.0.0 source release in a separate service directory. Run the commands below from the business project in a dedicated Python 3.12 environment. Set `COREMIND_SRC` to the absolute path of the source root and `MODEL_DIR` to the verified BGE-M3 directory. Prepare the model and set the complete `COREMIND_KNOWLEDGE_AUTHORIZATION` value as described in the [example](../../../examples/modules/manage-knowledge/README.en.md). Start with the synthetic manifest below or pass your project's manifest with its original documents in the adjacent `sources/` directory.
+
+```sh
+python -m pip install -r "$COREMIND_SRC/examples/modules/manage-knowledge/requirements.txt" -r "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt"
+python -B -X utf8 "$COREMIND_SRC/examples/modules/manage-knowledge/knowledge_server.py" --manifest "$COREMIND_SRC/examples/knowledge-evals/zh-retrieval/manifest.json" --model-dir "$MODEL_DIR" --state ./knowledge-state.json --scope public
+```
+
+Connect any Streamable HTTP MCP client to `http://127.0.0.1:8767/mcp` with the full credential in the `Authorization` header. Find `search_knowledge` and `resolve_citation` in `tools/list`, then search and look up a citation. In a CoreMind project, copy the `mcp.servers.knowledge` binding and the required Agent tool declarations from the [example configuration](../../../examples/modules/manage-knowledge/coremind.yaml) into your own configuration and use your own model. No document-assistant template or other domain service is required.
+
 ## First query
 
 Follow the [example](../../../examples/modules/manage-knowledge/README.en.md) to prepare the environment and run the three entry points. As a public reader, ask “ST-17 拼接地图现在由哪一个窗口受理？” (Which desk currently accepts ST-17 maps?). Find 榆木台 and open line 6 of the [second edition](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v2.md). Line 6 of the [first edition](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v1.md) lists the same item at a different desk, 榛果台. Checking the line number alone would accept that stale result.
@@ -17,3 +28,7 @@ Pass `--state` to keep a state file with each version's text, scope and withdraw
 Historical citations use the service’s reader scope and the manifest’s as-of date. Validity starts on the first date and ends before the expiry date. Out-of-scope or out-of-period citations return `unknown`. Readers can see an excerpt or a withdrawal status only within that boundary.
 
 Re-import the original manifest and Markdown files to upgrade a saved state. The service checks the existing text, positions, version and visibility before adding header context. It preserves withdrawals and treats subsequent identical imports as unchanged.
+
+## Upgrade and removal
+
+Stop the old service before upgrading and save the originals, manifest, model revision and state file. Start the target version against a copy. Verify current citations, idempotent imports and withdrawn citations before switching the client. A rollback uses the previous service environment and checked state while preserving withdrawals made since the upgrade. To disconnect a project, remove its MCP tools, server binding and reader credential. Stop the process and remove its Python environment if the service belongs exclusively to that project. Source documents, manifests, withdrawal records and shared models stay under their owners' retention policies.

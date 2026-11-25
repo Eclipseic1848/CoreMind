@@ -22,6 +22,8 @@ const lookupOrder = defineTool({
 6. 把工具名临时改为 `read`，确认定义或注册在执行前被拒绝；随后恢复业务专用名称。
 7. 运行 ProcessRunner、GitAdapter 与统一 Diff 的测试，确认超时、中止、输出上限、只读 Git 和超大文件均失败关闭。
 
+只体验内置读取工具，可直接用[单工具配置](../../../docs/modules/build-tools/GUIDE.zh-CN.md)在自己的目录中运行。下面的 `transport-parity.mjs` 及其回环服务属于源码验收示例。浏览器另需示例文档指定的 Playwright MCP 服务和浏览器，普通文件工具不依赖它们。
+
 ## 在本机运行三种工具入口
 
 ```sh
