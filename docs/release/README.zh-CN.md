@@ -41,7 +41,7 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 
 在正式候选前确认：
 
-1. GitHub 仓库存在受保护环境 `npm` 与 `pypi`，均要求维护者人工批准。
+1. GitHub 仓库的 `npm`、`pypi`、`pypi-knowledge`、`pypi-memory` 和 `pypi-ontology` 均限主线部署，并要求维护者人工批准。
 2. 8 个 npm 包分别配置 Trusted Publisher：仓库 `Eclipseic1848/CoreMind`、工作流文件 `publish-pypi.yml`、环境 `npm`。
 3. PyPI 项目 `coremind-ai` 配置 Trusted Publisher：同一仓库、同一工作流文件、环境 `pypi`。
 4. GitHub Actions 可以写入构建来源证明，并允许发布工作流创建 Release。
@@ -84,7 +84,16 @@ npm run release:preflight -- --allow-dirty
 
 将最终 main 源码提交记为 S，Runtime 候选包 SHA-256 记为 H。任何真实 Provider 执行前，按[认证 SOP](../providers/CERTIFICATION.zh-CN.md)取得明确外发与费用批准，绑定 Provider、模型、凭据来源、费用上限、最长运行时间及本次 S/H；旧候选的批准或认证不得代用。不得把只有工程 CI 通过或 Provider 被跳过的运行视为严格资格。
 
-首次发布前，在 [PyPI Publishing](https://pypi.org/manage/account/publishing/) 分别登记 `coremind-knowledge-mcp`、`coremind-memory-mcp`、`coremind-ontology-mcp` 的 Pending Trusted Publisher。Owner 为 `Eclipseic1848`，Repository 为 `CoreMind`，Workflow 为 `publish-pypi.yml`，Environment 为 `pypi`。三个组件各有自己的 PyPI 项目，SDK 继续使用 `coremind-ai`。公开项目接口返回 404 时，仍需账户内确认待发布登记。[PyPI 官方登记指南](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
+首次发布前，在 [PyPI Publishing](https://pypi.org/manage/account/publishing/) 登记三个 Pending Trusted Publisher。Owner 为 `Eclipseic1848`，Repository 为 `CoreMind`，Workflow 为 `publish-pypi.yml`。三个首次登记必须使用不同的环境名。
+
+| PyPI 项目 | GitHub 环境 |
+| --- | --- |
+| `coremind-ai` | `pypi`，现有 SDK 项目 |
+| `coremind-knowledge-mcp` | `pypi-knowledge` |
+| `coremind-memory-mcp` | `pypi-memory` |
+| `coremind-ontology-mcp` | `pypi-ontology` |
+
+公开项目接口返回 404 时，仍需在账户页面确认待发布登记。首次上传后，待发布者会转为该项目的普通可信发布者。[PyPI 登记指南](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/) · [OIDC 匹配规则](https://docs.pypi.org/trusted-publishers/internals/)
 
 ## 3. 执行代码与文档门禁
 
@@ -145,7 +154,7 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 4. 生成 `release-manifest.json` 与 `SHA256SUMS.txt`，每个产物记录版本、大小和 SHA-256。
 5. 上传一次构建产物；每个消费作业都在使用前独立校验 `SHA256SUMS.txt`，再由独立作业生成 GitHub 构建来源证明。
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
-7. 受保护 `pypi` 环境批准后，以 OIDC 发布清单中的 SDK 和三个组件 wheel，各项目按包名、版本和摘要验收。
+7. 四个受保护 PyPI 环境逐项批准后，各自以 OIDC 发布对应的 wheel。各项目按包名、版本和摘要验收。
 8. npm、PyPI 与来源证明都成功后，按已验证固定正文使用 `--notes-file` 创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。
 9. `0.7.0` 的候选、发布和公开回装阶段分别生成 P0-01～P0-20、P0-01～P0-21 与 P0-01～P0-22 顶层报告；该历史报告不代表当前版本的发布证据。
 10. Release 创建成功后，发布工作流使用 `workflow_dispatch` 从 `main` 显式派发双语文档部署。`docs.yml` 的 Release 事件入口只作为维护者手动创建 Release 时的回退，不依赖工作流令牌生成的 Release 事件再次触发。
