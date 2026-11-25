@@ -8,6 +8,8 @@
 
 `coremind-cli@2.0.0` 已发布到 npm，可按下方命令安装。从 `1.4` 升级请使用[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)；更早版本的[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)保留供查阅。
 
+试用 `2.1.0` 的 `create --runtime-only` 或固定版本 Skill 安装器时，请另建目录，使用同一构建的本地候选安装包。下方示例使用公开版 `2.0.0`。[候选安装与回退](../migrations/2.0-to-2.1.zh-CN.md)
+
 ```bash
 npm install -g coremind-cli@2.0.0
 coremind --version              # 验证安装成功

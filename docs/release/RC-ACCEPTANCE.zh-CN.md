@@ -1,14 +1,20 @@
 # Release Candidate 验收指南
 
-当前验收目标为 `2.0.0` 发布线。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
+当前验收目标为 `2.1.0` 候选，最新公开版为 `2.0.0`。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
 
-本版保留 P01–P20，同时需复验资料整理模板及其可选本体。[发布说明](notes/v2.0.0.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
+复跑 P01–P20 和资料助手组合，保留 2.0.0 的历史证据。[2.0 发布说明](notes/v2.0.0.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 
 本指南用于验证同一候选提交上的 CLI/TUI、无头 CLI、TypeScript SDK、Python SDK 与发布物。自动测试、真实终端和真实 Provider 是三类独立证据，不能互相替代；`0.7.0` 的维护者网络例外必须单独标为 waived，不能冒充真实 Provider 成功。
 
 
 [English](RC-ACCEPTANCE.en.md)
 
+
+## 2.1.0 的组件与公开回装
+
+在仓库外安装同一候选构建的客户端和三个独立 `0.1.0` wheel。接入真实 BGE-M3/Qdrant、Hindsight/PostgreSQL、RDFLib/pySHACL，通过 CLI/YAML、TypeScript、Python 同步和异步逐项验证空白项目、五个单项、组合和移除。49 项工程检查的模型使用确定性夹具。严格 Provider 证据须绑定本次冻结提交、模型和准确的 Runtime tarball 摘要。[候选安装步骤](../migrations/2.0-to-2.1.zh-CN.md) · [候选说明](notes/v2.1.0.md)
+
+发布后从 npm、PyPI、GitHub Release 公开下载 13 件制品，即 8 个 npm tarball、1 个 SDK wheel、3 个可选服务 wheel、1 个源码 ZIP。对照同一正式构建的清单逐件核验 SHA-256，再用公开件重复安装、各服务启动和业务调用，核对内置 Worker。保留回装结果和构建身份。[正式发布流程](README.zh-CN.md)
 
 ## 1. 自动矩阵
 

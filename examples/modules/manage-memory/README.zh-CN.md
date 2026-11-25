@@ -5,7 +5,7 @@
 ## 准备服务
 
 1. 启动 Hindsight 1.2.3，将 API 绑定到本地 `127.0.0.1:8780`。Python 3.12 可安装 `hindsight-api-slim[embedded-db,local-onnx]==1.2.3`，用 `hindsight-api --host 127.0.0.1 --port 8780` 启动。设 `HINDSIGHT_API_DATABASE_URL=pg0://coremind-memory-demo` 以隔离演示数据库。由宿主配置模型，中文召回使用适配中文的嵌入模型。设 `HINDSIGHT_API_RETAIN_EXTRACTION_MODE=chunks`、`HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION=false`、`HINDSIGHT_API_LLM_TRACE_ENABLED=false` 和 `HINDSIGHT_API_LLM_TRACE_DELETE_WITH_DOCUMENT=true`。不配置神经重排时使用 `HINDSIGHT_API_RERANKER_PROVIDER=rrf`。本地模型或代理绑定回环地址时，将 `127.0.0.1,localhost` 加入 `NO_PROXY`。[安装与部署](https://hindsight.vectorize.io/developer/installation) · [模型配置](https://hindsight.vectorize.io/developer/configuration)
-2. 从源码根目录运行 `python -m pip wheel --no-deps ./components/memory --wheel-dir dist`。将生成的 `coremind_memory_mcp-0.1.0-py3-none-any.whl` 交付宿主，在专用 Python 3.12 环境运行 `python -m pip install ./coremind_memory_mcp-0.1.0-py3-none-any.whl`。执行 `coremind-memory-mcp --version` 核对版本。兼容基线为 Hindsight API/客户端 1.2.3，已验证的 PostgreSQL 版本为 18.1。早期脚本保留于 [2.0.0 源码附件](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)。
+2. 从 2.1.0 候选源码根目录运行 `python -m pip wheel --no-deps ./components/memory --wheel-dir dist`。将生成的 `coremind_memory_mcp-0.1.0-py3-none-any.whl` 交付宿主，在专用 Python 3.12 环境运行 `python -m pip install ./coremind_memory_mcp-0.1.0-py3-none-any.whl`。执行 `coremind-memory-mcp --version` 核对版本。兼容基线为 Hindsight API/客户端 1.2.3，已验证的 PostgreSQL 版本为 18.1。早期脚本保留于 [2.0.0 源码附件](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)。
 3. 在 Agent 可读工作区之外准备宿主绑定文件和回执路径。下例在 PowerShell 中使用 `C:/CoreMind-local/memory-host.json`。实际运行前把路径改成自己可写的本地目录，并预先创建目录。B 用户或其他分支应有独立凭据和各自的授权记忆库。
 
    ```json

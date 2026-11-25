@@ -13,7 +13,7 @@
 | 更早的 Alpha/Beta/RC 版本 | 不保证；通常要求升级后复测 |
 | 未发布分支或个人 Fork | 不在项目支持范围内 |
 
-[v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) 已正式发布，下述 1.2 能力已交付；最新稳定版本以 Releases 为准。
+正式版本以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) 为准。报告 2.1.0 候选或某个独立组件的问题时，请注明候选提交 SHA、组件包名与版本、来源（CI 制品或本地构建）以及实际使用的客户端。
 
 ## 开发源码的依赖安全
 
@@ -25,9 +25,9 @@
 
 ## 私下报告漏洞
 
-请先查看仓库 Security 页面是否提供 **Report a vulnerability** 私密入口，并优先通过该入口提交。不要在公开 Issue、讨论区、Pull Request 或聊天记录中披露利用细节。
+登录 GitHub，在仓库 Security 页面选择 **Report a vulnerability**，或直接打开[私密漏洞报告表单](https://github.com/Eclipseic1848/CoreMind/security/advisories/new)。维护者通过该报告与你核对细节。若无法使用表单，可在[问题入口](https://github.com/Eclipseic1848/CoreMind/issues/new/choose)仅请求私密联系方式；漏洞细节只在确认的私密渠道内交换。
 
-报告请包含：受影响版本、平台、前置条件、最小复现、实际影响、建议修复方向，以及你是否已经向第三方披露。请删除 API 密钥、个人数据和业务数据。如果私密入口不可用，可创建一个不含技术细节的公开 Issue，仅请求维护者提供私密联系方式。
+报告请提供受影响版本、平台、必要前置条件、最小复现和实际影响。如已向第三方披露，请注明披露范围。独立 MCP 服务的问题请附所用传输、授权范围和脱敏后的错误。日志和示例使用合成资料，删除 API 密钥、Bearer 令牌、个人信息及业务数据。
 
 维护者会尽快确认收到报告、验证影响并协商披露时间；这是响应目标，不是服务等级承诺。
 

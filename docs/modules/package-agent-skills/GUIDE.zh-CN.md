@@ -61,7 +61,7 @@ SHA-256 基于原始字节计算。Windows 可用 `Get-FileHash assets/template.
 
 ## 固定版本安装和回退
 
-需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。以下命令使用当前源码构建的 coremind-templates 安装件。先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
+需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。请在执行目录安装同一构建的 2.1.0 候选 npm 包，其中 `coremind-templates` 提供以下命令。[安装候选包](../../migrations/2.0-to-2.1.zh-CN.md) 先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
 
 ```sh
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0

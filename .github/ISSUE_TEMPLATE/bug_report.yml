@@ -5,10 +5,10 @@ labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: "感谢反馈。安全漏洞请勿在此公开，请使用仓库 Security 页面的私密报告入口。"
+      value: "安全问题请使用 [私密漏洞报告表单](https://github.com/Eclipseic1848/CoreMind/security/advisories/new)。"
   - type: input
     id: version
-    attributes: { label: CoreMind 版本, placeholder: "例如 0.7.1" }
+    attributes: { label: CoreMind 版本, placeholder: "例如 2.0.0；源码或候选请同时填写提交 SHA" }
     validations: { required: true }
   - type: input
     id: environment

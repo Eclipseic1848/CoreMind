@@ -1,6 +1,6 @@
 # 可选本体示例
 
-空白业务项目可只安装本体 wheel 并发起 MCP 查询。下面的独立验收与四入口源码示例分别运行。资料助手是额外的组合用例。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
+空白业务项目可只安装 2.1.0 候选配套的 `0.1.0` 本体 wheel 并发起 MCP 查询。下面的独立验收与四入口源码示例分别运行。资料助手是额外的组合用例。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
 
 资料整理助手使用 [`document-review`](models/document-review/actions.json) 模型查询资料、验证复核人以及检查可否发布。完全相同的适配器也能加载 [`equipment-maintenance`](models/equipment-maintenance/actions.json)，查询设备、维护站点及复修动作。
 

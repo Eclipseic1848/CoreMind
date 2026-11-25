@@ -25,6 +25,8 @@ Enable only the capabilities needed by this project. Select Skills or tools per 
 
 CoreMind 2.0.0 has 42 built-in chat Providers and 43 configurable entries including compatibility aliases. Use `listInheritedProviders()` to inspect the installed catalog. Only `deepseek` with `deepseek-flash` passed strict certification for this release commit and Runtime package digest. Both `providers` and `create` retain the bundled historical labels. They show Alibaba Model Studio as certified and DeepSeek as unverified. Validate deployments that use a different model, credential or environment separately. [Online certification matrix](../../providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139) · [2.0.0 release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)
 
+In the 2.1.0 candidate, `providers` and `create` list configurable entries and link to the online matrix. For certification, check the target version, commit and Runtime package digest. [Provider matrix](../../providers/README.en.md)
+
 Built-in tool IDs are `read`, `ls`, `find`, `grep`, `bash`, `edit`, `write`, `git_status`, `git_diff`, `git_log`, `web-fetch`, and `web-search`. The three Git tools are fixed read-only operations and never commit, switch, clean, or push a repository.
 
 ### Deferred tool exposure (1.1 development line)

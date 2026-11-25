@@ -62,7 +62,7 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | `coremind create <name>` | 创建或接入项目；交互时选择 Provider，非交互时必须显式指定 | `--template <id>`、`--language <lang>`、`--provider <id>`、`--model <id>`、`--api-key-env <name>` | `coremind create . --template translator --provider alibaba-model-studio` |
 | `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断/显式暂停的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
 | `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
-| `coremind create . --runtime-only` | 仅新建最小 Runtime 配置，可用于已有业务目录 | `--provider <id>`、`--model <id>`、`--api-key-env <name>` | `coremind create . --runtime-only --provider deepseek --model deepseek-flash` |
+| `coremind create . --runtime-only`（2.1.0 候选） | 仅生成最小 Runtime 配置，可用于已有业务目录 | `--provider <id>`、`--model <id>`、`--api-key-env <name>` | [用本地候选 CLI 执行](../migrations/2.0-to-2.1.zh-CN.md) |
 | `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
 | `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
 | `coremind templates` | 查看当前安装版本的场景模板 | — | `coremind templates` |
@@ -70,6 +70,8 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 
 `coremind providers` 和 `coremind create` 使用 2.0.0 包内固定的历史标签。阿里云 `alibaba-model-studio` 显示“CoreMind 已认证”，依据来自旧版；`deepseek` 显示“可配置，尚未认证”。本版本 43 个可配置入口中，只有 `deepseek` 的 `deepseek-flash` 通过严格认证。[在线认证矩阵](../providers/README.zh-CN.md) · [2.0.0 严格认证记录](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
+
+2.1.0 候选的 `providers` 和 `create` 仅列出可配置入口，并提供在线矩阵地址。查认证时，请核对目标版本、提交及 Runtime 包摘要。[Provider 矩阵](../providers/README.zh-CN.md)
 
 记不住？随时 `coremind help`（或 `coremind --help`）查看全部命令和参数。
 

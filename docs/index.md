@@ -31,11 +31,15 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 当前发布线：`2.0.0`
+## 公开稳定版 `2.0.0`
 
 [从 1.4 升级](migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](release/notes/v2.0.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-> 业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。2.0.0 已有 Skill、工具和 MCP 接口；知识、记忆与本体的服务实现目前随源码示例提供。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+> 业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。该版本提供 Skill、工具和 MCP 接口，知识、记忆和本体服务的实现位于该版本的源码示例中。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+
+### 试用 `2.1.0` 候选
+
+使用同一构建的候选 CLI 和 SDK 创建最小 Runtime 项目。知识、Hindsight 记忆、本体各有独立的 `0.1.0` 服务 wheel。Skill 可按固定提交安装，业务工具可单独注册和更换。下载稳定版请使用上方的 `2.0.0` 链接。[候选安装与回退](migrations/2.0-to-2.1.zh-CN.md) · [2.1.0 变更说明](release/notes/v2.1.0.md)
 
 ### 在自己的项目里启用第一项能力
 

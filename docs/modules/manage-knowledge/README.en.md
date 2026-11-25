@@ -2,7 +2,7 @@
 
 Use knowledge retrieval to answer “Which passage in which edition supports this claim?” The project supplies the original documents, their versions, validity dates and read scopes. Applications can show the matching excerpt and direct readers to the corresponding edition.
 
-A new business project can connect knowledge retrieval on its own. Install the local `coremind-knowledge-mcp` 0.1.0 wheel in the service environment, then connect the project over MCP. The packaged service can read catalogs and withdrawals from the 2.0.0 source service. The component has no public PyPI release. [Connect from an empty project](GUIDE.en.md)
+A new business project can connect knowledge retrieval on its own. Install the local `coremind-knowledge-mcp` 0.1.0 wheel supplied for the 2.1.0 candidate in the service environment, then connect the project over MCP. The packaged service can read catalogs and withdrawals from the 2.0.0 source service. The component has no public PyPI release. [Connect from an empty project](GUIDE.en.md)
 
 The capability map covers document input and parsing (04.01), knowledge organization and indexing (04.02), retrieval and ranking with evidence (04.03), and updates, provenance and citations (04.04). [Map to implementation](../../en/guide/06-capability-construction.md)
 

@@ -18,9 +18,15 @@ CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop 
 
 CoreMind is a configuration-driven agent development framework for newcomers and application engineers. It provides one Node runtime, a bounded Harness/Loop, CLI/TUI, TypeScript and Python SDKs, plus synchronized SOPs, Skills, bilingual guides, and offline examples.
 
-> Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. Version 2.0.0 provides Skill, tool and MCP interfaces. The knowledge, memory and ontology services currently ship as source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+## Use your own project and load what you need
 
-> A configurable Provider is not a certified Provider. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
+Start with one model and one agent. Add knowledge retrieval, Hindsight memory, Skills, tools or ontology as the task requires. The CLI, TypeScript SDK and Python SDK share the same configuration and Runtime. The `document-assistant` example exercises capabilities working together.
+
+> **Current stable release 2.0.0** shipped on 2026-11-25 (UTC) with the Runtime, CLI, TypeScript and Python SDKs, and source examples of the knowledge, memory and ontology services. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+
+> **2.1.0 is in preparation.** The current source provides Runtime-only project setup, a pinned Skill installer, and independent knowledge, memory and ontology components. The independent component builds are available from Engineering CI. [Capability guide](docs/en/guide/06-capability-construction.md) · [Component build](https://github.com/Eclipseic1848/CoreMind/actions/runs/45581690035) · [Release milestone](https://github.com/Eclipseic1848/CoreMind/milestone/5)
+
+> Check the Provider matrix for evidence from the release you use. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 
 [Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [1.4→2.0 upgrade](docs/migrations/1.4-to-2.0.en.md) · [2.0 release notes](docs/release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 

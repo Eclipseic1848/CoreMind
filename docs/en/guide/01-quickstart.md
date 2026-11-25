@@ -12,6 +12,8 @@ For an existing project or an empty directory, use the [Runtime-only configurati
 
 `coremind-cli@2.0.0` is available on the public npm registry. Upgrade from `1.4` using the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
 
+To try `create --runtime-only` or the pinned Skill installer in `2.1.0`, use local candidate artifacts from a single build in a separate directory. The examples below use public `2.0.0`. [Candidate installation and rollback](../../migrations/2.0-to-2.1.en.md)
+
 ```bash
 npm install coremind-ai@2.0.0 coremind-cli@2.0.0
 npx coremind-cli@2.0.0 providers

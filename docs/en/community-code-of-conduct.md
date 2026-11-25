@@ -8,4 +8,6 @@ We encourage evidence-based discussion, patient context for newcomers, respect a
 
 Harassment, discrimination, threats, stalking, humiliation, personal attacks, publication of private information, sabotage, spam, and behavior that prevents safe participation are not acceptable.
 
-Preserve necessary evidence and report conduct concerns privately to maintainers. Do not replace reporting with public targeting. Depending on severity, maintainers may issue a warning, edit content, restrict participation, or permanently remove a participant. Report vulnerabilities through the [security policy](../../SECURITY.en.md).
+To report harassment or abuse on GitHub, save the relevant discussion or comment link. Open its menu and use the available reporting option to contact repository administrators or GitHub Support. To speak privately with a maintainer, ask for a private contact channel before sharing evidence. Keep participants’ identities and personal information out of public posts. [GitHub reporting instructions](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+
+Depending on severity, maintainers may issue a warning, edit content, restrict participation, or permanently remove a participant. This policy also applies when someone represents CoreMind at a public event. Report product vulnerabilities through the [security policy](../../SECURITY.en.md).

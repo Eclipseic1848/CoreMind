@@ -1,6 +1,6 @@
 # Skill and SOP Loading
 
-This module covers standard skills, reusable resources, and pinned version sharing in CoreMind 2.0. It supports Windows and Linux.
+Version 2.0.0 supports project Skills and reusable resources. The 2.1.0 candidate ships a pinned installer in the templates package. It supports Windows and Linux.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ A Skill-only project needs a working agent, a `skills/<id>/SKILL.md` file under 
 - `loadDirectorySkills`
 - `SKILLS`
 
-Applications use the existing Runtime to load standard skills. Use the `coremind-skill-install` command shipped by the current coremind-templates build to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
+Applications use the existing Runtime to load standard skills. Use the `coremind-skill-install` command from the candidate `coremind-templates` package to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
 
 ## Errors and boundaries
 

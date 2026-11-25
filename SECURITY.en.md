@@ -13,7 +13,7 @@ Security issues must be handled privately. This page describes responsible repor
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
 
-[v1.2.0](https://github.com/Eclipseic1848/CoreMind/releases/tag/v1.2.0) has been officially released, and the 1.2 capabilities described below have shipped. Refer to Releases for the latest stable version.
+Check [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) for the current stable version. For a 2.1.0 candidate or standalone component, include the candidate commit SHA, package name and version, artifact source (CI artifact or local build), and client used.
 
 ## Dependency security in the development source
 
@@ -25,9 +25,9 @@ Earlier candidates used underlying runtime 1.3.0 with pinned minimatch 10.2.6 an
 
 ## Report privately
 
-Use **Report a vulnerability** on the repository Security page when available. Do not disclose exploit details in a public issue, discussion, pull request, or chat. Include the affected version, platform, prerequisites, minimal reproduction, impact, and disclosure status. Remove credentials and sensitive data.
+Sign in to GitHub and choose **Report a vulnerability** on the repository Security page, or open the [private reporting form](https://github.com/Eclipseic1848/CoreMind/security/advisories/new) directly. Maintainers can follow up within that report. If you cannot access it, use the [issue chooser](https://github.com/Eclipseic1848/CoreMind/issues/new/choose) only to request a private contact channel. Share vulnerability details through the confirmed private channel.
 
-If no private entry point is available, open a public issue without technical details and ask maintainers for a private contact channel. Response times are targets, not an SLA.
+Include the affected version, platform, prerequisites, minimal reproduction, impact, and any prior disclosure. For an independent MCP service, include the transport, authorization scope and a redacted error. Use synthetic data in logs and examples. Remove API keys, bearer tokens, personal information and business data. Maintainers aim to acknowledge the report, validate its impact and coordinate disclosure.
 
 ## Project script loading (since 1.2.0)
 

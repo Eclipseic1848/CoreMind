@@ -22,7 +22,7 @@ agents:
 
 把模型凭据放入运行环境。在该目录执行 `npx coremind-cli@2.0.0 run coremind.yaml --prompt "请只回答 OK"`，核对回复和零工具调用。记录这份配置和依赖版本，作为逐项启用能力时的对照。
 
-从源码构建的新 CLI 也可以执行 `coremind create . --runtime-only --provider deepseek --model deepseek-flash`。已有 `coremind.yaml` 时沿用该文件。两种 SDK 的最小入口见[运行示例](../../examples/modules/configure-coremind/README.zh-CN.md)。
+使用本地安装的 2.1.0 候选 CLI 可直接执行 `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`。已有 `coremind.yaml` 时沿用该文件。[候选安装与回退](../migrations/2.0-to-2.1.zh-CN.md) · [SDK 最小入口](../../examples/modules/configure-coremind/README.zh-CN.md)
 
 | 仅选用一项时 | 2.0.0 的接入方式 | 第一个验收动作 |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ agents:
 | 工具 | 通过 SDK 注册业务函数，或用配置绑定 stdio/HTTP MCP 操作，并为 Agent 选择工具 | 验证输入、权限和一次业务回执；移除绑定后新运行不再提供该工具 |
 | 本体 | 宿主提供模型、映射和约束，经本体 MCP 服务绑定所需操作 | 用自己的模型验证一条合规记录和一条违规记录；只读项目仅授权查询、校验 |
 
-知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。当前源码提供三个可独立安装的 0.1.0 组件，分别见[知识](../../components/knowledge/README.md)、[记忆](../../components/memory/README.md)和[本体](../../components/ontology/README.md)。Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
+知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。2.1.0 候选提供三个可用本地 wheel 单独安装的 0.1.0 组件，分别见[知识](../../components/knowledge/README.md)、[记忆](../../components/memory/README.md)和[本体](../../components/ontology/README.md)。Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
 
 **空白项目验收顺序**
 
@@ -40,9 +40,11 @@ agents:
 2. 每次从同一基线任选一项，记录启用、实际调用和移除后的结果。只提供该项所需的依赖、配置、数据与凭据。独立升级或回退该项，同时核对宿主状态和其他组件版本。
 3. 选一个实际需要的组合，例如知识与 Skill。再移除其中一项，验证剩余能力仍可用。CLI、TypeScript、Python 同步和异步入口用同一份项目配置核对结果。
 
-`document-assistant` 是资料整理的参考示例和组合回归。它在两个独立项目里用合成资料、真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体验证了七例。可查阅输入、权限、预期输出和失败记录来设计自己的测试。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md) · [真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
+`document-assistant` 是资料整理的参考示例和组合回归。以下为 2.0.0 的验收记录。它在两个独立项目里用合成资料、真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体验证了七例。可查阅输入、权限、预期输出和失败记录来设计自己的测试。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md) · [真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
 
 ### 复跑独立安装验收
+
+2.1.0 候选功能的仓库外测试完成 49 项检查，覆盖空白项目、五项单用、组合和移除。业务方可用相同脚本验证自己取得的候选安装件。[工程交付](https://github.com/Eclipseic1848/CoreMind/pull/424)
 
 在仓库外新建消费者，安装同一构建的 npm 安装件及含 Worker 的 Python wheel。用各自的 Python 环境启动知识、记忆和本体服务。在私有 JSON 中以 `knowledge`、`memory`、`ontology` 为键，分别填写回环 `url`、读令牌 `authorization`、只读 `tool` 名、`args` 和预期结果片段 `expect`。记忆场景先由宿主写入合成事实。用主仓库的[验收脚本](../../scripts/verify-optional-consumer.mjs)运行：
 

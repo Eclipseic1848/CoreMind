@@ -2,7 +2,7 @@
 
 ## Run the Runtime alone
 
-Use the current source build of the CLI or its candidate artifact. In your application directory, run `coremind create . --runtime-only --provider deepseek --model deepseek-flash` and set `DEEPSEEK_API_KEY`. With released 2.0.0, copy the [minimal configuration](../../../docs/en/guide/06-capability-construction.md).
+Install the [local 2.1.0 candidate packages](../../../docs/migrations/2.0-to-2.1.en.md) from the same build. In your application directory, run `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash` and set `DEEPSEEK_API_KEY`. With released 2.0.0, copy the [minimal configuration](../../../docs/en/guide/06-capability-construction.md).
 
 - CLI: `coremind run coremind.yaml --prompt "Reply only OK"`.
 - TypeScript: install the matching `coremind-ai` npm package, copy [runtime-only.mts](runtime-only.mts) to the project root and run `node runtime-only.mts`.

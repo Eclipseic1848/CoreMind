@@ -6,7 +6,8 @@
 
 ## 贡献前先确认范围
 
-- Bug 修复：先搜索 Issue；提供最小复现、预期结果和实际结果。
+- 提交前先搜索现有 Issue。从[问题表单](https://github.com/Eclipseic1848/CoreMind/issues/new/choose)选择 Bug 报告或功能建议。使用候选制品时，请写清提交 SHA、入口和组件版本，方便维护者复查。
+- Bug 修复：提供最小复现、预期结果和实际结果。
 - 新功能：先开 Feature Request，说明用户问题、范围、验收标准和不做什么。
 - 安全问题：不要创建公开 Issue，请按[安全策略](SECURITY.md)私下报告。
 - 大型架构调整：在编码前等待维护者确认方案，避免双方投入在不同方向。
@@ -16,7 +17,7 @@
 - Windows 或 Linux
 - Node.js 22.19 或更高版本
 - npm 11.5.1 或更高版本
-- Python 3.10 或更高版本（仅 Python SDK / Wheel 相关改动需要）
+- Python SDK 与本体组件要求 Python 3.10+，知识和 Hindsight 记忆组件要求 Python 3.12+。在独立虚拟环境中验证所改的组件。
 
 ```bash
 git clone https://github.com/Eclipseic1848/CoreMind.git
@@ -40,6 +41,7 @@ npm run check
 | `packages/coremind-protocol` | TypeScript / Python 共用协议 |
 | `packages/coremind-worker` | Python SDK 使用的本地 Worker |
 | `python` | Python SDK 与测试 |
+| `components/knowledge`、`components/memory`、`components/ontology` | 可独立打包的 MCP 服务 |
 | `docs/modules`、`skills` | 模块合同、SOP、指南和 Skills |
 
 依赖应保持单向。不要让底层包反向依赖 CLI 或统一入口，也不要绕过公开接口引用其他包的源码文件。
@@ -57,6 +59,14 @@ npm run check
 
 ## 完整质量门禁
 
+只改文档时，可先运行 `npm run check:docs` 和 `npm run docs:audit`。修改独立组件时，先运行对应模块的测试，再把 wheel 安装到仓库外的新环境，用最小业务项目检查单项启用、授权与移除。下例从仓库根目录执行，使用本体模块的离线映射和校验测试。[知识 SOP](docs/modules/manage-knowledge/SOP.zh-CN.md) · [记忆 SOP](docs/modules/manage-memory/SOP.zh-CN.md) · [本体 SOP](docs/modules/manage-ontology/SOP.zh-CN.md)
+
+```bash
+python -m pip install -r examples/modules/manage-ontology/requirements.txt
+python -B -X utf8 -m unittest discover -s examples/modules/manage-ontology -p "test_ontology_*.py" -v
+python -m pip wheel --no-deps --wheel-dir .scratch/component-wheels ./components/ontology
+```
+
 ```bash
 npm run build
 npm run check
@@ -71,11 +81,12 @@ npm run docs:audit
 npm run release:preflight -- --allow-dirty
 ```
 
-Python 改动还需要运行：
+修改 Python SDK 和内置 Worker 时，在专用环境中执行下列检查。
 
 ```bash
-python -X utf8 -m unittest discover -s python/tests -v
 npm run build:python-worker
+python -m pip install build twine ./python
+python -X utf8 -m unittest discover -s python/tests -v
 python -X utf8 -m build --wheel python
 python -X utf8 -m twine check python/dist/*
 npm run release:check-wheel
@@ -111,4 +122,4 @@ Pull Request 应保持单一目的，并说明：
 - 是否改变配置、协议、权限、安全或兼容性；
 - 是否需要迁移、发布说明或后续工作。
 
-维护者可能要求补充证据或缩小范围。这是为了让公开接口、文档和行为保持一致。提交贡献即表示你同意项目的[行为准则](CODE_OF_CONDUCT.md)，并同意按项目 MIT 许可证发布你的贡献。
+维护者可能要求补充证据或缩小范围。这是为了让公开接口、文档和行为保持一致。提交贡献即表示你同意项目的[行为准则](CODE_OF_CONDUCT.md)，并同意按项目的 [MIT 许可证](LICENSE)发布你的贡献。

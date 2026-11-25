@@ -2,6 +2,8 @@
 
 CoreMind 希望建立一个专业、友善、可学习的开源社区。参与 Issue、讨论、代码评审、文档、活动或其他项目空间，即表示你同意遵守本准则。
 
+[English](docs/en/community-code-of-conduct.md)
+
 ## 我们鼓励
 
 - 围绕事实、代码和可复现证据讨论，不攻击个人。
@@ -16,6 +18,8 @@ CoreMind 希望建立一个专业、友善、可学习的开源社区。参与 I
 
 ## 执行
 
-发现问题时，请保留必要证据并私下联系维护者；不要以公开围攻代替报告。维护者会根据严重程度采取提醒、内容编辑、临时限制或永久禁止参与等措施。安全漏洞请按[安全策略](SECURITY.md)报告。
+报告 GitHub 上的骚扰或滥用时，保留相关讨论或评论的链接。打开该内容的菜单，按 GitHub 提供的选项将报告发送给仓库管理员或 GitHub Support。需要私下向维护者说明时，先请求私密联系方式，取得后再分享必要证据。公开帖子中请保护当事人的身份和个人信息。[GitHub 举报说明](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+
+维护者会根据严重程度采取提醒、内容编辑、临时限制或永久禁止参与等措施。产品安全漏洞请按[安全策略](SECURITY.md)报告。
 
 本准则适用于所有项目空间，也适用于代表 CoreMind 参与公开活动的行为。

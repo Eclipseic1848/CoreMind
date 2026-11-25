@@ -18,7 +18,13 @@ CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/S
 
 CoreMind 面向没有智能体开发经验的新手和普通工程师，通过统一 Runtime 提供受控 Harness/Loop、CLI/TUI、TypeScript SDK、Python SDK，以及随功能同步交付的 SOP、Skill、双语指南和离线示例。
 
-> 业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。2.0.0 已有 Skill、工具和 MCP 接口；知识、记忆与本体的服务实现目前随源码示例提供。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+## 在自己的项目里按需加载
+
+从一个模型和一个 Agent 起步。按任务选择知识检索、Hindsight 记忆、Skill、工具或本体，再用同一份配置从 CLI、TypeScript 或 Python 运行。`document-assistant` 提供五项能力组合的参考和可重复验收。
+
+> **当前正式版 2.0.0** 于 2026-11-25（UTC）发布，提供统一 Runtime、CLI、两种 SDK，以及随源码交付的知识、记忆和本体服务示例。 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+
+> **2.1.0 发布准备中。** 源码已提供只运行 Runtime 的项目入口、固定版本 Skill 安装命令，以及知识、记忆、本体三个独立组件。三个组件的工程构建可从对应 CI 获取。[按需加载指南](docs/guide/06-capability-construction.md) · [独立组件构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45581690035) · [发布进度](https://github.com/Eclipseic1848/CoreMind/milestone/5)
 
 > Provider 可配置不等于认证。本版本资格必须由绑定最终提交、版本、Runtime 摘要与 bundled Worker 的 strict-provider 工作流证据确认；生产评估还须核对供应商矩阵。
 
