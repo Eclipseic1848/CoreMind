@@ -8,6 +8,8 @@ from tempfile import TemporaryDirectory
 from threading import Event
 from unittest.mock import Mock, patch
 
+from starlette.applications import Starlette
+from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from ontology_project import OntologyProject, demo_transition
@@ -150,11 +152,14 @@ class OntologyReconciliationTest(unittest.TestCase):
         return {"requestId": self.request_id, "resource": self.resource, "previousState": "draft",
                 "status": "completed", "state": "reviewed", **changes}
 
-    def client(self, project=None):
-        return TestClient(make_app(
+    def client(self, project=None, *, mount=None):
+        app = make_app(
             project or self.project, self.read_token.encode("utf-8"), self.action_token.encode("utf-8"),
             reconcile_token=self.reconcile_token.encode("utf-8"),
-        ), base_url="http://127.0.0.1:8879")
+        )
+        if mount:
+            app = Starlette(routes=[Mount(mount, app=app)])
+        return TestClient(app, base_url="http://127.0.0.1:8879")
 
     def post(self, client, body, token=None):
         return client.post(self.route, json=body, headers={"Authorization": token or self.reconcile_token})
@@ -168,6 +173,20 @@ class OntologyReconciliationTest(unittest.TestCase):
         self.assertEqual(self.perform(self.request_id)["status"], "unknown")
         self.assert_state("draft")
         self.executor.assert_called_once()
+
+    def test_mounted_routes_keep_host_authorization_separate(self):
+        with self.client(mount="/ontology") as client:
+            route = f"/ontology{self.route}"
+            for token in (self.read_token, self.action_token):
+                result = client.post(route, json=self.receipt(), headers={"Authorization": token})
+                self.assertEqual(result.status_code, 401)
+            self.assert_blocked()
+            host = {"Authorization": self.reconcile_token}
+            self.assertEqual(client.get("/ontology/health", headers=host).status_code, 401)
+            result = client.post(route, json=self.receipt(), headers=host)
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.json()["status"], "completed")
+            self.executor.assert_called_once()
 
     def test_only_host_can_submit_and_wrong_receipts_preserve_the_block(self):
         with self.client() as client:

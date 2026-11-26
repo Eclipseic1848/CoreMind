@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.routing import Match
 
 
 Identifier = Annotated[str, Field(min_length=1, max_length=512)]
@@ -105,12 +106,14 @@ def make_app(project, read_token, action_token=None, *, reconcile_token=None):
         return JSONResponse(result)
 
     app = mcp.streamable_http_app()
+    reconcile_route = next(route for route in app.routes if route.path == RECONCILE_PATH)
 
     async def authorized(scope, receive, send):
         if scope["type"] == "http":
             request = Request(scope, receive)
             actual = request.headers.get("authorization", "").encode("utf-8")
-            tokens = (reconcile_token,) if request.url.path == RECONCILE_PATH else (read_token, action_token)
+            match, _ = reconcile_route.matches(scope)
+            tokens = (read_token, action_token) if match is Match.NONE else (reconcile_token,)
             if not any(token is not None and hmac.compare_digest(actual, token) for token in tokens):
                 await JSONResponse({"error": "unauthorized"}, status_code=401)(scope, receive, send)
                 return
