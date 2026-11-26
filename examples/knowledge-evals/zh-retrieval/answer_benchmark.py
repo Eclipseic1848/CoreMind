@@ -1,20 +1,19 @@
-"""用本机 Ollama 或 OpenAI 兼容 API 对固定中文知识题作答，分别评分短答、引文和拒答。"""
+"""用离线回放或模型评测中文知识题，分别记录检索、短答、引文和拒答。"""
 
 import argparse
 import hashlib
 import json
 import os
 import re
+import sqlite3
 import time
 import unicodedata
 import urllib.error
 import urllib.request
-from contextlib import closing
+from contextlib import ExitStack, closing
 from pathlib import Path
 
-from keyword_baseline import ROOT, check_candidates
-from qdrant_benchmark import read_corpus
-from qdrant_retrieval import MODEL_REVISION, KnowledgeIndex
+from keyword_baseline import ROOT, check_candidates, index, read_corpus, search
 
 OLLAMA_MODEL = "qwen3:1.7b"
 OLLAMA_DIGEST = "8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7"
@@ -157,8 +156,23 @@ def normalized(text):
     )
 
 
-def evaluate(model_dir, provider, model):
-    if provider == "ollama":
+def replay_response(row, system, excerpts):
+    if system == GEN_SYSTEM:
+        positions = {(item["file"], item["line"]): item["id"] for item in excerpts}
+        response = {
+            "answer": row["answer"],
+            "citations": [positions.get(tuple(citation), 0) for citation in row["citations"]],
+        }
+    else:
+        response = {"support": row["support"]}
+    return {}, json.dumps(response, ensure_ascii=False), response, True
+
+
+def evaluate(model_dir, provider, model, *, cases_file=None, replay_file=None):
+    replay = None
+    if replay_file is not None:
+        replay = json.loads(replay_file.read_text(encoding="utf-8"))
+    elif provider == "ollama":
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), LocalOnly())
         tag = next(
             (m for m in api(opener, "tags")["models"] if m["name"] == model), None
@@ -190,18 +204,44 @@ def evaluate(model_dir, provider, model):
             return [{"line": start + 1, "text": header}]
         return None
 
-    cases_file = ROOT / "cases.jsonl"
+    if cases_file is None:
+        cases_file = ROOT / ("holdout-cases.jsonl" if replay is not None else "cases.jsonl")
     cases = [
         json.loads(line) for line in cases_file.read_text(encoding="utf-8").splitlines()
     ]
+    if not cases or len({case["id"] for case in cases}) != len(cases):
+        raise ValueError("评测题集为空或题号重复")
+    if replay is not None and set(replay) != {case["id"] for case in cases}:
+        raise ValueError("回放夹具题号与评测题集不一致")
+
+    def respond(case_id, system, schema, payload, limit, excerpts):
+        if replay is not None:
+            return replay_response(replay[case_id], system, excerpts)
+        return chat(opener, provider, model, system, schema, payload, limit)
+
     rows = []
-    with closing(KnowledgeIndex(model_dir)) as knowledge:
-        knowledge.replace(chunks.values())
+    revision = None
+    with ExitStack() as resources:
+        if model_dir is not None:
+            from qdrant_retrieval import MODEL_REVISION, KnowledgeIndex
+
+            revision = MODEL_REVISION
+            knowledge = resources.enter_context(closing(KnowledgeIndex(model_dir)))
+            knowledge.replace(chunks.values())
+        else:
+            lexical = {}
+            for scope in sorted({case["scope"] for case in cases}):
+                db = resources.enter_context(closing(sqlite3.connect(":memory:")))
+                index(db, manifest, scope)
+                lexical[scope] = db
         for case in cases:
             question, scope = case["question"], case["scope"]
-            candidates = knowledge.search(
-                question, scope=scope, as_of=manifest["asOf"], mode="sparse"
-            )
+            if model_dir is not None:
+                candidates = knowledge.search(
+                    question, scope=scope, as_of=manifest["asOf"], mode="sparse"
+                )
+            else:
+                candidates = [chunks[key] for key in search(lexical[scope], question)]
             keys = [(p["file"], p["line"]) for p in candidates]
             check_candidates(keys, scope, manifest["asOf"], documents)
             if any(
@@ -224,8 +264,8 @@ def evaluate(model_dir, provider, model):
             evidence_input = json.dumps(
                 {"问题": question, "资料": excerpts}, ensure_ascii=False
             )
-            generated, raw, response, complete = chat(
-                opener, provider, model, GEN_SYSTEM, GEN_FORMAT, evidence_input, 192
+            generated, raw, response, complete = respond(
+                case["id"], GEN_SYSTEM, GEN_FORMAT, evidence_input, 192, excerpts
             )
             gen_valid = bool(
                 complete
@@ -251,8 +291,8 @@ def evaluate(model_dir, provider, model):
                     {"问题": question, "候选答案": answer, "引文": cited},
                     ensure_ascii=False,
                 )
-                _, verify_raw, verified, verify_complete = chat(
-                    opener, provider, model, VERIFY_SYSTEM, VERIFY_FORMAT, verify_input, 32
+                _, verify_raw, verified, verify_complete = respond(
+                    case["id"], VERIFY_SYSTEM, VERIFY_FORMAT, verify_input, 32, cited
                 )
                 verify_valid = bool(
                     verify_complete
@@ -270,31 +310,36 @@ def evaluate(model_dir, provider, model):
                 )
             )
             gold = case["evidence"]
+            rank = None
+            expected = None
             if gold is not None:
                 expected = (gold["file"], gold["line"])
                 if gold["quote"] not in chunks[expected]["text"]:
                     raise ValueError("评分标注引文与原文不符")
-            answer_match = bool(
-                asserted
-                and support
-                and gold
-                and normalized(answer) == normalized(case["answer"])
+                check_candidates([expected], scope, manifest["asOf"], documents)
+                if expected in keys:
+                    rank = keys.index(expected) + 1
+            answer_text_match = bool(
+                answer and gold and normalized(answer) == normalized(case["answer"])
             )
-            citation_match = bool(
-                asserted
-                and support
-                and gold
+            gold_citation_match = bool(
+                gold
+                and citation_keys
                 and not bad_ids
                 and all(k == expected for k in citation_keys)
             )
+            answer_match = bool(asserted and support and answer_text_match)
+            citation_match = bool(asserted and support and gold_citation_match)
             rows.append(
                 {
                     "id": case["id"],
                     "question": question,
+                    "kind": case["kind"],
                     "answerable": gold is not None,
                     "goldAnswer": case["answer"],
                     "goldEvidence": gold,
                     "inputExcerpts": excerpts,
+                    "retrievalRank": rank,
                     "rawResponse": raw,
                     "validResponse": gen_valid,
                     "answer": answer,
@@ -307,6 +352,8 @@ def evaluate(model_dir, provider, model):
                     "refused": refused,
                     "withheld": withheld,
                     "contractInvalid": contract_invalid,
+                    "answerTextMatches": answer_text_match,
+                    "goldCitationMatches": gold_citation_match,
                     "exactAnswer": answer_match,
                     "correctCitation": citation_match,
                     "passed": answer_match and citation_match if gold else withheld,
@@ -315,21 +362,28 @@ def evaluate(model_dir, provider, model):
                     "nanoseconds": generated.get("total_duration"),
                 }
             )
-            print(case["id"], "通过" if rows[-1]["passed"] else "未通过", flush=True)
+            if replay is None:
+                print(case["id"], "通过" if rows[-1]["passed"] else "未通过", flush=True)
     positives = [r for r in rows if r["answerable"]]
     negatives = [r for r in rows if not r["answerable"]]
     report = {
-        "provider": provider,
-        "model": model,
-        "retrieval": "bge-m3-sparse-top5",
-        "retrievalRevision": MODEL_REVISION,
+        "provider": "replay" if replay is not None else provider,
+        "model": None if replay is not None else model,
+        "retrieval": "bge-m3-sparse-top5" if model_dir is not None else "fts5-bm25-top5",
+        "retrievalRevision": revision,
         "casesSha256": hashlib.sha256(cases_file.read_bytes()).hexdigest(),
         "answerable": len(positives),
+        "retrievalTop1Hits": sum(r["retrievalRank"] == 1 for r in positives),
+        "retrievalTop5Hits": sum(r["retrievalRank"] is not None for r in positives),
+        "answerTextMatches": sum(r["answerTextMatches"] for r in positives),
+        "goldCitationMatches": sum(r["goldCitationMatches"] for r in positives),
         "exactAnswers": sum(r["exactAnswer"] for r in positives),
         "correctCitations": sum(r["correctCitation"] for r in positives),
         "correctAnswerWithCitation": sum(r["passed"] for r in positives),
         "unanswerable": len(negatives),
+        "unanswerableWithCandidates": sum(bool(r["inputExcerpts"]) for r in negatives),
         "correctRefusals": sum(r["refused"] for r in negatives),
+        "withheldUnanswerable": sum(r["withheld"] for r in negatives),
         "withheldAssertions": sum(
             r["asserted"] and not r["support"] for r in negatives
         ),
@@ -347,7 +401,14 @@ def evaluate(model_dir, provider, model):
         "missedAnswerable": [r["id"] for r in positives if not r["passed"]],
         "cases": rows,
     }
-    if provider == "ollama":
+    if replay is not None:
+        report["replaySha256"] = hashlib.sha256(replay_file.read_bytes()).hexdigest()
+        report["passed"] = (
+            report["retrievalTop5Hits"] == len(positives)
+            and report["correctAnswerWithCitation"] == len(positives)
+            and report["correctRefusals"] == len(negatives)
+        )
+    elif provider == "ollama":
         report["ollama"] = api(opener, "version")["version"]
         report["modelDigest"] = OLLAMA_DIGEST
     return report
@@ -355,17 +416,27 @@ def evaluate(model_dir, provider, model):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--model-dir", type=Path)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument(
-        "--provider", choices=("ollama", *PROVIDERS), default="ollama"
+    parser.add_argument("--cases", type=Path)
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--provider", choices=("ollama", *PROVIDERS))
+    source.add_argument(
+        "--replay", type=Path, nargs="?", const=ROOT / "holdout-replay.json",
+        help="回放固定响应夹具，无需模型服务或凭据",
     )
     parser.add_argument("--model")
     args = parser.parse_args()
-    model = args.model or (
-        OLLAMA_MODEL if args.provider == "ollama" else PROVIDERS[args.provider][2]
-    )
-    report = evaluate(args.model_dir, args.provider, model)
+    if args.replay is None:
+        if args.model_dir is None:
+            parser.error("模型作答需要 --model-dir，离线验收可使用 --replay")
+        provider = args.provider or "ollama"
+        model = args.model or (OLLAMA_MODEL if provider == "ollama" else PROVIDERS[provider][2])
+    else:
+        if args.model is not None:
+            parser.error("--replay 不使用 --model")
+        provider, model = None, None
+    report = evaluate(args.model_dir, provider, model, cases_file=args.cases, replay_file=args.replay)
     args.output.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
@@ -374,3 +445,5 @@ if __name__ == "__main__":
             {k: v for k, v in report.items() if k != "cases"}, ensure_ascii=False
         )
     )
+    if args.replay is not None and not report["passed"]:
+        raise SystemExit(1)

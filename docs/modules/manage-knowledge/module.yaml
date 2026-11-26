@@ -48,6 +48,7 @@ testPaths:
   - "examples/knowledge-evals/zh-retrieval/persistent_qdrant_benchmark.py"
   - "examples/knowledge-evals/zh-retrieval/qdrant_check.py"
   - "examples/knowledge-evals/zh-retrieval/answer_benchmark.py"
+  - "examples/knowledge-evals/zh-retrieval/test_answer_benchmark.py"
   - "examples/knowledge-evals/zh-retrieval/check.mjs"
   - "examples/knowledge-evals/zh-retrieval/test_keyword_baseline.py"
 supportedPlatforms:

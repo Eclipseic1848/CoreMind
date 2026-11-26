@@ -15,4 +15,6 @@ For ontology-only delivery, install the `coremind-ontology-mcp` wheel in a dedic
 
 Use the [minimal deployment and recovery rehearsal](../../examples/modules/manage-ontology/deployment/README.en.md) to confirm authenticated readiness and a known object query. Quiesce writers for a coordinated backup, restore in isolation and check that a completed request returns its saved receipt while an `unknown` action still blocks a new request ID. Preserve the current authoritative business ledger through an application or model rollback.
 
+Use the [offline capability regression](../../docs/modules/evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain action receipts for denied, completed, replayed and uncertain effects. Check the original request and state on replay and retain the receipt that blocked a subsequent write.
+
 中文接入和验收见[业务本体指南](../../docs/modules/manage-ontology/GUIDE.zh-CN.md)和[开发 SOP](../../docs/modules/manage-ontology/SOP.zh-CN.md)。

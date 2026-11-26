@@ -32,6 +32,17 @@ node examples/modules/package-agent-skills/acceptance.mjs
 
 要复验固定安装版，先把两份 Skill 装到同一配置目录，再将该目录作为 `acceptance.mjs` 的第一个参数。[安装步骤](../../../docs/modules/package-agent-skills/GUIDE.zh-CN.md#固定版本安装和回退)
 
+## 离线 Skill 成对评测
+
+构建后运行下面的命令。[独立题集](paired-holdout.json)包含两道写法相近、实际分别适用周报和交付检查 Skill 的任务，以及两道出现相同词语但只需润色或提取的任务。启用组额外加入[周报审核 Skill](skills/weekly-report-audit-fixture/SKILL.md)检验相近能力误触发。实际 Runtime 在启用和禁用两组配置下各运行四道题。
+
+```sh
+node examples/modules/package-agent-skills/paired-evaluation.mjs --offline .scratch/skill-paired.json
+node examples/modules/package-agent-skills/paired-evaluation.mjs --rescore .scratch/skill-paired.json
+```
+
+回执包含题集和包摘要、任务字段评分、实际 Skill 调用与装载回执、每题延时及两组 Token 汇总。`scorerChecks` 另存对错误 Skill 装载和无关任务触发的注入评分。两组统计仅计入实际运行。Token 来自回环夹具的模拟用量，货币成本留空。真实模型的选用效果需另做真实成对评测。
+
 ## 真实模型成对评测
 
 使用已授权且无需密钥的 Qwen 兼容端点。将 `COREMIND_SKILL_EVAL_BASE_URL` 设为兼容接口地址，将 `COREMIND_SKILL_EVAL_MODEL` 设为服务实际提供的模型名。

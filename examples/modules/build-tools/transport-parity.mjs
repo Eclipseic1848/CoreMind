@@ -173,6 +173,7 @@ try {
     assert.deepEqual(value, input.value);
     assert.deepEqual(approvals, server ? ["connect", "list", "echo"] : []);
 
+    let invocations;
     if (server) {
       const records =
         route === "stdio"
@@ -180,14 +181,23 @@ try {
           : http.records;
       const requests = records.filter(({ type }) => type === "request");
       assert.equal(requests.filter(({ method }) => method === "server/discover").length, 1);
-      assert.deepEqual(
-        requests
-          .filter(({ method }) => method === "tools/call")
-          .map(({ params: { name, arguments: args } }) => ({ name, arguments: args })),
-        [{ name: "echo", arguments: input }],
-      );
-    } else assert.deepEqual(localCalls, [input]);
-    console.log(JSON.stringify({ transport: route, calls: 1, approvals, value }));
+      invocations = requests
+        .filter(({ method }) => method === "tools/call")
+        .map(({ params: { name, arguments: args } }) => ({ name, arguments: args }));
+      assert.deepEqual(invocations, [{ name: "echo", arguments: input }]);
+    } else {
+      assert.deepEqual(localCalls, [input]);
+      invocations = localCalls.map((args) => ({ name: localTool.name, arguments: args }));
+    }
+    console.log(
+      JSON.stringify({
+        transport: route,
+        calls: invocations.length,
+        approvals,
+        value,
+        invocations,
+      }),
+    );
   }
 } finally {
   await http?.close();

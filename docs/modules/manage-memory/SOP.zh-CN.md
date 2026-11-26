@@ -16,6 +16,12 @@
 
 复跑 M07 时使用[知识与记忆直调自动验收](../manage-knowledge/SOP.zh-CN.md#知识与记忆直调自动验收)，传入真实 Hindsight 网关及两组读令牌。用例目录和模型夹具由脚本准备。
 
+## 候选与经验采用评测
+
+运行[离线效果回归](../../../examples/modules/manage-memory/README.zh-CN.md#离线效果回归)。新增合成题覆盖有直接依据、同主题但缺少关键事实、过时来源、遗忘后旧记录重现和跨分支来源。先核对候选状态、规则、来源和版本，再核对宿主确认前后实际 MCP 召回和场景采用。按题保留实际结果，分别统计候选错误准入、漏报，以及已确认经验的错误采用和漏用。基线要求五题全过，各类错误均为零。
+
+回放通过生产 Hindsight 适配器和 MCP 网关，Hindsight 响应由夹具提供。场景采用使用固定业务规则。真实检索、模型提炼和业务采用质量按实际部署单独记录。
+
 ## 验收独立部署与升级
 
 1. 在专用 Python 3.12 环境运行 `python -m pip install coremind-memory-mcp==0.1.0`，再运行 `coremind-memory-mcp --version` 确认为 0.1.0。兼容基线为 Hindsight API/客户端 1.2.3、PostgreSQL 18.1。其他版本由部署方复验。在另一个空白项目仅使用读令牌和标准 MCP 客户端，确认 `tools/list` 只列出 `recall_memory`。由宿主写入一条事实，再经 MCP 核对记忆库、文档 ID、版本、正文和来源。`/health` 只检查网关进程。

@@ -10,33 +10,8 @@ from pathlib import Path
 from statistics import median
 from time import perf_counter
 
-from keyword_baseline import ROOT, check_candidates, index, search, terms
+from keyword_baseline import ROOT, check_candidates, index, read_corpus, search
 from qdrant_retrieval import MODEL_FILES, MODEL_REPO, MODEL_REVISION, KnowledgeIndex
-
-
-def read_corpus():
-    manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
-    documents = {doc["file"]: doc for doc in manifest["documents"]}
-    chunks = {}
-    for doc in documents.values():
-        lines = (
-            (ROOT / "sources" / doc["file"]).read_text(encoding="utf-8").splitlines()
-        )
-        for line, text in enumerate(lines, 1):
-            # 沿用 P0 的物理行切块和空行规则，索引时不读题目与评分标注。
-            if next(terms(text), None) is not None:
-                chunks[doc["file"], line] = {
-                    "docId": doc["id"],
-                    "file": doc["file"],
-                    "line": line,
-                    "text": text,
-                    "version": doc["version"],
-                    "access": doc["access"],
-                    "validFrom": doc["validFrom"],
-                    "validUntil": doc["validUntil"],
-                }
-
-    return manifest, documents, chunks
 
 
 def evaluate(model_dir):

@@ -35,6 +35,10 @@ The local 0.1.0 acceptance run used Windows, Python 3.12.13 and wheel SHA-256 `d
 | Component removal | Uninstalling the working wheel from a second dedicated environment removed its console and Python package. The manifest, original, sample client and catalog with a withdrawal retained all four digests. The business-side reader still read the original table row. |
 | Retrieval and parsing | Sparse retrieval placed the gold passage first on 30/30 answerable questions. All ten unanswerable questions still returned candidates. With an existing Docling/RapidOCR environment, the wheel parsed four PDF and three DOCX chunks, including the scanned-page and table locations. |
 
+## Held-out knowledge regression
+
+From the checkout, run `python -B -X utf8 examples/knowledge-evals/zh-retrieval/answer_benchmark.py --replay --output knowledge.json`. The held-out questions use the same synthetic corpus, and indexing reads source files without answer labels. Check top-five retrieval, exact short answers and citations for seven positive cases, and explicit refusals for six negative cases. Record top-one hits, similar candidates, incorrect answers and verifier rejections independently. A failed check still writes the per-case report. [Replay and report details](../../../examples/knowledge-evals/zh-retrieval/README.zh-CN.md#独立题集离线回放)
+
 ## Deployment and recovery acceptance
 
 Follow the [minimal deployment and recovery example](../../../examples/modules/manage-knowledge/deployment/README.en.md). With pinned model files and a pinned wheel, compare active citations and withdrawals before and after restarting. Then stop the service, back up originals, manifest and catalog, and validate a restore at a different path. Record startup and restore time plus backup and model size. Record upgrade and rollback separately using the [installed lifecycle test](../../../components/knowledge/tests/installed_lifecycle.py).

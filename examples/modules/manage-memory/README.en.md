@@ -97,4 +97,14 @@ In an empty project, install the matching 2.1.0 CLI, TypeScript SDK and Python S
 
 To check the installed wheel through its public interfaces, copy [check_component.py](check_component.py) to an empty directory. Prepare two isolated test banks, a reader for each, and an administrator for the first one. In the host test terminal set `COREMIND_MEMORY_AUTHORIZATION`, `COREMIND_MEMORY_OTHER_AUTHORIZATION` and `COREMIND_MEMORY_ADMIN_AUTHORIZATION`. Run `python -I -X utf8 check_component.py --bank demo-alice --url http://127.0.0.1:8769`. It checks versioned and idempotent retention, independent MCP sessions, scope, correction, expiry and forgetting. It creates unique document IDs and forgets those test documents on exit.
 
+## Offline outcome regression
+
+From the repository root, use a Python environment with the example requirements installed.
+
+```sh
+python -B -X utf8 examples/modules/manage-memory/effect_evaluation.py
+```
+
+The command runs the [five synthetic cases](effect-cases.json) and writes one JSON receipt to standard output. It records the candidate, recall before confirmation, final recall, and the adopted source and revision. Any failed case results in a nonzero exit code. Fixed Hindsight responses and a deterministic adoption rule let the example run independently of a Hindsight process and model credentials.
+
 Return to the [integration guide](../../../docs/modules/manage-memory/GUIDE.en.md). See the [development SOP](../../../docs/modules/manage-memory/SOP.en.md) for individual acceptance cases.

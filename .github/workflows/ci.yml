@@ -129,11 +129,21 @@ jobs:
       - name: 知识目录、引文阅读范围与索引恢复
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-knowledge -p "test_*.py" -v
 
+      - name: 知识答案回放的判分反例
+        run: python -B -X utf8 -m unittest discover -s examples/knowledge-evals/zh-retrieval -p "test_answer_benchmark.py" -v
+
       - name: 本体映射、SHACL 与动作校验
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-ontology -p "test_ontology_*.py" -v
 
-      - name: 本体四入口启停、故障与授权（离线）
-        run: node examples/modules/manage-ontology/acceptance.mjs
+      - name: 五项可选能力效果回归（离线，含本体四入口）
+        run: node examples/modules/evaluate-agents/capability-regression.mjs --output .scratch/capability-regression.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ always() && hashFiles('.scratch/capability-regression.json') != '' }}
+        with:
+          name: coremind-capability-regression-${{ matrix.os }}-${{ github.run_attempt }}
+          path: .scratch/capability-regression.json
+          if-no-files-found: error
 
       - name: 资料助手跨会话组合验收（离线）
         run: node examples/modules/manage-ontology/composition.mjs

@@ -32,6 +32,17 @@ The script starts a local loopback model fixture and copies both packages into i
 
 To repeat the checks on a pinned installation, install both Skills in one configuration directory and pass that directory as the first argument to `acceptance.mjs`. [Installation steps](../../../docs/modules/package-agent-skills/GUIDE.en.md#pinned-installation-and-rollback)
 
+## Run an offline Skill comparison
+
+After building the repository, run the following commands. The [held-out cases](paired-holdout.json) include two tasks with overlapping language that require different Skills and two tasks that mention the same terms but only ask for editing or extraction. The enabled arm also includes a [weekly report audit Skill](skills/weekly-report-audit-fixture/SKILL.md) to check false triggers among similar Skills. The actual Runtime runs the same four cases in the enabled and disabled arms.
+
+```sh
+node examples/modules/package-agent-skills/paired-evaluation.mjs --offline .scratch/skill-paired.json
+node examples/modules/package-agent-skills/paired-evaluation.mjs --rescore .scratch/skill-paired.json
+```
+
+The report includes fingerprints, per-field scores, actual Skill calls and load receipts, duration, and token totals for both arms. `scorerChecks` records the separate injected wrong-Skill and unrelated-task triggers. The arm totals cover the actual runs. The loopback fixture supplies simulated token usage and leaves monetary cost unavailable. Evaluation of real model selection requires a live paired run.
+
 ## Run a paired evaluation with a real model
 
 Use an authorized, keyless Qwen-compatible endpoint. Set `COREMIND_SKILL_EVAL_BASE_URL` to its API base URL and `COREMIND_SKILL_EVAL_MODEL` to its model ID.

@@ -28,4 +28,6 @@ For built-in `web-fetch`/`web-search`, verify that non-2xx responses and body-re
 
 For a tool-only delivery, register just the selected operation and preserve the rest of the project’s policy. Test it in a fresh session, then remove the binding (including inherited or host-supplied registrations) and inspect the model’s tool list. Record the business tool or MCP server version separately from CoreMind, and test rollback with the same inputs. See the [single-tool guide](../../docs/modules/build-tools/GUIDE.en.md).
 
+Use the [offline capability regression](../../docs/modules/evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain actual call counts, approvals, arguments and structured values across local, stdio and HTTP transports.
+
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。
