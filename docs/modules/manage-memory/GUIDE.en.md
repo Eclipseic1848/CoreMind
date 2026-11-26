@@ -4,6 +4,8 @@
 
 Run `python -m pip install coremind-memory-mcp==0.1.0` on the host and launch the gateway as described in the [example](../../../examples/modules/manage-memory/README.en.md). A standard MCP client can connect directly. For CoreMind, install the CLI and TypeScript SDK in the application with `npm install --save-exact coremind-cli@2.1.0 coremind-ai@2.1.0`. Python projects run `python -m pip install coremind-ai==2.1.0` and use its bundled Worker. The following `coremind.yaml` registers one tool. Select an application model configured by your host.
 
+Copy the [empty Python project example](../../../examples/modules/manage-memory/README.en.md#recall-directly-from-an-empty-python-project). Recall through MCP with a reader token, then bind the same endpoint and token to an Agent. The host uses the gateway's administrative interface for confirmation, retention and correction.
+
 When upgrading from 2.0.0, keep the gateway configuration and repeat the checks in the [migration and rollback guide](../../migrations/2.0-to-2.1.en.md).
 
 ```yaml

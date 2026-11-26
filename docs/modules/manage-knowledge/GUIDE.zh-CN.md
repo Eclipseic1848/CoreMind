@@ -16,6 +16,8 @@ coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --sta
 
 用支持 Streamable HTTP 的 MCP 客户端连接 `http://127.0.0.1:8767/mcp`，以该变量的完整值发送 `Authorization`。在 `tools/list` 中找到 `search_knowledge` 和 `resolve_citation`，分别查询和回查原文。若宿主是 CoreMind，将[知识服务配置](../../../examples/modules/manage-knowledge/coremind.yaml)中的 `mcp.servers.knowledge` 和所需的 Agent 工具声明加入自己的配置，使用项目自己的模型。此接入无需资料助手模板或其他领域服务。
 
+复制[空白 TypeScript 项目示例](../../../examples/modules/manage-knowledge/README.zh-CN.md#从空白-typescript-项目直接查询)，先在业务代码中搜索和回查，再用同一个服务地址与读令牌运行 CoreMind Agent。直接调用只需知识服务读令牌。运行 Agent 时另行配置业务模型。
+
 ## 第一次查询
 
 按[运行示例](../../../examples/modules/manage-knowledge/README.zh-CN.md)准备环境并运行三个入口。用公开身份查询“ST-17 拼接地图现在由哪一个窗口受理？”。在结果中找到“榆木台”，打开[二版索引](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v2.md)核对第 6 行。相同编号在[一版索引](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v1.md)也出现在第 6 行，但窗口为“榛果台”。只核对行号会把旧结果判为正确。

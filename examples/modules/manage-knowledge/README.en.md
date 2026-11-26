@@ -4,6 +4,25 @@ For a business project using only knowledge, run `python -m pip install coremind
 
 This example uses the [synthetic Songyu records-room corpus](../../knowledge-evals/zh-retrieval/manifest.json). The knowledge service runs locally with a host-selected reader scope. The model sends only the query text in its tool call. Index the five source files with their manifest metadata. Keep the questions and gold answers on the scoring side.
 
+## Query directly from an empty TypeScript project
+
+Follow the [component instructions](../../../components/knowledge/README.md) to start the published knowledge 0.1.0 service with the synthetic Markdown manifest and the `records` scope. Copy [direct-project](direct-project/package.json) to an empty directory outside the checkout. Use Node.js 22.19 or later and run `npm install` in that directory.
+
+Set `COREMIND_KNOWLEDGE_AUTHORIZATION` to the full reader token. The example uses loopback, with `KNOWLEDGE_MCP_URL` defaulting to `http://127.0.0.1:8767/mcp`. Adjust the port to match the service. Direct queries use the standard MCP client. For the Agent, also configure the application's OpenAI-compatible model with `COREMIND_MODEL_BASE_URL`, `COREMIND_MODEL_NAME` and `COREMIND_MODEL_API_KEY`.
+
+```sh
+npm run --silent direct -- "松纹卡"
+npm run --silent agent -- "松纹卡"
+```
+
+Direct mode returns search results in `citations` and original passages in `resolved`. Look for 松纹卡 and 银杏台 on line 3 of `desk.md`, check the table header on line 1 and compare the same evidence in the Agent's search and lookup results. To run the [PDF and DOCX excerpt example](#resolve-excerpts-on-the-same-page-or-in-the-same-section), install a knowledge wheel containing the fix. Direct mode uses the `chunkId` returned by the service.
+
+Repeat the direct query with an invalid reader token and verify HTTP 401. Switch to a service with the `public` scope and its valid reader token. The restricted `desk.md` content should be absent. Stop the dedicated knowledge service and verify the direct query exits with an error. Run the following command to verify the Agent can still answer through the model after removing the knowledge binding.
+
+```sh
+npm run --silent agent -- --without-knowledge "Reply with just OK"
+```
+
 ## Prerequisites
 
 Use the Node.js and npm versions required by this checkout and an active Python 3.12 virtual environment. Build from the repository root. Use the same directory and virtual environment in both terminals.

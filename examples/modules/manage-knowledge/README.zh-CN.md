@@ -4,6 +4,25 @@
 
 本例使用[松屿资料室合成资料](../../knowledge-evals/zh-retrieval/manifest.json)。示例知识服务在本机运行，宿主选定读者范围。模型调用工具时仅提交查询文本。索引只接收五份来源文件和清单元数据。题目与答案位于评分端。
 
+## 从空白 TypeScript 项目直接查询
+
+按[独立组件说明](../../../components/knowledge/README.md)用公开知识 0.1.0 和合成 Markdown 清单启动服务。使用 `records` 阅读范围。将 [direct-project](direct-project/package.json) 目录复制到仓库外的空白项目。使用 Node.js 22.19 或更高版本，在该目录执行 `npm install`。
+
+应用从环境读取完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION` 读令牌。示例使用回环地址，`KNOWLEDGE_MCP_URL` 默认是 `http://127.0.0.1:8767/mcp`，端口可按实际服务调整。直接查询只用标准 MCP 客户端。Agent 模式还需要用 `COREMIND_MODEL_BASE_URL`、`COREMIND_MODEL_NAME` 和 `COREMIND_MODEL_API_KEY` 配置应用自己的 OpenAI 兼容模型。
+
+```sh
+npm run --silent direct -- "松纹卡"
+npm run --silent agent -- "松纹卡"
+```
+
+直接模式的 `citations` 和 `resolved` 分别列出检索和原文回查结果。找到 `desk.md` 第 3 行的“松纹卡”和“银杏台”，核对第 1 行表头，并在 Agent 的检索和回查工具结果中复核同一证据。用修复后的知识 wheel 复跑 [PDF 与 DOCX 多片段示例](#回查同页或同节的片段)时，直接模式使用服务返回的 `chunkId`。
+
+将读令牌换成无效值后重跑直接查询，预期 HTTP 401。再用 `public` 阅读范围的服务和对应的有效读令牌查询，`desk.md` 的受限内容不应出现。停掉专用知识服务后，直接查询退出非零。运行下列命令验证移除知识绑定后，Agent 仍能由应用的模型回答。
+
+```sh
+npm run --silent agent -- --without-knowledge "请只回答 OK"
+```
+
 ## 启动前准备
 
 使用源码仓库要求的 Node.js、npm 和已激活的 Python 3.12 虚拟环境，从仓库根目录构建。两个终端使用同一目录和虚拟环境。

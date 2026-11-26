@@ -44,6 +44,8 @@ agents:
 
 `document-assistant` 是资料整理的参考示例和组合回归。以下为 2.0.0 的验收记录。它在两个独立项目里用合成资料、真实 Qwen、Qdrant/BGE-M3、Hindsight/PostgreSQL 和可选本体验证了七例。可查阅输入、权限、预期输出和失败记录来设计自己的测试。[组合示例](../../examples/modules/manage-ontology/README.zh-CN.md) · [真实服务组合验收](../../examples/modules/manage-ontology/LIVE-COMPOSITION.zh-CN.md)
 
+业务代码可以先经标准 MCP 查询选定组件，再把同一服务地址和读令牌交给 Agent。两个空白项目示例分别覆盖 TypeScript 的知识检索与引文回查、Python 的 Hindsight 召回。[TypeScript 知识示例](../../examples/modules/manage-knowledge/README.zh-CN.md#从空白-typescript-项目直接查询) · [Python 记忆示例](../../examples/modules/manage-memory/README.zh-CN.md#从空白-python-项目直接召回)
+
 ### 复跑独立安装验收
 
 2.1.0 的仓库外验收用冻结提交构建的安装包完成 49 项检查，覆盖空白项目、五项单用、组合和移除。安装公开版后，可用相同脚本复验。[冻结件验收记录](https://github.com/Eclipseic1848/CoreMind/issues/426) · [正式发布与回装](https://github.com/Eclipseic1848/CoreMind/issues/427)

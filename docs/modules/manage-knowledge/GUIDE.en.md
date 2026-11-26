@@ -16,6 +16,8 @@ The [component README](../../../components/knowledge/README.md) gives the comman
 
 Connect any Streamable HTTP MCP client to `http://127.0.0.1:8767/mcp` with the full credential in the `Authorization` header. Find `search_knowledge` and `resolve_citation` in `tools/list`, then search and look up a citation. In a CoreMind project, copy the `mcp.servers.knowledge` binding and the required Agent tool declarations from the [example configuration](../../../examples/modules/manage-knowledge/coremind.yaml) into your own configuration and use your own model. No document-assistant template or other domain service is required.
 
+Copy the [empty TypeScript project example](../../../examples/modules/manage-knowledge/README.en.md#query-directly-from-an-empty-typescript-project). Search and resolve citations from application code, then run a CoreMind Agent against the same endpoint with the same reader token. Direct calls require the knowledge reader token. Configure a separate model for the Agent.
+
 ## First query
 
 Follow the [example](../../../examples/modules/manage-knowledge/README.en.md) to prepare the environment and run the three entry points. As a public reader, ask “ST-17 拼接地图现在由哪一个窗口受理？” (Which desk currently accepts ST-17 maps?). Find 榆木台 and open line 6 of the [second edition](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v2.md). Line 6 of the [first edition](../../../examples/knowledge-evals/zh-retrieval/sources/流转索引-v1.md) lists the same item at a different desk, 榛果台. Checking the line number alone would accept that stale result.

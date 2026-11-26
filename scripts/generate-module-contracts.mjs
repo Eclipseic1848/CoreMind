@@ -299,6 +299,7 @@ const modules = [
       "examples/modules/manage-knowledge/knowledge_server.py",
       "examples/modules/manage-knowledge/knowledge_catalog.py",
       "examples/modules/manage-knowledge/coremind.yaml",
+      "examples/modules/manage-knowledge/direct-project",
       "examples/knowledge-evals/zh-retrieval/docling_bridge.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_retrieval.py",
       "packages/coremind-config/src/schema/mcp.ts",
@@ -306,6 +307,7 @@ const modules = [
     ],
     tests: [
       "components/knowledge/tests/installed_lifecycle.py",
+      "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-knowledge/acceptance.mjs",
       "examples/modules/manage-knowledge/clean-consumer.mjs",
       "examples/modules/manage-knowledge/test_knowledge_catalog.py",
@@ -357,9 +359,11 @@ const modules = [
       "examples/modules/manage-memory/coremind.yaml",
       "examples/modules/manage-memory/search.mjs",
       "examples/modules/manage-memory/search.py",
+      "examples/modules/manage-memory/direct-project",
     ],
     tests: [
       "examples/modules/manage-memory/check_component.py",
+      "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-memory/test_memory_service.py",
       "examples/modules/manage-memory/acceptance.mjs",
     ],

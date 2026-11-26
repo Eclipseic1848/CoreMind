@@ -14,6 +14,7 @@ sourcePaths:
   - "examples/modules/manage-memory/coremind.yaml"
   - "examples/modules/manage-memory/search.mjs"
   - "examples/modules/manage-memory/search.py"
+  - "examples/modules/manage-memory/direct-project"
 documents:
   readme:
     zh-CN: docs/modules/manage-memory/README.zh-CN.md
@@ -31,6 +32,7 @@ examplePaths:
   - examples/modules/manage-memory/README.en.md
 testPaths:
   - "examples/modules/manage-memory/check_component.py"
+  - "scripts/verify-direct-consumers.mjs"
   - "examples/modules/manage-memory/test_memory_service.py"
   - "examples/modules/manage-memory/acceptance.mjs"
 supportedPlatforms:
