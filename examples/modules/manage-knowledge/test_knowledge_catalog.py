@@ -147,6 +147,59 @@ class KnowledgeCatalogTest(unittest.TestCase):
             )
             self.assertEqual(second.import_document(document()), "unchanged")
 
+    def test_page_and_section_citations_round_trip_from_a_legacy_catalog(self):
+        from mcp.server.fastmcp import FastMCP
+        from knowledge_server import make_app
+
+        for file, locator in [("值班记录.pdf", "page:1"), ("归档窗口.docx", "section:归档窗口")]:
+            with self.subTest(file=file), tempfile.TemporaryDirectory() as directory:
+                state = Path(directory) / "state.json"
+                record = {
+                    **document(file=file, until="2027-01-01"),
+                    "access": "editor",
+                    "chunks": [
+                        {"text": "位置相同的标题", "locator": locator},
+                        {"text": "位置相同的正文", "locator": locator},
+                        {"text": "位置唯一的正文", "locator": "旧版独有位置"},
+                    ],
+                }
+                state.write_text(json.dumps({"schemaVersion": 1, "documents": [record]}), encoding="utf-8")
+                original = state.read_bytes()
+                identity = {"docId": record["docId"], "version": 1, "file": file}
+                for _ in range(2):
+                    catalog = KnowledgeCatalog(FakeIndex(), state)
+                    self.assertEqual(catalog.import_document(record), "unchanged")
+                    server = FastMCP("test")
+                    with patch("coremind_knowledge_mcp.server.FastMCP", return_value=server):
+                        make_app(catalog, "editor", "2026-10-01", b"fixture")
+
+                    def call(tool, **args):
+                        result = asyncio.run(server.call_tool(tool, args))
+                        return json.loads(result[0].text)
+
+                    hits = call("search_knowledge", query="位置相同")["citations"]
+                    self.assertEqual([hit["chunkId"] for hit in hits], [1, 2])
+                    for hit in hits:
+                        resolved = call("resolve_citation", **identity, chunkId=hit["chunkId"])
+                        self.assertEqual(resolved["status"], "available")
+                        for field in ("text", "locator", "chunkId"):
+                            self.assertEqual(resolved[field], hit[field])
+                    self.assertEqual(call("resolve_citation", **identity, locator=locator)["status"], "ambiguous")
+                    self.assertNotIn("text", call("resolve_citation", **identity, locator=locator))
+                    self.assertEqual(call("resolve_citation", **identity, locator="旧版独有位置")["text"], "位置唯一的正文")
+                    self.assertEqual(call("resolve_citation", **identity, locator=locator, chunkId=3)["status"], "missing")
+                    self.assertEqual(call("resolve_citation", **identity, chunkId=4)["status"], "missing")
+
+                self.assertEqual(state.read_bytes(), original)
+                for scope, day in [("public", "2026-10-01"), ("editor", "2027-01-01")]:
+                    resolved = catalog.resolve(record["docId"], 1, file, chunk_id=2, scope=scope, as_of=day)
+                    self.assertEqual(resolved, {"status": "unknown", "docId": record["docId"], "version": 1})
+                catalog.withdraw(record["docId"], 1)
+                restarted = KnowledgeCatalog(FakeIndex(), state)
+                self.assertEqual(restarted.search("位置相同", scope="editor", as_of="2026-10-01"), [])
+                resolved = restarted.resolve(record["docId"], 1, file, chunk_id=2, scope="editor", as_of="2026-10-01")
+                self.assertEqual(resolved, {"status": "withdrawn", "docId": record["docId"], "version": 1})
+
     def test_markdown_table_context_survives_legacy_reimport_and_matches_both_tools(self):
         from mcp.server.fastmcp import FastMCP
         from knowledge_server import load_corpus, make_app

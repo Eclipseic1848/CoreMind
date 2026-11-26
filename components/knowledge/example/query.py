@@ -22,10 +22,14 @@ async def main(query):
                     raise RuntimeError(result.content[0].text)
                 citations = json.loads(result.content[0].text)["citations"]
                 for citation in citations:
-                    location = {key: citation[key] for key in ("docId", "version", "file", "line", "locator") if key in citation}
+                    position = next(key for key in ("chunkId", "line", "locator") if citation.get(key) is not None)
+                    location = {key: citation[key] for key in ("docId", "version", "file", position)}
                     resolved = await session.call_tool("resolve_citation", location)
                     if resolved.isError:
                         raise RuntimeError(resolved.content[0].text)
+                    original = json.loads(resolved.content[0].text)
+                    if original["status"] != "available" or original.get("text") != citation["text"]:
+                        raise RuntimeError("回查原文与检索片段不一致：" + resolved.content[0].text)
                     print(resolved.content[0].text)
                 if not citations:
                     print("当前读者没有匹配的资料")

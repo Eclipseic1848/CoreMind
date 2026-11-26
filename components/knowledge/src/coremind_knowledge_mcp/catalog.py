@@ -76,7 +76,7 @@ class KnowledgeCatalog:
             query, scope=scope, as_of=as_of, limit=limit, mode=mode
         )
 
-    def resolve(self, doc_id, version, file, line=None, locator=None, *, scope, as_of):
+    def resolve(self, doc_id, version, file, line=None, locator=None, *, scope, as_of, chunk_id=None):
         record = self.documents.get((doc_id, version))
         if (
             record is None
@@ -87,22 +87,30 @@ class KnowledgeCatalog:
             return {"status": "unknown", "docId": doc_id, "version": version}
         if record.get("withdrawn"):
             return {"status": "withdrawn", "docId": doc_id, "version": version}
-        for chunk in record["chunks"]:
+        match = None
+        for chunk in self._citation_chunks(record):
             if chunk.get("file", record["file"]) != file:
                 continue
             if line is not None and chunk.get("line") != line:
                 continue
             if locator is not None and chunk.get("locator") != locator:
                 continue
+            if chunk_id is not None and chunk.get("chunkId") != chunk_id:
+                continue
+            if match is not None:
+                return {"status": "ambiguous", "docId": doc_id, "version": version, "file": file}
+            match = chunk
+        if match is not None:
             return {
                 "status": "available",
                 "docId": doc_id,
                 "version": version,
                 "file": file,
-                "line": chunk.get("line"),
-                "locator": chunk.get("locator"),
-                "text": chunk["text"],
-                **table_context(record, chunk),
+                "line": match.get("line"),
+                "locator": match.get("locator"),
+                "text": match["text"],
+                **({"chunkId": match["chunkId"]} if "chunkId" in match else {}),
+                **table_context(record, match),
             }
         return {
             "status": "missing",
@@ -112,12 +120,18 @@ class KnowledgeCatalog:
         }
 
     @staticmethod
+    def _citation_chunks(record):
+        # 从已保存的文档版本推导片段编号，沿用原有目录文件和 Markdown 行号。
+        for number, chunk in enumerate(record["chunks"], 1):
+            yield {**chunk, "chunkId": number} if chunk.get("line") is None else chunk
+
+    @staticmethod
     def _active_chunks(documents):
         chunks = []
         for record in documents.values():
             if record.get("withdrawn"):
                 continue
-            for chunk in record["chunks"]:
+            for chunk in KnowledgeCatalog._citation_chunks(record):
                 chunks.append(
                     {
                         **chunk,
