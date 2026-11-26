@@ -12,6 +12,7 @@ import {
   validateCertifiedRuntimePackage,
   validateWaivedRuntimePackage,
 } from "./release-artifacts.mjs";
+import { pythonArtifactRecords } from "./verify-pypi-artifact.mjs";
 
 describe("同提交发布物", () => {
   it("要求版本、标签、HEAD 与标签提交完全一致", () => {
@@ -44,6 +45,26 @@ describe("同提交发布物", () => {
     expect(selectNpmDistTag("0.2.0-rc.1")).toBe("next");
     expect(selectNpmDistTag("0.2.0-beta.2")).toBe("next");
     expect(selectNpmDistTag("0.2.0")).toBe("latest");
+  });
+
+  it("记录 SDK 与各组件的实际 wheel 版本并拒绝错包", () => {
+    const files = [
+      "coremind_ai-2.1.0rc1",
+      "coremind_knowledge_mcp-0.1.0",
+      "coremind_memory_mcp-0.1.2",
+      "coremind_ontology_mcp-0.2.0",
+    ].map((stem) => `${stem}-py3-none-any.whl`);
+    expect(pythonArtifactRecords("python", files, "2.1.0-rc.1").map((a) => a.version)).toEqual([
+      "2.1.0-rc.1",
+      "0.1.0",
+      "0.1.2",
+      "0.2.0",
+    ]);
+    expect(() => pythonArtifactRecords("python", files, "2.1.0")).toThrow("SDK wheel");
+    expect(() => pythonArtifactRecords("python", files.slice(0, 3), "2.1.0-rc.1")).toThrow("数量");
+    expect(() =>
+      pythonArtifactRecords("python", [files[0], files[1], files[2], files[2]], "2.1.0-rc.1"),
+    ).toThrow("coremind-ontology-mcp");
   });
 
   it("为实际文件生成相对路径、大小和 SHA-256", async () => {

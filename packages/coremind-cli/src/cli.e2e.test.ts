@@ -256,13 +256,15 @@ describe("coremind CLI 端到端", () => {
     expect(stdout).toContain("translator");
   });
 
-  it("providers 明确区分已认证与仅可配置入口", () => {
+  it("providers 列出可配置入口并链接版本认证，不沿用历史标签", () => {
     const { stdout, code } = runCli(["providers"]);
     expect(code).toBe(0);
     expect(stdout).toContain("alibaba-model-studio");
-    expect(stdout).toContain("CoreMind 已认证");
     expect(stdout).toContain("deepseek");
-    expect(stdout).toContain("可配置，尚未认证");
+    expect(stdout).toContain(
+      "https://eclipseic1848.github.io/CoreMind/providers/README.zh-CN.html",
+    );
+    expect(stdout).not.toMatch(/CoreMind 已认证|尚未认证/);
   });
 
   it("runtime-only 在新目录和已有业务目录只创建最小配置", () => {

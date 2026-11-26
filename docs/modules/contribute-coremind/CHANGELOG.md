@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 - 2026-11-25
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## 2.0.0 - 2026-11-25
 
 - Updated the module contract and package version for CoreMind 2.0.0.

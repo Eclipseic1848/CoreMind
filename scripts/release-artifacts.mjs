@@ -248,13 +248,41 @@ async function buildArtifacts({
     repositoryRoot,
   );
 
+  const { pythonProjectNames, pythonArtifactRecords } = await import("./verify-pypi-artifact.mjs");
+  const projects = pythonProjectNames(version);
   runPython(["-m", "build", "--wheel", "--outdir", pythonDirectory, "python"]);
-  const wheels = (await readdir(pythonDirectory))
-    .filter((name) => name.endsWith(".whl"))
-    .map((name) => path.join(pythonDirectory, name));
-  if (wheels.length !== 1) throw new Error(`应生成一个 wheel，实际为 ${wheels.length} 个`);
-  runPython(["-m", "twine", "check", wheels[0]]);
-  runPython(["-X", "utf8", "scripts/check-python-wheel.py", wheels[0]]);
+  for (const name of projects.slice(1)) {
+    const directory = name.slice("coremind-".length, -"-mcp".length);
+    // 同版本组件可随多个 CoreMind 版本发布；固定构建后端和 ZIP 时间以复用相同字节。
+    runPython(
+      [
+        "-m",
+        "build",
+        "--wheel",
+        "--dependency-constraints-txt",
+        "scripts/component-wheel-constraints.txt",
+        "--outdir",
+        pythonDirectory,
+        `components/${directory}`,
+      ],
+      { SOURCE_DATE_EPOCH: "315532800" },
+    );
+  }
+  const pythonArtifacts = pythonArtifactRecords(
+    pythonDirectory,
+    await readdir(pythonDirectory),
+    version,
+  );
+  runPython(["-m", "twine", "check", ...pythonArtifacts.map((item) => item.file)]);
+  runPython(["-X", "utf8", "scripts/check-python-wheel.py", pythonArtifacts[0].file]);
+  if (pythonArtifacts.length > 1) {
+    runPython([
+      "-X",
+      "utf8",
+      "scripts/check-component-wheels.py",
+      ...pythonArtifacts.slice(1).map((item) => item.file),
+    ]);
+  }
 
   const source = path.join(sourceDirectory, `coremind-${version}-source.zip`);
   git([
@@ -272,7 +300,7 @@ async function buildArtifacts({
 
   const distributables = [
     ...npmArtifacts,
-    { kind: "python", name: "coremind-ai", file: wheels[0] },
+    ...pythonArtifacts,
     { kind: "source", name: "coremind-source", file: source },
   ];
   const records = await createArtifactRecords(
@@ -283,7 +311,12 @@ async function buildArtifacts({
     const sourceItem = distributables.find(
       (item) => path.resolve(item.file) === path.resolve(artifactRoot, record.path),
     );
-    return { ...record, kind: sourceItem.kind, name: sourceItem.name, version };
+    return {
+      ...record,
+      kind: sourceItem.kind,
+      name: sourceItem.name,
+      version: sourceItem.version ?? version,
+    };
   });
   if (allowProviderNetworkWaiver) {
     const waiver = JSON.parse(
@@ -361,8 +394,16 @@ function runNpm(args, cwd, echo = true) {
       );
 }
 
-function runPython(args) {
-  return run(process.platform === "win32" ? "python.exe" : "python", args, repositoryRoot);
+function runPython(args, env) {
+  return run(
+    process.platform === "win32" ? "python.exe" : "python",
+    args,
+    repositoryRoot,
+    false,
+    true,
+    false,
+    env,
+  );
 }
 
 function git(args, options = {}) {
@@ -376,13 +417,13 @@ function git(args, options = {}) {
   );
 }
 
-function run(command, args, cwd, shell = false, echo = true, allowFailure = false) {
+function run(command, args, cwd, shell = false, echo = true, allowFailure = false, env) {
   const completed = spawnSync(command, args, {
     cwd,
     shell,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
+    env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0", ...env },
   });
   if (echo && completed.stdout) process.stdout.write(completed.stdout);
   if (echo && completed.stderr) process.stderr.write(completed.stderr);

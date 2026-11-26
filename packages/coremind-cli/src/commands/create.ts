@@ -12,7 +12,7 @@ import {
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { promptLine, select } from "../interactive.js";
 import { cyan, dim, errorLine, green, yellow } from "../render.js";
-import { providerStatusLabel } from "./list-providers.js";
+import { PROVIDER_CERTIFICATION_URL } from "./list-providers.js";
 
 /**
  * coremind create <name>：从模板生成新项目。
@@ -164,7 +164,7 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
   console.log(dim(`  模板：${template.id}（${template.description}）`));
   console.log(dim(`  语言：${language}${existingProject ? "（已有工程自动检测/确认）" : ""}`));
   if (provider) {
-    console.log(dim(`  Provider：${provider.id}（${providerStatusLabel(provider.id)}）`));
+    console.log(dim(`  Provider：${provider.id}（认证矩阵 ${PROVIDER_CERTIFICATION_URL}）`));
   }
   console.log(dim(`  项目指导材料：新增 ${guidanceFiles.length} 个文件`));
   console.log("");
@@ -248,7 +248,7 @@ async function selectProvider(parsed: ParsedArgs): Promise<ProviderSelection | u
     const index = await select("选择模型 Provider：", [
       ...PROVIDER_PRESETS.map((item) => ({
         label: item.id,
-        description: providerStatusLabel(item.id),
+        description: item.model ?? "使用 Provider 默认模型",
       })),
       { label: "其他已支持 Provider", description: "手动输入 Provider id 和凭据环境变量" },
     ]);

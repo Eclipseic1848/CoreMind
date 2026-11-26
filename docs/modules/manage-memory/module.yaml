@@ -3,7 +3,7 @@ id: manage-memory
 name:
   zh-CN: "长期记忆与经验提炼"
   en: "Long-term Memory and Reflection"
-version: 2.0.0
+version: 2.1.0
 sourcePaths:
   - "components/memory/pyproject.toml"
   - "components/memory/src/coremind_memory_mcp/server.py"

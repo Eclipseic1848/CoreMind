@@ -3,7 +3,7 @@ id: contribute-coremind
 name:
   zh-CN: "源码与社区贡献"
   en: "Source and Community Contribution"
-version: 2.0.0
+version: 2.1.0
 sourcePaths:
   - "package.json"
   - "vitest.config.ts"

@@ -9,6 +9,7 @@ description = "Hindsight-backed, host-authorized memory for Streamable HTTP MCP 
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "hindsight-client==1.2.3",
     "mcp==1.30.0",

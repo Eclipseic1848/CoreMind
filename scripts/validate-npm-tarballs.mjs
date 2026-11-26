@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertNpmDependencyFamily } from "./dependency-family.mjs";
 import { buildDependencyReport } from "./dependency-report.mjs";
+import { requiresProjectLicense } from "./package-artifacts.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publintCli = path.join(repositoryRoot, "node_modules", "publint", "src", "cli.js");
@@ -74,6 +75,15 @@ async function main() {
       ],
       installRoot,
     );
+    const projectLicense = await readFile(path.join(repositoryRoot, "LICENSE"));
+    for (const { name } of packages) {
+      const installed = path.join(installRoot, "node_modules", name);
+      const manifest = JSON.parse(await readFile(path.join(installed, "package.json"), "utf8"));
+      if (requiresProjectLicense(manifest.version)) {
+        const license = await readFile(path.join(installed, "LICENSE"));
+        if (!license.equals(projectLicense)) throw new Error(`${name} 的 LICENSE 与根许可证不一致`);
+      }
+    }
     const expectedDependencies = await buildDependencyReport(repositoryRoot);
     if (!expectedDependencies.summary.lockstep) throw new Error("发布源码的核心依赖族未锁步");
     const installedGraph = JSON.parse(

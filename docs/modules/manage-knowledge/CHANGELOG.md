@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.0 - 2026-11-25
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Knowledge component 0.1.0 (local wheel)
 
 - Install the local retrieval and citation service from a wheel using the `coremind-knowledge-mcp` console. Use an explicit manifest, model, scope and catalog with a standard MCP client. The existing source entry points and catalog schema remain compatible.

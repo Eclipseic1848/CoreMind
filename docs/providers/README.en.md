@@ -1,8 +1,8 @@
 # Provider Support and Certification Matrix
 
-> This table was generated from the 2026-11-25 static runtime catalog and human-maintained evidence ledger and corresponds to target version `2.0.0`. Do not edit the table manually.
+> This table was generated from the 2026-11-25 static runtime catalog and human-maintained evidence ledger and corresponds to target version `2.1.0`. Do not edit the table manually.
 
-CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **1** of these entries, while **42** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
+CoreMind has **42** built-in chat providers and **43** configurable entries including compatibility aliases. Complete real-call evidence exists for **0** of these entries, while **43** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
 
 ## Status definitions
 
@@ -16,7 +16,7 @@ CoreMind has **42** built-in chat providers and **43** configurable entries incl
 
 | Provider ID | Default model | Certified version | Models | Status | Evidence |
 |---|---|---|---:|---|---|
-| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 2.0.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
+| `alibaba-model-studio` | `qwen-plus` | `0.3.2` | 1 | Configurable, 2.1.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/alibaba-model-studio-0.3.2-2026-08-26.json) |
 | `amazon-bedrock` | `amazon.nova-2-lite-v1:0` | — | 197 | Configurable, unverified | — |
 | `ant-ling` | `Ling-2.6-1T` | — | 3 | Configurable, unverified | — |
 | `anthropic` | `claude-fable-5` | — | 17 | Configurable, unverified | — |
@@ -26,7 +26,7 @@ CoreMind has **42** built-in chat providers and **43** configurable entries incl
 | `cerebras` | `gpt-oss-120b` | — | 2 | Configurable, unverified | — |
 | `cloudflare-ai-gateway` | `claude-fable-5` | — | 59 | Configurable, unverified | — |
 | `cloudflare-workers-ai` | `@cf/deepseek-ai/deepseek-v4-flash-0731` | — | 19 | Configurable, unverified | — |
-| `deepseek` | `deepseek-flash` | `2.0.0` | 2 | Certified | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.0.0-2026-11-25.json) |
+| `deepseek` | `deepseek-flash` | `2.0.0` | 2 | Configurable, 2.1.0 unverified (older evidence retained) | [Evidence](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.0.0-2026-11-25.json) |
 | `fireworks` | `accounts/fireworks/models/deepseek-v4p1-flash` | — | 29 | Configurable, unverified | — |
 | `github-copilot` | `claude-fable-5` | — | 27 | Configurable, unverified | — |
 | `google` | `deep-research-max-preview-04-2026` | — | 23 | Configurable, unverified | — |

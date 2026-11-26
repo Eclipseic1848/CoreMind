@@ -264422,11 +264422,18 @@ function skillDir(id2) {
   return path38.join(skillsRoot, id2);
 }
 function loadSkill(id2, name, description) {
+  let content;
   return {
     id: id2,
     name,
     description,
-    content: readFileSync7(path38.join(skillDir(id2), "README.md"), "utf8")
+    get content() {
+      content ??= readFileSync7(path38.join(skillDir(id2), "README.md"), "utf8");
+      return content;
+    },
+    set content(value) {
+      content = value;
+    }
   };
 }
 var SKILLS = [

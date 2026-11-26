@@ -107,6 +107,7 @@ function runNpmPackDryRun(rootDirectory, packageName) {
 
 export function collectRequiredEntries(manifest) {
   const entries = new Set();
+  if (requiresProjectLicense(manifest.version)) entries.add("LICENSE");
   if (manifest.name === "coremind-tools") {
     for (const filename of [
       "service.mjs",
@@ -124,6 +125,11 @@ export function collectRequiredEntries(manifest) {
   collectEntry(manifest.bin, entries);
   collectEntry(manifest.exports, entries);
   return [...entries];
+}
+
+export function requiresProjectLicense(version) {
+  const [major, minor] = String(version).split(".").map(Number);
+  return major > 2 || (major === 2 && minor >= 1);
 }
 
 function collectEntry(value, entries) {

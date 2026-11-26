@@ -3,6 +3,20 @@ import { describe, expect, it } from "vitest";
 import { collectRequiredEntries, evaluatePackageFiles } from "./package-artifacts.mjs";
 
 describe("npm 发布包内容门禁", () => {
+  it("从 2.1 起包内必须带项目许可证，第三方许可证不能代替", () => {
+    const manifest = { name: "coremind-tools", version: "2.1.0" };
+    const requiredFiles = collectRequiredEntries(manifest);
+    expect(requiredFiles).toContain("LICENSE");
+    expect(collectRequiredEntries({ ...manifest, version: "2.0.0" })).not.toContain("LICENSE");
+    const result = evaluatePackageFiles({
+      packageName: manifest.name,
+      declaredFiles: ["dist"],
+      packedFiles: requiredFiles.filter((file) => file !== "LICENSE"),
+      requiredFiles,
+    });
+    expect(result.blockers).toEqual(["coremind-tools 缺少入口：LICENSE"]);
+  });
+
   it("Windows MCP 六个冻结资产均为必需的发布入口", () => {
     const assets = [
       "service.mjs",
