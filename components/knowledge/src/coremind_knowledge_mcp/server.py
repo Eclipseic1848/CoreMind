@@ -103,7 +103,7 @@ def make_app(catalog, scope, as_of, token):
         if not query.strip():
             raise ValueError("查询不能为空")
         matches = catalog.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
-        fields = {"docId", "version", "file", "line", "locator", "text", "tableHeader"}
+        fields = {"docId", "version", "file", "line", "locator", "chunkId", "text", "tableHeader"}
         citations = [{key: value for key, value in row.items() if key in fields} for row in matches]
         return json.dumps({"citations": citations}, ensure_ascii=False)
 
@@ -114,11 +114,13 @@ def make_app(catalog, scope, as_of, token):
         file: Annotated[str, Field(min_length=1, max_length=200)],
         line: Annotated[int | None, Field(ge=1)] = None,
         locator: Annotated[str | None, Field(max_length=200)] = None,
+        chunkId: Annotated[int | None, Field(ge=1)] = None,
     ) -> str:
-        """解析旧运行留下的引文；返回可用原文、已撤回或未知状态。"""
+        """回查原文。使用检索返回的 chunkId 或 Markdown 行号。旧位置匹配多段时报告歧义。"""
         return json.dumps(
             catalog.resolve(
-                docId.strip(), version, file, line=line, locator=locator, scope=scope, as_of=as_of
+                docId.strip(), version, file, line=line, locator=locator,
+                scope=scope, as_of=as_of, chunk_id=chunkId,
             ),
             ensure_ascii=False,
         )

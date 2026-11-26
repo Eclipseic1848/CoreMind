@@ -24,14 +24,20 @@ Read the supporting excerpt before using a retrieved item to answer. If the visi
 
 For a Markdown table row, both `search_knowledge` and `resolve_citation` include a `tableHeader` from the same document version. In the example above, line 6 keeps the original item, desk and packaging values. The header is on line 4 (`tableHeader[0].line`), with the original column labels in `tableHeader[0].text`. Interpret each value using those labels and cite the data row. Ordinary paragraphs, header rows and example tables inside code blocks keep their existing citation format.
 
+The current source returns a positive integer `chunkId` for PDF and DOCX excerpts, numbered from 1 within each document version. Display the page or section from `locator`. For exact lookup, pass the returned `docId`, `version`, `file` and `chunkId` to `resolve_citation`. If you supply extra location fields, they must all match. Markdown citations use the line number. Compare the search and lookup text using the [excerpt lookup example](../../../examples/modules/manage-knowledge/README.en.md#resolve-excerpts-on-the-same-page-or-in-the-same-section).
+
 ## Incremental imports and withdrawal
 
-Pass `--state` to keep a state file with each version's text, scope and withdrawal status. Restarting with the same version and content does not write a duplicate. Changed content for an existing version fails and requires a version bump. `--withdraw DOC:VERSION` removes that version from search immediately, while `resolve_citation` tells an old run whether its citation is available, withdrawn or unknown. A failed rebuild keeps the previous index and state file.
+Pass `--state` to keep a state file with each version's text, scope and withdrawal status. Restarting with the same version and content does not write a duplicate. Changed content for an existing version fails and requires a version bump. `--withdraw DOC:VERSION` removes that version from search immediately. A failed rebuild keeps the previous index and state file.
 
 Historical citations use the service’s reader scope and the manifest’s as-of date. Validity starts on the first date and ends before the expiry date. Out-of-scope or out-of-period citations return `unknown`. Readers can see an excerpt or a withdrawal status only within that boundary.
+
+The current source resolves old page or section citations with a single match. Multiple matches return `ambiguous`, and no matches return `missing`. Neither result includes an excerpt. A visible withdrawn version returns `withdrawn` before excerpt lookup.
 
 Re-import the original manifest and Markdown files to upgrade a saved state. The service checks the existing text, positions, version and visibility before adding header context. It preserves withdrawals and treats subsequent identical imports as unchanged.
 
 ## Upgrade and removal
 
 Stop the old service before upgrading and save the originals, manifest, model revision and state file. Start the target version against a copy. Verify current citations, idempotent imports and withdrawn citations before switching the client. A rollback uses the previous service environment and checked state while preserving withdrawals made since the upgrade. To disconnect a project, remove its MCP tools, server binding and reader credential. Stop the process and remove its Python environment if the service belongs exclusively to that project. Source documents, manifests, withdrawal records and shared models stay under their owners' retention policies.
+
+The service derives `chunkId` from the stored excerpt order for each version, so the catalog can be used for upgrades and rollbacks. Public version 0.1.0 understands the legacy locations. After rolling back to 0.1.0, check a shared page or section in the original document. Exact lookup by `chunkId` requires a service that supports it.

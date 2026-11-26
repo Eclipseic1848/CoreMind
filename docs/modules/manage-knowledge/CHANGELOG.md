@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Return a document-version-scoped `chunkId` for PDF and DOCX citation lookup. Report an ambiguous legacy location without supplying an excerpt. Existing catalogs can supply the IDs directly from stored chunk order.
+
 ## 2.1.0 - 2026-11-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

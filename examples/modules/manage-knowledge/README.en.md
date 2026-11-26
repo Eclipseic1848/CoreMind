@@ -62,7 +62,7 @@ The acceptance script runs the CLI with the project configuration, the TypeScrip
 
 ## Incremental imports and withdrawal
 
-Pass `--state` to keep each version's text, scope and withdrawal status. Restarting with the same version and content does not duplicate it; changed content fails until the version is bumped. `--withdraw DOC:VERSION` withdraws a version at startup, and `resolve_citation` reports whether an old citation is `available`, `withdrawn` or `unknown`.
+Pass `--state` to keep each version's text, scope and withdrawal status. Restarting with the same version and content does not duplicate it. Changed content fails until the version is bumped. `--withdraw DOC:VERSION` withdraws a version at startup. See the [guide](../../../docs/modules/manage-knowledge/GUIDE.en.md#incremental-imports-and-withdrawal) for old-citation lookup results.
 
 ```sh
 python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json
@@ -89,6 +89,25 @@ python -B -X utf8 examples/knowledge-evals/zh-retrieval/test_docling_bridge.py -
 ```
 
 For offline operation, prefetch assets with `docling-tools models download layout tableformer rapidocr --rapidocr-backend-lang onnxruntime:ch -o MODEL_DIR`, point `DOCLING_ARTIFACTS_PATH` at that directory and set `HF_HUB_OFFLINE` to `1`. [Docling offline setup](https://docling-project.github.io/docling/usage/advanced_options/)
+
+## Resolve excerpts on the same page or in the same section
+
+From the repository root, run `python -m pip install "./components/knowledge[documents]"` in a dedicated Python 3.12 environment to install the current source with PDF and DOCX support. In a project directory outside the repository, use the two fixture files, sample client and manifest from the [shared example setup](README.zh-CN.md#回查同页或同节的片段).
+
+Set the same `COREMIND_KNOWLEDGE_AUTHORIZATION` value in both terminals. Run the service in the project directory, replacing `MODEL_DIR` with the BGE-M3 model directory.
+
+```sh
+coremind-knowledge-mcp --manifest ./manifest.json --model-dir MODEL_DIR --state ./state/catalog.json --scope public
+```
+
+Once the service is ready, run both queries from the project directory in the other terminal.
+
+```sh
+python -X utf8 query.py "纸质目录统一使用什么颜色的封面"
+python -X utf8 query.py "松纹卡银杏台"
+```
+
+The client sends the returned `chunkId` to `resolve_citation`, checks the excerpt and prints the result. Look for the text about the blue cover (“纸质目录统一使用蓝色封面。”) on page 1 of the PDF and the 松纹卡 / 银杏台 table in the DOCX section titled “归档窗口”. Restart with the same `--state` and verify that the excerpt IDs and text are stable. Press Ctrl+C in the service terminal when done.
 
 ## Check the returned evidence
 

@@ -8,6 +8,7 @@
 6. Run the tests in the [module manifest](module.yaml) and `npm run check:modules`. Record the test environment, corpus digest, component versions, citations from all three entry points and the reasons for choosing a retrieval method.
 7. Check increments and withdrawal: start twice with `--state` and confirm no change; change content under the same version and confirm rejection; withdraw an active version and confirm search excludes it and old citations report `withdrawn`; inject a rebuild failure and confirm the previous index and state file remain.
 8. Resolve the same citation as two readers. Check the first valid day, expiry day and withdrawal. Inject a state-file replacement failure and verify search, citation lookup and restart all reflect the last committed version.
+9. Install from the current source and run the [excerpt lookup example](../../../examples/modules/manage-knowledge/README.en.md#resolve-excerpts-on-the-same-page-or-in-the-same-section). Search for multiple fragments from the same PDF page and DOCX section. Resolve each hit with its `docId`, `version`, `file` and `chunkId`, then compare the returned text exactly and repeat after restart. Send the shared `locator` without `chunkId` and expect `ambiguous` with no excerpt. A unique legacy location must still resolve. Verify `withdrawn` with the authorized reader and `unknown` for an out-of-scope or expired citation.
 
 ## Standalone wheel acceptance
 

@@ -62,7 +62,7 @@ node examples/modules/manage-knowledge/acceptance.mjs
 
 ## 增量导入与撤回
 
-使用 `--state` 保存每个文档版本的原文、范围和撤回状态。相同版本与内容重复启动不会重复写入；同版本内容变化会失败并要求提升版本号。`--withdraw DOC:VERSION` 在启动时撤回指定版本；服务提供的 `resolve_citation` 返回旧引文是 `available`、`withdrawn` 还是 `unknown`。
+使用 `--state` 保存每个文档版本的原文、范围和撤回状态。相同版本与内容重复启动不会重复写入，同版本内容变化会失败并要求提升版本号。`--withdraw DOC:VERSION` 在启动时撤回指定版本。旧引文的回查状态见[使用指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md#增量导入与撤回)。
 
 ```sh
 python -B -X utf8 examples/modules/manage-knowledge/knowledge_server.py --model-dir .scratch/p1/qdrant-model --state .scratch/p1/knowledge-state.json
@@ -89,6 +89,41 @@ python -B -X utf8 examples/knowledge-evals/zh-retrieval/test_docling_bridge.py -
 ```
 
 离线使用时，可先用 `docling-tools models download layout tableformer rapidocr --rapidocr-backend-lang onnxruntime:ch -o MODEL_DIR` 预取资源，然后把 `DOCLING_ARTIFACTS_PATH` 设置为该目录，`HF_HUB_OFFLINE` 设为 `1`。[Docling 离线运行说明](https://docling-project.github.io/docling/usage/advanced_options/)
+
+## 回查同页或同节的片段
+
+在专用 Python 3.12 环境中，从仓库根目录安装当前源码和文档解析扩展。
+
+```sh
+python -m pip install "./components/knowledge[documents]"
+```
+
+在仓库外新建项目目录，将[值班记录.pdf](../../knowledge-evals/zh-retrieval/formats/值班记录.pdf)和[归档窗口.docx](../../knowledge-evals/zh-retrieval/formats/归档窗口.docx)复制到项目的 `sources/`，将[查询客户端](../../../components/knowledge/example/query.py)复制到项目根目录。在项目根目录按下面的内容保存 `manifest.json`。
+
+```json
+{
+  "asOf": "2026-10-01",
+  "documents": [
+    { "id": "shift-log", "version": 1, "file": "值班记录.pdf", "access": "public", "validFrom": "2026-01-01", "validUntil": null },
+    { "id": "archive-desk", "version": 1, "file": "归档窗口.docx", "access": "public", "validFrom": "2026-01-01", "validUntil": null }
+  ]
+}
+```
+
+沿用两个终端的 `COREMIND_KNOWLEDGE_AUTHORIZATION` 配置。在项目目录启动服务，将 `MODEL_DIR` 换成本机 BGE-M3 模型目录。
+
+```sh
+coremind-knowledge-mcp --manifest ./manifest.json --model-dir MODEL_DIR --state ./state/catalog.json --scope public
+```
+
+服务就绪后，在第二个终端的项目目录执行两次查询。
+
+```sh
+python -X utf8 query.py "纸质目录统一使用什么颜色的封面"
+python -X utf8 query.py "松纹卡银杏台"
+```
+
+客户端把搜索命中的 `chunkId` 传入 `resolve_citation`，核对回查正文并打印结果。核对 PDF 第 1 页的“纸质目录统一使用蓝色封面。”和 DOCX “归档窗口”节内含“松纹卡”“银杏台”的表格。用相同的 `--state` 重启后再次查询，核对各片段的 `chunkId` 和回查文字。完成后在服务终端按 Ctrl+C。
 
 ## 核对返回的证据
 
