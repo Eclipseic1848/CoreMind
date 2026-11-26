@@ -30,4 +30,6 @@ For a tool-only delivery, register just the selected operation and preserve the 
 
 Use the [offline capability regression](../../docs/modules/evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain actual call counts, approvals, arguments and structured values across local, stdio and HTTP transports.
 
+For writes, agree on a business receipt schema and validate `details` or the plain return from local `defineTool`. Advertise the same `outputSchema` in MCP and return `structuredContent`. Use the [write-receipt check](../../examples/modules/build-tools/README.en.md#verify-write-receipts-across-three-entry-points) to compare valid, invalid and lost receipts. For an effectful `replay: "unsafe"` tool, check that repeated arguments in the same Run after an `unknown` receipt do not write again. Reconcile across Runs by the business request ID.
+
 中文执行原则：先确认业务规则，再按 SOP 实现；失败不得伪装成成功；full 只改变审批强度，不得关闭显式 deny、审计、checkpoint 和恢复。路径感知文件工具与 shell 的平台边界必须分别验证。

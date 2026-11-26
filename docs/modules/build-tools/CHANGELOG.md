@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Validate local tool outputs with optional object schemas and verify the same write-receipt contract across local, stdio MCP, and Streamable HTTP MCP tools. Block repeats of unconfirmed unsafe effects within the same Run.
+
 ## 2.1.0 - 2026-11-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

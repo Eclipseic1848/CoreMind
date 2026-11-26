@@ -674,6 +674,7 @@ const modules = [
       "packages/coremind-runtime/src/mcp-runtime.acceptance.test.ts",
       "packages/coremind-runtime/src/mcp-http-runtime.acceptance.test.ts",
       "examples/modules/build-tools/transport-parity.mjs",
+      "examples/modules/build-tools/write-receipts.mjs",
       "examples/modules/build-tools/browser/run.mjs",
     ],
     dependencies: ["configure-coremind", "enforce-agent-permissions", "manage-checkpoints"],

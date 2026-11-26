@@ -37,6 +37,17 @@ node examples/modules/build-tools/transport-parity.mjs
 
 确定性模型夹具分别调用本地函数、真实 stdio MCP 和回环 Streamable HTTP MCP。三种入口应返回 `{"flag":false,"count":0,"empty":null}`。脚本核验 stdio 和 HTTP 的连接、工具目录及回显审批，并关闭本机服务。[可选浏览器示例](../../../docs/modules/build-tools/BROWSER.zh-CN.md)
 
+## 三入口写入回执验收
+
+从当前源码构建后运行下面的命令。示例在本机对照同一合成写入的三种入口，覆盖正常回执、缺必填字段、字段类型错误及业务已写入但回执丢失。使用确定性模型夹具和专用本地 MCP 服务。
+
+```sh
+npm run build
+node examples/modules/build-tools/write-receipts.mjs --output .scratch/issue-438/write-receipts.json
+```
+
+JSON 报告记录 12 个用例的模型调用次数、实际业务写入次数、副作用状态和冷恢复结果。每个入口的正常回执应为 `committed`，不完整或丢失的回执应为 `unknown`。逐项核对 `unknown` 场景在原 Run 重试和冷恢复时均未再次写入。将同一 Schema 应用到自己的工具时，由宿主使用业务请求 ID 核查最终状态。[开发 SOP](../../../docs/modules/build-tools/SOP.zh-CN.md#验收写入回执与效果未知)
+
 ## 本地 MCP 验证
 
 使用[完整配置](../../../docs/guide/02-configuration.md#mcp按-agent-选择本地工具)替换成本机已经审核的 stdio 程序。先运行 `coremind doctor coremind.yaml`，确认自检没有启动服务，再通过 `coremind run coremind.yaml --prompt "调用已批准的工具"` 分别审批连接、目录和业务动作。检查三次独立 Call/EffectReceipt、真实原名参数与终态后进程退出。

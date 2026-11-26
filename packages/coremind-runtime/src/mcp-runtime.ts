@@ -315,7 +315,27 @@ export function createMcpRun(options: McpRunOptions) {
                   ...(context.signal ? [context.signal] : []),
                 ]);
                 assertOpen(callSignal);
-                return connectedClient.callTool(listed, args, callSignal);
+                try {
+                  return await connectedClient.callTool(listed, args, callSignal);
+                } catch (error) {
+                  const code = error instanceof Error && "code" in error ? error.code : undefined;
+                  // 该写入已经交给传输，无法区分未提交与回执丢失。
+                  if (
+                    listed.outputSchema !== undefined &&
+                    selection.capability.effect !== "none" &&
+                    selection.capability.replay === "unsafe" &&
+                    !callSignal.aborted &&
+                    (code === "mcp_protocol_error" ||
+                      code === "mcp_transport_error" ||
+                      code === "mcp_http_request_failed")
+                  ) {
+                    throw new CoreMindError(
+                      "tool_execution_failed",
+                      "MCP 写入未取得有效回执，业务结果待确认",
+                    );
+                  }
+                  throw error;
+                }
               },
             },
           });

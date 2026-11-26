@@ -46,6 +46,14 @@ Use a business-specific tool name rather than a reserved built-in name such as `
 
 For non-2xx responses or body-read failures, built-in `web-fetch` and `web-search` await response-body cancellation/release cleanup attempts before settling local network activity. A cleanup failure preserves the original HTTP/read error. Normal results, cancellation behavior, existing permissions, and network policy remain unchanged; `web-fetch` still limits response bodies to 2 MiB.
 
+## Validate business output and write receipts
+
+Use a Runtime built from the current source. Have the business owner first specify which fields confirm a write, such as a business request ID and final status. Declare an optional object `outputSchema` on a local `defineTool`. The Runtime uses the existing JSON Schema dialect to validate a non-null `details` in a `{ text, details }` result. Otherwise, it checks the entire returned value, including a business object with a `text` field. An explicit `isError: true` response is treated as a tool error.
+
+For stdio and Streamable HTTP MCP, advertise the same `outputSchema` in `tools/list` and put the business receipt in `structuredContent` on success. Use the existing MCP configuration. For missing fields, incorrect value types, or a lost receipt, the Runtime returns a tool error to the model and retains execution evidence. Raw invalid receipts do not reach the model.
+
+When a write started but its business effect remains unconfirmed, inspect `effect_receipt` in Trace. For an effectful tool declared with `capability.replay: "unsafe"`, a `started` or `unknown` receipt blocks another execution of the same tool and arguments during that Run. Cold recovery still pauses on these receipts. Across Runs, look up the business request ID in the business ledger before deciding how to proceed. [Three-entry example](../../../examples/modules/build-tools/README.en.md#verify-write-receipts-across-three-entry-points) · [Recovery contract](../recover-durable-runs/GUIDE.en.md)
+
 ## Local MCP services
 
 Use the [configuration guide](../../en/guide/02-configuration.md#agent-scoped-local-mcp-tools) to declare audited programs and exact per-agent raw tool references. CLI, TypeScript, and Python share the Node Runtime; Python does not create a second MCP client. Do not inject a remote catalog through global SDK `toolDefinitions`.

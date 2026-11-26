@@ -51,6 +51,14 @@ The three echo routes returned identical fields on Windows and in a Linux contai
 
 Use the [optional-capability regression](../evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain actual arguments, counts, approvals and results for all three transports. Compare `false`, `0` and `null`, and inspect the call evidence if a transport retries or loses a value.
 
+## Verify write receipts and unknown effects
+
+1. Define required receipt fields and types for the same synthetic write. Use `outputSchema` on the local tool. For stdio and HTTP MCP, advertise the same schema in the catalog and return `structuredContent` on success. Declare actual effects for each entry point and set `capability.replay: "unsafe"` for writes that cannot safely be repeated.
+2. Exercise a valid receipt, a missing required field, an incorrect field type, and a lost receipt after the write. The valid receipt must pass schema validation and record `committed`. In the other three cases, inspect the tool error, the `unknown` effect receipt, and the business invocation count. Verify that the raw invalid result does not reach the model.
+3. For every `unknown` result, have the model submit the same tool and arguments again in the original Run. Verify that the business invocation count stays at one. Then attempt cold recovery from the original fact prefix through the `unknown` receipt. Verify that recovery refuses the replay and sends no additional write. For reconciliation across Runs, look up the same business request ID in the ledger and record the actual outcome.
+
+Run the [three-entry write-receipt check](../../../examples/modules/build-tools/README.en.md#verify-write-receipts-across-three-entry-points) and retain its JSON report. For a real application, verify the original request against the host's business ledger.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.
