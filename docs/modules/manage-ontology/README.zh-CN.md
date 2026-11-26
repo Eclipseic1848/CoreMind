@@ -11,4 +11,6 @@
 | 06.03 规则约束与校验 | 用 pySHACL 执行 SHACL Core 校验，返回违规对象、属性、规则与说明。 |
 | 06.04 业务动作语义 | 宿主声明目标类型、前态、后态和处理器；执行时复核权限、前置条件与业务回执。 |
 
+当前源码建成的组件允许授权宿主按原请求 ID 对账。业务系统确认未知写入的实际结果后，组件保存核实的终态供后续动作使用。[动作对账](GUIDE.zh-CN.md#宿主对账与后续动作)
+
 默认项目无需绑定本体。CLI、TypeScript、Python 同步和异步入口可通过同一个 Streamable HTTP MCP 服务使用业务模型。接入步骤见[指南](GUIDE.zh-CN.md)，可运行命令见[示例](../../../examples/modules/manage-ontology/README.zh-CN.md)，验收判据见[开发 SOP](SOP.zh-CN.md)。

@@ -7,21 +7,39 @@ import os
 import runpy
 from importlib.metadata import version
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 import uvicorn
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import CallToolResult, TextContent
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.routing import Match
 
 
 Identifier = Annotated[str, Field(min_length=1, max_length=512)]
 ActionIdentifier = Annotated[str, Field(min_length=1, max_length=128)]
+RECONCILE_PATH = "/admin/reconcile-action"
 
 
-def make_app(project, read_token, action_token=None):
+class Reconciliation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    requestId: ActionIdentifier
+    resource: Identifier
+    previousState: str
+    status: Literal["completed", "failed"]
+    state: str
+
+
+def make_app(project, read_token, action_token=None, *, reconcile_token=None):
+    if reconcile_token is not None and any(
+        token is not None and hmac.compare_digest(reconcile_token, token)
+        for token in (read_token, action_token)
+    ):
+        raise ValueError("本体对账须使用独立的宿主令牌")
     mcp = FastMCP("CoreMind Ontology", stateless_http=True, json_response=True)
 
     def invoke(method, *args):
@@ -69,14 +87,34 @@ def make_app(project, read_token, action_token=None):
     async def health(_request):
         return JSONResponse({"status": "ready" if project is not None else "unavailable"})
 
+    @mcp.custom_route(RECONCILE_PATH, methods=["POST"])
+    async def reconcile(request):
+        try:
+            receipt = Reconciliation.model_validate(await request.json())
+        except (ValidationError, ValueError):
+            return JSONResponse({"error": "invalid_request"}, status_code=400)
+        if project is None:
+            return JSONResponse({"status": "unavailable", "reason": "ontology_unavailable"}, status_code=503)
+        try:
+            result = await run_in_threadpool(project.reconcile_action, receipt.model_dump())
+        except Exception:
+            return JSONResponse({"status": "unavailable", "reason": "ontology_unavailable"}, status_code=503)
+        if result["status"] == "unavailable":
+            return JSONResponse(result, status_code=503)
+        if result["status"] == "denied":
+            return JSONResponse(result, status_code=404 if result["reason"] == "request_not_found" else 409)
+        return JSONResponse(result)
+
     app = mcp.streamable_http_app()
+    reconcile_route = next(route for route in app.routes if route.path == RECONCILE_PATH)
 
     async def authorized(scope, receive, send):
         if scope["type"] == "http":
-            actual = Request(scope, receive).headers.get("authorization", "").encode("utf-8")
-            if not hmac.compare_digest(actual, read_token) and (
-                action_token is None or not hmac.compare_digest(actual, action_token)
-            ):
+            request = Request(scope, receive)
+            actual = request.headers.get("authorization", "").encode("utf-8")
+            match, _ = reconcile_route.matches(scope)
+            tokens = (read_token, action_token) if match is Match.NONE else (reconcile_token,)
+            if not any(token is not None and hmac.compare_digest(actual, token) for token in tokens):
                 await JSONResponse({"error": "unauthorized"}, status_code=401)(scope, receive, send)
                 return
         await app(scope, receive, send)
@@ -110,6 +148,14 @@ def main(*, demo_executor=None):
     action_token = token("COREMIND_ONTOLOGY_ACTION_AUTHORIZATION") if args.action_handler or demo else None
     if action_token is not None and hmac.compare_digest(read_token, action_token):
         parser.error("本体动作与只读查询需要使用不同令牌")
+    reconcile_ref = "COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION"
+    reconcile_token = token(reconcile_ref) if os.environ.get(reconcile_ref) else None
+    if reconcile_token is not None:
+        if args.receipt_db is None:
+            parser.error("宿主对账需要 --receipt-db，以读取和提交原请求回执")
+        if any(value is not None and hmac.compare_digest(reconcile_token, value)
+               for value in (read_token, action_token)):
+            parser.error("本体对账须使用独立的宿主令牌")
     from .project import OntologyProject
     executor = demo_executor if demo else None
     if args.action_handler:
@@ -125,7 +171,7 @@ def main(*, demo_executor=None):
         project = None
     try:
         uvicorn.run(
-            make_app(project, read_token, action_token),
+            make_app(project, read_token, action_token, reconcile_token=reconcile_token),
             host="127.0.0.1",
             port=args.port,
             proxy_headers=False,

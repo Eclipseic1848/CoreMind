@@ -20,6 +20,28 @@ python -m pip uninstall -y coremind-ontology-mcp
 
 验收使用真实的 Streamable HTTP 客户端、pySHACL 和本机 SQLite 业务事务。它启动只读与写服务、切换模型版本、模拟业务写入后进程中断并核对重放行为。成功时返回 `businessReceipts: 2`、`unknownReplayBlocked: true` 和 `modelRollback: "1.0.0"`。卸载后业务目录应保留 `business.sqlite3`、`action-receipts.sqlite3` 和模型文件。
 
+## 验收动作回执对账
+
+按[组件说明](../../../components/ontology/README.md)构建当前源码的 wheel，在独立 Python 3.12 环境中安装。沿用上面的仓库外示例文件，使用新的空目录保存两份 SQLite 数据库。公开的 0.1.0 wheel 使用上一节的原命令。
+
+```sh
+python -I -B -X utf8 installed_acceptance.py --project ./business-reconcile --reconcile
+```
+
+脚本配置独立宿主对账令牌，模拟业务已提交但网关在返回回执前中断。重启后先验证不匹配的证据仍会阻断新动作，再读取本地权威业务回执并写回。原请求 ID 经 MCP 回读终态，对象查询反映业务后态。成功回执的 `reconciledStatuses` 包含 `completed` 和 `failed`，`reconcileExecutorCalls` 为 `0`，后续动作及重启复查后的状态为 `published`。
+
+下列请求体来自示例业务账本中已提交的复核动作。使用自己项目的模型时，按[宿主对账指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md#宿主对账与后续动作)提交已核实的实际结果。
+
+```json
+{
+  "requestId": "lost",
+  "resource": "urn:doc:draft",
+  "previousState": "draft",
+  "status": "completed",
+  "state": "reviewed"
+}
+```
+
 ## 运行
 
 准备 Python 3.12、uv 与项目要求的 Node.js。从仓库根目录执行以下命令。Windows 的解释器路径如下，Linux 使用 `.scratch/ontology-venv/bin/python`。

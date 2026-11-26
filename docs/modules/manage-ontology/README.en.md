@@ -11,4 +11,6 @@ Run `python -m pip install coremind-ontology-mcp==0.1.0` in a dedicated service 
 | 06.03 Constraints and validation | Run SHACL Core validation with pySHACL and return the affected resource, property, rule and explanation. |
 | 06.04 Business actions | The host binds a target class, source state, destination state and handler. Execution checks permission, current prerequisites and the business receipt. |
 
+A component built from the current source lets an authorized host reconcile an uncertain write using its original request ID. Once the business system confirms the outcome, the component stores it for follow-up actions. [Action reconciliation](GUIDE.en.md#host-reconciliation-and-follow-up-actions)
+
 Projects can run with the ontology unbound. The CLI, TypeScript SDK and synchronous and asynchronous Python SDK can use the same Streamable HTTP MCP service. See the [integration guide](GUIDE.en.md), [runnable example](../../../examples/modules/manage-ontology/README.en.md) and [acceptance procedure](SOP.en.md).

@@ -64,6 +64,15 @@ async def call(url, token, tool, **arguments):
                 return json.loads(response.content[0].text)
 
 
+async def expect_interruption(url, token, process, *, code, **arguments):
+    try:
+        await call(url, token, "perform_action", **arguments)
+    except Exception:
+        assert process.wait(timeout=10) == code
+    else:
+        raise AssertionError("发生合成故障后本体服务应已中断")
+
+
 async def probe(folder, model_sources, handler, console):
     source = Path(shutil.copytree(model_sources / "document-review", folder / "model-v1"))
     revised = Path(shutil.copytree(source, folder / "model-v2"))
@@ -72,7 +81,9 @@ async def probe(folder, model_sources, handler, console):
     config["modelVersion"] = "1.1.0"
     actions.write_text(json.dumps(config), encoding="utf-8")
     read, write = ["Bearer " + secrets.token_urlsafe(32) for _ in range(2)]
-    env = {k: v for k, v in os.environ.items() if k.upper() not in {"PYTHONPATH", "PYTHONHOME"}}
+    env = {k: v for k, v in os.environ.items() if k.upper() not in {
+        "PYTHONPATH", "PYTHONHOME", "COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION",
+    }}
     business = folder / "business.sqlite3"
     env.update(COREMIND_ONTOLOGY_AUTHORIZATION=read, COREMIND_ONTOLOGY_ACTION_AUTHORIZATION=write,
                ONTOLOGY_BUSINESS_DB=str(business), PYTHONNOUSERSITE="1")
@@ -95,20 +106,20 @@ async def probe(folder, model_sources, handler, console):
     shutil.copy2(handler, adapter)
     crash = folder / "crash_after_commit.py"
     crash.write_text(
-        'import os, runpy\nfrom pathlib import Path\n'
+        'import json, os, runpy\nfrom pathlib import Path\n'
         'commit = runpy.run_path(str(Path(__file__).with_name("receipt_handler.py")))["execute"]\n'
-        'def execute(command):\n    receipt = commit(command)\n'
+        'def execute(command):\n'
+        '    with Path(__file__).with_name("executor-attempts.jsonl").open("a", encoding="utf-8") as log:\n'
+        '        log.write(json.dumps(command["requestId"]) + "\\n")\n'
+        '    if command["requestId"] == "lost-failed": os._exit(97)\n'
+        '    receipt = commit(command)\n'
         '    if command["requestId"] == "lost": os._exit(98)\n    return receipt\n', encoding="utf-8")
     with service(console, folder, source, env, read, handler=crash, journal=journal) as (url, proc):
         assert (await call(url, read, "perform_action", **args))["reason"] == "action_not_authorized"
         assert (await call(url, write, "perform_action", **{**args,"resource":draft}))["reason"] == "precondition_failed"
         assert (await call(url, write, "perform_action", **args))["status"] == "completed"
-        try:
-            await call(url, write, "perform_action", action="review", resource=draft, request_id="lost")
-        except Exception:
-            assert proc.wait(timeout=10) == 98
-        else:
-            raise AssertionError("业务提交后服务应已中断")
+        await expect_interruption(url, write, proc, code=98,
+                                  action="review", resource=draft, request_id="lost")
     for model in (revised, source):
         with service(console, folder, model, env, read, handler=adapter, journal=journal) as (url, _):
             info = await call(url, read, "describe", resource=guide)
@@ -126,9 +137,112 @@ async def probe(folder, model_sources, handler, console):
     return first["bundleDigest"]
 
 
+async def probe_reconciliation(folder, console):
+    read, write, reconcile = ["Bearer " + secrets.token_urlsafe(32) for _ in range(3)]
+    business = folder / "business.sqlite3"
+    env = {k: v for k, v in os.environ.items() if k.upper() not in {"PYTHONPATH", "PYTHONHOME"}}
+    env.update(COREMIND_ONTOLOGY_AUTHORIZATION=read, COREMIND_ONTOLOGY_ACTION_AUTHORIZATION=write,
+               COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION=reconcile, ONTOLOGY_BUSINESS_DB=str(business),
+               PYTHONNOUSERSITE="1")
+    journal = folder / "action-receipts.sqlite3"
+    handler = folder / "crash_after_commit.py"
+    model = folder / "model-v1"
+    guide, draft = "urn:doc:guide", "urn:doc:draft"
+    reviewed = {"action": "review", "resource": draft, "request_id": "lost"}
+    failed = {"action": "publish", "resource": draft, "request_id": "lost-failed"}
+    publish = {**failed, "request_id": "after-reconciliation"}
+
+    def attempts():
+        return [json.loads(row) for row in (folder / "executor-attempts.jsonl").read_text(encoding="utf-8").splitlines()]
+
+    def business_snapshot():
+        with closing(sqlite3.connect(business.as_uri() + "?mode=ro", uri=True)) as db:
+            objects = dict(db.execute("SELECT resource,state FROM objects"))
+            receipts = {request_id: json.loads(value) for request_id, value in
+                        db.execute("SELECT request_id, receipt FROM receipts")}
+        return objects, receipts
+
+    async def post(url, body, *, token=reconcile, code=200):
+        async with httpx.AsyncClient(headers={"Authorization": token}, trust_env=False, timeout=5) as client:
+            response = await client.post(url.removesuffix("/mcp") + "/admin/reconcile-action", json=body)
+        assert response.status_code == code, (response.status_code, response.text)
+        return response.json()
+
+    async def state(url):
+        info = await call(url, read, "describe", resource=draft)
+        return [p["value"] for p in info["properties"] if p["predicate"] == "urn:review:state"]
+
+    initial_attempts = ["publish-guide", "lost"]
+    assert attempts() == initial_attempts
+    initial_state, initial_receipts = business_snapshot()
+    assert initial_state == {guide: "published", draft: "reviewed"}
+    confirmed = initial_receipts["lost"]
+    assert confirmed == {"requestId": "lost", "resource": draft, "previousState": "draft",
+                         "status": "completed", "state": "reviewed"}
+    with service(console, folder, model, env, read, handler=handler, journal=journal) as (url, proc):
+        prior = await call(url, write, "perform_action", **reviewed)
+        assert prior["status"] == "unknown" and prior["replayed"]
+        assert await state(url) == ["draft"]
+        for token in (read, write):
+            await post(url, confirmed, token=token, code=401)
+        await post(url, {**confirmed, "requestId": "no-such-request"}, code=404)
+        await post(url, {**confirmed, "unexpected": True}, code=400)
+        for change in ({"resource": guide}, {"previousState": "reviewed"}, {"state": "published"}):
+            await post(url, {**confirmed, **change}, code=409)
+        assert (await call(url, write, "perform_action", **publish))["reason"] == "prior_effect_unknown"
+        assert (await call(url, write, "perform_action", **reviewed))["status"] == "unknown"
+        assert attempts() == initial_attempts and business_snapshot() == (initial_state, initial_receipts)
+
+        completed = await post(url, confirmed)
+        assert all(completed[key] == value for key, value in confirmed.items()) and not completed.get("replayed")
+        assert await post(url, confirmed) == {**completed, "replayed": True}
+        assert await call(url, write, "perform_action", **reviewed) == {**completed, "replayed": True}
+        assert await state(url) == ["reviewed"]
+        await post(url, {**confirmed, "status": "failed", "state": "draft"}, code=409)
+        assert attempts() == initial_attempts and business_snapshot() == (initial_state, initial_receipts)
+        await expect_interruption(url, write, proc, code=97, **failed)
+
+    failed_attempts = [*initial_attempts, "lost-failed"]
+    assert attempts() == failed_attempts and business_snapshot() == (initial_state, initial_receipts)
+    unsuccessful = {"requestId": "lost-failed", "resource": draft, "previousState": initial_state[draft],
+                    "status": "failed", "state": initial_state[draft]}
+    with service(console, folder, model, env, read, handler=handler, journal=journal) as (url, _):
+        assert await state(url) == ["reviewed"]
+        assert await call(url, write, "perform_action", **reviewed) == {**completed, "replayed": True}
+        assert (await call(url, write, "perform_action", **failed))["status"] == "unknown"
+        assert (await call(url, write, "perform_action", **publish))["reason"] == "prior_effect_unknown"
+        rejected = await post(url, unsuccessful)
+        assert all(rejected[key] == value for key, value in unsuccessful.items()) and not rejected.get("replayed")
+        assert await post(url, unsuccessful) == {**rejected, "replayed": True}
+        assert await call(url, write, "perform_action", **failed) == {**rejected, "replayed": True}
+        assert await state(url) == ["reviewed"]
+        assert attempts() == failed_attempts and business_snapshot() == (initial_state, initial_receipts)
+        next_action = await call(url, write, "perform_action", **publish)
+        assert next_action["status"] == "completed" and next_action["state"] == "published"
+        assert await state(url) == ["published"]
+
+    final_attempts = [*failed_attempts, "after-reconciliation"]
+    assert attempts() == final_attempts
+    final_state, final_receipts = business_snapshot()
+    assert final_state == {guide: "published", draft: "published"}
+    assert sorted(final_receipts) == ["after-reconciliation", "lost", "publish-guide"]
+    with service(console, folder, model, env, read, handler=handler, journal=journal) as (url, _):
+        assert await state(url) == ["published"]
+        assert await call(url, write, "perform_action", **failed) == {**rejected, "replayed": True}
+        assert await post(url, unsuccessful) == {**rejected, "replayed": True}
+        assert await post(url, confirmed) == {**completed, "replayed": True}
+        assert await call(url, write, "perform_action", **publish) == {**next_action, "replayed": True}
+    assert attempts() == final_attempts and business_snapshot() == (final_state, final_receipts)
+    return {"reconciledStatuses": {"lost": "completed", "lost-failed": "failed"},
+            "verifiedAuthorizationAndConflicts": True, "reconcileExecutorCalls": 0,
+            "executorAttempts": final_attempts, "businessReceipts": len(final_receipts),
+            "laterAction": next_action["status"], "finalStateAfterRestart": final_state[draft]}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, help="空的外部业务目录；提供后保留模型和回执供卸载核对")
+    parser.add_argument("--reconcile", action="store_true", help="验收当前候选 wheel 的回执对账和后续动作")
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
     console = Path(sysconfig.get_path("scripts")) / ("coremind-ontology-mcp.exe" if os.name=="nt" else "coremind-ontology-mcp")
@@ -142,5 +256,8 @@ if __name__ == "__main__":
         if any(folder.iterdir()):
             raise SystemExit("验收需要空的业务目录")
         digest = asyncio.run(probe(folder,here/"models",here/"receipt_handler.py",console))
-        print(json.dumps({"component":dist.version,"modelBundle":digest,"readMappingChecks":3,
-                          "businessReceipts":2,"unknownReplayBlocked":True,"modelRollback":"1.0.0"}))
+        report = {"component":dist.version,"modelBundle":digest,"readMappingChecks":3,
+                  "businessReceipts":2,"unknownReplayBlocked":True,"modelRollback":"1.0.0"}
+        if args.reconcile:
+            report.update(asyncio.run(probe_reconciliation(folder, console)))
+        print(json.dumps(report))

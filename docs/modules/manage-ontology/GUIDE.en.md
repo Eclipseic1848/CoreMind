@@ -38,6 +38,16 @@ A read credential calling `ontology_perform_action` receives `action_not_authori
 
 The handler executes a business transaction keyed by `requestId` and returns `requestId`, `resource`, `previousState`, `status`, and `state`. The [sample business handler](../../../examples/modules/manage-ontology/receipt_handler.py) commits a conditional update and its business receipt in one SQLite transaction. The component separately records the request in the project’s exclusive receipt database before dispatch. Confirmed requests return the saved receipt. Missing or inconsistent receipts and interrupted writes remain `unknown`; after restart, a new write against that resource still requires reconciliation. Preserve the database and check the authoritative business system.
 
+## Host reconciliation and follow-up actions
+
+Build the gateway from the current source and use `--receipt-db` to open the original project's receipt database. To enable reconciliation, set `COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION` to a complete `Bearer …` credential distinct from the read and action tokens. Keep it on the host. The first reconciliation of an unresolved request requires the original `bundleDigest`.
+
+Verify the original request ID, resource, action and outcome in the authoritative business system before calling `POST /admin/reconcile-action`. Submit `requestId`, `resource`, `previousState`, `status` and `state`. Use `completed` when the business action finished and `state` equals its expected destination. Use `failed` when the business system confirms zero effect and `state` equals the original previous state. Leave an uncertain effect `unknown`.
+
+HTTP 200 returns the recorded terminal result. Repeating identical evidence returns `replayed: true`. A conflict with the request, resource or model returns 409 and leaves an unresolved action blocked. An unregistered request ID returns 404, a malformed body returns 400, and a wrong credential returns 401. An unavailable model or receipt store returns 503.
+
+Use the action token with the original action, resource and `request_id` in `ontology_perform_action` to read back the terminal receipt over MCP. Check the state with `ontology_describe`. Reconciliation and reading back the original receipt make no handler calls. Use a new request ID for a follow-up action once its prerequisites hold. The original CoreMind Run still follows its own recovery gate. [Reconciliation example](../../../examples/modules/manage-ontology/README.en.md#verify-action-receipt-reconciliation)
+
 ## Upgrade and removal
 
 Use the [minimal deployment and recovery example](../../../examples/modules/manage-ontology/deployment/README.en.md) for startup from an external project, readiness and read probes, a coordinated backup of both databases and isolated restoration. Keep the latest authoritative business outcomes and unresolved requests when switching back.

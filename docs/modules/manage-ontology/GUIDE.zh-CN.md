@@ -38,6 +38,16 @@ coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 
 处理器按 `requestId` 在业务系统执行事务，返回 `requestId`、`resource`、`previousState`、`status`、`state`。[业务事务示例](../../../examples/modules/manage-ontology/receipt_handler.py)演示条件更新和业务回执在同一 SQLite 事务提交。组件另在派发前写入本项目独占的回执库。已确认的请求可回读；崩溃、丢失或不一致的回执保留为 `unknown`，重启后继续阻断同一对象的新动作。查询业务权威记录后由负责人对账，保留未决库。
 
+## 宿主对账与后续动作
+
+从当前源码构建网关，使用 `--receipt-db` 打开原项目的回执库。要启用对账，由宿主设置 `COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION`，提供完整且独立于读取与动作令牌的 `Bearer …`。凭据只留在宿主。首次对账未决请求时，使用与原请求 `bundleDigest` 一致的模型资产。
+
+先按原请求 ID 在权威业务系统核实对象、动作和实际结果，再调用 `POST /admin/reconcile-action`。请求包含 `requestId`、`resource`、`previousState`、`status` 和 `state`。工作已完成时用 `completed`，`state` 必须等于原动作的预期后态。确认事务没有生效时用 `failed`，`state` 必须等于原前态。效果仍不确定时保留 `unknown`。
+
+HTTP 200 返回已登记的终态。相同证据重交返回 `replayed: true`。证据与请求、对象或模型冲突时返回 409，未决动作仍保持阻断。未登记的请求 ID 返回 404，格式错误返回 400，错误凭据返回 401，模型或回执库不可用时返回 503。
+
+用动作令牌经 MCP 调用 `ontology_perform_action`，按原动作、对象和 `request_id` 读回终态，再用 `ontology_describe` 核对状态。对账与原请求回读均不调用业务处理器。若对象满足后续动作前置条件，申请新的请求 ID 执行该动作。原 CoreMind Run 继续受其恢复门约束。[对账验收示例](../../../examples/modules/manage-ontology/README.zh-CN.md#验收动作回执对账)
+
 ## 升级与移除
 
 [最小部署与恢复](../../../examples/modules/manage-ontology/deployment/README.zh-CN.md)提供仓库外启动、就绪与读取探针、双库同点备份和隔离恢复命令。回退前同时核查业务系统实际状态与组件回执。保留最新的权威业务结果及未决请求。

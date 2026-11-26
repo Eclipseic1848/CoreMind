@@ -23,4 +23,8 @@ python -m pip install dist/coremind_ontology_mcp-0.1.0-py3-none-any.whl
 
 The wheel runs as an independent loopback MCP service. Install `coremind-ontology-mcp==0.1.0` from PyPI in a dedicated environment, or use the optional source wheel commands above. Supply an external model directory and start the console command above. Read and action tokens are distinct. An approved business handler and a durable SQLite receipt database are required for writes. Stop the old process before switching models or component versions. Keep the model, receipt database and business records outside the environment when uninstalling.
 
+当前源码构建的组件可在 `--receipt-db` 启动参数下启用宿主对账。设置独立的 `COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION` 后，由宿主向 `POST /admin/reconcile-action` 提交权威业务系统核实的结果。查询和动作凭据按原用途注入。[宿主对账指南](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.zh-CN.md#宿主对账与后续动作)
+
+A wheel built from the current source supports host reconciliation when started with `--receipt-db` and a distinct `COREMIND_ONTOLOGY_RECONCILE_AUTHORIZATION` credential. The host submits the outcome verified in the authoritative business system to `POST /admin/reconcile-action`. [Host reconciliation guide](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.en.md#host-reconciliation-and-follow-up-actions)
+
 The repository contains the [Chinese integration guide](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.zh-CN.md), [English integration guide](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-ontology/GUIDE.en.md) and [runnable example](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-ontology/README.en.md).

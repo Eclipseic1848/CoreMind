@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add a separately authorized host endpoint that records a verified terminal receipt for an uncertain ontology action. Keep original request readback idempotent and allow subsequent actions after reconciliation.
+
 ## 2.1.0 - 2026-11-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

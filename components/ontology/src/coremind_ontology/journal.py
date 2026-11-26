@@ -41,5 +41,14 @@ class ActionJournal:
             self.db.execute("UPDATE action_receipts SET result=? WHERE request_id=?",
                             (json.dumps(result, ensure_ascii=False), result["requestId"]))
 
+    def reconcile(self, previous, result):
+        with self.db:
+            updated = self.db.execute(
+                "UPDATE action_receipts SET result=? WHERE request_id=? AND result=?",
+                (json.dumps(result, ensure_ascii=False), result["requestId"],
+                 json.dumps(previous, ensure_ascii=False)),
+            )
+            return updated.rowcount == 1
+
     def close(self):
         self.db.close()

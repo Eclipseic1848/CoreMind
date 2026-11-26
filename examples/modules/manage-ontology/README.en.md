@@ -20,6 +20,28 @@ To test a source build, follow the [component README](../../../components/ontolo
 
 The check uses a real Streamable HTTP client, pySHACL, and a local SQLite business transaction. It exercises read and write services, switches model versions, forces process termination after a business commit, and checks replay behavior. Success returns `businessReceipts: 2`, `unknownReplayBlocked: true` and `modelRollback: "1.0.0"`. After uninstall, verify that `business.sqlite3`, `action-receipts.sqlite3` and the model files remain in the business directory.
 
+## Verify action receipt reconciliation
+
+Follow the [component README](../../../components/ontology/README.md) to build a wheel from the current source and install it in a dedicated Python 3.12 environment. Reuse the standalone example files in a directory outside the checkout and choose a fresh project directory for both SQLite databases. Use the preceding command for the published 0.1.0 wheel.
+
+```sh
+python -I -B -X utf8 installed_acceptance.py --project ./business-reconcile --reconcile
+```
+
+The script uses a dedicated host reconciliation credential. It interrupts the gateway after a business commit and before a response arrives. After restart it verifies that a mismatched receipt still blocks a new action, then reads and submits the authoritative business receipt. MCP returns the terminal result for the original request ID, and the object query shows the resulting state. A successful report includes `completed` and `failed` in `reconciledStatuses`, `reconcileExecutorCalls` of `0`, and `published` as the resulting state after the follow-up and restart.
+
+This request body comes from the confirmed review action in the example's business ledger. For your own model, use the [host reconciliation guide](../../../docs/modules/manage-ontology/GUIDE.en.md#host-reconciliation-and-follow-up-actions) to submit a verified business outcome.
+
+```json
+{
+  "requestId": "lost",
+  "resource": "urn:doc:draft",
+  "previousState": "draft",
+  "status": "completed",
+  "state": "reviewed"
+}
+```
+
 ## Run the example
 
 Use Python 3.12, uv, and the Node.js version required by the repository. Run these commands from the repository root. On Linux, use `.scratch/ontology-venv/bin/python` in place of the Windows interpreter path.
