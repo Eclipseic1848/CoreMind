@@ -47,38 +47,27 @@ $saveBody = $memory | ConvertTo-Json -Compress
 Invoke-RestMethod -Method Post -Uri "$memoryUrl/retain" -Headers $memoryHeaders -ContentType 'application/json; charset=utf-8' -Body $saveBody
 ```
 
-Expect `active` and version `1`. In a new business directory with a separate Python 3.12 virtual environment, install `python -m pip install mcp==1.30.0`. Save this client as UTF-8 `read_memory.py`.
+Expect `active` and version `1`.
 
-```python
-import asyncio
-import json
-import os
-import sys
+### Recall directly from an empty Python project
 
-import httpx
-from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+Copy [direct-project](direct-project/requirements.txt) to an empty application directory outside the checkout, create a separate Python 3.12 environment and run `python -m pip install -r requirements.txt` in that directory. For direct recall alone, install `mcp==1.30.0`.
 
-async def main():
-    headers = {"Authorization": os.environ["COREMIND_MEMORY_AUTHORIZATION"]}
-    async with httpx.AsyncClient(headers=headers) as http:
-        async with streamable_http_client("http://127.0.0.1:8769/mcp", http_client=http) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                assert [t.name for t in (await session.list_tools()).tools] == ["recall_memory"]
-                reply = await session.call_tool("recall_memory", {"query": sys.argv[1]})
-                assert not reply.isError
-                print(json.dumps(json.loads(reply.content[0].text), ensure_ascii=False))
-
-asyncio.run(main())
-```
-
-In the business terminal set only the reader token, run the query, and check `demo-alice`, the document ID, version `1`, text and source. A valid reader bound only to a different empty bank gets an empty `memories` list. An invalid credential receives HTTP 401.
+In the application terminal, use `COREMIND_MEMORY_AUTHORIZATION` for the full reader token. Keep administrator credentials on the host. The example uses loopback, with `COREMIND_MEMORY_MCP_URL` defaulting to `http://127.0.0.1:8769/mcp`. Adjust the port to match the gateway. For the Agent, configure the application's OpenAI-compatible model with `COREMIND_MODEL_BASE_URL`, `COREMIND_MODEL_NAME` and `COREMIND_MODEL_API_KEY`.
 
 ```powershell
 $env:COREMIND_MEMORY_AUTHORIZATION = 'Bearer ' + (Read-Host 'Recall token' -MaskInput)
-python -X utf8 read_memory.py 'Which format should I use for document summaries?'
+python -X utf8 app.py direct 'Which format should I use for document summaries?'
+python -X utf8 app.py agent 'Which format should I use for document summaries?'
 ```
+
+The direct call returns `memories`. Check `demo-alice`, document ID, version `1`, text and source. Verify the same confirmed preference in the Agent's tool result. Verify HTTP 401 with an invalid credential. A valid reader bound only to another empty bank should get an empty `memories` list. After checking correction and forgetting below, stop the dedicated gateway and verify that direct recall exits with an error. Use the command below to verify that the Agent runs with the memory binding removed and reports `toolCalls` as `0`.
+
+```powershell
+python -X utf8 app.py runtime-only 'Reply with just OK'
+```
+
+### Correction and forgetting
 
 Back in the host administration terminal, correct version 1 to version 2.
 

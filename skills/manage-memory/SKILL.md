@@ -10,5 +10,6 @@ description: Build and verify CoreMind long-term memory integrations when adding
 3. Verify recall with a confirmed preference and a new authorized session. Repeat with a different subject and a branch without a grant.
 4. Follow the [development SOP](../../docs/modules/manage-memory/SOP.en.md) for event replay, stale correction, expiry, forgetting after restart, and four-entry-point parity. Count incorrect extraction separately from incorrect use.
 5. Check the MCP tool list and a host retain followed by a real recall in a fresh client. Verify that published SDKs resolve from the consumer and that Python starts its wheel-bundled Worker. Before an upgrade, restore the database and latest receipts in isolation and replay forgotten IDs. Record source scope, revision and observed outcome for each case.
+6. [Call `recall_memory` directly](../../examples/modules/manage-memory/README.en.md#recall-directly-from-an-empty-python-project) from an empty Python project with a reader token, then bind the same endpoint to the Agent. Compare bank, revision, source and text. Verify an invalid token, a reader whose own bank is empty, a stopped gateway and an Agent run with the binding removed.
 
 中文步骤与验收条件见[开发 SOP](../../docs/modules/manage-memory/SOP.zh-CN.md)。

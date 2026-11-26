@@ -44,6 +44,8 @@ Knowledge, memory and ontology use the Runtime's MCP interfaces. CoreMind 2.0.0 
 
 `document-assistant` is a reference example and a regression test for composition. The following results are from 2.0.0. Seven cases ran in two projects with synthetic documents, live Qwen, Qdrant/BGE-M3, Hindsight/PostgreSQL and an optional ontology. The inputs, permissions, expected outputs and failure records can help you design your own tests. [Composition example](../../../examples/modules/manage-ontology/README.en.md) · [Live service integration](../../../examples/modules/manage-ontology/LIVE-COMPOSITION.en.md)
 
+Application code can query the selected component through standard MCP, then pass the same endpoint and reader token to an Agent. The two empty project examples cover knowledge search and citation lookup in TypeScript and Hindsight recall in Python. [TypeScript knowledge example](../../../examples/modules/manage-knowledge/README.en.md#query-directly-from-an-empty-typescript-project) · [Python memory example](../../../examples/modules/manage-memory/README.en.md#recall-directly-from-an-empty-python-project)
+
 ### Repeat the installed consumer checks
 
 The external consumer passed 49 checks with packages built from the frozen 2.1.0 commit. The checks cover the baseline, all five individual capabilities, combinations and removal. Use the same script to verify the public packages. [Frozen artifact acceptance](https://github.com/Eclipseic1848/CoreMind/issues/426) · [Publication and reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)

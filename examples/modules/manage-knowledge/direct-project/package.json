@@ -1,0 +1,16 @@
+{
+  "name": "coremind-direct-knowledge-example",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "direct": "node direct.mts",
+    "agent": "node agent.mts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
+    "coremind-ai": "2.1.0"
+  }
+}

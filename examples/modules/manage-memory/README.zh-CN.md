@@ -47,38 +47,27 @@ $saveBody = $memory | ConvertTo-Json -Compress
 Invoke-RestMethod -Method Post -Uri "$memoryUrl/retain" -Headers $memoryHeaders -ContentType 'application/json; charset=utf-8' -Body $saveBody
 ```
 
-预期返回 `active` 和版本 `1`。在新的业务目录和独立 Python 3.12 虚拟环境运行 `python -m pip install mcp==1.30.0`。将下面的客户端保存为 UTF-8 的 `read_memory.py`。
+预期返回 `active` 和版本 `1`。
 
-```python
-import asyncio
-import json
-import os
-import sys
+### 从空白 Python 项目直接召回
 
-import httpx
-from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+将 [direct-project](direct-project/requirements.txt) 目录复制到仓库外的空白业务项目，准备独立 Python 3.12 环境，在该目录运行 `python -m pip install -r requirements.txt`。只用直调时，安装 `mcp==1.30.0` 即可。
 
-async def main():
-    headers = {"Authorization": os.environ["COREMIND_MEMORY_AUTHORIZATION"]}
-    async with httpx.AsyncClient(headers=headers) as http:
-        async with streamable_http_client("http://127.0.0.1:8769/mcp", http_client=http) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                assert [t.name for t in (await session.list_tools()).tools] == ["recall_memory"]
-                reply = await session.call_tool("recall_memory", {"query": sys.argv[1]})
-                assert not reply.isError
-                print(json.dumps(json.loads(reply.content[0].text), ensure_ascii=False))
-
-asyncio.run(main())
-```
-
-业务终端只注入读令牌。运行查询，核对 `demo-alice`、文档 ID、版本 `1`、正文和来源。绑定到另一个空库的有效读者应得到空的 `memories`，无效凭据返回 HTTP 401。
+业务终端以 `COREMIND_MEMORY_AUTHORIZATION` 提供完整读令牌。宿主管理凭据保留在宿主侧。示例使用回环地址，`COREMIND_MEMORY_MCP_URL` 默认是 `http://127.0.0.1:8769/mcp`，端口可按实际服务调整。运行 Agent 时，用 `COREMIND_MODEL_BASE_URL`、`COREMIND_MODEL_NAME` 和 `COREMIND_MODEL_API_KEY` 配置应用自己的 OpenAI 兼容模型。
 
 ```powershell
 $env:COREMIND_MEMORY_AUTHORIZATION = 'Bearer ' + (Read-Host '查询令牌' -MaskInput)
-python -X utf8 read_memory.py '资料摘要应该采用哪种格式？'
+python -X utf8 app.py direct '资料摘要应该采用哪种格式？'
+python -X utf8 app.py agent '资料摘要应该采用哪种格式？'
 ```
+
+直接模式输出 `memories`，核对 `demo-alice`、文档 ID、版本 `1`、正文和来源。Agent 的工具结果应包含同一条已确认偏好。使用无效凭据复查 HTTP 401。绑定到另一个空库的有效读者应得到空的 `memories`。完成下方更正和遗忘复查后，停止专用网关，确认直接召回退出非零。运行下列命令验证移除记忆绑定后仍能运行 Agent，`toolCalls` 应为 `0`。
+
+```powershell
+python -X utf8 app.py runtime-only '请只回答 OK'
+```
+
+### 更正与遗忘
 
 回到宿主管理终端，将刚写入的版本 1 更正为版本 2。
 
