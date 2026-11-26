@@ -2,11 +2,16 @@ import json
 import shutil
 import sqlite3
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event
 from unittest.mock import Mock, patch
 
+from starlette.testclient import TestClient
+
 from ontology_project import OntologyProject, demo_transition
+from ontology_server import make_app
 
 
 MODELS = Path(__file__).parent / "models"
@@ -109,6 +114,178 @@ class OntologyProjectTest(unittest.TestCase):
                 executor.assert_not_called()
             finally:
                 restored.close()
+
+
+class OntologyReconciliationTest(unittest.TestCase):
+    action = "review"
+    resource = "urn:doc:draft"
+    request_id = "lost-receipt"
+    route = "/admin/reconcile-action"
+    read_token = "Bearer ontology-read-fixture-0001"
+    action_token = "Bearer ontology-action-fixture-0002"
+    reconcile_token = "Bearer ontology-reconcile-fixture-0003"
+
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.journal = Path(directory.name) / "action-receipts.sqlite3"
+        self.executor = Mock(side_effect=lambda command: (
+            None if command["requestId"] == self.request_id else demo_transition(command)
+        ))
+        self.project = self.open_project()
+        self.addCleanup(lambda: self.project.close())
+        self.assertEqual(self.perform(self.request_id)["status"], "unknown")
+
+    def open_project(self):
+        return OntologyProject(MODELS / "document-review", self.executor, receipt_db=self.journal)
+
+    def reopen(self):
+        self.project.close()
+        self.project = self.open_project()
+
+    def perform(self, request_id, action=None):
+        return self.project.perform_action(action or self.action, self.resource, request_id)
+
+    def receipt(self, **changes):
+        return {"requestId": self.request_id, "resource": self.resource, "previousState": "draft",
+                "status": "completed", "state": "reviewed", **changes}
+
+    def client(self, project=None):
+        return TestClient(make_app(
+            project or self.project, self.read_token.encode("utf-8"), self.action_token.encode("utf-8"),
+            reconcile_token=self.reconcile_token.encode("utf-8"),
+        ), base_url="http://127.0.0.1:8879")
+
+    def post(self, client, body, token=None):
+        return client.post(self.route, json=body, headers={"Authorization": token or self.reconcile_token})
+
+    def assert_state(self, value):
+        properties = self.project.describe(self.resource)["properties"]
+        self.assertEqual([row["value"] for row in properties if row["predicate"] == "urn:review:state"], [value])
+
+    def assert_blocked(self):
+        self.assertEqual(self.perform("blocked")["reason"], "prior_effect_unknown")
+        self.assertEqual(self.perform(self.request_id)["status"], "unknown")
+        self.assert_state("draft")
+        self.executor.assert_called_once()
+
+    def test_only_host_can_submit_and_wrong_receipts_preserve_the_block(self):
+        with self.client() as client:
+            self.assertEqual(client.post(self.route, json=self.receipt()).status_code, 401)
+            for token in (self.read_token, self.action_token, "Bearer unrelated"):
+                self.assertEqual(self.post(client, self.receipt(), token).status_code, 401)
+            self.assertEqual(client.get("/health", headers={"Authorization": self.reconcile_token}).status_code, 401)
+            invalid_json = client.post(self.route, content="{", headers={
+                "Content-Type": "application/json", "Authorization": self.reconcile_token,
+            })
+            self.assertEqual(invalid_json.status_code, 400)
+            for body in ({"requestId": self.request_id}, self.receipt(status="unknown"), self.receipt(extra=True)):
+                self.assertEqual(self.post(client, body).status_code, 400)
+            self.assertEqual(self.post(client, self.receipt(requestId="not-reserved")).status_code, 404)
+            for body in (
+                self.receipt(resource="urn:doc:guide"), self.receipt(previousState="reviewed"),
+                self.receipt(state="published"), self.receipt(status="failed", state="reviewed"),
+            ):
+                with self.subTest(body=body):
+                    self.assertEqual(self.post(client, body).status_code, 409)
+                    self.assert_blocked()
+        without_journal = OntologyProject(MODELS / "document-review")
+        self.addCleanup(without_journal.close)
+        with self.client(without_journal) as client:
+            self.assertEqual(self.post(client, self.receipt()).status_code, 503)
+
+    def test_concurrent_confirmations_are_idempotent_and_old_receipt_cannot_rewind(self):
+        self.reopen()
+        reached_commit, release_commit = Event(), Event()
+        persist = self.project._journal.reconcile
+
+        def wait_at_commit(previous, result):
+            reached_commit.set()
+            self.assertTrue(release_commit.wait(10))
+            return persist(previous, result)
+
+        with self.client() as client, ThreadPoolExecutor(max_workers=3) as pool, patch.object(
+            self.project._journal, "reconcile", side_effect=wait_at_commit,
+        ) as cas:
+            initial = pool.submit(self.post, client, self.receipt())
+            try:
+                self.assertTrue(reached_commit.wait(10))
+                repeat = pool.submit(self.post, client, self.receipt())
+                disputed = pool.submit(self.post, client, self.receipt(status="failed", state="draft"))
+            finally:
+                release_commit.set()
+            first, duplicate, conflict = [task.result(timeout=10) for task in (initial, repeat, disputed)]
+            cas.assert_called_once()
+        self.assertEqual([first.status_code, duplicate.status_code, conflict.status_code], [200, 200, 409])
+        self.assertEqual(first.json()["status"], "completed")
+        self.assertEqual(duplicate.json(), {**first.json(), "replayed": True})
+        self.assertEqual(duplicate.json(), self.perform(self.request_id))
+        self.executor.assert_called_once()
+        self.reopen()
+        self.assert_state("reviewed")
+        self.assertEqual(self.perform(self.request_id)["state"], "reviewed")
+        self.assertEqual(self.perform("next-action", "publish")["state"], "published")
+        replay = self.project.reconcile_action(self.receipt())
+        self.assertEqual((replay["replayed"], replay["state"]), (True, "reviewed"))
+        self.assert_state("published")
+        self.reopen()
+        self.assert_state("published")
+        self.assertEqual(self.executor.call_count, 2)
+
+    def test_confirmed_failure_allows_new_request_without_reexecuting_original(self):
+        failed = self.receipt(status="failed", state="draft")
+        self.assertEqual(self.project.reconcile_action(failed)["status"], "failed")
+        self.executor.assert_called_once()
+        self.reopen()
+        self.assert_state("draft")
+        self.assertEqual(self.perform(self.request_id)["status"], "failed")
+        self.assertEqual(self.perform("next-action")["status"], "completed")
+        replay = self.project.reconcile_action(failed)
+        self.assertEqual((replay["replayed"], replay["state"]), (True, "draft"))
+        self.assert_state("reviewed")
+        self.reopen()
+        self.assert_state("reviewed")
+        self.assertEqual(self.executor.call_count, 2)
+
+    def test_sqlite_failure_keeps_projection_and_pending_receipt_after_restart(self):
+        db = self.project._journal.db
+        with db:
+            db.execute("""
+                CREATE TEMP TRIGGER reject_reconciliation
+                BEFORE UPDATE ON action_receipts
+                BEGIN
+                    SELECT RAISE(ABORT, 'fixture write failure');
+                END
+            """)
+        with self.client() as client:
+            self.assertEqual(self.post(client, self.receipt()).status_code, 503)
+        self.assert_blocked()
+        self.reopen()
+        self.assert_blocked()
+        self.assertEqual(self.project.reconcile_action(self.receipt())["status"], "completed")
+        self.assert_state("reviewed")
+        self.reopen()
+        self.assert_state("reviewed")
+        self.executor.assert_called_once()
+
+    def test_changed_model_bundle_keeps_original_request_pending(self):
+        revised = self.journal.parent / "revised-model"
+        shutil.copytree(MODELS / "document-review", revised)
+        bindings_path = revised / "actions.json"
+        bindings = json.loads(bindings_path.read_text(encoding="utf-8"))
+        bindings["modelVersion"] = "1.1.0"
+        bindings_path.write_text(json.dumps(bindings), encoding="utf-8")
+        self.project.close()
+        self.project = OntologyProject(revised, self.executor, receipt_db=self.journal)
+        with self.client() as client:
+            response = self.post(client, self.receipt())
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(response.json()["reason"], "model_bundle_changed")
+        self.assert_blocked()
+        self.reopen()
+        self.assertEqual(self.project.reconcile_action(self.receipt())["status"], "completed")
+        self.assert_state("reviewed")
+        self.executor.assert_called_once()
 
 
 if __name__ == "__main__":

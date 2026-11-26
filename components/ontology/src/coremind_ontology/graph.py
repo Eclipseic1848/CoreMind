@@ -111,10 +111,16 @@ class OntologyGraph:
 
     def validate_state(self, resource: str, predicate: str, value: str) -> dict:
         """校验宿主待提交的状态，保留当前实例数据。"""
+        return self.prepare_state(resource, predicate, value)[1]
+
+    def prepare_state(self, resource: str, predicate: str, value: str) -> tuple[Graph, dict]:
         data = Graph()
         data += self._data
         data.set((URIRef(resource), URIRef(predicate), Literal(value)))
-        return self._validate(data)
+        return data, self._validate(data)
+
+    def publish_state(self, data: Graph) -> None:
+        self._data = data
 
     def _validate(self, instances: Graph, extra: Graph | None = None) -> dict:
         result = {"status": "unavailable", "modelDigest": self.model_digest, "violations": []}

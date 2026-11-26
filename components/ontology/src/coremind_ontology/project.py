@@ -201,3 +201,54 @@ class OntologyProject:
                 self._pending.discard(resource)
             self._requests[request_id] = (action, resource, result)
             return dict(result)
+
+    def reconcile_action(self, receipt: dict) -> dict:
+        """录入宿主核实的旧请求回执，不调用业务处理器。"""
+        request_id = receipt["requestId"]
+        with self._lock:
+            unavailable = {"status": "unavailable", "reason": "receipt_store_unavailable", "requestId": request_id}
+            if self._journal is None:
+                return unavailable
+            entry = self._requests.get(request_id)
+            if entry is None:
+                return {"status": "denied", "reason": "request_not_found", "requestId": request_id}
+            action, resource, previous = entry
+            denied = {"status": "denied", "reason": "receipt_mismatch", "requestId": request_id}
+            status, state = receipt["status"], receipt["state"]
+            if any(receipt[key] != previous[key] for key in ("resource", "previousState")):
+                return denied
+            if status not in {"completed", "failed"}:
+                return denied
+            if state != previous["expectedState" if status == "completed" else "previousState"]:
+                return denied
+            if previous["status"] != "unknown":
+                if status == previous["status"] and state == previous["state"]:
+                    return {**previous, "replayed": True}
+                return denied
+            if previous["bundleDigest"] != self.identity["bundleDigest"]:
+                return {**denied, "reason": "model_bundle_changed"}
+            predicate = previous["stateProperty"]
+            values = list(self.graph.data.objects(URIRef(resource), URIRef(predicate)))
+            if (resource not in self._pending or resource in self._state_conflicts
+                or len(values) != 1 or not isinstance(values[0], Literal)
+                or str(values[0]) != previous["previousState"]):
+                return {**denied, "reason": "model_state_conflict"}
+            prepared = None
+            if status == "completed":
+                prepared, validation = self.graph.prepare_state(resource, predicate, state)
+                if validation["status"] != "conforms":
+                    return {**denied, "status": "unavailable" if validation["status"] == "unavailable" else "denied",
+                            "reason": "ontology_validation_failed"}
+            result = {**previous, "status": status, "state": state}
+            result.pop("reason", None)
+            try:
+                if not self._journal.reconcile(previous, result):
+                    return unavailable
+            except sqlite3.Error:
+                return unavailable
+            # 账本提交后才发布已校验的投影，重启时仍可从账本恢复。
+            if prepared is not None:
+                self.graph.publish_state(prepared)
+            self._requests[request_id] = (action, resource, result)
+            self._pending.discard(resource)
+            return dict(result)
