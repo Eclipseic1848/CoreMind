@@ -1,22 +1,24 @@
 # CoreMind Knowledge MCP
 
-`coremind-knowledge-mcp` 0.1.0 是可独立安装的本地 wheel，面向任何支持 Streamable HTTP 的 MCP 客户端。服务使用固定的 BGE-M3 ONNX 模型与内存 Qdrant 检索，目录和撤回记录持久化在业务方指定的状态文件。此版本的交付方式是本地 wheel，尚未发布到 PyPI。
+`coremind-knowledge-mcp` 0.1.0 可独立安装，面向任何支持 Streamable HTTP 的 MCP 客户端。服务使用固定的 BGE-M3 ONNX 模型与内存 Qdrant 检索，目录和撤回记录持久化在业务方指定的状态文件。
 
 ## 安装与首次查询
 
-维护者在组件目录运行 `python -m pip wheel --no-deps . -w dist`，将 wheel 和 [example](example/manifest.json) 中的清单、`sources/` 与 `query.py` 交给业务方。业务方只需自己的 Python 3.12 虚拟环境、这份 wheel 以及两个已校验的模型文件。模型目录应包含 `model_quantized.onnx` 和 `tokenizer.json`，来源为 `gpahal/bge-m3-onnx-int8` 的 `2b34e84df040034d4b9eabb62383a87c18955822` 修订。服务启动时校验两者的 SHA-256。
+在专用 Python 3.12 环境中从 PyPI 安装组件，下载[示例目录](https://github.com/Eclipseic1848/CoreMind/tree/main/components/knowledge/example)中的清单、`sources/` 与 `query.py`。模型目录应包含 `model_quantized.onnx` 和 `tokenizer.json`，来源为 `gpahal/bge-m3-onnx-int8` 的 `2b34e84df040034d4b9eabb62383a87c18955822` 修订。服务启动时校验两者的 SHA-256。
 
 将示例文件放入空业务目录，激活专用 Python 环境并在该目录执行以下命令。令牌由服务所有者生成，两个终端的 `COREMIND_KNOWLEDGE_AUTHORIZATION` 都应为同一完整的 `Bearer <随机令牌>`，令牌至少 24 个字符。将 `/path/to/model` 换为本地模型目录。
 
 ```sh
-python -m pip install ./coremind_knowledge_mcp-0.1.0-py3-none-any.whl
+python -m pip install coremind-knowledge-mcp==0.1.0
 coremind-knowledge-mcp --version
 coremind-knowledge-mcp --manifest ./manifest.json --model-dir /path/to/model --scope records --state ./state/catalog.json
 ```
 
 在另一个终端运行 `python -X utf8 query.py 松纹卡`。示例回查 `desk.md` 第 3 行的“松纹卡 | 银杏台”，并携带第 1 行表头。服务监听 `127.0.0.1:8767/mcp`，`--port` 可改端口，客户端可用 `KNOWLEDGE_MCP_URL` 指定地址。按 Ctrl+C 停止服务。每个读者范围使用专用服务进程和凭据。
 
-Markdown 使用基础安装。PDF/DOCX 需要用同一 wheel 安装可选扩展，例如 `python -m pip install "./coremind_knowledge_mcp-0.1.0-py3-none-any.whl[documents]"`。扫描 PDF 使用 Docling 与 RapidOCR 的本地模型，离线部署前需预置解析模型。
+Markdown 使用基础安装。PDF/DOCX 使用可选扩展 `python -m pip install "coremind-knowledge-mcp[documents]==0.1.0"`。扫描 PDF 使用 Docling 与 RapidOCR 的本地模型，离线部署前需预置解析模型。
+
+从源码交付时，在组件目录运行 `python -m pip wheel --no-deps . -w dist`。在服务环境中用 `python -m pip install /path/to/coremind_knowledge_mcp-0.1.0-py3-none-any.whl` 安装该文件。
 
 ## 版本与状态
 
@@ -24,4 +26,4 @@ Markdown 使用基础安装。PDF/DOCX 需要用同一 wheel 安装可选扩展�
 
 ## English quick start
 
-Version 0.1.0 ships as a local wheel. In a dedicated Python 3.12 environment, run the installation and launch commands above with your project manifest, BGE-M3 model directory, reader scope, and writable catalog path. Use the same `Authorization` header in your client and server environment. Run `python -X utf8 query.py` from the example directory to search and resolve an original citation. Markdown works with the base wheel. Install the `documents` extra for Docling/RapidOCR PDF or DOCX support and provision parser assets for offline use. Stop the server with Ctrl+C. Before changing versions, back up the project manifest, originals and catalog with withdrawal history, then test the replacement on a copy. Uninstall the component from its dedicated environment after removing the client binding.
+Install version 0.1.0 from PyPI in a dedicated Python 3.12 environment, or build and install the wheel as shown above for a source deployment. Start the service with your project manifest, BGE-M3 model directory, reader scope, and writable catalog path. Use the same `Authorization` header in your client and server environment. Run `python -X utf8 query.py` from the example directory to search and resolve an original citation. Markdown works with the base wheel. Install the `documents` extra for Docling/RapidOCR PDF or DOCX support and provision parser assets for offline use. Stop the server with Ctrl+C. Before changing versions, back up the project manifest, originals and catalog with withdrawal history, then test the replacement on a copy. Uninstall the component from its dedicated environment after removing the client binding.

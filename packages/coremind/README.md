@@ -24,6 +24,6 @@ Version 1.4.0 introduced atomic `TaskSession` phases, durable waits, keyed resul
 
 [Full documentation (repository access required)](https://github.com/Eclipseic1848/CoreMind)
 
-2.0.0 的知识、Hindsight、Skill、工具和可选本体共用这一 SDK。[建设指南](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/guide/06-capability-construction.md)
+自 2.0.0 起，知识、Hindsight 记忆、Skill、工具和可选本体共用这一 SDK。[按需加载指南](https://eclipseic1848.github.io/CoreMind/guide/06-capability-construction.html)
 
-The same SDK serves all five capability domains in 2.0.0. [Construction guide](https://github.com/Eclipseic1848/CoreMind/blob/v2.0.0/docs/en/guide/06-capability-construction.md)
+Since 2.0.0, the same SDK has served knowledge, Hindsight memory, skills, tools and optional ontologies. [Guide to enabling capabilities as needed](https://eclipseic1848.github.io/CoreMind/en/guide/06-capability-construction.html)

@@ -65,6 +65,8 @@ npm run release:sync-version -- 2.1.0
 
 冻结时核对 `docs/release/notes/v2.1.0.md`、双语 CHANGELOG、2.0→2.1 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
 
+冻结前，从实际 npm tarball 和 Python wheel 检查 Registry 将展示的说明。核对 npm 包根 README、内置模板双语 README 以及 wheel `METADATA` 的长描述，确认当前安装命令与包版本匹配，公开文档链接可访问。随包说明须在发布前修正，仓库文档更新不会改变已上传制品。
+
 在任何 Registry 或 Release 公开写入前验证模板和 Tag/HEAD 身份；Release 阶段再核产物清单，使用固定输出文件配合 `gh release create --notes-file`。缺失、空白、身份不符或未知占位符均停止，不能退回 `--generate-notes`。复用已有 Release 时，先比较线上 body 与同一身份渲染的正文，仅允许明确的 CRLF/LF 与末尾终止换行差异；不同、缺失或查询未知均停止，不能自动编辑、覆盖正文或先上传缺失资产。既有附件哈希、一次构建与恢复门仍全部保留。正文控制不删改任何真实依赖、版权、许可证或 NOTICE。
 
 Windows MCP 启动使用固定 Job 资产与薄启动器，保留原 15 秒调用和 60 秒连接门禁。正式发布必须取得绑定最终提交与准确制品的严格 Provider、双平台工程/稳定性/覆盖率/真实 PTY，以及公开下载和回装证据。这里只写资格要求，不注入旧运行号、W/F、覆盖率或测试数作为 2.0 结论。

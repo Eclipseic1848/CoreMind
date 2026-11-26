@@ -11,10 +11,10 @@
 使用包含此模板的 CoreMind CLI 和同版本的 Node、Python SDK。Node.js 需要 22.19 或更高版本。正式发布后的安装命令如下；候选验收时将安装来源换为同一候选的 tarball 与 wheel。
 
 ```sh
-npx coremind-cli@2.0.0 create archive-desk --template document-assistant --language typescript --provider deepseek
+npx coremind-cli@2.1.0 create archive-desk --template document-assistant --language typescript --provider deepseek
 cd archive-desk
-npm install --save-exact coremind-ai@2.0.0 coremind-cli@2.0.0
-python -m pip install coremind-ai==2.0.0
+npm install --save-exact coremind-ai@2.1.0 coremind-cli@2.1.0
+python -m pip install coremind-ai==2.1.0
 ```
 
 ## 连接业务资料与记忆
