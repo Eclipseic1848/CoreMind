@@ -6,7 +6,7 @@
 - 星塔项目的预发布环境和云桥项目的离线联调环境复用同一核对清单。预发布环境通过，离线联调环境报告 Node.js 版本偏低和回滚快照缺失。
 - 一条普通通知摘要全程不调用技能工具，用于检查技能的适用范围。
 
-只需要一份本地 Skill 时，可从本目录选一个 `skills/<id>/` 复制到自己项目配置目录的 `skills/<id>/`，在目标 Agent 的 `skills` 中只列该 ID。也可直接编写 `SKILL.md`。[独立启停指南](../../../docs/modules/package-agent-skills/GUIDE.zh-CN.md)包含完整配置。下方源码示例提供草稿生成、验收脚本和模型夹具。2.1.0 候选的 `coremind-templates` 包提供固定版本安装器 `coremind-skill-install`。已安装的 CLI 可以直接读取本地 Skill。
+只需要一份本地 Skill 时，可从本目录选一个 `skills/<id>/` 复制到自己项目配置目录的 `skills/<id>/`，在目标 Agent 的 `skills` 中只列该 ID。也可直接编写 `SKILL.md`。[独立启停指南](../../../docs/modules/package-agent-skills/GUIDE.zh-CN.md)包含完整配置。下方源码示例提供草稿生成、验收脚本和模型夹具。需要固定版本安装器时，运行 `npm install --save-exact coremind-templates@2.1.0` 安装 `coremind-skill-install`。已安装的 CLI 可以直接读取本地 Skill。
 
 ## 从任务说明生成可编辑草稿
 

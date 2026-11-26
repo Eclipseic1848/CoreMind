@@ -61,15 +61,16 @@ SHA-256 基于原始字节计算。Windows 可用 `Get-FileHash assets/template.
 
 ## 固定版本安装和回退
 
-需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。请在执行目录安装同一构建的 2.1.0 候选 npm 包，其中 `coremind-templates` 提供以下命令。[安装候选包](../../migrations/2.0-to-2.1.zh-CN.md) 先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
+需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。在执行目录从 npm 安装对应版本的 CLI 和模板包。先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
 
 ```sh
+npm install --save-exact coremind-cli@2.1.0 coremind-templates@2.1.0
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
 npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
 npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
 ```
 
-安装器先在临时目录使用 Skills CLI 冻结安装，再按 CoreMind 清单和固定提交核对原始字节。校验后先保存可用于冻结重装的内容锁，再替换目标目录。如果替换失败且保留了新锁，可省略源参数，使用同一份锁重试。项目 `skills/<id>/` 只接收 `SKILL.md`、清单和声明的资源。`coremind check project-a/coremind.yaml` 校验 Agent 已选的包。两次安装返回的锁 SHA-256 应一致。
+安装器先在临时目录使用 Skills CLI 冻结安装，再按 CoreMind 清单和固定提交核对原始字节。校验后先保存可用于冻结重装的内容锁，再替换目标目录。如果替换失败且保留了新锁，可省略源参数，使用同一份锁重试。项目 `skills/<id>/` 只接收 `SKILL.md`、清单和声明的资源。`npx --no-install coremind check project-a/coremind.yaml` 校验 Agent 已选的包。两次安装返回的锁 SHA-256 应一致。
 
 升级时使用新提交和新锁文件名，并保存旧锁。回退时省略源参数，把命令中的 `project-b` 改成 `project-a` 并传回旧锁。新 Runtime 会读取回退后的版本。若安装中断，先确认进程已退出。如果 `skills/<id>/` 缺失且 `skills/.<id>.install/previous` 存在，将 `previous` 移回 `skills/<id>/`。把剩余的 `.<id>.install` 目录移到项目 `skills/` 之外，再重试安装。
 

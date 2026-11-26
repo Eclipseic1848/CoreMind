@@ -4,9 +4,9 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 公开稳定版 `2.0.0`
+## 公开稳定版 `2.1.0`
 
-业务方可在自己的项目里先运行 Runtime，再按需选择知识、Hindsight 记忆、Skill、工具和可选本体。该版本提供 Skill、工具和 MCP 接口，知识、记忆和本体服务的实现位于该版本的源码示例中。2.0.0 已于 2026-11-25（UTC）发布，可安装对应版本的 CLI 和 Python SDK。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [1.4→2.0 迁移](migrations/1.4-to-2.0.zh-CN.md)
+在自己的项目中先运行最小 Runtime，再按需接入知识、Hindsight 记忆、Skill、工具和本体。CLI 与 SDK 可固定安装 `2.1.0`。三个可选服务可分别安装 `0.1.0`。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [从 2.0 升级与回退](migrations/2.0-to-2.1.zh-CN.md)
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
@@ -18,15 +18,17 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 - Windows/Linux 自动化与双平台真实伪终端相结合的验收流程，以及 GitHub、npm、PyPI 和双语文档站同步发布流程。
 - Session / Run / Workspace 三个事实域的显式关联、类型化身份、I-1～I-12 不变量检查、输入收据、请求重建和取消收敛。
 
-`v2.0.0` 的八个 npm 包、Python wheel 和源码 ZIP 已逐件与同一构建清单核对。[冻结提交](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [发布构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [文档部署](https://github.com/Eclipseic1848/CoreMind/actions/runs/45560012456)
+### 按需接入五项能力
 
-它包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。本版本的 Windows、Linux 和 DeepSeek 严格认证均已通过。[候选资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
+知识、Hindsight 记忆和本体各自安装、部署和更新。Skill 可按审核过的提交固定版本，业务工具可单独注册和更换。[知识](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight 记忆](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [本体](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) · [建设与验收](guide/06-capability-construction.md)
 
-## `2.1.0` 候选进度
-
-五域独立交付已合入主线。业务方可从最小 Runtime 开始，独立安装知识、Hindsight 记忆或本体的 `0.1.0` wheel，按需选择固定版本的 Skill 和业务工具。仓库外消费者通过 49 项检查，覆盖四个客户端入口、单项启用、组合与移除。模型侧使用确定性夹具。公开发布和 Provider 资格分别按 2.1.0 的制品回装和严格认证记录确认。[候选安装与回退](migrations/2.0-to-2.1.zh-CN.md) · [候选变更](release/notes/v2.1.0.md) · [组件交付记录](https://github.com/Eclipseic1848/CoreMind/pull/424) · [建设与验收](guide/06-capability-construction.md)
+2.1.0 的公开交付包含八个 npm 包、SDK wheel、三个独立服务 wheel 和源码 ZIP。严格资格记录绑定 2.1.0 的提交、Runtime 包摘要和实际通过认证的 Provider 组合。[正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [回装记录](https://github.com/Eclipseic1848/CoreMind/issues/427) · [严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 
 ## `2.0.0` 已交付
+
+该版于 2026-11-25（UTC）发布，知识、记忆和本体服务位于源码示例中。八个 npm 包、Python wheel 和源码 ZIP 已逐件与同一构建清单核对。[2.0.0 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [1.4→2.0 迁移](migrations/1.4-to-2.0.zh-CN.md) · [发布构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [文档部署](https://github.com/Eclipseic1848/CoreMind/actions/runs/45560012456)
+
+该版包含显式 `loop` 配置、verify/repair 状态、稳定快照、暂停恢复、Effect Receipt、有界重试、第五个验证修复黄金示例，以及编码智能体所需的受控进程、只读 Git、统一 Diff、七类 grader 和 TypeScript/Python 真实缺陷评测。[2.0.0 冻结提交](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [2.0.0 双平台与 DeepSeek 资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 - 知识导入、检索引用、版本增量及撤回已合入主线。[知识模块](modules/manage-knowledge/README.zh-CN.md)
 - 长期记忆与经验提炼采用 Hindsight。P2-B 实现、示例和验证记录已通过双平台工程 CI 并合入主线。[长期记忆模块](modules/manage-memory/README.zh-CN.md) · [合并记录](https://github.com/Eclipseic1848/CoreMind/pull/395)

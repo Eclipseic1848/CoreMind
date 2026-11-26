@@ -2,9 +2,9 @@
 
 The release includes eight npm packages, the Python SDK, independently versioned components, a source ZIP, a GitHub Release, and the bilingual documentation site. The manifest binds each distribution to its build, version and SHA-256.
 
-> The 2.1.0 candidate uses 2.0.0 as its upgrade baseline. The CLI and SDKs share the candidate version; knowledge, Hindsight memory and ontology each start at 0.1.0. Qualify the Runtime alone, individual capabilities, composition and removal in a clean project. Keep the document assistant as a composition regression. Compare all thirteen public artifacts with the same release build.
+> The 2.1.0 CLI and SDKs share the release version. Knowledge, Hindsight memory, and ontology are independently installed at 0.1.0. Verify the Runtime baseline, each capability, composition, and removal in a fresh project. Use the document assistant to check composition. [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [Thirteen public artifacts](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md) · [2.0-to-2.1 candidate migration](../migrations/2.0-to-2.1.en.md) · [2.1 candidate notes](notes/v2.1.0.md)
+[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md) · [2.0 to 2.1 migration](../migrations/2.0-to-2.1.en.md) · [2.1 release notes](notes/v2.1.0.md)
 
 ## Historical release decisions
 

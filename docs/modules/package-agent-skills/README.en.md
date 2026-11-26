@@ -1,6 +1,6 @@
 # Skill and SOP Loading
 
-Version 2.0.0 supports project Skills and reusable resources. The 2.1.0 candidate ships a pinned installer in the templates package. It supports Windows and Linux.
+Version 2.0.0 already supported project Skills and reusable resources. The 2.1.0 npm templates package provides a pinned installer. The module supports Windows and Linux.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ A Skill-only project needs a working agent, a `skills/<id>/SKILL.md` file under 
 - `loadDirectorySkills`
 - `SKILLS`
 
-Applications use the existing Runtime to load standard skills. Use the `coremind-skill-install` command from the candidate `coremind-templates` package to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
+Applications use the existing Runtime to load standard skills. Use the `coremind-skill-install` command from `coremind-templates@2.1.0` to install a pinned Git version into a project. See the [installation and rollback guide](GUIDE.en.md#pinned-installation-and-rollback).
 
 ## Errors and boundaries
 

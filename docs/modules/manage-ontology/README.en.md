@@ -2,7 +2,7 @@
 
 A project can supply its own vocabulary for objects, properties and relationships, align source records, and explain when an action is available. For example, a document repository can link two catalogue identifiers to one document, check its reviewer and then decide whether publication is possible.
 
-The CoreMind 2.0.0 source entry point remains compatible. To try the 2.1.0 candidate, install the independently versioned local `coremind-ontology-mcp` 0.1.0 wheel, supply an external model directory, and bind only the read tools in an empty project. Business assets stay with the project. [Component package](../../../components/ontology/README.md)
+Run `python -m pip install coremind-ontology-mcp==0.1.0` in a dedicated service environment, supply an external model directory, and bind only the read tools in an empty project. The component has its own version and business assets stay with the project. The CoreMind 2.0.0 source entry point remains compatible. [Component package](../../../components/ontology/README.md)
 
 | Capability map | Module behavior |
 | --- | --- |

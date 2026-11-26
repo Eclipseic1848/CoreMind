@@ -13,7 +13,7 @@ Security issues must be handled privately. This page describes responsible repor
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
 
-Check [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) for the current stable version. For a 2.1.0 candidate or standalone component, include the candidate commit SHA, package name and version, artifact source (CI artifact or local build), and client used.
+Check [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) for the current stable version. For 2.1.0 or a standalone component, include the client and component package names and versions, distribution channel, and source commit SHA when applicable.
 
 ## Dependency security in the development source
 

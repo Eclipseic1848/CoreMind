@@ -6,7 +6,7 @@ Domains 04–08 of the V1.0.2 agent capability map cover 20 capabilities. The pr
 
 ## Start in your own project
 
-Create `coremind.yaml` in your application directory with a provider and one agent. This CoreMind 2.0.0 baseline selects none of the five optional capabilities.
+Create `coremind.yaml` in your application directory with a provider and one agent. This minimal CoreMind 2.1.0 configuration runs the Runtime on its own.
 
 ```yaml
 schemaVersion: 2
@@ -20,19 +20,21 @@ agents:
     systemPrompt: Answer questions using the text supplied by the user.
 ```
 
-Supply the model credential through the environment. From this directory run `npx coremind-cli@2.0.0 run coremind.yaml --prompt "Reply only OK"` and check the reply and zero tool calls. Keep the configuration and dependency versions for comparison when you enable each capability.
+Supply the model credential through the environment. From this directory run `npx coremind-cli@2.1.0 run coremind.yaml --prompt "Reply only OK"` and check the reply and zero tool calls. Keep the configuration and dependency versions for comparison when you enable each capability.
 
-With the 2.1.0 candidate CLI installed locally, run `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`. It preserves an existing `coremind.yaml`. [Candidate installation and rollback](../../migrations/2.0-to-2.1.en.md) · [Minimal SDK examples](../../../examples/modules/configure-coremind/README.en.md)
+To generate the configuration, run `npx coremind-cli@2.1.0 create . --runtime-only --provider deepseek --model deepseek-flash`. It preserves an existing `coremind.yaml`. [Upgrade and rollback](../../migrations/2.0-to-2.1.en.md) · [Minimal SDK examples](../../../examples/modules/configure-coremind/README.en.md)
 
-| Select one capability | How to connect it in 2.0.0 | First acceptance check |
+Use a separate Python environment for each knowledge, memory or ontology service you choose.
+
+| Select one capability | How to connect it in 2.1.0 | First acceptance check |
 | --- | --- | --- |
-| Knowledge | Deploy the knowledge MCP service and bind only the retrieval operations the agent needs | Supply two source versions, then search as a reader and resolve the citation and version |
-| Hindsight memory | Deploy the gateway, bind a Hindsight bank and authorize the agent's recall operation separately | Retain a confirmed preference as the host, recall it in a new session and verify another subject cannot read it |
-| Skill | Define a method in project file `skills/<id>/SKILL.md` and select its ID in `agents.main.skills` | Load the body for a matching task, remove the ID and check a new run cannot load it |
-| Tools | Register a business function through the SDK or bind a stdio/HTTP MCP operation, then select the tool for the agent | Verify input, permission and a business receipt. Remove the binding and check the tool is absent from a new run |
-| Ontology | Supply the model, mappings and constraints, then bind the required ontology MCP operations | Validate one conforming and one violating record against your model. Grant read-only projects just query and validation operations |
+| Knowledge | Run `python -m pip install coremind-knowledge-mcp==0.1.0`, deploy the knowledge MCP service and bind only the retrieval operations the agent needs | Supply two source versions, then search as a reader and resolve the citation and version |
+| Hindsight memory | Run `python -m pip install coremind-memory-mcp==0.1.0`, start the gateway, bind a Hindsight bank and authorize recall separately | Retain a confirmed preference as the host, recall it in a new session and verify another subject cannot read it |
+| Skill | Define a method in `skills/<id>/SKILL.md` and select its ID in `agents.main.skills`. For cross-project installation, use `coremind-skill-install` from `coremind-templates@2.1.0` | Load the body for a matching task, remove the ID and verify that a new run cannot load it |
+| Tools | Register a business function through the 2.1.0 SDK or bind a stdio/HTTP MCP operation, then select the tool for the agent | Verify input, permission and a business receipt. Remove the binding and check the tool catalog in a new run |
+| Ontology | Run `python -m pip install coremind-ontology-mcp==0.1.0`, supply the model, mappings and constraints, then bind the required ontology MCP operations | Validate one conforming and one violating record against your model. Grant read-only projects query and validation operations |
 
-Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested with just its own service. CoreMind 2.0.0 ships these services and their adapters as source examples. The 2.1.0 candidate adds three independently installable local 0.1.0 wheels for [knowledge](../../../components/knowledge/README.md), [memory](../../../components/memory/README.md) and [ontology](../../../components/ontology/README.md). Skills and tools retain their existing loading mechanisms. Each component should include its implementation, version and compatibility range, SOP, developer Skill and a runnable example that enables only that capability. [Configuration](02-configuration.md) · [Roadmap](../../roadmap.en.md)
+Knowledge, memory and ontology use the Runtime's MCP interfaces. CoreMind 2.0.0 delivered these services and adapters as source examples. Version 2.1.0 provides separate PyPI packages. Each component includes its implementation, version and compatibility range, SOP, developer Skill and a runnable example that enables only that capability. [Knowledge service](../../../components/knowledge/README.md) · [Memory gateway](../../../components/memory/README.md) · [Ontology service](../../../components/ontology/README.md) · [Roadmap](../../roadmap.en.md)
 
 **Acceptance from an empty project**
 
@@ -44,9 +46,9 @@ Knowledge, memory and ontology use the Runtime's MCP support. Each can be tested
 
 ### Repeat the installed consumer checks
 
-The external consumer passed 49 checks for the features in the 2.1.0 candidate, covering the baseline, all five individual capabilities, combinations and removal. Use the same script with the candidate artifacts you received. [Implementation record](https://github.com/Eclipseic1848/CoreMind/pull/424)
+The external consumer passed 49 checks with packages built from the frozen 2.1.0 commit. The checks cover the baseline, all five individual capabilities, combinations and removal. Use the same script to verify the public packages. [Frozen artifact acceptance](https://github.com/Eclipseic1848/CoreMind/issues/426) · [Publication and reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-Create a consumer outside the checkout and install the npm artifacts and Python wheel with its embedded Worker from the same build. Start the knowledge, memory and ontology services in their own Python environments. A private JSON file uses the keys `knowledge`, `memory` and `ontology`. For each service, provide its loopback `url`, read `authorization`, read-only `tool`, `args` and an expected response substring in `expect`. Retain a synthetic fact as the host for the memory case. Run the [acceptance script](../../../scripts/verify-optional-consumer.mjs) from the repository:
+Create a consumer outside the checkout and pin `coremind-cli@2.1.0`, the TypeScript `coremind-ai@2.1.0` package and Python `coremind-ai==2.1.0` with its bundled Worker. Install and start the three services in separate Python environments as shown above. A private JSON file uses the keys `knowledge`, `memory` and `ontology`. For each service, provide its loopback `url`, read `authorization`, read-only `tool`, `args` and an expected response substring in `expect`. Retain a synthetic fact as the host for the memory case, then run the [acceptance script](../../../scripts/verify-optional-consumer.mjs) from the repository.
 
 ```sh
 node scripts/verify-optional-consumer.mjs <consumer-directory> <Python-with-installed-SDK> <private-JSON>

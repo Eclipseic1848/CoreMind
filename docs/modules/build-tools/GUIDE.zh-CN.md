@@ -8,7 +8,7 @@
 
 ## 只启用一个工具
 
-在空目录创建 `coremind.yaml`，并在同一目录放一个自己编写的 `sample.txt`。下面的 Agent 只获得读取工作区文件的权限。已有项目可将 `{ id: read }` 添加到目标 Agent 的工具列表。
+在空目录运行 `npm install --save-exact coremind-cli@2.1.0`，创建 `coremind.yaml`，并放入一个自己编写的 `sample.txt`。下面的 Agent 只获得读取工作区文件的权限。已有项目可将 `{ id: read }` 添加到目标 Agent 的工具列表。
 
 ```yaml
 schemaVersion: 3
@@ -24,7 +24,7 @@ runtime: {}
 quality: { profile: standard }
 ```
 
-先执行 `coremind check coremind.yaml`。在宿主设置自己的 Provider 凭据后，通过 `coremind run coremind.yaml --prompt "请读取 sample.txt 并逐字返回内容。"` 检查结果，在 Trace 中核对 `read` 调用及文件原文。用工作区外的文件作反例，确认 Runtime 拒绝读取。
+先执行 `npx --no-install coremind check coremind.yaml`。在宿主设置自己的 Provider 凭据后，通过 `npx --no-install coremind run coremind.yaml --prompt "请读取 sample.txt 并逐字返回内容。"` 检查结果，在 Trace 中核对 `read` 调用及文件原文。用工作区外的文件作反例，确认 Runtime 拒绝读取。
 
 停用时，从该 Agent 的 `tools` 和仅供本例使用的 `permissions.allow` 移除 `read`，再开启新 Runtime 和会话。Agent 的工具列表为空或未填写时会继承顶层 `tools`，因此也要检查全局配置。如果工具由 TS 宿主通过 `toolDefinitions` 注入，还要移除宿主注册。对于 MCP 工具，移除该 Agent 的具体工具引用；只有在所有 Agent 都不再使用该服务后，再移除服务配置和专用凭据。用新会话核对模型收到的工具清单。
 

@@ -15,7 +15,7 @@
 
 ## 验收独立部署与升级
 
-1. 在专用 Python 3.12 环境安装独立 wheel，运行 `coremind-memory-mcp --version` 确认为 0.1.0。兼容基线为 Hindsight API/客户端 1.2.3、PostgreSQL 18.1。其他版本由部署方复验。在另一个空白项目仅使用读令牌和标准 MCP 客户端，确认 `tools/list` 只列出 `recall_memory`。由宿主写入一条事实，再经 MCP 核对记忆库、文档 ID、版本、正文和来源。`/health` 只检查网关进程。
+1. 在专用 Python 3.12 环境运行 `python -m pip install coremind-memory-mcp==0.1.0`，再运行 `coremind-memory-mcp --version` 确认为 0.1.0。兼容基线为 Hindsight API/客户端 1.2.3、PostgreSQL 18.1。其他版本由部署方复验。在另一个空白项目仅使用读令牌和标准 MCP 客户端，确认 `tools/list` 只列出 `recall_memory`。由宿主写入一条事实，再经 MCP 核对记忆库、文档 ID、版本、正文和来源。`/health` 只检查网关进程。
 2. 逐项执行 M01–M06。无有效读令牌返回 HTTP 401，有效管理员访问未获授权的库返回 403。使用公开安装的 CLI、TypeScript、Python 同步和异步入口。Python 沿用 wheel 内置 Worker，四个调用端均从空白项目解析本地依赖。使用 `acceptance.mjs` 对照四份结果的记忆库、文档 ID、版本、正文和来源。
 3. 记录网关源码发布版、Hindsight 客户端/API 版本、PostgreSQL 版本、绑定及回执路径。0.1.0 沿用 2.0.0 的回执 JSON，每个文件由一个网关进程独占。升级前暂停写入并备份 PostgreSQL 和最新回执。在隔离副本验证已生效事实、已遗忘事实、重放遗忘、旧版本更正冲突及相同读者重启后的召回。回滚时恢复上一版本程序和一致的状态，保留并重放升级后新增的遗忘回执。从 2.0.0 切换到 0.1.0 时使用原 `--state` 和宿主绑定，恢复旧 PostgreSQL 后先读最新回执、重放遗忘再对业务开放。停用时从业务配置移除读工具、撤销读令牌并停止网关，按宿主保留策略保管数据库和回执。
 

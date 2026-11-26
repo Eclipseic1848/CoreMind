@@ -6,13 +6,11 @@
 
 需要 Node.js ≥ 22.19.0。
 
-`coremind-cli@2.0.0` 已发布到 npm，可按下方命令安装。从 `1.4` 升级请使用[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)；更早版本的[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)保留供查阅。
-
-试用 `2.1.0` 的 `create --runtime-only` 或固定版本 Skill 安装器时，请另建目录，使用同一构建的本地候选安装包。下方示例使用公开版 `2.0.0`。[候选安装与回退](../migrations/2.0-to-2.1.zh-CN.md)
+本指南使用 npm 上的 `coremind-cli@2.1.0`。已有项目可参考[2.0→2.1 迁移与回退](../migrations/2.0-to-2.1.zh-CN.md)。从更早版本升级时，可查看[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)和[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)。
 
 ```bash
-npm install -g coremind-cli@2.0.0
-coremind --version              # 验证安装成功
+npm install -g coremind-cli@2.1.0
+coremind --version              # 应显示 coremind v2.1.0
 coremind --help                 # 查看帮助
 ```
 
@@ -22,7 +20,7 @@ coremind --help                 # 查看帮助
 
 ```bash
 coremind providers
-coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
+coremind create my-agent --template translator --language typescript --provider deepseek --model deepseek-flash
 cd my-agent
 ```
 
@@ -38,11 +36,11 @@ Copy-Item .env.example .env     # Windows PowerShell
 cp .env.example .env           # Linux
 ```
 
-编辑 `.env`，填入 `DASHSCOPE_API_KEY=<你的 key>`。CLI 会自动加载**当前工作目录**下的 `.env`，因此先进入刚创建的 `my-agent`；详见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)。
+编辑 `.env`，填入 `DEEPSEEK_API_KEY=<你的 key>`。CLI 会自动加载**当前工作目录**下的 `.env`，因此先进入刚创建的 `my-agent`。详见[CLI 使用指南](05-cli-usage.md#4-api-key-管理)。
 
 凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
-交互终端会询问 Provider；非交互脚本必须显式使用 `--provider`。本例选择阿里云百炼入口；可配置不等于当前版本已认证，投产前应核对[供应商矩阵](../providers/README.zh-CN.md)与[对应版本 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0)中的同版本资格证据；其他可配置 Provider 不因此自动获得认证。
+交互终端可以选择 Provider，非交互脚本须显式使用 `--provider`。本例选择的 `deepseek-flash` 已通过 2.1.0 严格认证。投产前按实际 Provider、模型、凭据和部署环境复测。[供应商矩阵](../providers/README.zh-CN.md) · [2.1.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 
 ## 4. 运行
 
@@ -68,7 +66,7 @@ coremind run coremind.yaml --prompt "翻译：你好，世界"
 | `coremind check [file]` | 检查配置、安全、项目材料和质量档 |
 | `coremind eval [file]` | 重复运行 `evals/scenarios.yaml` |
 | `coremind templates` | 查看当前安装版本的模板（兼容 `list-templates`） |
-| `coremind providers` | 查看可配置 Provider 与当前认证状态 |
+| `coremind providers` | 查看可配置 Provider 和在线认证矩阵入口 |
 | `coremind doctor` | 环境自检（Node 版本 / 配置 / API key 是否存在） |
 
 ## 下一步

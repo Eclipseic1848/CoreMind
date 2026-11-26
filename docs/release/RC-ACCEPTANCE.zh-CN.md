@@ -1,6 +1,6 @@
 # Release Candidate 验收指南
 
-当前验收目标为 `2.1.0` 候选，最新公开版为 `2.0.0`。历史 `0.7.0` 网络例外与 `0.7.1` 离线晋升均不可复用；本版本须完成全部严格检查。公开可安装状态以 Release、Registry 实时页面与同提交资格证据为准，源码 CI 通过不等于发布。
+2.1.0 以同一冻结提交完成双平台、真实终端和 DeepSeek 严格认证。发布与回装记录分别见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0)、[严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)和[公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)。所有后续候选按下列门禁独立验收。
 
 复跑 P01–P20 和资料助手组合，保留 2.0.0 的历史证据。[2.0 发布说明](notes/v2.0.0.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
 
@@ -12,7 +12,7 @@
 
 ## 2.1.0 的组件与公开回装
 
-在仓库外安装同一候选构建的客户端和三个独立 `0.1.0` wheel。接入真实 BGE-M3/Qdrant、Hindsight/PostgreSQL、RDFLib/pySHACL，通过 CLI/YAML、TypeScript、Python 同步和异步逐项验证空白项目、五个单项、组合和移除。49 项工程检查的模型使用确定性夹具。严格 Provider 证据须绑定本次冻结提交、模型和准确的 Runtime tarball 摘要。[候选安装步骤](../migrations/2.0-to-2.1.zh-CN.md) · [候选说明](notes/v2.1.0.md)
+在仓库外安装同一候选构建的客户端和三个独立 `0.1.0` wheel。接入真实 BGE-M3/Qdrant、Hindsight/PostgreSQL、RDFLib/pySHACL，通过 CLI/YAML、TypeScript、Python 同步和异步逐项验证空白项目、五个单项、组合和移除。49 项工程检查的模型使用确定性夹具。严格 Provider 证据须绑定本次冻结提交、模型和准确的 Runtime tarball 摘要。[安装与迁移步骤](../migrations/2.0-to-2.1.zh-CN.md) · [发布说明](notes/v2.1.0.md)
 
 发布后从 npm、PyPI、GitHub Release 公开下载 13 件制品，即 8 个 npm tarball、1 个 SDK wheel、3 个可选服务 wheel、1 个源码 ZIP。对照同一正式构建的清单逐件核验 SHA-256，再用公开件重复安装、各服务启动和业务调用，核对内置 Worker。保留回装结果和构建身份。[正式发布流程](README.zh-CN.md)
 
@@ -134,10 +134,10 @@ npm run providers:certify
 
 - P01～P19 自动矩阵通过且测试锚点完整。
 - Windows 与 Linux 的 P20 证据绑定同一候选版本和提交。
-- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `2.0.0`。
+- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `2.1.0`。
 - 两个平台的 CI、稳定性、覆盖率、安全和发布物门禁通过。
 - 严格 Candidate 工作流的 `Candidate qualified` 作业真实成功；Provider 被跳过或仅工程门通过不算完成。生产依赖与完整依赖的审计报告均须有效且零发现。
 - 最终全仓 Markdown 审计通过。
 - 固定中英 Release 正文经语义审阅，唯一 `{{RELEASE_COMMIT}}` 注入经校验的提交 SHA；创建只用 `--notes-file`，既有 body 冲突停止，不自动聚合 PR 标题或覆盖正文。
 
-RC 完成仍不等于已经发布。只在最终资格通过的提交创建不可移动的 `v2.0.0` Tag；随后按[正式发布 SOP](README.zh-CN.md)发布同一构建 R 的 8 个 npm tarball、wheel 与独立源码 ZIP 共 10 件，公开下载逐项核对清单/哈希并在干净环境回装，最后验证 GitHub Release 与双语文档站。
+严格资格通过后，在候选提交创建版本对应的不可移动标签。按[正式发布 SOP](README.zh-CN.md)发布同一构建 R 的 13 件制品，包括 8 个 npm tarball、4 个 Python wheel 和独立源码 ZIP。逐件公开下载、核对清单和 SHA-256，再从公开渠道回装并验证 GitHub Release 与双语文档站。

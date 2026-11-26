@@ -11,7 +11,7 @@
 
 ## Standalone wheel acceptance
 
-1. In an empty directory outside the checkout and a fresh Python environment, install only the chosen version of the knowledge component. Record its source, version, artifact digest and launch command. Move the checkout out of reach and start with the business manifest, originals and pinned model. Use a standard MCP client to check missing-credential rejection, authorized search and citation resolution, then check the application's own entry point.
+1. In an empty directory outside the checkout and a fresh Python 3.12 environment, install only the chosen version of the knowledge component. For 0.1.0, run `python -m pip install coremind-knowledge-mcp==0.1.0`. Record its source, version, artifact digest and launch command. Move the checkout out of reach and start with the business manifest, originals and pinned model. Use a standard MCP client to check missing-credential rejection, authorized search and citation resolution, then check the application's own entry point.
 2. For the first packaged release, generate real state containing a withdrawn edition with the 2.0.0 source service. Compare behavior before and after upgrade and rollback using the guide. For later upgrades, use the previous released distribution as the baseline.
 3. Remove the project binding and dedicated service environment. Verify that other project features still run and that the originals, state file and withdrawal records remain available. Record the independent install result separately from source-level regressions.
 

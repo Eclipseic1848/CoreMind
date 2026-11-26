@@ -6,7 +6,7 @@ This file records user-facing changes. Historical release records remain unchang
 
 ## 2.1.0
 
-Release preparation. [2.0-to-2.1 candidate migration](docs/migrations/2.0-to-2.1.en.md) · [Candidate notes](docs/release/notes/v2.1.0.md) · [Release milestone](https://github.com/Eclipseic1848/CoreMind/milestone/5)
+[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [2.0 to 2.1 migration](docs/migrations/2.0-to-2.1.en.md) · [Release build](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
 - Generate a minimal configuration in your project with `coremind create . --runtime-only`, then select capabilities as needed.
 - Knowledge, Hindsight memory, and ontology ship as separate 0.1.0 components. Install a Skill from a pinned commit and register or remove each application tool independently.

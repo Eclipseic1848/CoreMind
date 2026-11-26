@@ -1,18 +1,20 @@
 # Optional ontology example
 
-An empty business project can install just the `0.1.0` ontology wheel supplied for the 2.1.0 candidate and make an MCP query. The standalone acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
+An empty business project can install just `coremind-ontology-mcp` 0.1.0 and make an MCP query. The standalone acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
 
 The document assistant uses [`document-review`](models/document-review/actions.json) to describe records, validate reviewer relationships, and check whether a record may be published. The same adapter loads [`equipment-maintenance`](models/equipment-maintenance/actions.json) to describe equipment, station relationships, and service restoration.
 
 ## Accept the installed wheel
 
-From the repository root, build with `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology`. Copy the wheel and this example’s `installed_acceptance.py`, `receipt_handler.py` and `models/` to an external directory. Activate a fresh Python 3.12 environment. Use an empty `business-test` directory to retain the assets and both databases after the check.
+Copy this example's `installed_acceptance.py`, `receipt_handler.py` and `models/` to a directory outside the checkout. Activate a fresh Python 3.12 environment. Use an empty `business-test` directory to retain the assets and both databases after the check.
 
 ```sh
-python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+python -m pip install coremind-ontology-mcp==0.1.0
 python -I -B -X utf8 installed_acceptance.py --project ./business-test
 python -m pip uninstall -y coremind-ontology-mcp
 ```
+
+To test a source build, follow the [component README](../../../components/ontology/README.md) to build and install the 0.1.0 wheel, then run the same check.
 
 The check uses a real Streamable HTTP client, pySHACL, and a local SQLite business transaction. It exercises read and write services, switches model versions, forces process termination after a business commit, and checks replay behavior. Success returns `businessReceipts: 2`, `unknownReplayBlocked: true` and `modelRollback: "1.0.0"`. After uninstall, verify that `business.sqlite3`, `action-receipts.sqlite3` and the model files remain in the business directory.
 

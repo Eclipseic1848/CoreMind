@@ -2,7 +2,7 @@
 
 CoreMind 能识别某个供应商，只代表运行时具有对应适配入口；只有完成本页全部真实测试并保存证据后，才能标记为“已认证”。当前认证结果见[供应商矩阵](./README.zh-CN.md)。
 
-开发阶段的 DeepSeek、Qwen 试验评估资料与记忆行为。正式认证绑定冻结的 main 提交 S 和实际 Runtime 候选包 SHA-256 H。2.0.0 记录了 `deepseek-flash` 的预算、时限、七项基础行为，以及父模型调用、委派、子模型调用、子工具调用、取消收敛五项检查，共 12 项。[严格候选结果](https://github.com/Eclipseic1848/CoreMind/issues/403) · [候选资格要求](../release/RC-ACCEPTANCE.zh-CN.md)
+开发阶段的 DeepSeek、Qwen 试验评估资料与记忆行为。正式认证绑定冻结的 main 提交 S 和实际 Runtime 候选包 SHA-256 H。2.1.0 的认证记录包含 `deepseek-flash` 的预算、时限、七项基础行为，以及父模型调用、委派、子模型调用、子工具调用、取消收敛五项检查，共 12 项。[严格候选结果](https://github.com/Eclipseic1848/CoreMind/issues/426) · [候选资格要求](../release/RC-ACCEPTANCE.zh-CN.md)
 
 ## 认证前提
 

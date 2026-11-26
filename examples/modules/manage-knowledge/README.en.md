@@ -1,6 +1,6 @@
 # Retrieve Chinese documents through three entry points
 
-The knowledge service can run on its own from the 2.0.0 source release. The Node build below is for maintainers testing the CoreMind client entry points. For a business project using only knowledge, follow the [empty-project guide](../../../docs/modules/manage-knowledge/GUIDE.en.md). A document-assistant template is optional. The [0.1.0 knowledge component](../../../components/knowledge/README.md) supplies the standalone local wheel for the 2.1.0 candidate and a standard MCP client example.
+For a business project using only knowledge, run `python -m pip install coremind-knowledge-mcp==0.1.0`, then connect the service using the [empty-project guide](../../../docs/modules/manage-knowledge/GUIDE.en.md). The [component README](../../../components/knowledge/README.md) also gives source build commands and a standard MCP client example. The service from the 2.0.0 source release can still run on its own. The Node build below is for maintainers testing the CoreMind client entry points. A document-assistant template is optional.
 
 This example uses the [synthetic Songyu records-room corpus](../../knowledge-evals/zh-retrieval/manifest.json). The knowledge service runs locally with a host-selected reader scope. The model sends only the query text in its tool call. Index the five source files with their manifest metadata. Keep the questions and gold answers on the scoring side.
 

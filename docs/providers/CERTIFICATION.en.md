@@ -2,7 +2,7 @@
 
 Provider discovery means that CoreMind has an adapter entry point. It does not mean the provider has been certified. A provider becomes certified only after every live check below passes and reviewable evidence is recorded. See the current [provider matrix](./README.en.md).
 
-The DeepSeek and Qwen development trials measure knowledge and memory behavior. Formal qualification binds the frozen main commit S to the actual candidate Runtime tarball SHA-256 H. The 2.0.0 `deepseek-flash` evidence records the budget, duration and all 12 checks: seven basic behaviors plus the parent model call, delegation, child model call, child tool call and cancellation convergence. [Strict candidate results](https://github.com/Eclipseic1848/CoreMind/issues/403) · [Candidate requirements](../release/RC-ACCEPTANCE.en.md)
+The DeepSeek and Qwen development trials measure knowledge and memory behavior. Formal qualification binds the frozen main commit S to the actual candidate Runtime tarball SHA-256 H. The 2.1.0 `deepseek-flash` evidence records the budget, duration and all 12 checks: seven basic behaviors plus the parent model call, delegation, child model call, child tool call and cancellation convergence. [Strict candidate results](https://github.com/Eclipseic1848/CoreMind/issues/426) · [Candidate requirements](../release/RC-ACCEPTANCE.en.md)
 
 ## Prerequisites
 
