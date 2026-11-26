@@ -46,6 +46,14 @@ const lookupOrder = defineTool({
 
 内置 `web-fetch` 和 `web-search` 收到非 2xx 响应或读取正文失败时，会先等待正文取消/释放的清理尝试结束，再结算本地网络活动；清理自身失败仍保留原 HTTP/读取错误。正常结果、取消行为及既有权限和网络策略保持不变；`web-fetch` 仍限制正文最多 2 MiB。
 
+## 校验业务输出和写入回执
+
+使用当前源码构建的 Runtime。先由业务方定义哪些字段足以确认写入，例如业务请求 ID 与最终状态。为本地 `defineTool` 声明可选的对象 `outputSchema`。Runtime 使用既有 JSON Schema 方言校验工具结果。若处理器返回 `{ text, details }` 且 `details` 有值，则校验 `details`。其他情况校验整个返回值，包括本身含 `text` 字段的业务对象。显式 `isError: true` 的响应按工具错误处理。
+
+stdio 与 Streamable HTTP MCP 服务在 `tools/list` 的定义中声明同一 `outputSchema`，并在成功响应中把业务回执放进 `structuredContent`。项目配置沿用现有 MCP 绑定。缺字段、值类型错误或缺少完整回执时，Runtime 向模型返回工具错误并保留执行证据，无效的原始回执不进入模型。
+
+对已经开始、业务效果尚未确认的写入，查看 Trace 中的 `effect_receipt`。具有副作用且声明 `capability.replay: "unsafe"` 的工具，同一 Run 内相同工具和参数的在途或未知写入会阻止再次执行。冷恢复遇到 `started` 或 `unknown` 仍会暂停。跨 Run 先按业务请求 ID 查业务账本，再决定如何处理。[三入口示例](../../../examples/modules/build-tools/README.zh-CN.md#三入口写入回执验收) · [恢复合同](../recover-durable-runs/GUIDE.zh-CN.md)
+
 ## 本地 MCP 服务
 
 按[配置指南](../../guide/02-configuration.md#mcp按-agent-选择本地工具)声明已审核程序及每个 Agent 的原始工具引用。CLI、TypeScript 和 Python 共用 Node Runtime；Python 不另建客户端。不要通过全局 SDK `toolDefinitions` 注入远端目录。

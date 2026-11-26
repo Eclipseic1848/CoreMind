@@ -1318,6 +1318,8 @@ export declare interface CoreMindToolDefinition<TArgs = Record<string, unknown>>
     label?: string;
     description: string;
     parameters: JsonObjectSchema;
+    /** 成功时校验裸结果，或显式 CoreMindToolOutput 的 details。 */
+    outputSchema?: JsonObjectSchema;
     effect: ToolEffectDeclaration;
     /** 完整能力声明；省略时从旧 effect 保守推导，跨多个可变边界则 strict fallback。 */
     capability?: ToolCapabilityDeclaration;

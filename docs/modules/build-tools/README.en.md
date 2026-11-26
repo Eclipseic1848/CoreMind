@@ -22,6 +22,7 @@ Tools can be enabled independently. Give an agent only the workspace `read` tool
 
 - Tool loading failures are warned and skipped
 - Tool exceptions enter tool_result and failure budgets
+- The current source validates structured business receipts from local and MCP tools. Effect receipts govern writes that have started, remain unconfirmed, and cannot safely be repeated. [Business receipt guide](GUIDE.en.md#validate-business-output-and-write-receipts)
 - Built-in `web-fetch`/`web-search` await response-body cancellation/release cleanup attempts on non-2xx responses or body-read failures before settling local network activity. Cleanup failures do not replace the original HTTP/read error. Existing success and cancellation behavior, permissions, and network policy remain unchanged, as does the `web-fetch` 2 MiB body limit.
 - Final tool-call JSON must parse completely; string-escape repair may preserve its full content. Otherwise it is rejected before approval, checkpoints, and execution, without completing missing structure or executing a parsed prefix. Rejection produces a bound `not_started` receipt and tool error so the model can resubmit. Valid arguments still pass the original permission and execution gates.
 - Escaped paths or deny rules block execution

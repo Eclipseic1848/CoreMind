@@ -64,6 +64,7 @@ testPaths:
   - "packages/coremind-runtime/src/mcp-auth-runtime.acceptance.test.ts"
   - "python/tests/test_mcp_auth.py"
   - "examples/modules/build-tools/transport-parity.mjs"
+  - "examples/modules/build-tools/write-receipts.mjs"
   - "examples/modules/build-tools/browser/run.mjs"
 supportedPlatforms:
   - "windows"

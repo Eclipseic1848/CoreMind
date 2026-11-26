@@ -11,7 +11,7 @@ import {
   type ToolCapabilityDeclaration,
 } from "coremind-tools";
 import { CoreMindError } from "./errors.js";
-import { validateToolSchema } from "./tool-json-schema.js";
+import { createToolSchemaValidator, validateToolSchema } from "./tool-json-schema.js";
 
 export interface JsonObjectSchema extends Record<string, unknown> {
   type: "object";
@@ -38,6 +38,8 @@ export interface CoreMindToolDefinition<TArgs = Record<string, unknown>> {
   label?: string;
   description: string;
   parameters: JsonObjectSchema;
+  /** 成功时校验裸结果，或显式 CoreMindToolOutput 的 details。 */
+  outputSchema?: JsonObjectSchema;
   effect: ToolEffectDeclaration;
   /** 完整能力声明；省略时从旧 effect 保守推导，跨多个可变边界则 strict fallback。 */
   capability?: ToolCapabilityDeclaration;
@@ -63,6 +65,15 @@ export function defineTool<TArgs>(
     throw new CoreMindError(
       "invalid_tool",
       `工具 ${definition.name} 的 parameters 必须为有效的 object JSON Schema`,
+    );
+  }
+  if (
+    definition.outputSchema !== undefined &&
+    (definition.outputSchema?.type !== "object" || !validateToolSchema(definition.outputSchema))
+  ) {
+    throw new CoreMindError(
+      "invalid_tool",
+      `工具 ${definition.name} 的 outputSchema 必须为有效的 object JSON Schema`,
     );
   }
   if (
@@ -110,6 +121,7 @@ export function defineTool<TArgs>(
 /** 仅供 Runtime Adapter 使用，不作为用户必须理解的接口。 */
 export function adaptCoreMindTool(definition: CoreMindToolDefinition<any>): AgentTool {
   const valid = defineTool(definition);
+  const validateOutput = valid.outputSchema && compileOutputSchema(valid.name, valid.outputSchema);
   return {
     name: valid.name,
     label: valid.label ?? valid.name,
@@ -117,7 +129,13 @@ export function adaptCoreMindTool(definition: CoreMindToolDefinition<any>): Agen
     parameters: valid.parameters as AgentTool["parameters"],
     execute: async (callId, args, signal) => {
       const value = await valid.execute(args, { callId, signal });
-      if (isToolOutput(value)) {
+      const output = isToolOutput(value);
+      if (validateOutput && (!output || value.isError !== true)) {
+        if (!validateOutput(output ? (value.details ?? value) : value)) {
+          throw new CoreMindError("tool_execution_failed", "工具成功结果未通过 outputSchema 校验");
+        }
+      }
+      if (output) {
         return {
           content: [{ type: "text", text: value.text }],
           details: value.details ?? value,
@@ -129,6 +147,14 @@ export function adaptCoreMindTool(definition: CoreMindToolDefinition<any>): Agen
       return { content: [{ type: "text", text }], details: value };
     },
   } as AgentTool;
+}
+
+function compileOutputSchema(name: string, schema: JsonObjectSchema) {
+  try {
+    return createToolSchemaValidator(schema).compile(schema);
+  } catch {
+    throw new CoreMindError("invalid_tool", `工具 ${name} 的 outputSchema 无法编译`);
+  }
 }
 
 type ReturnTypeAdapter = Awaited<ReturnType<AgentTool["execute"]>> & { isError?: boolean };
