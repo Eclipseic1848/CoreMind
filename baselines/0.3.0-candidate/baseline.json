@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "b9302514cbbbb9957a3009f060e698c328c93066",
+    "developmentCommit": "0a308010efcea52c84704db2f19d87b787ce4ce1",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,7 +17,7 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "8be91da2c25c914f95a3765df86576aad14779a1da5f4a92b6af64db3e0a735d",
       "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
-      "coremind-runtime": "81dce5d32b152349a2eaff1e81a4d9e383b0dac4abb3797f5ee477d022aa0678",
+      "coremind-runtime": "84b2a04d51b2277092650c9f6bed668798d4a95e218ab179cab5f558c96f24c6",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "5c887496c63daadefce623ddf837bd0a1f11df3bb6f84025c9e2268ced62b969",
       "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
@@ -283,19 +283,19 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-25T02:21:57.959Z",
+    "capturedAt": "2026-11-26T10:29:07.583Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue 410：显式接受 Qwen 聊天模板思考开关，仅扩展自定义 Provider 的 thinkingFormat 合同。原 qwen 与未配置路径保留，关闭或启用时均核对 900 token 的请求。",
+    "updateReason": "Issue #438 为 TypeScript defineTool 增加可选 outputSchema，现有工具定义保持兼容",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "7b3dcf3b761546614983cc164532637c3842a3f1dadd254f41d12a070d2af1b8",
+    "dependencyLockSha256": "206b6503548fbeca69c15456c1652d9bbe9b1c06c955d6127b31de651e5bc1ab",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
-      "coremind-cli": "a437418fb99a53e1ca80c8df3d5438b4e60eaa37f4048f6f7007abc27592b835",
-      "coremind-config": "e596a402cd5410b79b24253e3150fdf1c9f20b530ec8685cc258eb7054503717",
+      "coremind-cli": "8631495e40776614ddeec3b6110cebd4936167aba14e2ac241743955521bcb52",
+      "coremind-config": "b21eaee6ae4a9d933b2288b1e7e12a4acfc2cc701a6c92c01b1329554563ea83",
       "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
-      "coremind-runtime": "383d1e8767f5b7edfd727bc29310d77bc29f08c2e31e0fd1ee4f877e4a2097cd",
-      "coremind-templates": "0558ff116faf9bfa7450a52751e8605207263978ef67f58e42246b75e1eb3bef",
+      "coremind-runtime": "356c69c2b388f7947c529b1fe9517540369a7788dd0fbf54afea33ffd4aa10ee",
+      "coremind-templates": "a60b36a32f5fb282ccdcdd9a31c406c3dd02061804ec5aef1cbcc82c56427dc9",
       "coremind-tools": "ad60f0448937f1a957106dbb8eb2d211dc035a01ed945f8bde7676c34a7e1b3a",
       "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"
     },
