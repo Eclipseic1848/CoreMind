@@ -91,6 +91,30 @@ Invoke-RestMethod -Method Post -Uri "$memoryUrl/forget" -Headers $memoryHeaders 
 
 预期返回 `forgotten`。要清除同一记忆库中由 CoreMind 管理的所有文档，向 `/admin/forget-bank` 传入 `bankId`。重启服务后，从新会话检查已遗忘内容无法召回。恢复旧 Hindsight 备份前，保留最新宿主回执并重放相应遗忘请求，再开放服务。旧会话的数据保留和恢复属于其原数据域。
 
+## 经验依据与复核
+
+按上文从当前源码构建网关后，在同库先保留两条已确认事实。宿主审核候选并调用 `POST /admin/retain`，在原写入字段上加 `kind: "experience"` 和 `evidence`。下面的 ID 与版本取自两份实际写入回执。`source` 仍保存便于人查找的引用。
+
+```json
+{
+  "kind": "experience",
+  "evidence": [
+    { "documentId": "meeting-note", "version": 1 },
+    { "documentId": "review-result", "version": 1 }
+  ]
+}
+```
+
+使用 `POST /admin/correct` 更正第一条依据。宿主调用 `POST /admin/review-status`，请求体为 `{"bankId":"demo-alice"}`。返回的 `pendingReview` 应含经验 ID、当前版本和原依据，此时读者召回不应含该经验。核对新依据后，用 `/admin/correct` 将经验当前版本填入 `expectedVersion`，提交更新后的整组 `evidence`。再检查新版本及其依据均能召回。第二条依据遗忘后，复查经验再次转待复核。
+
+在仓库根目录用已安装[示例依赖](requirements.txt)的 Python 执行自动验收。它经过实际宿主管理和 MCP 入口，使用本地 Hindsight 夹具。
+
+```sh
+python -B -X utf8 examples/modules/manage-memory/review_evaluation.py
+```
+
+命令向标准输出写入 JSON 回执。用 `--output` 可另存到已有目录。回退验收加 `--legacy-archive` 并传入已核验的 2.0.0 正式源码 ZIP，验证旧网关基于最新回执以只读模式运行。
+
 ## CoreMind 四入口验收
 
 在新的业务目录按[配置指南](../../../docs/modules/manage-memory/GUIDE.zh-CN.md)安装相同版本的 2.1.0 CLI、TypeScript SDK 与 Python SDK。复制本目录的 `acceptance.mjs`、`coremind.yaml`、`search.mjs` 和 `search.py`，将 YAML 的 `mcp.servers.memory.url` 指向测试网关；验收配置保留回环模型端口 8770。业务终端仅注入读令牌，用 `COREMIND_MEMORY_PYTHON` 指定已安装 SDK 的解释器。宿主写入表格偏好后、更正或遗忘前，在业务目录执行 `node acceptance.mjs "资料摘要应该采用哪种格式？" "资料摘要优先使用表格。"`。驱动加载已安装的 CLI、SDK 和 wheel 内置 Worker，核对四入口召回的是同一条事实。运行入口使用确定性模型夹具，真实模型效果另行验证。

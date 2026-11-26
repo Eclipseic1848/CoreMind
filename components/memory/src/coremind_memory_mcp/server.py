@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import os
+from collections import defaultdict
 from datetime import date, datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -50,6 +51,11 @@ class Target(BankTarget):
     documentId: Identifier
 
 
+class EvidenceRef(RequestBody):
+    documentId: Identifier
+    version: Annotated[int, Field(ge=1, strict=True)]
+
+
 class Write(Target):
     expectedVersion: Annotated[int, Field(ge=0, strict=True)] = 0
     text: Annotated[str, Field(min_length=1, max_length=2000)]
@@ -57,6 +63,7 @@ class Write(Target):
     occurredAt: date
     expiresAt: date | None = None
     kind: Literal["fact", "experience"] = "fact"
+    evidence: Annotated[list[EvidenceRef], Field(min_length=1)] | None = None
 
 
 class Reflection(RequestBody):
@@ -99,10 +106,49 @@ class MemoryService:
     def _key(bank, document):
         return f"{bank}/{document}"
 
+    def _dependent_reviews(self, bank, doc, previous):
+        if not previous or "version" not in previous:
+            return {}
+        by_source = defaultdict(list)
+        for key, receipt in self.records.items():
+            if key.startswith(f"{bank}/") and receipt["state"] in {"active", "pending"}:
+                for ref in receipt.get("evidence", []):
+                    by_source[ref["documentId"], ref["version"]].append(key)
+        sources = [(doc, previous["version"])]
+        changes = {}
+        for source in sources:
+            for key in by_source[source]:
+                if key not in changes:
+                    receipt = self.records[key]
+                    changes[key] = {**receipt, "state": "pending_review"}
+                    sources.append((key.split("/", 1)[1], receipt["version"]))
+        return changes
+
+    def _evidence_expiry(self, bank, doc, evidence, changes, expiry):
+        active = self._active(bank)
+        expiries = [expiry] if expiry else []
+        for ref in evidence:
+            source = ref["documentId"]
+            key = self._key(bank, source)
+            if source == doc or key in changes:
+                raise Conflict("经验不能引用自身或随本次更正失效的下游")
+            if active.get(source) != ref["version"]:
+                raise Conflict("经验依据必须是同一记忆库中的有效版本")
+            source_expiry = self.records[key]["expiresAt"]
+            if source_expiry:
+                expiries.append(source_expiry)
+        return min(expiries, default=None)
+
     def write(self, request):
         bank, doc = request.bankId, request.documentId
         key = self._key(bank, doc)
         raw = request.model_dump(mode="json")
+        evidence = raw.pop("evidence")
+        if evidence is not None:
+            if request.kind != "experience" or len({ref["documentId"] for ref in evidence}) != len(evidence):
+                raise ValueError("结构化依据只用于经验，且每份文档只能指定一个版本")
+            raw["evidence"] = sorted(evidence, key=lambda ref: ref["documentId"])
+        # 缺省依据沿用旧的请求序列化和幂等摘要。
         digest = hashlib.sha256(json.dumps(raw, sort_keys=True).encode("utf-8")).hexdigest()
         source = {"ref": request.source, "occurredAt": raw["occurredAt"]}
         if request.expiresAt and request.expiresAt <= request.occurredAt:
@@ -113,18 +159,28 @@ class MemoryService:
             if previous and previous["state"] in {"forgetting", "forgotten"}:
                 raise Conflict("已遗忘的记忆标识不可重放")
             if previous and previous["version"] == version and previous["digest"] == digest:
-                if previous["state"] == "active":
-                    return {"status": "active", "documentId": doc, "version": version}
-            elif previous and (previous["state"] != "active" or previous["version"] != request.expectedVersion):
+                if previous["state"] != "pending":
+                    return {"status": previous["state"], "documentId": doc, "version": version}
+            elif previous and (
+                previous["state"] not in {"active", "pending_review"} or previous["version"] != request.expectedVersion
+            ):
                 raise Conflict("版本冲突或仍有未完成操作")
             elif not previous and request.expectedVersion != 0:
                 raise Conflict("找不到待更正的记忆版本")
-            receipt = {"state": "pending", "version": version, "digest": digest, "expiresAt": raw["expiresAt"]}
-            self._save({key: receipt})
+            if previous and previous.get("evidence") and evidence is None:
+                raise Conflict("更正已追踪的经验须提供已核对的依据版本")
+            reviews = self._dependent_reviews(bank, doc, previous)
+            expiry = raw["expiresAt"]
+            receipt = {"state": "pending", "version": version, "digest": digest, "expiresAt": expiry}
+            if evidence is not None:
+                receipt["expiresAt"] = self._evidence_expiry(bank, doc, evidence, reviews, expiry)
+                receipt["evidence"] = raw["evidence"]
+            # 先按同一回执暂停旧版本及其下游，再接触 Hindsight。
+            self._save({**reviews, key: receipt})
             self.backend.ensure_bank(bank)
             self.backend.retain(
                 bank, doc, request.text, source=source, version=version,
-                expires_at=raw["expiresAt"], kind=request.kind,
+                expires_at=receipt["expiresAt"], kind=request.kind,
             )
             self._save({key: {**receipt, "state": "active"}})
             return {"status": "active", "documentId": doc, "version": version}
@@ -134,7 +190,8 @@ class MemoryService:
         with self.lock:
             previous = self.records.get(key)
             if not previous or previous["state"] != "forgotten":
-                self._save({key: {"state": "forgetting"}})
+                reviews = self._dependent_reviews(target.bankId, target.documentId, previous)
+                self._save({**reviews, key: {"state": "forgetting"}})
             self.backend.forget(target.bankId, target.documentId)
             self._save({key: {"state": "forgotten"}})
             return {"status": "forgotten", "documentId": target.documentId}
@@ -148,6 +205,15 @@ class MemoryService:
             for key in keys:
                 self.forget(Target(bankId=target.bankId, documentId=key.split("/", 1)[1]))
             return {"status": "forgotten", "bankId": target.bankId, "documents": len(keys)}
+
+    def review_status(self, target):
+        with self.lock:
+            return {"pendingReview": [
+                {"documentId": key.split("/", 1)[1], "version": receipt["version"],
+                 "evidence": [dict(ref) for ref in receipt["evidence"]]}
+                for key, receipt in sorted(self.records.items())
+                if key.startswith(f"{target.bankId}/") and receipt["state"] == "pending_review"
+            ]}
 
     def _active(self, bank):
         today = datetime.now(timezone.utc).date().isoformat()
@@ -170,7 +236,12 @@ class MemoryService:
                     doc = item.get("documentId")
                     identity = (bank, doc, item.get("text"))
                     if doc in active and item.get("version") == active[doc] and identity not in seen:
-                        results.append({**item, "bankId": bank})
+                        memory = {**item, "bankId": bank}
+                        memory.pop("evidence", None)
+                        evidence = self.records[self._key(bank, doc)].get("evidence")
+                        if evidence:
+                            memory["evidence"] = [dict(ref) for ref in evidence]
+                        results.append(memory)
                         seen.add(identity)
         return {"memories": results[:5]}
 
@@ -231,7 +302,7 @@ def make_app(service, bindings):
         banks = allowed(request, admins)
         operations = {"retain": (Write, service.write), "correct": (Write, service.write),
                       "forget": (Target, service.forget), "forget-bank": (BankTarget, service.forget_bank),
-                      "reflect": (Reflection, service.reflect)}
+                      "reflect": (Reflection, service.reflect), "review-status": (BankTarget, service.review_status)}
         if operation not in operations:
             return JSONResponse({"error": "unknown_operation"}, status_code=404)
         model, handler = operations[operation]

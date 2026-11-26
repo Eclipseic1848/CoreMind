@@ -98,6 +98,8 @@ Invoke-RestMethod 'http://127.0.0.1:8769/admin/retain' -Method Post -Headers $ho
 
    旧数据库快照可能含已经遗忘的原生记录。以原生文档和派生记忆均已消失、对照事实仍可召回作为恢复验收。备份后其他新增或更正事项按宿主业务记录对账，处理完毕再开放读取。若需回退网关版本，在专用环境切换版本并带上最近的绑定和回执，核对上述结果。停用时先从业务项目移除绑定，再依次停止网关、Hindsight 和 PostgreSQL，保留授权保管的目录与备份。
 
+   当前源码构建启用经验依据追踪后，回退到不支持追踪的版本时沿用最新回执，给旧网关配置 `administrators: []`。旧网关在回退窗口仅提供读取，遗忘重放和复核由支持追踪的网关完成。[复核与回退步骤](../../../../docs/modules/manage-memory/SOP.zh-CN.md#验收经验追溯与复核)
+
    ```powershell
    pg_ctl -D state/pgdata -m fast -w stop
    ```
@@ -109,5 +111,7 @@ Invoke-RestMethod 'http://127.0.0.1:8769/admin/retain' -Method Post -Headers $ho
 ```powershell
 python -X utf8 examples/modules/manage-memory/deployment/acceptance.py --pg-bin '<PostgreSQL bin>' --model-dir '<固定模型目录>' --work-dir '<尚不存在的演练目录>'
 ```
+
+安装当前源码构建的候选 wheel 后，在同一命令加 `--experience-review`。演练在备份前确认一条引用两份依据的经验，遗忘一份依据后检查待复核状态，再恢复旧数据库并沿用最新回执。追加 `--previous-source` 可验证旧网关只读期间经验继续隐藏。回到候选网关后，由宿主用仍有效的依据更正经验，再核对新版本和复核清单。
 
 输出包含版本、备份大小与摘要、实际启动和恢复耗时，以及逐项验证结果。Windows 原生演练覆盖真实服务和逻辑恢复。Linux 工程 CI 使用独立网关的生命周期单测和既有组合检查，原生 PostgreSQL 逻辑恢复在目标 Linux 宿主上可按同一脚本验收。[Hindsight 自托管](https://hindsight.vectorize.io/1.2/developer/installation) · [PostgreSQL 备份恢复](https://www.postgresql.org/docs/18/backup-dump.html)

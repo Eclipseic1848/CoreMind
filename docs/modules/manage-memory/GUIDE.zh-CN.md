@@ -42,6 +42,14 @@ quality: { profile: development }
 2. 由宿主管理 Hindsight 服务及其持久存储。将存储放在 Agent 可读工作区之外。仅把读权限授予 Agent 的 MCP 工具，宿主管理入口负责写入和确认。
 3. 明确哪些材料可用于提炼候选。候选应带来源、适用条件和可核查的反例或限制。确认人核对提炼结果后再发布。应用根据业务需要配置模型和出站范围。
 
+## 按依据版本确认和复核经验
+
+使用当前源码构建的网关。宿主调用 `/admin/reflect` 得到待确认候选，查验其原文、适用范围和 `candidate.based_on.memories`。确认时向 `/admin/retain` 提交 `kind: "experience"`、人工可读的 `source` 和非空的 `evidence` 数组。每项依据填写同一记忆库中的 `documentId` 与当前 `version`，可关联多条。禁止重复引用、自引或更正后会随本次操作失效的下游引用。参见[可运行示例](../../../examples/modules/manage-memory/README.zh-CN.md#经验依据与复核)。
+
+依据更正或遗忘后，网关把受影响的经验及其下游标记为 `pending_review`，从召回和反思的可用材料中移除。由宿主向 `/admin/review-status` 发送 `{"bankId":"demo-alice"}`，查看 `pendingReview` 中的经验 ID、版本和原依据。复核通过后向 `/admin/correct` 传入当前经验的 `expectedVersion`、更新后的正文与有效依据，成功后生成新版本并恢复可见。重放已转待复核的原写入请求仍返回 `pending_review`。
+
+已追踪经验的召回结果附 `evidence`。依据与经验均受各自的到期限制，由更早的到期日期决定其可见性。只保存文字来源的既有经验继续兼容。需要追踪时，在宿主核对依据后用更正入口补录。
+
 ## 走一遍记忆生命周期
 
 由宿主确认「资料摘要优先用表格」，为该主体和 Agent 开启共享，并在独立新会话询问采用何种形式。核对召回的正文、版本、来源和匹配依据。改用另一个主体或未经授权的分支重复查询，结果不应包含该条记忆。

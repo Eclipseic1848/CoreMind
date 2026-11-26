@@ -98,6 +98,8 @@ Invoke-RestMethod 'http://127.0.0.1:8769/admin/retain' -Method Post -Headers $ho
 
    Confirm that the native document and its derived memories have disappeared and that the control fact remains readable. Reconcile application writes and corrections made after the backup before reopening access. To roll back the gateway, switch the executable in its dedicated environment and preserve the latest receipts and bindings. To disable memory, remove the application binding, stop the gateway and Hindsight, then stop PostgreSQL. Retain the protected files and backups.
 
+   If the current source build tracks experience evidence, retain the latest receipts and set `administrators: []` when rolling back to a gateway without tracking. The previous gateway serves reads during rollback. Use the tracking-aware gateway to replay deletions and review experiences. [Review and rollback procedure](../../../../docs/modules/manage-memory/SOP.en.md#verify-experience-evidence-and-review)
+
    ```powershell
    pg_ctl -D state/pgdata -m fast -w stop
    ```
@@ -109,5 +111,7 @@ Run this command from the repository root. The script creates a fresh loopback P
 ```powershell
 python -X utf8 examples/modules/manage-memory/deployment/acceptance.py --pg-bin '<PostgreSQL bin>' --model-dir '<pinned model directory>' --work-dir '<new rehearsal directory>'
 ```
+
+Install a candidate wheel built from the current source and add `--experience-review` to the same command. The rehearsal confirms an experience with two sources before backup, forgets one source, and verifies that the experience stays pending after restoring the old database with the latest receipts. With `--previous-source`, it verifies that the experience stays hidden while the old gateway serves reads. After returning to the candidate gateway, the host issues a correction with current evidence and verifies the new version and review list.
 
 The report includes versions, dump size and digest, observed startup and restore times, and checked outcomes. The native Windows exercise covers the real services and logical restore. Linux engineering CI covers the gateway lifecycle unit tests and existing composition checks. The same script can qualify native logical restore on the target Linux host. [Hindsight self-hosting](https://hindsight.vectorize.io/1.2/developer/installation) · [PostgreSQL backup and restore](https://www.postgresql.org/docs/18/backup-dump.html)
