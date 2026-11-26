@@ -1,9 +1,12 @@
 """在本机用 BGE-M3 和 Qdrant 检索有来源、权限和生效日期的知识块。"""
 
 import hashlib
+import json
+import logging
 import threading
 from datetime import date
 from pathlib import Path
+from uuid import NAMESPACE_OID, uuid5
 
 import numpy as np
 import onnxruntime as ort
@@ -16,6 +19,8 @@ MODEL_FILES = {
     "model_quantized.onnx": "16de7ea1146ca427e14938ec3e9abfdcaff0e6ac76434cd693ac35d761250bcb",
     "tokenizer.json": "249df0778f236f6ece390de0de746838ef25b9d6954b68c2ee71249e0a9d8fd4",
 }
+# 编码或持久投影契约变更时递增，避免复用不相容的向量批次。
+INDEX_ENCODING_REVISION = 2
 
 
 def verify_model(directory):
@@ -35,7 +40,7 @@ def ordinal(value):
 
 
 class KnowledgeIndex:
-    def __init__(self, model_dir):
+    def __init__(self, model_dir, *, index_dir=None):
         verify_model(model_dir)
         self.tokenizer = Tokenizer.from_file(str(Path(model_dir) / "tokenizer.json"))
         self.tokenizer.enable_padding(
@@ -51,7 +56,10 @@ class KnowledgeIndex:
             options,
             providers=["CPUExecutionProvider"],
         )
-        self.db = QdrantClient(":memory:")
+        self._persistent = index_dir is not None
+        self._generation = None
+        self._unconfirmed_generations = set()
+        self.db = QdrantClient(path=str(index_dir)) if self._persistent else QdrantClient(":memory:")
         self.lock = threading.RLock()
 
     def close(self):
@@ -107,16 +115,11 @@ class KnowledgeIndex:
                 raise ValueError("无效的来源生效区间")
             payloads.append({**chunk, "_start": start, "_end": end})
         with self.lock:
+            if self._persistent:
+                self._replace_persistent(payloads, before_publish)
+                return
             staged = QdrantClient(":memory:")
-            staged.create_collection(
-                "knowledge",
-                vectors_config={
-                    "dense": models.VectorParams(
-                        size=1024, distance=models.Distance.COSINE
-                    )
-                },
-                sparse_vectors_config={"sparse": models.SparseVectorParams()},
-            )
+            self._create_collection(staged)
             try:
                 for offset in range(0, len(payloads), 8):
                     batch = payloads[offset : offset + 8]
@@ -143,6 +146,108 @@ class KnowledgeIndex:
             previous, self.db = self.db, staged
             previous.close()
 
+    @staticmethod
+    def _create_collection(db):
+        db.create_collection(
+            "knowledge",
+            vectors_config={"dense": models.VectorParams(size=1024, distance=models.Distance.COSINE)},
+            sparse_vectors_config={"sparse": models.SparseVectorParams()},
+        )
+
+    @staticmethod
+    def _generation_filter(generation):
+        return models.Filter(
+            must=[models.FieldCondition(key="_generation", match=models.MatchValue(value=generation))]
+        )
+
+    def _generation_points(self, generation, *, with_vectors=False):
+        offset = None
+        while True:
+            points, offset = self.db.scroll(
+                "knowledge", scroll_filter=self._generation_filter(generation),
+                limit=128, offset=offset, with_vectors=with_vectors,
+            )
+            yield from points
+            if offset is None:
+                return
+
+    def _delete_generation(self, generation):
+        self.db.delete("knowledge", points_selector=self._generation_filter(generation), wait=True)
+
+    @staticmethod
+    def _chunk_identity(payload):
+        return tuple(payload.get(key) for key in (
+            "docId", "version", "file", "line", "locator", "chunkId", "text",
+        ))
+
+    def _replace_persistent(self, payloads, before_publish):
+        # 批次身份包含完整搜索投影，目录落盘是唯一提交点。
+        projection = json.dumps(
+            [INDEX_ENCODING_REVISION, MODEL_FILES, payloads],
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
+        generation = hashlib.sha256(projection.encode("utf-8")).hexdigest()
+        expected = {
+            str(uuid5(NAMESPACE_OID, f"{generation}:{position}")): {**payload, "_generation": generation}
+            for position, payload in enumerate(payloads)
+        }
+        if not self.db.collection_exists("knowledge"):
+            self._create_collection(self.db)
+        stored = {point.id: point.payload for point in self._generation_points(generation)}
+        if stored != expected or generation in self._unconfirmed_generations:
+            if generation == self._generation:
+                raise RuntimeError("当前持久索引与已提交目录不一致")
+            # Qdrant Local 先更新内存再写 SQLite，写入异常后必须重建该批次。
+            self._unconfirmed_generations.add(generation)
+            if stored:
+                self._delete_generation(generation)
+            by_identity = {}
+            by_text = {}
+            if self._generation is not None:
+                for point in self._generation_points(self._generation, with_vectors=True):
+                    by_identity[self._chunk_identity(point.payload)] = point.vector
+                    by_text.setdefault(point.payload["text"], point.vector)
+            incremental = any(payload["text"] in by_text for payload in payloads)
+            entries = list(expected.items())
+            for offset in range(0, len(entries), 8):
+                batch = entries[offset : offset + 8]
+                if incremental:
+                    texts = list(dict.fromkeys(
+                        payload["text"] for _, payload in batch if payload["text"] not in by_text
+                    ))
+                    if texts:
+                        for text, (dense, sparse) in zip(texts, self._encode(texts), strict=True):
+                            by_text[text] = {"dense": dense, "sparse": sparse}
+                    vectors = (
+                        by_identity.get(self._chunk_identity(payload), by_text[payload["text"]])
+                        for _, payload in batch
+                    )
+                else:
+                    # 量化 ONNX 对批次敏感，全量构建沿用内存索引的顺序和重复项。
+                    vectors = (
+                        {"dense": dense, "sparse": sparse}
+                        for dense, sparse in self._encode([payload["text"] for _, payload in batch])
+                    )
+                self.db.upsert(
+                    "knowledge",
+                    points=[
+                        models.PointStruct(id=point_id, payload=payload, vector=vector)
+                        for (point_id, payload), vector in zip(batch, vectors, strict=True)
+                    ],
+                    wait=True,
+                )
+            if {point.id: point.payload for point in self._generation_points(generation)} != expected:
+                raise RuntimeError("持久索引待提交批次不完整")
+            self._unconfirmed_generations.remove(generation)
+        if before_publish is not None:
+            before_publish()
+        previous, self._generation = self._generation, generation
+        if previous is not None and previous != generation:
+            try:
+                self._delete_generation(previous)
+            except Exception:
+                logging.getLogger(__name__).warning("持久索引旧批次清理失败，新批次已提交")
+
     def search(self, question, *, scope, as_of, limit=5, mode="hybrid"):
         if not isinstance(question, str) or not question.strip():
             raise ValueError("问题不能为空")
@@ -166,6 +271,12 @@ class KnowledgeIndex:
             ]
         )
         with self.lock:
+            internal_fields = {"_start", "_end"}
+            if self._persistent:
+                if self._generation is None:
+                    raise RuntimeError("持久索引尚未按知识目录初始化")
+                visible.must.extend(self._generation_filter(self._generation).must)
+                internal_fields.add("_generation")
             dense, sparse = next(self._encode([question]))
             if mode != "dense" and not sparse.indices:
                 return []
@@ -194,6 +305,6 @@ class KnowledgeIndex:
                 with_payload=True,
             ).points
             return [
-                {k: v for k, v in point.payload.items() if k not in {"_start", "_end"}}
+                {k: v for k, v in point.payload.items() if k not in internal_fields}
                 for point in points
             ]

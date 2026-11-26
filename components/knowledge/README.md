@@ -20,6 +20,8 @@ Markdown 使用基础安装。PDF/DOCX 使用可选扩展 `python -m pip install
 
 从源码交付时，在组件目录运行 `python -m pip wheel --no-deps . -w dist`。在服务环境中用 `python -m pip install /path/to/coremind_knowledge_mcp-0.1.0-py3-none-any.whl` 安装该文件。
 
+当前源码可用 `--index-dir ./state/index` 启用独占的持久 Qdrant 目录，和现有 `--state` 一起使用。保留原文、清单和目录文件，通过回查核对后再切换业务连接。省略该参数会按目录重建内存索引。
+
 当前源码的 PDF 和 DOCX 引文带有文档版本内的 `chunkId`。将同一次搜索得到的文档 ID、版本、文件名和 `chunkId` 一并交给回查工具。可用[合成文档及运行步骤](https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-knowledge/README.zh-CN.md#回查同页或同节的片段)核对原文。
 
 ## 版本与状态
@@ -27,6 +29,8 @@ Markdown 使用基础安装。PDF/DOCX 使用可选扩展 `python -m pip install
 来源内容变化时提升清单中的文档版本。用有效期切换现行版本，或在下次启动附加 `--withdraw desk:1`。历史回查只向获准读者返回当前可见的原文或撤回标记。来源、清单、模型和状态文件分别管理，每份可写状态只由一个进程负责。更新或卸载组件前停止服务并保留状态和原文。升级先用状态副本核对当前和已撤回引文，失败时用原环境和备份恢复。卸载命令是 `python -m pip uninstall coremind-knowledge-mcp`。
 
 ## English quick start
+
+Source builds support an optional dedicated local Qdrant directory via `--index-dir ./state/index` alongside the existing `--state`. Keep the manifest, originals, and catalog, then verify citations before switching the business connection. Omit the option to rebuild the in-memory index from the catalog.
 
 Install version 0.1.0 from PyPI in a dedicated Python 3.12 environment, or build and install the wheel as shown above for a source deployment. Start the service with your project manifest, BGE-M3 model directory, reader scope, and writable catalog path. Use the same `Authorization` header in your client and server environment. Run `python -X utf8 query.py` from the example directory to search and resolve an original citation. Markdown works with the base wheel. Install the `documents` extra for Docling/RapidOCR PDF or DOCX support and provision parser assets for offline use. Stop the server with Ctrl+C. Before changing versions, back up the project manifest, originals and catalog with withdrawal history, then test the replacement on a copy. Uninstall the component from its dedicated environment after removing the client binding.
 

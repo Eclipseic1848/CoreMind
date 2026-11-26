@@ -44,4 +44,4 @@ Run from the checkout with Python 3.12. Pass the installed console entry at `Scr
 python -B -X utf8 examples/modules/manage-knowledge/deployment/verify.py --console "/absolute/coremind-knowledge-mcp" --model-dir "/absolute/model-dir"
 ```
 
-Use the [installed lifecycle test](../../../../components/knowledge/tests/installed_lifecycle.py) to rehearse migration and rollback between the 2.0.0 source service and the installed knowledge wheel. See the [knowledge SOP](../../../../docs/modules/manage-knowledge/SOP.en.md) for both acceptance procedures.
+Use the [installed lifecycle test](../../../../components/knowledge/tests/installed_lifecycle.py) to rehearse migration and rollback between the 2.0.0 source service and the installed knowledge wheel. With a wheel built from the current source, add `--persistent` to verify persistent mode following the [knowledge SOP](../../../../docs/modules/manage-knowledge/SOP.en.md#persistent-index-acceptance).
