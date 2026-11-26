@@ -29,6 +29,10 @@ Use the 2.0.0 source service as the upgrade baseline for the first packaged vers
 
 The 0.1.0 external installation check uses an independent environment and the MCP client protocol to read the model, check three mapping outcomes, and exercise separate credentials and action prerequisites. The process exits after a business commit. Across a model upgrade and rollback, the lost request remains unknown, a new ID is blocked, and the business table has two actual receipts. [Repeat the check](../../../examples/modules/manage-ontology/README.en.md)
 
+## Backup and isolated recovery verification
+
+Use the [minimal deployment and recovery example](../../../examples/modules/manage-ontology/deployment/README.en.md) to install the public wheel in two dedicated environments. Check authenticated `/health` and a known object query. Run the synthetic writes and stop writers before taking a coordinated backup of the model, handler, component journal and business SQLite database. Restore into a fresh directory. Verify completed and unresolved receipts, blocked replacement IDs and zero additional business handler calls. Reopen the restored directory with the first service environment and verify the same digest and outcomes. Record startup times and snapshot bytes. Record the same-version environment replacement and the model-version rollback separately.
+
 ## P3 development verification
 
 - Windows Python 3.12 and the Linux Python 3.13 container each passed 15 tests covering two interchangeable domain models, field normalization, real SHACL reports, and action receipts.

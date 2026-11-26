@@ -1,5 +1,7 @@
 # 接入长期记忆
 
+自托管 PostgreSQL 时，使用[独立部署与恢复示例](../../../examples/modules/manage-memory/deployment/README.zh-CN.md)。示例固定版本，分别保管数据库与网关回执，并在新库演练恢复。
+
 ## 从空白项目只接入记忆
 
 在宿主环境运行 `python -m pip install coremind-memory-mcp==0.1.0`，再按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)启动网关。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.1.0 coremind-ai@2.1.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目运行 `python -m pip install coremind-ai==2.1.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。

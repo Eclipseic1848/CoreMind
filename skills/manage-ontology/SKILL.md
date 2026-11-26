@@ -13,4 +13,6 @@ description: Build and verify an optional CoreMind business ontology when a proj
 
 For ontology-only delivery, install the `coremind-ontology-mcp` wheel in a dedicated environment, supply the model directory outside the installation, and select only the required MCP tools. Writes require an approved local handler, a separate action token and a persistent receipt database. Test the installed console outside the checkout, model rollback and crash recovery. Preserve the latest business assets, business receipts, and component receipts when uninstalling. [Standalone acceptance](../../examples/modules/manage-ontology/README.en.md)
 
+Use the [minimal deployment and recovery rehearsal](../../examples/modules/manage-ontology/deployment/README.en.md) to confirm authenticated readiness and a known object query. Quiesce writers for a coordinated backup, restore in isolation and check that a completed request returns its saved receipt while an `unknown` action still blocks a new request ID. Preserve the current authoritative business ledger through an application or model rollback.
+
 中文接入和验收见[业务本体指南](../../docs/modules/manage-ontology/GUIDE.zh-CN.md)和[开发 SOP](../../docs/modules/manage-ontology/SOP.zh-CN.md)。

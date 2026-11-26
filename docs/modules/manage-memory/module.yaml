@@ -6,6 +6,7 @@ name:
 version: 2.1.0
 sourcePaths:
   - "components/memory/pyproject.toml"
+  - "examples/modules/manage-memory/deployment"
   - "components/memory/src/coremind_memory_mcp/server.py"
   - "components/memory/src/coremind_memory_mcp/backend.py"
   - "examples/modules/manage-memory/memory_server.py"
@@ -32,6 +33,8 @@ examplePaths:
   - examples/modules/manage-memory/README.en.md
 testPaths:
   - "examples/modules/manage-memory/check_component.py"
+  - "examples/modules/manage-memory/deployment/acceptance.py"
+  - "scripts/verify-optional-consumer.mjs"
   - "scripts/verify-direct-consumers.mjs"
   - "examples/modules/manage-memory/test_memory_service.py"
   - "examples/modules/manage-memory/acceptance.mjs"

@@ -4,6 +4,8 @@
 
 资料整理助手使用 [`document-review`](models/document-review/actions.json) 模型查询资料、验证复核人以及检查可否发布。完全相同的适配器也能加载 [`equipment-maintenance`](models/equipment-maintenance/actions.json)，查询设备、维护站点及复修动作。
 
+从仓库外的业务目录启动只读服务、检查 `/health` 与对象查询，然后演练 SQLite 两库备份、隔离恢复和运行环境切回，见[最小部署与恢复](deployment/README.zh-CN.md)。
+
 ## 从 wheel 验收
 
 把本目录的 `installed_acceptance.py`、`receipt_handler.py` 和 `models/` 复制到仓库外。在新建并激活的 Python 3.12 虚拟环境中运行下面的命令。`business-test` 需要为空，执行后将保留业务资产和两份数据库。

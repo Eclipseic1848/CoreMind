@@ -292,6 +292,7 @@ const modules = [
       "Retrieve source passages with their version and location within the host's read scope.",
     source: [
       "components/knowledge/pyproject.toml",
+      "examples/modules/manage-knowledge/deployment",
       "components/knowledge/src/coremind_knowledge_mcp/server.py",
       "components/knowledge/src/coremind_knowledge_mcp/catalog.py",
       "components/knowledge/src/coremind_knowledge_mcp/retrieval.py",
@@ -307,6 +308,8 @@ const modules = [
     ],
     tests: [
       "components/knowledge/tests/installed_lifecycle.py",
+      "examples/modules/manage-knowledge/deployment/verify.py",
+      "scripts/verify-optional-consumer.mjs",
       "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-knowledge/acceptance.mjs",
       "examples/modules/manage-knowledge/clean-consumer.mjs",
@@ -351,6 +354,7 @@ const modules = [
       "Use Hindsight to recall confirmed preferences, facts, and lessons within the host's authorized scope.",
     source: [
       "components/memory/pyproject.toml",
+      "examples/modules/manage-memory/deployment",
       "components/memory/src/coremind_memory_mcp/server.py",
       "components/memory/src/coremind_memory_mcp/backend.py",
       "examples/modules/manage-memory/memory_server.py",
@@ -363,6 +367,8 @@ const modules = [
     ],
     tests: [
       "examples/modules/manage-memory/check_component.py",
+      "examples/modules/manage-memory/deployment/acceptance.py",
+      "scripts/verify-optional-consumer.mjs",
       "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-memory/test_memory_service.py",
       "examples/modules/manage-memory/acceptance.mjs",
@@ -393,6 +399,7 @@ const modules = [
       "Opt into domain models, source alignment, constraint checking, and authorized actions.",
     source: [
       "components/ontology/pyproject.toml",
+      "examples/modules/manage-ontology/deployment",
       "components/ontology/src/coremind_ontology",
       "examples/modules/manage-ontology/_ontology_source.py",
       "examples/modules/manage-ontology/receipt_handler.py",
@@ -409,6 +416,8 @@ const modules = [
     ],
     tests: [
       "examples/modules/manage-ontology/installed_acceptance.py",
+      "examples/modules/manage-ontology/deployment/restore_acceptance.py",
+      "scripts/verify-optional-consumer.mjs",
       "examples/modules/manage-ontology/test_ontology_graph.py",
       "examples/modules/manage-ontology/test_ontology_mapping.py",
       "examples/modules/manage-ontology/test_ontology_project.py",

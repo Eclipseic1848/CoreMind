@@ -6,6 +6,8 @@ Run `python -m pip install coremind-memory-mcp==0.1.0` on the host and launch th
 
 Copy the [empty Python project example](../../../examples/modules/manage-memory/README.en.md#recall-directly-from-an-empty-python-project). Recall through MCP with a reader token, then bind the same endpoint and token to an Agent. The host uses the gateway's administrative interface for confirmation, retention and correction.
 
+For a host with its own PostgreSQL database, follow the [standalone deployment and recovery example](../../../examples/modules/manage-memory/deployment/README.en.md). It pins Hindsight and gateway versions, separates the database from gateway receipts, and tests recovery against a new database.
+
 When upgrading from 2.0.0, keep the gateway configuration and repeat the checks in the [migration and rollback guide](../../migrations/2.0-to-2.1.en.md).
 
 ```yaml

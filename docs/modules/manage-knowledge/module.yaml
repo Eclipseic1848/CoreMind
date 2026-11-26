@@ -6,6 +6,7 @@ name:
 version: 2.1.0
 sourcePaths:
   - "components/knowledge/pyproject.toml"
+  - "examples/modules/manage-knowledge/deployment"
   - "components/knowledge/src/coremind_knowledge_mcp/server.py"
   - "components/knowledge/src/coremind_knowledge_mcp/catalog.py"
   - "components/knowledge/src/coremind_knowledge_mcp/retrieval.py"
@@ -35,6 +36,8 @@ examplePaths:
   - examples/modules/manage-knowledge/README.en.md
 testPaths:
   - "components/knowledge/tests/installed_lifecycle.py"
+  - "examples/modules/manage-knowledge/deployment/verify.py"
+  - "scripts/verify-optional-consumer.mjs"
   - "scripts/verify-direct-consumers.mjs"
   - "examples/modules/manage-knowledge/acceptance.mjs"
   - "examples/modules/manage-knowledge/clean-consumer.mjs"

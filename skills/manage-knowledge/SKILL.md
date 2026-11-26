@@ -15,6 +15,8 @@ description: Implement or evaluate evidence retrieval in a CoreMind project when
 
 For a project using only capability map 04.01–04.04, start in an empty business directory with the knowledge binding and the project's own reader scope. Install the [0.1.0 knowledge wheel](../../components/knowledge/README.md) in a dedicated environment. Pass the project's manifest, model, reader scope and state to `coremind-knowledge-mcp`. Run the [installed lifecycle check](../../components/knowledge/tests/installed_lifecycle.py) with a real 2.0.0 source archive and the pinned BGE-M3 files. Rehearse a stateful upgrade with a withdrawn citation and remove the binding without deleting the owner's sources or withdrawal history.
 
+Rehearse a stopped backup and restore with the [minimal deployment example](../../examples/modules/manage-knowledge/deployment/README.en.md). Run its recovery script using the installed console entry. Check authenticated readiness, source text, withdrawals and unchanged catalog bytes from a separate restore path. Record startup time and persisted size.
+
 中文开发步骤与验收条件见[开发 SOP](../../docs/modules/manage-knowledge/SOP.zh-CN.md)。
 
 Apply the host’s reader scope and as-of date to citation lookup. Test both readers across expiry and withdrawal. If saving the catalog fails, verify the live index and the restarted service still agree.

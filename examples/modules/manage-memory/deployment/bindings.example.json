@@ -1,0 +1,13 @@
+{
+  "banks": {
+    "subject-a": { "kind": "personal" },
+    "subject-b": { "kind": "personal" }
+  },
+  "readers": [
+    { "tokenEnv": "COREMIND_MEMORY_AUTHORIZATION", "banks": ["subject-a"] },
+    { "tokenEnv": "COREMIND_MEMORY_OTHER_AUTHORIZATION", "banks": ["subject-b"] }
+  ],
+  "administrators": [
+    { "tokenEnv": "COREMIND_MEMORY_ADMIN_AUTHORIZATION", "banks": ["subject-a"] }
+  ]
+}
