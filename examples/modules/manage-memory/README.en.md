@@ -91,6 +91,30 @@ Invoke-RestMethod -Method Post -Uri "$memoryUrl/forget" -Headers $memoryHeaders 
 
 Expect `forgotten`. To remove all CoreMind-managed documents in a bank, send its `bankId` to `/admin/forget-bank`. Restart the service and verify that a new session cannot recall the forgotten content. To restore an older Hindsight backup, retain the current host receipts and replay the corresponding deletions before serving requests. Session history follows its own retention and restore rules.
 
+## Experience evidence and review
+
+Build the gateway from the current source as above, then retain two confirmed facts in the same bank. After reviewing the candidate, call `POST /admin/retain` with the usual write fields and add `kind: "experience"` and `evidence`. Use the IDs and versions from the actual write receipts. Keep a readable reference in `source`.
+
+```json
+{
+  "kind": "experience",
+  "evidence": [
+    { "documentId": "meeting-note", "version": 1 },
+    { "documentId": "review-result", "version": 1 }
+  ]
+}
+```
+
+Correct the first source using `POST /admin/correct`. Post `{"bankId":"demo-alice"}` to `/admin/review-status` with the host token. The result's `pendingReview` list should include the experience ID, current version, and original evidence. Verify that the reader cannot recall the experience. After reviewing the current evidence, correct the experience by setting `expectedVersion` to its current version and supplying the complete updated `evidence` list. Check that recall returns the new version and evidence. Forget the second source and verify that the experience returns to pending review.
+
+From the repository root, run the automated check with the [example dependencies](requirements.txt) installed. It exercises the actual host and MCP endpoints against a local Hindsight fixture.
+
+```sh
+python -B -X utf8 examples/modules/manage-memory/review_evaluation.py
+```
+
+The command prints a JSON receipt. Pass `--output` to save a copy in an existing directory. To exercise rollback, pass a verified official 2.0.0 source ZIP with `--legacy-archive`. The check runs the previous gateway with the latest receipts and read-only bindings.
+
 ## Four CoreMind entry points
 
 In an empty project, install the matching 2.1.0 CLI, TypeScript SDK and Python SDK as described in the [integration guide](../../../docs/modules/manage-memory/GUIDE.en.md). Copy `acceptance.mjs`, `coremind.yaml`, `search.mjs` and `search.py` from this directory. Point `mcp.servers.memory.url` in the YAML to the test gateway and keep the loopback model on port 8770. Supply only the reader token in the application terminal and set `COREMIND_MEMORY_PYTHON` to the SDK interpreter. After saving the table preference and before correcting or forgetting it, run `node acceptance.mjs "Which format should I use for document summaries?" "Prefer tables for document summaries."`. The driver uses the installed CLI, SDKs and wheel-bundled Worker to compare the same fact across four entry points. The deterministic model fixture checks integration. Evaluate live model quality separately.

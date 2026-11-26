@@ -22,6 +22,15 @@ Run the [offline outcome regression](../../../examples/modules/manage-memory/REA
 
 The replay goes through the production Hindsight adapter and MCP gateway. A fixture supplies the Hindsight responses, and a deterministic business rule makes adoption decisions. Record live retrieval, model extraction, and business adoption quality against the actual deployment separately.
 
+## Verify experience evidence and review
+
+1. In an isolated bank, retain two confirmed facts and confirm one experience with their document IDs and versions. Use the MCP reader to verify the experience version and both `evidence` entries. Check that stale references, references only present in another bank, duplicates, and self references are rejected.
+2. Inject a Hindsight write failure while correcting the first fact. Verify that the gateway returns 502 and has already hidden the affected experiences. Call `/admin/review-status` with that bank's administrator token and verify the experience ID, previous version, and original evidence. An administrator from another bank should get 403, and a reader token should get 401. Verify that recall and reflection exclude the pending experience and that an unrelated record remains available.
+3. Restart and replay the original confirmation. Verify that it still returns `pending_review` and that Hindsight receives no new write. Retry the original correction and verify that the new evidence version is active. Send `/admin/correct` the reviewed text, current experience version, and fresh evidence. Verify that its version increments and it appears in recall. Forget the second source and replay the forget request. Verify that the experience and its downstream dependants return to pending review and disappear from recall. Confirm that expiry of evidence also removes dependent experiences from recall.
+4. Pause host writes before upgrade and save the latest receipts, database, and bindings. Before rolling back to a gateway without evidence tracking, replay any outstanding deletions with the tracking-aware gateway. During rollback, use the latest receipts and set `administrators: []` in the binding file to serve reads only. Resume host administration after restoring the tracking-aware gateway and checking the pending review list and forgetting receipts.
+
+Run the [standalone review example](../../../examples/modules/manage-memory/README.en.md#experience-evidence-and-review) and retain the host status, recall, and replay receipts.
+
 ## Verify standalone deployment and upgrades
 
 1. Run `python -m pip install coremind-memory-mcp==0.1.0` in a dedicated Python 3.12 environment and verify `coremind-memory-mcp --version` reports 0.1.0. The compatibility baseline is Hindsight API/client 1.2.3 and PostgreSQL 18.1. Verify other versions in the target environment. In a separate empty project, use only a reader token and a standard MCP client. `tools/list` must expose just `recall_memory`. Write a fact through the host and query it through MCP. Check bank, document ID, revision, text and source. `/health` checks only the gateway process.

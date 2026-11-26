@@ -375,6 +375,7 @@ const modules = [
       "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-memory/test_memory_service.py",
       "examples/modules/manage-memory/effect_evaluation.py",
+      "examples/modules/manage-memory/review_evaluation.py",
       "examples/modules/manage-memory/acceptance.mjs",
     ],
     dependencies: ["build-tools", "manage-sessions", "manage-context-artifacts", "evaluate-agents"],

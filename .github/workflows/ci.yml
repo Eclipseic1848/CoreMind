@@ -126,6 +126,9 @@ jobs:
       - name: 记忆版本、作用域与遗忘回归
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-memory -p "test_memory_service.py" -v
 
+      - name: 记忆依据版本与待复核回归（离线）
+        run: python -B -X utf8 examples/modules/manage-memory/review_evaluation.py
+
       - name: 知识目录、引文阅读范围与索引恢复
         run: python -B -X utf8 -m unittest discover -s examples/modules/manage-knowledge -p "test_*.py" -v
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Track the evidence IDs and versions for confirmed experiences. When evidence is corrected or forgotten, expose affected experiences for host review and suspend their recall until the host confirms a new revision.
+
 ## 2.1.0 - 2026-11-25
 
 - Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.

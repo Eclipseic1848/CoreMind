@@ -33,8 +33,10 @@ ADMIN = "COREMIND_MEMORY_ADMIN_AUTHORIZATION"
 BANK = "subject-a"
 FORGOTTEN = "forgotten-after-backup"
 CONTROL = "kept-after-restore"
+EXPERIENCE = "confirmed-linked-experience"
 TEXT = "校验条目：资料摘要使用琥珀色表格。"
 CONTROL_TEXT = "校验条目：专题档案仅提供只读副本。"
+EXPERIENCE_TEXT = "合成经验：发送专题档案摘要前核对任务范围。"
 
 
 def digest(path):
@@ -100,7 +102,13 @@ def exercise(args, work, http):
     tokenizer.mkdir()
     shutil.copyfile(args.model_dir / "tokenizer.json", tokenizer / "tokenizer.json")
     (tokenizer / "config.json").write_text('{"model_type":"xlm-roberta"}\n', encoding="utf-8")
-    shutil.copyfile(HERE / "bindings.example.json", work / "bindings.json")
+    bindings_path = work / "bindings.json"
+    shutil.copyfile(HERE / "bindings.example.json", bindings_path)
+    previous_bindings = work / "bindings-read-only.json"
+    if args.previous_source is not None:
+        bindings = json.loads(bindings_path.read_text(encoding="utf-8"))
+        bindings["administrators"] = []
+        previous_bindings.write_text(json.dumps(bindings, ensure_ascii=False), encoding="utf-8")
 
     db_port = port_on_loopback()
     password = secrets.token_hex(32)
@@ -164,7 +172,8 @@ def exercise(args, work, http):
         url = f"http://127.0.0.1:{port}"
         entry = [args.previous_source / "memory_server.py"] if previous else ["-I", "-m", "coremind_memory_mcp.server"]
         cmd = [sys.executable, "-B", "-X", "utf8", *entry, "--hindsight-url", native_url,
-               "--config", work / "bindings.json", "--state", work / "receipts.json", "--port", str(port)]
+               "--config", previous_bindings if previous else bindings_path,
+               "--state", work / "receipts.json", "--port", str(port)]
         with serve(cmd, dict(env, **grants), work, work / f"{stage}.log") as proc:
             wait_ready(http, proc, url + "/health", grants[READ])
             assert http.get(url + "/health").status_code == 401
@@ -181,15 +190,22 @@ def exercise(args, work, http):
         assert result.status_code == expected, (action, result.status_code)
         return result.json()
 
-    def verify_hit(url, target, text, exists=True):
+    def verify_hit(url, target, text, exists=True, version=1):
         hits = asyncio.run(recall(url, grants[READ], text))
         matches = [hit for hit in hits if hit["documentId"] == target]
         if exists:
             assert len(matches) == 1 and matches[0]["text"] == text
-            assert matches[0]["bankId"] == BANK and matches[0]["version"] == 1
+            assert matches[0]["bankId"] == BANK and matches[0]["version"] == version
             assert matches[0]["source"]["ref"] == "fixture:host-confirmed"
+            return matches[0]
         else:
             assert not matches
+
+    def verify_pending_review(url, evidence):
+        verify_hit(url, EXPERIENCE, EXPERIENCE_TEXT, exists=False)
+        assert post(url, "review-status", {"bankId": BANK}) == {"pendingReview": [
+            {"documentId": EXPERIENCE, "version": 1, "evidence": evidence}
+        ]}
 
     def rows(database, table, column):
         return int(sql(database, f"SELECT count(*) FROM {table} WHERE bank_id = '{BANK}' AND {column} = '{FORGOTTEN}'"))
@@ -220,6 +236,8 @@ def exercise(args, work, http):
         if vector.splitlines()[-1] != "0.8.5":
             raise ValueError("验收需要 pgvector 0.8.5")
         target = {"bankId": BANK, "documentId": FORGOTTEN}
+        evidence = [{"documentId": doc, "version": 1} for doc in (FORGOTTEN, CONTROL)]
+        experience = {**body(EXPERIENCE, EXPERIENCE_TEXT), "kind": "experience", "evidence": evidence}
         dump = work / "postgres-before-forget.dump"
         with native("cm_source") as (url, native_seconds):
             with gateway(url, "initial-gateway") as entry:
@@ -227,6 +245,9 @@ def exercise(args, work, http):
                     assert post(entry, "retain", body(document_id, text))["version"] == 1
                 verify_hit(entry, FORGOTTEN, TEXT)
                 assert asyncio.run(recall(entry, grants[OTHER], TEXT)) == []
+                if args.experience_review:
+                    assert post(entry, "retain", experience)["version"] == 1
+                    assert verify_hit(entry, EXPERIENCE, EXPERIENCE_TEXT)["evidence"] == evidence
             # 停止网关写入后，备份同一时点的数据库和回执。
             shutil.copyfile(work / "receipts.json", work / "receipts-at-backup.json")
             backup_start = time.monotonic()
@@ -236,6 +257,8 @@ def exercise(args, work, http):
                 verify_hit(entry, FORGOTTEN, TEXT)
                 assert post(entry, "forget", target)["status"] == "forgotten"
                 verify_hit(entry, FORGOTTEN, TEXT, exists=False)
+                if args.experience_review:
+                    verify_pending_review(entry, evidence)
             assert rows("cm_source", "documents", "id") == rows("cm_source", "memory_units", "document_id") == 0
 
         restore_start = time.monotonic()
@@ -248,6 +271,9 @@ def exercise(args, work, http):
                 # 保留最新回执，避免恢复的旧行在重放遗忘前被召回。
                 verify_hit(entry, FORGOTTEN, TEXT, exists=False)
                 verify_hit(entry, CONTROL, CONTROL_TEXT)
+                if args.experience_review:
+                    verify_pending_review(entry, evidence)
+                    assert post(entry, "retain", experience)["status"] == "pending_review"
                 post(entry, "retain", body(FORGOTTEN, TEXT), expected=409)
                 for _ in range(2):
                     assert post(entry, "forget", target)["status"] == "forgotten"
@@ -257,9 +283,20 @@ def exercise(args, work, http):
                 with gateway(url, "rollback-2.0", previous=True) as entry:
                     verify_hit(entry, FORGOTTEN, TEXT, exists=False)
                     verify_hit(entry, CONTROL, CONTROL_TEXT)
+                    if args.experience_review:
+                        verify_hit(entry, EXPERIENCE, EXPERIENCE_TEXT, exists=False)
+                        post(entry, "retain", experience, expected=401)
+            if args.previous_source is not None or args.experience_review:
                 with gateway(url, "upgrade-0.1.0") as entry:
                     verify_hit(entry, FORGOTTEN, TEXT, exists=False)
                     verify_hit(entry, CONTROL, CONTROL_TEXT)
+                    if args.experience_review:
+                        verify_pending_review(entry, evidence)
+                        assert post(entry, "correct", {**experience, "expectedVersion": 1, "evidence": evidence[1:]}) == {
+                            "documentId": EXPERIENCE, "version": 2, "status": "active",
+                        }
+                        assert verify_hit(entry, EXPERIENCE, EXPERIENCE_TEXT, version=2)["evidence"] == evidence[1:]
+                        assert post(entry, "review-status", {"bankId": BANK}) == {"pendingReview": []}
         result = {
             "postgres": version, "pgvector": "0.8.5", "hindsight": "1.2.3", "gateway": "0.1.0",
             "platform": sys.platform, "python": sys.version.split()[0], "workDir": str(work),
@@ -274,6 +311,11 @@ def exercise(args, work, http):
         }
         if args.previous_source is not None:
             result["verified"].append("rollback-2.0.0-and-upgrade-0.1.0")
+        if args.experience_review:
+            result["verified"].extend(["active-multiple-evidence", "pending-review-after-forget-and-restore",
+                                       "old-confirmation-does-not-reactivate", "host-review-issues-new-version"])
+            if args.previous_source is not None:
+                result["verified"].append("old-read-only-gateway-hides-pending-experience")
     finally:
         if (pgdata / "postmaster.pid").exists():
             pg("pg_ctl", "-D", pgdata, "-m", "fast", "-w", "stop")
@@ -289,6 +331,7 @@ def main():
     parser.add_argument("--model-dir", type=Path, required=True)
     parser.add_argument("--previous-source", type=Path)
     parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--experience-review", action="store_true", help="验收候选网关的经验依据与复核")
     args = parser.parse_args()
     for field in ("pg_bin", "model_dir", "previous_source"):
         value = getattr(args, field)

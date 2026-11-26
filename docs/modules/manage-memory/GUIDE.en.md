@@ -42,6 +42,14 @@ In the application terminal, supply the configured model credential and set `COR
 2. Have the host manage the Hindsight service and its persistent storage. Keep storage outside the agent's readable workspace. Give the agent access to the read-only MCP tool and keep writes and confirmation in the host's administration interface.
 3. Define which materials may be used for candidate extraction. Include evidence, applicable conditions, and verifiable counterexamples or limitations. Have a confirmer review the proposed content before publication. Configure model and network access for the application.
 
+## Confirm and review an experience by evidence version
+
+Use a gateway built from the current source. The host calls `/admin/reflect` to obtain a candidate, then checks its source text, applicability, and `candidate.based_on.memories`. After confirmation, send `/admin/retain` a `kind: "experience"` request with a readable `source` reference and a nonempty `evidence` array. Each entry supplies the `documentId` and current `version` in the same bank. An experience may cite multiple entries. Duplicate, self, and downstream references that the correction would invalidate are rejected. See the [runnable example](../../../examples/modules/manage-memory/README.en.md#experience-evidence-and-review).
+
+When evidence is corrected or forgotten, the gateway marks affected experiences and their downstream dependants `pending_review` and excludes them from recall and reflection. The host posts `{"bankId":"demo-alice"}` to `/admin/review-status` and checks `pendingReview` for experience IDs, versions, and previous evidence. After review, call `/admin/correct` with the experience's current `expectedVersion`, the reviewed content, and valid evidence. Success creates a new visible version. An exact replay of the old write still returns `pending_review` while the experience awaits review.
+
+Recall adds `evidence` to tracked experiences. The earliest applicable expiry among the experience and its evidence limits visibility. Existing experiences with a textual source remain compatible. Use a correction to add tracking after the host verifies the evidence.
+
 ## Walk through the memory lifecycle
 
 Have the host confirm “prefer tables for document summaries” and grant sharing for that subject and agent. Ask in a new session which format to use. Check the recalled content, revision, source, and reason for the match. Repeat with another subject or a branch without a grant. The memory should be absent.
