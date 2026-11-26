@@ -151,6 +151,16 @@ jobs:
       - name: 资料助手跨会话组合验收（离线）
         run: node examples/modules/manage-ontology/composition.mjs
 
+      - name: 本地与两种 MCP 的业务写入回执验收（离线）
+        run: node examples/modules/build-tools/write-receipts.mjs --output .scratch/tool-write-receipts.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ always() && hashFiles('.scratch/tool-write-receipts.json') != '' }}
+        with:
+          name: coremind-tool-write-receipts-${{ matrix.os }}-${{ github.run_attempt }}
+          path: .scratch/tool-write-receipts.json
+          if-no-files-found: error
+
       - name: 示例配置冒烟（离线）
         run: |
           node --input-type=module -e "import { readFileSync } from 'node:fs'; import { parseConfigText, validateConfig } from 'coremind-config'; for (const f of ['examples/hello.yaml','examples/multi-agent.yaml','examples/workflow.yaml']) { validateConfig(parseConfigText(readFileSync(f, 'utf8'), f)); console.log('ok:', f); }"

@@ -25,6 +25,61 @@ describe("CoreMind 公共工具契约", () => {
     expect(result.details).toEqual({ status: "paid", id: "A-1" });
   });
 
+  it("用输出 Schema 校验裸值和显式回执，保留已声明的业务失败", async () => {
+    const receipt = { status: "committed", requestId: "order-1", verified: false };
+    const outputSchema = {
+      type: "object" as const,
+      properties: {
+        status: { const: "committed" },
+        requestId: { type: "string", minLength: 1 },
+        verified: { type: "boolean" },
+        text: { type: "string" },
+      },
+      required: ["status", "requestId", "verified"],
+      additionalProperties: false,
+    };
+    const run = (value: unknown) =>
+      adaptCoreMindTool({
+        name: "confirm_order",
+        description: "确认订单",
+        parameters: { type: "object" },
+        outputSchema,
+        effect: { operations: ["external"], reversible: false },
+        execute: () => value,
+      }).execute("call-order", {}, undefined, undefined);
+
+    await expect(run(receipt)).resolves.toMatchObject({ details: receipt });
+    await expect(run({ ...receipt, text: "附记" })).resolves.toMatchObject({
+      details: { ...receipt, text: "附记" },
+    });
+    await expect(run({ text: "已保存", details: receipt })).resolves.toMatchObject({
+      content: [{ type: "text", text: "已保存" }],
+      details: receipt,
+    });
+    await expect(run({ text: "待核实", isError: true })).resolves.toMatchObject({ isError: true });
+    await expect(run({ text: "伪造成功", terminate: true })).rejects.toThrow(/outputSchema/);
+    await expect(run({ ...receipt, requestId: 0 })).rejects.toThrow(/outputSchema/);
+  });
+
+  it("在工具运行前拒绝无效输出 Schema 或无法解析的引用", () => {
+    const definition = defineTool({
+      name: "confirm_order",
+      description: "确认订单",
+      parameters: { type: "object" },
+      effect: { operations: ["external"], reversible: false },
+      execute: () => ({}),
+    });
+    expect(() => defineTool({ ...definition, outputSchema: { type: "string" } as never })).toThrow(
+      /outputSchema/,
+    );
+    expect(() =>
+      adaptCoreMindTool({
+        ...definition,
+        outputSchema: { type: "object", $ref: "#/$defs/missing" },
+      }),
+    ).toThrow(/outputSchema/);
+  });
+
   it("拒绝缺少对象类型 JSON Schema 的工具", () => {
     expect(() =>
       defineTool({

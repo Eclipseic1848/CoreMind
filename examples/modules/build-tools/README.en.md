@@ -37,6 +37,17 @@ node examples/modules/build-tools/transport-parity.mjs
 
 A deterministic model fixture calls the local handler, real stdio MCP, and loopback Streamable HTTP MCP. Each entry point should return `{"flag":false,"count":0,"empty":null}`. The script checks connection, tool discovery, and echo approvals for both MCP transports, and closes the local services. [Optional browser example](../../../docs/modules/build-tools/BROWSER.en.md)
 
+## Verify write receipts across three entry points
+
+Build from the current source and run the following command. It compares one synthetic write across the three entry points with a valid receipt, a missing required field, a wrong field type, and a receipt lost after the write. The example uses a deterministic model fixture and dedicated local MCP services.
+
+```sh
+npm run build
+node examples/modules/build-tools/write-receipts.mjs --output .scratch/issue-438/write-receipts.json
+```
+
+The JSON report records model calls, actual business writes, effect status, and cold-recovery results for 12 cases. Each entry point should report `committed` for a valid receipt and `unknown` for an incomplete or lost receipt. Verify that every `unknown` case prevents another write during the Run and on cold recovery. When applying the schema to an application tool, use its business request ID to reconcile the actual state. [Development SOP](../../../docs/modules/build-tools/SOP.en.md#verify-write-receipts-and-unknown-effects)
+
 ## Local MCP verification
 
 Use the [full configuration](../../../docs/en/guide/02-configuration.md#agent-scoped-local-mcp-tools) with an audited local stdio program. Run `coremind doctor coremind.yaml` and verify it starts no service, then `coremind run coremind.yaml --prompt "Call the approved tool"`. Approve connection, listing, and business execution separately. Inspect three independent Calls/EffectReceipts, the actual raw tool arguments, and process exit after completion.

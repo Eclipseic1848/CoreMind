@@ -2789,6 +2789,27 @@ export class CoreMindRuntime {
             status: "completed",
             result: { recoveryDisposition: recoveryDispositionFor(resolvedCapability) },
           });
+          const repeatWriteReason = "同一工具和参数的写入效果尚未确认，已拒绝再次执行";
+          const hasUnresolvedWrite = (): boolean => {
+            if (resolvedCapability.effect === "none" || resolvedCapability.replay !== "unsafe")
+              return false;
+            for (let index = collected.length - 1; index >= 0; index--) {
+              const previous = collected[index];
+              if (
+                previous?.type === "effect_receipt" &&
+                previous.tool === context.toolCall.tool &&
+                previous.status !== "not_started" &&
+                previous.binding?.argumentsFingerprint === argumentsFingerprint
+              ) {
+                return previous.status === "started" || previous.status === "unknown";
+              }
+            }
+            return false;
+          };
+          if (hasUnresolvedWrite()) {
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, repeatWriteReason);
+            return { block: true, reason: repeatWriteReason };
+          }
           const registeredCall = activeRunContext.toolCall(
             agentName,
             context.toolCall.callId as CallId,
@@ -3162,6 +3183,12 @@ export class CoreMindRuntime {
             );
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: capabilityFailure.message };
+          }
+          // 异步审批间可能已有同一写入启动，发出 started 前再核对一次。
+          if (hasUnresolvedWrite()) {
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, repeatWriteReason);
+            await rollbackWorkspaceLease(lifecycleIdentity);
+            return { block: true, reason: repeatWriteReason };
           }
           effectCoordinator.markStarted(stepId, context.toolCall.callId, context.toolCall.tool);
           if (resolvedCapability.durability === "critical") {
