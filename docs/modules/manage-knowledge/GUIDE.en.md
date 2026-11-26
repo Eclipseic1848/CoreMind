@@ -38,6 +38,14 @@ The current source resolves old page or section citations with a single match. M
 
 Re-import the original manifest and Markdown files to upgrade a saved state. The service checks the existing text, positions, version and visibility before adding header context. It preserves withdrawals and treats subsequent identical imports as unchanged.
 
+## Opt in to a persistent Qdrant index
+
+When running a build from the current source, append `--index-dir ./state/knowledge-index` to the service command and keep the project's existing `--state`. Give one process exclusive access to a host-controlled index directory separate from the catalog file, source assets, and model files. The default and the public 0.1.0 package use an in-memory index.
+
+The committed catalog identifies the active index. On startup the service can reuse vectors after checking that the index matches the catalog. When documents change, it reuses vectors for unchanged text and commits the catalog after the replacement index is ready. Search and citation resolution still enforce reader scope, validity, withdrawal, and citation location.
+
+Stop the service before changing or rolling back the configuration. Retain originals, the manifest, and the latest catalog. Start without `--index-dir` or point it at a fresh dedicated directory to rebuild. Use a trusted directory because Qdrant Local deserializes on-disk records. Interruptions can leave inactive batches on disk, while the committed catalog continues to determine which data queries return. Follow the [persistence comparison](SOP.en.md#persistent-index-acceptance) to select a mode for the project.
+
 ## Upgrade and removal
 
 Use the [minimal deployment and recovery example](../../../examples/modules/manage-knowledge/deployment/README.en.md) to rehearse a stopped backup and restore outside the checkout. Keep the manifest, originals and catalog together. Starting the restored copy rebuilds the in-memory index.

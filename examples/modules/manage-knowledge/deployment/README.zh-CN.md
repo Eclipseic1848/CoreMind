@@ -44,4 +44,4 @@ python -X utf8 query.py "松纹卡"
 python -B -X utf8 examples/modules/manage-knowledge/deployment/verify.py --console "/absolute/coremind-knowledge-mcp" --model-dir "/absolute/model-dir"
 ```
 
-另用[安装件生命周期测试](../../../../components/knowledge/tests/installed_lifecycle.py)复验 2.0.0 源码服务与已安装独立知识组件之间的迁移和回退。两套验收见[知识 SOP](../../../../docs/modules/manage-knowledge/SOP.zh-CN.md)。
+另用[安装件生命周期测试](../../../../components/knowledge/tests/installed_lifecycle.py)复验 2.0.0 源码服务与已安装独立知识组件之间的迁移和回退。从当前源码构建 wheel 后，可在生命周期测试中加 `--persistent`，按[知识 SOP](../../../../docs/modules/manage-knowledge/SOP.zh-CN.md#持久索引验收)验证持久模式。

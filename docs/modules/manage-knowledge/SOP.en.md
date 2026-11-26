@@ -43,6 +43,34 @@ From the checkout, run `python -B -X utf8 examples/knowledge-evals/zh-retrieval/
 
 Follow the [minimal deployment and recovery example](../../../examples/modules/manage-knowledge/deployment/README.en.md). With pinned model files and a pinned wheel, compare active citations and withdrawals before and after restarting. Then stop the service, back up originals, manifest and catalog, and validate a restore at a different path. Record startup and restore time plus backup and model size. Record upgrade and rollback separately using the [installed lifecycle test](../../../components/knowledge/tests/installed_lifecycle.py).
 
+## Persistent index acceptance
+
+Compare the in-memory and persistent indexes with the same BGE-M3 weights, Qdrant Client version, and fixed set of 40 questions. Check the first and top-five results against the reference passages and locations, including scope, validity, and table headers. Record candidates for the 10 unsupported questions separately. Run the following commands with the pinned weights directory. The script creates separate catalogs and indexes in temporary directories.
+
+```sh
+python -m pip install -r examples/modules/manage-knowledge/requirements.txt -r examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt
+python -B -X utf8 examples/knowledge-evals/zh-retrieval/persistent_qdrant_benchmark.py --model-dir "<pinned model directory>" --output "<receipt.json>"
+```
+
+Record embedded block counts for the first build, restart, one line changed in a replacement document and its old version withdrawn, withdrawal, and restart after a failed catalog write. Report P50/P95 query latency and include model loading in startup measurements. Engineering regressions inject a partial write, a failed SQLite write on the final point, and a failed catalog publication. They check the previous catalog, citations, and access scope, and verify that a retry in the same process can reopen its committed index. Follow the [deployment guide](GUIDE.en.md#opt-in-to-a-persistent-qdrant-index) for a private index directory and rollback steps.
+
+With a wheel built from current source, add `--persistent` to the existing [installed lifecycle test](../../../components/knowledge/tests/installed_lifecycle.py) command. This exercises the persistent index over public MCP and rolls back to the 2.0.0 source service.
+
+### Fixed-corpus results
+
+The Windows comparison used Python 3.12, Qdrant Client 1.15.1, pinned BGE-M3, and 56 chunks from five synthetic documents. After warming up on the 40 questions, all 120 interleaved query pairs returned identical ordered results. All 30 answerable questions had the expected first result. The 10 unsupported questions still returned similar candidates.
+
+| Scenario | In memory | Persistent |
+| --- | ---: | ---: |
+| Fresh process ready, including model load | 2.62 s | 1.86 s |
+| Blocks encoded on restart | 56 | 0 |
+| Blocks encoded after a one-line revision and withdrawal of its predecessor | 56 | 1 |
+| Blocks encoded after a standalone withdrawal | 50 | 0 |
+| Blocks encoded on restart after a simulated catalog failure | 50 | 0 |
+| Query P50 / P95 | 21.05 / 24.43 ms | 20.97 / 24.57 ms |
+
+After a failed catalog write, both modes could still resolve the last committed citations. In-memory indexing stays the default. Single-process deployments can opt in to persistent indexing to reduce recomputation and rerun the comparison on their own corpus.
+
 ## Automated acceptance for direct knowledge and memory calls
 
 Prepare both example projects and their installed dependencies outside the checkout. Have the host start the actual knowledge service and Hindsight gateway. For each capability, prepare one authorized reader whose query matches the expected excerpt and another authorized reader whose query returns no hits. Save the following JSON in a private file outside the checkout. Replace the endpoints, full reader tokens and expected text. The knowledge example uses two read scopes. The memory example uses two banks on one gateway.

@@ -20,4 +20,6 @@ Rehearse a stopped backup and restore with the [minimal deployment example](../.
 
 中文开发步骤与验收条件见[开发 SOP](../../docs/modules/manage-knowledge/SOP.zh-CN.md)。
 
+For an opt-in persistent index, use a dedicated local `--index-dir` and keep the catalog as the source of truth. Run the [paired benchmark](../../docs/modules/manage-knowledge/SOP.en.md#persistent-index-acceptance) before changing a deployment. Verify the encoded block count, citation scope, withdrawal, and the previous catalog after an interrupted write.
+
 Apply the host’s reader scope and as-of date to citation lookup. Test both readers across expiry and withdrawal. If saving the catalog fails, verify the live index and the restarted service still agree.

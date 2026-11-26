@@ -153,6 +153,7 @@ def main(*, legacy_manifest=None):
     parser.add_argument("--scope", default="public", required=legacy_manifest is None)
     parser.add_argument("--port", type=int, default=8767)
     parser.add_argument("--state", type=Path, required=legacy_manifest is None)
+    parser.add_argument("--index-dir", type=Path, help="独占的持久 Qdrant 索引目录，默认使用内存索引")
     parser.add_argument(
         "--withdraw",
         action="append",
@@ -172,6 +173,16 @@ def main(*, legacy_manifest=None):
             target = output.resolve()
             if target == args.manifest.resolve() or target.is_relative_to(sources) or target.is_relative_to(args.model_dir.resolve()):
                 parser.error("--state 必须与清单、来源目录和模型目录分开")
+    if args.index_dir is not None:
+        if args.state is None:
+            parser.error("--index-dir 需要持久化的 --state")
+        index_dir = args.index_dir.resolve()
+        protected = (
+            args.manifest.resolve(), sources, args.model_dir.resolve(), args.state.resolve(),
+            args.state.with_suffix(args.state.suffix + ".tmp").resolve(),
+        )
+        if any(index_dir.is_relative_to(path) or path.is_relative_to(index_dir) for path in protected):
+            parser.error("--index-dir 必须与状态文件、清单、来源目录和模型目录分开")
     withdrawals = []
     for item in args.withdraw:
         doc_id, separator, version = item.rpartition(":")
@@ -181,7 +192,7 @@ def main(*, legacy_manifest=None):
     from .retrieval import KnowledgeIndex
 
     as_of, records = load_corpus(args.manifest)
-    index = KnowledgeIndex(args.model_dir)
+    index = KnowledgeIndex(args.model_dir, index_dir=args.index_dir)
     try:
         catalog = KnowledgeCatalog(index, args.state)
         catalog.import_documents(records, withdrawals=withdrawals)

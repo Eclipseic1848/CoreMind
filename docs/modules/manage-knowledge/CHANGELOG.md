@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add an opt-in persistent local Qdrant index that reuses embeddings on restart and after document updates. Use the authoritative catalog to select the active index and preserve citation, scope, and withdrawal behavior.
+
 - Return a document-version-scoped `chunkId` for PDF and DOCX citation lookup. Report an ambiguous legacy location without supplying an excerpt. Existing catalogs can supply the IDs directly from stored chunk order.
 
 ## 2.1.0 - 2026-11-25
