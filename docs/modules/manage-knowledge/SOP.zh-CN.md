@@ -39,6 +39,34 @@
 
 按[最小部署与恢复示例](../../../examples/modules/manage-knowledge/deployment/README.zh-CN.md)验收。在固定模型和 wheel 上，先核对重启前后的引文与撤回一致，再停机备份原文、清单和目录。换一个目录恢复并再次验证。记录启动和恢复耗时、模型和备份大小。用[安装件生命周期回归](../../../components/knowledge/tests/installed_lifecycle.py)分别记录升级和回退结果。
 
+## 持久索引验收
+
+用同一版本的 BGE-M3、Qdrant Client 和固定 40 题，比较内存和持久索引。先核对正例前一条、前五条的原文与位置，并检查范围、有效期和表头。10 道无答案题的相似候选另行记录。运行以下脚本，将模型目录替换为通过固定摘要核验的权重目录。脚本在独立临时目录创建两份目录和索引。
+
+```sh
+python -m pip install -r examples/modules/manage-knowledge/requirements.txt -r examples/knowledge-evals/zh-retrieval/requirements-retrieval.txt
+python -B -X utf8 examples/knowledge-evals/zh-retrieval/persistent_qdrant_benchmark.py --model-dir "<固定模型目录>" --output "<回执.json>"
+```
+
+验收分别记录首次建索引、重启、单文档改一行并撤回旧版、单独撤回和目录提交失败后的重算块数，以及 P50/P95 查询延迟。重启总时间包含模型加载。工程回归另行注入部分写入、SQLite 最后一条记录写入失败及目录提交失败，检查旧目录、原文和权限保持一致，并检查同进程重试成功后可直接重开。换用持久索引前按[部署指南](GUIDE.zh-CN.md#选用持久-qdrant-索引)安排私有索引路径和回退步骤。
+
+从当前源码构建的 wheel 可在[安装件生命周期回归](../../../components/knowledge/tests/installed_lifecycle.py)原有命令上加 `--persistent`，验证持久索引的公开 MCP 入口及回退到 2.0.0 源码服务。
+
+### 固定集实测
+
+Windows、Python 3.12、Qdrant Client 1.15.1 与固定 BGE-M3 的同机对照使用了 5 份合成资料、56 块。40 道题热身后交错测 120 对查询，有序结果逐项一致，30 道有答案题均首条命中。10 道无答案题仍返回相似候选。
+
+| 场景 | 内存 | 持久 |
+| --- | ---: | ---: |
+| 新进程就绪，含加载模型 | 2.62 s | 1.86 s |
+| 重启重编码 | 56 块 | 0 块 |
+| 单文档改一行、提升版本并撤回旧版 | 56 块 | 1 块 |
+| 单独撤回文档 | 50 块 | 0 块 |
+| 模拟目录提交失败后重启重编码 | 50 块 | 0 块 |
+| 查询 P50 / P95 | 21.05 / 24.43 ms | 20.97 / 24.57 ms |
+
+两种模式在目录提交失败后都能回查原已提交引文。当前继续默认使用内存索引。需要减少冷重启或局部更新重算的单进程项目可以启用持久模式，并用自己的语料复测。
+
 ## 知识与记忆直调自动验收
 
 先按两个示例准备仓库外的 TypeScript 和 Python 项目及各自的已安装依赖。由宿主启动真实的知识服务和 Hindsight 网关，为每项能力准备一个能命中预期正文的读者，再准备一个查询结果为空的有效读者。将以下 JSON 保存在仓库外的私有文件，替换相应地址、完整读令牌和预期正文。知识示例使用两组阅读范围，记忆示例使用同一网关中两个不同的记忆库。

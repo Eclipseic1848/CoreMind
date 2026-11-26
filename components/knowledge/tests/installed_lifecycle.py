@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-def check(console, model, project, archive, root):
+def check(console, model, project, archive, root, *, persistent=False):
     legacy = root / "legacy"
     with zipfile.ZipFile(archive) as source:
         for relative in ("modules/manage-knowledge/knowledge_server.py", "modules/manage-knowledge/knowledge_catalog.py",
@@ -39,6 +39,8 @@ def check(console, model, project, archive, root):
     manifest.write_text(json.dumps(original), encoding="utf-8")
     source_cmd = [sys.executable, "-B", "-X", "utf8", str(legacy / "examples/modules/manage-knowledge/knowledge_server.py")]
     installed = [str(console)]
+    if persistent:
+        installed += ["--index-dir", str(root / "qdrant-index")]
     token = "Bearer " + secrets.token_urlsafe(32)
     env = dict(os.environ, COREMIND_KNOWLEDGE_AUTHORIZATION=token, PYTHONPATH="", PYTHONUTF8="1")
     with socket.socket() as listener:
@@ -148,7 +150,8 @@ def check(console, model, project, archive, root):
     with serve(source_cmd):
         assert resolve(new, 3) == current and resolve(old, 1) == tombstone and resolve(row, 3)["status"] == "withdrawn"
     assert state.read_bytes() == committed
-    print(json.dumps({"version": subprocess.check_output([*installed, "--version"], text=True).strip(),
+    print(json.dumps({"version": subprocess.check_output([str(console), "--version"], text=True).strip(),
+                      "persistentIndex": persistent,
                       "originalStateSha256": hashlib.sha256(backup).hexdigest(),
                       "rollbackStateSha256": hashlib.sha256(committed).hexdigest(), "dataLine": current["line"],
                       "tableHeaderLine": current["tableHeader"][0]["line"], "withdrawalsAfterRollback": 2,
@@ -159,6 +162,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("console", "model-dir", "example", "legacy-archive"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--persistent", action="store_true", help="在已安装服务上启用持久索引并验证旧服务回退")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory() as temporary:
-        check(args.console.resolve(), args.model_dir.resolve(), args.example.resolve(), args.legacy_archive.resolve(), Path(temporary))
+        check(args.console.resolve(), args.model_dir.resolve(), args.example.resolve(), args.legacy_archive.resolve(),
+              Path(temporary), persistent=args.persistent)
