@@ -13,7 +13,7 @@
 | 更早的 Alpha/Beta/RC 版本 | 不保证；通常要求升级后复测 |
 | 未发布分支或个人 Fork | 不在项目支持范围内 |
 
-正式版本以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) 为准。报告 2.1.0 候选或某个独立组件的问题时，请注明候选提交 SHA、组件包名与版本、来源（CI 制品或本地构建）以及实际使用的客户端。
+正式版本以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) 为准。报告 2.1.0 或独立组件的问题时，请注明客户端与组件的包名和版本、分发渠道，以及所用源码提交 SHA（如适用）。
 
 ## 开发源码的依赖安全
 

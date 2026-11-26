@@ -16,13 +16,15 @@ Both `catalog.A1` and `archive.ARCH-1` map to the confirmed `urn:doc:guide`. The
 
 ## Enable only ontology from an empty project
 
-Build the wheel from the repository root with `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology`, or take the versioned wheel from your distributor. Copy the wheel to the business host and install it in a dedicated Python 3.10+ environment. Put the five model files outside the environment. Set `MODEL_DIR` to their absolute directory path and supply the read credential described below.
+Install the service from PyPI in a dedicated Python 3.10+ environment on the business host. Put the five model files outside the environment. Set `MODEL_DIR` to their absolute directory path and supply the read credential described below.
 
 ```sh
-python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+python -m pip install coremind-ontology-mcp==0.1.0
 coremind-ontology-mcp --version
 coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```
+
+You can also build the wheel from the repository root with `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology`, or install a wheel of the same version from your distributor.
 
 A read-only project needs just the component and its model assets. Find sample models, service bindings and the external installation check in the [runnable example](../../../examples/modules/manage-ontology/README.en.md).
 

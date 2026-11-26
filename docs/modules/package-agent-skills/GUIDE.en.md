@@ -61,15 +61,16 @@ Calculate SHA-256 over the raw bytes. On Windows, run `Get-FileHash assets/templ
 
 ## Pinned installation and rollback
 
-Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install the matching 2.1.0 candidate npm tarballs, including `coremind-templates`, in your working directory ([candidate installation](../../migrations/2.0-to-2.1.en.md)), then prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
+Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install matching versions of the CLI and templates package from npm in your working directory. Prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
 
 ```sh
+npm install --save-exact coremind-cli@2.1.0 coremind-templates@2.1.0
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
 npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
 npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json
 ```
 
-The installer runs a frozen Skills CLI install in a temporary directory, then checks raw bytes against the CoreMind manifest and pinned commit. It saves the verified lock before replacing the target directory. If replacement fails after the lock was saved, omit the source argument and retry with that lock. The project's `skills/<id>/` receives only `SKILL.md`, the manifest, and the declared resources. Run `coremind check project-a/coremind.yaml` to validate the package selected by the agent. Both installation commands should return the same lock SHA-256.
+The installer runs a frozen Skills CLI install in a temporary directory, then checks raw bytes against the CoreMind manifest and pinned commit. It saves the verified lock before replacing the target directory. If replacement fails after the lock was saved, omit the source argument and retry with that lock. The project's `skills/<id>/` receives only `SKILL.md`, the manifest, and the declared resources. Run `npx --no-install coremind check project-a/coremind.yaml` to validate the package selected by the agent. Both installation commands should return the same lock SHA-256.
 
 For upgrades, use a new commit and a new lock filename and retain the previous lock. To roll back, omit the source argument, change `project-b` to `project-a`, and pass the previous lock. A new Runtime reads the restored version. If installation is interrupted, confirm the installer has exited. When `skills/<id>/` is missing and `skills/.<id>.install/previous` exists, move `previous` back to `skills/<id>/`. Move the remaining `.<id>.install` directory outside `skills/` before retrying.
 

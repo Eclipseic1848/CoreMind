@@ -16,13 +16,15 @@
 
 ## 从空白项目只启用本体
 
-从源码根目录用 `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology` 构建 wheel，或使用团队分发的同版本制品。把 wheel 复制到业务主机，在独立 Python 3.10+ 环境安装。将五份业务模型文件放在环境外，设置 `MODEL_DIR` 为其绝对路径，向服务进程提供 `COREMIND_ONTOLOGY_AUTHORIZATION`。凭据为完整的 `Bearer <token>`，令牌至少 24 个无空白字符。
+在业务主机的独立 Python 3.10+ 环境从 PyPI 安装服务。将五份业务模型文件放在环境外，设置 `MODEL_DIR` 为其绝对路径，向服务进程提供 `COREMIND_ONTOLOGY_AUTHORIZATION`。凭据为完整的 `Bearer <token>`，令牌至少 24 个无空白字符。
 
 ```sh
-python -m pip install ./coremind_ontology_mcp-0.1.0-py3-none-any.whl
+python -m pip install coremind-ontology-mcp==0.1.0
 coremind-ontology-mcp --version
 coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```
+
+也可从源码根目录用 `python -m pip wheel --no-deps --wheel-dir .scratch/ontology-wheels ./components/ontology` 构建 wheel，或安装团队分发的同版本 wheel。
 
 首个只读项目只需要自己的模型和该组件。示例模型、服务配置及可保留回执的仓库外测试见[验收示例](../../../examples/modules/manage-ontology/README.zh-CN.md)。
 

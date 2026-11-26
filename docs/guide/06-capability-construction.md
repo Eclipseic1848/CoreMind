@@ -6,7 +6,7 @@
 
 ## 从自己的项目开始
 
-在业务项目根目录创建 `coremind.yaml`，只配置模型和一个 Agent。下面的基线可用于 CoreMind 2.0.0，五项可选能力均未选用。
+在业务项目根目录创建 `coremind.yaml`，只配置模型和一个 Agent。CoreMind 2.1.0 的最小配置可以独立运行 Runtime。
 
 ```yaml
 schemaVersion: 2
@@ -20,19 +20,21 @@ agents:
     systemPrompt: 根据用户提供的文字回答问题。
 ```
 
-把模型凭据放入运行环境。在该目录执行 `npx coremind-cli@2.0.0 run coremind.yaml --prompt "请只回答 OK"`，核对回复和零工具调用。记录这份配置和依赖版本，作为逐项启用能力时的对照。
+把模型凭据放入运行环境。在该目录执行 `npx coremind-cli@2.1.0 run coremind.yaml --prompt "请只回答 OK"`，核对回复和零工具调用。记录这份配置和依赖版本，作为逐项启用能力时的对照。
 
-使用本地安装的 2.1.0 候选 CLI 可直接执行 `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`。已有 `coremind.yaml` 时沿用该文件。[候选安装与回退](../migrations/2.0-to-2.1.zh-CN.md) · [SDK 最小入口](../../examples/modules/configure-coremind/README.zh-CN.md)
+也可执行 `npx coremind-cli@2.1.0 create . --runtime-only --provider deepseek --model deepseek-flash` 生成配置。已有 `coremind.yaml` 时沿用该文件。[升级与回退](../migrations/2.0-to-2.1.zh-CN.md) · [SDK 最小入口](../../examples/modules/configure-coremind/README.zh-CN.md)
 
-| 仅选用一项时 | 2.0.0 的接入方式 | 第一个验收动作 |
+知识、记忆和本体各自使用独立 Python 环境。按业务需求选择下表对应服务即可。
+
+| 仅选用一项时 | 2.1.0 的接入方式 | 第一个验收动作 |
 | --- | --- | --- |
-| 知识 | 宿主部署知识 MCP 服务，在 Agent 工具列表中只绑定需要的检索操作 | 提供两版原文，用读者身份检索并回查版本和出处 |
-| Hindsight 记忆 | 宿主部署网关并绑定 Hindsight 记忆库，单独授权 Agent 的召回接口 | 宿主写入已确认偏好，新会话召回，另一主体无法读取 |
-| Skill | 在项目的 `skills/<id>/SKILL.md` 定义方法，在 `agents.main.skills` 选择 ID | 适用任务能加载正文；移除 ID 后新运行无法加载 |
-| 工具 | 通过 SDK 注册业务函数，或用配置绑定 stdio/HTTP MCP 操作，并为 Agent 选择工具 | 验证输入、权限和一次业务回执；移除绑定后新运行不再提供该工具 |
-| 本体 | 宿主提供模型、映射和约束，经本体 MCP 服务绑定所需操作 | 用自己的模型验证一条合规记录和一条违规记录；只读项目仅授权查询、校验 |
+| 知识 | `python -m pip install coremind-knowledge-mcp==0.1.0`。部署知识 MCP 服务，在 Agent 工具列表中绑定所需的检索操作 | 提供两版原文，用读者身份检索并回查版本和出处 |
+| Hindsight 记忆 | `python -m pip install coremind-memory-mcp==0.1.0`。启动网关并绑定 Hindsight 记忆库，单独授权 Agent 的召回接口 | 宿主写入已确认偏好，新会话召回，另一主体无法读取 |
+| Skill | 从 `skills/<id>/SKILL.md` 定义方法，在 `agents.main.skills` 选择 ID。跨项目安装使用 `coremind-templates@2.1.0` 中的 `coremind-skill-install` | 适用任务能加载正文，移除 ID 后新运行无法加载 |
+| 工具 | 通过 2.1.0 SDK 注册业务函数，或用配置绑定 stdio/HTTP MCP 操作，并为 Agent 选择工具 | 验证输入、权限和一次业务回执，移除绑定后在新运行中检查工具清单 |
+| 本体 | `python -m pip install coremind-ontology-mcp==0.1.0`。提供模型、映射和约束，经本体 MCP 服务绑定所需操作 | 用自己的模型验证一条合规记录和一条违规记录，只读项目仅授权查询、校验 |
 
-知识、记忆和本体共用 Runtime 的 MCP 调用能力。只接入其中一个服务，就可以单独验收该领域。2.0.0 的这些服务及适配实现随源码示例交付。2.1.0 候选提供三个可用本地 wheel 单独安装的 0.1.0 组件，分别见[知识](../../components/knowledge/README.md)、[记忆](../../components/memory/README.md)和[本体](../../components/ontology/README.md)。Skill 和工具沿用各自的加载入口。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[配置指南](02-configuration.md) · [路线图](../roadmap.zh-CN.md)
+知识、记忆和本体使用 Runtime 的 MCP 接口。2.0.0 将这些服务及适配实现随源码示例交付，2.1.0 提供各自的 PyPI 安装包。每项组件交付实现、版本与兼容范围、实施 SOP、开发 Skill 和只启用自身的最小可运行示例。[知识服务](../../components/knowledge/README.md) · [记忆网关](../../components/memory/README.md) · [本体服务](../../components/ontology/README.md) · [路线图](../roadmap.zh-CN.md)
 
 **空白项目验收顺序**
 
@@ -44,9 +46,9 @@ agents:
 
 ### 复跑独立安装验收
 
-2.1.0 候选功能的仓库外测试完成 49 项检查，覆盖空白项目、五项单用、组合和移除。业务方可用相同脚本验证自己取得的候选安装件。[工程交付](https://github.com/Eclipseic1848/CoreMind/pull/424)
+2.1.0 的仓库外验收用冻结提交构建的安装包完成 49 项检查，覆盖空白项目、五项单用、组合和移除。安装公开版后，可用相同脚本复验。[冻结件验收记录](https://github.com/Eclipseic1848/CoreMind/issues/426) · [正式发布与回装](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-在仓库外新建消费者，安装同一构建的 npm 安装件及含 Worker 的 Python wheel。用各自的 Python 环境启动知识、记忆和本体服务。在私有 JSON 中以 `knowledge`、`memory`、`ontology` 为键，分别填写回环 `url`、读令牌 `authorization`、只读 `tool` 名、`args` 和预期结果片段 `expect`。记忆场景先由宿主写入合成事实。用主仓库的[验收脚本](../../scripts/verify-optional-consumer.mjs)运行：
+在仓库外新建消费者，固定安装 `coremind-cli@2.1.0`、TypeScript 的 `coremind-ai@2.1.0` 和带内置 Worker 的 Python `coremind-ai==2.1.0`。按上表分别安装和启动知识、记忆与本体服务。在私有 JSON 中以 `knowledge`、`memory`、`ontology` 为键，分别填写回环 `url`、读令牌 `authorization`、只读 `tool` 名、`args` 和预期结果片段 `expect`。记忆场景先由宿主写入合成事实，再执行主仓库的[验收脚本](../../scripts/verify-optional-consumer.mjs)。
 
 ```sh
 node scripts/verify-optional-consumer.mjs <消费者目录> <已安装SDK的Python> <私有JSON>

@@ -10,14 +10,12 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 For an existing project or an empty directory, use the [Runtime-only configuration](06-capability-construction.md) and enable one capability when needed. The CLI example below uses the translator template.
 
-`coremind-cli@2.0.0` is available on the public npm registry. Upgrade from `1.4` using the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en). The [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en) remains available for earlier versions.
-
-To try `create --runtime-only` or the pinned Skill installer in `2.1.0`, use local candidate artifacts from a single build in a separate directory. The examples below use public `2.0.0`. [Candidate installation and rollback](../../migrations/2.0-to-2.1.en.md)
+This guide uses `coremind-cli@2.1.0` from npm. For existing projects, follow the [2.0-to-2.1 upgrade and rollback guide](../../migrations/2.0-to-2.1.en.md). For earlier versions, see the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en) and [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en).
 
 ```bash
-npm install coremind-ai@2.0.0 coremind-cli@2.0.0
-npx coremind-cli@2.0.0 providers
-npx coremind-cli@2.0.0 create my-agent --provider alibaba-model-studio
+npm install --save-exact coremind-ai@2.1.0 coremind-cli@2.1.0
+npx coremind-cli@2.1.0 providers
+npx coremind-cli@2.1.0 create my-agent --template translator --language typescript --provider deepseek --model deepseek-flash
 cd my-agent
 ```
 
@@ -28,18 +26,18 @@ Select a template, language, provider, and permission mode when prompted. Non-in
 Copy `.env.example` to `.env` and add only the credential required by your selected provider. Never commit `.env`.
 
 ```dotenv
-DASHSCOPE_API_KEY=replace_me
+DEEPSEEK_API_KEY=replace_me
 ```
 
 Credentials belong in environment variables. An embedding host may instead supply a `SecretRef` resolver; sensitive Headers, including common API-key and token aliases, cannot use plaintext literals.
 
-Provider support does not imply live certification. Check the [provider matrix](/providers/README.en) and the [corresponding Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) for same-version qualification evidence before production evaluation.
+The example uses `deepseek-flash`, which passed strict certification for 2.1.0. Before production use, verify the Provider, model, credentials and deployment environment you will actually use. [Provider matrix](/providers/README.en) · [2.1.0 strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 
 ## 4. Validate before running
 
 ```bash
-npx coremind-cli@2.0.0 doctor coremind.yaml
-npx coremind-cli@2.0.0 check coremind.yaml
+npx coremind-cli@2.1.0 doctor coremind.yaml
+npx coremind-cli@2.1.0 check coremind.yaml
 ```
 
 `doctor` reports the environment and `check` validates the project configuration. You can run both checks before sending a model request.
@@ -47,7 +45,7 @@ npx coremind-cli@2.0.0 check coremind.yaml
 ## 5. Run interactively
 
 ```bash
-npx coremind-cli@2.0.0 chat coremind.yaml
+npx coremind-cli@2.1.0 chat coremind.yaml
 ```
 
 Start with the ask permission mode. Review every requested operation until you understand the tool and data boundaries.

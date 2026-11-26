@@ -8,7 +8,7 @@ When two calls in one turn both require `run_serial`, or both require a `workspa
 
 ## Enable one tool in a fresh project
 
-Create `coremind.yaml` and a short `sample.txt` in an empty directory. This agent is allowed to read files within the workspace. In an existing project, add `{ id: read }` to the intended agent’s tool list.
+In an empty directory, run `npm install --save-exact coremind-cli@2.1.0`. Create `coremind.yaml` and a short `sample.txt`. This agent is allowed to read files within the workspace. In an existing project, add `{ id: read }` to the intended agent’s tool list.
 
 ```yaml
 schemaVersion: 3
@@ -24,7 +24,7 @@ runtime: {}
 quality: { profile: standard }
 ```
 
-Run `coremind check coremind.yaml`. With the host’s Provider credentials set, run `coremind run coremind.yaml --prompt "Read sample.txt and return its exact contents."`. Check the `read` call in Trace and compare the result with the file. A request to read a file outside the workspace should be denied.
+Run `npx --no-install coremind check coremind.yaml`. With the host’s Provider credentials set, run `npx --no-install coremind run coremind.yaml --prompt "Read sample.txt and return its exact contents."`. Check the `read` call in Trace and compare the result with the file. A request to read a file outside the workspace should be denied.
 
 To disable `read`, remove its agent entry and the grant used by this example, then start a fresh Runtime and session. Empty or omitted agent tool lists inherit top-level `tools`, so check that list as well. For a tool supplied through a TypeScript host’s `toolDefinitions`, remove the host registration. For MCP, remove the specific agent tool reference. Remove the server configuration and its dedicated credentials only after every agent has stopped using it. Inspect the tools offered to the model in a fresh session.
 

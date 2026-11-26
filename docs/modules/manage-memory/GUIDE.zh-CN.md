@@ -2,9 +2,9 @@
 
 ## 从空白项目只接入记忆
 
-按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)在宿主安装 0.1.0 wheel 并启动 `coremind-memory-mcp`。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.0.0 coremind-ai@2.0.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目安装 `coremind-ai==2.0.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
+在宿主环境运行 `python -m pip install coremind-memory-mcp==0.1.0`，再按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)启动网关。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.1.0 coremind-ai@2.1.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目运行 `python -m pip install coremind-ai==2.1.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
 
-以上公共安装命令用于复验 2.0.0 客户端兼容性。测试 2.1.0 候选时，改为[安装本地候选 CLI 和 SDK](../../migrations/2.0-to-2.1.zh-CN.md)，沿用同一份网关配置。
+从 2.0.0 升级时沿用同一份网关配置，按[迁移与回退指南](../../migrations/2.0-to-2.1.zh-CN.md)复验。
 
 ```yaml
 schemaVersion: 3

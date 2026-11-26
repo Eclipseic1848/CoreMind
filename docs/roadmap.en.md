@@ -4,9 +4,9 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## Public stable release `2.0.0`
+## Public stable release `2.1.0`
 
-Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. The 2.0.0 release provides Skill, tool and MCP interfaces and includes the knowledge, memory and ontology services in its source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/) [Migration from 1.4](migrations/1.4-to-2.0.en.md)
+Start with the Runtime in your own project. Add knowledge, Hindsight memory, Skills, tools and ontology when needed. Pin the CLI and SDKs to `2.1.0`. The three optional services are available separately at `0.1.0`. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [Upgrade from 2.0 or roll back](migrations/2.0-to-2.1.en.md)
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -18,15 +18,17 @@ Start the Runtime in your own project, then select knowledge, Hindsight memory, 
 - Acceptance workflows that combine Windows/Linux automation with real pseudoterminal checks on both platforms, plus synchronized GitHub, npm, PyPI, and bilingual documentation releases.
 - Explicit correlation across the Session, Run, and Workspace fact domains; typed identity; I-1 through I-12 invariant checks; input receipts; request rebuilding; and cancellation convergence.
 
-All eight npm packages, the Python wheel and the source ZIP for `v2.0.0` matched the same release-build manifest. [Frozen commit](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [Release build](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [Documentation deployment](https://github.com/Eclipseic1848/CoreMind/actions/runs/45560012456)
+### Enable capabilities as needed
 
-It includes the public `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, plus the controlled process, read-only Git, bounded unified diff, seven grader types, and TypeScript/Python real-defect evaluations required by coding agents. Windows, Linux and strict DeepSeek certification passed for this version. [Candidate qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
+Install, deploy and update knowledge, Hindsight memory and ontology independently. Pin Skills to reviewed commits, and register or replace business tools individually. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) · [Construction and acceptance](en/guide/06-capability-construction.md)
 
-## `2.1.0` candidate status
-
-The five optional capabilities are on the main branch. Start with a Runtime-only project, install any of the three `0.1.0` wheels for knowledge, Hindsight memory and ontology, and select pinned Skills and business tools as needed. The external consumer passed 49 checks across four client entry points, individual capabilities, combinations and removal using a deterministic model fixture. Public installation and Provider qualification require evidence for the 2.1.0 artifacts. [Candidate installation and rollback](migrations/2.0-to-2.1.en.md) · [Candidate changes](release/notes/v2.1.0.md) · [Implementation record](https://github.com/Eclipseic1848/CoreMind/pull/424) · [Construction and acceptance](en/guide/06-capability-construction.md)
+The 2.1.0 public delivery includes eight npm packages, the SDK wheel, three service wheels and the source ZIP. Its strict qualification record binds the 2.1.0 commit, Runtime package digest and certified Provider combination. [Release workflow](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [Public reinstall record](https://github.com/Eclipseic1848/CoreMind/issues/427) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 
 ## Delivered in `2.0.0`
+
+This version was released on 2026-11-25 (UTC) and delivered the knowledge, memory and ontology services as source examples. Eight npm packages, the Python wheel and the source ZIP were checked against the same build manifest. [2.0.0 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [Migration from 1.4](migrations/1.4-to-2.0.en.md) · [Release build](https://github.com/Eclipseic1848/CoreMind/actions/runs/45558309010) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/404#issuecomment-7154981484) · [Documentation deployment](https://github.com/Eclipseic1848/CoreMind/actions/runs/45560012456)
+
+It includes explicit `loop` configuration, verify-repair states, stable snapshots, pause-resume, effect receipts, bounded retries, a fifth verified-repair golden example, controlled processes, read-only Git, bounded unified diffs, seven grader types, and TypeScript/Python real-defect evaluations. [2.0.0 frozen commit](https://github.com/Eclipseic1848/CoreMind/commit/ea4f637dc3c6380e621ac401b29f650616af92ed) · [2.0.0 platform and DeepSeek qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
 - The main branch includes knowledge ingestion, cited retrieval, incremental versions, and withdrawal. [Knowledge module](modules/manage-knowledge/README.en.md)
 - P2-B uses Hindsight for long-term memory and reflection. The implementation, examples, and verification record passed engineering CI on both platforms and merged into main. [Long-term memory module](modules/manage-memory/README.en.md) · [Merge record](https://github.com/Eclipseic1848/CoreMind/pull/395)

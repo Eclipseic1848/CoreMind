@@ -1,6 +1,6 @@
 # Skill 与 SOP 装载
 
-2.0.0 支持项目 Skill 和资源复用。2.1.0 候选将固定版本安装器随模板包交付。模块支持 Windows 和 Linux。
+2.0.0 已支持项目 Skill 和资源复用。2.1.0 的 npm 模板包提供固定版本安装器。模块支持 Windows 和 Linux。
 
 ## 目的
 
@@ -14,7 +14,7 @@
 - `loadDirectorySkills`
 - `SKILLS`
 
-应用通过现有 Runtime 使用标准 Skill，通过候选 `coremind-templates` 包提供的 `coremind-skill-install` 将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
+应用通过现有 Runtime 使用标准 Skill。`coremind-templates@2.1.0` 提供 `coremind-skill-install`，可将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
 
 ## 错误与边界
 

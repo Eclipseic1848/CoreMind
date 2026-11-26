@@ -31,15 +31,13 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## Public stable release `2.0.0`
+## Public stable release `2.1.0`
 
-[Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
+[Upgrade from 2.0 or roll back](../migrations/2.0-to-2.1.en.md) · [Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-> Start the Runtime in your own project, then select knowledge, Hindsight memory, Skills, tools or an optional ontology as needed. The 2.0.0 release provides Skill, tool and MCP interfaces and includes the knowledge, memory and ontology services in its source examples. 2.0.0 was released on 2026-11-25 (UTC). Install the matching CLI and Python SDK from the registries. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.0.0) · [npm](https://www.npmjs.com/package/coremind-cli/v/2.0.0) · [PyPI](https://pypi.org/project/coremind-ai/2.0.0/)
+Install `coremind-cli@2.1.0` or the matching SDK and start with a Runtime-only setup in your own project. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [Publication and reinstall record](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-### Try the `2.1.0` candidate
-
-Use candidate clients from one build to create a Runtime-only project. Knowledge, Hindsight memory and ontology each have a separate `0.1.0` service wheel. Install a Skill at a reviewed commit, or register and replace a business tool on its own. For the public stable release, use the `2.0.0` links above. [Candidate installation and rollback](../migrations/2.0-to-2.1.en.md) · [2.1.0 changes](../release/notes/v2.1.0.md)
+Knowledge, Hindsight memory and ontology each have a separately installable `0.1.0` service package. Install Skills from reviewed commits, and register or replace business tools independently. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.0/)
 
 ### Enable one capability in your own project
 

@@ -2,9 +2,9 @@
 
 本 SOP 将八个 npm 包、Python SDK、独立组件、源码 ZIP、GitHub Release 和双语文档站纳入同一次发布。制品清单同时记录构建身份、包版本和 SHA-256。
 
-> 2.1.0 候选从 2.0.0 升级。候选 SDK 使用同一版本，知识、Hindsight 记忆和本体分别使用 0.1.0。空白项目依次验收仅 Runtime、五项单独加载、组合和移除。以资料助手保留组合回归。正式发布逐件比对同一构建的 13 件制品。
+> 2.1.0 的 CLI 和两种 SDK 同步升级，知识、Hindsight 记忆和本体各有独立的 0.1.0 安装件。新业务项目依次验证仅 Runtime、单项加载、组合和移除，以资料助手复验组合。[正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [13 件公开制品验收](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md) · [2.0→2.1 候选迁移](../migrations/2.0-to-2.1.zh-CN.md) · [2.1 候选说明](notes/v2.1.0.md)
+[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md) · [2.0→2.1 迁移](../migrations/2.0-to-2.1.zh-CN.md) · [2.1 发布说明](notes/v2.1.0.md)
 
 ## 历史发布决定
 

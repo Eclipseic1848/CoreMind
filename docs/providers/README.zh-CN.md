@@ -1,8 +1,8 @@
 # Provider 支持与认证矩阵
 
-> 表格基于 2026-11-25 的运行时静态目录和人工证据台账生成，当前对应目标版本 `2.1.0`。不应手工修改表格。
+> 表格基于 2026-11-26 的运行时静态目录和人工证据台账生成，当前对应目标版本 `2.1.0`。不应手工修改表格。
 
-CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** 个可配置入口。其中 **0** 个入口具有完整真实调用证据，**43** 个仅代表运行时目录可识别。**可配置不等于通过真实认证，别名不重复计为独立提供商。**
+CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** 个可配置入口。其中 **1** 个入口具有完整真实调用证据，**42** 个仅代表运行时目录可识别。**可配置不等于通过真实认证，别名不重复计为独立提供商。**
 
 ## 状态定义
 
@@ -26,7 +26,7 @@ CoreMind 当前有 **42** 个内置聊天 Provider，含兼容别名共 **43** �
 | `cerebras` | `gpt-oss-120b` | — | 2 | 可配置，未认证 | — |
 | `cloudflare-ai-gateway` | `claude-fable-5` | — | 59 | 可配置，未认证 | — |
 | `cloudflare-workers-ai` | `@cf/deepseek-ai/deepseek-v4-flash-0731` | — | 19 | 可配置，未认证 | — |
-| `deepseek` | `deepseek-flash` | `2.0.0` | 2 | 可配置，2.1.0 未认证（保留旧版证据） | [证据](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.0.0-2026-11-25.json) |
+| `deepseek` | `deepseek-flash` | `2.1.0` | 2 | 已认证 | [证据](https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.1.0-2026-11-26.json) |
 | `fireworks` | `accounts/fireworks/models/deepseek-v4p1-flash` | — | 29 | 可配置，未认证 | — |
 | `github-copilot` | `claude-fable-5` | — | 27 | 可配置，未认证 | — |
 | `google` | `deep-research-max-preview-04-2026` | — | 23 | 可配置，未认证 | — |

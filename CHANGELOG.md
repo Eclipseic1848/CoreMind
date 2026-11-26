@@ -6,7 +6,7 @@
 
 ## 2.1.0
 
-发布准备中。[2.0→2.1 候选迁移](docs/migrations/2.0-to-2.1.zh-CN.md) · [候选说明](docs/release/notes/v2.1.0.md) · [发布进度](https://github.com/Eclipseic1848/CoreMind/milestone/5)
+[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [2.0→2.1 迁移](docs/migrations/2.0-to-2.1.zh-CN.md) · [正式构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
 - 业务项目可用 `coremind create . --runtime-only` 生成最小配置，按需加载五项能力。
 - 知识、Hindsight 记忆和本体提供三个独立的 0.1.0 组件。Skill 可从固定提交安装，工具可单独注册和撤除。
