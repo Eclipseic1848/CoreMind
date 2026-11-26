@@ -49,6 +49,8 @@ Maintainers rebuild the fixed Job assembly or host with `node scripts/build-wind
 
 The three echo routes returned identical fields on Windows and in a Linux container. Windows loopback HTTP checks verified a single business call through cancellation or a lost acknowledgement after a write, connection closure, a durable `unknown` receipt, and no replay on cold resume. The Linux container separately verified stdout, stderr, timeout, and real process tree termination. The browser checks covered approval, download, screenshot, and cancellation on Windows Chrome 157. [Browser results](BROWSER.en.md)
 
+Use the [optional-capability regression](../evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain actual arguments, counts, approvals and results for all three transports. Compare `false`, `0` and `null`, and inspect the call evidence if a transport retries or loses a value.
+
 ## Stop conditions
 
 Stop for unconfirmed business rules, non-reversible side effects, access outside the workspace, unavailable real credentials, or failed security gates. Ask the owner instead of expanding scope.

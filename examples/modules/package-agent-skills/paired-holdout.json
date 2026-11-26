@@ -1,0 +1,40 @@
+[
+  {
+    "id": "holdout-weekly-with-release-context",
+    "prompt": "请整理仓配协同组的周报并输出 JSON。已完成：完成 4 个库区联调。阻碍：预发布环境待审批。下周计划：周二确认交付窗口。",
+    "skill": "shared-weekly-report",
+    "resources": ["references/writing-rules.md", "assets/weekly-template.json"],
+    "expected": {
+      "部门": "仓配协同组",
+      "本周交付": ["完成 4 个库区联调"],
+      "需协调": ["预发布环境待审批"],
+      "下周承诺": ["周二确认交付窗口"]
+    }
+  },
+  {
+    "id": "holdout-release-with-weekly-context",
+    "prompt": "请为晨桥周报汇总项目的验证环境做交付前检查并输出 JSON。环境现状：Node.js 23.12.0；已保存回滚快照；未指定复核人。",
+    "skill": "shared-release-preflight",
+    "resources": ["references/dependency-rules.md", "assets/checklist.json", "scripts/check-environment.mjs"],
+    "expected": {
+      "项目": "晨桥周报汇总",
+      "环境": "验证",
+      "交付结论": "暂缓交付",
+      "缺项": ["未指定复核人"]
+    }
+  },
+  {
+    "id": "holdout-weekly-copyedit",
+    "prompt": "请润色一句话并输出只有「改写」的 JSON。不要整理周报，也不要新增事实。原文：周报要今天发，别忘抄送值班组。",
+    "skill": null,
+    "resources": [],
+    "expected": { "改写": "请于今天发送周报，并抄送值班组。" }
+  },
+  {
+    "id": "holdout-release-extract",
+    "prompt": "从便笺提取日期，只输出含「日期」的 JSON。无需判断能否交付。便笺：周五做交付前检查，先收集 Node.js 版本和回滚快照。",
+    "skill": null,
+    "resources": [],
+    "expected": { "日期": "周五" }
+  }
+]

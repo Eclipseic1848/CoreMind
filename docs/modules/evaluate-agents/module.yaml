@@ -35,6 +35,7 @@ testPaths:
   - "examples/coding-evals/coding-evals.test.ts"
   - "packages/coremind-runtime/src/experiment.test.ts"
   - "scripts/paired-evaluation.test.ts"
+  - "examples/modules/evaluate-agents/capability-regression.mjs"
 supportedPlatforms:
   - "windows"
   - "linux"

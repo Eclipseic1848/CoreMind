@@ -228,9 +228,14 @@ async function runAction(service, credential, call, decision, expected) {
   if (active.error) throw active.error;
   assert.equal(requests, 1);
   if (decision === "deny") {
-    assert.ok(events.some(({ type }) => type === "policy_denied"));
+    const denial = events.find(({ type }) => type === "policy_denied");
+    assert.ok(denial);
     assert.equal(active.turns, 1);
-    return;
+    const runtimeEffectStatuses = events
+      .filter(({ type, tool }) => type === "effect_receipt" && tool === denial.tool)
+      .map(({ status }) => status);
+    assert.deepEqual(runtimeEffectStatuses, ["not_started"]);
+    return { status: "denied", reason: denial.reason, runtimeEffectStatuses };
   }
   assert.equal(result.outcome.status, "succeeded", JSON.stringify(result.outcome));
   assert.equal(active.turns, 2);
@@ -285,24 +290,27 @@ try {
   );
   const readAuth = "COREMIND_ONTOLOGY_AUTHORIZATION";
   const writeAuth = "COREMIND_ONTOLOGY_ACTION_AUTHORIZATION";
-  assert.equal(
-    (await runAction(service, readAuth, perform, "allow", "denied")).reason,
-    "action_not_authorized",
-  );
-  await runAction(service, writeAuth, perform, "deny");
+  const readDenied = await runAction(service, readAuth, perform, "allow", "denied");
+  assert.equal(readDenied.reason, "action_not_authorized");
+  const policyDenied = await runAction(service, writeAuth, perform, "deny");
   const wrongState = { ...perform, args: { ...perform.args, ...draft, request_id: "draft-001" } };
-  assert.equal(
-    (await runAction(service, writeAuth, wrongState, "allow", "denied")).reason,
-    "precondition_failed",
-  );
+  const preconditionDenied = await runAction(service, writeAuth, wrongState, "allow", "denied");
+  assert.equal(preconditionDenied.reason, "precondition_failed");
   const success = await runAction(service, writeAuth, perform, "allow", "completed");
-  assert.equal(success.state, success.expectedState);
+  assert.equal(success.requestId, perform.args.request_id);
+  assert.equal(success.resource, perform.args.resource);
+  assert.deepEqual(
+    [success.action, success.previousState, success.expectedState, success.state],
+    ["publish", "reviewed", "published", "published"],
+  );
   assert.equal(success.replayed, undefined, "拒绝的调用不能形成业务回执");
-  assert.equal((await runAction(service, writeAuth, perform, "allow", "completed")).replayed, true);
+  const replay = await runAction(service, writeAuth, perform, "allow", "completed");
+  assert.deepEqual(replay, { ...success, replayed: true });
   console.log(
     JSON.stringify({
       case: "action",
       approvals: "read_denied,policy_denied,precondition_denied,completed,replayed",
+      receipts: { readDenied, policyDenied, preconditionDenied, completed: success, replay },
     }),
   );
 
@@ -365,12 +373,14 @@ uvicorn.run(make_app(project, read_token, action_token), host="127.0.0.1", port=
   const uncertain = await runAction(service, writeAuth, perform, "allow", "unknown");
   assert.equal(uncertain.reason, "effect_not_confirmed");
   const newRequest = { ...perform, args: { ...perform.args, request_id: "after-unknown" } };
-  assert.equal(
-    (await runAction(service, writeAuth, newRequest, "allow", "denied")).reason,
-    "prior_effect_unknown",
-  );
+  const blocked = await runAction(service, writeAuth, newRequest, "allow", "denied");
+  assert.equal(blocked.reason, "prior_effect_unknown");
   console.log(
-    JSON.stringify({ case: "missing_business_receipt", outcomes: ["unknown", "denied"] }),
+    JSON.stringify({
+      case: "missing_business_receipt",
+      outcomes: [uncertain.status, blocked.status],
+      receipts: { uncertain, blocked },
+    }),
   );
 } finally {
   if (service) await service.close();

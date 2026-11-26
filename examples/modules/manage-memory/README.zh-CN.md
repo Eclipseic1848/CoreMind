@@ -97,4 +97,14 @@ Invoke-RestMethod -Method Post -Uri "$memoryUrl/forget" -Headers $memoryHeaders 
 
 如要复验已安装的独立 wheel，将 [check_component.py](check_component.py) 复制到空白目录。准备两个隔离测试库、各自的读令牌和首库的管理员令牌。在宿主验收终端注入 `COREMIND_MEMORY_AUTHORIZATION`、`COREMIND_MEMORY_OTHER_AUTHORIZATION`、`COREMIND_MEMORY_ADMIN_AUTHORIZATION`，运行 `python -I -X utf8 check_component.py --bank demo-alice --url http://127.0.0.1:8769`。脚本经宿主 HTTP 和独立 MCP 会话验证幂等写入、不同主体、更正、到期与遗忘，使用新的文档 ID 并在退出时遗忘测试文档。
 
+## 离线效果回归
+
+在仓库根目录使用已安装示例依赖的 Python 环境执行。
+
+```sh
+python -B -X utf8 examples/modules/manage-memory/effect_evaluation.py
+```
+
+命令读取[五题合成集](effect-cases.json)，向标准输出写入一条 JSON 回执。回执保留候选、确认前召回、最终召回与采用来源和版本。失败时退出码非零。Hindsight 响应和采用规则均固定，可在没有 Hindsight 进程或模型凭据时运行。
+
 返回[中文指南](../../../docs/modules/manage-memory/GUIDE.zh-CN.md)。逐项验收见[开发 SOP](../../../docs/modules/manage-memory/SOP.zh-CN.md)。

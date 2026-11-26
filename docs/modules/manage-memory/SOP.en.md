@@ -16,6 +16,12 @@ Run the checks in the [module manifest](module.yaml) and `npm run check:modules`
 
 Use the [automated acceptance for direct knowledge and memory calls](../manage-knowledge/SOP.en.md#automated-acceptance-for-direct-knowledge-and-memory-calls) to rerun M07 with the actual Hindsight gateway and both reader tokens. The script supplies the checks and model fixture.
 
+## Candidate and experience adoption evaluation
+
+Run the [offline outcome regression](../../../examples/modules/manage-memory/README.en.md#offline-outcome-regression). The new synthetic questions cover direct evidence, a related source missing a required fact, stale sources, forgotten records resurfacing, and sources from another branch. Check each candidate's status, rule, source, and revision. Then check what MCP recalls and what the business rule adopts before and after host confirmation. Keep per-case evidence and count incorrect or missed candidates and incorrect or missed adoptions separately. All five cases must pass with zero errors in each count.
+
+The replay goes through the production Hindsight adapter and MCP gateway. A fixture supplies the Hindsight responses, and a deterministic business rule makes adoption decisions. Record live retrieval, model extraction, and business adoption quality against the actual deployment separately.
+
 ## Verify standalone deployment and upgrades
 
 1. Run `python -m pip install coremind-memory-mcp==0.1.0` in a dedicated Python 3.12 environment and verify `coremind-memory-mcp --version` reports 0.1.0. The compatibility baseline is Hindsight API/client 1.2.3 and PostgreSQL 18.1. Verify other versions in the target environment. In a separate empty project, use only a reader token and a standard MCP client. `tools/list` must expose just `recall_memory`. Write a fact through the host and query it through MCP. Check bank, document ID, revision, text and source. `/health` checks only the gateway process.

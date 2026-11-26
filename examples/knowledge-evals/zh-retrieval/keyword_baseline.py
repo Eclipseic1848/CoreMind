@@ -13,6 +13,28 @@ from coremind_knowledge_mcp.text import terms
 ROOT = Path(__file__).resolve().parent
 
 
+def read_corpus():
+    manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
+    documents = {doc["file"]: doc for doc in manifest["documents"]}
+    chunks = {}
+    for doc in documents.values():
+        lines = (ROOT / "sources" / doc["file"]).read_text(encoding="utf-8").splitlines()
+        for line, text in enumerate(lines, 1):
+            # 索引只读取来源和物理行号，题目与判分标注留在评分端。
+            if next(terms(text), None) is not None:
+                chunks[doc["file"], line] = {
+                    "docId": doc["id"],
+                    "file": doc["file"],
+                    "line": line,
+                    "text": text,
+                    "version": doc["version"],
+                    "access": doc["access"],
+                    "validFrom": doc["validFrom"],
+                    "validUntil": doc["validUntil"],
+                }
+    return manifest, documents, chunks
+
+
 def index(db, manifest, scope):
     db.execute("CREATE VIRTUAL TABLE chunks USING fts5(words, file UNINDEXED, line UNINDEXED)")
     for doc in manifest["documents"]:

@@ -1,0 +1,84 @@
+{
+  "documents": [
+    {"bankId":"reader-a","documentId":"temperature-window","text":"冷链箱先记录封签和温度，15 分钟内交接成功。","source":"cold-run-a:entry-2:v1","occurredAt":"2020-04-01"},
+    {"bankId":"reader-a","documentId":"slow-check","text":"只补录批号，温度未留证，超时后被拒收。","source":"cold-run-b:entry-6:v1","occurredAt":"2020-04-02"},
+    {"bankId":"reader-a","documentId":"export-format","kind":"experience","text":"用途=稽核导出；导出文件采用按店汇总。","source":"audit:export:v1","occurredAt":"2020-04-02"},
+    {"bankId":"reader-a","documentId":"handover-mode","kind":"experience","text":"用途=夜班交接；用短信报告。","source":"handover:entry-1:v1","occurredAt":"2020-04-01"},
+    {"bankId":"reader-a","documentId":"handover-mode","expectedVersion":1,"kind":"experience","text":"用途=夜班交接；通过工单报告。","source":"handover:entry-5:v2","occurredAt":"2020-04-02"},
+    {"bankId":"reader-a","documentId":"obsolete-packing","kind":"experience","text":"用途=旧箱回收；箱贴记账后送回仓库。","source":"packing:entry-3:v1","occurredAt":"2020-04-01"},
+    {"bankId":"reader-b","documentId":"fork-policy","kind":"experience","text":"用途=分支盘点；优先检查分支私有账册。","source":"fork:entry-4:v1","occurredAt":"2020-04-02"}
+  ],
+  "cases": [
+    {
+      "id": "confirm-cold-chain",
+      "question": "冷藏周转箱整批签收时，先核什么才不会走上被拒的老路？",
+      "context": "冷链交接",
+      "reflectReply": {
+        "direct": true,
+        "rule": "用途=冷链交接；先留存封签及温度，再完成签收。",
+        "citations": ["reader-a/temperature-window/1", "reader-a/slow-check/1"]
+      },
+      "recallReply": ["reader-a/temperature-window/1", "reader-a/export-format/1", "reader-a/confirmed-replay/1"],
+      "confirm": true,
+      "expect": {
+        "candidate": {"status":"pending","rule":"用途=冷链交接；先留存封签及温度，再完成签收。","sources":[["temperature-window",1,"cold-run-a:entry-2:v1"],["slow-check",1,"cold-run-b:entry-6:v1"]]},
+        "beforeConfirmation": [["temperature-window",1,"cold-run-a:entry-2:v1"],["export-format",1,"audit:export:v1"]],
+        "recall": [["temperature-window",1,"cold-run-a:entry-2:v1"],["export-format",1,"audit:export:v1"],["confirmed-replay",1,"cold-run-a:entry-2:v1+cold-run-b:entry-6:v1"]],
+        "adoption": ["confirmed-replay",1,"cold-run-a:entry-2:v1+cold-run-b:entry-6:v1","用途=冷链交接；先留存封签及温度，再完成签收。"]
+      }
+    },
+    {
+      "id": "related-export-lacks-penalty",
+      "question": "门店未交稽核表，按记录应该付多少罚款？",
+      "context": "稽核处罚",
+      "reflectReply": {"direct":false,"rule":"导出文件采用按店汇总。","citations":["reader-a/export-format/1"]},
+      "recallReply": ["reader-a/export-format/1"],
+      "expect": {
+        "candidate": {"status":"insufficient_evidence","rule":null,"sources":[]},
+        "beforeConfirmation": [["export-format",1,"audit:export:v1"]],
+        "recall": [["export-format",1,"audit:export:v1"]],
+        "adoption": null
+      }
+    },
+    {
+      "id": "stale-reflection-current-adoption",
+      "question": "日班要跟进上一晚的异常，去哪儿找正式记录？",
+      "context": "夜班交接",
+      "reflectReply": {"direct":true,"rule":"用途=夜班交接；用短信报告。","citations":["reader-a/handover-mode/1"]},
+      "recallReply": ["reader-a/handover-mode/1", "reader-a/handover-mode/2"],
+      "expect": {
+        "candidate": {"status":"insufficient_evidence","rule":null,"sources":[]},
+        "beforeConfirmation": [["handover-mode",2,"handover:entry-5:v2"]],
+        "recall": [["handover-mode",2,"handover:entry-5:v2"]],
+        "adoption": ["handover-mode",2,"handover:entry-5:v2","用途=夜班交接；通过工单报告。"]
+      }
+    },
+    {
+      "id": "forgotten-snapshot",
+      "question": "撤销的旧箱回收流程里，旧容器下一站是哪儿？",
+      "context": "旧箱回收",
+      "forget": [{"bankId":"reader-a","documentId":"obsolete-packing"}],
+      "reflectReply": {"direct":true,"rule":"用途=旧箱回收；箱贴记账后送回仓库。","citations":["reader-a/obsolete-packing/1"]},
+      "recallReply": ["reader-a/obsolete-packing/1"],
+      "expect": {
+        "candidate": {"status":"insufficient_evidence","rule":null,"sources":[]},
+        "beforeConfirmation": [],
+        "recall": [],
+        "adoption": null
+      }
+    },
+    {
+      "id": "foreign-branch-replay",
+      "question": "隔壁分支盘点时默认先查哪份私有账本？",
+      "context": "分支盘点",
+      "reflectReply": {"direct":true,"rule":"用途=分支盘点；优先检查分支私有账册。","citations":["reader-b/fork-policy/1"]},
+      "recallReply": ["reader-b/fork-policy/1"],
+      "expect": {
+        "candidate": {"status":"insufficient_evidence","rule":null,"sources":[]},
+        "beforeConfirmation": [],
+        "recall": [],
+        "adoption": null
+      }
+    }
+  ]
+}

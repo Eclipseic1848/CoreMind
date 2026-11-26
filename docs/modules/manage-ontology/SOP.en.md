@@ -35,6 +35,8 @@ Use the [minimal deployment and recovery example](../../../examples/modules/mana
 
 ## P3 development verification
 
+Use the [offline capability regression](../evaluate-agents/SOP.en.md#regression-for-the-five-optional-capabilities) to retain receipts for denial, completion, replay, uncertain effects and blocked replacement requests. Verify request ID, target, previous state and outcome. Replay must return the same business receipt.
+
 - Windows Python 3.12 and the Linux Python 3.13 container each passed 15 tests covering two interchangeable domain models, field normalization, real SHACL reports, and action receipts.
 - On Windows, the four entry points passed all 12 enabled, disabled, and damaged model cases. Additional checks covered a read-only token, denied approval, failed draft preconditions, state readback after approval, and replay of the same request ID.
 - A transport outage produced zero model requests. With a missing business receipt, the Runtime recorded `started` and `unknown`, and a new request could not repeat the write to the same target.

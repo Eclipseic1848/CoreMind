@@ -318,6 +318,7 @@ const modules = [
       "examples/knowledge-evals/zh-retrieval/qdrant_benchmark.py",
       "examples/knowledge-evals/zh-retrieval/qdrant_check.py",
       "examples/knowledge-evals/zh-retrieval/answer_benchmark.py",
+      "examples/knowledge-evals/zh-retrieval/test_answer_benchmark.py",
       "examples/knowledge-evals/zh-retrieval/check.mjs",
       "examples/knowledge-evals/zh-retrieval/test_keyword_baseline.py",
     ],
@@ -371,6 +372,7 @@ const modules = [
       "scripts/verify-optional-consumer.mjs",
       "scripts/verify-direct-consumers.mjs",
       "examples/modules/manage-memory/test_memory_service.py",
+      "examples/modules/manage-memory/effect_evaluation.py",
       "examples/modules/manage-memory/acceptance.mjs",
     ],
     dependencies: ["build-tools", "manage-sessions", "manage-context-artifacts", "evaluate-agents"],
@@ -1076,6 +1078,7 @@ const modules = [
       "packages/coremind-runtime/src/quality.test.ts",
       "examples/coding-evals/coding-evals.test.ts",
       "packages/coremind-runtime/src/experiment.test.ts",
+      "examples/modules/evaluate-agents/capability-regression.mjs",
     ],
     dependencies: ["inspect-agent-traces", "enforce-agent-permissions"],
     interfaces: [

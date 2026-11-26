@@ -26,13 +26,16 @@ const totalTimeoutMs = 6 * 60_000;
 const rubric = {
   format: "输出为纯 JSON 对象或单个 JSON 代码块，且顶层字段集合精确匹配预期。",
   facts:
-    "四个业务任务按字段与预期值作深度比较。摘要允许改写，但须保留资料室、下周一上午、门禁更换、暂不开放与下午恢复五项事实。",
+    "按字段与预期值作深度比较。历史摘要题允许改写，但须保留资料室、下周一上午、门禁更换、暂不开放与下午恢复五项事实。",
   workflow: "启用且相关时先读对应正文，并成功读取题目要求的全部资源。禁用或无关时无工具调用。",
   passed: "运行成功，格式、全部字段及工具流程均通过。",
 };
 
 const mode = process.argv[2];
-if (mode === "--plan") {
+if (mode === "--offline") {
+  assert(process.argv.length <= 4, "使用 --offline [回执路径] 执行离线成对评测");
+  await runOffline(process.argv[3]);
+} else if (mode === "--plan") {
   console.log(
     JSON.stringify({ systemPrompt, agentOptions, limits, totalTimeoutMs, rubric, cases }, null, 2),
   );
@@ -58,12 +61,97 @@ if (mode === "--plan") {
   });
   console.log(JSON.stringify({ rubric, scores }, null, 2));
 } else {
-  throw new Error("使用 --plan 查看评分，--run 运行真实模型，--rescore <报告路径> 离线复核评分");
+  throw new Error("使用 --offline [回执路径]、--plan、--run 或 --rescore <回执路径>");
 }
 
-async function runEvaluation(selected) {
-  const baseUrl = process.env.COREMIND_SKILL_EVAL_BASE_URL;
-  const model = process.env.COREMIND_SKILL_EVAL_MODEL;
+async function runOffline(output) {
+  const holdoutSource = await readFile(path.join(project, "paired-holdout.json"), "utf8");
+  const holdout = JSON.parse(holdoutSource);
+  const { startSkillFixture } = await import("./paired-fixture.mjs");
+  const auditSkillId = "weekly-report-audit-fixture";
+  const activeSkillIds = [auditSkillId, ...skillIds];
+  const fixture = await startSkillFixture(holdout, activeSkillIds);
+  try {
+    const report = await runEvaluation(holdout, fixture.baseUrl, activeSkillIds).catch((error) => {
+      throw fixture.failures[0] ?? error;
+    });
+    const ids = new Set();
+    assert.equal(report.attempts.length, holdout.length * 2);
+    assert.equal(fixture.failures.length, 0, fixture.failures[0]?.message);
+    const summarize = (enabled) => {
+      const attempts = report.attempts.filter((attempt) => attempt.enabled === enabled);
+      return {
+        attempts: attempts.length,
+        taskPassed: attempts.filter(({ score }) => score.taskPassed).length,
+        passed: attempts.filter(({ score }) => score.passed).length,
+        wrongSkillTriggers: attempts.filter(({ score }) => score.wrongSkillTrigger).length,
+        inputTokens: attempts.reduce((sum, { inputTokens }) => sum + inputTokens, 0),
+        outputTokens: attempts.reduce((sum, { outputTokens }) => sum + outputTokens, 0),
+        tokens: attempts.reduce((sum, { tokens }) => sum + tokens, 0),
+      };
+    };
+    report.inputSha256 = hash(holdoutSource);
+    report.tokenSource = "simulated-provider-usage";
+    report.monetaryCostUsd = null;
+    report.summary = { enabled: summarize(true), disabled: summarize(false) };
+    for (const attempt of report.attempts) {
+      const item = holdout.find(({ id }) => id === attempt.caseId);
+      const key = `${attempt.caseId}:${attempt.enabled}`;
+      assert(!ids.has(key), `重复回执 ${key}`);
+      ids.add(key);
+      const sent = fixture.usage.get(key);
+      assert(sent, `缺少 Provider 用量 ${key}`);
+      assert.equal(attempt.inputTokens, sent.inputTokens, key);
+      assert.equal(attempt.outputTokens, sent.outputTokens, key);
+      assert.equal(attempt.tokens, sent.inputTokens + sent.outputTokens, key);
+      assert.equal(attempt.outcome.status, "succeeded", key);
+      assert.equal(attempt.score.wrongSkillTrigger, false, key);
+      assert(attempt.score.workflow, key);
+      if (attempt.enabled || !item.skill) assert(attempt.score.taskPassed, key);
+    }
+    report.scorerChecks = [
+      {
+        caseId: "holdout-weekly-with-release-context",
+        injectedSkillId: auditSkillId,
+        delivered: true,
+      },
+      {
+        caseId: "holdout-release-extract",
+        injectedSkillId: "shared-release-preflight",
+        delivered: false,
+      },
+    ].map(({ caseId, injectedSkillId, delivered }) => {
+      const item = holdout.find(({ id }) => id === caseId);
+      const attempt = report.attempts.find((row) => row.enabled && row.caseId === caseId);
+      const calls = [
+        ...attempt.calls,
+        { tool: "load_skill", args: { id: injectedSkillId }, succeeded: delivered },
+      ];
+      const receipts = delivered
+        ? [...attempt.skillLoads, { id: injectedSkillId, delivery: "body" }]
+        : attempt.skillLoads;
+      const result = score(item, true, attempt, calls, receipts);
+      assert(
+        result.taskPassed && result.wrongSkillTrigger && !result.workflow && !result.passed,
+        caseId,
+      );
+      return { caseId, injectedSkillId, delivered, score: result };
+    });
+    const json = `${JSON.stringify(report, null, 2)}\n`;
+    if (output) {
+      await mkdir(path.dirname(path.resolve(output)), { recursive: true });
+      await writeFile(output, json, "utf8");
+    } else {
+      console.log(json.trimEnd());
+    }
+  } finally {
+    await fixture.close();
+  }
+}
+
+async function runEvaluation(selected, fixtureUrl, activeSkillIds = skillIds) {
+  const baseUrl = fixtureUrl ?? process.env.COREMIND_SKILL_EVAL_BASE_URL;
+  const model = fixtureUrl ? "skill-holdout-fixture" : process.env.COREMIND_SKILL_EVAL_MODEL;
   assert(baseUrl && model, "请设置 COREMIND_SKILL_EVAL_BASE_URL 和 COREMIND_SKILL_EVAL_MODEL");
   const endpoint = new URL(baseUrl);
   assert(
@@ -78,7 +166,7 @@ async function runEvaluation(selected) {
   const { CoreMindRuntime, FileRunStore, parseAndValidate } = await import("coremind-ai");
   const { readStandardSkillPackage } = await import("coremind-templates/internal");
   const packageEvidence = {};
-  for (const id of skillIds) {
+  for (const id of activeSkillIds) {
     const { skill, source, manifest } = await readStandardSkillPackage(
       path.join(project, "skills", id),
       id,
@@ -91,7 +179,7 @@ async function runEvaluation(selected) {
       resources: Object.fromEntries(skill.resources.map(({ path, sha256 }) => [path, sha256])),
     };
   }
-  for (const item of cases) {
+  for (const item of selected) {
     assert(
       item.resources.every((resource) => packageEvidence[item.skill]?.resources[resource]),
       item.id,
@@ -99,7 +187,7 @@ async function runEvaluation(selected) {
   }
 
   const provider = {
-    id: "skill-eval-local",
+    id: fixtureUrl ? "skill-eval-fixture" : "skill-eval-local",
     baseUrl,
     model,
     thinkingFormat: "qwen",
@@ -107,6 +195,7 @@ async function runEvaluation(selected) {
   };
   const report = {
     schemaVersion: 1,
+    source: fixtureUrl ? "offline-fixture" : "live-provider",
     startedAt: new Date().toISOString(),
     provider,
     systemPrompt,
@@ -118,8 +207,9 @@ async function runEvaluation(selected) {
     packages: packageEvidence,
     attempts: [],
   };
-  await mkdir(evidenceRoot, { recursive: true });
-  const directory = await mkdtemp(path.join(evidenceRoot, "paired-"));
+  const root = fixtureUrl ? path.join(evidenceRoot, "..", "offline-eval") : evidenceRoot;
+  await mkdir(root, { recursive: true });
+  const directory = await mkdtemp(path.join(root, "paired-"));
   const runStore = new FileRunStore(path.join(directory, "runs"));
   const destination = path.join(directory, "report.json");
   const save = async () => {
@@ -128,12 +218,12 @@ async function runEvaluation(selected) {
     await rename(temporary, destination);
   };
   await save();
-  console.log(`评测证据 ${destination}`);
+  if (!fixtureUrl) console.log(`评测证据 ${destination}`);
 
   const signal = AbortSignal.timeout(totalTimeoutMs);
   try {
     for (const item of selected) {
-      const index = cases.indexOf(item);
+      const index = (fixtureUrl ? selected : cases).indexOf(item);
       const arms = index % 2 === 0 ? [false, true] : [true, false];
       for (const enabled of arms) {
         signal.throwIfAborted();
@@ -142,7 +232,7 @@ async function runEvaluation(selected) {
           name: "Skill 资源成对评测",
           provider,
           agents: {
-            main: { systemPrompt, options: agentOptions, skills: enabled ? skillIds : [] },
+            main: { systemPrompt, options: agentOptions, skills: enabled ? activeSkillIds : [] },
           },
           defaultAgent: "main",
           tools: [],
@@ -192,9 +282,11 @@ async function runEvaluation(selected) {
           transcript: result.transcript,
         });
         await save();
-        console.log(
-          `${item.id} ${enabled ? "启用" : "禁用"} ${result.outcome.status} 评分=${scored.passed} 耗时=${durationMs}ms`,
-        );
+        if (!fixtureUrl) {
+          console.log(
+            `${item.id} ${enabled ? "启用" : "禁用"} ${result.outcome.status} 评分=${scored.passed} 耗时=${durationMs}ms`,
+          );
+        }
         if (
           ["provider_transient", "durability_unsupported"].includes(result.outcome.finishReason) ||
           signal.aborted
@@ -208,6 +300,7 @@ async function runEvaluation(selected) {
     report.complete = report.attempts.length === selected.length * 2;
     await save();
   }
+  return report;
 }
 
 function score(item, enabled, result, calls, receipts) {
@@ -227,6 +320,10 @@ function score(item, enabled, result, calls, receipts) {
     ].every((pattern) => pattern.test(output.摘要));
   }
   const requiredSkill = enabled ? item.skill : null;
+  const wrongSkillTrigger =
+    calls.some(
+      ({ tool, args }) => tool === "load_skill" && (!requiredSkill || args.id !== requiredSkill),
+    ) || receipts.some(({ id }) => !requiredSkill || id !== requiredSkill);
   const workflow = requiredSkill
     ? receipts[0]?.id === requiredSkill &&
       receipts[0].delivery === "body" &&
@@ -241,12 +338,16 @@ function score(item, enabled, result, calls, receipts) {
           (args.resource === undefined || item.resources.includes(args.resource)),
       )
     : calls.length === 0 && receipts.length === 0;
-  const passed =
-    result.outcome.status === "succeeded" &&
-    format &&
-    Object.values(facts).every(Boolean) &&
-    workflow;
-  return { format, facts, workflow, passed };
+  const taskPassed =
+    result.outcome.status === "succeeded" && format && Object.values(facts).every(Boolean);
+  return {
+    format,
+    facts,
+    taskPassed,
+    workflow,
+    wrongSkillTrigger,
+    passed: taskPassed && workflow && !wrongSkillTrigger,
+  };
 }
 
 function parseOutput(output) {

@@ -35,6 +35,10 @@
 | 单项卸载 | 从另一套专用环境卸载已运行的 wheel 后，控制台和 Python 包消失，清单、原文、客户端示例和撤回状态四份文件摘要相同。业务侧仍可读取原始表格行。 |
 | 检索与解析 | 固定集稀疏检索首条命中 30/30，10 道无答案题均仍有候选。在已有 Docling/RapidOCR 环境中用 wheel 解析 PDF 得 4 段、DOCX 得 3 段，核对扫描页和表格位置。 |
 
+## 独立题集效果回归
+
+从源码根目录执行 `python -B -X utf8 examples/knowledge-evals/zh-retrieval/answer_benchmark.py --replay --output knowledge.json`。固定集使用同一合成语料上的独立新题，索引不读取答题标注。检查 7 道正例的前五条召回、短答和准确引文，以及 6 道负例的明确拒答。首条命中、相似候选、错答与审核拦截分别记录。报告在评分失败时仍写出，便于按题号排查。[复跑与字段说明](../../../examples/knowledge-evals/zh-retrieval/README.zh-CN.md#独立题集离线回放)
+
 ## 部署与恢复验收
 
 按[最小部署与恢复示例](../../../examples/modules/manage-knowledge/deployment/README.zh-CN.md)验收。在固定模型和 wheel 上，先核对重启前后的引文与撤回一致，再停机备份原文、清单和目录。换一个目录恢复并再次验证。记录启动和恢复耗时、模型和备份大小。用[安装件生命周期回归](../../../components/knowledge/tests/installed_lifecycle.py)分别记录升级和回退结果。
