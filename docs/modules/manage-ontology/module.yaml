@@ -6,6 +6,7 @@ name:
 version: 2.1.0
 sourcePaths:
   - "components/ontology/pyproject.toml"
+  - "examples/modules/manage-ontology/deployment"
   - "components/ontology/src/coremind_ontology"
   - "examples/modules/manage-ontology/_ontology_source.py"
   - "examples/modules/manage-ontology/receipt_handler.py"
@@ -36,6 +37,8 @@ examplePaths:
   - examples/modules/manage-ontology/README.en.md
 testPaths:
   - "examples/modules/manage-ontology/installed_acceptance.py"
+  - "examples/modules/manage-ontology/deployment/restore_acceptance.py"
+  - "scripts/verify-optional-consumer.mjs"
   - "examples/modules/manage-ontology/test_ontology_graph.py"
   - "examples/modules/manage-ontology/test_ontology_mapping.py"
   - "examples/modules/manage-ontology/test_ontology_project.py"

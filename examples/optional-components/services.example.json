@@ -1,0 +1,23 @@
+{
+  "knowledge": {
+    "url": "http://127.0.0.1:8767/mcp",
+    "authorization": "Bearer <knowledge-reader-token>",
+    "tool": "search_knowledge",
+    "args": { "query": "松纹卡" },
+    "expect": "银杏台"
+  },
+  "memory": {
+    "url": "http://127.0.0.1:8769/mcp",
+    "authorization": "Bearer <memory-reader-token>",
+    "tool": "recall_memory",
+    "args": { "query": "资料摘要应该采用哪种格式？" },
+    "expect": "表格"
+  },
+  "ontology": {
+    "url": "http://127.0.0.1:8879/mcp",
+    "authorization": "Bearer <ontology-reader-token>",
+    "tool": "ontology_describe",
+    "args": { "resource": "urn:doc:guide" },
+    "expect": "urn:doc:guide"
+  }
+}

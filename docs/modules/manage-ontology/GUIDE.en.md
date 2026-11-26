@@ -40,6 +40,8 @@ The handler executes a business transaction keyed by `requestId` and returns `re
 
 ## Upgrade and removal
 
+Use the [minimal deployment and recovery example](../../../examples/modules/manage-ontology/deployment/README.en.md) for startup from an external project, readiness and read probes, a coordinated backup of both databases and isolated restoration. Keep the latest authoritative business outcomes and unresolved requests when switching back.
+
 Save the five model files, versions and digests. If business actions are enabled, pause writes and preserve the host's durable receipts and unresolved requests. Start the target service separately. Repeat a known object query, a violation and an action precondition check against the same model before switching endpoints. For rollback, restore the earlier service and model, and reconcile actions already performed. To disconnect a project, remove its ontology tools, service binding and credentials. Remove the service environment only if it is dedicated to that project. The project owner keeps its models, mappings and receipts.
 
 After stopping the dedicated process, run `python -m pip uninstall coremind-ontology-mcp`. Keep the latest receipt database through backup or rollback. Restoring an older database would discard evidence of later requests. The original 2.0.0 source demo keeps action state in memory; restrict a fallback to that version to reads. If a new model’s initial state conflicts with confirmed receipts, the component rejects writes to the resource with `model_state_conflict`.

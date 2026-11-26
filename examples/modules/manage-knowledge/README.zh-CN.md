@@ -4,6 +4,8 @@
 
 本例使用[松屿资料室合成资料](../../knowledge-evals/zh-retrieval/manifest.json)。示例知识服务在本机运行，宿主选定读者范围。模型调用工具时仅提交查询文本。索引只接收五份来源文件和清单元数据。题目与答案位于评分端。
 
+按[最小部署与恢复示例](deployment/README.zh-CN.md)在仓库外启动独立知识服务，演练停机备份、恢复和引文校验。
+
 ## 从空白 TypeScript 项目直接查询
 
 按[独立组件说明](../../../components/knowledge/README.md)用公开知识 0.1.0 和合成 Markdown 清单启动服务。使用 `records` 阅读范围。将 [direct-project](direct-project/package.json) 目录复制到仓库外的空白项目。使用 Node.js 22.19 或更高版本，在该目录执行 `npm install`。

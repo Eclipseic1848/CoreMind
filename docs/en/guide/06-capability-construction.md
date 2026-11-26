@@ -48,6 +48,8 @@ Application code can query the selected component through standard MCP, then pas
 
 ### Repeat the installed consumer checks
 
+[The optional component deployment and recovery example](../../../examples/optional-components/README.en.md) gives the pinned versions, startup order, data to retain, recovery drills, and the check for using all three services together.
+
 The external consumer passed 49 checks with packages built from the frozen 2.1.0 commit. The checks cover the baseline, all five individual capabilities, combinations and removal. Use the same script to verify the public packages. [Frozen artifact acceptance](https://github.com/Eclipseic1848/CoreMind/issues/426) · [Publication and reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
 Create a consumer outside the checkout and pin `coremind-cli@2.1.0`, the TypeScript `coremind-ai@2.1.0` package and Python `coremind-ai==2.1.0` with its bundled Worker. Install and start the three services in separate Python environments as shown above. A private JSON file uses the keys `knowledge`, `memory` and `ontology`. For each service, provide its loopback `url`, read `authorization`, read-only `tool`, `args` and an expected response substring in `expect`. Retain a synthetic fact as the host for the memory case, then run the [acceptance script](../../../scripts/verify-optional-consumer.mjs) from the repository.

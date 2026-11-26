@@ -4,6 +4,8 @@ An empty business project can install just `coremind-ontology-mcp` 0.1.0 and mak
 
 The document assistant uses [`document-review`](models/document-review/actions.json) to describe records, validate reviewer relationships, and check whether a record may be published. The same adapter loads [`equipment-maintenance`](models/equipment-maintenance/actions.json) to describe equipment, station relationships, and service restoration.
 
+Use the [minimal deployment and recovery example](deployment/README.en.md) to run the read-only service from a project outside the checkout, verify `/health` and an object query, then rehearse a backup of both SQLite databases, isolated restoration and a switch back to the original environment.
+
 ## Accept the installed wheel
 
 Copy this example's `installed_acceptance.py`, `receipt_handler.py` and `models/` to a directory outside the checkout. Activate a fresh Python 3.12 environment. Use an empty `business-test` directory to retain the assets and both databases after the check.

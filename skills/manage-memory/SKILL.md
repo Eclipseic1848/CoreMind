@@ -13,3 +13,5 @@ description: Build and verify CoreMind long-term memory integrations when adding
 6. [Call `recall_memory` directly](../../examples/modules/manage-memory/README.en.md#recall-directly-from-an-empty-python-project) from an empty Python project with a reader token, then bind the same endpoint to the Agent. Compare bank, revision, source and text. Verify an invalid token, a reader whose own bank is empty, a stopped gateway and an Agent run with the binding removed.
 
 中文步骤与验收条件见[开发 SOP](../../docs/modules/manage-memory/SOP.zh-CN.md)。
+
+For a new host, follow the [standalone deployment rehearsal](../../examples/modules/manage-memory/deployment/README.en.md). Keep PostgreSQL data and the latest gateway receipts separate. Before reopening a restored endpoint, check database and Hindsight readiness, authenticate to MCP, prove an actual recall, and replay forgotten IDs with the bank's administrator.

@@ -35,6 +35,10 @@ The local 0.1.0 acceptance run used Windows, Python 3.12.13 and wheel SHA-256 `d
 | Component removal | Uninstalling the working wheel from a second dedicated environment removed its console and Python package. The manifest, original, sample client and catalog with a withdrawal retained all four digests. The business-side reader still read the original table row. |
 | Retrieval and parsing | Sparse retrieval placed the gold passage first on 30/30 answerable questions. All ten unanswerable questions still returned candidates. With an existing Docling/RapidOCR environment, the wheel parsed four PDF and three DOCX chunks, including the scanned-page and table locations. |
 
+## Deployment and recovery acceptance
+
+Follow the [minimal deployment and recovery example](../../../examples/modules/manage-knowledge/deployment/README.en.md). With pinned model files and a pinned wheel, compare active citations and withdrawals before and after restarting. Then stop the service, back up originals, manifest and catalog, and validate a restore at a different path. Record startup and restore time plus backup and model size. Record upgrade and rollback separately using the [installed lifecycle test](../../../components/knowledge/tests/installed_lifecycle.py).
+
 ## Automated acceptance for direct knowledge and memory calls
 
 Prepare both example projects and their installed dependencies outside the checkout. Have the host start the actual knowledge service and Hindsight gateway. For each capability, prepare one authorized reader whose query matches the expected excerpt and another authorized reader whose query returns no hits. Save the following JSON in a private file outside the checkout. Replace the endpoints, full reader tokens and expected text. The knowledge example uses two read scopes. The memory example uses two banks on one gateway.

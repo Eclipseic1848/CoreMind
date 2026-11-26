@@ -2,6 +2,8 @@
 
 The host runs Hindsight and a small MCP gateway. The business project connects with a reader token to recall confirmed facts. This example runs the service and a standard MCP client in separate directories.
 
+For a fixed PostgreSQL deployment with backups, see the [standalone deployment, restore, and rollback rehearsal](deployment/README.en.md).
+
 ## Prepare the services
 
 1. Start the Hindsight 1.2.3 API separately on `127.0.0.1:8780`. For an isolated local instance, install `hindsight-api-slim[embedded-db,local-onnx]==1.2.3` with Python 3.12. Set `HINDSIGHT_API_DATABASE_URL=pg0://coremind-memory-demo`, `HINDSIGHT_API_RETAIN_EXTRACTION_MODE=chunks`, `HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION=false`, `HINDSIGHT_API_LLM_TRACE_ENABLED=false` and `HINDSIGHT_API_LLM_TRACE_DELETE_WITH_DOCUMENT=true`. Select a host-authorized model and embeddings suited to your language. Use `HINDSIGHT_API_RERANKER_PROVIDER=rrf` for reciprocal rank fusion. Include `127.0.0.1,localhost` in `NO_PROXY` when using a local endpoint. Run `hindsight-api --host 127.0.0.1 --port 8780`. [Upstream installation](https://hindsight.vectorize.io/developer/installation) · [Model configuration](https://hindsight.vectorize.io/developer/configuration)

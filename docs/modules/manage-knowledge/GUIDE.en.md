@@ -40,6 +40,8 @@ Re-import the original manifest and Markdown files to upgrade a saved state. The
 
 ## Upgrade and removal
 
+Use the [minimal deployment and recovery example](../../../examples/modules/manage-knowledge/deployment/README.en.md) to rehearse a stopped backup and restore outside the checkout. Keep the manifest, originals and catalog together. Starting the restored copy rebuilds the in-memory index.
+
 Stop the old service before upgrading and save the originals, manifest, model revision and state file. Start the target version against a copy. Verify current citations, idempotent imports and withdrawn citations before switching the client. A rollback uses the previous service environment and checked state while preserving withdrawals made since the upgrade. To disconnect a project, remove its MCP tools, server binding and reader credential. Stop the process and remove its Python environment if the service belongs exclusively to that project. Source documents, manifests, withdrawal records and shared models stay under their owners' retention policies.
 
 The service derives `chunkId` from the stored excerpt order for each version, so the catalog can be used for upgrades and rollbacks. Public version 0.1.0 understands the legacy locations. After rolling back to 0.1.0, check a shared page or section in the original document. Exact lookup by `chunkId` requires a service that supports it.

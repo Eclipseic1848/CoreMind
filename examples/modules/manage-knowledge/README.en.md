@@ -4,6 +4,8 @@ For a business project using only knowledge, run `python -m pip install coremind
 
 This example uses the [synthetic Songyu records-room corpus](../../knowledge-evals/zh-retrieval/manifest.json). The knowledge service runs locally with a host-selected reader scope. The model sends only the query text in its tool call. Index the five source files with their manifest metadata. Keep the questions and gold answers on the scoring side.
 
+Use the [minimal deployment and recovery example](deployment/README.en.md) to start the standalone service outside the checkout, back up while stopped and check citations after restoring.
+
 ## Query directly from an empty TypeScript project
 
 Follow the [component instructions](../../../components/knowledge/README.md) to start the published knowledge 0.1.0 service with the synthetic Markdown manifest and the `records` scope. Copy [direct-project](direct-project/package.json) to an empty directory outside the checkout. Use Node.js 22.19 or later and run `npm install` in that directory.

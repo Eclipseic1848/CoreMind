@@ -32,6 +32,8 @@ const cases = [
         ["memory-tool-ontology", ["memory", "tool", "ontology"]],
         ["remove-ontology", ["memory", "tool"]],
         ["remove-memory", ["tool"]],
+        ["knowledge-memory-ontology", ["knowledge", "memory", "ontology"]],
+        ["remove-component-services", []],
       ]
     : []),
 ];
