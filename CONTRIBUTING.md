@@ -6,17 +6,16 @@
 
 ## 贡献前先确认范围
 
-- 提交前先搜索现有 Issue。从[问题表单](https://github.com/Eclipseic1848/CoreMind/issues/new/choose)选择 Bug 报告或功能建议。使用候选制品时，请写清提交 SHA、入口和组件版本，方便维护者复查。
-- Bug 修复：提供最小复现、预期结果和实际结果。
+- 先搜索[现有 Issue](https://github.com/Eclipseic1848/CoreMind/issues)，再从[问题表单](https://github.com/Eclipseic1848/CoreMind/issues/new/choose)选择 Bug 报告或功能建议。
+- Bug 报告请提供 CoreMind 及相关组件版本、操作系统、Node.js 或 Python 版本、使用入口、最短复现步骤和预期与实际结果。源码或候选构建还需注明提交 SHA。配置与日志须先脱敏。
 - 新功能：先开 Feature Request，说明用户问题、范围、验收标准和不做什么。
 - 安全问题：不要创建公开 Issue，请按[安全策略](SECURITY.md)私下报告。
 - 大型架构调整：在编码前等待维护者确认方案，避免双方投入在不同方向。
 
 ## 本地环境
 
-- Windows 或 Linux
-- Node.js 22.19 或更高版本
-- npm 11.5.1 或更高版本
+- 工程 CI 在 Windows 和 Linux 上运行。Linux 沙箱相关测试使用 `bubblewrap`、`socat` 和 `ripgrep`。
+- 使用 Node.js 22.19 或更高版本。要复现工程 CI，请使用 22.x 系列及 npm 11.5.1，与仓库的 `packageManager` 一致。
 - Python SDK 与本体组件要求 Python 3.10+，知识和 Hindsight 记忆组件要求 Python 3.12+。在独立虚拟环境中验证所改的组件。
 
 ```bash
@@ -24,8 +23,8 @@ git clone https://github.com/Eclipseic1848/CoreMind.git
 cd CoreMind
 npm ci
 npm run build
-npm test
 npm run check
+npm run test:engineering -- --maxWorkers=1
 ```
 
 ## 仓库结构
@@ -51,34 +50,22 @@ npm run check
 1. 从最新主分支创建聚焦的分支。
 2. 为缺陷先写能复现失败的测试；为功能先写可验证的验收测试。
 3. 实现满足测试的最小改动，不顺手重构无关代码。
-4. 同步更新中英文文档、SOP、Skill、示例和变更记录。
+4. 行为发生变化时，同步更新受影响的中英文文档、SOP、Skill、示例和变更记录。
 5. 若一个阶段 Gate 完成，复核 README、行为准则、贡献指南、MIT License、安全策略和 GitHub About；只更新已经变化的事实、流程或联系信息，并记录无需修改的复核项。
-6. 运行与改动相关的测试，再运行完整门禁。
+6. 先跑能复现问题的测试，再按改动范围完成下节的检查。
 7. 自查 Diff，删除调试日志、临时文件、密钥和本机绝对路径。
 8. 创建 Pull Request，并完整填写模板。
 
-## 完整质量门禁
+## 提交 PR 前的检查
 
-只改文档时，可先运行 `npm run check:docs` 和 `npm run docs:audit`。修改独立组件时，先运行对应模块的测试，再把 wheel 安装到仓库外的新环境，用最小业务项目检查单项启用、授权与移除。下例从仓库根目录执行，使用本体模块的离线映射和校验测试。[知识 SOP](docs/modules/manage-knowledge/SOP.zh-CN.md) · [记忆 SOP](docs/modules/manage-memory/SOP.zh-CN.md) · [本体 SOP](docs/modules/manage-ontology/SOP.zh-CN.md)
+工程 CI 在 PR 和推送到 `main` 时运行。上面的命令覆盖构建、静态检查和核心确定性测试。完整 Node 测试使用 `npm test`。在 PR 模板中记录实际运行的检查、结果和跳过原因。[工程 CI 的完整步骤](.github/workflows/ci.yml) · [PR 模板](.github/PULL_REQUEST_TEMPLATE.md)
+
+修改文档时运行 `npm run check:docs`、`npm run docs:audit` 和 `npm run docs:build`。修改独立组件时，先运行对应模块的测试，再把 wheel 安装到仓库外的新环境，用最小业务项目检查单项启用、授权与移除。下例从仓库根目录执行，使用本体模块的离线映射和校验测试。[知识 SOP](docs/modules/manage-knowledge/SOP.zh-CN.md) · [记忆 SOP](docs/modules/manage-memory/SOP.zh-CN.md) · [本体 SOP](docs/modules/manage-ontology/SOP.zh-CN.md)
 
 ```bash
 python -m pip install -r examples/modules/manage-ontology/requirements.txt
 python -B -X utf8 -m unittest discover -s examples/modules/manage-ontology -p "test_ontology_*.py" -v
 python -m pip wheel --no-deps --wheel-dir .scratch/component-wheels ./components/ontology
-```
-
-```bash
-npm run build
-npm run check
-npm run test:stability
-npm run test:coverage
-npm run docs:build
-npm run release:check-npm
-npm run release:test-npm
-npm run release:test-source
-npm run acceptance:rc
-npm run docs:audit
-npm run release:preflight -- --allow-dirty
 ```
 
 修改 Python SDK 和内置 Worker 时，在专用环境中执行下列检查。
@@ -92,11 +79,13 @@ python -X utf8 -m twine check python/dist/*
 npm run release:check-wheel
 ```
 
-`release:check-wheel` 会自行创建全新虚拟环境，验证安装、版本和内置 Worker 启动。正式候选仍需 Windows/Linux 各三连跑；本地通过不代表可以跳过目标平台 CI 或双平台真实伪终端验收。
+`release:check-wheel` 会创建全新虚拟环境，验证安装、版本和内置 Worker 启动。
 
 涉及 Fact、Projection、Replay 或 Observability 的改动还必须证明：Projection 可从 canonical facts 确定性重建，不会反向成为恢复权威；CLI、TUI、TypeScript、Python 入口对共同合同等价。涉及 Telemetry 的改动必须覆盖默认 `DISABLED` 零 Exporter/零凭据读取/零网络、持久 consent 绑定、字段 allowlist 与递归脱敏，以及 Exporter 故障不改变 RunOutcome、Fact sequence、RecoveryDecision 或 EffectState。
 
-发布版本由 Release Please 草稿 PR 统一准备，不从功能分支直接打 Tag。RC 必须按[RC 验收指南](docs/release/RC-ACCEPTANCE.zh-CN.md)留存 P01～P20、双平台、真实 Provider 和同提交证据；归档前再运行全仓 Markdown 审计。npm 与 PyPI 使用受保护 GitHub 环境和 OIDC 可信发布，贡献者无需也不应提交 Registry Token。完整过程见[发布 SOP](docs/release/README.zh-CN.md)。
+## 正式发布候选
+
+维护者通过 Release Please 草稿 PR 准备版本，在冻结的主线提交上完成 Windows/Linux 各三连跑、覆盖率、真实终端、真实 Provider 和制品检查。npm 与 PyPI 使用受保护环境和 OIDC 可信发布。贡献者提交普通 PR 无需提供发布凭据。[候选工作流](.github/workflows/candidate-qualification.yml) · [P01～P20 验收指南](docs/release/RC-ACCEPTANCE.zh-CN.md) · [发布 SOP](docs/release/README.zh-CN.md)
 
 ## 文档与 Skill 规则
 
