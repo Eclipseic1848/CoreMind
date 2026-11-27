@@ -5,13 +5,15 @@ import {
   findTemplate,
   listSupportedProviders,
   type ProjectLanguage,
+  parseAndValidate,
+  parseConfigText,
   scaffoldProjectGuidance,
   TEMPLATES,
   type TemplateMeta,
 } from "coremind-ai";
 import { flagBool, flagString, type ParsedArgs } from "../args.js";
 import { promptLine, select } from "../interactive.js";
-import { cyan, dim, errorLine, green, yellow } from "../render.js";
+import { cyan, dim, errorLine, green } from "../render.js";
 import { PROVIDER_CERTIFICATION_URL } from "./list-providers.js";
 
 /**
@@ -124,20 +126,21 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
       const yaml = await readFile(yamlPath, "utf8");
       const updated = applyProviderSelection(
         yaml
-          .replace(/^name:\s*.+$/m, `name: ${projectName}`)
+          .replace(/^name:\s*.+$/m, () => `name: ${JSON.stringify(projectName)}`)
           .replace(
             /^description:\s*.+$/m,
-            `description: ${projectName}（基于 ${template.id} 模板创建）`,
+            () =>
+              `description: ${JSON.stringify(`${projectName}（基于 ${template.id} 模板创建）`)}`,
           ),
         provider!,
       );
+      parseAndValidate(parseConfigText(updated));
       await writeFile(yamlPath, updated, "utf8");
     } catch (error) {
-      console.warn(
-        yellow(
-          `⚠ 无法更新配置文件 name：${error instanceof Error ? error.message : String(error)}`,
-        ),
+      console.error(
+        errorLine(`无法生成配置：${error instanceof Error ? error.message : String(error)}`),
       );
+      return 1;
     }
   }
 

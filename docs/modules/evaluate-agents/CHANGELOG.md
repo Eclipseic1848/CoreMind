@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.0 - 2026-11-27
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased
 
 - Add an offline regression for optional components with held-out knowledge and memory cases, a paired Skill comparison, and tool and ontology receipts.

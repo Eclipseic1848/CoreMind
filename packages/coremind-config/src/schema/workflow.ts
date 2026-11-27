@@ -55,7 +55,9 @@ export const WorkflowStepSchema = Type.Recursive((Self) =>
       id: Type.String({ minLength: 1 }),
       type: Type.Literal("switch"),
       on: Type.String({ description: "要判定的变量名，如 changes.text" }),
-      cases: Type.Record(Type.String(), Type.Array(Self), { description: "命中值 → 步骤数组" }),
+      cases: Type.Record(Type.String({ pattern: "^[\\s\\S]*$" }), Type.Array(Self), {
+        description: "命中值 → 步骤数组",
+      }),
       default: Type.Optional(Type.Array(Self)),
     }),
   ]),

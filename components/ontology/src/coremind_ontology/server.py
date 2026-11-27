@@ -42,33 +42,33 @@ def make_app(project, read_token, action_token=None, *, reconcile_token=None):
         raise ValueError("本体对账须使用独立的宿主令牌")
     mcp = FastMCP("CoreMind Ontology", stateless_http=True, json_response=True)
 
-    def invoke(method, *args):
+    async def invoke(method, *args):
         result = {"status": "unavailable", "reason": "ontology_unavailable"}
         if project is not None:
             try:
-                result = getattr(project, method)(*args)
+                result = await run_in_threadpool(getattr(project, method), *args)
             except Exception:
                 if method == "perform_action":
                     result = {"status": "unknown", "reason": "effect_not_confirmed", "requestId": args[-1]}
         return result
 
     @mcp.tool(structured_output=False)
-    def ontology_describe(resource: Identifier) -> str:
+    async def ontology_describe(resource: Identifier) -> str:
         """查询对象类型、属性和出向关系，并附模型版本和摘要。"""
-        return json.dumps(invoke("describe", resource), ensure_ascii=False)
+        return json.dumps(await invoke("describe", resource), ensure_ascii=False)
 
     @mcp.tool(structured_output=False)
-    def ontology_validate_record(source: ActionIdentifier, record: dict) -> str:
+    async def ontology_validate_record(source: ActionIdentifier, record: dict) -> str:
         """将源记录按业务映射校验，返回约束项或待人工确认的问题。"""
-        return json.dumps(invoke("validate_record", source, record), ensure_ascii=False)
+        return json.dumps(await invoke("validate_record", source, record), ensure_ascii=False)
 
     @mcp.tool(structured_output=False)
-    def ontology_inspect_action(action: ActionIdentifier, resource: Identifier) -> str:
+    async def ontology_inspect_action(action: ActionIdentifier, resource: Identifier) -> str:
         """检查业务动作的前置条件并生成候选，不执行动作。"""
-        return json.dumps(invoke("inspect_action", action, resource), ensure_ascii=False)
+        return json.dumps(await invoke("inspect_action", action, resource), ensure_ascii=False)
 
     @mcp.tool(structured_output=False)
-    def ontology_perform_action(
+    async def ontology_perform_action(
         action: ActionIdentifier, resource: Identifier, request_id: ActionIdentifier, ctx: Context
     ) -> CallToolResult:
         """在宿主授权下执行具体业务动作，由业务回执决定动作状态。"""
@@ -77,7 +77,7 @@ def make_app(project, read_token, action_token=None, *, reconcile_token=None):
         if action_token is None or not hmac.compare_digest(actual, action_token):
             result = {"status": "denied", "reason": "action_not_authorized"}
         else:
-            result = invoke("perform_action", action, resource, request_id)
+            result = await invoke("perform_action", action, resource, request_id)
         return CallToolResult(
             content=[TextContent(type="text", text=json.dumps(result, ensure_ascii=False))],
             isError=result["status"] == "unknown",

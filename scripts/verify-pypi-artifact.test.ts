@@ -7,6 +7,7 @@ import {
   decideExistingPyPiArtifact,
   manifestWheels,
   stagePyPiUpload,
+  verifyPyPiRelease,
 } from "./verify-pypi-artifact.mjs";
 
 const roots: string[] = [];
@@ -47,6 +48,26 @@ function fixture(version = "2.1.0") {
 }
 
 describe("PyPI 断点发布判定", () => {
+  it("在公共发布门拒绝冲突，允许全新版本或相同制品续传", async () => {
+    const { root, target, manifest } = fixture("2.2.0");
+    const last = manifest.artifacts.at(-1)!;
+    const reply = (artifact: typeof last, sha256 = artifact.sha256) =>
+      Response.json({ urls: [{ filename: path.basename(artifact.path), digests: { sha256 } }] });
+    const lookup = (url: string) => manifest.artifacts.find((entry) => url.includes(entry.name))!;
+    await expect(
+      verifyPyPiRelease(root, manifest, async (url: string) =>
+        url.includes(last.name) ? reply(last, "0".repeat(64)) : new Response(null, { status: 404 }),
+      ),
+    ).rejects.toThrow("SHA-256 冲突");
+    await expect(
+      verifyPyPiRelease(root, manifest, async () => new Response(null, { status: 404 })),
+    ).resolves.toBe("publish");
+    await expect(
+      verifyPyPiRelease(root, manifest, async (url: string) => reply(lookup(url))),
+    ).resolves.toBe("skip-identical");
+    expect(existsSync(target)).toBe(false);
+  });
+
   it("只跳过同名且 SHA-256 一致的 wheel", () => {
     const releases = [
       { filename: "coremind_ai-0.3.0rc2-py3-none-any.whl", digests: { sha256: "same" } },

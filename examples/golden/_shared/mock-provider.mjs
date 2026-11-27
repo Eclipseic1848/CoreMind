@@ -26,16 +26,35 @@ export function createGoldenMockServer(profile) {
       const toolResult = [...messages].reverse().find((message) => message.role === "tool");
 
       if (profile === "order") {
+        const structured = parseJson(userText);
+        const orderId =
+          typeof structured?.orderId === "string"
+            ? structured.orderId
+            : (userText.match(/(?:订单号|订单编号|orderId)\s*[:：=]\s*([^\s，。！？,;]+)/iu)?.[1] ??
+              userText.match(
+                /(?:[A-Za-z][A-Za-z\d]*|[\p{Script=Han}]+|\d+)(?:[-_][A-Za-z\d]+)+/u,
+              )?.[0]);
         if (toolResult) {
-          sendText(
-            response,
-            userText.includes("A-999")
-              ? "未找到订单 A-999，请核对订单号。"
-              : "订单 A-100 已支付，金额 299 元。",
-          );
-        } else {
-          const orderId = userText.match(/A-\d+/)?.[0] ?? "A-100";
+          const result = textOf(toolResult.content);
+          const order = parseJson(result);
+          if (
+            order &&
+            typeof order.id === "string" &&
+            typeof order.status === "string" &&
+            Number.isFinite(order.amount)
+          ) {
+            const label = { paid: "已支付", pending: "待支付", refunded: "已退款" };
+            const status = Object.hasOwn(label, order.status) ? label[order.status] : order.status;
+            sendText(response, `订单 ${order.id} ${status}，金额 ${order.amount} 元。`);
+          } else if (orderId && result === `订单 ${orderId} 不存在`) {
+            sendText(response, `未找到订单 ${orderId}，请核对订单号。`);
+          } else {
+            sendText(response, "查询失败，当前无法确认订单状态。");
+          }
+        } else if (orderId) {
           sendTool(response, "lookup_order", { orderId }, "order-call");
+        } else {
+          sendText(response, "请提供订单号。");
         }
         return;
       }
@@ -71,14 +90,32 @@ export function createGoldenMockServer(profile) {
 
       if (profile === "research") {
         if (systemText.includes("证据审查")) {
-          sendText(
-            response,
-            "结论：应先做小规模试点。证据：S1 显示错误率下降，S2 提示仍需人工复核。置信度：中等。",
-          );
+          const evidence = parseJson(userText.split("EVIDENCE_COMPLETE\n").at(-1));
+          if (!Array.isArray(evidence)) {
+            sendText(response, "检索失败，未获得可核对的证据。");
+          } else if (!evidence.length) {
+            sendText(response, "未找到匹配证据，无法给出结论。");
+          } else {
+            const sources = evidence.map((item) => `[${item.id}] ${item.topic}：${item.finding}`);
+            const pilot = evidence.some((item) => item.topic.includes("试点"));
+            const conclusion = pilot
+              ? "评估小规模试点条件，并由人工复核。"
+              : "请按以下来源复核结论。";
+            const confidence = evidence.length > 1 ? "中等，仍需人工复核" : "单一来源，待复核";
+            sendText(
+              response,
+              `结论：${conclusion}\n${sources.join("\n")}\n置信度：${confidence}。`,
+            );
+          }
         } else if (toolResult) {
-          sendText(response, "EVIDENCE_COMPLETE：S1 与 S2 已交叉核对，并保留分歧。 ");
+          sendText(response, `EVIDENCE_COMPLETE\n${textOf(toolResult.content)}`);
         } else {
-          sendTool(response, "search_knowledge", { query: userText }, "research-call");
+          sendTool(
+            response,
+            "search_knowledge",
+            { query: userText.replace(/^调查：/, "") },
+            "research-call",
+          );
         }
         return;
       }
@@ -97,6 +134,14 @@ export function createGoldenMockServer(profile) {
       sendText(response, `mock回复：${userText.slice(0, 50)}`);
     });
   });
+}
+
+function parseJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function sendText(response, text) {

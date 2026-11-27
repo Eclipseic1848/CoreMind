@@ -4,7 +4,7 @@
 
 > 2.1.0 的 CLI 和两种 SDK 同步升级，知识、Hindsight 记忆和本体各有独立的 0.1.0 安装件。新业务项目依次验证仅 Runtime、单项加载、组合和移除，以资料助手复验组合。[正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [13 件公开制品验收](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
-[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](notes/v2.0.0.md) · [2.0→2.1 迁移](../migrations/2.0-to-2.1.zh-CN.md) · [2.1 发布说明](notes/v2.1.0.md)
+[English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [2.1→2.2 迁移](../migrations/2.1-to-2.2.zh-CN.md) · [2.2 发布说明](notes/v2.2.0.md) · [2.1 发布说明](notes/v2.1.0.md)
 
 ## 历史发布决定
 
@@ -155,6 +155,9 @@ Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `P
 3. 对 npm 执行 allowlist、publint、类型解析；对 wheel 执行 Twine、干净安装和内置 Worker；对源码 ZIP 使用跨平台解码器执行内容、路径穿越和解压安装门禁。
 4. 生成 `release-manifest.json` 与 `SHA256SUMS.txt`，每个产物记录版本、大小和 SHA-256。
 5. 上传一次构建产物；每个消费作业都在使用前独立校验 `SHA256SUMS.txt`，再由独立作业生成 GitHub 构建来源证明。
+
+npm 与 PyPI 发布作业共同等待四个 wheel 的只读公开预检。任一同版本摘要冲突或状态查询失败都会拦住全部上传。各 PyPI 作业在真正上传前重新核对自己的版本和摘要。
+
 6. 受保护 `npm` 环境批准后，以 OIDC 按依赖顺序发布 8 个精确 tarball。预发布版本使用 `next`，稳定版本使用 `latest`。
 7. 四个受保护 PyPI 环境逐项批准后，各自以 OIDC 发布对应的 wheel。各项目按包名、版本和摘要验收。
 8. npm、PyPI 与来源证明都成功后，按已验证固定正文使用 `--notes-file` 创建 GitHub Release，只附当前独立源码 ZIP、校验文件和清单。GitHub 自动生成的 zip/tar.gz 源码入口无法删除，不应与独立源码包混淆。

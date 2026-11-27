@@ -3,7 +3,7 @@ id: manage-knowledge
 name:
   zh-CN: "知识检索与引用"
   en: "Knowledge Retrieval and Citations"
-version: 2.1.0
+version: 2.2.0
 sourcePaths:
   - "components/knowledge/pyproject.toml"
   - "examples/modules/manage-knowledge/deployment"

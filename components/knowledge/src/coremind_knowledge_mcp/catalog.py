@@ -57,6 +57,9 @@ class KnowledgeCatalog:
                 raise KnowledgeVersionConflict(
                     f"文档 {record['docId']} 版本 {record['version']} 内容已变化；请提升版本号"
                 )
+            doc_id = record["docId"]
+            if len(doc_id) > 200 or doc_id != doc_id.strip():
+                raise ValueError("新文档 ID 须为 1 至 200 个字符且无首尾空白")
             documents[key] = record
             imported += 1
         for key in withdrawals:

@@ -379,6 +379,17 @@ describe("validateConfig", () => {
     expect(config.workflow).toHaveLength(2);
   });
 
+  it("switch 的多行匹配键在校验后仍保留", () => {
+    const cases = { "\n": [], "第一行\r\n第二行": [] };
+    const config = validateConfig({
+      schemaVersion: 2,
+      name: "multiline",
+      agents: { main: {} },
+      workflow: [{ type: "switch", id: "gate", on: "prompt", cases }],
+    });
+    expect(config.workflow?.[0]).toMatchObject({ cases });
+  });
+
   it("拒绝重复的 workflow 步骤 id，保证恢复边界唯一", () => {
     expect(() =>
       validateConfig({

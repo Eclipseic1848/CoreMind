@@ -231,6 +231,43 @@ describe("runEvaluationSuite", () => {
     expect(result.attempts[0]?.reason).toContain("既有脏工作区内容被修改");
   });
 
+  it("文本规则只使用本轮更改，覆盖暂存、未暂存与新建文件", async () => {
+    const cwd = createEvaluationRepository();
+    try {
+      writeFileSync(path.join(cwd, "staged.txt"), "old-index\n", "utf8");
+      git(cwd, "add", "staged.txt");
+      const graders: DiffGrader[] = [
+        { type: "diff", contains: ["old-index"] },
+        { type: "diff", contains: ["用户尚未提交的草稿"] },
+        {
+          type: "diff",
+          preserveExisting: false,
+          contains: ["+new-index", "+new-working", "+new-file"],
+          notContains: ["old-index", "用户尚未提交的草稿"],
+        },
+        { type: "diff", preserveExisting: false, notContains: ["+new-file"] },
+        { type: "diff", preserveExisting: false, notContains: ["+new-index"] },
+      ];
+      const baseline = await captureEvaluationBaseline(cwd, graders);
+      expect(
+        (await evaluateGraders(graders.slice(0, 2), successfulResult("完成"), cwd, baseline)).map(
+          (r) => r.passed,
+        ),
+      ).toEqual([false, false]);
+      writeFileSync(path.join(cwd, "staged.txt"), "old-index\nnew-index\n", "utf8");
+      git(cwd, "add", "staged.txt");
+      writeFileSync(path.join(cwd, "notes.txt"), "用户尚未提交的草稿\nnew-working\n", "utf8");
+      writeFileSync(path.join(cwd, "new.txt"), "new-file\n", "utf8");
+      expect(
+        (await evaluateGraders(graders.slice(2), successfulResult("完成"), cwd, baseline)).map(
+          (r) => r.passed,
+        ),
+      ).toEqual([true, false, false]);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   it("diff grader 默认保护原脏文件，关闭保护仅允许改动而不隐藏变化", async () => {
     const cwd = createEvaluationRepository();
     const graders: DiffGrader[] = [

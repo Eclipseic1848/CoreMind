@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import path from "node:path";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 
 const exec = promisify(execFile);
 
@@ -30,7 +30,7 @@ export function startOntology(
   });
 }
 
-export async function startLocalPython(args, { python, cwd, env }) {
+export async function startLocalPython(args, { python, cwd, env, startupTimeoutMs = 15_000 }) {
   const child = spawn(python, args, {
     cwd,
     env,
@@ -65,10 +65,12 @@ export async function startLocalPython(args, { python, cwd, env }) {
       child.stderr.setEncoding("utf8");
       child.stderr.on("data", (chunk) => {
         stderr += chunk;
-        const url = /Uvicorn running on (http:\/\/127\.0\.0\.1:\d+)/.exec(stderr)?.[1];
+        const url = /Uvicorn running on (http:\/\/127\.0\.0\.1:\d+)/.exec(
+          stripVTControlCharacters(stderr),
+        )?.[1];
         if (url) resolve(url);
       });
-      timer = setTimeout(() => reject(new Error(`本体服务启动超时：${stderr}`)), 15_000);
+      timer = setTimeout(() => reject(new Error(`本地服务启动超时：${stderr}`)), startupTimeoutMs);
       timer.unref();
     });
     return { origin, close };

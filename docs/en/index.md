@@ -31,6 +31,10 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
+## 2.2.0 candidate
+
+[Release notes](../release/notes/v2.2.0.md) · [Upgrade and rollback](../migrations/2.1-to-2.2.en.md)
+
 ## Public stable release `2.1.0`
 
 [Upgrade from 2.0 or roll back](../migrations/2.0-to-2.1.en.md) · [Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)

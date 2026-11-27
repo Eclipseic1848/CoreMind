@@ -74,7 +74,7 @@ describe("受控发布说明", () => {
     );
   });
 
-  it.each(["1.1.0", "1.2.0", "1.3.0", "1.4.0", "2.0.0", "2.1.0"])(
+  it.each(["1.1.0", "1.2.0", "1.3.0", "1.4.0", "2.0.0", "2.1.0", "2.2.0"])(
     "%s 固定正文可渲染，并保留法律材料引用与未认证边界",
     (version) => {
       const source = readFileSync(
@@ -90,7 +90,7 @@ describe("受控发布说明", () => {
       expect(body).toContain(`Commit: ${sha}`);
       expect(body).toContain("THIRD_PARTY_NOTICES.md");
       expect(body).toContain("外部");
-      expect(body).toContain("not certified");
+      expect(body).toMatch(/not certified|Production qualification requires/u);
     },
   );
 

@@ -15,7 +15,7 @@ from threading import Thread
 from unittest.mock import patch
 
 from coremind import AsyncCoreMindClient, CoreMindClient, ProtocolError
-from coremind.errors import WorkerExitedError
+from coremind.errors import WorkerExitedError, WorkerShutdownError
 from coremind._session_management import validate_management_error, validate_management_result
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -75,6 +75,10 @@ class SessionManagementTest(unittest.TestCase):
                 with self.assertRaises(WorkerExitedError):
                     await call(client, "task_resume", "job")
                 self.assertEqual(process.wait(timeout=5), 23)
+                with self.assertRaises(WorkerShutdownError) as closed:
+                    await call(client, "close")
+                self.assertEqual((closed.exception.reason, closed.exception.returncode),
+                                 ("exit_failed", 23))
             finally:
                 await call(client, "close")
             before, saved, resumed, after = self._ts(

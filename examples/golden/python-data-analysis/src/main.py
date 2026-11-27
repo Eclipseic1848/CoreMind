@@ -38,7 +38,9 @@ def analyze_sales_file(
     if root != output and root not in output.parents:
         raise ValueError(f"输出路径超出项目目录：{output_path}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(result, ensure_ascii=False, allow_nan=False, indent=2) + "\n", encoding="utf-8"
+    )
     return result
 
 

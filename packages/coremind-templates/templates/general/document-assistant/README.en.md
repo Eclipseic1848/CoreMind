@@ -11,10 +11,10 @@ Use this reference example to exercise composition across sessions. A business p
 Use the CLI containing this template, matching Node and Python SDKs, and Node.js 22.19 or later. After the public release, install the following versions. During candidate qualification, install the matching tarballs and wheel.
 
 ```sh
-npx coremind-cli@2.1.0 create archive-desk --template document-assistant --language typescript --provider deepseek
+npx coremind-cli@2.2.0 create archive-desk --template document-assistant --language typescript --provider deepseek
 cd archive-desk
-npm install --save-exact coremind-ai@2.1.0 coremind-cli@2.1.0
-python -m pip install coremind-ai==2.1.0
+npm install --save-exact coremind-ai@2.2.0 coremind-cli@2.2.0
+python -m pip install coremind-ai==2.2.0
 ```
 
 ## Connect the services

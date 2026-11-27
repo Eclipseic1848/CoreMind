@@ -7,6 +7,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -176,6 +177,73 @@ class MemoryServiceTest(unittest.TestCase):
         self.assertEqual(self.service.forget_bank(BankTarget(bankId="reader-a"))["documents"], 2)
         self.assertEqual(list(self.backend.data), [("reader-b", "format")])
 
+    def test_bank_forget_persists_two_full_writes_and_replays_backed_up_deletions(self):
+        for number in range(10):
+            self.service.write(confirmed().model_copy(update={"documentId": f"doc-{number}"}))
+        backup = dict(self.backend.data)
+        target = BankTarget(bankId="reader-a")
+        with patch.object(self.service, "_save", wraps=self.service._save) as save:
+            self.assertEqual(self.service.forget_bank(target)["documents"], 10)
+            self.assertEqual(save.call_count, 2)
+            for state, call in zip(("forgetting", "forgotten"), save.call_args_list, strict=True):
+                self.assertEqual(len(call.args[0]), 10)
+                self.assertEqual({receipt["state"] for receipt in call.args[0].values()}, {state})
+
+        self.backend.data = backup
+        reopened = MemoryService(self.backend, self.state)
+        self.assertEqual(reopened.recall(["reader-a"], QUERY), {"memories": []})
+        with patch.object(reopened, "_save", wraps=reopened._save) as save:
+            self.assertEqual(reopened.forget_bank(target)["documents"], 10)
+            save.assert_not_called()
+        self.assertEqual(self.backend.data, {})
+
+    def test_bank_forget_keeps_partial_success_and_unconfirmed_resolution_after_restart(self):
+        for doc in ("a", "b", "c"):
+            self.service.write(confirmed().model_copy(update={"documentId": doc}))
+        self.service.write(confirmed(bank="reader-b", text=LIST))
+        target = BankTarget(bankId="reader-a")
+        forget = self.backend.forget
+
+        def fail_after_first(bank, doc):
+            reopened = MemoryService(self.backend, self.state)
+            self.assertEqual(reopened.recall([bank], QUERY), {"memories": []})
+            if doc == "b":
+                raise RuntimeError("删除暂不可用")
+            return forget(bank, doc)
+
+        with patch.object(self.backend, "forget", side_effect=fail_after_first):
+            with self.assertRaisesRegex(RuntimeError, "删除暂不可用"):
+                self.service.forget_bank(target)
+
+        reopened = MemoryService(self.backend, self.state)
+        self.assertEqual(
+            [reopened.records[f"reader-a/{doc}"]["state"] for doc in ("a", "b", "c")],
+            ["forgotten", "forgetting", "forgetting"],
+        )
+        self.assertEqual(reopened.recall(["reader-a"], QUERY), {"memories": []})
+        self.assertEqual(reopened.forget_bank(target)["documents"], 3)
+        self.assertEqual([m["text"] for m in reopened.recall(["reader-b"], QUERY)["memories"]], [LIST])
+
+    def test_bank_forget_can_retry_after_deletion_succeeds_but_receipt_write_fails(self):
+        self.service.write(confirmed())
+        target = BankTarget(bankId="reader-a")
+        persist = self.service._save
+
+        def fail_confirmation(changes):
+            if {"state": "forgotten"} in changes.values():
+                raise OSError("确认回执未落盘")
+            persist(changes)
+
+        with patch.object(self.service, "_save", side_effect=fail_confirmation):
+            with self.assertRaisesRegex(OSError, "未落盘"):
+                self.service.forget_bank(target)
+        self.assertEqual(self.backend.data, {})
+        restarted = MemoryService(self.backend, self.state)
+        self.assertEqual(restarted.records["reader-a/format"]["state"], "forgetting")
+        self.assertEqual(restarted.recall(["reader-a"], QUERY), {"memories": []})
+        self.assertEqual(restarted.forget_bank(target)["documents"], 1)
+        self.assertEqual(restarted.records["reader-a/format"]["state"], "forgotten")
+
     def test_reader_and_admin_tokens_are_separate_and_bank_bound(self):
         self.service.write(confirmed())
         self.service.write(confirmed(bank="reader-b", text=LIST))
@@ -201,7 +269,24 @@ class MemoryServiceTest(unittest.TestCase):
             self.assertEqual(client.post("/admin/forget", json=own, headers=headers).status_code, 401)
             forbidden = client.post("/admin/forget", json=other, headers={"Authorization": admin})
             self.assertEqual(forbidden.status_code, 403)
-            response = client.post("/mcp", json=lookup, headers=headers)
+            arrived, release = Event(), Event()
+            recall = self.backend.recall
+
+            def slow_recall(*args, **kwargs):
+                arrived.set()
+                self.assertTrue(release.wait(10))
+                return recall(*args, **kwargs)
+
+            with patch.object(self.backend, "recall", side_effect=slow_recall), ThreadPoolExecutor(max_workers=2) as pool:
+                pending = pool.submit(client.post, "/mcp", json=lookup, headers=headers)
+                try:
+                    self.assertTrue(arrived.wait(5))
+                    health = pool.submit(client.get, "/health", headers=headers)
+                    self.assertEqual(health.result(timeout=3).status_code, 200)
+                    self.assertFalse(pending.done())
+                finally:
+                    release.set()
+                response = pending.result(timeout=5)
             self.assertEqual(response.status_code, 200)
             memories = json.loads(response.json()["result"]["content"][0]["text"])["memories"]
             self.assertEqual([(m["bankId"], m["text"]) for m in memories], [("reader-a", TABLE)])

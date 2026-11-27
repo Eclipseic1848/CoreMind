@@ -9,6 +9,7 @@ import {
   type CoreMindConfig,
   CoreMindRuntime,
   checkProject,
+  type EvaluationSuite,
   FileRunStore,
   loadConfigFile,
   loadEvaluationSuite,
@@ -121,15 +122,69 @@ describe("五个黄金示例", () => {
     });
   });
 
+  it("订单回复与实际状态一致，单条证据和零命中均不引用其他来源", async () => {
+    await withServer("order", async (baseUrl) => {
+      const result = await evaluate("faq-order-assistant", baseUrl, async () => "allow", {
+        schemaVersion: 1,
+        scenarios: [
+          { id: "pending", input: "核对 A-101", expected: { contains: ["A-101", "待支付", "88"] } },
+          {
+            id: "adjacent",
+            input: "查询订单A-101是否已支付",
+            expected: { contains: ["A-101", "待支付", "88"] },
+          },
+          {
+            id: "explicit-id",
+            input: '{"orderId":"自定义编号"}',
+            expected: { contains: ["未找到", "自定义编号"] },
+          },
+          {
+            id: "missing-id",
+            input: "查询我的订单",
+            expected: { contains: ["请提供订单号"], notContains: ["已支付"] },
+          },
+        ],
+      });
+      expect(result.passRate).toBe(1);
+    });
+    await withServer("research", async (baseUrl) => {
+      const result = await evaluate("bounded-research-agent", baseUrl, async () => "allow", {
+        schemaVersion: 1,
+        scenarios: [
+          {
+            id: "single-source",
+            input: "高影响",
+            expected: { contains: ["S2"], notContains: ["S1"] },
+          },
+          {
+            id: "absent",
+            input: "无匹配的专有词",
+            expected: { contains: ["未找到匹配证据"], notContains: ["S1", "S2"] },
+          },
+        ],
+      });
+      expect(result.passRate).toBe(1);
+    });
+  });
+
   it("受控调查经过人工审批、工具预算和双 Agent Trace", async () => {
     const approvals: string[] = [];
     await withServer("research", async (baseUrl) => {
+      const config = await loadConfig(path.join(goldenRoot, "bounded-research-agent"), baseUrl);
+      expect(config.tools ?? []).toEqual([]);
+      expect(config.agents.researcher?.tools).toContainEqual(
+        expect.objectContaining({
+          name: "search_knowledge",
+          effect: { operations: ["read"], reversible: true },
+        }),
+      );
+      expect(config.agents.reviewer?.tools ?? []).toEqual([]);
       const result = await evaluate("bounded-research-agent", baseUrl, async (request) => {
-        approvals.push(request.tool);
+        approvals.push(`${request.agent}/${request.tool}`);
         return "allow";
       });
       expect(result.passRate, JSON.stringify(result.attempts, null, 2)).toBe(1);
-      expect(approvals).toEqual(["search_knowledge"]);
+      expect(approvals).toEqual(["researcher/search_knowledge"]);
       expect(result.attempts[0]?.runId && result.attempts[0].outcome.status === "succeeded").toBe(
         true,
       );
@@ -205,6 +260,7 @@ async function evaluate(
   id: string,
   baseUrl: string,
   approveTool?: Parameters<typeof runEvaluationSuite>[0]["approveTool"],
+  suite?: EvaluationSuite,
 ) {
   const projectDir = path.join(goldenRoot, id);
   const config = await loadConfig(projectDir, baseUrl);
@@ -214,7 +270,7 @@ async function evaluate(
       config,
       configDir: projectDir,
       cwd: projectDir,
-      suite: await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml")),
+      suite: suite ?? (await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml"))),
       approveTool,
       ...(["faq-order-assistant", "bounded-research-agent"].includes(id)
         ? { approveProjectCode: () => true }

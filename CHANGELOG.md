@@ -4,22 +4,12 @@
 
 [English](CHANGELOG.en.md)
 
-## [2.2.0](https://github.com/Eclipseic1848/CoreMind/compare/v2.1.0...v2.2.0) (2026-11-27)
+## 2.2.0
 
-
-### Features
-
-* **examples:** 支持业务代码直调知识和 Hindsight ([076bf97](https://github.com/Eclipseic1848/CoreMind/commit/076bf97ddb9ba5b8924d62613652ec78be5fb4b0))
-* **knowledge:** 支持可恢复的持久 Qdrant 索引 ([d1fefd3](https://github.com/Eclipseic1848/CoreMind/commit/d1fefd3c4db957ce99f61763646e90cb603f66ae))
-* **memory:** 追踪已确认经验的依据版本和复核状态 ([d7deb5f](https://github.com/Eclipseic1848/CoreMind/commit/d7deb5fa1f2804dc88bb6b8270d473be4a784cc4))
-* **ontology:** 对账核实的本体动作回执 ([bd2d584](https://github.com/Eclipseic1848/CoreMind/commit/bd2d584fe17a867bdc3205750dccb7f37d82e3a0))
-* **tools:** 校验写入回执并拒绝未确认写入的重复调用 ([0a30801](https://github.com/Eclipseic1848/CoreMind/commit/0a308010efcea52c84704db2f19d87b787ce4ce1))
-
-
-### Bug Fixes
-
-* **knowledge:** 同页同节引文按片段精确回查 ([b9f873f](https://github.com/Eclipseic1848/CoreMind/commit/b9f873f1c57dacea72e194c08e923e0e8aae1b76))
-* **ontology:** 统一对账路由与鉴权匹配 ([f14c86e](https://github.com/Eclipseic1848/CoreMind/commit/f14c86e38e719ceccf80c20ab54cd3af51d2bb8b))
+- 修复工作流和 Loop 的条件比较与 switch 分支匹配，明确持久任务的 Schema 诊断。
+- 新增可复现的泛化评测，分别记录工程夹具和 DeepSeek Flash 公网实测，并补充原业务示例的输出契约。
+- 修复 Python Worker 关闭诊断、审批与工具注册恢复，以及 CLI 脚手架和评测输出。
+- 完善知识查询及发布制品的统一预检。参阅[发布说明](docs/release/notes/v2.2.0.md)。
 
 ## 2.1.0
 

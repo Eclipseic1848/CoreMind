@@ -3,6 +3,7 @@
 import hashlib
 import json
 import logging
+import re
 import threading
 from datetime import date
 from pathlib import Path
@@ -21,6 +22,21 @@ MODEL_FILES = {
 }
 # 编码或持久投影契约变更时递增，避免复用不相容的向量批次。
 INDEX_ENCODING_REVISION = 2
+
+
+def explicit_document_ids(question):
+    # 连字符编号按完整词项匹配，带空格或非 ASCII 的编号可用引号指明。
+    terms = re.findall(
+        r'"([^"]+)"|“([^”]+)”|「([^」]+)」|([A-Za-z0-9]+(?:[-_.][A-Za-z0-9]+)*)',
+        question,
+    )
+    ids = []
+    for quoted, curved, corner, bare in terms:
+        if quoted or curved or corner:
+            ids.append(quoted or curved or corner)
+        elif re.search(r"[-_.0-9]", bare) and re.search(r"[A-Za-z]", bare):
+            ids.append(bare)
+    return list(dict.fromkeys(ids))
 
 
 def verify_model(directory):
@@ -278,33 +294,44 @@ class KnowledgeIndex:
                 visible.must.extend(self._generation_filter(self._generation).must)
                 internal_fields.add("_generation")
             dense, sparse = next(self._encode([question]))
-            if mode != "dense" and not sparse.indices:
-                return []
-            if mode != "sparse" and not any(dense):
-                return []
-            if mode == "hybrid":
-                options = {
-                    "query": models.FusionQuery(fusion=models.Fusion.RRF),
-                    "prefetch": [
-                        models.Prefetch(
-                            query=vector,
-                            using=key,
-                            filter=visible,
-                            limit=max(20, limit),
-                        )
-                        for key, vector in (("dense", dense), ("sparse", sparse))
-                    ],
-                }
-            else:
-                options = {"query": dense if mode == "dense" else sparse, "using": mode}
-            points = self.db.query_points(
-                "knowledge",
-                **options,
-                query_filter=visible,
-                limit=limit,
-                with_payload=True,
-            ).points
+            ids = explicit_document_ids(question)
+            points = {}
+            if ids:
+                exact = models.Filter(must=[
+                    *visible.must,
+                    models.FieldCondition(key="docId", match=models.MatchAny(any=ids)),
+                ])
+                hits = self._query_points(dense, sparse, mode, exact, limit)
+                if not hits:
+                    # 部分资料的编号只保存在文档元数据里。
+                    hits, _ = self.db.scroll("knowledge", scroll_filter=exact, limit=limit)
+                points.update((point.id, point) for point in hits)
+            if len(points) < limit:
+                for point in self._query_points(dense, sparse, mode, visible, limit):
+                    points.setdefault(point.id, point)
             return [
                 {k: v for k, v in point.payload.items() if k not in internal_fields}
-                for point in points
+                for point in list(points.values())[:limit]
             ]
+
+    def _query_points(self, dense, sparse, mode, visible, limit):
+        if (mode != "dense" and not sparse.indices) or (mode != "sparse" and not any(dense)):
+            return []
+        if mode == "hybrid":
+            options = {
+                "query": models.FusionQuery(fusion=models.Fusion.RRF),
+                "prefetch": [
+                    models.Prefetch(
+                        query=vector,
+                        using=key,
+                        filter=visible,
+                        limit=max(20, limit),
+                    )
+                    for key, vector in (("dense", dense), ("sparse", sparse))
+                ],
+            }
+        else:
+            options = {"query": dense if mode == "dense" else sparse, "using": mode}
+        return self.db.query_points(
+            "knowledge", **options, query_filter=visible, limit=limit, with_payload=True,
+        ).points

@@ -23,7 +23,6 @@ export default {
     const matched = evidence.filter((item) =>
       terms.some((term) => `${item.topic} ${item.finding}`.toLowerCase().includes(term)),
     );
-    const result = matched.length > 0 ? matched : evidence;
-    return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+    return { content: [{ type: "text", text: JSON.stringify(matched) }], details: matched };
   },
 };

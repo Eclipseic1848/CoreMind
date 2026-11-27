@@ -1,9 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { type DefaultTheme, defineConfig } from "vitepress";
-import { rewriteDocumentationLink } from "../../scripts/docs-link-policy.mjs";
+import {
+  englishModuleSearchSections,
+  moduleDocumentationLink,
+  writeEnglishModuleRedirects,
+} from "./module-routes.mjs";
 
 const repository = "https://github.com/Eclipseic1848/CoreMind";
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
+const docsRoot = fileURLToPath(new URL("..", import.meta.url));
 
 export default defineConfig({
   title: "CoreMind",
@@ -11,6 +16,8 @@ export default defineConfig({
   base: "/CoreMind/",
   cleanUrls: true,
   lastUpdated: true,
+  srcExclude: ["modules/**/*.en.md"],
+  buildEnd: ({ outDir, site }) => writeEnglishModuleRedirects(docsRoot, outDir, site.base),
   ignoreDeadLinks: [/^\.\.\//],
   markdown: {
     config(markdown) {
@@ -28,7 +35,7 @@ export default defineConfig({
           const href = token.attrs?.[hrefIndex]?.[1] ?? "";
           token.attrSet(
             "href",
-            rewriteDocumentationLink(href, environment.relativePath ?? "", repositoryRoot),
+            moduleDocumentationLink(href, environment.relativePath ?? "", repositoryRoot),
           );
         }
         return originalLinkOpen
@@ -44,7 +51,12 @@ export default defineConfig({
   themeConfig: {
     logo: "/logo.svg",
     socialLinks: [{ icon: "github", link: repository }],
-    search: { provider: "local" },
+    search: {
+      provider: "local",
+      options: {
+        miniSearch: { _splitIntoSections: (file) => englishModuleSearchSections(docsRoot, file) },
+      },
+    },
     footer: {
       message: "Released under the MIT License.",
       copyright: "Copyright © CoreMind Contributors",
@@ -74,8 +86,8 @@ function zhTheme(): DefaultTheme.Config {
             { text: "质量保障", link: "/guide/04-quality" },
             { text: "CLI 使用", link: "/guide/05-cli-usage" },
             { text: "五域建设与验收", link: "/guide/06-capability-construction" },
-            { text: "试用 2.1.0 候选", link: "/migrations/2.0-to-2.1.zh-CN" },
-            { text: "2.1.0 候选变更", link: "/release/notes/v2.1.0" },
+            { text: "2.1 → 2.2 升级", link: "/migrations/2.1-to-2.2.zh-CN" },
+            { text: "2.2.0 发布说明", link: "/release/notes/v2.2.0" },
             { text: "1.4→2.0 升级", link: "/migrations/1.4-to-2.0.zh-CN" },
             { text: "2.0 发布说明", link: "/release/notes/v2.0.0" },
             { text: "历史：1.0.1→1.2 升级", link: "/migrations/1.0-to-1.2.zh-CN" },
@@ -94,7 +106,7 @@ function enTheme(): DefaultTheme.Config {
     nav: [
       { text: "Quick Start", link: "/en/guide/01-quickstart" },
       { text: "Guides", link: "/en/guide/02-configuration" },
-      { text: "Modules", link: "/modules/README.en" },
+      { text: "Modules", link: "/en/modules/README.en" },
       { text: "Providers", link: "/providers/README.en" },
       { text: "Release acceptance", link: "/release/RC-ACCEPTANCE.en" },
       { text: "Upgrade to 2.0", link: "/migrations/1.4-to-2.0.en" },
@@ -111,8 +123,8 @@ function enTheme(): DefaultTheme.Config {
             { text: "Quality", link: "/en/guide/04-quality" },
             { text: "CLI", link: "/en/guide/05-cli-usage" },
             { text: "Build from the capability map", link: "/en/guide/06-capability-construction" },
-            { text: "Try the 2.1.0 candidate", link: "/migrations/2.0-to-2.1.en" },
-            { text: "2.1.0 candidate changes", link: "/release/notes/v2.1.0" },
+            { text: "Upgrade from 2.1 to 2.2", link: "/migrations/2.1-to-2.2.en" },
+            { text: "2.2.0 release notes", link: "/release/notes/v2.2.0" },
             { text: "1.4→2.0 upgrade", link: "/migrations/1.4-to-2.0.en" },
             { text: "2.0 release notes", link: "/release/notes/v2.0.0" },
             { text: "Historical: 1.0.1→1.2 upgrade", link: "/migrations/1.0-to-1.2.en" },

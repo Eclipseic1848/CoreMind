@@ -1,12 +1,39 @@
-import { linkSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { resolveToolCapability } from "coremind-tools";
+import { buildTools, resolveToolCapability } from "coremind-tools";
 import { describe, expect, it } from "vitest";
 import { type ToolApprovalRequest, ToolPolicy } from "./tool-policy.js";
 
 describe("ToolPolicy", () => {
+  it("禁网时可写普通文本和网页引用，网络工具仍拒绝", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-local-reference-"));
+    const policy = new ToolPolicy({
+      cwd,
+      runId: "local",
+      permissions: { mode: "ask", workspaceOnly: true, network: "deny", allow: ["write"] },
+      createApprovalId: () => "approval",
+    });
+    const { tools } = await buildTools([{ id: "write" }], { cwd, configDir: cwd });
+    for (const content of ["本地笔记", "https://example.invalid/reference"]) {
+      const args = { path: "note.txt", content };
+      expect((await policy.authorize("main", "write", args)).allowed).toBe(true);
+      await tools[0]!.execute("local", args, undefined);
+      expect(readFileSync(path.join(cwd, "note.txt"), "utf8")).toBe(content);
+    }
+    expect(
+      (await policy.authorize("main", "web-fetch", { url: "https://example.invalid/reference" }))
+        .allowed,
+    ).toBe(false);
+  });
   it("拒绝经悬空目录符号链接写入框架状态，仍允许新建业务路径", async () => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-state-dangling-"));
     const stateRoot = path.join(cwd, ".coremind", "runs");

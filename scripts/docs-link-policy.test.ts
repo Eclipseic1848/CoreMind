@@ -1,5 +1,9 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  englishModuleSearchSections,
+  moduleDocumentationLink,
+} from "../docs/.vitepress/module-routes.mjs";
 import { rewriteDocumentationLink } from "./docs-link-policy.mjs";
 
 const root = path.resolve(".");
@@ -37,5 +41,45 @@ describe("文档站仓库链接策略", () => {
     );
     expect(rewriteDocumentationLink("#start", "index.md", root)).toBe("#start");
     expect(rewriteDocumentationLink("/en/", "index.md", root)).toBe("/en/");
+  });
+
+  it("把英文模块及交叉链接送到正确语言的路由", () => {
+    const page = "en/modules/manage-memory/SOP.en.md";
+    expect(
+      moduleDocumentationLink("../../modules/README.en.md", "en/guide/01-quickstart.md", root),
+    ).toBe("/en/modules/README.en.md");
+    expect(moduleDocumentationLink("../manage-knowledge/SOP.en.md#acceptance", page, root)).toBe(
+      "/en/modules/manage-knowledge/SOP.en.md#acceptance",
+    );
+    expect(moduleDocumentationLink("./SOP.zh-CN.md", page, root)).toBe(
+      "/modules/manage-memory/SOP.zh-CN.md",
+    );
+    expect(moduleDocumentationLink("module.yaml", page, root)).toBe(
+      "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-memory/module.yaml",
+    );
+    expect(
+      moduleDocumentationLink(
+        "../../../examples/modules/manage-memory/README.en.md#usage",
+        page,
+        root,
+      ),
+    ).toBe(
+      "https://github.com/Eclipseic1848/CoreMind/blob/main/examples/modules/manage-memory/README.en.md#usage",
+    );
+  });
+
+  it("为动态英文模块索引源正文，并保留中文页面默认索引", () => {
+    const docs = path.join(root, "docs");
+    expect(
+      englishModuleSearchSections(docs, path.join(docs, "en/modules/manage-memory/SOP.en.md")),
+    ).toEqual([
+      expect.objectContaining({
+        titles: ["Long-term memory development SOP"],
+        text: expect.stringContaining("authorized new session can recall"),
+      }),
+    ]);
+    expect(
+      englishModuleSearchSections(docs, path.join(docs, "modules/manage-memory/SOP.zh-CN.md")),
+    ).toBeUndefined();
   });
 });

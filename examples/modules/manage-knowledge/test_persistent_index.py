@@ -46,6 +46,26 @@ def search(catalog, text, scope="public", day="2026-02-01"):
 
 
 class PersistentIndexTest(unittest.TestCase):
+    def test_explicit_identifier_ranks_visible_current_chunks_ahead_of_similar_ids(self):
+        with tempfile.TemporaryDirectory() as folder, closing(TestIndex(Path(folder) / "vectors")) as index:
+            catalog = KnowledgeCatalog(index)
+            target = document("DOC-123", "榆木台", access="records")
+            distractor = document("DOC-1234", "DOC-123 办理窗口")
+            catalog.import_documents([
+                target,
+                distractor,
+                document("DOC-123", "过期", version=2, until="2026-01-04"),
+                document("特别 名称", "编号只在元数据"),
+            ])
+            for mode in ("dense", "sparse", "hybrid"):
+                q = {"as_of": "2026-02-01", "mode": mode, "limit": 1}
+                card = catalog.search("请查DOC-123的办理窗口", scope="records", **q)[0]
+                self.assertEqual((card["docId"], card["version"]), ("DOC-123", 1))
+                self.assertNotEqual(catalog.search("DOC-123 办理窗口", scope="public", **q)[0]["docId"], "DOC-123")
+                self.assertEqual(catalog.search("「特别 名称」", scope="records", **q)[0]["docId"], "特别 名称")
+            catalog.withdraw("DOC-123", 1)
+            self.assertEqual(search(catalog, "DOC-123 办理窗口", "records")[0]["docId"], "DOC-1234")
+
     def test_cli_index_directory_must_be_separate_from_catalog_assets(self):
         with tempfile.TemporaryDirectory() as folder:
             project = Path(folder)

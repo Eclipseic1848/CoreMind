@@ -578,6 +578,13 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs.npm.environment.name).toBe("npm");
     expect(workflow.jobs.npm.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.npm.needs).toContain("build");
+    const preflight = workflow.jobs["registry-preflight"];
+    expect(preflight.needs).toBe("build");
+    expect(preflight.permissions).toEqual({ contents: "read" });
+    expect(preflight.steps.map((step: { run?: string }) => step.run ?? "").join("\n")).toContain(
+      "node scripts/verify-pypi-artifact.mjs release-artifacts",
+    );
+    expect(workflow.jobs.npm.needs).toContain("registry-preflight");
     const pypi = workflow.jobs.pypi;
     expect(pypi.strategy.matrix.include).toEqual([
       { project: "coremind-ai", environment: "pypi" },
@@ -599,6 +606,7 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     expect(workflow.jobs.release.if).toBeUndefined();
     expect(workflow.jobs.pypi.permissions["id-token"]).toBe("write");
     expect(workflow.jobs.pypi.needs).toContain("build");
+    expect(workflow.jobs.pypi.needs).toContain("registry-preflight");
     expect(serialized).toContain("verify-pypi-artifact.mjs");
     expect(serialized).not.toContain("skip-existing");
     expect(workflow.jobs.attest.permissions.attestations).toBe("write");

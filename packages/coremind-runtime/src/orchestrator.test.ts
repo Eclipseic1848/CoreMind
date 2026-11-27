@@ -89,6 +89,8 @@ describe("evalCondition", () => {
     expect(evalCondition("a == a")).toBe(true);
     expect(evalCondition("a != b")).toBe(true);
     expect(evalCondition("a == b")).toBe(false);
+    expect(evalCondition("FAIL\n原因 == PASS")).toBe(false);
+    expect(evalCondition("首行\n尾行 contains 尾行")).toBe(true);
   });
 
   it("其他非空内容为真", () => {
@@ -97,6 +99,50 @@ describe("evalCondition", () => {
 });
 
 describe("Orchestrator", () => {
+  it("if 和 retry 将回显中的换行、比较符作为普通文本", async () => {
+    const text = "状态 == 原文\n第二行 contains 标记";
+    const steps: WorkflowStep[] = [
+      {
+        id: "x",
+        type: "prompt",
+        agent: "a",
+        input: "原文",
+        saveAs: "x",
+        retry: { max: 0, if: "{{text}} == RETRY" },
+      },
+      {
+        id: "gate",
+        type: "if",
+        condition: "{{x.text}} == {{prompt}}",
+        then: [{ id: "matched", type: "call", agent: "b", input: "相同", saveAs: "match" }],
+      },
+    ];
+    const result = await run(
+      steps,
+      { a: [fauxAssistantMessage(text)], b: [fauxAssistantMessage("yes")] },
+      text,
+    );
+    expect(result.get("match")?.text).toBe("yes");
+  });
+
+  it("switch 按声明顺序命中空字符串键", async () => {
+    const result = await run(
+      [
+        {
+          id: "gate",
+          type: "switch",
+          on: "prompt",
+          cases: {
+            "": [{ id: "yes", type: "call", agent: "a", input: "命中", saveAs: "match" }],
+          },
+        },
+      ],
+      { a: [fauxAssistantMessage("yes")] },
+      "原文",
+    );
+    expect(result.get("match")?.text).toBe("yes");
+  });
+
   it("复用 Driver 时只保存本次尝试输出，旧历史和失败稿不污染重试条件或下游", async () => {
     const agent = makeAgent("main", [
       fauxAssistantMessage("旧历史"),

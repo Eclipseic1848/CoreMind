@@ -31,6 +31,10 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
+## 2.2.0 候选
+
+[发布说明](./release/notes/v2.2.0.md) · [升级与回退](./migrations/2.1-to-2.2.zh-CN.md)
+
 ## 公开稳定版 `2.1.0`
 
 [从 2.0 升级与回退](migrations/2.0-to-2.1.zh-CN.md) · [从 1.4 升级](migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](release/notes/v2.0.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)

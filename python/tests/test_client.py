@@ -7,15 +7,29 @@ import time
 import threading
 import queue
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
-from coremind import AsyncCoreMindClient, CoreMindClient, CoreMindError, ProtocolError
+from coremind import AsyncCoreMindClient, CoreMindClient, CoreMindError, ProtocolError, WorkerShutdownError
 from coremind.client import (
     _validate_checkpoint_result,
     _validate_tool_registration_receipt,
     _validate_tool_result_receipt,
 )
+
+
+def shutdown_client(kind, mode, protocol="1.0"):
+    worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py")), mode]
+    return kind({"schemaVersion": 2, "name": "shutdown", "agents": {"main": {}}},
+                worker_command=worker, protocol_version=protocol)
+
+
+def assert_worker_released(test, process):
+    test.assertIsNotNone(process.poll())
+    test.assertTrue(process.stdin.closed)
+    test.assertTrue(process.stdout.closed)
+    test.assertTrue(process.stderr.closed)
 
 
 class CoreMindClientTest(unittest.TestCase):
@@ -104,6 +118,37 @@ class CoreMindClientTest(unittest.TestCase):
             client._handle_notification({"method": "event", "params": {}})
             self.assertTrue(done.wait(3))
             self.assertFalse(client._reader.is_alive())
+
+    def test_close_reports_worker_failure_after_releasing_resources(self) -> None:
+        for mode, reason, code in (
+            ("", None, 0),
+            ("close-not-quiescent", "not_quiescent", 0),
+            ("close-nonzero", "exit_failed", 23),
+            ("close-rpc-failed", "rpc_failed", 0),
+        ):
+            with self.subTest(mode=mode):
+                client = shutdown_client(CoreMindClient, mode).start()
+                process = client._process
+                if reason:
+                    with self.assertRaises(WorkerShutdownError) as caught:
+                        client.close()
+                    self.assertEqual((caught.exception.reason, caught.exception.returncode), (reason, code))
+                    if reason == "rpc_failed":
+                        self.assertIsInstance(caught.exception.__cause__, ProtocolError)
+                else:
+                    client.close()
+                assert_worker_released(self, process)
+                self.assertIsNone(client.close())
+
+    def test_context_manager_does_not_replace_original_exception(self) -> None:
+        failure = ValueError("原任务失败")
+        with self.assertRaises(ValueError) as caught:
+            with shutdown_client(CoreMindClient, "close-not-quiescent") as client:
+                process = client._process
+                raise failure
+        self.assertIs(caught.exception, failure)
+        self.assertEqual(failure.coremind_shutdown_error.reason, "not_quiescent")
+        assert_worker_released(self, process)
 
     def test_resume_operation_reuses_unknown_request_and_advances_after_acceptance(self) -> None:
         worker = [sys.executable, str(Path(__file__).with_name("fake_worker.py"))]
@@ -422,6 +467,51 @@ class CoreMindClientTest(unittest.TestCase):
 
         request.assert_called_once_with("control", command)
 
+    def test_approval_failure_sends_one_deny_and_separates_submission_failure(self) -> None:
+        def fail(_event):
+            raise RuntimeError("不应进入诊断的敏感内容")
+
+        for version in ("1.0", "2.0"):
+            for handler, decision in ((fail, "deny"), (lambda _event: "allow", "allow"),
+                                      (lambda _event: "deny", "deny")):
+                with self.subTest(version=version, handler=handler):
+                    client = CoreMindClient({}, protocol_version=version, approval_handler=handler)
+
+                    def reply(method, params):
+                        self.assertEqual(method, "approve" if version == "1.0" else "control")
+                        self.assertEqual(params["runId"], "run-approval")
+                        self.assertEqual(params["approvalId"], "approval-1")
+                        self.assertEqual(params["decision"], decision)
+                        return {**params, "status": "applied"}
+
+                    with patch.object(client, "_request_raw", side_effect=reply) as request:
+                        client._answer_approval({"runId": "run-approval"}, {"approvalId": "approval-1"})
+                    request.assert_called_once()
+                    self.assertEqual(list(client._stderr_tail),
+                                     ["approval_handler 回调失败：RuntimeError"] if handler is fail else [])
+
+        client = CoreMindClient({}, approval_handler=fail)
+        with patch.object(client, "_request_raw", side_effect=BrokenPipeError):
+            client._answer_approval({"runId": "run-approval"}, {"approvalId": "approval-1"})
+        self.assertEqual(list(client._stderr_tail),
+                         ["approval_handler 回调失败：RuntimeError", "审批决定提交失败：BrokenPipeError"])
+        self.assertEqual(client.approval_handler_error, "approval_handler 回调失败：RuntimeError")
+        self.assertEqual(client.approval_submission_error, "审批决定提交失败：BrokenPipeError")
+
+    def test_both_worker_protocols_finish_waiting_when_approval_callback_raises(self) -> None:
+        def fail(_event):
+            raise RuntimeError("宿主异常")
+
+        for version in ("1.0", "2.0"):
+            with self.subTest(version=version):
+                client = shutdown_client(CoreMindClient, "approval-roundtrip", version)
+                client._approval_handler = fail
+                with client:
+                    self.assertEqual(client._request_raw("await_fixture_approval", {}, timeout=2),
+                                     {"decision": "deny"})
+                    self.assertEqual(client.approval_handler_error, "approval_handler 回调失败：RuntimeError")
+                    self.assertIsNone(client.approval_submission_error)
+
     def test_protocol_v2_rejects_invalid_tool_call_id(self) -> None:
         client = CoreMindClient(
             {"schemaVersion": 2, "name": "tool-call-v2", "agents": {"main": {}}},
@@ -579,6 +669,56 @@ class CoreMindClientTest(unittest.TestCase):
 
         self.assertIsNone(self.client.pid)
 
+    def test_busy_registration_can_retry_and_call_tool_after_run(self) -> None:
+        tools = {"operations": ["read"], "reversible": True}
+        entered, release = threading.Event(), threading.Event()
+
+        @self.client.tool(name="lookup_order", effect=tools)
+        def held_tool(order_id: str) -> str:
+            entered.set()
+            if not release.wait(5):
+                raise RuntimeError("测试未释放首个工具")
+            return order_id
+
+        def retry_tool(order_id: str) -> str:
+            return f"重试-{order_id}"
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            original = pool.submit(self.client.run, "调用工具")
+            try:
+                self.assertTrue(entered.wait(3))
+                with self.assertRaises(ProtocolError) as caught:
+                    self.client.tool(name="retry_lookup", effect=tools)(retry_tool)
+                self.assertEqual(caught.exception.coremind_code, "worker_busy")
+            finally:
+                release.set()
+            self.assertEqual(original.result(timeout=5)["outcome"]["status"], "succeeded")
+        self.client.tool(name="retry_lookup", effect=tools)(retry_tool)
+        result = self.client.run("调用重试工具")
+        self.assertEqual(json.loads(result["transcript"]), "重试-A-1")
+        with self.assertRaisesRegex(CoreMindError, "已注册"):
+            self.client.tool(name="retry_lookup", effect=tools)(retry_tool)
+
+    def test_registration_with_unknown_delivery_retains_callable_and_marks_outcome(self) -> None:
+        self.client.start()
+        decorator = self.client.tool(name="lookup_order", effect={"operations": ["read"], "reversible": True})
+
+        def lookup(order_id: str) -> str:
+            return order_id
+
+        request = self.client._request_raw
+
+        def response_lost(method, params):
+            request(method, params)
+            raise CoreMindError("模拟接受注册后断开回执")
+
+        with patch.object(self.client, "_request_raw", side_effect=response_lost):
+            with self.assertRaisesRegex(CoreMindError, "断开回执"):
+                decorator(lookup)
+        with self.assertRaisesRegex(CoreMindError, "远端注册结果未确认"):
+            decorator(lookup)
+        self.assertEqual(json.loads(self.client.run("调用工具")["transcript"]), "A-1")
+
     def test_inconsistent_snapshot_is_rejected_with_stable_error(self) -> None:
         with self.assertRaises(ProtocolError) as captured:
             self.client.run("坏快照")
@@ -621,6 +761,36 @@ class CoreMindClientTest(unittest.TestCase):
 
 
 class AsyncCoreMindClientTest(unittest.IsolatedAsyncioTestCase):
+    async def test_close_checks_v1_receipt_and_v2_exit(self) -> None:
+        for protocol, mode, reason in (
+            ("1.0", "", None),
+            ("2.0", "", None),
+            ("1.0", "close-not-quiescent", "not_quiescent"),
+            ("1.0", "close-rpc-failed", "rpc_failed"),
+            ("2.0", "close-nonzero", "exit_failed"),
+        ):
+            with self.subTest(protocol=protocol, mode=mode):
+                client = await shutdown_client(AsyncCoreMindClient, mode, protocol).start()
+                process = client.sync_client._process
+                if reason:
+                    with self.assertRaises(WorkerShutdownError) as caught:
+                        await client.close()
+                    self.assertEqual(caught.exception.reason, reason)
+                else:
+                    await client.close()
+                assert_worker_released(self, process)
+                self.assertIsNone(await client.close())
+
+    async def test_async_context_manager_keeps_task_exception_and_shutdown_diagnostic(self) -> None:
+        failure = ValueError("原异步任务失败")
+        with self.assertRaises(ValueError) as caught:
+            async with shutdown_client(AsyncCoreMindClient, "close-nonzero", "2.0") as client:
+                process = client.sync_client._process
+                raise failure
+        self.assertIs(caught.exception, failure)
+        self.assertEqual(failure.coremind_shutdown_error.returncode, 23)
+        assert_worker_released(self, process)
+
     async def test_async_adapter_uses_same_protocol(self) -> None:
         worker = Path(__file__).with_name("fake_worker.py")
         client = AsyncCoreMindClient(

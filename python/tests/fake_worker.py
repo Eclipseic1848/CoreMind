@@ -12,6 +12,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 pending_run_id: int | None = None
 selected_protocol = "1.0"
+registered_tools: set[str] = set()
+mode = sys.argv[1] if len(sys.argv) > 1 else ""
 MANIFEST = json.loads(
     (
         Path(__file__).resolve().parents[1]
@@ -188,6 +190,19 @@ for line in sys.stdin:
                 },
             }
         )
+    elif mode == "approval-roundtrip" and method == "await_fixture_approval":
+        pending_run_id = request_id
+        send({"jsonrpc": "2.0", "method": "event", "params": {
+            "runId": "fixture-run", "event": {"type": "approval_required", "approvalId": "fixture-approval"},
+        }})
+    elif mode == "approval-roundtrip" and method in {"approve", "control"}:
+        assert method == ("approve" if selected_protocol == "1.0" else "control")
+        assert (params["runId"], params["approvalId"]) == ("fixture-run", "fixture-approval")
+        assert pending_run_id is not None
+        accepted = {"accepted": True} if method == "approve" else {**params, "status": "applied"}
+        send({"jsonrpc": "2.0", "id": request_id, "result": accepted})
+        send({"jsonrpc": "2.0", "id": pending_run_id, "result": {"decision": params["decision"]}})
+        pending_run_id = None
     elif selected_protocol == "2.0" and method in {"run", "chat", "resume"}:
         if params["runId"].startswith("verify-"):
             verification = {"schemaVersion": 1, "runId": params["runId"], "requestId": "request-1",
@@ -429,7 +444,13 @@ for line in sys.stdin:
             }
         )
     elif method == "register_tool":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"registered": params["name"]}})
+        if pending_run_id is not None:
+            send({"jsonrpc": "2.0", "id": request_id, "error": {
+                "code": -32000, "message": "Worker 正忙", "data": {"coremindCode": "worker_busy"},
+            }})
+        else:
+            registered_tools.add(params["name"])
+            send({"jsonrpc": "2.0", "id": request_id, "result": {"registered": params["name"]}})
     elif method == "run" and params.get("input") == "坏快照":
         send(
             {
@@ -517,7 +538,9 @@ for line in sys.stdin:
                 },
             }
         )
-    elif method == "run" and params.get("input") == "调用工具":
+    elif method == "run" and params.get("input") in {"调用工具", "调用重试工具"}:
+        tool = "lookup_order" if params["input"] == "调用工具" else "retry_lookup"
+        assert tool in registered_tools
         pending_run_id = request_id
         send(
             {
@@ -527,7 +550,7 @@ for line in sys.stdin:
                     "protocolVersion": "1.0",
                     "runId": "run-tool",
                     "callId": "call-1",
-                    "tool": "lookup_order",
+                    "tool": tool,
                     "args": {"order_id": "A-1"},
                 },
             }
@@ -658,7 +681,13 @@ for line in sys.stdin:
             }
         )
     elif method == "close":
-        send({"jsonrpc": "2.0", "id": request_id, "result": {"closed": True}})
+        if mode == "close-rpc-failed":
+            send({"jsonrpc": "2.0", "id": request_id, "error": {
+                "code": -32000, "message": "关闭测试错误", "data": {"coremindCode": "worker_closed"},
+            }})
+        else:
+            send({"jsonrpc": "2.0", "id": request_id,
+                  "result": {"closed": True, "quiescent": mode != "close-not-quiescent"}})
         break
     else:
         send(
@@ -672,3 +701,6 @@ for line in sys.stdin:
                 },
             }
         )
+
+if mode == "close-nonzero":
+    sys.exit(23)

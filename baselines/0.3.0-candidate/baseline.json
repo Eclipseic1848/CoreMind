@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "0a308010efcea52c84704db2f19d87b787ce4ce1",
+    "developmentCommit": "cd92c8913ffb10d735cd83f99fc07b94a06ff4a7",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -17,13 +17,13 @@
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
       "coremind-config": "8be91da2c25c914f95a3765df86576aad14779a1da5f4a92b6af64db3e0a735d",
       "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
-      "coremind-runtime": "84b2a04d51b2277092650c9f6bed668798d4a95e218ab179cab5f558c96f24c6",
+      "coremind-runtime": "aa44ffeb16e34e24dfa57545b36f504761a547b09c59d94a777d9d090b609f74",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
       "coremind-tools": "5c887496c63daadefce623ddf837bd0a1f11df3bb6f84025c9e2268ced62b969",
       "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
     },
     "schemas": {
-      "config": "66aadc05d0fc779189d07905e255add9bf6dd56ff7ba7d3a5db2fc14291f3132",
+      "config": "181485266cd700e92a88427e17b2a2a407e0fa294c88ffa647aa0c86d1c6ad35",
       "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
       "protocolV2": "504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69"
     }
@@ -283,18 +283,18 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-26T10:29:07.583Z",
+    "capturedAt": "2026-11-27T02:34:47.911Z",
     "capturePlatform": "win32",
-    "updateReason": "Issue #438 为 TypeScript defineTool 增加可选 outputSchema，现有工具定义保持兼容",
+    "updateReason": "CoreMind 2.2.0 同步公开包身份、工作流条件与检查点合同",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "206b6503548fbeca69c15456c1652d9bbe9b1c06c955d6127b31de651e5bc1ab",
+    "dependencyLockSha256": "8541b71a22db210a1b5b1b3f8b995b775aa40c8560f4775446eeb34261f1f507",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
-      "coremind-cli": "8631495e40776614ddeec3b6110cebd4936167aba14e2ac241743955521bcb52",
-      "coremind-config": "b21eaee6ae4a9d933b2288b1e7e12a4acfc2cc701a6c92c01b1329554563ea83",
+      "coremind-cli": "d5b3b00f070117e73667bd74bfc43f8d1c9acabfb51690c694ec813cfd43092f",
+      "coremind-config": "fa1d3831b89c0158bddd82bd324c7ebf840a1a076a0f8b2adc99f73368d3e9e5",
       "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
-      "coremind-runtime": "356c69c2b388f7947c529b1fe9517540369a7788dd0fbf54afea33ffd4aa10ee",
+      "coremind-runtime": "02c3f77854c49d4bf3b0b162bce4564c7b616204c6d004f1b9ab9b50cc2c3be8",
       "coremind-templates": "a60b36a32f5fb282ccdcdd9a31c406c3dd02061804ec5aef1cbcc82c56427dc9",
       "coremind-tools": "ad60f0448937f1a957106dbb8eb2d211dc035a01ed945f8bde7676c34a7e1b3a",
       "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"

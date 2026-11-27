@@ -12,7 +12,7 @@ agents:
   reviewer:
     systemPrompt: 你负责风险审核，必须给出证据，只输出 JSON。
   formatter:
-    systemPrompt: 你负责结构化输出，保留人工复核标记，只输出 JSON。
+    systemPrompt: 你负责结构化输出，保留人工复核标记，只输出 JSON。输出单个 JSON 对象，仅含 riskLevel（low/medium/high）、summary（字符串）、requiresHumanReview（布尔），不使用 Markdown。
 workflow:
   - id: extract
     type: call

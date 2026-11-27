@@ -401,8 +401,34 @@ jobs:
         with:
           subject-path: release-artifacts/**/*
 
+  registry-preflight:
+    name: Check all PyPI wheel identities
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: coremind-release-bundle
+          path: release-artifacts
+
+      - name: 核对全部 Python 发布物的摘要和公开版本
+        run: |
+          (cd release-artifacts && sha256sum --check SHA256SUMS.txt)
+          node scripts/verify-pypi-artifact.mjs release-artifacts
+
   npm:
-    needs: [build]
+    needs: [build, registry-preflight]
     runs-on: ubuntu-latest
     environment:
       name: npm
@@ -439,7 +465,7 @@ jobs:
 
   pypi:
     name: Publish PyPI ${{ matrix.project }}
-    needs: [build]
+    needs: [build, registry-preflight]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

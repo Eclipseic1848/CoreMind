@@ -1623,12 +1623,7 @@ export { ErrorRunStatus }
 
 export { ErrorTerminality }
 
-/**
- * 条件求值（刻意极简，一期不做表达式解析器）：
- * - 插值后的整体：空串视为假，"true"/"false" 字面量直接判定
- * - 支持 "X == Y"、"X != Y"、"X contains Y" 字符串比较
- * - 其他非空内容视为真
- */
+/** 求值无变量的条件字符串。 */
 export declare function evalCondition(condition: string): boolean;
 
 export declare interface EvaluationAttempt {

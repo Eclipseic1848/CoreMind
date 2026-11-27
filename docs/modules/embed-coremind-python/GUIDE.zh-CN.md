@@ -30,7 +30,11 @@ v2 `run()` 已返回 RunHandle 后，若后台 Runtime 初始化失败，应通�
 
 省略 `parameters` 时，`@client.tool` 从参数注解生成 Schema，支持 future 或字符串形式的 `int`、`str`、`bool` 和既有支持的容器注解（如 `list[int]`）。Node 侧先按既有规则转换再校验；例如 `int` 参数收到字符串 `'5'` 时，转换为整数 `5` 后进入 callable，转换后仍未通过 Schema 校验的参数在执行前拒绝。前向引用无法解析时会明确报错并要求显式 `parameters`；复杂 typing 仍按既有支持范围处理，需要精确约束时提供显式 Schema，既有显式 `parameters` 用法不变。
 
-如果 initialize 或任一工具注册失败，客户端会先关闭已启动的 worker，再把异常返回给调用方。仍建议使用上下文管理器或 `finally` 处理正常生命周期。
+如果初始化或启动阶段的工具注册失败，客户端会先清理已启动的 Worker 再抛出原始异常。v1 Worker 启动后，明确拒绝的注册可在原因消除后重试同名工具。回执丢失时，客户端保留该工具的 callable 并标记远端结果未确认。同名重试会被拒绝，避免再次提交结果不明的注册。
+
+同步和异步 `close()` 会清理进程与管道。Worker 显式报告未静止、关闭 RPC 失败或进程异常退出时，调用方会收到 `WorkerShutdownError`，可读取 `reason` 和 `returncode`。重复关闭无需再次清理。上下文管理器保留已有的业务异常，并将关闭异常附在其 `coremind_shutdown_error` 属性上。
+
+审批回调抛出异常时，SDK 会对原审批 ID 提交一次拒绝。同步客户端通过 `approval_handler_error` 和 `approval_submission_error` 分别保留最近的回调与提交诊断，异步客户端可通过 `sync_client` 查询。
 
 ## 运行中控制（1.1 开发线）
 

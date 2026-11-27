@@ -86,6 +86,14 @@ async function verifyPyPiWheel(rootDirectory, wheel, request) {
   return decision;
 }
 
+export async function verifyPyPiRelease(rootDirectory, manifest, request = fetch) {
+  let needsUpload = false;
+  for (const wheel of manifestWheels(manifest)) {
+    if ((await verifyPyPiWheel(rootDirectory, wheel, request)) === "publish") needsUpload = true;
+  }
+  return needsUpload ? "publish" : "skip-identical";
+}
+
 export async function stagePyPiUpload(rootDirectory, manifest, project, target, request = fetch) {
   const wheel = manifestWheels(manifest).find((item) => item.name === project);
   if (!wheel) throw new Error(`当前清单中没有该 PyPI 项目：${project}`);
@@ -115,11 +123,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   } else if (mode === "--project" && project && stageFlag === "--stage" && target) {
     console.log(await stagePyPiUpload(root, manifest, project, target));
   } else if (!mode) {
-    const decisions = [];
-    for (const wheel of manifestWheels(manifest)) {
-      decisions.push(await verifyPyPiWheel(root, wheel, fetch));
-    }
-    console.log(decisions.includes("publish") ? "publish" : "skip-identical");
+    console.log(await verifyPyPiRelease(root, manifest));
   } else {
     throw new Error(
       "用法：verify-pypi-artifact.mjs [目录] [--project 项目 --stage 上传目录|--requirements|--sdk-filename]",

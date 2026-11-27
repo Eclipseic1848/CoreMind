@@ -133,17 +133,16 @@ export class CoreMindSession {
     return withSessionIO(opts.dir, opts.sessionId, async (identity) => {
       const env = new SessionFileSystem({ cwd: opts.cwd });
       const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: path.resolve(opts.dir) });
-      let metadata = (await repository.list({ cwd: opts.cwd })).find(
-        (candidate) => candidate.id === opts.sessionId,
-      );
+      let metadata = await repository.findById(opts.cwd, opts.sessionId);
       const hasPublicPath = await fileExists(publicPath);
 
       // 同一物理目录的短名或链接仍须沿用既有 v4 存储命名，不能误入 v3 迁移。
       if (metadata === undefined && hasPublicPath) {
-        const firstLine = (await readFile(publicPath, "utf8"))
-          .split("\n")
-          .find((line) => line.trim().length > 0);
-        const header = firstLine === undefined ? {} : parseJsonObject(firstLine, publicPath, 1);
+        const firstLine = await env.readFirstLine(publicPath);
+        if (!firstLine.ok) throw firstLine.error;
+        const header = firstLine.value.trim()
+          ? parseJsonObject(firstLine.value, publicPath, 1)
+          : {};
         if (
           header.kind === "header" &&
           header.version === 4 &&
@@ -151,9 +150,7 @@ export class CoreMindSession {
           typeof header.cwd === "string" &&
           (await pathsReferToSameFile(header.cwd, opts.cwd))
         ) {
-          const candidate = (await repository.list({ cwd: header.cwd })).find(
-            (item) => item.id === opts.sessionId,
-          );
+          const candidate = await repository.findById(header.cwd, opts.sessionId);
           if (candidate && (await pathsReferToSameFile(candidate.path, publicPath)))
             metadata = candidate;
         }
@@ -211,7 +208,7 @@ export class CoreMindSession {
     if (await fileExists(path.resolve(dir, `${sessionId}.jsonl`))) return true;
     const env = new SessionFileSystem({ cwd });
     const repository = new JsonlSessionRepo({ fs: env, sessionsRoot: path.resolve(dir) });
-    return (await repository.list({ cwd })).some((candidate) => candidate.id === sessionId);
+    return (await repository.findById(cwd, sessionId)) !== undefined;
   }
 
   /** 追加消息（每条一个树条目）；先深层删除 undefined 值字段（会话存储拒绝 undefined 值） */
@@ -414,9 +411,7 @@ export class CoreMindSession {
               fs: new SessionFileSystem({ cwd: opts.cwd }),
               sessionsRoot: opts.dir,
             });
-            const source = (await repository.list({ cwd: opts.cwd })).find(
-              (candidate) => candidate.id === state.options.sessionId,
-            );
+            const source = await repository.findById(opts.cwd, state.options.sessionId);
             if (!source || source.path !== state.storagePath)
               throw new CoreMindError("session_layout_conflict", "分叉来源与已打开的会话不一致");
             const target = await repository.fork(source, {
@@ -657,9 +652,7 @@ export async function migrateLegacySession(
   const backupPath = `${publicPath}.v3.backup`;
   await ensureLegacyBackup(backupPath, legacy.source);
 
-  let metadata = (await repository.list({ cwd: opts.cwd })).find(
-    (candidate) => candidate.id === opts.sessionId,
-  );
+  let metadata = await repository.findById(opts.cwd, opts.sessionId);
   if (metadata === undefined) {
     const created = await repository.create({
       id: opts.sessionId,
@@ -683,9 +676,7 @@ export async function migrateLegacySession(
     const migratedText = convertLegacySession(legacy, metadata.createdAt, opts.cwd, backupPath);
     await hooks.beforeTargetCommit?.();
     await writeTextAtomically(metadata.path, migratedText);
-    metadata = (await repository.list({ cwd: opts.cwd })).find(
-      (candidate) => candidate.id === opts.sessionId,
-    );
+    metadata = await repository.findById(opts.cwd, opts.sessionId);
     if (metadata === undefined || readMigrationMetadata(metadata.metadata)?.complete !== true) {
       throw new CoreMindError(
         "session_migration_failed",
