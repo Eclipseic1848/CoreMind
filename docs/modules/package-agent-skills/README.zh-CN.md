@@ -14,7 +14,7 @@
 - `loadDirectorySkills`
 - `SKILLS`
 
-应用通过现有 Runtime 使用标准 Skill。`coremind-templates@2.1.0` 提供 `coremind-skill-install`，可将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
+应用通过现有 Runtime 使用标准 Skill。`coremind-templates@2.2.0` 提供 `coremind-skill-install`，可将固定 Git 版本安装到项目。详见[安装和回退指南](GUIDE.zh-CN.md#固定版本安装和回退)。
 
 ## 错误与边界
 

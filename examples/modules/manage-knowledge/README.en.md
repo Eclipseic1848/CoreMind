@@ -1,6 +1,6 @@
 # Retrieve Chinese documents through three entry points
 
-For a business project using only knowledge, run `python -m pip install coremind-knowledge-mcp==0.1.0`, then connect the service using the [empty-project guide](../../../docs/modules/manage-knowledge/GUIDE.en.md). The [component README](../../../components/knowledge/README.md) also gives source build commands and a standard MCP client example. The service from the 2.0.0 source release can still run on its own. The Node build below is for maintainers testing the CoreMind client entry points. A document-assistant template is optional.
+For a business project using only knowledge, run `python -m pip install coremind-knowledge-mcp==0.1.1`, then connect the service using the [empty-project guide](../../../docs/modules/manage-knowledge/GUIDE.en.md). The [component README](../../../components/knowledge/README.md) also gives source build commands and a standard MCP client example. The service from the 2.0.0 source release can still run on its own. The Node build below is for maintainers testing the CoreMind client entry points. A document-assistant template is optional.
 
 This example uses the [synthetic Songyu records-room corpus](../../knowledge-evals/zh-retrieval/manifest.json). The knowledge service runs locally with a host-selected reader scope. The model sends only the query text in its tool call. Index the five source files with their manifest metadata. Keep the questions and gold answers on the scoring side.
 
@@ -8,7 +8,7 @@ Use the [minimal deployment and recovery example](deployment/README.en.md) to st
 
 ## Query directly from an empty TypeScript project
 
-Follow the [component instructions](../../../components/knowledge/README.md) to start the published knowledge 0.1.0 service with the synthetic Markdown manifest and the `records` scope. Copy [direct-project](direct-project/package.json) to an empty directory outside the checkout. Use Node.js 22.19 or later and run `npm install` in that directory.
+Follow the [component instructions](../../../components/knowledge/README.md) to start the published knowledge 0.1.1 service with the synthetic Markdown manifest and the `records` scope. Copy [direct-project](direct-project/package.json) to an empty directory outside the checkout. Use Node.js 22.19 or later and run `npm install --save-exact coremind-ai@2.2.0` in that directory.
 
 Set `COREMIND_KNOWLEDGE_AUTHORIZATION` to the full reader token. The example uses loopback, with `KNOWLEDGE_MCP_URL` defaulting to `http://127.0.0.1:8767/mcp`. Adjust the port to match the service. Direct queries use the standard MCP client. For the Agent, also configure the application's OpenAI-compatible model with `COREMIND_MODEL_BASE_URL`, `COREMIND_MODEL_NAME` and `COREMIND_MODEL_API_KEY`.
 

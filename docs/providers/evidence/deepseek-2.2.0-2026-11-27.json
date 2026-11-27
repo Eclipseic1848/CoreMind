@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "checkId": "P0-20",
+  "status": "passed",
+  "evidenceLevel": "live-provider",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "version": "2.2.0",
+  "commit": "3c669972499ff24657c54cafbb063760c6f26303",
+  "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
+  "candidateArtifactSha256": "34504df136fbf6c7f5d65846132b17aabac3bea2b6c1434a0f241e9eef8f1995",
+  "runtimeDigest": "sha256:78978db4dceebda773fd6cfc6cc89ee59fd0d795aa24844f3a51c32216fa0c74",
+  "artifactManifestDigest": "sha256:32db909336a6132b6e8384aa991a886ca9ddae988dbda7f585354da87a1ec358",
+  "ref": "https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096",
+  "testedAt": "2026-11-27T06:26:00.356Z",
+  "generatedAt": "2026-11-27T06:26:00.356Z",
+  "platform": "linux-x64",
+  "node": "v22.23.5",
+  "checks": [
+    "streaming",
+    "tool-call",
+    "structured-result",
+    "multi-turn",
+    "abort",
+    "error",
+    "long-context",
+    "parent-model-call",
+    "delegation-tool",
+    "child-model-call",
+    "child-tool-call",
+    "cancel-convergence"
+  ],
+  "approval": {
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "credentialEnv": "DEEPSEEK_API_KEY",
+    "maxCostUsd": 0.5,
+    "maxDurationMs": 1800000,
+    "maxRetries": 0,
+    "maxCostCny": 10,
+    "billingCurrency": "CNY",
+    "billingControl": "deepseek-flash-cny-reserved-v1"
+  },
+  "usage": {
+    "providerCalls": 12,
+    "inputTokens": 2960,
+    "outputTokens": 244,
+    "totalTokens": 3204,
+    "costUsd": 0.0014111879999999999,
+    "durationMs": 12516,
+    "retries": 0
+  },
+  "details": {
+    "streaming": {
+      "passed": true,
+      "deltaCount": 16
+    },
+    "structuredResult": {
+      "passed": true,
+      "outputHash": "3be32a5bc267a7d09bb3177c1318e06d4e1e14268275f551d626d6f8cb7246fb"
+    },
+    "toolCall": {
+      "passed": true,
+      "calls": 1
+    },
+    "childRun": {
+      "passed": true,
+      "parentProviderCalls": 2,
+      "delegationToolCalled": true,
+      "childProviderCalls": 2,
+      "childTool": "write",
+      "childToolCompleted": true,
+      "childOutcome": "succeeded",
+      "joined": true,
+      "quiescent": true,
+      "structuredResultSha256": "2f093e4c293b7cf76c8bc9cc20d32bc70a916a3646345332180e6eba71d4ce0c"
+    },
+    "childRunCancel": {
+      "passed": true,
+      "abortTriggeredAt": "child_text_delta",
+      "parentOutcome": "paused",
+      "childOutcome": "aborted",
+      "activeDescendants": 0,
+      "executionConverged": true,
+      "convergenceMs": 29,
+      "maxConvergenceMs": 5000
+    },
+    "multiTurn": {
+      "passed": true,
+      "turns": 3,
+      "outputHash": "8e31806b12a63f30394c65c6b0826a68dd5caa0a1e66d95a1667104a5c484943"
+    },
+    "abort": {
+      "passed": true,
+      "status": "aborted"
+    },
+    "longContext": {
+      "passed": true,
+      "inputChars": 64000,
+      "outputHash": "f05df1bb955b73dea64b49f1597258da1f6cb602e2f0705de16d16c49f7cf666"
+    },
+    "error": {
+      "passed": true,
+      "status": "paused",
+      "httpStatus": 401,
+      "requests": 1
+    }
+  },
+  "billing": {
+    "billingControl": "deepseek-flash-cny-reserved-v1",
+    "currency": "CNY",
+    "maxCostCny": 10,
+    "settledCostCny": 0.088206,
+    "reservedCostCny": 6.316032,
+    "exposureCny": 6.404238,
+    "requests": 15,
+    "settledRequests": 12,
+    "retainedReservations": 3,
+    "deniedRequests": 0,
+    "invalidResponses": 0,
+    "authenticationRejections": 1
+  },
+  "dataPolicy": "synthetic-only",
+  "secretsRecorded": false
+}

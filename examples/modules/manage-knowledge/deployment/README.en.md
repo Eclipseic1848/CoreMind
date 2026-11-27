@@ -1,6 +1,6 @@
 # Minimal knowledge deployment and recovery
 
-This example uses Python 3.12, the published `coremind-knowledge-mcp==0.1.0` wheel and local BGE-M3 files. The service listens on loopback and uses in-process Qdrant. A knowledge-only setup needs the model files, business sources and catalog. It can run independently of other components and model API credentials.
+This example uses Python 3.12, the published `coremind-knowledge-mcp==0.1.1` wheel and local BGE-M3 files. The service listens on loopback and uses in-process Qdrant. A knowledge-only setup needs the model files, business sources and catalog. It can run independently of other components and model API credentials.
 
 ## Start and verify
 
@@ -9,7 +9,7 @@ Create a deployment directory outside the repository. In its `business/` subdire
 Set `COREMIND_KNOWLEDGE_AUTHORIZATION` in both terminals to `Bearer ` followed by a random read token of at least 24 characters. The host chooses the reader's scope. In `business/`, start the service with the absolute path to the local model files.
 
 ```sh
-python -m pip install coremind-knowledge-mcp==0.1.0
+python -m pip install coremind-knowledge-mcp==0.1.1
 coremind-knowledge-mcp --version
 coremind-knowledge-mcp --manifest manifest.json --model-dir "/absolute/model-dir" --state state/catalog.json --scope records
 ```

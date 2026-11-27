@@ -31,11 +31,11 @@ telemetry: {...}        # 可选：进程外投影；默认 DISABLED，本地观
 ```yaml
 provider:
   id: deepseek                  # 内置提供商之一
-  model: deepseek-flash         # 2.1.0 已通过严格认证的模型
+  model: deepseek-flash         # 2.2.0 已通过严格认证的模型
   apiKeyEnv: MY_DS_KEY          # 可选：自定义 API key 环境变量名（缺省按 id 推断）
 ```
 
-在 2.1.0 中，`providers` 和 `create` 列出可配置入口并提供在线认证矩阵地址。TypeScript SDK 的 `listInheritedProviders()` 可列出本机安装版本的目录。该版的 `deepseek` / `deepseek-flash` 已通过严格认证，依据为同版本的发布提交及实际 Runtime 包摘要。部署到其他模型、凭据或环境时需单独复验。[在线认证矩阵](../providers/README.zh-CN.md) · [2.1.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680) · [正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085)
+在 2.2.0 中，`providers` 和 `create` 列出可配置入口并提供在线认证矩阵地址。TypeScript SDK 的 `listInheritedProviders()` 可列出本机安装版本的目录。该版的 `deepseek` / `deepseek-flash` 已通过严格认证，依据为同版本的发布提交及实际 Runtime 包摘要。部署到其他模型、凭据或环境时需单独复验。[在线认证矩阵](../providers/README.zh-CN.md) · [2.2.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 2.0.0 的 CLI 曾内置固定历史标签。仍使用 2.0.0 时，请按旧版的实际认证记录核对。[2.0.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 

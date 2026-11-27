@@ -1,12 +1,12 @@
 # 按需部署与恢复 CoreMind 组件
 
-业务项目可从 CoreMind 2.1.0 的 [Runtime 最小配置](../../docs/guide/06-capability-construction.md#从自己的项目开始)开始。只运行 Runtime 时省略 MCP 组件绑定，三项服务均可保持停止。为选中的组件建立独立的 Python 环境和业务目录，再把通过探针的地址与读令牌绑定给需要它的 Agent。
+业务项目可从 CoreMind 2.2.0 的 [Runtime 最小配置](../../docs/guide/06-capability-construction.md#从自己的项目开始)开始。只运行 Runtime 时省略 MCP 组件绑定，三项服务均可保持停止。为选中的组件建立独立的 Python 环境和业务目录，再把通过探针的地址与读令牌绑定给需要它的 Agent。
 
 | 选择 | 固定组合与就绪检查 | 需要保留的数据 |
 | --- | --- | --- |
-| 知识 | 知识 wheel 0.1.0、BGE-M3 的固定 ONNX 权重与 Qdrant Client 1.15.1。验证带令牌的 `/health`，再实际搜索和回查一条许可引文。[部署与恢复](../modules/manage-knowledge/deployment/README.zh-CN.md) | 清单、原文、版本与撤回目录。内存索引从这些文件重建。 |
-| Hindsight 记忆 | 网关 0.1.0、Hindsight 1.2.3、PostgreSQL 18.1。先检查数据库和 Hindsight `/health/ready`，再通过网关召回已确认事实。[部署与恢复](../modules/manage-memory/deployment/README.zh-CN.md) | 数据库逻辑备份、宿主绑定和最新回执。调用方仅持有自己的读令牌。 |
-| 本体 | 本体 wheel 0.1.0、RDFLib 7.6.0、pySHACL 0.40.2。探测 `/health` 后查询业务对象并核对模型版本。[部署与恢复](../modules/manage-ontology/deployment/README.zh-CN.md) | 模型、实例、映射、约束和动作定义。启用写操作时另保留动作回执和权威业务记录。 |
+| 知识 | 知识 wheel 0.1.1、BGE-M3 的固定 ONNX 权重与 Qdrant Client 1.15.1。验证带令牌的 `/health`，再实际搜索和回查一条许可引文。[部署与恢复](../modules/manage-knowledge/deployment/README.zh-CN.md) | 清单、原文、版本与撤回目录。内存索引从这些文件重建。 |
+| Hindsight 记忆 | 网关 0.1.1、Hindsight 1.2.3、PostgreSQL 18.1。先检查数据库和 Hindsight `/health/ready`，再通过网关召回已确认事实。[当前安装](../../components/memory/README.md) · [0.1.0 恢复复验](../modules/manage-memory/deployment/README.zh-CN.md) | 数据库逻辑备份、宿主绑定和最新回执。调用方仅持有自己的读令牌。 |
+| 本体 | 本体 wheel 0.1.1、RDFLib 7.6.0、pySHACL 0.40.2。探测 `/health` 后查询业务对象并核对模型版本。[当前安装](../../components/ontology/README.md) · [0.1.0 恢复复验](../modules/manage-ontology/deployment/README.zh-CN.md) | 模型、实例、映射、约束和动作定义。启用写操作时另保留动作回执和权威业务记录。 |
 
 示例使用宿主 Python 环境和上游 PostgreSQL 工具，三个组件默认监听回环地址的 `8767`、`8769`、`8879` 端口。Hindsight 的模型端点和权重由部署方选择，宿主负责界定哪些信息可发给该端点。合成验收使用本地确定性模型和预置权重。[Hindsight 自托管安装](https://hindsight.vectorize.io/developer/installation)
 
@@ -16,7 +16,7 @@
 
 ## 从仓库外复跑
 
-在仓库外准备两个空白 npm 项目和一个独立 Python 3.12 环境。固定安装 npm 的 `coremind-ai@2.1.0`、`coremind-cli@2.1.0` 和 Python 的 `coremind-ai==2.1.0`。从源码根目录运行验收，参数使用绝对路径。首次保持三个组件停止，验证无服务配置时的 Runtime、Skill 与本地工具。
+在仓库外准备两个空白 npm 项目和一个独立 Python 3.12 环境。固定安装 npm 的 `coremind-ai@2.2.0`、`coremind-cli@2.2.0` 和 Python 的 `coremind-ai==2.2.0`。从源码根目录运行验收，参数使用绝对路径。首次保持三个组件停止，验证无服务配置时的 Runtime、Skill 与本地工具。
 
 ```sh
 node scripts/verify-optional-consumer.mjs "<仓库外 npm 项目>" "<Python 解释器>"

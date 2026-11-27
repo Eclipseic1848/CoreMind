@@ -7,7 +7,7 @@
 准备独立的 Python 3.12 环境和 BGE-M3 模型。将[知识单项示例](../../../components/knowledge/README.md)的合成清单、原文目录 `sources/` 和 `query.py` 放在空业务目录，或换成自己的清单与原文。设置完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION`。在业务目录从 PyPI 安装并启动服务，`MODEL_DIR` 指向已校验模型。
 
 ```sh
-python -m pip install coremind-knowledge-mcp==0.1.0
+python -m pip install coremind-knowledge-mcp==0.1.1
 coremind-knowledge-mcp --version
 coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --state ./state/catalog.json --scope records
 ```
@@ -26,7 +26,7 @@ coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --sta
 
 Markdown 表格的数据行在 `search_knowledge` 和 `resolve_citation` 中均附带同一文档版本的 `tableHeader`。例如上面的第 6 行保留物件、窗口和包装的原文，`tableHeader[0].line` 为 4，`tableHeader[0].text` 为该表的列名原文。按列名理解每个值，并把引用指向数据行。普通段落、表头自身和代码块中的模拟表格沿用原有引文格式。
 
-当前源码为 PDF 和 DOCX 的片段返回正整数 `chunkId`，按文档版本内的片段顺序从 1 编号。页码或节标题 `locator` 用于显示，回查时传入搜索返回的 `docId`、`version`、`file` 和 `chunkId`。定位字段同时传入时须全部匹配。Markdown 继续按行号回查。用[多片段示例](../../../examples/modules/manage-knowledge/README.zh-CN.md#回查同页或同节的片段)可以比较搜索和回查的正文。
+0.1.1 为 PDF 和 DOCX 的片段返回正整数 `chunkId`，按文档版本内的片段顺序从 1 编号。页码或节标题 `locator` 用于显示，回查时传入搜索返回的 `docId`、`version`、`file` 和 `chunkId`。定位字段同时传入时须全部匹配。Markdown 继续按行号回查。用[多片段示例](../../../examples/modules/manage-knowledge/README.zh-CN.md#回查同页或同节的片段)可以比较搜索和回查的正文。
 
 ## 增量导入与撤回
 
@@ -34,13 +34,13 @@ Markdown 表格的数据行在 `search_knowledge` 和 `resolve_citation` 中均�
 
 历史引文沿用当前知识服务的阅读范围和资料清单的基准日期。有效期包含起始日，不含截止日。范围外或不在有效期内的引文统一返回 `unknown`；在可读范围内才能看到摘录或 `withdrawn` 状态。
 
-在当前源码中，旧引文仅凭页码或节标题仍可回查唯一匹配。一个位置匹配多个片段时返回 `ambiguous`，没有匹配时返回 `missing`。这两种结果均无正文。已撤回的可读版本先返回 `withdrawn`。
+0.1.1 仍可仅凭页码或节标题回查唯一匹配的旧引文。一个位置匹配多个片段时返回 `ambiguous`，没有匹配时返回 `missing`。这两种结果均无正文。已撤回的可读版本先返回 `withdrawn`。
 
 升级前保存的 Markdown 状态可用原清单和原文再次导入。服务核对已有正文、行号、版本和权限后补齐表头，保留已撤回标记。后续同版本重导保持幂等。
 
 ## 选用持久 Qdrant 索引
 
-从当前源码构建服务时，可在原有启动命令上追加 `--index-dir ./state/knowledge-index`。同一项目继续使用原来的 `--state`。每个索引目录由一个服务进程独占，应由宿主管理并与状态文件、资料、模型分开。省略该参数时使用内存索引。公开 0.1.0 采用内存索引。
+使用 0.1.1 时，可在启动命令上追加 `--index-dir ./state/knowledge-index`。同一项目继续使用原来的 `--state`。每个索引目录由一个服务进程独占，应由宿主管理并与状态文件、资料、模型分开。省略该参数时使用内存索引。0.1.0 安装包采用内存索引。
 
 持久索引由已提交目录派生。重启时核对目录与索引，匹配后复用原向量。资料变更时复用未变正文的向量，新索引完整后才提交目录。检索和回查继续核对读者范围、有效期、撤回状态及原来位置。
 

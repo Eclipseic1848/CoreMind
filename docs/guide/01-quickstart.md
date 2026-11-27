@@ -6,11 +6,11 @@
 
 需要 Node.js ≥ 22.19.0。
 
-本指南使用 npm 上的 `coremind-cli@2.1.0`。已有项目可参考[2.0→2.1 迁移与回退](../migrations/2.0-to-2.1.zh-CN.md)。从更早版本升级时，可查看[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)和[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)。
+本指南使用 npm 上的 `coremind-cli@2.2.0`。已有项目可参考[2.1→2.2 迁移与回退](../migrations/2.1-to-2.2.zh-CN.md)。从更早版本升级时，可查看[1.4→2.0 迁移指南](../migrations/1.4-to-2.0.zh-CN.md)和[1.0.1→1.2 历史迁移指南](../migrations/1.0-to-1.2.zh-CN.md)。
 
 ```bash
-npm install -g coremind-cli@2.1.0
-coremind --version              # 应显示 coremind v2.1.0
+npm install -g coremind-cli@2.2.0
+coremind --version              # 应显示 coremind v2.2.0
 coremind --help                 # 查看帮助
 ```
 
@@ -40,7 +40,7 @@ cp .env.example .env           # Linux
 
 凭据只放在环境变量中。嵌入式宿主也可提供 `SecretRef` resolver；敏感 Header（包括常见 API key 和 token 别名）不得使用明文字面量。
 
-交互终端可以选择 Provider，非交互脚本须显式使用 `--provider`。本例选择的 `deepseek-flash` 已通过 2.1.0 严格认证。投产前按实际 Provider、模型、凭据和部署环境复测。[供应商矩阵](../providers/README.zh-CN.md) · [2.1.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
+交互终端可以选择 Provider，非交互脚本须显式使用 `--provider`。本例选择的 `deepseek-flash` 已通过 2.2.0 严格认证。投产前按实际 Provider、模型、凭据和部署环境复测。[供应商矩阵](../providers/README.zh-CN.md) · [2.2.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
 ## 4. 运行
 

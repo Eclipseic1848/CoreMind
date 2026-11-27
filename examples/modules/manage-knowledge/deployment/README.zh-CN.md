@@ -1,6 +1,6 @@
 # 知识组件的最小部署与恢复
 
-此示例使用 Python 3.12、公开的 `coremind-knowledge-mcp==0.1.0` 和本地 BGE-M3。知识服务监听回环地址，使用进程内 Qdrant。它仅依赖模型文件、业务原文及状态文件，只启用知识时无需启动其他组件或为模型 API 配置凭据。
+此示例使用 Python 3.12、公开的 `coremind-knowledge-mcp==0.1.1` 和本地 BGE-M3。知识服务监听回环地址，使用进程内 Qdrant。它仅依赖模型文件、业务原文及状态文件，只启用知识时无需启动其他组件或为模型 API 配置凭据。
 
 ## 启动并验证
 
@@ -9,7 +9,7 @@
 在服务和查询终端注入同一个 `COREMIND_KNOWLEDGE_AUTHORIZATION`，完整值为 `Bearer ` 加至少 24 个字符的随机读令牌。读者范围由宿主配置。在 `business/` 启动服务，将模型路径改为本地绝对路径。
 
 ```sh
-python -m pip install coremind-knowledge-mcp==0.1.0
+python -m pip install coremind-knowledge-mcp==0.1.1
 coremind-knowledge-mcp --version
 coremind-knowledge-mcp --manifest manifest.json --model-dir "/absolute/model-dir" --state state/catalog.json --scope records
 ```

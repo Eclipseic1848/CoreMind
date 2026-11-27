@@ -1,6 +1,6 @@
 # 通过三个入口检索中文资料
 
-只接入知识的业务项目可运行 `python -m pip install coremind-knowledge-mcp==0.1.0`，再按[空白项目接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md)连接服务。[组件说明](../../../components/knowledge/README.md)也提供从源码构建的命令和普通 MCP 客户端示例。2.0.0 源码服务仍可独立启动。下方的 Node 构建用于维护者复验 CoreMind 客户端入口。资料助手模板可按需使用。
+只接入知识的业务项目可运行 `python -m pip install coremind-knowledge-mcp==0.1.1`，再按[空白项目接入指南](../../../docs/modules/manage-knowledge/GUIDE.zh-CN.md)连接服务。[组件说明](../../../components/knowledge/README.md)也提供从源码构建的命令和普通 MCP 客户端示例。2.0.0 源码服务仍可独立启动。下方的 Node 构建用于维护者复验 CoreMind 客户端入口。资料助手模板可按需使用。
 
 本例使用[松屿资料室合成资料](../../knowledge-evals/zh-retrieval/manifest.json)。示例知识服务在本机运行，宿主选定读者范围。模型调用工具时仅提交查询文本。索引只接收五份来源文件和清单元数据。题目与答案位于评分端。
 
@@ -8,7 +8,7 @@
 
 ## 从空白 TypeScript 项目直接查询
 
-按[独立组件说明](../../../components/knowledge/README.md)用公开知识 0.1.0 和合成 Markdown 清单启动服务。使用 `records` 阅读范围。将 [direct-project](direct-project/package.json) 目录复制到仓库外的空白项目。使用 Node.js 22.19 或更高版本，在该目录执行 `npm install`。
+按[独立组件说明](../../../components/knowledge/README.md)用公开知识 0.1.1 和合成 Markdown 清单启动服务。使用 `records` 阅读范围。将 [direct-project](direct-project/package.json) 目录复制到仓库外的空白项目。使用 Node.js 22.19 或更高版本，在该目录执行 `npm install --save-exact coremind-ai@2.2.0`。
 
 应用从环境读取完整的 `COREMIND_KNOWLEDGE_AUTHORIZATION` 读令牌。示例使用回环地址，`KNOWLEDGE_MCP_URL` 默认是 `http://127.0.0.1:8767/mcp`，端口可按实际服务调整。直接查询只用标准 MCP 客户端。Agent 模式还需要用 `COREMIND_MODEL_BASE_URL`、`COREMIND_MODEL_NAME` 和 `COREMIND_MODEL_API_KEY` 配置应用自己的 OpenAI 兼容模型。
 

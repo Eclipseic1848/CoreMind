@@ -31,17 +31,15 @@ features:
     details: 供应商认证、跨语言一致性、安装测试和发布预检都依赖可重复的证据，而不是功能声明。
 ---
 
-## 2.2.0 候选
+## 公开稳定版 `2.2.0`
 
 [发布说明](./release/notes/v2.2.0.md) · [升级与回退](./migrations/2.1-to-2.2.zh-CN.md)
 
-## 公开稳定版 `2.1.0`
-
 [从 2.0 升级与回退](migrations/2.0-to-2.1.zh-CN.md) · [从 1.4 升级](migrations/1.4-to-2.0.zh-CN.md) · [2.0 发布说明](release/notes/v2.0.0.md) · [历史 1.0.1→1.2 升级](migrations/1.0-to-1.2.zh-CN.md)
 
-安装 `coremind-cli@2.1.0` 或对应版本的 SDK，在自己的项目中先运行最小 Runtime。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [发布与回装记录](https://github.com/Eclipseic1848/CoreMind/issues/427)
+安装 `coremind-cli@2.2.0` 或对应版本的 SDK，在自己的项目中先运行最小 Runtime。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/) · [发布与回装记录](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
-知识、Hindsight 记忆和本体可分别安装 `0.1.0` 服务包。Skill 可按固定提交安装，业务工具可单独注册和更换。[知识](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight 记忆](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [本体](https://pypi.org/project/coremind-ontology-mcp/0.1.0/)
+知识、Hindsight 记忆和本体可分别安装 `0.1.1` 服务包。Skill 可按固定提交安装，业务工具可单独注册和更换。[知识](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/) · [Hindsight 记忆](https://pypi.org/project/coremind-memory-mcp/0.1.1/) · [本体](https://pypi.org/project/coremind-ontology-mcp/0.1.1/)
 
 ### 在自己的项目里启用第一项能力
 

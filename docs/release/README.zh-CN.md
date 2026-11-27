@@ -2,7 +2,7 @@
 
 本 SOP 将八个 npm 包、Python SDK、独立组件、源码 ZIP、GitHub Release 和双语文档站纳入同一次发布。制品清单同时记录构建身份、包版本和 SHA-256。
 
-> 2.1.0 的 CLI 和两种 SDK 同步升级，知识、Hindsight 记忆和本体各有独立的 0.1.0 安装件。新业务项目依次验证仅 Runtime、单项加载、组合和移除，以资料助手复验组合。[正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [13 件公开制品验收](https://github.com/Eclipseic1848/CoreMind/issues/427)
+> 2.2.0 的 CLI 和两种 SDK 同步升级，知识、Hindsight 记忆和本体各有独立的 0.1.1 安装件。新业务项目依次验证仅 Runtime、单项加载、组合和移除，以资料助手复验组合。[正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [13 件公开制品验收](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764) · [严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
 [English](README.en.md) · [RC 验收指南](RC-ACCEPTANCE.zh-CN.md) · [已知限制](KNOWN-LIMITATIONS.zh-CN.md) · [2.1→2.2 迁移](../migrations/2.1-to-2.2.zh-CN.md) · [2.2 发布说明](notes/v2.2.0.md) · [2.1 发布说明](notes/v2.1.0.md)
 
@@ -51,19 +51,19 @@ Config v2、省略或显式 `direct` 的工具与 Protocol v1 保持兼容；`de
 
 ## 2. 冻结候选版本
 
-维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `2.1.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
+维护者通过 `Prepare Release Pull Request` 工作流输入目标版本，例如 `2.2.0`。工作流使用 Release Please 的非 manifest 入口，确保该输入直接参与版本计算；PR 创建后立即转为草稿。创建或转草稿任一步失败都必须停止，不得继续候选验收。维护者随后在该草稿 PR 中执行全量版本同步：
 
 继续前必须核对实际存在目标版本、预期分支的发布 PR，且 `isDraft=true`；工作流成功本身不够。未创建时先核对并处理未发布或状态未同步的旧发布 PR，不得跳过草稿直接进入资格验收。
 
 ```powershell
-npm run release:sync-version -- 2.1.0
+npm run release:sync-version -- 2.2.0
 ```
 
 版本同步器会统一根清单、8 个公开 npm 包、内部精确依赖、`package-lock.json`、Python PEP 440 版本和 `coremind.__version__`。随后人工同步中英文 CHANGELOG、README、迁移说明、Provider 状态、第三方声明与路线图。
 
 ### 固定并审阅发布正文
 
-冻结时核对 `docs/release/notes/v2.1.0.md`、双语 CHANGELOG、2.0→2.1 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
+冻结时核对 `docs/release/notes/v2.2.0.md`、双语 CHANGELOG、2.1→2.2 迁移及实测边界。正文必须保留唯一的 `{{RELEASE_COMMIT}}`，渲染时仅注入与 Tag 对应的 40 位 SHA。
 
 冻结前，从实际 npm tarball 和 Python wheel 检查 Registry 将展示的说明。核对 npm 包根 README、内置模板双语 README 以及 wheel `METADATA` 的长描述，确认当前安装命令与包版本匹配，公开文档链接可访问。随包说明须在发布前修正，仓库文档更新不会改变已上传制品。
 
@@ -141,7 +141,7 @@ npm run acceptance:rc -- --require-manual
 
 1. 最终全仓 Markdown 审计通过后，将草稿发布 PR 标记 ready。
 2. 确认 PR 只包含本版本内容，双平台 CI 全绿后合并到 `main`。
-3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v2.1.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
+3. 合并后先在冻结的 `main` 提交上完成严格 Candidate Qualification，确认 `Candidate qualified` 作业真实成功，版本、Runtime 包摘要、真实 Provider 与双平台 PTY 证据一致，再在该提交上创建受保护 Tag `v2.2.0`；Tag 必须与根 `package.json` 版本完全一致，创建后不得移动或覆盖。
 4. Tag 后工作区必须干净，重新执行 `npm run release:preflight`。`v0.7.0` 的历史恢复仍使用其专属网络例外参数；其他版本不得使用。
 
 Tag 不触发自动发布。维护者仍需在 GitHub Actions 中手动运行 `Publish CoreMind Release` 并输入已存在的 Tag。
@@ -171,7 +171,7 @@ npm 与 PyPI 发布作业共同等待四个 wheel 的只读公开预检。任一
 在未使用仓库 `node_modules` 的全新目录执行：
 
 ```powershell
-npm install -g coremind-cli@2.1.0
+npm install -g coremind-cli@2.2.0
 coremind --version
 coremind create acceptance-agent --template blog-writer --language typescript --provider alibaba-model-studio
 cd acceptance-agent

@@ -8,7 +8,7 @@
 
 ## 只启用一个工具
 
-在空目录运行 `npm install --save-exact coremind-cli@2.1.0`，创建 `coremind.yaml`，并放入一个自己编写的 `sample.txt`。下面的 Agent 只获得读取工作区文件的权限。已有项目可将 `{ id: read }` 添加到目标 Agent 的工具列表。
+在空目录运行 `npm install --save-exact coremind-cli@2.2.0`，创建 `coremind.yaml`，并放入一个自己编写的 `sample.txt`。下面的 Agent 只获得读取工作区文件的权限。已有项目可将 `{ id: read }` 添加到目标 Agent 的工具列表。
 
 ```yaml
 schemaVersion: 3

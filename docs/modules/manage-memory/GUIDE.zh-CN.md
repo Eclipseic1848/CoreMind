@@ -4,7 +4,7 @@
 
 ## 从空白项目只接入记忆
 
-在宿主环境运行 `python -m pip install coremind-memory-mcp==0.1.0`，再按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)启动网关。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.1.0 coremind-ai@2.1.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目运行 `python -m pip install coremind-ai==2.1.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
+在宿主环境运行 `python -m pip install coremind-memory-mcp==0.1.1`，再按[示例](../../../examples/modules/manage-memory/README.zh-CN.md)启动网关。普通 MCP 客户端可以直接连接。使用 CoreMind 时，在业务项目运行 `npm install --save-exact coremind-cli@2.2.0 coremind-ai@2.2.0` 安装 CLI 和 TypeScript SDK。使用 Python 的项目运行 `python -m pip install coremind-ai==2.2.0`，由 wheel 自动选择内置 Worker。下面的 `coremind.yaml` 只注册一个工具。示例中的业务模型可换为宿主已配置的模型。
 
 复制[空白 Python 项目示例](../../../examples/modules/manage-memory/README.zh-CN.md#从空白-python-项目直接召回)，先以读令牌直接召回，再把同一地址与令牌绑定给 Agent。宿主确认、写入与更正仍走网关的管理入口。
 

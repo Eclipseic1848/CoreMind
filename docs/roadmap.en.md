@@ -4,13 +4,11 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
-## 2.2.0 candidate
+## Public stable release `2.2.0`
 
 [Engineering fixes and evaluation](./release/notes/v2.2.0.md)
 
-## Public stable release `2.1.0`
-
-Start with the Runtime in your own project. Add knowledge, Hindsight memory, Skills, tools and ontology when needed. Pin the CLI and SDKs to `2.1.0`. The three optional services are available separately at `0.1.0`. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [Upgrade from 2.0 or roll back](migrations/2.0-to-2.1.en.md)
+Start with the Runtime in your own project. Add knowledge, Hindsight memory, Skills, tools and ontology when needed. Pin the CLI and SDKs to `2.2.0`. The three optional services are available separately at `0.1.1`. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/) · [Upgrade from 2.1 or roll back](migrations/2.1-to-2.2.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 - Three use paths: CLI/TUI, TypeScript and Python SDKs, and full source.
 - Single-agent and multi-agent execution, workflows, and budget-bounded loops.
@@ -24,7 +22,9 @@ Start with the Runtime in your own project. Add knowledge, Hindsight memory, Ski
 
 ### Enable capabilities as needed
 
-Install, deploy and update knowledge, Hindsight memory and ontology independently. Pin Skills to reviewed commits, and register or replace business tools individually. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) · [Construction and acceptance](en/guide/06-capability-construction.md)
+Install, deploy and update knowledge, Hindsight memory and ontology independently. Pin Skills to reviewed commits, and register or replace business tools individually. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.1/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.1/) · [Construction and acceptance](en/guide/06-capability-construction.md)
+
+## Delivered in `2.1.0`
 
 The 2.1.0 public delivery includes eight npm packages, the SDK wheel, three service wheels and the source ZIP. Its strict qualification record binds the 2.1.0 commit, Runtime package digest and certified Provider combination. [Release workflow](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [Public reinstall record](https://github.com/Eclipseic1848/CoreMind/issues/427) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 

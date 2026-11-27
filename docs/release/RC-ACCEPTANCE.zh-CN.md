@@ -1,5 +1,7 @@
 # Release Candidate 验收指南
 
+2.2.0 已通过双平台真实伪终端检查与 DeepSeek 严格认证。[正式发布](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [公开回装](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
+
 2.1.0 以同一冻结提交完成双平台、真实终端和 DeepSeek 严格认证。发布与回装记录分别见[正式 Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0)、[严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)和[公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)。所有后续候选按下列门禁独立验收。
 
 复跑 P01–P20 和资料助手组合，保留 2.0.0 的历史证据。[2.0 发布说明](notes/v2.0.0.md) · [1.4→2.0 迁移](../migrations/1.4-to-2.0.zh-CN.md)
@@ -134,7 +136,7 @@ npm run providers:certify
 
 - P01～P19 自动矩阵通过且测试锚点完整。
 - Windows 与 Linux 的 P20 证据绑定同一候选版本和提交。
-- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于 `2.1.0`。
+- 至少一个真实 Provider 完成本版本、最终提交与 Runtime 摘要绑定的本次严格复验；历史例外不适用于当前候选。
 - 两个平台的 CI、稳定性、覆盖率、安全和发布物门禁通过。
 - 严格 Candidate 工作流的 `Candidate qualified` 作业真实成功；Provider 被跳过或仅工程门通过不算完成。生产依赖与完整依赖的审计报告均须有效且零发现。
 - 最终全仓 Markdown 审计通过。

@@ -4,13 +4,11 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
-## 2.2.0 候选
+## 公开稳定版 `2.2.0`
 
 [本版工程修复与评测](./release/notes/v2.2.0.md)
 
-## 公开稳定版 `2.1.0`
-
-在自己的项目中先运行最小 Runtime，再按需接入知识、Hindsight 记忆、Skill、工具和本体。CLI 与 SDK 可固定安装 `2.1.0`。三个可选服务可分别安装 `0.1.0`。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [从 2.0 升级与回退](migrations/2.0-to-2.1.zh-CN.md)
+在自己的项目中先运行最小 Runtime，再按需接入知识、Hindsight 记忆、Skill、工具和本体。CLI 与 SDK 可固定安装 `2.2.0`。三个可选服务可分别安装 `0.1.1`。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/) · [从 2.1 升级与回退](migrations/2.1-to-2.2.zh-CN.md) · [严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [公开回装](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 - CLI/TUI、TypeScript SDK、Python SDK 和完整源码三种使用路径。
 - 单智能体、多智能体、Workflow 和有预算约束的 Loop。
@@ -24,7 +22,9 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 ### 按需接入五项能力
 
-知识、Hindsight 记忆和本体各自安装、部署和更新。Skill 可按审核过的提交固定版本，业务工具可单独注册和更换。[知识](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight 记忆](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [本体](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) · [建设与验收](guide/06-capability-construction.md)
+知识、Hindsight 记忆和本体各自安装、部署和更新。Skill 可按审核过的提交固定版本，业务工具可单独注册和更换。[知识](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/) · [Hindsight 记忆](https://pypi.org/project/coremind-memory-mcp/0.1.1/) · [本体](https://pypi.org/project/coremind-ontology-mcp/0.1.1/) · [建设与验收](guide/06-capability-construction.md)
+
+## `2.1.0` 已交付
 
 2.1.0 的公开交付包含八个 npm 包、SDK wheel、三个独立服务 wheel 和源码 ZIP。严格资格记录绑定 2.1.0 的提交、Runtime 包摘要和实际通过认证的 Provider 组合。[正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [回装记录](https://github.com/Eclipseic1848/CoreMind/issues/427) · [严格资格](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
 
