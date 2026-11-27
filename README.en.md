@@ -1,6 +1,20 @@
+<div align="center">
+
 # CoreMind
 
-[简体中文](README.md) · [English documentation](https://eclipseic1848.github.io/CoreMind/en/) · [Quick start](docs/en/guide/01-quickstart.md) · [Latest release](https://github.com/Eclipseic1848/CoreMind/releases/latest)
+**Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
+
+[![Status](https://img.shields.io/badge/status-line%202.2.0-f59e0b)](docs/roadmap.en.md)
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
+[![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
+[![License](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
+
+CLI/TUI · TypeScript SDK · Python SDK · Configuration driven · Harness/Loop · SOP/Skills
+
+[Quick Start](docs/en/guide/01-quickstart.md) · [Online docs](https://eclipseic1848.github.io/CoreMind/en/) · [Repository docs](docs/en/index.md) · [Modules](docs/modules/README.en.md) · [Provider Matrix](docs/providers/README.en.md) · [Contribute](CONTRIBUTING.en.md) · [简体中文](README.md)
+
+</div>
 
 CoreMind is a framework for building agents in your own application. Start with one model and a `coremind.yaml` file. Add knowledge retrieval, Hindsight memory, Skills, tools or ontology when your task needs them. The CLI/TUI, TypeScript SDK and synchronous and asynchronous Python clients use the same Node.js runtime, permissions, budgets and recovery rules.
 
