@@ -8,7 +8,7 @@ When two calls in one turn both require `run_serial`, or both require a `workspa
 
 ## Enable one tool in a fresh project
 
-In an empty directory, run `npm install --save-exact coremind-cli@2.1.0`. Create `coremind.yaml` and a short `sample.txt`. This agent is allowed to read files within the workspace. In an existing project, add `{ id: read }` to the intended agent’s tool list.
+In an empty directory, run `npm install --save-exact coremind-cli@2.2.0`. Create `coremind.yaml` and a short `sample.txt`. This agent is allowed to read files within the workspace. In an existing project, add `{ id: read }` to the intended agent’s tool list.
 
 ```yaml
 schemaVersion: 3

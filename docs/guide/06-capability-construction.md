@@ -50,6 +50,8 @@ agents:
 
 [按需部署与恢复示例](../../examples/optional-components/README.zh-CN.md)给出知识、Hindsight 和本体的版本、启动顺序、持久数据、恢复演练和三项组合的验收命令。
 
+2.2.0 在仓库外从公开 npm 和 PyPI 安装后通过 17 项基础检查，以及启用三项组件后的 57 项组合检查。CLI、TypeScript、Python 同步和异步均完成知识、记忆和本体组合调用，移除组件后的工具调用数均为零。两轮验收使用合成输入与本地模型夹具。
+
 2.1.0 的仓库外验收用冻结提交构建的安装包完成 49 项检查，覆盖空白项目、五项单用、组合和移除。安装公开版后，可用相同脚本复验。[冻结件验收记录](https://github.com/Eclipseic1848/CoreMind/issues/426) · [正式发布与回装](https://github.com/Eclipseic1848/CoreMind/issues/427)
 
 在仓库外新建消费者，固定安装 `coremind-cli@2.2.0`、TypeScript 的 `coremind-ai@2.2.0` 和带内置 Worker 的 Python `coremind-ai==2.2.0`。按上表分别安装和启动知识、记忆与本体服务。在私有 JSON 中以 `knowledge`、`memory`、`ontology` 为键，分别填写回环 `url`、读令牌 `authorization`、只读 `tool` 名、`args` 和预期结果片段 `expect`。记忆场景先由宿主写入合成事实，再执行主仓库的[验收脚本](../../scripts/verify-optional-consumer.mjs)。

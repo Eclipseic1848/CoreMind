@@ -5,8 +5,8 @@
 | 选择 | 固定组合与就绪检查 | 需要保留的数据 |
 | --- | --- | --- |
 | 知识 | 知识 wheel 0.1.1、BGE-M3 的固定 ONNX 权重与 Qdrant Client 1.15.1。验证带令牌的 `/health`，再实际搜索和回查一条许可引文。[部署与恢复](../modules/manage-knowledge/deployment/README.zh-CN.md) | 清单、原文、版本与撤回目录。内存索引从这些文件重建。 |
-| Hindsight 记忆 | 网关 0.1.1、Hindsight 1.2.3、PostgreSQL 18.1。先检查数据库和 Hindsight `/health/ready`，再通过网关召回已确认事实。[部署与恢复](../modules/manage-memory/deployment/README.zh-CN.md) | 数据库逻辑备份、宿主绑定和最新回执。调用方仅持有自己的读令牌。 |
-| 本体 | 本体 wheel 0.1.1、RDFLib 7.6.0、pySHACL 0.40.2。探测 `/health` 后查询业务对象并核对模型版本。[部署与恢复](../modules/manage-ontology/deployment/README.zh-CN.md) | 模型、实例、映射、约束和动作定义。启用写操作时另保留动作回执和权威业务记录。 |
+| Hindsight 记忆 | 网关 0.1.1、Hindsight 1.2.3、PostgreSQL 18.1。先检查数据库和 Hindsight `/health/ready`，再通过网关召回已确认事实。[当前安装](../../components/memory/README.md) · [0.1.0 恢复复验](../modules/manage-memory/deployment/README.zh-CN.md) | 数据库逻辑备份、宿主绑定和最新回执。调用方仅持有自己的读令牌。 |
+| 本体 | 本体 wheel 0.1.1、RDFLib 7.6.0、pySHACL 0.40.2。探测 `/health` 后查询业务对象并核对模型版本。[当前安装](../../components/ontology/README.md) · [0.1.0 恢复复验](../modules/manage-ontology/deployment/README.zh-CN.md) | 模型、实例、映射、约束和动作定义。启用写操作时另保留动作回执和权威业务记录。 |
 
 示例使用宿主 Python 环境和上游 PostgreSQL 工具，三个组件默认监听回环地址的 `8767`、`8769`、`8879` 端口。Hindsight 的模型端点和权重由部署方选择，宿主负责界定哪些信息可发给该端点。合成验收使用本地确定性模型和预置权重。[Hindsight 自托管安装](https://hindsight.vectorize.io/developer/installation)
 

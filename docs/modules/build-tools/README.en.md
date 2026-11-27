@@ -1,6 +1,6 @@
 # Tools and Business Capabilities
 
-Version 2.0.0 already provided tool registration and MCP bindings. Follow the [installation and migration guide](../../migrations/2.0-to-2.1.en.md) to use the matching 2.1.0 CLI and SDKs in the application project, then verify independent tool upgrades and removal. Windows and Linux are supported.
+Version 2.0.0 already provided tool registration and MCP bindings. Follow the [installation and migration guide](../../migrations/2.1-to-2.2.en.md) to use the matching 2.2.0 CLI and SDKs in the application project, then verify independent tool upgrades and removal. Windows and Linux are supported.
 
 ## Purpose
 

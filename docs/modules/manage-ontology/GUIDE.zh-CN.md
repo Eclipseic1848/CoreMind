@@ -19,7 +19,7 @@
 在业务主机的独立 Python 3.10+ 环境从 PyPI 安装服务。将五份业务模型文件放在环境外，设置 `MODEL_DIR` 为其绝对路径，向服务进程提供 `COREMIND_ONTOLOGY_AUTHORIZATION`。凭据为完整的 `Bearer <token>`，令牌至少 24 个无空白字符。
 
 ```sh
-python -m pip install coremind-ontology-mcp==0.1.0
+python -m pip install coremind-ontology-mcp==0.1.1
 coremind-ontology-mcp --version
 coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```

@@ -19,7 +19,7 @@ Both `catalog.A1` and `archive.ARCH-1` map to the confirmed `urn:doc:guide`. The
 Install the service from PyPI in a dedicated Python 3.10+ environment on the business host. Put the five model files outside the environment. Set `MODEL_DIR` to their absolute directory path and supply the read credential described below.
 
 ```sh
-python -m pip install coremind-ontology-mcp==0.1.0
+python -m pip install coremind-ontology-mcp==0.1.1
 coremind-ontology-mcp --version
 coremind-ontology-mcp --model-dir "$MODEL_DIR" --port 8879
 ```

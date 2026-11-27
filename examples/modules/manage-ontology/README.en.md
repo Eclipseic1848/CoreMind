@@ -1,12 +1,12 @@
 # Optional ontology example
 
-An empty business project can install just `coremind-ontology-mcp` 0.1.0 and make an MCP query. The standalone acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
+An empty business project can install just `coremind-ontology-mcp` 0.1.1 and make an MCP query. The historical 0.1.0 acceptance and the source-based four-entry example run independently. The document assistant is a separate composition example. [Integration guide](../../../docs/modules/manage-ontology/GUIDE.en.md)
 
 The document assistant uses [`document-review`](models/document-review/actions.json) to describe records, validate reviewer relationships, and check whether a record may be published. The same adapter loads [`equipment-maintenance`](models/equipment-maintenance/actions.json) to describe equipment, station relationships, and service restoration.
 
 Use the [minimal deployment and recovery example](deployment/README.en.md) to run the read-only service from a project outside the checkout, verify `/health` and an object query, then rehearse a backup of both SQLite databases, isolated restoration and a switch back to the original environment.
 
-## Accept the installed wheel
+## Repeat the 0.1.0 wheel acceptance
 
 Copy this example's `installed_acceptance.py`, `receipt_handler.py` and `models/` to a directory outside the checkout. Activate a fresh Python 3.12 environment. Use an empty `business-test` directory to retain the assets and both databases after the check.
 
@@ -16,13 +16,13 @@ python -I -B -X utf8 installed_acceptance.py --project ./business-test
 python -m pip uninstall -y coremind-ontology-mcp
 ```
 
-To test a source build, follow the [component README](../../../components/ontology/README.md) to build and install the 0.1.0 wheel, then run the same check.
+To rebuild the same version, build the 0.1.0 wheel from the [2.1.0 sources](https://github.com/Eclipseic1848/CoreMind/tree/v2.1.0/components/ontology) and rerun the check.
 
 The check uses a real Streamable HTTP client, pySHACL, and a local SQLite business transaction. It exercises read and write services, switches model versions, forces process termination after a business commit, and checks replay behavior. Success returns `businessReceipts: 2`, `unknownReplayBlocked: true` and `modelRollback: "1.0.0"`. After uninstall, verify that `business.sqlite3`, `action-receipts.sqlite3` and the model files remain in the business directory.
 
 ## Verify action receipt reconciliation
 
-Follow the [component README](../../../components/ontology/README.md) to build a wheel from the current source and install it in a dedicated Python 3.12 environment. Reuse the standalone example files in a directory outside the checkout and choose a fresh project directory for both SQLite databases. Use the preceding command for the published 0.1.0 wheel.
+This replay script requires a historical 0.1.0 candidate wheel with the reconciliation API. Install that candidate in a dedicated Python 3.12 environment, reuse the standalone example files outside the checkout, and choose a fresh project directory for both SQLite databases.
 
 ```sh
 python -I -B -X utf8 installed_acceptance.py --project ./business-reconcile --reconcile

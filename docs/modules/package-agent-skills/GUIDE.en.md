@@ -64,7 +64,7 @@ Calculate SHA-256 over the raw bytes. On Windows, run `Get-FileHash assets/templ
 Use Git, Node.js 22.20.0 or later, and a readable public GitHub source. Install matching versions of the CLI and templates package from npm in your working directory. Prepare two existing configuration directories named `project-a` and `project-b`. Replace `owner/repo@FULL_COMMIT_SHA` with the reviewed repository and its 40-character lowercase commit SHA.
 
 ```sh
-npm install --save-exact coremind-cli@2.1.0 coremind-templates@2.1.0
+npm install --save-exact coremind-cli@2.2.0 coremind-templates@2.2.0
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
 npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
 npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json

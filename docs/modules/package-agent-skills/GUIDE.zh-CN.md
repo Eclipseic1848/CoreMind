@@ -64,7 +64,7 @@ SHA-256 基于原始字节计算。Windows 可用 `Get-FileHash assets/template.
 需要 Git、Node.js 22.20.0 或更高版本，以及可读取的公开 GitHub 源。在执行目录从 npm 安装对应版本的 CLI 和模板包。先准备两个已存在的配置目录 `project-a` 和 `project-b`，并将 `owner/repo@FULL_COMMIT_SHA` 替换为审查过的仓库和 40 位小写提交 SHA。
 
 ```sh
-npm install --save-exact coremind-cli@2.1.0 coremind-templates@2.1.0
+npm install --save-exact coremind-cli@2.2.0 coremind-templates@2.2.0
 npm install --prefix .scratch/skills-cli --cache .scratch/skills-cli/npm-cache --no-save --package-lock=false --ignore-scripts skills@1.9.0
 npx --no-install coremind-skill-install project-a legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json owner/repo@FULL_COMMIT_SHA
 npx --no-install coremind-skill-install project-b legal-review .scratch/skills-cli/node_modules/skills/package.json .scratch/legal-review-v1.lock.json

@@ -1,12 +1,12 @@
 # 可选本体示例
 
-空白业务项目可只安装 `coremind-ontology-mcp` 0.1.0 并发起 MCP 查询。下面的独立验收与四入口源码示例分别运行。资料助手是额外的组合用例。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
+空白业务项目可只安装 `coremind-ontology-mcp` 0.1.1 并发起 MCP 查询。下方的 0.1.0 历史验收与四入口源码示例分别运行。资料助手是额外的组合用例。[本体接入指南](../../../docs/modules/manage-ontology/GUIDE.zh-CN.md)
 
 资料整理助手使用 [`document-review`](models/document-review/actions.json) 模型查询资料、验证复核人以及检查可否发布。完全相同的适配器也能加载 [`equipment-maintenance`](models/equipment-maintenance/actions.json)，查询设备、维护站点及复修动作。
 
 从仓库外的业务目录启动只读服务、检查 `/health` 与对象查询，然后演练 SQLite 两库备份、隔离恢复和运行环境切回，见[最小部署与恢复](deployment/README.zh-CN.md)。
 
-## 从 wheel 验收
+## 复跑 0.1.0 wheel 验收
 
 把本目录的 `installed_acceptance.py`、`receipt_handler.py` 和 `models/` 复制到仓库外。在新建并激活的 Python 3.12 虚拟环境中运行下面的命令。`business-test` 需要为空，执行后将保留业务资产和两份数据库。
 
@@ -16,13 +16,13 @@ python -I -B -X utf8 installed_acceptance.py --project ./business-test
 python -m pip uninstall -y coremind-ontology-mcp
 ```
 
-需要从源码验收时，按[组件说明](../../../components/ontology/README.md)构建并安装 0.1.0 wheel，再执行同一验收脚本。
+需要重建同版制品时，使用 [2.1.0 的源码](https://github.com/Eclipseic1848/CoreMind/tree/v2.1.0/components/ontology)构建 0.1.0 wheel，再执行同一验收脚本。
 
 验收使用真实的 Streamable HTTP 客户端、pySHACL 和本机 SQLite 业务事务。它启动只读与写服务、切换模型版本、模拟业务写入后进程中断并核对重放行为。成功时返回 `businessReceipts: 2`、`unknownReplayBlocked: true` 和 `modelRollback: "1.0.0"`。卸载后业务目录应保留 `business.sqlite3`、`action-receipts.sqlite3` 和模型文件。
 
 ## 验收动作回执对账
 
-按[组件说明](../../../components/ontology/README.md)构建当前源码的 wheel，在独立 Python 3.12 环境中安装。沿用上面的仓库外示例文件，使用新的空目录保存两份 SQLite 数据库。公开的 0.1.0 wheel 使用上一节的原命令。
+此回放脚本要求版本为 0.1.0 且包含对账接口的历史候选 wheel。在独立 Python 3.12 环境中安装该候选件，沿用上面的仓库外示例文件，并使用新的空目录保存两份 SQLite 数据库。
 
 ```sh
 python -I -B -X utf8 installed_acceptance.py --project ./business-reconcile --reconcile

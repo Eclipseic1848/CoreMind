@@ -7,7 +7,7 @@ The host selects the scope of material a reader may access and starts the knowle
 Use a dedicated Python 3.12 environment and a BGE-M3 model directory. Place the [knowledge-only example](../../../components/knowledge/README.md) manifest, its adjacent `sources/` and `query.py` in the empty business directory or provide your own documents. Set the full `COREMIND_KNOWLEDGE_AUTHORIZATION` value. Install from PyPI and start the service in the project directory with `MODEL_DIR` pointing to the verified model.
 
 ```sh
-python -m pip install coremind-knowledge-mcp==0.1.0
+python -m pip install coremind-knowledge-mcp==0.1.1
 coremind-knowledge-mcp --version
 coremind-knowledge-mcp --manifest ./manifest.json --model-dir "$MODEL_DIR" --state ./state/catalog.json --scope records
 ```
@@ -26,7 +26,7 @@ Read the supporting excerpt before using a retrieved item to answer. If the visi
 
 For a Markdown table row, both `search_knowledge` and `resolve_citation` include a `tableHeader` from the same document version. In the example above, line 6 keeps the original item, desk and packaging values. The header is on line 4 (`tableHeader[0].line`), with the original column labels in `tableHeader[0].text`. Interpret each value using those labels and cite the data row. Ordinary paragraphs, header rows and example tables inside code blocks keep their existing citation format.
 
-The current source returns a positive integer `chunkId` for PDF and DOCX excerpts, numbered from 1 within each document version. Display the page or section from `locator`. For exact lookup, pass the returned `docId`, `version`, `file` and `chunkId` to `resolve_citation`. If you supply extra location fields, they must all match. Markdown citations use the line number. Compare the search and lookup text using the [excerpt lookup example](../../../examples/modules/manage-knowledge/README.en.md#resolve-excerpts-on-the-same-page-or-in-the-same-section).
+Version 0.1.1 returns a positive integer `chunkId` for PDF and DOCX excerpts, numbered from 1 within each document version. Display the page or section from `locator`. For exact lookup, pass the returned `docId`, `version`, `file` and `chunkId` to `resolve_citation`. If you supply extra location fields, they must all match. Markdown citations use the line number. Compare the search and lookup text using the [excerpt lookup example](../../../examples/modules/manage-knowledge/README.en.md#resolve-excerpts-on-the-same-page-or-in-the-same-section).
 
 ## Incremental imports and withdrawal
 
@@ -34,13 +34,13 @@ Pass `--state` to keep a state file with each version's text, scope and withdraw
 
 Historical citations use the service’s reader scope and the manifest’s as-of date. Validity starts on the first date and ends before the expiry date. Out-of-scope or out-of-period citations return `unknown`. Readers can see an excerpt or a withdrawal status only within that boundary.
 
-The current source resolves old page or section citations with a single match. Multiple matches return `ambiguous`, and no matches return `missing`. Neither result includes an excerpt. A visible withdrawn version returns `withdrawn` before excerpt lookup.
+Version 0.1.1 resolves old page or section citations with a single match. Multiple matches return `ambiguous`, and no matches return `missing`. These responses have no excerpt. A visible withdrawn version returns `withdrawn` before excerpt lookup.
 
 Re-import the original manifest and Markdown files to upgrade a saved state. The service checks the existing text, positions, version and visibility before adding header context. It preserves withdrawals and treats subsequent identical imports as unchanged.
 
 ## Opt in to a persistent Qdrant index
 
-When running a build from the current source, append `--index-dir ./state/knowledge-index` to the service command and keep the project's existing `--state`. Give one process exclusive access to a host-controlled index directory separate from the catalog file, source assets, and model files. The default and the public 0.1.0 package use an in-memory index.
+With version 0.1.1, append `--index-dir ./state/knowledge-index` to the service command and keep the project's existing `--state`. Give one process exclusive access to a host-controlled index directory separate from the catalog file, source assets, and model files. Without `--index-dir`, 0.1.1 uses an in-memory index, as does the 0.1.0 package.
 
 The committed catalog identifies the active index. On startup the service can reuse vectors after checking that the index matches the catalog. When documents change, it reuses vectors for unchanged text and commits the catalog after the replacement index is ready. Search and citation resolution still enforce reader scope, validity, withdrawal, and citation location.
 
