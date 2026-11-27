@@ -319,7 +319,11 @@ describe("coremind CLI 端到端", () => {
     expect(yaml).toContain(`description: "${name}`);
     expect(yaml).toContain("id: alibaba-model-studio");
     expect(yaml).toContain("apiKeyEnv: DASHSCOPE_API_KEY");
-    expect(runCli(["check", "coremind.yaml"], { cwd: path.join(dir, name) }).code).toBe(0);
+    const checked = runCli(["check", "coremind.yaml"], {
+      cwd: path.join(dir, name),
+      env: { DASHSCOPE_API_KEY: "test-only" },
+    });
+    expect(checked.code, checked.stdout + checked.stderr).toBe(0);
     expect(readFileSync(path.join(dir, name, ".env.example"), "utf8")).toBe("DASHSCOPE_API_KEY=\n");
     expect(existsSync(path.join(dir, name, ".env.example"))).toBe(true);
     expect(existsSync(path.join(dir, name, "skills", "project-agent", "SKILL.md"))).toBe(true);
