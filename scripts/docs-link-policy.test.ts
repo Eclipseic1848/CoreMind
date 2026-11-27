@@ -54,6 +54,9 @@ describe("文档站仓库链接策略", () => {
     expect(moduleDocumentationLink("./SOP.zh-CN.md", page, root)).toBe(
       "/modules/manage-memory/SOP.zh-CN.md",
     );
+    expect(moduleDocumentationLink("../../../docs/release/RC-ACCEPTANCE.en.md", page, root)).toBe(
+      "/release/RC-ACCEPTANCE.en.md",
+    );
     expect(moduleDocumentationLink("module.yaml", page, root)).toBe(
       "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/modules/manage-memory/module.yaml",
     );

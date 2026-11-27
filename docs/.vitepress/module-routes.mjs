@@ -18,9 +18,12 @@ export function moduleDocumentationLink(href, page, repositoryRoot) {
   if (!href || /^[#?]|^[a-z][a-z\d+.-]*:|^\/\//iu.test(href)) return href;
   const [target] = href.split(/[?#]/u, 1);
   const suffix = href.slice(target.length);
+  const repositoryPath = path.posix.normalize(
+    path.posix.join("docs", path.posix.dirname(source), target),
+  );
   const targetPath = target.startsWith("/")
     ? target.slice(1)
-    : path.posix.normalize(path.posix.join(path.posix.dirname(source), target));
+    : repositoryPath.replace(/^docs\//u, "");
   if (sourcePattern.test(targetPath)) return `/en/${targetPath}${suffix}`;
   const rewritten =
     rewriteDocumentationLink(target, moved ? source : page, repositoryRoot) + suffix;
