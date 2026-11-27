@@ -2,11 +2,11 @@
 
 ## Run the Runtime alone
 
-Follow the [2.1.0 installation guide](../../../docs/migrations/2.0-to-2.1.en.md) for the CLI and any SDK you use. In your application directory, run `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash` and set the credential for your chosen model. You can also copy the [minimal configuration](../../../docs/en/guide/06-capability-construction.md).
+Follow the [2.2.0 installation guide](../../../docs/en/guide/01-quickstart.md) for the CLI and any SDK you use. In your application directory, run `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash` and set the credential for your chosen model. You can also copy the [minimal configuration](../../../docs/en/guide/06-capability-construction.md).
 
 - CLI: `coremind run coremind.yaml --prompt "Reply only OK"`.
-- TypeScript: run `npm install --save-exact coremind-ai@2.1.0`, copy [runtime-only.mts](runtime-only.mts) to the project root, and run `node runtime-only.mts`.
-- Python: run `python -m pip install coremind-ai==2.1.0` and copy [runtime_only.py](runtime_only.py) to the root. Run `python runtime_only.py` and `python runtime_only.py --async` for the two Python entry points.
+- TypeScript: run `npm install --save-exact coremind-ai@2.2.0`, copy [runtime-only.mts](runtime-only.mts) to the project root, and run `node runtime-only.mts`.
+- Python: run `python -m pip install coremind-ai==2.2.0` and copy [runtime_only.py](runtime_only.py) to the root. Run `python runtime_only.py` and `python runtime_only.py --async` for the two Python entry points.
 
 All four entry points should produce a reply in one turn. Check that the model request has an empty tool catalog and that the application needs only its base configuration and Runtime dependencies.
 

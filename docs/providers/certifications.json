@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-11-26",
+  "updatedAt": "2026-11-27",
   "criteria": [
     "streaming",
     "tool-call",
@@ -164,6 +164,32 @@
         "cancel-convergence"
       ],
       "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.1.0-2026-11-26.json"
+    },
+    {
+      "id": "deepseek",
+      "model": "deepseek-flash",
+      "version": "2.2.0",
+      "commit": "3c669972499ff24657c54cafbb063760c6f26303",
+      "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
+      "candidateArtifactSha256": "34504df136fbf6c7f5d65846132b17aabac3bea2b6c1434a0f241e9eef8f1995",
+      "runtimeDigest": "sha256:78978db4dceebda773fd6cfc6cc89ee59fd0d795aa24844f3a51c32216fa0c74",
+      "artifactManifestDigest": "sha256:32db909336a6132b6e8384aa991a886ca9ddae988dbda7f585354da87a1ec358",
+      "testedAt": "2026-11-27T06:26:00.356Z",
+      "checks": [
+        "streaming",
+        "tool-call",
+        "structured-result",
+        "multi-turn",
+        "abort",
+        "error",
+        "long-context",
+        "parent-model-call",
+        "delegation-tool",
+        "child-model-call",
+        "child-tool-call",
+        "cancel-convergence"
+      ],
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.2.0-2026-11-27.json"
     }
   ]
 }

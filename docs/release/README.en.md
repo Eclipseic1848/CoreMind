@@ -2,9 +2,9 @@
 
 The release includes eight npm packages, the Python SDK, independently versioned components, a source ZIP, a GitHub Release, and the bilingual documentation site. The manifest binds each distribution to its build, version and SHA-256.
 
-> The 2.1.0 CLI and SDKs share the release version. Knowledge, Hindsight memory, and ontology are independently installed at 0.1.0. Verify the Runtime baseline, each capability, composition, and removal in a fresh project. Use the document assistant to check composition. [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [Thirteen public artifacts](https://github.com/Eclipseic1848/CoreMind/issues/427)
+> The 2.2.0 CLI and SDKs share the release version. Knowledge, Hindsight memory, and ontology are independently installed at 0.1.1. Verify the Runtime baseline, each capability, composition, and removal in a fresh project. Use the document assistant to check composition. [Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [Thirteen public artifacts](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
-[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md) · [2.0 to 2.1 migration](../migrations/2.0-to-2.1.en.md) · [2.1 release notes](notes/v2.1.0.md)
+[简体中文](README.zh-CN.md) · [RC acceptance](RC-ACCEPTANCE.en.md) · [Known limitations](KNOWN-LIMITATIONS.en.md) · [1.4→2.0 migration](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](notes/v2.0.0.md) · [2.1 to 2.2 migration](../migrations/2.1-to-2.2.en.md) · [2.2 release notes](notes/v2.2.0.md) · [2.0 to 2.1 migration](../migrations/2.0-to-2.1.en.md) · [2.1 release notes](notes/v2.1.0.md)
 
 ## Historical release decisions
 
@@ -54,18 +54,18 @@ Confirm the account-side registration independently of the public project endpoi
 
 ## Freeze the candidate
 
-Run the `Prepare Release Pull Request` workflow with a target such as `2.1.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
+Run the `Prepare Release Pull Request` workflow with a target such as `2.2.0`. The workflow uses Release Please's non-manifest entry so that this input directly controls version calculation, then immediately converts the created PR to draft. A failure to create or convert the PR stops candidate preparation. In that draft PR, synchronize every npm and Python version:
 
 Before continuing, verify that a release PR actually exists for the target version and expected branch with `isDraft=true`; workflow success alone is insufficient. If none exists, first reconcile older unpublished or unsynchronized release PRs; never skip the draft and proceed directly to qualification.
 
 ```powershell
-npm run release:sync-version -- 2.1.0
+npm run release:sync-version -- 2.2.0
 npm run release:preflight -- --allow-dirty
 ```
 
 ### Freeze and review the Release body
 
-Review `docs/release/notes/v2.1.0.md`, both changelogs, migration from 2.0 and the scope of the actual tests. The reviewed body has exactly one `{{RELEASE_COMMIT}}` and the renderer injects only the verified 40-character commit for the tag.
+Review `docs/release/notes/v2.2.0.md`, both changelogs, migration from 2.1 and the scope of the actual tests. The reviewed body has exactly one `{{RELEASE_COMMIT}}` and the renderer injects only the verified 40-character commit for the tag.
 
 Before freezing, inspect the actual npm tarballs and Python wheels for the instructions users will see in the registries. Review root and bundled bilingual template READMEs and wheel `METADATA` descriptions. Check that current install commands match the package versions and that public documentation links resolve. Correct bundled instructions before publishing because repository documentation updates leave uploaded artifacts unchanged.
 
@@ -112,7 +112,7 @@ npm run acceptance:rc -- --require-manual
 
 ## Merge, tag, and publish
 
-After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit, with the actual `Candidate qualified` job successful and matching version, Runtime package digest, live Provider, and both-platform PTY evidence, before creating `v2.1.0` on that commit. The tag must equal the root manifest version and must never be moved or overwritten. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
+After the final Markdown audit, mark the release PR ready. Merge only after both platform checks pass. Complete strict Candidate Qualification on the frozen main commit, with the actual `Candidate qualified` job successful and matching version, Runtime package digest, live Provider, and both-platform PTY evidence, before creating `v2.2.0` on that commit. The tag must equal the root manifest version and must never be moved or overwritten. Tag creation does not publish. After tagging, rerun strict preflight. Historical `v0.7.0` recovery keeps its dedicated network-waiver flag; no other version may use it.
 
 For the current release, manually running `Publish CoreMind Release` checks out the tag, builds eight npm tarballs, one SDK wheel, three independent component wheels, and one source ZIP, validates exact contents and clean installs, and rejects ZIP path traversal through a cross-platform decoder before writing `release-manifest.json` and `SHA256SUMS.txt`. Every consumer independently verifies the checksum file before an isolated job creates the GitHub build attestation or protected OIDC jobs publish the exact npm artifacts and wheels. Each PyPI job publishes only the wheel for its environment. The historical `0.7.0` candidate, release, and public-reinstall stages produce top-level P0-01–P0-20, P0-01–P0-21, and P0-01–P0-22 reports; those reports remain historical evidence. Pre-releases use npm `next`; stable versions use `latest`. The GitHub Release is created with the validated fixed body through `--notes-file` only after npm, PyPI, and attestation succeed, then the release job explicitly dispatches bilingual documentation deployment from `main` through `workflow_dispatch`. The Release event route remains a fallback for releases created manually by a maintainer.
 

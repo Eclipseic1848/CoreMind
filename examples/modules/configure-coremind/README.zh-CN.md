@@ -2,11 +2,11 @@
 
 ## 只启用 Runtime
 
-按[2.1.0 安装说明](../../../docs/migrations/2.0-to-2.1.zh-CN.md)安装 CLI 和所需 SDK。在业务目录执行 `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`，按所选模型设置凭据。也可直接使用[最小配置](../../../docs/guide/06-capability-construction.md)。
+按[2.2.0 安装说明](../../../docs/guide/01-quickstart.md)安装 CLI 和所需 SDK。在业务目录执行 `npx --no-install coremind create . --runtime-only --provider deepseek --model deepseek-flash`，按所选模型设置凭据。也可直接使用[最小配置](../../../docs/guide/06-capability-construction.md)。
 
 - CLI：`coremind run coremind.yaml --prompt "请只回答 OK"`。
-- TypeScript：运行 `npm install --save-exact coremind-ai@2.1.0`，把 [runtime-only.mts](runtime-only.mts) 复制到项目根目录，再运行 `node runtime-only.mts`。
-- Python：运行 `python -m pip install coremind-ai==2.1.0`，把 [runtime_only.py](runtime_only.py) 复制到根目录。用 `python runtime_only.py` 或 `python runtime_only.py --async` 验证同步和异步入口。
+- TypeScript：运行 `npm install --save-exact coremind-ai@2.2.0`，把 [runtime-only.mts](runtime-only.mts) 复制到项目根目录，再运行 `node runtime-only.mts`。
+- Python：运行 `python -m pip install coremind-ai==2.2.0`，把 [runtime_only.py](runtime_only.py) 复制到根目录。用 `python runtime_only.py` 或 `python runtime_only.py --async` 验证同步和异步入口。
 
 四个入口均应完成一轮回复。检查模型请求的工具目录为空，并确认业务目录只需基础配置与运行所需的依赖。
 

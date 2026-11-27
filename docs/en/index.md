@@ -31,17 +31,15 @@ features:
     details: Provider certification, cross-language parity, installation tests, and release checks rely on reproducible evidence.
 ---
 
-## 2.2.0 candidate
+## Public stable release `2.2.0`
 
 [Release notes](../release/notes/v2.2.0.md) · [Upgrade and rollback](../migrations/2.1-to-2.2.en.md)
 
-## Public stable release `2.1.0`
-
 [Upgrade from 2.0 or roll back](../migrations/2.0-to-2.1.en.md) · [Upgrade from 1.4](../migrations/1.4-to-2.0.en.md) · [2.0 release notes](../release/notes/v2.0.0.md) · [Historical 1.0.1→1.2 upgrade](../migrations/1.0-to-1.2.en.md)
 
-Install `coremind-cli@2.1.0` or the matching SDK and start with a Runtime-only setup in your own project. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [Publication and reinstall record](https://github.com/Eclipseic1848/CoreMind/issues/427)
+Install `coremind-cli@2.2.0` or the matching SDK and start with a Runtime-only setup in your own project. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/) · [Publication and reinstall record](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
-Knowledge, Hindsight memory and ontology each have a separately installable `0.1.0` service package. Install Skills from reviewed commits, and register or replace business tools independently. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.0/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.0/)
+Knowledge, Hindsight memory and ontology each have a separately installable `0.1.1` service package. Install Skills from reviewed commits, and register or replace business tools independently. [Knowledge](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/) · [Hindsight memory](https://pypi.org/project/coremind-memory-mcp/0.1.1/) · [Ontology](https://pypi.org/project/coremind-ontology-mcp/0.1.1/)
 
 ### Enable one capability in your own project
 

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-26",
+  "generatedAt": "2026-11-27",
   "targetVersion": "2.2.0",
   "summary": {
     "supported": 43,
-    "certified": 0,
-    "unverified": 43
+    "certified": 1,
+    "unverified": 42
   },
   "providers": [
     {
@@ -88,15 +88,13 @@
       "id": "deepseek",
       "defaultModel": "deepseek-flash",
       "modelCount": 2,
-      "status": "inherited-unverified",
-      "previousCertification": {
-        "version": "2.1.0",
-        "testedAt": "2026-11-26T04:20:39.812Z",
-        "testedModel": "deepseek-flash",
-        "testedCommit": "b6a2c9428dd48a7cb7eb85135b3563a55d7f6d99",
-        "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
-        "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.1.0-2026-11-26.json"
-      }
+      "status": "certified",
+      "testedVersion": "2.2.0",
+      "testedAt": "2026-11-27T06:26:00.356Z",
+      "testedModel": "deepseek-flash",
+      "testedCommit": "3c669972499ff24657c54cafbb063760c6f26303",
+      "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
+      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.2.0-2026-11-27.json"
     },
     {
       "id": "fireworks",

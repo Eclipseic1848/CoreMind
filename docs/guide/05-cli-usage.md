@@ -18,15 +18,15 @@ node --version
 ### 全局安装（推荐）
 
 ```bash
-npm install -g coremind-cli@2.1.0
+npm install -g coremind-cli@2.2.0
 ```
 
-`-g` 表示全局安装，之后可在任何目录运行 `coremind`。本指南对应 2.1.0。[npm 包](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [发布说明](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0)
+`-g` 表示全局安装，之后可在任何目录运行 `coremind`。本指南对应 2.2.0。[npm 包](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [发布说明](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0)
 
 ### 验证安装成功
 
 ```bash
-coremind --version        # 应显示 coremind v2.1.0
+coremind --version        # 应显示 coremind v2.2.0
 coremind doctor           # 环境自检；检查项目密钥时传入 coremind.yaml
 ```
 
@@ -36,7 +36,7 @@ coremind doctor           # 环境自检；检查项目密钥时传入 coremind.
 
 ```bash
 npm view coremind-cli version     # 查询 Registry 当前版本
-npm install -g coremind-cli@2.1.0 # 安装本指南对应的版本
+npm install -g coremind-cli@2.2.0 # 安装本指南对应的版本
 ```
 
 升级到将来的版本时，先查看该版本的 Release 和迁移说明，再把安装命令中的版本号换成已验证的目标版本。
@@ -50,7 +50,7 @@ npm uninstall -g coremind-cli
 ### 不想安装？临时体验（不推荐日常用）
 
 ```bash
-npx -y coremind-cli@2.1.0 doctor
+npx -y coremind-cli@2.2.0 doctor
 ```
 
 npx 每次都会现场下载，速度慢、也不方便日常使用——适合"我就想先看看它是什么"的场景。
@@ -62,14 +62,14 @@ npx 每次都会现场下载，速度慢、也不方便日常使用——适合"
 | `coremind create <name>` | 创建或接入项目；交互时选择 Provider，非交互时必须显式指定 | `--template <id>`、`--language <lang>`、`--provider <id>`、`--model <id>`、`--api-key-env <name>` | `coremind create . --template translator --provider alibaba-model-studio` |
 | `coremind run <file>` | 运行一次智能体，或从安全边界恢复意外中断/显式暂停的运行 | `--prompt`、`--print`、`--json-events`、`--session`、`--resume`、`--max-steps`、`--permission` | `coremind run coremind.yaml --prompt "翻译：你好"` |
 | `coremind chat <file>` | **交互式对话**（多轮，全屏界面） | `--session <id>`、`--permission ask\|assisted\|full` | `coremind chat coremind.yaml` |
-| `coremind create . --runtime-only` | 仅生成最小 Runtime 配置，可用于已有业务目录 | `--provider <id>`、`--model <id>`、`--api-key-env <name>` | `npx coremind-cli@2.1.0 create . --runtime-only --provider deepseek --model deepseek-flash` |
+| `coremind create . --runtime-only` | 仅生成最小 Runtime 配置，可用于已有业务目录 | `--provider <id>`、`--model <id>`、`--api-key-env <name>` | `npx coremind-cli@2.2.0 create . --runtime-only --provider deepseek --model deepseek-flash` |
 | `coremind check [file]` | 配置、安全、文档与质量门禁 | `--profile`、`--override-reason`、`--json` | `coremind check coremind.yaml` |
 | `coremind eval [file]` | 运行场景评测 | `--suite <file>`、`--permission`、`--json` | `coremind eval coremind.yaml` |
 | `coremind templates` | 查看当前安装版本的场景模板 | — | `coremind templates` |
 | `coremind providers` | 查看可配置 Provider 和在线认证矩阵入口 | — | `coremind providers` |
 | `coremind doctor [file]` | 环境自检（排查问题第一步） | 可选：配置文件路径 | `coremind doctor coremind.yaml` |
 
-2.1.0 的 `providers` 和 `create` 列出可配置入口，并提供在线认证矩阵地址。查认证时，请核对目标版本、发布提交及 Runtime 包摘要。该版的 `deepseek` / `deepseek-flash` 已通过严格认证。[Provider 矩阵](../providers/README.zh-CN.md) · [2.1.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680) · [正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085)
+2.2.0 的 `providers` 和 `create` 列出可配置入口，并提供在线认证矩阵地址。查认证时，请核对目标版本、发布提交及 Runtime 包摘要。该版的 `deepseek` / `deepseek-flash` 已通过严格认证。[Provider 矩阵](../providers/README.zh-CN.md) · [2.2.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [正式发布工作流](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 2.0.0 的 CLI 有内置历史标签。阿里云 `alibaba-model-studio` 显示“CoreMind 已认证”，依据来自更早版本。`deepseek` 仍显示“可配置，尚未认证”。请按 2.0.0 的实际认证记录核对。[2.0.0 严格认证](https://github.com/Eclipseic1848/CoreMind/actions/runs/45540568139)
 
@@ -349,7 +349,7 @@ coremind run coremind.yaml --prompt "本周干了什么"
 
 | 现象 | 原因与解决 |
 |---|---|
-| `coremind 无法识别` / `command not found` | 运行 `npm install -g coremind-cli@2.1.0`，再重开终端刷新 PATH。Windows 上检查 npm 全局目录是否在 PATH |
+| `coremind 无法识别` / `command not found` | 运行 `npm install -g coremind-cli@2.2.0`，再重开终端刷新 PATH。Windows 上检查 npm 全局目录是否在 PATH |
 | 提示缺少 API key | ① 本例检查 `.env` 中的 `DASHSCOPE_API_KEY`（其他 Provider 以其配置中的 `apiKeyEnv` 为准）；② `.env` 不在**你敲命令的目录**（见 3 节）；③ 终端已有旧环境变量覆盖了 `.env`（dotenv 不覆盖已有变量） |
 | 配置文件读不到 / 报 ENOENT | 路径写错；`coremind run coremind.yaml` 需要文件就在当前目录（或用绝对路径） |
 | 运行很久没反应 / 超时 | 查看运行事件与 `runTimeoutMs`、`stepTimeoutMs`、Provider 和工具状态；`doctor` 只检查密钥存在，不验证 Provider 连接，不要在副作用结果未知时盲目重试 |

@@ -4,7 +4,7 @@
 
 **Turn agent engineering practice into standards newcomers can execute and teams can reuse.**
 
-[![Status](https://img.shields.io/badge/status-line%202.1.0-f59e0b)](docs/roadmap.en.md)
+[![Status](https://img.shields.io/badge/status-line%202.2.0-f59e0b)](docs/roadmap.en.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.en.md)
 [![Docs](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/en/index.md)
@@ -22,19 +22,19 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 Start with one model and one agent. Add knowledge retrieval, Hindsight memory, Skills, tools or ontology as the task requires. The CLI, TypeScript SDK and Python SDK share the same configuration and Runtime. The `document-assistant` example exercises capabilities working together.
 
-The 2.2.0 candidate covers workflow and durable task fixes, CLI and Python SDK improvements, standalone service updates, and live DeepSeek Flash evaluation. [2.2.0](docs/release/notes/v2.2.0.md)
+The 2.2.0 release covers workflow and durable task fixes, CLI and Python SDK improvements, standalone service updates, and live DeepSeek Flash evaluation. [2.2.0](docs/release/notes/v2.2.0.md)
 
-> **Current stable release 2.1.0.** Start in your own application and add knowledge, Hindsight memory, Skills, tools, and ontology as needed. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/)
+> **Current stable release 2.2.0.** Start in your own application and add knowledge, Hindsight memory, Skills, tools, and ontology as needed. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/)
 
-> Install, deploy, and upgrade [knowledge 0.1.0](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/), [memory 0.1.0](https://pypi.org/project/coremind-memory-mcp/0.1.0/), and [ontology 0.1.0](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) independently. [Capability guide](docs/en/guide/06-capability-construction.md) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)
+> Install, deploy, and upgrade [knowledge 0.1.1](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/), [memory 0.1.1](https://pypi.org/project/coremind-memory-mcp/0.1.1/), and [ontology 0.1.1](https://pypi.org/project/coremind-ontology-mcp/0.1.1/) independently. [Capability guide](docs/en/guide/06-capability-construction.md) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 > Check the Provider matrix for evidence from the release you use. This version requires strict-provider evidence bound to the final commit, version, Runtime digest, and bundled Worker; production evaluation must also check the provider matrix.
 
-[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [2.0 to 2.1 upgrade](docs/migrations/2.0-to-2.1.en.md) · [2.1 release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
+[Golden examples](examples/golden/README.en.md) · [SOP/Skill index](docs/modules/SOP-SKILL-INDEX.en.md) · [2.1 to 2.2 upgrade](docs/migrations/2.1-to-2.2.en.md) · [2.2 release notes](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [Historical 1.0.1→1.2 upgrade](docs/migrations/1.0-to-1.2.en.md) · [Known limitations](docs/release/KNOWN-LIMITATIONS.en.md) · [Security](SECURITY.en.md) · [Code of Conduct](docs/en/community-code-of-conduct.md)
 
 ## What the current repository supports
 
-The `2.1.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
+The `2.2.0` release line keeps CLI/TUI, TypeScript, and Python on one runtime and result model.
 
 | Capability | Current support |
 |---|---|
@@ -108,10 +108,10 @@ Windows and Linux remain the formal target platforms. macOS support follows late
 
 ## Quick start
 
-Source development requires Node.js 22.19+, npm 11.5.1+ and Python 3.10+ for the Python SDK. Use the following command to install 2.1.0. [Upgrade from 2.0](docs/migrations/2.0-to-2.1.en.md)
+Source development requires Node.js 22.19+, npm 11.5.1+ and Python 3.10+ for the Python SDK. Use the following command to install 2.2.0. [Upgrade from 2.1](docs/migrations/2.1-to-2.2.en.md)
 
 ```bash
-npm install -g coremind-cli@2.1.0
+npm install -g coremind-cli@2.2.0
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -164,7 +164,7 @@ Artifact import accepts only canonical ordinary files under the allowed temporar
 
 ## Provider policy
 
-CoreMind provides 43 configurable Provider entries including compatibility aliases and supports custom OpenAI-compatible endpoints. On 2.1.0, `deepseek-flash` passed 12 live checks. Seven cover streaming, tool calls, structured results, multi-turn exchanges, abort, error mapping and long context. Five cover the parent model call, delegation, child model call, child tool call and cancellation convergence. The evidence identifies the exact commit, version and Runtime tarball digest. The 0.7.0 network exception remains in the historical record. [Provider matrix](docs/providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
+CoreMind provides 43 configurable Provider entries including compatibility aliases and supports custom OpenAI-compatible endpoints. On 2.2.0, `deepseek-flash` passed 12 live checks. Seven cover streaming, tool calls, structured results, multi-turn exchanges, abort, error mapping and long context. Five cover the parent model call, delegation, child model call, child tool call and cancellation convergence. The evidence identifies the exact commit, version and Runtime tarball digest. The 0.7.0 network exception remains in the historical record. [Provider matrix](docs/providers/README.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
 Telemetry is off by default. Business-data egress requires explicit user authorization, and secrets belong in `apiKeyEnv`, not YAML.
 

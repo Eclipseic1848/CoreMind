@@ -6,6 +6,8 @@ This file records user-facing changes. Historical release records remain unchang
 
 ## 2.2.0
 
+[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [2.1 to 2.2 migration](docs/migrations/2.1-to-2.2.en.md) · [Strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
+
 - Correct workflow and Loop conditions and switch matching, and report failed durable task schema rules.
 - Add reproducible generalization evaluation with distinct engineering fixture and live DeepSeek Flash results. Clarify the existing business examples' output contracts.
 - Improve Python Worker shutdown diagnostics, tool approval and registration recovery, CLI scaffolding, and JSON evaluation output.

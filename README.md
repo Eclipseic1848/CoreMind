@@ -4,7 +4,7 @@
 
 **把智能体工程经验变成新手也能执行、团队也能复用的标准。**
 
-[![阶段](https://img.shields.io/badge/status-line%202.1.0-f59e0b)](docs/roadmap.zh-CN.md)
+[![阶段](https://img.shields.io/badge/status-line%202.2.0-f59e0b)](docs/roadmap.zh-CN.md)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
 [![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
 [![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
@@ -22,19 +22,19 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 从一个模型和一个 Agent 起步。按任务选择知识检索、Hindsight 记忆、Skill、工具或本体，再用同一份配置从 CLI、TypeScript 或 Python 运行。`document-assistant` 提供五项能力组合的参考和可重复验收。
 
-2.2.0 候选包含工作流与持久任务修复、CLI 与 Python SDK 改进、独立组件更新及 DeepSeek Flash 实测。 [2.2.0](docs/release/notes/v2.2.0.md)
+2.2.0包含工作流与持久任务修复、CLI 与 Python SDK 改进、独立组件更新及 DeepSeek Flash 实测。 [2.2.0](docs/release/notes/v2.2.0.md)
 
-> **当前正式版 2.1.0**。从自己的项目运行 CoreMind，按需加载知识、Hindsight 记忆、Skill、工具和本体。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/)
+> **当前正式版 2.2.0**。从自己的项目运行 CoreMind，按需加载知识、Hindsight 记忆、Skill、工具和本体。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.2.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.2.0/)
 
-> 知识、记忆和本体可分别安装、部署和升级。按业务需要安装 [知识 0.1.0](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/)、[记忆 0.1.0](https://pypi.org/project/coremind-memory-mcp/0.1.0/)或[本体 0.1.0](https://pypi.org/project/coremind-ontology-mcp/0.1.0/)。[按需加载指南](docs/guide/06-capability-construction.md) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)
+> 知识、记忆和本体可分别安装、部署和升级。按业务需要安装 [知识 0.1.1](https://pypi.org/project/coremind-knowledge-mcp/0.1.1/)、[记忆 0.1.1](https://pypi.org/project/coremind-memory-mcp/0.1.1/)或[本体 0.1.1](https://pypi.org/project/coremind-ontology-mcp/0.1.1/)。[按需加载指南](docs/guide/06-capability-construction.md) · [公开回装](https://github.com/Eclipseic1848/CoreMind/actions/runs/45952019764)
 
 > Provider 可配置不等于认证。本版本资格必须由绑定最终提交、版本、Runtime 摘要与 bundled Worker 的 strict-provider 工作流证据确认；生产评估还须核对供应商矩阵。
 
-[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [2.0→2.1 升级](docs/migrations/2.0-to-2.1.zh-CN.md) · [2.1 发布说明](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [1.0.1→1.2 历史升级](docs/migrations/1.0-to-1.2.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
+[5 个黄金示例](examples/golden/README.zh-CN.md) · [SOP/Skill 索引](docs/modules/SOP-SKILL-INDEX.zh-CN.md) · [2.1→2.2 升级](docs/migrations/2.1-to-2.2.zh-CN.md) · [2.2 发布说明](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0) · [1.0.1→1.2 历史升级](docs/migrations/1.0-to-1.2.zh-CN.md) · [已知限制](docs/release/KNOWN-LIMITATIONS.zh-CN.md) · [公开路线图](docs/roadmap.zh-CN.md) · [安全策略](SECURITY.md) · [社区行为准则](CODE_OF_CONDUCT.md)
 
 ## 当前仓库具备什么能力
 
-`2.1.0` 发布线坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
+`2.2.0` 发布线坚持 CLI/TUI、TypeScript SDK、Python SDK 共用同一个 Runtime 与结果语义。
 
 | 能力域 | 当前支持 |
 |---|---|
@@ -118,10 +118,10 @@ CoreMind 让没有 Agent 开发经验的工程师先走一条标准路径：
 
 ## 快速开始
 
-源码开发需要 Node.js ≥ 22.19、npm ≥ 11.5.1，Python SDK 需要 Python ≥ 3.10。按下例安装 2.1.0。[从 2.0 升级](docs/migrations/2.0-to-2.1.zh-CN.md)
+源码开发需要 Node.js ≥ 22.19、npm ≥ 11.5.1，Python SDK 需要 Python ≥ 3.10。按下例安装 2.2.0。[从 2.1 升级](docs/migrations/2.1-to-2.2.zh-CN.md)
 
 ```bash
-npm install -g coremind-cli@2.1.0
+npm install -g coremind-cli@2.2.0
 coremind providers
 coremind create my-agent --template translator --language typescript --provider alibaba-model-studio
 cd my-agent
@@ -276,7 +276,7 @@ print(result["outcome"], result["transcript"])
 
 ## Provider 策略
 
-CoreMind 提供 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。2.1.0 的 `deepseek-flash` 通过 12 项真实检查：七项基础行为覆盖流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文，另五项覆盖父模型调用、委派、子模型调用、子工具调用及取消收敛。证据绑定本次提交、版本和 Runtime 候选包摘要。0.7.0 的网络例外保留在历史记录中。[认证矩阵](docs/providers/README.zh-CN.md) · [严格认证结果](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
+CoreMind 提供 43 个可配置 Provider 入口（含兼容别名），也支持自定义 OpenAI-compatible 端点。2.2.0 的 `deepseek-flash` 通过 12 项真实检查：七项基础行为覆盖流式、工具调用、结构化结果、多轮、中止、错误映射和长上下文，另五项覆盖父模型调用、委派、子模型调用、子工具调用及取消收敛。证据绑定本次提交、版本和 Runtime 候选包摘要。0.7.0 的网络例外保留在历史记录中。[认证矩阵](docs/providers/README.zh-CN.md) · [严格认证结果](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
 默认无遥测。任何业务数据外传都必须由用户明确授权，密钥应使用 `apiKeyEnv`，不应写入 YAML。
 

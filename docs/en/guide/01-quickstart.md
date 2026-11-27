@@ -10,12 +10,12 @@ When creating a project, choose TypeScript, JavaScript, or Python. TypeScript is
 
 For an existing project or an empty directory, use the [Runtime-only configuration](06-capability-construction.md) and enable one capability when needed. The CLI example below uses the translator template.
 
-This guide uses `coremind-cli@2.1.0` from npm. For existing projects, follow the [2.0-to-2.1 upgrade and rollback guide](../../migrations/2.0-to-2.1.en.md). For earlier versions, see the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en) and [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en).
+This guide uses `coremind-cli@2.2.0` from npm. For existing projects, follow the [2.1-to-2.2 upgrade and rollback guide](../../migrations/2.1-to-2.2.en.md). For earlier versions, see the [1.4-to-2.0 migration guide](/migrations/1.4-to-2.0.en) and [historical 1.0.1-to-1.2 guide](/migrations/1.0-to-1.2.en).
 
 ```bash
-npm install --save-exact coremind-ai@2.1.0 coremind-cli@2.1.0
-npx coremind-cli@2.1.0 providers
-npx coremind-cli@2.1.0 create my-agent --template translator --language typescript --provider deepseek --model deepseek-flash
+npm install --save-exact coremind-ai@2.2.0 coremind-cli@2.2.0
+npx coremind-cli@2.2.0 providers
+npx coremind-cli@2.2.0 create my-agent --template translator --language typescript --provider deepseek --model deepseek-flash
 cd my-agent
 ```
 
@@ -31,13 +31,13 @@ DEEPSEEK_API_KEY=replace_me
 
 Credentials belong in environment variables. An embedding host may instead supply a `SecretRef` resolver; sensitive Headers, including common API-key and token aliases, cannot use plaintext literals.
 
-The example uses `deepseek-flash`, which passed strict certification for 2.1.0. Before production use, verify the Provider, model, credentials and deployment environment you will actually use. [Provider matrix](/providers/README.en) · [2.1.0 strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45739932680)
+The example uses `deepseek-flash`, which passed strict certification for 2.2.0. Before production use, verify the Provider, model, credentials and deployment environment you will actually use. [Provider matrix](/providers/README.en) · [2.2.0 strict qualification](https://github.com/Eclipseic1848/CoreMind/actions/runs/45939479096)
 
 ## 4. Validate before running
 
 ```bash
-npx coremind-cli@2.1.0 doctor coremind.yaml
-npx coremind-cli@2.1.0 check coremind.yaml
+npx coremind-cli@2.2.0 doctor coremind.yaml
+npx coremind-cli@2.2.0 check coremind.yaml
 ```
 
 `doctor` reports the environment and `check` validates the project configuration. You can run both checks before sending a model request.
@@ -45,7 +45,7 @@ npx coremind-cli@2.1.0 check coremind.yaml
 ## 5. Run interactively
 
 ```bash
-npx coremind-cli@2.1.0 chat coremind.yaml
+npx coremind-cli@2.2.0 chat coremind.yaml
 ```
 
 Start with the ask permission mode. Review every requested operation until you understand the tool and data boundaries.
