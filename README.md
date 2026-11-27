@@ -1,6 +1,20 @@
+<div align="center">
+
 # CoreMind（星枢智核）
 
-[English](README.en.md) · [中文文档](https://eclipseic1848.github.io/CoreMind/) · [快速开始](docs/guide/01-quickstart.md) · [最新发布](https://github.com/Eclipseic1848/CoreMind/releases/latest)
+**把智能体工程经验变成新手也能执行、团队也能复用的标准。**
+
+[![阶段](https://img.shields.io/badge/status-line%202.2.0-f59e0b)](docs/roadmap.zh-CN.md)
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.19-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![平台](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2563eb)](SECURITY.md)
+[![文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87%20%7C%20English-7c3aed)](docs/index.md)
+[![许可证](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
+
+CLI/TUI · TypeScript SDK · Python SDK · 配置驱动 · Harness/Loop · SOP/Skill
+
+[快速开始](docs/guide/01-quickstart.md) · [在线文档](https://eclipseic1848.github.io/CoreMind/) · [仓库文档](docs/index.md) · [功能模块](docs/modules/README.zh-CN.md) · [供应商矩阵](docs/providers/README.zh-CN.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
+
+</div>
 
 CoreMind 是面向业务项目的智能体框架。你可以先用一个模型和一份 `coremind.yaml` 跑通任务，再按需接入知识检索、Hindsight 记忆、Skill、工具或本体。CLI/TUI、TypeScript SDK 和 Python 同步、异步 SDK 共用同一个 Node.js Runtime，执行相同的权限、预算和恢复规则。
 
