@@ -1,8 +1,16 @@
 # CoreMind 安全策略
 
-安全问题需要私下处理。本页说明如何报告漏洞，以及当前稳定版与开发源码明确提供和不提供的安全边界。
+发现可能影响 CoreMind 用户的漏洞时，请登录 GitHub 并提交[私密漏洞报告](https://github.com/Eclipseic1848/CoreMind/security/advisories/new)。维护者会在报告中与你联系。
 
 [English](SECURITY.en.md)
+
+## 报告时请提供
+
+- 受影响的包名、安装版本和分发渠道。从源码运行时请提供提交 SHA。若使用独立 MCP 服务，请列出客户端及服务端版本、传输方式，并附上脱敏后的错误信息。
+- 操作系统、必要配置、授权范围、最小复现步骤和实际影响。使用合成数据，删除 API 密钥、Bearer 令牌、个人信息和业务数据。
+- 已向哪些第三方披露（如有）。如无法打开表单，可在公开 Issue 里仅请求私密联系方式，取得后再交换细节。
+
+维护者会尽快确认收到报告、核实影响并协商披露时间。具体响应时间取决于报告情况。
 
 ## 支持范围
 
@@ -13,23 +21,11 @@
 | 更早的 Alpha/Beta/RC 版本 | 不保证；通常要求升级后复测 |
 | 未发布分支或个人 Fork | 不在项目支持范围内 |
 
-正式版本以 [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) 为准。报告 2.1.0 或独立组件的问题时，请注明客户端与组件的包名和版本、分发渠道，以及所用源码提交 SHA（如适用）。
+CoreMind 2.2.0 的 CLI、TypeScript SDK 和 Python SDK 使用同一版本号。独立知识、记忆和本体服务各自发布为 0.1.1。[2.2.0 发布清单](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0)
 
-## 开发源码的依赖安全
+## 依赖安全
 
-早期候选的底层运行库 1.3.0 及其固定的 minimatch 10.2.6、Undici 8.10.2 曾有精确风险接受，原决定见 [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484)。
-
-[#379](https://github.com/Eclipseic1848/CoreMind/issues/379) 将底层运行库依赖族统一升级至 1.5.0，并采用官方传递版本 minimatch 11.0.3 和 Undici 8.12.3。这两个版本超出 #359 登记的九条公告影响范围，相应接受项已从[审计策略](.github/security-audit-policy.json)移除。发布门禁须核对无仓库 overrides 的 npm 消费者安装图。
-
-`npm run security:audit` 分别检查生产和完整依赖。本开发分支已将锁定的开发依赖 node-forge 更新至 1.4.3，并清除了 2026-11-14 到期的全部例外。当前策略要求两次审计均无发现。今后登记例外必须指定有效到期日。未登记的风险、网络错误及损坏报告都会阻断。
-
-## 私下报告漏洞
-
-登录 GitHub，在仓库 Security 页面选择 **Report a vulnerability**，或直接打开[私密漏洞报告表单](https://github.com/Eclipseic1848/CoreMind/security/advisories/new)。维护者通过该报告与你核对细节。若无法使用表单，可在[问题入口](https://github.com/Eclipseic1848/CoreMind/issues/new/choose)仅请求私密联系方式；漏洞细节只在确认的私密渠道内交换。
-
-报告请提供受影响版本、平台、必要前置条件、最小复现和实际影响。如已向第三方披露，请注明披露范围。独立 MCP 服务的问题请附所用传输、授权范围和脱敏后的错误。日志和示例使用合成资料，删除 API 密钥、Bearer 令牌、个人信息及业务数据。
-
-维护者会尽快确认收到报告、验证影响并协商披露时间；这是响应目标，不是服务等级承诺。
+在仓库根目录运行 `npm run security:audit`，分别审计生产依赖和完整依赖树。当前策略要求两次审计均无发现。例外须逐项登记并设置到期日，未登记的风险、网络错误或不完整的报告都会阻断审计。发布前还须核对未使用仓库 overrides 的 npm 安装结果。[审计策略](.github/security-audit-policy.json)
 
 ## 当前安全边界
 
@@ -37,7 +33,7 @@
 
 `ask`、`assisted` 和 `full` 控制审批策略，但不会把高风险工具自动变安全。显式拒绝、工作区路径限制、审计、Trace、预算、checkpoint、Effect Receipt 和恢复检查仍优先执行。首次运行陌生项目时应选择 `ask`。
 
-### 项目脚本加载（自 1.2.0 起）
+### 项目脚本加载
 
 配置驱动 Runtime 在任何项目脚本 import 前要求宿主单批明确批准；CLI 非 TTY 需显式 `--trust-project-code`，Python 需显式 `trust_project_code=True`。脚本与传递依赖的顶层代码按宿主权限执行；入口路径/摘要批准不是 OS 沙箱或整个依赖图的不可变证明，也不能消除同权限外部进程的检查后替换。加载同意不授予工具执行权限，`full` 和质量 override 不替代该决定。`doctor` / `check` 不加载项目脚本；直接调用低层工具加载 API 由调用者承担来源信任。详见 [1.2 迁移](docs/migrations/1.0-to-1.2.zh-CN.md)。
 
@@ -45,10 +41,14 @@
 
 - Linux：内置 `bash` 在操作系统级隔离中运行，固定禁止网络、仅允许写工作区，并在隔离不可用时拒绝执行，不回退宿主 Shell。该能力的关键依赖仍处于研究预览阶段。
 - Linux 的 `web-fetch` / `web-search` 使用单独声明的宿主网络域；仍受工具授权与 network 策略控制，不声称受到 Shell 的断网沙箱保护。Child Run 只要启用这些工具，就必须另外满足该网络域的实际能力要求。取消会等待父环境与网络活动共同收尾。
-- Windows：一期没有与 Linux 对等的操作系统级 Shell 隔离。宿主 Shell 只有在 `mode: full`、`workspaceOnly: false`、`network: allow` 三项同时明确选择时开放；其他组合全部拒绝并提示改用路径感知文件工具或隔离的 Linux 环境。发现 Git Bash 只解决命令解释器兼容性，不提供隔离。即使开放 Shell，显式 deny、Trace、Checkpoint、Diff、审计和恢复仍然生效。
+- Windows 的 Trusted Host 直接使用宿主环境。宿主 Shell 只有在 `mode: full`、`workspaceOnly: false`、`network: allow` 三项同时明确选择时开放；其他组合全部拒绝并提示改用路径感知文件工具或隔离的 Linux 环境。发现 Git Bash 只解决命令解释器兼容性，不提供隔离。即使开放 Shell，显式 deny、Trace、Checkpoint、Diff、审计和恢复仍然生效。
 - 自定义 TypeScript/Python/脚本工具：必须声明 `effect.operations`、`effect.reversible` 和非标准目标字段；不会自动获得操作系统隔离。工具作者仍负责输入校验、最小权限、超时、幂等和副作用控制。
 
 不要运行来源不明的配置、Skill、脚本或工具定义。
+
+### 独立 MCP 服务
+
+知识服务按读者可见范围分别部署进程和凭据。记忆服务的应用端使用只读令牌，管理操作使用独立凭据。本体查询和业务动作也使用不同令牌，写入需要经过批准的业务处理器并保存持久回执。[知识](components/knowledge/README.md) · [记忆](components/memory/README.md) · [本体](components/ontology/README.md)
 
 ### 执行环境能力证据
 

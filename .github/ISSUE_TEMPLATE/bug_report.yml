@@ -8,7 +8,7 @@ body:
       value: "安全问题请使用 [私密漏洞报告表单](https://github.com/Eclipseic1848/CoreMind/security/advisories/new)。"
   - type: input
     id: version
-    attributes: { label: CoreMind 版本, placeholder: "例如 2.0.0；源码或候选请同时填写提交 SHA" }
+    attributes: { label: CoreMind 版本, placeholder: "填写受影响的包名和版本号；源码或候选构建请同时填写提交 SHA" }
     validations: { required: true }
   - type: input
     id: environment

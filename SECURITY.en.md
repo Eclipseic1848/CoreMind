@@ -1,8 +1,16 @@
 # CoreMind Security Policy
 
-Security issues must be handled privately. This page describes responsible reporting and the explicit boundaries of the current stable release and development source.
+If you find a vulnerability that could affect CoreMind users, sign in to GitHub and submit a [private vulnerability report](https://github.com/Eclipseic1848/CoreMind/security/advisories/new). Maintainers will follow up within the report.
 
 [简体中文](SECURITY.md)
+
+## What to include
+
+- The affected package names, installed versions and distribution channel. For a source installation, include the commit SHA. For a standalone MCP service, provide the client and service versions, transport and a redacted error.
+- The operating system, relevant configuration, authorization scope, minimal reproduction steps and observed impact. Use synthetic data. Remove API keys, bearer tokens, personal information and business data.
+- Any prior disclosure to third parties. If you cannot open the form, use a public issue only to request a private contact channel. Share vulnerability details through the confirmed private channel.
+
+Maintainers aim to acknowledge the report, verify its impact and coordinate disclosure.
 
 ## Supported versions
 
@@ -13,23 +21,13 @@ Security issues must be handled privately. This page describes responsible repor
 | Older alpha, beta, or RC versions | Not guaranteed; upgrade and retest first |
 | Unreleased branches or personal forks | Outside project support |
 
-Check [GitHub Releases](https://github.com/Eclipseic1848/CoreMind/releases/latest) for the current stable version. For 2.1.0 or a standalone component, include the client and component package names and versions, distribution channel, and source commit SHA when applicable.
+The CoreMind 2.2.0 CLI, TypeScript SDK and Python SDK share the same version. The standalone knowledge, memory and ontology services each ship as 0.1.1. [2.2.0 release artifacts](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.2.0)
 
-## Dependency security in the development source
+## Dependency security
 
-Earlier candidates used underlying runtime 1.3.0 with pinned minimatch 10.2.6 and Undici 8.10.2 under the narrowly scoped risk acceptance recorded in [#359](https://github.com/Eclipseic1848/CoreMind/issues/359#issuecomment-6558865484).
+Run `npm run security:audit` from the repository root to check both production and full dependency trees. Current policy requires zero findings in both. Exceptions must be individually recorded with an expiry date. Unregistered findings, network failures and incomplete reports block the audit. Release qualification also checks an npm consumer install without repository overrides. [Audit policy](.github/security-audit-policy.json)
 
-[#379](https://github.com/Eclipseic1848/CoreMind/issues/379) upgrades the underlying runtime dependency family to 1.5.0 and uses its official transitive versions minimatch 11.0.3 and Undici 8.12.3. Both versions fall outside all nine advisory ranges recorded in #359. The corresponding acceptances are removed from the [audit policy](.github/security-audit-policy.json). Release qualification must check an npm consumer install without repository overrides.
-
-`npm run security:audit` checks production and complete dependency trees. This development branch updates the locked node-forge development dependency to 1.4.3 and removes every exception that expired on 2026-11-14. The current policy requires both audits to have zero findings. Future exceptions require a valid expiry date. Unregistered findings, network failures, and malformed reports block the audit.
-
-## Report privately
-
-Sign in to GitHub and choose **Report a vulnerability** on the repository Security page, or open the [private reporting form](https://github.com/Eclipseic1848/CoreMind/security/advisories/new) directly. Maintainers can follow up within that report. If you cannot access it, use the [issue chooser](https://github.com/Eclipseic1848/CoreMind/issues/new/choose) only to request a private contact channel. Share vulnerability details through the confirmed private channel.
-
-Include the affected version, platform, prerequisites, minimal reproduction, impact, and any prior disclosure. For an independent MCP service, include the transport, authorization scope and a redacted error. Use synthetic data in logs and examples. Remove API keys, bearer tokens, personal information and business data. Maintainers aim to acknowledge the report, validate its impact and coordinate disclosure.
-
-## Project script loading (since 1.2.0)
+## Project script loading
 
 Configuration-driven Runtime requires explicit host approval of the complete batch before any project script import. Non-TTY CLI use requires `--trust-project-code`; Python requires `trust_project_code=True`. Top-level code and transitive dependencies run with host privileges. Entry path/hash approval is not an OS sandbox or an immutable dependency graph and cannot eliminate replacement races by host-privileged external processes. Loading approval grants no tool execution permissions; `full` and quality overrides cannot replace it. `doctor` and `check` do not load project scripts. Direct low-level loader callers own source trust. See the [1.2 migration](docs/migrations/1.0-to-1.2.en.md).
 
@@ -37,7 +35,7 @@ Configuration-driven Runtime requires explicit host approval of the complete bat
 
 - Permission modes control approval behavior; they do not make risky tools inherently safe. Explicit deny rules, workspace restrictions, budgets, traces, checkpoints, effect receipts, and resume checks remain active even in `full`. Start unfamiliar work in `ask` mode.
 - On Linux, the built-in shell can run inside OS-level isolation with networking denied and writes restricted to the workspace. Execution fails closed when isolation is unavailable. A critical isolation dependency is still a research preview.
-- Phase one has no Linux-equivalent OS shell sandbox on Windows. The host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected explicitly. Every other combination is denied with guidance to use path-aware file tools or an isolated Linux environment. Discovering Git Bash provides command-interpreter compatibility, not isolation. Explicit deny rules, trace, checkpoints, diffs, audit, and restore remain active even when the shell is open.
+- Windows Trusted Host runs directly on the host. The host shell opens only when `mode: full`, `workspaceOnly: false`, and `network: allow` are all selected explicitly. Every other combination is denied with guidance to use path-aware file tools or an isolated Linux environment. Discovering Git Bash provides command-interpreter compatibility, not isolation. Explicit deny rules, trace, checkpoints, diffs, audit, and restore remain active even when the shell is open.
 - Custom TypeScript, Python, and script tools must declare operations, reversibility, and non-standard target fields. They do not automatically receive OS isolation, and authors still own validation, least privilege, timeouts, idempotency, and side-effect control.
 - CoreMind observes actual execution capabilities through ExecutionEnvironment probes; platform names, adapter labels, configuration fields, and historical tests are not substitutes for current-process evidence. Linux negatively probes outside-workspace writes, sensitive environment hiding, network denial, and complete process-tree termination. Missing, overstated, or insufficient evidence fails closed. Windows Trusted Host reports that it is not a sandbox and cannot satisfy isolation or controlled-egress requirements.
 - AgentDriver isolates only the model reactive loop. It cannot write authoritative facts, decide recovery, or bypass the single ToolExecutionEngine. Processes, network calls, and temporary resources participate in Quiescent, and failed cancellation cleanup cannot be projected as successful quiescence.
@@ -60,3 +58,7 @@ Redaction is not data isolation. Sessions, checkpoints, quality override logs, a
 Released security hardening: built-in file approval, checkpoints, and execution share a resolved target and recheck before execution. This is not an OS sandbox and cannot eliminate filesystem races from a malicious host process. Git tools require Git 2.36+, disable fsmonitor and external diff/textconv execution, and restrict default reads to the working directory; repository configuration is not trusted code.
 
 Linux `web-fetch` and `web-search` use an explicitly declared host network environment, still subject to tool authorization and network policy. They do not claim the Shell sandbox's network isolation. A Child Run enabling either tool must satisfy the actual host network environment's complete capability requirements. Cancellation waits for both parent and network activities to settle.
+
+## Standalone MCP services
+
+Deploy a separate knowledge process and credential for each reader scope. Memory clients use a read token. Administrative operations use separate credentials. The ontology service uses different tokens for queries and business actions. Writes require an approved handler and durable receipts. [Knowledge](components/knowledge/README.md) · [Memory](components/memory/README.md) · [Ontology](components/ontology/README.md)

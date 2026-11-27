@@ -72,7 +72,7 @@ function zhTheme(): DefaultTheme.Config {
       { text: "功能模块", link: "/modules/README.zh-CN" },
       { text: "供应商", link: "/providers/README.zh-CN" },
       { text: "发布验收", link: "/release/RC-ACCEPTANCE.zh-CN" },
-      { text: "升级至 2.0", link: "/migrations/1.4-to-2.0.zh-CN" },
+      { text: "升级至 2.2", link: "/migrations/2.1-to-2.2.zh-CN" },
       { text: "路线图", link: "/roadmap.zh-CN" },
     ],
     sidebar: {
@@ -109,7 +109,7 @@ function enTheme(): DefaultTheme.Config {
       { text: "Modules", link: "/en/modules/README.en" },
       { text: "Providers", link: "/providers/README.en" },
       { text: "Release acceptance", link: "/release/RC-ACCEPTANCE.en" },
-      { text: "Upgrade to 2.0", link: "/migrations/1.4-to-2.0.en" },
+      { text: "Upgrade to 2.2", link: "/migrations/2.1-to-2.2.en" },
       { text: "Roadmap", link: "/roadmap.en" },
     ],
     sidebar: {

@@ -1,6 +1,6 @@
 # 社区行为准则
 
-CoreMind 希望建立一个专业、友善、可学习的开源社区。参与 Issue、讨论、代码评审、文档、活动或其他项目空间，即表示你同意遵守本准则。
+本准则适用于 CoreMind 的 Issue、Pull Request、代码评审、文档和其他项目空间，也适用于代表 CoreMind 参加公开活动的行为。
 
 [English](docs/en/community-code-of-conduct.md)
 
@@ -16,10 +16,12 @@ CoreMind 希望建立一个专业、友善、可学习的开源社区。参与 I
 
 骚扰、歧视、威胁、跟踪、羞辱、人身攻击、未经允许公开隐私信息、恶意破坏、垃圾推广，以及任何让他人无法安全参与的行为均不可接受。
 
-## 执行
+## 报告骚扰或滥用
 
-报告 GitHub 上的骚扰或滥用时，保留相关讨论或评论的链接。打开该内容的菜单，按 GitHub 提供的选项将报告发送给仓库管理员或 GitHub Support。需要私下向维护者说明时，先请求私密联系方式，取得后再分享必要证据。公开帖子中请保护当事人的身份和个人信息。[GitHub 举报说明](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+保存相关 Issue、Pull Request 或评论的链接。在内容右上角的菜单中选择 **Report content**，按页面提供的选项向仓库管理员或 GitHub Support 举报。若菜单中没有举报选项，可通过 GitHub 举报说明里的联系表单向 GitHub Support 提交。需要向维护者提供证据时，请通过已确认的私密渠道发送。公开帖子中请保护当事人的身份和个人信息。[GitHub 中文举报说明](https://docs.github.com/zh/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
 
-维护者会根据严重程度采取提醒、内容编辑、临时限制或永久禁止参与等措施。产品安全漏洞请按[安全策略](SECURITY.md)报告。
+产品安全漏洞请使用仓库的私密漏洞报告入口。[安全策略](SECURITY.md)
 
-本准则适用于所有项目空间，也适用于代表 CoreMind 参与公开活动的行为。
+## 处理方式
+
+维护者会根据严重程度采取提醒、内容编辑、临时限制或永久禁止参与等措施。

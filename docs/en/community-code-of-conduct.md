@@ -1,13 +1,23 @@
 # Code of Conduct
 
-CoreMind aims to maintain a professional, welcoming, and learnable open-source community. Participation in issues, discussions, reviews, documentation, events, or other project spaces means agreeing to this policy.
+This policy covers CoreMind issues, pull requests, code reviews, documentation and other project spaces. It also applies when someone represents CoreMind at a public event.
 
-[简体中文](../../CODE_OF_CONDUCT.md)
+[简体中文](https://github.com/Eclipseic1848/CoreMind/blob/main/CODE_OF_CONDUCT.md)
 
-We encourage evidence-based discussion, patient context for newcomers, respect across backgrounds and viewpoints, protection of private information, and disclosure of conflicts of interest.
+## Expected behavior
+
+Discuss the evidence, give newcomers context, respect people with different backgrounds and viewpoints, protect private information, and disclose conflicts of interest. Respect reasonable maintainer decisions about safety, scope and community health.
+
+## Unacceptable behavior
 
 Harassment, discrimination, threats, stalking, humiliation, personal attacks, publication of private information, sabotage, spam, and behavior that prevents safe participation are not acceptable.
 
-To report harassment or abuse on GitHub, save the relevant discussion or comment link. Open its menu and use the available reporting option to contact repository administrators or GitHub Support. To speak privately with a maintainer, ask for a private contact channel before sharing evidence. Keep participants’ identities and personal information out of public posts. [GitHub reporting instructions](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+## Report harassment or abuse
 
-Depending on severity, maintainers may issue a warning, edit content, restrict participation, or permanently remove a participant. This policy also applies when someone represents CoreMind at a public event. Report product vulnerabilities through the [security policy](../../SECURITY.en.md).
+Save the link to the issue, pull request or comment. Open its menu, select **Report content** and follow the available option to contact repository administrators or GitHub Support. If the menu has no reporting option, use the contact form in GitHub’s reporting instructions to reach GitHub Support. Share evidence with maintainers through a confirmed private channel. Keep participants’ identities and personal information out of public posts. [GitHub reporting instructions](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)
+
+Report product vulnerabilities through the repository’s private reporting form. [Security policy](https://github.com/Eclipseic1848/CoreMind/blob/main/SECURITY.en.md)
+
+## Enforcement
+
+Depending on severity, maintainers may issue a warning, edit content, temporarily restrict participation or permanently remove a participant.
