@@ -32,6 +32,22 @@ def _load_example_module():
 
 
 class PythonDataAnalysisGoldenTest(unittest.TestCase):
+    def test_nonfinite_sales_preserve_previous_json(self) -> None:
+        module = _load_example_module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "summary.json"
+            for amounts in [["NaN"], ["Infinity"], ["-Infinity"], ["1e308", "1e308"]]:
+                with self.subTest(amounts=amounts):
+                    (root / "sales.csv").write_text(
+                        "region,amount\n" + "".join(f"东区,{amount}\n" for amount in amounts),
+                        encoding="utf-8",
+                    )
+                    output.write_text("{}", encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        module.analyze_sales_file("sales.csv", root, "summary.json")
+                    self.assertEqual(output.read_text(encoding="utf-8"), "{}")
+
     def test_deterministic_csv_analysis_writes_workspace_artifact(self) -> None:
         module = _load_example_module()
         with tempfile.TemporaryDirectory(prefix="coremind-golden-data-") as directory:

@@ -182,14 +182,21 @@ class OntologyProject:
             except Exception:
                 receipt = None
             result = dict(unknown)
+            prepared = None
             if isinstance(receipt, dict) and all(receipt.get(key) == value for key, value in expected.items()):
                 if receipt.get("status") == "completed" and receipt.get("state") == command["expectedState"]:
                     try:
-                        self.graph.set_state(resource, command["stateProperty"], receipt["state"])
+                        candidate, validation = self.graph.prepare_state(
+                            resource, command["stateProperty"], receipt["state"],
+                        )
                     except Exception:
                         result["reason"] = "effect_projection_failed"
                     else:
-                        result = {**command, "status": "completed", "state": receipt["state"]}
+                        if validation["status"] == "conforms":
+                            prepared = candidate
+                            result = {**command, "status": "completed", "state": receipt["state"]}
+                        else:
+                            result["reason"] = "effect_projection_failed"
                 elif receipt.get("status") == "failed" and receipt.get("state") == command["previousState"]:
                     result = {**command, "status": "failed", "state": receipt["state"]}
             if self._journal is not None:
@@ -197,6 +204,8 @@ class OntologyProject:
                     self._journal.finish(result)
                 except sqlite3.Error:
                     return dict(unknown)
+            if prepared is not None:
+                self.graph.publish_state(prepared)
             if result["status"] != "unknown":
                 self._pending.discard(resource)
             self._requests[request_id] = (action, resource, result)

@@ -12,6 +12,7 @@ import uvicorn
 from markdown_it import MarkdownIt
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -98,18 +99,18 @@ def make_app(catalog, scope, as_of, token):
     mcp = FastMCP("CoreMind Knowledge", stateless_http=True, json_response=True)
 
     @mcp.tool(structured_output=False)
-    def search_knowledge(query: Annotated[str, Field(min_length=1, max_length=500)]) -> str:
+    async def search_knowledge(query: Annotated[str, Field(min_length=1, max_length=500)]) -> str:
         """查找可参考的资料片段并附版本与来源位置。相似片段只是候选证据。表格行按 tableHeader 解释列值，引用数据行。"""
         if not query.strip():
             raise ValueError("查询不能为空")
-        matches = catalog.search(query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
+        matches = await run_in_threadpool(catalog.search, query.strip(), scope=scope, as_of=as_of, limit=5, mode="sparse")
         fields = {"docId", "version", "file", "line", "locator", "chunkId", "text", "tableHeader"}
         citations = [{key: value for key, value in row.items() if key in fields} for row in matches]
         return json.dumps({"citations": citations}, ensure_ascii=False)
 
     @mcp.tool(structured_output=False)
-    def resolve_citation(
-        docId: Annotated[str, Field(min_length=1, max_length=200)],
+    async def resolve_citation(
+        docId: Annotated[str, Field(min_length=1)],
         version: Annotated[int, Field(ge=1)],
         file: Annotated[str, Field(min_length=1, max_length=200)],
         line: Annotated[int | None, Field(ge=1)] = None,
@@ -118,8 +119,9 @@ def make_app(catalog, scope, as_of, token):
     ) -> str:
         """回查原文。使用检索返回的 chunkId 或 Markdown 行号。旧位置匹配多段时报告歧义。"""
         return json.dumps(
-            catalog.resolve(
-                docId.strip(), version, file, line=line, locator=locator,
+            await run_in_threadpool(
+                catalog.resolve,
+                docId, version, file, line=line, locator=locator,
                 scope=scope, as_of=as_of, chunk_id=chunkId,
             ),
             ensure_ascii=False,
@@ -188,7 +190,7 @@ def main(*, legacy_manifest=None):
         doc_id, separator, version = item.rpartition(":")
         if not separator or not doc_id.strip() or not version.isascii() or not version.isdigit() or int(version) < 1:
             parser.error("--withdraw 需要 DOC:VERSION，版本必须为正整数")
-        withdrawals.append((doc_id.strip(), int(version)))
+        withdrawals.append((doc_id, int(version)))
     from .retrieval import KnowledgeIndex
 
     as_of, records = load_corpus(args.manifest)

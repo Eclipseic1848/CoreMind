@@ -4,6 +4,10 @@ CoreMind helps newcomers and application engineers build reliable business agent
 
 This public roadmap describes product boundaries and intended directions. It deliberately excludes internal schedules, acceptance records, and maintainer working notes. Priorities may change as real users and community contributors provide feedback.
 
+## 2.2.0 candidate
+
+[Engineering fixes and evaluation](./release/notes/v2.2.0.md)
+
 ## Public stable release `2.1.0`
 
 Start with the Runtime in your own project. Add knowledge, Hindsight memory, Skills, tools and ontology when needed. Pin the CLI and SDKs to `2.1.0`. The three optional services are available separately at `0.1.0`. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [Upgrade from 2.0 or roll back](migrations/2.0-to-2.1.en.md)

@@ -54,6 +54,17 @@ function legacyMessage(id: string, parentId: string | null, text: string): Recor
 }
 
 describe("CoreMindSession（二期会话树存储）", () => {
+  it("按 ID 打开、新建只读取目标日志，目标头损坏仍报错", async () => {
+    const dir = makeDir();
+    const damaged = await CoreMindSession.open({ dir, cwd, sessionId: "prefix_healthy" });
+    writeFileSync(damaged.filePath, "", "utf8");
+    const opts = { dir, cwd, sessionId: "healthy" };
+    expect((await CoreMindSession.open(opts)).isNew).toBe(true);
+    expect((await CoreMindSession.open(opts)).isNew).toBe(false);
+    await expect(CoreMindSession.open({ ...opts, sessionId: "prefix_healthy" })).rejects.toThrow(
+      "header",
+    );
+  });
   it("同一持有者的并发追加仍有序完成，纯读打开不长期占用写身份", async () => {
     const dir = makeDir();
     const opts = { dir, sessionId: "one-holder", cwd };

@@ -21,7 +21,7 @@ from types import UnionType
 from typing import Any, Awaitable, Callable, Mapping, Sequence, TypedDict, Union, get_args, get_origin, get_type_hints
 from urllib.parse import parse_qsl, urlsplit
 
-from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError
+from .errors import CoreMindError, ProtocolError, WorkerExitedError, WorkerNotFoundError, WorkerShutdownError
 from ._session_management import validate_management_error, validate_management_result
 
 PROTOCOL_VERSION = "1.0"
@@ -73,6 +73,8 @@ class CoreMindClient:
         self._event_stop = threading.Event()
         self.event_handler_error: CoreMindError | None = None
         self._approval_handler = approval_handler
+        self.approval_handler_error: str | None = None
+        self.approval_submission_error: str | None = None
         self._mcp_auth_handler = mcp_auth_handler
         self._mcp_auth_waiters: dict[str, dict[str, Any]] = {}
         self._request_timeout = request_timeout
@@ -91,6 +93,7 @@ class CoreMindClient:
         self._capabilities: frozenset[str] = frozenset()
         self._pending_resumes: dict[str, dict[str, Any]] = {}
         self._tools: dict[str, tuple[Callable[..., Any], dict[str, Any]]] = {}
+        self._unconfirmed_tools: set[str] = set()
         self.received_events: list[Mapping[str, Any]] = []
         self.received_tool_calls: list[Mapping[str, Any]] = []
         self.received_tool_cancellations: list[Mapping[str, Any]] = []
@@ -617,17 +620,29 @@ class CoreMindClient:
 
         def decorator(function: Callable[..., Any]) -> Callable[..., Any]:
             tool_name = name or function.__name__
-            if tool_name in self._tools:
-                raise CoreMindError(f"Python 工具 {tool_name} 已注册")
-            spec = {
-                "name": tool_name,
-                "description": description or inspect.getdoc(function) or tool_name,
-                "parameters": dict(parameters) if parameters else _schema_from_callable(function),
-                "effect": _normalize_tool_effect(effect),
-            }
-            self._tools[tool_name] = (function, spec)
-            if self._started:
-                self._register_tool_spec(spec)
+            with self._lifecycle_lock:
+                if tool_name in self._unconfirmed_tools:
+                    raise CoreMindError(f"Python 工具 {tool_name} 的远端注册结果未确认")
+                if tool_name in self._tools:
+                    raise CoreMindError(f"Python 工具 {tool_name} 已注册")
+                spec = {
+                    "name": tool_name,
+                    "description": description or inspect.getdoc(function) or tool_name,
+                    "parameters": dict(parameters) if parameters else _schema_from_callable(function),
+                    "effect": _normalize_tool_effect(effect),
+                }
+                self._tools[tool_name] = (function, spec)
+                if self._started:
+                    try:
+                        self._register_tool_spec(spec)
+                    except Exception as error:
+                        if isinstance(error, ProtocolError) and error.coremind_code in {
+                            "worker_busy", "worker_closed", "not_initialized", "invalid_tool",
+                        }:
+                            self._tools.pop(tool_name)
+                        else:
+                            self._unconfirmed_tools.add(tool_name)
+                        raise
             return function
 
         return decorator
@@ -672,29 +687,64 @@ class CoreMindClient:
         return _validate_tool_result_receipt(self._request_raw("tool_result", params), params)
 
     def close(self) -> None:
-        """关闭 worker；可重复调用。"""
+        """关闭 worker；失败抛出 WorkerShutdownError，再次关闭无需重复清理。"""
 
         with self._lifecycle_lock:
             if self._closed:
                 return
-            if (
-                self._protocol_version == PROTOCOL_VERSION
-                and self._process
-                and self._process.poll() is None
-            ):
-                try:
-                    self._request_raw("close", {}, timeout=5.0)
-                except CoreMindError:
-                    pass
             self._closed = True
             self._started = False
-            self._terminate_process()
+            process = self._process
+            if process is None:
+                self._terminate_process()
+                return
+            reason = None
+            rpc_error = None
+            try:
+                if process.poll() is not None:
+                    reason = "exit_failed"
+                elif self._protocol_version == PROTOCOL_VERSION:
+                    # Worker 的静止等待本身最多 5 秒，留出协议交付时间。
+                    response = self._request_raw("close", {}, timeout=6.0)
+                    if response.get("closed") is not True:
+                        reason = "invalid_receipt"
+                    elif response.get("quiescent") is False:
+                        reason = "not_quiescent"
+                    elif response.get("quiescent", True) is not True:
+                        reason = "invalid_receipt"
+            except (CoreMindError, OSError, ValueError) as error:
+                reason = "rpc_failed"
+                rpc_error = error
+            finally:
+                try:
+                    exited_naturally = self._terminate_process()
+                except (OSError, ValueError, subprocess.SubprocessError) as error:
+                    raise WorkerShutdownError(
+                        "CoreMind worker 清理失败", reason="cleanup_failed",
+                        returncode=process.poll(),
+                    ) from error
+            returncode = process.poll()
+            if reason is None:
+                if not exited_naturally:
+                    reason = "exit_timeout"
+                elif returncode != 0:
+                    reason = "exit_failed"
+            if reason is not None:
+                raise WorkerShutdownError(
+                    f"CoreMind worker 关闭失败（{reason}，退出码 {returncode}）",
+                    reason=reason, returncode=returncode,
+                ) from rpc_error
 
     def __enter__(self) -> "CoreMindClient":
         return self.start()
 
-    def __exit__(self, _type: object, _value: object, _traceback: object) -> None:
-        self.close()
+    def __exit__(self, _type: object, value: BaseException | None, _traceback: object) -> None:
+        try:
+            self.close()
+        except WorkerShutdownError as error:
+            if value is None:
+                raise
+            _record_shutdown_error(value, error)
 
     def _initialize_params(self) -> dict[str, Any]:
         params: dict[str, Any] = {"protocolVersion": PROTOCOL_VERSION}
@@ -756,7 +806,9 @@ class CoreMindClient:
             )
 
     def _register_tool_spec(self, spec: Mapping[str, Any]) -> None:
-        self._request_raw("register_tool", dict(spec))
+        result = self._request_raw("register_tool", dict(spec))
+        if result.get("registered") != spec["name"]:
+            raise CoreMindError("Worker 未确认所请求的工具注册")
 
     def _request_raw(
         self,
@@ -993,8 +1045,13 @@ class CoreMindClient:
     ) -> None:
         try:
             decision = self._approval_handler(event) if self._approval_handler else "deny"
-            if decision not in {"allow", "deny"}:
+            if decision not in ("allow", "deny"):
                 decision = "deny"
+        except Exception as error:
+            self.approval_handler_error = f"approval_handler 回调失败：{type(error).__name__}"
+            self._stderr_tail.append(self.approval_handler_error)
+            decision = "deny"
+        try:
             approval_id = str(event["approvalId"])
             if self._protocol_version == PROTOCOL_V2_VERSION:
                 command = {
@@ -1005,7 +1062,10 @@ class CoreMindClient:
                     "approvalId": approval_id,
                     "decision": decision,
                 }
-                _validate_control_receipt(self._request_raw("control", command), command)
+                receipt = _validate_control_receipt(self._request_raw("control", command), command)
+                if receipt["status"] in {"rejected", "conflict"}:
+                    self.approval_submission_error = f"审批决定提交失败：{receipt['status']}"
+                    self._stderr_tail.append(self.approval_submission_error)
                 return
             self._request_raw(
                 "approve",
@@ -1015,8 +1075,10 @@ class CoreMindClient:
                     "decision": decision,
                 },
             )
-        except CoreMindError as error:
-            self._stderr_tail.append(str(error))
+        except (CoreMindError, OSError, ValueError, KeyError) as error:
+            code = error.coremind_code if isinstance(error, ProtocolError) else None
+            self.approval_submission_error = f"审批决定提交失败：{code or type(error).__name__}"
+            self._stderr_tail.append(self.approval_submission_error)
 
     def _execute_python_tool(self, params: Mapping[str, Any]) -> None:
         call_id = str(params.get("callId", ""))
@@ -1049,21 +1111,23 @@ class CoreMindClient:
         suffix = f"\nworker stderr:\n{detail}" if detail else ""
         return WorkerExitedError(f"CoreMind worker 已退出{suffix}")
 
-    def _terminate_process(self) -> None:
+    def _terminate_process(self) -> bool:
         self._event_stop.set()
         if self._event_dispatcher and self._event_dispatcher is not threading.current_thread():
             self._event_dispatcher.join(timeout=1)
         process = self._process
         if not process:
-            return
+            return True
         if process.stdin:
             try:
                 process.stdin.close()
             except OSError:
                 pass
+        exited_naturally = True
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
+            exited_naturally = False
             process.terminate()
             try:
                 process.wait(timeout=2)
@@ -1078,6 +1142,7 @@ class CoreMindClient:
             self._reader.join(timeout=1)
         if self._stderr_reader and self._stderr_reader is not threading.current_thread():
             self._stderr_reader.join(timeout=1)
+        return exited_naturally
 
 
 class AsyncCoreMindClient:
@@ -1334,8 +1399,19 @@ class AsyncCoreMindClient:
     async def __aenter__(self) -> "AsyncCoreMindClient":
         return await self.start()
 
-    async def __aexit__(self, _type: object, _value: object, _traceback: object) -> None:
-        await self.close()
+    async def __aexit__(self, _type: object, value: BaseException | None, _traceback: object) -> None:
+        try:
+            await self.close()
+        except WorkerShutdownError as error:
+            if value is None:
+                raise
+            _record_shutdown_error(value, error)
+
+
+def _record_shutdown_error(value: BaseException, error: WorkerShutdownError) -> None:
+    value.coremind_shutdown_error = error
+    if hasattr(value, "add_note"):
+        value.add_note(str(error))
 
 
 def _auth_validation_error() -> ProtocolError:

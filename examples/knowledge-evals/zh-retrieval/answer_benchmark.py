@@ -109,6 +109,8 @@ def chat(opener, provider, model, system, schema, payload, num_predict):
         key = os.environ.get(key_env)
         if not key:
             raise ValueError(f"{key_env} 未配置")
+        # 此快照的推理会耗尽短 JSON 校验的输出额度；其余模型保留各自的默认设置。
+        bounded_flash = provider == "dashscope" and model == "deepseek-v4.1-flash-1017"
         request = urllib.request.Request(
             url,
             data=json.dumps(
@@ -121,6 +123,7 @@ def chat(opener, provider, model, system, schema, payload, num_predict):
                     "temperature": 0,
                     "max_tokens": num_predict,
                     "response_format": {"type": "json_object"},
+                    **({"enable_thinking": False} if bounded_flash else {}),
                 },
                 ensure_ascii=False,
             ).encode("utf-8"),
@@ -140,9 +143,14 @@ def chat(opener, provider, model, system, schema, payload, num_predict):
                     raise
                 time.sleep(1 + attempt)
         choice = result["choices"][0]
-        raw = choice["message"]["content"]
+        if bounded_flash and result.get("model") != model:
+            raise ValueError("服务返回的模型与指定的 DeepSeek Flash 快照不一致")
+        raw = choice["message"].get("content") or ""
         complete = choice.get("finish_reason") != "length"
-        usage = result.get("usage", {})
+        usage = {
+            **(result.get("usage") or {}),
+            "providerCall": {"model": result.get("model"), "finishReason": choice.get("finish_reason")},
+        }
     try:
         response = json.loads(raw)
     except json.JSONDecodeError:
@@ -284,6 +292,7 @@ def evaluate(model_dir, provider, model, *, cases_file=None, replay_file=None):
             contract_invalid = bool(gen_valid and not (asserted or refused))
             verify_raw = None
             verify_valid = None
+            verification_usage = {}
             support = None
             if asserted:
                 cited = [excerpts[i - 1] for i in ids if 1 <= i <= len(keys)]
@@ -291,7 +300,7 @@ def evaluate(model_dir, provider, model, *, cases_file=None, replay_file=None):
                     {"问题": question, "候选答案": answer, "引文": cited},
                     ensure_ascii=False,
                 )
-                _, verify_raw, verified, verify_complete = respond(
+                verification_usage, verify_raw, verified, verify_complete = respond(
                     case["id"], VERIFY_SYSTEM, VERIFY_FORMAT, verify_input, 32, cited
                 )
                 verify_valid = bool(
@@ -356,10 +365,14 @@ def evaluate(model_dir, provider, model, *, cases_file=None, replay_file=None):
                     "goldCitationMatches": gold_citation_match,
                     "exactAnswer": answer_match,
                     "correctCitation": citation_match,
+                    "taskPassed": answer_match and citation_match if gold else refused,
                     "passed": answer_match and citation_match if gold else withheld,
                     "evalCount": generated.get("eval_count")
                     or generated.get("completion_tokens"),
                     "nanoseconds": generated.get("total_duration"),
+                    **({"providerCalls": {"generate": generated["providerCall"],
+                                          "verify": verification_usage.get("providerCall")}}
+                       if "providerCall" in generated else {}),
                 }
             )
             if replay is None:
@@ -373,6 +386,9 @@ def evaluate(model_dir, provider, model, *, cases_file=None, replay_file=None):
         "retrievalRevision": revision,
         "casesSha256": hashlib.sha256(cases_file.read_bytes()).hexdigest(),
         "answerable": len(positives),
+        # 主动拒答与验证器事后拦截分别计数；保留原有逐题门禁口径。
+        "taskPasses": sum(r["taskPassed"] for r in rows),
+        "guardedPasses": sum(r["passed"] for r in rows),
         "retrievalTop1Hits": sum(r["retrievalRank"] == 1 for r in positives),
         "retrievalTop5Hits": sum(r["retrievalRank"] is not None for r in positives),
         "answerTextMatches": sum(r["answerTextMatches"] for r in positives),

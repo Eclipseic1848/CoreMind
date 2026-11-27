@@ -4,7 +4,9 @@ import asyncio
 import json
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event
 from unittest.mock import patch
 
 from knowledge_catalog import KnowledgeCatalog, KnowledgeVersionConflict
@@ -50,6 +52,75 @@ class FakeIndex:
 
 class KnowledgeCatalogTest(unittest.TestCase):
     reader = {"scope": "public", "as_of": "2026-10-01"}
+
+    def test_mcp_health_responds_while_search_is_running(self):
+        from starlette.testclient import TestClient
+        from knowledge_server import make_app
+
+        token = "Bearer knowledge-fixture"
+        headers = {"Authorization": token, "Accept": "application/json, text/event-stream"}
+        catalog = KnowledgeCatalog(FakeIndex())
+        arrived, release = Event(), Event()
+
+        def search(*_args, **_kwargs):
+            arrived.set()
+            self.assertTrue(release.wait(10))
+            return []
+
+        with patch.object(catalog, "search", side_effect=search), TestClient(
+            make_app(catalog, "public", self.reader["as_of"], token.encode("utf-8")),
+            base_url="http://127.0.0.1:8767",
+        ) as client, ThreadPoolExecutor(max_workers=2) as pool:
+            reply = pool.submit(client.post, "/mcp", headers=headers, json={
+                "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": {"name": "search_knowledge", "arguments": {"query": "查询"}},
+            })
+            try:
+                self.assertTrue(arrived.wait(5))
+                self.assertEqual(pool.submit(client.get, "/health", headers=headers).result(timeout=3).status_code, 200)
+                self.assertFalse(reply.done())
+            finally:
+                release.set()
+            self.assertEqual(json.loads(reply.result(timeout=5).json()["result"]["content"][0]["text"]), {"citations": []})
+
+    def test_document_ids_round_trip_without_merging_legacy_values(self):
+        from mcp.server.fastmcp import FastMCP
+        from knowledge_server import make_app
+
+        canonical = {**document(text="正常原文"), "docId": "记录"}
+        padded = {**document(text="旧目录原文甲"), "docId": " 记录 ", "access": "records"}
+        long = {**document(text="旧目录原文乙"), "docId": "甲" * 201, "access": "records"}
+        maximum = {**document(text="上限原文"), "docId": "乙" * 200}
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text(json.dumps({"schemaVersion": 1, "documents": [padded, long]}), encoding="utf-8")
+            catalog = KnowledgeCatalog(FakeIndex(), path)
+            self.assertEqual(catalog.import_documents([padded, long]), {"imported": 0, "unchanged": 2})
+            for invalid in [padded, long]:
+                with self.assertRaisesRegex(ValueError, "新文档 ID"):
+                    catalog.import_document({**invalid, "version": 2})
+            catalog.import_documents([canonical, maximum])
+            catalog = KnowledgeCatalog(FakeIndex(), path)
+            server = FastMCP("test")
+            with patch("coremind_knowledge_mcp.server.FastMCP", return_value=server):
+                make_app(catalog, "records", self.reader["as_of"], b"fixture")
+
+            def call(tool, **args):
+                result = asyncio.run(server.call_tool(tool, args))
+                return json.loads(result[0].text)
+
+            for record in [padded, long, canonical, maximum]:
+                with self.subTest(doc_id=record["docId"]):
+                    (hit,) = call("search_knowledge", query=record["chunks"][0]["text"])["citations"]
+                    self.assertEqual(hit["docId"], record["docId"])
+                    result = call("resolve_citation", **{key: hit[key] for key in ("docId", "version", "file", "line")})
+                    self.assertEqual(result["text"], hit["text"])
+                    self.assertEqual(result["status"], "available")
+            for doc_id in [padded["docId"], long["docId"]]:
+                self.assertEqual(catalog.resolve(doc_id, 1, padded["file"], 1, **self.reader)["status"], "unknown")
+                catalog.withdraw(doc_id, 1)
+                self.assertEqual(call("resolve_citation", docId=doc_id, version=1, file=padded["file"], line=1)["status"], "withdrawn")
 
     def test_same_version_and_content_is_unchanged(self):
         index = FakeIndex()

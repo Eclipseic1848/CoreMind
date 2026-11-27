@@ -21,6 +21,45 @@ RECORD = {"externalId": "A3", "状态": "R", "克重": 1250, "owner": "urn:perso
 
 
 class OntologyProjectTest(unittest.TestCase):
+    def test_mcp_health_responds_during_host_action_and_requests_remain_idempotent(self):
+        arrived, release = Event(), Event()
+
+        def wait_for_receipt(command):
+            arrived.set()
+            self.assertTrue(release.wait(10))
+            return demo_transition(command)
+
+        executor = Mock(side_effect=wait_for_receipt)
+        token = "Bearer fixture-action"
+        headers = {"Authorization": token, "Accept": "application/json, text/event-stream"}
+        call = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+            "name": "ontology_perform_action",
+            "arguments": {"action": "review", "resource": "urn:doc:draft", "request_id": "slow-review"},
+        }}
+        with TemporaryDirectory() as temp:
+            project = OntologyProject(MODELS / "document-review", executor, receipt_db=Path(temp) / "receipts.db")
+            try:
+                app = make_app(project, b"Bearer fixture-reader", token.encode("utf-8"))
+                with TestClient(app, base_url="http://127.0.0.1:8879") as client, ThreadPoolExecutor(max_workers=3) as pool:
+                    work = pool.submit(client.post, "/mcp", json=call, headers=headers)
+                    try:
+                        self.assertTrue(arrived.wait(5))
+                        repeat = pool.submit(client.post, "/mcp", json={**call, "id": 2}, headers=headers)
+                        health = pool.submit(client.get, "/health", headers=headers)
+                        self.assertEqual(health.result(timeout=3).status_code, 200)
+                        self.assertFalse(work.done())
+                    finally:
+                        release.set()
+                    first, duplicate = (
+                        json.loads(task.result(timeout=5).json()["result"]["content"][0]["text"])
+                        for task in (work, repeat)
+                    )
+                self.assertEqual(first["status"], "completed")
+                self.assertEqual(duplicate, {**first, "replayed": True})
+                executor.assert_called_once()
+            finally:
+                project.close()
+
     def test_real_model_validation_and_replacement(self):
         documents = OntologyProject(MODELS / "document-review")
         result = documents.describe("urn:doc:guide")
@@ -70,11 +109,58 @@ class OntologyProjectTest(unittest.TestCase):
     def test_confirmed_effect_with_local_projection_failure_stays_unknown(self):
         executor = Mock(side_effect=demo_transition)
         project = OntologyProject(MODELS / "document-review", executor)
-        with patch.object(project.graph, "set_state", side_effect=RuntimeError("存储故障")):
+        prepare = project.graph.prepare_state
+        def fail_after_effect(*args):
+            if executor.called:
+                raise RuntimeError("存储故障")
+            return prepare(*args)
+        with patch.object(project.graph, "prepare_state", side_effect=fail_after_effect):
             result = project.perform_action("publish", "urn:doc:guide", "p1")
         self.assertEqual((result["status"], result["reason"]), ("unknown", "effect_projection_failed"))
         self.assertEqual(project.perform_action("publish", "urn:doc:guide", "p2")["reason"], "prior_effect_unknown")
         executor.assert_called_once()
+
+    def test_action_write_failure_preserves_old_projection_and_allows_same_process_reconciliation(self):
+        resource = "urn:doc:draft"
+        executor = Mock(side_effect=demo_transition)
+        expected = {"requestId": "review-1", "resource": resource, "previousState": "draft",
+                    "status": "completed", "state": "reviewed"}
+        with TemporaryDirectory() as temp:
+            journal = Path(temp) / "receipts.sqlite3"
+            project = OntologyProject(MODELS / "document-review", executor, receipt_db=journal)
+            try:
+                before = project.describe(resource)
+                db = project._journal.db
+                with db:
+                    db.execute("""
+                        CREATE TEMP TRIGGER reject_finish BEFORE UPDATE ON action_receipts
+                        BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END
+                    """)
+                pending = project.perform_action("review", resource, "review-1")
+                self.assertEqual((pending["status"], pending["reason"]), ("unknown", "effect_not_confirmed"))
+                self.assertEqual(project.describe(resource), before)
+                self.assertEqual(project.perform_action("review", resource, "review-1"),
+                                 {**pending, "replayed": True})
+                self.assertEqual(project.perform_action("review", resource, "review-2")["reason"],
+                                 "prior_effect_unknown")
+                with db:
+                    db.execute("DROP TRIGGER reject_finish")
+                confirmed = project.reconcile_action(expected)
+                self.assertEqual((confirmed["status"], confirmed["state"]), ("completed", "reviewed"))
+                self.assertEqual(project.reconcile_action(expected), {**confirmed, "replayed": True})
+                after = project.describe(resource)
+                self.assertNotEqual(after, before)
+            finally:
+                project.close()
+            restored = OntologyProject(MODELS / "document-review", executor, receipt_db=journal)
+            try:
+                self.assertEqual(restored.describe(resource), after)
+                self.assertEqual(restored.reconcile_action(expected), {**confirmed, "replayed": True})
+                self.assertEqual(restored.perform_action("review", resource, "review-1"),
+                                 {**confirmed, "replayed": True})
+                executor.assert_called_once()
+            finally:
+                restored.close()
 
     def test_versioned_rules_block_effect_before_call(self):
         with TemporaryDirectory() as temp:

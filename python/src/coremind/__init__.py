@@ -14,6 +14,7 @@ from .errors import (
     ProtocolError,
     WorkerExitedError,
     WorkerNotFoundError,
+    WorkerShutdownError,
     error_code_info,
 )
 
@@ -25,6 +26,7 @@ __all__ = [
     "ProtocolError",
     "WorkerExitedError",
     "WorkerNotFoundError",
+    "WorkerShutdownError",
     "error_code_info",
     "parse_verification_request",
     "parse_mcp_auth_request",
@@ -32,4 +34,4 @@ __all__ = [
     "NotificationHistory",
 ]
 
-__version__ = "2.1.0"  # x-release-please-version
+__version__ = "2.2.0"  # x-release-please-version

@@ -160,7 +160,9 @@ export class Orchestrator {
 
         const retryNeeded =
           retryCfg?.if !== undefined &&
-          evalCondition(this.interpolateWithStepText(retryCfg.if, text));
+          evaluateConditionTemplate(retryCfg.if, (operand) =>
+            this.interpolateWithStepText(operand, text),
+          );
         if (retryNeeded && attempt < maxAttempts) {
           if (this.retryCount >= this.maxRetries) {
             throw new CoreMindError(
@@ -322,7 +324,9 @@ export class Orchestrator {
     signal?: AbortSignal,
   ): Promise<StepOutput> {
     this.events({ type: "step_start", stepId: step.id, kind: "if" });
-    const branch = evalCondition(this.interpolate(step.condition)) ? step.then : step.else;
+    const branch = evaluateConditionTemplate(step.condition, (operand) => this.interpolate(operand))
+      ? step.then
+      : step.else;
     if (branch) await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
@@ -338,7 +342,7 @@ export class Orchestrator {
     const value = this.variables.get(step.on) ?? "";
     // 命中判定：变量值包含 case 键（对长文本更实用）
     const hit = Object.keys(step.cases).find((key) => value.includes(key));
-    const branch = hit ? step.cases[hit] : step.default;
+    const branch = hit === undefined ? step.default : step.cases[hit];
     if (branch) await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
     this.events({ type: "step_end", stepId: step.id, ok: true });
@@ -388,29 +392,26 @@ function extractSuccessfulText(agent: AgentDriver, messageCursor: number): strin
   return extractText(messages.slice(messageCursor));
 }
 
-/**
- * 条件求值（刻意极简，一期不做表达式解析器）：
- * - 插值后的整体：空串视为假，"true"/"false" 字面量直接判定
- * - 支持 "X == Y"、"X != Y"、"X contains Y" 字符串比较
- * - 其他非空内容视为真
- */
+/** 求值无变量的条件字符串。 */
 export function evalCondition(condition: string): boolean {
-  const cond = condition.trim();
-  if (cond.length === 0) return false;
-  if (cond === "true") return true;
-  if (cond === "false") return false;
+  return evaluateConditionTemplate(condition, (operand) => operand);
+}
 
-  const containsMatch = cond.match(/^(.*?)\s+contains\s+(.*)$/);
-  if (containsMatch) {
-    return Boolean(containsMatch[1]?.includes(containsMatch[2] ?? ""));
+/** 先识别配置中的运算符，变量中的换行和符号始终作为操作数。 */
+export function evaluateConditionTemplate(
+  template: string,
+  interpolate: (operand: string) => string,
+): boolean {
+  const expression = template.trim();
+  const operator =
+    /\scontains\s/.exec(expression) ?? /==/.exec(expression) ?? /!=/.exec(expression);
+  if (!operator) {
+    const value = interpolate(expression).trim();
+    return value !== "" && value !== "false";
   }
-  const equalMatch = cond.match(/^(.*?)\s*==\s*(.*)$/);
-  if (equalMatch) {
-    return equalMatch[1]! === equalMatch[2]!;
-  }
-  const notEqualMatch = cond.match(/^(.*?)\s*!=\s*(.*)$/);
-  if (notEqualMatch) {
-    return notEqualMatch[1]! !== notEqualMatch[2]!;
-  }
-  return true;
+  const left = interpolate(expression.slice(0, operator.index)).trim();
+  const right = interpolate(expression.slice(operator.index + operator[0].length)).trim();
+  if (operator[0] === "==") return left === right;
+  if (operator[0] === "!=") return left !== right;
+  return left.includes(right);
 }

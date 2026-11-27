@@ -8,17 +8,17 @@ provider:
   apiKeyEnv: GOLDEN_MOCK_API_KEY
   contextWindow: 2048
   maxTokens: 512
-tools:
-  - path: ./src/search-tool.ts
-    name: search_knowledge
-    effect:
-      operations: [read]
-      reversible: true
 agents:
   researcher:
-    systemPrompt: 调查问题时必须调用 search_knowledge；证据充分时输出 EVIDENCE_COMPLETE。
+    tools:
+      - path: ./src/search-tool.ts
+        name: search_knowledge
+        effect:
+          operations: [read]
+          reversible: true
+    systemPrompt: 先用问题中的关键词调用一次 search_knowledge。收到工具结果后结束检索，向审核员输出 EVIDENCE_COMPLETE、实际的来源编号及原文。零命中时明确说明未找到证据，不要重查或补造来源。
   reviewer:
-    systemPrompt: 你负责证据审查，列出结论、证据编号、分歧和置信度，不得补造来源。
+    systemPrompt: 你负责证据审查，结论仅依据检索实际返回的原文，列出来源编号、分歧和置信度。未找到证据时说明无法判断，不补造来源或结论。
 workflow:
   - id: research
     type: call

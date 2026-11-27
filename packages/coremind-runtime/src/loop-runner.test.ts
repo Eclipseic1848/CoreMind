@@ -58,6 +58,16 @@ function createRunner(
 }
 
 describe("LoopRunner", () => {
+  it("多行失败原因保留在验收反馈中，并按配置失败", async () => {
+    const feedback = "FAIL\n第二项包含 ==，需修复";
+    const { runner } = createRunner(["初稿", feedback], {
+      loop: { ...baseLoop, onFailure: "fail" },
+    });
+    const result = await runner.run();
+    expect(result.outputs.get("verification")?.text).toBe(feedback);
+    expect(result.error).toMatchObject({ code: "verification_failed" });
+  });
+
   it("恢复宿主拒绝后的暂停时从持久反馈重建修复输入", async () => {
     const loop: LoopConfig = { ...baseLoop, verify: { mode: "host" }, onFailure: "pause" };
     const first = createRunner(["初稿"], {

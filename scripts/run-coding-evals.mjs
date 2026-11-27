@@ -1,18 +1,21 @@
-import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CoreMindRuntime,
   loadConfigFile,
   loadEvaluationSuite,
   parseAndValidate,
   runEvaluationSuite,
 } from "coremind-ai";
+import { prepareRepository, removeTemporaryRepository } from "./coding-eval-project.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const options = parseArguments(process.argv.slice(2));
 const provider = resolveProvider(process.env, options);
+// 模型凭据只交给 Provider。命令 grader 及被测程序均从这个 CLI 进程继承无该凭据的环境。
+const providerKey = process.env[provider.apiKeyEnv];
+delete process.env[provider.apiKeyEnv];
 const profiles = options.profile === "all" ? ["typescript", "python"] : [options.profile];
 const report = {
   schemaVersion: 1,
@@ -104,42 +107,14 @@ async function evaluateOnce(projectDir, providerConfig) {
     config,
     configDir: projectDir,
     cwd: projectDir,
+    runtimeFactory: (options) =>
+      CoreMindRuntime.create({
+        ...options,
+        env: { ...process.env, [providerConfig.apiKeyEnv]: providerKey },
+        toolEnv: process.env,
+      }),
     suite: await loadEvaluationSuite(path.join(projectDir, "evals", "scenarios.yaml")),
   });
-}
-
-function prepareRepository(profile) {
-  const id = profile === "typescript" ? "typescript-defect" : "python-defect";
-  const projectDir = mkdtempSync(path.join(tmpdir(), `coremind-real-${id}-`));
-  cpSync(path.join(repositoryRoot, "examples", "coding-evals", id), projectDir, {
-    recursive: true,
-  });
-  git(projectDir, "init");
-  git(projectDir, "config", "user.email", "coremind@example.invalid");
-  git(projectDir, "config", "user.name", "CoreMind Eval");
-  git(projectDir, "add", ".");
-  git(projectDir, "commit", "-m", "defect baseline");
-  writeFileSync(
-    path.join(projectDir, "user-notes.txt"),
-    "用户自己的未提交草稿，必须原样保留。\n",
-    "utf8",
-  );
-  return projectDir;
-}
-
-function removeTemporaryRepository(projectDir) {
-  const resolved = path.resolve(projectDir);
-  if (
-    path.dirname(resolved) !== path.resolve(tmpdir()) ||
-    !path.basename(resolved).startsWith("coremind-real-")
-  ) {
-    throw new Error(`拒绝清理非评测临时目录：${resolved}`);
-  }
-  rmSync(resolved, { recursive: true, force: true });
-}
-
-function git(cwd, ...args) {
-  execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
 }
 
 function resolveProvider(env, parsed) {

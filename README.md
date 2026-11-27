@@ -22,6 +22,8 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 从一个模型和一个 Agent 起步。按任务选择知识检索、Hindsight 记忆、Skill、工具或本体，再用同一份配置从 CLI、TypeScript 或 Python 运行。`document-assistant` 提供五项能力组合的参考和可重复验收。
 
+2.2.0 候选包含工作流与持久任务修复、CLI 与 Python SDK 改进、独立组件更新及 DeepSeek Flash 实测。 [2.2.0](docs/release/notes/v2.2.0.md)
+
 > **当前正式版 2.1.0**。从自己的项目运行 CoreMind，按需加载知识、Hindsight 记忆、Skill、工具和本体。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/)
 
 > 知识、记忆和本体可分别安装、部署和升级。按业务需要安装 [知识 0.1.0](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/)、[记忆 0.1.0](https://pypi.org/project/coremind-memory-mcp/0.1.0/)或[本体 0.1.0](https://pypi.org/project/coremind-ontology-mcp/0.1.0/)。[按需加载指南](docs/guide/06-capability-construction.md) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)

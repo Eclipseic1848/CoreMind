@@ -455,8 +455,12 @@ function resolveToolEffect(
     ...collectPathArguments(args),
     ...collectDeclaredStringFields(args, selectors?.pathFields ?? []),
   ];
+  // 内置文件工具的正文与搜索词可能是链接，其实现只访问本地文件。
+  const localFileTool =
+    capability.source === "builtin" &&
+    ["read", "write", "edit", "ls", "find", "grep"].includes(capability.tool);
   const urls = [
-    ...collectUrls(args),
+    ...(localFileTool ? [] : collectUrls(args)),
     ...collectDeclaredStringFields(args, selectors?.urlFields ?? []).filter(isHttpUrl),
   ];
   const operations = toolEffectOperationsForCapability(capability.effect);

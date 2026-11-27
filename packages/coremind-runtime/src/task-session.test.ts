@@ -118,6 +118,24 @@ describe("公共任务阶段合同", () => {
     expect(session.query("job")).toBeUndefined();
   });
 
+  it("检查点错误指明宿主 Schema 规则且不回显提交的值", async () => {
+    const session = await open({
+      ...definition(),
+      checkpointSchema: {
+        type: "object",
+        properties: { count: { type: "integer" } },
+        required: ["count"],
+      },
+    });
+    await expect(
+      session.start({ taskId: "job", type: "example", checkpoint: { count: "不应回显的值" } }),
+    ).rejects.toMatchObject({
+      code: "task_checkpoint_invalid",
+      message: "检查点不符合 Schema（#/properties/count/type）",
+    });
+    expect(session.query("job")).toBeUndefined();
+  });
+
   it("检查点拒绝访问器且不执行 getter", async () => {
     const getter = vi.fn(() => {
       throw new Error("不应执行访问器");

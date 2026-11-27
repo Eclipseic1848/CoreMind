@@ -1,6 +1,6 @@
 {
   "name": "coremind-monorepo",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "CoreMind（星枢智核）—— 面向新手开发者的配置驱动智能体开发框架",
   "type": "module",
@@ -45,6 +45,7 @@
     "test:coverage": "vitest run --maxWorkers=1 --coverage --project=!phase2-baseline && node scripts/check-coverage.mjs",
     "test:coding-evals": "vitest run --project coding-evals",
     "eval:coding-real": "node scripts/run-coding-evals.mjs",
+    "eval:generalization": "npm run build && node examples/modules/evaluate-agents/generalization.mjs",
     "eval:paired": "node scripts/run-paired-evaluation.mjs",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present",

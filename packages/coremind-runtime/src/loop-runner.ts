@@ -9,7 +9,11 @@ import {
   type LoopControllerEvent,
   type LoopControllerSnapshot,
 } from "./loop-controller.js";
-import { type CompletedWorkflowStep, evalCondition, type StepOutput } from "./orchestrator.js";
+import {
+  type CompletedWorkflowStep,
+  evaluateConditionTemplate,
+  type StepOutput,
+} from "./orchestrator.js";
 import { classifyRetry } from "./retry-policy.js";
 
 export type LoopStepKind = "planning" | "execute" | "verify" | "repair";
@@ -206,8 +210,9 @@ export class LoopRunner {
       "verification",
     );
     this.saveOutput("verification", output);
-    const condition = this.interpolate(verification.passIf, output.text);
-    const textPassed = evalCondition(condition);
+    const textPassed = evaluateConditionTemplate(verification.passIf, (operand) =>
+      this.interpolate(operand, output.text),
+    );
     const evidencePassed = this.options.verifyEvidence
       ? await this.options.verifyEvidence({
           iteration,

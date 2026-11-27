@@ -1,5 +1,5 @@
 import path from "node:path";
-import { stdin as input, stdout as output } from "node:process";
+import { stdin as input, stderr, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   type CoreMindConfig,
@@ -39,6 +39,7 @@ export async function cmdEval(parsed: ParsedArgs, positionals: string[]): Promis
   if (permissionMode) config = applyPermissionMode(config, permissionMode);
   const approvals = new ApprovalQueue(process.stdin.isTTY === true);
   const controller = new AbortController();
+  const json = flagBool(parsed, "json");
   let approvalReadline: ReturnType<typeof createInterface> | undefined;
   let unbindApprovals: (() => void) | undefined;
 
@@ -63,13 +64,13 @@ export async function cmdEval(parsed: ParsedArgs, positionals: string[]): Promis
       },
       approveTool: (request) => {
         if (!approvalReadline && process.stdin.isTTY === true) {
-          approvalReadline = createInterface({ input, output });
+          approvalReadline = createInterface({ input, output: json ? stderr : stdout });
           unbindApprovals = bindReadlineApprovals(approvals, approvalReadline);
         }
         return approvals.request(request);
       },
     });
-    if (flagBool(parsed, "json")) {
+    if (json) {
       process.stdout.write(`${JSON.stringify(result)}\n`);
     } else {
       const passed = result.attempts.filter((attempt) => attempt.passed).length;

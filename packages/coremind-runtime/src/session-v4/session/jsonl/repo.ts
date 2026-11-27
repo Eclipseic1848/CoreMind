@@ -80,6 +80,9 @@ export class JsonlSessionRepo
   async list(options: JsonlSessionListOptions = {}): Promise<JsonlSessionMetadata[]> {
     return this.listDirect(options);
   }
+  async findById(cwd: string, id: string): Promise<JsonlSessionMetadata | undefined> {
+    return (await this.listDirect({ cwd }, id))[0];
+  }
   async delete(metadata: JsonlSessionMetadata): Promise<void> {
     fileResult(
       await this.fs.remove(metadata.path, { force: true }),
@@ -145,7 +148,10 @@ export class JsonlSessionRepo
     );
     return { header, path };
   }
-  private async listDirect(options: JsonlSessionListOptions): Promise<JsonlSessionMetadata[]> {
+  private async listDirect(
+    options: JsonlSessionListOptions,
+    id?: string,
+  ): Promise<JsonlSessionMetadata[]> {
     const directories = await this.sessionDirectories(options.cwd);
     const metadata: JsonlSessionMetadata[] = [];
     for (const directory of directories) {
@@ -154,21 +160,22 @@ export class JsonlSessionRepo
         `Failed to list sessions directory ${directory}`,
       ).filter((entry) => entry.kind !== "directory" && entry.name.endsWith(".jsonl"));
       for (const file of files) {
-        const content = fileResult(
-          await this.fs.readTextFile(file.path),
+        if (id !== undefined && file.name.slice(file.name.indexOf("_") + 1) !== `${id}.jsonl`)
+          continue;
+        const firstLine = fileResult(
+          await this.fs.readFirstLine(file.path),
           `Failed to read session header ${file.path}`,
         );
-        const firstLine = content.split("\n", 1)[0];
         if (!firstLine) throw invalidFile(file.path, 1, "is missing a header");
-        metadata.push(
-          metadataFromHeader(parseHeader(firstLine, file.path), file.path, file.mtimeMs),
-        );
+        const header = parseHeader(firstLine, file.path);
+        if (id !== undefined && header.id !== id)
+          throw invalidFile(file.path, 1, "has a different session id");
+        metadata.push(metadataFromHeader(header, file.path, file.mtimeMs));
       }
     }
     return metadata.sort((left, right) => right.modifiedAt - left.modifiedAt);
   }
   private async sessionIdExists(id: string, cwd: string): Promise<boolean> {
-    const suffix = `_${id}.jsonl`;
     const directory = await this.sessionDirectory(cwd);
     if (
       !fileResult(
@@ -181,7 +188,11 @@ export class JsonlSessionRepo
       await this.fs.listDir(directory),
       `Failed to list sessions directory ${directory}`,
     );
-    return files.some((entry) => entry.kind !== "directory" && entry.name.endsWith(suffix));
+    return files.some(
+      (entry) =>
+        entry.kind !== "directory" &&
+        entry.name.slice(entry.name.indexOf("_") + 1) === `${id}.jsonl`,
+    );
   }
   private async sessionDirectories(cwd?: string): Promise<string[]> {
     const root = await this.root();

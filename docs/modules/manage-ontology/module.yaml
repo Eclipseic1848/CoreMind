@@ -3,7 +3,7 @@ id: manage-ontology
 name:
   zh-CN: "可选本体与业务动作"
   en: "Optional Ontology and Business Actions"
-version: 2.1.0
+version: 2.2.0
 sourcePaths:
   - "components/ontology/pyproject.toml"
   - "examples/modules/manage-ontology/deployment"

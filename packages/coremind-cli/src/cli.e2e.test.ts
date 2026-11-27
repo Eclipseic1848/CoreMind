@@ -298,12 +298,12 @@ describe("coremind CLI 端到端", () => {
     expect(stderr).toContain("--provider");
   });
 
-  it("create 生成项目并替换 name", () => {
+  it.each(["my-agent", "2026"])("create 将项目名 %s 保留为字符串", (name) => {
     const dir = mkdtempSync(path.join(tmpdir(), "coremind-e2e-"));
     const { code } = runCli(
       [
         "create",
-        "my-agent",
+        name,
         "--template",
         "translator",
         "--language",
@@ -314,19 +314,20 @@ describe("coremind CLI 端到端", () => {
       { cwd: dir },
     );
     expect(code).toBe(0);
-    const yaml = readFileSync(path.join(dir, "my-agent", "coremind.yaml"), "utf8");
-    expect(yaml).toContain("name: my-agent");
-    expect(yaml).toContain("description: my-agent");
+    const yaml = readFileSync(path.join(dir, name, "coremind.yaml"), "utf8");
+    expect(yaml).toContain(`name: "${name}"`);
+    expect(yaml).toContain(`description: "${name}`);
     expect(yaml).toContain("id: alibaba-model-studio");
     expect(yaml).toContain("apiKeyEnv: DASHSCOPE_API_KEY");
-    expect(readFileSync(path.join(dir, "my-agent", ".env.example"), "utf8")).toBe(
-      "DASHSCOPE_API_KEY=\n",
-    );
-    expect(existsSync(path.join(dir, "my-agent", ".env.example"))).toBe(true);
-    expect(existsSync(path.join(dir, "my-agent", "skills", "project-agent", "SKILL.md"))).toBe(
-      true,
-    );
-    expect(existsSync(path.join(dir, "my-agent", "docs", "development-sop.en.md"))).toBe(true);
+    const checked = runCli(["check", "coremind.yaml"], {
+      cwd: path.join(dir, name),
+      env: { DASHSCOPE_API_KEY: "test-only" },
+    });
+    expect(checked.code, checked.stdout + checked.stderr).toBe(0);
+    expect(readFileSync(path.join(dir, name, ".env.example"), "utf8")).toBe("DASHSCOPE_API_KEY=\n");
+    expect(existsSync(path.join(dir, name, ".env.example"))).toBe(true);
+    expect(existsSync(path.join(dir, name, "skills", "project-agent", "SKILL.md"))).toBe(true);
+    expect(existsSync(path.join(dir, name, "docs", "development-sop.en.md"))).toBe(true);
   });
 
   it.each([false, true])(

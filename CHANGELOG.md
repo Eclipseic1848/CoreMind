@@ -4,6 +4,13 @@
 
 [English](CHANGELOG.en.md)
 
+## 2.2.0
+
+- 修复工作流和 Loop 的条件比较与 switch 分支匹配，明确持久任务的 Schema 诊断。
+- 新增可复现的泛化评测，分别记录工程夹具和 DeepSeek Flash 公网实测，并补充原业务示例的输出契约。
+- 修复 Python Worker 关闭诊断、审批与工具注册恢复，以及 CLI 脚手架和评测输出。
+- 完善知识查询及发布制品的统一预检。参阅[发布说明](docs/release/notes/v2.2.0.md)。
+
 ## 2.1.0
 
 [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [2.0→2.1 迁移](docs/migrations/2.0-to-2.1.zh-CN.md) · [正式构建](https://github.com/Eclipseic1848/CoreMind/actions/runs/45754986085) · [公开回装](https://github.com/Eclipseic1848/CoreMind/issues/427)

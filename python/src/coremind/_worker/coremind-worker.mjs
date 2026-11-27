@@ -9661,9 +9661,9 @@ var init_streaming_json = __esm({
           this.#string.change = void 0;
         let index3 = 0;
         while (index3 < text2.length && !this.#done) {
-          const open11 = this.#string;
-          if (open11 !== void 0)
-            index3 = this.#readString(open11, text2, index3);
+          const open12 = this.#string;
+          if (open12 !== void 0)
+            index3 = this.#readString(open12, text2, index3);
           else if (this.#scalar !== "")
             index3 = this.#readScalar(text2, index3);
           else
@@ -9689,12 +9689,12 @@ var init_streaming_json = __esm({
         return this.#snapshot;
       }
       /** Read string characters from `start` until the string ends or the text does; returns the next index. */
-      #readString(open11, text2, start) {
+      #readString(open12, text2, start) {
         let runStart = start;
         for (let index3 = start; index3 < text2.length; index3++) {
           const code = text2.charCodeAt(index3);
-          if (open11.escape !== "") {
-            if (this.#continueEscape(open11, text2[index3])) {
+          if (open12.escape !== "") {
+            if (this.#continueEscape(open12, text2[index3])) {
               runStart = index3 + 1;
               continue;
             }
@@ -9702,19 +9702,19 @@ var init_streaming_json = __esm({
           }
           if (code === QUOTE) {
             if (index3 > runStart)
-              this.#appendString(open11, text2.slice(runStart, index3));
-            this.#endString(open11);
+              this.#appendString(open12, text2.slice(runStart, index3));
+            this.#endString(open12);
             return index3 + 1;
           }
           if (code === BACKSLASH) {
             if (index3 > runStart)
-              this.#appendString(open11, text2.slice(runStart, index3));
-            open11.escape = "\\";
+              this.#appendString(open12, text2.slice(runStart, index3));
+            open12.escape = "\\";
             runStart = index3 + 1;
           }
         }
         if (text2.length > runStart)
-          this.#appendString(open11, text2.slice(runStart));
+          this.#appendString(open12, text2.slice(runStart));
         return text2.length;
       }
       /** Read number or literal characters from `start` up to the next delimiter; returns the delimiter's index. */
@@ -9810,44 +9810,44 @@ var init_streaming_json = __esm({
         return change;
       }
       /** Continue an escape with `char`; returns false when `char` is not part of it and must be read normally. */
-      #continueEscape(open11, char) {
-        if (open11.escape === "\\") {
+      #continueEscape(open12, char) {
+        if (open12.escape === "\\") {
           const decoded = SIMPLE_ESCAPES[char];
           if (decoded !== void 0) {
-            open11.escape = "";
-            this.#appendString(open11, decoded);
+            open12.escape = "";
+            this.#appendString(open12, decoded);
             return true;
           }
           if (char === "u") {
-            open11.escape = "\\u";
+            open12.escape = "\\u";
             return true;
           }
-          open11.escape = "";
-          this.#appendString(open11, "\\");
+          open12.escape = "";
+          this.#appendString(open12, "\\");
           return false;
         }
         if (isHexDigit(char)) {
-          open11.escape += char;
-          if (open11.escape.length < 6)
+          open12.escape += char;
+          if (open12.escape.length < 6)
             return true;
-          const decoded = String.fromCharCode(Number.parseInt(open11.escape.slice(2), 16));
-          open11.escape = "";
-          this.#appendString(open11, decoded);
+          const decoded = String.fromCharCode(Number.parseInt(open12.escape.slice(2), 16));
+          open12.escape = "";
+          this.#appendString(open12, decoded);
           return true;
         }
-        const literal3 = open11.escape;
-        open11.escape = "";
-        this.#appendString(open11, literal3);
+        const literal3 = open12.escape;
+        open12.escape = "";
+        this.#appendString(open12, literal3);
         return false;
       }
-      #appendString(open11, text2) {
-        open11.text += text2;
-        if (open11.target !== "value")
+      #appendString(open12, text2) {
+        open12.text += text2;
+        if (open12.target !== "value")
           return;
-        this.#place(open11.slot, open11.text);
-        if (open11.path === void 0)
+        this.#place(open12.slot, open12.text);
+        if (open12.path === void 0)
           return;
-        const change = open11.change;
+        const change = open12.change;
         if (change !== void 0 && this.#changes.at(-1) === change) {
           if (change.kind === "set")
             change.value = change.value + text2;
@@ -9855,15 +9855,15 @@ var init_streaming_json = __esm({
             change.text += text2;
           return;
         }
-        open11.change = this.#report({ kind: "append", path: open11.path, text: text2 });
+        open12.change = this.#report({ kind: "append", path: open12.path, text: text2 });
       }
-      #endString(open11) {
+      #endString(open12) {
         this.#string = void 0;
         const frame3 = this.#stack.at(-1);
-        if (open11.target === "key") {
+        if (open12.target === "key") {
           if (frame3 === void 0)
             return;
-          frame3.key = open11.text;
+          frame3.key = open12.text;
           frame3.phase = "colon";
           return;
         }
@@ -10415,7 +10415,7 @@ function opt(schema) {
   return new Optional2(schema);
 }
 function obj(properties, options2 = {}) {
-  const { open: open11, ...annotations } = options2;
+  const { open: open12, ...annotations } = options2;
   const props = {};
   const required3 = [];
   for (const [name, property] of Object.entries(properties)) {
@@ -10430,7 +10430,7 @@ function obj(properties, options2 = {}) {
     type: "object",
     properties: props,
     ...required3.length > 0 ? { required: required3 } : {},
-    ...open11 === true ? {} : { additionalProperties: false },
+    ...open12 === true ? {} : { additionalProperties: false },
     ...annotations
   };
 }
@@ -22775,7 +22775,7 @@ var require_graceful_fs = __commonJS({
     function patch(fs11) {
       polyfills(fs11);
       fs11.gracefulify = patch;
-      fs11.createReadStream = createReadStream6;
+      fs11.createReadStream = createReadStream7;
       fs11.createWriteStream = createWriteStream6;
       var fs$readFile = fs11.readFile;
       fs11.readFile = readFile13;
@@ -22955,7 +22955,7 @@ var require_graceful_fs = __commonJS({
       }
       function ReadStream$open() {
         var that = this;
-        open11(that.path, that.flags, that.mode, function(err2, fd) {
+        open12(that.path, that.flags, that.mode, function(err2, fd) {
           if (err2) {
             if (that.autoClose)
               that.destroy();
@@ -22975,7 +22975,7 @@ var require_graceful_fs = __commonJS({
       }
       function WriteStream$open() {
         var that = this;
-        open11(that.path, that.flags, that.mode, function(err2, fd) {
+        open12(that.path, that.flags, that.mode, function(err2, fd) {
           if (err2) {
             that.destroy();
             that.emit("error", err2);
@@ -22985,15 +22985,15 @@ var require_graceful_fs = __commonJS({
           }
         });
       }
-      function createReadStream6(path50, options2) {
+      function createReadStream7(path50, options2) {
         return new fs11.ReadStream(path50, options2);
       }
       function createWriteStream6(path50, options2) {
         return new fs11.WriteStream(path50, options2);
       }
       var fs$open = fs11.open;
-      fs11.open = open11;
-      function open11(path50, flags, mode, cb) {
+      fs11.open = open12;
+      function open12(path50, flags, mode, cb) {
         if (typeof mode === "function")
           cb = mode, mode = null;
         return go$open(path50, flags, mode, cb);
@@ -65832,17 +65832,17 @@ var init_parser2 = __esm({
       return tokens;
     };
     strip = (tokens) => {
-      let open11 = [];
+      let open12 = [];
       for (const token of tokens) {
         if (token.type === "brace" || token.type === "paren") {
           if (token.value === "{" || token.value === "[") {
-            open11.push(token.value);
+            open12.push(token.value);
           } else {
-            open11.pop();
+            open12.pop();
           }
         }
       }
-      let innermostOpenBracket = open11[open11.length - 1];
+      let innermostOpenBracket = open12[open12.length - 1];
       let length = tokens.length;
       let JSON_NUMBER = /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/;
       while (length > 0) {
@@ -75032,8 +75032,8 @@ var init_anthropic_messages = __esm({
           stream12.push({ type: "start", partial: output });
           const openBlocks = /* @__PURE__ */ new Map();
           const openBlock = (anthropicIndex) => {
-            const open11 = openBlocks.get(anthropicIndex);
-            return open11 === void 0 ? void 0 : { ...open11, block: output.content[open11.contentIndex] };
+            const open12 = openBlocks.get(anthropicIndex);
+            return open12 === void 0 ? void 0 : { ...open12, block: output.content[open12.contentIndex] };
           };
           for await (const event of iterateAnthropicEvents(response, options2?.signal)) {
             await options2?.onProviderStreamEvent?.(event, model2);
@@ -75096,48 +75096,48 @@ var init_anthropic_messages = __esm({
                 stream12.push({ type: "toolcall_start", contentIndex: output.content.length - 1, partial: output });
               }
             } else if (event.type === "content_block_delta") {
-              const open11 = openBlock(event.index);
+              const open12 = openBlock(event.index);
               if (event.delta.type === "text_delta") {
-                if (open11?.block.type === "text") {
-                  open11.block.text += event.delta.text;
+                if (open12?.block.type === "text") {
+                  open12.block.text += event.delta.text;
                   stream12.push({
                     type: "text_delta",
-                    contentIndex: open11.contentIndex,
+                    contentIndex: open12.contentIndex,
                     delta: event.delta.text,
                     partial: output
                   });
                 }
               } else if (event.delta.type === "thinking_delta") {
-                if (open11?.block.type === "thinking") {
-                  open11.block.thinking += event.delta.thinking;
+                if (open12?.block.type === "thinking") {
+                  open12.block.thinking += event.delta.thinking;
                   stream12.push({
                     type: "thinking_delta",
-                    contentIndex: open11.contentIndex,
+                    contentIndex: open12.contentIndex,
                     delta: event.delta.thinking,
                     partial: output
                   });
                 }
               } else if (event.delta.type === "input_json_delta") {
-                if (open11?.block.type === "toolCall" && open11.arguments !== void 0) {
-                  open11.block.arguments = open11.arguments.append(event.delta.partial_json);
+                if (open12?.block.type === "toolCall" && open12.arguments !== void 0) {
+                  open12.block.arguments = open12.arguments.append(event.delta.partial_json);
                   stream12.push({
                     type: "toolcall_delta",
-                    contentIndex: open11.contentIndex,
+                    contentIndex: open12.contentIndex,
                     delta: event.delta.partial_json,
                     partial: output
                   });
                 }
               } else if (event.delta.type === "signature_delta") {
-                if (open11?.block.type === "thinking") {
-                  open11.block.thinkingSignature = open11.block.thinkingSignature || "";
-                  open11.block.thinkingSignature += event.delta.signature;
+                if (open12?.block.type === "thinking") {
+                  open12.block.thinkingSignature = open12.block.thinkingSignature || "";
+                  open12.block.thinkingSignature += event.delta.signature;
                 }
               }
             } else if (event.type === "content_block_stop") {
-              const open11 = openBlock(event.index);
+              const open12 = openBlock(event.index);
               openBlocks.delete(event.index);
-              if (open11) {
-                const { block, contentIndex: index3 } = open11;
+              if (open12) {
+                const { block, contentIndex: index3 } = open12;
                 if (block.type === "text") {
                   stream12.push({
                     type: "text_end",
@@ -75152,8 +75152,8 @@ var init_anthropic_messages = __esm({
                     content: block.thinking,
                     partial: output
                   });
-                } else if (block.type === "toolCall" && open11.arguments !== void 0) {
-                  Object.assign(block, open11.arguments.finish());
+                } else if (block.type === "toolCall" && open12.arguments !== void 0) {
+                  Object.assign(block, open12.arguments.finish());
                   stream12.push({
                     type: "toolcall_end",
                     contentIndex: index3,
@@ -103556,7 +103556,7 @@ var require_node_domexception = __commonJS({
 });
 
 // node_modules/fetch-blob/from.js
-import { statSync as statSync2, createReadStream as createReadStream3, promises as fs6 } from "node:fs";
+import { statSync as statSync2, createReadStream as createReadStream4, promises as fs6 } from "node:fs";
 import { basename as basename4 } from "node:path";
 var import_node_domexception, stat4, blobFromSync, blobFrom, fileFrom, fileFromSync, fromBlob, fromFile, BlobDataItem;
 var init_from = __esm({
@@ -103607,7 +103607,7 @@ var init_from = __esm({
         if (mtimeMs > this.lastModified) {
           throw new import_node_domexception.default("The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.", "NotReadableError");
         }
-        yield* createReadStream3(this.#path, {
+        yield* createReadStream4(this.#path, {
           start: this.#start,
           end: this.#start + this.size - 1
         });
@@ -118630,7 +118630,7 @@ var require_stream = __commonJS({
       };
       duplex2._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open11() {
+          ws.once("open", function open12() {
             duplex2._final(callback);
           });
           return;
@@ -118651,7 +118651,7 @@ var require_stream = __commonJS({
       };
       duplex2._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open11() {
+          ws.once("open", function open12() {
             duplex2._write(chunk, encoding, callback);
           });
           return;
@@ -143486,30 +143486,30 @@ async function consumeChatStream(model2, output, stream12, mistralStream, onProv
       }
       const callId = toolCall.id && toolCall.id !== "null" ? toolCall.id : deriveMistralToolCallId(`toolcall:${toolCall.index ?? 0}`, 0);
       const key = toolCall.index ?? callId;
-      let open11 = toolCallsByKey.get(key);
-      if (!open11) {
+      let open12 = toolCallsByKey.get(key);
+      if (!open12) {
         output.content.push({ type: "toolCall", id: callId, name: toolCall.function.name, arguments: {} });
-        open11 = { contentIndex: output.content.length - 1, arguments: new ToolCallArgumentsStream() };
-        toolCallsByKey.set(key, open11);
-        stream12.push({ type: "toolcall_start", contentIndex: open11.contentIndex, partial: output });
+        open12 = { contentIndex: output.content.length - 1, arguments: new ToolCallArgumentsStream() };
+        toolCallsByKey.set(key, open12);
+        stream12.push({ type: "toolcall_start", contentIndex: open12.contentIndex, partial: output });
       }
       const argsDelta = typeof toolCall.function.arguments === "string" ? toolCall.function.arguments : JSON.stringify(toolCall.function.arguments || {});
-      output.content[open11.contentIndex].arguments = open11.arguments.append(argsDelta);
+      output.content[open12.contentIndex].arguments = open12.arguments.append(argsDelta);
       stream12.push({
         type: "toolcall_delta",
-        contentIndex: open11.contentIndex,
+        contentIndex: open12.contentIndex,
         delta: argsDelta,
         partial: output
       });
     }
   }
   finishCurrentBlock(currentBlock);
-  for (const open11 of toolCallsByKey.values()) {
-    const block = output.content[open11.contentIndex];
-    Object.assign(block, open11.arguments.finish());
+  for (const open12 of toolCallsByKey.values()) {
+    const block = output.content[open12.contentIndex];
+    Object.assign(block, open12.arguments.finish());
     stream12.push({
       type: "toolcall_end",
-      contentIndex: open11.contentIndex,
+      contentIndex: open12.contentIndex,
       toolCall: block,
       partial: output
     });
@@ -160499,7 +160499,7 @@ var require_core = __commonJS({
         }
         return highlighted[0].event === "start" ? original : highlighted;
       }
-      function open11(node2) {
+      function open12(node2) {
         function attributeString(attr) {
           return " " + attr.nodeName + '="' + escapeHTML(attr.value) + '"';
         }
@@ -160509,7 +160509,7 @@ var require_core = __commonJS({
         result += "</" + tag2(node2) + ">";
       }
       function render2(event) {
-        (event.event === "start" ? open11 : close)(event.node);
+        (event.event === "start" ? open12 : close)(event.node);
       }
       while (original.length || highlighted.length) {
         let stream12 = selectStream();
@@ -160521,7 +160521,7 @@ var require_core = __commonJS({
             render2(stream12.splice(0, 1)[0]);
             stream12 = selectStream();
           } while (stream12 === original && stream12.length && stream12[0].offset === processed);
-          nodeStack.reverse().forEach(open11);
+          nodeStack.reverse().forEach(open12);
         } else {
           if (stream12[0].event === "start") {
             nodeStack.push(stream12[0].node);
@@ -164262,11 +164262,11 @@ var require_perl = __commonJS({
         /#/
         // valid but infrequent and weird
       ];
-      const PAIRED_DOUBLE_RE = (prefix, open11, close = "\\1") => {
-        const middle = close === "\\1" ? close : concat2(close, open11);
+      const PAIRED_DOUBLE_RE = (prefix, open12, close = "\\1") => {
+        const middle = close === "\\1" ? close : concat2(close, open12);
         return concat2(
           concat2("(?:", prefix, ")"),
-          open11,
+          open12,
           /(?:\\.|[^\\\/])*?/,
           middle,
           /(?:\\.|[^\\\/])*?/,
@@ -164274,10 +164274,10 @@ var require_perl = __commonJS({
           REGEX_MODIFIERS
         );
       };
-      const PAIRED_RE = (prefix, open11, close) => {
+      const PAIRED_RE = (prefix, open12, close) => {
         return concat2(
           concat2("(?:", prefix, ")"),
-          open11,
+          open12,
           /(?:\\.|[^\\\/])*?/,
           close,
           REGEX_MODIFIERS
@@ -195428,11 +195428,11 @@ var init_ui = __esm({
           }
           signal.addEventListener("abort", onAbort, { once: true });
           const input = new Input();
-          const link5 = new AuthUrlComponent(this.tui, authorizationUrl);
+          const link6 = new AuthUrlComponent(this.tui, authorizationUrl);
           const body = [
             new Spacer(1),
             new Text(this.theme.fg("muted", "Approve access in your browser. If it did not open, visit:"), 1, 0),
-            link5,
+            link6,
             new Spacer(1),
             new Text(this.theme.fg("muted", "If the browser runs on another machine, paste the URL it was redirected to:"), 1, 0),
             input
@@ -195450,7 +195450,7 @@ var init_ui = __esm({
                 return;
               }
               if (this.keybindings.matches(data, "app.message.copy")) {
-                void link5.copy();
+                void link6.copy();
                 return;
               }
               input.handleInput(data);
@@ -218455,11 +218455,11 @@ var init_dist13 = __esm({
             return;
           }
           const decoder3 = new TextDecoder(), reader = body.getReader();
-          let open11 = true;
+          let open12 = true;
           do {
             const { done, value } = await reader.read();
-            value && __privateGet(this, _parser).feed(decoder3.decode(value, { stream: !done })), done && (open11 = false, __privateGet(this, _parser).reset(), __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this));
-          } while (open11);
+            value && __privateGet(this, _parser).feed(decoder3.decode(value, { stream: !done })), done && (open12 = false, __privateGet(this, _parser).reset(), __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this));
+          } while (open12);
         }), __privateAdd(this, _onFetchError, (err2) => {
           __privateSet(this, _controller, void 0), !(err2.name === "AbortError" || err2.type === "aborted") && __privateMethod(this, _EventSource_instances, scheduleReconnect_fn).call(this, flattenError2(err2));
         }), __privateAdd(this, _onEvent, (event) => {
@@ -237275,7 +237275,9 @@ var WorkflowStepSchema = Type.Recursive((Self) => Type.Union([
     id: Type.String({ minLength: 1 }),
     type: Type.Literal("switch"),
     on: Type.String({ description: "\u8981\u5224\u5B9A\u7684\u53D8\u91CF\u540D\uFF0C\u5982 changes.text" }),
-    cases: Type.Record(Type.String(), Type.Array(Self), { description: "\u547D\u4E2D\u503C \u2192 \u6B65\u9AA4\u6570\u7EC4" }),
+    cases: Type.Record(Type.String({ pattern: "^[\\s\\S]*$" }), Type.Array(Self), {
+      description: "\u547D\u4E2D\u503C \u2192 \u6B65\u9AA4\u6570\u7EC4"
+    }),
     default: Type.Optional(Type.Array(Self))
   })
 ]));
@@ -243756,6 +243758,7 @@ import { access, copyFile, link as link2, readFile as readFile4, rename as renam
 import path3 from "node:path";
 
 // packages/coremind-runtime/dist/session-v4/file-system.js
+import { createReadStream } from "node:fs";
 import { appendFile, lstat, mkdir, open, readdir, readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join, resolve } from "node:path";
@@ -243907,6 +243910,21 @@ var SessionFileSystem = class {
       return aborted4;
     try {
       return ok(await readFile2(resolved, { encoding: "utf8", signal: abortSignal }));
+    } catch (error3) {
+      return err(toFileError(error3, resolved));
+    }
+  }
+  async readFirstLine(path50) {
+    const resolved = resolvePath(this.cwd, path50);
+    try {
+      let line = "";
+      for await (const chunk of createReadStream(resolved, { encoding: "utf8" })) {
+        const end = chunk.indexOf("\n");
+        if (end >= 0)
+          return ok(line + chunk.slice(0, end));
+        line += chunk;
+      }
+      return ok(line);
     } catch (error3) {
       return err(toFileError(error3, resolved));
     }
@@ -245994,6 +246012,9 @@ var JsonlSessionRepo = class {
   async list(options2 = {}) {
     return this.listDirect(options2);
   }
+  async findById(cwd, id2) {
+    return (await this.listDirect({ cwd }, id2))[0];
+  }
   async delete(metadata) {
     fileResult(await this.fs.remove(metadata.path, { force: true }), `Failed to delete session ${metadata.path}`);
   }
@@ -246040,28 +246061,31 @@ var JsonlSessionRepo = class {
     fileResult(await this.fs.createDir(sessionDirectory, { recursive: true }), `Failed to create sessions directory`);
     return { header, path: path50 };
   }
-  async listDirect(options2) {
+  async listDirect(options2, id2) {
     const directories = await this.sessionDirectories(options2.cwd);
     const metadata = [];
     for (const directory of directories) {
       const files = fileResult(await this.fs.listDir(directory), `Failed to list sessions directory ${directory}`).filter((entry) => entry.kind !== "directory" && entry.name.endsWith(".jsonl"));
       for (const file of files) {
-        const content = fileResult(await this.fs.readTextFile(file.path), `Failed to read session header ${file.path}`);
-        const firstLine2 = content.split("\n", 1)[0];
+        if (id2 !== void 0 && file.name.slice(file.name.indexOf("_") + 1) !== `${id2}.jsonl`)
+          continue;
+        const firstLine2 = fileResult(await this.fs.readFirstLine(file.path), `Failed to read session header ${file.path}`);
         if (!firstLine2)
           throw invalidFile(file.path, 1, "is missing a header");
-        metadata.push(metadataFromHeader(parseHeader(firstLine2, file.path), file.path, file.mtimeMs));
+        const header = parseHeader(firstLine2, file.path);
+        if (id2 !== void 0 && header.id !== id2)
+          throw invalidFile(file.path, 1, "has a different session id");
+        metadata.push(metadataFromHeader(header, file.path, file.mtimeMs));
       }
     }
     return metadata.sort((left, right) => right.modifiedAt - left.modifiedAt);
   }
   async sessionIdExists(id2, cwd) {
-    const suffix = `_${id2}.jsonl`;
     const directory = await this.sessionDirectory(cwd);
     if (!fileResult(await this.fs.exists(directory), `Failed to check sessions directory ${directory}`))
       return false;
     const files = fileResult(await this.fs.listDir(directory), `Failed to list sessions directory ${directory}`);
-    return files.some((entry) => entry.kind !== "directory" && entry.name.endsWith(suffix));
+    return files.some((entry) => entry.kind !== "directory" && entry.name.slice(entry.name.indexOf("_") + 1) === `${id2}.jsonl`);
   }
   async sessionDirectories(cwd) {
     const root = await this.root();
@@ -246455,13 +246479,15 @@ var CoreMindSession = class _CoreMindSession {
     return withSessionIO(opts.dir, opts.sessionId, async (identity3) => {
       const env2 = new SessionFileSystem({ cwd: opts.cwd });
       const repository = new JsonlSessionRepo({ fs: env2, sessionsRoot: path3.resolve(opts.dir) });
-      let metadata = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === opts.sessionId);
+      let metadata = await repository.findById(opts.cwd, opts.sessionId);
       const hasPublicPath = await fileExists(publicPath2);
       if (metadata === void 0 && hasPublicPath) {
-        const firstLine2 = (await readFile4(publicPath2, "utf8")).split("\n").find((line) => line.trim().length > 0);
-        const header = firstLine2 === void 0 ? {} : parseJsonObject(firstLine2, publicPath2, 1);
+        const firstLine2 = await env2.readFirstLine(publicPath2);
+        if (!firstLine2.ok)
+          throw firstLine2.error;
+        const header = firstLine2.value.trim() ? parseJsonObject(firstLine2.value, publicPath2, 1) : {};
         if (header.kind === "header" && header.version === 4 && header.id === opts.sessionId && typeof header.cwd === "string" && await pathsReferToSameFile(header.cwd, opts.cwd)) {
-          const candidate = (await repository.list({ cwd: header.cwd })).find((item) => item.id === opts.sessionId);
+          const candidate = await repository.findById(header.cwd, opts.sessionId);
           if (candidate && await pathsReferToSameFile(candidate.path, publicPath2))
             metadata = candidate;
         }
@@ -246512,7 +246538,7 @@ var CoreMindSession = class _CoreMindSession {
       return true;
     const env2 = new SessionFileSystem({ cwd });
     const repository = new JsonlSessionRepo({ fs: env2, sessionsRoot: path3.resolve(dir) });
-    return (await repository.list({ cwd })).some((candidate) => candidate.id === sessionId);
+    return await repository.findById(cwd, sessionId) !== void 0;
   }
   /** 追加消息（每条一个树条目）；先深层删除 undefined 值字段（会话存储拒绝 undefined 值） */
   async appendMessages(messages) {
@@ -246650,7 +246676,7 @@ var CoreMindSession = class _CoreMindSession {
             fs: new SessionFileSystem({ cwd: opts.cwd }),
             sessionsRoot: opts.dir
           });
-          const source = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === state3.options.sessionId);
+          const source = await repository.findById(opts.cwd, state3.options.sessionId);
           if (!source || source.path !== state3.storagePath)
             throw new CoreMindError("session_layout_conflict", "\u5206\u53C9\u6765\u6E90\u4E0E\u5DF2\u6253\u5F00\u7684\u4F1A\u8BDD\u4E0D\u4E00\u81F4");
           const target = await repository.fork(source, {
@@ -246807,7 +246833,7 @@ async function migrateLegacySession(opts, repository, publicPath2, hooks = {}) {
   const legacy = await parseLegacySession(publicPath2, opts.sessionId);
   const backupPath = `${publicPath2}.v3.backup`;
   await ensureLegacyBackup(backupPath, legacy.source);
-  let metadata = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === opts.sessionId);
+  let metadata = await repository.findById(opts.cwd, opts.sessionId);
   if (metadata === void 0) {
     const created = await repository.create({
       id: opts.sessionId,
@@ -246826,7 +246852,7 @@ async function migrateLegacySession(opts, repository, publicPath2, hooks = {}) {
     const migratedText = convertLegacySession(legacy, metadata.createdAt, opts.cwd, backupPath);
     await hooks.beforeTargetCommit?.();
     await writeTextAtomically(metadata.path, migratedText);
-    metadata = (await repository.list({ cwd: opts.cwd })).find((candidate) => candidate.id === opts.sessionId);
+    metadata = await repository.findById(opts.cwd, opts.sessionId);
     if (metadata === void 0 || readMigrationMetadata(metadata.metadata)?.complete !== true) {
       throw new CoreMindError("session_migration_failed", `\u4F1A\u8BDD ${opts.sessionId} \u7684\u8FC1\u79FB\u76EE\u6807\u6821\u9A8C\u5931\u8D25`);
     }
@@ -247310,7 +247336,7 @@ var ChatSession = class {
 
 // packages/coremind-runtime/dist/checkpoint.js
 import { createHash as createHash10, randomUUID as randomUUID16 } from "node:crypto";
-import { mkdir as mkdir7, readFile as readFile11, realpath as realpath8, unlink as unlink2, writeFile as writeFile8 } from "node:fs/promises";
+import { link as link4, mkdir as mkdir7, open as open8, readFile as readFile11, realpath as realpath8, unlink as unlink2, writeFile as writeFile8 } from "node:fs/promises";
 import path36 from "node:path";
 
 // packages/coremind-tools/dist/artifact-store.js
@@ -248393,11 +248419,11 @@ var replacements = Object.entries(specialMainSymbols);
 // node_modules/yoctocolors/base.js
 import tty from "node:tty";
 var hasColors = tty?.WriteStream?.prototype?.hasColors?.() ?? false;
-var format = (open11, close) => {
+var format = (open12, close) => {
   if (!hasColors) {
     return (input) => input;
   }
-  const openCode = `\x1B[${open11}m`;
+  const openCode = `\x1B[${open12}m`;
   const closeCode = `\x1B[${close}m`;
   return (input) => {
     const string4 = input + "";
@@ -252981,7 +253007,7 @@ var iterable = async function* () {
 var handleDummyPromise = async (error3, verboseInfo, options2) => handleResult(error3, verboseInfo, options2);
 
 // node_modules/execa/lib/stdio/handle-async.js
-import { createReadStream, createWriteStream as createWriteStream2 } from "node:fs";
+import { createReadStream as createReadStream2, createWriteStream as createWriteStream2 } from "node:fs";
 import { Buffer as Buffer5 } from "node:buffer";
 import { Readable as Readable2, Writable as Writable2, Duplex as Duplex2 } from "node:stream";
 var handleStdioAsync = (options2, verboseInfo) => handleStdio(addPropertiesAsync, options2, verboseInfo, false);
@@ -253005,8 +253031,8 @@ var addProperties2 = {
 var addPropertiesAsync = {
   input: {
     ...addProperties2,
-    fileUrl: ({ value }) => ({ stream: createReadStream(value) }),
-    filePath: ({ value: { file } }) => ({ stream: createReadStream(file) }),
+    fileUrl: ({ value }) => ({ stream: createReadStream2(value) }),
+    filePath: ({ value: { file } }) => ({ stream: createReadStream2(file) }),
     webStream: ({ value }) => ({ stream: Readable2.fromWeb(value) }),
     iterable: ({ value }) => ({ stream: Readable2.from(value) }),
     asyncIterable: ({ value }) => ({ stream: Readable2.from(value) }),
@@ -261141,22 +261167,16 @@ var CheckpointManager = class {
   async snapshotTarget(target) {
     const targetPath = await this.canonicalTargetPath(target);
     let content;
-    let existed = true;
     try {
-      content = await readFile11(targetPath);
+      content = await readBoundedFile(targetPath, this.maxFileBytes);
     } catch (error3) {
-      if (error3.code === "ENOENT")
-        existed = false;
-      else {
-        throw new CoreMindError("checkpoint_failed", `\u8BFB\u53D6\u4FEE\u6539\u524D\u6587\u4EF6\u5931\u8D25\uFF1A${error3 instanceof Error ? error3.message : String(error3)}`);
-      }
-    }
-    if (content && content.byteLength > this.maxFileBytes) {
-      throw new CoreMindError("checkpoint_too_large", `\u6587\u4EF6 ${target} \u5927\u4E8E\u68C0\u67E5\u70B9\u4E0A\u9650 ${this.maxFileBytes} \u5B57\u8282\uFF0C\u5DF2\u963B\u6B62\u4FEE\u6539`);
+      if (error3 instanceof CoreMindError)
+        throw error3;
+      throw new CoreMindError("checkpoint_failed", `\u8BFB\u53D6\u4FEE\u6539\u524D\u6587\u4EF6\u5931\u8D25\uFF1A${error3 instanceof Error ? error3.message : String(error3)}`);
     }
     return {
       targetPath,
-      existed,
+      existed: content !== void 0,
       ...content ? { beforeSha256: sha256(content), contentBase64: content.toString("base64") } : {}
     };
   }
@@ -261171,17 +261191,8 @@ var CheckpointManager = class {
       };
     }
     const targetPath = await this.canonicalTargetPath(stored.targetPath);
-    let after;
-    try {
-      after = await readFile11(targetPath);
-    } catch (error3) {
-      if (error3.code !== "ENOENT")
-        throw error3;
-    }
     const before = stored.contentBase64 !== void 0 ? Buffer.from(stored.contentBase64, "base64") : void 0;
-    if ((before?.byteLength ?? 0) + (after?.byteLength ?? 0) > this.maxFileBytes) {
-      throw new CoreMindError("checkpoint_too_large", `\u68C0\u67E5\u70B9 diff \u8F93\u5165\u5927\u4E8E ${this.maxFileBytes} \u5B57\u8282\u4E0A\u9650`);
-    }
+    const after = await readBoundedFile(targetPath, this.maxFileBytes - (before?.byteLength ?? 0));
     const beforeSha256 = before ? sha256(before) : void 0;
     const afterSha256 = after ? sha256(after) : void 0;
     const relativePath = path36.relative(this.options.cwd, stored.targetPath) || path36.basename(stored.targetPath);
@@ -261216,19 +261227,20 @@ var CheckpointManager = class {
     if (!stored.reversible || !stored.targetPath)
       return;
     const targetPath = await this.canonicalTargetPath(stored.targetPath);
-    const after = await readOptionalFile(targetPath);
-    stored.afterExisted = after !== void 0;
-    if (after)
-      stored.afterSha256 = sha256(after);
-    else
-      delete stored.afterSha256;
-    await writeFile8(stored.snapshotFile, `${JSON.stringify(stored)}
-`, "utf8");
+    const after = await fileFingerprint(targetPath);
+    if (stored.afterExisted === void 0) {
+      await publishCheckpointFile(`${stored.snapshotFile}.applied`, {
+        before: createHash10("sha256").update(checkpointIdentity(stored), "utf8").digest("hex"),
+        ...after
+      });
+    } else if (stored.afterExisted !== after.existed || stored.afterSha256 !== after.sha256) {
+      throw new CoreMindError("checkpoint_conflict", "\u68C0\u67E5\u70B9\u5DF2\u56FA\u5B9A\u5176\u4ED6\u5199\u540E\u72B6\u6001");
+    }
     const record2 = this.records.find((item) => item.checkpointId === checkpointId);
     if (record2) {
-      record2.afterExisted = stored.afterExisted;
-      if (stored.afterSha256)
-        record2.afterSha256 = stored.afterSha256;
+      record2.afterExisted = after.existed;
+      if (after.sha256)
+        record2.afterSha256 = after.sha256;
       else
         delete record2.afterSha256;
     }
@@ -261255,9 +261267,7 @@ var CheckpointManager = class {
     if (stored.afterExisted === void 0 && expectedCurrent === void 0) {
       throw new CoreMindError("checkpoint_conflict", `\u68C0\u67E5\u70B9 ${checkpointId} \u7F3A\u5C11\u5DE5\u5177\u6267\u884C\u540E\u7684\u6587\u4EF6\u72B6\u6001\uFF0C\u65E0\u6CD5\u5B89\u5168\u6062\u590D`);
     }
-    const current = await readOptionalFile(targetPath);
-    const currentExists = current !== void 0;
-    const currentSha256 = current ? sha256(current) : void 0;
+    const { existed: currentExists, sha256: currentSha256 } = await fileFingerprint(targetPath);
     if (expectedCurrent !== void 0 && (currentExists !== expectedCurrent.existed || currentExists && currentSha256 !== expectedCurrent.sha256)) {
       throw new CoreMindError("checkpoint_conflict", `\u6587\u4EF6 ${stored.targetPath} \u4E0E\u6062\u590D\u8BF7\u6C42\u7684\u9884\u671F\u5F53\u524D\u72B6\u6001\u4E0D\u4E00\u81F4\uFF0C\u5DF2\u62D2\u7EDD\u8986\u76D6`);
     }
@@ -261293,11 +261303,7 @@ var CheckpointManager = class {
     };
     await mkdir7(path36.dirname(snapshotFile), { recursive: true });
     try {
-      await writeFile8(snapshotFile, `${JSON.stringify(stored)}
-`, {
-        encoding: "utf8",
-        flag: "wx"
-      });
+      await publishCheckpointFile(snapshotFile, stored);
     } catch (error3) {
       if (error3.code === "EEXIST") {
         throw new CoreMindError("checkpoint_conflict", `\u68C0\u67E5\u70B9 ${checkpointId} \u5DF2\u5B58\u5728\u4F46\u7F3A\u5C11\u53EF\u9A8C\u8BC1\u7684\u5E42\u7B49 Fact`);
@@ -261308,7 +261314,7 @@ var CheckpointManager = class {
     this.records.push(record2);
     return record2;
   }
-  async load(checkpointId) {
+  async load(checkpointId, includeApplied = true) {
     if (!/^[a-zA-Z0-9_-]+$/.test(checkpointId)) {
       throw new CoreMindError("invalid_checkpoint_id", `\u975E\u6CD5 checkpointId\uFF1A${checkpointId}`);
     }
@@ -261322,6 +261328,22 @@ var CheckpointManager = class {
       if (stored.existed === true !== (before !== void 0) || before !== void 0 && sha256(before) !== stored.beforeSha256 || stored.existed === false && stored.beforeSha256 !== void 0) {
         throw new Error("\u5FEB\u7167\u5185\u5BB9\u4E0E\u5199\u524D\u8EAB\u4EFD\u4E0D\u4E00\u81F4");
       }
+      if (includeApplied && stored.afterExisted === void 0) {
+        let marker;
+        try {
+          marker = await readFile11(`${stored.snapshotFile}.applied`, "utf8");
+        } catch (error3) {
+          if (error3.code === "ENOENT")
+            return stored;
+          throw error3;
+        }
+        const applied = JSON.parse(marker);
+        if (applied.before !== createHash10("sha256").update(checkpointIdentity(stored), "utf8").digest("hex") || typeof applied.existed !== "boolean" || (applied.existed ? typeof applied.sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(applied.sha256) : applied.sha256 !== void 0))
+          throw new Error("\u5199\u540E\u72B6\u6001\u8EAB\u4EFD\u65E0\u6548");
+        stored.afterExisted = applied.existed;
+        if (applied.existed)
+          stored.afterSha256 = applied.sha256;
+      }
       return stored;
     } catch (error3) {
       if (error3 instanceof CoreMindError)
@@ -261333,7 +261355,7 @@ var CheckpointManager = class {
     return path36.join(this.options.rootDir, this.options.runId, `${checkpointId}.json`);
   }
   async verifyRecord(record2) {
-    const stored = await this.load(record2.checkpointId);
+    const stored = await this.load(record2.checkpointId, record2.afterExisted !== void 0);
     const { contentBase64: _contentBase64, ...publicStored } = stored;
     if (checkpointIdentity(publicStored) !== checkpointIdentity(record2)) {
       throw new CoreMindError("checkpoint_corrupt", "\u68C0\u67E5\u70B9 Fact \u4E0E\u5FEB\u7167\u8EAB\u4EFD\u4E0D\u4E00\u81F4");
@@ -261349,13 +261371,75 @@ var CheckpointManager = class {
     return target;
   }
 };
-async function readOptionalFile(targetPath) {
+async function openOptionalFile(targetPath) {
   try {
-    return await readFile11(targetPath);
+    return await open8(targetPath, "r");
   } catch (error3) {
     if (error3.code === "ENOENT")
       return void 0;
     throw error3;
+  }
+}
+async function readBoundedFile(targetPath, limit3) {
+  const tooLarge = () => new CoreMindError("checkpoint_too_large", `\u68C0\u67E5\u70B9\u8F93\u5165\u8D85\u8FC7\u5269\u4F59 ${limit3} \u5B57\u8282\u4E0A\u9650`);
+  if (limit3 < 0)
+    throw tooLarge();
+  const file = await openOptionalFile(targetPath);
+  if (!file)
+    return void 0;
+  try {
+    if ((await file.stat()).size > limit3)
+      throw tooLarge();
+    const chunks = [];
+    let size = 0;
+    while (true) {
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, limit3 - size + 1));
+      const { bytesRead } = await file.read(chunk);
+      if (bytesRead === 0)
+        break;
+      size += bytesRead;
+      if (size > limit3)
+        throw tooLarge();
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    return Buffer.concat(chunks, size);
+  } finally {
+    await file.close();
+  }
+}
+async function fileFingerprint(targetPath) {
+  const file = await openOptionalFile(targetPath);
+  if (!file)
+    return { existed: false };
+  try {
+    const hash4 = createHash10("sha256");
+    const chunk = Buffer.allocUnsafe(64 * 1024);
+    while (true) {
+      const { bytesRead } = await file.read(chunk);
+      if (bytesRead === 0)
+        break;
+      hash4.update(chunk.subarray(0, bytesRead));
+    }
+    return { existed: true, sha256: hash4.digest("hex") };
+  } finally {
+    await file.close();
+  }
+}
+async function publishCheckpointFile(destination, value) {
+  const temporary = `${destination}.${randomUUID16()}.tmp`;
+  try {
+    await writeFile8(temporary, `${JSON.stringify(value)}
+`, {
+      encoding: "utf8",
+      flag: "wx",
+      flush: true
+    });
+    await link4(temporary, destination);
+  } finally {
+    await unlink2(temporary).catch((error3) => {
+      if (error3.code !== "ENOENT")
+        throw error3;
+    });
   }
 }
 async function inspectCheckpoint(record2, cwd) {
@@ -261366,6 +261450,9 @@ async function inspectCheckpoint(record2, cwd) {
 async function restoreCheckpoint(record2, cwd, expectedCurrent) {
   const manager = managerFromRecord(record2, cwd);
   await manager.verifyRecord(record2);
+  if (record2.reversible && record2.afterExisted === void 0 && expectedCurrent === void 0) {
+    throw new CoreMindError("checkpoint_conflict", "\u5DF2\u63D0\u4EA4\u7684\u68C0\u67E5\u70B9\u7F3A\u5C11\u5199\u540E\u72B6\u6001\uFF0C\u6062\u590D\u524D\u987B\u6838\u5B9E\u5F53\u524D\u6587\u4EF6");
+  }
   return manager.restore(record2.checkpointId, expectedCurrent);
 }
 function managerFromRecord(record2, cwd) {
@@ -264528,7 +264615,7 @@ var TEMPLATES = [
 // packages/coremind-templates/dist/standard-skills.js
 import { createHash as createHash15 } from "node:crypto";
 import { constants as constants13 } from "node:fs";
-import { lstat as lstat5, open as open8, realpath as realpath9, stat as stat7 } from "node:fs/promises";
+import { lstat as lstat5, open as open9, realpath as realpath9, stat as stat7 } from "node:fs/promises";
 import path40 from "node:path";
 var MAX_SOURCE_BYTES = 256 * 1024;
 var MAX_RESULT_BYTES = 2 * 1024 * 1024;
@@ -264750,7 +264837,7 @@ async function readBoundedUtf8(file, directory, boundaries, packaged = false) {
   if (before.size > BigInt(MAX_SOURCE_BYTES))
     throw new Error(`\u6280\u80FD\u6E90\u8D85\u8FC7 256 KiB \u4E0A\u9650\uFF1A${file}`);
   const flags = constants13.O_RDONLY | constants13.O_NONBLOCK | (packaged ? constants13.O_NOFOLLOW ?? 0 : 0);
-  const handle = await open8(canonical2, flags);
+  const handle = await open9(canonical2, flags);
   try {
     const opened = await handle.stat({ bigint: true });
     if (!opened.isFile() || !sameIdentity(before, opened)) {
@@ -265474,7 +265561,7 @@ function projectContextCompactionLedger(entries2) {
 
 // packages/coremind-runtime/dist/context-lifecycle.js
 import { createHash as createHash17 } from "node:crypto";
-import { createReadStream as createReadStream4 } from "node:fs";
+import { createReadStream as createReadStream5 } from "node:fs";
 import { realpath as realpath10, stat as stat8 } from "node:fs/promises";
 import path41 from "node:path";
 var ContextLifecycleError = class extends Error {
@@ -265854,7 +265941,7 @@ function isStrictChild2(parent, candidate) {
 }
 async function hashFile2(filePath) {
   const hash4 = createHash17("sha256");
-  for await (const chunk of createReadStream4(filePath))
+  for await (const chunk of createReadStream5(filePath))
     hash4.update(chunk);
   return hash4.digest("hex");
 }
@@ -270541,7 +270628,7 @@ var Orchestrator = class {
         const input = this.interpolate(step.input);
         const text2 = await this.promptWithTimeout(step.agent, input, step.id, signal);
         const output = { text: text2, metadata: { agent: step.agent, stepId: step.id } };
-        const retryNeeded = retryCfg?.if !== void 0 && evalCondition(this.interpolateWithStepText(retryCfg.if, text2));
+        const retryNeeded = retryCfg?.if !== void 0 && evaluateConditionTemplate(retryCfg.if, (operand) => this.interpolateWithStepText(operand, text2));
         if (retryNeeded && attempt < maxAttempts) {
           if (this.retryCount >= this.maxRetries) {
             throw new CoreMindError("retry_limit", `\u5DE5\u4F5C\u6D41\u91CD\u8BD5\u6B21\u6570\u8FBE\u5230\u4E0A\u9650\uFF08${this.maxRetries} \u6B21\uFF09\uFF0C\u5DF2\u4E2D\u6B62\uFF1A${step.id}`);
@@ -270668,7 +270755,7 @@ var Orchestrator = class {
   }
   async runIfStep(step, depth, signal) {
     this.events({ type: "step_start", stepId: step.id, kind: "if" });
-    const branch = evalCondition(this.interpolate(step.condition)) ? step.then : step.else;
+    const branch = evaluateConditionTemplate(step.condition, (operand) => this.interpolate(operand)) ? step.then : step.else;
     if (branch)
       await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
@@ -270679,7 +270766,7 @@ var Orchestrator = class {
     this.events({ type: "step_start", stepId: step.id, kind: "switch" });
     const value = this.variables.get(step.on) ?? "";
     const hit = Object.keys(step.cases).find((key) => value.includes(key));
-    const branch = hit ? step.cases[hit] : step.default;
+    const branch = hit === void 0 ? step.default : step.cases[hit];
     if (branch)
       await this.runSteps(branch, depth + 1, signal);
     this.events({ type: "step_output", stepId: step.id, agent: "", text: "" });
@@ -270721,27 +270808,20 @@ function extractSuccessfulText(agent, messageCursor) {
   }
   return extractText(messages.slice(messageCursor));
 }
-function evalCondition(condition) {
-  const cond = condition.trim();
-  if (cond.length === 0)
-    return false;
-  if (cond === "true")
-    return true;
-  if (cond === "false")
-    return false;
-  const containsMatch = cond.match(/^(.*?)\s+contains\s+(.*)$/);
-  if (containsMatch) {
-    return Boolean(containsMatch[1]?.includes(containsMatch[2] ?? ""));
+function evaluateConditionTemplate(template, interpolate) {
+  const expression = template.trim();
+  const operator = /\scontains\s/.exec(expression) ?? /==/.exec(expression) ?? /!=/.exec(expression);
+  if (!operator) {
+    const value = interpolate(expression).trim();
+    return value !== "" && value !== "false";
   }
-  const equalMatch = cond.match(/^(.*?)\s*==\s*(.*)$/);
-  if (equalMatch) {
-    return equalMatch[1] === equalMatch[2];
-  }
-  const notEqualMatch = cond.match(/^(.*?)\s*!=\s*(.*)$/);
-  if (notEqualMatch) {
-    return notEqualMatch[1] !== notEqualMatch[2];
-  }
-  return true;
+  const left = interpolate(expression.slice(0, operator.index)).trim();
+  const right = interpolate(expression.slice(operator.index + operator[0].length)).trim();
+  if (operator[0] === "==")
+    return left === right;
+  if (operator[0] === "!=")
+    return left !== right;
+  return left.includes(right);
 }
 
 // packages/coremind-runtime/dist/retry-policy.js
@@ -270917,8 +270997,7 @@ var LoopRunner = class {
     }
     const output = await this.runStep("verify", `loop-verify:${iteration}`, verification.agent, this.interpolate(verification.input), "verification");
     this.saveOutput("verification", output);
-    const condition = this.interpolate(verification.passIf, output.text);
-    const textPassed = evalCondition(condition);
+    const textPassed = evaluateConditionTemplate(verification.passIf, (operand) => this.interpolate(operand, output.text));
     const evidencePassed = this.options.verifyEvidence ? await this.options.verifyEvidence({
       iteration,
       stepId: `loop-verify:${iteration}`,
@@ -271037,7 +271116,7 @@ function progressFingerprint(text2) {
 
 // packages/coremind-runtime/dist/mcp-runtime.js
 import { createHash as createHash22 } from "node:crypto";
-import { createReadStream as createReadStream5 } from "node:fs";
+import { createReadStream as createReadStream6 } from "node:fs";
 import { realpath as realpath11, stat as stat9 } from "node:fs/promises";
 import path42 from "node:path";
 var BASE_ENVIRONMENT_KEYS = [
@@ -271279,7 +271358,15 @@ function createMcpRun(options2) {
                   ...context.signal ? [context.signal] : []
                 ]);
                 assertOpen(callSignal);
-                return connectedClient.callTool(listed2, args, callSignal);
+                try {
+                  return await connectedClient.callTool(listed2, args, callSignal);
+                } catch (error3) {
+                  const code = error3 instanceof Error && "code" in error3 ? error3.code : void 0;
+                  if (listed2.outputSchema !== void 0 && selection.capability.effect !== "none" && selection.capability.replay === "unsafe" && !callSignal.aborted && (code === "mcp_protocol_error" || code === "mcp_transport_error" || code === "mcp_http_request_failed")) {
+                    throw new CoreMindError("tool_execution_failed", "MCP \u5199\u5165\u672A\u53D6\u5F97\u6709\u6548\u56DE\u6267\uFF0C\u4E1A\u52A1\u7ED3\u679C\u5F85\u786E\u8BA4");
+                  }
+                  throw error3;
+                }
               }
             }
           });
@@ -271425,7 +271512,7 @@ async function identifyServer(serverName, server) {
 }
 async function hashFile3(file) {
   const hash4 = createHash22("sha256");
-  for await (const chunk of createReadStream5(file))
+  for await (const chunk of createReadStream6(file))
     hash4.update(chunk);
   return hash4.digest("hex");
 }
@@ -271650,7 +271737,7 @@ function validTimestamp(value) {
 
 // packages/coremind-runtime/dist/project-code-trust.js
 import { createHash as createHash23 } from "node:crypto";
-import { open as open9, realpath as realpath12, stat as stat10 } from "node:fs/promises";
+import { open as open10, realpath as realpath12, stat as stat10 } from "node:fs/promises";
 import path43 from "node:path";
 function checkCancellation(signal) {
   if (signal?.aborted)
@@ -271662,7 +271749,7 @@ async function inspectSource(fullPath, signal) {
   if (!(await stat10(canonical2)).isFile()) {
     throw new CoreMindError("execution_security_violation", "\u9879\u76EE\u811A\u672C\u5165\u53E3\u5FC5\u987B\u662F\u666E\u901A\u6587\u4EF6");
   }
-  const handle = await open9(canonical2, "r");
+  const handle = await open10(canonical2, "r");
   try {
     if (!(await handle.stat()).isFile()) {
       throw new CoreMindError("execution_security_violation", "\u9879\u76EE\u811A\u672C\u5165\u53E3\u5FC5\u987B\u662F\u666E\u901A\u6587\u4EF6");
@@ -271740,7 +271827,7 @@ async function prepareProjectCodeImports(config2, configDir, approve, signal) {
 
 // packages/coremind-runtime/dist/run-state.js
 import { createHash as createHash24, randomUUID as randomUUID21 } from "node:crypto";
-import { link as link4, mkdir as mkdir8, open as open10, readFile as readFile12, rename as rename6, rm as rm8, stat as stat11, writeFile as writeFile9 } from "node:fs/promises";
+import { link as link5, mkdir as mkdir8, open as open11, readFile as readFile12, rename as rename6, rm as rm8, stat as stat11, writeFile as writeFile9 } from "node:fs/promises";
 import path44 from "node:path";
 
 // packages/coremind-runtime/dist/fact-ledger.js
@@ -271946,7 +272033,7 @@ var FileRunStore = class {
       return await this.withWriterLock(destination, async () => {
         let handle;
         try {
-          handle = await open10(destination, "r+");
+          handle = await open11(destination, "r+");
           await this.options.beforeBarrier?.({ destination, runId, requested });
           await handle.sync();
           return durabilityAcknowledgement(this, requested);
@@ -272024,7 +272111,7 @@ var FileRunStore = class {
       if (durability === "critical") {
         let handle;
         try {
-          handle = await open10(temporary, "r+");
+          handle = await open11(temporary, "r+");
           await this.options.beforeBarrier?.({
             destination,
             runId: record2.runId,
@@ -272140,7 +272227,7 @@ var FileRunStore = class {
             if (durability === "critical") {
               let handle2;
               try {
-                handle2 = await open10(destination, "r+");
+                handle2 = await open11(destination, "r+");
                 await this.options.beforeBarrier?.({
                   destination,
                   runId: record2.runId,
@@ -272186,7 +272273,7 @@ var FileRunStore = class {
         await this.prepareAppend(destination, record2, text2);
         let handle;
         try {
-          handle = await open10(destination, "a");
+          handle = await open11(destination, "a");
           await handle.writeFile(text2, "utf8");
         } finally {
           await handle?.close().catch(() => void 0);
@@ -272247,7 +272334,7 @@ var FileRunStore = class {
     const tombstonePath = `${claimPath}.tombstone-${randomUUID21()}`;
     let claimHandle;
     try {
-      claimHandle = await open10(claimPath, "wx");
+      claimHandle = await open11(claimPath, "wx");
     } catch (error3) {
       if (error3.code === "EEXIST")
         return false;
@@ -272275,7 +272362,7 @@ async function publishWriterLock(lockPath, owner) {
       encoding: "utf8",
       flag: "wx"
     });
-    await link4(candidatePath, lockPath);
+    await link5(candidatePath, lockPath);
   } finally {
     await rm8(candidatePath, { force: true }).catch(() => void 0);
   }
@@ -273759,6 +273846,9 @@ function defineTool2(definition) {
   if (definition.parameters.type !== "object" || !validateToolSchema(definition.parameters)) {
     throw new CoreMindError("invalid_tool", `\u5DE5\u5177 ${definition.name} \u7684 parameters \u5FC5\u987B\u4E3A\u6709\u6548\u7684 object JSON Schema`);
   }
+  if (definition.outputSchema !== void 0 && (definition.outputSchema?.type !== "object" || !validateToolSchema(definition.outputSchema))) {
+    throw new CoreMindError("invalid_tool", `\u5DE5\u5177 ${definition.name} \u7684 outputSchema \u5FC5\u987B\u4E3A\u6709\u6548\u7684 object JSON Schema`);
+  }
   if (definition.effect === null || typeof definition.effect !== "object" || !Array.isArray(definition.effect.operations) || definition.effect.operations.length === 0 || definition.effect.operations.some((operation) => !TOOL_EFFECT_OPERATIONS.includes(operation)) || typeof definition.effect.reversible !== "boolean") {
     throw new CoreMindError("invalid_tool", `\u5DE5\u5177 ${definition.name} \u5FC5\u987B\u63D0\u4F9B\u6709\u6548 effect \u526F\u4F5C\u7528\u58F0\u660E`);
   }
@@ -273781,6 +273871,7 @@ function defineTool2(definition) {
 }
 function adaptCoreMindTool(definition) {
   const valid3 = defineTool2(definition);
+  const validateOutput = valid3.outputSchema && compileOutputSchema(valid3.name, valid3.outputSchema);
   return {
     name: valid3.name,
     label: valid3.label ?? valid3.name,
@@ -273788,7 +273879,13 @@ function adaptCoreMindTool(definition) {
     parameters: valid3.parameters,
     execute: async (callId, args, signal) => {
       const value = await valid3.execute(args, { callId, signal });
-      if (isToolOutput(value)) {
+      const output = isToolOutput(value);
+      if (validateOutput && (!output || value.isError !== true)) {
+        if (!validateOutput(output ? value.details ?? value : value)) {
+          throw new CoreMindError("tool_execution_failed", "\u5DE5\u5177\u6210\u529F\u7ED3\u679C\u672A\u901A\u8FC7 outputSchema \u6821\u9A8C");
+        }
+      }
+      if (output) {
         return {
           content: [{ type: "text", text: value.text }],
           details: value.details ?? value,
@@ -273800,6 +273897,13 @@ function adaptCoreMindTool(definition) {
       return { content: [{ type: "text", text: text2 }], details: value };
     }
   };
+}
+function compileOutputSchema(name, schema) {
+  try {
+    return createToolSchemaValidator(schema).compile(schema);
+  } catch {
+    throw new CoreMindError("invalid_tool", `\u5DE5\u5177 ${name} \u7684 outputSchema \u65E0\u6CD5\u7F16\u8BD1`);
+  }
 }
 function isToolOutput(value) {
   return value !== null && typeof value === "object" && typeof value.text === "string";
@@ -275487,8 +275591,9 @@ function resolveToolEffect(args, capability, selectors) {
     ...collectPathArguments(args),
     ...collectDeclaredStringFields(args, selectors?.pathFields ?? [])
   ];
+  const localFileTool = capability.source === "builtin" && ["read", "write", "edit", "ls", "find", "grep"].includes(capability.tool);
   const urls = [
-    ...collectUrls(args),
+    ...localFileTool ? [] : collectUrls(args),
     ...collectDeclaredStringFields(args, selectors?.urlFields ?? []).filter(isHttpUrl2)
   ];
   const operations = toolEffectOperationsForCapability(capability.effect);
@@ -277348,6 +277453,22 @@ var CoreMindRuntime = class _CoreMindRuntime {
             status: "completed",
             result: { recoveryDisposition: recoveryDispositionFor(resolvedCapability) }
           });
+          const repeatWriteReason = "\u540C\u4E00\u5DE5\u5177\u548C\u53C2\u6570\u7684\u5199\u5165\u6548\u679C\u5C1A\u672A\u786E\u8BA4\uFF0C\u5DF2\u62D2\u7EDD\u518D\u6B21\u6267\u884C";
+          const hasUnresolvedWrite = () => {
+            if (resolvedCapability.effect === "none" || resolvedCapability.replay !== "unsafe")
+              return false;
+            for (let index3 = collected.length - 1; index3 >= 0; index3--) {
+              const previous = collected[index3];
+              if (previous?.type === "effect_receipt" && previous.tool === context2.toolCall.tool && previous.status !== "not_started" && previous.binding?.argumentsFingerprint === argumentsFingerprint) {
+                return previous.status === "started" || previous.status === "unknown";
+              }
+            }
+            return false;
+          };
+          if (hasUnresolvedWrite()) {
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, repeatWriteReason);
+            return { block: true, reason: repeatWriteReason };
+          }
           const registeredCall = activeRunContext.toolCall(agentName, context2.toolCall.callId, stepId);
           const turnId = registeredCall?.turnId;
           if (context2.toolCall.tool === DELEGATION_DISPOSITION_TOOL_NAME && turnId) {
@@ -277619,6 +277740,11 @@ var CoreMindRuntime = class _CoreMindRuntime {
             await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, capabilityFailure.message);
             await rollbackWorkspaceLease(lifecycleIdentity);
             return { block: true, reason: capabilityFailure.message };
+          }
+          if (hasUnresolvedWrite()) {
+            await toolExecutionEngine.blockBeforeExecution(lifecycleIdentity, repeatWriteReason);
+            await rollbackWorkspaceLease(lifecycleIdentity);
+            return { block: true, reason: repeatWriteReason };
           }
           effectCoordinator.markStarted(stepId, context2.toolCall.callId, context2.toolCall.tool);
           if (resolvedCapability.durability === "critical") {
@@ -279262,7 +279388,7 @@ async function executeTaskCalls(options2) {
   const { group, signal } = options2;
   const initialCount = group.calls.length;
   let cursor = 0;
-  let open11 = true;
+  let open12 = true;
   let activeKey;
   let fatal;
   const admitted = /* @__PURE__ */ new Map();
@@ -279285,7 +279411,7 @@ async function executeTaskCalls(options2) {
   };
   const calls = {
     executeTool: (key, tool, rawArgs) => {
-      if (!open11 || signal.aborted || fatal)
+      if (!open12 || signal.aborted || fatal)
         return handled(Promise.reject(fatal ?? new TaskCallError("task_call_unresolved", "\u9636\u6BB5\u5DF2\u505C\u6B62\u63A5\u6536\u8C03\u7528")));
       let args;
       try {
@@ -279360,7 +279486,7 @@ async function executeTaskCalls(options2) {
   };
   try {
     const value = await options2.handler(calls);
-    open11 = false;
+    open12 = false;
     await Promise.all([...admitted.values()]);
     if (fatal)
       throw fatal;
@@ -279369,7 +279495,7 @@ async function executeTaskCalls(options2) {
     signal.throwIfAborted();
     return copyTaskValue(value);
   } finally {
-    open11 = false;
+    open12 = false;
     await Promise.allSettled([...admitted.values()]);
     await Promise.allSettled(audits);
   }
@@ -280191,8 +280317,12 @@ function register2(definitions) {
   return result;
 }
 function validateCheckpoint(registered, phase, checkpoint) {
-  if (typeof phase !== "string" || !Object.hasOwn(registered.definition.phases, phase) || !registered.validate(copyJson2(checkpoint)))
-    throw failure3("task_checkpoint_invalid", "\u9636\u6BB5\u4E0D\u5B58\u5728\u6216\u68C0\u67E5\u70B9\u4E0D\u7B26\u5408 Schema");
+  if (typeof phase !== "string" || !Object.hasOwn(registered.definition.phases, phase))
+    throw failure3("task_checkpoint_invalid", "\u4EFB\u52A1\u9636\u6BB5\u672A\u6CE8\u518C");
+  if (!registered.validate(copyJson2(checkpoint))) {
+    const rule = registered.validate.errors?.[0]?.schemaPath;
+    throw failure3("task_checkpoint_invalid", rule ? `\u68C0\u67E5\u70B9\u4E0D\u7B26\u5408 Schema\uFF08${rule}\uFF09` : "\u68C0\u67E5\u70B9\u4E0D\u7B26\u5408 Schema");
+  }
 }
 function readState(record2) {
   if (!stateValidator(record2.checkpoint))

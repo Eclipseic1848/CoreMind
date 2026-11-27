@@ -22,6 +22,8 @@ CoreMind is a configuration-driven agent development framework for newcomers and
 
 Start with one model and one agent. Add knowledge retrieval, Hindsight memory, Skills, tools or ontology as the task requires. The CLI, TypeScript SDK and Python SDK share the same configuration and Runtime. The `document-assistant` example exercises capabilities working together.
 
+The 2.2.0 candidate covers workflow and durable task fixes, CLI and Python SDK improvements, standalone service updates, and live DeepSeek Flash evaluation. [2.2.0](docs/release/notes/v2.2.0.md)
+
 > **Current stable release 2.1.0.** Start in your own application and add knowledge, Hindsight memory, Skills, tools, and ontology as needed. [GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/)
 
 > Install, deploy, and upgrade [knowledge 0.1.0](https://pypi.org/project/coremind-knowledge-mcp/0.1.0/), [memory 0.1.0](https://pypi.org/project/coremind-memory-mcp/0.1.0/), and [ontology 0.1.0](https://pypi.org/project/coremind-ontology-mcp/0.1.0/) independently. [Capability guide](docs/en/guide/06-capability-construction.md) · [Public reinstall](https://github.com/Eclipseic1848/CoreMind/issues/427)

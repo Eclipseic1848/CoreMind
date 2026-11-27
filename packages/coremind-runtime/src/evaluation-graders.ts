@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, readFile, readlink, realpath } from "node:fs/promises";
 import path from "node:path";
-import { GitAdapter, ProcessRunner } from "coremind-tools";
+import { createUnifiedDiff, GitAdapter, ProcessRunner } from "coremind-tools";
 import type { RunStatus } from "./result.js";
 import type { RunResult } from "./runtime.js";
 
@@ -100,7 +100,7 @@ export interface EvaluationGraderResult {
 
 export interface EvaluationBaseline {
   gitError?: string;
-  dirtyFiles: Map<string, { status: string; fingerprint: string }>;
+  dirtyFiles: Map<string, { status: string; fingerprint: string; text?: string | null }>;
   watchedFiles: Map<string, string>;
 }
 
@@ -132,11 +132,23 @@ export async function captureEvaluationBaseline(
   if (graders.some((grader) => grader.type === "diff")) {
     try {
       const entries = await new GitAdapter({ cwd }).statusEntries();
+      const compareDirtyText = graders.some(
+        (grader) =>
+          grader.type === "diff" &&
+          grader.preserveExisting === false &&
+          (grader.contains?.length || grader.notContains?.length),
+      );
+      let remainingBytes = 10 * 1024 * 1024;
       for (const entry of entries) {
         const relative = normalizeGitPath(entry.path);
+        const text = compareDirtyText
+          ? await workspaceDiffText(cwd, relative, remainingBytes)
+          : undefined;
+        if (typeof text === "string") remainingBytes -= Buffer.byteLength(text, "utf8");
         baseline.dirtyFiles.set(relative, {
           status: `${entry.index}${entry.worktree}`,
           fingerprint: await fingerprintWorkspacePath(cwd, relative),
+          ...(text === undefined ? {} : { text }),
         });
       }
     } catch (error) {
@@ -352,6 +364,7 @@ async function evaluateDiff(
     afterEntries.map((entry) => [normalizeGitPath(entry.path), `${entry.index}${entry.worktree}`]),
   );
   const changedPaths: string[] = [];
+  const changedDirtyContent = new Set<string>();
   for (const file of new Set([...baseline.dirtyFiles.keys(), ...after.keys()])) {
     const before = baseline.dirtyFiles.get(file);
     const contentChanged =
@@ -359,6 +372,7 @@ async function evaluateDiff(
     if (grader.preserveExisting !== false && contentChanged) {
       return { passed: false, reason: `既有脏工作区内容被修改：${file}` };
     }
+    if (contentChanged) changedDirtyContent.add(file);
     if (before?.status !== after.get(file) || contentChanged) changedPaths.push(file);
   }
   changedPaths.sort();
@@ -381,10 +395,78 @@ async function evaluateDiff(
       reason: `Agent 新增变更 ${changedPaths.length} 个文件，超过 ${grader.maxChangedFiles} 个上限`,
     };
   }
-  const patch = `${await adapter.diff()}\n${await adapter.diff({ staged: true })}`;
-  const textFailure = evaluateStringRules(patch, grader.contains, grader.notContains, "diff");
-  if (textFailure) return { passed: false, reason: textFailure };
+  if (grader.contains?.length || grader.notContains?.length) {
+    const chunks: string[] = [];
+    let patchBytes = 0;
+    for (const file of changedPaths) {
+      const before = baseline.dirtyFiles.get(file);
+      let patches: string[];
+      if (before || after.get(file) === "??") {
+        // 仅暂存已有内容会改变路径状态，但没有新增文本。
+        if (before && !changedDirtyContent.has(file)) continue;
+        const current = await workspaceDiffText(cwd, file, 10 * 1024 * 1024);
+        if (current === null || before?.text === null) continue;
+        if (current === undefined || (before && before.text === undefined))
+          throw new Error(`文件 ${file} 的文本差异超过基线上限`);
+        patches = [createUnifiedDiff(before?.text ?? "", current, { context: 0 })];
+      } else {
+        // 该路径在基线中干净；暂存和未暂存区的改动都发生在本轮。
+        patches = [
+          await adapter.diff({ path: file, staged: true }),
+          await adapter.diff({ path: file }),
+        ];
+      }
+      for (const patch of patches) {
+        let inHunk = false;
+        const lines = patch
+          .split("\n")
+          .filter((line) => {
+            if (line.startsWith("diff --git ")) inHunk = false;
+            if (line.startsWith("@@ ")) inHunk = true;
+            return inHunk && (line.startsWith("+") || line.startsWith("-"));
+          })
+          .join("\n");
+        patchBytes += Buffer.byteLength(lines, "utf8") + 1;
+        if (patchBytes > 2 * 1024 * 1024) throw new Error("本轮文本差异超过 2 MiB 上限");
+        chunks.push(lines);
+      }
+    }
+    const failure = evaluateStringRules(
+      chunks.join("\n"),
+      grader.contains,
+      grader.notContains,
+      "diff",
+    );
+    if (failure) return { passed: false, reason: failure };
+  }
   return { passed: true, evidence: { changedPaths } };
+}
+
+async function workspaceDiffText(
+  cwd: string,
+  file: string,
+  limit: number,
+): Promise<string | null | undefined> {
+  const target = await safeWorkspacePath(cwd, file, false);
+  try {
+    const stat = await lstat(target);
+    if (stat.isSymbolicLink()) return readlink(target);
+    if (!stat.isFile()) return null;
+    if (stat.size > limit) return undefined;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of createReadStream(await safeWorkspacePath(cwd, file))) {
+      const bytes = chunk as Buffer;
+      size += bytes.length;
+      if (size > limit) return undefined;
+      if (bytes.includes(0)) return null;
+      chunks.push(bytes);
+    }
+    return Buffer.concat(chunks, size).toString("utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
+    throw error;
+  }
 }
 
 function evaluateState(

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, realpath, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   createUnifiedDiff,
@@ -141,27 +141,18 @@ export class CheckpointManager {
   private async snapshotTarget(target: string): Promise<CheckpointTargetSnapshot> {
     const targetPath = await this.canonicalTargetPath(target);
     let content: Buffer | undefined;
-    let existed = true;
     try {
-      content = await readFile(targetPath);
+      content = await readBoundedFile(targetPath, this.maxFileBytes);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") existed = false;
-      else {
-        throw new CoreMindError(
-          "checkpoint_failed",
-          `读取修改前文件失败：${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    }
-    if (content && content.byteLength > this.maxFileBytes) {
+      if (error instanceof CoreMindError) throw error;
       throw new CoreMindError(
-        "checkpoint_too_large",
-        `文件 ${target} 大于检查点上限 ${this.maxFileBytes} 字节，已阻止修改`,
+        "checkpoint_failed",
+        `读取修改前文件失败：${error instanceof Error ? error.message : String(error)}`,
       );
     }
     return {
       targetPath,
-      existed,
+      existed: content !== undefined,
       ...(content
         ? { beforeSha256: sha256(content), contentBase64: content.toString("base64") }
         : {}),
@@ -179,20 +170,9 @@ export class CheckpointManager {
       };
     }
     const targetPath = await this.canonicalTargetPath(stored.targetPath);
-    let after: Buffer | undefined;
-    try {
-      after = await readFile(targetPath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
     const before =
       stored.contentBase64 !== undefined ? Buffer.from(stored.contentBase64, "base64") : undefined;
-    if ((before?.byteLength ?? 0) + (after?.byteLength ?? 0) > this.maxFileBytes) {
-      throw new CoreMindError(
-        "checkpoint_too_large",
-        `检查点 diff 输入大于 ${this.maxFileBytes} 字节上限`,
-      );
-    }
+    const after = await readBoundedFile(targetPath, this.maxFileBytes - (before?.byteLength ?? 0));
     const beforeSha256 = before ? sha256(before) : undefined;
     const afterSha256 = after ? sha256(after) : undefined;
     const relativePath =
@@ -232,16 +212,21 @@ export class CheckpointManager {
     const stored = await this.load(checkpointId);
     if (!stored.reversible || !stored.targetPath) return;
     const targetPath = await this.canonicalTargetPath(stored.targetPath);
-    const after = await readOptionalFile(targetPath);
-    stored.afterExisted = after !== undefined;
-    if (after) stored.afterSha256 = sha256(after);
-    else delete stored.afterSha256;
-    await writeFile(stored.snapshotFile, `${JSON.stringify(stored)}\n`, "utf8");
+    const after = await fileFingerprint(targetPath);
+    if (stored.afterExisted === undefined) {
+      // 写前快照已被日志引用；写后状态独立发布，日志提交失败时仍能校验原事实。
+      await publishCheckpointFile(`${stored.snapshotFile}.applied`, {
+        before: createHash("sha256").update(checkpointIdentity(stored), "utf8").digest("hex"),
+        ...after,
+      });
+    } else if (stored.afterExisted !== after.existed || stored.afterSha256 !== after.sha256) {
+      throw new CoreMindError("checkpoint_conflict", "检查点已固定其他写后状态");
+    }
 
     const record = this.records.find((item) => item.checkpointId === checkpointId);
     if (record) {
-      record.afterExisted = stored.afterExisted;
-      if (stored.afterSha256) record.afterSha256 = stored.afterSha256;
+      record.afterExisted = after.existed;
+      if (after.sha256) record.afterSha256 = after.sha256;
       else delete record.afterSha256;
     }
   }
@@ -278,9 +263,7 @@ export class CheckpointManager {
         `检查点 ${checkpointId} 缺少工具执行后的文件状态，无法安全恢复`,
       );
     }
-    const current = await readOptionalFile(targetPath);
-    const currentExists = current !== undefined;
-    const currentSha256 = current ? sha256(current) : undefined;
+    const { existed: currentExists, sha256: currentSha256 } = await fileFingerprint(targetPath);
     if (
       expectedCurrent !== undefined &&
       (currentExists !== expectedCurrent.existed ||
@@ -335,10 +318,7 @@ export class CheckpointManager {
     };
     await mkdir(path.dirname(snapshotFile), { recursive: true });
     try {
-      await writeFile(snapshotFile, `${JSON.stringify(stored)}\n`, {
-        encoding: "utf8",
-        flag: "wx",
-      });
+      await publishCheckpointFile(snapshotFile, stored);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") {
         throw new CoreMindError(
@@ -353,7 +333,7 @@ export class CheckpointManager {
     return record;
   }
 
-  private async load(checkpointId: string): Promise<StoredCheckpoint> {
+  private async load(checkpointId: string, includeApplied = true): Promise<StoredCheckpoint> {
     if (!/^[a-zA-Z0-9_-]+$/.test(checkpointId)) {
       throw new CoreMindError("invalid_checkpoint_id", `非法 checkpointId：${checkpointId}`);
     }
@@ -380,6 +360,27 @@ export class CheckpointManager {
       ) {
         throw new Error("快照内容与写前身份不一致");
       }
+      if (includeApplied && stored.afterExisted === undefined) {
+        let marker: string;
+        try {
+          marker = await readFile(`${stored.snapshotFile}.applied`, "utf8");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return stored;
+          throw error;
+        }
+        const applied = JSON.parse(marker);
+        if (
+          applied.before !==
+            createHash("sha256").update(checkpointIdentity(stored), "utf8").digest("hex") ||
+          typeof applied.existed !== "boolean" ||
+          (applied.existed
+            ? typeof applied.sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(applied.sha256)
+            : applied.sha256 !== undefined)
+        )
+          throw new Error("写后状态身份无效");
+        stored.afterExisted = applied.existed;
+        if (applied.existed) stored.afterSha256 = applied.sha256;
+      }
       return stored;
     } catch (error) {
       if (error instanceof CoreMindError) throw error;
@@ -395,7 +396,7 @@ export class CheckpointManager {
   }
 
   async verifyRecord(record: CheckpointRecord): Promise<void> {
-    const stored = await this.load(record.checkpointId);
+    const stored = await this.load(record.checkpointId, record.afterExisted !== undefined);
     const { contentBase64: _contentBase64, ...publicStored } = stored;
     if (checkpointIdentity(publicStored) !== checkpointIdentity(record)) {
       throw new CoreMindError("checkpoint_corrupt", "检查点 Fact 与快照身份不一致");
@@ -413,12 +414,69 @@ export class CheckpointManager {
   }
 }
 
-async function readOptionalFile(targetPath: string): Promise<Buffer | undefined> {
+async function openOptionalFile(targetPath: string) {
   try {
-    return await readFile(targetPath);
+    return await open(targetPath, "r");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
+  }
+}
+
+async function readBoundedFile(targetPath: string, limit: number): Promise<Buffer | undefined> {
+  const tooLarge = () =>
+    new CoreMindError("checkpoint_too_large", `检查点输入超过剩余 ${limit} 字节上限`);
+  if (limit < 0) throw tooLarge();
+  const file = await openOptionalFile(targetPath);
+  if (!file) return undefined;
+  try {
+    if ((await file.stat()).size > limit) throw tooLarge();
+    const chunks: Buffer[] = [];
+    let size = 0;
+    while (true) {
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, limit - size + 1));
+      const { bytesRead } = await file.read(chunk);
+      if (bytesRead === 0) break;
+      size += bytesRead;
+      if (size > limit) throw tooLarge();
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    return Buffer.concat(chunks, size);
+  } finally {
+    await file.close();
+  }
+}
+
+async function fileFingerprint(targetPath: string): Promise<CheckpointFileState> {
+  const file = await openOptionalFile(targetPath);
+  if (!file) return { existed: false };
+  try {
+    const hash = createHash("sha256");
+    const chunk = Buffer.allocUnsafe(64 * 1024);
+    while (true) {
+      const { bytesRead } = await file.read(chunk);
+      if (bytesRead === 0) break;
+      hash.update(chunk.subarray(0, bytesRead));
+    }
+    return { existed: true, sha256: hash.digest("hex") };
+  } finally {
+    await file.close();
+  }
+}
+
+async function publishCheckpointFile(destination: string, value: unknown): Promise<void> {
+  const temporary = `${destination}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, `${JSON.stringify(value)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+      flush: true,
+    });
+    await link(temporary, destination);
+  } finally {
+    await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
   }
 }
 
@@ -440,6 +498,12 @@ export async function restoreCheckpoint(
 ): Promise<void> {
   const manager = managerFromRecord(record, cwd);
   await manager.verifyRecord(record);
+  if (record.reversible && record.afterExisted === undefined && expectedCurrent === undefined) {
+    throw new CoreMindError(
+      "checkpoint_conflict",
+      "已提交的检查点缺少写后状态，恢复前须核实当前文件",
+    );
+  }
   return manager.restore(record.checkpointId, expectedCurrent);
 }
 

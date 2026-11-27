@@ -30,7 +30,11 @@ In v1, `effect` travels with `register_tool` to the shared runtime. Use `pathFie
 
 When `parameters` is omitted, `@client.tool` builds a schema from parameter annotations, including future or string annotations for `int`, `str`, `bool`, and existing supported containers such as `list[int]`. Node applies existing conversion rules before validation: for an `int` parameter, the string `'5'` becomes the integer `5` before reaching the callable. Arguments that still fail schema validation after conversion are rejected before execution. An unresolvable forward reference fails explicitly and requires `parameters`. Complex typing retains the existing support limits; provide an explicit schema for precise constraints. Existing explicit `parameters` usage remains unchanged.
 
-If initialization or any tool registration fails, the client closes the started worker before returning the exception. Continue to use a context manager or `finally` for the normal lifecycle.
+If initialization or startup tool registration fails, the client cleans up the Worker before raising the original error. After a v1 Worker starts, a definitive registration rejection allows retrying the same name once the cause is resolved. If the receipt is lost, the client keeps the callable, records the outcome as unconfirmed, and rejects duplicate submissions.
+
+Both synchronous and asynchronous `close()` clean up the process and its pipes. A Worker that reports outstanding work, fails the close RPC, or exits abnormally causes `WorkerShutdownError`. Inspect its `reason` and `returncode`. Repeated close calls do not repeat cleanup. A context manager preserves an existing operation exception and attaches the shutdown error as `coremind_shutdown_error`.
+
+When an approval callback raises, the SDK sends one denial for the original approval ID. `approval_handler_error` and `approval_submission_error` retain the latest diagnostics for each stage. The asynchronous client exposes them through `sync_client`.
 
 ## Controls during a Run (1.1 development)
 

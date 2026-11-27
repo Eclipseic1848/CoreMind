@@ -782,12 +782,16 @@ function validateCheckpoint(
   phase: string,
   checkpoint: JsonValue,
 ): void {
-  if (
-    typeof phase !== "string" ||
-    !Object.hasOwn(registered.definition.phases, phase) ||
-    !registered.validate(copyJson(checkpoint))
-  )
-    throw failure("task_checkpoint_invalid", "阶段不存在或检查点不符合 Schema");
+  if (typeof phase !== "string" || !Object.hasOwn(registered.definition.phases, phase))
+    throw failure("task_checkpoint_invalid", "任务阶段未注册");
+  if (!registered.validate(copyJson(checkpoint))) {
+    // 只返回宿主定义的规则位置，避免把提交的检查点内容带入错误日志。
+    const rule = registered.validate.errors?.[0]?.schemaPath;
+    throw failure(
+      "task_checkpoint_invalid",
+      rule ? `检查点不符合 Schema（${rule}）` : "检查点不符合 Schema",
+    );
+  }
 }
 
 function readState(record: TaskCheckpoint): TaskState {

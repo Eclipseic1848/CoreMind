@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 // 保留既有会话合同，避免依赖升级改变历史存储与恢复语义。
+import { createReadStream } from "node:fs";
 import {
   appendFile,
   lstat,
@@ -146,6 +147,20 @@ export class SessionFileSystem implements FileSystem {
     if (aborted) return aborted;
     try {
       return ok(await readFile(resolved, { encoding: "utf8", signal: abortSignal }));
+    } catch (error) {
+      return err(toFileError(error, resolved));
+    }
+  }
+  async readFirstLine(path: string): Promise<Result<string, FileError>> {
+    const resolved = resolvePath(this.cwd, path);
+    try {
+      let line = "";
+      for await (const chunk of createReadStream(resolved, { encoding: "utf8" })) {
+        const end = chunk.indexOf("\n");
+        if (end >= 0) return ok(line + chunk.slice(0, end));
+        line += chunk;
+      }
+      return ok(line);
     } catch (error) {
       return err(toFileError(error, resolved));
     }

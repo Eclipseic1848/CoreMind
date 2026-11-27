@@ -1,15 +1,42 @@
+import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from answer_benchmark import evaluate
+from answer_benchmark import chat, evaluate
 from keyword_baseline import ROOT
 
 
 class AnswerReplayTest(unittest.TestCase):
+    def test_bounded_flash_json_preserves_budget_and_records_response_model(self):
+        flash = "deepseek-v4.1-flash-1017"
+        for model, returned in [(flash, flash), ("other-model", "other-model"), (flash, "wrong-model")]:
+            with self.subTest(model=model, returned=returned), patch.dict(os.environ, DASHSCOPE_API_KEY="fixture"):
+                opener = Mock()
+                body = {"model": returned, "choices": [
+                    {"message": {"content": '{"support":false}'}, "finish_reason": "stop"}
+                ]}
+                opener.open.return_value = io.BytesIO(json.dumps(body).encode("utf-8"))
+                if returned != model:
+                    with self.assertRaisesRegex(ValueError, "快照不一致"):
+                        chat(opener, "dashscope", model, "核验", {}, "合成输入", 32)
+                else:
+                    usage, _, answer, complete = chat(opener, "dashscope", model, "核验", {}, "合成输入", 32)
+                    self.assertTrue(complete)
+                    self.assertEqual(answer, {"support": False})
+                    self.assertEqual(usage["providerCall"], {"model": model, "finishReason": "stop"})
+                request = json.loads(opener.open.call_args.args[0].data)
+                self.assertEqual(request["max_tokens"], 32)
+                if model == flash:
+                    self.assertIs(request["enable_thinking"], False)
+                else:
+                    self.assertNotIn("enable_thinking", request)
+
     def test_holdout_separates_retrieval_answer_citation_and_refusal(self):
         report = evaluate(None, None, None, replay_file=ROOT / "holdout-replay.json")
         self.assertTrue(report["passed"])
@@ -53,6 +80,11 @@ class AnswerReplayTest(unittest.TestCase):
         self.assertEqual(report["goldCitationMatches"], 6)
         self.assertEqual(report["correctAnswerWithCitation"], 6)
         self.assertEqual(report["correctRefusals"], 4)
+        self.assertEqual(report["taskPasses"], 10)
+        self.assertEqual(report["guardedPasses"], 11)
+        blocked = next(row for row in report["cases"] if row["id"] == "HN06")
+        self.assertTrue(blocked["passed"])
+        self.assertFalse(blocked["taskPassed"])
         self.assertEqual(report["withheldAssertions"], 1)
         self.assertEqual(report["unsupportedAnswerIds"], ["HN05"])
         self.assertEqual(report["verifierRejectedIds"], ["H07", "HN06"])

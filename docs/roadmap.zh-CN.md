@@ -4,6 +4,10 @@ CoreMind 面向没有智能体开发经验的新手和普通工程师，通过�
 
 本路线图用于说明公开版本的能力边界和建设方向，不包含内部排期、验收记录或维护者工作笔记。具体优先级会根据真实用户反馈和社区贡献调整。
 
+## 2.2.0 候选
+
+[本版工程修复与评测](./release/notes/v2.2.0.md)
+
 ## 公开稳定版 `2.1.0`
 
 在自己的项目中先运行最小 Runtime，再按需接入知识、Hindsight 记忆、Skill、工具和本体。CLI 与 SDK 可固定安装 `2.1.0`。三个可选服务可分别安装 `0.1.0`。[GitHub Release](https://github.com/Eclipseic1848/CoreMind/releases/tag/v2.1.0) · [npm CLI](https://www.npmjs.com/package/coremind-cli/v/2.1.0) · [PyPI SDK](https://pypi.org/project/coremind-ai/2.1.0/) · [从 2.0 升级与回退](migrations/2.0-to-2.1.zh-CN.md)

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   existsSync,
   linkSync,
@@ -7,16 +8,131 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { realpath } from "node:fs/promises";
+import { open, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildTools, resolveToolCapability } from "coremind-tools";
-import { describe, expect, it } from "vitest";
-import { CheckpointManager, inspectCheckpoint, restoreCheckpoint } from "./checkpoint.js";
+import { describe, expect, it, vi } from "vitest";
+import {
+  CheckpointManager,
+  type CheckpointRecord,
+  inspectCheckpoint,
+  restoreCheckpoint,
+} from "./checkpoint.js";
+import { FileRunStore, RunStateJournal } from "./run-state.js";
 import { ToolPolicy } from "./tool-policy.js";
 import { WorkspaceLeaseService } from "./workspace-lease.js";
 
 describe("CheckpointManager", () => {
+  it("写后事实提交前中断，仍能校验写前事实并凭已核实的当前状态恢复", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-publication-"));
+    const file = path.join(cwd, "value.txt");
+    writeFileSync(file, "before", "utf8");
+    const options = { cwd, rootDir: path.join(cwd, "store"), runId: "interrupted" };
+    const manager = new CheckpointManager(options);
+    const record = await manager.capturePath(file, { checkpointId: "one" });
+    const store = new FileRunStore(path.join(cwd, "journal"));
+    const journal = new RunStateJournal(options.runId, store);
+    await journal.start({});
+    await journal.appendFact("checkpoint", record, { durability: "critical" });
+    const original = readFileSync(record.snapshotFile, "utf8");
+    writeFileSync(file, "after", "utf8");
+    await manager.markApplied(record.checkpointId);
+    vi.spyOn(store, "commit").mockRejectedValueOnce(new Error("模拟写后日志故障"));
+    await expect(
+      journal.appendFact("checkpoint", record, { durability: "critical" }),
+    ).rejects.toThrow();
+    const facts = await new FileRunStore(path.join(cwd, "journal")).read(options.runId);
+    expect(facts.filter((fact) => fact.kind === "checkpoint")).toHaveLength(1);
+    const committed = facts.at(-1)!.payload as CheckpointRecord;
+    expect(readFileSync(record.snapshotFile, "utf8")).toBe(original);
+    const restarted = new CheckpointManager(options);
+    await restarted.verifyRecord(committed);
+    await restarted.verifyRecord(record);
+    await expect(restoreCheckpoint(committed, cwd)).rejects.toMatchObject({
+      code: "checkpoint_conflict",
+    });
+    const expected = { existed: true, sha256: createHash("sha256").update("after").digest("hex") };
+    writeFileSync(file, "manual", "utf8");
+    await expect(restoreCheckpoint(committed, cwd, expected)).rejects.toMatchObject({
+      code: "checkpoint_conflict",
+    });
+    expect(readFileSync(file, "utf8")).toBe("manual");
+    writeFileSync(file, "after", "utf8");
+    await restoreCheckpoint(committed, cwd, expected);
+    expect(readFileSync(file, "utf8")).toBe("before");
+  });
+
+  it("读取旧版内嵌写后摘要的快照", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-legacy-"));
+    const file = path.join(cwd, "old.txt");
+    writeFileSync(file, "before", "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, "store"),
+      runId: "legacy",
+    });
+    const record = await manager.capturePath(file, { checkpointId: "old" });
+    writeFileSync(file, "after", "utf8");
+    Object.assign(record, {
+      afterExisted: true,
+      afterSha256: createHash("sha256").update("after").digest("hex"),
+    });
+    writeFileSync(
+      record.snapshotFile,
+      JSON.stringify({
+        ...record,
+        contentBase64: Buffer.from("before", "utf8").toString("base64"),
+      }),
+      "utf8",
+    );
+    await restoreCheckpoint(record, cwd);
+    expect(readFileSync(file, "utf8")).toBe("before");
+  });
+
+  it("采集与差异恰满上限成功，读取中增长时最多读取剩余额度加一字节", async () => {
+    const cwd = mkdtempSync(path.join(tmpdir(), "coremind-checkpoint-bound-"));
+    const file = path.join(cwd, "bounded.txt");
+    writeFileSync(file, "x".repeat(16), "utf8");
+    const manager = new CheckpointManager({
+      cwd,
+      rootDir: path.join(cwd, "store"),
+      runId: "bounded",
+      maxFileBytes: 16,
+    });
+    const exact = await manager.capturePath(file, { checkpointId: "exact" });
+    writeFileSync(file, "", "utf8");
+    await expect(manager.diff(exact.checkpointId)).resolves.toMatchObject({ changed: true });
+    const empty = await manager.capturePath(file, { checkpointId: "empty" });
+    writeFileSync(file, "x".repeat(17), "utf8");
+    await expect(manager.diff(empty.checkpointId)).rejects.toMatchObject({
+      code: "checkpoint_too_large",
+    });
+    await expect(manager.capturePath(file, { checkpointId: "over" })).rejects.toMatchObject({
+      code: "checkpoint_too_large",
+    });
+    writeFileSync(file, "x".repeat(1024), "utf8");
+    const handle = await open(file, "r");
+    const stats = await handle.stat();
+    const prototype = Object.getPrototypeOf(handle) as typeof handle;
+    await handle.close();
+    const stat = vi
+      .spyOn(prototype, "stat")
+      .mockResolvedValueOnce(Object.assign(stats, { size: 16 }));
+    const read = vi.spyOn(prototype, "read");
+    try {
+      await expect(manager.capturePath(file, { checkpointId: "growth" })).rejects.toMatchObject({
+        code: "checkpoint_too_large",
+      });
+      expect(
+        read.mock.calls.map(([buffer]) => (Buffer.isBuffer(buffer) ? buffer.length : undefined)),
+      ).toEqual([17]);
+    } finally {
+      read.mockRestore();
+      stat.mockRestore();
+    }
+    expect(readFileSync(file, "utf8")).toBe("x".repeat(1024));
+  });
   it("内置写入拒绝指向未创建框架状态的悬空文件符号链接", async ({ skip }) => {
     const cwd = mkdtempSync(path.join(tmpdir(), "coremind-target-dangling-"));
     const state = path.join(cwd, "future.jsonl");

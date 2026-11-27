@@ -55,6 +55,15 @@ class WorkerExitedError(CoreMindError):
     """Node worker 意外退出。"""
 
 
+class WorkerShutdownError(CoreMindError):
+    """关闭失败。reason 区分回执失败、未静止、进程退出和清理失败。"""
+
+    def __init__(self, message: str, *, reason: str, returncode: int | None = None):
+        super().__init__(message)
+        self.reason = reason
+        self.returncode = returncode
+
+
 class ProtocolError(CoreMindError):
     """CoreMind Protocol 返回的结构化错误。"""
 

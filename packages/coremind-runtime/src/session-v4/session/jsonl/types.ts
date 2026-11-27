@@ -38,6 +38,7 @@ export type JsonlSessionRepoFileSystem = Pick<
   | "createDir"
   | "remove"
 > & {
+  readFirstLine(path: string): Promise<Result<string, FileError>>;
   repairTextTail?(
     path: string,
     originalText: string,

@@ -199,11 +199,22 @@ class MemoryService:
     def forget_bank(self, target):
         with self.lock:
             keys = [key for key in self.records if key.startswith(f"{target.bankId}/")]
-            pending = {key: {"state": "forgetting"} for key in keys if self.records[key]["state"] != "forgotten"}
+            pending = {
+                key: {"state": "forgetting"} for key in keys
+                if self.records[key]["state"] not in {"forgetting", "forgotten"}
+            }
             if pending:
                 self._save(pending)
-            for key in keys:
-                self.forget(Target(bankId=target.bankId, documentId=key.split("/", 1)[1]))
+            confirmed = {}
+            try:
+                for key in keys:
+                    # 后端可能恢复到旧备份；仍重放已确认的幂等删除。
+                    self.backend.forget(target.bankId, key.split("/", 1)[1])
+                    if self.records[key]["state"] == "forgetting":
+                        confirmed[key] = {"state": "forgotten"}
+            finally:
+                if confirmed:
+                    self._save(confirmed)
             return {"status": "forgotten", "bankId": target.bankId, "documents": len(keys)}
 
     def review_status(self, target):
@@ -285,12 +296,12 @@ def make_app(service, bindings):
     mcp = FastMCP("CoreMind Hindsight Memory", stateless_http=True, json_response=True)
 
     @mcp.tool(structured_output=False)
-    def recall_memory(query: Query, ctx: Context) -> str:
+    async def recall_memory(query: Query, ctx: Context) -> str:
         """查找当前任务可用的长期偏好和经验，附来源与版本。"""
         banks = allowed(ctx.request_context.request, readers)
         if not banks or not query.strip():
             raise ValueError("缺少授权或查询内容")
-        return json.dumps(service.recall(banks, query.strip()), ensure_ascii=False)
+        return json.dumps(await run_in_threadpool(service.recall, banks, query.strip()), ensure_ascii=False)
 
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_request):

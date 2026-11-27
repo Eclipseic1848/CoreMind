@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.0 - 2026-11-27
+
+- Synchronized the module contract, version metadata, and bilingual guidance with the current stable release.
+
 ## Unreleased
 
 - Add an opt-in persistent local Qdrant index that reuses embeddings on restart and after document updates. Use the authoritative catalog to select the active index and preserve citation, scope, and withdrawal behavior.
