@@ -212,17 +212,19 @@ export class ArtifactStore {
 /** 把依赖工具的外部临时文件适配为 CoreMind 的受控 Artifact 契约。 */
 export function wrapToolWithArtifactCapture(tool: AgentTool, store: ArtifactStore): AgentTool {
   const execute = tool.execute.bind(tool);
+  const sanitize = (result: AgentToolResult<unknown>, imported?: ArtifactImportResult) =>
+    sanitizeResult(result, tool.name === "bash", imported);
   return {
     ...tool,
     async execute(toolCallId, params, signal, onUpdate) {
       const safeUpdate = onUpdate
-        ? (partial: AgentToolResult<unknown>) => onUpdate(sanitizeResult(partial))
+        ? (partial: AgentToolResult<unknown>) => onUpdate(sanitize(partial))
         : undefined;
       const result = await execute(toolCallId, params, signal, safeUpdate);
       const fullOutputPath = readFullOutputPath(result.details);
-      if (!fullOutputPath) return sanitizeResult(result);
+      if (!fullOutputPath) return sanitize(result);
       if (!(await isTrustedTemporaryOutputPath(fullOutputPath))) {
-        const sanitized = sanitizeResult(result);
+        const sanitized = sanitize(result);
         return {
           ...sanitized,
           content: [
@@ -232,15 +234,7 @@ export function wrapToolWithArtifactCapture(tool: AgentTool, store: ArtifactStor
         };
       }
       const imported = await store.importFile(fullOutputPath, { deleteSource: true });
-      return {
-        ...result,
-        content: [{ type: "text", text: imported.preview }],
-        details: {
-          ...(isRecord(result.details) ? result.details : {}),
-          fullOutputPath: undefined,
-          artifact: imported.record,
-        },
-      };
+      return sanitize(result, imported);
     },
   };
 }
@@ -283,29 +277,61 @@ function containsSecretText(text: string): boolean {
   );
 }
 
-function sanitizeResult<T>(result: AgentToolResult<T>): AgentToolResult<T> {
-  const fullOutputPath = readFullOutputPath(result.details);
+function sanitizeResult(
+  result: AgentToolResult<unknown>,
+  bash: boolean,
+  imported?: ArtifactImportResult,
+): AgentToolResult<unknown> {
+  let { details, structuredContent } = result;
+  const source = readFullOutputPath(details);
+  const error =
+    bash && isRecord(details) && typeof details.fullOutputError === "string"
+      ? details.fullOutputError
+      : undefined;
+  // 系统错误通常含宿主绝对路径，保留能诊断磁盘或权限问题的错误码。
+  const reason = error?.match(/^[A-Z][A-Z0-9_]*(?=:)/u)?.[0] ?? "完整输出保存失败";
+  const clean = (text: string) => {
+    if (source)
+      text = text.replaceAll(source, imported?.record.relativePath ?? "[受控 Artifact 待生成]");
+    if (error) text = text.replaceAll(error, reason);
+    return redactSecrets(text);
+  };
+  const blocked = imported?.record.status === "blocked";
+  if (isRecord(details) && ("fullOutputPath" in details || error || (bash && details.truncation))) {
+    const safe = { ...details };
+    delete safe.fullOutputPath;
+    if (error) safe.fullOutputError = reason;
+    if (bash && isRecord(safe.truncation) && typeof safe.truncation.content === "string") {
+      safe.truncation = {
+        ...safe.truncation,
+        content: blocked ? imported.preview : clean(safe.truncation.content),
+      };
+    }
+    if (imported) safe.artifact = imported.record;
+    details = safe;
+  }
+  if (bash && isRecord(structuredContent)) {
+    const safe = { ...structuredContent };
+    if (typeof safe.output === "string")
+      safe.output = blocked ? imported.preview : clean(safe.output);
+    if (blocked) safe.truncated = true;
+    if ("full_output_path" in safe) {
+      if (imported?.record.relativePath) safe.full_output_path = imported.record.relativePath;
+      else delete safe.full_output_path;
+    }
+    if (error && "full_output_error" in safe) safe.full_output_error = reason;
+    structuredContent = safe;
+  }
   return {
     ...result,
-    content: result.content.map((item) =>
-      item.type === "text"
-        ? {
-            ...item,
-            text: redactSecrets(
-              fullOutputPath
-                ? item.text.replaceAll(fullOutputPath, "[受控 Artifact 待生成]")
-                : item.text,
-            ),
-          }
-        : item,
-    ),
-    details: stripExternalOutputPath(result.details),
+    content: imported
+      ? [{ type: "text", text: imported.preview }]
+      : result.content.map((item) =>
+          item.type === "text" ? { ...item, text: clean(item.text) } : item,
+        ),
+    details,
+    ...(structuredContent !== undefined ? { structuredContent } : {}),
   };
-}
-
-function stripExternalOutputPath<T>(details: T): T {
-  if (!isRecord(details) || !("fullOutputPath" in details)) return details;
-  return { ...details, fullOutputPath: undefined } as T;
 }
 
 function readFullOutputPath(details: unknown): string | undefined {

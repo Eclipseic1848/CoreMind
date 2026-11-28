@@ -6,6 +6,7 @@ import {
   compareContextStrategies,
   protectContext,
 } from "./context.js";
+import { serializeConversation } from "./session-v4/compaction/utils.js";
 
 describe("protectContext", () => {
   it("未接近上下文窗口时不改写消息", () => {
@@ -18,6 +19,45 @@ describe("protectContext", () => {
 
     expect(result.compacted).toBe(false);
     expect(result.messages).toBe(messages);
+  });
+
+  it("从模型上下文排除的历史命令输出不触发压缩", () => {
+    const shell = {
+      role: "bashExecution",
+      command: "list",
+      output: "输出".repeat(500),
+    };
+    const options = { contextWindow: 100, reserveTokens: 10, keepRecentTokens: 20 };
+    const withShell = (excludeFromContext: boolean) => [
+      user("开始"),
+      { ...shell, excludeFromContext },
+      user("继续"),
+    ];
+    expect(protectContext(withShell(true), options)).toMatchObject({
+      compacted: false,
+      beforeTokens: 2,
+    });
+    expect(protectContext(withShell(false), options).compacted).toBe(true);
+  });
+
+  it("工具结果和本地摘要在截断边界保留完整的扩展汉字", () => {
+    const prefix = "文".repeat(1999);
+    const tool = {
+      role: "toolResult" as const,
+      toolCallId: "call",
+      toolName: "read",
+      content: [{ type: "text" as const, text: `${prefix}𠮷文` }],
+      isError: false,
+      timestamp: 0,
+    };
+    expect(serializeConversation([tool])).toBe(
+      `[Tool result]: ${prefix}\n\n[... 3 more characters truncated]`,
+    );
+    const protectedContext = protectContext(
+      [user(`${"文".repeat(118)}𠮷文`), assistant("旧回答"), user("继续")],
+      { contextWindow: 25, reserveTokens: 0, keepRecentTokens: 1 },
+    );
+    expect(protectedContext.messages[0]?.content).toContain(`目标：${"文".repeat(118)}…`);
   });
 
   it("超限时在 Loop 内生成本地摘要并保留完整的最近轮次", () => {

@@ -60,6 +60,9 @@ export const CustomProviderSchema = Type.Object({
         "Qwen 思考开关的位置：顶层 enable_thinking 或 chat_template_kwargs.enable_thinking",
     }),
   ),
+  requiresToolsWithToolHistory: Type.Optional(
+    Type.Boolean({ description: "历史含工具调用且本轮没有工具时，向兼容网关发送空 tools 数组" }),
+  ),
   contextWindow: Type.Optional(
     Type.Integer({
       minimum: 1024,

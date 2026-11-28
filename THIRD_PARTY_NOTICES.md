@@ -4,13 +4,15 @@ CoreMind 基于以下开源项目构建，特此声明其版权与许可归属�
 
 ## 上游智能体运行时框架（MIT License）
 
-CoreMind 的运行时底座直接依赖以下 npm 包（MIT 协议，Copyright 2025 Mario Zechner）：
+CoreMind 的运行时底座直接依赖以下三类 npm 包：
 
 - **模型接入包**（统一多模型 API，含 35+ 内置模型提供商）
 - **运行时核心包**（headless Agent 运行时，工具调用、事件流、会话持久化）
 - **工具工厂来源包**（read/bash/edit/write/grep/find/ls 等内置工具实现）
 
-> 依据 MIT 协议要求，本声明保留其版权声明与许可证文本。上述包自身的 LICENSE 随 npm 安装附带于 `node_modules` 中。
+上游 1.7.0 源码以 MIT 许可发布，版权为 Copyright (c) 2026 Earendil Inc.。三个直接依赖的 npm 发布包均未附独立 LICENSE。CoreMind 在源码中保留上游许可原文，Python wheel 的内置 Worker 也嵌入该原文。[上游运行时许可](packages/coremind-worker/LICENSE.runtime)
+
+历史会话兼容代码保留引入时的 MIT 许可与 Copyright (c) 2025 Mario Zechner 声明。
 
 ## 其他直接依赖
 

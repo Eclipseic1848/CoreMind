@@ -1,3 +1,19 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+/** 认证台账以整个 Worker 的 Runtime 内容摘要区分同版本的不同构建。 */
+export async function readRuntimeDigest(rootDirectory) {
+  const bundle = path.join(rootDirectory, "python/src/coremind/_worker/coremind-worker.mjs");
+  try {
+    const bytes = await readFile(bundle);
+    return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
 const REQUIRED_CERTIFICATION_CHECKS = [
   "streaming",
   "tool-call",
@@ -16,16 +32,19 @@ const CHILD_RUN_CERTIFICATION_CHECKS = [
 ];
 
 /** 用运行时目录和人工证据台账生成认证矩阵，未提供完整证据时绝不自动认证。 */
-export function buildProviderMatrix({ providers, certifications, generatedAt, targetVersion }) {
+export function buildProviderMatrix({
+  providers,
+  certifications,
+  generatedAt,
+  targetVersion,
+  targetRuntimeDigest,
+}) {
   const certificationById = new Map(certifications.map((item) => [item.id, item]));
   const rows = [...providers]
     .sort((left, right) => left.id.localeCompare(right.id))
     .map((provider) => {
       const certification = certificationById.get(provider.id);
-      const certified = certification
-        ? hasCompleteEvidence(certification, targetVersion) &&
-          certification.version === targetVersion
-        : false;
+      const certified = isCurrentCertification(certification, targetVersion, targetRuntimeDigest);
       const missingChecks = certification
         ? missingCertificationChecks(certification, targetVersion)
         : [];
@@ -68,6 +87,7 @@ export function buildProviderMatrix({ providers, certifications, generatedAt, ta
     schemaVersion: 1,
     generatedAt,
     targetVersion,
+    targetRuntimeDigest,
     summary: {
       supported: rows.length,
       certified: rows.filter((item) => item.status === "certified").length,
@@ -75,6 +95,17 @@ export function buildProviderMatrix({ providers, certifications, generatedAt, ta
     },
     providers: rows,
   };
+}
+
+export function isCurrentCertification(certification, targetVersion, targetRuntimeDigest) {
+  return (
+    Boolean(certification) &&
+    typeof targetRuntimeDigest === "string" &&
+    /^sha256:[0-9a-f]{64}$/u.test(targetRuntimeDigest) &&
+    certification.runtimeDigest === targetRuntimeDigest &&
+    certification.version === targetVersion &&
+    hasCompleteEvidence(certification, targetVersion)
+  );
 }
 
 function hasCompleteEvidence(certification, version) {

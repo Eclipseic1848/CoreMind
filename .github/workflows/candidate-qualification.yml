@@ -118,20 +118,20 @@ jobs:
           npm run docs:audit
           npm run docs:build
 
+      - name: 构建 Python worker
+        run: npm run build:python-worker
+
       - name: 供应商矩阵一致性
         shell: bash
         run: |
           npm run providers:matrix
-          git diff --exit-code -- docs/providers
+          git diff --exit-code --stat -- docs/providers python/src/coremind/_worker/coremind-worker.mjs python/src/coremind/_worker/manifest.json
 
       - name: 测试三连跑（离线）
         run: npm run test:stability
 
       - name: 覆盖率不下降门禁
         run: npm run test:coverage
-
-      - name: 构建 Python worker
-        run: npm run build:python-worker
 
       - name: 安装并测试 Python SDK（离线）
         shell: bash

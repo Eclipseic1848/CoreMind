@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildProviderMatrix } from "./provider-matrix-lib.mjs";
 import {
   evaluateReleaseMetadata,
   inspectRepository,
@@ -44,6 +46,86 @@ describe("发布元数据预检", () => {
     } finally {
       if (original === undefined) delete process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION;
       else process.env.COREMIND_DEFER_PROVIDER_CERTIFICATION = original;
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("相同版本和入口文件的认证只覆盖已测 Worker", async () => {
+    const fixtureRoot = await createUncertifiedRepositoryFixture();
+    try {
+      const runtimeDirectory = path.join(fixtureRoot, "packages", "coremind-runtime", "dist");
+      const workerDirectory = path.join(fixtureRoot, "python", "src", "coremind", "_worker");
+      await mkdir(runtimeDirectory, { recursive: true });
+      await mkdir(workerDirectory, { recursive: true });
+      await writeFile(path.join(runtimeDirectory, "index.js"), "entry", "utf8");
+      const worker = path.join(workerDirectory, "coremind-worker.mjs");
+      await writeFile(worker, "first bundle", "utf8");
+      const version = (await inspectRepository(fixtureRoot, { allowDirty: true })).releaseVersion;
+      const certification = {
+        id: "alpha",
+        model: "a1",
+        testedAt: "2026-11-27",
+        evidence: "artifacts/providers/alpha.json",
+        checks: [
+          "streaming",
+          "tool-call",
+          "structured-result",
+          "multi-turn",
+          "abort",
+          "error",
+          "long-context",
+          "parent-model-call",
+          "delegation-tool",
+          "child-model-call",
+          "child-tool-call",
+          "cancel-convergence",
+        ],
+        version,
+        commit: "a".repeat(40),
+        runtimeArtifactSha256: createHash("sha256").update("entry").digest("hex"),
+        runtimeDigest: `sha256:${createHash("sha256").update("first bundle").digest("hex")}`,
+      };
+      const ledgerPath = path.join(fixtureRoot, "docs", "providers", "certifications.json");
+      const matrixPath = path.join(fixtureRoot, "docs", "providers", "matrix.json");
+      const validLedger = JSON.stringify({ certifications: [certification] });
+      const matrix = buildProviderMatrix({
+        providers: [{ id: "alpha", defaultModel: "a1", modelCount: 1 }],
+        certifications: [certification],
+        targetVersion: version,
+        targetRuntimeDigest: certification.runtimeDigest,
+        generatedAt: certification.testedAt,
+      });
+      await writeFile(ledgerPath, validLedger, "utf8");
+      await writeFile(matrixPath, JSON.stringify(matrix), "utf8");
+      const blocker = "Provider 认证证据未绑定当前版本与 Runtime 摘要";
+      expect((await inspectRepository(fixtureRoot, { allowDirty: true })).blockers).not.toContain(
+        blocker,
+      );
+      for (const missing of [{ checks: [] }, { model: "" }, { evidence: "" }]) {
+        await writeFile(
+          ledgerPath,
+          JSON.stringify({ certifications: [{ ...certification, ...missing }] }),
+          "utf8",
+        );
+        expect((await inspectRepository(fixtureRoot, { allowDirty: true })).blockers).toContain(
+          blocker,
+        );
+      }
+      await writeFile(ledgerPath, validLedger, "utf8");
+      await writeFile(
+        matrixPath,
+        JSON.stringify({ ...matrix, summary: { ...matrix.summary, certified: 0 } }),
+        "utf8",
+      );
+      expect((await inspectRepository(fixtureRoot, { allowDirty: true })).blockers).toContain(
+        blocker,
+      );
+      await writeFile(matrixPath, JSON.stringify(matrix), "utf8");
+      await writeFile(worker, "updated bundle", "utf8");
+      expect((await inspectRepository(fixtureRoot, { allowDirty: true })).blockers).toContain(
+        blocker,
+      );
+    } finally {
       await rm(fixtureRoot, { recursive: true, force: true });
     }
   });

@@ -38,6 +38,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.'''
 
+RUNTIME_LICENSE = (
+    Path(__file__).resolve().parents[1] / "packages" / "coremind-worker" / "LICENSE.runtime"
+).read_text(encoding="utf-8").strip()
+
 WORKSTATION_PATH = re.compile(
     r"(?i:[A-Za-z]:[\\/](?:Users|home|new branch)[\\/])"
     r"|(?<![A-Za-z0-9_])/(?:home|Users)/[^/\s]+/"
@@ -193,8 +197,10 @@ def check_bundled_worker_identity(archive: zipfile.ZipFile, repository_root: Pat
 
 def check_worker_bundle(bundle: str) -> list[str]:
     blockers: list[str] = []
-    if " ".join(MIT_LICENSE_NOTICE.split()) not in " ".join(bundle.split()):
-        blockers.append("内置 Worker 缺少必要的完整版权许可")
+    normalized = " ".join(bundle.split())
+    for notice in (MIT_LICENSE_NOTICE, RUNTIME_LICENSE):
+        if " ".join(notice.split()) not in normalized:
+            blockers.append(f"内置 Worker 缺少完整版权许可：{notice.splitlines()[2]}")
     removed_backend = re.compile(
         r"node_modules[\\/](?:node-forge[\\/]|@anthropic-ai[\\/]sandbox-runtime[\\/]dist[\\/]sandbox[\\/]"
         r"(?:mitm-(?:ca|leaf)|(?:tls-terminate|http|socks|parent|mux)-proxy)\.js)",

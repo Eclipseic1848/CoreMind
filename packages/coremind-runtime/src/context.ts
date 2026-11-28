@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { CoreMindMessage } from "./public-message.js";
+import { sliceTextPrefix } from "./session-v4/compaction/utils.js";
 import { type AgentMessage, estimateTokens } from "./session-v4/index.js";
 
 export interface ContextProtectionOptions {
@@ -296,7 +297,7 @@ function findAll(texts: string[], pattern: RegExp): string {
 }
 
 function clip(text: string, maxChars: number): string {
-  return text.length > maxChars ? `${text.slice(0, Math.max(0, maxChars - 1))}…` : text;
+  return text.length > maxChars ? `${sliceTextPrefix(text, maxChars - 1)}…` : text;
 }
 
 function roleLabel(message: AgentMessage): string {

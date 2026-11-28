@@ -2,10 +2,11 @@
   "schemaVersion": 1,
   "generatedAt": "2026-11-27",
   "targetVersion": "2.2.0",
+  "targetRuntimeDigest": "sha256:97c3e58fc4b1f3562254f7edfd68a84a16b68a25e6505a9f6246f94a22b05f7a",
   "summary": {
-    "supported": 43,
-    "certified": 1,
-    "unverified": 42
+    "supported": 44,
+    "certified": 0,
+    "unverified": 44
   },
   "providers": [
     {
@@ -32,38 +33,38 @@
     {
       "id": "amazon-bedrock",
       "defaultModel": "amazon.nova-2-lite-v1:0",
-      "modelCount": 197,
+      "modelCount": 204,
       "status": "inherited-unverified"
     },
     {
       "id": "ant-ling",
-      "defaultModel": "Ling-2.6-1T",
-      "modelCount": 3,
+      "defaultModel": "Ling-3.0-flash",
+      "modelCount": 5,
       "status": "inherited-unverified"
     },
     {
       "id": "anthropic",
       "defaultModel": "claude-fable-5",
-      "modelCount": 17,
+      "modelCount": 18,
       "status": "inherited-unverified"
     },
     {
       "id": "azure",
       "defaultModel": "chat-latest",
-      "modelCount": 45,
+      "modelCount": 42,
       "status": "inherited-unverified"
     },
     {
       "id": "azure-openai-responses",
       "defaultModel": "chat-latest",
-      "modelCount": 45,
+      "modelCount": 42,
       "aliasOf": "azure",
       "status": "inherited-unverified"
     },
     {
       "id": "baseten",
       "defaultModel": "deepseek-ai/DeepSeek-V4-Flash-0731",
-      "modelCount": 14,
+      "modelCount": 18,
       "status": "inherited-unverified"
     },
     {
@@ -75,61 +76,63 @@
     {
       "id": "cloudflare-ai-gateway",
       "defaultModel": "claude-fable-5",
-      "modelCount": 59,
+      "modelCount": 56,
       "status": "inherited-unverified"
     },
     {
       "id": "cloudflare-workers-ai",
-      "defaultModel": "@cf/deepseek-ai/deepseek-v4-flash-0731",
-      "modelCount": 19,
+      "defaultModel": "@cf/daily-co/phonellm-mini-alpha-2",
+      "modelCount": 13,
       "status": "inherited-unverified"
     },
     {
       "id": "deepseek",
       "defaultModel": "deepseek-flash",
       "modelCount": 2,
-      "status": "certified",
-      "testedVersion": "2.2.0",
-      "testedAt": "2026-11-27T06:26:00.356Z",
-      "testedModel": "deepseek-flash",
-      "testedCommit": "3c669972499ff24657c54cafbb063760c6f26303",
-      "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
-      "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.2.0-2026-11-27.json"
+      "status": "inherited-unverified",
+      "previousCertification": {
+        "version": "2.2.0",
+        "testedAt": "2026-11-27T06:26:00.356Z",
+        "testedModel": "deepseek-flash",
+        "testedCommit": "3c669972499ff24657c54cafbb063760c6f26303",
+        "runtimeArtifactSha256": "67946460e02fb007b7ad77f82ea310ac2496a64f3999e845466acde450fb6464",
+        "evidence": "https://github.com/Eclipseic1848/CoreMind/blob/main/docs/providers/evidence/deepseek-2.2.0-2026-11-27.json"
+      }
     },
     {
       "id": "fireworks",
       "defaultModel": "accounts/fireworks/models/deepseek-v4p1-flash",
-      "modelCount": 29,
+      "modelCount": 42,
       "status": "inherited-unverified"
     },
     {
       "id": "github-copilot",
       "defaultModel": "claude-fable-5",
-      "modelCount": 27,
+      "modelCount": 33,
       "status": "inherited-unverified"
     },
     {
       "id": "google",
       "defaultModel": "deep-research-max-preview-04-2026",
-      "modelCount": 23,
+      "modelCount": 24,
       "status": "inherited-unverified"
     },
     {
       "id": "google-vertex",
       "defaultModel": "gemini-2.5-flash",
-      "modelCount": 13,
+      "modelCount": 17,
       "status": "inherited-unverified"
     },
     {
       "id": "groq",
-      "defaultModel": "llama-3.1-8b-instant",
-      "modelCount": 7,
+      "defaultModel": "openai/gpt-oss-120b",
+      "modelCount": 4,
       "status": "inherited-unverified"
     },
     {
       "id": "huggingface",
-      "defaultModel": "deepseek-ai/DeepSeek-R1",
-      "modelCount": 78,
+      "defaultModel": "CohereLabs/command-a-plus-05-2026-bf16",
+      "modelCount": 114,
       "status": "inherited-unverified"
     },
     {
@@ -140,8 +143,8 @@
     },
     {
       "id": "meta",
-      "defaultModel": "muse-spark-1.1",
-      "modelCount": 6,
+      "defaultModel": "muse-ember-1.0",
+      "modelCount": 7,
       "status": "inherited-unverified"
     },
     {
@@ -159,7 +162,7 @@
     {
       "id": "mistral",
       "defaultModel": "codestral-2508",
-      "modelCount": 34,
+      "modelCount": 23,
       "status": "inherited-unverified"
     },
     {
@@ -176,74 +179,80 @@
     },
     {
       "id": "nvidia",
-      "defaultModel": "deepseek-ai/deepseek-v4.1-flash",
-      "modelCount": 21,
+      "defaultModel": "google/gemma-3-12b-it",
+      "modelCount": 11,
       "status": "inherited-unverified"
     },
     {
       "id": "openai",
       "defaultModel": "chat-latest",
-      "modelCount": 44,
+      "modelCount": 41,
       "status": "inherited-unverified"
     },
     {
       "id": "openai-codex",
       "defaultModel": "gpt-5.6-luna",
-      "modelCount": 8,
+      "modelCount": 10,
       "status": "inherited-unverified"
     },
     {
       "id": "opencode",
       "defaultModel": "claude-fable-5",
-      "modelCount": 79,
+      "modelCount": 83,
       "status": "inherited-unverified"
     },
     {
       "id": "opencode-go",
       "defaultModel": "claude-haiku-5-5",
-      "modelCount": 30,
+      "modelCount": 31,
       "status": "inherited-unverified"
     },
     {
       "id": "openrouter",
       "defaultModel": "~anthropic/claude-fable-latest",
-      "modelCount": 388,
+      "modelCount": 415,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan",
-      "defaultModel": "deepseek-v3.2",
-      "modelCount": 21,
+      "defaultModel": "deepseek-v4-flash-0731",
+      "modelCount": 20,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan-cn",
-      "defaultModel": "deepseek-v3.2",
-      "modelCount": 21,
+      "defaultModel": "deepseek-v4-flash-0731",
+      "modelCount": 20,
       "status": "inherited-unverified"
     },
     {
       "id": "qwen-token-plan-individual",
       "defaultModel": "deepseek-v4-flash-0731",
-      "modelCount": 9,
+      "modelCount": 13,
+      "status": "inherited-unverified"
+    },
+    {
+      "id": "qwen-token-plan-individual-cn",
+      "defaultModel": "deepseek-v4-flash-0731",
+      "modelCount": 13,
       "status": "inherited-unverified"
     },
     {
       "id": "radius",
       "defaultModel": "balanced",
-      "modelCount": 28,
+      "modelCount": 39,
       "status": "inherited-unverified"
     },
     {
       "id": "together",
-      "defaultModel": "deepseek-ai/DeepSeek-V4-Pro-0813",
-      "modelCount": 15,
+      "defaultModel": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "modelCount": 24,
       "status": "inherited-unverified"
     },
     {
       "id": "vercel-ai-gateway",
       "defaultModel": "alibaba/qwen-3-14b",
-      "modelCount": 303,
+      "modelCount": 305,
       "status": "inherited-unverified"
     },
     {
@@ -279,13 +288,13 @@
     {
       "id": "zai",
       "defaultModel": "glm-4.7",
-      "modelCount": 7,
+      "modelCount": 8,
       "status": "inherited-unverified"
     },
     {
       "id": "zai-coding-cn",
       "defaultModel": "glm-4.6v",
-      "modelCount": 4,
+      "modelCount": 5,
       "status": "inherited-unverified"
     }
   ]

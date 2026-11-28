@@ -3,7 +3,7 @@
   "baseline": {
     "version": "0.3.0-candidate",
     "referenceVersion": "0.2.0-rc.1",
-    "developmentCommit": "cd92c8913ffb10d735cd83f99fc07b94a06ff4a7",
+    "developmentCommit": "a51ce92f4f056c1d788e6e9ca981083be2d523de",
     "releaseCommit": "34b32b82450e5df27c6ebb9eca300ac54abdd078"
   },
   "referenceArtifacts": {
@@ -15,7 +15,7 @@
     "apiReports": {
       "coremind-ai": "2127e7461dc2dd293db8893d4519d89f1d3e310b490fe308f993c815b7ec88a7",
       "coremind-cli": "85c10bc4605cbdd60534b79a146c8d74d5587159d111e1a1567480a5778cee7f",
-      "coremind-config": "8be91da2c25c914f95a3765df86576aad14779a1da5f4a92b6af64db3e0a735d",
+      "coremind-config": "f8d68983bd5a8078007650d1dc11d48526793912f8a13a1be63218c9ecdb3066",
       "coremind-protocol": "af88a7541dfc872a7b8220ccf665af673442f462ac26149d38e58bf016fefaa2",
       "coremind-runtime": "aa44ffeb16e34e24dfa57545b36f504761a547b09c59d94a777d9d090b609f74",
       "coremind-templates": "7c7bc6ce4b1196afada36d3083a8a8b91c2780fc7f02a7b1958d2a0be244ea51",
@@ -23,7 +23,7 @@
       "coremind-worker": "bac7bab21eb31b9133b6bd13f732f5bd32c51ad15551095da88221660c1b6f51"
     },
     "schemas": {
-      "config": "181485266cd700e92a88427e17b2a2a407e0fa294c88ffa647aa0c86d1c6ad35",
+      "config": "53d6f920d7a977c737a3c281bcf53a69b127cd70a5db57739b680d0efe573dcb",
       "protocol": "f27b662f000dfe2b5750960475377d7cf286a35974efd6c90c24316e6ebc3d6a",
       "protocolV2": "504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69"
     }
@@ -31,13 +31,13 @@
   "dependencies": {
     "installed": {
       "coding-layer": [
-        "1.5.0"
+        "1.7.0"
       ],
       "model-layer": [
-        "1.5.0"
+        "1.7.0"
       ],
       "runtime-core": [
-        "1.5.0"
+        "1.7.0"
       ]
     }
   },
@@ -283,20 +283,20 @@
     }
   },
   "evidence": {
-    "capturedAt": "2026-11-27T02:34:47.911Z",
+    "capturedAt": "2026-11-28T01:53:34.907Z",
     "capturePlatform": "win32",
-    "updateReason": "CoreMind 2.2.0 同步公开包身份、工作流条件与检查点合同",
+    "updateReason": "同步运行库 1.7.0 与自定义网关的工具历史配置，并重新核对公开声明",
     "apiExtractorVersion": "7.58.12",
-    "dependencyLockSha256": "8541b71a22db210a1b5b1b3f8b995b775aa40c8560f4775446eeb34261f1f507",
+    "dependencyLockSha256": "63c64dbe7e5887ce96621e7dceb2fdbd30262b658a8119e785c3f0f5e0e2edd3",
     "codingEvalFixtureSha256": "81a792e6c31ed0ce61f06eb3d3a84431f850d9ceba10f7e243219a32418d0f55",
     "packageDistSha256": {
       "coremind-ai": "bb54b15e0323f971967788cc0a87a22aa23cc6bb50ff7344000e20bbcccc01f5",
       "coremind-cli": "d5b3b00f070117e73667bd74bfc43f8d1c9acabfb51690c694ec813cfd43092f",
-      "coremind-config": "fa1d3831b89c0158bddd82bd324c7ebf840a1a076a0f8b2adc99f73368d3e9e5",
+      "coremind-config": "a199142447c1dee05fa78a91f860d5072eb0ee785967ec8a8628b91c6c531302",
       "coremind-protocol": "d4cada29be071b93cd9a5324d07c96cd3ab7942a0597aa2b365a54dabb3e6bd2",
-      "coremind-runtime": "02c3f77854c49d4bf3b0b162bce4564c7b616204c6d004f1b9ab9b50cc2c3be8",
+      "coremind-runtime": "083d75e1e6ffe8b397b7efabb10b82537d998197ada461a33cbeb5025f1d3bc1",
       "coremind-templates": "a60b36a32f5fb282ccdcdd9a31c406c3dd02061804ec5aef1cbcc82c56427dc9",
-      "coremind-tools": "ad60f0448937f1a957106dbb8eb2d211dc035a01ed945f8bde7676c34a7e1b3a",
+      "coremind-tools": "71c3d4bf7dc77f65418dc20a3b35f5e24962cad64512f36f2d27a4a659817f5f",
       "coremind-worker": "01fc48645e6baa3d5c75c4dd645a2d9af5e8a42b1af5f81d53daaac0fca07e14"
     },
     "releaseManifestSha256": "1c249651185c116fd13ea1a946887617f00932988f8c4bb588104b64f702a2ec"

@@ -7,9 +7,9 @@ import {
 describe("低层运行依赖 Adapter", () => {
   it("以 CoreMind 自有结构报告锁步版本、能力和错误映射", () => {
     expect(inspectRuntimeCompatibility()).toEqual({
-      dependencyFamily: "1.5.0",
+      dependencyFamily: "1.7.0",
       adapterVersion: 2,
-      errorMappingVersion: 2,
+      errorMappingVersion: 3,
       capabilities: {
         streaming: true,
         toolCalls: true,
@@ -22,9 +22,9 @@ describe("低层运行依赖 Adapter", () => {
   });
 
   it("状态码只在独立数字边界触发重试，与上游边界规则一致", () => {
-    const statuses = ["429", "500", "502", "503", "504", "520", "524"];
+    const statuses = ["429", "500", "502", "503", "504", "520", "524", "525"];
     const neighbors = ["", "a", "Z", "0", "9", "_", "-", " ", "\n", "中"];
-    const standaloneStatus = /(?<![a-z0-9])(?:429|500|502|503|504|520|524)(?![a-z0-9])/i;
+    const standaloneStatus = /(?<![a-z0-9])(?:429|500|502|503|504|520|524|525)(?![a-z0-9])/i;
     const messages = statuses.flatMap((status) =>
       neighbors.flatMap((left) => neighbors.map((right) => `(${left}${status}${right})`)),
     );
@@ -50,6 +50,9 @@ describe("低层运行依赖 Adapter", () => {
     ["network error 5242880", true],
     ["timeout 500429", true],
     ["rate limit 52429", true],
+    ["read ECONNRESET", true],
+    ["request_id=abc_ECONNRESET", false],
+    ["The provider is temporarily unavailable. Retry shortly.", true],
     ["insufficient_quota 503", false],
     ["billing 429 timeout", false],
     ["quota exceeded 503", false],

@@ -198,6 +198,48 @@ describe("最终工具参数的完整性与权限", () => {
   });
 });
 
+it.for([undefined, true])(
+  "恢复工具历史后按网关要求发送空工具列表（%s）",
+  async (required, context) => {
+    await withHttp(
+      context,
+      (_request, ordinal) =>
+        ordinal === 1 ? writeCall('{"path":"article.md","content":"完成"}') : answer("已完成"),
+      async (probe) => {
+        const firstConfig = writeConfig(probe.port);
+        const sessionId = "tool-history";
+        const first = await probe.create({
+          config: validateConfig({ ...firstConfig, session: { enabled: true, compact: false } }),
+          sessionId,
+          initialPrompt: "写入 article.md",
+          approveTool: async () => "allow",
+        });
+        expect((await first.run()).outcome.status).toBe("succeeded");
+        expect(await first.waitForQuiescence()).toBe(true);
+        const second = await probe.create({
+          config: validateConfig({
+            ...firstConfig,
+            tools: [],
+            provider: {
+              ...firstConfig.provider,
+              ...(required && { requiresToolsWithToolHistory: true }),
+            },
+            session: { enabled: true, compact: false },
+          }),
+          sessionId,
+          initialPrompt: "总结上一步",
+        });
+        expect((await second.run()).outcome.status).toBe("succeeded");
+        const request = probe.requests[2]!;
+        expect(request.messages).toContainEqual(expect.objectContaining({ role: "tool" }));
+        if (required) expect(request).toHaveProperty("tools", []);
+        else expect(request).not.toHaveProperty("tools");
+      },
+      3,
+    );
+  },
+);
+
 describe("恢复历史在模型请求中的思考语义", () => {
   const thinking = "HISTORY_THINKING_CANARY";
   const visibleAnswer = "HISTORY_VISIBLE_ANSWER_CANARY";

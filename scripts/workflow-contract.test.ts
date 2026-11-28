@@ -500,6 +500,16 @@ if (selector === process.env.COREMIND_TEST_FAIL_SELECTOR) process.exitCode = 1;
     ]
       .map((step: { run?: string }) => step.run ?? "")
       .join("\n");
+    for (const job of [engineering.jobs.engineering, candidate.jobs.candidate]) {
+      const steps = job.steps.map((step: { run?: string }) => step.run ?? "");
+      const built = steps.indexOf("npm run build:python-worker");
+      const matrix = steps.findIndex((run: string) => run.includes("npm run providers:matrix"));
+      expect(built).toBeGreaterThanOrEqual(0);
+      expect(matrix).toBeGreaterThan(built);
+      expect(steps[matrix]).toContain(
+        "git diff --exit-code --stat -- docs/providers python/src/coremind/_worker/coremind-worker.mjs python/src/coremind/_worker/manifest.json",
+      );
+    }
     const preservedGateCommands = [
       "npx biome check .",
       "npm run security:audit",

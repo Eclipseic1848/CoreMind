@@ -101,6 +101,7 @@ describe("自定义 Provider 的 Qwen 思考控制", () => {
 
   it.each([
     [{ thinkingFormat: "unsupported" }, /provider\.thinkingFormat/],
+    [{ requiresToolsWithToolHistory: "true" }, /provider\.requiresToolsWithToolHistory/],
     [{ requestBody: { Authorization: "不得透传" } }, /provider\.requestBody/],
   ])("配置验证拒绝无效格式或任意请求体", (extra, error) => {
     expect(() =>
