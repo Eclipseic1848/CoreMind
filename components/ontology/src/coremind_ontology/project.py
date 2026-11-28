@@ -108,7 +108,8 @@ class OntologyProject:
         if mapping["status"] != "mapped":
             return {**self.identity, "status": "needs_confirmation", "mapping": mapping}
         with self._lock:
-            return {**self.graph.validate(triples), **self.identity, "mapping": mapping}
+            validation = self.graph.validate(triples, subject=URIRef(mapping["subject"]))
+            return {**validation, **self.identity, "mapping": mapping}
 
     def inspect_action(self, action: str, resource: str) -> dict:
         with self._lock:
