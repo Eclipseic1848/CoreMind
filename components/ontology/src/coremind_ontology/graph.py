@@ -2,7 +2,6 @@
 
 from hashlib import sha256
 from heapq import nsmallest
-from itertools import chain
 
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.graph import ReadOnlyGraphAggregate
@@ -46,6 +45,28 @@ def _violations(report: Graph, results):
         row = {key: _node_text(report.value(result, predicate)) for key, predicate in REPORT_FIELDS.items()}
         row["message"] = "\n".join(sorted(str(message) for message in report.objects(result, SH.resultMessage)))
         yield row
+
+
+def _validate_record_shapes(data: Graph, shapes: Graph, subject: URIRef):
+    from pyshacl import Validator
+    from pyshacl.entrypoints import meta_validate
+    from pyshacl.graph_abstraction import DataGraph
+
+    if len(shapes) and not meta_validate(shapes, inference="none")[0]:
+        raise ValueError("SHACL 形状无效")
+    target = DataGraph.from_rdflib(data)
+    validator = Validator(target, shacl_graph=shapes, options={"max_validation_depth": 15})
+    executor = validator.make_executor()
+    reports = []
+    conforms = True
+    # 只限定根形状的目标。嵌套约束仍须校验关联对象，不能把全局 focus_nodes 传给它们。
+    for shape in validator.shacl_graph.shapes:
+        if subject in shape.focus_nodes(target):
+            valid, findings = shape.validate(executor, target, focus=subject)
+            conforms = conforms and valid
+            reports.extend(findings)
+    report, _ = validator.create_validation_report(validator.shacl_graph, conforms, reports)
+    return conforms, report
 
 
 class OntologyGraph:
@@ -106,8 +127,8 @@ class OntologyGraph:
             "relationships": relationships,
         }
 
-    def validate(self, extra: Graph | None = None) -> dict:
-        return self._validate(self._data, extra)
+    def validate(self, extra: Graph | None = None, *, subject: URIRef | None = None) -> dict:
+        return self._validate(self._data, extra, subject=subject)
 
     def validate_state(self, resource: str, predicate: str, value: str) -> dict:
         """校验宿主待提交的状态，保留当前实例数据。"""
@@ -122,7 +143,7 @@ class OntologyGraph:
     def publish_state(self, data: Graph) -> None:
         self._data = data
 
-    def _validate(self, instances: Graph, extra: Graph | None = None) -> dict:
+    def _validate(self, instances: Graph, extra: Graph | None = None, *, subject: URIRef | None = None) -> dict:
         result = {"status": "unavailable", "modelDigest": self.model_digest, "violations": []}
         if _uses_executable_shacl(self._shapes):
             return dict(result, reason="unsupported-shape-feature")
@@ -135,18 +156,20 @@ class OntologyGraph:
             return dict(result, reason="engine-unavailable")
         try:
             data = Graph()
-            for triple in chain(self._model, instances, () if extra is None else extra):
-                data.add(triple)
-            conforms, report, _ = validate_shacl(
-                data,
-                shacl_graph=self._shapes,
-                inference="none",
-                advanced=False,
-                js=False,
-                do_owl_imports=False,
-                max_validation_depth=15,
-                meta_shacl=bool(self._shapes),
-            )
+            data += instances
+            if subject is not None:
+                # 仅替换实例快照，保留模型中同名 IRI 的类层级和属性声明。
+                data.remove((subject, None, None))
+            data += self._model
+            if extra is not None:
+                data += extra
+            if subject is not None:
+                conforms, report = _validate_record_shapes(data, self._shapes, subject)
+            else:
+                conforms, report, _ = validate_shacl(
+                    data, shacl_graph=self._shapes, inference="none", advanced=False, js=False,
+                    do_owl_imports=False, max_validation_depth=15, meta_shacl=bool(self._shapes),
+                )
             if not isinstance(report, Graph):
                 return dict(result, reason="validation-error")
             results = list(report.objects(None, SH.result))

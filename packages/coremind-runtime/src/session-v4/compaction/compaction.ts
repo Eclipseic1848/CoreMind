@@ -516,6 +516,27 @@ export async function generateSummary(
   );
   return result.ok ? ok(result.value.text) : err(result.error);
 }
+type SummaryResult = Result<{ text: string; usage: Usage }, CompactionError>;
+
+function readSummaryResponse(response: AssistantMessage, operation: string): SummaryResult {
+  if (response.stopReason === "aborted") {
+    return err(new CompactionError("aborted", response.errorMessage || `${operation} aborted`));
+  }
+  if (response.stopReason !== "stop") {
+    return err(
+      new CompactionError(
+        "summarization_failed",
+        `${operation} failed: ${response.errorMessage || response.stopReason}`,
+      ),
+    );
+  }
+  const text = contentText(response.content);
+  if (!text.trim()) {
+    return err(new CompactionError("summarization_failed", `${operation} returned empty text`));
+  }
+  return ok({ text, usage: response.usage });
+}
+
 export async function generateSummaryWithUsage(
   currentMessages: AgentMessage[],
   models: Models,
@@ -527,15 +548,7 @@ export async function generateSummaryWithUsage(
   thinkingLevel?: ThinkingLevel,
   retry?: RetryPolicy,
   callbacks?: RetryCallbacks,
-): Promise<
-  Result<
-    {
-      text: string;
-      usage: Usage;
-    },
-    CompactionError
-  >
-> {
+): Promise<SummaryResult> {
   const maxTokens = Math.min(
     Math.floor(0.8 * reserveTokens),
     model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY,
@@ -570,19 +583,7 @@ export async function generateSummaryWithUsage(
     retry,
     callbacks,
   );
-  if (response.stopReason === "aborted") {
-    return err(new CompactionError("aborted", response.errorMessage || "Summarization aborted"));
-  }
-  if (response.stopReason === "error") {
-    return err(
-      new CompactionError(
-        "summarization_failed",
-        `Summarization failed: ${response.errorMessage || "Unknown error"}`,
-      ),
-    );
-  }
-  const textContent = contentText(response.content);
-  return ok({ text: textContent, usage: response.usage });
+  return readSummaryResponse(response, "Summarization");
 }
 export interface CompactionPreparation {
   messagesToSummarize: AgentMessage[];
@@ -770,15 +771,7 @@ async function generateTurnPrefixSummary(
   thinkingLevel?: ThinkingLevel,
   retry?: RetryPolicy,
   callbacks?: RetryCallbacks,
-): Promise<
-  Result<
-    {
-      text: string;
-      usage: Usage;
-    },
-    CompactionError
-  >
-> {
+): Promise<SummaryResult> {
   const maxTokens = Math.min(
     Math.floor(0.5 * reserveTokens),
     model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY,
@@ -805,21 +798,5 @@ async function generateTurnPrefixSummary(
     retry,
     callbacks,
   );
-  if (response.stopReason === "aborted") {
-    return err(
-      new CompactionError("aborted", response.errorMessage || "Turn prefix summarization aborted"),
-    );
-  }
-  if (response.stopReason === "error") {
-    return err(
-      new CompactionError(
-        "summarization_failed",
-        `Turn prefix summarization failed: ${response.errorMessage || "Unknown error"}`,
-      ),
-    );
-  }
-  return ok({
-    text: contentText(response.content),
-    usage: response.usage,
-  });
+  return readSummaryResponse(response, "Turn prefix summarization");
 }

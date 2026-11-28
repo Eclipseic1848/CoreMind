@@ -258020,6 +258020,19 @@ Use this EXACT format:
 - [Preserve important context, add new if needed]
 
 Keep each section concise. Preserve exact file paths, function names, and error messages.`;
+function readSummaryResponse(response, operation) {
+  if (response.stopReason === "aborted") {
+    return err(new CompactionError("aborted", response.errorMessage || `${operation} aborted`));
+  }
+  if (response.stopReason !== "stop") {
+    return err(new CompactionError("summarization_failed", `${operation} failed: ${response.errorMessage || response.stopReason}`));
+  }
+  const text2 = contentText(response.content);
+  if (!text2.trim()) {
+    return err(new CompactionError("summarization_failed", `${operation} returned empty text`));
+  }
+  return ok({ text: text2, usage: response.usage });
+}
 async function generateSummaryWithUsage(currentMessages, models, model2, reserveTokens, signal, customInstructions, previousSummary, thinkingLevel, retry2, callbacks) {
   const maxTokens = Math.min(Math.floor(0.8 * reserveTokens), model2.maxTokens > 0 ? model2.maxTokens : Number.POSITIVE_INFINITY);
   let basePrompt = previousSummary ? UPDATE_SUMMARIZATION_PROMPT : SUMMARIZATION_PROMPT;
@@ -258052,14 +258065,7 @@ ${previousSummary}
   ];
   const completionOptions = model2.reasoning && thinkingLevel && thinkingLevel !== "off" ? { maxTokens, signal, reasoning: thinkingLevel } : { maxTokens, signal };
   const response = await completeSimpleWithRetries(models, model2, { systemPrompt: SUMMARIZATION_SYSTEM_PROMPT, messages: summarizationMessages }, completionOptions, retry2, callbacks);
-  if (response.stopReason === "aborted") {
-    return err(new CompactionError("aborted", response.errorMessage || "Summarization aborted"));
-  }
-  if (response.stopReason === "error") {
-    return err(new CompactionError("summarization_failed", `Summarization failed: ${response.errorMessage || "Unknown error"}`));
-  }
-  const textContent = contentText(response.content);
-  return ok({ text: textContent, usage: response.usage });
+  return readSummaryResponse(response, "Summarization");
 }
 function prepareCompaction(pathEntries, settings2) {
   if (pathEntries.length === 0 || pathEntries[pathEntries.length - 1].type === "compaction") {
@@ -258202,16 +258208,7 @@ ${TURN_PREFIX_SUMMARIZATION_PROMPT}`;
   ];
   const completionOptions = model2.reasoning && thinkingLevel && thinkingLevel !== "off" ? { maxTokens, signal, reasoning: thinkingLevel } : { maxTokens, signal };
   const response = await completeSimpleWithRetries(models, model2, { systemPrompt: SUMMARIZATION_SYSTEM_PROMPT, messages: summarizationMessages }, completionOptions, retry2, callbacks);
-  if (response.stopReason === "aborted") {
-    return err(new CompactionError("aborted", response.errorMessage || "Turn prefix summarization aborted"));
-  }
-  if (response.stopReason === "error") {
-    return err(new CompactionError("summarization_failed", `Turn prefix summarization failed: ${response.errorMessage || "Unknown error"}`));
-  }
-  return ok({
-    text: contentText(response.content),
-    usage: response.usage
-  });
+  return readSummaryResponse(response, "Turn prefix summarization");
 }
 
 // packages/coremind-runtime/dist/session-v4/session/jsonl/repo.js
