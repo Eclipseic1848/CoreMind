@@ -1,6 +1,6 @@
 # Runtime Dependency Adapters
 
-This module targets the `1.4.0` release line and supports Windows and Linux.
+This module covers runtime dependencies and compatibility checks on Windows and Linux.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Keep model streaming, messages, tools, usage, and error classification behind pr
 
 ## Invariants
 
-- The installed critical dependency tree contains exactly one version family. Version 1.4.0 pins all eight underlying runtime dependency members to 1.5.0, including the new tool argument validation package.
+- The current source pins all eight runtime dependencies to 1.7.0. Run `node scripts/smoke-upstream.mjs` to check model registration, a file read, and a complete agent turn offline.
 - Provider, tool, abort, usage, error, and timeout behavior is covered by explicit conversion or contract tests.
 - CoreMind continues to return the stable `session.dir/<id>.jsonl` path; an internal repository layout cannot rewrite the CLI/SDK file contract.
 - Double casts may not conceal cross-version type conflicts.

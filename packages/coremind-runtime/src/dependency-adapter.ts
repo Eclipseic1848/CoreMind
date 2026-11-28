@@ -28,9 +28,9 @@ export interface NormalizedDependencyUsage {
 
 export function inspectRuntimeCompatibility(): RuntimeCompatibilityReport {
   return {
-    dependencyFamily: "1.5.0",
+    dependencyFamily: "1.7.0",
     adapterVersion: 2,
-    errorMappingVersion: 2,
+    errorMappingVersion: 3,
     capabilities: {
       streaming: true,
       toolCalls: true,

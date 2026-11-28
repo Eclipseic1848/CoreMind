@@ -37,6 +37,10 @@ agents:
 
 升级后，仅在需要嵌套开关的服务配置中启用新格式。回滚旧 SDK/Worker 前，先恢复该服务原先可用的配置；旧版本无法解析 `qwen-chat-template`。
 
+## 在不启用工具的会话中继续使用工具历史
+
+自定义 OpenAI 兼容端点恢复含工具调用的历史会话时，如果本轮没有可用工具，默认省略请求中的 `tools` 字段。旧版 LiteLLM 等网关在转发这类历史时可能要求保留该字段。对此类端点设置 `provider.requiresToolsWithToolHistory: true`，请求将包含 `tools: []`。
+
 ## 验证
 
 1. 按 [SOP](SOP.zh-CN.md) 执行。

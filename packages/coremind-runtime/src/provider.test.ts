@@ -73,14 +73,14 @@ describe("buildProviderRuntime（内置提供商）", () => {
     }
   });
 
-  it("内置目录包含 42 个提供商，兼容别名单独作为配置入口", async () => {
+  it("内置目录包含 43 个提供商，兼容别名单独作为配置入口", async () => {
     const providers = listInheritedProviders();
-    expect(providers).toHaveLength(42);
+    expect(providers).toHaveLength(43);
     expect(providers).toContain("azure");
     expect(providers).toContain("typesafe");
     expect(providers).not.toContain("azure-openai-responses");
-    expect(listSupportedProviders()).toHaveLength(43);
-    expect(new Set(listSupportedProviders()).size).toBe(43);
+    expect(listSupportedProviders()).toHaveLength(44);
+    expect(new Set(listSupportedProviders()).size).toBe(44);
     expect(listSupportedProviders()).toContain("azure-openai-responses");
     expect(listSupportedProviders()).not.toContain("typesafe");
     expect(providers).toContain("xiaomi");
@@ -94,6 +94,19 @@ describe("buildProviderRuntime（内置提供商）", () => {
       ).model.provider,
     ).toBe("xiaomi");
   });
+
+  it.each(["QWEN_TOKEN_PLAN_INDIVIDUAL_CN_API_KEY", "QWEN_TOKEN_PLAN_CN_API_KEY"])(
+    "Qwen Token Plan 个人版中国入口用 %s 解析模型与凭据",
+    async (name) => {
+      const runtime = await buildProviderRuntime(
+        { id: "qwen-token-plan-individual-cn", model: "qwen4-max" },
+        { [name]: "test-only" },
+      );
+      expect(runtime.model.id).toBe("qwen4-max");
+      expect(runtime.warnings).toEqual([]);
+      expect((await runtime.models.getAuth(runtime.model))?.auth.apiKey).toBe("test-only");
+    },
+  );
 
   it("仅有非聊天模型的提供商不能作为 Agent 聊天入口", async () => {
     await expect(buildProviderRuntime({ id: "typesafe" }, {})).rejects.toMatchObject({

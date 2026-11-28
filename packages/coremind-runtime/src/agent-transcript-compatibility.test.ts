@@ -163,6 +163,50 @@ describe("模型执行消息与会话正文兼容", () => {
     expect(driver.messages().at(-1)).toMatchObject({ role: "toolResult", isError: false });
   });
 
+  it("串行工具批次中止后，未执行的调用跳过审批并留下错误回执", async () => {
+    const fixture = modelFixture([
+      fauxAssistantMessage(["first", "second"].map((id) => fauxToolCall("echo", {}, { id }))),
+    ]);
+    const before = vi.fn(async () => undefined);
+    const execute = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "完成" }],
+      details: {},
+    }));
+    const driver = buildAgentDriver(
+      { systemPrompt: "中止批次" },
+      {
+        ...fixture,
+        tools: [
+          {
+            name: "echo",
+            label: "回显",
+            description: "回显",
+            parameters: Type.Object({}),
+            executionMode: "sequential",
+            execute,
+          },
+        ],
+        agentName: "main",
+        onEvent: (event) => {
+          if (event.type === "tool_result" && event.callId === "first") driver.abort();
+        },
+        harness: { beforeToolCall: before },
+      },
+    );
+    await driver.prompt("执行两次");
+    await driver.waitForIdle();
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(before).toHaveBeenCalledTimes(1);
+    expect(driver.messages().filter((message) => message.role === "toolResult")).toMatchObject([
+      { toolCallId: "first", isError: false },
+      {
+        toolCallId: "second",
+        isError: true,
+        content: [{ type: "text", text: "Operation aborted" }],
+      },
+    ]);
+  });
+
   it.each(["error", "aborted"] as const)(
     "%s 响应保持终止且不调用正常完成钩子",
     async (stopReason) => {

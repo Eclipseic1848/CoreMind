@@ -4,46 +4,46 @@
   "protocolVersion": "1.0",
   "protocolV2Version": "2.0",
   "protocolV2SchemaFingerprint": "sha256:504fe67db0592654150ff3f48663257e7aab510ab8fab2d550937be7c53b1a69",
-  "bundleSha256": "78978db4dceebda773fd6cfc6cc89ee59fd0d795aa24844f3a51c32216fa0c74",
+  "bundleSha256": "0279975fa9211e72c090aed28099a2bd98157fcff02f08aeee9088594e5a4a2a",
   "runtimeDependencies": {
     "@earendil-works/pi-agent-core": {
-      "version": "1.5.0",
-      "integrity": "sha512-FOj+jXj48DbzMycR/ghNa2KcsqWmvOln24e0FnQOVgnd8vn5H79g335WdHaZUVdRo+zCeogb40/qPPlCWFuvmA==",
+      "version": "1.7.0",
+      "integrity": "sha512-pLs/wTAcrUnKDILPHjnd7RiDZSotAhJ965LwVc8x37TeWF+k+vKPMmAW6Z1T8XMQuICbIYusjkT7K0lmjgQwrg==",
       "bundled": true
     },
     "@earendil-works/pi-ai": {
-      "version": "1.5.0",
-      "integrity": "sha512-VeWxNqTHSqRCf8AcY/6kvNwh+neRL6MPxZPePVztIQy6qqK9MR/YoCSN/ZgDnIyCD3pqEXgRyQbzk4KV4uvjbg==",
+      "version": "1.7.0",
+      "integrity": "sha512-iKryMlUYniwWbU7YU0uS7W0+cGd9c6oJ6PzRLOn8j4+1njG4c+BQq1cNawctx/npDqGeOx8ME7Gkgl6K6arPuw==",
       "bundled": true
     },
     "@earendil-works/pi-coding-agent": {
-      "version": "1.5.0",
-      "integrity": "sha512-xNDZ5kqowO6Z03FS2gwAkPEGk1ssxVcYKQ6qZId84mFEvwACvvyc2l0vAMOS+c5zvxLRMLBE9r4y44IGYkMJaQ==",
+      "version": "1.7.0",
+      "integrity": "sha512-opRelA1oqV/o+cByICMYU87oiHuICeCkghHMqsZsDwDz9F6qo8HFhoH4J/wZkr6tBeFor7ryOSwEmpZsusYrbA==",
       "bundled": true
     },
     "@earendil-works/pi-codemode": {
-      "version": "1.5.0",
-      "integrity": "sha512-PLBJZ17AEWGzOlAAcFuOkw3PxkOti0JlFuZQyeF2GRTqbpuYo4k9t8YqUV2uOQVzrUnKdxahwaFUqc1eNS1WAg==",
+      "version": "1.7.0",
+      "integrity": "sha512-fhCoh8TLxhdRTOWSEplwp39Uv+JTsu9pCqtgu9gorO8zcaw92vsbVI/G89yFs92csTo2+yB7EsJq/+725Vj+eA==",
       "bundled": true
     },
     "@earendil-works/pi-mcp": {
-      "version": "1.5.0",
-      "integrity": "sha512-DURw3IwHCTMHV8CzUJWVp9css27NowsCWfXt4xg2r09IZ+P1O/Uq58hp0hb9WJO0dbkaKGXKBIkV4LVXcu2nlg==",
+      "version": "1.7.0",
+      "integrity": "sha512-ScsDjuFXjT9eKioD5oyZqofDXtaWCMhCBa+1aDSh7WmRACLsohfGQJtAX1rv5OmEbaerrRPgyD5jgwJFBjTFNw==",
       "bundled": true
     },
     "@earendil-works/pi-schema": {
-      "version": "1.5.0",
-      "integrity": "sha512-RW0MbT2tR65OY6xMsgB/yVBb7m/RTNwA+9hurSN1vVXfHZRVmVnXbruBPrx/PzbrQnW5yLVlMRWxErGDQtF1Hg==",
+      "version": "1.7.0",
+      "integrity": "sha512-skji4McLg9jum3NFWzFa/4QRGEZhMGnSi3QL8b9VljJkc/QopH2/BFuGKI+VcEwYzKGwsd0I8RzvXGnZGfGltQ==",
       "bundled": true
     },
     "@earendil-works/pi-telemetry": {
-      "version": "1.5.0",
-      "integrity": "sha512-VW3tcVdnNfl/Vk8wHPTzZdKkxcsCOM12ppiO4DXnd9wMxUCmOfLt/wvUnWeKWbTVlVSRg0uqKtnnhE2UCsG2Bw==",
+      "version": "1.7.0",
+      "integrity": "sha512-QZkngqktohuFZ2TZuJSXDuUntld4sCMW1tkUPaD4moMEX/z1lwcjycXnd9ChO9HNxm/Jfo+UTiC+N2hkAF9b0w==",
       "bundled": true
     },
     "@earendil-works/pi-tui": {
-      "version": "1.5.0",
-      "integrity": "sha512-56KqrDVeLF18k+syppVbT35Ai1opbM44ot+sL7O3K40CaWwXCiwOpqEFugDBAILtAhseZh6uYIuYxPPOJHLFAA==",
+      "version": "1.7.0",
+      "integrity": "sha512-C6vkUYGTeDdl/cMIbFOabSEPMRy9HuaUV76PS2BhvSmWifO5y8Rz8/LgFWqGIIFS7RMqu0gdeEpdXfH8jIp05g==",
       "bundled": true
     }
   }

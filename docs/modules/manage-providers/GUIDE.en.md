@@ -37,6 +37,10 @@ In this format, `off` sends `chat_template_kwargs.enable_thinking: false`. Set `
 
 After upgrading, enable the new format only for endpoints that read the nested switch. Before rolling back the SDK and Worker, restore the endpoint's previous working configuration. Older versions cannot parse `qwen-chat-template`.
 
+## Resume a session with tool history and no active tools
+
+When a custom OpenAI-compatible endpoint resumes a session with prior tool calls and no active tools, the request omits the `tools` field by default. Some older gateways, including older LiteLLM deployments, require the field when forwarding this history. Set `provider.requiresToolsWithToolHistory: true` for those endpoints to send `tools: []`.
+
 ## Verification
 
 1. Follow the [SOP](SOP.en.md).

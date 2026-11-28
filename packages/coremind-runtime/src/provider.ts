@@ -410,7 +410,10 @@ function buildCustomModel(cfg: CustomProviderConfig, id: string): Model<any> {
     // contextWindow/maxTokens：配置可覆盖（对齐真实模型能力），缺省保守兜底
     contextWindow: cfg.contextWindow ?? 32768,
     maxTokens: cfg.maxTokens ?? 4096,
-    compat: cfg.thinkingFormat ? { thinkingFormat: cfg.thinkingFormat } : undefined,
+    compat: {
+      thinkingFormat: cfg.thinkingFormat,
+      requiresToolsWithToolHistory: cfg.requiresToolsWithToolHistory,
+    },
   };
 }
 

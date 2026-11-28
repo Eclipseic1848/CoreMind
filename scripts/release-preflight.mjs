@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isCurrentCertification, readRuntimeDigest } from "./provider-matrix-lib.mjs";
 import { validateReleaseVersion } from "./release-version.mjs";
 
 const REQUIRED_FILES = [
@@ -148,11 +149,21 @@ export async function inspectRepository(
         .update(await readFile(runtimeArtifact))
         .digest("hex")
     : undefined;
+  const runtimeDigest = await readRuntimeDigest(rootDirectory);
   const currentCertification = ledger.certifications.find(
     (item) =>
-      item.version === normalizePythonVersion(pythonVersion) &&
-      /^[0-9a-f]{40}$/.test(item.commit ?? "") &&
-      item.runtimeArtifactSha256 === runtimeArtifactSha256,
+      isCurrentCertification(item, normalizePythonVersion(pythonVersion), runtimeDigest) &&
+      item.runtimeArtifactSha256 === runtimeArtifactSha256 &&
+      matrix.summary?.certified > 0 &&
+      matrix.providers.some(
+        (row) =>
+          row.id === item.id &&
+          row.status === "certified" &&
+          row.testedCommit === item.commit &&
+          row.testedModel === item.model &&
+          row.evidence === item.evidence &&
+          row.runtimeArtifactSha256 === item.runtimeArtifactSha256,
+      ),
   );
   const providerNetworkWaiverCurrent =
     allowProviderNetworkWaiver &&
@@ -168,6 +179,7 @@ export async function inspectRepository(
     providerMatrixCurrent:
       matrix.generatedAt === ledger.updatedAt &&
       matrix.targetVersion === normalizePythonVersion(pythonVersion) &&
+      matrix.targetRuntimeDigest === runtimeDigest &&
       matrix.providers.length >= 38,
     providerCertificationCurrent:
       deferProviderCertification || Boolean(currentCertification) || providerNetworkWaiverCurrent,

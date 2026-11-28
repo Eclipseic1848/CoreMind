@@ -51,6 +51,8 @@
 
 ## Unreleased
 
+- Upgraded all eight runtime dependencies to 1.7.0. Custom gateways can request an empty tool list when resuming tool history. Hidden shell output is excluded from context estimates, and truncated summaries keep supplementary characters intact.
+- Structured shell output uses the archived file's workspace-relative path and preserves the error code when saving fails.
 - Added bilingual dependency-upgrade spike templates covering exact identity, private seams, protocol and recovery compatibility, four-entry and dual-platform evidence, Provider boundaries, supply chain, rollback, and independent authorization gates.
 
 ## 0.3.2 - 2026-08-26

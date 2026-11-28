@@ -88,10 +88,15 @@ function safeJsonStringify(value: unknown): string {
     return "[unserializable]";
   }
 }
+/** 截断点落在 UTF-16 代理对中间时，整个字符留到截断点之后。 */
+export function sliceTextPrefix(text: string, maxUnits: number): string {
+  const end = Math.max(0, maxUnits);
+  return text.slice(0, (text.codePointAt(end - 1) ?? 0) > 0xffff ? end - 1 : end);
+}
 function truncateForSummary(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
-  const truncatedChars = text.length - maxChars;
-  return `${text.slice(0, maxChars)}\n\n[... ${truncatedChars} more characters truncated]`;
+  const prefix = sliceTextPrefix(text, maxChars);
+  return `${prefix}\n\n[... ${text.length - prefix.length} more characters truncated]`;
 }
 export function serializeConversation(messages: Message[]): string {
   const parts: string[] = [];

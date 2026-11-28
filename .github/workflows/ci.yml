@@ -74,6 +74,9 @@ jobs:
       - name: 核心依赖锁步
         run: npm run dependencies:check
 
+      - name: 模型与工具离线兼容性
+        run: node scripts/smoke-upstream.mjs
+
       - name: 候选基线合同
         run: node scripts/phase2-baseline.mjs
 
@@ -92,11 +95,14 @@ jobs:
       - name: 构建文档站
         run: npm run docs:build
 
+      - name: 构建 Python worker
+        run: npm run build:python-worker
+
       - name: 供应商矩阵一致性
         shell: bash
         run: |
           npm run providers:matrix
-          git diff --exit-code -- docs/providers
+          git diff --exit-code --stat -- docs/providers python/src/coremind/_worker/coremind-worker.mjs python/src/coremind/_worker/manifest.json
 
       - name: 核心确定性测试
         run: npm run test:engineering -- --maxWorkers=1
@@ -107,9 +113,6 @@ jobs:
           RACE_SEED_END: "5"
         # 工程门定向回放失败种子；候选稳定性矩阵仍执行完整 1000 种子。
         run: node node_modules/vitest/vitest.mjs run --project=coremind-runtime-race-matrix --maxWorkers=1
-
-      - name: 构建 Python worker
-        run: npm run build:python-worker
 
       - name: 安装 Python SDK
         run: python -m pip install --disable-pip-version-check ./python

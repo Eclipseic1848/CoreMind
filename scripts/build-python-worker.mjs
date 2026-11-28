@@ -15,6 +15,10 @@ const workerManifestOutput = path.join(workerDirectory, "manifest.json");
 const errorContractOutput = path.join(pythonPackage, "_error_contract.json");
 
 await mkdir(workerDirectory, { recursive: true });
+const runtimeLicense = await readFile(
+  path.join(repositoryRoot, "packages", "coremind-worker", "LICENSE.runtime"),
+  "utf8",
+);
 const workerBuild = await build({
   absWorkingDir: repositoryRoot,
   metafile: true,
@@ -28,7 +32,7 @@ const workerBuild = await build({
   sourcemap: false,
   legalComments: "inline",
   banner: {
-    js: 'import { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);',
+    js: `/*!\n${runtimeLicense.trimEnd()}\n*/\nimport { createRequire as __coremindCreateRequire } from "node:module"; const require = __coremindCreateRequire(import.meta.url);`,
   },
 });
 const dependencyReport = await buildDependencyReport(repositoryRoot);

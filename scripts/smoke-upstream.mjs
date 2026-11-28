@@ -23,7 +23,7 @@ const check = async (name, fn) => {
 };
 
 // 1. 模型层：createModels + faux provider
-await check("pi-ai createModels/fauxProvider", () => {
+await check("模型注册与离线响应", () => {
   const models = createModels();
   const faux = fauxProvider();
   models.setProvider(faux.provider);
@@ -33,7 +33,7 @@ await check("pi-ai createModels/fauxProvider", () => {
 });
 
 // 2. 工具工厂签名验证
-await check("coding-agent 工具工厂", () => {
+await check("内置工具工厂", () => {
   const read = createReadTool(process.cwd());
   const bash = createBashTool(process.cwd());
   for (const t of [read, bash]) {
@@ -83,6 +83,14 @@ await check("Agent 端到端（faux + 工具调用）", async () => {
   if (!text.includes("完成")) throw new Error(`未收到最终文本，实际: ${text}`);
   if (!events.includes("tool_execution_end"))
     throw new Error(`未触发工具执行，事件: ${events.join(",")}`);
+  const read = agent.state.messages.find((m) => m.role === "toolResult" && m.toolName === "read");
+  if (
+    read?.isError ||
+    !read?.content.some(
+      (block) => block.type === "text" && block.text.includes('"name": "coremind-monorepo"'),
+    )
+  )
+    throw new Error("读取工具未返回当前仓库的 package.json");
   results.push(`    - 最终文本: ${text.slice(0, 30)}...`);
   results.push(`    - 事件序列: ${events.join(" → ")}`);
 });
@@ -97,3 +105,4 @@ await check("envApiKeyAuth 环境变量读取", () => {
 console.log("=== 上游 API 冒烟结果 ===");
 console.log(results.join("\n"));
 console.log(failed ? "\n存在失败 ❌" : "\n全部通过 ✅");
+if (failed) process.exitCode = 1;

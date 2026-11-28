@@ -11,7 +11,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { createBashTool } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, vi } from "vitest";
 import {
   ArtifactStore,
   extractArtifactRecord,
@@ -21,6 +22,18 @@ import {
 
 function workspace(): string {
   return mkdtempSync(path.join(tmpdir(), "coremind-artifacts-"));
+}
+
+function bashWithOutput(cwd: string, output: string) {
+  const tool = createBashTool(cwd, {
+    operations: {
+      exec: async (_command, _cwd, { onData }) => {
+        onData(Buffer.from(output, "utf8"));
+        return { exitCode: 0 };
+      },
+    },
+  });
+  return wrapToolWithArtifactCapture(tool, new ArtifactStore({ cwd }));
 }
 
 describe("ArtifactStore", () => {
@@ -97,6 +110,7 @@ describe("ArtifactStore", () => {
         execute: async () => ({
           content: [{ type: "text", text: `truncated. Full output: ${source}` }],
           details: { fullOutputPath: source },
+          structuredContent: { output: "critical-tail", truncated: true, full_output_path: source },
         }),
       },
       store,
@@ -107,8 +121,43 @@ describe("ArtifactStore", () => {
     const text = result.content[0]?.type === "text" ? result.content[0].text : "";
     expect(record?.status).toBe("stored");
     expect(text).toContain("critical-tail");
-    expect(text).not.toContain(source);
+    expect(JSON.stringify(result)).not.toContain(path.basename(source));
+    expect(result.structuredContent).toMatchObject({ full_output_path: record?.relativePath });
     expect(existsSync(source)).toBe(false);
+  });
+
+  it("Bash 大输出被拦截后，结构化回执与进度均隐藏凭据", async () => {
+    const cwd = workspace();
+    const secret = `sk-${"z".repeat(32)}`;
+    const tool = bashWithOutput(cwd, `${"示例行\n".repeat(8000)}${secret}\n`);
+    const updates: unknown[] = [];
+    const result = await tool.execute("blocked", { command: "fixture" }, undefined, (update) =>
+      updates.push(update),
+    );
+    expect(extractArtifactRecord(result.details)?.status).toBe("blocked");
+    expect(result.structuredContent).toMatchObject({ exit_code: 0, truncated: true });
+    expect(JSON.stringify([result, updates])).not.toContain(secret);
+  });
+
+  it("Bash 完整输出保存失败时返回尾部和错误码，隐藏宿主临时路径", async () => {
+    const cwd = workspace();
+    const missingDir = path.join(cwd, "missing");
+    const tool = bashWithOutput(cwd, `${"a".repeat(1_100_000)}尾部\n`);
+    for (const name of ["TMPDIR", "TEMP", "TMP"]) vi.stubEnv(name, missingDir);
+    try {
+      const result = await tool.execute("save-failed", { command: "fixture" });
+      expect(result.content[0]).toMatchObject({ text: expect.stringContaining("尾部") });
+      expect(result.details).toMatchObject({ fullOutputError: "ENOENT" });
+      expect(result.structuredContent).toMatchObject({
+        output: expect.stringContaining("尾部"),
+        exit_code: 0,
+        truncated: true,
+        full_output_error: "ENOENT",
+      });
+      expect(JSON.stringify(result)).not.toContain("pi-bash-");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("拒绝读取工具伪造的任意完整输出路径", async () => {

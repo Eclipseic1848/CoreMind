@@ -20,7 +20,7 @@ function graph(version = "1.2.0"): NpmNode & { dependencies: Record<string, NpmN
 
 describe("真实消费者依赖身份", () => {
   it("按当前精确声明核对八个成员", () => {
-    const version = "1.5.0";
+    const version = "1.7.0";
     expect(assertNpmDependencyFamily(graph(version), version)).toMatchObject({
       packages: 8,
       version,

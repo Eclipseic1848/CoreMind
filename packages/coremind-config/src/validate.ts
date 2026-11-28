@@ -154,6 +154,12 @@ function validateCustomProviderFields(record: Record<string, unknown>): void {
   ) {
     details.push("provider.thinkingFormat：不支持的自定义 Provider 思考控制格式");
   }
+  if (
+    "requiresToolsWithToolHistory" in provider &&
+    typeof provider.requiresToolsWithToolHistory !== "boolean"
+  ) {
+    details.push("provider.requiresToolsWithToolHistory：必须为布尔值");
+  }
   if (details.length > 0) {
     throw new ConfigValidationError(`配置校验失败：${details.join("；")}`, details);
   }

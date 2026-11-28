@@ -117,14 +117,18 @@ class WorkerBundleTest(unittest.TestCase):
                 self.assertIsNone(CHECKER.WORKSTATION_PATH.search(value))
 
     def test_complete_license_and_regular_network_client_pass(self) -> None:
-        bundle = CHECKER.MIT_LICENSE_NOTICE + "\n// node_modules/provider-client/node-http-proxy.js"
+        bundle = "\n".join([CHECKER.MIT_LICENSE_NOTICE, CHECKER.RUNTIME_LICENSE,
+                            "// node_modules/provider-client/node-http-proxy.js"])
         self.assertEqual(CHECKER.check_worker_bundle(bundle), [])
 
     def test_incomplete_license_is_rejected(self) -> None:
-        for notice in ("", CHECKER.MIT_LICENSE_NOTICE.replace("Copyright (c) 2025 Mario Zechner", ""),
-                       CHECKER.MIT_LICENSE_NOTICE.replace("SOFTWARE.", "")):
-            with self.subTest(notice=notice):
-                self.assertTrue(any("版权许可" in issue for issue in CHECKER.check_worker_bundle(notice)))
+        notices = (CHECKER.MIT_LICENSE_NOTICE, CHECKER.RUNTIME_LICENSE)
+        for notice, other in (notices, notices[::-1]):
+            attribution = notice.splitlines()[2]
+            for incomplete in ("", notice.replace(attribution, ""), notice.replace("SOFTWARE.", "")):
+                with self.subTest(attribution=attribution, incomplete=incomplete):
+                    issues = CHECKER.check_worker_bundle(other + "\n" + incomplete)
+                    self.assertEqual(issues, [f"内置 Worker 缺少完整版权许可：{attribution}"])
 
     def test_removed_backend_modules_are_rejected(self) -> None:
         for module in ("node_modules/node-forge/lib/index.js",

@@ -5,7 +5,7 @@ import {
   buildProviderRuntime,
   listSupportedProviders,
 } from "../packages/coremind-runtime/dist/provider.js";
-import { buildProviderMatrix } from "./provider-matrix-lib.mjs";
+import { buildProviderMatrix, readRuntimeDigest } from "./provider-matrix-lib.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDirectory = path.join(repositoryRoot, "docs", "providers");
@@ -13,6 +13,9 @@ const certificationsPath = path.join(outputDirectory, "certifications.json");
 
 const ledger = JSON.parse(await readFile(certificationsPath, "utf8"));
 const rootManifest = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));
+const targetRuntimeDigest = await readRuntimeDigest(repositoryRoot);
+if (!targetRuntimeDigest)
+  throw new Error("缺少打包的 Runtime，请先运行 npm run build:python-worker");
 const providers = [];
 for (const id of listSupportedProviders()) {
   // 这里只读取锁定的静态模型目录；显式测试引用避免目录生成器依赖真实凭据。
@@ -34,6 +37,7 @@ const matrix = buildProviderMatrix({
   certifications: ledger.certifications,
   generatedAt: ledger.updatedAt,
   targetVersion: rootManifest.version,
+  targetRuntimeDigest,
 });
 
 await mkdir(outputDirectory, { recursive: true });
@@ -59,7 +63,7 @@ function renderChinese(data) {
       item.status === "certified"
         ? "已认证"
         : previous
-          ? `可配置，${data.targetVersion} 未认证（保留旧版证据）`
+          ? "可配置，当前构建未认证（保留已测制品证据）"
           : item.certificationGap?.length
             ? `可配置，未完成当前认证（缺 ${item.certificationGap.join("、")}）`
             : "可配置，未认证";
@@ -67,9 +71,9 @@ function renderChinese(data) {
   });
   return `# Provider 支持与认证矩阵
 
-> 表格基于 ${data.generatedAt} 的运行时静态目录和人工证据台账生成，当前对应目标版本 \`${data.targetVersion}\`。不应手工修改表格。
+> 模型来自当前源码锁定的目录。认证依据 ${data.generatedAt} 的证据台账，须与目标版本 \`${data.targetVersion}\` 和打包 Runtime 的 SHA-256 一致。本页由脚本生成。
 
-CoreMind 当前有 **${data.providers.filter((item) => !item.aliasOf).length}** 个内置聊天 Provider，含兼容别名共 **${data.summary.supported}** 个可配置入口。其中 **${data.summary.certified}** 个入口具有完整真实调用证据，**${data.summary.unverified}** 个仅代表运行时目录可识别。**可配置不等于通过真实认证，别名不重复计为独立提供商。**
+CoreMind 当前有 **${data.providers.filter((item) => !item.aliasOf).length}** 个内置聊天 Provider，含兼容别名共 **${data.summary.supported}** 个可配置入口。其中 **${data.summary.certified}** 个入口具有匹配当前构建的完整真实调用证据，**${data.summary.unverified}** 个入口待认证。
 
 ## 状态定义
 
@@ -100,7 +104,7 @@ function renderEnglish(data) {
       item.status === "certified"
         ? "Certified"
         : previous
-          ? `Configurable, ${data.targetVersion} unverified (older evidence retained)`
+          ? "Configurable, current build unverified (tested artifact evidence retained)"
           : item.certificationGap?.length
             ? `Configurable, incomplete current certification (missing ${item.certificationGap.join(", ")})`
             : "Configurable, unverified";
@@ -108,9 +112,9 @@ function renderEnglish(data) {
   });
   return `# Provider Support and Certification Matrix
 
-> This table was generated from the ${data.generatedAt} static runtime catalog and human-maintained evidence ledger and corresponds to target version \`${data.targetVersion}\`. Do not edit the table manually.
+> Models come from the catalog pinned by this source tree. Certification records in the ${data.generatedAt} ledger must match target version \`${data.targetVersion}\` and the SHA-256 of the bundled runtime. This page is generated.
 
-CoreMind has **${data.providers.filter((item) => !item.aliasOf).length}** built-in chat providers and **${data.summary.supported}** configurable entries including compatibility aliases. Complete real-call evidence exists for **${data.summary.certified}** of these entries, while **${data.summary.unverified}** are catalog-only. **Configurable does not mean certified; aliases are not independent providers.**
+CoreMind has **${data.providers.filter((item) => !item.aliasOf).length}** built-in chat providers and **${data.summary.supported}** configurable entries including compatibility aliases. **${data.summary.certified}** entries have complete real-call evidence for the current build. **${data.summary.unverified}** entries await certification.
 
 ## Status definitions
 
