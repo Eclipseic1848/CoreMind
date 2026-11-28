@@ -104,6 +104,30 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
   const provider = hadCoreMindConfig ? undefined : await selectProvider(parsed);
   if (!hadCoreMindConfig && !provider) return 1;
 
+  const templateYaml = path.join(template.dir, "coremind.yaml");
+  let generatedYaml: string | undefined;
+  if (provider) {
+    try {
+      const yaml = await readFile(templateYaml, "utf8");
+      generatedYaml = applyProviderSelection(
+        yaml
+          .replace(/^name:\s*.+$/m, () => `name: ${JSON.stringify(projectName)}`)
+          .replace(
+            /^description:\s*.+$/m,
+            () =>
+              `description: ${JSON.stringify(`${projectName}（基于 ${template.id} 模板创建）`)}`,
+          ),
+        provider,
+      );
+      parseAndValidate(parseConfigText(generatedYaml));
+    } catch (error) {
+      console.error(
+        errorLine(`无法生成配置：${error instanceof Error ? error.message : String(error)}`),
+      );
+      return 1;
+    }
+  }
+
   // 目标目录（新项目）或已有工程目录
   try {
     await mkdir(target, { recursive: true });
@@ -116,33 +140,12 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
     return 1;
   }
 
-  // 复制模板内容
-  await cp(template.dir, target, { recursive: true, force: false });
-
-  // 替换 coremind.yaml 中的 name / description 字段
-  const yamlPath = path.join(target, "coremind.yaml");
-  if (!hadCoreMindConfig) {
-    try {
-      const yaml = await readFile(yamlPath, "utf8");
-      const updated = applyProviderSelection(
-        yaml
-          .replace(/^name:\s*.+$/m, () => `name: ${JSON.stringify(projectName)}`)
-          .replace(
-            /^description:\s*.+$/m,
-            () =>
-              `description: ${JSON.stringify(`${projectName}（基于 ${template.id} 模板创建）`)}`,
-          ),
-        provider!,
-      );
-      parseAndValidate(parseConfigText(updated));
-      await writeFile(yamlPath, updated, "utf8");
-    } catch (error) {
-      console.error(
-        errorLine(`无法生成配置：${error instanceof Error ? error.message : String(error)}`),
-      );
-      return 1;
-    }
-  }
+  // 配置最后单独写入，避免中途失败时把模板默认配置留给下次创建。
+  await cp(template.dir, target, {
+    recursive: true,
+    force: false,
+    filter: (source) => source !== templateYaml,
+  });
 
   if (provider) {
     const envExamplePath = path.join(target, ".env.example");
@@ -162,6 +165,12 @@ export async function cmdCreate(parsed: ParsedArgs, positionals: string[]): Prom
     projectName,
     language,
   });
+  if (generatedYaml !== undefined) {
+    await writeFile(path.join(target, "coremind.yaml"), generatedYaml, {
+      encoding: "utf8",
+      flag: "wx",
+    });
+  }
 
   console.log(green(`\n✓ 已创建项目：${target}`));
   console.log(dim(`  模板：${template.id}（${template.description}）`));
@@ -286,11 +295,11 @@ async function selectProvider(parsed: ParsedArgs): Promise<ProviderSelection | u
 function applyProviderSelection(yaml: string, selection: ProviderSelection): string {
   const eol = yaml.includes("\r\n") ? "\r\n" : "\n";
   const lines = ["provider:", `  id: ${selection.id}`];
-  if (selection.model) lines.push(`  model: ${selection.model}`);
+  if (selection.model) lines.push(`  model: ${JSON.stringify(selection.model)}`);
   lines.push(`  apiKeyEnv: ${selection.apiKeyEnv}`);
   return yaml.replace(
     /^provider:\r?\n(?: {2}.+\r?\n)+(?=\r?\nagents:)/m,
-    `${lines.join(eol)}${eol}`,
+    () => `${lines.join(eol)}${eol}`,
   );
 }
 
