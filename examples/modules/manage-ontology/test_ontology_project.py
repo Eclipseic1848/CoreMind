@@ -82,6 +82,60 @@ class OntologyProjectTest(unittest.TestCase):
         )["status"], "conforms")
         self.assertEqual(equipment.perform_action("restore-service", "urn:equipment:reader", "eq-1")["state"], "online")
 
+    def test_record_ignores_unrelated_draft_but_graph_validation_still_reports_it(self):
+        with TemporaryDirectory() as temp:
+            model = Path(temp) / "model"
+            shutil.copytree(MODELS / "document-review", model)
+            with (model / "data.ttl").open("a", encoding="utf-8") as file:
+                file.write("\ndoc:pending a ex:Document .\n")
+            project = OntologyProject(model)
+            result = project.validate_record("catalog", RECORD)
+            self.assertEqual((result["status"], result["resultCount"], result["violations"]),
+                             ("conforms", 0, []))
+            whole = project.graph.validate()
+            self.assertEqual(whole["status"], "violates")
+            self.assertEqual({v["focusNode"] for v in whole["violations"]}, {"urn:doc:pending"})
+            self.assertEqual(project.inspect_action("review", "urn:doc:draft")["reason"],
+                             "ontology_validation_failed")
+
+    def test_record_replaces_stored_subject_and_validates_referenced_data(self):
+        with TemporaryDirectory() as temp:
+            model = Path(temp) / "model"
+            shutil.copytree(MODELS / "document-review", model)
+            # 复核人不仅要存在，其关联对象也必须满足形状约束。
+            with (model / "shapes.ttl").open("a", encoding="utf-8") as file:
+                file.write("""
+ex:DocumentReviewer sh:node [
+    sh:property [ sh:path <http://www.w3.org/2000/01/rdf-schema#label> ; sh:minCount 1 ]
+] .
+""")
+            with (model / "data.ttl").open("a", encoding="utf-8") as file:
+                file.write("\nperson:unnamed a ex:Person .\n")
+            project = OntologyProject(model)
+            stored = project.describe("urn:doc:guide")
+            missing = project.validate_record("catalog", {"externalId": "A1"})
+            self.assertEqual(missing["status"], "violates")
+            self.assertEqual({v["path"] for v in missing["violations"]},
+                             {"urn:review:state", "urn:review:reviewedBy"})
+            changed = {**RECORD, "externalId": "A1", "状态": "D"}
+            self.assertEqual(project.validate_record("catalog", changed)["status"], "conforms")
+            invalid = project.validate_record("catalog", {**changed, "owner": "urn:person:unnamed"})
+            self.assertEqual(invalid["status"], "violates")
+            self.assertEqual({v["focusNode"] for v in invalid["violations"]}, {"urn:doc:guide"})
+            self.assertEqual(project.describe("urn:doc:guide"), stored)
+
+    def test_record_subject_can_also_name_a_class_in_the_model(self):
+        with TemporaryDirectory() as temp:
+            model = Path(temp) / "model"
+            shutil.copytree(MODELS / "document-review", model)
+            with (model / "model.ttl").open("a", encoding="utf-8") as file:
+                file.write("\n<urn:doc:incoming> a owl:Class ; rdfs:subClassOf ex:Person .\n")
+            with (model / "data.ttl").open("a", encoding="utf-8") as file:
+                file.write("\nperson:wang a <urn:doc:incoming> .\n")
+            project = OntologyProject(model)
+            self.assertEqual(project.validate_record("catalog", {**RECORD, "owner": "urn:person:wang"})["status"],
+                             "conforms")
+
     def test_guard_order_effect_readback_and_retry(self):
         executor = Mock(side_effect=demo_transition)
         project = OntologyProject(MODELS / "document-review", executor)
